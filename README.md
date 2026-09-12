@@ -30,6 +30,13 @@ npm run build
 | **Στήλες ανά πλάτος**: `repeat(auto-fill, minmax(220px, 1fr))` — 2 στο κινητό, 3–5 ανάλογα με τον διαθέσιμο χώρο | `ProductGrid`, `ProductRail`, `DealsRail` |
 | **Κανένας εσωτερικός scroller**: φίλτρα με «+ N ακόμη» αντί για scroll, chips/breadcrumbs/thumbs/side nav σε wrap, deals σε grid, buy box χωρίς max-height, πίνακες σύγκρισης → stacked layout σε στενά πλάτη (`CompareStacked`) | παντού |
 
+### v4.2–4.3 (branch v2, τοπικά) — Opener κατηγορίας, chips «Ρώτα τον Άρη», flicker-free reveals, καταστήματα από IP, WebP cutouts
+
+- `CategoryOpener` (αριθμός-υδατογράφημα, live πλήθος, 3 cutouts, chips), `AskAris` (event `eu:ask` → AdvisorOrb με την ερώτηση), ελεύθερες ερωτήσεις στον Άρη μέσω `/api/advisor`.
+- `Reveal`/`AutoReveal`: layout effect, ό,τι είναι ήδη ορατό δεν κρύβεται (τέλος στο flicker)· `CinematicHero`: πρώτο slide στατικό, χωρίς 3D.
+- `/katastimata` «Κοντά σου» από IP, `/logariasmos/pliromes` κάρτες, `/logariasmos/rantevou` chip ημερών, Άρης σε 404/Snap/PDP.
+- Cutouts σε WebP (`scripts/cutouts-manifest.mjs` → `.webp`), `HeroSlide.video` για ambient loop.
+
 ### v4.1 — Ζωντάνια παντού, «Άρης», Snap & Find, checkout wallets, λογαριασμός συσκευών
 
 - `AutoReveal` (κάθε section κάθε σελίδας), tactile buttons, cutouts παντού μέσω `ProductImage`, `ProductGrid` stagger.

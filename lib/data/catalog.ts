@@ -88,6 +88,7 @@ const heroSlides: HeroSlide[] = [
     alt: "Δροσερό σαλόνι με κλιματιστικό inverter",
     cutout: "/img/cutouts/r-152092-0.webp",
     productHref: "/proion/inventor-veri-vero-18wfi-klimatistiko",
+    video: "/video/hero-clima.mp4",
   },
   {
     id: "back-to-school",

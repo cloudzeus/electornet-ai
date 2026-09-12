@@ -55,7 +55,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <CategoryOpener kicker={l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} questions={questions} />
 
       {!l2 && (
-        <div className="eu-canvas eu-gutter pb-6">
+        <div className="eu-canvas eu-gutter pt-6 pb-6">
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
             {l1.children.map((ch) => (
               <li key={ch.slug}>
@@ -69,8 +69,8 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       )}
 
       {l2 && GUIDE_FOR[l2.slug] && (
-        <div className="eu-canvas eu-gutter pb-5">
-          <Link href={`/odigos-agoras/${GUIDE_FOR[l2.slug].kind}`} className="flex flex-wrap items-center gap-3 rounded-2xl bg-eu-navy text-white px-5 py-4 hover:bg-eu-blue transition-colors">
+        <div className="eu-canvas eu-gutter pt-6 pb-5">
+          <Link href={`/odigos-agoras/${GUIDE_FOR[l2.slug].kind}`} className="flex flex-wrap items-center gap-3 rounded-2xl bg-eu-blue text-white px-5 py-4 shadow-[var(--shadow-raised)] hover:bg-eu-blue-dark transition-colors">
             <Sparkles className="size-6 text-eu-yellow shrink-0" aria-hidden />
             <span className="flex-1 min-w-[16em] font-bold text-[length:var(--fs-16)]">{GUIDE_FOR[l2.slug].t}</span>
             <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center">Έξυπνος οδηγός αγοράς →</span>

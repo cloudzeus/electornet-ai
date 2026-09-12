@@ -10,6 +10,7 @@ import { Stepper } from "./Stepper";
 import { ProductCard } from "@/components/commerce/ProductCard";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { CartAdvisorTip } from "./CartAdvisorTip";
 
 /**
  * Cart. One card per line with a large image, availability with date,
@@ -197,6 +198,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             ))}
           </div>
 
+          <CartAdvisorTip lines={lines} subtotal={subtotal} freeShippingFrom={freeShippingFrom} />
           <Link href="/proionta" className="inline-flex items-center gap-1 font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-10">
             ← Συνέχισε τις αγορές
           </Link>
