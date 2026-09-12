@@ -4,13 +4,15 @@ import { ZoneBadge } from "@/components/site/ZoneBadge";
 import { SectionHead } from "./SectionHead";
 import { CountUp } from "@/components/motion/CountUp";
 import { Spotlight } from "@/components/motion/Spotlight";
+import { getSettings } from "@/lib/cms/settings";
 
 /**
  * Zone 9 — twelve services, each with a price, as a numbered list on
  * deep blue. The colour stops the scroll; the absence of images puts the
  * weight on *what you gain and what it costs*.
  */
-export function ServicesBand({ services, zoneNo }: { services: Service[]; zoneNo?: number }) {
+export async function ServicesBand({ services, zoneNo }: { services: Service[]; zoneNo?: number }) {
+  const { site } = await getSettings();
   return (
     <section className="relative bg-eu-navy text-white eu-container overflow-hidden isolate" aria-labelledby="services-title">
       <span className="eu-ambient" aria-hidden />
@@ -18,12 +20,7 @@ export function ServicesBand({ services, zoneNo }: { services: Service[]; zoneNo
       <ZoneBadge no={zoneNo} />
       <div className="relative eu-canvas eu-gutter pt-8 @lg:pt-[38px] pb-8">
         <dl className="m-0 grid grid-cols-2 @lg:grid-cols-4 gap-x-6 gap-y-5 mb-8 @lg:mb-10 border-b border-eu-navy-line pb-6 @lg:pb-8">
-          {[
-            { v: 350, s: "", l: "καταστήματα σε όλη την Ελλάδα" },
-            { v: 13, s: "", l: "υπηρεσίες με τιμή, πριν και μετά" },
-            { v: 2, s: " ώρες", l: "παραλαβή από το κοντινό κατάστημα" },
-            { v: 24, s: " δόσεις", l: "χωρίς κάρτα, με έγκριση online" },
-          ].map((x) => (
+          {site.facts.map((f) => ({ v: f.value, s: f.suffix, l: f.label })).map((x) => (
             <div key={x.l} data-reveal className="min-w-0">
               <dt className="m-0 font-heading font-extrabold text-eu-yellow text-[length:var(--fs-50)] @lg:text-[length:var(--fs-66)] leading-none tracking-[-0.04em]">
                 <CountUp value={x.v} suffix={x.s} />

@@ -2,13 +2,15 @@ import Image from "next/image";
 import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
 import type { Store } from "@/lib/data/types";
 import { ZoneBadge } from "@/components/site/ZoneBadge";
+import { getSettings } from "@/lib/cms/settings";
 
 /**
  * @dynamic Zone 10 — the network. The nearest store is picked on the server
  * from the request IP (city level, no prompt); GPS refinement only after the
  * user asks (GDPR). Real distance, «open now», 350 store pages behind it.
  */
-export function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallback" }: { store: Store; image: string; zoneNo?: number; geoCity?: string; geoSource?: "ip" | "fallback" }) {
+export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallback" }: { store: Store; image: string; zoneNo?: number; geoCity?: string; geoSource?: "ip" | "fallback" }) {
+  const { site } = await getSettings();
   const near = { id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng };
   return (
     <section className="relative bg-eu-blue text-white eu-container" aria-labelledby="stores-title">
@@ -17,7 +19,7 @@ export function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallba
         <div className="eu-gutter py-8 @lg:py-9">
           <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-3">Το δίκτυο</div>
           <h2 id="stores-title" className="m-0 font-heading font-bold text-[length:var(--fs-32)] leading-[1.08] tracking-[-0.022em] mb-3">
-            350 καταστήματα.
+            {site.brand.storesCount} καταστήματα.
             <br />
             Ένα είναι δίπλα σου.
           </h2>

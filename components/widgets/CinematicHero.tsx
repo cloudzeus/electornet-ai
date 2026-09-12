@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,7 +24,9 @@ import { Spotlight } from "@/components/motion/Spotlight";
  * sits behind the text at the right, smaller, so the title never wraps
  * around it. Every text ≥ 14px.
  */
-export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide[]; intervalMs?: number }) {
+export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: HeroSlide[]; intervalMs?: number }) {
+  const { motion } = useSettings();
+  const intervalMs = intervalProp ?? motion.hero.intervalMs;
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const { reducedMotion, saveData } = useDevice();
@@ -67,7 +70,7 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
     const product = el.querySelector("[data-product]");
     const backdrop = el.querySelector("[data-backdrop]");
     const tl = gsap.timeline();
-    tl.fromTo(words, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", stagger: 0.05, clearProps: "transform" }, 0);
+    tl.fromTo(words, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", stagger: motion.hero.wordStagger, clearProps: "transform" }, 0);
     tl.fromTo(copy, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out", stagger: 0.06, clearProps: "transform" }, 0.2);
     if (product) tl.fromTo(product, { opacity: 0, x: 50 }, { opacity: 1, x: 0, duration: 0.8, ease: "expo.out", clearProps: "transform" }, 0.1);
     if (backdrop) tl.fromTo(backdrop, { opacity: 0.5 }, { opacity: 1, duration: 0.9, ease: "power2.out" }, 0);
@@ -111,15 +114,15 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
       {/* backdrop photo, dimmed, for depth */}
       <div data-backdrop className="absolute inset-0" key={`bd-${s.id}`}>
         <Image src={s.image} alt="" fill priority={i === 0} sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover opacity-25 scale-105" unoptimized={s.image.startsWith("http")} />
-        {s.video && !reducedMotion && !saveData && (
+        {s.video && motion.hero.video && !reducedMotion && !saveData && (
           // Ambient loop, muted and decorative; the photo underneath is the poster and the fallback.
           <video src={s.video} poster={s.image} autoPlay muted loop playsInline preload="metadata" aria-hidden className="absolute inset-0 size-full object-cover opacity-35" />
         )}
         <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" />
       </div>
-      <span className="eu-ambient" aria-hidden />
-      <Spotlight />
-      <StarLight size={64} className="right-[12%] top-[10%] hidden @lg:block" />
+      {motion.hero.ambient && <span className="eu-ambient" aria-hidden />}
+      {motion.hero.spotlight && <Spotlight />}
+      {motion.hero.rays && <StarLight size={64} className="right-[12%] top-[10%] hidden @lg:block" />}
 
       <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] items-center">
         {/* text */}

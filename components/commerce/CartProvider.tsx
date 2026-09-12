@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/data/types";
 
@@ -60,6 +61,7 @@ interface Persisted {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const settings = useSettings();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compare, setCompare] = useState<string[]>([]);
@@ -130,7 +132,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       count,
       subtotal,
       addonsTotal,
-      freeShippingFrom: 100,
+      freeShippingFrom: settings.site.commerce.freeShippingFrom,
       add,
       remove,
       setQty,

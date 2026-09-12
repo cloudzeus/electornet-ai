@@ -30,6 +30,11 @@ npm run build
 | **Στήλες ανά πλάτος**: `repeat(auto-fill, minmax(220px, 1fr))` — 2 στο κινητό, 3–5 ανάλογα με τον διαθέσιμο χώρο | `ProductGrid`, `ProductRail`, `DealsRail` |
 | **Κανένας εσωτερικός scroller**: φίλτρα με «+ N ακόμη» αντί για scroll, chips/breadcrumbs/thumbs/side nav σε wrap, deals σε grid, buy box χωρίς max-height, πίνακες σύγκρισης → stacked layout σε στενά πλάτη (`CompareStacked`) | παντού |
 
+### v4.6 (branch v2, τοπικά) — Settings layer & component registry
+
+- `lib/cms/settings.ts`: `site` / `motion` / `advisor` / `stickers` singletons + `SettingsProvider`/`useSettings()`. Motion primitives (Reveal, AutoReveal, Tilt, CountUp, hero, campaigns, services tile), ο Άρης (κείμενα, ερωτήσεις ανά context, exit-intent, cart tips, greeting), header/footer/announcement/facts, kWh, όριο μεταφορικών διαβάζουν από εκεί.
+- `docs/component-registry.md`: 128 components με ρόλο, props, συνδέσεις, πεδία CMS, κίνηση, κατάσταση.
+
 ### v4.5 (branch v2, τοπικά) — Brand stores
 
 - Σχήμα CMS `lib/cms/brand-store.ts` (θέμα, hero, blocks: new-arrivals / series / offers / story / tech / support / video, schedule, validator), renderer `lib/cms/brand-render.tsx`, components `components/brand/*`, δείγματα LG / Samsung / Apple στο `lib/data/fixtures/brandStores.ts`, `/brands/{slug}` (λίστα με `?all=1`), tiles στο `/brands`. Τεκμηρίωση: `docs/brand-store-schema.md`.

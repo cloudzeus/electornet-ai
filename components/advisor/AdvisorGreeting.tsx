@@ -1,5 +1,7 @@
 "use client";
 
+import { tpl } from "@/lib/cms/settings";
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
@@ -16,8 +18,9 @@ const KEY = "euronics.arisGreeted.v1";
 export function AdvisorGreeting() {
   const [show, setShow] = useState(false);
   const [name, setName] = useState<string | null>(null);
+  const { advisor } = useSettings();
   useEffect(() => {
-    if (location.pathname.startsWith("/checkout")) return;
+    if (!advisor.greeting.enabled || location.pathname.startsWith("/checkout")) return;
     try {
       if (sessionStorage.getItem(KEY) === "1") return;
       const raw = localStorage.getItem("euronics.session");
@@ -28,23 +31,24 @@ export function AdvisorGreeting() {
       try {
         sessionStorage.setItem(KEY, "1");
       } catch {}
-    }, 2000);
-    const off = setTimeout(() => setShow(false), 10000);
+    }, advisor.greeting.delayMs);
+    const off = setTimeout(() => setShow(false), advisor.greeting.hideAfterMs);
     return () => {
       clearTimeout(t);
       clearTimeout(off);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (!show) return null;
   return (
     <div className="fixed z-[59] right-4 bottom-[7.2rem] @md:right-6 @md:bottom-24 max-w-[min(320px,calc(100vw-2rem))] animate-[eu-sheet_.4s_var(--eu-ease-out)]" role="status" aria-live="polite">
       <div className="relative bg-white text-eu-ink rounded-2xl rounded-br-md shadow-[var(--shadow-overlay)] border border-eu-line p-3 pr-9 flex items-start gap-3">
         <span className="relative size-11 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/60">
-          <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="44px" className="object-cover scale-[1.15] translate-y-[6%]" />
+          <Image src={advisor.avatarHead} alt="" fill sizes="44px" className="object-cover scale-[1.15] translate-y-[6%]" />
         </span>
         <div className="text-[length:var(--fs-14)] leading-snug">
-          <div className="font-extrabold text-eu-navy">{name ? `Καλώς ήρθες πάλι, ${name}!` : "Γεια! Είμαι ο Άρης."}</div>
-          <div className="text-eu-ink-3">Αν ψάχνεις κάτι, γράψ᾽ το μου με απλά λόγια ή πάτα με.</div>
+          <div className="font-extrabold text-eu-navy">{name ? tpl(advisor.greeting.titleReturning, { name }) : advisor.greeting.title}</div>
+          <div className="text-eu-ink-3">{advisor.greeting.body}</div>
         </div>
         <button type="button" onClick={() => setShow(false)} aria-label="Κλείσιμο" className="absolute top-2 right-2 size-7 rounded-full inline-flex items-center justify-center text-eu-muted hover:bg-eu-surface">
           <X className="size-4" aria-hidden />

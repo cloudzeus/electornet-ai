@@ -1,12 +1,12 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useState } from "react";
 import { Zap } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { CountUp } from "@/components/motion/CountUp";
 import { estimateKwh, OLD_APPLIANCE_KWH } from "@/lib/energy/estimate";
 
-const KWH_PRICE = 0.19;
 
 /**
  * @dynamic Energy Savings Engine: what the appliance costs to run per year
@@ -17,6 +17,7 @@ const KWH_PRICE = 0.19;
  * (marked «εκτίμηση»). kWh price from settings (admin).
  */
 export function EnergyCost({ product: p }: { product: Product }) {
+  const KWH_PRICE = useSettings().site.commerce.kwhPrice;
   const est = estimateKwh(p);
   const old = OLD_APPLIANCE_KWH[p.subcategory] ?? OLD_APPLIANCE_KWH[p.category];
   const [years, setYears] = useState(5);

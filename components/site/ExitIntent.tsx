@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -9,7 +10,6 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { priceLong } from "@/lib/format";
 
 const KEY = "euronics.exitIntent.v1";
-const REASONS = ["Η τιμή", "Θέλω να το σκεφτώ", "Δεν βρήκα αυτό που ήθελα", "Τα μεταφορικά / παράδοση", "Απλώς κοιτούσα"];
 
 /**
  * @dynamic Exit intent: when the pointer leaves towards the browser chrome
@@ -28,6 +28,8 @@ export function ExitIntent() {
   const [email, setEmail] = useState("");
   const [session, setSession] = useState<{ name: string; email: string } | null>(null);
   const [sent, setSent] = useState(false);
+  const { advisor } = useSettings();
+  const REASONS = advisor.exitIntent.reasons.map((r) => r.label);
 
   useEffect(() => {
     try {
@@ -38,7 +40,7 @@ export function ExitIntent() {
   }, [open]);
 
   useEffect(() => {
-    if (!hydrated || lines.length === 0 || path.startsWith("/checkout")) return;
+    if (!hydrated || !advisor.exitIntent.enabled || lines.length === 0 || path.startsWith("/checkout")) return;
     let shown = false;
     try {
       shown = sessionStorage.getItem(KEY) === "1";
@@ -60,13 +62,13 @@ export function ExitIntent() {
     const t = setTimeout(() => {
       document.addEventListener("mouseout", onLeave);
       document.addEventListener("visibilitychange", onVis);
-    }, 8000);
+    }, advisor.exitIntent.delayMs);
     return () => {
       clearTimeout(t);
       document.removeEventListener("mouseout", onLeave);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [hydrated, lines.length, path]);
+  }, [hydrated, lines.length, path, advisor.exitIntent.enabled, advisor.exitIntent.delayMs]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,16 +85,16 @@ export function ExitIntent() {
       <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(640px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-cols-1 @md:grid-cols-[200px_minmax(0,1fr)] animate-[eu-sheet_.35s_var(--eu-ease-out)]">
         <div className="relative bg-eu-navy text-white p-5 overflow-hidden isolate hidden @md:flex items-end justify-center">
           <span className="eu-ambient" aria-hidden />
-          <Image src="/img/advisor/mascot.png" alt="" width={140} height={295} className="relative eu-float drop-shadow-[0_18px_24px_rgba(0,0,0,.4)]" />
+          <Image src={advisor.avatar} alt="" width={140} height={295} className="relative eu-float drop-shadow-[0_18px_24px_rgba(0,0,0,.4)]" />
         </div>
         <div className="p-5 @md:p-6 grid gap-4 content-start">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-                <Sparkles className="size-3.5" aria-hidden /> Ο Άρης ρωτάει
+                <Sparkles className="size-3.5" aria-hidden /> Ο {advisor.name} ρωτάει
               </div>
               <h2 id="exit-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">
-                Πριν φύγεις… τι σε κράτησε;
+                {advisor.exitIntent.title}
               </h2>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Κλείσιμο" className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
@@ -108,7 +110,7 @@ export function ExitIntent() {
           </div>
           {reason && (
             <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">
-              {reason === "Η τιμή" ? "Το καταλαβαίνω. Έχεις έως 24 άτοκες δόσεις ή δόσεις χωρίς κάρτα, και αν βρεις φθηνότερα σε 14 ημέρες, το επιστρέφεις." : reason === "Τα μεταφορικά / παράδοση" ? "Δωρεάν μεταφορά εντός περιφέρειας και παραλαβή σε 2 ώρες από 350 καταστήματα." : reason === "Δεν βρήκα αυτό που ήθελα" ? "Πες μου τι ψάχνεις στην αναζήτηση με απλά λόγια, ή ζήτα να σε πάρει το κατάστημα." : "Κανένα πρόβλημα. Σου κρατάω το καλάθι σε ένα email για όταν είσαι έτοιμος."}
+              {advisor.exitIntent.reasons.find((r) => r.label === reason)?.reply}
             </p>
           )}
           <div className="rounded-2xl border border-eu-line p-3 grid gap-2">
@@ -150,7 +152,7 @@ export function ExitIntent() {
                   </button>
                 </div>
               )}
-              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Ένα email με το καλάθι σου, τίποτα άλλο. Χωρίς εγγραφή σε newsletter.</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{advisor.exitIntent.emailNote}</p>
             </form>
           )}
         </div>

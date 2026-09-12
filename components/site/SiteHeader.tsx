@@ -7,6 +7,7 @@ import { MobileMenu } from "./MobileMenu";
 import { ZoneBadge } from "./ZoneBadge";
 import { navCategories } from "@/lib/data/nav";
 import { MySpaceButton } from "@/components/space/MySpaceSheet";
+import { getSettings } from "@/lib/cms/settings";
 
 /**
  * Zone 2 — dark brand-blue header. The yellow search button is the
@@ -17,7 +18,8 @@ import { MySpaceButton } from "@/components/space/MySpaceSheet";
  * search box drops to a second full-width line (still visible, never
  * hidden behind an icon).
  */
-export function SiteHeader() {
+export async function SiteHeader() {
+  const { site } = await getSettings();
   return (
     <header className="relative bg-eu-navy text-white eu-container">
       <ZoneBadge no={2} />
@@ -35,13 +37,13 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-1.5 @md:gap-3 @lg:gap-[18px] justify-end">
           <a
-            href="tel:2104835143"
+            href={`tel:${site.contact.phone}`}
             className="hidden @7xl:flex flex-col items-center text-white font-semibold text-[length:var(--fs-13-5)] leading-tight hover:text-eu-yellow"
           >
             <span className="flex items-center gap-1">
-              <Phone className="size-3.5" aria-hidden /> 210 483 5143
+              <Phone className="size-3.5" aria-hidden /> {site.contact.phoneDisplay}
             </span>
-            <span className="text-eu-on-dark-2 font-normal mt-0.5">Τηλ. παραγγελίες</span>
+            <span className="text-eu-on-dark-2 font-normal mt-0.5">{site.contact.phoneLabel}</span>
           </a>
           <span className="hidden @7xl:block w-px h-[26px] bg-eu-navy-line" aria-hidden />
           <MySpaceButton className="hidden @6xl:flex" />

@@ -1,5 +1,7 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
+import { tpl } from "@/lib/cms/settings";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,6 +32,7 @@ interface Msg {
 export function AdvisorOrb() {
   const { product } = useAdvisor();
   const { space, setOpen: openSpace } = useMySpace();
+  const { advisor } = useSettings();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
@@ -217,13 +220,13 @@ export function AdvisorOrb() {
           aria-hidden
         />
         <span className="relative size-14 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-white/80">
-          <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="56px" className="object-cover scale-[1.15] translate-y-[6%] transition-transform duration-300 group-hover:scale-[1.28]" />
+          <Image src={advisor.avatarHead} alt="" fill sizes="56px" className="object-cover scale-[1.15] translate-y-[6%] transition-transform duration-300 group-hover:scale-[1.28]" />
         </span>
         <svg viewBox="0 12 72 85" className="absolute -top-1 -right-1 size-5 eu-breathe drop-shadow" aria-hidden>
           <path d={STAR_PATH} fill="var(--eu-yellow)" />
         </svg>
         <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-full bg-white text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3 py-2 shadow-[var(--shadow-raised)] opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all hidden @md:block">
-          {product ? "Ρώτα τον Άρη για αυτό το προϊόν" : "Ρώτα τον Άρη"}
+          {product ? advisor.orb.tooltipProduct : advisor.orb.tooltip}
         </span>
       </button>
 
@@ -244,22 +247,22 @@ export function AdvisorOrb() {
             <div className="relative bg-eu-navy text-white p-4 pr-3 flex items-start gap-3 overflow-hidden">
               <span className="eu-ambient" aria-hidden />
               <span className="relative size-12 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-white/60">
-                <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="48px" className="object-cover scale-[1.15] translate-y-[6%]" />
+                <Image src={advisor.avatarHead} alt="" fill sizes="48px" className="object-cover scale-[1.15] translate-y-[6%]" />
               </span>
               <div className="relative min-w-0 flex-1">
                 <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1">
-                  <Sparkles className="size-3.5" aria-hidden /> Ο Άρης · Σύμβουλος αγοράς
+                  <Sparkles className="size-3.5" aria-hidden /> Ο {advisor.name} · Σύμβουλος αγοράς
                 </div>
                 <h2
                   id="advisor-title"
                   className="m-0 font-heading font-bold text-[length:var(--fs-18)] leading-tight truncate"
                 >
                   {product
-                    ? `${product.brand} ${product.title}`
-                    : "Γεια, είμαι ο Άρης. Τι ψάχνεις;"}
+                    ? tpl(advisor.panel.titleProduct, { brand: product.brand, title: product.title })
+                    : advisor.panel.title}
                 </h2>
                 <p className="m-0 text-eu-on-dark-2 text-[length:var(--fs-14)]">
-                  Απαντώ σε 2 δευτ. από τον κατάλογο. Άνθρωπος σε ένα κλικ.
+                  {advisor.panel.subtitle}
                 </p>
               </div>
               <button
@@ -390,7 +393,7 @@ export function AdvisorOrb() {
                 id="advisor-q"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Γράψε ό,τι θα ρωτούσες τον πωλητή…"
+                placeholder={advisor.panel.placeholder}
                 className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-4 min-h-12 text-[length:var(--fs-16)] outline-none focus:border-eu-blue"
               />
               <button

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
@@ -14,8 +15,9 @@ import gsap from "gsap";
  */
 export function AutoReveal() {
   const path = usePathname();
+  const { motion } = useSettings();
   useLayoutEffect(() => {
-    if (path === "/" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (path === "/" || !motion.enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const main = document.getElementById("main");
     if (!main) return;
     const all = Array.from(main.querySelectorAll<HTMLElement>("section, article, aside, [data-auto-reveal]"));
@@ -30,7 +32,7 @@ export function AutoReveal() {
           if (!e.isIntersecting) continue;
           const el = e.target as HTMLElement;
           io.unobserve(el);
-          gsap.to(el, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", delay: Math.min(0.24, order++ * 0.06), clearProps: "transform", overwrite: true });
+          gsap.to(el, { opacity: 1, y: 0, duration: motion.reveal.duration, ease: motion.easing.out, delay: Math.min(0.24, order++ * 0.06), clearProps: "transform", overwrite: true });
         }
         setTimeout(() => {
           order = 0;
@@ -43,6 +45,6 @@ export function AutoReveal() {
       io.disconnect();
       gsap.set(targets, { clearProps: "all" });
     };
-  }, [path]);
+  }, [path, motion]);
   return null;
 }

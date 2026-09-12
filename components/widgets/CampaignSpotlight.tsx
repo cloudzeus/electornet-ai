@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -20,7 +21,6 @@ export interface VendorCampaign {
   alt: string;
 }
 
-const AUTOPLAY_S = 7;
 
 /**
  * @dynamic Zone 8 — vendor campaigns (manufacturer key visuals). On wide
@@ -35,6 +35,8 @@ const AUTOPLAY_S = 7;
  * the CMS zone.
  */
 export function CampaignSpotlight({ campaigns, zoneNo, title = "Καμπάνιες κατασκευαστών", kicker = "Τρέχουν τώρα", link }: { campaigns: VendorCampaign[]; zoneNo?: number; title?: string; kicker?: string; link?: { label: string; href: string } }) {
+  const { motion } = useSettings();
+  const AUTOPLAY_S = motion.campaigns.autoplaySeconds;
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const root = useRef<HTMLElement>(null);
@@ -50,7 +52,7 @@ export function CampaignSpotlight({ campaigns, zoneNo, title = "Καμπάνιε
     timer.current = window.setTimeout(() => {
       dir.current = i > active ? 1 : -1;
       setActive(i);
-    }, 90);
+    }, motion.campaigns.hoverIntentMs);
   };
   const cancelPick = () => {
     if (timer.current) window.clearTimeout(timer.current);

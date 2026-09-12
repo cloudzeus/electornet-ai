@@ -10,17 +10,9 @@ import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { CategoryFaq } from "@/components/catalog/CategoryFaq";
 import { filterFromParams, getL1, getL2, listProducts } from "@/lib/data/repo";
 import { getCategories } from "@/lib/data/catalog";
+import { getSettings } from "@/lib/cms/settings";
 import { Sparkles } from "lucide-react";
 
-/** @dynamic Questions this category gets most (Demand Radar) → «Ρώτα τον Άρη» chips. */
-const ASK_FOR: Record<string, string[]> = {
-  plyntiria: ["Αθόρυβο πλυντήριο για διαμέρισμα", "Χωράει στον χώρο μου;", "Πόσο ρεύμα καίει;"],
-  psygeia: ["Ψυγείο που καίει λίγο ρεύμα", "Χωράει στην εσοχή μου;", "No frost ή όχι;"],
-  tileoraseis: ["Τηλεόραση για φωτεινό σαλόνι", "55 ή 65 ίντσες για 3 μέτρα;", "OLED ή QLED;"],
-  "air-condition": ["Κλιματιστικό για 20 τ.μ.", "Πόσα BTU χρειάζομαι;", "Πόσο ρεύμα καίει;"],
-  laptops: ["Laptop για φοιτητή κάτω από 700 €", "Windows ή MacBook;", "Πόση μνήμη χρειάζομαι;"],
-  smartphones: ["Κινητό με καλή κάμερα κάτω από 500 €", "Τι διαφορά έχει από το επόμενο μοντέλο;"],
-};
 const GUIDE_FOR: Record<string, { kind: string; t: string }> = { tileoraseis: { kind: "tileoraseis", t: "Ποια τηλεόραση σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, laptops: { kind: "ypologistes", t: "Ποιος υπολογιστής σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, tablets: { kind: "ypologistes", t: "Laptop ή tablet; Ο έξυπνος οδηγός αποφασίζει μαζί σου." }, "air-condition": { kind: "klimatistika", t: "Πόσα BTU χρειάζεσαι; Ο έξυπνος οδηγός τα υπολογίζει από τα τετραγωνικά." } };
 
 type Params = { slug: string[] };
@@ -43,9 +35,9 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   const l2 = slug[1] ? (await getL2(slug[0], slug[1]))?.l2 ?? null : null;
   if (slug[1] && !l2) notFound();
 
-  const [result, cats] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, perPage: 24 })), getCategories()]);
+  const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, perPage: 24 })), getCategories(), getSettings()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
-  const questions = ASK_FOR[l2?.slug ?? l1.slug] ?? ["Ποιο μου ταιριάζει;", "Χωράει στον χώρο μου;", "Πόσο ρεύμα καίει;"];
+  const questions = settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product;
   const basePath = l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
   const title = l2 ? l2.name : l1.label;
 

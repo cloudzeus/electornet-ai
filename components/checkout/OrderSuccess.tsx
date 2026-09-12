@@ -1,5 +1,7 @@
 "use client";
 
+import { tpl } from "@/lib/cms/settings";
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,6 +28,7 @@ const PAY: Record<string, string> = { card: "Κάρτα", "no-card": "Δόσει
 
 /** Confirmation: number, what happens next, summary, tracking link, account prompt. */
 export function OrderSuccess({ number }: { number: string }) {
+  const { advisor } = useSettings();
   const [o, setO] = useState<Saved | null>(null);
   useEffect(() => {
     const t = setTimeout(() => {
@@ -54,10 +57,10 @@ export function OrderSuccess({ number }: { number: string }) {
             {/* Άρης: a quiet thank-you, no confetti */}
             <div className="flex items-center gap-3 rounded-xl bg-white/70 border border-eu-green/20 px-4 py-3 text-[length:var(--fs-15)] text-eu-ink-2">
               <span className="relative size-10 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/50">
-                <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="40px" className="object-cover scale-[1.15] translate-y-[6%]" />
+                <Image src={advisor.avatarHead} alt="" fill sizes="40px" className="object-cover scale-[1.15] translate-y-[6%]" />
               </span>
               <span>
-                <span className="font-extrabold text-eu-navy">Ο Άρης:</span> Ευχαριστώ{o?.address.firstName ? `, ${o.address.firstName}` : ""}! Θα σου γράψω μόλις φύγει η παραγγελία και αν χρειαστείς κάτι για την τοποθέτηση, είμαι εδώ.
+                <span className="font-extrabold text-eu-navy">Ο {advisor.name}:</span> {tpl(advisor.thankYou, { name: o?.address.firstName ? `, ${o.address.firstName}` : "" })}
               </span>
             </div>
           </section>

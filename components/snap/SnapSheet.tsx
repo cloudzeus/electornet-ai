@@ -98,7 +98,7 @@ export function SnapSheet() {
           <div>
             <div className="flex items-center gap-2">
               <span className="relative size-9 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/50">
-                <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
+                <Image src="/img/advisor/mascot-head.webp" alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
               </span>
               <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
                 <ScanLine className="size-3.5" aria-hidden /> Snap & Find · με τον Άρη

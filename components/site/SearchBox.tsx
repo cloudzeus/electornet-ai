@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,12 +27,13 @@ const RECENT_KEY = "euronics.recentSearches.v1";
 /** A query reads as a question when it has 3+ words or ends with «;» / «?». */
 const isQuestion = (q: string) => /[;?]\s*$/.test(q) || q.trim().split(/\s+/).length >= 3;
 
-const SUGGEST_Q = ["αθόρυβο πλυντήριο για διαμέρισμα, πόρτα 62 εκ.", "τηλεόραση 55 ιντσών κάτω από 600 €", "ψυγείο που καίει λίγο ρεύμα"];
 
 export function SearchBox({ compact = false }: { compact?: boolean }) {
   const id = useId();
   const router = useRouter();
   const { space } = useMySpace();
+  const { advisor } = useSettings();
+  const SUGGEST_Q = advisor.suggestions.search;
   const [ans, setAns] = useState<AdvisorAnswer | null>(null);
   const [thinking, setThinking] = useState(false);
   const [listening, setListening] = useState(false);
@@ -237,10 +239,10 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                 <div className="relative">
                   <div className="flex items-center gap-2">
                     <span className="relative size-9 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-white/60">
-                      <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
+                      <Image src={advisor.avatarHead} alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
                     </span>
                     <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-                      <Sparkles className="size-3.5" aria-hidden /> Ο Άρης απαντά
+                      <Sparkles className="size-3.5" aria-hidden /> Ο {advisor.name} απαντά
                     </div>
                   </div>
                   {thinking && !ans ? (
@@ -441,7 +443,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                 )}
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-1 mb-1.5 font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">
-                    <Sparkles className="size-3.5" aria-hidden /> Ρώτα τον σύμβουλο
+                    <Sparkles className="size-3.5" aria-hidden /> Ρώτα τον {advisor.name}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {SUGGEST_Q.map((sq) => (

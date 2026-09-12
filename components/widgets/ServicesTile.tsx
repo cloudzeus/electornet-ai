@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Wrench, Truck, ShieldCheck, Recycle, Clock, Sparkles } from "lucide-react";
@@ -14,6 +15,7 @@ const ICONS = [Truck, Wrench, Clock, ShieldCheck, Recycle, Sparkles];
  * with price from the CMS.
  */
 export function ServicesTile({ services, total = 13 }: { services: { title: string; blurb?: string }[]; total?: number }) {
+  const { motion } = useSettings();
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const [rm, setRm] = useState(false);
@@ -24,9 +26,9 @@ export function ServicesTile({ services, total = 13 }: { services: { title: stri
   }, []);
   useEffect(() => {
     if (paused || rm || services.length < 2) return;
-    const t = setInterval(() => setI((k) => (k + 1) % services.length), 3200);
+    const t = setInterval(() => setI((k) => (k + 1) % services.length), motion.servicesTile.intervalMs);
     return () => clearInterval(t);
-  }, [paused, rm, services.length]);
+  }, [paused, rm, services.length, motion.servicesTile.intervalMs]);
   useEffect(() => {
     if (!box.current || rm) return;
     gsap.fromTo(box.current.querySelectorAll("[data-line]"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out", stagger: 0.06 });

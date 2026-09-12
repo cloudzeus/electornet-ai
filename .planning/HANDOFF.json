@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-12T08:42:19.344Z",
+  "timestamp": "2026-09-12T08:54:49.670Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,41 +22,121 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/brands/[slug]/page.tsx"
+      "path": "app/(shop)/k/[...slug]/page.tsx"
     },
     {
       "status": "M",
-      "path": "app/(shop)/brands/page.tsx"
+      "path": "app/(shop)/layout.tsx"
     },
     {
       "status": "M",
-      "path": "docs/dynamic-components.md"
+      "path": "app/(shop)/not-found.tsx"
     },
     {
       "status": "M",
-      "path": "lib/data/repo.ts"
+      "path": "components/advisor/AdvisorGreeting.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/advisor/AdvisorOrb.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/checkout/CartAdvisorTip.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/checkout/OrderSuccess.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/commerce/CartProvider.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/motion/AutoReveal.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/motion/CountUp.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/motion/Reveal.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/motion/Tilt.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/pdp/EnergyCost.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/site/ExitIntent.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/site/SearchBox.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/site/SiteHeader.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/snap/SnapSheet.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/CampaignSpotlight.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/CinematicHero.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/ServicesBand.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/ServicesTile.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/StoreFinder.tsx"
+    },
+    {
+      "status": "D",
+      "path": "public/img/advisor/mascot-head.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/advisor/mascot.png"
     },
     {
       "status": "??",
-      "path": "components/brand/"
+      "path": "components/site/SettingsProvider.tsx"
     },
     {
       "status": "??",
-      "path": "docs/brand-store-schema.md"
+      "path": "docs/component-registry.md"
     },
     {
       "status": "??",
-      "path": "lib/cms/brand-render.tsx"
+      "path": "lib/cms/settings.ts"
     },
     {
       "status": "??",
-      "path": "lib/cms/brand-store.ts"
+      "path": "public/img/advisor/mascot-head.webp"
     },
     {
       "status": "??",
-      "path": "lib/data/fixtures/brandStores.ts"
+      "path": "public/img/advisor/mascot.webp"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n615bce2 v4.4 (local): hero ambient video, Άρης in the cart, guide banner spacing\nd9afc85 v4.3 (local): nearby stores from IP on /katastimata, Άρης chips on PDP, payments/appointments polish, WebP cutouts, hero video support\nb2a1c16 v4.2 (local, v2 branch): category opener, Άρης chips, flicker-free reveals, free-text advisor\n151055e Hero right column alive: deal stage, store radar, rotating services; «Άρης» welcome and thank-you\n1cee775 v4.1: liveliness everywhere, advisor «Άρης», Snap & Find, wallets & social login, device wallet, IP store, exit intent"
+  "context_notes": "Recent commits:\n9ed4ff1 v4.5 (local): Brand stores — CMS-ready schema, renderer and LG / Samsung / Apple samples\n615bce2 v4.4 (local): hero ambient video, Άρης in the cart, guide banner spacing\nd9afc85 v4.3 (local): nearby stores from IP on /katastimata, Άρης chips on PDP, payments/appointments polish, WebP cutouts, hero video support\nb2a1c16 v4.2 (local, v2 branch): category opener, Άρης chips, flicker-free reveals, free-text advisor\n151055e Hero right column alive: deal stage, store radar, rotating services; «Άρης» welcome and thank-you"
 }

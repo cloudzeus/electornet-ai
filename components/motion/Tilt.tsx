@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useRef, type ReactNode } from "react";
 import gsap from "gsap";
 
@@ -9,11 +10,15 @@ import gsap from "gsap";
  * Off on touch devices and under prefers-reduced-motion. Children with
  * `data-tilt-layer` get a slight z-translate so cutouts float above the card.
  */
-export function Tilt({ children, className = "", max = 6, scale = 1.015, disabled = false }: { children: ReactNode; className?: string; max?: number; scale?: number; disabled?: boolean }) {
+export function Tilt({ children, className = "", max: maxProp, scale: scaleProp, disabled = false }: { children: ReactNode; className?: string; max?: number; scale?: number; disabled?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { motion } = useSettings();
+  const max = maxProp ?? motion.tilt.max;
+  const scale = scaleProp ?? motion.tilt.scale;
+  const off = disabled || !motion.enabled || !motion.tilt.enabled;
   useEffect(() => {
     const el = ref.current;
-    if (!el || disabled) return;
+    if (!el || off) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.matchMedia("(hover: none)").matches) return;
     gsap.set(el, { transformPerspective: 900, transformStyle: "preserve-3d" });
     const rx = gsap.quickTo(el, "rotationX", { duration: 0.45, ease: "power3.out" });
@@ -41,7 +46,7 @@ export function Tilt({ children, className = "", max = 6, scale = 1.015, disable
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerleave", onLeave);
     };
-  }, [max, scale, disabled]);
+  }, [max, scale, off]);
   return (
     <div ref={ref} className={`will-change-transform ${className}`}>
       {children}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 
@@ -8,12 +9,14 @@ import gsap from "gsap";
  * Renders the final value on the server (no CLS, no wrong number without
  * JS), then animates only on the client. Tabular figures; locale el-GR.
  */
-export function CountUp({ value, suffix = "", prefix = "", duration = 1.4, className = "" }: { value: number; suffix?: string; prefix?: string; duration?: number; className?: string }) {
+export function CountUp({ value, suffix = "", prefix = "", duration: durationProp, className = "" }: { value: number; suffix?: string; prefix?: string; duration?: number; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const { motion } = useSettings();
+  const duration = durationProp ?? motion.countUp.duration;
   const [n, setN] = useState(value);
   useEffect(() => {
     const el = ref.current;
-    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!el || !motion.enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const io = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
@@ -25,7 +28,7 @@ export function CountUp({ value, suffix = "", prefix = "", duration = 1.4, class
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [value, duration]);
+  }, [value, duration, motion.enabled]);
   return (
     <span ref={ref} className={`tabular-nums ${className}`}>
       {prefix}

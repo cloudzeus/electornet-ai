@@ -1,5 +1,6 @@
 "use client";
 
+import { useSettings } from "@/components/site/SettingsProvider";
 import { useLayoutEffect, useRef, type ReactNode, type ElementType } from "react";
 import gsap from "gsap";
 
@@ -11,11 +12,16 @@ import gsap from "gsap";
  * (no hide-then-show flicker); only what is below the fold animates in.
  * No-op under prefers-reduced-motion. Transform + opacity only.
  */
-export function Reveal({ as: Tag = "div", children, className = "", stagger = 0.06, y = 18, delay = 0, once = true }: { as?: ElementType; children: ReactNode; className?: string; stagger?: number; y?: number; delay?: number; once?: boolean }) {
+export function Reveal({ as: Tag = "div", children, className = "", stagger: staggerProp, y: yProp, delay = 0, once = true }: { as?: ElementType; children: ReactNode; className?: string; stagger?: number; y?: number; delay?: number; once?: boolean }) {
   const ref = useRef<HTMLElement>(null);
+  const { motion } = useSettings();
+  const stagger = staggerProp ?? motion.reveal.stagger;
+  const y = yProp ?? motion.reveal.y;
+  const duration = motion.reveal.duration;
+  const enabled = motion.enabled;
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!el || !enabled || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const items = el.querySelectorAll<HTMLElement>("[data-reveal]");
     const all: Element[] = items.length ? Array.from(items) : [el];
     const vh = window.innerHeight;
@@ -36,14 +42,14 @@ export function Reveal({ as: Tag = "div", children, className = "", stagger = 0.
         }
         if (done) return;
         done = true;
-        gsap.to(targets, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", stagger, delay, overwrite: true, clearProps: "transform" });
+        gsap.to(targets, { opacity: 1, y: 0, duration, ease: motion.easing.out, stagger, delay, overwrite: true, clearProps: "transform" });
         if (once) io.disconnect();
       },
       { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [stagger, y, delay, once]);
+  }, [stagger, y, delay, once, duration, enabled, motion.easing.out]);
   return (
     <Tag ref={ref} className={className}>
       {children}
