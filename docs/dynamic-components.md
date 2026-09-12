@@ -30,6 +30,7 @@
 | `CartAdvisorTip` (ο Άρης στο καλάθι) | `CartProvider` lines | Πίνακας upsell CMS (κατηγορία → υπηρεσία), όριο δωρεάν μεταφορικών, τιμή επέκτασης εγγύησης· λεκτικό από το AI engine | client |
 | `HeroSlide.video` (ambient loop) | CMS slide asset | Βίντεο 8" από OpenArt (Kling 3), συμπιεσμένο με ffmpeg σε ~290 KB· απενεργοποιείται με reduced motion / Save-Data | static |
 | `/katastimata` «Κοντά σου» | `geoFromRequest()` + `storesNear()` | Ίδιο με NearestStoreCard, τρία καταστήματα | per request |
+| Brand stores (`/brands/{slug}`, `BrandFrame`, `BrandHero`, `BrandBlocks`) | `getBrandStore(slug)` → `renderBrandStore()` | CMS «Brand stores»: θέμα, hero, blocks με ids προϊόντων και schedule — βλ. `docs/brand-store-schema.md` | ISR 300s |
 | `DealsRail`, `DealOfDayTile` | `listProducts({tag})`, `getDealOfDay()` | SoftOne MTRL + τιμοκατάλογος προσφορών (PRCRULES), Omnibus 30 ημερών από ιστορικό τιμών | ISR 60s |
 | `ProductCard`, `ProductGrid`, `Facets` | `listProducts(filter)` | SoftOne MTRL + χαρακτηριστικά (CCCSUBGROUP2 / extra fields) → `lib/data/attributes` | ISR 60s, facets από search index |
 | `ProductHeader`, `BuyBox`, `SpecsTable`, `CompareSimilar` | `getProductBySlug`, `getRelated`, `getAccessoriesFor` | SoftOne MTRL, απόθεμα ανά κατάστημα (MTRSTORE), σχετικά/συμπληρωματικά από ITEGROUP mapping | ISR 60s· απόθεμα live (no-store) |

@@ -30,6 +30,10 @@ npm run build
 | **Στήλες ανά πλάτος**: `repeat(auto-fill, minmax(220px, 1fr))` — 2 στο κινητό, 3–5 ανάλογα με τον διαθέσιμο χώρο | `ProductGrid`, `ProductRail`, `DealsRail` |
 | **Κανένας εσωτερικός scroller**: φίλτρα με «+ N ακόμη» αντί για scroll, chips/breadcrumbs/thumbs/side nav σε wrap, deals σε grid, buy box χωρίς max-height, πίνακες σύγκρισης → stacked layout σε στενά πλάτη (`CompareStacked`) | παντού |
 
+### v4.5 (branch v2, τοπικά) — Brand stores
+
+- Σχήμα CMS `lib/cms/brand-store.ts` (θέμα, hero, blocks: new-arrivals / series / offers / story / tech / support / video, schedule, validator), renderer `lib/cms/brand-render.tsx`, components `components/brand/*`, δείγματα LG / Samsung / Apple στο `lib/data/fixtures/brandStores.ts`, `/brands/{slug}` (λίστα με `?all=1`), tiles στο `/brands`. Τεκμηρίωση: `docs/brand-store-schema.md`.
+
 ### v4.2–4.3 (branch v2, τοπικά) — Opener κατηγορίας, chips «Ρώτα τον Άρη», flicker-free reveals, καταστήματα από IP, WebP cutouts
 
 - `CategoryOpener` (αριθμός-υδατογράφημα, live πλήθος, 3 cutouts, chips), `AskAris` (event `eu:ask` → AdvisorOrb με την ερώτηση), ελεύθερες ερωτήσεις στον Άρη μέσω `/api/advisor`.

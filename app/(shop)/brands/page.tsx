@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
-import { getBrands } from "@/lib/data/repo";
+import { getBrands, getBrandStores } from "@/lib/data/repo";
+import { BrandStoreTiles } from "@/components/brand/BrandStoreTiles";
 
 export const metadata: Metadata = { title: "Μάρκες", description: "Όλες οι μάρκες που διαθέτει η Euronics: LG, Samsung, Bosch, AEG, Apple, Miele και άλλες." };
 
 /** Brand wall — the current euronics.gr /manufacturer/all lists 10 brands with 0 products. */
 export default async function BrandsPage() {
-  const brands = await getBrands();
+  const [brands, stores] = await Promise.all([getBrands(), getBrandStores()]);
   const letters = [...new Set(brands.map((b) => b.name[0].toUpperCase()))];
   return (
     <div className="eu-container">
@@ -22,6 +23,7 @@ export default async function BrandsPage() {
             </a>
           ))}
         </div>
+        <BrandStoreTiles stores={stores} />
         <ul className="m-0 p-0 list-none grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-6 gap-3">
           {brands.map((b) => (
             <li key={b.slug} id={`b-${b.name[0].toUpperCase()}`}>

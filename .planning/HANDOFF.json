@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-12T08:26:07.231Z",
+  "timestamp": "2026-09-12T08:42:19.344Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,29 +22,41 @@
     },
     {
       "status": "M",
-      "path": "README.md"
+      "path": "app/(shop)/brands/[slug]/page.tsx"
     },
     {
       "status": "M",
-      "path": "app/(shop)/k/[...slug]/page.tsx"
+      "path": "app/(shop)/brands/page.tsx"
     },
     {
       "status": "M",
-      "path": "components/checkout/CartView.tsx"
+      "path": "docs/dynamic-components.md"
     },
     {
       "status": "M",
-      "path": "lib/data/catalog.ts"
+      "path": "lib/data/repo.ts"
     },
     {
       "status": "??",
-      "path": "components/checkout/CartAdvisorTip.tsx"
+      "path": "components/brand/"
     },
     {
       "status": "??",
-      "path": "public/video/"
+      "path": "docs/brand-store-schema.md"
+    },
+    {
+      "status": "??",
+      "path": "lib/cms/brand-render.tsx"
+    },
+    {
+      "status": "??",
+      "path": "lib/cms/brand-store.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/data/fixtures/brandStores.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nd9afc85 v4.3 (local): nearby stores from IP on /katastimata, Άρης chips on PDP, payments/appointments polish, WebP cutouts, hero video support\nb2a1c16 v4.2 (local, v2 branch): category opener, Άρης chips, flicker-free reveals, free-text advisor\n151055e Hero right column alive: deal stage, store radar, rotating services; «Άρης» welcome and thank-you\n1cee775 v4.1: liveliness everywhere, advisor «Άρης», Snap & Find, wallets & social login, device wallet, IP store, exit intent\n0c27927 v4 «Το αστέρι φωτίζει το προϊόν»: wow layer, Fit-My-Space, AR, AI advisor"
+  "context_notes": "Recent commits:\n615bce2 v4.4 (local): hero ambient video, Άρης in the cart, guide banner spacing\nd9afc85 v4.3 (local): nearby stores from IP on /katastimata, Άρης chips on PDP, payments/appointments polish, WebP cutouts, hero video support\nb2a1c16 v4.2 (local, v2 branch): category opener, Άρης chips, flicker-free reveals, free-text advisor\n151055e Hero right column alive: deal stage, store radar, rotating services; «Άρης» welcome and thank-you\n1cee775 v4.1: liveliness everywhere, advisor «Άρης», Snap & Find, wallets & social login, device wallet, IP store, exit intent"
 }

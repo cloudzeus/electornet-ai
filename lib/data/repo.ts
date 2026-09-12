@@ -9,6 +9,8 @@ import { guides } from "./fixtures/guides";
 import { faqs, policies } from "./fixtures/content";
 import { livePolicies } from "./fixtures/policies.live";
 import { devices, type DeviceInfo } from "./fixtures/devices";
+import { brandStores } from "./fixtures/brandStores";
+import type { BrandStore } from "@/lib/cms/brand-store";
 import { orders } from "./fixtures/orders";
 import { news, NEWS_CATEGORIES } from "./fixtures/news";
 import { appointments, consents, customer, instalmentPlans, paymentMethods } from "./fixtures/account";
@@ -372,4 +374,12 @@ export async function getMegaMenuData(): Promise<MegaMenuEntry[]> {
 /** @dynamic Per-appliance service/warranty/document info (SoftOne SRVJOB + PIM/EPREL). */
 export async function getDevices(): Promise<DeviceInfo[]> {
   return devices;
+}
+
+/** @dynamic Brand store config (CMS «Brand stores» collection); null when the brand has only a listing. */
+export async function getBrandStore(slug: string): Promise<BrandStore | null> {
+  return brandStores.find((b) => b.slug === slug) ?? null;
+}
+export async function getBrandStores(): Promise<BrandStore[]> {
+  return brandStores;
 }
