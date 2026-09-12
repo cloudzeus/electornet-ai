@@ -26,7 +26,7 @@ import { Spotlight } from "@/components/motion/Spotlight";
 export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide[]; intervalMs?: number }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
-  const { reducedMotion } = useDevice();
+  const { reducedMotion, saveData } = useDevice();
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLSpanElement>(null);
@@ -111,6 +111,10 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
       {/* backdrop photo, dimmed, for depth */}
       <div data-backdrop className="absolute inset-0" key={`bd-${s.id}`}>
         <Image src={s.image} alt="" fill priority={i === 0} sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover opacity-25 scale-105" unoptimized={s.image.startsWith("http")} />
+        {s.video && !reducedMotion && !saveData && (
+          // Ambient loop, muted and decorative; the photo underneath is the poster and the fallback.
+          <video src={s.video} poster={s.image} autoPlay muted loop playsInline preload="metadata" aria-hidden className="absolute inset-0 size-full object-cover opacity-35" />
+        )}
         <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" />
       </div>
       <span className="eu-ambient" aria-hidden />

@@ -35,27 +35,28 @@ export default async function PaymentsPage() {
           {methods.map((m) => {
             const Icon = icon[m.kind];
             return (
-              <li key={m.id} className={`rounded-2xl border-2 p-4 grid gap-2 bg-white ${m.isDefault ? "border-eu-blue" : "border-eu-line"}`}>
+              <li key={m.id} className={`relative overflow-hidden rounded-2xl border-2 p-4 grid gap-2 ${m.kind === "card" ? "bg-[linear-gradient(135deg,#122A58_0%,#1D428A_70%,#2b5bb8_100%)] text-white border-transparent shadow-[0_16px_32px_-20px_rgba(18,42,88,.6)]" : "bg-white"} ${m.isDefault && m.kind !== "card" ? "border-eu-blue" : m.kind !== "card" ? "border-eu-line" : ""}`}>
+                {m.kind === "card" && <span className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-eu-yellow/15" aria-hidden />}
                 <div className="flex items-center gap-3">
-                  <span className="size-11 rounded-xl bg-eu-surface inline-flex items-center justify-center text-eu-blue">
+                  <span className={`size-11 rounded-xl inline-flex items-center justify-center ${m.kind === "card" ? "bg-white/15 text-eu-yellow" : "bg-eu-surface text-eu-blue"}`}>
                     <Icon className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
-                    <div className="font-bold text-eu-ink text-[length:var(--fs-16)]">
+                    <div className={`font-bold text-[length:var(--fs-16)] tabular-nums ${m.kind === "card" ? "text-white" : "text-eu-ink"}`}>
                       {m.label}
                       {m.last4 ? ` •••• ${m.last4}` : ""}
                     </div>
-                    <div className="text-eu-muted text-[length:var(--fs-14)]">{m.expires ? `Λήξη ${m.expires}` : "Άμεση πληρωμή από mobile banking"}</div>
+                    <div className={`text-[length:var(--fs-14)] ${m.kind === "card" ? "text-eu-on-dark-2" : "text-eu-muted"}`}>{m.expires ? `Λήξη ${m.expires}` : "Άμεση πληρωμή από mobile banking"}</div>
                   </div>
-                  {m.isDefault && <span className="ml-auto rounded-full bg-eu-chip text-eu-blue font-bold text-[length:var(--fs-13)] px-2.5 py-1">Προεπιλογή</span>}
+                  {m.isDefault && <span className={`ml-auto rounded-full font-bold text-[length:var(--fs-13)] px-2.5 py-1 ${m.kind === "card" ? "bg-eu-yellow text-eu-navy" : "bg-eu-chip text-eu-blue"}`}>Προεπιλογή</span>}
                 </div>
                 <div className="flex gap-3 text-[length:var(--fs-14)] font-bold">
                   {!m.isDefault && (
-                    <button type="button" className="text-eu-blue hover:underline min-h-9">
+                    <button type="button" className={`hover:underline min-h-9 ${m.kind === "card" ? "text-eu-yellow" : "text-eu-blue"}`}>
                       Ορισμός ως προεπιλογή
                     </button>
                   )}
-                  <button type="button" className="text-eu-muted hover:text-eu-red min-h-9">
+                  <button type="button" className={`min-h-9 ${m.kind === "card" ? "text-eu-on-dark-2 hover:text-white" : "text-eu-muted hover:text-eu-red"}`}>
                     Αφαίρεση
                   </button>
                 </div>
@@ -92,7 +93,7 @@ export default async function PaymentsPage() {
                   </div>
                 </div>
                 <div className="h-2.5 rounded-full bg-eu-surface-2 overflow-hidden">
-                  <div className="h-full rounded-full bg-eu-green" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full bg-eu-green origin-left animate-[eu-grow_.9s_var(--eu-ease-out)_both]" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="flex flex-wrap justify-between gap-2 text-[length:var(--fs-14)] text-eu-ink-2">
                   <span>

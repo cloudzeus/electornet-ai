@@ -1,5 +1,6 @@
 import { Bot, MessageCircleQuestion, Search, Sparkles } from "lucide-react";
 import type { Product } from "@/lib/data/types";
+import { AskAris } from "@/components/advisor/AskAris";
 import { answersFor, geoSummary, seoAudit, type Crumb } from "@/lib/seo/product";
 
 /**
@@ -16,9 +17,15 @@ export function Answers({ product: p }: { product: Product }) {
       <h2 id="answers-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-2">
         Ό,τι θα ρωτούσες στο κατάστημα
       </h2>
-      <p id="geo-summary" className="m-0 mb-5 rounded-xl bg-eu-chip text-eu-ink px-4 py-3 text-[length:var(--fs-16)] leading-relaxed max-w-[80ch]">
+      <p id="geo-summary" className="m-0 mb-3 rounded-xl bg-eu-chip text-eu-ink px-4 py-3 text-[length:var(--fs-16)] leading-relaxed max-w-[80ch]">
         {geoSummary(p)}
       </p>
+      <div className="mb-5 flex flex-wrap items-center gap-1.5">
+        <span className="text-eu-muted text-[length:var(--fs-14)] font-semibold mr-1">Ρώτα τον Άρη:</span>
+        {["Χωράει στον χώρο μου;", "Πόσο ρεύμα καίει;", "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
+          <AskAris key={q} q={q} tone="light" />
+        ))}
+      </div>
       <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-3">
         {qas.map((x, i) => (
           <details key={x.q} open={i < 2} className="group rounded-xl border border-eu-line bg-white">

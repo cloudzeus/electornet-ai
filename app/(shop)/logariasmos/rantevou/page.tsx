@@ -32,11 +32,15 @@ export default async function AppointmentsPage() {
           <div className="font-bold text-eu-ink text-[length:var(--fs-17)]">{a.title}</div>
           {a.productTitle && <div className="text-eu-ink-2 text-[length:var(--fs-15)]">{a.productTitle}</div>}
           <dl className="m-0 grid grid-cols-1 @sm:grid-cols-2 gap-x-4 gap-y-1 text-[length:var(--fs-14)] text-eu-ink-2">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <CalendarClock className="size-4 text-eu-blue shrink-0" aria-hidden />
               <dd className="m-0">
                 {new Date(a.date).toLocaleDateString("el-GR", { weekday: "short", day: "numeric", month: "long" })} · {a.slot}
               </dd>
+              {(a.status === "scheduled" || a.status === "confirmed") && (() => {
+                const days = Math.ceil((new Date(a.date).getTime() - Date.now()) / 86400000);
+                return <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-13)] font-extrabold ${days <= 1 ? "bg-eu-yellow text-eu-navy" : "bg-eu-chip text-eu-blue"}`}>{days <= 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`}</span>;
+              })()}
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="size-4 text-eu-blue shrink-0" aria-hidden />

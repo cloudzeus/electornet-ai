@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-09T06:08:50.194Z",
+  "timestamp": "2026-09-12T08:22:29.109Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,17 +22,1033 @@
     },
     {
       "status": "M",
-      "path": "components/site/MegaNav.tsx"
+      "path": "app/(shop)/katastimata/page.tsx"
     },
     {
       "status": "M",
-      "path": "lib/data/nav.ts"
+      "path": "app/(shop)/logariasmos/pliromes/page.tsx"
     },
     {
       "status": "M",
-      "path": "lib/data/repo.ts"
+      "path": "app/(shop)/logariasmos/rantevou/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/pdp/Answers.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/catalog.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/cutouts.ts"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/airfryer.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/cooker.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/iron.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/lever-espresso.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/oled-tv.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/p-lg-43nano82-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/premium-stick.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/product-ac.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/product-espresso.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/product-washer.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-108803-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-112041-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-112338-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-130554-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-134236-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-134236-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-134843-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-134843-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-135731-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-138544-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-138544-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-138705-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-140497-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-140497-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-140515-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-141249-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-142829-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-142829-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-144730-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-144730-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-145524-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-145807-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-145957-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-145957-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-145957-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-146037-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-146037-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-146037-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-146545-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-146545-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-148891-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-148891-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150109-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150109-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150109-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150601-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150980-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150983-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-150983-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152092-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152124-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152124-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152124-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152715-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152715-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152715-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-152715-3.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-154164-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-154164-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-157205-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-157206-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-157206-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-157206-2.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-71063-0.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/r-71063-1.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/shaver.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/speaker.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/stick-vacuum.png"
+    },
+    {
+      "status": "D",
+      "path": "public/img/cutouts/tablet.png"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-aeg-ab51c1db.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-aeg-ab51c1db.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-aeg-lr7f49gs.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-aeg-lr7f49gs.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-bosch-kgn39lbcf.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-bosch-kgn39lbcf.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-braun-series-9.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-braun-series-9.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-delonghi-magnifica-evo.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-delonghi-magnifica-evo.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-dyson-v15.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-dyson-v15.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-inventor-ikura.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-inventor-ikura.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-ipad-102-renew.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-ipad-102-renew.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-ipad-a16-128.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-ipad-a16-128.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-iphone-15-renew.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-iphone-15-renew.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-iphone-17-pro-256.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-iphone-17-pro-256.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-jbl-flip-7.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-jbl-flip-7.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-lg-43nano82.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-lg-43nano82.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-macbook-air-13-m4.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-macbook-air-13-m4.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-macbook-air-m1-renew.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-macbook-air-m1-renew.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-philips-airfryer.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-philips-airfryer.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-pitsos-oven.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-pitsos-oven.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-rowenta-iron.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-rowenta-iron.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-samsung-55-qled.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-samsung-55-qled.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-samsung-s26.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-samsung-s26.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-sony-65-oled.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-sony-65-oled.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-toyotomi-erai-12.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-toyotomi-erai-12.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-winstar-clima-9.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-winstar-clima-9.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-winstar-kri44.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/p-winstar-kri44.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-108803.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-108803.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-112041.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-112041.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-112338.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-112338.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-119009.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-119009.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-130554.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-130554.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-134236.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-134236.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-134843.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-134843.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-135731.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-135731.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-138544.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-138544.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-138705.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-138705.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-140497.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-140497.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-140515.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-140515.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-141249.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-141249.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-142829.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-142829.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-144730.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-144730.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145524.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145524.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145807.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145807.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145957.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-145957.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-146037.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-146037.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-146545.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-146545.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-148891.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-148891.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150109.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150109.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150601.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150601.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150980.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150980.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150983.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-150983.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152092.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152092.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152124.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152124.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152715.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-152715.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-154164.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-154164.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-157205.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-157205.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-157206.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-157206.usdz"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-71063.glb"
+    },
+    {
+      "status": "M",
+      "path": "public/models/r-71063.usdz"
+    },
+    {
+      "status": "M",
+      "path": "scripts/cutouts-manifest.mjs"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/airfryer.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/cooker.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/iron.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/lever-espresso.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/oled-tv.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/p-lg-43nano82-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/premium-stick.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/product-ac.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/product-espresso.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/product-washer.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-108803-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-112041-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-112338-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-130554-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-134236-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-134236-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-134843-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-134843-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-135731-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-138544-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-138544-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-138705-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-140497-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-140497-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-140515-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-141249-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-142829-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-142829-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-144730-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-144730-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-145524-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-145807-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-145957-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-145957-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-145957-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-146037-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-146037-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-146037-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-146545-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-146545-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-148891-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-148891-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150109-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150109-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150109-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150601-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150980-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150983-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-150983-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152092-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152124-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152124-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152124-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152715-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152715-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152715-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-152715-3.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-154164-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-154164-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-157205-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-157206-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-157206-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-157206-2.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-71063-0.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/r-71063-1.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/shaver.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/speaker.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/stick-vacuum.webp"
+    },
+    {
+      "status": "??",
+      "path": "public/img/cutouts/tablet.webp"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\ne63f0d9 Mega menu content fine-tuning: sub-categories without demo counts and hover arrows, brands as plain links, quick filters grouped under their attribute with value chips, promo card labelled by context with rating; launch.json attach config\n1a26599 Full-bleed frames (header, menu, announcement bar, hero) capped at 1920px and centered on wider screens\n04d12b7 Policy and account sidebars follow the scroll (smart sticky below the pinned header); stray markup fragments removed from verbatim policies\nd83ea3f Policies copied verbatim from live euronics.gr (terms, privacy, cookies, payment, shipping, returns, financial statements) with source links; footer useful links, phones, email and social media as on the live site\n05229c0 Header with search and category menu stay pinned on scroll; section nav, filters and buy box offset below it (--eu-header-h / --eu-subnav-h)"
+  "context_notes": "Recent commits:\nb2a1c16 v4.2 (local, v2 branch): category opener, Άρης chips, flicker-free reveals, free-text advisor\n151055e Hero right column alive: deal stage, store radar, rotating services; «Άρης» welcome and thank-you\n1cee775 v4.1: liveliness everywhere, advisor «Άρης», Snap & Find, wallets & social login, device wallet, IP store, exit intent\n0c27927 v4 «Το αστέρι φωτίζει το προϊόν»: wow layer, Fit-My-Space, AR, AI advisor\n0825598 Zone 8: vendor campaign spotlight from live euronics.gr key visuals; plain purchase wording"
 }

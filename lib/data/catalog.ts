@@ -86,7 +86,7 @@ const heroSlides: HeroSlide[] = [
     bullets: ["Δωρεάν μεταφορά", "Εγκατάσταση", "Εγγύηση έως 5 έτη"],
     image: "/img/hero-clima.jpg",
     alt: "Δροσερό σαλόνι με κλιματιστικό inverter",
-    cutout: "/img/cutouts/r-152092-0.png",
+    cutout: "/img/cutouts/r-152092-0.webp",
     productHref: "/proion/inventor-veri-vero-18wfi-klimatistiko",
   },
   {
@@ -99,7 +99,7 @@ const heroSlides: HeroSlide[] = [
     bullets: ["Δωρεάν μεταφορά", "Δόσεις χωρίς κάρτα", "Επίσημη εγγύηση"],
     image: "/img/hero-laptop.jpg",
     alt: "Φοιτήτρια με laptop στο γραφείο της",
-    cutout: "/img/cutouts/r-157206-0.png",
+    cutout: "/img/cutouts/r-157206-0.webp",
     productHref: "/proion/apple-mdhe4gr-a-midnight",
   },
   {
@@ -112,7 +112,7 @@ const heroSlides: HeroSlide[] = [
     bullets: ["2 έτη εγγύηση", "Επιστροφή σε 14 ημέρες", "Δόσεις"],
     image: "/img/hero-renew.jpg",
     alt: "Refurbished smartphone στο χέρι",
-    cutout: "/img/cutouts/r-146037-0.png",
+    cutout: "/img/cutouts/r-146037-0.webp",
     productHref: "/renew",
   },
 ];

@@ -6,6 +6,8 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { StoreMap } from "@/components/stores/StoreMap";
 import { getRegions, getStores } from "@/lib/data/repo";
+import { geoFromRequest, storesNear } from "@/lib/geo/ip";
+import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
 
 export const metadata: Metadata = { title: "Καταστήματα Euronics", description: "350 καταστήματα-μέλη σε όλη την Ελλάδα: απόσταση, ωράριο, υπηρεσίες, παραλαβή σε 2 ώρες." };
 
@@ -14,12 +16,33 @@ const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβ
 /** Locator: real distance (from Athens centre in the demo), «open now», filters by prefecture and service, map + list in sync. */
 export default async function StoresPage({ searchParams }: { searchParams: Promise<{ q?: string; region?: string; service?: string }> }) {
   const sp = await searchParams;
-  const [stores, regions] = await Promise.all([getStores({ q: sp.q, region: sp.region, service: sp.service }), getRegions()]);
+  const [stores, regions, geo] = await Promise.all([getStores({ q: sp.q, region: sp.region, service: sp.service }), getRegions(), geoFromRequest()]);
+  const near = storesNear(geo, 3);
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Καταστήματα" }]} />
       <PageIntro tone="blue" kicker="Το δίκτυο" title="350 καταστήματα. Ένα είναι δίπλα σου." lead="Καταστήματα-μέλη με απόθεμα, εγκατάσταση από τεχνικό της γειτονιάς και παραλαβή σε 2 ώρες." />
       <div className="eu-canvas eu-gutter py-6">
+        {near.length > 0 && !sp.q && !sp.region && !sp.service && (
+          <section className="mb-6 grid gap-3" aria-labelledby="near-title">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">Κοντά σου</div>
+                <h2 id="near-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)]">
+                  {geo.source === "ip" ? `Τα πιο κοντινά${geo.city ? ` στην περιοχή ${geo.city}` : ""}` : "Τα πιο κοντινά στην Αθήνα"}
+                </h2>
+              </div>
+              <span className="text-eu-muted text-[length:var(--fs-14)]">{geo.source === "ip" ? "Εκτίμηση από το δίκτυό σου, χωρίς άδεια τοποθεσίας" : "Προεπιλογή, μέχρι να δώσεις τοποθεσία"}</span>
+            </div>
+            <div className="grid grid-cols-1 @lg:grid-cols-3 gap-3">
+              {near.map((st, i) => (
+                <div key={st.id} className={i === 0 ? "" : "hidden @lg:block"}>
+                  <NearestStoreCard initial={{ id: st.id, slug: st.slug, name: st.name, city: st.city, distanceKm: st.distanceKm, openUntil: st.openUntil, lat: st.lat, lng: st.lng }} geoCity={geo.city} geoSource={geo.source} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <form className="grid grid-cols-1 @md:grid-cols-[1fr_200px_200px_auto] gap-2 mb-5">
           <input name="q" defaultValue={sp.q} placeholder="Πόλη, Τ.Κ. ή όνομα καταστήματος" className="rounded-full border border-eu-line px-4 py-2.5 min-h-11 text-[length:var(--fs-15)]" aria-label="Αναζήτηση καταστήματος" />
           <select name="region" defaultValue={sp.region ?? ""} className="rounded-full border border-eu-line px-4 py-2.5 min-h-11 text-[length:var(--fs-15)] bg-white" aria-label="Νομός">

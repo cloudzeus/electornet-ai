@@ -179,6 +179,8 @@ export interface HeroSlide {
   cutout?: string;
   /** product the cutout belongs to (link on the floating product) */
   productHref?: string;
+  /** optional ambient video loop (mp4, muted) behind the slide; the photo stays as poster/fallback */
+  video?: string;
 }
 
 export interface Faq {
