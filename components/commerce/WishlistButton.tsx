@@ -2,6 +2,9 @@
 
 import { Heart } from "lucide-react";
 import { useCart } from "./CartProvider";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("wishlist");
 
 export function WishlistButton({ id, className = "" }: { id: string; className?: string }) {
   const { wishlist, toggleWishlist } = useCart();
@@ -25,7 +28,7 @@ export function CompareCheckbox({ id }: { id: string }) {
   return (
     <label className="inline-flex items-center gap-1.5 font-semibold text-eu-muted-2 text-[length:var(--fs-13)] cursor-pointer hover:text-eu-blue min-h-8">
       <input type="checkbox" checked={on} onChange={() => toggleCompare(id)} className="size-3.5 accent-eu-blue" />
-      Σύγκριση
+      {c.sygkrisi}
     </label>
   );
 }

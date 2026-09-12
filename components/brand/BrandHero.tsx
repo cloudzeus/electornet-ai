@@ -6,6 +6,9 @@ import type { Product } from "@/lib/data/types";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { priceShort } from "@/lib/format";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("brandHero");
 
 /**
  * Brand hero: wordmark, three-line title in the brand accent glow, the
@@ -62,11 +65,11 @@ export function BrandHero({ store, product }: { store: BrandStore; product: Prod
       </div>
       <div className="relative border-t border-[var(--bs-muted)]/20">
         <div className="eu-canvas eu-gutter py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-[length:var(--fs-14)] text-[var(--bs-muted)]">
-          <span className="font-bold text-[var(--bs-ink)]">Επίσημος συνεργάτης Euronics</span>
-          <span>Εργοστασιακή εγγύηση</span>
-          <span>Service αντιπροσωπείας</span>
-          <span>Δόσεις χωρίς κάρτα</span>
-          <span>Παραλαβή σε 2 ώρες από 350 καταστήματα</span>
+          <span className="font-bold text-[var(--bs-ink)]">{c.episimos_synergatis_euronics}</span>
+          <span>{c.ergostasiaki_eggyisi}</span>
+          <span>{c.service_antiprosopeias}</span>
+          <span>{c.doseis_choris_karta}</span>
+          <span>{c.paralavi_se_2_ores}</span>
         </div>
       </div>
     </header>

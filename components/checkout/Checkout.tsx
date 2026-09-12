@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +12,9 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { WalletSheet, type Wallet } from "./WalletSheet";
 import { SocialLogin } from "./SocialLogin";
 import { AppleMark, GoogleMark, RevolutMark } from "./BrandMarks";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("checkout");
 
 type StoreLite = { id: string; slug: string; name: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string };
 type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut";
@@ -129,15 +133,15 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
     router.push(`/checkout/epityxia?no=${no}`);
   };
 
-  if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">Φόρτωση…</div>;
+  if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">{c.fortosi}</div>;
   if (lines.length === 0)
     return (
       <div className="eu-canvas eu-gutter py-10">
         <Stepper step={2} />
         <div className="rounded-2xl bg-eu-surface p-10 text-center">
-          <p className="m-0 text-eu-ink font-bold text-[length:var(--fs-21)]">Το καλάθι σου είναι άδειο.</p>
+          <p className="m-0 text-eu-ink font-bold text-[length:var(--fs-21)]">{c.to_kalathi_soy_einai}</p>
           <Link href="/proionta" className="inline-flex mt-5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 items-center">
-            Δες τα προϊόντα
+            {c.des_ta_proionta}
           </Link>
         </div>
       </div>
@@ -183,18 +187,18 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3" aria-labelledby="express">
                 <div className="flex items-center justify-between gap-3">
                   <h1 id="express" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">
-                    Γρήγορη ολοκλήρωση
+                    {c.grigori_oloklirosi}
                   </h1>
-                  <span className="text-eu-muted text-[length:var(--fs-14)] hidden @sm:inline">Διεύθυνση & πληρωμή από το wallet σου</span>
+                  <span className="text-eu-muted text-[length:var(--fs-14)] hidden @sm:inline">{c.dieythynsi_pliromi_apo_to}</span>
                 </div>
                 <div className="grid grid-cols-2 @md:grid-cols-4 gap-2">
-                  <button type="button" onClick={() => setWallet("apple")} aria-label="Πληρωμή με Apple Pay" className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
+                  <button type="button" onClick={() => setWallet("apple")} aria-label={c.pliromi_me_apple_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
                     <AppleMark className="size-5" /> Pay
                   </button>
-                  <button type="button" onClick={() => setWallet("google")} aria-label="Πληρωμή με Google Pay" className="rounded-full bg-white text-eu-ink border-2 border-eu-line font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:border-eu-blue">
+                  <button type="button" onClick={() => setWallet("google")} aria-label={c.pliromi_me_google_pay} className="rounded-full bg-white text-eu-ink border-2 border-eu-line font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:border-eu-blue">
                     <GoogleMark className="size-5" /> Pay
                   </button>
-                  <button type="button" onClick={() => setWallet("revolut")} aria-label="Πληρωμή με Revolut Pay" className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
+                  <button type="button" onClick={() => setWallet("revolut")} aria-label={c.pliromi_me_revolut_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
                     <RevolutMark className="h-4" /> Pay
                   </button>
                   <button type="button" onClick={() => setPay("iris")} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue-dark">
@@ -202,18 +206,18 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                   </button>
                 </div>
                 <div className="flex items-center gap-3 text-eu-muted text-[length:var(--fs-14)]">
-                  <span className="flex-1 h-px bg-eu-line" /> ή συμπλήρωσε τα στοιχεία σου <span className="flex-1 h-px bg-eu-line" />
+                  <span className="flex-1 h-px bg-eu-line" /> {c.i_symplirose_ta_stoicheia} <span className="flex-1 h-px bg-eu-line" />
                 </div>
               </section>
 
-              <Section n={1} title="Στοιχεία επικοινωνίας" lead="Εδώ στέλνουμε την επιβεβαίωση και το SMS παράδοσης.">
+              <Section n={1} title={c.stoicheia_epikoinonias} lead="Εδώ στέλνουμε την επιβεβαίωση και το SMS παράδοσης.">
                 {signedIn ? (
                   <p className="m-0 rounded-xl bg-eu-green/10 text-eu-green font-bold text-[length:var(--fs-15)] px-4 py-3 inline-flex items-center gap-2">
                     <Check className="size-4" aria-hidden /> Συνδέθηκες με {signedIn}. Τα στοιχεία σου συμπληρώθηκαν.
                   </p>
                 ) : (
                   <div className="grid gap-2">
-                    <div className="text-eu-ink-3 text-[length:var(--fs-14)] font-semibold">Σύνδεση για αυτόματη συμπλήρωση, ή συνέχισε ως επισκέπτης.</div>
+                    <div className="text-eu-ink-3 text-[length:var(--fs-14)] font-semibold">{c.syndesi_gia_aytomati_symplirosi}</div>
                     <SocialLogin
                       onSignedIn={(p) => {
                         setF((x) => ({ ...x, firstName: p.firstName, lastName: p.lastName, email: p.email }));
@@ -231,12 +235,12 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                 <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">
                   Ολοκληρώνεις ως επισκέπτης.{" "}
                   <Link href="/eisodos" className="text-eu-blue font-bold underline">
-                    Έχεις λογαριασμό;
+                    {c.echeis_logariasmo}
                   </Link>
                 </p>
               </Section>
 
-              <Section n={2} title="Παράδοση" lead="Το κόστος και ο χρόνος φαίνονται πριν διαλέξεις.">
+              <Section n={2} title={c.paradosi} lead="Το κόστος και ο χρόνος φαίνονται πριν διαλέξεις.">
                 <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-2.5">
                   {delivery.map((d) => (
                     <label key={d.v} className={`rounded-xl border-2 p-4 cursor-pointer grid gap-1 ${ful === d.v ? "border-eu-blue bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
@@ -253,7 +257,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                 {ful === "click-collect" ? (
                   <div className="grid gap-3 rounded-xl bg-eu-surface p-4">
                     <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                      Κατάστημα παραλαβής
+                      {c.katastima_paralavis}
                       <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={inputCls()}>
                         {stores.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -264,7 +268,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                     </label>
                     {store && (
                       <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">
-                        <strong className="text-eu-green">Έτοιμη σε 2 ώρες.</strong> {store.address}, {store.zip} {store.city} · ανοιχτό έως {store.openUntil}. Θα λάβεις SMS όταν είναι έτοιμη.
+                        <strong className="text-eu-green">{c.etoimi_se_2_ores}</strong> {store.address}, {store.zip} {store.city} · ανοιχτό έως {store.openUntil}. Θα λάβεις SMS όταν είναι έτοιμη.
                       </p>
                     )}
                   </div>
@@ -276,7 +280,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                     {field("city", "Πόλη", text("city", { autoComplete: "address-level2" }), "@sm:col-span-2")}
                     {field("zip", "Τ.Κ.", text("zip", { inputMode: "numeric", autoComplete: "postal-code", maxLength: 5 }), "@sm:col-span-2")}
                     <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink @sm:col-span-2">
-                      Νομός
+                      {c.nomos}
                       <select value={f.region} onChange={(e) => set("region", e.target.value)} className={inputCls()}>
                         {REGIONS.map((r) => (
                           <option key={r}>{r}</option>
@@ -287,7 +291,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                 )}
                 {ful === "appointment" && (
                   <div className="grid gap-2 rounded-xl bg-eu-surface p-4">
-                    <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">Προτίμηση ώρας</div>
+                    <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.protimisi_oras}</div>
                     <div className="flex flex-wrap gap-2">
                       {[["morning", "Πρωί 09:00–13:00"], ["noon", "Μεσημέρι 13:00–17:00"], ["evening", "Απόγευμα 17:00–20:00"]].map(([v, t]) => (
                         <label key={v} className={`rounded-full border-2 px-4 min-h-11 inline-flex items-center text-[length:var(--fs-15)] font-bold cursor-pointer ${slot === v ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white"}`}>
@@ -296,7 +300,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                         </label>
                       ))}
                     </div>
-                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Ο τεχνικός του καταστήματος σε καλεί εντός 24 ωρών για την ακριβή ημέρα.</p>
+                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{c.o_technikos_toy_katastimatos}</p>
                   </div>
                 )}
                 {heavy && (
@@ -304,17 +308,17 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                     <input type="checkbox" checked={f.recycle} onChange={(e) => set("recycle", e.target.checked)} className="mt-0.5 size-[18px] accent-eu-green" />
                     <Recycle className="size-6 text-eu-green shrink-0" aria-hidden />
                     <span>
-                      <strong className="text-eu-ink">Παραλαβή παλιάς συσκευής για ανακύκλωση — δωρεάν.</strong> Την παίρνουμε κατά την παράδοση (ΑΗΗΕ, Οδηγία 2012/19/ΕΕ).
+                      <strong className="text-eu-ink">{c.paralavi_palias_syskeyis_gia}</strong> {c.tin_pairnoyme_kata_tin}
                     </span>
                   </label>
                 )}
                 <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                  Σχόλια για τον διανομέα <span className="font-normal text-eu-muted">(προαιρετικά)</span>
-                  <textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className="rounded-xl border-2 border-eu-line bg-white px-4 py-3 text-[length:var(--fs-16)] font-normal" placeholder="π.χ. κουδούνι, ώρες παρουσίας" />
+                  {c.scholia_gia_ton_dianomea} <span className="font-normal text-eu-muted">{c.proairetika}</span>
+                  <textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} rows={2} className="rounded-xl border-2 border-eu-line bg-white px-4 py-3 text-[length:var(--fs-16)] font-normal" placeholder={c.p_ch_koydoyni_ores} />
                 </label>
               </Section>
 
-              <Section n={3} title="Απόδειξη ή τιμολόγιο" lead="Με ΑΦΜ τα στοιχεία συμπληρώνονται από την ΑΑΔΕ." optional>
+              <Section n={3} title={c.apodeixi_i_timologio} lead="Με ΑΦΜ τα στοιχεία συμπληρώνονται από την ΑΑΔΕ." optional>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
                     [false, "Απόδειξη λιανικής"],
@@ -337,7 +341,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                             {vatLookup === "loading" ? "…" : "ΑΑΔΕ"}
                           </button>
                         </div>
-                        {vatLookup === "ok" && <span className="text-eu-green font-semibold text-[length:var(--fs-14)]">Βρέθηκε στο μητρώο ΑΑΔΕ — τα στοιχεία συμπληρώθηκαν.</span>}
+                        {vatLookup === "ok" && <span className="text-eu-green font-semibold text-[length:var(--fs-14)]">{c.vrethike_sto_mitroo_aade}</span>}
                       </>,
                     )}
                     {field("company", "Επωνυμία", text("company"), "")}
@@ -349,10 +353,10 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
 
               <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
                 <Link href="/kalathi" className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12 inline-flex items-center">
-                  ← Πίσω στο καλάθι
+                  {c.piso_sto_kalathi}
                 </Link>
                 <button type="button" onClick={next} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 hover:bg-eu-blue">
-                  Συνέχεια στην πληρωμή →
+                  {c.synecheia_stin_pliromi}
                 </button>
               </div>
             </>
@@ -366,7 +370,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                 <Done label="Παραστατικό" value={f.invoice ? `Τιμολόγιο · ΑΦΜ ${f.vat} · ${f.company}` : "Απόδειξη λιανικής"} onEdit={() => setStep(2)} />
               </div>
 
-              <Section n={4} title="Πληρωμή" lead="Το ποσό που βλέπεις δεξιά είναι το τελικό.">
+              <Section n={4} title={c.pliromi} lead="Το ποσό που βλέπεις δεξιά είναι το τελικό.">
                 <div className="grid grid-cols-1 @xl:grid-cols-2 gap-2.5">
                   {payments.map((o) => (
                     <label key={o.v} className={`rounded-xl border-2 p-4 grid gap-1 ${o.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${pay === o.v ? "border-eu-blue bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
@@ -383,10 +387,10 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                   <div className="grid gap-4 rounded-xl bg-eu-surface p-4 @md:p-5">
                     <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
                       <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink @sm:col-span-2">
-                        Αριθμός κάρτας <input inputMode="numeric" placeholder="•••• •••• •••• 4821" className={inputCls()} autoComplete="cc-number" />
+                        {c.arithmos_kartas} <input inputMode="numeric" placeholder="•••• •••• •••• 4821" className={inputCls()} autoComplete="cc-number" />
                       </label>
                       <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                        Λήξη <input placeholder="MM/YY" className={inputCls()} autoComplete="cc-exp" />
+                        {c.lixi} <input placeholder="MM/YY" className={inputCls()} autoComplete="cc-exp" />
                       </label>
                       <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
                         CVC <input inputMode="numeric" placeholder="•••" className={inputCls()} autoComplete="cc-csc" />
@@ -394,7 +398,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                     </div>
                     {maxInst > 1 && (
                       <div className="grid gap-2">
-                        <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">Άτοκες δόσεις</div>
+                        <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.atokes_doseis}</div>
                         <div className="flex flex-wrap gap-2">
                           {[1, 3, 6, 12, 24]
                             .filter((n) => n <= maxInst)
@@ -409,32 +413,32 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                       </div>
                     )}
                     <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2">
-                      <ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία κάρτας δεν αποθηκεύονται στη Euronics. Η πληρωμή γίνεται στον πάροχο με 3D Secure.
+                      <ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> {c.ta_stoicheia_kartas_den}
                     </p>
                   </div>
                 )}
-                {pay === "no-card" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">Θα μεταφερθείς στο ασφαλές περιβάλλον της Eurobank για online αίτηση με τους κωδικούς e-banking σου. Έγκριση σε λίγα λεπτά. Η παραγγελία εκτελείται μετά την έγκριση.</p>}
-                {pay === "bank" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">Οι λογαριασμοί (Εθνική, Πειραιώς, Eurobank, Alpha) θα σου σταλούν με το email επιβεβαίωσης. Αιτιολογία: ο αριθμός παραγγελίας. Το απόθεμα κρατείται 48 ώρες.</p>}
-                {pay === "iris" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">Θα ανοίξει το mobile banking σου με προσυμπληρωμένο ποσό και αιτιολογία. Η παραγγελία επιβεβαιώνεται αμέσως.</p>}
+                {pay === "no-card" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_metafertheis_sto_asfales}</p>}
+                {pay === "bank" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.oi_logariasmoi_ethniki_peiraios}</p>}
+                {pay === "iris" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_anoixei_to_mobile}</p>}
               </Section>
 
               <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3">
-                <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-19)]">Λογαριασμός & συγκαταθέσεις</h2>
+                <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-19)]">{c.logariasmos_sygkatatheseis}</h2>
                 <label className="flex items-start gap-3 text-[length:var(--fs-15)] text-eu-ink-2 cursor-pointer">
                   <input type="checkbox" checked={f.createAccount} onChange={(e) => set("createAccount", e.target.checked)} className="mt-0.5 size-[18px] accent-eu-blue" />
                   <span>
-                    <strong className="text-eu-ink">Δημιούργησε λογαριασμό</strong> με το {f.email || "email μου"} για παραγγελίες, εγγυήσεις και επιστροφές σε ένα σημείο.
+                    <strong className="text-eu-ink">{c.dimioyrgise_logariasmo}</strong> με το {f.email || "email μου"} για παραγγελίες, εγγυήσεις και επιστροφές σε ένα σημείο.
                   </span>
                 </label>
                 {f.createAccount && (
                   <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink max-w-sm">
-                    Κωδικός <span className="font-normal text-eu-muted">(τουλάχιστον 8 χαρακτήρες)</span>
+                    {c.kodikos} <span className="font-normal text-eu-muted">{c.toylachiston_8_charaktires}</span>
                     <input type="password" value={f.password} onChange={(e) => set("password", e.target.value)} className={inputCls()} autoComplete="new-password" />
                   </label>
                 )}
                 <label className="flex items-start gap-3 text-[length:var(--fs-15)] text-eu-ink-2 cursor-pointer">
                   <input type="checkbox" checked={f.newsletter} onChange={(e) => set("newsletter", e.target.checked)} className="mt-0.5 size-[18px] accent-eu-blue" />
-                  <span>Θέλω προσφορές με email. Ξεχωριστή συγκατάθεση, την αφαιρείς όποτε θες.</span>
+                  <span>{c.thelo_prosfores_me_email}</span>
                 </label>
                 <label className={`flex items-start gap-3 text-[length:var(--fs-15)] text-eu-ink-2 cursor-pointer rounded-xl p-3 -m-3 ${err ? "bg-eu-red/10" : ""}`}>
                   <input type="checkbox" checked={f.terms} onChange={(e) => {
@@ -444,13 +448,13 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                   <span>
                     Αποδέχομαι τους{" "}
                     <Link href="/oroi-chrisis" className="text-eu-blue underline">
-                      όρους χρήσης
+                      {c.oroys_chrisis}
                     </Link>{" "}
                     και την{" "}
                     <Link href="/aporrito" className="text-eu-blue underline">
-                      πολιτική απορρήτου
+                      {c.politiki_aporritoy}
                     </Link>
-                    . Μπορώ να επιστρέψω ό,τι αγοράσω μέσα σε 14 ημέρες, χωρίς αιτιολογία.
+                    {c.mporo_na_epistrepso_o}
                   </span>
                 </label>
                 {err && <p className="m-0 text-eu-red font-semibold text-[length:var(--fs-15)]">{err}</p>}
@@ -458,7 +462,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
 
               <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
                 <button type="button" onClick={() => setStep(2)} className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12">
-                  ← Στοιχεία & παράδοση
+                  {c.stoicheia_paradosi}
                 </button>
                 <button type="button" onClick={submit} disabled={sca === "pending"} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
                   {sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
@@ -468,9 +472,9 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
           )}
         </div>
 
-        <aside className="bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-card)] @3xl:sticky @3xl:top-16 overflow-hidden" aria-label="Σύνοψη παραγγελίας">
+        <aside className="bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-card)] @3xl:sticky @3xl:top-16 overflow-hidden" aria-label={c.synopsi_paraggelias}>
           <div className="bg-eu-navy text-white px-5 py-4 flex items-center justify-between">
-            <h2 className="m-0 font-extrabold text-[length:var(--fs-17)]">Η παραγγελία σου</h2>
+            <h2 className="m-0 font-extrabold text-[length:var(--fs-17)]">{c.i_paraggelia_soy}</h2>
             <span className="text-eu-on-dark text-[length:var(--fs-14)]">{lines.reduce((n, l) => n + l.qty, 0)} τεμ.</span>
           </div>
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
@@ -505,10 +509,10 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
-                  <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Κουπόνι ή κάρτα δώρου" aria-label="Κουπόνι" className="w-full min-w-0 rounded-xl border-2 border-eu-line pl-10 pr-3 min-h-12 text-[length:var(--fs-15)]" />
+                  <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={c.koyponi_i_karta_doroy} aria-label={c.koyponi} className="w-full min-w-0 rounded-xl border-2 border-eu-line pl-10 pr-3 min-h-12 text-[length:var(--fs-15)]" />
                 </div>
                 <button type="submit" className="rounded-xl border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-surface">
-                  Εφαρμογή
+                  {c.efarmogi}
                 </button>
               </div>
               {couponMsg && <p className={`m-0 text-[length:var(--fs-14)] font-semibold ${discount ? "text-eu-green" : "text-eu-red"}`}>{couponMsg}</p>}
@@ -520,7 +524,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               {codFee > 0 && <Row k="Αντικαταβολή" v={priceLong(codFee)} />}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(total - total / 1.24)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">
-                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">Σύνολο</dt>
+                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.synolo}</dt>
                 <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none">{priceLong(total)}</dd>
               </div>
               {maxInst > 1 && <div className="text-eu-blue font-bold text-[length:var(--fs-14)] text-right">ή {maxInst} × {priceLong(instalment(total, maxInst))} άτοκα</div>}
@@ -536,7 +540,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
             {step === 3 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)] leading-snug">Πατώντας το κουμπί χρεώνεται το ποσό {priceLong(total)} και η παραγγελία σου καταχωρείται. Θα λάβεις email επιβεβαίωσης αμέσως.</p>}
             {step === 2 && (
               <button type="button" onClick={next} className="hidden @3xl:block rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 hover:bg-eu-blue">
-                Συνέχεια στην πληρωμή →
+                {c.synecheia_stin_pliromi}
               </button>
             )}
             <ul className="m-0 p-0 list-none grid gap-2 text-[length:var(--fs-14)] text-eu-muted">
@@ -560,12 +564,12 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
       {/* Mobile: sticky total + CTA */}
       <div className="@3xl:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-eu-line p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center gap-3 shadow-[0_-6px_20px_rgba(18,42,88,0.12)]">
         <div className="min-w-0">
-          <div className="text-eu-muted text-[length:var(--fs-13)]">Σύνολο</div>
+          <div className="text-eu-muted text-[length:var(--fs-13)]">{c.synolo}</div>
           <div className="font-extrabold text-eu-ink text-[length:var(--fs-21)] leading-none">{priceLong(total)}</div>
         </div>
         {step === 2 ? (
           <button type="button" onClick={next} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] min-h-14">
-            Συνέχεια στην πληρωμή →
+            {c.synecheia_stin_pliromi}
           </button>
         ) : (
           <button type="button" onClick={submit} disabled={sca === "pending"} className="flex-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-14 disabled:opacity-60">
@@ -599,7 +603,7 @@ function Section({ n, title, lead, optional, children }: { n: number; title: str
         <div>
           <h2 id={`sec-${n}`} className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)] leading-tight">
             {title}
-            {optional && <span className="ml-2 text-eu-muted font-normal text-[length:var(--fs-14)]">προαιρετικά</span>}
+            {optional && <span className="ml-2 text-eu-muted font-normal text-[length:var(--fs-14)]">{c.proairetika_2}</span>}
           </h2>
           {lead && <p className="m-0 mt-0.5 text-eu-muted text-[length:var(--fs-15)]">{lead}</p>}
         </div>
@@ -620,7 +624,7 @@ function Done({ label, value, onEdit }: { label: string; value: string; onEdit: 
         <div className="text-eu-ink-2 text-[length:var(--fs-15)] break-words">{value}</div>
       </div>
       <button type="button" onClick={onEdit} className="inline-flex items-center gap-1 font-bold text-eu-blue text-[length:var(--fs-14)] min-h-10 hover:underline shrink-0">
-        <Pencil className="size-3.5" aria-hidden /> Αλλαγή
+        <Pencil className="size-3.5" aria-hidden /> {c.allagi}
       </button>
     </div>
   );

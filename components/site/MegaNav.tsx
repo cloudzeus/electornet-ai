@@ -13,6 +13,9 @@ import { useDevice } from "@/components/fluid/DeviceProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { priceShort, instalment, priceLong } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("megaNav");
 
 /**
  * @dynamic Mega menu — nine first-level plaques; each panel has three
@@ -165,14 +168,14 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
       }
       className={`inline-flex items-center gap-1 whitespace-nowrap font-semibold text-[length:var(--fs-14)] @6xl:text-[length:var(--fs-15)] px-2.5 py-[13px] border-b-[3px] ${open === "__more" ? "text-eu-navy font-bold border-eu-navy" : "text-eu-ink-2 border-transparent hover:text-eu-navy"}`}
     >
-      Περισσότερα <ChevronDown className="size-4" aria-hidden />
+      {c.perissotera} <ChevronDown className="size-4" aria-hidden />
     </button>
   );
 
   return (
     <nav
       ref={ref}
-      aria-label="Κατηγορίες προϊόντων"
+      aria-label={c.katigories_proionton}
       className="relative bg-white eu-container hidden @lg:block"
       onMouseLeave={() => {
         cancelIntent();
@@ -212,7 +215,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
         {open === "__more" && overflow.length > 0 && (
           <motion.div
             role="region"
-            aria-label="Περισσότερες κατηγορίες"
+            aria-label={c.perissoteres_katigories}
             initial={reducedMotion ? false : { opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
@@ -254,7 +257,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
         {open && (
           <motion.button
             type="button"
-            aria-label="Κλείσιμο μενού"
+            aria-label={c.kleisimo_menoy}
             tabIndex={-1}
             onClick={() => setOpen(null)}
             onMouseEnter={() => {
@@ -346,7 +349,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
                 {entry && entry.top.length > 0 && (
                   <div>
                     <div className="font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase mb-2">
-                      Δημοφιλή τώρα
+                      {c.dimofili_tora}
                     </div>
                     <ul className="m-0 p-0 list-none grid gap-1">
                       {entry.top.map((p) => (
@@ -388,7 +391,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
                   {entry && entry.brands.length > 0 && (
                     <div className="min-w-0">
                       <div className="font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase mb-2">
-                        Μάρκες
+                        {c.markes}
                       </div>
                       <ul className="m-0 p-0 list-none flex flex-wrap gap-x-4 gap-y-0.5">
                         {entry.brands.map((b) => (
@@ -539,19 +542,19 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
                     }}
                     className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] min-h-11 hover:bg-eu-yellow-dark transition-colors duration-150"
                   >
-                    Αγορά με 1 κλικ
+                    {c.agora_me_1_klik}
                   </button>
                   <Link
                     href={`/proion/${entry.promo.slug}`}
                     onClick={() => setOpen(null)}
                     className="text-center font-bold text-eu-navy text-[length:var(--fs-14)] min-h-9 inline-flex items-center justify-center hover:underline"
                   >
-                    Δες το προϊόν
+                    {c.des_to_proion}
                   </Link>
                 </div>
               ) : (
                 <div className="rounded-2xl bg-eu-surface p-4 text-eu-muted text-[length:var(--fs-14)] self-start">
-                  Σύντομα προϊόντα σε αυτή την κατηγορία.
+                  {c.syntoma_proionta_se_ayti}
                 </div>
               )}
             </div>

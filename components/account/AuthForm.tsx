@@ -4,6 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialLogin } from "@/components/checkout/SocialLogin";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("auth");
 
 const input = "rounded-md border border-eu-line bg-white px-3 py-2.5 min-h-11 text-[length:var(--fs-15)] w-full outline-none focus-visible:ring-2 ring-eu-blue";
 const label = "grid gap-1 text-[length:var(--fs-14)] font-semibold text-eu-ink";
@@ -34,10 +37,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       {mode === "register" && (
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>
-            Όνομα <input required className={input} autoComplete="given-name" />
+            {c.onoma} <input required className={input} autoComplete="given-name" />
           </label>
           <label className={label}>
-            Επώνυμο <input required className={input} autoComplete="family-name" />
+            {c.eponymo} <input required className={input} autoComplete="family-name" />
           </label>
         </div>
       )}
@@ -46,18 +49,18 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       </label>
       {mode === "register" && (
         <label className={label}>
-          Κινητό <input type="tel" required className={input} autoComplete="tel" placeholder="Θα λάβεις κωδικό επιβεβαίωσης (OTP)" />
+          {c.kinito} <input type="tel" required className={input} autoComplete="tel" placeholder={c.tha_laveis_kodiko_epivevaiosis} />
         </label>
       )}
       {!magic && (
         <label className={label}>
-          Κωδικός <input type="password" required minLength={8} className={input} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          {c.kodikos} <input type="password" required minLength={8} className={input} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         </label>
       )}
       {mode === "login" && (
         <div className="flex justify-between text-[length:var(--fs-14)]">
           <label className="flex items-center gap-2 text-eu-ink-2 cursor-pointer">
-            <input type="checkbox" className="size-4 accent-eu-blue" /> Να με θυμάσαι
+            <input type="checkbox" className="size-4 accent-eu-blue" /> {c.na_me_thymasai}
           </label>
           <button type="button" onClick={() => setMagic((m) => !m)} className="text-eu-blue font-semibold hover:underline">
             {magic ? "Με κωδικό" : "Ξέχασα τον κωδικό / σύνδεσμος στο email"}
@@ -70,11 +73,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           <span>
             Αποδέχομαι τους{" "}
             <Link href="/oroi-chrisis" className="text-eu-blue underline">
-              όρους
+              {c.oroys}
             </Link>{" "}
             και την{" "}
             <Link href="/aporrito" className="text-eu-blue underline">
-              πολιτική απορρήτου
+              {c.politiki_aporritoy}
             </Link>
             .
           </span>
@@ -87,7 +90,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         <p className="m-0 text-center text-eu-muted text-[length:var(--fs-14)]">
           Έχεις ήδη λογαριασμό;{" "}
           <Link href="/eisodos" className="text-eu-blue underline">
-            Σύνδεση
+            {c.syndesi}
           </Link>
         </p>
       )}

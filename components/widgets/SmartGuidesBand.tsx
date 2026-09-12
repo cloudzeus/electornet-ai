@@ -3,6 +3,9 @@ import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { ZoneBadge } from "@/components/site/ZoneBadge";
 import { GUIDES } from "@/lib/guides/smart";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("smartGuidesBand");
 
 /**
  * Zone 11a — the smart buying guides. Three tiles on a navy band: the
@@ -17,14 +20,14 @@ export function SmartGuidesBand({ zoneNo }: { zoneNo?: number }) {
         <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
           <div>
             <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-1.5 flex items-center gap-1.5">
-              <Sparkles className="size-4" aria-hidden /> Έξυπνος οδηγός αγοράς
+              <Sparkles className="size-4" aria-hidden /> {c.exypnos_odigos_agoras}
             </div>
             <h2 id="smart-guides-title" className="m-0 font-heading font-bold text-[length:var(--fs-26)] leading-tight tracking-[-0.01em]">
-              Πες μας πώς θα το χρησιμοποιείς. Θα σου πούμε ποιο — και γιατί.
+              {c.pes_mas_pos_tha}
             </h2>
           </div>
           <Link href="/odigos-agoras" className="font-extrabold text-eu-yellow text-[length:var(--fs-15)] hover:underline">
-            Πώς δουλεύει →
+            {c.pos_doyleyei}
           </Link>
         </div>
         <ul className="m-0 p-0 list-none grid grid-cols-1 @md:grid-cols-3 gap-4">

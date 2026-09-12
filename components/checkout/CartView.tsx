@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Sparkles, Tag, Check, ChevronRight } from "lucide-react";
@@ -11,6 +12,9 @@ import { ProductCard } from "@/components/commerce/ProductCard";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { CartAdvisorTip } from "./CartAdvisorTip";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("cart");
 
 /**
  * Cart. One card per line with a large image, availability with date,
@@ -47,7 +51,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
     }
   };
 
-  if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">Φόρτωση καλαθιού…</div>;
+  if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">{c.fortosi_kalathioy}</div>;
 
   if (lines.length === 0)
     return (
@@ -57,22 +61,22 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
           <div className="absolute -top-16 -right-16 size-64 rounded-full bg-eu-blue/40" aria-hidden />
           <div className="absolute -bottom-20 -left-10 size-56 rounded-full bg-eu-yellow/20" aria-hidden />
           <div className="relative">
-            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-2">Καλάθι</div>
-            <h1 className="m-0 font-heading font-bold text-[length:var(--fs-30)] mb-2">Το καλάθι σου είναι άδειο</h1>
-            <p className="m-0 text-eu-on-dark text-[length:var(--fs-17)] max-w-[40em] mx-auto">Δες τις προσφορές της εβδομάδας, ή άσε τον έξυπνο οδηγό να βρει τη σωστή τηλεόραση, υπολογιστή ή κλιματιστικό για σένα.</p>
+            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-2">{c.kalathi}</div>
+            <h1 className="m-0 font-heading font-bold text-[length:var(--fs-30)] mb-2">{c.to_kalathi_soy_einai}</h1>
+            <p className="m-0 text-eu-on-dark text-[length:var(--fs-17)] max-w-[40em] mx-auto">{c.des_tis_prosfores_tis}</p>
             <div className="flex flex-wrap justify-center gap-2.5 mt-6">
               <Link href="/prosfores" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center hover:bg-eu-yellow-dark">
-                Προσφορές της εβδομάδας
+                {c.prosfores_tis_evdomadas}
               </Link>
               <Link href="/odigos-agoras" className="rounded-full border-2 border-white/60 text-white font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 inline-flex items-center gap-2 hover:bg-white/10">
-                <Sparkles className="size-4 text-eu-yellow" aria-hidden /> Έξυπνος οδηγός αγοράς
+                <Sparkles className="size-4 text-eu-yellow" aria-hidden /> {c.exypnos_odigos_agoras}
               </Link>
             </div>
           </div>
         </div>
         {crossSell.length > 0 && (
-          <section className="mt-10" aria-label="Δημοφιλή">
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)] mb-4">Δημοφιλή αυτή την εβδομάδα</h2>
+          <section className="mt-10" aria-label={c.dimofili}>
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)] mb-4">{c.dimofili_ayti_tin_evdomada}</h2>
             <CardCarousel label="Δημοφιλή">
               {crossSell.map((p) => (
                 <ProductCard key={p.id} product={p} />
@@ -90,10 +94,10 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
         <div className="min-w-0 eu-container grid gap-4">
           <div className="flex items-end justify-between gap-3">
             <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-30)] leading-none">
-              Καλάθι <span className="text-eu-muted-2 font-semibold text-[length:var(--fs-18)]">· {count} {count === 1 ? "προϊόν" : "προϊόντα"}</span>
+              {c.kalathi} <span className="text-eu-muted-2 font-semibold text-[length:var(--fs-18)]">· {count} {count === 1 ? "προϊόν" : "προϊόντα"}</span>
             </h1>
             <button type="button" onClick={clear} className="text-eu-muted font-semibold text-[length:var(--fs-14)] hover:text-eu-red min-h-10">
-              Άδειασμα
+              {c.adeiasma}
             </button>
           </div>
 
@@ -101,7 +105,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             <div className="flex items-center gap-3">
               <Truck className="size-6 shrink-0" aria-hidden />
               <div className="flex-1 font-bold text-[length:var(--fs-16)]">
-                {missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>Πρόσθεσε ακόμη <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> για δωρεάν μεταφορικά.</>}
+                {missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>{c.prosthese_akomi} <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}
               </div>
               <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{pct}%</span>
             </div>
@@ -137,7 +141,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
                     {lineAddons.length > 0 && (
                       <div className="grid gap-1.5">
                         <div className="text-eu-ink text-[length:var(--fs-14)] font-bold flex items-center gap-1.5">
-                          <ShieldCheck className="size-4 text-eu-blue" aria-hidden /> Κάλυψέ το
+                          <ShieldCheck className="size-4 text-eu-blue" aria-hidden /> {c.kalypse_to}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {lineAddons.map((s) => {
@@ -167,7 +171,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
                         <Heart className="size-4" fill={liked ? "currentColor" : "none"} aria-hidden /> {liked ? "Στη λίστα" : "Κράτα για αργότερα"}
                       </button>
                       <button type="button" onClick={() => remove(p.id)} className="inline-flex items-center gap-1 text-eu-muted hover:text-eu-red min-h-9">
-                        <Trash2 className="size-4" aria-hidden /> Αφαίρεση
+                        <Trash2 className="size-4" aria-hidden /> {c.afairesi}
                       </button>
                     </div>
                   </div>
@@ -200,13 +204,13 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
 
           <CartAdvisorTip lines={lines} subtotal={subtotal} freeShippingFrom={freeShippingFrom} />
           <Link href="/proionta" className="inline-flex items-center gap-1 font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-10">
-            ← Συνέχισε τις αγορές
+            {c.synechise_tis_agores}
           </Link>
         </div>
 
-        <aside className="bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-card)] overflow-hidden @3xl:sticky @3xl:top-16" aria-label="Σύνοψη">
+        <aside className="bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-card)] overflow-hidden @3xl:sticky @3xl:top-16" aria-label={c.synopsi}>
           <div className="bg-eu-navy text-white px-5 py-4 flex items-center justify-between">
-            <h2 className="m-0 font-extrabold text-[length:var(--fs-17)]">Σύνοψη</h2>
+            <h2 className="m-0 font-extrabold text-[length:var(--fs-17)]">{c.synopsi}</h2>
             <span className="text-eu-on-dark text-[length:var(--fs-14)]">{count} τεμ.</span>
           </div>
           <div className="p-5 grid gap-4">
@@ -220,10 +224,10 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
-                  <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Κουπόνι ή κάρτα δώρου" aria-label="Κουπόνι" className="w-full min-w-0 rounded-xl border-2 border-eu-line pl-10 pr-3 min-h-12 text-[length:var(--fs-15)] focus-visible:border-eu-blue outline-none" />
+                  <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder={c.koyponi_i_karta_doroy} aria-label={c.koyponi} className="w-full min-w-0 rounded-xl border-2 border-eu-line pl-10 pr-3 min-h-12 text-[length:var(--fs-15)] focus-visible:border-eu-blue outline-none" />
                 </div>
                 <button type="submit" className="rounded-xl border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-surface">
-                  Εφαρμογή
+                  {c.efarmogi}
                 </button>
               </div>
               {couponMsg && <div className={`text-[length:var(--fs-14)] font-semibold ${discount ? "text-eu-green" : "text-eu-red"}`}>{couponMsg}</div>}
@@ -235,15 +239,15 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
               <Row k="Μεταφορικά" v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(vat)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">
-                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">Σύνολο</dt>
+                <dt className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.synolo}</dt>
                 <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none">{priceLong(total)}</dd>
               </div>
             </dl>
             <div className="rounded-xl bg-eu-chip text-eu-blue px-4 py-3 text-[length:var(--fs-14)] font-bold">
-              ή 12 × {priceLong(instalment(total))} χωρίς κάρτα <span className="font-normal text-eu-ink-2">· έως 24 άτοκες με κάρτα</span>
+              ή 12 × {priceLong(instalment(total))} χωρίς κάρτα <span className="font-normal text-eu-ink-2">{c.eos_24_atokes_me}</span>
             </div>
             <Link href="/checkout" className="rounded-full bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 inline-flex items-center justify-center gap-1 hover:bg-eu-yellow-dark">
-              Ολοκλήρωση αγοράς <ChevronRight className="size-5" aria-hidden />
+              {c.oloklirosi_agoras} <ChevronRight className="size-5" aria-hidden />
             </Link>
             <div className="grid grid-cols-3 gap-1.5">
               {["Apple Pay", "Google Pay", "IRIS"].map((t) => (
@@ -254,21 +258,21 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             </div>
             <ul className="m-0 p-0 list-none grid gap-2 text-[length:var(--fs-14)] text-eu-muted">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-eu-green shrink-0" aria-hidden /> Ασφαλής πληρωμή με 3D Secure
+                <ShieldCheck className="size-4 text-eu-green shrink-0" aria-hidden /> {c.asfalis_pliromi_me_3d}
               </li>
               <li className="flex items-center gap-2">
-                <StoreIcon className="size-4 text-eu-green shrink-0" aria-hidden /> Επιστροφή σε 350 καταστήματα
+                <StoreIcon className="size-4 text-eu-green shrink-0" aria-hidden /> {c.epistrofi_se_350_katastimata}
               </li>
             </ul>
           </div>
         </aside>
       </div>
 
-      <section className="mt-12" aria-label="Ταιριάζουν με το καλάθι σου">
+      <section className="mt-12" aria-label={c.tairiazoyn_me_to_kalathi}>
         <div className="flex items-end justify-between gap-3 mb-4">
           <div>
-            <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Μία αποστολή, ένα κόστος μεταφορικών</div>
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Ταιριάζουν με το καλάθι σου</h2>
+            <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.mia_apostoli_ena_kostos}</div>
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">{c.tairiazoyn_me_to_kalathi}</h2>
           </div>
         </div>
         <CardCarousel label="Ταιριάζουν με το καλάθι σου">
@@ -284,11 +288,11 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
 function Qty({ qty, onChange }: { qty: number; onChange: (q: number) => void }) {
   return (
     <div className="inline-flex items-center border-2 border-eu-line rounded-full bg-white">
-      <button type="button" aria-label="Λιγότερα" onClick={() => onChange(qty - 1)} className="size-11 inline-flex items-center justify-center rounded-l-full hover:bg-eu-surface">
+      <button type="button" aria-label={c.ligotera} onClick={() => onChange(qty - 1)} className="size-11 inline-flex items-center justify-center rounded-l-full hover:bg-eu-surface">
         <Minus className="size-4" aria-hidden />
       </button>
       <span className="w-8 text-center font-extrabold tabular-nums text-[length:var(--fs-16)]">{qty}</span>
-      <button type="button" aria-label="Περισσότερα" onClick={() => onChange(qty + 1)} className="size-11 inline-flex items-center justify-center rounded-r-full hover:bg-eu-surface">
+      <button type="button" aria-label={c.perissotera} onClick={() => onChange(qty + 1)} className="size-11 inline-flex items-center justify-center rounded-r-full hover:bg-eu-surface">
         <Plus className="size-4" aria-hidden />
       </button>
     </div>

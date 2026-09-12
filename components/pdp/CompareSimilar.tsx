@@ -5,6 +5,9 @@ import { CompareCheckbox } from "@/components/commerce/WishlistButton";
 import { attributesOf } from "@/lib/data/attributes";
 import { CompareStacked } from "@/components/catalog/CompareStacked";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("compareSimilar");
 
 /**
  * In-page comparison: this product against up to three similar ones,
@@ -22,13 +25,13 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
     <section id="compare" className="scroll-mt-24" aria-labelledby="compare-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Σύγκριση</div>
+          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.sygkrisi}</div>
           <h2 id="compare-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight">
-            Σύγκρινε με παρόμοια προϊόντα
+            {c.sygkrine_me_paromoia_proionta}
           </h2>
         </div>
         <Link href="/sygkrisi" className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-11 inline-flex items-center hover:bg-eu-surface">
-          Πλήρης σύγκριση →
+          {c.pliris_sygkrisi}
         </Link>
       </div>
       <div className="@3xl:hidden">
@@ -45,14 +48,14 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
                   <div className="text-eu-muted text-[length:var(--fs-14)] truncate">{x.brand}</div>
                   {i === 0 ? <div className="font-bold text-eu-ink line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</div> : <Link href={`/proion/${x.slug}`} className="block font-bold text-eu-ink hover:text-eu-blue line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</Link>}
                   <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mt-1 min-h-[1.3em]">{priceShort(x.price)}</div>
-                  {i === 0 ? <div className="mt-1 inline-block rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13-5)] px-2 py-0.5">Αυτό το προϊόν</div> : <div className="mt-1"><CompareCheckbox id={x.id} /></div>}
+                  {i === 0 ? <div className="mt-1 inline-block rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13-5)] px-2 py-0.5">{c.ayto_to_proion}</div> : <div className="mt-1"><CompareCheckbox id={x.id} /></div>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">Ενεργειακή κλάση</th>
+              <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">{c.energeiaki_klasi}</th>
               {all.map((x) => (
                 <td key={x.id} className="p-3 text-eu-ink-2">
                   {x.energy?.cls ?? "—"}
@@ -60,7 +63,7 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
               ))}
             </tr>
             <tr>
-              <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">Αξιολόγηση</th>
+              <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">{c.axiologisi}</th>
               {all.map((x) => (
                 <td key={x.id} className="p-3 text-eu-ink-2">
                   {x.rating ? `★ ${x.rating.value.toLocaleString("el-GR")} (${x.rating.count})` : "—"}
@@ -71,7 +74,7 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
               <tr key={k} className={differs(k) ? "bg-eu-yellow/10" : ""}>
                 <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">
                   {k}
-                  {differs(k) && <span className="block text-eu-amber font-semibold text-[length:var(--fs-13-5)]">διαφέρει</span>}
+                  {differs(k) && <span className="block text-eu-amber font-semibold text-[length:var(--fs-13-5)]">{c.diaferei}</span>}
                 </th>
                 {all.map((x) => (
                   <td key={x.id} className="p-3 text-eu-ink-2">

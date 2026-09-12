@@ -1,5 +1,8 @@
+import { copyOf } from "@/lib/cms/copy";
 import Image from "next/image";
 import Link from "next/link";
+
+const c = copyOf("footer");
 
 const cols: { title: string; links: { label: string; href: string }[] }[] = [
   { title: "Αγορές", links: [{ label: "Τρόποι πληρωμής", href: "/tropoi-pliromis" }, { label: "Τρόποι & χρόνοι αποστολής", href: "/tropoi-apostolis" }, { label: "Δόσεις χωρίς κάρτα", href: "/ypiresies/xrimatodotisi" }, { label: "Παραλαβή σε 2 ώρες", href: "/ypiresies/paralavi-2-ores" }, { label: "Κάρτες δώρου", href: "/kartes-dorou" }, { label: "Euronics Renew", href: "/renew" }] },
@@ -29,9 +32,9 @@ export function SiteFooter() {
             </div>
           ))}
           <div>
-            <h2 className="m-0 mb-2.5 font-extrabold text-white text-[length:var(--fs-13-5)] tracking-wide">Επικοινωνία</h2>
+            <h2 className="m-0 mb-2.5 font-extrabold text-white text-[length:var(--fs-13-5)] tracking-wide">{c.epikoinonia}</h2>
             <address className="not-italic">
-              Δαμάσκου Σταμάτη 12, 136 71 Αχαρνές
+              {c.damaskoy_stamati_12_136}
               <br />
               <a href="tel:00302104835143" className="hover:text-white">+30 210 4835143 - 6</a>
               <br />
@@ -50,11 +53,11 @@ export function SiteFooter() {
         </div>
         <div className="border-t border-eu-navy-line pt-4 flex flex-wrap justify-between items-center gap-4 text-[length:var(--fs-13-5)] leading-relaxed">
           <p className="m-0">
-            © euronics 2026 · MEGA ELECTRICS ΑΕΒΕ · ΑΦΜ 998182322 · ΔΟΥ ΦΑΕ Αθηνών · Αρ. μητρώου ΑΗΗΕ —
+            {c.euronics_2026_mega_electrics}
             <br />
-            Οι τιμές περιλαμβάνουν ΦΠΑ 24%. Τα μεταφορικά υπολογίζονται πριν την οριστικοποίηση της παραγγελίας.
+            {c.oi_times_perilamvanoyn_fpa}
           </p>
-          <Image src="https://www.euronics.gr/Themes/Uptown/Content/img/credit_cards_final.png" alt="Τρόποι πληρωμής" width={220} height={22} className="h-[22px] w-auto" unoptimized />
+          <Image src="https://www.euronics.gr/Themes/Uptown/Content/img/credit_cards_final.png" alt={c.tropoi_pliromis} width={220} height={22} className="h-[22px] w-auto" unoptimized />
         </div>
       </div>
     </footer>

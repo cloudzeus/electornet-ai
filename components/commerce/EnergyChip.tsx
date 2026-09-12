@@ -1,4 +1,7 @@
 import type { EnergyClass } from "@/lib/data/types";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("energyChip");
 
 const COLORS: Record<string, string> = {
   "A+++": "#0f7a3a",
@@ -26,7 +29,7 @@ export function EnergyChip({ cls, fiche, compact = false }: { cls: EnergyClass; 
       </span>
       {!compact && (
         <a href={fiche} className="bg-white border border-eu-line text-eu-muted font-semibold text-[length:var(--fs-12)] px-1.5 py-1 rounded-sm hover:text-eu-blue">
-          Δελτίο προϊόντος
+          {c.deltio_proiontos}
         </a>
       )}
     </>

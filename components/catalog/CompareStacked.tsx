@@ -2,6 +2,9 @@ import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("compareStacked");
 
 const TONES = ["bg-eu-navy", "bg-eu-blue", "bg-eu-green", "bg-eu-amber"];
 
@@ -49,7 +52,7 @@ export function CompareStacked({ products, rows, val, current }: { products: Pro
                 <div key={k} className={`p-3 ${d ? "bg-eu-yellow/10" : ""}`}>
                   <dt className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1.5">
                     {k}
-                    {d && <span className="ml-2 text-eu-amber font-semibold text-[length:var(--fs-13)]">διαφέρει</span>}
+                    {d && <span className="ml-2 text-eu-amber font-semibold text-[length:var(--fs-13)]">{c.diaferei}</span>}
                   </dt>
                   <dd className={`m-0 grid ${cols} gap-x-3 gap-y-1`}>
                     {products.map((p, i) => (

@@ -8,6 +8,9 @@ import { EnergyChip } from "@/components/commerce/EnergyChip";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Tilt } from "@/components/motion/Tilt";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("gallery");
 
 /**
  * Main image with thumbnails; swipe rail on phones; badge and energy chip
@@ -91,19 +94,19 @@ export function Gallery({
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-eu-placeholder-ink font-semibold">
-                    φωτογραφία προϊόντος
+                    {c.fotografia_proiontos}
                   </div>
                 )}
               </div>
             </ViewTransition>
             {badge?.kind === "discount" && (
               <span className="absolute top-3 left-3 bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5 rounded-md eu-shimmer">
-                Προσφορά
+                {c.prosfora}
               </span>
             )}
             {badge?.kind === "new" && (
               <span className="absolute top-3 left-3 bg-eu-blue text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5 rounded-md">
-                Νέο
+                {c.neo}
               </span>
             )}
             {badge?.kind === "renew" && (

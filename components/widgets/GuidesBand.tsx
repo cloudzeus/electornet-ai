@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { Guide } from "@/lib/data/types";
 import { ZoneBadge } from "@/components/site/ZoneBadge";
 import { SectionHead } from "./SectionHead";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("guidesBand");
 
 const TONE = { blue: "text-eu-blue", red: "text-eu-red", green: "text-eu-green" };
 
@@ -17,7 +20,7 @@ export function GuidesBand({ guides, zoneNo }: { guides: Guide[]; zoneNo?: numbe
     <section className="relative bg-white eu-container" aria-labelledby="guides-title">
       <ZoneBadge no={zoneNo} />
       <div className="eu-canvas eu-gutter pt-8 @lg:pt-[38px] pb-8">
-        <SectionHead id="guides-title" kicker="Οδηγοί αγοράς" title="Πρώτα καταλαβαίνεις, μετά αγοράζεις" link={{ label: "Όλοι οι οδηγοί →", href: "/odigoi" }} />
+        <SectionHead id="guides-title" kicker="Οδηγοί αγοράς" title={c.prota_katalavaineis_meta_agorazeis} link={{ label: "Όλοι οι οδηγοί →", href: "/odigoi" }} />
         <div className="grid grid-cols-1 @md:grid-cols-2 @lg:grid-cols-[1.4fr_1fr_1fr] gap-4">
           <Link href={`/odigoi/${lead.slug}`} className="relative overflow-hidden rounded-lg min-h-[260px] @lg:min-h-[340px] @md:col-span-2 @lg:col-span-1 group">
             {lead.image && <Image src={lead.image} alt="" fill sizes="(max-width: 1024px) 100vw, 560px" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" unoptimized={lead.image.startsWith("http")} />}
@@ -37,7 +40,7 @@ export function GuidesBand({ guides, zoneNo }: { guides: Guide[]; zoneNo?: numbe
                 {g.image ? (
                   <Image src={g.image} alt="" fill sizes="(max-width: 768px) 100vw, 320px" className="object-cover" />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-eu-placeholder-ink font-semibold text-[length:var(--fs-13-5)]">εικόνα άρθρου</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-eu-placeholder-ink font-semibold text-[length:var(--fs-13-5)]">{c.eikona_arthroy}</div>
                 )}
               </div>
               <div className="p-4 flex flex-col flex-1">

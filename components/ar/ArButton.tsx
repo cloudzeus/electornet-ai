@@ -5,6 +5,9 @@ import { Box, X, Smartphone } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import type { Dims } from "@/lib/data/dims";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("ar");
 
 /**
  * @dynamic «Δες το στον χώρο σου»: opens the product as a to-scale box
@@ -106,7 +109,7 @@ export function ArButton({
           <button
             type="button"
             className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm"
-            aria-label="Κλείσιμο"
+            aria-label={c.kleisimo}
             onClick={() => setOpen(false)}
           />
           <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(920px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-cols-1 @md:grid-cols-[minmax(0,1fr)_280px] max-h-[92dvh]">
@@ -118,7 +121,7 @@ export function ArButton({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">
-                    AR · σε πραγματική κλίμακα
+                    {c.ar_se_pragmatiki_klimaka}
                   </div>
                   <h2
                     id="ar-title"
@@ -130,7 +133,7 @@ export function ArButton({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="Κλείσιμο"
+                  aria-label={c.kleisimo}
                   className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0"
                 >
                   <X className="size-5" aria-hidden />
@@ -167,7 +170,7 @@ export function ArButton({
               </p>
               <div className="hidden @md:flex items-center gap-3 rounded-xl border border-eu-line p-3">
                 {qr ? (
-                  <Image src={qr} alt="QR για άνοιγμα στο κινητό" width={84} height={84} unoptimized className="rounded-md" />
+                  <Image src={qr} alt={c.qr_gia_anoigma_sto} width={84} height={84} unoptimized className="rounded-md" />
                 ) : (
                   <span className="size-[84px] rounded-md bg-eu-surface" />
                 )}
@@ -176,7 +179,7 @@ export function ArButton({
                     className="size-4 text-eu-blue inline mr-1"
                     aria-hidden
                   />
-                  Σκάναρε με το κινητό για να το δεις στον χώρο σου.
+                  {c.skanare_me_to_kinito}
                 </div>
               </div>
             </div>

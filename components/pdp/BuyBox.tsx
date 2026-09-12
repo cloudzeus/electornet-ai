@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package } from "lucide-react";
@@ -8,6 +9,9 @@ import { discountPct, instalment, priceLong, priceShort, weekday } from "@/lib/f
 import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
 import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistButton";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("buybox");
 
 /**
  * Sticky buy box. Price + Omnibus 30-day price, instalments with and
@@ -56,7 +60,7 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
 
   const box = "rounded-xl border-2 p-3.5 cursor-pointer";
   return (
-    <aside className="min-w-0 w-full bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-raised)] p-5 @lg:p-6 grid gap-5" aria-label="Αγορά">
+    <aside className="min-w-0 w-full bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-raised)] p-5 @lg:p-6 grid gap-5" aria-label={c.agora}>
       <div>
         <div className="flex items-end gap-3 flex-wrap">
           <span className="font-extrabold text-eu-ink text-[length:var(--fs-44)] leading-none tracking-[-0.02em]">{priceShort(price)}</span>
@@ -74,11 +78,11 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div className="rounded-xl bg-eu-chip p-3.5">
             <div className="font-extrabold text-eu-blue text-[length:var(--fs-18)]">12 × {priceLong(instalment(price))}</div>
-            <div className="text-eu-muted text-[length:var(--fs-13-5)]">χωρίς κάρτα · Eurobank</div>
+            <div className="text-eu-muted text-[length:var(--fs-13-5)]">{c.choris_karta_eurobank}</div>
           </div>
           <div className="rounded-xl bg-eu-surface p-3.5">
             <div className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">24 × {priceLong(instalment(price, 24))}</div>
-            <div className="text-eu-muted text-[length:var(--fs-13-5)]">άτοκα με κάρτα</div>
+            <div className="text-eu-muted text-[length:var(--fs-13-5)]">{c.atoka_me_karta}</div>
           </div>
         </div>
       </div>
@@ -110,23 +114,23 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
       </div>
 
       <fieldset className="m-0 p-0 border-0 min-w-0 grid gap-2">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-2">Πώς το θέλεις;</legend>
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.pos_to_theleis}</legend>
         <label className={`${box} ${ful === "courier" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
           <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
             <input type="radio" name="ful" checked={ful === "courier"} onChange={() => setFul("courier")} className="accent-eu-blue size-4" />
-            <Truck className="size-5 text-eu-blue" aria-hidden /> Στη διεύθυνσή μου
+            <Truck className="size-5 text-eu-blue" aria-hidden /> {c.sti_dieythynsi_moy}
             <span className="ml-auto text-eu-green">{price >= 100 ? "Δωρεάν" : "4,90 €"}</span>
           </span>
         </label>
         <label className={`${box} ${ful === "store" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
           <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
             <input type="radio" name="ful" checked={ful === "store"} onChange={() => setFul("store")} className="accent-eu-blue size-4" />
-            <StoreIcon className="size-5 text-eu-blue" aria-hidden /> Παραλαβή από κατάστημα
-            <span className="ml-auto text-eu-green">Δωρεάν</span>
+            <StoreIcon className="size-5 text-eu-blue" aria-hidden /> {c.paralavi_apo_katastima}
+            <span className="ml-auto text-eu-green">{c.dorean}</span>
           </span>
           {ful === "store" && (
             <div className="mt-2 grid gap-1.5 pl-6">
-              <select value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label="Κατάστημα" className="w-full min-w-0 rounded-md border border-eu-line px-3 py-2 text-[length:var(--fs-14)] min-h-11 bg-white">
+              <select value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label={c.katastima} className="w-full min-w-0 rounded-md border border-eu-line px-3 py-2 text-[length:var(--fs-14)] min-h-11 bg-white">
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.city} — {s.name}
@@ -135,9 +139,9 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
               </select>
               {store && (
                 <div className="text-[length:var(--fs-14)] text-eu-ink-2">
-                  {storeQty > 0 ? <span className="text-eu-green font-bold">{storeQty} τεμ. · έτοιμο σε 2 ώρες</span> : <span className="text-eu-amber font-bold">Μεταφορά στο κατάστημα · 1–3 εργάσιμες</span>} · {store.distanceKm} km ·{" "}
+                  {storeQty > 0 ? <span className="text-eu-green font-bold">{storeQty} τεμ. · έτοιμο σε 2 ώρες</span> : <span className="text-eu-amber font-bold">{c.metafora_sto_katastima_1}</span>} · {store.distanceKm} km ·{" "}
                   <Link href={`/katastimata/${store.slug}`} className="text-eu-blue underline">
-                    ωράριο
+                    {c.orario}
                   </Link>
                 </div>
               )}
@@ -148,10 +152,10 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
           <label className={`${box} ${ful === "appointment" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
             <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
               <input type="radio" name="ful" checked={ful === "appointment"} onChange={() => setFul("appointment")} className="accent-eu-blue size-4" />
-              <CalendarClock className="size-5 text-eu-blue" aria-hidden /> Με ραντεβού & εγκατάσταση
-              <span className="ml-auto text-eu-blue">από 60 €</span>
+              <CalendarClock className="size-5 text-eu-blue" aria-hidden /> {c.me_rantevoy_egkatastasi}
+              <span className="ml-auto text-eu-blue">{c.apo_60}</span>
             </span>
-            <span className="block text-eu-muted text-[length:var(--fs-13-5)] pl-6 mt-1">Τεχνικός του καταστήματος της περιοχής σου, ραντεβού εντός 24 ωρών.</span>
+            <span className="block text-eu-muted text-[length:var(--fs-13-5)] pl-6 mt-1">{c.technikos_toy_katastimatos_tis}</span>
           </label>
         )}
       </fieldset>
@@ -159,7 +163,7 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
       {(addons.length > 0 || accessory) && (
         <fieldset className="m-0 p-0 border-0 min-w-0 grid gap-2">
           <legend className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)] mb-2">
-            <Package className="size-5 text-eu-yellow-dark" aria-hidden /> Ολοκληρωμένη λύση
+            <Package className="size-5 text-eu-yellow-dark" aria-hidden /> {c.olokliromeni_lysi}
           </legend>
           {addons.map((s) => {
             const on = chosen.some((x) => x.slug === s.slug);
@@ -185,7 +189,7 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
                   <span className="line-clamp-1 break-all">{accessory.brand} {accessory.title}</span>
                   <span className="text-eu-blue shrink-0">+ {priceLong(accessory.price)}</span>
                 </span>
-                <span className="block text-eu-muted text-[length:var(--fs-13-5)]">Ταιριάζει με αυτό το προϊόν · μία αποστολή</span>
+                <span className="block text-eu-muted text-[length:var(--fs-13-5)]">{c.tairiazei_me_ayto_to}</span>
               </span>
             </label>
           )}
@@ -194,11 +198,11 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
 
       <div className="flex items-center justify-between gap-2 border-t border-eu-line pt-4">
         <div className="inline-flex items-center border border-eu-line rounded-full">
-          <button type="button" aria-label="Λιγότερα" onClick={() => setQty((q) => Math.max(1, q - 1))} className="size-11 inline-flex items-center justify-center rounded-l-full hover:bg-eu-surface">
+          <button type="button" aria-label={c.ligotera} onClick={() => setQty((q) => Math.max(1, q - 1))} className="size-11 inline-flex items-center justify-center rounded-l-full hover:bg-eu-surface">
             <Minus className="size-4" aria-hidden />
           </button>
           <span className="w-8 text-center font-bold tabular-nums text-[length:var(--fs-16)]">{qty}</span>
-          <button type="button" aria-label="Περισσότερα" onClick={() => setQty((q) => Math.min(9, q + 1))} className="size-11 inline-flex items-center justify-center rounded-r-full hover:bg-eu-surface">
+          <button type="button" aria-label={c.perissotera} onClick={() => setQty((q) => Math.min(9, q + 1))} className="size-11 inline-flex items-center justify-center rounded-r-full hover:bg-eu-surface">
             <Plus className="size-4" aria-hidden />
           </button>
         </div>
@@ -209,7 +213,7 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
 
       <div className="grid gap-2">
         <button type="button" onClick={() => openQuickBuy({ ...p, price })} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-[56px] hover:bg-eu-yellow-dark">
-          Αγορά με 1 κλικ
+          {c.agora_me_1_klik}
         </button>
         <div className="flex gap-2">
           <button type="button" onClick={addAll} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] py-3.5 min-h-[56px] hover:bg-eu-blue">
@@ -219,7 +223,7 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
         </div>
         <div className="flex justify-between items-center text-[length:var(--fs-14)]">
           <CompareCheckbox id={p.id} />
-          <span className="text-eu-muted">Εγγύηση 2 έτη · Επιστροφή μέσα σε 14 ημέρες</span>
+          <span className="text-eu-muted">{c.eggyisi_2_eti_epistrofi}</span>
         </div>
       </div>
     </aside>

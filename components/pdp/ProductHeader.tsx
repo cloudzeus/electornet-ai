@@ -1,6 +1,9 @@
+import { copyOf } from "@/lib/cms/copy";
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
+
+const c = copyOf("productHeader");
 
 /** Derive up to 4 headline facts from the spec table (the «Με μια ματιά» tiles). */
 export function keyFacts(p: Product): { k: string; v: string }[] {
@@ -24,11 +27,11 @@ export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs
   return (
     <header className="bg-eu-blue text-white eu-container">
       <div className="eu-canvas eu-gutter pt-4 pb-6 @lg:pb-8">
-        <nav aria-label="Διαδρομή" className="text-[length:var(--fs-15)] text-eu-on-dark-3 mb-4">
+        <nav aria-label={c.diadromi} className="text-[length:var(--fs-15)] text-eu-on-dark-3 mb-4">
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 m-0 p-0 list-none">
             <li>
               <Link href="/" className="hover:text-white">
-                Αρχική
+                {c.archiki}
               </Link>
             </li>
             {crumbs.map((c, i) => (
@@ -51,8 +54,8 @@ export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs
               <Link href={`/brands/${p.brandSlug}`} className="rounded-full bg-white/15 hover:bg-white/25 text-white font-extrabold text-[length:var(--fs-15)] px-3 py-1.5 tracking-wide">
                 {p.brand}
               </Link>
-              {p.badge?.kind === "discount" && <span className="rounded-full bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">Προσφορά</span>}
-              {p.badge?.kind === "new" && <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">Νέο</span>}
+              {p.badge?.kind === "discount" && <span className="rounded-full bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">{c.prosfora}</span>}
+              {p.badge?.kind === "new" && <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">{c.neo}</span>}
               {p.badge?.kind === "renew" && <span className="rounded-full bg-eu-green text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">Renew · Grade {p.badge.grade}</span>}
               {p.energy && (
                 <span className="inline-flex items-center gap-1.5">
@@ -70,7 +73,7 @@ export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs
               <span>Κωδικός {p.sku}</span>
               {p.ean && <span>EAN {p.ean}</span>}
               <a href="#compare" className="text-eu-yellow font-semibold hover:underline">
-                Σύγκρινε με παρόμοια →
+                {c.sygkrine_me_paromoia}
               </a>
             </div>
           </div>

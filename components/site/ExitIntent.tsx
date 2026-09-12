@@ -8,6 +8,9 @@ import { X, Mail, Check, Sparkles } from "lucide-react";
 import { useCart } from "@/components/commerce/CartProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { priceLong } from "@/lib/format";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("exitIntent");
 
 const KEY = "euronics.exitIntent.v1";
 
@@ -81,7 +84,7 @@ export function ExitIntent() {
   const target = session?.email ?? email;
   return (
     <div className="fixed inset-0 z-[75]" role="dialog" aria-modal="true" aria-labelledby="exit-title">
-      <button type="button" className="absolute inset-0 bg-eu-navy/55 backdrop-blur-sm" aria-label="Κλείσιμο" onClick={() => setOpen(false)} />
+      <button type="button" className="absolute inset-0 bg-eu-navy/55 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
       <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(640px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-cols-1 @md:grid-cols-[200px_minmax(0,1fr)] animate-[eu-sheet_.35s_var(--eu-ease-out)]">
         <div className="relative bg-eu-navy text-white p-5 overflow-hidden isolate hidden @md:flex items-end justify-center">
           <span className="eu-ambient" aria-hidden />
@@ -97,7 +100,7 @@ export function ExitIntent() {
                 {advisor.exitIntent.title}
               </h2>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Κλείσιμο" className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
+            <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
               <X className="size-5" aria-hidden />
             </button>
           </div>
@@ -146,9 +149,9 @@ export function ExitIntent() {
                   <label className="sr-only" htmlFor="exit-email">
                     Email
                   </label>
-                  <input id="exit-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Το email σου για το καλάθι" className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-4 min-h-12 text-[length:var(--fs-16)] outline-none focus:border-eu-blue" />
+                  <input id="exit-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder={c.to_email_soy_gia} className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-4 min-h-12 text-[length:var(--fs-16)] outline-none focus:border-eu-blue" />
                   <button type="submit" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-blue">
-                    <Mail className="size-4" aria-hidden /> Στείλε
+                    <Mail className="size-4" aria-hidden /> {c.steile}
                   </button>
                 </div>
               )}

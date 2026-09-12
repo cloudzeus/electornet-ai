@@ -6,6 +6,9 @@ import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { ListResult } from "@/lib/data/repo";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("facets");
 
 /**
  * Facets live in the URL (?k=eikona-ixos&brand=lg,samsung&min=200&max=800
@@ -62,29 +65,29 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
             </button>
           ))}
           <button type="button" onClick={clearAll} className="text-eu-muted font-semibold text-[length:var(--fs-14)] px-2 min-h-9 hover:text-eu-red">
-            Καθαρισμός όλων
+            {c.katharismos_olon}
           </button>
         </div>
       )}
 
       {showCategories && result.categories.length > 0 && (
-        <Group title="Κατηγορία" open>
+        <Group title={c.katigoria} open>
           {result.categories.map((c) => (
             <Radio key={c.slug} label={c.label} count={c.count} checked={sp.get("k") === c.slug} onChange={() => set("k", sp.get("k") === c.slug ? null : c.slug)} />
           ))}
         </Group>
       )}
 
-      <Group title="Διαθεσιμότητα & προσφορές" open>
+      <Group title={c.diathesimotita_prosfores} open>
         <Check label="Άμεσα διαθέσιμα" checked={!!sp.get("avail")} onChange={() => set("avail", sp.get("avail") ? null : "in-stock")} />
         <Check label="Σε προσφορά" checked={!!sp.get("sale")} onChange={() => set("sale", sp.get("sale") ? null : "1")} />
       </Group>
 
-      <Group title="Τιμή" open>
+      <Group title={c.timi} open>
         <PriceRange min={result.priceRange[0]} max={result.priceRange[1]} curMin={sp.get("min")} curMax={sp.get("max")} onApply={(a, b) => apply((n) => (a ? n.set("min", a) : n.delete("min"), b ? n.set("max", b) : n.delete("max")))} />
       </Group>
 
-      <Group title="Μάρκα" open count={(sp.get("brand") ?? "").split(",").filter(Boolean).length}>
+      <Group title={c.marka} open count={(sp.get("brand") ?? "").split(",").filter(Boolean).length}>
         <Limited>
           {result.brands.map((b) => (
             <Check key={b.slug} label={b.name} count={b.count} checked={has("brand", b.slug)} onChange={() => toggleIn("brand", b.slug)} />
@@ -93,7 +96,7 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
       </Group>
 
       {result.energies.length > 1 && (
-        <Group title="Ενεργειακή κλάση" open count={(sp.get("energy") ?? "").split(",").filter(Boolean).length}>
+        <Group title={c.energeiaki_klasi} open count={(sp.get("energy") ?? "").split(",").filter(Boolean).length}>
           {result.energies.map((e) => (
             <Check key={e.cls} label={`Κλάση ${e.cls}`} count={e.count} checked={has("energy", e.cls)} onChange={() => toggleIn("energy", e.cls)} />
           ))}
@@ -117,9 +120,9 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
   return (
     <>
       <StickySidebar className="hidden @3xl:block w-[280px] shrink-0">
-        <aside className="bg-white rounded-2xl border border-eu-line p-5" aria-label="Φίλτρα">
+        <aside className="bg-white rounded-2xl border border-eu-line p-5" aria-label={c.filtra}>
           <div className="flex items-center justify-between mb-2">
-            <h2 className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-18)]">Φίλτρα</h2>
+            <h2 className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-18)]">{c.filtra}</h2>
             {active.length > 0 && <span className="rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-2.5 py-0.5">{active.length}</span>}
           </div>
           {body}
@@ -131,7 +134,7 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
             <SlidersHorizontal className="size-5" aria-hidden /> Φίλτρα{active.length ? ` · ${active.length}` : ""}
           </SheetTrigger>
           <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-2xl p-5">
-            <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mb-3">Φίλτρα</SheetTitle>
+            <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mb-3">{c.filtra}</SheetTitle>
             {body}
             <div className="sticky bottom-0 bg-white pt-3 mt-3 border-t border-eu-line">
               <div className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] py-3.5 min-h-12 text-center">Δες {result.total} προϊόντα</div>
@@ -226,9 +229,9 @@ function PriceRange({ min, max, curMin, curMax, onApply }: { min: number; max: n
         }}
         className="flex items-center gap-1.5"
       >
-        <input inputMode="numeric" value={a} onChange={(e) => setA(e.target.value)} placeholder={String(Math.floor(min))} aria-label="Ελάχιστη τιμή" className="w-full min-w-0 rounded-md border border-eu-line px-2.5 min-h-11 text-[length:var(--fs-15)]" />
+        <input inputMode="numeric" value={a} onChange={(e) => setA(e.target.value)} placeholder={String(Math.floor(min))} aria-label={c.elachisti_timi} className="w-full min-w-0 rounded-md border border-eu-line px-2.5 min-h-11 text-[length:var(--fs-15)]" />
         <span className="text-eu-muted-2">–</span>
-        <input inputMode="numeric" value={b} onChange={(e) => setB(e.target.value)} placeholder={String(Math.ceil(max))} aria-label="Μέγιστη τιμή" className="w-full min-w-0 rounded-md border border-eu-line px-2.5 min-h-11 text-[length:var(--fs-15)]" />
+        <input inputMode="numeric" value={b} onChange={(e) => setB(e.target.value)} placeholder={String(Math.ceil(max))} aria-label={c.megisti_timi} className="w-full min-w-0 rounded-md border border-eu-line px-2.5 min-h-11 text-[length:var(--fs-15)]" />
         <button type="submit" className="rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-14)] px-3.5 min-h-11 hover:bg-eu-blue">
           OK
         </button>

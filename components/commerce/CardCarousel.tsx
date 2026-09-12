@@ -4,6 +4,9 @@ import { Children, useEffect, useLayoutEffect, useRef, useState, type ReactNode 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import gsap from "gsap";
 import { useDevice } from "@/components/fluid/DeviceProvider";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("carousel");
 
 /**
  * Adaptive card rail. The number of cards per view comes from the
@@ -75,10 +78,10 @@ export function CardCarousel({ children, minItem = 240, minItemNarrow = 300, gap
       </div>
       {multi && (
         <>
-          <button type="button" aria-label="Προηγούμενο" disabled={cur === 0} onClick={() => go(-1)} className={`${arrow} ${narrow ? "left-2" : "left-0 -translate-x-1/2"}`}>
+          <button type="button" aria-label={c.proigoymeno} disabled={cur === 0} onClick={() => go(-1)} className={`${arrow} ${narrow ? "left-2" : "left-0 -translate-x-1/2"}`}>
             <ChevronLeft className="size-6" aria-hidden />
           </button>
-          <button type="button" aria-label="Επόμενο" disabled={cur >= maxStart} onClick={() => go(1)} className={`${arrow} ${narrow ? "right-2" : "right-0 translate-x-1/2"}`}>
+          <button type="button" aria-label={c.epomeno} disabled={cur >= maxStart} onClick={() => go(1)} className={`${arrow} ${narrow ? "right-2" : "right-0 translate-x-1/2"}`}>
             <ChevronRight className="size-6" aria-hidden />
           </button>
           {maxStart < 8 && (

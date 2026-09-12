@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Truck, Store as StoreIcon, CalendarClock, Recycle, ShieldCheck, Wrench, Headset, RefreshCw } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
 import { priceLong, weekday } from "@/lib/format";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("servicesDelivery");
 
 /**
  * «Υπηρεσίες & παράδοση» — per-product delivery options with price and
@@ -21,13 +24,13 @@ export function ServicesDelivery({ product: p, services }: { product: Product; s
   const svc = services.filter((s) => ["epektasi-eggyisis", "e-support", "eggyisi-allagis", "syntirisi-episkeyi", "eggyisi-xamiloteris-timis", "dorean-fylaxi"].includes(s.slug)).slice(0, 6);
   return (
     <section id="services" className="scroll-mt-24" aria-labelledby="svc-title">
-      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Υπηρεσίες & παράδοση</div>
+      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.ypiresies_paradosi}</div>
       <h2 id="svc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
-        Πώς το παίρνεις και τι σε καλύπτει
+        {c.pos_to_pairneis_kai}
       </h2>
       <div className="grid grid-cols-1 @lg:grid-cols-2 gap-5">
         <div className="rounded-xl border border-eu-line overflow-hidden">
-          <div className="bg-eu-surface px-4 py-3 font-extrabold text-eu-ink text-[length:var(--fs-16)]">Επιλογές παράδοσης για αυτό το προϊόν</div>
+          <div className="bg-eu-surface px-4 py-3 font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.epiloges_paradosis_gia_ayto}</div>
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
             {delivery.map((d) => (
               <li key={d.t} className="flex gap-3 p-4">
@@ -44,7 +47,7 @@ export function ServicesDelivery({ product: p, services }: { product: Product; s
           </ul>
         </div>
         <div className="rounded-xl border border-eu-line overflow-hidden">
-          <div className="bg-eu-navy text-white px-4 py-3 font-extrabold text-[length:var(--fs-16)]">Υπηρεσίες Euronics για αυτό το προϊόν</div>
+          <div className="bg-eu-navy text-white px-4 py-3 font-extrabold text-[length:var(--fs-16)]">{c.ypiresies_euronics_gia_ayto}</div>
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
             {svc.map((s) => {
               const Icon = icons[s.slug] ?? ShieldCheck;

@@ -6,6 +6,9 @@ import Image from "next/image";
 import { Camera, X, Loader2, ScanLine, ArrowRight } from "lucide-react";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("snap");
 
 type Stage = "idle" | "reading" | "found" | "none";
 
@@ -92,7 +95,7 @@ export function SnapSheet() {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="snap-title">
-      <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label="Κλείσιμο" onClick={() => setOpen(false)} />
+      <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
       <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(760px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] max-h-[92dvh] overflow-y-auto grid gap-5 p-5 @md:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -101,15 +104,15 @@ export function SnapSheet() {
                 <Image src="/img/advisor/mascot-head.webp" alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
               </span>
               <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-                <ScanLine className="size-3.5" aria-hidden /> Snap & Find · με τον Άρη
+                <ScanLine className="size-3.5" aria-hidden /> {c.snap_find_me_ton}
               </div>
             </div>
             <h2 id="snap-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">
-              Φωτογράφισε την παλιά σου συσκευή
+              {c.fotografise_tin_palia_soy}
             </h2>
-            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">Την πινακίδα με το μοντέλο, μέσα στην πόρτα ή πίσω. Διαβάζουμε τον κωδικό στη συσκευή σου, δεν ανεβαίνει πουθενά.</p>
+            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">{c.tin_pinakida_me_to}</p>
           </div>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Κλείσιμο" className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
+          <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
             <X className="size-5" aria-hidden />
           </button>
         </div>
@@ -120,19 +123,19 @@ export function SnapSheet() {
               <input ref={input} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => e.target.files?.[0] && analyse(e.target.files[0])} />
               {preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={preview} alt="Η φωτογραφία σου" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={preview} alt={c.i_fotografia_soy} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <span className="absolute inset-0 grid place-items-center text-center p-4 text-eu-ink-3 text-[length:var(--fs-14)] font-semibold">
                   <span>
                     <Camera className="size-8 mx-auto mb-2 text-eu-blue" aria-hidden />
-                    Άνοιξε την κάμερα ή διάλεξε φωτογραφία
+                    {c.anoixe_tin_kamera_i}
                   </span>
                 </span>
               )}
               {stage === "reading" && (
                 <span className="absolute inset-0 bg-eu-navy/70 text-white grid place-items-center text-[length:var(--fs-14)] font-bold">
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 className="size-4 animate-spin" aria-hidden /> Διαβάζω την πινακίδα…
+                    <Loader2 className="size-4 animate-spin" aria-hidden /> {c.diavazo_tin_pinakida}
                   </span>
                   <span className="absolute inset-x-6 h-0.5 bg-eu-yellow animate-[eu-scan_1.6s_ease-in-out_infinite]" />
                 </span>
@@ -151,9 +154,9 @@ export function SnapSheet() {
               className="flex gap-1.5"
             >
               <label className="sr-only" htmlFor="snap-manual">
-                Ή γράψε τον κωδικό μοντέλου
+                {c.i_grapse_ton_kodiko}
               </label>
-              <input id="snap-manual" value={manual} onChange={(e) => setManual(e.target.value)} placeholder="ή γράψε το μοντέλο" className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] outline-none focus:border-eu-blue" />
+              <input id="snap-manual" value={manual} onChange={(e) => setManual(e.target.value)} placeholder={c.i_grapse_to_montelo} className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] outline-none focus:border-eu-blue" />
               <button type="submit" className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-3 min-h-11 text-[length:var(--fs-14)]">
                 OK
               </button>
@@ -181,11 +184,11 @@ export function SnapSheet() {
                 ))}
               </div>
             )}
-            {stage === "none" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">Δεν κατάφερα να διαβάσω κωδικό. Δοκίμασε πιο κοντά και με φως, ή γράψε το μοντέλο.</p>}
+            {stage === "none" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.den_katafera_na_diavaso}</p>}
             {stage === "found" && ans && (
               <>
                 <div className="rounded-2xl bg-eu-navy text-white p-4">
-                  <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">Βρήκα την κατηγορία</div>
+                  <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">{c.vrika_tin_katigoria}</div>
                   <p className="m-0 mt-1 text-[length:var(--fs-15)] leading-snug text-eu-on-dark">{ans.text}</p>
                 </div>
                 <ul className="m-0 p-0 list-none grid gap-1.5">

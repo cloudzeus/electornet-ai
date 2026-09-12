@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import Link from "next/link";
 import { X, Heart, Scale, Minus, Plus, ArrowRight, Check } from "lucide-react";
@@ -16,6 +17,9 @@ import {
 } from "@/lib/format";
 import { attributesOf } from "@/lib/data/attributes";
 import type { Product } from "@/lib/data/types";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("quickView");
 
 /**
  * Quick view — the product summary in a modal, so a customer can check
@@ -80,14 +84,14 @@ function Body({ p }: { p: Product }) {
     >
       <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-eu-line-2 sticky top-0 bg-white z-10">
         <DialogTitle className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-15)]">
-          Γρήγορη προβολή
+          {c.grigori_provoli}
         </DialogTitle>
         <button
           type="button"
           onClick={closeQuickView}
           className="inline-flex items-center gap-1 text-eu-muted-2 font-semibold text-[length:var(--fs-14)] min-h-11 px-2 hover:text-eu-ink"
         >
-          Κλείσιμο <X className="size-4" aria-hidden />
+          {c.kleisimo} <X className="size-4" aria-hidden />
         </button>
       </div>
       <div className="grid grid-cols-1 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-5 @2xl:gap-8 p-5 @2xl:p-6">
@@ -189,7 +193,7 @@ function Body({ p }: { p: Product }) {
                   12 × {priceLong(instalment(p.price))}
                 </div>
                 <div className="text-eu-muted text-[length:var(--fs-13-5)]">
-                  χωρίς κάρτα
+                  {c.choris_karta}
                 </div>
               </div>
               <div className="rounded-xl bg-eu-surface p-3">
@@ -197,7 +201,7 @@ function Body({ p }: { p: Product }) {
                   24 × {priceLong(instalment(p.price, 24))}
                 </div>
                 <div className="text-eu-muted text-[length:var(--fs-13-5)]">
-                  άτοκα με κάρτα
+                  {c.atoka_me_karta}
                 </div>
               </div>
             </div>
@@ -219,7 +223,7 @@ function Body({ p }: { p: Product }) {
             <div className="inline-flex items-center border border-eu-line rounded-full">
               <button
                 type="button"
-                aria-label="Λιγότερα"
+                aria-label={c.ligotera}
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
                 className="size-11 inline-flex items-center justify-center rounded-l-full hover:bg-eu-surface"
               >
@@ -230,7 +234,7 @@ function Body({ p }: { p: Product }) {
               </span>
               <button
                 type="button"
-                aria-label="Περισσότερα"
+                aria-label={c.perissotera}
                 onClick={() => setQty((q) => Math.min(9, q + 1))}
                 className="size-11 inline-flex items-center justify-center rounded-r-full hover:bg-eu-surface"
               >
@@ -254,7 +258,7 @@ function Body({ p }: { p: Product }) {
               }}
               className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-[52px] hover:bg-eu-yellow-dark"
             >
-              Αγορά με 1 κλικ
+              {c.agora_me_1_klik}
             </button>
             <div className="flex gap-2">
               <button
@@ -265,12 +269,12 @@ function Body({ p }: { p: Product }) {
                 }}
                 className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] min-h-[52px] hover:bg-eu-blue"
               >
-                Προσθήκη στο καλάθι
+                {c.prosthiki_sto_kalathi}
               </button>
               <button
                 type="button"
                 aria-pressed={liked}
-                aria-label="Λίστα επιθυμιών"
+                aria-label={c.lista_epithymion}
                 onClick={() => toggleWishlist(p.id)}
                 className={`size-[52px] rounded-full border-2 inline-flex items-center justify-center ${liked ? "border-eu-red text-eu-red" : "border-eu-line text-eu-muted hover:text-eu-red"}`}
               >
@@ -283,7 +287,7 @@ function Body({ p }: { p: Product }) {
               <button
                 type="button"
                 aria-pressed={compared}
-                aria-label="Σύγκριση"
+                aria-label={c.sygkrisi}
                 onClick={() => toggleCompare(p.id)}
                 className={`size-[52px] rounded-full border-2 inline-flex items-center justify-center ${compared ? "border-eu-blue text-eu-blue bg-eu-chip" : "border-eu-line text-eu-muted hover:text-eu-blue"}`}
               >

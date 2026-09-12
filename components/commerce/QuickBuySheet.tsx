@@ -1,11 +1,15 @@
 "use client";
 
+
 import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "./CartProvider";
 import { instalment, priceLong, weekday } from "@/lib/format";
 import { useDevice } from "@/components/fluid/DeviceProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("quickBuy");
 
 /**
  * Quick buy — «Αγορά με 1 κλικ» never orders silently. Directive
@@ -36,13 +40,13 @@ export function QuickBuySheet() {
         {p && (
           <div className="p-5 sm:p-6 flex flex-col gap-4 max-h-[92dvh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-eu-line-2 pb-3">
-              <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">Γρήγορη αγορά</SheetTitle>
+              <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.grigori_agora}</SheetTitle>
               <button
                 type="button"
                 onClick={closeQuickBuy}
                 className="inline-flex items-center gap-1 text-eu-muted-2 font-semibold text-[length:var(--fs-14)] min-h-11 px-2 rounded-full hover:text-eu-ink"
               >
-                Κλείσιμο <X className="size-4" aria-hidden />
+                {c.kleisimo} <X className="size-4" aria-hidden />
               </button>
             </div>
 
@@ -74,7 +78,7 @@ export function QuickBuySheet() {
               Πληρωμή {priceLong(p.price)} & ολοκλήρωση
             </button>
             <p className="text-eu-muted text-[length:var(--fs-13)] leading-snug m-0">
-              Χρεώνεται η κάρτα σου και η παραγγελία καταχωρείται αμέσως. Η τράπεζά σου θα ζητήσει επιβεβαίωση (3D Secure). Μπορείς να επιστρέψεις το προϊόν μέσα σε 14 ημέρες.
+              {c.chreonetai_i_karta_soy}
             </p>
           </div>
         )}
@@ -90,7 +94,7 @@ function Row({ label }: { label: string }) {
       className="flex justify-between items-center border border-eu-line rounded-md px-3 py-3 text-left font-medium text-eu-ink-2 text-[length:var(--fs-14)] min-h-11 hover:border-eu-blue"
     >
       <span>{label}</span>
-      <span className="text-eu-muted-2 text-[length:var(--fs-13-5)]">αλλαγή</span>
+      <span className="text-eu-muted-2 text-[length:var(--fs-13-5)]">{c.allagi}</span>
     </button>
   );
 }

@@ -68,6 +68,8 @@ export interface Settings {
   motion: MotionSettings;
   advisor: AdvisorSettings;
   stickers: StickerSettings;
+  /** CMS overrides of UI copy by component namespace (see lib/cms/copy.ts); undefined = Greek defaults */
+  copy?: Record<string, Record<string, string>>;
 }
 
 export const defaultSettings: Settings = {

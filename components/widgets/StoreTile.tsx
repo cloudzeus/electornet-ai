@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { LocateFixed, Loader2, MapPin, Navigation, Wifi } from "lucide-react";
 import type { NearStore } from "@/components/stores/NearestStoreCard";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("storeTile");
 
 /**
  * @dynamic Bento tile «Το κατάστημά σου» (v4): a radar — concentric pulses
@@ -44,7 +47,7 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
       </span>
       <div className="relative">
         <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide inline-flex items-center gap-1.5">
-          <MapPin className="size-3.5" aria-hidden /> Το κατάστημά σου
+          <MapPin className="size-3.5" aria-hidden /> {c.to_katastima_soy}
         </div>
         <div className="font-heading font-bold text-[length:var(--fs-17)] leading-[1.25] mt-1 pr-16 line-clamp-1">{store.name}</div>
         <div className="text-eu-on-dark-3 text-[length:var(--fs-13-5)] mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -59,18 +62,18 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
         {src === "gps" ? <Navigation className="size-3.5 text-eu-green" aria-hidden /> : <Wifi className="size-3.5" aria-hidden />}
         {src === "gps" ? "Ακριβής θέση" : src === "ip" ? `Εκτίμηση από το δίκτυό σου${geoCity ? ` · ${geoCity}` : ""}` : "Προεπιλογή Αθήνα"}
         {src !== "gps" && (
-          <button type="button" onClick={locate} disabled={busy} aria-label="Χρήση της τοποθεσίας μου" className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/12 px-2 min-h-7 font-bold text-white hover:bg-white/20 disabled:opacity-70">
+          <button type="button" onClick={locate} disabled={busy} aria-label={c.chrisi_tis_topothesias_moy} className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/12 px-2 min-h-7 font-bold text-white hover:bg-white/20 disabled:opacity-70">
             {busy ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <LocateFixed className="size-3" aria-hidden />} GPS
           </button>
         )}
       </div>
       <div className="relative flex gap-1.5">
         <label className="sr-only" htmlFor="hero-store-q">
-          Ταχυδρομικός κώδικας ή πόλη
+          {c.tachydromikos_kodikas_i_poli}
         </label>
-        <input id="hero-store-q" name="q" placeholder="ΤΚ ή πόλη" className="flex-1 min-w-0 rounded-full bg-white text-eu-ink placeholder:text-eu-muted-2 px-3 py-2.5 text-[length:var(--fs-14)] outline-none focus-visible:ring-2 ring-eu-yellow" />
+        <input id="hero-store-q" name="q" placeholder={c.tk_i_poli} className="flex-1 min-w-0 rounded-full bg-white text-eu-ink placeholder:text-eu-muted-2 px-3 py-2.5 text-[length:var(--fs-14)] outline-none focus-visible:ring-2 ring-eu-yellow" />
         <button type="submit" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3.5 min-h-11 hover:bg-eu-yellow-dark">
-          Βρες
+          {c.vres}
         </button>
       </div>
     </form>

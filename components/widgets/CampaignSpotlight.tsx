@@ -107,7 +107,7 @@ export function CampaignSpotlight({ campaigns, zoneNo, title = "Καμπάνιε
       tw.kill();
       gsap.set(bar, { scaleX: 0 });
     };
-  }, [active, paused, n]);
+  }, [active, paused, n, AUTOPLAY_S]);
 
   if (!c) return null;
 

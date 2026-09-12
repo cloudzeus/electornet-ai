@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("stepper");
 
 /**
  * Checkout progress: Καλάθι → Στοιχεία & παράδοση → Πληρωμή → Επιβεβαίωση.
@@ -14,7 +17,7 @@ export function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
     { t: "Επιβεβαίωση", href: undefined },
   ];
   return (
-    <nav aria-label="Βήματα αγοράς" className="py-5 @lg:py-6">
+    <nav aria-label={c.vimata_agoras} className="py-5 @lg:py-6">
       <ol className="m-0 p-0 list-none grid grid-cols-4 gap-1 @md:gap-2">
         {steps.map((s, i) => {
           const n = i + 1;

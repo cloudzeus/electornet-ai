@@ -3,6 +3,9 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { PageIntro } from "./PageIntro";
 import type { Policy } from "@/lib/data/types";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("policy");
 
 const NAV = [
   { href: "/tropoi-pliromis", label: "Τρόποι πληρωμής" },
@@ -63,7 +66,7 @@ export function PolicyPage({
       />
       <div className="eu-canvas eu-gutter pb-12 grid grid-cols-1 @3xl:grid-cols-[220px_minmax(0,1fr)] gap-8 items-stretch">
         <StickySidebar className="min-w-0">
-          <nav aria-label="Εξυπηρέτηση">
+          <nav aria-label={c.exypiretisi}>
             <ul className="m-0 p-0 list-none flex flex-wrap @3xl:flex-col gap-1">
               {NAV.map((n) => (
                 <li key={n.href} className="shrink-0">
@@ -121,7 +124,7 @@ export function PolicyPage({
                 rel="noreferrer"
                 target="_blank"
               >
-                πηγή
+                {c.pigi}
               </a>
             </p>
           )}

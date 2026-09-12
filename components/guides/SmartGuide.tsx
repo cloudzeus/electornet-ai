@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, AlertTriangle, RotateCcw, Sparkles, Scale, Heart } from "lucide-react";
@@ -8,6 +9,9 @@ import { GUIDES, evaluate, type Answers, type GuideKind } from "@/lib/guides/sma
 import { instalment, priceLong, priceShort } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("smartGuide");
 
 /**
  * Smart buying guide wizard: one question per screen, big tappable
@@ -62,7 +66,7 @@ export function SmartGuide({ kind, products }: { kind: GuideKind; products: Prod
         <div>
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)] leading-tight">{q.title}</h2>
           {q.help && <p className="m-0 mt-2 text-eu-muted text-[length:var(--fs-16)]">{q.help}</p>}
-          {q.multi && <p className="m-0 mt-1 text-eu-blue font-bold text-[length:var(--fs-14)]">Διάλεξε ένα ή περισσότερα</p>}
+          {q.multi && <p className="m-0 mt-1 text-eu-blue font-bold text-[length:var(--fs-14)]">{c.dialexe_ena_i_perissotera}</p>}
         </div>
         <div className={`grid gap-3 ${q.options.length > 3 ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-1 @md:grid-cols-3"}`}>
           {q.options.map((o) => {
@@ -81,7 +85,7 @@ export function SmartGuide({ kind, products }: { kind: GuideKind; products: Prod
       </div>
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => step(-1)} disabled={i === 0} className="inline-flex items-center gap-1.5 font-bold text-eu-blue text-[length:var(--fs-15)] min-h-12 disabled:opacity-30">
-          <ArrowLeft className="size-4" aria-hidden /> Πίσω
+          <ArrowLeft className="size-4" aria-hidden /> {c.piso}
         </button>
         <button type="button" onClick={() => step(1)} disabled={!canNext} className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] px-7 min-h-14 hover:bg-eu-blue disabled:opacity-40">
           {i === def.questions.length - 1 ? "Δες την πρότασή μας" : "Επόμενο"} <ArrowRight className="size-4" aria-hidden />
@@ -105,7 +109,7 @@ function Results({ kind, a, result, onEdit, onReset }: { kind: GuideKind; a: Ans
         <aside className="grid gap-4 @3xl:sticky @3xl:top-16">
           <div className="rounded-2xl bg-eu-navy text-white p-5">
             <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide mb-2 flex items-center gap-1.5">
-              <Sparkles className="size-4" aria-hidden /> Τι χρειάζεσαι
+              <Sparkles className="size-4" aria-hidden /> {c.ti_chreiazesai}
             </div>
             <dl className="m-0 grid gap-2.5">
               {result.needs.map((n) => (
@@ -117,7 +121,7 @@ function Results({ kind, a, result, onEdit, onReset }: { kind: GuideKind; a: Ans
             </dl>
           </div>
           <div className="rounded-2xl border border-eu-line bg-white p-5 grid gap-2">
-            <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">Οι απαντήσεις σου</div>
+            <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.oi_apantiseis_soy}</div>
             <ul className="m-0 p-0 list-none grid gap-1 text-eu-ink-2 text-[length:var(--fs-14)]">
               {summary.map((s, k) => (
                 <li key={k} className="flex gap-2">
@@ -127,15 +131,15 @@ function Results({ kind, a, result, onEdit, onReset }: { kind: GuideKind; a: Ans
             </ul>
             <div className="flex flex-wrap gap-3 mt-1 text-[length:var(--fs-14)] font-bold">
               <button type="button" onClick={onEdit} className="text-eu-blue hover:underline min-h-9">
-                Αλλαγή απαντήσεων
+                {c.allagi_apantiseon}
               </button>
               <button type="button" onClick={onReset} className="inline-flex items-center gap-1 text-eu-muted hover:text-eu-ink min-h-9">
-                <RotateCcw className="size-3.5" aria-hidden /> Από την αρχή
+                <RotateCcw className="size-3.5" aria-hidden /> {c.apo_tin_archi}
               </button>
             </div>
           </div>
           <Link href={result.listHref} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center hover:bg-eu-surface">
-            Όλα τα μοντέλα με αυτά τα φίλτρα →
+            {c.ola_ta_montela_me}
           </Link>
         </aside>
 
@@ -143,7 +147,7 @@ function Results({ kind, a, result, onEdit, onReset }: { kind: GuideKind; a: Ans
           <Pick s={top} rank={1} noun={def.noun} onAdd={() => add(top.product)} onQuick={() => openQuickBuy(top.product)} onCompare={() => toggleCompare(top.product.id)} compared={compare.includes(top.product.id)} onLike={() => toggleWishlist(top.product.id)} liked={wishlist.includes(top.product.id)} />
           {alts.length > 0 && (
             <div className="grid gap-3">
-              <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Εναλλακτικές που αξίζει να δεις</h3>
+              <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">{c.enallaktikes_poy_axizei_na}</h3>
               <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-3">
                 {alts.map((s, k) => (
                   <Pick key={s.product.id} s={s} rank={k + 2} noun={def.noun} compact onAdd={() => add(s.product)} onQuick={() => openQuickBuy(s.product)} onCompare={() => toggleCompare(s.product.id)} compared={compare.includes(s.product.id)} onLike={() => toggleWishlist(s.product.id)} liked={wishlist.includes(s.product.id)} />
@@ -160,7 +164,7 @@ function Results({ kind, a, result, onEdit, onReset }: { kind: GuideKind; a: Ans
               .
             </span>
             <Link href="/sygkrisi" className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">
-              <Scale className="size-4" aria-hidden /> Σύγκριση
+              <Scale className="size-4" aria-hidden /> {c.sygkrisi}
             </Link>
           </div>
         </div>
@@ -179,7 +183,7 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
         <span className="font-extrabold text-[length:var(--fs-15)] flex items-center gap-2">
           {rank === 1 ? <Sparkles className="size-4" aria-hidden /> : null}
           {rank === 1 ? `Η ${noun === "υπολογιστή" ? "πρότασή μας" : "πρότασή μας"}` : `Εναλλακτική ${rank - 1}`}
-          {s.overBudget && <span className="rounded-full bg-eu-red text-white text-[length:var(--fs-13)] px-2 py-0.5">Εκτός προϋπολογισμού</span>}
+          {s.overBudget && <span className="rounded-full bg-eu-red text-white text-[length:var(--fs-13)] px-2 py-0.5">{c.ektos_proypologismoy}</span>}
         </span>
         <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{s.pct}% ταίριασμα</span>
       </div>
@@ -205,7 +209,7 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
             <div className={`h-full rounded-full ${s.pct >= 75 ? "bg-eu-green" : s.pct >= 50 ? "bg-eu-yellow" : "bg-eu-amber"}`} style={{ width: `${s.pct}%` }} />
           </div>
           <div>
-            <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)] mb-2">Γιατί σου ταιριάζει</div>
+            <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.giati_soy_tairiazei}</div>
             <ul className="m-0 p-0 list-none grid gap-1.5">
               {reasons.map((r) => (
                 <li key={r} className="flex gap-2 text-[length:var(--fs-15)] text-eu-ink-2 leading-snug">
@@ -216,7 +220,7 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
           </div>
           {cons.length > 0 && (
             <div>
-              <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)] mb-2">Τι να έχεις υπόψη</div>
+              <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.ti_na_echeis_ypopsi}</div>
               <ul className="m-0 p-0 list-none grid gap-1.5">
                 {cons.map((r) => (
                   <li key={r} className="flex gap-2 text-[length:var(--fs-15)] text-eu-ink-2 leading-snug">
@@ -228,15 +232,15 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
           )}
           <div className="flex flex-wrap gap-2 pt-1">
             <button type="button" onClick={onQuick} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-yellow-dark">
-              Αγορά με 1 κλικ
+              {c.agora_me_1_klik}
             </button>
             <button type="button" onClick={onAdd} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-blue">
-              Στο καλάθι
+              {c.sto_kalathi}
             </button>
             <button type="button" onClick={onCompare} aria-pressed={compared} className={`inline-flex items-center gap-1.5 rounded-full border-2 font-bold text-[length:var(--fs-14)] px-4 min-h-12 ${compared ? "border-eu-blue text-eu-blue bg-eu-chip" : "border-eu-line text-eu-ink-2 hover:border-eu-blue"}`}>
-              <Scale className="size-4" aria-hidden /> Σύγκριση
+              <Scale className="size-4" aria-hidden /> {c.sygkrisi}
             </button>
-            <button type="button" onClick={onLike} aria-pressed={liked} aria-label="Λίστα επιθυμιών" className={`size-12 rounded-full border-2 inline-flex items-center justify-center ${liked ? "border-eu-red text-eu-red" : "border-eu-line text-eu-muted hover:text-eu-red"}`}>
+            <button type="button" onClick={onLike} aria-pressed={liked} aria-label={c.lista_epithymion} className={`size-12 rounded-full border-2 inline-flex items-center justify-center ${liked ? "border-eu-red text-eu-red" : "border-eu-line text-eu-muted hover:text-eu-red"}`}>
               <Heart className="size-4" fill={liked ? "currentColor" : "none"} aria-hidden />
             </button>
           </div>

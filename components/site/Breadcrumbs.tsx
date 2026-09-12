@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("breadcrumbs");
 
 export interface Crumb {
   label: string;
@@ -15,7 +18,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
     itemListElement: all.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.label, ...(c.href ? { item: `https://www.euronics.gr${c.href}` } : {}) })),
   };
   return (
-    <nav aria-label="Διαδρομή" className="eu-canvas eu-gutter py-3 text-[length:var(--fs-14)] text-eu-muted">
+    <nav aria-label={c.diadromi} className="eu-canvas eu-gutter py-3 text-[length:var(--fs-14)] text-eu-muted">
       <ol className="flex flex-wrap items-center gap-x-1 gap-y-0.5 m-0 p-0 list-none">
         {all.map((c, i) => (
           <li key={i} className="flex items-center gap-1">

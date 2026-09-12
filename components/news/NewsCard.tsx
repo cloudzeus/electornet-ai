@@ -3,6 +3,9 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import type { NewsItem } from "@/lib/data/types";
 import { getNewsCategories } from "@/lib/data/repo";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("newsCard");
 
 export const fmtDate = (d: string) => new Date(d).toLocaleDateString("el-GR", { day: "numeric", month: "long", year: "numeric" });
 
@@ -28,7 +31,7 @@ export function NewsCard({ item, priority = false, featured = false }: { item: N
         </h3>
         <p className={`m-0 text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed ${featured ? "" : "line-clamp-3"}`}>{item.excerpt}</p>
         <Link href={`/nea/${item.slug}`} className="mt-auto pt-2 inline-flex items-center gap-1 font-extrabold text-eu-blue text-[length:var(--fs-15)]">
-          Διάβασε <ArrowRight className="size-4" aria-hidden />
+          {c.diavase} <ArrowRight className="size-4" aria-hidden />
         </Link>
       </div>
     </article>

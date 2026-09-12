@@ -1,5 +1,6 @@
 "use client";
 
+
 import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
@@ -8,6 +9,9 @@ import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { priceLong } from "@/lib/format";
 import { Stepper } from "./Stepper";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("orderSuccess");
 
 interface Saved {
   number: string;
@@ -48,9 +52,9 @@ export function OrderSuccess({ number }: { number: string }) {
             <div className="flex gap-4 items-start">
               <CheckCircle2 className="size-10 text-eu-green shrink-0" aria-hidden />
               <div>
-                <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Ευχαριστούμε! Η παραγγελία σου καταχωρήθηκε.</h1>
+                <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">{c.eycharistoyme_i_paraggelia_soy}</h1>
                 <p className="m-0 mt-1 text-eu-ink-2 text-[length:var(--fs-16)]">
-                  Αριθμός παραγγελίας <strong className="font-extrabold text-eu-ink">{number}</strong>. Στείλαμε επιβεβαίωση στο {o?.address.email ?? "email σου"}.
+                  {c.arithmos_paraggelias} <strong className="font-extrabold text-eu-ink">{number}</strong>. Στείλαμε επιβεβαίωση στο {o?.address.email ?? "email σου"}.
                 </p>
               </div>
             </div>
@@ -66,14 +70,14 @@ export function OrderSuccess({ number }: { number: string }) {
           </section>
 
           <section className="bg-white rounded-xl border border-eu-line p-5">
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] mb-3">Τι γίνεται τώρα</h2>
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] mb-3">{c.ti_ginetai_tora}</h2>
             <ol className="m-0 pl-5 grid gap-2 text-eu-ink-2 text-[length:var(--fs-15)]">
-              {o?.pay === "bank" && <li>Κατέθεσε το ποσό εντός 48 ωρών με αιτιολογία τον αριθμό παραγγελίας. Οι λογαριασμοί είναι στο email.</li>}
-              {o?.pay === "no-card" && <li>Ολοκλήρωσε την αίτηση στο περιβάλλον της Eurobank· με την έγκριση, η παραγγελία εκτελείται.</li>}
+              {o?.pay === "bank" && <li>{c.katethese_to_poso_entos}</li>}
+              {o?.pay === "no-card" && <li>{c.oloklirose_tin_aitisi_sto}</li>}
               {o?.ful === "click-collect" ? (
                 <>
                   <li>Το κατάστημα {o.store} ετοιμάζει την παραγγελία. Θα λάβεις SMS όταν είναι έτοιμη (σε 2 ώρες αν υπάρχει απόθεμα).</li>
-                  <li>Παραλαμβάνεις με τον αριθμό παραγγελίας και ταυτότητα.</li>
+                  <li>{c.paralamvaneis_me_ton_arithmo}</li>
                 </>
               ) : o?.ful === "appointment" ? (
                 <>
@@ -82,14 +86,14 @@ export function OrderSuccess({ number }: { number: string }) {
                 </>
               ) : (
                 <>
-                  <li>Η παραγγελία ετοιμάζεται και παραδίδεται στον courier εντός 1 εργάσιμης.</li>
-                  <li>Θα λάβεις SMS με τον αριθμό αποστολής. Παράδοση σε 1–3 εργάσιμες.</li>
+                  <li>{c.i_paraggelia_etoimazetai_kai}</li>
+                  <li>{c.tha_laveis_sms_me}</li>
                 </>
               )}
               <li>
                 Παρακολούθησε την πορεία στη σελίδα{" "}
                 <Link href={`/entopismos?no=${number}`} className="text-eu-blue underline">
-                  Παρακολούθηση παραγγελίας
+                  {c.parakoloythisi_paraggelias}
                 </Link>
                 .
               </li>
@@ -98,18 +102,18 @@ export function OrderSuccess({ number }: { number: string }) {
 
           {o && (
             <section className="bg-white rounded-xl border border-eu-line p-5">
-              <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] mb-3">Στοιχεία παραγγελίας</h2>
+              <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] mb-3">{c.stoicheia_paraggelias}</h2>
               <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4 text-[length:var(--fs-15)] text-eu-ink-2">
                 <div>
-                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-13-5)] tracking-wide mb-1">Παράδοση</div>
+                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-13-5)] tracking-wide mb-1">{c.paradosi}</div>
                   {o.ful === "click-collect" ? <p className="m-0">Παραλαβή από κατάστημα: {o.store}</p> : <p className="m-0">{o.address.firstName} {o.address.lastName}<br />{o.address.street} {o.address.number}, {o.address.zip} {o.address.city}<br />{o.address.phone}</p>}
                 </div>
                 <div>
-                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-13-5)] tracking-wide mb-1">Πληρωμή</div>
+                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-13-5)] tracking-wide mb-1">{c.pliromi}</div>
                   <p className="m-0">
                     {PAY[o.pay]}
                     {o.inst > 1 ? ` · ${o.inst} άτοκες δόσεις` : ""}
-                    {o.address.invoice ? <><br />Τιμολόγιο: {o.address.company} · ΑΦΜ {o.address.vat}</> : <><br />Απόδειξη λιανικής</>}
+                    {o.address.invoice ? <><br />Τιμολόγιο: {o.address.company} · ΑΦΜ {o.address.vat}</> : <><br />{c.apodeixi_lianikis}</>}
                   </p>
                 </div>
               </div>
@@ -118,17 +122,17 @@ export function OrderSuccess({ number }: { number: string }) {
 
           <section className="bg-eu-navy text-white rounded-xl p-5 grid @sm:grid-cols-[1fr_auto] gap-3 items-center">
             <div>
-              <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-1">Λογαριασμός</div>
-              <div className="font-bold text-[length:var(--fs-16)]">Δες παραγγελίες, εγγυήσεις και επιστροφές σε ένα μέρος</div>
+              <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide mb-1">{c.logariasmos}</div>
+              <div className="font-bold text-[length:var(--fs-16)]">{c.des_paraggelies_eggyiseis_kai}</div>
             </div>
             <Link href="/eggrafi" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center justify-center hover:bg-eu-yellow-dark">
-              Δημιουργία λογαριασμού
+              {c.dimioyrgia_logariasmoy}
             </Link>
           </section>
         </div>
 
         <aside className="bg-eu-surface rounded-xl p-5 grid gap-2 text-[length:var(--fs-15)]">
-          <h2 className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-16)]">Σύνοψη</h2>
+          <h2 className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-16)]">{c.synopsi}</h2>
           {o ? (
             <>
               <ul className="m-0 p-0 list-none grid gap-1.5 text-eu-ink-2">
@@ -147,19 +151,19 @@ export function OrderSuccess({ number }: { number: string }) {
                 ))}
               </ul>
               <div className="flex justify-between border-t border-eu-line pt-2 text-eu-ink-2">
-                <span>Μεταφορικά</span>
+                <span>{c.metaforika}</span>
                 <span>{o.shipping === 0 ? "Δωρεάν" : priceLong(o.shipping)}</span>
               </div>
               <div className="flex justify-between font-extrabold text-eu-ink text-[length:var(--fs-16)]">
-                <span>Σύνολο</span>
+                <span>{c.synolo}</span>
                 <span>{priceLong(o.total)}</span>
               </div>
             </>
           ) : (
-            <p className="m-0 text-eu-muted">Η σύνοψη είναι διαθέσιμη στο email επιβεβαίωσης.</p>
+            <p className="m-0 text-eu-muted">{c.i_synopsi_einai_diathesimi}</p>
           )}
           <Link href="/" className="mt-2 rounded-full border-2 border-eu-navy text-eu-navy text-center font-extrabold text-[length:var(--fs-15)] py-2.5 min-h-11 inline-flex items-center justify-center hover:bg-white">
-            Πίσω στην αρχική
+            {c.piso_stin_archiki}
           </Link>
         </aside>
       </div>

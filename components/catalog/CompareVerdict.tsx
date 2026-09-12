@@ -5,6 +5,9 @@ import { Sparkles, ChevronDown } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { compareRows } from "@/lib/data/attributes";
 import { estimateKwh } from "@/lib/energy/estimate";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("compareVerdict");
 
 /**
  * @dynamic «Εξήγησέ μου τη διαφορά»: a three-sentence verdict over the
@@ -52,9 +55,9 @@ export function CompareVerdict({ products }: { products: Product[] }) {
             <Sparkles className="size-5" aria-hidden />
           </span>
           <span>
-            <span className="block font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">Σύμβουλος αγοράς</span>
+            <span className="block font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">{c.symvoylos_agoras}</span>
             <span id="verdict-title" className="block font-heading font-bold text-[length:var(--fs-19)] leading-tight">
-              Εξήγησέ μου τη διαφορά
+              {c.exigise_moy_ti_diafora}
             </span>
           </span>
         </span>
@@ -74,7 +77,7 @@ export function CompareVerdict({ products }: { products: Product[] }) {
               </li>
             ))}
           </ul>
-          <p className="m-0 text-eu-on-dark-2 text-[length:var(--fs-14)]">Από τα χαρακτηριστικά του καταλόγου και την εκτίμηση κατανάλωσης · 0,19 €/kWh.</p>
+          <p className="m-0 text-eu-on-dark-2 text-[length:var(--fs-14)]">{c.apo_ta_charaktiristika_toy}</p>
         </div>
       )}
     </section>

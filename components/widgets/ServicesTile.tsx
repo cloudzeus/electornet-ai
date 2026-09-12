@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Wrench, Truck, ShieldCheck, Recycle, Clock, Sparkles } from "lucide-react";
 import gsap from "gsap";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("servicesTile");
 
 const ICONS = [Truck, Wrench, Clock, ShieldCheck, Recycle, Sparkles];
 
@@ -38,7 +41,7 @@ export function ServicesTile({ services, total = 13 }: { services: { title: stri
   return (
     <Link href="/ypiresies" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="group relative bg-eu-surface text-eu-ink rounded-lg p-4 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-2 hover:bg-eu-chip transition-colors overflow-hidden">
       <div className="flex items-center justify-between">
-        <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide">Υπηρεσίες</span>
+        <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide">{c.ypiresies}</span>
         <span className="font-heading font-extrabold text-eu-navy/20 text-[length:var(--fs-22)] leading-none tabular-nums">{String(i + 1).padStart(2, "0")}</span>
       </div>
       {rm ? (

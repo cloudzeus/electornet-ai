@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { Wrench, Camera, Check, CalendarClock } from "lucide-react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("serviceRequest");
 
 /**
  * @dynamic Fault report / service booking for a device: symptom, photo or
@@ -22,7 +25,7 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
         </span>
         <div className="text-[length:var(--fs-15)] text-eu-ink-2">
           <div className="font-bold text-eu-ink text-[length:var(--fs-17)]">Το αίτημα #{sent} καταχωρήθηκε</div>
-          Θα σε καλέσει ο τεχνικός του καταστήματος μέσα σε 24 ώρες για να κλείσετε ώρα. Θα το βλέπεις εδώ, στα «Ραντεβού & service».
+          {c.tha_se_kalesei_o}
         </div>
       </div>
     );
@@ -37,7 +40,7 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
       <span className="eu-ambient" aria-hidden />
       <div className="relative">
         <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-          <Wrench className="size-3.5" aria-hidden /> Δήλωση βλάβης / service
+          <Wrench className="size-3.5" aria-hidden /> {c.dilosi_vlavis_service}
         </div>
         <h2 className="m-0 mt-1 font-heading font-bold text-[length:var(--fs-22)] leading-tight">{device.title}</h2>
         <p className="m-0 mt-1 text-eu-on-dark-2 text-[length:var(--fs-14)]">
@@ -47,14 +50,14 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
       </div>
       <label className="relative grid gap-1.5">
         <span className="font-bold text-[length:var(--fs-15)]">Τι συμβαίνει;</span>
-        <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} required rows={3} placeholder="π.χ. Δεν στύβει, βγάζει κωδικό E4 στην οθόνη" className="rounded-xl bg-white text-eu-ink px-3 py-2.5 text-[length:var(--fs-16)] outline-none focus:ring-2 ring-eu-yellow" />
+        <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} required rows={3} placeholder={c.p_ch_den_styvei} className="rounded-xl bg-white text-eu-ink px-3 py-2.5 text-[length:var(--fs-16)] outline-none focus:ring-2 ring-eu-yellow" />
       </label>
       <div className="relative grid grid-cols-1 @md:grid-cols-[auto_minmax(0,1fr)] gap-3 items-start">
         <label className="inline-flex items-center gap-2 rounded-full border-2 border-white/30 px-4 min-h-12 font-bold text-[length:var(--fs-15)] cursor-pointer hover:border-white">
-          <Camera className="size-4" aria-hidden /> Φωτογραφία / βίντεο
+          <Camera className="size-4" aria-hidden /> {c.fotografia_vinteo}
           <input type="file" accept="image/*,video/*" className="sr-only" />
         </label>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Τρόπος εξυπηρέτησης">
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={c.tropos_exypiretisis}>
           {[
             ["visit", "Επίσκεψη τεχνικού"],
             ["pickup", "Παραλαβή από το σπίτι"],
@@ -69,7 +72,7 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
       </div>
       <div className="relative flex flex-wrap items-center gap-3">
         <label className="inline-flex items-center gap-2 text-[length:var(--fs-15)] font-bold">
-          <CalendarClock className="size-4" aria-hidden /> Προτίμηση
+          <CalendarClock className="size-4" aria-hidden /> {c.protimisi}
           <select value={slot} onChange={(e) => setSlot(e.target.value)} className="rounded-full bg-white text-eu-ink px-3 min-h-11 text-[length:var(--fs-15)] font-semibold">
             {["Πρωί 9–13", "Μεσημέρι 13–17", "Απόγευμα 17–21", "Σάββατο"].map((s) => (
               <option key={s}>{s}</option>
@@ -77,7 +80,7 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
           </select>
         </label>
         <button type="submit" className="ml-auto rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 hover:bg-eu-yellow-dark">
-          Αποστολή αιτήματος
+          {c.apostoli_aitimatos}
         </button>
       </div>
     </form>

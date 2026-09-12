@@ -2,6 +2,9 @@ import { Bot, MessageCircleQuestion, Search, Sparkles } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { AskAris } from "@/components/advisor/AskAris";
 import { answersFor, geoSummary, seoAudit, type Crumb } from "@/lib/seo/product";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("answers");
 
 /**
  * AEO block: «Γρήγορες απαντήσεις». Five questions in the customer's
@@ -13,15 +16,15 @@ export function Answers({ product: p }: { product: Product }) {
   const qas = answersFor(p);
   return (
     <section id="answers" className="scroll-mt-24" aria-labelledby="answers-title">
-      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Γρήγορες απαντήσεις</div>
+      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.grigores_apantiseis}</div>
       <h2 id="answers-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-2">
-        Ό,τι θα ρωτούσες στο κατάστημα
+        {c.o_ti_tha_rotoyses}
       </h2>
       <p id="geo-summary" className="m-0 mb-3 rounded-xl bg-eu-chip text-eu-ink px-4 py-3 text-[length:var(--fs-16)] leading-relaxed max-w-[80ch]">
         {geoSummary(p)}
       </p>
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
-        <span className="text-eu-muted text-[length:var(--fs-14)] font-semibold mr-1">Ρώτα τον Άρη:</span>
+        <span className="text-eu-muted text-[length:var(--fs-14)] font-semibold mr-1">{c.rota_ton_ari}</span>
         {["Χωράει στον χώρο μου;", "Πόσο ρεύμα καίει;", "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
           <AskAris key={q} q={q} tone="light" />
         ))}
@@ -55,7 +58,7 @@ export function SeoPanel({ product: p, crumbs }: { product: Product; crumbs: Cru
       <summary className="cursor-pointer list-none flex items-center gap-3 px-5 py-4 min-h-14">
         <Sparkles className="size-5 text-eu-yellow shrink-0" aria-hidden />
         <span className="flex-1 font-extrabold text-[length:var(--fs-16)]">
-          SEO · AEO · GEO για αυτό το προϊόν <span className="font-normal text-eu-on-dark text-[length:var(--fs-14)]">— τι εκπέμπει η σελίδα σε μηχανές αναζήτησης, answer engines και AI</span>
+          {c.seo_aeo_geo_gia} <span className="font-normal text-eu-on-dark text-[length:var(--fs-14)]">{c.ti_ekpempei_i_selida}</span>
         </span>
         <span className="text-eu-yellow group-open:rotate-45 transition-transform text-[length:var(--fs-22)] leading-none">+</span>
       </summary>

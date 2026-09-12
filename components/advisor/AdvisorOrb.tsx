@@ -12,6 +12,9 @@ import { useAdvisor } from "./AdvisorContext";
 import { useMySpace } from "@/components/space/MySpaceProvider";
 import { fitVerdict } from "@/lib/space/fit";
 import { StoreHandoff } from "./StoreHandoff";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("advisorOrb");
 
 interface Msg {
   role: "user" | "advisor";
@@ -211,7 +214,7 @@ export function AdvisorOrb() {
         ref={orb}
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Σύμβουλος αγοράς"
+        aria-label={c.symvoylos_agoras}
         aria-expanded={open}
         className={`fixed z-[60] right-4 bottom-24 @md:bottom-6 @md:right-6 size-16 rounded-full bg-eu-navy shadow-[0_16px_40px_rgba(18,42,88,.45)] flex items-center justify-center group ${open ? "opacity-0 pointer-events-none" : "opacity-100"} transition-opacity`}
       >
@@ -240,7 +243,7 @@ export function AdvisorOrb() {
           <button
             type="button"
             className="absolute inset-0 bg-eu-navy/55 backdrop-blur-sm"
-            aria-label="Κλείσιμο"
+            aria-label={c.kleisimo}
             onClick={() => setOpen(false)}
           />
           <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:right-6 @md:bottom-6 @md:w-[440px] max-h-[88dvh] @md:max-h-[min(720px,90dvh)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
@@ -268,7 +271,7 @@ export function AdvisorOrb() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Κλείσιμο"
+                aria-label={c.kleisimo}
                 className="relative size-11 rounded-full bg-white/10 inline-flex items-center justify-center hover:bg-white/20 shrink-0"
               >
                 <X className="size-5" aria-hidden />
@@ -282,7 +285,7 @@ export function AdvisorOrb() {
               {msgs.length === 0 && (
                 <div className="grid gap-2">
                   <div className="text-eu-muted text-[length:var(--fs-14)] font-semibold">
-                    Ρώτα με
+                    {c.rota_me}
                   </div>
                   {suggestions.map((s) => (
                     <button
@@ -339,7 +342,7 @@ export function AdvisorOrb() {
               {typing && (
                 <div
                   className="justify-self-start rounded-2xl rounded-bl-md bg-white border border-eu-line px-4 py-3 flex gap-1"
-                  aria-label="Ο σύμβουλος γράφει"
+                  aria-label={c.o_symvoylos_grafei}
                 >
                   {[0, 1, 2].map((i) => (
                     <span
@@ -370,8 +373,7 @@ export function AdvisorOrb() {
                     onClick={() => setOpen(false)}
                     className="inline-flex items-center gap-1 rounded-full bg-white border border-eu-line px-3 min-h-9 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-blue"
                   >
-                    <Store className="size-3.5" aria-hidden /> Άνθρωπος από το
-                    κατάστημα
+                    <Store className="size-3.5" aria-hidden /> {c.anthropos_apo_to_katastima}
                   </Link>
                 </div>
               )}
@@ -387,7 +389,7 @@ export function AdvisorOrb() {
               className="p-3 border-t border-eu-line-2 flex gap-2 bg-white"
             >
               <label className="sr-only" htmlFor="advisor-q">
-                Η ερώτησή σου
+                {c.i_erotisi_soy}
               </label>
               <input
                 id="advisor-q"
@@ -398,7 +400,7 @@ export function AdvisorOrb() {
               />
               <button
                 type="submit"
-                aria-label="Αποστολή"
+                aria-label={c.apostoli}
                 className="size-12 rounded-full bg-eu-yellow text-eu-navy inline-flex items-center justify-center hover:bg-eu-yellow-dark shrink-0"
               >
                 <Send className="size-5" aria-hidden />

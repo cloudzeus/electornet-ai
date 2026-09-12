@@ -10,6 +10,9 @@ import type { HeroSlide } from "@/lib/data/types";
 import { useDevice } from "@/components/fluid/DeviceProvider";
 import { StarLight } from "@/components/motion/StarLight";
 import { Spotlight } from "@/components/motion/Spotlight";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("hero");
 
 /**
  * v4 cinematic hero («Το αστέρι φωτίζει το προϊόν»): navy stage with a
@@ -110,7 +113,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
   }, [reducedMotion, i]);
 
   return (
-    <div ref={stage} className="relative overflow-hidden rounded-lg bg-eu-navy-2 min-h-[380px] @md:min-h-[420px] @lg:min-h-[480px] @xl:min-h-[540px] h-full isolate eu-container" aria-roledescription="carousel" aria-label="Καμπάνιες">
+    <div ref={stage} className="relative overflow-hidden rounded-lg bg-eu-navy-2 min-h-[380px] @md:min-h-[420px] @lg:min-h-[480px] @xl:min-h-[540px] h-full isolate eu-container" aria-roledescription="carousel" aria-label={c.kampanies}>
       {/* backdrop photo, dimmed, for depth */}
       <div data-backdrop className="absolute inset-0" key={`bd-${s.id}`}>
         <Image src={s.image} alt="" fill priority={i === 0} sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover opacity-25 scale-105" unoptimized={s.image.startsWith("http")} />
@@ -177,7 +180,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
 
       {/* controls */}
       <div className="absolute bottom-4 left-5 right-4 @lg:left-9 @lg:bottom-5 @lg:right-[22px] flex items-center justify-between gap-3 z-20">
-        <div className="flex gap-2" role="tablist" aria-label="Επιλογή διαφάνειας">
+        <div className="flex gap-2" role="tablist" aria-label={c.epilogi_diafaneias}>
           {slides.map((sl, k) => (
             <button key={sl.id} type="button" role="tab" aria-selected={k === i} aria-label={`Διαφάνεια ${k + 1}`} onClick={() => go(k)} className="group/dot relative w-10 h-11 flex items-center bg-transparent">
               <span className="relative block w-full h-[6px] rounded-full bg-white/30 overflow-hidden group-hover/dot:bg-white/50 transition-colors">

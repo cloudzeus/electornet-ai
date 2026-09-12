@@ -7,6 +7,9 @@ import { useCart } from "./CartProvider";
 import { EnergyChip } from "./EnergyChip";
 import { WishlistButton } from "./WishlistButton";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("productRow");
 
 /** List view row: image, key specs, price block and actions in one line. */
 export function ProductRow({ product: p }: { product: Product }) {
@@ -53,11 +56,11 @@ export function ProductRow({ product: p }: { product: Product }) {
           <div className="font-bold text-eu-blue text-[length:var(--fs-14)] mt-1 mb-2">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>
         </div>
         <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 @md:flex-none rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 hover:bg-eu-blue">
-          Αγορά με 1 κλικ
+          {c.agora_me_1_klik}
         </button>
         <div className="flex gap-1.5">
           <button type="button" onClick={() => add(p)} className="flex-1 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 hover:bg-eu-surface">
-            Στο καλάθι
+            {c.sto_kalathi}
           </button>
           <WishlistButton id={p.id} />
         </div>

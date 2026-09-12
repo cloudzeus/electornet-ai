@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { LocateFixed, Loader2, Wifi, Navigation } from "lucide-react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("nearestStore");
 
 export interface NearStore {
   id: string;
@@ -70,7 +73,7 @@ export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card"
           </div>
         </div>
         <a href={`https://maps.google.com/?q=${store.lat},${store.lng}`} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13-5)] px-3.5 py-2.5 min-h-10 inline-flex items-center shrink-0 hover:bg-eu-blue">
-          Οδηγίες
+          {c.odigies}
         </a>
       </div>
       <div className="flex items-center justify-between gap-2 text-[length:var(--fs-13)] text-eu-muted">

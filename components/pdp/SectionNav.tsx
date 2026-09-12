@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("sectionNav");
 
 const ITEMS = [
   ["overview", "Με μια ματιά"],
@@ -42,7 +45,7 @@ export function SectionNav({ available }: { available: string[] }) {
     return () => io.disconnect();
   }, [items]);
   return (
-    <nav ref={ref} aria-label="Ενότητες προϊόντος" className="static @3xl:sticky top-[var(--eu-header-h,0px)] z-30 bg-white/95 backdrop-blur border-b border-eu-line eu-container">
+    <nav ref={ref} aria-label={c.enotites_proiontos} className="static @3xl:sticky top-[var(--eu-header-h,0px)] z-30 bg-white/95 backdrop-blur border-b border-eu-line eu-container">
       <ul className="eu-canvas eu-gutter m-0 p-0 list-none flex flex-wrap gap-x-1">
         {items.map(([id, label]) => (
           <li key={id}>

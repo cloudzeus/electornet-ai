@@ -6,6 +6,9 @@ import { ChevronDown, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { NavCategory } from "@/lib/data/nav";
 import { navUtility } from "@/lib/data/nav";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("mobileMenu");
 
 /** Phones/tablets: the mega menu becomes an accordion drawer, one level open at a time, all keyboard reachable. */
 export function MobileMenu({ categories }: { categories: NavCategory[] }) {
@@ -14,15 +17,15 @@ export function MobileMenu({ categories }: { categories: NavCategory[] }) {
     <Sheet>
       <SheetTrigger
         className="@lg:hidden inline-flex items-center justify-center size-11 rounded-full text-white hover:bg-eu-navy-2"
-        aria-label="Μενού"
+        aria-label={c.menoy}
       >
         <Menu className="size-6" aria-hidden />
       </SheetTrigger>
       <SheetContent side="left" className="w-[88vw] max-w-[380px] p-0 gap-0 bg-white">
         <div className="p-4 border-b border-eu-line">
-          <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">Κατηγορίες</SheetTitle>
+          <SheetTitle className="font-extrabold text-eu-ink text-[length:var(--fs-17)]">{c.katigories}</SheetTitle>
         </div>
-        <nav aria-label="Κατηγορίες" className="overflow-y-auto">
+        <nav aria-label={c.katigories} className="overflow-y-auto">
           <ul className="m-0 p-0 list-none">
             {categories.map((c) => {
               const isOpen = open === c.slug;

@@ -5,6 +5,9 @@ import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("greeting");
 
 const KEY = "euronics.arisGreeted.v1";
 
@@ -50,7 +53,7 @@ export function AdvisorGreeting() {
           <div className="font-extrabold text-eu-navy">{name ? tpl(advisor.greeting.titleReturning, { name }) : advisor.greeting.title}</div>
           <div className="text-eu-ink-3">{advisor.greeting.body}</div>
         </div>
-        <button type="button" onClick={() => setShow(false)} aria-label="Κλείσιμο" className="absolute top-2 right-2 size-7 rounded-full inline-flex items-center justify-center text-eu-muted hover:bg-eu-surface">
+        <button type="button" onClick={() => setShow(false)} aria-label={c.kleisimo} className="absolute top-2 right-2 size-7 rounded-full inline-flex items-center justify-center text-eu-muted hover:bg-eu-surface">
           <X className="size-4" aria-hidden />
         </button>
         <span className="absolute -bottom-2 right-6 size-4 rotate-45 bg-white border-r border-b border-eu-line" aria-hidden />

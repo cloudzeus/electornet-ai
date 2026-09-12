@@ -12,6 +12,9 @@ import { navCategories } from "@/lib/data/nav";
 import type { SuggestResult } from "@/lib/data/repo";
 import { priceShort, instalment, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("search");
 
 const PLACEHOLDER_FULL = "Προϊόν, μάρκα, κωδικός ή ερώτηση…";
 const PLACEHOLDER_SHORT = "Ψάξε προϊόν, μάρκα ή κωδικό";
@@ -178,11 +181,11 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     <div ref={box} className="relative min-w-0">
       <form action="/anazitisi" role="search" onSubmit={() => q && remember(q)} className={`flex bg-white rounded-full overflow-hidden min-w-0 shadow-[var(--shadow-card)] ${open ? "ring-2 ring-eu-yellow" : ""}`}>
         <label htmlFor={`${id}-scope`} className="sr-only">
-          Κατηγορία αναζήτησης
+          {c.katigoria_anazitisis}
         </label>
         <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "hidden @6xl:flex"} items-center`}>
           <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 outline-none cursor-pointer text-[length:var(--fs-15)]">
-            <option value="all">Κατηγορία</option>
+            <option value="all">{c.katigoria}</option>
             {navCategories.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.label}
@@ -192,7 +195,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
           <ChevronDown className="size-3.5 absolute right-3 pointer-events-none" aria-hidden />
         </div>
         <label htmlFor={`${id}-q`} className="sr-only">
-          Αναζήτηση προϊόντων
+          {c.anazitisi_proionton}
         </label>
         <input
           id={`${id}-q`}
@@ -214,19 +217,19 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
           className="flex-1 min-w-0 px-4 py-3 text-eu-ink placeholder:text-eu-muted-2 text-[length:var(--fs-16)] outline-none bg-transparent text-ellipsis"
         />
         {q && (
-          <button type="button" aria-label="Καθαρισμός" onClick={() => setQ("")} className="shrink-0 px-2 text-eu-muted hover:text-eu-ink">
+          <button type="button" aria-label={c.katharismos} onClick={() => setQ("")} className="shrink-0 px-2 text-eu-muted hover:text-eu-ink">
             <X className="size-4" aria-hidden />
           </button>
         )}
         <button type="button" onClick={listen} aria-label={listening ? "Ακούω…" : "Φωνητική αναζήτηση"} aria-pressed={listening} className={`shrink-0 w-10 items-center justify-center transition-colors ${compact ? "flex" : "hidden @6xl:flex"} ${listening ? "text-eu-red animate-pulse" : "text-eu-muted hover:text-eu-navy"}`}>
           <Mic className="size-[18px]" aria-hidden />
         </button>
-        <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("eu:snap")); }} aria-label="Snap & Find: φωτογράφισε την παλιά σου συσκευή" className={`shrink-0 w-10 items-center justify-center text-eu-muted hover:text-eu-navy transition-colors ${compact ? "flex" : "hidden @6xl:flex"}`}>
+        <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("eu:snap")); }} aria-label={c.snap_find_fotografise_tin} className={`shrink-0 w-10 items-center justify-center text-eu-muted hover:text-eu-navy transition-colors ${compact ? "flex" : "hidden @6xl:flex"}`}>
           <Camera className="size-[18px]" aria-hidden />
         </button>
         <button type="submit" className="shrink-0 bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 @md:px-[22px] flex items-center gap-2 hover:bg-eu-yellow-dark transition-colors min-h-11">
           <Search className="size-4" aria-hidden />
-          <span className={compact ? "sr-only" : "hidden @7xl:inline whitespace-nowrap"}>Αναζήτηση</span>
+          <span className={compact ? "sr-only" : "hidden @7xl:inline whitespace-nowrap"}>{c.anazitisi}</span>
         </button>
       </form>
 
@@ -246,7 +249,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                     </div>
                   </div>
                   {thinking && !ans ? (
-                    <div className="mt-3 flex gap-1" aria-label="Ο σύμβουλος σκέφτεται">
+                    <div className="mt-3 flex gap-1" aria-label={c.o_symvoylos_skeftetai}>
                       {[0, 1, 2].map((i) => (
                         <span key={i} className="size-2 rounded-full bg-eu-yellow animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
                       ))}
@@ -299,13 +302,13 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                     )}
                   </div>
                 ))}
-                {ans && ans.products.length === 0 && <p className="m-0 p-3 text-eu-muted text-[length:var(--fs-14)]">Δεν βρέθηκαν προϊόντα για αυτή την περιγραφή.</p>}
+                {ans && ans.products.length === 0 && <p className="m-0 p-3 text-eu-muted text-[length:var(--fs-14)]">{c.den_vrethikan_proionta_gia}</p>}
               </div>
             </div>
           ) : !res ? null : nothing ? (
             <div className="p-6 grid gap-2">
               <div className="font-bold text-eu-ink text-[length:var(--fs-16)]">Δεν βρέθηκε κάτι για «{q}»</div>
-              <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">Δοκίμασε μάρκα, μοντέλο ή κωδικό, ή ρώτησε τον έξυπνο οδηγό αγοράς.</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">{c.dokimase_marka_montelo_i}</p>
               <div className="flex flex-wrap gap-2 mt-1">
                 {res.popular.slice(0, 5).map((p) => (
                   <Link key={p} href={`/anazitisi?q=${encodeURIComponent(p)}`} className="rounded-full bg-eu-surface px-3 min-h-9 inline-flex items-center text-[length:var(--fs-14)] font-semibold text-eu-ink-2 hover:bg-eu-chip">
@@ -313,7 +316,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                   </Link>
                 ))}
                 <Link href="/odigos-agoras" className="rounded-full bg-eu-navy text-white px-3 min-h-9 inline-flex items-center text-[length:var(--fs-14)] font-bold">
-                  Έξυπνος οδηγός αγοράς
+                  {c.exypnos_odigos_agoras}
                 </Link>
               </div>
             </div>
@@ -321,14 +324,14 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
             <div className={`grid ${compact ? "grid-cols-1" : "grid-cols-1 @3xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]"}`}>
               <div className="p-3">
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <span className="font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">Προϊόντα</span>
+                  <span className="font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">{c.proionta}</span>
                   {res.total > 0 && (
                     <Link href={`/anazitisi?q=${encodeURIComponent(q)}${scope !== "all" ? `&cat=${scope}` : ""}`} onClick={() => remember(q)} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline">
                       Όλα τα {res.total} <ArrowRight className="size-3.5" aria-hidden />
                     </Link>
                   )}
                 </div>
-                {res.products.length === 0 && <p className="m-0 px-2 py-2 text-eu-muted text-[length:var(--fs-14)]">Κανένα προϊόν με αυτούς τους όρους.</p>}
+                {res.products.length === 0 && <p className="m-0 px-2 py-2 text-eu-muted text-[length:var(--fs-14)]">{c.kanena_proion_me_aytoys}</p>}
                 <ul className="m-0 p-0 list-none grid gap-0.5">
                   {res.products.map((p) => (
                     <li key={p.id}>
@@ -359,7 +362,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
               <div className="p-3 bg-eu-surface/60 border-t @3xl:border-t-0 @3xl:border-l border-eu-line grid gap-3 content-start">
                 {res.categories.length > 0 && (
                   <div>
-                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">Κατηγορίες</div>
+                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">{c.katigories}</div>
                     <ul className="m-0 p-0 list-none grid gap-0.5">
                       {res.categories.map((c) => (
                         <li key={c.href}>
@@ -381,7 +384,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                 )}
                 {res.brands.length > 0 && (
                   <div>
-                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">Μάρκες</div>
+                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">{c.markes}</div>
                     <div className="flex flex-wrap gap-1.5 px-2">
                       {res.brands.map((b) => (
                         <Link key={b.slug} href={`/brands/${b.slug}`} onClick={() => remember(q)} className="rounded-full bg-white border border-eu-line px-3 min-h-9 inline-flex items-center gap-1.5 text-[length:var(--fs-14)] font-bold text-eu-ink hover:border-eu-blue">
@@ -393,7 +396,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                 )}
                 {res.guides.length > 0 && (
                   <div>
-                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">Οδηγοί</div>
+                    <div className="px-2 py-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">{c.odigoi}</div>
                     <ul className="m-0 p-0 list-none grid gap-0.5">
                       {res.guides.map((g) => (
                         <li key={g.slug}>
@@ -419,7 +422,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                   <div>
                     <div className="flex items-center justify-between px-1 mb-1">
                       <span className="inline-flex items-center gap-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">
-                        <Clock className="size-3.5" aria-hidden /> Πρόσφατες
+                        <Clock className="size-3.5" aria-hidden /> {c.prosfates}
                       </span>
                       <button
                         type="button"
@@ -431,7 +434,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                         }}
                         className="text-eu-muted text-[length:var(--fs-13)] hover:text-eu-red"
                       >
-                        Καθαρισμός
+                        {c.katharismos}
                       </button>
                     </div>
                     <ul className="m-0 p-0 list-none grid gap-0.5">
@@ -455,7 +458,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                 </div>
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-1 mb-1.5 font-extrabold text-eu-muted text-[length:var(--fs-13)] tracking-wide uppercase">
-                    <TrendingUp className="size-3.5" aria-hidden /> Δημοφιλείς αναζητήσεις
+                    <TrendingUp className="size-3.5" aria-hidden /> {c.dimofileis_anazitiseis}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {res.popular.map((p) => {
@@ -472,7 +475,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
               </div>
               {res.promo && !compact && (
                 <Link href={`/proion/${res.promo.slug}`} onClick={() => setOpen(false)} className="bg-eu-navy text-white p-4 grid gap-2 content-start hover:bg-eu-blue transition-colors">
-                  <span className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">Προσφορά ημέρας</span>
+                  <span className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase">{c.prosfora_imeras}</span>
                   <ProductImage src={res.promo.image} sizes="260px" className="w-full" />
                   <span className="text-eu-on-dark text-[length:var(--fs-13)] uppercase font-bold">{res.promo.brand}</span>
                   <span className="font-bold text-[length:var(--fs-15)] leading-tight line-clamp-2">{res.promo.title}</span>

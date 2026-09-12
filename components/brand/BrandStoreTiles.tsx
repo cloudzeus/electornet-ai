@@ -5,6 +5,9 @@ import type { BrandStore } from "@/lib/cms/brand-store";
 import { getProductsByIds } from "@/lib/data/repo";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Reveal } from "@/components/motion/Reveal";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("brandTiles");
 
 /** @dynamic Featured brand stores on /brands: one themed tile per CMS record, flagship cutout, tagline. */
 export async function BrandStoreTiles({ stores }: { stores: BrandStore[] }) {
@@ -13,7 +16,7 @@ export async function BrandStoreTiles({ stores }: { stores: BrandStore[] }) {
   return (
     <section className="mb-8" aria-label="Brand stores">
       <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase mb-2">Brand stores</div>
-      <h2 className="m-0 mb-4 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Οι σελίδες των κατασκευαστών</h2>
+      <h2 className="m-0 mb-4 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">{c.oi_selides_ton_kataskeyaston}</h2>
       <Reveal className="grid grid-cols-1 @md:grid-cols-3 gap-4" stagger={0.1}>
         {stores.map((s) => {
           const p = products.find((x) => x.id === s.hero.productId);
@@ -31,7 +34,7 @@ export async function BrandStoreTiles({ stores }: { stores: BrandStore[] }) {
                 </span>
               )}
               <span className="absolute left-5 bottom-5 inline-flex items-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-10" style={{ background: s.theme.accent, color: s.theme.accentInk }}>
-                Δες τη σελίδα <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
+                {c.des_ti_selida} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
               </span>
             </Link>
           );

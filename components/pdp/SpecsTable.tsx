@@ -1,5 +1,8 @@
 import type { Product, Spec } from "@/lib/data/types";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("specs");
 
 /** Characteristics as a grid of grouped cards — one table, readable sizes (the current site prints a flat 7px list twice). */
 export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product["energy"] }) {
@@ -9,14 +12,14 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
     <section id="specs" className="scroll-mt-24" aria-labelledby="specs-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Τεχνικός φάκελος</div>
+          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.technikos_fakelos}</div>
           <h2 id="specs-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight">
-            Χαρακτηριστικά
+            {c.charaktiristika}
           </h2>
         </div>
         {energy && (
           <div className="flex items-center gap-2 text-[length:var(--fs-16)] text-eu-ink-2 rounded-lg bg-eu-surface px-3 py-2">
-            Ενεργειακή ετικέτα <EnergyChip cls={energy.cls} fiche={energy.fiche} />
+            {c.energeiaki_etiketa} <EnergyChip cls={energy.cls} fiche={energy.fiche} />
           </div>
         )}
       </div>

@@ -4,6 +4,9 @@ import type { Order } from "@/lib/data/types";
 import type { DeviceInfo, ServiceEvent } from "@/lib/data/fixtures/devices";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { Tilt } from "@/components/motion/Tilt";
+import { copyOf } from "@/lib/cms/copy";
+
+const cp = copyOf("deviceWallet");
 
 export interface DeviceRow {
   key: string;
@@ -53,7 +56,7 @@ export function WarrantyRing({ pct, daysLeft, years, size = 84 }: { pct: number;
       <div className="absolute inset-0 grid place-items-center text-center leading-none">
         <div>
           <div className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-19)]">{months >= 12 ? `${Math.floor(months / 12)}${months % 12 >= 6 ? "½" : ""} έτη` : `${months} μ.`}</div>
-          <div className="text-eu-muted text-[length:var(--fs-12)] mt-0.5">απομένουν</div>
+          <div className="text-eu-muted text-[length:var(--fs-12)] mt-0.5">{cp.apomenoyn}</div>
         </div>
       </div>
     </div>
@@ -106,11 +109,11 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
           <div className="border-t border-eu-line-2 bg-eu-surface/60 p-4 @md:p-5 grid gap-4 content-start">
             <div className="flex flex-wrap gap-2">
               <Link href={`/logariasmos/eggyiseis?service=${d.productId}`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">
-                <Wrench className="size-4" aria-hidden /> Δήλωση βλάβης / service
+                <Wrench className="size-4" aria-hidden /> {cp.dilosi_vlavis_service}
               </Link>
               {!d.ext && d.daysLeft > 0 && (
                 <Link href="/ypiresies/epektasi-eggyisis" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-white">
-                  Επέκταση σε 5 έτη
+                  {cp.epektasi_se_5_eti}
                 </Link>
               )}
               {d.info?.tradeIn && (
@@ -168,9 +171,9 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
             )}
             {d.info?.hotline && (
               <div className="text-[length:var(--fs-14)] text-eu-ink-3 inline-flex items-center gap-1.5">
-                <Phone className="size-3.5" aria-hidden /> Γραμμή κατασκευαστή: <a href={`tel:${d.info.hotline.replace(/\s/g, "")}`} className="font-bold text-eu-blue">{d.info.hotline}</a>
+                <Phone className="size-3.5" aria-hidden /> {cp.grammi_kataskeyasti} <a href={`tel:${d.info.hotline.replace(/\s/g, "")}`} className="font-bold text-eu-blue">{d.info.hotline}</a>
                 <span className="mx-1">·</span>
-                <CalendarClock className="size-3.5" aria-hidden /> Service Euronics: ραντεβού εντός 48 ωρών
+                <CalendarClock className="size-3.5" aria-hidden /> {cp.service_euronics_rantevoy_entos}
               </div>
             )}
           </div>

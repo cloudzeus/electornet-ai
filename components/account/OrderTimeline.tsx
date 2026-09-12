@@ -1,6 +1,9 @@
 import type { Order } from "@/lib/data/types";
 import { priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("orderTimeline");
 
 const STATUS: Record<Order["status"], { label: string; tone: string }> = {
   pending: { label: "Αναμονή πληρωμής", tone: "bg-eu-amber/15 text-eu-amber" },
@@ -48,7 +51,7 @@ export function OrderTimeline({ order: o }: { order: Order }) {
               {o.tracking.courier} · {o.tracking.code}
             </span>
             <a href={o.tracking.url} target="_blank" rel="noreferrer" className="text-eu-blue font-bold underline">
-              Άνοιγμα στον courier
+              {c.anoigma_ston_courier}
             </a>
           </div>
           <ul className="m-0 p-0 list-none grid gap-1.5 text-[length:var(--fs-14)]">

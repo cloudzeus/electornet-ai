@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("recentlyViewed");
 
 type Mini = { id: string; slug: string; title: string; brand: string; image: string | null; price: number };
 const KEY = "euronics.recent.v1";
@@ -24,8 +27,8 @@ export function RecentlyViewed({ current }: { current: Mini }) {
   }, [current]);
   if (items.length === 0) return null;
   return (
-    <section className="mt-12" aria-label="Είδες πρόσφατα">
-      <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-21)] mb-4">Είδες πρόσφατα</h2>
+    <section className="mt-12" aria-label={c.eides_prosfata}>
+      <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-21)] mb-4">{c.eides_prosfata}</h2>
       <ul className="m-0 p-0 list-none grid grid-cols-2 @md:grid-cols-4 @xl:grid-cols-8 gap-3">
         {items.map((x) => (
           <li key={x.id}>

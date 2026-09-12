@@ -12,6 +12,9 @@ import { Reveal } from "@/components/motion/Reveal";
 import { Tilt } from "@/components/motion/Tilt";
 import { AskAris } from "@/components/advisor/AskAris";
 import { BlockHead } from "./BrandFrame";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("brandBlocks");
 
 type P = Record<string, Product>;
 const byId = (ids: string[], map: P) => ids.map((id) => map[id]).filter(Boolean);
@@ -87,7 +90,7 @@ export function Series({ b, products }: { b: Extract<BrandBlock, { type: "series
                 )}
                 {it.href && (
                   <Link href={it.href} className="inline-flex items-center gap-1 font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline">
-                    Όλη η σειρά <ArrowRight className="size-4" aria-hidden />
+                    {c.oli_i_seira} <ArrowRight className="size-4" aria-hidden />
                   </Link>
                 )}
               </div>
@@ -169,7 +172,7 @@ export function Tech({ b }: { b: Extract<BrandBlock, { type: "tech" }> }) {
 /** Support: warranty/service facts and «Ρώτα τον Άρη» chips for this brand. */
 export function Support({ b, brand }: { b: Extract<BrandBlock, { type: "support" }>; brand: string }) {
   return (
-    <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label="Υποστήριξη">
+    <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label={c.ypostirixi}>
       <div className="rounded-3xl bg-[var(--bs-bg2)] p-6 @lg:p-8 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 items-center">
         <div>
           <div className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">Εγγύηση & service {brand}</div>

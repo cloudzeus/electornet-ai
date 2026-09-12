@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import type { ConsentPref } from "@/lib/data/types";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("consents");
 
 const CH: { key: keyof ConsentPref["channels"]; label: string }[] = [
   { key: "email", label: "Email" },
@@ -29,7 +32,7 @@ export function ConsentsForm({ initial }: { initial: ConsentPref[] }) {
     <div className="grid gap-3">
       <div className="bg-white rounded-2xl border border-eu-line overflow-hidden">
         <div className="hidden @md:grid grid-cols-[minmax(0,1fr)_repeat(4,72px)] gap-2 px-5 py-3 bg-eu-surface font-extrabold text-eu-ink text-[length:var(--fs-14)]">
-          <span>Θέμα</span>
+          <span>{c.thema}</span>
           {CH.map((c) => (
             <span key={c.key} className="text-center">
               {c.label}
@@ -62,7 +65,7 @@ export function ConsentsForm({ initial }: { initial: ConsentPref[] }) {
         <span>Οι αλλαγές αποθηκεύονται αμέσως και καταγράφονται με ημερομηνία (GDPR άρθρο 7).</span>
         {saved && (
           <span className="inline-flex items-center gap-1.5 text-eu-green font-bold">
-            <Check className="size-4" aria-hidden /> Αποθηκεύτηκε
+            <Check className="size-4" aria-hidden /> {c.apothikeytike}
           </span>
         )}
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+
 import Link from "next/link";
 import Image from "next/image";
 import { ViewTransition } from "react";
@@ -16,6 +17,9 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { flyToCart } from "@/lib/motion/flyToCart";
 import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, stickersFor } from "./Stickers";
 import { FitBadge } from "@/components/space/FitBadge";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("productCard");
 
 /**
  * The product card: nine facts at one glance.
@@ -99,8 +103,8 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 >
                   <Heart className={`size-5 transition-transform ${liked ? "scale-110" : ""}`} fill={liked ? "currentColor" : "none"} aria-hidden />
                 </button>
-                <button type="button" onClick={() => openQuickView(p)} aria-label="Γρήγορη προβολή" className="absolute bottom-3 right-3 h-10 rounded-full bg-white/95 shadow-[var(--shadow-card)] text-eu-navy font-bold text-[length:var(--fs-14)] inline-flex items-center gap-1.5 px-3 hover:bg-eu-navy hover:text-white transition-colors @md:opacity-0 @md:translate-y-1 group-hover/card:opacity-100 group-hover/card:translate-y-0 focus-visible:opacity-100 duration-200">
-                  <Eye className="size-4" aria-hidden /> <span className="hidden @md:inline">Γρήγορη προβολή</span>
+                <button type="button" onClick={() => openQuickView(p)} aria-label={c.grigori_provoli} className="absolute bottom-3 right-3 h-10 rounded-full bg-white/95 shadow-[var(--shadow-card)] text-eu-navy font-bold text-[length:var(--fs-14)] inline-flex items-center gap-1.5 px-3 hover:bg-eu-navy hover:text-white transition-colors @md:opacity-0 @md:translate-y-1 group-hover/card:opacity-100 group-hover/card:translate-y-0 focus-visible:opacity-100 duration-200">
+                  <Eye className="size-4" aria-hidden /> <span className="hidden @md:inline">{c.grigori_provoli}</span>
                 </button>
                 <div className="absolute bottom-3 left-4 flex gap-1.5">
                   {p.energy && <EnergyChip cls={p.energy.cls} fiche={p.energy.fiche} compact={narrow} />}
@@ -133,17 +137,17 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 </div>
                 <div className={`flex gap-2 mt-auto ${narrow ? "flex-col" : ""}`}>
                   <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-12 hover:bg-eu-blue transition-colors active:scale-[0.98]">
-                    Αγορά με 1 κλικ
+                    {c.agora_me_1_klik}
                   </button>
-                  <button type="button" onClick={onAdd} aria-label="Προσθήκη στο καλάθι" className={`rounded-full border-2 border-eu-navy text-eu-navy font-extrabold flex items-center justify-center min-h-12 hover:bg-eu-surface transition-colors active:scale-95 ${narrow ? "w-full" : "w-12 shrink-0"}`}>
+                  <button type="button" onClick={onAdd} aria-label={c.prosthiki_sto_kalathi} className={`rounded-full border-2 border-eu-navy text-eu-navy font-extrabold flex items-center justify-center min-h-12 hover:bg-eu-surface transition-colors active:scale-95 ${narrow ? "w-full" : "w-12 shrink-0"}`}>
                     <Plus className="size-5" aria-hidden />
-                    {narrow && <span className="ml-1 text-[length:var(--fs-15)]">Στο καλάθι</span>}
+                    {narrow && <span className="ml-1 text-[length:var(--fs-15)]">{c.sto_kalathi}</span>}
                   </button>
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-3 text-[length:var(--fs-14)]">
                   <label className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer min-h-9 ${compared ? "text-eu-blue" : "text-eu-muted-2 hover:text-eu-blue"}`}>
                     <input type="checkbox" checked={compared} onChange={() => toggleCompare(p.id)} className="size-4 accent-eu-blue" />
-                    <Scale className="size-4" aria-hidden /> Σύγκριση
+                    <Scale className="size-4" aria-hidden /> {c.sygkrisi}
                   </label>
                   {!narrow && <span className="text-eu-muted-2 truncate">{p.tradeIn ? "Παραλαβή παλιάς" : p.storeStock ? `Σε ${p.storeStock} καταστήματα` : ""}</span>}
                 </div>

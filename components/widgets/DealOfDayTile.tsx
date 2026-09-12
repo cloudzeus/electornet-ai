@@ -12,6 +12,9 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Tilt } from "@/components/motion/Tilt";
 import { flyToCart } from "@/lib/motion/flyToCart";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("dealTile");
 
 /**
  * @dynamic Bento tile «Προσφορά ημέρας» (v4): the product as a floating
@@ -42,7 +45,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
       <div className="group/deal relative h-full bg-white rounded-lg overflow-hidden shadow-[var(--shadow-card)] grid grid-rows-[auto_minmax(0,1fr)_auto] isolate">
         <div className="relative flex justify-between items-center px-4 pt-3.5 z-10">
           <span className="inline-flex items-center gap-1.5 font-extrabold text-eu-red text-[length:var(--fs-13)] tracking-wide uppercase">
-            <Zap className="size-3.5" aria-hidden /> Προσφορά ημέρας
+            <Zap className="size-3.5" aria-hidden /> {c.prosfora_imeras}
           </span>
           <Countdown endsAt={endsAt} />
         </div>
@@ -81,7 +84,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
           </div>
           <div className="flex gap-1.5">
             <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 hover:bg-eu-blue">
-              Αγορά με 1 κλικ
+              {c.agora_me_1_klik}
             </button>
             <button
               type="button"
@@ -89,7 +92,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
                 flyToCart((e.currentTarget.closest(".group\\/deal") as HTMLElement)?.querySelector("[data-tilt-layer]") as HTMLElement | null);
                 add(p, { openMiniCart: false });
               }}
-              aria-label="Προσθήκη στο καλάθι"
+              aria-label={c.prosthiki_sto_kalathi}
               className="w-[46px] rounded-full border-2 border-eu-navy text-eu-navy flex items-center justify-center min-h-11 hover:bg-eu-surface"
             >
               <Plus className="size-4" aria-hidden />

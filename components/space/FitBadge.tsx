@@ -5,6 +5,9 @@ import type { Product } from "@/lib/data/types";
 import { dimsFor } from "@/lib/data/dims";
 import { fitVerdict } from "@/lib/space/fit";
 import { useMySpace } from "./MySpaceProvider";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("fit");
 
 /**
  * Fit-My-Space badge on cards and the PDP: «Χωράει» / «Οριακά» / «Δεν
@@ -22,7 +25,7 @@ export function FitBadge({ product, size = "sm", prompt = false }: { product: Pr
     if (!prompt) return null;
     return (
       <button type="button" onClick={() => setOpen(true)} className={`${base} bg-eu-chip text-eu-blue hover:bg-eu-blue hover:text-white transition-colors`}>
-        <Ruler className={big ? "size-4" : "size-3.5"} aria-hidden /> Δες αν χωράει στον χώρο σου
+        <Ruler className={big ? "size-4" : "size-3.5"} aria-hidden /> {c.des_an_choraei_ston}
       </button>
     );
   }

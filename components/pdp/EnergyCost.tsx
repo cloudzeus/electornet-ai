@@ -6,6 +6,9 @@ import { Zap } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { CountUp } from "@/components/motion/CountUp";
 import { estimateKwh, OLD_APPLIANCE_KWH } from "@/lib/energy/estimate";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("energy");
 
 
 /**
@@ -36,13 +39,13 @@ export function EnergyCost({ product: p }: { product: Product }) {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-              <Zap className="size-3.5" aria-hidden /> Ρεύμα σε ευρώ
+              <Zap className="size-3.5" aria-hidden /> {c.reyma_se_eyro}
             </div>
             <h3
               id="energy-title"
               className="m-0 mt-1 font-heading font-bold text-[length:var(--fs-22)] leading-tight"
             >
-              Τι θα πληρώνεις στη ΔΕΗ
+              {c.ti_tha_plironeis_sti}
             </h3>
           </div>
           <div className="text-right">
@@ -89,7 +92,7 @@ export function EnergyCost({ product: p }: { product: Product }) {
           ))}
         </dl>
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex gap-1" role="group" aria-label="Χρόνια χρήσης">
+          <div className="flex gap-1" role="group" aria-label={c.chronia_chrisis}>
             {[3, 5, 8].map((y) => (
               <button
                 key={y}

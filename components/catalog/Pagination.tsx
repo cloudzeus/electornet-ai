@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { copyOf } from "@/lib/cms/copy";
+
+const c = copyOf("pagination");
 
 /** Numbered pagination that keeps every other query param. */
 export function Pagination({ page, pages, basePath, params }: { page: number; pages: number; basePath: string; params: Record<string, string | undefined> }) {
@@ -12,10 +15,10 @@ export function Pagination({ page, pages, basePath, params }: { page: number; pa
   };
   const nums = Array.from({ length: pages }, (_, i) => i + 1).filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1);
   return (
-    <nav aria-label="Σελίδες" className="flex items-center justify-center gap-1 mt-8">
+    <nav aria-label={c.selides} className="flex items-center justify-center gap-1 mt-8">
       {page > 1 && (
         <Link href={href(page - 1)} className="rounded-full border border-eu-line px-3 min-h-10 inline-flex items-center font-semibold text-[length:var(--fs-15)] hover:border-eu-blue">
-          ‹ Προηγούμενη
+          {c.proigoymeni}
         </Link>
       )}
       {nums.map((p, i) => (
@@ -28,7 +31,7 @@ export function Pagination({ page, pages, basePath, params }: { page: number; pa
       ))}
       {page < pages && (
         <Link href={href(page + 1)} className="rounded-full border border-eu-line px-3 min-h-10 inline-flex items-center font-semibold text-[length:var(--fs-15)] hover:border-eu-blue">
-          Επόμενη ›
+          {c.epomeni}
         </Link>
       )}
     </nav>
