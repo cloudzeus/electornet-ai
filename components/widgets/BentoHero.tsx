@@ -34,8 +34,8 @@ export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback"
   return (
     <section className="relative bg-eu-navy eu-container" aria-label={c.proteinomena}>
       <ZoneBadge no={zoneNo} />
-      <div className="eu-full eu-gutter-wide py-3 @lg:py-3.5 grid grid-cols-1 @md:grid-cols-2 @lg:grid-cols-[2fr_1fr] @lg:grid-rows-[auto_auto] gap-3 @lg:gap-3.5">
-        <div className="@md:col-span-2 @lg:col-span-1 @lg:row-span-2">
+      <div className="eu-full eu-gutter-wide py-3 @lg:py-3.5 grid grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-[2fr_1fr] @5xl:grid-rows-[auto_auto] gap-3 @lg:gap-3.5">
+        <div className="@md:col-span-2 @5xl:col-span-1 @5xl:row-span-2">
           <CinematicHero slides={slides} intervalMs={intervalMs} />
         </div>
 

@@ -266,6 +266,9 @@
     textarea {
       font-size: max(1rem, 1em);
     }
+  }
+  /* Touch devices up to tablets: every link/button reachable with a finger */
+  @media (max-width: 1023px) {
     button,
     a[role="button"],
     a.rounded-full,

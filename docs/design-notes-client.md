@@ -118,6 +118,14 @@
 | Registry | `docs/component-registry.md`: 128 components με props, συνδέσεις, πεδία CMS, κίνηση, κατάσταση | Η βάση για το CMS που θα χτιστεί μετά την έγκριση. |
 | Pixel audit | Αυτόματος έλεγχος σε 7 σελίδες, desktop + 375px: κείμενο < 14px, στόχοι αφής < 44px, overflow, εικόνες χωρίς alt, κομμένο κείμενο | Ευρήματα: 10 tokens κάτω από 14px (τώρα ελάχιστο 14), links footer/breadcrumbs/chips 20–36px στο κινητό (τώρα 44), κουκκίδες rails 8px (τώρα 44px στόχος), 2 stickers με 10px. Μηδέν overflow, μηδέν εικόνες χωρίς alt. |
 
+## v4.7 — Κείμενα UI στο CMS, tablet audit (12/9/2026)
+
+| Στοιχείο | Τι έγινε | Γιατί |
+|---|---|---|
+| Λεξικό κειμένων | 477 labels σε 77 namespaces (`lib/cms/copy.generated.ts`), κάθε component διαβάζει το δικό του namespace | Το CMS αλλάζει κάθε λέξη και προσθέτει γλώσσες χωρίς κώδικα. Το registry δείχνει πλέον 90 ✅ / 5 🔶 / 33 στατικά. |
+| Tablet (768px) | Η ζώνη όρων δεν επικαλύπτεται, το hero γίνεται μία στήλη με τα πλακίδια από κάτω, στόχοι αφής 44px έως 1023px | Το tablet είναι συσκευή αφής· η δεξιά στήλη του bento δεν χωρούσε. |
+| Πρόταση CMS | `docs/cms-collections.md`: 19 collections με σχήμα, renderer και cache | Η βάση για την υλοποίηση μετά την έγκριση. |
+
 ## Κανόνας για κάθε component (από 11/9/2026)
 
 Κάθε component του demo είναι πλήρως παραμετροποιήσιμο (props για κείμενα, δεδομένα, όρια), επαναχρησιμοποιήσιμο σε άλλες σελίδες, προσαρμόζεται στο πλάτος του δοχείου του με container queries (όχι στο viewport), ελέγχεται σε 375px και desktop, δεν έχει εσωτερικούς scrollers, κρατά κείμενο ≥ 14px και σέβεται το prefers-reduced-motion. Το συμβόλαιο δεδομένων κάθε δυναμικού component βρίσκεται στο `docs/dynamic-components.md`.

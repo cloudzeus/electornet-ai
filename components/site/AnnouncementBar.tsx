@@ -13,15 +13,15 @@ export function AnnouncementBar({ left, right, accent, zoneNo }: Props) {
   return (
     <div className="relative bg-eu-navy text-eu-on-dark-2 eu-container">
       <ZoneBadge no={zoneNo} />
-      <div className="eu-full eu-gutter-wide flex justify-between items-center gap-4 py-2.5 font-semibold text-[length:var(--fs-13-5)] tracking-wide">
+      <div className="eu-full eu-gutter-wide flex justify-between items-center gap-4 py-2.5 font-semibold text-[length:var(--fs-13-5)] tracking-wide overflow-hidden">
         <ul className="flex gap-4 @lg:gap-6 m-0 p-0 list-none whitespace-nowrap min-w-0">
           {left.map((t, i) => (
-            <li key={t} className={`${i === 0 ? "text-white" : ""} ${i >= 1 ? "hidden @sm:block" : ""} ${i >= 2 ? "@sm:hidden @xl:block" : ""}`}>
+            <li key={t} className={`${i === 0 ? "text-white" : ""} ${i >= 1 ? "hidden @md:block" : ""} ${i >= 2 ? "@md:hidden @6xl:block" : ""}`}>
               {t}
             </li>
           ))}
         </ul>
-        <ul className="hidden @md:flex gap-5 m-0 p-0 list-none whitespace-nowrap">
+        <ul className="hidden @5xl:flex gap-5 m-0 p-0 list-none whitespace-nowrap shrink-0">
           {right.map((t) => (
             <li key={t}>{t}</li>
           ))}

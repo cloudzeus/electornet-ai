@@ -30,6 +30,10 @@ npm run build
 | **Στήλες ανά πλάτος**: `repeat(auto-fill, minmax(220px, 1fr))` — 2 στο κινητό, 3–5 ανάλογα με τον διαθέσιμο χώρο | `ProductGrid`, `ProductRail`, `DealsRail` |
 | **Κανένας εσωτερικός scroller**: φίλτρα με «+ N ακόμη» αντί για scroll, chips/breadcrumbs/thumbs/side nav σε wrap, deals σε grid, buy box χωρίς max-height, πίνακες σύγκρισης → stacked layout σε στενά πλάτη (`CompareStacked`) | παντού |
 
+### v4.7 (branch v2, τοπικά) — UI copy dictionary, tablet fixes, CMS collections
+
+- `lib/cms/copy.ts` + `copy.generated.ts` (77 namespaces, 477 keys), `scripts/extract-copy.py`, `copyOf(ns)` σε 77 components. Tablet: announcement bar, bento breakpoint @5xl, touch targets έως 1023px. `docs/cms-collections.md`.
+
 ### v4.6 (branch v2, τοπικά) — Settings layer & component registry
 
 - `lib/cms/settings.ts`: `site` / `motion` / `advisor` / `stickers` singletons + `SettingsProvider`/`useSettings()`. Motion primitives (Reveal, AutoReveal, Tilt, CountUp, hero, campaigns, services tile), ο Άρης (κείμενα, ερωτήσεις ανά context, exit-intent, cart tips, greeting), header/footer/announcement/facts, kWh, όριο μεταφορικών διαβάζουν από εκεί.
