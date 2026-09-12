@@ -1,24 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
 
 /**
  * Site-wide liveliness: on every page except the home (whose zones reveal
  * themselves), each top-level <section>/<article>/<aside> inside <main>
- * rises into view the first time it is scrolled to; the ones already on
- * screen at load stagger in. Nested sections are left to their parent.
+ * rises into view the first time it is scrolled to; whatever is already on
+ * screen at load is left as it is (no flicker). Nested sections are left
+ * to their parent.
  * Transform/opacity only, once per element, off under reduced motion.
  */
 export function AutoReveal() {
   const path = usePathname();
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (path === "/" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const main = document.getElementById("main");
     if (!main) return;
     const all = Array.from(main.querySelectorAll<HTMLElement>("section, article, aside, [data-auto-reveal]"));
-    const targets = all.filter((el) => !el.closest("[data-no-reveal]") && !all.some((o) => o !== el && o.contains(el)) && !el.hasAttribute("data-reveal"));
+    const vh = window.innerHeight;
+    const targets = all.filter((el) => !el.closest("[data-no-reveal]") && !all.some((o) => o !== el && o.contains(el)) && !el.hasAttribute("data-reveal") && el.getBoundingClientRect().top > vh * 0.92);
     if (!targets.length) return;
     gsap.set(targets, { opacity: 0, y: 16 });
     let order = 0;

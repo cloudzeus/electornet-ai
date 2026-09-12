@@ -12,7 +12,7 @@ import type { SuggestResult } from "@/lib/data/repo";
 import { priceShort, instalment, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 
-const PLACEHOLDER_FULL = "κλιματιστικό 12000 btu, πλυντήριο 9kg, LG OLED…";
+const PLACEHOLDER_FULL = "Προϊόν, μάρκα, κωδικός ή ερώτηση…";
 const PLACEHOLDER_SHORT = "Ψάξε προϊόν, μάρκα ή κωδικό";
 const RECENT_KEY = "euronics.recentSearches.v1";
 
@@ -178,7 +178,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
         <label htmlFor={`${id}-scope`} className="sr-only">
           Κατηγορία αναζήτησης
         </label>
-        <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "flex"} items-center`}>
+        <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "hidden @6xl:flex"} items-center`}>
           <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 outline-none cursor-pointer text-[length:var(--fs-15)]">
             <option value="all">Κατηγορία</option>
             {navCategories.map((c) => (
@@ -209,7 +209,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
           aria-controls={`${id}-panel`}
           aria-autocomplete="list"
           placeholder={compact ? PLACEHOLDER_SHORT : PLACEHOLDER_FULL}
-          className="flex-1 min-w-0 px-4 py-3 text-eu-ink placeholder:text-eu-muted-2 text-[length:var(--fs-16)] outline-none bg-transparent"
+          className="flex-1 min-w-0 px-4 py-3 text-eu-ink placeholder:text-eu-muted-2 text-[length:var(--fs-16)] outline-none bg-transparent text-ellipsis"
         />
         {q && (
           <button type="button" aria-label="Καθαρισμός" onClick={() => setQ("")} className="shrink-0 px-2 text-eu-muted hover:text-eu-ink">
@@ -224,7 +224,7 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
         </button>
         <button type="submit" className="shrink-0 bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 @md:px-[22px] flex items-center gap-2 hover:bg-eu-yellow-dark transition-colors min-h-11">
           <Search className="size-4" aria-hidden />
-          <span className={compact ? "sr-only" : "hidden @5xl:inline"}>Αναζήτηση</span>
+          <span className={compact ? "sr-only" : "hidden @7xl:inline whitespace-nowrap"}>Αναζήτηση</span>
         </button>
       </form>
 

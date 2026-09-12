@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Camera, X, Loader2, ScanLine, ArrowRight } from "lucide-react";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
@@ -95,8 +96,13 @@ export function SnapSheet() {
       <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(760px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] max-h-[92dvh] overflow-y-auto grid gap-5 p-5 @md:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
-              <ScanLine className="size-3.5" aria-hidden /> Snap & Find
+            <div className="flex items-center gap-2">
+              <span className="relative size-9 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/50">
+                <Image src="/img/advisor/mascot-head.png" alt="" fill sizes="36px" className="object-cover scale-[1.15] translate-y-[6%]" />
+              </span>
+              <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
+                <ScanLine className="size-3.5" aria-hidden /> Snap & Find · με τον Άρη
+              </div>
             </div>
             <h2 id="snap-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">
               Φωτογράφισε την παλιά σου συσκευή

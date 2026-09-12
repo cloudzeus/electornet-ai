@@ -35,6 +35,18 @@ export function AdvisorOrb() {
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
   const [handoff, setHandoff] = useState(false);
+  const askRef = useRef<((q: string) => void) | null>(null);
+
+  // «Ρώτα τον Άρη» chips anywhere on the site open the panel with the question.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail;
+      setOpen(true);
+      setTimeout(() => askRef.current?.(q), 60);
+    };
+    window.addEventListener("eu:ask", on);
+    return () => window.removeEventListener("eu:ask", on);
+  }, []);
   const list = useRef<HTMLDivElement>(null);
   const orb = useRef<HTMLButtonElement>(null);
 
@@ -151,22 +163,44 @@ export function AdvisorOrb() {
       ];
 
   const ask = (q: string, a?: () => Msg) => {
+    if (!a) {
+      const hit = suggestions.find((s) => s.q === q);
+      if (hit) a = hit.a;
+    }
     setMsgs((m) => [...m, { role: "user", text: q }]);
     setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      setMsgs((m) => [
-        ...m,
-        a
-          ? a()
-          : {
-              role: "advisor",
-              text: "Στο demo απαντώ στις έτοιμες ερωτήσεις. Στην πλήρη έκδοση ο σύμβουλος απαντά σε οτιδήποτε από τον κατάλογο, τα χαρακτηριστικά και το απόθεμα.",
-              chips: [{ label: "Μίλα με το κατάστημα", href: "/katastimata" }],
-            },
-      ]);
-    }, 900);
+    if (a) {
+      const answer = a;
+      setTimeout(() => {
+        setTyping(false);
+        setMsgs((m) => [...m, answer()]);
+      }, 900);
+      return;
+    }
+    // Free text → the advisor engine (demo rules; production: LLM + retrieval).
+    fetch(`/api/advisor?q=${encodeURIComponent(q)}${space ? `&door=${space.door}` : ""}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ans: { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } } | null) => {
+        setTyping(false);
+        if (!ans) {
+          setMsgs((m) => [...m, { role: "advisor", text: "Κάτι πήγε στραβά. Δοκίμασε ξανά ή ζήτα άνθρωπο από το κατάστημα.", chips: [{ label: "Να με πάρουν", href: "#handoff" }] }]);
+          return;
+        }
+        const chips = [
+          ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} · ${p.price.toLocaleString("el-GR")} €${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
+          ...(ans.href ? [ans.href] : []),
+        ];
+        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips }]);
+      })
+      .catch(() => {
+        setTyping(false);
+        setMsgs((m) => [...m, { role: "advisor", text: "Δεν μπόρεσα να απαντήσω τώρα. Θες να σε πάρει το κατάστημα;", chips: [{ label: "Να με πάρουν", href: "#handoff" }] }]);
+      });
   };
+
+  useEffect(() => {
+    askRef.current = (q) => ask(q);
+  });
 
   return (
     <>

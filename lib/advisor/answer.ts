@@ -16,15 +16,15 @@ export interface AdvisorAnswer {
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-const CATS: { re: RegExp; sub: string; label: string; href: string }[] = [
-  { re: /πλυντηρι|plynt|washer/, sub: "plyntiria", label: "πλυντήριο", href: "/k/leykes-syskeyes/plyntiria" },
-  { re: /ψυγει|psyg|fridge/, sub: "psygeia", label: "ψυγείο", href: "/k/leykes-syskeyes/psygeia" },
-  { re: /τηλεορασ|tv\b|oled|qled|tileoras/, sub: "tileoraseis", label: "τηλεόραση", href: "/k/eikona-ixos/tileoraseis" },
-  { re: /κλιματιστ|air ?con|btu|klimat/, sub: "air-condition", label: "κλιματιστικό", href: "/k/klimatismos/air-condition" },
-  { re: /laptop|macbook|φορητ|υπολογιστ/, sub: "laptops", label: "laptop", href: "/k/computing/laptops" },
-  { re: /κινητ|smartphone|iphone|galaxy|τηλεφων/, sub: "smartphones", label: "κινητό", href: "/k/tilefonia/smartphones" },
-  { re: /σκουπ|vacuum|skoup/, sub: "skoypes", label: "σκούπα", href: "/k/mikrosyskeves/skoypes" },
-  { re: /καφ|espresso|kafe/, sub: "kafes-rofimata", label: "καφετιέρα", href: "/k/mikrosyskeves/kafes-rofimata" },
+const CATS: { re: RegExp; sub: string; label: string; plural: string; href: string }[] = [
+  { re: /πλυντηρι|plynt|washer/, sub: "plyntiria", label: "πλυντήριο", plural: "πλυντήρια", href: "/k/leykes-syskeyes/plyntiria" },
+  { re: /ψυγει|psyg|fridge/, sub: "psygeia", label: "ψυγείο", plural: "ψυγεία", href: "/k/leykes-syskeyes/psygeia" },
+  { re: /τηλεορασ|tv\b|oled|qled|tileoras/, sub: "tileoraseis", label: "τηλεόραση", plural: "τηλεοράσεις", href: "/k/eikona-ixos/tileoraseis" },
+  { re: /κλιματιστ|air ?con|btu|klimat/, sub: "air-condition", label: "κλιματιστικό", plural: "κλιματιστικά", href: "/k/klimatismos/air-condition" },
+  { re: /laptop|macbook|φορητ|υπολογιστ/, sub: "laptops", label: "laptop", plural: "laptops", href: "/k/computing/laptops" },
+  { re: /κινητ|smartphone|iphone|galaxy|τηλεφων/, sub: "smartphones", label: "κινητό", plural: "κινητά", href: "/k/tilefonia/smartphones" },
+  { re: /σκουπ|vacuum|skoup/, sub: "skoypes", label: "σκούπα", plural: "σκούπες", href: "/k/mikrosyskeves/skoypes" },
+  { re: /καφ|espresso|kafe/, sub: "kafes-rofimata", label: "καφετιέρα", plural: "καφετιέρες", href: "/k/mikrosyskeves/kafes-rofimata" },
 ];
 
 const specNum = (p: Product, re: RegExp) => {
@@ -117,8 +117,8 @@ export function advisorAnswer(q: string, space?: MySpace | null): AdvisorAnswer 
     });
 
   const text = ranked.length
-    ? `Κατάλαβα: ${understood.join(", ") || "γενική αναζήτηση"}. ${cat ? `Από ${pool.length} προϊόντα στην κατηγορία «${cat.label}» που ταιριάζουν` : "Από τον κατάλογο"}, αυτά τα τρία αξίζουν πρώτα. ${sp ? "Έλεγξα και αν περνούν από την πόρτα σου." : "Πες μου το πλάτος της πόρτας σου για να ελέγξω αν χωρούν."}`
+    ? `Κατάλαβα: ${understood.join(", ") || "γενική αναζήτηση"}. ${cat ? `Από ${pool.length} ${cat.plural} που ταιριάζουν` : "Από τον κατάλογο"}, αυτά τα τρία αξίζουν πρώτα. ${sp ? "Έλεγξα και αν περνούν από την πόρτα σου." : "Πες μου το πλάτος της πόρτας σου για να ελέγξω αν χωρούν."}`
     : `Δεν βρήκα κάτι ${cat ? `στα ${cat.label}` : ""}${maxPrice ? ` έως ${maxPrice} €` : ""}. Δοκίμασε λίγο μεγαλύτερο προϋπολογισμό ή ρώτα με αλλιώς.`;
 
-  return { q, understood, text, products: ranked, href: cat ? { label: `Όλα τα ${cat.label === "laptop" ? "laptops" : cat.label.replace(/ο$/, "α").replace(/η$/, "εις")}`, href: cat.href } : undefined };
+  return { q, understood, text, products: ranked, href: cat ? { label: `Όλα τα ${cat.plural}`, href: cat.href } : undefined };
 }

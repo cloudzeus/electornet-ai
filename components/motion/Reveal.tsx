@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode, type ElementType } from "react";
+import { useLayoutEffect, useRef, type ReactNode, type ElementType } from "react";
 import gsap from "gsap";
 
 /**
  * Reveal on scroll: the wrapper (or its `[data-reveal]` children, staggered)
  * rises 18px and fades in the first time it enters the viewport. One
  * IntersectionObserver per instance, GSAP `power3.out`, 0.06s stagger.
- * No-op under prefers-reduced-motion. Never changes layout (transform +
- * opacity only) so it is safe around every zone.
+ * Elements already on screen when the page hydrates are left untouched
+ * (no hide-then-show flicker); only what is below the fold animates in.
+ * No-op under prefers-reduced-motion. Transform + opacity only.
  */
 export function Reveal({ as: Tag = "div", children, className = "", stagger = 0.06, y = 18, delay = 0, once = true }: { as?: ElementType; children: ReactNode; className?: string; stagger?: number; y?: number; delay?: number; once?: boolean }) {
   const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const items = el.querySelectorAll<HTMLElement>("[data-reveal]");
-    const targets: Element[] = items.length ? Array.from(items) : [el];
+    const all: Element[] = items.length ? Array.from(items) : [el];
+    const vh = window.innerHeight;
+    // Never hide what the visitor already sees.
+    const targets = all.filter((t) => t.getBoundingClientRect().top > vh * 0.92);
+    if (!targets.length) return;
     gsap.set(targets, { opacity: 0, y });
     let done = false;
     const io = new IntersectionObserver(

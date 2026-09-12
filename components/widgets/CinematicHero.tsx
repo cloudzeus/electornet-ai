@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Pause, Play, ArrowRight } from "lucide-react";
@@ -32,8 +32,18 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
   const bar = useRef<HTMLSpanElement>(null);
   const s = slides[i];
   const n = slides.length;
+  const [changed, setChanged] = useState(false);
+  // Only slides after the first one animate in (the first is static for LCP and never flickers).
+  const anim = changed && !reducedMotion;
+  const hidden = anim ? { opacity: 0 } : undefined;
 
-  const go = useCallback((k: number) => setI(((k % n) + n) % n), [n]);
+  const go = useCallback(
+    (k: number) => {
+      setChanged(true);
+      setI(((k % n) + n) % n);
+    },
+    [n],
+  );
 
   // Autoplay with progress line.
   useEffect(() => {
@@ -47,19 +57,26 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
     };
   }, [i, paused, reducedMotion, intervalMs, n, go]);
 
-  // Entrance choreography per slide: words rise, product slides in from the right.
-  useEffect(() => {
+  // Entrance choreography on slide change: words rise, product slides in from the right.
+  // Elements start hidden via inline style (no first-frame flash) and are always left visible.
+  useLayoutEffect(() => {
     const el = root.current;
-    if (!el || reducedMotion) return;
+    if (!el || !anim) return;
+    const words = el.querySelectorAll("[data-word]");
+    const copy = el.querySelectorAll("[data-copy]");
+    const product = el.querySelector("[data-product]");
+    const backdrop = el.querySelector("[data-backdrop]");
     const tl = gsap.timeline();
-    tl.fromTo(el.querySelectorAll("[data-word]"), { opacity: 0, y: 28, rotateX: -30 }, { opacity: 1, y: 0, rotateX: 0, duration: 0.6, ease: "power3.out", stagger: 0.05 }, 0);
-    tl.fromTo(el.querySelectorAll("[data-copy]"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out", stagger: 0.06 }, 0.25);
-    tl.fromTo(el.querySelector("[data-product]"), { opacity: 0, x: 60, scale: 0.92, rotate: 3 }, { opacity: 1, x: 0, scale: 1, rotate: 0, duration: 0.9, ease: "expo.out" }, 0.1);
-    tl.fromTo(el.querySelector("[data-backdrop]"), { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: 1.2, ease: "power2.out" }, 0);
+    tl.fromTo(words, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out", stagger: 0.05, clearProps: "transform" }, 0);
+    tl.fromTo(copy, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out", stagger: 0.06, clearProps: "transform" }, 0.2);
+    if (product) tl.fromTo(product, { opacity: 0, x: 50 }, { opacity: 1, x: 0, duration: 0.8, ease: "expo.out", clearProps: "transform" }, 0.1);
+    if (backdrop) tl.fromTo(backdrop, { opacity: 0.5 }, { opacity: 1, duration: 0.9, ease: "power2.out" }, 0);
     return () => {
       tl.kill();
+      gsap.set([words, copy, product, backdrop].filter(Boolean) as Element[], { opacity: 1, clearProps: "transform" });
     };
-  }, [i, reducedMotion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i]);
 
   // Product parallax with the pointer (fine pointer only).
   useEffect(() => {
@@ -103,22 +120,22 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
       <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] items-center">
         {/* text */}
         <div className="relative z-10 p-5 pb-2 @md:p-7 @md:pb-2 @lg:p-[40px_36px] text-white max-w-[36rem]">
-          <div data-copy className="inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-4">{s.kicker}</div>
-          <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-50)] @md:text-[length:var(--fs-66)] @xl:text-[length:var(--fs-80)] leading-[0.98] tracking-[-0.035em] mb-4 [perspective:800px]">
+          <div data-copy style={hidden} className="inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-4">{s.kicker}</div>
+          <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-50)] @md:text-[length:var(--fs-66)] @xl:text-[length:var(--fs-80)] leading-[0.98] tracking-[-0.035em] mb-4">
             {s.title.map((line, k) => (
               <span key={k} className="block">
                 {line.split(" ").map((w, j) => (
-                  <span key={j} data-word className="inline-block will-change-transform mr-[0.22em] last:mr-0">
+                  <span key={j} data-word style={hidden} className="inline-block mr-[0.22em] last:mr-0">
                     {w}
                   </span>
                 ))}
               </span>
             ))}
           </h1>
-          <p data-copy className="m-0 text-eu-on-dark text-[length:var(--fs-17)] leading-[1.55] mb-5 max-w-[28em]">
+          <p data-copy style={hidden} className="m-0 text-eu-on-dark text-[length:var(--fs-17)] leading-[1.55] mb-5 max-w-[28em]">
             {s.body}
           </p>
-          <div data-copy className="flex flex-wrap gap-2.5 mb-4 @lg:mb-6">
+          <div data-copy style={hidden} className="flex flex-wrap gap-2.5 mb-4 @lg:mb-6">
             <Link href={s.primary.href} className="group inline-flex items-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 py-3.5 min-h-12 hover:bg-eu-yellow-dark transition-colors">
               {s.primary.label} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>
@@ -126,7 +143,7 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
               {s.secondary.label}
             </Link>
           </div>
-          <ul data-copy className="hidden @sm:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
+          <ul data-copy style={hidden} className="hidden @sm:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
             {s.bullets.map((b, k) => (
               <li key={b} className="flex items-center gap-5">
                 {k > 0 && (
@@ -142,7 +159,7 @@ export function CinematicHero({ slides, intervalMs = 7000 }: { slides: HeroSlide
 
         {/* floating product */}
         {s.cutout && (
-          <div data-product className="relative w-[62%] max-w-[300px] ml-auto -mt-6 mr-4 mb-16 @md:mb-16 @lg:mt-0 @lg:mr-0 @lg:mb-0 @lg:ml-0 @lg:w-auto @lg:max-w-none @lg:h-full @lg:flex @lg:items-center @lg:justify-center @lg:pr-8">
+          <div data-product style={hidden} className="relative w-[62%] max-w-[300px] ml-auto -mt-6 mr-4 mb-16 @md:mb-16 @lg:mt-0 @lg:mr-0 @lg:mb-0 @lg:ml-0 @lg:w-auto @lg:max-w-none @lg:h-full @lg:flex @lg:items-center @lg:justify-center @lg:pr-8">
             <span className="eu-rays hidden @lg:block" style={{ width: "140%", left: "-20%", top: "-20%" }} aria-hidden />
             <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full @lg:w-[88%] @xl:w-[92%] max-w-[560px] aspect-square eu-float">
               <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" priority={i === 0} className="object-contain eu-cutout-shadow-dark" />

@@ -34,7 +34,9 @@ export function OrderTimeline({ order: o }: { order: Order }) {
       <ol className="m-0 p-0 list-none grid grid-cols-4 gap-1">
         {steps.map((s, i) => (
           <li key={s} className="grid gap-1.5">
-            <span className={`h-1.5 rounded-full ${i <= idx ? "bg-eu-green" : "bg-eu-line"}`} aria-hidden />
+            <span className="h-1.5 rounded-full bg-eu-line overflow-hidden" aria-hidden>
+              {i <= idx && <span className="block h-full w-full rounded-full bg-eu-green origin-left animate-[eu-grow_.7s_var(--eu-ease-out)_both]" style={{ animationDelay: `${i * 0.15}s` }} />}
+            </span>
             <span className={`text-[length:var(--fs-13)] font-semibold ${i <= idx ? "text-eu-ink" : "text-eu-muted-2"}`}>{s}</span>
           </li>
         ))}

@@ -24,6 +24,9 @@
 | `NearestStoreCard`, `geoFromRequest()` | `getNearestStoreWithGeo()` · `/api/stores/near` | IP → πόλη (ipapi.co demo· παραγωγή MaxMind/CDN geo headers), GPS μόνο μετά από άδεια, haversine στα 350 καταστήματα | per request |
 | `ExitIntent` («Πριν φύγεις…») | `CartProvider`, session | Λόγος → Ραντάρ ζήτησης· email καλαθιού μέσω Klaviyo/Brevo με cart token (transactional) | client |
 | `AdvisorOrb` mascot «Άρης» | `public/img/advisor/mascot*.png` | Χαρακτήρας brand (OpenArt, cutout)· παραγωγή: ίδιο asset από το brand kit, animation states | static |
+| `CategoryOpener` + `AskAris` chips | `listProducts()` top 3, `getCategories()` no, `ASK_FOR` | Ερωτήσεις ανά κατηγορία από το Ραντάρ ζήτησης (CMS override), cutouts από το DAM, πλήθος live | ISR 60s |
+| `AdvisorGreeting` («Γεια! Είμαι ο Άρης») | session | Κείμενο/χρόνος από CMS, προσωποποίηση από λογαριασμό, 1 φορά ανά session | client |
+| `DealOfDayTile`, `StoreTile`, `ServicesTile` (hero δεξιά) | `getDealOfDay()`, `getNearestStoreWithGeo()`, `getServices(6)` | CMS deal schedule + ERP τιμή/Omnibus· IP→GPS κατάστημα· υπηρεσίες CMS | ISR 60s / per request |
 | `DealsRail`, `DealOfDayTile` | `listProducts({tag})`, `getDealOfDay()` | SoftOne MTRL + τιμοκατάλογος προσφορών (PRCRULES), Omnibus 30 ημερών από ιστορικό τιμών | ISR 60s |
 | `ProductCard`, `ProductGrid`, `Facets` | `listProducts(filter)` | SoftOne MTRL + χαρακτηριστικά (CCCSUBGROUP2 / extra fields) → `lib/data/attributes` | ISR 60s, facets από search index |
 | `ProductHeader`, `BuyBox`, `SpecsTable`, `CompareSimilar` | `getProductBySlug`, `getRelated`, `getAccessoriesFor` | SoftOne MTRL, απόθεμα ανά κατάστημα (MTRSTORE), σχετικά/συμπληρωματικά από ITEGROUP mapping | ISR 60s· απόθεμα live (no-store) |
