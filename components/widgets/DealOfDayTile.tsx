@@ -70,7 +70,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
             {pct !== null && p.wasPrice && (
               <span className="absolute top-0 left-0 bg-eu-red text-white rounded-br-xl px-2 py-1 leading-none eu-shimmer">
                 <span className="block font-extrabold text-[length:var(--fs-15)]">−{pct}%</span>
-                <span className="block font-bold text-[10px] mt-0.5 opacity-95">−{Math.round(p.wasPrice - p.price)} €</span>
+                <span className="block font-bold text-[length:var(--fs-14)] leading-none mt-0.5 opacity-95">−{Math.round(p.wasPrice - p.price)} €</span>
               </span>
             )}
           </div>

@@ -84,7 +84,9 @@ export function CardCarousel({ children, minItem = 240, minItemNarrow = 300, gap
           {maxStart < 8 && (
             <div className="flex justify-center gap-1.5 mt-4" aria-hidden>
               {Array.from({ length: maxStart + 1 }).map((_, i) => (
-                <button key={i} type="button" tabIndex={-1} onClick={() => setStart(i)} className={`h-2 rounded-full transition-all ${i === cur ? "w-6 bg-eu-navy" : "w-2 bg-eu-line-3"}`} />
+                <button key={i} type="button" tabIndex={-1} onClick={() => setStart(i)} aria-label={`Θέση ${i + 1}`} className="group/dot h-11 min-w-6 px-1 flex items-center justify-center bg-transparent">
+                  <span className={`block h-2 rounded-full transition-all ${i === cur ? "w-6 bg-eu-navy" : "w-2 bg-eu-line-3 group-hover/dot:bg-eu-muted-2"}`} />
+                </button>
               ))}
             </div>
           )}

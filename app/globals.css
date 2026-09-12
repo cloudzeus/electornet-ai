@@ -62,16 +62,16 @@
      get +1px on small sizes and ×0.78 on headings. Rerun the script when
      a new size appears. Usage: fontSize: "var(--fs-13)" or
      text-[length:var(--fs-13)] */
-  --fs-9: clamp(0.5625rem, 0.6495rem - 0.1087vw, 0.625rem);
-  --fs-9-5: clamp(0.5938rem, 0.6807rem - 0.1087vw, 0.6563rem);
-  --fs-10: clamp(0.625rem, 0.712rem - 0.1087vw, 0.6875rem);
-  --fs-10-5: clamp(0.6563rem, 0.7432rem - 0.1087vw, 0.7188rem);
-  --fs-11: clamp(0.6875rem, 0.7745rem - 0.1087vw, 0.75rem);
-  --fs-11-5: clamp(0.7188rem, 0.8057rem - 0.1087vw, 0.7813rem);
-  --fs-12: clamp(0.75rem, 0.837rem - 0.1087vw, 0.8125rem);
-  --fs-12-5: clamp(0.7813rem, 0.8682rem - 0.1087vw, 0.8438rem);
-  --fs-13: clamp(0.8125rem, 0.8995rem - 0.1087vw, 0.875rem);
-  --fs-13-5: clamp(0.8438rem, 0.9307rem - 0.1087vw, 0.9063rem);
+  --fs-9: var(--fs-14); /* floored: no text under 14px */
+  --fs-9-5: var(--fs-14); /* floored: no text under 14px */
+  --fs-10: var(--fs-14); /* floored: no text under 14px */
+  --fs-10-5: var(--fs-14); /* floored: no text under 14px */
+  --fs-11: var(--fs-14); /* floored: no text under 14px */
+  --fs-11-5: var(--fs-14); /* floored: no text under 14px */
+  --fs-12: var(--fs-14); /* floored: no text under 14px */
+  --fs-12-5: var(--fs-14); /* floored: no text under 14px */
+  --fs-13: var(--fs-14); /* floored: no text under 14px */
+  --fs-13-5: var(--fs-14); /* floored: no text under 14px */
   --fs-14: clamp(0.875rem, 0.962rem - 0.1087vw, 0.9375rem);
   --fs-15: clamp(0.9375rem, 1.0245rem - 0.1087vw, 1rem);
   --fs-16: 1rem;
@@ -268,8 +268,16 @@
     }
     button,
     a[role="button"],
+    a.rounded-full,
+    footer a,
+    nav[aria-label="Διαδρομή"] a,
     [data-touch-target] {
       min-height: 44px;
+    }
+    footer a,
+    nav[aria-label="Διαδρομή"] a {
+      display: inline-flex;
+      align-items: center;
     }
   }
   select {

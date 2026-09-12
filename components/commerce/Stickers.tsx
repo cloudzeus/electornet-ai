@@ -64,15 +64,15 @@ export function CornerSticker({ s, compact = false }: { s: Sticker; compact?: bo
 export function BurstSticker({ s }: { s: Sticker }) {
   if (s.kind !== "bogo" && s.kind !== "cashback") return null;
   const big = s.kind === "bogo" ? s.label : `−${s.amount} €`;
-  const small = s.kind === "bogo" ? "το δεύτερο δώρο" : `επιστροφή από ${s.by}`;
+  const small = s.kind === "bogo" ? "δώρο" : s.by;
   return (
-    <span className="pointer-events-none absolute right-3 bottom-12 size-[74px] grid place-items-center text-center rotate-[-8deg] transition-transform duration-300 group-hover/card:rotate-[4deg] group-hover/card:scale-105" aria-label={`${big} ${small}`}>
+    <span className="pointer-events-none absolute right-3 bottom-12 size-[84px] grid place-items-center text-center rotate-[-8deg] transition-transform duration-300 group-hover/card:rotate-[4deg] group-hover/card:scale-105" aria-label={`${big} ${small}`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 size-full drop-shadow-[0_6px_10px_rgba(18,42,88,.25)]" aria-hidden>
         <polygon fill={s.kind === "bogo" ? "var(--eu-yellow)" : "var(--eu-green)"} points="50,2 58,14 72,8 74,23 89,24 84,38 97,45 87,55 95,68 80,72 80,87 66,84 60,98 50,88 40,98 34,84 20,87 20,72 5,68 13,55 3,45 16,38 11,24 26,23 28,8 42,14" />
       </svg>
       <span className={`relative leading-none ${s.kind === "bogo" ? "text-eu-navy" : "text-white"}`}>
         <span className="block font-heading font-extrabold text-[length:var(--fs-20)] tracking-[-0.03em]">{big}</span>
-        <span className="block font-bold text-[10px] uppercase tracking-wide mt-0.5 px-2">{small}</span>
+        <span className="block font-bold text-[length:var(--fs-14)] leading-none mt-0.5 px-1">{small}</span>
       </span>
     </span>
   );
