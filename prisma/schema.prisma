@@ -1187,3 +1187,21 @@ model VoicePhrase {
   @@index([lastUsedAt])
   @@index([key])
 }
+
+/// Database backups (pg_dump custom format → optional AES-256 → Bunny Storage). One row per attempt.
+model BackupRun {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  trigger   String // cron | manual | script
+  ok        Boolean  @default(false)
+  path      String? // object path inside the backup storage zone
+  zone      String? // storage zone used
+  bytes     Int?
+  sha256    String?
+  encrypted Boolean  @default(false)
+  ms        Int      @default(0)
+  error     String?
+  deletedAt DateTime? // pruned by retention
+
+  @@index([at])
+}

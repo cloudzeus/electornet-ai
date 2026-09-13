@@ -187,6 +187,9 @@ export const SECTIONS: Section[] = [
       yesNo("optimizer", "Bunny Optimizer (responsive εικόνες)", "Παράμετροι ?width= &quality= &format= στα URLs.", true),
       { key: "imageQuality", label: "Ποιότητα εικόνων (%)", type: "number", public: true, placeholder: "82", width: "half" },
       { key: "tokenAuthKey", label: "Token authentication key", type: "secret", help: "Για υπογεγραμμένα URLs (π.χ. τιμολόγια, εγγυήσεις).", width: "half" },
+      { key: "backupZone", label: "Backup storage zone", type: "text", placeholder: "euronics-backups", help: "Ξεχωριστό Bunny Storage zone ΧΩΡΙΣ pull zone για τα αντίγραφα της βάσης. Κενό = φάκελος _backups/ στο zone των media (τα αρχεία κρυπτογραφούνται και έχουν τυχαίο όνομα).", width: "half" },
+      { key: "backupZonePassword", label: "Backup zone password", type: "secret", help: "Κενό = ο κωδικός του zone των media.", width: "half" },
+      { key: "backupRetentionDays", label: "Διατήρηση backup (ημέρες)", type: "number", placeholder: "30", help: "Παλαιότερα αντίγραφα διαγράφονται αυτόματα μετά από κάθε επιτυχημένο backup.", width: "half" },
     ],
   },
   {
