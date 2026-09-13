@@ -7,6 +7,7 @@ import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as Sto
 import type { Product, Service } from "@/lib/data/types";
 import { instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
+import { EmailCartButton } from "@/components/commerce/EmailCartButton";
 import { Stepper } from "./Stepper";
 import { ProductCard } from "@/components/commerce/ProductCard";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
@@ -96,6 +97,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-30)] leading-none">
               {c.kalathi} <span className="text-eu-muted-2 font-semibold text-[length:var(--fs-18)]">· {count} {count === 1 ? "προϊόν" : "προϊόντα"}</span>
             </h1>
+            <EmailCartButton />
             <button type="button" onClick={clear} className="text-eu-muted font-semibold text-[length:var(--fs-14)] hover:text-eu-red min-h-10">
               {c.adeiasma}
             </button>

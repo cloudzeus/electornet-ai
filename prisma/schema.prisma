@@ -317,6 +317,7 @@ model Customer {
   gdprRequests  GdprRequest[]
   subscriptions NewsletterSubscriber[]
   passwordResets PasswordReset[]
+  savedCarts    SavedCart[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -675,6 +676,10 @@ model WishlistItem {
   priceAtAdd       Decimal?     @db.Decimal(10, 2)
   notifyPriceDrop  Boolean      @default(true)
   notifyBackInStock Boolean     @default(true)
+  lastNotifiedPrice Decimal?    @db.Decimal(10, 2) // price at the last price-drop email (one email per drop)
+  lastNotifiedAt   DateTime?
+  lastSeenAvailability String? // in-stock | days | order — to detect the flip back to in-stock
+  lastStockNotifiedAt DateTime?
   source           String       @default("web") // web | merge | admin | import
   addedAt          DateTime     @default(now())
 
@@ -1106,4 +1111,26 @@ model PasswordReset {
 
   @@index([customerId, createdAt])
   @@index([email, createdAt])
+}
+
+/// Cart sent by email at the customer's request (exit intent / cart page). Restore link = token; expires after 30 days.
+model SavedCart {
+  id         String    @id @default(cuid())
+  token      String    @unique @default(cuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email      String
+  lines      Json // [{ productId, qty, variant?, addons: [{slug,title,price}] }]
+  total      Decimal   @db.Decimal(10, 2)
+  reason     String? // exit-intent answer
+  source     String    @default("exit-intent") // exit-intent | cart | checkout | admin
+  sentAt     DateTime  @default(now())
+  openedAt   DateTime?
+  restoredAt DateTime?
+  expiresAt  DateTime
+  ip         String?
+  userAgent  String?
+
+  @@index([customerId, sentAt])
+  @@index([email, sentAt])
 }

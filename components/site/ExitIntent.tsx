@@ -34,13 +34,21 @@ export function ExitIntent() {
   const { advisor } = useSettings();
   const REASONS = advisor.exitIntent.reasons.map((r) => r.label);
 
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("euronics.session");
-      const t = setTimeout(() => setSession(raw ? JSON.parse(raw) : null), 0);
-      return () => clearTimeout(t);
-    } catch {}
+    if (!open) return;
+    fetch("/api/account/me", { cache: "no-store" }).then((r) => r.json()).then((j) => setSession(j.authenticated ? { name: j.firstName, email: j.email } : null)).catch(() => setSession(null));
   }, [open]);
+  const sendCart = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch("/api/cart/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: session ? undefined : email, reason, source: "exit-intent", lines: lines.map((l) => ({ productId: l.product.id, qty: l.qty, variant: l.variant, addons: l.addons })) }) });
+      const j = (await r.json()) as { ok: boolean; error?: string };
+      if (!j.ok) setErr(j.error ?? "Κάτι πήγε στραβά."); else setSent(true);
+    } catch { setErr("Κάτι πήγε στραβά. Δοκίμασε ξανά."); }
+    setBusy(false);
+  };
 
   useEffect(() => {
     if (!hydrated || !advisor.exitIntent.enabled || lines.length === 0 || path.startsWith("/checkout")) return;
@@ -135,14 +143,14 @@ export function ExitIntent() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!target) return;
-                setSent(true);
+                if (!target || busy) return;
+                sendCart();
               }}
               className="grid gap-2"
             >
               {session ? (
-                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue">
-                  <Mail className="size-4" aria-hidden /> Στείλε μου το καλάθι στο {session.email}
+                <button type="submit" disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue disabled:opacity-60">
+                  <Mail className="size-4" aria-hidden /> {busy ? "Αποστολή…" : `Στείλε μου το καλάθι στο ${session.email}`}
                 </button>
               ) : (
                 <div className="flex gap-2">
@@ -155,6 +163,7 @@ export function ExitIntent() {
                   </button>
                 </div>
               )}
+              {err && <p role="alert" className="m-0 text-eu-red font-bold text-[length:var(--fs-14)]">{err}</p>}
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{advisor.exitIntent.emailNote}</p>
             </form>
           )}
