@@ -22,7 +22,7 @@ export const ROLES: { key: string; name: string; description: string; system?: b
     key: "manager",
     name: "Manager",
     description: "Λειτουργία: παραγγελίες, πελάτες, καταστήματα, service, αναφορές.",
-    permissions: ["orders.*", "customers.read", "customers.write", "stores.*", "service.*", "reports.read", "catalog.products.read", "catalog.promos.write", "marketing.radar.read", "staff.read", "audit.read"],
+    permissions: ["orders.*", "customers.read", "customers.write", "stores.*", "service.*", "reports.read", "catalog.products.read", "catalog.promos.write", "marketing.radar.read", "staff.read", "audit.read", "cms.media.read"],
   },
   {
     key: "marketer",
@@ -34,7 +34,7 @@ export const ROLES: { key: string; name: string; description: string; system?: b
     key: "editor",
     name: "Editor",
     description: "Περιεχόμενο: κείμενα, σελίδες, νέα, slides, brand stores, web πεδία προϊόντων. Χωρίς δημοσίευση.",
-    permissions: ["cms.zones.read", "cms.zones.write", "cms.slides.write", "cms.menu.write", "cms.pages.write", "cms.news.write", "cms.copy.write", "cms.brandstores.write", "catalog.products.read", "catalog.products.write", "catalog.categories.write"],
+    permissions: ["cms.zones.read", "cms.zones.write", "cms.slides.write", "cms.menu.write", "cms.pages.write", "cms.news.write", "cms.copy.write", "cms.brandstores.write", "cms.media.read", "cms.media.write", "catalog.products.read", "catalog.products.write", "catalog.categories.write"],
   },
   {
     key: "employee",

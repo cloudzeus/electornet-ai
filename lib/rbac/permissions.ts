@@ -29,6 +29,8 @@ export const PERMISSIONS: { key: string; group: PermissionGroup; description: st
   { key: "cms.pages.write", group: "cms", description: "Σελίδες, πολιτικές, FAQ" },
   { key: "cms.news.write", group: "cms", description: "Νέα & οδηγοί" },
   { key: "cms.copy.write", group: "cms", description: "Κείμενα UI (copy)" },
+  { key: "cms.media.read", group: "cms", description: "Βιβλιοθήκη media: προβολή & επιλογή" },
+  { key: "cms.media.write", group: "cms", description: "Βιβλιοθήκη media: upload, επεξεργασία, διαγραφή" },
   { key: "cms.publish", group: "cms", description: "Δημοσίευση οποιουδήποτε CMS εγγράφου" },
   { key: "catalog.products.read", group: "catalog", description: "Προβολή προϊόντων" },
   { key: "catalog.products.write", group: "catalog", description: "Επεξεργασία web πεδίων προϊόντων (περιγραφές, εικόνες, cutouts, SEO)" },

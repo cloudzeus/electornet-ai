@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T08:30:51.478Z",
+  "timestamp": "2026-09-13T08:59:04.726Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,27 +18,11 @@
   "uncommitted_files": [
     {
       "status": "M",
+      "path": ".gitignore"
+    },
+    {
+      "status": "M",
       "path": ".planning/HANDOFF.json"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/forbidden/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/layout.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/AdminShell.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/StaffTable.tsx"
     },
     {
       "status": "M",
@@ -46,15 +30,15 @@
     },
     {
       "status": "M",
-      "path": "components/site/CookieConsent.tsx"
+      "path": "lib/rbac/permissions.ts"
     },
     {
       "status": "M",
-      "path": "components/site/SiteFooter.tsx"
+      "path": "lib/settings/schema.ts"
     },
     {
       "status": "M",
-      "path": "lib/rbac/guard.ts"
+      "path": "next.config.ts"
     },
     {
       "status": "M",
@@ -66,37 +50,45 @@
     },
     {
       "status": "M",
+      "path": "prisma/roles.ts"
+    },
+    {
+      "status": "M",
       "path": "prisma/schema.prisma"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/settings/"
+      "path": "app/admin/(shell)/media/"
     },
     {
       "status": "??",
-      "path": "components/admin/ApiKeysPanel.tsx"
+      "path": "app/api/admin/"
     },
     {
       "status": "??",
-      "path": "components/admin/SettingsForm.tsx"
+      "path": "components/admin/media/"
     },
     {
       "status": "??",
-      "path": "components/site/Analytics.tsx"
+      "path": "docs/media-library.md"
     },
     {
       "status": "??",
-      "path": "lib/media/"
+      "path": "lib/media/process.ts"
     },
     {
       "status": "??",
-      "path": "lib/settings/"
+      "path": "lib/media/repo.ts"
     },
     {
       "status": "??",
-      "path": "lib/softone.ts"
+      "path": "lib/media/storage.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/media/types.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones\nc943545 v4.6 (local): CMS settings layer (site / motion / advisor / stickers) and component registry"
+  "context_notes": "Recent commits:\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones"
 }

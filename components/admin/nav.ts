@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar } from "lucide-react";
+import { Images, LayoutDashboard, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar } from "lucide-react";
 
 export interface AdminNavItem {
   href: string;
@@ -27,6 +27,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/cms/campaigns", label: "Καμπάνιες", icon: Megaphone, perm: "cms.campaigns.write", soon: true },
       { href: "/admin/cms/brand-stores", label: "Brand stores", icon: Store, perm: "cms.brandstores.write", soon: true },
       { href: "/admin/cms/copy", label: "Κείμενα UI", icon: ScrollText, perm: "cms.copy.write", soon: true },
+      { href: "/admin/media", label: "Media", icon: Images, perm: "cms.media.read" },
     ],
   },
   {

@@ -616,3 +616,48 @@ model ApiKey {
   lastUsedAt DateTime?
   expiresAt  DateTime?
 }
+
+/// Media library — folders (tree) and assets (image / video / file) stored locally or on Bunny.
+model MediaFolder {
+  id        String        @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  MediaFolder[] @relation("FolderTree")
+  assets    MediaAsset[]
+  createdAt DateTime      @default(now())
+
+  @@unique([parentId, name])
+}
+
+model MediaAsset {
+  id        String       @id @default(cuid())
+  kind      String       // "image" | "video" | "file"
+  folderId  String?
+  folder    MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  filename  String       // original name
+  title     String?
+  alt       String?
+  caption   String?
+  tags      String[]     @default([])
+  mime      String
+  size      Int
+  width     Int?
+  height    Int?
+  duration  Float?       // seconds (video)
+  storage   String       // "local" | "bunny"
+  path      String       // storage-relative path e.g. 2026/09/abc.webp
+  url       String       // public URL
+  thumbUrl  String?      // 480px webp (images/videos poster)
+  blur      String?      // tiny base64 placeholder
+  focalX    Float        @default(0.5)
+  focalY    Float        @default(0.5)
+  usedIn    Json?        // back-references filled by CMS documents
+  createdBy String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([folderId])
+  @@index([kind])
+  @@index([createdAt])
+}
