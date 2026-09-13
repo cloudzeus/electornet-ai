@@ -47,3 +47,9 @@ Settings → «AI & υπηρεσίες»: a single **OpenRouter API key** serves
 - Features: Άρης advisor (`/api/advisor`: rules pick candidates, the LLM writes the answer + per-product «why», same JSON; silent fallback), alt text / title / tags for media («Alt με AI» in the drawer, vision), product copy (`productCopy`), test call from the settings page.
 - **Budget**: every call is logged in `AiUsage` (tokens, cost from OpenRouter); «Ημερήσιο όριο κόστους ($)» stops AI calls for the day (features fall back to rules). Dashboard tile «AI κόστος σήμερα».
 - Env fallback for the key: `OPENROUTER_API_KEY`.
+
+### AI pricing & cost report
+- **Markup** (super-admin, Settings → «AI markup ανά μοντέλο»): % per model, plus `*` default for unlisted models (and whatever `openrouter/auto` picks). Snapshot per call: `AiUsage.markupPct`, `billedUsd = costUsd × (1 + markup)`, `fxRate` (USD→EUR of the day, ECB via frankfurter.app, cached in `FxRate`), `billedEur`. Changing markup affects future calls only.
+- **Report** (`/admin/reports/ai`, `reports.read`): stat tiles, billed € per day (line), per feature per day (stacked bars), per model (ranked bars), daily table with FX. Admins see billed amounts; super-admins also see the raw OpenRouter cost and the effective markup. Periods 7/30/90 days.
+- Charts: `components/admin/charts/Charts.tsx` (SVG, no library; legend for ≥2 series, hover tooltips, tabular numbers).
+- Dashboard tile «AI κόστος σήμερα (€)» = billed € today.

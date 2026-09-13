@@ -5,20 +5,20 @@ import { db } from "@/lib/db";
 import { getOrders } from "@/lib/data/repo";
 import { radar } from "@/lib/data/fixtures/radar";
 import { ADMIN_NAV } from "@/components/admin/nav";
-import { spentToday } from "@/lib/ai/openrouter";
+import { billedTodayEur } from "@/lib/ai/openrouter";
 
 export const metadata = { title: "Dashboard" };
 
 /** Dashboard: what needs attention today, per permission. Demo numbers from fixtures until the ERP sync lands. */
 export default async function AdminHome() {
   const user = await requireStaff();
-  const [orders, staffCount, roleCount, auditCount, aiCost] = await Promise.all([getOrders(), db.staff.count(), db.role.count(), db.auditLog.count(), spentToday()]);
+  const [orders, staffCount, roleCount, auditCount, aiCost] = await Promise.all([getOrders(), db.staff.count(), db.role.count(), db.auditLog.count(), billedTodayEur()]);
   const tiles = [
     { l: "Παραγγελίες σήμερα", v: orders.filter((o) => o.status !== "cancelled").length, perm: "orders.read", h: "/admin/orders" },
     { l: "Σε εξέλιξη", v: orders.filter((o) => ["paid", "processing", "shipped"].includes(o.status)).length, perm: "orders.read", h: "/admin/orders" },
     { l: "Συνομιλίες Άρη (7 ημ.)", v: radar.sessions, perm: "marketing.radar.read", h: "/admin/radar" },
     { l: "Ζητήθηκαν & λείπουν", v: radar.missing.length, perm: "marketing.radar.read", h: "/admin/radar" },
-    { l: "AI κόστος σήμερα ($)", v: Number(aiCost.toFixed(2)), perm: "reports.read", h: "/admin/settings/ai" },
+    { l: "AI κόστος σήμερα (€)", v: Number(aiCost.toFixed(2)), perm: "reports.read", h: "/admin/reports/ai" },
     { l: "Χρήστες", v: staffCount, perm: "staff.read", h: "/admin/staff" },
     { l: "Ρόλοι", v: roleCount, perm: "staff.roles.write", h: "/admin/roles" },
     { l: "Ενέργειες (audit)", v: auditCount, perm: "audit.read", h: "/admin/audit" },

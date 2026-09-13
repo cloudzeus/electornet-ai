@@ -56,6 +56,17 @@ export default async function SettingsHome() {
             })}
             {g.key === "integrations" && (
               <li>
+                <Link href="/admin/settings/ai-markup" className="group flex items-start gap-3 rounded-2xl bg-white border border-eu-line p-4 h-full hover:border-eu-blue hover:shadow-[var(--shadow-raised)] transition-all">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-heading font-bold text-eu-ink text-[length:var(--fs-17)]">AI markup ανά μοντέλο</div>
+                    <p className="m-0 mt-1 text-eu-muted text-[length:var(--fs-14)] leading-snug">Ποσοστό επάνω στο κόστος OpenRouter για κάθε μοντέλο· τροφοδοτεί την αναφορά κόστους σε € με την ισοτιμία της ημέρας.</p>
+                  </div>
+                  <ChevronRight className="size-5 text-eu-muted group-hover:text-eu-blue shrink-0 mt-1" aria-hidden />
+                </Link>
+              </li>
+            )}
+            {g.key === "integrations" && (
+              <li>
                 <Link href="/admin/settings/api-keys" className="group flex items-start gap-3 rounded-2xl bg-eu-navy text-white p-4 h-full hover:bg-eu-blue transition-colors">
                   <KeyRound className="size-5 text-eu-yellow shrink-0 mt-1" aria-hidden />
                   <div className="min-w-0 flex-1">

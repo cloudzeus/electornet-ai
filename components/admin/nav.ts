@@ -45,7 +45,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Marketing & αναφορές",
     items: [
       { href: "/admin/radar", label: "Ραντάρ ζήτησης", icon: Radar, perm: "marketing.radar.read" },
-      { href: "/admin/reports", label: "Αναφορές", icon: BarChart3, perm: "reports.read", soon: true },
+      { href: "/admin/reports", label: "Αναφορές", icon: BarChart3, perm: "reports.read" },
     ],
   },
   {

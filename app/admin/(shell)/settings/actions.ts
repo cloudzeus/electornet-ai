@@ -133,3 +133,19 @@ export async function toggleApiKey(id: string, active: boolean): Promise<ActionR
   revalidatePath("/admin/settings/api-keys");
   return { ok: true, message: active ? "Ενεργοποιήθηκε." : "Ανακλήθηκε." };
 }
+
+/** Per-model markup (super-admin). `model` "*" is the default for unlisted models. */
+export async function saveMarkup(rows: { model: string; markupPct: number | null; note?: string }[]): Promise<ActionResult> {
+  const user = await requireSuperAdmin();
+  const before = await db.aiModelPricing.findMany();
+  await db.$transaction(
+    rows.map((r) =>
+      r.markupPct === null || Number.isNaN(r.markupPct)
+        ? db.aiModelPricing.deleteMany({ where: { model: r.model } })
+        : db.aiModelPricing.upsert({ where: { model: r.model }, update: { markupPct: r.markupPct, note: r.note || null, updatedBy: user.id }, create: { model: r.model, markupPct: r.markupPct, note: r.note || null, updatedBy: user.id } }),
+    ),
+  );
+  await audit(user.id, "ai.markup.update", "AiModelPricing", "*", Object.fromEntries(before.map((b) => [b.model, b.markupPct])), Object.fromEntries(rows.filter((r) => r.markupPct !== null).map((r) => [r.model, r.markupPct])));
+  revalidatePath("/admin/settings/ai-markup");
+  return { ok: true, message: "Το markup αποθηκεύτηκε. Ισχύει για τις επόμενες κλήσεις." };
+}

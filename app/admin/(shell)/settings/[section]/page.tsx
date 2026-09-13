@@ -6,13 +6,14 @@ import { SECTIONS, sectionByKey } from "@/lib/settings/schema";
 import { getSettingForForm } from "@/lib/settings/store";
 import { SettingsForm } from "@/components/admin/SettingsForm";
 import { ApiKeysPanel } from "@/components/admin/ApiKeysPanel";
+import { AiMarkupPanel } from "@/components/admin/AiMarkupPanel";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
-  return { title: section === "api-keys" ? "API keys" : sectionByKey(section)?.title ?? "Ρυθμίσεις" };
+  return { title: section === "api-keys" ? "API keys" : section === "ai-markup" ? "AI markup" : sectionByKey(section)?.title ?? "Ρυθμίσεις" };
 }
 
 export default async function SettingsSection({ params }: { params: Promise<{ section: string }> }) {
@@ -23,6 +24,19 @@ export default async function SettingsSection({ params }: { params: Promise<{ se
       <ChevronLeft className="size-4" aria-hidden /> Όλες οι ρυθμίσεις
     </Link>
   );
+  if (section === "ai-markup") {
+    const [pricing, seen] = await Promise.all([db.aiModelPricing.findMany({ orderBy: { model: "asc" } }), db.aiUsage.groupBy({ by: ["model"], _sum: { costUsd: true }, _count: { _all: true } })]);
+    const models = [...new Set([...pricing.map((p) => p.model).filter((m) => m !== "*"), ...seen.map((s) => s.model)])].sort();
+    return (
+      <>
+        {back}
+        <AiMarkupPanel
+          defaultPct={pricing.find((p) => p.model === "*")?.markupPct ?? 0}
+          rows={models.map((m) => ({ model: m, markupPct: pricing.find((p) => p.model === m)?.markupPct ?? null, note: pricing.find((p) => p.model === m)?.note ?? "", calls: seen.find((s) => s.model === m)?._count._all ?? 0, costUsd: seen.find((s) => s.model === m)?._sum.costUsd ?? 0 }))}
+        />
+      </>
+    );
+  }
   if (section === "api-keys") {
     const keys = await db.apiKey.findMany({ orderBy: { createdAt: "desc" } });
     return (

@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
+import { markupFor, billed } from "./pricing";
+import { usdEurRate } from "@/lib/fx";
 
 /**
  * One OpenRouter key for every AI feature (Άρης advisor, alt text, copy,
@@ -48,9 +50,15 @@ export async function getAi(): Promise<AiConfig | null> {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** raw OpenRouter spend today (budget guard) */
 export async function spentToday(): Promise<number> {
   const r = await db.aiUsage.aggregate({ where: { day: today() }, _sum: { costUsd: true } }).catch(() => null);
   return r?._sum.costUsd ?? 0;
+}
+/** billed (with markup) today in EUR — dashboard tile */
+export async function billedTodayEur(): Promise<number> {
+  const r = await db.aiUsage.aggregate({ where: { day: today() }, _sum: { billedEur: true } }).catch(() => null);
+  return r?._sum.billedEur ?? 0;
 }
 
 /** true when a daily budget is set and already exhausted */
@@ -102,7 +110,10 @@ export async function chat(opts: {
     throw new Error(`OpenRouter ${res.status}: ${j.error?.message ?? res.statusText}`);
   }
   const out: ChatResult = { text: j.choices?.[0]?.message?.content ?? "", model: j.model ?? model, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, ms };
-  await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, ms } }).catch(() => null);
+  // pricing snapshot at call time: markup of the model actually used + FX of the day
+  const [markupPct, fxRate] = await Promise.all([markupFor(out.model), usdEurRate()]);
+  const billedUsd = billed(out.costUsd, markupPct);
+  await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, markupPct, billedUsd, fxRate, billedEur: billedUsd * fxRate, ms } }).catch(() => null);
   return out;
 }
 

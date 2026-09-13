@@ -684,11 +684,36 @@ model AiUsage {
   model     String
   tokensIn  Int      @default(0)
   tokensOut Int      @default(0)
-  costUsd   Float    @default(0)
+  costUsd   Float    @default(0)   // what OpenRouter charged
+  markupPct Float    @default(0)   // markup applied at call time (super-admin pricing)
+  billedUsd Float    @default(0)   // costUsd × (1 + markupPct/100)
+  fxRate    Float?                 // USD→EUR rate of the day (ECB)
+  billedEur Float?                 // billedUsd × fxRate
   ms        Int      @default(0)
   ok        Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([day])
   @@index([feature, createdAt])
+  @@index([model, day])
+}
+
+/// Per-model markup set by the super-admin; "*" = default for models not listed.
+model AiModelPricing {
+  model     String   @id
+  markupPct Float    @default(0)
+  note      String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+/// Daily FX cache (ECB via frankfurter.app): base→quote rate for a day.
+model FxRate {
+  day       String
+  base      String
+  quote     String
+  rate      Float
+  fetchedAt DateTime @default(now())
+
+  @@id([day, base, quote])
 }
