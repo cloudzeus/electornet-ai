@@ -21,20 +21,20 @@ export default async function BackupsPage() {
   const passphrase = !!process.env.BACKUP_PASSPHRASE?.trim();
   const cron = !!process.env.CRON_SECRET;
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-5 min-w-0">
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><DatabaseBackup className="size-3.5" aria-hidden /> Διαχείριση</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Backups βάσης δεδομένων</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Κάθε μέρα ένα πλήρες αντίγραφο (pg_dump, custom format) κρυπτογραφείται με AES-256 και ανεβαίνει στο Bunny Storage zone <b>{target.zone}</b>{target.dedicated ? " (αποκλειστικό zone)" : ` στον φάκελο ${target.prefix}`}. Διατήρηση {target.retentionDays} ημέρες, πάντα τουλάχιστον 3 αντίγραφα.</p>
       </div>
-      <div className="grid grid-cols-2 @lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-4 gap-3">
         <StatTile label="Τελευταίο επιτυχημένο" value={last ? fmt(last.at) : "—"} sub={lastAgeH != null ? `πριν ${lastAgeH < 1 ? `${Math.round(lastAgeH * 60)} λεπτά` : `${lastAgeH.toFixed(0)} ώρες`}` : "κανένα ακόμη"} accent={!!last && lastAgeH! < 26} />
         <StatTile label="Διαθέσιμα αντίγραφα" value={String(okRuns.length)} sub={`${(okRuns.reduce((a, r) => a + (r.bytes ?? 0), 0) / 1048576).toFixed(1)} MB συνολικά`} />
         <StatTile label="Κρυπτογράφηση" value={passphrase ? "AES-256" : "ΟΧΙ"} sub={passphrase ? "BACKUP_PASSPHRASE ορίστηκε" : "όρισε BACKUP_PASSPHRASE στο .env"} />
         <StatTile label="Αυτόματο (cron)" value={cron ? "έτοιμο" : "—"} sub={cron ? "GET /api/cron/backup" : "όρισε CRON_SECRET στο .env"} />
       </div>
       {(!passphrase || !cron) && (
-        <div className="rounded-xl bg-eu-yellow/15 border border-eu-yellow p-4 text-[length:var(--fs-14)] text-eu-ink grid gap-1">
+        <div className="rounded-xl bg-eu-yellow/15 border border-eu-yellow p-4 text-[length:var(--fs-14)] text-eu-ink grid gap-1 min-w-0 [&_code]:break-all [&_code]:rounded [&_code]:bg-white/70 [&_code]:px-1">
           <div className="font-extrabold inline-flex items-center gap-1.5"><ShieldAlert className="size-4" aria-hidden /> Εκκρεμότητες για παραγωγή</div>
           {!passphrase && <div>• <code>BACKUP_PASSPHRASE</code>: χωρίς αυτό τα αρχεία ανεβαίνουν ακρυπτογράφητα. Φύλαξέ το και εκτός server· χωρίς αυτό δεν γίνεται επαναφορά.</div>}
           {!cron && <div>• <code>CRON_SECRET</code> + προγραμματισμός: Coolify scheduled task ή crontab <code>0 3 * * * curl -fsS -H &quot;Authorization: Bearer $CRON_SECRET&quot; https://www.euronics.gr/api/cron/backup</code> (ή <code>scripts/backup-db.ts</code>). Δες <code>docs/backup.md</code>.</div>}
