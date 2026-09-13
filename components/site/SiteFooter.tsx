@@ -1,4 +1,5 @@
 import { copyOf } from "@/lib/cms/copy";
+import { getPublicSettings } from "@/lib/settings/store";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -12,7 +13,20 @@ const cols: { title: string; links: { label: string; href: string }[] }[] = [
 ];
 
 /** DSA trader details, WEEE registry and ADR reachable on every page. */
-export function SiteFooter() {
+const DEFAULT_SOCIALS = [
+  { label: "Facebook", href: "https://www.facebook.com/euronics.gr/" },
+  { label: "Instagram", href: "https://www.instagram.com/euronics.gr/" },
+  { label: "YouTube", href: "https://www.youtube.com/euronicsgreece" },
+  { label: "Google Maps", href: "https://www.google.com/maps/place/Euronics+Greece+(Mega+Electrics+AEBE)/@38.0778184,23.7510866,15z" },
+  { label: "Euronics International", href: "https://www.euronics.com/" },
+];
+const SOCIAL_LABELS: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", linkedin: "LinkedIn", x: "X" };
+
+/** @dynamic Social links come from Settings → «Social προφίλ»; the live euronics.gr links are the fallback. */
+export async function SiteFooter() {
+  const pub = await getPublicSettings();
+  const fromSettings = Object.entries(pub.social ?? {}).filter(([k, v]) => SOCIAL_LABELS[k] && v).map(([k, v]) => ({ label: SOCIAL_LABELS[k], href: String(v) }));
+  const socials = fromSettings.length ? [...fromSettings, ...DEFAULT_SOCIALS.slice(3)] : DEFAULT_SOCIALS;
   return (
     <footer className="bg-eu-navy text-eu-on-dark-2 eu-container">
       <div className="eu-canvas eu-gutter pt-8 pb-5">
@@ -43,11 +57,9 @@ export function SiteFooter() {
               <a href="mailto:info@euronics.gr" className="hover:text-white">info@euronics.gr</a>
             </address>
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-white">
-              <a href="https://www.facebook.com/euronics.gr/" target="_blank" rel="noreferrer" className="hover:text-eu-yellow">Facebook</a>
-              <a href="https://www.instagram.com/euronics.gr/" target="_blank" rel="noreferrer" className="hover:text-eu-yellow">Instagram</a>
-              <a href="https://www.youtube.com/euronicsgreece" target="_blank" rel="noreferrer" className="hover:text-eu-yellow">YouTube</a>
-              <a href="https://www.google.com/maps/place/Euronics+Greece+(Mega+Electrics+AEBE)/@38.0778184,23.7510866,15z" target="_blank" rel="noreferrer" className="hover:text-eu-yellow">Google Maps</a>
-              <a href="https://www.euronics.com/" target="_blank" rel="noreferrer" className="hover:text-eu-yellow">Euronics International</a>
+              {socials.map((l) => (
+                <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="hover:text-eu-yellow">{l.label}</a>
+              ))}
             </div>
           </div>
         </div>

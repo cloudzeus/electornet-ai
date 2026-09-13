@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T08:20:54.115Z",
+  "timestamp": "2026-09-13T08:30:51.478Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,15 +18,43 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": ".gitignore"
-    },
-    {
-      "status": "M",
       "path": ".planning/HANDOFF.json"
     },
     {
-      "status": "R",
-      "path": "app/(shop)/admin/radar/page.tsx -> app/admin/(shell)/radar/page.tsx"
+      "status": "M",
+      "path": "app/admin/(shell)/forbidden/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/layout.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/admin/AdminShell.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/admin/StaffTable.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/admin/nav.ts"
+    },
+    {
+      "status": "M",
+      "path": "components/site/CookieConsent.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/site/SiteFooter.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/rbac/guard.ts"
     },
     {
       "status": "M",
@@ -42,61 +70,33 @@
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/audit/"
+      "path": "app/admin/(shell)/settings/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/forbidden/"
+      "path": "components/admin/ApiKeysPanel.tsx"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/layout.tsx"
+      "path": "components/admin/SettingsForm.tsx"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/page.tsx"
+      "path": "components/site/Analytics.tsx"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/roles/"
+      "path": "lib/media/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/staff/"
+      "path": "lib/settings/"
     },
     {
       "status": "??",
-      "path": "app/admin/login/"
-    },
-    {
-      "status": "??",
-      "path": "app/api/auth/"
-    },
-    {
-      "status": "??",
-      "path": "components/admin/"
-    },
-    {
-      "status": "??",
-      "path": "lib/auth.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/db.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/rbac/"
-    },
-    {
-      "status": "??",
-      "path": "prisma/roles.ts"
-    },
-    {
-      "status": "??",
-      "path": "prisma/seed.ts"
+      "path": "lib/softone.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones\nc943545 v4.6 (local): CMS settings layer (site / motion / advisor / stickers) and component registry\n9ed4ff1 v4.5 (local): Brand stores — CMS-ready schema, renderer and LG / Samsung / Apple samples"
+  "context_notes": "Recent commits:\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones\nc943545 v4.6 (local): CMS settings layer (site / motion / advisor / stickers) and component registry"
 }

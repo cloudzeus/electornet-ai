@@ -29,6 +29,7 @@ export function CookieConsent() {
   const save = (a: boolean, m: boolean) => {
     try {
       localStorage.setItem(KEY, JSON.stringify({ analytics: a, marketing: m, at: new Date().toISOString() }));
+      window.dispatchEvent(new Event("eu:consent"));
     } catch {}
     setShow(false);
   };

@@ -15,7 +15,7 @@ import { AdminTitle } from "./AdminTitle";
  * AdminNavLinks).
  */
 export function AdminShell({ user, children, title }: { user: { name?: string | null; email?: string | null; roles: string[]; permissions: string[] }; children: ReactNode; title?: string }) {
-  const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items.filter((i) => can(user.permissions, i.perm)) })).filter((g) => g.items.length);
+  const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.superOnly ? user.roles.includes("super-admin") : can(user.permissions, i.perm))) })).filter((g) => g.items.length);
   return (
     <div className="min-h-dvh grid grid-cols-1 @3xl:grid-cols-[260px_minmax(0,1fr)] bg-eu-surface eu-container">
       <aside className="bg-eu-navy text-white flex flex-col">

@@ -591,3 +591,28 @@ model CmsDocument {
   @@unique([collection, key, locale])
   @@index([collection])
 }
+
+/// Back-office settings: one row per section (general, social, analytics, softone, payments…).
+/// `data` holds plain fields; `secrets` holds an AES-256-GCM encrypted JSON map of secret fields.
+model Setting {
+  section     String   @id
+  data        Json
+  secrets     String?  @db.Text
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+/// Partner / integration API keys for the public API (hash stored, plain key shown once).
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String    // first 8 chars, shown in lists
+  hash       String    @unique
+  scopes     String[]  @default([])
+  active     Boolean   @default(true)
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+}

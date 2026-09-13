@@ -8,6 +8,8 @@ export interface AdminNavItem {
   /** permission needed to see it (wildcards allowed) */
   perm: string;
   soon?: boolean;
+  /** visible only to the super-admin role, regardless of permissions */
+  superOnly?: boolean;
 }
 export interface AdminNavGroup {
   label: string;
@@ -47,7 +49,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Διαχείριση",
     items: [
-      { href: "/admin/settings", label: "Ρυθμίσεις", icon: Settings, perm: "settings.read", soon: true },
+      { href: "/admin/settings", label: "Ρυθμίσεις & διασυνδέσεις", icon: Settings, perm: "*", superOnly: true },
       { href: "/admin/staff", label: "Χρήστες", icon: Users, perm: "staff.read" },
       { href: "/admin/roles", label: "Ρόλοι & δικαιώματα", icon: ShieldCheck, perm: "staff.roles.write" },
       { href: "/admin/audit", label: "Audit log", icon: ScrollText, perm: "audit.read" },

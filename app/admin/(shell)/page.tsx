@@ -21,7 +21,7 @@ export default async function AdminHome() {
     { l: "Ρόλοι", v: roleCount, perm: "staff.roles.write", h: "/admin/roles" },
     { l: "Ενέργειες (audit)", v: auditCount, perm: "audit.read", h: "/admin/audit" },
   ].filter((t) => can(user.permissions, t.perm));
-  const quick = ADMIN_NAV.flatMap((g) => g.items).filter((i) => !i.soon && i.href !== "/admin" && can(user.permissions, i.perm));
+  const quick = ADMIN_NAV.flatMap((g) => g.items).filter((i) => !i.soon && i.href !== "/admin" && (i.superOnly ? user.roles.includes("super-admin") : can(user.permissions, i.perm)));
   return (
     <>
       <div>

@@ -50,8 +50,8 @@ export function StaffTable({ me, canWrite, roles, stores, staff }: { me: string;
                 <td className="p-3 text-eu-ink-2">{storeName(s.storeId)}</td>
                 <td className="p-3 text-eu-ink-2 tabular-nums">{s.lastLoginAt ? new Date(s.lastLoginAt).toLocaleString("el-GR") : "ποτέ"}</td>
                 <td className="p-3">
-                  <span className={`inline-flex items-center gap-1.5 font-bold ${s.active ? "text-eu-success" : "text-eu-muted"}`}>
-                    <span className={`size-2 rounded-full ${s.active ? "bg-eu-success" : "bg-eu-line-3"}`} aria-hidden /> {s.active ? "Ενεργός" : "Ανενεργός"}
+                  <span className={`inline-flex items-center gap-1.5 font-bold ${s.active ? "text-eu-green" : "text-eu-muted"}`}>
+                    <span className={`size-2 rounded-full ${s.active ? "bg-eu-green" : "bg-eu-line-3"}`} aria-hidden /> {s.active ? "Ενεργός" : "Ανενεργός"}
                   </span>
                 </td>
                 {canWrite && (

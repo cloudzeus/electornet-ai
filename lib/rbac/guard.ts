@@ -20,3 +20,10 @@ export async function requirePermission(key: string) {
 export function hasPermission(user: { permissions: string[] } | null | undefined, key: string) {
   return !!user && can(user.permissions, key);
 }
+
+/** Super-admin only areas (integrations, secrets, API keys). */
+export async function requireSuperAdmin() {
+  const user = await requireStaff();
+  if (!user.roles.includes("super-admin")) redirect("/admin/forbidden?need=super-admin");
+  return user;
+}
