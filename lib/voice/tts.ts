@@ -62,7 +62,7 @@ async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict
   const t0 = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json", "HTTP-Referer": "https://www.euronics.gr", "X-Title": "Euronics Aris voice" },
+    headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json", "HTTP-Referer": "https://www.euronics.gr", "X-Title": "Euronics Ermis voice" },
     body: JSON.stringify({ model: cfg.ttsModel, stream: true, modalities: ["text", "audio"], audio: { voice: cfg.voice, format: "pcm16" }, messages: [{ role: "system", content: SYSTEM(cfg.style) }, { role: "user", content: `${strict ? STRICT : "Εκφώνησε λέξη προς λέξη το κείμενο:"}\n«${text}»` }] }),
     signal: AbortSignal.timeout(45000),
   });
@@ -139,8 +139,9 @@ export async function prewarmPresets(force = false) {
     const r = await speak(p.text, { key: p.key, force });
     out.push({ key: p.key, ok: !!r, cached: r?.cached ?? false, costUsd: r?.costUsd ?? 0 });
   }
-  // Rows of another voice/model can never be hit again (the hash includes both): drop them and their files.
-  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: cfg.style } }] } });
+  // Rows of another voice/model/style, or presets whose wording changed, can never be hit again: drop them and their files.
+  const current = new Set(PRESET_PHRASES.map((p) => phraseHash(cfg.ttsModel, cfg.voice, cfg.style, normaliseText(p.text))));
+  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: cfg.style } }, { key: { not: null }, hash: { notIn: [...current] } }] } });
   for (const row of stale) { await removeBytes(row.storage as Storage, row.path, row.url); await db.voicePhrase.delete({ where: { id: row.id } }).catch(() => null); }
   return out;
 }
