@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { captureEvidence, sha256 } from "@/lib/gdpr/evidence";
 import { sendMail } from "@/lib/email/send";
+import { renderTemplate } from "@/lib/email/templates";
 
 /**
  * Lost password with email OTP.
@@ -34,11 +35,8 @@ export async function requestPasswordReset(emailRaw: string, opts: { staffId?: s
   await db.passwordReset.create({ data: { customerId: c.id, email, codeHash: hashCode(email, code), expiresAt: new Date(Date.now() + CODE_TTL_MIN * 60000), requestedBy: opts.staffId ?? null, ip: ev.ip, ipHash: ev.ipHash, userAgent: ev.userAgent, os: ev.os, browser: ev.browser, device: ev.device } });
   await db.customerEvent.create({ data: { customerId: c.id, kind: "password-reset-request", meta: { ip: ev.ip, os: ev.os, browser: ev.browser, byStaff: !!opts.staffId }, staffId: opts.staffId ?? null } });
   const where = [ev.os, ev.browser].filter(Boolean).join(" · ");
-  await sendMail({
-    to: email, template: "password-otp", subject: `${code} — ο κωδικός επαναφοράς σου στη Euronics`, meta: { customerId: c.id },
-    text: `Ο κωδικός επαναφοράς σου είναι ${code}. Ισχύει για ${CODE_TTL_MIN} λεπτά. Αν δεν το ζήτησες εσύ, αγνόησε το μήνυμα.`,
-    html: `<div style="font-family:Manrope,Arial,sans-serif;max-width:520px"><p>Γεια σου ${c.firstName},</p><p>Ο κωδικός μιας χρήσης για την επαναφορά του κωδικού σου:</p><p style="font-size:34px;font-weight:800;letter-spacing:8px;color:#122A58;margin:12px 0">${code}</p><p>Ισχύει για <b>${CODE_TTL_MIN} λεπτά</b>. Μην τον μοιραστείς με κανέναν — η Euronics δεν θα σου τον ζητήσει ποτέ τηλεφωνικά.</p><p style="color:#777;font-size:13px">Αίτημα από ${ev.ip ?? "άγνωστη IP"}${where ? ` · ${where}` : ""} στις ${new Date().toLocaleString("el-GR")}. Αν δεν το ζήτησες εσύ, αγνόησε αυτό το μήνυμα· ο κωδικός σου δεν αλλάζει.</p></div>`,
-  });
+  const m = await renderTemplate("password-otp", { firstName: c.firstName, code, minutes: CODE_TTL_MIN, ip: ev.ip, device: where || null });
+  await sendMail({ to: email, template: "password-otp", meta: { customerId: c.id }, ...m });
   return { ok: true as const, throttled: false as const };
 }
 
@@ -67,6 +65,7 @@ export async function resetPassword(token: string, password: string) {
     db.passwordReset.updateMany({ where: { customerId: pr.customerId, usedAt: null }, data: { expiresAt: new Date() } }),
     db.customerEvent.create({ data: { customerId: pr.customerId, kind: "password-reset", meta: { ip: ev.ip, os: ev.os, browser: ev.browser } } }),
   ]);
-  await sendMail({ to: pr.email, template: "password-changed", subject: "Ο κωδικός σου στη Euronics άλλαξε", meta: { customerId: pr.customerId }, text: `Ο κωδικός του λογαριασμού σου άλλαξε στις ${new Date().toLocaleString("el-GR")} από ${ev.ip ?? "άγνωστη IP"}. Αν δεν ήσουν εσύ, επικοινώνησε αμέσως μαζί μας στο 210 483 5143.`, html: `<div style="font-family:Manrope,Arial,sans-serif;max-width:520px"><p>Γεια σου ${pr.customer.firstName},</p><p>Ο κωδικός του λογαριασμού σου άλλαξε στις <b>${new Date().toLocaleString("el-GR")}</b> από ${ev.ip ?? "άγνωστη IP"}${[ev.os, ev.browser].filter(Boolean).length ? ` (${[ev.os, ev.browser].filter(Boolean).join(" · ")})` : ""}.</p><p>Αν δεν ήσουν εσύ, επικοινώνησε αμέσως μαζί μας στο <b>210 483 5143</b>.</p></div>` });
+  const m = await renderTemplate("password-changed", { firstName: pr.customer.firstName, when: new Date().toLocaleString("el-GR"), ip: ev.ip, device: [ev.os, ev.browser].filter(Boolean).join(" · ") || null });
+  await sendMail({ to: pr.email, template: "password-changed", meta: { customerId: pr.customerId }, ...m });
   return { ok: true as const, email: pr.email };
 }

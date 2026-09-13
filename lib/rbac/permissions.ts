@@ -48,6 +48,7 @@ export const PERMISSIONS: { key: string; group: PermissionGroup; description: st
   { key: "stores.stock.read", group: "stores", description: "Απόθεμα ανά κατάστημα" },
   { key: "stores.pick.write", group: "stores", description: "«Επιλογή καταστήματος» σε προϊόντα" },
   { key: "marketing.newsletter.write", group: "marketing", description: "Newsletter, segments" },
+  { key: "marketing.emails.write", group: "marketing", description: "Emails επικοινωνίας: προεπισκόπηση, δοκιμαστική αποστολή" },
   { key: "marketing.advisor.write", group: "marketing", description: "Ο Άρης: κείμενα, ερωτήσεις, exit-intent, cart tips" },
   { key: "marketing.radar.read", group: "marketing", description: "Ραντάρ ζήτησης" },
   { key: "service.tickets.read", group: "service", description: "Αιτήματα service / βλάβες" },

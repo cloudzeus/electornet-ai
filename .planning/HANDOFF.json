@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T11:03:58.102Z",
+  "timestamp": "2026-09-13T11:15:59.921Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,9 +22,41 @@
     },
     {
       "status": "M",
-      "path": "components/admin/AdminNavLinks.tsx"
+      "path": "components/admin/nav.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/account/password-reset.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/newsletter/index.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/rbac/permissions.ts"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/emails/"
+    },
+    {
+      "status": "??",
+      "path": "components/admin/emails/"
+    },
+    {
+      "status": "??",
+      "path": "docs/emails.md"
+    },
+    {
+      "status": "??",
+      "path": "lib/email/layout.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/email/templates.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper\n746f971 Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer JWT session + login page with logged attempts, staff-initiated OTP from the customer profile\ndd5e47e Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with settings defaults, append-only consent ledger with device/IP/wording evidence + versioned consent texts, login events, newsletter double opt-in with proof + admin, GDPR requests with 30-day deadlines, export and right-to-be-forgotten pseudonymisation, printable consent proof; demo seeds\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards"
+  "context_notes": "Recent commits:\n3d3b032 Admin sidebar: collapsible groups (active group auto-opens, state remembered per browser, single-item groups as direct links)\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper\n746f971 Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer JWT session + login page with logged attempts, staff-initiated OTP from the customer profile\ndd5e47e Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with settings defaults, append-only consent ledger with device/IP/wording evidence + versioned consent texts, login events, newsletter double opt-in with proof + admin, GDPR requests with 30-day deadlines, export and right-to-be-forgotten pseudonymisation, printable consent proof; demo seeds\n8c0084f Geocode label: city only, street+city for address queries"
 }
