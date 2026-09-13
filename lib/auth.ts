@@ -2,6 +2,7 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { recordLogin } from "@/lib/gdpr/consent";
 
 declare module "next-auth" {
   interface Session {
@@ -27,13 +28,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(c.password ?? "");
         if (!email || !password) return null;
         const staff = await db.staff.findUnique({ where: { email }, include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } });
-        if (!staff || !staff.active || !staff.passwordHash) return null;
+        if (!staff || !staff.active || !staff.passwordHash) { await recordLogin({ email, success: false, method: "admin", reason: !staff ? "unknown" : "blocked" }); return null; }
         const ok = await bcrypt.compare(password, staff.passwordHash);
-        if (!ok) return null;
+        if (!ok) { await recordLogin({ staffId: staff.id, email, success: false, method: "admin", reason: "bad-password" }); return null; }
         await db.staff.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
         const roles = staff.roles.map((r) => r.role.key);
         const permissions = roles.includes("super-admin") ? ["*"] : [...new Set(staff.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)))];
-        if (!permissions.length) return null; // e.g. «customer» role: no back-office access
+        if (!permissions.length) { await recordLogin({ staffId: staff.id, email, success: false, method: "admin", reason: "no-access" }); return null; } // e.g. «customer» role
+        await recordLogin({ staffId: staff.id, email, success: true, method: "admin" });
         return { id: staff.id, email: staff.email, name: staff.name, roles, permissions, storeId: staff.storeId };
       },
     }),

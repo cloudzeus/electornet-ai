@@ -238,6 +238,7 @@ model Store {
   sort      Int          @default(0)
   stock     StoreStock[]
   orders    Order[]
+  customers Customer[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -262,41 +263,111 @@ model Service {
 
 // ---------- Customers, carts, orders ----------
 
+/// Retail customer (e-shop account). Mirrors SoftOne CUSTOMER (TRDR) through erpTrdr/erpCode; the shop is the master for
+/// consents, devices, loyalty events and notes, the ERP is the master for fiscal identity (ΑΦΜ/ΔΟΥ) once linked.
 model Customer {
-  id         String      @id @default(cuid())
-  email      String      @unique
-  phone      String?
-  firstName  String
-  lastName   String
-  erpTrdr    String? // ERP customer id, linked by ΑΦΜ or email
-  vatNumber  String?
-  addresses  Address[]
-  cards      SavedCard[]
-  consents   Consent[]
-  wishlist   Wishlist[]
-  orders     Order[]
-  carts      Cart[]
-  createdAt  DateTime    @default(now())
+  id            String         @id @default(cuid())
+  number        Int            @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
+  type          String         @default("individual") // individual | business
+  email         String         @unique
+  emailVerifiedAt DateTime?
+  phone         String?
+  mobile        String?
+  firstName     String
+  lastName      String
+  company       String? // legal name for business customers
+  vatNumber     String? // ΑΦΜ
+  doy           String? // Δ.Ο.Υ.
+  profession    String?
+  birthday      DateTime?
+  gender        String? // m | f | other | null
+  locale        String         @default("el")
+  status        String         @default("active") // active | blocked | anonymised
+  source        String         @default("web") // web | store | erp | import
+  tags          String[]       @default([])
+  newsletter    Boolean        @default(false)
+  passwordHash  String?
+  lastLoginAt   DateTime?
+  preferredStoreId String?
+  preferredStore Store?        @relation(fields: [preferredStoreId], references: [id], onDelete: SetNull)
+  loyaltyPoints Int            @default(0)
+  loyaltyTier   String? // bronze | silver | gold
+  loyaltyCard   String? // ERP TRDRBONUSCARD / physical card number
+  // ERP link (SoftOne CUSTOMER / TRDR)
+  erpTrdr       String?        @unique
+  erpCode       String?
+  erpSyncStatus String? // linked | queued | sent | failed | conflict
+  erpSyncedAt   DateTime?
+  erpLastError  String?        @db.Text
+  notes         String?        @db.Text // internal
+  anonymisedAt  DateTime?
+  addresses     Address[]
+  cards         SavedCard[]
+  consents      Consent[]
+  wishlist      Wishlist[]
+  orders        Order[]
+  carts         Cart[]
+  social        SocialAccount[]
+  devices       CustomerDevice[]
+  tickets       ServiceTicket[]
+  loyalty       LoyaltyTransaction[]
+  customerNotes CustomerNote[]
+  events        CustomerEvent[]
+  logins        LoginEvent[]
+  gdprRequests  GdprRequest[]
+  subscriptions NewsletterSubscriber[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([vatNumber])
+  @@index([status])
+  @@index([erpSyncStatus])
 }
 
+/// Social login identities (Google / Microsoft / Facebook / Apple).
+model SocialAccount {
+  id                String   @id @default(cuid())
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  provider          String
+  providerAccountId String
+  email             String?
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([customerId])
+}
+
+/// Delivery / billing addresses. Extra addresses map to SoftOne CUSBRANCH lines (erpBranch = LINENUM).
 model Address {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  label      String?
-  street     String
-  number     String?
-  floor      String?
-  city       String
-  zip        String
-  region     String
-  phone      String?
-  isDefault  Boolean  @default(false)
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label       String? // Σπίτι, Γραφείο…
+  kind        String   @default("shipping") // shipping | billing | both
+  recipient   String?
+  street      String
+  number      String?
+  floor       String?
+  doorbell    String?
+  city        String
+  zip         String
+  region      String
+  country     String   @default("GR")
+  phone       String?
+  notes       String? // access, elevator, appointment hints
+  lat         Float?
+  lng         Float?
+  isDefault   Boolean  @default(false)
+  isBilling   Boolean  @default(false)
+  erpBranch   Int? // CUSBRANCH.LINENUM
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([customerId])
 }
 
-/// Tokenised card reference from the PSP (Viva / Stripe) — never PAN. Enables Quick buy.
 model SavedCard {
   id         String   @id @default(cuid())
   customerId String
@@ -312,16 +383,257 @@ model SavedCard {
   @@index([customerId])
 }
 
+/// GDPR consent ledger (art. 7 — burden of proof): one immutable row per change with the full evidence of how the
+/// consent was obtained. Rows are never updated or deleted; erasure pseudonymises the customer, not the ledger.
 model Consent {
+  id           String    @id @default(cuid())
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  subscriberId String?
+  subscriber   NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  email        String? // as given at the time (kept for proof even after erasure? no — hashed on erasure)
+  topic        String // newsletter | offers | price-drop | back-in-stock | service | orders | cookies-analytics | cookies-marketing | geolocation | profiling | terms | privacy
+  channel      String    @default("email") // email | sms | push | viber | phone | web
+  granted      Boolean
+  method       String    @default("checkbox") // checkbox | double-opt-in | account-toggle | admin | import | store-form | popup
+  source       String // checkout | account | footer | popup | admin | import | store | api
+  textKey      String? // ConsentText.key
+  textVersion  String? // ConsentText.version shown
+  textHash     String? // sha256 of the exact wording shown
+  url          String?
+  ip           String?
+  ipHash       String? // sha256(ip + salt) survives erasure
+  userAgent    String?
+  os           String?
+  browser      String?
+  device       String? // desktop | mobile | tablet
+  locale       String?
+  timezone     String?
+  referer      String?
+  confirmedAt  DateTime? // double opt-in confirmation
+  confirmIp    String?
+  evidence     Json? // form snapshot / extra proof
+  staffId      String? // when changed by staff
+  at           DateTime  @default(now())
+
+  @@index([customerId, topic, channel])
+  @@index([email])
+  @@index([at])
+}
+
+/// Versioned consent wordings — every consent row points to the exact text (key + version + hash) that was shown.
+model ConsentText {
+  id            String   @id @default(cuid())
+  key           String // newsletter | offers | terms | privacy | cookies | service
+  version       String // "2026-09"
+  locale        String   @default("el")
+  title         String
+  text          String   @db.Text
+  hash          String // sha256(text)
+  effectiveFrom DateTime @default(now())
+  active        Boolean  @default(true)
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  @@unique([key, version, locale])
+  @@index([key, active])
+}
+
+/// Every authentication attempt (customers and staff) with device evidence — accountability + security.
+model LoginEvent {
+  id         String    @id @default(cuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  staffId    String?
+  email      String // attempted identifier
+  success    Boolean
+  method     String // password | google | microsoft | facebook | apple | magic-link | admin
+  reason     String? // bad-password | unknown | blocked | no-access
+  ip         String?
+  ipHash     String?
+  userAgent  String?
+  os         String?
+  browser    String?
+  device     String?
+  country    String?
+  city       String?
+  sessionId  String?
+  at         DateTime  @default(now())
+
+  @@index([customerId, at])
+  @@index([staffId, at])
+  @@index([email, at])
+}
+
+/// Newsletter audience with double opt-in and proof of every status change (see Consent rows with subscriberId).
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstName      String?
+  status         String    @default("pending") // pending | subscribed | unsubscribed | bounced | complained
+  source         String    @default("footer") // footer | checkout | account | popup | store | import | admin
+  lists          String[]  @default(["general"])
+  locale         String    @default("el")
+  token          String    @unique @default(cuid()) // confirm / unsubscribe link token
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  unsubscribeReason String?
+  bouncedAt      DateTime?
+  externalId     String? // Mailchimp / Klaviyo id
+  syncedAt       DateTime?
+  consents       Consent[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([customerId])
+}
+
+/// Data-subject requests (GDPR arts. 15–21): tracked with the 30-day deadline and what was done.
+model GdprRequest {
+  id           String    @id @default(cuid())
+  number       String    @unique // GDPR-00001
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email        String
+  type         String // access | portability | rectification | erasure | restriction | objection | withdraw-consent
+  status       String    @default("open") // open | verifying | in-progress | done | rejected
+  channel      String    @default("account") // account | email | phone | store | letter | admin
+  description  String?   @db.Text
+  identityVerifiedAt DateTime?
+  identityMethod String? // login | id-document | email-link | in-person
+  requestedAt  DateTime  @default(now())
+  dueAt        DateTime // requestedAt + 30 days (art. 12.3)
+  completedAt  DateTime?
+  outcome      String?   @db.Text // what was delivered / why rejected
+  exportUrl    String?
+  staffId      String?
+  evidence     Json? // ip / ua of the request when self-service
+  timeline     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, dueAt])
+  @@index([customerId])
+}
+
+/// Outgoing transactional email log (confirmations, GDPR exports, service) — proof of dispatch.
+model EmailLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  template  String
+  status    String   @default("queued") // queued | sent | failed | skipped
+  provider  String?
+  messageId String?
+  error     String?  @db.Text
+  meta      Json?
+  at        DateTime @default(now())
+
+  @@index([to, at])
+}
+
+/// Appliances the customer owns (warranty wallet). Filled from order lines, store purchases (ERP) or manual registration.
+model CustomerDevice {
+  id             String    @id @default(cuid())
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId      String?
+  brand          String
+  title          String
+  model          String?
+  serial         String?
+  purchasedAt    DateTime?
+  orderId        String?
+  orderLineId    String?
+  storeId        String?
+  invoiceNo      String? // ERP FINDOC number
+  invoiceUrl     String?
+  warrantyMonths Int       @default(24)
+  warrantyUntil  DateTime?
+  extendedUntil  DateTime? // paid extended warranty
+  extendedPlan   String?
+  registeredBy   String    @default("order") // order | erp | manual | staff
+  notes          String?
+  tickets        ServiceTicket[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([serial])
+}
+
+/// Service / installation / delivery requests and appointments. ERP: SoftOne service job (SRVJOB) via erpJob.
+model ServiceTicket {
+  id          String          @id @default(cuid())
+  number      String          @unique // SRV-00001
+  customerId  String
+  customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deviceId    String?
+  device      CustomerDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  kind        String // repair | installation | delivery | pickup | appointment | warranty-claim
+  status      String          @default("new") // new | scheduled | in-progress | waiting-parts | done | cancelled
+  mode        String? // visit | pickup | store
+  description String          @db.Text
+  storeId     String?
+  scheduledAt DateTime?
+  slot        String? // "Πρωί 9–13"
+  technician  String?
+  inWarranty  Boolean         @default(true)
+  cost        Decimal?        @db.Decimal(10, 2)
+  erpJob      String?
+  attachments Json? // media asset URLs
+  timeline    Json? // [{ at, status, note, by }]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([status])
+}
+
+/// Loyalty points ledger; balance = Customer.loyaltyPoints (denormalised).
+model LoyaltyTransaction {
   id         String   @id @default(cuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  kind       String // newsletter | cookies-analytics | cookies-marketing | geolocation
-  granted    Boolean
-  source     String
+  points     Int // + earn, − spend / expire
+  reason     String // order | review | referral | birthday | manual | redeem | expire | erp
+  orderId    String?
+  erpRef     String?
+  staffId    String?
+  note       String?
   at         DateTime @default(now())
 
-  @@index([customerId, kind])
+  @@index([customerId, at])
+}
+
+/// Internal notes by staff (never shown to the customer).
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staffId    String?
+  staffName  String?
+  text       String   @db.Text
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId, createdAt])
+}
+
+/// Activity timeline: logins, orders, consent changes, profile edits, ERP syncs, GDPR actions.
+model CustomerEvent {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind       String // login | register | order | consent | profile | address | device | ticket | loyalty | erp-push | erp-pull | erp-link | gdpr-export | gdpr-anonymise | note
+  meta       Json?
+  staffId    String?
+  at         DateTime @default(now())
+
+  @@index([customerId, at])
 }
 
 model Wishlist {

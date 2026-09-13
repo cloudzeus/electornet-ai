@@ -1,0 +1,47 @@
+# Customers, consent evidence, newsletter, GDPR
+
+## Models (prisma/schema.prisma)
+| Model | Purpose |
+|---|---|
+| `Customer` | Retail account: type (individual/business), identity (ΑΦΜ/ΔΟΥ), contact, status (active/blocked/anonymised), source, tags, newsletter flag, loyalty (points/tier/card), preferred store, ERP link (`erpTrdr`, `erpCode`, `erpSyncStatus`, `erpSyncedAt`, `erpLastError`), `number` (auto → ERP CODE `WEB000123`). |
+| `SocialAccount` | Google / Microsoft / Facebook / Apple identities. |
+| `Address` | Shipping/billing addresses (recipient, floor, doorbell, notes, lat/lng); extra addresses → SoftOne `CUSBRANCH` (`erpBranch` = LINENUM). |
+| `Consent` | **Append-only ledger**: topic × channel × granted, method (checkbox / double-opt-in / account-toggle / admin / store-form), source, wording (`textKey`, `textVersion`, `textHash`), `url`, `ip` + `ipHash`, `userAgent`, `os`, `browser`, `device`, `locale`, `timezone`, `referer`, `confirmedAt`, `staffId`, free `evidence`. |
+| `ConsentText` | Versioned wordings with sha256 — what the person actually saw. |
+| `LoginEvent` | Every auth attempt (customer or staff): success/failure + reason, method, ip/ipHash, os, browser, device. |
+| `NewsletterSubscriber` | Audience with double opt-in token, status (pending/subscribed/unsubscribed/bounced/complained), source, lists, external id for Mailchimp/Klaviyo. |
+| `GdprRequest` | Data-subject requests (access, portability, rectification, erasure, restriction, objection, withdraw-consent) with 30-day `dueAt`, identity verification, timeline, outcome. |
+| `CustomerDevice` | Warranty wallet: product, serial, purchase, warranty/extension, invoice, source. |
+| `ServiceTicket` | Repair / installation / delivery / pickup / warranty claim with status, appointment, technician, timeline, SoftOne job. |
+| `LoyaltyTransaction`, `CustomerNote`, `CustomerEvent`, `EmailLog` | Points ledger, internal notes, activity timeline, outgoing mail proof. |
+
+## Evidence (`lib/gdpr/evidence.ts`)
+`captureEvidence()` reads the real client IP (`cf-connecting-ip` → `x-real-ip` → first `x-forwarded-for`), user agent (parsed to OS · browser · device), accept-language, referer, page URL and the client timezone. `ipHash` = sha256(EVIDENCE_SALT|AUTH_SECRET + ip) survives erasure. `recordConsent()` / `recordLogin()` (`lib/gdpr/consent.ts`) write the rows.
+
+## Newsletter (`lib/newsletter`, `/api/newsletter/*`)
+Footer form → `POST /api/newsletter/subscribe` (sends the exact wording, URL, timezone) → subscriber `pending` + consent row (method double-opt-in) → confirmation email (`lib/email/send.ts`: SMTP / Resend / SendGrid from Settings → Email & SMS; logged in `EmailLog`, «skipped» until configured) → `GET /api/newsletter/confirm?token` → `subscribed` + consent row with `confirmedAt` and confirm IP → `/newsletter?ok=confirmed`. Unsubscribe link `GET /api/newsletter/unsubscribe?token` → consent row granted=false. Admin `/admin/newsletter`: stats, filters, CSV export (audited), add with double opt-in, «Επιβεβαίωση» with written evidence (store form), unsubscribe with reason.
+
+## Admin customers (`/admin/customers`)
+Tabs: Προφίλ · Διευθύνσεις · Παραγγελίες · Συσκευές & εγγυήσεις · Service · Συναινέσεις (current matrix + full ledger + **printable proof** `/admin/customers/[id]/consent-proof`) · Συνδέσεις (login log) · Πόντοι · Σημειώσεις · SoftOne · GDPR. Every write is a `CustomerEvent` + `AuditLog`.
+
+## SoftOne (`lib/softone/customers.ts`)
+| Shop | SoftOne CUSTOMER (TRDR) |
+|---|---|
+| `erpCode` / `<prefix><number>` | `CODE` (required) |
+| company or `LASTNAME FIRSTNAME` | `NAME` (required) |
+| `vatNumber` / `doy` | `AFM` / `IRSDATA` (ERP wins once linked) |
+| default address street+number / zip / city / region | `ADDRESS` / `ZIP` / `CITY` / `DISTRICT` |
+| `phone` / `mobile` / `email` / `profession` | `PHONE01` / `PHONE02` / `EMAIL` / `JOBTYPETRD` |
+| status active | `ISACTIVE`, `ISPROSP=0` |
+| settings | `COUNTRY` (1000), `SOCURRENCY` (100), `VATSTS` (1), `TRDCATEGORY`, `PAYMENT` |
+| extra addresses | `CUSBRANCH` lines (LINENUM kept; new ≥ 9000001) |
+Push = getData (echo) → setData → getData read-back → status/log. Pull = getData → identity/contact. Link = browser `CUSTOMER` filtered by `AFM` / `EMAIL` / `NAME*` → getBrowserData → choose TRDR. Settings → SoftOne: prefix, defaults, «Αυτόματη αποστολή νέων πελατών».
+
+## GDPR (`/admin/gdpr`, customer tab «GDPR»)
+- Access/portability: JSON export (no notes, no password hash), audited.
+- Rectification: profile edit; restriction: status «blocked».
+- **Erasure (right to be forgotten)**: pseudonymises identity (email → `anon-…@anonymised.invalid`, names, phones, ΑΦΜ, birthday, password, cards, social, addresses, serials), keeps orders (tax law), the consent ledger and login log with `ipHash` as proof (art. 17(3)), writes a final «withdrawn» consent row, audit + event.
+- Requests: number `GDPR-00001`, 30-day deadline with overdue highlighting, identity method, timeline, outcome; evidence (staff, ip, ua) captured at creation.
+- Consent texts in force listed with hash; change = new version (`prisma/seed-gdpr.ts`).
+
+Seeds: `prisma/seed-customers.ts` (3 demo customers, tag `demo`), `prisma/seed-gdpr.ts` (7 wordings v2026-09).

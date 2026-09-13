@@ -36,7 +36,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/catalog", label: "Κατάλογος", icon: Package, perm: "catalog.products.read", soon: true },
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read", soon: true },
-      { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read", soon: true },
+      { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },
+      { href: "/admin/gdpr", label: "GDPR", icon: ShieldCheck, perm: "customers.read" },
       { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },
       { href: "/admin/service", label: "Service & εγγυήσεις", icon: Wrench, perm: "service.tickets.read", soon: true },
     ],
@@ -44,6 +45,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Marketing & αναφορές",
     items: [
+      { href: "/admin/newsletter", label: "Newsletter", icon: Megaphone, perm: "marketing.newsletter.write" },
       { href: "/admin/radar", label: "Ραντάρ ζήτησης", icon: Radar, perm: "marketing.radar.read" },
       { href: "/admin/reports", label: "Αναφορές", icon: BarChart3, perm: "reports.read" },
     ],

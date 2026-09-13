@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T10:21:26.755Z",
+  "timestamp": "2026-09-13T10:43:36.925Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,61 +22,85 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/katastimata/page.tsx"
+      "path": "components/admin/nav.ts"
     },
     {
       "status": "M",
-      "path": "app/globals.css"
+      "path": "components/widgets/NewsletterBand.tsx"
     },
     {
       "status": "M",
-      "path": "components/stores/NearestStoreCard.tsx"
+      "path": "lib/auth.ts"
     },
     {
       "status": "M",
-      "path": "components/stores/StoreMap.tsx"
+      "path": "lib/settings/schema.ts"
     },
     {
       "status": "M",
-      "path": "components/stores/StoreMapLeaflet.tsx"
+      "path": "package-lock.json"
     },
     {
       "status": "M",
-      "path": "components/widgets/BentoHero.tsx"
+      "path": "package.json"
     },
     {
       "status": "M",
-      "path": "components/widgets/StoreFinder.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/widgets/StoreTile.tsx"
-    },
-    {
-      "status": "M",
-      "path": "lib/data/catalog.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/data/repo.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/geo/ip.ts"
+      "path": "prisma/schema.prisma"
     },
     {
       "status": "??",
-      "path": "app/api/geo/"
+      "path": "app/(shop)/newsletter/"
     },
     {
       "status": "??",
-      "path": "components/stores/LocateBar.tsx"
+      "path": "app/admin/(shell)/customers/"
     },
     {
       "status": "??",
-      "path": "lib/geo/client.ts"
+      "path": "app/admin/(shell)/gdpr/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/newsletter/"
+    },
+    {
+      "status": "??",
+      "path": "app/api/newsletter/"
+    },
+    {
+      "status": "??",
+      "path": "components/admin/customers/"
+    },
+    {
+      "status": "??",
+      "path": "components/widgets/NewsletterForm.tsx"
+    },
+    {
+      "status": "??",
+      "path": "lib/email/"
+    },
+    {
+      "status": "??",
+      "path": "lib/gdpr/"
+    },
+    {
+      "status": "??",
+      "path": "lib/newsletter/"
+    },
+    {
+      "status": "??",
+      "path": "lib/softone/"
+    },
+    {
+      "status": "??",
+      "path": "prisma/seed-customers.ts"
+    },
+    {
+      "status": "??",
+      "path": "prisma/seed-gdpr.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels\nbf3aede SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial\n2e479cd AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-model ranking, daily table), reports index, dashboard billed € tile\nd73bc06 AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers with rule fallback, AI alt text for media, product copy task, dashboard cost tile"
+  "context_notes": "Recent commits:\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels\nbf3aede SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial"
 }
