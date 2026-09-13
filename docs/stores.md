@@ -12,3 +12,11 @@
 
 ## Storefront
 `lib/stores/repo.ts`: `findStores`, `findStoreBySlug`, `storeRegions`, `nearestStores` (Haversine from visitor geo-IP or Syntagma), `openUntilToday` from hours; `lib/stores/open.ts` `openLabel` («Ανοιχτό έως 21:00» / «Κλειστό σήμερα»). Fixture fallback only while the table is empty.
+
+## Visitor location (`lib/geo`)
+Three precision levels, one point for the whole site:
+1. **Cookie `eu_geo`** (client-side only, 30 days) — set when the visitor shares GPS («Χρήση της τοποθεσίας μου») or types a place («Κοντά σε: πόλη / Τ.Κ. / διεύθυνση», geocoded by `/api/geo/geocode` via Nominatim). `useVisitorGeo()` (`lib/geo/client.ts`) writes it and refreshes the route so every server-rendered distance follows.
+2. **CDN headers** (Cloudflare `cf-iplatitude` / `cf-ipcity`).
+3. **IP lookup** with the provider from Settings → AI (`geoProvider`: ipapi.co with optional key, MaxMind GeoIP2 «accountId:licenseKey», or Cloudflare headers only), 1.5 s timeout, 12 h cache. Fallback: Athens.
+
+`geoFromRequest()` returns `{ lat, lng, city?, source: gps | manual | ip | fallback }`; `geoSourceLabel()` explains it to the visitor. Consumers: locator (distances, «κοντά σου», map visitor marker, `LocateBar`), home store tile, StoreFinder, product page nearest store. Nothing is stored server-side.

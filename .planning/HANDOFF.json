@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T10:16:07.459Z",
+  "timestamp": "2026-09-13T10:21:26.755Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,10 +22,6 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/katastimata/[slug]/page.tsx"
-    },
-    {
-      "status": "M",
       "path": "app/(shop)/katastimata/page.tsx"
     },
     {
@@ -41,14 +37,46 @@
       "path": "components/stores/StoreMap.tsx"
     },
     {
-      "status": "??",
-      "path": "components/stores/StoreListItem.tsx"
+      "status": "M",
+      "path": "components/stores/StoreMapLeaflet.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/BentoHero.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/StoreFinder.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/widgets/StoreTile.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/catalog.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/repo.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/geo/ip.ts"
     },
     {
       "status": "??",
-      "path": "components/stores/StoreMapLeaflet.tsx"
+      "path": "app/api/geo/"
+    },
+    {
+      "status": "??",
+      "path": "components/stores/LocateBar.tsx"
+    },
+    {
+      "status": "??",
+      "path": "lib/geo/client.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels\nbf3aede SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial\n2e479cd AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-model ranking, daily table), reports index, dashboard billed € tile\nd73bc06 AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers with rule fallback, AI alt text for media, product copy task, dashboard cost tile\n51ecdce SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, SVG & PNG export, export to media library; storefront custom sticker slot on ProductCard"
+  "context_notes": "Recent commits:\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels\nbf3aede SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial\n2e479cd AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-model ranking, daily table), reports index, dashboard billed € tile\nd73bc06 AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers with rule fallback, AI alt text for media, product copy task, dashboard cost tile"
 }

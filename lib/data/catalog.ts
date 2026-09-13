@@ -135,7 +135,7 @@ export async function getNearestStore(): Promise<Store> {
   const g = await geoFromRequest();
   return (await storesNear(g, 1))[0] ?? stores[0];
 }
-export async function getNearestStoreWithGeo(): Promise<{ store: Store; city?: string; source: "ip" | "fallback" }> {
+export async function getNearestStoreWithGeo(): Promise<{ store: Store; city?: string; source: "ip" | "fallback" | "gps" | "manual" }> {
   const g = await geoFromRequest();
   return { store: (await storesNear(g, 1))[0] ?? stores[0], city: g.city, source: g.source };
 }

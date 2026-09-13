@@ -12,7 +12,7 @@ const c = copyOf("storeFinder");
  * from the request IP (city level, no prompt); GPS refinement only after the
  * user asks (GDPR). Real distance, «open now», 350 store pages behind it.
  */
-export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallback" }: { store: Store; image: string; zoneNo?: number; geoCity?: string; geoSource?: "ip" | "fallback" }) {
+export async function StoreFinder({ store, image, zoneNo, geoCity, geoSource = "fallback" }: { store: Store; image: string; zoneNo?: number; geoCity?: string; geoSource?: "ip" | "fallback" | "gps" | "manual" }) {
   const { site } = await getSettings();
   const near = { id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng };
   return (

@@ -18,7 +18,9 @@ const clusterIcon = (n: number) => { const s = n < 10 ? 32 : n < 50 ? 40 : 48; r
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const popupHtml = (s: MapStore) => `<div style="font-family:Manrope,system-ui,sans-serif;min-width:220px"><div style="font-weight:800;color:#1a1a1a;font-size:15px;line-height:1.25">${esc(s.city)} — ${esc(s.name)}</div>${s.address ? `<div style="color:#4d4d4d;font-size:14px;margin-top:4px">${esc(s.address)}, ${esc(s.zip ?? "")} ${esc(s.city)}</div>` : ""}<div style="color:#4d4d4d;font-size:14px;margin-top:2px">${s.openUntil ? esc(openLabel(s.openUntil)) : ""}${s.phone ? ` · <a href="tel:${esc(s.phone)}" style="color:#1D428A;font-weight:700">${esc(s.phone)}</a>` : ""}</div><div style="display:flex;gap:6px;margin-top:8px"><a href="/katastimata/${esc(s.slug)}" style="background:#122A58;color:#fff;font-weight:800;font-size:13px;padding:7px 12px;border-radius:999px;text-decoration:none">Το κατάστημα</a><a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" rel="noreferrer" style="border:2px solid #122A58;color:#122A58;font-weight:800;font-size:13px;padding:5px 12px;border-radius:999px;text-decoration:none">Οδηγίες</a></div></div>`;
 
-export default function StoreMapLeaflet({ stores, height = 520, single = false, className = "" }: { stores: MapStore[]; /** desktop height; phones get ~70% of it (min 320) */ height?: number; single?: boolean; className?: string }) {
+const visitorIcon = () => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span style="position:relative;display:block;width:22px;height:22px"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(29,66,138,.25);animation:eu-geo-pulse 1.8s ease-out infinite"></span><span style="position:absolute;inset:5px;border-radius:50%;background:#1D428A;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(18,42,88,.4)"></span></span>` });
+
+export default function StoreMapLeaflet({ stores, height = 520, single = false, className = "", visitor }: { stores: MapStore[]; /** desktop height; phones get ~70% of it (min 320) */ height?: number; single?: boolean; className?: string; visitor?: { lat: number; lng: number; label?: string } | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -66,9 +68,15 @@ export default function StoreMapLeaflet({ stores, height = 520, single = false, 
         }
       }
     };
-    render();
-    m.on("zoomend moveend", render);
-    if (valid.length === 1) m.setView([valid[0].lat, valid[0].lng], 15);
+    const you = visitor ? L.marker([visitor.lat, visitor.lng], { icon: visitorIcon(), zIndexOffset: 1000, title: visitor.label ?? "Η θέση σου" }).bindTooltip(visitor.label ?? "Η θέση σου", { permanent: false }) : null;
+    const renderAll = () => { render(); you?.addTo(g); };
+    renderAll();
+    m.on("zoomend moveend", renderAll);
+    if (visitor && valid.length) {
+      // the visitor plus the 5 nearest stores
+      const near = [...valid].sort((a, b) => (a.lat - visitor.lat) ** 2 + (a.lng - visitor.lng) ** 2 - ((b.lat - visitor.lat) ** 2 + (b.lng - visitor.lng) ** 2)).slice(0, 5);
+      m.fitBounds(L.latLngBounds([[visitor.lat, visitor.lng], ...near.map((s) => [s.lat, s.lng] as [number, number])]).pad(0.25), { maxZoom: 14 });
+    } else if (valid.length === 1) m.setView([valid[0].lat, valid[0].lng], 15);
     else if (valid.length) m.fitBounds(L.latLngBounds(valid.map((s) => [s.lat, s.lng] as [number, number])), { padding: [20, 20] });
     const focus = (e: Event) => {
       const id = (e as CustomEvent<string>).detail;
@@ -78,8 +86,8 @@ export default function StoreMapLeaflet({ stores, height = 520, single = false, 
       m.once("moveend", () => { render(); markers.current.get(id)?.openPopup(); });
     };
     window.addEventListener("eu:store-focus", focus);
-    return () => { m.off("zoomend moveend", render); window.removeEventListener("eu:store-focus", focus); };
-  }, [stores, single]);
+    return () => { m.off("zoomend moveend", renderAll); window.removeEventListener("eu:store-focus", focus); };
+  }, [stores, single, visitor]);
 
   return <div ref={ref} style={{ height: `clamp(320px, 60dvh, ${height}px)` }} className={`w-full rounded-xl overflow-hidden border border-eu-line z-0 ${className}`} role="region" aria-label="Χάρτης καταστημάτων" />;
 }

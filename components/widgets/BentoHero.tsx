@@ -14,7 +14,7 @@ interface Props {
   deal: { product: Product; endsAt: string };
   store: Store;
   geoCity?: string;
-  geoSource?: "ip" | "fallback";
+  geoSource?: "ip" | "fallback" | "gps" | "manual";
   services: { title: string; blurb?: string }[];
   intervalMs?: number;
   zoneNo?: number;

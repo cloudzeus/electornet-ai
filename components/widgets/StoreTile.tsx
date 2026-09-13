@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { isOpenToday, openLabel } from "@/lib/stores/open";
 import { LocateFixed, Loader2, MapPin, Navigation, Wifi } from "lucide-react";
-import type { NearStore } from "@/components/stores/NearestStoreCard";
+import type { NearStore, GeoSource } from "@/components/stores/NearestStoreCard";
+import { useVisitorGeo } from "@/lib/geo/client";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("storeTile");
@@ -14,28 +15,18 @@ const c = copyOf("storeTile");
  * the request IP, distance, «ανοιχτό έως», live stock hint, and GPS
  * refinement on request. ΤΚ/city search still submits to /katastimata.
  */
-export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore; geoCity?: string; geoSource: "ip" | "fallback" }) {
+export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore; geoCity?: string; geoSource: GeoSource }) {
   const [store, setStore] = useState(initial);
-  const [src, setSrc] = useState<"ip" | "fallback" | "gps">(geoSource);
-  const [busy, setBusy] = useState(false);
-  const locate = () => {
-    if (!navigator.geolocation) return;
-    setBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const r = await fetch(`/api/stores/near?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
-          const j = (await r.json()) as { stores: NearStore[] };
-          if (j.stores?.[0]) {
-            setStore(j.stores[0]);
-            setSrc("gps");
-          }
-        } catch {}
-        setBusy(false);
-      },
-      () => setBusy(false),
-      { timeout: 8000, maximumAge: 300000 },
-    );
+  const [src, setSrc] = useState<GeoSource>(geoSource);
+  const { locate: locateVisitor, busy } = useVisitorGeo();
+  const locate = async () => {
+    const g = await locateVisitor();
+    if (!g) return;
+    try {
+      const r = await fetch(`/api/stores/near?lat=${g.lat}&lng=${g.lng}`);
+      const j = (await r.json()) as { stores: NearStore[] };
+      if (j.stores?.[0]) { setStore(j.stores[0]); setSrc("gps"); }
+    } catch {}
   };
   return (
     <form action="/katastimata" className="relative bg-eu-blue text-white rounded-lg p-4 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden isolate">
@@ -61,8 +52,8 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
       </div>
       <div className="relative text-eu-on-dark-2 text-[length:var(--fs-13)] inline-flex items-center gap-1 self-end">
         {src === "gps" ? <Navigation className="size-3.5 text-eu-green" aria-hidden /> : <Wifi className="size-3.5" aria-hidden />}
-        {src === "gps" ? "Ακριβής θέση" : src === "ip" ? `Εκτίμηση από το δίκτυό σου${geoCity ? ` · ${geoCity}` : ""}` : "Προεπιλογή Αθήνα"}
-        {src !== "gps" && (
+        {src === "gps" ? "Ακριβής θέση" : src === "manual" ? `Περιοχή${geoCity ? `: ${geoCity}` : " που όρισες"}` : src === "ip" ? `Εκτίμηση από το δίκτυό σου${geoCity ? ` · ${geoCity}` : ""}` : "Προεπιλογή Αθήνα"}
+        {src !== "gps" && src !== "manual" && (
           <button type="button" onClick={locate} disabled={busy} aria-label={c.chrisi_tis_topothesias_moy} className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/12 px-2 min-h-7 font-bold text-white hover:bg-white/20 disabled:opacity-70">
             {busy ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <LocateFixed className="size-3" aria-hidden />} GPS
           </button>

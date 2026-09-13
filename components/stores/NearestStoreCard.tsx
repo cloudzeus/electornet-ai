@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { openLabel } from "@/lib/stores/open";
-import { LocateFixed, Loader2, Wifi, Navigation } from "lucide-react";
+import { LocateFixed, Loader2, Wifi, Navigation, MapPin } from "lucide-react";
+import { useVisitorGeo } from "@/lib/geo/client";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("nearestStore");
@@ -24,44 +25,33 @@ export interface NearStore {
  * («Χρήση της τοποθεσίας μου», consent through the browser prompt). The
  * chosen store feeds click-and-collect, stock and the advisor hand-off.
  */
-export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card" }: { initial: NearStore; geoCity?: string; geoSource: "ip" | "fallback"; variant?: "card" | "button" }) {
+export type GeoSource = "ip" | "fallback" | "gps" | "manual";
+export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card" }: { initial: NearStore; geoCity?: string; geoSource: GeoSource; variant?: "card" | "button" }) {
   const [store, setStore] = useState(initial);
-  const [src, setSrc] = useState<"ip" | "fallback" | "gps">(geoSource);
-  const [busy, setBusy] = useState(false);
+  const [src, setSrc] = useState<GeoSource>(geoSource);
+  const { locate: locateVisitor, busy, error: geoError } = useVisitorGeo();
   const [err, setErr] = useState<string | null>(null);
-  const locate = () => {
-    if (!navigator.geolocation) return setErr("Ο browser δεν υποστηρίζει εντοπισμό.");
-    setBusy(true);
+  const locate = async () => {
     setErr(null);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const r = await fetch(`/api/stores/near?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
-          const j = (await r.json()) as { stores: NearStore[] };
-          if (j.stores?.[0]) {
-            setStore(j.stores[0]);
-            setSrc("gps");
-          }
-        } catch {
-          setErr("Δεν βρέθηκε κατάστημα κοντά σου.");
-        }
-        setBusy(false);
-      },
-      () => {
-        setBusy(false);
-        setErr("Δεν δόθηκε άδεια τοποθεσίας. Κρατάμε την εκτίμηση από το δίκτυό σου.");
-      },
-      { timeout: 8000, maximumAge: 300000 },
-    );
+    const g = await locateVisitor();
+    if (!g) return;
+    try {
+      const r = await fetch(`/api/stores/near?lat=${g.lat}&lng=${g.lng}`);
+      const j = (await r.json()) as { stores: NearStore[] };
+      if (j.stores?.[0]) { setStore(j.stores[0]); setSrc("gps"); }
+    } catch {
+      setErr("Δεν βρέθηκε κατάστημα κοντά σου.");
+    }
   };
-  const note = src === "gps" ? "ακριβής θέση (GPS)" : src === "ip" ? `εκτίμηση από το δίκτυό σου${geoCity ? ` · ${geoCity}` : ""}` : "προεπιλογή Αθήνα";
+  const note = src === "gps" ? "ακριβής θέση (GPS)" : src === "manual" ? `περιοχή που όρισες${geoCity ? `: ${geoCity}` : ""}` : src === "ip" ? `εκτίμηση από το δίκτυό σου${geoCity ? ` · ${geoCity}` : ""}` : "προεπιλογή Αθήνα";
+  const shownErr = err ?? geoError;
   if (variant === "button")
     return (
       <div className="grid gap-1">
         <button type="button" onClick={locate} disabled={busy} className="inline-flex items-center gap-1.5 font-bold text-eu-yellow text-[length:var(--fs-14)] min-h-11 hover:underline disabled:opacity-70">
           {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <LocateFixed className="size-4" aria-hidden />} {src === "gps" ? "Η θέση σου εντοπίστηκε" : "Χρήση της τοποθεσίας μου για ακρίβεια"}
         </button>
-        {err && <span className="text-eu-on-dark-2 text-[length:var(--fs-14)]">{err}</span>}
+        {shownErr && <span className="text-eu-on-dark-2 text-[length:var(--fs-14)]">{shownErr}</span>}
       </div>
     );
   return (
@@ -79,15 +69,15 @@ export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card"
       </div>
       <div className="flex items-center justify-between gap-2 text-[length:var(--fs-13)] text-eu-muted">
         <span className="inline-flex items-center gap-1">
-          {src === "gps" ? <Navigation className="size-3.5 text-eu-green" aria-hidden /> : <Wifi className="size-3.5" aria-hidden />} {note}
+          {src === "gps" ? <Navigation className="size-3.5 text-eu-green" aria-hidden /> : src === "manual" ? <MapPin className="size-3.5 text-eu-blue" aria-hidden /> : <Wifi className="size-3.5" aria-hidden />} {note}
         </span>
-        {src !== "gps" && (
+        {src !== "gps" && src !== "manual" && (
           <button type="button" onClick={locate} disabled={busy} className="inline-flex items-center gap-1 font-bold text-eu-blue hover:underline disabled:opacity-70">
             {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <LocateFixed className="size-3.5" aria-hidden />} Ακριβής θέση
           </button>
         )}
       </div>
-      {err && <div className="text-eu-amber text-[length:var(--fs-13)]">{err}</div>}
+      {shownErr && <div className="text-eu-amber text-[length:var(--fs-13)]">{shownErr}</div>}
     </div>
   );
 }

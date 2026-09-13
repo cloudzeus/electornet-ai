@@ -256,8 +256,8 @@ export async function getBrand(slug: string) {
   return (await getBrands()).find((b) => b.slug === slug) ?? null;
 }
 
-export async function getStores(q?: { q?: string; region?: string; service?: string }): Promise<Store[]> {
-  return findStores(q);
+export async function getStores(q?: { q?: string; region?: string; service?: string }, origin?: { lat: number; lng: number }): Promise<Store[]> {
+  return findStores(q, origin);
 }
 export async function getStoreBySlug(slug: string) {
   return findStoreBySlug(slug);

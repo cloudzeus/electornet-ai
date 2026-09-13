@@ -551,3 +551,4 @@ button.rounded-full:active, a.rounded-full:active {
 .leaflet-container .leaflet-control-attribution { font-size: var(--fs-14); opacity: 0.85; }
 .leaflet-container .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 30px rgba(18, 42, 88, 0.2); }
 .leaflet-container .leaflet-popup-content { margin: 12px 14px; font-size: var(--fs-14); }
+@keyframes eu-geo-pulse { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.2); opacity: 0; } }
