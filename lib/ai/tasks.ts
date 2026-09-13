@@ -19,11 +19,13 @@ export async function advisorCompose(base: AdvisorAnswer, opts: { name: string; 
       { role: "user", content: JSON.stringify({ question: base.q, understood: base.understood, context: opts.context ?? null, products, noResults: base.products.length === 0 }) },
     ],
     json: true,
-    maxTokens: Math.min(cfg.maxTokens, 400),
-    timeoutMs: 9000,
+    maxTokens: Math.max(cfg.maxTokens, 900),
+    reasoning: "low",
+    timeoutMs: 12000,
   }).catch(() => null);
   const j = r ? parseJson<{ text?: string; why?: string[] }>(r.text) : null;
-  if (!j?.text) return base;
+  // A truncated or empty reply (token cap, odd JSON) must never replace the rule-based answer.
+  if (!j?.text || j.text.trim().length < 20) return base;
   return { ...base, text: j.text, products: base.products.map((p, i) => ({ ...p, why: j.why?.[i]?.trim() || p.why })) };
 }
 

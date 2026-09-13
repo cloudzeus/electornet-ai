@@ -4,7 +4,7 @@ import { PRESET_PHRASES } from "@/lib/voice/phrases";
 import { captureEvidence } from "@/lib/gdpr/evidence";
 
 const bucket = new Map<string, { n: number; at: number }>();
-function limited(ip: string, max = 60) {
+function limited(ip: string, max = 300) {
   const now = Date.now(); const b = bucket.get(ip);
   if (!b || now - b.at > 3600000) { bucket.set(ip, { n: 1, at: now }); return false; }
   b.n++; return b.n > max;
@@ -12,7 +12,7 @@ function limited(ip: string, max = 60) {
 
 export const maxDuration = 60;
 
-/** POST { text } | { key } → { url, mime, durationMs, cached }. 60 phrases / hour / IP. */
+/** POST { text } | { key } → { url, mime, durationMs, cached }. 300 parts / hour / IP. */
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as { text?: string; key?: string };
   const ev = await captureEvidence();

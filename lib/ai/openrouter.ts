@@ -80,6 +80,8 @@ export async function chat(opts: {
   temperature?: number;
   json?: boolean;
   timeoutMs?: number;
+  /** Reasoning budget for thinking models ("low" keeps short JSON answers from being eaten by hidden reasoning tokens). */
+  reasoning?: "low" | "medium" | "high";
   override?: { apiKey: string; model: string };
 }): Promise<ChatResult> {
   const cfg = opts.override ? null : await getAi();
@@ -90,7 +92,7 @@ export async function chat(opts: {
   const t0 = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.AUTH_URL ?? "https://euronics.gr", "X-Title": cfg?.siteTitle ?? "euronics.gr" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.AUTH_URL ?? "https://euronics.gr", "X-Title": (cfg?.siteTitle ?? "euronics.gr").replace(/[^\x20-\x7e]/g, "").trim() || "euronics.gr" },
     body: JSON.stringify({
       model,
       ...(fallbacks.length ? { models: [model, ...fallbacks] } : {}),
@@ -99,6 +101,7 @@ export async function chat(opts: {
       max_tokens: opts.maxTokens ?? cfg?.maxTokens ?? 600,
       temperature: opts.temperature ?? cfg?.temperature ?? 0.4,
       ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+      ...(opts.reasoning ? { reasoning: { effort: opts.reasoning } } : {}),
       usage: { include: true },
     }),
     signal: AbortSignal.timeout(opts.timeoutMs ?? 30000),

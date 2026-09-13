@@ -245,6 +245,7 @@ export function AdvisorOrb() {
       return;
     }
     // Free text → the advisor engine (demo rules; production: LLM + retrieval).
+    say("", "thinking");
     fetch(`/api/advisor?q=${encodeURIComponent(q)}${space ? `&door=${space.door}` : ""}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((ans: { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } } | null) => {
@@ -330,7 +331,7 @@ export function AdvisorOrb() {
               {voice.enabled && (
                 <button
                   type="button"
-                  onClick={() => voice.setSpeakOn(!voice.speakOn)}
+                  onClick={() => { const v = !voice.speakOn; voice.setSpeakOn(v); setMsgs((m) => [...m, { role: "advisor", text: v ? "Η φωνή άνοιξε: θα σου απαντώ και φωναχτά." : "Η φωνή έκλεισε: θα σου απαντώ μόνο γραπτά." }]); if (v) setTimeout(() => sayRef.current("", "listening"), 50); }}
                   aria-pressed={voice.speakOn}
                   aria-label={voice.speakOn ? "Απενεργοποίηση φωνής" : "Ενεργοποίηση φωνής"}
                   title={voice.speakOn ? "Ο Άρης μιλάει" : "Ο Άρης γράφει μόνο"}

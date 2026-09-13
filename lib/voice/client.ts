@@ -23,6 +23,7 @@ export function useVoice() {
   const audio = useRef<HTMLAudioElement | null>(null);
   const rec = useRef<MediaRecorder | null>(null);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gen = useRef(0); // speak() generation: a newer call or a mute cancels the running queue
 
   useEffect(() => {
     let on = true;
@@ -62,25 +63,43 @@ export function useVoice() {
   const setSpeakOn = useCallback((v: boolean) => {
     setSpeakOnState(v);
     try { localStorage.setItem(KEY, v ? "1" : "0"); } catch {}
-    if (!v && audio.current) { audio.current.pause(); setSpeaking(false); }
+    if (!v) { gen.current++; audio.current?.pause(); setSpeaking(false); }
   }, []);
+
+  /** Split an answer into sentence-sized parts: each is cached on its own and the first one starts playing while the rest are still being fetched. */
+  const parts = (text: string) => {
+    const raw = text.replace(/\s+/g, " ").trim().split(/(?<=[.!;?…])\s+(?=\S)/);
+    const out: string[] = [];
+    for (const r of raw) { if (out.length && (out[out.length - 1].length < 30 || r.length < 20)) out[out.length - 1] += " " + r; else out.push(r); }
+    return out.slice(0, 8);
+  };
+  const playUrl = (a: HTMLAudioElement, url: string) => new Promise<void>((resolve) => {
+    a.pause();
+    a.src = url;
+    a.playbackRate = rate.current;
+    a.onended = () => resolve();
+    a.onerror = () => resolve();
+    a.play().catch(() => resolve());
+  });
 
   const speak = useCallback(async (text: string, key?: string) => {
     if (!enabled || !speakOn) return;
+    const my = ++gen.current;
+    const items = key ? [{ key }] : parts(text).map((t) => ({ text: t }));
+    if (!items.length) return;
+    if (!audio.current) audio.current = new Audio();
+    const a = audio.current;
+    // fetch every part at once; play them in order
+    const urls = items.map((body) => fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => (r.ok ? ((await r.json()) as { url: string }).url : null)).catch(() => null));
+    setSpeaking(true);
     try {
-      const r = await fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(key ? { key } : { text }) });
-      if (!r.ok) return;
-      const j = (await r.json()) as { url: string };
-      if (!audio.current) audio.current = new Audio();
-      const a = audio.current;
-      a.pause();
-      a.src = j.url;
-      a.playbackRate = rate.current;
-      setSpeaking(true);
-      a.onended = () => setSpeaking(false);
-      a.onerror = () => setSpeaking(false);
-      await a.play().catch(() => setSpeaking(false));
-    } catch { setSpeaking(false); }
+      for (const u of urls) {
+        const url = await u;
+        if (my !== gen.current) return;
+        if (url) await playUrl(a, url);
+        if (my !== gen.current) return;
+      }
+    } finally { if (my === gen.current) setSpeaking(false); }
   }, [enabled, speakOn]);
 
   const stop = useCallback(() => {
@@ -95,7 +114,7 @@ export function useVoice() {
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return { text: "", error: "unsupported" };
     let stream: MediaStream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch { return { text: "", error: "denied" }; }
-    if (audio.current) { audio.current.pause(); setSpeaking(false); }
+    gen.current++; audio.current?.pause(); setSpeaking(false);
     const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
     const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     rec.current = r;

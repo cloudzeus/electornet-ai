@@ -15,12 +15,12 @@ const today = () => new Date().toISOString().slice(0, 10);
 export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; style: string; rate: number; sttModel: string; cacheMaxChars: number }
 export async function getVoiceConfig(): Promise<VoiceConfig> {
   const { data } = await getSetting("ai");
-  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), rate: Math.min(1.5, Math.max(0.8, Number(data.voiceRate) || 1.1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
+  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1.3)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
 }
 
 /** Same phrase, same audio: collapse whitespace, strip markdown-ish noise, keep case (it matters for spelling). */
 export const normaliseText = (t: string) => t.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
-export const DEFAULT_STYLE = "Χαρούμενος, ζωηρός τόνος με χαμόγελο· γρήγορος ρυθμός ομιλίας, χωρίς παύσεις.";
+export const DEFAULT_STYLE = "Πολύ γρήγορος ρυθμός ομιλίας, σαν ενθουσιώδης νέος πωλητής που βιάζεται· χαρούμενος τόνος με χαμόγελο, ενέργεια, καθόλου παύσεις.";
 export const phraseHash = (model: string, voice: string, style: string, text: string) => createHash("sha256").update(`${model}|${voice}|${style}|${normaliseText(text)}`).digest("hex");
 
 /** pcm16 → mp3 with ffmpeg when available (≈8× smaller), else a WAV container. */
