@@ -661,3 +661,17 @@ model MediaAsset {
   @@index([kind])
   @@index([createdAt])
 }
+
+/// Designed product stickers (SVG) — created in /admin/stickers, referenced by promo rules and campaigns.
+model Sticker {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  params    Json
+  svg       String   @db.Text
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

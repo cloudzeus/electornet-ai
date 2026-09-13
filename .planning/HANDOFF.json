@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T08:59:04.726Z",
+  "timestamp": "2026-09-13T09:04:37.238Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,11 +18,11 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": ".gitignore"
+      "path": ".planning/HANDOFF.json"
     },
     {
       "status": "M",
-      "path": ".planning/HANDOFF.json"
+      "path": "app/globals.css"
     },
     {
       "status": "M",
@@ -30,27 +30,15 @@
     },
     {
       "status": "M",
-      "path": "lib/rbac/permissions.ts"
+      "path": "components/commerce/ProductCard.tsx"
     },
     {
       "status": "M",
-      "path": "lib/settings/schema.ts"
+      "path": "components/commerce/Stickers.tsx"
     },
     {
       "status": "M",
-      "path": "next.config.ts"
-    },
-    {
-      "status": "M",
-      "path": "package-lock.json"
-    },
-    {
-      "status": "M",
-      "path": "package.json"
-    },
-    {
-      "status": "M",
-      "path": "prisma/roles.ts"
+      "path": "lib/data/types.ts"
     },
     {
       "status": "M",
@@ -58,37 +46,21 @@
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/media/"
+      "path": "app/admin/(shell)/stickers/"
     },
     {
       "status": "??",
-      "path": "app/api/admin/"
+      "path": "components/admin/stickers/"
     },
     {
       "status": "??",
-      "path": "components/admin/media/"
+      "path": "components/stickers/"
     },
     {
       "status": "??",
-      "path": "docs/media-library.md"
-    },
-    {
-      "status": "??",
-      "path": "lib/media/process.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/media/repo.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/media/storage.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/media/types.ts"
+      "path": "lib/stickers/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones"
+  "context_notes": "Recent commits:\n9020b2b Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal point, background removal (rembg/remove.bg), bulk actions, picker + MediaField for CMS forms; Bunny or local storage\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)"
 }

@@ -536,3 +536,12 @@ button.rounded-full:active, a.rounded-full:active {
 @media (prefers-reduced-motion: reduce) {
   button.rounded-full:active, a.rounded-full:active { transform: none; }
 }
+
+/* Designed stickers (StickerSvg) — animation presets chosen in the designer */
+@keyframes eu-sticker-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes eu-sticker-wiggle { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
+@keyframes eu-sticker-bump { 0%, 80%, 100% { transform: translateY(0); } 90% { transform: translateY(-6px); } }
+.eu-sticker-breathe { animation: eu-sticker-breathe 2.6s ease-in-out infinite; }
+.eu-sticker-wiggle { animation: eu-sticker-wiggle 1.8s ease-in-out infinite; transform-origin: 50% 50%; }
+.eu-sticker-bump { animation: eu-sticker-bump 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .eu-sticker-breathe, .eu-sticker-wiggle, .eu-sticker-bump { animation: none; } }

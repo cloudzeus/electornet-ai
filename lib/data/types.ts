@@ -1,3 +1,4 @@
+import type { StickerParams } from "@/lib/stickers/model";
 /** Domain types — mirror prisma/schema.prisma. Fixtures live in lib/data/fixtures/. */
 
 export type EnergyClass = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "A+" | "A++" | "A+++";
@@ -65,7 +66,7 @@ export interface Product {
   /** a member store recommends it (sticker «Επιλογή καταστήματος») — CMS/store portal */
   storePick?: string;
   /** marketing promotion (CMS campaign rules): 1+1, gift with another product, contest, cashback */
-  promo?: { kind: "bogo"; label?: string } | { kind: "bundle"; with: string; label?: string } | { kind: "contest"; label: string; until?: string } | { kind: "cashback"; amount: number; by: string };
+  promo?: { kind: "bogo"; label?: string } | { kind: "bundle"; with: string; label?: string } | { kind: "contest"; label: string; until?: string } | { kind: "cashback"; amount: number; by: string } | { kind: "sticker"; params: StickerParams };
   description?: string;
   highlights?: string[];
   specs?: Spec[];

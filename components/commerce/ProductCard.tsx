@@ -15,7 +15,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { Tilt } from "@/components/motion/Tilt";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { flyToCart } from "@/lib/motion/flyToCart";
-import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, stickersFor } from "./Stickers";
+import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, CustomSticker, stickersFor } from "./Stickers";
 import { FitBadge } from "@/components/space/FitBadge";
 import { copyOf } from "@/lib/cms/copy";
 
@@ -49,6 +49,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
   const ribbon = stickers.find((s) => s.kind === "gift" || s.kind === "bundle" || s.kind === "pick");
   const burst = stickers.find((s) => s.kind === "bogo" || s.kind === "cashback");
   const contest = stickers.find((s) => s.kind === "contest");
+  const custom = stickers.find((s) => s.kind === "custom");
   const urgency = stickers.filter((s) => s.kind === "last" || s.kind === "ends");
 
   const avail = (() => {
@@ -89,6 +90,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 )}
                 {ribbon && <span className="absolute inset-0 overflow-hidden rounded-t-2xl pointer-events-none"><RibbonSticker s={ribbon} /></span>}
                 {burst && <BurstSticker s={burst} />}
+                {custom && <CustomSticker s={custom} />}
                 {contest && (
                   <span className={`absolute left-3 ${corner ? "top-14" : "top-3"}`}>
                     <ContestSticker s={contest} />

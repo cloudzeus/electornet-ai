@@ -1,5 +1,7 @@
 import type { Product } from "@/lib/data/types";
 import { discountPct, priceShort } from "@/lib/format";
+import type { StickerParams } from "@/lib/stickers/model";
+import { StickerSvg, stickerAnimationClass, stickerPositionClass } from "@/components/stickers/StickerSvg";
 
 export type Sticker =
   | { kind: "discount"; pct: number; save: number }
@@ -12,7 +14,8 @@ export type Sticker =
   | { kind: "bogo"; label: string }
   | { kind: "bundle"; with: string }
   | { kind: "contest"; label: string }
-  | { kind: "cashback"; amount: number; by: string };
+  | { kind: "cashback"; amount: number; by: string }
+  | { kind: "custom"; params: StickerParams };
 
 /**
  * @dynamic Sticker system for offers. Every sticker is derived from data
@@ -43,6 +46,7 @@ export function stickersFor(p: Product, dealEndsAt?: string, now = Date.now()): 
   if (p.promo?.kind === "bundle") out.push({ kind: "bundle", with: p.promo.with });
   if (p.promo?.kind === "contest") out.push({ kind: "contest", label: p.promo.label });
   if (p.promo?.kind === "cashback") out.push({ kind: "cashback", amount: p.promo.amount, by: p.promo.by });
+  if (p.promo?.kind === "sticker") out.push({ kind: "custom", params: p.promo.params });
   return out;
 }
 
@@ -105,4 +109,14 @@ export function UrgencyPill({ s }: { s: Sticker }) {
   if (s.kind === "last") return <span className="inline-flex items-center gap-1 rounded-full bg-eu-red/10 text-eu-red font-extrabold text-[length:var(--fs-13)] px-2 py-1 leading-none">Τελευταία {s.n}</span>;
   if (s.kind === "ends") return <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/60 text-eu-navy font-extrabold text-[length:var(--fs-13)] px-2 py-1 leading-none">{s.days === 0 ? "Λήγει σήμερα" : s.days === 1 ? "Λήγει αύριο" : `Λήγει σε ${s.days} ημ.`}</span>;
   return null;
+}
+
+/** Designed sticker from /admin/stickers (StickerParams in the promo rule). */
+export function CustomSticker({ s }: { s: Sticker }) {
+  if (s.kind !== "custom") return null;
+  return (
+    <span className={`pointer-events-none absolute z-[1] ${stickerPositionClass[s.params.position]}`}>
+      <StickerSvg p={s.params} id={`ps-${s.params.lines[0]?.text ?? "x"}`} className={stickerAnimationClass[s.params.animation]} />
+    </span>
+  );
 }
