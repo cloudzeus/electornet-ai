@@ -545,3 +545,9 @@ button.rounded-full:active, a.rounded-full:active {
 .eu-sticker-wiggle { animation: eu-sticker-wiggle 1.8s ease-in-out infinite; transform-origin: 50% 50%; }
 .eu-sticker-bump { animation: eu-sticker-bump 3s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .eu-sticker-breathe, .eu-sticker-wiggle, .eu-sticker-bump { animation: none; } }
+
+/* Leaflet maps (store locator, admin): brand-sized attribution and popups */
+.leaflet-container { font-family: var(--font-manrope), system-ui, sans-serif; }
+.leaflet-container .leaflet-control-attribution { font-size: var(--fs-14); opacity: 0.85; }
+.leaflet-container .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 30px rgba(18, 42, 88, 0.2); }
+.leaflet-container .leaflet-popup-content { margin: 12px 14px; font-size: var(--fs-14); }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { StoreMap } from "@/components/stores/StoreMap";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
@@ -35,9 +35,7 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
       <Breadcrumbs items={[{ label: "Καταστήματα", href: "/katastimata" }, { label: `${s.city} — ${s.name}` }]} />
       <div className="eu-canvas eu-gutter pb-12 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
         <div className="grid gap-5">
-          <div className="relative h-[220px] @md:h-[300px] rounded-xl overflow-hidden">
-            <Image src="/img/store-front.jpg" alt="" fill sizes="900px" className="object-cover" priority />
-          </div>
+          <StoreMap stores={[{ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, phone: s.phone, openUntil: s.openUntil, lat: s.lat, lng: s.lng }]} height={300} single />
           <div>
             <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide mb-1">Κατάστημα-μέλος Euronics · {s.region}</div>
             <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)] leading-[1.1]">

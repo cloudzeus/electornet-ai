@@ -68,7 +68,7 @@ export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card"
     <div className="bg-white text-eu-ink rounded-lg p-3 grid gap-2 shadow-[var(--shadow-raised)]">
       <div className="flex justify-between items-center gap-3">
         <div className="min-w-0">
-          <div className="font-bold text-[length:var(--fs-15)] leading-[1.3] truncate">{store.name}</div>
+          <div className="font-bold text-[length:var(--fs-15)] leading-[1.3] line-clamp-2 break-words">{store.name}</div>
           <div className="font-medium text-eu-muted text-[length:var(--fs-13-5)] mt-0.5">
             {store.distanceKm.toLocaleString("el-GR")} km · {openLabel(store.openUntil)}
           </div>
