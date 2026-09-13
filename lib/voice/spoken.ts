@@ -1,5 +1,7 @@
 /**
- * Written → spoken Greek. Abbreviations, units, symbols and thousand separators
+ * Written → spoken Greek. Latin-script terms (brands, model codes, RAM, SSD,
+ * GB, Wi-Fi, OLED, 4K…) are left as they are: the TTS prompt asks for them
+ * to be pronounced in English, the way a Greek salesperson says them. Abbreviations, units, symbols and thousand separators
  * are expanded before text-to-speech so «61 εκ.» is read «61 εκατοστά», «1.899 €»
  * «1899 ευρώ», «A+++» «Α τρία συν». Pure and idempotent: runs on the client
  * (before the sentence split) and on the server (cache key), same result.
@@ -56,15 +58,10 @@ const UNITS: [RegExp, string][] = [
   [/(\d)\s?m²|(\d)\s?τμ(?![\p{L}])/gu, "$1$2 τετραγωνικά μέτρα"],
   [/(\d)\s?m(?![\p{L}²])/gu, "$1 μέτρα"],
   [/(\d)\s?dB(?![\p{L}])/gu, "$1 ντεσιμπέλ"],
-  [/(\d)\s?BTU(?![\p{L}])/gu, "$1 μπι τι γιου"],
   [/(\d)\s?°\s?C(?![\p{L}])|(\d)\s?°/gu, "$1$2 βαθμούς"],
   [/(\d)\s?%/gu, "$1 τοις εκατό"],
   [/(\d)\s?€/gu, "$1 ευρώ"],
   [/€\s?(\d)/gu, "ευρώ $1"],
-  [/(\d)\s?Hz(?![\p{L}])/gu, "$1 χερτζ"],
-  [/(\d)\s?GB(?![\p{L}])/gu, "$1 γίγαμπαϊτ"],
-  [/(\d)\s?TB(?![\p{L}])/gu, "$1 τέραμπαϊτ"],
-  [/(\d)\s?MP(?![\p{L}])/gu, "$1 μεγαπίξελ"],
     [/(\d)\s?λ\.(?=\s|$)/gu, "$1 λεπτά"],
   [/(\d)\s?×\s?(\d)/gu, "$1 επί $2"],
   [/(\d)\s?x\s?(\d)/gu, "$1 επί $2"],
@@ -74,16 +71,6 @@ const SYMBOLS: [RegExp, string][] = [
   [/(?<![\p{L}])[AΑ]\+\+\+/gu, "Α τρία συν"],
   [/(?<![\p{L}])[AΑ]\+\+/gu, "Α δύο συν"],
   [/(?<![\p{L}])[AΑ]\+(?!\+)/gu, "Α συν"],
-  [w("4K", "gu"), "φορ κέι"],
-  [w("8K", "gu"), "έιτ κέι"],
-  [w("No Frost"), "νο φροστ"],
-  [w("Wi-?Fi"), "γουάι φάι"],
-  [w("OLED", "gu"), "όλεντ"],
-  [w("QLED", "gu"), "κιούλεντ"],
-  [w("LED", "gu"), "λεντ"],
-  [w("UHD", "gu"), "γιου έιτς ντι"],
-  [w("HDR", "gu"), "έιτς ντι αρ"],
-  [w("Inverter"), "ινβέρτερ"],
   [/\s?−\s?(?=\d)/gu, " μείον "],
   [/(?<=\s)-(?=\d)/gu, "μείον "],
   [/\s?→\s?/gu, " προς "],
