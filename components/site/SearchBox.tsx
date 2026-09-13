@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search, X, Clock, TrendingUp, ArrowRight, BookOpen, Mic, Camera, Sparkles, Check, AlertTriangle } from "lucide-react";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
+import { useVoice } from "@/lib/voice/client";
 import { useMySpace } from "@/components/space/MySpaceProvider";
 import { navCategories } from "@/lib/data/nav";
 import type { SuggestResult } from "@/lib/data/repo";
@@ -100,7 +101,17 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     };
   }, [q, open, advisorMode, space]);
 
-  const listen = () => {
+  const voice = useVoice();
+  // Voice search: Whisper through the AI engine when the voice feature is on (Greek: excellent), else the browser's own recogniser.
+  const listen = async () => {
+    if (voice.enabled) {
+      if (voice.listening) { voice.stop(); return; }
+      setListening(true);
+      const r = await voice.listen();
+      setListening(false);
+      if (r.text) { setQ(r.text); setOpen(true); }
+      return;
+    }
     type SR = new () => { lang: string; interimResults: boolean; onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onend: () => void; start: () => void };
     const Ctor = (window as unknown as { webkitSpeechRecognition?: SR; SpeechRecognition?: SR }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: SR }).webkitSpeechRecognition;
     if (!Ctor) return;
@@ -266,11 +277,17 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                         </div>
                       )}
                       <p className="m-0 mt-3 text-[length:var(--fs-15)] leading-snug text-eu-on-dark">{ans.text}</p>
-                      {ans.href && (
-                        <Link href={ans.href.href} onClick={() => remember(q)} className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 hover:bg-eu-yellow-dark">
-                          {ans.href.label} <ArrowRight className="size-3.5" aria-hidden />
-                        </Link>
-                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {ans.href && (
+                          <Link href={ans.href.href} onClick={() => remember(q)} className="inline-flex items-center gap-1.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 hover:bg-eu-yellow-dark">
+                            {ans.href.label} <ArrowRight className="size-3.5" aria-hidden />
+                          </Link>
+                        )}
+                        {/* Hand the answered question over to the chat: the orb shows it as history and continues from there. */}
+                        <button type="button" onClick={() => { remember(q); setOpen(false); window.dispatchEvent(new CustomEvent("eu:ask", { detail: { q, answer: ans } })); }} className="inline-flex items-center gap-1.5 rounded-full bg-white/12 text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 hover:bg-white/20">
+                          <Sparkles className="size-3.5" aria-hidden /> Συνέχισε τη συζήτηση
+                        </button>
+                      </div>
                     </>
                   ) : null}
                 </div>

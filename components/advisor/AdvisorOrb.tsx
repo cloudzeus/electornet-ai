@@ -5,7 +5,8 @@ import { tpl } from "@/lib/cms/settings";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { X, Send, Sparkles, Store, Ruler, Zap, Scale } from "lucide-react";
+import { X, Send, Sparkles, Store, Ruler, Zap, Scale, Mic, Square, Volume2, VolumeX, Loader2 } from "lucide-react";
+import { useVoice } from "@/lib/voice/client";
 import gsap from "gsap";
 import { STAR_PATH } from "@/components/motion/star";
 import { useAdvisor } from "./AdvisorContext";
@@ -21,6 +22,13 @@ interface Msg {
   text: string;
   chips?: { label: string; href: string }[];
 }
+type AnswerLike = { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } };
+const CHAT_KEY = "eu-aris-chat";
+const WELCOME_KEY = "eu-aris-welcomed";
+const chipsOf = (ans: AnswerLike) => [
+  ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} · ${p.price.toLocaleString("el-GR")} €${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
+  ...(ans.href ? [ans.href] : []),
+];
 
 /**
  * @dynamic AI Sales Advisor entry point: the brand star breathing in the
@@ -42,13 +50,64 @@ export function AdvisorOrb() {
   const [input, setInput] = useState("");
   const [handoff, setHandoff] = useState(false);
   const askRef = useRef<((q: string) => void) | null>(null);
+  const voice = useVoice();
+  const greeted = useRef(false);
+  // Voice: the advisor reads its answers aloud (cached audio for repeated phrases) when the speaker is on.
+  const say = (text: string, key?: string) => { void voice.speak(text, key); };
+  const sayRef = useRef(say);
+  useEffect(() => { sayRef.current = say; });
+  // Opening the panel with an empty thread greets once per session («welcome back» for returning visitors).
+  useEffect(() => {
+    if (open && voice.speakOn && voice.enabled && !greeted.current && msgs.length === 0) {
+      greeted.current = true;
+      let returning = false;
+      try { returning = !!localStorage.getItem(WELCOME_KEY); } catch {}
+      void voice.speak("", returning ? "welcome-back" : "welcome");
+    }
+    if (!open && voice.listening) voice.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, voice.speakOn, voice.enabled]);
+  // First visit: the welcome plays once per browser (after the first gesture if autoplay is blocked).
+  useEffect(() => {
+    if (!voice.enabled) return;
+    try { if (localStorage.getItem(WELCOME_KEY)) return; } catch { return; }
+    greeted.current = true;
+    void voice.playPreset("welcome").then((played) => { if (played) { try { localStorage.setItem(WELCOME_KEY, new Date().toISOString()); } catch {} } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.enabled]);
+  const onMic = async () => {
+    if (voice.listening) { voice.stop(); return; }
+    const r = await voice.listen();
+    if (r.text) { ask(r.text); return; }
+    if (r.error === "denied") { setMsgs((m) => [...m, { role: "advisor", text: "Δεν έχω πρόσβαση στο μικρόφωνο. Γράψε μου την ερώτησή σου." }]); say("", "mic-denied"); }
+    else if (r.error === "failed") { setMsgs((m) => [...m, { role: "advisor", text: "Δεν σε άκουσα καθαρά. Μπορείς να το επαναλάβεις;" }]); say("", "not-heard"); }
+  };
+
+  // The conversation survives navigation and reopening (session storage), so the
+  // search box, product chips and the orb all continue the same thread.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CHAT_KEY);
+      if (raw) { const saved = JSON.parse(raw) as Msg[]; if (Array.isArray(saved) && saved.length) setTimeout(() => setMsgs(saved), 0); }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { if (msgs.length) sessionStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-40))); } catch {}
+  }, [msgs]);
 
   // «Ρώτα τον Άρη» chips anywhere on the site open the panel with the question.
+  // The search box can also hand over a question it has ALREADY answered
+  // ({ q, answer }): it is appended as history, not asked again.
   useEffect(() => {
     const on = (e: Event) => {
-      const q = (e as CustomEvent<string>).detail;
+      const d = (e as CustomEvent<string | { q: string; answer?: AnswerLike }>).detail;
       setOpen(true);
-      setTimeout(() => askRef.current?.(q), 60);
+      if (typeof d === "string") { setTimeout(() => askRef.current?.(d), 60); return; }
+      if (d.answer) {
+        const a = d.answer;
+        setMsgs((m) => (m.length && m[m.length - 1].role === "advisor" && m[m.length - 2]?.text === d.q ? m : [...m, { role: "user", text: d.q }, { role: "advisor", text: a.text, chips: chipsOf(a) }]));
+        sayRef.current(a.text);
+      } else setTimeout(() => askRef.current?.(d.q), 60);
     };
     window.addEventListener("eu:ask", on);
     return () => window.removeEventListener("eu:ask", on);
@@ -179,7 +238,9 @@ export function AdvisorOrb() {
       const answer = a;
       setTimeout(() => {
         setTyping(false);
-        setMsgs((m) => [...m, answer()]);
+        const a = answer();
+        setMsgs((m) => [...m, a]);
+        say(a.text);
       }, 900);
       return;
     }
@@ -190,13 +251,11 @@ export function AdvisorOrb() {
         setTyping(false);
         if (!ans) {
           setMsgs((m) => [...m, { role: "advisor", text: "Κάτι πήγε στραβά. Δοκίμασε ξανά ή ζήτα άνθρωπο από το κατάστημα.", chips: [{ label: "Να με πάρουν", href: "#handoff" }] }]);
+          say("", "error");
           return;
         }
-        const chips = [
-          ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} · ${p.price.toLocaleString("el-GR")} €${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
-          ...(ans.href ? [ans.href] : []),
-        ];
-        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips }]);
+        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans) }]);
+        say(ans.text);
       })
       .catch(() => {
         setTyping(false);
@@ -216,7 +275,7 @@ export function AdvisorOrb() {
         onClick={() => setOpen(true)}
         aria-label={c.symvoylos_agoras}
         aria-expanded={open}
-        className={`fixed z-[60] right-4 bottom-24 @md:bottom-6 @md:right-6 size-16 rounded-full bg-eu-navy shadow-[0_16px_40px_rgba(18,42,88,.45)] flex items-center justify-center group ${open ? "opacity-0 pointer-events-none" : "opacity-100"} transition-opacity`}
+        className={`fixed z-[60] right-4 bottom-24 @md:bottom-6 @md:right-6 size-16 rounded-full bg-eu-navy shadow-[0_16px_40px_rgba(18,42,88,.45)] flex items-center justify-center group ${open ? "opacity-0 pointer-events-none" : "opacity-100"} transition-opacity ${voice.speaking ? "ring-4 ring-eu-yellow/60 animate-pulse" : ""}`}
       >
         <span
           className="absolute inset-0 rounded-full bg-[radial-gradient(closest-side,rgba(241,196,0,.5),rgba(241,196,0,0))] blur-md eu-breathe"
@@ -268,6 +327,18 @@ export function AdvisorOrb() {
                   {advisor.panel.subtitle}
                 </p>
               </div>
+              {voice.enabled && (
+                <button
+                  type="button"
+                  onClick={() => voice.setSpeakOn(!voice.speakOn)}
+                  aria-pressed={voice.speakOn}
+                  aria-label={voice.speakOn ? "Απενεργοποίηση φωνής" : "Ενεργοποίηση φωνής"}
+                  title={voice.speakOn ? "Ο Άρης μιλάει" : "Ο Άρης γράφει μόνο"}
+                  className={`relative size-11 rounded-full inline-flex items-center justify-center shrink-0 ${voice.speakOn ? "bg-eu-yellow text-eu-navy" : "bg-white/10 hover:bg-white/20"}`}
+                >
+                  {voice.speakOn ? <Volume2 className={`size-5 ${voice.speaking ? "animate-pulse" : ""}`} aria-hidden /> : <VolumeX className="size-5" aria-hidden />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -395,9 +466,21 @@ export function AdvisorOrb() {
                 id="advisor-q"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={advisor.panel.placeholder}
+                placeholder={voice.listening ? "Σε ακούω…" : voice.transcribing ? "Καταγράφω…" : advisor.panel.placeholder}
                 className="flex-1 min-w-0 rounded-full border-2 border-eu-line px-4 min-h-12 text-[length:var(--fs-16)] outline-none focus:border-eu-blue"
               />
+              {voice.enabled && (
+                <button
+                  type="button"
+                  onClick={onMic}
+                  disabled={voice.transcribing}
+                  aria-pressed={voice.listening}
+                  aria-label={voice.listening ? "Σταμάτημα ηχογράφησης" : "Μίλησε στον Άρη"}
+                  className={`size-12 rounded-full inline-flex items-center justify-center shrink-0 border-2 transition-colors ${voice.listening ? "bg-eu-red border-eu-red text-white animate-pulse" : "border-eu-navy text-eu-navy hover:bg-eu-chip"} disabled:opacity-60`}
+                >
+                  {voice.transcribing ? <Loader2 className="size-5 animate-spin" aria-hidden /> : voice.listening ? <Square className="size-4" aria-hidden /> : <Mic className="size-5" aria-hidden />}
+                </button>
+              )}
               <button
                 type="submit"
                 aria-label={c.apostoli}

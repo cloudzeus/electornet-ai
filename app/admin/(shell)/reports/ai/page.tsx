@@ -8,7 +8,7 @@ import { LineChart, BarChart, RankBars, StatTile } from "@/components/admin/char
 export const metadata = { title: "Κόστος AI" };
 export const dynamic = "force-dynamic";
 
-const FEATURES: Record<string, string> = { advisor: "Άρης", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές" };
+const FEATURES: Record<string, string> = { advisor: "Άρης", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές", snap: "Snap & Find", tts: "Φωνή: εκφώνηση", stt: "Φωνή: μικρόφωνο" };
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const label = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
 const rangeStart = (days: number) => new Date(Date.now() - (days - 1) * 86400000);
@@ -41,7 +41,7 @@ export default async function AiReport({ searchParams }: { searchParams: Promise
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Κόστος AI</h2>
           <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Χρεωμένο κόστος (markup συμπεριλαμβάνεται) μετατρεπόμενο σε € με την ισοτιμία USD→EUR της κάθε ημέρας (ΕΚΤ). Σήμερα 1 $ = {rateToday.toFixed(4)} €.</p>
         </div>
-        <nav aria-label="Περίοδος" className="flex gap-1">{[7, 30, 90].map((n) => <Link key={n} href={`?days=${n}`} className={chip(n)}>{n} ημέρες</Link>)}</nav>
+        <nav aria-label="Περίοδος" className="flex flex-wrap gap-1">{[7, 30, 90].map((n) => <Link key={n} href={`?days=${n}`} className={chip(n)}>{n} ημέρες</Link>)}<Link href="/admin/reports/ai/voice" className="inline-flex items-center rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3 min-h-9 hover:bg-eu-chip">Φωνή & audio cache</Link></nav>
       </div>
       <div className="grid grid-cols-2 @lg:grid-cols-3 @5xl:grid-cols-6 gap-3">
         <StatTile label={`Χρεωμένο κόστος (${days} ημ.)`} value={money(totalEur)} sub={`$${totalUsd.toFixed(2)}`} accent />

@@ -1161,3 +1161,28 @@ model SnapScan {
   @@index([kind])
   @@index([customerId])
 }
+
+/// Audio cache for the voice advisor: one row per (text, voice, model). Files live in the media storage (Bunny or local) under voice/. Hits × price = money saved.
+model VoicePhrase {
+  id         String   @id @default(cuid())
+  hash       String   @unique // sha256(model|voice|normalised text)
+  key        String? // preset key (welcome, wait, bye, …) — null for dynamic phrases
+  text       String   @db.Text
+  voice      String
+  model      String
+  storage    String // local | bunny
+  path       String
+  url        String
+  mime       String
+  bytes      Int
+  durationMs Int
+  transcript String?  @db.Text // what the model actually said (from the stream)
+  fidelity   Float? // word overlap text↔transcript, 0..1
+  costUsd    Float    @default(0) // what the first generation cost
+  hits       Int      @default(0) // times served from cache
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([lastUsedAt])
+  @@index([key])
+}
