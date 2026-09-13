@@ -1,11 +1,19 @@
 "use client";
 
-import { Check, FileText, Film, Play } from "lucide-react";
+import { useState } from "react";
+import { Check, FileText, Film, Play, Link2 } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import { fileExt, fmtBytes, fmtDuration } from "./format";
 
 /** Grid tile: thumbnail (focal-point aware), kind badge, selection checkbox, meta line. Draggable to folders. */
 export function AssetCard({ a, selected, onToggle, onOpen, draggableIds }: { a: MediaAssetDTO; selected: boolean; onToggle: () => void; onOpen: () => void; draggableIds: string[] }) {
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    const url = a.url.startsWith("http") ? a.url : `${window.location.origin}${a.url}`;
+    try { await navigator.clipboard.writeText(url); } catch { window.open(url, "_blank", "noopener"); return; }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <div
       draggable
@@ -32,6 +40,15 @@ export function AssetCard({ a, selected, onToggle, onOpen, draggableIds }: { a: 
           <div className="truncate font-bold text-eu-ink text-[length:var(--fs-14)]">{a.title ?? a.filename}</div>
           <div className="truncate text-eu-muted text-[length:var(--fs-13)] tabular-nums">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{fmtBytes(a.size)}</div>
         </div>
+      </button>
+      <button
+        type="button"
+        onClick={copyLink}
+        title={copied ? "Αντιγράφηκε" : "Αντιγραφή συνδέσμου αρχείου"}
+        aria-label={copied ? "Ο σύνδεσμος αντιγράφηκε" : `Αντιγραφή συνδέσμου ${a.filename}`}
+        className={`absolute top-2 right-2 size-9 rounded-full grid place-items-center bg-white/90 border border-eu-line text-eu-navy hover:bg-eu-navy hover:text-white transition-opacity ${copied ? "opacity-100 bg-eu-green border-eu-green text-white" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`}
+      >
+        {copied ? <Check className="size-4" aria-hidden /> : <Link2 className="size-4" aria-hidden />}
       </button>
       <label className={`absolute top-2 left-2 size-11 grid place-items-center cursor-pointer ${selected ? "" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}`}>
         <input type="checkbox" checked={selected} onChange={onToggle} className="sr-only peer" aria-label={`Επιλογή ${a.filename}`} />

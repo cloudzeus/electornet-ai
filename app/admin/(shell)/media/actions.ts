@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/rbac/guard";
+import { requirePermission, requireSuperAdmin } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { toDTO, destroy, ingest } from "@/lib/media/repo";
 import { removeBackground, probeVideo } from "@/lib/media/process";
@@ -21,7 +21,7 @@ export interface ListQuery {
   tag?: string;
 }
 
-export async function listMedia(query: ListQuery): Promise<{ items: MediaAssetDTO[]; total: number; page: number; pages: number; notice: string | null }> {
+export async function listMedia(query: ListQuery): Promise<{ items: MediaAssetDTO[]; total: number; page: number; pages: number; notice: string | null; local: number }> {
   await requirePermission("cms.media.read");
   const where: Prisma.MediaAssetWhereInput = {};
   if (query.folderId !== undefined) where.folderId = query.folderId;
@@ -31,7 +31,8 @@ export async function listMedia(query: ListQuery): Promise<{ items: MediaAssetDT
   const orderBy: Prisma.MediaAssetOrderByWithRelationInput = query.sort === "oldest" ? { createdAt: "asc" } : query.sort === "name" ? { filename: "asc" } : query.sort === "size" ? { size: "desc" } : { createdAt: "desc" };
   const page = Math.max(1, query.page ?? 1);
   const [rows, total, st] = await Promise.all([db.mediaAsset.findMany({ where, orderBy, skip: (page - 1) * PAGE, take: PAGE }), db.mediaAsset.count({ where }), activeStorage()]);
-  return { items: rows.map(toDTO), total, page, pages: Math.max(1, Math.ceil(total / PAGE)), notice: st.notice };
+  const local = st.storage === "bunny" ? await (await import("@/lib/media/migrate")).localCount().then((c) => c.media + c.voice) : 0;
+  return { items: rows.map(toDTO), total, page, pages: Math.max(1, Math.ceil(total / PAGE)), notice: st.notice, local };
 }
 
 export async function listFolders(): Promise<MediaFolderDTO[]> {
@@ -156,4 +157,21 @@ export async function aiDescribeAsset(id: string, overwrite = false): Promise<{ 
   const row = await db.mediaAsset.update({ where: { id }, data: { alt: overwrite || !src.alt ? d.alt : src.alt, title: overwrite || !src.title || src.title === src.filename.replace(/\.[^.]+$/, "") ? d.title || src.title : src.title, tags: [...new Set([...src.tags, ...d.tags])] } });
   await audit(user.id, "media.ai-describe", "MediaAsset", id, { alt: src.alt, title: src.title }, { alt: row.alt, title: row.title, tags: row.tags });
   return { ok: true, asset: toDTO(row) };
+}
+
+/** «Μεταφορά στο CDN»: local files → Bunny, rows repointed. Super admin only (it changes every URL). */
+export async function migrateToCdn(): Promise<{ ok: boolean; message: string }> {
+  const user = await requireSuperAdmin();
+  const { migrateLocalToCdn } = await import("@/lib/media/migrate");
+  try {
+    const r = await migrateLocalToCdn();
+    await audit(user.id, "media.migrate-cdn", "MediaAsset", "*", null, r);
+    return { ok: r.failed.length === 0, message: `Μεταφέρθηκαν ${r.media} αρχεία media και ${r.voice} φράσεις ήχου στο Bunny.${r.failed.length ? ` Απέτυχαν: ${r.failed.join(" · ")}` : ""}` };
+  } catch (e) { return { ok: false, message: (e as Error).message }; }
+}
+
+export async function localFilesCount() {
+  const { localCount } = await import("@/lib/media/migrate");
+  const c = await localCount();
+  return c.media + c.voice;
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CloudUpload, Search, LayoutGrid, List, FolderInput, Tag, Trash2, X, Check, AlertTriangle, ChevronLeft, ChevronRight, PanelLeft } from "lucide-react";
+import { CloudUpload, Search, LayoutGrid, List, FolderInput, Tag, Trash2, X, Check, AlertTriangle, ChevronLeft, ChevronRight, PanelLeft, ZoomIn, ZoomOut } from "lucide-react";
 import type { MediaAssetDTO, MediaFolderDTO, MediaKind } from "@/lib/media/types";
-import { listMedia, listFolders, createFolder, renameFolder, deleteFolder, moveAssets, tagAssets, deleteAssets, type ListQuery } from "@/app/admin/(shell)/media/actions";
+import { listMedia, listFolders, createFolder, renameFolder, deleteFolder, moveAssets, tagAssets, deleteAssets, migrateToCdn, type ListQuery } from "@/app/admin/(shell)/media/actions";
 import { useUploader } from "./useUploader";
 import { FolderTree } from "./FolderTree";
 import { AssetCard } from "./AssetCard";
@@ -42,7 +42,12 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
   const [sort, setSort] = useState<ListQuery["sort"]>("newest");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"grid" | "list">("grid");
-  const [data, setData] = useState<{ items: MediaAssetDTO[]; total: number; pages: number; notice: string | null }>({ items: [], total: 0, pages: 1, notice: null });
+  // Tile size of the grid (min column width in px): the slider shows more or fewer cards per row; remembered per browser.
+  const [tile, setTile] = useState(180);
+  useEffect(() => { try { const v = Number(localStorage.getItem("eu-media-tile")); if (v >= 100 && v <= 360) setTimeout(() => setTile(v), 0); } catch {} }, []);
+  const changeTile = (v: number) => { const n = Math.min(360, Math.max(100, v)); setTile(n); try { localStorage.setItem("eu-media-tile", String(n)); } catch {} };
+  const [data, setData] = useState<{ items: MediaAssetDTO[]; total: number; pages: number; notice: string | null; local: number }>({ items: [], total: 0, pages: 1, notice: null, local: 0 });
+  const [migrating, setMigrating] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<MediaAssetDTO | null>(null);
   const [editing, setEditing] = useState<MediaAssetDTO | null>(null);
@@ -58,7 +63,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
   const refresh = useCallback(() => {
     startLoad(async () => {
       const r = await listMedia({ folderId, q: q || undefined, kind, sort, page });
-      setData({ items: r.items, total: r.total, pages: r.pages, notice: r.notice });
+      setData({ items: r.items, total: r.total, pages: r.pages, notice: r.notice, local: r.local ?? 0 });
     });
   }, [folderId, q, kind, sort, page]);
   useEffect(() => { refreshFolders(); }, [refreshFolders]);
@@ -130,6 +135,13 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
           <select value={sort} onChange={(e) => changeSort(e.target.value as ListQuery["sort"])} aria-label="Ταξινόμηση" className="rounded-full border border-eu-line px-3 min-h-10 text-[length:var(--fs-13)] font-bold bg-white">
             <option value="newest">Νεότερα</option><option value="oldest">Παλαιότερα</option><option value="name">Όνομα</option><option value="size">Μέγεθος</option>
           </select>
+          {view === "grid" && (
+            <div className="hidden @lg:flex items-center gap-1 rounded-full border border-eu-line px-2 min-h-10" title="Μέγεθος καρτών">
+              <button type="button" onClick={() => changeTile(tile - 40)} aria-label="Μικρότερες κάρτες" className="size-7 inline-flex items-center justify-center rounded-full hover:bg-eu-surface"><ZoomOut className="size-4" aria-hidden /></button>
+              <input type="range" min={100} max={360} step={20} value={tile} onChange={(e) => changeTile(Number(e.target.value))} aria-label="Μέγεθος καρτών" className="w-24 accent-eu-navy" />
+              <button type="button" onClick={() => changeTile(tile + 40)} aria-label="Μεγαλύτερες κάρτες" className="size-7 inline-flex items-center justify-center rounded-full hover:bg-eu-surface"><ZoomIn className="size-4" aria-hidden /></button>
+            </div>
+          )}
           <div className="flex rounded-full border border-eu-line overflow-hidden" role="group" aria-label="Προβολή">
             <button type="button" onClick={() => setView("grid")} aria-pressed={view === "grid"} className={`size-10 inline-flex items-center justify-center ${view === "grid" ? "bg-eu-navy text-white" : ""}`}><LayoutGrid className="size-4" aria-hidden /></button>
             <button type="button" onClick={() => setView("list")} aria-pressed={view === "list"} className={`size-10 inline-flex items-center justify-center ${view === "list" ? "bg-eu-navy text-white" : ""}`}><List className="size-4" aria-hidden /></button>
@@ -146,6 +158,13 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
         </div>
 
         {data.notice && canWrite && <div className="flex items-center gap-2 px-3 py-2 bg-eu-yellow/30 text-eu-navy font-bold text-[length:var(--fs-13)]"><AlertTriangle className="size-4 shrink-0" aria-hidden /> {data.notice}</div>}
+        {!data.notice && data.local > 0 && canWrite && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-eu-chip text-eu-navy font-bold text-[length:var(--fs-13)]">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden /> {data.local} αρχεία (media και ήχος) είναι ακόμη αποθηκευμένα τοπικά από πριν ενεργοποιηθεί το Bunny CDN.
+            <button type="button" disabled={migrating === "…"} onClick={async () => { setMigrating("…"); const r = await migrateToCdn(); setMigrating(r.message); refresh(); }} className="rounded-full bg-eu-navy text-white px-3 min-h-8 font-extrabold hover:bg-eu-blue disabled:opacity-60">{migrating === "…" ? "Μεταφορά…" : "Μεταφορά στο CDN"}</button>
+            {migrating && migrating !== "…" && <span className="font-semibold">{migrating}</span>}
+          </div>
+        )}
 
         {uploadsActive.length > 0 && (
           <ul className="m-0 p-3 list-none grid gap-1.5 bg-white border-b border-eu-line max-h-40 overflow-y-auto">
@@ -179,7 +198,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
               </div>
             </div>
           ) : view === "grid" ? (
-            <ul className="m-0 p-0 list-none grid grid-cols-2 @md:grid-cols-3 @2xl:grid-cols-4 @5xl:grid-cols-5 @7xl:grid-cols-6 gap-3">
+            <ul className="m-0 p-0 list-none grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${tile}px, 100%), 1fr))` }}>
               {data.items.map((a) => (
                 <li key={a.id} className={selectable(a) ? "" : "opacity-40 pointer-events-none"}>
                   <AssetCard a={a} selected={selected.has(a.id)} onToggle={() => toggle(a.id)} onOpen={() => openAsset(a)} draggableIds={selected.has(a.id) ? ids : []} />
