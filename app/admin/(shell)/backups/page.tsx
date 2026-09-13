@@ -28,7 +28,7 @@ export default async function BackupsPage() {
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Κάθε μέρα ένα πλήρες αντίγραφο (pg_dump, custom format) κρυπτογραφείται με AES-256 και ανεβαίνει στο Bunny Storage zone <b>{target.zone}</b>{target.dedicated ? " (αποκλειστικό zone)" : ` στον φάκελο ${target.prefix}`}. Διατήρηση {target.retentionDays} ημέρες, πάντα τουλάχιστον 3 αντίγραφα.</p>
       </div>
       <div className="grid grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-4 gap-3">
-        <StatTile label="Τελευταίο επιτυχημένο" value={last ? fmt(last.at) : "—"} sub={lastAgeH != null ? `πριν ${lastAgeH < 1 ? `${Math.round(lastAgeH * 60)} λεπτά` : `${lastAgeH.toFixed(0)} ώρες`}` : "κανένα ακόμη"} accent={!!last && lastAgeH! < 26} />
+        <StatTile label="Τελευταίο επιτυχημένο" value={lastAgeH != null ? `πριν ${lastAgeH < 1 ? `${Math.round(lastAgeH * 60)}′` : lastAgeH < 48 ? `${lastAgeH.toFixed(0)} ώρ.` : `${Math.round(lastAgeH / 24)} ημ.`}` : "—"} sub={last ? fmt(last.at) : "κανένα ακόμη"} accent={!!last && lastAgeH! < 26} />
         <StatTile label="Διαθέσιμα αντίγραφα" value={String(okRuns.length)} sub={`${(okRuns.reduce((a, r) => a + (r.bytes ?? 0), 0) / 1048576).toFixed(1)} MB συνολικά`} />
         <StatTile label="Κρυπτογράφηση" value={passphrase ? "AES-256" : "ΟΧΙ"} sub={passphrase ? "BACKUP_PASSPHRASE ορίστηκε" : "όρισε BACKUP_PASSPHRASE στο .env"} />
         <StatTile label="Αυτόματο (cron)" value={cron ? "έτοιμο" : "—"} sub={cron ? "GET /api/cron/backup" : "όρισε CRON_SECRET στο .env"} />
@@ -40,11 +40,11 @@ export default async function BackupsPage() {
           {!cron && <div>• <code>CRON_SECRET</code> + προγραμματισμός: Coolify scheduled task ή crontab <code>0 3 * * * curl -fsS -H &quot;Authorization: Bearer $CRON_SECRET&quot; https://www.euronics.gr/api/cron/backup</code> (ή <code>scripts/backup-db.ts</code>). Δες <code>docs/backup.md</code>.</div>}
         </div>
       )}
-      <section className="rounded-2xl bg-white border border-eu-line p-5 grid gap-3">
+      <section className="rounded-2xl bg-white border border-eu-line p-5 grid gap-3 min-w-0">
         <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Χειροκίνητο backup</h3>
         <BackupNow />
       </section>
-      <section className="rounded-2xl bg-white border border-eu-line p-5">
+      <section className="rounded-2xl bg-white border border-eu-line p-5 min-w-0 overflow-hidden">
         <h3 className="m-0 mb-3 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Ιστορικό</h3>
         {runs.length === 0 ? <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Κανένα backup ακόμη.</p> : (
           <div className="overflow-x-auto">
