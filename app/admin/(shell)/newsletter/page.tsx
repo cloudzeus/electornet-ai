@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { NewsletterAdmin } from "@/components/admin/customers/NewsletterAdmin";
 import { StatTile } from "@/components/admin/charts/Charts";
 
+
+const daysAgo = (n: number) => new Date(Date.now() - n * 86400000);
 export const metadata = { title: "Newsletter" };
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,7 @@ export default async function NewsletterPage({ searchParams }: { searchParams: P
   const [rows, counts, last30] = await Promise.all([
     db.newsletterSubscriber.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: { customer: { select: { id: true, firstName: true, lastName: true } }, consents: { orderBy: { at: "desc" }, take: 1 } } }),
     db.newsletterSubscriber.groupBy({ by: ["status"], _count: { _all: true } }),
-    db.newsletterSubscriber.count({ where: { status: "subscribed", confirmedAt: { gte: new Date(Date.now() - 30 * 86400000) } } }),
+    db.newsletterSubscriber.count({ where: { status: "subscribed", confirmedAt: { gte: daysAgo(30) } } }),
   ]);
   const n = (st: string) => counts.find((c) => c.status === st)?._count._all ?? 0;
   const emails = await db.emailLog.findMany({ where: { template: "newsletter-confirm" }, orderBy: { at: "desc" }, take: 10 });
