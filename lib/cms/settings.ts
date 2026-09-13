@@ -2,7 +2,7 @@
  * @dynamic Site-wide settings the CMS will own. Four records, all plain
  * JSON: `site` (facts, contact, commerce thresholds), `motion` (every
  * duration/easing/stagger/autoplay and on-off switch used by the motion
- * primitives), `advisor` (Άρης: name, avatar, copy, suggested questions per
+ * primitives), `advisor` (Ερμής: name, avatar, copy, suggested questions per
  * context, exit-intent, cart tips), `stickers` (labels/thresholds).
  * Server components read `getSettings()`; client components read the same
  * object through `useSettings()` (SettingsProvider in the shop layout).
@@ -104,12 +104,12 @@ export const defaultSettings: Settings = {
   },
   advisor: {
     enabled: true,
-    name: "Άρης",
+    name: "Ερμής",
     avatar: "/img/advisor/mascot.webp",
     avatarHead: "/img/advisor/mascot-head.webp",
-    orb: { tooltip: "Ρώτα τον Άρη", tooltipProduct: "Ρώτα τον Άρη για αυτό το προϊόν" },
-    greeting: { enabled: true, delayMs: 2000, hideAfterMs: 10000, title: "Γεια! Είμαι ο Άρης.", titleReturning: "Καλώς ήρθες πάλι, {name}!", body: "Αν ψάχνεις κάτι, γράψ᾽ το μου με απλά λόγια ή πάτα με." },
-    panel: { title: "Γεια, είμαι ο Άρης. Τι ψάχνεις;", titleProduct: "{brand} {title}", subtitle: "Απαντώ σε 2 δευτ. από τον κατάλογο. Άνθρωπος σε ένα κλικ.", placeholder: "Γράψε ό,τι θα ρωτούσες τον πωλητή…", demoFallback: "Στο demo απαντώ στις έτοιμες ερωτήσεις. Στην πλήρη έκδοση ο σύμβουλος απαντά σε οτιδήποτε από τον κατάλογο, τα χαρακτηριστικά και το απόθεμα." },
+    orb: { tooltip: "Ρώτα τον Ερμή", tooltipProduct: "Ρώτα τον Ερμή για αυτό το προϊόν" },
+    greeting: { enabled: true, delayMs: 2000, hideAfterMs: 10000, title: "Γεια! Είμαι ο Ερμής.", titleReturning: "Καλώς ήρθες πάλι, {name}!", body: "Αν ψάχνεις κάτι, γράψ᾽ το μου με απλά λόγια ή πάτα με." },
+    panel: { title: "Γεια, είμαι ο Ερμής. Τι ψάχνεις;", titleProduct: "{brand} {title}", subtitle: "Απαντώ σε 2 δευτ. από τον κατάλογο. Άνθρωπος σε ένα κλικ.", placeholder: "Γράψε ό,τι θα ρωτούσες τον πωλητή…", demoFallback: "Στο demo απαντώ στις έτοιμες ερωτήσεις. Στην πλήρη έκδοση ο σύμβουλος απαντά σε οτιδήποτε από τον κατάλογο, τα χαρακτηριστικά και το απόθεμα." },
     suggestions: {
       home: ["Αθόρυβο πλυντήριο για διαμέρισμα", "Ποια τηλεόραση για φωτεινό σαλόνι;", "Θέλω να μιλήσω με το κατάστημα"],
       byCategory: {
@@ -144,7 +144,7 @@ export const defaultSettings: Settings = {
     },
     handoff: { title: "Το κατάστημά σου", callLabel: "Να με πάρουν", chatLabel: "Chat", done: "Ο {seller} θα σε πάρει σε λίγα λεπτά" },
     thankYou: "Ευχαριστώ{name}! Θα σου γράψω μόλις φύγει η παραγγελία και αν χρειαστείς κάτι για την τοποθέτηση, είμαι εδώ.",
-    notFound: { title: "Ο Άρης δεν βρήκε αυτή τη σελίδα", body: "Ίσως το προϊόν αποσύρθηκε ή ο σύνδεσμος άλλαξε. Γράψε τι ψάχνεις με απλά λόγια ή ξεκίνα από εδώ:" },
+    notFound: { title: "Ο Ερμής δεν βρήκε αυτή τη σελίδα", body: "Ίσως το προϊόν αποσύρθηκε ή ο σύνδεσμος άλλαξε. Γράψε τι ψάχνεις με απλά λόγια ή ξεκίνα από εδώ:" },
   },
   stickers: {
     lastUnitsAt: 5,

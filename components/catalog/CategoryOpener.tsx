@@ -9,7 +9,7 @@ import { AskAris } from "@/components/advisor/AskAris";
 /**
  * @dynamic Category opener (v4): navy stage with the category numeral as a
  * giant watermark, title, live product count, the three top products as
- * floating cutouts (staggered float), and «Ρώτα τον Άρη» chips with the
+ * floating cutouts (staggered float), and «Ρώτα τον Ερμή» chips with the
  * questions this category gets most (from the Demand Radar). Adaptive: the
  * cutouts move under the text below @lg; nothing overlaps the title.
  */

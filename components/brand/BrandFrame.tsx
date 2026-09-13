@@ -4,7 +4,7 @@ import type { BrandTheme } from "@/lib/cms/brand-store";
 /**
  * Theme provider for a brand store: the CMS tokens become CSS variables
  * (`--bs-*`) on the root, every block reads only those — no brand colours
- * hard-coded in components. Euronics chrome (header, footer, Άρης) stays
+ * hard-coded in components. Euronics chrome (header, footer, Ερμής) stays
  * outside, in Euronics colours.
  */
 export function BrandFrame({ theme, children }: { theme: BrandTheme; children: ReactNode }) {

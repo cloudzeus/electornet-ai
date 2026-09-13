@@ -23,11 +23,11 @@
 | `DeviceWallet` («Οι συσκευές μου»), `ServiceRequest` | `getOrders()` × `getDevices()` | Παραγγελίες (SALDOC) × service (SRVJOB) × PIM/EPREL (εγχειρίδιο, ετικέτα) × έγγραφα (απόδειξη/πιστοποιητικό PDF)· αίτημα service → SRVJOB + ημερολόγιο καταστήματος | no-store |
 | `NearestStoreCard`, `geoFromRequest()` | `getNearestStoreWithGeo()` · `/api/stores/near` | IP → πόλη (ipapi.co demo· παραγωγή MaxMind/CDN geo headers), GPS μόνο μετά από άδεια, haversine στα 350 καταστήματα | per request |
 | `ExitIntent` («Πριν φύγεις…») | `CartProvider`, session | Λόγος → Ραντάρ ζήτησης· email καλαθιού μέσω Klaviyo/Brevo με cart token (transactional) | client |
-| `AdvisorOrb` mascot «Άρης» | `public/img/advisor/mascot*.png` | Χαρακτήρας brand (OpenArt, cutout)· παραγωγή: ίδιο asset από το brand kit, animation states | static |
+| `AdvisorOrb` mascot «Ερμής» | `public/img/advisor/mascot*.png` | Χαρακτήρας brand (OpenArt, cutout)· παραγωγή: ίδιο asset από το brand kit, animation states | static |
 | `CategoryOpener` + `AskAris` chips | `listProducts()` top 3, `getCategories()` no, `ASK_FOR` | Ερωτήσεις ανά κατηγορία από το Ραντάρ ζήτησης (CMS override), cutouts από το DAM, πλήθος live | ISR 60s |
-| `AdvisorGreeting` («Γεια! Είμαι ο Άρης») | session | Κείμενο/χρόνος από CMS, προσωποποίηση από λογαριασμό, 1 φορά ανά session | client |
+| `AdvisorGreeting` («Γεια! Είμαι ο Ερμής») | session | Κείμενο/χρόνος από CMS, προσωποποίηση από λογαριασμό, 1 φορά ανά session | client |
 | `DealOfDayTile`, `StoreTile`, `ServicesTile` (hero δεξιά) | `getDealOfDay()`, `getNearestStoreWithGeo()`, `getServices(6)` | CMS deal schedule + ERP τιμή/Omnibus· IP→GPS κατάστημα· υπηρεσίες CMS | ISR 60s / per request |
-| `CartAdvisorTip` (ο Άρης στο καλάθι) | `CartProvider` lines | Πίνακας upsell CMS (κατηγορία → υπηρεσία), όριο δωρεάν μεταφορικών, τιμή επέκτασης εγγύησης· λεκτικό από το AI engine | client |
+| `CartAdvisorTip` (ο Ερμής στο καλάθι) | `CartProvider` lines | Πίνακας upsell CMS (κατηγορία → υπηρεσία), όριο δωρεάν μεταφορικών, τιμή επέκτασης εγγύησης· λεκτικό από το AI engine | client |
 | `HeroSlide.video` (ambient loop) | CMS slide asset | Βίντεο 8" από OpenArt (Kling 3), συμπιεσμένο με ffmpeg σε ~290 KB· απενεργοποιείται με reduced motion / Save-Data | static |
 | `/katastimata` «Κοντά σου» | `geoFromRequest()` + `storesNear()` | Ίδιο με NearestStoreCard, τρία καταστήματα | per request |
 | Brand stores (`/brands/{slug}`, `BrandFrame`, `BrandHero`, `BrandBlocks`) | `getBrandStore(slug)` → `renderBrandStore()` | CMS «Brand stores»: θέμα, hero, blocks με ids προϊόντων και schedule — βλ. `docs/brand-store-schema.md` | ISR 300s |

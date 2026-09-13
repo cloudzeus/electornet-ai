@@ -7,7 +7,7 @@ import type { AdvisorAnswer } from "@/lib/advisor/answer";
  * no key / over budget / error → the caller keeps its rule-based result.
  */
 
-/** Άρης: rewrite the rule-based answer in natural Greek and personalise the «why» per product. Same JSON shape. */
+/** Ερμής: rewrite the rule-based answer in natural Greek and personalise the «why» per product. Same JSON shape. */
 export async function advisorCompose(base: AdvisorAnswer, opts: { name: string; context?: string }): Promise<AdvisorAnswer> {
   const cfg = await getAi();
   if (!cfg || !cfg.advisorEnabled || (await overBudget(cfg))) return base;

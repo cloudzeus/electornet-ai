@@ -35,9 +35,9 @@ export default async function VoicePage() {
       <Link href="/admin/reports/ai" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline"><ChevronLeft className="size-4" aria-hidden /> Κόστος AI</Link>
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><AudioLines className="size-3.5" aria-hidden /> AI · Φωνή</div>
-        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Φωνή του Άρη & audio cache</h2>
+        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Φωνή του Ερμή & audio cache</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Κάθε φράση που εκφωνείται αποθηκεύεται μία φορά ως έτοιμος ήχος (στο Bunny CDN όταν είναι ενεργό) και ξαναπαίζει με μηδενικό κόστος. Μικρόφωνο: {cfg.sttModel} · Εκφώνηση: {cfg.ttsModel}, φωνή «{cfg.voice}».</p>
-        {!enabled && <p className="m-0 mt-2 rounded-xl bg-eu-yellow/15 border border-eu-yellow p-3 text-[length:var(--fs-14)] text-eu-ink">Η φωνή είναι ανενεργή. Ο super admin την ενεργοποιεί στο <Link href="/admin/settings/ai" className="font-bold text-eu-blue underline">Ρυθμίσεις → AI & υπηρεσίες</Link> («Φωνή στον Άρη»){!ai ? " και χρειάζεται κλειδί OpenRouter" : ""}.</p>}
+        {!enabled && <p className="m-0 mt-2 rounded-xl bg-eu-yellow/15 border border-eu-yellow p-3 text-[length:var(--fs-14)] text-eu-ink">Η φωνή είναι ανενεργή. Ο super admin την ενεργοποιεί στο <Link href="/admin/settings/ai" className="font-bold text-eu-blue underline">Ρυθμίσεις → AI & υπηρεσίες</Link> («Φωνή στον Ερμή»){!ai ? " και χρειάζεται κλειδί OpenRouter" : ""}.</p>}
       </div>
       <div className="grid grid-cols-2 @lg:grid-cols-3 @5xl:grid-cols-6 gap-3">
         <StatTile label="Φράσεις στο cache" value={String(phrases.length)} sub={`${(bytes / 1024).toFixed(0)} KB ήχου`} accent />
@@ -75,8 +75,8 @@ export default async function VoicePage() {
       </section>
       <section className="rounded-2xl bg-white border border-eu-line p-5">
         <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Φράσεις από συνομιλίες</h3>
-        <p className="m-0 mt-1 mb-3 text-eu-muted text-[length:var(--fs-14)]">Απαντήσεις του Άρη έως {cfg.cacheMaxChars} χαρακτήρες. Ταξινόμηση κατά αναπαραγωγές: όσο ψηλότερα, τόσο περισσότερο αξίζει που είναι έτοιμες.</p>
-        {dynamic.length === 0 ? <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Καμία ακόμη. Όταν ο πελάτης ανοίξει το ηχείο στον Άρη, οι απαντήσεις θα εμφανίζονται εδώ.</p> : (
+        <p className="m-0 mt-1 mb-3 text-eu-muted text-[length:var(--fs-14)]">Απαντήσεις του Ερμή έως {cfg.cacheMaxChars} χαρακτήρες. Ταξινόμηση κατά αναπαραγωγές: όσο ψηλότερα, τόσο περισσότερο αξίζει που είναι έτοιμες.</p>
+        {dynamic.length === 0 ? <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Καμία ακόμη. Όταν ο πελάτης ανοίξει το ηχείο στον Ερμή, οι απαντήσεις θα εμφανίζονται εδώ.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-[length:var(--fs-14)]">
               <thead><tr className="text-left text-eu-muted"><th className="py-2 pr-3 font-bold">Φράση</th><th className="py-2 pr-3 font-bold text-right">Αναπαραγωγές</th><th className="py-2 pr-3 font-bold text-right">Κόστος 1ης</th><th className="py-2 pr-3 font-bold text-right">Εξοικονόμηση</th><th className="py-2 pr-3 font-bold">Τελευταία</th><th className="py-2 font-bold"></th></tr></thead>

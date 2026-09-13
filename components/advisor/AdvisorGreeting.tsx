@@ -12,9 +12,9 @@ const c = copyOf("greeting");
 const KEY = "euronics.arisGreeted.v1";
 
 /**
- * @dynamic Discreet welcome from «Άρης»: once per session, 2 s after the
+ * @dynamic Discreet welcome from «Ερμής»: once per session, 2 s after the
  * first page, a small speech bubble above the advisor orb («Γεια! Είμαι ο
- * Άρης…»), slides in, leaves by itself after 8 s or on tap. Never on
+ * Ερμής…»), slides in, leaves by itself after 8 s or on tap. Never on
  * checkout. Production: message and timing from the CMS; personalised
  * («Καλώς ήρθες πάλι, Μαρία») when a session exists.
  */

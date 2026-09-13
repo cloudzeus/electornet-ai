@@ -27,7 +27,7 @@ export const ROLES: { key: string; name: string; description: string; system?: b
   {
     key: "marketer",
     name: "Marketer",
-    description: "Καμπάνιες, ζώνες αρχικής, stickers/promo, newsletter, ο Άρης, ραντάρ.",
+    description: "Καμπάνιες, ζώνες αρχικής, stickers/promo, newsletter, ο Ερμής, ραντάρ.",
     permissions: ["cms.*", "marketing.*", "catalog.products.read", "catalog.promos.write", "reports.read"],
   },
   {

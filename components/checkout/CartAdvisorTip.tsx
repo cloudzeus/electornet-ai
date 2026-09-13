@@ -10,7 +10,7 @@ import { AskAris } from "@/components/advisor/AskAris";
 const HEAVY = new Set(["plyntiria", "psygeia", "stegnotiria", "koyzines", "air-condition", "plyntiria-piaton"]);
 
 /**
- * @dynamic Άρης in the cart: one useful sentence computed from the lines —
+ * @dynamic Ερμής in the cart: one useful sentence computed from the lines —
  * installation missing on a heavy appliance, free-shipping distance,
  * warranty extension — plus a question chip. Production: same rules from
  * the CMS upsell table (category → service), with the AI engine wording.

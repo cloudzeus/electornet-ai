@@ -44,7 +44,7 @@ Sections: Γενικά · Social προφίλ · Social login (Google/Microsoft/
 ## AI (OpenRouter, one key)
 Settings → «AI & υπηρεσίες»: a single **OpenRouter API key** serves every AI feature. `lib/ai/openrouter.ts` (`chat()`, OpenAI-compatible) + `lib/ai/tasks.ts`:
 - **Δρομολόγηση**: «Αυτόματη» → `openrouter/auto` picks the model per prompt (task models + «Fallback μοντέλα» are sent as `models[]` fallbacks); «Ανά εργασία» → main / fast / vision model per task. Image prompts always start on the vision model. «Προτίμηση παρόχου» → `provider.sort` (price / throughput / latency).
-- Features: Άρης advisor (`/api/advisor`: rules pick candidates, the LLM writes the answer + per-product «why», same JSON; silent fallback), alt text / title / tags for media («Alt με AI» in the drawer, vision), product copy (`productCopy`), test call from the settings page.
+- Features: Ερμής advisor (`/api/advisor`: rules pick candidates, the LLM writes the answer + per-product «why», same JSON; silent fallback), alt text / title / tags for media («Alt με AI» in the drawer, vision), product copy (`productCopy`), test call from the settings page.
 - **Budget**: every call is logged in `AiUsage` (tokens, cost from OpenRouter); «Ημερήσιο όριο κόστους ($)» stops AI calls for the day (features fall back to rules). Dashboard tile «AI κόστος σήμερα».
 - Env fallback for the key: `OPENROUTER_API_KEY`.
 

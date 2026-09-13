@@ -1,6 +1,6 @@
 /** Standard phrases of the voice advisor. Pre-generated once («Προθέρμανση») and served from the audio cache for ever after. */
 export const PRESET_PHRASES: { key: string; text: string; group: "greeting" | "wait" | "confirm" | "error" | "bye" }[] = [
-  { key: "welcome", group: "greeting", text: "Καλώς ήρθες στη Euronics! Είμαι ο Άρης. Πώς μπορώ να βοηθήσω;" },
+  { key: "welcome", group: "greeting", text: "Καλώς ήρθες στη Euronics! Είμαι ο Ερμής. Πώς μπορώ να βοηθήσω;" },
   { key: "welcome-back", group: "greeting", text: "Καλώς ήρθες ξανά! Τι ψάχνουμε σήμερα;" },
   { key: "listening", group: "wait", text: "Σε ακούω." },
   { key: "thinking", group: "wait", text: "Μια στιγμή, το κοιτάζω." },

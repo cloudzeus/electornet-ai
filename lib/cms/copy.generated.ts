@@ -270,7 +270,7 @@ export const generatedCopy = {
     "kleisimo_menoy": "Κλείσιμο μενού"
   },
   "snap": {
-    "snap_find_me_ton": "Snap & Find · με τον Άρη",
+    "snap_find_me_ton": "Snap & Find · με τον Ερμή",
     "fotografise_tin_palia_soy": "Φωτογράφισε την παλιά σου συσκευή",
     "tin_pinakida_me_to": "Την πινακίδα με το μοντέλο, μέσα στην πόρτα ή πίσω. Διαβάζουμε τον κωδικό στη συσκευή σου, δεν ανεβαίνει πουθενά.",
     "anoixe_tin_kamera_i": "Άνοιξε την κάμερα ή διάλεξε φωτογραφία",
@@ -300,7 +300,7 @@ export const generatedCopy = {
   "answers": {
     "grigores_apantiseis": "Γρήγορες απαντήσεις",
     "o_ti_tha_rotoyses": "Ό,τι θα ρωτούσες στο κατάστημα",
-    "rota_ton_ari": "Ρώτα τον Άρη:",
+    "rota_ton_ari": "Ρώτα τον Ερμή:",
     "seo_aeo_geo_gia": "SEO · AEO · GEO για αυτό το προϊόν",
     "ti_ekpempei_i_selida": "— τι εκπέμπει η σελίδα σε μηχανές αναζήτησης, answer engines και AI"
   },

@@ -45,7 +45,7 @@ export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete,
     });
   const aiDescribe = () =>
     start(async () => {
-      setMsg("Ο Άρης περιγράφει την εικόνα…");
+      setMsg("Ο Ερμής περιγράφει την εικόνα…");
       const r = await aiDescribeAsset(a.id, true);
       if (r.ok) { onChange(r.asset); setForm((f) => ({ ...f, alt: r.asset.alt ?? "", title: r.asset.title ?? "", tags: r.asset.tags.join(", ") })); setMsg("Alt, τίτλος και tags συμπληρώθηκαν με AI — έλεγξε και αποθήκευσε."); } else setMsg(r.error);
     });

@@ -5,7 +5,7 @@ import { markupFor, billed } from "./pricing";
 import { usdEurRate } from "@/lib/fx";
 
 /**
- * One OpenRouter key for every AI feature (Άρης advisor, alt text, copy,
+ * One OpenRouter key for every AI feature (Ερμής advisor, alt text, copy,
  * agent steps). OpenAI-compatible chat completions with usage accounting
  * (cost from OpenRouter) and a daily budget guard from Settings → AI.
  */

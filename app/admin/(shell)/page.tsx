@@ -16,7 +16,7 @@ export default async function AdminHome() {
   const tiles = [
     { l: "Παραγγελίες σήμερα", v: orders.filter((o) => o.status !== "cancelled").length, perm: "orders.read", h: "/admin/orders" },
     { l: "Σε εξέλιξη", v: orders.filter((o) => ["paid", "processing", "shipped"].includes(o.status)).length, perm: "orders.read", h: "/admin/orders" },
-    { l: "Συνομιλίες Άρη (7 ημ.)", v: radar.sessions, perm: "marketing.radar.read", h: "/admin/radar" },
+    { l: "Συνομιλίες Ερμή (7 ημ.)", v: radar.sessions, perm: "marketing.radar.read", h: "/admin/radar" },
     { l: "Ζητήθηκαν & λείπουν", v: radar.missing.length, perm: "marketing.radar.read", h: "/admin/radar" },
     { l: "AI κόστος σήμερα (€)", v: Number(aiCost.toFixed(2)), perm: "reports.read", h: "/admin/reports/ai" },
     { l: "Χρήστες", v: staffCount, perm: "staff.read", h: "/admin/staff" },

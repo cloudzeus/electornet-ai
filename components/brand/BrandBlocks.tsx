@@ -169,7 +169,7 @@ export function Tech({ b }: { b: Extract<BrandBlock, { type: "tech" }> }) {
   );
 }
 
-/** Support: warranty/service facts and «Ρώτα τον Άρη» chips for this brand. */
+/** Support: warranty/service facts and «Ρώτα τον Ερμή» chips for this brand. */
 export function Support({ b, brand }: { b: Extract<BrandBlock, { type: "support" }>; brand: string }) {
   return (
     <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label={c.ypostirixi}>
@@ -186,7 +186,7 @@ export function Support({ b, brand }: { b: Extract<BrandBlock, { type: "support"
         </div>
         {b.askAris && b.askAris.length > 0 && (
           <div>
-            <div className="text-[var(--bs-muted)] font-semibold text-[length:var(--fs-14)] mb-2">Ρώτα τον Άρη για {brand}:</div>
+            <div className="text-[var(--bs-muted)] font-semibold text-[length:var(--fs-14)] mb-2">Ρώτα τον Ερμή για {brand}:</div>
             <div className="flex flex-wrap gap-1.5">
               {b.askAris.map((q) => (
                 <AskAris key={q} q={q} tone="light" />

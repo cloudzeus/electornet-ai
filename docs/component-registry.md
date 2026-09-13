@@ -2,7 +2,7 @@
 
 Παράγεται από `scripts` σάρωση + σχολιασμό (12/9/2026). Ενημέρωση 12/9 (v4.7): τα κείμενα UI βγήκαν στο `lib/cms/copy.generated.ts` (77 namespaces, 477 κλειδιά) μέσω `scripts/extract-copy.py`· κάθε component διαβάζει `copyOf("<namespace>")`. Στήλες: **Ρόλος**, **Props** (όπως δηλώνονται), **Συνδέσεις** (repo/API/settings), **Πεδία CMS** (τι επεξεργάζεται ο διαχειριστής), **Κίνηση** (αν χρησιμοποιεί τα motion primitives → ρυθμίζεται από `settings.motion`), **Κατάσταση**: ✅ παραμετροποιημένο/δυναμικό, 🔶 παίρνει props αλλά έχει σκληρά κείμενα, ⬜ στατικό UI.
 
-Οι κεντρικές ρυθμίσεις (`lib/cms/settings.ts`): `site` (facts, επικοινωνία, όρια εμπορίου, ζώνη όρων), `motion` (durations/easings/stagger/autoplay/on-off), `advisor` (Άρης: όνομα, avatar, κείμενα, ερωτήσεις ανά context, exit-intent, cart tips), `stickers` (labels, όρια). Τα brand stores στο `docs/brand-store-schema.md`, οι ζώνες αρχικής στο `lib/cms/home.layout.ts`.
+Οι κεντρικές ρυθμίσεις (`lib/cms/settings.ts`): `site` (facts, επικοινωνία, όρια εμπορίου, ζώνη όρων), `motion` (durations/easings/stagger/autoplay/on-off), `advisor` (Ερμής: όνομα, avatar, κείμενα, ερωτήσεις ανά context, exit-intent, cart tips), `stickers` (labels, όρια). Τα brand stores στο `docs/brand-store-schema.md`, οι ζώνες αρχικής στο `lib/cms/home.layout.ts`.
 
 | Component | Ρόλος | Props | Συνδέσεις | Πεδία CMS | Κίνηση | Κατάσταση |
 |---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | `account/ServiceRequest.tsx` | Δήλωση βλάβης | — | SRVJOB | λεκτικά, slots | — | ✅ |
 | `advisor/AdvisorContext.tsx` | AdvisorProvider, useAdvisor | — | — | — | — | ⬜ |
 | `advisor/AdvisorGreeting.tsx` | Καλωσόρισμα | — | settings.advisor.greeting | κείμενα, χρόνοι | — | ✅ |
-| `advisor/AdvisorOrb.tsx` | Ο Άρης (orb + πάνελ) | — | /api/advisor · settings.advisor · MySpace | όνομα, avatar, κείμενα, ερωτήσεις | settings.motion | ✅ |
+| `advisor/AdvisorOrb.tsx` | Ο Ερμής (orb + πάνελ) | — | /api/advisor · settings.advisor · MySpace | όνομα, avatar, κείμενα, ερωτήσεις | settings.motion | ✅ |
 | `advisor/AskAris.tsx` | Chip ερώτησης | AskAris(q, tone) | event eu:ask | — | — | ⬜ |
 | `advisor/StoreHandoff.tsx` | Παράδοση σε κατάστημα | StoreHandoff(summary, onClose) | nearest store · SoftOne lead | λεκτικά | — | ✅ |
 | `ar/ArButton.tsx` | AR | ArButton(id, title, dims, className) | /models/{id}.glb|usdz | λεκτικά | — | ✅ |
@@ -35,7 +35,7 @@
 | `catalog/SortBar.tsx` | SortBar | SortBar(total, page) | — | — | — | ✅ |
 | `catalog/WishlistGrid.tsx` | WishlistGrid | — | — | — | — | ✅ |
 | `checkout/BrandMarks.tsx` | AppleMark, GoogleMark | AppleMark(className); GoogleMark(className); MicrosoftMark(className); FacebookMark(className); RevolutMark(className); FaceIdMark(className) | — | — | — | ⬜ |
-| `checkout/CartAdvisorTip.tsx` | Ο Άρης στο καλάθι | CartAdvisorTip(lines, subtotal) | settings.advisor.cartTips · upsell rules | κείμενα, κανόνες | — | ✅ |
+| `checkout/CartAdvisorTip.tsx` | Ο Ερμής στο καλάθι | CartAdvisorTip(lines, subtotal) | settings.advisor.cartTips · upsell rules | κείμενα, κανόνες | — | ✅ |
 | `checkout/CartView.tsx` | Σελίδα καλαθιού | CartView(services) | CartProvider · services · crossSell | λεκτικά, trust strip | — | ✅ |
 | `checkout/Checkout.tsx` | Checkout 3 βημάτων | — | CartProvider · stores · PSP · Auth.js | λεκτικά, τρόποι παράδοσης/πληρωμής, όρια (settings.site.commerce) | — | ✅ |
 | `checkout/OrderSuccess.tsx` | Επιτυχία παραγγελίας | — | lastOrder · settings.advisor.thankYou | λεκτικά | — | ✅ |

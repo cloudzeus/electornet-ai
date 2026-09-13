@@ -22,7 +22,7 @@
 | `offers` | `productIds[]`, `endsAt` | rail με τις κάρτες Euronics (stickers, fit, quick buy) + πραγματική λήξη |
 | `story` | `image, body, cta?, align?` | editorial split |
 | `tech` | `items[{ icon, title, blurb }]` | πλακίδια τεχνολογίας (icons: cpu, eye, zap, wifi, shield, sparkles, leaf, camera) |
-| `support` | `facts[]`, `askAris[]?` | εγγύηση/service + chips «Ρώτα τον Άρη» |
+| `support` | `facts[]`, `askAris[]?` | εγγύηση/service + chips «Ρώτα τον Ερμή» |
 | `video` | `src, poster, caption?` | muted loop |
 
 Κοινά σε κάθε block: `id`, `enabled?`, `schedule?{from,to}`, `kicker?`, `title?`.
@@ -32,6 +32,6 @@
 - Προϊόντα **μόνο με id**· ο renderer τα διαβάζει από τον κατάλογο σε μία κλήση (τιμές, stickers, απόθεμα πάντα live).
 - Εικόνες = URLs από το DAM. Cutouts βρίσκονται αυτόματα από το manifest.
 - `validateBrandStore()` ελέγχει τη δομή (χρώματα hex, γνωστοί τύποι, πίνακες)· άγνωστο block παραλείπεται με warning, δεν σπάει η σελίδα.
-- Το Euronics chrome (header, footer, Άρης) μένει σε χρώματα Euronics· το θέμα της μάρκας ισχύει μόνο μέσα στο `BrandFrame`.
+- Το Euronics chrome (header, footer, Ερμής) μένει σε χρώματα Euronics· το θέμα της μάρκας ισχύει μόνο μέσα στο `BrandFrame`.
 - Η λίστα με φίλτρα παραμένει στο `?all=1`.
 - Νέος τύπος block = μία γραμμή στο union + ένα component + μία γραμμή στο registry.

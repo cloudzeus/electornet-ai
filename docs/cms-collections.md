@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | **Settings › Site** | facts, επικοινωνία, όρια εμπορίου (δωρεάν μεταφορικά, επιστροφή, δόσεις, αντικαταβολή, kWh), ζώνη όρων, social | `SiteSettings` (`lib/cms/settings.ts`) | header, footer, announcement, ServicesBand, EnergyCost, CartProvider, Checkout | ISR 300s |
 | **Settings › Motion** | durations, easings, stagger, autoplay, on/off ανά κίνηση | `MotionSettings` | Reveal, AutoReveal, Tilt, CountUp, CinematicHero, CampaignSpotlight, ServicesTile, flyToCart | ISR 300s |
-| **Settings › Advisor (Άρης)** | όνομα, avatar, κείμενα, ερωτήσεις ανά context, exit-intent, cart tips, greeting, thank-you, 404 | `AdvisorSettings` | AdvisorOrb, AdvisorGreeting, SearchBox, CategoryOpener, Answers, ExitIntent, CartAdvisorTip, OrderSuccess, not-found | ISR 300s |
+| **Settings › Advisor (Ερμής)** | όνομα, avatar, κείμενα, ερωτήσεις ανά context, exit-intent, cart tips, greeting, thank-you, 404 | `AdvisorSettings` | AdvisorOrb, AdvisorGreeting, SearchBox, CategoryOpener, Answers, ExitIntent, CartAdvisorTip, OrderSuccess, not-found | ISR 300s |
 | **Settings › Stickers** | labels, όρια «Τελευταία N», «Λήγει σε N» | `StickerSettings` | Stickers.tsx | ISR 300s |
 | **Copy** | κάθε label UI ανά namespace/key, πολυγλωσσικό | `lib/cms/copy.generated.ts` (77 namespaces, 477 keys) | `copyOf(ns)` σε 77 components | ISR 300s |
 | **Home zones** | 13 ζώνες: widget type, props, query, schedule, A/B, ορατότητα ανά συσκευή | `Zone`/`WidgetInstance` (`lib/cms/zones.ts`, `home.layout.ts`) | `renderZones()` | ISR 60s |

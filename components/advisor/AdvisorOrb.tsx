@@ -95,7 +95,7 @@ export function AdvisorOrb() {
     try { if (msgs.length) sessionStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-40))); } catch {}
   }, [msgs]);
 
-  // «Ρώτα τον Άρη» chips anywhere on the site open the panel with the question.
+  // «Ρώτα τον Ερμή» chips anywhere on the site open the panel with the question.
   // The search box can also hand over a question it has ALREADY answered
   // ({ q, answer }): it is appended as history, not asked again.
   useEffect(() => {
@@ -334,7 +334,7 @@ export function AdvisorOrb() {
                   onClick={() => { const v = !voice.speakOn; voice.setSpeakOn(v); setMsgs((m) => [...m, { role: "advisor", text: v ? "Η φωνή άνοιξε: θα σου απαντώ και φωναχτά." : "Η φωνή έκλεισε: θα σου απαντώ μόνο γραπτά." }]); if (v) setTimeout(() => sayRef.current("", "listening"), 50); }}
                   aria-pressed={voice.speakOn}
                   aria-label={voice.speakOn ? "Απενεργοποίηση φωνής" : "Ενεργοποίηση φωνής"}
-                  title={voice.speakOn ? "Ο Άρης μιλάει" : "Ο Άρης γράφει μόνο"}
+                  title={voice.speakOn ? "Ο Ερμής μιλάει" : "Ο Ερμής γράφει μόνο"}
                   className={`relative size-11 rounded-full inline-flex items-center justify-center shrink-0 ${voice.speakOn ? "bg-eu-yellow text-eu-navy" : "bg-white/10 hover:bg-white/20"}`}
                 >
                   {voice.speakOn ? <Volume2 className={`size-5 ${voice.speaking ? "animate-pulse" : ""}`} aria-hidden /> : <VolumeX className="size-5" aria-hidden />}
@@ -476,7 +476,7 @@ export function AdvisorOrb() {
                   onClick={onMic}
                   disabled={voice.transcribing}
                   aria-pressed={voice.listening}
-                  aria-label={voice.listening ? "Σταμάτημα ηχογράφησης" : "Μίλησε στον Άρη"}
+                  aria-label={voice.listening ? "Σταμάτημα ηχογράφησης" : "Μίλησε στον Ερμή"}
                   className={`size-12 rounded-full inline-flex items-center justify-center shrink-0 border-2 transition-colors ${voice.listening ? "bg-eu-red border-eu-red text-white animate-pulse" : "border-eu-navy text-eu-navy hover:bg-eu-chip"} disabled:opacity-60`}
                 >
                   {voice.transcribing ? <Loader2 className="size-5 animate-spin" aria-hidden /> : voice.listening ? <Square className="size-4" aria-hidden /> : <Mic className="size-5" aria-hidden />}

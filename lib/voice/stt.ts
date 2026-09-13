@@ -16,7 +16,7 @@ export async function transcribe(bytes: Buffer, mime: string, filename = "speech
   fd.append("file", new Blob([new Uint8Array(bytes)], { type: mime }), filename);
   fd.append("model", cfg.sttModel);
   fd.append("language", "el");
-  fd.append("prompt", "Euronics, Άρης, πλυντήριο, ψυγείο, τηλεόραση, κλιματιστικό, δόσεις, κατάστημα.");
+  fd.append("prompt", "Euronics, Ερμής, πλυντήριο, ψυγείο, τηλεόραση, κλιματιστικό, δόσεις, κατάστημα.");
   const res = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${ai.apiKey}` }, body: fd, signal: AbortSignal.timeout(30000) }).catch(() => null);
   const j = res ? ((await res.json().catch(() => null)) as { text?: string; usage?: { seconds?: number; cost?: number }; error?: { message?: string } } | null) : null;
   const ms = Date.now() - t0;

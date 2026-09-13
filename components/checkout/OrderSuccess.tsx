@@ -58,7 +58,7 @@ export function OrderSuccess({ number }: { number: string }) {
                 </p>
               </div>
             </div>
-            {/* Άρης: a quiet thank-you, no confetti */}
+            {/* Ερμής: a quiet thank-you, no confetti */}
             <div className="flex items-center gap-3 rounded-xl bg-white/70 border border-eu-green/20 px-4 py-3 text-[length:var(--fs-15)] text-eu-ink-2">
               <span className="relative size-10 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/50">
                 <Image src={advisor.avatarHead} alt="" fill sizes="40px" className="object-cover scale-[1.15] translate-y-[6%]" />
