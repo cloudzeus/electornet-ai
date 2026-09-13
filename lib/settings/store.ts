@@ -31,7 +31,11 @@ export async function saveSetting(section: string, values: SettingValues, secret
     else if (v) secrets[f.key] = v;
   }
   const data: SettingValues = {};
-  for (const f of def.fields) if (!isSecret(f) && values[f.key] !== undefined) data[f.key] = values[f.key];
+  for (const f of def.fields) {
+    if (f.type === "softone-objs") {
+      for (const k of ["company", "branch", "module", "refid"]) if (values[k] !== undefined) data[k] = values[k];
+    } else if (!isSecret(f) && values[f.key] !== undefined) data[f.key] = values[f.key];
+  }
   await db.setting.upsert({
     where: { section },
     update: { data, secrets: encryptJson(secrets), updatedById },

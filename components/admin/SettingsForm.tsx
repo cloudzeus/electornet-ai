@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Eye, EyeOff, PlugZap, Check, TriangleAlert } from "lucide-react";
 import type { Section, Field } from "@/lib/settings/schema";
 import { saveSection, testSection, type ActionResult } from "@/app/admin/(shell)/settings/actions";
+import { SoftoneObjsPicker } from "./SoftoneObjsPicker";
 
 /**
  * Renders one settings section from its schema. Secrets are never sent back
@@ -41,9 +42,17 @@ export function SettingsForm({ section, data, secretSet }: { section: Section; d
         </div>
       )}
       <div className="p-5 @md:p-6 grid grid-cols-1 @2xl:grid-cols-2 gap-x-5 gap-y-4">
-        {section.fields.map((f) => (
-          <FieldInput key={f.key} field={f} value={data[f.key]} stored={!!secretSet[f.key]} />
-        ))}
+        {section.fields.map((f) =>
+          f.type === "softone-objs" ? (
+            <div key={f.key} className="@2xl:col-span-2 grid gap-1">
+              <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{f.label}</span>
+              <SoftoneObjsPicker stored={{ company: String(data.company ?? ""), branch: String(data.branch ?? ""), module: String(data.module ?? ""), refid: String(data.refid ?? "") }} />
+              {f.help && <span className="text-eu-muted text-[length:var(--fs-13)]">{f.help}</span>}
+            </div>
+          ) : (
+            <FieldInput key={f.key} field={f} value={data[f.key]} stored={!!secretSet[f.key]} />
+          ),
+        )}
       </div>
       <div className="px-5 @md:px-6 py-4 border-t border-eu-line bg-eu-surface/60 flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-6 min-h-11 hover:bg-eu-blue disabled:opacity-50">

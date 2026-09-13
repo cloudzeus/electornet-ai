@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T09:17:54.583Z",
+  "timestamp": "2026-09-13T09:34:37.385Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,18 +18,6 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": ".planning/HANDOFF.json"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/settings/[section]/page.tsx"
-    },
-    {
-      "status": "M",
       "path": "app/admin/(shell)/settings/actions.ts"
     },
     {
@@ -38,37 +26,25 @@
     },
     {
       "status": "M",
-      "path": "components/admin/nav.ts"
+      "path": "components/admin/SettingsForm.tsx"
     },
     {
       "status": "M",
-      "path": "lib/ai/openrouter.ts"
+      "path": "lib/settings/schema.ts"
     },
     {
       "status": "M",
-      "path": "prisma/schema.prisma"
+      "path": "lib/settings/store.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/softone.ts"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/reports/"
-    },
-    {
-      "status": "??",
-      "path": "components/admin/AiMarkupPanel.tsx"
-    },
-    {
-      "status": "??",
-      "path": "components/admin/charts/"
-    },
-    {
-      "status": "??",
-      "path": "lib/ai/pricing.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/fx.ts"
+      "path": "components/admin/SoftoneObjsPicker.tsx"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nd73bc06 AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers with rule fallback, AI alt text for media, product copy task, dashboard cost tile\n51ecdce SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, SVG & PNG export, export to media library; storefront custom sticker slot on ProductCard\n9020b2b Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal point, background removal (rembg/remove.bg), bulk actions, picker + MediaField for CMS forms; Bunny or local storage\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin"
+  "context_notes": "Recent commits:\n2e479cd AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-model ranking, daily table), reports index, dashboard billed € tile\nd73bc06 AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers with rule fallback, AI alt text for media, product copy task, dashboard cost tile\n51ecdce SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, SVG & PNG export, export to media library; storefront custom sticker slot on ProductCard\n9020b2b Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal point, background removal (rembg/remove.bg), bulk actions, picker + MediaField for CMS forms; Bunny or local storage\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings"
 }

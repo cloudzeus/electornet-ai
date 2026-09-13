@@ -4,7 +4,7 @@
  * driven by this file — add a field here and it appears in /admin/settings.
  * Only the super-admin can open these pages (integrations, keys, secrets).
  */
-export type FieldType = "text" | "url" | "email" | "number" | "secret" | "toggle" | "select" | "textarea";
+export type FieldType = "text" | "url" | "email" | "number" | "secret" | "toggle" | "select" | "textarea" | "softone-objs";
 
 export interface Field {
   key: string;
@@ -109,14 +109,11 @@ export const SECTIONS: Section[] = [
     test: "softone",
     fields: [
       yesNo("enabled", "Ενεργός συγχρονισμός"),
-      { key: "serial", label: "Serial (subdomain oncloud.gr)", type: "text", required: true, placeholder: "123456", help: "https://{serial}.oncloud.gr/s1services", width: "half" },
+      { key: "url", label: "URL web services", type: "text", required: true, placeholder: "https://123456.oncloud.gr/s1services", help: "Ή μόνο το serial (123456) για oncloud.", width: "half" },
       { key: "appId", label: "App ID", type: "text", required: true, width: "half" },
       { key: "username", label: "Username", type: "text", required: true, width: "half" },
       { key: "password", label: "Password", type: "secret", required: true, width: "half" },
-      { key: "company", label: "Company", type: "text", required: true, placeholder: "1000", width: "half" },
-      { key: "branch", label: "Branch", type: "text", required: true, placeholder: "1000", width: "half" },
-      { key: "module", label: "Module", type: "text", required: true, placeholder: "0", width: "half" },
-      { key: "refid", label: "RefID (user)", type: "text", required: true, width: "half" },
+      { key: "objs", label: "Εταιρεία · Υποκατάστημα · Module · Χρήστης", type: "softone-objs", help: "Με τα τέσσερα παραπάνω, το πρώτο login φέρνει τις διαθέσιμες επιλογές από το SoftOne." },
       { key: "syncMinutes", label: "Συχνότητα συγχρονισμού (λεπτά)", type: "number", placeholder: "15", width: "half" },
       { key: "priceList", label: "Τιμοκατάλογος web", type: "text", placeholder: "π.χ. 1", width: "half" },
       { key: "webFilter", label: "Φίλτρο ειδών web (SQL filter)", type: "textarea", placeholder: "ITEM.WEBACTIVE=1" },

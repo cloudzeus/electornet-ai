@@ -7,7 +7,7 @@ import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { sectionByKey, isSecret } from "@/lib/settings/schema";
 import { saveSetting, getSetting } from "@/lib/settings/store";
-import { testSoftone, type S1Config } from "@/lib/softone";
+import { testSoftone, s1Login, type S1Config } from "@/lib/softone";
 
 export type ActionResult = { ok: boolean; message: string; details?: Record<string, string | number | null> };
 
@@ -24,6 +24,10 @@ export async function saveSection(section: string, fd: FormData): Promise<Action
       const v = String(raw ?? "");
       if (fd.get(`${f.key}__clear`) === "on") secrets[f.key] = "__clear__";
       else if (v) secrets[f.key] = v;
+      continue;
+    }
+    if (f.type === "softone-objs") {
+      for (const k of ["company", "branch", "module", "refid"]) values[k] = String(fd.get(k) ?? "").trim();
       continue;
     }
     if (f.type === "toggle") values[f.key] = raw === "on";
@@ -50,8 +54,8 @@ export async function testSection(section: string, fd: FormData): Promise<Action
   const sec = (k: string) => String(fd.get(k) || stored.secrets[k] || "");
   try {
     if (def.test === "softone") {
-      const c: S1Config = { serial: val("serial"), appId: val("appId"), username: val("username"), password: sec("password"), company: val("company"), branch: val("branch"), module: val("module") || "0", refid: val("refid") };
-      if (!c.serial || !c.username || !c.password || !c.appId) return { ok: false, message: "Συμπλήρωσε serial, App ID, username και password." };
+      const c: S1Config = { url: val("url") || val("serial"), appId: val("appId"), username: val("username"), password: sec("password"), company: val("company"), branch: val("branch"), module: val("module") || "0", refid: val("refid") };
+      if (!c.url || !c.username || !c.password || !c.appId) return { ok: false, message: "Συμπλήρωσε URL, App ID, username και password." };
       const r = await testSoftone(c);
       await audit(user.id, "settings.test", "Setting", section, null, { ok: true, ms: r.ms });
       return { ok: true, message: `Συνδέθηκε στο SoftOne σε ${r.ms} ms.`, details: { Εταιρεία: r.company, Υποκατάστημα: r.branch, Χρήστης: r.user, Έκδοση: r.version, Serial: r.serial } };
@@ -148,4 +152,24 @@ export async function saveMarkup(rows: { model: string; markupPct: number | null
   await audit(user.id, "ai.markup.update", "AiModelPricing", "*", Object.fromEntries(before.map((b) => [b.model, b.markupPct])), Object.fromEntries(rows.filter((r) => r.markupPct !== null).map((r) => [r.model, r.markupPct])));
   revalidatePath("/admin/settings/ai-markup");
   return { ok: true, message: "Το markup αποθηκεύτηκε. Ισχύει για τις επόμενες κλήσεις." };
+}
+
+/** SoftOne step 1 (login) with the values in the form: returns the company / branch / module / refid combinations the user may pick. */
+export async function softoneObjects(fd: FormData): Promise<{ ok: true; objs: { company: string; companyName: string; branch: string; branchName: string; module: string; moduleName: string; refid: string; refidName: string }[]; version: string | null } | { ok: false; error: string }> {
+  await requireSuperAdmin();
+  const stored = await getSetting("softone");
+  const val = (k: string) => String(fd.get(k) ?? stored.data[k] ?? "");
+  const password = String(fd.get("password") || stored.secrets.password || "");
+  const url = val("url") || val("serial");
+  if (!url || !val("appId") || !val("username") || !password) return { ok: false, error: "Συμπλήρωσε URL, App ID, username και password." };
+  try {
+    const r = await s1Login({ url, appId: val("appId"), username: val("username"), password, company: "", branch: "", module: "", refid: "" });
+    return {
+      ok: true,
+      version: r.ver ?? null,
+      objs: (r.objs ?? []).map((o) => ({ company: String(o.COMPANY), companyName: o.COMPANYNAME ?? "", branch: String(o.BRANCH), branchName: o.BRANCHNAME ?? "", module: String(o.MODULE), moduleName: o.MODULENAME ?? "", refid: String(o.REFID), refidName: o.REFIDNAME ?? "" })),
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Αποτυχία login." };
+  }
 }

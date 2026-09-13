@@ -37,7 +37,7 @@ Sections: Γενικά · Social προφίλ · Social login (Google/Microsoft/
 - Storage: `Setting` row per section; `data` plain JSON, `secrets` AES-256-GCM (`SETTINGS_KEY` or `AUTH_SECRET`). Secrets never return to the browser (masked, «Αλλαγή / Διαγραφή»).
 - `getPublicSettings()` exposes only `public` fields to the storefront: footer socials, analytics IDs (`components/site/Analytics.tsx`, consent-gated), payment/shipping toggles.
 - «Δοκιμή σύνδεσης»: SoftOne (login → authenticate → getSystemParams), Bunny (storage list + pull zone), Anthropic (models), SMTP (socket).
-- `lib/softone.ts`: official services only, two-step auth, daily session cached in `Setting("softone.session")`, Windows-1253 decoding, re-auth on -100/-101.
+- `lib/softone.ts`: official services only, two-step auth, daily session cached in `Setting("softone.session")`, Windows-1253 decoding, re-auth on -100/-101. Settings need only **URL (or oncloud serial), App ID, username, password**; «Σύνδεση & ανάκτηση» runs step 1 (login) and offers company / branch / module / refid from the `objs` the ERP returns (`SoftoneObjsPicker`). Unset values default to the first combination at authenticate time.
 - `lib/media/cdn.ts`: `cdnUrl()`, `uploadToStorage()`, `purge()` driven by the Bunny section.
 - API keys: sha256 hash stored, plain key shown once, scopes, revoke/enable.
 

@@ -11,7 +11,8 @@ import { getSetting } from "@/lib/settings/store";
  * Credentials come from Settings → «SoftOne ERP» (encrypted), env vars as fallback.
  */
 export interface S1Config {
-  serial: string;
+  /** full s1services URL, or just the oncloud serial */
+  url: string;
   appId: string;
   username: string;
   password: string;
@@ -24,7 +25,7 @@ export interface S1Config {
 export async function getS1Config(): Promise<S1Config | null> {
   const { data, secrets } = await getSetting("softone");
   const cfg: S1Config = {
-    serial: String(data.serial ?? process.env.S1_SERIAL ?? ""),
+    url: String(data.url ?? data.serial ?? process.env.S1_URL ?? process.env.S1_SERIAL ?? ""),
     appId: String(data.appId ?? process.env.S1_APP_ID ?? ""),
     username: String(data.username ?? process.env.S1_USERNAME ?? ""),
     password: secrets.password ?? process.env.S1_PASSWORD ?? "",
@@ -33,10 +34,10 @@ export async function getS1Config(): Promise<S1Config | null> {
     module: String(data.module ?? process.env.S1_MODULE ?? "0"),
     refid: String(data.refid ?? process.env.S1_REFID ?? ""),
   };
-  return cfg.serial && cfg.appId && cfg.username && cfg.password ? cfg : null;
+  return cfg.url && cfg.appId && cfg.username && cfg.password ? cfg : null;
 }
 
-const baseUrl = (c: S1Config) => `https://${c.serial}.oncloud.gr/s1services`;
+const baseUrl = (c: S1Config) => (/^https?:\/\//.test(c.url) ? c.url.replace(/\/$/, "") : `https://${c.url}.oncloud.gr/s1services`);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function s1Fetch(c: S1Config, body: object): Promise<any> {
@@ -58,18 +59,29 @@ async function saveSession(serial: string, clientID: string | null) {
   await db.setting.upsert({ where: { section: SESSION_KEY }, update: { data }, create: { section: SESSION_KEY, data } });
 }
 
-/** Two-step auth. Returns the session clientID plus what the ERP told us about the login (for the test button). */
-export async function authenticate(c: S1Config) {
+export interface S1LoginObj { COMPANY: string; COMPANYNAME?: string; BRANCH: string; BRANCHNAME?: string; MODULE: string; MODULENAME?: string; REFID: string; REFIDNAME?: string }
+
+/** Step 1 only: login → temporary clientID + the company/branch/module/refid combinations available to this user. */
+export async function s1Login(c: S1Config): Promise<{ clientID: string; objs?: S1LoginObj[]; ver?: string; sn?: string }> {
   const login = await s1Fetch(c, { SERVICE: "Login", USERNAME: c.username, PASSWORD: c.password, APPID: c.appId, VERSION: "2" });
   if (!login.success) throw new Error(`S1 Login: ${login.error ?? "failed"}`);
-  const auth = await s1Fetch(c, { service: "authenticate", clientID: login.clientID, COMPANY: c.company, BRANCH: c.branch, MODULE: c.module, REFID: c.refid, VERSION: "2" });
+  return login;
+}
+
+/** Two-step auth. Returns the session clientID plus what the ERP told us about the login (for the test button).
+ *  Company / branch / module / refid default to the first combination the login offers when not configured. */
+export async function authenticate(c: S1Config) {
+  const login = await s1Login(c);
+  const first = login.objs?.[0];
+  const pick = { COMPANY: c.company || first?.COMPANY, BRANCH: c.branch || first?.BRANCH, MODULE: c.module || first?.MODULE || "0", REFID: c.refid || first?.REFID };
+  const auth = await s1Fetch(c, { service: "authenticate", clientID: login.clientID, ...pick, VERSION: "2" });
   if (!auth.success) throw new Error(`S1 Auth: ${auth.error ?? "failed"}`);
-  await saveSession(c.serial, auth.clientID);
-  return { clientID: auth.clientID as string, login: { objs: login.objs as { COMPANY: string; COMPANYNAME?: string; BRANCH: string; BRANCHNAME?: string; MODULE: string; REFID: string; REFIDNAME?: string }[] | undefined, ver: login.ver as string | undefined, sn: login.sn as string | undefined } };
+  await saveSession(c.url, auth.clientID);
+  return { clientID: auth.clientID as string, login: { objs: login.objs, ver: login.ver, sn: login.sn } };
 }
 
 async function getClientId(c: S1Config) {
-  return (await loadSession(c.serial)) ?? (await authenticate(c)).clientID;
+  return (await loadSession(c.url)) ?? (await authenticate(c)).clientID;
 }
 
 /** Call any official service with the cached session; re-auth once on -100/-101. */
@@ -80,7 +92,7 @@ export async function s1(service: string, params: Record<string, unknown> = {}):
   const clientID = await getClientId(c);
   const data = await s1Fetch(c, { service, clientID, appId: c.appId, VERSION: "2", ...params });
   if (!data.success && (data.errorcode === -101 || data.errorcode === -100)) {
-    await saveSession(c.serial, null);
+    await saveSession(c.url, null);
     const fresh = await authenticate(c);
     return s1Fetch(c, { service, clientID: fresh.clientID, appId: c.appId, VERSION: "2", ...params });
   }
@@ -99,7 +111,7 @@ export async function testSoftone(c: S1Config) {
     branch: obj?.BRANCHNAME ?? c.branch,
     user: obj?.REFIDNAME ?? c.refid,
     version: login.ver ?? null,
-    serial: login.sn ?? c.serial,
+    serial: login.sn ?? c.url,
     systemParams: params?.success ? Object.keys(params).length - 1 : null,
   };
 }

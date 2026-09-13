@@ -19,7 +19,7 @@ export default async function SettingsHome() {
     const data = (row?.data as Record<string, unknown>) ?? {};
     const secrets = decryptJson(row?.secrets);
     const total = def.fields.length;
-    const filled = def.fields.filter((f) => (isSecret(f) ? !!secrets[f.key] : data[f.key] !== undefined && data[f.key] !== "" && data[f.key] !== false)).length;
+    const filled = def.fields.filter((f) => (isSecret(f) ? !!secrets[f.key] : f.type === "softone-objs" ? !!data.company : data[f.key] !== undefined && data[f.key] !== "" && data[f.key] !== false)).length;
     const requiredMissing = def.fields.filter((f) => f.required && (isSecret(f) ? !secrets[f.key] : !data[f.key])).length;
     return { filled, total, requiredMissing, updatedAt: row?.updatedAt ?? null };
   };
