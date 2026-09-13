@@ -8,6 +8,7 @@ import { usdEurRate } from "@/lib/fx";
 import { getSetting } from "@/lib/settings/store";
 import { storeBytes, removeBytes, type Storage } from "@/lib/media/storage";
 import { PRESET_PHRASES } from "./phrases";
+import { spokenForm } from "./spoken";
 
 const SAMPLE_RATE = 24000; // pcm16 mono from the audio models
 const today = () => new Date().toISOString().slice(0, 10);
@@ -19,7 +20,7 @@ export async function getVoiceConfig(): Promise<VoiceConfig> {
 }
 
 /** Same phrase, same audio: collapse whitespace, strip markdown-ish noise, keep case (it matters for spelling). */
-export const normaliseText = (t: string) => t.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
+export const normaliseText = (t: string) => spokenForm(t.replace(/[*_`#]/g, ""));
 export const DEFAULT_STYLE = "Πολύ γρήγορος ρυθμός ομιλίας, σαν ενθουσιώδης νέος πωλητής που βιάζεται· χαρούμενος τόνος με χαμόγελο, ενέργεια, καθόλου παύσεις.";
 export const phraseHash = (model: string, voice: string, style: string, text: string) => createHash("sha256").update(`${model}|${voice}|${style}|${normaliseText(text)}`).digest("hex");
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { spokenForm } from "./spoken";
 
 const KEY = "eu-aris-voice";
 // One config probe per page load, shared by every hook instance (search boxes, orb).
@@ -68,7 +69,7 @@ export function useVoice() {
 
   /** Split an answer into sentence-sized parts: each is cached on its own and the first one starts playing while the rest are still being fetched. */
   const parts = (text: string) => {
-    const raw = text.replace(/\s+/g, " ").trim().split(/(?<=[.!;?…])\s+(?=\S)/);
+    const raw = spokenForm(text).split(/(?<=[.!;?…])\s+(?=\S)/);
     const out: string[] = [];
     for (const r of raw) { if (out.length && (out[out.length - 1].length < 30 || r.length < 20)) out[out.length - 1] += " " + r; else out.push(r); }
     return out.slice(0, 8);
