@@ -360,6 +360,11 @@ model Address {
   notes       String? // access, elevator, appointment hints
   lat         Float?
   lng         Float?
+  geoSource   String? // nominatim | manual | client (GPS at checkout)
+  geoLabel    String?
+  geocodedAt  DateTime?
+  nearestStoreId String?
+  nearestKm   Float?
   isDefault   Boolean  @default(false)
   isBilling   Boolean  @default(false)
   erpBranch   Int? // CUSBRANCH.LINENUM
@@ -367,6 +372,8 @@ model Address {
   updatedAt   DateTime @updatedAt
 
   @@index([customerId])
+  @@index([region])
+  @@index([nearestStoreId])
 }
 
 model SavedCard {

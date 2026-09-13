@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin } from "lucide-react";
-import { sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
+import { regeocodeAddress, sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -125,6 +125,7 @@ function AddressesTab({ c, canWrite, run, pending }: { c: Any; canWrite: boolean
             <div className="flex items-center gap-2 font-bold text-eu-ink">{a.label ?? "Διεύθυνση"}{a.isDefault && <span className="rounded-full bg-eu-navy text-white px-2 text-[length:var(--fs-13)]">προεπιλογή</span>}{a.isBilling && <span className="rounded-full bg-eu-yellow/50 text-eu-navy px-2 text-[length:var(--fs-13)]">τιμολόγηση</span>}{a.erpBranch != null && <span className="text-eu-muted text-[length:var(--fs-13)]">CUSBRANCH #{a.erpBranch}</span>}</div>
             <div className="text-eu-ink-2">{a.recipient && <div>{a.recipient}</div>}{a.street} {a.number}{a.floor ? `, ${a.floor}` : ""}{a.doorbell ? ` (κουδούνι ${a.doorbell})` : ""}<br />{a.zip} {a.city}, {a.region}{a.phone ? ` · ${a.phone}` : ""}</div>
             {a.notes && <div className="text-eu-muted text-[length:var(--fs-13)] mt-1">{a.notes}</div>}
+            <div className="mt-1 text-[length:var(--fs-13)]">{a.lat ? <span className="text-eu-green font-bold">📍 {a.lat.toFixed(5)}, {a.lng.toFixed(5)}{a.nearestKm != null ? ` · κοντινότερο κατάστημα ${a.nearestKm} km` : ""} <span className="text-eu-muted font-normal">({a.geoSource ?? "—"})</span></span> : <span className="text-eu-muted">χωρίς συντεταγμένες</span>}{canWrite && <button type="button" disabled={pending} onClick={() => run(() => regeocodeAddress(c.id, a.id), "Οι συντεταγμένες ενημερώθηκαν.")} className="ml-2 font-bold text-eu-blue hover:underline">γεωκωδικοποίηση</button>}</div>
             {canWrite && <div className="flex gap-2 mt-2"><button type="button" onClick={() => setEdit({ id: a.id, a: { label: a.label ?? "", kind: a.kind, recipient: a.recipient ?? "", street: a.street, number: a.number ?? "", floor: a.floor ?? "", doorbell: a.doorbell ?? "", city: a.city, zip: a.zip, region: a.region, phone: a.phone ?? "", notes: a.notes ?? "", isDefault: a.isDefault, isBilling: a.isBilling } })} className={btn2}>Επεξεργασία</button><button type="button" disabled={pending} onClick={() => confirm("Διαγραφή διεύθυνσης;") && run(() => deleteAddress(c.id, a.id), "Διαγράφηκε.")} className={`${btn2} text-eu-red border-eu-red/30`}><Trash2 className="size-4" aria-hidden /></button></div>}
           </li>
         ))}

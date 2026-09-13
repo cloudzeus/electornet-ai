@@ -6,12 +6,13 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { pushCustomerToErp, pullCustomerFromErp, searchErpCustomers, linkCustomerToErp } from "@/lib/softone/customers";
 import { requestPasswordReset } from "@/lib/account/password-reset";
+import { geocodeCustomerAddress } from "@/lib/customers/geocode-address";
 
 export interface CustomerInput {
   type: "individual" | "business"; email: string; firstName: string; lastName: string; company: string; vatNumber: string; doy: string; profession: string;
   phone: string; mobile: string; birthday: string; gender: string; status: "active" | "blocked"; newsletter: boolean; tags: string[]; preferredStoreId: string; loyaltyTier: string; loyaltyCard: string; notes: string;
 }
-export interface AddressInput { label: string; kind: string; recipient: string; street: string; number: string; floor: string; doorbell: string; city: string; zip: string; region: string; phone: string; notes: string; isDefault: boolean; isBilling: boolean }
+export interface AddressInput { label: string; kind: string; recipient: string; street: string; number: string; floor: string; doorbell: string; city: string; zip: string; region: string; phone: string; notes: string; isDefault: boolean; isBilling: boolean; lat?: number | null; lng?: number | null }
 
 const ev = (customerId: string, kind: string, meta: unknown, staffId: string) => db.customerEvent.create({ data: { customerId, kind, meta: meta as object, staffId } }).catch(() => null);
 const paths = (id?: string) => { revalidatePath("/admin/customers"); if (id) revalidatePath(`/admin/customers/${id}`); };
@@ -44,10 +45,11 @@ export async function saveAddress(customerId: string, addressId: string | null, 
   const data = { label: a.label.trim() || null, kind: a.kind || "shipping", recipient: a.recipient.trim() || null, street: a.street.trim(), number: a.number.trim() || null, floor: a.floor.trim() || null, doorbell: a.doorbell.trim() || null, city: a.city.trim(), zip: a.zip.trim(), region: a.region.trim(), phone: a.phone.trim() || null, notes: a.notes.trim() || null, isDefault: a.isDefault, isBilling: a.isBilling };
   if (a.isDefault) await db.address.updateMany({ where: { customerId }, data: { isDefault: false } });
   if (a.isBilling) await db.address.updateMany({ where: { customerId }, data: { isBilling: false } });
-  const row = addressId ? await db.address.update({ where: { id: addressId }, data }) : await db.address.create({ data: { ...data, customerId } });
-  await ev(customerId, "address", { by: user.name, id: row.id, label: row.label, city: row.city }, user.id);
+  const row = addressId ? await db.address.update({ where: { id: addressId }, data: { ...data, ...(a.lat && a.lng ? { lat: a.lat, lng: a.lng, geoSource: "manual" } : { geoSource: null }) } }) : await db.address.create({ data: { ...data, customerId, ...(a.lat && a.lng ? { lat: a.lat, lng: a.lng, geoSource: "manual" } : {}) } });
+  const geo = await geocodeCustomerAddress(row.id).catch(() => null);
+  await ev(customerId, "address", { by: user.name, id: row.id, label: row.label, city: row.city, geocoded: geo?.ok ?? false, nearestStore: geo && geo.ok ? geo.nearestStore?.city : null }, user.id);
   paths(customerId);
-  return { ok: true as const, id: row.id };
+  return { ok: true as const, id: row.id, geocoded: geo?.ok ?? false, nearestStore: geo && geo.ok ? geo.nearestStore : null };
 }
 export async function deleteAddress(customerId: string, addressId: string) {
   const user = await requirePermission("customers.write");
@@ -179,4 +181,11 @@ export async function sendPasswordReset(customerId: string) {
   await audit(user.id, "customer.password.reset-request", "Customer", customerId, null, { throttled: r.throttled });
   paths(customerId);
   return r.throttled ? { ok: false as const, error: "Πολλά αιτήματα — δοκίμασε σε 15 λεπτά." } : { ok: true as const };
+}
+
+export async function regeocodeAddress(customerId: string, addressId: string) {
+  await requirePermission("customers.write");
+  const r = await geocodeCustomerAddress(addressId, { force: true });
+  paths(customerId);
+  return r;
 }
