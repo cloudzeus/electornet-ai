@@ -1,7 +1,7 @@
 "use client";
 
 import { useSettings } from "@/components/site/SettingsProvider";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/data/types";
 
 export interface CartAddon {
@@ -88,6 +88,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, []);
 
+  const [signedIn, setSignedIn] = useState(false);
+  // Signed-in customers: merge the device list into the account (once per session) and mirror every toggle to the server.
+  const synced = useRef(false);
+  useEffect(() => {
+    if (!hydrated || synced.current) return;
+    synced.current = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/wishlist", { cache: "no-store" });
+        const j = (await r.json()) as { authenticated: boolean; ids: string[] };
+        if (!j.authenticated) return;
+        setWishlist((local) => {
+          const missing = local.filter((id) => !j.ids.includes(id));
+          if (missing.length) fetch("/api/wishlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add: missing, source: "merge" }) }).catch(() => null);
+          return [...new Set([...j.ids, ...local])];
+        });
+        setSignedIn(true);
+      } catch {}
+    })();
+  }, [hydrated]);
+
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -120,7 +141,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, []);
   const clear = useCallback(() => setLines([]), []);
-  const toggleWishlist = useCallback((id: string) => setWishlist((w) => (w.includes(id) ? w.filter((x) => x !== id) : [...w, id])), []);
+  const toggleWishlist = useCallback((id: string) => {
+    setWishlist((w) => {
+      const on = w.includes(id);
+      if (signedIn) fetch("/api/wishlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(on ? { remove: [id] } : { add: [id] }) }).catch(() => null);
+      return on ? w.filter((x) => x !== id) : [...w, id];
+    });
+  }, [signedIn]);
   const toggleCompare = useCallback((id: string) => setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= 4 ? c : [...c, id])), []);
 
   const value = useMemo<CartState>(() => {

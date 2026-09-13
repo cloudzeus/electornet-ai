@@ -52,3 +52,10 @@ Seeds: `prisma/seed-customers.ts` (3 demo customers, tag `demo`), `prisma/seed-g
 - `POST /api/account/password/reset` {token, password} → bcrypt hash, invalidates open codes, `CustomerEvent password-reset`, notification email `password-changed`.
 - UI `/ksexasa-kodiko` (3 steps, OTP boxes with paste/autofill, resend after 60 s, password rules) · `/syndesi` (email + password, social buttons) · staff button «Αποστολή κωδικού επαναφοράς (OTP)» in the customer profile (staff never sees codes).
 - Session: `lib/account/session.ts` — HS256 JWT cookie `eu_session` (30 days, httpOnly); `getCustomerSession()` for server components; every login attempt → `LoginEvent`.
+
+## Favourites (wishlist)
+- Models `WishlistList` (several named lists per customer; `key="default"` is the main one, unique per customer → atomic upsert; `visibility` private|link, `shareToken`) and `WishlistItem` (product, `priceAtAdd`, note, priority, `notifyPriceDrop`, `notifyBackInStock`, source web|merge|admin).
+- Guests keep ids in localStorage (CartProvider). After login the provider merges the device list into the account (`POST /api/wishlist {add, source:"merge"}`) and mirrors every heart toggle; `GET /api/wishlist` returns ids + lists.
+- `/lista`: guest grid with sign-in banner, or the `WishlistManager` for customers: lists (create/rename/delete), price-drop badge vs price when saved, stock, notes, priority stars, per-item alert switches, move between lists, share by link (`/lista/k/[token]`, read-only, noindex), add to cart.
+- `priceDropSubscribers(productId, newPrice)` (`lib/wishlist/repo.ts`) feeds the notification job when the catalogue sync lowers a price (respecting the `price-drop` consent).
+- Admin: customer tab «Αγαπημένα»; report `/admin/reports/wishlist` (top saved products, customers with lists, waiting for price drop).

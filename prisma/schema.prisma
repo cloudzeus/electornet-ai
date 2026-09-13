@@ -304,7 +304,7 @@ model Customer {
   addresses     Address[]
   cards         SavedCard[]
   consents      Consent[]
-  wishlist      Wishlist[]
+  wishlists     WishlistList[]
   orders        Order[]
   carts         Cart[]
   social        SocialAccount[]
@@ -637,13 +637,42 @@ model CustomerEvent {
   @@index([customerId, at])
 }
 
-model Wishlist {
+/// Favourites: a customer can keep several named lists; the default one is what the heart on cards writes to.
+model WishlistList {
+  id         String         @id @default(cuid())
   customerId String
-  productId  String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  addedAt    DateTime @default(now())
+  customer   Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  key        String         @default(dbgenerated("gen_random_uuid()::text")) // "default" for the main list → atomic upsert per customer
+  name       String         @default("Η λίστα μου")
+  isDefault  Boolean        @default(false)
+  visibility String         @default("private") // private | link
+  shareToken String         @unique @default(cuid())
+  sort       Int            @default(0)
+  items      WishlistItem[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
-  @@id([customerId, productId])
+  @@unique([customerId, key])
+  @@index([customerId])
+}
+
+/// One favourite product in a list, with the price when added (price-drop badge) and per-item alert switches.
+model WishlistItem {
+  id               String       @id @default(cuid())
+  listId           String
+  list             WishlistList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  productId        String
+  variantId        String?
+  note             String?
+  priority         Int          @default(0) // 0 normal · 1 high · 2 must-have
+  priceAtAdd       Decimal?     @db.Decimal(10, 2)
+  notifyPriceDrop  Boolean      @default(true)
+  notifyBackInStock Boolean     @default(true)
+  source           String       @default("web") // web | merge | admin | import
+  addedAt          DateTime     @default(now())
+
+  @@unique([listId, productId])
+  @@index([productId])
 }
 
 model Cart {

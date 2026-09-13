@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, ChevronRight } from "lucide-react";
+import { Bot, Heart, ChevronRight } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 
 export const metadata = { title: "Αναφορές" };
@@ -8,6 +8,7 @@ export default async function ReportsPage() {
   await requirePermission("reports.read");
   const reports = [
     { href: "/admin/reports/ai", icon: Bot, title: "Κόστος AI", desc: "Χρεωμένο κόστος ανά ημέρα, μοντέλο και λειτουργία, σε € με την ισοτιμία της ημέρας." },
+    { href: "/admin/reports/wishlist", icon: Heart, title: "Αγαπημένα πελατών", desc: "Τα προϊόντα που αποθηκεύουν οι πελάτες, πόσοι περιμένουν πτώση τιμής." },
   ];
   return (
     <>

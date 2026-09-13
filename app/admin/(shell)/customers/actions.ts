@@ -147,7 +147,7 @@ export async function erpLink(customerId: string, trdr: string) {
 /* ---------- GDPR ---------- */
 export async function gdprExport(customerId: string) {
   const user = await requirePermission("customers.export");
-  const c = await db.customer.findUniqueOrThrow({ where: { id: customerId }, include: { addresses: true, consents: true, devices: true, tickets: true, loyalty: true, orders: { include: { lines: true } }, social: true, wishlist: true, events: true } });
+  const c = await db.customer.findUniqueOrThrow({ where: { id: customerId }, include: { addresses: true, consents: true, devices: true, tickets: true, loyalty: true, orders: { include: { lines: true } }, social: true, wishlists: { include: { items: true } }, events: true } });
   const { passwordHash, notes, ...rest } = c; void passwordHash; void notes;
   await ev(customerId, "gdpr-export", { by: user.name }, user.id);
   await audit(user.id, "customer.gdpr.export", "Customer", customerId, null, { by: user.name });
