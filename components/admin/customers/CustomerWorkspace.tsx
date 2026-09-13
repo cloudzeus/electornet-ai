@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin } from "lucide-react";
-import { saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
+import { sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -107,6 +107,7 @@ function ProfileTab({ c, stores, canWrite, run, pending }: { c: Any; stores: { i
       </div>
       <label className={label}>Εσωτερικές σημειώσεις προφίλ<textarea rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} disabled={dis} className={`${field} py-2`} /></label>
       {c?.social?.length > 0 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Social login: {c.social.map((s: Any) => s.provider).join(", ")}</p>}
+      {c && canWrite && c.status === "active" && <div className="flex flex-wrap items-center gap-2 border-t border-eu-line-2 pt-3"><button type="button" disabled={pending} onClick={() => run(() => sendPasswordReset(c.id), "Στάλθηκε email με κωδικό OTP επαναφοράς στον πελάτη.")} className={btn2}>Αποστολή κωδικού επαναφοράς (OTP)</button><span className="text-eu-muted text-[length:var(--fs-13)]">Ο πελάτης λαμβάνει 6ψήφιο κωδικό στο email του· το προσωπικό δεν βλέπει ποτέ κωδικούς.</span></div>}
     </Card>
   );
 }

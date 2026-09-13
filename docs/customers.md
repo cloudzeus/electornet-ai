@@ -45,3 +45,10 @@ Push = getData (echo) → setData → getData read-back → status/log. Pull = g
 - Consent texts in force listed with hash; change = new version (`prisma/seed-gdpr.ts`).
 
 Seeds: `prisma/seed-customers.ts` (3 demo customers, tag `demo`), `prisma/seed-gdpr.ts` (7 wordings v2026-09).
+
+## Lost password (email OTP) & customer login
+- `POST /api/account/password/forgot` {email} → always 200 (no enumeration); creates `PasswordReset` (6-digit code hashed with AUTH_SECRET, 10 min, one live code per customer) with request evidence (ip/ipHash/os/browser/device) and emails the code (`password-otp`, shows the requesting IP/device). Rate limits: 3 / 15 min per email, 10 / h per IP.
+- `POST /api/account/password/verify` {email, code} → max 5 attempts, returns a single-use token (30 min).
+- `POST /api/account/password/reset` {token, password} → bcrypt hash, invalidates open codes, `CustomerEvent password-reset`, notification email `password-changed`.
+- UI `/ksexasa-kodiko` (3 steps, OTP boxes with paste/autofill, resend after 60 s, password rules) · `/syndesi` (email + password, social buttons) · staff button «Αποστολή κωδικού επαναφοράς (OTP)» in the customer profile (staff never sees codes).
+- Session: `lib/account/session.ts` — HS256 JWT cookie `eu_session` (30 days, httpOnly); `getCustomerSession()` for server components; every login attempt → `LoginEvent`.

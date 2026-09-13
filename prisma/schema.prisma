@@ -316,6 +316,7 @@ model Customer {
   logins        LoginEvent[]
   gdprRequests  GdprRequest[]
   subscriptions NewsletterSubscriber[]
+  passwordResets PasswordReset[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -1044,4 +1045,29 @@ model FxRate {
   fetchedAt DateTime @default(now())
 
   @@id([day, base, quote])
+}
+
+/// Password reset with email OTP: 6-digit code (stored hashed), 10-minute expiry, max 5 attempts, evidence of the request.
+model PasswordReset {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  email      String
+  codeHash   String
+  token      String?   @unique // issued after a correct code, single use
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  verifiedAt DateTime?
+  usedAt     DateTime?
+  requestedBy String? // staffId when initiated from the back office
+  ip         String?
+  ipHash     String?
+  userAgent  String?
+  os         String?
+  browser    String?
+  device     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([email, createdAt])
 }

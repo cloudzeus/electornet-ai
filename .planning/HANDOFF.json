@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T10:43:36.925Z",
+  "timestamp": "2026-09-13T10:52:53.974Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,19 +22,11 @@
     },
     {
       "status": "M",
-      "path": "components/admin/nav.ts"
+      "path": "app/admin/(shell)/customers/actions.ts"
     },
     {
       "status": "M",
-      "path": "components/widgets/NewsletterBand.tsx"
-    },
-    {
-      "status": "M",
-      "path": "lib/auth.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/settings/schema.ts"
+      "path": "components/admin/customers/CustomerWorkspace.tsx"
     },
     {
       "status": "M",
@@ -50,57 +42,29 @@
     },
     {
       "status": "??",
-      "path": "app/(shop)/newsletter/"
+      "path": "app/(shop)/ksexasa-kodiko/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/customers/"
+      "path": "app/(shop)/syndesi/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/gdpr/"
+      "path": "app/api/account/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/newsletter/"
+      "path": "components/account/ForgotPassword.tsx"
     },
     {
       "status": "??",
-      "path": "app/api/newsletter/"
+      "path": "components/account/LoginForm.tsx"
     },
     {
       "status": "??",
-      "path": "components/admin/customers/"
-    },
-    {
-      "status": "??",
-      "path": "components/widgets/NewsletterForm.tsx"
-    },
-    {
-      "status": "??",
-      "path": "lib/email/"
-    },
-    {
-      "status": "??",
-      "path": "lib/gdpr/"
-    },
-    {
-      "status": "??",
-      "path": "lib/newsletter/"
-    },
-    {
-      "status": "??",
-      "path": "lib/softone/"
-    },
-    {
-      "status": "??",
-      "path": "prisma/seed-customers.ts"
-    },
-    {
-      "status": "??",
-      "path": "prisma/seed-gdpr.ts"
+      "path": "lib/account/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels\nbf3aede SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial"
+  "context_notes": "Recent commits:\ndd5e47e Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with settings defaults, append-only consent ledger with device/IP/wording evidence + versioned consent texts, login events, newsletter double opt-in with proof + admin, GDPR requests with 30-day deadlines, export and right-to-be-forgotten pseudonymisation, printable consent proof; demo seeds\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page\na1f74f9 Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode provenance), admin list with Leaflet map/filters and editor with draggable marker, storefront reads stores from the database with correct open/closed labels"
 }

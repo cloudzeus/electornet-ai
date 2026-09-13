@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { pushCustomerToErp, pullCustomerFromErp, searchErpCustomers, linkCustomerToErp } from "@/lib/softone/customers";
+import { requestPasswordReset } from "@/lib/account/password-reset";
 
 export interface CustomerInput {
   type: "individual" | "business"; email: string; firstName: string; lastName: string; company: string; vatNumber: string; doy: string; profession: string;
@@ -168,4 +169,14 @@ export async function gdprAnonymise(customerId: string) {
   await audit(user.id, "customer.gdpr.anonymise", "Customer", customerId, { email: c.email }, { status: "anonymised" });
   paths(customerId);
   return { ok: true as const };
+}
+
+/** Staff-initiated password reset: sends the OTP email to the customer (the staff never sees the code). */
+export async function sendPasswordReset(customerId: string) {
+  const user = await requirePermission("customers.write");
+  const c = await db.customer.findUniqueOrThrow({ where: { id: customerId } });
+  const r = await requestPasswordReset(c.email, { staffId: user.id });
+  await audit(user.id, "customer.password.reset-request", "Customer", customerId, null, { throttled: r.throttled });
+  paths(customerId);
+  return r.throttled ? { ok: false as const, error: "Πολλά αιτήματα — δοκίμασε σε 15 λεπτά." } : { ok: true as const };
 }
