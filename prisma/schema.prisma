@@ -1169,6 +1169,7 @@ model VoicePhrase {
   key        String? // preset key (welcome, wait, bye, …) — null for dynamic phrases
   text       String   @db.Text
   voice      String
+  style      String   @default("") // delivery instructions (tone / pace) the audio was generated with
   model      String
   storage    String // local | bunny
   path       String

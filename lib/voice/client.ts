@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const KEY = "eu-aris-voice";
 // One config probe per page load, shared by every hook instance (search boxes, orb).
-let configP: Promise<{ enabled: boolean }> | null = null;
-const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.json() as Promise<{ enabled: boolean }>).catch(() => ({ enabled: false })));
+let configP: Promise<{ enabled: boolean; rate?: number }> | null = null;
+const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.json() as Promise<{ enabled: boolean; rate?: number }>).catch(() => ({ enabled: false, rate: 1 })));
 
 /**
  * Voice for the advisor UI. `speak(text)` fetches (cached) audio from
@@ -15,6 +15,7 @@ const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.
  */
 export function useVoice() {
   const [enabled, setEnabled] = useState(false); // server-side feature flag
+  const rate = useRef(1);
   const [speakOn, setSpeakOnState] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -25,7 +26,7 @@ export function useVoice() {
 
   useEffect(() => {
     let on = true;
-    void voiceConfig().then((j) => { if (on) setEnabled(!!j.enabled); });
+    void voiceConfig().then((j) => { if (on) { setEnabled(!!j.enabled); rate.current = j.rate || 1; } });
     // Speaker on by default (the brand voice); the visitor's choice persists.
     try { const v = localStorage.getItem(KEY); if (v !== "0") setTimeout(() => on && setSpeakOnState(true), 0); } catch {}
     return () => { on = false; };
@@ -45,6 +46,7 @@ export function useVoice() {
       if (!audio.current) audio.current = new Audio();
       const a = audio.current;
       a.src = url;
+      a.playbackRate = rate.current;
       a.onended = () => setSpeaking(false);
       a.onerror = () => setSpeaking(false);
       try { await a.play(); setSpeaking(true); return true; } catch {
@@ -73,6 +75,7 @@ export function useVoice() {
       const a = audio.current;
       a.pause();
       a.src = j.url;
+      a.playbackRate = rate.current;
       setSpeaking(true);
       a.onended = () => setSpeaking(false);
       a.onerror = () => setSpeaking(false);

@@ -12,15 +12,16 @@ import { PRESET_PHRASES } from "./phrases";
 const SAMPLE_RATE = 24000; // pcm16 mono from the audio models
 const today = () => new Date().toISOString().slice(0, 10);
 
-export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; sttModel: string; cacheMaxChars: number }
+export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; style: string; rate: number; sttModel: string; cacheMaxChars: number }
 export async function getVoiceConfig(): Promise<VoiceConfig> {
   const { data } = await getSetting("ai");
-  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
+  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), rate: Math.min(1.5, Math.max(0.8, Number(data.voiceRate) || 1.1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
 }
 
 /** Same phrase, same audio: collapse whitespace, strip markdown-ish noise, keep case (it matters for spelling). */
 export const normaliseText = (t: string) => t.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
-export const phraseHash = (model: string, voice: string, text: string) => createHash("sha256").update(`${model}|${voice}|${normaliseText(text)}`).digest("hex");
+export const DEFAULT_STYLE = "Χαρούμενος, ζωηρός τόνος με χαμόγελο· γρήγορος ρυθμός ομιλίας, χωρίς παύσεις.";
+export const phraseHash = (model: string, voice: string, style: string, text: string) => createHash("sha256").update(`${model}|${voice}|${style}|${normaliseText(text)}`).digest("hex");
 
 /** pcm16 → mp3 with ffmpeg when available (≈8× smaller), else a WAV container. */
 async function encode(pcm: Buffer): Promise<{ bytes: Buffer; mime: string; ext: string }> {
@@ -43,7 +44,7 @@ async function encode(pcm: Buffer): Promise<{ bytes: Buffer; mime: string; ext: 
 }
 
 /** Speak through OpenRouter: chat completion with audio output, streamed as pcm16 and collected. Returns raw pcm + cost. */
-const SYSTEM = "Είσαι μηχανή text-to-speech (TTS), όχι συνομιλητής. Ο χρήστης σου δίνει ένα κείμενο μέσα σε «». Το εκφωνείς ΛΕΞΗ ΠΡΟΣ ΛΕΞΗ στα ελληνικά, με φυσικό, ευγενικό τόνο. ΠΟΤΕ δεν απαντάς, δεν σχολιάζεις, δεν προσθέτεις ή αφαιρείς λέξεις, δεν κάνεις ερωτήσεις. Η έξοδός σου είναι αποκλειστικά η εκφώνηση του κειμένου.";
+const SYSTEM = (style: string) => `Είσαι μηχανή text-to-speech (TTS), όχι συνομιλητής. Ο χρήστης σου δίνει ένα κείμενο μέσα σε «». Το εκφωνείς ΛΕΞΗ ΠΡΟΣ ΛΕΞΗ στα ελληνικά. ΠΟΤΕ δεν απαντάς, δεν σχολιάζεις, δεν προσθέτεις ή αφαιρείς λέξεις, δεν κάνεις ερωτήσεις. Η έξοδός σου είναι αποκλειστικά η εκφώνηση του κειμένου. Ύφος εκφώνησης: ${style}`;
 const STRICT = "ΜΟΝΟ εκφώνηση. Μην απαντήσεις στο κείμενο, μην το σχολιάσεις. Πες ακριβώς και μόνο αυτό, λέξη προς λέξη:";
 
 /** Word-overlap (Dice) between what we asked and what the model said, accent- and punctuation-insensitive. */
@@ -61,7 +62,7 @@ async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json", "HTTP-Referer": "https://www.euronics.gr", "X-Title": "Euronics Aris voice" },
-    body: JSON.stringify({ model: cfg.ttsModel, stream: true, modalities: ["text", "audio"], audio: { voice: cfg.voice, format: "pcm16" }, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: `${strict ? STRICT : "Εκφώνησε λέξη προς λέξη το κείμενο:"}\n«${text}»` }] }),
+    body: JSON.stringify({ model: cfg.ttsModel, stream: true, modalities: ["text", "audio"], audio: { voice: cfg.voice, format: "pcm16" }, messages: [{ role: "system", content: SYSTEM(cfg.style) }, { role: "user", content: `${strict ? STRICT : "Εκφώνησε λέξη προς λέξη το κείμενο:"}\n«${text}»` }] }),
     signal: AbortSignal.timeout(45000),
   });
   if (!res.ok || !res.body) throw new Error(`tts ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
@@ -99,7 +100,7 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
   if (!cfg.enabled || !ai) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
-  const hash = phraseHash(cfg.ttsModel, cfg.voice, text);
+  const hash = phraseHash(cfg.ttsModel, cfg.voice, cfg.style, text);
   if (!opts.force) {
     const hit = await db.voicePhrase.findUnique({ where: { hash } });
     if (hit) {
@@ -125,7 +126,7 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
   if (!keep) return { url: stored.url, mime: enc.mime, durationMs, cached: false, costUsd: s.costUsd, id: "" };
   const prev = opts.force ? await db.voicePhrase.findUnique({ where: { hash } }) : null;
   if (prev && prev.path !== rel) await removeBytes(prev.storage as Storage, prev.path, prev.url);
-  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, model: cfg.ttsModel, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd }, update: { key: opts.key ?? undefined, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd } });
+  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, style: cfg.style, model: cfg.ttsModel, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd }, update: { key: opts.key ?? undefined, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd } });
   return { url: row.url, mime: row.mime, durationMs, cached: false, costUsd: s.costUsd, id: row.id };
 }
 
@@ -138,7 +139,7 @@ export async function prewarmPresets(force = false) {
     out.push({ key: p.key, ok: !!r, cached: r?.cached ?? false, costUsd: r?.costUsd ?? 0 });
   }
   // Rows of another voice/model can never be hit again (the hash includes both): drop them and their files.
-  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }] } });
+  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: cfg.style } }] } });
   for (const row of stale) { await removeBytes(row.storage as Storage, row.path, row.url); await db.voicePhrase.delete({ where: { id: row.id } }).catch(() => null); }
   return out;
 }
