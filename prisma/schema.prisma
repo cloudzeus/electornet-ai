@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -51,7 +51,7 @@ model Product {
   brand       Brand        @relation(fields: [brandId], references: [id])
   categoryId  String
   category    Category     @relation(fields: [categoryId], references: [id])
-  description String?      @db.LongText
+  description String?      @db.Text
   highlights  Json?
   vatRate     Decimal      @default(24) @db.Decimal(5, 2)
   isRenew     Boolean      @default(false)
@@ -235,7 +235,7 @@ model Service {
   no         Int
   title      String
   blurb      String
-  body       String? @db.LongText
+  body       String? @db.Text
   priceFrom  Decimal? @db.Decimal(10, 2)
   /// Where the service is offered as an add-on: pdp | checkout | delivery
   addonAt    Json?
@@ -486,7 +486,7 @@ model Guide {
   kicker    String
   title     String
   excerpt   String
-  body      String   @db.LongText
+  body      String   @db.Text
   image     String?
   minutes   Int
   ctaLabel  String?
@@ -498,4 +498,96 @@ model Redirect {
   from String @id
   to   String
   code Int    @default(301)
+}
+
+// ---------- Back office: RBAC, audit, CMS documents ----------
+// Roles and permissions are DATA (seeded), so the client's role list can
+// change without code. Permission keys follow "<resource>.<action>"
+// (e.g. "cms.zones.write", "orders.read", "settings.write").
+
+model Staff {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String?      // credentials login (Auth.js); null when SSO-only
+  active       Boolean      @default(true)
+  storeId      String?      // store-scoped roles (member store staff)
+  roles        StaffRole[]
+  audits       AuditLog[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  lastLoginAt  DateTime?
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique   // e.g. "admin", "marketing"
+  name        String
+  description String?          @db.Text
+  system      Boolean          @default(false) // cannot be deleted from the UI
+  permissions RolePermission[]
+  staff       StaffRole[]
+  createdAt   DateTime         @default(now())
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique   // "cms.zones.write"
+  group       String           // "cms" | "catalog" | "orders" | "customers" | "stores" | "settings" | "staff" | "reports"
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model StaffRole {
+  staffId String
+  roleId  String
+  staff   Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  role    Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, roleId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  staffId   String?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  action    String   // "cms.document.publish"
+  entity    String   // "CmsDocument"
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// One table for every CMS collection (settings, copy, zones, slides,
+// campaigns, brand stores, menu…): JSON documents validated per collection
+// on write, with draft/published versions.
+model CmsDocument {
+  id          String    @id @default(cuid())
+  collection  String    // "settings.site" | "copy" | "home.zones" | "hero.slides" | "campaigns" | "brand.stores" | …
+  key         String    // "default" | slug | id
+  data        Json      // draft
+  published   Json?     // last published snapshot the storefront reads
+  version     Int       @default(1)
+  locale      String    @default("el")
+  updatedBy   String?
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([collection, key, locale])
+  @@index([collection])
 }

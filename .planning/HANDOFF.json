@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-12T09:06:36.765Z",
+  "timestamp": "2026-09-13T08:20:54.115Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,21 +18,85 @@
   "uncommitted_files": [
     {
       "status": "M",
+      "path": ".gitignore"
+    },
+    {
+      "status": "M",
       "path": ".planning/HANDOFF.json"
     },
     {
-      "status": "M",
-      "path": "app/globals.css"
+      "status": "R",
+      "path": "app/(shop)/admin/radar/page.tsx -> app/admin/(shell)/radar/page.tsx"
     },
     {
       "status": "M",
-      "path": "components/widgets/BentoHero.tsx"
+      "path": "package-lock.json"
+    },
+    {
+      "status": "M",
+      "path": "package.json"
+    },
+    {
+      "status": "M",
+      "path": "prisma/schema.prisma"
     },
     {
       "status": "??",
-      "path": "docs/cms-collections.md"
+      "path": "app/admin/(shell)/audit/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/forbidden/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/layout.tsx"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/page.tsx"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/roles/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/staff/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/login/"
+    },
+    {
+      "status": "??",
+      "path": "app/api/auth/"
+    },
+    {
+      "status": "??",
+      "path": "components/admin/"
+    },
+    {
+      "status": "??",
+      "path": "lib/auth.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/db.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/rbac/"
+    },
+    {
+      "status": "??",
+      "path": "prisma/roles.ts"
+    },
+    {
+      "status": "??",
+      "path": "prisma/seed.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones\nc943545 v4.6 (local): CMS settings layer (site / motion / advisor / stickers) and component registry\n9ed4ff1 v4.5 (local): Brand stores — CMS-ready schema, renderer and LG / Samsung / Apple samples\n615bce2 v4.4 (local): hero ambient video, Άρης in the cart, guide banner spacing"
+  "context_notes": "Recent commits:\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)\n812b76c v4.6b (local): pixel audit fixes — 14px floor for every type token, 44px tap targets on phones\nc943545 v4.6 (local): CMS settings layer (site / motion / advisor / stickers) and component registry\n9ed4ff1 v4.5 (local): Brand stores — CMS-ready schema, renderer and LG / Samsung / Apple samples"
 }
