@@ -16,6 +16,8 @@ export interface MediaAssetDTO {
   storage: "local" | "bunny";
   url: string;
   thumbUrl: string | null;
+  /** JPEG on white for emails (WebP is not rendered by Gmail/Outlook) */
+  emailUrl: string | null;
   blur: string | null;
   focalX: number;
   focalY: number;

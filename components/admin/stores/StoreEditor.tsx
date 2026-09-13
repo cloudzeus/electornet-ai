@@ -27,7 +27,7 @@ const EMPTY: StoreForm = { id: "new", siteId: null, slug: "", name: "", member: 
 export function StoreEditor({ store, regions, canWrite }: { store: StoreForm | null; regions: string[]; canWrite: boolean }) {
   const router = useRouter();
   const [f, setF] = useState<StoreForm>(store ?? EMPTY);
-  const [photo, setPhoto] = useState<MediaAssetDTO | null>(store?.photo ? ({ id: "", kind: "image", url: store.photo, thumbUrl: store.photo, filename: "photo", title: "Φωτογραφία καταστήματος", focalX: 0.5, focalY: 0.5, storage: "bunny", tags: [], alt: null, caption: null, mime: "image/webp", size: 0, width: null, height: null, duration: null, folderId: null, blur: null, createdAt: "", updatedAt: "" } as MediaAssetDTO) : null);
+  const [photo, setPhoto] = useState<MediaAssetDTO | null>(store?.photo ? ({ id: "", kind: "image", url: store.photo, thumbUrl: store.photo, emailUrl: null, filename: "photo", title: "Φωτογραφία καταστήματος", focalX: 0.5, focalY: 0.5, storage: "bunny", tags: [], alt: null, caption: null, mime: "image/webp", size: 0, width: null, height: null, duration: null, folderId: null, blur: null, createdAt: "", updatedAt: "" } as MediaAssetDTO) : null);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const set = <K extends keyof StoreForm>(k: K, v: StoreForm[K]) => setF((s) => ({ ...s, [k]: v }));

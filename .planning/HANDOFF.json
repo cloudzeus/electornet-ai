@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T11:29:56.782Z",
+  "timestamp": "2026-09-13T11:55:24.566Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,19 +22,47 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/kalathi/page.tsx"
+      "path": "components/admin/stores/StoreEditor.tsx"
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/reports/wishlist/page.tsx"
+      "path": "docs/emails.md"
     },
     {
       "status": "M",
-      "path": "components/checkout/CartView.tsx"
+      "path": "docs/media-library.md"
     },
     {
       "status": "M",
-      "path": "components/site/ExitIntent.tsx"
+      "path": "lib/email/layout.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/media/cdn.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/media/process.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/media/repo.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/media/storage.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/media/types.ts"
+    },
+    {
+      "status": "M",
+      "path": "package-lock.json"
+    },
+    {
+      "status": "M",
+      "path": "package.json"
     },
     {
       "status": "M",
@@ -42,37 +70,13 @@
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/reports/wishlist/actions.ts"
+      "path": "app/api/img/"
     },
     {
       "status": "??",
-      "path": "app/api/account/me/"
-    },
-    {
-      "status": "??",
-      "path": "app/api/cart/"
-    },
-    {
-      "status": "??",
-      "path": "app/api/cron/"
-    },
-    {
-      "status": "??",
-      "path": "components/admin/customers/WishlistAlertsRunner.tsx"
-    },
-    {
-      "status": "??",
-      "path": "components/commerce/EmailCartButton.tsx"
-    },
-    {
-      "status": "??",
-      "path": "lib/cart/"
-    },
-    {
-      "status": "??",
-      "path": "lib/wishlist/notify.ts"
+      "path": "prisma/backfill-email-thumbs.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nea5bca6 Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin segmentation (prefecture, store catchment, radius from a place, customer map, CSV export)\n40e4e9d Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typed samples; senders wired (OTP, password changed, newsletter confirm/welcome/unsubscribed); admin gallery per job with live thumbnails, desktop/mobile/text/data preview, test send and dispatch log; marketing.emails.write permission\n3d3b032 Admin sidebar: collapsible groups (active group auto-opens, state remembered per browser, single-item groups as direct links)\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper\n746f971 Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer JWT session + login page with logged attempts, staff-initiated OTP from the customer profile"
+  "context_notes": "Recent commits:\n63cb9aa Cart by email (SavedCart with restore link, cart-page button, real exit-intent send, restore on /kalathi) and wishlist price-drop / back-in-stock alerts (one email per drop, consent-aware, cron endpoint, admin runner and log)\nea5bca6 Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin segmentation (prefecture, store catchment, radius from a place, customer map, CSV export)\n40e4e9d Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typed samples; senders wired (OTP, password changed, newsletter confirm/welcome/unsubscribed); admin gallery per job with live thumbnails, desktop/mobile/text/data preview, test send and dispatch log; marketing.emails.write permission\n3d3b032 Admin sidebar: collapsible groups (active group auto-opens, state remembered per browser, single-item groups as direct links)\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper"
 }

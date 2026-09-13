@@ -10,6 +10,7 @@ One component, two roles: the page **/admin/media** and the **picker** behind ev
 ## Processing on upload (`lib/media/process.ts`)
 - Images → **WebP** (quality 85), EXIF-rotated. With «Πλαίσιο 1920 / 30px» (default on): longest side 1920 **including** a 30px margin on every side (white, or transparent when the source has alpha). Off: cap 4000px, no frame.
 - 480px WebP thumbnail + 16px blur placeholder for every image/video.
+- **Email thumbnail** (`emailUrl`): 360px JPEG flattened on white, generated on every image upload and video poster — email clients (Gmail, Outlook) do not render WebP. Backfill: `npx tsx --conditions=react-server prisma/backfill-email-thumbs.ts`.
 - Videos: ffprobe (size, duration) + ffmpeg poster at 1s; poster re-selectable from the drawer.
 - Files (PDF, docs): stored as-is.
 - Editor exports and cutouts keep their format (`keepFormat`), PNG for transparency.

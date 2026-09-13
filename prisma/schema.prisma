@@ -1019,6 +1019,7 @@ model MediaAsset {
   path      String       // storage-relative path e.g. 2026/09/abc.webp
   url       String       // public URL
   thumbUrl  String?      // 480px webp (images/videos poster)
+  emailUrl  String?      // 360px JPEG on white — email clients (Gmail/Outlook) do not render WebP
   blur      String?      // tiny base64 placeholder
   focalX    Float        @default(0.5)
   focalY    Float        @default(0.5)

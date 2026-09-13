@@ -2,6 +2,8 @@
 
 **Design system** `lib/email/layout.ts`: 600px table layout, navy header with the white logo, white card, yellow primary / navy secondary rounded buttons, Manrope with system fallback, text ≥ 14px, notes (info/success/warning/danger), OTP block, order lines, totals, store card, product cards, «Ο Άρης λέει» block, footer with company / contact / legal links (+ unsubscribe for marketing mails). `renderEmail()` returns subject, HTML and a plain-text twin. Images use the absolute base URL from Settings → Γενικά (`baseUrl`), so the site must serve `/design/euronics-logo-white.png`, product images and `/img/advisor/mascot-head.webp` publicly.
 
+**Images**: `emailImg(ctx, url)` — JPEG/PNG/GIF pass through; WebP/AVIF/SVG (catalogue cutouts, mascot) are served through `/api/img/email?src=…` as 360px JPEG on white (cached 30 days; local public files or the configured Bunny host only). Media-library assets carry a ready `emailUrl` from upload.
+
 **Templates** `lib/email/templates.ts` (typed data + sample per template), grouped by job:
 | Group | Keys |
 |---|---|

@@ -1,4 +1,4 @@
-import "server-only";
+
 import sharp from "sharp";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -17,8 +17,11 @@ export interface ProcessedImage {
   width: number;
   height: number;
   thumb: Buffer;
+  /** email-safe thumbnail: JPEG, 360px longest side, transparency flattened on white */
+  emailThumb: Buffer;
   blur: string;
 }
+export const emailThumbOf = (input: Buffer) => sharp(input).resize({ width: 360, height: 360, fit: "inside", withoutEnlargement: true }).flatten({ background: "#ffffff" }).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
 
 export interface ImageOpts {
   keepFormat?: boolean;
@@ -37,8 +40,9 @@ export async function processImage(input: Buffer, mime: string, opts: ImageOpts 
   if (mime === "image/svg+xml" || mime === "image/gif") {
     const meta = await sharp(input, { animated: mime === "image/gif" }).metadata();
     const thumb = await sharp(input).resize({ width: 480, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+    const emailThumb = await emailThumbOf(input);
     const blur = (await sharp(input).resize(16).webp({ quality: 40 }).toBuffer()).toString("base64");
-    return { main: input, ext: mime === "image/gif" ? "gif" : "svg", mime, width: meta.width ?? 0, height: meta.height ?? 0, thumb, blur: `data:image/webp;base64,${blur}` };
+    return { main: input, ext: mime === "image/gif" ? "gif" : "svg", mime, width: meta.width ?? 0, height: meta.height ?? 0, thumb, emailThumb, blur: `data:image/webp;base64,${blur}` };
   }
   let base = sharp(input).rotate();
   if (opts.frame) {
@@ -68,8 +72,9 @@ export async function processImage(input: Buffer, mime: string, opts: ImageOpts 
   }
   const meta = await sharp(main).metadata();
   const thumb = await sharp(main).resize({ width: 480, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+  const emailThumb = await emailThumbOf(main);
   const blur = (await sharp(main).resize(16).webp({ quality: 40 }).toBuffer()).toString("base64");
-  return { main, ext, mime: outMime, width: meta.width ?? 0, height: meta.height ?? 0, thumb, blur: `data:image/webp;base64,${blur}` };
+  return { main, ext, mime: outMime, width: meta.width ?? 0, height: meta.height ?? 0, thumb, emailThumb, blur: `data:image/webp;base64,${blur}` };
 }
 
 function run(cmd: string, args: string[], input?: Buffer): Promise<{ code: number; out: Buffer; err: string }> {

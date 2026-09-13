@@ -1,4 +1,4 @@
-import "server-only";
+
 import { getSetting } from "@/lib/settings/store";
 
 /**

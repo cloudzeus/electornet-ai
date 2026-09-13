@@ -1,4 +1,4 @@
-import "server-only";
+
 import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { getBunny, uploadToStorage, deleteFromStorage, purge } from "./cdn";

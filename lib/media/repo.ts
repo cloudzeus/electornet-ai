@@ -22,6 +22,7 @@ export const toDTO = (a: MediaAsset): MediaAssetDTO => ({
   storage: a.storage as MediaAssetDTO["storage"],
   url: a.url,
   thumbUrl: a.thumbUrl,
+  emailUrl: a.emailUrl,
   blur: a.blur,
   focalX: a.focalX,
   focalY: a.focalY,
@@ -40,25 +41,28 @@ export async function ingest(opts: { bytes: Buffer; filename: string; mime: stri
   const prev = opts.replaceId ? await db.mediaAsset.findUnique({ where: { id: opts.replaceId } }) : null;
   const id = prev?.id ?? crypto.randomUUID().replace(/-/g, "").slice(0, 16);
   let main = opts.bytes, ext = extOf(opts.filename, opts.mime), mime = opts.mime;
-  let width: number | null = null, height: number | null = null, duration: number | null = null, thumbUrl: string | null = null, blur: string | null = null;
+  let width: number | null = null, height: number | null = null, duration: number | null = null, thumbUrl: string | null = null, emailUrl: string | null = null, blur: string | null = null;
   if (kind === "image") {
     const p = await processImage(opts.bytes, opts.mime, { keepFormat: opts.keepFormat, frame: opts.frame ? PRODUCT_FRAME : null });
     main = p.main; ext = p.ext; mime = p.mime; width = p.width; height = p.height; blur = p.blur;
     const t = await storeBytes(mediaPath(id, opts.filename, "thumb.webp"), p.thumb, "image/webp");
     thumbUrl = t.url;
+    const e = await storeBytes(mediaPath(id, opts.filename, "email.jpg"), p.emailThumb, "image/jpeg"); // email clients: JPEG only
+    emailUrl = e.url;
   } else if (kind === "video") {
     const v = await probeVideo(opts.bytes, opts.posterAt ?? 1);
     width = v.width; height = v.height; duration = v.duration;
     if (v.poster) {
       const p = await processImage(v.poster, "image/jpeg");
       const t = await storeBytes(mediaPath(id, opts.filename, "poster.webp"), p.thumb, "image/webp");
-      thumbUrl = t.url; blur = p.blur;
+      const e = await storeBytes(mediaPath(id, opts.filename, "email.jpg"), p.emailThumb, "image/jpeg");
+      thumbUrl = t.url; emailUrl = e.url; blur = p.blur;
     }
   }
   const rel = mediaPath(id, opts.filename, ext);
   const stored = await storeBytes(rel, main, mime);
   if (prev) await removeBytes(prev.storage as "local" | "bunny", prev.path, prev.url);
-  const data = { kind, filename: opts.filename, mime, size: main.length, width, height, duration, storage: stored.storage, path: rel, url: stored.url, thumbUrl, blur };
+  const data = { kind, filename: opts.filename, mime, size: main.length, width, height, duration, storage: stored.storage, path: rel, url: stored.url, thumbUrl, emailUrl, blur };
   const row = prev
     ? await db.mediaAsset.update({ where: { id }, data })
     : await db.mediaAsset.create({ data: { id, ...data, folderId: opts.folderId ?? null, createdBy: opts.createdBy ?? null, title: opts.title ?? opts.filename.replace(/\.[^.]+$/, "") } });
@@ -70,6 +74,7 @@ export async function destroy(ids: string[]) {
   for (const r of rows) {
     await removeBytes(r.storage as "local" | "bunny", r.path, r.url);
     if (r.thumbUrl) await removeBytes(r.storage as "local" | "bunny", r.path.replace(/\.[^.]+$/, r.kind === "video" ? ".poster.webp" : ".thumb.webp"), r.thumbUrl);
+    if (r.emailUrl) await removeBytes(r.storage as "local" | "bunny", r.path.replace(/\.[^.]+$/, ".email.jpg"), r.emailUrl);
   }
   await db.mediaAsset.deleteMany({ where: { id: { in: ids } } });
   return rows.length;
