@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Radar, TrendingDown, DoorOpen, Mail } from "lucide-react";
+import { Radar, TrendingDown, DoorOpen, Mail, ScanLine } from "lucide-react";
+import { snapStats } from "@/lib/snap/stats";
 import { radar } from "@/lib/data/fixtures/radar";
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal } from "@/components/motion/Reveal";
@@ -13,8 +14,10 @@ export const metadata: Metadata = { title: "Ραντάρ ζήτησης · Δι�
  * ceilings customers state, and products that fail door widths. One hue
  * for magnitude (navy), status as icon + text, every list is also a table.
  */
-export default function RadarPage() {
+export default async function RadarPage() {
   const r = radar;
+  const snap = await snapStats();
+  const maxKind = Math.max(1, ...snap.kinds.map((k) => k.n));
   const tile = "rounded-2xl bg-white border border-eu-line p-5";
   const maxAsk = Math.max(...r.missing.map((m) => m.asks));
   return (
@@ -161,6 +164,68 @@ export default function RadarPage() {
                 </li>
               ))}
             </ul>
+          </section>
+        </Reveal>
+
+        <Reveal>
+          <section data-reveal className={tile} aria-labelledby="snap-title">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 id="snap-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] inline-flex items-center gap-2">
+                  <ScanLine className="size-5 text-eu-blue" aria-hidden /> Snap & Find · τι φωτογραφίζουν οι πελάτες
+                </h2>
+                <p className="m-0 mt-1 text-eu-muted text-[length:var(--fs-14)]">Παλιές συσκευές που αναγνώρισε το AI τις τελευταίες {snap.days} ημέρες: κατηγορία, μάρκα, ηλικία και τι έκανε ο πελάτης μετά. Ζήτηση αντικατάστασης πριν γίνει αναζήτηση.</p>
+              </div>
+              <span className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">Κόστος AI: {snap.costUsd.toFixed(3)} $</span>
+            </div>
+            <dl className="m-0 mt-4 grid grid-cols-2 @lg:grid-cols-3 @3xl:grid-cols-5 gap-3">
+              {[
+                { l: "φωτογραφίες", v: String(snap.total) },
+                { l: "αναγνωρίστηκαν", v: snap.total ? `${Math.round((snap.recognised / snap.total) * 100)}%` : "—" },
+                { l: "βρέθηκε το ίδιο μοντέλο", v: String(snap.matched) },
+                { l: "μέση ηλικία συσκευής", v: snap.avgAge != null ? `${snap.avgAge} έτη` : "—" },
+                { l: "άνω των 10 ετών", v: snap.oldShare != null ? `${snap.oldShare}%` : "—" },
+              ].map((t) => (
+                <div key={t.l} className="rounded-xl bg-eu-surface p-3">
+                  <dt className="m-0 text-eu-muted text-[length:var(--fs-13)]">{t.l}</dt>
+                  <dd className="m-0 mt-0.5 font-heading font-extrabold text-eu-navy text-[length:var(--fs-24)] leading-none tabular-nums">{t.v}</dd>
+                </div>
+              ))}
+            </dl>
+            {snap.total === 0 ? (
+              <p className="m-0 mt-4 rounded-xl bg-eu-surface p-4 text-eu-ink-3 text-[length:var(--fs-14)]">Καμία φωτογραφία ακόμη. Το Snap & Find ανοίγει από το εικονίδιο κάμερας στην αναζήτηση του storefront.</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 @3xl:grid-cols-3 gap-4">
+                <div>
+                  <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-15)]">Κατηγορίες</h3>
+                  <ul className="m-0 p-0 list-none grid gap-1.5">
+                    {snap.kinds.map((k) => (
+                      <li key={k.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-[length:var(--fs-14)]">
+                        <span className="grid gap-0.5"><span className="text-eu-ink">{k.label}</span><span className="h-1.5 rounded-full bg-eu-surface-3 overflow-hidden"><span className="block h-full bg-eu-navy" style={{ width: `${Math.round((k.n / maxKind) * 100)}%` }} /></span></span>
+                        <span className="font-extrabold text-eu-navy tabular-nums">{k.n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-15)]">Μάρκες & κλάσεις</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {snap.brands.map((b) => <span key={b.label} className="rounded-full bg-eu-surface px-2.5 py-1 text-[length:var(--fs-13)] font-bold text-eu-ink">{b.label} <span className="text-eu-muted tabular-nums">{b.n}</span></span>)}
+                  </div>
+                  {snap.classes.length > 0 && <div className="flex flex-wrap gap-1.5 mt-2">{snap.classes.map((b) => <span key={b.label} className="rounded-md bg-eu-navy text-white px-2 py-0.5 text-[length:var(--fs-13)] font-extrabold">{b.label} <span className="text-eu-on-dark-3 tabular-nums">{b.n}</span></span>)}</div>}
+                </div>
+                <div>
+                  <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-15)]">Τι έκαναν μετά</h3>
+                  <ul className="m-0 p-0 list-none grid gap-1.5">
+                    {snap.actions.length === 0 && <li className="text-eu-muted text-[length:var(--fs-14)]">Καμία ενέργεια ακόμη.</li>}
+                    {snap.actions.map((a) => (
+                      <li key={a.key} className="flex items-center justify-between gap-2 rounded-xl bg-eu-surface px-3 py-2 text-[length:var(--fs-14)]"><span className="text-eu-ink">{a.label}</span><span className="font-extrabold text-eu-navy tabular-nums">{a.n}</span></li>
+                    ))}
+                    <li className="text-eu-muted text-[length:var(--fs-13)] mt-1">{snap.loggedIn} από {snap.total} με συνδεδεμένο πελάτη.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </section>
         </Reveal>
       </div>

@@ -1135,3 +1135,29 @@ model SavedCart {
   @@index([customerId, sentAt])
   @@index([email, sentAt])
 }
+
+/// Snap & Find scans: what customers photograph (old appliances), what the AI recognised, what they did next. Feeds the demand radar.
+model SnapScan {
+  id          String    @id @default(cuid())
+  customerId  String?
+  method      String    @default("ai") // ocr | ai | manual
+  kind        String? // plyntiria | psygeia | tileoraseis …
+  brand       String?
+  model       String?
+  serial      String?
+  energyClass String?
+  ageYears    Int?
+  condition   String?
+  confidence  Float?
+  matchedProductId String?
+  suggested   String[]  @default([])
+  action      String? // replace | register | service | recycle
+  imageUrl    String? // only when the customer chose to keep it (device / service)
+  costUsd     Float?
+  ipHash      String?
+  at          DateTime  @default(now())
+
+  @@index([at])
+  @@index([kind])
+  @@index([customerId])
+}

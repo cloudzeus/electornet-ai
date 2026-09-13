@@ -61,3 +61,25 @@ export async function productCopy(input: { brand: string; title: string; specs: 
   }).catch(() => null);
   return r ? parseJson(r.text) : null;
 }
+
+export interface ApplianceId { kind: string; kindLabel: string; brand: string | null; model: string | null; serial: string | null; energyClass: string | null; ageYears: number | null; condition: string | null; dims: { w: number | null; h: number | null; d: number | null } | null; confidence: number; notes: string | null; isAppliance: boolean }
+/** Vision: identify an appliance (or its rating plate) from a photo. */
+export async function identifyAppliance(imageDataUrl: string, hint?: string): Promise<{ result: ApplianceId; costUsd: number } | null> {
+  const cfg = await getAi();
+  if (!cfg || (await overBudget(cfg))) return null;
+  const r = await chat({
+    feature: "snap",
+    model: "vision",
+    messages: [
+      { role: "system", content: `Αναγνωρίζεις οικιακές ηλεκτρικές συσκευές από φωτογραφία (ή από την πινακίδα τους) για το euronics.gr. Απαντάς ΜΟΝΟ με JSON:
+{"isAppliance": boolean, "kind": one of ["plyntiria","stegnotiria","psygeia","plyntiria-piaton","koyzines","air-condition","tileoraseis","skoypes","mikrosyskeves","smartphones","laptops","other"], "kindLabel": ελληνική ονομασία (π.χ. "Πλυντήριο ρούχων"), "brand": string|null, "model": string|null (ακριβής κωδικός μοντέλου αν διαβάζεται), "serial": string|null, "energyClass": string|null, "ageYears": number|null (εκτίμηση ηλικίας), "condition": "καλή"|"μέτρια"|"κακή"|null, "dims": {"w":cm|null,"h":cm|null,"d":cm|null}|null (μόνο αν φαίνονται/αναγράφονται), "confidence": 0..1, "notes": string|null (τι σε βοήθησε, έως 20 λέξεις)}. Μην επινοείς μοντέλο: null αν δεν διαβάζεται.` },
+      { role: "user", content: [{ type: "text", text: hint ? `Στοιχεία από OCR: ${hint}` : "Τι συσκευή είναι αυτή;" }, { type: "image_url", image_url: { url: imageDataUrl } }] },
+    ],
+    json: true,
+    maxTokens: 400,
+    timeoutMs: 30000,
+  }).catch(() => null);
+  const j = r ? parseJson<ApplianceId>(r.text) : null;
+  if (!j) return null;
+  return { result: { ...j, confidence: Number(j.confidence) || 0, dims: j.dims ?? null, notes: j.notes ?? null, brand: j.brand || null, model: j.model || null, serial: j.serial || null, energyClass: j.energyClass || null, ageYears: j.ageYears ?? null, condition: j.condition ?? null, kindLabel: j.kindLabel || j.kind }, costUsd: r!.costUsd };
+}
