@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { openLabel } from "@/lib/stores/open";
 import { LocateFixed, Loader2, Wifi, Navigation } from "lucide-react";
 import { copyOf } from "@/lib/cms/copy";
 
@@ -69,7 +70,7 @@ export function NearestStoreCard({ initial, geoCity, geoSource, variant = "card"
         <div className="min-w-0">
           <div className="font-bold text-[length:var(--fs-15)] leading-[1.3] truncate">{store.name}</div>
           <div className="font-medium text-eu-muted text-[length:var(--fs-13-5)] mt-0.5">
-            {store.distanceKm.toLocaleString("el-GR")} km · Ανοιχτό έως {store.openUntil}
+            {store.distanceKm.toLocaleString("el-GR")} km · {openLabel(store.openUntil)}
           </div>
         </div>
         <a href={`https://maps.google.com/?q=${store.lat},${store.lng}`} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13-5)] px-3.5 py-2.5 min-h-10 inline-flex items-center shrink-0 hover:bg-eu-blue">

@@ -3,7 +3,7 @@ import "server-only";
 import type { Appointment, Brand, ConsentPref, Customer, Faq, Guide, InstalmentPlan, NewsItem, Order, PaymentMethod, Policy, Product, Service, Store } from "./types";
 import { navCategories, type NavCategory } from "./nav";
 import { products } from "./fixtures/products";
-import { stores } from "./fixtures/stores";
+import { findStores, findStoreBySlug, storeRegions } from "@/lib/stores/repo";
 import { services } from "./fixtures/services";
 import { guides } from "./fixtures/guides";
 import { faqs, policies } from "./fixtures/content";
@@ -257,20 +257,13 @@ export async function getBrand(slug: string) {
 }
 
 export async function getStores(q?: { q?: string; region?: string; service?: string }): Promise<Store[]> {
-  let list = stores.slice();
-  if (q?.region) list = list.filter((s) => s.region === q.region);
-  if (q?.service) list = list.filter((s) => s.services.includes(q.service!));
-  if (q?.q) {
-    const n = norm(q.q);
-    list = list.filter((s) => norm(`${s.name} ${s.city} ${s.zip} ${s.region} ${s.address}`).includes(n));
-  }
-  return list.sort((a, b) => a.distanceKm - b.distanceKm);
+  return findStores(q);
 }
 export async function getStoreBySlug(slug: string) {
-  return stores.find((s) => s.slug === slug) ?? null;
+  return findStoreBySlug(slug);
 }
 export async function getRegions() {
-  return [...new Set(stores.map((s) => s.region))].sort();
+  return storeRegions();
 }
 
 export async function getServicesFull(): Promise<Service[]> {

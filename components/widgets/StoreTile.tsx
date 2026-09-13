@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isOpenToday, openLabel } from "@/lib/stores/open";
 import { LocateFixed, Loader2, MapPin, Navigation, Wifi } from "lucide-react";
 import type { NearStore } from "@/components/stores/NearestStoreCard";
 import { copyOf } from "@/lib/cms/copy";
@@ -54,7 +55,7 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
           <span className="tabular-nums">{store.distanceKm.toLocaleString("el-GR")} km</span>
           <span aria-hidden>·</span>
           <span className="inline-flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-eu-green shadow-[0_0_0_3px_rgba(34,160,80,.3)] animate-pulse" aria-hidden /> Ανοιχτό έως {store.openUntil}
+            <span className={`size-1.5 rounded-full ${isOpenToday(store.openUntil) ? "bg-eu-green shadow-[0_0_0_3px_rgba(34,160,80,.3)] animate-pulse" : "bg-eu-line-3"}`} aria-hidden /> {openLabel(store.openUntil)}
           </span>
         </div>
       </div>

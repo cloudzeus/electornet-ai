@@ -133,11 +133,11 @@ export async function getServices(limit?: number): Promise<Service[]> {
 /** @dynamic Nearest store from the request IP (city level); GPS refinement happens client-side. */
 export async function getNearestStore(): Promise<Store> {
   const g = await geoFromRequest();
-  return storesNear(g, 1)[0] ?? stores[0];
+  return (await storesNear(g, 1))[0] ?? stores[0];
 }
 export async function getNearestStoreWithGeo(): Promise<{ store: Store; city?: string; source: "ip" | "fallback" }> {
   const g = await geoFromRequest();
-  return { store: storesNear(g, 1)[0] ?? stores[0], city: g.city, source: g.source };
+  return { store: (await storesNear(g, 1))[0] ?? stores[0], city: g.city, source: g.source };
 }
 export async function getGuides(): Promise<Guide[]> {
   return guides;

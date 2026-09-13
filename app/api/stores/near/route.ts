@@ -7,5 +7,6 @@ export async function GET(req: Request) {
   const lat = Number(u.searchParams.get("lat"));
   const lng = Number(u.searchParams.get("lng"));
   if (!lat || !lng) return NextResponse.json({ error: "lat/lng required" }, { status: 400 });
-  return NextResponse.json({ stores: storesNear({ lat, lng }, 5).map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, distanceKm: s.distanceKm, openUntil: s.openUntil, lat: s.lat, lng: s.lng })) }, { headers: { "cache-control": "no-store" } });
+  const near = await storesNear({ lat, lng }, 5);
+  return NextResponse.json({ stores: near.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, distanceKm: s.distanceKm, openUntil: s.openUntil, lat: s.lat, lng: s.lng })) }, { headers: { "cache-control": "no-store" } });
 }

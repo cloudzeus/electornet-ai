@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isOpenToday } from "@/lib/stores/open";
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Phone, Clock } from "lucide-react";
@@ -17,7 +18,7 @@ const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβ
 export default async function StoresPage({ searchParams }: { searchParams: Promise<{ q?: string; region?: string; service?: string }> }) {
   const sp = await searchParams;
   const [stores, regions, geo] = await Promise.all([getStores({ q: sp.q, region: sp.region, service: sp.service }), getRegions(), geoFromRequest()]);
-  const near = storesNear(geo, 3);
+  const near = await storesNear(geo, 3);
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Καταστήματα" }]} />
@@ -81,7 +82,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
                     <MapPin className="size-3.5 text-eu-blue shrink-0" aria-hidden /> {s.address}, {s.zip} {s.city}
                   </div>
                   <div className="text-eu-ink-2 mt-0.5 flex items-center gap-1.5">
-                    <Clock className="size-3.5 text-eu-green shrink-0" aria-hidden /> <span className="text-eu-green font-bold">Ανοιχτό</span> · έως {s.openUntil}
+                    <Clock className={`size-3.5 shrink-0 ${isOpenToday(s.openUntil) ? "text-eu-green" : "text-eu-muted"}`} aria-hidden /> {isOpenToday(s.openUntil) ? <><span className="text-eu-green font-bold">Ανοιχτό</span> · έως {s.openUntil}</> : <span className="text-eu-muted font-bold">Κλειστό σήμερα</span>}
                     {s.phone && (
                       <>
                         <span className="text-eu-muted-3">·</span>

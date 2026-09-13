@@ -37,7 +37,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read", soon: true },
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read", soon: true },
-      { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read", soon: true },
+      { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },
       { href: "/admin/service", label: "Service & εγγυήσεις", icon: Wrench, perm: "service.tickets.read", soon: true },
     ],
   },

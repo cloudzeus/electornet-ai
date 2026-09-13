@@ -208,25 +208,41 @@ model Question {
 
 model Store {
   id        String       @id @default(cuid())
+  siteId    Int?         @unique // euronics.gr store-locator id (source of the import)
   erpBranch String?      @unique
   slug      String       @unique
   name      String
   member    String? // cooperative member company
+  kind      String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
   address   String
   city      String
   region    String
+  regionRaw String? // as published (genitive)
   zip       String
   phone     String?
+  mobile    String?
+  fax       String?
   email     String?
   lat       Float
   lng       Float
+  geocoded  String? // "site" | "manual" | "nominatim"
+  geoLat    Float?  // independent geocode (Nominatim) for QA
+  geoLng    Float?
+  geoDeltaKm Float? // distance between published and geocoded point
+  geoLabel  String? // display name returned by the geocoder
   hours     Json // [{ day: 1, open: "09:00", close: "21:00" }]
   services  Json // ["click-collect", "installation", "service-point", …]
+  photo     String? // media asset URL
+  notes     String?      @db.Text
   active    Boolean      @default(true)
+  sort      Int          @default(0)
   stock     StoreStock[]
   orders    Order[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([region])
+  @@index([active])
 }
 
 model Service {

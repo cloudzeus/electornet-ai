@@ -1,6 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
-import { stores } from "@/lib/data/fixtures/stores";
+import { nearestStores } from "@/lib/stores/repo";
 import type { Store } from "@/lib/data/types";
 
 export interface GeoPoint {
@@ -57,10 +57,6 @@ export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; ln
 }
 
 /** Stores sorted by distance from a point, with `distanceKm` recomputed. */
-export function storesNear(p: { lat: number; lng: number }, limit = 5): Store[] {
-  return stores
-    .filter((s) => typeof s.lat === "number" && typeof s.lng === "number")
-    .map((s) => ({ ...s, distanceKm: Math.round(distanceKm(p, { lat: s.lat!, lng: s.lng! }) * 10) / 10 }))
-    .sort((a, b) => a.distanceKm - b.distanceKm)
-    .slice(0, limit);
+export async function storesNear(p: { lat: number; lng: number }, limit = 5): Promise<Store[]> {
+  return nearestStores(p, limit);
 }
