@@ -56,13 +56,22 @@ export async function testSection(section: string, fd: FormData): Promise<Action
       await audit(user.id, "settings.test", "Setting", section, null, { ok: true, ms: r.ms });
       return { ok: true, message: `Συνδέθηκε στο SoftOne σε ${r.ms} ms.`, details: { Εταιρεία: r.company, Υποκατάστημα: r.branch, Χρήστης: r.user, Έκδοση: r.version, Serial: r.serial } };
     }
-    if (def.test === "anthropic") {
-      const key = sec("anthropicApiKey");
-      if (!key) return { ok: false, message: "Δώσε Anthropic API key." };
-      const res = await fetch("https://api.anthropic.com/v1/models", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" }, signal: AbortSignal.timeout(10000) });
-      if (!res.ok) return { ok: false, message: `Anthropic: ${res.status} ${res.statusText}` };
-      const j = (await res.json()) as { data?: { id: string }[] };
-      return { ok: true, message: "Το κλειδί είναι έγκυρο.", details: { Μοντέλα: j.data?.length ?? 0 } };
+    if (def.test === "openrouter") {
+      const key = sec("openrouterApiKey");
+      if (!key) return { ok: false, message: "Δώσε OpenRouter API key." };
+      const t0 = Date.now();
+      const me = await fetch("https://openrouter.ai/api/v1/auth/key", { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10000) });
+      if (me.status === 401) return { ok: false, message: "OpenRouter: μη έγκυρο κλειδί." };
+      if (!me.ok) return { ok: false, message: `OpenRouter: ${me.status} ${me.statusText}` };
+      const k = (await me.json()) as { data?: { label?: string; usage?: number; limit?: number | null; is_free_tier?: boolean } };
+      const details: Record<string, string | number | null> = { Κλειδί: k.data?.label ?? "—", "Χρήση ($)": k.data?.usage != null ? Number(k.data.usage.toFixed(4)) : null, "Όριο ($)": k.data?.limit ?? "χωρίς όριο", Χρόνος: `${Date.now() - t0} ms` };
+      const model = val("model");
+      if (model) {
+        const { chat } = await import("@/lib/ai/openrouter");
+        const r = await chat({ feature: "test", messages: [{ role: "user", content: "Απάντησε μόνο: OK" }], maxTokens: 5, override: { apiKey: key, model } }).catch((e: Error) => ({ error: e.message }));
+        details[`Μοντέλο ${model}`] = "error" in r ? `σφάλμα: ${r.error.slice(0, 120)}` : `${r.text.trim().slice(0, 20)} · ${r.ms} ms · $${r.costUsd.toFixed(5)}`;
+      }
+      return { ok: true, message: "Η σύνδεση με το OpenRouter λειτουργεί.", details };
     }
     if (def.test === "bunny") {
       const zone = val("storageZone");

@@ -6,6 +6,7 @@ import { audit } from "@/lib/rbac/audit";
 import { toDTO, destroy, ingest } from "@/lib/media/repo";
 import { removeBackground, probeVideo } from "@/lib/media/process";
 import { activeStorage } from "@/lib/media/storage";
+import { describeImage } from "@/lib/ai/tasks";
 import type { MediaAssetDTO, MediaFolderDTO, MediaKind } from "@/lib/media/types";
 import type { Prisma } from "@prisma/client";
 
@@ -142,4 +143,17 @@ async function fetchBytes(url: string): Promise<Buffer> {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Δεν κατέβηκε το αρχείο (${res.status})`);
   return Buffer.from(await res.arrayBuffer());
+}
+
+/** AI alt text / title / tags for an image (OpenRouter vision model). Writes only empty fields unless `overwrite`. */
+export async function aiDescribeAsset(id: string, overwrite = false): Promise<{ ok: true; asset: MediaAssetDTO } | { ok: false; error: string }> {
+  const user = await requirePermission("cms.media.write");
+  const src = await db.mediaAsset.findUniqueOrThrow({ where: { id } });
+  if (src.kind !== "image") return { ok: false, error: "Μόνο για εικόνες." };
+  const url = src.url.startsWith("/") ? `data:${src.mime};base64,${(await fetchBytes(src.thumbUrl ?? src.url)).toString("base64")}` : (src.thumbUrl ?? src.url);
+  const d = await describeImage(url, src.title ?? src.filename);
+  if (!d) return { ok: false, error: "Δεν υπάρχει διαθέσιμο AI (κλειδί OpenRouter / όριο κόστους)." };
+  const row = await db.mediaAsset.update({ where: { id }, data: { alt: overwrite || !src.alt ? d.alt : src.alt, title: overwrite || !src.title || src.title === src.filename.replace(/\.[^.]+$/, "") ? d.title || src.title : src.title, tags: [...new Set([...src.tags, ...d.tags])] } });
+  await audit(user.id, "media.ai-describe", "MediaAsset", id, { alt: src.alt, title: src.title }, { alt: row.alt, title: row.title, tags: row.tags });
+  return { ok: true, asset: toDTO(row) };
 }

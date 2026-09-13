@@ -25,7 +25,7 @@ export interface Section {
   description: string;
   group: "site" | "integrations" | "marketing" | "commerce";
   /** server action name for a «Δοκιμή σύνδεσης» button */
-  test?: "softone" | "smtp" | "anthropic" | "bunny";
+  test?: "softone" | "smtp" | "openrouter" | "bunny";
   fields: Field[];
 }
 
@@ -213,13 +213,20 @@ export const SECTIONS: Section[] = [
     title: "AI & υπηρεσίες",
     description: "Ο Άρης (σύμβουλος), γεωεντοπισμός, χάρτες, αναζήτηση.",
     group: "integrations",
-    test: "anthropic",
+    test: "openrouter",
     fields: [
-      yesNo("advisorEnabled", "Ο Άρης ενεργός", undefined, true),
-      { key: "anthropicApiKey", label: "Anthropic API key", type: "secret", width: "half" },
-      { key: "model", label: "Μοντέλο", type: "select", options: [{ value: "claude-sonnet-5", label: "Claude Sonnet 5" }, { value: "claude-opus-5", label: "Claude Opus 5" }, { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" }], width: "half" },
-      { key: "dailyBudgetEur", label: "Ημερήσιο όριο κόστους (€)", type: "number", width: "half" },
+      yesNo("advisorEnabled", "Ο Άρης ενεργός", "Απαντήσεις με LLM· χωρίς κλειδί πέφτει στους κανόνες demo.", true),
+      { key: "openrouterApiKey", label: "OpenRouter API key", type: "secret", required: true, help: "Ένα κλειδί για όλα τα μοντέλα και όλες τις AI λειτουργίες (openrouter.ai/keys).", width: "half" },
+      { key: "routing", label: "Δρομολόγηση μοντέλου", type: "select", options: [{ value: "auto", label: "Αυτόματη (openrouter/auto επιλέγει ανά ερώτηση)" }, { value: "task", label: "Ανά εργασία (τα μοντέλα παρακάτω)" }], help: "Στην αυτόματη, το OpenRouter διαλέγει το κατάλληλο μοντέλο για κάθε prompt· τα παρακάτω μένουν ως fallback.", width: "half" },
+      { key: "providerSort", label: "Προτίμηση παρόχου", type: "select", options: [{ value: "", label: "Προεπιλογή OpenRouter" }, { value: "price", label: "Φθηνότερος" }, { value: "throughput", label: "Ταχύτερος (throughput)" }, { value: "latency", label: "Μικρότερη καθυστέρηση" }], width: "half" },
+      { key: "model", label: "Κύριο μοντέλο (Άρης, κείμενα)", type: "text", placeholder: "openrouter/auto", help: "OpenRouter model id, π.χ. anthropic/claude-sonnet-4.5, openai/gpt-5, google/gemini-2.5-pro. Κενό = openrouter/auto.", width: "half" },
+      { key: "modelFast", label: "Γρήγορο/φθηνό μοντέλο (alt text, ταξινόμηση, agent βήματα)", type: "text", placeholder: "google/gemini-2.5-flash", width: "half" },
+      { key: "modelVision", label: "Μοντέλο εικόνας (alt text, Snap & Find)", type: "text", placeholder: "google/gemini-2.5-flash", help: "Κενό = γρήγορο μοντέλο.", width: "half" },
+      { key: "fallbackModels", label: "Fallback μοντέλα", type: "text", placeholder: "anthropic/claude-sonnet-4.5, openai/gpt-4.1-mini", help: "Με κόμμα· δοκιμάζονται με τη σειρά αν το πρώτο αποτύχει ή είναι κάτω.", width: "half" },
+      { key: "dailyBudgetUsd", label: "Ημερήσιο όριο κόστους ($)", type: "number", placeholder: "10", help: "Όταν ξεπεραστεί, ο Άρης γυρίζει σε κανόνες μέχρι την επόμενη μέρα.", width: "half" },
       { key: "maxTokens", label: "Max tokens απάντησης", type: "number", placeholder: "600", width: "half" },
+      { key: "temperature", label: "Temperature", type: "number", placeholder: "0.4", width: "half" },
+      { key: "siteTitle", label: "Όνομα app στο OpenRouter (X-Title)", type: "text", placeholder: "euronics.gr", width: "half" },
       { key: "geoProvider", label: "Γεωεντοπισμός (IP)", type: "select", options: [{ value: "ipapi", label: "ipapi.co" }, { value: "maxmind", label: "MaxMind" }, { value: "cloudflare", label: "Cloudflare headers" }], width: "half" },
       { key: "geoApiKey", label: "Geo API key", type: "secret", width: "half" },
       { key: "mapsApiKey", label: "Google Maps API key", type: "secret", width: "half" },

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T09:04:37.238Z",
+  "timestamp": "2026-09-13T09:09:48.141Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,23 +22,27 @@
     },
     {
       "status": "M",
-      "path": "app/globals.css"
+      "path": "app/admin/(shell)/media/actions.ts"
     },
     {
       "status": "M",
-      "path": "components/admin/nav.ts"
+      "path": "app/admin/(shell)/page.tsx"
     },
     {
       "status": "M",
-      "path": "components/commerce/ProductCard.tsx"
+      "path": "app/admin/(shell)/settings/actions.ts"
     },
     {
       "status": "M",
-      "path": "components/commerce/Stickers.tsx"
+      "path": "app/api/advisor/route.ts"
     },
     {
       "status": "M",
-      "path": "lib/data/types.ts"
+      "path": "components/admin/media/AssetDrawer.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/settings/schema.ts"
     },
     {
       "status": "M",
@@ -46,21 +50,9 @@
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/stickers/"
-    },
-    {
-      "status": "??",
-      "path": "components/admin/stickers/"
-    },
-    {
-      "status": "??",
-      "path": "components/stickers/"
-    },
-    {
-      "status": "??",
-      "path": "lib/stickers/"
+      "path": "lib/ai/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n9020b2b Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal point, background removal (rembg/remove.bg), bulk actions, picker + MediaField for CMS forms; Bunny or local storage\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal\n022dbc8 v4.7 (local): UI copy extracted to a CMS dictionary (77 namespaces, 477 keys)"
+  "context_notes": "Recent commits:\n51ecdce SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, SVG & PNG export, export to media library; storefront custom sticker slot on ProductCard\n9020b2b Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal point, background removal (rembg/remove.bg), bulk actions, picker + MediaField for CMS forms; Bunny or local storage\n5e2365e Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection tests, API keys; SoftOne s1services client; consent-gated Analytics; footer socials from settings\nbe42963 Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar moved under /admin\n7d84bac v4.7b (local): tablet fixes and CMS collections proposal"
 }

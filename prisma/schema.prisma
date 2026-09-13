@@ -675,3 +675,20 @@ model Sticker {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// AI usage ledger (OpenRouter) — per call: feature, model, tokens, cost. Powers the daily budget guard and the dashboard tile.
+model AiUsage {
+  id        String   @id @default(cuid())
+  day       String   // yyyy-mm-dd
+  feature   String   // "advisor" | "alt-text" | "copy" | "agent" | "test"
+  model     String
+  tokensIn  Int      @default(0)
+  tokensOut Int      @default(0)
+  costUsd   Float    @default(0)
+  ms        Int      @default(0)
+  ok        Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([day])
+  @@index([feature, createdAt])
+}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Check, Crop, Download, ExternalLink, FileText, Replace, Scissors, Trash2, X, Clapperboard, Crosshair } from "lucide-react";
+import { Copy, Check, Crop, Download, ExternalLink, FileText, Replace, Scissors, Trash2, X, Clapperboard, Crosshair, Sparkles } from "lucide-react";
 import type { MediaAssetDTO, MediaFolderDTO } from "@/lib/media/types";
-import { updateAsset, removeBackgroundAction, setVideoPoster } from "@/app/admin/(shell)/media/actions";
+import { updateAsset, removeBackgroundAction, setVideoPoster, aiDescribeAsset } from "@/app/admin/(shell)/media/actions";
 import { fmtBytes, fmtDuration, fileExt } from "./format";
 
 /** Right-hand detail panel: preview, editable metadata, focal point, actions. Mount with key={asset.id} so the form resets per asset. */
@@ -42,6 +42,12 @@ export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete,
       setMsg("Αφαίρεση φόντου… (μπορεί να πάρει λίγα δευτερόλεπτα)");
       const r = await removeBackgroundAction(a.id);
       if (r.ok) { onCreated(r.asset); setMsg("Δημιουργήθηκε νέα εικόνα χωρίς φόντο."); } else setMsg(r.error);
+    });
+  const aiDescribe = () =>
+    start(async () => {
+      setMsg("Ο Άρης περιγράφει την εικόνα…");
+      const r = await aiDescribeAsset(a.id, true);
+      if (r.ok) { onChange(r.asset); setForm((f) => ({ ...f, alt: r.asset.alt ?? "", title: r.asset.title ?? "", tags: r.asset.tags.join(", ") })); setMsg("Alt, τίτλος και tags συμπληρώθηκαν με AI — έλεγξε και αποθήκευσε."); } else setMsg(r.error);
     });
   const poster = () => start(async () => { const r = await setVideoPoster(a.id, posterAt); if (r.ok) { onChange(r.asset); setMsg("Το poster ενημερώθηκε."); } else setMsg(r.error); });
 
@@ -90,6 +96,7 @@ export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete,
         <a href={a.url} download={a.filename} className={action}><Download className="size-4" aria-hidden /> Λήψη</a>
         {canWrite && a.kind === "image" && <button type="button" onClick={() => onEdit(a)} className={`${action} border-eu-navy bg-eu-navy text-white hover:bg-eu-blue`}><Crop className="size-4" aria-hidden /> Επεξεργασία</button>}
         {canWrite && a.kind === "image" && !a.tags.includes("cutout") && <button type="button" disabled={pending} onClick={removeBg} className={action}><Scissors className="size-4" aria-hidden /> Αφαίρεση φόντου</button>}
+        {canWrite && a.kind === "image" && <button type="button" disabled={pending} onClick={aiDescribe} className={action}><Sparkles className="size-4" aria-hidden /> Alt με AI</button>}
         {canWrite && (
           <label className={`${action} cursor-pointer`}>
             <Replace className="size-4" aria-hidden /> Αντικατάσταση
