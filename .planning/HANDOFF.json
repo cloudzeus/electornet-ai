@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T11:01:25.857Z",
+  "timestamp": "2026-09-13T11:03:58.102Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,61 +22,9 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/lista/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/customers/[id]/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/customers/actions.ts"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/reports/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/customers/CustomerWorkspace.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/commerce/CartProvider.tsx"
-    },
-    {
-      "status": "M",
-      "path": "docs/customers.md"
-    },
-    {
-      "status": "M",
-      "path": "prisma/schema.prisma"
-    },
-    {
-      "status": "??",
-      "path": "app/(shop)/lista/actions.ts"
-    },
-    {
-      "status": "??",
-      "path": "app/(shop)/lista/k/"
-    },
-    {
-      "status": "??",
-      "path": "app/admin/(shell)/reports/wishlist/"
-    },
-    {
-      "status": "??",
-      "path": "app/api/wishlist/"
-    },
-    {
-      "status": "??",
-      "path": "components/catalog/WishlistManager.tsx"
-    },
-    {
-      "status": "??",
-      "path": "lib/wishlist/"
+      "path": "components/admin/AdminNavLinks.tsx"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n746f971 Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer JWT session + login page with logged attempts, staff-initiated OTP from the customer profile\ndd5e47e Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with settings defaults, append-only consent ledger with device/IP/wording evidence + versioned consent texts, login events, newsletter double opt-in with proof + admin, GDPR requests with 30-day deadlines, export and right-to-be-forgotten pseudonymisation, printable consent proof; demo seeds\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards\nef50e89 Store locator layout: clustered Leaflet/OSM map replaces the schematic pin map (no overlapping pins), popups with address/phone/links, list ↔ map focus, wrapping titles, responsive map height, map on the store page"
+  "context_notes": "Recent commits:\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper\n746f971 Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer JWT session + login page with logged attempts, staff-initiated OTP from the customer profile\ndd5e47e Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with settings defaults, append-only consent ledger with device/IP/wording evidence + versioned consent texts, login events, newsletter double opt-in with proof + admin, GDPR requests with 30-day deadlines, export and right-to-be-forgotten pseudonymisation, printable consent proof; demo seeds\n8c0084f Geocode label: city only, street+city for address queries\nc772bbb Visitor location: GPS / typed place (Nominatim) / IP with settings-driven provider (ipapi, MaxMind, Cloudflare), eu_geo cookie shared by every distance on the site, LocateBar on the locator, visitor marker on the map, shared useVisitorGeo hook in store cards"
 }
