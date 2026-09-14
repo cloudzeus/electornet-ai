@@ -41,7 +41,6 @@ export default async function AdminLogin({ searchParams }: { searchParams: Promi
         <button type="submit" className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] min-h-12 hover:bg-eu-blue">
           Σύνδεση
         </button>
-        <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Demo: admin@euronics.gr / admin1234</p>
       </form>
     </div>
   );
