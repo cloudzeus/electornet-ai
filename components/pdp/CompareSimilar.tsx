@@ -37,7 +37,7 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
       <div className="@3xl:hidden">
         <CompareStacked products={all} rows={[{ group: "Χαρακτηριστικά", keys }]} val={val} current={p.id} />
       </div>
-      <div className="hidden @3xl:block rounded-xl border border-eu-line">
+      <div className="hidden @3xl:block rounded-xl border border-eu-line overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[length:var(--fs-16)]" style={{ minWidth: `${160 + all.length * 170}px` }}>
           <thead>
             <tr className="align-top">

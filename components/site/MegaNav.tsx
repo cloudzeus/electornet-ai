@@ -187,7 +187,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
       <ul
         ref={probe}
         aria-hidden
-        className="absolute invisible pointer-events-none h-0 overflow-hidden flex items-center m-0 p-0 list-none eu-full eu-gutter-wide"
+        className="fixed left-0 top-0 w-screen invisible pointer-events-none h-0 overflow-hidden flex items-center m-0 p-0 list-none [&>li]:shrink-0"
       >
         {navCategories.map((c, i) => (
           <li key={c.slug}>{plaque(c, i, false)}</li>

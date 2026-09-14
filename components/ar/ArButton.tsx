@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Box, X, Smartphone } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
@@ -47,16 +48,47 @@ export function ArButton({
       mv.setAttribute("alt", title);
       mv.setAttribute("ar", "");
       mv.setAttribute("ar-modes", "webxr scene-viewer quick-look");
-      mv.setAttribute("ar-scale", "fixed");
+      mv.setAttribute("ar-scale", "fixed"); // real size: the customer cannot pinch-scale the box
+      mv.setAttribute("ar-placement", "floor");
       mv.setAttribute("camera-controls", "");
-      mv.setAttribute("auto-rotate", "");
-      mv.setAttribute("shadow-intensity", "1");
-      mv.setAttribute("exposure", "1.1");
+      mv.setAttribute("touch-action", "pan-y");
+      mv.setAttribute("interaction-prompt", "none");
+      mv.setAttribute("camera-orbit", "34deg 76deg auto"); // from the front-right, so the height and depth labels on the right edge stay in view
+      mv.setAttribute("field-of-view", "28deg");
+      mv.setAttribute("shadow-intensity", "1.2");
+      mv.setAttribute("shadow-softness", "0.8");
+      mv.setAttribute("exposure", "1.05");
       mv.setAttribute("environment-image", "neutral");
+      mv.setAttribute("xr-environment", "");
       mv.style.width = "100%";
       mv.style.height = "100%";
       mv.style.background =
         "radial-gradient(70% 60% at 50% 60%, #fff 0%, #eef2f9 100%)";
+      // Dimension labels anchored to the box edges (metres, Y up, front at +z) — they follow the model in 3D and in WebXR.
+      if (dims) {
+        const w = dims.w / 100, h = dims.h / 100, d = dims.d / 100;
+        const spots: [string, string, string, string][] = [
+          ["w", `0 0.03 ${(d / 2 + 0.005).toFixed(3)}`, "0 0 1", `${dims.w.toLocaleString("el-GR")} εκ.`],
+          ["h", `${(w / 2 + 0.005).toFixed(3)} ${(h / 2).toFixed(3)} ${(d / 2).toFixed(3)}`, "1 0 0", `${dims.h.toLocaleString("el-GR")} εκ.`],
+          ["d", `${(w / 2 + 0.005).toFixed(3)} 0.03 0`, "1 0 0", `${dims.d.toLocaleString("el-GR")} εκ.`],
+        ];
+        for (const [k, pos, normal, label] of spots) {
+          const hs = document.createElement("div");
+          hs.setAttribute("slot", `hotspot-${k}`);
+          hs.setAttribute("data-position", pos);
+          hs.setAttribute("data-normal", normal);
+          hs.className = "pointer-events-none rounded-full bg-eu-navy/85 text-white font-extrabold px-2 py-0.5 shadow whitespace-nowrap -translate-x-1/2 -translate-y-1/2";
+          hs.style.fontSize = "var(--fs-13)";
+          hs.textContent = `${k === "w" ? "Π" : k === "h" ? "Υ" : "Β"} ${label}`;
+          mv.appendChild(hs);
+        }
+      }
+      // Brand mark: shown over the viewer and inside the WebXR overlay (children of <model-viewer> are the DOM overlay).
+      const brand = document.createElement("img");
+      brand.src = "/design/euronics-logo.png";
+      brand.alt = "Euronics";
+      brand.className = "pointer-events-none absolute left-4 top-4 h-6 w-auto opacity-90 drop-shadow";
+      mv.appendChild(brand);
       const btn = document.createElement("button");
       btn.setAttribute("slot", "ar-button");
       btn.className =
@@ -77,7 +109,7 @@ export function ArButton({
       alive = false;
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, glb, usdz, title]);
+  }, [open, glb, usdz, title, dims]);
 
   useEffect(() => {
     // Deep link from the QR code (?ar=1): open after hydration.
@@ -99,7 +131,8 @@ export function ArButton({
         />{" "}
         Δες το στον χώρο σου
       </button>
-      {open && (
+      {/* Portal: the dialog must escape ancestors with transforms (reveal animations), otherwise `fixed` is measured against them. */}
+      {open && createPortal(
         <div
           className="fixed inset-0 z-[70]"
           role="dialog"
@@ -112,12 +145,12 @@ export function ArButton({
             aria-label={c.kleisimo}
             onClick={() => setOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(920px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-cols-1 @md:grid-cols-[minmax(0,1fr)_280px] max-h-[92dvh]">
+          <div className="absolute inset-0 h-[100dvh] @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(920px,92vw)] @md:h-[min(92dvh,680px)] bg-white @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] @md:grid-rows-[minmax(0,1fr)] @md:grid-cols-[minmax(0,1fr)_280px] [@media(orientation:landscape)_and_(max-height:520px)]:grid-rows-none [@media(orientation:landscape)_and_(max-height:520px)]:grid-cols-[minmax(0,1fr)_240px]">
             <div
               ref={holder}
-              className="relative aspect-[4/3] @md:aspect-auto @md:min-h-[520px] bg-eu-surface"
+              className="relative min-h-0 min-w-0 h-full bg-eu-surface"
             />
-            <div className="p-5 @md:p-6 grid content-start gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2">
+            <div className="p-4 @md:p-6 grid content-start gap-3 @md:gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2 min-h-0 overflow-y-auto">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">
@@ -125,7 +158,7 @@ export function ArButton({
                   </div>
                   <h2
                     id="ar-title"
-                    className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight"
+                    className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] @md:text-[length:var(--fs-20)] leading-tight line-clamp-2"
                   >
                     {title}
                   </h2>
@@ -148,13 +181,13 @@ export function ArButton({
                   ].map(([l, v]) => (
                     <div
                       key={l as string}
-                      className="rounded-xl bg-eu-surface p-3"
+                      className="rounded-xl bg-eu-surface p-2.5 min-w-0"
                     >
                       <dt className="m-0 text-eu-muted text-[length:var(--fs-14)]">
                         {l}
                       </dt>
-                      <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-18)] tabular-nums">
-                        {(v as number).toLocaleString("el-GR")} εκ.
+                      <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-16)] tabular-nums whitespace-nowrap">
+                        {(v as number).toLocaleString("el-GR")} <span className="text-eu-muted font-bold text-[length:var(--fs-13)]">εκ.</span>
                       </dd>
                     </div>
                   ))}
@@ -184,7 +217,8 @@ export function ArButton({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

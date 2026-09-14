@@ -66,7 +66,7 @@ export function CompareTable({ initial }: { initial: Product[] }) {
       <div className="@3xl:hidden">
         <CompareStacked products={initial} rows={groups.map(([group, keys]) => ({ group, keys: keys.filter((k) => !onlyDiff || differs(k)) })).filter((g) => g.keys.length)} val={val} />
       </div>
-      <div className="hidden @3xl:block rounded-2xl border border-eu-line bg-white">
+      <div className="hidden @3xl:block rounded-2xl border border-eu-line bg-white overflow-x-auto">
         <table className="w-full table-fixed border-collapse text-[length:var(--fs-16)]" style={{ minWidth: `${180 + initial.length * 220}px` }}>
           <thead>
             <tr className="align-top">
