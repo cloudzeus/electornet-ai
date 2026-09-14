@@ -97,14 +97,60 @@ export const DISTRICTS: DistrictDef[] = [
   { s1: 51, name: "Χίος", s1Name: "ΧΙΟΥ", region: "Βόρειο Αιγαίο", zip: ["82"] },
 ];
 
-/** χωρίς τόνους, κεφαλαία, χωρίς τελικό «Σ» — ώστε «ΑΤΤΙΚΗΣ», «Αττική», «attiki» να πέφτουν στο ίδιο κλειδί */
+/** Κεφαλαία, χωρίς τόνους, τελικό ς → σ, ένα κενό. Κρατά τα κενά (για ταίριασμα ονομάτων). */
+export function normalizeGreek(s: string): string {
+  return (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ς/g, "σ").toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+/** Διοικητικά προθέματα που αφαιρούνται πριν το ταίριασμα ονομάτων. */
+const ADMIN_PREFIX = /^\s*(ΔΗΜΟΣ|Δ\.|ΠΕΡΙΦΕΡΕΙΑΚΗ ΕΝΟΤΗΤΑ|ΠΕΡΙΦΕΡΕΙΑ|ΝΟΜΟΣ|Π\.Ε\.)\s+/;
+
+/** «ΠΕΡΙΦΕΡΕΙΑΚΗ ΕΝΟΤΗΤΑ ΔΡΑΜΑΣ (Α΄)» → «ΔΡΑΜΑΣ». */
+export function coreName(nameEL: string): string {
+  return normalizeGreek(nameEL.replace(/\(.*?\)/g, "").trim()).replace(ADMIN_PREFIX, "").trim();
+}
+
+/** Σφιχτό κλειδί: μόνο γράμματα, χωρίς τελικό «Σ» — «Α΄ ΑΘΗΝΩΝ» ↔ «Α ΑΘΗΝΩΝ», «ΑΤΤΙΚΗΣ» ↔ «Αττική». */
 export function foldGreek(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^Α-ΩA-Z]/g, "")
-    .replace(/Σ$/, "");
+  return normalizeGreek(s).replace(/[^Α-ΩA-Z]/g, "").replace(/Σ$/, "");
+}
+
+const MIN_QUERY_LEN = 4;
+const STEM_LEN = 5;
+
+/**
+ * Ελεύθερο κείμενο τόπου → κόμβος. Κλιμακωτά: ακριβές → περιεκτικότητα προς
+ * κάθε κατεύθυνση («ΑΘΗΝΑ» ⊂ «ΑΘΗΝΑΙΩΝ») → κοινό θέμα 5 χαρακτήρων.
+ */
+export function nameMatchCandidate<T extends { nameEL: string }>(query: string, nodes: T[]): T | null {
+  const q = normalizeGreek(query).replace(ADMIN_PREFIX, "").trim();
+  if (q.length < MIN_QUERY_LEN) return null;
+  for (const n of nodes) if (coreName(n.nameEL) === q) return n;
+  // Η περιεκτικότητα ισχύει μόνο για κόμβους με αρκετά μακρύ όνομα: αλλιώς
+  // σύντομα ονόματα («Π.Ε. ΚΩ») ταιριάζουν μέσα σε κάθε μεγαλύτερο ερώτημα
+  // («ΛΑΚΩΝΙΑ» ⊃ «ΚΩ») και στέλνουν τον νομό σε λάθος περιφέρεια.
+  for (const n of nodes) { const core = coreName(n.nameEL); if (core.length >= MIN_QUERY_LEN && (core.includes(q) || q.includes(core))) return n; }
+  if (q.length >= STEM_LEN) { const stem = q.slice(0, STEM_LEN); for (const n of nodes) if (coreName(n.nameEL).startsWith(stem)) return n; }
+  return null;
+}
+
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180, dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const la1 = (a.lat * Math.PI) / 180, la2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Πλησιέστερος κόμβος με συντεταγμένες, με ανώτατη απόσταση (αλλιώς null). */
+export function nearestNode<T extends { latitude: number | null; longitude: number | null }>(point: { lat: number; lng: number }, nodes: T[], capKm = 50): T | null {
+  let best: T | null = null, bestKm = Infinity;
+  for (const n of nodes) {
+    if (n.latitude == null || n.longitude == null) continue;
+    const km = haversineKm(point, { lat: n.latitude, lng: n.longitude });
+    if (km < bestKm) { bestKm = km; best = n; }
+  }
+  return bestKm <= capKm ? best : null;
 }
 
 const BY_FOLD = new Map<string, DistrictDef>();

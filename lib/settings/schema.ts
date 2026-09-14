@@ -199,8 +199,10 @@ export const SECTIONS: Section[] = [
     group: "integrations",
     fields: [
       yesNo("vatEnabled", "Αναζήτηση ΑΦΜ ενεργή", "Χωρίς αυτό το checkout ζητά τα στοιχεία χειροκίνητα.", true),
-      { key: "vatUsername", label: "Username ειδικών κωδικών", type: "text", required: true, help: "Ειδικοί κωδικοί που εκδίδονται από το TAXISnet για την υπηρεσία «Στοιχεία Επιχειρήσεων» — ΟΧΙ οι κωδικοί TAXISnet.", width: "half" },
-      { key: "vatPassword", label: "Password ειδικών κωδικών", type: "secret", required: true, width: "half" },
+      { key: "vatSource", label: "Πηγή", type: "select", options: [{ value: "proxy", label: "Proxy afm2info (χωρίς κωδικούς)" }, { value: "soap", label: "Απευθείας ΑΑΔΕ (ειδικοί κωδικοί)" }], help: "Ο proxy δεν χρειάζεται κωδικούς αλλά δεν επιστρέφει τον κωδικό Δ.Ο.Υ. — η αντιστοίχιση με το IRSDATA γίνεται τότε με το όνομα.", width: "half" },
+      { key: "vatProxyUrl", label: "Proxy URL", type: "url", placeholder: "https://vat.wwa.gr/afm2info", width: "half" },
+      { key: "vatUsername", label: "Username ειδικών κωδικών", type: "text", help: "Ειδικοί κωδικοί που εκδίδονται από το TAXISnet για την υπηρεσία «Στοιχεία Επιχειρήσεων» — ΟΧΙ οι κωδικοί TAXISnet. Μόνο για την απευθείας σύνδεση.", width: "half" },
+      { key: "vatPassword", label: "Password ειδικών κωδικών", type: "secret", width: "half" },
       { key: "vatCalledBy", label: "ΑΦΜ εταιρείας (afm_called_by)", type: "text", placeholder: "094xxxxxx", help: "Ο ΑΦΜ που κάνει την κλήση. Κενό αν οι κωδικοί είναι προσωπικοί.", width: "half" },
       { key: "vatEndpoint", label: "Endpoint", type: "url", placeholder: "https://www1.gsis.gr/wsaade/RgWsPublic2/RgWsPublic2", help: "Κενό = παραγωγικό. Για δοκιμές: https://www1.gsis.gr/wsaadedg/RgWsPublic2/RgWsPublic2", width: "half" },
     ],

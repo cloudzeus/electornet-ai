@@ -1307,7 +1307,9 @@ model District {
   id         String       @id @default(cuid())
   code       String       @unique
   name       String
-  region     String? // our grouping (Αττική, Κεντρική Μακεδονία, …) for shipping zones
+  region     String? // όνομα περιφέρειας για ζώνες αποστολής (denormalised για γρήγορα φίλτρα)
+  regionCode String? // Region.code, level 3
+  regionRef  Region? @relation(fields: [regionCode], references: [code], onDelete: SetNull)
   active     Boolean      @default(true)
   s1Id       String?      @unique
   s1Name     String?
@@ -1470,4 +1472,28 @@ model Currency {
   s1Missing  Boolean   @default(false)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+}
+
+/// Καλλικράτης: δενδροειδής διοικητική διαίρεση (πηγή: prisma/data/kallikratis.json).
+/// level 3 = Περιφέρεια, 4 = Περιφερειακή Ενότητα (νομός), 5 = Δήμος.
+/// Ο κωδικός δείχνει την ιεραρχία: «111» → «11102» → «1110202».
+model Region {
+  code       String   @id
+  nameEL     String
+  nameEN     String?
+  level      Int // 3 | 4 | 5
+  parentCode String?
+  parent     Region?  @relation("RegionTree", fields: [parentCode], references: [code], onDelete: SetNull)
+  children   Region[] @relation("RegionTree")
+  path       String? // «111>11102>1110202»
+  latitude   Float?
+  longitude  Float?
+  active     Boolean  @default(true)
+  districts  District[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([parentCode])
+  @@index([level])
+  @@index([nameEL])
 }
