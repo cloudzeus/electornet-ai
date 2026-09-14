@@ -30,15 +30,9 @@ async function main() {
     create: { email: SUPER_ADMIN.email, name: SUPER_ADMIN.name, passwordHash: pw ? await bcrypt.hash(pw, 10) : null },
   });
   await db.staffRole.upsert({ where: { staffId_roleId: { staffId: superAdmin.id, roleId: superRole.id } }, update: {}, create: { staffId: superAdmin.id, roleId: superRole.id } });
-  // Demo admin (presentation account) with the «admin» role.
-  const demo = await db.staff.upsert({
-    where: { email: "admin@euronics.gr" },
-    update: { name: "Demo Admin" },
-    create: { email: "admin@euronics.gr", name: "Demo Admin", passwordHash: await bcrypt.hash("admin1234", 10) },
-  });
-  const adminRole = await db.role.findUniqueOrThrow({ where: { key: "admin" } });
-  await db.staffRole.deleteMany({ where: { staffId: demo.id } });
-  await db.staffRole.create({ data: { staffId: demo.id, roleId: adminRole.id } });
-  console.log(`seeded ${PERMISSIONS.length} permissions, ${ROLES.length} roles; super-admin ${SUPER_ADMIN.email} ${pw ? "(password set)" : "(NO password — set SEED_SUPERADMIN_PASSWORD in .env and re-run)"}; demo admin@euronics.gr / admin1234`);
+  // Κανένας λογαριασμός επίδειξης: σταθερός κωδικός στον κώδικα σημαίνει
+  // γνωστή πόρτα στην παραγωγή. Οι χρήστες δημιουργούνται από τον super admin
+  // στο /admin/staff.
+  console.log(`seeded ${PERMISSIONS.length} permissions, ${ROLES.length} roles; super-admin ${SUPER_ADMIN.email} ${pw ? "(password set)" : "(NO password — set SEED_SUPERADMIN_PASSWORD in .env and re-run)"}`);
 }
 main().finally(() => db.$disconnect());

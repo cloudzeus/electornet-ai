@@ -26,7 +26,7 @@ Add a key there → seed → it appears in the matrix.
 
 ## Accounts
 - Super admin `gkozyris@i4ria.com` — password from `SEED_SUPERADMIN_PASSWORD` in `.env` (never in code), then `npx tsx prisma/seed.ts`.
-- Demo `admin@euronics.gr / admin1234` (role admin) for presentations.
+- Κανένας λογαριασμός επίδειξης με σταθερό κωδικό. Οι χρήστες δημιουργούνται από τον super admin στο `/admin/staff`.
 
 ## Audit
 `audit(staffId, action, entity, entityId, before, after)` → `AuditLog`; viewer at **/admin/audit** (filter by entity, 50/page).
