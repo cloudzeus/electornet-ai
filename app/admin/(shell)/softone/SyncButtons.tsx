@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
-import { RefreshCw, Loader2, Trash2 } from "lucide-react";
-import { syncKind, syncAll, clearRuns } from "./actions";
+import { RefreshCw, Loader2, Trash2, Image as ImageIcon } from "lucide-react";
+import { syncKind, syncAll, clearRuns, findBrandLogos } from "./actions";
 
 export function SyncButton({ kind, label = "Συγχρονισμός", small }: { kind?: string; label?: string; small?: boolean }) {
   const [pending, start] = useTransition();
@@ -32,6 +32,30 @@ export function ClearRunsButtons() {
       </button>
       <button type="button" onClick={() => run("old")} disabled={pending} className="inline-flex items-center gap-1.5 rounded-full border border-eu-line text-eu-ink-3 font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:border-eu-navy hover:text-eu-navy disabled:opacity-60">
         Παλαιότερα των 30 ημερών
+      </button>
+      {msg && <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{msg}</span>}
+    </span>
+  );
+}
+
+/**
+ * Αναζήτηση λογοτύπων μαρκών στο Brandfetch. Τρέχει σε παρτίδες επειδή η
+ * υπηρεσία επιτρέπει 200 αναζητήσεις ανά 5 λεπτά· το κουμπί λέει πόσες
+ * μάρκες απομένουν ώστε ο διαχειριστής να ξαναπατήσει.
+ */
+export function FindLogosButton({ pending: left }: { pending: number }) {
+  const [busy, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = () => start(async () => {
+    const r = await findBrandLogos();
+    setMsg(r.ok
+      ? `${r.matched} βρέθηκαν, ${r.unmatched} χωρίς σίγουρη αντιστοίχιση${r.remaining ? ` · απομένουν ${r.remaining}` : " · ολοκληρώθηκε"}.`
+      : `${r.error}${r.matched ? ` (πρόλαβε ${r.matched})` : ""}`);
+  });
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <button type="button" onClick={run} disabled={busy || left === 0} title="Αναζήτηση domain και λογοτύπου ανά μάρκα" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-13)] px-3 min-h-9 hover:bg-eu-chip disabled:opacity-60">
+        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImageIcon className="size-4" aria-hidden />} {busy ? "Αναζήτηση λογοτύπων…" : left ? `Εύρεση λογοτύπων (${left})` : "Λογότυπα: ολοκληρώθηκε"}
       </button>
       {msg && <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{msg}</span>}
     </span>

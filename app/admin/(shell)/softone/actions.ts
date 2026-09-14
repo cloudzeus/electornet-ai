@@ -2,8 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
-import { db } from "@/lib/db";
 import { syncLookup, syncAllLookups, updateLookupRow, createLookupRow, lookupByKind } from "@/lib/softone/lookups";
+import { resolveBrandLogos, setBrandDomain } from "@/lib/brandfetch/brands";
+import { db } from "@/lib/db";
 
 export async function syncKind(kind: string) {
   const user = await requirePermission("settings.integrations.write");
@@ -24,6 +25,8 @@ export async function syncAll() {
 
 export async function saveRow(kind: string, id: string, patch: Record<string, unknown>) {
   const user = await requirePermission("settings.integrations.write");
+  // Το domain μιας μάρκας ξαναφτιάχνει τον σύνδεσμο λογοτύπου
+  if (kind === "brand" && "domain" in patch) { await setBrandDomain(id, String(patch.domain ?? "")); delete patch.domain; }
   const row = await updateLookupRow(kind, id, patch);
   await audit(user.id, "softone.lookup.edit", lookupByKind(kind)?.model ?? kind, id, null, patch);
   revalidatePath(`/admin/softone/${kind}`);
@@ -49,4 +52,24 @@ export async function clearRuns(mode: "failed" | "old", days = 30) {
   revalidatePath("/admin/softone/sync");
   revalidatePath("/admin/softone");
   return { ok: true as const, deleted: count };
+}
+
+/** Μαζική αναζήτηση λογοτύπων μαρκών στο Brandfetch (hotlink, χωρίς λήψη αρχείων). */
+export async function findBrandLogos(force = false) {
+  const user = await requirePermission("settings.integrations.write");
+  const r = await resolveBrandLogos({ force });
+  await audit(user.id, "brand.logos.resolve", "Brand", "*", null, { scanned: r.scanned, matched: r.matched, unmatched: r.unmatched, force });
+  revalidatePath("/admin/softone/brand");
+  return r;
+}
+
+/** Αποδοχή ή απόρριψη πρότασης domain για μία μάρκα. */
+export async function decideSuggestion(id: string, accept: boolean) {
+  const user = await requirePermission("settings.integrations.write");
+  const b = await db.brand.findUnique({ where: { id }, select: { domainSuggest: true, name: true } });
+  if (accept && b?.domainSuggest) await setBrandDomain(id, b.domainSuggest);
+  await db.brand.update({ where: { id }, data: { domainSuggest: null } });
+  await audit(user.id, accept ? "brand.domain.accept" : "brand.domain.reject", "Brand", id, null, { name: b?.name, domain: b?.domainSuggest });
+  revalidatePath("/admin/softone/brand");
+  return { ok: true as const };
 }

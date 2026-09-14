@@ -3,7 +3,22 @@ import { useState, useTransition } from "react";
 import { Check, Loader2, Plus, X, AlertTriangle, Link2, ImagePlus } from "lucide-react";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import type { LookupField } from "@/lib/softone/lookups";
-import { saveRow, addRow } from "../actions";
+import { saveRow, addRow, decideSuggestion } from "../actions";
+
+/** Ετικέτες για στήλες που δείχνουμε αλλά δεν επεξεργάζεται ο χρήστης. */
+const COLUMN_LABELS: Record<string, string> = { district: "Νομός", logoCdn: "Λογότυπο", domainSuggest: "Πρόταση", s1Fprms: "Τύπος S1", storeId: "Κατάστημα", isDefault: "Προεπιλογή" };
+
+/** Πρόταση domain από το Brandfetch που περιμένει έγκριση. */
+function Suggestion({ id, domain, onDone }: { id: string; domain: string; onDone: (accepted: boolean) => void }) {
+  const [busy, start] = useTransition();
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <span className="text-eu-ink-3">{domain}</span>
+      <button type="button" disabled={busy} title={`Αποδοχή ${domain}`} onClick={() => start(async () => { await decideSuggestion(id, true); onDone(true); })} className="size-7 rounded-full bg-eu-green/15 text-eu-green inline-flex items-center justify-center hover:bg-eu-green hover:text-white disabled:opacity-60"><Check className="size-3.5" aria-hidden /></button>
+      <button type="button" disabled={busy} title="Απόρριψη" onClick={() => start(async () => { await decideSuggestion(id, false); onDone(false); })} className="size-7 rounded-full bg-eu-surface text-eu-muted inline-flex items-center justify-center hover:bg-eu-red hover:text-white disabled:opacity-60"><X className="size-3.5" aria-hidden /></button>
+    </span>
+  );
+}
 
 type Row = Record<string, unknown> & { id: string; code: string; name: string; active: boolean; s1Id: string | null; s1Name: string | null; s1Missing: boolean; s1SyncedAt?: string | null };
 
@@ -47,7 +62,9 @@ export function RowsTable({ kind, rows: initial, editable, columns }: { kind: st
   const label = (f: LookupField | undefined, v: unknown) => {
     if (v == null || v === "") return "—";
     // eslint-disable-next-line @next/next/no-img-element
-    if (f?.type === "media") return <img src={String(v)} alt="" className="h-7 max-w-[96px] object-contain" />; if (f?.type === "select") return f.options?.find((o) => o.value === String(v))?.label ?? String(v); if (f?.type === "boolean") return v ? "Ναι" : "Όχι"; if (typeof v === "object") return (v as { name?: string }).name ?? "—"; return String(v); };
+    if (f?.type === "media") return <img src={String(v)} alt="" className="h-7 max-w-[96px] object-contain" />;
+    // eslint-disable-next-line @next/next/no-img-element
+    if (typeof v === "string" && /^https?:\/\//.test(v) && /logo|cdn\.brandfetch/.test(v)) return <img src={v} alt="" loading="lazy" className="h-7 max-w-[110px] object-contain" />; if (f?.type === "select") return f.options?.find((o) => o.value === String(v))?.label ?? String(v); if (f?.type === "boolean") return v ? "Ναι" : "Όχι"; if (typeof v === "object") return (v as { name?: string }).name ?? "—"; return String(v); };
   const begin = (r: Row) => { setEditing(r.id); setDraft({ code: r.code, name: r.name, active: r.active, ...Object.fromEntries(editable.map((f) => [f.key, r[f.key]])) }); setErr(null); };
   const commit = () => start(async () => { try { const res = await saveRow(kind, editing!, draft); setRows((rs) => rs.map((r) => (r.id === editing ? { ...r, ...(res.row as Row) } : r))); setEditing(null); } catch (e) { setErr((e as Error).message); } });
   const create = () => start(async () => { const res = await addRow(kind, draft as { code: string; name: string }); if (res.ok) { setAdding(false); window.location.reload(); } else setErr(res.error); });
@@ -71,7 +88,7 @@ export function RowsTable({ kind, rows: initial, editable, columns }: { kind: st
       )}
       <div className="overflow-x-auto rounded-xl border border-eu-line bg-white">
         <table className="w-full text-[length:var(--fs-14)]">
-          <thead><tr className="text-left text-eu-muted bg-eu-surface"><th className="py-2 px-3 font-bold">Κωδικός</th><th className="py-2 px-3 font-bold">Όνομα (site)</th>{columns.map((c) => <th key={c} className="py-2 px-3 font-bold">{fieldByKey(c)?.label ?? (c === "district" ? "Νομός" : c)}</th>)}<th className="py-2 px-3 font-bold">Ενεργό</th><th className="py-2 px-3 font-bold">SoftOne</th><th className="py-2 px-3"></th></tr></thead>
+          <thead><tr className="text-left text-eu-muted bg-eu-surface"><th className="py-2 px-3 font-bold">Κωδικός</th><th className="py-2 px-3 font-bold">Όνομα (site)</th>{columns.map((c) => <th key={c} className="py-2 px-3 font-bold">{fieldByKey(c)?.label ?? COLUMN_LABELS[c] ?? c}</th>)}<th className="py-2 px-3 font-bold">Ενεργό</th><th className="py-2 px-3 font-bold">SoftOne</th><th className="py-2 px-3"></th></tr></thead>
           <tbody>
             {rows.map((r) => editing === r.id ? (
               <tr key={r.id} className="border-t border-eu-line-2 bg-eu-chip/40">
@@ -90,7 +107,7 @@ export function RowsTable({ kind, rows: initial, editable, columns }: { kind: st
               <tr key={r.id} className={`border-t border-eu-line-2 ${r.active ? "" : "opacity-60"}`}>
                 <td className="py-2 px-3 font-mono text-[length:var(--fs-13)] text-eu-ink whitespace-nowrap">{r.code}</td>
                 <td className="py-2 px-3 text-eu-ink font-semibold">{r.name}{r.s1Name && r.s1Name !== r.name && <div className="text-eu-muted text-[length:var(--fs-13)] font-normal">SoftOne: {r.s1Name}</div>}</td>
-                {columns.map((c) => <td key={c} className="py-2 px-3 text-eu-ink-3">{label(fieldByKey(c), r[c])}</td>)}
+                {columns.map((c) => <td key={c} className="py-2 px-3 text-eu-ink-3">{c === "domainSuggest" && r.domainSuggest && !r.domain ? <Suggestion id={r.id} domain={String(r.domainSuggest)} onDone={(a) => setRows((rs) => rs.map((x) => (x.id === r.id ? { ...x, domainSuggest: null, ...(a ? { domain: r.domainSuggest } : {}) } : x)))} /> : label(fieldByKey(c), r[c])}</td>)}
                 <td className="py-2 px-3">{r.active ? <span className="text-eu-green font-bold">Ναι</span> : <span className="text-eu-muted">Όχι</span>}</td>
                 <td className="py-2 px-3 whitespace-nowrap text-[length:var(--fs-13)]">{r.s1Id ? <span className={`inline-flex items-center gap-1 ${r.s1Missing ? "text-eu-amber font-bold" : "text-eu-ink-3"}`}>{r.s1Missing ? <AlertTriangle className="size-3.5" aria-hidden /> : <Link2 className="size-3.5" aria-hidden />} {r.s1Id}{r.s1Missing ? " · λείπει πια" : ""}</span> : <span className="text-eu-muted">δική μας</span>}</td>
                 <td className="py-2 px-3 text-right"><button type="button" onClick={() => begin(r)} className="rounded-full border border-eu-line font-bold text-[length:var(--fs-13)] px-3 min-h-8 hover:border-eu-blue">Επεξεργασία</button></td>

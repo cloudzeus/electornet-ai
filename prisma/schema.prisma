@@ -37,7 +37,13 @@ model Brand {
   slug       String    @unique
   code       String?   @unique
   name       String
-  logo       String?
+  logo       String? // δικό μας αρχείο (Media library → Bunny) — έχει προτεραιότητα
+  logoCdn    String? // hotlink Brandfetch· οι όροι τους ΑΠΑΓΟΡΕΥΟΥΝ λήψη/re-hosting
+  domain     String? // «samsung.com» — το κλειδί του Brandfetch
+  logoSource String? // upload | brandfetch | manual-domain
+  domainSuggest String? // πρόταση Brandfetch που θέλει έγκριση διαχειριστή
+  logoScore  Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
+  logoAt     DateTime?
   featured   Boolean   @default(false)
   sort       Int       @default(0)
   active     Boolean   @default(true)

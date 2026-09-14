@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight, Search, AlertTriangle } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { lookupByKind, lookupRows } from "@/lib/softone/lookups";
+import { logoStats } from "@/lib/brandfetch/brands";
 import { db } from "@/lib/db";
-import { SyncButton } from "../SyncButtons";
+import { SyncButton, FindLogosButton } from "../SyncButtons";
 import { RowsTable } from "./RowsTable";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +20,10 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
   if (!def) notFound();
   const q = sp.q?.trim() ?? "";
   const missing = sp.missing === "1";
-  const [{ rows, total, page, pages }, runs] = await Promise.all([
+  const [{ rows, total, page, pages }, runs, logos] = await Promise.all([
     lookupRows(kind, { q, page: Number(sp.page) || 1, missing }),
     db.s1SyncRun.findMany({ where: { kind }, orderBy: { at: "desc" }, take: 4 }),
+    kind === "brand" ? logoStats() : Promise.resolve(null),
   ]);
   const plain = JSON.parse(JSON.stringify(rows)) as Parameters<typeof RowsTable>[0]["rows"];
   const href = (p: number) => `?${new URLSearchParams({ ...(q ? { q } : {}), ...(missing ? { missing: "1" } : {}), ...(p > 1 ? { page: String(p) } : {}) })}`;
@@ -34,8 +36,9 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">{def.plural}</h2>
           <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">{def.description}</p>
         </div>
-        <SyncButton kind={kind} />
+        <div className="flex flex-wrap items-center gap-2"><SyncButton kind={kind} />{logos && <FindLogosButton pending={logos.pending} />}</div>
       </div>
+      {logos && <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3">Λογότυπα: <b className="text-eu-ink">{logos.withDomain}</b> από Brandfetch (σύνδεσμος, όχι αρχείο — οι όροι τους δεν επιτρέπουν αποθήκευση), <b className="text-eu-ink">{logos.withUpload}</b> δικά μας αρχεία στο CDN, <b className="text-eu-ink">{logos.suggested}</b> προτάσεις προς έγκριση, <b className="text-eu-ink">{logos.pending}</b> δεν έχουν ελεγχθεί ακόμη.</p>}
       {runs.length > 0 && <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)] text-eu-muted">{runs.map((r) => <span key={r.id} className={`rounded-full px-2.5 py-1 ${r.ok ? "bg-eu-surface" : "bg-eu-red/10 text-eu-red"}`}>{r.at.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}: {r.ok ? `${r.fetched} γρ., +${r.created}, ~${r.updated}${r.missing ? `, ${r.missing} λείπουν` : ""}${r.skipped ? `, ${r.skipped} αγνοήθηκαν` : ""}` : r.error}</span>)}</div>}
 
       <form className="flex flex-wrap items-center gap-2">
