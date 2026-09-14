@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
+import { db } from "@/lib/db";
 import { syncLookup, syncAllLookups, updateLookupRow, createLookupRow, lookupByKind } from "@/lib/softone/lookups";
 
 export async function syncKind(kind: string) {
@@ -37,4 +38,15 @@ export async function addRow(kind: string, input: { code: string; name: string }
     revalidatePath(`/admin/softone/${kind}`);
     return { ok: true as const };
   } catch (e) { return { ok: false as const, error: (e as Error).message.includes("Unique") ? "Ο κωδικός υπάρχει ήδη." : (e as Error).message }; }
+}
+
+/** Καθαρισμός ιστορικού: είτε μόνο τα αποτυχημένα, είτε ό,τι είναι παλαιότερο από Χ ημέρες. */
+export async function clearRuns(mode: "failed" | "old", days = 30) {
+  const user = await requirePermission("settings.integrations.write");
+  const where = mode === "failed" ? { ok: false } : { at: { lt: new Date(Date.now() - days * 86400000) } };
+  const { count } = await db.s1SyncRun.deleteMany({ where });
+  await audit(user.id, "softone.runs.clear", "S1SyncRun", mode, null, { deleted: count, days: mode === "old" ? days : undefined });
+  revalidatePath("/admin/softone/sync");
+  revalidatePath("/admin/softone");
+  return { ok: true as const, deleted: count };
 }

@@ -92,6 +92,30 @@ export const lookupByKind = (kind: string) => LOOKUPS.find((l) => l.kind === kin
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const delegate = (model: string) => (db as any)[model] as { findMany: (a: unknown) => Promise<Record<string, unknown>[]>; findUnique: (a: unknown) => Promise<Record<string, unknown> | null>; create: (a: unknown) => Promise<Record<string, unknown>>; update: (a: unknown) => Promise<Record<string, unknown>>; updateMany: (a: unknown) => Promise<unknown>; count: (a?: unknown) => Promise<number> };
 
+/**
+ * Τα σφάλματα του Prisma έρχονται ως πολυσέλιδο dump με διαδρομές αρχείων και
+ * ολόκληρο το payload. Στο ιστορικό θέλουμε μία πρόταση που λέει τι φταίει.
+ */
+export function friendlyError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  const unknownArg = raw.match(/Unknown argument `(\w+)`/);
+  if (unknownArg) return `Άγνωστο πεδίο «${unknownArg[1]}» στο μοντέλο — λείπει από το schema ή δεν έγινε prisma generate μετά από db push.`;
+  const unique = raw.match(/Unique constraint failed on the fields: \(`?([^`)]+)`?\)/);
+  if (unique) return `Διπλή τιμή στο μοναδικό πεδίο «${unique[1]}».`;
+  const fk = raw.match(/Foreign key constraint (?:failed|violated)[^\n]*/);
+  if (fk) return `Παραβίαση σχέσης: ${fk[0].trim()}`;
+  const notFound = raw.match(/No '?(\w+)'? record/);
+  if (notFound) return `Δεν βρέθηκε εγγραφή ${notFound[1]}.`;
+  if (/GetTable|getBrowserInfo|getBrowserData/.test(raw)) return raw.split("\n")[0].slice(0, 300);
+  if (/timeout|aborted/i.test(raw)) return "Λήξη χρόνου αναμονής από το SoftOne.";
+  // αλλιώς: η πρώτη ουσιαστική γραμμή, χωρίς διαδρομές αρχείων
+  const line = raw.split("\n").map((l) => l.trim()).find((l) => l && !l.startsWith("at ") && !l.includes("/") && !/^\d+\s/.test(l));
+  const pick = (line ?? raw.split("\n")[0]).trim();
+  const invocation = pick.match(/Invalid `[\w.]*?(\w+)\(\)` invocation/);
+  if (invocation) return `Η εγγραφή στη βάση απέτυχε (${invocation[1]}) — δες τα logs για λεπτομέρειες.`;
+  return pick.slice(0, 300) || "Άγνωστο σφάλμα.";
+}
+
 /** Official GetTable → positional rows. */
 export async function getTable(TABLE: string, FIELDS: string[], FILTER = ""): Promise<string[][]> {
   const r = await s1("GetTable", { TABLE, FIELDS: FIELDS.join(","), FILTER });
@@ -141,12 +165,15 @@ export async function syncLookup(kind: string, trigger: "manual" | "cron" | "scr
     const slugs = new Set(existing.map((e) => e.slug).filter(Boolean) as string[]);
     const districts = def.kind === "postalCode" ? new Map((await db.district.findMany({ select: { id: true, s1Id: true } })).filter((x) => x.s1Id).map((x) => [x.s1Id as string, x.id])) : null;
     const seen = new Set<string>();
+    let skipped = 0;
     const now = new Date();
     const creates: Record<string, unknown>[] = [];
     const updates: { id: string; data: Record<string, unknown> }[] = [];
     for (const raw of rows) {
       const m = def.map(raw);
-      if (!m || !m.s1Id || seen.has(m.s1Id)) continue;
+      // Αγνοούμε γραμμές χωρίς κωδικό και διπλότυπα (το SoftOne έχει π.χ. τον
+      // ίδιο Τ.Κ. σε δύο νομούς). Έτσι κλείνει η αρίθμηση: γραμμές = νέες + ενημερωμένες + αγνοημένες.
+      if (!m || !m.s1Id || seen.has(m.s1Id)) { skipped++; continue; }
       seen.add(m.s1Id);
       const s1Data = { ...Object.fromEntries(def.fields.map((f, i) => [f, raw[i] ?? ""])), ...(m.s1Extra ?? {}) };
       const prev = byS1.get(m.s1Id);
@@ -170,10 +197,10 @@ export async function syncLookup(kind: string, trigger: "manual" | "cron" | "scr
     if (seen.size) await d.updateMany({ where: { s1Id: { in: [...seen] }, s1SyncedAt: { lt: now } }, data: { s1SyncedAt: now, s1Missing: false } });
     const missingRes = (await d.updateMany({ where: { s1Id: { not: null, notIn: [...seen] }, s1Missing: false }, data: { s1Missing: true } })) as { count: number };
     const ms = Date.now() - t0;
-    await db.s1SyncRun.update({ where: { id: run.id }, data: { ok: true, fetched: rows.length, created, updated: updates.length, missing: missingRes.count, ms } });
-    return { ok: true as const, kind, fetched: rows.length, created, updated: updates.length, missing: missingRes.count, ms };
+    await db.s1SyncRun.update({ where: { id: run.id }, data: { ok: true, fetched: rows.length, created, updated: updates.length, missing: missingRes.count, skipped, ms } });
+    return { ok: true as const, kind, fetched: rows.length, created, updated: updates.length, missing: missingRes.count, skipped, ms };
   } catch (e) {
-    const error = (e as Error).message.slice(0, 500);
+    const error = friendlyError(e);
     await db.s1SyncRun.update({ where: { id: run.id }, data: { ok: false, error, ms: Date.now() - t0 } });
     return { ok: false as const, kind, error };
   }

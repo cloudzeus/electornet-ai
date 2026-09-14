@@ -1233,6 +1233,7 @@ model S1SyncRun {
   created Int      @default(0)
   updated Int      @default(0)
   missing Int      @default(0)
+  skipped Int      @default(0) // γραμμές του ERP χωρίς κωδικό, που δεν μας αφορούν
   ms      Int      @default(0)
   error   String?
 

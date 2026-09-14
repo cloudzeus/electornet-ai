@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { LOOKUPS, lookupStats } from "@/lib/softone/lookups";
 import { StatTile } from "@/components/admin/charts/Charts";
-import { SyncButton } from "../SyncButtons";
+import { SyncButton, ClearRunsButtons } from "../SyncButtons";
 
 export const metadata = { title: "Συγχρονισμοί SoftOne" };
 export const dynamic = "force-dynamic";
@@ -39,11 +39,14 @@ export default async function SyncHistoryPage() {
         <StatTile label="Αυτόματο (cron)" value={cron ? "έτοιμο" : "—"} sub={cron ? "GET /api/cron/softone-lookups" : "όρισε CRON_SECRET στο .env"} />
       </div>
       <section className="rounded-2xl bg-white border border-eu-line p-5 min-w-0 overflow-hidden">
-        <h3 className="m-0 mb-3 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Ιστορικό</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Ιστορικό</h3>
+          <ClearRunsButtons />
+        </div>
         {runs.length === 0 ? <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Κανένας συγχρονισμός ακόμη.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-[length:var(--fs-14)]">
-              <thead><tr className="text-left text-eu-muted"><th className="py-2 pr-3 font-bold">Πότε</th><th className="py-2 pr-3 font-bold">Πίνακας</th><th className="py-2 pr-3 font-bold">Από</th><th className="py-2 pr-3 font-bold">Αποτέλεσμα</th><th className="py-2 pr-3 font-bold text-right">Γραμμές</th><th className="py-2 pr-3 font-bold text-right">Νέες</th><th className="py-2 pr-3 font-bold text-right">Ενημ.</th><th className="py-2 pr-3 font-bold text-right">Λείπουν</th><th className="py-2 font-bold text-right">Χρόνος</th></tr></thead>
+              <thead><tr className="text-left text-eu-muted"><th className="py-2 pr-3 font-bold">Πότε</th><th className="py-2 pr-3 font-bold">Πίνακας</th><th className="py-2 pr-3 font-bold">Από</th><th className="py-2 pr-3 font-bold">Αποτέλεσμα</th><th className="py-2 pr-3 font-bold text-right">Γραμμές</th><th className="py-2 pr-3 font-bold text-right">Νέες</th><th className="py-2 pr-3 font-bold text-right">Ενημ.</th><th className="py-2 pr-3 font-bold text-right">Λείπουν</th><th className="py-2 pr-3 font-bold text-right">Αγνοήθηκαν</th><th className="py-2 font-bold text-right">Χρόνος</th></tr></thead>
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.id} className="border-t border-eu-line-2">
@@ -54,7 +57,7 @@ export default async function SyncHistoryPage() {
                     <td className="py-2 pr-3 text-right tabular-nums">{r.fetched}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-eu-green font-bold">{r.created || ""}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-eu-ink-3">{r.updated || ""}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-eu-amber font-bold">{r.missing || ""}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-eu-amber font-bold">{r.missing || ""}</td><td className="py-2 pr-3 text-right tabular-nums text-eu-muted" title="Γραμμές του SoftOne χωρίς κωδικό ή διπλότυπες">{r.skipped || ""}</td>
                     <td className="py-2 text-right tabular-nums text-eu-ink-3">{(r.ms / 1000).toFixed(1)} s</td>
                   </tr>
                 ))}

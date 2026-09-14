@@ -36,7 +36,7 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
         </div>
         <SyncButton kind={kind} />
       </div>
-      {runs.length > 0 && <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)] text-eu-muted">{runs.map((r) => <span key={r.id} className={`rounded-full px-2.5 py-1 ${r.ok ? "bg-eu-surface" : "bg-eu-red/10 text-eu-red"}`}>{r.at.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}: {r.ok ? `${r.fetched} γρ., +${r.created}, ~${r.updated}${r.missing ? `, ${r.missing} λείπουν` : ""}` : r.error}</span>)}</div>}
+      {runs.length > 0 && <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)] text-eu-muted">{runs.map((r) => <span key={r.id} className={`rounded-full px-2.5 py-1 ${r.ok ? "bg-eu-surface" : "bg-eu-red/10 text-eu-red"}`}>{r.at.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}: {r.ok ? `${r.fetched} γρ., +${r.created}, ~${r.updated}${r.missing ? `, ${r.missing} λείπουν` : ""}${r.skipped ? `, ${r.skipped} αγνοήθηκαν` : ""}` : r.error}</span>)}</div>}
 
       <form className="flex flex-wrap items-center gap-2">
         <label className="relative flex-1 min-w-[240px]">
