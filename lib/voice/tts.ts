@@ -13,23 +13,26 @@ import { spokenForm } from "./spoken";
 const SAMPLE_RATE = 24000; // pcm16 mono from the audio models
 const today = () => new Date().toISOString().slice(0, 10);
 
-export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; style: string; rate: number; sttModel: string; cacheMaxChars: number }
+export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; style: string; tempo: number; rate: number; sttModel: string; cacheMaxChars: number }
 export async function getVoiceConfig(): Promise<VoiceConfig> {
   const { data } = await getSetting("ai");
-  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1.3)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
+  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), tempo: Math.min(2, Math.max(0.8, Number(data.voiceTempo) || 1.4)), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
 }
 
 /** Same phrase, same audio: collapse whitespace, strip markdown-ish noise, keep case (it matters for spelling). */
 export const normaliseText = (t: string) => spokenForm(t.replace(/[*_`#]/g, ""));
 export const DEFAULT_STYLE = "Πολύ γρήγορος ρυθμός ομιλίας, σαν ενθουσιώδης νέος πωλητής που βιάζεται· χαρούμενος τόνος με χαμόγελο, ενέργεια, καθόλου παύσεις.";
+/** Style + tempo form the cache dimension alongside model and voice. */
+export const styleKey = (cfg: { style: string; tempo: number }) => `${cfg.style}|x${cfg.tempo}`;
 export const phraseHash = (model: string, voice: string, style: string, text: string) => createHash("sha256").update(`${model}|${voice}|${style}|${normaliseText(text)}`).digest("hex");
 
-/** pcm16 → mp3 with ffmpeg when available (≈8× smaller), else a WAV container. */
-async function encode(pcm: Buffer): Promise<{ bytes: Buffer; mime: string; ext: string }> {
+/** pcm16 → mp3 with ffmpeg when available (≈8× smaller), sped up by `tempo` with pitch preserved (atempo); else a WAV container at natural speed. */
+async function encode(pcm: Buffer, tempo = 1): Promise<{ bytes: Buffer; mime: string; ext: string; tempo: number }> {
   const ff = process.env.FFMPEG_PATH || "ffmpeg";
+  const t = Math.min(2, Math.max(0.5, tempo));
   const mp3 = await new Promise<Buffer | null>((resolve) => {
     try {
-      const p = spawn(ff, ["-hide_banner", "-loglevel", "error", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", "-codec:a", "libmp3lame", "-b:a", "48k", "-f", "mp3", "pipe:1"]);
+      const p = spawn(ff, ["-hide_banner", "-loglevel", "error", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", ...(t !== 1 ? ["-filter:a", `atempo=${t.toFixed(2)}`] : []), "-codec:a", "libmp3lame", "-b:a", "48k", "-f", "mp3", "pipe:1"]);
       const out: Buffer[] = [];
       p.stdout.on("data", (d: Buffer) => out.push(d));
       p.on("error", () => resolve(null));
@@ -38,10 +41,10 @@ async function encode(pcm: Buffer): Promise<{ bytes: Buffer; mime: string; ext: 
       p.stdin.end(pcm);
     } catch { resolve(null); }
   });
-  if (mp3) return { bytes: mp3, mime: "audio/mpeg", ext: "mp3" };
+  if (mp3) return { bytes: mp3, mime: "audio/mpeg", ext: "mp3", tempo: t };
   const h = Buffer.alloc(44);
   h.write("RIFF", 0); h.writeUInt32LE(36 + pcm.length, 4); h.write("WAVE", 8); h.write("fmt ", 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(SAMPLE_RATE, 24); h.writeUInt32LE(SAMPLE_RATE * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(pcm.length, 40);
-  return { bytes: Buffer.concat([h, pcm]), mime: "audio/wav", ext: "wav" };
+  return { bytes: Buffer.concat([h, pcm]), mime: "audio/wav", ext: "wav", tempo: 1 };
 }
 
 /** Speak through OpenRouter: chat completion with audio output, streamed as pcm16 and collected. Returns raw pcm + cost. */
@@ -101,7 +104,7 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
   if (!cfg.enabled || !ai) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
-  const hash = phraseHash(cfg.ttsModel, cfg.voice, cfg.style, text);
+  const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
   if (!opts.force) {
     const hit = await db.voicePhrase.findUnique({ where: { hash } });
     if (hit) {
@@ -119,15 +122,15 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
     if (fid >= 0.9) break;
   }
   if (!s || fid < 0.9) return null;
-  const durationMs = Math.round((s.pcm.length / 2 / SAMPLE_RATE) * 1000);
-  const enc = await encode(s.pcm);
+  const enc = await encode(s.pcm, cfg.tempo);
+  const durationMs = Math.round((s.pcm.length / 2 / SAMPLE_RATE / enc.tempo) * 1000);
   const keep = opts.key || text.length <= cfg.cacheMaxChars;
   const rel = `voice/${hash.slice(0, 2)}/${hash.slice(0, 24)}.${enc.ext}`;
   const stored = await storeBytes(rel, enc.bytes, enc.mime);
   if (!keep) return { url: stored.url, mime: enc.mime, durationMs, cached: false, costUsd: s.costUsd, id: "" };
   const prev = opts.force ? await db.voicePhrase.findUnique({ where: { hash } }) : null;
   if (prev && prev.path !== rel) await removeBytes(prev.storage as Storage, prev.path, prev.url);
-  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, style: cfg.style, model: cfg.ttsModel, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd }, update: { key: opts.key ?? undefined, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd } });
+  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, style: styleKey(cfg), model: cfg.ttsModel, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd }, update: { key: opts.key ?? undefined, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd } });
   return { url: row.url, mime: row.mime, durationMs, cached: false, costUsd: s.costUsd, id: row.id };
 }
 
@@ -140,8 +143,8 @@ export async function prewarmPresets(force = false) {
     out.push({ key: p.key, ok: !!r, cached: r?.cached ?? false, costUsd: r?.costUsd ?? 0 });
   }
   // Rows of another voice/model/style, or presets whose wording changed, can never be hit again: drop them and their files.
-  const current = new Set(PRESET_PHRASES.map((p) => phraseHash(cfg.ttsModel, cfg.voice, cfg.style, normaliseText(p.text))));
-  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: cfg.style } }, { key: { not: null }, hash: { notIn: [...current] } }] } });
+  const current = new Set(PRESET_PHRASES.map((p) => phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), normaliseText(p.text))));
+  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: styleKey(cfg) } }, { key: { not: null }, hash: { notIn: [...current] } }] } });
   for (const row of stale) { await removeBytes(row.storage as Storage, row.path, row.url); await db.voicePhrase.delete({ where: { id: row.id } }).catch(() => null); }
   return out;
 }
