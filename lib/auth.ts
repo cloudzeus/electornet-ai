@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { recordLogin } from "@/lib/gdpr/consent";
+import { verifyStaffOtp } from "@/lib/auth/otp";
 
 declare module "next-auth" {
   interface Session {
@@ -11,31 +12,37 @@ declare module "next-auth" {
 }
 
 /**
- * Back-office authentication (Auth.js v5). Credentials against the Staff
- * table (bcrypt), JWT session carrying role keys and the flattened
- * permission keys so every server component/action can check `can()`
- * without a DB round-trip. SSO providers (Microsoft Entra, Google) plug in
- * here later without touching the pages.
+ * Back-office authentication (Auth.js v5), **two factors**.
+ *
+ * Ο κωδικός πρόσβασης ελέγχεται στο `app/admin/login` (server action), που
+ * στέλνει 6ψήφιο OTP στο εταιρικό email και δίνει ένα `challengeId`. Εδώ
+ * φτάνει μόνο το δεύτερο βήμα: `challengeId` + `code`. Έτσι ο κωδικός δεν
+ * ταξιδεύει δεύτερη φορά και η συνεδρία δημιουργείται μόνο αφού
+ * επαληθευτεί ο δεύτερος παράγοντας.
+ *
+ * JWT συνεδρία με τα role keys και τα δικαιώματα «στρωμένα», ώστε κάθε
+ * server component/action να ελέγχει `can()` χωρίς ερώτημα στη βάση. SSO
+ * (Microsoft Entra, Google) μπαίνει ως provider χωρίς αλλαγή στις σελίδες.
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 12 * 3600 },
   pages: { signIn: "/admin/login" },
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { challengeId: {}, code: {} },
       authorize: async (c) => {
-        const email = String(c.email ?? "").toLowerCase().trim();
-        const password = String(c.password ?? "");
-        if (!email || !password) return null;
-        const staff = await db.staff.findUnique({ where: { email }, include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } });
-        if (!staff || !staff.active || !staff.passwordHash) { await recordLogin({ email, success: false, method: "admin", reason: !staff ? "unknown" : "blocked" }); return null; }
-        const ok = await bcrypt.compare(password, staff.passwordHash);
-        if (!ok) { await recordLogin({ staffId: staff.id, email, success: false, method: "admin", reason: "bad-password" }); return null; }
-        await db.staff.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
+        const challengeId = String(c.challengeId ?? "");
+        const code = String(c.code ?? "");
+        if (!challengeId || !code) return null;
+        const v = await verifyStaffOtp(challengeId, code);
+        if (!v.ok) return null;
+        const staff = await db.staff.findUnique({ where: { id: v.staffId }, include: { roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } } } });
+        if (!staff || !staff.active) { await recordLogin({ staffId: v.staffId, email: staff?.email ?? "", success: false, method: "admin", reason: "blocked" }); return null; }
         const roles = staff.roles.map((r) => r.role.key);
         const permissions = roles.includes("super-admin") ? ["*"] : [...new Set(staff.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key)))];
-        if (!permissions.length) { await recordLogin({ staffId: staff.id, email, success: false, method: "admin", reason: "no-access" }); return null; } // e.g. «customer» role
-        await recordLogin({ staffId: staff.id, email, success: true, method: "admin" });
+        if (!permissions.length) { await recordLogin({ staffId: staff.id, email: staff.email, success: false, method: "admin", reason: "no-access" }); return null; }
+        await db.staff.update({ where: { id: staff.id }, data: { lastLoginAt: new Date() } });
+        await recordLogin({ staffId: staff.id, email: staff.email, success: true, method: "admin-otp" });
         return { id: staff.id, email: staff.email, name: staff.name, roles, permissions, storeId: staff.storeId };
       },
     }),

@@ -218,6 +218,8 @@ export const SECTIONS: Section[] = [
       { key: "fromEmail", label: "Email αποστολέα", type: "email", placeholder: "noreply@euronics.gr", width: "half" },
       { key: "transport", label: "Μεταφορά", type: "select", options: [{ value: "smtp", label: "SMTP" }, { value: "resend", label: "Resend" }, { value: "sendgrid", label: "SendGrid" }, { value: "mailgun", label: "Mailgun" }], width: "half" },
       { key: "apiKey", label: "API key παρόχου", type: "secret", width: "half" },
+      { key: "mailgunDomain", label: "Mailgun domain", type: "text", placeholder: "mg.euronics.gr", help: "Το επιβεβαιωμένο sending domain. Κενό = το domain του email αποστολέα.", width: "half" },
+      { key: "mailgunRegion", label: "Mailgun region", type: "select", options: [{ value: "eu", label: "EU (api.eu.mailgun.net)" }, { value: "us", label: "US (api.mailgun.net)" }], width: "half" },
       { key: "smtpHost", label: "SMTP host", type: "text", width: "half" },
       { key: "smtpPort", label: "SMTP port", type: "number", placeholder: "587", width: "half" },
       { key: "smtpUser", label: "SMTP user", type: "text", width: "half" },

@@ -53,3 +53,16 @@ Settings → «AI & υπηρεσίες»: a single **OpenRouter API key** serves
 - **Report** (`/admin/reports/ai`, `reports.read`): stat tiles, billed € per day (line), per feature per day (stacked bars), per model (ranked bars), daily table with FX. Admins see billed amounts; super-admins also see the raw OpenRouter cost and the effective markup. Periods 7/30/90 days.
 - Charts: `components/admin/charts/Charts.tsx` (SVG, no library; legend for ≥2 series, hover tooltips, tabular numbers).
 - Dashboard tile «AI κόστος σήμερα (€)» = billed € today.
+
+## Σύνδεση σε δύο βήματα (OTP)
+Κάθε σύνδεση στο `/admin` απαιτεί **δύο παράγοντες**:
+1. Email + κωδικός στο `/admin/login`. Σωστός κωδικός ⇒ δημιουργείται `StaffLoginChallenge` και στέλνεται **6ψήφιος κωδικός μιας χρήσης** στο εταιρικό email. **Δεν** δημιουργείται συνεδρία σε αυτό το βήμα.
+2. Ο κωδικός μιας χρήσης. Μόνο τότε εκδίδεται το JWT.
+
+- Ισχύς 10 λεπτά, 5 λάθος προσπάθειες, 5 αιτήματα ανά 15 λεπτά ανά λογαριασμό.
+- Ο κωδικός αποθηκεύεται **μόνο ως bcrypt hash** και το challenge καίγεται με τη χρήση του (καμία επαναχρησιμοποίηση).
+- Το `challengeId` ταξιδεύει σε httpOnly cookie με scope `/admin` — ο κωδικός πρόσβασης δεν ξαναστέλνεται στο δεύτερο βήμα.
+- Λάθος email και λάθος κωδικός δίνουν **το ίδιο** μήνυμα, ώστε η φόρμα να μην αποκαλύπτει ποιοι λογαριασμοί υπάρχουν.
+- Καταγράφονται όλα στα `LoginEvent` με IP/OS/browser: `bad-password`, `otp-email-failed`, `otp-attempts`, και η επιτυχία ως `admin-otp`.
+
+**Καμία παράκαμψη όταν αποτύχει το email**: δεύτερος παράγοντας που παρακάμπτεται δεν είναι δεύτερος παράγοντας. Αν δεν φεύγει email, κανείς δεν μπαίνει — γι' αυτό η αποστολή πρέπει να δουλεύει πριν το live.

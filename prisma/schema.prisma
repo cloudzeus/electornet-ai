@@ -906,6 +906,7 @@ model Staff {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   lastLoginAt  DateTime?
+  loginChallenges StaffLoginChallenge[]
 }
 
 model Role {
@@ -1503,4 +1504,26 @@ model Region {
   @@index([parentCode])
   @@index([level])
   @@index([nameEL])
+}
+
+/// Δεύτερος παράγοντας για το προσωπικό: μετά τον σωστό κωδικό στέλνεται OTP
+/// στο email και η συνεδρία δημιουργείται μόνο αφού επαληθευτεί. Ο κωδικός
+/// αποθηκεύεται ως hash· κρατάμε τεκμήρια (IP, browser) όπως στα login events.
+model StaffLoginChallenge {
+  id         String    @id @default(cuid())
+  staffId    String
+  staff      Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  sent       Boolean   @default(false) // αν έφυγε πράγματι το email
+  usedAt     DateTime?
+  ip         String?
+  ipHash     String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([staffId, createdAt])
+  @@index([expiresAt])
 }
