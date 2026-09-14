@@ -1,5 +1,6 @@
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
+import { Pagination } from "@/components/admin/Pagination";
 
 export const metadata = { title: "Audit log" };
 export const dynamic = "force-dynamic";
@@ -75,15 +76,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             </tbody>
           </table>
         </div>
-        {pages > 1 && (
-          <nav aria-label="Σελίδες" className="flex items-center justify-between gap-3 px-4 py-3 border-t border-eu-line text-[length:var(--fs-14)]">
-            <span className="text-eu-muted">{total} εγγραφές · σελίδα {page}/{pages}</span>
-            <div className="flex gap-2">
-              {page > 1 && <a href={`?p=${page - 1}${entity ? `&entity=${entity}` : ""}`} className="rounded-full border-2 border-eu-line px-4 min-h-10 inline-flex items-center font-bold hover:border-eu-navy">Προηγούμενη</a>}
-              {page < pages && <a href={`?p=${page + 1}${entity ? `&entity=${entity}` : ""}`} className="rounded-full border-2 border-eu-line px-4 min-h-10 inline-flex items-center font-bold hover:border-eu-navy">Επόμενη</a>}
-            </div>
-          </nav>
-        )}
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-eu-line">
+          <Pagination page={page} pages={pages} total={total} label="εγγραφές" href={(n) => `?p=${n}${entity ? `&entity=${encodeURIComponent(entity)}` : ""}`} />
+        </div>
       </div>
     </>
   );

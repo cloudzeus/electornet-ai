@@ -7,6 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { geocodeAddress, distanceKm } from "@/lib/stores/geocode";
 import { StoreMapClient } from "@/components/admin/stores/StoreMapClient";
 import { SegmentTools } from "@/components/admin/customers/SegmentTools";
+import { Pagination } from "@/components/admin/Pagination";
 
 export const metadata = { title: "Πελάτες" };
 export const dynamic = "force-dynamic";
@@ -91,7 +92,9 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-3 py-2 border-t border-eu-line text-eu-muted text-[length:var(--fs-13)]"><span>{total} πελάτες</span>{total > take && <span className="inline-flex gap-2">{page > 1 && <Link href={`?${new URLSearchParams({ q, f, p: String(page - 1) })}`} className="font-bold text-eu-blue">Προηγούμενη</Link>}{page * take < total && <Link href={`?${new URLSearchParams({ q, f, p: String(page + 1) })}`} className="font-bold text-eu-blue">Επόμενη</Link>}</span>}</div>
+        <div className="flex items-center justify-between px-3 py-2 border-t border-eu-line">
+          <Pagination page={page} pages={Math.max(1, Math.ceil(total / take))} total={total} label="πελάτες" href={(n) => `?${new URLSearchParams({ q, f, region, store, near, km, view, p: String(n) })}`} />
+        </div>
       </div>
     </>
   );

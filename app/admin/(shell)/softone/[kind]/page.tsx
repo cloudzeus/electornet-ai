@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight, Search, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Search, AlertTriangle } from "lucide-react";
+import { Pagination } from "@/components/admin/Pagination";
 import { requirePermission } from "@/lib/rbac/guard";
 import { lookupByKind, lookupRows } from "@/lib/softone/lookups";
 import { logoStats } from "@/lib/brandfetch/brands";
@@ -49,20 +50,13 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
         <label className="inline-flex items-center gap-2 text-[length:var(--fs-14)] text-eu-ink"><input type="checkbox" name="missing" value="1" defaultChecked={missing} className="size-4 accent-eu-navy" /> Μόνο όσα λείπουν από το SoftOne</label>
         <button type="submit" className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 hover:bg-eu-blue">Αναζήτηση</button>
         {(q || missing) && <Link href="?" className="rounded-full border border-eu-line font-bold text-[length:var(--fs-13)] px-3 min-h-9 inline-flex items-center">Καθαρισμός</Link>}
-        <span className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{total.toLocaleString("el-GR")} εγγραφές</span>
       </form>
 
       {/* key: το RowsTable κρατά τις γραμμές σε state (για inline edit). Χωρίς
           remount σε αλλαγή σελίδας/αναζήτησης το state θα έμενε στην παλιά σελίδα. */}
       <RowsTable key={`${kind}:${page}:${q}:${missing}`} kind={kind} rows={plain} editable={def.editable} columns={def.columns ?? []} />
 
-      {pages > 1 && (
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Σελίδες">
-          <Link href={href(Math.max(1, page - 1))} aria-disabled={page <= 1} className={`inline-flex items-center gap-1 rounded-full border border-eu-line px-3 min-h-9 font-bold text-[length:var(--fs-13)] ${page <= 1 ? "opacity-40 pointer-events-none" : "hover:border-eu-blue"}`}><ChevronLeft className="size-4" aria-hidden /> Προηγούμενη</Link>
-          <span className="text-eu-ink-3 text-[length:var(--fs-14)] tabular-nums">Σελίδα {page} από {pages}</span>
-          <Link href={href(Math.min(pages, page + 1))} aria-disabled={page >= pages} className={`inline-flex items-center gap-1 rounded-full border border-eu-line px-3 min-h-9 font-bold text-[length:var(--fs-13)] ${page >= pages ? "opacity-40 pointer-events-none" : "hover:border-eu-blue"}`}>Επόμενη <ChevronRight className="size-4" aria-hidden /></Link>
-        </nav>
-      )}
+      <Pagination page={page} pages={pages} total={total} href={href} label="εγγραφές" />
       {rows.length === 0 && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-3 text-[length:var(--fs-14)] inline-flex items-center gap-2"><AlertTriangle className="size-4" aria-hidden /> {q || missing ? "Καμία εγγραφή με αυτά τα κριτήρια." : "Καμία εγγραφή. Πάτα «Συγχρονισμός» για να διαβαστούν από το SoftOne."}</p>}
     </div>
   );

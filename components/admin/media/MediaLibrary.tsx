@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CloudUpload, Search, LayoutGrid, List, FolderInput, Tag, Trash2, X, Check, AlertTriangle, ChevronLeft, ChevronRight, PanelLeft, ZoomIn, ZoomOut } from "lucide-react";
+import { CloudUpload, Search, LayoutGrid, List, FolderInput, Tag, Trash2, X, Check, AlertTriangle, PanelLeft, ZoomIn, ZoomOut } from "lucide-react";
+import { PagerButtons } from "@/components/admin/PagerButtons";
 import type { MediaAssetDTO, MediaFolderDTO, MediaKind } from "@/lib/media/types";
 import { listMedia, listFolders, createFolder, renameFolder, deleteFolder, moveAssets, tagAssets, deleteAssets, migrateToCdn, type ListQuery } from "@/app/admin/(shell)/media/actions";
 import { useUploader } from "./useUploader";
@@ -225,13 +226,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-white border-t border-eu-line text-[length:var(--fs-13)] text-eu-muted">
           <span>{data.total} αρχεία{selected.size ? ` · ${selected.size} επιλεγμένα` : ""}</span>
-          {data.pages > 1 && (
-            <span className="inline-flex items-center gap-1">
-              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} aria-label="Προηγούμενη" className="size-9 rounded-full border border-eu-line inline-flex items-center justify-center disabled:opacity-40"><ChevronLeft className="size-4" aria-hidden /></button>
-              <span className="tabular-nums px-1">{page}/{data.pages}</span>
-              <button type="button" disabled={page >= data.pages} onClick={() => setPage((p) => p + 1)} aria-label="Επόμενη" className="size-9 rounded-full border border-eu-line inline-flex items-center justify-center disabled:opacity-40"><ChevronRight className="size-4" aria-hidden /></button>
-            </span>
-          )}
+          <PagerButtons page={page} pages={data.pages} onPage={(n) => { setPage(n); setSelected(new Set()); }} />
           {mode === "picker" && (
             <span className="inline-flex gap-2">
               <button type="button" onClick={onClose} className="rounded-full border-2 border-eu-line px-4 min-h-10 font-bold text-eu-ink text-[length:var(--fs-14)]">Άκυρο</button>
