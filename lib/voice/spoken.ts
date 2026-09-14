@@ -68,6 +68,9 @@ const UNITS: [RegExp, string][] = [
 ];
 
 const SYMBOLS: [RegExp, string][] = [
+  // Brand name: Greek phonetic spelling so the stress lands on «ρό» (Γιουρό-νικς), not the English «YU-ronics».
+  [w("euronics\\.gr"), "Γιουρόνικς ντοτ τζι αρ"],
+  [w("euronics"), "Γιουρόνικς"],
   [/(?<![\p{L}])[AΑ]\+\+\+/gu, "Α τρία συν"],
   [/(?<![\p{L}])[AΑ]\+\+/gu, "Α δύο συν"],
   [/(?<![\p{L}])[AΑ]\+(?!\+)/gu, "Α συν"],
