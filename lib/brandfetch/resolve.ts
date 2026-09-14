@@ -30,11 +30,12 @@ export function logoUrl(domain: string, opts: { type?: "logo" | "symbol" | "icon
   const { type = "logo", w = 256, h = 128, format = "webp", theme } = opts;
   const parts = [`https://cdn.brandfetch.io/${encodeURIComponent(domain)}`];
   if (theme) parts.push(`theme/${theme}`);
-  parts.push(`w/${w}`, `h/${h}`, `${type}.${format}`);
-  // `fallback=transparent`: όταν το Brandfetch δεν έχει λογότυπο για το domain
-  // σερβίρει το ΔΙΚΟ ΤΟΥ σήμα — θα εμφανιζόταν σαν να είναι η μάρκα. Με
-  // διαφανές fallback μένει κενό και ο διαχειριστής ανεβάζει το σωστό.
-  return `${parts.join("/")}?c=${clientId()}&fallback=transparent`;
+  // Το fallback είναι **τμήμα διαδρομής**, όχι query parameter — ως `?fallback=`
+  // αγνοείται σιωπηλά. Χωρίς αυτό, όταν το Brandfetch δεν έχει λογότυπο για το
+  // domain σερβίρει το ΔΙΚΟ ΤΟΥ σήμα με HTTP 200 και εμφανίζεται σαν να είναι
+  // η μάρκα. Με `fallback/404` η εικόνα σπάει καθαρά και την κρύβουμε.
+  parts.push("fallback/404", `w/${w}`, `h/${h}`, `${type}.${format}`);
+  return `${parts.join("/")}?c=${clientId()}`;
 }
 
 /**

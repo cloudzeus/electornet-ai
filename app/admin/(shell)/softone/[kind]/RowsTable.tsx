@@ -63,8 +63,10 @@ export function RowsTable({ kind, rows: initial, editable, columns }: { kind: st
     if (v == null || v === "") return "—";
     // eslint-disable-next-line @next/next/no-img-element
     if (f?.type === "media") return <img src={String(v)} alt="" className="h-7 max-w-[96px] object-contain" />;
+    // Το Brandfetch γυρίζει 404 όταν δεν έχει λογότυπο (fallback/404): κρύβουμε
+    // τη σπασμένη εικόνα αντί να δείχνουμε εικονίδιο «χαλασμένο».
     // eslint-disable-next-line @next/next/no-img-element
-    if (typeof v === "string" && /^https?:\/\//.test(v) && /logo|cdn\.brandfetch/.test(v)) return <img src={v} alt="" loading="lazy" className="h-7 max-w-[110px] object-contain" />; if (f?.type === "select") return f.options?.find((o) => o.value === String(v))?.label ?? String(v); if (f?.type === "boolean") return v ? "Ναι" : "Όχι"; if (typeof v === "object") return (v as { name?: string }).name ?? "—"; return String(v); };
+    if (typeof v === "string" && /^https?:\/\//.test(v) && /logo|cdn\.brandfetch/.test(v)) return <img src={v} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = "none"; }} className="h-7 max-w-[110px] object-contain" />; if (f?.type === "select") return f.options?.find((o) => o.value === String(v))?.label ?? String(v); if (f?.type === "boolean") return v ? "Ναι" : "Όχι"; if (typeof v === "object") return (v as { name?: string }).name ?? "—"; return String(v); };
   const begin = (r: Row) => { setEditing(r.id); setDraft({ code: r.code, name: r.name, active: r.active, ...Object.fromEntries(editable.map((f) => [f.key, r[f.key]])) }); setErr(null); };
   const commit = () => start(async () => { try { const res = await saveRow(kind, editing!, draft); setRows((rs) => rs.map((r) => (r.id === editing ? { ...r, ...(res.row as Row) } : r))); setEditing(null); } catch (e) { setErr((e as Error).message); } });
   const create = () => start(async () => { const res = await addRow(kind, draft as { code: string; name: string }); if (res.ok) { setAdding(false); window.location.reload(); } else setErr(res.error); });

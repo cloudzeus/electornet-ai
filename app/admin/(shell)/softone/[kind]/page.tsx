@@ -52,7 +52,9 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
         <span className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{total.toLocaleString("el-GR")} εγγραφές</span>
       </form>
 
-      <RowsTable kind={kind} rows={plain} editable={def.editable} columns={def.columns ?? []} />
+      {/* key: το RowsTable κρατά τις γραμμές σε state (για inline edit). Χωρίς
+          remount σε αλλαγή σελίδας/αναζήτησης το state θα έμενε στην παλιά σελίδα. */}
+      <RowsTable key={`${kind}:${page}:${q}:${missing}`} kind={kind} rows={plain} editable={def.editable} columns={def.columns ?? []} />
 
       {pages > 1 && (
         <nav className="flex flex-wrap items-center gap-2" aria-label="Σελίδες">

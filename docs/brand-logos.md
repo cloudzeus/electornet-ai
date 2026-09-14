@@ -30,8 +30,12 @@ Bonus: `.com` +0,10, `.gr` +0,08· ποινή σε ξένες εθνικές (`.
 
 Σωστές αυτόματες: samsung.com, bosch.com, lg.com, miele.com, siemens.com, philips.com, delonghi.com, 8bitdo.com. Με έγκριση βρέθηκαν και ελληνικά: `inventoraircondition.gr`.
 
-## `fallback=transparent`
-Όταν το Brandfetch δεν έχει λογότυπο για ένα domain, σερβίρει **το δικό του σήμα** — θα εμφανιζόταν σαν να είναι η μάρκα. Με διαφανές fallback το κουτί μένει κενό και φαίνεται ότι χρειάζεται upload.
+## `fallback/404` — τμήμα διαδρομής, όχι query parameter
+Όταν το Brandfetch δεν έχει λογότυπο για ένα domain, σερβίρει **το δικό του σήμα με HTTP 200** — εμφανιζόταν σαν να ήταν η μάρκα.
+
+Το fallback δηλώνεται **μέσα στη διαδρομή**: `cdn.brandfetch.io/{domain}/fallback/404/w/256/h/128/logo.webp`. Ως `?fallback=…` **αγνοείται σιωπηλά** (δοκιμάστηκε: το query parameter δεν αλλάζει τίποτα). Με `fallback/404` η εικόνα σπάει καθαρά και ο πίνακας την κρύβει με `onError`.
+
+Η ύπαρξη λογοτύπου **δεν ελέγχεται από τον server**: κάθε server-side fetch της εικόνας επιστρέφει τη σελίδα των όρων τους, όχι την εικόνα (αυτό ακριβώς απαγορεύουν). Ο έλεγχος γίνεται μόνο στον browser, από τον ίδιο τον `<img>`.
 
 ## Διαχείριση
 `/admin/softone/brand`:
