@@ -61,7 +61,7 @@ export function fidelity(text: string, transcript: string): number {
   return (2 * hit) / (a.length + b.length);
 }
 
-async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict = false): Promise<{ pcm: Buffer; transcript: string; costUsd: number; tokensIn: number; tokensOut: number; ms: number }> {
+async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict = false, onChunk?: (pcm: Buffer) => void): Promise<{ pcm: Buffer; transcript: string; costUsd: number; tokensIn: number; tokensOut: number; ms: number }> {
   const t0 = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -77,7 +77,7 @@ async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict
     const lines = buf.split("\n"); buf = lines.pop() ?? "";
     for (const l of lines) {
       if (!l.startsWith("data: ")) continue; const p = l.slice(6).trim(); if (p === "[DONE]") continue;
-      try { const j = JSON.parse(p); const a = j.choices?.[0]?.delta?.audio; if (a?.data) chunks.push(Buffer.from(a.data, "base64")); if (a?.transcript) transcript += a.transcript; if (j.usage) usage = j.usage; } catch { /* partial */ }
+      try { const j = JSON.parse(p); const a = j.choices?.[0]?.delta?.audio; if (a?.data) { const c = Buffer.from(a.data, "base64"); chunks.push(c); onChunk?.(c); } if (a?.transcript) transcript += a.transcript; if (j.usage) usage = j.usage; } catch { /* partial */ }
     }
   }
   const pcm = Buffer.concat(chunks);
@@ -188,4 +188,52 @@ export async function deletePhrase(id: string) {
   if (!row) return;
   await removeBytes(row.storage as Storage, row.path, row.url);
   await db.voicePhrase.delete({ where: { id } });
+}
+
+/**
+ * Streaming variant: pcm16 flows to the caller while the model is still
+ * talking (through ffmpeg atempo when a tempo is set), so playback starts
+ * after the first chunk (~1 s) instead of after the whole sentence. When the
+ * model finishes, the full take is verified (fidelity) and cached like any
+ * other phrase. No retry is possible mid-stream, so a low-fidelity take is
+ * simply not cached.
+ */
+export async function streamSpeech(rawText: string, opts: { key?: string } = {}): Promise<{ kind: "cached"; result: SpeakResult } | { kind: "stream"; stream: ReadableStream<Uint8Array>; sampleRate: number; persist: () => Promise<void> } | null> {
+  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
+  if (!cfg.enabled || !ai) return null;
+  const text = normaliseText(rawText).slice(0, 1500);
+  if (!text) return null;
+  const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
+  const hit = await cacheLookup(hash);
+  if (hit) return { kind: "cached", result: hit };
+
+  const tempo = Math.min(2, Math.max(0.5, cfg.tempo));
+  const ff = process.env.FFMPEG_PATH || "ffmpeg";
+  // ffmpeg in pass-through mode: raw pcm in → tempo-adjusted raw pcm out, chunk by chunk
+  let proc: ReturnType<typeof spawn> | null = null;
+  if (tempo !== 1) {
+    try { proc = spawn(ff, ["-hide_banner", "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", "-filter:a", `atempo=${tempo.toFixed(2)}`, "-flush_packets", "1", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "pipe:1"]); proc.on("error", () => { proc = null; }); proc.stdin?.on("error", () => {}); } catch { proc = null; }
+  }
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  let closed = false;
+  const close = () => { if (!closed) { closed = true; try { controller.close(); } catch { /* already closed */ } } };
+  const stream = new ReadableStream<Uint8Array>({ start(c) { controller = c; }, cancel() { closed = true; proc?.kill(); } });
+  const push = (b: Buffer) => { if (!closed) { try { controller.enqueue(new Uint8Array(b)); } catch { closed = true; } } };
+  if (proc) { proc.stdout?.on("data", (d: Buffer) => push(d)); proc.on("close", close); }
+
+  // synthesis runs in the background; `done` resolves with the verified take (or null)
+  const done = (async (): Promise<Synth | null> => {
+    let s: Awaited<ReturnType<typeof synthesise>> | null = null;
+    try {
+      s = await synthesise(text, cfg, ai.apiKey, false, (pcm) => { if (proc?.stdin && !proc.stdin.destroyed) proc.stdin.write(pcm); else if (!proc) push(pcm); });
+    } catch { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false); if (proc) proc.stdin?.end(); else close(); return null; }
+    if (proc) proc.stdin?.end(); else close();
+    await logUsage("tts", cfg.ttsModel, s.costUsd, s.tokensIn, s.tokensOut, s.ms);
+    const fid = s.transcript ? fidelity(text, s.transcript) : 1;
+    if (fid < 0.9) return null;
+    const enc = await encode(s.pcm, tempo);
+    return { bytes: enc.bytes, mime: enc.mime, ext: enc.ext, durationMs: Math.round((s.pcm.length / 2 / SAMPLE_RATE / enc.tempo) * 1000), transcript: s.transcript, fidelity: fid, costUsd: s.costUsd };
+  })();
+  done.catch(() => null);
+  return { kind: "stream", stream, sampleRate: SAMPLE_RATE, persist: async () => { const syn = await done; if (syn) await persistPhrase(text, hash, syn, cfg, opts).catch(() => null); } };
 }

@@ -25,6 +25,9 @@ export function useVoice() {
   const rec = useRef<MediaRecorder | null>(null);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gen = useRef(0); // speak() generation: a newer call or a mute cancels the running queue
+  const actx = useRef<AudioContext | null>(null); // Web Audio context for streamed pcm
+  const sources = useRef<AudioBufferSourceNode[]>([]);
+  const stopPcm = useCallback(() => { for (const s of sources.current) { try { s.stop(); } catch {} } sources.current = []; }, []);
 
   useEffect(() => {
     let on = true;
@@ -64,8 +67,8 @@ export function useVoice() {
   const setSpeakOn = useCallback((v: boolean) => {
     setSpeakOnState(v);
     try { localStorage.setItem(KEY, v ? "1" : "0"); } catch {}
-    if (!v) { gen.current++; audio.current?.pause(); setSpeaking(false); }
-  }, []);
+    if (!v) { gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false); }
+  }, [stopPcm]);
 
   /** Split an answer into sentence-sized parts: each is cached on its own and the first one starts playing while the rest are still being fetched. */
   const parts = (text: string) => {
@@ -83,6 +86,57 @@ export function useVoice() {
     a.play().catch(() => resolve());
   });
 
+  // Web Audio player for streamed pcm16: each chunk is scheduled right after the previous one, so playback
+  // starts on the first chunk (~1 s after the request) while the model is still talking.
+  const playPcmStream = async (res: Response, my: number): Promise<void> => {
+    if (!res.body) return;
+    const sr = Number(res.headers.get("x-sample-rate")) || 24000;
+    if (!actx.current) actx.current = new AudioContext();
+    const ctx = actx.current;
+    if (ctx.state === "suspended") await ctx.resume().catch(() => {});
+    const reader = res.body.getReader();
+    let carry = new Uint8Array(0);
+    let nextAt = 0;
+    let lastEnd = 0;
+    const MIN = sr * 0.12; // ≥120 ms per scheduled buffer keeps the schedule smooth
+    const schedule = (i16: Int16Array) => {
+      const buf = ctx.createBuffer(1, i16.length, sr);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < i16.length; i++) ch[i] = i16[i] / 32768;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = rate.current;
+      src.connect(ctx.destination);
+      const start = Math.max(ctx.currentTime + 0.05, nextAt);
+      src.start(start);
+      nextAt = start + buf.duration / rate.current;
+      lastEnd = nextAt;
+      sources.current.push(src);
+      src.onended = () => { sources.current = sources.current.filter((x) => x !== src); };
+    };
+    let pending: Uint8Array[] = []; let pendingLen = 0;
+    const flush = () => {
+      if (!pendingLen) return;
+      const all = new Uint8Array(pendingLen); let o = 0; for (const p of pending) { all.set(p, o); o += p.length; }
+      pending = []; pendingLen = 0;
+      const even = all.length - (all.length % 2);
+      carry = all.slice(even);
+      if (even) schedule(new Int16Array(all.buffer.slice(0, even)));
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (my !== gen.current) { try { await reader.cancel(); } catch {} return; }
+      if (done) break;
+      if (!value?.length) continue;
+      const chunk = carry.length ? new Uint8Array([...carry, ...value]) : value; carry = new Uint8Array(0);
+      pending.push(chunk); pendingLen += chunk.length;
+      if (pendingLen / 2 >= MIN) flush();
+    }
+    flush();
+    // wait until the scheduled audio has actually played out
+    const remaining = Math.max(0, lastEnd - ctx.currentTime);
+    await new Promise<void>((r) => setTimeout(r, remaining * 1000 + 30));
+  };
   const speak = useCallback(async (text: string, key?: string) => {
     if (!enabled || !speakOn) return;
     const my = ++gen.current;
@@ -90,14 +144,16 @@ export function useVoice() {
     if (!items.length) return;
     if (!audio.current) audio.current = new Audio();
     const a = audio.current;
-    // fetch every part at once; play them in order
-    const urls = items.map((body) => fetch("/api/voice/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => (r.ok ? ((await r.json()) as { url: string }).url : null)).catch(() => null));
+    // fetch every part at once; play them in order. Cache hits come back as a URL, misses as a live pcm stream.
+    const parts$ = items.map((body) => fetch("/api/voice/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => null));
     setSpeaking(true);
     try {
-      for (const u of urls) {
-        const url = await u;
+      for (const p of parts$) {
+        const res = await p;
         if (my !== gen.current) return;
-        if (url) await playUrl(a, url);
+        if (!res?.ok) continue;
+        if (res.headers.get("x-voice") === "stream") await playPcmStream(res, my);
+        else { const j = (await res.json().catch(() => null)) as { url?: string } | null; if (j?.url) await playUrl(a, j.url); }
         if (my !== gen.current) return;
       }
     } finally { if (my === gen.current) setSpeaking(false); }
@@ -119,7 +175,7 @@ export function useVoice() {
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return { text: "", error: "unsupported" };
     let stream: MediaStream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch { return { text: "", error: "denied" }; }
-    gen.current++; audio.current?.pause(); setSpeaking(false);
+    gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false);
     const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
     const r = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
     rec.current = r;
@@ -156,7 +212,7 @@ export function useVoice() {
       const j = (await res.json().catch(() => ({}))) as { text?: string };
       return res.ok && j.text ? { text: j.text } : { text: "", error: "failed" };
     } catch { return { text: "", error: "failed" }; } finally { setTranscribing(false); }
-  }, [enabled]);
+  }, [enabled, stopPcm]);
 
   return { enabled, speakOn, setSpeakOn, speak, playPreset, listen, stop, listening, speaking, transcribing };
 }
