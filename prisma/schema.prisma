@@ -33,11 +33,24 @@ model Category {
 }
 
 model Brand {
-  id       String    @id @default(cuid())
-  slug     String    @unique
-  name     String
-  logo     String?
-  products Product[]
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  code       String?   @unique
+  name       String
+  logo       String?
+  featured   Boolean   @default(false)
+  sort       Int       @default(0)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // MTRMANFCTR (κατασκευαστής = μάρκα για το site)
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  products   Product[]
+
+  @@index([active, sort])
 }
 
 model Product {
@@ -1204,4 +1217,257 @@ model BackupRun {
   deletedAt DateTime? // pruned by retention
 
   @@index([at])
+}
+
+// ───────────────────────── SoftOne reference tables → own models ─────────────────────────
+// Every own model carries the S1 link (s1Id/s1Name/s1Data) next to our editable fields. SoftOne is the
+// master for the S1 columns; our code/name/flags are initialised from S1 on first sync and then belong to us.
+
+model S1SyncRun {
+  id      String   @id @default(cuid())
+  kind    String // vat | unit | brand | …
+  at      DateTime @default(now())
+  ok      Boolean  @default(false)
+  trigger String   @default("manual") // manual | cron | script
+  fetched Int      @default(0)
+  created Int      @default(0)
+  updated Int      @default(0)
+  missing Int      @default(0)
+  ms      Int      @default(0)
+  error   String?
+
+  @@index([kind, at])
+}
+
+model VatRate {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  percent    Float
+  isDefault  Boolean   @default(false)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Unit {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  decimals   Int       @default(0)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model TaxOffice {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  address    String?
+  city       String?
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // IRSDATA
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Country {
+  id         String    @id @default(cuid())
+  code       String    @unique // ISO-2
+  name       String
+  eu         Boolean   @default(false)
+  currency   String?
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/// Νομοί (SoftOne DISTRICT) — the closest thing SoftOne has to «cities»; postal codes hang below.
+model District {
+  id         String       @id @default(cuid())
+  code       String       @unique
+  name       String
+  region     String? // our grouping (Αττική, Κεντρική Μακεδονία, …) for shipping zones
+  active     Boolean      @default(true)
+  s1Id       String?      @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean      @default(false)
+  postalCodes PostalCode[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model PostalCode {
+  id         String    @id @default(cuid())
+  code       String    @unique // «10431»
+  name       String    @default("") // = code (generic lookup shape)
+  city       String? // filled by us (geocoding / manual); SoftOne keeps none
+  districtId String?
+  district   District? @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([districtId])
+}
+
+model PaymentMethod {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  kind       String    @default("other") // card | cod | bank | paypal | loan | cash | wallet | other
+  provider   String? // viva | revolut | paypal | — (mapping to the PSP in Settings → Payments)
+  fee        Float     @default(0)
+  minTotal   Float?
+  maxTotal   Float?
+  sort       Int       @default(0)
+  active     Boolean   @default(false) // off until the admin switches it on for the storefront
+  s1Id       String?   @unique // PAYMENT (SODTYPE 13)
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model ShippingMethod {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  carrier    String? // acs | geniki | elta | speedex | boxnow | store | own
+  fee        Float     @default(0)
+  freeFrom   Float?
+  sort       Int       @default(0)
+  active     Boolean   @default(false)
+  s1Id       String?   @unique // SHIPMENT
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Carrier {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  phone      String?
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // SOCARRIER
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+/// Sales document series (SOSOURCE 1351). `purpose` tells the order module which series to post to.
+model DocSeries {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  purpose    String? // order | order-paid | order-phone | invoice | receipt | credit | proforma | quote | other
+  isDefault  Boolean   @default(false)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // SERIES
+  s1Fprms    String?
+  s1Branch   String?
+  s1Whouse   String?
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Warehouse {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  branchS1   String?
+  storeId    String? // our Store (member shop) whose stock this is
+  sellable   Boolean   @default(false) // counts towards storefront availability
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // WHOUSE
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Branch {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model BusinessUnit {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Currency {
+  id         String    @id @default(cuid())
+  code       String    @unique // ISO 4217
+  name       String
+  symbol     String?
+  decimals   Int       @default(2)
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
