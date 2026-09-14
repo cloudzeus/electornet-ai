@@ -216,6 +216,8 @@ export const SECTIONS: Section[] = [
     fields: [
       { key: "fromName", label: "Όνομα αποστολέα", type: "text", placeholder: "Euronics", width: "half" },
       { key: "fromEmail", label: "Email αποστολέα", type: "email", placeholder: "noreply@euronics.gr", width: "half" },
+      { key: "emailLogoUrl", label: "Λογότυπο emails (URL)", type: "url", placeholder: "https://euronics.b-cdn.net/brand/euronics-logo-white.png", help: "Απόλυτο URL που φτάνουν οι email clients — λευκό λογότυπο σε διαφάνεια. Κενό = το αντίγραφο στο Bunny CDN.", width: "half" },
+      { key: "emailAssetUrl", label: "Base URL εικόνων emails", type: "url", placeholder: "https://euronics.dgsoft.gr", help: "Πού τρέχει ΑΥΤΗ η εφαρμογή — από εκεί σερβίρονται οι εικόνες των emails. Διαφορετικό από το site του πελάτη όσο το euronics.gr δείχνει το παλιό site.", width: "half" },
       { key: "transport", label: "Μεταφορά", type: "select", options: [{ value: "smtp", label: "SMTP" }, { value: "resend", label: "Resend" }, { value: "sendgrid", label: "SendGrid" }, { value: "mailgun", label: "Mailgun" }], width: "half" },
       { key: "apiKey", label: "API key παρόχου", type: "secret", width: "half" },
       { key: "mailgunDomain", label: "Mailgun domain", type: "text", placeholder: "mg.euronics.gr", help: "Το επιβεβαιωμένο sending domain. Κενό = το domain του email αποστολέα.", width: "half" },

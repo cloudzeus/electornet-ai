@@ -20,3 +20,18 @@
 **Sending**: `renderTemplate(key, data, ctx?)` → `sendMail({ to, template, ...m })` (`lib/email/send.ts`, SMTP / Resend / SendGrid from Settings → Email & SMS, every attempt in `EmailLog`). Wired: password OTP / changed, newsletter confirm / welcome / unsubscribed. Order, service, wishlist, loyalty and GDPR templates are ready for their triggers (order status changes, ticket updates, price sync, crons).
 
 **Admin** `/admin/emails` (permission `marketing.emails.write`): gallery per job with live thumbnails, per-template page with desktop / mobile / plain-text / sample-data views, trigger description, «Δοκιμαστική αποστολή» to any address (logged as `test:<key>`), dispatch log. Previews render assets from the current origin; real sends use the configured base URL.
+
+## Εικόνες στα emails (δύο βάσεις URL)
+Ο email client κατεβάζει τις εικόνες **μόνος του**, από απόλυτα URL. Γι' αυτό το context κρατά δύο διαφορετικές βάσεις:
+
+| Πεδίο | Τι είναι | Χρήση |
+|---|---|---|
+| `baseUrl` | το site που βλέπει ο πελάτης (`https://www.euronics.gr`) | σύνδεσμοι στα κουμπιά |
+| `assetUrl` | **πού τρέχει η εφαρμογή μας** (`AUTH_URL`, ή Ρυθμίσεις → «Base URL εικόνων emails») | από εκεί σερβίρονται οι εικόνες |
+| `logoUrl` | λευκό λογότυπο στην κεφαλίδα, απόλυτο | Bunny CDN |
+
+**Γιατί**: όσο το `euronics.gr` δείχνει το παλιό site, δεν φιλοξενεί τα δικά μας assets ούτε τρέχει το `/api/img/email`. Με μία κοινή βάση κάθε εικόνα γύριζε 404 — το λογότυπο στην κεφαλίδα έσπαγε σε κάθε email.
+
+- Το λογότυπο ανέβηκε στο CDN (`brand/euronics-logo-white.png`) και είναι η προεπιλογή, ώστε να δουλεύει ανεξάρτητα από το πού είναι deployed η εφαρμογή.
+- Οι υπόλοιπες εικόνες (mascot, φωτογραφίες προϊόντων) περνούν από το `assetUrl`. **Σε τοπική ανάπτυξη δείχνουν σε `localhost` και δεν φαίνονται στο email** — αναμενόμενο. Στο staging/παραγωγή ορίζεται το σωστό domain.
+- WebP δεν υποστηρίζεται από Gmail/Outlook: το `emailImg()` στέλνει ό,τι δεν είναι jpg/png/gif μέσω `/api/img/email`, που το μετατρέπει σε JPEG.

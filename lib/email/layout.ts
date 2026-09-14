@@ -11,19 +11,29 @@ import { getSetting } from "@/lib/settings/store";
 export const BRAND = { navy: "#122A58", blue: "#1D428A", yellow: "#F1C400", red: "#D62828", green: "#1E7B3C", ink: "#1a1a1a", ink2: "#4d4d4d", muted: "#7a7a7a", line: "#e6e8ee", surface: "#f5f6f9" };
 const FONT = "Manrope, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-export interface EmailCtx { baseUrl: string; siteName: string; phone: string; email: string; address: string; legalName: string; unsubscribeUrl?: string | null; year: number }
+export interface EmailCtx { baseUrl: string; assetUrl: string; logoUrl: string; siteName: string; phone: string; email: string; address: string; legalName: string; unsubscribeUrl?: string | null; year: number }
 
 export async function emailCtx(extra: Partial<EmailCtx> = {}): Promise<EmailCtx> {
   const { data } = await getSetting("general").catch(() => ({ data: {} as Record<string, string> }));
   const baseUrl = String(data.baseUrl || process.env.AUTH_URL || "https://www.euronics.gr").replace(/\/$/, "");
-  return { baseUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές"), legalName: String(data.legalName || "MEGA ELECTRICS ΑΕΒΕ"), year: new Date().getFullYear(), ...extra };
+  // Το λογότυπο πρέπει να είναι απόλυτο URL που φτάνει ο email client. Το
+  // `baseUrl` δείχνει στο ζωντανό euronics.gr, που ΔΕΝ φιλοξενεί τα δικά μας
+  // assets — γι' αυτό προεπιλογή είναι το αντίγραφο στο CDN.
+  // ΔΥΟ διαφορετικές βάσεις:
+  //  · baseUrl  = το site που βλέπει ο πελάτης (σύνδεσμοι στα κουμπιά)
+  //  · assetUrl = ΠΟΥ ΤΡΕΧΕΙ Η ΕΦΑΡΜΟΓΗ ΜΑΣ, από όπου σερβίρονται οι εικόνες
+  // Όσο το euronics.gr δείχνει το παλιό site, τα δύο διαφέρουν — γι' αυτό
+  // κάθε σχετική εικόνα έσπαγε (404 στο ζωντανό domain).
+  const assetUrl = String(data.emailAssetUrl || process.env.EMAIL_ASSET_URL || process.env.AUTH_URL || baseUrl).replace(/\/$/, "");
+  const logoUrl = String(data.emailLogoUrl || process.env.EMAIL_LOGO_URL || "https://euronics.b-cdn.net/brand/euronics-logo-white.png");
+  return { baseUrl, assetUrl, logoUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές"), legalName: String(data.legalName || "MEGA ELECTRICS ΑΕΒΕ"), year: new Date().getFullYear(), ...extra };
 }
 
 export const esc = (s: string | number | null | undefined) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 export const money = (n: number) => `${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-const abs = (ctx: EmailCtx, u: string | null | undefined) => (!u ? "" : /^https?:/.test(u) ? u : `${ctx.baseUrl}${u}`);
+const abs = (ctx: EmailCtx, u: string | null | undefined) => (!u ? "" : /^https?:/.test(u) ? u : `${ctx.assetUrl}${u}`);
 /** Email clients do not render WebP/AVIF/SVG: JPEG/PNG/GIF pass through, anything else goes through the on-demand JPEG route. Media-library assets should pass their `emailUrl` directly. */
-export const emailImg = (ctx: EmailCtx, u: string | null | undefined) => { if (!u) return ""; const url = abs(ctx, u); return /\.(jpe?g|png|gif)(\?|$)/i.test(url) ? url : `${ctx.baseUrl}/api/img/email?src=${encodeURIComponent(u.startsWith("/") ? u : url)}`; };
+export const emailImg = (ctx: EmailCtx, u: string | null | undefined) => { if (!u) return ""; const url = abs(ctx, u); return /\.(jpe?g|png|gif)(\?|$)/i.test(url) ? url : `${ctx.assetUrl}/api/img/email?src=${encodeURIComponent(u.startsWith("/") ? u : url)}`; };
 
 /* ---------- blocks: each returns { html, text } ---------- */
 export type Block = { html: string; text: string };
@@ -54,7 +64,7 @@ export function renderEmail(ctx: EmailCtx, opts: { subject: string; preheader?: 
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(opts.preheader ?? "")}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND.surface}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" style="width:600px;max-width:100%">
-<tr><td style="background:${BRAND.navy};border-radius:20px 20px 0 0;padding:20px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td><a href="${ctx.baseUrl}" style="text-decoration:none"><img src="${ctx.baseUrl}/design/euronics-logo-white.png" width="140" alt="${esc(ctx.siteName)}" style="display:block;width:140px;height:auto"></a></td><td align="right" style="font-family:${FONT};font-size:14px;color:#9fb0d3">350 καταστήματα σε όλη την Ελλάδα</td></tr></table></td></tr>
+<tr><td style="background:${BRAND.navy};border-radius:20px 20px 0 0;padding:20px 28px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td><a href="${ctx.baseUrl}" style="text-decoration:none"><img src="${ctx.logoUrl}" width="140" alt="${esc(ctx.siteName)}" style="display:block;width:140px;height:auto"></a></td><td align="right" style="font-family:${FONT};font-size:14px;color:#9fb0d3">350 καταστήματα σε όλη την Ελλάδα</td></tr></table></td></tr>
 <tr><td class="card" style="background:#ffffff;padding:32px 36px;border-left:1px solid ${BRAND.line};border-right:1px solid ${BRAND.line}">${body}</td></tr>
 <tr><td style="background:#ffffff;border-radius:0 0 20px 20px;border:1px solid ${BRAND.line};border-top:0;padding:18px 36px 24px;font-family:${FONT};font-size:14px;line-height:1.55;color:${BRAND.muted}">${opts.footerNote ? `<p style="margin:0 0 10px">${opts.footerNote}</p>` : ""}<p style="margin:0 0 6px"><b style="color:${BRAND.ink2}">${esc(ctx.legalName)}</b> · ${esc(ctx.address)}<br>Τηλ. <a href="tel:${esc(ctx.phone)}" style="color:${BRAND.blue};text-decoration:none">${esc(ctx.phone)}</a> · <a href="mailto:${esc(ctx.email)}" style="color:${BRAND.blue};text-decoration:none">${esc(ctx.email)}</a></p><p style="margin:0"><a href="${ctx.baseUrl}/aporrito" style="color:${BRAND.muted}">Πολιτική Απορρήτου</a> · <a href="${ctx.baseUrl}/oroi-xrisis" style="color:${BRAND.muted}">Όροι χρήσης</a>${opts.marketing && ctx.unsubscribeUrl ? ` · <a href="${esc(ctx.unsubscribeUrl)}" style="color:${BRAND.muted}">Διαγραφή από το newsletter</a>` : ""}</p></td></tr>
 <tr><td style="padding:14px 0 0;text-align:center;font-family:${FONT};font-size:14px;color:${BRAND.muted}">© ${ctx.year} ${esc(ctx.siteName)} · euronics.gr</td></tr>
