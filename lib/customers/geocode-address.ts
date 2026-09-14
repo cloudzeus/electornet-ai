@@ -1,11 +1,16 @@
 import { db } from "@/lib/db";
 import { geocodeAddress, distanceKm } from "@/lib/stores/geocode";
+import { districtByZip, districtByName } from "@/lib/geo/regions";
 
 /**
  * Geocodes a customer address (Nominatim, GR) and stores lat/lng, the label,
  * the nearest active store and its distance — the basis for location
  * segmentation (by prefecture, by store catchment, by radius). Coordinates
  * given by the client (GPS at checkout) or set by staff are kept as-is.
+ *
+ * Ο νομός και η περιφέρεια κανονικοποιούνται από το Τ.Κ. (ή το κείμενο
+ * περιοχής) μέσω `lib/geo/regions` — ίδια ονόματα με το SoftOne DISTRICT και
+ * με τα καταστήματα, ώστε το segmentation ανά περιοχή να είναι συγκρίσιμο.
  */
 export async function geocodeCustomerAddress(addressId: string, opts: { force?: boolean } = {}) {
   const a = await db.address.findUnique({ where: { id: addressId } });
@@ -22,7 +27,8 @@ export async function geocodeCustomerAddress(addressId: string, opts: { force?: 
   }
   if (lat == null || lng == null) return { ok: false as const, error: "Χωρίς συντεταγμένες." };
   const near = await nearestStore({ lat, lng });
-  await db.address.update({ where: { id: addressId }, data: { lat, lng, geoSource: source, geoLabel: label, geocodedAt: new Date(), nearestStoreId: near?.id ?? null, nearestKm: near?.km ?? null } });
+  const def = districtByZip(a.zip) ?? districtByName(a.region);
+  await db.address.update({ where: { id: addressId }, data: { lat, lng, geoSource: source, geoLabel: label, geocodedAt: new Date(), nearestStoreId: near?.id ?? null, nearestKm: near?.km ?? null, ...(def ? { region: def.name } : {}) } });
   // default address → suggested preferred store when the customer has none
   if (a.isDefault && near) await db.customer.updateMany({ where: { id: a.customerId, preferredStoreId: null }, data: { preferredStoreId: near.id } });
   return { ok: true as const, lat, lng, nearestStore: near };

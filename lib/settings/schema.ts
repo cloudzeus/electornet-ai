@@ -193,6 +193,19 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
+    key: "aade",
+    title: "ΑΑΔΕ",
+    description: "Αναζήτηση ΑΦΜ στο μητρώο επιχειρήσεων (RgWsPublic2) για τιμολόγηση: επωνυμία, ΔΟΥ, έδρα, ΚΑΔ και αν ο ΑΦΜ είναι ενεργός.",
+    group: "integrations",
+    fields: [
+      yesNo("vatEnabled", "Αναζήτηση ΑΦΜ ενεργή", "Χωρίς αυτό το checkout ζητά τα στοιχεία χειροκίνητα.", true),
+      { key: "vatUsername", label: "Username ειδικών κωδικών", type: "text", required: true, help: "Ειδικοί κωδικοί που εκδίδονται από το TAXISnet για την υπηρεσία «Στοιχεία Επιχειρήσεων» — ΟΧΙ οι κωδικοί TAXISnet.", width: "half" },
+      { key: "vatPassword", label: "Password ειδικών κωδικών", type: "secret", required: true, width: "half" },
+      { key: "vatCalledBy", label: "ΑΦΜ εταιρείας (afm_called_by)", type: "text", placeholder: "094xxxxxx", help: "Ο ΑΦΜ που κάνει την κλήση. Κενό αν οι κωδικοί είναι προσωπικοί.", width: "half" },
+      { key: "vatEndpoint", label: "Endpoint", type: "url", placeholder: "https://www1.gsis.gr/wsaade/RgWsPublic2/RgWsPublic2", help: "Κενό = παραγωγικό. Για δοκιμές: https://www1.gsis.gr/wsaadedg/RgWsPublic2/RgWsPublic2", width: "half" },
+    ],
+  },
+  {
     key: "email",
     title: "Email & SMS",
     description: "Αποστολή συναλλακτικών emails, newsletter και SMS.",
