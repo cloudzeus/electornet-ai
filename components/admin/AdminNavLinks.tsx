@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronDown, Menu } from "lucide-react";
+import { bestMatch } from "./nav-match";
 
 type Group = { label: string; items: { href: string; label: string; soon?: boolean }[] };
 const KEY = "eu-admin-nav";
@@ -17,7 +18,8 @@ export function AdminNavLinks({ groups }: { groups: Group[] }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<Record<string, boolean>>({});
-  const isActive = (href: string) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
+  const active = bestMatch(path, groups.flatMap((g) => g.items))?.href;
+  const isActive = (href: string) => href === active;
   const activeGroup = groups.find((g) => g.items.some((i) => isActive(i.href)))?.label;
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw } from "lucide-react";
+import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw, BadgeCheck } from "lucide-react";
 
 export interface AdminNavItem {
   href: string;
@@ -55,6 +55,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "SoftOne ERP",
     items: [
       { href: "/admin/softone", label: "Βασικοί πίνακες", icon: Database, perm: "settings.integrations.write" },
+      { href: "/admin/softone/brand/logos", label: "Λογότυπα μαρκών", icon: BadgeCheck, perm: "settings.integrations.write" },
       { href: "/admin/softone/sync", label: "Συγχρονισμοί & ιστορικό", icon: RefreshCw, perm: "settings.integrations.write" },
       { href: "/admin/softone/catalog", label: "Κατάλογος & CCC", icon: Package, perm: "settings.integrations.write", soon: true },
       { href: "/admin/softone/customers", label: "Πελάτες ERP", icon: Users, perm: "settings.integrations.write", soon: true },

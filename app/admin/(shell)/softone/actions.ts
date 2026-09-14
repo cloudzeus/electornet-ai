@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { syncLookup, syncAllLookups, updateLookupRow, createLookupRow, lookupByKind } from "@/lib/softone/lookups";
-import { resolveBrandLogos, setBrandDomain } from "@/lib/brandfetch/brands";
+import { resolveBrandLogos, setBrandDomain, approveBrandLogo, rejectBrandLogo, resetBrandLogo } from "@/lib/brandfetch/brands";
 import { db } from "@/lib/db";
 
 export async function syncKind(kind: string) {
@@ -26,7 +26,7 @@ export async function syncAll() {
 export async function saveRow(kind: string, id: string, patch: Record<string, unknown>) {
   const user = await requirePermission("settings.integrations.write");
   // Το domain μιας μάρκας ξαναφτιάχνει τον σύνδεσμο λογοτύπου
-  if (kind === "brand" && "domain" in patch) { await setBrandDomain(id, String(patch.domain ?? "")); delete patch.domain; }
+  if (kind === "brand" && "domain" in patch) { await setBrandDomain(id, String(patch.domain ?? ""), user.id); delete patch.domain; }
   const row = await updateLookupRow(kind, id, patch);
   await audit(user.id, "softone.lookup.edit", lookupByKind(kind)?.model ?? kind, id, null, patch);
   revalidatePath(`/admin/softone/${kind}`);
@@ -54,7 +54,7 @@ export async function clearRuns(mode: "failed" | "old", days = 30) {
   return { ok: true as const, deleted: count };
 }
 
-/** Μαζική αναζήτηση λογοτύπων μαρκών στο Brandfetch (hotlink, χωρίς λήψη αρχείων). */
+/** Μαζική αναζήτηση λογοτύπων μαρκών στο Brandfetch — γεμίζει την ουρά εγκρίσεων. */
 export async function findBrandLogos(force = false) {
   const user = await requirePermission("settings.integrations.write");
   const r = await resolveBrandLogos({ force });
@@ -63,13 +63,44 @@ export async function findBrandLogos(force = false) {
   return r;
 }
 
-/** Αποδοχή ή απόρριψη πρότασης domain για μία μάρκα. */
+/**
+ * Απόφαση του διαχειριστή για ένα λογότυπο που βρήκε το API.
+ *
+ * «Έγκριση» σημαίνει ότι κατεβάζουμε το αρχείο και το ανεβάζουμε στο **δικό
+ * μας** Bunny CDN μέσω της βιβλιοθήκης πολυμέσων, ώστε το κατάστημα να μην
+ * εξαρτάται από ξένο CDN. Καμία εικόνα δεν αποθηκεύεται χωρίς αυτή την
+ * επιβεβαίωση.
+ */
 export async function decideSuggestion(id: string, accept: boolean) {
   const user = await requirePermission("settings.integrations.write");
-  const b = await db.brand.findUnique({ where: { id }, select: { domainSuggest: true, name: true } });
-  if (accept && b?.domainSuggest) await setBrandDomain(id, b.domainSuggest);
-  await db.brand.update({ where: { id }, data: { domainSuggest: null } });
-  await audit(user.id, accept ? "brand.domain.accept" : "brand.domain.reject", "Brand", id, null, { name: b?.name, domain: b?.domainSuggest });
+  const b = await db.brand.findUnique({ where: { id }, select: { domainSuggest: true, domain: true, name: true } });
+  const r = accept ? await approveBrandLogo(id, user.id) : (await rejectBrandLogo(id), { ok: true as const, saved: false, error: undefined });
+  await audit(user.id, accept ? "brand.logo.approve" : "brand.logo.reject", "Brand", id, null, { name: b?.name, domain: b?.domainSuggest ?? b?.domain, saved: r.saved });
   revalidatePath("/admin/softone/brand");
+  revalidatePath("/admin/softone/brand/logos");
+  return r;
+}
+
+/** Μαζική απόφαση για όσα βλέπει ο διαχειριστής στη σελίδα ελέγχου. */
+export async function decideMany(ids: string[], accept: boolean) {
+  const user = await requirePermission("settings.integrations.write");
+  let saved = 0, failed = 0;
+  for (const id of ids.slice(0, 60)) {
+    if (!accept) { await rejectBrandLogo(id); continue; }
+    const r = await approveBrandLogo(id, user.id);
+    if (r.saved) saved++; else failed++;
+  }
+  await audit(user.id, accept ? "brand.logo.approve-many" : "brand.logo.reject-many", "Brand", "*", null, { count: ids.length, saved, failed });
+  revalidatePath("/admin/softone/brand");
+  revalidatePath("/admin/softone/brand/logos");
+  return { ok: true as const, count: ids.length, saved, failed };
+}
+
+/** Επαναφορά μιας μάρκας στην ουρά ελέγχου. */
+export async function resetLogo(id: string) {
+  const user = await requirePermission("settings.integrations.write");
+  await resetBrandLogo(id);
+  await audit(user.id, "brand.logo.reset", "Brand", id, null, null);
+  revalidatePath("/admin/softone/brand/logos");
   return { ok: true as const };
 }

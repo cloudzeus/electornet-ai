@@ -14,9 +14,9 @@ async function main() {
   for (let round = 1; round <= 20; round++) {
     const r = await resolveBrandLogos({ limit: 150 });
     const s = await logoStats();
-    console.log(`[${new Date().toISOString().slice(11, 19)}] παρτίδα ${round}: +${r.matched} με domain, ${r.unmatched} για έλεγχο${r.error ? ` · ${r.error}` : ""} → σύνολο ${s.withDomain} λογότυπα, ${s.suggested} προτάσεις, ${s.pending} απομένουν`);
+    console.log(`[${new Date().toISOString().slice(11, 19)}] παρτίδα ${round}: +${r.matched} με domain, ${r.unmatched} για έλεγχο${r.error ? ` · ${r.error}` : ""} → σύνολο ${s.pending} προς έγκριση, ${s.approved} εγκεκριμένα, ${s.unsearched} απομένουν`);
     if (!r.ok && r.error?.includes("Όριο")) { await sleep(5 * 60000); continue; }
-    if (s.pending === 0) { console.log("ολοκληρώθηκε"); break; }
+    if (s.unsearched === 0) { console.log("ολοκληρώθηκε"); break; }
     await sleep(20000);
   }
   await db.$disconnect();

@@ -43,6 +43,7 @@ model Brand {
   logoSource String? // upload | brandfetch | manual-domain
   domainSuggest String? // πρόταση Brandfetch που θέλει έγκριση διαχειριστή
   logoScore  Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
+  logoStatus String? // pending | approved | rejected — κάθε λογότυπο από το API περνά από έγκριση διαχειριστή
   logoAt     DateTime?
   featured   Boolean   @default(false)
   sort       Int       @default(0)

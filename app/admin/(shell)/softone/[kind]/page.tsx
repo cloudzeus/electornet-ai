@@ -37,9 +37,9 @@ export default async function LookupPage({ params, searchParams }: { params: Pro
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">{def.plural}</h2>
           <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">{def.description}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2"><SyncButton kind={kind} />{logos && <FindLogosButton pending={logos.pending} />}</div>
+        <div className="flex flex-wrap items-center gap-2"><SyncButton kind={kind} />{logos && <FindLogosButton pending={logos.unsearched} />}</div>
       </div>
-      {logos && <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3">Λογότυπα: <b className="text-eu-ink">{logos.withDomain}</b> από Brandfetch (σύνδεσμος, όχι αρχείο — οι όροι τους δεν επιτρέπουν αποθήκευση), <b className="text-eu-ink">{logos.withUpload}</b> δικά μας αρχεία στο CDN, <b className="text-eu-ink">{logos.suggested}</b> προτάσεις προς έγκριση, <b className="text-eu-ink">{logos.pending}</b> δεν έχουν ελεγχθεί ακόμη.</p>}
+      {logos && <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3">Λογότυπα: <b className="text-eu-ink">{logos.withUpload}</b> αποθηκευμένα στο δικό μας CDN, <b className="text-eu-ink">{logos.pending}</b> <Link href="/admin/softone/brand/logos" className="text-eu-blue font-bold underline">περιμένουν έγκριση</Link>, <b className="text-eu-ink">{logos.rejected}</b> απορρίφθηκαν, <b className="text-eu-ink">{logos.unsearched}</b> δεν έχουν ελεγχθεί ακόμη.</p>}
       {runs.length > 0 && <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)] text-eu-muted">{runs.map((r) => <span key={r.id} className={`rounded-full px-2.5 py-1 ${r.ok ? "bg-eu-surface" : "bg-eu-red/10 text-eu-red"}`}>{r.at.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}: {r.ok ? `${r.fetched} γρ., +${r.created}, ~${r.updated}${r.missing ? `, ${r.missing} λείπουν` : ""}${r.skipped ? `, ${r.skipped} αγνοήθηκαν` : ""}` : r.error}</span>)}</div>}
 
       <form className="flex flex-wrap items-center gap-2">

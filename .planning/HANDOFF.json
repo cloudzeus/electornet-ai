@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-13T11:55:24.566Z",
+  "timestamp": "2026-09-14T13:46:07.000Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,61 +22,57 @@
     },
     {
       "status": "M",
-      "path": "components/admin/stores/StoreEditor.tsx"
+      "path": "app/admin/(shell)/softone/[kind]/page.tsx"
     },
     {
       "status": "M",
-      "path": "docs/emails.md"
+      "path": "app/admin/(shell)/softone/actions.ts"
     },
     {
       "status": "M",
-      "path": "docs/media-library.md"
+      "path": "components/admin/AdminNavLinks.tsx"
     },
     {
       "status": "M",
-      "path": "lib/email/layout.ts"
+      "path": "components/admin/AdminTitle.tsx"
     },
     {
       "status": "M",
-      "path": "lib/media/cdn.ts"
+      "path": "components/admin/nav.ts"
     },
     {
       "status": "M",
-      "path": "lib/media/process.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/media/repo.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/media/storage.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/media/types.ts"
-    },
-    {
-      "status": "M",
-      "path": "package-lock.json"
-    },
-    {
-      "status": "M",
-      "path": "package.json"
+      "path": "lib/brandfetch/brands.ts"
     },
     {
       "status": "M",
       "path": "prisma/schema.prisma"
     },
     {
-      "status": "??",
-      "path": "app/api/img/"
+      "status": "D",
+      "path": "scripts/_logos.ts"
+    },
+    {
+      "status": "M",
+      "path": "scripts/resolve-brand-logos.ts"
     },
     {
       "status": "??",
-      "path": "prisma/backfill-email-thumbs.ts"
+      "path": "app/admin/(shell)/softone/brand/"
+    },
+    {
+      "status": "??",
+      "path": "components/admin/nav-match.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/brandfetch/download.ts"
+    },
+    {
+      "status": "??",
+      "path": "scripts/migrate-logo-status.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n63cb9aa Cart by email (SavedCart with restore link, cart-page button, real exit-intent send, restore on /kalathi) and wishlist price-drop / back-in-stock alerts (one email per drop, consent-aware, cron endpoint, admin runner and log)\nea5bca6 Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin segmentation (prefecture, store catchment, radius from a place, customer map, CSV export)\n40e4e9d Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typed samples; senders wired (OTP, password changed, newsletter confirm/welcome/unsubscribed); admin gallery per job with live thumbnails, desktop/mobile/text/data preview, test send and dispatch log; marketing.emails.write permission\n3d3b032 Admin sidebar: collapsible groups (active group auto-opens, state remembered per browser, single-item groups as direct links)\nb5e568f Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login, toggles mirrored), account manager UI with price-drop badges and move/share, shared list page, admin customer tab and wishlist report, price-drop subscriber helper"
+  "context_notes": "Recent commits:\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image\ne2936f9 Staff login: two-factor with an emailed one-time code, and fix the Mailgun transport\n1833639 Remove the demo admin account"
 }
