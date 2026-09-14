@@ -93,30 +93,15 @@ async function logUsage(feature: "tts" | "stt", model: string, costUsd: number, 
 
 export interface SpeakResult { url: string; mime: string; durationMs: number; cached: boolean; costUsd: number; id: string }
 
-/**
- * Text → audio URL. Cache first (hash of model+voice+text): a hit costs nothing
- * and bumps `hits`. A miss synthesises, encodes, stores in the media storage
- * (Bunny CDN when enabled) and logs the cost to AiUsage with markup.
- * Phrases longer than `cacheMaxChars` are still spoken but not kept.
- */
-export async function speak(rawText: string, opts: { key?: string; force?: boolean } = {}): Promise<SpeakResult | null> {
-  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
-  if (!cfg.enabled || !ai) return null;
-  const text = normaliseText(rawText).slice(0, 1500);
-  if (!text) return null;
-  const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
-  if (!opts.force) {
-    const hit = await db.voicePhrase.findUnique({ where: { hash } });
-    if (hit) {
-      await db.voicePhrase.update({ where: { id: hit.id }, data: { hits: { increment: 1 }, lastUsedAt: new Date() } }).catch(() => null);
-      return { url: hit.url, mime: hit.mime, durationMs: hit.durationMs, cached: true, costUsd: 0, id: hit.id };
-    }
-  }
+interface Synth { bytes: Buffer; mime: string; ext: string; durationMs: number; transcript: string; fidelity: number; costUsd: number }
+
+/** Synthesise + verify + encode (no storage). Returns null when the model would not read the text faithfully. */
+async function synthesisePhrase(text: string, cfg: VoiceConfig, apiKey: string): Promise<Synth | null> {
   // Chat-audio models sometimes «answer» instead of reading. Check what was said against what was asked; one strict retry, then give up (never cache a wrong reading).
   let s: Awaited<ReturnType<typeof synthesise>> | null = null;
   let fid = 0;
   for (const strict of [false, true]) {
-    try { s = await synthesise(text, cfg, ai.apiKey, strict); } catch { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false); return null; }
+    try { s = await synthesise(text, cfg, apiKey, strict); } catch { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false); return null; }
     await logUsage("tts", cfg.ttsModel, s.costUsd, s.tokensIn, s.tokensOut, s.ms);
     fid = s.transcript ? fidelity(text, s.transcript) : 1; // no transcript in the stream → trust it
     if (fid >= 0.9) break;
@@ -124,14 +109,63 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
   if (!s || fid < 0.9) return null;
   const enc = await encode(s.pcm, cfg.tempo);
   const durationMs = Math.round((s.pcm.length / 2 / SAMPLE_RATE / enc.tempo) * 1000);
+  return { bytes: enc.bytes, mime: enc.mime, ext: enc.ext, durationMs, transcript: s.transcript, fidelity: fid, costUsd: s.costUsd };
+}
+
+/** Store the audio (Bunny when enabled) and record the cache row. Phrases longer than `cacheMaxChars` are stored but not indexed. */
+async function persistPhrase(text: string, hash: string, syn: Synth, cfg: VoiceConfig, opts: { key?: string; force?: boolean }): Promise<SpeakResult> {
   const keep = opts.key || text.length <= cfg.cacheMaxChars;
-  const rel = `voice/${hash.slice(0, 2)}/${hash.slice(0, 24)}.${enc.ext}`;
-  const stored = await storeBytes(rel, enc.bytes, enc.mime);
-  if (!keep) return { url: stored.url, mime: enc.mime, durationMs, cached: false, costUsd: s.costUsd, id: "" };
+  const rel = `voice/${hash.slice(0, 2)}/${hash.slice(0, 24)}.${syn.ext}`;
+  const stored = await storeBytes(rel, syn.bytes, syn.mime);
+  if (!keep) return { url: stored.url, mime: syn.mime, durationMs: syn.durationMs, cached: false, costUsd: syn.costUsd, id: "" };
   const prev = opts.force ? await db.voicePhrase.findUnique({ where: { hash } }) : null;
   if (prev && prev.path !== rel) await removeBytes(prev.storage as Storage, prev.path, prev.url);
-  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, style: styleKey(cfg), model: cfg.ttsModel, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd }, update: { key: opts.key ?? undefined, storage: stored.storage, path: rel, url: stored.url, mime: enc.mime, bytes: enc.bytes.length, durationMs, transcript: s.transcript || null, fidelity: fid, costUsd: s.costUsd } });
-  return { url: row.url, mime: row.mime, durationMs, cached: false, costUsd: s.costUsd, id: row.id };
+  const data = { storage: stored.storage, path: rel, url: stored.url, mime: syn.mime, bytes: syn.bytes.length, durationMs: syn.durationMs, transcript: syn.transcript || null, fidelity: syn.fidelity, costUsd: syn.costUsd };
+  const row = await db.voicePhrase.upsert({ where: { hash }, create: { hash, key: opts.key ?? null, text, voice: cfg.voice, style: styleKey(cfg), model: cfg.ttsModel, ...data }, update: { key: opts.key ?? undefined, ...data } });
+  return { url: row.url, mime: row.mime, durationMs: syn.durationMs, cached: false, costUsd: syn.costUsd, id: row.id };
+}
+
+async function cacheLookup(hash: string): Promise<SpeakResult | null> {
+  const hit = await db.voicePhrase.findUnique({ where: { hash } });
+  if (!hit) return null;
+  await db.voicePhrase.update({ where: { id: hit.id }, data: { hits: { increment: 1 }, lastUsedAt: new Date() } }).catch(() => null);
+  return { url: hit.url, mime: hit.mime, durationMs: hit.durationMs, cached: true, costUsd: 0, id: hit.id };
+}
+
+/**
+ * Text → audio URL. Cache first (hash of model+voice+style+tempo+text): a hit
+ * costs nothing and bumps `hits`. A miss synthesises, encodes, stores in the
+ * media storage (Bunny CDN when enabled) and logs the cost to AiUsage.
+ */
+export async function speak(rawText: string, opts: { key?: string; force?: boolean } = {}): Promise<SpeakResult | null> {
+  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
+  if (!cfg.enabled || !ai) return null;
+  const text = normaliseText(rawText).slice(0, 1500);
+  if (!text) return null;
+  const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
+  if (!opts.force) { const hit = await cacheLookup(hash); if (hit) return hit; }
+  const syn = await synthesisePhrase(text, cfg, ai.apiKey);
+  if (!syn) return null;
+  return persistPhrase(text, hash, syn, cfg, opts);
+}
+
+/**
+ * Low-latency variant for the storefront: on a miss the audio bytes go back
+ * to the caller at once (inline) and storage + cache row are written by the
+ * `persist` callback the route schedules after the response.
+ */
+export async function speakInline(rawText: string, opts: { key?: string } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
+  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
+  if (!cfg.enabled || !ai) return null;
+  const text = normaliseText(rawText).slice(0, 1500);
+  if (!text) return null;
+  const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
+  const hit = await cacheLookup(hash);
+  if (hit) return { result: hit };
+  const syn = await synthesisePhrase(text, cfg, ai.apiKey);
+  if (!syn) return null;
+  const inline = `data:${syn.mime};base64,${syn.bytes.toString("base64")}`;
+  return { result: { url: inline, audio: inline, mime: syn.mime, durationMs: syn.durationMs, cached: false, costUsd: syn.costUsd, id: "" }, persist: async () => { await persistPhrase(text, hash, syn, cfg, opts).catch(() => null); } };
 }
 
 /** Generate every preset phrase that is not cached yet (or all with force). */

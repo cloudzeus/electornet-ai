@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { speak } from "@/lib/voice/tts";
+import { NextResponse, after } from "next/server";
+import { speakInline } from "@/lib/voice/tts";
 import { PRESET_PHRASES } from "@/lib/voice/phrases";
 import { captureEvidence } from "@/lib/gdpr/evidence";
 
@@ -20,7 +20,9 @@ export async function POST(req: Request) {
   const preset = b.key ? PRESET_PHRASES.find((p) => p.key === b.key) : null;
   const text = preset?.text ?? b.text ?? "";
   if (!text.trim()) return NextResponse.json({ error: "text required" }, { status: 400 });
-  const r = await speak(text, preset ? { key: preset.key } : {});
+  const r = await speakInline(text, preset ? { key: preset.key } : {});
   if (!r) return NextResponse.json({ error: "unavailable" }, { status: 503 });
-  return NextResponse.json(r);
+  // Cache miss: the audio is already in the response; storage + cache row are written after it is sent.
+  if (r.persist) after(r.persist);
+  return NextResponse.json(r.result);
 }

@@ -109,7 +109,11 @@ export function useVoice() {
     if (r && r.state !== "inactive") r.stop();
   }, []);
 
-  /** Record until stop() (or 12 s), then transcribe. Resolves with the text ("" on failure). */
+  /**
+   * Record and transcribe. Stops by itself ~0.8 s after the visitor stops
+   * talking (RMS silence detection), on stop(), after 10 s, or after 4 s with
+   * no speech at all — so transcription starts the moment the sentence ends.
+   */
   const listen = useCallback(async (): Promise<{ text: string; error?: "denied" | "unsupported" | "failed" }> => {
     if (!enabled) return { text: "", error: "unsupported" };
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return { text: "", error: "unsupported" };
@@ -117,17 +121,33 @@ export function useVoice() {
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch { return { text: "", error: "denied" }; }
     gen.current++; audio.current?.pause(); setSpeaking(false);
     const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
-    const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const r = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined);
     rec.current = r;
     const chunks: Blob[] = [];
     r.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    const doneP = new Promise<Blob>((res) => { r.onstop = () => { stream.getTracks().forEach((t) => t.stop()); res(new Blob(chunks, { type: r.mimeType || mime || "audio/webm" })); }; });
-    r.start(250);
+    // silence detection
+    let ctx: AudioContext | null = null; let vad: ReturnType<typeof setInterval> | null = null;
+    try {
+      ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
+      const buf = new Float32Array(an.fftSize); const t0 = Date.now(); let spokeAt = 0; let lastVoice = 0; let noise = 0.01;
+      vad = setInterval(() => {
+        an.getFloatTimeDomainData(buf); let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i]; const rms = Math.sqrt(sum / buf.length);
+        const now = Date.now();
+        if (!spokeAt) noise = Math.min(noise, rms * 1.5 + 0.002); // adapt to room noise before speech
+        const voice = rms > Math.max(0.015, noise * 3);
+        if (voice) { lastVoice = now; if (!spokeAt) spokeAt = now; }
+        const stopNow = (spokeAt && now - lastVoice > 800 && now - spokeAt > 600) || (!spokeAt && now - t0 > 4000) || now - t0 > 10000;
+        if (stopNow && r.state !== "inactive") r.stop();
+      }, 100);
+    } catch { /* no AudioContext: fall back to the timers */ }
+    const doneP = new Promise<Blob>((res) => { r.onstop = () => { stream.getTracks().forEach((t) => t.stop()); if (vad) clearInterval(vad); void ctx?.close().catch(() => {}); res(new Blob(chunks, { type: r.mimeType || mime || "audio/webm" })); }; });
+    r.start(200);
     setListening(true);
-    stopTimer.current = setTimeout(() => { if (r.state !== "inactive") r.stop(); }, 12000);
+    stopTimer.current = setTimeout(() => { if (r.state !== "inactive") r.stop(); }, 10500);
     const blob = await doneP;
     setListening(false);
-    if (blob.size < 2000) return { text: "", error: "failed" };
+    if (blob.size < 1500) return { text: "", error: "failed" };
     setTranscribing(true);
     try {
       const fd = new FormData();
