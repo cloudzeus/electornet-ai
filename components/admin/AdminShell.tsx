@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac/permissions";
 import { signOut } from "@/lib/auth";
 import { AdminNavLinks } from "./AdminNavLinks";
 import { AdminTitle } from "./AdminTitle";
+import { DensityToggle } from "./DensityToggle";
 
 /**
  * Back-office frame: navy sidebar (groups filtered by the user's permissions),
@@ -17,11 +18,12 @@ import { AdminTitle } from "./AdminTitle";
 export function AdminShell({ user, children, title }: { user: { name?: string | null; email?: string | null; roles: string[]; permissions: string[] }; children: ReactNode; title?: string }) {
   const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.superOnly ? user.roles.includes("super-admin") : can(user.permissions, i.perm))) })).filter((g) => g.items.length);
   return (
-    <div className="min-h-dvh grid grid-cols-1 @3xl:grid-cols-[260px_minmax(0,1fr)] bg-eu-surface eu-container">
+    <div className="eu-admin min-h-dvh grid grid-cols-1 @3xl:grid-cols-[260px_minmax(0,1fr)] bg-eu-surface eu-container">
       <aside className="bg-eu-navy text-white flex flex-col">
         <div className="px-5 py-4 flex items-center gap-3 border-b border-white/10">
           <Image src="/design/logo-on-blue.svg" alt="euronics" width={110} height={28} className="h-6 w-auto" />
           <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] px-2 py-0.5">Admin</span>
+          <span className="ml-auto"><DensityToggle /></span>
         </div>
         <AdminNavLinks groups={groups.map((g) => ({ label: g.label, items: g.items.map((i) => ({ href: i.href, label: i.label, soon: i.soon })) }))} />
         <div className="mt-auto px-5 py-4 border-t border-white/10 text-[length:var(--fs-14)]">
