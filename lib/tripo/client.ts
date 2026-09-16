@@ -59,6 +59,7 @@ export async function tripoImageToModel(fileToken: string, ext: string, opts: Im
     model_version: opts.modelVersion ?? TRIPO_MODEL_VERSION,
     texture: opts.texture ?? true, pbr: opts.pbr ?? true,
     texture_quality: opts.textureQuality ?? "detailed",
+    geometry_quality: "detailed",
     texture_alignment: opts.textureAlignment ?? "original_image",
     orientation: opts.orientation ?? "align_image",
     auto_size: opts.autoSize ?? true,
@@ -78,7 +79,7 @@ export async function tripoMultiviewToModel(views: { front: { token: string; ext
   const body: Record<string, unknown> = {
     type: "multiview_to_model", files: [f(views.front), f(views.left), f(views.back), f(views.right)],
     model_version: opts.modelVersion ?? TRIPO_MODEL_VERSION, texture: opts.texture ?? true, pbr: opts.pbr ?? true,
-    texture_quality: opts.textureQuality ?? "detailed", texture_alignment: opts.textureAlignment ?? "original_image", orientation: opts.orientation ?? "align_image", auto_size: opts.autoSize ?? true,
+    texture_quality: opts.textureQuality ?? "detailed", geometry_quality: "detailed", texture_alignment: opts.textureAlignment ?? "original_image", orientation: opts.orientation ?? "align_image", auto_size: opts.autoSize ?? true,
   };
   if (opts.faceLimit) body.face_limit = opts.faceLimit;
   const d = await call<{ task_id: string }>("/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

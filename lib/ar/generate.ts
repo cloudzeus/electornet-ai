@@ -34,7 +34,7 @@ async function logTripo(task: "image_to_model" | "multiview_to_model" | "convert
   await db.aiUsage.create({ data: { day: new Date().toISOString().slice(0, 10), feature: "3d", model, tokensIn: Math.round(Math.max(0, credits ?? 0)), costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok, error: error?.slice(0, 300) } }).catch(() => null);
 }
 // Ελαφριά έκδοση: αρκετά τρίγωνα για καμπύλες και κουμπιά, υφή 2K JPEG — στόχος 1–3 MB
-const LIGHT = { faceLimit: 20000, textureSize: 2048, textureFormat: "JPEG" as const };
+const LIGHT = { faceLimit: 30000, textureSize: 2048, textureFormat: "JPEG" as const };
 
 async function folderId() {
   const f = await db.mediaFolder.findFirst({ where: { name: FOLDER, parentId: null }, select: { id: true } });

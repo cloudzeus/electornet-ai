@@ -10,7 +10,7 @@ export interface ArRowData {
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
   glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string;
 }
-export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date }
+export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date; creditsFull: number | null; creditsLight: number | null; views?: unknown }
 
 const kb = (n: number | null) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
 
@@ -38,7 +38,7 @@ function Generate({ productId, images, gen: g0, onModel }: { productId: string; 
       {gen && (
         <div className={`rounded-lg px-2.5 py-1.5 ${gen.status === "failed" ? "bg-eu-red/10 text-eu-red" : gen.status === "done" ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-ink-3"}`}>
           {active && <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden /> {gen.step ?? "Σε εξέλιξη"} · {gen.progress}%</span>}
-          {gen.status === "done" && <span className="font-bold">Έτοιμο: πλήρες {kb(gen.fullBytes)}{gen.lightUrl ? ` · ελαφρύ ${kb(gen.lightBytes)}` : ""}{gen.error ? ` · ${gen.error}` : ""}</span>}
+          {gen.status === "done" && <span className="font-bold">Έτοιμο{gen.views ? " (πολλαπλές όψεις)" : ""}: πλήρες {kb(gen.fullBytes)}{gen.lightUrl ? ` · ελαφρύ ${kb(gen.lightBytes)}` : ""}{gen.creditsFull != null ? ` · κόστος ${gen.creditsFull + (gen.creditsLight ?? 0)} credits` : ""}{gen.error ? ` · ${gen.error}` : ""}</span>}
           {gen.status === "failed" && <span className="font-bold">{gen.error ?? "Απέτυχε."}</span>}
         </div>
       )}

@@ -59,7 +59,7 @@ export interface ModelSpec {
 export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: MaterialDef[]; frontAspect: number } {
   const w = spec.dims.w / 100, h = spec.dims.h / 100, d = spec.dims.d / 100;
   const maxDim = Math.max(w, h, d);
-  const t = Math.min(0.015, Math.max(0.004, maxDim * 0.012)); // πάχος ακμής
+  const t = Math.min(0.008, Math.max(0.003, maxDim * 0.006)); // πάχος ακμής: λεπτή γραμμή, όχι δοκάρι
   const gap = 0.002; // απόσταση επιπέδων από την έδρα, να μην τρεμοπαίζουν
   const prims: Prim[] = [];
 
