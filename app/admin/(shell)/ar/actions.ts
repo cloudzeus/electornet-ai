@@ -21,9 +21,9 @@ export async function setArEnabled(productId: string, enabled: boolean) {
   return { ok: true as const };
 }
 
-export async function setArFit(productId: string, fitToDims: boolean) {
+export async function setArFit(productId: string, fitToDims: boolean, fitMode: "box" | "height" = "box") {
   const user = await requirePermission("catalog.products.write");
-  await db.productAr.upsert({ where: { productId }, update: { fitToDims, updatedById: user.id }, create: { productId, fitToDims, updatedById: user.id } });
+  await db.productAr.upsert({ where: { productId }, update: { fitToDims, fitMode, updatedById: user.id }, create: { productId, fitToDims, fitMode, updatedById: user.id } });
   paths(productId);
   return { ok: true as const };
 }
@@ -42,7 +42,8 @@ export async function attachArModel(productId: string, kind: "glb" | "usdz", ass
     if (!info.ok) return { ok: false as const, error: info.error };
     const prod = products.find((x) => x.id === productId);
     const rotationY = autoRotationY(info.box, prod ? dimsFor(prod) : null);
-    await db.productAr.upsert({ where: { productId }, update: { glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", enabled: true, updatedById: user.id }, create: { productId, glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", enabled: true, updatedById: user.id } });
+    // Μοντέλο κατασκευαστή: ακριβείς αναλογίες, κλίμακα μόνο από το ύψος
+    await db.productAr.upsert({ where: { productId }, update: { glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", fitMode: "height", enabled: true, updatedById: user.id }, create: { productId, glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", fitMode: "height", enabled: true, updatedById: user.id } });
     await audit(user.id, "ar.model.attach", "ProductAr", productId, null, { kind, filename: asset.filename, box: info.box, meshes: info.meshes });
     paths(productId);
     return { ok: true as const, box: info.box, meshes: info.meshes };
@@ -64,9 +65,9 @@ export async function detachArModel(productId: string, kind: "glb" | "usdz") {
 }
 
 /** 3D από φωτογραφία με το Tripo3D: ξεκινά τη δημιουργία και επιστρέφει την εγγραφή για παρακολούθηση. */
-export async function generateArModel(productId: string, imageUrl: string) {
+export async function generateArModel(productId: string, imageUrl: string, views: { left?: string; back?: string; right?: string } = {}) {
   const user = await requirePermission("catalog.products.write");
-  const g = await startGeneration(productId, imageUrl, user.id);
+  const g = await startGeneration(productId, imageUrl, user.id, views);
   await audit(user.id, "ar.generate.start", "ArGeneration", g.id, null, { productId, imageUrl, status: g.status, error: g.error });
   paths(productId);
   return JSON.parse(JSON.stringify(g)) as typeof g;

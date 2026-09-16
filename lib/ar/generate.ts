@@ -6,7 +6,7 @@ import { inspectGlb, autoRotationY, } from "./custom";
 import { dimsFor } from "@/lib/data/dims";
 import { products } from "@/lib/data/fixtures/products";
 import { readAsset } from "./serve";
-import { tripoUpload, tripoImageToModel, tripoConvert, tripoTask, tripoDownload, tripoBalance, tripoConfig, TripoError } from "@/lib/tripo/client";
+import { tripoUpload, tripoImageToModel, tripoMultiviewToModel, tripoConvert, tripoTask, tripoDownload, tripoBalance, tripoConfig, TripoError } from "@/lib/tripo/client";
 import { markupFor, billed } from "@/lib/ai/pricing";
 import { usdEurRate } from "@/lib/fx";
 
@@ -26,7 +26,7 @@ const FOLDER = "AR μοντέλα";
  * κάθε άλλη κλήση AI — έτσι μπαίνει στην αναφορά κόστους.
  */
 const balance = () => tripoBalance().then((b) => b.balance + b.frozen).catch(() => null);
-async function logTripo(task: "image_to_model" | "convert_model", credits: number | null, ms: number, ok: boolean, error?: string) {
+async function logTripo(task: "image_to_model" | "multiview_to_model" | "convert_model", credits: number | null, ms: number, ok: boolean, error?: string) {
   const model = `tripo/${task}`;
   const [{ creditUsd }, markupPct, fxRate] = await Promise.all([tripoConfig(), markupFor(model), usdEurRate().catch(() => null)]);
   const costUsd = Math.max(0, credits ?? 0) * creditUsd;
@@ -43,21 +43,30 @@ async function folderId() {
 
 const extOf = (url: string, mime: string) => (url.match(/\.(png|jpe?g|webp)(\?|$)/i)?.[1] ?? mime.split("/")[1] ?? "png").toLowerCase().replace("jpeg", "jpg");
 
-export async function startGeneration(productId: string, imageUrl: string, staffId: string) {
-  const bytes = await readAsset(imageUrl);
-  if (!bytes) throw new Error("Η φωτογραφία δεν διαβάστηκε.");
-  const mime = /\.png(\?|$)/i.test(imageUrl) ? "image/png" : /\.webp(\?|$)/i.test(imageUrl) ? "image/webp" : "image/jpeg";
-  const ext = extOf(imageUrl, mime);
+export interface Views { left?: string; back?: string; right?: string }
+const mimeOf = (u: string) => (/\.png(\?|$)/i.test(u) ? "image/png" : /\.webp(\?|$)/i.test(u) ? "image/webp" : "image/jpeg");
+
+async function uploadView(url: string) {
+  const bytes = await readAsset(url);
+  if (!bytes) throw new Error(`Η φωτογραφία δεν διαβάστηκε: ${url}`);
+  const mime = mimeOf(url), ext = extOf(url, mime);
+  return { token: await tripoUpload(bytes, `view.${ext}`, mime), ext };
+}
+
+export async function startGeneration(productId: string, imageUrl: string, staffId: string, views: Views = {}) {
   const before = await balance();
-  const gen = await db.arGeneration.create({ data: { productId, imageUrl, status: "queued", step: "Ανέβασμα φωτογραφίας στο Tripo3D", createdById: staffId, creditsBefore: before } });
+  const multi = !!(views.left || views.back || views.right);
+  const gen = await db.arGeneration.create({ data: { productId, imageUrl, views: multi ? (views as Prisma.InputJsonObject) : undefined, status: "queued", step: multi ? "Ανέβασμα όψεων στο Tripo3D" : "Ανέβασμα φωτογραφίας στο Tripo3D", createdById: staffId, creditsBefore: before } });
   const t0 = Date.now();
   try {
-    const token = await tripoUpload(bytes, `product.${ext}`, mime);
-    const taskId = await tripoImageToModel(token, ext, { texture: true, pbr: true });
+    const front = await uploadView(imageUrl);
+    const taskId = multi
+      ? await tripoMultiviewToModel({ front, left: views.left ? await uploadView(views.left) : undefined, back: views.back ? await uploadView(views.back) : undefined, right: views.right ? await uploadView(views.right) : undefined })
+      : await tripoImageToModel(front.token, front.ext, { texture: true, pbr: true });
     return db.arGeneration.update({ where: { id: gen.id }, data: { tripoTaskId: taskId, status: "running", step: "Δημιουργία 3D μοντέλου", progress: 1 } });
   } catch (e) {
     const error = e instanceof TripoError ? e.message : (e as Error).message;
-    await logTripo("image_to_model", 0, Date.now() - t0, false, error);
+    await logTripo(multi ? "multiview_to_model" : "image_to_model", 0, Date.now() - t0, false, error);
     return db.arGeneration.update({ where: { id: gen.id }, data: { status: "failed", error, step: null } });
   }
 }
@@ -85,11 +94,11 @@ export async function advanceGeneration(genId: string) {
       const full = await saveModel(url, g.productId, genId, "full", g.createdById);
       const afterFull = await balance();
       const creditsFull = g.creditsBefore != null && afterFull != null ? Math.max(0, g.creditsBefore - afterFull) : null;
-      await logTripo("image_to_model", creditsFull, Date.now() - g.createdAt.getTime(), true);
+      await logTripo(g.views ? "multiview_to_model" : "image_to_model", creditsFull, Date.now() - g.createdAt.getTime(), true);
       // Δένεται αμέσως με το προϊόν ώστε να παίζει το AR· η ελαφριά έκδοση ακολουθεί. Περιστροφή αυτόματα από τις διαστάσεις.
       const prod = products.find((x) => x.id === g.productId);
       const rotationY = autoRotationY(full.box, prod ? dimsFor(prod) : null);
-      await db.productAr.upsert({ where: { productId: g.productId }, update: { glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById }, create: { productId: g.productId, glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById } });
+      await db.productAr.upsert({ where: { productId: g.productId }, update: { glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, fitMode: "box", glbLightUrl: null, glbLightAssetId: null, updatedById: g.createdById }, create: { productId: g.productId, glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, fitMode: "box", updatedById: g.createdById } });
       const lightTask = await tripoConvert(g.tripoTaskId, { format: "GLTF", ...LIGHT });
       return db.arGeneration.update({ where: { id: genId }, data: { fullUrl: full.asset.url, fullBytes: full.bytes, renderUrl: t.output?.rendered_image ?? g.renderUrl, lightTaskId: lightTask, status: "converting", step: "Ελαφριά έκδοση για αργές συνδέσεις", progress: 96, creditsFull, creditsBefore: afterFull } });
     }

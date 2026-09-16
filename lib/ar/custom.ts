@@ -77,17 +77,18 @@ export function inspectGlb(buf: Buffer): GlbInfo {
  * — το Tripo και πολλοί κατασκευαστές βγάζουν μοντέλα κεντραρισμένα στο
  * μηδέν (μισό κάτω από το πάτωμα) ή στραμμένα με την πρόσοψη προς +X.
  */
-export function transformGlb(buf: Buffer, opts: { scale?: number; rotationY?: number; bounds?: { min: number[]; max: number[] } | null }): Buffer {
+export function transformGlb(buf: Buffer, opts: { scale?: number | [number, number, number]; rotationY?: number; bounds?: { min: number[]; max: number[] } | null }): Buffer {
   const g = parseGlb(buf);
-  const factor = opts.scale ?? 1, rot = ((opts.rotationY ?? 0) % 360 + 360) % 360;
-  if (!g || (Math.abs(factor - 1) < 1e-4 && rot === 0 && !opts.bounds)) return buf;
+  const sc: [number, number, number] = Array.isArray(opts.scale) ? opts.scale : [opts.scale ?? 1, opts.scale ?? 1, opts.scale ?? 1];
+  const rot = ((opts.rotationY ?? 0) % 360 + 360) % 360;
+  if (!g || (sc.every((v) => Math.abs(v - 1) < 1e-4) && rot === 0 && !opts.bounds)) return buf;
   const { json, rest } = g;
   const sceneIdx = json.scene ?? 0;
   const scene = json.scenes?.[sceneIdx];
   if (!scene || !json.nodes) return buf;
   const half = (rot * Math.PI) / 360;
   const q = [0, Math.sin(half), 0, Math.cos(half)];
-  const node: { children: number[]; scale: number[]; rotation: number[]; translation?: number[]; name: string } = { children: scene.nodes ?? [], scale: [factor, factor, factor], rotation: q, name: "euronics-fit" };
+  const node: { children: number[]; scale: number[]; rotation: number[]; translation?: number[]; name: string } = { children: scene.nodes ?? [], scale: sc, rotation: q, name: "euronics-fit" };
   if (opts.bounds) {
     // Γωνίες του κουτιού μέσα από R·S → πού καταλήγει το κουτί → μετατόπιση ώστε κάτω=0, κέντρο x/z=0
     const m = trs({ rotation: q, scale: node.scale });
@@ -103,4 +104,19 @@ export function transformGlb(buf: Buffer, opts: { scale?: number; rotationY?: nu
   const head = Buffer.alloc(12); head.write("glTF", 0, "ascii"); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + jsonBuf.length + rest.length, 8);
   const jh = Buffer.alloc(8); jh.writeUInt32LE(jsonBuf.length, 0); jh.writeUInt32LE(0x4e4f534a, 4);
   return Buffer.concat([head, jh, jsonBuf, rest]);
+}
+
+/**
+ * Κλίμακα ανά άξονα ώστε το μοντέλο να πιάνει ακριβώς Π×Υ×Β. Οι άξονες
+ * δίνονται στο τοπικό σύστημα του μοντέλου: με περιστροφή 90°/270° ο τοπικός
+ * X καταλήγει στο βάθος και ο τοπικός Z στο πλάτος.
+ */
+export function fitScale(box: Box | null, dims: { w: number; h: number; d: number } | null, rotationY: number, mode: "box" | "height" | "none"): number | [number, number, number] {
+  if (!box || !dims || mode === "none" || !box.h) return 1;
+  const sy = dims.h / box.h;
+  if (mode === "height") return sy;
+  const turned = (((rotationY % 360) + 360) % 360) % 180 === 90;
+  const sx = (turned ? dims.d : dims.w) / (box.w || 1);
+  const sz = (turned ? dims.w : dims.d) / (box.d || 1);
+  return [sx, sy, sz];
 }

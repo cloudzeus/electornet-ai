@@ -52,6 +52,8 @@ export interface ModelSpec {
    * φαίνεται να στέκεται μέσα στον όγκο του και όχι κολλημένο τεντωμένο μπροστά.
    */
   front: { mode: "face" | "billboard"; aspect: number };
+  /** ποια μέρη: για δικό μας 3D μοντέλο θέλουμε μόνο το πλαίσιο (όγκος, ακμές, ετικέτες) γύρω του */
+  parts?: { front?: boolean; logo?: boolean };
 }
 
 export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: MaterialDef[]; frontAspect: number } {
@@ -87,9 +89,11 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     fw = Math.min(fh * spec.front.aspect, Math.hypot(w, d));
     fz = 0;
   }
-  const front = prim("front", "front");
-  plane(front, [0, h / 2, fz], X, Y, fw / 2, fh / 2, Z);
-  prims.push(front);
+  if (spec.parts?.front !== false) {
+    const front = prim("front", "front");
+    plane(front, [0, h / 2, fz], X, Y, fw / 2, fh / 2, Z);
+    prims.push(front);
+  }
 
   // 4. Ετικέτες διαστάσεων: ύψος ανάλογο με το μέγεθος, ποτέ πιο φαρδιές από την έδρα
   const label = (name: string, c: Vec3, u: Vec3, v: Vec3, n: Vec3, faceW: number) => {
@@ -113,9 +117,9 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     plane(p, c, u, v, lw / 2, lh / 2, n);
     prims.push(p);
   };
-  logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
+  if (spec.parts?.logo !== false) logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
   // Το πίσω λογότυπο κοιτάει προς τα μέσα: μέσα από τον διαφανή όγκο διαβάζεται σωστά από μπροστά, που είναι η κύρια οπτική γωνία
-  logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
+  if (spec.parts?.logo !== false) logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
 
   const materials: MaterialDef[] = [
     { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.16, mode: "blend", doubleSided: true, roughness: 0.6 },

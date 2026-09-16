@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T19:45:33.121Z",
+  "timestamp": "2026-09-16T19:52:42.978Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -42,10 +42,6 @@
     },
     {
       "status": "M",
-      "path": "components/pdp/Answers.tsx"
-    },
-    {
-      "status": "M",
       "path": "lib/ar/custom.ts"
     },
     {
@@ -54,7 +50,15 @@
     },
     {
       "status": "M",
+      "path": "lib/ar/geometry.ts"
+    },
+    {
+      "status": "M",
       "path": "lib/ar/serve.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/fixtures/products.real.ts"
     },
     {
       "status": "M",
@@ -66,9 +70,25 @@
     },
     {
       "status": "??",
-      "path": "scripts/_tmp-gen3.ts"
+      "path": "lib/ar/frame.ts"
+    },
+    {
+      "status": "??",
+      "path": "public/img/products/r-145807-1.jpg"
+    },
+    {
+      "status": "??",
+      "path": "public/img/products/r-145807-2.jpg"
+    },
+    {
+      "status": "??",
+      "path": "public/img/products/r-145807-3.jpg"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_tmp-gen5.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nde77ede Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια\n0ee44e3 AR κατ' επιλογή ανά προϊόν από τη διαχείριση, με upload GLB/USDZ, και cache μοντέλων στο Bunny\nee0f042 AR: η φωτογραφία προσαρμόζεται στον όγκο· φωτογραφίες σε γωνία στέκονται μέσα του"
+  "context_notes": "Recent commits:\n60cbebe Tripo3D: παράμετροι ποιότητας, προσανατολισμός και έδραση των μοντέλων· ελαφριά έκδοση ως προεπιλογή\nde77ede Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια\n0ee44e3 AR κατ' επιλογή ανά προϊόν από τη διαχείριση, με upload GLB/USDZ, και cache μοντέλων στο Bunny"
 }

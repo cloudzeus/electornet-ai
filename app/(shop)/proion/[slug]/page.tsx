@@ -26,6 +26,7 @@ import { getGridFactor } from "@/lib/energy/emissions";
 import { after } from "next/server";
 import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
+import { AR_SERVE_VERSION } from "@/lib/ar/serve";
 import { dimsFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 
@@ -61,7 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // AR κατ' επιλογή από τη διαχείριση (/admin/ar): με δικό μας GLB ή με τον όγκο από διαστάσεις + φωτογραφία
   const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
   const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
-  const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}` : arKey(arInput)) : "";
+  const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
   if (arInput && !ar?.glbUrl) after(() => buildArModel(arInput).catch(() => {}));
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];

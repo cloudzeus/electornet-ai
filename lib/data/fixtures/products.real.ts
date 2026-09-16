@@ -81,7 +81,7 @@ export const realProducts: Product[] = [
     brand: "HISENSE", brandSlug: "hisense",
     title: "KF25YR4BG/AS25YR4BW Expert Comfort Inverter",
     category: "klimatismos", subcategory: "air-condition",
-    image: "/img/products/r-145807-0.jpg", images: ["/img/products/r-145807-0.jpg"],
+    image: "/img/products/r-145807-0.jpg", images: ["/img/products/r-145807-0.jpg", "/img/products/r-145807-1.jpg", "/img/products/r-145807-2.jpg", "/img/products/r-145807-3.jpg"],
     price: 349.0,
     energy: { cls: "A++", fiche: "#" }, rating: { value: 4.2, count: 28 }, storeStock: 19,
     availability: { kind: "days", min: 2, max: 4, deliveryDate: d(4) },

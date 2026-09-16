@@ -8,7 +8,7 @@ export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number;
+  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string;
 }
 export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date }
 
@@ -21,6 +21,8 @@ const kb = (n: number | null) => (n == null ? "" : n > 1048576 ? `${(n / 1048576
 function Generate({ productId, images, gen: g0, onModel }: { productId: string; images: string[]; gen: GenData | null; onModel: (box?: { w: number; h: number; d: number }) => void }) {
   const [gen, setGen] = useState<GenData | null>(g0);
   const [img, setImg] = useState(images[0] ?? "");
+  const [views, setViews] = useState<{ left?: string; back?: string; right?: string }>({});
+  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const active = !!gen && ["queued", "running", "converting"].includes(gen.status);
   useEffect(() => {
@@ -29,7 +31,8 @@ function Generate({ productId, images, gen: g0, onModel }: { productId: string; 
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, gen?.id]);
-  const start = async () => { if (!img) return; setBusy(true); try { setGen(await generateArModel(productId, img)); } finally { setBusy(false); } };
+  const start = async () => { if (!img) return; setBusy(true); try { setGen(await generateArModel(productId, img, views)); } finally { setBusy(false); } };
+  const name = (u: string) => `${u.includes("/cutouts/") ? "Cutout · " : ""}${u.split("/").pop()}`;
   return (
     <div className="grid gap-1.5 min-w-[220px] text-[length:var(--fs-13)]">
       {gen && (
@@ -45,6 +48,17 @@ function Generate({ productId, images, gen: g0, onModel }: { productId: string; 
             {images.map((u) => <option key={u} value={u}>{u.includes("/cutouts/") ? "Cutout · " : ""}{u.split("/").pop()}</option>)}
           </select>
           <button type="button" disabled={busy || !img} onClick={start} className={small}>{busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />} {gen ? "Ξανά" : "Δημιουργία 3D"}</button>
+          {images.length > 1 && <button type="button" onClick={() => setMore((m) => !m)} className="text-eu-blue font-bold underline">{more ? "Λιγότερες όψεις" : "Περισσότερες όψεις"}</button>}
+        </div>
+      )}
+      {!active && more && (
+        <div className="grid gap-1 rounded-lg bg-eu-surface p-2">
+          <div className="text-eu-muted">Η μπροστινή όψη είναι η παραπάνω· δώσε και πλαϊνές/πίσω για σωστό βάθος.</div>
+          {(["left", "back", "right"] as const).map((k) => (
+            <label key={k} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">{k === "left" ? "Αριστερά" : k === "back" ? "Πίσω" : "Δεξιά"}
+              <select value={views[k] ?? ""} onChange={(e) => setViews((v) => ({ ...v, [k]: e.target.value || undefined }))} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white truncate"><option value="">—</option>{images.map((u) => <option key={u} value={u}>{name(u)}</option>)}</select>
+            </label>
+          ))}
         </div>
       )}
     </div>
@@ -117,7 +131,11 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
                 {mismatch != null && (mismatch <= 10 || r.fitToDims) && <span className="inline-flex items-center gap-1 text-eu-green font-bold"><Check className="size-3.5" aria-hidden /> σε κλίμακα</span>}
               </div>
               <div className="inline-flex items-center gap-1.5 text-[length:var(--fs-13)] text-eu-ink-3">Πρόσοψη: <button type="button" disabled={pending} onClick={() => start(async () => { const x = await rotateArModel(r.id, -90); setR((v) => ({ ...v, rotationY: x.rotationY })); })} className={small} aria-label="Περιστροφή αριστερά">↺ 90°</button><span className="tabular-nums">{r.rotationY}°</span><button type="button" disabled={pending} onClick={() => start(async () => { const x = await rotateArModel(r.id, 90); setR((v) => ({ ...v, rotationY: x.rotationY })); })} className={small} aria-label="Περιστροφή δεξιά">↻ 90°</button></div>
-              <label className="inline-flex items-center gap-2 text-[length:var(--fs-13)] text-eu-ink-3"><input type="checkbox" checked={r.fitToDims} onChange={(e) => { const v = e.target.checked; setR({ ...r, fitToDims: v }); start(async () => { await setArFit(r.id, v); }); }} className="size-4 accent-eu-navy" /> Προσαρμογή στο δηλωμένο ύψος</label>
+              <label className="inline-flex items-center gap-2 text-[length:var(--fs-13)] text-eu-ink-3">Προσαρμογή:
+                <select value={r.fitToDims ? r.fitMode : "none"} onChange={(e) => { const v = e.target.value; const on = v !== "none"; const mode = v === "height" ? "height" : "box"; setR({ ...r, fitToDims: on, fitMode: mode }); start(async () => { await setArFit(r.id, on, mode); }); }} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white">
+                  <option value="box">στις διαστάσεις Π×Υ×Β</option><option value="height">μόνο στο ύψος (κρατά αναλογίες)</option><option value="none">καμία</option>
+                </select>
+              </label>
               <div className="flex flex-wrap gap-1.5">
                 {r.usdzUrl ? <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 text-[length:var(--fs-13)] font-bold text-eu-ink-3">USDZ ✓ <button type="button" onClick={() => start(async () => { await detachArModel(r.id, "usdz"); setR({ ...r, usdzUrl: null }); })} aria-label="Αφαίρεση USDZ" className="text-eu-muted hover:text-eu-red"><Trash2 className="size-3.5" aria-hidden /></button></span> : <UploadButton productId={r.id} kind="usdz" onDone={(x) => { setMsg(x.ok ? "Το USDZ συνδέθηκε." : x.error ?? null); if (x.ok) setR({ ...r, usdzUrl: "✓" }); }} />}
                 <UploadButton productId={r.id} kind="glb" onDone={(x) => { setMsg(x.ok ? "Νέο GLB." : x.error ?? null); if (x.ok) setR({ ...r, modelBox: x.box ?? r.modelBox }); }} />

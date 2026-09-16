@@ -103,7 +103,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       {open && createPortal(
         <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="ar-title">
           <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
-          <div className="absolute inset-0 h-[100dvh] @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(960px,92vw)] @md:h-[min(92dvh,700px)] bg-white @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] @md:grid-rows-[minmax(0,1fr)] @md:grid-cols-[minmax(0,1fr)_300px] [@media(orientation:landscape)_and_(max-height:520px)]:grid-rows-none [@media(orientation:landscape)_and_(max-height:520px)]:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="absolute inset-0 h-[100dvh] @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(960px,92vw)] @md:h-[min(92dvh,700px)] bg-white @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] @md:grid-rows-[minmax(0,1fr)] @md:grid-cols-[minmax(0,1fr)_320px] [@media(orientation:landscape)_and_(max-height:520px)]:grid-rows-none [@media(orientation:landscape)_and_(max-height:520px)]:grid-cols-[minmax(0,1fr)_240px]">
             <div className="relative min-h-0 min-w-0 h-full bg-eu-surface">
               <div ref={holder} className="absolute inset-0" />
               {status === "loading" && (
@@ -122,7 +122,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 </button>
               )}
             </div>
-            <div className="p-4 @md:p-6 grid content-start gap-3 @md:gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
+            <div className="p-4 @md:p-5 grid [grid-template-columns:minmax(0,1fr)] content-start gap-3 @md:gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">{c.ar_se_pragmatiki_klimaka}</div>
@@ -135,7 +135,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
               {dims && (
                 <dl className="m-0 grid grid-cols-3 gap-2">
                   {([["Πλάτος", dims.w], ["Ύψος", dims.h], ["Βάθος", dims.d]] as const).map(([l, v]) => (
-                    <div key={l} className="rounded-xl bg-eu-surface p-2.5 min-w-0">
+                    <div key={l} className="rounded-xl bg-eu-surface p-2 min-w-0">
                       <dt className="m-0 text-eu-muted text-[length:var(--fs-14)]">{l}</dt>
                       <dd className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-16)] tabular-nums whitespace-nowrap">{v.toLocaleString("el-GR")} <span className="text-eu-muted font-bold text-[length:var(--fs-13)]">εκ.</span></dd>
                     </div>

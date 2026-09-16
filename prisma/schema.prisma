@@ -184,6 +184,7 @@ model ProductAr {
   usdzUrl     String? // προαιρετικό για iPhone· αλλιώς το model-viewer μετατρέπει το GLB στον browser
   usdzAssetId String?
   fitToDims   Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
+  fitMode     String   @default("box") // box = κάθε άξονας στις δηλωμένες διαστάσεις (για μοντέλα από φωτογραφία, που «μαντεύουν» το βάθος) | height = ομοιόμορφα από το ύψος (μοντέλα κατασκευαστή)
   modelBox    Json? // {w,h,d,min,max} σε cm/μονάδες όπως μετρήθηκαν στο ανεβασμένο GLB
   rotationY   Int      @default(0) // περιστροφή γύρω από τον κατακόρυφο άξονα (0/90/180/270) ώστε η πρόσοψη να κοιτά +Z
   glbLightUrl String? // ελαφριά έκδοση (λιγότερα πολύγωνα, μικρότερες υφές) για αργές συνδέσεις
@@ -202,7 +203,8 @@ model ProductAr {
 model ArGeneration {
   id           String   @id @default(cuid())
   productId    String
-  imageUrl     String
+  imageUrl     String // η μπροστινή όψη
+  views        Json? // { left?, back?, right? } — επιπλέον όψεις για multiview_to_model
   status       String   @default("queued") // queued | running | converting | done | failed
   step         String? // τι τρέχει τώρα, για την οθόνη
   progress     Int      @default(0)

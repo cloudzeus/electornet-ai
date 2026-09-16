@@ -68,6 +68,23 @@ export async function tripoImageToModel(fileToken: string, ext: string, opts: Im
   return d.task_id;
 }
 
+/**
+ * Πολλαπλές όψεις: [μπροστά, αριστερά, πίσω, δεξιά]· η μπροστινή υποχρεωτική,
+ * οι υπόλοιπες {} όταν λείπουν. Δίνει σωστό βάθος και πίσω πλευρά, που από
+ * μία φωτογραφία το μοντέλο τα «μαντεύει».
+ */
+export async function tripoMultiviewToModel(views: { front: { token: string; ext: string }; left?: { token: string; ext: string }; back?: { token: string; ext: string }; right?: { token: string; ext: string } }, opts: ImageToModelOpts = {}): Promise<string> {
+  const f = (v?: { token: string; ext: string }) => (v ? { type: v.ext, file_token: v.token } : {});
+  const body: Record<string, unknown> = {
+    type: "multiview_to_model", files: [f(views.front), f(views.left), f(views.back), f(views.right)],
+    model_version: opts.modelVersion ?? TRIPO_MODEL_VERSION, texture: opts.texture ?? true, pbr: opts.pbr ?? true,
+    texture_quality: opts.textureQuality ?? "detailed", texture_alignment: opts.textureAlignment ?? "original_image", orientation: opts.orientation ?? "align_image", auto_size: opts.autoSize ?? true,
+  };
+  if (opts.faceLimit) body.face_limit = opts.faceLimit;
+  const d = await call<{ task_id: string }>("/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return d.task_id;
+}
+
 export interface ConvertOpts { format: "GLTF" | "USDZ" | "FBX" | "OBJ"; faceLimit?: number; textureSize?: number; textureFormat?: "JPEG" | "PNG" | "WEBP"; quad?: boolean; pivotToCenterBottom?: boolean }
 export async function tripoConvert(originalTaskId: string, opts: ConvertOpts): Promise<string> {
   const body: Record<string, unknown> = { type: "convert_model", original_model_task_id: originalTaskId, format: opts.format, pivot_to_center_bottom: opts.pivotToCenterBottom ?? true };
