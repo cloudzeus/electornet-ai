@@ -25,6 +25,7 @@ import { EnergyCost } from "@/components/pdp/EnergyCost";
 import { getGridFactor } from "@/lib/energy/emissions";
 import { after } from "next/server";
 import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
+import { db } from "@/lib/db";
 import { dimsFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 
@@ -57,10 +58,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
-  const hasModel = !!dims && !!p.image;
-  const arInput = hasModel && dims ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
-  // Προθέρμανση: το μοντέλο AR χτίζεται μετά την απάντηση, ώστε όταν πατήσει «Δες το στον χώρο σου» να είναι έτοιμο
-  if (arInput) after(() => buildArModel(arInput).catch(() => {}));
+  // AR κατ' επιλογή από τη διαχείριση (/admin/ar): με δικό μας GLB ή με τον όγκο από διαστάσεις + φωτογραφία
+  const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
+  const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
+  const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}` : arKey(arInput)) : "";
+  // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
+  if (arInput && !ar?.glbUrl) after(() => buildArModel(arInput).catch(() => {}));
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (
@@ -78,7 +81,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               energy={p.energy}
               actions={
                 <>
-                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arKey(arInput)} />}
+                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} />}
                   <FitBadge product={p} size="lg" prompt />
                 </>
               }

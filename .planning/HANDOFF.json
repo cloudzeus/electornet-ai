@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T18:16:47.326Z",
+  "timestamp": "2026-09-16T18:38:01.017Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,11 +18,19 @@
   "uncommitted_files": [
     {
       "status": "M",
+      "path": ".gitignore"
+    },
+    {
+      "status": "M",
       "path": ".planning/HANDOFF.json"
     },
     {
       "status": "M",
       "path": "app/(shop)/proion/[slug]/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/admin/nav.ts"
     },
     {
       "status": "M",
@@ -34,17 +42,25 @@
     },
     {
       "status": "M",
-      "path": "lib/ar/geometry.ts"
-    },
-    {
-      "status": "M",
       "path": "lib/ar/serve.ts"
     },
     {
       "status": "M",
-      "path": "lib/ar/textures.ts"
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "status": "??",
+      "path": ".cache/"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/ar/"
+    },
+    {
+      "status": "??",
+      "path": "lib/ar/custom.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nac4bef0 AR από τις πραγματικές διαστάσεις: μοντέλα που χτίζονται επί τόπου, όχι αρχεία ανά SKU\ned1f024 Κάρτες συσκευών: η γραμμή κατασκευαστή ως εμφανές κουμπί κλήσης\n19fb126 Κάρτες συσκευών: δύο κουμπιά εγγράφων ανά σειρά και σε στενές κάρτες\n72f2c03 Φόρμα κράτησης με ετικέτες και προτάσεις διεύθυνσης· διορθώσεις στις κάρτες συσκευών\n4fb66e4 EPREL: μοντέλα και server-side ολοκλήρωση· CO₂ στην εξοικονόμηση ενέργειας"
+  "context_notes": "Recent commits:\nee0f042 AR: η φωτογραφία προσαρμόζεται στον όγκο· φωτογραφίες σε γωνία στέκονται μέσα του\nac4bef0 AR από τις πραγματικές διαστάσεις: μοντέλα που χτίζονται επί τόπου, όχι αρχεία ανά SKU\ned1f024 Κάρτες συσκευών: η γραμμή κατασκευαστή ως εμφανές κουμπί κλήσης\n19fb126 Κάρτες συσκευών: δύο κουμπιά εγγράφων ανά σειρά και σε στενές κάρτες\n72f2c03 Φόρμα κράτησης με ετικέτες και προτάσεις διεύθυνσης· διορθώσεις στις κάρτες συσκευών"
 }

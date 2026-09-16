@@ -172,6 +172,25 @@ model EnergyLabel {
   @@index([eprelRegistrationNumber])
 }
 
+/// AR «Δες το στον χώρο σου» ανά προϊόν: ενεργοποιείται κατ' επιλογή από τη
+/// διαχείριση. Χωρίς δικό μας μοντέλο χτίζεται ο όγκος από τις διαστάσεις·
+/// με ανεβασμένο GLB (και προαιρετικά USDZ) σερβίρεται αυτό, προσαρμοσμένο
+/// στις διαστάσεις αν ζητηθεί.
+model ProductAr {
+  productId   String   @id // id προϊόντος (fixture id σήμερα, erpCode αύριο)
+  enabled     Boolean  @default(false)
+  glbUrl      String? // ανεβασμένο μοντέλο (βιβλιοθήκη πολυμέσων → Bunny)
+  glbAssetId  String?
+  usdzUrl     String? // προαιρετικό για iPhone· αλλιώς το model-viewer μετατρέπει το GLB στον browser
+  usdzAssetId String?
+  fitToDims   Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
+  modelBox    Json? // {w,h,d} σε cm όπως μετρήθηκαν στο ανεβασμένο GLB
+  note        String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
 // ---------- EPREL (European Product Registry for Energy Labelling) ----------
 
 /// Ομάδες προϊόντων του EPREL όπως τις δίνει το API (/product-groups). Το urlCode

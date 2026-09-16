@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw, BadgeCheck, Zap } from "lucide-react";
+import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw, BadgeCheck, Zap, Box } from "lucide-react";
 
 export interface AdminNavItem {
   href: string;
@@ -35,6 +35,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/catalog", label: "Κατάλογος", icon: Package, perm: "catalog.products.read", soon: true },
       { href: "/admin/eprel", label: "EPREL ενεργειακές ετικέτες", icon: Zap, perm: "catalog.products.read" },
+      { href: "/admin/ar", label: "AR · δες το στον χώρο σου", icon: Box, perm: "catalog.products.read" },
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read", soon: true },
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },

@@ -18,7 +18,7 @@ const c = copyOf("ar");
  * Τα μοντέλα χτίζονται στο /api/ar/{id}/model.{glb,usdz} από τις τρέχουσες
  * διαστάσεις (EPREL, ERP ή τυπικές της κατηγορίας) — κανένα αρχείο ανά SKU.
  */
-export function ArButton({ id, title, dims, version = "", className = "" }: { id: string; title: string; dims: Dims | null; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
+export function ArButton({ id, title, dims, version = "", ios = true, className = "" }: { id: string; title: string; dims: Dims | null; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
@@ -38,7 +38,7 @@ export function ArButton({ id, title, dims, version = "", className = "" }: { id
       const mv = document.createElement("model-viewer") as HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void>; resetTurntableRotation?: () => void; cameraOrbit?: string };
       mvRef.current = mv;
       mv.setAttribute("src", glb);
-      mv.setAttribute("ios-src", usdz);
+      if (ios) mv.setAttribute("ios-src", usdz);
       mv.setAttribute("alt", title);
       mv.setAttribute("ar", "");
       mv.setAttribute("ar-modes", "webxr scene-viewer quick-look");
@@ -81,7 +81,7 @@ export function ArButton({ id, title, dims, version = "", className = "" }: { id
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => { alive = false; window.removeEventListener("keydown", onKey); mvRef.current = null; };
-  }, [open, glb, usdz, title]);
+  }, [open, glb, usdz, ios, title]);
 
   useEffect(() => {
     // Βαθύς σύνδεσμος από το QR (?ar=1): άνοιγμα μετά το hydration.
