@@ -28,6 +28,7 @@ export function fitFactor(box: { w: number; h: number; d: number } | null, dims:
 }
 
 export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz") {
+  const wantLight = new URL(req.url).searchParams.get("q") === "light";
   const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
   if (!p || !ar?.enabled) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404 });
   const dims = dimsFor(p);
@@ -38,7 +39,8 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   };
 
   // Δικό μας μοντέλο
-  const url = kind === "glb" ? ar.glbUrl : ar.usdzUrl;
+  // Ελαφριά έκδοση για αργές συνδέσεις, όταν υπάρχει και τη ζητά ο browser
+  const url = kind === "glb" ? (wantLight && ar.glbLightUrl ? ar.glbLightUrl : ar.glbUrl) : ar.usdzUrl;
   if (url) {
     const box = (ar.modelBox as { w: number; h: number; d: number } | null) ?? null;
     const factor = kind === "glb" && ar.fitToDims ? fitFactor(box, dims) : 1;

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { inspectGlb } from "@/lib/ar/custom";
 import { readAsset } from "@/lib/ar/serve";
+import { startGeneration, advanceGeneration } from "@/lib/ar/generate";
 
 const paths = (productId: string) => { revalidatePath("/admin/ar"); revalidatePath(`/proion`); void productId; };
 
@@ -56,4 +57,21 @@ export async function detachArModel(productId: string, kind: "glb" | "usdz") {
   await audit(user.id, "ar.model.detach", "ProductAr", productId, null, { kind });
   paths(productId);
   return { ok: true as const };
+}
+
+/** 3D από φωτογραφία με το Tripo3D: ξεκινά τη δημιουργία και επιστρέφει την εγγραφή για παρακολούθηση. */
+export async function generateArModel(productId: string, imageUrl: string) {
+  const user = await requirePermission("catalog.products.write");
+  const g = await startGeneration(productId, imageUrl, user.id);
+  await audit(user.id, "ar.generate.start", "ArGeneration", g.id, null, { productId, imageUrl, status: g.status, error: g.error });
+  paths(productId);
+  return JSON.parse(JSON.stringify(g)) as typeof g;
+}
+
+/** Η οθόνη ρωτά κάθε λίγα δευτερόλεπτα· κάθε κλήση προχωρά τη ροή κατά ένα βήμα. */
+export async function pollArGeneration(genId: string) {
+  await requirePermission("catalog.products.read");
+  const g = await advanceGeneration(genId);
+  if (g && (g.status === "done" || g.status === "failed")) paths(g.productId);
+  return g ? (JSON.parse(JSON.stringify(g)) as typeof g) : null;
 }

@@ -185,10 +185,41 @@ model ProductAr {
   usdzAssetId String?
   fitToDims   Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
   modelBox    Json? // {w,h,d} σε cm όπως μετρήθηκαν στο ανεβασμένο GLB
+  glbLightUrl String? // ελαφριά έκδοση (λιγότερα πολύγωνα, μικρότερες υφές) για αργές συνδέσεις
+  glbLightAssetId String?
+  source      String? // upload | tripo
   note        String?
   updatedById String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+/// Δημιουργία 3D μοντέλου από φωτογραφία με το Tripo3D (image_to_model), και
+/// μετατροπή σε ελαφριά έκδοση (convert_model). Μία γραμμή ανά προσπάθεια·
+/// τα αρχεία, μόλις ετοιμαστούν, αντιγράφονται στη βιβλιοθήκη πολυμέσων
+/// (Bunny) και δένονται με το ProductAr.
+model ArGeneration {
+  id           String   @id @default(cuid())
+  productId    String
+  imageUrl     String
+  status       String   @default("queued") // queued | running | converting | done | failed
+  step         String? // τι τρέχει τώρα, για την οθόνη
+  progress     Int      @default(0)
+  tripoTaskId  String?  @unique
+  lightTaskId  String?
+  usdzTaskId   String?
+  fullUrl      String? // GLB πλήρης ποιότητας στο CDN μας
+  lightUrl     String? // GLB ελαφριά έκδοση στο CDN μας
+  usdzUrl      String?
+  renderUrl    String? // προεπισκόπηση από το Tripo (προσωρινός σύνδεσμος)
+  fullBytes    Int?
+  lightBytes   Int?
+  error        String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId, createdAt])
 }
 
 // ---------- EPREL (European Product Registry for Energy Labelling) ----------

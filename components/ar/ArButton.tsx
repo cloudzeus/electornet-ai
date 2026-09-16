@@ -18,16 +18,18 @@ const c = copyOf("ar");
  * Τα μοντέλα χτίζονται στο /api/ar/{id}/model.{glb,usdz} από τις τρέχουσες
  * διαστάσεις (EPREL, ERP ή τυπικές της κατηγορίας) — κανένα αρχείο ανά SKU.
  */
-export function ArButton({ id, title, dims, version = "", ios = true, className = "" }: { id: string; title: string; dims: Dims | null; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
+export function ArButton({ id, title, dims, version = "", ios = true, light = false, className = "" }: { id: string; title: string; dims: Dims | null; /** υπάρχει ελαφριά έκδοση για αργές συνδέσεις */ light?: boolean; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
   const [canAr, setCanAr] = useState<boolean | null>(null);
   const holder = useRef<HTMLDivElement>(null);
   const mvRef = useRef<(HTMLElement & { cameraOrbit?: string }) | null>(null);
-  const q = version ? `?v=${version}` : "";
+  // Σε 2G/3G ή «εξοικονόμηση δεδομένων» ζητάμε την ελαφριά έκδοση, αν υπάρχει
+  const slow = typeof navigator !== "undefined" && (() => { const c = (navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }).connection; return !!c && (c.saveData || /2g|3g/.test(c.effectiveType ?? "")); })();
+  const q = `?v=${version}${light && slow ? "&q=light" : ""}`;
   const glb = `/api/ar/${id}/model.glb${q}`;
-  const usdz = `/api/ar/${id}/model.usdz${q}`;
+  const usdz = `/api/ar/${id}/model.usdz?v=${version}`;
 
   useEffect(() => {
     if (!open) return;

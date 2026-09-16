@@ -1,13 +1,54 @@
 "use client";
-import { useRef, useState, useTransition } from "react";
-import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check } from "lucide-react";
-import { setArEnabled, setArFit, attachArModel, detachArModel } from "./actions";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check, Sparkles } from "lucide-react";
+import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration } from "./actions";
 import type { MediaAssetDTO } from "@/lib/media/types";
 
 export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
+  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null;
+}
+export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date }
+
+const kb = (n: number | null) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+
+/**
+ * 3D από φωτογραφία (Tripo3D). Επιλογή εικόνας, εκκίνηση, και παρακολούθηση
+ * κάθε 5 s όσο τρέχει· όταν τελειώσει, το μοντέλο έχει ήδη δεθεί με το προϊόν.
+ */
+function Generate({ productId, images, gen: g0, onModel }: { productId: string; images: string[]; gen: GenData | null; onModel: (box?: { w: number; h: number; d: number }) => void }) {
+  const [gen, setGen] = useState<GenData | null>(g0);
+  const [img, setImg] = useState(images[0] ?? "");
+  const [busy, setBusy] = useState(false);
+  const active = !!gen && ["queued", "running", "converting"].includes(gen.status);
+  useEffect(() => {
+    if (!active || !gen) return;
+    const t = setInterval(async () => { const n = await pollArGeneration(gen.id); if (n) { setGen(n); if (n.status === "done" || (n.status === "converting" && n.fullUrl)) onModel(); } }, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, gen?.id]);
+  const start = async () => { if (!img) return; setBusy(true); try { setGen(await generateArModel(productId, img)); } finally { setBusy(false); } };
+  return (
+    <div className="grid gap-1.5 min-w-[220px] text-[length:var(--fs-13)]">
+      {gen && (
+        <div className={`rounded-lg px-2.5 py-1.5 ${gen.status === "failed" ? "bg-eu-red/10 text-eu-red" : gen.status === "done" ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-ink-3"}`}>
+          {active && <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden /> {gen.step ?? "Σε εξέλιξη"} · {gen.progress}%</span>}
+          {gen.status === "done" && <span className="font-bold">Έτοιμο: πλήρες {kb(gen.fullBytes)}{gen.lightUrl ? ` · ελαφρύ ${kb(gen.lightBytes)}` : ""}{gen.error ? ` · ${gen.error}` : ""}</span>}
+          {gen.status === "failed" && <span className="font-bold">{gen.error ?? "Απέτυχε."}</span>}
+        </div>
+      )}
+      {!active && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <select value={img} onChange={(e) => setImg(e.target.value)} aria-label="Φωτογραφία για 3D" className="rounded-lg border border-eu-line px-2 min-h-9 bg-white max-w-[180px] truncate">
+            {images.map((u) => <option key={u} value={u}>{u.includes("/cutouts/") ? "Cutout · " : ""}{u.split("/").pop()}</option>)}
+          </select>
+          <button type="button" disabled={busy || !img} onClick={start} className={small}>{busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />} {gen ? "Ξανά" : "Δημιουργία 3D"}</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const SOURCE: Record<string, string> = { eprel: "EPREL (χωρίς προεξοχές)", specs: "κατασκευαστής", category: "τυπικές κατηγορίας" };
@@ -69,7 +110,8 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           {r.glbUrl ? (
             <>
               <div className="inline-flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
-                <span className="rounded-full bg-eu-navy text-white font-bold px-2 py-0.5">Δικό μας GLB</span>
+                <span className="rounded-full bg-eu-navy text-white font-bold px-2 py-0.5">{r.source === "tripo" ? "3D από φωτογραφία" : "Δικό μας GLB"}</span>
+                {r.glbLightUrl && <span className="rounded-full bg-eu-green/12 text-eu-green font-bold px-2 py-0.5">+ ελαφριά έκδοση</span>}
                 {r.modelBox && <span className="tabular-nums text-eu-ink-3">μετρήθηκε {r.modelBox.w} × {r.modelBox.h} × {r.modelBox.d} εκ.</span>}
                 {mismatch != null && mismatch > 10 && !r.fitToDims && <span className="inline-flex items-center gap-1 text-eu-amber font-bold"><AlertTriangle className="size-3.5" aria-hidden /> {mismatch}% από το δηλωμένο ύψος</span>}
                 {mismatch != null && (mismatch <= 10 || r.fitToDims) && <span className="inline-flex items-center gap-1 text-eu-green font-bold"><Check className="size-3.5" aria-hidden /> σε κλίμακα</span>}
@@ -89,6 +131,9 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           )}
           {msg && <div className="text-[length:var(--fs-13)] text-eu-ink-3">{msg}</div>}
         </div>
+      </td>
+      <td className="py-2 px-3">
+        <Generate productId={r.id} images={r.images} gen={r.gen} onModel={() => setR((x) => ({ ...x, enabled: true, glbUrl: x.glbUrl ?? "✓", source: "tripo" }))} />
       </td>
       <td className="py-2 px-3 text-right whitespace-nowrap">
         {r.enabled && <a href={`/proion/${r.slug}?ar=1`} target="_blank" rel="noreferrer" className={`${small} no-underline`}><ExternalLink className="size-3.5" aria-hidden /> Προεπισκόπηση</a>}
