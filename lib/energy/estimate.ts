@@ -22,7 +22,9 @@ const BY_CLASS: Record<string, Partial<Record<string, number>>> = {
   koyzines: { "A+": 150, A: 170, B: 200 },
 };
 
-export function estimateKwh(p: Product): { kwh: number; source: "specs" | "estimate" } | null {
+export function estimateKwh(p: Product): { kwh: number; source: "eprel" | "specs" | "estimate" } | null {
+  // Δηλωμένη τιμή από το EPREL (ετήσια kWh με τις παραδοχές του κανονισμού) — η πιο αξιόπιστη
+  if (p.energy?.kwh && Number.isFinite(p.energy.kwh)) return { kwh: p.energy.kwh, source: "eprel" };
   const spec = (p.specs ?? []).find((s) => /Ετήσια κατανάλωση|kWh\/έτος|kWh\/annum/i.test(s.key) || /kWh\/(annum|έτος)/i.test(s.value));
   if (spec) {
     const v = parseFloat(spec.value.replace(",", "."));

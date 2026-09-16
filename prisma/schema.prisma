@@ -165,6 +165,96 @@ model EnergyLabel {
   eprelId   String?
   labelUrl  String?
   ficheUrl  String?
+  /// Σύνδεση με την καταχώριση EPREL — από εκεί έρχονται ετικέτα, δελτίο και όλα τα τεχνικά
+  eprelRegistrationNumber String?
+  eprel     EprelProduct? @relation(fields: [eprelRegistrationNumber], references: [registrationNumber], onDelete: SetNull)
+
+  @@index([eprelRegistrationNumber])
+}
+
+// ---------- EPREL (European Product Registry for Energy Labelling) ----------
+
+/// Ομάδες προϊόντων του EPREL όπως τις δίνει το API (/product-groups). Το urlCode
+/// είναι το κλειδί των κλήσεων αναζήτησης· το code η εσωτερική ονομασία.
+model EprelProductGroup {
+  code       String   @id // HOUSEHOLD_WASHING_MACHINE_2019
+  urlCode    String   @unique // washingmachines2019
+  name       String // Household washing machines
+  regulation String? // Regulation (EU) 2019/2014
+  active     Boolean  @default(true) // ομάδες που μας αφορούν εμπορικά
+  syncedAt   DateTime @default(now())
+  products   EprelProduct[]
+}
+
+/// Μία καταχώριση μοντέλου στο EPREL. Τα κοινά πεδία είναι στήλες για αναζήτηση
+/// και σύγκριση· ολόκληρη η απάντηση του API μένει στο `data`, γιατί κάθε ομάδα
+/// έχει δικά της τεχνικά (πλυντήριο: στροφές, νερό· τηλεόραση: ανάλυση, HDR).
+model EprelProduct {
+  registrationNumber String   @id // eprelRegistrationNumber
+  groupUrlCode       String
+  group              EprelProductGroup @relation(fields: [groupUrlCode], references: [urlCode])
+  implementingAct    String? // EU_2019_2014
+  modelIdentifier    String
+  supplierOrTrademark String
+  trademarkOwner     String?
+  organisationName   String?
+  status             String? // PUBLISHED | …
+  /// Ενεργειακή ετικέτα
+  energyClass        String? // A … G (ή A+++ … για παλιές κλίμακες)
+  energyClassRange   String? // A_G | APPP_D …
+  energyClassImage   String? // αρχείο βέλους που δίνει το EPREL
+  energyEfficiencyIndex Float?
+  /// Ετήσια κατανάλωση σε kWh, κανονικοποιημένη ανά ομάδα (220 κύκλοι πλύσης, 280 πλυντηρίου πιάτων, 4 h/ημέρα οθόνη…)
+  annualKwh          Float?
+  annualKwhBasis     String? // από ποιο πεδίο και με ποια παραδοχή βγήκε
+  noise              Int? // dB(A)
+  noiseClass         String?
+  dimensionWidth     Int? // cm
+  dimensionHeight    Int?
+  dimensionDepth     Int?
+  guaranteeDuration  Int? // μήνες
+  repairabilityClass String?
+  repairabilityIndex Float?
+  webLink            String?
+  onMarketStart      DateTime?
+  onMarketEnd        DateTime?
+  firstPublishedAt   DateTime?
+  versionNumber      Float?
+  lastVersion        Boolean  @default(true)
+  /// Αρχεία στο EPREL (δημόσια, χωρίς κλειδί) και τα αντίγραφά μας στο Bunny CDN
+  labelSvgUrl        String?
+  labelPngUrl        String?
+  labelPdfUrl        String?
+  ficheUrl           String? // δελτίο πληροφοριών προϊόντος στα ελληνικά
+  nestedLabelSvg     String?  @db.Text // το μικρό βέλος για λίστες/κάρτες
+  labelAssetUrl      String? // αντίγραφο ετικέτας στο δικό μας CDN
+  ficheAssetUrl      String? // αντίγραφο δελτίου στο δικό μας CDN
+  data               Json // ολόκληρη η απάντηση /product/{registrationNumber}
+  fetchedAt          DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  labels             EnergyLabel[]
+
+  @@index([groupUrlCode, energyClass])
+  @@index([modelIdentifier])
+  @@index([supplierOrTrademark])
+}
+
+/// Ιστορικό συγχρονισμών με το EPREL (ομάδες, αναζητήσεις, εισαγωγές, αντίγραφα αρχείων).
+model EprelSyncRun {
+  id      String   @id @default(cuid())
+  kind    String // groups | import | refresh | mirror | match
+  at      DateTime @default(now())
+  ok      Boolean  @default(false)
+  trigger String   @default("manual") // manual | cron | script
+  fetched Int      @default(0)
+  created Int      @default(0)
+  updated Int      @default(0)
+  ms      Int      @default(0)
+  error   String?
+  meta    Json?
+
+  @@index([kind, at])
 }
 
 /// Facet definitions per category: which specs become filters and how they map to URL params.

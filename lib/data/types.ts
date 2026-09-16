@@ -53,7 +53,8 @@ export interface Product {
   wasPrice?: number;
   /** Omnibus: lowest price of the previous 30 days, required with any discount. */
   lowest30?: number;
-  energy?: { cls: EnergyClass; fiche: string };
+  /** kwh/eprel: από την καταχώριση EPREL όταν το προϊόν είναι δεμένο (ετήσια kWh, αριθμός καταχώρισης) */
+  energy?: { cls: EnergyClass; fiche: string; kwh?: number; eprel?: string };
   gift?: string;
   rating?: { value: number; count: number };
   availability: Availability;

@@ -7,6 +7,8 @@ import type { Product } from "@/lib/data/types";
 import { CountUp } from "@/components/motion/CountUp";
 import { estimateKwh, OLD_APPLIANCE_KWH } from "@/lib/energy/estimate";
 import { copyOf } from "@/lib/cms/copy";
+import type { GridFactor } from "@/lib/energy/emissions";
+import { Leaf } from "lucide-react";
 
 const c = copyOf("energy");
 
@@ -19,7 +21,7 @@ const c = copyOf("energy");
  * spec «Ετήσια κατανάλωση» when present, else a category × class table
  * (marked «εκτίμηση»). kWh price from settings (admin).
  */
-export function EnergyCost({ product: p }: { product: Product }) {
+export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFactor | null }) {
   const KWH_PRICE = useSettings().site.commerce.kwhPrice;
   const est = estimateKwh(p);
   const old = OLD_APPLIANCE_KWH[p.subcategory] ?? OLD_APPLIANCE_KWH[p.category];
@@ -29,6 +31,9 @@ export function EnergyCost({ product: p }: { product: Product }) {
   const oldCost = Math.round(old * KWH_PRICE);
   const save = Math.max(0, (oldCost - newCost) * years);
   const pct = Math.min(100, Math.round((newCost / oldCost) * 100));
+  // CO₂: τοπικός υπολογισμός με την ένταση του ελληνικού δικτύου (cache 30 ημερών, όχι κλήση ανά προϊόν)
+  const co2Kg = co2 ? Math.max(0, Math.round(((old - est.kwh) * co2.gPerKwh * years) / 1000)) : null;
+  const carKm = co2Kg != null ? Math.round(co2Kg / 0.12) : null;
   return (
     <section
       className="rounded-2xl bg-eu-navy text-white p-5 @md:p-6 overflow-hidden relative isolate"
@@ -91,6 +96,19 @@ export function EnergyCost({ product: p }: { product: Product }) {
             </div>
           ))}
         </dl>
+        {co2Kg != null && co2Kg > 0 && (
+          <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">
+            <Leaf className="size-6 text-eu-yellow shrink-0" aria-hidden />
+            <div className="min-w-0">
+              <div className="font-extrabold text-[length:var(--fs-16)] tabular-nums">
+                <CountUp value={co2Kg} prefix="−" suffix=" kg CO₂" /> <span className="font-normal text-eu-on-dark-2">σε {years} χρόνια</span>
+              </div>
+              <div className="text-eu-on-dark-2 text-[length:var(--fs-14)]">
+                όσο {carKm?.toLocaleString("el-GR")} km με το αυτοκίνητο · δίκτυο Ελλάδας {Math.round(co2!.gPerKwh)} g CO₂e/kWh ({co2!.source.split(" ")[0]} {co2!.year}{co2!.live ? "" : ", στατική τιμή"})
+              </div>
+            </div>
+          </div>
+        )}
         <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex gap-1" role="group" aria-label={c.chronia_chrisis}>
             {[3, 5, 8].map((y) => (
@@ -106,9 +124,11 @@ export function EnergyCost({ product: p }: { product: Product }) {
             ))}
           </div>
           <p className="m-0 text-eu-on-dark-2 text-[length:var(--fs-14)]">
-            {est.source === "specs"
-              ? "Κατανάλωση από το δελτίο προϊόντος"
-              : "Εκτίμηση από κατηγορία και ενεργειακή κλάση"}{" "}
+            {est.source === "eprel"
+              ? "Κατανάλωση από το μητρώο EPREL"
+              : est.source === "specs"
+                ? "Κατανάλωση από το δελτίο προϊόντος"
+                : "Εκτίμηση από κατηγορία και ενεργειακή κλάση"}{" "}
             · {KWH_PRICE.toLocaleString("el-GR")} €/kWh
           </p>
         </div>

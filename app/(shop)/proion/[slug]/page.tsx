@@ -22,6 +22,7 @@ import { productJsonLd, productMetadata } from "@/lib/seo/product";
 import { ArButton } from "@/components/ar/ArButton";
 import { FitBadge } from "@/components/space/FitBadge";
 import { EnergyCost } from "@/components/pdp/EnergyCost";
+import { getGridFactor } from "@/lib/energy/emissions";
 import { dimsFor } from "@/lib/data/dims";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -53,6 +54,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
   const sections = ["overview", ...(p.description ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), "services", "reviews", "qa"];
   const dims = dimsFor(p);
+  // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
+  const co2 = await getGridFactor().catch(() => null);
   const hasModel = existsSync(join(process.cwd(), "public", "models", `${p.id}.glb`));
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
@@ -76,7 +79,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 </>
               }
             />
-            <EnergyCost product={p} />
+            <EnergyCost product={p} co2={co2} />
             {p.tradeIn && (
               <div className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">
                 <Recycle className="size-8 text-eu-green shrink-0" aria-hidden />

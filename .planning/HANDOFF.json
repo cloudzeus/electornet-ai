@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-14T13:46:07.000Z",
+  "timestamp": "2026-09-16T16:23:09.089Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,19 +22,7 @@
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/softone/[kind]/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/softone/actions.ts"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/AdminNavLinks.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/AdminTitle.tsx"
+      "path": "app/(shop)/proion/[slug]/page.tsx"
     },
     {
       "status": "M",
@@ -42,37 +30,41 @@
     },
     {
       "status": "M",
-      "path": "lib/brandfetch/brands.ts"
+      "path": "components/pdp/EnergyCost.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/snap/SnapSheet.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/data/types.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/energy/estimate.ts"
+    },
+    {
+      "status": "M",
+      "path": "lib/snap/identify.ts"
     },
     {
       "status": "M",
       "path": "prisma/schema.prisma"
     },
     {
-      "status": "D",
-      "path": "scripts/_logos.ts"
-    },
-    {
-      "status": "M",
-      "path": "scripts/resolve-brand-logos.ts"
+      "status": "??",
+      "path": "app/admin/(shell)/eprel/"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/softone/brand/"
+      "path": "lib/energy/emissions.ts"
     },
     {
       "status": "??",
-      "path": "components/admin/nav-match.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/brandfetch/download.ts"
-    },
-    {
-      "status": "??",
-      "path": "scripts/migrate-logo-status.ts"
+      "path": "lib/eprel/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image\ne2936f9 Staff login: two-factor with an emailed one-time code, and fix the Mailgun transport\n1833639 Remove the demo admin account"
+  "context_notes": "Recent commits:\n5670ff9 Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image\ne2936f9 Staff login: two-factor with an emailed one-time code, and fix the Mailgun transport"
 }
