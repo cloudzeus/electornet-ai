@@ -45,6 +45,13 @@ export interface ModelSpec {
   /** λόγος πλάτος/ύψος των εικόνων ετικέτας και λογοτύπου, για σωστές αναλογίες των επιπέδων */
   labelAspect: number;
   logoAspect: number;
+  /**
+   * Η φωτογραφία: `face` = κατά μέτωπο, γεμίζει ακριβώς την πρόσοψη Π×Υ·
+   * `billboard` = τραβηγμένη σε γωνία, στέκεται στο μέσο του βάθους με το
+   * πραγματικό της ύψος Υ και τον δικό της λόγο πλευρών, ώστε το προϊόν να
+   * φαίνεται να στέκεται μέσα στον όγκο του και όχι κολλημένο τεντωμένο μπροστά.
+   */
+  front: { mode: "face" | "billboard"; aspect: number };
 }
 
 export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: MaterialDef[]; frontAspect: number } {
@@ -69,11 +76,19 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
   for (const [x, z] of [[hx, hz], [-hx, hz], [hx, -hz], [-hx, -hz]]) box(edges, [x, h / 2, z], [t, h + t, t]);
   prims.push(edges);
 
-  // 3. Πρόσοψη με τη φωτογραφία, λίγο μέσα από τις ακμές
+  // 3. Η φωτογραφία
   const inset = t * 1.2;
-  const fw = Math.max(0.01, w - inset * 2), fh = Math.max(0.01, h - inset * 2);
+  let fw: number, fh: number, fz: number;
+  if (spec.front.mode === "face") {
+    fw = Math.max(0.01, w - inset * 2); fh = Math.max(0.01, h - inset * 2); fz = hz + gap;
+  } else {
+    // ύψος = Υ, πλάτος από τον λόγο της φωτογραφίας, όχι πέρα από την οριζόντια διαγώνιο του όγκου
+    fh = Math.max(0.01, h - inset * 2);
+    fw = Math.min(fh * spec.front.aspect, Math.hypot(w, d));
+    fz = 0;
+  }
   const front = prim("front", "front");
-  plane(front, [0, h / 2, hz + gap], X, Y, fw / 2, fh / 2, Z);
+  plane(front, [0, h / 2, fz], X, Y, fw / 2, fh / 2, Z);
   prims.push(front);
 
   // 4. Ετικέτες διαστάσεων: ύψος ανάλογο με το μέγεθος, ποτέ πιο φαρδιές από την έδρα

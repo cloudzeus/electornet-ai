@@ -18,15 +18,16 @@ const c = copyOf("ar");
  * Τα μοντέλα χτίζονται στο /api/ar/{id}/model.{glb,usdz} από τις τρέχουσες
  * διαστάσεις (EPREL, ERP ή τυπικές της κατηγορίας) — κανένα αρχείο ανά SKU.
  */
-export function ArButton({ id, title, dims, className = "" }: { id: string; title: string; dims: Dims | null; className?: string }) {
+export function ArButton({ id, title, dims, version = "", className = "" }: { id: string; title: string; dims: Dims | null; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
   const [canAr, setCanAr] = useState<boolean | null>(null);
   const holder = useRef<HTMLDivElement>(null);
   const mvRef = useRef<(HTMLElement & { cameraOrbit?: string }) | null>(null);
-  const glb = `/api/ar/${id}/model.glb`;
-  const usdz = `/api/ar/${id}/model.usdz`;
+  const q = version ? `?v=${version}` : "";
+  const glb = `/api/ar/${id}/model.glb${q}`;
+  const usdz = `/api/ar/${id}/model.usdz${q}`;
 
   useEffect(() => {
     if (!open) return;

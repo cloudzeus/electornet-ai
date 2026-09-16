@@ -24,8 +24,7 @@ import { FitBadge } from "@/components/space/FitBadge";
 import { EnergyCost } from "@/components/pdp/EnergyCost";
 import { getGridFactor } from "@/lib/energy/emissions";
 import { after } from "next/server";
-import { buildArModel } from "@/lib/ar/build";
-import { cutoutFor } from "@/lib/data/cutouts";
+import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
 import { dimsFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 
@@ -59,8 +58,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const co2 = await getGridFactor().catch(() => null);
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
   const hasModel = !!dims && !!p.image;
+  const arInput = hasModel && dims ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
   // Προθέρμανση: το μοντέλο AR χτίζεται μετά την απάντηση, ώστε όταν πατήσει «Δες το στον χώρο σου» να είναι έτοιμο
-  if (hasModel && dims) after(() => buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, image: p.image, cutout: cutoutFor(p.image) }).catch(() => {}));
+  if (arInput) after(() => buildArModel(arInput).catch(() => {}));
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (
@@ -78,7 +78,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               energy={p.energy}
               actions={
                 <>
-                  {hasModel && <ArButton id={p.id} title={`${p.brand} ${p.title}`} dims={dims} />}
+                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arKey(arInput)} />}
                   <FitBadge product={p} size="lg" prompt />
                 </>
               }

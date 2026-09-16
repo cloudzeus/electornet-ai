@@ -23,13 +23,38 @@ async function loadImage(src: string): Promise<Buffer | null> {
   } catch { return null; }
 }
 
-/** Η φωτογραφία χωρεμένη σε καμβά με τον λόγο της πρόσοψης, διαφανές φόντο. */
-export async function frontTexture(image: string | null, cutout: string | null, aspect: number): Promise<Buffer> {
-  const W = aspect >= 1 ? 1024 : Math.round(1024 * aspect), H = aspect >= 1 ? Math.round(1024 / aspect) : 1024;
-  const src = (cutout && (await loadImage(cutout))) ?? (image && (await loadImage(image))) ?? null;
-  if (!src) return sharp({ create: { width: W, height: H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } }).png().toBuffer();
-  const fitted = await sharp(src).resize({ width: Math.round(W * 0.94), height: Math.round(H * 0.94), fit: "inside", withoutEnlargement: false }).png().toBuffer();
-  return sharp({ create: { width: W, height: H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } }).composite([{ input: fitted, gravity: "centre" }]).png().toBuffer();
+export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "billboard" }
+
+/**
+ * Διαλέγει τη φωτογραφία που ταιριάζει καλύτερα στην πρόσοψη Π×Υ και την
+ * κόβει στα όριά της (διαφανή ή λευκά περιθώρια). Αν ο λόγος πλευρών της
+ * είναι κοντά στο Π/Υ είναι κατά μέτωπο και γεμίζει την έδρα· αλλιώς είναι
+ * σε γωνία (φαίνεται και η πλαϊνή πλευρά, άρα πιο φαρδιά) και μπαίνει ως
+ * billboard με το πραγματικό ύψος, ώστε να μην παραμορφώνεται.
+ */
+export async function pickFront(candidates: string[], faceAspect: number): Promise<FrontSource | null> {
+  let best: FrontSource | null = null, bestErr = Infinity;
+  for (const src of candidates) {
+    const raw = await loadImage(src);
+    if (!raw) continue;
+    let trimmed: Buffer;
+    try { trimmed = await sharp(raw).ensureAlpha().trim({ threshold: 12 }).png().toBuffer(); } catch { trimmed = await sharp(raw).ensureAlpha().png().toBuffer(); }
+    const meta = await sharp(trimmed).metadata();
+    if (!meta.width || !meta.height) continue;
+    const aspect = meta.width / meta.height;
+    const err = Math.abs(Math.log(aspect / faceAspect));
+    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: err <= 0.12 ? "face" : "billboard" }; }
+    if (bestErr <= 0.05) break;
+  }
+  return best;
+}
+
+/** Η επιλεγμένη φωτογραφία τεντωμένη στον λόγο του επιπέδου που θα τη δείξει (για billboard είναι ο δικός της). */
+export async function frontTexture(front: FrontSource | null, planeAspect: number): Promise<Buffer> {
+  const W = planeAspect >= 1 ? 1024 : Math.round(1024 * planeAspect), H = planeAspect >= 1 ? Math.round(1024 / planeAspect) : 1024;
+  if (!front) return sharp({ create: { width: W, height: H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } }).png().toBuffer();
+  // PNG με παλέτα: ίδια εμφάνιση, περίπου το ένα τρίτο του μεγέθους — το μοντέλο ανοίγει γρήγορα και σε 4G
+  return sharp(front.trimmed).resize({ width: W, height: H, fit: "fill" }).png({ palette: true, quality: 90, compressionLevel: 9 }).toBuffer();
 }
 
 /** Πινακίδα διάστασης: «Π 60 εκ.» — το γράμμα κίτρινο, ο αριθμός λευκός. */
