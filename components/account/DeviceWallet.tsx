@@ -177,10 +177,12 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
               </ul>
             )}
             {d.info?.hotline && (
-              <div className="text-[length:var(--fs-14)] text-eu-ink-3 inline-flex items-center gap-1.5">
-                <Phone className="size-3.5" aria-hidden /> {cp.grammi_kataskeyasti} <a href={`tel:${d.info.hotline.replace(/\s/g, "")}`} className="font-bold text-eu-blue">{d.info.hotline}</a>
-                <span className="mx-1">·</span>
-                <CalendarClock className="size-3.5" aria-hidden /> {cp.service_euronics_rantevoy_entos}
+              <div className="text-[length:var(--fs-14)] text-eu-ink-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                {/* Κουμπί κλήσης: tel: σύνδεσμος που φαίνεται ως κουμπί, δεν σπάει σε δύο γραμμές */}
+                <a href={`tel:${d.info.hotline.replace(/\s/g, "")}`} aria-label={`${cp.grammi_kataskeyasti} ${d.info.hotline}, κλήση`} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-blue/30 bg-white text-eu-blue font-extrabold px-3 min-h-10 whitespace-nowrap tabular-nums hover:border-eu-blue hover:bg-eu-chip">
+                  <Phone className="size-4" aria-hidden /> <span className="font-semibold text-eu-ink-3">{cp.grammi_kataskeyasti}</span> {d.info.hotline}
+                </a>
+                <span className="inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" aria-hidden /> {cp.service_euronics_rantevoy_entos}</span>
               </div>
             )}
           </div>

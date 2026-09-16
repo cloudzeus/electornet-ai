@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T16:45:42.158Z",
+  "timestamp": "2026-09-16T16:47:22.880Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -15,32 +15,7 @@
   "blockers": [],
   "human_actions_pending": [],
   "decisions": [],
-  "uncommitted_files": [
-    {
-      "status": "M",
-      "path": ".planning/HANDOFF.json"
-    },
-    {
-      "status": "M",
-      "path": "components/account/DeviceWallet.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/services/ServiceBooking.tsx"
-    },
-    {
-      "status": "??",
-      "path": "app/api/geo/suggest/"
-    },
-    {
-      "status": "??",
-      "path": "components/site/AddressAutocomplete.tsx"
-    },
-    {
-      "status": "??",
-      "path": "lib/geo/suggest.ts"
-    }
-  ],
+  "uncommitted_files": [],
   "next_action": null,
-  "context_notes": "Recent commits:\n4fb66e4 EPREL: μοντέλα και server-side ολοκλήρωση· CO₂ στην εξοικονόμηση ενέργειας\n5670ff9 Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image"
+  "context_notes": "Recent commits:\n19fb126 Κάρτες συσκευών: δύο κουμπιά εγγράφων ανά σειρά και σε στενές κάρτες\n72f2c03 Φόρμα κράτησης με ετικέτες και προτάσεις διεύθυνσης· διορθώσεις στις κάρτες συσκευών\n4fb66e4 EPREL: μοντέλα και server-side ολοκλήρωση· CO₂ στην εξοικονόμηση ενέργειας\n5670ff9 Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
 }
