@@ -1192,6 +1192,7 @@ model AiUsage {
   billedEur Float?                 // billedUsd × fxRate
   ms        Int      @default(0)
   ok        Boolean  @default(true)
+  error     String?  // η απάντηση του παρόχου όταν αποτύχει (π.χ. 402 χωρίς υπόλοιπο για audio)
   createdAt DateTime @default(now())
 
   @@index([day])

@@ -109,7 +109,7 @@ export async function chat(opts: {
   const ms = Date.now() - t0;
   const j = (await res.json().catch(() => ({}))) as { error?: { message?: string }; choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }; model?: string };
   if (!res.ok || j.error) {
-    await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model, ms, ok: false } }).catch(() => null);
+    await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model, ms, ok: false, error: `${res.status}: ${j.error?.message ?? res.statusText}`.slice(0, 300) } }).catch(() => null);
     throw new Error(`OpenRouter ${res.status}: ${j.error?.message ?? res.statusText}`);
   }
   const out: ChatResult = { text: j.choices?.[0]?.message?.content ?? "", model: j.model ?? model, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, ms };

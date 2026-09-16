@@ -37,8 +37,6 @@ const num = (s: string) => parseFloat(s.replace(",", "."));
  * default, flagged as such so the UI can say «τυπικές διαστάσεις».
  */
 export function dimsFor(p: Product): Dims | null {
-  // Δηλωμένες διαστάσεις από το EPREL: προτεραιότητα σε ό,τι άλλο
-  if (p.dims && p.dims.w > 0 && p.dims.h > 0 && p.dims.d > 0) return p.dims;
   const specs = p.specs ?? [];
   const hwd = specs.find((s) => /Υ\s*[×x]\s*Π\s*[×x]\s*Β/i.test(s.key) || /^Διαστάσεις/i.test(s.key));
   if (hwd) {
@@ -69,6 +67,9 @@ export function dimsFor(p: Product): Dims | null {
   const d = get(/^Βάθος/i);
   const def = CATEGORY_DEFAULTS[p.subcategory] ?? CATEGORY_DEFAULTS[p.category];
   if (w && h && d) return { w, h, d, source: "specs" };
+  // EPREL: οι διαστάσεις που δηλώνει ο κατασκευαστής για τον κανονισμό, συχνά ΧΩΡΙΣ προεξοχές
+  // (πόρτα, λαβές, κουμπιά). Καλές για την ετικέτα, όχι πάντα για το «χωράει;» — γι' αυτό μετά τα specs.
+  if (p.dims && p.dims.w > 0 && p.dims.h > 0 && p.dims.d > 0) return p.dims;
   if (def) return { w: w ?? def[0], h: h ?? def[1], d: d ?? def[2], source: w || h || d ? "specs" : "category" };
   return null;
 }

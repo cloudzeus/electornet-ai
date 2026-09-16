@@ -85,10 +85,10 @@ async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict
   return { pcm, transcript: transcript.trim(), costUsd: usage?.cost ?? 0, tokensIn: usage?.prompt_tokens ?? 0, tokensOut: usage?.completion_tokens ?? 0, ms: Date.now() - t0 };
 }
 
-async function logUsage(feature: "tts" | "stt", model: string, costUsd: number, tokensIn: number, tokensOut: number, ms: number, ok = true) {
+async function logUsage(feature: "tts" | "stt", model: string, costUsd: number, tokensIn: number, tokensOut: number, ms: number, ok = true, error?: string) {
   const [markupPct, fxRate] = await Promise.all([markupFor(model), usdEurRate().catch(() => null)]);
   const billedUsd = billed(costUsd, markupPct);
-  await db.aiUsage.create({ data: { day: today(), feature, model, tokensIn, tokensOut, costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok } }).catch(() => null);
+  await db.aiUsage.create({ data: { day: today(), feature, model, tokensIn, tokensOut, costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok, error: error?.slice(0, 300) } }).catch(() => null);
 }
 
 export interface SpeakResult { url: string; mime: string; durationMs: number; cached: boolean; costUsd: number; id: string }
@@ -101,7 +101,7 @@ async function synthesisePhrase(text: string, cfg: VoiceConfig, apiKey: string):
   let s: Awaited<ReturnType<typeof synthesise>> | null = null;
   let fid = 0;
   for (const strict of [false, true]) {
-    try { s = await synthesise(text, cfg, apiKey, strict); } catch { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false); return null; }
+    try { s = await synthesise(text, cfg, apiKey, strict); } catch (e) { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false, (e as Error).message); return null; }
     await logUsage("tts", cfg.ttsModel, s.costUsd, s.tokensIn, s.tokensOut, s.ms);
     fid = s.transcript ? fidelity(text, s.transcript) : 1; // no transcript in the stream → trust it
     if (fid >= 0.9) break;
@@ -226,7 +226,7 @@ export async function streamSpeech(rawText: string, opts: { key?: string } = {})
     let s: Awaited<ReturnType<typeof synthesise>> | null = null;
     try {
       s = await synthesise(text, cfg, ai.apiKey, false, (pcm) => { if (proc?.stdin && !proc.stdin.destroyed) proc.stdin.write(pcm); else if (!proc) push(pcm); });
-    } catch { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false); if (proc) proc.stdin?.end(); else close(); return null; }
+    } catch (e) { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false, (e as Error).message); if (proc) proc.stdin?.end(); else close(); return null; }
     if (proc) proc.stdin?.end(); else close();
     await logUsage("tts", cfg.ttsModel, s.costUsd, s.tokensIn, s.tokensOut, s.ms);
     const fid = s.transcript ? fidelity(text, s.transcript) : 1;

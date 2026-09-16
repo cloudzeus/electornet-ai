@@ -81,6 +81,7 @@ export function AdvisorOrb() {
     if (r.text) { ask(r.text); return; }
     if (r.error === "denied") { setMsgs((m) => [...m, { role: "advisor", text: "Δεν έχω πρόσβαση στο μικρόφωνο. Γράψε μου την ερώτησή σου." }]); say("", "mic-denied"); }
     else if (r.error === "failed") { setMsgs((m) => [...m, { role: "advisor", text: "Δεν σε άκουσα καθαρά. Μπορείς να το επαναλάβεις;" }]); say("", "not-heard"); }
+    else if (r.error === "unavailable") { setMsgs((m) => [...m, { role: "advisor", text: "Η φωνητική αναγνώριση δεν είναι διαθέσιμη αυτή τη στιγμή. Γράψε μου την ερώτησή σου." }]); }
   };
 
   // The conversation survives navigation and reopening (session storage), so the

@@ -170,7 +170,7 @@ export function useVoice() {
    * talking (RMS silence detection), on stop(), after 10 s, or after 4 s with
    * no speech at all — so transcription starts the moment the sentence ends.
    */
-  const listen = useCallback(async (): Promise<{ text: string; error?: "denied" | "unsupported" | "failed" }> => {
+  const listen = useCallback(async (): Promise<{ text: string; error?: "denied" | "unsupported" | "failed" | "unavailable" }> => {
     if (!enabled) return { text: "", error: "unsupported" };
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return { text: "", error: "unsupported" };
     let stream: MediaStream;
@@ -210,6 +210,7 @@ export function useVoice() {
       fd.append("audio", blob, `speech.${blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm"}`);
       const res = await fetch("/api/voice/stt", { method: "POST", body: fd });
       const j = (await res.json().catch(() => ({}))) as { text?: string };
+      if (res.status === 503 || res.status === 429) return { text: "", error: "unavailable" };
       return res.ok && j.text ? { text: j.text } : { text: "", error: "failed" };
     } catch { return { text: "", error: "failed" }; } finally { setTranscribing(false); }
   }, [enabled, stopPcm]);

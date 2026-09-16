@@ -10,7 +10,7 @@ export interface ArRowData {
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
 }
 
-const SOURCE: Record<string, string> = { eprel: "EPREL", specs: "κατασκευαστής", category: "τυπικές κατηγορίας" };
+const SOURCE: Record<string, string> = { eprel: "EPREL (χωρίς προεξοχές)", specs: "κατασκευαστής", category: "τυπικές κατηγορίας" };
 const small = "inline-flex items-center gap-1 rounded-full border border-eu-line font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:border-eu-navy disabled:opacity-60 cursor-pointer";
 
 /** Ανέβασμα στη βιβλιοθήκη πολυμέσων και σύνδεση με το προϊόν. */

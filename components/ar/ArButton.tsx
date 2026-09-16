@@ -90,7 +90,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, className 
     return () => clearTimeout(t);
   }, []);
 
-  const sourceText = dims?.source === "eprel" ? "δηλωμένες από τον κατασκευαστή στο ευρωπαϊκό μητρώο EPREL" : dims?.source === "specs" ? "του κατασκευαστή" : "τυπικές για την κατηγορία";
+  const sourceText = dims?.source === "eprel" ? "από το ευρωπαϊκό μητρώο EPREL, χωρίς προεξοχές όπως πόρτα ή λαβές" : dims?.source === "specs" ? "του κατασκευαστή" : "τυπικές για την κατηγορία";
 
   return (
     <>

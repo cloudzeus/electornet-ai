@@ -14,12 +14,16 @@ export const dynamic = "force-dynamic";
 /** Admin: the voice advisor's audio cache — preset phrases, dynamic phrases, hits, money saved, prewarm/test tools. */
 export default async function VoicePage() {
   await requirePermission("reports.read");
-  const [cfg, ai, phrases, usage] = await Promise.all([
+  const [cfg, ai, phrases, usage, lastFail, lastOk] = await Promise.all([
     getVoiceConfig(),
     getAi(),
     db.voicePhrase.findMany({ orderBy: [{ hits: "desc" }, { createdAt: "desc" }], take: 300 }),
     db.aiUsage.groupBy({ by: ["feature"], where: { feature: { in: ["tts", "stt"] } }, _sum: { costUsd: true, billedEur: true, tokensIn: true }, _count: { _all: true } }),
+    db.aiUsage.findFirst({ where: { feature: { in: ["tts", "stt"] }, ok: false }, orderBy: { createdAt: "desc" } }),
+    db.aiUsage.findFirst({ where: { feature: { in: ["tts", "stt"] }, ok: true }, orderBy: { createdAt: "desc" } }),
   ]);
+  // Πρόβλημα παρόχου: η τελευταία κλήση απέτυχε και είναι πιο πρόσφατη από την τελευταία επιτυχία
+  const outage = lastFail && (!lastOk || lastFail.createdAt > lastOk.createdAt) ? lastFail : null;
   const enabled = cfg.enabled && !!ai;
   const tts = usage.find((u) => u.feature === "tts"), stt = usage.find((u) => u.feature === "stt");
   const hits = phrases.reduce((a, p) => a + p.hits, 0);
@@ -37,6 +41,11 @@ export default async function VoicePage() {
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><AudioLines className="size-3.5" aria-hidden /> AI · Φωνή</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Φωνή του Ερμή & audio cache</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Κάθε φράση που εκφωνείται αποθηκεύεται μία φορά ως έτοιμος ήχος (στο Bunny CDN όταν είναι ενεργό) και ξαναπαίζει με μηδενικό κόστος. Μικρόφωνο: {cfg.sttModel} · Εκφώνηση: {cfg.ttsModel}, φωνή «{cfg.voice}».</p>
+        {outage && (
+          <p className="m-0 mt-2 rounded-xl bg-eu-red/10 border border-eu-red/40 p-3 text-[length:var(--fs-14)] text-eu-ink">
+            <b>Η φωνή δεν λειτουργεί.</b> Η τελευταία κλήση {outage.feature === "stt" ? "απομαγνητοφώνησης" : "εκφώνησης"} στις {outage.createdAt.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} απέτυχε{outage.error ? `: ${outage.error}` : "."}{/402|balance|credits/i.test(outage.error ?? "") ? " Το OpenRouter θέλει υπόλοιπο τουλάχιστον $0,50 για audio — πρόσθεσε credits στον λογαριασμό. Οι φράσεις που υπάρχουν ήδη στην cache συνεχίζουν να παίζουν." : ""}
+          </p>
+        )}
         {!enabled && <p className="m-0 mt-2 rounded-xl bg-eu-yellow/15 border border-eu-yellow p-3 text-[length:var(--fs-14)] text-eu-ink">Η φωνή είναι ανενεργή. Ο super admin την ενεργοποιεί στο <Link href="/admin/settings/ai" className="font-bold text-eu-blue underline">Ρυθμίσεις → AI & υπηρεσίες</Link> («Φωνή στον Ερμή»){!ai ? " και χρειάζεται κλειδί OpenRouter" : ""}.</p>}
       </div>
       <div className="grid grid-cols-2 @lg:grid-cols-3 @5xl:grid-cols-6 gap-3">
