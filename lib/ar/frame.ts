@@ -20,7 +20,8 @@ async function frameParts(dims: Dims) {
   if (hit) return hit;
   const { prims, materials } = buildGeometry({ dims, labelAspect: LABEL_ASPECT, logoAspect: 4, front: { mode: "face", aspect: 1 }, parts: { front: false, logo: false } });
   const [lw, lh, ld] = await Promise.all([labelTexture("Π", dims.w), labelTexture("Υ", dims.h), labelTexture("Β", dims.d)]);
-  const out = { prims, materials: materials.filter((m) => prims.some((p) => p.material === m.name)), textures: { "label-w": lw, "label-h": lh, "label-d": ld } };
+  // Γύρω από πραγματικό 3D ο όγκος γίνεται πιο διάφανος, να μη «θολώνει» το προϊόν
+  const out = { prims, materials: materials.filter((m) => prims.some((p) => p.material === m.name)).map((m) => (m.name === "volume" ? { ...m, alpha: 0.07 } : m)), textures: { "label-w": lw, "label-h": lh, "label-d": ld } };
   frameCache.set(key, out);
   return out;
 }

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T19:52:42.978Z",
+  "timestamp": "2026-09-16T19:56:40.649Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -21,74 +21,10 @@
       "path": ".planning/HANDOFF.json"
     },
     {
-      "status": "M",
-      "path": "app/(shop)/proion/[slug]/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/ArRow.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/actions.ts"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/ar/ArButton.tsx"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/custom.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/generate.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/geometry.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/serve.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/data/fixtures/products.real.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/tripo/client.ts"
-    },
-    {
-      "status": "M",
-      "path": "prisma/schema.prisma"
-    },
-    {
-      "status": "??",
-      "path": "lib/ar/frame.ts"
-    },
-    {
-      "status": "??",
-      "path": "public/img/products/r-145807-1.jpg"
-    },
-    {
-      "status": "??",
-      "path": "public/img/products/r-145807-2.jpg"
-    },
-    {
-      "status": "??",
-      "path": "public/img/products/r-145807-3.jpg"
-    },
-    {
-      "status": "??",
+      "status": "D",
       "path": "scripts/_tmp-gen5.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n60cbebe Tripo3D: παράμετροι ποιότητας, προσανατολισμός και έδραση των μοντέλων· ελαφριά έκδοση ως προεπιλογή\nde77ede Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια\n0ee44e3 AR κατ' επιλογή ανά προϊόν από τη διαχείριση, με upload GLB/USDZ, και cache μοντέλων στο Bunny"
+  "context_notes": "Recent commits:\n30873e0 AR: πλαίσιο διαστάσεων γύρω από κάθε 3D μοντέλο, προσαρμογή ανά άξονα, πολλαπλές όψεις στο Tripo\n60cbebe Tripo3D: παράμετροι ποιότητας, προσανατολισμός και έδραση των μοντέλων· ελαφριά έκδοση ως προεπιλογή\nde77ede Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια"
 }

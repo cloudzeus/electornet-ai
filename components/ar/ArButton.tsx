@@ -62,7 +62,8 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       mv.style.width = "100%";
       mv.style.height = "100%";
       mv.style.background = "radial-gradient(70% 60% at 50% 62%, #ffffff 0%, #eef2f9 100%)";
-      mv.addEventListener("load", () => { if (alive) { setStatus("ready"); setCanAr(!!mv.canActivateAR); } });
+      // Μετά τη φόρτωση ξανακεντράρουμε: με το αρχικό auto-framing πριν φορτώσει, η κάμερα μπορεί να μείνει σε παράξενη γωνία
+      mv.addEventListener("load", () => { if (alive) { setStatus("ready"); setCanAr(!!mv.canActivateAR); mv.cameraOrbit = "32deg 74deg auto"; } });
       mv.addEventListener("error", () => alive && setStatus("error"));
       mv.addEventListener("ar-status", (e) => { const s = (e as CustomEvent<{ status: string }>).detail?.status; if (alive) setStatus(s === "session-started" || s === "object-placed" ? "ar" : "ready"); });
       // Σήμα Euronics και το κουμπί AR: παιδιά του <model-viewer> είναι το overlay και μέσα στο WebXR.
