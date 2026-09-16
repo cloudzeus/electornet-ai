@@ -130,7 +130,7 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
               )}
             </div>
             {links.length > 0 && (
-              <ul className="m-0 p-0 list-none grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2">
+              <ul className="m-0 p-0 list-none grid grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] gap-2">
                 {links.map((l) => (
                   <li key={l.label}>
                     <a href={l.href} target={l.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="group flex items-center gap-2 rounded-xl bg-white border border-eu-line px-3 py-2 min-h-11 text-[length:var(--fs-14)] font-bold text-eu-ink leading-tight hover:border-eu-blue">
