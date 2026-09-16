@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T16:23:09.089Z",
+  "timestamp": "2026-09-16T16:45:42.158Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,49 +22,25 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/proion/[slug]/page.tsx"
+      "path": "components/account/DeviceWallet.tsx"
     },
     {
       "status": "M",
-      "path": "components/admin/nav.ts"
-    },
-    {
-      "status": "M",
-      "path": "components/pdp/EnergyCost.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/snap/SnapSheet.tsx"
-    },
-    {
-      "status": "M",
-      "path": "lib/data/types.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/energy/estimate.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/snap/identify.ts"
-    },
-    {
-      "status": "M",
-      "path": "prisma/schema.prisma"
+      "path": "components/services/ServiceBooking.tsx"
     },
     {
       "status": "??",
-      "path": "app/admin/(shell)/eprel/"
+      "path": "app/api/geo/suggest/"
     },
     {
       "status": "??",
-      "path": "lib/energy/emissions.ts"
+      "path": "components/site/AddressAutocomplete.tsx"
     },
     {
       "status": "??",
-      "path": "lib/eprel/"
+      "path": "lib/geo/suggest.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n5670ff9 Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image\ne2936f9 Staff login: two-factor with an emailed one-time code, and fix the Mailgun transport"
+  "context_notes": "Recent commits:\n4fb66e4 EPREL: μοντέλα και server-side ολοκλήρωση· CO₂ στην εξοικονόμηση ενέργειας\n5670ff9 Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN\ne8cc364 Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία\nd22b21d Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables\n082a1d8 Emails: fix the broken logo and every other relative image"
 }

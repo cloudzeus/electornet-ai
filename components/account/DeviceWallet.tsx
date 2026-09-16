@@ -42,23 +42,30 @@ export function deviceRows(orders: Order[], infos: DeviceInfo[], now = new Date(
     );
 }
 
-/** Warranty ring: remaining share of the warranty as a yellow arc on navy. */
+/**
+ * Δακτύλιος εγγύησης: το υπόλοιπο ως τόξο. Μέσα χωρά μόνο η τιμή («5 έτη»,
+ * «8 μ.»)· η λεζάντα «απομένουν» πάει κάτω από τον δακτύλιο, γιατί σε 84 px
+ * με ρευστά μεγέθη γραμμάτων ξεπερνούσε το εσωτερικό και έπεφτε πάνω στο τόξο.
+ */
 export function WarrantyRing({ pct, daysLeft, years, size = 84 }: { pct: number; daysLeft: number; years: number; size?: number }) {
   const r = 36;
   const c = 2 * Math.PI * r;
-  const months = Math.round(daysLeft / 30);
+  const days = Math.max(0, daysLeft);
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Εγγύηση ${years} ετών, απομένουν ${months} μήνες`}>
-      <svg viewBox="0 0 84 84" className="size-full -rotate-90">
-        <circle cx="42" cy="42" r={r} fill="none" stroke="var(--eu-surface-3)" strokeWidth="7" />
-        <circle cx="42" cy="42" r={r} fill="none" stroke={pct > 15 ? "var(--eu-green)" : "var(--eu-amber)"} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-1000 ease-[var(--eu-ease-out)]" />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center leading-none">
-        <div>
-          <div className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-19)]">{months >= 12 ? `${Math.floor(months / 12)}${months % 12 >= 6 ? "½" : ""} έτη` : `${months} μ.`}</div>
-          <div className="text-eu-muted text-[length:var(--fs-12)] mt-0.5">{cp.apomenoyn}</div>
+    <div className="grid justify-items-center gap-1 shrink-0" role="img" aria-label={`Εγγύηση ${years} ετών, απομένουν ${days.toLocaleString("el-GR")} ημέρες`}>
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg viewBox="0 0 84 84" className="size-full -rotate-90" aria-hidden>
+          <circle cx="42" cy="42" r={r} fill="none" stroke="var(--eu-surface-3)" strokeWidth="7" />
+          <circle cx="42" cy="42" r={r} fill="none" stroke={pct > 15 ? "var(--eu-green)" : "var(--eu-amber)"} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-1000 ease-[var(--eu-ease-out)]" />
+        </svg>
+        <div className="absolute inset-[9px] grid place-items-center text-center leading-none" aria-hidden>
+          <span className="grid gap-0.5">
+            <span className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-15)] tabular-nums whitespace-nowrap">{days.toLocaleString("el-GR")}</span>
+            <span className="text-eu-muted text-[length:var(--fs-12)]">ημέρες</span>
+          </span>
         </div>
       </div>
+      <span className="text-eu-muted text-[length:var(--fs-12)] leading-none" aria-hidden>{cp.apomenoyn}</span>
     </div>
   );
 }
@@ -123,11 +130,11 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
               )}
             </div>
             {links.length > 0 && (
-              <ul className="m-0 p-0 list-none grid grid-cols-2 @lg:grid-cols-4 gap-2">
+              <ul className="m-0 p-0 list-none grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2">
                 {links.map((l) => (
                   <li key={l.label}>
-                    <a href={l.href} target={l.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="group flex items-center gap-2 rounded-xl bg-white border border-eu-line px-3 min-h-11 text-[length:var(--fs-14)] font-bold text-eu-ink hover:border-eu-blue">
-                      <l.icon className="size-4 text-eu-blue shrink-0" aria-hidden /> <span className="truncate">{l.label}</span>
+                    <a href={l.href} target={l.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer" className="group flex items-center gap-2 rounded-xl bg-white border border-eu-line px-3 py-2 min-h-11 text-[length:var(--fs-14)] font-bold text-eu-ink leading-tight hover:border-eu-blue">
+                      <l.icon className="size-4 text-eu-blue shrink-0" aria-hidden /> <span className="min-w-0">{l.label}</span>
                       <ArrowRight className="size-3.5 ml-auto text-eu-muted-2 transition-transform group-hover:translate-x-0.5" aria-hidden />
                     </a>
                   </li>
