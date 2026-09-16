@@ -4,7 +4,9 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { inspectGlb } from "@/lib/ar/custom";
+import { inspectGlb, autoRotationY } from "@/lib/ar/custom";
+import { dimsFor } from "@/lib/data/dims";
+import { products } from "@/lib/data/fixtures/products";
 import { readAsset } from "@/lib/ar/serve";
 import { startGeneration, advanceGeneration } from "@/lib/ar/generate";
 
@@ -38,7 +40,9 @@ export async function attachArModel(productId: string, kind: "glb" | "usdz", ass
     if (!bytes) return { ok: false as const, error: "Το αρχείο δεν διαβάστηκε από τον αποθηκευτικό χώρο." };
     const info = inspectGlb(bytes);
     if (!info.ok) return { ok: false as const, error: info.error };
-    await db.productAr.upsert({ where: { productId }, update: { glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box, enabled: true, updatedById: user.id }, create: { productId, glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box, enabled: true, updatedById: user.id } });
+    const prod = products.find((x) => x.id === productId);
+    const rotationY = autoRotationY(info.box, prod ? dimsFor(prod) : null);
+    await db.productAr.upsert({ where: { productId }, update: { glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", enabled: true, updatedById: user.id }, create: { productId, glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", enabled: true, updatedById: user.id } });
     await audit(user.id, "ar.model.attach", "ProductAr", productId, null, { kind, filename: asset.filename, box: info.box, meshes: info.meshes });
     paths(productId);
     return { ok: true as const, box: info.box, meshes: info.meshes };
@@ -74,4 +78,14 @@ export async function pollArGeneration(genId: string) {
   const g = await advanceGeneration(genId);
   if (g && (g.status === "done" || g.status === "failed")) paths(g.productId);
   return g ? (JSON.parse(JSON.stringify(g)) as typeof g) : null;
+}
+
+/** Περιστροφή του μοντέλου κατά 90° (όταν η αυτόματη επιλογή δεν πέτυχε την πρόσοψη). */
+export async function rotateArModel(productId: string, delta: 90 | -90) {
+  const user = await requirePermission("catalog.products.write");
+  const cur = await db.productAr.findUnique({ where: { productId }, select: { rotationY: true } });
+  const rotationY = (((cur?.rotationY ?? 0) + delta) % 360 + 360) % 360;
+  await db.productAr.update({ where: { productId }, data: { rotationY, updatedById: user.id } });
+  paths(productId);
+  return { ok: true as const, rotationY };
 }

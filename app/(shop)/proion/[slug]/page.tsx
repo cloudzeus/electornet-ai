@@ -15,7 +15,7 @@ import { ProductRail } from "@/components/pdp/ProductRail";
 import { StickyBar } from "@/components/pdp/StickyBar";
 import { RecentlyViewed } from "@/components/pdp/RecentlyViewed";
 import { getAccessoriesFor, getL1, getProductBySlug, getRelated, getServicesFull, getStores } from "@/lib/data/repo";
-import { Answers, SeoPanel } from "@/components/pdp/Answers";
+import { Answers } from "@/components/pdp/Answers";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
 import { CompactRail } from "@/components/pdp/CompactRail";
 import { productJsonLd, productMetadata } from "@/lib/seo/product";
@@ -161,7 +161,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <CompactRail title="Ταιριάζει με αυτό το προϊόν" products={accessories} />
         {related.length > 0 && <ProductRail title="Σχετικά προϊόντα" products={related} />}
         <RecentlyViewed current={{ id: p.id, slug: p.slug, title: p.title, brand: p.brand, image: p.image, price: p.price }} />
-        <SeoPanel product={p} crumbs={crumbs} />
       </div>
       <StickyBar product={p} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(p, crumbs)) }} />

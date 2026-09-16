@@ -25,9 +25,9 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   const [canAr, setCanAr] = useState<boolean | null>(null);
   const holder = useRef<HTMLDivElement>(null);
   const mvRef = useRef<(HTMLElement & { cameraOrbit?: string }) | null>(null);
-  // Σε 2G/3G ή «εξοικονόμηση δεδομένων» ζητάμε την ελαφριά έκδοση, αν υπάρχει
-  const slow = typeof navigator !== "undefined" && (() => { const c = (navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }).connection; return !!c && (c.saveData || /2g|3g/.test(c.effectiveType ?? "")); })();
-  const q = `?v=${version}${light && slow ? "&q=light" : ""}`;
+  // Ο server σερβίρει την ελαφριά έκδοση όταν υπάρχει· η πλήρης (έως 15 MB) ζητείται μόνο ρητά με ?q=full
+  void light;
+  const q = `?v=${version}`;
   const glb = `/api/ar/${id}/model.glb${q}`;
   const usdz = `/api/ar/${id}/model.usdz?v=${version}`;
 
@@ -122,11 +122,11 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 </button>
               )}
             </div>
-            <div className="p-4 @md:p-6 grid content-start gap-3 @md:gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2 min-h-0 overflow-y-auto">
+            <div className="p-4 @md:p-6 grid content-start gap-3 @md:gap-4 border-t @md:border-t-0 @md:border-l border-eu-line-2 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">{c.ar_se_pragmatiki_klimaka}</div>
-                  <h2 id="ar-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] @md:text-[length:var(--fs-20)] leading-tight line-clamp-2">{title}</h2>
+                  <h2 id="ar-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] @md:text-[length:var(--fs-20)] leading-tight line-clamp-2 break-words [overflow-wrap:anywhere]">{title}</h2>
                 </div>
                 <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
                   <X className="size-5" aria-hidden />

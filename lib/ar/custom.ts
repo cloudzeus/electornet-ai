@@ -7,7 +7,8 @@
 type Mat = number[]; // 4×4, column-major όπως στο glTF
 interface Gltf { asset?: { version?: string }; scene?: number; scenes?: { nodes?: number[] }[]; nodes?: { children?: number[]; mesh?: number; matrix?: number[]; translation?: number[]; rotation?: number[]; scale?: number[] }[]; meshes?: { primitives: { attributes: Record<string, number> }[] }[]; accessors?: { min?: number[]; max?: number[] }[]; [k: string]: unknown }
 
-export type GlbInfo = { ok: true; box: { w: number; h: number; d: number }; nodes: number; meshes: number; version: string } | { ok: false; error: string };
+export interface Box { w: number; h: number; d: number; min?: number[]; max?: number[] }
+export type GlbInfo = { ok: true; box: Box; nodes: number; meshes: number; version: string } | { ok: false; error: string };
 
 const I: Mat = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const mul = (a: Mat, b: Mat): Mat => { const o = new Array(16).fill(0); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) o[c * 4 + r] += a[k * 4 + r] * b[c * 4 + k]; return o; };
@@ -23,6 +24,21 @@ const trs = (n: { matrix?: number[]; translation?: number[]; rotation?: number[]
   ];
 };
 const apply = (m: Mat, p: number[]) => [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]];
+
+/** Παλιό όνομα — ομοιόμορφη κλίμακα μόνο. */
+export const scaleGlb = (buf: Buffer, factor: number) => transformGlb(buf, { scale: factor });
+
+/**
+ * Αυτόματη περιστροφή: αν ο μακρύς οριζόντιος άξονας του μοντέλου δεν
+ * συμφωνεί με τις δηλωμένες διαστάσεις (π.χ. κλιματιστικό με το μήκος του
+ * κατά μήκος του Z), γυρίζουμε 90° ώστε πλάτος→X και βάθος→Z.
+ */
+export function autoRotationY(box: Box | null, dims: { w: number; d: number } | null): number {
+  if (!box || !dims || !box.w || !box.d) return 0;
+  const modelWide = box.w / box.d, realWide = dims.w / dims.d;
+  const asIs = Math.abs(Math.log(modelWide / realWide)), turned = Math.abs(Math.log((1 / modelWide) / realWide));
+  return turned + 0.15 < asIs ? 90 : 0;
+}
 
 export function parseGlb(buf: Buffer): { json: Gltf; jsonLen: number; rest: Buffer } | null {
   if (buf.length < 20 || buf.toString("ascii", 0, 4) !== "glTF" || buf.readUInt32LE(4) !== 2) return null;
@@ -52,18 +68,34 @@ export function inspectGlb(buf: Buffer): GlbInfo {
   for (const r of roots) visit(r, I, 0);
   if (!Number.isFinite(mn[0])) return { ok: false, error: "Το GLB δεν έχει γεωμετρία με όρια (accessor min/max)." };
   const cm = (v: number) => Math.round(v * 1000) / 10;
-  return { ok: true, box: { w: cm(mx[0] - mn[0]), h: cm(mx[1] - mn[1]), d: cm(mx[2] - mn[2]) }, nodes: json.nodes?.length ?? 0, meshes: json.meshes?.length ?? 0, version: json.asset?.version ?? "?" };
+  return { ok: true, box: { w: cm(mx[0] - mn[0]), h: cm(mx[1] - mn[1]), d: cm(mx[2] - mn[2]), min: mn.map((v) => Math.round(v * 1e4) / 1e4), max: mx.map((v) => Math.round(v * 1e4) / 1e4) }, nodes: json.nodes?.length ?? 0, meshes: json.meshes?.length ?? 0, version: json.asset?.version ?? "?" };
 }
 
-/** Επιστρέφει νέο GLB με τις ρίζες τυλιγμένες σε κόμβο με ομοιόμορφο scale. */
-export function scaleGlb(buf: Buffer, factor: number): Buffer {
+/**
+ * Νέο GLB με τις ρίζες τυλιγμένες σε κόμβο που κλιμακώνει, περιστρέφει γύρω
+ * από τον κατακόρυφο άξονα και ακουμπά το μοντέλο στο πάτωμα κεντραρισμένο
+ * — το Tripo και πολλοί κατασκευαστές βγάζουν μοντέλα κεντραρισμένα στο
+ * μηδέν (μισό κάτω από το πάτωμα) ή στραμμένα με την πρόσοψη προς +X.
+ */
+export function transformGlb(buf: Buffer, opts: { scale?: number; rotationY?: number; bounds?: { min: number[]; max: number[] } | null }): Buffer {
   const g = parseGlb(buf);
-  if (!g || Math.abs(factor - 1) < 1e-4) return buf;
+  const factor = opts.scale ?? 1, rot = ((opts.rotationY ?? 0) % 360 + 360) % 360;
+  if (!g || (Math.abs(factor - 1) < 1e-4 && rot === 0 && !opts.bounds)) return buf;
   const { json, rest } = g;
   const sceneIdx = json.scene ?? 0;
   const scene = json.scenes?.[sceneIdx];
   if (!scene || !json.nodes) return buf;
-  json.nodes.push({ children: scene.nodes ?? [], scale: [factor, factor, factor], ...( { name: "euronics-fit" } as object) });
+  const half = (rot * Math.PI) / 360;
+  const q = [0, Math.sin(half), 0, Math.cos(half)];
+  const node: { children: number[]; scale: number[]; rotation: number[]; translation?: number[]; name: string } = { children: scene.nodes ?? [], scale: [factor, factor, factor], rotation: q, name: "euronics-fit" };
+  if (opts.bounds) {
+    // Γωνίες του κουτιού μέσα από R·S → πού καταλήγει το κουτί → μετατόπιση ώστε κάτω=0, κέντρο x/z=0
+    const m = trs({ rotation: q, scale: node.scale });
+    const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (const x of [opts.bounds.min[0], opts.bounds.max[0]]) for (const y of [opts.bounds.min[1], opts.bounds.max[1]]) for (const z of [opts.bounds.min[2], opts.bounds.max[2]]) { const p = apply(m, [x, y, z]); for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p[k]); mx[k] = Math.max(mx[k], p[k]); } }
+    node.translation = [-(mn[0] + mx[0]) / 2, -mn[1], -(mn[2] + mx[2]) / 2];
+  }
+  json.nodes.push(node);
   scene.nodes = [json.nodes.length - 1];
   let jsonBuf = Buffer.from(JSON.stringify(json), "utf8");
   const pad = (4 - (jsonBuf.length % 4)) % 4;

@@ -1,7 +1,10 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { ingest } from "@/lib/media/repo";
-import { inspectGlb } from "./custom";
+import { inspectGlb, autoRotationY, } from "./custom";
+import { dimsFor } from "@/lib/data/dims";
+import { products } from "@/lib/data/fixtures/products";
 import { readAsset } from "./serve";
 import { tripoUpload, tripoImageToModel, tripoConvert, tripoTask, tripoDownload, tripoBalance, tripoConfig, TripoError } from "@/lib/tripo/client";
 import { markupFor, billed } from "@/lib/ai/pricing";
@@ -30,7 +33,8 @@ async function logTripo(task: "image_to_model" | "convert_model", credits: numbe
   const billedUsd = billed(costUsd, markupPct);
   await db.aiUsage.create({ data: { day: new Date().toISOString().slice(0, 10), feature: "3d", model, tokensIn: Math.round(Math.max(0, credits ?? 0)), costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok, error: error?.slice(0, 300) } }).catch(() => null);
 }
-const LIGHT = { faceLimit: 8000, textureSize: 1024, textureFormat: "JPEG" as const };
+// Ελαφριά έκδοση: αρκετά τρίγωνα για καμπύλες και κουμπιά, υφή 2K JPEG — στόχος 1–3 MB
+const LIGHT = { faceLimit: 20000, textureSize: 2048, textureFormat: "JPEG" as const };
 
 async function folderId() {
   const f = await db.mediaFolder.findFirst({ where: { name: FOLDER, parentId: null }, select: { id: true } });
@@ -82,8 +86,10 @@ export async function advanceGeneration(genId: string) {
       const afterFull = await balance();
       const creditsFull = g.creditsBefore != null && afterFull != null ? Math.max(0, g.creditsBefore - afterFull) : null;
       await logTripo("image_to_model", creditsFull, Date.now() - g.createdAt.getTime(), true);
-      // Δένεται αμέσως με το προϊόν ώστε να παίζει το AR· η ελαφριά έκδοση ακολουθεί
-      await db.productAr.upsert({ where: { productId: g.productId }, update: { glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById }, create: { productId: g.productId, glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById } });
+      // Δένεται αμέσως με το προϊόν ώστε να παίζει το AR· η ελαφριά έκδοση ακολουθεί. Περιστροφή αυτόματα από τις διαστάσεις.
+      const prod = products.find((x) => x.id === g.productId);
+      const rotationY = autoRotationY(full.box, prod ? dimsFor(prod) : null);
+      await db.productAr.upsert({ where: { productId: g.productId }, update: { glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById }, create: { productId: g.productId, glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, updatedById: g.createdById } });
       const lightTask = await tripoConvert(g.tripoTaskId, { format: "GLTF", ...LIGHT });
       return db.arGeneration.update({ where: { id: genId }, data: { fullUrl: full.asset.url, fullBytes: full.bytes, renderUrl: t.output?.rendered_image ?? g.renderUrl, lightTaskId: lightTask, status: "converting", step: "Ελαφριά έκδοση για αργές συνδέσεις", progress: 96, creditsFull, creditsBefore: afterFull } });
     }

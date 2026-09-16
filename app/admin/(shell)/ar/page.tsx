@@ -39,7 +39,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         dims: dims ? { w: dims.w, h: dims.h, d: dims.d, source: dims.source } : null,
         enabled: s?.enabled ?? false, glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
         modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
-        glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null,
+        glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0,
         images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x))],
         gen: (() => { const g = genBy.get(pr.id); return g ? (JSON.parse(JSON.stringify(g)) as GenData) : null; })(),
       };

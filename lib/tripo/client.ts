@@ -44,19 +44,33 @@ export async function tripoUpload(bytes: Buffer, filename: string, mime: string)
   return d.image_token;
 }
 
-export interface ImageToModelOpts { modelVersion?: string; texture?: boolean; pbr?: boolean; faceLimit?: number; autoSize?: boolean }
+/**
+ * Παράμετροι ποιότητας (τεκμηρίωση SDK, docs/API.md):
+ * - model_version: η νεότερη έκδοση· η προεπιλογή του API είναι η παλιότερη v2.5
+ * - texture_quality "detailed" και texture_alignment "original_image": υφή πιστή στη φωτογραφία
+ * - orientation "align_image": η πρόσοψη του μοντέλου όπως στη φωτογραφία (μπροστά = +Z)
+ * - auto_size: πραγματικό μέγεθος σε μέτρα, όσο το εκτιμά το μοντέλο· εμείς κλιμακώνουμε ούτως ή άλλως στο δηλωμένο ύψος
+ */
+export const TRIPO_MODEL_VERSION = "v3.0-20250812";
+export interface ImageToModelOpts { modelVersion?: string; texture?: boolean; pbr?: boolean; faceLimit?: number; autoSize?: boolean; textureQuality?: "standard" | "detailed"; textureAlignment?: "original_image" | "geometry"; orientation?: "default" | "align_image" }
 export async function tripoImageToModel(fileToken: string, ext: string, opts: ImageToModelOpts = {}): Promise<string> {
-  const body: Record<string, unknown> = { type: "image_to_model", file: { type: ext, file_token: fileToken }, texture: opts.texture ?? true, pbr: opts.pbr ?? true };
-  if (opts.modelVersion) body.model_version = opts.modelVersion;
+  const body: Record<string, unknown> = {
+    type: "image_to_model", file: { type: ext, file_token: fileToken },
+    model_version: opts.modelVersion ?? TRIPO_MODEL_VERSION,
+    texture: opts.texture ?? true, pbr: opts.pbr ?? true,
+    texture_quality: opts.textureQuality ?? "detailed",
+    texture_alignment: opts.textureAlignment ?? "original_image",
+    orientation: opts.orientation ?? "align_image",
+    auto_size: opts.autoSize ?? true,
+  };
   if (opts.faceLimit) body.face_limit = opts.faceLimit;
-  if (opts.autoSize != null) body.auto_size = opts.autoSize;
   const d = await call<{ task_id: string }>("/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   return d.task_id;
 }
 
-export interface ConvertOpts { format: "GLTF" | "USDZ" | "FBX" | "OBJ"; faceLimit?: number; textureSize?: number; textureFormat?: "JPEG" | "PNG" | "WEBP"; quad?: boolean }
+export interface ConvertOpts { format: "GLTF" | "USDZ" | "FBX" | "OBJ"; faceLimit?: number; textureSize?: number; textureFormat?: "JPEG" | "PNG" | "WEBP"; quad?: boolean; pivotToCenterBottom?: boolean }
 export async function tripoConvert(originalTaskId: string, opts: ConvertOpts): Promise<string> {
-  const body: Record<string, unknown> = { type: "convert_model", original_model_task_id: originalTaskId, format: opts.format };
+  const body: Record<string, unknown> = { type: "convert_model", original_model_task_id: originalTaskId, format: opts.format, pivot_to_center_bottom: opts.pivotToCenterBottom ?? true };
   if (opts.faceLimit) body.face_limit = opts.faceLimit;
   if (opts.textureSize) body.texture_size = opts.textureSize;
   if (opts.textureFormat) body.texture_format = opts.textureFormat;

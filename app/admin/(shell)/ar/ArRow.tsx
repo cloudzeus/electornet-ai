@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check, Sparkles } from "lucide-react";
-import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration } from "./actions";
+import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel } from "./actions";
 import type { MediaAssetDTO } from "@/lib/media/types";
 
 export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null;
+  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number;
 }
 export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date }
 
@@ -116,6 +116,7 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
                 {mismatch != null && mismatch > 10 && !r.fitToDims && <span className="inline-flex items-center gap-1 text-eu-amber font-bold"><AlertTriangle className="size-3.5" aria-hidden /> {mismatch}% από το δηλωμένο ύψος</span>}
                 {mismatch != null && (mismatch <= 10 || r.fitToDims) && <span className="inline-flex items-center gap-1 text-eu-green font-bold"><Check className="size-3.5" aria-hidden /> σε κλίμακα</span>}
               </div>
+              <div className="inline-flex items-center gap-1.5 text-[length:var(--fs-13)] text-eu-ink-3">Πρόσοψη: <button type="button" disabled={pending} onClick={() => start(async () => { const x = await rotateArModel(r.id, -90); setR((v) => ({ ...v, rotationY: x.rotationY })); })} className={small} aria-label="Περιστροφή αριστερά">↺ 90°</button><span className="tabular-nums">{r.rotationY}°</span><button type="button" disabled={pending} onClick={() => start(async () => { const x = await rotateArModel(r.id, 90); setR((v) => ({ ...v, rotationY: x.rotationY })); })} className={small} aria-label="Περιστροφή δεξιά">↻ 90°</button></div>
               <label className="inline-flex items-center gap-2 text-[length:var(--fs-13)] text-eu-ink-3"><input type="checkbox" checked={r.fitToDims} onChange={(e) => { const v = e.target.checked; setR({ ...r, fitToDims: v }); start(async () => { await setArFit(r.id, v); }); }} className="size-4 accent-eu-navy" /> Προσαρμογή στο δηλωμένο ύψος</label>
               <div className="flex flex-wrap gap-1.5">
                 {r.usdzUrl ? <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 text-[length:var(--fs-13)] font-bold text-eu-ink-3">USDZ ✓ <button type="button" onClick={() => start(async () => { await detachArModel(r.id, "usdz"); setR({ ...r, usdzUrl: null }); })} aria-label="Αφαίρεση USDZ" className="text-eu-muted hover:text-eu-red"><Trash2 className="size-3.5" aria-hidden /></button></span> : <UploadButton productId={r.id} kind="usdz" onDone={(x) => { setMsg(x.ok ? "Το USDZ συνδέθηκε." : x.error ?? null); if (x.ok) setR({ ...r, usdzUrl: "✓" }); }} />}

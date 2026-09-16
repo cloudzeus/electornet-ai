@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-16T19:12:48.296Z",
+  "timestamp": "2026-09-16T19:45:33.121Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,11 +22,31 @@
     },
     {
       "status": "M",
+      "path": "app/(shop)/proion/[slug]/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/ar/ArRow.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/ar/actions.ts"
+    },
+    {
+      "status": "M",
       "path": "app/admin/(shell)/ar/page.tsx"
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/reports/ai/page.tsx"
+      "path": "components/ar/ArButton.tsx"
+    },
+    {
+      "status": "M",
+      "path": "components/pdp/Answers.tsx"
+    },
+    {
+      "status": "M",
+      "path": "lib/ar/custom.ts"
     },
     {
       "status": "M",
@@ -34,7 +54,7 @@
     },
     {
       "status": "M",
-      "path": "lib/settings/schema.ts"
+      "path": "lib/ar/serve.ts"
     },
     {
       "status": "M",
@@ -43,8 +63,12 @@
     {
       "status": "M",
       "path": "prisma/schema.prisma"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_tmp-gen3.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια\n0ee44e3 AR κατ' επιλογή ανά προϊόν από τη διαχείριση, με upload GLB/USDZ, και cache μοντέλων στο Bunny\nee0f042 AR: η φωτογραφία προσαρμόζεται στον όγκο· φωτογραφίες σε γωνία στέκονται μέσα του\nac4bef0 AR από τις πραγματικές διαστάσεις: μοντέλα που χτίζονται επί τόπου, όχι αρχεία ανά SKU"
+  "context_notes": "Recent commits:\nde77ede Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους\n4bd6922 3D από φωτογραφία με το Tripo3D, με ελαφριά έκδοση για αργές συνδέσεις\nff814c5 Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται· ο πελάτης ακούει την αλήθεια\n0ee44e3 AR κατ' επιλογή ανά προϊόν από τη διαχείριση, με upload GLB/USDZ, και cache μοντέλων στο Bunny\nee0f042 AR: η φωτογραφία προσαρμόζεται στον όγκο· φωτογραφίες σε γωνία στέκονται μέσα του"
 }

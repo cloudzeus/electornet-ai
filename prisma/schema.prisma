@@ -184,7 +184,8 @@ model ProductAr {
   usdzUrl     String? // προαιρετικό για iPhone· αλλιώς το model-viewer μετατρέπει το GLB στον browser
   usdzAssetId String?
   fitToDims   Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
-  modelBox    Json? // {w,h,d} σε cm όπως μετρήθηκαν στο ανεβασμένο GLB
+  modelBox    Json? // {w,h,d,min,max} σε cm/μονάδες όπως μετρήθηκαν στο ανεβασμένο GLB
+  rotationY   Int      @default(0) // περιστροφή γύρω από τον κατακόρυφο άξονα (0/90/180/270) ώστε η πρόσοψη να κοιτά +Z
   glbLightUrl String? // ελαφριά έκδοση (λιγότερα πολύγωνα, μικρότερες υφές) για αργές συνδέσεις
   glbLightAssetId String?
   source      String? // upload | tripo
