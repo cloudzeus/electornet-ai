@@ -55,6 +55,8 @@ export interface Product {
   lowest30?: number;
   /** kwh/eprel: από την καταχώριση EPREL όταν το προϊόν είναι δεμένο (ετήσια kWh, αριθμός καταχώρισης) */
   energy?: { cls: EnergyClass; fiche: string; kwh?: number; eprel?: string };
+  /** εξωτερικές διαστάσεις σε cm όταν είναι γνωστές (EPREL/ERP) — αλλιώς τις βγάζει το dimsFor από specs ή κατηγορία */
+  dims?: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" };
   gift?: string;
   rating?: { value: number; count: number };
   availability: Availability;

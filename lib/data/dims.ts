@@ -5,8 +5,8 @@ export interface Dims {
   w: number;
   h: number;
   d: number;
-  /** where the numbers come from: product specs or a category default */
-  source: "specs" | "category";
+  /** από πού: EPREL (δηλωμένες από τον κατασκευαστή), specs του προϊόντος, ή τυπικές της κατηγορίας */
+  source: "eprel" | "specs" | "category";
 }
 
 const CATEGORY_DEFAULTS: Record<string, [number, number, number]> = {
@@ -37,6 +37,8 @@ const num = (s: string) => parseFloat(s.replace(",", "."));
  * default, flagged as such so the UI can say «τυπικές διαστάσεις».
  */
 export function dimsFor(p: Product): Dims | null {
+  // Δηλωμένες διαστάσεις από το EPREL: προτεραιότητα σε ό,τι άλλο
+  if (p.dims && p.dims.w > 0 && p.dims.h > 0 && p.dims.d > 0) return p.dims;
   const specs = p.specs ?? [];
   const hwd = specs.find((s) => /Υ\s*[×x]\s*Π\s*[×x]\s*Β/i.test(s.key) || /^Διαστάσεις/i.test(s.key));
   if (hwd) {

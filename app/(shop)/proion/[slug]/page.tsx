@@ -23,9 +23,10 @@ import { ArButton } from "@/components/ar/ArButton";
 import { FitBadge } from "@/components/space/FitBadge";
 import { EnergyCost } from "@/components/pdp/EnergyCost";
 import { getGridFactor } from "@/lib/energy/emissions";
+import { after } from "next/server";
+import { buildArModel } from "@/lib/ar/build";
+import { cutoutFor } from "@/lib/data/cutouts";
 import { dimsFor } from "@/lib/data/dims";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -56,7 +57,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const dims = dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
-  const hasModel = existsSync(join(process.cwd(), "public", "models", `${p.id}.glb`));
+  // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
+  const hasModel = !!dims && !!p.image;
+  // Προθέρμανση: το μοντέλο AR χτίζεται μετά την απάντηση, ώστε όταν πατήσει «Δες το στον χώρο σου» να είναι έτοιμο
+  if (hasModel && dims) after(() => buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, image: p.image, cutout: cutoutFor(p.image) }).catch(() => {}));
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (

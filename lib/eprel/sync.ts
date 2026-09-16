@@ -189,3 +189,7 @@ export async function eprelStats() {
   ]);
   return { groups, active, products, mirrored, linked, lastRun };
 }
+
+/** Διαστάσεις για AR / χωράει-στον-χώρο-μου από μια καταχώριση EPREL (cm, όπως τις δηλώνει ο κατασκευαστής). */
+export const dimsFromEprel = (p: { dimensionWidth: number | null; dimensionHeight: number | null; dimensionDepth: number | null }) =>
+  p.dimensionWidth && p.dimensionHeight && p.dimensionDepth ? { w: p.dimensionWidth, h: p.dimensionHeight, d: p.dimensionDepth, source: "eprel" as const } : null;
