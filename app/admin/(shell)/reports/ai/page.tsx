@@ -8,7 +8,7 @@ import { LineChart, BarChart, RankBars, StatTile } from "@/components/admin/char
 export const metadata = { title: "Κόστος AI" };
 export const dynamic = "force-dynamic";
 
-const FEATURES: Record<string, string> = { advisor: "Ερμής", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές", snap: "Snap & Find", tts: "Φωνή: εκφώνηση", stt: "Φωνή: μικρόφωνο" };
+const FEATURES: Record<string, string> = { advisor: "Ερμής", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές", snap: "Snap & Find", tts: "Φωνή: εκφώνηση", stt: "Φωνή: μικρόφωνο", "3d": "3D από φωτογραφία (Tripo3D)" };
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const label = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
 const rangeStart = (days: number) => new Date(Date.now() - (days - 1) * 86400000);
@@ -49,11 +49,11 @@ export default async function AiReport({ searchParams }: { searchParams: Promise
         <StatTile label="Κλήσεις" value={calls.toLocaleString("el-GR")} sub={errors ? `${errors} σφάλματα` : "χωρίς σφάλματα"} />
         <StatTile label="Tokens" value={tokens.toLocaleString("el-GR")} />
         <StatTile label="Μέσο ανά κλήση" value={calls ? money(totalEur / calls) : "—"} />
-        {superAdmin ? <StatTile label="Κόστος OpenRouter (χωρίς markup)" value={`$${rawUsd.toFixed(2)}`} sub={rawUsd ? `markup +${(((totalUsd - rawUsd) / rawUsd) * 100).toFixed(0)}%` : undefined} /> : <StatTile label="Λειτουργίες" value={String(features.length)} />}
+        {superAdmin ? <StatTile label="Κόστος παρόχων (χωρίς markup)" value={`$${rawUsd.toFixed(2)}`} sub={rawUsd ? `markup +${(((totalUsd - rawUsd) / rawUsd) * 100).toFixed(0)}%` : undefined} /> : <StatTile label="Λειτουργίες" value={String(features.length)} />}
       </div>
       <section className="rounded-2xl bg-white border border-eu-line p-4 grid gap-3">
         <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Κόστος ανά ημέρα (€)</h3>
-        <LineChart labels={labels.map(label)} unit="€" series={superAdmin ? [{ key: "billed", label: "Χρεωμένο", values: byDay(eur) }, { key: "raw", label: "OpenRouter (χωρίς markup)", values: byDay((r) => r.costUsd * (r.fxRate ?? rateToday)), color: "#1E7B3C" }] : [{ key: "billed", label: "Χρεωμένο", values: byDay(eur) }]} />
+        <LineChart labels={labels.map(label)} unit="€" series={superAdmin ? [{ key: "billed", label: "Χρεωμένο", values: byDay(eur) }, { key: "raw", label: "Πάροχοι (χωρίς markup)", values: byDay((r) => r.costUsd * (r.fxRate ?? rateToday)), color: "#1E7B3C" }] : [{ key: "billed", label: "Χρεωμένο", values: byDay(eur) }]} />
       </section>
       <div className="grid grid-cols-1 @4xl:grid-cols-2 gap-4">
         <section className="rounded-2xl bg-white border border-eu-line p-4 grid gap-3">

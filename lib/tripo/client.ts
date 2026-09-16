@@ -11,15 +11,22 @@ import "server-only";
  *  4. POST /task { type: "convert_model", original_model_task_id, format, face_limit, texture_size, texture_format } → ελαφριά έκδοση / USDZ
  * Κάθε task κοστίζει credits· χωρίς υπόλοιπο απαντά 403 code 2010.
  */
+import { getSetting } from "@/lib/settings/store";
+
 const BASE = "https://api.tripo3d.ai/v2/openapi";
-const key = () => process.env.TRIPO3D_API_KEY ?? "";
-export const hasTripoKey = () => key().length > 0;
+/** Κλειδί από Ρυθμίσεις → AI (tripoApiKey), αλλιώς από το .env. */
+export async function tripoConfig() {
+  const { data, secrets } = await getSetting("ai").catch(() => ({ data: {} as Record<string, unknown>, secrets: {} as Record<string, string> }));
+  return { apiKey: secrets.tripoApiKey || process.env.TRIPO3D_API_KEY || "", creditUsd: Number(data.tripoCreditUsd) || 0.01 };
+}
+export const hasTripoKey = async () => (await tripoConfig()).apiKey.length > 0;
 
 export class TripoError extends Error { constructor(message: string, public status: number, public code?: number) { super(message); this.name = "TripoError"; } }
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
-  if (!hasTripoKey()) throw new TripoError("Λείπει το TRIPO3D_API_KEY στο .env.", 0);
-  const r = await fetch(`${BASE}${path}`, { ...init, headers: { Authorization: `Bearer ${key()}`, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(60000), cache: "no-store" });
+  const { apiKey } = await tripoConfig();
+  if (!apiKey) throw new TripoError("Λείπει το κλειδί Tripo3D (Ρυθμίσεις → AI ή TRIPO3D_API_KEY στο .env).", 0);
+  const r = await fetch(`${BASE}${path}`, { ...init, headers: { Authorization: `Bearer ${apiKey}`, ...(init.headers ?? {}) }, signal: AbortSignal.timeout(60000), cache: "no-store" });
   const j = (await r.json().catch(() => ({}))) as { code?: number; message?: string; suggestion?: string; data?: T };
   if (!r.ok || j.code !== 0) {
     const friendly = j.code === 2010 ? "Δεν υπάρχουν credits στον λογαριασμό Tripo3D — αγόρασε credits στο platform.tripo3d.ai." : j.message ?? `Tripo HTTP ${r.status}`;

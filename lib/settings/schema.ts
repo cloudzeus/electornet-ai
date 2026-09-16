@@ -266,6 +266,8 @@ export const SECTIONS: Section[] = [
       { key: "mapsApiKey", label: "Google Maps API key", type: "secret", width: "half" },
       { key: "bgRemoval", label: "Αφαίρεση φόντου εικόνων", type: "select", options: [{ value: "rembg", label: "Τοπικό rembg (birefnet)" }, { value: "removebg", label: "remove.bg API" }, { value: "off", label: "Ανενεργό" }], help: "Χρησιμοποιείται από τη βιβλιοθήκη media.", width: "half" },
       { key: "removeBgApiKey", label: "remove.bg API key", type: "secret", width: "half" },
+      { key: "tripoApiKey", label: "Tripo3D API key (3D από φωτογραφία)", type: "secret", width: "half", help: "platform.tripo3d.ai → API keys. Αν λείπει, χρησιμοποιείται το TRIPO3D_API_KEY του .env." },
+      { key: "tripoCreditUsd", label: "Τιμή credit Tripo3D ($)", type: "number", placeholder: "0.01", width: "half", help: "Όσο πλήρωσες ανά credit στο πακέτο σου· έτσι τα credits κάθε μοντέλου μπαίνουν στο κόστος AI σε ευρώ, με το markup." },
       { key: "rembgCommand", label: "Εντολή rembg", type: "text", placeholder: "rembg", help: "Διαδρομή του CLI στον server (π.χ. /opt/rembg/bin/rembg).", width: "half" },
       { key: "searchProvider", label: "Αναζήτηση", type: "select", options: [{ value: "local", label: "Ενσωματωμένη" }, { value: "algolia", label: "Algolia" }, { value: "meilisearch", label: "Meilisearch" }], width: "half" },
       { key: "searchApiKey", label: "Search API key", type: "secret", width: "half" },

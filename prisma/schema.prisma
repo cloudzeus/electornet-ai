@@ -214,6 +214,9 @@ model ArGeneration {
   renderUrl    String? // προεπισκόπηση από το Tripo (προσωρινός σύνδεσμος)
   fullBytes    Int?
   lightBytes   Int?
+  creditsBefore Float? // υπόλοιπο Tripo πριν από κάθε task — η διαφορά μετά είναι το κόστος
+  creditsFull  Float? // credits που χρεώθηκαν για το πλήρες μοντέλο
+  creditsLight Float? // credits για την ελαφριά έκδοση
   error        String?
   createdById  String?
   createdAt    DateTime @default(now())

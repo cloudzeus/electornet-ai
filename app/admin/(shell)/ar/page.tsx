@@ -22,10 +22,11 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
   await requirePermission("catalog.products.read");
   const { q = "", f = "", page: p = "1" } = await searchParams;
   const page = Math.max(1, Number(p) || 1);
+  const tripoOn = await hasTripoKey();
   const [settings, gens, balance] = await Promise.all([
     db.productAr.findMany(),
     db.arGeneration.findMany({ orderBy: { createdAt: "desc" }, distinct: ["productId"] }),
-    hasTripoKey() ? tripoBalance().catch(() => null) : Promise.resolve(null),
+    tripoOn ? tripoBalance().catch(() => null) : Promise.resolve(null),
   ]);
   const byId = new Map(settings.map((s) => [s.productId, s]));
   const genBy = new Map(gens.map((g) => [g.productId, g]));
@@ -58,7 +59,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Το AR ενεργοποιείται ανά προϊόν. Χωρίς δικό μας μοντέλο, ο πελάτης βλέπει τον όγκο της συσκευής σε πραγματική κλίμακα με τη φωτογραφία της, από τις διαστάσεις (EPREL, ERP ή τυπικές). Με ανεβασμένο GLB του κατασκευαστή βλέπει το ίδιο το προϊόν σε 3D· το USDZ για iPhone είναι προαιρετικό, αλλιώς μετατρέπεται στη συσκευή.</p>
       </div>
 
-      <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3"><b className="text-eu-ink">{enabled}</b> προϊόντα με AR από <b className="text-eu-ink">{products.length}</b> · <b className="text-eu-ink">{custom}</b> με δικό μας μοντέλο. Τα μοντέλα της γεννήτριας αποθηκεύονται στο Bunny CDN (φάκελος ar/). {hasTripoKey() ? <>Tripo3D: <b className="text-eu-ink">{balance ? balance.balance.toLocaleString("el-GR") : "—"}</b> credits{balance && balance.balance <= 0 ? <span className="text-eu-red font-bold"> — χωρίς credits η δημιουργία 3D από φωτογραφία δεν θα τρέξει· αγόρασε στο platform.tripo3d.ai</span> : null}.</> : "Λείπει το TRIPO3D_API_KEY στο .env."}</p>
+      <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3"><b className="text-eu-ink">{enabled}</b> προϊόντα με AR από <b className="text-eu-ink">{products.length}</b> · <b className="text-eu-ink">{custom}</b> με δικό μας μοντέλο. Τα μοντέλα της γεννήτριας αποθηκεύονται στο Bunny CDN (φάκελος ar/). {tripoOn ? <>Tripo3D: <b className="text-eu-ink">{balance ? balance.balance.toLocaleString("el-GR") : "—"}</b> credits{balance && balance.balance <= 0 ? <span className="text-eu-red font-bold"> — χωρίς credits η δημιουργία 3D από φωτογραφία δεν θα τρέξει· αγόρασε στο platform.tripo3d.ai</span> : null}. Το κόστος κάθε μοντέλου μπαίνει στην αναφορά κόστους AI.</> : "Λείπει το κλειδί Tripo3D (Ρυθμίσεις → AI)."}</p>
 
       <form className="flex flex-wrap items-center gap-2">
         <input name="q" defaultValue={q} placeholder="Αναζήτηση προϊόντος…" aria-label="Αναζήτηση" className="rounded-full border border-eu-line px-4 min-h-10 text-[length:var(--fs-14)] min-w-[240px]" />
