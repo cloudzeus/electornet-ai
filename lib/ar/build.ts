@@ -25,7 +25,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[] }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 10;
+const VERSION = 11;
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images })).digest("hex").slice(0, 20);
@@ -41,15 +41,16 @@ async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | nu
   } catch { return null; }
 }
 
-export async function buildArModel(input: ArInput): Promise<ArModel> {
-  const key = arKey(input);
+export async function buildArModel(input: ArInput, opts: { labels?: boolean } = {}): Promise<ArModel> {
+  const withLabels = opts.labels !== false;
+  const key = `${arKey(input)}${withLabels ? "" : "-nl"}`;
   const hit = mem.get(key);
   if (hit) return hit;
   const [sg, su] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
   if (sg && su) { const m = { glb: sg, usdz: su, etag: key }; mem.set(key, m); return m; }
 
   const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.images, input.dims.w / input.dims.h)]);
-  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h } });
+  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels } });
   const [front, lw, lh, ld] = await Promise.all([
     frontTexture(picked, frontAspect),
     labelTexture("Π", input.dims.w), labelTexture("Υ", input.dims.h), labelTexture("Β", input.dims.d),

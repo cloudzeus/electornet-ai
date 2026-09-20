@@ -14,11 +14,11 @@ import type { Dims } from "@/lib/data/dims";
  */
 const frameCache = new Map<string, { prims: Prim[]; materials: MaterialDef[]; textures: Record<string, Buffer> }>();
 
-async function frameParts(dims: Dims) {
-  const key = `${dims.w}|${dims.h}|${dims.d}`;
+async function frameParts(dims: Dims, labels: boolean) {
+  const key = `${dims.w}|${dims.h}|${dims.d}|${labels ? 1 : 0}`;
   const hit = frameCache.get(key);
   if (hit) return hit;
-  const { prims, materials } = buildGeometry({ dims, labelAspect: LABEL_ASPECT, logoAspect: 4, front: { mode: "face", aspect: 1 }, parts: { front: false, logo: false } });
+  const { prims, materials } = buildGeometry({ dims, labelAspect: LABEL_ASPECT, logoAspect: 4, front: { mode: "face", aspect: 1 }, parts: { front: false, logo: false, labels } });
   const [lw, lh, ld] = await Promise.all([labelTexture("Π", dims.w), labelTexture("Υ", dims.h), labelTexture("Β", dims.d)]);
   // Γύρω από πραγματικό 3D ο όγκος γίνεται πιο διάφανος, να μη «θολώνει» το προϊόν
   const out = { prims, materials: materials.filter((m) => prims.some((p) => p.material === m.name)).map((m) => (m.name === "volume" ? { ...m, alpha: 0.07 } : m)), textures: { "label-w": lw, "label-h": lh, "label-d": ld } };
@@ -26,10 +26,11 @@ async function frameParts(dims: Dims) {
   return out;
 }
 
-export async function addFrameToGlb(buf: Buffer, dims: Dims): Promise<Buffer> {
+export async function addFrameToGlb(buf: Buffer, dims: Dims, labels = true): Promise<Buffer> {
   const g = parseGlb(buf);
   if (!g) return buf;
-  const { prims, materials, textures } = await frameParts(dims);
+  const { prims, materials, textures: allTex } = await frameParts(dims, labels);
+  const textures = labels ? allTex : {};
   const json = g.json as Record<string, unknown> & { bufferViews?: object[]; accessors?: object[]; images?: object[]; textures?: object[]; samplers?: object[]; materials?: object[]; meshes?: object[]; nodes?: { children?: number[]; mesh?: number; name?: string }[]; scenes?: { nodes?: number[] }[]; scene?: number; buffers?: { byteLength: number }[] };
   // Το BIN chunk: μετά το JSON chunk
   const rest = g.rest;

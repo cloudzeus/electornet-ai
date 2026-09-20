@@ -53,7 +53,7 @@ export interface ModelSpec {
    */
   front: { mode: "face" | "billboard"; aspect: number };
   /** ποια μέρη: για δικό μας 3D μοντέλο θέλουμε μόνο το πλαίσιο (όγκος, ακμές, ετικέτες) γύρω του */
-  parts?: { front?: boolean; logo?: boolean };
+  parts?: { front?: boolean; logo?: boolean; /** ψημένες ετικέτες διαστάσεων· η προεπισκόπηση τις αντικαθιστά με ζωντανές HTML ετικέτες */ labels?: boolean };
 }
 
 export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: MaterialDef[]; frontAspect: number } {
@@ -106,12 +106,14 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     return lh;
   };
   // Κάθε ετικέτα και στην απέναντι έδρα, ώστε να διαβάζεται από όποια πλευρά κι αν το γυρίσει ο πελάτης
+  if (spec.parts?.labels !== false) {
   const lhW = label("label-w", [0, t + 0.02 + 0.03, hz + gap * 2], X, Y, Z, w); // πλάτος: κάτω στην πρόσοψη
   label("label-w-back", [0, t + 0.02 + 0.03, -hz - gap * 2], NX, Y, NZ, w); // …και στην πίσω έδρα
   label("label-h", [hx + gap * 2, h / 2, 0], NZ, Y, X, d); // ύψος: στη μέση της δεξιάς έδρας
   label("label-h-left", [-hx - gap * 2, h / 2, 0], Z, Y, NX, d); // …και αριστερά
   label("label-d", [hx + gap * 2, t + 0.02 + lhW, 0], NZ, Y, X, d); // βάθος: κάτω στη δεξιά έδρα
   label("label-d-left", [-hx - gap * 2, t + 0.02 + lhW, 0], Z, Y, NX, d); // …και αριστερά
+  }
 
   // 5. Λογότυπο: πάνω έδρα (κοιτάει προς τα πίσω, όπως το βλέπεις από μπροστά) και πίσω έδρα
   const logo = (name: string, c: Vec3, u: Vec3, v: Vec3, n: Vec3, faceW: number, faceH: number) => {

@@ -64,7 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
-  if (arInput && !ar?.glbUrl) after(() => buildArModel(arInput).catch(() => {}));
+  if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
   const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (

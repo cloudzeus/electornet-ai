@@ -29,7 +29,10 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   // Ο server σερβίρει την ελαφριά έκδοση όταν υπάρχει· η πλήρης (έως 15 MB) ζητείται μόνο ρητά με ?q=full
   void light;
   const q = `?v=${version}`;
-  const glb = `/api/ar/${id}/model.glb${q}`;
+  const glb = `/api/ar/${id}/model.glb${q}`; // με ψημένες ετικέτες: αυτό πάει στο εγγενές AR (Scene Viewer)
+  // Προεπισκόπηση: χωρίς ψημένες ετικέτες, με ζωντανές HTML ετικέτες. Εξαίρεση το iPhone χωρίς USDZ, όπου το AR βγαίνει από τη σκηνή της προεπισκόπησης.
+  const liveLabels = !!dims && !(platform === "ios" && !ios);
+  const previewGlb = liveLabels ? `${glb}&labels=0` : glb;
   const usdz = `/api/ar/${id}/model.usdz?v=${version}`;
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       holder.current.innerHTML = "";
       const mv = document.createElement("model-viewer") as HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void>; resetTurntableRotation?: () => void; cameraOrbit?: string };
       mvRef.current = mv;
-      mv.setAttribute("src", glb);
+      mv.setAttribute("src", previewGlb);
       if (ios) mv.setAttribute("ios-src", usdz);
       mv.setAttribute("alt", title);
       mv.setAttribute("ar", "");
@@ -67,6 +70,28 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       mv.addEventListener("load", () => { if (alive) { setStatus("ready"); setCanAr(!!mv.canActivateAR); mv.cameraOrbit = "32deg 74deg auto"; } });
       mv.addEventListener("error", () => alive && setStatus("error"));
       mv.addEventListener("ar-status", (e) => { const s = (e as CustomEvent<{ status: string }>).detail?.status; if (alive) setStatus(s === "session-started" || s === "object-placed" ? "ar" : "ready"); });
+      // Ζωντανές ετικέτες διαστάσεων (hotspots): HTML, άρα κοιτούν πάντα τον χρήστη. Κάθε διάσταση υπάρχει σε δύο
+      // απέναντι ακμές· το model-viewer σημαδεύει με data-visible όποια κοιτά την κάμερα, κι εμείς την «πετάμε» μέσα με αναπήδηση.
+      if (liveLabels && dims) {
+        const w = dims.w / 100, h = dims.h / 100, d = dims.d / 100;
+        const n = (v: number) => v.toFixed(3);
+        const spots: [string, string, string, string, number][] = [
+          ["w1", `0 0 ${n(d / 2)}`, "0 -0.25 1", "Π", dims.w], ["w2", `0 0 ${n(-d / 2)}`, "0 -0.25 -1", "Π", dims.w],
+          ["h1", `${n(w / 2)} ${n(h / 2)} ${n(d / 2)}`, "1 0 0.3", "Υ", dims.h], ["h2", `${n(-w / 2)} ${n(h / 2)} ${n(d / 2)}`, "-1 0 0.3", "Υ", dims.h],
+          ["d1", `${n(w / 2)} 0 0`, "1 -0.25 0", "Β", dims.d], ["d2", `${n(-w / 2)} 0 0`, "-1 -0.25 0", "Β", dims.d],
+        ];
+        spots.forEach(([k, pos, normal, letter, value], i) => {
+          const hs = document.createElement("div");
+          hs.setAttribute("slot", `hotspot-${k}`);
+          hs.setAttribute("data-position", pos);
+          hs.setAttribute("data-normal", normal);
+          hs.setAttribute("data-visibility-attribute", "visible"); // χωρίς αυτό το model-viewer δεν σημαδεύει ποια ετικέτα κοιτά την κάμερα
+          hs.className = "eu-dim";
+          hs.style.setProperty("--i", String(i % 3));
+          hs.innerHTML = `<span class="eu-dim-pill"><b>${letter}</b>${value.toLocaleString("el-GR")}<small>εκ.</small></span>`;
+          mv.appendChild(hs);
+        });
+      }
       // Σήμα Euronics και το κουμπί AR: παιδιά του <model-viewer> είναι το overlay και μέσα στο WebXR.
       const brand = document.createElement("img");
       brand.src = "/design/euronics-logo.png";
@@ -86,7 +111,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => { alive = false; window.removeEventListener("keydown", onKey); mvRef.current = null; };
-  }, [open, glb, usdz, ios, title]);
+  }, [open, previewGlb, usdz, ios, title, liveLabels, dims]);
 
   useEffect(() => {
     // Κινητό; Τότε το AR ξεκινά με εγγενή σύνδεσμο (Quick Look / Scene Viewer), όχι μέσα από τον viewer.
@@ -156,6 +181,15 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 <button type="button" onClick={() => { void (mvRef.current as (HTMLElement & { activateAR?: () => Promise<void> }) | null)?.activateAR?.(); }} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</button>
               )}
               {platform !== "other" && <style>{`model-viewer [data-eu-slot]{display:none!important}`}</style>}
+              <style>{`
+                .eu-dim{pointer-events:none;transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .2s ease;transition-delay:calc(var(--i,0) * 60ms)}
+                .eu-dim[data-visible]{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}
+                .eu-dim-pill{display:inline-flex;align-items:baseline;gap:.35em;white-space:nowrap;border-radius:999px;padding:.3em .7em .3em .3em;background:#122A58;color:#fff;font-weight:800;font-size:var(--fs-15);line-height:1;box-shadow:0 6px 18px rgba(18,42,88,.35),0 0 0 2px rgba(255,255,255,.85);animation:eu-dim-float 3.2s ease-in-out infinite;animation-delay:calc(var(--i,0) * -1s)}
+                .eu-dim-pill b{display:inline-grid;place-items:center;width:1.7em;height:1.7em;border-radius:999px;background:#F1C400;color:#122A58;font-weight:800;align-self:center}
+                .eu-dim-pill small{font-size:.8em;font-weight:700;opacity:.8}
+                @keyframes eu-dim-float{0%,100%{translate:0 0}50%{translate:0 -4px}}
+                @media (prefers-reduced-motion:reduce){.eu-dim{transition:opacity .2s}.eu-dim-pill{animation:none}}
+              `}</style>
               {status === "ready" && (
                 <button type="button" onClick={() => { const mv = mvRef.current; if (mv) mv.cameraOrbit = "32deg 74deg auto"; }} aria-label="Επαναφορά προβολής" className="absolute right-4 top-4 size-10 rounded-full bg-white/90 text-eu-navy inline-flex items-center justify-center shadow hover:bg-white">
                   <RotateCcw className="size-4" aria-hidden />

@@ -8,7 +8,7 @@ import { buildArModel, arCandidates } from "./build";
 import { transformGlb, inspectGlb, fitScale, type Box } from "./custom";
 
 /** Αλλάζει όταν αλλάζει ο τρόπος που μετασχηματίζουμε/συμπληρώνουμε τα μοντέλα — μπαίνει στο URL ώστε να μη μείνει παλιό στην cache του browser. */
-export const AR_SERVE_VERSION = 8;
+export const AR_SERVE_VERSION = 9;
 import { addFrameToGlb } from "./frame";
 
 /**
@@ -34,6 +34,8 @@ export function fitFactor(box: Box | null, dims: Dims | null) {
 export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz") {
   // Προεπιλογή η ελαφριά έκδοση όταν υπάρχει (η πλήρης του Tripo φτάνει 15 MB / 450 χιλ. τρίγωνα)· ?q=full για την πλήρη
   const wantFull = new URL(req.url).searchParams.get("q") === "full";
+  // labels=0: χωρίς ψημένες ετικέτες — η προεπισκόπηση δείχνει ζωντανές HTML ετικέτες που κοιτούν πάντα τον χρήστη
+  const labels = new URL(req.url).searchParams.get("labels") !== "0";
   const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
   if (!p || !ar?.enabled) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404 });
   const dims = dimsFor(p);
@@ -48,7 +50,7 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   const url = kind === "glb" ? (!wantFull && ar.glbLightUrl ? ar.glbLightUrl : ar.glbUrl) : ar.usdzUrl;
   if (url) {
     const box = (ar.modelBox as Box | null) ?? null;
-    const key = `${url}|${ar.fitToDims ? ar.fitMode : "none"}|${dims ? `${dims.w}x${dims.h}x${dims.d}` : 0}|${ar.rotationY}|${AR_SERVE_VERSION}`;
+    const key = `${url}|${ar.fitToDims ? ar.fitMode : "none"}|${dims ? `${dims.w}x${dims.h}x${dims.d}` : 0}|${ar.rotationY}|${AR_SERVE_VERSION}|${labels ? 1 : 0}`;
     let body = custom.get(key);
     if (!body) {
       const raw = await readAsset(url);
@@ -60,16 +62,16 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
       const f = kind === "glb" ? fitScale(own, dims, ar.rotationY, mode) : 1;
       body = kind === "glb" ? transformGlb(raw, { scale: f, rotationY: ar.rotationY, bounds: own?.min && own.max ? { min: own.min, max: own.max } : null }) : raw;
       // Το πλαίσιο διαστάσεων γύρω από το μοντέλο, όπως στη γεννήτρια
-      if (kind === "glb" && dims) body = await addFrameToGlb(body, dims);
+      if (kind === "glb" && dims) body = await addFrameToGlb(body, dims, labels);
       custom.set(key, body);
       if (custom.size > 100) custom.delete(custom.keys().next().value as string);
     }
-    return respond(body, `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}`);
+    return respond(body, `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}${labels ? "" : "-nl"}`);
   }
   if (kind === "usdz" && ar.glbUrl) return new Response("Χωρίς USDZ: το model-viewer μετατρέπει το GLB στη συσκευή.", { status: 404 });
 
   // Γεννήτρια από διαστάσεις + φωτογραφία
   if (!dims) return new Response("Δεν υπάρχουν διαστάσεις για αυτό το προϊόν.", { status: 404 });
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) });
+  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) }, { labels: kind === "usdz" ? true : labels });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

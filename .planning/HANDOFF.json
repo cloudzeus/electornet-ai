@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-20T10:57:25.876Z",
+  "timestamp": "2026-09-20T11:04:09.567Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,7 +18,7 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": ".planning/HANDOFF.json"
+      "path": "app/(shop)/proion/[slug]/page.tsx"
     },
     {
       "status": "M",
@@ -30,25 +30,17 @@
     },
     {
       "status": "M",
+      "path": "lib/ar/frame.ts"
+    },
+    {
+      "status": "M",
       "path": "lib/ar/geometry.ts"
     },
     {
       "status": "M",
       "path": "lib/ar/serve.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/textures.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/usdz.ts"
-    },
-    {
-      "status": "??",
-      "path": "public/fonts/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nf9cc6af AR: οι ετικέτες διαστάσεων και στις απέναντι έδρες, ορατές από κάθε πλευρά κατά την περιστροφή\nde5b65b AR: λεπτότερες ακμές στο πλαίσιο, geometry_quality detailed και 30.000 έδρες στην ελαφριά έκδοση, κόστος ανά προσπάθεια στη διαχείριση\n8f02807 AR: επανακεντράρισμα κάμερας μετά τη φόρτωση, πιο διάφανος όγκος γύρω από πραγματικά 3D\n30873e0 AR: πλαίσιο διαστάσεων γύρω από κάθε 3D μοντέλο, προσαρμογή ανά άξονα, πολλαπλές όψεις στο Tripo\n60cbebe Tripo3D: παράμετροι ποιότητας, προσανατολισμός και έδραση των μοντέλων· ελαφριά έκδοση ως προεπιλογή"
+  "context_notes": "Recent commits:\n87b1409 AR στο κινητό: εγγενής εκκίνηση Quick Look / Scene Viewer, και ετικέτες με δική μας γραμματοσειρά\nf9cc6af AR: οι ετικέτες διαστάσεων και στις απέναντι έδρες, ορατές από κάθε πλευρά κατά την περιστροφή\nde5b65b AR: λεπτότερες ακμές στο πλαίσιο, geometry_quality detailed και 30.000 έδρες στην ελαφριά έκδοση, κόστος ανά προσπάθεια στη διαχείριση\n8f02807 AR: επανακεντράρισμα κάμερας μετά τη φόρτωση, πιο διάφανος όγκος γύρω από πραγματικά 3D\n30873e0 AR: πλαίσιο διαστάσεων γύρω από κάθε 3D μοντέλο, προσαρμογή ανά άξονα, πολλαπλές όψεις στο Tripo"
 }
