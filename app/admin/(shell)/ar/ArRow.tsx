@@ -1,14 +1,15 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check, Sparkles } from "lucide-react";
-import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel, setArPlacement } from "./actions";
+import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel, setArPlacement, setArFrontImage } from "./actions";
+import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import type { MediaAssetDTO } from "@/lib/media/types";
 
 export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "wall";
+  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "wall"; frontImage: string | null;
 }
 export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date; creditsFull: number | null; creditsLight: number | null; views?: unknown }
 
@@ -96,6 +97,8 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
   const [r, setR] = useState(r0);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [picker, setPicker] = useState(false);
+  const setFront = (v: string | null) => { setR((x) => ({ ...x, frontImage: v })); start(async () => { await setArFrontImage(r.id, v); }); };
   const mismatch = r.modelBox && r.dims ? Math.round((Math.abs(r.modelBox.h - r.dims.h) / r.dims.h) * 100) : null;
   const canGenerate = !!r.dims && !!r.image;
   return (
@@ -123,7 +126,32 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
         </label>
         {r.dims ? <><span className="tabular-nums">{r.dims.w} × {r.dims.h} × {r.dims.d} εκ.</span><div className={`text-[length:var(--fs-13)] ${r.dims.source === "category" ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{SOURCE[r.dims.source]}</div></> : <span className="text-eu-red font-bold">Χωρίς διαστάσεις</span>}
       </td>
-      <td className="py-2 px-3 text-[length:var(--fs-13)]">{r.cutout ? <span className="text-eu-green font-bold">Cutout</span> : r.image ? <span className="text-eu-ink-3">Φωτογραφία, χωρίς cutout</span> : <span className="text-eu-red font-bold">Καμία</span>}</td>
+      <td className="py-2 px-3 text-[length:var(--fs-13)]">
+        <div className="grid gap-1.5 min-w-[200px]">
+          <div>{r.cutout ? <span className="text-eu-green font-bold">Cutout</span> : r.image ? <span className="text-eu-ink-3">Φωτογραφία, χωρίς cutout</span> : <span className="text-eu-red font-bold">Καμία</span>}</div>
+          {/* Η όψη που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο */}
+          {!r.glbUrl && (
+            <>
+              <label className="grid gap-1 text-eu-ink-3">Όψη στο στερεό
+                <span className="flex items-center gap-2">
+                  {(r.frontImage ?? r.cutout ?? r.image) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.frontImage ?? r.cutout ?? r.image ?? ""} alt="" className="size-10 shrink-0 object-contain rounded bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:10px_10px]" />
+                  )}
+                  <select value={r.frontImage && r.images.includes(r.frontImage) ? r.frontImage : r.frontImage ? "__custom" : ""} disabled={pending} onChange={(e) => { const v = e.target.value; if (v === "__pick") setPicker(true); else if (v !== "__custom") setFront(v || null); }} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white max-w-[170px] truncate">
+                    <option value="">Αυτόματα (η πιο μετωπική)</option>
+                    {r.images.map((u) => <option key={u} value={u}>{u.includes("/cutouts/") ? "Cutout · " : ""}{u.split("/").pop()}</option>)}
+                    {r.frontImage && !r.images.includes(r.frontImage) && <option value="__custom">Από βιβλιοθήκη · {r.frontImage.split("/").pop()}</option>}
+                    <option value="__pick">Άλλη από τη βιβλιοθήκη…</option>
+                  </select>
+                </span>
+              </label>
+              {r.frontImage && <span className="text-eu-muted">Γεμίζει ολόκληρη την πρόσοψη Π×Υ.</span>}
+            </>
+          )}
+          {picker && <MediaPickerDialog accept={["image"]} multiple={false} canWrite onSelect={(a) => { if (a[0]) setFront(a[0].url); setPicker(false); }} onClose={() => setPicker(false)} />}
+        </div>
+      </td>
       <td className="py-2 px-3">
         <div className="grid gap-1.5 min-w-[260px]">
           {r.glbUrl ? (

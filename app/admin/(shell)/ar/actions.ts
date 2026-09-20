@@ -81,6 +81,15 @@ export async function pollArGeneration(genId: string) {
   return g ? (JSON.parse(JSON.stringify(g)) as typeof g) : null;
 }
 
+/** Η φωτογραφία που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο. null = αυτόματα η πιο μετωπική. */
+export async function setArFrontImage(productId: string, frontImage: string | null) {
+  const user = await requirePermission("catalog.products.write");
+  await db.productAr.upsert({ where: { productId }, update: { frontImage, updatedById: user.id }, create: { productId, frontImage, updatedById: user.id } });
+  await audit(user.id, "ar.front-image", "ProductAr", productId, null, { frontImage });
+  paths(productId);
+  return { ok: true as const };
+}
+
 /** Πάτωμα, τοίχος ή αυτόματα από την κατηγορία. */
 export async function setArPlacement(productId: string, placement: "floor" | "wall" | null) {
   const user = await requirePermission("catalog.products.write");

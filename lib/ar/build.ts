@@ -22,13 +22,13 @@ import type { Product } from "@/lib/data/types";
  * είναι κλειστό) → κατασκευή. Το αντίγραφο στο CDN επιβιώνει επανεκκινήσεις
  * και deploys και μοιράζεται ανάμεσα σε πολλά instances του server.
  */
-export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[] }
+export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 15;
+const VERSION = 16;
 const mem = new Map<string, ArModel>();
 
-export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images })).digest("hex").slice(0, 20);
+export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null })).digest("hex").slice(0, 20);
 
 async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | null> {
   try {
@@ -49,7 +49,7 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
   const [sg, su] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
   if (sg && su) { const m = { glb: sg, usdz: su, etag: key }; mem.set(key, m); return m; }
 
-  const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.images, input.dims.w / input.dims.h)]);
+  const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.frontImage ? [input.frontImage] : input.images, input.dims.w / input.dims.h, !!input.frontImage)]);
   const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels } });
   const [front, lw, lh, ld] = await Promise.all([
     frontTexture(picked, frontAspect),

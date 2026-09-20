@@ -32,7 +32,7 @@ export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "
  * σε γωνία (φαίνεται και η πλαϊνή πλευρά, άρα πιο φαρδιά) και μπαίνει ως
  * billboard με το πραγματικό ύψος, ώστε να μην παραμορφώνεται.
  */
-export async function pickFront(candidates: string[], faceAspect: number): Promise<FrontSource | null> {
+export async function pickFront(candidates: string[], faceAspect: number, forceFace = false): Promise<FrontSource | null> {
   let best: FrontSource | null = null, bestErr = Infinity;
   for (const src of candidates) {
     const raw = await loadImage(src);
@@ -43,7 +43,8 @@ export async function pickFront(candidates: string[], faceAspect: number): Promi
     if (!meta.width || !meta.height) continue;
     const aspect = meta.width / meta.height;
     const err = Math.abs(Math.log(aspect / faceAspect));
-    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: err <= 0.12 ? "face" : "billboard" }; }
+    // Όταν τη διάλεξε ο διαχειριστής ως «όψη», γεμίζει πάντα την πρόσοψη
+    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: forceFace || err <= 0.12 ? "face" : "billboard" }; }
     if (bestErr <= 0.05) break;
   }
   return best;

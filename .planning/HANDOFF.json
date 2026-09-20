@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-20T11:39:05.067Z",
+  "timestamp": "2026-09-20T11:41:47.403Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,7 +18,19 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": ".planning/HANDOFF.json"
+      "path": "app/(shop)/proion/[slug]/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/ar/ArRow.tsx"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/ar/actions.ts"
+    },
+    {
+      "status": "M",
+      "path": "app/admin/(shell)/ar/page.tsx"
     },
     {
       "status": "M",
@@ -30,9 +42,13 @@
     },
     {
       "status": "M",
-      "path": "lib/ar/usdz.ts"
+      "path": "lib/ar/textures.ts"
+    },
+    {
+      "status": "M",
+      "path": "prisma/schema.prisma"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες\n79c1cf1 AR: το στερεό με συμπαγείς γωνίες και διακριτική διάστικτη γραμμή\n6cdfa7f AR: ζωντανές ετικέτες διαστάσεων που κοιτούν πάντα τον χρήστη\n87b1409 AR στο κινητό: εγγενής εκκίνηση Quick Look / Scene Viewer, και ετικέτες με δική μας γραμματοσειρά"
+  "context_notes": "Recent commits:\n2e93b19 AR στον τοίχο, iPhone: το μοντέλο όρθιο με την πλάτη στο z=0 — η κάθετος του τοίχου είναι ο Z\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες\n79c1cf1 AR: το στερεό με συμπαγείς γωνίες και διακριτική διάστικτη γραμμή\n6cdfa7f AR: ζωντανές ετικέτες διαστάσεων που κοιτούν πάντα τον χρήστη"
 }

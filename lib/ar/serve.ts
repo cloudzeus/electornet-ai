@@ -76,6 +76,6 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   // ?p=floor: ο πελάτης ζήτησε ρητά πάτωμα επειδή το τηλέφωνό του δεν αναγνώρισε τον τοίχο
   const forced = new URL(req.url).searchParams.get("p");
   const wall = (forced === "floor" || forced === "wall" ? forced : placementFor(p, ar.placement)) === "wall";
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
+  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar.frontImage }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

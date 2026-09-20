@@ -62,7 +62,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
   // AR κατ' επιλογή από τη διαχείριση (/admin/ar): με δικό μας GLB ή με τον όγκο από διαστάσεις + φωτογραφία
   const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
-  const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) } : null;
+  const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar.frontImage } : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
   if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
