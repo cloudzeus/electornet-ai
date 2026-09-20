@@ -172,6 +172,157 @@ model EnergyLabel {
   @@index([eprelRegistrationNumber])
 }
 
+// ---------- SoftOne: καθρέφτης καταλόγου (δομή CCC του site) ----------
+// Ό,τι έχει χαρτογραφηθεί με βεβαιότητα (docs/softone-catalog-structure.md,
+// docs/softone-custom-schema.md). Είναι ΑΚΑΤΕΡΓΑΣΤΟΣ καθρέφτης του ERP: το
+// κατάστημα (Category / Product / Facet) τροφοδοτείται από εδώ σε δεύτερο βήμα,
+// ώστε ένα λάθος αντιστοίχισης να μη χαλά ποτέ τα δεδομένα του ERP που έχουμε.
+
+/// Κατηγορίες site: επίπεδο 1 = CCCWEBCATEGORY1 (Master), επίπεδο 2 = CCCWEBCATEGORY2 (Main).
+model S1WebCategory {
+  key         String   @id // "1:10" ή "2:10:30" (επίπεδο:master[:main]) — το id του επιπέδου 2 δεν είναι βέβαιο ότι είναι μοναδικό χωρίς τον γονέα
+  level       Int
+  s1Id        Int
+  parentS1Id  Int? // για το επίπεδο 2: CCCWEBCATEGORY1
+  name        String
+  active      Boolean  @default(true)
+  s1UpdatedAt DateTime?
+  missing     Boolean  @default(false) // υπήρχε, δεν ήρθε στον τελευταίο πλήρη συγχρονισμό
+  syncedAt    DateTime @default(now())
+
+  @@index([level, parentS1Id])
+}
+
+/// CCCWEBGRSPECS: ομάδα χαρακτηριστικών = τύπος προϊόντος (3ο επίπεδο του δέντρου).
+model S1SpecGroup {
+  s1Id        Int      @id // CCCWEBGRSPECS
+  code        String? // WEBGRSPECS
+  name        String
+  cat1        Int? // CCCWEBCATEGORY1
+  cat2        Int? // CCCWEBCATEGORY2
+  active      Boolean  @default(true)
+  s1UpdatedAt DateTime?
+  missing     Boolean  @default(false)
+  syncedAt    DateTime @default(now())
+  specs       S1SpecDef[]
+  items       S1Item[]
+
+  @@index([cat1, cat2])
+}
+
+/// CCCWEBSPECS: τα χαρακτηριστικά μιας ομάδας, με σήμανση προβολής και φίλτρου.
+model S1SpecDef {
+  id          String   @id @default(cuid())
+  groupS1Id   Int
+  group       S1SpecGroup @relation(fields: [groupS1Id], references: [s1Id], onDelete: Cascade)
+  code        Int // WEBSPECS
+  name        String
+  isView      Boolean  @default(true)
+  isFilter    Boolean  @default(false)
+  active      Boolean  @default(true)
+  s1UpdatedAt DateTime?
+  missing     Boolean  @default(false)
+  options     S1SpecOption[]
+
+  @@unique([groupS1Id, code])
+}
+
+/// CCCWEBSPECSLNS: προκαθορισμένες τιμές ενός χαρακτηριστικού (όπου υπάρχουν).
+model S1SpecOption {
+  id        String   @id @default(cuid())
+  specId    String
+  spec      S1SpecDef @relation(fields: [specId], references: [id], onDelete: Cascade)
+  code      Int // WEBSPECSLNS
+  name      String
+  color     String? // SOCOLOR
+  active    Boolean  @default(true)
+  missing   Boolean  @default(false)
+
+  @@unique([specId, code])
+}
+
+/// MTRL (είδη αποθήκης, SODTYPE=51) που ανήκουν στο site: έχουν ομάδα χαρακτηριστικών ή κατηγορία web.
+/// Οι ΤΙΜΕΣ χαρακτηριστικών ανά είδος, οι φωτογραφίες, η τιμή site και το απόθεμα ανά κατάστημα ΔΕΝ είναι εδώ:
+/// δεν εκτίθενται από επίσημο αντικείμενο (ανοιχτό μέχρι να δούμε τα scripts iSite / UpdateWebItems).
+model S1Item {
+  mtrl          Int      @id
+  code          String
+  name          String
+  name2         String?
+  barcode       String? // CODE1
+  factoryCode   String? // CODE2
+  active        Boolean  @default(true)
+  manufacturerS1Id Int? // MTRMANFCTR → Brand.s1Id
+  markS1Id      Int? // MTRMARK
+  commCategory  Int? // MTRCATEGORY
+  itemGroup     Int? // MTRGROUP
+  vatS1Id       Int?
+  unitS1Id      Int?
+  priceRetail   Float? // PRICER (τιμή καρτέλας, όχι απαραίτητα η τιμή του site)
+  priceWholesale Float? // PRICEW
+  webCat1       Int? // CCCWEBCATEGORY1
+  webCat2       Int? // CCCWEBCATEGORY2
+  specGroupS1Id Int? // CCCWEBGRSPECS
+  specGroup     S1SpecGroup? @relation(fields: [specGroupS1Id], references: [s1Id], onDelete: SetNull)
+  shortDesc     String?  @db.Text // CCCWREMARKS1
+  longDesc      String?  @db.Text // CCCWREMARKS (memo)
+  availText     String? // CCCAVAIL
+  extWarranty   Boolean  @default(false) // CCCWARRANTY
+  guaranteeMonths Int? // GUARTIME
+  onOrder       Boolean  @default(false) // MTRONORDER
+  replacedByMtrl Int? // MTRRPLCODE
+  weightKg      Float? // CCCWEIGHT
+  lengthCm      Float? // CCCLENGTH
+  widthCm       Float? // CCCWIDTH
+  heightCm      Float? // CCCHEIGHT
+  s1UpdatedAt   DateTime?
+  missing       Boolean  @default(false)
+  contentHash   String? // αποτύπωμα των πεδίων που μπαίνουν στο κείμενο αναζήτησης· όταν αλλάξει, το vector γίνεται «μπαγιάτικο»
+  syncedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  @@index([specGroupS1Id])
+  @@index([webCat1, webCat2])
+  @@index([active, missing])
+  @@index([s1UpdatedAt])
+  @@index([code])
+}
+
+/// Δείκτης προόδου ανά είδος συγχρονισμού: από πού συνεχίζει το delta (UPDDATE) και πότε έγινε ο τελευταίος πλήρης.
+model S1SyncState {
+  kind        String   @id // webcat | specgroup | item
+  cursor      DateTime? // μέγιστο UPDDATE που έχουμε δει
+  lastFullAt  DateTime?
+  lastDeltaAt DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------- Διανυσματικό ευρετήριο για το LLM (pgvector) ----------
+
+/// Ένα κείμενο προς αναζήτηση ανά οντότητα (προϊόν, κατηγορία, οδηγός, υπηρεσία). Το `text` είναι αυτό
+/// ακριβώς που ενσωματώθηκε· το `meta` κρατά τα πεδία για φίλτρα πριν από την ομοιότητα (κατηγορία, μάρκα,
+/// τιμή, ενεργό). Το `hash` καλύπτει κείμενο + μοντέλο: ξαναϋπολογίζουμε embedding μόνο όταν αλλάξει.
+model VectorDoc {
+  id         String   @id @default(cuid())
+  kind       String // product | category | guide | service | faq
+  refId      String // π.χ. το MTRL του είδους
+  title      String
+  text       String   @db.Text
+  meta       Json?
+  hash       String
+  model      String?
+  dims       Int?
+  embedding  Unsupported("vector(1536)")?
+  stale      Boolean  @default(true)
+  embeddedAt DateTime?
+  tokens     Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([kind, refId])
+  @@index([kind, stale])
+}
+
 /// AR «Δες το στον χώρο σου» ανά προϊόν: ενεργοποιείται κατ' επιλογή από τη
 /// διαχείριση. Χωρίς δικό μας μοντέλο χτίζεται ο όγκος από τις διαστάσεις·
 /// με ανεβασμένο GLB (και προαιρετικά USDZ) σερβίρεται αυτό, προσαρμοσμένο

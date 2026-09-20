@@ -8,7 +8,7 @@ import { LineChart, BarChart, RankBars, StatTile } from "@/components/admin/char
 export const metadata = { title: "Κόστος AI" };
 export const dynamic = "force-dynamic";
 
-const FEATURES: Record<string, string> = { advisor: "Ερμής", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές", snap: "Snap & Find", tts: "Φωνή: εκφώνηση", stt: "Φωνή: μικρόφωνο", "3d": "3D από φωτογραφία (Tripo3D)" };
+const FEATURES: Record<string, string> = { advisor: "Ερμής", "alt-text": "Alt text", copy: "Κείμενα", agent: "Agent", test: "Δοκιμές", snap: "Snap & Find", tts: "Φωνή: εκφώνηση", stt: "Φωνή: μικρόφωνο", "3d": "3D από φωτογραφία (Tripo3D)", embed: "Ευρετήριο Ερμή (embeddings)" };
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const label = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
 const rangeStart = (days: number) => new Date(Date.now() - (days - 1) * 86400000);

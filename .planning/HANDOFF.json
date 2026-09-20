@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-20T11:41:47.403Z",
+  "timestamp": "2026-09-20T13:01:20.246Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -18,37 +18,41 @@
   "uncommitted_files": [
     {
       "status": "M",
-      "path": "app/(shop)/proion/[slug]/page.tsx"
+      "path": ".planning/HANDOFF.json"
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/ar/ArRow.tsx"
+      "path": "app/admin/(shell)/reports/ai/page.tsx"
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/ar/actions.ts"
+      "path": "components/admin/nav.ts"
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/ar/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/build.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/serve.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/textures.ts"
+      "path": "lib/settings/schema.ts"
     },
     {
       "status": "M",
       "path": "prisma/schema.prisma"
+    },
+    {
+      "status": "??",
+      "path": "app/admin/(shell)/softone/catalog/"
+    },
+    {
+      "status": "??",
+      "path": "app/api/cron/softone-catalog/"
+    },
+    {
+      "status": "??",
+      "path": "lib/softone/catalog.ts"
+    },
+    {
+      "status": "??",
+      "path": "lib/vector/"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n2e93b19 AR στον τοίχο, iPhone: το μοντέλο όρθιο με την πλάτη στο z=0 — η κάθετος του τοίχου είναι ο Z\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες\n79c1cf1 AR: το στερεό με συμπαγείς γωνίες και διακριτική διάστικτη γραμμή\n6cdfa7f AR: ζωντανές ετικέτες διαστάσεων που κοιτούν πάντα τον χρήστη"
+  "context_notes": "Recent commits:\nd6d9c2e SoftOne: χαρτογράφηση όλων των custom (CCC) πινάκων και πεδίων\n8536406 AR: ο διαχειριστής διαλέγει τη φωτογραφία της όψης που γεμίζει την πρόσοψη του στερεού\n2e93b19 AR στον τοίχο, iPhone: το μοντέλο όρθιο με την πλάτη στο z=0 — η κάθετος του τοίχου είναι ο Z\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες"
 }
