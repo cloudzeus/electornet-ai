@@ -43,7 +43,11 @@ const baseUrl = (c: S1Config) => (/^https?:\/\//.test(c.url) ? c.url.replace(/\/
 async function s1Fetch(c: S1Config, body: object): Promise<any> {
   const res = await fetch(baseUrl(c), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
   const buffer = await res.arrayBuffer();
-  return JSON.parse(iconv.decode(Buffer.from(buffer), "win1253"));
+  // Όταν η υπηρεσία web services του SoftOne δεν τρέχει, ο server απαντά 404/5xx με άδειο σώμα:
+  // το λέμε καθαρά, αντί να σκάσει το JSON.parse με «Unexpected end of JSON input».
+  if (!buffer.byteLength) throw new Error(`Οι web services του SoftOne απάντησαν HTTP ${res.status} χωρίς περιεχόμενο — η υπηρεσία δεν τρέχει στον server. Χρειάζεται έλεγχος ή επανεκκίνηση από τον πάροχο του SoftOne cloud.`);
+  const text = iconv.decode(Buffer.from(buffer), "win1253");
+  try { return JSON.parse(text); } catch { throw new Error(`Το SoftOne απάντησε HTTP ${res.status} με μη έγκυρο JSON: ${text.slice(0, 120)}`); }
 }
 
 const SESSION_KEY = "softone.session";

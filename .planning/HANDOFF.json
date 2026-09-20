@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-20T13:01:20.246Z",
+  "timestamp": "2026-09-20T13:05:56.410Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,37 +22,9 @@
     },
     {
       "status": "M",
-      "path": "app/admin/(shell)/reports/ai/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "components/admin/nav.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/settings/schema.ts"
-    },
-    {
-      "status": "M",
-      "path": "prisma/schema.prisma"
-    },
-    {
-      "status": "??",
-      "path": "app/admin/(shell)/softone/catalog/"
-    },
-    {
-      "status": "??",
-      "path": "app/api/cron/softone-catalog/"
-    },
-    {
-      "status": "??",
-      "path": "lib/softone/catalog.ts"
-    },
-    {
-      "status": "??",
-      "path": "lib/vector/"
+      "path": "lib/softone.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\nd6d9c2e SoftOne: χαρτογράφηση όλων των custom (CCC) πινάκων και πεδίων\n8536406 AR: ο διαχειριστής διαλέγει τη φωτογραφία της όψης που γεμίζει την πρόσοψη του στερεού\n2e93b19 AR στον τοίχο, iPhone: το μοντέλο όρθιο με την πλάτη στο z=0 — η κάθετος του τοίχου είναι ο Z\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες"
+  "context_notes": "Recent commits:\n954e3b4 SoftOne: καθρέφτης καταλόγου με μηχανισμό συγχρονισμού, και διανυσματικό ευρετήριο για τον Ερμή\nd6d9c2e SoftOne: χαρτογράφηση όλων των custom (CCC) πινάκων και πεδίων\n8536406 AR: ο διαχειριστής διαλέγει τη φωτογραφία της όψης που γεμίζει την πρόσοψη του στερεού\n2e93b19 AR στον τοίχο, iPhone: το μοντέλο όρθιο με την πλάτη στο z=0 — η κάθετος του τοίχου είναι ο Z\n4cb027d AR στον τοίχο, iPhone: διέξοδος «Δες το στο πάτωμα» όταν το Quick Look δεν αναγνωρίζει τον τοίχο"
 }
