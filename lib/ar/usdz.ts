@@ -89,10 +89,12 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
 
 /**
  * Τοίχος: το AR Quick Look αγκυρώνει σε κάθετο επίπεδο όταν το ριζικό prim
- * το δηλώνει. Σε κάθετη άγκυρα ο άξονας Y είναι η κάθετος του τοίχου και το
- * «πάνω» του δωματίου είναι το −Z. Γυρίζουμε λοιπόν το μοντέλο −90° γύρω από
- * τον X (πάνω→−Z, πρόσοψη→+Y) αφού πρώτα φέρουμε την πλάτη του στο μηδέν και
- * το κεντράρουμε καθ' ύψος, ώστε να κολλά στον τοίχο εκεί που άγγιξε ο πελάτης.
+ * το δηλώνει. Το μοντέλο μένει ΟΡΘΙΟ (Y πάνω, όπως στο πάτωμα) και η κάθετος
+ * του τοίχου είναι ο άξονας +Z: η πλάτη της συσκευής πρέπει να βρίσκεται στο
+ * z=0 και η πρόσοψη να κοιτά +Z, προς το δωμάτιο. Ό,τι έχει z<0 πέφτει μέσα
+ * στον τοίχο και στα iPhone με LiDAR κρύβεται. Κεντράρουμε και καθ' ύψος, ώστε
+ * να κολλά εκεί που άγγιξε ο πελάτης. Η μετατόπιση μπαίνει σε παιδί του
+ * αγκυρωμένου prim, για να μη μπλέκεται με τον μετασχηματισμό της άγκυρας.
  */
 export interface UsdzOpts { wall?: { h: number; d: number } | null }
 
@@ -109,18 +111,19 @@ export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Rec
 )
 
 def Xform "Product" (
-    kind = "component"${wall ? `
-    prepend apiSchemas = ["Preliminary_AnchoringAPI"]` : ""}
+    kind = "component"${wall ? `\n    prepend apiSchemas = ["Preliminary_AnchoringAPI"]` : ""}
 )
 {${wall ? `
-    uniform token preliminary:anchoring:type = "plane"
-    uniform token preliminary:planeAnchoring:alignment = "vertical"
-    double3 xformOp:rotateXYZ = (-90, 0, 0)
-    double3 xformOp:translate = (0, ${f(-wall.h / 2)}, ${f(wall.d / 2)})
-    uniform token[] xformOpOrder = ["xformOp:rotateXYZ", "xformOp:translate"]
+    token preliminary:anchoring:type = "plane"
+    token preliminary:planeAnchoring:alignment = "vertical"
+
+    def Xform "Placed"
+    {
+        double3 xformOp:translate = (0, ${f(-wall.h / 2)}, ${f(wall.d / 2 + 0.008)})
+        uniform token[] xformOpOrder = ["xformOp:translate"]
 ` : ""}
 ${prims.map((p) => meshUsda(p, safe, materials.find((m) => m.name === p.material)?.doubleSided !== false)).join("\n")}
-
+${wall ? "    }\n" : ""}
     def Scope "Materials"
     {${materials.map((m) => materialUsda(m, safe, m.texture ? texFiles[m.texture] : undefined)).join("\n")}
     }
