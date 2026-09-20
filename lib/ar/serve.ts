@@ -73,7 +73,9 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
 
   // Γεννήτρια από διαστάσεις + φωτογραφία
   if (!dims) return new Response("Δεν υπάρχουν διαστάσεις για αυτό το προϊόν.", { status: 404 });
-  const wall = placementFor(p, ar.placement) === "wall";
+  // ?p=floor: ο πελάτης ζήτησε ρητά πάτωμα επειδή το τηλέφωνό του δεν αναγνώρισε τον τοίχο
+  const forced = new URL(req.url).searchParams.get("p");
+  const wall = (forced === "floor" || forced === "wall" ? forced : placementFor(p, ar.placement)) === "wall";
   const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

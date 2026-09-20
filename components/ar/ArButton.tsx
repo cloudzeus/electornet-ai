@@ -180,6 +180,18 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
               {platform === "ios" && !ios && status === "ready" && (
                 <button type="button" onClick={() => { void (mvRef.current as (HTMLElement & { activateAR?: () => Promise<void> }) | null)?.activateAR?.(); }} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</button>
               )}
+              {/* iPhone + τοίχος: το Quick Look δεν δείχνει τίποτα μέχρι να αναγνωρίσει κάθετη επιφάνεια, και σε λευκό άδειο τοίχο συχνά δεν τα καταφέρνει. Διέξοδος: ίδιο μοντέλο στο πάτωμα. */}
+              {platform === "ios" && placement === "wall" && (ios ? (
+                <span className="absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow overflow-hidden whitespace-nowrap text-[length:var(--fs-14)]">
+                  <a rel="ar" href={`/api/ar/${id}/model.usdz?v=${version}&p=floor#allowsContentScaling=0`} className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img alt="Δες το στο πάτωμα" width={260} height={40} className="block w-[min(78vw,290px)] h-10 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+                  </a>
+                  <span className="pointer-events-none absolute inset-0 inline-flex items-center justify-center px-3">Δεν πιάνει τον τοίχο; Δες το στο πάτωμα</span>
+                </span>
+              ) : status === "ready" ? (
+                <button type="button" onClick={() => { const mv = mvRef.current as (HTMLElement & { activateAR?: () => Promise<void> }) | null; if (mv) { mv.setAttribute("ar-placement", "floor"); void mv.activateAR?.(); } }} className="absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow px-4 min-h-10 whitespace-nowrap text-[length:var(--fs-14)]">Δεν πιάνει τον τοίχο; Δες το στο πάτωμα</button>
+              ) : null)}
               {platform !== "other" && <style>{`model-viewer [data-eu-slot]{display:none!important}`}</style>}
               <style>{`
                 .eu-dim{pointer-events:none;transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .2s ease;transition-delay:calc(var(--i,0) * 60ms)}
@@ -221,7 +233,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 <span>Διαστάσεις {sourceText}. Το μοντέλο είναι σε πραγματικό μέγεθος και δεν μεγεθύνεται.</span>
               </p>
               {platform !== "other" && (
-                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{placement === "wall" ? "Πάτα το κίτρινο κουμπί και στόχευσε τον τοίχο όπου θα μπει. Βοηθά ο καλός φωτισμός και να φαίνεται στο κάδρο μια γωνία, ένα κάδρο ή μια πρίζα — ένας εντελώς λευκός τοίχος δυσκολεύει την κάμερα. Μετά σύρε τη συσκευή στο ύψος που τη θέλεις." : "Πάτα το κίτρινο κουμπί, στόχευσε το πάτωμα και άφησε τη συσκευή στη θέση της. Περπάτα γύρω της: οι ετικέτες δείχνουν πλάτος, ύψος και βάθος."}</p>
+                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{placement === "wall" ? "Πάτα το κίτρινο κουμπί, πήγαινε στο «AR» και στόχευσε τον τοίχο. Η συσκευή εμφανίζεται μόλις το κινητό αναγνωρίσει τον τοίχο: κούνα το αργά δεξιά-αριστερά, με καλό φως, ξεκινώντας από σημείο με κάδρο, πρίζα, γωνία ή εκεί που ο τοίχος συναντά το ταβάνι. Σε εντελώς λευκό, άδειο τοίχο μπορεί να μην εμφανιστεί καθόλου — τότε πάτα «Δες το στο πάτωμα» και σήκωσέ τη με δύο δάχτυλα." : "Πάτα το κίτρινο κουμπί, στόχευσε το πάτωμα και άφησε τη συσκευή στη θέση της. Περπάτα γύρω της: οι ετικέτες δείχνουν πλάτος, ύψος και βάθος."}</p>
               )}
               {platform === "other" && canAr === false && status !== "loading" && (
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Σε αυτή τη συσκευή βλέπεις την προεπισκόπηση 3D. Για να το βάλεις στον χώρο σου, άνοιξέ το από κινητό.</p>

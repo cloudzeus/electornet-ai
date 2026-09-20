@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-09-20T11:17:24.949Z",
+  "timestamp": "2026-09-20T11:29:03.471Z",
   "source": "auto-postool",
   "partial": false,
   "phase": null,
@@ -22,45 +22,13 @@
     },
     {
       "status": "M",
-      "path": "app/(shop)/proion/[slug]/page.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/ArRow.tsx"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/actions.ts"
-    },
-    {
-      "status": "M",
-      "path": "app/admin/(shell)/ar/page.tsx"
-    },
-    {
-      "status": "M",
       "path": "components/ar/ArButton.tsx"
     },
     {
       "status": "M",
-      "path": "lib/ar/build.ts"
-    },
-    {
-      "status": "M",
       "path": "lib/ar/serve.ts"
-    },
-    {
-      "status": "M",
-      "path": "lib/ar/usdz.ts"
-    },
-    {
-      "status": "M",
-      "path": "prisma/schema.prisma"
-    },
-    {
-      "status": "??",
-      "path": "lib/ar/placement.ts"
     }
   ],
   "next_action": null,
-  "context_notes": "Recent commits:\n79c1cf1 AR: το στερεό με συμπαγείς γωνίες και διακριτική διάστικτη γραμμή\n6cdfa7f AR: ζωντανές ετικέτες διαστάσεων που κοιτούν πάντα τον χρήστη\n87b1409 AR στο κινητό: εγγενής εκκίνηση Quick Look / Scene Viewer, και ετικέτες με δική μας γραμματοσειρά\nf9cc6af AR: οι ετικέτες διαστάσεων και στις απέναντι έδρες, ορατές από κάθε πλευρά κατά την περιστροφή\nde5b65b AR: λεπτότερες ακμές στο πλαίσιο, geometry_quality detailed και 30.000 έδρες στην ελαφριά έκδοση, κόστος ανά προσπάθεια στη διαχείριση"
+  "context_notes": "Recent commits:\n14aceb8 AR στον τοίχο για κλιματιστικά, τηλεοράσεις και απορροφητήρες\n79c1cf1 AR: το στερεό με συμπαγείς γωνίες και διακριτική διάστικτη γραμμή\n6cdfa7f AR: ζωντανές ετικέτες διαστάσεων που κοιτούν πάντα τον χρήστη\n87b1409 AR στο κινητό: εγγενής εκκίνηση Quick Look / Scene Viewer, και ετικέτες με δική μας γραμματοσειρά\nf9cc6af AR: οι ετικέτες διαστάσεων και στις απέναντι έδρες, ορατές από κάθε πλευρά κατά την περιστροφή"
 }
