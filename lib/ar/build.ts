@@ -25,7 +25,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[] }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 8;
+const VERSION = 10;
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images })).digest("hex").slice(0, 20);

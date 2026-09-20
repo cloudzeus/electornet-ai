@@ -57,14 +57,27 @@ export async function frontTexture(front: FrontSource | null, planeAspect: numbe
   return sharp(front.trimmed).resize({ width: W, height: H, fit: "fill" }).png({ palette: true, quality: 90, compressionLevel: 9 }).toBuffer();
 }
 
-/** Πινακίδα διάστασης: «Π 60 εκ.» — το γράμμα κίτρινο, ο αριθμός λευκός. */
+/**
+ * Πινακίδα διάστασης: «Π 60 εκ.» — το γράμμα κίτρινο, ο αριθμός λευκός.
+ *
+ * Το κείμενο ΔΕΝ περνά από SVG <text>: στον server (container χωρίς
+ * γραμματοσειρές) έβγαινε άδεια πινακίδα. Το γράφουμε με το sharp/pango από
+ * τη δική μας Manrope (public/fonts), που έχει ελληνικά, και το κολλάμε πάνω
+ * στην πινακίδα — ίδιο αποτέλεσμα σε κάθε μηχάνημα.
+ */
+const FONT_FILE = path.join(process.cwd(), "public", "fonts", "Manrope-var.ttf");
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
 export async function labelTexture(axis: "Π" | "Υ" | "Β", value: number): Promise<Buffer> {
   const num = `${value.toLocaleString("el-GR", { maximumFractionDigits: 1 })} εκ.`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160">
-    <rect x="4" y="4" width="632" height="152" rx="76" fill="#122A58" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/>
-    <text x="320" y="108" text-anchor="middle" font-family="Manrope, 'DejaVu Sans', Arial, Helvetica, sans-serif" font-weight="800" font-size="84" fill="#ffffff"><tspan fill="#F1C400">${axis}</tspan> ${num}</text>
-  </svg>`;
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  const pill = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160"><rect x="4" y="4" width="632" height="152" rx="76" fill="#122A58" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/></svg>`);
+  try {
+    const text = await sharp({ text: { text: `<span foreground="#F1C400">${esc(axis)}</span><span foreground="#ffffff"> ${esc(num)}</span>`, font: "Manrope ExtraBold", fontfile: FONT_FILE, rgba: true, dpi: 520 } }).png().toBuffer();
+    const fitted = await sharp(text).resize({ width: 520, height: 96, fit: "inside" }).toBuffer();
+    return await sharp(pill).composite([{ input: fitted, gravity: "centre" }]).png().toBuffer();
+  } catch {
+    return sharp(pill).png().toBuffer(); // χωρίς γραμματοσειρά: σκέτη πινακίδα, όχι σφάλμα
+  }
 }
 
 export async function logoTexture(): Promise<{ png: Buffer; aspect: number }> {

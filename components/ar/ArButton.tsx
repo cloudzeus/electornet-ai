@@ -23,6 +23,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
   const [canAr, setCanAr] = useState<boolean | null>(null);
+  const [platform, setPlatform] = useState<"ios" | "android" | "other">("other");
   const holder = useRef<HTMLDivElement>(null);
   const mvRef = useRef<(HTMLElement & { cameraOrbit?: string }) | null>(null);
   // Ο server σερβίρει την ελαφριά έκδοση όταν υπάρχει· η πλήρης (έως 15 MB) ζητείται μόνο ρητά με ?q=full
@@ -74,6 +75,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       mv.appendChild(brand);
       const btn = document.createElement("button");
       btn.setAttribute("slot", "ar-button");
+      btn.dataset.euSlot = "1";
       btn.className = "absolute left-1/2 -translate-x-1/2 bottom-4 rounded-full bg-eu-navy text-white font-extrabold px-5 min-h-12 shadow-[var(--shadow-overlay)]";
       btn.style.fontSize = "var(--fs-15)";
       btn.textContent = "Άνοιξε σε AR στον χώρο σου";
@@ -87,11 +89,30 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   }, [open, glb, usdz, ios, title]);
 
   useEffect(() => {
+    // Κινητό; Τότε το AR ξεκινά με εγγενή σύνδεσμο (Quick Look / Scene Viewer), όχι μέσα από τον viewer.
+    const t = setTimeout(() => {
+      const ua = navigator.userAgent;
+      // Πρώτα το Android: ένα iPad δηλώνει «MacIntel» με αφή, αλλά ποτέ «Android» στο user agent
+      if (/Android/i.test(ua)) setPlatform("android");
+      else if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) setPlatform("ios");
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     // Βαθύς σύνδεσμος από το QR (?ar=1): άνοιγμα μετά το hydration.
     if (new URLSearchParams(location.search).get("ar") !== "1") return;
     const t = setTimeout(() => setOpen(true), 0);
     return () => clearTimeout(t);
   }, []);
+
+  // Android: intent προς το Scene Viewer της Google με το GLB μας (απόλυτο https URL), σε πραγματικό μέγεθος.
+  const sceneViewer = () => {
+    const page = `${location.origin}${location.pathname}`;
+    const file = `${location.origin}${glb}`;
+    return `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false&title=${encodeURIComponent(title)}&link=${encodeURIComponent(page)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(page)};end;`;
+  };
+  const launchCls = "absolute left-1/2 -translate-x-1/2 bottom-4 z-10 inline-flex items-center justify-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-6 min-h-14 shadow-[var(--shadow-overlay)] whitespace-nowrap no-underline text-[length:var(--fs-16)]";
 
   const sourceText = dims?.source === "eprel" ? "από το ευρωπαϊκό μητρώο EPREL, χωρίς προεξοχές όπως πόρτα ή λαβές" : dims?.source === "specs" ? "του κατασκευαστή" : "τυπικές για την κατηγορία";
 
@@ -117,6 +138,24 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                   <p className="m-0 rounded-2xl bg-white p-4 text-eu-ink-3 text-[length:var(--fs-14)] shadow">Το μοντέλο δεν φορτώθηκε. Δοκίμασε ξανά ή σκάναρε το QR από το κινητό.</p>
                 </div>
               )}
+              {/* Κινητό: εγγενής εκκίνηση AR, ανεξάρτητη από το αν φόρτωσε ο viewer. Το κουμπί του viewer κρύβεται για να μην υπάρχουν δύο. */}
+              {platform === "android" && (
+                <a href={sceneViewer()} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</a>
+              )}
+              {platform === "ios" && ios && (
+                // Το Quick Look ξεκινά μόνο από <a rel="ar"> με ένα <img> ως μοναδικό παιδί· η ετικέτα του κουμπιού μπαίνει από πάνω
+                <span className={`${launchCls} !p-0 overflow-hidden`}>
+                  <a rel="ar" href={`${usdz}#allowsContentScaling=0`} className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img alt="Δες το στον χώρο σου" width={260} height={56} className="block w-[min(80vw,300px)] h-14 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+                  </a>
+                  <span className="pointer-events-none absolute inset-0 inline-flex items-center justify-center gap-2"><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</span>
+                </span>
+              )}
+              {platform === "ios" && !ios && status === "ready" && (
+                <button type="button" onClick={() => { void (mvRef.current as (HTMLElement & { activateAR?: () => Promise<void> }) | null)?.activateAR?.(); }} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</button>
+              )}
+              {platform !== "other" && <style>{`model-viewer [data-eu-slot]{display:none!important}`}</style>}
               {status === "ready" && (
                 <button type="button" onClick={() => { const mv = mvRef.current; if (mv) mv.cameraOrbit = "32deg 74deg auto"; }} aria-label="Επαναφορά προβολής" className="absolute right-4 top-4 size-10 rounded-full bg-white/90 text-eu-navy inline-flex items-center justify-center shadow hover:bg-white">
                   <RotateCcw className="size-4" aria-hidden />
@@ -147,10 +186,13 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 <Ruler className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />
                 <span>Διαστάσεις {sourceText}. Το μοντέλο είναι σε πραγματικό μέγεθος και δεν μεγεθύνεται.</span>
               </p>
-              {canAr === false && status !== "loading" && (
+              {platform !== "other" && (
+                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Πάτα το κίτρινο κουμπί: ανοίγει η κάμερα, στόχευσε το πάτωμα ή τον τοίχο και άφησε τη συσκευή στη θέση της. Οι ετικέτες δείχνουν πλάτος, ύψος και βάθος.</p>
+              )}
+              {platform === "other" && canAr === false && status !== "loading" && (
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Σε αυτή τη συσκευή βλέπεις την προεπισκόπηση 3D. Για να το βάλεις στον χώρο σου, άνοιξέ το από κινητό.</p>
               )}
-              {canAr && (
+              {platform === "other" && canAr && (
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Πάτα «Άνοιξε σε AR», στόχευσε το πάτωμα ή την εσοχή και άφησέ το. Περπάτα γύρω του: οι ετικέτες δείχνουν πλάτος, ύψος και βάθος.</p>
               )}
               <div className="hidden @md:flex items-center gap-3 rounded-xl border border-eu-line p-3">

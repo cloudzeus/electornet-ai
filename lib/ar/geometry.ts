@@ -100,7 +100,7 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     let lh = Math.min(0.06, Math.max(0.022, maxDim * 0.075));
     let lw = lh * spec.labelAspect;
     if (lw > faceW * 0.85) { lw = faceW * 0.85; lh = lw / spec.labelAspect; }
-    const p = prim(name, name.replace(/-(back|left)$/, "")); // ίδιο υλικό/υφή με την κύρια ετικέτα
+    const p = prim(name, name); // δικό της υλικό, μονής όψης: μέσα από τον διαφανή όγκο η απέναντι ετικέτα θα φαινόταν ανάποδα
     plane(p, c, u, v, lw / 2, lh / 2, n);
     prims.push(p);
     return lh;
@@ -129,9 +129,7 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.16, mode: "blend", doubleSided: true, roughness: 0.6 },
     { name: "edge", color: [0.945, 0.769, 0], alpha: 1, mode: "opaque", roughness: 0.5 },
     { name: "front", color: [1, 1, 1], alpha: 1, texture: "front", mode: "mask", doubleSided: true, roughness: 0.8 },
-    { name: "label-w", color: [1, 1, 1], alpha: 1, texture: "label-w", mode: "mask", doubleSided: true, roughness: 0.9 },
-    { name: "label-h", color: [1, 1, 1], alpha: 1, texture: "label-h", mode: "mask", doubleSided: true, roughness: 0.9 },
-    { name: "label-d", color: [1, 1, 1], alpha: 1, texture: "label-d", mode: "mask", doubleSided: true, roughness: 0.9 },
+    ...(["label-w", "label-w-back", "label-h", "label-h-left", "label-d", "label-d-left"] as const).map((n): MaterialDef => ({ name: n, color: [1, 1, 1], alpha: 1, texture: n.replace(/-(back|left)$/, ""), mode: "mask", doubleSided: false, roughness: 0.9 })),
     { name: "logo", color: [1, 1, 1], alpha: 1, texture: "logo", mode: "mask", doubleSided: true, roughness: 0.9 },
   ];
   return { prims, materials, frontAspect: fw / fh };

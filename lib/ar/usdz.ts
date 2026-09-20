@@ -11,7 +11,7 @@ import type { Prim, MaterialDef } from "./geometry";
  */
 const f = (n: number) => (Math.round(n * 1e5) / 1e5).toString();
 
-function meshUsda(p: Prim, safe: (s: string) => string): string {
+function meshUsda(p: Prim, safe: (s: string) => string, doubleSided: boolean): string {
   const pts: string[] = [], nrm: string[] = [], st: string[] = [];
   for (let i = 0; i < p.positions.length; i += 3) pts.push(`(${f(p.positions[i])}, ${f(p.positions[i + 1])}, ${f(p.positions[i + 2])})`);
   for (let i = 0; i < p.normals.length; i += 3) nrm.push(`(${f(p.normals[i])}, ${f(p.normals[i + 1])}, ${f(p.normals[i + 2])})`);
@@ -30,7 +30,7 @@ function meshUsda(p: Prim, safe: (s: string) => string): string {
             interpolation = "vertex"
         )
         uniform token subdivisionScheme = "none"
-        bool doubleSided = 1
+        bool doubleSided = ${doubleSided ? 1 : 0}
         rel material:binding = </Product/Materials/${safe(p.material)}>
     }`;
 }
@@ -102,7 +102,7 @@ def Xform "Product" (
     kind = "component"
 )
 {
-${prims.map((p) => meshUsda(p, safe)).join("\n")}
+${prims.map((p) => meshUsda(p, safe, materials.find((m) => m.name === p.material)?.doubleSided !== false)).join("\n")}
 
     def Scope "Materials"
     {${materials.map((m) => materialUsda(m, safe, m.texture ? texFiles[m.texture] : undefined)).join("\n")}
