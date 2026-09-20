@@ -8,7 +8,7 @@ import { buildArModel, arCandidates } from "./build";
 import { transformGlb, inspectGlb, fitScale, type Box } from "./custom";
 
 /** Αλλάζει όταν αλλάζει ο τρόπος που μετασχηματίζουμε/συμπληρώνουμε τα μοντέλα — μπαίνει στο URL ώστε να μη μείνει παλιό στην cache του browser. */
-export const AR_SERVE_VERSION = 9;
+export const AR_SERVE_VERSION = 10;
 import { addFrameToGlb } from "./frame";
 
 /**

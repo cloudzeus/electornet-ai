@@ -37,6 +37,20 @@ function box(out: Prim, c: Vec3, s: Vec3) {
   plane(out, add(c, NY, hy), X, Z, hx, hz, NY);
 }
 
+/** Μικρό οκτάεδρο («διαμάντι») — η κουκκίδα της διάστικτης γραμμής. 8 τρίγωνα, επίπεδες έδρες. */
+function octa(out: Prim, c: Vec3, r: number) {
+  const P: Vec3[] = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]];
+  const F: [number, number, number][] = [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4], [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]];
+  for (const [i, j, k] of F) {
+    const base = out.positions.length / 3;
+    const a = P[i], b = P[j], q = P[k];
+    const nx = a[0] + b[0] + q[0], ny = a[1] + b[1] + q[1], nz = a[2] + b[2] + q[2];
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    for (const v of [a, b, q]) { out.positions.push(c[0] + v[0], c[1] + v[1], c[2] + v[2]); out.normals.push(nx / nl, ny / nl, nz / nl); out.uvs.push(0, 0); }
+    out.indices.push(base, base + 1, base + 2);
+  }
+}
+
 const prim = (name: string, material: string): Prim => ({ name, material, positions: [], normals: [], uvs: [], indices: [] });
 
 export interface LabelSpec { key: "w" | "h" | "d"; text: string }
@@ -68,15 +82,40 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
   box(vol, [0, h / 2, 0], [w, h, d]);
   prims.push(vol);
 
-  // 2. Δώδεκα ακμές
+  // 2. Οι δώδεκα ακμές ως σχέδιο μέτρησης: συμπαγείς γωνίες (σαν στόχαστρο) και ανάμεσά τους διακριτική
+  // διάστικτη γραμμή από μικρά «διαμάντια». Τονίζει τον όγκο χωρίς να βαραίνει — τα περισσότερα προϊόντα δεν
+  // θα έχουν 3D μοντέλο, οπότε το στερεό είναι αυτό που βλέπει ο πελάτης.
   const edges = prim("edges", "edge");
+  const dots = prim("dots", "dot");
   const hx = w / 2, hz = d / 2;
-  for (const y of [0, h]) {
-    box(edges, [0, y, hz], [w + t, t, t]); box(edges, [0, y, -hz], [w + t, t, t]);
-    box(edges, [hx, y, 0], [t, t, d + t]); box(edges, [-hx, y, 0], [t, t, d + t]);
+  const spacing = Math.min(0.03, Math.max(0.01, maxDim * 0.028));
+  const r = t * 0.75;
+  const corners: Vec3[] = [];
+  for (const x of [-hx, hx]) for (const y of [0, h]) for (const z of [-hz, hz]) corners.push([x, y, z]);
+  const edgeList: [Vec3, Vec3][] = [];
+  for (let i = 0; i < corners.length; i++) for (let j = i + 1; j < corners.length; j++) {
+    const a = corners[i], b = corners[j];
+    if ([0, 1, 2].filter((k) => a[k] !== b[k]).length === 1) edgeList.push([a, b]);
   }
-  for (const [x, z] of [[hx, hz], [-hx, hz], [hx, -hz], [-hx, -hz]]) box(edges, [x, h / 2, z], [t, h + t, t]);
-  prims.push(edges);
+  for (const [a, b] of edgeList) {
+    const axis = [0, 1, 2].find((k) => a[k] !== b[k])!;
+    const len = Math.abs(b[axis] - a[axis]);
+    const dir = Math.sign(b[axis] - a[axis]);
+    const L = Math.min(0.06, len * 0.14); // μήκος της συμπαγούς γωνίας
+    for (const [from, s] of [[a, dir], [b, -dir]] as [Vec3, number][]) {
+      const c: Vec3 = [...from] as Vec3; c[axis] += (s * L) / 2;
+      const size: Vec3 = [t, t, t]; size[axis] = L + t;
+      box(edges, c, size);
+    }
+    const free = len - 2 * L - spacing;
+    const n = Math.max(0, Math.floor(free / spacing));
+    const start = L + (len - 2 * L - n * spacing) / 2 + spacing / 2;
+    for (let k = 0; k < n; k++) {
+      const c: Vec3 = [...a] as Vec3; c[axis] += dir * (start + k * spacing);
+      octa(dots, c, r);
+    }
+  }
+  prims.push(edges, dots);
 
   // 3. Η φωτογραφία
   const inset = t * 1.2;
@@ -128,8 +167,9 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
   if (spec.parts?.logo !== false) logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
 
   const materials: MaterialDef[] = [
-    { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.16, mode: "blend", doubleSided: true, roughness: 0.6 },
+    { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.09, mode: "blend", doubleSided: true, roughness: 0.6 },
     { name: "edge", color: [0.945, 0.769, 0], alpha: 1, mode: "opaque", roughness: 0.5 },
+    { name: "dot", color: [0.945, 0.769, 0], alpha: 1, mode: "opaque", roughness: 0.4 },
     { name: "front", color: [1, 1, 1], alpha: 1, texture: "front", mode: "mask", doubleSided: true, roughness: 0.8 },
     ...(["label-w", "label-w-back", "label-h", "label-h-left", "label-d", "label-d-left"] as const).map((n): MaterialDef => ({ name: n, color: [1, 1, 1], alpha: 1, texture: n.replace(/-(back|left)$/, ""), mode: "mask", doubleSided: false, roughness: 0.9 })),
     { name: "logo", color: [1, 1, 1], alpha: 1, texture: "logo", mode: "mask", doubleSided: true, roughness: 0.9 },
