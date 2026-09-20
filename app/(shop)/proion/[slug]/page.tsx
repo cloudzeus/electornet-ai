@@ -27,6 +27,7 @@ import { after } from "next/server";
 import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
 import { AR_SERVE_VERSION } from "@/lib/ar/serve";
+import { placementFor } from "@/lib/ar/placement";
 import { dimsFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 
@@ -82,7 +83,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               energy={p.energy}
               actions={
                 <>
-                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} />}
+                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} placement={placementFor(p, ar?.placement)} />}
                   <FitBadge product={p} size="lg" prompt />
                 </>
               }

@@ -18,7 +18,7 @@ const c = copyOf("ar");
  * Τα μοντέλα χτίζονται στο /api/ar/{id}/model.{glb,usdz} από τις τρέχουσες
  * διαστάσεις (EPREL, ERP ή τυπικές της κατηγορίας) — κανένα αρχείο ανά SKU.
  */
-export function ArButton({ id, title, dims, version = "", ios = true, light = false, className = "" }: { id: string; title: string; dims: Dims | null; /** υπάρχει ελαφριά έκδοση για αργές συνδέσεις */ light?: boolean; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
+export function ArButton({ id, title, dims, version = "", ios = true, light = false, placement = "floor", className = "" }: { id: string; title: string; dims: Dims | null; /** πάτωμα ή τοίχος: τι επιφάνεια ψάχνει η κάμερα */ placement?: "floor" | "wall"; /** υπάρχει ελαφριά έκδοση για αργές συνδέσεις */ light?: boolean; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
@@ -33,7 +33,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   // Προεπισκόπηση: χωρίς ψημένες ετικέτες, με ζωντανές HTML ετικέτες. Εξαίρεση το iPhone χωρίς USDZ, όπου το AR βγαίνει από τη σκηνή της προεπισκόπησης.
   const liveLabels = !!dims && !(platform === "ios" && !ios);
   const previewGlb = liveLabels ? `${glb}&labels=0` : glb;
-  const usdz = `/api/ar/${id}/model.usdz?v=${version}`;
+  const usdz = `/api/ar/${id}/model.usdz?v=${version}&p=${placement}`; // το p μπαίνει στο URL ώστε η αλλαγή πάτωμα/τοίχος να μη μείνει στην cache
 
   useEffect(() => {
     if (!open) return;
@@ -49,7 +49,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
       mv.setAttribute("ar", "");
       mv.setAttribute("ar-modes", "webxr scene-viewer quick-look");
       mv.setAttribute("ar-scale", "fixed"); // πραγματικό μέγεθος: ο πελάτης δεν μπορεί να το μεγεθύνει με τα δάχτυλα
-      mv.setAttribute("ar-placement", "floor");
+      mv.setAttribute("ar-placement", placement);
       mv.setAttribute("camera-controls", "");
       mv.setAttribute("touch-action", "pan-y");
       mv.setAttribute("interaction-prompt", "none");
@@ -111,7 +111,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => { alive = false; window.removeEventListener("keydown", onKey); mvRef.current = null; };
-  }, [open, previewGlb, usdz, ios, title, liveLabels, dims]);
+  }, [open, previewGlb, usdz, ios, title, liveLabels, dims, placement]);
 
   useEffect(() => {
     // Κινητό; Τότε το AR ξεκινά με εγγενή σύνδεσμο (Quick Look / Scene Viewer), όχι μέσα από τον viewer.
@@ -135,7 +135,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   const sceneViewer = () => {
     const page = `${location.origin}${location.pathname}`;
     const file = `${location.origin}${glb}`;
-    return `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false&title=${encodeURIComponent(title)}&link=${encodeURIComponent(page)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(page)};end;`;
+    return `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false${placement === "wall" ? "&enable_vertical_placement=true" : ""}&title=${encodeURIComponent(title)}&link=${encodeURIComponent(page)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(page)};end;`;
   };
   const launchCls = "absolute left-1/2 -translate-x-1/2 bottom-4 z-10 inline-flex items-center justify-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-6 min-h-14 shadow-[var(--shadow-overlay)] whitespace-nowrap no-underline text-[length:var(--fs-16)]";
 
@@ -221,7 +221,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 <span>Διαστάσεις {sourceText}. Το μοντέλο είναι σε πραγματικό μέγεθος και δεν μεγεθύνεται.</span>
               </p>
               {platform !== "other" && (
-                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Πάτα το κίτρινο κουμπί: ανοίγει η κάμερα, στόχευσε το πάτωμα ή τον τοίχο και άφησε τη συσκευή στη θέση της. Οι ετικέτες δείχνουν πλάτος, ύψος και βάθος.</p>
+                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{placement === "wall" ? "Πάτα το κίτρινο κουμπί και στόχευσε τον τοίχο όπου θα μπει. Βοηθά ο καλός φωτισμός και να φαίνεται στο κάδρο μια γωνία, ένα κάδρο ή μια πρίζα — ένας εντελώς λευκός τοίχος δυσκολεύει την κάμερα. Μετά σύρε τη συσκευή στο ύψος που τη θέλεις." : "Πάτα το κίτρινο κουμπί, στόχευσε το πάτωμα και άφησε τη συσκευή στη θέση της. Περπάτα γύρω της: οι ετικέτες δείχνουν πλάτος, ύψος και βάθος."}</p>
               )}
               {platform === "other" && canAr === false && status !== "loading" && (
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Σε αυτή τη συσκευή βλέπεις την προεπισκόπηση 3D. Για να το βάλεις στον χώρο σου, άνοιξέ το από κινητό.</p>

@@ -8,8 +8,9 @@ import { buildArModel, arCandidates } from "./build";
 import { transformGlb, inspectGlb, fitScale, type Box } from "./custom";
 
 /** Αλλάζει όταν αλλάζει ο τρόπος που μετασχηματίζουμε/συμπληρώνουμε τα μοντέλα — μπαίνει στο URL ώστε να μη μείνει παλιό στην cache του browser. */
-export const AR_SERVE_VERSION = 10;
+export const AR_SERVE_VERSION = 11;
 import { addFrameToGlb } from "./frame";
+import { placementFor } from "./placement";
 
 /**
  * Σερβίρισμα μοντέλου AR. Το AR είναι κατ' επιλογή: χωρίς εγγραφή
@@ -72,6 +73,7 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
 
   // Γεννήτρια από διαστάσεις + φωτογραφία
   if (!dims) return new Response("Δεν υπάρχουν διαστάσεις για αυτό το προϊόν.", { status: 404 });
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) }, { labels: kind === "usdz" ? true : labels });
+  const wall = placementFor(p, ar.placement) === "wall";
+  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p) }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

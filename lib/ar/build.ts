@@ -25,7 +25,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[] }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 12;
+const VERSION = 13;
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images })).digest("hex").slice(0, 20);
@@ -41,9 +41,9 @@ async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | nu
   } catch { return null; }
 }
 
-export async function buildArModel(input: ArInput, opts: { labels?: boolean } = {}): Promise<ArModel> {
+export async function buildArModel(input: ArInput, opts: { labels?: boolean; wall?: boolean } = {}): Promise<ArModel> {
   const withLabels = opts.labels !== false;
-  const key = `${arKey(input)}${withLabels ? "" : "-nl"}`;
+  const key = `${arKey(input)}${withLabels ? "" : "-nl"}${opts.wall ? "-wall" : ""}`;
   const hit = mem.get(key);
   if (hit) return hit;
   const [sg, su] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
@@ -57,7 +57,7 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean } = 
   ]);
   const textures = { front, "label-w": lw, "label-h": lh, "label-d": ld, logo: logo.png };
   const glb = writeGlb(prims, materials, textures, input.title);
-  const usdz = writeUsdz(prims, materials, textures, input.title);
+  const usdz = writeUsdz(prims, materials, textures, input.title, { wall: opts.wall ? { h: input.dims.h / 100, d: input.dims.d / 100 } : null });
   const m = { glb, usdz, etag: key };
   mem.set(key, m);
   if (mem.size > 200) mem.delete(mem.keys().next().value as string);

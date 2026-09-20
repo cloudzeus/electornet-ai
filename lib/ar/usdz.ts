@@ -87,8 +87,18 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
         }`;
 }
 
-export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Record<string, Buffer>, name: string): Buffer {
+/**
+ * Τοίχος: το AR Quick Look αγκυρώνει σε κάθετο επίπεδο όταν το ριζικό prim
+ * το δηλώνει. Σε κάθετη άγκυρα ο άξονας Y είναι η κάθετος του τοίχου και το
+ * «πάνω» του δωματίου είναι το −Z. Γυρίζουμε λοιπόν το μοντέλο −90° γύρω από
+ * τον X (πάνω→−Z, πρόσοψη→+Y) αφού πρώτα φέρουμε την πλάτη του στο μηδέν και
+ * το κεντράρουμε καθ' ύψος, ώστε να κολλά στον τοίχο εκεί που άγγιξε ο πελάτης.
+ */
+export interface UsdzOpts { wall?: { h: number; d: number } | null }
+
+export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Record<string, Buffer>, name: string, opts: UsdzOpts = {}): Buffer {
   const safe = (s: string) => s.replace(/[^A-Za-z0-9_]/g, "_");
+  const wall = opts.wall ?? null;
   const texFiles: Record<string, string> = Object.fromEntries(Object.keys(textures).map((k) => [k, `0/${safe(k)}.png`]));
   const usda = `#usda 1.0
 (
@@ -99,9 +109,16 @@ export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Rec
 )
 
 def Xform "Product" (
-    kind = "component"
+    kind = "component"${wall ? `
+    prepend apiSchemas = ["Preliminary_AnchoringAPI"]` : ""}
 )
-{
+{${wall ? `
+    uniform token preliminary:anchoring:type = "plane"
+    uniform token preliminary:planeAnchoring:alignment = "vertical"
+    double3 xformOp:rotateXYZ = (-90, 0, 0)
+    double3 xformOp:translate = (0, ${f(-wall.h / 2)}, ${f(wall.d / 2)})
+    uniform token[] xformOpOrder = ["xformOp:rotateXYZ", "xformOp:translate"]
+` : ""}
 ${prims.map((p) => meshUsda(p, safe, materials.find((m) => m.name === p.material)?.doubleSided !== false)).join("\n")}
 
     def Scope "Materials"

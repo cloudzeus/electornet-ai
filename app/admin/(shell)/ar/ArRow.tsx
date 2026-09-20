@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check, Sparkles } from "lucide-react";
-import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel } from "./actions";
+import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel, setArPlacement } from "./actions";
 import type { MediaAssetDTO } from "@/lib/media/types";
 
 export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string;
+  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "wall";
 }
 export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date; creditsFull: number | null; creditsLight: number | null; views?: unknown }
 
@@ -116,6 +116,11 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
         </div>
       </td>
       <td className="py-2 px-3 whitespace-nowrap">
+        <label className="mb-1.5 flex items-center gap-1.5 text-[length:var(--fs-13)] text-eu-ink-3">Τοποθέτηση
+          <select value={r.placement ?? ""} disabled={pending} onChange={(e) => { const v = (e.target.value || null) as "floor" | "wall" | null; setR({ ...r, placement: v }); start(async () => { await setArPlacement(r.id, v); }); }} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white">
+            <option value="">Αυτόματα ({r.autoPlacement === "wall" ? "τοίχος" : "πάτωμα"})</option><option value="floor">Πάτωμα</option><option value="wall">Τοίχος</option>
+          </select>
+        </label>
         {r.dims ? <><span className="tabular-nums">{r.dims.w} × {r.dims.h} × {r.dims.d} εκ.</span><div className={`text-[length:var(--fs-13)] ${r.dims.source === "category" ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{SOURCE[r.dims.source]}</div></> : <span className="text-eu-red font-bold">Χωρίς διαστάσεις</span>}
       </td>
       <td className="py-2 px-3 text-[length:var(--fs-13)]">{r.cutout ? <span className="text-eu-green font-bold">Cutout</span> : r.image ? <span className="text-eu-ink-3">Φωτογραφία, χωρίς cutout</span> : <span className="text-eu-red font-bold">Καμία</span>}</td>

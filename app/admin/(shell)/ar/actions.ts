@@ -81,6 +81,15 @@ export async function pollArGeneration(genId: string) {
   return g ? (JSON.parse(JSON.stringify(g)) as typeof g) : null;
 }
 
+/** Πάτωμα, τοίχος ή αυτόματα από την κατηγορία. */
+export async function setArPlacement(productId: string, placement: "floor" | "wall" | null) {
+  const user = await requirePermission("catalog.products.write");
+  await db.productAr.upsert({ where: { productId }, update: { placement, updatedById: user.id }, create: { productId, placement, updatedById: user.id } });
+  await audit(user.id, "ar.placement", "ProductAr", productId, null, { placement });
+  paths(productId);
+  return { ok: true as const };
+}
+
 /** Περιστροφή του μοντέλου κατά 90° (όταν η αυτόματη επιλογή δεν πέτυχε την πρόσοψη). */
 export async function rotateArModel(productId: string, delta: 90 | -90) {
   const user = await requirePermission("catalog.products.write");
