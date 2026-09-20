@@ -1,0 +1,6992 @@
+{
+ "at": "2026-09-20T12:26:48.696Z",
+ "calls": 297,
+ "objects": [
+  {
+   "name": "$CCCCREDITCONTROL",
+   "type": "EditList",
+   "caption": "Πίνακας CCCCREDITCONTROL",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCCREDITCONTROL",
+     "caption": "Πίνακας CCCCREDITCONTROL",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CCCCODE",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCREDITCONTROL",
+       "caption": "",
+       "type": "AutoInc",
+       "size": "4",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCCODE",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCREDITCONTROL",
+       "caption": "",
+       "type": "AutoInc",
+       "size": "4",
+       "required": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "$CCCDIMGROUP",
+   "type": "EditList",
+   "caption": "Ομάδες Χαρακτηριστικών",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCDIMGROUP",
+     "caption": "Ομάδες Χαρακτηριστικών",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "25",
+       "required": true
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCBUSUNITS",
+       "caption": "Κατηγ.Προιοντος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "BUSUNITS",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "25",
+       "required": true
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCBUSUNITS",
+       "caption": "Κατηγ.Προιοντος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "BUSUNITS",
+       "required": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "$CCCDIMS",
+   "type": "EditList",
+   "caption": "Χαρακτηριστικά",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCDIMS",
+     "caption": "Χαρακτηριστικά",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": true
+      },
+      {
+       "name": "CCCDIMS",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "25",
+       "required": true
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCPRINT",
+       "caption": "Εκτύπωση",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": true
+      },
+      {
+       "name": "CCCDIMS",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "25",
+       "required": true
+      },
+      {
+       "name": "CCCNAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCPRINT",
+       "caption": "Εκτύπωση",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "$CCCDIMSVALUES",
+   "type": "EditList",
+   "caption": "Τιμές Χαρακτηριστικών",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCDIMSVALUES",
+     "caption": "Τιμές Χαρακτηριστικών",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": true
+      },
+      {
+       "name": "CCCDIMS",
+       "caption": "Χαρακτηριστικό",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMS",
+       "required": true
+      },
+      {
+       "name": "CCCVALUES",
+       "caption": "Τιμή",
+       "type": "String",
+       "size": "80",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCDIMSVALUES",
+       "caption": "Τιμές Χαρακτηριστικών",
+       "type": "AutoInc",
+       "size": "4",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": true
+      },
+      {
+       "name": "CCCDIMS",
+       "caption": "Χαρακτηριστικό",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMS",
+       "required": true
+      },
+      {
+       "name": "CCCVALUES",
+       "caption": "Τιμή",
+       "type": "String",
+       "size": "80",
+       "required": true
+      },
+      {
+       "name": "CCCISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CCCDIMSVALUES",
+       "caption": "Τιμές Χαρακτηριστικών",
+       "type": "AutoInc",
+       "size": "4",
+       "required": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "$CCCWEBCATEGORY1",
+   "type": "EditList",
+   "caption": "Κατηγορία ( Master )",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCWEBCATEGORY1",
+     "caption": "Κατηγορία ( Master )",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$YN",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "$CCCWEBCATEGORY2",
+   "type": "EditList",
+   "caption": "Κατηγορία ( Main )",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCWEBCATEGORY2",
+     "caption": "Κατηγορία ( Main )",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$YN",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cccDoImportCSV",
+   "type": "Dialog",
+   "caption": "cccDoImportCSV",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCCSVPARAMS",
+     "caption": "Πίνακας cccvS1Fields",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CSVFOLDER",
+       "caption": "Folder Read CSV",
+       "type": "String",
+       "size": "512",
+       "required": true
+      },
+      {
+       "name": "CSVFOLDERDONE",
+       "caption": "Done Folder",
+       "type": "String",
+       "size": "512",
+       "required": true
+      },
+      {
+       "name": "CSVFOLDERERRORS",
+       "caption": "Error Folder",
+       "type": "String",
+       "size": "512",
+       "required": true
+      },
+      {
+       "name": "CSVFILE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "SUCCESS",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "TOTALLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "SUCCESSLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ERRORLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "MESSAGE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "LINENUM",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ITEMCODE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "ERRORMSG",
+       "caption": "",
+       "type": "Memo",
+       "size": "0",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CCCCSVFILES",
+     "caption": "Πίνακας cccvS1Fields",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CSVFOLDER",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFOLDERDONE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFOLDERERRORS",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFILE",
+       "caption": "File Name",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "SUCCESS",
+       "caption": "SUCCESS",
+       "type": "Integer",
+       "size": "4",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "TOTALLINES",
+       "caption": "TOTAL LINES",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "SUCCESSLINES",
+       "caption": "SUCCESS LINES",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ERRORLINES",
+       "caption": "ERROR LINES",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "MESSAGE",
+       "caption": "MESSAGE",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "LINENUM",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ITEMCODE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "ERRORMSG",
+       "caption": "",
+       "type": "Memo",
+       "size": "0",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CCCCSVFILELINES",
+     "caption": "Πίνακας cccvS1Fields",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CSVFOLDER",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFOLDERDONE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFOLDERERRORS",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "CSVFILE",
+       "caption": "File Name",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "SUCCESS",
+       "caption": "Success",
+       "type": "Integer",
+       "size": "4",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "TOTALLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "SUCCESSLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ERRORLINES",
+       "caption": "",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "MESSAGE",
+       "caption": "",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "LINENUM",
+       "caption": "LINE NUMBER",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "ITEMCODE",
+       "caption": "ITEM CODE",
+       "type": "String",
+       "size": "512",
+       "required": false
+      },
+      {
+       "name": "ERRORMSG",
+       "caption": "ERROR MESSAGE",
+       "type": "Memo",
+       "size": "0",
+       "required": false
+      }
+     ],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "CCCIMPSALCSV",
+   "type": "Dialog",
+   "caption": "Εργασία Εισαγωγής Παρακαταθήκης",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCSALCSVIMPERR",
+     "caption": "Σφάλματα κατά την εισαγωγή",
+     "custom": true,
+     "fields": [
+      {
+       "name": "DOCCODE",
+       "caption": "Document Code",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CUSAFM",
+       "caption": "Customer AFM",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "IMPORTERRMSG",
+       "caption": "Error Message",
+       "type": "String",
+       "size": "500",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CCCGETSALCSV",
+     "caption": "Αρχείο Παρακαταθήκης",
+     "custom": true,
+     "fields": [
+      {
+       "name": "XLFILE",
+       "caption": "Αρχείο CSV",
+       "type": "String",
+       "size": "500",
+       "required": false
+      }
+     ],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "CCCPAYMENTS",
+   "type": "Report",
+   "caption": "CCCPAYMENTS",
+   "custom": true,
+   "tables": [
+    {
+     "name": "QUESTIONS",
+     "caption": "QUESTIONS ",
+     "custom": false,
+     "fields": [
+      {
+       "name": "FCODE",
+       "caption": "Από κωδικό",
+       "type": "String",
+       "size": "30",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "TCODE",
+       "caption": "Εως κωδικό",
+       "type": "String",
+       "size": "30",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "FNAME",
+       "caption": "Από Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "TNAME",
+       "caption": "Έως Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "FISCPRD",
+       "caption": "Χρήση",
+       "type": "Integer",
+       "size": "4",
+       "editor": "FISCPRD",
+       "required": false
+      },
+      {
+       "name": "PERIOD",
+       "caption": "Περίοδος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "PERIOD",
+       "required": false
+      },
+      {
+       "name": "XXGROUPSONLY",
+       "caption": "Εκτύπωση μόνο ομάδων",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "FROMDATE",
+       "caption": "Ημερομηνία από",
+       "type": "DateTime",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "TODATE",
+       "caption": "Ημερομηνία έως",
+       "type": "DateTime",
+       "size": "8",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CUSTOMER",
+     "caption": "Πελάτες",
+     "custom": false,
+     "fields": [
+      {
+       "name": "TRDR",
+       "caption": "Πελάτης",
+       "type": "AutoInc",
+       "size": "4",
+       "required": true
+      },
+      {
+       "name": "CODE",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "25",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Επωνυμία",
+       "type": "String",
+       "size": "128",
+       "required": true
+      },
+      {
+       "name": "AFM",
+       "caption": "Α.Φ.Μ.",
+       "type": "String",
+       "size": "20",
+       "required": false
+      },
+      {
+       "name": "CHKAFM",
+       "caption": "Έλεγχος Α.Φ.Μ.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$sChkAFM",
+       "required": true
+      },
+      {
+       "name": "SOTITLE",
+       "caption": "Τίτλος",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "OLDEH",
+       "caption": "Κωδικός ηλ. Πληρωμής ΔΕΗ",
+       "type": "String",
+       "size": "25",
+       "required": false
+      },
+      {
+       "name": "OLAFM",
+       "caption": "Αριθμός Μητρώου ΔΙΠΕΘΕ",
+       "type": "String",
+       "size": "15",
+       "required": false
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργός",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "ISPROSP",
+       "caption": "Υποψήφιος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "ISCMPT",
+       "caption": "Ανταγωνιστής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "COUNTRY",
+       "caption": "Χώρα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "COUNTRY",
+       "required": false
+      },
+      {
+       "name": "SOCURRENCY",
+       "caption": "Νόμισμα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "SOCURRENCY",
+       "required": true
+      },
+      {
+       "name": "BRANCH",
+       "caption": "Υποκ/μα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "BRANCH",
+       "required": false
+      },
+      {
+       "name": "ADDRESS",
+       "caption": "Διεύθυνση",
+       "type": "String",
+       "size": "100",
+       "required": false
+      },
+      {
+       "name": "ZIP",
+       "caption": "Τ.Κ.",
+       "type": "String",
+       "size": "10",
+       "editor": "VZIPADDRESS",
+       "required": false
+      },
+      {
+       "name": "DISTRICT",
+       "caption": "Περιοχή",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CITY",
+       "caption": "Πόλη",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "DISTRICT1",
+       "caption": "Νομός",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "DISTRICT",
+       "required": false
+      },
+      {
+       "name": "AREAS",
+       "caption": "Γεωγρ.ζώνη",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "AREAS",
+       "required": false
+      },
+      {
+       "name": "LATITUDE",
+       "caption": "Γεωγραφικό πλάτος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "LONGITUDE",
+       "caption": "Γεωγραφικό μήκος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "PHONE01",
+       "caption": "Τηλ.1",
+       "type": "String",
+       "size": "20",
+       "required": false
+      },
+      {
+       "name": "PHONE02",
+       "caption": "Τηλ.2",
+       "type": "String",
+       "size": "20",
+       "required": false
+      },
+      {
+       "name": "FAX",
+       "caption": "Fax",
+       "type": "String",
+       "size": "20",
+       "required": false
+      },
+      {
+       "name": "JOBTYPE",
+       "caption": "Επαγγ.κατηγορία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "JOBTYPE",
+       "required": false
+      },
+      {
+       "name": "JOBTYPETRD",
+       "caption": "Επάγγελμα",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "TRDGROUP",
+       "caption": "Όμιλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "TRDGROUP",
+       "required": false
+      },
+      {
+       "name": "TRDPGROUP",
+       "caption": "Ομάδα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "TRDPGROUP",
+       "required": false
+      },
+      {
+       "name": "WEBPAGE",
+       "caption": "Web page",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "EMAIL",
+       "caption": "email",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "EMAILACC",
+       "caption": "email Λογ.",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "TRDCATEGORY",
+       "caption": "Λογ.κατηγορία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "TRDCATEGORY",
+       "required": false
+      },
+      {
+       "name": "TRDBUSINESS",
+       "caption": "Εμπορ.κατηγορία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "TRDBUSINESS",
+       "required": false
+      },
+      {
+       "name": "SHIPMENT",
+       "caption": "Τρόπος αποστολής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "SHIPMENT",
+       "required": false
+      },
+      {
+       "name": "PAYMENT",
+       "caption": "Τρόπος πληρωμής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "PAYMENT",
+       "required": false
+      },
+      {
+       "name": "PRCCATEGORY",
+       "caption": "Τιμολ.κατηγορία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "PRCCATEGORY",
+       "required": false
+      },
+      {
+       "name": "COMMISION",
+       "caption": "Κλάση προμήθειας",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CUSCOMMISION",
+       "required": false
+      },
+      {
+       "name": "BUSUNITS",
+       "caption": "Business Unit",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "BUSUNITS",
+       "required": false
+      },
+      {
+       "name": "PRIORITY",
+       "caption": "Προτεραιότητα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "PRIORITY",
+       "required": false
+      },
+      {
+       "name": "PRCPOLICY",
+       "caption": "Συμφωνία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "PRCPOLICY",
+       "required": false
+      },
+      {
+       "name": "DSCPOLICY",
+       "caption": "Πιστωτικά",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "VCRDRULE",
+       "required": false
+      },
+      {
+       "name": "ISVALCREDIT",
+       "caption": "Πιστωτικά βάσει",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$ValCredit",
+       "required": false
+      },
+      {
+       "name": "SOCARRIER",
+       "caption": "Μεταφορέας",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "SOCARRIER",
+       "required": false
+      },
+      {
+       "name": "TRUCKS",
+       "caption": "Μεταφ.μέσο",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "TRUCKS",
+       "required": false
+      },
+      {
+       "name": "ROUTING",
+       "caption": "Δρομολόγιο",
+       "type": "Integer",
+       "size": "4",
+       "editor": "ROUTING",
+       "required": false
+      },
+      {
+       "name": "SALESMAN",
+       "caption": "Πωλητής",
+       "type": "Integer",
+       "size": "4",
+       "editor": "PRSN",
+       "required": false
+      },
+      {
+       "name": "COLLECTOR",
+       "caption": "Εισπράκτορας",
+       "type": "Integer",
+       "size": "4",
+       "editor": "PRSN",
+       "required": false
+      },
+      {
+       "name": "CODE1",
+       "caption": "Κωδικός 1",
+       "type": "String",
+       "size": "25",
+       "required": false
+      },
+      {
+       "name": "IRSDATA",
+       "caption": "Δ.Ο.Υ.",
+       "type": "String",
+       "size": "128",
+       "editor": "IRSDATA",
+       "required": false
+      },
+      {
+       "name": "VATSTS",
+       "caption": "Καθ.Φ.Π.Α.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$VatSts",
+       "required": true
+      },
+      {
+       "name": "VATPROVISIONS",
+       "caption": "Δ.απαλλαγής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "VATPROVISIONS",
+       "required": false
+      },
+      {
+       "name": "RECEIPTCARD",
+       "caption": "Κάρτα αποδείξεων",
+       "type": "String",
+       "size": "25",
+       "required": false
+      },
+      {
+       "name": "KEPYOSTS",
+       "caption": "Καθ.ΚΕ.Π.Υ.Ο.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$KEPYOSTS",
+       "required": true
+      },
+      {
+       "name": "KEPYOMD",
+       "caption": "Ειδ. ΚΕ.Π.Υ.Ο.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$KEPYOMD",
+       "required": true
+      },
+      {
+       "name": "GSISMD",
+       "caption": "Υποβολή στοιχείων ΜΥΦ",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$KFASMD",
+       "required": true
+      },
+      {
+       "name": "CMPMODE",
+       "caption": "Εταιρική μορφή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$CMPMODE",
+       "required": true
+      },
+      {
+       "name": "EFKFLAG",
+       "caption": "Απαλλαγή Ε.Φ.Κ.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "ACNMSK",
+       "caption": "Λογ/σμός",
+       "type": "String",
+       "size": "25",
+       "editor": "ACNT",
+       "required": false
+      },
+      {
+       "name": "OPITMODE",
+       "caption": "Τρόπος αντιστοίχισης",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$OptMode",
+       "required": true
+      },
+      {
+       "name": "OPITFINDOC",
+       "caption": "Αντιστοίχιση σε νομ.συναλλαγής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "CRCONTROL",
+       "caption": "Πιστωτικός έλεγχος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRCONTROL",
+       "required": false
+      },
+      {
+       "name": "CRDLINES1",
+       "caption": "Πιστ.έλεγχος 1",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRDLINES",
+       "required": false
+      },
+      {
+       "name": "CRDLIMIT1",
+       "caption": "Πιστωτικό όριο 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CRDLINES2",
+       "caption": "Πιστ.έλεγχος 2",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRDLINES",
+       "required": false
+      },
+      {
+       "name": "CRDLIMIT2",
+       "caption": "Πιστωτικό όριο 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CRDLINES3",
+       "caption": "Πιστ.έλεγχος 3",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRDLINES",
+       "required": false
+      },
+      {
+       "name": "CRDLIMIT3",
+       "caption": "Πιστωτικό όριο 3",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CRDLINES4",
+       "caption": "Πιστ.έλεγχος 4",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRDLINES",
+       "required": false
+      },
+      {
+       "name": "CRDLIMIT4",
+       "caption": "Πιστωτικό όριο 4",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CRDLINES5",
+       "caption": "Πιστ.έλεγχος 5",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CRDLINES",
+       "required": false
+      },
+      {
+       "name": "CRDLIMIT5",
+       "caption": "Πιστωτικό όριο 5",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "DISCOUNT",
+       "caption": "Έκπτωση (%)",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "MAXPRCDISC",
+       "caption": "Μεγ.έκπτωση (%)",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CHKMAXPRCDISC",
+       "caption": "Ελεγχος μεγ.έκπτωσης",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$ChkAction",
+       "required": true
+      },
+      {
+       "name": "PAYHFROM",
+       "caption": "Πληρωμή από",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$TIME",
+       "required": false
+      },
+      {
+       "name": "PAYHTO",
+       "caption": "Πληρωμή μέχρι",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$TIME",
+       "required": false
+      },
+      {
+       "name": "PAYEVERY",
+       "caption": "Πληρωμή κάθε",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$PAYEVERY",
+       "required": false
+      },
+      {
+       "name": "PAYDAY",
+       "caption": "Ημέρα πληρωμής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$PAYDAY",
+       "required": false
+      },
+      {
+       "name": "PAYWEEK",
+       "caption": "Αριθ.εβδομάδας",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "VISITEVERY",
+       "caption": "Επίσκεψη κάθε",
+       "type": "String",
+       "size": "15",
+       "editor": "$PAYDAY",
+       "required": false
+      },
+      {
+       "name": "WARNING",
+       "caption": "Προειδοποίηση",
+       "type": "String",
+       "size": "250",
+       "required": false
+      },
+      {
+       "name": "EXPGROUP",
+       "caption": "Ομάδα εξόδων",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CUSEXPGRP",
+       "required": false
+      },
+      {
+       "name": "GASCUSTYPE",
+       "caption": "Ιδιότητα πελάτη",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$GasCusType",
+       "required": false
+      },
+      {
+       "name": "CONSENT",
+       "caption": "Συναίνεση",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "NOCONSENT",
+       "caption": "Δε συναινεί σε",
+       "type": "String",
+       "size": "15",
+       "editor": "$NOCONSENTCHK",
+       "required": false
+      },
+      {
+       "name": "SOSCORE",
+       "caption": "Επίδοση",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "TRDTYPE1",
+       "caption": "Συγχρονίζει προμηθευτή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "PRJCS",
+       "caption": "Καμπάνια",
+       "type": "Integer",
+       "size": "4",
+       "editor": "PRJC",
+       "required": false
+      },
+      {
+       "name": "SOIDENTITYNO",
+       "caption": "Αριθμός επίσημου εγγράφου",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "REMARKS",
+       "caption": "Παρατηρήσεις",
+       "type": "String",
+       "size": "4000",
+       "required": false
+      },
+      {
+       "name": "ECOLLABORATION",
+       "caption": "Υπηρεσία myCustomer",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "S1INVMD",
+       "caption": "Αποστολή ηλεκτ. τιμ.",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$S1InvMd",
+       "required": false
+      },
+      {
+       "name": "SOPAYCODE",
+       "caption": "Κωδικός αμοιβής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "SOPAYCODE",
+       "required": false
+      },
+      {
+       "name": "GLNCODE",
+       "caption": "Κωδικός GLN",
+       "type": "String",
+       "size": "25",
+       "required": false
+      },
+      {
+       "name": "NUMCG",
+       "caption": "Γ.Ε.ΜΗ.",
+       "type": "String",
+       "size": "24",
+       "required": false
+      },
+      {
+       "name": "CBEARER",
+       "caption": "Χρέωση εξόδων (SEPA)",
+       "type": "String",
+       "size": "4",
+       "editor": "$ChargeBearer",
+       "required": false
+      },
+      {
+       "name": "RELTRDR",
+       "caption": "Κωδ.συσχέτισης",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "COSTCNTR",
+       "caption": "Κέντρο κόστους",
+       "type": "Integer",
+       "size": "4",
+       "editor": "PRSCOSTCNTR",
+       "required": false
+      },
+      {
+       "name": "EXCASHFLOW",
+       "caption": "Εξαιρείται από ταμειακή ροή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "INSDATE",
+       "caption": "Ημερ.εισαγωγής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      },
+      {
+       "name": "INSUSER",
+       "caption": "Χρήστης εισαγωγής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "USERS",
+       "required": false
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.τελ.μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      },
+      {
+       "name": "UPDUSER",
+       "caption": "Χρήστης τελ.μεταβολής",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "USERS",
+       "required": false
+      },
+      {
+       "name": "CUSDATE",
+       "caption": "Μεταβολή σε πελάτη",
+       "type": "DateTime",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CUSUSER",
+       "caption": "Χρήστης σε πελάτη",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "USERS",
+       "required": false
+      },
+      {
+       "name": "VCOUNTRY",
+       "caption": "Χώρα φορολ. κατοικίας",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "COUNTRY",
+       "required": false
+      },
+      {
+       "name": "ISRELENTITY",
+       "caption": "Συνδεδεμένη οντότητα",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCCMPRIORITY",
+       "caption": "Προτεραιότητα CCM",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCNAMETWO",
+       "caption": "Δεύτερη επωνυμία",
+       "type": "String",
+       "size": "65",
+       "required": false
+      },
+      {
+       "name": "CCCBOXTEMPLATE",
+       "caption": "Φόρμα εκτ. κιβωτίου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOXPRINTER",
+       "caption": "Εκτυπωτής κιβωτίου",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTETEMPLATE",
+       "caption": "Φόρμα εκτ. παλέτας",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTEPRINTER",
+       "caption": "Εκτυπωτής παλέτας",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "SoFNetTurnover",
+       "caption": "Τζίρος πωλήσεων (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoSalesCost",
+       "caption": "Κοσ.πωληθέντων (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoGrProfit",
+       "caption": "Μικτό κέρδος (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoGrProfitPrc",
+       "caption": "Συντ.μικτ.κέρδους(%) (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoFinancialCost",
+       "caption": "Κόστος χρηματοδότησης",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoRealGrProfit",
+       "caption": "Πραγμ.μικτό κέρδος (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoRealGrProfitPrc",
+       "caption": "Συντ.πραγ. μ.κ(%) (χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoTBalance",
+       "caption": "Υπόλοιπο ημέρας",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoAvgBalDays",
+       "caption": "Μέση ηλικία υπολοίπου",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoTAvgPayDays",
+       "caption": "Μ.Χ.Είσπραξης(χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoTAvgPayDaysT",
+       "caption": "Μ.Χ.Είσπραξης(ιστορικός)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoAvgPayDays",
+       "caption": "Μ.Χ.Είσπραξης(αξ/φα,χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoAvgPayDaysT",
+       "caption": "Μ.Χ.Είσπραξης(αξ/φα,ιστορικός)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoTAvgAPayDays",
+       "caption": "Μ.Χ.Αποπληρωμής(χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoAvgAPayDays",
+       "caption": "Μ.Χ.Αποπληρωμής(αξ/φα,χρήσης)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoTAvgAPayDaysT",
+       "caption": "Μ.Χ.Αποπληρωμής(ιστορικός)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoAvgAPayDaysT",
+       "caption": "Μ.Χ.Αποπληρωμής(αξ/φα,ιστορ.)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoDaysRec",
+       "caption": "Ηλικία βάσει παραλαβής (ιστορικό)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoDaysExp",
+       "caption": "Ηλικία βάσει λήξης (ιστορικό)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoDaysRecOverDue",
+       "caption": "Καθυστέρηση βάσει παραλαβής (ιστορικό)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoDaysExpOverDue",
+       "caption": "Καθυστέρηση βάσει λήξης (ιστορικό)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoCusChequeBalance1",
+       "caption": "Εκκρεμή αξιόγραφα (ολα)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoCusChequeBalance3",
+       "caption": "Εκκρεμή αξιόγραφα (ιδίου)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoCusChequeFinalBal1",
+       "caption": "Ληξιπρόθ. αξιόγραφα (ολα)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoCusChequeFinalBal4",
+       "caption": "Ληξιπρόθ. αξιόγραφα (ιδίου)",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoCusOpenOrder",
+       "caption": "Εκκρεμείς παραγγελίες",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoGLCredit",
+       "caption": "Πίστωση από γενική λογιστική",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoGLDebit",
+       "caption": "Χρέωση από γενική λογιστική",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "SoGLBalance",
+       "caption": "Υπόλοιπο από γενική λογιστική",
+       "type": "Float",
+       "size": "0",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCCCMPRIORITY",
+       "caption": "Προτεραιότητα CCM",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCNAMETWO",
+       "caption": "Δεύτερη επωνυμία",
+       "type": "String",
+       "size": "65",
+       "required": false
+      },
+      {
+       "name": "CCCBOXTEMPLATE",
+       "caption": "Φόρμα εκτ. κιβωτίου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOXPRINTER",
+       "caption": "Εκτυπωτής κιβωτίου",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTETEMPLATE",
+       "caption": "Φόρμα εκτ. παλέτας",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTEPRINTER",
+       "caption": "Εκτυπωτής παλέτας",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "CCCMASTER",
+     "caption": "Πίνακας CCCMASTER",
+     "custom": true,
+     "fields": [
+      {
+       "name": "Company",
+       "caption": "Εταιρία",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "COMPANY",
+       "required": false
+      },
+      {
+       "name": "Fiscprd",
+       "caption": "Χρήση",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "FISCPRD",
+       "required": false
+      },
+      {
+       "name": "Period",
+       "caption": "Περίοδος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "PERIOD",
+       "required": false
+      },
+      {
+       "name": "Findoc",
+       "caption": "Συναλλαγή",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "Trdr",
+       "caption": "Πελάτης",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CODE",
+       "caption": "Κωδ.Πελάτη",
+       "type": "String",
+       "size": "25",
+       "required": false
+      },
+      {
+       "name": "NAME",
+       "caption": "Επων.Πελάτη",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "Mtrl",
+       "caption": "Είδος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "ITEM",
+       "required": false
+      },
+      {
+       "name": "MTRSUP",
+       "caption": "Προμ.Είδους",
+       "type": "Integer",
+       "size": "4",
+       "editor": "SUPPLIER",
+       "required": false
+      },
+      {
+       "name": "SalVal",
+       "caption": "Αξία Πώλησης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "SalVatAmnt",
+       "caption": "Αξία ΦΠΑ Πώλησης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "PAYMENT",
+       "caption": "Πληρωμή",
+       "type": "String",
+       "size": "4",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CCCPAYANAL",
+     "caption": "Πίνακας CCCPAYANAL",
+     "custom": true,
+     "fields": [
+      {
+       "name": "F3",
+       "caption": "Συν.Αξία",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "F5",
+       "caption": "Πληρωμή",
+       "type": "String",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "EndDate",
+       "caption": "Ημ/νία Λήξης",
+       "type": "DateTime",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CusBalance",
+       "caption": "Υπόλοιπο Πελάτη",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      }
+     ],
+     "customFields": []
+    },
+    {
+     "name": "CCCYPOLOIPO",
+     "caption": "Πίνακας CCCYPOLOIPO",
+     "custom": true,
+     "fields": [
+      {
+       "name": "CusBalance",
+       "caption": "Υπόλοιπο Πελάτη",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      }
+     ],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "CCCWEBCATEGORY1",
+   "type": "EditMaster",
+   "caption": "Κατηγορία ( Master )",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCWEBCATEGORY1",
+     "caption": "Κατηγορία ( Master )",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "String",
+       "size": "64",
+       "required": true
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$YN",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": true
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CCCWEBGRSPECS",
+   "type": "EditMaster",
+   "caption": "Ομάδες χαρακτηριστικών ειδών",
+   "custom": true,
+   "tables": [
+    {
+     "name": "CCCWEBGRSPECS",
+     "caption": "Ομάδες χαρακτηριστικών ειδών",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD",
+       "type": "AutoInc",
+       "size": "4",
+       "required": true
+      },
+      {
+       "name": "WEBGRSPECS",
+       "caption": "Κωδικός",
+       "type": "String",
+       "size": "15",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κατηγορία ( Main )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "WideString",
+       "size": "100",
+       "required": true
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργή",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD",
+       "type": "AutoInc",
+       "size": "4",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": true
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κατηγορία ( Main )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY2",
+       "required": true
+      }
+     ]
+    },
+    {
+     "name": "CCCWEBSPECS",
+     "caption": "Χαρακτηριστικά ειδών",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD Ομάδας",
+       "type": "Integer",
+       "size": "4",
+       "required": true
+      },
+      {
+       "name": "WEBSPECS",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "WideString",
+       "size": "100",
+       "required": true
+      },
+      {
+       "name": "ISVIEW",
+       "caption": "Προβαλλόμενο",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      },
+      {
+       "name": "isFilter",
+       "caption": "Φίλτρο",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD Ομάδας",
+       "type": "Integer",
+       "size": "4",
+       "required": true
+      }
+     ]
+    },
+    {
+     "name": "CCCWEBSPECSLNS",
+     "caption": "Τιμές χαρακτηριστικών ειδών",
+     "custom": true,
+     "fields": [
+      {
+       "name": "COMPANY",
+       "caption": "Εταιρεία",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD Ομάδας",
+       "type": "Integer",
+       "size": "4",
+       "required": true
+      },
+      {
+       "name": "WEBSPECS",
+       "caption": "Χαρακτηριστικό",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "WEBSPECSLNS",
+       "caption": "Κωδικός",
+       "type": "Smallint",
+       "size": "2",
+       "required": true
+      },
+      {
+       "name": "NAME",
+       "caption": "Περιγραφή",
+       "type": "WideString",
+       "size": "100",
+       "required": false
+      },
+      {
+       "name": "SOCOLOR",
+       "caption": "Χρώμα",
+       "type": "Integer",
+       "size": "4",
+       "editor": "$ONECOLOR",
+       "required": false
+      },
+      {
+       "name": "ISACTIVE",
+       "caption": "Ενεργό",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": true
+      },
+      {
+       "name": "UPDDATE",
+       "caption": "Ημερ.Μεταβολής",
+       "type": "DateTime",
+       "size": "8",
+       "editor": "$DT",
+       "required": false
+      }
+     ],
+     "customFields": [
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "iD Ομάδας",
+       "type": "Integer",
+       "size": "4",
+       "required": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ITEM",
+   "type": "EditMaster",
+   "caption": "Είδη",
+   "custom": false,
+   "tables": [
+    {
+     "name": "ITEM",
+     "caption": "Είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα Χαρακτηριστικών",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": false
+      },
+      {
+       "name": "CCCWARRANTY",
+       "caption": "Επέκταση Εγγύησης",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCAVAIL",
+       "caption": "Διαθεσιμότητα",
+       "type": "String",
+       "size": "1000",
+       "required": false
+      },
+      {
+       "name": "CCCPRTISLABEL",
+       "caption": "Ετικέτα",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "Ομάδα χαρακτηριστικών",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CCCWEBGRSPECS",
+       "required": false
+      },
+      {
+       "name": "CCCWREMARKS",
+       "caption": "Αναλυτική Περιγραφή",
+       "type": "Memo",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": false
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κατηγορία ( Main )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY2",
+       "required": false
+      },
+      {
+       "name": "CCCWREMARKS1",
+       "caption": "Σύντομη Περιγραφή",
+       "type": "String",
+       "size": "4000",
+       "required": false
+      },
+      {
+       "name": "CCCWEIGHT",
+       "caption": "Βάρος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCLENGTH",
+       "caption": "Μήκος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCWIDTH",
+       "caption": "Πλάτος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCHEIGHT",
+       "caption": "Ύψος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRSUPPRCS",
+     "caption": "Στοιχεία ανά προμηθευτή",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRSUBSTITUTE",
+     "caption": "Εναλλακτικά είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRBRNLIMITS",
+     "caption": "Όρια ανά υποκατάστημα",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEEXTRA",
+     "caption": "Extra στοιχεία ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITECMP",
+     "caption": "Στοιχεία ειδών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITECPRICES",
+     "caption": "Υπολογιζόμενες τιμές κόστους/πώλησης ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITECPRICESG",
+     "caption": "Υπολογιζόμενες τιμές κόστους ανά ομάδα κόστους",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRSUPCODE",
+     "caption": "Εναλλακτικοί κωδικοί προμηθευτών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEBAIL",
+     "caption": "Εγγυοδοσία\\Παρελκόμενα",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRDEFWHS",
+     "caption": "Προτεινόμενοι Α.Χ.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRDEFWHSCMP",
+     "caption": "Προτεινόμενοι Α.Χ.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "XTRDOCDATA",
+     "caption": "Δείκτες εγγράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEDOCDATA",
+     "caption": "Εικόνα είδους",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CDIMLEVELd",
+     "caption": "Διαβάθμιση τιμών κατά χαρακτηριστικό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CDIMLIMd",
+     "caption": "Όρια ανά Α.Χ.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CDIMSUPPRCd",
+     "caption": "Τιμή συμφωνίας προμηθευτή ανά Χ/Μ",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRLATTRIBUTES",
+     "caption": "Χαρακτηριστικά ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VINSCDIM",
+     "caption": "Εισαγωγή χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCDIMLINES",
+     "caption": "Γραμμές χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQTYANAL",
+     "caption": "Γραμμές Ανάλυσης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VITEMLINE",
+     "caption": "Εικονική γραμμή για τη διαβάθμιση τιμών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCMPLINE",
+     "caption": "Εικονική γραμμή για τα υπόλοιπα ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VINCRSTEP",
+     "caption": "Βήμα αύξησης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VLIMLINE",
+     "caption": "Εικονική γραμμή για τα όρια ανά εταιρία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "SERVICE",
+   "type": "EditMaster",
+   "caption": "Υπηρεσίες",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SERVICE",
+     "caption": "Υπηρεσίες",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCDIMGROUP",
+       "caption": "Ομάδα Χαρακτηριστικών",
+       "type": "String",
+       "size": "25",
+       "editor": "CCCDIMGROUP",
+       "required": false
+      },
+      {
+       "name": "CCCWARRANTY",
+       "caption": "Επέκταση Εγγύησης",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCAVAIL",
+       "caption": "Διαθεσιμότητα",
+       "type": "String",
+       "size": "1000",
+       "required": false
+      },
+      {
+       "name": "CCCPRTISLABEL",
+       "caption": "Ετικέτα",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCWEBGRSPECS",
+       "caption": "Ομάδα χαρακτηριστικών",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CCCWEBGRSPECS",
+       "required": false
+      },
+      {
+       "name": "CCCWREMARKS",
+       "caption": "Αναλυτική Περιγραφή",
+       "type": "Memo",
+       "size": "0",
+       "required": false
+      },
+      {
+       "name": "CCCWEBCATEGORY1",
+       "caption": "Κατηγορία ( Master )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY1",
+       "required": false
+      },
+      {
+       "name": "CCCWEBCATEGORY2",
+       "caption": "Κατηγορία ( Main )",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "CCCWEBCATEGORY2",
+       "required": false
+      },
+      {
+       "name": "CCCWREMARKS1",
+       "caption": "Σύντομη Περιγραφή",
+       "type": "String",
+       "size": "4000",
+       "required": false
+      },
+      {
+       "name": "CCCWEIGHT",
+       "caption": "Βάρος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCLENGTH",
+       "caption": "Μήκος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCWIDTH",
+       "caption": "Πλάτος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCHEIGHT",
+       "caption": "Ύψος",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SRVC",
+     "caption": "Επέκταση υπηρεσίων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SRVEXTRA",
+     "caption": "Extra στοιχεία υπηρεσιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SRVCPRICES",
+     "caption": "Υπολογιζόμενες τιμές κόστους/πώλησης υπηρεσιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "XTRDOCDATA",
+     "caption": "Δείκτες εγγράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SRVDOCDATA",
+     "caption": "Εικόνα υπηρεσίας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "OPTIMES",
+     "caption": "Ωροκατάλογος",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SRVCMP",
+     "caption": "Στοιχεία υπηρεσιών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "CUSTOMER",
+   "type": "EditMaster",
+   "caption": "Πελάτες",
+   "custom": false,
+   "tables": [
+    {
+     "name": "CUSTOMER",
+     "caption": "Πελάτες",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMPRIORITY",
+       "caption": "Προτεραιότητα CCM",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCNAMETWO",
+       "caption": "Δεύτερη επωνυμία",
+       "type": "String",
+       "size": "65",
+       "required": false
+      },
+      {
+       "name": "CCCBOXTEMPLATE",
+       "caption": "Φόρμα εκτ. κιβωτίου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOXPRINTER",
+       "caption": "Εκτυπωτής κιβωτίου",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTETEMPLATE",
+       "caption": "Φόρμα εκτ. παλέτας",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTEPRINTER",
+       "caption": "Εκτυπωτής παλέτας",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "CUSEXTRA",
+     "caption": "Extra στοιχεία πελατών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CUSCMP",
+     "caption": "Στοιχεία πελατών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CUSBRANCH",
+     "caption": "Υποκαταστήματα πελατών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Υποκαταστήματος Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "CUSBRANCHCMP",
+     "caption": "Υποκαταστήματα πελατών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CUSPRSN",
+     "caption": "Επαφές πελατών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CUSBANKACC",
+     "caption": "Τραπεζικοί λογαριασμοί πελατών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "XTRDOCDATA",
+     "caption": "Δείκτες εγγράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CUSDOCDATA",
+     "caption": "Εικόνα πελάτη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "TRDRBONUSCARD",
+     "caption": "Κάρτες Bonus ανά πελάτη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "BGTRDANAF",
+     "caption": "Ιστορικό ANAF ",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCMPTRDR",
+     "caption": "Υπόλοιπα ανά συν/νό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "AUTHORITIES",
+     "caption": "Αναθέτουσα αρχή",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "SUPPLIER",
+   "type": "EditMaster",
+   "caption": "Προμηθευτές",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SUPPLIER",
+     "caption": "Προμηθευτές",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMPRIORITY",
+       "caption": "Προτεραιότητα CCM",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCNAMETWO",
+       "caption": "Δεύτερη επωνυμία",
+       "type": "String",
+       "size": "65",
+       "required": false
+      },
+      {
+       "name": "CCCBOXTEMPLATE",
+       "caption": "Φόρμα εκτ. κιβωτίου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOXPRINTER",
+       "caption": "Εκτυπωτής κιβωτίου",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTETEMPLATE",
+       "caption": "Φόρμα εκτ. παλέτας",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCPALETTEPRINTER",
+       "caption": "Εκτυπωτής παλέτας",
+       "type": "String",
+       "size": "2000",
+       "required": false
+      },
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SUPEXTRA",
+     "caption": "Extra στοιχεία προμηθευτών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SUPCMP",
+     "caption": "Στοιχεία προμηθευτών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SUPBRANCH",
+     "caption": "Υποκαταστήματα προμηθευτών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Υποκαταστήματος Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SUPBRANCHCMP",
+     "caption": "Υποκαταστήματα προμηθευτών ανά εταιρεία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SUPPRSN",
+     "caption": "Επαφές προμηθευτών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SUPBANKACC",
+     "caption": "Τραπεζικοί λογαριασμοί προμηθευτών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "XTRDOCDATA",
+     "caption": "Δείκτες εγγράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "SUPDOCDATA",
+     "caption": "Εικόνα προμηθευτή",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "BGTRDANAF",
+     "caption": "Ιστορικό ANAF ",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCMPTRDR",
+     "caption": "Υπόλοιπα ανά συν/νό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "SALDOC",
+   "type": "EditMaster",
+   "caption": "Παραστατικά πωλήσεων",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SALDOC",
+     "caption": "Συναλλαγές (Πωλήσεων)",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMID",
+       "caption": "Κωδικός Κλήσης CCM",
+       "type": "String",
+       "size": "40",
+       "required": false
+      },
+      {
+       "name": "CCCCCMRECORDFILE",
+       "caption": "Αρχείο Ηχογράφησης",
+       "type": "String",
+       "size": "500",
+       "required": false
+      },
+      {
+       "name": "CCCTRDREMAIN",
+       "caption": "Προηγ. Υπόλοιπο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCASH",
+       "caption": "Μετρητά",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCRETURN",
+       "caption": "Ρέστα",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT1",
+       "caption": "Πιστωτικό Οριο Μετρητών",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT2",
+       "caption": "Πιστωτικό Οριο Αξιογράφων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT3",
+       "caption": "Συνολικό Πιστωτικό Οριο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT4",
+       "caption": "Αριθμός Ανοιχτών Τιμολογίων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT5",
+       "caption": "Μέσος Χρόνος Πληρωμής",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL1",
+       "caption": "Overdue Αριθμ. Τιμολογ.",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL2",
+       "caption": "Overdue Ημερ. Πίστωσης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCTRDR",
+       "caption": "Πελάτης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCAPPROVAL",
+       "caption": "Κωδικός Εγκρισης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCAPRVOVAL",
+       "caption": "Κωδικός έγκρισης<",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCTICK",
+       "caption": "",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCSTATUS",
+       "caption": "Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCFINDOCS",
+       "caption": "Αρχική Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCFINCODES",
+       "caption": "Κωδ.Αρχικ.Παραγγ.",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSERIESNUMS",
+       "caption": "Αριθ.Αρχικ.Παραγγ.",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Παρατηρήσεις 2",
+       "type": "String",
+       "size": "1500",
+       "required": false
+      },
+      {
+       "name": "CCCEDISENT",
+       "caption": "Απεστάλη μέσω EDI",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRDOC",
+     "caption": "Συναλλαγές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCSHPNAME",
+       "caption": "Επωνυμία",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPJOB",
+       "caption": "Αντικείμενο",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPAFM",
+       "caption": "ΑΦΜ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSHPIRSDATA",
+       "caption": "ΔΟΥ",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPPHONE",
+       "caption": "Τηλέφωνο",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPADDRESS",
+       "caption": "Πλήρη Διεύθυνση",
+       "type": "String",
+       "size": "128",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSDEPR",
+     "caption": "Αποσβενόμενες οντότητες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "EXPANAL",
+     "caption": "Ανάλυση εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VATANAL",
+     "caption": "Ανάλυση Φ.Π.Α.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPAYTERMS",
+     "caption": "Γραμμές απαιτήσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITELINES",
+     "caption": "Γραμμές ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SRVLINES",
+     "caption": "Γραμμές υπηρεσιών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSLINES",
+     "caption": "Γραμμές παγίων",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SNLINES",
+     "caption": "Serial Number στις γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "TRUCKLINES",
+     "caption": "Γραμμές διακίνησης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PACKANAL",
+     "caption": "Πληροφορίες Συσκευασίας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CONVERTFPRMS",
+     "caption": "Παράμετροι μετασχηματισμών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFIN",
+     "caption": "Πίνακας Παραστατικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSNCREATE",
+     "caption": "Δημιουργία SN",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQTYANAL",
+     "caption": "Γραμμές Ανάλυσης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCDIMNO",
+     "caption": "Γραμμές χαρακτηριστικών ανά είδος",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFINCOST",
+     "caption": "Στοιχεία κόστους",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VOMTRLINES",
+     "caption": "Αρχικές γραμμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFINPRD",
+     "caption": "Παραστατικά παραγωγής",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VDOSEIS",
+     "caption": "Παράμετροι δόσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMTRSUB",
+     "caption": "Εναλλακτικά είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VACNHEADER",
+     "caption": "Αρθρα παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAEXTRA",
+     "caption": "Επιπλέον πληροφορίες ανά χαρακτηριστικό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCNTRLINES",
+     "caption": "Γραμμές σύμβασης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSXDOCS",
+     "caption": "Παραστατικά εσόδων - εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM",
+     "caption": "Ανάλυση χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VPAYMENTS",
+     "caption": "Πληρωμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRP",
+     "caption": "Ανάλυση Set ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRPQA",
+     "caption": "Ανάλυση Set ειδών (χαρακτηριστικά)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM1",
+     "caption": "Ανάλυση χαρακτηριστικών (2η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM2",
+     "caption": "Ανάλυση χαρακτηριστικών (3η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VLOTCRT",
+     "caption": "Δημιουργία παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMULTILOT",
+     "caption": "Δημιουργία - επιλογή πολλαπλών παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSRCHBONUSCARD",
+     "caption": "Γραμμές καρτών Bonus",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSRCHCUS",
+     "caption": "Στοιχεία πελάτη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSPCPRDS",
+     "caption": "Προδιαγραφή κατά παραγγελία",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "REQDATA39A",
+     "caption": "Στοιχεία αποστολής 39α",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "RESPDATA39A",
+     "caption": "Στοιχεία απάντησης 39α",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "LINES39ADATA",
+     "caption": "Γραμμές 39α",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VEFACTURA",
+     "caption": "Εγγραφές e-Factura - e-Transport",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "AUTHORITIES",
+     "caption": "Αναθέτουσα αρχή",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VADVFIN",
+     "caption": "Διαθέσιμες προκαταβολές",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCARDS",
+     "caption": "Κάρτες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCHQLINES",
+     "caption": "Γραμμές αξιογράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VVCHLINES",
+     "caption": "Γραμμές δωροεπιταγών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VPREAUTHLINES",
+     "caption": "Γραμμές Preauth",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "USRSALDOC",
+     "caption": "< Λοιπά υπολογιζόμενα πεδία > ",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "EVTSALDOC",
+     "caption": "< Πεδία event >",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "RETAILDOC",
+   "type": "EditMaster",
+   "caption": "Παραστατικά λιανικής",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SALDOC",
+     "caption": "Συναλλαγές (Πωλήσεων)",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMID",
+       "caption": "Κωδικός Κλήσης CCM",
+       "type": "String",
+       "size": "40",
+       "required": false
+      },
+      {
+       "name": "CCCCCMRECORDFILE",
+       "caption": "Αρχείο Ηχογράφησης",
+       "type": "String",
+       "size": "500",
+       "required": false
+      },
+      {
+       "name": "CCCTRDREMAIN",
+       "caption": "Προηγ. Υπόλοιπο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCASH",
+       "caption": "Μετρητά",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCRETURN",
+       "caption": "Ρέστα",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT1",
+       "caption": "Πιστωτικό Οριο Μετρητών",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT2",
+       "caption": "Πιστωτικό Οριο Αξιογράφων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT3",
+       "caption": "Συνολικό Πιστωτικό Οριο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT4",
+       "caption": "Αριθμός Ανοιχτών Τιμολογίων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT5",
+       "caption": "Μέσος Χρόνος Πληρωμής",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL1",
+       "caption": "Overdue Αριθμ. Τιμολογ.",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL2",
+       "caption": "Overdue Ημερ. Πίστωσης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCTRDR",
+       "caption": "Πελάτης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCAPPROVAL",
+       "caption": "Κωδικός Εγκρισης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCAPRVOVAL",
+       "caption": "Κωδικός έγκρισης<",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCTICK",
+       "caption": "",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCSTATUS",
+       "caption": "Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCFINDOCS",
+       "caption": "Αρχική Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCFINCODES",
+       "caption": "Κωδ.Αρχικ.Παραγγ.",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSERIESNUMS",
+       "caption": "Αριθ.Αρχικ.Παραγγ.",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Παρατηρήσεις 2",
+       "type": "String",
+       "size": "1500",
+       "required": false
+      },
+      {
+       "name": "CCCEDISENT",
+       "caption": "Απεστάλη μέσω EDI",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRDOC",
+     "caption": "Συναλλαγές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCSHPNAME",
+       "caption": "Επωνυμία",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPJOB",
+       "caption": "Αντικείμενο",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPAFM",
+       "caption": "ΑΦΜ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSHPIRSDATA",
+       "caption": "ΔΟΥ",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPPHONE",
+       "caption": "Τηλέφωνο",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPADDRESS",
+       "caption": "Πλήρη Διεύθυνση",
+       "type": "String",
+       "size": "128",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ITELINES",
+     "caption": "Γραμμές ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SRVLINES",
+     "caption": "Γραμμές υπηρεσιών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SNLINES",
+     "caption": "Serial Number στις γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VATANAL",
+     "caption": "Ανάλυση Φ.Π.Α.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "EXPANAL",
+     "caption": "Ανάλυση εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPAYTERMS",
+     "caption": "Γραμμές απαιτήσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PACKANAL",
+     "caption": "Πληροφορίες Συσκευασίας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CONVERTFPRMS",
+     "caption": "Παράμετροι μετασχηματισμών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFIN",
+     "caption": "Πίνακας Παραστατικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQTYANAL",
+     "caption": "Γραμμές Ανάλυσης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCDIMNO",
+     "caption": "Γραμμές χαρακτηριστικών ανά είδος",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFINCOST",
+     "caption": "Στοιχεία κόστους",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCARDS",
+     "caption": "Κάρτες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFINPAYTERMS",
+     "caption": "Γραμμές απαιτήσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VOMTRLINES",
+     "caption": "Αρχικές γραμμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VADVFIN",
+     "caption": "Διαθέσιμες προκαταβολές",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAEXTRA",
+     "caption": "Επιπλέον πληροφορίες ανά χαρακτηριστικό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMTRSUB",
+     "caption": "Εναλλακτικά είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VACNHEADER",
+     "caption": "Αρθρα παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCHQLINES",
+     "caption": "Γραμμές αξιογράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VVCHLINES",
+     "caption": "Γραμμές δωροεπιταγών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSXDOCS",
+     "caption": "Παραστατικά εσόδων - εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM",
+     "caption": "Ανάλυση χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VPAYMENTS",
+     "caption": "Πληρωμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRP",
+     "caption": "Ανάλυση Set ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM1",
+     "caption": "Ανάλυση χαρακτηριστικών (2η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM2",
+     "caption": "Ανάλυση χαρακτηριστικών (3η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSRCHBONUSCARD",
+     "caption": "Γραμμές καρτών Bonus",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSRCHCUS",
+     "caption": "Στοιχεία πελάτη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VEFACTURA",
+     "caption": "Εγγραφές e-Factura - e-Transport",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSNCREATE",
+     "caption": "Δημιουργία SN",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VPREAUTHLINES",
+     "caption": "Γραμμές Preauth",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "PURDOC",
+   "type": "EditMaster",
+   "caption": "Παραστατικά αγορών",
+   "custom": false,
+   "tables": [
+    {
+     "name": "PURDOC",
+     "caption": "Συναλλαγές (Αγορών)",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMID",
+       "caption": "Κωδικός Κλήσης CCM",
+       "type": "String",
+       "size": "40",
+       "required": false
+      },
+      {
+       "name": "CCCCCMRECORDFILE",
+       "caption": "Αρχείο Ηχογράφησης",
+       "type": "String",
+       "size": "500",
+       "required": false
+      },
+      {
+       "name": "CCCTRDREMAIN",
+       "caption": "Προηγ. Υπόλοιπο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCASH",
+       "caption": "Μετρητά",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCRETURN",
+       "caption": "Ρέστα",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT1",
+       "caption": "Πιστωτικό Οριο Μετρητών",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT2",
+       "caption": "Πιστωτικό Οριο Αξιογράφων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT3",
+       "caption": "Συνολικό Πιστωτικό Οριο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT4",
+       "caption": "Αριθμός Ανοιχτών Τιμολογίων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT5",
+       "caption": "Μέσος Χρόνος Πληρωμής",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL1",
+       "caption": "Overdue Αριθμ. Τιμολογ.",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL2",
+       "caption": "Overdue Ημερ. Πίστωσης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCTRDR",
+       "caption": "Πελάτης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCAPPROVAL",
+       "caption": "Κωδικός Εγκρισης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCAPRVOVAL",
+       "caption": "Κωδικός έγκρισης<",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCTICK",
+       "caption": "",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCSTATUS",
+       "caption": "Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCFINDOCS",
+       "caption": "Αρχική Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCFINCODES",
+       "caption": "Κωδ.Αρχικ.Παραγγ.",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSERIESNUMS",
+       "caption": "Αριθ.Αρχικ.Παραγγ.",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Παρατηρήσεις 2",
+       "type": "String",
+       "size": "1500",
+       "required": false
+      },
+      {
+       "name": "CCCEDISENT",
+       "caption": "Απεστάλη μέσω EDI",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRDOC",
+     "caption": "Συναλλαγές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCSHPNAME",
+       "caption": "Επωνυμία",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPJOB",
+       "caption": "Αντικείμενο",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPAFM",
+       "caption": "ΑΦΜ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSHPIRSDATA",
+       "caption": "ΔΟΥ",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPPHONE",
+       "caption": "Τηλέφωνο",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPADDRESS",
+       "caption": "Πλήρη Διεύθυνση",
+       "type": "String",
+       "size": "128",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSDEPR",
+     "caption": "Αποσβενόμενες οντότητες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "EXPANAL",
+     "caption": "Ανάλυση εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VATANAL",
+     "caption": "Ανάλυση Φ.Π.Α.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPAYTERMS",
+     "caption": "Γραμμές απαιτήσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITELINES",
+     "caption": "Γραμμές ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SRVLINES",
+     "caption": "Γραμμές υπηρεσιών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSLINES",
+     "caption": "Γραμμές παγίων",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SNLINES",
+     "caption": "Serial Number στις γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "TRUCKLINES",
+     "caption": "Γραμμές διακίνησης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PACKANAL",
+     "caption": "Πληροφορίες συσκευασίας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ITEPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "FINPRCRULEd",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CONVERTFPRMS",
+     "caption": "Παράμετροι μετασχηματισμών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFIN",
+     "caption": "Πίνακας Παραστατικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSNCREATE",
+     "caption": "Δημιουργία SN",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQTYANAL",
+     "caption": "Γραμμές Ανάλυσης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCDIMNO",
+     "caption": "Γραμμές χαρακτηριστικών ανά είδος",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VOMTRLINES",
+     "caption": "Αρχικές γραμμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VDOSEIS",
+     "caption": "Παράμετροι δόσεων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VUPDSALPRC",
+     "caption": "Ενημέρωση τιμών πώλησης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VACNHEADER",
+     "caption": "Αρθρα παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAEXTRA",
+     "caption": "Επιπλέον πληροφορίες ανά χαρακτηριστικό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VLOTCRT",
+     "caption": "Δημιουργία παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSXDOCS",
+     "caption": "Παραστατικά εσόδων - εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCNTRLINES",
+     "caption": "Γραμμές σύμβασης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMTRSUB",
+     "caption": "Εναλλακτικά είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM",
+     "caption": "Ανάλυση χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRP",
+     "caption": "Ανάλυση Set ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRPQA",
+     "caption": "Ανάλυση Set ειδών (χαρακτηριστικά)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM1",
+     "caption": "Ανάλυση χαρακτηριστικών (2η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM2",
+     "caption": "Ανάλυση χαρακτηριστικών (3η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMULTILOT",
+     "caption": "Δημιουργία - επιλογή πολλαπλών παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VEFACTURA",
+     "caption": "Εγγραφές e-Factura - e-Transport",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "ITEDOC",
+   "type": "EditMaster",
+   "caption": "Παραστατικά αποθήκης",
+   "custom": false,
+   "tables": [
+    {
+     "name": "ITEDOC",
+     "caption": "Συναλλαγές (Αποθήκης)",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMID",
+       "caption": "Κωδικός Κλήσης CCM",
+       "type": "String",
+       "size": "40",
+       "required": false
+      },
+      {
+       "name": "CCCCCMRECORDFILE",
+       "caption": "Αρχείο Ηχογράφησης",
+       "type": "String",
+       "size": "500",
+       "required": false
+      },
+      {
+       "name": "CCCTRDREMAIN",
+       "caption": "Προηγ. Υπόλοιπο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCASH",
+       "caption": "Μετρητά",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCRETURN",
+       "caption": "Ρέστα",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT1",
+       "caption": "Πιστωτικό Οριο Μετρητών",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT2",
+       "caption": "Πιστωτικό Οριο Αξιογράφων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT3",
+       "caption": "Συνολικό Πιστωτικό Οριο",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT4",
+       "caption": "Αριθμός Ανοιχτών Τιμολογίων",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCCREDIT5",
+       "caption": "Μέσος Χρόνος Πληρωμής",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL1",
+       "caption": "Overdue Αριθμ. Τιμολογ.",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCDUEVAL2",
+       "caption": "Overdue Ημερ. Πίστωσης",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCTRDR",
+       "caption": "Πελάτης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCAPPROVAL",
+       "caption": "Κωδικός Εγκρισης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCAPRVOVAL",
+       "caption": "Κωδικός έγκρισης<",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCTICK",
+       "caption": "",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCSTATUS",
+       "caption": "Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCFINDOCS",
+       "caption": "Αρχική Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCFINCODES",
+       "caption": "Κωδ.Αρχικ.Παραγγ.",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSERIESNUMS",
+       "caption": "Αριθ.Αρχικ.Παραγγ.",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Παρατηρήσεις 2",
+       "type": "String",
+       "size": "1500",
+       "required": false
+      },
+      {
+       "name": "CCCEDISENT",
+       "caption": "Απεστάλη μέσω EDI",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "MTRDOC",
+     "caption": "Συναλλαγές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCSHPNAME",
+       "caption": "Επωνυμία",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPJOB",
+       "caption": "Αντικείμενο",
+       "type": "String",
+       "size": "128",
+       "required": false
+      },
+      {
+       "name": "CCCSHPAFM",
+       "caption": "ΑΦΜ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCSHPIRSDATA",
+       "caption": "ΔΟΥ",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPPHONE",
+       "caption": "Τηλέφωνο",
+       "type": "String",
+       "size": "64",
+       "required": false
+      },
+      {
+       "name": "CCCSHPADDRESS",
+       "caption": "Πλήρη Διεύθυνση",
+       "type": "String",
+       "size": "128",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSDEPR",
+     "caption": "Αποσβενόμενες οντότητες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "MTRLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ITELINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SRVLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "ASSLINES",
+     "caption": "Γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCUSTOMER",
+       "caption": "Μέλος",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CUSTOMER",
+       "required": false
+      },
+      {
+       "name": "CCCLINESPAY",
+       "caption": "",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "$Y",
+       "required": false
+      },
+      {
+       "name": "CCCCOMMENTS",
+       "caption": "Σχετικό Παραστατικό",
+       "type": "String",
+       "size": "255",
+       "required": false
+      },
+      {
+       "name": "CCCORDERFIN",
+       "caption": "Αρχκή Παραγγελία",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCDA",
+       "caption": "Σχετικό ΔΑ",
+       "type": "String",
+       "size": "30",
+       "required": false
+      },
+      {
+       "name": "CCCEXPMTRL",
+       "caption": "Είδος Εξόδου",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL1",
+       "caption": "Αξία Εξόδου 1",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCEXPVAL2",
+       "caption": "Αξία Εξόδου 2",
+       "type": "Float",
+       "size": "8",
+       "required": false
+      },
+      {
+       "name": "CCCPackingStatus",
+       "caption": "Packing Status",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      },
+      {
+       "name": "CCCPack1",
+       "caption": "Κιβ",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPack2",
+       "caption": "Παλέτα",
+       "type": "String",
+       "size": "50",
+       "required": false
+      },
+      {
+       "name": "CCCPackingUser",
+       "caption": "Χρήστης",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      },
+      {
+       "name": "CCCBOX",
+       "caption": "Κιβ παραλαβής",
+       "type": "String",
+       "size": "50",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SNLINES",
+     "caption": "Serial Number στις γραμμές υλικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "TRUCKLINES",
+     "caption": "Γραμμές διακίνησης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PACKANAL",
+     "caption": "Πληροφορίες συσκευασίας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CONVERTFPRMS",
+     "caption": "Παράμετροι μετασχηματισμών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFIN",
+     "caption": "Πίνακας Παραστατικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSNCREATE",
+     "caption": "Δημιουργία SN",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQTYANAL",
+     "caption": "Γραμμές Ανάλυσης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VCDIMNO",
+     "caption": "Γραμμές χαρακτηριστικών ανά είδος",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VOMTRLINES",
+     "caption": "Αρχικές γραμμές παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VACNHEADER",
+     "caption": "Αρθρα παραστατικού",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VFINCOST",
+     "caption": "Στοιχεία κόστους",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSXDOCS",
+     "caption": "Παραστατικά εσόδων - εξόδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM",
+     "caption": "Ανάλυση χαρακτηριστικών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRP",
+     "caption": "Ανάλυση Set ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VSETGRPQA",
+     "caption": "Ανάλυση Set ειδών (χαρακτηριστικά)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM1",
+     "caption": "Ανάλυση χαρακτηριστικών (2η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAFORM2",
+     "caption": "Ανάλυση χαρακτηριστικών (3η μορφή)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VQAEXTRA",
+     "caption": "Επιπλέον πληροφορίες ανά χαρακτηριστικό",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VLOTCRT",
+     "caption": "Δημιουργία παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMULTILOT",
+     "caption": "Δημιουργία - επιλογή πολλαπλών παρτίδων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VEFACTURA",
+     "caption": "Εγγραφές e-Factura - e-Transport",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VMTRSUB",
+     "caption": "Εναλλακτικά είδη",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "INST",
+   "custom": false,
+   "tables": [],
+   "error": "Invalid request. Insufficient access rights to perform the operation!"
+  },
+  {
+   "name": "SOACTION",
+   "type": "EditMaster",
+   "caption": "Ενέργειες",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SOACTION",
+     "caption": "Ενέργειες",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCCCMID",
+       "caption": "Κωδικός Κλήσης CCM",
+       "type": "String",
+       "size": "40",
+       "required": false
+      },
+      {
+       "name": "CCCCCMRECORDFILE",
+       "caption": "Αρχείο Ηχογράφησης",
+       "type": "String",
+       "size": "500",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "VACTRMND",
+     "caption": "Στοιχεία υπενθύμισης",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VPREVSTEP",
+     "caption": "Προηγούμενο βήμα",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "XTRDOCDATA",
+     "caption": "Δείκτες εγγράφων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "ACTLINES",
+     "caption": "Γραμμές ενεργειών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "ITECATEGORY",
+   "type": "EditMaster",
+   "caption": "Εμπορικές κατηγορίες ειδών",
+   "custom": false,
+   "tables": [
+    {
+     "name": "ITECATEGORY",
+     "caption": "Εμπορικές κατηγορίες ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "ITEGROUP",
+   "custom": false,
+   "tables": [
+    {
+     "name": "ITEGROUP",
+     "caption": "Ομάδες ειδών",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCBUSUNITS",
+       "caption": "Κατηγ.Προιοντος",
+       "type": "Smallint",
+       "size": "2",
+       "editor": "BUSUNITS",
+       "required": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "MTRMARK",
+   "custom": false,
+   "tables": [
+    {
+     "name": "MTRMARK",
+     "caption": "Μάρκες",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "MTRMANFCTR",
+   "custom": false,
+   "tables": [
+    {
+     "name": "MTRMANFCTR",
+     "caption": "Κατασκευαστές",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "WHOUSE",
+   "custom": false,
+   "tables": [
+    {
+     "name": "WHOUSE",
+     "caption": "Αποθηκευτικοί χώροι",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "BRANCH",
+   "custom": false,
+   "tables": [
+    {
+     "name": "BRANCH",
+     "caption": "Υποκαταστήματα εταιρείας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "VAT",
+   "type": "EditMaster",
+   "caption": "Φ.Π.Α",
+   "custom": false,
+   "tables": [
+    {
+     "name": "VAT",
+     "caption": "Φ.Π.Α.",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCVAT",
+       "caption": "Κωδικός Intergration",
+       "type": "Integer",
+       "size": "4",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "VATACN",
+     "caption": "Λογαριασμοί λογιστικής Φ.Π.Α.",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VVATACN",
+     "caption": "Ανάλυση λογ/σμών Φ.Π.Α. (Εσωτερικού, ΕΕ, εκτός ΕΕ)",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VATBLD",
+     "caption": "Σχεδιαζόμενες στήλες Φ.Π.Α. οικοδομικών έργων",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "PAYMENT",
+   "type": "EditMaster",
+   "caption": "Τρόποι πληρωμής",
+   "custom": false,
+   "tables": [
+    {
+     "name": "PAYMENT",
+     "caption": "Τρόποι πληρωμής",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PAYMENTd",
+     "caption": "Γραμμές τρόπων πληρωμής",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "PAYMENTLINES",
+     "caption": "Αναλυτικές γραμμές τρόπου πληρωμής",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "VBUFSET",
+     "caption": "Βοηθητικός πίνακας",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "SHIPMENT",
+   "type": "EditMaster",
+   "caption": "Τρόποι αποστολής",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SHIPMENT",
+     "caption": "Τρόποι αποστολής",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "SOCARRIER",
+   "type": "EditMaster",
+   "caption": "Μεταφορείς",
+   "custom": false,
+   "tables": [
+    {
+     "name": "SOCARRIER",
+     "caption": "Μεταφορείς",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCGROUP",
+       "caption": "Ομάδα Μεταφορέα",
+       "type": "Integer",
+       "size": "4",
+       "editor": "CCCGROUP",
+       "required": false
+      },
+      {
+       "name": "CCCORDER",
+       "caption": "Σειρά Παράδοσης",
+       "type": "Smallint",
+       "size": "2",
+       "required": false
+      }
+     ]
+    },
+    {
+     "name": "SOCOURIER",
+     "caption": "Στοιχεία Courier",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    },
+    {
+     "name": "CARRIERS",
+     "caption": "CARRIERS",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "PRCRULE",
+   "type": "EditMaster",
+   "caption": "Κανόνες συμφωνιών",
+   "custom": false,
+   "tables": [
+    {
+     "name": "VPRCRULE",
+     "caption": "Κανόνες συμφωνιών",
+     "custom": false,
+     "fields": [],
+     "customFields": []
+    }
+   ]
+  },
+  {
+   "name": "TRDBRANCH",
+   "custom": false,
+   "tables": [
+    {
+     "name": "TRDBRANCH",
+     "caption": "Υποκαταστήματα",
+     "custom": false,
+     "fields": [],
+     "customFields": [
+      {
+       "name": "CCCGLN",
+       "caption": "GLN Υποκαταστήματος Πελάτη/Προμηθευτή",
+       "type": "String",
+       "size": "64",
+       "required": false
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
