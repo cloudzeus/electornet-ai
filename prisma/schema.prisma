@@ -67,25 +67,27 @@ model Brand {
 }
 
 model Product {
-  id          String       @id @default(cuid())
-  erpCode     String       @unique // MTRL / item code
-  slug        String       @unique
-  sku         String       @unique
+  id          String              @id @default(cuid())
+  erpCode     String              @unique // MTRL / item code
+  slug        String              @unique
+  sku         String              @unique
   ean         String?
   title       String
   brandId     String
-  brand       Brand        @relation(fields: [brandId], references: [id])
+  brand       Brand               @relation(fields: [brandId], references: [id])
   categoryId  String
-  category    Category     @relation(fields: [categoryId], references: [id])
-  summary     String?      @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
-  description String?      @db.Text
+  category    Category            @relation(fields: [categoryId], references: [id])
+  summary     String?             @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
+  description String?             @db.Text
   highlights  Json?
-  vatRate     Decimal      @default(24) @db.Decimal(5, 2)
-  isRenew     Boolean      @default(false)
+  vatRate     Decimal             @default(24) @db.Decimal(5, 2)
+  isRenew     Boolean             @default(false)
   renewGrade  String? // A | B
-  active      Boolean      @default(true)
+  active      Boolean             @default(true)
   source      String? // softone = προβολή του καθρέφτη
   s1Hash      String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
+  facetHash   String? // αποτύπωμα των τιμών φίλτρων
+  facetValues ProductFacetValue[]
   s1SyncedAt  DateTime?
   variants    Variant[]
   media       Media[]
@@ -94,8 +96,8 @@ model Product {
   reviews     Review[]
   questions   Question[]
   tags        ProductTag[]
-  updatedAt   DateTime     @updatedAt
-  createdAt   DateTime     @default(now())
+  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime            @default(now())
 
   @@index([categoryId, active])
   @@index([brandId])
@@ -481,17 +483,38 @@ model EprelSyncRun {
 
 /// Facet definitions per category: which specs become filters and how they map to URL params.
 model Facet {
-  id         String   @id @default(cuid())
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  key        String
-  label      String
-  param      String
-  kind       String // checkbox | range | boolean
-  sortNo     Int      @default(0)
-  source     String? // softone = από CCCWEBSPECS με isFilter
+  id           String              @id @default(cuid())
+  categoryId   String
+  category     Category            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  key          String
+  label        String
+  param        String
+  kind         String // checkbox | range | boolean
+  sortNo       Int                 @default(0)
+  source       String? // softone = από CCCWEBSPECS με isFilter
+  /// Πόσα ενεργά προϊόντα της κατηγορίας έχουν τιμή σε αυτό το φίλτρο, και πόσες διαφορετικές τιμές υπάρχουν — η βιτρίνα κρύβει τα άδεια
+  productCount Int                 @default(0)
+  valueCount   Int                 @default(0)
+  values       ProductFacetValue[]
 
   @@unique([categoryId, param])
+}
+
+/// Η τιμή ενός προϊόντος σε ένα φίλτρο, κανονικοποιημένη («55"», «Ναι», «Λευκό»). Παράγεται από lib/softone/facet-values.ts.
+model ProductFacetValue {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  facetId   String
+  facet     Facet   @relation(fields: [facetId], references: [id], onDelete: Cascade)
+  value     String
+  slug      String // για το URL: f_<param>=<slug>
+  num       Float? // αριθμητική τιμή: ταξινόμηση και φίλτρα εύρους
+  source    String // spec = χαρακτηριστικό της περιγραφής · title = από τον τίτλο · text = από το κείμενο (λιγότερο βέβαιο)
+
+  @@unique([productId, facetId, slug])
+  @@index([facetId, slug])
+  @@index([facetId, num])
 }
 
 model Tag {

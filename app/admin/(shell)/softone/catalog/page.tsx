@@ -1,4 +1,4 @@
-import { Package, AlertTriangle, Store } from "lucide-react";
+import { Package, AlertTriangle, Store, SlidersHorizontal } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { catalogStats } from "@/lib/softone/catalog";
@@ -27,9 +27,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(q ? { OR: [{ code: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }, { factoryCode: { contains: q, mode: "insensitive" as const } }, { barcode: { contains: q } }] } : {}),
     ...(f === "nodesc" ? { shortDesc: null, longDesc: null } : f === "nodims" ? { OR: [{ widthCm: null }, { heightCm: null }, { lengthCm: null }] } : f === "nogroup" ? { specGroupS1Id: null } : f === "nobrand" ? { manufacturerS1Id: null } : f === "missing" ? { missing: true } : f === "inactive" ? { active: false } : {}),
   };
-  const [stats, vec, shop, tree, rows, total] = await Promise.all([
+  const [stats, vec, shop, tree, coverage, facetTotals, rows, total] = await Promise.all([
     catalogStats(), vectorStats(), projectionStats(),
     db.category.findMany({ where: { source: "softone", depth: 0 }, orderBy: { sortNo: "asc" }, select: { id: true, name: true, slug: true, active: true, productCount: true, children: { orderBy: { sortNo: "asc" }, select: { id: true, name: true, active: true, productCount: true, _count: { select: { children: true } } } } } }),
+    db.category.findMany({ where: { source: "softone", depth: 2, productCount: { gt: 0 } }, orderBy: { productCount: "desc" }, take: 12, select: { id: true, name: true, productCount: true, facets: { where: { source: "softone", key: { not: "price" } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true, kind: true, productCount: true, valueCount: true } } } }),
+    db.productFacetValue.groupBy({ by: ["source"], _count: { _all: true } }),
     db.s1Item.findMany({ where, orderBy: { s1UpdatedAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE, include: { specGroup: { select: { name: true } } } }),
     db.s1Item.count({ where }),
   ]);
@@ -37,6 +39,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const href = (n: number) => `?${new URLSearchParams({ q, f, page: String(n) })}`;
   const pct = (n: number) => (stats.items ? `${Math.round((n / stats.items) * 100)}%` : "—");
   const state = (k: string) => stats.states.find((s) => s.kind === k);
+  const fv = (k: string) => facetTotals.find((t) => t.source === k)?._count._all ?? 0;
+  const fvTotal = fv("spec") + fv("title") + fv("text");
 
   return (
     <div className="grid gap-5 min-w-0">
@@ -108,6 +112,27 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </div>
         )}
       </section>
+
+      {fvTotal > 0 && (
+        <section className="grid gap-3">
+          <div>
+            <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] inline-flex items-center gap-2"><SlidersHorizontal className="size-4.5 text-eu-blue" aria-hidden /> Κάλυψη φίλτρων</h3>
+            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[84ch]">Το ERP ορίζει ποια φίλτρα έχει κάθε τύπος προϊόντος, όχι την τιμή κάθε είδους. Οι <b className="text-eu-ink">{fvTotal.toLocaleString("el-GR")}</b> τιμές βγαίνουν από τα χαρακτηριστικά της περιγραφής ({fv("spec").toLocaleString("el-GR")}), τον τίτλο ({fv("title").toLocaleString("el-GR")}) και το κείμενο ({fv("text").toLocaleString("el-GR")} · μόνο «Ναι», λιγότερο βέβαιο). Το ποσοστό δείχνει πόσα προϊόντα του τύπου έχουν τιμή· φίλτρο κάτω από 30 % δεν αξίζει να εμφανιστεί στη βιτρίνα — εκεί λείπουν δεδομένα στο ERP.</p>
+          </div>
+          <div className="rounded-2xl border border-eu-line bg-white divide-y divide-eu-line">
+            {coverage.map((c) => (
+              <div key={c.id} className="grid gap-2 p-3 @3xl:grid-cols-[16rem_minmax(0,1fr)]">
+                <div><div className="font-bold text-eu-ink">{c.name}</div><div className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{c.productCount.toLocaleString("el-GR")} προϊόντα · {c.facets.length} φίλτρα</div></div>
+                <div className="flex flex-wrap gap-1.5">
+                  {c.facets.map((f) => { const pc = Math.min(100, Math.round((f.productCount / c.productCount) * 100)); return (
+                    <span key={f.id} title={`${f.valueCount} τιμές · ${f.kind}`} className={`rounded-full px-2.5 py-1 text-[length:var(--fs-13)] ${pc >= 60 ? "bg-eu-green/12 text-eu-ink" : pc >= 30 ? "bg-eu-yellow/25 text-eu-ink" : "bg-eu-surface text-eu-muted"}`}>{f.label} <b className="tabular-nums">{pc}%</b></span>
+                  ); })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

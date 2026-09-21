@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { logged, type Trigger } from "@/lib/softone/catalog";
 import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
+import { resolveFacets, type FacetValue } from "@/lib/softone/facet-values";
 
 /**
  * Προβολή του καθρέφτη του SoftOne στο κατάστημα (Category / Product / Spec /
@@ -124,17 +125,26 @@ async function projectFacets(idOf: Map<string, string>) {
     taken.add(param);
     rows.push({ categoryId, key: special?.key ?? `s1:${d.code}`, label, param, kind: special?.kind ?? "checkbox", sortNo: d.code, source: SOURCE });
   }
-  // Ξαναγράφονται μόνο αν άλλαξε κάτι — αλλιώς ο γύρος δεν αγγίζει τον πίνακα
-  const sig = (f: { categoryId: string; key: string; label: string; param: string; kind: string; sortNo?: number | null }) => `${f.categoryId}|${f.key}|${f.label}|${f.param}|${f.kind}|${f.sortNo ?? 0}`;
-  const before = (await db.facet.findMany({ where: { source: SOURCE } })).map(sig).sort().join("\n");
-  const same = before === rows.map(sig).sort().join("\n");
-  if (!same) await db.$transaction([db.facet.deleteMany({ where: { source: SOURCE } }), db.facet.createMany({ data: rows, skipDuplicates: true })]);
-  return { facets: rows.length, rewritten: !same };
+  // Διαφορά ανά (κατηγορία, param): τα ids των φίλτρων μένουν σταθερά, γιατί πάνω τους κρέμονται οι τιμές των προϊόντων (ProductFacetValue)
+  const before = new Map((await db.facet.findMany({ where: { source: SOURCE } })).map((f) => [`${f.categoryId}|${f.param}`, f]));
+  const wanted = new Set(rows.map((r) => `${r.categoryId}|${r.param}`));
+  const fresh = rows.filter((r) => !before.has(`${r.categoryId}|${r.param}`));
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  for (const r of rows) {
+    const e = before.get(`${r.categoryId}|${r.param}`);
+    // Το `kind` των απλών φίλτρων το αποφασίζουν οι πραγματικές τιμές (projectFacetValues) — εδώ δεν ξαναγράφεται
+    if (e && (e.key !== r.key || e.label !== r.label || e.sortNo !== r.sortNo)) ops.push(db.facet.update({ where: { id: e.id }, data: { key: r.key, label: r.label, sortNo: r.sortNo ?? 0 } }));
+  }
+  const gone = [...before.entries()].filter(([k]) => !wanted.has(k)).map(([, f]) => f.id);
+  if (fresh.length) await db.facet.createMany({ data: fresh, skipDuplicates: true });
+  for (const part of chunk(ops, 100)) await db.$transaction(part);
+  if (gone.length) await db.facet.deleteMany({ where: { id: { in: gone } } });
+  return { facets: rows.length, created: fresh.length, updated: ops.length, removed: gone.length };
 }
 
 // ---------- Προϊόντα ----------
 
-export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; rewritten: boolean }; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
+export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
 
 async function projectProducts(idOf: Map<string, string>) {
   const [brands, vats, existing] = await Promise.all([
@@ -217,6 +227,80 @@ async function projectProducts(idOf: Map<string, string>) {
   return { total: seen.size, created, updated, unchanged, deactivated: gone.length, skipped: { noBrand, noCategory }, specRows, energyRows };
 }
 
+// ---------- Τιμές φίλτρων ----------
+
+export interface FacetValuesResult { products: number; rewritten: number; values: number; bySource: Record<string, number>; facetsWithValues: number; facetsUpdated: number }
+const BOOL = new Set(["nai", "ochi"]);
+
+/**
+ * Κάθε προϊόν παίρνει τιμή στα φίλτρα του τύπου του (lib/softone/facet-values.ts).
+ * Δουλεύει ανά κατηγορία, γιατί η εναρμόνιση θέλει όλη την εικόνα:
+ * - ίδια τιμή με άλλα κεφαλαία («Εμπρόσθιας Φόρτωσης» / «…φόρτωσης») → η συχνότερη γραφή·
+ * - φίλτρο όπου κυριαρχεί το Ναι/Όχι → οι υπόλοιπες περιγραφές («BT 5.4») σημαίνουν «Ναι».
+ * Το είδος του φίλτρου (boolean / range / checkbox) και οι μετρητές βγαίνουν από τις πραγματικές τιμές.
+ */
+async function projectFacetValues(): Promise<FacetValuesResult> {
+  const cats = await db.category.findMany({ where: { source: SOURCE, depth: 2 }, select: { id: true, name: true, facets: { where: { source: SOURCE, key: { startsWith: "s1:" } }, select: { id: true, label: true } } } });
+  let products = 0, rewritten = 0, values = 0; const bySource: Record<string, number> = { spec: 0, title: 0, text: 0 };
+  for (const c of cats) {
+    if (!c.facets.length) continue;
+    const rows = await db.product.findMany({ where: { categoryId: c.id, source: SOURCE }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: DESC_SOURCE }, orderBy: { sortNo: "asc" }, select: { key: true, value: true } } } });
+    if (!rows.length) continue;
+    products += rows.length;
+    const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: p.title, summary: p.summary, description: p.description, specs: p.specs, typeName: c.name })]));
+
+    // Εναρμόνιση ανά φίλτρο
+    const perFacet = new Map<string, FacetValue[]>();
+    for (const list of resolved.values()) for (const v of list) perFacet.set(v.facetId, [...(perFacet.get(v.facetId) ?? []), v]);
+    for (const list of perFacet.values()) {
+      const bool = list.filter((v) => BOOL.has(v.slug)).length;
+      if (bool / list.length >= 0.7) for (const v of list) if (!BOOL.has(v.slug)) { v.value = "Ναι"; v.slug = "nai"; v.num = null; }
+      const spelling = new Map<string, Map<string, number>>();
+      for (const v of list) { const m = spelling.get(v.slug) ?? new Map<string, number>(); m.set(v.value, (m.get(v.value) ?? 0) + 1); spelling.set(v.slug, m); }
+      for (const v of list) v.value = [...spelling.get(v.slug)!.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "el"))[0][0];
+    }
+
+    const changed: { id: string; hash: string; vals: FacetValue[] }[] = [];
+    for (const p of rows) {
+      const seen = new Set<string>();
+      const vals = (resolved.get(p.id) ?? []).filter((v) => { const k = `${v.facetId}|${v.slug}`; if (seen.has(k)) return false; seen.add(k); return true; }); // μετά την εναρμόνιση δύο τιμές μπορεί να έγιναν ίδιες
+      const hash = sha(vals.map((v) => [v.facetId, v.slug, v.value, v.num, v.source]).sort());
+      if (hash !== p.facetHash) changed.push({ id: p.id, hash, vals });
+    }
+    for (const part of chunk(changed, 400)) {
+      const data = part.flatMap((p) => p.vals.map((v) => ({ productId: p.id, facetId: v.facetId, value: v.value, slug: v.slug, num: v.num, source: v.source })));
+      await db.$transaction([
+        db.productFacetValue.deleteMany({ where: { productId: { in: part.map((p) => p.id) } } }),
+        db.productFacetValue.createMany({ data, skipDuplicates: true }),
+        db.$executeRawUnsafe(`UPDATE "Product" p SET "facetHash" = v.h FROM (VALUES ${part.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(", ")}) AS v(id, h) WHERE p.id = v.id`, ...part.flatMap((p) => [p.id, p.hash])),
+      ]);
+      rewritten += part.length; values += data.length;
+      for (const d of data) bySource[d.source] = (bySource[d.source] ?? 0) + 1;
+    }
+  }
+
+  // Μετρητές και είδος φίλτρου, μόνο με ενεργά προϊόντα
+  const agg = await db.$queryRawUnsafe<{ facetId: string; products: number; vals: number; numeric: number; total: number; nonbool: number }[]>(
+    `SELECT v."facetId", count(DISTINCT v."productId")::int products, count(DISTINCT v.slug)::int vals, count(v.num)::int numeric, count(*)::int total, count(*) FILTER (WHERE v.slug NOT IN ('nai','ochi'))::int nonbool
+     FROM "ProductFacetValue" v JOIN "Product" p ON p.id = v."productId" AND p.active GROUP BY 1`);
+  const special = await db.$queryRawUnsafe<{ id: string; products: number; vals: number }[]>(
+    `SELECT f.id, count(p.id)::int products, count(DISTINCT CASE WHEN f.key = 'brand' THEN p."brandId" ELSE e.class END)::int vals
+     FROM "Facet" f JOIN "Product" p ON p."categoryId" = f."categoryId" AND p.active LEFT JOIN "EnergyLabel" e ON e."productId" = p.id
+     WHERE f.source = $1 AND f.key IN ('brand', 'energy') AND (f.key = 'brand' OR e.class IS NOT NULL) GROUP BY f.id`, SOURCE);
+  const want = new Map<string, { productCount: number; valueCount: number; kind?: string }>();
+  for (const a of agg) want.set(a.facetId, { productCount: a.products, valueCount: a.vals, kind: a.nonbool === 0 ? "boolean" : a.numeric / a.total >= 0.8 && a.vals > 12 ? "range" : "checkbox" });
+  for (const a of special) want.set(a.id, { productCount: a.products, valueCount: a.vals });
+  const facets = await db.facet.findMany({ where: { source: SOURCE }, select: { id: true, kind: true, productCount: true, valueCount: true } });
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
+  for (const f of facets) {
+    const w = want.get(f.id) ?? { productCount: 0, valueCount: 0 };
+    const kind = w.kind ?? f.kind;
+    if (f.productCount !== w.productCount || f.valueCount !== w.valueCount || f.kind !== kind) ops.push(db.facet.update({ where: { id: f.id }, data: { productCount: w.productCount, valueCount: w.valueCount, kind } }));
+  }
+  for (const part of chunk(ops, 100)) await db.$transaction(part);
+  return { products, rewritten, values, bySource, facetsWithValues: agg.length, facetsUpdated: ops.length };
+}
+
 /** Ολόκληρη η προβολή με τη σωστή σειρά. Ασφαλής για επανάληψη. */
 export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok: boolean; ms: number; error?: string; result?: ProjectResult }> {
   let result: ProjectResult | undefined;
@@ -225,8 +309,9 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     const facets = await projectFacets(cats.idOf);
     const p = await projectProducts(cats.idOf);
     const vis = await refreshCategoryCounts(cats.nodes, cats.idOf);
+    const facetValues = await projectFacetValues();
     result = {
-      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets,
+      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues,
       products: { total: p.total, created: p.created, updated: p.updated, unchanged: p.unchanged, deactivated: p.deactivated, skipped: p.skipped },
       specs: p.specRows, energy: p.energyRows,
     };
