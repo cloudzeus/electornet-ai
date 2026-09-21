@@ -49,9 +49,25 @@ export interface EprelRow {
   repairabilityClass: string | null; repairabilityIndex: number | null; webLink: string | null; onMarketStart: Date | null; onMarketEnd: Date | null; firstPublishedAt: Date | null; versionNumber: number | null; lastVersion: boolean;
 }
 
+/**
+ * Οι διαστάσεις στο EPREL ΔΕΝ έχουν ενιαία μονάδα: τα πλυντήρια δηλώνονται σε εκατοστά (60 × 85 × 57), τα ψυγεία σε
+ * χιλιοστά (700 × 1845 × 720). Καμία οικιακή συσκευή δεν ξεπερνά τα 2,5 μ., οπότε ό,τι έχει πλευρά > 250 είναι χιλιοστά.
+ */
+export function eprelDimsCm(raw: EprelRaw): { w: number; h: number; d: number } | null {
+  const w = num(raw.dimensionWidth), h = num(raw.dimensionHeight), d = num(raw.dimensionDepth);
+  if (!w || !h || !d || w <= 0 || h <= 0 || d <= 0) return null;
+  const k = Math.max(w, h, d) > 250 ? 0.1 : 1;
+  const r = (n: number) => Math.round(n * k * 10) / 10;
+  return { w: r(w), h: r(h), d: r(d) };
+}
+
+/** Το EPREL κωδικοποιεί τα «+» της παλιάς κλίμακας ως P: AP = A+, APP = A++, APPP = A+++. */
+export const classLabel = (c: string | null) => (c ? c.trim().replace(/^A(P{1,3})$/i, (_, p: string) => `A${"+".repeat(p.length)}`) : c);
+
 export function toRow(raw: EprelRaw): EprelRow {
   const a = annualKwh(raw);
   const intOrNull = (v: unknown) => { const n = num(v); return n == null ? null : Math.round(n); };
+  const dims = eprelDimsCm(raw);
   return {
     registrationNumber: String(raw.eprelRegistrationNumber),
     groupUrlCode: raw.productGroup,
@@ -61,7 +77,7 @@ export function toRow(raw: EprelRaw): EprelRow {
     trademarkOwner: str(raw.trademarkOwner),
     organisationName: str(raw.organisation?.organisationName) ?? str(raw.organisation?.organisationTitle),
     status: str(raw.status),
-    energyClass: str(raw.energyClass) ?? str(raw.energyClassSDR) ?? str(raw.coolingEnergyClass) ?? str(raw.energyClassWash),
+    energyClass: classLabel(str(raw.energyClass) ?? str(raw.energyClassSDR) ?? str(raw.coolingEnergyClass) ?? str(raw.energyClassWash)),
     energyClassRange: str(raw.energyClassRange),
     energyClassImage: str(raw.energyClassImageWithScale) ?? str(raw.energyClassImage),
     energyEfficiencyIndex: num(raw.energyEfficiencyIndex),
@@ -69,9 +85,9 @@ export function toRow(raw: EprelRaw): EprelRow {
     annualKwhBasis: a?.basis ?? null,
     noise: intOrNull(raw.noise),
     noiseClass: str(raw.noiseClass),
-    dimensionWidth: intOrNull(raw.dimensionWidth),
-    dimensionHeight: intOrNull(raw.dimensionHeight),
-    dimensionDepth: intOrNull(raw.dimensionDepth),
+    dimensionWidth: dims ? Math.round(dims.w) : null, // πάντα εκατοστά (βλ. eprelDimsCm)
+    dimensionHeight: dims ? Math.round(dims.h) : null,
+    dimensionDepth: dims ? Math.round(dims.d) : null,
     guaranteeDuration: intOrNull(raw.guaranteeDuration ?? raw.guranteeDuration),
     repairabilityClass: str(raw.repairabilityClass),
     repairabilityIndex: num(raw.repairabilityIndex),

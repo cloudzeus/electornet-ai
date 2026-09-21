@@ -21,7 +21,7 @@ async function main() {
   if (!before.hasKey) throw new Error("Λείπει το EPREL_API_KEY στο .env.");
   let total = 0, matched = 0;
   while (total < max) {
-    const r = await matchEprelBatch({ limit: Math.min(100, max - total), retry: has("retry") });
+    const r = await matchEprelBatch({ limit: Math.min(100, max - total), retry: has("retry"), concurrency: Number(val("concurrency")) || 3 });
     total += r.checked; matched += r.matched;
     console.log(`  +${r.checked}: ${r.matched} βρέθηκαν, ${r.ambiguous} αμφίβολα, ${r.none} όχι · απομένουν ${r.remaining.toLocaleString("el-GR")} · ${Math.round((Date.now() - t0) / 1000)} s`);
     for (const s of r.samples.slice(0, 3)) console.log("     ", s);
