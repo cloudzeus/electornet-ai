@@ -33,5 +33,5 @@ export async function rebuildVectorIndex(embedLimit = 2000) {
 export async function testVectorSearch(query: string) {
   await requirePermission("catalog.products.read");
   const hits = await semanticProducts(query, {}, 6);
-  return hits.map((h) => ({ refId: h.refId, title: h.title, score: Math.round(h.score * 1000) / 1000, exact: h.exact, brand: (h.meta?.brand as string) ?? null, price: (h.meta?.price as number) ?? null }));
+  return hits.map((h) => ({ refId: h.refId, title: h.title, score: Math.round(h.score * 1000) / 1000, exact: h.exact, via: h.via, brand: (h.meta?.brand as string) ?? null, price: (h.meta?.price as number) ?? null }));
 }

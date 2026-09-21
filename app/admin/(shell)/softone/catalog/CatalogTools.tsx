@@ -37,7 +37,7 @@ export function CatalogTools() {
       </form>
       {hits && (
         <ol className="m-0 p-0 list-none grid gap-1.5">
-          {hits.map((h) => <li key={h.refId} className="flex flex-wrap items-baseline gap-2 text-[length:var(--fs-14)]"><span className="tabular-nums text-eu-muted w-12">{h.score.toFixed(3)}</span><span className="font-bold text-eu-ink">{h.title}</span>{h.exact && <span className="rounded-full bg-eu-green/12 text-eu-green font-bold px-2 text-[length:var(--fs-13)]">ακριβής κωδικός</span>}{h.price != null && <span className="text-eu-ink-3 tabular-nums">{h.price.toLocaleString("el-GR")} €</span>}</li>)}
+          {hits.map((h) => <li key={h.refId} className="flex flex-wrap items-baseline gap-2 text-[length:var(--fs-14)]"><span className="tabular-nums text-eu-muted w-12">{h.score.toFixed(3)}</span><span className="font-bold text-eu-ink">{h.title}</span>{h.exact && <span className="rounded-full bg-eu-green/12 text-eu-green font-bold px-2 text-[length:var(--fs-13)]">ακριβής κωδικός</span>}{h.via === "group" && <span className="rounded-full bg-eu-blue/10 text-eu-blue font-bold px-2 text-[length:var(--fs-13)]">τύπος προϊόντος</span>}{h.price != null && <span className="text-eu-ink-3 tabular-nums">{h.price.toLocaleString("el-GR")} €</span>}</li>)}
           {!hits.length && <li className="text-eu-muted text-[length:var(--fs-14)]">Κανένα αποτέλεσμα — το ευρετήριο είναι άδειο ή δεν έχουν υπολογιστεί embeddings.</li>}
         </ol>
       )}
