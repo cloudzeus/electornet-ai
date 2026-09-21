@@ -67,40 +67,52 @@ model Brand {
 }
 
 model Product {
-  id          String              @id @default(cuid())
-  erpCode     String              @unique // MTRL / item code
-  slug        String              @unique
-  sku         String              @unique
-  ean         String?
-  title       String
-  brandId     String
-  brand       Brand               @relation(fields: [brandId], references: [id])
-  categoryId  String
-  category    Category            @relation(fields: [categoryId], references: [id])
-  summary     String?             @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
-  description String?             @db.Text
-  highlights  Json?
-  vatRate     Decimal             @default(24) @db.Decimal(5, 2)
-  isRenew     Boolean             @default(false)
-  renewGrade  String? // A | B
-  active      Boolean             @default(true)
-  source      String? // softone = προβολή του καθρέφτη
-  s1Hash      String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
-  facetHash   String? // αποτύπωμα των τιμών φίλτρων
-  facetValues ProductFacetValue[]
-  s1SyncedAt  DateTime?
-  variants    Variant[]
-  media       Media[]
-  specs       Spec[]
-  energy      EnergyLabel?
-  reviews     Review[]
-  questions   Question[]
-  tags        ProductTag[]
-  updatedAt   DateTime            @updatedAt
-  createdAt   DateTime            @default(now())
+  id             String              @id @default(cuid())
+  erpCode        String              @unique // MTRL / item code
+  slug           String              @unique
+  sku            String              @unique
+  ean            String?
+  title          String
+  brandId        String
+  brand          Brand               @relation(fields: [brandId], references: [id])
+  categoryId     String
+  category       Category            @relation(fields: [categoryId], references: [id])
+  summary        String?             @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
+  description    String?             @db.Text
+  highlights     Json?
+  vatRate        Decimal             @default(24) @db.Decimal(5, 2)
+  isRenew        Boolean             @default(false)
+  renewGrade     String? // A | B
+  active         Boolean             @default(true)
+  source         String? // softone = προβολή του καθρέφτη
+  s1Hash         String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
+  facetHash      String? // αποτύπωμα των τιμών φίλτρων
+  /// Μοντέλο κατασκευαστή όπως το αναγνωρίσαμε (από κωδικό είδους / τίτλο) — το κλειδί για το EPREL
+  modelCode      String?
+  /// Αντιστοίχιση με το EPREL: matched | ambiguous | none | skipped (ο τύπος δεν έχει ενεργειακή ετικέτα)
+  eprelStatus    String?
+  eprelCheckedAt DateTime?
+  /// Σύγκριση διαστάσεων ERP ↔ EPREL: match | minor | swapped | conflict | erp-only | eprel-only
+  dimStatus      String?
+  dimDeltaPct    Float? // μεγαλύτερη απόκλιση σε άξονα, %
+  dimNote        String?
+  dimensions     ProductDimension[]
+  facetValues    ProductFacetValue[]
+  s1SyncedAt     DateTime?
+  variants       Variant[]
+  media          Media[]
+  specs          Spec[]
+  energy         EnergyLabel?
+  reviews        Review[]
+  questions      Question[]
+  tags           ProductTag[]
+  updatedAt      DateTime            @updatedAt
+  createdAt      DateTime            @default(now())
 
   @@index([categoryId, active])
   @@index([brandId])
+  @@index([eprelStatus])
+  @@index([dimStatus])
 }
 
 model Variant {
@@ -536,6 +548,25 @@ model Facet {
   values       ProductFacetValue[]
 
   @@unique([categoryId, param])
+}
+
+/// Εξωτερικές διαστάσεις σε εκατοστά, μία γραμμή ανά πηγή — ώστε ERP και EPREL να συγκρίνονται αντί να σβήνει το ένα το άλλο.
+model ProductDimension {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source    String // s1-desc = περιγραφή του ERP · eprel = δήλωση κατασκευαστή · manual = διαχειριστής
+  kind      String   @default("product") // product | no-stand | with-stand | indoor-unit | no-door | axes
+  w         Float
+  h         Float
+  d         Float
+  rawKey    String? // από ποια γραμμή βγήκε
+  rawValue  String?
+  warning   String? // π.χ. εκτός τυπικών ορίων για τον τύπο
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, source])
+  @@index([source])
 }
 
 /// Η τιμή ενός προϊόντος σε ένα φίλτρο, κανονικοποιημένη («55"», «Ναι», «Λευκό»). Παράγεται από lib/softone/facet-values.ts.

@@ -1,4 +1,5 @@
 import { slugify } from "@/lib/slug";
+import { extractDims } from "@/lib/catalog/dimensions";
 
 /**
  * Από τι παίρνει τιμή ένα φίλτρο του SoftOne για ένα συγκεκριμένο προϊόν.
@@ -68,19 +69,8 @@ const connectivity: Norm = (v) => { const out = CONNECT.filter(([re]) => re.test
 const PANEL: [RegExp, string][] = [[/qd[- ]?oled/i, "QD-OLED"], [/\boled\b/i, "OLED"], [/neo\s?qled/i, "Neo QLED"], [/\bqned\b/i, "QNED"], [/\bqled\b/i, "QLED"], [/mini[- ]?led/i, "Mini LED"], [/nano\s?cell/i, "NanoCell"], [/\b(d?led)\b/i, "LED"], [/\blcd\b/i, "LCD"]];
 const panel: Norm = (v) => { const c = PANEL.find(([re]) => re.test(v)); return c ? { value: c[1] } : null; };
 
-/** «Διαστάσεις (ΥxΠxΒ) mm: 850 x 600 x 590» → εκατοστά ανά άξονα. Η σειρά διαβάζεται από την ετικέτα· χωρίς σειρά, Π×Υ×Β. */
-export function parseDims(key: string, value: string): { w: number; h: number; d: number } | null {
-  const nums = [...value.replace(/(\d),(\d)/g, "$1.$2").matchAll(/(\d+(?:\.\d+)?)/g)].map((m) => parseFloat(m[1]));
-  if (nums.length < 3) return null;
-  const k = key.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/Y/g, "Υ").replace(/B/g, "Β").replace(/H/g, "Υ").replace(/W/g, "Π").replace(/D/g, "Β");
-  // Χωρίς σειρά στην ετικέτα: Π×Υ×Β, εκτός αν ο πρώτος αριθμός είναι σαφώς ο μεγαλύτερος (ψυγείο «185 x 60 x 65») → Υ×Π×Β
-  const order = /([ΠΥΒ])\s*[XΧ×*]\s*([ΠΥΒ])\s*[XΧ×*]\s*([ΠΥΒ])/.exec(k)?.slice(1, 4) ?? (nums[0] > nums[1] * 1.4 && nums[0] > nums[2] * 1.4 ? ["Υ", "Π", "Β"] : ["Π", "Υ", "Β"]);
-  const scale = /\bmm\b|χιλ/i.test(key + " " + value) ? 0.1 : /\bm\b|μετρ/i.test(key) && Math.max(...nums.slice(0, 3)) < 5 ? 100 : Math.max(...nums.slice(0, 3)) > 400 ? 0.1 : 1;
-  const get = (axis: string) => Math.round(nums[order.indexOf(axis)] * scale * 10) / 10;
-  const r = { w: get("Π"), h: get("Υ"), d: get("Β") };
-  return [r.w, r.h, r.d].every((n) => Number.isFinite(n) && n > 0.2 && n < 400) ? r : null;
-}
-const dimsOf = (p: ProductInput) => { for (const s of p.specs) if (/^διαστασεισ/.test(plain(s.key)) && !/συσκευασ|κουτι|με βαση/.test(plain(s.key))) { const d = parseDims(s.key, s.value); if (d) return d; } return null; };
+// Οι διαστάσεις διαβάζονται από έναν και μόνο εξαγωγέα (lib/catalog/dimensions.ts) — ίδιος για τα φίλτρα, το AR και τη σύγκριση με το EPREL.
+const dimsOf = (p: ProductInput) => extractDims(p.specs, p.typeName);
 const cm = (n: number, src?: "spec"): Val => ({ value: `${fmt(n)} εκ.`, num: n, src });
 
 const RAM_SIZES = new Set([1, 2, 3, 4, 6, 8, 10, 12, 16, 18, 24, 32, 36, 48, 64, 96, 128]);

@@ -47,3 +47,13 @@ export async function restoreProductImage(productId: string, id: string) {
   revalidatePath(path(productId));
   return listProductImages(productId);
 }
+
+/** Μία παρτίδα αντιστοίχισης με το EPREL (το πλήρες πέρασμα γίνεται με scripts/match-eprel.ts). */
+export async function runEprelMatch(limit = 60) {
+  const user = await requirePermission("catalog.sync.run");
+  const { matchEprelBatch } = await import("@/lib/catalog/eprel-match");
+  const r = await matchEprelBatch({ limit: Math.min(100, limit) });
+  await audit(user.id, "catalog.eprel.match", "Product", null, null, { ...r, samples: undefined });
+  revalidatePath("/admin/catalog/dimensions");
+  return r;
+}

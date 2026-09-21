@@ -7,6 +7,7 @@ import { logged, type Trigger } from "@/lib/softone/catalog";
 import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
 import { resolveFacets, type FacetValue } from "@/lib/softone/facet-values";
 import { associateImages, type AssociateResult } from "@/lib/catalog/image-import";
+import { projectDimensions } from "@/lib/catalog/product-dimensions";
 
 /**
  * Προβολή του καθρέφτη του SoftOne στο κατάστημα (Category / Product / Spec /
@@ -145,7 +146,7 @@ async function projectFacets(idOf: Map<string, string>) {
 
 // ---------- Προϊόντα ----------
 
-export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
+export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; dimensions: Awaited<ReturnType<typeof projectDimensions>>; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
 
 async function projectProducts(idOf: Map<string, string>) {
   const [brands, vats, existing] = await Promise.all([
@@ -310,11 +311,12 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     const facets = await projectFacets(cats.idOf);
     const p = await projectProducts(cats.idOf);
     const vis = await refreshCategoryCounts(cats.nodes, cats.idOf);
+    const dimensions = await projectDimensions(); // πριν από τα φίλτρα δεν χρειάζεται — διαβάζουν τα ίδια Spec
     const facetValues = await projectFacetValues();
     // Ένα νέο είδος παίρνει τις φωτογραφίες που έχουν ήδη ανέβει για το barcode του — χωρίς νέο ανέβασμα
     const images = await associateImages();
     result = {
-      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images,
+      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images, dimensions,
       products: { total: p.total, created: p.created, updated: p.updated, unchanged: p.unchanged, deactivated: p.deactivated, skipped: p.skipped },
       specs: p.specRows, energy: p.energyRows,
     };
