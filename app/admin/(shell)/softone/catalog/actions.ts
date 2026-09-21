@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { syncWebCategories, syncSpecGroups, syncItems, syncCatalog, s1Alive } from "@/lib/softone/catalog";
+import { projectCatalog } from "@/lib/softone/project";
 import { refreshProductDocs, embedStale, semanticProducts } from "@/lib/vector/index";
 
 const PATH = "/admin/softone/catalog";
@@ -11,6 +12,15 @@ export async function runCatalogSync(what: "webcat" | "specs" | "items-delta" | 
   const user = await requirePermission("catalog.sync.run");
   const r = what === "webcat" ? [await syncWebCategories()] : what === "specs" ? [await syncSpecGroups()] : what === "items-delta" ? [await syncItems("delta")] : what === "items-full" ? [await syncItems("full")] : await syncCatalog("delta");
   await audit(user.id, "softone.catalog.sync", "S1SyncRun", what, null, r.map((x) => ({ kind: x.kind, ok: x.ok, fetched: x.fetched, created: x.created, updated: x.updated, error: x.error })));
+  revalidatePath(PATH);
+  return r;
+}
+
+/** Καθρέφτης → Category / Product / Spec / Facet του καταστήματος. Δεν μιλά με το ERP. */
+export async function runProjection() {
+  const user = await requirePermission("catalog.sync.run");
+  const r = await projectCatalog("manual");
+  await audit(user.id, "softone.catalog.project", "S1SyncRun", "cat-project", null, { ok: r.ok, ms: r.ms, error: r.error, ...r.result });
   revalidatePath(PATH);
   return r;
 }

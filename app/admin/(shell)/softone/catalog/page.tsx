@@ -1,8 +1,9 @@
-import { Package, AlertTriangle } from "lucide-react";
+import { Package, AlertTriangle, Store } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { catalogStats } from "@/lib/softone/catalog";
 import { vectorStats } from "@/lib/vector/index";
+import { projectionStats } from "@/lib/softone/project";
 import { Pagination } from "@/components/admin/Pagination";
 import { CatalogTools } from "./CatalogTools";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const PAGE = 50;
 const fmt = (d: Date | null | undefined) => (d ? d.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
-const KIND: Record<string, string> = { "cat-webcat": "Κατηγορίες site", "cat-specs": "Ορισμοί χαρακτηριστικών", "cat-items": "Είδη (αλλαγές)", "cat-items-full": "Είδη (πλήρης)" };
+const KIND: Record<string, string> = { "cat-webcat": "Κατηγορίες site", "cat-specs": "Ορισμοί χαρακτηριστικών", "cat-items": "Είδη (αλλαγές)", "cat-items-full": "Είδη (πλήρης)", "cat-project": "Προβολή στο κατάστημα" };
 
 /**
  * Καθρέφτης του καταλόγου του SoftOne: κατηγορίες site, τύποι προϊόντος με τα
@@ -26,8 +27,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(q ? { OR: [{ code: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }, { factoryCode: { contains: q, mode: "insensitive" as const } }, { barcode: { contains: q } }] } : {}),
     ...(f === "nodesc" ? { shortDesc: null, longDesc: null } : f === "nodims" ? { OR: [{ widthCm: null }, { heightCm: null }, { lengthCm: null }] } : f === "nogroup" ? { specGroupS1Id: null } : f === "nobrand" ? { manufacturerS1Id: null } : f === "missing" ? { missing: true } : f === "inactive" ? { active: false } : {}),
   };
-  const [stats, vec, rows, total] = await Promise.all([
-    catalogStats(), vectorStats(),
+  const [stats, vec, shop, tree, rows, total] = await Promise.all([
+    catalogStats(), vectorStats(), projectionStats(),
+    db.category.findMany({ where: { source: "softone", depth: 0 }, orderBy: { sortNo: "asc" }, select: { id: true, name: true, slug: true, active: true, productCount: true, children: { orderBy: { sortNo: "asc" }, select: { id: true, name: true, active: true, productCount: true, _count: { select: { children: true } } } } } }),
     db.s1Item.findMany({ where, orderBy: { s1UpdatedAt: "desc" }, skip: (page - 1) * PAGE, take: PAGE, include: { specGroup: { select: { name: true } } } }),
     db.s1Item.count({ where }),
   ]);
@@ -42,7 +44,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <div>
           <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Package className="size-3.5" aria-hidden /> SoftOne ERP</div>
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Κατάλογος & CCC</h2>
-          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[84ch]">Καθρέφτης μόνο ανάγνωσης: κατηγορίες site (<span className="font-mono">CCCWEBCATEGORY1/2</span>), τύποι προϊόντος με τα χαρακτηριστικά και τα φίλτρα τους (<span className="font-mono">CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS</span>) και τα είδη που ανήκουν στο site (<span className="font-mono">MTRL</span>). Οι τιμές χαρακτηριστικών ανά είδος, οι φωτογραφίες, η τιμή του site και το απόθεμα ανά κατάστημα δεν εκτίθενται από το ERP και μένουν ανοιχτά.</p>
+          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[84ch]">Καθρέφτης μόνο ανάγνωσης: κατηγορίες site (<span className="font-mono">CCCWEBCATEGORY1/2</span>), τύποι προϊόντος με τα χαρακτηριστικά και τα φίλτρα τους (<span className="font-mono">CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS</span>) και τα είδη που ανήκουν στο site (<span className="font-mono">MTRL</span>). Οι φωτογραφίες, η τιμή του site και το απόθεμα ανά κατάστημα δεν εκτίθενται από το ERP και μένουν ανοιχτά· οι τιμές χαρακτηριστικών ανά είδος βγαίνουν προς το παρόν από τις γραμμές «ετικέτα : τιμή» της περιγραφής.</p>
         </div>
       </div>
 
@@ -72,6 +74,40 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           {stats.runs.map((r) => <span key={r.id} className={`rounded-full px-2.5 py-1 inline-flex items-center gap-1 ${r.ok ? "bg-eu-surface" : "bg-eu-red/10 text-eu-red"}`}>{!r.ok && <AlertTriangle className="size-3.5" aria-hidden />}{fmt(r.at)} · {KIND[r.kind] ?? r.kind}: {r.ok ? `${r.fetched} γρ., +${r.created}, ~${r.updated}${r.missing ? `, ${r.missing} λείπουν` : ""}${r.skipped ? `, ${r.skipped} αγνοήθηκαν` : ""} · ${(r.ms / 1000).toFixed(1)} s` : r.error}</span>)}
         </div>
       )}
+
+
+      <section className="grid gap-3">
+        <div>
+          <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] inline-flex items-center gap-2"><Store className="size-4.5 text-eu-blue" aria-hidden /> Προβολή στο κατάστημα</h3>
+          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[84ch]">Ο καθρέφτης γίνεται <span className="font-mono">Category › Product › Spec › Facet</span>: Master › Main › τύπος προϊόντος. Τα slugs δεν αλλάζουν ποτέ αφού δοθούν, τίποτα δεν διαγράφεται (κρύβεται), και ό,τι έβαλε διαχειριστής ή το EPREL δεν πειράζεται. Τελευταία προβολή: {fmt(shop.last?.at)}.</p>
+        </div>
+        <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-4 gap-3">
+          {[
+            { t: "Κατηγορίες", v: `${shop.master} › ${shop.main} › ${shop.types}`, s: `${shop.catVisible} ορατές · οι υπόλοιπες δεν έχουν κανένα προϊόν` },
+            { t: "Προϊόντα", v: shop.products.toLocaleString("el-GR"), s: `${shop.active.toLocaleString("el-GR")} ενεργά · ${shop.sellable.toLocaleString("el-GR")} πωλήσιμα — λείπει η τιμή του site` },
+            { t: "Χαρακτηριστικά από περιγραφές", v: shop.specs.toLocaleString("el-GR"), s: `σε ${shop.withSpecs.toLocaleString("el-GR")} προϊόντα · πλεονεκτήματα σε ${shop.withHighlights.toLocaleString("el-GR")}` },
+            { t: "Φίλτρα & ενέργεια", v: shop.facets.toLocaleString("el-GR"), s: `φίλτρα ανά τύπο προϊόντος · ${shop.energy.toLocaleString("el-GR")} ενεργειακές κλάσεις από περιγραφές` },
+          ].map((c) => (
+            <div key={c.t} className="rounded-2xl bg-white border border-eu-line p-4 min-w-0">
+              <div className="text-eu-muted text-[length:var(--fs-13)]">{c.t}</div>
+              <div className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-24)] tabular-nums">{c.v}</div>
+              <div className="text-eu-ink-3 text-[length:var(--fs-13)]">{c.s}</div>
+            </div>
+          ))}
+        </div>
+        {tree.length > 0 && (
+          <div className="rounded-2xl border border-eu-line bg-white divide-y divide-eu-line">
+            {tree.map((m) => (
+              <div key={m.id} className={`grid gap-2 p-3 @3xl:grid-cols-[16rem_minmax(0,1fr)] ${m.active ? "" : "opacity-55"}`}>
+                <div><div className="font-bold text-eu-ink">{m.name}</div><div className="text-eu-muted text-[length:var(--fs-13)] font-mono">/{m.slug} · {m.productCount.toLocaleString("el-GR")}</div></div>
+                <div className="flex flex-wrap gap-1.5">
+                  {m.children.map((c) => <span key={c.id} className={`rounded-full px-2.5 py-1 text-[length:var(--fs-13)] ${c.active ? "bg-eu-chip text-eu-ink" : "bg-eu-surface text-eu-muted line-through"}`}>{c.name} <b className="tabular-nums">{c.productCount.toLocaleString("el-GR")}</b><span className="text-eu-muted"> · {c._count.children} τύποι</span></span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
-import { RefreshCw, Loader2, Sparkles, Search, Activity } from "lucide-react";
-import { runCatalogSync, rebuildVectorIndex, testVectorSearch, checkS1 } from "./actions";
+import { RefreshCw, Loader2, Sparkles, Search, Activity, Store } from "lucide-react";
+import { runCatalogSync, rebuildVectorIndex, testVectorSearch, checkS1, runProjection } from "./actions";
 
 const btn = "inline-flex items-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 disabled:opacity-60";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -28,6 +28,7 @@ export function CatalogTools() {
         <button type="button" disabled={pending} onClick={() => { if (confirm("Πλήρης ανάγνωση όλων των ειδών του site από το SoftOne. Παίρνει αρκετά λεπτά και φορτώνει τον server του ERP. Συνέχεια;")) sync("items-full"); }} className={secondary}>Είδη · πλήρης</button>
         <button type="button" disabled={pending} onClick={() => start(async () => { const r = await checkS1(); setMsg(r.ok ? "Οι web services του SoftOne απαντούν." : `Οι web services του SoftOne ΔΕΝ απαντούν: ${r.error}`); })} className={secondary}><Activity className="size-4" aria-hidden /> Έλεγχος σύνδεσης</button>
         <span className="flex-1" />
+        <button type="button" disabled={pending} onClick={() => start(async () => { setMsg(null); const r = await runProjection(); const x = r.result; setMsg(r.ok && x ? `Προβολή στο κατάστημα: προϊόντα +${x.products.created}, ~${x.products.updated}, ${x.products.unchanged.toLocaleString("el-GR")} ίδια${x.products.deactivated ? `, ${x.products.deactivated} κρύφτηκαν` : ""}${x.products.skipped.noBrand ? ` · ${x.products.skipped.noBrand} χωρίς κατασκευαστή` : ""} · κατηγορίες +${x.categories.created}, ~${x.categories.updated} (${x.categories.visible} ορατές) · ${x.specs.toLocaleString("el-GR")} χαρακτηριστικά γράφτηκαν · φίλτρα ${x.facets.rewritten ? "ξαναγράφτηκαν" : "ίδια"} (${(r.ms / 1000).toFixed(1)} s)` : `Προβολή: ΣΦΑΛΜΑ — ${r.error}`); })} className={secondary}><Store className="size-4" aria-hidden /> Προβολή στο κατάστημα</button>
         <button type="button" disabled={pending} onClick={() => start(async () => { setMsg(null); const r = await rebuildVectorIndex(); setMsg(`Ευρετήριο: ${r.docs.total} κείμενα (+${r.docs.created}, ~${r.docs.changed}, −${r.docs.removed}) · embeddings ${r.emb.embedded}, απομένουν ${r.emb.remaining} · ${r.emb.tokens.toLocaleString("el-GR")} tokens, $${r.emb.costUsd.toFixed(4)}${r.emb.error ? ` · ΣΦΑΛΜΑ: ${r.emb.error}` : ""}`); })} className={secondary}><Sparkles className="size-4" aria-hidden /> Ενημέρωση ευρετηρίου Ερμή</button>
       </div>
       {msg && <p className="m-0 rounded-xl bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">{msg}</p>}

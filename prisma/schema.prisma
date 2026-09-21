@@ -15,47 +15,53 @@ datasource db {
 // ---------- Catalogue (mirrored from the ERP) ----------
 
 model Category {
-  id        String     @id @default(cuid())
-  erpCode   String?    @unique
-  slug      String     @unique
-  name      String
-  parentId  String?
-  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryTree")
-  depth     Int        @default(0)
-  sortNo    Int        @default(0)
-  metaTitle String?
-  metaDesc  String?    @db.Text
-  products  Product[]
-  facets    Facet[]
+  id           String     @id @default(cuid())
+  erpCode      String?    @unique
+  slug         String     @unique
+  name         String
+  parentId     String?
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children     Category[] @relation("CategoryTree")
+  depth        Int        @default(0)
+  sortNo       Int        @default(0)
+  metaTitle    String?
+  metaDesc     String?    @db.Text
+  /// Κρυφή όταν είναι ανενεργή στο ERP ή δεν έχει κανένα ενεργό προϊόν στο υποδέντρο της
+  active       Boolean    @default(true)
+  productCount Int        @default(0) // ενεργά προϊόντα στο υποδέντρο
+  source       String? // softone = προβολή του καθρέφτη (lib/softone/project.ts)
+  s1SyncedAt   DateTime?
+  products     Product[]
+  facets       Facet[]
 
   @@index([parentId])
+  @@index([active, depth, sortNo])
 }
 
 model Brand {
-  id         String    @id @default(cuid())
-  slug       String    @unique
-  code       String?   @unique
-  name       String
-  logo       String? // δικό μας αρχείο (Media library → Bunny) — έχει προτεραιότητα
-  logoCdn    String? // hotlink Brandfetch· οι όροι τους ΑΠΑΓΟΡΕΥΟΥΝ λήψη/re-hosting
-  domain     String? // «samsung.com» — το κλειδί του Brandfetch
-  logoSource String? // upload | brandfetch | manual-domain
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  code          String?   @unique
+  name          String
+  logo          String? // δικό μας αρχείο (Media library → Bunny) — έχει προτεραιότητα
+  logoCdn       String? // hotlink Brandfetch· οι όροι τους ΑΠΑΓΟΡΕΥΟΥΝ λήψη/re-hosting
+  domain        String? // «samsung.com» — το κλειδί του Brandfetch
+  logoSource    String? // upload | brandfetch | manual-domain
   domainSuggest String? // πρόταση Brandfetch που θέλει έγκριση διαχειριστή
-  logoScore  Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
-  logoStatus String? // pending | approved | rejected — κάθε λογότυπο από το API περνά από έγκριση διαχειριστή
-  logoAt     DateTime?
-  featured   Boolean   @default(false)
-  sort       Int       @default(0)
-  active     Boolean   @default(true)
-  s1Id       String?   @unique // MTRMANFCTR (κατασκευαστής = μάρκα για το site)
-  s1Name     String?
-  s1Data     Json?
-  s1SyncedAt DateTime?
-  s1Missing  Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  products   Product[]
+  logoScore     Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
+  logoStatus    String? // pending | approved | rejected — κάθε λογότυπο από το API περνά από έγκριση διαχειριστή
+  logoAt        DateTime?
+  featured      Boolean   @default(false)
+  sort          Int       @default(0)
+  active        Boolean   @default(true)
+  s1Id          String?   @unique // MTRMANFCTR (κατασκευαστής = μάρκα για το site)
+  s1Name        String?
+  s1Data        Json?
+  s1SyncedAt    DateTime?
+  s1Missing     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
 
   @@index([active, sort])
 }
@@ -71,12 +77,16 @@ model Product {
   brand       Brand        @relation(fields: [brandId], references: [id])
   categoryId  String
   category    Category     @relation(fields: [categoryId], references: [id])
+  summary     String?      @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
   description String?      @db.Text
   highlights  Json?
   vatRate     Decimal      @default(24) @db.Decimal(5, 2)
   isRenew     Boolean      @default(false)
   renewGrade  String? // A | B
   active      Boolean      @default(true)
+  source      String? // softone = προβολή του καθρέφτη
+  s1Hash      String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
+  s1SyncedAt  DateTime?
   variants    Variant[]
   media       Media[]
   specs       Spec[]
@@ -92,29 +102,29 @@ model Product {
 }
 
 model Variant {
-  id         String       @id @default(cuid())
+  id         String         @id @default(cuid())
   productId  String
-  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  erpCode    String       @unique
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  erpCode    String         @unique
   axis       Json // { color: "Deep Blue", capacity: "256GB" }
-  price      Decimal      @db.Decimal(10, 2)
-  wasPrice   Decimal?     @db.Decimal(10, 2)
+  price      Decimal        @db.Decimal(10, 2)
+  wasPrice   Decimal?       @db.Decimal(10, 2)
   /// Omnibus: lowest price of the previous 30 days, maintained by PriceHistory
-  lowest30   Decimal?     @db.Decimal(10, 2)
+  lowest30   Decimal?       @db.Decimal(10, 2)
   prices     PriceHistory[]
   stock      StoreStock[]
   cartLines  CartLine[]
   orderLines OrderLine[]
-  updatedAt  DateTime     @updatedAt
+  updatedAt  DateTime       @updatedAt
 
   @@index([productId])
 }
 
 model PriceHistory {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   variantId String
-  variant   Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  price     Decimal  @db.Decimal(10, 2)
+  variant   Variant   @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  price     Decimal   @db.Decimal(10, 2)
   from      DateTime
   to        DateTime?
 
@@ -153,21 +163,24 @@ model Spec {
   key       String
   value     String
   sortNo    Int     @default(0)
+  source    String? // s1-desc = γραμμές «ετικέτα : τιμή» από την περιγραφή του ERP· η προβολή αγγίζει μόνο αυτές
 
   @@index([productId])
+  @@index([key])
 }
 
 model EnergyLabel {
-  productId String  @id
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  class     String // A+++ … G
-  scale     String // "A-G" | "A+++-D"
-  eprelId   String?
-  labelUrl  String?
-  ficheUrl  String?
+  productId               String        @id
+  product                 Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  class                   String // A+++ … G
+  scale                   String // "A-G" | "A+++-D"
+  eprelId                 String?
+  labelUrl                String?
+  ficheUrl                String?
+  source                  String? // s1-desc | eprel | manual
   /// Σύνδεση με την καταχώριση EPREL — από εκεί έρχονται ετικέτα, δελτίο και όλα τα τεχνικά
   eprelRegistrationNumber String?
-  eprel     EprelProduct? @relation(fields: [eprelRegistrationNumber], references: [registrationNumber], onDelete: SetNull)
+  eprel                   EprelProduct? @relation(fields: [eprelRegistrationNumber], references: [registrationNumber], onDelete: SetNull)
 
   @@index([eprelRegistrationNumber])
 }
@@ -180,30 +193,30 @@ model EnergyLabel {
 
 /// Κατηγορίες site: επίπεδο 1 = CCCWEBCATEGORY1 (Master), επίπεδο 2 = CCCWEBCATEGORY2 (Main).
 model S1WebCategory {
-  key         String   @id // "1:10" ή "2:10:30" (επίπεδο:master[:main]) — το id του επιπέδου 2 δεν είναι βέβαιο ότι είναι μοναδικό χωρίς τον γονέα
+  key         String    @id // "1:10" ή "2:10:30" (επίπεδο:master[:main]) — το id του επιπέδου 2 δεν είναι βέβαιο ότι είναι μοναδικό χωρίς τον γονέα
   level       Int
   s1Id        Int
   parentS1Id  Int? // για το επίπεδο 2: CCCWEBCATEGORY1
   name        String
-  active      Boolean  @default(true)
+  active      Boolean   @default(true)
   s1UpdatedAt DateTime?
-  missing     Boolean  @default(false) // υπήρχε, δεν ήρθε στον τελευταίο πλήρη συγχρονισμό
-  syncedAt    DateTime @default(now())
+  missing     Boolean   @default(false) // υπήρχε, δεν ήρθε στον τελευταίο πλήρη συγχρονισμό
+  syncedAt    DateTime  @default(now())
 
   @@index([level, parentS1Id])
 }
 
 /// CCCWEBGRSPECS: ομάδα χαρακτηριστικών = τύπος προϊόντος (3ο επίπεδο του δέντρου).
 model S1SpecGroup {
-  s1Id        Int      @id // CCCWEBGRSPECS
+  s1Id        Int         @id // CCCWEBGRSPECS
   code        String? // WEBGRSPECS
   name        String
   cat1        Int? // CCCWEBCATEGORY1
   cat2        Int? // CCCWEBCATEGORY2
-  active      Boolean  @default(true)
+  active      Boolean     @default(true)
   s1UpdatedAt DateTime?
-  missing     Boolean  @default(false)
-  syncedAt    DateTime @default(now())
+  missing     Boolean     @default(false)
+  syncedAt    DateTime    @default(now())
   specs       S1SpecDef[]
   items       S1Item[]
 
@@ -212,16 +225,16 @@ model S1SpecGroup {
 
 /// CCCWEBSPECS: τα χαρακτηριστικά μιας ομάδας, με σήμανση προβολής και φίλτρου.
 model S1SpecDef {
-  id          String   @id @default(cuid())
+  id          String         @id @default(cuid())
   groupS1Id   Int
-  group       S1SpecGroup @relation(fields: [groupS1Id], references: [s1Id], onDelete: Cascade)
+  group       S1SpecGroup    @relation(fields: [groupS1Id], references: [s1Id], onDelete: Cascade)
   code        Int // WEBSPECS
   name        String
-  isView      Boolean  @default(true)
-  isFilter    Boolean  @default(false)
-  active      Boolean  @default(true)
+  isView      Boolean        @default(true)
+  isFilter    Boolean        @default(false)
+  active      Boolean        @default(true)
   s1UpdatedAt DateTime?
-  missing     Boolean  @default(false)
+  missing     Boolean        @default(false)
   options     S1SpecOption[]
 
   @@unique([groupS1Id, code])
@@ -229,14 +242,14 @@ model S1SpecDef {
 
 /// CCCWEBSPECSLNS: προκαθορισμένες τιμές ενός χαρακτηριστικού (όπου υπάρχουν).
 model S1SpecOption {
-  id        String   @id @default(cuid())
-  specId    String
-  spec      S1SpecDef @relation(fields: [specId], references: [id], onDelete: Cascade)
-  code      Int // WEBSPECSLNS
-  name      String
-  color     String? // SOCOLOR
-  active    Boolean  @default(true)
-  missing   Boolean  @default(false)
+  id      String    @id @default(cuid())
+  specId  String
+  spec    S1SpecDef @relation(fields: [specId], references: [id], onDelete: Cascade)
+  code    Int // WEBSPECSLNS
+  name    String
+  color   String? // SOCOLOR
+  active  Boolean   @default(true)
+  missing Boolean   @default(false)
 
   @@unique([specId, code])
 }
@@ -245,41 +258,41 @@ model S1SpecOption {
 /// Οι ΤΙΜΕΣ χαρακτηριστικών ανά είδος, οι φωτογραφίες, η τιμή site και το απόθεμα ανά κατάστημα ΔΕΝ είναι εδώ:
 /// δεν εκτίθενται από επίσημο αντικείμενο (ανοιχτό μέχρι να δούμε τα scripts iSite / UpdateWebItems).
 model S1Item {
-  mtrl          Int      @id
-  code          String
-  name          String
-  name2         String?
-  barcode       String? // CODE1
-  factoryCode   String? // CODE2
-  active        Boolean  @default(true)
+  mtrl             Int          @id
+  code             String
+  name             String
+  name2            String?
+  barcode          String? // CODE1
+  factoryCode      String? // CODE2
+  active           Boolean      @default(true)
   manufacturerS1Id Int? // MTRMANFCTR → Brand.s1Id
-  markS1Id      Int? // MTRMARK
-  commCategory  Int? // MTRCATEGORY
-  itemGroup     Int? // MTRGROUP
-  vatS1Id       Int?
-  unitS1Id      Int?
-  priceRetail   Float? // PRICER (τιμή καρτέλας, όχι απαραίτητα η τιμή του site)
-  priceWholesale Float? // PRICEW
-  webCat1       Int? // CCCWEBCATEGORY1
-  webCat2       Int? // CCCWEBCATEGORY2
-  specGroupS1Id Int? // CCCWEBGRSPECS
-  specGroup     S1SpecGroup? @relation(fields: [specGroupS1Id], references: [s1Id], onDelete: SetNull)
-  shortDesc     String?  @db.Text // CCCWREMARKS1
-  longDesc      String?  @db.Text // CCCWREMARKS (memo)
-  availText     String? // CCCAVAIL
-  extWarranty   Boolean  @default(false) // CCCWARRANTY
-  guaranteeMonths Int? // GUARTIME
-  onOrder       Boolean  @default(false) // MTRONORDER
-  replacedByMtrl Int? // MTRRPLCODE
-  weightKg      Float? // CCCWEIGHT
-  lengthCm      Float? // CCCLENGTH
-  widthCm       Float? // CCCWIDTH
-  heightCm      Float? // CCCHEIGHT
-  s1UpdatedAt   DateTime?
-  missing       Boolean  @default(false)
-  contentHash   String? // αποτύπωμα των πεδίων που μπαίνουν στο κείμενο αναζήτησης· όταν αλλάξει, το vector γίνεται «μπαγιάτικο»
-  syncedAt      DateTime @default(now())
-  createdAt     DateTime @default(now())
+  markS1Id         Int? // MTRMARK
+  commCategory     Int? // MTRCATEGORY
+  itemGroup        Int? // MTRGROUP
+  vatS1Id          Int?
+  unitS1Id         Int?
+  priceRetail      Float? // PRICER (τιμή καρτέλας, όχι απαραίτητα η τιμή του site)
+  priceWholesale   Float? // PRICEW
+  webCat1          Int? // CCCWEBCATEGORY1
+  webCat2          Int? // CCCWEBCATEGORY2
+  specGroupS1Id    Int? // CCCWEBGRSPECS
+  specGroup        S1SpecGroup? @relation(fields: [specGroupS1Id], references: [s1Id], onDelete: SetNull)
+  shortDesc        String?      @db.Text // CCCWREMARKS1
+  longDesc         String?      @db.Text // CCCWREMARKS (memo)
+  availText        String? // CCCAVAIL
+  extWarranty      Boolean      @default(false) // CCCWARRANTY
+  guaranteeMonths  Int? // GUARTIME
+  onOrder          Boolean      @default(false) // MTRONORDER
+  replacedByMtrl   Int? // MTRRPLCODE
+  weightKg         Float? // CCCWEIGHT
+  lengthCm         Float? // CCCLENGTH
+  widthCm          Float? // CCCWIDTH
+  heightCm         Float? // CCCHEIGHT
+  s1UpdatedAt      DateTime?
+  missing          Boolean      @default(false)
+  contentHash      String? // αποτύπωμα των πεδίων που μπαίνουν στο κείμενο αναζήτησης· όταν αλλάξει, το vector γίνεται «μπαγιάτικο»
+  syncedAt         DateTime     @default(now())
+  createdAt        DateTime     @default(now())
 
   @@index([specGroupS1Id])
   @@index([webCat1, webCat2])
@@ -290,11 +303,11 @@ model S1Item {
 
 /// Δείκτης προόδου ανά είδος συγχρονισμού: από πού συνεχίζει το delta (UPDDATE) και πότε έγινε ο τελευταίος πλήρης.
 model S1SyncState {
-  kind        String   @id // webcat | specgroup | item
+  kind        String    @id // webcat | specgroup | item
   cursor      DateTime? // μέγιστο UPDDATE που έχουμε δει
   lastFullAt  DateTime?
   lastDeltaAt DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
 }
 
 // ---------- Διανυσματικό ευρετήριο για το LLM (pgvector) ----------
@@ -303,21 +316,21 @@ model S1SyncState {
 /// ακριβώς που ενσωματώθηκε· το `meta` κρατά τα πεδία για φίλτρα πριν από την ομοιότητα (κατηγορία, μάρκα,
 /// τιμή, ενεργό). Το `hash` καλύπτει κείμενο + μοντέλο: ξαναϋπολογίζουμε embedding μόνο όταν αλλάξει.
 model VectorDoc {
-  id         String   @id @default(cuid())
+  id         String                       @id @default(cuid())
   kind       String // product | category | guide | service | faq
   refId      String // π.χ. το MTRL του είδους
   title      String
-  text       String   @db.Text
+  text       String                       @db.Text
   meta       Json?
   hash       String
   model      String?
   dims       Int?
   embedding  Unsupported("vector(1536)")?
-  stale      Boolean  @default(true)
+  stale      Boolean                      @default(true)
   embeddedAt DateTime?
   tokens     Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
 
   @@unique([kind, refId])
   @@index([kind, stale])
@@ -328,25 +341,25 @@ model VectorDoc {
 /// με ανεβασμένο GLB (και προαιρετικά USDZ) σερβίρεται αυτό, προσαρμοσμένο
 /// στις διαστάσεις αν ζητηθεί.
 model ProductAr {
-  productId   String   @id // id προϊόντος (fixture id σήμερα, erpCode αύριο)
-  enabled     Boolean  @default(false)
-  glbUrl      String? // ανεβασμένο μοντέλο (βιβλιοθήκη πολυμέσων → Bunny)
-  glbAssetId  String?
-  usdzUrl     String? // προαιρετικό για iPhone· αλλιώς το model-viewer μετατρέπει το GLB στον browser
-  usdzAssetId String?
-  fitToDims   Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
-  fitMode     String   @default("box") // box = κάθε άξονας στις δηλωμένες διαστάσεις (για μοντέλα από φωτογραφία, που «μαντεύουν» το βάθος) | height = ομοιόμορφα από το ύψος (μοντέλα κατασκευαστή)
-  modelBox    Json? // {w,h,d,min,max} σε cm/μονάδες όπως μετρήθηκαν στο ανεβασμένο GLB
-  frontImage  String? // η φωτογραφία της πρόσοψης που διάλεξε ο διαχειριστής για το στερεό (χωρίς 3D)· κενό = αυτόματα η πιο μετωπική
-  placement   String? // floor | wall — κενό = αυτόματα από την κατηγορία (κλιματιστικά, τηλεοράσεις, απορροφητήρες → τοίχος)
-  rotationY   Int      @default(0) // περιστροφή γύρω από τον κατακόρυφο άξονα (0/90/180/270) ώστε η πρόσοψη να κοιτά +Z
-  glbLightUrl String? // ελαφριά έκδοση (λιγότερα πολύγωνα, μικρότερες υφές) για αργές συνδέσεις
+  productId       String   @id // id προϊόντος (fixture id σήμερα, erpCode αύριο)
+  enabled         Boolean  @default(false)
+  glbUrl          String? // ανεβασμένο μοντέλο (βιβλιοθήκη πολυμέσων → Bunny)
+  glbAssetId      String?
+  usdzUrl         String? // προαιρετικό για iPhone· αλλιώς το model-viewer μετατρέπει το GLB στον browser
+  usdzAssetId     String?
+  fitToDims       Boolean  @default(true) // κλιμάκωση του μοντέλου ώστε το ύψος του να ισούται με το δηλωμένο
+  fitMode         String   @default("box") // box = κάθε άξονας στις δηλωμένες διαστάσεις (για μοντέλα από φωτογραφία, που «μαντεύουν» το βάθος) | height = ομοιόμορφα από το ύψος (μοντέλα κατασκευαστή)
+  modelBox        Json? // {w,h,d,min,max} σε cm/μονάδες όπως μετρήθηκαν στο ανεβασμένο GLB
+  frontImage      String? // η φωτογραφία της πρόσοψης που διάλεξε ο διαχειριστής για το στερεό (χωρίς 3D)· κενό = αυτόματα η πιο μετωπική
+  placement       String? // floor | wall — κενό = αυτόματα από την κατηγορία (κλιματιστικά, τηλεοράσεις, απορροφητήρες → τοίχος)
+  rotationY       Int      @default(0) // περιστροφή γύρω από τον κατακόρυφο άξονα (0/90/180/270) ώστε η πρόσοψη να κοιτά +Z
+  glbLightUrl     String? // ελαφριά έκδοση (λιγότερα πολύγωνα, μικρότερες υφές) για αργές συνδέσεις
   glbLightAssetId String?
-  source      String? // upload | tripo
-  note        String?
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  source          String? // upload | tripo
+  note            String?
+  updatedById     String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }
 
 /// Δημιουργία 3D μοντέλου από φωτογραφία με το Tripo3D (image_to_model), και
@@ -354,29 +367,29 @@ model ProductAr {
 /// τα αρχεία, μόλις ετοιμαστούν, αντιγράφονται στη βιβλιοθήκη πολυμέσων
 /// (Bunny) και δένονται με το ProductAr.
 model ArGeneration {
-  id           String   @id @default(cuid())
-  productId    String
-  imageUrl     String // η μπροστινή όψη
-  views        Json? // { left?, back?, right? } — επιπλέον όψεις για multiview_to_model
-  status       String   @default("queued") // queued | running | converting | done | failed
-  step         String? // τι τρέχει τώρα, για την οθόνη
-  progress     Int      @default(0)
-  tripoTaskId  String?  @unique
-  lightTaskId  String?
-  usdzTaskId   String?
-  fullUrl      String? // GLB πλήρης ποιότητας στο CDN μας
-  lightUrl     String? // GLB ελαφριά έκδοση στο CDN μας
-  usdzUrl      String?
-  renderUrl    String? // προεπισκόπηση από το Tripo (προσωρινός σύνδεσμος)
-  fullBytes    Int?
-  lightBytes   Int?
+  id            String   @id @default(cuid())
+  productId     String
+  imageUrl      String // η μπροστινή όψη
+  views         Json? // { left?, back?, right? } — επιπλέον όψεις για multiview_to_model
+  status        String   @default("queued") // queued | running | converting | done | failed
+  step          String? // τι τρέχει τώρα, για την οθόνη
+  progress      Int      @default(0)
+  tripoTaskId   String?  @unique
+  lightTaskId   String?
+  usdzTaskId    String?
+  fullUrl       String? // GLB πλήρης ποιότητας στο CDN μας
+  lightUrl      String? // GLB ελαφριά έκδοση στο CDN μας
+  usdzUrl       String?
+  renderUrl     String? // προεπισκόπηση από το Tripo (προσωρινός σύνδεσμος)
+  fullBytes     Int?
+  lightBytes    Int?
   creditsBefore Float? // υπόλοιπο Tripo πριν από κάθε task — η διαφορά μετά είναι το κόστος
-  creditsFull  Float? // credits που χρεώθηκαν για το πλήρες μοντέλο
-  creditsLight Float? // credits για την ελαφριά έκδοση
-  error        String?
-  createdById  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  creditsFull   Float? // credits που χρεώθηκαν για το πλήρες μοντέλο
+  creditsLight  Float? // credits για την ελαφριά έκδοση
+  error         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([productId, createdAt])
 }
@@ -386,12 +399,12 @@ model ArGeneration {
 /// Ομάδες προϊόντων του EPREL όπως τις δίνει το API (/product-groups). Το urlCode
 /// είναι το κλειδί των κλήσεων αναζήτησης· το code η εσωτερική ονομασία.
 model EprelProductGroup {
-  code       String   @id // HOUSEHOLD_WASHING_MACHINE_2019
-  urlCode    String   @unique // washingmachines2019
+  code       String         @id // HOUSEHOLD_WASHING_MACHINE_2019
+  urlCode    String         @unique // washingmachines2019
   name       String // Household washing machines
   regulation String? // Regulation (EU) 2019/2014
-  active     Boolean  @default(true) // ομάδες που μας αφορούν εμπορικά
-  syncedAt   DateTime @default(now())
+  active     Boolean        @default(true) // ομάδες που μας αφορούν εμπορικά
+  syncedAt   DateTime       @default(now())
   products   EprelProduct[]
 }
 
@@ -399,50 +412,50 @@ model EprelProductGroup {
 /// και σύγκριση· ολόκληρη η απάντηση του API μένει στο `data`, γιατί κάθε ομάδα
 /// έχει δικά της τεχνικά (πλυντήριο: στροφές, νερό· τηλεόραση: ανάλυση, HDR).
 model EprelProduct {
-  registrationNumber String   @id // eprelRegistrationNumber
-  groupUrlCode       String
-  group              EprelProductGroup @relation(fields: [groupUrlCode], references: [urlCode])
-  implementingAct    String? // EU_2019_2014
-  modelIdentifier    String
-  supplierOrTrademark String
-  trademarkOwner     String?
-  organisationName   String?
-  status             String? // PUBLISHED | …
+  registrationNumber    String            @id // eprelRegistrationNumber
+  groupUrlCode          String
+  group                 EprelProductGroup @relation(fields: [groupUrlCode], references: [urlCode])
+  implementingAct       String? // EU_2019_2014
+  modelIdentifier       String
+  supplierOrTrademark   String
+  trademarkOwner        String?
+  organisationName      String?
+  status                String? // PUBLISHED | …
   /// Ενεργειακή ετικέτα
-  energyClass        String? // A … G (ή A+++ … για παλιές κλίμακες)
-  energyClassRange   String? // A_G | APPP_D …
-  energyClassImage   String? // αρχείο βέλους που δίνει το EPREL
+  energyClass           String? // A … G (ή A+++ … για παλιές κλίμακες)
+  energyClassRange      String? // A_G | APPP_D …
+  energyClassImage      String? // αρχείο βέλους που δίνει το EPREL
   energyEfficiencyIndex Float?
   /// Ετήσια κατανάλωση σε kWh, κανονικοποιημένη ανά ομάδα (220 κύκλοι πλύσης, 280 πλυντηρίου πιάτων, 4 h/ημέρα οθόνη…)
-  annualKwh          Float?
-  annualKwhBasis     String? // από ποιο πεδίο και με ποια παραδοχή βγήκε
-  noise              Int? // dB(A)
-  noiseClass         String?
-  dimensionWidth     Int? // cm
-  dimensionHeight    Int?
-  dimensionDepth     Int?
-  guaranteeDuration  Int? // μήνες
-  repairabilityClass String?
-  repairabilityIndex Float?
-  webLink            String?
-  onMarketStart      DateTime?
-  onMarketEnd        DateTime?
-  firstPublishedAt   DateTime?
-  versionNumber      Float?
-  lastVersion        Boolean  @default(true)
+  annualKwh             Float?
+  annualKwhBasis        String? // από ποιο πεδίο και με ποια παραδοχή βγήκε
+  noise                 Int? // dB(A)
+  noiseClass            String?
+  dimensionWidth        Int? // cm
+  dimensionHeight       Int?
+  dimensionDepth        Int?
+  guaranteeDuration     Int? // μήνες
+  repairabilityClass    String?
+  repairabilityIndex    Float?
+  webLink               String?
+  onMarketStart         DateTime?
+  onMarketEnd           DateTime?
+  firstPublishedAt      DateTime?
+  versionNumber         Float?
+  lastVersion           Boolean           @default(true)
   /// Αρχεία στο EPREL (δημόσια, χωρίς κλειδί) και τα αντίγραφά μας στο Bunny CDN
-  labelSvgUrl        String?
-  labelPngUrl        String?
-  labelPdfUrl        String?
-  ficheUrl           String? // δελτίο πληροφοριών προϊόντος στα ελληνικά
-  nestedLabelSvg     String?  @db.Text // το μικρό βέλος για λίστες/κάρτες
-  labelAssetUrl      String? // αντίγραφο ετικέτας στο δικό μας CDN
-  ficheAssetUrl      String? // αντίγραφο δελτίου στο δικό μας CDN
-  data               Json // ολόκληρη η απάντηση /product/{registrationNumber}
-  fetchedAt          DateTime @default(now())
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  labels             EnergyLabel[]
+  labelSvgUrl           String?
+  labelPngUrl           String?
+  labelPdfUrl           String?
+  ficheUrl              String? // δελτίο πληροφοριών προϊόντος στα ελληνικά
+  nestedLabelSvg        String?           @db.Text // το μικρό βέλος για λίστες/κάρτες
+  labelAssetUrl         String? // αντίγραφο ετικέτας στο δικό μας CDN
+  ficheAssetUrl         String? // αντίγραφο δελτίου στο δικό μας CDN
+  data                  Json // ολόκληρη η απάντηση /product/{registrationNumber}
+  fetchedAt             DateTime          @default(now())
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  labels                EnergyLabel[]
 
   @@index([groupUrlCode, energyClass])
   @@index([modelIdentifier])
@@ -476,6 +489,7 @@ model Facet {
   param      String
   kind       String // checkbox | range | boolean
   sortNo     Int      @default(0)
+  source     String? // softone = από CCCWEBSPECS με isFilter
 
   @@unique([categoryId, param])
 }
@@ -497,16 +511,16 @@ model ProductTag {
 }
 
 model Review {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   customerId String?
-  rating    Int
-  title     String?
-  body      String   @db.Text
-  verified  Boolean  @default(false)
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
+  rating     Int
+  title      String?
+  body       String   @db.Text
+  verified   Boolean  @default(false)
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
 
   @@index([productId, status])
 }
@@ -526,57 +540,57 @@ model Question {
 // ---------- Network & services ----------
 
 model Store {
-  id        String       @id @default(cuid())
-  siteId    Int?         @unique // euronics.gr store-locator id (source of the import)
-  erpBranch String?      @unique
-  slug      String       @unique
-  name      String
-  member    String? // cooperative member company
-  kind      String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
-  address   String
-  city      String
-  region    String
-  regionRaw String? // as published (genitive)
-  zip       String
-  phone     String?
-  mobile    String?
-  fax       String?
-  email     String?
-  lat       Float
-  lng       Float
-  geocoded  String? // "site" | "manual" | "nominatim"
-  geoLat    Float?  // independent geocode (Nominatim) for QA
-  geoLng    Float?
+  id         String       @id @default(cuid())
+  siteId     Int?         @unique // euronics.gr store-locator id (source of the import)
+  erpBranch  String?      @unique
+  slug       String       @unique
+  name       String
+  member     String? // cooperative member company
+  kind       String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
+  address    String
+  city       String
+  region     String
+  regionRaw  String? // as published (genitive)
+  zip        String
+  phone      String?
+  mobile     String?
+  fax        String?
+  email      String?
+  lat        Float
+  lng        Float
+  geocoded   String? // "site" | "manual" | "nominatim"
+  geoLat     Float? // independent geocode (Nominatim) for QA
+  geoLng     Float?
   geoDeltaKm Float? // distance between published and geocoded point
-  geoLabel  String? // display name returned by the geocoder
-  hours     Json // [{ day: 1, open: "09:00", close: "21:00" }]
-  services  Json // ["click-collect", "installation", "service-point", …]
-  photo     String? // media asset URL
-  notes     String?      @db.Text
-  active    Boolean      @default(true)
-  sort      Int          @default(0)
-  stock     StoreStock[]
-  orders    Order[]
-  customers Customer[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  geoLabel   String? // display name returned by the geocoder
+  hours      Json // [{ day: 1, open: "09:00", close: "21:00" }]
+  services   Json // ["click-collect", "installation", "service-point", …]
+  photo      String? // media asset URL
+  notes      String?      @db.Text
+  active     Boolean      @default(true)
+  sort       Int          @default(0)
+  stock      StoreStock[]
+  orders     Order[]
+  customers  Customer[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   @@index([region])
   @@index([active])
 }
 
 model Service {
-  id         String  @id @default(cuid())
-  slug       String  @unique
+  id         String           @id @default(cuid())
+  slug       String           @unique
   no         Int
   title      String
   blurb      String
-  body       String? @db.Text
-  priceFrom  Decimal? @db.Decimal(10, 2)
+  body       String?          @db.Text
+  priceFrom  Decimal?         @db.Decimal(10, 2)
   /// Where the service is offered as an add-on: pdp | checkout | delivery
   addonAt    Json?
   faq        Json?
-  active     Boolean @default(true)
+  active     Boolean          @default(true)
   orderLines OrderLineAddon[]
 }
 
@@ -585,60 +599,60 @@ model Service {
 /// Retail customer (e-shop account). Mirrors SoftOne CUSTOMER (TRDR) through erpTrdr/erpCode; the shop is the master for
 /// consents, devices, loyalty events and notes, the ERP is the master for fiscal identity (ΑΦΜ/ΔΟΥ) once linked.
 model Customer {
-  id            String         @id @default(cuid())
-  number        Int            @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
-  type          String         @default("individual") // individual | business
-  email         String         @unique
-  emailVerifiedAt DateTime?
-  phone         String?
-  mobile        String?
-  firstName     String
-  lastName      String
-  company       String? // legal name for business customers
-  vatNumber     String? // ΑΦΜ
-  doy           String? // Δ.Ο.Υ.
-  profession    String?
-  birthday      DateTime?
-  gender        String? // m | f | other | null
-  locale        String         @default("el")
-  status        String         @default("active") // active | blocked | anonymised
-  source        String         @default("web") // web | store | erp | import
-  tags          String[]       @default([])
-  newsletter    Boolean        @default(false)
-  passwordHash  String?
-  lastLoginAt   DateTime?
+  id               String                 @id @default(cuid())
+  number           Int                    @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
+  type             String                 @default("individual") // individual | business
+  email            String                 @unique
+  emailVerifiedAt  DateTime?
+  phone            String?
+  mobile           String?
+  firstName        String
+  lastName         String
+  company          String? // legal name for business customers
+  vatNumber        String? // ΑΦΜ
+  doy              String? // Δ.Ο.Υ.
+  profession       String?
+  birthday         DateTime?
+  gender           String? // m | f | other | null
+  locale           String                 @default("el")
+  status           String                 @default("active") // active | blocked | anonymised
+  source           String                 @default("web") // web | store | erp | import
+  tags             String[]               @default([])
+  newsletter       Boolean                @default(false)
+  passwordHash     String?
+  lastLoginAt      DateTime?
   preferredStoreId String?
-  preferredStore Store?        @relation(fields: [preferredStoreId], references: [id], onDelete: SetNull)
-  loyaltyPoints Int            @default(0)
-  loyaltyTier   String? // bronze | silver | gold
-  loyaltyCard   String? // ERP TRDRBONUSCARD / physical card number
+  preferredStore   Store?                 @relation(fields: [preferredStoreId], references: [id], onDelete: SetNull)
+  loyaltyPoints    Int                    @default(0)
+  loyaltyTier      String? // bronze | silver | gold
+  loyaltyCard      String? // ERP TRDRBONUSCARD / physical card number
   // ERP link (SoftOne CUSTOMER / TRDR)
-  erpTrdr       String?        @unique
-  erpCode       String?
-  erpSyncStatus String? // linked | queued | sent | failed | conflict
-  erpSyncedAt   DateTime?
-  erpLastError  String?        @db.Text
-  notes         String?        @db.Text // internal
-  anonymisedAt  DateTime?
-  addresses     Address[]
-  cards         SavedCard[]
-  consents      Consent[]
-  wishlists     WishlistList[]
-  orders        Order[]
-  carts         Cart[]
-  social        SocialAccount[]
-  devices       CustomerDevice[]
-  tickets       ServiceTicket[]
-  loyalty       LoyaltyTransaction[]
-  customerNotes CustomerNote[]
-  events        CustomerEvent[]
-  logins        LoginEvent[]
-  gdprRequests  GdprRequest[]
-  subscriptions NewsletterSubscriber[]
-  passwordResets PasswordReset[]
-  savedCarts    SavedCart[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  erpTrdr          String?                @unique
+  erpCode          String?
+  erpSyncStatus    String? // linked | queued | sent | failed | conflict
+  erpSyncedAt      DateTime?
+  erpLastError     String?                @db.Text
+  notes            String?                @db.Text // internal
+  anonymisedAt     DateTime?
+  addresses        Address[]
+  cards            SavedCard[]
+  consents         Consent[]
+  wishlists        WishlistList[]
+  orders           Order[]
+  carts            Cart[]
+  social           SocialAccount[]
+  devices          CustomerDevice[]
+  tickets          ServiceTicket[]
+  loyalty          LoyaltyTransaction[]
+  customerNotes    CustomerNote[]
+  events           CustomerEvent[]
+  logins           LoginEvent[]
+  gdprRequests     GdprRequest[]
+  subscriptions    NewsletterSubscriber[]
+  passwordResets   PasswordReset[]
+  savedCarts       SavedCart[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([lastName, firstName])
   @@index([vatNumber])
@@ -662,34 +676,34 @@ model SocialAccount {
 
 /// Delivery / billing addresses. Extra addresses map to SoftOne CUSBRANCH lines (erpBranch = LINENUM).
 model Address {
-  id          String   @id @default(cuid())
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  label       String? // Σπίτι, Γραφείο…
-  kind        String   @default("shipping") // shipping | billing | both
-  recipient   String?
-  street      String
-  number      String?
-  floor       String?
-  doorbell    String?
-  city        String
-  zip         String
-  region      String
-  country     String   @default("GR")
-  phone       String?
-  notes       String? // access, elevator, appointment hints
-  lat         Float?
-  lng         Float?
-  geoSource   String? // nominatim | manual | client (GPS at checkout)
-  geoLabel    String?
-  geocodedAt  DateTime?
+  id             String    @id @default(cuid())
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label          String? // Σπίτι, Γραφείο…
+  kind           String    @default("shipping") // shipping | billing | both
+  recipient      String?
+  street         String
+  number         String?
+  floor          String?
+  doorbell       String?
+  city           String
+  zip            String
+  region         String
+  country        String    @default("GR")
+  phone          String?
+  notes          String? // access, elevator, appointment hints
+  lat            Float?
+  lng            Float?
+  geoSource      String? // nominatim | manual | client (GPS at checkout)
+  geoLabel       String?
+  geocodedAt     DateTime?
   nearestStoreId String?
-  nearestKm   Float?
-  isDefault   Boolean  @default(false)
-  isBilling   Boolean  @default(false)
-  erpBranch   Int? // CUSBRANCH.LINENUM
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  nearestKm      Float?
+  isDefault      Boolean   @default(false)
+  isBilling      Boolean   @default(false)
+  erpBranch      Int? // CUSBRANCH.LINENUM
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([customerId])
   @@index([region])
@@ -714,16 +728,16 @@ model SavedCard {
 /// GDPR consent ledger (art. 7 — burden of proof): one immutable row per change with the full evidence of how the
 /// consent was obtained. Rows are never updated or deleted; erasure pseudonymises the customer, not the ledger.
 model Consent {
-  id           String    @id @default(cuid())
+  id           String                @id @default(cuid())
   customerId   String?
-  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer     Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   subscriberId String?
   subscriber   NewsletterSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
   email        String? // as given at the time (kept for proof even after erasure? no — hashed on erasure)
   topic        String // newsletter | offers | price-drop | back-in-stock | service | orders | cookies-analytics | cookies-marketing | geolocation | profiling | terms | privacy
-  channel      String    @default("email") // email | sms | push | viber | phone | web
+  channel      String                @default("email") // email | sms | push | viber | phone | web
   granted      Boolean
-  method       String    @default("checkbox") // checkbox | double-opt-in | account-toggle | admin | import | store-form | popup
+  method       String                @default("checkbox") // checkbox | double-opt-in | account-toggle | admin | import | store-form | popup
   source       String // checkout | account | footer | popup | admin | import | store | api
   textKey      String? // ConsentText.key
   textVersion  String? // ConsentText.version shown
@@ -742,7 +756,7 @@ model Consent {
   confirmIp    String?
   evidence     Json? // form snapshot / extra proof
   staffId      String? // when changed by staff
-  at           DateTime  @default(now())
+  at           DateTime              @default(now())
 
   @@index([customerId, topic, channel])
   @@index([email])
@@ -795,25 +809,25 @@ model LoginEvent {
 
 /// Newsletter audience with double opt-in and proof of every status change (see Consent rows with subscriberId).
 model NewsletterSubscriber {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  customerId     String?
-  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  firstName      String?
-  status         String    @default("pending") // pending | subscribed | unsubscribed | bounced | complained
-  source         String    @default("footer") // footer | checkout | account | popup | store | import | admin
-  lists          String[]  @default(["general"])
-  locale         String    @default("el")
-  token          String    @unique @default(cuid()) // confirm / unsubscribe link token
-  confirmedAt    DateTime?
-  unsubscribedAt DateTime?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  customerId        String?
+  customer          Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstName         String?
+  status            String    @default("pending") // pending | subscribed | unsubscribed | bounced | complained
+  source            String    @default("footer") // footer | checkout | account | popup | store | import | admin
+  lists             String[]  @default(["general"])
+  locale            String    @default("el")
+  token             String    @unique @default(cuid()) // confirm / unsubscribe link token
+  confirmedAt       DateTime?
+  unsubscribedAt    DateTime?
   unsubscribeReason String?
-  bouncedAt      DateTime?
-  externalId     String? // Mailchimp / Klaviyo id
-  syncedAt       DateTime?
-  consents       Consent[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  bouncedAt         DateTime?
+  externalId        String? // Mailchimp / Klaviyo id
+  syncedAt          DateTime?
+  consents          Consent[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([status])
   @@index([customerId])
@@ -821,27 +835,27 @@ model NewsletterSubscriber {
 
 /// Data-subject requests (GDPR arts. 15–21): tracked with the 30-day deadline and what was done.
 model GdprRequest {
-  id           String    @id @default(cuid())
-  number       String    @unique // GDPR-00001
-  customerId   String?
-  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  email        String
-  type         String // access | portability | rectification | erasure | restriction | objection | withdraw-consent
-  status       String    @default("open") // open | verifying | in-progress | done | rejected
-  channel      String    @default("account") // account | email | phone | store | letter | admin
-  description  String?   @db.Text
+  id                 String    @id @default(cuid())
+  number             String    @unique // GDPR-00001
+  customerId         String?
+  customer           Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email              String
+  type               String // access | portability | rectification | erasure | restriction | objection | withdraw-consent
+  status             String    @default("open") // open | verifying | in-progress | done | rejected
+  channel            String    @default("account") // account | email | phone | store | letter | admin
+  description        String?   @db.Text
   identityVerifiedAt DateTime?
-  identityMethod String? // login | id-document | email-link | in-person
-  requestedAt  DateTime  @default(now())
-  dueAt        DateTime // requestedAt + 30 days (art. 12.3)
-  completedAt  DateTime?
-  outcome      String?   @db.Text // what was delivered / why rejected
-  exportUrl    String?
-  staffId      String?
-  evidence     Json? // ip / ua of the request when self-service
-  timeline     Json?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  identityMethod     String? // login | id-document | email-link | in-person
+  requestedAt        DateTime  @default(now())
+  dueAt              DateTime // requestedAt + 30 days (art. 12.3)
+  completedAt        DateTime?
+  outcome            String?   @db.Text // what was delivered / why rejected
+  exportUrl          String?
+  staffId            String?
+  evidence           Json? // ip / ua of the request when self-service
+  timeline           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([status, dueAt])
   @@index([customerId])
@@ -865,9 +879,9 @@ model EmailLog {
 
 /// Appliances the customer owns (warranty wallet). Filled from order lines, store purchases (ERP) or manual registration.
 model CustomerDevice {
-  id             String    @id @default(cuid())
+  id             String          @id @default(cuid())
   customerId     String
-  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   productId      String?
   brand          String
   title          String
@@ -879,15 +893,15 @@ model CustomerDevice {
   storeId        String?
   invoiceNo      String? // ERP FINDOC number
   invoiceUrl     String?
-  warrantyMonths Int       @default(24)
+  warrantyMonths Int             @default(24)
   warrantyUntil  DateTime?
   extendedUntil  DateTime? // paid extended warranty
   extendedPlan   String?
-  registeredBy   String    @default("order") // order | erp | manual | staff
+  registeredBy   String          @default("order") // order | erp | manual | staff
   notes          String?
   tickets        ServiceTicket[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([customerId])
   @@index([serial])
@@ -985,22 +999,22 @@ model WishlistList {
 
 /// One favourite product in a list, with the price when added (price-drop badge) and per-item alert switches.
 model WishlistItem {
-  id               String       @id @default(cuid())
-  listId           String
-  list             WishlistList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  productId        String
-  variantId        String?
-  note             String?
-  priority         Int          @default(0) // 0 normal · 1 high · 2 must-have
-  priceAtAdd       Decimal?     @db.Decimal(10, 2)
-  notifyPriceDrop  Boolean      @default(true)
-  notifyBackInStock Boolean     @default(true)
-  lastNotifiedPrice Decimal?    @db.Decimal(10, 2) // price at the last price-drop email (one email per drop)
-  lastNotifiedAt   DateTime?
+  id                   String       @id @default(cuid())
+  listId               String
+  list                 WishlistList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  productId            String
+  variantId            String?
+  note                 String?
+  priority             Int          @default(0) // 0 normal · 1 high · 2 must-have
+  priceAtAdd           Decimal?     @db.Decimal(10, 2)
+  notifyPriceDrop      Boolean      @default(true)
+  notifyBackInStock    Boolean      @default(true)
+  lastNotifiedPrice    Decimal?     @db.Decimal(10, 2) // price at the last price-drop email (one email per drop)
+  lastNotifiedAt       DateTime?
   lastSeenAvailability String? // in-stock | days | order — to detect the flip back to in-stock
-  lastStockNotifiedAt DateTime?
-  source           String       @default("web") // web | merge | admin | import
-  addedAt          DateTime     @default(now())
+  lastStockNotifiedAt  DateTime?
+  source               String       @default("web") // web | merge | admin | import
+  addedAt              DateTime     @default(now())
 
   @@unique([listId, productId])
   @@index([productId])
@@ -1030,29 +1044,29 @@ model CartLine {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  number      String      @unique // EUR-YYYYMMDD-0000
-  customerId  String?
-  customer    Customer?   @relation(fields: [customerId], references: [id])
-  guestEmail  String?
-  status      String      @default("pending") // pending | paid | processing | shipped | ready-for-pickup | delivered | cancelled | returned
-  fulfilment  String // courier | click-collect | appointment
+  id            String      @id @default(cuid())
+  number        String      @unique // EUR-YYYYMMDD-0000
+  customerId    String?
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  guestEmail    String?
+  status        String      @default("pending") // pending | paid | processing | shipped | ready-for-pickup | delivered | cancelled | returned
+  fulfilment    String // courier | click-collect | appointment
   pickupStoreId String?
-  pickupStore Store?      @relation(fields: [pickupStoreId], references: [id])
-  shipping    Json // snapshot address
-  invoice     Json? // { vatNumber, doy, company } when a τιμολόγιο is requested
-  subtotal    Decimal     @db.Decimal(10, 2)
-  shippingFee Decimal     @db.Decimal(10, 2)
-  vat         Decimal     @db.Decimal(10, 2)
-  total       Decimal     @db.Decimal(10, 2)
-  lines       OrderLine[]
-  payment     Payment?
-  erpSync     ErpSync?
-  returns     Return[]
-  tracking    String?
-  courier     String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  pickupStore   Store?      @relation(fields: [pickupStoreId], references: [id])
+  shipping      Json // snapshot address
+  invoice       Json? // { vatNumber, doy, company } when a τιμολόγιο is requested
+  subtotal      Decimal     @db.Decimal(10, 2)
+  shippingFee   Decimal     @db.Decimal(10, 2)
+  vat           Decimal     @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  lines         OrderLine[]
+  payment       Payment?
+  erpSync       ErpSync?
+  returns       Return[]
+  tracking      String?
+  courier       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@index([customerId, createdAt])
   @@index([status])
@@ -1140,21 +1154,21 @@ model Zone {
 }
 
 model Widget {
-  id         String    @id @default(cuid())
-  zoneId     String
-  zone       Zone      @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  type       String // registry key
-  label      String?
-  props      Json
-  query      Json?
+  id           String    @id @default(cuid())
+  zoneId       String
+  zone         Zone      @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  type         String // registry key
+  label        String?
+  props        Json
+  query        Json?
   scheduleFrom DateTime?
   scheduleTo   DateTime?
-  visibility Json? // { devices, audience, regions, hideOnSaveData }
-  ab         Json? // { experiment, variant, weight }
-  zoneNo     Int?
-  sortNo     Int       @default(0)
-  version    Int       @default(1)
-  updatedAt  DateTime  @updatedAt
+  visibility   Json? // { devices, audience, regions, hideOnSaveData }
+  ab           Json? // { experiment, variant, weight }
+  zoneNo       Int?
+  sortNo       Int       @default(0)
+  version      Int       @default(1)
+  updatedAt    DateTime  @updatedAt
 
   @@index([zoneId, sortNo])
 }
@@ -1170,12 +1184,12 @@ model Campaign {
 }
 
 model Guide {
-  id        String   @id @default(cuid())
-  slug      String   @unique
+  id        String    @id @default(cuid())
+  slug      String    @unique
   kicker    String
   title     String
   excerpt   String
-  body      String   @db.Text
+  body      String    @db.Text
   image     String?
   minutes   Int
   ctaLabel  String?
@@ -1195,23 +1209,23 @@ model Redirect {
 // (e.g. "cms.zones.write", "orders.read", "settings.write").
 
 model Staff {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  name         String
-  passwordHash String?      // credentials login (Auth.js); null when SSO-only
-  active       Boolean      @default(true)
-  storeId      String?      // store-scoped roles (member store staff)
-  roles        StaffRole[]
-  audits       AuditLog[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  lastLoginAt  DateTime?
+  id              String                @id @default(cuid())
+  email           String                @unique
+  name            String
+  passwordHash    String? // credentials login (Auth.js); null when SSO-only
+  active          Boolean               @default(true)
+  storeId         String? // store-scoped roles (member store staff)
+  roles           StaffRole[]
+  audits          AuditLog[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  lastLoginAt     DateTime?
   loginChallenges StaffLoginChallenge[]
 }
 
 model Role {
   id          String           @id @default(cuid())
-  key         String           @unique   // e.g. "admin", "marketing"
+  key         String           @unique // e.g. "admin", "marketing"
   name        String
   description String?          @db.Text
   system      Boolean          @default(false) // cannot be deleted from the UI
@@ -1222,8 +1236,8 @@ model Role {
 
 model Permission {
   id          String           @id @default(cuid())
-  key         String           @unique   // "cms.zones.write"
-  group       String           // "cms" | "catalog" | "orders" | "customers" | "stores" | "settings" | "staff" | "reports"
+  key         String           @unique // "cms.zones.write"
+  group       String // "cms" | "catalog" | "orders" | "customers" | "stores" | "settings" | "staff" | "reports"
   description String?
   roles       RolePermission[]
 }
@@ -1240,8 +1254,8 @@ model RolePermission {
 model StaffRole {
   staffId String
   roleId  String
-  staff   Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  role    Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  role    Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([staffId, roleId])
 }
@@ -1250,8 +1264,8 @@ model AuditLog {
   id        String   @id @default(cuid())
   staffId   String?
   staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  action    String   // "cms.document.publish"
-  entity    String   // "CmsDocument"
+  action    String // "cms.document.publish"
+  entity    String // "CmsDocument"
   entityId  String?
   before    Json?
   after     Json?
@@ -1267,10 +1281,10 @@ model AuditLog {
 // on write, with draft/published versions.
 model CmsDocument {
   id          String    @id @default(cuid())
-  collection  String    // "settings.site" | "copy" | "home.zones" | "hero.slides" | "campaigns" | "brand.stores" | …
-  key         String    // "default" | slug | id
-  data        Json      // draft
-  published   Json?     // last published snapshot the storefront reads
+  collection  String // "settings.site" | "copy" | "home.zones" | "hero.slides" | "campaigns" | "brand.stores" | …
+  key         String // "default" | slug | id
+  data        Json // draft
+  published   Json? // last published snapshot the storefront reads
   version     Int       @default(1)
   locale      String    @default("el")
   updatedBy   String?
@@ -1297,7 +1311,7 @@ model Setting {
 model ApiKey {
   id         String    @id @default(cuid())
   name       String
-  prefix     String    // first 8 chars, shown in lists
+  prefix     String // first 8 chars, shown in lists
   hash       String    @unique
   scopes     String[]  @default([])
   active     Boolean   @default(true)
@@ -1322,10 +1336,10 @@ model MediaFolder {
 
 model MediaAsset {
   id        String       @id @default(cuid())
-  kind      String       // "image" | "video" | "file"
+  kind      String // "image" | "video" | "file"
   folderId  String?
   folder    MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  filename  String       // original name
+  filename  String // original name
   title     String?
   alt       String?
   caption   String?
@@ -1334,16 +1348,16 @@ model MediaAsset {
   size      Int
   width     Int?
   height    Int?
-  duration  Float?       // seconds (video)
-  storage   String       // "local" | "bunny"
-  path      String       // storage-relative path e.g. 2026/09/abc.webp
-  url       String       // public URL
-  thumbUrl  String?      // 480px webp (images/videos poster)
-  emailUrl  String?      // 360px JPEG on white — email clients (Gmail/Outlook) do not render WebP
-  blur      String?      // tiny base64 placeholder
+  duration  Float? // seconds (video)
+  storage   String // "local" | "bunny"
+  path      String // storage-relative path e.g. 2026/09/abc.webp
+  url       String // public URL
+  thumbUrl  String? // 480px webp (images/videos poster)
+  emailUrl  String? // 360px JPEG on white — email clients (Gmail/Outlook) do not render WebP
+  blur      String? // tiny base64 placeholder
   focalX    Float        @default(0.5)
   focalY    Float        @default(0.5)
-  usedIn    Json?        // back-references filled by CMS documents
+  usedIn    Json? // back-references filled by CMS documents
   createdBy String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -1370,19 +1384,19 @@ model Sticker {
 /// AI usage ledger (OpenRouter) — per call: feature, model, tokens, cost. Powers the daily budget guard and the dashboard tile.
 model AiUsage {
   id        String   @id @default(cuid())
-  day       String   // yyyy-mm-dd
-  feature   String   // "advisor" | "alt-text" | "copy" | "agent" | "test"
+  day       String // yyyy-mm-dd
+  feature   String // "advisor" | "alt-text" | "copy" | "agent" | "test"
   model     String
   tokensIn  Int      @default(0)
   tokensOut Int      @default(0)
-  costUsd   Float    @default(0)   // what OpenRouter charged
-  markupPct Float    @default(0)   // markup applied at call time (super-admin pricing)
-  billedUsd Float    @default(0)   // costUsd × (1 + markupPct/100)
-  fxRate    Float?                 // USD→EUR rate of the day (ECB)
-  billedEur Float?                 // billedUsd × fxRate
+  costUsd   Float    @default(0) // what OpenRouter charged
+  markupPct Float    @default(0) // markup applied at call time (super-admin pricing)
+  billedUsd Float    @default(0) // costUsd × (1 + markupPct/100)
+  fxRate    Float? // USD→EUR rate of the day (ECB)
+  billedEur Float? // billedUsd × fxRate
   ms        Int      @default(0)
   ok        Boolean  @default(true)
-  error     String?  // η απάντηση του παρόχου όταν αποτύχει (π.χ. 402 χωρίς υπόλοιπο για audio)
+  error     String? // η απάντηση του παρόχου όταν αποτύχει (π.χ. 402 χωρίς υπόλοιπο για audio)
   createdAt DateTime @default(now())
 
   @@index([day])
@@ -1412,24 +1426,24 @@ model FxRate {
 
 /// Password reset with email OTP: 6-digit code (stored hashed), 10-minute expiry, max 5 attempts, evidence of the request.
 model PasswordReset {
-  id         String    @id @default(cuid())
-  customerId String
-  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  email      String
-  codeHash   String
-  token      String?   @unique // issued after a correct code, single use
-  expiresAt  DateTime
-  attempts   Int       @default(0)
-  verifiedAt DateTime?
-  usedAt     DateTime?
+  id          String    @id @default(cuid())
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  email       String
+  codeHash    String
+  token       String?   @unique // issued after a correct code, single use
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  verifiedAt  DateTime?
+  usedAt      DateTime?
   requestedBy String? // staffId when initiated from the back office
-  ip         String?
-  ipHash     String?
-  userAgent  String?
-  os         String?
-  browser    String?
-  device     String?
-  createdAt  DateTime  @default(now())
+  ip          String?
+  ipHash      String?
+  userAgent   String?
+  os          String?
+  browser     String?
+  device      String?
+  createdAt   DateTime  @default(now())
 
   @@index([customerId, createdAt])
   @@index([email, createdAt])
@@ -1459,24 +1473,24 @@ model SavedCart {
 
 /// Snap & Find scans: what customers photograph (old appliances), what the AI recognised, what they did next. Feeds the demand radar.
 model SnapScan {
-  id          String    @id @default(cuid())
-  customerId  String?
-  method      String    @default("ai") // ocr | ai | manual
-  kind        String? // plyntiria | psygeia | tileoraseis …
-  brand       String?
-  model       String?
-  serial      String?
-  energyClass String?
-  ageYears    Int?
-  condition   String?
-  confidence  Float?
+  id               String   @id @default(cuid())
+  customerId       String?
+  method           String   @default("ai") // ocr | ai | manual
+  kind             String? // plyntiria | psygeia | tileoraseis …
+  brand            String?
+  model            String?
+  serial           String?
+  energyClass      String?
+  ageYears         Int?
+  condition        String?
+  confidence       Float?
   matchedProductId String?
-  suggested   String[]  @default([])
-  action      String? // replace | register | service | recycle
-  imageUrl    String? // only when the customer chose to keep it (device / service)
-  costUsd     Float?
-  ipHash      String?
-  at          DateTime  @default(now())
+  suggested        String[] @default([])
+  action           String? // replace | register | service | recycle
+  imageUrl         String? // only when the customer chose to keep it (device / service)
+  costUsd          Float?
+  ipHash           String?
+  at               DateTime @default(now())
 
   @@index([at])
   @@index([kind])
@@ -1511,16 +1525,16 @@ model VoicePhrase {
 
 /// Database backups (pg_dump custom format → optional AES-256 → Bunny Storage). One row per attempt.
 model BackupRun {
-  id        String   @id @default(cuid())
-  at        DateTime @default(now())
+  id        String    @id @default(cuid())
+  at        DateTime  @default(now())
   trigger   String // cron | manual | script
-  ok        Boolean  @default(false)
+  ok        Boolean   @default(false)
   path      String? // object path inside the backup storage zone
   zone      String? // storage zone used
   bytes     Int?
   sha256    String?
-  encrypted Boolean  @default(false)
-  ms        Int      @default(0)
+  encrypted Boolean   @default(false)
+  ms        Int       @default(0)
   error     String?
   deletedAt DateTime? // pruned by retention
 
@@ -1613,21 +1627,21 @@ model Country {
 
 /// Νομοί (SoftOne DISTRICT) — the closest thing SoftOne has to «cities»; postal codes hang below.
 model District {
-  id         String       @id @default(cuid())
-  code       String       @unique
-  name       String
-  region     String? // όνομα περιφέρειας για ζώνες αποστολής (denormalised για γρήγορα φίλτρα)
-  regionCode String? // Region.code, level 3
-  regionRef  Region? @relation(fields: [regionCode], references: [code], onDelete: SetNull)
-  active     Boolean      @default(true)
-  s1Id       String?      @unique
-  s1Name     String?
-  s1Data     Json?
-  s1SyncedAt DateTime?
-  s1Missing  Boolean      @default(false)
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  region      String? // όνομα περιφέρειας για ζώνες αποστολής (denormalised για γρήγορα φίλτρα)
+  regionCode  String? // Region.code, level 3
+  regionRef   Region?      @relation(fields: [regionCode], references: [code], onDelete: SetNull)
+  active      Boolean      @default(true)
+  s1Id        String?      @unique
+  s1Name      String?
+  s1Data      Json?
+  s1SyncedAt  DateTime?
+  s1Missing   Boolean      @default(false)
   postalCodes PostalCode[]
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model PostalCode {
@@ -1787,20 +1801,20 @@ model Currency {
 /// level 3 = Περιφέρεια, 4 = Περιφερειακή Ενότητα (νομός), 5 = Δήμος.
 /// Ο κωδικός δείχνει την ιεραρχία: «111» → «11102» → «1110202».
 model Region {
-  code       String   @id
+  code       String     @id
   nameEL     String
   nameEN     String?
   level      Int // 3 | 4 | 5
   parentCode String?
-  parent     Region?  @relation("RegionTree", fields: [parentCode], references: [code], onDelete: SetNull)
-  children   Region[] @relation("RegionTree")
+  parent     Region?    @relation("RegionTree", fields: [parentCode], references: [code], onDelete: SetNull)
+  children   Region[]   @relation("RegionTree")
   path       String? // «111>11102>1110202»
   latitude   Float?
   longitude  Float?
-  active     Boolean  @default(true)
+  active     Boolean    @default(true)
   districts  District[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@index([parentCode])
   @@index([level])
@@ -1811,19 +1825,19 @@ model Region {
 /// στο email και η συνεδρία δημιουργείται μόνο αφού επαληθευτεί. Ο κωδικός
 /// αποθηκεύεται ως hash· κρατάμε τεκμήρια (IP, browser) όπως στα login events.
 model StaffLoginChallenge {
-  id         String    @id @default(cuid())
-  staffId    String
-  staff      Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  email      String
-  codeHash   String
-  expiresAt  DateTime
-  attempts   Int       @default(0)
-  sent       Boolean   @default(false) // αν έφυγε πράγματι το email
-  usedAt     DateTime?
-  ip         String?
-  ipHash     String?
-  userAgent  String?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  staffId   String
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  sent      Boolean   @default(false) // αν έφυγε πράγματι το email
+  usedAt    DateTime?
+  ip        String?
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime  @default(now())
 
   @@index([staffId, createdAt])
   @@index([expiresAt])

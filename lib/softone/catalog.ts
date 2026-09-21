@@ -33,7 +33,7 @@ const sqlDate = (d: Date) => d.toISOString().slice(0, 19).replace("T", " ");
 export type Trigger = "manual" | "cron" | "script";
 export interface CatalogRunResult { ok: boolean; kind: string; fetched: number; created: number; updated: number; missing: number; skipped: number; ms: number; error?: string }
 
-async function logged(kind: string, trigger: Trigger, fn: () => Promise<Omit<CatalogRunResult, "ok" | "kind" | "ms" | "error">>): Promise<CatalogRunResult> {
+export async function logged(kind: string, trigger: Trigger, fn: () => Promise<Omit<CatalogRunResult, "ok" | "kind" | "ms" | "error">>): Promise<CatalogRunResult> {
   const t0 = Date.now();
   const run = await db.s1SyncRun.create({ data: { kind, trigger } });
   try {

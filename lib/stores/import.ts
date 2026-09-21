@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { slugify } from "@/lib/slug";
 
 /**
  * Store import from the live euronics.gr store locator (nopCommerce /
@@ -43,7 +44,7 @@ export const regionFromZip = (zip: string) => ZIP_REGION[zip.replace(/\s/g, "").
 const titleCase = (s: string) => s.toLowerCase().replace(/(^|[\s\-.(/])(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
 export const niceCity = (raw: string) => { const k = raw.trim().toUpperCase().replace(/\s+/g, "_"); return CITIES[k] ?? titleCase(raw.trim()); };
 export const niceRegion = (raw: string) => { const k = raw.trim().toUpperCase(); return REGIONS[k] ?? titleCase(raw.trim()); };
-export const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[άα]/g, "a").replace(/[έε]/g, "e").replace(/[ήη]/g, "i").replace(/[ίϊΐι]/g, "i").replace(/[όο]/g, "o").replace(/[ύϋΰυ]/g, "y").replace(/[ώω]/g, "o").replace(/β/g, "v").replace(/γ/g, "g").replace(/δ/g, "d").replace(/ζ/g, "z").replace(/θ/g, "th").replace(/κ/g, "k").replace(/λ/g, "l").replace(/μ/g, "m").replace(/ν/g, "n").replace(/ξ/g, "x").replace(/π/g, "p").replace(/ρ/g, "r").replace(/[σς]/g, "s").replace(/τ/g, "t").replace(/φ/g, "f").replace(/χ/g, "ch").replace(/ψ/g, "ps").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+export { slugify };
 
 const decode = (s: string) => s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))).replace(/&quot;/g, '"').replace(/&#34;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ");
 
