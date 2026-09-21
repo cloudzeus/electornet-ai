@@ -89,6 +89,39 @@ function scoreHit(tokens: Set<string>, candidates: string[], theirs: string): { 
   return best;
 }
 
+/**
+ * Κλιματιστικά: το EPREL καταχωρεί το ΖΕΥΓΟΣ, «εσωτερική/εξωτερική» («N3VI-24WFI/N3VO-24», «EZ-09RD6-I / EZ-09RD6-O»,
+ * «GUD50W1/NhA-S+GUD50P1/A-S»), και δίνει χωριστά `indoorModelIdentifiers` και `outdoorModelIdentifier`. Το ERP έχει είδος
+ * την ΕΣΩΤΕΡΙΚΗ μονάδα («INVENTOR N3VI-24WFI … ΕΣΩΤΕΡΙΚΟ»). Οι γενικοί κανόνες απορρίπτουν το ζεύγος (το μοντέλο μας είναι
+ * το 60 % του αναγνωριστικού), οπότε εδώ: ταύτιση όταν μία μονάδα του ζεύγους υπάρχει αυτούσια στις λέξεις μας.
+ * Η ίδια εσωτερική δηλώνεται και με άλλες εξωτερικές (multi-split, άλλη σειρά): προτιμάται το απλό ζεύγος 1+1 και η
+ * εξωτερική της ίδιας σειράς (κοινό πρόθεμα, ή το όνομά της στο μοντέλο της φωτογραφίας μας: «N3VI N3VO 24WFI»).
+ */
+const AC_GROUP = "airconditioners";
+const acUnits = (x: unknown) => String(x ?? "").split(/\s*[/+,]\s*|\s+-\s+/).map(normalizeModel).filter((u) => u.length >= 5 && /\d/.test(u));
+const commonPrefix = (a: string, b: string) => { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++; return i; };
+/** Ίδια μονάδα με άλλη κατάληξη αγοράς: «AS68TEMHRA» ↔ «AS68TEMHRA-C», «…24WFRB» ↔ «…24WFR». */
+const nearUnit = (u: string, t: string) => { const [sh, lg] = u.length <= t.length ? [u, t] : [t, u]; return sh.length >= 8 && lg.startsWith(sh) && sh.length / lg.length >= 0.85; };
+const acPairKey = (h: EprelRaw) => { const raw = h as unknown as { indoorModelIdentifiers?: unknown; outdoorModelIdentifier?: unknown }; return [...(Array.isArray(raw.indoorModelIdentifiers) ? raw.indoorModelIdentifiers : []).flatMap(acUnits), ...acUnits(raw.outdoorModelIdentifier)].sort().join("|") || normalizeModel(String(h.modelIdentifier ?? "")); };
+function scoreAc(tokens: Set<string>, h: EprelRaw): { score: number; loose: number; strong: boolean } | null {
+  const raw = h as unknown as { indoorModelIdentifiers?: unknown; outdoorModelIdentifier?: unknown; numberIndoorUnits?: unknown };
+  const id = String(h.modelIdentifier ?? "");
+  const indoorAll = (Array.isArray(raw.indoorModelIdentifiers) ? raw.indoorModelIdentifiers : []).flatMap(acUnits), indoor = [...new Set(indoorAll)];
+  const outdoor = acUnits(raw.outdoorModelIdentifier);
+  const units = [...new Set([...indoor, ...outdoor, ...acUnits(id)])];
+  const toks = [...tokens];
+  const exact = units.filter((u) => tokens.has(u)), near = units.filter((u) => !tokens.has(u) && toks.some((t) => nearUnit(u, t)));
+  const hit = [...exact, ...near];
+  if (!hit.length) return null;
+  const multi = Number(raw.numberIndoorUnits ?? 1) > 1 || indoorAll.length > 1 || /\d\s*[*x×]\s*[A-Z]/i.test(id);
+  // η άλλη μονάδα του ζεύγους (η εξωτερική, όταν βρήκαμε την εσωτερική): γραμμένη στις λέξεις μας, αλλιώς πόσο μοιάζει με αυτήν που βρήκαμε
+  const declared = [...indoor, ...outdoor].filter((u) => !hit.includes(u));
+  const other = declared.length ? declared : units.filter((u) => !hit.includes(u));
+  const named = other.some((u) => toks.some((t) => t.startsWith(u) || (t.length >= 5 && u.startsWith(t))));
+  const kin = Math.max(0, ...other.map((u) => commonPrefix(u, hit[0])));
+  return { score: exact.join("").length + near.reduce((n, u) => n + u.length - 2, 0) + (named ? 20 : 0), loose: (multi ? 100 : 0) + (named ? 0 : 10 - Math.min(10, kin)), strong: hit.some((u) => u.length >= 8) };
+}
+
 export type MatchOutcome = { status: "matched"; raw: EprelRaw; model: string } | { status: "ambiguous" | "none"; model: string | null; candidates?: string[] };
 
 /** Όροι αναζήτησης για έναν υποψήφιο: ολόκληρη η πρώτη του λέξη, και κοντύτερα προθέματα (το EPREL συχνά δεν έχει την κατάληξη αγοράς). */
@@ -117,11 +150,15 @@ export async function findInEprel(p: { sku: string; title: string }, imageModel:
       return null;
     });
     await sleep(PAUSE_MS);
-    const scored = (r?.hits ?? []).filter((h) => brandOk(brand, String(h.supplierOrTrademark ?? ""))).map((h) => ({ h, s: scoreHit(tokens, candidates, String(h.modelIdentifier ?? "")) })).filter((x) => x.s) as { h: EprelRaw; s: { score: number; loose: number } }[];
+    // κλιματιστικά: ζεύγος εσωτερικής/εξωτερικής· η μάρκα του EPREL είναι συχνά ο εισαγωγέας (Nobu, Winstar), οπότε μια μακριά αυτούσια ταύτιση αρκεί
+    const scored = (urlCode === AC_GROUP
+      ? (r?.hits ?? []).map((h) => ({ h, s: scoreAc(tokens, h) })).filter((x) => x.s && (x.s.strong || brandOk(brand, String(x.h.supplierOrTrademark ?? ""))))
+      : (r?.hits ?? []).filter((h) => brandOk(brand, String(h.supplierOrTrademark ?? ""))).map((h) => ({ h, s: scoreHit(tokens, candidates, String(h.modelIdentifier ?? "")) })).filter((x) => x.s)) as { h: EprelRaw; s: { score: number; loose: number } }[];
     if (!scored.length) continue;
     scored.sort((a, b) => b.s.score - a.s.score || a.s.loose - b.s.loose);
     const top = scored.filter((x) => x.s.score === scored[0].s.score && x.s.loose === scored[0].s.loose);
-    const models = [...new Set(top.map((x) => normalizeModel(String(x.h.modelIdentifier))))];
+    // κλιματιστικά: το ίδιο ζεύγος γράφεται «A/B», «A / B», «A-SET» — το κλειδί είναι οι μονάδες, όχι η γραφή
+    const models = [...new Set(top.map((x) => (urlCode === AC_GROUP ? acPairKey(x.h) : normalizeModel(String(x.h.modelIdentifier)))))];
     if (models.length > 1) return { status: "ambiguous", model, candidates: top.slice(0, 6).map((x) => String(x.h.modelIdentifier)) };
     // πολλές καταχωρίσεις του ίδιου μοντέλου: η τελευταία έκδοση, η πιο πρόσφατα δημοσιευμένη
     const best = top.map((x) => x.h).sort((a, b) => Number(b.lastVersion !== false) - Number(a.lastVersion !== false) || Number(b.firstPublicationDateTS ?? 0) - Number(a.firstPublicationDateTS ?? 0))[0];
@@ -159,14 +196,17 @@ export interface EprelBatchResult { ok: boolean; error?: string; checked: number
 
 /**
  * Μία παρτίδα: τα επόμενα `limit` προϊόντα που δεν έχουν ελεγχθεί. Συνεχίζει από εκεί που
- * σταμάτησε (`eprelStatus`), άρα τρέχει όσες φορές χρειαστεί. `retry`: ξανά και όσα βγήκαν `none`.
+ * σταμάτησε (`eprelStatus`), άρα τρέχει όσες φορές χρειαστεί. `retry`: ξανά όσα βγήκαν `none` ή `ambiguous` (μετά από νέο κανόνα).
+ * `group`: μόνο οι τύποι μιας ομάδας του EPREL (π.χ. `airconditioners`).
  */
-export async function matchEprelBatch(opts: { limit?: number; retry?: boolean; concurrency?: number } = {}): Promise<EprelBatchResult> {
+export async function matchEprelBatch(opts: { limit?: number; retry?: boolean; concurrency?: number; group?: string; before?: Date } = {}): Promise<EprelBatchResult> {
   const empty = { checked: 0, matched: 0, ambiguous: 0, none: 0, remaining: 0, samples: [] as string[] };
   if (!hasEprelKey()) return { ok: false, error: "Λείπει το EPREL_API_KEY στο .env — χωρίς αυτό το EPREL δεν απαντά.", ...empty };
-  const types = (await db.category.findMany({ where: { source: "softone", depth: 2, productCount: { gt: 0 } }, select: { id: true, name: true } })).map((c) => ({ ...c, groups: eprelGroupsFor(c.name) })).filter((c) => c.groups);
+  const types = (await db.category.findMany({ where: { source: "softone", depth: 2, productCount: { gt: 0 } }, select: { id: true, name: true } })).map((c) => ({ ...c, groups: eprelGroupsFor(c.name) })).filter((c) => c.groups && (!opts.group || c.groups.includes(opts.group)));
   const groupsOf = new Map(types.map((t) => [t.id, t.groups!]));
-  const where: Prisma.ProductWhereInput = { source: "softone", active: true, categoryId: { in: [...groupsOf.keys()] }, eprelStatus: opts.retry ? { in: ["none"] } : null };
+  const where: Prisma.ProductWhereInput = { source: "softone", active: true, categoryId: { in: [...groupsOf.keys()] }, eprelStatus: opts.retry ? { in: ["none", "ambiguous"] } : null,
+    // επανάληψη: μόνο όσα ΔΕΝ ξαναελέγχθηκαν σε αυτό το τρέξιμο — αλλιώς τα ίδια «none» γυρίζουν στην κορυφή για πάντα
+    ...(opts.retry && opts.before ? { OR: [{ eprelCheckedAt: null }, { eprelCheckedAt: { lt: opts.before } }] } : {}) };
   const products = await db.product.findMany({ where, orderBy: { updatedAt: "desc" }, take: Math.min(500, opts.limit ?? 100), select: { id: true, sku: true, title: true, ean: true, categoryId: true, brand: { select: { name: true } } } });
   const images = new Map((await db.imageImport.findMany({ where: { seq: 1, key: { in: products.flatMap((p) => (p.ean ? [p.ean, `0${p.ean}`, `00${p.ean}`] : [])) } }, select: { key: true, model: true } })).map((i) => [bareKey(i.key), i.model]));
   const r = { ...empty }; const touched: string[] = [];

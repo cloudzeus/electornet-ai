@@ -88,7 +88,7 @@ const PRODUCT_SELECT = {
   category: { select: { slug: true, name: true, parent: { select: { slug: true, name: true, parent: { select: { slug: true, name: true } } } } } },
   media: { where: SHOWN, orderBy: { sortNo: "asc" as const }, select: { url: true } },
   energy: { select: { class: true, ficheUrl: true, labelUrl: true, eprelRegistrationNumber: true, eprel: { select: { annualKwh: true } } } },
-  dimensions: { select: { source: true, w: true, h: true, d: true } },
+  dimensions: { select: { source: true, w: true, h: true, d: true, rawKey: true } },
 } satisfies Prisma.ProductSelect;
 type Row = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
 
@@ -141,7 +141,15 @@ export async function dbProductBySlug(slug: string): Promise<Product | null> {
   const fromFacets = r.facetValues.filter((v) => v.value !== "Όχι" && !/πλατοσ|υψοσ|βαθο|διαστασ/.test(v.facet.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())).map((v) => (v.value === "Ναι" ? v.facet.label : `${label(v.facet.label)}: ${v.value}`));
   const seen = new Set<string>();
   const facts = [...(r.energy && hasEnergyLabel(r.category.name) ? [`Ενεργειακή κλάση ${r.energy.class}`] : []), ...fromLabel, ...fromFacets].filter((f) => { const k = f.split(":")[0].toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
-  return withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })), banners, facts }), await attrsFor([r.id]));
+  // Η γραμμή διαστάσεων της περιγραφής δείχνεται ομογενοποιημένη (εκ., Π × Υ × Β) — όχι «1,86 x 59,5 x 65» ή «600x600x850» όπως τα έγραψε ο προμηθευτής
+  const erpDim = r.dimensions.find((x) => x.source === "s1-desc"), el = (n: number) => n.toLocaleString("el-GR");
+  const axis: [RegExp, number][] = erpDim ? [[/^πλατοσ/, erpDim.w], [/^υψοσ/, erpDim.h], [/^βαθοσ/, erpDim.d]] : [];
+  const specs = r.specs.map((s) => {
+    if (erpDim && s.key === erpDim.rawKey) return { group: s.groupName, key: "Διαστάσεις (Π × Υ × Β)", value: `${el(erpDim.w)} × ${el(erpDim.h)} × ${el(erpDim.d)} εκ.` };
+    const one = erpDim?.rawKey === "Πλάτος / Ύψος / Βάθος" ? axis.find(([re]) => re.test(norm(s.key))) : undefined;
+    return one ? { group: s.groupName, key: s.key, value: `${el(one[1])} εκ.` } : { group: s.groupName, key: s.key, value: s.value };
+  });
+  return withAttrs(toProduct(r, { specs, banners, facts }), await attrsFor([r.id]));
 }
 /** Τα χαρακτηριστικά του τύπου με τις τιμές κάθε προϊόντος, στη σειρά που τα έχει το ERP — η βάση κάθε σύγκρισης. */
 async function attrsFor(ids: string[]): Promise<Map<string, NonNullable<Product["attrs"]>>> {

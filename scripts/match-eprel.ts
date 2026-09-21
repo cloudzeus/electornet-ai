@@ -4,6 +4,7 @@
  *   npx tsx --conditions=react-server scripts/match-eprel.ts            # όσα δεν έχουν ελεγχθεί
  *   npx tsx --conditions=react-server scripts/match-eprel.ts --retry    # ξανά όσα δεν βρέθηκαν
  *   npx tsx --conditions=react-server scripts/match-eprel.ts --max 300  # μέχρι 300 προϊόντα
+ *   npx tsx --conditions=react-server scripts/match-eprel.ts --retry --group airconditioners  # ξανά μία ομάδα, μετά από νέο κανόνα
  *
  * Θέλει EPREL_API_KEY στο .env. Συνεχίζει από εκεί που σταμάτησε· 1–3 κλήσεις ανά προϊόν με παύση 250 ms.
  */
@@ -19,9 +20,9 @@ async function main() {
   const before = await eprelMatchStats();
   console.log(`Τύποι με ενεργειακή ετικέτα: ${before.types} · προϊόντα: ${before.eligible.toLocaleString("el-GR")} · ήδη δεμένα ${before.matched} · εκκρεμούν ${before.pending.toLocaleString("el-GR")}`);
   if (!before.hasKey) throw new Error("Λείπει το EPREL_API_KEY στο .env.");
-  let total = 0, matched = 0;
+  let total = 0, matched = 0; const started = new Date();
   while (total < max) {
-    const r = await matchEprelBatch({ limit: Math.min(100, max - total), retry: has("retry"), concurrency: Number(val("concurrency")) || 3 });
+    const r = await matchEprelBatch({ limit: Math.min(100, max - total), retry: has("retry"), concurrency: Number(val("concurrency")) || 3, group: val("group"), before: started });
     total += r.checked; matched += r.matched;
     console.log(`  +${r.checked}: ${r.matched} βρέθηκαν, ${r.ambiguous} αμφίβολα, ${r.none} όχι · απομένουν ${r.remaining.toLocaleString("el-GR")} · ${Math.round((Date.now() - t0) / 1000)} s`);
     for (const s of r.samples.slice(0, 3)) console.log("     ", s);
