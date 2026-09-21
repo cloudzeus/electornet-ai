@@ -12,8 +12,8 @@ export interface UploadItem {
   asset?: MediaAssetDTO;
 }
 
-/** XHR uploads with per-file progress, 3 in parallel. Options are sent as form fields. */
-export function useUploader(onDone: (asset: MediaAssetDTO, item: UploadItem) => void) {
+/** XHR uploads with per-file progress, 3 in parallel. Options are sent as form fields. `endpoint`: άλλο σημείο ανεβάσματος με το ίδιο συμβόλαιο (multipart `file` → JSON), π.χ. οι φωτογραφίες προϊόντος. */
+export function useUploader(onDone: (asset: MediaAssetDTO, item: UploadItem) => void, endpoint = "/api/admin/media/upload") {
   const [items, setItems] = useState<UploadItem[]>([]);
   const running = useRef(0);
   const queue = useRef<{ item: UploadItem; fields: Record<string, string> }[]>([]);
@@ -30,7 +30,7 @@ export function useUploader(onDone: (asset: MediaAssetDTO, item: UploadItem) => 
       fd.append("file", item.file);
       Object.entries(fields).forEach(([k, v]) => v && fd.append(k, v));
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/admin/media/upload");
+      xhr.open("POST", endpoint);
       xhr.upload.onprogress = (e) => e.lengthComputable && patch(item.id, { progress: e.loaded / e.total });
       xhr.onload = () => {
         running.current--;
@@ -52,7 +52,7 @@ export function useUploader(onDone: (asset: MediaAssetDTO, item: UploadItem) => 
       };
       xhr.send(fd);
     }
-  }, [onDone]);
+  }, [onDone, endpoint]);
   useEffect(() => { pumpRef.current = pump; }, [pump]);
 
   const add = useCallback(

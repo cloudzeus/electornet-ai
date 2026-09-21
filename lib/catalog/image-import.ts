@@ -101,11 +101,19 @@ export async function associateImages(): Promise<AssociateResult> {
       }
     }
   }
-  const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, sortNo: true, alt: true, thumbUrl: true } });
+  // Ό,τι υπάρχει ήδη δεν ξαναγράφεται: η σειρά, το alt και το «κρυμμένη» ανήκουν πλέον στον διαχειριστή.
+  const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, thumbUrl: true } });
   const have = new Map(existing.map((m) => [`${m.productId}|${m.url}`, m]));
-  const fresh = [...wanted.entries()].filter(([k]) => !have.has(k)).map(([, v]) => v);
+  const last = new Map((await db.media.groupBy({ by: ["productId"], _max: { sortNo: true } })).map((r) => [r.productId, r._max.sortNo ?? 0]));
+  const fresh: Prisma.MediaCreateManyInput[] = [];
+  for (const [k, w] of wanted) {
+    if (have.has(k)) continue;
+    // Προϊόν που έχει ήδη φωτογραφίες: οι νέες μπαίνουν στο τέλος, δεν ανακατεύουν τη σειρά
+    const base = last.get(w.productId);
+    if (base != null) { last.set(w.productId, base + 1); fresh.push({ ...w, sortNo: base + 1 }); } else fresh.push(w);
+  }
   const ops: Prisma.PrismaPromise<unknown>[] = [];
-  for (const [k, w] of wanted) { const e = have.get(k); if (e && (e.sortNo !== w.sortNo || e.alt !== w.alt || e.thumbUrl !== w.thumbUrl)) ops.push(db.media.update({ where: { id: e.id }, data: { sortNo: w.sortNo, alt: w.alt, thumbUrl: w.thumbUrl } })); }
+  for (const [k, w] of wanted) { const e = have.get(k); if (e && e.thumbUrl !== w.thumbUrl) ops.push(db.media.update({ where: { id: e.id }, data: { thumbUrl: w.thumbUrl } })); }
   const gone = existing.filter((m) => !wanted.has(`${m.productId}|${m.url}`)).map((m) => m.id);
   for (let i = 0; i < fresh.length; i += 2000) await db.media.createMany({ data: fresh.slice(i, i + 2000), skipDuplicates: true });
   for (let i = 0; i < ops.length; i += 100) await db.$transaction(ops.slice(i, i + 100));

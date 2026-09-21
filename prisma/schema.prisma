@@ -146,22 +146,28 @@ model StoreStock {
 }
 
 model Media {
-  id         String  @id @default(cuid())
+  id         String      @id @default(cuid())
   productId  String
-  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   kind       String // image | video | manual | fiche
   url        String
   alt        String?
-  sortNo     Int     @default(0)
+  sortNo     Int         @default(0)
   thumbUrl   String? // 480px WebP
   width      Int?
   height     Int?
   blur       String? // μικροσκοπικό base64 για placeholder
-  source     String? // legacy-site = από τον φάκελο φωτογραφιών του παλιού site (ImageImport)
+  source     String? // legacy-site = από τον φάκελο του παλιού site (ImageImport) · gallery = από τη βιβλιοθήκη πολυμέσων · upload = ανέβηκε από την καρτέλα του προϊόντος
   importFile String? // ImageImport.sourceFile
+  /// Σύνδεση με τη βιβλιοθήκη πολυμέσων. Αν το αρχείο σβηστεί από εκεί, φεύγει και από το προϊόν.
+  assetId    String?
+  asset      MediaAsset? @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// Ο διαχειριστής την έκρυψε. Οι φωτογραφίες της αρχικής εισαγωγής δεν διαγράφονται — αλλιώς η επόμενη αυτόματη αντιστοίχιση θα τις ξανάφερνε.
+  hidden     Boolean     @default(false)
 
   @@unique([productId, url])
   @@index([productId])
+  @@index([assetId])
 }
 
 /// Μητρώο μαζικής εισαγωγής φωτογραφιών: ένα αρχείο του φακέλου → ένα WebP (+ μικρογραφία) στο Bunny.
@@ -1390,32 +1396,33 @@ model MediaFolder {
 }
 
 model MediaAsset {
-  id        String       @id @default(cuid())
-  kind      String // "image" | "video" | "file"
-  folderId  String?
-  folder    MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  filename  String // original name
-  title     String?
-  alt       String?
-  caption   String?
-  tags      String[]     @default([])
-  mime      String
-  size      Int
-  width     Int?
-  height    Int?
-  duration  Float? // seconds (video)
-  storage   String // "local" | "bunny"
-  path      String // storage-relative path e.g. 2026/09/abc.webp
-  url       String // public URL
-  thumbUrl  String? // 480px webp (images/videos poster)
-  emailUrl  String? // 360px JPEG on white — email clients (Gmail/Outlook) do not render WebP
-  blur      String? // tiny base64 placeholder
-  focalX    Float        @default(0.5)
-  focalY    Float        @default(0.5)
-  usedIn    Json? // back-references filled by CMS documents
-  createdBy String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  kind         String // "image" | "video" | "file"
+  folderId     String?
+  folder       MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  filename     String // original name
+  title        String?
+  alt          String?
+  caption      String?
+  tags         String[]     @default([])
+  mime         String
+  size         Int
+  width        Int?
+  height       Int?
+  duration     Float? // seconds (video)
+  storage      String // "local" | "bunny"
+  path         String // storage-relative path e.g. 2026/09/abc.webp
+  url          String // public URL
+  thumbUrl     String? // 480px webp (images/videos poster)
+  emailUrl     String? // 360px JPEG on white — email clients (Gmail/Outlook) do not render WebP
+  blur         String? // tiny base64 placeholder
+  focalX       Float        @default(0.5)
+  focalY       Float        @default(0.5)
+  usedIn       Json? // back-references filled by CMS documents
+  productMedia Media[] // σε ποια προϊόντα χρησιμοποιείται
+  createdBy    String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([folderId])
   @@index([kind])

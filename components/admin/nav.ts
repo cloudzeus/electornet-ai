@@ -33,7 +33,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: "Εμπόριο",
     items: [
-      { href: "/admin/catalog", label: "Κατάλογος", icon: Package, perm: "catalog.products.read", soon: true },
+      { href: "/admin/catalog", label: "Κατάλογος", icon: Package, perm: "catalog.products.read" },
       { href: "/admin/eprel", label: "EPREL ενεργειακές ετικέτες", icon: Zap, perm: "catalog.products.read" },
       { href: "/admin/ar", label: "AR · δες το στον χώρο σου", icon: Box, perm: "catalog.products.read" },
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
