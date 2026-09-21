@@ -75,6 +75,13 @@ export async function testSection(section: string, fd: FormData): Promise<Action
         const r = await chat({ feature: "test", messages: [{ role: "user", content: "Απάντησε μόνο: OK" }], maxTokens: 5, override: { apiKey: key, model } }).catch((e: Error) => ({ error: e.message }));
         details[`Μοντέλο ${model}`] = "error" in r ? `σφάλμα: ${r.error.slice(0, 120)}` : `${r.text.trim().slice(0, 20)} · ${r.ms} ms · $${r.costUsd.toFixed(5)}`;
       }
+      // ElevenLabs (κλειδί από το περιβάλλον): έλεγχος και οι φωνές του λογαριασμού, για να διαλέξει ο διαχειριστής Voice ID
+      const xi = process.env.ELEVENLABS_API_KEY;
+      if (xi) {
+        const v = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": xi }, signal: AbortSignal.timeout(10000) }).catch(() => null);
+        if (!v?.ok) details.ElevenLabs = `σφάλμα ${v?.status ?? "δικτύου"}`;
+        else { const j = (await v.json()) as { voices?: { voice_id: string; name: string; labels?: { gender?: string } }[] }; details.ElevenLabs = `OK · ${j.voices?.length ?? 0} φωνές`; for (const x of (j.voices ?? []).slice(0, 12)) details[`Φωνή · ${x.name}${x.labels?.gender ? ` (${x.labels.gender})` : ""}`] = x.voice_id; }
+      } else if (val("voiceProvider") === "elevenlabs") details.ElevenLabs = "λείπει το ELEVENLABS_API_KEY από το περιβάλλον — χρησιμοποιείται το OpenRouter";
       return { ok: true, message: "Η σύνδεση με το OpenRouter λειτουργεί.", details };
     }
     if (def.test === "bunny") {

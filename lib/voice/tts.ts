@@ -13,10 +13,23 @@ import { spokenForm } from "./spoken";
 const SAMPLE_RATE = 24000; // pcm16 mono from the audio models
 const today = () => new Date().toISOString().slice(0, 10);
 
-export interface VoiceConfig { enabled: boolean; ttsModel: string; voice: string; style: string; tempo: number; rate: number; sttModel: string; cacheMaxChars: number }
+export interface VoiceConfig { enabled: boolean; provider: "openrouter" | "elevenlabs"; ttsModel: string; voice: string; style: string; tempo: number; rate: number; sttModel: string; cacheMaxChars: number; eleven: { model: string; stability: number; similarity: number; speed: number; usdPer1kChars: number } }
+/**
+ * Δύο πάροχοι εκφώνησης, με επιλογή του super admin (Ρυθμίσεις → AI → «Πάροχος φωνής») για σύγκριση:
+ *  - openrouter: chat μοντέλο με audio output (gpt-audio) — «διαβάζει» με οδηγία ύφους, θέλει έλεγχο πιστότητας
+ *  - elevenlabs: καθαρό TTS (κλειδί ELEVENLABS_API_KEY στο περιβάλλον) — διαβάζει πάντα αυτολεξεί, δική του φωνή και ταχύτητα
+ * Ο πάροχος, το μοντέλο και η φωνή μπαίνουν στο hash της cache, άρα οι δύο δεν μπερδεύονται ποτέ και η σύγκριση είναι καθαρή.
+ */
+export const elevenKey = () => process.env.ELEVENLABS_API_KEY ?? "";
 export async function getVoiceConfig(): Promise<VoiceConfig> {
   const { data } = await getSetting("ai");
-  return { enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), tempo: Math.min(2, Math.max(0.8, Number(data.voiceTempo) || 1.4)), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
+  const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) && v !== "" && v != null ? Math.min(hi, Math.max(lo, n)) : d; };
+  const eleven = { model: String(data.elevenModel || "eleven_flash_v2_5"), stability: clamp(data.elevenStability, 0, 1, 0.5), similarity: clamp(data.elevenSimilarity, 0, 1, 0.8), speed: clamp(data.elevenSpeed, 0.7, 1.2, 1.05), usdPer1kChars: clamp(data.elevenUsdPer1kChars, 0, 5, 0.1) };
+  if (data.voiceProvider === "elevenlabs" && elevenKey()) {
+    // η ταχύτητα ρυθμίζεται από το ίδιο το ElevenLabs (speed) — όχι δεύτερη επιτάχυνση με ffmpeg πάνω στη δική του
+    return { enabled: data.voiceEnabled === true, provider: "elevenlabs", ttsModel: `elevenlabs/${eleven.model}`, voice: String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb"), style: `s${eleven.stability}|b${eleven.similarity}|v${eleven.speed}`, tempo: 1, rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400, eleven };
+  }
+  return { provider: "openrouter", eleven, enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), tempo: Math.min(2, Math.max(0.8, Number(data.voiceTempo) || 1.4)), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
 }
 
 /** Same phrase, same audio: collapse whitespace, strip markdown-ish noise, keep case (it matters for spelling). */
@@ -62,6 +75,7 @@ export function fidelity(text: string, transcript: string): number {
 }
 
 async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict = false, onChunk?: (pcm: Buffer) => void): Promise<{ pcm: Buffer; transcript: string; costUsd: number; tokensIn: number; tokensOut: number; ms: number }> {
+  if (cfg.provider === "elevenlabs") return synthesiseEleven(text, cfg, apiKey, onChunk);
   const t0 = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -83,6 +97,39 @@ async function synthesise(text: string, cfg: VoiceConfig, apiKey: string, strict
   const pcm = Buffer.concat(chunks);
   if (!pcm.length) throw new Error("tts: empty audio");
   return { pcm, transcript: transcript.trim(), costUsd: usage?.cost ?? 0, tokensIn: usage?.prompt_tokens ?? 0, tokensOut: usage?.completion_tokens ?? 0, ms: Date.now() - t0 };
+}
+
+/**
+ * ElevenLabs: καθαρό TTS σε ροή pcm16 24 kHz — ίδια μορφή με το άλλο μονοπάτι, άρα cache, ffmpeg και streaming δουλεύουν αυτούσια.
+ * Δεν γυρίζει μεταγραφή (δεν «απαντά» ποτέ, διαβάζει ό,τι του δοθεί). Κόστος: ανά χαρακτήρα, εκτίμηση από τη ρύθμιση $/1.000 χαρακτήρες.
+ */
+async function synthesiseEleven(text: string, cfg: VoiceConfig, apiKey: string, onChunk?: (pcm: Buffer) => void): Promise<{ pcm: Buffer; transcript: string; costUsd: number; tokensIn: number; tokensOut: number; ms: number }> {
+  const t0 = Date.now();
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(cfg.voice)}/stream?output_format=pcm_24000`, {
+    method: "POST",
+    headers: { "xi-api-key": apiKey, "content-type": "application/json", accept: "audio/pcm" },
+    body: JSON.stringify({ text, model_id: cfg.eleven.model, ...(/flash|turbo/.test(cfg.eleven.model) ? { language_code: "el" } : {}), voice_settings: { stability: cfg.eleven.stability, similarity_boost: cfg.eleven.similarity, speed: cfg.eleven.speed } }),
+    signal: AbortSignal.timeout(45000),
+  });
+  if (!res.ok || !res.body) throw new Error(`elevenlabs ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
+  const reader = res.body.getReader(); const chunks: Buffer[] = []; let odd: Buffer | null = null;
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    // δείγματα 16 bit: κάθε κομμάτι που φεύγει προς τον browser πρέπει να έχει άρτιο πλήθος bytes
+    let c: Buffer = odd ? Buffer.concat([odd, Buffer.from(value)]) : Buffer.from(value); odd = null;
+    if (c.length % 2) { odd = c.subarray(c.length - 1); c = c.subarray(0, c.length - 1); }
+    if (c.length) { chunks.push(c); onChunk?.(c); }
+  }
+  const pcm = Buffer.concat(chunks);
+  if (!pcm.length) throw new Error("elevenlabs: empty audio");
+  const chars = Number(res.headers.get("character-cost")) || text.length;
+  return { pcm, transcript: "", costUsd: (chars / 1000) * cfg.eleven.usdPer1kChars, tokensIn: chars, tokensOut: 0, ms: Date.now() - t0 };
+}
+
+/** Το κλειδί του παρόχου που είναι ενεργός· null = η φωνή δεν μπορεί να δουλέψει. */
+async function voiceKey(cfg: VoiceConfig): Promise<string | null> {
+  if (cfg.provider === "elevenlabs") return elevenKey() || null;
+  return (await getAi())?.apiKey ?? null;
 }
 
 async function logUsage(feature: "tts" | "stt", model: string, costUsd: number, tokensIn: number, tokensOut: number, ms: number, ok = true, error?: string) {
@@ -138,13 +185,13 @@ async function cacheLookup(hash: string): Promise<SpeakResult | null> {
  * media storage (Bunny CDN when enabled) and logs the cost to AiUsage.
  */
 export async function speak(rawText: string, opts: { key?: string; force?: boolean } = {}): Promise<SpeakResult | null> {
-  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
-  if (!cfg.enabled || !ai) return null;
+  const cfg = await getVoiceConfig(), apiKey = await voiceKey(cfg);
+  if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
   const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
   if (!opts.force) { const hit = await cacheLookup(hash); if (hit) return hit; }
-  const syn = await synthesisePhrase(text, cfg, ai.apiKey);
+  const syn = await synthesisePhrase(text, cfg, apiKey);
   if (!syn) return null;
   return persistPhrase(text, hash, syn, cfg, opts);
 }
@@ -155,14 +202,14 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
  * `persist` callback the route schedules after the response.
  */
 export async function speakInline(rawText: string, opts: { key?: string } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
-  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
-  if (!cfg.enabled || !ai) return null;
+  const cfg = await getVoiceConfig(), apiKey = await voiceKey(cfg);
+  if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
   const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
   const hit = await cacheLookup(hash);
   if (hit) return { result: hit };
-  const syn = await synthesisePhrase(text, cfg, ai.apiKey);
+  const syn = await synthesisePhrase(text, cfg, apiKey);
   if (!syn) return null;
   const inline = `data:${syn.mime};base64,${syn.bytes.toString("base64")}`;
   return { result: { url: inline, audio: inline, mime: syn.mime, durationMs: syn.durationMs, cached: false, costUsd: syn.costUsd, id: "" }, persist: async () => { await persistPhrase(text, hash, syn, cfg, opts).catch(() => null); } };
@@ -199,8 +246,8 @@ export async function deletePhrase(id: string) {
  * simply not cached.
  */
 export async function streamSpeech(rawText: string, opts: { key?: string } = {}): Promise<{ kind: "cached"; result: SpeakResult } | { kind: "stream"; stream: ReadableStream<Uint8Array>; sampleRate: number; persist: () => Promise<void> } | null> {
-  const [cfg, ai] = await Promise.all([getVoiceConfig(), getAi()]);
-  if (!cfg.enabled || !ai) return null;
+  const cfg = await getVoiceConfig(), apiKey = await voiceKey(cfg);
+  if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
   const hash = phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), text);
@@ -225,7 +272,7 @@ export async function streamSpeech(rawText: string, opts: { key?: string } = {})
   const done = (async (): Promise<Synth | null> => {
     let s: Awaited<ReturnType<typeof synthesise>> | null = null;
     try {
-      s = await synthesise(text, cfg, ai.apiKey, false, (pcm) => { if (proc?.stdin && !proc.stdin.destroyed) proc.stdin.write(pcm); else if (!proc) push(pcm); });
+      s = await synthesise(text, cfg, apiKey, false, (pcm) => { if (proc?.stdin && !proc.stdin.destroyed) proc.stdin.write(pcm); else if (!proc) push(pcm); });
     } catch (e) { await logUsage("tts", cfg.ttsModel, 0, 0, 0, 0, false, (e as Error).message); if (proc) proc.stdin?.end(); else close(); return null; }
     if (proc) proc.stdin?.end(); else close();
     await logUsage("tts", cfg.ttsModel, s.costUsd, s.tokensIn, s.tokensOut, s.ms);
