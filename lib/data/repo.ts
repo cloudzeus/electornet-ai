@@ -109,8 +109,11 @@ export async function resolveCategory(segments: string[]) {
   const path = await findCategoryPath(segments);
   if (!path) return null;
   const node = path[path.length - 1];
+  // στον τύπο (φύλλο) η πλοήγηση δείχνει τα αδέλφια του, ώστε ο πελάτης να αλλάζει τύπο χωρίς να γυρίσει πίσω
+  const up = path.length > 1 ? path[path.length - 2] : null;
+  const siblings = !node.children.length && up ? up.children.filter((c) => c.count > 0).map((c) => ({ slug: c.slug, name: c.name, count: c.count })) : [];
   const same = path.length === segments.length && path.every((p, i) => p.slug === segments[i]);
-  return { energy: node.energy, fit: node.fit, path: path.map((p) => ({ slug: p.slug, name: p.name, count: p.count })), children: node.children.map((c) => ({ slug: c.slug, name: c.name, count: c.count })), canonical: same ? null : `/k/${path.map((p) => p.slug).join("/")}` };
+  return { energy: node.energy, fit: node.fit, path: path.map((p) => ({ slug: p.slug, name: p.name, count: p.count })), children: node.children.map((c) => ({ slug: c.slug, name: c.name, count: c.count })), siblings, canonical: same ? null : `/k/${path.map((p) => p.slug).join("/")}` };
 }
 
 function applyFilter(f: ListFilter) {

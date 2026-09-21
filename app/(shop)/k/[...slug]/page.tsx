@@ -57,6 +57,13 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο
   const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product).filter((q) => !cat || ((cat.energy || !isEnergyQuestion(q)) && (cat.fit || !isFitQuestion(q))));
   const basePath = cat ? `/k/${cat.path.map((p) => p.slug).join("/")}` : l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
+  // Υποκατηγορίες στη στήλη των φίλτρων (σε στενή οθόνη μένουν και ως ετικέτες πάνω από τη λίστα)· στον τύπο: τα αδέλφια του
+  const upPath = cat && cat.path.length > 1 ? `/k/${cat.path.slice(0, -1).map((p) => p.slug).join("/")}` : null;
+  const nav = tiles.length
+    ? { title: "Υποκατηγορίες", items: tiles.map((ch) => ({ name: ch.name, href: `${basePath}/${ch.slug}`, count: ch.count })) }
+    : cat && cat.siblings.length > 1 && upPath
+      ? { title: cat.path[cat.path.length - 2].name, up: { label: `Όλα: ${cat.path[cat.path.length - 2].name}`, href: upPath }, items: cat.siblings.map((s) => ({ name: s.name, href: `${upPath}/${s.slug}`, count: s.count, current: s.slug === here?.slug })) }
+      : undefined;
   const title = here?.name ?? (l2 ? l2.name : l1.label);
   const crumbs = cat ? cat.path.map((p, i) => (i === cat.path.length - 1 ? { label: p.name } : { label: p.name, href: `/k/${cat.path.slice(0, i + 1).map((x) => x.slug).join("/")}` })) : [{ label: l1.label, href: `/k/${l1.slug}` }, ...(l2 ? [{ label: l2.name }] : [])];
 
@@ -66,7 +73,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <CategoryOpener kicker={cat && cat.path.length > 1 ? cat.path[cat.path.length - 2].name : l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} questions={questions} />
 
       {tiles.length > 0 && (
-        <div className="eu-canvas eu-gutter pt-6 pb-6">
+        <div className="eu-canvas eu-gutter pt-6 pb-6 @3xl:hidden">
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
             {tiles.map((ch) => (
               <li key={ch.slug}>
@@ -90,7 +97,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
         </div>
       )}
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
-        <Facets result={result} />
+        <Facets result={result} nav={nav} />
         <div className="flex-1 min-w-0 eu-container">
           <SortBar total={result.total} page={result.page} pages={result.pages} fit={cat ? cat.fit : result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />

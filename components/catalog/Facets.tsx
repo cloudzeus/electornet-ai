@@ -2,7 +2,8 @@
 
 import React, { useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronLeft, SlidersHorizontal, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { ListResult } from "@/lib/data/repo";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
@@ -18,7 +19,10 @@ const c = copyOf("facets");
  * (lib/data/attributes) — the same keys the compare table uses.
  * Desktop: sidebar. Phones/tablets: a bottom sheet behind «Φίλτρα».
  */
-export function Facets({ result, showCategories = false }: { result: ListResult; showCategories?: boolean }) {
+/** Πλοήγηση στο δέντρο κατηγοριών μέσα στη στήλη των φίλτρων: υποκατηγορίες της τρέχουσας ή, στον τύπο, τα αδέλφια του. Κανονικοί σύνδεσμοι, όχι φίλτρα. */
+export interface FacetNav { title: string; up?: { label: string; href: string }; items: { name: string; href: string; count: number; current?: boolean }[] }
+
+export function Facets({ result, showCategories = false, nav }: { result: ListResult; showCategories?: boolean; nav?: FacetNav }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -69,6 +73,24 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
             {c.katharismos_olon}
           </button>
         </div>
+      )}
+
+      {nav && nav.items.length > 0 && (
+        <Group title={nav.title} open>
+          <nav aria-label={nav.title} className="grid gap-0.5">
+            {nav.up && (
+              <Link href={nav.up.href} className="flex items-center gap-1.5 min-h-10 rounded-md px-1 -mx-1 font-semibold text-eu-blue text-[length:var(--fs-15)] hover:bg-eu-surface">
+                <ChevronLeft className="size-4 shrink-0" aria-hidden /> {nav.up.label}
+              </Link>
+            )}
+            {nav.items.map((it) => (
+              <Link key={it.href} href={it.href} aria-current={it.current ? "page" : undefined} className={`flex items-center gap-2.5 min-h-10 rounded-md px-1 -mx-1 text-[length:var(--fs-15)] hover:bg-eu-surface ${it.current ? "font-extrabold text-eu-navy" : "text-eu-ink-2 hover:text-eu-blue"}`}>
+                <span className="flex-1">{it.name}</span>
+                {it.count > 0 && <span className="text-eu-muted-2 text-[length:var(--fs-13)] tabular-nums">{it.count.toLocaleString("el-GR")}</span>}
+              </Link>
+            ))}
+          </nav>
+        </Group>
       )}
 
       {showCategories && result.categories.length > 0 && (

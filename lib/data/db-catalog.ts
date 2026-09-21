@@ -7,6 +7,7 @@ import type { AttrFacet } from "./attributes";
 import type { ListFilter, ListResult, SuggestResult } from "./repo";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
+import { specAttrs } from "@/lib/catalog/compare-specs";
 
 /**
  * Ο κατάλογος της βιτρίνας από τη βάση (προβολή του SoftOne): δέντρο κατηγοριών,
@@ -157,7 +158,8 @@ async function attrsFor(ids: string[]): Promise<Map<string, NonNullable<Product[
 }
 const withAttrs = (p: Product, a: Map<string, NonNullable<Product["attrs"]>>): Product => ({
   ...p,
-  attrs: [...(p.energy ? [{ key: "Ενεργειακή κλάση", value: p.energy.cls as string, group: "Απόδοση" }] : []), ...(a.get(p.id) ?? []), ...(p.dims ? [{ key: "Διαστάσεις (Π × Υ × Β)", value: `${[p.dims.w, p.dims.h, p.dims.d].map((n) => n.toLocaleString("el-GR")).join(" × ")} εκ.`, group: "Διαστάσεις" }] : [])],
+  // πρώτα τα φίλτρα του τύπου· όπου το ERP έχει λίγα (ακουστικά: μόνο «Εταιρία»), συμπληρώνει η περιγραφή με ενιαία ονόματα
+  attrs: [...(p.energy ? [{ key: "Ενεργειακή κλάση", value: p.energy.cls as string, group: "Απόδοση" }] : []), ...(a.get(p.id) ?? []), ...specAttrs(p.specs ?? [], a.get(p.id) ?? []), ...(p.dims ? [{ key: "Διαστάσεις (Π × Υ × Β)", value: `${[p.dims.w, p.dims.h, p.dims.d].map((n) => n.toLocaleString("el-GR")).join(" × ")} εκ.`, group: "Διαστάσεις" }] : [])],
 });
 
 export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
@@ -168,11 +170,15 @@ export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
 }
 export async function dbRelated(p: Product, limit = 8): Promise<Product[]> {
   if (!p.typeSlug) return [];
-  const rows = await db.product.findMany({ where: { ...LISTED, id: { not: p.id }, category: { slug: p.typeSlug } }, orderBy: [{ brand: { name: "asc" } }, { updatedAt: "desc" }], take: limit * 3, select: PRODUCT_SELECT });
+  // Ευρεία δεξαμενή, με προτεραιότητα σε όσα έχουν τεκμηριωμένα χαρακτηριστικά: «παρόμοιο» που δεν έχει τίποτα να συγκριθεί δεν βοηθά
+  const rows = await db.product.findMany({ where: { ...LISTED, id: { not: p.id }, category: { slug: p.typeSlug } }, orderBy: [{ specs: { _count: "desc" } }, { stock: "desc" }, { updatedAt: "desc" }], take: limit * 6, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 40, select: { groupName: true, key: true, value: true } } } });
+  const a = await attrsFor(rows.map((r) => r.id));
+  const mine = new Set((p.attrs ?? []).map((x) => x.key));
+  const pool = rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a))
+    .map((x, i) => ({ x, i, shared: (x.attrs ?? []).filter((y) => mine.has(y.key)).length }))
+    .sort((m, n) => n.shared - m.shared || m.i - n.i).map((m) => m.x);
   // πρώτα της ίδιας μάρκας, μετά οι υπόλοιπες — ποτέ όλη η σειρά από έναν κατασκευαστή
-  const picked = [...rows.filter((r) => r.brand.slug === p.brandSlug).slice(0, Math.ceil(limit / 2)), ...rows.filter((r) => r.brand.slug !== p.brandSlug)].slice(0, limit);
-  const a = await attrsFor(picked.map((r) => r.id));
-  return picked.map((r) => withAttrs(toProduct(r), a));
+  return [...pool.filter((x) => x.brandSlug === p.brandSlug).slice(0, Math.ceil(limit / 2)), ...pool.filter((x) => x.brandSlug !== p.brandSlug)].slice(0, limit);
 }
 
 // ---------- Λίστες ----------

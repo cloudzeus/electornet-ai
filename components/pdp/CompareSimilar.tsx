@@ -18,7 +18,10 @@ const c = copyOf("compareSimilar");
 export function CompareSimilar({ product: p, similar }: { product: Product; similar: Product[] }) {
   const all = [p, ...similar.slice(0, 3)];
   const attrs = new Map(all.map((x) => [x.id, attributesOf(x).filter((a) => !["Μάρκα", "Ενεργειακή κλάση"].includes(a.key))]));
-  const keys = [...new Set(all.flatMap((x) => attrs.get(x.id)!.map((a) => a.key)))].filter((k) => all.filter((x) => attrs.get(x.id)!.some((a) => a.key === k)).length >= 2).slice(0, 10);
+  const shared = [...new Set(all.flatMap((x) => attrs.get(x.id)!.map((a) => a.key)))].filter((k) => all.filter((x) => attrs.get(x.id)!.some((a) => a.key === k)).length >= 2);
+  // Πρώτα όσα έχει ΑΥΤΟ το προϊόν· γραμμές όπου το ίδιο δείχνει «—» μπαίνουν μόνο για να μη μείνει ο πίνακας σχεδόν άδειος
+  const mine = shared.filter((k) => attrs.get(p.id)!.some((a) => a.key === k));
+  const keys = [...mine, ...shared.filter((k) => !mine.includes(k)).slice(0, Math.max(0, 5 - mine.length))].slice(0, 10);
   const val = (x: Product, k: string) => attrs.get(x.id)!.find((a) => a.key === k)?.value ?? "—";
   const differs = (k: string) => new Set(all.map((x) => val(x, k))).size > 1;
   if (similar.length === 0) return null;
