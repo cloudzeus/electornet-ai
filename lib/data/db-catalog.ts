@@ -14,8 +14,8 @@ import { hasEnergyLabel } from "@/lib/catalog/energy-types";
  * Δύο σταθεροί κανόνες, μέχρι να μάθουμε πού ζει η τιμή του site στο ERP:
  * - **Στις λίστες μπαίνουν μόνο προϊόντα με φωτογραφία.** Η σελίδα ενός προϊόντος χωρίς
  *   φωτογραφία ανοίγει κανονικά (π.χ. από αναζήτηση κωδικού), απλώς δεν «βγαίνει στη βιτρίνα».
- * - **Κανένα προϊόν της βάσης δεν έχει τιμή** (`noPrice`): οι κάρτες γράφουν «Τιμή στο
- *   κατάστημα» και δεν δείχνουν κουμπιά αγοράς. Όταν γεμίσουν τα `Variant`, αλλάζει μόνο το `toProduct`.
+ * - **Τιμή eshop και απόθεμα κεντρικής αποθήκης** έρχονται από το SoftOne (`MTREXTRA.NUM04`, `MTRBALSHEET`). Όσα προϊόντα
+ *   δεν έχουν τιμή (~9 %) είναι `noPrice`: «Τιμή στο κατάστημα», χωρίς κουμπιά αγοράς.
  *
  * URL: /k/<master>/<main>/<τύπος>. Τα slugs είναι μοναδικά σε όλο το δέντρο, άρα κάθε
  * κατηγορία βρίσκεται και μόνη της — έτσι δουλεύουν και οι παλιοί σύνδεσμοι (`findCategoryPath`).
@@ -79,7 +79,7 @@ export async function findCategoryPath(segments: string[]): Promise<CatNode[] | 
 // ---------- Προϊόν ----------
 
 const PRODUCT_SELECT = {
-  id: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true,
+  id: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true, price: true, stock: true,
   brand: { select: { name: true, slug: true } },
   category: { select: { slug: true, name: true, parent: { select: { slug: true, name: true, parent: { select: { slug: true, name: true } } } } } },
   media: { where: SHOWN, orderBy: { sortNo: "asc" as const }, select: { url: true } },
@@ -87,6 +87,9 @@ const PRODUCT_SELECT = {
   dimensions: { select: { source: true, w: true, h: true, d: true } },
 } satisfies Prisma.ProductSelect;
 type Row = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
+
+/** Ημερομηνία παράδοσης σε `days` εργάσιμες από σήμερα (χωρίς Σαββατοκύριακα). */
+function deliveryDate(days: number) { const d = new Date(); for (let left = days; left > 0; ) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) left--; } return d.toISOString().slice(0, 10); }
 
 const ENERGY = new Set(["A", "B", "C", "D", "E", "F", "G", "A+", "A++", "A+++"]);
 
@@ -105,11 +108,14 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     category: (master ?? main ?? r.category).slug, subcategory: (main ?? r.category).slug,
     typeSlug: r.category.slug, path: [master, main, r.category].filter(Boolean).map((c) => ({ slug: c!.slug, name: c!.name })),
     image: images[0] ?? null, images,
-    price: 0, noPrice: true,
+    // Τιμή eshop με ΦΠΑ (MTREXTRA.NUM04)· όσα δεν έχουν (~9 %) μένουν «Τιμή στο κατάστημα»
+    fromDb: true, price: r.price && r.price > 0 ? r.price : 0, noPrice: !(r.price && r.price > 0),
     dims: d ? { w: d.w, h: d.h, d: d.d, source: d.source === "eprel" ? "eprel" : "specs" } : undefined,
     // ενεργειακή πληροφόρηση μόνο σε τύπους που έχουν ευρωπαϊκή ετικέτα — αλλού, μια «κλάση Α» στην περιγραφή είναι θόρυβος
     energy: r.energy && ENERGY.has(r.energy.class) && hasEnergyLabel(r.category.name) ? { cls: r.energy.class as EnergyClass, fiche: r.energy.ficheUrl ?? r.energy.labelUrl ?? "", kwh: r.energy.eprel?.annualKwh ?? undefined, eprel: r.energy.eprelRegistrationNumber ?? undefined } : undefined,
-    availability: { kind: "order", label: "Διαθεσιμότητα στο κατάστημα" },
+    // Όπως το ζωντανό site: απόθεμα στην κεντρική αποθήκη → «Άμεσα διαθέσιμο», αλλιώς «κατόπιν παραγγελίας»
+    availability: r.stock > 0 ? { kind: "in-stock", deliveryDate: deliveryDate(2) } : { kind: "order", label: r.price && r.price > 0 ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα" },
+    stockLeft: r.stock > 0 && r.stock <= 3 ? r.stock : undefined,
     description: [r.summary, r.description].filter(Boolean).join("\n\n") || undefined,
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
     specs: extra.specs, banners: extra.banners,
@@ -192,17 +198,19 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
   }
   // Το φίλτρο ενεργειακής κλάσης υπάρχει μόνο όπου υπάρχει ενεργειακή ετικέτα, και μετρά μόνο τέτοιους τύπους
   const labelled = [...t.byId.values()].filter((n) => n.depth === 2 && n.energy && (!node || leafIds(node).includes(n.id))).map((n) => n.id);
-  const where: Prisma.ProductWhereInput = { AND: [base, ...(f.brand?.length ? [{ brand: { slug: { in: f.brand } } }] : []), ...(f.energy?.length && labelled.length ? [{ categoryId: { in: labelled }, energy: { class: { in: f.energy } } }] : []), ...attrWhere] };
+  const priceWhere: Prisma.ProductWhereInput[] = [...(f.minPrice != null ? [{ price: { gte: f.minPrice } }] : []), ...(f.maxPrice != null ? [{ price: { lte: f.maxPrice } }] : []), ...(f.avail === "in-stock" ? [{ stock: { gt: 0 } }] : [])];
+  const where: Prisma.ProductWhereInput = { AND: [base, ...priceWhere, ...(f.brand?.length ? [{ brand: { slug: { in: f.brand } } }] : []), ...(f.energy?.length && labelled.length ? [{ categoryId: { in: labelled }, energy: { class: { in: f.energy } } }] : []), ...attrWhere] };
 
   const perPage = f.perPage ?? 24, page = Math.max(1, f.page ?? 1);
-  // Χωρίς τιμές και αξιολογήσεις, η «σχετικότητα» είναι: πιο πρόσφατα ενημερωμένα στο ERP πρώτα
-  const orderBy: Prisma.ProductOrderByWithRelationInput[] = f.sort === "newest" ? [{ createdAt: "desc" }, { id: "asc" }] : [{ updatedAt: "desc" }, { id: "asc" }];
-  const [rows, total, brandCounts, energyCounts, facetCounts] = await Promise.all([
+  // «Προτεινόμενα»: πρώτα ό,τι υπάρχει στην αποθήκη, μετά ό,τι έχει τιμή, μετά τα πιο πρόσφατα ενημερωμένα στο ERP
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = f.sort === "price-asc" ? [{ price: { sort: "asc", nulls: "last" } }, { id: "asc" }] : f.sort === "price-desc" ? [{ price: { sort: "desc", nulls: "last" } }, { id: "asc" }] : f.sort === "newest" ? [{ createdAt: "desc" }, { id: "asc" }] : [{ stock: "desc" }, { price: { sort: "desc", nulls: "last" } }, { id: "asc" }];
+  const [rows, total, brandCounts, energyCounts, facetCounts, range] = await Promise.all([
     db.product.findMany({ where, orderBy, skip: (page - 1) * perPage, take: perPage, select: PRODUCT_SELECT }),
     db.product.count({ where }),
     db.product.groupBy({ by: ["brandId"], where: base, _count: { _all: true } }),
     labelled.length ? db.energyLabel.groupBy({ by: ["class"], where: { product: { AND: [base, { categoryId: { in: labelled } }] } }, _count: { _all: true } }) : Promise.resolve([]),
     usable.length ? db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: usable.map((d) => d.id) }, product: base }, _count: { _all: true } }) : Promise.resolve([]),
+    db.product.aggregate({ where: { AND: [base, { price: { gt: 0 } }] }, _min: { price: true }, _max: { price: true } }),
   ]);
   const brandRows = await db.brand.findMany({ where: { id: { in: brandCounts.map((b) => b.brandId) } }, select: { id: true, slug: true, name: true } });
   const brandBy = new Map(brandRows.map((b) => [b.id, b]));
@@ -212,7 +220,7 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
     items: rows.map((r) => toProduct(r)), total, page, pages: Math.max(1, Math.ceil(total / perPage)),
     brands: brandCounts.map((b) => ({ slug: brandBy.get(b.brandId)?.slug ?? "", name: brandBy.get(b.brandId)?.name ?? "", count: b._count._all })).filter((b) => b.slug).sort((a, b) => b.count - a.count),
     energies: energyCounts.filter((e) => ENERGY.has(e.class)).map((e) => ({ cls: e.class, count: e._count._all })).sort((a, b) => a.cls.localeCompare(b.cls)),
-    priceRange: [0, 0], attributes,
+    priceRange: [Math.floor(range._min.price ?? 0), Math.ceil(range._max.price ?? 0)], attributes, noSale: true,
     categories: node ? [] : t.roots.map((m) => ({ slug: m.slug, label: m.name, count: m.count })),
   };
 }
@@ -223,7 +231,8 @@ export async function dbBrands() {
   const counts = await db.product.groupBy({ by: ["brandId"], where: LISTED, _count: { _all: true } });
   const rows = await db.brand.findMany({ where: { id: { in: counts.map((c) => c.brandId) } }, select: { id: true, slug: true, name: true, logo: true, logoCdn: true, logoStatus: true } });
   const n = new Map(counts.map((c) => [c.brandId, c._count._all]));
-  return rows.map((b) => ({ slug: b.slug, name: b.name, count: n.get(b.id) ?? 0, logo: b.logo ?? (b.logoStatus === "approved" ? b.logoCdn ?? undefined : undefined) })).sort((a, b) => a.name.localeCompare(b.name, "el"));
+  // «Άγνωστος» είναι ο κατασκευαστής-γέμισμα του ERP, όχι μάρκα
+  return rows.filter((b) => !/^αγνωστ/i.test(b.name.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))).map((b) => ({ slug: b.slug, name: b.name, count: n.get(b.id) ?? 0, logo: b.logo ?? (b.logoStatus === "approved" ? b.logoCdn ?? undefined : undefined) })).sort((a, b) => a.name.localeCompare(b.name, "el"));
 }
 
 // ---------- Προτάσεις αναζήτησης ----------
@@ -237,7 +246,7 @@ export async function dbSuggest(q: string, cat: string | undefined, rest: Pick<S
   for (const n of t.byId.values()) if (n.count > 0 && hit(n.name)) { const p = (await categoryPath(n.slug))!; categories.push({ name: n.name, parent: p.length > 1 ? p[p.length - 2].name : undefined, href: hrefOf(p), count: n.count }); }
   return {
     q, total: r.total,
-    products: r.items.map((p) => ({ id: p.id, slug: p.slug, brand: p.brand, title: p.title, price: 0, noPrice: true, image: p.image, avail: "order" as const, path: p.path?.[p.path.length - 1]?.name ?? "" })),
+    products: r.items.map((p) => ({ id: p.id, slug: p.slug, brand: p.brand, title: p.title, price: p.price, noPrice: p.noPrice, image: p.image, avail: p.availability.kind, path: p.path?.[p.path.length - 1]?.name ?? "" })),
     categories: categories.sort((a, b) => b.count - a.count).slice(0, 5), brands: r.brands.filter((b) => hit(b.name)).slice(0, 5).concat(r.brands.filter((b) => !hit(b.name)).slice(0, 3)).slice(0, 5),
     ...rest,
   };

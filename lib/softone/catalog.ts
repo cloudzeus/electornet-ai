@@ -202,10 +202,63 @@ export function syncItems(mode: "delta" | "full" = "delta", trigger: Trigger = "
   });
 }
 
+// ---------- Τιμή eshop και απόθεμα ----------
+
+/** Οι αποθήκες που σημαίνουν «το έχουμε»: 1 «Κεντρικός», 10 «Κεντρική 2». Οι υπόλοιπες 70+ είναι αποθήκες προμηθευτών / τριγωνικές. */
+export const CENTRAL_WAREHOUSES = ["1", "10"];
+
+/**
+ * Πού ζουν η τιμή και η διαθεσιμότητα του site (βρέθηκαν και επιβεβαιώθηκαν στο ζωντανό euronics.gr, 21/09/2026):
+ * - **Τιμή eshop με ΦΠΑ** = `MTREXTRA.NUM04` (πρόσθετα πεδία είδους). Το `MTRL.PRICER` είναι 0 παντού, και οι «συμφωνίες»
+ *   (`PRCRDATA`, κανόνας 1001 «ΕΙΔΙΚΕΣ ΤΙΜΕΣ ΑΠΟΘΗΚΗΣ») είναι τιμές **χονδρικής προς τα καταστήματα-μέλη** — δεν τις διαβάζουμε.
+ * - **Διαθεσιμότητα** = υπόλοιπο κεντρικής αποθήκης από το `MTRBALSHEET` της τρέχουσας χρήσης, Σ(IMPQTY1 − EXPQTY1) με την
+ *   περίοδο 0 (απογραφή έναρξης): > 0 → «Άμεσα Διαθέσιμο», αλλιώς «Διαθέσιμο κατόπιν παραγγελίας».
+ * Και τα δύο είναι μικρές αναγνώσεις (1–2 s η καθεμία ανά κομμάτι), οπότε διαβάζονται πάντα ολόκληρα: μια αλλαγή τιμής
+ * δεν αλλάζει το `MTRL.UPDDATE`, άρα το delta των ειδών δεν θα την έπιανε.
+ */
+export function syncOffers(trigger: Trigger = "manual") {
+  return logged("cat-offers", trigger, async () => {
+    const ids = (await db.s1Item.findMany({ where: { missing: false }, orderBy: { mtrl: "asc" }, select: { mtrl: true } })).map((i) => i.mtrl);
+    if (!ids.length) return { fetched: 0, created: 0, updated: 0, missing: 0, skipped: 0 };
+    const site = new Set(ids);
+    const extra = await getTable("MTREXTRA", ["MTRL", "NUM04", "DATE01", "BOOL01", "BOOL02"], "NUM04>0 OR BOOL01=1 OR BOOL02=1");
+    const price = new Map<number, { p: number | null; d: Date | null; f1: boolean; f2: boolean }>();
+    for (const r of extra) { const m = int(r[0]); if (m != null && site.has(m)) price.set(m, { p: posNum(r[1]), d: date(r[2]), f1: yes(r[3]), f2: yes(r[4]) }); }
+
+    const year = new Date().getFullYear();
+    const bal = new Map<number, Record<string, number>>();
+    let fetched = extra.length;
+    for (let i = 0; i < ids.length; i += CHUNK * 4) {
+      const part = ids.slice(i, i + CHUNK * 4);
+      await sleep(PAUSE_MS);
+      const rows = await getTable("MTRBALSHEET", ["MTRL", "WHOUSE", "IMPQTY1", "EXPQTY1"], `FISCPRD=${year} AND MTRL>=${part[0]} AND MTRL<=${part[part.length - 1]}`);
+      fetched += rows.length;
+      for (const r of rows) { const m = int(r[0]); if (m == null || !site.has(m)) continue; const w = bal.get(m) ?? {}; w[r[1]] = (w[r[1]] ?? 0) + (num(r[2]) ?? 0) - (num(r[3]) ?? 0); bal.set(m, w); }
+    }
+
+    const now = new Date();
+    let updated = 0;
+    for (let i = 0; i < ids.length; i += 1000) {
+      const part = ids.slice(i, i + 1000);
+      const values = part.map((_, k) => `($${k * 7 + 1}::int, $${k * 7 + 2}::float8, $${k * 7 + 3}::timestamp, $${k * 7 + 4}::boolean, $${k * 7 + 5}::boolean, $${k * 7 + 6}::float8, $${k * 7 + 7}::jsonb)`).join(", ");
+      const params = part.flatMap((m) => {
+        const e = price.get(m), w = bal.get(m) ?? {};
+        const positive = Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+        const central = CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0);
+        return [m, e?.p ?? null, e?.d ?? null, e?.f1 ?? false, e?.f2 ?? false, central, JSON.stringify(positive)];
+      });
+      updated += await db.$executeRawUnsafe(
+        `UPDATE "S1Item" s SET "eshopPrice" = v.p, "eshopDate01" = v.d, "eshopFlag1" = v.f1, "eshopFlag2" = v.f2, "stockCentral" = v.c, "stockByWh" = v.w, "offersAt" = $${part.length * 7 + 1}::timestamp
+         FROM (VALUES ${values}) AS v(m, p, d, f1, f2, c, w) WHERE s.mtrl = v.m`, ...params, now);
+    }
+    return { fetched, created: 0, updated, missing: ids.length - price.size, skipped: 0 };
+  });
+}
+
 /** Όλος ο κατάλογος με τη σωστή σειρά: κατηγορίες → ορισμοί χαρακτηριστικών → είδη. Σταματά στο πρώτο σφάλμα ανάγνωσης. */
 export async function syncCatalog(mode: "delta" | "full" = "delta", trigger: Trigger = "manual") {
   const out: CatalogRunResult[] = [];
-  for (const step of [() => syncWebCategories(trigger), () => syncSpecGroups(trigger), () => syncItems(mode, trigger)]) {
+  for (const step of [() => syncWebCategories(trigger), () => syncSpecGroups(trigger), () => syncItems(mode, trigger), () => syncOffers(trigger)]) {
     const r = await step(); out.push(r);
     if (!r.ok) break;
   }

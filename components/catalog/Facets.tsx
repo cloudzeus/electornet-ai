@@ -82,7 +82,7 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
       {/* Κατάλογος της βάσης χωρίς τιμές ακόμη (priceRange 0–0): τα φίλτρα τιμής, προσφοράς και αποθέματος δεν έχουν τι να φιλτράρουν */}
       {priced && <Group title={c.diathesimotita_prosfores} open>
         <Check label="Άμεσα διαθέσιμα" checked={!!sp.get("avail")} onChange={() => set("avail", sp.get("avail") ? null : "in-stock")} />
-        <Check label="Σε προσφορά" checked={!!sp.get("sale")} onChange={() => set("sale", sp.get("sale") ? null : "1")} />
+        {!result.noSale && <Check label="Σε προσφορά" checked={!!sp.get("sale")} onChange={() => set("sale", sp.get("sale") ? null : "1")} />}
       </Group>}
 
       {priced && <Group title={c.timi} open>

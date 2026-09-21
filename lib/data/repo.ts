@@ -61,6 +61,8 @@ export interface ListResult {
   attributes: AttrFacet[];
   /** L1 categories with counts — only for the all-products list. */
   categories: { slug: string; label: string; count: number }[];
+  /** Ο κατάλογος της βάσης δεν έχει ακόμη «προηγούμενη τιμή»: το φίλτρο «Σε προσφορά» δεν εμφανίζεται. */
+  noSale?: boolean;
 }
 
 /** Parse listing search params (shared by /proionta, /k/…, /prosfores, /anazitisi). Attribute facets travel as `f_<key>=v1|v2`. */
@@ -133,7 +135,8 @@ function applyFilter(f: ListFilter) {
 
 export async function listProducts(f: ListFilter = {}): Promise<ListResult> {
   // Ό,τι θέλει τιμή μένει στα demo δεδομένα· όλα τα υπόλοιπα είναι ο πραγματικός κατάλογος
-  const priced = f.demo || f.sale || f.renew || f.tag || f.minPrice != null || f.maxPrice != null || f.avail;
+  // (τιμή και απόθεμα υπάρχουν πλέον στη βάση· «προσφορά» = προηγούμενη τιμή, που δεν έχουμε ακόμη)
+  const priced = f.demo || f.sale || f.renew || f.tag;
   if (!priced && (await dbEnabled())) {
     const t = await catalogTree();
     // κατηγορία που υπάρχει μόνο στο demo (π.χ. από παλιό σύνδεσμο οδηγού) → demo
@@ -198,12 +201,12 @@ export async function getProductsByIds(ids: string[]) {
   return ids.map((id) => demo.get(id) ?? fromDb.get(id)).filter(Boolean) as Product[];
 }
 export async function getRelated(p: Product, limit = 8) {
-  if (p.noPrice) return dbRelated(p, limit);
+  if (p.fromDb) return dbRelated(p, limit);
   return products.filter((x) => x.id !== p.id && (x.subcategory === p.subcategory || x.category === p.category)).slice(0, limit);
 }
 /** Complementary products («Ταιριάζει με αυτό το προϊόν»): other subcategories that go with this one, never the same kind. Max 4. */
 export async function getAccessoriesFor(p: Product, limit = 4) {
-  if (p.noPrice) return []; // τα «ταιριάζει με αυτό» θέλουν κανόνες ανά τύπο του ERP — όχι ακόμη
+  if (p.fromDb) return []; // τα «ταιριάζει με αυτό» θέλουν κανόνες ανά τύπο του ERP — όχι ακόμη
   const complements: Record<string, string[]> = {
     tileoraseis: ["foritos-ichos", "icheia", "home-cinema"],
     smartphones: ["foritos-ichos", "tablets"],

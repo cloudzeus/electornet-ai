@@ -87,6 +87,9 @@ model Product {
   source         String? // softone = προβολή του καθρέφτη
   s1Hash         String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
   facetHash      String? // αποτύπωμα των τιμών φίλτρων
+  /// Αντίγραφα για λίστες (ταξινόμηση / φίλτρο τιμής και αποθέματος)· η «αλήθεια» είναι στο Variant
+  price          Float? // τιμή eshop με ΦΠΑ
+  stock          Int                 @default(0) // τεμάχια στην κεντρική αποθήκη
   /// Μοντέλο κατασκευαστή όπως το αναγνωρίσαμε (από κωδικό είδους / τίτλο) — το κλειδί για το EPREL
   modelCode      String?
   /// Αντιστοίχιση με το EPREL: matched | ambiguous | none | skipped (ο τύπος δεν έχει ενεργειακή ετικέτα)
@@ -113,6 +116,7 @@ model Product {
   @@index([brandId])
   @@index([eprelStatus])
   @@index([dimStatus])
+  @@index([categoryId, active, price])
 }
 
 model Variant {
@@ -345,6 +349,16 @@ model S1Item {
   lengthCm         Float? // CCCLENGTH
   widthCm          Float? // CCCWIDTH
   heightCm         Float? // CCCHEIGHT
+  /// Τιμή eshop ΜΕ ΦΠΑ — MTREXTRA.NUM04. Επιβεβαιωμένη στο ζωντανό euronics.gr (549 / 229 / 119 / 1.799,99 € σε 4 είδη). Όχι το PRICER, που είναι 0 παντού.
+  eshopPrice       Float?
+  eshopDate01      DateTime? // MTREXTRA.DATE01 — σημασία προς επιβεβαίωση (ημερομηνία τιμής / προσφοράς;)
+  eshopFlag1       Boolean      @default(false) // MTREXTRA.BOOL01 — σημασία προς επιβεβαίωση
+  eshopFlag2       Boolean      @default(false) // MTREXTRA.BOOL02
+  /// Υπόλοιπο κεντρικής αποθήκης (WHOUSE 1 «Κεντρικός» + 10 «Κεντρική 2») από MTRBALSHEET της τρέχουσας χρήσης: Σ(IMPQTY1 − EXPQTY1).
+  /// > 0 → το site γράφει «Άμεσα Διαθέσιμο», αλλιώς «Διαθέσιμο κατόπιν παραγγελίας» (επιβεβαιωμένο σε 3 είδη).
+  stockCentral     Float?
+  stockByWh        Json? // θετικά υπόλοιπα ανά αποθήκη {"1": 84, "56": 3}
+  offersAt         DateTime?
   s1UpdatedAt      DateTime?
   missing          Boolean      @default(false)
   contentHash      String? // αποτύπωμα των πεδίων που μπαίνουν στο κείμενο αναζήτησης· όταν αλλάξει, το vector γίνεται «μπαγιάτικο»

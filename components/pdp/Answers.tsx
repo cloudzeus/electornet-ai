@@ -26,7 +26,7 @@ export function Answers({ product: p }: { product: Product }) {
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
         <span className="text-eu-muted text-[length:var(--fs-14)] font-semibold mr-1">{c.rota_ton_ari}</span>
         {/* «Πόσο ρεύμα καίει;» μόνο όπου υπάρχει ενεργειακή πληροφόρηση για το προϊόν */}
-        {["Χωράει στον χώρο μου;", ...(p.noPrice && !p.energy ? [] : ["Πόσο ρεύμα καίει;"]), "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
+        {["Χωράει στον χώρο μου;", ...(p.fromDb && !p.energy ? [] : ["Πόσο ρεύμα καίει;"]), "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
           <AskAris key={q} q={q} tone="light" />
         ))}
       </div>

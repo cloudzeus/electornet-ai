@@ -38,7 +38,7 @@ const num = (s: string) => parseFloat(s.replace(",", "."));
  */
 export function dimsFor(p: Product): Dims | null {
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί από έναν εξαγωγέα (lib/catalog/dimensions.ts, ERP → EPREL)
-  if (p.noPrice && p.dims) return p.dims;
+  if (p.fromDb && p.dims) return p.dims;
   const specs = p.specs ?? [];
   const hwd = specs.find((s) => /Υ\s*[×x]\s*Π\s*[×x]\s*Β/i.test(s.key) || /^Διαστάσεις/i.test(s.key));
   if (hwd) {

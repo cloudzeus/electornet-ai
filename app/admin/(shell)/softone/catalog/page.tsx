@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const PAGE = 50;
 const fmt = (d: Date | null | undefined) => (d ? d.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
-const KIND: Record<string, string> = { "cat-webcat": "Κατηγορίες site", "cat-specs": "Ορισμοί χαρακτηριστικών", "cat-items": "Είδη (αλλαγές)", "cat-items-full": "Είδη (πλήρης)", "cat-project": "Προβολή στο κατάστημα" };
+const KIND: Record<string, string> = { "cat-webcat": "Κατηγορίες site", "cat-specs": "Ορισμοί χαρακτηριστικών", "cat-items": "Είδη (αλλαγές)", "cat-items-full": "Είδη (πλήρης)", "cat-project": "Προβολή στο κατάστημα", "cat-offers": "Τιμές eshop & απόθεμα" };
 
 /**
  * Καθρέφτης του καταλόγου του SoftOne: κατηγορίες site, τύποι προϊόντος με τα

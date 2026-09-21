@@ -147,7 +147,7 @@ async function projectFacets(idOf: Map<string, string>) {
 
 // ---------- Προϊόντα ----------
 
-export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; dimensions: Awaited<ReturnType<typeof projectDimensions>>; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
+export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; offers: OffersResult; dimensions: Awaited<ReturnType<typeof projectDimensions>>; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
 
 async function projectProducts(idOf: Map<string, string>) {
   const [brands, vats, existing] = await Promise.all([
@@ -304,6 +304,34 @@ async function projectFacetValues(): Promise<FacetValuesResult> {
   return { products, rewritten, values, bySource, facetsWithValues: agg.length, facetsUpdated: ops.length };
 }
 
+// ---------- Τιμή και απόθεμα ----------
+
+export interface OffersResult { priced: number; inStock: number; productsUpdated: number; variantsCreated: number; priceChanges: number }
+
+/**
+ * Τιμή eshop και απόθεμα κεντρικής αποθήκης από τον καθρέφτη → `Product.price / stock` (για λίστες και φίλτρα) και ένα
+ * `Variant` ανά προϊόν (για καλάθι / παραγγελίες). Κάθε αλλαγή τιμής γράφεται στο `PriceHistory` — από εκεί θα βγει η
+ * «χαμηλότερη τιμή 30 ημερών» (Omnibus) όταν αρχίσουν οι εκπτώσεις. Όλα σε σύνολα με SQL: 9.000 προϊόντα σε ~1 s.
+ * Προϊόν που έχασε την τιμή του κρατά το Variant (το δείχνουν παραγγελίες) αλλά γυρίζει σε «Τιμή στο κατάστημα».
+ */
+export async function projectOffers(): Promise<OffersResult> {
+  const productsUpdated = await db.$executeRawUnsafe(
+    `UPDATE "Product" p SET price = s."eshopPrice", stock = GREATEST(0, floor(coalesce(s."stockCentral", 0)))::int
+     FROM "S1Item" s WHERE p.source = $1 AND p."erpCode" = s.mtrl::text
+       AND (p.price IS DISTINCT FROM s."eshopPrice" OR p.stock <> GREATEST(0, floor(coalesce(s."stockCentral", 0)))::int)`, SOURCE);
+  const changed = `FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE p.source = $1 AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`;
+  await db.$executeRawUnsafe(`UPDATE "PriceHistory" h SET "to" = now() FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE h."variantId" = v.id AND h."to" IS NULL AND p.source = $1 AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`, SOURCE);
+  const priceChanges = await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, round(p.price::numeric, 2), now() ${changed}`, SOURCE);
+  await db.$executeRawUnsafe(`UPDATE "Variant" v SET price = round(p.price::numeric, 2), "updatedAt" = now() FROM "Product" p WHERE p.id = v."productId" AND p.source = $1 AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`, SOURCE);
+  const variantsCreated = await db.$executeRawUnsafe(
+    `INSERT INTO "Variant" (id, "productId", "erpCode", axis, price, "updatedAt")
+     SELECT 'var_' || p."erpCode", p.id, p."erpCode", '{}'::jsonb, round(p.price::numeric, 2), now() FROM "Product" p
+     WHERE p.source = $1 AND p.price IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Variant" v WHERE v."productId" = p.id) ON CONFLICT DO NOTHING`, SOURCE);
+  await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, v.price, now() FROM "Variant" v WHERE v.id LIKE 'var_%' AND NOT EXISTS (SELECT 1 FROM "PriceHistory" h WHERE h."variantId" = v.id)`);
+  const [priced, inStock] = await Promise.all([db.product.count({ where: { source: SOURCE, active: true, price: { gt: 0 } } }), db.product.count({ where: { source: SOURCE, active: true, stock: { gt: 0 } } })]);
+  return { priced, inStock, productsUpdated, variantsCreated, priceChanges };
+}
+
 /** Ολόκληρη η προβολή με τη σωστή σειρά. Ασφαλής για επανάληψη. */
 export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok: boolean; ms: number; error?: string; result?: ProjectResult }> {
   let result: ProjectResult | undefined;
@@ -312,13 +340,14 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     const facets = await projectFacets(cats.idOf);
     const p = await projectProducts(cats.idOf);
     const vis = await refreshCategoryCounts(cats.nodes, cats.idOf);
+    const offers = await projectOffers();
     const dimensions = await projectDimensions(); // πριν από τα φίλτρα δεν χρειάζεται — διαβάζουν τα ίδια Spec
     const facetValues = await projectFacetValues();
     // Ένα νέο είδος παίρνει τις φωτογραφίες που έχουν ήδη ανέβει για το barcode του — χωρίς νέο ανέβασμα
     const images = await associateImages();
     resetCatalogCache(); // το δέντρο της βιτρίνας (πλήθη, ορατές κατηγορίες) ξαναχτίζεται στο επόμενο αίτημα
     result = {
-      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images, dimensions,
+      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images, dimensions, offers,
       products: { total: p.total, created: p.created, updated: p.updated, unchanged: p.unchanged, deactivated: p.deactivated, skipped: p.skipped },
       specs: p.specRows, energy: p.energyRows,
     };

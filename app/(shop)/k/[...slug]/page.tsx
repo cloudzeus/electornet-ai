@@ -61,7 +61,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Προϊόντα", href: "/proionta" }, ...crumbs]} />
-      <CategoryOpener kicker={cat && cat.path.length > 1 ? cat.path[cat.path.length - 2].name : l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead={cat ? "παραλαβή από το κατάστημα της περιοχής σου · τιμή και διαθεσιμότητα στο κατάστημα" : "δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου"} products={result.items.slice(0, 3)} questions={questions} />
+      <CategoryOpener kicker={cat && cat.path.length > 1 ? cat.path[cat.path.length - 2].name : l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} questions={questions} />
 
       {tiles.length > 0 && (
         <div className="eu-canvas eu-gutter pt-6 pb-6">

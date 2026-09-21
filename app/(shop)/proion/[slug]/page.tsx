@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
   const sections = ["overview", ...(p.description ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
-  const dims = p.noPrice ? p.dims ?? null : dimsFor(p);
+  const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
@@ -137,7 +137,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <h2 id="desc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
                 {p.brand} {p.title}
               </h2>
-              {p.noPrice ? <RichDescription text={p.description} banners={p.banners} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
+              {p.fromDb ? <RichDescription text={p.description} banners={p.banners} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
               {p.sourceUrl && (
                 <p className="m-0 mt-3 text-eu-muted text-[length:var(--fs-15)]">
                   Στοιχεία προϊόντος από το euronics.gr ·{" "}
@@ -147,7 +147,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 </p>
               )}
             </div>
-            <aside className="rounded-xl bg-eu-navy text-white p-5 grid gap-3 self-start">
+            {/* Ακολουθεί την κύλιση: με τα banners η περιγραφή γίνεται ψηλή και η στήλη θα έμενε άδεια. Κάτω από το κολλητό μενού ενοτήτων. */}
+            <aside className="rounded-xl bg-eu-navy text-white p-5 grid gap-3 self-start @lg:sticky @lg:top-[calc(var(--eu-header-h,0px)+4.5rem)]">
               <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide">Γιατί από Euronics</div>
               {["Επίσημη εγγύηση αντιπροσωπείας 2 έτη", "Service με γνήσια ανταλλακτικά", "Παραλαβή σε 2 ώρες από 350 καταστήματα", "Δόσεις με ή χωρίς κάρτα έως 24 μήνες", "Επιστροφή μέσα σε 14 ημέρες"].map((t) => (
                 <div key={t} className="flex gap-2 text-[length:var(--fs-16)]">

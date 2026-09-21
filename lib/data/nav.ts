@@ -19,6 +19,7 @@ export const navCategories: NavCategory[] = [
 
 export const navUtility = [
   { slug: "prosfores", label: "Προσφορές", tone: "offer" as const },
+  { slug: "brands", label: "Μάρκες" }, // οι σελίδες των εταιριών: /brands και /brands/<μάρκα>
   { slug: "ypiresies", label: "Υπηρεσίες" },
   { slug: "katastimata", label: "Καταστήματα" },
 ];
