@@ -47,7 +47,10 @@ interface CartState {
   wishlist: string[];
   toggleWishlist: (id: string) => void;
   compare: string[];
-  toggleCompare: (id: string) => void;
+  /** `scope`: η διαδρομή κατηγορίας του προϊόντος (lib/data/compare-scope). Προϊόν άλλης κατηγορίας ξεκινά νέα σύγκριση αντί να ανακατευτεί. */
+  toggleCompare: (id: string, scope?: string) => void;
+  compareScope: string | null;
+  clearCompare: () => void;
   hydrated: boolean;
 }
 
@@ -58,6 +61,7 @@ interface Persisted {
   lines: CartLine[];
   wishlist: string[];
   compare: string[];
+  compareScope?: string | null;
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -65,6 +69,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compare, setCompare] = useState<string[]>([]);
+  const [compareScope, setCompareScope] = useState<string | null>(null);
+  const scopeRef = useRef<string | null>(null);
   const [quickBuy, setQuickBuy] = useState<Product | null>(null);
   const [quickView, setQuickView] = useState<Product | null>(null);
   const [miniOpen, setMiniOpen] = useState(false);
@@ -81,6 +87,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setLines(p.lines ?? []);
           setWishlist(p.wishlist ?? []);
           setCompare(p.compare ?? []);
+          setCompareScope(p.compareScope ?? null);
+          scopeRef.current = p.compareScope ?? null;
         }
       } catch {}
       setHydrated(true);
@@ -112,9 +120,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify({ lines, wishlist, compare } satisfies Persisted));
+      localStorage.setItem(KEY, JSON.stringify({ lines, wishlist, compare, compareScope } satisfies Persisted));
     } catch {}
-  }, [lines, wishlist, compare, hydrated]);
+  }, [lines, wishlist, compare, compareScope, hydrated]);
 
   const add = useCallback<CartState["add"]>((p, opts = {}) => {
     const qty = opts.qty ?? 1;
@@ -148,7 +156,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return on ? w.filter((x) => x !== id) : [...w, id];
     });
   }, [signedIn]);
-  const toggleCompare = useCallback((id: string) => setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= 4 ? c : [...c, id])), []);
+  const toggleCompare = useCallback((id: string, scope?: string) => {
+    setCompare((c) => {
+      if (c.includes(id)) return c.filter((x) => x !== id);
+      // άλλη κατηγορία από αυτήν που συγκρίνεται τώρα: η σύγκριση ξεκινά από την αρχή με αυτό το προϊόν
+      if (scope && scopeRef.current && scope !== scopeRef.current) return [id];
+      return c.length >= 4 ? c : [...c, id];
+    });
+    if (scope) { scopeRef.current = scope; setCompareScope(scope); }
+  }, []);
+  const clearCompare = useCallback(() => { setCompare([]); scopeRef.current = null; setCompareScope(null); }, []);
 
   const value = useMemo<CartState>(() => {
     const count = lines.reduce((n, l) => n + l.qty, 0);
@@ -178,9 +195,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toggleWishlist,
       compare,
       toggleCompare,
+      compareScope,
+      clearCompare,
       hydrated,
     };
-  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, hydrated, add, remove, setQty, toggleAddon, clear, toggleWishlist, toggleCompare]);
+  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, remove, setQty, toggleAddon, clear, toggleWishlist, toggleCompare, clearCompare]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

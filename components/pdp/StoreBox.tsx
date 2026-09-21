@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Heart, MapPin, Scale, Store as StoreIcon, Truck, ShieldCheck } from "lucide-react";
 import type { Product, Store } from "@/lib/data/types";
 import { useCart } from "@/components/commerce/CartProvider";
+import { compareScope } from "@/lib/data/compare-scope";
 
 /**
  * Το κουτί της σελίδας προϊόντος όταν το προϊόν δεν έχει ακόμη τιμή online
@@ -25,7 +26,7 @@ export function StoreBox({ product: p, stores }: { product: Product; stores: Sto
       </Link>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" aria-pressed={liked} onClick={() => toggleWishlist(p.id)} className={`${pill} ${liked ? "border-eu-red text-eu-red" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}><Heart className="size-5" fill={liked ? "currentColor" : "none"} aria-hidden /> {liked ? "Στη λίστα" : "Στη λίστα μου"}</button>
-        <button type="button" aria-pressed={compared} onClick={() => toggleCompare(p.id)} className={`${pill} ${compared ? "border-eu-blue text-eu-blue" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}><Scale className="size-5" aria-hidden /> Σύγκριση</button>
+        <button type="button" aria-pressed={compared} onClick={() => toggleCompare(p.id, compareScope(p))} className={`${pill} ${compared ? "border-eu-blue text-eu-blue" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}><Scale className="size-5" aria-hidden /> Σύγκριση</button>
       </div>
       <ul className="m-0 p-0 list-none grid gap-2.5 text-[length:var(--fs-15)] text-eu-ink-2">
         <li className="flex gap-2.5"><StoreIcon className="size-5 text-eu-blue shrink-0 mt-0.5" aria-hidden /> {stores.length ? `${stores.length}+ καταστήματα σε όλη την Ελλάδα — δες το από κοντά πριν αποφασίσεις` : "Δες το από κοντά στο κατάστημα της περιοχής σου"}</li>

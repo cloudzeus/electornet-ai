@@ -12,6 +12,7 @@ import { filterFromParams, getL1, getL2, listProducts, resolveCategory } from "@
 import { getCategories } from "@/lib/data/catalog";
 import { getSettings } from "@/lib/cms/settings";
 import { Sparkles } from "lucide-react";
+import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 
 const GUIDE_FOR: Record<string, { kind: string; t: string }> = { tileoraseis: { kind: "tileoraseis", t: "Ποια τηλεόραση σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, laptops: { kind: "ypologistes", t: "Ποιος υπολογιστής σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, tablets: { kind: "ypologistes", t: "Laptop ή tablet; Ο έξυπνος οδηγός αποφασίζει μαζί σου." }, "air-condition": { kind: "klimatistika", t: "Πόσα BTU χρειάζεσαι; Ο έξυπνος οδηγός τα υπολογίζει από τα τετραγωνικά." } };
 
@@ -51,7 +52,8 @@ export default async function CategoryPage({ params, searchParams }: { params: P
 
   const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
-  const questions = settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product;
+  // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα
+  const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product).filter((q) => !cat || cat.energy || !isEnergyQuestion(q));
   const basePath = cat ? `/k/${cat.path.map((p) => p.slug).join("/")}` : l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
   const title = here?.name ?? (l2 ? l2.name : l1.label);
   const crumbs = cat ? cat.path.map((p, i) => (i === cat.path.length - 1 ? { label: p.name } : { label: p.name, href: `/k/${cat.path.slice(0, i + 1).map((x) => x.slug).join("/")}` })) : [{ label: l1.label, href: `/k/${l1.slug}` }, ...(l2 ? [{ label: l2.name }] : [])];

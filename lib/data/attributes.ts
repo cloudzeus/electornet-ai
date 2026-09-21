@@ -97,6 +97,8 @@ const RULES: Record<string, Rule> = {
 const COLOURS = ["Μαύρο", "Λευκό", "Μπλε", "Ασημί", "Γκρι", "Χρυσό", "Κόκκινο", "Πράσινο", "Ροζ", "Μωβ", "Inox", "Midnight", "Blue", "Black", "White", "Silver", "Graphite", "Starlight", "Titanium"];
 
 export function attributesOf(p: Product): Attr[] {
+  // Προϊόν της βάσης: τα χαρακτηριστικά του τύπου του, όπως τα ορίζει το ERP — όχι ό,τι τύχει να γράφει η περιγραφή
+  if (p.attrs) return [...p.attrs, { key: "Μάρκα", value: p.brand, group: "Γενικά" }];
   const out = new Map<string, Attr>();
   const put = (key: string, value: string | null | undefined, group: string) => {
     if (!value || out.has(key)) return;
@@ -180,16 +182,18 @@ export function matchesAttrs(p: Product, attrs?: Record<string, string[]>) {
 export function compareRows(list: Product[]) {
   const order: string[] = [];
   const groups = new Map<string, string[]>();
+  const all = new Map(list.map((p) => [p.id, attributesOf(p)]));
+  // Γραμμή μόνο όταν έχει κάτι να συγκρίνει: τιμή σε τουλάχιστον δύο προϊόντα (ή στο μοναδικό). Όχι στήλες με «—».
+  const need = list.length >= 2 ? 2 : 1;
   for (const p of list) {
-    for (const a of attributesOf(p)) {
-      if (a.key === "Μάρκα") continue;
-      if (!order.includes(a.key)) {
-        order.push(a.key);
-        groups.set(a.group, [...(groups.get(a.group) ?? []), a.key]);
-      }
+    for (const a of all.get(p.id)!) {
+      if (a.key === "Μάρκα" || order.includes(a.key)) continue;
+      if (list.filter((x) => all.get(x.id)!.some((y) => y.key === a.key)).length < need) continue;
+      order.push(a.key);
+      groups.set(a.group, [...(groups.get(a.group) ?? []), a.key]);
     }
   }
-  const val = (p: Product, k: string) => attributesOf(p).find((a) => a.key === k)?.value ?? "—";
+  const val = (p: Product, k: string) => all.get(p.id)?.find((a) => a.key === k)?.value ?? "—";
   return { groups: [...groups.entries()], val };
 }
 

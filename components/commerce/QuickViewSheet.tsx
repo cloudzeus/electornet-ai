@@ -1,4 +1,5 @@
 "use client";
+import { compareScope } from "@/lib/data/compare-scope";
 
 
 import { useState } from "react";
@@ -288,7 +289,7 @@ function Body({ p }: { p: Product }) {
                 type="button"
                 aria-pressed={compared}
                 aria-label={c.sygkrisi}
-                onClick={() => toggleCompare(p.id)}
+                onClick={() => toggleCompare(p.id, compareScope(p))}
                 className={`size-[52px] rounded-full border-2 inline-flex items-center justify-center ${compared ? "border-eu-blue text-eu-blue bg-eu-chip" : "border-eu-line text-eu-muted hover:text-eu-blue"}`}
               >
                 {compared ? (

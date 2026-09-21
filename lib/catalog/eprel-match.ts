@@ -6,6 +6,8 @@ import { upsertFromRaw, linkProduct } from "@/lib/eprel/sync";
 import { normalizeModel, customerLines, eprelDimsCm } from "@/lib/eprel/normalize";
 import { bareKey } from "./image-files";
 import { refreshDimStatus } from "./product-dimensions";
+import { eprelGroupsFor } from "./energy-types";
+export { eprelGroupsFor };
 
 /**
  * Αντιστοίχιση των προϊόντων μας με τις καταχωρίσεις του EPREL (ευρωπαϊκή βάση
@@ -24,23 +26,6 @@ import { refreshDimStatus } from "./product-dimensions";
  */
 const PAUSE_MS = 250;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const lower = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ");
-
-/** Τύπος προϊόντος (όνομα ομάδας SoftOne) → ομάδες του EPREL, νεότερος κανονισμός πρώτα. */
-const GROUPS: [RegExp, string[]][] = [
-  [/πλυντηρια-στεγνωτηρια|πλυντηριο-στεγνωτηριο/, ["washerdriers2019", "washerdriers"]],
-  [/πλυντηρια ρουχων/, ["washingmachines2019", "washingmachines"]],
-  [/στεγνωτηρια/, ["tumbledryers20232534", "tumbledriers"]],
-  [/πλυντηρια πιατων/, ["dishwashers2019", "dishwashers"]],
-  [/ψυγει|καταψυκτ|συντηρητ|οινοψυκτ/, ["refrigeratingappliances2019", "refrigeratingappliances"]],
-  [/τηλεορασ|οθονεσ υπολογιστ|monitor/, ["electronicdisplays", "televisions"]],
-  [/κλιματιστ/, ["airconditioners"]],
-  [/φουρνοι(?! μικροκυματων)|^φουρνοσ|κουζινεσ/, ["ovens"]],
-  [/απορροφητηρ/, ["rangehoods"]],
-  [/θερμοσιφων/, ["waterheaters", "hotwaterstoragetanks"]],
-  [/^κινητα - smartphones|^tablets/, ["smartphonestablets20231669"]],
-];
-export const eprelGroupsFor = (typeName: string) => GROUPS.find(([re]) => re.test(lower(typeName)))?.[1] ?? null;
 
 const looksLikeModel = (t: string) => t.length >= 5 && /[A-Z]/.test(t) && (t.match(/\d/g)?.length ?? 0) >= 2 && !/^\d+(GB|TB|KG|BTU|HZ|CM|MM|W|L|LT)$/.test(t);
 

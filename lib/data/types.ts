@@ -53,6 +53,8 @@ export interface Product {
   /** Προϊόν της βάσης χωρίς τιμή ακόμη (η τιμή του site δεν ζει στην καρτέλα του ERP): «Τιμή στο κατάστημα», χωρίς κουμπιά αγοράς. */
   noPrice?: boolean;
   /** Τρίτο επίπεδο (τύπος προϊόντος του SoftOne) και ολόκληρη η διαδρομή κατηγορίας, για breadcrumbs και «παρόμοια». */
+  /** Τα χαρακτηριστικά του ΤΥΠΟΥ προϊόντος (τα φίλτρα που ορίζει το ERP) με τις τιμές αυτού του προϊόντος — αυτά συγκρίνονται. */
+  attrs?: { key: string; value: string; group: string }[];
   typeSlug?: string;
   path?: { slug: string; name: string }[];
   wasPrice?: number;

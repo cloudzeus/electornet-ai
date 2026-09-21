@@ -6,6 +6,7 @@ import { attributesOf } from "@/lib/data/attributes";
 import { CompareStacked } from "@/components/catalog/CompareStacked";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { compareScope } from "@/lib/data/compare-scope";
 
 const c = copyOf("compareSimilar");
 
@@ -48,7 +49,7 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
                   <div className="text-eu-muted text-[length:var(--fs-14)] truncate">{x.brand}</div>
                   {i === 0 ? <div className="font-bold text-eu-ink line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</div> : <Link href={`/proion/${x.slug}`} className="block font-bold text-eu-ink hover:text-eu-blue line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</Link>}
                   <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mt-1 min-h-[1.3em]">{priceShort(x.price)}</div>
-                  {i === 0 ? <div className="mt-1 inline-block rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13-5)] px-2 py-0.5">{c.ayto_to_proion}</div> : <div className="mt-1"><CompareCheckbox id={x.id} /></div>}
+                  {i === 0 ? <div className="mt-1 inline-block rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13-5)] px-2 py-0.5">{c.ayto_to_proion}</div> : <div className="mt-1"><CompareCheckbox id={x.id} scope={compareScope(x)} /></div>}
                 </th>
               ))}
             </tr>

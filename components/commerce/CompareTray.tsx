@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { insideScope } from "@/lib/data/compare-scope";
 import { X } from "lucide-react";
 import { useCart } from "./CartProvider";
 import { copyOf } from "@/lib/cms/copy";
@@ -10,8 +12,13 @@ const c = copyOf("compareTray");
 
 /** Sticky tray when products are selected for comparison (max 4). */
 export function CompareTray() {
-  const { compare, toggleCompare, hydrated } = useCart();
+  const { compare, compareScope, clearCompare, hydrated } = useCart();
   const pathname = usePathname();
+  // Ο πελάτης άνοιξε άλλη κατηγορία: η σύγκριση της προηγούμενης δεν τον ακολουθεί. (Σελίδες προϊόντος, αναζήτηση, /sygkrisi την κρατούν.)
+  useEffect(() => {
+    if (!hydrated || !compare.length || !compareScope || !pathname.startsWith("/k/")) return;
+    if (!insideScope(compareScope, decodeURIComponent(pathname.slice(3)).replace(/\/$/, ""))) clearCompare();
+  }, [pathname, hydrated, compare.length, compareScope, clearCompare]);
   // Never over the cart / checkout CTAs, never on the compare page itself.
   if (!hydrated || compare.length === 0 || /^\/(kalathi|checkout|sygkrisi)/.test(pathname)) return null;
   return (
@@ -20,7 +27,7 @@ export function CompareTray() {
       <Link href="/sygkrisi" className="rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-2 min-h-9 inline-flex items-center hover:bg-eu-yellow-dark">
         {c.sygkrine}
       </Link>
-      <button type="button" aria-label={c.katharismos_sygkrisis} onClick={() => compare.forEach((id) => toggleCompare(id))} className="size-9 inline-flex items-center justify-center rounded-full hover:bg-eu-navy-2">
+      <button type="button" aria-label={c.katharismos_sygkrisis} onClick={clearCompare} className="size-9 inline-flex items-center justify-center rounded-full hover:bg-eu-navy-2">
         <X className="size-4" aria-hidden />
       </button>
     </div>

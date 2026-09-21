@@ -9,6 +9,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Tilt } from "@/components/motion/Tilt";
 import { copyOf } from "@/lib/cms/copy";
+import { ZoomImage } from "./ZoomImage";
 
 const c = copyOf("gallery");
 
@@ -82,16 +83,11 @@ export function Gallery({
             <ViewTransition name={`product-${productId}`}>
               <div data-tilt-layer className="absolute inset-0">
                 {src ? (
-                  <Image
-                    key={src}
-                    src={cutout ?? src}
-                    alt={title}
-                    fill
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 60vw"
-                    className={`object-contain ${cutout ? "p-[7%] eu-cutout-shadow eu-float" : "p-[9%]"}`}
-                    unoptimized={src.startsWith("http")}
-                  />
+                  cutout ? (
+                    <Image key={src} src={cutout} alt={title} fill priority sizes="(max-width: 1024px) 100vw, 60vw" className="object-contain p-[7%] eu-cutout-shadow eu-float" />
+                  ) : (
+                    <ZoomImage images={images} index={i} onIndex={setI} alt={title} priority className="object-contain p-[9%]" />
+                  )
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-eu-placeholder-ink font-semibold">
                     {c.fotografia_proiontos}

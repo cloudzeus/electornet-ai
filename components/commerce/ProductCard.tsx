@@ -18,6 +18,7 @@ import { flyToCart } from "@/lib/motion/flyToCart";
 import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, CustomSticker, stickersFor } from "./Stickers";
 import { FitBadge } from "@/components/space/FitBadge";
 import { copyOf } from "@/lib/cms/copy";
+import { compareScope } from "@/lib/data/compare-scope";
 
 const c = copyOf("productCard");
 
@@ -158,7 +159,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 )}
                 <div className="flex justify-between items-center gap-2 mt-3 text-[length:var(--fs-14)]">
                   <label className={`inline-flex items-center gap-1.5 font-semibold cursor-pointer min-h-9 ${compared ? "text-eu-blue" : "text-eu-muted-2 hover:text-eu-blue"}`}>
-                    <input type="checkbox" checked={compared} onChange={() => toggleCompare(p.id)} className="size-4 accent-eu-blue" />
+                    <input type="checkbox" checked={compared} onChange={() => toggleCompare(p.id, compareScope(p))} className="size-4 accent-eu-blue" />
                     <Scale className="size-4" aria-hidden /> {c.sygkrisi}
                   </label>
                   {!narrow && <span className="text-eu-muted-2 truncate">{p.tradeIn ? "Παραλαβή παλιάς" : p.storeStock ? `Σε ${p.storeStock} καταστήματα` : ""}</span>}

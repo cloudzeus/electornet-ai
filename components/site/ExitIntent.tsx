@@ -13,13 +13,16 @@ import { copyOf } from "@/lib/cms/copy";
 const c = copyOf("exitIntent");
 
 const KEY = "euronics.exitIntent.v1";
+/** Ο πελάτης το έκλεισε: δεν ξαναεμφανίζεται — ούτε σε νέα καρτέλα, ούτε την επόμενη μέρα. */
+const DISMISSED = "euronics.exitIntent.dismissed";
 
 /**
  * @dynamic Exit intent: when the pointer leaves towards the browser chrome
  * (desktop) or the tab is hidden and shown again with items in the cart
  * (mobile), the advisor asks why — one tap — and offers to email the cart.
  * Logged in (session) → one click sends it to the account email; guest →
- * email field. Once per session, never on checkout or success pages.
+ * email field. Once per session, never on checkout or success pages — and never again once the
+ * customer has closed it (localStorage): ένα παράθυρο που επιμένει είναι ενόχληση, όχι βοήθεια.
  * Production: reason → Demand Radar; cart email via Klaviyo/Brevo with the
  * cart token; GDPR: transactional email, no marketing without consent.
  */
@@ -34,6 +37,7 @@ export function ExitIntent() {
   const { advisor } = useSettings();
   const REASONS = advisor.exitIntent.reasons.map((r) => r.label);
 
+  const close = () => { try { localStorage.setItem(DISMISSED, "1"); } catch {} setOpen(false); };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -54,7 +58,7 @@ export function ExitIntent() {
     if (!hydrated || !advisor.exitIntent.enabled || lines.length === 0 || path.startsWith("/checkout")) return;
     let shown = false;
     try {
-      shown = sessionStorage.getItem(KEY) === "1";
+      shown = sessionStorage.getItem(KEY) === "1" || localStorage.getItem(DISMISSED) === "1";
     } catch {}
     if (shown) return;
     const fire = () => {
@@ -83,7 +87,7 @@ export function ExitIntent() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -92,7 +96,7 @@ export function ExitIntent() {
   const target = session?.email ?? email;
   return (
     <div className="fixed inset-0 z-[75]" role="dialog" aria-modal="true" aria-labelledby="exit-title">
-      <button type="button" className="absolute inset-0 bg-eu-navy/55 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
+      <button type="button" className="absolute inset-0 bg-eu-navy/55 backdrop-blur-sm" aria-label={c.kleisimo} onClick={close} />
       <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(640px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-cols-1 @md:grid-cols-[200px_minmax(0,1fr)] animate-[eu-sheet_.35s_var(--eu-ease-out)]">
         <div className="relative bg-eu-navy text-white p-5 overflow-hidden isolate hidden @md:flex items-end justify-center">
           <span className="eu-ambient" aria-hidden />
@@ -108,7 +112,7 @@ export function ExitIntent() {
                 {advisor.exitIntent.title}
               </h2>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
+            <button type="button" onClick={close} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
               <X className="size-5" aria-hidden />
             </button>
           </div>

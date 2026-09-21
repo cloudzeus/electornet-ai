@@ -5,6 +5,7 @@ import type { EnergyClass, Product, Spec } from "./types";
 import type { NavCategory } from "./nav";
 import type { AttrFacet } from "./attributes";
 import type { ListFilter, ListResult, SuggestResult } from "./repo";
+import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 
 /**
  * Ο κατάλογος της βιτρίνας από τη βάση (προβολή του SoftOne): δέντρο κατηγοριών,
@@ -25,7 +26,8 @@ const TTL = 5 * 60_000;
 
 // ---------- Δέντρο ----------
 
-export interface CatNode { id: string; slug: string; name: string; depth: number; parentId: string | null; count: number; children: CatNode[] }
+/** `energy`: ο τύπος έχει ευρωπαϊκή ενεργειακή ετικέτα (για Master / Main: κάποιος απόγονός του έχει). */
+export interface CatNode { id: string; slug: string; name: string; depth: number; parentId: string | null; count: number; energy: boolean; children: CatNode[] }
 interface Tree { roots: CatNode[]; bySlug: Map<string, CatNode>; byId: Map<string, CatNode>; at: number }
 let treeCache: Tree | null = null;
 
@@ -36,8 +38,8 @@ export async function catalogTree(): Promise<Tree> {
     db.product.groupBy({ by: ["categoryId"], where: LISTED, _count: { _all: true } }),
   ]);
   const direct = new Map(counts.map((c) => [c.categoryId, c._count._all]));
-  const byId = new Map<string, CatNode>(cats.map((c) => [c.id, { ...c, count: direct.get(c.id) ?? 0, children: [] }]));
-  for (const n of [...byId.values()].sort((a, b) => b.depth - a.depth)) if (n.parentId) { const p = byId.get(n.parentId); if (p) p.count += n.count; }
+  const byId = new Map<string, CatNode>(cats.map((c) => [c.id, { ...c, count: direct.get(c.id) ?? 0, energy: c.depth === 2 && hasEnergyLabel(c.name), children: [] }]));
+  for (const n of [...byId.values()].sort((a, b) => b.depth - a.depth)) if (n.parentId) { const p = byId.get(n.parentId); if (p) { p.count += n.count; if (n.energy && n.count > 0) p.energy = true; } }
   for (const n of byId.values()) if (n.parentId && n.count > 0) byId.get(n.parentId)?.children.push(n);
   const roots = [...byId.values()].filter((n) => n.depth === 0 && n.count > 0);
   treeCache = { roots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
@@ -105,7 +107,8 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     image: images[0] ?? null, images,
     price: 0, noPrice: true,
     dims: d ? { w: d.w, h: d.h, d: d.d, source: d.source === "eprel" ? "eprel" : "specs" } : undefined,
-    energy: r.energy && ENERGY.has(r.energy.class) ? { cls: r.energy.class as EnergyClass, fiche: r.energy.ficheUrl ?? r.energy.labelUrl ?? "", kwh: r.energy.eprel?.annualKwh ?? undefined, eprel: r.energy.eprelRegistrationNumber ?? undefined } : undefined,
+    // ενεργειακή πληροφόρηση μόνο σε τύπους που έχουν ευρωπαϊκή ετικέτα — αλλού, μια «κλάση Α» στην περιγραφή είναι θόρυβος
+    energy: r.energy && ENERGY.has(r.energy.class) && hasEnergyLabel(r.category.name) ? { cls: r.energy.class as EnergyClass, fiche: r.energy.ficheUrl ?? r.energy.labelUrl ?? "", kwh: r.energy.eprel?.annualKwh ?? undefined, eprel: r.energy.eprelRegistrationNumber ?? undefined } : undefined,
     availability: { kind: "order", label: "Διαθεσιμότητα στο κατάστημα" },
     description: [r.summary, r.description].filter(Boolean).join("\n\n") || undefined,
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
@@ -126,19 +129,40 @@ export async function dbProductBySlug(slug: string): Promise<Product | null> {
   const fromLabel = r.specs.filter((s) => s.groupName === "Από την ενεργειακή ετικέτα").map((s) => `${s.key}: ${s.value}`);
   const fromFacets = r.facetValues.filter((v) => v.value !== "Όχι" && !/πλατοσ|υψοσ|βαθο|διαστασ/.test(v.facet.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())).map((v) => (v.value === "Ναι" ? v.facet.label : `${label(v.facet.label)}: ${v.value}`));
   const seen = new Set<string>();
-  const facts = [...(r.energy ? [`Ενεργειακή κλάση ${r.energy.class}`] : []), ...fromLabel, ...fromFacets].filter((f) => { const k = f.split(":")[0].toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
-  return toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })), banners, facts });
+  const facts = [...(r.energy && hasEnergyLabel(r.category.name) ? [`Ενεργειακή κλάση ${r.energy.class}`] : []), ...fromLabel, ...fromFacets].filter((f) => { const k = f.split(":")[0].toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  return withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })), banners, facts }), await attrsFor([r.id]));
 }
+/** Τα χαρακτηριστικά του τύπου με τις τιμές κάθε προϊόντος, στη σειρά που τα έχει το ERP — η βάση κάθε σύγκρισης. */
+async function attrsFor(ids: string[]): Promise<Map<string, NonNullable<Product["attrs"]>>> {
+  const out = new Map<string, NonNullable<Product["attrs"]>>();
+  if (!ids.length) return out;
+  const rows = await db.productFacetValue.findMany({ where: { productId: { in: ids } }, orderBy: [{ facet: { sortNo: "asc" } }, { value: "asc" }], select: { productId: true, value: true, facet: { select: { label: true } } } });
+  for (const r of rows) {
+    const key = r.facet.label.replace(/\s*\([^)]*\)/, "").trim(), list = out.get(r.productId) ?? [];
+    const e = list.find((a) => a.key === key);
+    if (e) e.value += `, ${r.value}`; else list.push({ key, value: r.value, group: "Χαρακτηριστικά" }); // πολλαπλές τιμές (συνδεσιμότητα) σε μία γραμμή
+    out.set(r.productId, list);
+  }
+  return out;
+}
+const withAttrs = (p: Product, a: Map<string, NonNullable<Product["attrs"]>>): Product => ({
+  ...p,
+  attrs: [...(p.energy ? [{ key: "Ενεργειακή κλάση", value: p.energy.cls as string, group: "Απόδοση" }] : []), ...(a.get(p.id) ?? []), ...(p.dims ? [{ key: "Διαστάσεις (Π × Υ × Β)", value: `${[p.dims.w, p.dims.h, p.dims.d].map((n) => n.toLocaleString("el-GR")).join(" × ")} εκ.`, group: "Διαστάσεις" }] : [])],
+});
+
 export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
   if (!ids.length) return [];
   const rows = await db.product.findMany({ where: { id: { in: ids }, source: "softone" }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 40, select: { groupName: true, key: true, value: true } } } });
-  return rows.map((r) => toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }));
+  const a = await attrsFor(rows.map((r) => r.id));
+  return rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a));
 }
 export async function dbRelated(p: Product, limit = 8): Promise<Product[]> {
   if (!p.typeSlug) return [];
   const rows = await db.product.findMany({ where: { ...LISTED, id: { not: p.id }, category: { slug: p.typeSlug } }, orderBy: [{ brand: { name: "asc" } }, { updatedAt: "desc" }], take: limit * 3, select: PRODUCT_SELECT });
   // πρώτα της ίδιας μάρκας, μετά οι υπόλοιπες — ποτέ όλη η σειρά από έναν κατασκευαστή
-  return [...rows.filter((r) => r.brand.slug === p.brandSlug).slice(0, Math.ceil(limit / 2)), ...rows.filter((r) => r.brand.slug !== p.brandSlug)].slice(0, limit).map((r) => toProduct(r));
+  const picked = [...rows.filter((r) => r.brand.slug === p.brandSlug).slice(0, Math.ceil(limit / 2)), ...rows.filter((r) => r.brand.slug !== p.brandSlug)].slice(0, limit);
+  const a = await attrsFor(picked.map((r) => r.id));
+  return picked.map((r) => withAttrs(toProduct(r), a));
 }
 
 // ---------- Λίστες ----------
@@ -166,7 +190,9 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
     const def = usable.find((d) => d.label === label); if (!def || !values.length) continue;
     attrWhere.push({ facetValues: { some: { facetId: def.id, value: { in: values } } } });
   }
-  const where: Prisma.ProductWhereInput = { AND: [base, ...(f.brand?.length ? [{ brand: { slug: { in: f.brand } } }] : []), ...(f.energy?.length ? [{ energy: { class: { in: f.energy } } }] : []), ...attrWhere] };
+  // Το φίλτρο ενεργειακής κλάσης υπάρχει μόνο όπου υπάρχει ενεργειακή ετικέτα, και μετρά μόνο τέτοιους τύπους
+  const labelled = [...t.byId.values()].filter((n) => n.depth === 2 && n.energy && (!node || leafIds(node).includes(n.id))).map((n) => n.id);
+  const where: Prisma.ProductWhereInput = { AND: [base, ...(f.brand?.length ? [{ brand: { slug: { in: f.brand } } }] : []), ...(f.energy?.length && labelled.length ? [{ categoryId: { in: labelled }, energy: { class: { in: f.energy } } }] : []), ...attrWhere] };
 
   const perPage = f.perPage ?? 24, page = Math.max(1, f.page ?? 1);
   // Χωρίς τιμές και αξιολογήσεις, η «σχετικότητα» είναι: πιο πρόσφατα ενημερωμένα στο ERP πρώτα
@@ -175,7 +201,7 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
     db.product.findMany({ where, orderBy, skip: (page - 1) * perPage, take: perPage, select: PRODUCT_SELECT }),
     db.product.count({ where }),
     db.product.groupBy({ by: ["brandId"], where: base, _count: { _all: true } }),
-    db.energyLabel.groupBy({ by: ["class"], where: { product: base }, _count: { _all: true } }),
+    labelled.length ? db.energyLabel.groupBy({ by: ["class"], where: { product: { AND: [base, { categoryId: { in: labelled } }] } }, _count: { _all: true } }) : Promise.resolve([]),
     usable.length ? db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: usable.map((d) => d.id) }, product: base }, _count: { _all: true } }) : Promise.resolve([]),
   ]);
   const brandRows = await db.brand.findMany({ where: { id: { in: brandCounts.map((b) => b.brandId) } }, select: { id: true, slug: true, name: true } });

@@ -16,7 +16,7 @@ const c = copyOf("fit");
  * is saved yet (opens «Ο χώρος μου»).
  */
 export function FitBadge({ product, size = "sm", prompt = false }: { product: Product; size?: "sm" | "lg"; prompt?: boolean }) {
-  const { space, setOpen } = useMySpace();
+  const { space, setOpen, checking, setChecking } = useMySpace();
   const dims = dimsFor(product);
   if (!dims) return null;
   const big = size === "lg";
@@ -26,6 +26,15 @@ export function FitBadge({ product, size = "sm", prompt = false }: { product: Pr
     return (
       <button type="button" onClick={() => setOpen(true)} className={`${base} bg-eu-chip text-eu-blue hover:bg-eu-blue hover:text-white transition-colors`}>
         <Ruler className={big ? "size-4" : "size-3.5"} aria-hidden /> {c.des_an_choraei_ston}
+      </button>
+    );
+  }
+  // Η ετυμηγορία είναι απάντηση σε συγκεκριμένο έλεγχο, όχι μόνιμη σήμανση πάνω σε κάθε κάρτα
+  if (!checking) {
+    if (!prompt) return null;
+    return (
+      <button type="button" onClick={() => setChecking(true)} className={`${base} bg-eu-chip text-eu-blue hover:bg-eu-blue hover:text-white transition-colors cursor-pointer`}>
+        <Ruler className={big ? "size-4" : "size-3.5"} aria-hidden /> Δες αν χωράει στον χώρο σου
       </button>
     );
   }

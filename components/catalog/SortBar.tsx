@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Ruler } from "lucide-react";
+import { useMySpace } from "@/components/space/MySpaceProvider";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("sortBar");
@@ -27,12 +28,18 @@ export function SortBar({ total, page, pages }: { total: number; page: number; p
     router.push(`${pathname}?${next.toString()}`, { scroll: false });
   };
   const view = sp.get("view") ?? "grid";
+  const { space, checking, setChecking } = useMySpace();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div className="text-eu-muted text-[length:var(--fs-15)]">
         <strong className="text-eu-ink">{total}</strong> προϊόντα{pages > 1 ? ` · σελίδα ${page} από ${pages}` : ""}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {space && (
+          <button type="button" aria-pressed={checking} onClick={() => setChecking(!checking)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 min-h-10 font-semibold text-[length:var(--fs-15)] cursor-pointer transition-colors ${checking ? "bg-eu-navy border-eu-navy text-white" : "bg-white border-eu-line text-eu-ink hover:border-eu-navy"}`}>
+            <Ruler className="size-4" aria-hidden /> Τι χωράει στον χώρο μου
+          </button>
+        )}
         <label htmlFor="sort" className="sr-only">
           {c.taxinomisi}
         </label>
