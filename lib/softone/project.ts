@@ -6,6 +6,7 @@ import { slugify } from "@/lib/slug";
 import { logged, type Trigger } from "@/lib/softone/catalog";
 import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
 import { resolveFacets, type FacetValue } from "@/lib/softone/facet-values";
+import { associateImages, type AssociateResult } from "@/lib/catalog/image-import";
 
 /**
  * Προβολή του καθρέφτη του SoftOne στο κατάστημα (Category / Product / Spec /
@@ -144,7 +145,7 @@ async function projectFacets(idOf: Map<string, string>) {
 
 // ---------- Προϊόντα ----------
 
-export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
+export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
 
 async function projectProducts(idOf: Map<string, string>) {
   const [brands, vats, existing] = await Promise.all([
@@ -310,8 +311,10 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     const p = await projectProducts(cats.idOf);
     const vis = await refreshCategoryCounts(cats.nodes, cats.idOf);
     const facetValues = await projectFacetValues();
+    // Ένα νέο είδος παίρνει τις φωτογραφίες που έχουν ήδη ανέβει για το barcode του — χωρίς νέο ανέβασμα
+    const images = await associateImages();
     result = {
-      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues,
+      categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images,
       products: { total: p.total, created: p.created, updated: p.updated, unchanged: p.unchanged, deactivated: p.deactivated, skipped: p.skipped },
       specs: p.specRows, energy: p.energyRows,
     };
@@ -321,7 +324,7 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
 }
 
 export async function projectionStats() {
-  const [catByDepth, catVisible, products, active, withSpecs, specs, facets, energy, withSummary, withHighlights, last] = await Promise.all([
+  const [catByDepth, catVisible, products, active, withSpecs, specs, facets, energy, withSummary, withHighlights, last, withImages, images] = await Promise.all([
     db.category.groupBy({ by: ["depth"], where: { source: SOURCE }, _count: { _all: true } }),
     db.category.count({ where: { source: SOURCE, active: true } }),
     db.product.count({ where: { source: SOURCE } }), db.product.count({ where: { source: SOURCE, active: true } }),
@@ -331,7 +334,8 @@ export async function projectionStats() {
     db.product.count({ where: { source: SOURCE, summary: { not: null } } }),
     db.product.count({ where: { source: SOURCE, NOT: { highlights: { equals: null as never } } } }).catch(() => 0),
     db.s1SyncRun.findFirst({ where: { kind: "cat-project" }, orderBy: { at: "desc" } }),
+    db.product.count({ where: { source: SOURCE, active: true, media: { some: { kind: "image" } } } }), db.media.count({ where: { kind: "image" } }),
   ]);
   const depth = (d: number) => catByDepth.find((c) => c.depth === d)?._count._all ?? 0;
-  return { master: depth(0), main: depth(1), types: depth(2), catVisible, products, active, sellable: await db.product.count({ where: { source: SOURCE, variants: { some: {} } } }), withSpecs, specs, facets, energy, withSummary, withHighlights, last };
+  return { master: depth(0), main: depth(1), types: depth(2), catVisible, products, active, sellable: await db.product.count({ where: { source: SOURCE, variants: { some: {} } } }), withSpecs, specs, facets, energy, withSummary, withHighlights, withImages, images, last };
 }

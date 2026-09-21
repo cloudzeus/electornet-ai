@@ -88,7 +88,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-4 gap-3">
           {[
             { t: "Κατηγορίες", v: `${shop.master} › ${shop.main} › ${shop.types}`, s: `${shop.catVisible} ορατές · οι υπόλοιπες δεν έχουν κανένα προϊόν` },
-            { t: "Προϊόντα", v: shop.products.toLocaleString("el-GR"), s: `${shop.active.toLocaleString("el-GR")} ενεργά · ${shop.sellable.toLocaleString("el-GR")} πωλήσιμα — λείπει η τιμή του site` },
+            { t: "Προϊόντα", v: shop.products.toLocaleString("el-GR"), s: `${shop.active.toLocaleString("el-GR")} ενεργά · ${shop.withImages.toLocaleString("el-GR")} με φωτογραφία (${shop.images.toLocaleString("el-GR")} εικόνες) · ${shop.sellable.toLocaleString("el-GR")} πωλήσιμα — λείπει η τιμή του site` },
             { t: "Χαρακτηριστικά από περιγραφές", v: shop.specs.toLocaleString("el-GR"), s: `σε ${shop.withSpecs.toLocaleString("el-GR")} προϊόντα · πλεονεκτήματα σε ${shop.withHighlights.toLocaleString("el-GR")}` },
             { t: "Φίλτρα & ενέργεια", v: shop.facets.toLocaleString("el-GR"), s: `φίλτρα ανά τύπο προϊόντος · ${shop.energy.toLocaleString("el-GR")} ενεργειακές κλάσεις από περιγραφές` },
           ].map((c) => (

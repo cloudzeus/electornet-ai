@@ -146,15 +146,47 @@ model StoreStock {
 }
 
 model Media {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  kind      String // image | video | manual | fiche
-  url       String
-  alt       String?
-  sortNo    Int     @default(0)
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  kind       String // image | video | manual | fiche
+  url        String
+  alt        String?
+  sortNo     Int     @default(0)
+  thumbUrl   String? // 480px WebP
+  width      Int?
+  height     Int?
+  blur       String? // μικροσκοπικό base64 για placeholder
+  source     String? // legacy-site = από τον φάκελο φωτογραφιών του παλιού site (ImageImport)
+  importFile String? // ImageImport.sourceFile
 
+  @@unique([productId, url])
   @@index([productId])
+}
+
+/// Μητρώο μαζικής εισαγωγής φωτογραφιών: ένα αρχείο του φακέλου → ένα WebP (+ μικρογραφία) στο Bunny.
+/// Ανεξάρτητο από τα προϊόντα — η αντιστοίχιση (lib/catalog/image-import.ts) ξανατρέχει χωρίς νέο ανέβασμα.
+model ImageImport {
+  sourceFile String   @id // «0074108020680_WW11DB8B95GHU4-001_EURONICS.jpg»
+  key        String // πρώτο τμήμα του ονόματος: barcode (EAN) ή κωδικός είδους
+  model      String // δεύτερο τμήμα: μοντέλο, όπως το έγραψε το παλιό site
+  seq        Int // αύξων αριθμός· 1 = κύρια φωτογραφία
+  srcBytes   Int
+  status     String // done | failed
+  path       String? // σχετική διαδρομή στο Bunny
+  url        String?
+  thumbUrl   String?
+  width      Int?
+  height     Int?
+  bytes      Int? // μέγεθος του WebP
+  blur       String?
+  lowRes     Boolean  @default(false) // μεγαλύτερη πλευρά < 600px
+  error      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([key])
+  @@index([status])
 }
 
 model Spec {
