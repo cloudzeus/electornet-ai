@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Package, ImageOff, AlertTriangle, Images, Ruler } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -75,8 +76,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
               <tr key={r.id} className={`border-t border-eu-line align-middle ${r.active ? "" : "opacity-60"}`}>
                 <td className="py-2 px-3">
                   <Link href={`/admin/catalog/${r.id}`} aria-label={`Άνοιγμα: ${r.title}`} className="block size-16 rounded-xl border border-eu-line bg-white overflow-hidden focus-visible:outline-2 focus-visible:outline-eu-blue">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {m ? <img src={m.thumbUrl ?? m.url} alt="" loading="lazy" className="size-full object-contain" /> : <span className="size-full grid place-items-center text-eu-muted"><ImageOff className="size-5" aria-hidden /></span>}
+                    {m ? <Image src={m.url} alt="" width={64} height={64} className="size-full object-contain" /> : <span className="size-full grid place-items-center text-eu-muted"><ImageOff className="size-5" aria-hidden /></span>}
                   </Link>
                 </td>
                 <td className="py-2 px-3"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline">{r.title}</Link><div className="text-eu-muted text-[length:var(--fs-13)]">{r.brand.name}{r.active ? "" : " · ανενεργό"}</div></td>

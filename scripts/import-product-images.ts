@@ -1,5 +1,7 @@
 /**
  * Μαζική εισαγωγή φωτογραφιών προϊόντων: φάκελος → WebP → Bunny CDN → Media των προϊόντων.
+ * Ανεβαίνει ΜΙΑ εκδοχή ανά φωτογραφία (≤ 1600px)· τα μικρότερα μεγέθη τα παράγει το <Image> του Next. Όπου το ίδιο πλάνο
+ * υπάρχει σε περισσότερα μεγέθη, στο προϊόν δένεται μόνο το μεγαλύτερο (οπτικό αποτύπωμα, βλ. dedupeShots).
  *
  *   npx tsx --conditions=react-server scripts/import-product-images.ts --dir "/Volumes/home/MEGA-ELECTRIC/productImages" --dry
  *   npx tsx --conditions=react-server scripts/import-product-images.ts --dir "…" --limit 200        # δοκιμή
@@ -58,8 +60,8 @@ async function main() {
         const src = fs.readFileSync(path.join(DIR, p.sourceFile));
         const img = await processProductImage(src);
         const rel = bunnyPaths(p);
-        const [url, thumbUrl] = [await put(rel.main, img.main), await put(rel.thumb, img.thumb)];
-        const data = { ...base, srcBytes: src.length, status: "done", path: rel.main, url, thumbUrl, width: img.width, height: img.height, bytes: img.main.length, blur: img.blur, lowRes: img.lowRes, error: null };
+        const url = await put(rel.main, img.main);
+        const data = { ...base, srcBytes: src.length, status: "done", path: rel.main, url, thumbUrl: null, phash: img.phash, width: img.width, height: img.height, bytes: img.main.length, blur: img.blur, lowRes: img.lowRes, error: null };
         await db.imageImport.upsert({ where: { sourceFile: p.sourceFile }, create: { sourceFile: p.sourceFile, ...data }, update: data });
         ok++; inBytes += src.length; outBytes += img.main.length;
       } catch (e) {

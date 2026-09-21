@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, GripVertical } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import type { ProductImageDTO } from "@/lib/catalog/product-images";
@@ -108,8 +109,8 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
               className={`grid gap-2 rounded-2xl border-2 p-2 bg-white ${dragId === im.id ? "opacity-40 border-eu-blue" : i === 0 ? "border-eu-yellow" : "border-eu-line"}`}
             >
               <div className="relative aspect-square rounded-xl bg-white overflow-hidden border border-eu-line">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={im.thumbUrl ?? im.url} alt={im.alt ?? ""} loading="lazy" draggable={false} className="size-full object-contain" />
+                {/* Μία εκδοχή στο CDN· το μέγεθος για κάθε οθόνη το παράγει το <Image> */}
+                <Image src={im.url} alt={im.alt ?? ""} fill sizes="(min-width: 640px) 240px, 50vw" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain" />
                 {i === 0 && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-2.5 py-1 text-[length:var(--fs-13)]"><Star className="size-3.5" aria-hidden /> Κύρια</span>}
                 {canWrite && <span className="absolute right-2 top-2 size-8 rounded-full bg-white/90 text-eu-muted inline-flex items-center justify-center cursor-grab" aria-hidden><GripVertical className="size-4" /></span>}
               </div>
@@ -152,8 +153,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
             {hidden.map((im) => (
               <li key={im.id} className="flex items-center gap-2 rounded-xl bg-white border border-eu-line p-1.5 pr-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={im.thumbUrl ?? im.url} alt="" loading="lazy" className="size-14 rounded-lg object-contain opacity-60" />
+                <Image src={im.url} alt="" width={56} height={56} className="size-14 rounded-lg object-contain opacity-60" />
                 {canWrite && <button type="button" onClick={() => start(async () => { setImages(await restoreProductImage(productId, im.id)); say("Η φωτογραφία επανήλθε στο τέλος της σειράς."); })} className={`${btn} border-2 border-eu-line text-eu-navy hover:border-eu-navy !px-3`}><RotateCcw className="size-4" aria-hidden /> Επαναφορά</button>}
               </li>
             ))}

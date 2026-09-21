@@ -185,23 +185,27 @@ model Media {
 /// Μητρώο μαζικής εισαγωγής φωτογραφιών: ένα αρχείο του φακέλου → ένα WebP (+ μικρογραφία) στο Bunny.
 /// Ανεξάρτητο από τα προϊόντα — η αντιστοίχιση (lib/catalog/image-import.ts) ξανατρέχει χωρίς νέο ανέβασμα.
 model ImageImport {
-  sourceFile String   @id // «0074108020680_WW11DB8B95GHU4-001_EURONICS.jpg»
-  key        String // πρώτο τμήμα του ονόματος: barcode (EAN) ή κωδικός είδους
-  model      String // δεύτερο τμήμα: μοντέλο, όπως το έγραψε το παλιό site
-  seq        Int // αύξων αριθμός· 1 = κύρια φωτογραφία
-  srcBytes   Int
-  status     String // done | failed
-  path       String? // σχετική διαδρομή στο Bunny
-  url        String?
-  thumbUrl   String?
-  width      Int?
-  height     Int?
-  bytes      Int? // μέγεθος του WebP
-  blur       String?
-  lowRes     Boolean  @default(false) // μεγαλύτερη πλευρά < 600px
-  error      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  sourceFile  String   @id // «0074108020680_WW11DB8B95GHU4-001_EURONICS.jpg»
+  key         String // πρώτο τμήμα του ονόματος: barcode (EAN) ή κωδικός είδους
+  model       String // δεύτερο τμήμα: μοντέλο, όπως το έγραψε το παλιό site
+  seq         Int // αύξων αριθμός· 1 = κύρια φωτογραφία
+  srcBytes    Int
+  status      String // done | failed
+  path        String? // σχετική διαδρομή στο Bunny
+  url         String?
+  thumbUrl    String?
+  width       Int?
+  height      Int?
+  bytes       Int? // μέγεθος του WebP
+  blur        String?
+  lowRes      Boolean  @default(false) // μεγαλύτερη πλευρά < 600px
+  /// Οπτικό αποτύπωμα 256 bit (dHash 16×16): η ίδια λήψη σε άλλο μέγεθος ή συμπίεση δίνει σχεδόν ίδιο αποτύπωμα
+  phash       String?
+  /// Η ίδια φωτογραφία υπάρχει μεγαλύτερη στο ίδιο προϊόν — αυτή δεν δένεται (sourceFile της μεγαλύτερης)
+  duplicateOf String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([key])
   @@index([status])

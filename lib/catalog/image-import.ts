@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getBunny } from "@/lib/media/cdn";
 import { bareKey, modelKey } from "./image-files";
+import { dHash, hamming } from "./image-hash";
 
 /**
  * Φωτογραφίες προϊόντων από τον φάκελο του παλιού site, σε δύο ανεξάρτητα βήματα:
@@ -20,18 +21,18 @@ import { bareKey, modelKey } from "./image-files";
  * σε λευκό, οι υπόλοιπες lifestyle / λεπτομέρειες με δικές τους αναλογίες.
  */
 export const IMAGE_SOURCE = "legacy-site";
-export const MAIN_MAX = 1600, THUMB = 480, LOW_RES = 600;
+export const MAIN_MAX = 1600, LOW_RES = 600;
 
-export interface ProcessedProductImage { main: Buffer; thumb: Buffer; blur: string; width: number; height: number; lowRes: boolean }
+export interface ProcessedProductImage { main: Buffer; blur: string; width: number; height: number; lowRes: boolean; phash: string }
 
 export async function processProductImage(input: Buffer): Promise<ProcessedProductImage> {
   const src = await sharp(input).metadata();
   // rotate(): εφαρμόζει τον προσανατολισμό EXIF πριν χαθούν τα metadata· το ICC προφίλ μετατρέπεται σε sRGB
   const main = await sharp(input).rotate().resize({ width: MAIN_MAX, height: MAIN_MAX, fit: "inside", withoutEnlargement: true }).toColourspace("srgb").webp({ quality: 82, effort: 4 }).toBuffer();
   const meta = await sharp(main).metadata();
-  const thumb = await sharp(main).resize({ width: THUMB, height: THUMB, fit: "inside", withoutEnlargement: true }).webp({ quality: 78, effort: 4 }).toBuffer();
+  // Καμία δική μας μικρογραφία: την αλλαγή μεγέθους την κάνει το <Image> του Next (AVIF/WebP, srcset ανά οθόνη)
   const blur = `data:image/webp;base64,${(await sharp(main).resize(16, 16, { fit: "inside" }).webp({ quality: 40 }).toBuffer()).toString("base64")}`;
-  return { main, thumb, blur, width: meta.width ?? 0, height: meta.height ?? 0, lowRes: Math.max(src.width ?? 0, src.height ?? 0) < LOW_RES };
+  return { main, blur, width: meta.width ?? 0, height: meta.height ?? 0, lowRes: Math.max(src.width ?? 0, src.height ?? 0) < LOW_RES, phash: await dHash(main) };
 }
 
 /** Ένας uploader με τις ρυθμίσεις διαβασμένες μία φορά (το `uploadToStorage` τις ξαναδιαβάζει σε κάθε κλήση — ακριβό για 67.000 αρχεία) και τρεις προσπάθειες. */
@@ -80,7 +81,32 @@ export async function matchKeys(groups: { key: string; model: string }[]): Promi
   return out;
 }
 
-export interface AssociateResult { files: number; keys: number; unmatchedKeys: number; products: number; created: number; updated: number; removed: number }
+/**
+ * Η ίδια φωτογραφία σε περισσότερα μεγέθη (το παλιό site είχε συχνά το ίδιο πλάνο ως -001 στα 600px και
+ * ως -002 στα 800px): κρατάμε τη **μεγαλύτερη**, στη θέση της πρώτης εμφάνισης. Κατώφλια από μέτρηση σε
+ * 4.402 αρχεία — απόσταση αποτυπώματος ≤ 6 (στα 256 bit) είναι πάντα η ίδια λήψη· 7–12 είναι η ίδια λήψη
+ * μόνο όταν διαφέρουν οι διαστάσεις (άλλο μέγεθος / κόψιμο), αλλιώς είναι δύο παρόμοια αλλά διαφορετικά πλάνα.
+ */
+export const SAME_SHOT = 6, SAME_SHOT_RESIZED = 12;
+interface Hashed { sourceFile: string; seq: number; phash: string | null; width: number | null; height: number | null; srcBytes: number }
+export function dedupeShots<T extends Hashed>(list: T[]): { keep: T[]; dropped: Map<string, string> } {
+  const sorted = list.slice().sort((a, b) => a.seq - b.seq || a.sourceFile.localeCompare(b.sourceFile));
+  const clusters: T[][] = [];
+  for (const f of sorted) {
+    const c = f.phash ? clusters.find((cl) => cl.some((o) => { if (!o.phash) return false; const d = hamming(f.phash!, o.phash); return d <= SAME_SHOT || (d <= SAME_SHOT_RESIZED && (f.width !== o.width || f.height !== o.height)); })) : undefined;
+    if (c) c.push(f); else clusters.push([f]);
+  }
+  const area = (x: T) => (x.width ?? 0) * (x.height ?? 0);
+  const keep: T[] = [], dropped = new Map<string, string>();
+  for (const cl of clusters) {
+    const best = cl.slice().sort((a, b) => area(b) - area(a) || b.srcBytes - a.srcBytes || a.seq - b.seq)[0];
+    keep.push(best); // τα clusters είναι ήδη στη σειρά της πρώτης εμφάνισης
+    for (const o of cl) if (o !== best) dropped.set(o.sourceFile, best.sourceFile);
+  }
+  return { keep, dropped };
+}
+
+export interface AssociateResult { files: number; keys: number; unmatchedKeys: number; products: number; created: number; updated: number; removed: number; duplicates: number }
 
 /** `ImageImport` (done) → `Media` των προϊόντων. Αγγίζει μόνο γραμμές με `source = legacy-site`. */
 export async function associateImages(): Promise<AssociateResult> {
@@ -92,7 +118,10 @@ export async function associateImages(): Promise<AssociateResult> {
   const products = new Map((await db.product.findMany({ where: { source: "softone" }, select: { id: true, erpCode: true, title: true } })).map((p) => [p.erpCode, p]));
   const wanted = new Map<string, Prisma.MediaCreateManyInput>(); // productId|url
   const perProduct = new Map<string, number>();
-  for (const [key, list] of byKey) {
+  const dropped = new Map<string, string>();
+  for (const [key, all] of byKey) {
+    const { keep: list, dropped: d } = dedupeShots(all);
+    for (const [k, v] of d) dropped.set(k, v);
     for (const mtrl of matches.get(key)?.mtrls ?? []) {
       const p = products.get(String(mtrl)); if (!p) continue;
       for (const f of list) {
@@ -101,6 +130,12 @@ export async function associateImages(): Promise<AssociateResult> {
       }
     }
   }
+  // Σημείωση στο μητρώο ποια αρχεία είναι μικρότερα αντίγραφα (και καθάρισμα όσων δεν είναι πια)
+  const marked = new Map(files.filter((f) => f.duplicateOf).map((f) => [f.sourceFile, f.duplicateOf!]));
+  for (const [file, of] of dropped) if (marked.get(file) !== of) await db.imageImport.update({ where: { sourceFile: file }, data: { duplicateOf: of } });
+  const cleared = [...marked.keys()].filter((f) => !dropped.has(f));
+  if (cleared.length) await db.imageImport.updateMany({ where: { sourceFile: { in: cleared } }, data: { duplicateOf: null } });
+
   // Ό,τι υπάρχει ήδη δεν ξαναγράφεται: η σειρά, το alt και το «κρυμμένη» ανήκουν πλέον στον διαχειριστή.
   const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, thumbUrl: true } });
   const have = new Map(existing.map((m) => [`${m.productId}|${m.url}`, m]));
@@ -118,14 +153,15 @@ export async function associateImages(): Promise<AssociateResult> {
   for (let i = 0; i < fresh.length; i += 2000) await db.media.createMany({ data: fresh.slice(i, i + 2000), skipDuplicates: true });
   for (let i = 0; i < ops.length; i += 100) await db.$transaction(ops.slice(i, i + 100));
   for (let i = 0; i < gone.length; i += 1000) await db.media.deleteMany({ where: { id: { in: gone.slice(i, i + 1000) } } });
-  return { files: files.length, keys: byKey.size, unmatchedKeys: [...byKey.keys()].filter((k) => !matches.has(k)).length, products: perProduct.size, created: fresh.length, updated: ops.length, removed: gone.length };
+  return { files: files.length, keys: byKey.size, unmatchedKeys: [...byKey.keys()].filter((k) => !matches.has(k)).length, products: perProduct.size, created: fresh.length, updated: ops.length, removed: gone.length, duplicates: dropped.size };
 }
 
 export async function imageStats() {
-  const [done, failed, lowRes, bytes, media, withImages, products] = await Promise.all([
+  const [done, failed, lowRes, bytes, media, withImages, products, duplicates] = await Promise.all([
     db.imageImport.count({ where: { status: "done" } }), db.imageImport.count({ where: { status: "failed" } }), db.imageImport.count({ where: { status: "done", lowRes: true } }),
     db.imageImport.aggregate({ where: { status: "done" }, _sum: { bytes: true, srcBytes: true } }),
     db.media.count({ where: { source: IMAGE_SOURCE } }), db.product.count({ where: { source: "softone", active: true, media: { some: { kind: "image" } } } }), db.product.count({ where: { source: "softone", active: true } }),
+    db.imageImport.count({ where: { duplicateOf: { not: null } } }),
   ]);
-  return { done, failed, lowRes, webpBytes: bytes._sum.bytes ?? 0, srcBytes: bytes._sum.srcBytes ?? 0, media, withImages, products };
+  return { done, failed, lowRes, duplicates, webpBytes: bytes._sum.bytes ?? 0, srcBytes: bytes._sum.srcBytes ?? 0, media, withImages, products };
 }

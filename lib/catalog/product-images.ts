@@ -16,11 +16,11 @@ import { ingest } from "@/lib/media/repo";
 export const PRODUCT_FOLDER = "Προϊόντα";
 export const LOW_RES_PX = 600;
 
-export interface ProductImageDTO { id: string; url: string; thumbUrl: string | null; alt: string | null; sortNo: number; width: number | null; height: number | null; source: string | null; assetId: string | null; hidden: boolean; lowRes: boolean }
+export interface ProductImageDTO { id: string; url: string; thumbUrl: string | null; blur: string | null; alt: string | null; sortNo: number; width: number | null; height: number | null; source: string | null; assetId: string | null; hidden: boolean; lowRes: boolean }
 
-type Row = { id: string; url: string; thumbUrl: string | null; alt: string | null; sortNo: number; width: number | null; height: number | null; source: string | null; assetId: string | null; hidden: boolean };
+type Row = { id: string; url: string; thumbUrl: string | null; blur: string | null; alt: string | null; sortNo: number; width: number | null; height: number | null; source: string | null; assetId: string | null; hidden: boolean };
 export const toImageDTO = (m: Row): ProductImageDTO => ({ ...m, lowRes: m.width != null && m.height != null && Math.max(m.width, m.height) < LOW_RES_PX });
-const SELECT = { id: true, url: true, thumbUrl: true, alt: true, sortNo: true, width: true, height: true, source: true, assetId: true, hidden: true } as const;
+const SELECT = { id: true, url: true, thumbUrl: true, blur: true, alt: true, sortNo: true, width: true, height: true, source: true, assetId: true, hidden: true } as const;
 
 export async function listProductImages(productId: string): Promise<ProductImageDTO[]> {
   return (await db.media.findMany({ where: { productId, kind: "image" }, orderBy: [{ hidden: "asc" }, { sortNo: "asc" }, { id: "asc" }], select: SELECT })).map(toImageDTO);
