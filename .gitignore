@@ -44,3 +44,6 @@ next-env.d.ts
 # media library local storage (dev)
 public/uploads/
 .venv-models/
+
+# τοπικά logs μακρών εργασιών (αντιστοίχιση EPREL, εισαγωγή φωτογραφιών)
+/logs/
