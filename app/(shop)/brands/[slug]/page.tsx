@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Facets } from "@/components/catalog/Facets";
 import { SortBar } from "@/components/catalog/SortBar";
+import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { getBrand, getBrandStore, listProducts, type ListFilter } from "@/lib/data/repo";
@@ -49,7 +50,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
       <div className="eu-canvas eu-gutter py-8 flex gap-6 items-start">
         <Facets result={{ ...result, brands: [] }} />
         <div className="flex-1 min-w-0 eu-container">
-          <SortBar total={result.total} page={result.page} pages={result.pages} />
+          <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
           <Pagination page={result.page} pages={result.pages} basePath={`/brands/${slug}`} params={sp} />
         </div>

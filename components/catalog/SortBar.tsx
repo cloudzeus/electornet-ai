@@ -16,7 +16,8 @@ const SORTS: { v: string; label: string }[] = [
   { v: "newest", label: "Νεότερα" },
 ];
 
-export function SortBar({ total, page, pages }: { total: number; page: number; pages: number }) {
+/** `fit`: η λίστα έχει προϊόντα όπου ο χώρος είναι κριτήριο (μεγάλες συσκευές, τηλεοράσεις) — μόνο τότε προσφέρεται ο έλεγχος. */
+export function SortBar({ total, page, pages, fit = false }: { total: number; page: number; pages: number; fit?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -35,7 +36,7 @@ export function SortBar({ total, page, pages }: { total: number; page: number; p
         <strong className="text-eu-ink">{total}</strong> προϊόντα{pages > 1 ? ` · σελίδα ${page} από ${pages}` : ""}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {space && (
+        {space && fit && (
           <button type="button" aria-pressed={checking} onClick={() => setChecking(!checking)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 min-h-10 font-semibold text-[length:var(--fs-15)] cursor-pointer transition-colors ${checking ? "bg-eu-navy border-eu-navy text-white" : "bg-white border-eu-line text-eu-ink hover:border-eu-navy"}`}>
             <Ruler className="size-4" aria-hidden /> Τι χωράει στον χώρο μου
           </button>

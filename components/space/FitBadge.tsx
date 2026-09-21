@@ -2,7 +2,7 @@
 
 import { Check, AlertTriangle, X, Ruler } from "lucide-react";
 import type { Product } from "@/lib/data/types";
-import { dimsFor } from "@/lib/data/dims";
+import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { fitVerdict } from "@/lib/space/fit";
 import { useMySpace } from "./MySpaceProvider";
 import { copyOf } from "@/lib/cms/copy";
@@ -18,7 +18,8 @@ const c = copyOf("fit");
 export function FitBadge({ product, size = "sm", prompt = false }: { product: Product; size?: "sm" | "lg"; prompt?: boolean }) {
   const { space, setOpen, checking, setChecking } = useMySpace();
   const dims = dimsFor(product);
-  if (!dims) return null;
+  // μόνο σε τύπους όπου ο χώρος είναι κριτήριο αγοράς — σε κινητό ή καφετιέρα η ερώτηση είναι θόρυβος
+  if (!dims || !fitMattersFor(product)) return null;
   const big = size === "lg";
   const base = `inline-flex items-center gap-1.5 rounded-full font-extrabold leading-none ${big ? "text-[length:var(--fs-15)] px-3 py-2" : "text-[length:var(--fs-13)] px-2 py-1"}`;
   if (!space) {

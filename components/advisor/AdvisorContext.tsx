@@ -17,6 +17,8 @@ export interface AdvisorProduct {
   price: number;
   energy?: string;
   dims: Dims | null;
+  /** ο έλεγχος «χωράει;» έχει νόημα για τον τύπο του προϊόντος */
+  fit?: boolean;
   category: string;
 }
 interface Ctx {

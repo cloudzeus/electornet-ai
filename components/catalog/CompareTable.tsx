@@ -110,14 +110,14 @@ export function CompareTable({ initial }: { initial: Product[] }) {
                 </td>
               ))}
             </tr>
-            <tr className="border-b border-eu-line-2">
+            {initial.some((p) => p.rating) && <tr className="border-b border-eu-line-2">
               <th className={th}>{c.axiologisi}</th>
               {initial.map((p) => (
                 <td key={p.id} className="p-3 @md:p-4 text-eu-ink-2">
                   {p.rating ? `★ ${p.rating.value.toLocaleString("el-GR")} (${p.rating.count} κριτικές)` : "—"}
                 </td>
               ))}
-            </tr>
+            </tr>}
             {groups.map(([g, keys], gi) => {
               const rows = keys.filter((k) => !onlyDiff || differs(k));
               if (!rows.length) return null;

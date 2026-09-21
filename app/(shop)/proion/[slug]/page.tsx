@@ -28,7 +28,7 @@ import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
 import { AR_SERVE_VERSION } from "@/lib/ar/serve";
 import { placementFor } from "@/lib/ar/placement";
-import { dimsFor } from "@/lib/data/dims";
+import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
 import { RichDescription } from "@/components/pdp/RichDescription";
@@ -74,7 +74,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="eu-container">
-      <AdvisorContext product={{ id: p.id, brand: p.brand, title: p.title, price: p.price, energy: p.energy?.cls, dims, category: p.subcategory }} />
+      <AdvisorContext product={{ id: p.id, brand: p.brand, title: p.title, price: p.price, energy: p.energy?.cls, dims, fit: fitMattersFor(p), category: p.subcategory }} />
       <ProductHeader product={p} crumbs={crumbs} />
       <article className="eu-canvas eu-gutter py-6 @lg:py-8">
         <div className="grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_420px] @xl:grid-cols-[minmax(0,1fr)_460px] gap-6 @lg:gap-10 items-stretch">

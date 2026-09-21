@@ -55,22 +55,23 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
             </tr>
           </thead>
           <tbody>
-            <tr>
+            {/* σταθερές γραμμές μόνο όταν κάποιο από τα προϊόντα έχει όντως τιμή — αλλιώς μια σειρά από παύλες */}
+            {all.some((x) => x.energy) && <tr>
               <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">{c.energeiaki_klasi}</th>
               {all.map((x) => (
                 <td key={x.id} className="p-3 text-eu-ink-2">
                   {x.energy?.cls ?? "—"}
                 </td>
               ))}
-            </tr>
-            <tr>
+            </tr>}
+            {all.some((x) => x.rating) && <tr>
               <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">{c.axiologisi}</th>
               {all.map((x) => (
                 <td key={x.id} className="p-3 text-eu-ink-2">
                   {x.rating ? `★ ${x.rating.value.toLocaleString("el-GR")} (${x.rating.count})` : "—"}
                 </td>
               ))}
-            </tr>
+            </tr>}
             {keys.map((k) => (
               <tr key={k} className={differs(k) ? "bg-eu-yellow/10" : ""}>
                 <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">

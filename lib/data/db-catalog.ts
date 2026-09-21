@@ -6,6 +6,7 @@ import type { NavCategory } from "./nav";
 import type { AttrFacet } from "./attributes";
 import type { ListFilter, ListResult, SuggestResult } from "./repo";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
+import { fitMatters } from "@/lib/catalog/fit-types";
 
 /**
  * Ο κατάλογος της βιτρίνας από τη βάση (προβολή του SoftOne): δέντρο κατηγοριών,
@@ -27,7 +28,7 @@ const TTL = 5 * 60_000;
 // ---------- Δέντρο ----------
 
 /** `energy`: ο τύπος έχει ευρωπαϊκή ενεργειακή ετικέτα (για Master / Main: κάποιος απόγονός του έχει). */
-export interface CatNode { id: string; slug: string; name: string; depth: number; parentId: string | null; count: number; energy: boolean; children: CatNode[] }
+export interface CatNode { id: string; slug: string; name: string; depth: number; parentId: string | null; count: number; energy: boolean; fit: boolean; children: CatNode[] }
 interface Tree { roots: CatNode[]; bySlug: Map<string, CatNode>; byId: Map<string, CatNode>; at: number }
 let treeCache: Tree | null = null;
 
@@ -38,8 +39,10 @@ export async function catalogTree(): Promise<Tree> {
     db.product.groupBy({ by: ["categoryId"], where: LISTED, _count: { _all: true } }),
   ]);
   const direct = new Map(counts.map((c) => [c.categoryId, c._count._all]));
-  const byId = new Map<string, CatNode>(cats.map((c) => [c.id, { ...c, count: direct.get(c.id) ?? 0, energy: c.depth === 2 && hasEnergyLabel(c.name), children: [] }]));
-  for (const n of [...byId.values()].sort((a, b) => b.depth - a.depth)) if (n.parentId) { const p = byId.get(n.parentId); if (p) { p.count += n.count; if (n.energy && n.count > 0) p.energy = true; } }
+  const byId = new Map<string, CatNode>(cats.map((c) => [c.id, { ...c, count: direct.get(c.id) ?? 0, energy: c.depth === 2 && hasEnergyLabel(c.name), fit: false, children: [] }]));
+  const names = (n: CatNode): string[] => { const up = n.parentId ? byId.get(n.parentId) : null; return [...(up ? names(up) : []), n.name]; };
+  for (const n of byId.values()) if (n.depth === 2) n.fit = fitMatters(names(n));
+  for (const n of [...byId.values()].sort((a, b) => b.depth - a.depth)) if (n.parentId) { const p = byId.get(n.parentId); if (p) { p.count += n.count; if (n.energy && n.count > 0) p.energy = true; if (n.fit && n.count > 0) p.fit = true; } }
   for (const n of byId.values()) if (n.parentId && n.count > 0) byId.get(n.parentId)?.children.push(n);
   const roots = [...byId.values()].filter((n) => n.depth === 0 && n.count > 0);
   treeCache = { roots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
@@ -106,6 +109,7 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     // η βιτρίνα δείχνει τη μάρκα ξεχωριστά («BRANDT» πάνω από τον τίτλο, «{brand} {title}» στις επικεφαλίδες)
     title: r.title.toLocaleUpperCase("el-GR").startsWith(`${r.brand.name.toLocaleUpperCase("el-GR")} `) ? r.title.slice(r.brand.name.length + 1).trim() : r.title,
     category: (master ?? main ?? r.category).slug, subcategory: (main ?? r.category).slug,
+    fit: fitMatters([master, main, r.category].filter(Boolean).map((c) => c!.name)),
     typeSlug: r.category.slug, path: [master, main, r.category].filter(Boolean).map((c) => ({ slug: c!.slug, name: c!.name })),
     image: images[0] ?? null, images,
     // Τιμή eshop με ΦΠΑ (MTREXTRA.NUM04)· όσα δεν έχουν (~9 %) μένουν «Τιμή στο κατάστημα»

@@ -3,6 +3,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Facets } from "@/components/catalog/Facets";
 import { SortBar } from "@/components/catalog/SortBar";
+import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { listProducts, type ListFilter } from "@/lib/data/repo";
@@ -32,7 +33,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       <div className="eu-canvas eu-gutter pb-12 flex gap-6 items-start">
         <Facets result={result} />
         <div className="flex-1 min-w-0 eu-container">
-          <SortBar total={result.total} page={result.page} pages={result.pages} />
+          <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
           <Pagination page={result.page} pages={result.pages} basePath="/anazitisi" params={sp} />
         </div>

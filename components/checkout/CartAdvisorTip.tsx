@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { CartLine } from "@/components/commerce/CartProvider";
 import { priceLong } from "@/lib/format";
 import { AskAris } from "@/components/advisor/AskAris";
+import { fitMattersFor } from "@/lib/data/dims";
 
 const HEAVY = new Set(["plyntiria", "psygeia", "stegnotiria", "koyzines", "air-condition", "plyntiria-piaton"]);
 
@@ -33,9 +34,13 @@ export function CartAdvisorTip({ lines, subtotal, freeShippingFrom }: { lines: C
   } else if (noWarranty) {
     text = tpl(advisor.cartTips.warranty, { product: `${noWarranty.product.brand} ${noWarranty.product.title.split(" ").slice(0, 3).join(" ")}` });
     q = "Αξίζει η επέκταση εγγύησης;";
-  } else {
+  } else if (lines.some((l) => fitMattersFor(l.product))) {
+    // ο έλεγχος χώρου προτείνεται μόνο όταν το καλάθι έχει κάτι που πρέπει να χωρέσει κάπου (συσκευή, τηλεόραση)
     text = advisor.cartTips.ok;
     q = "Χωράνε στον χώρο μου;";
+  } else {
+    text = advisor.cartTips.okPlain ?? "Όλα καλά με το καλάθι σου.";
+    q = "Πότε θα το παραλάβω;";
   }
   return (
     <div className="flex items-start gap-3 rounded-2xl bg-eu-chip px-4 py-3">

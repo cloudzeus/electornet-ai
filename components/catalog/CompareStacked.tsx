@@ -19,7 +19,8 @@ export function CompareStacked({ products, rows, val, current }: { products: Pro
   const cols = products.length <= 2 ? "grid-cols-2" : "grid-cols-2";
   const extra: { key: string; get: (p: Product) => string }[] = [
     { key: "Διαθεσιμότητα", get: (p) => (p.availability.kind === "in-stock" ? "Άμεσα διαθέσιμο" : p.availability.kind === "days" ? `Σε ${p.availability.min}–${p.availability.max} εργάσιμες` : "Κατόπιν παραγγελίας") },
-    { key: "Αξιολόγηση", get: (p) => (p.rating ? `★ ${p.rating.value.toLocaleString("el-GR")} (${p.rating.count})` : "—") },
+    // αξιολόγηση μόνο όταν κάποιο προϊόν έχει κριτικές
+    ...(products.some((p) => p.rating) ? [{ key: "Αξιολόγηση", get: (p: Product) => (p.rating ? `★ ${p.rating.value.toLocaleString("el-GR")} (${p.rating.count})` : "—") }] : []),
   ];
   return (
     <div className="grid gap-4">

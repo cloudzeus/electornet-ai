@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { Facets } from "@/components/catalog/Facets";
 import { SortBar } from "@/components/catalog/SortBar";
+import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { filterFromParams, getCategoryTree, listProducts } from "@/lib/data/repo";
@@ -67,7 +68,7 @@ export default async function AllProducts({ searchParams }: { searchParams: Prom
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
         <Facets result={result} showCategories />
         <div className="flex-1 min-w-0 eu-container">
-          <SortBar total={result.total} page={result.page} pages={result.pages} />
+          <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
           <Pagination page={result.page} pages={result.pages} basePath="/proionta" params={params} />
         </div>

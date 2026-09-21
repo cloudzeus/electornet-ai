@@ -57,6 +57,8 @@ export interface Product {
   /** Τρίτο επίπεδο (τύπος προϊόντος του SoftOne) και ολόκληρη η διαδρομή κατηγορίας, για breadcrumbs και «παρόμοια». */
   /** Τα χαρακτηριστικά του ΤΥΠΟΥ προϊόντος (τα φίλτρα που ορίζει το ERP) με τις τιμές αυτού του προϊόντος — αυτά συγκρίνονται. */
   attrs?: { key: string; value: string; group: string }[];
+  /** Έχει νόημα ο έλεγχος «χωράει στον χώρο μου;» για τον τύπο του (lib/catalog/fit-types.ts). */
+  fit?: boolean;
   typeSlug?: string;
   path?: { slug: string; name: string }[];
   wasPrice?: number;

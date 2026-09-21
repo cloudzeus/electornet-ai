@@ -1,5 +1,7 @@
 "use client";
 
+import { isFitQuestion } from "@/lib/catalog/fit-types";
+import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { tpl } from "@/lib/cms/settings";
 import { useEffect, useRef, useState } from "react";
@@ -142,7 +144,7 @@ export function AdvisorOrb() {
     });
   }, [msgs, typing]);
 
-  const suggestions: { q: string; a: () => Msg }[] = product
+  const allSuggestions: { q: string; a: () => Msg }[] = product
     ? [
         {
           q: "Χωράει στον χώρο μου;",
@@ -227,6 +229,8 @@ export function AdvisorOrb() {
           }),
         },
       ];
+  // στη σελίδα προϊόντος: «χωράει;» μόνο όπου ο χώρος είναι κριτήριο, «πόσο ρεύμα;» μόνο όπου υπάρχει ενεργειακή ετικέτα
+  const suggestions = product ? allSuggestions.filter((s) => (product.fit || !isFitQuestion(s.q)) && (product.energy || !isEnergyQuestion(s.q))) : allSuggestions;
 
   const ask = (q: string, a?: () => Msg) => {
     if (!a) {

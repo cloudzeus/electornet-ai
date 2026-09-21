@@ -1,4 +1,8 @@
 import type { Product } from "./types";
+import { demoFitMatters } from "@/lib/catalog/fit-types";
+
+/** Προτείνουμε τον έλεγχο «χωράει;» μόνο όπου έχει νόημα: μεγάλες συσκευές, τηλεοράσεις, κλιματιστικά. */
+export const fitMattersFor = (p: Pick<Product, "fromDb" | "fit" | "category" | "subcategory">) => (p.fromDb ? !!p.fit : demoFitMatters(p.category, p.subcategory));
 
 export interface Dims {
   /** centimetres */

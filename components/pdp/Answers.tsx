@@ -1,3 +1,4 @@
+import { fitMattersFor } from "@/lib/data/dims";
 import { MessageCircleQuestion } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { AskAris } from "@/components/advisor/AskAris";
@@ -25,8 +26,8 @@ export function Answers({ product: p }: { product: Product }) {
       </p>
       <div className="mb-5 flex flex-wrap items-center gap-1.5">
         <span className="text-eu-muted text-[length:var(--fs-14)] font-semibold mr-1">{c.rota_ton_ari}</span>
-        {/* «Πόσο ρεύμα καίει;» μόνο όπου υπάρχει ενεργειακή πληροφόρηση για το προϊόν */}
-        {["Χωράει στον χώρο μου;", ...(p.fromDb && !p.energy ? [] : ["Πόσο ρεύμα καίει;"]), "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
+        {/* «Πόσο ρεύμα καίει;» μόνο όπου υπάρχει ενεργειακή πληροφόρηση· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο */}
+        {[...(fitMattersFor(p) ? ["Χωράει στον χώρο μου;"] : []), ...(p.fromDb && !p.energy ? [] : ["Πόσο ρεύμα καίει;"]), "Τι διαφορά έχει από το επόμενο μοντέλο;"].map((q) => (
           <AskAris key={q} q={q} tone="light" />
         ))}
       </div>

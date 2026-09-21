@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CategoryOpener } from "@/components/catalog/CategoryOpener";
 import { Facets } from "@/components/catalog/Facets";
 import { SortBar } from "@/components/catalog/SortBar";
+import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { CategoryFaq } from "@/components/catalog/CategoryFaq";
@@ -13,6 +14,7 @@ import { getCategories } from "@/lib/data/catalog";
 import { getSettings } from "@/lib/cms/settings";
 import { Sparkles } from "lucide-react";
 import { isEnergyQuestion } from "@/lib/catalog/energy-types";
+import { isFitQuestion } from "@/lib/catalog/fit-types";
 
 const GUIDE_FOR: Record<string, { kind: string; t: string }> = { tileoraseis: { kind: "tileoraseis", t: "Ποια τηλεόραση σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, laptops: { kind: "ypologistes", t: "Ποιος υπολογιστής σού ταιριάζει; 5 ερωτήσεις, αιτιολογημένη πρόταση." }, tablets: { kind: "ypologistes", t: "Laptop ή tablet; Ο έξυπνος οδηγός αποφασίζει μαζί σου." }, "air-condition": { kind: "klimatistika", t: "Πόσα BTU χρειάζεσαι; Ο έξυπνος οδηγός τα υπολογίζει από τα τετραγωνικά." } };
 
@@ -52,8 +54,8 @@ export default async function CategoryPage({ params, searchParams }: { params: P
 
   const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
-  // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα
-  const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product).filter((q) => !cat || cat.energy || !isEnergyQuestion(q));
+  // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο
+  const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product).filter((q) => !cat || ((cat.energy || !isEnergyQuestion(q)) && (cat.fit || !isFitQuestion(q))));
   const basePath = cat ? `/k/${cat.path.map((p) => p.slug).join("/")}` : l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
   const title = here?.name ?? (l2 ? l2.name : l1.label);
   const crumbs = cat ? cat.path.map((p, i) => (i === cat.path.length - 1 ? { label: p.name } : { label: p.name, href: `/k/${cat.path.slice(0, i + 1).map((x) => x.slug).join("/")}` })) : [{ label: l1.label, href: `/k/${l1.slug}` }, ...(l2 ? [{ label: l2.name }] : [])];
@@ -90,7 +92,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
         <Facets result={result} />
         <div className="flex-1 min-w-0 eu-container">
-          <SortBar total={result.total} page={result.page} pages={result.pages} />
+          <SortBar total={result.total} page={result.page} pages={result.pages} fit={cat ? cat.fit : result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
           <Pagination page={result.page} pages={result.pages} basePath={basePath} params={Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null)) as Record<string, string>} />
           <CategoryFaq name={title} />

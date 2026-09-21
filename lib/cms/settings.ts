@@ -51,7 +51,7 @@ export interface AdvisorSettings {
   panel: { title: string; titleProduct: string; subtitle: string; placeholder: string; demoFallback: string };
   suggestions: { home: string[]; byCategory: Record<string, string[]>; product: string[]; search: string[] };
   exitIntent: { enabled: boolean; delayMs: number; title: string; reasons: { label: string; reply: string }[]; emailNote: string };
-  cartTips: { install: string; freeShipping: string; warranty: string; ok: string };
+  cartTips: { install: string; freeShipping: string; warranty: string; ok: string; okPlain?: string };
   handoff: { title: string; callLabel: string; chatLabel: string; done: string };
   thankYou: string;
   notFound: { title: string; body: string };
@@ -141,6 +141,7 @@ export const defaultSettings: Settings = {
       freeShipping: "Σου λείπουν {gap} για δωρεάν μεταφορικά. Ένα μικρό αξεσουάρ το καλύπτει.",
       warranty: "Για το {product} η επέκταση εγγύησης σε 5 έτη κοστίζει από 19 € και καλύπτει και βλάβη από υγρά.",
       ok: "Όλα καλά με το καλάθι σου. Αν θες, ελέγχω αν χωρούν στον χώρο σου πριν την παραγγελία.",
+      okPlain: "Όλα καλά με το καλάθι σου. Αν θες, σου λέω πότε φτάνει και τι επιλογές παραλαβής έχεις.",
     },
     handoff: { title: "Το κατάστημά σου", callLabel: "Να με πάρουν", chatLabel: "Chat", done: "Ο {seller} θα σε πάρει σε λίγα λεπτά" },
     thankYou: "Ευχαριστώ{name}! Θα σου γράψω μόλις φύγει η παραγγελία και αν χρειαστείς κάτι για την τοποθέτηση, είμαι εδώ.",

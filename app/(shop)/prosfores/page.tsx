@@ -4,6 +4,7 @@ import { PageIntro } from "@/components/site/PageIntro";
 import { Countdown } from "@/components/commerce/Countdown";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { SortBar } from "@/components/catalog/SortBar";
+import { fitMattersFor } from "@/lib/data/dims";
 import { listProducts, type ListFilter } from "@/lib/data/repo";
 import { getWeeklyDeals } from "@/lib/data/catalog";
 
@@ -25,7 +26,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
         right={<Countdown endsAt={deals.endsAt} variant="blocks" />}
       />
       <div className="eu-canvas eu-gutter py-8">
-        <SortBar total={result.total} page={result.page} pages={result.pages} />
+        <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />
         <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
       </div>
     </div>

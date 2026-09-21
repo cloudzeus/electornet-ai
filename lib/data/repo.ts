@@ -110,7 +110,7 @@ export async function resolveCategory(segments: string[]) {
   if (!path) return null;
   const node = path[path.length - 1];
   const same = path.length === segments.length && path.every((p, i) => p.slug === segments[i]);
-  return { energy: node.energy, path: path.map((p) => ({ slug: p.slug, name: p.name, count: p.count })), children: node.children.map((c) => ({ slug: c.slug, name: c.name, count: c.count })), canonical: same ? null : `/k/${path.map((p) => p.slug).join("/")}` };
+  return { energy: node.energy, fit: node.fit, path: path.map((p) => ({ slug: p.slug, name: p.name, count: p.count })), children: node.children.map((c) => ({ slug: c.slug, name: c.name, count: c.count })), canonical: same ? null : `/k/${path.map((p) => p.slug).join("/")}` };
 }
 
 function applyFilter(f: ListFilter) {
