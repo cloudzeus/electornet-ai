@@ -90,7 +90,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
     const t = setTimeout(async () => {
       setThinking(true);
       try {
-        const r = await fetch(`/api/advisor?q=${encodeURIComponent(q)}${space ? `&door=${space.door}` : ""}`, { signal: ac.signal });
+        const r = await fetch(`/api/advisor?q=${encodeURIComponent(q)}${space ? `&door=${space.door}${space.niche ? `&niche=${space.niche.w},${space.niche.h},${space.niche.d}` : ""}` : ""}`, { signal: ac.signal });
         if (r.ok) setAns((await r.json()) as AdvisorAnswer);
       } catch {}
       setThinking(false);

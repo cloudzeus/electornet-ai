@@ -83,6 +83,8 @@ export async function chat(opts: {
   /** Reasoning budget for thinking models ("low" keeps short JSON answers from being eaten by hidden reasoning tokens). */
   reasoning?: "low" | "medium" | "high";
   override?: { apiKey: string; model: string };
+  /** Η καταγραφή χρήσης (3 ερωτήματα στη βάση) γίνεται μετά την επιστροφή — για ό,τι περιμένει ο πελάτης στην οθόνη (Ερμής). */
+  accounting?: "background";
 }): Promise<ChatResult> {
   const cfg = opts.override ? null : await getAi();
   const apiKey = opts.override?.apiKey ?? cfg?.apiKey;
@@ -114,9 +116,12 @@ export async function chat(opts: {
   }
   const out: ChatResult = { text: j.choices?.[0]?.message?.content ?? "", model: j.model ?? model, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, ms };
   // pricing snapshot at call time: markup of the model actually used + FX of the day
-  const [markupPct, fxRate] = await Promise.all([markupFor(out.model), usdEurRate()]);
-  const billedUsd = billed(out.costUsd, markupPct);
-  await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, markupPct, billedUsd, fxRate, billedEur: billedUsd * fxRate, ms } }).catch(() => null);
+  const account = async () => {
+    const [markupPct, fxRate] = await Promise.all([markupFor(out.model), usdEurRate()]);
+    const billedUsd = billed(out.costUsd, markupPct);
+    await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, markupPct, billedUsd, fxRate, billedEur: billedUsd * fxRate, ms } }).catch(() => null);
+  };
+  if (opts.accounting === "background") void account().catch(() => null); else await account();
   return out;
 }
 
@@ -145,6 +150,8 @@ export function resolveModel(cfg: AiConfig | null, task: string | undefined, ove
   const taskModel = task === "fast" ? cfg.modelFast : task === "vision" || hasImage ? cfg.modelVision : task && task !== "main" ? task : cfg.model;
   const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
   if (hasImage) return { model: cfg.modelVision, fallbacks: uniq([...cfg.fallbackModels, cfg.modelFast]).filter((m) => m !== cfg.modelVision) };
+  // ρητό μοντέλο («πάροχος/όνομα») από τον καλούντα: ισχύει και με αυτόματη δρομολόγηση — εκεί που μετράει η καθυστέρηση (Ερμής)
+  if (task && task.includes("/")) return { model: task, fallbacks: uniq([cfg.modelFast, ...cfg.fallbackModels]).filter((m) => m !== task && m !== AUTO) };
   if (cfg.routing === "auto") return { model: AUTO, fallbacks: uniq([taskModel, ...cfg.fallbackModels]).filter((m) => m !== AUTO) };
   return { model: taskModel, fallbacks: uniq(cfg.fallbackModels).filter((m) => m !== taskModel) };
 }

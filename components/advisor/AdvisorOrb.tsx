@@ -28,7 +28,7 @@ type AnswerLike = { text: string; products: { slug: string; brand: string; title
 const CHAT_KEY = "eu-aris-chat";
 const WELCOME_KEY = "eu-aris-welcomed";
 const chipsOf = (ans: AnswerLike) => [
-  ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} · ${p.price.toLocaleString("el-GR")} €${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
+  ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} ${p.price > 0 ? ` · ${p.price.toLocaleString("el-GR")} €` : ""}${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
   ...(ans.href ? [ans.href] : []),
 ];
 
@@ -251,7 +251,10 @@ export function AdvisorOrb() {
     }
     // Free text → the advisor engine (demo rules; production: LLM + retrieval).
     say("", "thinking");
-    fetch(`/api/advisor?q=${encodeURIComponent(q)}${space ? `&door=${space.door}` : ""}`)
+    // ο προηγούμενος γύρος και το προϊόν της σελίδας πάνε μαζί: «και σε λευκό;», «αυτό χωράει;» έχουν νόημα μόνο με συμφραζόμενα
+    const prev = [...msgs].reverse().find((m) => m.role === "user")?.text;
+    const qs = new URLSearchParams({ q, ...(prev ? { prev } : {}), ...(product ? { pid: product.id } : {}), ...(space ? { door: String(space.door), ...(space.niche ? { niche: `${space.niche.w},${space.niche.h},${space.niche.d}` } : {}) } : {}) });
+    fetch(`/api/advisor?${qs.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((ans: { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } } | null) => {
         setTyping(false);
