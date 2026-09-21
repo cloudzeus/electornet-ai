@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { searchProducts, hasEprelKey, EprelError, type EprelRaw } from "@/lib/eprel/client";
 import { upsertFromRaw, linkProduct } from "@/lib/eprel/sync";
-import { normalizeModel, specLines, eprelDimsCm } from "@/lib/eprel/normalize";
+import { normalizeModel, customerLines, eprelDimsCm } from "@/lib/eprel/normalize";
 import { bareKey } from "./image-files";
 import { refreshDimStatus } from "./product-dimensions";
 
@@ -150,10 +150,10 @@ export async function storeEprelMatch(productId: string, raw: EprelRaw) {
   const { saved } = await upsertFromRaw(raw);
   await linkProduct(productId, saved.registrationNumber);
   await db.energyLabel.update({ where: { productId }, data: { source: "eprel" } });
-  const lines = specLines(raw);
+  const lines = customerLines(raw); // έως 8 γραμμές για τον πελάτη· τα υπόλοιπα 20–30 πεδία μένουν στο EprelProduct.data
   await db.$transaction([
     db.spec.deleteMany({ where: { productId, source: "eprel" } }),
-    db.spec.createMany({ data: lines.map((l, i) => ({ productId, groupName: "Ενεργειακή ετικέτα · EPREL", key: l.label, value: l.unit ? `${l.value} ${l.unit}` : l.value, sortNo: 1000 + i, source: "eprel" })) }),
+    db.spec.createMany({ data: lines.map((l, i) => ({ productId, groupName: "Από την ενεργειακή ετικέτα", key: l.label, value: l.value, sortNo: 1000 + i, source: "eprel" })) }),
   ]);
   const dims = eprelDimsCm(raw);
   if (dims) {

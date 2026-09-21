@@ -50,6 +50,11 @@ export interface Product {
   image: string | null;
   images?: string[];
   price: number;
+  /** Προϊόν της βάσης χωρίς τιμή ακόμη (η τιμή του site δεν ζει στην καρτέλα του ERP): «Τιμή στο κατάστημα», χωρίς κουμπιά αγοράς. */
+  noPrice?: boolean;
+  /** Τρίτο επίπεδο (τύπος προϊόντος του SoftOne) και ολόκληρη η διαδρομή κατηγορίας, για breadcrumbs και «παρόμοια». */
+  typeSlug?: string;
+  path?: { slug: string; name: string }[];
   wasPrice?: number;
   /** Omnibus: lowest price of the previous 30 days, required with any discount. */
   lowest30?: number;
@@ -71,6 +76,8 @@ export interface Product {
   /** marketing promotion (CMS campaign rules): 1+1, gift with another product, contest, cashback */
   promo?: { kind: "bogo"; label?: string } | { kind: "bundle"; with: string; label?: string } | { kind: "contest"; label: string; until?: string } | { kind: "cashback"; amount: number; by: string } | { kind: "sticker"; params: StickerParams };
   description?: string;
+  /** Γραφικά χαρακτηριστικών του κατασκευαστή, για μέσα στην περιγραφή (όχι στη γκαλερί). */
+  banners?: { url: string; width: number | null; height: number | null; alt: string | null; blur?: string | null }[];
   highlights?: string[];
   specs?: Spec[];
   variants?: VariantAxis[];

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ChevronDown, Sparkles } from "lucide-react";
 import Image from "next/image";
-import { navCategories, navUtility, SUB_BLURB } from "@/lib/data/nav";
+import { navCategories as demoCategories, navUtility, SUB_BLURB, type NavCategory } from "@/lib/data/nav";
 import gsap from "gsap";
 import type { MegaMenuEntry } from "@/lib/data/repo";
 import { ZoneBadge } from "./ZoneBadge";
@@ -26,7 +26,7 @@ const c = copyOf("megaNav");
  * Keyboard: Tab into a plaque, Enter/ArrowDown opens, Esc closes.
  * Hidden on phones — the MobileMenu drawer takes over.
  */
-export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
+export function MegaNav({ data = [], categories: navCategories = demoCategories }: { data?: MegaMenuEntry[]; categories?: NavCategory[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const [visible, setVisible] = useState(navCategories.length);
   const { reducedMotion } = useDevice();
@@ -122,7 +122,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
   }, [open, reducedMotion]);
 
   const plaque = (
-    c: (typeof navCategories)[number],
+    c: NavCategory,
     i: number,
     real: boolean,
   ) => {
@@ -379,7 +379,7 @@ export function MegaNav({ data = [] }: { data?: MegaMenuEntry[] }) {
                               </span>
                             </span>
                             <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)] tabular-nums shrink-0">
-                              {priceShort(p.price)}
+                              {p.noPrice ? "" : priceShort(p.price)}
                             </span>
                           </Link>
                         </li>

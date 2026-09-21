@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CategoryOpener } from "@/components/catalog/CategoryOpener";
 import { Facets } from "@/components/catalog/Facets";
@@ -8,7 +8,7 @@ import { SortBar } from "@/components/catalog/SortBar";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { CategoryFaq } from "@/components/catalog/CategoryFaq";
-import { filterFromParams, getL1, getL2, listProducts } from "@/lib/data/repo";
+import { filterFromParams, getL1, getL2, listProducts, resolveCategory } from "@/lib/data/repo";
 import { getCategories } from "@/lib/data/catalog";
 import { getSettings } from "@/lib/cms/settings";
 import { Sparkles } from "lucide-react";
@@ -20,6 +20,11 @@ type SP = Record<string, string | undefined>;
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
+  const cat = await resolveCategory(slug);
+  if (cat) {
+    const name = cat.path.map((p) => p.name).reverse().join(" · ");
+    return { title: name, description: `${cat.path[cat.path.length - 1].name}: ${cat.path[cat.path.length - 1].count.toLocaleString("el-GR")} προϊόντα, δόσεις χωρίς κάρτα, παραλαβή σε 2 ώρες από 350 καταστήματα Euronics.`, alternates: { canonical: `/k/${cat.path.map((p) => p.slug).join("/")}` } };
+  }
   const l1 = await getL1(slug[0]);
   if (!l1) return {};
   const l2 = slug[1] ? l1.children.find((c) => c.slug === slug[1]) : null;
@@ -27,32 +32,43 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   return { title: name, description: `${name}: προσφορές, δόσεις χωρίς κάρτα, παραλαβή σε 2 ώρες από 350 καταστήματα Euronics.` };
 }
 
-/** /k/{l1} = category landing (subcategory tiles + products) · /k/{l1}/{l2} = listing with facets in the URL. */
+/**
+ * Κατάλογος της βάσης: /k/{master} και /k/{master}/{main} = προθήκη με τα παιδιά τους ως πλακίδια ·
+ * /k/{master}/{main}/{τύπος} = λίστα με τα φίλτρα που ορίζει το ERP για τον τύπο. Παλιοί ή μισοί σύνδεσμοι
+ * (/k/eikona-ixos/tileoraseis, /k/tileoraseis) ανακατευθύνονται μόνιμα στη σωστή διαδρομή.
+ */
 export default async function CategoryPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<SP> }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  const l1 = await getL1(slug[0]);
+  const cat = await resolveCategory(slug);
+  if (cat?.canonical) { const q = new URLSearchParams(Object.entries(sp).filter(([, v]) => v != null) as [string, string][]).toString(); permanentRedirect(q ? `${cat.canonical}?${q}` : cat.canonical); }
+  const l1 = cat ? { slug: cat.path[0].slug, label: cat.path[0].name, children: [] as { name: string; slug: string }[] } : await getL1(slug[0]);
   if (!l1) notFound();
-  const l2 = slug[1] ? (await getL2(slug[0], slug[1]))?.l2 ?? null : null;
-  if (slug[1] && !l2) notFound();
+  const l2 = cat ? (cat.path[1] ? { slug: cat.path[1].slug, name: cat.path[1].name } : null) : slug[1] ? (await getL2(slug[0], slug[1]))?.l2 ?? null : null;
+  if (!cat && slug[1] && !l2) notFound();
+  const l3 = cat?.path[2] ?? null;
+  const tiles = cat ? cat.children : l2 ? [] : l1.children.map((c) => ({ ...c, count: 0 }));
+  const here = cat ? cat.path[cat.path.length - 1] : null;
 
-  const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, perPage: 24 })), getCategories(), getSettings()]);
+  const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
   const questions = settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product;
-  const basePath = l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
-  const title = l2 ? l2.name : l1.label;
+  const basePath = cat ? `/k/${cat.path.map((p) => p.slug).join("/")}` : l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
+  const title = here?.name ?? (l2 ? l2.name : l1.label);
+  const crumbs = cat ? cat.path.map((p, i) => (i === cat.path.length - 1 ? { label: p.name } : { label: p.name, href: `/k/${cat.path.slice(0, i + 1).map((x) => x.slug).join("/")}` })) : [{ label: l1.label, href: `/k/${l1.slug}` }, ...(l2 ? [{ label: l2.name }] : [])];
 
   return (
     <div className="eu-container">
-      <Breadcrumbs items={[{ label: "Προϊόντα", href: "/proionta" }, { label: l1.label, href: `/k/${l1.slug}` }, ...(l2 ? [{ label: l2.name }] : [])]} />
-      <CategoryOpener kicker={l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead="δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου" products={result.items.slice(0, 3)} questions={questions} />
+      <Breadcrumbs items={[{ label: "Προϊόντα", href: "/proionta" }, ...crumbs]} />
+      <CategoryOpener kicker={cat && cat.path.length > 1 ? cat.path[cat.path.length - 2].name : l2 ? l1.label : "Κατηγορία"} title={title} no={catNo} count={result.total} lead={cat ? "παραλαβή από το κατάστημα της περιοχής σου · τιμή και διαθεσιμότητα στο κατάστημα" : "δόσεις χωρίς κάρτα · παραλαβή σε 2 ώρες από το κατάστημα της περιοχής σου"} products={result.items.slice(0, 3)} questions={questions} />
 
-      {!l2 && (
+      {tiles.length > 0 && (
         <div className="eu-canvas eu-gutter pt-6 pb-6">
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
-            {l1.children.map((ch) => (
+            {tiles.map((ch) => (
               <li key={ch.slug}>
-                <Link href={`/k/${l1.slug}/${ch.slug}`} className="inline-flex items-center rounded-full border border-eu-line bg-white px-4 py-2.5 min-h-11 font-semibold text-eu-ink text-[length:var(--fs-15)] hover:border-eu-blue hover:text-eu-blue">
+                <Link href={`${basePath}/${ch.slug}`} className="inline-flex items-center gap-2 rounded-full border border-eu-line bg-white px-4 py-2.5 min-h-11 font-semibold text-eu-ink text-[length:var(--fs-15)] hover:border-eu-blue hover:text-eu-blue">
                   {ch.name}
+                  {ch.count > 0 && <span className="text-eu-muted font-normal tabular-nums text-[length:var(--fs-14)]">{ch.count.toLocaleString("el-GR")}</span>}
                 </Link>
               </li>
             ))}

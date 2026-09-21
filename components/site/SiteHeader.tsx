@@ -5,7 +5,7 @@ import { SearchBox } from "./SearchBox";
 import { CartButton } from "./CartButton";
 import { MobileMenu } from "./MobileMenu";
 import { ZoneBadge } from "./ZoneBadge";
-import { navCategories } from "@/lib/data/nav";
+import { getCategoryTree } from "@/lib/data/repo";
 import { MySpaceButton } from "@/components/space/MySpaceSheet";
 import { getSettings } from "@/lib/cms/settings";
 
@@ -19,7 +19,7 @@ import { getSettings } from "@/lib/cms/settings";
  * hidden behind an icon).
  */
 export async function SiteHeader() {
-  const { site } = await getSettings();
+  const [{ site }, navCategories] = await Promise.all([getSettings(), getCategoryTree()]);
   return (
     <header className="relative bg-eu-navy text-white eu-container">
       <ZoneBadge no={2} />
@@ -32,7 +32,7 @@ export async function SiteHeader() {
         </div>
 
         <div className="hidden @md:block min-w-0">
-          <SearchBox />
+          <SearchBox categories={navCategories} />
         </div>
 
         <div className="flex items-center gap-1.5 @md:gap-3 @lg:gap-[18px] justify-end">
@@ -65,7 +65,7 @@ export async function SiteHeader() {
         </div>
 
         <div className="col-span-3 @md:hidden pt-0.5">
-          <SearchBox compact />
+          <SearchBox compact categories={navCategories} />
         </div>
       </div>
     </header>

@@ -9,7 +9,7 @@ import { ChevronDown, Search, X, Clock, TrendingUp, ArrowRight, BookOpen, Mic, C
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
 import { useVoice } from "@/lib/voice/client";
 import { useMySpace } from "@/components/space/MySpaceProvider";
-import { navCategories } from "@/lib/data/nav";
+import { navCategories as demoCategories, type NavCategory } from "@/lib/data/nav";
 import type { SuggestResult } from "@/lib/data/repo";
 import { priceShort, instalment, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
@@ -32,7 +32,7 @@ const RECENT_KEY = "euronics.recentSearches.v1";
 const isQuestion = (q: string) => /[;?]\s*$/.test(q) || q.trim().split(/\s+/).length >= 3;
 
 
-export function SearchBox({ compact = false }: { compact?: boolean }) {
+export function SearchBox({ compact = false, categories: navCategories = demoCategories }: { compact?: boolean; categories?: NavCategory[] }) {
   const id = useId();
   const router = useRouter();
   const { space } = useMySpace();
@@ -363,11 +363,11 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
                             </div>
                             <div className="font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight line-clamp-1">{hl(p.title)}</div>
                             <div className="flex items-center gap-2 text-[length:var(--fs-13-5)] text-eu-muted">
-                              <span className={`size-2 rounded-full ${avail[p.avail][0]}`} aria-hidden /> {avail[p.avail][1]} · 12 × {priceLong(instalment(p.price))}
+                              <span className={`size-2 rounded-full ${avail[p.avail][0]}`} aria-hidden /> {p.noPrice ? "Τιμή και διαθεσιμότητα στο κατάστημα" : <>{avail[p.avail][1]} · 12 × {priceLong(instalment(p.price))}</>}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{priceShort(p.price)}</div>
+                            {!p.noPrice && <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{priceShort(p.price)}</div>}
                             {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-13)]">{priceShort(p.wasPrice)}</s>}
                           </div>
                         </div>,

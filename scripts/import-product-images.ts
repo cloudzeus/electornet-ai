@@ -7,6 +7,7 @@
  *   npx tsx --conditions=react-server scripts/import-product-images.ts --dir "…" --limit 200        # δοκιμή
  *   npx tsx --conditions=react-server scripts/import-product-images.ts --dir "…"                     # όλα· ξανατρέχει με ασφάλεια
  *
+ * --kind banner για τα γραφικά χαρακτηριστικών (άλλος φάκελος, άλλο μοτίβο ονόματος, έως 1920px, πάνε στην περιγραφή).
  * Επιλογές: --dry (μόνο αναφορά) · --limit N (αρχεία) · --key <πρόθεμα κλειδιού> · --concurrency N (προεπιλογή 6)
  *           --force (ξανά και τα ήδη ανεβασμένα) · --all (και όσα δεν ταιριάζουν με είδος — κανονικά παραλείπονται)
  *
@@ -17,11 +18,12 @@ try { process.loadEnvFile(); } catch {}
 import fs from "node:fs";
 import path from "node:path";
 import { db } from "../lib/db";
-import { parseImageName, bunnyPaths, preferNew, type ParsedImageName } from "../lib/catalog/image-files";
-import { processProductImage, bunnyUploader, matchKeys, associateImages, imageStats } from "../lib/catalog/image-import";
+import { parseImageName, parseBannerName, bunnyPaths, preferNew, type ParsedImageName } from "../lib/catalog/image-files";
+import { processProductImage, bunnyUploader, matchKeys, associateImages, imageStats, MAIN_MAX, BANNER_MAX } from "../lib/catalog/image-import";
 
 const arg = (name: string) => { const i = process.argv.indexOf(`--${name}`); return i === -1 ? undefined : process.argv[i + 1]?.startsWith("--") || process.argv[i + 1] === undefined ? "true" : process.argv[i + 1]; };
 const DIR = arg("dir"), DRY = !!arg("dry"), FORCE = !!arg("force"), ALL = !!arg("all"), KEY = arg("key");
+const KIND = arg("kind") === "banner" ? "banner" : "photo"; // --kind banner: τα γραφικά χαρακτηριστικών (<κλειδί>_<μοντέλο>_<NNN>.jpg, χωρίς «_EURONICS»)
 const LIMIT = Number(arg("limit")) || Infinity, CONCURRENCY = Math.min(16, Math.max(1, Number(arg("concurrency")) || 6));
 
 async function main() {
@@ -29,7 +31,7 @@ async function main() {
   const t0 = Date.now();
   const names = fs.readdirSync(DIR).filter((n) => !n.startsWith("."));
   const every: ParsedImageName[] = [], unparsed: string[] = [];
-  for (const n of names) { const p = parseImageName(n); if (p) every.push(p); else unparsed.push(n); }
+  for (const n of names) { const p = KIND === "banner" ? parseBannerName(n) : parseImageName(n); if (p) every.push(p); else unparsed.push(n); }
   const parsed = preferNew(every);
   if (parsed.length !== every.length) console.log(`«new» λήψεις: παραλείπονται ${every.length - parsed.length} παλιότερες φωτογραφίες των ίδιων προϊόντων`);
   const matches = await matchKeys(parsed.map((p) => ({ key: p.key, model: p.model })));
@@ -55,10 +57,10 @@ async function main() {
   const worker = async () => {
     for (;;) {
       const p = todo[next++]; if (!p) return;
-      const base = { key: p.key, model: p.model, seq: p.seq };
+      const base = { key: p.key, model: p.model, seq: p.seq, kind: KIND };
       try {
         const src = fs.readFileSync(path.join(DIR, p.sourceFile));
-        const img = await processProductImage(src);
+        const img = await processProductImage(src, KIND === "banner" ? BANNER_MAX : MAIN_MAX);
         const rel = bunnyPaths(p);
         const url = await put(rel.main, img.main);
         const data = { ...base, srcBytes: src.length, status: "done", path: rel.main, url, thumbUrl: null, phash: img.phash, width: img.width, height: img.height, bytes: img.main.length, blur: img.blur, lowRes: img.lowRes, error: null };

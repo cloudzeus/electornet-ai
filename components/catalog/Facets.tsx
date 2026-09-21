@@ -22,6 +22,7 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+  const priced = result.priceRange[1] > 0;
 
   const apply = useCallback(
     (mut: (next: URLSearchParams) => void) => {
@@ -78,14 +79,15 @@ export function Facets({ result, showCategories = false }: { result: ListResult;
         </Group>
       )}
 
-      <Group title={c.diathesimotita_prosfores} open>
+      {/* Κατάλογος της βάσης χωρίς τιμές ακόμη (priceRange 0–0): τα φίλτρα τιμής, προσφοράς και αποθέματος δεν έχουν τι να φιλτράρουν */}
+      {priced && <Group title={c.diathesimotita_prosfores} open>
         <Check label="Άμεσα διαθέσιμα" checked={!!sp.get("avail")} onChange={() => set("avail", sp.get("avail") ? null : "in-stock")} />
         <Check label="Σε προσφορά" checked={!!sp.get("sale")} onChange={() => set("sale", sp.get("sale") ? null : "1")} />
-      </Group>
+      </Group>}
 
-      <Group title={c.timi} open>
+      {priced && <Group title={c.timi} open>
         <PriceRange min={result.priceRange[0]} max={result.priceRange[1]} curMin={sp.get("min")} curMax={sp.get("max")} onApply={(a, b) => apply((n) => (a ? n.set("min", a) : n.delete("min"), b ? n.set("max", b) : n.delete("max")))} />
-      </Group>
+      </Group>}
 
       <Group title={c.marka} open count={(sp.get("brand") ?? "").split(",").filter(Boolean).length}>
         <Limited>

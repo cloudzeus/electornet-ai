@@ -21,14 +21,14 @@ import { dHash, hamming } from "./image-hash";
  * σε λευκό, οι υπόλοιπες lifestyle / λεπτομέρειες με δικές τους αναλογίες.
  */
 export const IMAGE_SOURCE = "legacy-site";
-export const MAIN_MAX = 1600, LOW_RES = 600;
+export const MAIN_MAX = 1600, BANNER_MAX = 1920, LOW_RES = 600; // τα banners έχουν κείμενο: κρατούν όλο το πλάτος τους
 
 export interface ProcessedProductImage { main: Buffer; blur: string; width: number; height: number; lowRes: boolean; phash: string }
 
-export async function processProductImage(input: Buffer): Promise<ProcessedProductImage> {
+export async function processProductImage(input: Buffer, max = MAIN_MAX): Promise<ProcessedProductImage> {
   const src = await sharp(input).metadata();
   // rotate(): εφαρμόζει τον προσανατολισμό EXIF πριν χαθούν τα metadata· το ICC προφίλ μετατρέπεται σε sRGB
-  const main = await sharp(input).rotate().resize({ width: MAIN_MAX, height: MAIN_MAX, fit: "inside", withoutEnlargement: true }).toColourspace("srgb").webp({ quality: 82, effort: 4 }).toBuffer();
+  const main = await sharp(input).rotate().resize({ width: max, height: max, fit: "inside", withoutEnlargement: true }).toColourspace("srgb").webp({ quality: 82, effort: 4 }).toBuffer();
   const meta = await sharp(main).metadata();
   // Καμία δική μας μικρογραφία: την αλλαγή μεγέθους την κάνει το <Image> του Next (AVIF/WebP, srcset ανά οθόνη)
   const blur = `data:image/webp;base64,${(await sharp(main).resize(16, 16, { fit: "inside" }).webp({ quality: 40 }).toBuffer()).toString("base64")}`;
@@ -119,9 +119,15 @@ export async function associateImages(): Promise<AssociateResult> {
   const wanted = new Map<string, Prisma.MediaCreateManyInput>(); // productId|url
   const perProduct = new Map<string, number>();
   const dropped = new Map<string, string>();
-  for (const [key, all] of byKey) {
-    const { keep: list, dropped: d } = dedupeShots(all);
+  for (const [key, every] of byKey) {
+    const banners = every.filter((f) => f.kind === "banner");
+    const { keep: list, dropped: d } = dedupeShots(every.filter((f) => f.kind !== "banner"));
     for (const [k, v] of d) dropped.set(k, v);
+    // Banners χαρακτηριστικών: με τη σειρά τους, χωρίς αφαίρεση «ίδιων» (μοιάζουν μεταξύ τους εκ κατασκευής) — πάνε στην περιγραφή, όχι στη γκαλερί
+    for (const mtrl of matches.get(key)?.mtrls ?? []) {
+      const p = products.get(String(mtrl)); if (!p) continue;
+      for (const f of banners) wanted.set(`${p.id}|${f.url}`, { productId: p.id, kind: "banner", url: f.url!, width: f.width, height: f.height, blur: f.blur, alt: `${p.title} — χαρακτηριστικό ${f.seq}`, sortNo: f.seq, source: IMAGE_SOURCE, importFile: f.sourceFile });
+    }
     for (const mtrl of matches.get(key)?.mtrls ?? []) {
       const p = products.get(String(mtrl)); if (!p) continue;
       for (const f of list) {
@@ -139,16 +145,16 @@ export async function associateImages(): Promise<AssociateResult> {
   // Ό,τι υπάρχει ήδη δεν ξαναγράφεται: η σειρά, το alt και το «κρυμμένη» ανήκουν πλέον στον διαχειριστή.
   const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, thumbUrl: true } });
   const have = new Map(existing.map((m) => [`${m.productId}|${m.url}`, m]));
-  const last = new Map((await db.media.groupBy({ by: ["productId"], _max: { sortNo: true } })).map((r) => [r.productId, r._max.sortNo ?? 0]));
+  const last = new Map((await db.media.groupBy({ by: ["productId"], where: { kind: "image" }, _max: { sortNo: true } })).map((r) => [r.productId, r._max.sortNo ?? 0]));
   const fresh: Prisma.MediaCreateManyInput[] = [];
   for (const [k, w] of wanted) {
     if (have.has(k)) continue;
     // Προϊόν που έχει ήδη φωτογραφίες: οι νέες μπαίνουν στο τέλος, δεν ανακατεύουν τη σειρά
-    const base = last.get(w.productId);
+    const base = w.kind === "banner" ? undefined : last.get(w.productId); // τα banners κρατούν τον αύξοντά τους
     if (base != null) { last.set(w.productId, base + 1); fresh.push({ ...w, sortNo: base + 1 }); } else fresh.push(w);
   }
   const ops: Prisma.PrismaPromise<unknown>[] = [];
-  for (const [k, w] of wanted) { const e = have.get(k); if (e && e.thumbUrl !== w.thumbUrl) ops.push(db.media.update({ where: { id: e.id }, data: { thumbUrl: w.thumbUrl } })); }
+  for (const [k, w] of wanted) { const e = have.get(k); if (e && (e.thumbUrl ?? null) !== (w.thumbUrl ?? null)) ops.push(db.media.update({ where: { id: e.id }, data: { thumbUrl: w.thumbUrl } })); }
   const gone = existing.filter((m) => !wanted.has(`${m.productId}|${m.url}`)).map((m) => m.id);
   for (let i = 0; i < fresh.length; i += 2000) await db.media.createMany({ data: fresh.slice(i, i + 2000), skipDuplicates: true });
   for (let i = 0; i < ops.length; i += 100) await db.$transaction(ops.slice(i, i + 100));
@@ -157,11 +163,12 @@ export async function associateImages(): Promise<AssociateResult> {
 }
 
 export async function imageStats() {
-  const [done, failed, lowRes, bytes, media, withImages, products, duplicates] = await Promise.all([
+  const [done, failed, lowRes, bytes, media, withImages, products, duplicates, banners, withBanners] = await Promise.all([
     db.imageImport.count({ where: { status: "done" } }), db.imageImport.count({ where: { status: "failed" } }), db.imageImport.count({ where: { status: "done", lowRes: true } }),
     db.imageImport.aggregate({ where: { status: "done" }, _sum: { bytes: true, srcBytes: true } }),
     db.media.count({ where: { source: IMAGE_SOURCE } }), db.product.count({ where: { source: "softone", active: true, media: { some: { kind: "image" } } } }), db.product.count({ where: { source: "softone", active: true } }),
     db.imageImport.count({ where: { duplicateOf: { not: null } } }),
+    db.media.count({ where: { source: IMAGE_SOURCE, kind: "banner" } }), db.product.count({ where: { source: "softone", active: true, media: { some: { kind: "banner" } } } }),
   ]);
-  return { done, failed, lowRes, duplicates, webpBytes: bytes._sum.bytes ?? 0, srcBytes: bytes._sum.srcBytes ?? 0, media, withImages, products };
+  return { done, failed, lowRes, duplicates, banners, withBanners, webpBytes: bytes._sum.bytes ?? 0, srcBytes: bytes._sum.srcBytes ?? 0, media, withImages, products };
 }

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useEffect, useState } from "react";
 import type { Product } from "@/lib/data/types";
@@ -35,9 +36,13 @@ export function StickyBar({ product: p }: { product: Product }) {
           </nav>
         </div>
         <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] whitespace-nowrap">{priceShort(p.price)}</div>
-        <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 @md:flex-none rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-yellow-dark">
-          {c.agora_me_1_klik}
-        </button>
+        {p.noPrice ? (
+          <Link href="/katastimata" className="flex-1 @md:flex-none rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center justify-center hover:bg-eu-yellow-dark">Βρες κατάστημα</Link>
+        ) : (
+          <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 @md:flex-none rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-yellow-dark">
+            {c.agora_me_1_klik}
+          </button>
+        )}
       </div>
     </div>
   );

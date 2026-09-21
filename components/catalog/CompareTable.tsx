@@ -85,9 +85,9 @@ export function CompareTable({ initial }: { initial: Product[] }) {
                     <div className="flex items-baseline gap-2 mt-2 min-h-[2.2em] flex-wrap">
                       <span className="font-extrabold text-eu-ink text-[length:var(--fs-26)] leading-none">{priceShort(p.price)}</span>
                       {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
-                      {p.price === cheapest && initial.length > 1 && <span className="rounded-full bg-eu-green text-white text-[length:var(--fs-13)] font-bold px-2 py-0.5">{c.fthinotero}</span>}
+                      {!p.noPrice && p.price === cheapest && initial.length > 1 && <span className="rounded-full bg-eu-green text-white text-[length:var(--fs-13)] font-bold px-2 py-0.5">{c.fthinotero}</span>}
                     </div>
-                    <div className="text-eu-blue font-semibold text-[length:var(--fs-14)] mt-1 truncate">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>
+                    {!p.noPrice && <div className="text-eu-blue font-semibold text-[length:var(--fs-14)] mt-1 truncate">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>}
                     <div className="grid gap-2 mt-3">
                       <button type="button" onClick={() => openQuickBuy(p)} className="w-full rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] py-2.5 min-h-11 hover:bg-eu-yellow-dark">
                         {c.agora_me_1_klik}

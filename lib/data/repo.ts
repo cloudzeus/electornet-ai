@@ -1,4 +1,5 @@
 import { attributeFacets, matchesAttrs, type AttrFacet } from "./attributes";
+import { dbEnabled, dbNavTree, dbListProducts, dbProductBySlug, dbProductsByIds, dbRelated, dbBrands, dbSuggest, findCategoryPath, catalogTree } from "./db-catalog";
 import "server-only";
 import type { Appointment, Brand, ConsentPref, Customer, Faq, Guide, InstalmentPlan, NewsItem, Order, PaymentMethod, Policy, Product, Service, Store } from "./types";
 import { navCategories, type NavCategory } from "./nav";
@@ -16,8 +17,13 @@ import { news, NEWS_CATEGORIES } from "./fixtures/news";
 import { appointments, consents, customer, instalmentPlans, paymentMethods } from "./fixtures/account";
 
 /**
- * Repository — the only module pages read data from. Today: typed
- * fixtures. Tomorrow: Prisma queries with identical signatures.
+ * Repository — the only module pages read data from.
+ *
+ * Ο **κατάλογος** (μενού, κατηγορίες, λίστες, φίλτρα, αναζήτηση, μάρκες, σελίδα προϊόντος)
+ * έρχεται από τη βάση — την προβολή του SoftOne (lib/data/db-catalog.ts). Ό,τι χρειάζεται
+ * **τιμή** (αρχική, προσφορές, renew, οδηγοί αγοράς, καλάθι) μένει στα demo fixtures μέχρι να
+ * γεμίσουν τα Variant: `demo: true` στο φίλτρο, ή σημαίες `sale / renew / tag`.
+ * Τα προϊόντα των fixtures ανοίγουν κανονικά με το slug και το id τους.
  */
 
 export interface ListFilter {
@@ -35,6 +41,10 @@ export interface ListFilter {
   sort?: "relevance" | "price-asc" | "price-desc" | "rating" | "newest" | "discount";
   /** Characteristic facets: canonical key → accepted values (see lib/data/attributes). */
   attrs?: Record<string, string[]>;
+  /** Τρίτο επίπεδο: τύπος προϊόντος (μόνο στον κατάλογο της βάσης). */
+  l3?: string;
+  /** Ρητά τα demo δεδομένα με τιμές (οδηγοί αγοράς, καρτέλες καταστημάτων). */
+  demo?: boolean;
   page?: number;
   perPage?: number;
 }
@@ -62,6 +72,7 @@ export function filterFromParams(sp: Record<string, string | undefined>, base: P
   return {
     ...base,
     l1: base.l1 ?? sp.k ?? undefined,
+    l3: base.l3,
     brand: sp.brand?.split(",").filter(Boolean),
     energy: sp.energy?.split(",").filter(Boolean),
     minPrice: sp.min ? Number(sp.min) : undefined,
@@ -80,15 +91,24 @@ export function filterFromParams(sp: Record<string, string | undefined>, base: P
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export async function getCategoryTree(): Promise<NavCategory[]> {
-  return navCategories;
+  return (await dbEnabled()) ? dbNavTree() : navCategories;
 }
 export async function getL1(slug: string) {
-  return navCategories.find((c) => c.slug === slug) ?? null;
+  return (await getCategoryTree()).find((c) => c.slug === slug) ?? null;
 }
 export async function getL2(l1: string, l2: string) {
   const c = await getL1(l1);
   const s = c?.children.find((x) => x.slug === l2) ?? null;
   return c && s ? { l1: c, l2: s } : null;
+}
+/** Κατηγορία της βάσης από τα τμήματα του URL, με ανοχή σε παλιούς συνδέσμους. `canonical` = η σωστή διαδρομή όταν διαφέρει από αυτήν που ζητήθηκε. */
+export async function resolveCategory(segments: string[]) {
+  if (!(await dbEnabled())) return null;
+  const path = await findCategoryPath(segments);
+  if (!path) return null;
+  const node = path[path.length - 1];
+  const same = path.length === segments.length && path.every((p, i) => p.slug === segments[i]);
+  return { path: path.map((p) => ({ slug: p.slug, name: p.name, count: p.count })), children: node.children.map((c) => ({ slug: c.slug, name: c.name, count: c.count })), canonical: same ? null : `/k/${path.map((p) => p.slug).join("/")}` };
 }
 
 function applyFilter(f: ListFilter) {
@@ -112,6 +132,13 @@ function applyFilter(f: ListFilter) {
 }
 
 export async function listProducts(f: ListFilter = {}): Promise<ListResult> {
+  // Ό,τι θέλει τιμή μένει στα demo δεδομένα· όλα τα υπόλοιπα είναι ο πραγματικός κατάλογος
+  const priced = f.demo || f.sale || f.renew || f.tag || f.minPrice != null || f.maxPrice != null || f.avail;
+  if (!priced && (await dbEnabled())) {
+    const t = await catalogTree();
+    // κατηγορία που υπάρχει μόνο στο demo (π.χ. από παλιό σύνδεσμο οδηγού) → demo
+    if (![f.l1, f.l2, f.l3].some((x) => x && !t.bySlug.has(x))) return dbListProducts(f);
+  }
   const base = applyFilter({ ...f, brand: undefined, energy: undefined, minPrice: undefined, maxPrice: undefined, avail: undefined, sale: undefined, attrs: undefined });
   const catMap = new Map<string, number>();
   if (!f.l1) for (const p of applyFilter({ ...f, l1: undefined, l2: undefined, brand: undefined, energy: undefined, minPrice: undefined, maxPrice: undefined, avail: undefined, sale: undefined, attrs: undefined })) catMap.set(p.category, (catMap.get(p.category) ?? 0) + 1);
@@ -161,16 +188,22 @@ export async function listProducts(f: ListFilter = {}): Promise<ListResult> {
 }
 
 export async function getProductBySlug(slug: string) {
-  return products.find((p) => p.slug === slug) ?? null;
+  return products.find((p) => p.slug === slug) ?? (await dbProductBySlug(slug));
 }
+/** Ids του demo και της βάσης μαζί (σύγκριση, λίστα επιθυμιών, πρόσφατα), με τη σειρά που ζητήθηκαν. */
 export async function getProductsByIds(ids: string[]) {
-  return ids.map((id) => products.find((p) => p.id === id)).filter(Boolean) as Product[];
+  const demo = new Map(products.filter((p) => ids.includes(p.id)).map((p) => [p.id, p]));
+  const rest = ids.filter((id) => !demo.has(id));
+  const fromDb = new Map((rest.length ? await dbProductsByIds(rest) : []).map((p) => [p.id, p]));
+  return ids.map((id) => demo.get(id) ?? fromDb.get(id)).filter(Boolean) as Product[];
 }
 export async function getRelated(p: Product, limit = 8) {
+  if (p.noPrice) return dbRelated(p, limit);
   return products.filter((x) => x.id !== p.id && (x.subcategory === p.subcategory || x.category === p.category)).slice(0, limit);
 }
 /** Complementary products («Ταιριάζει με αυτό το προϊόν»): other subcategories that go with this one, never the same kind. Max 4. */
 export async function getAccessoriesFor(p: Product, limit = 4) {
+  if (p.noPrice) return []; // τα «ταιριάζει με αυτό» θέλουν κανόνες ανά τύπο του ERP — όχι ακόμη
   const complements: Record<string, string[]> = {
     tileoraseis: ["foritos-ichos", "icheia", "home-cinema"],
     smartphones: ["foritos-ichos", "tablets"],
@@ -196,7 +229,7 @@ const hay = (p: Product) => norm(`${p.brand} ${p.title} ${p.sku} ${p.ean ?? ""} 
 export interface SuggestResult {
   q: string;
   total: number;
-  products: { id: string; slug: string; brand: string; title: string; price: number; wasPrice?: number; image: string | null; avail: "in-stock" | "days" | "order"; path: string }[];
+  products: { id: string; slug: string; brand: string; title: string; price: number; noPrice?: boolean; wasPrice?: number; image: string | null; avail: "in-stock" | "days" | "order"; path: string }[];
   categories: { name: string; parent?: string; href: string; count: number }[];
   brands: { slug: string; name: string; count: number }[];
   guides: { slug: string; title: string; image?: string; kicker: string }[];
@@ -210,6 +243,10 @@ export async function searchSuggest(q: string, cat?: string): Promise<SuggestRes
   const promoP = products.find((p) => p.id === "p-lg-43nano82") ?? products[0];
   const promo = { slug: promoP.slug, brand: promoP.brand, title: promoP.title, price: promoP.price, wasPrice: promoP.wasPrice, image: promoP.image };
   if (t.length === 0 || t.join("").length < 2) return { q, total: 0, products: [], categories: [], brands: [], guides: [], popular: POPULAR_SEARCHES, promo };
+  if (await dbEnabled()) {
+    const m = (text: string) => t.every((x) => text.includes(x));
+    return dbSuggest(q, cat, { popular: POPULAR_SEARCHES, promo, guides: guides.filter((g) => m(norm(`${g.title} ${g.excerpt} ${g.kicker}`))).slice(0, 3).map((g) => ({ slug: g.slug, title: g.title, image: g.image, kicker: g.kicker })) });
+  }
   const match = (text: string) => t.every((x) => text.includes(x));
   const scope = cat && cat !== "all" ? products.filter((p) => p.category === cat) : products;
   const hits = scope.filter((p) => match(hay(p)));
@@ -244,6 +281,7 @@ export async function searchSuggest(q: string, cat?: string): Promise<SuggestRes
 }
 
 export async function getBrands(): Promise<Brand[]> {
+  if (await dbEnabled()) return dbBrands();
   const map = new Map<string, Brand>();
   for (const p of products) {
     const b = map.get(p.brandSlug) ?? { slug: p.brandSlug, name: p.brand, count: 0 };
@@ -342,6 +380,15 @@ export async function getMegaMenuData(): Promise<MegaMenuEntry[]> {
     computing: { title: "Ποιος υπολογιστής σού ταιριάζει;", href: "/odigos-agoras/ypologistes", image: "/img/hero-laptop.jpg" },
     klimatismos: { title: "Ποιο κλιματιστικό σού ταιριάζει;", href: "/odigos-agoras/klimatistika", image: "/img/guide-ac.jpg" },
   };
+  if (await dbEnabled()) {
+    // Από τη βάση: πλήθη ανά υποκατηγορία, κορυφαίες μάρκες, τρία πρόσφατα προϊόντα. Χωρίς «προσφορά» — δεν υπάρχουν τιμές ακόμη.
+    const dbSmart: Record<string, string> = { "eikona-kai-ichos": "eikona-ixos", computing: "computing", "klimatismos-thermansi": "klimatismos" };
+    const t = await catalogTree();
+    return Promise.all(t.roots.map(async (m) => {
+      const r = await dbListProducts({ l1: m.slug, perPage: 3 });
+      return { slug: m.slug, subCounts: Object.fromEntries(m.children.map((c) => [c.slug, c.count])), brands: r.brands.slice(0, 6), quick: null, promo: null, top: r.items, guide: smart[dbSmart[m.slug]] ?? null };
+    }));
+  }
   return Promise.all(
     navCategories.map(async (c) => {
       const r = await listProducts({ l1: c.slug, perPage: 60 });

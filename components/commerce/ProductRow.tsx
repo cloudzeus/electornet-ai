@@ -53,8 +53,18 @@ export function ProductRow({ product: p }: { product: Product }) {
             {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
           </div>
           {p.lowest30 && <div className="text-eu-muted text-[length:var(--fs-13)] mt-1">Χαμηλότερη τιμή 30 ημερών: {priceLong(p.lowest30)}</div>}
-          <div className="font-bold text-eu-blue text-[length:var(--fs-14)] mt-1 mb-2">ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</div>
+          <div className="font-bold text-eu-blue text-[length:var(--fs-14)] mt-1 mb-2">{p.noPrice ? "Δόσεις χωρίς κάρτα · ρώτησε στο κατάστημα" : <>ή 12 × {priceLong(instalment(p.price))} χωρίς κάρτα</>}</div>
         </div>
+        {p.noPrice ? (
+          <>
+            <Link href={`/proion/${p.slug}`} className="flex-1 @md:flex-none rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 inline-flex items-center justify-center hover:bg-eu-blue">Δες το προϊόν</Link>
+            <div className="flex gap-1.5">
+              <Link href="/katastimata" className="flex-1 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] py-2.5 min-h-11 inline-flex items-center justify-center hover:bg-eu-surface">Βρες κατάστημα</Link>
+              <WishlistButton id={p.id} />
+            </div>
+          </>
+        ) : (
+        <>
         <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 @md:flex-none rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 hover:bg-eu-blue">
           {c.agora_me_1_klik}
         </button>
@@ -64,6 +74,8 @@ export function ProductRow({ product: p }: { product: Product }) {
           </button>
           <WishlistButton id={p.id} />
         </div>
+        </>
+        )}
       </div>
     </article>
   );

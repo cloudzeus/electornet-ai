@@ -189,6 +189,7 @@ model ImageImport {
   key         String // πρώτο τμήμα του ονόματος: barcode (EAN) ή κωδικός είδους
   model       String // δεύτερο τμήμα: μοντέλο, όπως το έγραψε το παλιό site
   seq         Int // αύξων αριθμός· 1 = κύρια φωτογραφία
+  kind        String   @default("photo") // photo = φωτογραφία προϊόντος · banner = γραφικό χαρακτηριστικών για την περιγραφή
   srcBytes    Int
   status      String // done | failed
   path        String? // σχετική διαδρομή στο Bunny

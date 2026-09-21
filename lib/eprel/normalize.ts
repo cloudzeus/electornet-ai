@@ -61,6 +61,48 @@ export function eprelDimsCm(raw: EprelRaw): { w: number; h: number; d: number } 
   return { w: r(w), h: r(h), d: r(d) };
 }
 
+/**
+ * Ό,τι αξίζει να δει ο **πελάτης** από μια καταχώριση EPREL: έως 8 γραμμές, σε γλώσσα αγοραστή.
+ * Η πλήρης καταχώριση (20–30 πεδία: κλιματικές κλάσεις, ισχύς αναμονής, δείκτες, ημερομηνίες, ιστοσελίδες)
+ * μένει στο `EprelProduct.data` για το διαχειριστικό και τον Ερμή — στη σελίδα προϊόντος είναι θόρυβος.
+ * Δεν μπαίνουν: η κλάση (φαίνεται ήδη ως ετικέτα), οι διαστάσεις (έχουν δική τους πηγή), μηδενικά και «Όχι».
+ */
+export function customerLines(data: unknown): { label: string; value: string }[] {
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const n = (k: string) => { const v = num(raw[k]); return v != null && v > 0 ? v : null; };
+  const f = (v: number, d = 0) => v.toLocaleString("el-GR", { maximumFractionDigits: d });
+  const first = (...keys: string[]) => { for (const k of keys) { const v = n(k); if (v != null) return v; } return null; };
+  const out: { label: string; value: string }[] = [];
+  const add = (label: string, value: string | null) => { if (value && out.length < 8) out.push({ label, value }); };
+
+  const annual = first("energyConsAnnual", "energyConsAnnualV2", "energyAnnual");
+  const per100 = first("energyConsPer100Cycle", "energyCons100", "energyConsDry", "energyConsumption100Wash");
+  const onMode = first("powerOnModeSDR", "powerOnMode");
+  add("Κατανάλωση ρεύματος", annual ? `${f(annual)} kWh τον χρόνο` : per100 ? `${f(per100)} kWh ανά 100 κύκλους` : onMode ? `${f(onMode)} W σε λειτουργία` : null);
+  const water = first("waterCons", "waterConsumptionWash");
+  add("Κατανάλωση νερού", water ? `${f(water, 1)} λίτρα ανά κύκλο` : null);
+  const noise = first("noise", "indoorSoundPowerCooling"), nClass = str(raw.noiseClass);
+  add("Θόρυβος", noise ? `${f(noise)} dB${nClass ? ` · κλάση ${nClass}` : ""}` : null);
+  const cap = first("ratedCapacity", "ratedCapacityWash");
+  add("Χωρητικότητα", cap ? `${f(cap, 1)} kg` : null);
+  const fridge = n("capRefrNet"), freezer = n("capFreezeNet"), total = n("totalVolume");
+  add("Όγκος", fridge && freezer ? `${f(fridge)} L συντήρηση + ${f(freezer)} L κατάψυξη` : total ? `${f(total)} L` : fridge ? `${f(fridge)} L συντήρηση` : freezer ? `${f(freezer)} L κατάψυξη` : null);
+  const eco = first("programmeDurationRated", "programmeDuration", "programDurationRated");
+  add("Πρόγραμμα eco", eco ? `${Math.floor(eco / 60) ? `${Math.floor(eco / 60)} ώ. ` : ""}${Math.round(eco % 60)} λεπτά` : null);
+  const cool = classLabel(str(raw.coolingEnergyClass)), heat = classLabel(str(raw.heatingEnergyClass));
+  add("Κλάση ψύξης / θέρμανσης", cool && heat ? `${cool} / ${heat}` : null);
+  const cLoad = n("coolingDesignLoad"), hLoad = n("heatingDesignLoad");
+  add("Απόδοση", cLoad ? `${f(cLoad, 1)} kW ψύξη${hLoad ? ` · ${f(hLoad, 1)} kW θέρμανση` : ""}` : null);
+  const hdr = str(raw.energyClassHDR);
+  add("Κλάση σε HDR", hdr ? classLabel(hdr) : null);
+  const parts = n("minAvailabilitySparePartsYears"), sw = first("minAvailabilitySoftwareUpdatesYears", "minYearsSoftwareUpdates");
+  add("Ανταλλακτικά", parts ? `διαθέσιμα τουλάχιστον ${f(parts)} έτη` : null);
+  add("Ενημερώσεις λογισμικού", sw ? `τουλάχιστον ${f(sw)} έτη` : null);
+  const rep = str(raw.repairabilityClass);
+  add("Επισκευασιμότητα", rep ? `κλάση ${rep}` : null);
+  return out;
+}
+
 /** Το EPREL κωδικοποιεί τα «+» της παλιάς κλίμακας ως P: AP = A+, APP = A++, APPP = A+++. */
 export const classLabel = (c: string | null) => (c ? c.trim().replace(/^A(P{1,3})$/i, (_, p: string) => `A${"+".repeat(p.length)}`) : c);
 

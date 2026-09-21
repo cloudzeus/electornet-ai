@@ -30,12 +30,15 @@ import { AR_SERVE_VERSION } from "@/lib/ar/serve";
 import { placementFor } from "@/lib/ar/placement";
 import { dimsFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
+import { StoreBox } from "@/components/pdp/StoreBox";
+import { RichDescription } from "@/components/pdp/RichDescription";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const p = await getProductBySlug((await params).slug);
   if (!p) return {};
   const l1 = await getL1(p.category);
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
+  if (p.path) return productMetadata(p, [{ label: "Προϊόντα", href: "/proionta" }, ...p.path.map((c, i) => ({ label: c.name, href: `/k/${p.path!.slice(0, i + 1).map((x) => x.slug).join("/")}` })), { label: p.title }]);
   return productMetadata(p, [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }]);
 }
 
@@ -55,8 +58,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi");
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
-  const sections = ["overview", ...(p.description ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), "services", "reviews", "qa"];
-  const dims = dimsFor(p);
+  const sections = ["overview", ...(p.description ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
+  // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
+  const dims = p.noPrice ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
@@ -66,7 +70,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
   if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
-  const crumbs: { label: string; href?: string }[] = [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
+  const crumbs: { label: string; href?: string }[] = p.path ? [{ label: "Προϊόντα", href: "/proionta" }, ...p.path.map((c, i) => ({ label: c.name, href: `/k/${p.path!.slice(0, i + 1).map((x) => x.slug).join("/")}` })), { label: p.title }] : [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (
     <div className="eu-container">
@@ -102,7 +106,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             )}
           </div>
           <StickySidebar className="min-w-0">
-            <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} />
+            {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} />}
           </StickySidebar>
         </div>
       </article>
@@ -115,7 +119,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h2 id="ov-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
             Γιατί να το επιλέξεις
           </h2>
-          <ul className="m-0 p-0 list-none grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-4 gap-3">
+          {/* Οι κάρτες μοιράζονται όλο το διαθέσιμο πλάτος ανάλογα με το πλήθος τους: 1 → όλο, 2 → μισό-μισό, 3 → τρίτα, 4 → τέταρτα */}
+          <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
             {(p.highlights ?? (p.specs ?? []).slice(0, 4).map((s) => `${s.key}: ${s.value}`)).map((h, i) => (
               <li key={h} className="rounded-xl border border-eu-line p-4 flex gap-3">
                 <span className="size-8 shrink-0 rounded-full bg-eu-yellow text-eu-navy font-extrabold inline-flex items-center justify-center text-[length:var(--fs-15)]">{i + 1}</span>
@@ -132,7 +137,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <h2 id="desc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
                 {p.brand} {p.title}
               </h2>
-              <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>
+              {p.noPrice ? <RichDescription text={p.description} banners={p.banners} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
               {p.sourceUrl && (
                 <p className="m-0 mt-3 text-eu-muted text-[length:var(--fs-15)]">
                   Στοιχεία προϊόντος από το euronics.gr ·{" "}
@@ -156,7 +161,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <Answers product={p} />
         {p.specs && p.specs.length > 0 && <SpecsTable specs={p.specs} energy={p.energy} />}
         <CompareSimilar product={p} similar={similar} />
-        <ServicesDelivery product={p} services={services} />
+        {!p.noPrice && <ServicesDelivery product={p} services={services} />}
         <Reviews product={p} />
         <Questions product={p} />
 

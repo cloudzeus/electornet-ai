@@ -40,6 +40,7 @@ const lc = (k: string) => k.charAt(0).toLowerCase() + k.slice(1);
 /** GEO: one citable sentence with the entities a generative engine needs. */
 export function geoSummary(p: Product) {
   const attrs = topAttrs(p, 3).map((a) => `${lc(a.key)} ${a.value}`);
+  if (p.noPrice) return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}. Τιμή και διαθεσιμότητα στο κατάστημα Euronics της περιοχής σου, με επίσημη εγγύηση και παραλαβή από 350 καταστήματα.`;
   return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}, ${priceLong(p.price)}${p.wasPrice ? ` (από ${priceLong(p.wasPrice)})` : ""}, ${availText(p)} από τη Euronics, με εγγύηση 2 ετών και παραλαβή από 350 καταστήματα.`;
 }
 
@@ -55,11 +56,11 @@ export function answersFor(p: Product): QA[] {
     },
     {
       q: `Πόσο κοστίζει το ${p.title} και με ποιες δόσεις;`,
-      a: `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}. Πληρώνεται σε 12 δόσεις των ${priceLong(instalment(p.price))} χωρίς κάρτα (Eurobank) ή έως 24 άτοκες δόσεις με κάρτα, ${priceLong(instalment(p.price, 24))} τον μήνα.`,
+      a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται σε δόσεις χωρίς κάρτα ή έως 24 άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}. Πληρώνεται σε 12 δόσεις των ${priceLong(instalment(p.price))} χωρίς κάρτα (Eurobank) ή έως 24 άτοκες δόσεις με κάρτα, ${priceLong(instalment(p.price, 24))} τον μήνα.`,
     },
     {
       q: `Πότε και πώς παραδίδεται το ${p.title};`,
-      a: `Είναι ${availText(p)}. Παράδοση στη διεύθυνσή σου ${p.price >= 100 ? "δωρεάν" : "με 4,90 €"} σε 1–3 εργάσιμες, ή δωρεάν παραλαβή από κατάστημα Euronics σε 2 ώρες όπου υπάρχει απόθεμα${p.storeStock ? ` (${p.storeStock} καταστήματα σήμερα)` : ""}.${p.installation ? " Διατίθεται παράδοση με ραντεβού και εγκατάσταση από τεχνικό του καταστήματος, από 60 €." : ""}`,
+      a: p.noPrice ? `Η διαθεσιμότητα επιβεβαιώνεται από το κατάστημα Euronics της περιοχής σου, που αναλαμβάνει παράδοση στη διεύθυνσή σου, εγκατάσταση όπου χρειάζεται και παραλαβή της παλιάς συσκευής για ανακύκλωση.` : `Είναι ${availText(p)}. Παράδοση στη διεύθυνσή σου ${p.price >= 100 ? "δωρεάν" : "με 4,90 €"} σε 1–3 εργάσιμες, ή δωρεάν παραλαβή από κατάστημα Euronics σε 2 ώρες όπου υπάρχει απόθεμα${p.storeStock ? ` (${p.storeStock} καταστήματα σήμερα)` : ""}.${p.installation ? " Διατίθεται παράδοση με ραντεβού και εγκατάσταση από τεχνικό του καταστήματος, από 60 €." : ""}`,
     },
     {
       q: `Ποια εγγύηση και ποια πολιτική επιστροφής έχει;`,
@@ -74,7 +75,7 @@ export function answersFor(p: Product): QA[] {
 
 export function productMetadata(p: Product, crumbs: Crumb[]): Metadata {
   const url = `${SITE}/proion/${p.slug}`;
-  const title = `${name(p)} – ${priceLong(p.price)}`;
+  const title = p.noPrice ? name(p) : `${name(p)} – ${priceLong(p.price)}`;
   const description = geoSummary(p).slice(0, 158);
   const images = (p.images?.length ? p.images : p.image ? [p.image] : []).map((i) => (i.startsWith("http") ? i : `${SITE}${i}`));
   return {
@@ -85,7 +86,7 @@ export function productMetadata(p: Product, crumbs: Crumb[]): Metadata {
     robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: { title, description, url, siteName: "Euronics", locale: "el_GR", images: images.slice(0, 1).map((i) => ({ url: i, alt: name(p) })) },
     twitter: { card: "summary_large_image", title, description, images: images.slice(0, 1) },
-    other: { "product:price:amount": String(p.price), "product:price:currency": "EUR", "product:availability": p.availability.kind === "order" ? "preorder" : "instock", "product:retailer_item_id": p.sku, "product:brand": p.brand },
+    other: { ...(p.noPrice ? {} : { "product:price:amount": String(p.price), "product:price:currency": "EUR" }), "product:availability": p.availability.kind === "order" ? "preorder" : "instock", "product:retailer_item_id": p.sku, "product:brand": p.brand },
   };
 }
 
@@ -114,7 +115,8 @@ export function productJsonLd(p: Product, crumbs: Crumb[]) {
         ...(p.rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: p.rating.value, reviewCount: p.rating.count, bestRating: 5 } } : {}),
         additionalProperty: attributesOf(p).map((x) => ({ "@type": "PropertyValue", name: x.key, value: x.value })),
         ...(p.energy ? { hasEnergyConsumptionDetails: { "@type": "EnergyConsumptionDetails", hasEnergyEfficiencyCategory: `https://schema.org/EUEnergyEfficiencyCategory${p.energy.cls.replace(/\+/g, "Plus")}` } } : {}),
-        offers: {
+        // Χωρίς τιμή δεν δηλώνεται προσφορά: «0 €» στα δομημένα δεδομένα είναι ψευδής τιμή για τη Google
+        ...(p.noPrice ? {} : { offers: {
           "@type": "Offer",
           url,
           price: p.price,
@@ -131,7 +133,7 @@ export function productJsonLd(p: Product, crumbs: Crumb[]) {
             deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: a.kind === "order" ? 10 : 3, unitCode: "DAY" } },
           },
           hasMerchantReturnPolicy: { "@type": "MerchantReturnPolicy", applicableCountry: "GR", returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow", merchantReturnDays: 14, returnMethod: ["https://schema.org/ReturnInStore", "https://schema.org/ReturnByMail"], returnFees: "https://schema.org/FreeReturn" },
-        },
+        } }),
       },
       {
         "@type": "BreadcrumbList",

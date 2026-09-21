@@ -4,12 +4,14 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { attachAssets, listProductImages, reorderImages, removeImage, restoreImage } from "@/lib/catalog/product-images";
+import { resetCatalogCache } from "@/lib/data/db-catalog";
 
 const path = (id: string) => `/admin/catalog/${id}`;
 
 export async function attachFromGallery(productId: string, assetIds: string[]) {
   const user = await requirePermission("catalog.products.write");
   const r = await attachAssets(productId, assetIds.slice(0, 40), "gallery");
+  resetCatalogCache(); // προϊόν που απέκτησε την πρώτη του φωτογραφία μπαίνει στις λίστες
   await audit(user.id, "catalog.product.image.attach", "Product", productId, null, { assetIds, added: r.added.length, skipped: r.skipped });
   revalidatePath(path(productId));
   return { images: await listProductImages(productId), added: r.added.length, skipped: r.skipped };
@@ -35,6 +37,7 @@ export async function saveImageAlt(productId: string, id: string, alt: string) {
 export async function removeProductImage(productId: string, id: string) {
   const user = await requirePermission("catalog.products.write");
   const how = await removeImage(productId, id);
+  resetCatalogCache();
   await audit(user.id, "catalog.product.image.remove", "Product", productId, null, { id, how });
   revalidatePath(path(productId));
   return { how, images: await listProductImages(productId) };

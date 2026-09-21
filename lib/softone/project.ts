@@ -8,6 +8,7 @@ import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
 import { resolveFacets, type FacetValue } from "@/lib/softone/facet-values";
 import { associateImages, type AssociateResult } from "@/lib/catalog/image-import";
 import { projectDimensions } from "@/lib/catalog/product-dimensions";
+import { resetCatalogCache } from "@/lib/data/db-catalog";
 
 /**
  * Προβολή του καθρέφτη του SoftOne στο κατάστημα (Category / Product / Spec /
@@ -315,6 +316,7 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     const facetValues = await projectFacetValues();
     // Ένα νέο είδος παίρνει τις φωτογραφίες που έχουν ήδη ανέβει για το barcode του — χωρίς νέο ανέβασμα
     const images = await associateImages();
+    resetCatalogCache(); // το δέντρο της βιτρίνας (πλήθη, ορατές κατηγορίες) ξαναχτίζεται στο επόμενο αίτημα
     result = {
       categories: { created: cats.created, updated: cats.updated, orphan: cats.skipped, ...vis }, facets, facetValues, images, dimensions,
       products: { total: p.total, created: p.created, updated: p.updated, unchanged: p.unchanged, deactivated: p.deactivated, skipped: p.skipped },

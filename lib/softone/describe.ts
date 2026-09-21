@@ -43,7 +43,7 @@ export function parseDescription(raw: string | null | undefined): ParsedDescript
     if (looksLikeLabel && !sentence && value.length <= 80 && words(value) <= 10) {
       const k = label.toLowerCase();
       if (!seen.has(k) && specs.length < MAX_SPECS) { seen.add(k); specs.push({ key: label, value: value.replace(/[.;]$/, "") }); continue; } // η γραμμή φεύγει από το κείμενο: θα φανεί στον πίνακα χαρακτηριστικών
-    } else if (looksLikeLabel && value.length <= 220 && highlights.length < MAX_HIGHLIGHTS) {
+    } else if (looksLikeLabel && value.length <= 220 && highlights.length < MAX_HIGHLIGHTS && label !== label.toLocaleUpperCase("el-GR") && (value.match(/,/g)?.length ?? 0) < 3) { // «ΠΡΟΓΡΑΜΜΑΤΑ: α, β, γ…» είναι λίστα, όχι λόγος
       highlights.push(`${label}: ${value}`); // μένει και στο κείμενο — είναι μέρος της αφήγησης
     }
     kept.push(line);
