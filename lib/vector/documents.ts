@@ -17,7 +17,7 @@ import { normalizeModel, specLines } from "@/lib/eprel/normalize";
  * φιλτράρει ο Ερμής απευθείας στη βάση (lib/advisor/retrieve.ts). Όταν αλλάξει το κείμενο αλλάζει το hash και το
  * embedding ανανεώνεται μόνο του.
  */
-export const DOC_VERSION = 2;
+export const DOC_VERSION = 3; // v3: + επίσημα χαρακτηριστικά από Icecat / ιστότοπο κατασκευαστή
 
 const stripHtml = (s: string) => s.replace(/<(br|\/p|\/li|\/div|\/h\d)\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 const cap = (s: string, n: number) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, "")}…` : s);
@@ -28,7 +28,7 @@ export interface DocContext {
   brands: Map<number, string>; cat: Map<string, string>; groups: Map<number, { name: string; specs: string[] }>;
   eprel: Map<string, { cls: string | null; kwh: number | null; lines: string[] }>;
   /** ανά MTRL: ό,τι ξέρει η βιτρίνα για το προϊόν (φίλτρα με τιμές, διαστάσεις, γραμμές ενεργειακής ετικέτας) */
-  shop: Map<string, { facets: string[]; dims: string | null; label: string[]; cls: string | null }>;
+  shop: Map<string, { facets: string[]; dims: string | null; label: string[]; cls: string | null; /** επίσημα χαρακτηριστικά από Icecat / ιστότοπο κατασκευαστή */ official: string[] }>;
 }
 
 export async function loadDocContext(): Promise<DocContext> {
@@ -41,7 +41,7 @@ export async function loadDocContext(): Promise<DocContext> {
       erpCode: true, energy: { select: { class: true } },
       facetValues: { orderBy: { facet: { sortNo: "asc" } }, select: { value: true, facet: { select: { label: true } } } },
       dimensions: { select: { source: true, w: true, h: true, d: true } },
-      specs: { where: { source: "eprel" }, orderBy: { sortNo: "asc" }, select: { key: true, value: true } },
+      specs: { where: { source: { in: ["eprel", "icecat", "web"] } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } },
     } }),
   ]);
   const shop: DocContext["shop"] = new Map();
@@ -53,7 +53,8 @@ export async function loadDocContext(): Promise<DocContext> {
     shop.set(p.erpCode, {
       facets: [...byFacet.entries()].map(([k, v]) => (v.length === 1 && v[0] === "Ναι" ? k : `${k}: ${v.join(", ")}`)),
       dims: d ? `πλάτος ${d.w} εκ., ύψος ${d.h} εκ., βάθος ${d.d} εκ.` : null,
-      label: p.specs.map((x) => `${x.key}: ${x.value}`), cls: p.energy?.class ?? null,
+      label: p.specs.filter((x) => x.source === "eprel").map((x) => `${x.key}: ${x.value}`), cls: p.energy?.class ?? null,
+      official: p.specs.filter((x) => x.source !== "eprel").map((x) => `${x.key}: ${x.value}`),
     });
   }
   return {
@@ -86,6 +87,7 @@ export function productDoc(it: Item, ctx: DocContext, model: string): BuiltDoc {
     group?.specs.length ? `Χαρακτηριστικά αυτού του τύπου προϊόντος: ${cap(group.specs.join(", "), 500)}` : null,
     sh?.facets.length ? `Τι έχει αυτό το προϊόν: ${cap(sh.facets.join(" · "), 700)}` : null,
     sh?.dims ? `Διαστάσεις: ${sh.dims}${it.weightKg ? ` Βάρος ${it.weightKg} κιλά.` : ""}` : it.widthCm && it.heightCm && it.lengthCm ? `Διαστάσεις: πλάτος ${it.widthCm} εκ., ύψος ${it.heightCm} εκ., βάθος ${it.lengthCm} εκ.${it.weightKg ? ` Βάρος ${it.weightKg} κιλά.` : ""}` : null,
+    sh?.official.length ? `Επίσημα τεχνικά χαρακτηριστικά (κατασκευαστής): ${cap(sh.official.join(" · "), 2200)}` : null,
     sh?.label.length ? `Ενεργειακή ετικέτα (EPREL): ${sh.cls ? `κλάση ${sh.cls}. ` : ""}${sh.label.join(". ")}` : ep ? `Ενεργειακή ετικέτα EPREL: κλάση ${ep.cls ?? "—"}${ep.kwh ? `, ${ep.kwh} kWh τον χρόνο` : ""}. ${ep.lines.join(". ")}` : null,
     it.guaranteeMonths ? `Εγγύηση ${it.guaranteeMonths} μήνες${it.extWarranty ? ", με δυνατότητα επέκτασης εγγύησης" : ""}.` : it.extWarranty ? "Με δυνατότητα επέκτασης εγγύησης." : null,
   ].filter(Boolean) as string[];

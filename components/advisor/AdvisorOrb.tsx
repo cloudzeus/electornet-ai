@@ -23,8 +23,10 @@ interface Msg {
   role: "user" | "advisor";
   text: string;
   chips?: { label: string; href: string }[];
+  /** ποια προϊόντα πρότεινε ο Ερμής σε αυτόν τον γύρο — για να ξέρει τι είναι «αυτά» στον επόμενο */
+  products?: string[];
 }
-type AnswerLike = { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } };
+type AnswerLike = { text: string; products: { id?: string; slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } };
 const CHAT_KEY = "eu-aris-chat";
 const WELCOME_KEY = "eu-aris-welcomed";
 const chipsOf = (ans: AnswerLike) => [
@@ -47,6 +49,8 @@ export function AdvisorOrb() {
   const { space, setOpen: openSpace } = useMySpace();
   const { advisor } = useSettings();
   const [open, setOpen] = useState(false);
+  /** οι απαιτήσεις που έχει καταλάβει ο Ερμής ως τώρα (τύπος, προϋπολογισμός, ανάγκες) — ξαναστέλνονται σε κάθε γύρο */
+  const advisorState = useRef<unknown>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
@@ -251,19 +255,21 @@ export function AdvisorOrb() {
     }
     // Free text → the advisor engine (demo rules; production: LLM + retrieval).
     say("", "thinking");
-    // ο προηγούμενος γύρος και το προϊόν της σελίδας πάνε μαζί: «και σε λευκό;», «αυτό χωράει;» έχουν νόημα μόνο με συμφραζόμενα
-    const prev = [...msgs].reverse().find((m) => m.role === "user")?.text;
-    const qs = new URLSearchParams({ q, ...(prev ? { prev } : {}), ...(product ? { pid: product.id } : {}), ...(space ? { door: String(space.door), ...(space.niche ? { niche: `${space.niche.w},${space.niche.h},${space.niche.d}` } : {}) } : {}) });
-    fetch(`/api/advisor?${qs.toString()}`)
+    // Όλη η συζήτηση πάει μαζί: τι ειπώθηκε, τι προτάθηκε, οι απαιτήσεις μέχρι τώρα (state) — έτσι «από αυτά ποιο;» και
+    // «το Toyotomi που είδα» έχουν νόημα, και η πρόταση δεν αλλάζει από γύρο σε γύρο χωρίς λόγο.
+    const thread = msgs.filter((m) => !m.chips || m.role === "advisor" || m.role === "user").slice(-12).map((m) => ({ role: m.role, text: m.text, products: m.products }));
+    const shown = [...new Set(msgs.flatMap((m) => m.products ?? []))].slice(-12);
+    fetch("/api/advisor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q, thread, shown, state: advisorState.current, ...(product ? { pid: product.id } : {}), ...(space ? { door: space.door, ...(space.niche ? { niche: [space.niche.w, space.niche.h, space.niche.d] } : {}) } : {}) }) })
       .then((r) => (r.ok ? r.json() : null))
-      .then((ans: { text: string; products: { slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } } | null) => {
+      .then((ans: (AnswerLike & { state?: unknown }) | null) => {
         setTyping(false);
         if (!ans) {
           setMsgs((m) => [...m, { role: "advisor", text: "Κάτι πήγε στραβά. Δοκίμασε ξανά ή ζήτα άνθρωπο από το κατάστημα.", chips: [{ label: "Να με πάρουν", href: "#handoff" }] }]);
           say("", "error");
           return;
         }
-        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans) }]);
+        if (ans.state) advisorState.current = ans.state;
+        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans), products: ans.products.map((p) => p.id).filter((x): x is string => !!x) }]);
         say(ans.text);
       })
       .catch(() => {

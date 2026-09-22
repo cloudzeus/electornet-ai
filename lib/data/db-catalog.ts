@@ -172,7 +172,7 @@ const withAttrs = (p: Product, a: Map<string, NonNullable<Product["attrs"]>>): P
 
 export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
   if (!ids.length) return [];
-  const rows = await db.product.findMany({ where: { id: { in: ids }, source: "softone" }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 40, select: { groupName: true, key: true, value: true } } } });
+  const rows = await db.product.findMany({ where: { id: { in: ids }, source: "softone" }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 160, select: { groupName: true, key: true, value: true } } } });
   const a = await attrsFor(rows.map((r) => r.id));
   return rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a));
 }

@@ -105,6 +105,7 @@ model Product {
   variants       Variant[]
   media          Media[]
   specs          Spec[]
+  enrichments    ProductEnrichment[]
   energy         EnergyLabel?
   reviews        Review[]
   questions      Question[]
@@ -228,6 +229,25 @@ model Spec {
 
   @@index([productId])
   @@index([key])
+}
+
+/// Εμπλουτισμός χαρακτηριστικών από εξωτερικές πηγές (lib/catalog/enrich.ts): μία γραμμή ανά προϊόν και πηγή — τι βρέθηκε, πού, πόσο κόστισε.
+model ProductEnrichment {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source     String // icecat | web
+  status     String // found | none | failed
+  url        String?
+  sourceName String?
+  specCount  Int      @default(0)
+  confidence Float?
+  costUsd    Float    @default(0)
+  error      String?
+  checkedAt  DateTime @default(now())
+
+  @@unique([productId, source])
+  @@index([source, status])
 }
 
 model EnergyLabel {

@@ -5,8 +5,13 @@ import { spokenForm } from "./spoken";
 
 const KEY = "eu-aris-voice";
 // One config probe per page load, shared by every hook instance (search boxes, orb).
-let configP: Promise<{ enabled: boolean; rate?: number }> | null = null;
-const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.json() as Promise<{ enabled: boolean; rate?: number }>).catch(() => ({ enabled: false, rate: 1 })));
+type VoiceCfg = { enabled: boolean; rate?: number; provider?: "openrouter" | "elevenlabs" };
+let configP: Promise<VoiceCfg> | null = null;
+const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.json() as Promise<VoiceCfg>).catch((): VoiceCfg => ({ enabled: false, rate: 1 })));
+
+/** Αναγνώριση ομιλίας του browser (Chrome, Safari, Edge): άμεση, δωρεάν, ελληνικά — ο server μεταγράφει μόνο όπου δεν υπάρχει. */
+type SR = { lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: ((e: { error?: string }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void; abort: () => void };
+const speechRecognition = (): (new () => SR) | null => { const w = window as unknown as { SpeechRecognition?: new () => SR; webkitSpeechRecognition?: new () => SR }; return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null; };
 
 /**
  * Voice for the advisor UI. `speak(text)` fetches (cached) audio from
@@ -17,12 +22,14 @@ const voiceConfig = () => (configP ??= fetch("/api/voice/config").then((r) => r.
 export function useVoice() {
   const [enabled, setEnabled] = useState(false); // server-side feature flag
   const rate = useRef(1);
+  const provider = useRef<"openrouter" | "elevenlabs">("openrouter");
   const [speakOn, setSpeakOnState] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const rec = useRef<MediaRecorder | null>(null);
+  const srRef = useRef<SR | null>(null);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gen = useRef(0); // speak() generation: a newer call or a mute cancels the running queue
   const actx = useRef<AudioContext | null>(null); // Web Audio context for streamed pcm
@@ -31,7 +38,7 @@ export function useVoice() {
 
   useEffect(() => {
     let on = true;
-    void voiceConfig().then((j) => { if (on) { setEnabled(!!j.enabled); rate.current = j.rate || 1; } });
+    void voiceConfig().then((j) => { if (on) { setEnabled(!!j.enabled); rate.current = j.rate || 1; provider.current = j.provider ?? "openrouter"; } });
     // Speaker on by default (the brand voice); the visitor's choice persists.
     try { const v = localStorage.getItem(KEY); if (v !== "0") setTimeout(() => on && setSpeakOnState(true), 0); } catch {}
     return () => { on = false; };
@@ -140,7 +147,9 @@ export function useVoice() {
   const speak = useCallback(async (text: string, key?: string) => {
     if (!enabled || !speakOn) return;
     const my = ++gen.current;
-    const items = key ? [{ key }] : parts(text).map((t) => ({ text: t }));
+    // ElevenLabs: ΟΛΗ η απάντηση σε ένα αίτημα ροής — ο πρώτος ήχος έρχεται σε < 1 s, η στίξη και ο ρυθμός μένουν σωστά, και δεν
+    // πέφτουμε στο όριο ταυτόχρονων αιτημάτων (429) που έκοβε προτάσεις. Ο κατακερματισμός σε προτάσεις μένει μόνο για το OpenRouter, που αργεί ανά κλήση.
+    const items = key ? [{ key }] : provider.current === "elevenlabs" ? [{ text: spokenForm(text) }] : parts(text).map((t) => ({ text: t }));
     if (!items.length) return;
     if (!audio.current) audio.current = new Audio();
     const a = audio.current;
@@ -161,6 +170,7 @@ export function useVoice() {
 
   const stop = useCallback(() => {
     if (stopTimer.current) clearTimeout(stopTimer.current);
+    try { srRef.current?.stop(); } catch {}
     const r = rec.current;
     if (r && r.state !== "inactive") r.stop();
   }, []);
@@ -172,6 +182,25 @@ export function useVoice() {
    */
   const listen = useCallback(async (): Promise<{ text: string; error?: "denied" | "unsupported" | "failed" | "unavailable" }> => {
     if (!enabled) return { text: "", error: "unsupported" };
+    // Πρώτα η αναγνώριση ομιλίας του browser: το κείμενο έρχεται τη στιγμή που τελειώνει η πρόταση, χωρίς ανέβασμα ήχου και 4–7 s αναμονής
+    const SR = speechRecognition();
+    if (SR && !localStorage.getItem("eu-voice-no-sr")) {
+      gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false);
+      const r = await new Promise<{ text: string; error?: "denied" | "failed" | "unsupported" } | null>((resolve) => {
+        try {
+          const sr = new SR(); sr.lang = "el-GR"; sr.interimResults = false; sr.maxAlternatives = 1; sr.continuous = false;
+          let out = "", done = false; const finish = (v: { text: string; error?: "denied" | "failed" | "unsupported" } | null) => { if (!done) { done = true; setListening(false); resolve(v); } };
+          sr.onresult = (e) => { out = Array.from(e.results).map((x) => x[0]?.transcript ?? "").join(" ").trim(); };
+          sr.onerror = (e) => finish(e.error === "not-allowed" || e.error === "service-not-allowed" ? { text: "", error: "denied" } : e.error === "no-speech" || e.error === "aborted" ? { text: "", error: "failed" } : null);
+          sr.onend = () => finish(out ? { text: out } : { text: "", error: "failed" });
+          srRef.current = sr; sr.start(); setListening(true);
+          stopTimer.current = setTimeout(() => { try { sr.stop(); } catch {} }, 12000);
+        } catch { resolve(null); }
+      });
+      srRef.current = null;
+      if (r) return r;
+      try { localStorage.setItem("eu-voice-no-sr", "1"); } catch {} // ο browser το δηλώνει αλλά δεν δουλεύει: από εδώ και πέρα μεταγραφή στον server
+    }
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return { text: "", error: "unsupported" };
     let stream: MediaStream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch { return { text: "", error: "denied" }; }

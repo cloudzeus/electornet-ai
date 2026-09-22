@@ -6,8 +6,11 @@ const c = copyOf("specs");
 
 /** Characteristics as a grid of grouped cards — one table, readable sizes (the current site prints a flat 7px list twice). */
 export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product["energy"] }) {
+  // Ομάδες από εξωτερικές πηγές («Επίσημα χαρακτηριστικά (Icecat) · Οθόνη»): η πηγή γίνεται επικεφαλίδα ενότητας, η υποομάδα κάρτα
   const groups = new Map<string, Spec[]>();
   for (const s of specs) groups.set(s.group, [...(groups.get(s.group) ?? []), s]);
+  const sections = new Map<string, [string, Spec[]][]>();
+  for (const [g, rows] of groups) { const [sec, sub] = g.includes(" · ") ? [g.split(" · ")[0], g.split(" · ").slice(1).join(" · ")] : ["", g]; sections.set(sec, [...(sections.get(sec) ?? []), [sub, rows]]); }
   return (
     <section id="specs" className="scroll-mt-24" aria-labelledby="specs-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
@@ -23,8 +26,11 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
           </div>
         )}
       </div>
+      {[...sections.entries()].map(([sec, cards]) => (
+      <div key={sec || "_"} className="mb-6 last:mb-0">
+        {sec && <h3 className="m-0 mb-3 font-extrabold text-eu-navy text-[length:var(--fs-15)] tracking-wide">{sec}</h3>}
       <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
-        {[...groups.entries()].map(([g, rows]) => (
+        {cards.map(([g, rows]) => (
           <div key={g} className="rounded-xl border border-eu-line overflow-hidden">
             <div className="bg-eu-surface px-4 py-2.5 font-extrabold text-eu-ink text-[length:var(--fs-16)]">{g}</div>
             <dl className="m-0 divide-y divide-eu-line-2">
@@ -38,6 +44,8 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
           </div>
         ))}
       </div>
+      </div>
+      ))}
     </section>
   );
 }
