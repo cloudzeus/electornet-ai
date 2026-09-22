@@ -53,6 +53,10 @@ export function AdvisorOrb() {
   const advisorState = useRef<unknown>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [typing, setTyping] = useState(false);
+  // Όσο ο Ερμής ερευνά (κατανόηση → φίλτρα → 30 υποψήφια → 6 δελτία → απάντηση, 6–10 s) ο πελάτης βλέπει ΤΙ κάνει, όχι τελείες
+  const STEPS = ["Καταλαβαίνω τι ψάχνεις…", "Κοιτάζω τον κατάλογο…", "Ξεχωρίζω τα πιο κατάλληλα…", "Συγκρίνω τα δελτία τους…", "Γράφω την απάντηση…"];
+  const [step, setStep] = useState(0);
+  useEffect(() => { if (!typing) return; const t = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 1800); return () => { clearInterval(t); setTimeout(() => setStep(0), 0); }; }, [typing]); // eslint-disable-line react-hooks/exhaustive-deps
   const [input, setInput] = useState("");
   const [handoff, setHandoff] = useState(false);
   const askRef = useRef<((q: string) => void) | null>(null);
@@ -427,16 +431,16 @@ export function AdvisorOrb() {
               ))}
               {typing && (
                 <div
-                  className="justify-self-start rounded-2xl rounded-bl-md bg-white border border-eu-line px-4 py-3 flex gap-1"
+                  className="justify-self-start rounded-2xl rounded-bl-md bg-white border border-eu-line px-4 py-3 flex items-center gap-2"
+                  aria-live="polite"
                   aria-label={c.o_symvoylos_grafei}
                 >
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="size-2 rounded-full bg-eu-blue/60 animate-bounce"
-                      style={{ animationDelay: `${i * 120}ms` }}
-                    />
-                  ))}
+                  <span className="flex gap-1" aria-hidden>
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className="size-2 rounded-full bg-eu-blue/60 animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+                    ))}
+                  </span>
+                  <span className="text-eu-muted text-[length:var(--fs-14)]">{STEPS[step]}</span>
                 </div>
               )}
               {msgs.length > 0 && !typing && (
