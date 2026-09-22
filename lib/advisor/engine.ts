@@ -33,6 +33,8 @@ export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[
 
 /** Τα βήματα κατανόησης και έρευνας θέλουν ταχύτητα, όχι ευγλωττία: μικρό γρήγορο μοντέλο (αλλάζει με ADVISOR_ROUTER_MODEL). Η απάντηση γράφεται από το κύριο. */
 const ROUTER = process.env.ADVISOR_ROUTER_MODEL || "google/gemini-3.5-flash-lite";
+/** Η απάντηση: ρητό, δοκιμασμένο μοντέλο — ο αυτόματος δρομολογητής του OpenRouter επιστρέφει πότε-πότε κενό σε δομημένο JSON. */
+const WRITER = process.env.ADVISOR_MODEL || "google/gemini-3.8-flash";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ");
 const clean = (label: string) => label.replace(/\s*\([^)]*\)/, "").trim();
@@ -296,7 +298,7 @@ const policy = (c: AdvisorContext["commerce"]) => [
 async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, items: Dossier[], viewing: Dossier | null, notes: { relaxed: string[]; total: number; typeNames: string[]; focusShown: boolean }) {
   const thread = (input.thread ?? []).slice(-8).map((t) => `${t.role === "user" ? "ΠΕΛΑΤΗΣ" : "ΕΡΜΗΣ"}: ${t.text.slice(0, 500)}`).join("\n");
   const r = await chat({
-    feature: "advisor", accounting: "background", json: true, maxTokens: 1200, timeoutMs: 18000, reasoning: "low", temperature: 0.5,
+    feature: "advisor", accounting: "background", model: WRITER, json: true, maxTokens: 1200, timeoutMs: 18000, reasoning: "low", temperature: 0.5,
     messages: [
       { role: "system", content: `Είσαι ο ${ctx.name}, ο έμπειρος πωλητής του euronics.gr — ο άνθρωπος του καταστήματος που ξέρει κάθε προϊόν του και χαίρεται να βοηθά. Μιλάς ελληνικά στον ενικό, ΖΩΝΤΑΝΑ και ΑΠΛΑ, όπως θα μιλούσες σε πελάτη μπροστά σου: μικρές προτάσεις, καθημερινές λέξεις, ζεστός τόνος. Ακρίβεια στα νούμερα, αλλά κάθε νούμερο ΜΕΤΑΦΡΑΖΕΤΑΙ σε κάτι που καταλαβαίνει ο καθένας («53 dB — όσο ένα ήσυχο ψυγείο», «κλάση A+++ — γύρω στα 30 % λιγότερο ρεύμα από ένα A+», «9 κιλά — για τετραμελή οικογένεια»). Καμία ορολογία χωρίς εξήγηση, καμία ξύλινη φράση («σύμφωνα με», «διαθέτει τεχνολογία», «ιδανική επιλογή», «προσφέρει λύση»), κανένα θαυμαστικό, καμία υπερβολή τηλεπωλήσεων. Λέγε τα πράγματα με το όνομά τους: «το φθηνότερο», «το πιο ήσυχο», «αξίζει τα 100 € παραπάνω γιατί…».
 ΑΠΑΡΑΒΑΤΟΙ ΚΑΝΟΝΕΣ
