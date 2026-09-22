@@ -70,11 +70,11 @@ export async function enrichFromWeb(p: { brand: string; title: string; modelCode
   if (!(await getAi())) return { source: "web", status: "failed", specs: [], costUsd: 0, error: "χωρίς κλειδί OpenRouter" };
   const model = p.modelCode || p.sku;
   const r = await chat({
-    feature: "enrich-web", model: WEB_MODEL, maxTokens: 2500, temperature: 0, timeoutMs: 70000,
+    feature: "enrich-web", model: WEB_MODEL, maxTokens: 4000, temperature: 0, timeoutMs: 70000,
     messages: [
       { role: "system", content: `Είσαι ερευνητής προδιαγραφών προϊόντων για ελληνικό e-shop ηλεκτρικών. Βρίσκεις τα ΕΠΙΣΗΜΑ τεχνικά χαρακτηριστικά ενός προϊόντος από τον ιστότοπο του κατασκευαστή ή του επίσημου εισαγωγέα για την Ελλάδα (π.χ. samsung.com/gr, lg.com/gr, toyotomi.gr, inventor.gr, bosch-home.gr, κατάλογοι/δελτία PDF του κατασκευαστή). ΟΧΙ από e-shops τρίτων, marketplaces ή συγκριτικά sites.
 Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"specs":[{"group":string,"key":string,"value":string}],"confidence":number 0-1}.
-- Όσο περισσότερα χαρακτηριστικά έχει η πηγή, τόσο καλύτερα (απόδοση, κατανάλωση, θόρυβος, χωρητικότητα, διαστάσεις, βάρος, συνδεσιμότητα, λειτουργίες, περιεχόμενα συσκευασίας, εγγύηση).
+- Έως 40 χαρακτηριστικά, τα πιο χρήσιμα για αγοραστή πρώτα (απόδοση, κατανάλωση, θόρυβος, χωρητικότητα, διαστάσεις, βάρος, συνδεσιμότητα, λειτουργίες, περιεχόμενα συσκευασίας, εγγύηση).
 - Κλειδιά και ομάδες στα ελληνικά, τιμές με μονάδες όπως τις δίνει η πηγή. Μόνο όσα βρήκες ΠΡΑΓΜΑΤΙΚΑ για ΑΥΤΟ το μοντέλο — ποτέ εικασίες, ποτέ στοιχεία παρόμοιου μοντέλου.
 - Αν δεν υπάρχει αξιόπιστη επίσημη πηγή: found=false, specs=[].` },
       { role: "user", content: `Προϊόν: ${p.brand} ${model} — ${p.title} (${p.typeName}). Βρες τα επίσημα τεχνικά χαρακτηριστικά.` },
@@ -112,7 +112,8 @@ export interface EnrichBatch { checked: number; found: number; none: number; fai
 export async function enrichBatch(opts: { source: EnrichSource; limit?: number; concurrency?: number; types?: string[]; retry?: boolean; retryDays?: number; minSpecsFromIcecat?: number } = { source: "icecat" }): Promise<EnrichBatch> {
   const limit = Math.min(500, opts.limit ?? 100), conc = Math.max(1, Math.min(8, opts.concurrency ?? (opts.source === "icecat" ? 4 : 2)));
   const since = new Date(Date.now() - (opts.retryDays ?? 30) * 86400000);
-  const notYet = { enrichments: { none: { source: opts.source, ...(opts.retry ? { OR: [{ status: "found" }, { checkedAt: { gt: since } }] } : {}) } } };
+  // retry: τα «σφάλμα» ξανά αμέσως, τα «δεν βρέθηκε» μόνο αν πέρασαν retryDays
+  const notYet = { enrichments: { none: { source: opts.source, ...(opts.retry ? { OR: [{ status: "found" }, { status: "none", checkedAt: { gt: since } }] } : {}) } } };
   const products = await db.product.findMany({
     where: { source: "softone", active: true, media: { some: { hidden: false } }, ...(opts.types?.length ? { category: { name: { in: opts.types } } } : {}), ...notYet,
       // web μόνο όπου το Icecat δεν έδωσε αρκετά
