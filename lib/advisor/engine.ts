@@ -91,6 +91,7 @@ async function understand(input: AdvisorInput, types: TypeRow[], shown: ShownRow
 {"kind":"products"|"info"|"other","focus":"new"|"shown","shownRefs":number[],"types":number[],"brands":string[],"minPrice":number|null,"maxPrice":number|null,"maxWidth":number|null,"maxHeight":number|null,"maxDepth":number|null,"inStockOnly":boolean,"needs":string[],"priority":"price"|"quality"|"energy"|"quiet"|null,"sizing":string|null,"modelCodes":string[],"search":string,"understood":string[]}
 - Η ΚΑΤΑΣΤΑΣΗ ΣΥΣΣΩΡΕΥΕΤΑΙ: ό,τι ίσχυε κρατιέται εκτός αν ο πελάτης το αλλάξει ρητά («τελικά μέχρι 400», «όχι Samsung»). Επιστρέφεις τη ΣΥΝΟΛΙΚΗ κατάσταση, όχι μόνο τη διαφορά. Μια νέα, άσχετη ανάγκη («και μια τηλεόραση;») μηδενίζει τύπους / ανάγκες / προϋπολογισμό.
 - focus "shown": η ερώτηση αφορά τα ΔΕΙΓΜΕΝΑ («από αυτά ποιο…», «το πρώτο», «το Toyotomi που είδα», «αυτό χωράει;», «γιατί το δεύτερο;», «διαφορά τους;») → shownRefs = οι δείκτες τους (όλα τα σχετικά αν λέει «αυτά»). Αλλιώς "new" και shownRefs=[].
+- Ο κατάλογος είναι πιο πρόσφατος από τη γνώση σου: ένα μοντέλο που δεν ξέρεις (iPhone 17, Galaxy S26) είναι απλώς νεότερο — το ψάχνεις κανονικά.
 - kind: "products" για αναζήτηση/σύγκριση/ερώτηση για προϊόν· "info" για παράδοση, δόσεις, επιστροφές, εγγύηση, εγκατάσταση, καταστήματα· "other" άσχετο.
 - types: έως 3 αριθμοί από τη ΛΙΣΤΑ ΤΥΠΩΝ (η στήλη «συχνές λέξεις» λέει τι πωλείται εκεί). Ποτέ αξεσουάρ όταν ζητά τη συσκευή.
 - needs: κάθε απαίτηση χαρακτηριστικού ως σύντομη φράση, ΜΑΖΙ με όσες προκύπτουν από την τεχνογνωσία («σαλόνι 30 τ.μ.» → "12.000 ή 18.000 BTU"). ΟΧΙ τιμή, μάρκα, διαστάσεις χώρου.
@@ -184,6 +185,14 @@ async function mapNeeds(needs: string[], facets: FacetInfo[]): Promise<{ filters
 interface Cand { id: string; brandId: string; erpCode: string | null; price: number | null; stock: number; score: number; noise: number | null; kwh: number | null; cls: string | null }
 const CLASS_ORDER = ["A+++", "A++", "A+", "A", "B", "C", "D", "E", "F", "G"];
 
+/** Ονόματα σειράς μέσα στην ερώτηση («iphone 17», «galaxy s25», «ps5», «kuro»): ό,τι έχει λέξη + αριθμό, ή λατινική λέξη ≥ 4 γραμμάτων που δεν είναι γενικός όρος. */
+const GENERIC = new Set(["inverter", "smart", "wifi", "bluetooth", "oled", "qled", "led", "mini", "split", "black", "white", "pro", "plus", "max", "ultra", "air", "fryer", "stick", "espresso", "frost", "usb", "hdmi", "android"]);
+function nameTerms(q: string): string[] {
+  const t = norm(q);
+  const out = [...t.matchAll(/\b([a-z]{2,}\s?\d{1,4}[a-z]?)\b/g)].map((m) => m[1].replace(/\s+/g, " ")).filter((x) => !/^\d/.test(x) && !/(gb|tb|kg|btu|hz|cm|mm|lt|mah|w|kw|"|ιντσ)$/.test(x));
+  return [...new Set(out)].slice(0, 3);
+}
+
 async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[], search: string, take = 30) {
   const relaxed: string[] = [];
   const brandWhere: Prisma.ProductWhereInput[] = u.brands.length ? [{ OR: u.brands.map((b) => ({ brand: { name: { contains: b, mode: "insensitive" as const } } })) }] : [];
@@ -197,6 +206,13 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
 
   const active = [...filters];
   let maxPrice = u.maxPrice, rows = await fetch(build(active, maxPrice));
+  // Το όνομα της σειράς νικά όλα τα φίλτρα: αν ζητά «iPhone 17» και ΥΠΑΡΧΟΥΝ iPhone 17, μένουμε σε αυτά (και χαλαρώνουμε τα υπόλοιπα αν χρειαστεί)
+  const names = nameTerms(u.search + " " + (u.understood.join(" ") ?? ""));
+  if (names.length) {
+    const byName = (rs: typeof rows, titles: Map<string, string>) => rs.filter((r) => { const t = norm(titles.get(r.id) ?? ""); return names.some((n) => t.includes(n) || t.includes(n.replace(" ", ""))); });
+    const titled = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { OR: names.flatMap((n) => [{ title: { contains: n, mode: "insensitive" as const } }, { title: { contains: n.replace(" ", ""), mode: "insensitive" as const } }]) }] }, take: 400, orderBy: [{ stock: "desc" }, { price: "desc" }], select: { ...select, title: true } });
+    if (titled.length) { const titles = new Map(titled.map((t) => [t.id, t.title])); const inRows = byName(rows, titles); rows = inRows.length ? inRows : titled; if (!inRows.length) { active.length = 0; relaxed.push(`κράτησα τα «${names.join(", ")}» και χαλάρωσα τα υπόλοιπα κριτήρια`); } }
+  }
   // Χαλάρωση, από το λιγότερο δεσμευτικό: τελευταία απαίτηση → … → προϋπολογισμός +15 % → μάρκα. Ο Ερμής το λέει στον πελάτη.
   while (rows.length < 3 && active.length) { const dropped = active.pop()!; relaxed.push(`δεν υπάρχει με «${dropped.need}»`); rows = await fetch(build(active, maxPrice)); }
   if (rows.length < 3 && maxPrice) { maxPrice = Math.round(maxPrice * 1.15); const more = await fetch(build(active, maxPrice)); if (more.length > rows.length) { rows = more; relaxed.push(`λίγα έως ${eur(u.maxPrice!)} — κοίταξα έως ${eur(maxPrice)}`); } }
@@ -305,6 +321,7 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Προτείνεις ΜΟΝΟ προϊόντα από τα ΔΕΛΤΙΑ και αναφέρεις ΜΟΝΟ στοιχεία που υπάρχουν εκεί ή στην ΠΟΛΙΤΙΚΗ ΚΑΤΑΣΤΗΜΑΤΟΣ. Αν κάτι λείπει, το λες απλά («δεν το έχω καταγεγραμμένο, θα το δω στο κατάστημα»). Η ΤΕΧΝΟΓΝΩΣΙΑ επιτρέπεται μόνο για διαστασιολόγηση και για την εξήγηση των νούμερων.
 - ΣΥΝΕΧΕΙΑ: είναι ένα ΝΗΜΑ. Αν ο πελάτης ρωτά για όσα του έδειξες («από αυτά», «το πρώτο», «το Toyotomi»), απαντάς για ΑΥΤΑ — δεν φέρνεις άλλα. Δεν αλλάζεις πρόταση από γύρο σε γύρο χωρίς λόγο· αν αλλάξει, λες γιατί («τώρα που ξέρω ότι το θες αθόρυβο…»).
 - Ποτέ προϊόν, τιμή, διαθεσιμότητα ή χαρακτηριστικό εκτός δεδομένων. Ποτέ ανταγωνιστές.
+- Ο ΚΑΤΑΛΟΓΟΣ ΕΙΝΑΙ ΠΙΟ ΠΡΟΣΦΑΤΟΣ ΑΠΟ ΤΗ ΓΝΩΣΗ ΣΟΥ: ποτέ δεν λες ότι ένα προϊόν «δεν υπάρχει ακόμα» ή «δεν κυκλοφορεί» — αν είναι στα δελτία, υπάρχει και πωλείται.
 - Αν στις ΣΗΜΕΙΩΣΕΙΣ γράφει ότι κάτι δεν βρέθηκε όπως ζητήθηκε, το λες ευθέως και δίνεις την κοντινότερη λύση.
 - Έως 3 προϊόντα, το καλύτερο πρώτο, και εξηγείς ΤΗ ΔΙΑΦΟΡΑ τους (τι παίρνει παραπάνω με τα επιπλέον χρήματα). Όταν συγκρίνει, απαντάς με τα νούμερα (dB, kWh, kg, BTU, εκ.) και τι σημαίνουν στην πράξη. Προτιμάς τα άμεσα διαθέσιμα όταν είναι ισάξια.
 - Αν δίνεται «fit», το λαμβάνεις υπόψη.
