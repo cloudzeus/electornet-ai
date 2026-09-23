@@ -28,7 +28,7 @@ import type { AdvisorAnswer } from "./answer";
 export interface Turn { role: "user" | "advisor"; text: string; products?: string[] }
 export interface AdvisorState { types: number[]; typeNames: string[]; brands: string[]; minPrice: number | null; maxPrice: number | null; maxWidth: number | null; maxHeight: number | null; maxDepth: number | null; inStockOnly: boolean; needs: string[]; priority: "price" | "quality" | "energy" | "quiet" | null; sizing: string | null }
 export interface AdvisorInput { q: string; thread?: Turn[]; shown?: string[]; state?: AdvisorState | null; prev?: string; space?: MySpace | null; pid?: string }
-export interface AdvisorContext { name: string; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
+export interface AdvisorContext { name: string; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
 export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[] };
 
 /** Τα βήματα κατανόησης και έρευνας θέλουν ταχύτητα, όχι ευγλωττία: μικρό γρήγορο μοντέλο (αλλάζει με ADVISOR_ROUTER_MODEL). Η απάντηση γράφεται από το κύριο. */
@@ -45,8 +45,23 @@ const EMPTY_STATE: AdvisorState = { types: [], typeNames: [], brands: [], minPri
  * Τεχνογνωσία πωλητή — ΟΧΙ δεδομένα προϊόντων: πώς μεταφράζεται η ανάγκη σε μέγεθος. Το μοντέλο τη χρησιμοποιεί για να
  * ζητήσει τα σωστά φίλτρα και να κρίνει τα υποψήφια, ποτέ για να «θυμηθεί» προϊόντα.
  */
-const EXPERTISE = `ΤΕΧΝΟΓΝΩΣΙΑ ΔΙΑΣΤΑΣΙΟΛΟΓΗΣΗΣ (Ελλάδα)
-- Κλιματιστικό: ~350–400 BTU ανά τ.μ. σε κανονικό χώρο (περισσότερο σε ρετιρέ / νότιο / μεγάλα τζάμια). Έως 15 τ.μ. → 9.000 BTU · 15–25 → 12.000 · 25–35 → 18.000 · 35–50 → 24.000. Σαλόνι 30 τ.μ. → 12.000 αν είναι σκιερό, αλλιώς 18.000. Τον ΘΟΡΥΒΟ τον κρίνει η ηχητική ισχύς εσωτερικής μονάδας (dB) — μικρότερη = πιο αθόρυβο. Οικονομία = κλάση ψύξης A+++/A++ και SEER.
+const EXPERTISE = `ΤΕΧΝΟΓΝΩΣΙΑ ΠΩΛΗΤΗ (Ελλάδα) — για διαστασιολόγηση και για να ΕΞΗΓΕΙΣ τι σημαίνει κάθε νούμερο· ποτέ για να «θυμηθείς» προϊόντα
+ΚΛΙΜΑΤΙΣΤΙΚΑ
+- Μέγεθος: ~350 BTU/τ.μ. σε κανονικό χώρο· +20–30 % σε ρετιρέ, νότιο, μεγάλα τζάμια, κακή μόνωση, ύψος οροφής > 3 μ. Έως 15 τ.μ. → 9.000 · 15–25 → 12.000 · 25–35 → 18.000 · 35–50 → 24.000. Μικρότερο από όσο πρέπει = δουλεύει συνέχεια στο φουλ και καίει· πολύ μεγαλύτερο = ανοιγοκλείνει και δεν αφυγραίνει.
+- Inverter: ρυθμίζει την ισχύ αντί να ανοιγοκλείνει → 30–50 % λιγότερο ρεύμα, σταθερή θερμοκρασία, πιο αθόρυβο. Σήμερα σχεδόν όλα είναι inverter.
+- Οικονομία: κλάση ΨΥΞΗΣ (A+++ κορυφή) και SEER (όσο ψηλότερο τόσο καλύτερο: 6,1 = A++, 8,5+ = A+++). Για ΘΕΡΜΑΝΣΗ τον χειμώνα μετράει το SCOP (4,0 = A+, 4,6 = A++, 5,1+ = A+++) και η κλάση θέρμανσης — ένα καλό inverter θερμαίνει 3–4 φορές φθηνότερα από ηλεκτρική θερμάστρα ίδιας απόδοσης.
+- Κόστος λειτουργίας: kWh τον χρόνο (ετήσια κατανάλωση ψύξης / θέρμανσης από την ετικέτα) × τιμή kWh = € τον χρόνο. Αν λείπει, εκτίμηση: (BTU ÷ 3.412) ÷ SEER × ώρες χρήσης.
+- Θόρυβος: ηχητική ισχύς ή στάθμη εσωτερικής μονάδας σε dB· 19–25 dB στο χαμηλό = ψίθυρος (υπνοδωμάτιο), 35–45 = ήσυχο δωμάτιο, 50+ = συζήτηση. Η ΕΞΩΤΕΡΙΚΗ μονάδα (50–65 dB) ενδιαφέρει τον γείτονα και το μπαλκόνι.
+- Λειτουργίες που αξίζουν: Wi-Fi (άναμμα από το κινητό πριν φτάσεις), ιονιστής / φίλτρα (αλλεργίες), Follow me (αισθητήρας στο τηλεχειριστήριο), λειτουργία ύπνου, αυτοκαθαρισμός. Ψυκτικό R32 = το σύγχρονο, πιο οικολογικό.
+- Εγκατάσταση: γίνεται από τεχνικό του καταστήματος· περιλαμβάνει συνήθως έως 3 μ. σωλήνα, βάσεις, τρύπα στον τοίχο· επιπλέον μέτρα, σκαλωσιά ή μετακίνηση παλιού χρεώνονται ξεχωριστά. Η εξωτερική μονάδα θέλει μπαλκόνι ή τοίχο με αέρα.
+ΤΗΛΕΟΡΑΣΕΙΣ
+- Μέγεθος: απόσταση θέασης σε μέτρα × 20–25 ≈ ίντσες (2 μ. → 43–50", 2,5 μ. → 55–65", 3 μ. → 65–75"). Στο 4K μπορείς να κάτσεις πιο κοντά χωρίς να φαίνονται pixel.
+- Panel: OLED = τέλειο μαύρο, άπειρη αντίθεση, ιδανικό για σκοτεινό σαλόνι και ταινίες, πιο ακριβό· QLED / Mini LED = πολύ φωτεινό, καλύτερο για φωτεινό δωμάτιο και μέρα, ανθεκτικό· απλό LED (Direct LED / Edge) = οικονομικό, για δεύτερη τηλεόραση ή κουζίνα.
+- Ανάλυση: 4K είναι το στάνταρ από 43" και πάνω· 8K μόνο σε πολύ μεγάλες, χωρίς 8K περιεχόμενο. HDR (Dolby Vision, HDR10+) = πιο ζωντανά χρώματα, κάνει διαφορά σε Netflix / Disney+.
+- Gaming (PS5, Xbox, PC): 120 Hz φυσικός ρυθμός ανανέωσης + HDMI 2.1 + VRR / ALLM = ομαλή εικόνα χωρίς σκίσιμο· 60 Hz αρκεί για απλή χρήση.
+- Smart: webOS (LG), Tizen (Samsung), Google TV / Android TV (Sony, TCL, Hisense, Philips) — όλα έχουν Netflix, YouTube, ERTflix· το Google TV έχει τα περισσότερα apps. Δέκτης DVB-T2 = ψηφιακή κεραία χωρίς αποκωδικοποιητή· DVB-S2 = δορυφορικό.
+- Ήχος: 20 W = επαρκής για δωμάτιο· για σαλόνι / ταινίες αξίζει soundbar. Κατανάλωση: kWh ανά 1.000 ώρες (SDR) × ώρες × τιμή kWh = κόστος· μια 55" καίει περίπου 70–100 kWh/1.000 ώρες.
+- Τοποθέτηση: VESA (π.χ. 300 × 300 mm) = ποια βάση τοίχου ταιριάζει· πλάτος με βάση για το έπιπλο.
 - Πλυντήριο ρούχων: 1–2 άτομα → 6–7 kg · 3–4 → 8–9 kg · 5+ → 10 kg και πάνω. Αθόρυβο: ≤ 72 dB στο στύψιμο, μοτέρ inverter.
 - Ψυγείο: 1–2 άτομα → 200–300 λίτρα · 3–4 → 300–400 · 5+ → 400+. No Frost = χωρίς απόψυξη.
 - Τηλεόραση: απόσταση θέασης σε μέτρα × 20–25 ≈ ίντσες (2 μ. → 43–50", 2,5 μ. → 55–65", 3 μ. → 65–75"). OLED για σκοτεινό δωμάτιο, QLED/Mini LED για φωτεινό.
@@ -78,7 +93,7 @@ async function typeList(): Promise<TypeRow[]> {
   return [...t.byId.values()].filter((n) => n.depth === 2 && n.count > 0).map((node, i) => { const path = up(node); return { i, node, path, label: path.map((p) => p.name).join(" › "), hint: hints.get(node.id) ?? "" }; });
 }
 
-interface Understood extends AdvisorState { kind: "products" | "info" | "other"; focus: "new" | "shown"; shownRefs: number[]; modelCodes: string[]; search: string; understood: string[] }
+interface Understood extends AdvisorState { kind: "products" | "advice" | "info" | "other"; focus: "new" | "shown"; shownRefs: number[]; modelCodes: string[]; search: string; understood: string[] }
 
 interface ShownRow { i: number; id: string; brand: string; title: string; price: number; typeName: string }
 
@@ -88,11 +103,11 @@ async function understand(input: AdvisorInput, types: TypeRow[], shown: ShownRow
     feature: "advisor-understand", accounting: "background", model: ROUTER, json: true, maxTokens: 600, temperature: 0, timeoutMs: 9000, reasoning: "low",
     messages: [
       { role: "system", content: `Παρακολουθείς μια συζήτηση πελάτη με τον σύμβουλο πωλήσεων ελληνικού e-shop ηλεκτρικών. Σου δίνεται η ΚΑΤΑΣΤΑΣΗ (οι απαιτήσεις μέχρι τώρα), τα ΔΕΙΓΜΕΝΑ προϊόντα, το ΝΗΜΑ και η ΝΕΑ ΕΡΩΤΗΣΗ. Απαντάς ΜΟΝΟ με JSON:
-{"kind":"products"|"info"|"other","focus":"new"|"shown","shownRefs":number[],"types":number[],"brands":string[],"minPrice":number|null,"maxPrice":number|null,"maxWidth":number|null,"maxHeight":number|null,"maxDepth":number|null,"inStockOnly":boolean,"needs":string[],"priority":"price"|"quality"|"energy"|"quiet"|null,"sizing":string|null,"modelCodes":string[],"search":string,"understood":string[]}
+{"kind":"products"|"advice"|"info"|"other","focus":"new"|"shown","shownRefs":number[],"types":number[],"brands":string[],"minPrice":number|null,"maxPrice":number|null,"maxWidth":number|null,"maxHeight":number|null,"maxDepth":number|null,"inStockOnly":boolean,"needs":string[],"priority":"price"|"quality"|"energy"|"quiet"|null,"sizing":string|null,"modelCodes":string[],"search":string,"understood":string[]}
 - Η ΚΑΤΑΣΤΑΣΗ ΣΥΣΣΩΡΕΥΕΤΑΙ: ό,τι ίσχυε κρατιέται εκτός αν ο πελάτης το αλλάξει ρητά («τελικά μέχρι 400», «όχι Samsung»). Επιστρέφεις τη ΣΥΝΟΛΙΚΗ κατάσταση, όχι μόνο τη διαφορά. Μια νέα, άσχετη ανάγκη («και μια τηλεόραση;») μηδενίζει τύπους / ανάγκες / προϋπολογισμό.
 - focus "shown": η ερώτηση αφορά τα ΔΕΙΓΜΕΝΑ («από αυτά ποιο…», «το πρώτο», «το Toyotomi που είδα», «αυτό χωράει;», «γιατί το δεύτερο;», «διαφορά τους;») → shownRefs = οι δείκτες τους (όλα τα σχετικά αν λέει «αυτά»). Αλλιώς "new" και shownRefs=[].
 - Ο κατάλογος είναι πιο πρόσφατος από τη γνώση σου: ένα μοντέλο που δεν ξέρεις (iPhone 17, Galaxy S26) είναι απλώς νεότερο — το ψάχνεις κανονικά.
-- kind: "products" για αναζήτηση/σύγκριση/ερώτηση για προϊόν· "info" για παράδοση, δόσεις, επιστροφές, εγγύηση, εγκατάσταση, καταστήματα· "other" άσχετο.
+- kind: "products" για αναζήτηση/σύγκριση/ερώτηση για προϊόν· "advice" για συμβουλή αγοράς ή τεχνική απορία («OLED ή QLED;», «τι σημαίνει SEER;», «πόσα BTU θέλω;», «αξίζει το inverter;») — τότε βάζεις και τους σχετικούς types και needs ώστε να δείξουμε παραδείγματα· "info" για παράδοση, δόσεις, επιστροφές, εγγύηση, εγκατάσταση, καταστήματα· "other" άσχετο.
 - types: έως 3 αριθμοί από τη ΛΙΣΤΑ ΤΥΠΩΝ (η στήλη «συχνές λέξεις» λέει τι πωλείται εκεί). Ποτέ αξεσουάρ όταν ζητά τη συσκευή.
 - needs: κάθε απαίτηση χαρακτηριστικού ως σύντομη φράση, ΜΑΖΙ με όσες προκύπτουν από την τεχνογνωσία («σαλόνι 30 τ.μ.» → "12.000 ή 18.000 BTU"). ΟΧΙ τιμή, μάρκα, διαστάσεις χώρου.
 - sizing: μία πρόταση με τον συλλογισμό διαστασιολόγησης αν υπάρχει («30 τ.μ. → 12.000–18.000 BTU»), αλλιώς null.
@@ -112,7 +127,7 @@ ${types.map((t) => `${t.i}|${t.path.slice(-2).map((p) => p.name).join(" › ")}|
   const idx = (v: unknown, max: number) => (Array.isArray(v) ? v.filter((n): n is number => Number.isInteger(n) && n >= 0 && n < max) : []);
   const typesOut = idx(j.types, types.length).slice(0, 3);
   return {
-    kind: j.kind === "info" || j.kind === "other" ? j.kind : "products", focus: j.focus === "shown" && shown.length ? "shown" : "new", shownRefs: idx(j.shownRefs, shown.length),
+    kind: j.kind === "info" || j.kind === "other" || j.kind === "advice" ? j.kind : "products", focus: j.focus === "shown" && shown.length ? "shown" : "new", shownRefs: idx(j.shownRefs, shown.length),
     types: typesOut, typeNames: typesOut.map((i) => types[i].node.name),
     brands: list(j.brands, 5), minPrice: num(j.minPrice), maxPrice: num(j.maxPrice), maxWidth: num(j.maxWidth), maxHeight: num(j.maxHeight), maxDepth: num(j.maxDepth),
     inStockOnly: j.inStockOnly === true, needs: list(j.needs), priority: (["price", "quality", "energy", "quiet"] as const).find((p) => p === j.priority) ?? null, sizing: typeof j.sizing === "string" && j.sizing.trim() ? j.sizing.trim() : null,
@@ -186,14 +201,23 @@ interface Cand { id: string; brandId: string; erpCode: string | null; price: num
 const CLASS_ORDER = ["A+++", "A++", "A+", "A", "B", "C", "D", "E", "F", "G"];
 
 /** Ονόματα σειράς μέσα στην ερώτηση («iphone 17», «galaxy s25», «ps5», «kuro»): ό,τι έχει λέξη + αριθμό, ή λατινική λέξη ≥ 4 γραμμάτων που δεν είναι γενικός όρος. */
-const GENERIC = new Set(["inverter", "smart", "wifi", "bluetooth", "oled", "qled", "led", "mini", "split", "black", "white", "pro", "plus", "max", "ultra", "air", "fryer", "stick", "espresso", "frost", "usb", "hdmi", "android"]);
+const GENERIC_NAMES = new Set(["ps", "gb", "usb", "hdmi", "wifi", "dvb", "hdr"]);
 function nameTerms(q: string): string[] {
   const t = norm(q);
   const out = [...t.matchAll(/\b([a-z]{2,}\s?\d{1,4}[a-z]?)\b/g)].map((m) => m[1].replace(/\s+/g, " ")).filter((x) => !/^\d/.test(x) && !/(gb|tb|kg|btu|hz|cm|mm|lt|mah|w|kw|"|ιντσ)$/.test(x));
-  return [...new Set(out)].slice(0, 3);
+  return [...new Set(out)].filter((x) => !GENERIC_NAMES.has(x.split(" ")[0])).slice(0, 3);
 }
 
-async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[], search: string, take = 30) {
+/** Όροι αναζήτησης μιας ανάγκης μέσα στα χαρακτηριστικά: «120 Hz» → 120 Hz / 120Hz, «HDMI 2.1» → HDMI 2.1, «Dolby Vision» → όπως είναι. */
+function specTerms(need: string): string[] {
+  const t = need.replace(/[«»"]/g, "").trim();
+  const m = t.match(/(\d+(?:[.,]\d+)?)\s*(hz|w|kw|btu|db|kg|l|lt|gb|tb|mah|"|ιντσ\w*|cm|mm)/i);
+  if (m) { const unit = m[2].toLowerCase().startsWith("ιντσ") ? '"' : m[2]; return [`${m[1]} ${unit}`, `${m[1]}${unit}`]; }
+  const words = t.split(/\s+/).filter((w) => w.length >= 3 && !/^(με|για|και|να|το|την|τον|ή|ή)$/i.test(w));
+  return words.length && t.length <= 40 ? [t] : [];
+}
+
+async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[], search: string, specNeeds: string[] = [], take = 30) {
   const relaxed: string[] = [];
   const brandWhere: Prisma.ProductWhereInput[] = u.brands.length ? [{ OR: u.brands.map((b) => ({ brand: { name: { contains: b, mode: "insensitive" as const } } })) }] : [];
   const build = (fs: FacetFilter[], maxPrice: number | null, brands = true): Prisma.ProductWhereInput => ({ AND: [
@@ -206,6 +230,14 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
 
   const active = [...filters];
   let maxPrice = u.maxPrice, rows = await fetch(build(active, maxPrice));
+  // Ανάγκες που δεν είναι φίλτρα του ERP («120 Hz», «HDMI 2.1», «Dolby Vision», «SCOP», «R32») φιλτράρονται πάνω στα ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ
+  // (Icecat / ιστότοποι κατασκευαστών / περιγραφή) και στους τίτλους — μόνο όταν αφήνουν ≥ 3 προϊόντα, αλλιώς μένουν για τη σημασιολογική κατάταξη
+  for (const need of specNeeds) {
+    const terms = specTerms(need); if (!terms.length) continue;
+    const hit = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { id: { in: rows.map((r) => r.id) } }, { OR: terms.flatMap((t) => [{ title: { contains: t, mode: "insensitive" as const } }, { specs: { some: { OR: [{ value: { contains: t, mode: "insensitive" as const } }, { key: { contains: t, mode: "insensitive" as const } }] } } }]) }] }, select: { id: true } });
+    if (hit.length >= 3) { const ids = new Set(hit.map((h) => h.id)); rows = rows.filter((r) => ids.has(r.id)); active.push({ label: need, raw: [], values: terms, need }); }
+    else relaxed.push(`λίγα ή κανένα με «${need}» στα καταγεγραμμένα χαρακτηριστικά`);
+  }
   // Το όνομα της σειράς νικά όλα τα φίλτρα: αν ζητά «iPhone 17» και ΥΠΑΡΧΟΥΝ iPhone 17, μένουμε σε αυτά (και χαλαρώνουμε τα υπόλοιπα αν χρειαστεί)
   const names = nameTerms(u.search + " " + (u.understood.join(" ") ?? ""));
   if (names.length) {
@@ -324,12 +356,12 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Ο ΚΑΤΑΛΟΓΟΣ ΕΙΝΑΙ ΠΙΟ ΠΡΟΣΦΑΤΟΣ ΑΠΟ ΤΗ ΓΝΩΣΗ ΣΟΥ: ποτέ δεν λες ότι ένα προϊόν «δεν υπάρχει ακόμα» ή «δεν κυκλοφορεί» — αν είναι στα δελτία, υπάρχει και πωλείται.
 - Αν στις ΣΗΜΕΙΩΣΕΙΣ γράφει ότι κάτι δεν βρέθηκε όπως ζητήθηκε, το λες ευθέως και δίνεις την κοντινότερη λύση.
 - Έως 3 προϊόντα, το καλύτερο πρώτο, και εξηγείς ΤΗ ΔΙΑΦΟΡΑ τους (τι παίρνει παραπάνω με τα επιπλέον χρήματα). Όταν συγκρίνει, απαντάς με τα νούμερα (dB, kWh, kg, BTU, εκ.) και τι σημαίνουν στην πράξη. Προτιμάς τα άμεσα διαθέσιμα όταν είναι ισάξια.
-- Αν δίνεται «fit», το λαμβάνεις υπόψη.
+- Αν δίνεται «fit», το λαμβάνεις υπόψη. Όταν ρωτά για κόστος ρεύματος, το υπολογίζεις από τα kWh του δελτίου × kwhPriceEur και δίνεις € τον χρόνο (στρογγυλά).
 - Κλείνεις με ΜΙΑ ερώτηση μόνο όταν χρειάζεται όντως κάτι για να αποφασίσεις· αν ο πελάτης έχει δώσει αρκετά, δίνεις τη σύστασή σου και τελειώνεις. Ποτέ ερώτηση που έχει ήδη απαντηθεί στο νήμα.
 - Δεν αναφέρεις ότι είσαι AI.
-Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
+Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}. Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
 ${EXPERTISE}` },
-      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
+      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ text?: string; picks?: { i?: number; why?: string }[] }>(r.text) : null;
@@ -356,21 +388,22 @@ export async function smartAdvisor(input: AdvisorInput, ctx: AdvisorContext): Pr
   mark("understand");
   if (u.kind === "other" && !u.types.length && !u.modelCodes.length && u.focus !== "shown") u.kind = "info";
   let chosen = u.types.map((i) => types[i]);
-  if (!chosen.length && viewing?.typeSlug && u.kind === "products" && u.focus === "new") { const t = types.find((x) => x.node.slug === viewing.typeSlug); if (t) { chosen = [t]; u.types = [t.i]; u.typeNames = [t.node.name]; } }
+  if (!chosen.length && viewing?.typeSlug && (u.kind === "products" || u.kind === "advice") && u.focus === "new") { const t = types.find((x) => x.node.slug === viewing.typeSlug); if (t) { chosen = [t]; u.types = [t.i]; u.typeNames = [t.node.name]; } }
 
   let candidates: Product[] = [], total = 0, relaxed: string[] = [];
-  if (u.kind === "products" && u.focus === "shown") {
+  const wantsProducts = u.kind === "products" || u.kind === "advice";
+  if (wantsProducts && u.focus === "shown") {
     // η ερώτηση αφορά όσα έχει ήδη δει: μένουμε ΣΕ ΑΥΤΑ — καμία νέα έρευνα, καμία εναλλαγή προτάσεων
     const refs = u.shownRefs.length ? u.shownRefs : shown.map((s) => s.i);
     candidates = refs.map((i) => shown[i] && shownProducts.find((p) => p.id === shown[i].id)).filter((p): p is Product => !!p).slice(0, 6);
     if (viewing && !candidates.some((c) => c.id === viewing.id) && /αυτο(?![a-zα-ω])/.test(norm(input.q))) candidates = [viewing, ...candidates].slice(0, 6);
     total = candidates.length;
-  } else if (u.kind === "products") {
+  } else if (wantsProducts) {
     const typeIds = chosen.map((t) => t.node.id);
     const { filters, unmapped } = ai && chosen.length ? await mapNeeds(u.needs, await facetsOf(typeIds)) : { filters: [], unmapped: u.needs };
     mark("facets");
     const search = [u.search, ...unmapped].join(" · ");
-    const [exact, found] = await Promise.all([byModelCode(u.modelCodes), chosen.length || u.brands.length || u.maxPrice ? retrieve(u, typeIds, filters, search) : Promise.resolve({ ids: [] as string[], total: 0, relaxed: [] as string[], applied: [] as FacetFilter[] })]);
+    const [exact, found] = await Promise.all([byModelCode(u.modelCodes), chosen.length || u.brands.length || u.maxPrice ? retrieve(u, typeIds, filters, search, unmapped) : Promise.resolve({ ids: [] as string[], total: 0, relaxed: [] as string[], applied: [] as FacetFilter[] })]);
     total = found.total; relaxed = found.relaxed;
     for (const f of found.applied) if (!u.understood.some((x) => norm(x).includes(norm(f.need)))) u.understood.push(f.need);
     const ids = [...new Set([...exact, ...found.ids])].filter((id) => id !== viewing?.id || u.modelCodes.length > 0);
@@ -391,7 +424,7 @@ export async function smartAdvisor(input: AdvisorInput, ctx: AdvisorContext): Pr
   const picks = written?.picks.length ? written.picks : items.slice(0, 3).map((s, i) => ({ i, why: [s.energyClass ? `κλάση ${s.energyClass}` : null, ...s.specs.slice(0, 2), s.availability].filter(Boolean).join(" · ") }));
   const text = written?.text ?? (candidates.length
     ? `${chosen.length ? `Από ${total} ${chosen[0].node.name.toLowerCase()} του καταλόγου` : "Από τον κατάλογο"}${u.maxPrice ? ` έως ${eur(u.maxPrice)}` : ""}, αυτά ταιριάζουν περισσότερο.${relaxed.length ? ` Σημείωση: ${relaxed.join("· ")}.` : ""}`
-    : u.kind === "info" ? policy(ctx.commerce).slice(0, 3).join(" ") : "Δεν βρήκα στον κατάλογό μας κάτι που να ταιριάζει σε αυτό που περιγράφεις. Πες μου το είδος της συσκευής και τον προϋπολογισμό σου.");
+    : u.kind === "info" ? policy(ctx.commerce).slice(0, 3).join(" ") : u.kind === "advice" ? "Πες μου για ποιον χώρο ή χρήση το θες και θα σου εξηγήσω τι σου ταιριάζει." : "Δεν βρήκα στον κατάλογό μας κάτι που να ταιριάζει σε αυτό που περιγράφεις. Πες μου το είδος της συσκευής και τον προϋπολογισμό σου.");
 
   const products = picks.map(({ i, why }) => { const p = candidates[i], s = items[i]; return { id: p.id, slug: p.slug, brand: p.brand, title: p.title, price: p.price, wasPrice: p.wasPrice, image: p.image ?? null, why, fit: (s.fitKind ?? undefined) as "fits" | "tight" | "no" | undefined }; });
   const state: AdvisorState = { types: u.types, typeNames: u.typeNames, brands: u.brands, minPrice: u.minPrice, maxPrice: u.maxPrice, maxWidth: u.maxWidth, maxHeight: u.maxHeight, maxDepth: u.maxDepth, inStockOnly: u.inStockOnly, needs: u.needs, priority: u.priority, sizing: u.sizing };

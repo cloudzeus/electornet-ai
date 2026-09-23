@@ -133,7 +133,7 @@ export async function enrichBatch(opts: { source: EnrichSource; limit?: number; 
       if (opts.source === "icecat") await new Promise((res) => setTimeout(res, 150));
     }
   }));
-  out.remaining = Math.max(0, (await db.product.count({ where: { source: "softone", active: true, media: { some: { hidden: false } }, ...(opts.types?.length ? { category: { name: { in: opts.types } } } : {}), ...notYet } })));
+  out.remaining = Math.max(0, (await db.product.count({ where: { source: "softone", active: true, media: { some: { hidden: false } }, ...(opts.types?.length ? { category: { name: { in: opts.types } } } : {}), ...notYet, ...(opts.source === "web" ? { NOT: { enrichments: { some: { source: "icecat", status: "found", specCount: { gte: opts.minSpecsFromIcecat ?? 8 } } } } } : {}) } })));
   return out;
 }
 
