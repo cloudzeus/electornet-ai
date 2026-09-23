@@ -11,7 +11,7 @@ import { db } from "../lib/db";
 import { smartAdvisor, type Turn, type AdvisorState } from "../lib/advisor/engine";
 import { defaultSettings } from "../lib/cms/settings";
 
-interface Case { q: string; prev?: string; /** συζήτηση πολλών γύρων: οι προηγούμενες ερωτήσεις τρέχουν πρώτα και το νήμα περνά στην τελευταία */ turns?: string[]; sameAsShown?: boolean; type?: RegExp; maxPrice?: number; brand?: RegExp; title?: RegExp; maxW?: number; none?: boolean; text?: RegExp }
+interface Case { q: string; prev?: string; /** η απάντηση μπορεί να μην έχει προϊόντα (ερώτηση για όσα ήδη είδε ή για πολιτική) */ optional?: boolean; /** συζήτηση πολλών γύρων: οι προηγούμενες ερωτήσεις τρέχουν πρώτα και το νήμα περνά στην τελευταία */ turns?: string[]; sameAsShown?: boolean; type?: RegExp; maxPrice?: number; brand?: RegExp; title?: RegExp; maxW?: number; none?: boolean; text?: RegExp }
 const CASES: Case[] = [
   { q: "θέλω ένα πλυντήριο ρούχων 9 κιλών μέχρι 500 ευρώ", type: /Πλυντήρια Ρούχων/, maxPrice: 500 },
   { q: "κάτι για να στεγνώνω τα ρούχα τον χειμώνα", type: /Στεγνωτήρια|αφυγραντ/i, title: /στεγνωτ/i }, // ο αφυγραντήρας είναι θεμιτή φθηνή εναλλακτική
@@ -44,13 +44,13 @@ const CASES: Case[] = [
   { q: "κλιματιστικό για ρετιρέ 25 τετραγωνικά με πολύ ήλιο", type: /Κλιματιστικά/, text: /18\.?000|ήλιο|ρετιρέ/i },
   { q: "θέλω κλιματιστικό που να ζεσταίνει καλά και τον χειμώνα, για 20 τμ", type: /Κλιματιστικά/, text: /SCOP|θέρμανσ/i },
   { turns: ["κλιματιστικό 12000 btu οικονομικό"], q: "πόσο ρεύμα θα μου καίει τον χρόνο;", type: /Κλιματιστικά/, text: /€|ευρώ|kWh/i },
-  { turns: ["κλιματιστικό για υπνοδωμάτιο 12 τμ"], q: "τι περιλαμβάνει η εγκατάσταση;", text: /τεχνικ|σωλήν|εγκατάστασ/i },
-  { turns: ["κλιματιστικό 18000 btu"], q: "τι σημαίνει το SEER που γράφει;", text: /SEER/ },
+  { turns: ["κλιματιστικό για υπνοδωμάτιο 12 τμ"], q: "τι περιλαμβάνει η εγκατάσταση;", text: /τεχνικ|σωλήν|εγκατάστασ/i, optional: true },
+  { turns: ["κλιματιστικό 18000 btu"], q: "τι σημαίνει το SEER που γράφει;", text: /SEER/, optional: true },
   // expert: τηλεοράσεις
   { q: "τηλεόραση 65 ιντσών για playstation 5", type: /Τηλεοράσεις/, text: /120|HDMI 2\.1|VRR/i },
   { q: "oled ή qled για φωτεινό σαλόνι;", type: /Τηλεοράσεις/, text: /φωτειν|QLED|Mini LED/i },
   { turns: ["τηλεόραση 55 ιντσών μέχρι 600 ευρώ"], q: "χωράει σε έπιπλο 110 εκατοστών;", type: /Τηλεοράσεις/, text: /εκ|cm|πλάτος/i },
-  { turns: ["τηλεόραση 50 ιντσών για την κουζίνα"], q: "έχει κεραία ψηφιακή ή θέλω αποκωδικοποιητή;", text: /DVB|ψηφιακ|δέκτ/i },
+  { turns: ["τηλεόραση 50 ιντσών για την κουζίνα"], q: "έχει κεραία ψηφιακή ή θέλω αποκωδικοποιητή;", text: /DVB|ψηφιακ|δέκτ/i, optional: true },
 ];
 
 async function main() {
@@ -70,7 +70,7 @@ async function main() {
       const rows = await db.product.findMany({ where: { id: { in: a.products.map((p) => p.id) } }, select: { id: true, title: true, price: true, brand: { select: { name: true } }, category: { select: { name: true } }, dimensions: { select: { w: true, source: true } } } });
       if (rows.length !== a.products.length) fails.push("προϊόν εκτός βάσης");
       if (c.none && a.products.length) fails.push(`δεν έπρεπε να προτείνει προϊόντα (${a.products.length})`);
-      if (!c.none && !a.products.length) fails.push("κανένα προϊόν");
+      if (!c.none && !c.optional && !a.products.length) fails.push("κανένα προϊόν");
       for (const p of a.products) {
         const r = rows.find((x) => x.id === p.id); if (!r) continue;
         if ((r.price ?? 0) !== p.price && !(p.price === 0 && !r.price)) fails.push(`τιμή ≠ βάση (${p.price} / ${r.price})`);
