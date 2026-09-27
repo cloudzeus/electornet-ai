@@ -1,6 +1,6 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
-import { autoLayout, type PublishedSection, type SectionImage, type SectionFeature, type SectionLayout } from "@/lib/catalog/banner-doc";
+import { Fragment, type ReactNode } from "react";
+import { autoLayout, type ImageSize, type PublishedSection, type SectionImage, type SectionFeature, type SectionLayout } from "@/lib/catalog/banner-doc";
 
 /**
  * «Από τον κατασκευαστή»: οι ενότητες που βγήκαν από τα banners, ως πραγματικό κείμενο και καθαρές φωτογραφίες, σε
@@ -14,11 +14,27 @@ import { autoLayout, type PublishedSection, type SectionImage, type SectionFeatu
  *   text      στενή στήλη κειμένου
  * Το ίδιο component αποδίδει και την προεπισκόπηση του εργαλείου — `renderImage` / `renderIcon` δείχνουν περικοπές πριν γίνουν αρχεία.
  */
-type Render = { renderImage?: (im: SectionImage, variant: "main" | "more") => ReactNode; renderIcon?: (f: SectionFeature) => ReactNode };
+type Render = {
+  renderImage?: (im: SectionImage, variant: "main" | "more") => ReactNode;
+  renderIcon?: (f: SectionFeature) => ReactNode;
+  /** προεπισκόπηση του εργαλείου: κάθε ενότητα / φωτογραφία / κάρτα γίνεται επιλέξιμη (data-*), `sel` = τι είναι επιλεγμένο */
+  editable?: boolean;
+  sel?: string | null;
+};
+const SIZE_W: Record<ImageSize, string> = { s: "min(100%, 14rem)", m: "min(100%, 24rem)", l: "min(100%, 38rem)", full: "100%" };
+/** Πλάτος θέσης φωτογραφίας: η επιλογή του διαχειριστή, αλλιώς η προεπιλογή της διάταξης. */
+const slotW = (im: SectionImage | undefined, def: string) => ({ width: im?.size ? SIZE_W[im.size] : def });
+/** Σημάδια επεξεργασίας (μόνο στην προεπισκόπηση του εργαλείου). */
+const mark = (r: Render, key: string) => (r.editable ? { "data-edit": key, ...(r.sel === key ? { "data-selected": "" } : {}) } : {});
+const featKey = (s: PublishedSection, f: SectionFeature, k: number) => `feat:${s.id}:${f.fid ?? k}`;
 
 function Img({ im, variant, sizes, r }: { im: SectionImage; variant: "main" | "more"; sizes: string; r: Render }) {
   // ποτέ μεγαλύτερη από το πραγματικό της πλάτος: μια περικοπή 270px απλωμένη στα 760px είναι θολή
-  return <>{r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} style={{ maxWidth: im.width }} className="w-full h-auto rounded-xl mx-auto" />}</>;
+  return (
+    <div {...mark(r, `img:${im.url}`)} style={{ maxWidth: im.width }} className="w-full mx-auto">
+      {r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} className="w-full h-auto rounded-xl" />}
+    </div>
+  );
 }
 function Icon({ f, r, big }: { f: SectionFeature; r: Render; big?: boolean }) {
   if (r.renderIcon && f.iconUrl) return <>{r.renderIcon(f)}</>;
@@ -59,7 +75,7 @@ function FeatureList({ s, r }: { s: PublishedSection; r: Render }) {
   if (!s.features.length) return null;
   return (
     <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))] mt-1">
-      {s.features.map((f, k) => <li key={k} className="flex items-start gap-3 min-w-0"><Icon f={f} r={r} /><span className="grid gap-0.5"><span className="text-eu-ink font-semibold text-[length:var(--fs-15)] leading-snug">{f.label}</span>{f.text && <span className="text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{f.text}</span>}</span></li>)}
+      {s.features.map((f, k) => <li key={k} {...mark(r, featKey(s, f, k))} className="flex items-start gap-3 min-w-0"><Icon f={f} r={r} /><span className="grid gap-0.5"><span className="text-eu-ink font-semibold text-[length:var(--fs-15)] leading-snug">{f.label}</span>{f.text && <span className="text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{f.text}</span>}</span></li>)}
     </ul>
   );
 }
@@ -85,7 +101,7 @@ function IconText({ s, r }: { s: PublishedSection; r: Render }) {
   // κινητό: εικονίδιο δίπλα στον τίτλο, κείμενο σε όλο το πλάτος από κάτω· φαρδιά οθόνη: κείμενο στη στήλη του τίτλου
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 @2xl:gap-x-6 gap-y-2 items-center max-w-[82ch]">
-      <span className="rounded-2xl bg-eu-surface p-2 @2xl:p-3 shrink-0 @2xl:row-span-2 @2xl:self-start"><Icon f={f} r={r} /></span>
+      <span {...mark(r, featKey(s, f, 0))} className="rounded-2xl bg-eu-surface p-2 @2xl:p-3 shrink-0 @2xl:row-span-2 @2xl:self-start"><Icon f={f} r={r} /></span>
       <div className="grid gap-1 min-w-0"><Heading s={s} />{!sameText(f.label, s.title) && <p className="m-0 text-eu-ink font-semibold text-[length:var(--fs-15)]">{f.label}</p>}</div>
       <div className="col-span-2 @2xl:col-span-1 @2xl:col-start-2 grid gap-2 min-w-0">
         <Body s={s} />
@@ -102,7 +118,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
     case "hero":
       return (
         <section className="grid gap-5">
-          {main && <Img im={main} variant="main" sizes="(min-width: 1024px) 760px, 100vw" r={r} />}
+          {main && <div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes="(min-width: 1024px) 760px, 100vw" r={r} /></div>}
           <div className="grid gap-3 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
           {s.features.length > 0 && <div className="mx-auto w-full max-w-[60rem]"><FeatureList s={s} r={r} /></div>}
           <Foot s={s} center />
@@ -113,9 +129,9 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       if (!s.features.some((f) => f.iconUrl)) return (
         <section className="grid gap-4">
           <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
-          {main && <div className="w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]">
-            {s.features.map((f, k) => <li key={k} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug border-b border-eu-line-2 pb-2"><span className="mt-[0.5em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden /><span>{f.text ? <><strong className="text-eu-ink">{f.label}</strong> — {f.text}</> : f.label}</span></li>)}
+            {s.features.map((f, k) => <li key={k} {...mark(r, featKey(s, f, k))} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug border-b border-eu-line-2 pb-2"><span className="mt-[0.5em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden /><span>{f.text ? <><strong className="text-eu-ink">{f.label}</strong> — {f.text}</> : f.label}</span></li>)}
           </ul>
           <Foot s={s} />
         </section>
@@ -124,10 +140,10 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       if (s.features.some((f) => f.text || f.label.length > 48)) return (
         <section className="grid gap-6">
           <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
-          {main && <div className="w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 gap-x-10 gap-y-7">
             {s.features.map((f, k) => (
-              <li key={k} className="flex items-start gap-4 min-w-0">
+              <li key={k} {...mark(r, featKey(s, f, k))} className="flex items-start gap-4 min-w-0">
                 {f.iconUrl ? <span className="rounded-2xl bg-eu-surface p-2.5 shrink-0"><Icon f={f} r={r} /></span> : <span className="mt-2.5 size-2 rounded-full bg-eu-yellow shrink-0" aria-hidden />}
                 <div className="grid gap-1 min-w-0">
                   <h4 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] leading-snug text-pretty">{f.label}</h4>
@@ -142,10 +158,10 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       return (
         <section className="grid gap-5">
           <div className="grid gap-2 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
-          {main && <div className="mx-auto w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div className="mx-auto" style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
             {s.features.map((f, k) => (
-              <li key={k} className="rounded-2xl bg-eu-surface px-4 py-5 grid gap-3 content-start justify-items-center text-center">
+              <li key={k} {...mark(r, featKey(s, f, k))} className="rounded-2xl bg-eu-surface px-4 py-5 grid gap-3 content-start justify-items-center text-center">
                 {f.iconUrl && <Icon f={f} r={r} big />}
                 <span className="text-eu-ink font-bold text-[length:var(--fs-15)] leading-snug text-balance">{f.label}</span>
               </li>
@@ -161,7 +177,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
           <Stats s={s} />
           {main ? (
             <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-5 @2xl:gap-8 items-center">
-              <div className={flip ? "@2xl:order-2" : ""}><Img im={main} variant="main" sizes={sizes} r={r} /></div>
+              <div className={flip ? "@2xl:order-2" : ""}><div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
               <div className="grid gap-3 content-start"><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>
             </div>
           ) : <div className="grid gap-3"><Body s={s} center /><FeatureList s={s} r={r} /><Foot s={s} center /></div>}
@@ -196,12 +212,12 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
         <section className="grid gap-4">
           {main ? (
             <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-5 @2xl:gap-8 items-center">
-              <div className={flip ? "@2xl:order-2" : ""}><Img im={main} variant="main" sizes={sizes} r={r} /></div>
+              <div className={flip ? "@2xl:order-2" : ""}><div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
               <div className="grid gap-3 content-start min-w-0"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>
             </div>
           ) : oneIcon(s) ? <IconText s={s} r={r} /> : <div className="grid gap-3 max-w-[78ch]"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>}
           {/* δευτερεύουσες φωτογραφίες: μέτριο μέγεθος στο κέντρο — ποτέ μια λεπτομέρεια σε όλο το πλάτος */}
-          {more.length > 0 && <div className="flex flex-wrap justify-center gap-4">{more.map((im, k) => <div key={k} className="w-[min(100%,24rem)]"><Img im={im} variant="more" sizes="(min-width: 1024px) 384px, 90vw" r={r} /></div>)}</div>}
+          {more.length > 0 && <div className="flex flex-wrap justify-center gap-4">{more.map((im, k) => <div key={k} style={slotW(im, "min(100%, 24rem)")}><Img im={im} variant="more" sizes="(min-width: 1024px) 384px, 90vw" r={r} /></div>)}</div>}
         </section>
       );
   }
@@ -209,9 +225,9 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
 
 const MIN_HERO_W = 640;
 
-export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 100vw", renderImage, renderIcon }: { sections: PublishedSection[]; sizes?: string } & Render) {
+export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 100vw", renderImage, renderIcon, editable, sel }: { sections: PublishedSection[]; sizes?: string } & Render) {
   if (!sections.length) return null;
-  const r: Render = { renderImage, renderIcon };
+  const r: Render = { renderImage, renderIcon, editable, sel };
   let splits = 0; // το εναλλάξ αριστερά / δεξιά μετρά μόνο τις ενότητες με φωτογραφία δίπλα στο κείμενο
   return (
     <div className="@container grid gap-12">
@@ -221,7 +237,8 @@ export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 
         // «hero» μόνο με φωτογραφία που αντέχει το πλάτος — αλλιώς δίπλα στο κείμενο, στο πραγματικό της μέγεθος
         const layout = layout0 === "hero" && (s.images[0]?.width ?? 0) < MIN_HERO_W ? "split" : layout0;
         const flip = layout === "split" || layout === "stats" ? splits++ % 2 === 1 : false;
-        return <Section key={s.id} s={s} layout={layout} flip={flip} sizes={sizes} r={r} />;
+        const el = <Section s={s} layout={layout} flip={flip} sizes={sizes} r={r} />;
+        return editable ? <div key={s.id} {...mark(r, `sec:${s.id}`)}>{el}</div> : <Fragment key={s.id}>{el}</Fragment>;
       })}
     </div>
   );

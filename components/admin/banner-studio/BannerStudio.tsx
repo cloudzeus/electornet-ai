@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, FileUp, Loader2, Maximize2, Minimize2, Monitor, Plus, RotateCcw, ScanText, Smartphone, Sparkles, Upload } from "lucide-react";
 import { BoxCanvas, type BoxSel } from "./BoxCanvas";
 import { SectionEditor } from "./SectionEditor";
+import { PreviewToolbar, type PreviewActions, type PreviewTarget } from "./PreviewToolbar";
 import { CropView } from "./CropView";
 import { pdfToImages } from "./pdf";
 import { StepTransition, SwapText, ScanOverlay, SuccessBurst, motion } from "./motion";
 import { ProductSections } from "@/components/pdp/ProductSections";
-import { emptySection, sectionHasContent, type Box, type PublishedSection, type StudioDoc, type StudioSection } from "@/lib/catalog/banner-doc";
+import { emptySection, sectionHasContent, type Box, type ImageSize, type PublishedSection, type SectionLayout, type StudioDoc, type StudioSection } from "@/lib/catalog/banner-doc";
 
 export interface StudioBanner { id: string; url: string; width: number | null; height: number | null; hidden: boolean; extraction: { id: string; status: string } | null }
 export interface StudioDraft { id: string; mediaId: string | null; sourceName: string | null; status: string; doc: StudioDoc; updatedAt: string }
@@ -71,8 +72,8 @@ function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioD
     return {
       id: s.id, title: s.title?.text.trim() || s.heading || null, subtitle: s.subtitle?.text.trim() || null, footnote: s.footnote?.text.trim() || null,
       body: s.paragraphs.map((p) => p.text.trim()).filter(Boolean).join("\n\n") || null,
-      features: s.features.filter((f) => f.include && f.label.trim()).map((f) => { if (f.includeIcon && f.icon) icons[f.id] = { box: f.icon, doc: (f.src && docs.find((d) => d.sourceUrl === f.src)) || doc }; return { label: f.label.trim(), ...(f.detail?.trim() ? { text: f.detail.trim() } : {}), ...(f.includeIcon && f.icon ? { iconUrl: f.id } : {}) }; }),
-      images: imgs.map((i) => ({ url: i.id, width: Math.round(i.box[2] * doc.width), height: Math.round(i.box[3] * doc.height), alt: i.alt })),
+      features: s.features.filter((f) => f.include && f.label.trim()).map((f) => { if (f.includeIcon && f.icon) icons[f.id] = { box: f.icon, doc: (f.src && docs.find((d) => d.sourceUrl === f.src)) || doc }; return { fid: f.id, label: f.label.trim(), ...(f.detail?.trim() ? { text: f.detail.trim() } : {}), ...(f.includeIcon && f.icon ? { iconUrl: f.id } : {}) }; }),
+      images: imgs.map((i) => ({ url: i.id, width: Math.round(i.box[2] * doc.width), height: Math.round(i.box[3] * doc.height), alt: i.alt, ...(i.size ? { size: i.size } : {}) })),
       layout: s.layout ?? null, stats: (s.stats ?? []).filter((x) => x.value.trim() && x.label.trim()),
       _doc: doc, _boxes: imgs.map((i) => i.box), _icons: icons, _rank: rank,
     };
@@ -86,7 +87,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
   /** Αλλαγή βήματος με κατεύθυνση, για να γλιστρά η μετάβαση προς τα εμπρός ή προς τα πίσω. */
   const setStep = (next: Step) => { setDir(ORDER[next] >= ORDER[step] ? 1 : -1); setStepRaw(next); };
   const visible = banners.filter((b) => !b.hidden), hidden = banners.filter((b) => b.hidden);
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(visible.filter((b) => !b.extraction || b.extraction.status !== "published").map((b) => b.id)));
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(visible.filter((b) => !b.extraction).map((b) => b.id)) /* όσα έχουν ήδη πρόχειρο ΔΕΝ ξαναναλύονται από προεπιλογή — «Συνέχεια από εκεί που έμεινες» */);
   const [uploads, setUploads] = useState<{ key: string; file: File; thumb: string }[]>([]);
   const [converting, setConverting] = useState<string | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -233,6 +234,70 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
 
   const ready = items.filter((i) => i.status === "ready" && i.doc);
   const preview = useMemo(() => previewSections(ready.map((i) => i.doc!)), [ready]);
+  // ---------- βήμα 3: επεξεργασία πάνω στην προεπισκόπηση ----------
+  const [pSel, setPSel] = useState<string | null>(null);
+  const history = useRef<{ key: string; doc: StudioDoc }[][]>([]);
+  const [undoN, setUndoN] = useState(0);
+  /** Αλλαγή σε όλα τα έγγραφα, με στιγμιότυπο για αναίρεση· το πρόχειρο σώζεται αυτόματα. */
+  const editDocs = (fn: (d: StudioDoc) => StudioDoc) => {
+    history.current.push(items.filter((i) => i.doc).map((i) => ({ key: i.key, doc: i.doc! })));
+    if (history.current.length > 50) history.current.shift();
+    setUndoN(history.current.length);
+    setItems((xs) => xs.map((x) => { if (!x.doc) return x; const nd = fn(x.doc); return nd === x.doc ? x : { ...x, doc: nd, save: "saving" }; }));
+  };
+  const mapSection = (id: string, fn: (s: StudioSection) => StudioSection) => editDocs((d) => (d.sections.some((s) => s.id === id) ? { ...d, sections: d.sections.map((s) => (s.id === id ? fn(s) : s)) } : d));
+  const sectionOfImage = (imgId: string) => ready.flatMap((i) => i.doc!.sections).find((s) => s.images.some((im) => im.id === imgId));
+  const pActions: PreviewActions = {
+    move: (id, dir) => {
+      const order = preview.map((p) => p.id), i = order.indexOf(id), j = i + dir;
+      if (i < 0 || j < 0 || j >= order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      const rank = new Map(order.map((x, k) => [x, k + 1]));
+      editDocs((d) => ({ ...d, sections: d.sections.map((s) => (rank.has(s.id) ? { ...s, rank: rank.get(s.id) } : s)) }));
+      setTimeout(() => document.querySelector(`[data-edit="sec:${id}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+    },
+    layout: (id, l: SectionLayout | undefined) => mapSection(id, (s) => ({ ...s, layout: l })),
+    hideSection: (id) => { mapSection(id, (s) => ({ ...s, include: false })); setPSel(null); },
+    editText: (id) => { const k = items.findIndex((i) => i.doc?.sections.some((s) => s.id === id)); if (k >= 0) { setActive(k); setStep("review"); setTimeout(() => selectSection(id), 80); } },
+    selectSection: (id) => setPSel(`sec:${id}`),
+    imageSize: (imgId, size: ImageSize | undefined) => { const sec = sectionOfImage(imgId); if (sec) mapSection(sec.id, (s) => ({ ...s, images: s.images.map((im) => (im.id === imgId ? { ...im, size } : im)) })); },
+    imageMain: (imgId) => { const sec = sectionOfImage(imgId); if (sec) mapSection(sec.id, (s) => ({ ...s, images: [...s.images.filter((im) => im.id === imgId), ...s.images.filter((im) => im.id !== imgId)] })); },
+    imageDelete: (imgId) => { const sec = sectionOfImage(imgId); if (sec) { mapSection(sec.id, (s) => ({ ...s, images: s.images.map((im) => (im.id === imgId ? { ...im, include: false } : im)) })); setPSel(`sec:${sec.id}`); } },
+    featureDelete: (secId, fid) => { mapSection(secId, (s) => ({ ...s, features: s.features.map((f) => (f.id === fid ? { ...f, include: false } : f)) })); setPSel(`sec:${secId}`); },
+    featureIcon: (secId, fid) => mapSection(secId, (s) => ({ ...s, features: s.features.map((f) => (f.id === fid ? { ...f, includeIcon: !f.includeIcon } : f)) })),
+    undo: () => {
+      const snap = history.current.pop(); setUndoN(history.current.length); if (!snap) return;
+      setItems((xs) => xs.map((x) => { const y = snap.find((z) => z.key === x.key); return y && y.doc !== x.doc ? { ...x, doc: y.doc, save: "saving" } : x; }));
+    },
+    deselect: () => setPSel(null),
+  };
+  /** Από το «data-edit» του στοιχείου που πατήθηκε → τι είναι και σε ποια ενότητα ανήκει. */
+  const pTarget: PreviewTarget | null = (() => {
+    if (!pSel) return null;
+    const all = ready.flatMap((i) => i.doc!.sections.map((s) => ({ s, doc: i.doc! })));
+    const [kind, a, b] = pSel.split(":");
+    if (kind === "sec") { const k = preview.findIndex((p) => p.id === a), f = all.find((x) => x.s.id === a); return f && k >= 0 ? { kind: "section", section: f.s, index: k, count: preview.length } : null; }
+    if (kind === "img") { const f = all.find((x) => x.s.images.some((im) => im.id === a)); if (!f) return null; const im = f.s.images.find((x) => x.id === a)!; const live = f.s.images.filter((x) => x.include); return { kind: "image", section: f.s, image: im, main: live[0]?.id === a, natural: Math.round(im.box[2] * f.doc.width) }; }
+    if (kind === "feat") { const f = all.find((x) => x.s.id === a); const ft = f?.s.features.find((x) => x.id === b); return f && ft ? { kind: "feature", section: f.s, feature: ft } : null; }
+    return null;
+  })();
+  const pActionsRef = useRef(pActions), pTargetRef = useRef(pTarget);
+  useEffect(() => { pActionsRef.current = pActions; pTargetRef.current = pTarget; });
+  useEffect(() => {
+    if (step !== "publish") return;
+    const h = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest("input, textarea, select, [contenteditable]")) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); pActionsRef.current.undo(); return; }
+      if (e.key === "Escape") { setPSel(null); return; }
+      if ((e.key === "Delete" || e.key === "Backspace") && pTargetRef.current) {
+        e.preventDefault();
+        const t = pTargetRef.current, A = pActionsRef.current;
+        if (t.kind === "section") A.hideSection(t.section.id); else if (t.kind === "image") A.imageDelete(t.image.id); else A.featureDelete(t.section.id, t.feature.id);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [step]);
   const stats = { sections: preview.length, images: preview.reduce((n, s) => n + s.images.length, 0), icons: preview.reduce((n, s) => n + Object.keys(s._icons).length, 0) };
 
   /** Ο σχεδιαστής AI στήνει τη σελίδα από ΟΛΑ τα έτοιμα banners: διάταξη, σειρά, διπλές, νούμερα. */
@@ -490,10 +555,12 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
           ) : designBy && (
             <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-eu-chip px-4 py-3 text-eu-ink text-[length:var(--fs-15)] eu-card-in"><Sparkles className="size-5 text-eu-blue shrink-0" aria-hidden /> {designBy === "ai" ? "Ο σχεδιαστής AI διάλεξε διάταξη και σειρά για κάθε ενότητα, και έβγαλε εκτός τις διπλές." : "Η σελίδα στήθηκε με κανόνες (το AI δεν ήταν διαθέσιμο)."} <button type="button" className="font-bold text-eu-blue underline-offset-2 hover:underline min-h-8" onClick={() => setStep("review")}>Άλλαξε ό,τι θες στον έλεγχο</button></p>
           )}
-          <div className="rounded-2xl border border-eu-line bg-eu-surface p-3 @3xl:p-6 overflow-hidden">
+          {!designing && preview.length > 0 && <PreviewToolbar target={pTarget} canUndo={undoN > 0} a={pActions} />}
+          <div className="eu-edit rounded-2xl border border-eu-line bg-eu-surface p-3 @3xl:p-6 overflow-hidden"
+            onClick={(e) => { const el = (e.target as HTMLElement).closest("[data-edit]"); if (el) e.preventDefault(); setPSel(el?.getAttribute("data-edit") ?? null); }}>
             <motion.div key={device} initial={{ opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} className={`mx-auto bg-white rounded-xl shadow-[0_8px_30px_rgba(18,42,88,.10)] p-4 @3xl:p-8 ${device === "mobile" ? "max-w-[390px]" : "max-w-[1000px]"}`}>
               {preview.length ? (
-                <ProductSections sections={preview}
+                <ProductSections sections={preview} editable sel={pSel}
                   renderImage={(im) => { const s = preview.find((x) => x.images.includes(im)); const k = s ? s.images.indexOf(im) : -1; return s && k >= 0 ? <CropView src={s._doc.sourceUrl} box={s._boxes[k]} width={s._doc.width} height={s._doc.height} alt={im.alt} className="w-full rounded-xl" /> : null; }}
                   renderIcon={(f) => { const b = preview.find((x) => x._icons[f.iconUrl!])?._icons[f.iconUrl!]; return b ? <CropView src={b.doc.sourceUrl} box={b.box} width={b.doc.width} height={b.doc.height} className="w-11 shrink-0" /> : null; }} />
               ) : <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">Καμία ενότητα για δημοσίευση — γύρνα στον έλεγχο.</p>}

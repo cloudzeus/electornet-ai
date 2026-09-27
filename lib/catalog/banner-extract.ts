@@ -96,7 +96,7 @@ export async function publishExtractions(productId: string, items: { id: string;
   let sortNo = keep, crops = 0;
   for (const { it, s } of ordered) {
     const images: SectionImage[] = [];
-    for (const im of s.images.filter((x) => x.include)) { const c = await put(it.doc.sourceUrl, im.box, "img"); crops++; images.push({ ...c, alt: im.alt.trim() }); }
+    for (const im of s.images.filter((x) => x.include)) { const c = await put(it.doc.sourceUrl, im.box, "img"); crops++; images.push({ ...c, alt: im.alt.trim(), ...(im.size ? { size: im.size } : {}) }); }
     const features: SectionFeature[] = [];
     for (const f of s.features.filter((x) => x.include && x.label.trim())) {
       const icon0 = f.includeIcon && f.icon ? await put(f.src ?? it.doc.sourceUrl, f.icon, "icon") : null;
