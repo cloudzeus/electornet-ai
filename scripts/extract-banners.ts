@@ -4,16 +4,19 @@
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --type "Τηλεοράσεις" --max 50
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --all                       # όλος ο κατάλογος
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --undo --type "Τηλεοράσεις"  # αναίρεση
+ *   npx tsx --conditions=react-server scripts/extract-banners.ts --unpublish                  # αυτόματες → πρόχειρα για έγκριση
+ * Η μαζική απόδελτίωση ΔΕΝ δημοσιεύει: ετοιμάζει πρόχειρα, δημοσιεύει μόνο άνθρωπος από το εργαλείο.
  */
 import "dotenv/config";
 import { db } from "../lib/db";
-import { autoExtractBatch, undoAuto } from "../lib/catalog/banner-batch";
+import { autoExtractBatch, undoAuto, unpublishAuto } from "../lib/catalog/banner-batch";
 
 const has = (n: string) => process.argv.includes(`--${n}`);
 const vals = (n: string) => process.argv.flatMap((a, i) => (a === `--${n}` && process.argv[i + 1] ? [process.argv[i + 1]] : []));
 
 async function main() {
   const types = vals("type");
+  if (has("unpublish")) { console.log("Πίσω σε πρόχειρο:", await unpublishAuto()); return; }
   if (has("undo")) { console.log("Αναίρεση:", await undoAuto(types.length ? types : undefined)); return; }
   if (!types.length && !has("all")) throw new Error("Δώσε --type \"…\" (μία ή περισσότερες φορές) ή --all.");
   const max = Number(vals("max")[0]) || Infinity, conc = Number(vals("concurrency")[0]) || 3, t0 = Date.now();

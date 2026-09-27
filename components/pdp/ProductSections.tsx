@@ -17,7 +17,8 @@ import { autoLayout, type PublishedSection, type SectionImage, type SectionFeatu
 type Render = { renderImage?: (im: SectionImage, variant: "main" | "more") => ReactNode; renderIcon?: (f: SectionFeature) => ReactNode };
 
 function Img({ im, variant, sizes, r }: { im: SectionImage; variant: "main" | "more"; sizes: string; r: Render }) {
-  return <>{r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} className="w-full h-auto rounded-xl" />}</>;
+  // ποτέ μεγαλύτερη από το πραγματικό της πλάτος: μια περικοπή 270px απλωμένη στα 760px είναι θολή
+  return <>{r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} style={{ maxWidth: im.width }} className="w-full h-auto rounded-xl mx-auto" />}</>;
 }
 function Icon({ f, r, big }: { f: SectionFeature; r: Render; big?: boolean }) {
   if (r.renderIcon && f.iconUrl) return <>{r.renderIcon(f)}</>;
@@ -206,6 +207,8 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
   }
 }
 
+const MIN_HERO_W = 640;
+
 export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 100vw", renderImage, renderIcon }: { sections: PublishedSection[]; sizes?: string } & Render) {
   if (!sections.length) return null;
   const r: Render = { renderImage, renderIcon };
@@ -214,7 +217,9 @@ export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 
     <div className="@container grid gap-12">
       {sections.map((s0) => {
         const s = { ...s0, features: s0.features.map(splitFeature) };
-        const layout = s.layout ?? autoLayout({ images: s.images.map((i) => ({ kind: "product", ratio: i.width / Math.max(1, i.height), overlayText: false })), features: s.features.length, stats: s.stats?.length ?? 0, textChars: (s.body ?? "").length });
+        const layout0 = s.layout ?? autoLayout({ images: s.images.map((i) => ({ kind: "product", ratio: i.width / Math.max(1, i.height), overlayText: false })), features: s.features.length, stats: s.stats?.length ?? 0, textChars: (s.body ?? "").length });
+        // «hero» μόνο με φωτογραφία που αντέχει το πλάτος — αλλιώς δίπλα στο κείμενο, στο πραγματικό της μέγεθος
+        const layout = layout0 === "hero" && (s.images[0]?.width ?? 0) < MIN_HERO_W ? "split" : layout0;
         const flip = layout === "split" || layout === "stats" ? splits++ % 2 === 1 : false;
         return <Section key={s.id} s={s} layout={layout} flip={flip} sizes={sizes} r={r} />;
       })}

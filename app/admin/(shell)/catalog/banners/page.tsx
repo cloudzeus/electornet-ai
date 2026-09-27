@@ -17,13 +17,15 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
   await requirePermission("catalog.products.write");
   const sp = await searchParams;
   const q = (sp.q ?? "").trim(), cat = sp.cat ?? "", page = Math.max(1, Number(sp.page) || 1);
-  const f = sp.f === "review" || sp.f === "auto" ? sp.f : "todo";
+  const f = sp.f === "review" || sp.f === "auto" || sp.f === "approve" ? sp.f : "todo";
   // «για έλεγχο»: η αυτόματη απόδελτίωση δεν ήταν σίγουρη για κάποιο banner · «αυτόματες»: δημοσιεύτηκαν χωρίς άνθρωπο
   const REVIEW = { extractions: { some: { needsReview: true, status: "draft" } } };
   const AUTO = { extractions: { some: { origin: "auto", status: "published" } } };
-  const base = f === "review" ? REVIEW : f === "auto" ? AUTO : TODO;
+  // «για έγκριση»: η μηχανή ετοίμασε και σχεδίασε τη σελίδα — τίποτα δεν βγαίνει στο site πριν πατήσει άνθρωπος «Δημοσίευση»
+  const APPROVE = { extractions: { some: { origin: "auto", status: "draft", needsReview: false } } };
+  const base = f === "review" ? REVIEW : f === "auto" ? AUTO : f === "approve" ? APPROVE : TODO;
   const where = { AND: [base, ...(cat ? [{ categoryId: cat }] : []), ...(q ? [{ OR: [{ title: { contains: q, mode: "insensitive" as const } }, { sku: { contains: q, mode: "insensitive" as const } }, { ean: { contains: q } }, { brand: { name: { contains: q, mode: "insensitive" as const } } }] }] : [])] };
-  const [total, rows, withBanners, done, drafts, cats, nReview, nAuto, nTodo] = await Promise.all([
+  const [total, rows, withBanners, done, drafts, cats, nReview, nAuto, nTodo, nApprove] = await Promise.all([
     db.product.count({ where }),
     db.product.findMany({ where, orderBy: ORDER, skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, stock: true, price: true, brand: { select: { name: true } }, category: { select: { name: true } }, media: { where: { hidden: false }, orderBy: [{ kind: "asc" }, { sortNo: "asc" }], take: 1, select: { url: true, kind: true } }, _count: { select: { media: { where: { kind: "banner", hidden: false } }, extractions: { where: { status: "draft" } } } } } }),
     db.product.count({ where: { source: "softone", active: true, media: { some: { kind: "banner" } } } }),
@@ -33,12 +35,13 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
     db.product.count({ where: REVIEW }),
     db.product.count({ where: AUTO }),
     db.product.count({ where: TODO }),
+    db.product.count({ where: APPROVE }),
   ]);
   const catNames = new Map((await db.category.findMany({ where: { id: { in: cats.map((c) => c.categoryId) } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]));
   const n = (v: number) => v.toLocaleString("el-GR");
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const href = (p: number) => `?${new URLSearchParams({ ...(f !== "todo" ? { f } : {}), ...(q ? { q } : {}), ...(cat ? { cat } : {}), page: String(p) })}`;
-  const tabs = [{ k: "todo", t: "Εκκρεμούν", n: null }, { k: "review", t: "Για έλεγχο", n: nReview }, { k: "auto", t: "Αυτόματες", n: nAuto }] as const;
+  const tabs = [{ k: "todo", t: "Εκκρεμούν", n: null }, { k: "approve", t: "Για έγκριση", n: nApprove }, { k: "review", t: "Για έλεγχο", n: nReview }, { k: "auto", t: "Δημοσιευμένες αυτόματα", n: nAuto }] as const;
   const pctDone = withBanners ? Math.round((done / withBanners) * 100) : 0;
 
   return (
@@ -59,11 +62,12 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
         {tabs.map((t) => (
           <Link key={t.k} href={t.k === "todo" ? "?" : `?f=${t.k}`} aria-current={f === t.k ? "page" : undefined}
             className={`inline-flex items-center gap-2 rounded-full border-2 px-4 min-h-11 font-extrabold text-[length:var(--fs-15)] ${f === t.k ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white text-eu-ink hover:border-eu-blue"}`}>
-            {t.t}{t.n !== null && <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-13)] tabular-nums ${f === t.k ? "bg-white/20" : t.k === "review" && t.n ? "bg-eu-yellow text-eu-navy" : "bg-eu-surface text-eu-ink-3"}`}>{n(t.n)}</span>}
+            {t.t}{t.n !== null && <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-13)] tabular-nums ${f === t.k ? "bg-white/20" : (t.k === "review" || t.k === "approve") && t.n ? "bg-eu-yellow text-eu-navy" : "bg-eu-surface text-eu-ink-3"}`}>{n(t.n)}</span>}
           </Link>
         ))}
       </nav>
       {f === "review" && <p className="m-0 rounded-xl bg-eu-yellow/15 border border-eu-yellow/60 px-4 py-3 text-eu-ink text-[length:var(--fs-15)]">Εδώ είναι τα προϊόντα όπου η αυτόματη απόδελτίωση <strong>δεν ήταν σίγουρη</strong> για κάποιο banner (π.χ. τα πλαίσια δεν κάλυπταν όλο το περιεχόμενο). Αυτά τα banners έμειναν ορατά ως εικόνα· άνοιξε το προϊόν, «Συνέχεια από εκεί που έμεινες», διόρθωσε και δημοσίευσε.</p>}
+      {f === "approve" && <p className="m-0 rounded-xl bg-eu-chip px-4 py-3 text-eu-ink text-[length:var(--fs-15)]">Η μηχανή ανέλυσε τα banners και <strong>πρότεινε σελίδα</strong> — δεν έχει βγει στο site. Άνοιξε το προϊόν, δες την προεπισκόπηση (υπολογιστής και κινητό), διόρθωσε ό,τι θες και πάτα <strong>Δημοσίευση</strong> για να εγκριθεί.</p>}
       {f === "auto" && <p className="m-0 rounded-xl bg-eu-chip px-4 py-3 text-eu-ink text-[length:var(--fs-15)]">Προϊόντα που αποδελτιώθηκαν και σχεδιάστηκαν <strong>αυτόματα</strong>. Άνοιξε όποιο θες για να δεις ή να αλλάξεις τη σελίδα («Διόρθωση» στο πρώτο βήμα).</p>}
       <form className="flex flex-wrap items-end gap-3 rounded-2xl bg-white border border-eu-line p-3" role="search">
         {f !== "todo" && <input type="hidden" name="f" value={f} />}
@@ -82,7 +86,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
 
       <div className="rounded-2xl bg-white border border-eu-line overflow-hidden">
         {rows.length === 0 ? (
-          <p className="m-0 p-6 text-eu-ink-3 text-[length:var(--fs-15)]">{q || cat ? "Κανένα προϊόν με αυτό το φίλτρο." : f === "review" ? "Τίποτα για έλεγχο." : f === "auto" ? "Καμία αυτόματη απόδελτίωση ακόμη." : "Όλα τα προϊόντα με banners έχουν αποδελτιωθεί."}</p>
+          <p className="m-0 p-6 text-eu-ink-3 text-[length:var(--fs-15)]">{q || cat ? "Κανένα προϊόν με αυτό το φίλτρο." : f === "review" ? "Τίποτα για έλεγχο." : f === "approve" ? "Τίποτα για έγκριση." : f === "auto" ? "Καμία αυτόματη απόδελτίωση ακόμη." : "Όλα τα προϊόντα με banners έχουν αποδελτιωθεί."}</p>
         ) : (
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
             {rows.map((r, i) => (
@@ -95,7 +99,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
                 </div>
                 <span className="text-eu-ink-3 text-[length:var(--fs-14)] tabular-nums whitespace-nowrap">{r._count.media} banners</span>
                 {r._count.extractions > 0 && <span className="rounded-full bg-eu-yellow/30 text-eu-navy font-bold px-2.5 py-1 text-[length:var(--fs-13)]">πρόχειρο</span>}
-                <Link href={`/admin/catalog/${r.id}/banners`} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-4 min-h-11 text-[length:var(--fs-14)] hover:bg-eu-chip">{f === "review" ? "Έλεγχος" : f === "auto" ? "Προβολή" : r._count.extractions ? "Συνέχεια" : "Απόδελτίωση"} <ArrowRight className="size-4" aria-hidden /></Link>
+                <Link href={`/admin/catalog/${r.id}/banners`} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-4 min-h-11 text-[length:var(--fs-14)] hover:bg-eu-chip">{f === "review" ? "Έλεγχος" : f === "approve" ? "Έγκριση" : f === "auto" ? "Προβολή" : r._count.extractions ? "Συνέχεια" : "Απόδελτίωση"} <ArrowRight className="size-4" aria-hidden /></Link>
               </li>
             ))}
           </ul>

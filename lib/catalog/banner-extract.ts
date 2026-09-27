@@ -4,7 +4,7 @@ import sharp from "sharp";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { storeBytes } from "@/lib/media/storage";
-import { analyseBanner, cropBox, type BannerAnalysis, type OcrText } from "./banner-ocr";
+import { analyseBanner, cropBox, cropIcon, type BannerAnalysis, type OcrText } from "./banner-ocr";
 import { uid, sectionHasContent, type StudioDoc, type StudioText, type PublishedSection, type SectionImage, type SectionFeature, type Stat } from "./banner-doc";
 
 /**
@@ -85,7 +85,8 @@ export async function publishExtractions(productId: string, items: { id: string;
   const bytesOf = new Map<string, Promise<Buffer>>();
   const put = async (url: string, box: [number, number, number, number], kind: "img" | "icon") => {
     if (!bytesOf.has(url)) bytesOf.set(url, fetchSource(url));
-    const c = await cropBox(await bytesOf.get(url)!, box, kind === "icon" ? { pad: 0.002, trim: true, max: 160 } : { trim: true, max: 1600 });
+    const src = await bytesOf.get(url)!;
+    const c = kind === "icon" ? await cropIcon(src, box) : await cropBox(src, box, { trim: true, max: 1600 });
     // ίδιο περιεχόμενο → ίδιο αρχείο: τα κοινά banners μιας σειράς (55″ / 65″ / 75″) δεν πολλαπλασιάζουν αρχεία
     const hash = createHash("sha1").update(c.webp).digest("hex").slice(0, 20);
     const url2 = (await storeBytes(`banner-sections/${hash.slice(0, 2)}/${hash}.webp`, c.webp, "image/webp")).url;
@@ -98,7 +99,9 @@ export async function publishExtractions(productId: string, items: { id: string;
     for (const im of s.images.filter((x) => x.include)) { const c = await put(it.doc.sourceUrl, im.box, "img"); crops++; images.push({ ...c, alt: im.alt.trim() }); }
     const features: SectionFeature[] = [];
     for (const f of s.features.filter((x) => x.include && x.label.trim())) {
-      const icon = f.includeIcon && f.icon ? await put(f.src ?? it.doc.sourceUrl, f.icon, "icon") : null;
+      const icon0 = f.includeIcon && f.icon ? await put(f.src ?? it.doc.sourceUrl, f.icon, "icon") : null;
+      // εικονίδιο κάτω από 32px θα φαινόταν θολό στα 44px — καλύτερα καθόλου εικονίδιο
+      const icon = icon0 && Math.max(icon0.width, icon0.height) >= 32 ? icon0 : null;
       if (icon) crops++;
       features.push({ label: f.label.trim(), ...(f.detail?.trim() ? { text: f.detail.trim() } : {}), ...(icon ? { iconUrl: icon.url, iconW: icon.width, iconH: icon.height } : {}) });
     }

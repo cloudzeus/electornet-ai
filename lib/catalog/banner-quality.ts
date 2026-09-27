@@ -30,3 +30,6 @@ export async function coverage(bytes: Buffer, boxes: Box[]): Promise<number> {
   }
   return ink < W * H * 0.01 ? 1 : covered / ink;
 }
+
+/** Κάτω από αυτό το πλάτος (px) το banner δεν δίνει καθαρές φωτογραφίες/εικονίδια: θέλει το πρωτότυπο, πάει «για έλεγχο». */
+export const MIN_BANNER_W = 700;

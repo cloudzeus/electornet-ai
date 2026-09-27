@@ -2,9 +2,9 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { analyseBanner } from "./banner-ocr";
-import { fetchSource, publishExtractions, toStudioDoc, unpublishExtraction } from "./banner-extract";
+import { fetchSource, publishExtractions, saveDraft, toStudioDoc, unpublishExtraction } from "./banner-extract";
 import { designPage } from "./banner-design";
-import { coverage, docBoxes, MIN_COVERAGE } from "./banner-quality";
+import { coverage, docBoxes, MIN_BANNER_W, MIN_COVERAGE } from "./banner-quality";
 import { sectionHasContent, type StudioDoc } from "./banner-doc";
 import { TODO, ORDER } from "./banner-worklist";
 
@@ -64,8 +64,9 @@ export async function autoExtractProduct(productId: string, opts: { concurrency?
       try {
         const a = await analyseOrReuse(m, phash);
         const content = a.doc.sections.some(sectionHasContent);
-        const ok = content && a.coverage >= MIN_COVERAGE;
-        const flags = [...(!content ? ["κενό"] : []), ...(a.coverage < MIN_COVERAGE ? [`κάλυψη ${Math.round(a.coverage * 100)}%`] : [])];
+        const sharp = a.doc.width >= MIN_BANNER_W;
+        const ok = content && a.coverage >= MIN_COVERAGE && sharp;
+        const flags = [...(!content ? ["κενό"] : []), ...(a.coverage < MIN_COVERAGE ? [`κάλυψη ${Math.round(a.coverage * 100)}%`] : []), ...(!sharp ? [`χαμηλή ανάλυση ${a.doc.width}px — χρειάζεται το πρωτότυπο`] : [])];
         const row = await db.bannerExtraction.create({ data: { productId, mediaId: m.id, sourceUrl: m.url, sourceName: m.importFile, width: a.doc.width, height: a.doc.height, lang: a.doc.lang, doc: a.doc as unknown as Prisma.InputJsonValue, origin: "auto", phash, quality: { coverage: +a.coverage.toFixed(3), reused: a.reusedFrom, flags } as Prisma.InputJsonValue, needsReview: !ok, model: a.model, costUsd: a.costUsd, ms: a.ms } });
         if (a.reusedFrom) res.reused++; else res.analysed++;
         res.costUsd += a.costUsd;
@@ -78,9 +79,9 @@ export async function autoExtractProduct(productId: string, opts: { concurrency?
   if (!good.length) return res;
   const design = await designPage(good.map((g) => g.doc), { brand: p.brand.name, title: p.title, typeName: p.category.name });
   res.design = design.by; res.dropped = design.dropped; res.costUsd += design.costUsd;
-  const items = good.map((g, k) => ({ id: g.extractionId, doc: design.docs[k] }));
-  const pub = await publishExtractions(productId, items, { hideSources: true, hideMediaIds: good.map((g) => g.mediaId) });
-  res.sections = pub.sections;
+  // ΠΟΤΕ αυτόματη δημοσίευση: η σχεδιασμένη σελίδα μένει πρόχειρο «για έγκριση» — δημοσιεύει μόνο άνθρωπος από το εργαλείο
+  for (const [k, g] of good.entries()) await saveDraft(g.extractionId, design.docs[k]);
+  res.sections = design.docs.reduce((n, d) => n + d.sections.filter((x) => x.include && sectionHasContent(x)).length, 0);
   return res;
 }
 
@@ -120,7 +121,7 @@ export async function undoAuto(types?: string[]) {
 export async function redesignProduct(productId: string) {
   const p = await db.product.findUnique({ where: { id: productId }, select: { title: true, brand: { select: { name: true } }, category: { select: { name: true } } } });
   if (!p) throw new Error("Το προϊόν δεν βρέθηκε.");
-  const rows = await db.bannerExtraction.findMany({ where: { productId, status: "published" }, select: { id: true, doc: true, mediaId: true, createdAt: true } });
+  const rows = await db.bannerExtraction.findMany({ where: { productId, status: { in: ["published", "draft"] }, needsReview: false }, select: { id: true, doc: true, mediaId: true, createdAt: true, status: true } });
   if (!rows.length) return { title: p.title, sections: 0, before: 0, dropped: 0, costUsd: 0, design: "none" as const };
   const order = new Map((await db.media.findMany({ where: { id: { in: rows.map((r) => r.mediaId).filter((x): x is string => !!x) } }, select: { id: true, sortNo: true } })).map((m) => [m.id, m.sortNo]));
   const pos = (r: { mediaId: string | null }) => (r.mediaId ? order.get(r.mediaId) ?? 1e9 : 1e9);
@@ -128,6 +129,21 @@ export async function redesignProduct(productId: string) {
   const before = await db.productSection.count({ where: { productId, extractionId: { in: rows.map((r) => r.id) } } });
   const docs = rows.map((r) => r.doc as unknown as StudioDoc); // ο σχεδιαστής ξεκινά από καθαρό χαρτί (resetDesign)
   const design = await designPage(docs, { brand: p.brand.name, title: p.title, typeName: p.category.name });
-  const pub = await publishExtractions(productId, rows.map((r, k) => ({ id: r.id, doc: design.docs[k] })), { hideSources: true, hideMediaIds: rows.map((r) => r.mediaId).filter((x): x is string => !!x) });
-  return { title: p.title, sections: pub.sections, before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
+  // ξαναδημοσιεύεται ΜΟΝΟ ό,τι είχε ήδη εγκριθεί (published)· τα πρόχειρα μένουν πρόχειρα
+  if (rows.every((r) => r.status === "published")) {
+    const pub = await publishExtractions(productId, rows.map((r, k) => ({ id: r.id, doc: design.docs[k] })), { hideSources: true, hideMediaIds: rows.map((r) => r.mediaId).filter((x): x is string => !!x) });
+    return { title: p.title, sections: pub.sections, before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
+  }
+  for (const [k, r] of rows.entries()) await saveDraft(r.id, design.docs[k]);
+  return { title: p.title, sections: design.docs.reduce((n, d) => n + d.sections.filter((x) => x.include && sectionHasContent(x)).length, 0), before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
+}
+
+/**
+ * Αυτόματες σελίδες πίσω σε πρόχειρο «για έγκριση»: σβήνει τις ενότητες, ξαναδείχνει τα banners, ΚΡΑΤΑ τις αναλύσεις
+ * (status draft) ώστε η έγκριση να μη χρειαστεί νέα ανάλυση. Δεν αγγίζει ό,τι δημοσίευσε άνθρωπος (origin manual).
+ */
+export async function unpublishAuto() {
+  const rows = await db.bannerExtraction.findMany({ where: { origin: "auto", status: "published" }, select: { id: true, productId: true } });
+  for (const r of rows) await unpublishExtraction(r.productId, r.id);
+  return { extractions: rows.length, products: new Set(rows.map((r) => r.productId)).size };
 }

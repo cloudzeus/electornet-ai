@@ -182,3 +182,59 @@ export async function cropBox(bytes: Buffer, box: Box, opts: { pad?: number; tri
   const r = await sharp(out).resize({ width: max, height: max, fit: "inside", withoutEnlargement: true }).webp({ quality: 84 }).toBuffer({ resolveWithObject: true });
   return { webp: r.data, width: r.info.width, height: r.info.height };
 }
+
+/**
+ * Έξυπνη περικοπή εικονιδίου: το πλαίσιο του μοντέλου είναι συχνά λίγο στενό και «κόβει» το εικονίδιο. Εδώ κοιτάμε τα
+ * pixels: βρίσκουμε το χρώμα φόντου γύρω του, ακολουθούμε τα σχήματα του εικονιδίου (με μικρή διαστολή ώστε οι γραμμές
+ * του να ενώνονται) πέρα από το πλαίσιο, μέχρι να κλείσει — χωρίς να «πιάσουμε» τη λεζάντα δίπλα (το κενό τη χωρίζει).
+ * Αν το φόντο δεν είναι καθαρό (φωτογραφία), γυρνά στο πλαίσιο με άνετο περιθώριο.
+ */
+export async function cropIcon(bytes: Buffer, box: Box, opts: { max?: number } = {}): Promise<{ webp: Buffer; width: number; height: number; smart: boolean }> {
+  const img = sharp(bytes, { limitInputPixels: 80_000_000 }).rotate();
+  const meta = await img.metadata();
+  const W = meta.autoOrient?.width ?? meta.width ?? 0, H = meta.autoOrient?.height ?? meta.height ?? 0;
+  const bx = Math.round(box[0] * W), by = Math.round(box[1] * H), bw = Math.max(1, Math.round(box[2] * W)), bh = Math.max(1, Math.round(box[3] * H));
+  const m = Math.max(12, Math.round(Math.max(bw, bh) * 0.6));
+  const L = Math.max(0, bx - m), T = Math.max(0, by - m), R = Math.min(W, bx + bw + m), B = Math.min(H, by + bh + m);
+  const ww = R - L, wh = B - T;
+  const max = opts.max ?? 160;
+  const finish = async (x: number, y: number, w: number, h: number, smart: boolean) => {
+    const e = { left: Math.max(0, x), top: Math.max(0, y), width: Math.max(8, Math.min(W - Math.max(0, x), w)), height: Math.max(8, Math.min(H - Math.max(0, y), h)) };
+    const r = await img.clone().extract(e).resize({ width: max, height: max, fit: "inside", withoutEnlargement: true }).webp({ quality: 90 }).toBuffer({ resolveWithObject: true });
+    return { webp: r.data, width: r.info.width, height: r.info.height, smart };
+  };
+  const fallback = () => { const p = Math.round(Math.max(bw, bh) * 0.12); return finish(bx - p, by - p, bw + 2 * p, bh + 2 * p, false); };
+  if (ww < 8 || wh < 8) return fallback();
+
+  const { data } = await img.clone().extract({ left: L, top: T, width: ww, height: wh }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const px = (x: number, y: number) => (y * ww + x) * 3;
+  // φόντο = διάμεσος των pixels της περιμέτρου του παραθύρου
+  const ring: number[][] = [[], [], []];
+  for (let x = 0; x < ww; x++) for (const y of [0, wh - 1]) { const i = px(x, y); ring[0].push(data[i]); ring[1].push(data[i + 1]); ring[2].push(data[i + 2]); }
+  for (let y = 0; y < wh; y++) for (const x of [0, ww - 1]) { const i = px(x, y); ring[0].push(data[i]); ring[1].push(data[i + 1]); ring[2].push(data[i + 2]); }
+  const med = ring.map((c) => c.sort((a, b) => a - b)[c.length >> 1]);
+  // καθαρό φόντο; (αλλιώς είναι φωτογραφία — καμία εικασία)
+  const spread = ring[0].filter((_, k) => Math.abs(ring[0][k] - med[0]) + Math.abs(ring[1][k] - med[1]) + Math.abs(ring[2][k] - med[2]) > 60).length / ring[0].length;
+  if (spread > 0.25) return fallback();
+
+  const ink = new Uint8Array(ww * wh);
+  for (let y = 0; y < wh; y++) for (let x = 0; x < ww; x++) { const i = px(x, y); if (Math.max(Math.abs(data[i] - med[0]), Math.abs(data[i + 1] - med[1]), Math.abs(data[i + 2] - med[2])) > 40) ink[y * ww + x] = 1; }
+  // διαστολή 2px: οι γραμμές του ίδιου εικονιδίου ενώνονται, η λεζάντα (με κενό) μένει χωριστά
+  const D = 2, dil = new Uint8Array(ww * wh);
+  for (let y = 0; y < wh; y++) for (let x = 0; x < ww; x++) if (ink[y * ww + x]) for (let dy = -D; dy <= D; dy++) for (let dx = -D; dx <= D; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < ww && Y < wh) dil[Y * ww + X] = 1; }
+  // σπόροι: μελάνι μέσα στο αρχικό πλαίσιο
+  const seen = new Uint8Array(ww * wh), q: number[] = [];
+  for (let y = by - T; y < by - T + bh; y++) for (let x = bx - L; x < bx - L + bw; x++) if (x >= 0 && y >= 0 && x < ww && y < wh && ink[y * ww + x]) { seen[y * ww + x] = 1; q.push(y * ww + x); }
+  if (!q.length) return fallback();
+  let x0 = ww, y0 = wh, x1 = -1, y1 = -1;
+  while (q.length) {
+    const k = q.pop()!, x = k % ww, y = (k / ww) | 0;
+    if (ink[k]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= ww || Y >= wh) continue; const n = Y * ww + X; if (!seen[n] && dil[n]) { seen[n] = 1; q.push(n); } }
+  }
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+  // άγγιξε το όριο του παραθύρου ή φούσκωσε υπερβολικά → ενώθηκε με κάτι άλλο (κείμενο, γραφικό): πλαίσιο με περιθώριο
+  if (x0 === 0 || y0 === 0 || x1 === ww - 1 || y1 === wh - 1 || cw * ch > bw * bh * 3.2) return fallback();
+  const p = Math.max(2, Math.round(Math.max(cw, ch) * 0.08));
+  return finish(L + x0 - p, T + y0 - p, cw + 2 * p, ch + 2 * p, true);
+}
