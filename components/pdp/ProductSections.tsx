@@ -27,7 +27,18 @@ function Icon({ f, r, big }: { f: SectionFeature; r: Render; big?: boolean }) {
 
 const flat = (x: string | null | undefined) => (x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zα-ω0-9]+/g, "");
 /** Η λεζάντα του εικονιδίου λέει το ίδιο με τον τίτλο (π.χ. «I-Sense» μέσα στο «Λειτουργία I-Sense»); */
-const sameText = (a: string, b: string | null) => { const x = flat(a), y = flat(b); return !!x && !!y && (y.includes(x) || x.includes(y)); };
+const wordset = (x: string | null | undefined) => (x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-zα-ω0-9]+/).filter(Boolean).sort().join(" ");
+const sameText = (a: string, b: string | null) => { const x = flat(a), y = flat(b); return !!x && !!y && (y.includes(x) || x.includes(y) || wordset(a) === wordset(b)); };
+
+/**
+ * Λεζάντα που κουβαλά ολόκληρη εξήγηση («Αθόρυβη Λειτουργία "QUIET": Επιλέξτε…») → τίτλος + κείμενο. Οι σύντομες
+ * γραμμές προδιαγραφών («Ψυκτική απόδοση: 3,5 kW») μένουν ως έχουν.
+ */
+function splitFeature(f: SectionFeature): SectionFeature {
+  if (f.text || f.label.length <= 40) return f;
+  const m = f.label.match(/^([^\n]{3,70}?)\s*:\s+([\s\S]{12,})$/);
+  return m ? { ...f, label: m[1].trim(), text: m[2].trim() } : f;
+}
 
 function Heading({ s, center }: { s: PublishedSection; center?: boolean }) {
   return (
@@ -70,14 +81,14 @@ const oneIcon = (s: PublishedSection) => !s.images.length && s.features.length =
 /** Εικονίδιο δίπλα στον τίτλο — όχι μόνο του σε μια γραμμή κάτω από το κείμενο. */
 function IconText({ s, r }: { s: PublishedSection; r: Render }) {
   const f = s.features[0];
+  // κινητό: εικονίδιο δίπλα στον τίτλο, κείμενο σε όλο το πλάτος από κάτω· φαρδιά οθόνη: κείμενο στη στήλη του τίτλου
   return (
-    <div className="flex gap-4 @2xl:gap-6 items-start max-w-[82ch]">
-      <span className="rounded-2xl bg-eu-surface p-3 shrink-0"><Icon f={f} r={r} big /></span>
-      <div className="grid gap-2 min-w-0">
-        <Heading s={s} />
-        {!sameText(f.label, s.title) && <p className="m-0 text-eu-ink font-semibold text-[length:var(--fs-15)]">{f.label}</p>}
+    <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 @2xl:gap-x-6 gap-y-2 items-center max-w-[82ch]">
+      <span className="rounded-2xl bg-eu-surface p-2 @2xl:p-3 shrink-0 @2xl:row-span-2 @2xl:self-start"><Icon f={f} r={r} /></span>
+      <div className="grid gap-1 min-w-0"><Heading s={s} />{!sameText(f.label, s.title) && <p className="m-0 text-eu-ink font-semibold text-[length:var(--fs-15)]">{f.label}</p>}</div>
+      <div className="col-span-2 @2xl:col-span-1 @2xl:col-start-2 grid gap-2 min-w-0">
         <Body s={s} />
-        {f.text && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">{f.text}</p>}
+        {f.text && !sameText(f.text, f.label) && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">{f.text}</p>}
         <Foot s={s} />
       </div>
     </div>
@@ -108,16 +119,34 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
           <Foot s={s} />
         </section>
       );
+      // κάρτες με εξήγηση: λίστα σε δύο στήλες — εικονίδιο αριστερά, τίτλος, κανονικό κείμενο (όχι έντονη παράγραφος στο κέντρο)
+      if (s.features.some((f) => f.text || f.label.length > 48)) return (
+        <section className="grid gap-6">
+          <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
+          {main && <div className="w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 gap-x-10 gap-y-7">
+            {s.features.map((f, k) => (
+              <li key={k} className="flex items-start gap-4 min-w-0">
+                {f.iconUrl ? <span className="rounded-2xl bg-eu-surface p-2.5 shrink-0"><Icon f={f} r={r} /></span> : <span className="mt-2.5 size-2 rounded-full bg-eu-yellow shrink-0" aria-hidden />}
+                <div className="grid gap-1 min-w-0">
+                  <h4 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] leading-snug text-pretty">{f.label}</h4>
+                  {f.text && !sameText(f.text, f.label) && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed text-pretty">{f.text}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Foot s={s} />
+        </section>
+      );
       return (
         <section className="grid gap-5">
           <div className="grid gap-2 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
           {main && <div className="mx-auto w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
-          <ul className={`m-0 p-0 list-none grid gap-3 ${s.features.some((f) => f.text) ? "[grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]" : "[grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]"}`}>
+          <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
             {s.features.map((f, k) => (
-              <li key={k} className={`rounded-2xl bg-eu-surface px-4 py-5 grid gap-2 content-start ${f.text ? "text-left" : "justify-items-center text-center"}`}>
+              <li key={k} className="rounded-2xl bg-eu-surface px-4 py-5 grid gap-3 content-start justify-items-center text-center">
                 {f.iconUrl && <Icon f={f} r={r} big />}
-                <span className="text-eu-ink font-bold text-[length:var(--fs-16)] leading-snug">{f.label}</span>
-                {f.text && <span className="text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed">{f.text}</span>}
+                <span className="text-eu-ink font-bold text-[length:var(--fs-15)] leading-snug text-balance">{f.label}</span>
               </li>
             ))}
           </ul>
@@ -183,7 +212,8 @@ export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 
   let splits = 0; // το εναλλάξ αριστερά / δεξιά μετρά μόνο τις ενότητες με φωτογραφία δίπλα στο κείμενο
   return (
     <div className="@container grid gap-12">
-      {sections.map((s) => {
+      {sections.map((s0) => {
+        const s = { ...s0, features: s0.features.map(splitFeature) };
         const layout = s.layout ?? autoLayout({ images: s.images.map((i) => ({ kind: "product", ratio: i.width / Math.max(1, i.height), overlayText: false })), features: s.features.length, stats: s.stats?.length ?? 0, textChars: (s.body ?? "").length });
         const flip = layout === "split" || layout === "stats" ? splits++ % 2 === 1 : false;
         return <Section key={s.id} s={s} layout={layout} flip={flip} sizes={sizes} r={r} />;

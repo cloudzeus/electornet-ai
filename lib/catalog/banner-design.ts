@@ -11,6 +11,8 @@ import { autoLayout, HEADINGS, layoutFits, LAYOUTS, sectionHasContent, sectionTe
 export const DESIGN_MODEL = process.env.BANNER_DESIGN_MODEL || "google/gemini-3.8-flash";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[\s.,]+/g, "");
+/** Ίδιες λέξεις με άλλη σειρά («UV Αποστείρωση Αέρα» = «Αποστείρωση Αέρα UV») — για τον έλεγχο διπλών. */
+const wkey = (s: string) => words(s).sort().join(" ");
 const words = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/[^a-zα-ω0-9]+/).filter((w) => w.length >= 4);
 
 interface Ref { key: string; doc: number; s: StudioSection }
@@ -87,19 +89,19 @@ function mergeAndDedupe(refs: Ref[], docs: StudioDoc[]) {
     i = Math.max(j, i + 1);
   }
   // 2. διπλές κάρτες / ενότητες με τίτλο που ειπώθηκε ήδη
-  const seen = new Set<string>();
+  const seen = new Set<string>(), seenW = new Set<string>();
   const ordered = docs.flatMap((d) => d.sections.filter((s) => s.include && sectionHasContent(s))).sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
   for (const s of ordered) {
-    const t = s.title ? norm(s.title.text) : "";
-    if (t.length >= 4 && seen.has(t) && isMini(s)) { s.include = false; s.dropReason = "ο ίδιος τίτλος υπάρχει ήδη πιο πάνω"; continue; }
-    if (t.length >= 4) seen.add(t);
+    const t = s.title ? norm(s.title.text) : "", tw = s.title ? wkey(s.title.text) : "";
+    if (t.length >= 4 && (seen.has(t) || (tw && seenW.has(tw))) && isMini(s)) { s.include = false; s.dropReason = "ο ίδιος τίτλος υπάρχει ήδη πιο πάνω"; continue; }
+    if (t.length >= 4) { seen.add(t); if (tw) seenW.add(tw); }
     const cards = s.features.filter((f) => f.include);
     if (cards.length >= 3) {
       // ίδιο ή σύντομη μορφή του ίδιου («Τεχνητή Νοημοσύνη» ↔ «Τεχνητή Νοημοσύνη AI»)
-      const dup = cards.filter((f) => { const k = norm(f.label); return k.length >= 4 && (seen.has(k) || (k.length >= 8 && [...seen].some((x) => x.length >= 8 && (x.startsWith(k) || k.startsWith(x))))); });
+      const dup = cards.filter((f) => { const k = norm(f.label); return k.length >= 4 && (seen.has(k) || seenW.has(wkey(f.label)) || (k.length >= 8 && [...seen].some((x) => x.length >= 8 && (x.startsWith(k) || k.startsWith(x))))); });
       if (dup.length && dup.length < cards.length) dup.forEach((f) => { f.include = false; });
     }
-    cards.filter((f) => f.include).forEach((f) => { const k = norm(f.label); if (k.length >= 4) seen.add(k); });
+    cards.filter((f) => f.include).forEach((f) => { const k = norm(f.label), w = wkey(f.label); if (k.length >= 4) seen.add(k); if (w) seenW.add(w); });
   }
 }
 

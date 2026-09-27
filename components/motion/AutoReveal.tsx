@@ -38,7 +38,8 @@ export function AutoReveal() {
           order = 0;
         }, 300);
       },
-      { threshold: 0.06, rootMargin: "0px 0px -6% 0px" },
+      // threshold 0: ένα ποσοστό του ύψους δεν φτάνει ΠΟΤΕ για πολύ ψηλά στοιχεία (π.χ. 6 % από 17.000px > οθόνη κινητού)
+      { threshold: 0, rootMargin: "0px 0px -6% 0px" },
     );
     targets.forEach((t) => io.observe(t));
     return () => {

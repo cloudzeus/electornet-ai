@@ -495,7 +495,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
               {preview.length ? (
                 <ProductSections sections={preview}
                   renderImage={(im) => { const s = preview.find((x) => x.images.includes(im)); const k = s ? s.images.indexOf(im) : -1; return s && k >= 0 ? <CropView src={s._doc.sourceUrl} box={s._boxes[k]} width={s._doc.width} height={s._doc.height} alt={im.alt} className="w-full rounded-xl" /> : null; }}
-                  renderIcon={(f) => { const s = preview.find((x) => x.features.includes(f)); const b = s?._icons[f.iconUrl!]; return b ? <CropView src={b.doc.sourceUrl} box={b.box} width={b.doc.width} height={b.doc.height} className="w-11 shrink-0" /> : null; }} />
+                  renderIcon={(f) => { const b = preview.find((x) => x._icons[f.iconUrl!])?._icons[f.iconUrl!]; return b ? <CropView src={b.doc.sourceUrl} box={b.box} width={b.doc.width} height={b.doc.height} className="w-11 shrink-0" /> : null; }} />
               ) : <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">Καμία ενότητα για δημοσίευση — γύρνα στον έλεγχο.</p>}
             </motion.div>
           </div>

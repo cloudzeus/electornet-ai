@@ -45,7 +45,7 @@ export function Reveal({ as: Tag = "div", children, className = "", stagger: sta
         gsap.to(targets, { opacity: 1, y: 0, duration, ease: motion.easing.out, stagger, delay, overwrite: true, clearProps: "transform" });
         if (once) io.disconnect();
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      { threshold: 0, rootMargin: "0px 0px -8% 0px" }, // όχι ποσοστό: τα πολύ ψηλά στοιχεία δεν το φτάνουν ποτέ
     );
     io.observe(el);
     return () => io.disconnect();
