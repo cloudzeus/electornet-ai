@@ -111,3 +111,23 @@ export async function undoAuto(types?: string[]) {
   await db.bannerExtraction.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { status: "discarded" } });
   return { extractions: rows.length, products: new Set(rows.map((r) => r.productId)).size };
 }
+
+/**
+ * Ξανασχεδιασμός χωρίς νέα ανάλυση: παίρνει τις δημοσιευμένες απόδελτιώσεις ενός προϊόντος (με τη σειρά των banners),
+ * αναιρεί ό,τι είχε πετάξει ο ΠΡΟΗΓΟΥΜΕΝΟΣ σχεδιαστής (όχι ό,τι απέκλεισε άνθρωπος), ξανατρέχει τον σχεδιαστή και
+ * ξαναδημοσιεύει. Κόστος: μία κλήση σχεδιασμού ανά προϊόν.
+ */
+export async function redesignProduct(productId: string) {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { title: true, brand: { select: { name: true } }, category: { select: { name: true } } } });
+  if (!p) throw new Error("Το προϊόν δεν βρέθηκε.");
+  const rows = await db.bannerExtraction.findMany({ where: { productId, status: "published" }, select: { id: true, doc: true, mediaId: true, createdAt: true } });
+  if (!rows.length) return { title: p.title, sections: 0, before: 0, dropped: 0, costUsd: 0, design: "none" as const };
+  const order = new Map((await db.media.findMany({ where: { id: { in: rows.map((r) => r.mediaId).filter((x): x is string => !!x) } }, select: { id: true, sortNo: true } })).map((m) => [m.id, m.sortNo]));
+  const pos = (r: { mediaId: string | null }) => (r.mediaId ? order.get(r.mediaId) ?? 1e9 : 1e9);
+  rows.sort((a, b) => pos(a) - pos(b) || +a.createdAt - +b.createdAt);
+  const before = await db.productSection.count({ where: { productId, extractionId: { in: rows.map((r) => r.id) } } });
+  const docs = rows.map((r) => r.doc as unknown as StudioDoc); // ο σχεδιαστής ξεκινά από καθαρό χαρτί (resetDesign)
+  const design = await designPage(docs, { brand: p.brand.name, title: p.title, typeName: p.category.name });
+  const pub = await publishExtractions(productId, rows.map((r, k) => ({ id: r.id, doc: design.docs[k] })), { hideSources: true, hideMediaIds: rows.map((r) => r.mediaId).filter((x): x is string => !!x) });
+  return { title: p.title, sections: pub.sections, before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
+}

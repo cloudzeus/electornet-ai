@@ -64,6 +64,9 @@ export function SectionEditor({ doc, s, index, total, selected, selectedBox, onS
         </div>
       </header>
 
+      {!s.include && s.mergedInto && (
+        <p className="m-0 flex gap-2 items-start rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]"><Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /> Μπήκε ως κάρτα σε πλέγμα λειτουργιών μαζί με άλλες μονές λειτουργίες — δεν χάθηκε.</p>
+      )}
       {!s.include && s.dropReason && (
         <p className="m-0 flex gap-2 items-start rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]"><Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /> Ο σχεδιαστής την έβγαλε εκτός: {s.dropReason} — τσέκαρε «Θα δημοσιευτεί» αν τη θέλεις.</p>
       )}

@@ -64,14 +64,14 @@ function Hint({ children }: { children: React.ReactNode }) {
 }
 
 /** Από έγγραφο → ενότητες σελίδας, με περικοπές της αρχικής εικόνας (για προεπισκόπηση). */
-function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioDoc; _boxes: Box[]; _icons: Record<string, Box>; _rank: number })[] {
+function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioDoc; _boxes: Box[]; _icons: Record<string, { box: Box; doc: StudioDoc }>; _rank: number })[] {
   return docs.flatMap((doc, di) => doc.sections.map((s, si) => ({ s, rank: s.rank ?? 10000 + di * 100 + si })).filter(({ s }) => s.include && sectionHasContent(s)).map(({ s, rank }) => {
     const imgs = s.images.filter((i) => i.include);
-    const icons: Record<string, Box> = {};
+    const icons: Record<string, { box: Box; doc: StudioDoc }> = {};
     return {
-      id: s.id, title: s.title?.text.trim() || null, subtitle: s.subtitle?.text.trim() || null, footnote: s.footnote?.text.trim() || null,
+      id: s.id, title: s.title?.text.trim() || s.heading || null, subtitle: s.subtitle?.text.trim() || null, footnote: s.footnote?.text.trim() || null,
       body: s.paragraphs.map((p) => p.text.trim()).filter(Boolean).join("\n\n") || null,
-      features: s.features.filter((f) => f.include && f.label.trim()).map((f) => { if (f.includeIcon && f.icon) icons[f.id] = f.icon; return { label: f.label.trim(), ...(f.includeIcon && f.icon ? { iconUrl: f.id } : {}) }; }),
+      features: s.features.filter((f) => f.include && f.label.trim()).map((f) => { if (f.includeIcon && f.icon) icons[f.id] = { box: f.icon, doc: (f.src && docs.find((d) => d.sourceUrl === f.src)) || doc }; return { label: f.label.trim(), ...(f.detail?.trim() ? { text: f.detail.trim() } : {}), ...(f.includeIcon && f.icon ? { iconUrl: f.id } : {}) }; }),
       images: imgs.map((i) => ({ url: i.id, width: Math.round(i.box[2] * doc.width), height: Math.round(i.box[3] * doc.height), alt: i.alt })),
       layout: s.layout ?? null, stats: (s.stats ?? []).filter((x) => x.value.trim() && x.label.trim()),
       _doc: doc, _boxes: imgs.map((i) => i.box), _icons: icons, _rank: rank,
@@ -495,7 +495,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
               {preview.length ? (
                 <ProductSections sections={preview}
                   renderImage={(im) => { const s = preview.find((x) => x.images.includes(im)); const k = s ? s.images.indexOf(im) : -1; return s && k >= 0 ? <CropView src={s._doc.sourceUrl} box={s._boxes[k]} width={s._doc.width} height={s._doc.height} alt={im.alt} className="w-full rounded-xl" /> : null; }}
-                  renderIcon={(f) => { const s = preview.find((x) => x.features.includes(f)); const b = s?._icons[f.iconUrl!]; return s && b ? <CropView src={s._doc.sourceUrl} box={b} width={s._doc.width} height={s._doc.height} className="w-11 shrink-0" /> : null; }} />
+                  renderIcon={(f) => { const s = preview.find((x) => x.features.includes(f)); const b = s?._icons[f.iconUrl!]; return b ? <CropView src={b.doc.sourceUrl} box={b.box} width={b.doc.width} height={b.doc.height} className="w-11 shrink-0" /> : null; }} />
               ) : <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">Καμία ενότητα για δημοσίευση — γύρνα στον έλεγχο.</p>}
             </motion.div>
           </div>

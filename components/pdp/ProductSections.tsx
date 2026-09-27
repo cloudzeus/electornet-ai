@@ -25,6 +25,10 @@ function Icon({ f, r, big }: { f: SectionFeature; r: Render; big?: boolean }) {
   return <span className="size-2 rounded-full bg-eu-yellow shrink-0 ml-1" aria-hidden />;
 }
 
+const flat = (x: string | null | undefined) => (x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zα-ω0-9]+/g, "");
+/** Η λεζάντα του εικονιδίου λέει το ίδιο με τον τίτλο (π.χ. «I-Sense» μέσα στο «Λειτουργία I-Sense»); */
+const sameText = (a: string, b: string | null) => { const x = flat(a), y = flat(b); return !!x && !!y && (y.includes(x) || x.includes(y)); };
+
 function Heading({ s, center }: { s: PublishedSection; center?: boolean }) {
   return (
     <>
@@ -43,7 +47,7 @@ function FeatureList({ s, r }: { s: PublishedSection; r: Render }) {
   if (!s.features.length) return null;
   return (
     <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))] mt-1">
-      {s.features.map((f, k) => <li key={k} className="flex items-center gap-3 min-w-0"><Icon f={f} r={r} /><span className="text-eu-ink font-semibold text-[length:var(--fs-15)] leading-snug">{f.label}</span></li>)}
+      {s.features.map((f, k) => <li key={k} className="flex items-start gap-3 min-w-0"><Icon f={f} r={r} /><span className="grid gap-0.5"><span className="text-eu-ink font-semibold text-[length:var(--fs-15)] leading-snug">{f.label}</span>{f.text && <span className="text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{f.text}</span>}</span></li>)}
     </ul>
   );
 }
@@ -58,6 +62,25 @@ function Stats({ s }: { s: PublishedSection }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Μία λειτουργία με το εικονίδιό της και χωρίς φωτογραφία. */
+const oneIcon = (s: PublishedSection) => !s.images.length && s.features.length === 1 && !!s.features[0].iconUrl;
+/** Εικονίδιο δίπλα στον τίτλο — όχι μόνο του σε μια γραμμή κάτω από το κείμενο. */
+function IconText({ s, r }: { s: PublishedSection; r: Render }) {
+  const f = s.features[0];
+  return (
+    <div className="flex gap-4 @2xl:gap-6 items-start max-w-[82ch]">
+      <span className="rounded-2xl bg-eu-surface p-3 shrink-0"><Icon f={f} r={r} big /></span>
+      <div className="grid gap-2 min-w-0">
+        <Heading s={s} />
+        {!sameText(f.label, s.title) && <p className="m-0 text-eu-ink font-semibold text-[length:var(--fs-15)]">{f.label}</p>}
+        <Body s={s} />
+        {f.text && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">{f.text}</p>}
+        <Foot s={s} />
+      </div>
+    </div>
   );
 }
 
@@ -80,7 +103,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
           <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
           {main && <div className="w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]">
-            {s.features.map((f, k) => <li key={k} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug border-b border-eu-line-2 pb-2"><span className="mt-[0.5em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden />{f.label}</li>)}
+            {s.features.map((f, k) => <li key={k} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug border-b border-eu-line-2 pb-2"><span className="mt-[0.5em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden /><span>{f.text ? <><strong className="text-eu-ink">{f.label}</strong> — {f.text}</> : f.label}</span></li>)}
           </ul>
           <Foot s={s} />
         </section>
@@ -89,8 +112,14 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
         <section className="grid gap-5">
           <div className="grid gap-2 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
           {main && <div className="mx-auto w-full max-w-[36rem]"><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
-          <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
-            {s.features.map((f, k) => <li key={k} className="rounded-2xl bg-eu-surface px-4 py-5 grid justify-items-center gap-3 text-center"><Icon f={f} r={r} big /><span className="text-eu-ink font-bold text-[length:var(--fs-15)] leading-snug">{f.label}</span></li>)}
+          <ul className={`m-0 p-0 list-none grid gap-3 ${s.features.some((f) => f.text) ? "[grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]" : "[grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]"}`}>
+            {s.features.map((f, k) => (
+              <li key={k} className={`rounded-2xl bg-eu-surface px-4 py-5 grid gap-2 content-start ${f.text ? "text-left" : "justify-items-center text-center"}`}>
+                {f.iconUrl && <Icon f={f} r={r} big />}
+                <span className="text-eu-ink font-bold text-[length:var(--fs-16)] leading-snug">{f.label}</span>
+                {f.text && <span className="text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed">{f.text}</span>}
+              </li>
+            ))}
           </ul>
           <Foot s={s} center />
         </section>
@@ -129,6 +158,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
         </section>
       );
     case "text":
+      if (oneIcon(s)) return <section><IconText s={s} r={r} /></section>;
       return <section className="grid gap-3 max-w-[72ch]"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></section>;
     case "split":
     default:
@@ -139,8 +169,9 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
               <div className={flip ? "@2xl:order-2" : ""}><Img im={main} variant="main" sizes={sizes} r={r} /></div>
               <div className="grid gap-3 content-start min-w-0"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>
             </div>
-          ) : <div className="grid gap-3 max-w-[78ch]"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>}
-          {more.length > 0 && <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]">{more.map((im, k) => <div key={k}><Img im={im} variant="more" sizes="(min-width: 1024px) 260px, 50vw" r={r} /></div>)}</div>}
+          ) : oneIcon(s) ? <IconText s={s} r={r} /> : <div className="grid gap-3 max-w-[78ch]"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>}
+          {/* δευτερεύουσες φωτογραφίες: μέτριο μέγεθος στο κέντρο — ποτέ μια λεπτομέρεια σε όλο το πλάτος */}
+          {more.length > 0 && <div className="flex flex-wrap justify-center gap-4">{more.map((im, k) => <div key={k} className="w-[min(100%,24rem)]"><Img im={im} variant="more" sizes="(min-width: 1024px) 384px, 90vw" r={r} /></div>)}</div>}
         </section>
       );
   }

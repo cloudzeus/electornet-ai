@@ -34,8 +34,9 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
           <div key={g} className="rounded-xl border border-eu-line overflow-hidden">
             <div className="bg-eu-surface px-4 py-2.5 font-extrabold text-eu-ink text-[length:var(--fs-16)]">{g}</div>
             <dl className="m-0 divide-y divide-eu-line-2">
-              {rows.map((r) => (
-                <div key={r.key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 px-4 py-2.5 text-[length:var(--fs-16)]">
+              {rows.map((r, i) => (
+                // το ίδιο όνομα μπορεί να έρθει δύο φορές με άλλη μονάδα (π.χ. θερμική απόδοση σε kW και σε BTU)
+                <div key={`${r.key}-${i}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 px-4 py-2.5 text-[length:var(--fs-16)]">
                   <dt className="text-eu-muted">{r.key}</dt>
                   <dd className="m-0 text-eu-ink font-semibold">{r.value}</dd>
                 </div>

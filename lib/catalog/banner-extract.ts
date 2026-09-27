@@ -98,11 +98,11 @@ export async function publishExtractions(productId: string, items: { id: string;
     for (const im of s.images.filter((x) => x.include)) { const c = await put(it.doc.sourceUrl, im.box, "img"); crops++; images.push({ ...c, alt: im.alt.trim() }); }
     const features: SectionFeature[] = [];
     for (const f of s.features.filter((x) => x.include && x.label.trim())) {
-      const icon = f.includeIcon && f.icon ? await put(it.doc.sourceUrl, f.icon, "icon") : null;
+      const icon = f.includeIcon && f.icon ? await put(f.src ?? it.doc.sourceUrl, f.icon, "icon") : null;
       if (icon) crops++;
-      features.push({ label: f.label.trim(), ...(icon ? { iconUrl: icon.url, iconW: icon.width, iconH: icon.height } : {}) });
+      features.push({ label: f.label.trim(), ...(f.detail?.trim() ? { text: f.detail.trim() } : {}), ...(icon ? { iconUrl: icon.url, iconW: icon.width, iconH: icon.height } : {}) });
     }
-    created.push({ productId, sortNo: sortNo++, title: s.title?.text.trim() || null, subtitle: s.subtitle?.text.trim() || null, body: joinText(s.paragraphs), features: features.length ? (features as unknown as Prisma.InputJsonValue) : undefined, footnote: s.footnote?.text.trim() || null, images: images.length ? (images as unknown as Prisma.InputJsonValue) : undefined, layout: s.layout ?? null, stats: s.stats?.length ? (s.stats as unknown as Prisma.InputJsonValue) : undefined, source: "banner", extractionId: it.id });
+    created.push({ productId, sortNo: sortNo++, title: s.title?.text.trim() || s.heading || null, subtitle: s.subtitle?.text.trim() || null, body: joinText(s.paragraphs), features: features.length ? (features as unknown as Prisma.InputJsonValue) : undefined, footnote: s.footnote?.text.trim() || null, images: images.length ? (images as unknown as Prisma.InputJsonValue) : undefined, layout: s.layout ?? null, stats: s.stats?.length ? (s.stats as unknown as Prisma.InputJsonValue) : undefined, source: "banner", extractionId: it.id });
   }
   const mediaIds = opts.hideMediaIds ?? rows.map((r) => r.mediaId).filter((x): x is string => !!x);
   await db.$transaction([

@@ -21,7 +21,7 @@ export const LAYOUTS: { key: SectionLayout; label: string; hint: string }[] = [
 export interface Stat { value: string; label: string }
 
 export interface StudioText { id: string; text: string; /** το πρωτότυπο, όταν το `text` είναι μετάφραση */ original?: string; box: Box | null }
-export interface StudioFeature { id: string; label: string; original?: string; box: Box | null; icon: Box | null; include: boolean; includeIcon: boolean }
+export interface StudioFeature { id: string; label: string; original?: string; /** σύντομη περιγραφή κάτω από τον τίτλο (κάρτες λειτουργιών) */ detail?: string; /** banner από το οποίο κόβεται το εικονίδιο, όταν διαφέρει από το banner της ενότητας */ src?: string; box: Box | null; icon: Box | null; include: boolean; includeIcon: boolean }
 export interface StudioImage { id: string; box: Box; alt: string; kind: string; overlayText: boolean; include: boolean }
 export interface StudioSection {
   id: string;
@@ -36,6 +36,12 @@ export interface StudioSection {
   designedBy?: "ai" | "rules";
   /** γιατί ο σχεδιαστής την έβγαλε εκτός (διπλή, χωρίς πληροφορία) */
   dropReason?: string;
+  /** επικεφαλίδα από κλειστό λεξιλόγιο (HEADINGS), όταν το banner δεν είχε τίτλο — π.χ. πλέγμα λειτουργιών */
+  heading?: string;
+  /** ενότητα που έφτιαξε ο σχεδιαστής ενώνοντας μονές λειτουργίες από ΔΙΑΦΟΡΕΤΙΚΑ banners (ξαναφτιάχνεται σε κάθε σχεδιασμό) */
+  crossMerged?: boolean;
+  /** η ενότητα μπήκε ως κάρτα στην ενότητα με αυτό το id */
+  mergedInto?: string;
   title: StudioText | null;
   subtitle: StudioText | null;
   paragraphs: StudioText[];
@@ -45,13 +51,19 @@ export interface StudioSection {
 }
 export interface StudioDoc { sourceUrl: string; width: number; height: number; lang: string; sections: StudioSection[] }
 
+/**
+ * Επικεφαλίδες που μπορεί να δώσει ο σχεδιαστής σε ενότητα χωρίς τίτλο. Κλειστή λίστα, γιατί ο σχεδιαστής δεν γράφει
+ * δικό του κείμενο — ονομάζει μόνο την ομάδα.
+ */
+export const HEADINGS = ["Βασικά χαρακτηριστικά", "Λειτουργίες", "Έξυπνες λειτουργίες", "Τεχνολογία", "Άνεση", "Εξοικονόμηση ενέργειας", "Καθαρός αέρας", "Υγιεινή", "Εικόνα", "Ήχος", "Gaming", "Συνδεσιμότητα", "Σχεδιασμός", "Εγκατάσταση", "Ασφάλεια", "Φροντίδα ρούχων", "Μαγείρεμα", "Διατήρηση τροφίμων", "Προδιαγραφές", "Πιστοποιήσεις"] as const;
+
 /** Ό,τι γράφεται στη βάση ως ProductSection (και ό,τι αποδίδει η σελίδα προϊόντος). */
 export interface SectionImage { url: string; width: number; height: number; alt: string }
-export interface SectionFeature { label: string; iconUrl?: string; iconW?: number; iconH?: number }
+export interface SectionFeature { label: string; text?: string; iconUrl?: string; iconW?: number; iconH?: number }
 export interface PublishedSection { id: string; title: string | null; subtitle: string | null; body: string | null; features: SectionFeature[]; footnote: string | null; images: SectionImage[]; layout?: SectionLayout | null; stats?: Stat[] }
 
 /** Κείμενο μιας ενότητας (για έλεγχο ότι τα νούμερα υπάρχουν αυτούσια). */
-export const sectionText = (s: StudioSection) => [s.title?.text, s.subtitle?.text, ...s.paragraphs.map((p) => p.text), ...s.features.map((f) => f.label), s.footnote?.text].filter(Boolean).join(" \n ");
+export const sectionText = (s: StudioSection) => [s.title?.text, s.subtitle?.text, ...s.paragraphs.map((p) => p.text), ...s.features.flatMap((f) => [f.label, f.detail]), s.footnote?.text].filter(Boolean).join(" \n ");
 
 /**
  * Διάταξη χωρίς AI (εφεδρεία και «αυτόματη» επιλογή όταν δεν έχει οριστεί): από το σχήμα του περιεχομένου.
