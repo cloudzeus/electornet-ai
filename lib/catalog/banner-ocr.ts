@@ -43,7 +43,8 @@ RULES
 - Transcribe text EXACTLY as printed (keep accents, units, ®, ™, symbols, line meaning). Join lines of the same paragraph with a space. Never invent or summarise.
 - If a text is NOT in Greek, also give "el": a natural Greek translation for a Greek shopper (keep brand/technology names like "AI EcoBubble", "OLED", "Wi-Fi" as they are). If it is already Greek, omit "el".
 - A banner can contain 1 or more sections (separated by space, a new big heading, or a new photo). Keep the visual top-to-bottom, left-to-right order.
-- images: only real photos / renders / diagrams of meaningful size. NOT the small feature icons (those go to features[].icon), NOT logos, NOT decorative lines or empty background. Box tightly around the visible photo itself.
+- images: real photos / renders / diagrams of meaningful size, AND prominent graphic emblems that carry meaning (e.g. a "10 years warranty" seal, a "High Quality" label, an award or certification badge) — give those kind "diagram". NOT the small feature icons (those go to features[].icon), NOT the plain brand logo, NOT decorative lines or empty background. Box tightly around the visible element itself.
+- Specification tables: put EVERY row as a feature with label "Name: value" (no icon), in order, until the table ends — do not stop halfway.
 - overlayText = true when a heading/text is printed ON TOP of the photo. In that case try to box the photo area that does NOT contain the text if a clean crop of at least half the photo is possible; otherwise box the whole photo.
 - alt: short Greek description of the photo (max 12 words), e.g. "Πλυντήριο σε κουζίνα με ξύλινα ντουλάπια".
 - Ignore text that is part of the product itself (buttons, labels printed on the appliance, screen UI).

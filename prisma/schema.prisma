@@ -251,6 +251,10 @@ model ProductSection {
   /// [{ url, width, height, alt }]
   images       Json?
   source       String   @default("banner") // banner = απόδελτίωση · manual
+  /// διάταξη στη σελίδα: hero | split | features | stats | gallery | badges | text (επιλογή του σχεδιαστή AI ή του διαχειριστή)
+  layout       String?
+  /// μεγάλα νούμερα [{ value, label }] — μόνο αυτούσια από το κείμενο της ενότητας
+  stats        Json?
   extractionId String?
   hidden       Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -275,6 +279,14 @@ model BannerExtraction {
   /// το έγγραφο προς επεξεργασία (StudioDoc)
   doc         Json
   status      String    @default("draft") // draft | published | discarded
+  /// manual = από το εργαλείο · auto = μαζική αυτόματη απόδελτίωση
+  origin      String    @default("manual")
+  /// αποτύπωμα εικόνας (ImageImport.phash): ίδιο banner σε άλλο προϊόν → ίδια ανάλυση, χωρίς νέο κόστος
+  phash       String?
+  /// { coverage, reused, flags[] } — πόσο από το «μελάνι» του banner καλύπτουν τα πλαίσια
+  quality     Json?
+  /// η αυτόματη απόδελτίωση δεν ήταν σίγουρη: το banner μένει ορατό μέχρι να το δει άνθρωπος
+  needsReview Boolean   @default(false)
   model       String?
   costUsd     Float     @default(0)
   ms          Int?
@@ -285,6 +297,8 @@ model BannerExtraction {
 
   @@index([productId, status])
   @@index([mediaId])
+  @@index([phash])
+  @@index([origin, needsReview])
 }
 
 /// Εμπλουτισμός χαρακτηριστικών από εξωτερικές πηγές (lib/catalog/enrich.ts): μία γραμμή ανά προϊόν και πηγή — τι βρέθηκε, πού, πόσο κόστισε.

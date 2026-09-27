@@ -4,12 +4,38 @@
  */
 export type Box = [number, number, number, number];
 
+/**
+ * Διατάξεις ενότητας στη σελίδα προϊόντος. Τις διαλέγει ο σχεδιαστής AI (lib/catalog/banner-design.ts) ανάλογα με το
+ * περιεχόμενο — ο διαχειριστής μπορεί να τις αλλάξει στο εργαλείο.
+ */
+export type SectionLayout = "hero" | "split" | "features" | "stats" | "gallery" | "badges" | "text";
+export const LAYOUTS: { key: SectionLayout; label: string; hint: string }[] = [
+  { key: "hero", label: "Μεγάλη φωτογραφία", hint: "φωτογραφία σε όλο το πλάτος, τίτλος από κάτω — για το άνοιγμα της σελίδας" },
+  { key: "split", label: "Φωτογραφία δίπλα στο κείμενο", hint: "εναλλάξ αριστερά / δεξιά" },
+  { key: "features", label: "Πλέγμα χαρακτηριστικών", hint: "εικονίδια με λεζάντες σε κάρτες" },
+  { key: "stats", label: "Μεγάλα νούμερα", hint: "τα βασικά νούμερα σε μεγάλα γράμματα" },
+  { key: "gallery", label: "Γκαλερί", hint: "πολλές φωτογραφίες με λεζάντες" },
+  { key: "badges", label: "Πιστοποιήσεις / λογότυπα", hint: "μικρές εικόνες σε σειρά" },
+  { key: "text", label: "Μόνο κείμενο", hint: "στενή στήλη για άνετη ανάγνωση" },
+];
+export interface Stat { value: string; label: string }
+
 export interface StudioText { id: string; text: string; /** το πρωτότυπο, όταν το `text` είναι μετάφραση */ original?: string; box: Box | null }
 export interface StudioFeature { id: string; label: string; original?: string; box: Box | null; icon: Box | null; include: boolean; includeIcon: boolean }
 export interface StudioImage { id: string; box: Box; alt: string; kind: string; overlayText: boolean; include: boolean }
 export interface StudioSection {
   id: string;
   include: boolean;
+  /** διάταξη στη σελίδα (κενό = αυτόματη επιλογή) */
+  layout?: SectionLayout;
+  /** μεγάλα νούμερα, αυτούσια από το κείμενο */
+  stats?: Stat[];
+  /** σειρά στη σελίδα (ο σχεδιαστής ταξινομεί τις ενότητες ΟΛΩΝ των banners μαζί) */
+  rank?: number;
+  /** η διάταξη / σειρά προτάθηκε από τον σχεδιαστή AI (για ένδειξη στο εργαλείο) */
+  designedBy?: "ai" | "rules";
+  /** γιατί ο σχεδιαστής την έβγαλε εκτός (διπλή, χωρίς πληροφορία) */
+  dropReason?: string;
   title: StudioText | null;
   subtitle: StudioText | null;
   paragraphs: StudioText[];
@@ -22,7 +48,37 @@ export interface StudioDoc { sourceUrl: string; width: number; height: number; l
 /** Ό,τι γράφεται στη βάση ως ProductSection (και ό,τι αποδίδει η σελίδα προϊόντος). */
 export interface SectionImage { url: string; width: number; height: number; alt: string }
 export interface SectionFeature { label: string; iconUrl?: string; iconW?: number; iconH?: number }
-export interface PublishedSection { id: string; title: string | null; subtitle: string | null; body: string | null; features: SectionFeature[]; footnote: string | null; images: SectionImage[] }
+export interface PublishedSection { id: string; title: string | null; subtitle: string | null; body: string | null; features: SectionFeature[]; footnote: string | null; images: SectionImage[]; layout?: SectionLayout | null; stats?: Stat[] }
+
+/** Κείμενο μιας ενότητας (για έλεγχο ότι τα νούμερα υπάρχουν αυτούσια). */
+export const sectionText = (s: StudioSection) => [s.title?.text, s.subtitle?.text, ...s.paragraphs.map((p) => p.text), ...s.features.map((f) => f.label), s.footnote?.text].filter(Boolean).join(" \n ");
+
+/**
+ * Διάταξη χωρίς AI (εφεδρεία και «αυτόματη» επιλογή όταν δεν έχει οριστεί): από το σχήμα του περιεχομένου.
+ * Επίσης ο έλεγχος ότι μια διάταξη ΜΠΟΡΕΙ να αποδοθεί (γκαλερί θέλει ≥ 2 φωτογραφίες κ.λπ.).
+ */
+export function layoutFits(l: SectionLayout, s: { images: number; features: number; stats: number; textChars: number; ratios?: number[] }): boolean {
+  switch (l) {
+    case "hero": return s.images >= 1 && (s.ratios?.[0] ?? 2) >= 1.3; // ψηλή/τετράγωνη φωτογραφία σε όλο το πλάτος γεμίζει την οθόνη
+    case "split": return s.images >= 1;
+    case "gallery": return s.images >= 2;
+    // λογότυπα / πιστοποιήσεις: μόνο φαρδιές, χαμηλές εικόνες — ένα διάγραμμα διαστάσεων θα γινόταν δυσανάγνωστο
+    case "badges": return s.images >= 1 && (s.ratios ?? []).every((r) => r >= 2.2);
+    case "features": return s.features >= 2;
+    case "stats": return s.stats >= 2;
+    case "text": return s.textChars > 0;
+  }
+}
+export function autoLayout(s: { images: { kind: string; ratio: number; overlayText: boolean }[]; features: number; stats: number; textChars: number }): SectionLayout {
+  const n = s.images.length;
+  if (n >= 1 && s.images.every((i) => i.kind === "diagram" && i.ratio >= 2.5) && s.textChars < 200) return "badges";
+  if (n >= 2 && s.textChars < 160) return "gallery";
+  if (s.features >= 3) return "features";
+  if (s.stats >= 2) return "stats";
+  if (n >= 1 && s.images[0].kind === "lifestyle" && s.images[0].ratio >= 1.4 && s.textChars < 180) return "hero";
+  if (n >= 1) return "split";
+  return "text";
+}
 
 let seq = 0;
 export const uid = (p = "x") => `${p}${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 6)}`;

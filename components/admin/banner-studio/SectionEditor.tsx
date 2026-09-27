@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Combine, ImagePlus, Languages, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Combine, ImagePlus, Languages, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { CropView } from "./CropView";
 import type { BoxSel } from "./BoxCanvas";
-import { uid, type StudioDoc, type StudioSection, type StudioText } from "@/lib/catalog/banner-doc";
+import { uid, LAYOUTS, type SectionLayout, type StudioDoc, type StudioSection, type StudioText } from "@/lib/catalog/banner-doc";
 
 const field = "w-full rounded-lg border border-eu-line bg-white px-3 py-2 text-eu-ink text-[length:var(--fs-16)] min-h-11 focus-visible:outline-2 focus-visible:outline-eu-blue";
 const label = "grid gap-1 text-eu-ink-3 font-semibold text-[length:var(--fs-14)]";
@@ -64,8 +64,33 @@ export function SectionEditor({ doc, s, index, total, selected, selectedBox, onS
         </div>
       </header>
 
+      {!s.include && s.dropReason && (
+        <p className="m-0 flex gap-2 items-start rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]"><Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /> Ο σχεδιαστής την έβγαλε εκτός: {s.dropReason} — τσέκαρε «Θα δημοσιευτεί» αν τη θέλεις.</p>
+      )}
       {s.include && (
         <>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className={`${label} flex-1 min-w-[14rem]`}>
+              <span className="inline-flex items-center gap-1.5">Εμφάνιση στη σελίδα {s.designedBy === "ai" && <span className="inline-flex items-center gap-1 rounded-full bg-eu-chip text-eu-blue px-2 py-0.5 text-[length:var(--fs-13)] font-bold"><Sparkles className="size-3.5" aria-hidden /> επιλογή AI</span>}</span>
+              <select value={s.layout ?? ""} onChange={(e) => onChange({ ...s, layout: (e.target.value || undefined) as SectionLayout | undefined, designedBy: undefined })} className={field}>
+                <option value="">Αυτόματα</option>
+                {LAYOUTS.map((l) => <option key={l.key} value={l.key}>{l.label} — {l.hint}</option>)}
+              </select>
+            </label>
+          </div>
+          {(s.layout === "stats" || (s.stats?.length ?? 0) > 0) && (
+            <fieldset className="m-0 p-0 border-0 grid gap-2">
+              <legend className="font-semibold text-eu-ink-3 text-[length:var(--fs-14)] mb-1">Μεγάλα νούμερα <span className="font-normal text-eu-muted">— μόνο όσα γράφει το κείμενο</span></legend>
+              {(s.stats ?? []).map((st, k) => (
+                <div key={k} className="grid grid-cols-[8rem_minmax(0,1fr)_auto] gap-2 items-center">
+                  <input value={st.value} aria-label="Νούμερο" placeholder="512" onChange={(e) => set("stats", (s.stats ?? []).map((x, j) => (j === k ? { ...x, value: e.target.value } : x)))} className={`${field} font-extrabold text-eu-navy`} />
+                  <input value={st.label} aria-label="Τι μετράει" placeholder="ζώνες τοπικής ρύθμισης" onChange={(e) => set("stats", (s.stats ?? []).map((x, j) => (j === k ? { ...x, label: e.target.value } : x)))} className={field} />
+                  <button type="button" className={iconBtn} onClick={() => set("stats", (s.stats ?? []).filter((_, j) => j !== k))} aria-label="Αφαίρεση νούμερου"><X className="size-4" aria-hidden /></button>
+                </div>
+              ))}
+              {(s.stats?.length ?? 0) < 4 && <button type="button" className={`${smallBtn} justify-self-start`} onClick={() => set("stats", [...(s.stats ?? []), { value: "", label: "" }])}><Plus className="size-4" aria-hidden /> Νούμερο</button>}
+            </fieldset>
+          )}
           <TextField name="Τίτλος" value={s.title ?? { id: uid("t"), text: "", box: null }} placeholder="π.χ. Άνεση" onChange={(t) => set("title", t)} />
           {s.subtitle ? <TextField name="Υπότιτλος" value={s.subtitle} onChange={(t) => set("subtitle", t)} onRemove={() => set("subtitle", null)} /> : null}
 

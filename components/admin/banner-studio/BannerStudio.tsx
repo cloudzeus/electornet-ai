@@ -23,6 +23,7 @@ const primary = "inline-flex items-center justify-center gap-2 rounded-full bg-e
 const secondary = "inline-flex items-center justify-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-chip focus-visible:outline-2 focus-visible:outline-eu-blue";
 const ghost = "inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:bg-eu-chip focus-visible:outline-2 focus-visible:outline-eu-blue";
 
+const WORKING_DESIGN = ["Διαβάζω όλες τις ενότητες…", "Διαλέγω την εικόνα που ανοίγει τη σελίδα…", "Βάζω τα θέματα σε σειρά…", "Ψάχνω τα νούμερα που αξίζει να φανούν…"];
 const WORKING = ["Διαβάζω το κείμενο…", "Εντοπίζω τις φωτογραφίες…", "Χωρίζω σε ενότητες…", "Μεταφράζω ό,τι είναι ξένο…"];
 
 /** Βήματα στην κορυφή: πού είσαι, τι ακολουθεί. Τα ολοκληρωμένα πατιούνται για επιστροφή. */
@@ -63,8 +64,8 @@ function Hint({ children }: { children: React.ReactNode }) {
 }
 
 /** Από έγγραφο → ενότητες σελίδας, με περικοπές της αρχικής εικόνας (για προεπισκόπηση). */
-function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioDoc; _boxes: Box[]; _icons: Record<string, Box> })[] {
-  return docs.flatMap((doc) => doc.sections.filter((s) => s.include && sectionHasContent(s)).map((s) => {
+function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioDoc; _boxes: Box[]; _icons: Record<string, Box>; _rank: number })[] {
+  return docs.flatMap((doc, di) => doc.sections.map((s, si) => ({ s, rank: s.rank ?? 10000 + di * 100 + si })).filter(({ s }) => s.include && sectionHasContent(s)).map(({ s, rank }) => {
     const imgs = s.images.filter((i) => i.include);
     const icons: Record<string, Box> = {};
     return {
@@ -72,9 +73,10 @@ function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioD
       body: s.paragraphs.map((p) => p.text.trim()).filter(Boolean).join("\n\n") || null,
       features: s.features.filter((f) => f.include && f.label.trim()).map((f) => { if (f.includeIcon && f.icon) icons[f.id] = f.icon; return { label: f.label.trim(), ...(f.includeIcon && f.icon ? { iconUrl: f.id } : {}) }; }),
       images: imgs.map((i) => ({ url: i.id, width: Math.round(i.box[2] * doc.width), height: Math.round(i.box[3] * doc.height), alt: i.alt })),
-      _doc: doc, _boxes: imgs.map((i) => i.box), _icons: icons,
+      layout: s.layout ?? null, stats: (s.stats ?? []).filter((x) => x.value.trim() && x.label.trim()),
+      _doc: doc, _boxes: imgs.map((i) => i.box), _icons: icons, _rank: rank,
     };
-  }));
+  })).sort((a, b) => a._rank - b._rank);
 }
 
 export function BannerStudio({ product, banners, drafts, publishedCount, nextHref }: { product: StudioProduct; banners: StudioBanner[]; drafts: StudioDraft[]; publishedCount: number; nextHref: string | null }) {
@@ -98,6 +100,8 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
   const [publishing, setPublishing] = useState(false);
   const [result, setResult] = useState<{ sections: number; crops: number; hidden: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [designing, setDesigning] = useState(false);
+  const [designBy, setDesignBy] = useState<"ai" | "rules" | null>(null);
   const [tick, setTick] = useState(0);
   const drop = useRef<HTMLInputElement>(null);
   const draftByMedia = useMemo(() => new Map(drafts.filter((d) => d.mediaId).map((d) => [d.mediaId!, d])), [drafts]);
@@ -130,7 +134,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
     return () => clearTimeout(t);
   }, [items, base, updateItem]);
   const analysing = items.some((i) => i.status === "working" || i.status === "queued");
-  useEffect(() => { if (!analysing) return; const t = setInterval(() => setTick((n) => n + 1), 1800); return () => clearInterval(t); }, [analysing]);
+  useEffect(() => { if (!analysing && !designing) return; const t = setInterval(() => setTick((n) => n + 1), 1800); return () => clearInterval(t); }, [analysing, designing]);
 
   // ---------- αυτόματη αποθήκευση πρόχειρου ----------
   useEffect(() => {
@@ -230,6 +234,26 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
   const ready = items.filter((i) => i.status === "ready" && i.doc);
   const preview = useMemo(() => previewSections(ready.map((i) => i.doc!)), [ready]);
   const stats = { sections: preview.length, images: preview.reduce((n, s) => n + s.images.length, 0), icons: preview.reduce((n, s) => n + Object.keys(s._icons).length, 0) };
+
+  /** Ο σχεδιαστής AI στήνει τη σελίδα από ΟΛΑ τα έτοιμα banners: διάταξη, σειρά, διπλές, νούμερα. */
+  const design = async () => {
+    const list = items.filter((i) => i.status === "ready" && i.doc);
+    if (!list.length) return;
+    setDesigning(true); setError(null);
+    try {
+      const r = await fetch(`${base}/design`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ docs: list.map((i) => i.doc) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? "Ο σχεδιασμός απέτυχε.");
+      const docs = j.docs as StudioDoc[];
+      setItems((xs) => xs.map((x) => { const k = list.findIndex((l) => l.key === x.key); return k >= 0 && docs[k] ? { ...x, doc: docs[k], save: "saving" } : x; }));
+      setDesignBy(j.by);
+    } catch (e) { setError((e as Error).message); } finally { setDesigning(false); }
+  };
+  const toPreview = () => {
+    setDrawFor(null); setStep("publish");
+    // πρώτη φορά στην προεπισκόπηση: ο σχεδιαστής στήνει τη σελίδα μόνος του
+    if (!items.some((i) => i.doc?.sections.some((s) => s.designedBy || s.layout))) void design();
+  };
 
   const publish = async () => {
     setPublishing(true); setError(null);
@@ -443,7 +467,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
             <button type="button" className={secondary} onClick={() => setStep("pick")}><ArrowLeft className="size-4" aria-hidden /> Επιλογή</button>
             <span className="text-eu-ink-3 text-[length:var(--fs-15)] mr-auto">{ready.length} από {items.length} έτοιμα{analysing ? " · η ανάλυση συνεχίζεται" : ""}</span>
             {items.length > 1 && active < items.length - 1 && <button type="button" className={secondary} onClick={() => { setActive(active + 1); setSelSection(null); setSelBox(null); }}>Επόμενο banner <ArrowRight className="size-4" aria-hidden /></button>}
-            <button type="button" className={primary} disabled={!ready.length} onClick={() => { setDrawFor(null); setStep("publish"); }}>Προεπισκόπηση <ArrowRight className="size-5" aria-hidden /></button>
+            <button type="button" className={primary} disabled={!ready.length} onClick={toPreview}>Προεπισκόπηση <ArrowRight className="size-5" aria-hidden /></button>
           </div>
         </div>
       )}
@@ -459,7 +483,13 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
               ))}
             </div>
             <span className="text-eu-ink-3 text-[length:var(--fs-15)]">{stats.sections} ενότητες · {stats.images} φωτογραφίες · {stats.icons} εικονίδια</span>
+            <button type="button" className={`${ghost} ml-auto`} onClick={design} disabled={designing}>{designing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />} {designBy ? "Ξανασχεδίαση με AI" : "Σχεδίαση με AI"}</button>
           </div>
+          {designing ? (
+            <p className="m-0 flex items-center gap-2 rounded-xl bg-eu-navy text-white px-4 py-3 text-[length:var(--fs-15)] eu-card-in" role="status"><Sparkles className="size-5 text-eu-yellow eu-breathe" aria-hidden /> <SwapText text={WORKING_DESIGN[tick % WORKING_DESIGN.length]} /></p>
+          ) : designBy && (
+            <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-eu-chip px-4 py-3 text-eu-ink text-[length:var(--fs-15)] eu-card-in"><Sparkles className="size-5 text-eu-blue shrink-0" aria-hidden /> {designBy === "ai" ? "Ο σχεδιαστής AI διάλεξε διάταξη και σειρά για κάθε ενότητα, και έβγαλε εκτός τις διπλές." : "Η σελίδα στήθηκε με κανόνες (το AI δεν ήταν διαθέσιμο)."} <button type="button" className="font-bold text-eu-blue underline-offset-2 hover:underline min-h-8" onClick={() => setStep("review")}>Άλλαξε ό,τι θες στον έλεγχο</button></p>
+          )}
           <div className="rounded-2xl border border-eu-line bg-eu-surface p-3 @3xl:p-6 overflow-hidden">
             <motion.div key={device} initial={{ opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} className={`mx-auto bg-white rounded-xl shadow-[0_8px_30px_rgba(18,42,88,.10)] p-4 @3xl:p-8 ${device === "mobile" ? "max-w-[390px]" : "max-w-[1000px]"}`}>
               {preview.length ? (

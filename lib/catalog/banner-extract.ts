@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { storeBytes } from "@/lib/media/storage";
 import { analyseBanner, cropBox, type BannerAnalysis, type OcrText } from "./banner-ocr";
-import { uid, sectionHasContent, type StudioDoc, type StudioText, type PublishedSection, type SectionImage, type SectionFeature } from "./banner-doc";
+import { uid, sectionHasContent, type StudioDoc, type StudioText, type PublishedSection, type SectionImage, type SectionFeature, type Stat } from "./banner-doc";
 
 /**
  * Απόδελτίωση banners: ανάλυση → πρόχειρο (BannerExtraction) → διόρθωση στο εργαλείο → δημοσίευση ως ProductSection.
@@ -72,38 +72,39 @@ const joinText = (xs: (StudioText | null | undefined)[]) => xs.map((x) => x?.tex
  * Δημοσίευση μιας ή περισσότερων απόδελτιώσεων του ίδιου προϊόντος, με τη σειρά που δίνονται: κόβει φωτογραφίες και
  * εικονίδια, γράφει τις ενότητες (αντικαθιστώντας όσες είχαν βγει από τις ίδιες απόδελτιώσεις) και κρύβει τα αρχικά banners.
  */
-export async function publishExtractions(productId: string, items: { id: string; doc: StudioDoc }[], opts: { hideSources: boolean }) {
-  const product = await db.product.findUnique({ where: { id: productId }, select: { id: true, ean: true, sku: true } });
+export async function publishExtractions(productId: string, items: { id: string; doc: StudioDoc }[], opts: { hideSources: boolean; hideMediaIds?: string[] }) {
+  const product = await db.product.findUnique({ where: { id: productId }, select: { id: true } });
   if (!product) throw new Error("Το προϊόν δεν βρέθηκε.");
   const rows = await db.bannerExtraction.findMany({ where: { id: { in: items.map((i) => i.id) }, productId } });
   if (rows.length !== items.length) throw new Error("Κάποια απόδελτίωση δεν ανήκει σε αυτό το προϊόν.");
-  // οι ενότητες από ΑΛΛΕΣ απόδελτιώσεις (ή χειροκίνητες) μένουν πρώτες, οι νέες μπαίνουν μετά με τη σειρά του εργαλείου
+  // οι ενότητες από ΑΛΛΕΣ απόδελτιώσεις (ή χειροκίνητες) μένουν πρώτες, οι νέες μπαίνουν μετά με τη σειρά του σχεδιαστή
   const keep = await db.productSection.count({ where: { productId, extractionId: { notIn: items.map((i) => i.id) } } });
-  const folder = `products/${folderKey(product)}/sections`;
+  // Σειρά σελίδας: η βαθμολογία του σχεδιαστή (όλα τα banners μαζί)· χωρίς σχεδιασμό, η σειρά των banners
+  const ordered = items.flatMap((it, ii) => it.doc.sections.map((s, si) => ({ it, s, key: s.rank ?? 10000 + ii * 100 + si })))
+    .filter((x) => x.s.include && sectionHasContent(x.s)).sort((a, b) => a.key - b.key);
+  const bytesOf = new Map<string, Promise<Buffer>>();
+  const put = async (url: string, box: [number, number, number, number], kind: "img" | "icon") => {
+    if (!bytesOf.has(url)) bytesOf.set(url, fetchSource(url));
+    const c = await cropBox(await bytesOf.get(url)!, box, kind === "icon" ? { pad: 0.002, trim: true, max: 160 } : { trim: true, max: 1600 });
+    // ίδιο περιεχόμενο → ίδιο αρχείο: τα κοινά banners μιας σειράς (55″ / 65″ / 75″) δεν πολλαπλασιάζουν αρχεία
+    const hash = createHash("sha1").update(c.webp).digest("hex").slice(0, 20);
+    const url2 = (await storeBytes(`banner-sections/${hash.slice(0, 2)}/${hash}.webp`, c.webp, "image/webp")).url;
+    return { url: url2, width: c.width, height: c.height };
+  };
   const created: Prisma.ProductSectionCreateManyInput[] = [];
   let sortNo = keep, crops = 0;
-  for (const it of items) {
-    const bytes = await fetchSource(it.doc.sourceUrl);
-    const put = async (box: [number, number, number, number], kind: "img" | "icon") => {
-      const c = await cropBox(bytes, box, kind === "icon" ? { pad: 0.002, trim: true, max: 160 } : { trim: true, max: 1600 });
-      const hash = createHash("sha1").update(c.webp).digest("hex").slice(0, 16);
-      const url = (await storeBytes(`${folder}/${hash}.webp`, c.webp, "image/webp")).url;
-      crops++;
-      return { url, width: c.width, height: c.height };
-    };
-    for (const s of it.doc.sections) {
-      if (!s.include || !sectionHasContent(s)) continue;
-      const images: SectionImage[] = [];
-      for (const im of s.images.filter((x) => x.include)) { const c = await put(im.box, "img"); images.push({ ...c, alt: im.alt.trim() }); }
-      const features: SectionFeature[] = [];
-      for (const f of s.features.filter((x) => x.include && x.label.trim())) {
-        const icon = f.includeIcon && f.icon ? await put(f.icon, "icon") : null;
-        features.push({ label: f.label.trim(), ...(icon ? { iconUrl: icon.url, iconW: icon.width, iconH: icon.height } : {}) });
-      }
-      created.push({ productId, sortNo: sortNo++, title: s.title?.text.trim() || null, subtitle: s.subtitle?.text.trim() || null, body: joinText(s.paragraphs), features: features.length ? (features as unknown as Prisma.InputJsonValue) : undefined, footnote: s.footnote?.text.trim() || null, images: images.length ? (images as unknown as Prisma.InputJsonValue) : undefined, source: "banner", extractionId: it.id });
+  for (const { it, s } of ordered) {
+    const images: SectionImage[] = [];
+    for (const im of s.images.filter((x) => x.include)) { const c = await put(it.doc.sourceUrl, im.box, "img"); crops++; images.push({ ...c, alt: im.alt.trim() }); }
+    const features: SectionFeature[] = [];
+    for (const f of s.features.filter((x) => x.include && x.label.trim())) {
+      const icon = f.includeIcon && f.icon ? await put(it.doc.sourceUrl, f.icon, "icon") : null;
+      if (icon) crops++;
+      features.push({ label: f.label.trim(), ...(icon ? { iconUrl: icon.url, iconW: icon.width, iconH: icon.height } : {}) });
     }
+    created.push({ productId, sortNo: sortNo++, title: s.title?.text.trim() || null, subtitle: s.subtitle?.text.trim() || null, body: joinText(s.paragraphs), features: features.length ? (features as unknown as Prisma.InputJsonValue) : undefined, footnote: s.footnote?.text.trim() || null, images: images.length ? (images as unknown as Prisma.InputJsonValue) : undefined, layout: s.layout ?? null, stats: s.stats?.length ? (s.stats as unknown as Prisma.InputJsonValue) : undefined, source: "banner", extractionId: it.id });
   }
-  const mediaIds = rows.map((r) => r.mediaId).filter((x): x is string => !!x);
+  const mediaIds = opts.hideMediaIds ?? rows.map((r) => r.mediaId).filter((x): x is string => !!x);
   await db.$transaction([
     db.productSection.deleteMany({ where: { productId, extractionId: { in: items.map((i) => i.id) } } }),
     ...(created.length ? [db.productSection.createMany({ data: created })] : []),
@@ -116,7 +117,7 @@ export async function publishExtractions(productId: string, items: { id: string;
 /** Οι δημοσιευμένες ενότητες ενός προϊόντος, όπως τις αποδίδει η σελίδα. */
 export async function productSections(productId: string): Promise<PublishedSection[]> {
   const rows = await db.productSection.findMany({ where: { productId, hidden: false }, orderBy: { sortNo: "asc" } });
-  return rows.map((r) => ({ id: r.id, title: r.title, subtitle: r.subtitle, body: r.body, footnote: r.footnote, features: (Array.isArray(r.features) ? r.features : []) as unknown as SectionFeature[], images: (Array.isArray(r.images) ? r.images : []) as unknown as SectionImage[] }));
+  return rows.map((r) => ({ id: r.id, title: r.title, subtitle: r.subtitle, body: r.body, footnote: r.footnote, layout: (r.layout as PublishedSection["layout"]) ?? null, stats: (Array.isArray(r.stats) ? r.stats : []) as unknown as Stat[], features: (Array.isArray(r.features) ? r.features : []) as unknown as SectionFeature[], images: (Array.isArray(r.images) ? r.images : []) as unknown as SectionImage[] }));
 }
 
 /** Σβήνει τις ενότητες μιας απόδελτίωσης και ξαναδείχνει το αρχικό banner (αναίρεση δημοσίευσης). */
