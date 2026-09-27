@@ -149,9 +149,9 @@ export function resolveModel(cfg: AiConfig | null, task: string | undefined, ove
   const hasImage = messages.some((m) => Array.isArray(m.content) && m.content.some((c) => c.type === "image_url"));
   const taskModel = task === "fast" ? cfg.modelFast : task === "vision" || hasImage ? cfg.modelVision : task && task !== "main" ? task : cfg.model;
   const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
+  // ρητό μοντέλο («πάροχος/όνομα») από τον καλούντα: ισχύει πάντα — και με εικόνα (OCR banners) και με αυτόματη δρομολόγηση (Ερμής)
+  if (task && task.includes("/")) return { model: task, fallbacks: uniq([hasImage ? cfg.modelVision : cfg.modelFast, ...cfg.fallbackModels]).filter((m) => m !== task && m !== AUTO) };
   if (hasImage) return { model: cfg.modelVision, fallbacks: uniq([...cfg.fallbackModels, cfg.modelFast]).filter((m) => m !== cfg.modelVision) };
-  // ρητό μοντέλο («πάροχος/όνομα») από τον καλούντα: ισχύει και με αυτόματη δρομολόγηση — εκεί που μετράει η καθυστέρηση (Ερμής)
-  if (task && task.includes("/")) return { model: task, fallbacks: uniq([cfg.modelFast, ...cfg.fallbackModels]).filter((m) => m !== task && m !== AUTO) };
   if (cfg.routing === "auto") return { model: AUTO, fallbacks: uniq([taskModel, ...cfg.fallbackModels]).filter((m) => m !== AUTO) };
   return { model: taskModel, fallbacks: uniq(cfg.fallbackModels).filter((m) => m !== taskModel) };
 }

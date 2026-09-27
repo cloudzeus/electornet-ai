@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Package, ImageOff, AlertTriangle, Images, Ruler } from "lucide-react";
+import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
@@ -42,6 +42,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Προϊόντα</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Όνομα, περιγραφή και κατηγορία έρχονται από το SoftOne. Οι φωτογραφίες είναι δικές μας: άνοιξε ένα προϊόν για να ανεβάσεις νέες, να διαλέξεις από τη βιβλιοθήκη πολυμέσων ή να αλλάξεις τη σειρά τους.</p>
         <Link href="/admin/catalog/dimensions" className="mt-2 inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-chip"><Ruler className="size-4" aria-hidden /> Διαστάσεις & EPREL</Link>
+        <Link href="/admin/catalog/banners" className="mt-2 ml-2 inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-chip"><ScanText className="size-4" aria-hidden /> Απόδελτίωση banners</Link>
       </div>
 
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">

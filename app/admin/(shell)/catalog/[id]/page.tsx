@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, ScanText } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -20,7 +20,12 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, summary: true, source: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
-  const images = await listProductImages(p.id);
+  const [images, bannerCounts, sectionCount] = await Promise.all([
+    listProductImages(p.id),
+    db.media.groupBy({ by: ["hidden"], where: { productId: p.id, kind: "banner" }, _count: { _all: true } }),
+    db.productSection.count({ where: { productId: p.id, hidden: false } }),
+  ]);
+  const bannersShown = bannerCounts.find((b) => !b.hidden)?._count._all ?? 0, bannersHidden = bannerCounts.find((b) => b.hidden)?._count._all ?? 0;
   const path = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter(Boolean).join(" › ");
   const facts: [string, string][] = [["Μάρκα", p.brand.name], ["Κατηγορία", path], ["Κωδικός είδους", p.sku], ["Barcode", p.ean ?? "—"], ["SoftOne MTRL", p.erpCode], ["Χαρακτηριστικά", `${p._count.specs} · ${p._count.facetValues} τιμές φίλτρων`], ["Ενεργειακή κλάση", p.energy?.class ?? "—"], ["Κατάσταση", p.active ? "Ενεργό" : "Ανενεργό"]];
 
@@ -34,6 +39,17 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       </div>
 
       <ProductImages productId={p.id} initial={images} canWrite={can(user.permissions, "catalog.products.write")} canUploadToLibrary={can(user.permissions, "cms.media.write")} />
+
+      {(bannersShown + bannersHidden > 0 || sectionCount > 0) && (
+        <section className="rounded-2xl border border-eu-line bg-white p-4 flex flex-wrap items-center gap-4">
+          <ScanText className="size-8 text-eu-blue shrink-0" aria-hidden />
+          <div className="flex-1 min-w-[16rem]">
+            <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Banners κατασκευαστή → κείμενο</h3>
+            <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)]">{bannersShown} {bannersShown === 1 ? "banner εμφανίζεται" : "banners εμφανίζονται"} ως εικόνα{bannersHidden ? ` · ${bannersHidden} κρυμμένα` : ""} · {sectionCount} {sectionCount === 1 ? "ενότητα" : "ενότητες"} από απόδελτίωση στη σελίδα.</p>
+          </div>
+          {can(user.permissions, "catalog.products.write") && <Link href={`/admin/catalog/${p.id}/banners`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold px-5 min-h-11 text-[length:var(--fs-15)] hover:bg-eu-blue">{sectionCount ? "Διόρθωση / νέα απόδελτίωση" : "Απόδελτίωση"}</Link>}
+        </section>
+      )}
 
       <section className="rounded-2xl border border-eu-line bg-white p-4 grid gap-3">
         <div>

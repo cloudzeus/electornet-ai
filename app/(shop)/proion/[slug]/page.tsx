@@ -58,7 +58,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi");
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
-  const sections = ["overview", ...(p.description ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
+  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
@@ -130,14 +130,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </ul>
         </section>
 
-        {p.description && (
+        {!!(p.description || p.sections?.length) && (
           <section id="description" className="scroll-mt-24 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_320px] gap-8" aria-labelledby="desc-title">
             <div>
               <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Περιγραφή</div>
               <h2 id="desc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
                 {p.brand} {p.title}
               </h2>
-              {p.fromDb ? <RichDescription text={p.description} banners={p.banners} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
+              {p.fromDb ? <RichDescription text={p.description ?? ""} banners={p.banners} sections={p.sections} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
               {p.sourceUrl && (
                 <p className="m-0 mt-3 text-eu-muted text-[length:var(--fs-15)]">
                   Στοιχεία προϊόντος από το euronics.gr ·{" "}

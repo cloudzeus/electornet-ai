@@ -1,3 +1,4 @@
+import { productSections } from "@/lib/catalog/banner-extract";
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -133,7 +134,10 @@ export async function dbProductBySlug(slug: string): Promise<Product | null> {
     facetValues: { where: { source: { in: ["spec", "title"] } }, orderBy: { facet: { sortNo: "asc" } }, take: 8, select: { value: true, facet: { select: { label: true } } } },
   } });
   if (!r) return null;
-  const banners = await db.media.findMany({ where: { productId: r.id, kind: "banner", hidden: false }, orderBy: { sortNo: "asc" }, select: { url: true, width: true, height: true, alt: true, blur: true } });
+  const [banners, sections] = await Promise.all([
+    db.media.findMany({ where: { productId: r.id, kind: "banner", hidden: false }, orderBy: { sortNo: "asc" }, select: { url: true, width: true, height: true, alt: true, blur: true } }),
+    productSections(r.id),
+  ]);
   // Όταν η περιγραφή δεν δίνει «λόγους»: πρώτα ό,τι πείθει (κλάση, κατανάλωση, θόρυβος, χωρητικότητα από την ενεργειακή ετικέτα),
   // μετά τα γνωρίσματα του τύπου από τα φίλτρα του ERP. Οι διαστάσεις δεν είναι λόγος αγοράς — έχουν το δικό τους σημείο.
   const label = (k: string) => k.replace(/\s*\([^)]*\)/, "");
@@ -149,7 +153,7 @@ export async function dbProductBySlug(slug: string): Promise<Product | null> {
     const one = erpDim?.rawKey === "Πλάτος / Ύψος / Βάθος" ? axis.find(([re]) => re.test(norm(s.key))) : undefined;
     return one ? { group: s.groupName, key: s.key, value: `${el(one[1])} εκ.` } : { group: s.groupName, key: s.key, value: s.value };
   });
-  return withAttrs(toProduct(r, { specs, banners, facts }), await attrsFor([r.id]));
+  return withAttrs({ ...toProduct(r, { specs, banners, facts }), sections }, await attrsFor([r.id]));
 }
 /** Τα χαρακτηριστικά του τύπου με τις τιμές κάθε προϊόντος, στη σειρά που τα έχει το ERP — η βάση κάθε σύγκρισης. */
 async function attrsFor(ids: string[]): Promise<Map<string, NonNullable<Product["attrs"]>>> {

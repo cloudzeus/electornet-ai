@@ -1,0 +1,30 @@
+import { notFound } from "next/navigation";
+import { requirePermission } from "@/lib/rbac/guard";
+import { db } from "@/lib/db";
+import { nextToExtract } from "@/lib/catalog/banner-worklist";
+import { BannerStudio, type StudioBanner, type StudioDraft } from "@/components/admin/banner-studio/BannerStudio";
+import type { StudioDoc } from "@/lib/catalog/banner-doc";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Απόδελτίωση banners" };
+
+/** Εργαλείο απόδελτίωσης για ένα προϊόν: banners → κείμενο + φωτογραφίες → ενότητες της σελίδας. */
+export default async function BannersPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission("catalog.products.write");
+  const { id } = await params;
+  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, slug: true, categoryId: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true } } } } } });
+  if (!p) notFound();
+  const [media, extractions, publishedCount, nextHref] = await Promise.all([
+    db.media.findMany({ where: { productId: id, kind: "banner" }, orderBy: { sortNo: "asc" }, select: { id: true, url: true, width: true, height: true, hidden: true } }),
+    db.bannerExtraction.findMany({ where: { productId: id, status: { in: ["draft", "published"] } }, orderBy: { updatedAt: "desc" }, select: { id: true, mediaId: true, sourceName: true, status: true, doc: true, updatedAt: true, createdAt: true } }),
+    db.productSection.count({ where: { productId: id, hidden: false } }),
+    nextToExtract(id, undefined),
+  ]);
+  // μία (η πιο πρόσφατη) απόδελτίωση ανά banner· τα αρχεία που ανέβηκαν μετράνε ξεχωριστά
+  const latest = new Map<string, (typeof extractions)[number]>();
+  for (const e of extractions) { const k = e.mediaId ?? `u:${e.id}`; if (!latest.has(k)) latest.set(k, e); }
+  const drafts: StudioDraft[] = [...latest.values()].sort((a, b) => +a.createdAt - +b.createdAt).map((e) => ({ id: e.id, mediaId: e.mediaId, sourceName: e.sourceName, status: e.status, doc: e.doc as unknown as StudioDoc, updatedAt: e.updatedAt.toISOString() }));
+  const banners: StudioBanner[] = media.map((m) => { const e = latest.get(m.id); return { ...m, extraction: e ? { id: e.id, status: e.status } : null }; });
+  const title = p.title.toLocaleUpperCase("el-GR").startsWith(`${p.brand.name.toLocaleUpperCase("el-GR")} `) ? p.title.slice(p.brand.name.length + 1) : p.title;
+  return <BannerStudio product={{ id: p.id, title, brand: p.brand.name, slug: p.slug, path: [p.category.parent?.name, p.category.name].filter(Boolean).join(" › ") }} banners={banners} drafts={drafts} publishedCount={publishedCount} nextHref={nextHref} />;
+}

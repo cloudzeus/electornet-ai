@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { ProductSections } from "./ProductSections";
+import type { PublishedSection } from "@/lib/catalog/banner-doc";
 
 /**
  * Η περιγραφή του ERP είναι ελεύθερο κείμενο, αλλά σχεδόν πάντα έχει δομή που χάνεται σε μία παράγραφο:
@@ -26,12 +28,12 @@ export function parseBlocks(text: string): Block[] {
   return out;
 }
 
-export function RichDescription({ text, banners = [] }: { text: string; banners?: Banner[] }) {
+export function RichDescription({ text, banners = [], sections = [] }: { text: string; banners?: Banner[]; sections?: PublishedSection[] }) {
   const blocks = parseBlocks(text);
   return (
-    <div className="grid gap-5 max-w-[78ch]">
+    <div className="grid gap-5">
       {blocks.map((b, i) => b.kind === "p" ? (
-        <p key={i} className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75]">{b.text}</p>
+        <p key={i} className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[78ch]">{b.text}</p>
       ) : (
         <div key={i}>
           <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-17)]">{b.title}</h3>
@@ -40,6 +42,7 @@ export function RichDescription({ text, banners = [] }: { text: string; banners?
           </ul>
         </div>
       ))}
+      {sections.length > 0 && <div className="mt-4"><ProductSections sections={sections} /></div>}
       {banners.length > 0 && (
         <div className="grid gap-3 mt-2">
           {banners.map((b) => b.width && b.height ? (

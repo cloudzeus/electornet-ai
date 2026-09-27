@@ -28,7 +28,7 @@ export interface DocContext {
   brands: Map<number, string>; cat: Map<string, string>; groups: Map<number, { name: string; specs: string[] }>;
   eprel: Map<string, { cls: string | null; kwh: number | null; lines: string[] }>;
   /** ανά MTRL: ό,τι ξέρει η βιτρίνα για το προϊόν (φίλτρα με τιμές, διαστάσεις, γραμμές ενεργειακής ετικέτας) */
-  shop: Map<string, { facets: string[]; dims: string | null; label: string[]; cls: string | null; /** επίσημα χαρακτηριστικά από Icecat / ιστότοπο κατασκευαστή */ official: string[] }>;
+  shop: Map<string, { facets: string[]; dims: string | null; label: string[]; cls: string | null; /** επίσημα χαρακτηριστικά από Icecat / ιστότοπο κατασκευαστή */ official: string[]; /** κείμενο των banners του κατασκευαστή (απόδελτίωση) */ story: string[] }>;
 }
 
 export async function loadDocContext(): Promise<DocContext> {
@@ -42,6 +42,7 @@ export async function loadDocContext(): Promise<DocContext> {
       facetValues: { orderBy: { facet: { sortNo: "asc" } }, select: { value: true, facet: { select: { label: true } } } },
       dimensions: { select: { source: true, w: true, h: true, d: true } },
       specs: { where: { source: { in: ["eprel", "icecat", "web"] } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } },
+      sections: { where: { hidden: false }, orderBy: { sortNo: "asc" }, select: { title: true, subtitle: true, body: true, features: true } },
     } }),
   ]);
   const shop: DocContext["shop"] = new Map();
@@ -55,6 +56,7 @@ export async function loadDocContext(): Promise<DocContext> {
       dims: d ? `πλάτος ${d.w} εκ., ύψος ${d.h} εκ., βάθος ${d.d} εκ.` : null,
       label: p.specs.filter((x) => x.source === "eprel").map((x) => `${x.key}: ${x.value}`), cls: p.energy?.class ?? null,
       official: p.specs.filter((x) => x.source !== "eprel").map((x) => `${x.key}: ${x.value}`),
+      story: p.sections.map((s) => [s.title, s.subtitle, s.body, ...(Array.isArray(s.features) ? (s.features as { label?: string }[]).map((f) => f.label) : [])].filter(Boolean).join(" — ")),
     });
   }
   return {
@@ -87,6 +89,7 @@ export function productDoc(it: Item, ctx: DocContext, model: string): BuiltDoc {
     group?.specs.length ? `Χαρακτηριστικά αυτού του τύπου προϊόντος: ${cap(group.specs.join(", "), 500)}` : null,
     sh?.facets.length ? `Τι έχει αυτό το προϊόν: ${cap(sh.facets.join(" · "), 700)}` : null,
     sh?.dims ? `Διαστάσεις: ${sh.dims}${it.weightKg ? ` Βάρος ${it.weightKg} κιλά.` : ""}` : it.widthCm && it.heightCm && it.lengthCm ? `Διαστάσεις: πλάτος ${it.widthCm} εκ., ύψος ${it.heightCm} εκ., βάθος ${it.lengthCm} εκ.${it.weightKg ? ` Βάρος ${it.weightKg} κιλά.` : ""}` : null,
+    sh?.story.length ? `Από τον κατασκευαστή: ${cap(sh.story.join(" · "), 2000)}` : null,
     sh?.official.length ? `Επίσημα τεχνικά χαρακτηριστικά (κατασκευαστής): ${cap(sh.official.join(" · "), 2200)}` : null,
     sh?.label.length ? `Ενεργειακή ετικέτα (EPREL): ${sh.cls ? `κλάση ${sh.cls}. ` : ""}${sh.label.join(". ")}` : ep ? `Ενεργειακή ετικέτα EPREL: κλάση ${ep.cls ?? "—"}${ep.kwh ? `, ${ep.kwh} kWh τον χρόνο` : ""}. ${ep.lines.join(". ")}` : null,
     it.guaranteeMonths ? `Εγγύηση ${it.guaranteeMonths} μήνες${it.extWarranty ? ", με δυνατότητα επέκτασης εγγύησης" : ""}.` : it.extWarranty ? "Με δυνατότητα επέκτασης εγγύησης." : null,

@@ -84,6 +84,8 @@ export interface Product {
   description?: string;
   /** Γραφικά χαρακτηριστικών του κατασκευαστή, για μέσα στην περιγραφή (όχι στη γκαλερί). */
   banners?: { url: string; width: number | null; height: number | null; alt: string | null; blur?: string | null }[];
+  /** ενότητες «από τον κατασκευαστή» (απόδελτίωση banners): κείμενο + καθαρές φωτογραφίες */
+  sections?: import("@/lib/catalog/banner-doc").PublishedSection[];
   highlights?: string[];
   specs?: Spec[];
   variants?: VariantAxis[];

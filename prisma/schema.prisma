@@ -106,6 +106,8 @@ model Product {
   media          Media[]
   specs          Spec[]
   enrichments    ProductEnrichment[]
+  sections       ProductSection[]
+  extractions    BannerExtraction[]
   energy         EnergyLabel?
   reviews        Review[]
   questions      Question[]
@@ -229,6 +231,60 @@ model Spec {
 
   @@index([productId])
   @@index([key])
+}
+
+/// Ενότητα περιεχομένου της σελίδας προϊόντος («από τον κατασκευαστή»): τίτλος, κείμενο, χαρακτηριστικά με εικονίδια,
+/// υποσημείωση και καθαρές φωτογραφίες. Βγαίνει από απόδελτίωση banner (lib/catalog/banner-extract.ts) — το κείμενο
+/// γίνεται πραγματικό κείμενο (responsive, αναζητήσιμο, διαθέσιμο στον Ερμή) αντί για εικόνα.
+model ProductSection {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortNo       Int      @default(0)
+  title        String?
+  subtitle     String?
+  /// παράγραφοι χωρισμένες με κενή γραμμή
+  body         String?
+  /// [{ label, iconUrl?, iconW?, iconH? }]
+  features     Json?
+  footnote     String?
+  /// [{ url, width, height, alt }]
+  images       Json?
+  source       String   @default("banner") // banner = απόδελτίωση · manual
+  extractionId String?
+  hidden       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId, sortNo])
+  @@index([extractionId])
+}
+
+/// Μία απόδελτίωση banner: η πηγή (banner του προϊόντος ή αρχείο που ανέβηκε), το αποτέλεσμα της ανάλυσης και το
+/// έγγραφο που διορθώνει ο διαχειριστής. Πρόχειρο μέχρι τη δημοσίευση — η δουλειά δεν χάνεται αν κλείσει η καρτέλα.
+model BannerExtraction {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mediaId     String? // banner του προϊόντος (Media kind=banner) — null για αρχείο που ανέβηκε
+  sourceUrl   String
+  sourceName  String?
+  width       Int
+  height      Int
+  lang        String?
+  /// το έγγραφο προς επεξεργασία (StudioDoc)
+  doc         Json
+  status      String    @default("draft") // draft | published | discarded
+  model       String?
+  costUsd     Float     @default(0)
+  ms          Int?
+  createdById String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([productId, status])
+  @@index([mediaId])
 }
 
 /// Εμπλουτισμός χαρακτηριστικών από εξωτερικές πηγές (lib/catalog/enrich.ts): μία γραμμή ανά προϊόν και πηγή — τι βρέθηκε, πού, πόσο κόστισε.
