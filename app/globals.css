@@ -617,3 +617,21 @@ button.rounded-full:active, a.rounded-full:active {
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
 }
+
+/* ---------- Εργαλείο απόδελτίωσης banners: κίνηση που εξηγεί τι συμβαίνει ---------- */
+@keyframes eu-box-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+@keyframes eu-card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes eu-pop { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes eu-scan-sweep { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+@keyframes eu-skeleton { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.8; } }
+.eu-box-in { animation: eu-box-in 380ms var(--eu-ease-out) both; }
+.eu-card-in { animation: eu-card-in 440ms var(--eu-ease-out) both; }
+.eu-pop { animation: eu-pop 420ms var(--eu-ease-out) both; }
+.eu-grow-x { transform-origin: left; animation: eu-grow 1100ms var(--eu-ease-out) both; }
+.eu-scan-sweep { animation: eu-scan-sweep 1.9s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+.eu-skeleton { animation: eu-skeleton 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .eu-box-in, .eu-card-in, .eu-pop, .eu-grow-x { animation: none; }
+  .eu-scan-sweep { animation: none; opacity: 0; }
+  .eu-skeleton { animation: none; }
+}

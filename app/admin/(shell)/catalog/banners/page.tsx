@@ -42,7 +42,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
 
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
         <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)]">Προϊόντα με banners</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(withBanners)}</div><div className="text-eu-ink-3 text-[length:var(--fs-14)]">{n(total)} περιμένουν απόδελτίωση{q || cat ? " (με το φίλτρο)" : ""}</div></div>
-        <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><CheckCircle2 className="size-4 text-eu-green" aria-hidden /> Με ενότητες στη σελίδα</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(done)}</div><div className="mt-2 h-2 rounded-full bg-eu-surface overflow-hidden" role="progressbar" aria-valuenow={pctDone} aria-valuemin={0} aria-valuemax={100} aria-label="Πρόοδος απόδελτίωσης"><div className="h-full bg-eu-green" style={{ width: `${pctDone}%` }} /></div></div>
+        <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><CheckCircle2 className="size-4 text-eu-green" aria-hidden /> Με ενότητες στη σελίδα</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(done)}</div><div className="mt-2 h-2 rounded-full bg-eu-surface overflow-hidden" role="progressbar" aria-valuenow={pctDone} aria-valuemin={0} aria-valuemax={100} aria-label="Πρόοδος απόδελτίωσης"><div className="h-full bg-eu-green eu-grow-x" style={{ width: `${pctDone}%` }} /></div></div>
         <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><FileText className="size-4 text-eu-amber" aria-hidden /> Με ανοιχτό πρόχειρο</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(drafts)}</div><div className="text-eu-ink-3 text-[length:var(--fs-14)]">η δουλειά αποθηκεύεται αυτόματα</div></div>
       </div>
 
@@ -65,8 +65,8 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
           <p className="m-0 p-6 text-eu-ink-3 text-[length:var(--fs-15)]">{q || cat ? "Κανένα προϊόν με αυτό το φίλτρο." : "Όλα τα προϊόντα με banners έχουν αποδελτιωθεί."}</p>
         ) : (
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
-            {rows.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+            {rows.map((r, i) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 eu-card-in" style={{ animationDelay: `${Math.min(i, 14) * 30}ms` }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {r.media[0] ? <img src={r.media[0].url} alt="" loading="lazy" className="size-14 rounded-lg border border-eu-line object-contain bg-white shrink-0" /> : <span className="size-14 rounded-lg bg-eu-surface shrink-0" />}
                 <div className="min-w-0 flex-1 basis-60">

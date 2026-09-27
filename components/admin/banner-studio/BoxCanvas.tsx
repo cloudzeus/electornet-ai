@@ -90,6 +90,7 @@ export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelect
     onBoxChange(sel, round(e.altKey ? resize(box, "se", v[0], v[1]) : resize(box, "move", v[0], v[1])));
   };
 
+  let n = 0; // σειρά εμφάνισης των πλαισίων (καθυστέρηση κίνησης)
   const boxOf = (sel: BoxSel, b: Box) => (live?.sel && live.sel.id === sel.id ? live.box : b);
 
   return (
@@ -104,14 +105,15 @@ export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelect
         onPointerUp={end}
         onPointerCancel={end}
       >
+        {/* τα πλαίσια εμφανίζονται ένα-ένα, με τη σειρά ανάγνωσης — ο χρήστης βλέπει τι «βρήκε» ο βοηθός */}
         {doc.sections.map((s, si) => {
           const on = s.id === selectedSection, dim = !s.include;
           const a = anchor(s);
           return (
             <div key={s.id} className={dim ? "opacity-30" : ""}>
               {textBoxes(s).map((b, k) => (
-                <span key={k} aria-hidden data-text="1" data-sid={s.id} style={pct(b)}
-                  className={`absolute rounded-sm ${drawFor ? "" : "cursor-pointer"} ${on ? "border-2 border-eu-blue bg-eu-blue/10" : "border border-eu-blue/60 bg-eu-blue/5 hover:bg-eu-blue/10"}`} />
+                <span key={k} aria-hidden data-text="1" data-sid={s.id} style={{ ...pct(b), animationDelay: `${Math.min(n++, 40) * 28}ms` }}
+                  className={`absolute rounded-sm eu-box-in ${drawFor ? "" : "cursor-pointer"} ${on ? "border-2 border-eu-blue bg-eu-blue/10" : "border border-eu-blue/60 bg-eu-blue/5 hover:bg-eu-blue/10"}`} />
               ))}
               {s.images.map((im) => {
                 const sel: BoxSel = { sectionId: s.id, kind: "image", id: im.id };
@@ -120,8 +122,8 @@ export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelect
                   <div key={im.id} role="button" tabIndex={0} aria-label={`Φωτογραφία ενότητας ${si + 1}${im.include ? "" : " (εκτός)"} — βελάκια για μετακίνηση, Alt+βελάκια για μέγεθος`} aria-pressed={active}
                     onKeyDown={(e) => keys(e, sel, im.box)} onFocus={() => { onSelectSection(s.id); onSelectBox(sel); }}
                     data-mode="move" data-kind="image" data-sid={s.id} data-id={im.id}
-                    style={pct(b)}
-                    className={`absolute outline-none ${im.include ? "" : "opacity-50"} ${active ? "border-[3px] border-eu-yellow shadow-[0_0_0_2px_#122A58] cursor-move" : "border-2 border-eu-yellow/90 hover:border-eu-yellow cursor-pointer"} focus-visible:shadow-[0_0_0_3px_#1D428A]`}>
+                    style={{ ...pct(b), animationDelay: `${Math.min(n++, 40) * 28}ms` }}
+                    className={`absolute outline-none eu-box-in ${im.include ? "" : "opacity-50"} ${active ? "border-[3px] border-eu-yellow shadow-[0_0_0_2px_#122A58] cursor-move" : "border-2 border-eu-yellow/90 hover:border-eu-yellow cursor-pointer"} focus-visible:shadow-[0_0_0_3px_#1D428A]`}>
                     {active && (["nw", "ne", "sw", "se"] as const).map((h) => (
                       <span key={h} data-mode={h} data-kind="image" data-sid={s.id} data-id={im.id}
                         className={`absolute size-5 -m-2.5 rounded-full bg-eu-yellow border-2 border-eu-navy ${h[0] === "n" ? "top-0" : "bottom-0"} ${h[1] === "w" ? "left-0" : "right-0"} ${h === "nw" || h === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`} />
@@ -133,8 +135,8 @@ export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelect
                 const sel: BoxSel = { sectionId: s.id, kind: "icon", id: f.id };
                 const b = boxOf(sel, f.icon!), active = selectedBox?.id === f.id;
                 return (
-                  <div key={f.id} aria-hidden data-mode="move" data-kind="icon" data-sid={s.id} data-id={f.id} style={pct(b)}
-                    className={`absolute ${f.includeIcon ? "" : "opacity-40"} ${active ? "border-2 border-dashed border-eu-yellow shadow-[0_0_0_2px_#122A58] cursor-move" : "border border-dashed border-eu-yellow cursor-pointer"}`}>
+                  <div key={f.id} aria-hidden data-mode="move" data-kind="icon" data-sid={s.id} data-id={f.id} style={{ ...pct(b), animationDelay: `${Math.min(n++, 40) * 28}ms` }}
+                    className={`absolute eu-box-in ${f.includeIcon ? "" : "opacity-40"} ${active ? "border-2 border-dashed border-eu-yellow shadow-[0_0_0_2px_#122A58] cursor-move" : "border border-dashed border-eu-yellow cursor-pointer"}`}>
                     {active && (["nw", "ne", "sw", "se"] as const).map((h) => (
                       <span key={h} data-mode={h} data-kind="icon" data-sid={s.id} data-id={f.id} className={`absolute size-4 -m-2 rounded-full bg-eu-yellow border-2 border-eu-navy ${h[0] === "n" ? "top-0" : "bottom-0"} ${h[1] === "w" ? "left-0" : "right-0"}`} />
                     ))}
@@ -142,7 +144,7 @@ export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelect
                 );
               })}
               {a && (
-                <span style={{ left: `${a[0] * 100}%`, top: `${a[1] * 100}%` }} className={`absolute -translate-x-1/2 -translate-y-1/2 size-7 rounded-full inline-flex items-center justify-center font-extrabold text-[length:var(--fs-14)] pointer-events-none ${on ? "bg-eu-navy text-white ring-2 ring-eu-yellow" : "bg-eu-blue text-white"}`}>{si + 1}</span>
+                <span style={{ left: `${a[0] * 100}%`, top: `${a[1] * 100}%` }} className={`absolute -translate-x-1/2 -translate-y-1/2 size-7 rounded-full eu-pop inline-flex items-center justify-center font-extrabold text-[length:var(--fs-14)] pointer-events-none ${on ? "bg-eu-navy text-white ring-2 ring-eu-yellow" : "bg-eu-blue text-white"}`}>{si + 1}</span>
               )}
             </div>
           );

@@ -7,6 +7,7 @@ import { BoxCanvas, type BoxSel } from "./BoxCanvas";
 import { SectionEditor } from "./SectionEditor";
 import { CropView } from "./CropView";
 import { pdfToImages } from "./pdf";
+import { StepTransition, SwapText, ScanOverlay, SuccessBurst, motion } from "./motion";
 import { ProductSections } from "@/components/pdp/ProductSections";
 import { emptySection, sectionHasContent, type Box, type PublishedSection, type StudioDoc, type StudioSection } from "@/lib/catalog/banner-doc";
 
@@ -39,7 +40,7 @@ function Stepper({ step, can, go }: { step: Step; can: (s: Step) => boolean; go:
         const clickable = state === "done" && can(s.k);
         const body = (
           <>
-            <span className={`size-9 shrink-0 rounded-full inline-flex items-center justify-center font-extrabold text-[length:var(--fs-15)] ${state === "now" ? "bg-eu-navy text-white ring-4 ring-eu-yellow/60" : state === "done" ? "bg-eu-green text-white" : "bg-eu-surface text-eu-muted"}`}>{state === "done" ? <Check className="size-5" aria-hidden /> : i + 1}</span>
+            <span key={state} className={`size-9 shrink-0 rounded-full inline-flex items-center justify-center font-extrabold text-[length:var(--fs-15)] ${state !== "next" ? "eu-pop" : ""} ${state === "now" ? "bg-eu-navy text-white ring-4 ring-eu-yellow/60" : state === "done" ? "bg-eu-green text-white" : "bg-eu-surface text-eu-muted"}`}>{state === "done" ? <Check className="size-5" aria-hidden /> : i + 1}</span>
             <span className="min-w-0 text-left">
               <span className={`block font-extrabold text-[length:var(--fs-15)] ${state === "next" ? "text-eu-muted" : "text-eu-ink"}`}>{s.t}</span>
               <span className="block text-eu-muted text-[length:var(--fs-13)] truncate">{s.d}</span>
@@ -77,7 +78,11 @@ function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioD
 }
 
 export function BannerStudio({ product, banners, drafts, publishedCount, nextHref }: { product: StudioProduct; banners: StudioBanner[]; drafts: StudioDraft[]; publishedCount: number; nextHref: string | null }) {
-  const [step, setStep] = useState<Step>("pick");
+  const [step, setStepRaw] = useState<Step>("pick");
+  const [dir, setDir] = useState<1 | -1>(1);
+  const ORDER: Record<Step, number> = { pick: 0, review: 1, publish: 2, done: 3 };
+  /** Αλλαγή βήματος με κατεύθυνση, για να γλιστρά η μετάβαση προς τα εμπρός ή προς τα πίσω. */
+  const setStep = (next: Step) => { setDir(ORDER[next] >= ORDER[step] ? 1 : -1); setStepRaw(next); };
   const visible = banners.filter((b) => !b.hidden), hidden = banners.filter((b) => b.hidden);
   const [picked, setPicked] = useState<Set<string>>(() => new Set(visible.filter((b) => !b.extraction || b.extraction.status !== "published").map((b) => b.id)));
   const [uploads, setUploads] = useState<{ key: string; file: File; thumb: string }[]>([]);
@@ -250,8 +255,10 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
 
       <div className="rounded-2xl border border-eu-line bg-white p-2"><Stepper step={step} can={(s) => s === "pick" || (s === "review" && ready.length > 0)} go={setStep} /></div>
 
-      {error && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 text-eu-ink px-4 py-3 text-[length:var(--fs-15)]"><CircleAlert className="size-5 text-eu-red shrink-0 mt-0.5" aria-hidden />{error}</p>}
+      {error && <p role="alert" className="eu-card-in m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 text-eu-ink px-4 py-3 text-[length:var(--fs-15)]"><CircleAlert className="size-5 text-eu-red shrink-0 mt-0.5" aria-hidden />{error}</p>}
 
+      <StepTransition stepKey={step} dir={dir}>
+      <div className="grid gap-5">
       {/* ---------------- 1. Επιλογή ---------------- */}
       {step === "pick" && (
         <div className="grid gap-5">
@@ -291,11 +298,11 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
                   const on = picked.has(b.id), st = b.extraction?.status;
                   return (
                     <li key={b.id}>
-                      <label className={`block rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-colors ${on ? "border-eu-navy shadow-[0_6px_18px_rgba(18,42,88,.14)]" : "border-eu-line hover:border-eu-blue"}`}>
+                      <label style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} className={`block rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 eu-card-in ${on ? "border-eu-navy shadow-[0_6px_18px_rgba(18,42,88,.14)]" : "border-eu-line hover:border-eu-blue"}`}>
                         <span className="relative block bg-eu-surface" style={{ aspectRatio: b.width && b.height ? `${b.width} / ${Math.min(b.height, b.width * 1.2)}` : "2 / 1" }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={b.url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
-                          <span className={`absolute top-2 left-2 size-8 rounded-lg inline-flex items-center justify-center border-2 ${on ? "bg-eu-navy border-eu-navy text-white" : "bg-white/90 border-eu-line"}`}>{on && <Check className="size-5" aria-hidden />}</span>
+                          <span className={`absolute top-2 left-2 size-8 rounded-lg inline-flex items-center justify-center border-2 ${on ? "bg-eu-navy border-eu-navy text-white" : "bg-white/90 border-eu-line"}`}>{on && <Check className="size-5 eu-pop" aria-hidden />}</span>
                           {st && <span className={`absolute top-2 right-2 rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-13)] ${st === "published" ? "bg-eu-green text-white" : "bg-eu-yellow text-eu-navy"}`}>{st === "published" ? "Δημοσιευμένο" : "Πρόχειρο"}</span>}
                         </span>
                         <span className="flex items-center gap-2 px-3 py-2 min-h-11">
@@ -340,7 +347,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
             {uploads.length > 0 && (
               <ul className="m-0 p-0 list-none flex flex-wrap gap-3">
                 {uploads.map((u) => (
-                  <li key={u.key} className="relative rounded-xl border border-eu-line bg-white overflow-hidden w-40">
+                  <li key={u.key} className="relative rounded-xl border border-eu-line bg-white overflow-hidden w-40 eu-card-in">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={u.thumb} alt="" className="w-full h-24 object-cover object-top" />
                     <span className="block px-2 py-1.5 text-eu-ink text-[length:var(--fs-13)] truncate" title={u.file.name}>{u.file.name}</span>
@@ -379,10 +386,10 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
 
           {item && (item.status === "queued" || item.status === "working") && (
             <div className="rounded-2xl border border-eu-line bg-white p-6 grid @3xl:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] gap-6 items-center" role="status" aria-live="polite">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.thumb} alt="" className="w-full rounded-xl border border-eu-line max-h-72 object-cover object-top" />
-              <div className="grid gap-2">
-                <p className="m-0 inline-flex items-center gap-2 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"><Loader2 className="size-6 animate-spin text-eu-blue" aria-hidden /> {item.status === "queued" ? "Στη σειρά…" : WORKING[tick % WORKING.length]}</p>
+              <ScanOverlay src={item.thumb} />
+              <div className="grid gap-3">
+                <p className="m-0 inline-flex items-center gap-2 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"><Loader2 className="size-6 animate-spin text-eu-blue shrink-0" aria-hidden /> <SwapText text={item.status === "queued" ? "Στη σειρά…" : WORKING[tick % WORKING.length]} /></p>
+                <div className="grid gap-2" aria-hidden>{[88, 64, 76, 42].map((w, k) => <span key={k} className="h-3 rounded-full bg-eu-blue/15 eu-skeleton" style={{ width: `${w}%`, animationDelay: `${k * 180}ms` }} />)}</div>
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)]">Συνήθως 5–10 δευτερόλεπτα· τα ψηλά banners κόβονται σε κομμάτια και θέλουν λίγο παραπάνω. Μπορείς να δουλεύεις σε όσα είναι ήδη έτοιμα.</p>
               </div>
             </div>
@@ -421,9 +428,11 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
                 </div>
                 {doc.sections.length === 0 && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)]">Δεν βρέθηκε κείμενο ή φωτογραφία. Πρόσθεσε ενότητα με το χέρι ή δοκίμασε νέα ανάλυση.</p>}
                 {doc.sections.map((s, i) => (
-                  <SectionEditor key={s.id} doc={doc} s={s} index={i} total={doc.sections.length} selected={selSection === s.id} selectedBox={selBox} drawing={drawFor === s.id}
+                  <motion.div key={s.id} layout="position" transition={{ type: "spring", stiffness: 420, damping: 38 }} className="eu-card-in" style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}>
+                  <SectionEditor doc={doc} s={s} index={i} total={doc.sections.length} selected={selSection === s.id} selectedBox={selBox} drawing={drawFor === s.id}
                     onSelect={() => setSelSection(s.id)} onChange={(x) => setSection(s.id, x)} onMove={(d) => moveSection(s.id, d)} onRemove={() => removeSection(s.id)} onMergeUp={() => mergeUp(s.id)}
                     onSelectBox={(sel) => { setSelSection(s.id); setSelBox(sel); }} onDraw={() => setDrawFor((d) => (d === s.id ? null : s.id))} />
+                  </motion.div>
                 ))}
                 <button type="button" className={`${secondary} justify-self-start`} onClick={() => setDoc((d) => ({ ...d, sections: [...d.sections, emptySection()] }))}><Plus className="size-4" aria-hidden /> Νέα ενότητα</button>
               </div>
@@ -452,13 +461,13 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
             <span className="text-eu-ink-3 text-[length:var(--fs-15)]">{stats.sections} ενότητες · {stats.images} φωτογραφίες · {stats.icons} εικονίδια</span>
           </div>
           <div className="rounded-2xl border border-eu-line bg-eu-surface p-3 @3xl:p-6 overflow-hidden">
-            <div className={`mx-auto bg-white rounded-xl shadow-[0_8px_30px_rgba(18,42,88,.10)] p-4 @3xl:p-8 ${device === "mobile" ? "max-w-[390px]" : "max-w-[1000px]"}`}>
+            <motion.div key={device} initial={{ opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }} className={`mx-auto bg-white rounded-xl shadow-[0_8px_30px_rgba(18,42,88,.10)] p-4 @3xl:p-8 ${device === "mobile" ? "max-w-[390px]" : "max-w-[1000px]"}`}>
               {preview.length ? (
                 <ProductSections sections={preview}
                   renderImage={(im) => { const s = preview.find((x) => x.images.includes(im)); const k = s ? s.images.indexOf(im) : -1; return s && k >= 0 ? <CropView src={s._doc.sourceUrl} box={s._boxes[k]} width={s._doc.width} height={s._doc.height} alt={im.alt} className="w-full rounded-xl" /> : null; }}
                   renderIcon={(f) => { const s = preview.find((x) => x.features.includes(f)); const b = s?._icons[f.iconUrl!]; return s && b ? <CropView src={s._doc.sourceUrl} box={b} width={s._doc.width} height={s._doc.height} className="w-11 shrink-0" /> : null; }} />
               ) : <p className="m-0 text-eu-muted text-[length:var(--fs-15)]">Καμία ενότητα για δημοσίευση — γύρνα στον έλεγχο.</p>}
-            </div>
+            </motion.div>
           </div>
           <label className="flex items-start gap-3 rounded-2xl border border-eu-line bg-white px-4 py-3 cursor-pointer">
             <input type="checkbox" checked={hideSources} onChange={(e) => setHideSources(e.target.checked)} className="size-5 mt-0.5 accent-eu-blue" />
@@ -475,7 +484,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
       {/* ---------------- Ολοκληρώθηκε ---------------- */}
       {step === "done" && result && (
         <div className="rounded-2xl border-2 border-eu-green/50 bg-white p-6 grid gap-4 justify-items-start" role="status">
-          <p className="m-0 inline-flex items-center gap-3 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]"><span className="size-11 rounded-full bg-eu-green text-white inline-flex items-center justify-center"><Check className="size-6" aria-hidden /></span> Δημοσιεύτηκε</p>
+          <p className="m-0 inline-flex items-center gap-4 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]"><SuccessBurst /> Δημοσιεύτηκε</p>
           <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)]">{result.sections} {result.sections === 1 ? "ενότητα" : "ενότητες"} με {result.crops} {result.crops === 1 ? "φωτογραφία/εικονίδιο" : "φωτογραφίες και εικονίδια"} μπήκαν στη σελίδα του προϊόντος{result.hidden ? ` · ${result.hidden} ${result.hidden === 1 ? "banner κρύφτηκε" : "banners κρύφτηκαν"}` : ""}.</p>
           <div className="flex flex-wrap gap-3">
             <a href={`/proion/${product.slug}#description`} target="_blank" rel="noreferrer" className={primary}>Δες τη σελίδα <ExternalLink className="size-4" aria-hidden /></a>
@@ -484,6 +493,8 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
           </div>
         </div>
       )}
+      </div>
+      </StepTransition>
     </div>
   );
 }
