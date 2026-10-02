@@ -1,3 +1,5 @@
+import { greekSpeech } from "./greek-speech";
+
 /**
  * Written → spoken Greek. Latin-script terms (brands, model codes, RAM, SSD,
  * GB, Wi-Fi, OLED, 4K…) are left as they are: the TTS prompt asks for them
@@ -93,5 +95,7 @@ export function spokenForm(input: string): string {
   for (const [re, to] of ABBR) t = t.replace(re, (m: string, ...rest: unknown[]) => { const offset = rest[rest.length - 2] as number; const str = rest[rest.length - 1] as string; return m.endsWith(".") && /^\s+\p{Lu}/u.test(str.slice(offset + m.length)) ? `${to}.` : to; });
   for (const [re, to] of UNITS) t = t.replace(re, to);
   for (const [re, to] of SYMBOLS) t = t.replace(re, to);
+  // αριθμοί σε λέξεις, αγγλικοί όροι / μάρκες / κωδικοί με ελληνική φωνητική γραφή, «;» → «?» (lib/voice/greek-speech.ts)
+  t = greekSpeech(t);
   return t.replace(/\s+/g, " ").replace(/\s([,.;!?])/g, "$1").trim();
 }

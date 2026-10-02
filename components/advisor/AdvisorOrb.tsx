@@ -73,18 +73,13 @@ export function AdvisorOrb() {
       let returning = false;
       try { returning = !!localStorage.getItem(WELCOME_KEY); } catch {}
       void voice.speak("", returning ? "welcome-back" : "welcome");
+      try { localStorage.setItem(WELCOME_KEY, new Date().toISOString()); } catch {}
     }
     if (!open && voice.listening) voice.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, voice.speakOn, voice.enabled]);
-  // First visit: the welcome plays once per browser (after the first gesture if autoplay is blocked).
-  useEffect(() => {
-    if (!voice.enabled) return;
-    try { if (localStorage.getItem(WELCOME_KEY)) return; } catch { return; }
-    greeted.current = true;
-    void voice.playPreset("welcome").then((played) => { if (played) { try { localStorage.setItem(WELCOME_KEY, new Date().toISOString()); } catch {} } });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voice.enabled]);
+  // (Παλιότερα ο χαιρετισμός «οπλιζόταν» σε κάθε νέο επισκέπτη και έπαιζε στο πρώτο κλικ οπουδήποτε στο site — ο Ερμής
+  //  «ενεργοποιούνταν μόνος του». Τώρα μιλά μόνο όταν ο επισκέπτης ανοίξει το ηχείο ή του μιλήσει με το μικρόφωνο.)
   const onMic = async () => {
     if (voice.listening) { voice.stop(); return; }
     const r = await voice.listen();
@@ -473,6 +468,7 @@ export function AdvisorOrb() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!input.trim()) return;
+                voice.typed(); // έγραψε: γραπτή απάντηση (εκτός αν έχει ανοίξει μόνιμα το ηχείο)
                 ask(input.trim());
                 setInput("");
               }}

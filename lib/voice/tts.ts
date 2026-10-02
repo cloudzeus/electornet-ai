@@ -9,11 +9,12 @@ import { getSetting } from "@/lib/settings/store";
 import { storeBytes, removeBytes, type Storage } from "@/lib/media/storage";
 import { PRESET_PHRASES } from "./phrases";
 import { spokenForm } from "./spoken";
+import { expressive } from "./expressive";
 
 const SAMPLE_RATE = 24000; // pcm16 mono from the audio models
 const today = () => new Date().toISOString().slice(0, 10);
 
-export interface VoiceConfig { enabled: boolean; provider: "openrouter" | "elevenlabs"; ttsModel: string; voice: string; style: string; tempo: number; rate: number; sttModel: string; cacheMaxChars: number; eleven: { model: string; stability: number; similarity: number; speed: number; usdPer1kChars: number; /** audio tags του v3 («[calm][serious]») που μπαίνουν μπροστά από κάθε εκφώνηση */ tags: string } }
+export interface VoiceConfig { enabled: boolean; provider: "openrouter" | "elevenlabs"; ttsModel: string; voice: string; style: string; tempo: number; rate: number; sttModel: string; cacheMaxChars: number; eleven: { model: string; stability: number; similarity: number; speed: number; usdPer1kChars: number; /** audio tags του v3 («[calm][serious]») που μπαίνουν μπροστά από κάθε εκφώνηση */ tags: string; /** v3: tags ανά πρόταση ανάλογα με το περιεχόμενο */ autoTags: boolean } }
 /**
  * Δύο πάροχοι εκφώνησης, με επιλογή του super admin (Ρυθμίσεις → AI → «Πάροχος φωνής») για σύγκριση:
  *  - openrouter: chat μοντέλο με audio output (gpt-audio) — «διαβάζει» με οδηγία ύφους, θέλει έλεγχο πιστότητας
@@ -27,10 +28,10 @@ export async function getVoiceConfig(): Promise<VoiceConfig> {
   const model = String(data.elevenModel || "eleven_v3");
   // το v3 δέχεται μόνο τρεις τιμές σταθερότητας (0 Creative · 0.5 Natural · 1 Robust)
   const stab = clamp(data.elevenStability, 0, 1, 0.5);
-  const eleven = { model, stability: model === "eleven_v3" ? (stab < 0.25 ? 0 : stab < 0.75 ? 0.5 : 1) : stab, similarity: clamp(data.elevenSimilarity, 0, 1, 0.8), speed: clamp(data.elevenSpeed, 0.7, 1.2, 1.05), usdPer1kChars: clamp(data.elevenUsdPer1kChars, 0, 5, 0.1), tags: String(data.elevenTags ?? "").trim() };
+  const eleven = { model, stability: model === "eleven_v3" ? (stab < 0.25 ? 0 : stab < 0.75 ? 0.5 : 1) : stab, similarity: clamp(data.elevenSimilarity, 0, 1, 0.8), speed: clamp(data.elevenSpeed, 0.7, 1.2, 1), usdPer1kChars: clamp(data.elevenUsdPer1kChars, 0, 5, 0.1), tags: String(data.elevenTags ?? "").trim(), autoTags: data.elevenAutoTags !== false };
   if (data.voiceProvider === "elevenlabs" && elevenKey()) {
     // η ταχύτητα ρυθμίζεται από το ίδιο το ElevenLabs (speed) — όχι δεύτερη επιτάχυνση με ffmpeg πάνω στη δική του
-    return { enabled: data.voiceEnabled === true, provider: "elevenlabs", ttsModel: `elevenlabs/${eleven.model}`, voice: String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb"), style: `s${eleven.stability}|b${eleven.similarity}|v${eleven.speed}|${eleven.tags}`, tempo: 1, rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400, eleven };
+    return { enabled: data.voiceEnabled === true, provider: "elevenlabs", ttsModel: `elevenlabs/${eleven.model}`, voice: String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb"), style: `s${eleven.stability}|b${eleven.similarity}|v${eleven.speed}|${eleven.tags}${eleven.autoTags ? "|auto" : ""}`, tempo: 1, rate: 1 /* ο ρυθμός μόνο από το speed του ElevenLabs — επιτάχυνση στον browser αλλοιώνει τον τόνο */, sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400, eleven };
   }
   return { provider: "openrouter", eleven, enabled: data.voiceEnabled === true, ttsModel: String(data.voiceTtsModel || "openai/gpt-audio-mini"), voice: String(data.voiceName || "ash"), style: String(data.voiceStyle || DEFAULT_STYLE).trim(), tempo: Math.min(2, Math.max(0.8, Number(data.voiceTempo) || 1.4)), rate: Math.min(2, Math.max(0.8, Number(data.voiceRate) || 1)), sttModel: String(data.voiceSttModel || "openai/whisper-large-v3"), cacheMaxChars: Number(data.voiceCacheMaxChars) || 400 };
 }
@@ -112,7 +113,8 @@ async function synthesiseEleven(text: string, cfg: VoiceConfig, apiKey: string, 
     method: "POST",
     headers: { "xi-api-key": apiKey, "content-type": "application/json", accept: "audio/pcm" },
     // v3: τα audio tags («[calm]») χρωματίζουν την εκφώνηση· τα Flash/Turbo θέλουν ρητή γλώσσα, τα v3/multilingual την καταλαβαίνουν μόνα τους (και διαβάζουν σωστά τους λατινικούς όρους)
-    body: JSON.stringify({ text: cfg.eleven.model === "eleven_v3" && cfg.eleven.tags ? `${cfg.eleven.tags} ${text}` : text, model_id: cfg.eleven.model, ...(/flash|turbo/.test(cfg.eleven.model) ? { language_code: "el" } : {}), voice_settings: { stability: cfg.eleven.stability, similarity_boost: cfg.eleven.similarity, speed: cfg.eleven.speed } }),
+    // v3: χρωματισμός ανά πρόταση (expressive): περιέργεια στις ερωτήσεις, χαρά στην οικονομία, σιγουριά στην πρόταση…
+    body: JSON.stringify({ text: cfg.eleven.model === "eleven_v3" ? (cfg.eleven.autoTags ? expressive(text, cfg.eleven.tags) : cfg.eleven.tags ? `${cfg.eleven.tags} ${text}` : text) : text, model_id: cfg.eleven.model, ...(/flash|turbo/.test(cfg.eleven.model) ? { language_code: "el" } : {}), voice_settings: { stability: cfg.eleven.stability, similarity_boost: cfg.eleven.similarity, speed: cfg.eleven.speed } }),
     signal: AbortSignal.timeout(45000),
   });
   if (!res.ok || !res.body) throw new Error(`elevenlabs ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);

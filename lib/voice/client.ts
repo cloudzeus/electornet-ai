@@ -24,6 +24,8 @@ export function useVoice() {
   const rate = useRef(1);
   const provider = useRef<"openrouter" | "elevenlabs">("openrouter");
   const [speakOn, setSpeakOnState] = useState(false);
+  /** στη συνομιλία μίλησε με τη φωνή του: απαντάμε φωναχτά, χωρίς να αλλάξει η μόνιμη επιλογή του */
+  const [voiceTurn, setVoiceTurn] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -39,8 +41,9 @@ export function useVoice() {
   useEffect(() => {
     let on = true;
     void voiceConfig().then((j) => { if (on) { setEnabled(!!j.enabled); rate.current = j.rate || 1; provider.current = j.provider ?? "openrouter"; } });
-    // Speaker on by default (the brand voice); the visitor's choice persists.
-    try { const v = localStorage.getItem(KEY); if (v !== "0") setTimeout(() => on && setSpeakOnState(true), 0); } catch {}
+    // Ηχείο ΚΛΕΙΣΤΟ εκτός αν ο επισκέπτης το άνοιξε ο ίδιος (η επιλογή του μένει). Μιλάει επίσης όταν ο επισκέπτης
+    // του μίλησε με το μικρόφωνο — φωνή απαντά σε φωνή, γραπτό σε γραπτό. Ποτέ ήχος χωρίς δική του ενέργεια.
+    try { const v = localStorage.getItem(KEY); if (v === "1") setTimeout(() => on && setSpeakOnState(true), 0); } catch {}
     return () => { on = false; };
   }, []);
 
@@ -74,7 +77,7 @@ export function useVoice() {
   const setSpeakOn = useCallback((v: boolean) => {
     setSpeakOnState(v);
     try { localStorage.setItem(KEY, v ? "1" : "0"); } catch {}
-    if (!v) { gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false); }
+    if (!v) { setVoiceTurn(false); gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false); }
   }, [stopPcm]);
 
   /** Split an answer into sentence-sized parts: each is cached on its own and the first one starts playing while the rest are still being fetched. */
@@ -145,7 +148,7 @@ export function useVoice() {
     await new Promise<void>((r) => setTimeout(r, remaining * 1000 + 30));
   };
   const speak = useCallback(async (text: string, key?: string) => {
-    if (!enabled || !speakOn) return;
+    if (!enabled || !(speakOn || voiceTurn)) return;
     const my = ++gen.current;
     // ElevenLabs: ΟΛΗ η απάντηση σε ένα αίτημα ροής — ο πρώτος ήχος έρχεται σε < 1 s, η στίξη και ο ρυθμός μένουν σωστά, και δεν
     // πέφτουμε στο όριο ταυτόχρονων αιτημάτων (429) που έκοβε προτάσεις. Ο κατακερματισμός σε προτάσεις μένει μόνο για το OpenRouter, που αργεί ανά κλήση.
@@ -166,7 +169,7 @@ export function useVoice() {
         if (my !== gen.current) return;
       }
     } finally { if (my === gen.current) setSpeaking(false); }
-  }, [enabled, speakOn]);
+  }, [enabled, speakOn, voiceTurn]);
 
   const stop = useCallback(() => {
     if (stopTimer.current) clearTimeout(stopTimer.current);
@@ -198,6 +201,7 @@ export function useVoice() {
         } catch { resolve(null); }
       });
       srRef.current = null;
+      if (r?.text) setVoiceTurn(true);
       if (r) return r;
       try { localStorage.setItem("eu-voice-no-sr", "1"); } catch {} // ο browser το δηλώνει αλλά δεν δουλεύει: από εδώ και πέρα μεταγραφή στον server
     }
@@ -240,9 +244,12 @@ export function useVoice() {
       const res = await fetch("/api/voice/stt", { method: "POST", body: fd });
       const j = (await res.json().catch(() => ({}))) as { text?: string };
       if (res.status === 503 || res.status === 429) return { text: "", error: "unavailable" };
-      return res.ok && j.text ? { text: j.text } : { text: "", error: "failed" };
+      if (res.ok && j.text) { setVoiceTurn(true); return { text: j.text }; }
+      return { text: "", error: "failed" };
     } catch { return { text: "", error: "failed" }; } finally { setTranscribing(false); }
   }, [enabled, stopPcm]);
 
-  return { enabled, speakOn, setSpeakOn, speak, playPreset, listen, stop, listening, speaking, transcribing };
+  /** ο επισκέπτης έγραψε: από εδώ και πέρα γραπτές απαντήσεις (εκτός αν έχει ανοίξει μόνιμα το ηχείο) */
+  const typed = useCallback(() => setVoiceTurn(false), []);
+  return { enabled, speakOn, setSpeakOn, speak, playPreset, listen, stop, listening, speaking, transcribing, voiceTurn, typed };
 }
