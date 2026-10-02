@@ -5,6 +5,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CategoryOpener } from "@/components/catalog/CategoryOpener";
 import { Facets } from "@/components/catalog/Facets";
 import { SortBar } from "@/components/catalog/SortBar";
+import { AdSlot } from "@/components/promo/AdSlot";
 import { fitMattersFor } from "@/lib/data/dims";
 import { Pagination } from "@/components/catalog/Pagination";
 import { ProductGrid } from "@/components/catalog/ProductGrid";
@@ -99,6 +100,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <div className="eu-canvas eu-gutter pb-12 flex flex-col @3xl:flex-row gap-5 @3xl:gap-6 items-stretch">
         <Facets result={result} nav={nav} />
         <div className="flex-1 min-w-0 eu-container">
+          <AdSlot slot="listing-top" category={l1.slug} className="mb-4" />
           <SortBar total={result.total} page={result.page} pages={result.pages} fit={cat ? cat.fit : result.items.some(fitMattersFor)} />
           <ProductGrid products={result.items} view={sp.view === "list" ? "list" : "grid"} />
           <Pagination page={result.page} pages={result.pages} basePath={basePath} params={Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null)) as Record<string, string>} />

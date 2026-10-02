@@ -3,6 +3,7 @@ import { renderZones } from "@/lib/cms/render";
 import { getDevice } from "@/lib/device";
 import type { RenderContext } from "@/lib/cms/zones";
 import { ZonesToggle } from "@/components/site/ZonesToggle";
+import { AdSlot } from "@/components/promo/AdSlot";
 
 /**
  * Homepage = zones resolved from the CMS layout for *this* request
@@ -18,6 +19,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     <>
       <ZonesToggle enabled={sp.zones === "1"} />
       {main}
+      <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" />
       {preFooter}
     </>
   );

@@ -2203,3 +2203,54 @@ model ProductOffer {
 
   @@index([promotionId])
 }
+
+/// Landing page προσφοράς: σελίδα από blocks (hero, countdown, προϊόντα της προσφοράς, κατηγορίες, κουπόνι, όροι, FAQ…)
+/// στο /prosfores/<slug>. Δεμένη με προσφορά: όταν αυτή λήξει, η σελίδα δείχνει «έληξε» και σχετικές προτάσεις.
+model LandingPage {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  promotionId String?
+  /// draft | published | archived
+  status      String    @default("draft")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  seoTitle    String?
+  seoDesc     String?
+  /// [{ id, type, props }] — οι τύποι στο lib/promo/landing.ts
+  blocks      Json      @default("[]")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/// Διαφημιστική θέση (banner) σε συγκεκριμένο σημείο της βιτρίνας. Αν είναι δεμένη με προσφορά, φαίνεται μόνο όσο
+/// εκείνη είναι ενεργή — λήγει / μπαίνει σε παύση μαζί της.
+model AdPlacement {
+  id          String    @id @default(cuid())
+  /// home-strip | listing-top | pdp-below-buybox | cart-top | offers-top
+  slot        String
+  title       String
+  image       String?
+  imageMobile String?
+  alt         String?
+  href        String?
+  promotionId String?
+  landingId   String?
+  /// draft | active | paused | archived
+  status      String    @default("draft")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  priority    Int       @default(100)
+  /// { customers?: "all" | "guest" | "registered", categories?: string[] (slug L1) }
+  audience    Json?
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slot, status])
+}

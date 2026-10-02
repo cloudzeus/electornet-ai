@@ -20,10 +20,48 @@ export { autoLabel };
 
 const state = { computedAt: 0, running: null as Promise<unknown> | null };
 
+// ---- κλείδωμα ανάμεσα σε διεργασίες (πολλά instances, cron, admin): ένας υπολογισμός τη φορά ----
+// Αν κάποιος ζητήσει υπολογισμό ενώ τρέχει άλλος, σημειώνεται «ξανά» και ο κάτοχος τρέχει μία φορά ακόμη στο τέλος —
+// αλλιώς ένας παλιός υπολογισμός θα έσβηνε ό,τι έγραψε ένας νεότερος.
+const LOCK = "promos-recompute-lock";
+async function acquireLock(ttlMs = 180_000) {
+  const now = Date.now();
+  await db.$executeRaw`INSERT INTO "Setting" (section, data, "updatedAt", "createdAt") VALUES (${LOCK}, '{"until":0,"rerun":false}'::jsonb, now(), now()) ON CONFLICT (section) DO NOTHING`;
+  const got = await db.$executeRaw`UPDATE "Setting" SET data = jsonb_build_object('until', ${now + ttlMs}::bigint, 'rerun', false), "updatedAt" = now() WHERE section = ${LOCK} AND COALESCE((data->>'until')::bigint, 0) < ${now}::bigint`;
+  if (!got) await db.$executeRaw`UPDATE "Setting" SET data = data || '{"rerun":true}'::jsonb WHERE section = ${LOCK}`;
+  return got > 0;
+}
+async function releaseLock(): Promise<boolean> {
+  const rows = await db.$queryRaw<{ rerun: boolean | null }[]>`UPDATE "Setting" s SET data = jsonb_build_object('until', 0, 'rerun', false), "updatedAt" = now() FROM (SELECT (data->>'rerun')::boolean AS rerun FROM "Setting" WHERE section = ${LOCK} FOR UPDATE) old WHERE s.section = ${LOCK} RETURNING old.rerun`;
+  return !!rows[0]?.rerun;
+}
+
+type RecomputeResult = { products: number; withOffer: number; changed: number; removed: number; ms: number; skipped?: "locked" };
+
 /** Ο πλήρης υπολογισμός. Επιστρέφει πόσα προϊόντα επηρεάζονται και πόσα άλλαξαν. */
-export async function recomputeOffers() {
-  if (state.running) return state.running as Promise<{ products: number; withOffer: number; changed: number; removed: number; ms: number }>;
-  const run = (async () => {
+export async function recomputeOffers(): Promise<RecomputeResult> {
+  if (state.running) return state.running as Promise<RecomputeResult>;
+  const run = (async (): Promise<RecomputeResult> => {
+    if (!(await acquireLock().catch(() => true))) return { products: 0, withOffer: 0, changed: 0, removed: 0, ms: 0, skipped: "locked" };
+    let last: RecomputeResult = { products: 0, withOffer: 0, changed: 0, removed: 0, ms: 0 };
+    let holding = true;
+    try {
+      for (let i = 0; i < 3 && holding; i++) {
+        last = await computeOnce();
+        const again = await releaseLock().catch(() => false);
+        holding = false;
+        // ζητήθηκε ξανά όσο τρέχαμε: ένας ακόμη γύρος (το πολύ 3), αν δεν τον πήρε ήδη άλλη διεργασία
+        if (again && i < 2) holding = await acquireLock().catch(() => false);
+      }
+    } finally { if (holding) await releaseLock().catch(() => false); }
+    return last;
+  })();
+  state.running = run;
+  try { return await run; } finally { state.running = null; }
+}
+
+async function computeOnce(): Promise<RecomputeResult> {
+  {
     const t0 = Date.now();
     const now = new Date();
     invalidatePromos();
@@ -92,9 +130,7 @@ export async function recomputeOffers() {
     for (let i = 0; i < writes.length; i += 200) await db.$transaction(writes.slice(i, i + 200));
     state.computedAt = now.getTime();
     return { products: products.length, withOffer: rows.length, changed, removed: removed.length, ms: Date.now() - t0 };
-  })();
-  state.running = run;
-  try { return await run; } finally { state.running = null; }
+  }
 }
 
 /**

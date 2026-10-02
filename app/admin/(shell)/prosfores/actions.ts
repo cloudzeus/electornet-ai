@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
@@ -240,4 +241,59 @@ export async function ermisDraftAction(text: string) {
     targets: r.draft.targets.map((x) => names[x.refId] ?? x.refId), startsAt: r.draft.startsAt, endsAt: r.draft.endsAt,
     encoded: Buffer.from(JSON.stringify(r.draft), "utf8").toString("base64url"),
   };
+}
+
+// ---- landing pages ----
+export interface LandingInput { id?: string | null; slug: string; title: string; promotionId: string | null; status: "draft" | "published" | "archived"; startsAt: string | null; endsAt: string | null; seoTitle: string | null; seoDesc: string | null; blocks: import("@/lib/promo/landing-blocks").Block[] }
+
+const slugify = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/[α-ω]/g, (c) => ({ α: "a", β: "v", γ: "g", δ: "d", ε: "e", ζ: "z", η: "i", θ: "th", ι: "i", κ: "k", λ: "l", μ: "m", ν: "n", ξ: "x", ο: "o", π: "p", ρ: "r", σ: "s", ς: "s", τ: "t", υ: "y", φ: "f", χ: "ch", ψ: "ps", ω: "o" })[c] ?? c)
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+
+export async function createLandingAction(input: { title: string; promotionId: string | null }) {
+  const user = await requirePermission(PERM);
+  const { newBlockId, BLOCKS } = await import("@/lib/promo/landing-blocks");
+  const make = (type: string) => ({ id: newBlockId(), type, props: BLOCKS.find((b) => b.type === type)!.make() });
+  let slug = slugify(input.title) || `prosfora-${Date.now().toString(36)}`;
+  if (await db.landingPage.findUnique({ where: { slug } })) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+  const hero = make("hero"); (hero.props as { title: string }).title = input.title;
+  const page = await db.landingPage.create({ data: { slug, title: input.title.trim() || "Νέα σελίδα προσφοράς", promotionId: input.promotionId, createdById: user.id, blocks: [hero, make("countdown"), make("products"), make("terms")] as unknown as Prisma.InputJsonValue } });
+  await audit(user.id, "landing.create", "LandingPage", page.id, null, { slug });
+  return { id: page.id };
+}
+
+export async function saveLandingAction(input: LandingInput) {
+  const user = await requirePermission(PERM);
+  const slug = slugify(input.slug || input.title);
+  if (!slug) return { ok: false as const, error: "Δώσε διεύθυνση (slug)." };
+  const clash = await db.landingPage.findUnique({ where: { slug } });
+  if (clash && clash.id !== input.id) return { ok: false as const, error: `Η διεύθυνση /prosfores/${slug} χρησιμοποιείται ήδη.` };
+  const data = { slug, title: input.title.trim().slice(0, 160) || slug, promotionId: input.promotionId || null, status: input.status, startsAt: input.startsAt ? new Date(input.startsAt) : null, endsAt: input.endsAt ? new Date(input.endsAt) : null, seoTitle: input.seoTitle?.trim() || null, seoDesc: input.seoDesc?.trim() || null, blocks: input.blocks.slice(0, 40) as unknown as Prisma.InputJsonValue };
+  const before = input.id ? await db.landingPage.findUnique({ where: { id: input.id } }) : null;
+  const page = input.id ? await db.landingPage.update({ where: { id: input.id }, data }) : await db.landingPage.create({ data: { ...data, createdById: user.id } });
+  await audit(user.id, input.id ? "landing.update" : "landing.create", "LandingPage", page.id, before, data);
+  revalidatePath("/admin/prosfores/selides");
+  revalidatePath(`/prosfores/${slug}`);
+  return { ok: true as const, id: page.id, slug };
+}
+
+// ---- διαφημιστικές θέσεις ----
+export interface PlacementInput { id?: string | null; slot: string; title: string; image: string | null; imageMobile: string | null; alt: string | null; href: string | null; promotionId: string | null; landingId: string | null; status: "draft" | "active" | "paused" | "archived"; startsAt: string | null; endsAt: string | null; priority: number; categories: string[] }
+
+export async function savePlacementAction(input: PlacementInput) {
+  const user = await requirePermission(PERM);
+  const { SLOTS } = await import("@/lib/promo/landing-blocks");
+  if (!SLOTS.some((s) => s.key === input.slot)) return { ok: false as const, error: "Άγνωστη θέση." };
+  if (input.status === "active" && !input.image) return { ok: false as const, error: "Χρειάζεται εικόνα για να ενεργοποιηθεί." };
+  let href = input.href?.trim() || null;
+  if (!href && input.landingId) href = `/prosfores/${(await db.landingPage.findUnique({ where: { id: input.landingId }, select: { slug: true } }))?.slug ?? ""}`;
+  if (href && !/^\/(?!\/)/.test(href) && !/^https:\/\//.test(href)) return { ok: false as const, error: "Ο σύνδεσμος ξεκινά με / (εσωτερικός) ή https://." };
+  const data = { slot: input.slot, title: input.title.trim().slice(0, 120) || "Banner", image: input.image?.trim() || null, imageMobile: input.imageMobile?.trim() || null, alt: input.alt?.trim() || null, href, promotionId: input.promotionId || null, landingId: input.landingId || null, status: input.status, startsAt: input.startsAt ? new Date(input.startsAt) : null, endsAt: input.endsAt ? new Date(input.endsAt) : null, priority: Math.max(0, Math.min(999, Math.round(input.priority || 100))), audience: input.categories.length ? { categories: input.categories } : Prisma.JsonNull };
+  const before = input.id ? await db.adPlacement.findUnique({ where: { id: input.id } }) : null;
+  const row = input.id ? await db.adPlacement.update({ where: { id: input.id }, data }) : await db.adPlacement.create({ data: { ...data, createdById: user.id } });
+  await audit(user.id, input.id ? "ad.update" : "ad.create", "AdPlacement", row.id, before, data);
+  const { invalidateAds } = await import("@/lib/promo/landing");
+  invalidateAds();
+  revalidatePath("/admin/prosfores/theseis");
+  return { ok: true as const, id: row.id };
 }

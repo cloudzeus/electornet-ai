@@ -38,7 +38,10 @@ export function stickersFor(p: Product, dealEndsAt?: string, now = Date.now()): 
   else if (p.isRenew) out.push({ kind: "renew" });
   if (p.stockLeft !== undefined && p.stockLeft <= 5) out.push({ kind: "last", n: p.stockLeft });
   if (dealEndsAt) {
-    const days = Math.ceil((new Date(dealEndsAt).getTime() - now) / 86400000);
+    // ημερολογιακές ημέρες: λήξη σε 40 λεπτά = «σήμερα», όχι «αύριο»
+    const day = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const end = new Date(dealEndsAt).getTime();
+    const days = end < now ? -1 : Math.round((day(end) - day(now)) / 86400000);
     if (days >= 0 && days <= 3) out.push({ kind: "ends", days });
   }
   if (p.storePick) out.push({ kind: "pick", store: p.storePick });

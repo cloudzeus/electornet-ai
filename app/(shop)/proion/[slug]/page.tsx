@@ -6,6 +6,7 @@ import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
+import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
 import { CompareSimilar } from "@/components/pdp/CompareSimilar";
 import { ServicesDelivery } from "@/components/pdp/ServicesDelivery";
@@ -113,6 +114,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
           <StickySidebar className="min-w-0">
             {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} />}
+            <AdSlot slot="pdp-below-buybox" category={p.category} className="mt-4" />
           </StickySidebar>
         </div>
       </article>

@@ -3,6 +3,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { CartView } from "@/components/checkout/CartView";
 import { getProductsByIds, getServicesFull } from "@/lib/data/repo";
 import { CartRestore } from "@/components/commerce/EmailCartButton";
+import { AdSlot } from "@/components/promo/AdSlot";
 
 export const metadata: Metadata = { title: "Καλάθι" };
 
@@ -13,6 +14,7 @@ export default async function CartPage({ searchParams }: { searchParams: Promise
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Καλάθι" }]} />
       {restore && <div className="eu-canvas eu-gutter pt-2"><CartRestore token={restore} /></div>}
+      <AdSlot slot="cart-top" className="eu-canvas eu-gutter pt-2" />
       <CartView services={services.filter((s) => s.addonAt?.includes("checkout") || s.addonAt?.includes("pdp"))} crossSell={crossSell} />
     </div>
   );
