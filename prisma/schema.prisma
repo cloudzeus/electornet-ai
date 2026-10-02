@@ -1245,44 +1245,64 @@ model CartLine {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  number        String      @unique // EUR-YYYYMMDD-0000
+  id            String           @id @default(cuid())
+  number        String           @unique // EUR-YYYYMMDD-0000
   customerId    String?
-  customer      Customer?   @relation(fields: [customerId], references: [id])
+  customer      Customer?        @relation(fields: [customerId], references: [id])
   guestEmail    String?
-  status        String      @default("pending") // pending | paid | processing | shipped | ready-for-pickup | delivered | cancelled | returned
+  status        String           @default("pending") // pending | paid | processing | shipped | ready-for-pickup | delivered | cancelled | returned
   fulfilment    String // courier | click-collect | appointment
   pickupStoreId String?
-  pickupStore   Store?      @relation(fields: [pickupStoreId], references: [id])
+  pickupStore   Store?           @relation(fields: [pickupStoreId], references: [id])
   shipping      Json // snapshot address
   invoice       Json? // { vatNumber, doy, company } when a τιμολόγιο is requested
-  subtotal      Decimal     @db.Decimal(10, 2)
-  shippingFee   Decimal     @db.Decimal(10, 2)
-  vat           Decimal     @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
+  subtotal      Decimal          @db.Decimal(10, 2)
+  shippingFee   Decimal          @db.Decimal(10, 2)
+  vat           Decimal          @db.Decimal(10, 2)
+  total         Decimal          @db.Decimal(10, 2)
+  /// Σύνολο εκπτώσεων προσφορών και κουπονιών (σε τιμές με ΦΠΑ)
+  discountTotal Decimal          @default(0) @db.Decimal(10, 2)
+  couponCode    String?
+  /// Ίχνος της μηχανής προσφορών τη στιγμή της παραγγελίας: τι εφαρμόστηκε, τι όχι και γιατί
+  promoTrace    Json?
+  paymentMethod String?
+  promoUsages   PromotionUsage[]
   lines         OrderLine[]
   payment       Payment?
   erpSync       ErpSync?
   returns       Return[]
   tracking      String?
   courier       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@index([customerId, createdAt])
   @@index([status])
 }
 
 model OrderLine {
-  id        String           @id @default(cuid())
-  orderId   String
-  order     Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variantId String
-  variant   Variant          @relation(fields: [variantId], references: [id])
-  title     String
-  qty       Int
-  unitPrice Decimal          @db.Decimal(10, 2)
-  addons    OrderLineAddon[]
+  id          String           @id @default(cuid())
+  orderId     String
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId   String
+  variant     Variant          @relation(fields: [variantId], references: [id])
+  title       String
+  qty         Int
+  /// Τελική τιμή μονάδας μετά τις εκπτώσεις (με ΦΠΑ)
+  unitPrice   Decimal          @db.Decimal(10, 2)
+  /// Τιμή καταλόγου πριν την προσφορά → PRICE / NODSCLNVAL στο ITELINES
+  listPrice   Decimal?         @db.Decimal(10, 2)
+  /// Εκπτώσεις της γραμμής ανά είδος (σύνολο για όλη την ποσότητα) → DISC1VAL / DISC2VAL / DISC3VAL
+  discPrice   Decimal          @default(0) @db.Decimal(10, 2)
+  discCoupon  Decimal          @default(0) @db.Decimal(10, 2)
+  discPayment Decimal          @default(0) @db.Decimal(10, 2)
+  lineTotal   Decimal?         @db.Decimal(10, 2)
+  erpCode     String?
+  /// Δώρο / δωρεάν υπηρεσία: γραμμή με την πραγματική αξία και έκπτωση 100 %
+  isGift      Boolean          @default(false)
+  /// [{ promotionId, code, version, kind, amount, label }]
+  promotions  Json?
+  addons      OrderLineAddon[]
 
   @@index([orderId])
 }
@@ -1312,8 +1332,10 @@ model Payment {
 model ErpSync {
   orderId   String   @id
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status    String   @default("queued") // queued | sent | failed
+  status    String   @default("queued") // preview | queued | sent | failed
   attempts  Int      @default(0)
+  /// Το παραστατικό όπως θα σταλεί στο SoftOne (SALDOC + ITELINES) — αποθηκεύεται πάντα, ακόμη και σε «μόνο προεπισκόπηση»
+  payload   Json?
   erpDocId  String?
   lastError String?  @db.Text
   updatedAt DateTime @updatedAt
@@ -2043,4 +2065,114 @@ model StaffLoginChallenge {
 
   @@index([staffId, createdAt])
   @@index([expiresAt])
+}
+
+// ---------- Μηχανή προσφορών (Φάση 0: πυρήνας) ----------
+
+/// Μια εμπορική ενέργεια. Ο κανόνας ζει στο e-shop· το αποτέλεσμα γράφεται στη γραμμή του παραστατικού στο SoftOne.
+model Promotion {
+  id             String             @id @default(cuid())
+  /// CMP-2026-118 — Campaign ID για tracking, reporting και ERP (CCCPROMO)
+  code           String             @unique
+  name           String
+  /// price-percent | price-amount | special-price | coupon-percent | coupon-amount | (Φάση 1: n-plus-m, nth-discount, qty-tiers, gift, service, shipping)
+  mechanism      String
+  /// draft | scheduled | active | paused | ended | archived
+  status         String             @default("draft")
+  /// Ανενεργό μέχρι διευκρίνιση (τράπεζες, λογιστήριο, νομικό, εγκατάσταση): δεν εφαρμόζεται ποτέ, όποια κι αν είναι η κατάσταση
+  held           Boolean            @default(false)
+  heldReason     String?
+  /// μικρότερος αριθμός = εφαρμόζεται πρώτα
+  priority       Int                @default(100)
+  /// combine | no-price (όχι με άλλες εκπτώσεις τιμής) | exclusive
+  stacking       String             @default("no-price")
+  startsAt       DateTime?
+  endsAt         DateTime?
+  /// { percent?, amount?, price? (ανά SKU: { [variantId]: τιμή }) }
+  reward         Json
+  /// { customers?: all|new|registered, minValue?, minQty?, channels?: [online, click-collect], zips?: [...], payment?: [...], delivery?: [...] }
+  rules          Json               @default("{}")
+  maxUses        Int?
+  maxPerCustomer Int?
+  budgetEur      Decimal?           @db.Decimal(12, 2)
+  usedCount      Int                @default(0)
+  spentEur       Decimal            @default(0) @db.Decimal(12, 2)
+  termsText      String?            @db.Text
+  tagLabel       String?
+  version        Int                @default(1)
+  createdById    String?
+  approvedById   String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  targets        PromotionTarget[]
+  versions       PromotionVersion[]
+  coupons        Coupon[]
+  usages         PromotionUsage[]
+
+  @@index([status, startsAt, endsAt])
+}
+
+/// Αμετάβλητο στιγμιότυπο κάθε έκδοσης: οι παραγγελίες δείχνουν τους όρους με τους οποίους έγιναν
+model PromotionVersion {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  version     Int
+  snapshot    Json
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([promotionId, version])
+}
+
+/// Σε ποια προϊόντα: kind = product | brand | category, exclude = εξαίρεση
+model PromotionTarget {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  kind        String
+  refId       String
+  exclude     Boolean   @default(false)
+
+  @@index([promotionId])
+  @@index([kind, refId])
+}
+
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  /// shared (ένας κοινός) | unique (ανά πελάτη)
+  kind        String    @default("shared")
+  customerId  String?
+  email       String?
+  /// signup | newsletter | birthday | cart | next-order | manual
+  trigger     String?
+  expiresAt   DateTime?
+  usedCount   Int       @default(0)
+  maxUses     Int?
+  createdAt   DateTime  @default(now())
+
+  @@index([promotionId])
+}
+
+/// Κάθε εφαρμογή προσφοράς σε παραγγελία — βάση του reporting ανά παραστατικό
+model PromotionUsage {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+  version     Int
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderLineId String?
+  customerId  String?
+  email       String?
+  couponCode  String?
+  amount      Decimal   @db.Decimal(10, 2)
+  createdAt   DateTime  @default(now())
+
+  @@index([promotionId, createdAt])
+  @@index([orderId])
+  @@index([customerId])
 }
