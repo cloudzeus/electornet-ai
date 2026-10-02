@@ -302,7 +302,7 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
     <div className="grid gap-5">
       {d.mechanism === "special-price" ? (
         <div className="grid gap-3">
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Πρόσθεσε προϊόντα και γράψε την τελική τιμή (με ΦΠΑ). Για πολλά προϊόντα χρησιμοποίησε το Excel από τη λίστα.</p>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Πρόσθεσε προϊόντα και γράψε την τελική τιμή (με ΦΠΑ). Για πολλά προϊόντα χρησιμοποίησε την <Link href="/admin/prosfores/excel" className="font-bold text-eu-blue hover:underline">εισαγωγή από Excel</Link>.</p>
           <Picker kind="product" placeholder="Αναζήτηση προϊόντος: τίτλος, κωδικός, EAN" onPick={(x) => { setNames((n) => ({ ...n, [x.id]: `${x.label} · ${x.sub ?? ""}` })); if (!(x.id in (d.reward.price ?? {}))) setReward({ price: { ...(d.reward.price ?? {}), [x.id]: 0 } }); }} />
           {specialPrices.length > 0 && (
             <ul className="m-0 p-0 list-none grid gap-2">

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
+import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { Pagination } from "@/components/admin/Pagination";
 import { LOW_RES_PX } from "@/lib/catalog/product-images";
@@ -15,7 +16,8 @@ const shown = { kind: "image", hidden: false } as const;
 
 /** Τα προϊόντα του καταστήματος (προβολή του SoftOne). Από εδώ ανοίγει η καρτέλα κάθε προϊόντος για τις φωτογραφίες του. */
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; cat?: string; page?: string }> }) {
-  await requirePermission("catalog.products.read");
+  const user = await requirePermission("catalog.products.read");
+  const promoWrite = can(user.permissions, "catalog.promos.write");
   const { q = "", f = "", cat = "", page: p = "1" } = await searchParams;
   const page = Math.max(1, Number(p) || 1);
   const where: Prisma.ProductWhereInput = {
@@ -69,12 +71,22 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <button className="rounded-full bg-eu-navy text-white px-5 min-h-11 font-bold text-[length:var(--fs-14)] cursor-pointer hover:bg-eu-blue">Φίλτρο</button>
       </form>
 
+      {promoWrite && (
+        <form id="bulk-promo" action="/admin/prosfores/new" method="get" className="flex flex-wrap items-center gap-2 rounded-2xl bg-eu-chip px-4 py-2">
+          <span className="font-bold text-eu-navy text-[length:var(--fs-14)]">Προσφορά για τα επιλεγμένα:</span>
+          <label className="sr-only" htmlFor="bulk-t">Είδος προσφοράς</label>
+          <select id="bulk-t" name="template" className="rounded-full border border-eu-line px-3 min-h-11 text-[length:var(--fs-14)] bg-white"><option value="percent">Έκπτωση %</option><option value="amount">Έκπτωση €</option><option value="special">Ειδική τιμή</option><option value="nplusm">1+1 / 2+1</option><option value="nth">2ο −Χ %</option><option value="gift">Δώρο με αγορά</option><option value="service">Δωρεάν υπηρεσία</option><option value="shipping">Δωρεάν μεταφορικά</option></select>
+          <button className="rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] cursor-pointer hover:bg-eu-blue">Νέα προσφορά</button>
+          {cat && <Link href={`/admin/prosfores/new?category=${cat}`} className="rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 inline-flex items-center font-bold text-[length:var(--fs-14)] hover:bg-white">…ή για όλη την κατηγορία</Link>}
+        </form>
+      )}
       <div className="rounded-2xl border border-eu-line bg-white overflow-x-auto">
         <table className="w-full text-[length:var(--fs-14)]">
-          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3 w-20">Κύρια</th><th className="py-2 px-3">Προϊόν</th><th className="py-2 px-3">Κατηγορία</th><th className="py-2 px-3">Κωδικός · barcode</th><th className="py-2 px-3 text-right">Φωτογραφίες</th></tr></thead>
+          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr>{promoWrite && <th className="py-2 pl-3 w-8"><span className="sr-only">Επιλογή</span></th>}<th className="py-2 px-3 w-20">Κύρια</th><th className="py-2 px-3">Προϊόν</th><th className="py-2 px-3">Κατηγορία</th><th className="py-2 px-3">Κωδικός · barcode</th><th className="py-2 px-3 text-right">Φωτογραφίες</th></tr></thead>
           <tbody>
             {rows.map((r) => { const m = r.media[0]; const small = m?.width != null && m.height != null && Math.max(m.width, m.height) < LOW_RES_PX; return (
               <tr key={r.id} className={`border-t border-eu-line align-middle ${r.active ? "" : "opacity-60"}`}>
+                {promoWrite && <td className="py-2 pl-3"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή: ${r.title}`} className="size-5 accent-eu-navy" /></td>}
                 <td className="py-2 px-3">
                   <Link href={`/admin/catalog/${r.id}`} aria-label={`Άνοιγμα: ${r.title}`} className="block size-16 rounded-xl border border-eu-line bg-white overflow-hidden focus-visible:outline-2 focus-visible:outline-eu-blue">
                     {m ? <Image src={m.url} alt="" width={64} height={64} className="size-full object-contain" /> : <span className="size-full grid place-items-center text-eu-muted"><ImageOff className="size-5" aria-hidden /></span>}
@@ -86,7 +98,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                 <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">{r._count.media ? n(r._count.media) : <span className="text-eu-red font-bold">καμία</span>}{small && <div className="text-eu-red text-[length:var(--fs-13)] font-bold">μικρή κύρια</div>}</td>
               </tr>
             ); })}
-            {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-eu-muted">{all ? "Κανένα προϊόν με αυτά τα κριτήρια." : "Δεν υπάρχουν προϊόντα ακόμη — τρέξε «Προβολή στο κατάστημα» από το SoftOne ERP › Κατάλογος & CCC."}</td></tr>}
+            {!rows.length && <tr><td colSpan={promoWrite ? 6 : 5} className="p-8 text-center text-eu-muted">{all ? "Κανένα προϊόν με αυτά τα κριτήρια." : "Δεν υπάρχουν προϊόντα ακόμη — τρέξε «Προβολή στο κατάστημα» από το SoftOne ERP › Κατάλογος & CCC."}</td></tr>}
           </tbody>
         </table>
         <div className="flex justify-center px-3 py-3 border-t border-eu-line"><Pagination page={page} pages={pages} total={total} label="προϊόντα" href={href} /></div>

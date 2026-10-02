@@ -159,3 +159,85 @@ export async function setManualTagAction(slug: string, productIds: string[], on:
   revalidatePath("/admin/prosfores/etiketes");
   return { ok: true };
 }
+
+export interface PriceRow { input: string; price: number | null; productId: string | null; title: string | null; sku: string | null; list: number | null; pct: number | null; issue: string | null }
+
+/** Excel / CSV / επικόλληση → προεπισκόπηση ειδικών τιμών (κωδικός ή EAN + τελική τιμή). Τίποτα δεν αποθηκεύεται εδώ. */
+export async function previewPricesAction(form: FormData): Promise<{ ok: true; rows: PriceRow[]; maxLinePct: number } | { ok: false; error: string }> {
+  await requirePermission(PERM);
+  const { readXlsx, readDelimited } = await import("@/lib/xlsx-lite");
+  const { getPromoPolicy } = await import("@/lib/promo/policy");
+  const file = form.get("file");
+  const paste = String(form.get("paste") ?? "");
+  let table: string[][] = [];
+  try {
+    if (file instanceof File && file.size) {
+      if (file.size > 8 * 1024 * 1024) return { ok: false, error: "Το αρχείο ξεπερνά τα 8 MB." };
+      const buf = Buffer.from(await file.arrayBuffer());
+      table = /\.xlsx$/i.test(file.name) ? readXlsx(buf) : readDelimited(buf.toString("utf8"));
+    } else if (paste.trim()) table = readDelimited(paste);
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Δεν διαβάστηκε το αρχείο." }; }
+  if (!table.length) return { ok: false, error: "Δεν βρέθηκαν γραμμές." };
+  // στήλες: από την κεφαλίδα αν υπάρχει, αλλιώς 1η = κωδικός, 2η = τιμή
+  const head = table[0].map((h) => h.toLocaleLowerCase("el-GR"));
+  const hasHead = head.some((h) => /κωδ|sku|code|ean|barcode|τιμ|price/.test(h));
+  const ci = hasHead ? Math.max(0, head.findIndex((h) => /κωδ|sku|code|ean|barcode/.test(h))) : 0;
+  const pi = hasHead ? (head.findIndex((h) => /ειδικ|νέα|νεα|τελικ|προσφ|special|new|price|τιμ/.test(h) && head.indexOf(h) !== ci)) : 1;
+  const body = (hasHead ? table.slice(1) : table).filter((r) => (r[ci] ?? "").trim()).slice(0, 5000);
+  const codes = [...new Set(body.map((r) => r[ci].trim()))];
+  const products = await db.product.findMany({ where: { OR: [{ sku: { in: codes } }, { ean: { in: codes } }, { erpCode: { in: codes } }] }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, active: true, variants: { select: { price: true }, take: 1 } } });
+  const find = (c: string) => products.find((p) => p.sku === c || p.ean === c || p.erpCode === c) ?? null;
+  const policy = await getPromoPolicy();
+  const seen = new Set<string>();
+  const rows: PriceRow[] = body.map((r) => {
+    const code = r[ci].trim();
+    const raw = (r[pi < 0 ? 1 : pi] ?? "").replace(/[€\s]/g, "");
+    const num = Number(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw);
+    const price = Number.isFinite(num) && num > 0 ? Math.round(num * 100) : null;
+    const p = find(code);
+    const list = p?.variants[0] ? Math.round(Number(p.variants[0].price) * 100) : null;
+    const pct = price != null && list ? Math.round(((list - price) / list) * 100) : null;
+    let issue: string | null = null;
+    if (!p) issue = "δεν βρέθηκε προϊόν";
+    else if (!p.active) issue = "ανενεργό προϊόν";
+    else if (price == null) issue = "μη έγκυρη τιμή";
+    else if (!list) issue = "το προϊόν δεν έχει τιμή eshop";
+    else if (price >= list) issue = "δεν είναι χαμηλότερη από την τρέχουσα";
+    else if (pct! > policy.maxLinePct) issue = `έκπτωση ${pct} % — πάνω από το όριο ${policy.maxLinePct} % (θα κοπεί)`;
+    if (p && seen.has(p.id)) issue = "διπλή γραμμή — κρατιέται η πρώτη";
+    if (p) seen.add(p.id);
+    return { input: code, price, productId: p?.id ?? null, title: p?.title ?? null, sku: p?.sku ?? null, list, pct, issue };
+  });
+  return { ok: true, rows, maxLinePct: policy.maxLinePct };
+}
+
+/** Από τις έγκυρες γραμμές της προεπισκόπησης → πρόχειρη προσφορά ειδικής τιμής, για έλεγχο και δημοσίευση στον οδηγό. */
+export async function createSpecialPriceAction(input: { name: string; startsAt: string | null; endsAt: string | null; prices: Record<string, number> }) {
+  const user = await requirePermission(PERM);
+  const { emptyDraft } = await import("@/lib/promo/admin");
+  const prices = Object.fromEntries(Object.entries(input.prices).filter(([, v]) => v > 0).slice(0, 5000));
+  if (!Object.keys(prices).length) return { ok: false as const, error: "Καμία έγκυρη γραμμή." };
+  const d = { ...emptyDraft("special"), name: input.name.trim() || `Ειδικές τιμές ${new Date().toLocaleDateString("el-GR")}`, startsAt: input.startsAt, endsAt: input.endsAt, reward: { price: prices } };
+  const r = await savePromotion(d, { id: user.id, canApprove: hasPermission(user, "catalog.promos.approve") }, "draft");
+  if (r.ok) await audit(user.id, "promo.import-excel", "Promotion", r.id, null, { count: Object.keys(prices).length });
+  revalidatePath("/admin/prosfores");
+  return r.ok ? { ok: true as const, id: r.id! } : { ok: false as const, error: (r.errors ?? []).join(" ") };
+}
+
+/** Ερμής: περιγραφή → προσχέδιο για τον οδηγό. Δεν αποθηκεύει τίποτα. */
+export async function ermisDraftAction(text: string) {
+  await requirePermission(PERM);
+  const t = text.trim().slice(0, 600);
+  if (t.length < 6) return { ok: false as const, error: "Γράψε τι προσφορά θέλεις, π.χ. «−20 % σε όλα τα πλυντήρια μέχρι 30/11»." };
+  const { draftFromText } = await import("@/lib/promo/ermis");
+  const { describePromo } = await import("@/lib/promo/catalog");
+  const { targetNames } = await import("@/lib/promo/admin");
+  const r = await draftFromText(t);
+  const names = await targetNames(r.draft.targets);
+  return {
+    ok: true as const, via: r.via, notes: r.notes, name: r.draft.name,
+    summary: describePromo(r.draft, { service: (await import("@/lib/data/fixtures/services")).services.find((x) => x.slug === r.draft.reward.serviceSlug)?.title.toLocaleLowerCase("el-GR") }),
+    targets: r.draft.targets.map((x) => names[x.refId] ?? x.refId), startsAt: r.draft.startsAt, endsAt: r.draft.endsAt,
+    encoded: Buffer.from(JSON.stringify(r.draft), "utf8").toString("base64url"),
+  };
+}

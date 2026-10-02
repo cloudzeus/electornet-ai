@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Zap, CalendarClock, Hourglass, Euro, Tag } from "lucide-react";
+import { Plus, Zap, CalendarClock, Hourglass, Euro, Tag, Sparkles, FileSpreadsheet } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
@@ -60,7 +60,11 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   return (
     <div className="grid gap-5 min-w-0">
       <PromoTabs active="list" title="Προσφορές & κουπόνια" lead="Κάθε προσφορά ζει στο e-shop και γράφεται στη γραμμή του παραστατικού SoftOne με κωδικό και έκδοση. Οι αλλαγές φαίνονται στη βιτρίνα μέσα σε λίγα δευτερόλεπτα."
-        actions={<Link href="/admin/prosfores/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέα προσφορά</Link>} />
+        actions={<>
+          <Link href="/admin/prosfores/ermis" className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Περιγραφή στον Ερμή</Link>
+          <Link href="/admin/prosfores/excel" className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-chip"><FileSpreadsheet className="size-4" aria-hidden /> Από Excel</Link>
+          <Link href="/admin/prosfores/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέα προσφορά</Link>
+        </>} />
 
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3">
         {kpis.map((k) => (

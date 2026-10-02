@@ -6,6 +6,7 @@ import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { listProductImages } from "@/lib/catalog/product-images";
 import { ProductImages } from "@/components/admin/catalog/ProductImages";
+import { ProductPromos } from "@/components/admin/promos/ProductPromos";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] text-balance">{p.title}</h2>
         {p.summary && <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[84ch]">{p.summary}</p>}
       </div>
+
+      {can(user.permissions, "catalog.promos.write") && <ProductPromos productId={p.id} canWrite />}
 
       <ProductImages productId={p.id} initial={images} canWrite={can(user.permissions, "catalog.products.write")} canUploadToLibrary={can(user.permissions, "cms.media.write")} />
 
