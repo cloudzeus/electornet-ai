@@ -124,6 +124,9 @@ export const SECTIONS: Section[] = [
       { key: "customerPayment", label: "Τρόπος πληρωμής (PAYMENT)", type: "text", placeholder: "", width: "half" },
       { key: "priceList", label: "Τιμοκατάλογος web", type: "text", placeholder: "π.χ. 1", width: "half" },
       { key: "webFilter", label: "Φίλτρο ειδών web (SQL filter)", type: "textarea", placeholder: "ITEM.WEBACTIVE=1" },
+      { key: "orderPush", label: "Παραγγελίες προς SoftOne", type: "select", options: [{ value: "preview", label: "Μόνο προεπισκόπηση — χτίζεται το παραστατικό, ΔΕΝ στέλνεται (προεπιλογή)" }, { value: "off", label: "Ανενεργό" }], help: "Η πραγματική αποστολή (setData SALDOC) ενεργοποιείται μόνο μετά από δοκιμή σε σειρά δοκιμών και ρητή έγκριση.", width: "half" },
+      { key: "orderSeries", label: "Σειρά παραστατικού παραγγελίας e-shop (SERIES)", type: "text", placeholder: "π.χ. 7021", help: "Από τον πελάτη / ERP. Χωρίς σειρά, το παραστατικό μένει σε προεπισκόπηση.", width: "half" },
+      { key: "orderRetailTrdr", label: "Πελάτης λιανικής για επισκέπτες (TRDR)", type: "text", placeholder: "π.χ. 12345", help: "Για παραγγελίες χωρίς κωδικό πελάτη στο SoftOne.", width: "half" },
     ],
   },
   {

@@ -124,6 +124,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [lines, wishlist, compare, compareScope, hydrated]);
 
+  // Καθρέφτης στον server (lib/cart/server): μόνο πραγματικά προϊόντα του καταλόγου, με καθυστέρηση ώστε πολλές
+  // αλλαγές στη σειρά να γίνονται ένα αίτημα. Οι τιμές ΔΕΝ στέλνονται — ο server τις παίρνει από τη βάση.
+  const lastSync = useRef("");
+  useEffect(() => {
+    if (!hydrated) return;
+    const payload = JSON.stringify({ lines: lines.filter((l) => l.product.fromDb).map((l) => ({ productId: l.product.id, qty: l.qty, addons: l.addons.map((a) => ({ slug: a.slug })) })) });
+    if (payload === lastSync.current) return;
+    const t = setTimeout(() => {
+      lastSync.current = payload;
+      fetch("/api/cart", { method: "PUT", headers: { "content-type": "application/json" }, body: payload, keepalive: true }).catch(() => { lastSync.current = ""; });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [lines, hydrated]);
+
   const add = useCallback<CartState["add"]>((p, opts = {}) => {
     const qty = opts.qty ?? 1;
     setLines((ls) => {

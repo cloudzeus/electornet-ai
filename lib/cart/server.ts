@@ -1,0 +1,121 @@
+import "server-only";
+import { randomBytes } from "node:crypto";
+import { cookies } from "next/headers";
+import { db } from "@/lib/db";
+import { getCustomerSession } from "@/lib/account/session";
+import { services } from "@/lib/data/fixtures/services";
+import { evaluate, type EngineResult } from "@/lib/promo/engine";
+import { activePromos, isNewCustomer, linesFor, lowest30, resolveCoupon, usesByPromo, type LineInfo } from "@/lib/promo/server";
+import { getSetting } from "@/lib/settings/store";
+
+/**
+ * Καλάθι στον server. Ο browser κρατά το καλάθι για ταχύτητα και το καθρεφτίζει εδώ (ολόκληρο, με κάθε αλλαγή).
+ * Ό,τι αφορά χρήματα υπολογίζεται ΜΟΝΟ εδώ: τιμές από τη βάση (SoftOne), υπηρεσίες από τον κατάλογο υπηρεσιών,
+ * προσφορές από τη μηχανή — ποτέ τιμές που έστειλε ο browser.
+ * Επισκέπτης: cookie με τυχαίο αναγνωριστικό. Σύνδεση: το καλάθι δένεται με τον πελάτη (και ακολουθεί σε άλλη συσκευή).
+ */
+
+const COOKIE = "eu_cart";
+export interface CartItemIn { productId: string; qty: number; addons?: { slug: string }[] }
+interface StoredAddon { slug: string }
+
+async function sessionCartId(create: boolean): Promise<string | null> {
+  const jar = await cookies();
+  const v = jar.get(COOKIE)?.value;
+  if (v && /^[\w-]{20,64}$/.test(v)) return v;
+  if (!create) return null;
+  const id = randomBytes(24).toString("base64url");
+  jar.set(COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 86400 });
+  return id;
+}
+
+/** Το καλάθι του επισκέπτη ή του πελάτη. Στη σύνδεση, το καλάθι επισκέπτη μεταφέρεται στον πελάτη. */
+export async function currentCart(create = false) {
+  const me = await getCustomerSession();
+  const sid = await sessionCartId(create || !!me);
+  let cart = me ? await db.cart.findFirst({ where: { customerId: me.id }, orderBy: { updatedAt: "desc" }, include: { lines: true } }) : null;
+  const guest = sid ? await db.cart.findUnique({ where: { sessionId: sid }, include: { lines: true } }) : null;
+  if (me && guest && guest.customerId !== me.id) {
+    if (!cart) cart = await db.cart.update({ where: { id: guest.id }, data: { customerId: me.id }, include: { lines: true } });
+    else if (guest.lines.length) {
+      // συγχώνευση: οι γραμμές του επισκέπτη μπαίνουν στο καλάθι του πελάτη (η πιο πρόσφατη ποσότητα κερδίζει)
+      await db.$transaction([
+        ...guest.lines.map((l) => {
+          const same = cart!.lines.find((x) => x.variantId === l.variantId);
+          return same ? db.cartLine.update({ where: { id: same.id }, data: { qty: l.qty, addons: l.addons ?? undefined } }) : db.cartLine.update({ where: { id: l.id }, data: { cartId: cart!.id } });
+        }),
+        db.cart.update({ where: { id: guest.id }, data: { sessionId: null } }),
+      ]);
+      cart = await db.cart.findUnique({ where: { id: cart.id }, include: { lines: true } });
+    }
+  } else if (!cart) cart = guest;
+  if (!cart && create) cart = await db.cart.create({ data: { sessionId: me ? null : sid, customerId: me?.id ?? null }, include: { lines: true } });
+  return cart;
+}
+
+/** Ο browser στέλνει όλο το καλάθι του· ο server κρατά μόνο ό,τι είναι πραγματικό προϊόν με τιμή. */
+export async function syncCart(items: CartItemIn[]) {
+  const cart = await currentCart(true);
+  if (!cart) return null;
+  const clean = items.filter((i) => i.productId && i.qty > 0).slice(0, 60);
+  const products = await db.product.findMany({ where: { id: { in: clean.map((i) => i.productId) }, active: true }, select: { id: true, variants: { select: { id: true, price: true }, take: 1 } } });
+  const variantOf = new Map(products.flatMap((p) => (p.variants[0] && Number(p.variants[0].price) > 0 ? [[p.id, p.variants[0].id] as const] : [])));
+  const known = new Set(services.map((s) => s.slug));
+  const rows = clean.flatMap((i) => { const v = variantOf.get(i.productId); return v ? [{ cartId: cart.id, variantId: v, qty: Math.min(99, Math.max(1, Math.floor(i.qty))), addons: (i.addons ?? []).filter((a) => known.has(a.slug)).map((a) => ({ slug: a.slug })) }] : []; });
+  await db.$transaction([db.cartLine.deleteMany({ where: { cartId: cart.id } }), ...(rows.length ? [db.cartLine.createMany({ data: rows })] : []), db.cart.update({ where: { id: cart.id }, data: { updatedAt: new Date() } })]);
+  return { cartId: cart.id, kept: rows.length, skipped: clean.length - rows.length };
+}
+
+export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null }
+export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: { slug: string; title: string; price: number }[] }
+export interface Quote {
+  lines: QuoteLine[]; missing: string[];
+  goods: number; addons: number; discPrice: number; discCoupon: number; shipping: number; codFee: number; total: number; vat: number;
+  coupon: { applied: string | null; message: string | null };
+  trace: EngineResult["trace"]; freeShippingFrom: number;
+  /** για την παραγγελία: ποσά ανά προσφορά */
+  engine: EngineResult;
+}
+
+const cents = (n: number) => Math.round(n * 100);
+async function shippingRules() {
+  const empty = { data: {} as Record<string, unknown> };
+  const [s, p] = await Promise.all([getSetting("shipping").catch(() => empty), getSetting("payments").catch(() => empty)]);
+  const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v) : d);
+  return { freeFrom: cents(num(s.data.freeShippingFrom, 100)), fee: cents(num(s.data.shippingFee, 4.9)), cod: cents(num(p.data.codFee, 2)) };
+}
+
+/** Ο υπολογισμός του καλαθιού — ο ίδιος για τη σελίδα καλαθιού, το checkout και την παραγγελία. Ποσά σε λεπτά. */
+export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnType<typeof currentCart>>): Promise<Quote> {
+  cart ??= await currentCart(false);
+  const me = await getCustomerSession();
+  const who = { customerId: me?.id ?? null, email: (me?.email ?? input.email ?? null)?.toLowerCase() ?? null };
+  const vids = (cart?.lines ?? []).map((l) => l.variantId);
+  const variants = vids.length ? await db.variant.findMany({ where: { id: { in: vids } }, select: { id: true, productId: true } }) : [];
+  const productOf = new Map(variants.map((v) => [v.id, v.productId]));
+  const items = (cart?.lines ?? []).flatMap((l) => (productOf.get(l.variantId) ? [{ key: l.id, productId: productOf.get(l.variantId)!, qty: l.qty }] : []));
+  const [{ lines, missing }, promos, coupon, uses, isNew, rules] = await Promise.all([linesFor(items), activePromos(), resolveCoupon(input.coupon, who), usesByPromo(who), isNewCustomer(who), shippingRules()]);
+  const engine = evaluate(lines, promos, {
+    now: new Date(), customer: { id: who.customerId, email: who.email, registered: !!me, isNew, usesByPromo: uses },
+    channel: input.delivery === "click-collect" ? "click-collect" : "online", zip: input.zip ?? null, payment: input.payment ?? null, delivery: input.delivery ?? null,
+    coupon, maxLinePct: 40,
+  });
+  const low = await lowest30(lines.map((l) => l.variantId));
+  const svc = new Map(services.map((s) => [s.slug, s]));
+  const addonsOf = new Map((cart?.lines ?? []).map((l) => [l.id, ((l.addons as StoredAddon[] | null) ?? []).flatMap((a) => { const s = svc.get(a.slug); return s ? [{ slug: s.slug, title: s.title, price: cents(s.priceFrom ?? 0) }] : []; })]));
+  const out: QuoteLine[] = engine.lines.map((l) => {
+    const info = lines.find((x) => x.key === l.key)!;
+    const { categoryIds: _c, ...rest } = info; void _c;
+    return { ...rest, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, total: l.total, unitFinal: l.unitFinal, lowest30: low.get(l.variantId) ?? null, labels: l.adjustments.map((a) => a.label), addons: addonsOf.get(l.key) ?? [] };
+  });
+  // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
+  const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
+  const goods = engine.total + addons;
+  const shipping = input.delivery && input.delivery !== "courier" ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
+  const codFee = input.payment === "cod" ? rules.cod : 0;
+  const total = goods + shipping + codFee;
+  return { lines: out, missing, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
+}
+
+/** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */
+export const publicQuote = ({ engine: _e, ...q }: Quote) => { void _e; return { ...q, trace: q.trace.map((t) => ({ name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) }; };

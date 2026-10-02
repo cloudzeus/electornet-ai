@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard, Landmark, Banknote, Smartphone, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
@@ -18,6 +18,8 @@ const c = copyOf("checkout");
 
 type StoreLite = { id: string; slug: string; name: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string };
 type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut";
+/** Ο υπολογισμός του server (λεπτά) — /api/checkout/quote */
+type ServerQuote = { goods: number; addons: number; discPrice: number; discCoupon: number; shipping: number; codFee: number; total: number; coupon: { applied: string | null; message: string | null }; missing: string[] };
 
 const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρισα", "Ηράκλειο", "Χανιά", "Δωδεκάνησα", "Ιωάννινα", "Μαγνησία", "Καβάλα", "Κέρκυρα", "Εύβοια", "Μεσσηνία", "Σέρρες", "Άλλη"];
 
@@ -48,14 +50,36 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [signedIn, setSignedIn] = useState<string | null>(null);
   const [couponMsg, setCouponMsg] = useState<string | null>(null);
-  const [discount, setDiscount] = useState(0);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  // Ο υπολογισμός είναι του server (τιμές από το SoftOne, προσφορές, κουπόνι, μεταφορικά): ο browser μόνο τον δείχνει
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [quote, setQuote] = useState<ServerQuote | null>(null);
+  const [placing, setPlacing] = useState(false);
+  const qSeq = useRef(0);
+  const offline = lines.filter((l) => !l.product.fromDb);
+  useEffect(() => {
+    if (!hydrated || !lines.length) return;
+    const my = ++qSeq.current;
+    const t = setTimeout(async () => {
+      try {
+        await fetch("/api/cart", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines: lines.filter((l) => l.product.fromDb).map((l) => ({ productId: l.product.id, qty: l.qty, addons: l.addons.map((a) => ({ slug: a.slug })) })) }) });
+        const r = await fetch("/api/checkout/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ coupon: couponCode, payment: pay, delivery: ful, zip: /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null }) });
+        const q = (await r.json()) as ServerQuote;
+        if (my === qSeq.current) { setQuote(q); if (couponCode) setCouponMsg(q.coupon.message); }
+      } catch { /* μένει ο προηγούμενος υπολογισμός */ }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [hydrated, lines, couponCode, pay, ful, f.zip, f.email]);
 
-  const goods = subtotal + addonsTotal;
+  const localGoods = subtotal + addonsTotal;
+  const goods = quote ? (quote.goods + quote.addons) / 100 : localGoods;
+  const discPrice = quote ? quote.discPrice / 100 : 0;
+  const discCoupon = quote ? quote.discCoupon / 100 : 0;
+  const discount = discPrice + discCoupon;
   const heavy = lines.some((l) => l.product.installation);
-  const shipping = ful !== "courier" ? 0 : goods >= freeShippingFrom ? 0 : 4.9;
-  const codFee = pay === "cod" ? 2 : 0;
-  const total = Math.max(0, goods - discount) + shipping + codFee;
+  const shipping = quote ? quote.shipping / 100 : ful !== "courier" ? 0 : localGoods >= freeShippingFrom ? 0 : 4.9;
+  const codFee = quote ? quote.codFee / 100 : pay === "cod" ? 2 : 0;
+  const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
   const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
   const store = stores.find((s) => s.id === storeId);
   const eta = ful === "click-collect" ? "Έτοιμη σε 2 ώρες" : ful === "appointment" ? "Ραντεβού εντός 24 ωρών" : "Παράδοση σε 1–3 εργάσιμες";
@@ -90,16 +114,8 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   };
   const applyCoupon = () => {
     const c = coupon.trim().toUpperCase();
-    if (c === "EURONICS10") {
-      setDiscount(Math.round(goods * 0.1 * 100) / 100);
-      setCouponMsg("Κουπόνι EURONICS10: −10% στα προϊόντα.");
-    } else if (c.startsWith("GIFT")) {
-      setDiscount(Math.min(goods, 50));
-      setCouponMsg("Κάρτα δώρου 50,00 € εξαργυρώθηκε.");
-    } else {
-      setDiscount(0);
-      setCouponMsg("Ο κωδικός δεν ισχύει. Δοκίμασε EURONICS10.");
-    }
+    setCouponMsg(c ? "Έλεγχος κωδικού…" : null);
+    setCouponCode(c || null);
   };
 
   const next = () => {
@@ -112,7 +128,9 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const submit = () => {
+    if (placing) return;
     if (!f.terms) return setErr("Πρέπει να αποδεχτείς τους όρους χρήσης για να συνεχίσεις.");
+    if (offline.length) return setErr(`Το «${offline[0].product.title}» δεν διατίθεται για online αγορά. Αφαίρεσέ το από το καλάθι για να συνεχίσεις.`);
     setErr(null);
     if (pay === "apple" || pay === "google" || pay === "revolut") return setWallet(pay);
     if (pay === "card" || pay === "no-card") {
@@ -123,14 +141,23 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
       }, 1800);
     } else finish();
   };
-  const finish = () => {
-    const no = `EUR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    const order = { number: no, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, address: { ...f, password: "" }, recycle: f.recycle };
+  const finish = async () => {
+    setPlacing(true); setErr(null);
     try {
-      localStorage.setItem("euronics.lastOrder", JSON.stringify(order));
-    } catch {}
-    clear();
-    router.push(`/checkout/epityxia?no=${no}`);
+      const r = await fetch("/api/checkout/place", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        contact: { firstName: f.firstName, lastName: f.lastName, email: f.email, phone: f.phone },
+        address: ful === "click-collect" ? {} : { street: f.street, number: f.number, floor: f.floor, city: f.city, zip: f.zip, region: f.region, notes: f.notes },
+        invoice: f.invoice ? { vatNumber: f.vat, company: f.company, doy: f.doy, activity: f.activity } : null,
+        fulfilment: ful, storeId: ful === "click-collect" ? storeId : null, payment: pay, instalments: inst,
+        coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
+      }) });
+      const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote };
+      if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); setSca("idle"); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
+      const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, address: { ...f, password: "" }, recycle: f.recycle };
+      try { localStorage.setItem("euronics.lastOrder", JSON.stringify(order)); } catch {}
+      clear();
+      router.push(`/checkout/epityxia?no=${j.number}`);
+    } catch { setSca("idle"); setErr("Σφάλμα δικτύου. Η παραγγελία δεν ολοκληρώθηκε."); } finally { setPlacing(false); }
   };
 
   if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">{c.fortosi}</div>;
@@ -464,8 +491,8 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                 <button type="button" onClick={() => setStep(2)} className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12">
                   {c.stoicheia_paradosi}
                 </button>
-                <button type="button" onClick={submit} disabled={sca === "pending"} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
-                  {sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
+                <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
+                  {placing ? "Καταχώρηση παραγγελίας…" : sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
                 </button>
               </div>
             </>
@@ -515,11 +542,13 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                   {c.efarmogi}
                 </button>
               </div>
-              {couponMsg && <p className={`m-0 text-[length:var(--fs-14)] font-semibold ${discount ? "text-eu-green" : "text-eu-red"}`}>{couponMsg}</p>}
+              {couponMsg && <p className={`m-0 text-[length:var(--fs-14)] font-semibold ${quote?.coupon.applied ? "text-eu-green" : "text-eu-red"}`}>{couponMsg}</p>}
+              {offline.length > 0 && <p role="alert" className="m-0 rounded-xl bg-eu-red/10 text-eu-red font-semibold px-3 py-2 text-[length:var(--fs-14)]">{offline.map((l) => `«${l.product.title}»`).join(", ")} {offline.length === 1 ? "δεν διατίθεται" : "δεν διατίθενται"} για online αγορά και δεν μετρά στο σύνολο. Αφαίρεσέ {offline.length === 1 ? "το" : "τα"} για να ολοκληρώσεις.</p>}
             </form>
             <dl className="m-0 grid gap-2 text-[length:var(--fs-15)] text-eu-ink-2">
               <Row k="Προϊόντα & υπηρεσίες" v={priceLong(goods)} />
-              {discount > 0 && <Row k="Έκπτωση" v={`− ${priceLong(discount)}`} cls="text-eu-green" />}
+              {discPrice > 0 && <Row k="Προσφορές" v={`− ${priceLong(discPrice)}`} cls="text-eu-green" />}
+              {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
               <Row k={ful === "courier" ? "Μεταφορικά" : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               {codFee > 0 && <Row k="Αντικαταβολή" v={priceLong(codFee)} />}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(total - total / 1.24)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
@@ -533,8 +562,8 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               <Truck className="size-5 text-eu-blue shrink-0" aria-hidden /> {eta}
             </div>
             {step === 3 && (
-              <button type="button" onClick={submit} disabled={sca === "pending"} className="hidden @3xl:block rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 hover:bg-eu-yellow-dark disabled:opacity-60">
-                {sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
+              <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="hidden @3xl:block rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 hover:bg-eu-yellow-dark disabled:opacity-60">
+                {placing ? "Καταχώρηση παραγγελίας…" : sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
               </button>
             )}
             {step === 3 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)] leading-snug">Πατώντας το κουμπί χρεώνεται το ποσό {priceLong(total)} και η παραγγελία σου καταχωρείται. Θα λάβεις email επιβεβαίωσης αμέσως.</p>}
@@ -572,7 +601,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
             {c.synecheia_stin_pliromi}
           </button>
         ) : (
-          <button type="button" onClick={submit} disabled={sca === "pending"} className="flex-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-14 disabled:opacity-60">
+          <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="flex-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-14 disabled:opacity-60">
             {sca === "pending" ? "Επιβεβαίωση…" : "Πληρωμή & ολοκλήρωση"}
           </button>
         )}
