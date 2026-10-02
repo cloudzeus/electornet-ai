@@ -141,7 +141,7 @@ export async function tickPromos(opts: { force?: boolean } = {}) {
   const now = new Date();
   const [toActive, toEnded] = await db.$transaction([
     db.promotion.updateMany({ where: { status: "scheduled", held: false, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, data: { status: "active" } }),
-    db.promotion.updateMany({ where: { status: { in: ["active", "scheduled"] }, endsAt: { lt: now } }, data: { status: "ended" } }),
+    db.promotion.updateMany({ where: { status: { in: ["active", "scheduled", "paused"] }, endsAt: { lt: now } }, data: { status: "ended" } }),
   ]);
   const since = new Date(state.computedAt);
   const crossed = state.computedAt === 0 ? 1 : await db.promotion.count({ where: { OR: [{ startsAt: { gt: since, lte: now } }, { endsAt: { gt: since, lte: now } }] } });
