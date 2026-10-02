@@ -84,3 +84,61 @@ test("ειδική τιμή ανά SKU, εξαίρεση και brand", () => {
   assert.equal(r.lines[0].total, 14900);
   assert.equal(r.lines[1].total, 18900);
 });
+
+test("2+1: το φθηνότερο της ομάδας δωρεάν, και υπόδειξη όταν λείπει ένα", () => {
+  const p = promo({ mechanism: "n-plus-m", reward: { buy: 2, get: 1 }, tagLabel: "2+1" });
+  const r = evaluate([line("a", 18900), line("b", 12900), line("c", 3990)], [p], ctx());
+  assert.equal(r.discPrice, 3990);
+  assert.equal(r.lines[2].discPrice, 3990);
+  const r2 = evaluate([line("a", 18900), line("b", 12900)], [p], ctx());
+  assert.equal(r2.discPrice, 0);
+  assert.match(r2.hints[0], /Πρόσθεσε 1 ακόμη/);
+});
+
+test("2ο −50 %: στο φθηνότερο τεμάχιο κάθε ζεύγους", () => {
+  const p = promo({ mechanism: "nth-discount", reward: { nth: 2, percent: 50 } });
+  const r = evaluate([line("a", 10000, { qty: 1 }), line("b", 6000)], [p], ctx());
+  assert.equal(r.discPrice, 3000);
+  assert.equal(r.lines[1].discPrice, 3000);
+});
+
+test("κλιμακωτή ποσότητα: η σωστή κλίμακα και υπόδειξη για την επόμενη", () => {
+  const p = promo({ mechanism: "qty-tiers", reward: { tiers: [{ minQty: 2, percent: 5 }, { minQty: 4, percent: 10 }] } });
+  const r = evaluate([line("a", 1000, { qty: 3 })], [p], ctx());
+  assert.equal(r.discPrice, 150);
+  assert.match(r.hints[0], /−10 %/);
+});
+
+test("πολλών τεμαχίων απέναντι σε απλή έκπτωση: κερδίζει ό,τι δίνει περισσότερα", () => {
+  const n = promo({ name: "2+1", mechanism: "n-plus-m", reward: { buy: 2, get: 1 } });
+  const small = promo({ name: "−5 %", reward: { percent: 5 } });
+  const big = promo({ name: "−40 %", reward: { percent: 40 } });
+  const ls = [line("a", 10000), line("b", 10000), line("c", 10000)];
+  assert.equal(evaluate(ls, [n, small], ctx()).discPrice, 10000); // 2+1 δίνει 100 € > 5 % του 3ου (5 €)
+  const r = evaluate(ls, [n, big], ctx());
+  assert.equal(r.discPrice, 12000); // −40 % σε όλα (120 €) > 2+1 (100 €)
+  assert.match(r.trace.find((t) => t.name === "2+1")!.reason, /δίνει περισσότερα/);
+});
+
+test("δώρο, δωρεάν υπηρεσία, δωρεάν μεταφορικά — και «σου λείπουν»", () => {
+  const g = promo({ mechanism: "gift", reward: { giftProductId: "gift-1" }, rules: { minValue: 30000 } });
+  const s = promo({ mechanism: "service", reward: { serviceSlug: "epektasi-eggyisis" } });
+  const f = promo({ mechanism: "shipping", reward: {}, rules: { minValue: 5000 } });
+  const r = evaluate([line("tv", 89900)], [g, s, f], ctx());
+  assert.equal(r.gifts[0].productId, "gift-1");
+  assert.equal(r.services[0].slug, "epektasi-eggyisis");
+  assert.ok(r.freeShipping);
+  const r2 = evaluate([line("x", 3990)], [g, f], ctx());
+  assert.equal(r2.gifts.length, 0);
+  assert.equal(r2.freeShipping, null);
+  assert.ok(r2.hints.some((h) => /δωρεάν μεταφορικά/.test(h)));
+});
+
+test("κουπόνι «όχι με προσφορές»: ούτε στα πληρωμένα τεμάχια ενός 2+1", () => {
+  const n = promo({ mechanism: "n-plus-m", reward: { buy: 2, get: 1 }, targets: [{ kind: "brand", refId: "philips", exclude: false }] });
+  const cp = promo({ mechanism: "coupon-amount", reward: { amount: 1000 }, stacking: "no-price" });
+  const r = evaluate([line("a", 10000), line("b", 10000), line("c", 10000), line("d", 5000, { brandId: "lg" })], [n, cp], ctx({ coupon: { code: "X", promotionId: cp.id } }));
+  assert.equal(r.discPrice, 10000);
+  assert.equal(r.lines[3].discCoupon, 1000);
+  assert.equal(r.lines[0].discCoupon + r.lines[1].discCoupon + r.lines[2].discCoupon, 0);
+});

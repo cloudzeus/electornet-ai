@@ -67,9 +67,14 @@ export async function syncCart(items: CartItemIn[]) {
 }
 
 export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null }
-export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: { slug: string; title: string; price: number }[] }
+/** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
+export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
+export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
+/** Δώρο της προσφοράς: γραμμή με την αξία του και έκπτωση 100 % */
+export interface QuoteGift { promotionId: string; code: string; version: number; label: string; productId: string; variantId: string; title: string; brand: string; image: string | null; erpCode: string; qty: number; value: number }
 export interface Quote {
-  lines: QuoteLine[]; missing: string[];
+  lines: QuoteLine[]; missing: string[]; gifts: QuoteGift[]; hints: string[];
+  freeShipping: { promotionId: string; code: string; version: number; label: string; saved: number } | null;
   goods: number; addons: number; discPrice: number; discCoupon: number; shipping: number; codFee: number; total: number; vat: number;
   coupon: { applied: string | null; message: string | null };
   trace: EngineResult["trace"]; freeShippingFrom: number;
@@ -102,7 +107,19 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   });
   const low = await lowest30(lines.map((l) => l.variantId));
   const svc = new Map(services.map((s) => [s.slug, s]));
-  const addonsOf = new Map((cart?.lines ?? []).map((l) => [l.id, ((l.addons as StoredAddon[] | null) ?? []).flatMap((a) => { const s = svc.get(a.slug); return s ? [{ slug: s.slug, title: s.title, price: cents(s.priceFrom ?? 0) }] : []; })]));
+  const addonsOf = new Map((cart?.lines ?? []).map((l) => [l.id, ((l.addons as StoredAddon[] | null) ?? []).flatMap((a): QuoteAddon[] => { const s = svc.get(a.slug); return s ? [{ slug: s.slug, title: s.title, price: cents(s.priceFrom ?? 0), value: cents(s.priceFrom ?? 0) }] : []; })]));
+  // δωρεάν υπηρεσίες: μπαίνουν αυτόματα στη γραμμή (ή γίνονται 0 € αν τις είχε ήδη διαλέξει ο πελάτης)
+  for (const f of engine.services) {
+    const s = svc.get(f.slug); if (!s) continue;
+    const list = addonsOf.get(f.lineKey) ?? [];
+    const free = { promotionId: f.promotionId, code: f.code, version: f.version, label: f.label };
+    const cur = list.find((a) => a.slug === f.slug);
+    if (cur) { cur.price = 0; cur.free = free; } else list.push({ slug: s.slug, title: s.title, price: 0, value: cents(s.priceFrom ?? 0), free });
+    addonsOf.set(f.lineKey, list);
+  }
+  // δώρα: τα στοιχεία του προϊόντος-δώρου από τη βάση (αν δεν πωλείται πια, δεν μπαίνει)
+  const giftLines = engine.gifts.length ? (await linesFor(engine.gifts.map((g) => ({ key: `gift:${g.promotionId}`, productId: g.productId, qty: g.qty })))).lines : [];
+  const gifts: QuoteGift[] = engine.gifts.flatMap((g) => { const l = giftLines.find((x) => x.key === `gift:${g.promotionId}`); return l ? [{ promotionId: g.promotionId, code: g.code, version: g.version, label: g.label, productId: l.productId, variantId: l.variantId, title: l.title, brand: l.brand, image: l.image, erpCode: l.erpCode, qty: l.qty, value: l.unit * l.qty }] : []; });
   const out: QuoteLine[] = engine.lines.map((l) => {
     const info = lines.find((x) => x.key === l.key)!;
     const { categoryIds: _c, ...rest } = info; void _c;
@@ -111,10 +128,12 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
   const goods = engine.total + addons;
-  const shipping = input.delivery && input.delivery !== "courier" ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
+  const baseShipping = input.delivery && input.delivery !== "courier" ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
+  const freeShipping = engine.freeShipping && baseShipping > 0 ? { ...engine.freeShipping, saved: baseShipping } : null;
+  const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
-  return { lines: out, missing, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
+  return { lines: out, missing, gifts, hints: engine.hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

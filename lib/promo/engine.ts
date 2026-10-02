@@ -10,8 +10,11 @@
  * Κάθε προσφορά που εξετάστηκε μπαίνει στο ίχνος με «εφαρμόστηκε» ή τον λόγο που δεν εφαρμόστηκε — σε απλά ελληνικά.
  */
 
-export type Mechanism = "price-percent" | "price-amount" | "special-price" | "coupon-percent" | "coupon-amount";
+export type Mechanism = "price-percent" | "price-amount" | "special-price" | "n-plus-m" | "nth-discount" | "qty-tiers" | "gift" | "service" | "shipping" | "coupon-percent" | "coupon-amount";
+/** Εκπτώσεις τιμής σε μία γραμμή */
 export const PRICE_MECHANISMS: Mechanism[] = ["price-percent", "price-amount", "special-price"];
+/** Εκπτώσεις τιμής που εξαρτώνται από πολλά τεμάχια (ανήκουν κι αυτές στην «τιμή»: μία ανά γραμμή) */
+export const MULTI_MECHANISMS: Mechanism[] = ["n-plus-m", "nth-discount", "qty-tiers"];
 export const COUPON_MECHANISMS: Mechanism[] = ["coupon-percent", "coupon-amount"];
 export type Stacking = "combine" | "no-price" | "exclusive";
 
@@ -34,6 +37,16 @@ export interface PromoReward {
   amount?: number;
   /** special-price: τελική τιμή ανά variant (λεπτά) */
   price?: Record<string, number>;
+  /** n-plus-m: αγοράζεις buy, παίρνεις get δωρεάν (2+1 → buy 2, get 1) */
+  buy?: number; get?: number;
+  /** nth-discount: κάθε nth τεμάχιο με percent (2ο −50 % → nth 2, percent 50) */
+  nth?: number;
+  /** qty-tiers: κλίμακες ποσότητας */
+  tiers?: { minQty: number; percent: number }[];
+  /** gift: το προϊόν-δώρο */
+  giftProductId?: string; giftQty?: number;
+  /** service: η υπηρεσία που γίνεται δωρεάν */
+  serviceSlug?: string;
 }
 export interface EnginePromo {
   id: string; code: string; version: number; name: string;
@@ -73,7 +86,17 @@ export interface PricedLine extends EngineLine {
   capped?: "max-pct" | "cost";
 }
 export interface TraceItem { promotionId: string; code: string; name: string; applied: boolean; amount: number; reason: string; lines?: string[] }
-export interface EngineResult { lines: PricedLine[]; listTotal: number; discPrice: number; discCoupon: number; total: number; trace: TraceItem[]; couponApplied: string | null; couponMessage: string | null }
+export interface PromoRef { promotionId: string; code: string; version: number; label: string }
+export interface EngineResult {
+  lines: PricedLine[]; listTotal: number; discPrice: number; discCoupon: number; total: number; trace: TraceItem[]; couponApplied: string | null; couponMessage: string | null;
+  /** δώρα που δικαιούται το καλάθι (μπαίνουν ως γραμμή με αξία και έκπτωση 100 %) */
+  gifts: (PromoRef & { productId: string; qty: number })[];
+  /** υπηρεσίες που γίνονται δωρεάν σε συγκεκριμένες γραμμές */
+  services: (PromoRef & { lineKey: string; slug: string })[];
+  freeShipping: PromoRef | null;
+  /** υποδείξεις για τον πελάτη: «πρόσθεσε 1 ακόμη…», «σου λείπουν 12 €…» */
+  hints: string[];
+}
 
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
@@ -132,6 +155,42 @@ export function allocate(amount: number, weights: number[]): number[] {
   return out;
 }
 
+/**
+ * Κατανομή έκπτωσης για μηχανισμούς πολλών τεμαχίων. Τα τεμάχια ταξινομούνται από το ακριβότερο: σε κάθε ομάδα
+ * δωρεάν / με έκπτωση γίνεται το φθηνότερο της ομάδας (ο πελάτης πληρώνει τα ακριβότερα, όπως παντού στην αγορά).
+ */
+function multiAlloc(p: EnginePromo, pool: EngineLine[]): { alloc: Map<string, number>; used: Set<string>; hint: string | null } {
+  const alloc = new Map<string, number>();
+  /** γραμμές που συμμετέχουν σε πλήρη ομάδα (και τα «πληρωμένα» τεμάχια) */
+  const used = new Set<string>();
+  const units = pool.flatMap((l) => Array.from({ length: l.qty }, () => ({ key: l.key, unit: l.unit }))).sort((a, b) => b.unit - a.unit);
+  const r = p.reward ?? {};
+  let hint: string | null = null;
+  if (p.mechanism === "n-plus-m") {
+    const buy = Math.max(1, r.buy ?? 1), get = Math.max(1, r.get ?? 1), size = buy + get;
+    for (let i = 0; i + size <= units.length; i += size) {
+      for (let k = i; k < i + size; k++) used.add(units[k].key);
+      for (let k = i + buy; k < i + size; k++) alloc.set(units[k].key, (alloc.get(units[k].key) ?? 0) + units[k].unit);
+    }
+    const rem = units.length % size;
+    if (rem >= buy || units.length < size) { const need = size - (units.length < size ? units.length : rem); hint = `Πρόσθεσε ${need} ακόμη ${need === 1 ? "προϊόν" : "προϊόντα"} από την προσφορά «${p.tagLabel || p.name}» και ${get === 1 ? "το φθηνότερο είναι δωρεάν" : `τα ${get} φθηνότερα είναι δωρεάν`}.`; }
+  } else if (p.mechanism === "nth-discount") {
+    const nth = Math.max(2, r.nth ?? 2), pct = r.percent ?? 0;
+    for (let i = nth - 1; i < units.length; i += nth) {
+      for (let k = i - nth + 1; k <= i; k++) used.add(units[k].key);
+      alloc.set(units[i].key, (alloc.get(units[i].key) ?? 0) + Math.round((units[i].unit * pct) / 100));
+    }
+    if (units.length % nth === nth - 1) hint = `Πρόσθεσε 1 ακόμη προϊόν από την προσφορά «${p.tagLabel || p.name}» και παίρνεις −${pct} % στο φθηνότερο.`;
+  } else if (p.mechanism === "qty-tiers") {
+    const tiers = [...(r.tiers ?? [])].sort((a, b) => a.minQty - b.minQty);
+    const tier = [...tiers].reverse().find((t) => units.length >= t.minQty);
+    if (tier) for (const l of pool) { used.add(l.key); alloc.set(l.key, Math.round((l.unit * l.qty * tier.percent) / 100)); }
+    const next = tiers.find((t) => t.minQty > units.length);
+    if (next) hint = `Με ${next.minQty - units.length} ακόμη ${next.minQty - units.length === 1 ? "τεμάχιο" : "τεμάχια"} η έκπτωση γίνεται −${next.percent} %.`;
+  }
+  return { alloc, used, hint };
+}
+
 export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: EngineCtx): EngineResult {
   const trace: TraceItem[] = [];
   const lines: PricedLine[] = linesIn.map((l) => ({ ...l, listTotal: l.unit * l.qty, discPrice: 0, discCoupon: 0, total: l.unit * l.qty, unitFinal: l.unit, adjustments: [] }));
@@ -142,23 +201,23 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
     live.push(p);
   }
 
-  // ---- 1. εκπτώσεις τιμής: μία ανά γραμμή ----
+  // ---- 1. εκπτώσεις τιμής: μία ανά γραμμή (απλές + πολλών τεμαχίων) ----
+  const hints: string[] = [];
   const pricePromos = live.filter((p) => (PRICE_MECHANISMS as string[]).includes(p.mechanism)).sort((a, b) => a.priority - b.priority);
   // ελάχιστη αξία / ποσότητα μετριέται στις γραμμές που ταιριάζουν στην προσφορά
-  const qualifies = (p: EnginePromo) => {
-    const ls = lines.filter((l) => matches(p, l));
+  const qualifies = (p: EnginePromo, ls = lines.filter((l) => matches(p, l))) => {
     const v = ls.reduce((a, l) => a + l.listTotal, 0), q = ls.reduce((a, l) => a + l.qty, 0);
-    if (p.rules?.minValue && v < p.rules.minValue) return `χρειάζεται καλάθι τουλάχιστον ${eur(p.rules.minValue)} σε προϊόντα της προσφοράς (τώρα ${eur(v)})`;
-    if (p.rules?.minQty && q < p.rules.minQty) return `χρειάζονται τουλάχιστον ${p.rules.minQty} τεμάχια (τώρα ${q})`;
+    if (p.rules?.minValue && v < p.rules.minValue) return { why: `χρειάζεται καλάθι τουλάχιστον ${eur(p.rules.minValue)} σε προϊόντα της προσφοράς (τώρα ${eur(v)})`, missing: p.rules.minValue - v };
+    if (p.rules?.minQty && q < p.rules.minQty) return { why: `χρειάζονται τουλάχιστον ${p.rules.minQty} τεμάχια (τώρα ${q})`, missing: 0 };
     return null;
   };
-  const priceWin = new Map<string, { p: EnginePromo; d: number }>(); // γραμμή → νικήτρια
+  const priceWin = new Map<string, { p: EnginePromo; d: number }>(); // γραμμή → νικήτρια απλή (ανά μονάδα)
   const priceTrace = new Map<string, TraceItem>();
   for (const p of pricePromos) {
-    const why = qualifies(p);
     const touched = lines.filter((l) => matches(p, l));
     if (!touched.length) continue;
-    if (why) { trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: why }); continue; }
+    const q = qualifies(p, touched);
+    if (q) { trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: q.why }); continue; }
     priceTrace.set(p.id, { promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: "", lines: [] });
     for (const l of touched) {
       const d = unitDiscount(p, l);
@@ -170,20 +229,64 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
       if (better) priceWin.set(l.key, { p, d });
     }
   }
+  // πολλών τεμαχίων: συγκρίνονται με τις απλές στις ίδιες γραμμές — κερδίζει ό,τι δίνει περισσότερα (ή η αποκλειστική)
+  const multiWin = new Map<string, { p: EnginePromo; amt: number }>();
+  const multiPromos = live.filter((p) => (MULTI_MECHANISMS as string[]).includes(p.mechanism)).sort((a, b) => (a.stacking === "exclusive" ? -1 : 0) - (b.stacking === "exclusive" ? -1 : 0) || a.priority - b.priority);
+  for (const p of multiPromos) {
+    const pool = lines.filter((l) => matches(p, l) && !multiWin.has(l.key) && !(priceWin.get(l.key)?.p.stacking === "exclusive" && p.stacking !== "exclusive"));
+    if (!pool.length) { if (lines.some((l) => matches(p, l))) trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: "τα προϊόντα της έχουν ήδη αποκλειστική προσφορά" }); continue; }
+    const q = qualifies(p, pool);
+    if (q) { trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: q.why }); continue; }
+    const { alloc, used, hint } = multiAlloc(p, pool);
+    if (hint) hints.push(hint);
+    // «συνδυάζεται»: δεσμεύονται μόνο τα τεμάχια με έκπτωση· αλλιώς όλη η ομάδα (και τα πληρωμένα) χάνει την απλή έκπτωση
+    const claimed = pool.filter((l) => (p.stacking === "combine" ? (alloc.get(l.key) ?? 0) > 0 : used.has(l.key)));
+    const B = claimed.reduce((a, l) => a + (alloc.get(l.key) ?? 0), 0);
+    if (!B) { trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: hint ?? "δεν συμπληρώνεται ακόμα η ποσότητα" }); continue; }
+    const S = claimed.reduce((a, l) => a + (priceWin.get(l.key)?.d ?? 0) * l.qty, 0);
+    if (p.stacking !== "exclusive" && S >= B) { trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: "στα ίδια προϊόντα η έκπτωση τιμής δίνει περισσότερα" }); continue; }
+    for (const l of claimed) { multiWin.set(l.key, { p, amt: alloc.get(l.key) ?? 0 }); priceWin.delete(l.key); }
+  }
   for (const l of lines) {
-    const w = priceWin.get(l.key);
-    if (!w) continue;
-    const amt = w.d * l.qty;
+    const w = priceWin.get(l.key), m = multiWin.get(l.key);
+    const p = m?.p ?? w?.p;
+    if (!p) continue;
+    const amt = m ? m.amt : w!.d * l.qty;
+    if (amt <= 0) continue; // «πληρωμένο» τεμάχιο της ομάδας: συμμετέχει, χωρίς έκπτωση
     l.discPrice = amt;
-    l.adjustments.push({ promotionId: w.p.id, code: w.p.code, version: w.p.version, kind: "price", amount: amt, label: w.p.tagLabel || w.p.name });
-    const t = priceTrace.get(w.p.id)!; t.applied = true; t.amount += amt; t.lines!.push(l.key);
+    l.adjustments.push({ promotionId: p.id, code: p.code, version: p.version, kind: "price", amount: amt, label: p.tagLabel || p.name });
+    if (m) {
+      let t = trace.find((x) => x.promotionId === p.id && x.applied);
+      if (!t) { t = { promotionId: p.id, code: p.code, name: p.name, applied: true, amount: 0, reason: "εφαρμόστηκε", lines: [] }; trace.push(t); }
+      t.amount += amt; t.lines!.push(l.key);
+    } else { const t = priceTrace.get(p.id)!; t.applied = true; t.amount += amt; t.lines!.push(l.key); }
   }
   for (const [id, t] of priceTrace) {
     if (t.applied) { t.reason = "εφαρμόστηκε"; trace.push(t); continue; }
     // ήταν επιλέξιμη αλλά «έχασε» σε κάθε γραμμή της
     const p = pricePromos.find((x) => x.id === id)!;
-    const winners = [...new Set(lines.filter((l) => matches(p, l)).map((l) => priceWin.get(l.key)?.p).filter(Boolean).map((x) => x!.name))];
+    const winners = [...new Set(lines.filter((l) => matches(p, l)).map((l) => (multiWin.get(l.key) ?? priceWin.get(l.key))?.p).filter(Boolean).map((x) => x!.name))];
     trace.push({ ...t, reason: winners.length ? `στα ίδια προϊόντα εφαρμόστηκε η «${winners.join("», «")}», που δίνει περισσότερα ή είναι αποκλειστική` : "δεν δίνει έκπτωση σε αυτά τα προϊόντα" });
+  }
+
+  // ---- δώρα, δωρεάν υπηρεσίες, δωρεάν μεταφορικά: συνδυάζονται με όλα ----
+  const gifts: EngineResult["gifts"] = [], servicesFree: EngineResult["services"] = [];
+  let freeShipping: PromoRef | null = null;
+  for (const p of live) {
+    if (p.mechanism !== "gift" && p.mechanism !== "service" && p.mechanism !== "shipping") continue;
+    const touched = lines.filter((l) => matches(p, l));
+    if (!touched.length) continue;
+    const ref = { promotionId: p.id, code: p.code, version: p.version, label: p.tagLabel || p.name };
+    const q = qualifies(p, touched);
+    if (q) {
+      trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: q.why });
+      if (q.missing > 0) hints.push(p.mechanism === "shipping" ? `Σου λείπουν ${eur(q.missing)} για δωρεάν μεταφορικά.` : p.mechanism === "gift" ? `Σου λείπουν ${eur(q.missing)} για το δώρο της προσφοράς «${p.name}».` : `Σου λείπουν ${eur(q.missing)} για την προσφορά «${p.name}».`);
+      continue;
+    }
+    if (p.mechanism === "gift" && p.reward.giftProductId) gifts.push({ ...ref, productId: p.reward.giftProductId, qty: Math.max(1, p.reward.giftQty ?? 1) });
+    else if (p.mechanism === "service" && p.reward.serviceSlug) for (const l of touched) servicesFree.push({ ...ref, lineKey: l.key, slug: p.reward.serviceSlug });
+    else if (p.mechanism === "shipping") freeShipping ??= ref;
+    trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: true, amount: 0, reason: "εφαρμόστηκε", lines: touched.map((l) => l.key) });
   }
 
   // ---- 2. κουπόνι στο καλάθι ----
@@ -196,8 +299,9 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
       couponMessage = `Ο κωδικός ${ctx.coupon.code} δεν εφαρμόστηκε: ${why}.`;
       if (p) trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason: why ?? "" });
     } else {
-      const exclusiveLines = new Set(lines.filter((l) => priceWin.get(l.key)?.p.stacking === "exclusive").map((l) => l.key));
-      const eligible = lines.filter((l) => matches(p, l) && !exclusiveLines.has(l.key) && (p.stacking !== "no-price" || l.discPrice === 0));
+      const exclusiveLines = new Set(lines.filter((l) => (multiWin.get(l.key) ?? priceWin.get(l.key))?.p.stacking === "exclusive").map((l) => l.key));
+      // «σε προσφορά» = έχει έκπτωση τιμής Ή συμμετέχει σε ομάδα 2+1 / 2ο −Χ % / ποσότητας (και ως «πληρωμένο» τεμάχιο)
+      const eligible = lines.filter((l) => matches(p, l) && !exclusiveLines.has(l.key) && (p.stacking !== "no-price" || (l.discPrice === 0 && !multiWin.has(l.key))));
       const base = eligible.reduce((a, l) => a + (l.listTotal - l.discPrice), 0);
       const minWhy = p.rules?.minValue && base < p.rules.minValue ? `χρειάζεται καλάθι τουλάχιστον ${eur(p.rules.minValue)} σε προϊόντα που δέχονται το κουπόνι (τώρα ${eur(base)})` : null;
       if (!eligible.length || minWhy) {
@@ -219,8 +323,11 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
   const maxPct = ctx.maxLinePct ?? 100;
   for (const l of lines) {
     let disc = l.discPrice + l.discCoupon;
-    const capPct = Math.floor((l.listTotal * maxPct) / 100);
-    const capCost = l.cost != null ? Math.max(0, l.listTotal - l.cost * l.qty) : Infinity;
+    // οι μηχανισμοί πολλών τεμαχίων (2+1, 2ο −Χ %, ποσότητα) έχουν ήδη όριο από τον σχεδιασμό τους (π.χ. 1 στα 3 δωρεάν):
+    // το δωρεάν τεμάχιο είναι 100 % στη δική του γραμμή και δεν κόβεται· μόνο το κουπόνι δεν περνά το υπόλοιπο της γραμμής
+    const multi = multiWin.has(l.key);
+    const capPct = multi ? l.listTotal : Math.floor((l.listTotal * maxPct) / 100);
+    const capCost = multi ? Infinity : l.cost != null ? Math.max(0, l.listTotal - l.cost * l.qty) : Infinity;
     const cap = Math.min(capPct, capCost);
     if (disc > cap) {
       // κόβεται πρώτα το κουπόνι, μετά η έκπτωση τιμής
@@ -238,5 +345,5 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
   for (const t of trace) if (t.applied) t.amount = lines.reduce((a, l) => a + l.adjustments.filter((x) => x.promotionId === t.promotionId).reduce((b, x) => b + x.amount, 0), 0);
 
   const listTotal = lines.reduce((a, l) => a + l.listTotal, 0), discPrice = lines.reduce((a, l) => a + l.discPrice, 0), discCoupon = lines.reduce((a, l) => a + l.discCoupon, 0);
-  return { lines, listTotal, discPrice, discCoupon, total: listTotal - discPrice - discCoupon, trace, couponApplied, couponMessage };
+  return { lines, listTotal, discPrice, discCoupon, total: listTotal - discPrice - discCoupon, trace, couponApplied, couponMessage, gifts, services: servicesFree, freeShipping, hints };
 }

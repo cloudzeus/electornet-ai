@@ -61,7 +61,7 @@ export async function placeOrder(input: PlaceInput) {
   if (input.coupon && !q.coupon.applied) return { ok: false as const, error: q.coupon.message ?? "Το κουπόνι δεν ισχύει.", quote: publicQuote(q) };
 
   // όροι και έκδοση κάθε προσφοράς που εφαρμόστηκε (για το παραστατικό και το reporting)
-  const appliedIds = [...new Set(q.engine.lines.flatMap((l) => l.adjustments.map((a) => a.promotionId)))];
+  const appliedIds = [...new Set([...q.engine.lines.flatMap((l) => l.adjustments.map((a) => a.promotionId)), ...q.gifts.map((g) => g.promotionId), ...q.lines.flatMap((l) => l.addons.flatMap((a) => (a.free ? [a.free.promotionId] : []))), ...(q.freeShipping ? [q.freeShipping.promotionId] : [])])];
   const promoRows = appliedIds.length ? await db.promotion.findMany({ where: { id: { in: appliedIds } }, select: { id: true, termsText: true, code: true, version: true } }) : [];
   const termsOf = new Map(promoRows.map((p) => [p.id, p.termsText]));
   const svcBySlug = new Map(services.map((s) => [s.slug, s]));
@@ -105,9 +105,25 @@ export async function placeOrder(input: PlaceInput) {
         });
         for (const a of l.adjustments) await tx.promotionUsage.create({ data: { promotionId: a.promotionId, version: a.version, orderId: order.id, orderLineId: ol.id, customerId: me?.id ?? null, email, couponCode: a.kind === "coupon" ? q.coupon.applied : null, amount: eur(a.amount) } });
       }
-      // ατομικοί μετρητές: μία χρήση ανά παραγγελία, ποσό = όλη η έκπτωση της προσφοράς· αν τελείωσε στο μεταξύ, αναίρεση όλων
+      // ατομικοί μετρητές: μία χρήση ανά παραγγελία, ποσό = όλη η έκπτωση / αξία που δόθηκε· αν τελείωσε στο μεταξύ, αναίρεση όλων
       const perPromo = new Map<string, number>();
       for (const l of q.engine.lines) for (const a of l.adjustments) perPromo.set(a.promotionId, (perPromo.get(a.promotionId) ?? 0) + a.amount);
+      // δώρα: γραμμή με την αξία τους και έκπτωση 100 %
+      for (const g of q.gifts) {
+        const gl = await tx.orderLine.create({ data: { orderId: order.id, variantId: g.variantId, title: `${g.brand} ${g.title}`, qty: g.qty, unitPrice: eur(0), listPrice: eur(g.value / g.qty), discPrice: eur(g.value), lineTotal: eur(0), erpCode: g.erpCode, isGift: true, promotions: [{ promotionId: g.promotionId, code: g.code, version: g.version, kind: "gift", amount: g.value, label: g.label }] as Prisma.InputJsonValue } });
+        await tx.promotionUsage.create({ data: { promotionId: g.promotionId, version: g.version, orderId: order.id, orderLineId: gl.id, customerId: me?.id ?? null, email, amount: eur(g.value) } });
+        perPromo.set(g.promotionId, (perPromo.get(g.promotionId) ?? 0) + g.value);
+      }
+      // δωρεάν υπηρεσίες: η αξία τους μετρά στο budget της προσφοράς
+      for (const l of q.lines) for (const a of l.addons) if (a.free) {
+        const v = a.value * l.qty;
+        await tx.promotionUsage.create({ data: { promotionId: a.free.promotionId, version: a.free.version, orderId: order.id, customerId: me?.id ?? null, email, amount: eur(v) } });
+        perPromo.set(a.free.promotionId, (perPromo.get(a.free.promotionId) ?? 0) + v);
+      }
+      if (q.freeShipping) {
+        await tx.promotionUsage.create({ data: { promotionId: q.freeShipping.promotionId, version: q.freeShipping.version, orderId: order.id, customerId: me?.id ?? null, email, amount: eur(q.freeShipping.saved) } });
+        perPromo.set(q.freeShipping.promotionId, (perPromo.get(q.freeShipping.promotionId) ?? 0) + q.freeShipping.saved);
+      }
       for (const [id, amt] of perPromo) {
         const n = await tx.$executeRaw`UPDATE "Promotion" SET "usedCount" = "usedCount" + 1, "spentEur" = "spentEur" + ${amt / 100} WHERE id = ${id} AND ("maxUses" IS NULL OR "usedCount" < "maxUses") AND ("budgetEur" IS NULL OR "spentEur" + ${amt / 100} <= "budgetEur")`;
         if (n !== 1) { const p = promoRows.find((x) => x.id === id); throw new Abort(`Η προσφορά ${p?.code ?? ""} μόλις εξαντλήθηκε. Δες το νέο σύνολο.`); }
@@ -120,7 +136,8 @@ export async function placeOrder(input: PlaceInput) {
       const doc = await buildSaldoc({
         number, customerTrdr: me ? ((await tx.customer.findUnique({ where: { id: me.id }, select: { erpTrdr: true } }))?.erpTrdr ?? null) : null, email, fulfilment: input.fulfilment, payment: input.payment,
         lines: q.engine.lines.map((l) => { const info = q.lines.find((x) => x.key === l.key)!; return { erpCode: info.erpCode, title: info.title, qty: l.qty, listPrice: l.unit / 100, discPrice: l.discPrice / 100, discCoupon: l.discCoupon / 100, discPayment: 0, isGift: false, promotions: l.adjustments.map((a) => ({ code: a.code, version: a.version, kind: a.kind, label: a.label })), terms: l.adjustments.map((a) => termsOf.get(a.promotionId)).filter(Boolean).join(" · ") || null }; }),
-        services: q.lines.flatMap((l) => l.addons.map((a) => ({ slug: a.slug, title: a.title, price: (a.price * l.qty) / 100, erpCode: null }))),
+        services: q.lines.flatMap((l) => l.addons.map((a) => ({ slug: a.slug, title: a.title, price: (a.value * l.qty) / 100, discount: a.free ? (a.value * l.qty) / 100 : 0, promo: a.free ? `${a.free.code} v${a.free.version}` : null, erpCode: null }))),
+        gifts: q.gifts.map((g) => ({ erpCode: g.erpCode, title: g.title, qty: g.qty, value: g.value / 100, promo: `${g.code} v${g.version}`, terms: termsOf.get(g.promotionId) ?? null })),
       });
       const mode = String((await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }))).data.orderPush ?? "preview");
       if (mode !== "off") await tx.erpSync.create({ data: { orderId: order.id, status: "preview", payload: doc as unknown as Prisma.InputJsonValue } });

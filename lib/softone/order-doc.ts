@@ -14,7 +14,13 @@ import { getSetting } from "@/lib/settings/store";
  */
 
 export interface DocLineIn { erpCode: string | null; title: string; qty: number; listPrice: number; discPrice: number; discCoupon: number; discPayment: number; isGift: boolean; promotions: { code: string; version: number; kind: string; label: string }[]; terms?: string | null }
-export interface DocIn { number: string; customerTrdr: string | null; email: string; fulfilment: string; payment: string; lines: DocLineIn[]; services: { slug: string; title: string; price: number; erpCode: string | null }[] }
+export interface DocIn {
+  number: string; customerTrdr: string | null; email: string; fulfilment: string; payment: string; lines: DocLineIn[];
+  /** price = αξία της υπηρεσίας, discount = ό,τι χάρισε προσφορά (100 % της αξίας για δωρεάν υπηρεσία) */
+  services: { slug: string; title: string; price: number; discount?: number; promo?: string | null; erpCode: string | null }[];
+  /** δώρα: αξία με έκπτωση 100 % */
+  gifts?: { erpCode: string | null; title: string; qty: number; value: number; promo: string; terms?: string | null }[];
+}
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -37,7 +43,11 @@ export async function buildSaldoc(o: DocIn) {
   });
   for (const s of o.services) {
     if (!s.erpCode) needs.push(`Κωδικός είδους υπηρεσίας για «${s.title}» στο SoftOne`);
-    itelines.push({ MTRL: s.erpCode ? Number(s.erpCode) : null, QTY1: 1, PRICE: r2(s.price), NODSCLNVAL: r2(s.price) });
+    itelines.push({ MTRL: s.erpCode ? Number(s.erpCode) : null, QTY1: 1, PRICE: r2(s.price), NODSCLNVAL: r2(s.price), ...(s.discount ? { DISC1VAL: r2(s.discount) } : {}), ...(s.promo ? { COMMENTS: s.promo.slice(0, 255) } : {}) });
+  }
+  for (const g of o.gifts ?? []) {
+    if (!g.erpCode) needs.push(`Κωδικός είδους για το δώρο «${g.title}»`);
+    itelines.push({ MTRL: g.erpCode ? Number(g.erpCode) : null, QTY1: g.qty, PRICE: r2(g.value / g.qty), NODSCLNVAL: r2(g.value), DISC1VAL: r2(g.value), COMMENTS: `${g.promo} · δώρο`.slice(0, 255), ...(g.terms ? { COMMENTS1: g.terms.slice(0, 2000) } : {}) });
   }
   return {
     OBJECT: "SALDOC",
