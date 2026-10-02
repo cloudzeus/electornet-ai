@@ -91,11 +91,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <>
                   {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} placement={placementFor(p, ar?.placement)} />}
                   <FitBadge product={p} size="lg" prompt />
+                  {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price, ar: !!arInput }} />}
                 </>
               }
             />
             <EnergyCost product={p} co2={co2} />
-            {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
             {p.tradeIn && (
               <div className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">
                 <Recycle className="size-8 text-eu-green shrink-0" aria-hidden />

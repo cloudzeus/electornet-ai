@@ -125,6 +125,13 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   }, []);
 
   useEffect(() => {
+    // άνοιγμα από άλλο σημείο της σελίδας (π.χ. η σύγκριση με την παλιά συσκευή)
+    const on = () => { setStatus("loading"); setCanAr(null); setOpen(true); };
+    window.addEventListener("eu:ar", on);
+    return () => window.removeEventListener("eu:ar", on);
+  }, []);
+
+  useEffect(() => {
     // Βαθύς σύνδεσμος από το QR (?ar=1): άνοιγμα μετά το hydration.
     if (new URLSearchParams(location.search).get("ar") !== "1") return;
     const t = setTimeout(() => setOpen(true), 0);

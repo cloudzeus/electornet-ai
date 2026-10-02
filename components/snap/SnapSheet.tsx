@@ -15,7 +15,7 @@ const c = copyOf("snap");
 
 type Stage = "idle" | "reading" | "ai" | "found" | "none";
 /** Το προϊόν της σελίδας από όπου άνοιξε το παράθυρο: η παλιά συσκευή συγκρίνεται απευθείας με αυτό. */
-export interface SnapProduct { slug: string; brand: string; title: string; image: string | null; price: number }
+export interface SnapProduct { slug: string; brand: string; title: string; image: string | null; price: number; /** η σελίδα έχει «Δες το στον χώρο σου» (AR) */ ar?: boolean }
 /** Αποτέλεσμα που περιμένει εγγραφή / σύνδεση για να μπει στις «Συσκευές μου» (στη συσκευή του πελάτη, όχι στον server). */
 const PENDING = "euronics.snap.pending";
 interface Pending { at: number; ai: SnapResult; photo: string | null; product: SnapProduct | null; then: "register" | "service" }
@@ -208,8 +208,9 @@ export function SnapSheet() {
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="snap-title">
       <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
-      <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(820px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] max-h-[92dvh] overflow-y-auto grid gap-5 p-5 @md:p-7">
-        <div className="flex items-start justify-between gap-3">
+      <div className="absolute inset-x-0 bottom-0 @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(820px,92vw)] bg-white rounded-t-3xl @md:rounded-3xl shadow-[var(--shadow-overlay)] max-h-[92dvh] overflow-hidden flex flex-col">
+        {/* σταθερή κεφαλίδα· κυλά μόνο το περιεχόμενο, με τη μπάρα ΜΕΣΑ στην κάρτα (όχι πάνω στη στρογγυλή άκρη) */}
+        <div className="flex items-start justify-between gap-3 shrink-0 px-5 @md:px-7 pt-5 @md:pt-7 pb-4 border-b border-eu-line-2">
           <div>
             <div className="flex items-center gap-2">
               <span className="relative size-9 shrink-0 rounded-full overflow-hidden bg-eu-yellow ring-2 ring-eu-yellow/50">
@@ -222,14 +223,17 @@ export function SnapSheet() {
             <h2 id="snap-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">
               {product ? "Σύγκρινε την παλιά σου με το νέο" : c.fotografise_tin_palia_soy}
             </h2>
-            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">{product ? <>Φωτογράφισε την παλιά συσκευή ή την πινακίδα της και δες δίπλα-δίπλα τι κερδίζεις με το <b className="text-eu-ink">{product.brand} {product.title}</b>. Δεν χρειάζεται λογαριασμός.</> : "Ολόκληρη τη συσκευή ή την πινακίδα με το μοντέλο."} Η φωτογραφία αναλύεται στιγμιαία και δεν αποθηκεύεται, εκτός αν επιλέξεις να την κρατήσεις στις «Συσκευές μου».</p>
+            <p className="hidden @md:block m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">{product ? <>Φωτογράφισε την παλιά συσκευή ή την πινακίδα της και δες δίπλα-δίπλα τι κερδίζεις με το <b className="text-eu-ink">{product.brand} {product.title}</b>. Δεν χρειάζεται λογαριασμός.</> : "Ολόκληρη τη συσκευή ή την πινακίδα με το μοντέλο."} Η φωτογραφία αναλύεται στιγμιαία και δεν αποθηκεύεται, εκτός αν επιλέξεις να την κρατήσεις στις «Συσκευές μου».</p>
           </div>
           <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
             <X className="size-5" aria-hidden />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 @md:grid-cols-[240px_minmax(0,1fr)] gap-5 items-start">
+        <div className="eu-scroll-inset min-h-0 overflow-y-auto overscroll-contain grid grid-cols-1 @md:grid-cols-[240px_minmax(0,1fr)] gap-5 items-start pl-5 @md:pl-7 pr-3 @md:pr-5 py-5 mr-1.5 my-1.5">
+          {/* στο κινητό η εισαγωγή κυλά μαζί με το περιεχόμενο — η σταθερή κεφαλίδα μένει μικρή */}
+          <p className="@md:hidden m-0 -mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">{product ? <>Φωτογράφισε την παλιά συσκευή ή την πινακίδα της και δες δίπλα-δίπλα τι κερδίζεις με το <b className="text-eu-ink">{product.brand} {product.title}</b>. Δεν χρειάζεται λογαριασμός.</> : "Ολόκληρη τη συσκευή ή την πινακίδα με το μοντέλο."} Η φωτογραφία αναλύεται στιγμιαία και δεν αποθηκεύεται, εκτός αν επιλέξεις να την κρατήσεις στις «Συσκευές μου».</p>
+
           <div className="grid gap-2">
             <label className="relative block aspect-[4/3] rounded-2xl border-2 border-dashed border-eu-line bg-eu-surface overflow-hidden cursor-pointer hover:border-eu-blue">
               <input ref={input} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => e.target.files?.[0] && analyse(e.target.files[0])} />
@@ -314,7 +318,7 @@ export function SnapSheet() {
                 {product && ai.compare && (
                   <>
                     {ai.typical && <p className="m-0 rounded-xl bg-eu-surface p-3 text-eu-ink-2 text-[length:var(--fs-14)]">Δεν μπόρεσα να αναγνωρίσω τη συσκευή από τη φωτογραφία, οπότε τη συγκρίνω με μια <b>τυπική παλιά</b> {a.kindLabel.toLocaleLowerCase("el-GR")}. Δοκίμασε φωτογραφία της πινακίδας για ακριβέστερο αποτέλεσμα.</p>}
-                    <SnapCompareCard c={ai.compare} a={a} photo={photo} />
+                    <SnapCompareCard c={ai.compare} a={a} photo={photo} onAr={product.ar ? () => { setOpen(false); setTimeout(() => window.dispatchEvent(new CustomEvent("eu:ar")), 50); } : undefined} />
                     <div className="rounded-2xl border-2 border-eu-navy/15 bg-white p-4 grid gap-2">
                       {done ? (
                         <p className="m-0 text-eu-ink text-[length:var(--fs-15)] font-semibold inline-flex items-start gap-2"><Check className="size-5 text-eu-green shrink-0" aria-hidden /> <span>{done} <Link href="/logariasmos/eggyiseis" className="text-eu-blue underline" onClick={() => setOpen(false)}>Δες τις συσκευές σου</Link></span></p>
