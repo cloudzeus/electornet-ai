@@ -66,5 +66,8 @@ export async function registerCustomer(input: { firstName: string; lastName: str
   await db.customer.update({ where: { id: c.id }, data: { lastLoginAt: new Date() } });
   await recordLogin({ customerId: c.id, email, success: true, method: "register" }).catch(() => null);
   await createCustomerSession(c.id);
+  // κουπόνι καλωσορίσματος, αν το έχει ορίσει ο υπεύθυνος προσφορών (Προσφορές → Κανόνες)· ποτέ δεν μπλοκάρει την εγγραφή
+  const { issueWelcomeCoupon } = await import("@/lib/promo/issue");
+  await issueWelcomeCoupon("signup", { email, customerId: c.id, firstName });
   return { ok: true as const, name: c.firstName };
 }

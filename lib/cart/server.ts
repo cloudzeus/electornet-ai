@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+import { getPromoPolicy } from "@/lib/promo/policy";
 import { getCustomerSession } from "@/lib/account/session";
 import { services } from "@/lib/data/fixtures/services";
 import { evaluate, type EngineResult } from "@/lib/promo/engine";
@@ -101,11 +102,11 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const variants = vids.length ? await db.variant.findMany({ where: { id: { in: vids } }, select: { id: true, productId: true } }) : [];
   const productOf = new Map(variants.map((v) => [v.id, v.productId]));
   const items = (cart?.lines ?? []).flatMap((l) => (productOf.get(l.variantId) ? [{ key: l.id, productId: productOf.get(l.variantId)!, qty: l.qty }] : []));
-  const [{ lines, missing }, promos, coupon, uses, isNew, rules] = await Promise.all([linesFor(items), activePromos(), resolveCoupon(input.coupon, who), usesByPromo(who), isNewCustomer(who), shippingRules()]);
+  const [{ lines, missing }, promos, coupon, uses, isNew, rules, policy] = await Promise.all([linesFor(items), activePromos(), resolveCoupon(input.coupon, who), usesByPromo(who), isNewCustomer(who), shippingRules(), getPromoPolicy()]);
   const engine = evaluate(lines, promos, {
     now: new Date(), customer: { id: who.customerId, email: who.email, registered: !!me, isNew, usesByPromo: uses },
     channel: input.delivery === "click-collect" ? "click-collect" : "online", zip: input.zip ?? null, payment: input.payment ?? null, delivery: input.delivery ?? null,
-    coupon, maxLinePct: 40,
+    coupon, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block",
   });
   const low = await lowest30(lines.map((l) => l.variantId));
   const svc = new Map(services.map((s) => [s.slug, s]));

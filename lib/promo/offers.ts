@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { services } from "@/lib/data/fixtures/services";
 import { evaluate, inactiveReason, matches, type EngineLine, type EnginePromo } from "./engine";
 import { activePromos, invalidatePromos, lowest30 } from "./server";
+import { getPromoPolicy } from "./policy";
 
 /**
  * Έτοιμες τιμές και tags ανά προϊόν (ProductOffer). Υπολογίζονται εδώ, μία φορά, όταν αλλάζει κάτι — και οι σελίδες
@@ -41,7 +42,9 @@ export async function recomputeOffers() {
     const t0 = Date.now();
     const now = new Date();
     invalidatePromos();
-    const promos = (await activePromos(now)).filter((p) => !inactiveReason(p, now));
+    const [all, policy] = await Promise.all([activePromos(now), getPromoPolicy()]);
+    const promos = all.filter((p) => !inactiveReason(p, now));
+    const guard = { maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block" };
     // κουπόνια και καλαθιού-ολόκληρου μεταφορικά δεν δίνουν tag σε προϊόν
     const display = promos.filter((p) => !p.mechanism.startsWith("coupon") && !(p.mechanism === "shipping" && !p.targets.some((t) => !t.exclude)));
     const [products, cats] = await Promise.all([
@@ -61,8 +64,8 @@ export async function recomputeOffers() {
       const line: EngineLine = { key: p.id, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: chain(p.categoryId), qty: 1, unit: Math.round(Number(v.price) * 100) };
       const mine = display.filter((x) => matches(x, line));
       if (!mine.length) continue;
-      const guest = evaluate([line], mine, { now, customer: { registered: false, isNew: true }, maxLinePct: 40 });
-      const member = mine.some((x) => x.rules?.customers === "registered") ? evaluate([line], mine, { now, customer: { registered: true, isNew: false }, maxLinePct: 40 }) : null;
+      const guest = evaluate([line], mine, { now, customer: { registered: false, isNew: true }, ...guard });
+      const member = mine.some((x) => x.rules?.customers === "registered") ? evaluate([line], mine, { now, customer: { registered: true, isNew: false }, ...guard }) : null;
       const tags: OfferTag[] = [];
       const adj = guest.lines[0].adjustments.find((a) => a.kind === "price");
       if (adj) { const pp = mine.find((x) => x.id === adj.promotionId)!; tags.push({ kind: "price", label: autoLabel(pp), promotionId: adj.promotionId }); }

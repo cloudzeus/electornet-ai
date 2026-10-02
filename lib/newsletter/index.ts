@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { recordConsent } from "@/lib/gdpr/consent";
 import { sendMail } from "@/lib/email/send";
 import { renderTemplate } from "@/lib/email/templates";
+import { issueWelcomeCoupon } from "@/lib/promo/issue";
 
 const base = () => (process.env.AUTH_URL ?? "http://localhost:3111").replace(/\/$/, "");
 
@@ -36,6 +37,8 @@ export async function confirm(token: string, url?: string | null) {
   if (sub.customerId) await db.customer.update({ where: { id: sub.customerId }, data: { newsletter: true } });
   const m = await renderTemplate("newsletter-welcome", { firstName: sub.firstName }, { unsubscribeUrl: `${base()}/api/newsletter/unsubscribe?token=${sub.token}` });
   await sendMail({ to: sub.email, template: "newsletter-welcome", meta: { subscriberId: sub.id }, ...m });
+  // δώρο εγγραφής στο newsletter (μόνο μετά το double opt-in, ένα ανά email)
+  await issueWelcomeCoupon("newsletter", { email: sub.email, customerId: sub.customerId, firstName: sub.firstName });
   return { ok: true as const, already: false };
 }
 

@@ -75,6 +75,8 @@ export interface EngineCtx {
   coupon?: { code: string; promotionId: string | null; problem?: string } | null;
   /** δικλείδα: μέγιστη συνολική έκπτωση ανά γραμμή, % της τιμής καταλόγου */
   maxLinePct?: number;
+  /** δικλείδα: ποτέ κάτω από το κόστος (προεπιλογή ναι· «όχι» μόνο αν ο κανόνας είναι «μόνο προειδοποίηση») */
+  costFloor?: boolean;
 }
 export type AdjKind = "price" | "coupon";
 export interface Adjustment { promotionId: string; code: string; version: number; kind: AdjKind; amount: number; label: string }
@@ -327,7 +329,7 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
     // το δωρεάν τεμάχιο είναι 100 % στη δική του γραμμή και δεν κόβεται· μόνο το κουπόνι δεν περνά το υπόλοιπο της γραμμής
     const multi = multiWin.has(l.key);
     const capPct = multi ? l.listTotal : Math.floor((l.listTotal * maxPct) / 100);
-    const capCost = multi ? Infinity : l.cost != null ? Math.max(0, l.listTotal - l.cost * l.qty) : Infinity;
+    const capCost = multi || ctx.costFloor === false ? Infinity : l.cost != null ? Math.max(0, l.listTotal - l.cost * l.qty) : Infinity;
     const cap = Math.min(capPct, capCost);
     if (disc > cap) {
       // κόβεται πρώτα το κουπόνι, μετά η έκπτωση τιμής
