@@ -4,7 +4,6 @@ import { Leaf, Ruler, TrendingDown, TriangleAlert, Zap } from "lucide-react";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import type { ApplianceId } from "@/lib/ai/tasks";
 import type { SnapCompare } from "@/lib/snap/identify";
-import { SizeOverlay } from "./SizeOverlay";
 
 const eur = (n: number) => `${n.toLocaleString("el-GR")} €`;
 const dims = (d: { w: number | null; h: number | null; d: number | null } | null | undefined) => (d?.w && d.h ? `${d.w}×${d.h}${d.d ? `×${d.d}` : ""} cm` : "—");
@@ -13,7 +12,7 @@ const dims = (d: { w: number | null; h: number | null; d: number | null } | null
  * Η παλιά συσκευή του πελάτη δίπλα στο προϊόν που κοιτάζει: ενεργειακή κλάση, κατανάλωση, ρεύμα τον χρόνο, CO₂,
  * διαστάσεις και αν χωράει στη θέση της. Πάνω απ' όλα, σε μία γραμμή, τι κερδίζει.
  */
-export function SnapCompareCard({ c, a, photo, onAr }: { c: SnapCompare; a: ApplianceId; photo: string | null; onAr?: () => void }) {
+export function SnapCompareCard({ c, a, photo }: { c: SnapCompare; a: ApplianceId; photo: string | null }) {
   const oldName = [a.brand, a.model].filter(Boolean).join(" ") || a.kindLabel;
   const rows: { label: string; old: string; neu: string; better?: boolean }[] = [
     { label: "Ενεργειακή κλάση", old: a.energyClass ?? "—", neu: c.product.energy ?? "—" },
@@ -62,11 +61,6 @@ export function SnapCompareCard({ c, a, photo, onAr }: { c: SnapCompare; a: Appl
           <p className={`m-0 px-3 py-2 border-t border-eu-line text-[length:var(--fs-14)] font-bold inline-flex items-center gap-1.5 w-full ${c.fit.ok ? "text-eu-green bg-eu-green/5" : "text-eu-ink bg-eu-yellow/10"}`}><Ruler className="size-4 shrink-0" aria-hidden /> {c.fit.ok ? "Χωράει στη θέση της παλιάς" : `Προσοχή: ${c.fit.note} σε σχέση με την παλιά`}</p>
         )}
       </div>
-      {c.product.dims && a.dims?.w && a.dims.h ? (
-        <SizeOverlay photo={photo} box={a.box} old={a.dims} neu={c.product.dims} estimate={a.dimsFrom === "estimate" || !a.dimsFrom} wall={a.kind === "air-condition" || a.kind === "tileoraseis"} onAr={onAr} />
-      ) : onAr ? (
-        <button type="button" onClick={onAr} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-4 min-h-11 hover:bg-eu-navy hover:text-white text-[length:var(--fs-14)]">Δες το νέο στον χώρο σου (AR)</button>
-      ) : null}
       <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Η κατανάλωση της παλιάς είναι εκτίμηση για συσκευή αυτού του είδους και της ηλικίας της. Του νέου: {c.newKwhSource === "eprel" ? "από την επίσημη ενεργειακή ετικέτα (EPREL)" : c.newKwhSource === "specs" ? "από τα χαρακτηριστικά του κατασκευαστή" : "εκτίμηση από την ενεργειακή κλάση"}.</p>
     </div>
   );

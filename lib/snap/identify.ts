@@ -36,19 +36,6 @@ function fitAgainstOld(newD: { w: number; h: number; d: number } | null, old: Ap
   return over.length ? { ok: false, note: over.join(", ") } : { ok: true, note: "Χωράει στη θέση της παλιάς" };
 }
 
-/** Τυπικές διαστάσεις (cm) ανά είδος — για εκτίμηση όταν η φωτογραφία δείχνει τη συσκευή αλλά όχι νούμερα. */
-const TYPICAL_DIMS: Record<string, { w: number; d: number }> = {
-  "air-condition": { w: 80, d: 20 }, psygeia: { w: 60, d: 65 }, plyntiria: { w: 60, d: 60 }, stegnotiria: { w: 60, d: 62 },
-  "plyntiria-piaton": { w: 60, d: 60 }, koyzines: { w: 60, d: 60 }, tileoraseis: { w: 123, d: 8 },
-};
-/** Χωρίς διαστάσεις από το μοντέλο: τυπικό πλάτος του είδους, ύψος από τις αναλογίες του πλαισίου στη φωτογραφία. */
-function estimateDims(a: ApplianceId, imgW: number, imgH: number): ApplianceId {
-  if ((a.dims?.w && a.dims.h) || !a.box) return a;
-  const t = TYPICAL_DIMS[a.kind]; if (!t) return a;
-  const ratio = (a.box[3] * imgH) / Math.max(1, a.box[2] * imgW);
-  return { ...a, dims: { w: t.w, h: Math.round(t.w * ratio), d: a.dims?.d ?? t.d }, dimsFrom: "estimate" };
-}
-
 const normModel = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 /**
@@ -60,7 +47,7 @@ const normModel = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, "");
 export async function identifyFromPhoto(imageBase64: string, hint?: string, productSlug?: string): Promise<SnapResult | { error: string; aiAvailable: false }> {
   const buf = Buffer.from(imageBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
   if (buf.length > 12 * 1024 * 1024) return { error: "Η φωτογραφία είναι πολύ μεγάλη (μέγιστο 12 MB).", aiAvailable: false };
-  const { data: small, info } = await sharp(buf).rotate().resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer({ resolveWithObject: true });
+  const small = await sharp(buf).rotate().resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
   const ai = await identifyAppliance(`data:image/jpeg;base64,${small.toString("base64")}`, hint);
   const [ev, me] = await Promise.all([captureEvidence(), getCustomerSession()]);
   if (!ai) {
@@ -76,7 +63,7 @@ export async function identifyFromPhoto(imageBase64: string, hint?: string, prod
     await db.snapScan.create({ data: { customerId: me?.id ?? null, method: "ai", confidence: 0, ipHash: ev.ipHash, action: null } }).catch(() => null);
     return { error: "Η αναγνώριση με AI δεν είναι διαθέσιμη αυτή τη στιγμή. Γράψε το μοντέλο από την πινακίδα.", aiAvailable: false };
   }
-  return composeResult(estimateDims(ai.result, info.width, info.height), ai.costUsd, me?.id ?? null, ev.ipHash, productSlug);
+  return composeResult(ai.result, ai.costUsd, me?.id ?? null, ev.ipHash, productSlug);
 }
 
 /** Catalogue matching + replacements for a recognised appliance (pure apart from the SnapScan log). */

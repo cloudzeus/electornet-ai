@@ -68,7 +68,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
   // AR κατ' επιλογή από τη διαχείριση (/admin/ar): με δικό μας GLB ή με τον όγκο από διαστάσεις + φωτογραφία
   const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
-  const arInput = ar?.enabled && dims && (p.image || ar.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar.frontImage } : null;
+  // AR αυτόματα για κάθε προϊόν με διαστάσεις και φωτογραφία: το στερεό χτίζεται τοπικά από τις διαστάσεις με τη
+  // φωτογραφία του ως πρόσοψη (χωρίς AI). Όπου ο διαχειριστής έχει ρυθμίσει ρητά το προϊόν (/admin/ar), ισχύει η ρύθμισή του.
+  const arOn = ar ? ar.enabled : !!dims && (!("source" in dims) || dims.source !== "category");
+  const arInput = arOn && dims && (p.image || ar?.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null } : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
   if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
@@ -91,7 +94,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <>
                   {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} placement={placementFor(p, ar?.placement)} />}
                   <FitBadge product={p} size="lg" prompt />
-                  {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price, ar: !!arInput }} />}
+                  {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
                 </>
               }
             />

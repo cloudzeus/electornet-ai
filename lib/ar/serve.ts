@@ -13,8 +13,8 @@ import { addFrameToGlb } from "./frame";
 import { placementFor } from "./placement";
 
 /**
- * Σερβίρισμα μοντέλου AR. Το AR είναι κατ' επιλογή: χωρίς εγγραφή
- * ProductAr με enabled=true, 404. Με ανεβασμένο GLB σερβίρουμε αυτό
+ * Σερβίρισμα μοντέλου AR. Αυτόματα για κάθε προϊόν με πραγματικές διαστάσεις (όχι τυπικές της κατηγορίας)·
+ * όπου ο διαχειριστής έχει ρυθμίσει ρητά το προϊόν (ProductAr), ισχύει το enabled του. Με ανεβασμένο GLB σερβίρουμε αυτό
  * (κλιμακωμένο στο δηλωμένο ύψος αν ζητήθηκε), αλλιώς τον όγκο που χτίζει
  * η γεννήτρια από διαστάσεις και φωτογραφία.
  */
@@ -38,8 +38,9 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   // labels=0: χωρίς ψημένες ετικέτες — η προεπισκόπηση δείχνει ζωντανές HTML ετικέτες που κοιτούν πάντα τον χρήστη
   const labels = new URL(req.url).searchParams.get("labels") !== "0";
   const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
-  if (!p || !ar?.enabled) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404 });
-  const dims = dimsFor(p);
+  const dims = p ? dimsFor(p) : null;
+  const on = ar ? ar.enabled : !!dims && dims.source !== "category";
+  if (!p || !on) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404 });
   const respond = (body: Buffer, etag: string) => {
     const tag = `"${etag}-${kind}"`;
     if (req.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers: { etag: tag } });
@@ -48,8 +49,8 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
 
   // Δικό μας μοντέλο
   // Ελαφριά έκδοση για αργές συνδέσεις, όταν υπάρχει και τη ζητά ο browser
-  const url = kind === "glb" ? (!wantFull && ar.glbLightUrl ? ar.glbLightUrl : ar.glbUrl) : ar.usdzUrl;
-  if (url) {
+  const url = !ar ? null : kind === "glb" ? (!wantFull && ar.glbLightUrl ? ar.glbLightUrl : ar.glbUrl) : ar.usdzUrl;
+  if (ar && url) {
     const box = (ar.modelBox as Box | null) ?? null;
     const key = `${url}|${ar.fitToDims ? ar.fitMode : "none"}|${dims ? `${dims.w}x${dims.h}x${dims.d}` : 0}|${ar.rotationY}|${AR_SERVE_VERSION}|${labels ? 1 : 0}`;
     let body = custom.get(key);
@@ -69,13 +70,13 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
     }
     return respond(body, `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}${labels ? "" : "-nl"}`);
   }
-  if (kind === "usdz" && ar.glbUrl) return new Response("Χωρίς USDZ: το model-viewer μετατρέπει το GLB στη συσκευή.", { status: 404 });
+  if (kind === "usdz" && ar?.glbUrl) return new Response("Χωρίς USDZ: το model-viewer μετατρέπει το GLB στη συσκευή.", { status: 404 });
 
   // Γεννήτρια από διαστάσεις + φωτογραφία
   if (!dims) return new Response("Δεν υπάρχουν διαστάσεις για αυτό το προϊόν.", { status: 404 });
   // ?p=floor: ο πελάτης ζήτησε ρητά πάτωμα επειδή το τηλέφωνό του δεν αναγνώρισε τον τοίχο
   const forced = new URL(req.url).searchParams.get("p");
-  const wall = (forced === "floor" || forced === "wall" ? forced : placementFor(p, ar.placement)) === "wall";
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar.frontImage }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
+  const wall = (forced === "floor" || forced === "wall" ? forced : placementFor(p, ar?.placement ?? null)) === "wall";
+  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

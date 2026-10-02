@@ -15,7 +15,7 @@ const c = copyOf("snap");
 
 type Stage = "idle" | "reading" | "ai" | "found" | "none";
 /** Το προϊόν της σελίδας από όπου άνοιξε το παράθυρο: η παλιά συσκευή συγκρίνεται απευθείας με αυτό. */
-export interface SnapProduct { slug: string; brand: string; title: string; image: string | null; price: number; /** η σελίδα έχει «Δες το στον χώρο σου» (AR) */ ar?: boolean }
+export interface SnapProduct { slug: string; brand: string; title: string; image: string | null; price: number }
 /** Αποτέλεσμα που περιμένει εγγραφή / σύνδεση για να μπει στις «Συσκευές μου» (στη συσκευή του πελάτη, όχι στον server). */
 const PENDING = "euronics.snap.pending";
 interface Pending { at: number; ai: SnapResult; photo: string | null; product: SnapProduct | null; then: "register" | "service" }
@@ -318,7 +318,7 @@ export function SnapSheet() {
                 {product && ai.compare && (
                   <>
                     {ai.typical && <p className="m-0 rounded-xl bg-eu-surface p-3 text-eu-ink-2 text-[length:var(--fs-14)]">Δεν μπόρεσα να αναγνωρίσω τη συσκευή από τη φωτογραφία, οπότε τη συγκρίνω με μια <b>τυπική παλιά</b> {a.kindLabel.toLocaleLowerCase("el-GR")}. Δοκίμασε φωτογραφία της πινακίδας για ακριβέστερο αποτέλεσμα.</p>}
-                    <SnapCompareCard c={ai.compare} a={a} photo={photo} onAr={product.ar ? () => { setOpen(false); setTimeout(() => window.dispatchEvent(new CustomEvent("eu:ar")), 50); } : undefined} />
+                    <SnapCompareCard c={ai.compare} a={a} photo={photo} />
                     <div className="rounded-2xl border-2 border-eu-navy/15 bg-white p-4 grid gap-2">
                       {done ? (
                         <p className="m-0 text-eu-ink text-[length:var(--fs-15)] font-semibold inline-flex items-start gap-2"><Check className="size-5 text-eu-green shrink-0" aria-hidden /> <span>{done} <Link href="/logariasmos/eggyiseis" className="text-eu-blue underline" onClick={() => setOpen(false)}>Δες τις συσκευές σου</Link></span></p>

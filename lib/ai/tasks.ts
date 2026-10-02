@@ -67,10 +67,6 @@ export async function productCopy(input: { brand: string; title: string; specs: 
 export interface ApplianceId {
   kind: string; kindLabel: string; brand: string | null; model: string | null; serial: string | null; energyClass: string | null; ageYears: number | null; condition: string | null;
   dims: { w: number | null; h: number | null; d: number | null } | null;
-  /** από πού οι διαστάσεις: γραμμένες στην πινακίδα, γνωστές για το μοντέλο, ή εκτίμηση */
-  dimsFrom?: "plate" | "known-model" | "estimate" | null;
-  /** πλαίσιο της συσκευής στη φωτογραφία [x, y, πλάτος, ύψος] σε κλάσματα 0–1 (null όταν φαίνεται μόνο η πινακίδα) */
-  box?: [number, number, number, number] | null;
   confidence: number; notes: string | null; isAppliance: boolean;
 }
 /** Vision: identify an appliance (or its rating plate) from a photo. */
@@ -82,7 +78,7 @@ export async function identifyAppliance(imageDataUrl: string, hint?: string): Pr
     model: "vision",
     messages: [
       { role: "system", content: `Αναγνωρίζεις οικιακές ηλεκτρικές συσκευές από φωτογραφία (ή από την πινακίδα τους) για το euronics.gr. Απαντάς ΜΟΝΟ με JSON:
-{"isAppliance": boolean, "kind": one of ["plyntiria","stegnotiria","psygeia","plyntiria-piaton","koyzines","air-condition","tileoraseis","skoypes","mikrosyskeves","smartphones","laptops","other"], "kindLabel": ελληνική ονομασία (π.χ. "Πλυντήριο ρούχων"), "brand": string|null, "model": string|null (ακριβής κωδικός μοντέλου αν διαβάζεται), "serial": string|null, "energyClass": string|null, "ageYears": number|null (εκτίμηση ηλικίας), "condition": "καλή"|"μέτρια"|"κακή"|null, "dims": {"w":cm|null,"h":cm|null,"d":cm|null}|null (πλάτος × ύψος × βάθος της συσκευής· όταν φαίνεται ολόκληρη η συσκευή ΔΩΣΕ ΠΑΝΤΑ τουλάχιστον εκτίμηση με dimsFrom "estimate"), "dimsFrom": "plate"|"known-model"|"estimate"|null (plate = γραμμένες στην πινακίδα· known-model = γνωστές προδιαγραφές του συγκεκριμένου μοντέλου· estimate = εκτίμηση από τυπικά μεγέθη του είδους και τις αναλογίες στη φωτογραφία), "box": [x,y,w,h]|null (ΣΦΙΧΤΟ πλαίσιο γύρω από το σώμα της συσκευής — όχι σκιές, φόντο ή κενό γύρω της — σε κλίμακα 0-1000 της φωτογραφίας· null αν φαίνεται μόνο η πινακίδα ή κομμάτι της), "confidence": 0..1, "notes": string|null (τι σε βοήθησε, έως 20 λέξεις)}. Μην επινοείς μοντέλο: null αν δεν διαβάζεται.` },
+{"isAppliance": boolean, "kind": one of ["plyntiria","stegnotiria","psygeia","plyntiria-piaton","koyzines","air-condition","tileoraseis","skoypes","mikrosyskeves","smartphones","laptops","other"], "kindLabel": ελληνική ονομασία (π.χ. "Πλυντήριο ρούχων"), "brand": string|null, "model": string|null (ακριβής κωδικός μοντέλου αν διαβάζεται), "serial": string|null, "energyClass": string|null, "ageYears": number|null (εκτίμηση ηλικίας), "condition": "καλή"|"μέτρια"|"κακή"|null, "dims": {"w":cm|null,"h":cm|null,"d":cm|null}|null (μόνο αν αναγράφονται ή είναι γνωστές για το συγκεκριμένο μοντέλο — όχι εικασία), "confidence": 0..1, "notes": string|null (τι σε βοήθησε, έως 20 λέξεις)}. Μην επινοείς μοντέλο: null αν δεν διαβάζεται.` },
       { role: "user", content: [{ type: "text", text: hint ? `Στοιχεία από OCR: ${hint}` : "Τι συσκευή είναι αυτή;" }, { type: "image_url", image_url: { url: imageDataUrl } }] },
     ],
     json: true,
@@ -91,8 +87,5 @@ export async function identifyAppliance(imageDataUrl: string, hint?: string): Pr
   }).catch(() => null);
   const j = r ? parseJson<ApplianceId>(r.text) : null;
   if (!j) return null;
-  const raw = (j as { box?: unknown }).box;
-  const box = Array.isArray(raw) && raw.length === 4 && raw.every((n) => typeof n === "number" && Number.isFinite(n)) && raw[2] > 20 && raw[3] > 20
-    ? (raw.map((n) => Math.min(1, Math.max(0, n / 1000))) as [number, number, number, number]) : null;
-  return { result: { ...j, box, dimsFrom: j.dimsFrom ?? null, confidence: Number(j.confidence) || 0, dims: j.dims ?? null, notes: j.notes ?? null, brand: j.brand || null, model: j.model || null, serial: j.serial || null, energyClass: j.energyClass || null, ageYears: j.ageYears ?? null, condition: j.condition ?? null, kindLabel: j.kindLabel || j.kind }, costUsd: r!.costUsd };
+  return { result: { ...j, confidence: Number(j.confidence) || 0, dims: j.dims ?? null, notes: j.notes ?? null, brand: j.brand || null, model: j.model || null, serial: j.serial || null, energyClass: j.energyClass || null, ageYears: j.ageYears ?? null, condition: j.condition ?? null, kindLabel: j.kindLabel || j.kind }, costUsd: r!.costUsd };
 }

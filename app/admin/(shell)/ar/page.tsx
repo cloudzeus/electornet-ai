@@ -31,33 +31,35 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
   ]);
   const byId = new Map(settings.map((s) => [s.productId, s]));
   const genBy = new Map(gens.map((g) => [g.productId, g]));
-  const rows: ArRowData[] = products
+  const all: ArRowData[] = products
     .map((pr) => {
       const s = byId.get(pr.id);
       const dims = dimsFor(pr);
       return {
         id: pr.id, slug: pr.slug, brand: pr.brand, title: pr.title, image: pr.image, cutout: cutoutFor(pr.image),
         dims: dims ? { w: dims.w, h: dims.h, d: dims.d, source: dims.source } : null,
-        enabled: s?.enabled ?? false, glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
+        // χωρίς ρύθμιση: αυτόματα ενεργό όταν υπάρχουν πραγματικές διαστάσεις (όπως στη σελίδα προϊόντος)
+        enabled: s ? s.enabled : !!dims && dims.source !== "category", glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
         modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
         glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: placementFor(pr, null),
         images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x))],
         gen: (() => { const g = genBy.get(pr.id); return g ? (JSON.parse(JSON.stringify(g)) as GenData) : null; })(),
       };
-    })
+    });
+  const rows = all
     .filter((r) => !q || `${r.brand} ${r.title} ${r.id}`.toLowerCase().includes(q.toLowerCase()))
     .filter((r) => (f === "on" ? r.enabled : f === "off" ? !r.enabled : f === "custom" ? !!r.glbUrl : f === "nodims" ? !r.dims || r.dims.source === "category" : true));
   const total = rows.length, pages = Math.max(1, Math.ceil(total / PAGE));
   const slice = rows.slice((page - 1) * PAGE, page * PAGE);
   const href = (n: number) => `?${new URLSearchParams({ q, f, page: String(n) })}`;
-  const enabled = settings.filter((s) => s.enabled).length, custom = settings.filter((s) => s.glbUrl).length;
+  const enabled = all.filter((r) => r.enabled).length, custom = settings.filter((s) => s.glbUrl).length;
 
   return (
     <div className="grid gap-5 min-w-0">
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Box className="size-3.5" aria-hidden /> Επαυξημένη πραγματικότητα</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Δες το στον χώρο σου</h2>
-        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Το AR ενεργοποιείται ανά προϊόν. Χωρίς δικό μας μοντέλο, ο πελάτης βλέπει τον όγκο της συσκευής σε πραγματική κλίμακα με τη φωτογραφία της, από τις διαστάσεις (EPREL, ERP ή τυπικές). Με ανεβασμένο GLB του κατασκευαστή βλέπει το ίδιο το προϊόν σε 3D· το USDZ για iPhone είναι προαιρετικό, αλλιώς μετατρέπεται στη συσκευή.</p>
+        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Το AR είναι <b>αυτόματα ενεργό</b> σε κάθε προϊόν με διαστάσεις και φωτογραφία· εδώ το κλείνεις ανά προϊόν ή ανεβάζεις δικό σου μοντέλο. Χωρίς δικό μας μοντέλο, ο πελάτης βλέπει τον όγκο της συσκευής σε πραγματική κλίμακα με τη φωτογραφία της, από τις διαστάσεις (EPREL, ERP ή τυπικές). Με ανεβασμένο GLB του κατασκευαστή βλέπει το ίδιο το προϊόν σε 3D· το USDZ για iPhone είναι προαιρετικό, αλλιώς μετατρέπεται στη συσκευή.</p>
       </div>
 
       <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3"><b className="text-eu-ink">{enabled}</b> προϊόντα με AR από <b className="text-eu-ink">{products.length}</b> · <b className="text-eu-ink">{custom}</b> με δικό μας μοντέλο. Τα μοντέλα της γεννήτριας αποθηκεύονται στο Bunny CDN (φάκελος ar/). {tripoOn ? <>Tripo3D: <b className="text-eu-ink">{balance ? balance.balance.toLocaleString("el-GR") : "—"}</b> credits{balance && balance.balance <= 0 ? <span className="text-eu-red font-bold"> — χωρίς credits η δημιουργία 3D από φωτογραφία δεν θα τρέξει· αγόρασε στο platform.tripo3d.ai</span> : null}. Το κόστος κάθε μοντέλου μπαίνει στην αναφορά κόστους AI.</> : "Λείπει το κλειδί Tripo3D (Ρυθμίσεις → AI)."}</p>
