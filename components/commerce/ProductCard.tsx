@@ -45,7 +45,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
   const compared = compare.includes(p.id);
   const cutout = cutoutFor(p.image);
   const imgRef = useRef<HTMLDivElement>(null);
-  const stickers = stickersFor(p, dealEndsAt);
+  const stickers = stickersFor(p, dealEndsAt ?? p.dealEndsAt);
   const corner = stickers.find((s) => s.kind === "discount" || s.kind === "new" || s.kind === "renew");
   const ribbon = stickers.find((s) => s.kind === "gift" || s.kind === "bundle" || s.kind === "pick");
   const burst = stickers.find((s) => s.kind === "bogo" || s.kind === "cashback");
@@ -92,11 +92,14 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 {ribbon && <span className="absolute inset-0 overflow-hidden rounded-t-2xl pointer-events-none"><RibbonSticker s={ribbon} /></span>}
                 {burst && <BurstSticker s={burst} />}
                 {custom && <CustomSticker s={custom} />}
-                {contest && (
+                {contest ? (
                   <span className={`absolute left-3 ${corner ? "top-14" : "top-3"}`}>
                     <ContestSticker s={contest} />
                   </span>
-                )}
+                ) : !burst && p.promoTags?.[0] ? (
+                  // έως 2 σήματα ανά κάρτα: γωνία (έκπτωση) + ένα tag προσφοράς
+                  <span className={`absolute left-3 ${corner ? "top-14" : "top-3"} pointer-events-none inline-flex max-w-[70%] rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight shadow-[0_4px_12px_rgba(18,42,88,.25)]`}>{p.promoTags[0]}</span>
+                ) : null}
                 <button
                   type="button"
                   aria-pressed={liked}

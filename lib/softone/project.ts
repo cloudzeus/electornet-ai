@@ -329,6 +329,8 @@ export async function projectOffers(): Promise<OffersResult> {
      WHERE p.source = $1 AND p.price IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Variant" v WHERE v."productId" = p.id) ON CONFLICT DO NOTHING`, SOURCE);
   await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, v.price, now() FROM "Variant" v WHERE v.id LIKE 'var_%' AND NOT EXISTS (SELECT 1 FROM "PriceHistory" h WHERE h."variantId" = v.id)`);
   const [priced, inStock] = await Promise.all([db.product.count({ where: { source: SOURCE, active: true, price: { gt: 0 } } }), db.product.count({ where: { source: SOURCE, active: true, stock: { gt: 0 } } })]);
+  // νέες τιμές ERP → οι έτοιμες τιμές προσφορών και η χαμηλότερη τιμή 30 ημερών ξαναϋπολογίζονται
+  if (priceChanges || variantsCreated) { const { recomputeOffers } = await import("@/lib/promo/offers"); await recomputeOffers().catch(() => null); }
   return { priced, inStock, productsUpdated, variantsCreated, priceChanges };
 }
 

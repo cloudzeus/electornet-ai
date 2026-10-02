@@ -1,3 +1,4 @@
+import { maybeTickPromos } from "@/lib/promo/offers";
 import { productSections } from "@/lib/catalog/banner-extract";
 import "server-only";
 import type { Prisma } from "@prisma/client";
@@ -90,6 +91,8 @@ const PRODUCT_SELECT = {
   media: { where: SHOWN, orderBy: { sortNo: "asc" as const }, select: { url: true } },
   energy: { select: { class: true, ficheUrl: true, labelUrl: true, eprelRegistrationNumber: true, eprel: { select: { annualKwh: true } } } },
   dimensions: { select: { source: true, w: true, h: true, d: true, rawKey: true } },
+  // έτοιμη τιμή και tags προσφορών (lib/promo/offers) — διαβάζονται, δεν υπολογίζονται εδώ
+  offer: { select: { price: true, listPrice: true, memberPrice: true, lowest30: true, endsAt: true, tags: true } },
 } satisfies Prisma.ProductSelect;
 type Row = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
 
@@ -100,6 +103,29 @@ const ENERGY = new Set(["A", "B", "C", "D", "E", "F", "G", "A+", "A++", "A+++"])
 
 /** «Λόγος» = σύντομος τίτλος + πρόταση. Οι γραμμές-λίστες («ΑΛΛΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ: α, β, γ…») δεν είναι λόγοι — φαίνονται ως λίστες στην περιγραφή. */
 const isReason = (h: string) => { const [label, ...rest] = h.split(":"); const v = rest.join(":"); return label !== label.toLocaleUpperCase("el-GR") && (v.match(/,/g)?.length ?? 0) < 3 && h.length <= 200; };
+
+/** Η έτοιμη προσφορά του προϊόντος → πεδία της βιτρίνας. Η «παλιά τιμή» είναι ΜΟΝΟ η χαμηλότερη 30 ημερών (Omnibus). */
+function offerFields(r: Row): Partial<Product> {
+  const o = r.offer;
+  if (!o || (o.endsAt && o.endsAt < new Date())) return {}; // έληξε: αγνοείται αμέσως, πριν καν ξαναϋπολογιστεί
+  const tags = (o.tags as unknown as { kind: string; label: string; giftTitle?: string }[]) ?? [];
+  const out: Partial<Product> = { dealEndsAt: o.endsAt?.toISOString() };
+  const price = Number(o.price), list = Number(o.listPrice);
+  if (price < list) {
+    out.price = price;
+    const ref = o.lowest30 != null ? Number(o.lowest30) : list;
+    if (ref > price) { out.wasPrice = ref; out.lowest30 = ref; out.badge = { kind: "discount" }; }
+  }
+  if (o.memberPrice != null) out.memberPrice = Number(o.memberPrice);
+  const extraTags: string[] = [];
+  for (const t of tags) {
+    if (t.kind === "qty" && /^\d\+\d$/.test(t.label) && !out.promo) out.promo = { kind: "bogo", label: t.label };
+    else if (t.kind === "gift" && !out.promo) out.promo = { kind: "bundle", with: t.giftTitle ?? "δώρο", label: t.label };
+    else if (t.kind !== "price") extraTags.push(t.label);
+  }
+  if (extraTags.length) out.promoTags = extraTags;
+  return out;
+}
 
 export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["banners"]; facts?: string[] } = {}): Product {
   const main = r.category.parent, master = main?.parent;
@@ -125,10 +151,12 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     description: [r.summary, r.description].filter(Boolean).join("\n\n") || undefined,
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
     specs: extra.specs, banners: extra.banners,
+    ...offerFields(r),
   };
 }
 
 export async function dbProductBySlug(slug: string): Promise<Product | null> {
+  maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const r = await db.product.findFirst({ where: { slug, source: "softone", active: true }, select: {
     ...PRODUCT_SELECT, specs: { orderBy: [{ sortNo: "asc" }], select: { groupName: true, key: true, value: true } },
     facetValues: { where: { source: { in: ["spec", "title"] } }, orderBy: { facet: { sortNo: "asc" } }, take: 8, select: { value: true, facet: { select: { label: true } } } },
@@ -202,6 +230,7 @@ const smart = (a: string, b: string) => { const na = parseFloat(a.replace(/\./g,
 function leafIds(n: CatNode): string[] { return n.children.length ? n.children.flatMap(leafIds) : [n.id]; }
 
 export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<ListResult> {
+  maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const t = await catalogTree();
   const node = t.bySlug.get(f.l3 ?? f.l2 ?? f.l1 ?? "") ?? null;
   const scope: Prisma.ProductWhereInput = { ...LISTED, ...(node ? { categoryId: { in: leafIds(node) } } : {}) };

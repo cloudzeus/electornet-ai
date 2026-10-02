@@ -64,6 +64,12 @@ export interface Product {
   wasPrice?: number;
   /** Omnibus: lowest price of the previous 30 days, required with any discount. */
   lowest30?: number;
+  /** λήξη της προσφοράς (countdown, «λήγει σε…») — από τις έτοιμες τιμές της μηχανής προσφορών */
+  dealEndsAt?: string;
+  /** tags προσφορών χωρίς δικό τους σήμα: «2ο −50 %», «Δωρεάν επέκταση εγγύησης», «Δωρεάν μεταφορικά», «Τιμή μέλους…» */
+  promoTags?: string[];
+  /** τιμή για εγγεγραμμένα μέλη, όταν υπάρχει προσφορά μόνο για αυτά */
+  memberPrice?: number;
   /** kwh/eprel: από την καταχώριση EPREL όταν το προϊόν είναι δεμένο (ετήσια kWh, αριθμός καταχώρισης) */
   energy?: { cls: EnergyClass; fiche: string; kwh?: number; eprel?: string };
   /** εξωτερικές διαστάσεις σε cm όταν είναι γνωστές (EPREL/ERP) — αλλιώς τις βγάζει το dimsFor από specs ή κατηγορία */

@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package } from "lucide-react";
 import type { Product, Service, Store } from "@/lib/data/types";
@@ -75,6 +75,14 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
           {p.lowest30 ? `Χαμηλότερη τιμή 30 ημερών: ${priceLong(p.lowest30)} · ` : ""}με ΦΠΑ 24%
         </div>
         {p.gift && <div className="text-eu-blue font-bold text-[length:var(--fs-15)] mt-1">{p.gift}</div>}
+        {(p.promoTags?.length || p.promo?.kind === "bogo" || p.promo?.kind === "bundle" || p.memberPrice || p.dealEndsAt) && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            {p.promo?.kind === "bogo" && <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold px-2.5 py-1 text-[length:var(--fs-14)]">{p.promo.label ?? "1+1"}</span>}
+            {p.promo?.kind === "bundle" && <span className="rounded-full bg-eu-green/10 text-eu-green font-extrabold px-2.5 py-1 text-[length:var(--fs-14)]">Δώρο: {p.promo.with}</span>}
+            {p.promoTags?.map((t) => <span key={t} className="rounded-full bg-eu-chip text-eu-navy font-bold px-2.5 py-1 text-[length:var(--fs-14)]">{t}</span>)}
+            {p.dealEndsAt && <DealCountdown until={p.dealEndsAt} />}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div className="rounded-xl bg-eu-chip p-3.5">
             <div className="font-extrabold text-eu-blue text-[length:var(--fs-18)]">12 × {priceLong(instalment(price))}</div>
@@ -228,4 +236,16 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
       </div>
     </aside>
   );
+}
+
+/** «Λήγει σε 2 ημ. 4 ώρ.» — η πραγματική λήξη της προσφοράς (ίδια τιμή με το countdown των landing pages). */
+function DealCountdown({ until }: { until: string }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => { const tick = () => setNow(Date.now()); const t0 = setTimeout(tick, 0); const t = setInterval(tick, 60_000); return () => { clearTimeout(t0); clearInterval(t); }; }, []);
+  if (now === null) return null;
+  const ms = new Date(until).getTime() - now;
+  if (ms <= 0) return null;
+  const d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  const text = d > 0 ? `${d} ημ. ${h} ώρ.` : h > 0 ? `${h} ώρ. ${m} λεπ.` : `${m} λεπ.`;
+  return <span className="rounded-full bg-eu-red/10 text-eu-red font-bold px-2.5 py-1 text-[length:var(--fs-14)]">Λήγει σε {text}</span>;
 }

@@ -103,6 +103,7 @@ model Product {
   facetValues    ProductFacetValue[]
   s1SyncedAt     DateTime?
   variants       Variant[]
+  offer          ProductOffer?
   media          Media[]
   specs          Spec[]
   enrichments    ProductEnrichment[]
@@ -2175,4 +2176,30 @@ model PromotionUsage {
   @@index([promotionId, createdAt])
   @@index([orderId])
   @@index([customerId])
+}
+
+/**
+ * Έτοιμη τιμή και tags ανά προϊόν, υπολογισμένα από τη μηχανή προσφορών όταν αλλάζει κάτι (δημοσίευση, έναρξη, λήξη,
+ * νέα τιμή ERP). Οι λίστες και οι σελίδες προϊόντος ΔΙΑΒΑΖΟΥΝ — δεν υπολογίζουν. Παράγωγα δεδομένα: ξαναχτίζονται πάντα.
+ */
+model ProductOffer {
+  productId   String    @id
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId   String
+  listPrice   Decimal   @db.Decimal(10, 2)
+  /// τελική τιμή για επισκέπτη με την καλύτερη απλή προσφορά τιμής (= listPrice χωρίς προσφορά)
+  price       Decimal   @db.Decimal(10, 2)
+  /// τιμή μέλους, όταν υπάρχει προσφορά μόνο για εγγεγραμμένους
+  memberPrice Decimal?  @db.Decimal(10, 2)
+  promotionId String?
+  promoCode   String?
+  /// η πλησιέστερη λήξη από τις προσφορές του προϊόντος (countdown / «λήγει σε…»)
+  endsAt      DateTime?
+  /// Omnibus: χαμηλότερη τιμή 30 ημερών — η μόνη επιτρεπτή «παλιά τιμή»
+  lowest30    Decimal?  @db.Decimal(10, 2)
+  /// [{ kind: price|qty|gift|service|shipping|members, label, promotionId, giftTitle? }]
+  tags        Json      @default("[]")
+  computedAt  DateTime  @default(now())
+
+  @@index([promotionId])
 }
