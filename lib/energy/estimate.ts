@@ -22,6 +22,12 @@ const BY_CLASS: Record<string, Partial<Record<string, number>>> = {
   koyzines: { "A+": 150, A: 170, B: 200 },
 };
 
+/** Τυπική κατανάλωση για είδος + ενεργειακή κλάση (όταν η κατηγορία της βάσης δεν είναι κλειδί του πίνακα). */
+export function kwhByClass(kind: string, cls: string | null | undefined): number | null {
+  const t = BY_CLASS[kind]; if (!t || !cls) return null;
+  return t[cls] ?? t[cls.replace(/\+/g, "")] ?? null;
+}
+
 export function estimateKwh(p: Product): { kwh: number; source: "eprel" | "specs" | "estimate" } | null {
   // Δηλωμένη τιμή από το EPREL (ετήσια kWh με τις παραδοχές του κανονισμού) — η πιο αξιόπιστη
   if (p.energy?.kwh && Number.isFinite(p.energy.kwh)) return { kwh: p.energy.kwh, source: "eprel" };

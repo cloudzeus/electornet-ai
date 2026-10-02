@@ -32,6 +32,8 @@ import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
 import { RichDescription } from "@/components/pdp/RichDescription";
+import { ReplaceOld } from "@/components/snap/ReplaceOld";
+import { kindOfProduct } from "@/lib/snap/kind";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const p = await getProductBySlug((await params).slug);
@@ -93,6 +95,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               }
             />
             <EnergyCost product={p} co2={co2} />
+            {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
             {p.tradeIn && (
               <div className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">
                 <Recycle className="size-8 text-eu-green shrink-0" aria-hidden />

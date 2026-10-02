@@ -2,16 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Camera, X, Loader2, ScanLine, ArrowRight, Sparkles, Check, RefreshCw, Wrench, Recycle, Smartphone, Zap, Ruler } from "lucide-react";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
 import type { SnapResult } from "@/lib/snap/identify";
+import { SnapCompareCard } from "./SnapCompare";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("snap");
 
 type Stage = "idle" | "reading" | "ai" | "found" | "none";
+/** Το προϊόν της σελίδας από όπου άνοιξε το παράθυρο: η παλιά συσκευή συγκρίνεται απευθείας με αυτό. */
+export interface SnapProduct { slug: string; brand: string; title: string; image: string | null; price: number }
+/** Αποτέλεσμα που περιμένει εγγραφή / σύνδεση για να μπει στις «Συσκευές μου» (στη συσκευή του πελάτη, όχι στον server). */
+const PENDING = "euronics.snap.pending";
+interface Pending { at: number; ai: SnapResult; photo: string | null; product: SnapProduct | null; then: "register" | "service" }
+const readPending = (): Pending | null => { try { const x = JSON.parse(localStorage.getItem(PENDING) ?? "null") as Pending | null; return x && Date.now() - x.at < 86400000 ? x : null; } catch { return null; } };
+const writePending = (x: Pending) => { try { localStorage.setItem(PENDING, JSON.stringify(x)); } catch { try { localStorage.setItem(PENDING, JSON.stringify({ ...x, photo: null })); } catch {} } };
+const clearPending = () => { try { localStorage.removeItem(PENDING); } catch {} };
 type Action = "replace" | "register" | "service" | "recycle";
 
 /** Downscale on the device before upload: ≤1280px JPEG. The original never leaves the phone. */
@@ -52,15 +62,35 @@ export function SnapSheet() {
   const [done, setDone] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
   const [mode, setMode] = useState("visit");
+  const [product, setProduct] = useState<SnapProduct | null>(null);
+  const router = useRouter();
+  const autoSave = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const run = useRef(0);
 
   useEffect(() => {
-    const on = () => setOpen(true);
+    // από τη σελίδα προϊόντος έρχεται το προϊόν (σύγκριση)· από την αναζήτηση όχι (γενική αναγνώριση)
+    const on = (e: Event) => {
+      const next = (e as CustomEvent<{ product?: SnapProduct } | undefined>).detail?.product ?? null;
+      setProduct((cur) => { if (cur?.slug !== next?.slug) { run.current++; setStage("idle"); setPreview(null); setPhoto(null); setCodes([]); setAns(null); setAi(null); setAiNote(null); setAction(null); setDone(null); } return next; });
+      setOpen(true);
+    };
     window.addEventListener("eu:snap", on);
-    if (new URLSearchParams(window.location.search).get("snap") === "1") setTimeout(on, 0);
     return () => window.removeEventListener("eu:snap", on);
   }, []);
+  // ?snap=1 ανοίγει το παράθυρο· ?snap=save = επιστροφή από εγγραφή / σύνδεση (το παράθυρο ζει στο layout, άρα
+  // ελέγχουμε σε κάθε αλλαγή σελίδας, όχι μόνο την πρώτη φορά)
+  const pathname = usePathname();
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("snap");
+    if (q === "1") { const t = setTimeout(() => setOpen(true), 0); return () => clearTimeout(t); }
+    if (q !== "save") return;
+    const pend = readPending();
+    const u = new URL(window.location.href); u.searchParams.delete("snap"); window.history.replaceState(null, "", u.toString());
+    if (!pend) return;
+    const t = setTimeout(() => { setProduct(pend.product); setAi(pend.ai); setPhoto(pend.photo); setPreview(pend.photo); setStage("ai"); setDone(null); setAction(pend.then === "service" ? "service" : "register"); autoSave.current = pend.then === "register"; setOpen(true); }, 0);
+    return () => clearTimeout(t);
+  }, [pathname]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -86,7 +116,7 @@ export function SnapSheet() {
     const data = await shrink(file);
     setPhoto(data);
     // 1) vision model (server) and 2) on-device OCR, in parallel
-    const aiP = fetch("/api/snap/identify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ image: data }) })
+    const aiP = fetch("/api/snap/identify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ image: data, ...(product ? { productSlug: product.slug } : {}) }) })
       .then(async (r) => (await r.json()) as SnapResult | { error: string; aiAvailable: false })
       .catch(() => ({ error: "Σφάλμα δικτύου.", aiAvailable: false as const }));
     const ocrP = (async () => {
@@ -110,6 +140,8 @@ export function SnapSheet() {
       await match(o.found, o.text);
       return;
     }
+    // από σελίδα προϊόντος: η σύγκριση με το προϊόν είναι το ζητούμενο — φαίνεται πάντα όταν υπάρχει
+    if (r.compare) { setAi(r); setStage("ai"); return; }
     if (!r.appliance.isAppliance || (!r.replacements.length && !r.matched)) {
       // AI saw no appliance / unknown category: let OCR try the plate before giving up
       const o = await ocrP;
@@ -144,8 +176,25 @@ export function SnapSheet() {
     setBusy(true);
     const r = await fetch("/api/account/devices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ brand: a.brand ?? "Άγνωστη μάρκα", title: a.kindLabel, model: a.model, serial: a.serial, energyClass: a.energyClass, photo, scanId: ai.scanId, notes: a.ageYears ? `Εκτιμώμενη ηλικία ${a.ageYears} έτη` : undefined }) }).then((x) => x.json()).catch(() => ({ ok: false, error: "Σφάλμα δικτύου." }));
     setBusy(false);
+    if (r.ok) clearPending();
     setDone(r.ok ? "Η συσκευή καταχωρήθηκε στις «Συσκευές μου» μαζί με τη φωτογραφία." : r.error ?? "Δεν έγινε η καταχώρηση.");
   };
+  /** Χωρίς λογαριασμό: κρατάμε το αποτέλεσμα στη συσκευή και γυρνάμε εδώ μετά την εγγραφή / σύνδεση για να αποθηκευτεί. */
+  const keepAfterAuth = (to: "/eggrafi" | "/eisodos", then: Pending["then"] = "register") => {
+    if (!ai) return;
+    writePending({ at: Date.now(), ai, photo, product, then });
+    const back = new URL(window.location.href); back.searchParams.set("snap", "save");
+    setOpen(false);
+    router.push(`${to}?next=${encodeURIComponent(back.pathname + back.search)}`);
+  };
+  // μόλις γύρισε από την εγγραφή με αίτημα «κράτα τη»: αποθήκευση με το που φανεί ότι είναι συνδεδεμένος
+  useEffect(() => {
+    if (!autoSave.current || !me?.authenticated || !ai) return;
+    autoSave.current = false;
+    const t = setTimeout(() => { void register(); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me, ai]);
   const service = async () => {
     if (!ai || !problem.trim()) return;
     setBusy(true);
@@ -155,7 +204,7 @@ export function SnapSheet() {
   };
 
   if (!open) return null;
-  const loginHref = `/syndesi?next=${encodeURIComponent("/?snap=1")}`;
+
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="snap-title">
       <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
@@ -171,9 +220,9 @@ export function SnapSheet() {
               </div>
             </div>
             <h2 id="snap-title" className="m-0 mt-1 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">
-              {c.fotografise_tin_palia_soy}
+              {product ? "Σύγκρινε την παλιά σου με το νέο" : c.fotografise_tin_palia_soy}
             </h2>
-            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">Ολόκληρη τη συσκευή ή την πινακίδα με το μοντέλο. Η φωτογραφία αναλύεται στιγμιαία και δεν αποθηκεύεται, εκτός αν επιλέξεις «Συσκευές μου» ή «Service».</p>
+            <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">{product ? <>Φωτογράφισε την παλιά συσκευή ή την πινακίδα της και δες δίπλα-δίπλα τι κερδίζεις με το <b className="text-eu-ink">{product.brand} {product.title}</b>. Δεν χρειάζεται λογαριασμός.</> : "Ολόκληρη τη συσκευή ή την πινακίδα με το μοντέλο."} Η φωτογραφία αναλύεται στιγμιαία και δεν αποθηκεύεται, εκτός αν επιλέξεις να την κρατήσεις στις «Συσκευές μου».</p>
           </div>
           <button type="button" onClick={() => setOpen(false)} aria-label={c.kleisimo} className="size-11 rounded-full bg-eu-surface inline-flex items-center justify-center hover:bg-eu-surface-3 shrink-0">
             <X className="size-5" aria-hidden />
@@ -262,7 +311,33 @@ export function SnapSheet() {
                   {a.notes && <p className="m-0 text-eu-on-dark-3 text-[length:var(--fs-13)]">{a.notes}</p>}
                 </div>
 
-                {ai.matched && (
+                {product && ai.compare && (
+                  <>
+                    {ai.typical && <p className="m-0 rounded-xl bg-eu-surface p-3 text-eu-ink-2 text-[length:var(--fs-14)]">Δεν μπόρεσα να αναγνωρίσω τη συσκευή από τη φωτογραφία, οπότε τη συγκρίνω με μια <b>τυπική παλιά</b> {a.kindLabel.toLocaleLowerCase("el-GR")}. Δοκίμασε φωτογραφία της πινακίδας για ακριβέστερο αποτέλεσμα.</p>}
+                    <SnapCompareCard c={ai.compare} a={a} photo={photo} />
+                    <div className="rounded-2xl border-2 border-eu-navy/15 bg-white p-4 grid gap-2">
+                      {done ? (
+                        <p className="m-0 text-eu-ink text-[length:var(--fs-15)] font-semibold inline-flex items-start gap-2"><Check className="size-5 text-eu-green shrink-0" aria-hidden /> <span>{done} <Link href="/logariasmos/eggyiseis" className="text-eu-blue underline" onClick={() => setOpen(false)}>Δες τις συσκευές σου</Link></span></p>
+                      ) : (
+                        <>
+                          <div className="font-heading font-bold text-eu-ink text-[length:var(--fs-17)]">Κράτα την παλιά στις «Συσκευές μου»</div>
+                          <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Μαζί με τη φωτογραφία της, για να έχεις τη σύγκριση, την εγγύηση και το service σε ένα σημείο.</p>
+                          {me?.authenticated ? (
+                            <button type="button" onClick={register} disabled={busy} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold px-5 min-h-12 inline-flex items-center gap-2 hover:bg-eu-blue disabled:opacity-60">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Smartphone className="size-4" aria-hidden />} Αποθήκευση στις «Συσκευές μου»</button>
+                          ) : (
+                            <>
+                              <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Χρειάζεται λογαριασμός. Μόλις τον φτιάξεις, γυρνάς εδώ και η συσκευή αποθηκεύεται αυτόματα — δεν χρειάζεται να τη φωτογραφίσεις ξανά.</p>
+                              <AuthChoice onRegister={() => keepAfterAuth("/eggrafi")} onLogin={() => keepAfterAuth("/eisodos")} />
+                            </>
+                          )}
+                          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Με την αποθήκευση συναινείς στη φύλαξη της φωτογραφίας στον λογαριασμό σου. Μπορείς να τη διαγράψεις όποτε θέλεις.</p>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {!product && ai.matched && (
                   <Link href={`/proion/${ai.matched.slug}`} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl border-2 border-eu-yellow bg-eu-yellow/10 p-2 hover:border-eu-navy">
                     <ProductImage src={ai.matched.image} sizes="56px" className="size-14" rounded="rounded-lg" />
                     <span className="min-w-0 flex-1">
@@ -273,7 +348,7 @@ export function SnapSheet() {
                   </Link>
                 )}
 
-                {ai.replacements.length > 0 && (
+                {!product && ai.replacements.length > 0 && (
                   <div className="grid gap-1.5">
                     <div className="font-extrabold text-eu-ink text-[length:var(--fs-14)]">Αντικαταστάτες που ταιριάζουν</div>
                     <ul className="m-0 p-0 list-none grid gap-1.5">
@@ -310,14 +385,14 @@ export function SnapSheet() {
                       ["register", Smartphone, "Συσκευές μου"],
                       ["service", Wrench, "Αίτημα service"],
                       ["recycle", Recycle, "Ανακύκλωση"],
-                    ] as const).map(([k, Icon, t]) => (
+                    ] as const).filter(([k]) => !product || (k !== "replace" && k !== "register")).map(([k, Icon, t]) => (
                       <button key={k} type="button" onClick={() => { setDone(null); setAction(action === k ? null : k); if (k === "recycle" || k === "replace") track(k); }} aria-pressed={action === k} className={`rounded-xl border-2 min-h-12 px-2 font-extrabold text-[length:var(--fs-14)] inline-flex items-center justify-center gap-1.5 ${action === k ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line text-eu-navy hover:border-eu-blue"}`}>
                         <Icon className="size-4" aria-hidden /> {t}
                       </button>
                     ))}
                   </div>
 
-                  {done && <p className="m-0 rounded-xl bg-eu-green/10 text-eu-ink p-3 text-[length:var(--fs-14)] font-semibold inline-flex items-start gap-2"><Check className="size-4 text-eu-green shrink-0 mt-0.5" aria-hidden /> {done}</p>}
+                  {done && !product && <p className="m-0 rounded-xl bg-eu-green/10 text-eu-ink p-3 text-[length:var(--fs-14)] font-semibold inline-flex items-start gap-2"><Check className="size-4 text-eu-green shrink-0 mt-0.5" aria-hidden /> {done}</p>}
 
                   {action === "replace" && !done && (
                     <div className="rounded-xl bg-eu-surface p-3 text-[length:var(--fs-14)] text-eu-ink-2 grid gap-2">
@@ -331,7 +406,7 @@ export function SnapSheet() {
                       {me?.authenticated ? (
                         <button type="button" onClick={register} disabled={busy} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold px-4 min-h-11 inline-flex items-center gap-1.5 hover:bg-eu-blue disabled:opacity-60">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Καταχώρηση με τη φωτογραφία</button>
                       ) : (
-                        <Link href={loginHref} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold px-4 min-h-11 inline-flex items-center gap-1.5 hover:bg-eu-blue">Σύνδεση για καταχώρηση <ArrowRight className="size-4" aria-hidden /></Link>
+                        <AuthChoice onRegister={() => keepAfterAuth("/eggrafi")} onLogin={() => keepAfterAuth("/eisodos")} />
                       )}
                       <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Με την καταχώρηση συναινείς στη φύλαξη της φωτογραφίας στον λογαριασμό σου. Μπορείς να τη διαγράψεις όποτε θέλεις.</p>
                     </div>
@@ -350,7 +425,7 @@ export function SnapSheet() {
                       {me?.authenticated ? (
                         <button type="submit" disabled={busy || !problem.trim()} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold px-4 min-h-11 inline-flex items-center gap-1.5 hover:bg-eu-blue disabled:opacity-60">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Wrench className="size-4" aria-hidden />} Αποστολή αιτήματος</button>
                       ) : (
-                        <Link href={loginHref} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold px-4 min-h-11 inline-flex items-center gap-1.5 hover:bg-eu-blue">Σύνδεση για αίτημα <ArrowRight className="size-4" aria-hidden /></Link>
+                        <AuthChoice onRegister={() => keepAfterAuth("/eggrafi", "service")} onLogin={() => keepAfterAuth("/eisodos", "service")} />
                       )}
                     </form>
                   )}
@@ -394,6 +469,16 @@ export function SnapSheet() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Χωρίς λογαριασμό: εγγραφή (κύριο) ή σύνδεση — και στις δύο, το αποτέλεσμα περιμένει και αποθηκεύεται στην επιστροφή. */
+function AuthChoice({ onRegister, onLogin }: { onRegister: () => void; onLogin: () => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={onRegister} className="rounded-full bg-eu-navy text-white font-extrabold px-5 min-h-12 inline-flex items-center gap-2 hover:bg-eu-blue">Δημιουργία λογαριασμού <ArrowRight className="size-4" aria-hidden /></button>
+      <button type="button" onClick={onLogin} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-5 min-h-12 inline-flex items-center gap-2 hover:bg-eu-chip">Έχω ήδη λογαριασμό</button>
     </div>
   );
 }
