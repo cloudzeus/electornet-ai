@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Sparkles, Tag, Check, ChevronRight } from "lucide-react";
+import { Minus, Plus, Trash2, Heart, ShieldCheck, Truck, RotateCcw, Store as StoreIcon, Sparkles, Tag, Check, ChevronRight, Gift } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
 import { instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
@@ -13,6 +13,8 @@ import { ProductCard } from "@/components/commerce/ProductCard";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { CartAdvisorTip } from "./CartAdvisorTip";
+import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon } from "./useServerQuote";
+import { GiftLines, PromoHints } from "./PromoPerks";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("cart");
@@ -25,32 +27,29 @@ const c = copyOf("cart");
  * three ways to get it, trust strip and a «ταιριάζουν με το καλάθι σου»
  * grid. Text ≥ 14px, controls ≥ 44px.
  */
-export function CartView({ services, crossSell }: { services: Service[]; crossSell: Product[] }) {
+export function CartView({ services: catalog, crossSell }: { services: Service[]; crossSell: Product[] }) {
   const { lines, setQty, remove, toggleAddon, subtotal, addonsTotal, hydrated, clear, freeShippingFrom, toggleWishlist, wishlist } = useCart();
-  const [coupon, setCoupon] = useState("");
-  const [couponMsg, setCouponMsg] = useState<string | null>(null);
-  const [discount, setDiscount] = useState(0);
-  const goods = subtotal + addonsTotal;
-  const shipping = goods >= freeShippingFrom || goods === 0 ? 0 : 4.9;
-  const total = Math.max(0, goods - discount) + shipping;
+  const [coupon, setCoupon] = useState(() => savedCoupon() ?? "");
+  const [couponCode, setCouponCode] = useState<string | null>(() => savedCoupon());
+  // Ο υπολογισμός είναι του server (τιμές, προσφορές, κουπόνι, μεταφορικά)· τα τοπικά ποσά μόνο μέχρι να έρθει η απάντηση
+  const { quote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, delivery: "courier" });
+  const offline = lines.filter((l) => !l.product.fromDb);
+  const localGoods = subtotal + addonsTotal;
+  const goodsList = quote ? quote.goods / 100 : subtotal;
+  const servicesTotal = quote ? quote.addons / 100 : addonsTotal;
+  const discPrice = quote ? quote.discPrice / 100 : 0;
+  const discCoupon = quote ? quote.discCoupon / 100 : 0;
+  const payable = quote ? (quote.goods + quote.addons - quote.discPrice - quote.discCoupon) / 100 : localGoods;
+  const shipping = quote ? quote.shipping / 100 : localGoods >= freeShippingFrom || localGoods === 0 ? 0 : 4.9;
+  const total = quote ? quote.total / 100 : localGoods + shipping;
   const vat = total - total / 1.24;
-  const missing = Math.max(0, freeShippingFrom - goods);
-  const pct = Math.min(100, Math.round((goods / freeShippingFrom) * 100));
+  const freeByPromo = !!quote?.freeShipping;
+  const missing = freeByPromo ? 0 : Math.max(0, freeShippingFrom - payable);
+  const pct = freeByPromo ? 100 : Math.min(100, Math.round((payable / freeShippingFrom) * 100));
   const count = lines.reduce((n, l) => n + l.qty, 0);
+  const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
-  const applyCoupon = () => {
-    const c = coupon.trim().toUpperCase();
-    if (c === "EURONICS10") {
-      setDiscount(Math.round(goods * 0.1 * 100) / 100);
-      setCouponMsg("Κουπόνι EURONICS10: −10% στα προϊόντα.");
-    } else if (c.startsWith("GIFT")) {
-      setDiscount(Math.min(goods, 50));
-      setCouponMsg("Κάρτα δώρου 50,00 € εξαργυρώθηκε.");
-    } else {
-      setDiscount(0);
-      setCouponMsg("Ο κωδικός δεν ισχύει. Δοκίμασε EURONICS10.");
-    }
-  };
+  const applyCoupon = () => { const code = coupon.trim().toUpperCase() || null; setCouponCode(code); saveCoupon(code); };
 
   if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">{c.fortosi_kalathioy}</div>;
 
@@ -107,7 +106,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             <div className="flex items-center gap-3">
               <Truck className="size-6 shrink-0" aria-hidden />
               <div className="flex-1 font-bold text-[length:var(--fs-16)]">
-                {missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>{c.prosthese_akomi} <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}
+                {missing === 0 ? (freeByPromo ? `${quote!.freeShipping!.label} — έχεις δωρεάν μεταφορικά.` : "Έχεις δωρεάν μεταφορικά.") : <>{c.prosthese_akomi} <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}
               </div>
               <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{pct}%</span>
             </div>
@@ -119,8 +118,11 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
           <ul className="m-0 p-0 list-none grid gap-3">
             {lines.map((l) => {
               const p = l.product;
-              const lineAddons = services.filter((s) => s.slug !== "paradosi-egkatastasi" || p.installation).filter((s) => s.addonAt?.includes("pdp") || s.addonAt?.includes("checkout"));
-              const lineTotal = l.qty * (p.price + l.addons.reduce((a, x) => a + x.price, 0));
+              const lineAddons = catalog.filter((s) => s.slug !== "paradosi-egkatastasi" || p.installation).filter((s) => s.addonAt?.includes("pdp") || s.addonAt?.includes("checkout"));
+              const ql = quoteLineOf(quote, p.id);
+              const freeAddons = ql?.addons.filter((a) => a.free) ?? [];
+              const lineTotal = ql ? (ql.total + ql.addons.reduce((a, x) => a + x.price, 0) * ql.qty) / 100 : l.qty * (p.price + l.addons.reduce((a, x) => a + x.price, 0));
+              const lineWas = ql && ql.discPrice + ql.discCoupon > 0 ? (ql.listTotal + ql.addons.reduce((a, x) => a + x.value, 0) * ql.qty) / 100 : p.wasPrice ? l.qty * p.wasPrice : null;
               const a = p.availability;
               const avail = a.kind === "in-stock" ? { c: "text-eu-green", d: "bg-eu-green", t: `Άμεσα διαθέσιμο · παράδοση ${weekday(new Date(a.deliveryDate))}` } : a.kind === "days" ? { c: "text-eu-amber", d: "bg-eu-amber", t: `Σε ${a.min}–${a.max} εργάσιμες · ${weekday(new Date(a.deliveryDate))}` } : { c: "text-eu-muted", d: "bg-eu-muted", t: a.label ?? "Κατόπιν παραγγελίας" };
               const liked = wishlist.includes(p.id);
@@ -140,13 +142,31 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
                     <div className={`flex items-center gap-1.5 text-[length:var(--fs-14)] font-bold ${avail.c}`}>
                       <span className={`size-2 rounded-full ${avail.d}`} aria-hidden /> {avail.t}
                     </div>
-                    {lineAddons.length > 0 && (
+                    {ql && ql.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {[...new Set(ql.labels)].map((t) => (
+                          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-eu-red/10 text-eu-red font-bold text-[length:var(--fs-13)] px-2.5 py-1">
+                            <Tag className="size-3.5" aria-hidden /> {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {freeAddons.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {freeAddons.map((a) => (
+                          <span key={a.slug} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-green bg-eu-green/10 text-eu-green px-3 min-h-10 py-1.5 text-[length:var(--fs-14)] font-semibold">
+                            <Gift className="size-3.5" aria-hidden /> {a.title} · δωρεάν <s className="text-eu-muted-2 font-normal">{priceShort(a.value / 100)}</s>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {lineAddons.filter((s) => !freeAddons.some((a) => a.slug === s.slug)).length > 0 && (
                       <div className="grid gap-1.5">
                         <div className="text-eu-ink text-[length:var(--fs-14)] font-bold flex items-center gap-1.5">
                           <ShieldCheck className="size-4 text-eu-blue" aria-hidden /> {c.kalypse_to}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {lineAddons.map((s) => {
+                          {lineAddons.filter((s) => !freeAddons.some((a) => a.slug === s.slug)).map((s) => {
                             const on = l.addons.some((x) => x.slug === s.slug);
                             return (
                               <button
@@ -179,7 +199,7 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
                   </div>
                   <div className="hidden @md:flex flex-col items-end gap-2 min-w-[120px]">
                     <span className="font-extrabold text-eu-ink text-[length:var(--fs-22)] leading-none">{priceLong(lineTotal)}</span>
-                    {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceLong(l.qty * p.wasPrice)}</s>}
+                    {lineWas && lineWas > lineTotal && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceLong(lineWas)}</s>}
                     <span className="text-eu-blue font-semibold text-[length:var(--fs-14)]">ή 12 × {priceLong(instalment(lineTotal))}</span>
                     <Qty qty={l.qty} onChange={(q) => setQty(p.id, q)} />
                   </div>
@@ -188,9 +208,12 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
             })}
           </ul>
 
+          <GiftLines quote={quote} />
+          <PromoHints quote={quote} />
+
           <div className="grid grid-cols-1 @xl:grid-cols-3 gap-3">
             {[
-              { icon: Truck, t: "Στη διεύθυνσή σου", s: shipping === 0 ? "Δωρεάν · 1–3 εργάσιμες" : "4,90 € · 1–3 εργάσιμες" },
+              { icon: Truck, t: "Στη διεύθυνσή σου", s: shipping === 0 ? "Δωρεάν · 1–3 εργάσιμες" : `${priceLong(shipping)} · 1–3 εργάσιμες` },
               { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν · έτοιμη σε 2 ώρες" },
               { icon: RotateCcw, t: "Άλλαξες γνώμη;", s: "14 ημέρες δωρεάν επιστροφή" },
             ].map((x) => (
@@ -232,12 +255,15 @@ export function CartView({ services, crossSell }: { services: Service[]; crossSe
                   {c.efarmogi}
                 </button>
               </div>
-              {couponMsg && <div className={`text-[length:var(--fs-14)] font-semibold ${discount ? "text-eu-green" : "text-eu-red"}`}>{couponMsg}</div>}
+              {couponMsg && <div role="status" className={`text-[length:var(--fs-14)] font-semibold ${quote?.coupon.applied ? "text-eu-green" : loading ? "text-eu-muted" : "text-eu-red"}`}>{couponMsg}</div>}
+              {offline.length > 0 && <p role="alert" className="m-0 rounded-xl bg-eu-red/10 text-eu-red font-semibold px-3 py-2 text-[length:var(--fs-14)]">{offline.map((l) => `«${l.product.title}»`).join(", ")} {offline.length === 1 ? "δεν διατίθεται" : "δεν διατίθενται"} για online αγορά και δεν μετρά στο σύνολο.</p>}
             </form>
             <dl className="m-0 grid gap-2 text-[length:var(--fs-15)] text-eu-ink-2">
-              <Row k="Προϊόντα" v={priceLong(subtotal)} />
-              {addonsTotal > 0 && <Row k="Υπηρεσίες" v={priceLong(addonsTotal)} />}
-              {discount > 0 && <Row k="Έκπτωση" v={`− ${priceLong(discount)}`} cls="text-eu-green" />}
+              <Row k="Προϊόντα" v={priceLong(goodsList)} />
+              {servicesTotal > 0 && <Row k="Υπηρεσίες" v={priceLong(servicesTotal)} />}
+              {discPrice > 0 && <Row k="Προσφορές" v={`− ${priceLong(discPrice)}`} cls="text-eu-green" />}
+              {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
+              {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
               <Row k="Μεταφορικά" v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(vat)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">

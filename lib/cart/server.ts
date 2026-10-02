@@ -62,7 +62,9 @@ export async function syncCart(items: CartItemIn[]) {
   const variantOf = new Map(products.flatMap((p) => (p.variants[0] && Number(p.variants[0].price) > 0 ? [[p.id, p.variants[0].id] as const] : [])));
   const known = new Set(services.map((s) => s.slug));
   const rows = clean.flatMap((i) => { const v = variantOf.get(i.productId); return v ? [{ cartId: cart.id, variantId: v, qty: Math.min(99, Math.max(1, Math.floor(i.qty))), addons: (i.addons ?? []).filter((a) => known.has(a.slug)).map((a) => ({ slug: a.slug })) }] : []; });
-  await db.$transaction([db.cartLine.deleteMany({ where: { cartId: cart.id } }), ...(rows.length ? [db.cartLine.createMany({ data: rows })] : []), db.cart.update({ where: { id: cart.id }, data: { updatedAt: new Date() } })]);
+  // πρώτα το UPDATE του καλαθιού: κλειδώνει τη γραμμή του, ώστε δύο ταυτόχρονα PUT να εκτελούνται το ένα μετά το άλλο
+  // (αλλιώς και τα δύο σβήνουν τις παλιές γραμμές και γράφουν τις δικές τους → διπλές γραμμές)
+  await db.$transaction([db.cart.update({ where: { id: cart.id }, data: { updatedAt: new Date() } }), db.cartLine.deleteMany({ where: { cartId: cart.id } }), ...(rows.length ? [db.cartLine.createMany({ data: rows })] : [])]);
   return { cartId: cart.id, kept: rows.length, skipped: clean.length - rows.length };
 }
 
@@ -128,12 +130,14 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
   const goods = engine.total + addons;
-  const baseShipping = input.delivery && input.delivery !== "courier" ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
+  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
   const freeShipping = engine.freeShipping && baseShipping > 0 ? { ...engine.freeShipping, saved: baseShipping } : null;
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
-  return { lines: out, missing, gifts, hints: engine.hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
+  // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
+  const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */
