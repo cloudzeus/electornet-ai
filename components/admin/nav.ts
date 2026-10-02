@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw, BadgeCheck, Zap, Box, ScanText } from "lucide-react";
+import { Images, LayoutDashboard, Mail, Sticker, LayoutTemplate, Package, ShoppingBag, Users, Store, Megaphone, Wrench, Settings, ShieldCheck, BarChart3, ScrollText, Radar, DatabaseBackup, Database, RefreshCw, BadgeCheck, Zap, Box, ScanText, BadgePercent } from "lucide-react";
 
 export interface AdminNavItem {
   href: string;
@@ -37,6 +37,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/catalog/banners", label: "Απόδελτίωση banners", icon: ScanText, perm: "catalog.products.write" },
       { href: "/admin/eprel", label: "EPREL ενεργειακές ετικέτες", icon: Zap, perm: "catalog.products.read" },
       { href: "/admin/ar", label: "AR · δες το στον χώρο σου", icon: Box, perm: "catalog.products.read" },
+      { href: "/admin/prosfores", label: "Προσφορές & κουπόνια", icon: BadgePercent, perm: "catalog.promos.write" },
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read", soon: true },
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },

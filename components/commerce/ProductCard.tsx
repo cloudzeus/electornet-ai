@@ -99,6 +99,9 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 ) : !burst && p.promoTags?.[0] ? (
                   // έως 2 σήματα ανά κάρτα: γωνία (έκπτωση) + ένα tag προσφοράς
                   <span className={`absolute left-3 ${corner ? "top-14" : "top-3"} pointer-events-none inline-flex max-w-[70%] rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight shadow-[0_4px_12px_rgba(18,42,88,.25)]`}>{p.promoTags[0]}</span>
+                ) : !burst && p.infoTags?.[0] ? (
+                  // ενημερωτική ετικέτα (Best Seller, Top Rated…) όταν δεν υπάρχει tag προσφοράς
+                  <span className={`absolute left-3 ${corner ? "top-14" : "top-3"} pointer-events-none inline-flex max-w-[70%] rounded-full bg-white text-eu-navy border border-eu-navy/20 font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight shadow-[0_4px_12px_rgba(18,42,88,.15)]`}>{p.infoTags[0]}</span>
                 ) : null}
                 <button
                   type="button"

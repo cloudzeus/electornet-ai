@@ -93,6 +93,8 @@ const PRODUCT_SELECT = {
   dimensions: { select: { source: true, w: true, h: true, d: true, rawKey: true } },
   // έτοιμη τιμή και tags προσφορών (lib/promo/offers) — διαβάζονται, δεν υπολογίζονται εδώ
   offer: { select: { price: true, listPrice: true, memberPrice: true, lowest30: true, endsAt: true, tags: true } },
+  // ενημερωτικές ετικέτες (Νέο, Best Seller, Top Rated…) — lib/promo/tags
+  tags: { select: { tag: { select: { slug: true, name: true } } } },
 } satisfies Prisma.ProductSelect;
 type Row = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
 
@@ -127,6 +129,14 @@ function offerFields(r: Row): Partial<Product> {
   return out;
 }
 
+/** «Νέο» γίνεται το γνωστό σήμα γωνίας (αν δεν υπάρχει έκπτωση)· οι υπόλοιπες φαίνονται ως ετικέτες. */
+function infoTagFields(r: Row): Partial<Product> {
+  if (!r.tags.length) return {};
+  const out: Partial<Product> = { infoTags: r.tags.filter((t) => t.tag.slug !== "neo").map((t) => t.tag.name) };
+  if (r.tags.some((t) => t.tag.slug === "neo") && !(r.offer && Number(r.offer.price) < Number(r.offer.listPrice))) out.badge = { kind: "new" };
+  return out;
+}
+
 export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["banners"]; facts?: string[] } = {}): Product {
   const main = r.category.parent, master = main?.parent;
   // ίδια προτεραιότητα με το resolveDims: διαχειριστής → ERP → EPREL
@@ -152,6 +162,7 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
     specs: extra.specs, banners: extra.banners,
     ...offerFields(r),
+    ...infoTagFields(r),
   };
 }
 

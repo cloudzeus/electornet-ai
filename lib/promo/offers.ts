@@ -2,8 +2,9 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { services } from "@/lib/data/fixtures/services";
-import { evaluate, inactiveReason, matches, type EngineLine, type EnginePromo } from "./engine";
+import { evaluate, inactiveReason, matches, type EngineLine } from "./engine";
 import { activePromos, invalidatePromos, lowest30 } from "./server";
+import { autoLabel } from "./catalog";
 import { getPromoPolicy } from "./policy";
 
 /**
@@ -15,23 +16,7 @@ import { getPromoPolicy } from "./policy";
 export interface OfferTag { kind: "price" | "qty" | "gift" | "service" | "shipping" | "members"; label: string; promotionId: string; giftTitle?: string }
 
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })} €`;
-
-/** Αυτόματη ετικέτα όταν ο διαχειριστής δεν έγραψε δική του. */
-export function autoLabel(p: Pick<EnginePromo, "mechanism" | "reward" | "tagLabel" | "name">, serviceTitle?: string): string {
-  if (p.tagLabel) return p.tagLabel;
-  const r = p.reward ?? {};
-  switch (p.mechanism) {
-    case "price-percent": return `−${r.percent ?? 0} %`;
-    case "price-amount": return `−${eur(r.amount ?? 0)}`;
-    case "n-plus-m": return `${r.buy ?? 1}+${r.get ?? 1}`;
-    case "nth-discount": return `${r.nth ?? 2}ο −${r.percent ?? 0} %`;
-    case "qty-tiers": { const t = [...(r.tiers ?? [])].sort((a, b) => b.percent - a.percent)[0]; return t ? `−${t.percent} % από ${t.minQty} τεμ.` : p.name; }
-    case "gift": return "Δώρο με αγορά";
-    case "service": return `Δωρεάν ${serviceTitle?.toLocaleLowerCase("el-GR") ?? "υπηρεσία"}`;
-    case "shipping": return "Δωρεάν μεταφορικά";
-    default: return p.name;
-  }
-}
+export { autoLabel };
 
 const state = { computedAt: 0, running: null as Promise<unknown> | null };
 
@@ -80,6 +65,7 @@ export async function recomputeOffers() {
         else if (x.mechanism === "shipping") tags.push({ kind: "shipping", label: autoLabel(x), promotionId: x.id });
       }
       if (!tags.length) continue;
+      tags.splice(policy.maxTagsPerCard);
       const ends = mine.map((x) => x.endsAt).filter((d): d is Date => !!d).sort((a, b) => +a - +b)[0] ?? null;
       rows.push({ productId: p.id, variantId: v.id, listPrice: line.unit, price: guest.total, memberPrice: member && member.total < guest.total ? member.total : null, promotionId: adj?.promotionId ?? null, promoCode: adj?.code ?? null, endsAt: ends, tags });
     }

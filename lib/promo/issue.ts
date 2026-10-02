@@ -76,3 +76,21 @@ export async function issueWelcomeCoupon(trigger: "signup" | "newsletter", who: 
     return null;
   }
 }
+
+/** Παρτίδα μοναδικών κωδικών (π.χ. για φυλλάδιο, συνεργάτη, κατάστημα). Χωρίς email — όποιος έχει τον κωδικό, μία χρήση. */
+export async function createCouponBatch(input: { promotionId: string; count: number; prefix: string; validDays: number | null; staffId: string }) {
+  const promo = await db.promotion.findUnique({ where: { id: input.promotionId } });
+  if (!promo || !promo.mechanism.startsWith("coupon")) return { ok: false as const, error: "Διάλεξε προσφορά-κουπόνι." };
+  if (promo.held) return { ok: false as const, error: "Η προσφορά είναι ανενεργή μέχρι διευκρίνιση." };
+  const count = Math.max(1, Math.min(5000, Math.floor(input.count)));
+  const prefix = input.prefix.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 10) || "EU";
+  let expiresAt = input.validDays ? new Date(Date.now() + input.validDays * 86400_000) : promo.endsAt;
+  if (promo.endsAt && expiresAt && promo.endsAt < expiresAt) expiresAt = promo.endsAt;
+  const codes = new Set<string>();
+  while (codes.size < count) codes.add(randomCode(prefix, count > 900 ? 8 : 6));
+  const taken = new Set((await db.coupon.findMany({ where: { code: { in: [...codes] } }, select: { code: true } })).map((c) => c.code));
+  const fresh = [...codes].filter((c) => !taken.has(c));
+  await db.coupon.createMany({ data: fresh.map((code) => ({ code, promotionId: promo.id, kind: "unique", trigger: "batch", expiresAt, maxUses: 1 })), skipDuplicates: true });
+  await audit(input.staffId, "coupon.batch", "Promotion", promo.id, null, { count: fresh.length, prefix, expiresAt });
+  return { ok: true as const, codes: fresh, expiresAt, promotion: promo.code };
+}

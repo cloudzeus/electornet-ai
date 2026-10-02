@@ -75,11 +75,12 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
           {p.lowest30 ? `Χαμηλότερη τιμή 30 ημερών: ${priceLong(p.lowest30)} · ` : ""}με ΦΠΑ 24%
         </div>
         {p.gift && <div className="text-eu-blue font-bold text-[length:var(--fs-15)] mt-1">{p.gift}</div>}
-        {(p.promoTags?.length || p.promo?.kind === "bogo" || p.promo?.kind === "bundle" || p.memberPrice || p.dealEndsAt) && (
+        {(p.promoTags?.length || p.infoTags?.length || p.promo?.kind === "bogo" || p.promo?.kind === "bundle" || p.memberPrice || p.dealEndsAt) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
             {p.promo?.kind === "bogo" && <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold px-2.5 py-1 text-[length:var(--fs-14)]">{p.promo.label ?? "1+1"}</span>}
             {p.promo?.kind === "bundle" && <span className="rounded-full bg-eu-green/10 text-eu-green font-extrabold px-2.5 py-1 text-[length:var(--fs-14)]">Δώρο: {p.promo.with}</span>}
             {p.promoTags?.map((t) => <span key={t} className="rounded-full bg-eu-chip text-eu-navy font-bold px-2.5 py-1 text-[length:var(--fs-14)]">{t}</span>)}
+            {p.infoTags?.map((t) => <span key={t} className="rounded-full border border-eu-navy/20 text-eu-navy font-bold px-2.5 py-1 text-[length:var(--fs-14)]">{t}</span>)}
             {p.dealEndsAt && <DealCountdown until={p.dealEndsAt} />}
           </div>
         )}

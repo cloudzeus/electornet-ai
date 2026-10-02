@@ -12,6 +12,22 @@ const cents = (v: unknown) => Math.round(Number(v ?? 0) * 100);
 // ---- προσφορές: μόνο όσες μπορεί να ισχύουν τώρα ή σύντομα, με cache 15 s (ακυρώνεται σε κάθε αλλαγή από το admin) ----
 let cache: { at: number; promos: EnginePromo[] } | null = null;
 export function invalidatePromos() { cache = null; }
+type PromoRow = Awaited<ReturnType<typeof db.promotion.findMany<{ include: { targets: true } }>>>[number];
+export const toEngine = (p: PromoRow): EnginePromo => ({
+  id: p.id, code: p.code, version: p.version, name: p.name, mechanism: p.mechanism, status: p.status, held: p.held,
+  priority: p.priority, stacking: p.stacking as Stacking, startsAt: p.startsAt, endsAt: p.endsAt,
+  reward: p.reward as PromoReward, rules: (p.rules ?? {}) as PromoRules,
+  targets: p.targets.map((t) => ({ kind: t.kind as "product" | "brand" | "category", refId: t.refId, exclude: t.exclude })),
+  maxUses: p.maxUses, usedCount: p.usedCount, maxPerCustomer: p.maxPerCustomer,
+  budgetCents: p.budgetEur != null ? cents(p.budgetEur) : null, spentCents: cents(p.spentEur), tagLabel: p.tagLabel,
+});
+
+/** Για τον προσομοιωτή: και μη δημοσιευμένες (πρόχειρες, σε παύση, σε αναμονή), χωρίς cache. */
+export async function promosWith(statuses: string[]): Promise<EnginePromo[]> {
+  const rows = await db.promotion.findMany({ where: { status: { in: statuses } }, include: { targets: true }, orderBy: { priority: "asc" } });
+  return rows.map(toEngine);
+}
+
 export async function activePromos(now = new Date()): Promise<EnginePromo[]> {
   if (cache && Date.now() - cache.at < 15_000) return cache.promos;
   const rows = await db.promotion.findMany({
@@ -19,14 +35,7 @@ export async function activePromos(now = new Date()): Promise<EnginePromo[]> {
     include: { targets: true },
     orderBy: { priority: "asc" },
   });
-  const promos = rows.map((p): EnginePromo => ({
-    id: p.id, code: p.code, version: p.version, name: p.name, mechanism: p.mechanism, status: p.status, held: p.held,
-    priority: p.priority, stacking: p.stacking as Stacking, startsAt: p.startsAt, endsAt: p.endsAt,
-    reward: p.reward as PromoReward, rules: (p.rules ?? {}) as PromoRules,
-    targets: p.targets.map((t) => ({ kind: t.kind as "product" | "brand" | "category", refId: t.refId, exclude: t.exclude })),
-    maxUses: p.maxUses, usedCount: p.usedCount, maxPerCustomer: p.maxPerCustomer,
-    budgetCents: p.budgetEur != null ? cents(p.budgetEur) : null, spentCents: cents(p.spentEur), tagLabel: p.tagLabel,
-  }));
+  const promos = rows.map(toEngine);
   cache = { at: Date.now(), promos };
   return promos;
 }
