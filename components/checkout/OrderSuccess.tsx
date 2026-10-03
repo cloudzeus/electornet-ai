@@ -11,6 +11,8 @@ import { priceLong } from "@/lib/format";
 import { Stepper } from "./Stepper";
 import { copyOf } from "@/lib/cms/copy";
 
+import { CopyCoupon } from "@/components/promo/CopyCoupon";
+
 const c = copyOf("orderSuccess");
 
 interface Saved {
@@ -26,6 +28,8 @@ interface Saved {
   lines: { id: string; title: string; brand: string; qty: number; unitPrice: number; addons: { title: string; price: number }[] }[];
   address: { firstName: string; lastName: string; email: string; phone: string; street: string; number: string; city: string; zip: string; invoice: boolean; company: string; vat: string };
   recycle: boolean;
+  /** κουπόνι για την επόμενη αγορά (αν το δίνει το κατάστημα) */
+  nextCoupon?: { code: string; value: string; until: string | null } | null;
 }
 
 const PAY: Record<string, string> = { card: "Κάρτα", "no-card": "Δόσεις χωρίς κάρτα (Eurobank)", iris: "IRIS", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Πληρωμή στο κατάστημα" };
@@ -68,6 +72,14 @@ export function OrderSuccess({ number }: { number: string }) {
               </span>
             </div>
           </section>
+
+          {o?.nextCoupon && (
+            <section className="rounded-xl border-2 border-dashed border-eu-navy bg-eu-yellow/20 p-5 grid gap-2 justify-items-start" aria-label="Κουπόνι επόμενης αγοράς">
+              <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)]">Ένα δώρο για την επόμενη φορά: {o.nextCoupon.value}</h2>
+              <CopyCoupon code={o.nextCoupon.code} />
+              <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)]">Προσωπικός κωδικός μίας χρήσης{o.nextCoupon.until ? `, ισχύει έως ${o.nextCoupon.until}` : ""}. Γράψε τον στο καλάθι στην επόμενη αγορά σου.</p>
+            </section>
+          )}
 
           <section className="bg-white rounded-xl border border-eu-line p-5">
             <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] mb-3">{c.ti_ginetai_tora}</h2>

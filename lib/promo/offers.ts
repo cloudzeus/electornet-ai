@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { services } from "@/lib/data/fixtures/services";
-import { evaluate, inactiveReason, matches, type EngineLine } from "./engine";
+import { evaluate, inactiveReason, matches, MULTI_MECHANISMS, type EngineLine } from "./engine";
 import { activePromos, invalidatePromos, lowest30 } from "./server";
 import { autoLabel } from "./catalog";
 import { getPromoPolicy } from "./policy";
@@ -69,7 +69,8 @@ async function computeOnce(): Promise<RecomputeResult> {
     const promos = all.filter((p) => !inactiveReason(p, now));
     const guard = { maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block" };
     // κουπόνια και καλαθιού-ολόκληρου μεταφορικά δεν δίνουν tag σε προϊόν
-    const display = promos.filter((p) => !p.mechanism.startsWith("coupon") && !(p.mechanism === "shipping" && !p.targets.some((t) => !t.exclude)));
+    // κουπόνια, έκπτωση πληρωμής και μεταφορικά όλου του καλαθιού δεν δίνουν tag σε προϊόν
+    const display = promos.filter((p) => !p.mechanism.startsWith("coupon") && !p.mechanism.startsWith("payment") && !(p.mechanism === "shipping" && !p.targets.some((t) => !t.exclude)));
     const [products, cats] = await Promise.all([
       db.product.findMany({ where: { active: true }, select: { id: true, brandId: true, categoryId: true, variants: { select: { id: true, price: true }, take: 1 } } }),
       db.category.findMany({ select: { id: true, parentId: true } }),
@@ -97,7 +98,7 @@ async function computeOnce(): Promise<RecomputeResult> {
         if (m) tags.push({ kind: "members", label: `Τιμή μέλους ${eur(member.total)}`, promotionId: m.promotionId });
       }
       for (const x of mine) {
-        if (x.mechanism === "n-plus-m" || x.mechanism === "nth-discount" || x.mechanism === "qty-tiers") tags.push({ kind: "qty", label: autoLabel(x), promotionId: x.id });
+        if ((MULTI_MECHANISMS as string[]).includes(x.mechanism)) tags.push({ kind: "qty", label: autoLabel(x), promotionId: x.id });
         else if (x.mechanism === "gift") tags.push({ kind: "gift", label: autoLabel(x), promotionId: x.id, giftTitle: giftTitles.get(x.reward.giftProductId ?? "") });
         else if (x.mechanism === "service") tags.push({ kind: "service", label: autoLabel(x, svcTitle.get(x.reward.serviceSlug ?? "")), promotionId: x.id });
         else if (x.mechanism === "shipping") tags.push({ kind: "shipping", label: autoLabel(x), promotionId: x.id });

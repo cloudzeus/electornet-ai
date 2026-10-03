@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { getPromoPolicy } from "@/lib/promo/policy";
+import { segmentsOf } from "@/lib/promo/segments";
 import { getCustomerSession } from "@/lib/account/session";
 import { services } from "@/lib/data/fixtures/services";
 import { evaluate, type EngineResult } from "@/lib/promo/engine";
@@ -72,13 +73,13 @@ export async function syncCart(items: CartItemIn[]) {
 export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null }
 /** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
 export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
-export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
+export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
 /** Δώρο της προσφοράς: γραμμή με την αξία του και έκπτωση 100 % */
 export interface QuoteGift { promotionId: string; code: string; version: number; label: string; productId: string; variantId: string; title: string; brand: string; image: string | null; erpCode: string; qty: number; value: number }
 export interface Quote {
   lines: QuoteLine[]; missing: string[]; gifts: QuoteGift[]; hints: string[];
   freeShipping: { promotionId: string; code: string; version: number; label: string; saved: number } | null;
-  goods: number; addons: number; discPrice: number; discCoupon: number; shipping: number; codFee: number; total: number; vat: number;
+  goods: number; addons: number; discPrice: number; discCoupon: number; discPayment: number; payment: EngineResult["payment"]; shipping: number; codFee: number; total: number; vat: number;
   coupon: { applied: string | null; message: string | null };
   trace: EngineResult["trace"]; freeShippingFrom: number;
   /** για την παραγγελία: ποσά ανά προσφορά */
@@ -103,8 +104,11 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const productOf = new Map(variants.map((v) => [v.id, v.productId]));
   const items = (cart?.lines ?? []).flatMap((l) => (productOf.get(l.variantId) ? [{ key: l.id, productId: productOf.get(l.variantId)!, qty: l.qty }] : []));
   const [{ lines, missing }, promos, coupon, uses, isNew, rules, policy] = await Promise.all([linesFor(items), activePromos(), resolveCoupon(input.coupon, who), usesByPromo(who), isNewCustomer(who), shippingRules(), getPromoPolicy()]);
+  // κοινά πελατών: υπολογίζονται μόνο αν κάποια προσφορά τα χρειάζεται
+  const needSeg = !!me && promos.some((p) => p.rules?.segments?.length || p.rules?.earlyAccess?.segments.length);
+  const segments = needSeg ? await segmentsOf(me!.id) : [];
   const engine = evaluate(lines, promos, {
-    now: new Date(), customer: { id: who.customerId, email: who.email, registered: !!me, isNew, usesByPromo: uses },
+    now: new Date(), customer: { id: who.customerId, email: who.email, registered: !!me, isNew, usesByPromo: uses, segments },
     channel: input.delivery === "click-collect" ? "click-collect" : "online", zip: input.zip ?? null, payment: input.payment ?? null, delivery: input.delivery ?? null,
     coupon, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block",
   });
@@ -126,7 +130,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const out: QuoteLine[] = engine.lines.map((l) => {
     const info = lines.find((x) => x.key === l.key)!;
     const { categoryIds: _c, ...rest } = info; void _c;
-    return { ...rest, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, total: l.total, unitFinal: l.unitFinal, lowest30: low.get(l.variantId) ?? null, labels: l.adjustments.map((a) => a.label), addons: addonsOf.get(l.key) ?? [] };
+    return { ...rest, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, discPayment: l.discPayment, total: l.total, unitFinal: l.unitFinal, lowest30: low.get(l.variantId) ?? null, labels: l.adjustments.map((a) => a.label), addons: addonsOf.get(l.key) ?? [] };
   });
   // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
@@ -138,7 +142,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const total = goods + shipping + codFee;
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

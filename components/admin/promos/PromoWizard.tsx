@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useTransition, type ReactNode } from "rea
 import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkles, ChevronLeft, ChevronRight, Ban } from "lucide-react";
 import type { PromoDraft, DraftAnalysis } from "@/lib/promo/admin";
 import type { PromoTarget } from "@/lib/promo/engine";
-import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, autoLabel, describePromo, type PromoStatus } from "@/lib/promo/catalog";
+import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, PAYMENT_OPTIONS, autoLabel, describePromo, type PromoStatus } from "@/lib/promo/catalog";
 import { HelpPanel, Hint } from "./Help";
 import { STEP_HELP } from "@/lib/promo/help";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
@@ -14,7 +14,7 @@ import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } 
 type Svc = { slug: string; title: string; price: number };
 const STEPS = ["Πρότυπο", "Προϊόντα", "Κανόνες", "Εμφάνιση", "Έλεγχος"] as const;
 const GROUPS: { key: string; label: string }[] = [
-  { key: "price", label: "Έκπτωση τιμής" }, { key: "qty", label: "Πολλά τεμάχια" }, { key: "extra", label: "Παροχές" }, { key: "coupon", label: "Κουπόνια" }, { key: "held", label: "Ανενεργά μέχρι διευκρίνιση" },
+  { key: "price", label: "Έκπτωση τιμής" }, { key: "qty", label: "Πολλά τεμάχια" }, { key: "extra", label: "Παροχές" }, { key: "coupon", label: "Κουπόνια" }, { key: "payment", label: "Τρόπος πληρωμής" }, { key: "held", label: "Ανενεργά μέχρι διευκρίνιση" },
 ];
 const toEur = (c?: number | null) => (c == null ? "" : String(c / 100));
 const toCents = (s: string) => { const v = Number(s.replace(",", ".")); return Number.isFinite(v) && s.trim() !== "" ? Math.round(v * 100) : undefined; };
@@ -30,7 +30,7 @@ function Field({ l, children, hint, info }: { l: string; children: ReactNode; hi
 }
 
 /** Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι. */
-export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, startStep = 0 }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; startStep?: number }) {
+export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], startStep = 0 }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; startStep?: number }) {
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
@@ -119,7 +119,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
         {step === 2 && (
           <div className="grid gap-5">
-            <RewardFields d={d} setReward={setReward} />
+            <RewardFields d={d} setReward={setReward} setRules={setRules} />
             <p className="m-0 rounded-xl bg-eu-surface px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed">
               Ισχύει για{" "}
               <select aria-label="Πελάτες" value={d.rules.customers ?? "all"} onChange={(e) => setRules({ customers: e.target.value as "all" })} className="inline rounded-lg border-2 border-eu-line px-2 min-h-10 bg-white font-bold">
@@ -144,6 +144,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               <Field info="budget" l="Budget (€)" hint="Όταν εξαντληθεί, η προσφορά σταματά μόνη της."><input inputMode="decimal" className={input} value={d.budgetEur ?? ""} onChange={(e) => set({ budgetEur: Number(e.target.value.replace(",", ".")) || null })} placeholder="χωρίς όριο" /></Field>
               <Field info="priority" l="Προτεραιότητα" hint="Μικρότερος αριθμός = εξετάζεται πρώτη"><input inputMode="numeric" className={input} value={d.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></Field>
             </div>
+            <SegmentRules d={d} setRules={setRules} segments={segments} />
             <fieldset className="m-0 p-0 border-0 grid gap-2">
               <legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1 inline-flex items-center gap-1">Μαζί με άλλες προσφορές <Hint k="stacking" /></legend>
               {(Object.keys(STACKING_LABEL) as (keyof typeof STACKING_LABEL)[]).map((k) => (
@@ -229,7 +230,8 @@ function termsFor(d: PromoDraft, summary: string) {
   return parts.filter(Boolean).join(" ");
 }
 
-function RewardFields({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void }) {
+function RewardFields({ d, setReward, setRules }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; setRules: (p: Partial<PromoDraft["rules"]>) => void }) {
+
   const r = d.reward;
   const num = (v: string) => Number(v.replace(",", ".")) || undefined;
   switch (d.mechanism) {
@@ -258,6 +260,22 @@ function RewardFields({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<
         </div>
       );
     }
+    case "together":
+      return (
+        <div className="flex flex-wrap gap-3 items-end">
+          <Field l="Έκπτωση στο συνοδευτικό" info="together"><select className={`${input} w-40`} value={r.percent != null ? "pct" : "amt"} onChange={(e) => setReward(e.target.value === "pct" ? { percent: 30, amount: undefined } : { amount: 5000, percent: undefined })}><option value="pct">ποσοστό %</option><option value="amt">ποσό €</option></select></Field>
+          {r.percent != null ? <Field l="%"><input inputMode="decimal" className={`${input} w-28`} value={r.percent ?? ""} onChange={(e) => setReward({ percent: num(e.target.value) })} /></Field> : <Field l="€ ανά τεμάχιο"><input inputMode="decimal" className={`${input} w-32`} value={toEur(r.amount)} onChange={(e) => setReward({ amount: toCents(e.target.value) })} /></Field>}
+        </div>
+      );
+    case "bundle":
+      return <Field l="Τιμή πακέτου (€, με ΦΠΑ)" info="bundle" hint="Τα προϊόντα του πακέτου τα διαλέγεις στο βήμα «Προϊόντα»."><input inputMode="decimal" className={`${input} max-w-40`} value={toEur(r.bundlePrice)} onChange={(e) => setReward({ bundlePrice: toCents(e.target.value) })} /></Field>;
+    case "payment-percent": case "payment-amount":
+      return (
+        <div className="grid gap-3">
+          <Field l={d.mechanism === "payment-percent" ? "Έκπτωση (%)" : "Έκπτωση (€)"} info="paymentDiscount">{d.mechanism === "payment-percent" ? <input inputMode="decimal" className={`${input} max-w-40`} value={r.percent ?? ""} onChange={(e) => setReward({ percent: num(e.target.value) })} /> : <input inputMode="decimal" className={`${input} max-w-40`} value={toEur(r.amount)} onChange={(e) => setReward({ amount: toCents(e.target.value) })} />}</Field>
+          <PaymentPick d={d} setRules={setRules} />
+        </div>
+      );
     case "gift":
       return <Field l="Τεμάχια δώρου"><input inputMode="numeric" className={`${input} max-w-32`} value={r.giftQty ?? 1} onChange={(e) => setReward({ giftQty: Number(e.target.value) || 1 })} /></Field>;
     default:
@@ -307,7 +325,9 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
 
   return (
     <div className="grid gap-5">
-      {d.mechanism === "special-price" ? (
+      {d.mechanism === "bundle" ? (
+        <BundleItems d={d} setReward={setReward} names={names} setNames={setNames} />
+      ) : d.mechanism === "special-price" ? (
         <div className="grid gap-3">
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Πρόσθεσε προϊόντα και γράψε την τελική τιμή (με ΦΠΑ). Για πολλά προϊόντα χρησιμοποίησε την <Link href="/admin/prosfores/excel" className="font-bold text-eu-blue hover:underline">εισαγωγή από Excel</Link>.</p>
           <Picker kind="product" placeholder="Αναζήτηση προϊόντος: τίτλος, κωδικός, EAN" onPick={(x) => { setNames((n) => ({ ...n, [x.id]: `${x.label} · ${x.sub ?? ""}` })); if (!(x.id in (d.reward.price ?? {}))) setReward({ price: { ...(d.reward.price ?? {}), [x.id]: 0 } }); }} />
@@ -351,11 +371,12 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
                 </div>
               );
             })}
-            {!d.targets.length && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{d.mechanism.startsWith("coupon") || d.mechanism === "shipping" ? "Χωρίς στόχους ισχύει σε όλο το καλάθι." : "Διάλεξε τουλάχιστον μία κατηγορία, μάρκα ή προϊόν."}</p>}
+            {!d.targets.length && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{d.mechanism.startsWith("coupon") || d.mechanism.startsWith("payment") || d.mechanism === "shipping" ? "Χωρίς στόχους ισχύει σε όλο το καλάθι." : "Διάλεξε τουλάχιστον μία κατηγορία, μάρκα ή προϊόν."}</p>}
           </div>
         </>
       )}
 
+      {d.mechanism === "together" && <Companions d={d} setReward={setReward} names={names} setNames={setNames} />}
       {d.mechanism === "gift" && (
         <div className="grid gap-2 rounded-2xl border-2 border-dashed border-eu-green/50 p-4">
           <span className="font-extrabold text-eu-green text-[length:var(--fs-14)]">Προϊόν-δώρο {d.reward.giftProductId && <span className="text-eu-ink">· {names[d.reward.giftProductId] ?? d.reward.giftProductId}</span>}</span>
@@ -419,5 +440,65 @@ function ReviewStep({ d, a, summary, canApprove }: { d: PromoDraft; a: DraftAnal
         ) : <p className="m-0 inline-flex items-center gap-1.5 text-eu-green font-bold text-[length:var(--fs-14)]"><Check className="size-4" aria-hidden /> Καμία επικάλυψη στο ίδιο διάστημα.</p>}
       </div>
     </div>
+  );
+}
+
+/** Κοινά πελατών και early access (βήμα «Κανόνες»). */
+function SegmentRules({ d, setRules, segments }: { d: PromoDraft; setRules: (p: Partial<PromoDraft["rules"]>) => void; segments: { id: string; label: string }[] }) {
+  const sel = d.rules.segments ?? [];
+  const ea = d.rules.earlyAccess;
+  if (!segments.length) return <p className="m-0 rounded-xl bg-eu-surface px-4 py-3 text-eu-ink-3 text-[length:var(--fs-14)]">Για στοχευμένη προσφορά ή early access φτιάξε πρώτα ένα <Link href="/admin/prosfores/koina" className="font-bold text-eu-blue hover:underline">κοινό πελατών</Link>.</p>;
+  return (
+    <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3">
+      <fieldset className="m-0 rounded-xl border border-eu-line p-3 grid gap-1.5"><legend className="px-1 font-bold text-eu-ink-2 text-[length:var(--fs-14)] inline-flex items-center gap-1">Μόνο για τα κοινά <Hint k="segments" /></legend>
+        <div className="flex flex-wrap gap-1.5">{segments.map((s) => { const on = sel.includes(s.id); return <button key={s.id} type="button" aria-pressed={on} onClick={() => setRules({ segments: on ? sel.filter((x) => x !== s.id) : [...sel, s.id] })} className={`rounded-full px-3 min-h-10 text-[length:var(--fs-13)] font-semibold border ${on ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line"}`}>{s.label}</button>; })}</div>
+        <span className="text-eu-muted text-[length:var(--fs-13)]">{sel.length ? "Μόνο μέλη αυτών των κοινών." : "Κανένα = για όλους."}</span>
+      </fieldset>
+      <fieldset className="m-0 rounded-xl border border-eu-line p-3 grid gap-1.5"><legend className="px-1 font-bold text-eu-ink-2 text-[length:var(--fs-14)] inline-flex items-center gap-1">Early access <Hint k="earlyAccess" /></legend>
+        <div className="flex flex-wrap gap-1.5">{segments.map((s) => { const on = !!ea?.segments.includes(s.id); return <button key={s.id} type="button" aria-pressed={on} onClick={() => { const next = on ? (ea?.segments ?? []).filter((x) => x !== s.id) : [...(ea?.segments ?? []), s.id]; setRules({ earlyAccess: next.length ? { segments: next, hours: ea?.hours ?? 24 } : undefined }); }} className={`rounded-full px-3 min-h-10 text-[length:var(--fs-13)] font-semibold border ${on ? "bg-eu-blue text-white border-eu-blue" : "border-eu-line"}`}>{s.label}</button>; })}</div>
+        {ea && <label className="inline-flex items-center gap-2 text-[length:var(--fs-14)] font-bold text-eu-ink-2">ώρες νωρίτερα <input inputMode="numeric" className={`${input} w-24`} value={ea.hours} onChange={(e) => setRules({ earlyAccess: { ...ea, hours: Math.max(1, Math.min(720, Number(e.target.value) || 24)) } })} /></label>}
+        {ea && !d.startsAt && <span className="text-eu-amber font-semibold text-[length:var(--fs-13)]">Βάλε ημερομηνία έναρξης — το early access μετρά από αυτήν.</span>}
+      </fieldset>
+    </div>
+  );
+}
+
+/** «Μαζί φθηνότερα»: τα συνοδευτικά (κατηγορία / μάρκα / προϊόν). */
+function Companions({ d, setReward, names, setNames }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: (f: (n: Record<string, string>) => Record<string, string>) => void }) {
+  const [kind, setKind] = useState<"product" | "brand" | "category">("category");
+  const w = d.reward.with ?? [];
+  return (
+    <div className="grid gap-2 rounded-2xl border-2 border-dashed border-eu-blue/40 p-4">
+      <span className="font-extrabold text-eu-blue text-[length:var(--fs-14)] inline-flex items-center gap-1">Συνοδευτικά (γίνονται φθηνότερα) <Hint k="together" /></span>
+      <div className="flex flex-wrap gap-2">{(["category", "brand", "product"] as const).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] border-2 ${kind === k ? "border-eu-blue bg-eu-blue text-white" : "border-eu-line"}`}>{k === "category" ? "Κατηγορία" : k === "brand" ? "Μάρκα" : "Προϊόν"}</button>)}</div>
+      <Picker key={kind} kind={kind} placeholder="Συνοδευτικό: κατηγορία, μάρκα ή προϊόν" onPick={(x) => { setNames((n) => ({ ...n, [x.id]: x.label })); if (!w.some((t) => t.refId === x.id)) setReward({ with: [...w, { kind, refId: x.id, exclude: false }] }); }} />
+      <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">{w.map((t) => <li key={t.refId} className="inline-flex items-center gap-1 rounded-full bg-eu-chip text-eu-navy pl-3 pr-1 min-h-10 text-[length:var(--fs-14)] font-semibold">{names[t.refId] ?? t.refId}<button type="button" aria-label="Αφαίρεση" onClick={() => setReward({ with: w.filter((x) => x.refId !== t.refId) })} className="size-9 grid place-items-center rounded-full hover:bg-black/5"><X className="size-4" aria-hidden /></button></li>)}</ul>
+    </div>
+  );
+}
+
+/** Πακέτο: τα προϊόντα και πόσα τεμάχια από το καθένα. */
+function BundleItems({ d, setReward, names, setNames }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: (f: (n: Record<string, string>) => Record<string, string>) => void }) {
+  const items = d.reward.bundle ?? [];
+  return (
+    <div className="grid gap-3">
+      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] inline-flex items-center gap-1">Πρόσθεσε τα προϊόντα του πακέτου. Ο πελάτης πρέπει να τα έχει όλα στο καλάθι. <Hint k="bundle" /></p>
+      <Picker kind="product" placeholder="Αναζήτηση προϊόντος για το πακέτο" onPick={(x) => { setNames((n) => ({ ...n, [x.id]: `${x.label} · ${x.sub ?? ""}` })); if (!items.some((i) => i.productId === x.id)) setReward({ bundle: [...items, { productId: x.id, qty: 1 }] }); }} />
+      <ul className="m-0 p-0 list-none grid gap-2">{items.map((i) => (
+        <li key={i.productId} className="flex flex-wrap items-center gap-2 rounded-xl border border-eu-line p-2 pl-3">
+          <span className="flex-1 min-w-[200px] text-[length:var(--fs-14)] font-semibold">{names[i.productId] ?? i.productId}</span>
+          <label className="inline-flex items-center gap-1 text-[length:var(--fs-14)]">τεμ. <input inputMode="numeric" className={`${input} w-20`} value={i.qty} onChange={(e) => setReward({ bundle: items.map((x) => (x.productId === i.productId ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)) })} /></label>
+          <button type="button" aria-label="Αφαίρεση" onClick={() => setReward({ bundle: items.filter((x) => x.productId !== i.productId) })} className="size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-4" aria-hidden /></button>
+        </li>
+      ))}</ul>
+    </div>
+  );
+}
+
+function PaymentPick({ d: dd, setRules }: { d: PromoDraft; setRules: (p: Partial<PromoDraft["rules"]>) => void }) {
+  return (
+    <fieldset className="m-0 p-0 border-0 grid gap-1"><legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1 inline-flex items-center gap-1">Με ποιους τρόπους πληρωμής <Hint k="payment" /></legend>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">{PAYMENT_OPTIONS.map((o) => { const on = !!dd.rules.payment?.includes(o.value); return <label key={o.value} className="inline-flex items-center gap-1.5 min-h-11 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 accent-eu-navy" checked={on} onChange={(e) => setRules({ payment: e.target.checked ? [...(dd.rules.payment ?? []), o.value] : (dd.rules.payment ?? []).filter((x) => x !== o.value) })} />{o.label}</label>; })}</div>
+    </fieldset>
   );
 }

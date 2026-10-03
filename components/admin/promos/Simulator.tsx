@@ -8,11 +8,11 @@ const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[len
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /** Καλάθι δοκιμής → αποτέλεσμα της μηχανής με το ίχνος κάθε προσφοράς. */
-export function Simulator() {
+export function Simulator({ segments = [] }: { segments?: { id: string; label: string }[] }) {
   const [items, setItems] = useState<{ productId: string; title: string; qty: number }[]>([]);
   const [q, setQ] = useState("");
   const [found, setFound] = useState<{ id: string; label: string; sub?: string }[]>([]);
-  const [opts, setOpts] = useState<Omit<SimInput, "items">>({ coupon: null, customer: "guest", zip: null, payment: "card", delivery: "courier", at: null, drafts: true });
+  const [opts, setOpts] = useState<Omit<SimInput, "items">>({ coupon: null, customer: "guest", zip: null, payment: "card", delivery: "courier", at: null, drafts: true, segments: [] });
   const [res, setRes] = useState<SimResult | null>(null);
   const [busy, start] = useTransition();
   const search = (v: string) => { setQ(v); if (v.trim().length >= 2) void searchTargetsAction("product", v).then(setFound); else setFound([]); };
@@ -53,6 +53,11 @@ export function Simulator() {
           <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Παράδοση</span><select className={input} value={opts.delivery} onChange={(e) => set({ delivery: e.target.value as SimInput["delivery"] })}><option value="courier">Αποστολή</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option></select></label>
           <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Πληρωμή</span><select className={input} value={opts.payment ?? ""} onChange={(e) => set({ payment: e.target.value })}>{["card", "no-card", "iris", "bank", "cod", "store", "apple", "google"].map((p) => <option key={p} value={p}>{p}</option>)}</select></label>
         </div>
+        {segments.length > 0 && opts.customer !== "guest" && (
+          <div className="grid gap-1.5"><span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Ο πελάτης ανήκει στα κοινά</span>
+            <div className="flex flex-wrap gap-1.5">{segments.map((s) => { const on = !!opts.segments?.includes(s.id); return <button key={s.id} type="button" aria-pressed={on} onClick={() => set({ segments: on ? (opts.segments ?? []).filter((x) => x !== s.id) : [...(opts.segments ?? []), s.id] })} className={`rounded-full px-3 min-h-10 text-[length:var(--fs-13)] font-semibold border ${on ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line"}`}>{s.label}</button>; })}</div>
+          </div>
+        )}
         <label className="inline-flex items-center gap-2 text-[length:var(--fs-14)] font-bold text-eu-ink-2 min-h-11"><input type="checkbox" checked={opts.drafts} onChange={(e) => set({ drafts: e.target.checked })} className="size-5 accent-eu-navy" /> Και μη δημοσιευμένες (πρόχειρες, σε αναμονή, σε παύση)</label>
         <button type="button" disabled={busy || !items.length} onClick={run} className="justify-self-start inline-flex items-center gap-2 rounded-full bg-eu-navy text-white px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-blue disabled:opacity-40"><Play className="size-4" aria-hidden /> {busy ? "Υπολογισμός…" : "Υπολογισμός"}</button>
       </section>
@@ -73,6 +78,7 @@ export function Simulator() {
                 <tr className="border-t-2 border-eu-line font-extrabold"><td className="py-2">Σύνολο</td><td className="py-2 text-right tabular-nums">{eur(res.listTotal)}</td><td className="py-2 text-right tabular-nums text-eu-green">−{eur(res.discPrice)}</td><td className="py-2 text-right tabular-nums text-eu-green">−{eur(res.discCoupon)}</td><td className="py-2 text-right tabular-nums">{eur(res.total)}</td></tr>
               </tbody>
             </table>
+            {res.discPayment > 0 && <p className="m-0 font-semibold text-eu-green text-[length:var(--fs-14)]">Έκπτωση πληρωμής (DISC3): −{eur(res.discPayment)} · πληρωτέο {eur(res.total)}</p>}
             {res.couponMessage && <p className={`m-0 font-semibold text-[length:var(--fs-14)] ${res.couponApplied ? "text-eu-green" : "text-eu-red"}`}>{res.couponMessage}</p>}
             <ul className="m-0 p-0 list-none grid gap-1.5 text-[length:var(--fs-14)]">
               {res.gifts.map((g) => <li key={g.label} className="flex items-center gap-2 text-eu-green font-semibold"><Gift className="size-4" aria-hidden /> {g.label}: {g.qty} × {g.title}</li>)}

@@ -27,7 +27,7 @@ export const STACKING_LABEL: Record<Stacking, { label: string; help: string }> =
 export interface PromoTemplate {
   key: string;
   mechanism: string;
-  group: "price" | "qty" | "extra" | "coupon" | "held";
+  group: "price" | "qty" | "extra" | "coupon" | "payment" | "held";
   title: string;
   blurb: string;
   example: string;
@@ -45,18 +45,27 @@ export const TEMPLATES: PromoTemplate[] = [
   { key: "nplusm", mechanism: "n-plus-m", group: "qty", title: "1+1 / 2+1", blurb: "Το φθηνότερο της ομάδας δωρεάν.", example: "2+1 σε όλα τα μικροέπιπλα κουζίνας", reward: { buy: 2, get: 1 }, stacking: "no-price" },
   { key: "nth", mechanism: "nth-discount", group: "qty", title: "2ο −Χ %", blurb: "Έκπτωση στο δεύτερο (ή τρίτο) τεμάχιο.", example: "2ο τεμάχιο −50 %", reward: { nth: 2, percent: 50 }, stacking: "no-price" },
   { key: "tiers", mechanism: "qty-tiers", group: "qty", title: "Κλιμακωτή ποσότητα", blurb: "Περισσότερα τεμάχια, μεγαλύτερη έκπτωση.", example: "−5 % από 2, −10 % από 4 τεμάχια", reward: { tiers: [{ minQty: 2, percent: 5 }, { minQty: 4, percent: 10 }] }, stacking: "no-price" },
+  { key: "together", mechanism: "together", group: "qty", title: "Μαζί φθηνότερα", blurb: "Με το βασικό, το συνοδευτικό με έκπτωση.", example: "Τηλεόραση + soundbar: −30 % στο soundbar", reward: { percent: 30, with: [] }, stacking: "no-price" },
+  { key: "bundle", mechanism: "bundle", group: "qty", title: "Πακέτο σε σταθερή τιμή", blurb: "Συγκεκριμένα προϊόντα μαζί, μία τιμή.", example: "Πλυντήριο + στεγνωτήριο στα 999 €", reward: { bundle: [], bundlePrice: 0 }, stacking: "no-price" },
   { key: "gift", mechanism: "gift", group: "extra", title: "Δώρο με αγορά", blurb: "Προϊόν-δώρο στο καλάθι, με αξία και 0 €.", example: "Δώρο ηχείο με κάθε τηλεόραση από 699 €", reward: { giftQty: 1 }, stacking: "combine" },
   { key: "service", mechanism: "service", group: "extra", title: "Δωρεάν υπηρεσία", blurb: "Επέκταση εγγύησης, ανακύκλωση, φύλαξη…", example: "Δωρεάν επέκταση εγγύησης σε πλυντήρια", reward: { serviceSlug: "epektasi-eggyisis" }, stacking: "combine" },
   { key: "shipping", mechanism: "shipping", group: "extra", title: "Δωρεάν μεταφορικά", blurb: "Για συγκεκριμένα προϊόντα ή από ένα ποσό.", example: "Δωρεάν μεταφορικά σε όλα τα ψυγεία", reward: {}, stacking: "combine" },
   { key: "coupon-amount", mechanism: "coupon-amount", group: "coupon", title: "Κουπόνι σε €", blurb: "Κοινός ή μοναδικοί κωδικοί, στο καλάθι.", example: "WELCOME10: −10 € από 99 €", reward: { amount: 1000 }, rules: { minValue: 9900 }, stacking: "no-price" },
   { key: "coupon-percent", mechanism: "coupon-percent", group: "coupon", title: "Κουπόνι %", blurb: "Ποσοστό στο καλάθι.", example: "NEWS5: −5 % στην επόμενη αγορά", reward: { percent: 5 }, stacking: "no-price" },
+  { key: "pay-percent", mechanism: "payment-percent", group: "payment", title: "Έκπτωση τρόπου πληρωμής %", blurb: "Για συγκεκριμένο τρόπο πληρωμής, στο checkout.", example: "−3 % με IRIS ή τραπεζική κατάθεση", reward: { percent: 3 }, rules: { payment: ["iris"] }, stacking: "combine" },
+  { key: "pay-amount", mechanism: "payment-amount", group: "payment", title: "Έκπτωση τρόπου πληρωμής €", blurb: "Σταθερό ποσό για τρόπο πληρωμής.", example: "−10 € με πληρωμή στο κατάστημα", reward: { amount: 1000 }, rules: { payment: ["store"] }, stacking: "combine" },
   { key: "installation", mechanism: "service", group: "held", title: "Δωρεάν εγκατάσταση", blurb: "Υποδομή έτοιμη — εξαρτάται από τα συνεργεία και τον τρόπο χρέωσης.", example: "Δωρεάν εγκατάσταση κλιματιστικού", reward: { serviceSlug: "paradosi-egkatastasi" }, stacking: "combine", held: "Αναμένονται οδηγίες για συνεργεία, ζώνες και χρέωση." },
   { key: "voucher", mechanism: "coupon-amount", group: "held", title: "Δωροεπιταγή", blurb: "Αγορά και εξαργύρωση δωροεπιταγών.", example: "Δωροεπιταγή 50 €", reward: { amount: 5000 }, stacking: "combine", held: "Χρειάζεται διευκρίνιση λογιστικού χειρισμού (έσοδο / προκαταβολή)." },
+  { key: "giveaway", mechanism: "gift", group: "held", title: "Giveaway", blurb: "Δωρεάν συμμετοχή χωρίς αγορά (social / site).", example: "Κέρδισε μια τηλεόραση — δήλωσε συμμετοχή", reward: {}, stacking: "combine", held: "Χρειάζεται νομικό έλεγχο (όροι διαγωνισμού, GDPR, ανάδειξη νικητή)." },
   { key: "raffle", mechanism: "gift", group: "held", title: "Κλήρωση / διαγωνισμός", blurb: "Συμμετοχή με αγορά.", example: "Κλήρωση για ταξίδι με κάθε αγορά από 300 €", reward: {}, stacking: "combine", held: "Χρειάζεται νομικό έλεγχο (όροι, άδεια, GDPR)." },
   { key: "bank", mechanism: "price-percent", group: "held", title: "Προσφορές τραπεζών / άτοκες / cashback", blurb: "Έκπτωση ή άτοκες με συγκεκριμένη κάρτα.", example: "−10 % με κάρτα της τράπεζας Χ", reward: { percent: 10 }, rules: { payment: ["card"] }, stacking: "combine", held: "Αναμένονται συμφωνίες με τις τράπεζες και ο τρόπος αναγνώρισης κάρτας (BIN)." },
 ];
 
 export const MECHANISM_LABEL: Record<string, string> = Object.fromEntries(TEMPLATES.filter((t) => t.group !== "held").map((t) => [t.mechanism, t.title]));
+
+const PAY: Record<string, string> = { card: "κάρτα", "no-card": "δόσεις χωρίς κάρτα", iris: "IRIS", bank: "τραπεζική κατάθεση", cod: "αντικαταβολή", store: "πληρωμή στο κατάστημα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut" };
+export const PAYMENT_OPTIONS = Object.entries(PAY).map(([value, label]) => ({ value, label }));
+const payNames = (codes: string[] = []) => codes.map((c) => PAY[c] ?? c).join(" ή ") || "—";
 
 /** Η προσφορά σε μία πρόταση, όπως τη διαβάζει ο άνθρωπος (λίστα, αναφορές, οδηγός). */
 export function describePromo(p: { mechanism: string; reward: PromoReward; rules?: PromoRules | null }, names: { gift?: string; service?: string } = {}) {
@@ -75,6 +84,10 @@ export function describePromo(p: { mechanism: string; reward: PromoReward; rules
       case "shipping": return "δωρεάν μεταφορικά";
       case "coupon-percent": return `κουπόνι −${r.percent ?? 0} %`;
       case "coupon-amount": return `κουπόνι −${eur(r.amount)}`;
+      case "together": return `μαζί φθηνότερα: ${r.percent != null ? `−${r.percent} %` : `−${eur(r.amount)}`} στο συνοδευτικό`;
+      case "bundle": return `πακέτο ${(r.bundle ?? []).reduce((a, i) => a + i.qty, 0)} τεμ. στα ${eur(r.bundlePrice)}`;
+      case "payment-percent": return `−${r.percent ?? 0} % με ${payNames(rules.payment)}`;
+      case "payment-amount": return `−${eur(r.amount)} με ${payNames(rules.payment)}`;
       default: return p.mechanism;
     }
   })();
@@ -84,7 +97,9 @@ export function describePromo(p: { mechanism: string; reward: PromoReward; rules
     rules.customers === "new" ? "μόνο πρώτη αγορά" : rules.customers === "registered" ? "μόνο μέλη" : "",
     rules.channels?.length === 1 ? (rules.channels[0] === "online" ? "μόνο με αποστολή" : "μόνο παραλαβή από κατάστημα") : "",
     rules.zips?.length ? `ΤΚ ${rules.zips.slice(0, 3).join(", ")}${rules.zips.length > 3 ? "…" : ""}` : "",
-    rules.payment?.length ? `πληρωμή: ${rules.payment.join(", ")}` : "",
+    rules.payment?.length && !p.mechanism.startsWith("payment") ? `πληρωμή: ${payNames(rules.payment)}` : "",
+    rules.segments?.length ? `κοινό: ${rules.segments.length}` : "",
+    rules.earlyAccess?.segments.length ? `early access ${rules.earlyAccess.hours} ώρες` : "",
   ].filter(Boolean);
   return cond.length ? `${base} · ${cond.join(" · ")}` : base;
 }
@@ -102,6 +117,10 @@ export function autoLabel(p: { mechanism: string; reward: PromoReward; tagLabel?
     case "gift": return "Δώρο με αγορά";
     case "service": return `Δωρεάν ${serviceTitle?.toLocaleLowerCase("el-GR") ?? "υπηρεσία"}`;
     case "shipping": return "Δωρεάν μεταφορικά";
+    case "together": return "Μαζί φθηνότερα";
+    case "bundle": return `Πακέτο ${eurc(r.bundlePrice ?? 0)}`;
+    case "payment-percent": return `−${r.percent ?? 0} % με ${payNames((p as { rules?: PromoRules }).rules?.payment)}`;
+    case "payment-amount": return `−${eurc(r.amount ?? 0)} με ${payNames((p as { rules?: PromoRules }).rules?.payment)}`;
     default: return p.name;
   }
 }

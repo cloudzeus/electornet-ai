@@ -142,3 +142,46 @@ test("κουπόνι «όχι με προσφορές»: ούτε στα πλη�
   assert.equal(r.lines[3].discCoupon, 1000);
   assert.equal(r.lines[0].discCoupon + r.lines[1].discCoupon + r.lines[2].discCoupon, 0);
 });
+
+test("μαζί φθηνότερα: −30 % στο ακριβότερο συνοδευτικό, ένα ανά βασικό, και υπόδειξη", () => {
+  const p = promo({ name: "TV + soundbar", mechanism: "together", reward: { percent: 30, with: [{ kind: "category", refId: "sound", exclude: false }] }, targets: [{ kind: "category", refId: "tv", exclude: false }] });
+  const tv = line("tv", 89900, { categoryIds: ["tv"] }), sb1 = line("sb1", 29900, { categoryIds: ["sound"] }), sb2 = line("sb2", 19900, { categoryIds: ["sound"] });
+  const r = evaluate([tv, sb1, sb2], [p], ctx());
+  assert.equal(r.lines[1].discPrice, 8970); // 30 % του ακριβότερου συνοδευτικού
+  assert.equal(r.lines[2].discPrice, 0);    // μόνο ένα ανά τηλεόραση
+  assert.equal(r.lines[0].discPrice, 0);    // το βασικό κρατά την τιμή του
+  const r2 = evaluate([line("tv2", 89900, { categoryIds: ["tv"] })], [p], ctx());
+  assert.match(r2.hints[0], /συνοδευτικό/);
+});
+
+test("πακέτο σε σταθερή τιμή: η έκπτωση μοιράζεται αναλογικά, χρειάζονται όλα τα προϊόντα", () => {
+  const p = promo({ name: "Πακέτο κουζίνας", mechanism: "bundle", reward: { bundle: [{ productId: "p-a", qty: 1 }, { productId: "p-b", qty: 1 }], bundlePrice: 100000 } });
+  const r = evaluate([line("a", 80000), line("b", 40000)], [p], ctx());
+  assert.equal(r.discPrice, 20000);
+  assert.equal(r.total, 100000);
+  assert.ok(r.lines[0].discPrice > r.lines[1].discPrice);
+  const r2 = evaluate([line("a", 80000)], [p], ctx());
+  assert.equal(r2.discPrice, 0);
+  assert.match(r2.hints[0], /Ολοκλήρωσε το πακέτο/);
+});
+
+test("έκπτωση τρόπου πληρωμής: μόνο με τον σωστό τρόπο, ως ξεχωριστό ποσό (DISC3), αλλιώς υπόδειξη", () => {
+  const p = promo({ name: "IRIS −3 %", mechanism: "payment-percent", reward: { percent: 3 }, rules: { payment: ["iris"] }, stacking: "combine" });
+  const r = evaluate([line("x", 10000)], [p], ctx({ payment: "iris" }));
+  assert.equal(r.discPayment, 300);
+  assert.equal(r.total, 9700);
+  assert.equal(r.lines[0].adjustments[0].kind, "payment");
+  const r2 = evaluate([line("x", 10000)], [p], ctx({ payment: "card" }));
+  assert.equal(r2.discPayment, 0);
+  const r3 = evaluate([line("x", 10000)], [p], ctx({ payment: null }));
+  assert.match(r3.hints[0], /IRIS/);
+});
+
+test("κοινά πελατών και early access", () => {
+  const seg = promo({ reward: { percent: 10 }, rules: { segments: ["vip"] } });
+  assert.equal(evaluate([line("x", 10000)], [seg], ctx()).discPrice, 0);
+  assert.equal(evaluate([line("x", 10000)], [seg], ctx({ customer: { registered: true, isNew: false, segments: ["vip"] } })).discPrice, 1000);
+  const early = promo({ reward: { percent: 20 }, startsAt: new Date(now.getTime() + 3 * 3_600_000), rules: { earlyAccess: { segments: ["news"], hours: 24 } } });
+  assert.equal(evaluate([line("x", 10000)], [early], ctx()).discPrice, 0);
+  assert.equal(evaluate([line("x", 10000)], [early], ctx({ customer: { registered: true, isNew: false, segments: ["news"] } })).discPrice, 2000);
+});

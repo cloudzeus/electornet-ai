@@ -66,6 +66,19 @@ export function PolicyForm({ initial, coupons }: { initial: PromoPolicy; coupons
           <Num l="Ισχύς προσωπικών κουπονιών" v={p.couponValidDays} on={(n) => set({ couponValidDays: n })} suffix="ημέρες" />
         </div>
       </section>
+      <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-4">
+        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1">Αυτόματα μετά από γεγονότα <Hint text="Κάθε κουπόνι είναι προσωπικό, μίας χρήσης. Email στέλνεται μόνο σε πελάτες με λογαριασμό που έχουν δώσει συναίνεση για προωθητικά μηνύματα." /></h3>
+        <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-4">
+          {couponSelect(p.nextOrderPromotion, (v) => set({ nextOrderPromotion: v }), "Κουπόνι επόμενης αγοράς (μετά από κάθε παραγγελία)")}
+          {couponSelect(p.birthdayPromotion, (v) => set({ birthdayPromotion: v }), "Κουπόνι γενεθλίων (κάθε πρωί)")}
+        </div>
+        <div className="grid grid-cols-1 @xl:grid-cols-3 gap-4 items-end">
+          <label className="inline-flex items-center gap-2 min-h-11 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><input type="checkbox" className="size-5 accent-eu-navy" checked={p.cartReminders} onChange={(e) => set({ cartReminders: e.target.checked })} /> Υπενθύμιση εγκαταλελειμμένου καλαθιού</label>
+          <Num l="Μετά από" v={p.cartReminderHours} on={(n) => set({ cartReminderHours: n })} suffix="ώρες" hint="Μία φορά ανά καλάθι, μέσα σε 48 ώρες." />
+          {couponSelect(p.cartPromotion, (v) => set({ cartPromotion: v }), "Κουπόνι στην υπενθύμιση (προαιρετικό)")}
+        </div>
+        <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Ο κωδικός επόμενης αγοράς φαίνεται και στη σελίδα επιβεβαίωσης της παραγγελίας, και σε επισκέπτες χωρίς λογαριασμό.</p>
+      </section>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={busy} onClick={save} className="rounded-full bg-eu-navy text-white px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-blue disabled:opacity-50">{busy ? "Αποθήκευση…" : "Αποθήκευση κανόνων"}</button>
         {msg && <p role="status" className="m-0 text-eu-green font-semibold text-[length:var(--fs-14)]">{msg}</p>}

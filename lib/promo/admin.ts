@@ -66,15 +66,34 @@ export function validateDraft(d: PromoDraft): string[] {
     case "qty-tiers": if (!(r.tiers ?? []).length || (r.tiers ?? []).some((x) => !(x.minQty >= 2) || !pct(x.percent))) e.push("Κάθε κλίμακα θέλει ποσότητα από 2 και ποσοστό."); break;
     case "gift": if (!r.giftProductId) e.push("Διάλεξε το προϊόν-δώρο."); break;
     case "service": if (!services.some((s) => s.slug === r.serviceSlug)) e.push("Διάλεξε την υπηρεσία που γίνεται δωρεάν."); break;
+    case "together":
+      if (!(r.with ?? []).some((t) => !t.exclude)) e.push("Διάλεξε τα συνοδευτικά που γίνονται φθηνότερα (βήμα «Προϊόντα»).");
+      if (!(pct(r.percent) || (r.amount && r.amount > 0))) e.push("Συμπλήρωσε την έκπτωση στο συνοδευτικό.");
+      break;
+    case "bundle":
+      if ((r.bundle ?? []).length < 2) e.push("Το πακέτο θέλει τουλάχιστον 2 προϊόντα.");
+      if (!(r.bundlePrice && r.bundlePrice > 0)) e.push("Βάλε την τιμή του πακέτου.");
+      break;
+    case "payment-percent": case "payment-amount":
+      if (!(d.rules.payment ?? []).length) e.push("Διάλεξε τρόπο πληρωμής.");
+      if (d.mechanism === "payment-percent" ? !pct(r.percent) : !(r.amount && r.amount > 0)) e.push("Συμπλήρωσε την έκπτωση.");
+      break;
   }
+  if (d.rules.earlyAccess?.segments.length && !d.startsAt) e.push("Το early access θέλει ημερομηνία έναρξης.");
   if (d.mechanism.startsWith("coupon") && !d.couponCode?.trim() && !d.id) {
     // επιτρέπεται κουπόνι μόνο με μοναδικούς κωδικούς (παρτίδες / καλωσόρισμα) — απλή υπενθύμιση, όχι σφάλμα
   }
   if (d.couponCode && !/^[A-Z0-9][A-Z0-9-]{2,29}$/.test(d.couponCode.trim().toUpperCase())) e.push("Ο κωδικός κουπονιού: 3–30 λατινικά κεφαλαία, αριθμοί ή «-».");
   if (d.startsAt && d.endsAt && new Date(d.endsAt) <= new Date(d.startsAt)) e.push("Η λήξη πρέπει να είναι μετά την έναρξη.");
-  if (!d.mechanism.startsWith("coupon") && d.mechanism !== "shipping" && !d.targets.some((x) => !x.exclude) && d.mechanism !== "special-price")
+  if (!d.mechanism.startsWith("coupon") && !d.mechanism.startsWith("payment") && d.mechanism !== "shipping" && d.mechanism !== "bundle" && !d.targets.some((x) => !x.exclude) && d.mechanism !== "special-price")
     e.push("Διάλεξε σε ποια προϊόντα, μάρκες ή κατηγορίες ισχύει (για όλο το κατάστημα πρόσθεσε τη ρίζα του καταλόγου).");
   return e;
+}
+
+/** Παράγωγα πεδία: στο πακέτο οι στόχοι είναι τα προϊόντα του (για βιτρίνα, ημερολόγιο, επικαλύψεις). */
+export function normalizeDraft(d: PromoDraft): PromoDraft {
+  if (d.mechanism === "bundle") return { ...d, targets: (d.reward.bundle ?? []).map((i) => ({ kind: "product" as const, refId: i.productId, exclude: false })) };
+  return d;
 }
 
 // ---- ανάλυση: ποια προϊόντα, πόση έκπτωση, συγκρούσεις, έγκριση ----
@@ -110,18 +129,30 @@ export interface DraftAnalysis {
   errors: string[];
 }
 
-export async function analyzeDraft(d: PromoDraft): Promise<DraftAnalysis> {
+export async function analyzeDraft(d0: PromoDraft): Promise<DraftAnalysis> {
+  const d = normalizeDraft(d0);
   const [lines, policy] = await Promise.all([catalogLines(), getPromoPolicy()]);
   const me = asEngine(d);
   const special = d.mechanism === "special-price";
   const priceKeys = new Set(Object.keys(d.reward.price ?? {}));
-  const mine = lines.filter((l) => (special ? priceKeys.has(l.variantId) || priceKeys.has(l.productId) : matches(me, l)) && (special || d.targets.length > 0 || d.mechanism.startsWith("coupon") || d.mechanism === "shipping"));
+  const mine = lines.filter((l) => (special ? priceKeys.has(l.variantId) || priceKeys.has(l.productId) : matches(me, l)) && (special || d.targets.length > 0 || d.mechanism.startsWith("coupon") || d.mechanism.startsWith("payment") || d.mechanism === "shipping"));
   // έκπτωση ανά προϊόν για ένα τεμάχιο (για 1+1 κ.λπ. με την ελάχιστη ομάδα)
   const qtyFor = d.mechanism === "n-plus-m" ? (d.reward.buy ?? 1) + (d.reward.get ?? 1) : d.mechanism === "nth-discount" ? d.reward.nth ?? 2 : d.mechanism === "qty-tiers" ? Math.max(...(d.reward.tiers ?? [{ minQty: 1 }]).map((t) => t.minQty)) : 1;
   const isPrice = PRICE_MECHANISMS.includes(d.mechanism as never) || MULTI_MECHANISMS.includes(d.mechanism as never);
   let maxPct = 0, capped = 0;
   const sample: DraftAnalysis["sample"] = [];
-  if (isPrice) {
+  if (d.mechanism === "bundle") {
+    const items = d.reward.bundle ?? [];
+    const sum = items.reduce((a, i) => a + (lines.find((l) => l.productId === i.productId)?.unit ?? 0) * i.qty, 0);
+    if (sum && d.reward.bundlePrice) {
+      maxPct = Math.round(((sum - d.reward.bundlePrice) / sum) * 100);
+      sample.push({ title: `Πακέτο: ${items.map((i) => lines.find((l) => l.productId === i.productId)?.title ?? "—").join(" + ")}`, before: sum, after: d.reward.bundlePrice, pct: maxPct });
+    }
+  } else if (d.mechanism === "together") {
+    maxPct = d.reward.percent ?? 0;
+  } else if (d.mechanism.startsWith("payment")) {
+    maxPct = d.reward.percent ?? 0;
+  } else if (isPrice) {
     for (const l of mine) {
       const line = { ...l, qty: qtyFor };
       const r = evaluate([line], [me], { now: new Date(), customer: { registered: true, isNew: true }, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block" });
@@ -194,6 +225,7 @@ export interface SaveResult { ok: boolean; id?: string; code?: string; status?: 
  * «publish»: αν χρειάζεται έγκριση και ο χρήστης δεν έχει δικαίωμα έγκρισης → «Αναμένει έγκριση».
  */
 export async function savePromotion(d: PromoDraft, staff: { id: string; canApprove: boolean }, intent: SaveIntent): Promise<SaveResult> {
+  d = normalizeDraft(d);
   const errors = validateDraft(d);
   if (intent === "publish" && errors.length) return { ok: false, errors };
   if (!d.name.trim()) return { ok: false, errors: ["Δώσε όνομα στην προσφορά."] };

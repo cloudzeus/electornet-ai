@@ -61,7 +61,8 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const goods = quote ? (quote.goods + quote.addons) / 100 : localGoods;
   const discPrice = quote ? quote.discPrice / 100 : 0;
   const discCoupon = quote ? quote.discCoupon / 100 : 0;
-  const discount = discPrice + discCoupon;
+  const discPayment = quote ? quote.discPayment / 100 : 0;
+  const discount = discPrice + discCoupon + discPayment;
   const heavy = lines.some((l) => l.product.installation);
   const shipping = quote ? quote.shipping / 100 : ful !== "courier" ? 0 : localGoods >= freeShippingFrom ? 0 : 4.9;
   const codFee = quote ? quote.codFee / 100 : pay === "cod" ? 2 : 0;
@@ -137,9 +138,9 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
         fulfilment: ful, storeId: ful === "click-collect" ? storeId : null, payment: pay, instalments: inst,
         coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
       }) });
-      const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote };
+      const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; nextCoupon?: { code: string; value: string; until: string | null } | null };
       if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); setSca("idle"); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
-      const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, address: { ...f, password: "" }, recycle: f.recycle };
+      const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, address: { ...f, password: "" }, recycle: f.recycle, nextCoupon: j.nextCoupon ?? null };
       try { localStorage.setItem("euronics.lastOrder", JSON.stringify(order)); } catch {}
       clear();
       saveCoupon(null);
@@ -544,6 +545,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               <Row k="Προϊόντα & υπηρεσίες" v={priceLong(goods)} />
               {discPrice > 0 && <Row k="Προσφορές" v={`− ${priceLong(discPrice)}`} cls="text-eu-green" />}
               {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
+              {discPayment > 0 && <Row k={quote?.payment?.label ?? "Έκπτωση πληρωμής"} v={`− ${priceLong(discPayment)}`} cls="text-eu-green" />}
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
               <Row k={ful === "courier" ? "Μεταφορικά" : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               {codFee > 0 && <Row k="Αντικαταβολή" v={priceLong(codFee)} />}

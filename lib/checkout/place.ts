@@ -82,7 +82,7 @@ export async function placeOrder(input: PlaceInput) {
         if (!(await tx.order.findUnique({ where: { number: n }, select: { id: true } }))) number = n;
       }
       if (!number) throw new Abort("Δεν δημιουργήθηκε αριθμός παραγγελίας. Δοκίμασε ξανά.");
-      const discountTotal = q.discPrice + q.discCoupon;
+      const discountTotal = q.discPrice + q.discCoupon + q.discPayment;
       const order = await tx.order.create({
         data: {
           number, customerId: me?.id ?? null, guestEmail: me ? null : email, status: "pending", fulfilment: input.fulfilment, pickupStoreId: input.fulfilment === "click-collect" ? input.storeId : null,
@@ -98,7 +98,7 @@ export async function placeOrder(input: PlaceInput) {
         const ol = await tx.orderLine.create({
           data: {
             orderId: order.id, variantId: l.variantId, title: `${info.brand} ${info.title}`, qty: l.qty, unitPrice: eur(l.unitFinal), listPrice: eur(l.unit),
-            discPrice: eur(l.discPrice), discCoupon: eur(l.discCoupon), lineTotal: eur(l.total), erpCode: info.erpCode,
+            discPrice: eur(l.discPrice), discCoupon: eur(l.discCoupon), discPayment: eur(l.discPayment), lineTotal: eur(l.total), erpCode: info.erpCode,
             promotions: l.adjustments.map((a) => ({ promotionId: a.promotionId, code: a.code, version: a.version, kind: a.kind, amount: a.amount, label: a.label })) as Prisma.InputJsonValue,
             addons: info.addons.length ? { create: info.addons.map((a) => ({ serviceId: svcIds.get(a.slug)!, price: eur(a.price * l.qty) })) } : undefined,
           },
@@ -135,7 +135,7 @@ export async function placeOrder(input: PlaceInput) {
       // παραστατικό SoftOne: χτίζεται πάντα, αποθηκεύεται σε «προεπισκόπηση» — καμία κλήση στο ERP από εδώ
       const doc = await buildSaldoc({
         number, customerTrdr: me ? ((await tx.customer.findUnique({ where: { id: me.id }, select: { erpTrdr: true } }))?.erpTrdr ?? null) : null, email, fulfilment: input.fulfilment, payment: input.payment,
-        lines: q.engine.lines.map((l) => { const info = q.lines.find((x) => x.key === l.key)!; return { erpCode: info.erpCode, title: info.title, qty: l.qty, listPrice: l.unit / 100, discPrice: l.discPrice / 100, discCoupon: l.discCoupon / 100, discPayment: 0, isGift: false, promotions: l.adjustments.map((a) => ({ code: a.code, version: a.version, kind: a.kind, label: a.label })), terms: l.adjustments.map((a) => termsOf.get(a.promotionId)).filter(Boolean).join(" · ") || null }; }),
+        lines: q.engine.lines.map((l) => { const info = q.lines.find((x) => x.key === l.key)!; return { erpCode: info.erpCode, title: info.title, qty: l.qty, listPrice: l.unit / 100, discPrice: l.discPrice / 100, discCoupon: l.discCoupon / 100, discPayment: l.discPayment / 100, isGift: false, promotions: l.adjustments.map((a) => ({ code: a.code, version: a.version, kind: a.kind, label: a.label })), terms: l.adjustments.map((a) => termsOf.get(a.promotionId)).filter(Boolean).join(" · ") || null }; }),
         services: q.lines.flatMap((l) => l.addons.map((a) => ({ slug: a.slug, title: a.title, price: (a.value * l.qty) / 100, discount: a.free ? (a.value * l.qty) / 100 : 0, promo: a.free ? `${a.free.code} v${a.free.version}` : null, erpCode: null }))),
         gifts: q.gifts.map((g) => ({ erpCode: g.erpCode, title: g.title, qty: g.qty, value: g.value / 100, promo: `${g.code} v${g.version}`, terms: termsOf.get(g.promotionId) ?? null })),
       });
@@ -152,13 +152,25 @@ export async function placeOrder(input: PlaceInput) {
       const tpl = await renderTemplate("order-confirmation", {
         firstName: input.contact.firstName, number,
         lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
-        subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
+        subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
         payment: input.payment, fulfilment: input.fulfilment, address: [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
         ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : "1–3 εργάσιμες",
       }).catch(() => null);
       if (tpl) await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: result.orderId } }).catch(() => null);
     })();
-    return { ok: true as const, number, total: q.total };
+    // κουπόνι επόμενης αγοράς (αν το έχει ορίσει ο υπεύθυνος προσφορών): φαίνεται στη σελίδα επιτυχίας·
+    // email μόνο σε πελάτη με λογαριασμό που έχει δώσει συναίνεση για προωθητικά
+    let nextCoupon: { code: string; value: string; until: string | null } | null = null;
+    try {
+      const { issueTriggerCoupon, marketingAllowed, couponValueLabel } = await import("@/lib/promo/issue");
+      const send = me ? (await marketingAllowed([me.id])).has(me.id) : false;
+      const r = await issueTriggerCoupon("next-order", { email, customerId: me?.id ?? null, firstName: input.contact.firstName }, { send });
+      if (r?.ok) {
+        const promo = await db.promotion.findUnique({ where: { id: r.coupon.promotionId }, select: { mechanism: true, reward: true } });
+        nextCoupon = { code: r.coupon.code, value: promo ? couponValueLabel(promo) : "", until: r.coupon.expiresAt ? r.coupon.expiresAt.toLocaleDateString("el-GR", { day: "numeric", month: "long" }) : null };
+      }
+    } catch { /* ποτέ δεν μπλοκάρει την παραγγελία */ }
+    return { ok: true as const, number, total: q.total, nextCoupon };
   } catch (e) {
     if (e instanceof Abort && e.reason === "dry-run") return { ok: true as const, dryRun: true, ...(e as Abort & { preview: object }).preview };
     if (e instanceof Abort) { invalidatePromos(); return { ok: false as const, error: e.reason, quote: publicQuote(await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, zip: input.address?.zip ?? null, email })) }; }

@@ -28,7 +28,11 @@ export function couponValueLabel(p: { mechanism: string; reward: unknown }) {
   return p.mechanism === "coupon-percent" ? `${r.percent ?? 0} % έκπτωση` : `${eur(r.amount ?? 0)} έκπτωση`;
 }
 
-interface IssueInput { promotionCode: string; trigger: IssueTrigger; email: string; customerId?: string | null; firstName?: string | null; validDays?: number; prefix?: string; send?: boolean; staffId?: string | null }
+interface IssueInput {
+  promotionCode: string; trigger: IssueTrigger; email: string; customerId?: string | null; firstName?: string | null; validDays?: number; prefix?: string; send?: boolean; staffId?: string | null;
+  /** «ever»: ένα ανά email για πάντα (εγγραφή, newsletter) · «active»: όχι αν έχει ήδη αχρησιμοποίητο σε ισχύ (επόμενη αγορά, καλάθι) · «year»: ένα τον χρόνο (γενέθλια) */
+  dedupe?: "ever" | "active" | "year";
+}
 
 /** Εκδίδει (ή επιστρέφει το ήδη εκδομένο) προσωπικό κουπόνι. Δεν πετάει σφάλμα προς τα έξω — επιστρέφει τον λόγο. */
 export async function issueCoupon(input: IssueInput) {
@@ -41,7 +45,18 @@ export async function issueCoupon(input: IssueInput) {
   if (!["active", "scheduled"].includes(promo.status)) return { ok: false as const, reason: `η προσφορά είναι σε κατάσταση «${promo.status}»` };
   if (promo.endsAt && promo.endsAt < new Date()) return { ok: false as const, reason: "η προσφορά έχει λήξει" };
 
-  const existing = await db.coupon.findFirst({ where: { promotionId: promo.id, kind: "unique", OR: [{ email }, ...(input.customerId ? [{ customerId: input.customerId }] : [])] } });
+  const dedupe = input.dedupe ?? "ever";
+  const now = new Date();
+  const existing = await db.coupon.findFirst({
+    where: {
+      promotionId: promo.id, kind: "unique",
+      AND: [
+        { OR: [{ email }, ...(input.customerId ? [{ customerId: input.customerId }] : [])] },
+        ...(dedupe === "active" ? [{ usedCount: 0 }, { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }] : dedupe === "year" ? [{ createdAt: { gt: new Date(now.getTime() - 300 * 86400_000) } }] : []),
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
   if (existing) return { ok: true as const, coupon: existing, created: false };
 
   const days = input.validDays ?? (await getPromoPolicy()).couponValidDays;
@@ -49,7 +64,7 @@ export async function issueCoupon(input: IssueInput) {
   if (promo.endsAt && promo.endsAt < expiresAt) expiresAt = promo.endsAt;
   let coupon = null;
   for (let i = 0; i < 5 && !coupon; i++) {
-    coupon = await db.coupon.create({ data: { code: randomCode(input.prefix ?? (input.trigger === "newsletter" ? "NL" : input.trigger === "signup" ? "WELCOME" : "EU")), promotionId: promo.id, kind: "unique", email, customerId: input.customerId ?? null, trigger: input.trigger, expiresAt, maxUses: 1 } }).catch(() => null); // σύγκρουση κωδικού: ξανά
+    coupon = await db.coupon.create({ data: { code: randomCode(input.prefix ?? ({ newsletter: "NL", signup: "WELCOME", "next-order": "NEXT", birthday: "BDAY", cart: "CART" } as Record<string, string>)[input.trigger] ?? "EU"), promotionId: promo.id, kind: "unique", email, customerId: input.customerId ?? null, trigger: input.trigger, expiresAt, maxUses: 1 } }).catch(() => null); // σύγκρουση κωδικού: ξανά
   }
   if (!coupon) return { ok: false as const, reason: "δεν βρέθηκε ελεύθερος κωδικός" };
   if (input.staffId) await audit(input.staffId, "coupon.issue", "Coupon", coupon.id, null, { code: coupon.code, email, promotion: promo.code }).catch(() => null);
@@ -93,4 +108,49 @@ export async function createCouponBatch(input: { promotionId: string; count: num
   await db.coupon.createMany({ data: fresh.map((code) => ({ code, promotionId: promo.id, kind: "unique", trigger: "batch", expiresAt, maxUses: 1 })), skipDuplicates: true });
   await audit(input.staffId, "coupon.batch", "Promotion", promo.id, null, { count: fresh.length, prefix, expiresAt });
   return { ok: true as const, codes: fresh, expiresAt, promotion: promo.code };
+}
+
+/**
+ * Συναίνεση για προωθητικά email: η τελευταία καταγραφή για «offers» ή «newsletter» μέσω email· αν δεν υπάρχει
+ * καταγραφή, η επιλογή newsletter του λογαριασμού. Χωρίς συναίνεση: ο κωδικός εκδίδεται αλλά δεν στέλνεται email.
+ */
+export async function marketingAllowed(customerIds: string[]): Promise<Set<string>> {
+  if (!customerIds.length) return new Set();
+  const [consents, customers] = await Promise.all([
+    db.consent.findMany({ where: { customerId: { in: customerIds }, topic: { in: ["offers", "newsletter"] }, channel: "email" }, orderBy: { at: "desc" }, select: { customerId: true, granted: true } }),
+    db.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, newsletter: true } }),
+  ]);
+  const latest = new Map<string, boolean>();
+  for (const c of consents) if (c.customerId && !latest.has(c.customerId)) latest.set(c.customerId, c.granted);
+  return new Set(customers.filter((c) => latest.get(c.id) ?? c.newsletter).map((c) => c.id));
+}
+
+/** Προσωπικά κουπόνια σε όλα τα μέλη ενός κοινού. Email μόνο σε όσους έχουν δώσει συναίνεση. */
+export async function issueToSegment(input: { segmentId: string; promotionCode: string; send: boolean; staffId: string }) {
+  const { membersOf } = await import("./segments");
+  const seg = await db.segment.findUnique({ where: { id: input.segmentId } });
+  if (!seg) return { ok: false as const, error: "Το κοινό δεν βρέθηκε." };
+  const members = await membersOf(seg.rules as never, { limit: 5000 });
+  const allowed = input.send ? await marketingAllowed(members.map((m) => m.id)) : new Set<string>();
+  let issued = 0, existing = 0, emailed = 0, failed = 0;
+  for (const m of members) {
+    const send = allowed.has(m.id);
+    const r = await issueCoupon({ promotionCode: input.promotionCode, trigger: "manual", email: m.email, customerId: m.id, firstName: m.firstName, send, prefix: "VIP" });
+    if (!r.ok) { failed++; if (failed === 1 && !issued && !existing) return { ok: false as const, error: r.reason }; continue; }
+    if (r.created) { issued++; if (send) emailed++; } else existing++;
+  }
+  await audit(input.staffId, "coupon.segment", "Segment", seg.id, null, { promotion: input.promotionCode, members: members.length, issued, existing, emailed });
+  return { ok: true as const, members: members.length, issued, existing, emailed, noConsent: input.send ? members.length - allowed.size : 0 };
+}
+
+/** Κουπόνι από τους κανόνες για ένα γεγονός (επόμενη αγορά, γενέθλια). Ποτέ δεν μπλοκάρει τη ροή που το καλεί. */
+export async function issueTriggerCoupon(trigger: "next-order" | "birthday", who: { email: string; customerId?: string | null; firstName?: string | null }, opts: { send: boolean }) {
+  try {
+    const policy = await getPromoPolicy();
+    const code = trigger === "next-order" ? policy.nextOrderPromotion : policy.birthdayPromotion;
+    if (!code) return null;
+    return await issueCoupon({ promotionCode: code, trigger, ...who, send: opts.send, dedupe: trigger === "birthday" ? "year" : "active" });
+  } catch {
+    return null;
+  }
 }

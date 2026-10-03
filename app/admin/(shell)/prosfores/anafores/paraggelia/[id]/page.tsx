@@ -35,7 +35,7 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
 
       <section className="rounded-2xl bg-white border border-eu-line overflow-x-auto">
         <table className="w-full text-[length:var(--fs-14)]">
-          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Γραμμή</th><th className="py-2 px-3 text-right">Τιμή καταλόγου<br />PRICE</th><th className="py-2 px-3 text-right">Προσφορά<br />DISC1VAL</th><th className="py-2 px-3 text-right">Κουπόνι<br />DISC2VAL</th><th className="py-2 px-3 text-right">Τελικό</th><th className="py-2 px-3">Προσφορές (COMMENTS)</th></tr></thead>
+          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Γραμμή</th><th className="py-2 px-3 text-right">Τιμή καταλόγου<br />PRICE</th><th className="py-2 px-3 text-right">Προσφορά<br />DISC1VAL</th><th className="py-2 px-3 text-right">Κουπόνι<br />DISC2VAL</th><th className="py-2 px-3 text-right">Πληρωμή<br />DISC3VAL</th><th className="py-2 px-3 text-right">Τελικό</th><th className="py-2 px-3">Προσφορές (COMMENTS)</th></tr></thead>
           <tbody>
             {o.lines.map((l) => { const ps = (l.promotions as LinePromo[] | null) ?? []; return (
               <tr key={l.id} className="border-t border-eu-line align-top">
@@ -43,6 +43,7 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
                 <td className="py-2 px-3 text-right tabular-nums">{eur(Number(l.listPrice ?? l.unitPrice) * l.qty)}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{Number(l.discPrice) ? `−${eur(l.discPrice)}` : "—"}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{Number(l.discCoupon) ? `−${eur(l.discCoupon)}` : "—"}</td>
+                <td className="py-2 px-3 text-right tabular-nums">{Number(l.discPayment) ? `−${eur(l.discPayment)}` : "—"}</td>
                 <td className="py-2 px-3 text-right tabular-nums font-bold">{eur(l.lineTotal ?? Number(l.unitPrice) * l.qty)}</td>
                 <td className="py-2 px-3">{ps.length ? ps.map((p, i) => <div key={i}><span className="font-mono">{p.code} v{p.version}</span> · {p.label}</div>) : <span className="text-eu-muted">—</span>}</td>
               </tr>

@@ -1229,6 +1229,8 @@ model Cart {
   sessionId  String?    @unique
   lines      CartLine[]
   updatedAt  DateTime   @updatedAt
+  /// Πότε στάλθηκε υπενθύμιση εγκαταλελειμμένου καλαθιού (γράφεται με raw SQL ώστε να μην αλλάζει το updatedAt)
+  remindedAt DateTime?
 
   @@index([customerId])
 }
@@ -2253,4 +2255,21 @@ model AdPlacement {
   updatedAt   DateTime  @updatedAt
 
   @@index([slot, status])
+}
+
+/// Κοινό πελατών (segment): κανόνες που υπολογίζονται κάθε φορά από τα δεδομένα του πελάτη — όποιος καλύψει
+/// τα κριτήρια μπαίνει μόνος του. Χρησιμοποιείται σε στοχευμένες προσφορές, early access και κουπόνια.
+model Segment {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  /// SegmentRules (lib/promo/segments.ts)
+  rules       Json      @default("{}")
+  /// μέλη στον τελευταίο υπολογισμό (για εμφάνιση)
+  members     Int       @default(0)
+  computedAt  DateTime?
+  archived    Boolean   @default(false)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

@@ -82,6 +82,8 @@ export interface SimInput {
   at: string | null;
   /** και μη δημοσιευμένες (πρόχειρες, σε αναμονή έγκρισης, σε παύση) */
   drafts: boolean;
+  /** ο πελάτης θεωρείται μέλος αυτών των κοινών */
+  segments?: string[];
 }
 
 /** Προσομοιωτής: το ίδιο καλάθι με την ίδια μηχανή, σε όποια ημερομηνία και για όποιον πελάτη — με ίχνος. */
@@ -97,7 +99,7 @@ export async function simulateAction(input: SimInput) {
   // σε προσομοίωση οι μη δημοσιευμένες λογίζονται «ενεργές» ώστε να φανεί τι θα έκαναν
   const pool = promos.map((p) => (input.drafts && ["paused", "pending", "draft"].includes(p.status) ? { ...p, status: "active", name: `${p.name} (${p.status === "draft" ? "πρόχειρη" : p.status === "pending" ? "σε αναμονή" : "σε παύση"})` } : p));
   const r = evaluate(lines, pool, {
-    now, customer: { registered: input.customer !== "guest", isNew: input.customer !== "registered" },
+    now, customer: { registered: input.customer !== "guest", isNew: input.customer !== "registered", segments: input.customer === "guest" ? [] : input.segments ?? [] },
     channel: input.delivery === "click-collect" ? "click-collect" : "online", zip: input.zip, payment: input.payment, delivery: input.delivery,
     coupon: coupon && coupon.problem && coupon.problem.includes("προσωπικός") ? { ...coupon, problem: undefined } : coupon, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block",
   });
@@ -106,7 +108,7 @@ export async function simulateAction(input: SimInput) {
   return {
     missing, at: now.toISOString(),
     lines: r.lines.map((l) => { const info = lines.find((x) => x.key === l.key)!; return { title: info.title, brand: info.brand, qty: l.qty, listTotal: l.listTotal, discPrice: l.discPrice, discCoupon: l.discCoupon, total: l.total, capped: l.capped ?? null, labels: l.adjustments.map((a) => `${a.label} (${a.code} v${a.version})`) }; }),
-    listTotal: r.listTotal, discPrice: r.discPrice, discCoupon: r.discCoupon, total: r.total,
+    listTotal: r.listTotal, discPrice: r.discPrice, discCoupon: r.discCoupon, discPayment: r.discPayment, total: r.total,
     couponApplied: r.couponApplied, couponMessage: r.couponMessage,
     gifts: r.gifts.map((g) => ({ label: g.label, title: giftTitles.get(g.productId) ?? g.productId, qty: g.qty })),
     services: r.services.map((s) => ({ label: s.label, slug: s.slug })), freeShipping: r.freeShipping?.label ?? null, hints: r.hints,
@@ -296,4 +298,48 @@ export async function savePlacementAction(input: PlacementInput) {
   invalidateAds();
   revalidatePath("/admin/prosfores/theseis");
   return { ok: true as const, id: row.id };
+}
+
+// ---- κοινά πελατών ----
+export interface SegmentInput { id?: string | null; name: string; description: string | null; rules: import("@/lib/promo/segments").SegmentRules }
+
+export async function previewSegmentAction(rules: import("@/lib/promo/segments").SegmentRules) {
+  await requirePermission(PERM);
+  const { membersOf, sanitizeRules } = await import("@/lib/promo/segments");
+  const members = await membersOf(sanitizeRules(rules));
+  const { marketingAllowed } = await import("@/lib/promo/issue");
+  const consent = await marketingAllowed(members.map((m) => m.id));
+  return { count: members.length, consent: consent.size };
+}
+
+export async function saveSegmentAction(input: SegmentInput) {
+  const user = await requirePermission(PERM);
+  const { membersOf, sanitizeRules } = await import("@/lib/promo/segments");
+  if (!input.name.trim()) return { ok: false as const, error: "Δώσε όνομα στο κοινό." };
+  const rules = sanitizeRules(input.rules);
+  const count = (await membersOf(rules)).length;
+  const data = { name: input.name.trim().slice(0, 120), description: input.description?.trim() || null, rules: rules as Prisma.InputJsonValue, members: count, computedAt: new Date() };
+  const before = input.id ? await db.segment.findUnique({ where: { id: input.id } }) : null;
+  const row = input.id ? await db.segment.update({ where: { id: input.id }, data }) : await db.segment.create({ data: { ...data, createdById: user.id } });
+  await audit(user.id, input.id ? "segment.update" : "segment.create", "Segment", row.id, before, data);
+  revalidatePath("/admin/prosfores/koina");
+  return { ok: true as const, id: row.id, count };
+}
+
+export async function archiveSegmentAction(id: string) {
+  const user = await requirePermission(PERM);
+  const used = await db.promotion.count({ where: { status: { in: ["active", "scheduled", "pending", "paused"] }, OR: [{ rules: { path: ["segments"], array_contains: [id] } }, { rules: { path: ["earlyAccess", "segments"], array_contains: [id] } }] } });
+  if (used) return { ok: false as const, error: `Χρησιμοποιείται σε ${used} ενεργές προσφορές — άλλαξέ τες πρώτα.` };
+  await db.segment.update({ where: { id }, data: { archived: true } });
+  await audit(user.id, "segment.archive", "Segment", id);
+  revalidatePath("/admin/prosfores/koina");
+  return { ok: true as const };
+}
+
+export async function issueSegmentCouponsAction(input: { segmentId: string; promotionCode: string; send: boolean }) {
+  const user = await requirePermission(PERM);
+  const { issueToSegment } = await import("@/lib/promo/issue");
+  const r = await issueToSegment({ ...input, staffId: user.id });
+  revalidatePath("/admin/prosfores/kouponia");
+  return r;
 }

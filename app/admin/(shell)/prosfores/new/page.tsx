@@ -32,6 +32,7 @@ export default async function NewPromotionPage({ searchParams }: { searchParams:
   const prefilled = !!(tpl || sp.draft || ids.length || sp.brand || sp.category);
   return (
     <PromoWizard initial={d} names={names} status={null} code={null} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={prefilled ? (tpl || sp.draft ? 1 : 0) : 0}
-      services={services.map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))} />
+      services={services.map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
+        segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />
   );
 }

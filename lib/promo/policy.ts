@@ -27,12 +27,23 @@ export interface PromoPolicy {
   newsletterPromotion: string;
   /** ημέρες ισχύος των προσωπικών κουπονιών */
   couponValidDays: number;
+  /** κουπόνι για την επόμενη αγορά, μετά από κάθε παραγγελία (κενό = όχι) */
+  nextOrderPromotion: string;
+  /** κουπόνι γενεθλίων (κενό = όχι) — μόνο σε πελάτες με συναίνεση */
+  birthdayPromotion: string;
+  /** υπενθύμιση εγκαταλελειμμένου καλαθιού με email (μόνο σε πελάτες με λογαριασμό και συναίνεση) */
+  cartReminders: boolean;
+  /** μετά από πόσες ώρες χωρίς ολοκλήρωση */
+  cartReminderHours: number;
+  /** προαιρετικό κουπόνι στην υπενθύμιση (κενό = χωρίς κουπόνι) */
+  cartPromotion: string;
 }
 
 export const DEFAULT_POLICY: PromoPolicy = {
   maxLinePct: 40, belowCost: "block", couponDefaultStacking: "no-price",
   approvalAbovePct: 30, approvalAboveBudget: 5000, approvalAboveProducts: 500,
   maxTagsPerCard: 2, signupPromotion: "", newsletterPromotion: "", couponValidDays: 30,
+  nextOrderPromotion: "", birthdayPromotion: "", cartReminders: false, cartReminderHours: 3, cartPromotion: "",
 };
 
 const SECTION = "promos";
@@ -54,6 +65,7 @@ export async function savePromoPolicy(next: PromoPolicy, staffId: string | null)
 }
 
 const clamp = (n: unknown, lo: number, hi: number, d: number) => { const x = Number(n); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, Math.round(x))) : d; };
+const code = (v: unknown) => String(v ?? "").trim().toUpperCase().slice(0, 60);
 export function sanitize(p: Partial<PromoPolicy>): PromoPolicy {
   const d = DEFAULT_POLICY;
   return {
@@ -67,5 +79,7 @@ export function sanitize(p: Partial<PromoPolicy>): PromoPolicy {
     signupPromotion: String(p.signupPromotion ?? "").trim().toUpperCase().slice(0, 60),
     newsletterPromotion: String(p.newsletterPromotion ?? "").trim().toUpperCase().slice(0, 60),
     couponValidDays: clamp(p.couponValidDays, 1, 365, d.couponValidDays),
+    nextOrderPromotion: code(p.nextOrderPromotion), birthdayPromotion: code(p.birthdayPromotion), cartPromotion: code(p.cartPromotion),
+    cartReminders: !!p.cartReminders, cartReminderHours: clamp(p.cartReminderHours, 1, 72, d.cartReminderHours),
   };
 }
