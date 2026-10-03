@@ -141,11 +141,43 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
 
   const sourceText = dims?.source === "eprel" ? "από το ευρωπαϊκό μητρώο EPREL, χωρίς προεξοχές όπως πόρτα ή λαβές" : dims?.source === "specs" ? "του κατασκευαστή" : "τυπικές για την κατηγορία";
 
+  const openPreview = () => { setStatus("loading"); setCanAr(null); setOpen(true); };
+  const pill = `group inline-flex items-center justify-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-navy hover:text-white transition-colors ${className}`;
+  const label = <><Box className="size-4 transition-transform group-hover:rotate-12" aria-hidden /> Δες το στον χώρο σου</>;
+  // Κινητό: ένα μόνο αντικείμενο, άρα κατευθείαν στο AR (Quick Look / Scene Viewer) — χωρίς ενδιάμεσο παράθυρο.
+  // Η προβολή 3D με τις διαστάσεις μένει ως δεύτερη, μικρή επιλογή.
+  const direct = platform === "android" || (platform === "ios" && ios);
+  const preview3d = <button type="button" onClick={openPreview} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 px-1 hover:underline"><Ruler className="size-4" aria-hidden /> Προβολή 3D με διαστάσεις</button>;
   return (
     <>
-      <button type="button" onClick={() => { setStatus("loading"); setCanAr(null); setOpen(true); }} className={`group inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-navy hover:text-white transition-colors ${className}`}>
-        <Box className="size-4 transition-transform group-hover:rotate-12" aria-hidden /> Δες το στον χώρο σου
-      </button>
+      {direct ? (
+        <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+          {platform === "android" ? (
+            <a href={sceneViewer()} className={pill}>{label}</a>
+          ) : (
+            // Το Quick Look ανοίγει μόνο από <a rel="ar"> με ένα <img> ως μοναδικό παιδί — η ετικέτα μπαίνει από πάνω
+            <span className={`${pill} relative !p-0 overflow-hidden`}>
+              <a rel="ar" href={`${usdz}#allowsContentScaling=0`} className="block" aria-label="Δες το στον χώρο σου">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt="Δες το στον χώρο σου" width={240} height={48} className="block w-[15.5rem] h-12 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+              </a>
+              <span className="pointer-events-none absolute inset-0 inline-flex items-center justify-center gap-2">{label}</span>
+            </span>
+          )}
+          {preview3d}
+          {platform === "ios" && placement === "wall" && (
+            <span className="relative inline-flex rounded-full overflow-hidden text-eu-blue font-bold text-[length:var(--fs-14)]">
+              <a rel="ar" href={`/api/ar/${id}/model.usdz?v=${version}&p=floor#allowsContentScaling=0`} className="block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt="Δες το στο πάτωμα" width={220} height={44} className="block w-[13.5rem] h-11 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+              </a>
+              <span className="pointer-events-none absolute inset-0 inline-flex items-center px-1 underline">Δεν πιάνει τον τοίχο; Στο πάτωμα</span>
+            </span>
+          )}
+        </span>
+      ) : (
+        <button type="button" onClick={openPreview} className={pill}>{label}</button>
+      )}
       {/* Portal: ο διάλογος πρέπει να βγει από προγόνους με transforms, αλλιώς το `fixed` μετριέται ως προς αυτούς. */}
       {open && createPortal(
         <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-labelledby="ar-title">

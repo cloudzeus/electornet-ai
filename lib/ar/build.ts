@@ -5,7 +5,7 @@ import { getBunny } from "@/lib/media/cdn";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { buildGeometry } from "./geometry";
-import { pickFront, frontTexture, labelTexture, logoTexture, LABEL_ASPECT } from "./textures";
+import { pickFront, frontTexture, labelTexture, logoTexture, bodyColorOf, toLinear, LABEL_ASPECT } from "./textures";
 import { writeGlb } from "./glb";
 import { writeUsdz } from "./usdz";
 import type { Dims } from "@/lib/data/dims";
@@ -25,7 +25,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 16;
+const VERSION = 17; // 17: ρεαλιστικό συμπαγές σώμα στο χρώμα του προϊόντος όταν υπάρχει μετωπική φωτογραφία
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null })).digest("hex").slice(0, 20);
@@ -50,9 +50,13 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
   if (sg && su) { const m = { glb: sg, usdz: su, etag: key }; mem.set(key, m); return m; }
 
   const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.frontImage ? [input.frontImage] : input.images, input.dims.w / input.dims.h, !!input.frontImage)]);
-  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels } });
+  // Με μετωπική φωτογραφία: ρεαλιστικό σώμα στο χρώμα του προϊόντος. Χωρίς (μόνο φωτογραφία υπό γωνία): ο διαφανής όγκος
+  // μέτρησης με τη φωτογραφία όρθια μέσα του — σε συμπαγές σώμα θα κρυβόταν.
+  const solid = picked?.mode === "face";
+  const body = solid && picked ? await bodyColorOf(picked) : null;
+  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels }, style: solid ? "solid" : "volume", bodyColor: body ? toLinear(body) : undefined });
   const [front, lw, lh, ld] = await Promise.all([
-    frontTexture(picked, frontAspect),
+    frontTexture(picked, frontAspect, body ?? undefined),
     labelTexture("Π", input.dims.w), labelTexture("Υ", input.dims.h), labelTexture("Β", input.dims.d),
   ]);
   const textures = { front, "label-w": lw, "label-h": lh, "label-d": ld, logo: logo.png };

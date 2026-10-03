@@ -66,6 +66,13 @@ export interface ModelSpec {
    * φαίνεται να στέκεται μέσα στον όγκο του και όχι κολλημένο τεντωμένο μπροστά.
    */
   front: { mode: "face" | "billboard"; aspect: number };
+  /**
+   * solid = ρεαλιστικό σώμα στο χρώμα του προϊόντος με τη φωτογραφία στην πρόσοψη (προεπιλογή — στο AR μοιάζει με τη
+   * συσκευή) · volume = διαφανής όγκος μέτρησης με κίτρινες ακμές (π.χ. γύρω από δικό μας 3D μοντέλο).
+   */
+  style?: "solid" | "volume";
+  /** χρώμα σώματος (0–1) για το solid — από τη φωτογραφία */
+  bodyColor?: [number, number, number];
   /** ποια μέρη: για δικό μας 3D μοντέλο θέλουμε μόνο το πλαίσιο (όγκος, ακμές, ετικέτες) γύρω του */
   parts?: { front?: boolean; logo?: boolean; /** ψημένες ετικέτες διαστάσεων· η προεπισκόπηση τις αντικαθιστά με ζωντανές HTML ετικέτες */ labels?: boolean };
 }
@@ -76,8 +83,9 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
   const t = Math.min(0.008, Math.max(0.003, maxDim * 0.006)); // πάχος ακμής: λεπτή γραμμή, όχι δοκάρι
   const gap = 0.002; // απόσταση επιπέδων από την έδρα, να μην τρεμοπαίζουν
   const prims: Prim[] = [];
+  const solid = spec.style === "solid";
 
-  // 1. Διαφανής όγκος
+  // 1. Σώμα: συμπαγές (solid) ή διαφανής όγκος
   const vol = prim("volume", "volume");
   box(vol, [0, h / 2, 0], [w, h, d]);
   prims.push(vol);
@@ -97,7 +105,7 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     const a = corners[i], b = corners[j];
     if ([0, 1, 2].filter((k) => a[k] !== b[k]).length === 1) edgeList.push([a, b]);
   }
-  for (const [a, b] of edgeList) {
+  for (const [a, b] of solid ? [] : edgeList) {
     const axis = [0, 1, 2].find((k) => a[k] !== b[k])!;
     const len = Math.abs(b[axis] - a[axis]);
     const dir = Math.sign(b[axis] - a[axis]);
@@ -115,13 +123,15 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
       octa(dots, c, r);
     }
   }
-  prims.push(edges, dots);
+  if (!solid) prims.push(edges, dots);
 
   // 3. Η φωτογραφία
   const inset = t * 1.2;
   let fw: number, fh: number, fz: number;
   if (spec.front.mode === "face") {
-    fw = Math.max(0.01, w - inset * 2); fh = Math.max(0.01, h - inset * 2); fz = hz + gap;
+    // solid: η φωτογραφία ΕΙΝΑΙ η πρόσοψη (χωρίς περιθώριο)· volume: λίγο μέσα από τις ακμές
+    const ins = solid ? 0 : inset;
+    fw = Math.max(0.01, w - ins * 2); fh = Math.max(0.01, h - ins * 2); fz = hz + gap;
   } else {
     // ύψος = Υ, πλάτος από τον λόγο της φωτογραφίας, όχι πέρα από την οριζόντια διαγώνιο του όγκου
     fh = Math.max(0.01, h - inset * 2);
@@ -162,15 +172,18 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     plane(p, c, u, v, lw / 2, lh / 2, n);
     prims.push(p);
   };
-  if (spec.parts?.logo !== false) logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
+  // Στο ρεαλιστικό σώμα χωρίς λογότυπο: η συσκευή δεν έχει σήμα Euronics πάνω της (το σήμα είναι στον viewer)
+  if (!solid && spec.parts?.logo !== false) logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
   // Το πίσω λογότυπο κοιτάει προς τα μέσα: μέσα από τον διαφανή όγκο διαβάζεται σωστά από μπροστά, που είναι η κύρια οπτική γωνία
-  if (spec.parts?.logo !== false) logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
+  if (!solid && spec.parts?.logo !== false) logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
 
   const materials: MaterialDef[] = [
-    { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.09, mode: "blend", doubleSided: true, roughness: 0.6 },
+    solid
+      ? { name: "volume", color: spec.bodyColor ?? [0.93, 0.93, 0.93], alpha: 1, mode: "opaque", doubleSided: false, roughness: 0.45 }
+      : { name: "volume", color: [0.07, 0.165, 0.345], alpha: 0.09, mode: "blend", doubleSided: true, roughness: 0.6 },
     { name: "edge", color: [0.945, 0.769, 0], alpha: 1, mode: "opaque", roughness: 0.5 },
     { name: "dot", color: [0.945, 0.769, 0], alpha: 1, mode: "opaque", roughness: 0.4 },
-    { name: "front", color: [1, 1, 1], alpha: 1, texture: "front", mode: "mask", doubleSided: true, roughness: 0.8 },
+    { name: "front", color: [1, 1, 1], alpha: 1, texture: "front", mode: solid ? "opaque" : "mask", doubleSided: !solid, roughness: solid ? 0.45 : 0.8 },
     ...(["label-w", "label-w-back", "label-h", "label-h-left", "label-d", "label-d-left"] as const).map((n): MaterialDef => ({ name: n, color: [1, 1, 1], alpha: 1, texture: n.replace(/-(back|left)$/, ""), mode: "mask", doubleSided: false, roughness: 0.9 })),
     { name: "logo", color: [1, 1, 1], alpha: 1, texture: "logo", mode: "mask", doubleSided: true, roughness: 0.9 },
   ];
