@@ -319,6 +319,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
                 .eu-dim-pill small{font-size:.8em;font-weight:700;opacity:.8}
                 @keyframes eu-dim-float{0%,100%{translate:0 0}50%{translate:0 -4px}}
                 @media (prefers-reduced-motion:reduce){.eu-dim{transition:opacity .2s}.eu-dim-pill{animation:none}}
+                @media (max-width:767px){.eu-dim-pill{font-size:var(--fs-12);gap:.3em;padding:.22em .55em .22em .22em;box-shadow:0 3px 10px rgba(18,42,88,.3),0 0 0 1.5px rgba(255,255,255,.85)}.eu-dim-pill b{width:1.55em;height:1.55em}@keyframes eu-dim-float{0%,100%{translate:0 0}50%{translate:0 -2px}}}
               `}</style>
               {status === "ready" && (
                 <button type="button" onClick={() => { const mv = mvRef.current; if (mv) mv.cameraOrbit = "32deg 74deg auto"; }} aria-label="Επαναφορά προβολής" className="absolute right-4 top-4 size-11 rounded-full bg-white/90 text-eu-navy inline-flex items-center justify-center shadow hover:bg-white">
@@ -395,7 +396,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
 
 /**
  * Θέσεις των ζωντανών ετικετών (μέτρα, κέντρο βάσης στο 0). Κάθε διάσταση σε δύο απέναντι ακμές, ώστε μία να κοιτά
- * πάντα την κάμερα. Τηλεόραση: πάνω στο πάνελ (που κάθεται πάνω στη βάση, λίγο πίσω από το κέντρο της) — όχι στον αέρα.
+ * πάντα την κάμερα. Π κάτω στη μέση, Υ στην αριστερή ακμή, Β στη δεξιά πλευρά: δεν στοιβάζονται ούτε σε χαμηλές συσκευές. Τηλεόραση: πάνω στο πάνελ (που κάθεται πάνω στη βάση, λίγο πίσω από το κέντρο της) — όχι στον αέρα.
  */
 function hotspots(d: Dims, tv: TvLayout | undefined, wall: boolean): [string, string, string, string, number, number][] {
   const n = (v: number) => v.toFixed(3);
@@ -407,14 +408,14 @@ function hotspots(d: Dims, tv: TvLayout | undefined, wall: boolean): [string, st
     const hv = wall ? tv.panelH : d.h, dv = wall ? tv.panelD : d.d;
     return [
       ["w1", `0 ${n(sh)} ${n(front)}`, "0 -0.25 1", "Π", d.w, 0], ["w2", `0 ${n(sh)} ${n(back)}`, "0 -0.25 -1", "Π", d.w, 0],
-      ["h1", `${n(w / 2)} ${n(mid)} ${n(front)}`, "1 0 0.3", "Υ", hv, 1], ["h2", `${n(-w / 2)} ${n(mid)} ${n(front)}`, "-1 0 0.3", "Υ", hv, 1],
+      ["h1", `${n(-w / 2)} ${n(mid)} ${n(front)}`, "0 0 1", "Υ", hv, 1], ["h2", `${n(w / 2)} ${n(mid)} ${n(back)}`, "0 0 -1", "Υ", hv, 1],
       ["d1", `${n(w / 2)} ${n(sh + ph * 0.1)} ${n(pz)}`, "1 -0.25 0", "Β", dv, 2], ["d2", `${n(-w / 2)} ${n(sh + ph * 0.1)} ${n(pz)}`, "-1 -0.25 0", "Β", dv, 2],
     ];
   }
   const w = d.w / 100, h = d.h / 100, dd = d.d / 100;
   return [
     ["w1", `0 0 ${n(dd / 2)}`, "0 -0.25 1", "Π", d.w, 0], ["w2", `0 0 ${n(-dd / 2)}`, "0 -0.25 -1", "Π", d.w, 0],
-    ["h1", `${n(w / 2)} ${n(h / 2)} ${n(dd / 2)}`, "1 0 0.3", "Υ", d.h, 1], ["h2", `${n(-w / 2)} ${n(h / 2)} ${n(dd / 2)}`, "-1 0 0.3", "Υ", d.h, 1],
+    ["h1", `${n(-w / 2)} ${n(h / 2)} ${n(dd / 2)}`, "0 0 1", "Υ", d.h, 1], ["h2", `${n(w / 2)} ${n(h / 2)} ${n(-dd / 2)}`, "0 0 -1", "Υ", d.h, 1],
     ["d1", `${n(w / 2)} 0 0`, "1 -0.25 0", "Β", d.d, 2], ["d2", `${n(-w / 2)} 0 0`, "-1 -0.25 0", "Β", d.d, 2],
   ];
 }
