@@ -107,3 +107,13 @@ export async function logoTexture(): Promise<{ png: Buffer; aspect: number }> {
   const png = await sharp(src).resize({ width: 768, fit: "inside" }).png().toBuffer();
   return { png, aspect };
 }
+
+/** Οθόνη τηλεόρασης σβηστή: σκούρο γυαλί με απαλή διαγώνια αντανάκλαση — καθαρό από κάθε γωνία, χωρίς παραμόρφωση. */
+export async function screenTexture(aspect: number): Promise<Buffer> {
+  const W = 1024, H = Math.max(64, Math.round(1024 / Math.max(0.5, aspect)));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2130"/><stop offset="1" stop-color="#07090e"/></linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop offset="0.18" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.32" stop-color="#ffffff" stop-opacity="0.10"/><stop offset="0.46" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+  </defs><rect width="100%" height="100%" fill="url(#g)"/><rect width="100%" height="100%" fill="url(#r)"/></svg>`;
+  return sharp(Buffer.from(svg)).png({ palette: true, compressionLevel: 9 }).toBuffer();
+}

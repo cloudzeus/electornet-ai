@@ -90,9 +90,10 @@ export async function setArFrontImage(productId: string, frontImage: string | nu
   return { ok: true as const };
 }
 
-/** Πάτωμα, τοίχος ή αυτόματα από την κατηγορία. */
-export async function setArPlacement(productId: string, placement: "floor" | "wall" | null) {
+/** Πάτωμα, έπιπλο, πάγκος, τοίχος ή αυτόματα από το προφίλ της κατηγορίας. */
+export async function setArPlacement(productId: string, placement: "floor" | "furniture" | "counter" | "wall" | null) {
   const user = await requirePermission("catalog.products.write");
+  if (placement && !["floor", "furniture", "counter", "wall"].includes(placement)) throw new Error("Άγνωστη επιφάνεια.");
   await db.productAr.upsert({ where: { productId }, update: { placement, updatedById: user.id }, create: { productId, placement, updatedById: user.id } });
   await audit(user.id, "ar.placement", "ProductAr", productId, null, { placement });
   paths(productId);

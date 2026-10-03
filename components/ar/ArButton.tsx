@@ -7,6 +7,7 @@ import Image from "next/image";
 import QRCode from "qrcode";
 import type { Dims } from "@/lib/data/dims";
 import { copyOf } from "@/lib/cms/copy";
+import { SURFACE_LABEL, anchorOf, type Surface } from "@/lib/ar/placement";
 
 const c = copyOf("ar");
 
@@ -18,7 +19,7 @@ const c = copyOf("ar");
  * Τα μοντέλα χτίζονται στο /api/ar/{id}/model.{glb,usdz} από τις τρέχουσες
  * διαστάσεις (EPREL, ERP ή τυπικές της κατηγορίας) — κανένα αρχείο ανά SKU.
  */
-export function ArButton({ id, title, dims, version = "", ios = true, light = false, placement = "floor", className = "" }: { id: string; title: string; dims: Dims | null; /** πάτωμα ή τοίχος: τι επιφάνεια ψάχνει η κάμερα */ placement?: "floor" | "wall"; /** υπάρχει ελαφριά έκδοση για αργές συνδέσεις */ light?: boolean; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
+export function ArButton({ id, title, dims, version = "", ios = true, light = false, surface = "floor", alt, hint, className = "" }: { id: string; title: string; dims: Dims | null; /** πού μπαίνει η συσκευή (προφίλ κατηγορίας ή επιλογή διαχειριστή) */ surface?: Surface; /** δεύτερη επιφάνεια για τον πελάτη (π.χ. τηλεόραση στον τοίχο) */ alt?: Surface; /** «Πού μπαίνει» — οδηγία για τον πελάτη */ hint?: string; /** υπάρχει ελαφριά έκδοση για αργές συνδέσεις */ light?: boolean; /** υπάρχει USDZ; αλλιώς το model-viewer μετατρέπει το GLB για το Quick Look μέσα στη συσκευή */ ios?: boolean; /** αποτύπωμα του μοντέλου — αλλάζει το URL όταν αλλάξουν διαστάσεις/φωτογραφία, ώστε να μην μείνει παλιό στην cache */ version?: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
@@ -29,11 +30,14 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   // Ο server σερβίρει την ελαφριά έκδοση όταν υπάρχει· η πλήρης (έως 15 MB) ζητείται μόνο ρητά με ?q=full
   void light;
   const q = `?v=${version}`;
-  const glb = `/api/ar/${id}/model.glb${q}`; // με ψημένες ετικέτες: αυτό πάει στο εγγενές AR (Scene Viewer)
+  const placement = anchorOf(surface);
+  const glbFor = (sf: Surface) => `/api/ar/${id}/model.glb${q}&p=${sf}`;
+  const usdzFor = (sf: Surface) => `/api/ar/${id}/model.usdz?v=${version}&p=${sf}`; // το p στο URL: αλλαγή επιφάνειας = άλλο αρχείο, όχι παλιό από την cache
+  const glb = glbFor(surface); // με ψημένες ετικέτες: αυτό πάει στο εγγενές AR (Scene Viewer)
   // Προεπισκόπηση: χωρίς ψημένες ετικέτες, με ζωντανές HTML ετικέτες. Εξαίρεση το iPhone χωρίς USDZ, όπου το AR βγαίνει από τη σκηνή της προεπισκόπησης.
   const liveLabels = !!dims && !(platform === "ios" && !ios);
   const previewGlb = liveLabels ? `${glb}&labels=0` : glb;
-  const usdz = `/api/ar/${id}/model.usdz?v=${version}&p=${placement}`; // το p μπαίνει στο URL ώστε η αλλαγή πάτωμα/τοίχος να μη μείνει στην cache
+  const usdz = usdzFor(surface);
 
   useEffect(() => {
     if (!open) return;
@@ -132,10 +136,10 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   }, []);
 
   // Android: intent προς το Scene Viewer της Google με το GLB μας (απόλυτο https URL), σε πραγματικό μέγεθος.
-  const sceneViewer = () => {
+  const sceneViewer = (sf: Surface = surface) => {
     const page = `${location.origin}${location.pathname}`;
-    const file = `${location.origin}${glb}`;
-    return `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false${placement === "wall" ? "&enable_vertical_placement=true" : ""}&title=${encodeURIComponent(title)}&link=${encodeURIComponent(page)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(page)};end;`;
+    const file = `${location.origin}${glbFor(sf)}`;
+    return `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_preferred&resizable=false${anchorOf(sf) === "wall" ? "&enable_vertical_placement=true" : ""}&title=${encodeURIComponent(title)}&link=${encodeURIComponent(page)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(page)};end;`;
   };
   const launchCls = "absolute left-1/2 -translate-x-1/2 bottom-4 z-10 inline-flex items-center justify-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-6 min-h-14 shadow-[var(--shadow-overlay)] whitespace-nowrap no-underline text-[length:var(--fs-16)]";
 
@@ -147,6 +151,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
   // Κινητό: ένα μόνο αντικείμενο, άρα κατευθείαν στο AR (Quick Look / Scene Viewer) — χωρίς ενδιάμεσο παράθυρο.
   // Η προβολή 3D με τις διαστάσεις μένει ως δεύτερη, μικρή επιλογή.
   const direct = platform === "android" || (platform === "ios" && ios);
+  const altLabel = !alt ? "" : surface === "wall" && alt === "floor" ? "Δεν πιάνει τον τοίχο; Στο πάτωμα" : `Δες το ${SURFACE_LABEL[alt].toLowerCase()}`;
   const preview3d = <button type="button" onClick={openPreview} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 px-1 hover:underline"><Ruler className="size-4" aria-hidden /> Προβολή 3D με διαστάσεις</button>;
   return (
     <>
@@ -165,15 +170,18 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
             </span>
           )}
           {preview3d}
-          {platform === "ios" && placement === "wall" && (
+          {alt && (platform === "android" ? (
+            <a href={sceneViewer(alt)} className="inline-flex items-center min-h-11 px-1 text-eu-blue font-bold text-[length:var(--fs-14)] underline">{altLabel}</a>
+          ) : (
             <span className="relative inline-flex rounded-full overflow-hidden text-eu-blue font-bold text-[length:var(--fs-14)]">
-              <a rel="ar" href={`/api/ar/${id}/model.usdz?v=${version}&p=floor#allowsContentScaling=0`} className="block">
+              <a rel="ar" href={`${usdzFor(alt)}#allowsContentScaling=0`} className="block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt="Δες το στο πάτωμα" width={220} height={44} className="block w-[13.5rem] h-11 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
+                <img alt={altLabel} width={220} height={44} className="block w-[13.5rem] h-11 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
               </a>
-              <span className="pointer-events-none absolute inset-0 inline-flex items-center px-1 underline">Δεν πιάνει τον τοίχο; Στο πάτωμα</span>
+              <span className="pointer-events-none absolute inset-0 inline-flex items-center px-1 underline">{altLabel}</span>
             </span>
-          )}
+          ))}
+          {hint && <span className="basis-full inline-flex items-start gap-1.5 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug max-w-[34rem]"><Box className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />{hint}</span>}
         </span>
       ) : (
         <button type="button" onClick={openPreview} className={pill}>{label}</button>
@@ -215,7 +223,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
               {/* iPhone + τοίχος: το Quick Look δεν δείχνει τίποτα μέχρι να αναγνωρίσει κάθετη επιφάνεια, και σε λευκό άδειο τοίχο συχνά δεν τα καταφέρνει. Διέξοδος: ίδιο μοντέλο στο πάτωμα. */}
               {platform === "ios" && placement === "wall" && (ios ? (
                 <span className="absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow overflow-hidden whitespace-nowrap text-[length:var(--fs-14)]">
-                  <a rel="ar" href={`/api/ar/${id}/model.usdz?v=${version}&p=floor#allowsContentScaling=0`} className="block">
+                  <a rel="ar" href={`${usdzFor("floor")}#allowsContentScaling=0`} className="block">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img alt="Δες το στο πάτωμα" width={260} height={40} className="block w-[min(78vw,290px)] h-10 opacity-0" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" />
                   </a>
@@ -264,6 +272,7 @@ export function ArButton({ id, title, dims, version = "", ios = true, light = fa
                 <Ruler className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />
                 <span>Διαστάσεις {sourceText}. Το μοντέλο είναι σε πραγματικό μέγεθος και δεν μεγεθύνεται.</span>
               </p>
+              {hint && <p className="m-0 text-eu-ink-2 font-semibold text-[length:var(--fs-14)] leading-snug inline-flex items-start gap-2"><Box className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>{hint}</span></p>}
               {platform !== "other" && (
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{placement === "wall" ? "Πάτα το κίτρινο κουμπί, πήγαινε στο «AR» και στόχευσε τον τοίχο. Η συσκευή εμφανίζεται μόλις το κινητό αναγνωρίσει τον τοίχο: κούνα το αργά δεξιά-αριστερά, με καλό φως, ξεκινώντας από σημείο με κάδρο, πρίζα, γωνία ή εκεί που ο τοίχος συναντά το ταβάνι. Σε εντελώς λευκό, άδειο τοίχο μπορεί να μην εμφανιστεί καθόλου — τότε πάτα «Δες το στο πάτωμα» και σήκωσέ τη με δύο δάχτυλα." : "Πάτα το κίτρινο κουμπί, στόχευσε το πάτωμα και άφησε τη συσκευή στη θέση της. Περπάτα γύρω της: οι ετικέτες δείχνουν πλάτος, ύψος και βάθος."}</p>
               )}

@@ -10,7 +10,7 @@ import { transformGlb, inspectGlb, fitScale, type Box } from "./custom";
 /** Αλλάζει όταν αλλάζει ο τρόπος που μετασχηματίζουμε/συμπληρώνουμε τα μοντέλα — μπαίνει στο URL ώστε να μη μείνει παλιό στην cache του browser. */
 export const AR_SERVE_VERSION = 12;
 import { addFrameToGlb } from "./frame";
-import { placementFor } from "./placement";
+import { anchorOf, profileFor, surfaceFor } from "./placement";
 
 /**
  * Σερβίρισμα μοντέλου AR. Αυτόματα για κάθε προϊόν με πραγματικές διαστάσεις (όχι τυπικές της κατηγορίας)·
@@ -75,8 +75,11 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   // Γεννήτρια από διαστάσεις + φωτογραφία
   if (!dims) return new Response("Δεν υπάρχουν διαστάσεις για αυτό το προϊόν.", { status: 404 });
   // ?p=floor: ο πελάτης ζήτησε ρητά πάτωμα επειδή το τηλέφωνό του δεν αναγνώρισε τον τοίχο
+  // ?p=…: ο πελάτης διάλεξε άλλη επιφάνεια (π.χ. τηλεόραση στον τοίχο, ή πάτωμα επειδή το κινητό δεν έπιασε τον τοίχο)
   const forced = new URL(req.url).searchParams.get("p");
-  const wall = (forced === "floor" || forced === "wall" ? forced : placementFor(p, ar?.placement ?? null)) === "wall";
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null }, { labels: kind === "usdz" ? true : labels, wall: kind === "usdz" && wall });
+  const wall = anchorOf(surfaceFor(p, forced || ar?.placement || null)) === "wall";
+  const archetype = profileFor(p).archetype;
+  // τηλεόραση: η επιφάνεια αλλάζει και το ίδιο το μοντέλο (με/χωρίς βάση) — άρα και στο GLB, όχι μόνο στο USDZ
+  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null, archetype }, { labels: kind === "usdz" ? true : labels, wall: (kind === "usdz" || archetype === "tv") && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }

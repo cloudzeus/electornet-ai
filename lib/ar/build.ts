@@ -4,8 +4,8 @@ import { storeBytes } from "@/lib/media/storage";
 import { getBunny } from "@/lib/media/cdn";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { buildGeometry } from "./geometry";
-import { pickFront, frontTexture, labelTexture, logoTexture, bodyColorOf, toLinear, LABEL_ASPECT } from "./textures";
+import { buildGeometry, buildTvGeometry, tvPanelDepth } from "./geometry";
+import { pickFront, frontTexture, labelTexture, logoTexture, bodyColorOf, toLinear, screenTexture, LABEL_ASPECT } from "./textures";
 import { writeGlb } from "./glb";
 import { writeUsdz } from "./usdz";
 import type { Dims } from "@/lib/data/dims";
@@ -22,13 +22,13 @@ import type { Product } from "@/lib/data/types";
  * είναι κλειστό) → κατασκευή. Το αντίγραφο στο CDN επιβιώνει επανεκκινήσεις
  * και deploys και μοιράζεται ανάμεσα σε πολλά instances του server.
  */
-export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null }
+export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null; /** ειδική μορφή (βλ. placement profiles) */ archetype?: "tv" }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 17; // 17: ρεαλιστικό συμπαγές σώμα στο χρώμα του προϊόντος όταν υπάρχει μετωπική φωτογραφία
+const VERSION = 18; // 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης
 const mem = new Map<string, ArModel>();
 
-export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null })).digest("hex").slice(0, 20);
+export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null, a: i.archetype ?? null })).digest("hex").slice(0, 20);
 
 async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | null> {
   try {
@@ -44,6 +44,22 @@ async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | nu
 export async function buildArModel(input: ArInput, opts: { labels?: boolean; wall?: boolean } = {}): Promise<ArModel> {
   const withLabels = opts.labels !== false;
   const key = `${arKey(input)}${withLabels ? "" : "-nl"}${opts.wall ? "-wall" : ""}`;
+  // Τηλεόραση: πάνελ με βάση (έπιπλο) ή χωρίς (τοίχος) — όχι φωτογραφία
+  if (input.archetype === "tv") {
+    const hitTv = mem.get(key);
+    if (hitTv) return hitTv;
+    const [tg, tu] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
+    if (tg && tu) { const m = { glb: tg, usdz: tu, etag: key }; mem.set(key, m); return m; }
+    const { prims, materials } = buildTvGeometry({ dims: input.dims, stand: !opts.wall, labelAspect: LABEL_ASPECT, labels: withLabels });
+    const [screen, lw, lh, ld] = await Promise.all([screenTexture(input.dims.w / input.dims.h), labelTexture("Π", input.dims.w), labelTexture("Υ", input.dims.h), labelTexture("Β", input.dims.d)]);
+    const textures = { screen, "label-w": lw, "label-h": lh, "label-d": ld };
+    const glb = writeGlb(prims, materials, textures, input.title);
+    const usdz = writeUsdz(prims, materials, textures, input.title, { wall: opts.wall ? { h: input.dims.h / 100, d: tvPanelDepth(input.dims.d) } : null });
+    const m = { glb, usdz, etag: key };
+    mem.set(key, m);
+    void Promise.all([storeBytes(`ar/${key}.glb`, glb, "model/gltf-binary"), storeBytes(`ar/${key}.usdz`, usdz, "model/vnd.usdz+zip")]).catch(() => {});
+    return m;
+  }
   const hit = mem.get(key);
   if (hit) return hit;
   const [sg, su] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);

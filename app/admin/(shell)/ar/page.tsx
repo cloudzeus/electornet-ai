@@ -7,7 +7,7 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Pagination } from "@/components/admin/Pagination";
 import { ArRow, type ArRowData, type GenData } from "./ArRow";
 import { tripoBalance, hasTripoKey } from "@/lib/tripo/client";
-import { placementFor } from "@/lib/ar/placement";
+import { profileFor } from "@/lib/ar/placement";
 
 export const metadata = { title: "AR · Δες το στον χώρο σου" };
 export const dynamic = "force-dynamic";
@@ -41,7 +41,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         // χωρίς ρύθμιση: αυτόματα ενεργό όταν υπάρχουν πραγματικές διαστάσεις (όπως στη σελίδα προϊόντος)
         enabled: s ? s.enabled : !!dims && dims.source !== "category", glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
         modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
-        glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: placementFor(pr, null),
+        glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: profileFor(pr).surface, autoHint: profileFor(pr).hint,
         images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x))],
         gen: (() => { const g = genBy.get(pr.id); return g ? (JSON.parse(JSON.stringify(g)) as GenData) : null; })(),
       };

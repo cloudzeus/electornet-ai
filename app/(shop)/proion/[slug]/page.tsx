@@ -28,7 +28,7 @@ import { after } from "next/server";
 import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
 import { AR_SERVE_VERSION } from "@/lib/ar/serve";
-import { placementFor } from "@/lib/ar/placement";
+import { profileFor, surfaceFor } from "@/lib/ar/placement";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
@@ -72,7 +72,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // AR αυτόματα για κάθε προϊόν με διαστάσεις και φωτογραφία: το στερεό χτίζεται τοπικά από τις διαστάσεις με τη
   // φωτογραφία του ως πρόσοψη (χωρίς AI). Όπου ο διαχειριστής έχει ρυθμίσει ρητά το προϊόν (/admin/ar), ισχύει η ρύθμισή του.
   const arOn = ar ? ar.enabled : !!dims && (!("source" in dims) || dims.source !== "category");
-  const arInput = arOn && dims && (p.image || ar?.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null } : null;
+  const arProfile = profileFor(p);
+  const arSurface = surfaceFor(p, ar?.placement);
+  const arInput = arOn && dims && (p.image || ar?.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null, archetype: ar?.glbUrl ? undefined : arProfile.archetype } : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
   // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
   if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
@@ -93,7 +95,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               energy={p.energy}
               actions={
                 <>
-                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} placement={placementFor(p, ar?.placement)} />}
+                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arSurface} alt={arProfile.alt && arProfile.alt !== arSurface ? arProfile.alt : arSurface !== arProfile.surface ? arProfile.surface : undefined} hint={arProfile.hint} />}
                   <FitBadge product={p} size="lg" prompt />
                   {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
                 </>

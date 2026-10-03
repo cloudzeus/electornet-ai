@@ -189,3 +189,58 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
   ];
   return { prims, materials, frontAspect: fw / fh };
 }
+
+/**
+ * Τηλεόραση: δεν στηρίζεται σε φωτογραφία (οι φωτογραφίες είναι υπό γωνία και με τη βάση). Λεπτό μαύρο πάνελ Π×Υ με
+ * γυαλιστερή οθόνη και λεπτό πλαίσιο· με `stand` (έπιπλο) κάθεται σε κεντρική βάση, χωρίς (τοίχος) η πλάτη του
+ * ακουμπά στον τοίχο. Πρόσοψη προς +Z, κάτω άκρη στο y=0 (ή πάνω στη βάση), κέντρο στο x=z=0.
+ */
+export const tvPanelDepth = (dCm: number) => Math.min(0.08, Math.max(0.025, dCm / 100 > 0.12 ? 0.06 : dCm / 100));
+
+export function buildTvGeometry(spec: { dims: { w: number; h: number; d: number }; stand: boolean; labelAspect: number; labels: boolean }): { prims: Prim[]; materials: MaterialDef[] } {
+  const w = spec.dims.w / 100, h = spec.dims.h / 100;
+  // πάχος πάνελ: οι προδιαγραφές συχνά δίνουν βάθος ΜΕ βάση· το πάνελ μιας σύγχρονης TV είναι 3–8 εκ.
+  const pd = tvPanelDepth(spec.dims.d);
+  const standH = spec.stand ? Math.min(0.09, Math.max(0.05, h * 0.1)) : 0;
+  const y0 = standH;
+  const prims: Prim[] = [];
+  const body = prim("tv-body", "tv-body");
+  box(body, [0, y0 + h / 2, 0], [w, h, pd]);
+  prims.push(body);
+  // οθόνη: λεπτό πλαίσιο γύρω, λίγο φαρδύτερο κάτω (εκεί συνήθως το λογότυπο)
+  const bz = Math.max(0.006, w * 0.008), bzB = bz * 1.6;
+  const sw = w - 2 * bz, sh = h - bz - bzB;
+  const screen = prim("tv-screen", "tv-screen");
+  plane(screen, [0, y0 + bzB + sh / 2, pd / 2 + 0.0015], X, Y, sw / 2, sh / 2, Z);
+  prims.push(screen);
+  if (spec.stand) {
+    const stand = prim("tv-stand", "tv-stand");
+    const baseW = Math.min(w * 0.42, 0.6), baseD = Math.max(0.18, Math.min(0.32, w * 0.22));
+    box(stand, [0, 0.008, 0.02], [baseW, 0.016, baseD]); // πλάκα βάσης
+    box(stand, [0, standH / 2 + 0.008, -pd * 0.1], [Math.max(0.06, w * 0.06), standH + 0.016, Math.max(0.03, pd * 0.8)]); // λαιμός
+    prims.push(stand);
+  }
+  if (spec.labels) {
+    const maxDim = Math.max(w, h);
+    const lab = (name: string, c: Vec3, u: Vec3, v: Vec3, n: Vec3, faceW: number) => {
+      let lh = Math.min(0.06, Math.max(0.022, maxDim * 0.06)), lw = lh * spec.labelAspect;
+      if (lw > faceW * 0.85) { lw = faceW * 0.85; lh = lw / spec.labelAspect; }
+      const p = prim(name, name);
+      plane(p, c, u, v, lw / 2, lh / 2, n);
+      prims.push(p);
+      return lh;
+    };
+    // σε σειρά στο κάτω μέρος της οθόνης: Υ · Π · Β
+    const ly = y0 + bzB + Math.min(0.06, Math.max(0.022, maxDim * 0.06)) / 2 + 0.015;
+    lab("label-h", [-w * 0.31, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
+    lab("label-w", [0, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
+    lab("label-d", [w * 0.31, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
+  }
+  const materials: MaterialDef[] = [
+    { name: "tv-body", color: [0.012, 0.012, 0.014], alpha: 1, mode: "opaque", roughness: 0.35 },
+    { name: "tv-screen", color: [1, 1, 1], alpha: 1, texture: "screen", mode: "opaque", roughness: 0.12 },
+    { name: "tv-stand", color: [0.03, 0.03, 0.035], alpha: 1, mode: "opaque", roughness: 0.3 },
+    ...(["label-w", "label-h", "label-d"] as const).map((n): MaterialDef => ({ name: n, color: [1, 1, 1], alpha: 1, texture: n, mode: "mask", doubleSided: false, roughness: 0.9 })),
+  ];
+  return { prims, materials };
+}
