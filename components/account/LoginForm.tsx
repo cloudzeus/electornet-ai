@@ -28,8 +28,7 @@ export function LoginForm({ initialEmail = "", next = "/logariasmos" }: { initia
       <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">Email<input type="email" required autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={field} /></label>
       <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between">Κωδικός<Link href={`/ksexasa-kodiko${f.email ? `?email=${encodeURIComponent(f.email)}` : ""}`} className="font-bold text-eu-blue hover:underline">Ξέχασα τον κωδικό</Link></span><span className="relative"><input type={f.show ? "text" : "password"} required autoComplete="current-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} className={`${field} pr-12`} /><button type="button" onClick={() => setF({ ...f, show: !f.show })} aria-label={f.show ? "Απόκρυψη" : "Εμφάνιση"} className="absolute right-2 top-1/2 -translate-y-1/2 size-10 rounded-full inline-flex items-center justify-center text-eu-muted hover:bg-eu-surface">{f.show ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}</button></span></label>
       <button type="submit" disabled={busy} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] min-h-12 inline-flex items-center justify-center gap-2 hover:bg-eu-blue disabled:opacity-60">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <LogIn className="size-4" aria-hidden />} Σύνδεση</button>
-      <div className="relative text-center text-eu-muted text-[length:var(--fs-13)] before:absolute before:inset-x-0 before:top-1/2 before:h-px before:bg-eu-line"><span className="relative bg-white px-2">ή</span></div>
-      <SocialLogin />
+      <SocialLogin next={next} separator="before" />
     </form>
   );
 }

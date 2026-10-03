@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { sectionByKey, isSecret } from "@/lib/settings/schema";
 import { saveSetting, getSetting } from "@/lib/settings/store";
 import { testSoftone, s1Login, type S1Config } from "@/lib/softone";
+import { probe, providerConfigs, missing, PROVIDERS, type OAuthProvider } from "@/lib/account/oauth";
+import { publicOrigin } from "@/lib/account/oauth-flow";
 
 export type ActionResult = { ok: boolean; message: string; details?: Record<string, string | number | null> };
 
@@ -179,4 +181,28 @@ export async function softoneObjects(fd: FormData): Promise<{ ok: true; objs: { 
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Αποτυχία login." };
   }
+}
+
+/**
+ * Social login · «Έλεγχος στοιχείων»: ρωτά τον πάροχο αν αναγνωρίζει την εφαρμογή, με τις τιμές της φόρμας
+ * (και μη αποθηκευμένες) πάνω από τα αποθηκευμένα secrets. Δεν συνδέει κανέναν και δεν αποθηκεύει τίποτα.
+ */
+export async function probeSocial(provider: string, fd: FormData): Promise<ActionResult> {
+  const user = await requireSuperAdmin();
+  if (!PROVIDERS.includes(provider as OAuthProvider)) return { ok: false, message: "Άγνωστος πάροχος." };
+  const p = provider as OAuthProvider;
+  const c = { ...(await providerConfigs())[p] };
+  const txt = (k: string) => { const v = fd.get(k); return v === null ? null : String(v).trim(); };
+  const sec = (k: string) => String(fd.get(k) ?? "").trim() || null;
+  const pick = (cur: string, v: string | null) => (v === null ? cur : v);
+  if (p === "google") { c.clientId = pick(c.clientId, txt("googleClientId")); c.secret = sec("googleClientSecret") ?? c.secret; }
+  if (p === "microsoft") { c.clientId = pick(c.clientId, txt("microsoftClientId")); c.secret = sec("microsoftClientSecret") ?? c.secret; c.tenant = pick(c.tenant, txt("microsoftTenant")) || "consumers"; }
+  if (p === "facebook") { c.clientId = pick(c.clientId, txt("facebookAppId")); c.secret = sec("facebookAppSecret") ?? c.secret; }
+  if (p === "apple") { c.clientId = pick(c.clientId, txt("appleClientId")); c.teamId = pick(c.teamId, txt("appleTeamId")); c.keyId = pick(c.keyId, txt("appleKeyId")); c.privateKey = sec("applePrivateKey") ?? c.privateKey; }
+  for (const k of ["googleClientSecret", "microsoftClientSecret", "facebookAppSecret", "applePrivateKey"]) if (fd.get(`${k}__clear`) === "on" && k.startsWith(p)) { if (p === "apple") c.privateKey = ""; else c.secret = ""; }
+  const m = missing(c);
+  if (m.length) return { ok: false, message: `Λείπουν: ${m.join(", ")}.` };
+  const r = await probe(c, await publicOrigin());
+  await audit(user.id, "settings.test", "Setting", "social-login", null, { provider: p, ok: r.ok });
+  return r;
 }

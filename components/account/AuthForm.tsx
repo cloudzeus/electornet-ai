@@ -43,10 +43,7 @@ export function AuthForm({ mode, next = "/logariasmos" }: { mode: "login" | "reg
         <p className="m-0 mt-1 text-eu-muted text-[length:var(--fs-15)]">{mode === "login" ? "Με email και κωδικό, ή με σύνδεσμο μίας χρήσης στο email σου." : "Λίγα πεδία. Τα στοιχεία διεύθυνσης τα ζητάμε μόνο στην πρώτη παραγγελία."}</p>
       </div>
       {err && <p role="alert" className="m-0 rounded-xl bg-eu-red/10 text-eu-red font-bold text-[length:var(--fs-14)] px-3 py-2">{err}</p>}
-      <SocialLogin onSignedIn={go} />
-      <div className="flex items-center gap-3 text-eu-muted-2 text-[length:var(--fs-13-5)]">
-        <span className="flex-1 h-px bg-eu-line" /> ή <span className="flex-1 h-px bg-eu-line" />
-      </div>
+      <SocialLogin next={next} separator="after" />
       {mode === "register" && (
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>

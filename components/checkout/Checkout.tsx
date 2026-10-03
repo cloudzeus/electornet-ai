@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard, Landmark, Banknote, Smartphone, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
@@ -55,6 +55,16 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const [placing, setPlacing] = useState(false);
   const offline = lines.filter((l) => !l.product.fromDb);
   const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, storeId: ful === "click-collect" ? storeId : null, zip: /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null });
+  // συνδεδεμένος πελάτης (και μετά από σύνδεση με Google / Microsoft / Facebook / Apple): συμπλήρωση στοιχείων
+  useEffect(() => {
+    let on = true;
+    fetch("/api/account/me").then((r) => r.json()).then((m: { authenticated?: boolean; firstName?: string; lastName?: string; email?: string; mobile?: string | null }) => {
+      if (!on || !m.authenticated) return;
+      setF((x) => ({ ...x, firstName: x.firstName || m.firstName || "", lastName: x.lastName || m.lastName || "", email: x.email || m.email || "", phone: x.phone || m.mobile || "" }));
+      setSignedIn(m.firstName ?? m.email ?? "μέλος");
+    }).catch(() => null);
+    return () => { on = false; };
+  }, []);
   const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
   const localGoods = subtotal + addonsTotal;
@@ -228,17 +238,12 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               <Section n={1} title={c.stoicheia_epikoinonias} lead="Εδώ στέλνουμε την επιβεβαίωση και το SMS παράδοσης.">
                 {signedIn ? (
                   <p className="m-0 rounded-xl bg-eu-green/10 text-eu-green font-bold text-[length:var(--fs-15)] px-4 py-3 inline-flex items-center gap-2">
-                    <Check className="size-4" aria-hidden /> Συνδέθηκες με {signedIn}. Τα στοιχεία σου συμπληρώθηκαν.
+                    <Check className="size-4" aria-hidden /> Συνδέθηκες ως {signedIn}. Τα στοιχεία σου συμπληρώθηκαν.
                   </p>
                 ) : (
                   <div className="grid gap-2">
                     <div className="text-eu-ink-3 text-[length:var(--fs-14)] font-semibold">{c.syndesi_gia_aytomati_symplirosi}</div>
-                    <SocialLogin
-                      onSignedIn={(p) => {
-                        setF((x) => ({ ...x, firstName: p.firstName, lastName: p.lastName, email: p.email }));
-                        setSignedIn({ google: "Google", microsoft: "Microsoft", facebook: "Facebook", apple: "Apple" }[p.provider]);
-                      }}
-                    />
+                    <SocialLogin next="/checkout" />
                   </div>
                 )}
                 <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">

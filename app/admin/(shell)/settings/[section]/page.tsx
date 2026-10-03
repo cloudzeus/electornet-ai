@@ -8,6 +8,10 @@ import { SettingsForm } from "@/components/admin/SettingsForm";
 import { ApiKeysPanel } from "@/components/admin/ApiKeysPanel";
 import { AiMarkupPanel } from "@/components/admin/AiMarkupPanel";
 import { db } from "@/lib/db";
+import { SocialLoginSettings } from "@/components/admin/settings/SocialLoginSettings";
+import { providerConfigs, missing, PROVIDERS, type OAuthProvider } from "@/lib/account/oauth";
+import { publicOrigin } from "@/lib/account/oauth-flow";
+import { getSetting } from "@/lib/settings/store";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ section: 
   return { title: section === "api-keys" ? "API keys" : section === "ai-markup" ? "AI markup" : sectionByKey(section)?.title ?? "Ρυθμίσεις" };
 }
 
-export default async function SettingsSection({ params }: { params: Promise<{ section: string }> }) {
+export default async function SettingsSection({ params, searchParams }: { params: Promise<{ section: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireSuperAdmin();
   const { section } = await params;
   const back = (
@@ -48,6 +52,28 @@ export default async function SettingsSection({ params }: { params: Promise<{ se
   }
   const def = sectionByKey(section);
   if (!def) notFound();
+  if (section === "social-login") {
+    const [{ data, secretSet }, cfgs, origin, general, sp] = await Promise.all([getSettingForForm(section), providerConfigs(), publicOrigin(), getSetting("general"), searchParams]);
+    const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+    const tp = one(sp.test);
+    const msg = one(sp.ok) ?? one(sp.error);
+    const test = tp && PROVIDERS.includes(tp as OAuthProvider) && msg ? { p: tp as OAuthProvider, ok: !!one(sp.ok), msg: msg.slice(0, 400) } : null;
+    const base = String(general.data.baseUrl ?? "").trim().replace(/\/$/, "");
+    return (
+      <>
+        {back}
+        <SocialLoginSettings
+          key={test ? `${test.p}-${msg}` : "form"}
+          data={data}
+          secretSet={secretSet}
+          origin={origin}
+          prodBase={/^https:\/\//.test(base) ? base : null}
+          storedMissing={Object.fromEntries(PROVIDERS.map((p) => [p, missing(cfgs[p])])) as Record<OAuthProvider, string[]>}
+          test={test}
+        />
+      </>
+    );
+  }
   const { data, secretSet } = await getSettingForForm(section);
   const idx = SECTIONS.findIndex((s) => s.key === section);
   const prev = SECTIONS[idx - 1];
@@ -55,7 +81,7 @@ export default async function SettingsSection({ params }: { params: Promise<{ se
   return (
     <>
       {back}
-      <SettingsForm section={def} data={data} secretSet={secretSet} />
+      <SettingsForm sectionKey={def.key} data={data} secretSet={secretSet} />
       <nav aria-label="Ενότητες" className="flex justify-between gap-3 text-[length:var(--fs-14)] font-bold">
         {prev ? <Link href={`/admin/settings/${prev.key}`} className="text-eu-blue hover:underline">← {prev.title}</Link> : <span />}
         {next && <Link href={`/admin/settings/${next.key}`} className="text-eu-blue hover:underline">{next.title} →</Link>}
