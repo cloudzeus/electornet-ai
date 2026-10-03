@@ -29,10 +29,23 @@ export interface Schedule {
   to?: string;
 }
 
+/** Ζώνες της σελίδας: top = πάνω από το hero · main = κάτω από το hero · bottom = πριν τον κατάλογο της μάρκας */
+export type Zone = "top" | "main" | "bottom";
+export const ZONES: { key: Zone; label: string; help: string }[] = [
+  { key: "top", label: "Πάνω από το hero", help: "Λεπτές λωρίδες: ανακοίνωση, αντίστροφη μέτρηση, πλεονεκτήματα." },
+  { key: "main", label: "Κύρια ροή", help: "Ακριβώς κάτω από το hero — το κυρίως περιεχόμενο." },
+  { key: "bottom", label: "Πριν τον κατάλογο", help: "Στο τέλος, πριν το «Όλα τα προϊόντα» — FAQ, εγγύηση, κάλεσμα σε δράση." },
+];
+export type TechIcon = "cpu" | "eye" | "zap" | "wifi" | "shield" | "sparkles" | "leaf" | "camera";
+export type Cta = { label: string; href: string };
+export type AutoSource = "newest" | "offers" | "top" | "value" | "in-stock";
+
 interface BlockBase {
   id: string;
   enabled?: boolean;
   schedule?: Schedule;
+  /** σε ποια ζώνη της σελίδας (προεπιλογή: main) */
+  zone?: Zone;
   /** optional editorial title/kicker override for the block */
   kicker?: string;
   title?: string;
@@ -43,15 +56,29 @@ export type BrandBlock =
   | (BlockBase & { type: "series"; items: { name: string; blurb: string; image: string; productIds: string[]; href?: string }[] })
   | (BlockBase & { type: "offers"; productIds: string[]; endsAt: string })
   | (BlockBase & { type: "story"; image: string; body: string; cta?: { label: string; href: string }; align?: "left" | "right" })
-  | (BlockBase & { type: "tech"; items: { icon: "cpu" | "eye" | "zap" | "wifi" | "shield" | "sparkles" | "leaf" | "camera"; title: string; blurb: string }[] })
+  | (BlockBase & { type: "tech"; items: { icon: TechIcon; title: string; blurb: string }[] })
   | (BlockBase & { type: "support"; facts: string[]; askAris?: string[] })
-  | (BlockBase & { type: "video"; src: string; poster: string; caption?: string });
+  | (BlockBase & { type: "video"; src: string; poster: string; caption?: string })
+  // ---- δυναμικά components (Περιεχόμενο → Σελίδες μαρκών) ----
+  | (BlockBase & { type: "announcement"; text: string; href?: string; endsAt?: string })
+  | (BlockBase & { type: "usp"; items: { icon: TechIcon; text: string }[] })
+  | (BlockBase & { type: "banner"; image: string; imageMobile?: string; body?: string; cta?: Cta; align?: "left" | "center" | "right"; overlay?: "dark" | "light" | "none"; height?: "s" | "m" | "l" })
+  | (BlockBase & { type: "products-auto"; source: AutoSource; categoryId?: string; categoryName?: string; limit: number; cta?: Cta })
+  | (BlockBase & { type: "categories"; mode: "auto" | "manual"; items?: { id: string; name: string; image?: string }[]; limit?: number })
+  | (BlockBase & { type: "faq"; items: { q: string; a: string }[] })
+  | (BlockBase & { type: "text"; body: string; align?: "left" | "center" })
+  | (BlockBase & { type: "gallery"; images: { src: string; caption?: string; href?: string }[]; layout?: "grid" | "mosaic" })
+  | (BlockBase & { type: "cta"; body?: string; primary: Cta; secondary?: Cta });
 
 export interface BrandStore {
   slug: string;
   name: string;
   /** wordmark shown in the hero and the strip (text until the official asset is licensed) */
   wordmark: string;
+  /** optional official logo (Media library ή hotlink Brandfetch) — αν υπάρχει, αντικαθιστά το wordmark κειμένου */
+  logo?: string;
+  /** επίσημο site της μάρκας — από εκεί προτείνεται το στυλ (Περιεχόμενο → Brand stores) */
+  website?: string;
   tagline: string;
   theme: BrandTheme;
   hero: {
@@ -70,7 +97,7 @@ export interface BrandStore {
   seo: { title: string; description: string };
 }
 
-const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video"]);
+const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video", "announcement", "usp", "banner", "products-auto", "categories", "faq", "text", "gallery", "cta"]);
 
 /** Cheap structural validation for CMS payloads: returns a list of problems (empty = ok). */
 export function validateBrandStore(s: BrandStore): string[] {

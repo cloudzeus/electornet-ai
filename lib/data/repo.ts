@@ -422,10 +422,21 @@ export async function getDevices(): Promise<DeviceInfo[]> {
   return devices;
 }
 
-/** @dynamic Brand store config (CMS «Brand stores» collection); null when the brand has only a listing. */
+/**
+ * @dynamic Brand store (Περιεχόμενο → Brand stores, CmsDocument «brand.stores»): η ΔΗΜΟΣΙΕΥΜΕΝΗ σελίδα της μάρκας·
+ * null όταν η μάρκα δείχνει μόνο τον κατάλογο. Τα fixtures χρησιμοποιούνται μόνο σε βάση χωρίς κανένα brand store
+ * (νέα εγκατάσταση / demo).
+ */
+async function storesInDb() {
+  const { COLLECTION } = await import("@/lib/cms/brand-stores");
+  const { db } = await import("@/lib/db");
+  return (await dbEnabled()) && (await db.cmsDocument.count({ where: { collection: COLLECTION } }).catch(() => 0)) > 0;
+}
 export async function getBrandStore(slug: string): Promise<BrandStore | null> {
+  if (await storesInDb()) return (await import("@/lib/cms/brand-stores")).getPublishedStore(slug);
   return brandStores.find((b) => b.slug === slug) ?? null;
 }
 export async function getBrandStores(): Promise<BrandStore[]> {
+  if (await storesInDb()) return (await import("@/lib/cms/brand-stores")).getPublishedStores();
   return brandStores;
 }

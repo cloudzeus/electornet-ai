@@ -10,6 +10,16 @@ import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { getBrand, getBrandStore, listProducts, type ListFilter } from "@/lib/data/repo";
 import { renderBrandStore } from "@/lib/cms/brand-render";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/rbac/permissions";
+import { getStoreDoc } from "@/lib/cms/brand-stores";
+
+/** ?preview=1 από το προσωπικό με δικαίωμα σελίδων μαρκών: δείχνει το ΠΡΟΧΕΙΡΟ (ποτέ σε πελάτες). */
+async function previewStore(slug: string) {
+  const user = (await auth())?.user;
+  if (!user || !can(user.permissions, "cms.brandstores.write")) return null;
+  return (await getStoreDoc(slug))?.draft ?? null;
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const slug = (await params).slug;
@@ -24,11 +34,13 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
   const brand = await getBrand(slug);
   if (!brand) notFound();
   // Brand store (CMS record) → the manufacturer's own page; ?all=1 shows the plain listing.
-  const store = sp.all ? null : await getBrandStore(slug);
+  const preview = sp.preview === "1" && !sp.all ? await previewStore(slug) : null;
+  const store = sp.all ? null : preview ?? (await getBrandStore(slug));
   const result = await listProducts({ brand: [slug], energy: sp.energy?.split(",").filter(Boolean), minPrice: sp.min ? Number(sp.min) : undefined, maxPrice: sp.max ? Number(sp.max) : undefined, avail: sp.avail === "in-stock" ? "in-stock" : undefined, sale: sp.sale === "1", sort: (sp.sort as ListFilter["sort"]) ?? "relevance", page: sp.page ? Number(sp.page) : 1 });
   if (store) {
     return (
       <div className="eu-container">
+        {preview && <div role="status" className="sticky top-0 z-40 bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-14)] px-4 py-2">Προεπισκόπηση πρόχειρου — οι πελάτες δεν το βλέπουν</div>}
         <Breadcrumbs items={[{ label: "Μάρκες", href: "/brands" }, { label: brand.name }]} />
         {await renderBrandStore(store)}
         <div className="eu-canvas eu-gutter py-10 flex flex-wrap items-center justify-between gap-3">
