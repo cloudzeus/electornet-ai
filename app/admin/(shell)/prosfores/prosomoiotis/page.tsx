@@ -9,7 +9,7 @@ export default async function SimulatorPage() {
   await requirePermission("catalog.promos.write");
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="sim" title="Προσομοιωτής καλαθιού" lead="Φτιάξε ένα καλάθι, διάλεξε πελάτη, ημερομηνία και κουπόνι: η ίδια μηχανή με το checkout δείχνει τι εφαρμόζεται και γιατί — και για προσφορές που δεν έχουν δημοσιευτεί ακόμη." />
+      <PromoTabs help="sim" active="sim" title="Προσομοιωτής καλαθιού" lead="Φτιάξε ένα καλάθι, διάλεξε πελάτη, ημερομηνία και κουπόνι: η ίδια μηχανή με το checkout δείχνει τι εφαρμόζεται και γιατί — και για προσφορές που δεν έχουν δημοσιευτεί ακόμη." />
       <Simulator />
     </div>
   );

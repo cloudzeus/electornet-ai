@@ -6,6 +6,7 @@ import { Plus, Pencil, X } from "lucide-react";
 import { SLOTS } from "@/lib/promo/landing-blocks";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
 import { ImageUrlField } from "./ImageUrlField";
+import { Hint } from "./Help";
 
 type Row = PlacementInput & { id: string; impressions: number; clicks: number; promoLive: boolean | null };
 type Opt = { id: string; label: string };
@@ -31,7 +32,7 @@ export function PlacementsEditor({ rows, promos, landings, categories }: { rows:
         <section className="rounded-2xl bg-white border-2 border-eu-navy p-4 @md:p-5 grid gap-3">
           <div className="flex items-center justify-between"><h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-16)]">{edit.id ? "Επεξεργασία banner" : "Νέο banner"}</h3><button type="button" aria-label="Κλείσιμο" onClick={() => setEdit(null)} className="size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button></div>
           <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
-            <label className={lbl}><span>Θέση</span><select className={input} value={edit.slot} onChange={(e) => set({ slot: e.target.value })}>{SLOTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
+            <label className={lbl}><span className="inline-flex items-center gap-1">Θέση <Hint k="slot" /></span><select className={input} value={edit.slot} onChange={(e) => set({ slot: e.target.value })}>{SLOTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
             <label className={lbl}><span>Τίτλος (εσωτερικός)</span><input className={input} value={edit.title} onChange={(e) => set({ title: e.target.value })} /></label>
             <label className={lbl}><span>Κατάσταση</span><select className={input} value={edit.status} onChange={(e) => set({ status: e.target.value as PlacementInput["status"] })}>{Object.entries(ST).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
             <ImageUrlField label="Εικόνα" value={edit.image ?? ""} onChange={(v) => set({ image: v || null })} help={`Μέγεθος: ${SLOTS.find((s) => s.key === edit.slot)?.size}`} />
@@ -42,7 +43,7 @@ export function PlacementsEditor({ rows, promos, landings, categories }: { rows:
             <label className={lbl}><span>ή σύνδεσμος</span><input className={input} value={edit.href ?? ""} onChange={(e) => set({ href: e.target.value || null })} placeholder="/k/… ή https://…" /></label>
             <label className={lbl}><span>Από</span><input type="datetime-local" className={input} value={localDt(edit.startsAt)} onChange={(e) => set({ startsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
             <label className={lbl}><span>Έως</span><input type="datetime-local" className={input} value={localDt(edit.endsAt)} onChange={(e) => set({ endsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
-            <label className={lbl}><span>Προτεραιότητα</span><input inputMode="numeric" className={input} value={edit.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></label>
+            <label className={lbl}><span className="inline-flex items-center gap-1">Προτεραιότητα <Hint k="adPriority" /></span><input inputMode="numeric" className={input} value={edit.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></label>
           </div>
           {(edit.slot === "listing-top" || edit.slot === "pdp-below-buybox") && (
             <div className="grid gap-1.5"><span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Μόνο στις κατηγορίες (κενό = σε όλες)</span>

@@ -1,21 +1,25 @@
 import Link from "next/link";
-import { ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone } from "lucide-react";
+import { ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy } from "lucide-react";
+import { PAGE_HELP } from "@/lib/promo/help";
+import { HelpPanel } from "./Help";
 
 const TABS = [
   { key: "list", href: "/admin/prosfores", label: "Προσφορές", Icon: ListChecks },
   { key: "calendar", href: "/admin/prosfores/imerologio", label: "Ημερολόγιο", Icon: CalendarRange },
   { key: "coupons", href: "/admin/prosfores/kouponia", label: "Κουπόνια", Icon: TicketPercent },
+  { key: "segments", href: "/admin/prosfores/koina", label: "Κοινά πελατών", Icon: Users },
   { key: "tags", href: "/admin/prosfores/etiketes", label: "Ετικέτες", Icon: Tags },
   { key: "sim", href: "/admin/prosfores/prosomoiotis", label: "Προσομοιωτής", Icon: FlaskConical },
   { key: "rules", href: "/admin/prosfores/kanones", label: "Κανόνες", Icon: ShieldCheck },
   { key: "report", href: "/admin/prosfores/anafores", label: "Αναφορές", Icon: BarChart3 },
   { key: "landing", href: "/admin/prosfores/selides", label: "Landing pages", Icon: LayoutTemplate },
   { key: "ads", href: "/admin/prosfores/theseis", label: "Διαφημιστικές θέσεις", Icon: Megaphone },
+  { key: "help", href: "/admin/prosfores/voitheia", label: "Βοήθεια", Icon: LifeBuoy },
 ] as const;
 export type PromoTab = (typeof TABS)[number]["key"];
 
 /** Η πλοήγηση της ενότητας «Προσφορές» — ίδια σε κάθε σελίδα της. */
-export function PromoTabs({ active, title, lead, actions }: { active: PromoTab; title: string; lead?: string; actions?: React.ReactNode }) {
+export function PromoTabs({ active, title, lead, actions, help }: { active: PromoTab; title: string; lead?: string; actions?: React.ReactNode; help?: keyof typeof PAGE_HELP }) {
   return (
     <div className="grid gap-4 min-w-0">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -33,6 +37,7 @@ export function PromoTabs({ active, title, lead, actions }: { active: PromoTab; 
           </Link>
         ))}
       </nav>
+      {help && PAGE_HELP[help] && <HelpPanel id={help} topic={PAGE_HELP[help]} />}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkl
 import type { PromoDraft, DraftAnalysis } from "@/lib/promo/admin";
 import type { PromoTarget } from "@/lib/promo/engine";
 import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, autoLabel, describePromo, type PromoStatus } from "@/lib/promo/catalog";
+import { HelpPanel, Hint } from "./Help";
+import { STEP_HELP } from "@/lib/promo/help";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
 
 type Svc = { slug: string; title: string; price: number };
@@ -23,8 +25,8 @@ const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null);
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
 const label = "grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2";
 
-function Field({ l, children, hint }: { l: string; children: ReactNode; hint?: string }) {
-  return <label className={label}><span>{l}</span>{children}{hint && <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">{hint}</span>}</label>;
+function Field({ l, children, hint, info }: { l: string; children: ReactNode; hint?: string; info?: string }) {
+  return <label className={label}><span className="inline-flex items-center gap-1">{l}{info && <Hint k={info} />}</span>{children}{hint && <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">{hint}</span>}</label>;
 }
 
 /** Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι. */
@@ -89,6 +91,8 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
         ))}
       </ol>
 
+      <HelpPanel key={step} id={`wizard-${step}`} topic={STEP_HELP[step]} compact />
+
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-5 min-w-0">
         {step === 0 && (
           <div className="grid gap-5">
@@ -129,16 +133,19 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
                 <option value="">με αποστολή ή παραλαβή</option><option value="online">μόνο με αποστολή</option><option value="click-collect">μόνο παραλαβή από κατάστημα</option>
               </select>.
             </p>
+            <p className="m-0 -mt-3 flex flex-wrap gap-x-4 gap-y-1 text-eu-muted text-[length:var(--fs-13)]">
+              <span className="inline-flex items-center">Πελάτες <Hint k="customers" /></span><span className="inline-flex items-center">Ελάχιστη αξία <Hint k="minValue" /></span><span className="inline-flex items-center">Τεμάχια <Hint k="minQty" /></span><span className="inline-flex items-center">Κανάλι <Hint k="channels" /></span>
+            </p>
             <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
-              <Field l="Έναρξη" hint="Κενό = αμέσως μόλις δημοσιευτεί"><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: fromLocal(e.target.value) })} /></Field>
-              <Field l="Λήξη" hint="Κενό = χωρίς λήξη (δεν συνιστάται)"><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: fromLocal(e.target.value) })} /></Field>
-              <Field l="Μέγιστες χρήσεις συνολικά"><input inputMode="numeric" className={input} value={d.maxUses ?? ""} onChange={(e) => set({ maxUses: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
-              <Field l="Ανά πελάτη"><input inputMode="numeric" className={input} value={d.maxPerCustomer ?? ""} onChange={(e) => set({ maxPerCustomer: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
-              <Field l="Budget (€)" hint="Όταν εξαντληθεί, η προσφορά σταματά μόνη της."><input inputMode="decimal" className={input} value={d.budgetEur ?? ""} onChange={(e) => set({ budgetEur: Number(e.target.value.replace(",", ".")) || null })} placeholder="χωρίς όριο" /></Field>
-              <Field l="Προτεραιότητα" hint="Μικρότερος αριθμός = εξετάζεται πρώτη"><input inputMode="numeric" className={input} value={d.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></Field>
+              <Field info="startsAt" l="Έναρξη" hint="Κενό = αμέσως μόλις δημοσιευτεί"><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: fromLocal(e.target.value) })} /></Field>
+              <Field info="endsAt" l="Λήξη" hint="Κενό = χωρίς λήξη (δεν συνιστάται)"><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: fromLocal(e.target.value) })} /></Field>
+              <Field info="maxUses" l="Μέγιστες χρήσεις συνολικά"><input inputMode="numeric" className={input} value={d.maxUses ?? ""} onChange={(e) => set({ maxUses: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
+              <Field info="maxPerCustomer" l="Ανά πελάτη"><input inputMode="numeric" className={input} value={d.maxPerCustomer ?? ""} onChange={(e) => set({ maxPerCustomer: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
+              <Field info="budget" l="Budget (€)" hint="Όταν εξαντληθεί, η προσφορά σταματά μόνη της."><input inputMode="decimal" className={input} value={d.budgetEur ?? ""} onChange={(e) => set({ budgetEur: Number(e.target.value.replace(",", ".")) || null })} placeholder="χωρίς όριο" /></Field>
+              <Field info="priority" l="Προτεραιότητα" hint="Μικρότερος αριθμός = εξετάζεται πρώτη"><input inputMode="numeric" className={input} value={d.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></Field>
             </div>
             <fieldset className="m-0 p-0 border-0 grid gap-2">
-              <legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1">Μαζί με άλλες προσφορές</legend>
+              <legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1 inline-flex items-center gap-1">Μαζί με άλλες προσφορές <Hint k="stacking" /></legend>
               {(Object.keys(STACKING_LABEL) as (keyof typeof STACKING_LABEL)[]).map((k) => (
                 <label key={k} className={`flex items-start gap-3 rounded-xl border-2 p-3 cursor-pointer ${d.stacking === k ? "border-eu-navy bg-eu-chip" : "border-eu-line"}`}>
                   <input type="radio" name="stacking" checked={d.stacking === k} onChange={() => set({ stacking: k })} className="mt-1 size-5 accent-eu-navy" />
@@ -149,13 +156,13 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
             <details className="rounded-xl border border-eu-line p-3">
               <summary className="cursor-pointer font-bold text-eu-ink-2 text-[length:var(--fs-14)] min-h-8">Περιοχή, πληρωμή, παράδοση</summary>
               <div className="grid grid-cols-1 @xl:grid-cols-3 gap-3 mt-3">
-                <Field l="Ταχυδρομικοί κώδικες" hint="Χωρισμένοι με κόμμα· δέχεται προθέματα (π.χ. 151)"><input className={input} value={(d.rules.zips ?? []).join(", ")} onChange={(e) => setRules({ zips: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
-                <Field l="Τρόποι πληρωμής" hint="π.χ. card, iris, cod"><input className={input} value={(d.rules.payment ?? []).join(", ")} onChange={(e) => setRules({ payment: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
-                <Field l="Τρόποι παράδοσης" hint="courier, click-collect, appointment"><input className={input} value={(d.rules.delivery ?? []).join(", ")} onChange={(e) => setRules({ delivery: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
+                <Field info="zips" l="Ταχυδρομικοί κώδικες" hint="Χωρισμένοι με κόμμα· δέχεται προθέματα (π.χ. 151)"><input className={input} value={(d.rules.zips ?? []).join(", ")} onChange={(e) => setRules({ zips: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
+                <Field info="payment" l="Τρόποι πληρωμής" hint="π.χ. card, iris, cod"><input className={input} value={(d.rules.payment ?? []).join(", ")} onChange={(e) => setRules({ payment: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
+                <Field info="delivery" l="Τρόποι παράδοσης" hint="courier, click-collect, appointment"><input className={input} value={(d.rules.delivery ?? []).join(", ")} onChange={(e) => setRules({ delivery: e.target.value.split(/[,\s]+/).filter(Boolean) })} /></Field>
               </div>
             </details>
             {isCoupon && (
-              <Field l="Κοινός κωδικός κουπονιού" hint="Προαιρετικό: για προσωπικούς / μοναδικούς κωδικούς χρησιμοποίησε την καρτέλα «Κουπόνια» μετά την αποθήκευση.">
+              <Field info="coupon" l="Κοινός κωδικός κουπονιού" hint="Προαιρετικό: για προσωπικούς / μοναδικούς κωδικούς χρησιμοποίησε την καρτέλα «Κουπόνια» μετά την αποθήκευση.">
                 <input className={`${input} font-mono uppercase`} value={d.couponCode ?? ""} onChange={(e) => set({ couponCode: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") || null })} placeholder="π.χ. WELCOME10" />
               </Field>
             )}
@@ -166,7 +173,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
           <div className="grid gap-5">
             <Field l="Όνομα (εσωτερικό)" hint="Φαίνεται στο διαχειριστικό, στις αναφορές και στο παραστατικό."><input className={input} value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="π.χ. Black Friday · τηλεοράσεις −20 %" /></Field>
             <div className="grid grid-cols-1 @xl:grid-cols-2 gap-4 items-start">
-              <Field l="Ετικέτα στη βιτρίνα" hint={`Κενό = αυτόματη: «${autoLabel({ ...d, tagLabel: null }, svcTitle)}»`}><input className={input} value={d.tagLabel ?? ""} maxLength={28} onChange={(e) => set({ tagLabel: e.target.value || null })} /></Field>
+              <Field info="tagLabel" l="Ετικέτα στη βιτρίνα" hint={`Κενό = αυτόματη: «${autoLabel({ ...d, tagLabel: null }, svcTitle)}»`}><input className={input} value={d.tagLabel ?? ""} maxLength={28} onChange={(e) => set({ tagLabel: e.target.value || null })} /></Field>
               <div className="grid gap-1">
                 <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Έτσι φαίνεται στην κάρτα</span>
                 <div className="rounded-2xl border border-eu-line p-4 flex items-center gap-3">
@@ -178,7 +185,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
                 </div>
               </div>
             </div>
-            <Field l="Όροι (εμφανίζονται στον πελάτη και γράφονται στο παραστατικό)">
+            <Field info="terms" l="Όροι (εμφανίζονται στον πελάτη και γράφονται στο παραστατικό)">
               <textarea rows={5} className={`${input} py-2`} value={d.termsText ?? ""} onChange={(e) => set({ termsText: e.target.value || null })} />
             </Field>
             <button type="button" onClick={() => set({ termsText: termsFor(d, summary) })} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Σύνταξη όρων από τα στοιχεία</button>
@@ -322,8 +329,8 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
             {(["category", "brand", "product"] as const).map((k) => (
               <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] border-2 ${kind === k ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line"}`}>{KIND[k]}</button>
             ))}
-            <label className="ml-2 inline-flex items-center gap-2 text-[length:var(--fs-14)] font-bold text-eu-ink-2 min-h-11"><input type="checkbox" checked={exclude} onChange={(e) => setExclude(e.target.checked)} className="size-5 accent-eu-red" /> Ως εξαίρεση</label>
-            <button type="button" onClick={whole} className="ml-auto inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Store className="size-4" aria-hidden /> Όλο το κατάστημα</button>
+            <label className="ml-2 inline-flex items-center gap-2 text-[length:var(--fs-14)] font-bold text-eu-ink-2 min-h-11"><input type="checkbox" checked={exclude} onChange={(e) => setExclude(e.target.checked)} className="size-5 accent-eu-red" /> Ως εξαίρεση</label><Hint k="exclude" />
+            <button type="button" onClick={whole} className="ml-auto inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Store className="size-4" aria-hidden /> Όλο το κατάστημα</button><Hint k="wholeStore" />
           </div>
           <Picker key={kind} kind={kind} onPick={add} placeholder={kind === "product" ? "Τίτλος, κωδικός ή EAN" : kind === "brand" ? "Όνομα μάρκας" : "Όνομα κατηγορίας (κενό = κύριες)"} />
           <div className="grid gap-2">

@@ -59,7 +59,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="list" title="Προσφορές & κουπόνια" lead="Κάθε προσφορά ζει στο e-shop και γράφεται στη γραμμή του παραστατικού SoftOne με κωδικό και έκδοση. Οι αλλαγές φαίνονται στη βιτρίνα μέσα σε λίγα δευτερόλεπτα."
+      <PromoTabs help="list" active="list" title="Προσφορές & κουπόνια" lead="Κάθε προσφορά ζει στο e-shop και γράφεται στη γραμμή του παραστατικού SoftOne με κωδικό και έκδοση. Οι αλλαγές φαίνονται στη βιτρίνα μέσα σε λίγα δευτερόλεπτα."
         actions={<>
           <Link href="/admin/prosfores/ermis" className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Περιγραφή στον Ερμή</Link>
           <Link href="/admin/prosfores/excel" className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-chip"><FileSpreadsheet className="size-4" aria-hidden /> Από Excel</Link>

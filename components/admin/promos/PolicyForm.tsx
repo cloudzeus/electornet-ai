@@ -2,14 +2,15 @@
 
 import { useState, useTransition } from "react";
 import type { PromoPolicy } from "@/lib/promo/policy";
+import { Hint } from "./Help";
 import { savePolicyAction } from "@/app/admin/(shell)/prosfores/actions";
 
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
 
-function Num({ l, v, on, hint, suffix }: { l: string; v: number; on: (n: number) => void; hint?: string; suffix?: string }) {
+function Num({ l, v, on, hint, suffix, info }: { l: string; v: number; on: (n: number) => void; hint?: string; suffix?: string; info?: string }) {
   return (
     <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2">
-      <span>{l}</span>
+      <span className="inline-flex items-center gap-1">{l}{info && <Hint k={info} />}</span>
       <span className="flex items-center gap-2"><input inputMode="numeric" className={`${input} max-w-40`} value={v} onChange={(e) => on(Number(e.target.value.replace(/\D/g, "")) || 0)} />{suffix && <span className="font-semibold">{suffix}</span>}</span>
       {hint && <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">{hint}</span>}
     </label>
@@ -38,7 +39,7 @@ export function PolicyForm({ initial, coupons }: { initial: PromoPolicy; coupons
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-4">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Δικλείδες τιμής</h3>
         <div className="grid grid-cols-1 @xl:grid-cols-3 gap-4">
-          <Num l="Μέγιστη έκπτωση ανά γραμμή" v={p.maxLinePct} on={(n) => set({ maxLinePct: n })} suffix="%" hint="Προσφορές + κουπόνι μαζί. Δεν αφορά 1+1 / 2ο −Χ % / κλίμακες." />
+          <Num info="maxLinePct" l="Μέγιστη έκπτωση ανά γραμμή" v={p.maxLinePct} on={(n) => set({ maxLinePct: n })} suffix="%" hint="Προσφορές + κουπόνι μαζί. Δεν αφορά 1+1 / 2ο −Χ % / κλίμακες." />
           <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Κάτω από το κόστος</span>
             <select className={input} value={p.belowCost} onChange={(e) => set({ belowCost: e.target.value as PromoPolicy["belowCost"] })}><option value="block">Ποτέ — η έκπτωση κόβεται στο κόστος</option><option value="warn">Επιτρέπεται, με προειδοποίηση στον οδηγό</option></select>
           </label>
@@ -48,7 +49,7 @@ export function PolicyForm({ initial, coupons }: { initial: PromoPolicy; coupons
         </div>
       </section>
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-4">
-        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Έγκριση από δεύτερο πρόσωπο</h3>
+        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1">Έγκριση από δεύτερο πρόσωπο <Hint k="approval" /></h3>
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Μια προσφορά που ξεπερνά κάποιο όριο δημοσιεύεται μόνο όταν την εγκρίνει χρήστης με δικαίωμα «Έγκριση προσφορών» — και όχι αυτός που τη δημιούργησε. Σε αλλαγή ζωντανής προσφοράς, μέχρι την έγκριση ισχύει η προηγούμενη έκδοση.</p>
         <div className="grid grid-cols-1 @xl:grid-cols-3 gap-4">
           <Num l="Έκπτωση πάνω από" v={p.approvalAbovePct} on={(n) => set({ approvalAbovePct: n })} suffix="%" />
@@ -57,7 +58,7 @@ export function PolicyForm({ initial, coupons }: { initial: PromoPolicy; coupons
         </div>
       </section>
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-4">
-        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Βιτρίνα & κουπόνια καλωσορίσματος</h3>
+        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1">Βιτρίνα & αυτόματα κουπόνια <Hint k="welcome" /></h3>
         <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-4">
           <Num l="Ετικέτες ανά κάρτα" v={p.maxTagsPerCard} on={(n) => set({ maxTagsPerCard: n })} hint="1–4. Περισσότερες κουράζουν." />
           {couponSelect(p.signupPromotion, (v) => set({ signupPromotion: v }), "Κουπόνι στην εγγραφή")}

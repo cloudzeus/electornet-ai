@@ -32,7 +32,7 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="coupons" title="Κουπόνια" lead="Ένα κουπόνι είναι προσφορά με μηχανισμό «κουπόνι» και έναν ή πολλούς κωδικούς: κοινός κωδικός (π.χ. WELCOME10), προσωπικοί μίας χρήσης (εγγραφή, newsletter, σε email) ή παρτίδες για φυλλάδια και συνεργάτες." />
+      <PromoTabs help="coupons" active="coupons" title="Κουπόνια" lead="Ένα κουπόνι είναι προσφορά με μηχανισμό «κουπόνι» και έναν ή πολλούς κωδικούς: κοινός κωδικός (π.χ. WELCOME10), προσωπικοί μίας χρήσης (εγγραφή, newsletter, σε email) ή παρτίδες για φυλλάδια και συνεργάτες." />
       <section className="grid gap-2">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Προσφορές-κουπόνια</h3>
         {promos.length ? (

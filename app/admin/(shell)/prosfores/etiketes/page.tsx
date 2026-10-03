@@ -23,7 +23,7 @@ export default async function TagsPage() {
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="tags" title="Ετικέτες προϊόντων" lead="Οι εμπορικές ετικέτες βγαίνουν αυτόματα από τις προσφορές (έως 2 ανά κάρτα). Οι ενημερωτικές μπαίνουν με κανόνα ή χειροκίνητα και φαίνονται όταν δεν υπάρχει ετικέτα προσφοράς." />
+      <PromoTabs help="tags" active="tags" title="Ετικέτες προϊόντων" lead="Οι εμπορικές ετικέτες βγαίνουν αυτόματα από τις προσφορές (έως 2 ανά κάρτα). Οι ενημερωτικές μπαίνουν με κανόνα ή χειροκίνητα και φαίνονται όταν δεν υπάρχει ετικέτα προσφοράς." />
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Εμπορικές (αυτόματες) · {offers.length.toLocaleString("el-GR")} προϊόντα με προσφορά</h3>
         {commercial.size ? (

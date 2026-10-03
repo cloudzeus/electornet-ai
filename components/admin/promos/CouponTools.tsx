@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Download, Send, Layers } from "lucide-react";
+import { Hint } from "./Help";
 import { couponBatchAction, expireCouponAction, issueCouponAction } from "@/app/admin/(shell)/prosfores/actions";
 
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
@@ -32,7 +33,7 @@ export function CouponTools({ promos }: { promos: { id: string; code: string; na
   return (
     <div className="grid grid-cols-1 @4xl:grid-cols-2 gap-4">
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3">
-        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><Layers className="size-4" aria-hidden /> Παρτίδα μοναδικών κωδικών</h3>
+        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><Layers className="size-4" aria-hidden /> Παρτίδα μοναδικών κωδικών <Hint k="batch" /></h3>
         <label className={lbl}><span>Προσφορά-κουπόνι</span><select className={input} value={b.promotionId} onChange={(x) => setB({ ...b, promotionId: x.target.value })}>{promos.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.code}</option>)}</select></label>
         <div className="grid grid-cols-3 gap-3">
           <label className={lbl}><span>Πλήθος</span><input inputMode="numeric" className={input} value={b.count} onChange={(x) => setB({ ...b, count: Number(x.target.value.replace(/\D/g, "")) || 0 })} /></label>

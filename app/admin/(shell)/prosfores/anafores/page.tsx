@@ -62,7 +62,7 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="report" title={promoRow ? `Αναφορά · ${promoRow.name}` : "Αναφορές προσφορών"} lead="Κάθε χρήση προσφοράς γράφεται με την παραγγελία, τη γραμμή, την έκδοση και τον κωδικό κουπονιού — όπως θα γραφτεί και στο παραστατικό SoftOne."
+      <PromoTabs help="report" active="report" title={promoRow ? `Αναφορά · ${promoRow.name}` : "Αναφορές προσφορών"} lead="Κάθε χρήση προσφοράς γράφεται με την παραγγελία, τη γραμμή, την έκδοση και τον κωδικό κουπονιού — όπως θα γραφτεί και στο παραστατικό SoftOne."
         actions={<div className="flex flex-wrap gap-1.5">{[7, 30, 90, 365].map((x) => <Link key={x} href={q({ d: String(x) })} aria-current={x === days ? "page" : undefined} className={`rounded-full px-4 min-h-11 inline-flex items-center font-bold text-[length:var(--fs-14)] border-2 ${x === days ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line"}`}>{x === 365 ? "1 έτος" : `${x} ημέρες`}</Link>)}{promo && <Link href={`?d=${days}`} className="rounded-full px-4 min-h-11 inline-flex items-center font-bold text-[length:var(--fs-14)] border-2 border-eu-line">Όλες οι καμπάνιες</Link>}</div>} />
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3">
         <StatTile label="Έκπτωση που δόθηκε" value={eur(total)} accent />

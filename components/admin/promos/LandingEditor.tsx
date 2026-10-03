@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { ArrowUp, ArrowDown, Trash2, Plus, ExternalLink, ChevronLeft } from "lucide-react";
 import { BLOCKS, newBlockId, type Block, type BlockType } from "@/lib/promo/landing-blocks";
 import { ImageUrlField } from "./ImageUrlField";
+import { Hint } from "./Help";
 import { createLandingAction, saveLandingAction, searchTargetsAction, type LandingInput } from "@/app/admin/(shell)/prosfores/actions";
 
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
@@ -110,7 +111,7 @@ function BlockForm({ b, set, categories }: { b: Block; set: (p: Record<string, u
     case "products": { const p = b.props; return (
       <div className="grid grid-cols-1 @xl:grid-cols-4 gap-3 items-end">
         <label className={`${lbl} @xl:col-span-2`}><span>Τίτλος</span><input className={input} value={p.title ?? ""} onChange={(e) => set({ title: e.target.value })} /></label>
-        <label className={lbl}><span>Πηγή</span><select className={input} value={p.source} onChange={(e) => set({ source: e.target.value })}><option value="promotion">Τα προϊόντα της προσφοράς</option><option value="category">Κατηγορία</option><option value="manual">Επιλεγμένα</option></select></label>
+        <label className={lbl}><span className="inline-flex items-center gap-1">Πηγή <Hint k="landingSource" /></span><select className={input} value={p.source} onChange={(e) => set({ source: e.target.value })}><option value="promotion">Τα προϊόντα της προσφοράς</option><option value="category">Κατηγορία</option><option value="manual">Επιλεγμένα</option></select></label>
         <label className={lbl}><span>Πλήθος / ταξινόμηση</span><span className="flex gap-2"><input inputMode="numeric" className={`${input} w-20`} value={p.limit ?? 24} onChange={(e) => set({ limit: Number(e.target.value) || 24 })} /><select className={input} value={p.sort ?? "discount"} onChange={(e) => set({ sort: e.target.value })}><option value="discount">Μεγαλύτερη έκπτωση</option><option value="price-asc">Φθηνότερα</option><option value="price-desc">Ακριβότερα</option></select></span></label>
         {p.source === "category" && <label className={`${lbl} @xl:col-span-2`}><span>Κατηγορία</span><select className={input} value={p.categoryId ?? ""} onChange={(e) => set({ categoryId: e.target.value })}><option value="">—</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></label>}
         {p.source === "manual" && <div className="@xl:col-span-4"><ManualProducts ids={p.ids ?? []} onChange={(ids) => set({ ids })} /></div>}

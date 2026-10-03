@@ -16,7 +16,7 @@ export default async function PromoRulesPage() {
   ]);
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="rules" title="Κανόνες & δικλείδες" lead="Ισχύουν για κάθε προσφορά, όπως κι αν δημιουργήθηκε. Η μηχανή τους εφαρμόζει στο καλάθι, στις έτοιμες τιμές της βιτρίνας και στον προσομοιωτή." />
+      <PromoTabs help="rules" active="rules" title="Κανόνες & δικλείδες" lead="Ισχύουν για κάθε προσφορά, όπως κι αν δημιουργήθηκε. Η μηχανή τους εφαρμόζει στο καλάθι, στις έτοιμες τιμές της βιτρίνας και στον προσομοιωτή." />
       <PolicyForm initial={policy} coupons={coupons} />
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-3" aria-labelledby="ov-h">
         <h3 id="ov-h" className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Πώς λύνονται οι επικαλύψεις</h3>

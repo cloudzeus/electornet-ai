@@ -19,7 +19,7 @@ export default async function LandingListPage() {
   const byId = new Map(promos.map((p) => [p.id, p]));
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="landing" title="Landing pages" lead="Σελίδες προσφορών στο /prosfores/… φτιαγμένες από blocks: hero, αντίστροφη μέτρηση με την πραγματική λήξη, τα προϊόντα της προσφοράς (αυτόματα), κατηγορίες, κουπόνι, όροι, συχνές ερωτήσεις. Όταν η προσφορά λήξει, η σελίδα το λέει μόνη της." />
+      <PromoTabs help="landing" active="landing" title="Landing pages" lead="Σελίδες προσφορών στο /prosfores/… φτιαγμένες από blocks: hero, αντίστροφη μέτρηση με την πραγματική λήξη, τα προϊόντα της προσφοράς (αυτόματα), κατηγορίες, κουπόνι, όροι, συχνές ερωτήσεις. Όταν η προσφορά λήξει, η σελίδα το λέει μόνη της." />
       <NewLanding promos={promos.map((p) => ({ id: p.id, label: `${p.name} · ${p.code}` }))} />
       <div className="rounded-2xl border border-eu-line bg-white overflow-x-auto">
         <table className="w-full text-[length:var(--fs-14)]">

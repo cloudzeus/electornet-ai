@@ -9,7 +9,7 @@ export default async function ErmisPromoPage() {
   await requirePermission("catalog.promos.write");
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="list" title="Περιέγραψε την προσφορά" lead="Γράψε την προσφορά όπως θα τη λέγατε στη σύσκεψη. Ο Ερμής ετοιμάζει τον οδηγό με τα στοιχεία συμπληρωμένα — εσύ ελέγχεις και δημοσιεύεις. Τίποτα δεν δημοσιεύεται αυτόματα." />
+      <PromoTabs help="ermis" active="list" title="Περιέγραψε την προσφορά" lead="Γράψε την προσφορά όπως θα τη λέγατε στη σύσκεψη. Ο Ερμής ετοιμάζει τον οδηγό με τα στοιχεία συμπληρωμένα — εσύ ελέγχεις και δημοσιεύεις. Τίποτα δεν δημοσιεύεται αυτόματα." />
       <ErmisDraft />
     </div>
   );

@@ -17,7 +17,7 @@ export default async function PlacementsPage() {
   const promoStatus = Object.fromEntries(promos.map((p) => [p.id, p.status]));
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs active="ads" title="Διαφημιστικές θέσεις" lead="Banners σε σταθερά σημεία της βιτρίνας. Δεμένα με προσφορά, εμφανίζονται μόνο όσο εκείνη είναι ενεργή· με ίδια θέση, κερδίζει η μικρότερη προτεραιότητα. Μετρούνται προβολές και κλικ." />
+      <PromoTabs help="ads" active="ads" title="Διαφημιστικές θέσεις" lead="Banners σε σταθερά σημεία της βιτρίνας. Δεμένα με προσφορά, εμφανίζονται μόνο όσο εκείνη είναι ενεργή· με ίδια θέση, κερδίζει η μικρότερη προτεραιότητα. Μετρούνται προβολές και κλικ." />
       <PlacementsEditor
         rows={rows.map((r) => ({ id: r.id, slot: r.slot, title: r.title, image: r.image, imageMobile: r.imageMobile, alt: r.alt, href: r.href, promotionId: r.promotionId, landingId: r.landingId, status: r.status as "draft", startsAt: r.startsAt?.toISOString() ?? null, endsAt: r.endsAt?.toISOString() ?? null, priority: r.priority, categories: ((r.audience as { categories?: string[] } | null)?.categories) ?? [], impressions: r.impressions, clicks: r.clicks, promoLive: r.promotionId ? ["active", "scheduled"].includes(promoStatus[r.promotionId] ?? "") : null }))}
         promos={promos.map((p) => ({ id: p.id, label: `${p.name} · ${p.code}` }))}
