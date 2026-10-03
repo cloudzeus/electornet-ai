@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Crop, Images, Loader2, TriangleAlert, Undo2, X } from "lucide-react";
 import { fetchLogoAction } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { trimRaster, trimSvg, logoBox } from "@/lib/cms/logo-trim";
@@ -49,6 +49,15 @@ export function LogoField({ value, onChange, brandLogo, bg, dark, name }: { valu
     } finally { setBusy(false); }
   };
 
+  // λογότυπο χωρίς περικοπή (π.χ. από παλιότερη αποθήκευση): διορθώνεται αυτόματα μόλις ανοίξει ο editor
+  const auto = useRef(false);
+  useEffect(() => {
+    if (auto.current || !value.logo || value.logoAspect) return;
+    auto.current = true;
+    const t = setTimeout(() => { void normalize(value.logo!); }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- μία φορά, στο άνοιγμα
+  }, []);
   const box = logoBox(value.logoAspect);
   return (
     <div className="grid gap-2 min-w-0">

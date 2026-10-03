@@ -50,7 +50,11 @@ export function checkStore(s: BrandStore, now = new Date()): { errors: Issue[]; 
   const W = (where: string, msg: string, anchor?: string) => warnings.push({ where, msg, anchor });
 
   if (!s.wordmark?.trim()) E("Ταυτότητα", "Λείπει το όνομα/λογότυπο κειμένου (wordmark).", "sec-identity");
-  if (s.logo && !s.logoAspect) W("Ταυτότητα", "Το λογότυπο δεν έχει περάσει από «Περικοπή & ομοιομορφία» — μπορεί να φαίνεται μικρό ή με φόντο και όχι ίδιο σε μέγεθος με τις άλλες μάρκες.", "sec-identity");
+  if (s.logo && !s.logoAspect) {
+    // λογότυπο της δικής μας βιβλιοθήκης χωρίς περικοπή = πιθανότατα κενό περιθώριο/φόντο → δεν δημοσιεύεται έτσι
+    if (/^https:\/\/euronics\.b-cdn\.net\//.test(s.logo)) E("Ταυτότητα", "Το λογότυπο δεν έχει περάσει από «Περικοπή & ομοιομορφία» — θα φαινόταν μικρό ή με φόντο. Πάτα το κουμπί στο πεδίο «Λογότυπο».", "sec-identity");
+    else W("Ταυτότητα", "Το λογότυπο (εξωτερικό) δεν έχει μετρηθεί — μπορεί να μη βγαίνει ίδιο σε μέγεθος με τις άλλες μάρκες.", "sec-identity");
+  }
   for (const k of ["bg", "bg2", "ink", "muted", "accent", "accentInk"] as const) if (!HEX.test(s.theme?.[k] ?? "")) E("Χρώματα", `Μη έγκυρο χρώμα «${k}» — γράψε το σε μορφή #RRGGBB.`, "sec-theme");
   const c1 = contrast(s.theme.ink, s.theme.bg);
   const c2 = contrast(s.theme.muted, s.theme.bg);
