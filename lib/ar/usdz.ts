@@ -100,21 +100,64 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
 }
 
 /**
- * Τοίχος: το AR Quick Look αγκυρώνει σε κάθετο επίπεδο όταν το ριζικό prim
- * το δηλώνει. Το μοντέλο μένει ΟΡΘΙΟ (Y πάνω, όπως στο πάτωμα) και η κάθετος
- * του τοίχου είναι ο άξονας +Z: η πλάτη της συσκευής πρέπει να βρίσκεται στο
- * z=0 και η πρόσοψη να κοιτά +Z, προς το δωμάτιο. Ό,τι έχει z<0 πέφτει μέσα
- * στον τοίχο και στα iPhone με LiDAR κρύβεται. Κεντράρουμε και καθ' ύψος, ώστε
- * να κολλά εκεί που άγγιξε ο πελάτης. Η μετατόπιση μπαίνει σε παιδί του
- * αγκυρωμένου prim, για να μη μπλέκεται με τον μετασχηματισμό της άγκυρας.
+ * Τοίχος: το AR Quick Look αγκυρώνει σε κάθετο επίπεδο όταν το ριζικό prim το δηλώνει. Το μοντέλο μένει ΟΡΘΙΟ (Y πάνω,
+ * όπως στο πάτωμα) και η κάθετος του τοίχου είναι ο άξονας +Z: η πλάτη της συσκευής στο z=0 και η πρόσοψη προς +Z,
+ * προς το δωμάτιο. Ό,τι έχει z<0 πέφτει μέσα στον τοίχο και στα iPhone με LiDAR κρύβεται. Κεντράρουμε και καθ' ύψος,
+ * ώστε να κολλά εκεί που άγγιξε ο πελάτης.
+ *
+ * Το Quick Look τοποθετεί το περιεχόμενο όλο και πιο μακριά από τον τοίχο όσο περισσότερα αντικείμενα έχει κάτω από
+ * την άγκυρα (γνωστό σφάλμα της Apple, ~10 εκ. και πάνω). Γι' αυτό στον τοίχο γράφουμε ΕΝΑ mesh: όλα τα μέρη μαζί, η
+ * μετατόπιση ψημένη στις κορυφές, και ένα GeomSubset ανά υλικό. Οι δίπλευρες επιφάνειες γίνονται με διπλή γεωμετρία
+ * (ανάποδη φορά), ώστε το mesh να είναι μονής όψης.
  */
 export interface UsdzOpts { wall?: { h: number; d: number } | null }
+
+function mergedMeshUsda(prims: Prim[], materials: MaterialDef[], safe: (s: string) => string, offset: [number, number, number]): string {
+  const m: Prim = { name: "Geometry", material: "", positions: [], normals: [], uvs: [], indices: [] };
+  const faces = new Map<string, number[]>();
+  const push = (p: Prim, flip: boolean) => {
+    const base = m.positions.length / 3;
+    for (let i = 0; i < p.positions.length; i += 3) m.positions.push(p.positions[i] + offset[0], p.positions[i + 1] + offset[1], p.positions[i + 2] + offset[2]);
+    for (let i = 0; i < p.normals.length; i++) m.normals.push(flip ? -p.normals[i] : p.normals[i]);
+    m.uvs.push(...p.uvs);
+    const list = faces.get(p.material) ?? [];
+    for (let i = 0; i < p.indices.length; i += 3) {
+      list.push(m.indices.length / 3);
+      const [a, b, c] = [p.indices[i], p.indices[i + 1], p.indices[i + 2]];
+      m.indices.push(base + a, base + (flip ? c : b), base + (flip ? b : c));
+    }
+    faces.set(p.material, list);
+  };
+  for (const p of prims) {
+    push(p, false);
+    if (materials.find((x) => x.name === p.material)?.doubleSided) push(p, true);
+  }
+  const body = meshUsda(m, safe, false).replace(/\n\s*rel material:binding = <[^>]*>/, "");
+  const subsets = [...faces].map(([mat, list]) => `
+        def GeomSubset "${safe(mat)}" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            uniform token elementType = "face"
+            uniform token familyName = "materialBind"
+            int[] indices = [${list.join(", ")}]
+            rel material:binding = </Product/Materials/${safe(mat)}>
+        }`).join("\n");
+  // το subsetFamily δηλώνει ότι κάθε τρίγωνο ανήκει σε ακριβώς ένα υλικό
+  return body.replace(/\n    \}$/, `
+        uniform token subsetFamily:materialBind:familyType = "partition"
+${subsets}
+    }`);
+}
 
 export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Record<string, Buffer>, name: string, opts: UsdzOpts = {}): Buffer {
   const safe = (s: string) => s.replace(/[^A-Za-z0-9_]/g, "_");
   const wall = opts.wall ?? null;
   const used = new Set(materials.map((m) => m.texture).filter(Boolean));
   const texFiles: Record<string, string> = Object.fromEntries(Object.keys(textures).filter((k) => used.has(k)).map((k) => [k, `0/${safe(k)}.png`]));
+  const geometry = wall
+    ? mergedMeshUsda(prims, materials, safe, [0, -wall.h / 2, wall.d / 2 + 0.008])
+    : prims.map((p) => meshUsda(p, safe, materials.find((m) => m.name === p.material)?.doubleSided !== false)).join("\n");
   const usda = `#usda 1.0
 (
     defaultPrim = "Product"
@@ -129,14 +172,9 @@ def Xform "Product" (
 {${wall ? `
     token preliminary:anchoring:type = "plane"
     token preliminary:planeAnchoring:alignment = "vertical"
-
-    def Xform "Placed"
-    {
-        double3 xformOp:translate = (0, ${f(-wall.h / 2)}, ${f(wall.d / 2 + 0.008)})
-        uniform token[] xformOpOrder = ["xformOp:translate"]
 ` : ""}
-${prims.map((p) => meshUsda(p, safe, materials.find((m) => m.name === p.material)?.doubleSided !== false)).join("\n")}
-${wall ? "    }\n" : ""}
+${geometry}
+
     def Scope "Materials"
     {${materials.map((m) => materialUsda(m, safe, m.texture ? texFiles[m.texture] : undefined)).join("\n")}
     }
