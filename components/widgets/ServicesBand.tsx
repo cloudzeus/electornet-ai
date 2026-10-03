@@ -4,7 +4,7 @@ import { ZoneBadge } from "@/components/site/ZoneBadge";
 import { SectionHead } from "./SectionHead";
 import { CountUp } from "@/components/motion/CountUp";
 import { Spotlight } from "@/components/motion/Spotlight";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 
 /**
  * Zone 9 — twelve services, each with a price, as a numbered list on

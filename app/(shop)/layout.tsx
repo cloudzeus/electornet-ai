@@ -12,7 +12,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { CookieConsent } from "@/components/site/CookieConsent";
 import { MySpaceProvider } from "@/components/space/MySpaceProvider";
 import { SettingsProvider } from "@/components/site/SettingsProvider";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 import { MySpaceSheet } from "@/components/space/MySpaceSheet";
 import { AdvisorProvider } from "@/components/advisor/AdvisorContext";
 import { AdvisorOrb } from "@/components/advisor/AdvisorOrb";

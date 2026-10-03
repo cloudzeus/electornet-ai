@@ -160,6 +160,7 @@ export function tpl(s: string, vars: Record<string, string | number>) {
 }
 
 /** @dynamic Server read (CMS «Settings» singletons, ISR 300s). */
+/** Οι προεπιλογές. Ο server διαβάζει ρυθμίσεις + αλλαγές κειμένων από το `@/lib/cms/settings-server`. */
 export async function getSettings(): Promise<Settings> {
   return defaultSettings;
 }

@@ -8,7 +8,7 @@ import { dbProductBySlug } from "@/lib/data/db-catalog";
 import { kindOfProduct } from "./kind";
 import { getGridFactor } from "@/lib/energy/emissions";
 import { dimsFor } from "@/lib/data/dims";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 import { captureEvidence } from "@/lib/gdpr/evidence";
 import { getCustomerSession } from "@/lib/account/session";
 

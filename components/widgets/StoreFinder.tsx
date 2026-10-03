@@ -2,7 +2,7 @@ import Image from "next/image";
 import { NearestStoreCard } from "@/components/stores/NearestStoreCard";
 import type { Store } from "@/lib/data/types";
 import { ZoneBadge } from "@/components/site/ZoneBadge";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("storeFinder");

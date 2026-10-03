@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { advisorAnswer } from "@/lib/advisor/answer";
 import { smartAdvisor, type AdvisorState, type Turn } from "@/lib/advisor/engine";
 import { advisorCompose } from "@/lib/ai/tasks";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 import type { MySpace } from "@/lib/space/fit";
 
 export const maxDuration = 45;

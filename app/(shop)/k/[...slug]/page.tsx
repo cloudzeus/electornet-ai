@@ -12,7 +12,7 @@ import { ProductGrid } from "@/components/catalog/ProductGrid";
 import { CategoryFaq } from "@/components/catalog/CategoryFaq";
 import { filterFromParams, getL1, getL2, listProducts, resolveCategory } from "@/lib/data/repo";
 import { getCategories } from "@/lib/data/catalog";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 import { Sparkles } from "lucide-react";
 import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { isFitQuestion } from "@/lib/catalog/fit-types";

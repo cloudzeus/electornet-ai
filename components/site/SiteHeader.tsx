@@ -7,7 +7,7 @@ import { MobileMenu } from "./MobileMenu";
 import { ZoneBadge } from "./ZoneBadge";
 import { getCategoryTree } from "@/lib/data/repo";
 import { MySpaceButton } from "@/components/space/MySpaceSheet";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 
 /**
  * Zone 2 — dark brand-blue header. The yellow search button is the

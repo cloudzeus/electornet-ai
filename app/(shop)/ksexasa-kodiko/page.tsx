@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { ForgotPassword } from "@/components/account/ForgotPassword";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 
 export const metadata: Metadata = { title: "Ξέχασα τον κωδικό μου" };
 

@@ -28,7 +28,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/cms/brand-stores", label: "Σελίδες μαρκών", icon: Store, perm: "cms.brandstores.write" },
       { href: "/admin/cms/pages", label: "Ζώνες σελίδων", icon: LayoutTemplate, perm: "cms.pages.write" },
       { href: "/admin/cms/components", label: "Συλλογή components", icon: LayoutTemplate, perm: "cms.pages.write" },
-      { href: "/admin/cms/copy", label: "Κείμενα UI", icon: ScrollText, perm: "cms.copy.write", soon: true },
+      { href: "/admin/cms/copy", label: "Κείμενα UI", icon: ScrollText, perm: "cms.copy.write" },
       { href: "/admin/media", label: "Media", icon: Images, perm: "cms.media.read" },
     ],
   },

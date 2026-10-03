@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SearchBox } from "@/components/site/SearchBox";
-import { getSettings } from "@/lib/cms/settings";
+import { getSettings } from "@/lib/cms/settings-server";
 
 /** 404 with the shop frame, search and the four most useful exits. */
 export default async function NotFound() {
