@@ -4,15 +4,19 @@ import { Phone, Mail, MapPin, Clock, MessageCircle } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { ContactForm } from "@/components/site/ContactForm";
+import { PageZone, ZonesPreviewBar } from "@/components/site/PageZone";
 
 export const metadata: Metadata = { title: "Επικοινωνία", description: "MEGA ELECTRICS ΑΕΒΕ · Δαμάσκου Σταμάτη 12, Αχαρνές · 210 483 5143 · info@euronics.gr" };
 
 /** Contact: real details from euronics.gr/contactus, hours, live chat entry, form with subject routing. */
-export default function ContactPage() {
+export default async function ContactPage({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
+  const preview = (await searchParams).preview === "1";
   return (
     <div className="eu-container">
+      <ZonesPreviewBar preview={preview} />
       <Breadcrumbs items={[{ label: "Επικοινωνία" }]} />
       <PageIntro kicker="Είμαστε εδώ" title="Επικοινωνία" lead="Τηλεφωνικές παραγγελίες, ερωτήσεις για παραγγελία, service ή συνεργασία. Δευτέρα–Παρασκευή 09:00–17:00." />
+      <PageZone page="epikoinonia" zone="top" preview={preview} />
       <div className="eu-canvas eu-gutter pb-12 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
         <ContactForm />
         <aside className="grid gap-3">
@@ -48,8 +52,10 @@ export default function ContactPage() {
             </Link>
             .
           </div>
+          <PageZone page="epikoinonia" zone="aside" preview={preview} />
         </aside>
       </div>
+      <PageZone page="epikoinonia" zone="bottom" preview={preview} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { PageIntro } from "./PageIntro";
 import type { Policy } from "@/lib/data/types";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
 import { copyOf } from "@/lib/cms/copy";
+import { PageZone, ZonesPreviewBar } from "./PageZone";
 
 const c = copyOf("policy");
 
@@ -47,12 +48,16 @@ function linkify(text: string) {
 export function PolicyPage({
   policy,
   children,
+  zones,
 }: {
   policy: Policy;
   children?: React.ReactNode;
+  /** ζώνες της σελίδας (Περιεχόμενο → Ζώνες σελίδων) */
+  zones?: { page: string; preview: boolean };
 }) {
   return (
     <div className="eu-container">
+      {zones && <ZonesPreviewBar preview={zones.preview} />}
       <Breadcrumbs
         items={[
           { label: "Εξυπηρέτηση", href: "/syxnes-erotiseis" },
@@ -64,6 +69,7 @@ export function PolicyPage({
         title={policy.title}
         lead={policy.intro}
       />
+      {zones && <PageZone page={zones.page} zone="top" preview={zones.preview} />}
       <div className="eu-canvas eu-gutter pb-12 grid grid-cols-1 @3xl:grid-cols-[220px_minmax(0,1fr)] gap-8 items-stretch">
         <StickySidebar className="min-w-0">
           <nav aria-label={c.exypiretisi}>
@@ -83,6 +89,7 @@ export function PolicyPage({
               ))}
             </ul>
           </nav>
+          {zones && <PageZone page={zones.page} zone="aside" preview={zones.preview} className="hidden @3xl:block mt-4" />}
         </StickySidebar>
         <div className="max-w-[760px] grid grid-cols-1 gap-6">
           {policy.sections.map((s, si) => (
@@ -112,6 +119,8 @@ export function PolicyPage({
             </section>
           ))}
           {children}
+          {zones && <PageZone page={zones.page} zone="after" preview={zones.preview} />}
+          {zones && <PageZone page={zones.page} zone="aside" preview={zones.preview} copy className="@3xl:hidden" />}
           {policy.sourceUrl && (
             <p className="m-0 text-eu-muted-2 text-[length:var(--fs-13-5)] border-t border-eu-line pt-3">
               {policy.verbatim
@@ -130,6 +139,7 @@ export function PolicyPage({
           )}
         </div>
       </div>
+      {zones && <PageZone page={zones.page} zone="bottom" preview={zones.preview} />}
     </div>
   );
 }

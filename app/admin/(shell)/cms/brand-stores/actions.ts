@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/rbac/guard";
+import { requirePermission, requireStaff } from "@/lib/rbac/guard";
+import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import type { BrandStore, BrandTheme } from "@/lib/cms/brand-store";
@@ -13,12 +14,19 @@ import { getProductsByIds } from "@/lib/data/repo";
 
 const PERM = "cms.brandstores.write";
 
+/** Επιλογείς (προϊόντα, κατηγορίες, εικόνες, προσφορές): για σελίδες μαρκών ή ζώνες σελίδων. */
+async function requireCms() {
+  const user = await requireStaff();
+  if (!can(user.permissions, PERM) && !can(user.permissions, "cms.pages.write")) redirect("/admin/forbidden?need=cms.pages.write");
+  return user;
+}
+
 export type PickProduct = { id: string; title: string; sku: string; price: number | null; image: string | null };
 
 /** Οι κατηγορίες που έχουν προϊόντα της μάρκας (με πλήθος, και των υποκατηγοριών): drill-down κατηγορία → υποκατηγορία. */
-async function brandTree(brandId: string) {
+async function brandTree(brandId: string | null) {
   const [rows, cats] = await Promise.all([
-    db.product.groupBy({ by: ["categoryId"], where: { brandId, active: true }, _count: { _all: true } }),
+    db.product.groupBy({ by: ["categoryId"], where: { active: true, ...(brandId ? { brandId } : {}) }, _count: { _all: true } }),
     db.category.findMany({ select: { id: true, name: true, parentId: true, sortNo: true } }),
   ]);
   const byId = new Map(cats.map((c) => [c.id, c]));
@@ -27,13 +35,13 @@ async function brandTree(brandId: string) {
   return cats.filter((c) => count.get(c.id)).map((c) => ({ id: c.id, name: c.name, parentId: c.parentId, count: count.get(c.id)!, sortNo: c.sortNo }));
 }
 
-export async function brandCategoriesAction(brandId: string) {
-  await requirePermission(PERM);
+export async function brandCategoriesAction(brandId: string | null) {
+  await requireCms();
   return (await brandTree(brandId)).sort((a, b) => a.sortNo - b.sortNo || a.name.localeCompare(b.name, "el")).map((c) => ({ id: c.id, name: c.name, parentId: c.parentId, count: c.count }));
 }
 
-export async function brandProductsAction(input: { brandId: string; categoryId?: string | null; q?: string }): Promise<{ total: number; items: PickProduct[] }> {
-  await requirePermission(PERM);
+export async function brandProductsAction(input: { brandId: string | null; categoryId?: string | null; q?: string }): Promise<{ total: number; items: PickProduct[] }> {
+  await requireCms();
   let catIds: string[] | undefined;
   if (input.categoryId) {
     const cats = await db.category.findMany({ select: { id: true, parentId: true } });
@@ -43,7 +51,7 @@ export async function brandProductsAction(input: { brandId: string; categoryId?:
     for (const stack = [input.categoryId]; stack.length; ) { const id = stack.pop()!; catIds.push(id); stack.push(...(kids.get(id) ?? [])); }
   }
   const q = (input.q ?? "").trim();
-  const where = { brandId: input.brandId, active: true, ...(catIds ? { categoryId: { in: catIds } } : {}), ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { sku: { contains: q, mode: "insensitive" as const } }] } : {}) };
+  const where = { ...(input.brandId ? { brandId: input.brandId } : {}), active: true, ...(catIds ? { categoryId: { in: catIds } } : {}), ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, { sku: { contains: q, mode: "insensitive" as const } }] } : {}) };
   const [total, rows] = await Promise.all([
     db.product.count({ where }),
     db.product.findMany({ where, orderBy: [{ price: { sort: "desc", nulls: "last" } }], take: 200, select: { id: true, title: true, sku: true, price: true, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true, thumbUrl: true } } } }),
@@ -53,7 +61,7 @@ export async function brandProductsAction(input: { brandId: string; categoryId?:
 
 /** Στοιχεία για τα προϊόντα που ήδη υπάρχουν στη σελίδα (και demo ids). */
 export async function productsInfoAction(ids: string[]): Promise<PickProduct[]> {
-  await requirePermission(PERM);
+  await requireCms();
   const list = await getProductsByIds([...new Set(ids)].slice(0, 300));
   return list.map((p) => ({ id: p.id, title: `${p.brand} ${p.title}`, sku: p.sku ?? "", price: p.price ?? null, image: p.image ?? null }));
 }
@@ -149,7 +157,7 @@ export type PickImage = { url: string; thumb: string | null; label: string; w: n
 
 /** Όλες οι φωτογραφίες (ή τα βίντεο) ενός προϊόντος, με τη σειρά του καταλόγου. */
 export async function productImagesAction(productId: string, kind: "image" | "video" = "image"): Promise<PickImage[]> {
-  await requirePermission(PERM);
+  await requireCms();
   const p = await db.product.findUnique({ where: { id: productId }, select: { title: true, media: { where: { hidden: false, kind }, orderBy: { sortNo: "asc" }, select: { url: true, thumbUrl: true, width: true, height: true, alt: true } } } });
   if (!p) {
     // demo προϊόν (fixtures): μόνο η κύρια εικόνα του
@@ -161,7 +169,7 @@ export async function productImagesAction(productId: string, kind: "image" | "vi
 
 /** Tags της βιβλιοθήκης media και tags προϊόντων, με πλήθος. */
 export async function imageTagsAction(kind: "image" | "video" = "image") {
-  await requirePermission(PERM);
+  await requireCms();
   const [media, product] = await Promise.all([
     db.$queryRaw<{ tag: string; n: number }[]>`SELECT t AS tag, count(*)::int AS n FROM (SELECT unnest(tags) t FROM "MediaAsset" WHERE kind = ${kind}) x GROUP BY t ORDER BY n DESC, t LIMIT 80`,
     db.tag.findMany({ select: { id: true, name: true, _count: { select: { products: true } } }, orderBy: { name: "asc" }, take: 80 }),
@@ -170,7 +178,7 @@ export async function imageTagsAction(kind: "image" | "video" = "image") {
 }
 
 export async function imagesByTagAction(input: { source: "media" | "product"; tag: string; kind?: "image" | "video"; brandId?: string }): Promise<PickImage[]> {
-  await requirePermission(PERM);
+  await requireCms();
   const kind = input.kind ?? "image";
   if (input.source === "media") {
     const rows = await db.mediaAsset.findMany({ where: { kind, tags: { has: input.tag } }, orderBy: { createdAt: "desc" }, take: 120, select: { url: true, thumbUrl: true, title: true, filename: true, width: true, height: true } });
@@ -179,3 +187,31 @@ export async function imagesByTagAction(input: { source: "media" | "product"; ta
   const rows = await db.product.findMany({ where: { active: true, tags: { some: { tagId: input.tag } }, ...(input.brandId ? { brandId: input.brandId } : {}) }, take: 60, select: { title: true, media: { where: { hidden: false, kind }, orderBy: { sortNo: "asc" }, take: 3, select: { url: true, thumbUrl: true, width: true, height: true } } } });
   return rows.flatMap((p) => p.media.map((m, i) => ({ url: m.url, thumb: m.thumbUrl ?? m.url, label: `${p.title} · ${i + 1}`, w: m.width ?? null, h: m.height ?? null })));
 }
+
+
+// ---- επιλογές για components συνδεδεμένα με Προσφορές / καταστήματα ----
+export async function blockOptionsAction() {
+  await requireCms();
+  const now = new Date();
+  const { SLOTS } = await import("@/lib/promo/landing-blocks");
+  const [ads, promos, landings, coupons, brands] = await Promise.all([
+    db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ slot: "asc" }, { priority: "asc" }], select: { id: true, slot: true, title: true, image: true, status: true, startsAt: true, endsAt: true } }),
+    db.promotion.findMany({ where: { status: { in: ["active", "scheduled"] }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
+    db.landingPage.findMany({ where: { status: "published" }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, slug: true, endsAt: true } }),
+    db.coupon.findMany({ where: { kind: "shared", customerId: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], promotion: { status: { in: ["active", "scheduled"] } } }, orderBy: { createdAt: "desc" }, take: 200, select: { code: true, expiresAt: true, promotion: { select: { name: true } } } }),
+    db.brand.findMany({ where: { active: true, products: { some: { active: true } } }, orderBy: { name: "asc" }, select: { id: true, slug: true, name: true } }),
+  ]);
+  const { getRegions } = await import("@/lib/data/repo");
+  const regions: string[] = await getRegions().catch(() => []);
+  const iso = (d: Date | null) => d?.toISOString() ?? null;
+  return {
+    slots: SLOTS,
+    ads: ads.map((a) => ({ id: a.id, slot: a.slot, title: a.title, image: a.image, status: a.status, startsAt: iso(a.startsAt), endsAt: iso(a.endsAt) })),
+    promos: promos.map((p) => ({ id: p.id, name: p.name, code: p.code, status: p.status, endsAt: iso(p.endsAt) })),
+    landings: landings.map((l) => ({ id: l.id, title: l.title, slug: l.slug, endsAt: iso(l.endsAt) })),
+    coupons: coupons.map((c) => ({ code: c.code, promo: c.promotion.name, expiresAt: iso(c.expiresAt) })),
+    brands,
+    regions,
+  };
+}
+export type BlockOptions = Awaited<ReturnType<typeof blockOptionsAction>>;

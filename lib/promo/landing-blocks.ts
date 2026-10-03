@@ -43,6 +43,8 @@ export const SLOTS: { key: string; label: string; size: string }[] = [
   { key: "listing-top", label: "Λίστες κατηγοριών · πάνω από τα προϊόντα", size: "1600×200" },
   { key: "pdp-below-buybox", label: "Σελίδα προϊόντος · κάτω από την αγορά", size: "800×300" },
   { key: "cart-top", label: "Καλάθι · πάνω", size: "1600×200" },
+  { key: "info-top", label: "Πληροφοριακές σελίδες · σε όλο το πλάτος (ζώνες σελίδων)", size: "1600×300 (κινητό 800×400)" },
+  { key: "info-aside", label: "Πληροφοριακές σελίδες · πλευρική στήλη (ζώνες σελίδων)", size: "600×600" },
 ];
 
 export const newBlockId = () => Math.random().toString(36).slice(2, 10);

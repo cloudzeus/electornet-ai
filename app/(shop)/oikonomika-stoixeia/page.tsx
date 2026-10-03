@@ -8,8 +8,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return p ? { title: p.title, description: p.intro } : {};
 }
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   const p = await getPolicy("oikonomika-stoixeia");
   if (!p) notFound();
-  return <PolicyPage policy={p} />;
+  return <PolicyPage policy={p} zones={{ page: "oikonomika-stoixeia", preview: (await searchParams).preview === "1" }} />;
 }

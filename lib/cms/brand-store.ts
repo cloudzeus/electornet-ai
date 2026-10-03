@@ -44,8 +44,8 @@ interface BlockBase {
   id: string;
   enabled?: boolean;
   schedule?: Schedule;
-  /** σε ποια ζώνη της σελίδας (προεπιλογή: main) */
-  zone?: Zone;
+  /** σε ποια ζώνη της σελίδας (σελίδα μάρκας: top | main | bottom · πληροφοριακή σελίδα: top | aside | bottom) */
+  zone?: string;
   /** optional editorial title/kicker override for the block */
   kicker?: string;
   title?: string;
@@ -63,12 +63,18 @@ export type BrandBlock =
   | (BlockBase & { type: "announcement"; text: string; href?: string; endsAt?: string })
   | (BlockBase & { type: "usp"; items: { icon: TechIcon; text: string }[] })
   | (BlockBase & { type: "banner"; image: string; imageMobile?: string; body?: string; cta?: Cta; align?: "left" | "center" | "right"; overlay?: "dark" | "light" | "none"; height?: "s" | "m" | "l" })
-  | (BlockBase & { type: "products-auto"; source: AutoSource; categoryId?: string; categoryName?: string; limit: number; cta?: Cta })
-  | (BlockBase & { type: "categories"; mode: "auto" | "manual"; items?: { id: string; name: string; image?: string }[]; limit?: number })
+  | (BlockBase & { type: "products-auto"; source: AutoSource; categoryId?: string; categoryName?: string; limit: number; cta?: Cta; brand?: { slug: string; name: string } })
+  | (BlockBase & { type: "categories"; mode: "auto" | "manual"; items?: { id: string; name: string; image?: string }[]; limit?: number; brand?: { slug: string; name: string } })
   | (BlockBase & { type: "faq"; items: { q: string; a: string }[] })
   | (BlockBase & { type: "text"; body: string; align?: "left" | "center" })
   | (BlockBase & { type: "gallery"; images: { src: string; caption?: string; href?: string }[]; layout?: "grid" | "mosaic" })
-  | (BlockBase & { type: "cta"; body?: string; primary: Cta; secondary?: Cta });
+  | (BlockBase & { type: "cta"; body?: string; primary: Cta; secondary?: Cta })
+  // ---- από τις Προσφορές & δυναμικό περιεχόμενο ----
+  | (BlockBase & { type: "ad"; mode: "slot" | "placement"; slot?: string; placementId?: string; placementTitle?: string })
+  | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta })
+  | (BlockBase & { type: "promo-landing"; landingId: string; landingTitle?: string })
+  | (BlockBase & { type: "coupon"; code: string; text?: string })
+  | (BlockBase & { type: "stores"; mode: "near" | "region"; region?: string; limit: number });
 
 export interface BrandStore {
   slug: string;
@@ -97,7 +103,7 @@ export interface BrandStore {
   seo: { title: string; description: string };
 }
 
-const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video", "announcement", "usp", "banner", "products-auto", "categories", "faq", "text", "gallery", "cta"]);
+const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video", "announcement", "usp", "banner", "products-auto", "categories", "faq", "text", "gallery", "cta", "ad", "promo-products", "promo-landing", "coupon", "stores"]);
 
 /** Cheap structural validation for CMS payloads: returns a list of problems (empty = ok). */
 export function validateBrandStore(s: BrandStore): string[] {

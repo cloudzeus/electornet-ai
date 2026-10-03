@@ -1,14 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Camera, Cpu, Eye, Leaf, Plus, Shield, Sparkles, Wifi, X, Zap } from "lucide-react";
 import type { AutoSource, BrandBlock, Cta } from "@/lib/cms/brand-store";
-import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
+import { blockOptionsAction, type BlockOptions, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { ProductList } from "./ProductPicker";
 import { Area, DateTime, LinkField, MediaUrl, StringList, Txt } from "./fields";
 import { CategoryPicker } from "./CategoryPicker";
 
-type Ctx = { brandId: string; brandName: string; info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void };
+type Ctx = { brandId: string | null; brandName: string; info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void };
 type B<T extends BrandBlock["type"]> = Extract<BrandBlock, { type: T }>;
 
 /** Περιγραφή κάθε τύπου ενότητας — εμφανίζεται στην προσθήκη και πάνω από τη φόρμα της. */
@@ -29,13 +29,45 @@ export const BLOCK_INFO: Record<BrandBlock["type"], { label: string; help: strin
   text: { label: "Κείμενο", help: "Τίτλος και παράγραφοι — για ιστορία της μάρκας, οδηγίες, ανακοινώσεις." },
   gallery: { label: "Gallery", help: "2–6 εικόνες σε πλέγμα ή «mosaic» με την πρώτη μεγάλη, με λεζάντες και συνδέσμους." },
   cta: { label: "Κάλεσμα σε δράση", help: "Ζώνη στο χρώμα της μάρκας με τίτλο και 1–2 κουμπιά (π.χ. «Κλείσε επίδειξη», «Βρες κατάστημα»)." },
+  ad: { label: "Διαφήμιση (Προσφορές)", help: "Banner από τις «Διαφημιστικές θέσεις» των Προσφορών: όποιο είναι ενεργό στη θέση (με προτεραιότητα και ημερομηνίες) ή ένα συγκεκριμένο. Μετρά εμφανίσεις και κλικ· κρύβεται μόνο του όταν λήξει." },
+  "promo-products": { label: "Προϊόντα προσφοράς", help: "Τα προϊόντα μιας προσφοράς με αντίστροφη μέτρηση μέχρι τη λήξη της. Ενημερώνεται μόνο του και κρύβεται όταν η προσφορά λήξει." },
+  "promo-landing": { label: "Σελίδα προσφοράς", help: "Κάρτα προς μια landing page προσφοράς (εικόνα, τίτλος, αντίστροφη μέτρηση). Κρύβεται όταν η προσφορά λήξει." },
+  coupon: { label: "Κουπόνι", help: "Κοινό κουπόνι με κουμπί αντιγραφής και την έκπτωσή του. Κρύβεται όταν λήξει ή εξαντληθεί." },
+  stores: { label: "Καταστήματα", help: "Τα πιο κοντινά καταστήματα στον επισκέπτη (από την περιοχή του) ή μιας περιοχής, με τηλέφωνο και οδηγίες." },
 };
+export const PROMO_TYPES: BrandBlock["type"][] = ["ad", "promo-products", "promo-landing", "coupon"];
+
+let optCache: BlockOptions | null = null;
+/** Οι επιλογές από Προσφορές / καταστήματα / μάρκες, μία φορά ανά συνεδρία του editor. */
+function useOptions() {
+  const [o, setO] = useState<BlockOptions | null>(optCache);
+  useEffect(() => { if (!o) blockOptionsAction().then((x) => { optCache = x; setO(x); }); }, [o]);
+  return o;
+}
+const nowMs = () => Date.now();
+const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("el-GR", { day: "numeric", month: "short" }) : null);
+
+function Pick({ label, help, value, onChange, options, empty }: { label: string; help?: string; value: string; onChange: (v: string, label: string) => void; options: { value: string; label: string }[] | null; empty: string }) {
+  return (
+    <label className="grid gap-1 min-w-0">
+      <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{label}</span>
+      {options === null ? <span className="text-eu-muted text-[length:var(--fs-14)] min-h-12 inline-flex items-center">Φόρτωση…</span> : options.length === 0 ? <span className="rounded-xl bg-eu-surface px-3 py-2 text-eu-muted text-[length:var(--fs-14)]">{empty}</span> : (
+        <select value={value} onChange={(e) => onChange(e.target.value, options.find((x) => x.value === e.target.value)?.label ?? "")} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">
+          <option value="">— διάλεξε —</option>
+          {options.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+        </select>
+      )}
+      {help && <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{help}</span>}
+    </label>
+  );
+}
 /** σειρά στο «Προσθήκη ενότητας», ομαδοποιημένα */
 export const BLOCK_GROUPS: { label: string; types: BrandBlock["type"][] }[] = [
   { label: "Προϊόντα", types: ["products-auto", "new-arrivals", "offers", "series", "categories"] },
   { label: "Εικόνα & βίντεο", types: ["banner", "story", "gallery", "video"] },
   { label: "Κείμενο & πληροφορίες", types: ["text", "tech", "faq", "support"] },
-  { label: "Λωρίδες & κουμπιά", types: ["announcement", "usp", "cta"] },
+  { label: "Από τις Προσφορές", types: ["ad", "promo-products", "promo-landing", "coupon"] },
+  { label: "Λωρίδες & κουμπιά", types: ["announcement", "usp", "cta", "stores"] },
 ];
 export const AUTO_SOURCES: { value: AutoSource; label: string; help: string }[] = [
   { value: "newest", label: "Νεότερα", help: "Τα πιο πρόσφατα στον κατάλογο." },
@@ -68,6 +100,11 @@ export function newBlock(type: BrandBlock["type"], brand: string): BrandBlock {
     case "faq": return { id, type, zone: "bottom", kicker: "Ερωτήσεις", title: "Συχνές ερωτήσεις", items: [{ q: "", a: "" }] };
     case "text": return { id, type, kicker: "", title: "", body: "", align: "left" };
     case "gallery": return { id, type, kicker: "", title: "", images: [{ src: "" }, { src: "" }, { src: "" }], layout: "grid" };
+    case "ad": return { id, type, mode: "slot", slot: "info-top" };
+    case "promo-products": return { id, type, promotionId: "", limit: 8, countdown: true };
+    case "promo-landing": return { id, type, landingId: "" };
+    case "coupon": return { id, type, code: "" };
+    case "stores": return { id, type, kicker: "Καταστήματα", title: "Κοντά σου", mode: "near", limit: 3 };
     case "cta": return { id, type, zone: "bottom", title: `Δες τα ${brand} από κοντά`, body: "Σε κάθε κατάστημα Euronics, με επίδειξη και συμβουλή.", primary: { label: "Βρες κατάστημα", href: "/katastimata" } };
   }
 }
@@ -105,6 +142,12 @@ function CtaFields({ label, value, onChange }: { label: string; value?: Cta; onC
       {value && <LinkField label={`${label} · σύνδεσμος`} value={value.href} onChange={(v) => onChange({ label: value.label, href: v })} />}
     </div>
   );
+}
+
+const optBrandId = (slug: string) => optCache?.brands.find((b) => b.slug === slug)?.id ?? null;
+function BrandChoice({ value, onChange }: { value?: { slug: string; name: string }; onChange: (v: { slug: string; name: string } | undefined) => void }) {
+  const o = useOptions();
+  return <Pick label="Μάρκα (προαιρετικό)" help="Κενό = όλος ο κατάλογος." value={value?.slug ?? ""} onChange={(v, l) => onChange(v ? { slug: v, name: l } : undefined)} options={o ? o.brands.map((b) => ({ value: b.slug, label: b.name })) : null} empty="Καμία μάρκα." />;
 }
 
 /** Η φόρμα μιας ενότητας ανάλογα με τον τύπο της. */
@@ -252,7 +295,8 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
         <div className="grid gap-4">
           {head}
           <Choice label="Ποια προϊόντα" value={x.source} onChange={(v) => set({ ...x, source: v })} options={AUTO_SOURCES} />
-          <CategoryPicker single brandId={ctx.brandId} label="Από κατηγορία" help="Περιόρισε σε μία κατηγορία (π.χ. μόνο Τηλεοράσεις)." value={x.categoryId ? [{ id: x.categoryId, name: x.categoryName ?? "" }] : []} onChange={(v) => set({ ...x, categoryId: v[0]?.id, categoryName: v[0]?.name })} />
+          {!ctx.brandId && <BrandChoice value={x.brand} onChange={(v) => set({ ...x, brand: v, categoryId: undefined, categoryName: undefined })} />}
+          <CategoryPicker key={x.brand?.slug ?? "*"} single brandId={ctx.brandId ?? (x.brand ? optBrandId(x.brand.slug) : null)} label="Από κατηγορία" help="Περιόρισε σε μία κατηγορία (π.χ. μόνο Τηλεοράσεις)." value={x.categoryId ? [{ id: x.categoryId, name: x.categoryName ?? "" }] : []} onChange={(v) => set({ ...x, categoryId: v[0]?.id, categoryName: v[0]?.name })} />
           <Choice label="Πόσα" value={String(x.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...x, limit: Number(v) })} options={[{ value: "4", label: "4 (μία σειρά)" }, { value: "8", label: "8 (δύο σειρές)" }, { value: "12", label: "12 (τρεις σειρές)" }]} help="Σε κινητό εμφανίζονται το ένα κάτω από το άλλο." />
           <CtaFields label="Σύνδεσμος «Δες όλα»" value={x.cta} onChange={(v) => set({ ...x, cta: v })} />
         </div>
@@ -263,11 +307,12 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
       return (
         <div className="grid gap-4">
           {head}
+          {!ctx.brandId && <BrandChoice value={x.brand} onChange={(v) => set({ ...x, brand: v, items: [] })} />}
           <Choice label="Ποιες κατηγορίες" value={x.mode} onChange={(v) => set({ ...x, mode: v })} options={[{ value: "auto", label: "Αυτόματα", help: "Οι κατηγορίες με τα περισσότερα προϊόντα της μάρκας — ενημερώνονται μόνες τους." }, { value: "manual", label: "Επιλογή", help: "Μόνο όσες διαλέξεις, με αυτή τη σειρά." }]} />
           {x.mode === "auto" ? (
             <Choice label="Πόσες" value={String(x.limit ?? 6) as "4" | "6" | "8"} onChange={(v) => set({ ...x, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "6", label: "6" }, { value: "8", label: "8" }]} />
           ) : (
-            <CategoryPicker brandId={ctx.brandId} label="Κατηγορίες" value={(x.items ?? []).map((i) => ({ id: i.id, name: i.name }))} onChange={(v) => set({ ...x, items: v.map((c) => ({ ...c, image: x.items?.find((i) => i.id === c.id)?.image })) })} help="Η εικόνα κάθε πλακιδίου είναι αυτόματα από το κορυφαίο προϊόν της κατηγορίας." />
+            <CategoryPicker key={x.brand?.slug ?? "*"} brandId={ctx.brandId ?? (x.brand ? optBrandId(x.brand.slug) : null)} label="Κατηγορίες" value={(x.items ?? []).map((i) => ({ id: i.id, name: i.name }))} onChange={(v) => set({ ...x, items: v.map((c) => ({ ...c, image: x.items?.find((i) => i.id === c.id)?.image })) })} help="Η εικόνα κάθε πλακιδίου είναι αυτόματα από το κορυφαίο προϊόν της κατηγορίας." />
           )}
         </div>
       );
@@ -318,6 +363,11 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
         </div>
       );
     }
+    case "ad": return <AdFields b={b as B<"ad">} set={set} />;
+    case "promo-products": return <PromoProductsFields b={b as B<"promo-products">} set={set} head={head} />;
+    case "promo-landing": return <LandingFields b={b as B<"promo-landing">} set={set} />;
+    case "coupon": return <CouponFields b={b as B<"coupon">} set={set} head={head} />;
+    case "stores": return <StoresFields b={b as B<"stores">} set={set} head={head} />;
     case "cta": {
       const x = b as B<"cta">;
       return (
@@ -330,4 +380,68 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
       );
     }
   }
+}
+
+
+function AdFields({ b, set }: { b: B<"ad">; set: (b: BrandBlock) => void }) {
+  const o = useOptions();
+  const slotLabel = (k: string) => o?.slots.find((x) => x.key === k)?.label ?? k;
+  const state = (a: BlockOptions["ads"][number], now = nowMs()) => (a.status !== "active" ? (a.status === "paused" ? "σε παύση" : "πρόχειρο") : a.endsAt && Date.parse(a.endsAt) < now ? "έληξε" : a.startsAt && Date.parse(a.startsAt) > now ? `από ${fmt(a.startsAt)}` : "ενεργό");
+  return (
+    <div className="grid gap-4">
+      <Choice label="Τι δείχνει" value={b.mode} onChange={(v) => set({ ...b, mode: v })} options={[{ value: "slot", label: "Ό,τι είναι ενεργό σε μια θέση", help: "Εναλλάσσεται αυτόματα με βάση προτεραιότητα και ημερομηνίες — αλλάζεις τα banners από τις Προσφορές χωρίς να ξανανοίξεις τη σελίδα." }, { value: "placement", label: "Ένα συγκεκριμένο banner", help: "Πάντα το ίδιο banner, όσο είναι ενεργό." }]} />
+      {b.mode === "slot" ? (
+        <Pick label="Θέση" value={b.slot ?? ""} onChange={(v) => set({ ...b, slot: v || undefined })} options={o ? o.slots.map((x) => ({ value: x.key, label: `${x.label} · ${o.ads.filter((a) => a.slot === x.key && a.status === "active").length} ενεργά` })) : null} empty="—" help={b.slot ? `Μέγεθος: ${o?.slots.find((x) => x.key === b.slot)?.size ?? ""}. Για τις πληροφοριακές σελίδες προτίμησε «Πληροφοριακές σελίδες · …».` : undefined} />
+      ) : (
+        <Pick label="Banner" value={b.placementId ?? ""} onChange={(v, l) => set({ ...b, placementId: v || undefined, placementTitle: l || undefined })} options={o ? o.ads.map((a) => ({ value: a.id, label: `${a.title} · ${slotLabel(a.slot)} · ${state(a)}` })) : null} empty="Δεν υπάρχει κανένα banner — φτιάξε στις Προσφορές → Διαφημιστικές θέσεις." />
+      )}
+      <a href="/admin/prosfores/theseis" target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline">Διαχείριση banners (Προσφορές → Διαφημιστικές θέσεις) ↗</a>
+    </div>
+  );
+}
+
+function PromoProductsFields({ b, set, head }: { b: B<"promo-products">; set: (b: BrandBlock) => void; head: ReactNode }) {
+  const o = useOptions();
+  return (
+    <div className="grid gap-4">
+      <Pick label="Προσφορά" value={b.promotionId} onChange={(v, l) => set({ ...b, promotionId: v, promotionName: l || undefined })} options={o ? o.promos.map((p) => ({ value: p.id, label: `${p.name} · ${p.code}${p.status === "scheduled" ? " · προγραμματισμένη" : ""}${p.endsAt ? ` · έως ${fmt(p.endsAt)}` : ""}` })) : null} empty="Καμία ενεργή ή προγραμματισμένη προσφορά." help="Τα προϊόντα και η λήξη έρχονται από την προσφορά. Προγραμματισμένη προσφορά εμφανίζεται μόλις ξεκινήσει." />
+      {head}
+      <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">Κενός τίτλος = το όνομα της προσφοράς.</span>
+      <Choice label="Πόσα" value={String(b.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "8", label: "8" }, { value: "12", label: "12" }]} help="Μεγαλύτερη έκπτωση πρώτα. Σε κινητό εμφανίζονται έως 4." />
+      <Choice label="Αντίστροφη μέτρηση" value={b.countdown === false ? "no" : "yes"} onChange={(v) => set({ ...b, countdown: v === "yes" })} options={[{ value: "yes", label: "Ναι" }, { value: "no", label: "Όχι" }]} />
+      <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4">
+        <Txt label="Κουμπί · κείμενο (προαιρετικό)" value={b.cta?.label ?? ""} onChange={(v) => set({ ...b, cta: v || b.cta?.href ? { label: v, href: b.cta?.href ?? "" } : undefined })} max={36} help="Κενό = «Όλα τα προϊόντα της προσφοράς» προς τη landing page, αν υπάρχει." />
+        {b.cta && <LinkField label="Κουμπί · σύνδεσμος" value={b.cta.href} onChange={(v) => set({ ...b, cta: { label: b.cta!.label, href: v } })} />}
+      </div>
+    </div>
+  );
+}
+
+function LandingFields({ b, set }: { b: B<"promo-landing">; set: (b: BrandBlock) => void }) {
+  const o = useOptions();
+  return <Pick label="Landing page" value={b.landingId} onChange={(v, l) => set({ ...b, landingId: v, landingTitle: l || undefined })} options={o ? o.landings.map((l) => ({ value: l.id, label: `${l.title} · /prosfores/${l.slug}${l.endsAt ? ` · έως ${fmt(l.endsAt)}` : ""}` })) : null} empty="Καμία δημοσιευμένη landing page — φτιάξε στις Προσφορές → Landing pages." help="Εικόνα και τίτλος από το hero της landing page· η λήξη από την προσφορά της." />;
+}
+
+function CouponFields({ b, set, head }: { b: B<"coupon">; set: (b: BrandBlock) => void; head: ReactNode }) {
+  const o = useOptions();
+  return (
+    <div className="grid gap-4">
+      <Pick label="Κουπόνι" value={b.code} onChange={(v) => set({ ...b, code: v })} options={o ? o.coupons.map((c) => ({ value: c.code, label: `${c.code} · ${c.promo}${c.expiresAt ? ` · έως ${fmt(c.expiresAt)}` : ""}` })) : null} empty="Κανένα κοινό κουπόνι σε ισχύ." help="Μόνο κοινά κουπόνια (όχι προσωπικά). Η έκπτωση γράφεται αυτόματα." />
+      {head}
+      <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">Κενός τίτλος = η έκπτωση (π.χ. «10 % έκπτωση»).</span>
+      <Txt label="Κείμενο (προαιρετικό)" value={b.text ?? ""} onChange={(v) => set({ ...b, text: v || undefined })} max={90} placeholder="Γράψε τον κωδικό στο καλάθι" />
+    </div>
+  );
+}
+
+function StoresFields({ b, set, head }: { b: B<"stores">; set: (b: BrandBlock) => void; head: ReactNode }) {
+  const o = useOptions();
+  return (
+    <div className="grid gap-4">
+      {head}
+      <Choice label="Ποια καταστήματα" value={b.mode} onChange={(v) => set({ ...b, mode: v })} options={[{ value: "near", label: "Τα πιο κοντινά στον επισκέπτη", help: "Από την περιοχή του (IP ή τοποθεσία που έδωσε) — χωρίς να ζητηθεί άδεια." }, { value: "region", label: "Μιας περιοχής" }]} />
+      {b.mode === "region" && <Pick label="Περιοχή" value={b.region ?? ""} onChange={(v) => set({ ...b, region: v || undefined })} options={o ? o.regions.map((r) => ({ value: r, label: r })) : null} empty="Καμία περιοχή." />}
+      <Choice label="Πόσα" value={String(b.limit) as "1" | "3" | "6"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "1", label: "1" }, { value: "3", label: "3" }, { value: "6", label: "6" }]} help="Στην πλευρική στήλη ταιριάζει 1." />
+    </div>
+  );
 }

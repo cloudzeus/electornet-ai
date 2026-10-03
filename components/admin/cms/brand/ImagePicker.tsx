@@ -6,7 +6,7 @@ import { brandProductsAction, imageTagsAction, imagesByTagAction, productImagesA
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 
 /** Η μάρκα της σελίδας που επεξεργαζόμαστε — για την καρτέλα «Από προϊόν». */
-export const PickerBrand = createContext<{ brandId: string; brandName: string } | null>(null);
+export const PickerBrand = createContext<{ brandId: string | null; brandName: string } | null>(null);
 
 const norm = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[̀-ͯ]/g, "");
 type Tab = "product" | "tags" | "library";

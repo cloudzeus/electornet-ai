@@ -7,13 +7,13 @@ import { brandCategoriesAction, brandProductsAction, type PickProduct } from "@/
 type Cat = { id: string; name: string; parentId: string | null; count: number };
 const norm = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[̀-ͯ]/g, "");
 const eur = (v: number | null) => (v == null ? "χωρίς τιμή" : `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
-let catCache: { brandId: string; cats: Cat[] } | null = null;
+let catCache: { brandId: string | null; cats: Cat[] } | null = null;
 
 /**
  * Επιλογή προϊόντων της μάρκας: κατηγορία → υποκατηγορία → λίστα που στενεύει όσο γράφεις.
  * Πλήρης οθόνη σε κινητό, παράθυρο σε μεγάλη οθόνη. single = ένα προϊόν (κλείνει με την επιλογή).
  */
-export function ProductPickerDialog({ brandId, brandName, selected, single = false, max, onDone, onClose }: { brandId: string; brandName: string; selected: string[]; single?: boolean; max?: number; onDone: (ids: string[], info: PickProduct[]) => void; onClose: () => void }) {
+export function ProductPickerDialog({ brandId, brandName, selected, single = false, max, onDone, onClose }: { brandId: string | null; brandName: string; selected: string[]; single?: boolean; max?: number; onDone: (ids: string[], info: PickProduct[]) => void; onClose: () => void }) {
   const [cats, setCats] = useState<Cat[] | null>(catCache?.brandId === brandId ? catCache.cats : null);
   const [path, setPath] = useState<Cat[]>([]);
   const [items, setItems] = useState<PickProduct[]>([]);
@@ -121,7 +121,7 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
 }
 
 /** Τα επιλεγμένα προϊόντα με τη σειρά που θα εμφανιστούν: μετακίνηση, αφαίρεση, προσθήκη. */
-export function ProductList({ label, help, ids, info, onChange, brandId, brandName, single = false, max, onInfo }: { label: string; help?: string; ids: string[]; info: Record<string, PickProduct>; onChange: (ids: string[]) => void; brandId: string; brandName: string; single?: boolean; max?: number; onInfo: (p: PickProduct[]) => void }) {
+export function ProductList({ label, help, ids, info, onChange, brandId, brandName, single = false, max, onInfo }: { label: string; help?: string; ids: string[]; info: Record<string, PickProduct>; onChange: (ids: string[]) => void; brandId: string | null; brandName: string; single?: boolean; max?: number; onInfo: (p: PickProduct[]) => void }) {
   const [open, setOpen] = useState(false);
   const move = (i: number, d: number) => { const x = [...ids]; [x[i], x[i + d]] = [x[i + d], x[i]]; onChange(x); };
   return (

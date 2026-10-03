@@ -675,3 +675,9 @@ button.rounded-full:active, a.rounded-full:active {
 /* Admin: ένα grid χωρίς ορισμένες στήλες έχει μία «auto» στήλη που μεγαλώνει όσο το μακρύτερο περιεχόμενό του
    (μακρύς τίτλος, κωδικός) και σπρώχνει τη σελίδα πέρα από την οθόνη. Εδώ η μία στήλη δεν ξεπερνά ποτέ το διαθέσιμο πλάτος. */
 .eu-admin .grid:not([class*="grid-cols"]):not([class*="grid-flow-col"]) { grid-template-columns: minmax(0, 1fr); }
+
+/* Ζώνες πληροφοριακών σελίδων σε στενή στήλη («Μετά το κείμενο», «Πλευρική»): τα components δεν προσθέτουν
+   δικό τους περιθώριο σελίδας και έχουν μικρότερη κάθετη απόσταση. Οι container queries τα στοιβάζουν μόνα τους. */
+.eu-zone-tight .eu-gutter { padding-inline: 0; }
+.eu-zone-tight [data-brand-mode] { background: transparent; }
+.eu-zone-tight [data-brand-mode] > * { padding-block: 0.75rem; }

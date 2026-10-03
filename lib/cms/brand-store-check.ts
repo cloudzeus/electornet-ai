@@ -34,6 +34,11 @@ export const BLOCK_LABEL: Record<BrandBlock["type"], string> = {
   text: "Κείμενο",
   gallery: "Gallery",
   cta: "Κάλεσμα σε δράση",
+  ad: "Διαφήμιση",
+  "promo-products": "Προϊόντα προσφοράς",
+  "promo-landing": "Σελίδα προσφοράς",
+  coupon: "Κουπόνι",
+  stores: "Καταστήματα",
 };
 
 const okHref = (h: string | undefined) => !!h && (/^\/[^\s]*$/.test(h) || /^https:\/\/[^\s]+$/.test(h));
@@ -67,7 +72,17 @@ export function checkStore(s: BrandStore, now = new Date()): { errors: Issue[]; 
 
   const active = s.blocks.filter((b) => b.enabled !== false);
   if (!active.length) W("Ενότητες", "Δεν υπάρχει καμία ενεργή ενότητα κάτω από το hero.", "sec-blocks");
-  s.blocks.forEach((b, i) => {
+  const r = checkBlocks(s.blocks, now);
+  return { errors: [...errors, ...r.errors], warnings: [...warnings, ...r.warnings] };
+}
+
+/** Έλεγχος των ενοτήτων (κοινός για σελίδες μαρκών και ζώνες πληροφοριακών σελίδων). */
+export function checkBlocks(blocks: BrandBlock[], now = new Date()): { errors: Issue[]; warnings: Issue[] } {
+  const errors: Issue[] = [];
+  const warnings: Issue[] = [];
+  const E = (where: string, msg: string, anchor?: string) => errors.push({ where, msg, anchor });
+  const W = (where: string, msg: string, anchor?: string) => warnings.push({ where, msg, anchor });
+  blocks.forEach((b, i) => {
     const w = `Ενότητα ${i + 1} · ${BLOCK_LABEL[b.type] ?? b.type}`;
     const a = `blk-${b.id}`;
     if (b.enabled === false) return;
@@ -137,6 +152,22 @@ export function checkStore(s: BrandStore, now = new Date()): { errors: Issue[]; 
         if (!b.title?.trim()) E(w, "Γράψε τίτλο.", a);
         if (!b.primary?.label.trim() || !okHref(b.primary?.href)) E(w, "Το κύριο κουμπί θέλει κείμενο και σύνδεσμο.", a);
         if (b.secondary && (!b.secondary.label.trim() || !okHref(b.secondary.href))) E(w, "Το δεύτερο κουμπί θέλει κείμενο και σύνδεσμο (ή αφαίρεσέ το).", a);
+        break;
+      case "ad":
+        if (b.mode === "slot" && !b.slot) E(w, "Διάλεξε θέση διαφήμισης.", a);
+        if (b.mode === "placement" && !b.placementId) E(w, "Διάλεξε banner από τις Διαφημιστικές θέσεις.", a);
+        break;
+      case "promo-products":
+        if (!b.promotionId) E(w, "Διάλεξε προσφορά.", a);
+        break;
+      case "promo-landing":
+        if (!b.landingId) E(w, "Διάλεξε σελίδα προσφοράς.", a);
+        break;
+      case "coupon":
+        if (!b.code.trim()) E(w, "Διάλεξε κουπόνι.", a);
+        break;
+      case "stores":
+        if (b.mode === "region" && !b.region) E(w, "Διάλεξε περιοχή.", a);
         break;
     }
   });

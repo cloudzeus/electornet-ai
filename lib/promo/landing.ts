@@ -71,7 +71,15 @@ export function invalidateAds() { adCache = null; }
  * Η θέση με τη μεγαλύτερη προτεραιότητα για αυτό το σημείο (cache 30 s). Στόχευση μόνο ανά κατηγορία — χωρίς cookies,
  * ώστε οι σελίδες καταλόγου να μένουν γρήγορες και cacheable.
  */
-export async function pickAd(slot: string, ctx: { category?: string | null } = {}) {
+/** Συγκεκριμένο banner (για components σε ζώνες σελίδων): μόνο αν είναι ενεργό, μέσα στις ημερομηνίες του και η προσφορά του ζει. */
+export async function pickAdById(id: string, opts: { count?: boolean } = {}) {
+  if (!adCache || Date.now() - adCache.at > 30_000) adCache = { at: Date.now(), rows: await loadAds() };
+  const ad = adCache.rows.find((r) => r.id === id) ?? null;
+  if (ad && opts.count !== false) countImpression(ad.id);
+  return ad;
+}
+
+export async function pickAd(slot: string, ctx: { category?: string | null; count?: boolean } = {}) {
   if (!adCache || Date.now() - adCache.at > 30_000) adCache = { at: Date.now(), rows: await loadAds() };
   const ad = adCache.rows.find((r) => {
     if (r.slot !== slot) return false;
@@ -79,6 +87,6 @@ export async function pickAd(slot: string, ctx: { category?: string | null } = {
     if (a.categories?.length && (!ctx.category || !a.categories.includes(ctx.category))) return false;
     return true;
   });
-  if (ad) countImpression(ad.id);
+  if (ad && ctx.count !== false) countImpression(ad.id);
   return ad ?? null;
 }

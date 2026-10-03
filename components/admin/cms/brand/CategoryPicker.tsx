@@ -6,19 +6,20 @@ import { brandCategoriesAction } from "@/app/admin/(shell)/cms/brand-stores/acti
 
 type Cat = { id: string; name: string; parentId: string | null; count: number };
 const cache = new Map<string, Cat[]>();
+const ck = (b: string | null) => b ?? "*";
 
 /**
  * Κατηγορίες της μάρκας σε drill-down (κατηγορία → υποκατηγορία), με πλήθος προϊόντων.
  * single: μία κατηγορία (ή «όλες»)· αλλιώς πολλαπλή επιλογή με σειρά.
  */
-export function CategoryPicker({ brandId, label, help, value, onChange, single = false, allLabel = "Όλες οι κατηγορίες" }: { brandId: string; label: string; help?: string; value: { id: string; name: string }[]; onChange: (v: { id: string; name: string }[]) => void; single?: boolean; allLabel?: string }) {
-  const [cats, setCats] = useState<Cat[] | null>(cache.get(brandId) ?? null);
+export function CategoryPicker({ brandId, label, help, value, onChange, single = false, allLabel = "Όλες οι κατηγορίες" }: { brandId: string | null; label: string; help?: string; value: { id: string; name: string }[]; onChange: (v: { id: string; name: string }[]) => void; single?: boolean; allLabel?: string }) {
+  const [cats, setCats] = useState<Cat[] | null>(cache.get(ck(brandId)) ?? null);
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState<Cat[]>([]);
   useEffect(() => {
     if (!open || cats) return;
     let live = true;
-    brandCategoriesAction(brandId).then((c) => { cache.set(brandId, c); if (live) setCats(c); });
+    brandCategoriesAction(brandId).then((c) => { cache.set(ck(brandId), c); if (live) setCats(c); });
     return () => { live = false; };
   }, [open, cats, brandId]);
   const cur = path[path.length - 1] ?? null;
