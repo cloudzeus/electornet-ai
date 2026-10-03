@@ -83,6 +83,8 @@ export interface BrandStore {
   wordmark: string;
   /** optional official logo (Media library ή hotlink Brandfetch) — αν υπάρχει, αντικαθιστά το wordmark κειμένου */
   logo?: string;
+  /** αναλογία πλάτος/ύψος του λογοτύπου μετά την αυτόματη περικοπή — για ομοιόμορφο μέγεθος σε όλες τις μάρκες */
+  logoAspect?: number;
   /** επίσημο site της μάρκας — από εκεί προτείνεται το στυλ (Περιεχόμενο → Brand stores) */
   website?: string;
   tagline: string;

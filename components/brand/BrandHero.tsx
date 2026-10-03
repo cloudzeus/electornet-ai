@@ -7,6 +7,7 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { priceShort } from "@/lib/format";
 import { copyOf } from "@/lib/cms/copy";
+import { BrandLogo } from "./BrandLogo";
 
 const c = copyOf("brandHero");
 
@@ -31,12 +32,7 @@ export function BrandHero({ store, product }: { store: BrandStore; product: Prod
       <div className="relative eu-canvas eu-gutter py-10 @lg:py-16 grid grid-cols-1 @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-8 items-center">
         <div className="min-w-0">
           <div className="flex items-center gap-3 mb-5">
-            {store.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element -- λογότυπο από Media/Brandfetch (hotlink, όπως απαιτούν οι όροι τους)
-              <img src={store.logo} alt={store.wordmark || store.name} className="h-8 @md:h-10 w-auto max-w-[12rem] object-contain" />
-            ) : (
-              <span className="font-heading font-extrabold text-[length:var(--fs-28)] tracking-[-0.04em]">{store.wordmark}</span>
-            )}
+            <BrandLogo logo={store.logo} aspect={store.logoAspect} wordmark={store.wordmark || store.name} />
             <span className="h-5 w-px bg-[var(--bs-muted)]/40" aria-hidden />
             <span className="text-[var(--bs-muted)] font-semibold text-[length:var(--fs-14)]">{store.hero.kicker}</span>
           </div>

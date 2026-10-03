@@ -5,8 +5,9 @@ import { useDeferredValue, useState, useTransition } from "react";
 import { ExternalLink, Plus, Search, Loader2, ChevronRight, Info } from "lucide-react";
 import { createStoreAction } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { StatusPill } from "@/components/admin/settings/ui";
+import { logoBox } from "@/lib/cms/logo-trim";
 
-export type StoreRow = { slug: string; name: string; logo: string | null; accent: string; bg: string; products: number; status: "live" | "changed" | "draft"; updatedAt: string; publishedAt: string | null; blocks: number };
+export type StoreRow = { slug: string; name: string; logo: string | null; storeLogo: string | null; logoAspect: number | null; accent: string; bg: string; products: number; status: "live" | "changed" | "draft"; updatedAt: string; publishedAt: string | null; blocks: number };
 export type BrandOption = { slug: string; name: string; products: number; logo: string | null };
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -36,6 +37,24 @@ export function BrandStoreList({ rows, brands }: { rows: StoreRow[]; brands: Bra
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">Η «βιτρίνα» κάθε κατασκευαστή μέσα στο e-shop (/brands/…): χρώματα της μάρκας, hero με το κορυφαίο προϊόν, νέα προϊόντα, σειρές, προσφορές, τεχνολογία, εγγύηση. Μάρκα χωρίς σελίδα δείχνει απλώς τον κατάλογό της.</p>
         <p className="m-0 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)] max-w-[75ch]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Οι αλλαγές αποθηκεύονται αυτόματα ως <b>πρόχειρο</b>. Οι πελάτες βλέπουν μόνο ό,τι <b>δημοσιεύσεις</b> — μέχρι τότε η σελίδα μένει όπως ήταν.</span></p>
       </header>
+
+      {rows.some((r) => r.storeLogo) && (
+        <section className="rounded-2xl bg-white border border-eu-line p-4 grid gap-3" aria-labelledby="h-logos">
+          <div>
+            <h3 id="h-logos" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Ομοιομορφία λογοτύπων</h3>
+            <p className="m-0 mt-0.5 text-eu-muted text-[length:var(--fs-14)]">Όλα τα λογότυπα με το ίδιο οπτικό βάρος, όπως στις σελίδες. Αν κάποιο φαίνεται μικρό ή με φόντο, άνοιξε τη σελίδα του και πάτα «Περικοπή & ομοιομορφία».</p>
+          </div>
+          <ul className="m-0 p-0 list-none flex flex-wrap items-center gap-x-8 gap-y-4">
+            {rows.filter((r) => r.storeLogo).map((r) => { const box = logoBox(r.logoAspect ?? undefined, 2); return (
+              <li key={r.slug} className="grid justify-items-start gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element -- λογότυπο */}
+                <img src={r.storeLogo!} alt={r.name} style={{ height: box.height, maxWidth: box.maxWidth }} className="block w-auto object-contain" />
+                <span className={`text-[length:var(--fs-13)] font-bold ${r.logoAspect ? "text-eu-muted" : "text-eu-amber"}`}>{r.name}{r.logoAspect ? "" : " · χωρίς περικοπή"}</span>
+              </li>
+            ); })}
+          </ul>
+        </section>
+      )}
 
       <section className="grid gap-3" aria-labelledby="h-stores">
         <h3 id="h-stores" className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Σελίδες ({rows.length})</h3>

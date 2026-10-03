@@ -17,6 +17,7 @@ import { StylePanel } from "./brand/StylePanel";
 import { ZoneBlocks } from "./ZoneBlocks";
 import { Area, LinkField, MediaUrl, Txt } from "./brand/fields";
 import { PickerBrand } from "./brand/ImagePicker";
+import { LogoField } from "./brand/LogoField";
 
 type Props = { initial: BrandStore; published: BrandStore | null; savedAt: string; brand: { id: string; name: string; logo: string | null }; info: Record<string, PickProduct> };
 type SaveState = "idle" | "pending" | "saving" | "error";
@@ -115,8 +116,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
           <Txt label="Wordmark (κείμενο αντί λογοτύπου)" value={s.wordmark} onChange={(v) => set({ wordmark: v })} max={20} help="Χρησιμοποιείται όταν δεν υπάρχει λογότυπο." />
           <Txt label="Slogan" value={s.tagline} onChange={(v) => set({ tagline: v })} max={50} placeholder="π.χ. Life's Good" help="Στη σελίδα /brands, κάτω από το όνομα." />
         </div>
-        <MediaUrl label="Λογότυπο (προαιρετικό)" value={s.logo ?? ""} onChange={(v) => set({ logo: v || undefined })} help={s.theme.mode === "dark" ? "Η σελίδα είναι σκούρα: χρειάζεται λευκή ή ανοιχτόχρωμη εκδοχή του λογοτύπου." : "SVG ή PNG με διαφάνεια."} />
-        {brand.logo && s.logo !== brand.logo && <button type="button" onClick={() => set({ logo: brand.logo! })} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-3 min-h-10 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Χρήση του λογοτύπου της μάρκας από τον κατάλογο</button>}
+        <LogoField value={{ logo: s.logo, logoAspect: s.logoAspect }} onChange={(v) => set({ logo: v.logo, logoAspect: v.logoAspect })} brandLogo={brand.logo} bg={s.theme.bg} dark={s.theme.mode === "dark"} name={s.wordmark || s.name} />
         <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4 items-start">
           <div className="grid gap-4">
             <Txt label="Τίτλος για Google" value={s.seo.title} onChange={(v) => set({ seo: { ...s.seo, title: v } })} max={60} />

@@ -23,7 +23,9 @@ export default async function BrandStoresPage() {
       return {
         slug: d.slug,
         name: d.draft?.name ?? b?.name ?? d.slug,
-        logo: logo(b),
+        logo: d.draft?.logo ?? logo(b),
+        storeLogo: d.draft?.logo ?? null,
+        logoAspect: d.draft?.logoAspect ?? null,
         accent: d.draft?.theme.accent ?? "#0a3d91",
         bg: d.draft?.theme.bg ?? "#ffffff",
         products: b?._count.products ?? 0,

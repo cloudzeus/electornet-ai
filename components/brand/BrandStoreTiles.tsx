@@ -6,6 +6,7 @@ import { getProductsByIds } from "@/lib/data/repo";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Reveal } from "@/components/motion/Reveal";
 import { copyOf } from "@/lib/cms/copy";
+import { BrandLogo } from "./BrandLogo";
 
 const c = copyOf("brandTiles");
 
@@ -25,7 +26,7 @@ export async function BrandStoreTiles({ stores }: { stores: BrandStore[] }) {
             <Link key={s.slug} href={`/brands/${s.slug}`} data-reveal className="group relative block rounded-3xl overflow-hidden p-5 min-h-[220px] isolate" style={{ background: s.theme.bg, color: s.theme.ink }}>
               <span className="pointer-events-none absolute -right-10 -top-10 size-48 rounded-full blur-2xl opacity-60" style={{ background: s.theme.accent }} aria-hidden />
               <div className="relative">
-                <div className="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.04em]">{s.wordmark}</div>
+                <BrandLogo logo={s.logo} aspect={s.logoAspect} wordmark={s.wordmark} base={2.1} textClass="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.04em]" className="mb-1.5" />
                 <div className="text-[length:var(--fs-14)] font-semibold" style={{ color: s.theme.muted }}>{s.tagline}</div>
               </div>
               {(cut || p?.image) && (

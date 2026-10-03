@@ -4,6 +4,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { getBrands, getBrandStores } from "@/lib/data/repo";
 import { BrandStoreTiles } from "@/components/brand/BrandStoreTiles";
+import { UniformLogo } from "@/components/brand/UniformLogo";
 
 export const metadata: Metadata = { title: "Μάρκες", description: "Όλες οι μάρκες που διαθέτει η Euronics: LG, Samsung, Bosch, AEG, Apple, Miele και άλλες." };
 
@@ -11,6 +12,8 @@ export const metadata: Metadata = { title: "Μάρκες", description: "Όλε�
 export default async function BrandsPage() {
   const [brands, stores] = await Promise.all([getBrands(), getBrandStores()]);
   const letters = [...new Set(brands.map((b) => b.name[0].toUpperCase()))];
+  // το περικομμένο λογότυπο της σελίδας μάρκας υπερισχύει του λογοτύπου καταλόγου
+  const storeLogo = new Map(stores.filter((s) => s.logo).map((s) => [s.slug, { src: s.logo!, aspect: s.logoAspect }]));
   return (
     <div className="eu-container">
       <Breadcrumbs items={[{ label: "Μάρκες" }]} />
@@ -27,8 +30,12 @@ export default async function BrandsPage() {
         <ul className="m-0 p-0 list-none grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @xl:grid-cols-6 gap-3">
           {brands.map((b) => (
             <li key={b.slug} id={`b-${b.name[0].toUpperCase()}`}>
-              <Link href={`/brands/${b.slug}`} className="flex flex-col items-center justify-center gap-1 rounded-lg border border-eu-line bg-white p-5 min-h-[110px] hover:border-eu-blue">
-                <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] tracking-wide">{b.name}</span>
+              <Link href={`/brands/${b.slug}`} title={b.name} className="flex flex-col items-center justify-center gap-2 rounded-lg border border-eu-line bg-white p-4 min-h-[110px] hover:border-eu-blue">
+                {storeLogo.get(b.slug) ?? b.logo ? (
+                  <span className="h-14 w-full flex items-center justify-center"><UniformLogo src={storeLogo.get(b.slug)?.src ?? b.logo!} aspect={storeLogo.get(b.slug)?.aspect} alt={b.name} /></span>
+                ) : (
+                  <span className="h-14 flex items-center font-extrabold text-eu-ink text-[length:var(--fs-16)] tracking-wide text-center">{b.name}</span>
+                )}
                 <span className="text-eu-muted-2 text-[length:var(--fs-14)]">{b.count} προϊόντα</span>
               </Link>
             </li>

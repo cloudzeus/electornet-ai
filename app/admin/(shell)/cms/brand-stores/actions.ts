@@ -215,3 +215,25 @@ export async function blockOptionsAction() {
   };
 }
 export type BlockOptions = Awaited<ReturnType<typeof blockOptionsAction>>;
+
+/**
+ * Λογότυπο για αυτόματη περικοπή: φέρνει το αρχείο ΜΟΝΟ από το δικό μας CDN (Bunny) — ποτέ hotlink τρίτων
+ * (οι όροι του Brandfetch απαγορεύουν λήψη/αναδημοσίευση). SVG ως κείμενο, raster ως data URL (για canvas χωρίς CORS).
+ */
+export async function fetchLogoAction(url: string): Promise<{ ok: true; kind: "svg"; text: string } | { ok: true; kind: "raster"; dataUrl: string } | { ok: false; message: string }> {
+  await requireCms();
+  let u: URL;
+  try { u = new URL(url); } catch { return { ok: false, message: "Μη έγκυρο URL." }; }
+  const { getSetting } = await import("@/lib/settings/store");
+  const cdn = String((await getSetting("bunny")).data.cdnUrl ?? "");
+  const allowed = new Set(["euronics.b-cdn.net", ...(cdn ? [new URL(cdn).host] : [])]);
+  if (u.protocol !== "https:" || !allowed.has(u.host)) return { ok: false, message: "Η αυτόματη περικοπή γίνεται μόνο σε αρχεία της βιβλιοθήκης media (όχι σε λογότυπα τρίτων όπως το Brandfetch)." };
+  const r = await fetch(u, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  if (!r?.ok) return { ok: false, message: "Δεν φορτώνει το αρχείο." };
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length > 5 * 1024 * 1024) return { ok: false, message: "Το αρχείο είναι πάνω από 5 MB." };
+  const type = r.headers.get("content-type") ?? "";
+  if (type.includes("svg") || u.pathname.endsWith(".svg")) return { ok: true, kind: "svg", text: buf.toString("utf8") };
+  if (!/^image\/(png|jpe?g|webp|gif)/.test(type)) return { ok: false, message: "Υποστηρίζονται SVG, PNG, JPG, WebP." };
+  return { ok: true, kind: "raster", dataUrl: `data:${type.split(";")[0]};base64,${buf.toString("base64")}` };
+}
