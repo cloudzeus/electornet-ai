@@ -36,6 +36,12 @@ export const ZONES: { key: Zone; label: string; help: string }[] = [
   { key: "main", label: "Κύρια ροή", help: "Ακριβώς κάτω από το hero — το κυρίως περιεχόμενο." },
   { key: "bottom", label: "Πριν τον κατάλογο", help: "Στο τέλος, πριν το «Όλα τα προϊόντα» — FAQ, εγγύηση, κάλεσμα σε δράση." },
 ];
+export type Device = "mobile" | "tablet" | "desktop";
+export const DEVICES: { key: Device; label: string; help: string }[] = [
+  { key: "mobile", label: "Κινητό", help: "έως 767px" },
+  { key: "tablet", label: "Tablet", help: "768–1023px" },
+  { key: "desktop", label: "Υπολογιστής", help: "από 1024px" },
+];
 export type TechIcon = "cpu" | "eye" | "zap" | "wifi" | "shield" | "sparkles" | "leaf" | "camera";
 export type Cta = { label: string; href: string };
 export type AutoSource = "newest" | "offers" | "top" | "value" | "in-stock";
@@ -46,6 +52,8 @@ interface BlockBase {
   schedule?: Schedule;
   /** σε ποια ζώνη της σελίδας (σελίδα μάρκας: top | main | bottom · πληροφοριακή σελίδα: top | aside | bottom) */
   zone?: string;
+  /** σε ποιες συσκευές ΔΕΝ εμφανίζεται (κινητό < 768px · tablet 768–1023px · υπολογιστής ≥ 1024px) */
+  hideOn?: Device[];
   /** optional editorial title/kicker override for the block */
   kicker?: string;
   title?: string;
@@ -74,7 +82,18 @@ export type BrandBlock =
   | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta })
   | (BlockBase & { type: "promo-landing"; landingId: string; landingTitle?: string })
   | (BlockBase & { type: "coupon"; code: string; text?: string })
-  | (BlockBase & { type: "stores"; mode: "near" | "region"; region?: string; limit: number });
+  | (BlockBase & { type: "stores"; mode: "near" | "region"; region?: string; limit: number })
+  // ---- νέα: προσφορές ----
+  | (BlockBase & { type: "deal-hero"; source: "promotion" | "product"; promotionId?: string; promotionName?: string; productId?: string; endsAt?: string })
+  | (BlockBase & { type: "promo-grid"; limit: number })
+  | (BlockBase & { type: "countdown"; promotionId: string; promotionName?: string; body?: string; cta?: Cta })
+  // ---- νέα: σελίδες ----
+  | (BlockBase & { type: "steps"; items: { title: string; text: string }[] })
+  | (BlockBase & { type: "contact"; phone?: boolean; email?: boolean; stores?: boolean; hours?: string })
+  | (BlockBase & { type: "newsletter"; body?: string })
+  | (BlockBase & { type: "guides"; mode: "auto" | "manual"; slugs?: string[]; limit?: number })
+  | (BlockBase & { type: "services"; mode: "auto" | "manual"; slugs?: string[]; limit?: number })
+  | (BlockBase & { type: "callout"; tone: "info" | "warning" | "success"; body: string; cta?: Cta });
 
 export interface BrandStore {
   slug: string;
@@ -105,7 +124,7 @@ export interface BrandStore {
   seo: { title: string; description: string };
 }
 
-const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video", "announcement", "usp", "banner", "products-auto", "categories", "faq", "text", "gallery", "cta", "ad", "promo-products", "promo-landing", "coupon", "stores"]);
+const BLOCK_TYPES = new Set(["new-arrivals", "series", "offers", "story", "tech", "support", "video", "announcement", "usp", "banner", "products-auto", "categories", "faq", "text", "gallery", "cta", "ad", "promo-products", "promo-landing", "coupon", "stores", "deal-hero", "promo-grid", "countdown", "steps", "contact", "newsletter", "guides", "services", "callout"]);
 
 /** Cheap structural validation for CMS payloads: returns a list of problems (empty = ok). */
 export function validateBrandStore(s: BrandStore): string[] {

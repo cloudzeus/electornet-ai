@@ -201,8 +201,8 @@ export async function blockOptionsAction() {
     db.coupon.findMany({ where: { kind: "shared", customerId: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], promotion: { status: { in: ["active", "scheduled"] } } }, orderBy: { createdAt: "desc" }, take: 200, select: { code: true, expiresAt: true, promotion: { select: { name: true } } } }),
     db.brand.findMany({ where: { active: true, products: { some: { active: true } } }, orderBy: { name: "asc" }, select: { id: true, slug: true, name: true } }),
   ]);
-  const { getRegions } = await import("@/lib/data/repo");
-  const regions: string[] = await getRegions().catch(() => []);
+  const { getRegions, getGuidesFull, getServicesFull } = await import("@/lib/data/repo");
+  const [regions, guides, services]: [string[], { slug: string; title: string }[], { slug: string; title: string }[]] = await Promise.all([getRegions().catch(() => []), getGuidesFull().then((g) => g.map((x) => ({ slug: x.slug, title: x.title }))), getServicesFull().then((g) => g.map((x) => ({ slug: x.slug, title: x.title })))]);
   const iso = (d: Date | null) => d?.toISOString() ?? null;
   return {
     slots: SLOTS,
@@ -212,6 +212,8 @@ export async function blockOptionsAction() {
     coupons: coupons.map((c) => ({ code: c.code, promo: c.promotion.name, expiresAt: iso(c.expiresAt) })),
     brands,
     regions,
+    guides,
+    services,
   };
 }
 export type BlockOptions = Awaited<ReturnType<typeof blockOptionsAction>>;

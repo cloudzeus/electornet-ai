@@ -112,3 +112,11 @@ export async function couponBlockData(code: string): Promise<CouponData | null> 
   const ends = [c.expiresAt, c.promotion.endsAt].filter((d): d is Date => !!d).sort((a, b) => +a - +b)[0] ?? null;
   return { code: c.code, value: couponValueLabel(c.promotion), promo: c.promotion.name, expiresAt: ends?.toISOString() ?? null };
 }
+
+/** Όλες οι ζωντανές landing pages προσφορών (για «Ενεργές προσφορές»), νεότερες πρώτα. */
+export async function liveLandings(limit: number): Promise<LandingData[]> {
+  const rows = await db.landingPage.findMany({ where: { status: "published" }, orderBy: { updatedAt: "desc" }, take: 40, select: { id: true } });
+  const out: LandingData[] = [];
+  for (const r of rows) { const d = await landingBlockData(r.id).catch(() => null); if (d) out.push(d); if (out.length >= limit) break; }
+  return out;
+}

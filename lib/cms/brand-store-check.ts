@@ -39,6 +39,15 @@ export const BLOCK_LABEL: Record<BrandBlock["type"], string> = {
   "promo-landing": "Σελίδα προσφοράς",
   coupon: "Κουπόνι",
   stores: "Καταστήματα",
+  "deal-hero": "Προσφορά ημέρας",
+  "promo-grid": "Ενεργές προσφορές",
+  countdown: "Αντίστροφη μέτρηση",
+  steps: "Βήματα",
+  contact: "Επικοινωνία",
+  newsletter: "Newsletter",
+  guides: "Οδηγοί αγοράς",
+  services: "Υπηρεσίες",
+  callout: "Σημαντική σημείωση",
 };
 
 const okHref = (h: string | undefined) => !!h && (/^\/[^\s]*$/.test(h) || /^https:\/\/[^\s]+$/.test(h));
@@ -91,6 +100,7 @@ export function checkBlocks(blocks: BrandBlock[], now = new Date()): { errors: I
     const w = `Ενότητα ${i + 1} · ${BLOCK_LABEL[b.type] ?? b.type}`;
     const a = `blk-${b.id}`;
     if (b.enabled === false) return;
+    if (b.hideOn && b.hideOn.length >= 3) E(w, "Είναι κρυφό σε όλες τις συσκευές — άφησε τουλάχιστον μία ή απόκρυψέ το με το μάτι.", a);
     if (b.schedule?.from && b.schedule?.to && new Date(b.schedule.to) <= new Date(b.schedule.from)) E(w, "Η λήξη είναι πριν από την έναρξη.", a);
     if (b.schedule?.to && new Date(b.schedule.to) < now) W(w, "Η περίοδος προβολής έχει λήξει — δεν εμφανίζεται.", a);
     switch (b.type) {
@@ -173,6 +183,28 @@ export function checkBlocks(blocks: BrandBlock[], now = new Date()): { errors: I
         break;
       case "stores":
         if (b.mode === "region" && !b.region) E(w, "Διάλεξε περιοχή.", a);
+        break;
+      case "deal-hero":
+        if (b.source === "promotion" && !b.promotionId) E(w, "Διάλεξε προσφορά.", a);
+        if (b.source === "product" && !b.productId) E(w, "Διάλεξε προϊόν.", a);
+        break;
+      case "countdown":
+        if (!b.promotionId) E(w, "Διάλεξε προσφορά.", a);
+        if (b.cta && (!b.cta.label.trim() || !okHref(b.cta.href))) E(w, "Το κουμπί θέλει κείμενο και σύνδεσμο.", a);
+        break;
+      case "steps":
+        if (b.items.filter((x) => x.title.trim()).length < 2) E(w, "Βάλε τουλάχιστον 2 βήματα με τίτλο.", a);
+        break;
+      case "contact":
+        if (!b.phone && !b.email && !b.stores && !b.hours?.trim()) E(w, "Διάλεξε τι θα δείχνει (τηλέφωνο, email, καταστήματα ή ωράριο).", a);
+        break;
+      case "guides":
+      case "services":
+        if (b.mode === "manual" && !b.slugs?.length) E(w, "Διάλεξε τουλάχιστον ένα ή γύρνα σε «Αυτόματα».", a);
+        break;
+      case "callout":
+        if (!b.body?.trim()) E(w, "Γράψε το κείμενο της σημείωσης.", a);
+        if (b.cta && (!b.cta.label.trim() || !okHref(b.cta.href))) E(w, "Το κουμπί θέλει κείμενο και σύνδεσμο.", a);
         break;
     }
   });

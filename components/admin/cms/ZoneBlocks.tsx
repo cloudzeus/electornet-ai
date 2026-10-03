@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowDown, ArrowUp, CalendarClock, ChevronDown, Copy, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
-import type { BrandBlock } from "@/lib/cms/brand-store";
+import { ArrowDown, ArrowUp, CalendarClock, ChevronDown, Copy, Eye, EyeOff, Laptop, Plus, Smartphone, Tablet, Trash2, X } from "lucide-react";
+import type { BrandBlock, Device } from "@/lib/cms/brand-store";
+import { DEVICES } from "@/lib/cms/brand-store";
 import { blockActive } from "@/lib/cms/brand-store";
 import type { Issue } from "@/lib/cms/brand-store-check";
 import { StatusPill } from "@/components/admin/settings/ui";
@@ -71,7 +72,7 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
                         <div className="flex flex-wrap items-center gap-2 p-2 pl-3">
                           <button type="button" onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(b.id)) n.delete(b.id); else n.add(b.id); return n; })} aria-expanded={isOpen} className="flex items-center gap-2 min-h-11 text-left flex-1 min-w-[12rem]">
                             <span className="shrink-0 size-7 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] grid place-items-center">{k + 1}</span>
-                            <span className="grid min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-15)] truncate">{BLOCK_INFO[b.type].label}{b.title ? ` · ${b.title}` : ""}</span><span className="flex flex-wrap gap-1.5 items-center"><StatusPill status={st.s} text={st.t} />{bErr > 0 && <span className="text-eu-red font-bold text-[length:var(--fs-13)]">{bErr} θέματα</span>}</span></span>
+                            <span className="grid min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-15)] truncate">{BLOCK_INFO[b.type].label}{b.title ? ` · ${b.title}` : ""}</span><span className="flex flex-wrap gap-1.5 items-center"><StatusPill status={st.s} text={st.t} />{b.hideOn?.length ? <span className="rounded-full bg-eu-surface px-2 py-0.5 text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Όχι σε: {b.hideOn.map((x) => DEVICES.find((d) => d.key === x)?.label).join(", ")}</span> : null}{bErr > 0 && <span className="text-eu-red font-bold text-[length:var(--fs-13)]">{bErr} θέματα</span>}</span></span>
                             <ChevronDown className={`ml-auto size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden />
                           </button>
                           <span className="flex items-center">
@@ -92,6 +93,17 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
                                 <select value={b.zone ?? defaultZone} onChange={(e) => setBlock(i, { ...b, zone: e.target.value })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">{zones.map((zz) => <option key={zz.key} value={zz.key}>{zz.label}</option>)}</select>
                                 <span className="text-eu-muted text-[length:var(--fs-13)]">Μετακίνηση σε άλλο σημείο της σελίδας.</span>
                               </label>
+                              <fieldset className="m-0 p-0 border-0 grid gap-1 min-w-0">
+                                <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Ορατό σε</legend>
+                                <div className="flex flex-wrap gap-2">
+                                  {DEVICES.map((dv) => {
+                                    const on = !b.hideOn?.includes(dv.key);
+                                    const Icon = dv.key === "mobile" ? Smartphone : dv.key === "tablet" ? Tablet : Laptop;
+                                    return <button key={dv.key} type="button" aria-pressed={on} title={dv.help} onClick={() => { const cur = new Set<Device>(b.hideOn ?? []); if (on) cur.add(dv.key); else cur.delete(dv.key); setBlock(i, { ...b, hideOn: cur.size ? [...cur] : undefined }); }} className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3 min-h-11 font-bold text-[length:var(--fs-14)] ${on ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-muted line-through"}`}><Icon className="size-4" aria-hidden />{dv.label}</button>;
+                                  })}
+                                </div>
+                                <span className="text-eu-muted text-[length:var(--fs-13)]">Πάτα για να το κρύψεις σε μια συσκευή (κινητό έως 767px, tablet 768–1023px, υπολογιστής από 1024px).</span>
+                              </fieldset>
                             </div>
                             <details className="rounded-xl bg-eu-surface/60 border border-eu-line" open={!!(b.schedule?.from || b.schedule?.to)}>
                               <summary className="cursor-pointer list-none flex items-center gap-2 px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><CalendarClock className="size-4" aria-hidden /> Πότε εμφανίζεται (προαιρετικό)</summary>
