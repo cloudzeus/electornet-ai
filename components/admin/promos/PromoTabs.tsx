@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy } from "lucide-react";
+import { ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy, Sparkles } from "lucide-react";
 import { PAGE_HELP } from "@/lib/promo/help";
 import { HelpPanel } from "./Help";
 
@@ -8,6 +8,7 @@ const TABS = [
   { key: "calendar", href: "/admin/prosfores/imerologio", label: "Ημερολόγιο", Icon: CalendarRange },
   { key: "coupons", href: "/admin/prosfores/kouponia", label: "Κουπόνια", Icon: TicketPercent },
   { key: "segments", href: "/admin/prosfores/koina", label: "Κοινά πελατών", Icon: Users },
+  { key: "personal", href: "/admin/prosfores/prosopikes", label: "Προσωπικές", Icon: Sparkles },
   { key: "tags", href: "/admin/prosfores/etiketes", label: "Ετικέτες", Icon: Tags },
   { key: "sim", href: "/admin/prosfores/prosomoiotis", label: "Προσομοιωτής", Icon: FlaskConical },
   { key: "rules", href: "/admin/prosfores/kanones", label: "Κανόνες", Icon: ShieldCheck },

@@ -391,3 +391,38 @@ export async function browseProductsAction(input: { categoryId?: string | null; 
   ]);
   return { total, items: rows.map((r) => ({ id: r.id, title: r.title, sku: r.sku, brand: r.brand.name, price: r.price ?? null, image: r.media[0]?.url ?? null })) };
 }
+
+// ---- προσωποποιημένες προσφορές ----
+const maskEmail = (e: string) => { const [u, d] = e.split("@"); return `${u.slice(0, 1)}***@${d ?? ""}`; };
+
+export async function savePersonalAction(cfg: import("@/lib/promo/personal").PersonalConfig) {
+  const user = await requirePermission(PERM);
+  const { savePersonalConfig } = await import("@/lib/promo/personal");
+  const { getPromoPolicy } = await import("@/lib/promo/policy");
+  const policy = await getPromoPolicy();
+  const over = Object.values(cfg.rules).some((r) => r.enabled && r.percent > policy.approvalAbovePct);
+  if (over && !hasPermission(user, "catalog.promos.approve")) return { ok: false as const, error: `Έκπτωση πάνω από ${policy.approvalAbovePct} % χρειάζεται δικαίωμα «Έγκριση προσφορών».` };
+  const saved = await savePersonalConfig(cfg, user.id);
+  await audit(user.id, "personal.config", "Setting", "promo-personal", null, saved);
+  revalidatePath("/admin/prosfores/prosopikes");
+  return { ok: true as const, config: saved };
+}
+
+/** Ποιοι θα πάρουν τι με τις τρέχουσες ρυθμίσεις — χωρίς να γραφτεί τίποτα. Μόνο μικρό όνομα και μασκαρισμένο email. */
+export async function previewPersonalAction(cfg: import("@/lib/promo/personal").PersonalConfig) {
+  await requirePermission(PERM);
+  const { personalCandidates, sanitizePersonal } = await import("@/lib/promo/personal");
+  const list = await personalCandidates(sanitizePersonal(cfg));
+  const byKind: Record<string, number> = {};
+  for (const c of list) byKind[c.kind] = (byKind[c.kind] ?? 0) + 1;
+  return { total: list.length, customers: new Set(list.map((c) => c.customerId)).size, byKind, sample: list.slice(0, 40).map((c) => ({ kind: c.kind, who: `${c.firstName} · ${maskEmail(c.email)}`, target: c.target, reason: c.reason })) };
+}
+
+export async function runPersonalAction() {
+  const user = await requirePermission(PERM);
+  const { issuePersonalOffers } = await import("@/lib/promo/personal");
+  const r = await issuePersonalOffers({ staffId: user.id });
+  await audit(user.id, "personal.run", "Coupon", null, null, r);
+  revalidatePath("/admin/prosfores/prosopikes");
+  return r;
+}

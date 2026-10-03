@@ -54,7 +54,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const [couponCode, setCouponCode] = useState<string | null>(() => savedCoupon());
   const [placing, setPlacing] = useState(false);
   const offline = lines.filter((l) => !l.product.fromDb);
-  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, zip: /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null });
+  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, storeId: ful === "click-collect" ? storeId : null, zip: /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null });
   const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
   const localGoods = subtotal + addonsTotal;

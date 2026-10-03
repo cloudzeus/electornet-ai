@@ -70,7 +70,7 @@ export async function syncCart(items: CartItemIn[]) {
   return { cartId: cart.id, kept: rows.length, skipped: clean.length - rows.length };
 }
 
-export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null }
+export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null }
 /** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
 export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
 export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
@@ -109,7 +109,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const segments = needSeg ? await segmentsOf(me!.id) : [];
   const engine = evaluate(lines, promos, {
     now: new Date(), customer: { id: who.customerId, email: who.email, registered: !!me, isNew, usesByPromo: uses, segments },
-    channel: input.delivery === "click-collect" ? "click-collect" : "online", zip: input.zip ?? null, payment: input.payment ?? null, delivery: input.delivery ?? null,
+    channel: input.delivery === "click-collect" ? "click-collect" : "online", storeId: input.delivery === "click-collect" ? input.storeId ?? null : null, zip: input.zip ?? null, payment: input.payment ?? null, delivery: input.delivery ?? null,
     coupon, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block",
   });
   const low = await lowest30(lines.map((l) => l.variantId));

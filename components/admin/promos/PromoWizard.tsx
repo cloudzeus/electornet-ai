@@ -31,7 +31,7 @@ function Field({ l, children, hint, info }: { l: string; children: ReactNode; hi
 }
 
 /** Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι. */
-export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], startStep = 0 }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; startStep?: number }) {
+export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0 }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number }) {
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
@@ -160,11 +160,13 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               <Field l="Προτεραιότητα" hint={FIELD_HELP.priority}><input inputMode="numeric" className={`${input} @xl:max-w-40`} value={d.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></Field>
             </Group>
             <Group n="Ζ" title="Πού και πώς" desc="Προαιρετικά: περιορισμός σε κανάλι, περιοχή, πληρωμή ή παράδοση.">
-              <div className="grid grid-cols-1 @xl:grid-cols-3 gap-2">
-                <OptionCard on={!d.rules.channels?.length} onClick={() => setRules({ channels: undefined })} title="Παντού" desc="Με αποστολή και με παραλαβή από κατάστημα." />
+              <div className="grid grid-cols-1 @xl:grid-cols-2 @5xl:grid-cols-4 gap-2">
+                <OptionCard on={!d.rules.channels?.length} onClick={() => setRules({ channels: undefined })} title="Παντού" desc="Online (αποστολή ή παραλαβή) — και στο ταμείο, αν το συνδέσετε." />
                 <OptionCard on={d.rules.channels?.length === 1 && d.rules.channels[0] === "online"} onClick={() => setRules({ channels: ["online"] })} title="Μόνο αποστολή" desc="Όταν ο πελάτης παραλαμβάνει στο σπίτι." />
                 <OptionCard on={d.rules.channels?.length === 1 && d.rules.channels[0] === "click-collect"} onClick={() => setRules({ channels: ["click-collect"] })} title="Μόνο παραλαβή" desc="Click & collect από κατάστημα." />
+                <OptionCard on={d.rules.channels?.length === 1 && d.rules.channels[0] === "pos"} onClick={() => setRules({ channels: ["pos"] })} title="Μόνο στο ταμείο" desc="Μόνο μέσα στα καταστήματα (POS) — όχι στο e-shop." />
               </div>
+              <StorePicker selected={d.rules.stores ?? []} stores={stores} onChange={(ids) => setRules({ stores: ids.length ? ids : undefined })} />
               <Field l="Ταχυδρομικοί κώδικες" hint={FIELD_HELP.zips}><input className={input} value={(d.rules.zips ?? []).join(", ")} onChange={(e) => setRules({ zips: e.target.value.split(/[,\s]+/).filter(Boolean) })} placeholder="όλη η Ελλάδα" /></Field>
               {!d.mechanism.startsWith("payment") && (
                 <fieldset className="m-0 p-0 border-0 grid gap-1"><legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1">Μόνο με τρόπο πληρωμής</legend>
@@ -574,5 +576,34 @@ function PaymentPick({ d: dd, setRules }: { d: PromoDraft; setRules: (p: Partial
     <fieldset className="m-0 p-0 border-0 grid gap-1"><legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1 inline-flex items-center gap-1">Με ποιους τρόπους πληρωμής <Hint k="payment" /></legend>
       <div className="flex flex-wrap gap-x-4 gap-y-1">{PAYMENT_OPTIONS.map((o) => { const on = !!dd.rules.payment?.includes(o.value); return <label key={o.value} className="inline-flex items-center gap-1.5 min-h-11 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 accent-eu-navy" checked={on} onChange={(e) => setRules({ payment: e.target.checked ? [...(dd.rules.payment ?? []), o.value] : (dd.rules.payment ?? []).filter((x) => x !== o.value) })} />{o.label}</label>; })}</div>
     </fieldset>
+  );
+}
+
+type StoreOpt = { id: string; name: string; city: string };
+const normTxt = (x: string) => x.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/** «Μόνο σε αυτά τα καταστήματα»: λίστα που στενεύει όσο πληκτρολογείς (όνομα ή πόλη). */
+function StorePicker({ selected, stores, onChange }: { selected: string[]; stores: StoreOpt[]; onChange: (ids: string[]) => void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(selected.length > 0);
+  const shown = useMemo(() => { const t = normTxt(q.trim()); return (t ? stores.filter((x) => normTxt(`${x.name} ${x.city}`).includes(t)) : stores).slice(0, 80); }, [q, stores]);
+  const byId = new Map(stores.map((x) => [x.id, x]));
+  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  if (!stores.length) return null;
+  return (
+    <div className="grid gap-2 rounded-xl border border-eu-line p-3">
+      <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 accent-eu-navy" checked={open} onChange={(e) => { setOpen(e.target.checked); if (!e.target.checked) onChange([]); }} /> Μόνο σε συγκεκριμένα καταστήματα</label>
+      <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Online ισχύει όταν ο πελάτης διαλέγει παραλαβή από αυτά τα καταστήματα· στο ταμείο, μόνο σε αυτά. Π.χ. εγκαίνια ή εκκαθάριση ενός καταστήματος.</p>
+      {open && (
+        <>
+          {selected.length > 0 && <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">{selected.map((id) => <li key={id} className="inline-flex items-center gap-1 rounded-full bg-eu-chip text-eu-navy pl-3 pr-1 min-h-10 text-[length:var(--fs-14)] font-semibold max-w-full"><span className="truncate">{byId.get(id)?.name ?? id}</span><button type="button" aria-label="Αφαίρεση" onClick={() => toggle(id)} className="size-9 shrink-0 grid place-items-center rounded-full hover:bg-black/5"><X className="size-4" aria-hidden /></button></li>)}</ul>}
+          <input aria-label="Φίλτρο καταστημάτων" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Γράψε πόλη ή όνομα καταστήματος…" className={input} />
+          <ul className="m-0 p-0 list-none grid grid-cols-1 @xl:grid-cols-2 gap-1 max-h-72 overflow-y-auto">
+            {shown.map((x) => { const on = selected.includes(x.id); return <li key={x.id}><button type="button" aria-pressed={on} onClick={() => toggle(x.id)} className={`w-full text-left flex items-center gap-2 rounded-xl px-3 min-h-11 text-[length:var(--fs-14)] border ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>{on ? <Check className="size-4 shrink-0" aria-hidden /> : <Plus className="size-4 shrink-0" aria-hidden />}<span className="min-w-0"><span className="block font-semibold truncate">{x.name}</span><span className="block text-eu-muted text-[length:var(--fs-13)]">{x.city}</span></span></button></li>; })}
+            {!shown.length && <li className="text-eu-muted text-[length:var(--fs-14)]">Κανένα κατάστημα με αυτό το φίλτρο.</li>}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }

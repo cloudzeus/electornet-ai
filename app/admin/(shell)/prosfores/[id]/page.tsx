@@ -40,6 +40,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
       )}
       <PromoWizard initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, Number(step) || 3))}
         services={services.map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
+        stores={(await db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true } }))}
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />
 
       <div className="grid grid-cols-1 @4xl:grid-cols-2 gap-4">

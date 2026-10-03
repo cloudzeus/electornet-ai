@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { tickPromos } from "@/lib/promo/offers";
 import { refreshInfoTags } from "@/lib/promo/tags";
-import { runBirthdays, runCartReminders } from "@/lib/promo/jobs";
+import { runBirthdays, runCartReminders, runPersonalOffers } from "@/lib/promo/jobs";
 
 let lastTags = 0;
 
@@ -17,6 +17,6 @@ export async function GET(req: Request) {
   const promos = await tickPromos({ force: u.searchParams.get("force") === "1" });
   let tags: Record<string, number> | null = null;
   if (u.searchParams.get("tags") === "1" || Date.now() - lastTags > 3600_000) { lastTags = Date.now(); tags = await refreshInfoTags().catch(() => null); }
-  const [birthdays, carts] = await Promise.all([runBirthdays().catch((e) => ({ error: String(e) })), runCartReminders().catch((e) => ({ error: String(e) }))]);
-  return NextResponse.json({ ...promos, tags, birthdays, carts });
+  const [birthdays, carts, personal] = await Promise.all([runBirthdays().catch((e) => ({ error: String(e) })), runCartReminders().catch((e) => ({ error: String(e) })), runPersonalOffers().catch((e) => ({ error: String(e) }))]);
+  return NextResponse.json({ ...promos, tags, birthdays, carts, personal });
 }

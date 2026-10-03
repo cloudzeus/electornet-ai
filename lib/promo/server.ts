@@ -81,7 +81,7 @@ export async function resolveCoupon(code: string | null | undefined, who: { cust
   if (row.maxUses != null && row.usedCount >= row.maxUses) return { code: c, promotionId: row.promotionId, problem: "ο κωδικός έχει ήδη χρησιμοποιηθεί" };
   if (row.kind === "unique" && ((row.customerId && row.customerId !== who.customerId) || (!row.customerId && row.email && row.email !== who.email?.toLowerCase())))
     return { code: c, promotionId: row.promotionId, problem: "ο κωδικός είναι προσωπικός και ανήκει σε άλλο λογαριασμό" };
-  return { code: c, promotionId: row.promotionId };
+  return { code: c, promotionId: row.promotionId, scope: (row.scope as PromoTarget[] | null) ?? null };
 }
 
 /** Πόσες φορές έχει χρησιμοποιήσει ο πελάτης κάθε προσφορά (για «μέγιστο ανά πελάτη»). */

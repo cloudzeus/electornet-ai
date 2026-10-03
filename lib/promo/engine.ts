@@ -27,7 +27,9 @@ export interface PromoRules {
   /** ελάχιστη αξία (λεπτά) των επιλέξιμων γραμμών */
   minValue?: number;
   minQty?: number;
-  channels?: ("online" | "click-collect")[];
+  channels?: ("online" | "click-collect" | "pos")[];
+  /** μόνο σε αυτά τα καταστήματα (παραλαβή click & collect ή ταμείο του καταστήματος) */
+  stores?: string[];
   /** ΤΚ ή προθέματα ΤΚ («151», «15125») */
   zips?: string[];
   payment?: string[];
@@ -81,10 +83,12 @@ export interface EngineLine {
 export interface EngineCtx {
   now: Date;
   customer: { id?: string | null; email?: string | null; registered: boolean; isNew: boolean; usesByPromo?: Record<string, number>; segments?: string[] };
-  channel?: "online" | "click-collect";
+  channel?: "online" | "click-collect" | "pos";
+  /** το κατάστημα: παραλαβής (click & collect) ή του ταμείου (POS) */
+  storeId?: string | null;
   zip?: string | null; payment?: string | null; delivery?: string | null;
   /** το κουπόνι που έγραψε ο πελάτης, ήδη αντιστοιχισμένο με την προσφορά του (ή null αν δεν βρέθηκε) */
-  coupon?: { code: string; promotionId: string | null; problem?: string } | null;
+  coupon?: { code: string; promotionId: string | null; problem?: string; scope?: PromoTarget[] | null } | null;
   /** δικλείδα: μέγιστη συνολική έκπτωση ανά γραμμή, % της τιμής καταλόγου */
   maxLinePct?: number;
   /** δικλείδα: ποτέ κάτω από το κόστος (προεπιλογή ναι· «όχι» μόνο αν ο κανόνας είναι «μόνο προειδοποίηση») */
@@ -136,6 +140,7 @@ function ruleReason(p: EnginePromo, ctx: EngineCtx): string | null {
   if (r.zips?.length) { if (!ctx.zip) return "χρειάζεται ΤΚ"; if (!r.zips.some((z) => ctx.zip!.startsWith(z))) return "δεν ισχύει στον ΤΚ " + ctx.zip; }
   if (r.payment?.length && ctx.payment && !r.payment.includes(ctx.payment)) return "δεν ισχύει με αυτόν τον τρόπο πληρωμής";
   if (r.delivery?.length && ctx.delivery && !r.delivery.includes(ctx.delivery)) return "δεν ισχύει με αυτόν τον τρόπο παράδοσης";
+  if (r.stores?.length && !(ctx.storeId && r.stores.includes(ctx.storeId))) return ctx.channel === "online" || !ctx.channel ? "μόνο με παραλαβή από συγκεκριμένα καταστήματα" : "δεν ισχύει σε αυτό το κατάστημα";
   if (r.segments?.length && !r.segments.some((s) => ctx.customer.segments?.includes(s))) return ctx.customer.registered ? "μόνο για συγκεκριμένο κοινό πελατών" : "μόνο για μέλη συγκεκριμένου κοινού (χρειάζεται σύνδεση)";
   const used = ctx.customer.usesByPromo?.[p.id] ?? 0;
   if (p.maxPerCustomer != null && used >= p.maxPerCustomer) return "ο πελάτης έχει ήδη χρησιμοποιήσει την προσφορά";
@@ -363,11 +368,13 @@ export function evaluate(linesIn: EngineLine[], promos: EnginePromo[], ctx: Engi
     } else {
       const exclusiveLines = new Set(lines.filter((l) => (multiWin.get(l.key) ?? priceWin.get(l.key))?.p.stacking === "exclusive").map((l) => l.key));
       // «σε προσφορά» = έχει έκπτωση τιμής Ή συμμετέχει σε ομάδα 2+1 / 2ο −Χ % / ποσότητας (και ως «πληρωμένο» τεμάχιο)
-      const eligible = lines.filter((l) => matches(p, l) && !exclusiveLines.has(l.key) && (p.stacking !== "no-price" || (l.discPrice === 0 && !multiWin.has(l.key))));
+      // προσωπικός κωδικός: ισχύει μόνο στα προϊόντα / την κατηγορία για την οποία δόθηκε
+      const scope = ctx.coupon.scope?.length ? { targets: ctx.coupon.scope } : null;
+      const eligible = lines.filter((l) => matches(p, l) && (!scope || matches(scope, l)) && !exclusiveLines.has(l.key) && (p.stacking !== "no-price" || (l.discPrice === 0 && !multiWin.has(l.key))));
       const base = eligible.reduce((a, l) => a + (l.listTotal - l.discPrice), 0);
       const minWhy = p.rules?.minValue && base < p.rules.minValue ? `χρειάζεται καλάθι τουλάχιστον ${eur(p.rules.minValue)} σε προϊόντα που δέχονται το κουπόνι (τώρα ${eur(base)})` : null;
       if (!eligible.length || minWhy) {
-        const reason = minWhy ?? (p.stacking === "no-price" ? "δεν συνδυάζεται με προϊόντα που είναι ήδη σε προσφορά" : "κανένα προϊόν του καλαθιού δεν είναι επιλέξιμο");
+        const reason = minWhy ?? (scope && !lines.some((l) => matches(scope, l)) ? "ο προσωπικός κωδικός ισχύει για άλλο προϊόν — πρόσθεσέ το στο καλάθι" : p.stacking === "no-price" ? "δεν συνδυάζεται με προϊόντα που είναι ήδη σε προσφορά" : "κανένα προϊόν του καλαθιού δεν είναι επιλέξιμο");
         couponMessage = `Ο κωδικός ${ctx.coupon.code} δεν εφαρμόστηκε: ${reason}.`;
         trace.push({ promotionId: p.id, code: p.code, name: p.name, applied: false, amount: 0, reason });
       } else {

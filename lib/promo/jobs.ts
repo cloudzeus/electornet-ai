@@ -77,3 +77,12 @@ export async function runCartReminders(opts: { force?: boolean } = {}) {
   }
   return { carts: carts.length, sent };
 }
+
+/** Προσωποποιημένες προσφορές: μία φορά την ημέρα, μόνο αν υπάρχει ενεργός κανόνας. */
+export async function runPersonalOffers(opts: { force?: boolean } = {}) {
+  const { getPersonalConfig, issuePersonalOffers } = await import("./personal");
+  const cfg = await getPersonalConfig();
+  if (!Object.values(cfg.rules).some((r) => r.enabled)) return { skipped: "off" as const };
+  if (!opts.force && !(await onceToday("personal"))) return { skipped: "done-today" as const };
+  return issuePersonalOffers();
+}

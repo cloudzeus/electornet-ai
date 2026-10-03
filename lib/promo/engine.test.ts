@@ -185,3 +185,23 @@ test("κοινά πελατών και early access", () => {
   assert.equal(evaluate([line("x", 10000)], [early], ctx()).discPrice, 0);
   assert.equal(evaluate([line("x", 10000)], [early], ctx({ customer: { registered: true, isNew: false, segments: ["news"] } })).discPrice, 2000);
 });
+
+test("προσωπικός κωδικός: μόνο στο προϊόν για το οποίο δόθηκε", () => {
+  const cp = promo({ mechanism: "coupon-percent", reward: { percent: 10 }, stacking: "combine" });
+  const scope = [{ kind: "product" as const, refId: "p-b", exclude: false }];
+  const r = evaluate([line("a", 10000), line("b", 20000)], [cp], ctx({ coupon: { code: "ME", promotionId: cp.id, scope } }));
+  assert.equal(r.lines[0].discCoupon, 0);
+  assert.equal(r.lines[1].discCoupon, 2000);
+  const r2 = evaluate([line("a", 10000)], [cp], ctx({ coupon: { code: "ME", promotionId: cp.id, scope } }));
+  assert.match(r2.couponMessage ?? "", /άλλο προϊόν/);
+});
+
+test("προσφορά καταστήματος: μόνο με παραλαβή / ταμείο εκεί", () => {
+  const p = promo({ reward: { percent: 10 }, rules: { stores: ["s1"] } });
+  assert.equal(evaluate([line("x", 10000)], [p], ctx()).discPrice, 0);
+  assert.equal(evaluate([line("x", 10000)], [p], ctx({ channel: "click-collect", storeId: "s2" })).discPrice, 0);
+  assert.equal(evaluate([line("x", 10000)], [p], ctx({ channel: "click-collect", storeId: "s1" })).discPrice, 1000);
+  const pos = promo({ reward: { percent: 5 }, rules: { channels: ["pos"] } });
+  assert.equal(evaluate([line("x", 10000)], [pos], ctx()).discPrice, 0);
+  assert.equal(evaluate([line("x", 10000)], [pos], ctx({ channel: "pos", storeId: "s1" })).discPrice, 500);
+});

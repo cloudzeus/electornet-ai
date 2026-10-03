@@ -2155,9 +2155,17 @@ model Coupon {
   expiresAt   DateTime?
   usedCount   Int       @default(0)
   maxUses     Int?
+  /// προσωπική προσφορά: ο κωδικός ισχύει ΜΟΝΟ σε αυτούς τους στόχους ([{ kind, refId }]) — π.χ. ένα προϊόν της λίστας επιθυμιών
+  scope       Json?
+  /// γιατί δόθηκε (φαίνεται στον πελάτη): «Από τη λίστα σου», «Για την αντικατάσταση του ψυγείου σου»…
+  reason      String?
+  /// κλειδί αποφυγής διπλών προσωπικών προσφορών: «wishlist:<productId>», «device:<id>»…
+  personalKey String?
   createdAt   DateTime  @default(now())
 
   @@index([promotionId])
+  @@index([customerId])
+  @@index([personalKey])
 }
 
 /// Κάθε εφαρμογή προσφοράς σε παραγγελία — βάση του reporting ανά παραστατικό

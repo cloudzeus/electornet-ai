@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Package, MapPin, RotateCcw, ShieldCheck, Heart, User, LogOut, LayoutDashboard, CreditCard, CalendarClock, Bell } from "lucide-react";
+import { Package, MapPin, RotateCcw, ShieldCheck, Heart, User, LogOut, LayoutDashboard, CreditCard, CalendarClock, Bell, Sparkles } from "lucide-react";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("accountNav");
@@ -10,6 +10,7 @@ const c = copyOf("accountNav");
 const items = [
   { href: "/logariasmos", label: "Επισκόπηση", icon: LayoutDashboard },
   { href: "/logariasmos/stoixeia", label: "Τα στοιχεία μου", icon: User },
+  { href: "/logariasmos/prosfores", label: "Οι προσφορές μου", icon: Sparkles },
   { href: "/logariasmos/paraggelies", label: "Παραγγελίες & παρακολούθηση", icon: Package },
   { href: "/logariasmos/dieythynseis", label: "Διευθύνσεις", icon: MapPin },
   { href: "/logariasmos/pliromes", label: "Πληρωμές & δόσεις", icon: CreditCard },

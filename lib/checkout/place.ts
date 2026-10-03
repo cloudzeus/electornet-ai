@@ -55,7 +55,7 @@ export async function placeOrder(input: PlaceInput) {
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
-  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, zip: input.address?.zip ?? null, email }, cart);
+  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip: input.address?.zip ?? null, email }, cart);
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   if (input.expectedTotal != null && input.expectedTotal !== q.total) return { ok: false as const, changed: true, error: "Το σύνολο άλλαξε (τιμή ή προσφορά). Δες το νέο ποσό πριν συνεχίσεις.", quote: publicQuote(q) };
   if (input.coupon && !q.coupon.applied) return { ok: false as const, error: q.coupon.message ?? "Το κουπόνι δεν ισχύει.", quote: publicQuote(q) };
@@ -173,7 +173,7 @@ export async function placeOrder(input: PlaceInput) {
     return { ok: true as const, number, total: q.total, nextCoupon };
   } catch (e) {
     if (e instanceof Abort && e.reason === "dry-run") return { ok: true as const, dryRun: true, ...(e as Abort & { preview: object }).preview };
-    if (e instanceof Abort) { invalidatePromos(); return { ok: false as const, error: e.reason, quote: publicQuote(await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, zip: input.address?.zip ?? null, email })) }; }
+    if (e instanceof Abort) { invalidatePromos(); return { ok: false as const, error: e.reason, quote: publicQuote(await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip: input.address?.zip ?? null, email })) }; }
     throw e;
   }
 }
