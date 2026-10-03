@@ -132,7 +132,8 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
     triggerRef.current = (document.activeElement as HTMLElement) ?? null;
     const html = document.documentElement, prev = html.style.overflow;
     html.style.overflow = "hidden";
-    const f = setTimeout(() => closeRef.current?.focus(), 0);
+    // εστίαση στο κλείσιμο μόνο με ποντίκι/πληκτρολόγιο· στην αφή θα έβγαζε δαχτυλίδι εστίασης χωρίς λόγο
+    const f = setTimeout(() => { if (matchMedia("(pointer: fine)").matches) closeRef.current?.focus(); }, 0);
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => { clearTimeout(f); html.style.overflow = prev; window.removeEventListener("keydown", onKey); triggerRef.current?.focus?.(); };
@@ -147,11 +148,12 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
       const mv = document.createElement("model-viewer") as HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void>; cameraOrbit?: string };
       mvRef.current = mv;
       mv.setAttribute("src", previewGlb);
-      if (ios) mv.setAttribute("ios-src", usdzFor(surface));
+      // Το Quick Look ανοίγει από τα δικά μας <a rel="ar">· το Quick Look του viewer μόνο όταν δεν υπάρχει USDZ (το φτιάχνει
+      // από το GLB). Με ios-src + quick-look ενεργά, το iPhone άνοιγε το Quick Look μόνο του, χωρίς πάτημα.
       mv.setAttribute("alt", title);
       mv.setAttribute("ar", "");
       // Στο Android το Scene Viewer ανοίγει από το δικό μας κουμπί· εδώ μόνο WebXR, για όταν λείπει το Scene Viewer
-      mv.setAttribute("ar-modes", env === "sceneviewer" || env === "inapp-android" ? "webxr" : "webxr quick-look");
+      mv.setAttribute("ar-modes", env === "quicklook" && !ios ? "quick-look" : env === "desktop" ? "webxr quick-look" : "webxr");
       mv.setAttribute("ar-scale", "fixed"); // πραγματικό μέγεθος: ο πελάτης δεν μπορεί να το μεγεθύνει με τα δάχτυλα
       mv.setAttribute("ar-placement", placement);
       mv.setAttribute("camera-controls", "");
@@ -208,7 +210,6 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
     }).catch(() => alive && setStatus("error"));
     if (env === "desktop") QRCode.toDataURL(`${location.origin}${location.pathname}?ar=1`, { margin: 1, width: 168, color: { dark: "#122A58", light: "#ffffff" } }).then((u) => alive && setQr(u)).catch(() => {});
     return () => { alive = false; mvRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- τα URL παράγονται από id/version/surface
   }, [open, env, previewGlb, ios, title, liveLabels, dims, tv, placement]);
 
   const sourceText = dims?.source === "eprel" ? "από το ευρωπαϊκό μητρώο EPREL, χωρίς προεξοχές όπως πόρτα ή λαβές" : dims?.source === "specs" ? "του κατασκευαστή" : "τυπικές για την κατηγορία";
@@ -220,19 +221,25 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   };
 
   const pill = `group inline-flex items-center justify-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 min-h-12 hover:bg-eu-navy hover:text-white transition-colors ${className}`;
-  const label = <><Box className="size-4 transition-transform group-hover:rotate-12" aria-hidden /> Δες το στον χώρο σου</>;
+  const label = <><Box className="size-4 shrink-0 transition-transform group-hover:rotate-12" aria-hidden /> Δες το στον χώρο σου</>;
   const altLabel = !alt ? "" : surface === "wall" && alt === "floor" ? "Δεν πιάνει τον τοίχο; Στο πάτωμα" : `Δες το ${SURFACE_LABEL[alt].toLowerCase()}`;
   const preview3d = <button type="button" onClick={openPreview} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 px-1 hover:underline"><Ruler className="size-4" aria-hidden /> Προβολή 3D με διαστάσεις</button>;
-  // Quick Look: ανοίγει μόνο από <a rel="ar"> με ένα <img> ως πρώτο παιδί — η ετικέτα μπαίνει από πάνω
-  const qlLink = (sf: Surface, cls: string, imgCls: string, content: ReactNode, aria: string) => (
-    <span className={`relative inline-flex overflow-hidden focus-within:ring-2 focus-within:ring-eu-blue focus-within:ring-offset-2 ${cls}`}>
-      <a rel="ar" href={qlHref(sf)} ref={qlRef} className="block outline-none" aria-label={aria}>
+  // Quick Look: ανοίγει μόνο από <a rel="ar"> με ένα <img> ως πρώτο παιδί. Το ορατό κείμενο ορίζει το μέγεθος του
+  // κουμπιού (χωράει σε κάθε γραμματοσειρά/οθόνη) και ο σύνδεσμος το σκεπάζει ολόκληρο από πάνω.
+  const qlLink = (sf: Surface, cls: string, content: ReactNode, aria: string) => (
+    // η θέση έρχεται από τον καλούντα (absolute μέσα στην προεπισκόπηση)· αλλιώς relative, για τον σύνδεσμο από πάνω
+    <span className={`${/\babsolute\b/.test(cls) ? "" : "relative"} inline-flex items-center justify-center overflow-hidden focus-within:ring-2 focus-within:ring-eu-blue focus-within:ring-offset-2 ${cls}`}>
+      <span aria-hidden className="pointer-events-none inline-flex items-center justify-center gap-2 whitespace-nowrap">{content}</span>
+      <a rel="ar" href={qlHref(sf)} ref={qlRef} className="absolute inset-0 z-10 block outline-none" aria-label={aria}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img alt={aria} width={240} height={48} className={`block opacity-0 ${imgCls}`} src={PIXEL} />
+        <img alt={aria} width={1} height={1} className="block w-full h-full opacity-0" src={PIXEL} />
       </a>
-      <span aria-hidden className="pointer-events-none absolute inset-0 inline-flex items-center justify-center gap-2 px-2">{content}</span>
     </span>
   );
+  // πόσα κουμπιά κάθονται πάνω στην προεπισκόπηση (εγγενές AR + «Δεν πιάνει τον τοίχο;»)
+  const launchShown = (isQl && (ios || status === "ready")) || ((env === "sceneviewer" || env === "inapp-android") && (!noSceneViewer || !!canAr));
+  const wallShown = placement === "wall" && ((isQl && ios) || ((env === "sceneviewer" || env === "inapp-android") && !noSceneViewer));
+  const launchReserve = wallShown ? "bottom-[8.5rem]" : launchShown ? "bottom-[5.25rem]" : "bottom-0";
   const direct = env === "quicklook" ? !!ios : env === "sceneviewer";
 
   // Ίδια θέση πριν και μετά το hydration (το env ξέρουμε μόνο στον browser): στον server ένα απλό κουμπί προεπισκόπησης
@@ -247,11 +254,11 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
         <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
           {env === "sceneviewer" ? (
             <a href={sceneViewer()} onClick={watchLaunch} className={pill}>{label}</a>
-          ) : qlLink(surface, `${pill} !p-0`, "w-[15.5rem] h-12", label, "Δες το στον χώρο σου")}
+          ) : qlLink(surface, pill, label, "Δες το στον χώρο σου")}
           {preview3d}
           {alt && (env === "sceneviewer" ? (
             <a href={sceneViewer(alt)} onClick={watchLaunch} className="inline-flex items-center min-h-11 px-1 text-eu-blue font-bold text-[length:var(--fs-14)] underline">{altLabel}</a>
-          ) : qlLink(alt, "rounded-full text-eu-blue font-bold text-[length:var(--fs-14)] underline whitespace-nowrap", "w-[min(19rem,82vw)] h-11", altLabel, altLabel))}
+          ) : qlLink(alt, "rounded-full text-eu-blue font-bold text-[length:var(--fs-14)] underline min-h-11 px-1", altLabel, altLabel))}
           {stuck && (
             <span role="status" className="basis-full rounded-xl bg-eu-surface p-3 text-eu-ink-2 text-[length:var(--fs-14)] leading-snug">
               Δεν άνοιξε το AR; Το κινητό χρειάζεται την εφαρμογή Google και τις «Υπηρεσίες Google Play για AR». <button type="button" onClick={openPreview} className="font-bold text-eu-blue underline min-h-11">Δες το σε 3D με διαστάσεις</button>
@@ -268,8 +275,9 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
         <div className="fixed inset-0 z-[70] overscroll-contain" role="dialog" aria-modal="true" aria-labelledby="ar-title">
           <button type="button" tabIndex={-1} className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label={c.kleisimo} onClick={() => setOpen(false)} />
           <div className="absolute inset-0 h-[100dvh] @md:inset-auto @md:left-1/2 @md:top-1/2 @md:-translate-x-1/2 @md:-translate-y-1/2 @md:w-[min(960px,92vw)] @md:h-[min(92dvh,700px)] bg-white @md:rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-rows-[minmax(0,1fr)_auto] @md:grid-rows-[minmax(0,1fr)] @md:grid-cols-[minmax(0,1fr)_320px] [@media(orientation:landscape)_and_(max-height:520px)]:grid-rows-none [@media(orientation:landscape)_and_(max-height:520px)]:grid-cols-[minmax(0,1fr)_240px]">
-            <div className="relative min-h-0 min-w-0 h-full bg-eu-surface">
-              <div ref={holder} className="absolute inset-0" />
+            <div className="relative min-h-0 min-w-0 h-full bg-[#eef2f9]">
+              {/* Χώρος για τα κουμπιά κάτω: το μοντέλο και οι ετικέτες του κάθονται πάνω από αυτά, όχι από κάτω τους */}
+              <div ref={holder} className={`absolute inset-x-0 top-0 ${launchReserve}`} />
               {status === "loading" && (
                 <div className="absolute inset-0 grid place-items-center pointer-events-none p-6">
                   <div className="grid gap-2 justify-items-center rounded-2xl bg-white/90 px-5 py-3 shadow w-[min(80%,18rem)]">
@@ -289,16 +297,16 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
                 </div>
               )}
               {/* Κινητό: εγγενής εκκίνηση AR, ανεξάρτητη από το αν φόρτωσε ο viewer. Το κουμπί του viewer κρύβεται για να μην υπάρχουν δύο. */}
-              {(env === "sceneviewer" || env === "inapp-android") && !noSceneViewer && <a href={sceneViewer()} onClick={watchLaunch} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</a>}
+              {(env === "sceneviewer" || env === "inapp-android") && !noSceneViewer && <a href={sceneViewer()} onClick={watchLaunch} className={launchCls}><Box className="size-5 shrink-0" aria-hidden /> Δες το στον χώρο σου</a>}
               {env === "sceneviewer" && noSceneViewer && status === "ready" && canAr && (
-                <button type="button" onClick={() => { void mvRef.current?.activateAR?.(); }} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</button>
+                <button type="button" onClick={() => { void mvRef.current?.activateAR?.(); }} className={launchCls}><Box className="size-5 shrink-0" aria-hidden /> Δες το στον χώρο σου</button>
               )}
-              {isQl && ios && qlLink(surface, `${launchCls} !p-0`, "w-[min(80vw,300px)] h-14", <><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</>, "Δες το στον χώρο σου")}
+              {isQl && ios && qlLink(surface, launchCls, <><Box className="size-5 shrink-0" aria-hidden /> Δες το στον χώρο σου</>, "Δες το στον χώρο σου")}
               {isQl && !ios && status === "ready" && (
-                <button type="button" onClick={() => { void mvRef.current?.activateAR?.(); }} className={launchCls}><Box className="size-5" aria-hidden /> Δες το στον χώρο σου</button>
+                <button type="button" onClick={() => { void mvRef.current?.activateAR?.(); }} className={launchCls}><Box className="size-5 shrink-0" aria-hidden /> Δες το στον χώρο σου</button>
               )}
               {/* Τοίχος: αν το κινητό δεν αναγνωρίσει τον τοίχο (λευκός, άδειος), το ίδιο μοντέλο στο πάτωμα */}
-              {placement === "wall" && isQl && ios && qlLink("floor", "absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow whitespace-nowrap text-[length:var(--fs-14)]", "w-[min(78vw,290px)] h-11", "Δεν πιάνει τον τοίχο; Δες το στο πάτωμα", "Δες το στο πάτωμα")}
+              {placement === "wall" && isQl && ios && qlLink("floor", "absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow px-4 min-h-11 max-w-[calc(100%-2rem)] text-[length:var(--fs-14)]", "Δεν πιάνει τον τοίχο; Δες το στο πάτωμα", "Δες το στο πάτωμα")}
               {placement === "wall" && (env === "sceneviewer" || env === "inapp-android") && !noSceneViewer && (
                 <a href={sceneViewer("floor")} onClick={watchLaunch} className="absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow px-4 min-h-11 inline-flex items-center whitespace-nowrap no-underline text-[length:var(--fs-14)]">Δεν πιάνει τον τοίχο; Δες το στο πάτωμα</a>
               )}

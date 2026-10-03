@@ -27,6 +27,9 @@ export async function generateMetadata(): Promise<Metadata> {
 const BASE_METADATA: Metadata = {
   title: { default: "euronics.gr — Πρόταση ανασχεδιασμού", template: "%s · euronics" },
   description: "Νέο frontend euronics.gr: 350 καταστήματα, 12 υπηρεσίες, αγορά σε ένα βήμα.",
+  // Το Safari του iPhone κάνει μόνο του συνδέσμους τους μεγάλους αριθμούς (κωδικός, EAN) και αλλάζει το HTML πριν
+  // φορτώσει το React — σφάλμα hydration. Τα τηλέφωνα καταστημάτων είναι ήδη ρητοί σύνδεσμοι tel:.
+  formatDetection: { telephone: false, address: false, email: false, date: false },
 };
 
 export const viewport: Viewport = {
