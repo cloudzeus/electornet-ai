@@ -42,7 +42,7 @@ export function AdminShell({ user, children, title }: { user: { name?: string | 
     </div>
   );
   return (
-    <div className="eu-admin min-h-dvh grid grid-cols-1 @5xl:grid-cols-[260px_minmax(0,1fr)] bg-eu-surface eu-container">
+    <div className="eu-admin min-h-dvh grid grid-cols-1 @5xl:grid-cols-[clamp(15rem,13rem+4vw,18rem)_minmax(0,1fr)] bg-eu-surface eu-container">
       {/* μεγάλη οθόνη: πλαϊνή στήλη που μένει στη θέση της · κινητό / tablet: λεπτή μπάρα με «Μενού» (συρτάρι) */}
       <aside className="bg-eu-navy text-white flex flex-col @5xl:sticky @5xl:top-0 @5xl:h-dvh @5xl:overflow-y-auto">
         <div className="px-4 @5xl:px-5 min-h-14 @5xl:py-4 flex items-center gap-3 @5xl:border-b border-white/10">

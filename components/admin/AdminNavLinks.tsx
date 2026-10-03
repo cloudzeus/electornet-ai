@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, Clock, Menu, X } from "lucide-react";
 import { bestMatch } from "./nav-match";
 
 type Group = { label: string; items: { href: string; label: string; soon?: boolean }[] };
@@ -40,8 +40,14 @@ export function AdminNavLinks({ groups, variant = "sidebar", footer }: { groups:
   const expanded = (g: Group) => (g.label in state ? state[g.label] : g.label === activeGroup || g.items.length === 1);
   const close = () => setOpen(false);
 
+  // πλαϊνή στήλη (ποντίκι, μεγάλη οθόνη): πιο μικρά γράμματα και πυκνότερες γραμμές ώστε να χωρά όλο το μενού·
+  // σε αφή (tablet οριζόντια) οι γραμμές μένουν 44px. Το συρτάρι (κινητό) κρατά τα μεγαλύτερα μεγέθη.
+  const side = variant === "sidebar";
+  const row = side ? "min-h-11 pointer-fine:min-h-9" : "min-h-11";
+  const itemFs = side ? "text-[length:var(--fs-14)] font-medium" : "text-[length:var(--fs-15)] font-semibold";
+  const headFs = side ? "text-[length:var(--fs-12)]" : "text-[length:var(--fs-13)]";
   const list = (
-    <div className="grid gap-1">
+    <div className={side ? "grid gap-0.5" : "grid gap-1"}>
       {groups.map((g) => {
         const isOpen = expanded(g);
         const single = g.items.length === 1;
@@ -49,24 +55,24 @@ export function AdminNavLinks({ groups, variant = "sidebar", footer }: { groups:
         return (
           <div key={g.label}>
             {single ? (
-              <Link href={g.items[0].href} onClick={close} aria-current={isActive(g.items[0].href) ? "page" : undefined} className={`flex items-center justify-between gap-2 rounded-lg px-3 min-h-11 font-extrabold text-[length:var(--fs-14)] uppercase tracking-wide ${isActive(g.items[0].href) ? "bg-white text-eu-navy" : "text-eu-yellow hover:bg-white/10"}`}>
+              <Link href={g.items[0].href} onClick={close} aria-current={isActive(g.items[0].href) ? "page" : undefined} className={`flex items-center justify-between gap-2 rounded-lg px-3 ${row} font-extrabold ${headFs} uppercase tracking-wide ${isActive(g.items[0].href) ? "bg-white text-eu-navy" : "text-eu-yellow hover:bg-white/10"}`}>
                 {g.items[0].label}
               </Link>
             ) : (
-              <button type="button" onClick={() => toggle(g.label, !isOpen)} aria-expanded={isOpen} className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 min-h-11 font-extrabold text-[length:var(--fs-13)] uppercase tracking-wide ${activeHere ? "text-white" : "text-eu-yellow"} hover:bg-white/10`}>
+              <button type="button" onClick={() => toggle(g.label, !isOpen)} aria-expanded={isOpen} className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 ${row} font-extrabold ${headFs} uppercase tracking-wide ${activeHere ? "text-white" : "text-eu-yellow"} hover:bg-white/10`}>
                 <span className="min-w-0 flex-1 text-left truncate inline-flex items-center gap-2">{g.label}{!isOpen && activeHere && <span className="size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden />}</span>
-                <span className="shrink-0 inline-flex items-center gap-1.5 text-white/60 normal-case tracking-normal font-bold text-[length:var(--fs-13)]">{g.items.length}<ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></span>
+                <span className={`shrink-0 inline-flex items-center gap-1.5 text-white/60 normal-case tracking-normal font-bold ${headFs}`}>{g.items.length}<ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></span>
               </button>
             )}
             {!single && isOpen && (
-              <ul className="m-0 p-0 list-none grid gap-0.5 mt-0.5 mb-1 pl-1">
+              <ul className={`m-0 p-0 list-none grid mt-0.5 mb-1 pl-1 ${side ? "gap-px" : "gap-0.5"}`}>
                 {g.items.map((i) => {
                   const on = isActive(i.href);
                   return (
                     <li key={i.href}>
-                      <Link href={i.href} onClick={close} aria-current={on ? "page" : undefined} className={`flex items-center justify-between gap-2 rounded-lg pl-3 pr-2 min-h-11 font-semibold text-[length:var(--fs-15)] transition-colors ${on ? "bg-white text-eu-navy" : "text-white/85 hover:bg-white/10 hover:text-white"}`}>
-                        {i.label}
-                        {i.soon && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[length:var(--fs-13)] font-bold">σύντομα</span>}
+                      <Link href={i.href} onClick={close} aria-current={on ? "page" : undefined} className={`flex items-center justify-between gap-2 rounded-lg pl-3 pr-2 ${side ? "py-1" : ""} ${row} ${itemFs} leading-tight transition-colors ${on ? "bg-white text-eu-navy" : "text-white/85 hover:bg-white/10 hover:text-white"}`}>
+                        <span className="min-w-0">{i.label}</span>
+                        {i.soon && (side ? <span title="Έρχεται σύντομα" className="shrink-0 inline-flex text-white/45"><Clock className="size-3.5" aria-hidden /><span className="sr-only">σύντομα</span></span> : <span className="shrink-0 rounded-full font-semibold bg-white/15 px-2 py-0.5 text-[length:var(--fs-13)]">σύντομα</span>)}
                       </Link>
                     </li>
                   );
@@ -79,7 +85,12 @@ export function AdminNavLinks({ groups, variant = "sidebar", footer }: { groups:
     </div>
   );
 
-  if (variant === "sidebar") return <nav aria-label="Διαχείριση" className="px-3 py-3">{list}</nav>;
+  if (side) return (
+    <nav aria-label="Διαχείριση" className="px-2.5 py-2">
+      {list}
+      {groups.some((g) => g.items.some((i) => i.soon)) && <p className="m-0 mt-2 px-3 inline-flex items-center gap-1.5 text-white/50 text-[length:var(--fs-12)]"><Clock className="size-3.5" aria-hidden /> = έρχεται σύντομα</p>}
+    </nav>
+  );
 
   // κινητό / tablet: ένα κουμπί στη μπάρα, το μενού ανοίγει ως συρτάρι πάνω από τη σελίδα
   return (
