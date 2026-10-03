@@ -25,10 +25,11 @@ import { FitBadge } from "@/components/space/FitBadge";
 import { EnergyCost } from "@/components/pdp/EnergyCost";
 import { getGridFactor } from "@/lib/energy/emissions";
 import { after } from "next/server";
-import { buildArModel, arCandidates, arKey } from "@/lib/ar/build";
+import { headers } from "next/headers";
+import { buildArModel, arInputOf, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
-import { AR_SERVE_VERSION } from "@/lib/ar/serve";
-import { profileFor, surfaceFor } from "@/lib/ar/placement";
+import { AR_SERVE_VERSION, primeArLookup } from "@/lib/ar/serve";
+import { arPlan, arVariants } from "@/lib/ar/plan";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
@@ -66,18 +67,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
-  // AR για κάθε προϊόν με διαστάσεις και φωτογραφία — το μοντέλο χτίζεται στο /api/ar
-  // AR κατ' επιλογή από τη διαχείριση (/admin/ar): με δικό μας GLB ή με τον όγκο από διαστάσεις + φωτογραφία
+  // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
+  // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
-  // AR αυτόματα για κάθε προϊόν με διαστάσεις και φωτογραφία: το στερεό χτίζεται τοπικά από τις διαστάσεις με τη
-  // φωτογραφία του ως πρόσοψη (χωρίς AI). Όπου ο διαχειριστής έχει ρυθμίσει ρητά το προϊόν (/admin/ar), ισχύει η ρύθμισή του.
-  const arOn = ar ? ar.enabled : !!dims && (!("source" in dims) || dims.source !== "category");
-  const arProfile = profileFor(p);
-  const arSurface = surfaceFor(p, ar?.placement);
-  const arInput = arOn && dims && (p.image || ar?.glbUrl) ? { id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null, archetype: ar?.glbUrl ? undefined : arProfile.archetype } : null;
-  const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${dims?.w}x${dims?.h}x${dims?.d}` : arKey(arInput)) : "";
-  // Προθέρμανση της γεννήτριας μετά την απάντηση, ώστε στο κλικ να είναι έτοιμο
-  if (arInput && !ar?.glbUrl) after(async () => { await buildArModel(arInput, { labels: false }).catch(() => {}); await buildArModel(arInput).catch(() => {}); });
+  const arP = arPlan(p, ar);
+  primeArLookup(p.id, { p, ar, plan: arP });
+  const arInput = arP.on && arP.dims ? arInputOf(p, arP, ar?.frontImage ?? null) : null;
+  const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${arP.dims!.w}x${arP.dims!.h}x${arP.dims!.d}` : arKey(arInput)) : "";
+  // Προθέρμανση μετά την απάντηση: κάθε αρχείο που μπορεί να ζητήσει ο πελάτης (προεπισκόπηση, AR, εναλλακτική επιφάνεια)
+  // (όχι για crawlers: δεν θα πατήσουν ποτέ AR, και θα έχτιζαν μοντέλα για χιλιάδες σελίδες)
+  const isBot = /bot|crawl|spider|slurp|facebookexternalhit|preview|lighthouse/i.test((await headers()).get("user-agent") ?? "");
+  if (arInput && !ar?.glbUrl && !isBot) after(async () => { for (const v of arVariants(arP)) await buildArModel(arInput, v).catch(() => {}); });
   const crumbs: { label: string; href?: string }[] = p.path ? [{ label: "Προϊόντα", href: "/proionta" }, ...p.path.map((c, i) => ({ label: c.name, href: `/k/${p.path!.slice(0, i + 1).map((x) => x.slug).join("/")}` })), { label: p.title }] : [{ label: "Προϊόντα", href: "/proionta" }, ...(l1 ? [{ label: l1.label, href: `/k/${l1.slug}` }] : []), ...(l1 && l2 ? [{ label: l2.name, href: `/k/${l1.slug}/${l2.slug}` }] : []), { label: p.title }];
 
   return (
@@ -95,7 +95,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               energy={p.energy}
               actions={
                 <>
-                  {arInput && <ArButton id={p.id} title={arInput.title} dims={dims} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arSurface} alt={arProfile.alt && arProfile.alt !== arSurface ? arProfile.alt : arSurface !== arProfile.surface ? arProfile.surface : undefined} hint={arProfile.hint} />}
+                  {arInput && <ArButton id={p.id} title={arInput.title} dims={arP.dims} tv={arP.tv} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arP.surface} alt={arP.alt} hint={arP.hint} buy={p.noPrice || !p.price ? undefined : { product: p, price: p.price }} />}
                   <FitBadge product={p} size="lg" prompt />
                   {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
                 </>

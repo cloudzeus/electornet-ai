@@ -65,7 +65,7 @@ export interface ModelSpec {
    * πραγματικό της ύψος Υ και τον δικό της λόγο πλευρών, ώστε το προϊόν να
    * φαίνεται να στέκεται μέσα στον όγκο του και όχι κολλημένο τεντωμένο μπροστά.
    */
-  front: { mode: "face" | "billboard"; aspect: number };
+  front: { mode: "face" | "billboard" | "top"; aspect: number };
   /**
    * solid = ρεαλιστικό σώμα στο χρώμα του προϊόντος με τη φωτογραφία στην πρόσοψη (προεπιλογή — στο AR μοιάζει με τη
    * συσκευή) · volume = διαφανής όγκος μέτρησης με κίτρινες ακμές (π.χ. γύρω από δικό μας 3D μοντέλο).
@@ -138,30 +138,45 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     fw = Math.min(fh * spec.front.aspect, Math.hypot(w, d));
     fz = 0;
   }
+  if (spec.front.mode === "top") { fw = w; fh = d; } // η πάνω έδρα: πλάτος × βάθος
   if (spec.parts?.front !== false) {
     const front = prim("front", "front");
-    plane(front, [0, h / 2, fz], X, Y, fw / 2, fh / 2, Z);
+    // top: πάνω στην πάνω έδρα, με το πάνω μέρος της φωτογραφίας προς τα πίσω (όπως τη βλέπεις από μπροστά)
+    if (spec.front.mode === "top") plane(front, [0, h + gap, 0], X, NZ, w / 2, d / 2, Y);
+    else plane(front, [0, h / 2, fz], X, Y, fw / 2, fh / 2, Z);
     prims.push(front);
   }
 
-  // 4. Ετικέτες διαστάσεων: ύψος ανάλογο με το μέγεθος, ποτέ πιο φαρδιές από την έδρα
-  const label = (name: string, c: Vec3, u: Vec3, v: Vec3, n: Vec3, faceW: number) => {
-    let lh = Math.min(0.06, Math.max(0.022, maxDim * 0.075));
-    let lw = lh * spec.labelAspect;
+  // 4. Ετικέτες διαστάσεων: ύψος ανάλογο με το μέγεθος, ποτέ πιο φαρδιές ή ψηλές από την έδρα τους — σε χαμηλές
+  // συσκευές (soundbar, εστία) δεν πρέπει να εξέχουν πάνω από το σώμα.
+  const lhMax = Math.min(0.06, Math.max(0.022, maxDim * 0.075));
+  const size = (faceW: number, faceH: number) => {
+    let lh = Math.min(lhMax, faceH * 0.42), lw = lh * spec.labelAspect;
     if (lw > faceW * 0.85) { lw = faceW * 0.85; lh = lw / spec.labelAspect; }
+    return [lw, lh] as const;
+  };
+  const label = (name: string, c: Vec3, u: Vec3, v: Vec3, n: Vec3, [lw, lh]: readonly [number, number]) => {
     const p = prim(name, name); // δικό της υλικό, μονής όψης: μέσα από τον διαφανή όγκο η απέναντι ετικέτα θα φαινόταν ανάποδα
     plane(p, c, u, v, lw / 2, lh / 2, n);
     prims.push(p);
-    return lh;
   };
   // Κάθε ετικέτα και στην απέναντι έδρα, ώστε να διαβάζεται από όποια πλευρά κι αν το γυρίσει ο πελάτης
   if (spec.parts?.labels !== false) {
-  const lhW = label("label-w", [0, t + 0.02 + 0.03, hz + gap * 2], X, Y, Z, w); // πλάτος: κάτω στην πρόσοψη
-  label("label-w-back", [0, t + 0.02 + 0.03, -hz - gap * 2], NX, Y, NZ, w); // …και στην πίσω έδρα
-  label("label-h", [hx + gap * 2, h / 2, 0], NZ, Y, X, d); // ύψος: στη μέση της δεξιάς έδρας
-  label("label-h-left", [-hx - gap * 2, h / 2, 0], Z, Y, NX, d); // …και αριστερά
-  label("label-d", [hx + gap * 2, t + 0.02 + lhW, 0], NZ, Y, X, d); // βάθος: κάτω στη δεξιά έδρα
-  label("label-d-left", [-hx - gap * 2, t + 0.02 + lhW, 0], Z, Y, NX, d); // …και αριστερά
+    const sw = size(w, h), ss = size(d, h);
+    const yW = Math.min(t + 0.012 + sw[1] / 2, h / 2);
+    label("label-w", [0, yW, hz + gap * 2], X, Y, Z, sw); // πλάτος: κάτω στην πρόσοψη
+    label("label-w-back", [0, yW, -hz - gap * 2], NX, Y, NZ, sw); // …και στην πίσω έδρα
+    const yD = t + 0.012 + ss[1] / 2;
+    if (yD + ss[1] / 2 + 0.006 <= h / 2 - ss[1] / 2) {
+      label("label-h", [hx + gap * 2, h / 2, 0], NZ, Y, X, ss); // ύψος: στη μέση της δεξιάς έδρας
+      label("label-h-left", [-hx - gap * 2, h / 2, 0], Z, Y, NX, ss); // …και αριστερά
+      label("label-d", [hx + gap * 2, yD, 0], NZ, Y, X, ss); // βάθος: κάτω στη δεξιά έδρα
+      label("label-d-left", [-hx - gap * 2, yD, 0], Z, Y, NX, ss); // …και αριστερά
+    } else {
+      // χαμηλή συσκευή: δεν χωρούν δύο ετικέτες στην πλαϊνή έδρα — ύψος δεξιά, βάθος αριστερά
+      label("label-h", [hx + gap * 2, h / 2, 0], NZ, Y, X, ss);
+      label("label-d-left", [-hx - gap * 2, h / 2, 0], Z, Y, NX, ss);
+    }
   }
 
   // 5. Λογότυπο: πάνω έδρα (κοιτάει προς τα πίσω, όπως το βλέπεις από μπροστά) και πίσω έδρα
@@ -173,7 +188,7 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     prims.push(p);
   };
   // Στο ρεαλιστικό σώμα χωρίς λογότυπο: η συσκευή δεν έχει σήμα Euronics πάνω της (το σήμα είναι στον viewer)
-  if (!solid && spec.parts?.logo !== false) logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
+  if (!solid && spec.front.mode !== "top" && spec.parts?.logo !== false) logo("logo-top", [0, h + gap, 0], X, NZ, Y, w, d);
   // Το πίσω λογότυπο κοιτάει προς τα μέσα: μέσα από τον διαφανή όγκο διαβάζεται σωστά από μπροστά, που είναι η κύρια οπτική γωνία
   if (!solid && spec.parts?.logo !== false) logo("logo-back", [0, h / 2, -hz + gap], X, Y, Z, w, h);
 
@@ -187,37 +202,42 @@ export function buildGeometry(spec: ModelSpec): { prims: Prim[]; materials: Mate
     ...(["label-w", "label-w-back", "label-h", "label-h-left", "label-d", "label-d-left"] as const).map((n): MaterialDef => ({ name: n, color: [1, 1, 1], alpha: 1, texture: n.replace(/-(back|left)$/, ""), mode: "mask", doubleSided: false, roughness: 0.9 })),
     { name: "logo", color: [1, 1, 1], alpha: 1, texture: "logo", mode: "mask", doubleSided: true, roughness: 0.9 },
   ];
-  return { prims, materials, frontAspect: fw / fh };
+  // μόνο τα υλικά που χρησιμοποιούνται (π.χ. χωρίς τις διπλές ετικέτες σε χαμηλές συσκευές)
+  return { prims, materials: materials.filter((m) => prims.some((p) => p.material === m.name)), frontAspect: fw / fh };
 }
 
 /**
- * Τηλεόραση: δεν στηρίζεται σε φωτογραφία (οι φωτογραφίες είναι υπό γωνία και με τη βάση). Λεπτό μαύρο πάνελ Π×Υ με
- * γυαλιστερή οθόνη και λεπτό πλαίσιο· με `stand` (έπιπλο) κάθεται σε κεντρική βάση, χωρίς (τοίχος) η πλάτη του
- * ακουμπά στον τοίχο. Πρόσοψη προς +Z, κάτω άκρη στο y=0 (ή πάνω στη βάση), κέντρο στο x=z=0.
+ * Τηλεόραση: δεν στηρίζεται σε φωτογραφία (οι φωτογραφίες είναι υπό γωνία και με τη βάση). Λεπτό μαύρο πάνελ με
+ * γυαλιστερή οθόνη και λεπτό πλαίσιο, στις πραγματικές διαστάσεις (βλ. `TvSpec`): με `stand` (έπιπλο) κάθεται σε
+ * κεντρική βάση με το δηλωμένο ύψος και βάθος, χωρίς (τοίχος) η πλάτη του ακουμπά στον τοίχο. Πρόσοψη προς +Z,
+ * κάτω άκρη στο y=0 (ή πάνω στη βάση), κέντρο στο x=0· με βάση, όλο το αποτύπωμα κεντραρισμένο στο z=0.
  */
-export const tvPanelDepth = (dCm: number) => Math.min(0.08, Math.max(0.025, dCm / 100 > 0.12 ? 0.06 : dCm / 100));
+export interface TvGeom { w: number; panelH: number; panelD: number; standH: number; standD: number }
 
-export function buildTvGeometry(spec: { dims: { w: number; h: number; d: number }; stand: boolean; labelAspect: number; labels: boolean }): { prims: Prim[]; materials: MaterialDef[] } {
-  const w = spec.dims.w / 100, h = spec.dims.h / 100;
-  // πάχος πάνελ: οι προδιαγραφές συχνά δίνουν βάθος ΜΕ βάση· το πάνελ μιας σύγχρονης TV είναι 3–8 εκ.
-  const pd = tvPanelDepth(spec.dims.d);
-  const standH = spec.stand ? Math.min(0.09, Math.max(0.05, h * 0.1)) : 0;
+export function buildTvGeometry(spec: { tv: TvGeom; stand: boolean; labelAspect: number; labels: boolean }): { prims: Prim[]; materials: MaterialDef[] } {
+  const w = spec.tv.w / 100, h = spec.tv.panelH / 100;
+  const pd = Math.min(0.1, Math.max(0.008, spec.tv.panelD / 100));
+  const standH = spec.stand ? Math.max(0.02, spec.tv.standH / 100) : 0;
+  const baseD = spec.stand ? Math.min(0.55, Math.max(0.12, spec.tv.standD / 100)) : pd;
   const y0 = standH;
+  // με βάση: το πάνελ λίγο πίσω από το κέντρο της βάσης, όπως στις περισσότερες τηλεοράσεις
+  const pz = spec.stand ? Math.min(0, -baseD / 2 + pd / 2 + baseD * 0.3) : 0;
   const prims: Prim[] = [];
   const body = prim("tv-body", "tv-body");
-  box(body, [0, y0 + h / 2, 0], [w, h, pd]);
+  box(body, [0, y0 + h / 2, pz], [w, h, pd]);
   prims.push(body);
   // οθόνη: λεπτό πλαίσιο γύρω, λίγο φαρδύτερο κάτω (εκεί συνήθως το λογότυπο)
   const bz = Math.max(0.006, w * 0.008), bzB = bz * 1.6;
   const sw = w - 2 * bz, sh = h - bz - bzB;
   const screen = prim("tv-screen", "tv-screen");
-  plane(screen, [0, y0 + bzB + sh / 2, pd / 2 + 0.0015], X, Y, sw / 2, sh / 2, Z);
+  plane(screen, [0, y0 + bzB + sh / 2, pz + pd / 2 + 0.0015], X, Y, sw / 2, sh / 2, Z);
   prims.push(screen);
   if (spec.stand) {
     const stand = prim("tv-stand", "tv-stand");
-    const baseW = Math.min(w * 0.42, 0.6), baseD = Math.max(0.18, Math.min(0.32, w * 0.22));
-    box(stand, [0, 0.008, 0.02], [baseW, 0.016, baseD]); // πλάκα βάσης
-    box(stand, [0, standH / 2 + 0.008, -pd * 0.1], [Math.max(0.06, w * 0.06), standH + 0.016, Math.max(0.03, pd * 0.8)]); // λαιμός
+    const baseW = Math.min(w * 0.42, 0.65);
+    box(stand, [0, 0.008, 0], [baseW, 0.016, baseD]); // πλάκα βάσης
+    const neckD = Math.max(0.03, Math.min(0.06, pd * 0.8));
+    box(stand, [0, (standH + 0.04) / 2, pz - pd * 0.1], [Math.max(0.06, w * 0.06), standH + 0.04, neckD]); // λαιμός, μπαίνει λίγο μέσα στο πάνελ
     prims.push(stand);
   }
   if (spec.labels) {
@@ -232,9 +252,10 @@ export function buildTvGeometry(spec: { dims: { w: number; h: number; d: number 
     };
     // σε σειρά στο κάτω μέρος της οθόνης: Υ · Π · Β
     const ly = y0 + bzB + Math.min(0.06, Math.max(0.022, maxDim * 0.06)) / 2 + 0.015;
-    lab("label-h", [-w * 0.31, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
-    lab("label-w", [0, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
-    lab("label-d", [w * 0.31, ly, pd / 2 + 0.004], X, Y, Z, w * 0.3);
+    const lz = pz + pd / 2 + 0.004;
+    lab("label-h", [-w * 0.31, ly, lz], X, Y, Z, w * 0.3);
+    lab("label-w", [0, ly, lz], X, Y, Z, w * 0.3);
+    lab("label-d", [w * 0.31, ly, lz], X, Y, Z, w * 0.3);
   }
   const materials: MaterialDef[] = [
     { name: "tv-body", color: [0.012, 0.012, 0.014], alpha: 1, mode: "opaque", roughness: 0.35 },

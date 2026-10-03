@@ -13,13 +13,21 @@ const f = (n: number) => (Math.round(n * 1e5) / 1e5).toString();
 
 function meshUsda(p: Prim, safe: (s: string) => string, doubleSided: boolean): string {
   const pts: string[] = [], nrm: string[] = [], st: string[] = [];
-  for (let i = 0; i < p.positions.length; i += 3) pts.push(`(${f(p.positions[i])}, ${f(p.positions[i + 1])}, ${f(p.positions[i + 2])})`);
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < p.positions.length; i += 3) {
+    pts.push(`(${f(p.positions[i])}, ${f(p.positions[i + 1])}, ${f(p.positions[i + 2])})`);
+    for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], p.positions[i + k]); mx[k] = Math.max(mx[k], p.positions[i + k]); }
+  }
   for (let i = 0; i < p.normals.length; i += 3) nrm.push(`(${f(p.normals[i])}, ${f(p.normals[i + 1])}, ${f(p.normals[i + 2])})`);
   for (let i = 0; i < p.uvs.length; i += 2) st.push(`(${f(p.uvs[i])}, ${f(1 - p.uvs[i + 1])})`);
   const counts = new Array(p.indices.length / 3).fill(3).join(", ");
+  // extent: τα όρια του mesh — το Quick Look τα χρησιμοποιεί για να ακουμπήσει το μοντέλο στην επιφάνεια
   return `
-    def Mesh "${safe(p.name)}"
+    def Mesh "${safe(p.name)}" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
     {
+        float3[] extent = [(${f(mn[0])}, ${f(mn[1])}, ${f(mn[2])}), (${f(mx[0])}, ${f(mx[1])}, ${f(mx[2])})]
         int[] faceVertexCounts = [${counts}]
         int[] faceVertexIndices = [${p.indices.join(", ")}]
         point3f[] points = [${pts.join(", ")}]
@@ -30,7 +38,7 @@ function meshUsda(p: Prim, safe: (s: string) => string, doubleSided: boolean): s
             interpolation = "vertex"
         )
         uniform token subdivisionScheme = "none"
-        bool doubleSided = ${doubleSided ? 1 : 0}
+        uniform bool doubleSided = ${doubleSided ? 1 : 0}
         rel material:binding = </Product/Materials/${safe(p.material)}>
     }`;
 }
@@ -39,6 +47,9 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
   const id = safe(m.name);
   const base = `/Product/Materials/${id}`;
   if (m.texture && texFile) {
+    // Διαφάνεια μόνο όπου χρειάζεται (ετικέτες, cutouts): μια αδιαφανής υφή με συνδεδεμένο opacity αποδίδεται ως
+    // διαφανές υλικό, με λάθη ταξινόμησης στο Quick Look.
+    const cut = m.mode !== "opaque";
     return `
         def Material "${id}"
         {
@@ -46,9 +57,9 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
             def Shader "PBR"
             {
                 uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor.connect = <${base}/Tex.outputs:rgb>
+                color3f inputs:diffuseColor.connect = <${base}/Tex.outputs:rgb>${cut ? `
                 float inputs:opacity.connect = <${base}/Tex.outputs:a>
-                float inputs:opacityThreshold = 0.5
+                float inputs:opacityThreshold = 0.5` : ""}
                 float inputs:roughness = ${f(m.roughness)}
                 float inputs:metallic = 0
                 token outputs:surface
@@ -56,7 +67,7 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
             def Shader "Reader"
             {
                 uniform token info:id = "UsdPrimvarReader_float2"
-                token inputs:varname = "st"
+                string inputs:varname = "st"
                 float2 outputs:result
             }
             def Shader "Tex"
@@ -64,10 +75,11 @@ function materialUsda(m: MaterialDef, safe: (s: string) => string, texFile?: str
                 uniform token info:id = "UsdUVTexture"
                 asset inputs:file = @${texFile}@
                 float2 inputs:st.connect = <${base}/Reader.outputs:result>
+                token inputs:sourceColorSpace = "sRGB"
                 token inputs:wrapS = "clamp"
                 token inputs:wrapT = "clamp"
-                float3 outputs:rgb
-                float outputs:a
+                float3 outputs:rgb${cut ? `
+                float outputs:a` : ""}
             }
         }`;
   }
@@ -101,7 +113,8 @@ export interface UsdzOpts { wall?: { h: number; d: number } | null }
 export function writeUsdz(prims: Prim[], materials: MaterialDef[], textures: Record<string, Buffer>, name: string, opts: UsdzOpts = {}): Buffer {
   const safe = (s: string) => s.replace(/[^A-Za-z0-9_]/g, "_");
   const wall = opts.wall ?? null;
-  const texFiles: Record<string, string> = Object.fromEntries(Object.keys(textures).map((k) => [k, `0/${safe(k)}.png`]));
+  const used = new Set(materials.map((m) => m.texture).filter(Boolean));
+  const texFiles: Record<string, string> = Object.fromEntries(Object.keys(textures).filter((k) => used.has(k)).map((k) => [k, `0/${safe(k)}.png`]));
   const usda = `#usda 1.0
 (
     defaultPrim = "Product"
@@ -129,7 +142,7 @@ ${wall ? "    }\n" : ""}
     }
 }
 `;
-  const entries: { name: string; data: Buffer }[] = [{ name: "product.usda", data: Buffer.from(usda, "utf8") }, ...Object.entries(textures).map(([k, data]) => ({ name: texFiles[k], data }))];
+  const entries: { name: string; data: Buffer }[] = [{ name: "product.usda", data: Buffer.from(usda, "utf8") }, ...Object.entries(textures).filter(([k]) => texFiles[k]).map(([k, data]) => ({ name: texFiles[k], data }))];
   return zipStored(entries);
 }
 

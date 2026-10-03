@@ -4,7 +4,8 @@ import { storeBytes } from "@/lib/media/storage";
 import { getBunny } from "@/lib/media/cdn";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { buildGeometry, buildTvGeometry, tvPanelDepth } from "./geometry";
+import { buildGeometry, buildTvGeometry } from "./geometry";
+import type { ArPlan, TvSpec } from "./plan";
 import { pickFront, frontTexture, labelTexture, logoTexture, bodyColorOf, toLinear, screenTexture, LABEL_ASPECT } from "./textures";
 import { writeGlb } from "./glb";
 import { writeUsdz } from "./usdz";
@@ -22,13 +23,13 @@ import type { Product } from "@/lib/data/types";
  * είναι κλειστό) → κατασκευή. Το αντίγραφο στο CDN επιβιώνει επανεκκινήσεις
  * και deploys και μοιράζεται ανάμεσα σε πολλά instances του server.
  */
-export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null; /** ειδική μορφή (βλ. placement profiles) */ archetype?: "tv" }
+export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null; /** ειδική μορφή (βλ. placement profiles) */ archetype?: "tv"; /** τηλεόραση: πάνελ και βάση (βλ. arPlan) */ tv?: TvSpec }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 18; // 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης
+const VERSION = 19; // 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης · 19: πραγματική βάση TV, USDZ κατά ARKit
 const mem = new Map<string, ArModel>();
 
-export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null, a: i.archetype ?? null })).digest("hex").slice(0, 20);
+export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null, a: i.archetype ?? null, tv: i.tv ?? null })).digest("hex").slice(0, 20);
 
 async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | null> {
   try {
@@ -41,23 +42,33 @@ async function fromStore(key: string, kind: "glb" | "usdz"): Promise<Buffer | nu
   } catch { return null; }
 }
 
+/** Αντίγραφο στο CDN χωρίς να καθυστερεί την απάντηση (AR_NO_STORE=1: δοκιμές χωρίς εγγραφή στο κοινό CDN) */
+function persist(key: string, glb: Buffer, usdz: Buffer) {
+  if (process.env.AR_NO_STORE === "1") return;
+  void Promise.all([storeBytes(`ar/${key}.glb`, glb, "model/gltf-binary"), storeBytes(`ar/${key}.usdz`, usdz, "model/vnd.usdz+zip")]).catch(() => {});
+}
+
 export async function buildArModel(input: ArInput, opts: { labels?: boolean; wall?: boolean } = {}): Promise<ArModel> {
   const withLabels = opts.labels !== false;
   const key = `${arKey(input)}${withLabels ? "" : "-nl"}${opts.wall ? "-wall" : ""}`;
   // Τηλεόραση: πάνελ με βάση (έπιπλο) ή χωρίς (τοίχος) — όχι φωτογραφία
-  if (input.archetype === "tv") {
+  if (input.archetype === "tv" && input.tv) {
     const hitTv = mem.get(key);
     if (hitTv) return hitTv;
     const [tg, tu] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
     if (tg && tu) { const m = { glb: tg, usdz: tu, etag: key }; mem.set(key, m); return m; }
-    const { prims, materials } = buildTvGeometry({ dims: input.dims, stand: !opts.wall, labelAspect: LABEL_ASPECT, labels: withLabels });
-    const [screen, lw, lh, ld] = await Promise.all([screenTexture(input.dims.w / input.dims.h), labelTexture("Π", input.dims.w), labelTexture("Υ", input.dims.h), labelTexture("Β", input.dims.d)]);
-    const textures = { screen, "label-w": lw, "label-h": lh, "label-d": ld };
+    const tv = { w: input.dims.w, ...input.tv };
+    const { prims, materials } = buildTvGeometry({ tv, stand: !opts.wall, labelAspect: LABEL_ASPECT, labels: withLabels });
+    // ετικέτες: στο έπιπλο το συνολικό ύψος και το βάθος της βάσης· στον τοίχο μόνο το πάνελ
+    const lh = opts.wall ? tv.panelH : input.dims.h, ld = opts.wall ? tv.panelD : input.dims.d;
+    const [screen, lw, lhT, ldT] = await Promise.all([screenTexture(input.dims.w / tv.panelH), labelTexture("Π", input.dims.w), labelTexture("Υ", lh), labelTexture("Β", ld)]);
+    const textures = { screen, "label-w": lw, "label-h": lhT, "label-d": ldT };
     const glb = writeGlb(prims, materials, textures, input.title);
-    const usdz = writeUsdz(prims, materials, textures, input.title, { wall: opts.wall ? { h: input.dims.h / 100, d: tvPanelDepth(input.dims.d) } : null });
+    const usdz = writeUsdz(prims, materials, textures, input.title, { wall: opts.wall ? { h: tv.panelH / 100, d: Math.min(0.1, Math.max(0.008, tv.panelD / 100)) } : null });
     const m = { glb, usdz, etag: key };
     mem.set(key, m);
-    void Promise.all([storeBytes(`ar/${key}.glb`, glb, "model/gltf-binary"), storeBytes(`ar/${key}.usdz`, usdz, "model/vnd.usdz+zip")]).catch(() => {});
+    if (mem.size > 200) mem.delete(mem.keys().next().value as string);
+    persist(key, glb, usdz);
     return m;
   }
   const hit = mem.get(key);
@@ -65,10 +76,10 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
   const [sg, su] = await Promise.all([fromStore(key, "glb"), fromStore(key, "usdz")]);
   if (sg && su) { const m = { glb: sg, usdz: su, etag: key }; mem.set(key, m); return m; }
 
-  const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.frontImage ? [input.frontImage] : input.images, input.dims.w / input.dims.h, !!input.frontImage)]);
+  const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.frontImage ? [input.frontImage] : input.images, input.dims.w / input.dims.h, !!input.frontImage, input.dims.h < 0.35 * Math.min(input.dims.w, input.dims.d) ? input.dims.w / input.dims.d : undefined)]);
   // Με μετωπική φωτογραφία: ρεαλιστικό σώμα στο χρώμα του προϊόντος. Χωρίς (μόνο φωτογραφία υπό γωνία): ο διαφανής όγκος
   // μέτρησης με τη φωτογραφία όρθια μέσα του — σε συμπαγές σώμα θα κρυβόταν.
-  const solid = picked?.mode === "face";
+  const solid = picked?.mode === "face" || picked?.mode === "top";
   const body = solid && picked ? await bodyColorOf(picked) : null;
   const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels }, style: solid ? "solid" : "volume", bodyColor: body ? toLinear(body) : undefined });
   const [front, lw, lh, ld] = await Promise.all([
@@ -81,8 +92,7 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
   const m = { glb, usdz, etag: key };
   mem.set(key, m);
   if (mem.size > 200) mem.delete(mem.keys().next().value as string);
-  // Αντίγραφο στο CDN, χωρίς να καθυστερεί την απάντηση
-  void Promise.all([storeBytes(`ar/${key}.glb`, glb, "model/gltf-binary"), storeBytes(`ar/${key}.usdz`, usdz, "model/vnd.usdz+zip")]).catch(() => {});
+  persist(key, glb, usdz);
   return m;
 }
 
@@ -91,4 +101,9 @@ export function arCandidates(p: Pick<Product, "image" | "images">): string[] {
   const all = [p.image, ...(p.images ?? [])].filter((x): x is string => !!x);
   const cuts = all.map((x) => cutoutFor(x)).filter((x): x is string => !!x);
   return [...new Set([...cuts, ...all])];
+}
+
+/** Η είσοδος της γεννήτριας από την απόφαση `arPlan` — ίδια στη σελίδα προϊόντος και στον server, ώστε να ταιριάζει το κλειδί. */
+export function arInputOf(p: Pick<Product, "id" | "brand" | "title" | "image" | "images">, plan: ArPlan, frontImage: string | null): ArInput {
+  return { id: p.id, title: `${p.brand} ${p.title}`, dims: plan.dims!, images: arCandidates(p), frontImage, archetype: plan.custom ? undefined : plan.archetype, tv: plan.custom ? undefined : plan.tv };
 }

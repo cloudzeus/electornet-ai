@@ -22,7 +22,8 @@ export function writeGlb(prims: Prim[], materials: MaterialDef[], textures: Reco
 
   const images: object[] = [], texs: object[] = [];
   const texIndex: Record<string, number> = {};
-  for (const [key, png] of Object.entries(textures)) {
+  const used = new Set(materials.map((m) => m.texture).filter(Boolean));
+  for (const [key, png] of Object.entries(textures).filter(([k]) => used.has(k))) { // υφές που δεν χρησιμοποιούνται μένουν έξω
     const view = pushView(png);
     images.push({ bufferView: view, mimeType: "image/png", name: key });
     texs.push({ sampler: 0, source: images.length - 1 });

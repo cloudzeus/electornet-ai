@@ -23,7 +23,7 @@ async function loadImage(src: string): Promise<Buffer | null> {
   } catch { return null; }
 }
 
-export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "billboard" }
+export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "billboard" | "top" }
 
 /**
  * Διαλέγει τη φωτογραφία που ταιριάζει καλύτερα στην πρόσοψη Π×Υ και την
@@ -32,7 +32,7 @@ export interface FrontSource { trimmed: Buffer; aspect: number; mode: "face" | "
  * σε γωνία (φαίνεται και η πλαϊνή πλευρά, άρα πιο φαρδιά) και μπαίνει ως
  * billboard με το πραγματικό ύψος, ώστε να μην παραμορφώνεται.
  */
-export async function pickFront(candidates: string[], faceAspect: number, forceFace = false): Promise<FrontSource | null> {
+export async function pickFront(candidates: string[], faceAspect: number, forceFace = false, topAspect?: number): Promise<FrontSource | null> {
   let best: FrontSource | null = null, bestErr = Infinity;
   for (const src of candidates) {
     const raw = await loadImage(src);
@@ -42,9 +42,12 @@ export async function pickFront(candidates: string[], faceAspect: number, forceF
     const meta = await sharp(trimmed).metadata();
     if (!meta.width || !meta.height) continue;
     const aspect = meta.width / meta.height;
-    const err = Math.abs(Math.log(aspect / faceAspect));
+    const errFace = Math.abs(Math.log(aspect / faceAspect));
+    // Επίπεδες συσκευές (εστίες, σκούπες ρομπότ): η φωτογραφία είναι από πάνω — ταιριάζει με την πάνω έδρα Π×Β
+    const errTop = topAspect && !forceFace ? Math.abs(Math.log(aspect / topAspect)) : Infinity;
+    const err = Math.min(errFace, errTop);
     // Όταν τη διάλεξε ο διαχειριστής ως «όψη», γεμίζει πάντα την πρόσοψη
-    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: forceFace || err <= 0.12 ? "face" : "billboard" }; }
+    if (err < bestErr) { bestErr = err; best = { trimmed, aspect, mode: errTop < errFace && errTop <= 0.2 ? "top" : forceFace || errFace <= 0.12 ? "face" : "billboard" }; }
     if (bestErr <= 0.05) break;
   }
   return best;

@@ -3,14 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
 import { getProductsByIds } from "@/lib/data/repo";
-import { dimsFor, type Dims } from "@/lib/data/dims";
-import { buildArModel, arCandidates } from "./build";
+import type { Dims } from "@/lib/data/dims";
+import { buildArModel, arInputOf } from "./build";
 import { transformGlb, inspectGlb, fitScale, type Box } from "./custom";
 
 /** Αλλάζει όταν αλλάζει ο τρόπος που μετασχηματίζουμε/συμπληρώνουμε τα μοντέλα — μπαίνει στο URL ώστε να μη μείνει παλιό στην cache του browser. */
 export const AR_SERVE_VERSION = 12;
 import { addFrameToGlb } from "./frame";
-import { anchorOf, profileFor, surfaceFor } from "./placement";
+import { anchorOf, isSurface } from "./placement";
+import { arPlan } from "./plan";
 
 /**
  * Σερβίρισμα μοντέλου AR. Αυτόματα για κάθε προϊόν με πραγματικές διαστάσεις (όχι τυπικές της κατηγορίας)·
@@ -32,15 +33,35 @@ export function fitFactor(box: Box | null, dims: Dims | null) {
   return dims.h / box.h;
 }
 
+/**
+ * Προϊόν + ρύθμιση + απόφαση, για 60″ στη μνήμη: ο πελάτης ζητά διαδοχικά προεπισκόπηση, AR και εναλλακτική επιφάνεια —
+ * χωρίς αυτό κάθε αρχείο θα περίμενε δύο ερωτήματα στη βάση.
+ */
+type Lookup = { p: Awaited<ReturnType<typeof getProductsByIds>>[number] | undefined; ar: Awaited<ReturnType<typeof db.productAr.findUnique>>; plan: ReturnType<typeof arPlan> | null };
+const looked = new Map<string, { at: number; v: Lookup }>();
+async function lookup(id: string): Promise<Lookup> {
+  const hit = looked.get(id);
+  if (hit && Date.now() - hit.at < 60_000) return hit.v;
+  const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
+  const v = { p, ar, plan: p ? arPlan(p, ar) : null };
+  looked.set(id, { at: Date.now(), v });
+  if (looked.size > 500) looked.delete(looked.keys().next().value as string);
+  return v;
+}
+
+/** Η σελίδα προϊόντος έχει ήδη προϊόν και απόφαση: τα αφήνει εδώ, ώστε και το πρώτο αρχείο να μη ρωτήσει τη βάση. */
+export function primeArLookup(id: string, v: Lookup) {
+  looked.set(id, { at: Date.now(), v });
+}
+
 export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz") {
   // Προεπιλογή η ελαφριά έκδοση όταν υπάρχει (η πλήρης του Tripo φτάνει 15 MB / 450 χιλ. τρίγωνα)· ?q=full για την πλήρη
   const wantFull = new URL(req.url).searchParams.get("q") === "full";
   // labels=0: χωρίς ψημένες ετικέτες — η προεπισκόπηση δείχνει ζωντανές HTML ετικέτες που κοιτούν πάντα τον χρήστη
   const labels = new URL(req.url).searchParams.get("labels") !== "0";
-  const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
-  const dims = p ? dimsFor(p) : null;
-  const on = ar ? ar.enabled : !!dims && dims.source !== "category";
-  if (!p || !on) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404 });
+  const { p, ar, plan } = await lookup(id);
+  if (!p || !plan?.on) return new Response("Το AR δεν είναι ενεργό για αυτό το προϊόν.", { status: 404, headers: { "cache-control": "no-store" } });
+  const dims = plan.dims;
   const respond = (body: Buffer, etag: string) => {
     const tag = `"${etag}-${kind}"`;
     if (req.headers.get("if-none-match") === tag) return new Response(null, { status: 304, headers: { etag: tag } });
@@ -77,9 +98,8 @@ export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz
   // ?p=floor: ο πελάτης ζήτησε ρητά πάτωμα επειδή το τηλέφωνό του δεν αναγνώρισε τον τοίχο
   // ?p=…: ο πελάτης διάλεξε άλλη επιφάνεια (π.χ. τηλεόραση στον τοίχο, ή πάτωμα επειδή το κινητό δεν έπιασε τον τοίχο)
   const forced = new URL(req.url).searchParams.get("p");
-  const wall = anchorOf(surfaceFor(p, forced || ar?.placement || null)) === "wall";
-  const archetype = profileFor(p).archetype;
+  const wall = anchorOf(isSurface(forced) ? forced : plan.surface) === "wall";
   // τηλεόραση: η επιφάνεια αλλάζει και το ίδιο το μοντέλο (με/χωρίς βάση) — άρα και στο GLB, όχι μόνο στο USDZ
-  const m = await buildArModel({ id: p.id, title: `${p.brand} ${p.title}`, dims, images: arCandidates(p), frontImage: ar?.frontImage ?? null, archetype }, { labels: kind === "usdz" ? true : labels, wall: (kind === "usdz" || archetype === "tv") && wall });
+  const m = await buildArModel(arInputOf(p, plan, ar?.frontImage ?? null), { labels: kind === "usdz" ? true : labels, wall: (kind === "usdz" || plan.archetype === "tv") && wall });
   return respond(kind === "glb" ? m.glb : m.usdz, m.etag);
 }
