@@ -671,3 +671,7 @@ button.rounded-full:active, a.rounded-full:active {
   .eu-rtable-wide td[data-label]::before { content: attr(data-label); font-weight: 700; color: var(--color-eu-muted); font-size: var(--fs-13); }
   .eu-rtable-wide td:empty { display: none; }
 }
+
+/* Admin: ένα grid χωρίς ορισμένες στήλες έχει μία «auto» στήλη που μεγαλώνει όσο το μακρύτερο περιεχόμενό του
+   (μακρύς τίτλος, κωδικός) και σπρώχνει τη σελίδα πέρα από την οθόνη. Εδώ η μία στήλη δεν ξεπερνά ποτέ το διαθέσιμο πλάτος. */
+.eu-admin .grid:not([class*="grid-cols"]):not([class*="grid-flow-col"]) { grid-template-columns: minmax(0, 1fr); }

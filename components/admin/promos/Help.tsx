@@ -13,7 +13,8 @@ export function HelpPanel({ id, topic, compact = false }: { id: string; topic: H
   const ref = useRef<HTMLDetailsElement>(null);
   const key = `eu.help.${id}`;
   useEffect(() => {
-    try { if (ref.current && localStorage.getItem(key) === "closed") ref.current.open = false; } catch { /* χωρίς αποθήκευση */ }
+    // κλειστό αν το έκλεισε ο χρήστης — και εξ ορισμού σε στενή οθόνη, για να φαίνεται πρώτα η δουλειά
+    try { const v = localStorage.getItem(key); if (ref.current && (v === "closed" || (v == null && ref.current.getBoundingClientRect().width < 640))) ref.current.open = false; } catch { /* χωρίς αποθήκευση */ }
   }, [key]);
   const onToggle = () => { try { localStorage.setItem(key, ref.current?.open ? "open" : "closed"); } catch { /* χωρίς αποθήκευση */ } };
   return (

@@ -97,7 +97,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
       <HelpPanel key={step} id={`wizard-${step}`} topic={STEP_HELP[step]} compact />
 
-      <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-6 grid gap-5 min-w-0">
+      <section className="rounded-2xl bg-white border border-eu-line p-3 @md:p-6 grid gap-5 min-w-0">
         {step === 0 && (
           <div className="grid gap-5">
             {GROUPS.map((g) => (
@@ -214,10 +214,10 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
       {msg && <p role={msg.tone === "err" ? "alert" : "status"} className={`m-0 rounded-xl px-4 py-3 font-semibold text-[length:var(--fs-14)] ${msg.tone === "err" ? "bg-eu-red/10 text-eu-red" : "bg-eu-green/10 text-eu-green"}`}>{msg.text}</p>}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" disabled={step === 0} onClick={() => setStep((s) => s - 1)} className="inline-flex items-center gap-1 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] disabled:opacity-40"><ChevronLeft className="size-4" aria-hidden /> Πίσω</button>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={busy || !d.name.trim()} onClick={() => save("draft")} title={!d.name.trim() ? "Δώσε όνομα στο βήμα «Εμφάνιση»" : undefined} className="rounded-full border-2 border-eu-navy text-eu-navy px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-chip disabled:opacity-40">{d.id && status && status !== "draft" ? "Αποθήκευση αλλαγών" : "Αποθήκευση πρόχειρου"}</button>
+      <div className="sticky bottom-0 z-20 -mx-4 @md:mx-0 px-4 @md:px-0 py-3 bg-eu-surface/95 backdrop-blur border-t border-eu-line @md:border-0 @md:bg-transparent @md:backdrop-blur-none @md:static flex items-center justify-between gap-2">
+        <button type="button" disabled={step === 0} onClick={() => setStep((s) => s - 1)} aria-label="Πίσω" className="shrink-0 inline-flex items-center justify-center gap-1 rounded-full border-2 border-eu-line min-w-11 px-2 @md:px-4 min-h-11 font-bold text-[length:var(--fs-14)] disabled:opacity-40"><ChevronLeft className="size-4" aria-hidden /><span className="hidden @md:inline">Πίσω</span></button>
+        <div className="flex gap-2 min-w-0">
+          <button type="button" disabled={busy || !d.name.trim()} onClick={() => save("draft")} title={!d.name.trim() ? "Δώσε όνομα στο βήμα «Εμφάνιση»" : undefined} className="rounded-full border-2 border-eu-navy text-eu-navy px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-chip disabled:opacity-40"><span className="@md:hidden">{d.id && status && status !== "draft" ? "Αποθήκευση" : "Πρόχειρο"}</span><span className="hidden @md:inline">{d.id && status && status !== "draft" ? "Αποθήκευση αλλαγών" : "Αποθήκευση πρόχειρου"}</span></button>
           {step < 4 ? (
             <button type="button" onClick={() => setStep((s) => s + 1)} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-blue">Επόμενο <ChevronRight className="size-4" aria-hidden /></button>
           ) : (
@@ -389,15 +389,22 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
     <div className="grid gap-5">
       <div className="grid gap-2">
         <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">{d.mechanism === "together" ? "Ποιο είναι το βασικό προϊόν (αυτό που αγοράζει ο πελάτης);" : "Τι προσθέτω τώρα;"}</span>
-        <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 @4xl:grid-cols-3 gap-2">
           <OptionCard on={!exclude} onClick={() => setExclude(false)} title="Ισχύει σε" desc="Ό,τι διαλέξεις από κάτω μπαίνει στην προσφορά." />
           <OptionCard on={exclude} onClick={() => setExclude(true)} tone="red" title="Εξαίρεση" desc="Ό,τι διαλέξεις από κάτω δεν παίρνει ποτέ την προσφορά — ακόμη κι αν ανήκει σε κατηγορία που ισχύει." />
-          <button type="button" onClick={whole} className="text-left rounded-2xl border-2 border-dashed border-eu-line p-3 grid gap-0.5 hover:border-eu-navy">
+          <button type="button" onClick={whole} className="col-span-2 @4xl:col-span-1 text-left rounded-2xl border-2 border-dashed border-eu-line p-3 grid gap-0.5 hover:border-eu-navy">
             <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><Store className="size-4" aria-hidden /> Όλο το κατάστημα</span>
             <span className="text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">Προσθέτει όλες τις κύριες κατηγορίες. Μετά εξαιρείς όσα δεν θέλεις.</span>
           </button>
         </div>
       </div>
+
+      <section className="rounded-2xl bg-eu-surface p-4 grid gap-2" aria-live="polite">
+        <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Η προσφορά ισχύει σε</h4>
+        {inc.length ? <TargetChips list={inc} names={names} onRemove={remove} tone="in" /> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{cartWide ? "Χωρίς επιλογή ισχύει σε όλο το καλάθι." : "Δεν έχεις διαλέξει ακόμη — ξεκίνα από την κατηγορία (1)."}</p>}
+        {exc.length > 0 && <><h4 className="m-0 mt-1 font-extrabold text-eu-red text-[length:var(--fs-15)]">Εκτός</h4><TargetChips list={exc} names={names} onRemove={remove} tone="out" /></>}
+        {inc.length > 1 && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Πολλές επιλογές = ισχύει σε οποιαδήποτε από αυτές. Για «μόνο η μάρκα Χ σε αυτή την κατηγορία» χρησιμοποίησε το «+» δίπλα στη μάρκα (βήμα 2).</p>}
+      </section>
 
       <ProductBrowser mode="targets" selected={selected}
         onCategory={(c) => add("category", c.id, c.name)}
@@ -409,12 +416,7 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
         <div className="mt-2 grid gap-1"><p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Π.χ. «όλα τα Philips», από ξυριστικές μέχρι airfryer.</p><Picker kind="brand" onPick={(x) => add("brand", x.id, x.label)} placeholder="Όνομα μάρκας" /></div>
       </details>
 
-      <section className="rounded-2xl bg-eu-surface p-4 grid gap-2" aria-live="polite">
-        <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Η προσφορά ισχύει σε</h4>
-        {inc.length ? <TargetChips list={inc} names={names} onRemove={remove} tone="in" /> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{cartWide ? "Χωρίς επιλογή ισχύει σε όλο το καλάθι." : "Δεν έχεις διαλέξει ακόμη — ξεκίνα από την κατηγορία (1)."}</p>}
-        {exc.length > 0 && <><h4 className="m-0 mt-1 font-extrabold text-eu-red text-[length:var(--fs-15)]">Εκτός</h4><TargetChips list={exc} names={names} onRemove={remove} tone="out" /></>}
-        {inc.length > 1 && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Πολλές επιλογές = ισχύει σε οποιαδήποτε από αυτές. Για «μόνο η μάρκα Χ σε αυτή την κατηγορία» χρησιμοποίησε το «+» δίπλα στη μάρκα (βήμα 2).</p>}
-      </section>
+
 
       {d.mechanism === "together" && <Companions d={d} setReward={setReward} names={names} setNames={setNames} />}
       {d.mechanism === "gift" && (

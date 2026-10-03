@@ -8,5 +8,5 @@ import { bestMatch } from "./nav-match";
 export function AdminTitle({ fallback }: { fallback: string }) {
   const path = usePathname();
   const item = bestMatch(path, ADMIN_NAV.flatMap((g) => g.items));
-  return <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">{item?.label ?? fallback}</h1>;
+  return <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] truncate">{item?.label ?? fallback}</h1>;
 }
