@@ -75,11 +75,11 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
         <LineChart labels={labels} series={[{ key: "disc", label: "Έκπτωση", values }]} unit=" €" />
       </section>
       <div className="grid grid-cols-1 @4xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 items-start">
-        <section className="rounded-2xl bg-white border border-eu-line overflow-x-auto">
-          <table className="w-full text-[length:var(--fs-14)]">
+        <section className="rounded-2xl bg-white border border-eu-line overflow-hidden">
+          <table className="eu-rtable w-full text-[length:var(--fs-14)]">
             <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Καμπάνια</th><th className="py-2 px-3 text-right">Παραγγελίες</th><th className="py-2 px-3 text-right">Τεμάχια</th><th className="py-2 px-3 text-right">Έσοδα</th><th className="py-2 px-3 text-right">Έκπτωση</th></tr></thead>
             <tbody>
-              {promos.map((p) => <tr key={p.id} className="border-t border-eu-line"><td className="py-2 px-3"><Link href={q({ promo: p.id })} className="font-bold hover:text-eu-blue hover:underline">{p.name}</Link><div className="text-eu-muted font-mono text-[length:var(--fs-13)]">{p.code}</div></td><td className="py-2 px-3 text-right tabular-nums">{n(p.orders.size)}</td><td className="py-2 px-3 text-right tabular-nums">{n(p.units)}</td><td className="py-2 px-3 text-right tabular-nums">{eur(p.revenue)}</td><td className="py-2 px-3 text-right tabular-nums font-bold">{eur(p.amount)}</td></tr>)}
+              {promos.map((p) => <tr key={p.id} className="border-t border-eu-line"><td className="py-2 px-3"><Link href={q({ promo: p.id })} className="font-bold hover:text-eu-blue hover:underline">{p.name}</Link><div className="text-eu-muted font-mono text-[length:var(--fs-13)]">{p.code}</div></td><td data-label="Παραγγελίες" className="py-2 px-3 text-right tabular-nums">{n(p.orders.size)}</td><td data-label="Τεμάχια" className="py-2 px-3 text-right tabular-nums">{n(p.units)}</td><td data-label="Έσοδα" className="py-2 px-3 text-right tabular-nums">{eur(p.revenue)}</td><td data-label="Έκπτωση" className="py-2 px-3 text-right tabular-nums font-bold">{eur(p.amount)}</td></tr>)}
               {!promos.length && <tr><td colSpan={5} className="p-6 text-center text-eu-muted">Καμία χρήση προσφοράς σε αυτό το διάστημα.</td></tr>}
             </tbody>
           </table>
@@ -89,12 +89,12 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
           {top.length ? <RankBars rows={top} unit=" €" /> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">—</p>}
         </section>
       </div>
-      <section className="rounded-2xl bg-white border border-eu-line overflow-x-auto">
+      <section className="rounded-2xl bg-white border border-eu-line overflow-hidden">
         <h3 className="m-0 px-4 pt-4 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Παραστατικά (τελευταία 50)</h3>
-        <table className="w-full text-[length:var(--fs-14)] mt-2">
+        <table className="eu-rtable w-full text-[length:var(--fs-14)] mt-2">
           <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Παραγγελία</th><th className="py-2 px-3">Ημερομηνία</th><th className="py-2 px-3">Κουπόνι</th><th className="py-2 px-3 text-right">Έκπτωση</th><th className="py-2 px-3 text-right">Σύνολο</th><th className="py-2 px-3">SoftOne</th></tr></thead>
           <tbody>
-            {orders.map((o) => <tr key={o.id} className="border-t border-eu-line"><td className="py-2 px-3"><Link href={`/admin/prosfores/anafores/paraggelia/${o.id}`} className="font-bold text-eu-blue hover:underline">{o.number}</Link></td><td className="py-2 px-3">{o.createdAt.toLocaleString("el-GR")}</td><td className="py-2 px-3 font-mono">{o.couponCode ?? "—"}</td><td className="py-2 px-3 text-right tabular-nums">{eur(Number(o.discountTotal))}</td><td className="py-2 px-3 text-right tabular-nums">{eur(Number(o.total))}</td><td className="py-2 px-3">{o.erpSync?.status === "preview" ? "προεπισκόπηση" : o.erpSync?.status ?? "—"}</td></tr>)}
+            {orders.map((o) => <tr key={o.id} className="border-t border-eu-line"><td className="py-2 px-3"><Link href={`/admin/prosfores/anafores/paraggelia/${o.id}`} className="font-bold text-eu-blue hover:underline">{o.number}</Link></td><td data-label="Ημερομηνία" className="py-2 px-3">{o.createdAt.toLocaleString("el-GR")}</td><td data-label="Κουπόνι" className="py-2 px-3 font-mono">{o.couponCode ?? "—"}</td><td data-label="Έκπτωση" className="py-2 px-3 text-right tabular-nums">{eur(Number(o.discountTotal))}</td><td data-label="Σύνολο" className="py-2 px-3 text-right tabular-nums">{eur(Number(o.total))}</td><td data-label="SoftOne" className="py-2 px-3">{o.erpSync?.status === "preview" ? "προεπισκόπηση" : o.erpSync?.status ?? "—"}</td></tr>)}
             {!orders.length && <tr><td colSpan={6} className="p-6 text-center text-eu-muted">Καμία παραγγελία με προσφορά.</td></tr>}
           </tbody>
         </table>

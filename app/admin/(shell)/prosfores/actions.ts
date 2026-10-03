@@ -343,3 +343,51 @@ export async function issueSegmentCouponsAction(input: { segmentId: string; prom
   revalidatePath("/admin/prosfores/kouponia");
   return r;
 }
+
+// ---- πλοήγηση καταλόγου για την επιλογή προϊόντων: κατηγορία → υποκατηγορία → μάρκες → προϊόντα ----
+async function subtree(categoryId: string) {
+  const ids = [categoryId];
+  for (let level = [categoryId], g = 0; level.length && g < 4; g++) {
+    level = (await db.category.findMany({ where: { parentId: { in: level } }, select: { id: true } })).map((c) => c.id);
+    ids.push(...level);
+  }
+  return ids;
+}
+
+/** Οι υποκατηγορίες ενός κόμβου (ή οι κύριες) με το πλήθος ενεργών προϊόντων, και η διαδρομή ως εκεί. */
+export async function browseCategoriesAction(parentId: string | null) {
+  await requirePermission(PERM);
+  const [children, path] = await Promise.all([
+    db.category.findMany({ where: { parentId, active: true, productCount: { gt: 0 } }, orderBy: [{ sortNo: "asc" }, { name: "asc" }], select: { id: true, name: true, productCount: true, _count: { select: { children: true } } } }),
+    (async () => { const out: { id: string; name: string }[] = []; for (let id = parentId, g = 0; id && g < 6; g++) { const c = await db.category.findUnique({ where: { id }, select: { id: true, name: true, parentId: true } }); if (!c) break; out.unshift({ id: c.id, name: c.name }); id = c.parentId; } return out; })(),
+  ]);
+  return { path, children: children.map((c) => ({ id: c.id, name: c.name, count: c.productCount, hasChildren: c._count.children > 0 })) };
+}
+
+/** Οι μάρκες που υπάρχουν σε μια κατηγορία (και στις υποκατηγορίες της), με πλήθος προϊόντων. */
+export async function browseBrandsAction(categoryId: string) {
+  await requirePermission(PERM);
+  const cats = await subtree(categoryId);
+  const rows = await db.product.groupBy({ by: ["brandId"], where: { active: true, categoryId: { in: cats } }, _count: { _all: true } });
+  const brands = await db.brand.findMany({ where: { id: { in: rows.map((r) => r.brandId) } }, select: { id: true, name: true } });
+  const name = new Map(brands.map((b) => [b.id, b.name]));
+  return rows.map((r) => ({ id: r.brandId, name: name.get(r.brandId) ?? "—", count: r._count._all })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "el"));
+}
+
+/** Τα προϊόντα μιας κατηγορίας (και προαιρετικά μιας μάρκας). Έως 300 — με «q» αναζήτηση στον server όταν είναι περισσότερα. */
+export async function browseProductsAction(input: { categoryId?: string | null; brandId?: string | null; q?: string }) {
+  await requirePermission(PERM);
+  const q = (input.q ?? "").trim();
+  const where: Prisma.ProductWhereInput = {
+    active: true,
+    ...(input.categoryId ? { categoryId: { in: await subtree(input.categoryId) } } : {}),
+    ...(input.brandId ? { brandId: input.brandId } : {}),
+    ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { sku: { contains: q, mode: "insensitive" } }, { ean: q }] } : {}),
+  };
+  if (!input.categoryId && !input.brandId && q.length < 2) return { total: 0, items: [] };
+  const [total, rows] = await Promise.all([
+    db.product.count({ where }),
+    db.product.findMany({ where, orderBy: { title: "asc" }, take: 300, select: { id: true, title: true, sku: true, price: true, brand: { select: { name: true } }, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } }),
+  ]);
+  return { total, items: rows.map((r) => ({ id: r.id, title: r.title, sku: r.sku, brand: r.brand.name, price: r.price ?? null, image: r.media[0]?.url ?? null })) };
+}

@@ -23,7 +23,7 @@ function Window({ startsAt, endsAt, now }: { startsAt: string | null; endsAt: st
   const pct = a && b ? Math.min(100, Math.max(0, ((now - a) / (b - a)) * 100)) : a && now >= a ? 100 : 0;
   const left = b && b > now ? Math.ceil((b - now) / 86400_000) : null;
   return (
-    <div className="grid gap-1 min-w-[150px]">
+    <div className="grid gap-1 min-w-[150px] flex-1">
       <div className="text-eu-ink-2 text-[length:var(--fs-13)] tabular-nums">{d(startsAt) ?? "από τώρα"} → {d(endsAt) ?? "χωρίς λήξη"}</div>
       <div className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><div className="h-full rounded-full bg-eu-blue" style={{ width: `${pct}%` }} /></div>
       {left != null && a != null && a <= now && <div className="text-eu-muted text-[length:var(--fs-13)]">{left === 1 ? "λήγει αύριο" : `${left} ημέρες ακόμη`}</div>}
@@ -60,8 +60,8 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
         </div>
       )}
       {msg && <p role="status" className="m-0 rounded-xl bg-eu-chip text-eu-navy font-semibold px-4 py-2 text-[length:var(--fs-14)]">{msg}</p>}
-      <div className="rounded-2xl border border-eu-line bg-white overflow-x-auto">
-        <table className="w-full text-[length:var(--fs-14)]">
+      <div className="rounded-2xl border border-eu-line bg-white overflow-hidden">
+        <table className="eu-rtable-wide w-full text-[length:var(--fs-14)]">
           <thead className="text-left text-eu-muted text-[length:var(--fs-13)]">
             <tr>
               <th className="py-2 px-3 w-10"><input type="checkbox" aria-label="Επιλογή όλων" checked={all} onChange={() => setSel(all ? new Set() : new Set(rows.map((r) => r.id)))} className="size-5 accent-eu-navy" /></th>
@@ -74,19 +74,19 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
               return (
                 <tr key={r.id} className={`border-t border-eu-line align-top ${sel.has(r.id) ? "bg-eu-chip/50" : ""}`}>
                   <td className="py-3 px-3"><input type="checkbox" aria-label={`Επιλογή: ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} className="size-5 accent-eu-navy" /></td>
-                  <td className="py-3 px-3 min-w-[260px]">
+                  <td className="py-3 px-3">
                     <Link href={`/admin/prosfores/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline">{r.name}</Link>
                     <div className="text-eu-ink-3 text-[length:var(--fs-13)]">{r.summary}</div>
                     <div className="text-eu-muted text-[length:var(--fs-13)] font-mono">{r.code} · v{r.version}{r.targets ? ` · ${r.targets} στόχοι` : ""}</div>
                     {r.coupon && <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-eu-surface px-2 py-0.5 font-mono font-bold text-eu-navy text-[length:var(--fs-13)]"><TicketPercent className="size-3.5" aria-hidden /> {r.coupon}{r.coupons > 1 ? ` +${r.coupons - 1}` : ""}</div>}
                   </td>
-                  <td className="py-3 px-3">
+                  <td data-label="Κατάσταση" className="py-3 px-3">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-13)] whitespace-nowrap ${st.tone}`}>{r.held && <Lock className="size-3.5" aria-hidden />}{r.held ? "Ανενεργή (διευκρίνιση)" : st.label}</span>
                     {r.pendingChange && <div className="mt-1 text-eu-amber font-bold text-[length:var(--fs-13)]">αλλαγή αναμένει έγκριση</div>}
                   </td>
-                  <td className="py-3 px-3"><Window startsAt={r.startsAt} endsAt={r.endsAt} now={now} /></td>
-                  <td className="py-3 px-3 text-right tabular-nums whitespace-nowrap">{r.usedCount.toLocaleString("el-GR")}{r.maxUses ? <span className="text-eu-muted"> / {r.maxUses.toLocaleString("el-GR")}</span> : ""}</td>
-                  <td className="py-3 px-3 text-right tabular-nums whitespace-nowrap">
+                  <td data-label="Διάρκεια" className="py-3 px-3"><Window startsAt={r.startsAt} endsAt={r.endsAt} now={now} /></td>
+                  <td data-label="Χρήσεις" className="py-3 px-3 text-right tabular-nums whitespace-nowrap">{r.usedCount.toLocaleString("el-GR")}{r.maxUses ? <span className="text-eu-muted"> / {r.maxUses.toLocaleString("el-GR")}</span> : ""}</td>
+                  <td data-label="Budget" className="py-3 px-3 text-right tabular-nums whitespace-nowrap">
                     {r.budget ? <><span>{eur(r.spent)}</span><span className="text-eu-muted"> / {eur(r.budget)}</span><div className="mt-1 h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><div className={`h-full rounded-full ${r.spent / r.budget > 0.9 ? "bg-eu-red" : "bg-eu-green"}`} style={{ width: `${Math.min(100, (r.spent / r.budget) * 100)}%` }} /></div></> : r.spent ? eur(r.spent) : <span className="text-eu-muted">—</span>}
                   </td>
                   <td className="py-3 px-3 text-right whitespace-nowrap">

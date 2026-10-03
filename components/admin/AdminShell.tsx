@@ -55,7 +55,7 @@ export function AdminShell({ user, children, title }: { user: { name?: string | 
             Προβολή site →
           </Link>
         </header>
-        <main className="p-6 grid gap-6 content-start">{children}</main>
+        <main className="eu-container min-w-0 p-4 @md:p-6 grid gap-6 content-start">{children}</main>
       </div>
     </div>
   );

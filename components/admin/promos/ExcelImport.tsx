@@ -33,11 +33,11 @@ export function ExcelImport() {
       {rows && (
         <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3">
           <div className="flex flex-wrap gap-4 text-[length:var(--fs-14)] font-bold"><span className="text-eu-green inline-flex items-center gap-1"><Check className="size-4" aria-hidden /> {ok.length} έγκυρες</span><span className="text-eu-amber inline-flex items-center gap-1"><AlertTriangle className="size-4" aria-hidden /> {rows.length - ok.length} με πρόβλημα (δεν μπαίνουν)</span></div>
-          <div className="max-h-[480px] overflow-auto rounded-xl border border-eu-line">
-            <table className="w-full text-[length:var(--fs-14)]">
+          <div className="max-h-[480px] overflow-y-auto overflow-x-hidden rounded-xl border border-eu-line">
+            <table className="eu-rtable w-full text-[length:var(--fs-14)]">
               <thead className="sticky top-0 bg-white text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Κωδικός</th><th className="py-2 px-3">Προϊόν</th><th className="py-2 px-3 text-right">Τρέχουσα</th><th className="py-2 px-3 text-right">Νέα</th><th className="py-2 px-3 text-right">%</th><th className="py-2 px-3">Έλεγχος</th></tr></thead>
               <tbody>
-                {rows.map((r, i) => <tr key={i} className={`border-t border-eu-line ${r.issue && !r.issue.startsWith("έκπτωση") ? "bg-eu-red/5" : ""}`}><td className="py-1.5 px-3 font-mono">{r.input}</td><td className="py-1.5 px-3">{r.title ?? "—"}</td><td className="py-1.5 px-3 text-right tabular-nums">{eur(r.list)}</td><td className="py-1.5 px-3 text-right tabular-nums font-bold">{eur(r.price)}</td><td className="py-1.5 px-3 text-right tabular-nums">{r.pct != null ? `−${r.pct} %` : "—"}</td><td className={`py-1.5 px-3 ${r.issue ? (r.issue.startsWith("έκπτωση") ? "text-eu-amber" : "text-eu-red") : "text-eu-green"} font-semibold`}>{r.issue ?? "εντάξει"}</td></tr>)}
+                {rows.map((r, i) => <tr key={i} className={`border-t border-eu-line ${r.issue && !r.issue.startsWith("έκπτωση") ? "bg-eu-red/5" : ""}`}><td className="py-1.5 px-3 font-mono">{r.input}</td><td data-label="Προϊόν" className="py-1.5 px-3">{r.title ?? "—"}</td><td data-label="Τρέχουσα" className="py-1.5 px-3 text-right tabular-nums">{eur(r.list)}</td><td data-label="Νέα" className="py-1.5 px-3 text-right tabular-nums font-bold">{eur(r.price)}</td><td data-label="Έκπτωση" className="py-1.5 px-3 text-right tabular-nums">{r.pct != null ? `−${r.pct} %` : "—"}</td><td data-label="Έλεγχος" className={`py-1.5 px-3 ${r.issue ? (r.issue.startsWith("έκπτωση") ? "text-eu-amber" : "text-eu-red") : "text-eu-green"} font-semibold`}>{r.issue ?? "εντάξει"}</td></tr>)}
               </tbody>
             </table>
           </div>

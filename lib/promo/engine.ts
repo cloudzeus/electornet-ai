@@ -20,7 +20,8 @@ export const PAYMENT_MECHANISMS: Mechanism[] = ["payment-percent", "payment-amou
 export const COUPON_MECHANISMS: Mechanism[] = ["coupon-percent", "coupon-amount"];
 export type Stacking = "combine" | "no-price" | "exclusive";
 
-export interface PromoTarget { kind: "product" | "brand" | "category"; refId: string; exclude: boolean }
+/** Στόχος: προϊόν, μάρκα, κατηγορία — ή «brandcat» = μάρκα μέσα σε κατηγορία (refId «brandId|categoryId», τομή). */
+export interface PromoTarget { kind: "product" | "brand" | "category" | "brandcat"; refId: string; exclude: boolean }
 export interface PromoRules {
   customers?: "all" | "new" | "registered";
   /** ελάχιστη αξία (λεπτά) των επιλέξιμων γραμμών */
@@ -143,7 +144,12 @@ function ruleReason(p: EnginePromo, ctx: EngineCtx): string | null {
 
 /** Ταιριάζει η γραμμή στο πεδίο της προσφοράς; Χωρίς «συμπερίληψη» = όλα τα προϊόντα. Οι εξαιρέσεις κερδίζουν πάντα. */
 export function matches(p: { targets: PromoTarget[] }, l: Pick<EngineLine, "productId" | "variantId" | "brandId" | "categoryIds">): boolean {
-  const hit = (t: PromoTarget) => (t.kind === "product" ? t.refId === l.productId || t.refId === l.variantId : t.kind === "brand" ? t.refId === l.brandId : l.categoryIds.includes(t.refId));
+  const hit = (t: PromoTarget) => {
+    if (t.kind === "product") return t.refId === l.productId || t.refId === l.variantId;
+    if (t.kind === "brand") return t.refId === l.brandId;
+    if (t.kind === "brandcat") { const [b, c] = t.refId.split("|"); return b === l.brandId && l.categoryIds.includes(c); }
+    return l.categoryIds.includes(t.refId);
+  };
   if (p.targets.some((t) => t.exclude && hit(t))) return false;
   const inc = p.targets.filter((t) => !t.exclude);
   return inc.length === 0 || inc.some(hit);

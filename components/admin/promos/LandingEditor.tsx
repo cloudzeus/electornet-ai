@@ -7,7 +7,8 @@ import { ArrowUp, ArrowDown, Trash2, Plus, ExternalLink, ChevronLeft } from "luc
 import { BLOCKS, newBlockId, type Block, type BlockType } from "@/lib/promo/landing-blocks";
 import { ImageUrlField } from "./ImageUrlField";
 import { Hint } from "./Help";
-import { createLandingAction, saveLandingAction, searchTargetsAction, type LandingInput } from "@/app/admin/(shell)/prosfores/actions";
+import { ProductBrowser } from "./ProductBrowser";
+import { createLandingAction, saveLandingAction, type LandingInput } from "@/app/admin/(shell)/prosfores/actions";
 
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
 const lbl = "grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2";
@@ -65,13 +66,13 @@ export function LandingEditor({ initial, promos, categories }: { initial: Landin
       {msg && <p role="status" className={`m-0 rounded-xl px-4 py-2 font-semibold text-[length:var(--fs-14)] ${msg.ok ? "bg-eu-green/10 text-eu-green" : "bg-eu-red/10 text-eu-red"}`}>{msg.t}</p>}
 
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
-        <label className={lbl}><span>Τίτλος</span><input className={input} value={d.title} onChange={(e) => set({ title: e.target.value })} /></label>
+        <label className={lbl}><span>Τίτλος</span><input className={input} value={d.title} onChange={(e) => set({ title: e.target.value })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Ο τίτλος της σελίδας (και της καρτέλας του browser).</span></label>
         <label className={lbl}><span>Διεύθυνση</span><span className="flex items-center gap-1"><span className="text-eu-muted font-mono font-normal">/prosfores/</span><input className={`${input} font-mono`} value={d.slug} onChange={(e) => set({ slug: e.target.value })} /></span></label>
-        <label className={lbl}><span>Προσφορά</span><select className={input} value={d.promotionId ?? ""} onChange={(e) => set({ promotionId: e.target.value || null })}><option value="">— χωρίς —</option>{promos.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select></label>
-        <label className={lbl}><span>Εμφάνιση από</span><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
-        <label className={lbl}><span>Λήξη σελίδας</span><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
-        <label className={lbl}><span>SEO τίτλος</span><input className={input} value={d.seoTitle ?? ""} onChange={(e) => set({ seoTitle: e.target.value || null })} maxLength={70} /></label>
-        <label className={`${lbl} @xl:col-span-2 @4xl:col-span-3`}><span>SEO περιγραφή</span><input className={input} value={d.seoDesc ?? ""} onChange={(e) => set({ seoDesc: e.target.value || null })} maxLength={160} /></label>
+        <label className={lbl}><span>Προσφορά</span><select className={input} value={d.promotionId ?? ""} onChange={(e) => set({ promotionId: e.target.value || null })}><option value="">— χωρίς —</option>{promos.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</select><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Από εδώ έρχονται τα προϊόντα, η αντίστροφη μέτρηση και οι όροι.</span></label>
+        <label className={lbl}><span>Εμφάνιση από</span><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Κενό = μόλις δημοσιευτεί.</span></label>
+        <label className={lbl}><span>Λήξη σελίδας</span><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: e.target.value ? new Date(e.target.value).toISOString() : null })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Κενό = όσο τρέχει η προσφορά· μετά γράφει «έληξε».</span></label>
+        <label className={lbl}><span>SEO τίτλος</span><input className={input} value={d.seoTitle ?? ""} onChange={(e) => set({ seoTitle: e.target.value || null })} maxLength={70} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Έως 70 χαρακτήρες — τι δείχνει η Google.</span></label>
+        <label className={`${lbl} @xl:col-span-2 @4xl:col-span-3`}><span>SEO περιγραφή</span><input className={input} value={d.seoDesc ?? ""} onChange={(e) => set({ seoDesc: e.target.value || null })} maxLength={160} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Έως 160 χαρακτήρες — η περιγραφή στα αποτελέσματα αναζήτησης.</span></label>
       </section>
 
       <ol className="m-0 p-0 list-none grid gap-3">
@@ -144,16 +145,11 @@ function BlockForm({ b, set, categories }: { b: Block; set: (p: Record<string, u
 }
 
 function ManualProducts({ ids, onChange }: { ids: string[]; onChange: (ids: string[]) => void }) {
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<{ id: string; label: string; sub?: string }[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   return (
-    <div className="grid gap-2">
-      <div className="relative max-w-xl">
-        <input aria-label="Πρόσθεσε προϊόν" value={q} onChange={(e) => { setQ(e.target.value); if (e.target.value.trim().length >= 2) void searchTargetsAction("product", e.target.value).then(setFound); else setFound([]); }} placeholder="Πρόσθεσε προϊόν" className={input} />
-        {found.length > 0 && <ul className="absolute z-10 left-0 right-0 mt-1 m-0 p-0 list-none max-h-64 overflow-y-auto rounded-xl border border-eu-line bg-white shadow-[var(--shadow-raised)] divide-y divide-eu-line">{found.map((f) => <li key={f.id}><button type="button" onClick={() => { setNames((n) => ({ ...n, [f.id]: f.label })); if (!ids.includes(f.id)) onChange([...ids, f.id]); setQ(""); setFound([]); }} className="w-full text-left px-3 py-2 min-h-11 hover:bg-eu-chip text-[length:var(--fs-14)]">{f.label} <span className="text-eu-muted">{f.sub}</span></button></li>)}</ul>}
-      </div>
-      <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">{ids.map((id) => <li key={id} className="inline-flex items-center gap-1 rounded-full bg-eu-surface pl-3 pr-1 min-h-10 text-[length:var(--fs-13)]">{names[id] ?? id}<button type="button" aria-label="Αφαίρεση" onClick={() => onChange(ids.filter((x) => x !== id))} className="size-9 grid place-items-center rounded-full hover:bg-black/5"><Trash2 className="size-3.5" aria-hidden /></button></li>)}</ul>
+    <div className="grid gap-3">
+      <ProductBrowser mode="products" selected={new Set(ids)} addLabel="Στη σελίδα" onProduct={(p) => { setNames((n) => ({ ...n, [p.id]: p.title })); onChange(ids.includes(p.id) ? ids.filter((x) => x !== p.id) : [...ids, p.id]); }} />
+      {ids.length > 0 && <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">{ids.map((id) => <li key={id} className="inline-flex items-center gap-1 rounded-full bg-eu-surface pl-3 pr-1 min-h-10 text-[length:var(--fs-13)] max-w-full"><span className="truncate">{names[id] ?? "προϊόν"}</span><button type="button" aria-label="Αφαίρεση" onClick={() => onChange(ids.filter((x) => x !== id))} className="size-9 shrink-0 grid place-items-center rounded-full hover:bg-black/5"><Trash2 className="size-3.5" aria-hidden /></button></li>)}</ul>}
     </div>
   );
 }

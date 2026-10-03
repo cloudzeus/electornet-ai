@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { EngineLine, EnginePromo, PromoReward, PromoRules, Stacking } from "./engine";
+import type { EngineLine, EnginePromo, PromoReward, PromoRules, PromoTarget, Stacking } from "./engine";
 
 /**
  * Η μηχανή προσφορών απέναντι στη βάση: φόρτωση ενεργών προσφορών (με μικρή cache στη μνήμη — το καλάθι δεν
@@ -17,7 +17,7 @@ export const toEngine = (p: PromoRow): EnginePromo => ({
   id: p.id, code: p.code, version: p.version, name: p.name, mechanism: p.mechanism, status: p.status, held: p.held,
   priority: p.priority, stacking: p.stacking as Stacking, startsAt: p.startsAt, endsAt: p.endsAt,
   reward: p.reward as PromoReward, rules: (p.rules ?? {}) as PromoRules,
-  targets: p.targets.map((t) => ({ kind: t.kind as "product" | "brand" | "category", refId: t.refId, exclude: t.exclude })),
+  targets: p.targets.map((t) => ({ kind: t.kind as PromoTarget["kind"], refId: t.refId, exclude: t.exclude })),
   maxUses: p.maxUses, usedCount: p.usedCount, maxPerCustomer: p.maxPerCustomer,
   budgetCents: p.budgetEur != null ? cents(p.budgetEur) : null, spentCents: cents(p.spentEur), tagLabel: p.tagLabel,
 });

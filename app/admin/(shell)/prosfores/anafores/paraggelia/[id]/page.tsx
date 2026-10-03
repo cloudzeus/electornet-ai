@@ -33,19 +33,19 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
         <div className="text-eu-ink-3 text-[length:var(--fs-14)]">{o.createdAt.toLocaleString("el-GR")} · {o.status} · {o.paymentMethod ?? "—"} · σύνολο <strong>{eur(o.total)}</strong> · έκπτωση <strong>{eur(o.discountTotal)}</strong>{o.couponCode && <> · κουπόνι <span className="font-mono font-bold">{o.couponCode}</span></>}</div>
       </div>
 
-      <section className="rounded-2xl bg-white border border-eu-line overflow-x-auto">
-        <table className="w-full text-[length:var(--fs-14)]">
+      <section className="rounded-2xl bg-white border border-eu-line overflow-hidden">
+        <table className="eu-rtable-wide w-full text-[length:var(--fs-14)]">
           <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Γραμμή</th><th className="py-2 px-3 text-right">Τιμή καταλόγου<br />PRICE</th><th className="py-2 px-3 text-right">Προσφορά<br />DISC1VAL</th><th className="py-2 px-3 text-right">Κουπόνι<br />DISC2VAL</th><th className="py-2 px-3 text-right">Πληρωμή<br />DISC3VAL</th><th className="py-2 px-3 text-right">Τελικό</th><th className="py-2 px-3">Προσφορές (COMMENTS)</th></tr></thead>
           <tbody>
             {o.lines.map((l) => { const ps = (l.promotions as LinePromo[] | null) ?? []; return (
               <tr key={l.id} className="border-t border-eu-line align-top">
                 <td className="py-2 px-3"><div className="font-semibold">{l.qty} × {l.title}</div><div className="text-eu-muted font-mono text-[length:var(--fs-13)]">{l.erpCode ?? "—"}{l.isGift ? " · δώρο / δωρεάν" : ""}</div>{l.addons.map((a) => <div key={a.id} className="text-eu-ink-3 text-[length:var(--fs-13)]">+ {a.service.title} {eur(a.price)}</div>)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{eur(Number(l.listPrice ?? l.unitPrice) * l.qty)}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{Number(l.discPrice) ? `−${eur(l.discPrice)}` : "—"}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{Number(l.discCoupon) ? `−${eur(l.discCoupon)}` : "—"}</td>
-                <td className="py-2 px-3 text-right tabular-nums">{Number(l.discPayment) ? `−${eur(l.discPayment)}` : "—"}</td>
-                <td className="py-2 px-3 text-right tabular-nums font-bold">{eur(l.lineTotal ?? Number(l.unitPrice) * l.qty)}</td>
-                <td className="py-2 px-3">{ps.length ? ps.map((p, i) => <div key={i}><span className="font-mono">{p.code} v{p.version}</span> · {p.label}</div>) : <span className="text-eu-muted">—</span>}</td>
+                <td data-label="Τιμή καταλόγου" className="py-2 px-3 text-right tabular-nums">{eur(Number(l.listPrice ?? l.unitPrice) * l.qty)}</td>
+                <td data-label="Προσφορά (DISC1)" className="py-2 px-3 text-right tabular-nums">{Number(l.discPrice) ? `−${eur(l.discPrice)}` : "—"}</td>
+                <td data-label="Κουπόνι (DISC2)" className="py-2 px-3 text-right tabular-nums">{Number(l.discCoupon) ? `−${eur(l.discCoupon)}` : "—"}</td>
+                <td data-label="Πληρωμή (DISC3)" className="py-2 px-3 text-right tabular-nums">{Number(l.discPayment) ? `−${eur(l.discPayment)}` : "—"}</td>
+                <td data-label="Τελικό" className="py-2 px-3 text-right tabular-nums font-bold">{eur(l.lineTotal ?? Number(l.unitPrice) * l.qty)}</td>
+                <td data-label="Προσφορές" className="py-2 px-3">{ps.length ? ps.map((p, i) => <div key={i}><span className="font-mono">{p.code} v{p.version}</span> · {p.label}</div>) : <span className="text-eu-muted">—</span>}</td>
               </tr>
             ); })}
           </tbody>
@@ -70,7 +70,7 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
         <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3 min-w-0">
           <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><FileText className="size-4" aria-hidden /> Παραστατικό SoftOne · {o.erpSync?.status === "preview" ? "προεπισκόπηση (δεν στάλθηκε)" : o.erpSync?.status ?? "—"}</h3>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Το SALDOC με τις γραμμές ITELINES όπως θα σταλεί. Η αποστολή στο SoftOne είναι απενεργοποιημένη μέχρι ρητή εντολή.</p>
-          {o.erpSync?.payload ? <pre className="m-0 max-h-[480px] overflow-auto rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] leading-snug">{JSON.stringify(o.erpSync.payload, null, 2)}</pre> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν υπάρχει.</p>}
+          {o.erpSync?.payload ? <pre className="m-0 max-h-[480px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] leading-snug">{JSON.stringify(o.erpSync.payload, null, 2)}</pre> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν υπάρχει.</p>}
         </section>
       </div>
     </div>

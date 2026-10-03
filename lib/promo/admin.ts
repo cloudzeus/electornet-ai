@@ -350,15 +350,18 @@ export async function duplicatePromotion(id: string, staffId: string) {
 /** Ονόματα για τα ids των στόχων (για τον οδηγό και τη λίστα). */
 export async function targetNames(targets: { kind: string; refId: string }[]) {
   const ids = (k: string) => targets.filter((t) => t.kind === k).map((t) => t.refId);
+  const bc = targets.filter((t) => t.kind === "brandcat").map((t) => t.refId.split("|"));
+  const extraBrands = bc.map((x) => x[0]), extraCats = bc.map((x) => x[1]);
   const [p, b, c] = await Promise.all([
     ids("product").length ? db.product.findMany({ where: { OR: [{ id: { in: ids("product") } }, { variants: { some: { id: { in: ids("product") } } } }] }, select: { id: true, title: true, sku: true, variants: { select: { id: true }, take: 1 } } }) : [],
-    ids("brand").length ? db.brand.findMany({ where: { id: { in: ids("brand") } }, select: { id: true, name: true } }) : [],
-    ids("category").length ? db.category.findMany({ where: { id: { in: ids("category") } }, select: { id: true, name: true } }) : [],
+    ids("brand").length + extraBrands.length ? db.brand.findMany({ where: { id: { in: [...ids("brand"), ...extraBrands] } }, select: { id: true, name: true } }) : [],
+    ids("category").length + extraCats.length ? db.category.findMany({ where: { id: { in: [...ids("category"), ...extraCats] } }, select: { id: true, name: true } }) : [],
   ]);
   const out: Record<string, string> = {};
   for (const x of p) { out[x.id] = `${x.title} · ${x.sku}`; if (x.variants[0]) out[x.variants[0].id] = out[x.id]; }
   for (const x of b) out[x.id] = x.name;
   for (const x of c) out[x.id] = x.name;
+  for (const [bid, cid] of bc) out[`${bid}|${cid}`] = `${out[bid] ?? "μάρκα"} στα ${out[cid] ?? "κατηγορία"}`;
   return out;
 }
 

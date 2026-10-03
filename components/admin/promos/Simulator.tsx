@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Search, X, Play, Check, Minus, Gift, Truck, Lightbulb } from "lucide-react";
-import { searchTargetsAction, simulateAction, type SimInput, type SimResult } from "@/app/admin/(shell)/prosfores/actions";
+import { X, Play, Check, Minus, Gift, Truck, Lightbulb } from "lucide-react";
+import { ProductBrowser } from "./ProductBrowser";
+import { PAYMENT_OPTIONS } from "@/lib/promo/catalog";
+import { simulateAction, type SimInput, type SimResult } from "@/app/admin/(shell)/prosfores/actions";
 
 const input = "w-full rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white focus-visible:border-eu-blue outline-none";
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -10,28 +12,20 @@ const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractio
 /** Καλάθι δοκιμής → αποτέλεσμα της μηχανής με το ίχνος κάθε προσφοράς. */
 export function Simulator({ segments = [] }: { segments?: { id: string; label: string }[] }) {
   const [items, setItems] = useState<{ productId: string; title: string; qty: number }[]>([]);
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<{ id: string; label: string; sub?: string }[]>([]);
   const [opts, setOpts] = useState<Omit<SimInput, "items">>({ coupon: null, customer: "guest", zip: null, payment: "card", delivery: "courier", at: null, drafts: true, segments: [] });
   const [res, setRes] = useState<SimResult | null>(null);
   const [busy, start] = useTransition();
-  const search = (v: string) => { setQ(v); if (v.trim().length >= 2) void searchTargetsAction("product", v).then(setFound); else setFound([]); };
   const run = () => start(async () => setRes(await simulateAction({ ...opts, items: items.map((i) => ({ productId: i.productId, qty: i.qty })) })));
   const set = (p: Partial<typeof opts>) => setOpts((o) => ({ ...o, ...p }));
 
   return (
-    <div className="grid grid-cols-1 @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-4 items-start">
+    <div className="grid grid-cols-1 @6xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 items-start">
       <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-4">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Καλάθι δοκιμής</h3>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
-          <input aria-label="Πρόσθεσε προϊόν" value={q} onChange={(e) => search(e.target.value)} placeholder="Πρόσθεσε προϊόν: τίτλος, κωδικός, EAN" className={`${input} pl-9`} />
-          {found.length > 0 && (
-            <ul className="absolute z-10 left-0 right-0 mt-1 m-0 p-0 list-none max-h-72 overflow-y-auto rounded-xl border border-eu-line bg-white shadow-[var(--shadow-raised)] divide-y divide-eu-line">
-              {found.map((f) => <li key={f.id}><button type="button" onClick={() => { setItems((x) => (x.some((i) => i.productId === f.id) ? x.map((i) => (i.productId === f.id ? { ...i, qty: i.qty + 1 } : i)) : [...x, { productId: f.id, title: f.label, qty: 1 }])); setQ(""); setFound([]); }} className="w-full text-left px-3 py-2 min-h-11 hover:bg-eu-chip"><span className="block font-bold text-[length:var(--fs-14)]">{f.label}</span><span className="block text-eu-muted text-[length:var(--fs-13)]">{f.sub}</span></button></li>)}
-            </ul>
-          )}
-        </div>
+        <details open={!items.length} className="rounded-xl border border-eu-line p-3">
+          <summary className="cursor-pointer font-bold text-eu-blue text-[length:var(--fs-14)] min-h-8">Πρόσθεσε προϊόντα στο καλάθι δοκιμής</summary>
+          <div className="mt-3"><ProductBrowser mode="products" selected={new Set(items.map((i) => i.productId))} addLabel="Στο καλάθι" onProduct={(p) => setItems((x) => (x.some((i) => i.productId === p.id) ? x.filter((i) => i.productId !== p.id) : [...x, { productId: p.id, title: p.title, qty: 1 }]))} /></div>
+        </details>
         {items.length ? (
           <ul className="m-0 p-0 list-none grid gap-2">
             {items.map((i) => (
@@ -45,13 +39,13 @@ export function Simulator({ segments = [] }: { segments?: { id: string; label: s
             ))}
           </ul>
         ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Πρόσθεσε ένα ή περισσότερα προϊόντα.</p>}
-        <div className="grid grid-cols-1 @md:grid-cols-2 gap-3">
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Πελάτης</span><select className={input} value={opts.customer} onChange={(e) => set({ customer: e.target.value as SimInput["customer"] })}><option value="guest">Επισκέπτης (πρώτη αγορά)</option><option value="new">Μέλος, πρώτη αγορά</option><option value="registered">Μέλος με παραγγελίες</option></select></label>
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Ημερομηνία & ώρα</span><input type="datetime-local" className={input} value={opts.at ?? ""} onChange={(e) => set({ at: e.target.value || null })} /></label>
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Κουπόνι</span><input className={`${input} font-mono uppercase`} value={opts.coupon ?? ""} onChange={(e) => set({ coupon: e.target.value.toUpperCase() || null })} /></label>
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>ΤΚ</span><input inputMode="numeric" className={input} value={opts.zip ?? ""} onChange={(e) => set({ zip: e.target.value || null })} /></label>
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Παράδοση</span><select className={input} value={opts.delivery} onChange={(e) => set({ delivery: e.target.value as SimInput["delivery"] })}><option value="courier">Αποστολή</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option></select></label>
-          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Πληρωμή</span><select className={input} value={opts.payment ?? ""} onChange={(e) => set({ payment: e.target.value })}>{["card", "no-card", "iris", "bank", "cod", "store", "apple", "google"].map((p) => <option key={p} value={p}>{p}</option>)}</select></label>
+        <div className="grid grid-cols-1 @lg:grid-cols-2 gap-3">
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Πελάτης</span><select className={input} value={opts.customer} onChange={(e) => set({ customer: e.target.value as SimInput["customer"] })}><option value="guest">Επισκέπτης (πρώτη αγορά)</option><option value="new">Μέλος, πρώτη αγορά</option><option value="registered">Μέλος με παραγγελίες</option></select><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Επισκέπτης = χωρίς λογαριασμό. «Μέλος με παραγγελίες» δεν παίρνει προσφορές πρώτης αγοράς.</span></label>
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Ημερομηνία & ώρα</span><input type="datetime-local" className={input} value={opts.at ?? ""} onChange={(e) => set({ at: e.target.value || null })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Κενό = τώρα. Βάλε μελλοντική για να δεις μια καμπάνια πριν ξεκινήσει.</span></label>
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Κουπόνι</span><input className={`${input} font-mono uppercase`} value={opts.coupon ?? ""} onChange={(e) => set({ coupon: e.target.value.toUpperCase() || null })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Ο κωδικός που θα έγραφε ο πελάτης. Οι προσωπικοί κωδικοί δοκιμάζονται εδώ χωρίς έλεγχο κατόχου.</span></label>
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>ΤΚ</span><input inputMode="numeric" className={input} value={opts.zip ?? ""} onChange={(e) => set({ zip: e.target.value || null })} /><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Για προσφορές που ισχύουν μόνο σε περιοχές.</span></label>
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Παράδοση</span><select className={input} value={opts.delivery} onChange={(e) => set({ delivery: e.target.value as SimInput["delivery"] })}><option value="courier">Αποστολή</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option></select><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Επηρεάζει τα μεταφορικά και προσφορές «μόνο παραλαβή».</span></label>
+          <label className="grid gap-1 text-[length:var(--fs-14)] font-bold text-eu-ink-2"><span>Πληρωμή</span><select className={input} value={opts.payment ?? ""} onChange={(e) => set({ payment: e.target.value })}>{PAYMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select><span className="font-normal text-eu-muted text-[length:var(--fs-13)]">Για εκπτώσεις τρόπου πληρωμής (π.χ. −3 % με IRIS).</span></label>
         </div>
         {segments.length > 0 && opts.customer !== "guest" && (
           <div className="grid gap-1.5"><span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Ο πελάτης ανήκει στα κοινά</span>
@@ -66,13 +60,13 @@ export function Simulator({ segments = [] }: { segments?: { id: string; label: s
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Αποτέλεσμα</h3>
         {!res ? <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Το αποτέλεσμα και το ίχνος της μηχανής εμφανίζονται εδώ.</p> : (
           <>
-            <table className="w-full text-[length:var(--fs-14)]">
+            <table className="eu-rtable w-full text-[length:var(--fs-14)]">
               <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-1">Γραμμή</th><th className="py-1 text-right">Κατάλογος</th><th className="py-1 text-right">Προσφορά</th><th className="py-1 text-right">Κουπόνι</th><th className="py-1 text-right">Τελικό</th></tr></thead>
               <tbody>
                 {res.lines.map((l, i) => (
                   <tr key={i} className="border-t border-eu-line align-top">
                     <td className="py-2 pr-2"><div className="font-semibold">{l.qty} × {l.title}</div>{l.labels.map((x) => <div key={x} className="text-eu-red text-[length:var(--fs-13)]">{x}</div>)}{l.capped && <div className="text-eu-amber text-[length:var(--fs-13)] font-bold">κόπηκε: {l.capped === "cost" ? "κάτω από κόστος" : "μέγιστο %"}</div>}</td>
-                    <td className="py-2 text-right tabular-nums">{eur(l.listTotal)}</td><td className="py-2 text-right tabular-nums text-eu-green">{l.discPrice ? `−${eur(l.discPrice)}` : "—"}</td><td className="py-2 text-right tabular-nums text-eu-green">{l.discCoupon ? `−${eur(l.discCoupon)}` : "—"}</td><td className="py-2 text-right tabular-nums font-bold">{eur(l.total)}</td>
+                    <td data-label="Κατάλογος" className="py-2 text-right tabular-nums">{eur(l.listTotal)}</td><td data-label="Προσφορά" className="py-2 text-right tabular-nums text-eu-green">{l.discPrice ? `−${eur(l.discPrice)}` : "—"}</td><td data-label="Κουπόνι" className="py-2 text-right tabular-nums text-eu-green">{l.discCoupon ? `−${eur(l.discCoupon)}` : "—"}</td><td data-label="Τελικό" className="py-2 text-right tabular-nums font-bold">{eur(l.total)}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-eu-line font-extrabold"><td className="py-2">Σύνολο</td><td className="py-2 text-right tabular-nums">{eur(res.listTotal)}</td><td className="py-2 text-right tabular-nums text-eu-green">−{eur(res.discPrice)}</td><td className="py-2 text-right tabular-nums text-eu-green">−{eur(res.discCoupon)}</td><td className="py-2 text-right tabular-nums">{eur(res.total)}</td></tr>

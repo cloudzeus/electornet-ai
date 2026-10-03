@@ -649,3 +649,25 @@ button.rounded-full:active, a.rounded-full:active {
 .eu-scroll-inset::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
 .eu-scroll-inset::-webkit-scrollbar-thumb { background: var(--color-eu-line, #d6dbe6); border-radius: 999px; }
 .eu-scroll-inset::-webkit-scrollbar-thumb:hover { background: var(--color-eu-muted, #8a93a6); }
+
+/* ------------------------------------------------------------------
+   Πίνακες χωρίς οριζόντια κύλιση (admin): σε στενό χώρο κάθε γραμμή γίνεται
+   κάρτα και κάθε κελί «ετικέτα · τιμή» (από το data-label του <td>).
+   eu-rtable: κάτω από 56rem · eu-rtable-wide: κάτω από 72rem (πίνακες με πολλές στήλες).
+   ------------------------------------------------------------------ */
+@container (max-width: 56rem) {
+  .eu-rtable thead { display: none; }
+  .eu-rtable, .eu-rtable tbody, .eu-rtable tr { display: block; width: 100%; }
+  .eu-rtable tr { padding: 0.75rem 1rem; border-top: 1px solid var(--color-eu-line); }
+  .eu-rtable td { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; justify-content: space-between; align-items: baseline; padding: 0.2rem 0 !important; text-align: left !important; white-space: normal !important; min-width: 0 !important; }
+  .eu-rtable td[data-label]::before { content: attr(data-label); font-weight: 700; color: var(--color-eu-muted); font-size: var(--fs-13); }
+  .eu-rtable td:empty { display: none; }
+}
+@container (max-width: 72rem) {
+  .eu-rtable-wide thead { display: none; }
+  .eu-rtable-wide, .eu-rtable-wide tbody, .eu-rtable-wide tr { display: block; width: 100%; }
+  .eu-rtable-wide tr { padding: 0.75rem 1rem; border-top: 1px solid var(--color-eu-line); }
+  .eu-rtable-wide td { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; justify-content: space-between; align-items: baseline; padding: 0.2rem 0 !important; text-align: left !important; white-space: normal !important; min-width: 0 !important; }
+  .eu-rtable-wide td[data-label]::before { content: attr(data-label); font-weight: 700; color: var(--color-eu-muted); font-size: var(--fs-13); }
+  .eu-rtable-wide td:empty { display: none; }
+}

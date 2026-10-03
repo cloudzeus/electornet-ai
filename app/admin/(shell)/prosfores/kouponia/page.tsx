@@ -59,18 +59,18 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
           <button className="rounded-full bg-eu-navy text-white px-5 min-h-11 font-bold text-[length:var(--fs-14)] cursor-pointer hover:bg-eu-blue">Αναζήτηση</button>
           {(p || q) && <Link href="?" className="rounded-full border-2 border-eu-line px-4 min-h-11 inline-flex items-center font-bold text-[length:var(--fs-14)]">Όλοι</Link>}
         </form>
-        <div className="rounded-2xl border border-eu-line bg-white overflow-x-auto">
-          <table className="w-full text-[length:var(--fs-14)]">
+        <div className="rounded-2xl border border-eu-line bg-white overflow-hidden">
+          <table className="eu-rtable w-full text-[length:var(--fs-14)]">
             <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Κωδικός</th><th className="py-2 px-3">Προσφορά</th><th className="py-2 px-3">Είδος</th><th className="py-2 px-3">Για</th><th className="py-2 px-3 text-right">Χρήσεις</th><th className="py-2 px-3">Λήξη</th><th className="py-2 px-3"></th></tr></thead>
             <tbody>
               {rows.map((c) => { const expired = !!c.expiresAt && c.expiresAt < now; const spent = c.maxUses != null && c.usedCount >= c.maxUses; return (
                 <tr key={c.id} className={`border-t border-eu-line ${expired || spent ? "text-eu-muted" : ""}`}>
                   <td className="py-2 px-3 font-mono font-bold">{c.code}</td>
-                  <td className="py-2 px-3"><Link href={`/admin/prosfores/${c.promotionId}`} className="hover:underline">{c.promotion.name}</Link></td>
-                  <td className="py-2 px-3">{c.kind === "shared" ? "Κοινός" : "Μοναδικός"}{c.trigger ? ` · ${TRIGGER[c.trigger] ?? c.trigger}` : ""}</td>
-                  <td className="py-2 px-3">{c.email ?? (c.customerId ? "πελάτης" : "—")}</td>
-                  <td className="py-2 px-3 text-right tabular-nums">{c.usedCount}{c.maxUses != null ? ` / ${c.maxUses}` : ""}</td>
-                  <td className="py-2 px-3 whitespace-nowrap">{c.expiresAt ? c.expiresAt.toLocaleDateString("el-GR") : "—"}{expired && " · έληξε"}</td>
+                  <td data-label="Προσφορά" className="py-2 px-3"><Link href={`/admin/prosfores/${c.promotionId}`} className="hover:underline">{c.promotion.name}</Link></td>
+                  <td data-label="Είδος" className="py-2 px-3">{c.kind === "shared" ? "Κοινός" : "Μοναδικός"}{c.trigger ? ` · ${TRIGGER[c.trigger] ?? c.trigger}` : ""}</td>
+                  <td data-label="Για" className="py-2 px-3">{c.email ?? (c.customerId ? "πελάτης" : "—")}</td>
+                  <td data-label="Χρήσεις" className="py-2 px-3 text-right tabular-nums">{c.usedCount}{c.maxUses != null ? ` / ${c.maxUses}` : ""}</td>
+                  <td data-label="Λήξη" className="py-2 px-3 whitespace-nowrap">{c.expiresAt ? c.expiresAt.toLocaleDateString("el-GR") : "—"}{expired && " · έληξε"}</td>
                   <td className="py-2 px-3 text-right">{!expired && <ExpireCoupon id={c.id} code={c.code} />}</td>
                 </tr>
               ); })}
