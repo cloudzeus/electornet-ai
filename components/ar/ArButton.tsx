@@ -225,12 +225,12 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   const preview3d = <button type="button" onClick={openPreview} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 px-1 hover:underline"><Ruler className="size-4" aria-hidden /> Προβολή 3D με διαστάσεις</button>;
   // Quick Look: ανοίγει μόνο από <a rel="ar"> με ένα <img> ως πρώτο παιδί — η ετικέτα μπαίνει από πάνω
   const qlLink = (sf: Surface, cls: string, imgCls: string, content: ReactNode, aria: string) => (
-    <span className={`relative inline-flex overflow-hidden ${cls}`}>
-      <a rel="ar" href={qlHref(sf)} ref={qlRef} className="block" aria-label={aria}>
+    <span className={`relative inline-flex overflow-hidden focus-within:ring-2 focus-within:ring-eu-blue focus-within:ring-offset-2 ${cls}`}>
+      <a rel="ar" href={qlHref(sf)} ref={qlRef} className="block outline-none" aria-label={aria}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt={aria} width={240} height={48} className={`block opacity-0 ${imgCls}`} src={PIXEL} />
       </a>
-      <span className="pointer-events-none absolute inset-0 inline-flex items-center justify-center gap-2 px-2">{content}</span>
+      <span aria-hidden className="pointer-events-none absolute inset-0 inline-flex items-center justify-center gap-2 px-2">{content}</span>
     </span>
   );
   const direct = env === "quicklook" ? !!ios : env === "sceneviewer";
@@ -251,7 +251,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
           {preview3d}
           {alt && (env === "sceneviewer" ? (
             <a href={sceneViewer(alt)} onClick={watchLaunch} className="inline-flex items-center min-h-11 px-1 text-eu-blue font-bold text-[length:var(--fs-14)] underline">{altLabel}</a>
-          ) : qlLink(alt, "rounded-full text-eu-blue font-bold text-[length:var(--fs-14)] underline", "w-[14rem] h-11", altLabel, altLabel))}
+          ) : qlLink(alt, "rounded-full text-eu-blue font-bold text-[length:var(--fs-14)] underline whitespace-nowrap", "w-[min(19rem,82vw)] h-11", altLabel, altLabel))}
           {stuck && (
             <span role="status" className="basis-full rounded-xl bg-eu-surface p-3 text-eu-ink-2 text-[length:var(--fs-14)] leading-snug">
               Δεν άνοιξε το AR; Το κινητό χρειάζεται την εφαρμογή Google και τις «Υπηρεσίες Google Play για AR». <button type="button" onClick={openPreview} className="font-bold text-eu-blue underline min-h-11">Δες το σε 3D με διαστάσεις</button>

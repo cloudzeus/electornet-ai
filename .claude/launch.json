@@ -17,6 +17,21 @@
     {
       "name": "euronics-attach",
       "url": "http://localhost:3111"
+    },
+    {
+      "name": "euronics-dev-ar",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "AR_NO_STORE=1",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3111"
+      ],
+      "port": 3111,
+      "autoPort": false
     }
   ]
 }
