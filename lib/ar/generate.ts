@@ -4,8 +4,9 @@ import type { Prisma } from "@prisma/client";
 import { ingest } from "@/lib/media/repo";
 import { inspectGlb, autoRotationY, } from "./custom";
 import { dimsFor } from "@/lib/data/dims";
-import { products } from "@/lib/data/fixtures/products";
-import { readAsset } from "./serve";
+import { getProductsByIds } from "@/lib/data/repo";
+import { readAsset, forgetArLookup } from "./serve";
+import { invalidateArIndex } from "./index";
 import { tripoUpload, tripoImageToModel, tripoMultiviewToModel, tripoConvert, tripoTask, tripoDownload, tripoBalance, tripoConfig, TripoError } from "@/lib/tripo/client";
 import { markupFor, billed } from "@/lib/ai/pricing";
 import { usdEurRate } from "@/lib/fx";
@@ -96,9 +97,10 @@ export async function advanceGeneration(genId: string) {
       const creditsFull = g.creditsBefore != null && afterFull != null ? Math.max(0, g.creditsBefore - afterFull) : null;
       await logTripo(g.views ? "multiview_to_model" : "image_to_model", creditsFull, Date.now() - g.createdAt.getTime(), true);
       // Δένεται αμέσως με το προϊόν ώστε να παίζει το AR· η ελαφριά έκδοση ακολουθεί. Περιστροφή αυτόματα από τις διαστάσεις.
-      const prod = products.find((x) => x.id === g.productId);
+      const [prod] = await getProductsByIds([g.productId]);
       const rotationY = autoRotationY(full.box, prod ? dimsFor(prod) : null);
       await db.productAr.upsert({ where: { productId: g.productId }, update: { glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, fitMode: "box", glbLightUrl: null, glbLightAssetId: null, updatedById: g.createdById }, create: { productId: g.productId, glbUrl: full.asset.url, glbAssetId: full.asset.id, modelBox: full.box as unknown as Prisma.InputJsonValue, rotationY, source: "tripo", enabled: true, fitToDims: true, fitMode: "box", updatedById: g.createdById } });
+      invalidateArIndex(); forgetArLookup(g.productId);
       const lightTask = await tripoConvert(g.tripoTaskId, { format: "GLTF", ...LIGHT });
       return db.arGeneration.update({ where: { id: genId }, data: { fullUrl: full.asset.url, fullBytes: full.bytes, renderUrl: t.output?.rendered_image ?? g.renderUrl, lightTaskId: lightTask, status: "converting", step: "Ελαφριά έκδοση για αργές συνδέσεις", progress: 96, creditsFull, creditsBefore: afterFull } });
     }

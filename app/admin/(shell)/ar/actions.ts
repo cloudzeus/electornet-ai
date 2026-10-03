@@ -6,11 +6,14 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { inspectGlb, autoRotationY } from "@/lib/ar/custom";
 import { dimsFor } from "@/lib/data/dims";
-import { products } from "@/lib/data/fixtures/products";
+import { getProductsByIds } from "@/lib/data/repo";
+import { invalidateArIndex } from "@/lib/ar/index";
+import { forgetArLookup } from "@/lib/ar/serve";
 import { readAsset } from "@/lib/ar/serve";
 import { startGeneration, advanceGeneration } from "@/lib/ar/generate";
 
-const paths = (productId: string) => { revalidatePath("/admin/ar"); revalidatePath(`/proion`); void productId; };
+/** Μετά από κάθε αλλαγή: νέα απόφαση στη σελίδα, στον server των μοντέλων και στα φίλτρα της διαχείρισης */
+const paths = (productId: string) => { invalidateArIndex(); forgetArLookup(productId); revalidatePath("/admin/ar"); revalidatePath(`/proion`); };
 
 /** Ενεργοποίηση / απενεργοποίηση του AR για ένα προϊόν. */
 export async function setArEnabled(productId: string, enabled: boolean) {
@@ -40,7 +43,7 @@ export async function attachArModel(productId: string, kind: "glb" | "usdz", ass
     if (!bytes) return { ok: false as const, error: "Το αρχείο δεν διαβάστηκε από τον αποθηκευτικό χώρο." };
     const info = inspectGlb(bytes);
     if (!info.ok) return { ok: false as const, error: info.error };
-    const prod = products.find((x) => x.id === productId);
+    const [prod] = await getProductsByIds([productId]);
     const rotationY = autoRotationY(info.box, prod ? dimsFor(prod) : null);
     // Μοντέλο κατασκευαστή: ακριβείς αναλογίες, κλίμακα μόνο από το ύψος
     await db.productAr.upsert({ where: { productId }, update: { glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", fitMode: "height", enabled: true, updatedById: user.id }, create: { productId, glbUrl: asset.url, glbAssetId: asset.id, modelBox: info.box as unknown as Prisma.InputJsonValue, rotationY, source: "upload", fitMode: "height", enabled: true, updatedById: user.id } });

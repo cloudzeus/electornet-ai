@@ -54,6 +54,11 @@ export function primeArLookup(id: string, v: Lookup) {
   looked.set(id, { at: Date.now(), v });
 }
 
+/** Μετά από αλλαγή στη διαχείριση: η επόμενη αίτηση ξαναδιαβάζει τη βάση. */
+export function forgetArLookup(id: string) {
+  looked.delete(id);
+}
+
 export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz") {
   // Προεπιλογή η ελαφριά έκδοση όταν υπάρχει (η πλήρης του Tripo φτάνει 15 MB / 450 χιλ. τρίγωνα)· ?q=full για την πλήρη
   const wantFull = new URL(req.url).searchParams.get("q") === "full";

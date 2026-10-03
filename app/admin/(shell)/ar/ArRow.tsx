@@ -8,6 +8,10 @@ import type { MediaAssetDTO } from "@/lib/media/types";
 export interface ArRowData {
   id: string; slug: string; brand: string; title: string; image: string | null; cutout: string | null;
   dims: { w: number; h: number; d: number; source: "eprel" | "specs" | "category" } | null;
+  /** η απόφαση που βλέπει ο πελάτης (arPlan) */
+  plan: { on: boolean; reason: string | null; fix: string | null; surface: "floor" | "furniture" | "counter" | "wall"; tv: boolean; dims: { w: number; h: number; d: number } | null };
+  /** υπάρχει ρητή ρύθμιση από τη διαχείριση */
+  explicit: boolean;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
   glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "furniture" | "counter" | "wall"; autoHint: string; frontImage: string | null;
 }
@@ -35,7 +39,7 @@ function Generate({ productId, images, gen: g0, onModel }: { productId: string; 
   const start = async () => { if (!img) return; setBusy(true); try { setGen(await generateArModel(productId, img, views)); } finally { setBusy(false); } };
   const name = (u: string) => `${u.includes("/cutouts/") ? "Cutout · " : ""}${u.split("/").pop()}`;
   return (
-    <div className="grid gap-1.5 min-w-[220px] text-[length:var(--fs-13)]">
+    <div className="grid gap-1.5 min-w-0 text-[length:var(--fs-13)]">
       {gen && (
         <div className={`rounded-lg px-2.5 py-1.5 ${gen.status === "failed" ? "bg-eu-red/10 text-eu-red" : gen.status === "done" ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-ink-3"}`}>
           {active && <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden /> {gen.step ?? "Σε εξέλιξη"} · {gen.progress}%</span>}
@@ -104,32 +108,39 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
   const mismatch = r.modelBox && r.dims ? Math.round((Math.abs(r.modelBox.h - r.dims.h) / r.dims.h) * 100) : null;
   const canGenerate = !!r.dims && !!r.image;
   return (
-    <tr className="border-t border-eu-line align-top">
-      <td className="py-2 px-3">
-        <label className="inline-flex items-center gap-2 min-h-9">
-          <input type="checkbox" checked={r.enabled} disabled={pending || (!canGenerate && !r.glbUrl)} onChange={(e) => { const v = e.target.checked; setR({ ...r, enabled: v }); start(async () => { await setArEnabled(r.id, v); }); }} className="size-4 accent-eu-navy" />
-          <span className="sr-only">AR ενεργό</span>
-        </label>
-      </td>
-      <td className="py-2 px-3">
-        <div className="flex items-center gap-2">
-          {r.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={r.cutout ?? r.image} alt="" className="size-10 object-contain rounded bg-eu-surface" />
-          )}
-          <div><div className="font-bold text-eu-ink">{r.brand} {r.title}</div><div className="text-eu-muted text-[length:var(--fs-13)]">{r.id}</div></div>
+    <article className="rounded-2xl border border-eu-line bg-white p-3 @md:p-4 grid gap-3 min-w-0">
+      <header className="flex flex-wrap items-start gap-3">
+        {r.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={r.cutout ?? r.image} alt="" className="size-14 shrink-0 object-contain rounded-lg bg-eu-surface" />
+        )}
+        <div className="min-w-0 flex-1 basis-60">
+          <div className="font-bold text-eu-ink break-words">{r.brand} {r.title}</div>
+          <div className="text-eu-muted text-[length:var(--fs-13)] break-all">{r.slug}</div>
+          <p className={`m-0 mt-1 text-[length:var(--fs-13)] font-semibold ${r.plan.on ? "text-eu-green" : "text-eu-amber"}`}>
+            {r.plan.on ? `Ο πελάτης βλέπει AR · ${SURF[r.plan.surface]}${r.plan.tv ? " · μοντέλο τηλεόρασης" : ""}${r.plan.dims ? ` · ${r.plan.dims.w} × ${r.plan.dims.h} × ${r.plan.dims.d} εκ.` : ""}` : `Χωρίς AR: ${r.plan.reason ?? ""}`}
+          </p>
+          {r.plan.fix && <p className="m-0 text-[length:var(--fs-13)] text-eu-ink-3">Διορθώθηκε αυτόματα: {r.plan.fix}</p>}
         </div>
-      </td>
-      <td className="py-2 px-3 whitespace-nowrap">
-        <label className="mb-1.5 flex items-center gap-1.5 text-[length:var(--fs-13)] text-eu-ink-3">Τοποθέτηση
-          <select value={r.placement ?? ""} disabled={pending} title={r.autoHint} onChange={(e) => { const v = (e.target.value || null) as "floor" | "furniture" | "counter" | "wall" | null; setR({ ...r, placement: v }); start(async () => { await setArPlacement(r.id, v); }); }} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-2 min-h-11 rounded-full border border-eu-line px-3 font-bold text-[length:var(--fs-13)]">
+            <input type="checkbox" checked={r.enabled} disabled={pending || (!canGenerate && !r.glbUrl)} onChange={(e) => { const v = e.target.checked; setR({ ...r, enabled: v, explicit: true }); start(async () => { await setArEnabled(r.id, v); }); }} className="size-5 accent-eu-navy" />
+            {r.enabled ? "AR ανοιχτό" : "AR κλειστό"}{r.explicit ? "" : " (αυτόματα)"}
+          </label>
+          {r.enabled && <a href={`/proion/${r.slug}?ar=1`} target="_blank" rel="noreferrer" className={`${small} min-h-11 no-underline`}><ExternalLink className="size-3.5" aria-hidden /> Προεπισκόπηση</a>}
+        </div>
+      </header>
+      <div className="grid gap-3 @3xl:grid-cols-[repeat(4,minmax(0,1fr))] border-t border-eu-line pt-3">
+      <section className="min-w-0 grid content-start gap-1" aria-label="Τοποθέτηση και διαστάσεις">
+        <label className="mb-1.5 grid gap-1 text-[length:var(--fs-13)] text-eu-ink-3">Τοποθέτηση
+          <select value={r.placement ?? ""} disabled={pending} title={r.autoHint} onChange={(e) => { const v = (e.target.value || null) as "floor" | "furniture" | "counter" | "wall" | null; setR({ ...r, placement: v }); start(async () => { await setArPlacement(r.id, v); }); }} className="rounded-lg border border-eu-line px-2 min-h-11 bg-white w-full">
             <option value="">Αυτόματα ({SURF[r.autoPlacement]})</option><option value="floor">Πάτωμα</option><option value="furniture">Έπιπλο (TV, γραφείο)</option><option value="counter">Πάγκος κουζίνας</option><option value="wall">Τοίχος</option>
           </select>
         </label>
-        {r.dims ? <><span className="tabular-nums">{r.dims.w} × {r.dims.h} × {r.dims.d} εκ.</span><div className={`text-[length:var(--fs-13)] ${r.dims.source === "category" ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{SOURCE[r.dims.source]}</div></> : <span className="text-eu-red font-bold">Χωρίς διαστάσεις</span>}
-      </td>
-      <td className="py-2 px-3 text-[length:var(--fs-13)]">
-        <div className="grid gap-1.5 min-w-[200px]">
+        {r.dims ? <><span className="tabular-nums">Δηλωμένες: {r.dims.w} × {r.dims.h} × {r.dims.d} εκ.</span><div className={`text-[length:var(--fs-13)] ${r.dims.source === "category" ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{SOURCE[r.dims.source]}</div></> : <span className="text-eu-red font-bold">Χωρίς διαστάσεις</span>}
+      </section>
+      <section className="min-w-0 text-[length:var(--fs-13)]" aria-label="Φωτογραφία">
+        <div className="grid gap-1.5">
           <div>{r.cutout ? <span className="text-eu-green font-bold">Cutout</span> : r.image ? <span className="text-eu-ink-3">Φωτογραφία, χωρίς cutout</span> : <span className="text-eu-red font-bold">Καμία</span>}</div>
           {/* Η όψη που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο */}
           {!r.glbUrl && (
@@ -153,9 +164,9 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           )}
           {picker && <MediaPickerDialog accept={["image"]} multiple={false} canWrite onSelect={(a) => { if (a[0]) setFront(a[0].url); setPicker(false); }} onClose={() => setPicker(false)} />}
         </div>
-      </td>
-      <td className="py-2 px-3">
-        <div className="grid gap-1.5 min-w-[260px]">
+      </section>
+      <section className="min-w-0" aria-label="Μοντέλο">
+        <div className="grid gap-1.5">
           {r.glbUrl ? (
             <>
               <div className="inline-flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
@@ -185,13 +196,11 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           )}
           {msg && <div className="text-[length:var(--fs-13)] text-eu-ink-3">{msg}</div>}
         </div>
-      </td>
-      <td className="py-2 px-3">
+      </section>
+      <section className="min-w-0" aria-label="3D από φωτογραφία">
         <Generate productId={r.id} images={r.images} gen={r.gen} onModel={() => setR((x) => ({ ...x, enabled: true, glbUrl: x.glbUrl ?? "✓", source: "tripo" }))} />
-      </td>
-      <td className="py-2 px-3 text-right whitespace-nowrap">
-        {r.enabled && <a href={`/proion/${r.slug}?ar=1`} target="_blank" rel="noreferrer" className={`${small} no-underline`}><ExternalLink className="size-3.5" aria-hidden /> Προεπισκόπηση</a>}
-      </td>
-    </tr>
+      </section>
+      </div>
+    </article>
   );
 }

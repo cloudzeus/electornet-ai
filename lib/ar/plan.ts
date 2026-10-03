@@ -19,6 +19,8 @@ export interface ArPlan {
   on: boolean;
   /** γιατί δεν υπάρχει AR (για τη διαχείριση) */
   reason?: string;
+  /** ο λόγος ως κωδικός, για φίλτρα */
+  code?: ArOffCode;
   /** οι διαστάσεις του μοντέλου (εκ.) — για τηλεόραση: πλάτος, συνολικό ύψος και βάθος ΜΕ τη βάση */
   dims: Dims | null;
   surface: Surface;
@@ -31,6 +33,7 @@ export interface ArPlan {
   fix?: string;
   custom: boolean;
 }
+export type ArOffCode = "admin-off" | "none" | "no-tv" | "no-dims" | "category" | "bounds" | "no-image";
 type ArRow = { enabled: boolean; glbUrl: string | null; placement: string | null } | null;
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -105,20 +108,20 @@ export function arPlan(p: Product, ar: ArRow): ArPlan {
   const surface = surfaceFor(p, ar?.placement);
   const alt = prof.alt && prof.alt !== surface ? prof.alt : surface !== prof.surface && !prof.none ? prof.surface : undefined;
   const base = { surface, alt, hint: prof.hint, custom };
-  const off = (reason: string): ArPlan => ({ ...base, on: false, reason, dims: null });
-  if (ar && !ar.enabled) return off("Κλειστό από τη διαχείριση.");
-  if (!ar && prof.none) return off("Μικρή ή προσωπική συσκευή/αξεσουάρ: χωρίς αυτόματο AR (ανοίγει ρητά από εδώ).");
+  const off = (code: ArOffCode, reason: string): ArPlan => ({ ...base, on: false, code, reason, dims: null });
+  if (ar && !ar.enabled) return off("admin-off", "Κλειστό από τη διαχείριση.");
+  if (!ar && prof.none) return off("none", "Μικρή ή προσωπική συσκευή/αξεσουάρ: χωρίς αυτόματο AR (ανοίγει ρητά από εδώ).");
   const raw = dimsFor(p);
   if (prof.archetype === "tv" && !custom) {
     const t = tvFrom(p.title, raw && raw.source !== "category" ? raw : null);
     if (t) return { ...base, on: true, dims: t.dims, archetype: "tv", tv: t.tv, fix: t.fix };
-    if (!ar) return off("Δεν βρέθηκαν ούτε διαστάσεις ούτε διαγώνιος τηλεόρασης στον τίτλο.");
+    if (!ar) return off("no-tv", "Δεν βρέθηκαν ούτε διαστάσεις ούτε διαγώνιος τηλεόρασης στον τίτλο.");
   }
-  if (!raw) return off("Χωρίς διαστάσεις.");
-  if (raw.source === "category" && !ar) return off("Μόνο τυπικές διαστάσεις της κατηγορίας — όχι του προϊόντος.");
+  if (!raw) return off("no-dims", "Χωρίς διαστάσεις.");
+  if (raw.source === "category" && !ar) return off("category", "Μόνο τυπικές διαστάσεις της κατηγορίας — όχι του προϊόντος.");
   const s = sane(raw, prof.bounds);
-  if (!s) return off(`Διαστάσεις εκτός λογικών ορίων (${raw.w} × ${raw.h} × ${raw.d} εκ.) — διόρθωσέ τες στις Διαστάσεις του καταλόγου.`);
-  if (!custom && !p.image) return off("Χωρίς φωτογραφία για την πρόσοψη.");
+  if (!s) return off("bounds", `Διαστάσεις εκτός λογικών ορίων (${raw.w} × ${raw.h} × ${raw.d} εκ.) — διόρθωσέ τες στις Διαστάσεις του καταλόγου.`);
+  if (!custom && !p.image) return off("no-image", "Χωρίς φωτογραφία για την πρόσοψη.");
   return { ...base, on: true, dims: s.dims, fix: s.fix };
 }
 
