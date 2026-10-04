@@ -3,7 +3,7 @@
  * what <StickerSvg> renders — the same renderer runs in the admin designer,
  * the storefront product card and the export (SVG/PNG to the media library).
  */
-export type StickerShape = "circle" | "burst" | "seal" | "badge" | "pill" | "ribbon" | "tag" | "hex";
+export type StickerShape = "circle" | "burst" | "seal" | "badge" | "pill" | "ribbon" | "tag" | "hex" | "art";
 export type StickerIcon = "none" | "gift" | "percent" | "star" | "zap" | "trophy" | "tag" | "heart" | "truck";
 export type StickerPosition = "tl" | "tr" | "bl" | "br" | "center";
 export type StickerAnimation = "none" | "shimmer" | "breathe" | "wiggle" | "bump";
@@ -34,6 +34,8 @@ export interface StickerParams {
   icon: StickerIcon;
   position: StickerPosition;
   animation: StickerAnimation;
+  /** shape «art»: vector σχήμα της βιβλιοθήκης ή SVG που ανέβηκε (καθαρισμένο) — το κείμενο μπαίνει στην περιοχή `art.text` */
+  art?: import("./art").StickerArt | null;
 }
 
 export const BRAND_COLORS: { label: string; value: string }[] = [
@@ -78,3 +80,14 @@ export const STICKER_PRESETS: { key: string; name: string; params: StickerParams
 ];
 
 export const stickerKeyFromName = (name: string) => name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+/** Sticker από έτοιμο συνδυασμό της βιβλιοθήκης σχημάτων. */
+export function paramsFromArt(preset: import("./art").ArtPreset): StickerParams {
+  const wide = preset.art.w / preset.art.h > 1.6;
+  const tall = preset.art.h > preset.art.w * 1.08;
+  return {
+    ...DEFAULT_STICKER, shape: "art", art: preset.art, size: wide ? 150 : tall ? Math.round((110 * preset.art.w) / preset.art.h) : 104, rotate: wide ? 0 : -6, position: wide ? "tl" : "br",
+    fill: preset.palette.fill, fill2: preset.palette.fill2, border: preset.palette.accent, borderWidth: 0, color: preset.palette.color, shadow: true,
+    lines: preset.lines.filter((t): t is string => !!t).map((t, i) => line(t, { weight: i === 0 ? 900 : 700 })), icon: "none", animation: "none",
+  };
+}

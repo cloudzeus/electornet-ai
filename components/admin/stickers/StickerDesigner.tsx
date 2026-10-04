@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Check, Download, Images, Plus, Trash2, Copy } from "lucide-react";
 import { BRAND_COLORS, STICKER_PRESETS, stickerKeyFromName, type StickerParams, type StickerShape, type StickerIcon, type StickerLine } from "@/lib/stickers/model";
 import { StickerSvg, stickerAnimationClass, stickerPositionClass } from "@/components/stickers/StickerSvg";
-import { saveSticker, exportStickerToMedia } from "@/app/admin/(shell)/stickers/actions";
+import { saveSticker, exportStickerToMedia, sanitizeStickerSvg } from "@/app/admin/(shell)/stickers/actions";
+import { ART, fitWidth } from "@/lib/stickers/art";
 
 /**
  * Sticker designer: live preview on a real product card + controls driven by
@@ -121,7 +122,29 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           <div className="flex flex-wrap gap-1.5">{STICKER_PRESETS.map((t) => <button key={t.key} type="button" onClick={() => setP(t.params)} className={chip(false)}>{t.name}</button>)}</div>
         </Section>
         <Section title="Σχήμα">
-          <div className="flex flex-wrap gap-1.5">{SHAPES.map((s) => <button key={s.v} type="button" onClick={() => set("shape", s.v)} className={chip(p.shape === s.v)}>{s.l}</button>)}</div>
+          <div className="flex flex-wrap gap-1.5">{SHAPES.map((s) => <button key={s.v} type="button" onClick={() => set("shape", s.v)} className={chip(p.shape === s.v)}>{s.l}</button>)}{p.art && <button type="button" onClick={() => set("shape", "art")} className={chip(p.shape === "art")}>{p.art.id === "upload" ? "Το SVG σου" : p.art.name}</button>}</div>
+          <details className="rounded-xl border border-eu-line" open={p.shape === "art"}>
+            <summary className="cursor-pointer px-3 min-h-11 flex items-center font-bold text-eu-ink text-[length:var(--fs-14)]">Βιβλιοθήκη σχημάτων ({ART.length}) · ανέβασμα SVG</summary>
+            <div className="grid gap-2 p-2 pt-0">
+              <ul className="m-0 p-0 list-none grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))]">
+                {ART.map((a) => (
+                  <li key={a.id}><button type="button" title={a.name} aria-label={a.name} onClick={() => setP((s) => ({ ...s, shape: "art", art: a }))} className={`w-full h-16 grid place-items-center rounded-lg border-2 bg-white ${p.shape === "art" && p.art?.id === a.id ? "border-eu-navy" : "border-eu-line hover:border-eu-blue"}`}>
+                    <StickerSvg p={{ ...p, shape: "art", art: a, size: fitWidth(a, 46), rotate: 0, lines: [], icon: "none", shadow: false }} id={`lib-${a.id}`} />
+                  </button></li>
+                ))}
+              </ul>
+              <label className="inline-flex items-center gap-2 rounded-full border-2 border-dashed border-eu-line px-3 min-h-11 font-bold text-eu-ink text-[length:var(--fs-13)] cursor-pointer hover:border-eu-navy w-fit">
+                Ανέβασμα δικού σου SVG
+                <input type="file" accept=".svg,image/svg+xml" className="sr-only" onChange={async (e) => {
+                  const file = e.target.files?.[0]; e.target.value = ""; if (!file) return;
+                  if (!/\.svg$/i.test(file.name)) return setMsg("Δεκτά μόνο αρχεία SVG.");
+                  const r = await sanitizeStickerSvg(file.name.replace(/\.svg$/i, ""), await file.text());
+                  if (r.ok) setP((s) => ({ ...s, shape: "art", art: r.art })); else setMsg(r.error);
+                }} />
+              </label>
+              {p.shape === "art" && p.art && !p.art.recolor && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Το SVG κρατά τα δικά του χρώματα· από τα «Χρώματα» αλλάζει μόνο το κείμενο.</p>}
+            </div>
+          </details>
           {(p.shape === "burst" || p.shape === "seal") && (
             <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>{p.shape === "burst" ? "Ακτίνες" : "Δόντια"}</span><span className="tabular-nums text-eu-muted">{p.points}</span></span><input type="range" min={8} max={28} value={p.points} onChange={(e) => set("points", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>
           )}

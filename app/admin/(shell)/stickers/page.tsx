@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { listStickers } from "./actions";
-import { STICKER_PRESETS } from "@/lib/stickers/model";
+import { STICKER_PRESETS, paramsFromArt } from "@/lib/stickers/model";
+import { ART_PRESETS, fitWidth } from "@/lib/stickers/art";
+import { StickerSvgUpload } from "@/components/admin/stickers/StickerSvgUpload";
 import { StickerSvg } from "@/components/stickers/StickerSvg";
 import { StickerListActions } from "@/components/admin/stickers/StickerListActions";
 
@@ -21,7 +23,7 @@ export default async function StickersPage() {
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Stickers προϊόντων</h2>
           <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Σχεδίασε SVG stickers (1+1, δώρο, έκπτωση, διαγωνισμός…) που μπαίνουν πάνω στις κάρτες προϊόντων από τους κανόνες προσφορών και τις καμπάνιες. Εξάγονται και ως SVG/PNG στη βιβλιοθήκη media.</p>
         </div>
-        <Link href="/admin/stickers/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέο sticker</Link>
+        <div className="flex flex-wrap items-start gap-2"><StickerSvgUpload /><Link href="/admin/stickers/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέο sticker</Link></div>
       </div>
       <section className="grid gap-3">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Αποθηκευμένα ({stickers.length})</h3>
@@ -43,6 +45,22 @@ export default async function StickersPage() {
             ))}
           </ul>
         )}
+      </section>
+      <section className="grid gap-3">
+        <div>
+          <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Βιβλιοθήκη σχημάτων ({ART_PRESETS.length})</h3>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Vector σχήματα σε διάφορες αποχρώσεις — διάλεξε ένα, άλλαξε κείμενο και χρώματα στον σχεδιαστή. Κόκκινο μόνο για εκπτώσεις.</p>
+        </div>
+        <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,9.5rem),1fr))]">
+          {ART_PRESETS.map((t, i) => (
+            <li key={i}>
+              <Link href={`/admin/stickers/new?art=${i}`} className="grid gap-2 rounded-2xl bg-white border border-eu-line p-3 h-full hover:border-eu-blue hover:shadow-[var(--shadow-raised)] transition-all">
+                <span className="grid place-items-center h-28"><StickerSvg p={{ ...paramsFromArt(t), size: fitWidth(t.art, 98), rotate: 0 }} id={`a-${i}`} /></span>
+                <span className="text-center font-bold text-eu-ink text-[length:var(--fs-13)] leading-tight">{t.art.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
       <section className="grid gap-3">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Πρότυπα brand</h3>

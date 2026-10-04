@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { StickerParams, StickerIcon, StickerShape } from "@/lib/stickers/model";
+import { sanitizeSvgBody } from "@/lib/stickers/sanitize";
 
 /**
  * @dynamic Renders a designed sticker (StickerParams) as inline SVG. Used by
@@ -7,8 +8,8 @@ import type { StickerParams, StickerIcon, StickerShape } from "@/lib/stickers/mo
  * no client hooks — so it works in server components and static markup.
  */
 const VB = 200;
-const WIDE: Record<StickerShape, boolean> = { circle: false, burst: false, seal: false, hex: false, badge: false, pill: true, ribbon: true, tag: true };
-const HEIGHT: Record<StickerShape, number> = { circle: 200, burst: 200, seal: 200, hex: 200, badge: 200, pill: 72, ribbon: 76, tag: 84 };
+const WIDE: Record<StickerShape, boolean> = { circle: false, burst: false, seal: false, hex: false, badge: false, pill: true, ribbon: true, tag: true, art: false };
+const HEIGHT: Record<StickerShape, number> = { circle: 200, burst: 200, seal: 200, hex: 200, badge: 200, pill: 72, ribbon: 76, tag: 84, art: 200 };
 
 const ICONS: Record<Exclude<StickerIcon, "none">, string> = {
   percent: '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
@@ -60,7 +61,57 @@ export function stickerAspect(shape: StickerShape) {
   return HEIGHT[shape] / VB;
 }
 
+/** Σκούρα εκδοχή χρώματος — το «δεύτερο χρώμα» ενός σχήματος όταν δεν έχει οριστεί διαβάθμιση. */
+function shade(hex: string, k = 0.78) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return hex;
+  const n = parseInt(m[1], 16), c = (v: number) => Math.round(v * k).toString(16).padStart(2, "0");
+  return `#${c(n >> 16)}${c((n >> 8) & 255)}${c(n & 255)}`;
+}
+
+/** Artwork (βιβλιοθήκη ή SVG που ανέβηκε): το σχήμα με τα χρώματα του sticker και το κείμενο στη δική του περιοχή. */
+function ArtSticker({ p, className, style, id }: { p: StickerParams; className?: string; style?: CSSProperties; id: string }) {
+  const art = p.art!;
+  const lines = p.lines.filter((l) => l.text.trim());
+  const hasIcon = p.icon !== "none";
+  const wide = art.w / art.h > 1.6;
+  const iconSize = hasIcon ? Math.min(art.text.h * (wide ? 0.62 : 0.32), 40) : 0;
+  const box = wide ? { ...art.text, x: art.text.x + iconSize + (hasIcon ? 6 : 0), w: art.text.w - iconSize - (hasIcon ? 6 : 0) } : { ...art.text, y: art.text.y + iconSize, h: art.text.h - iconSize };
+  const n = Math.max(1, lines.length);
+  const sizes = lines.map((l) => {
+    if (l.size > 0) return l.size;
+    const chars = Math.max(1, l.text.length + (l.spacing ? l.text.length * l.spacing * 0.08 : 0));
+    return Math.round(Math.min(box.w / (chars * 0.58), (box.h / n) * (n === 1 ? 0.72 : 0.8), wide ? 44 : 84));
+  });
+  const totalH = sizes.reduce((a, b) => a + b * 1.05, 0);
+  const baselines = sizes.reduce<number[]>((acc, fs, i) => [...acc, (i ? acc[i - 1] : box.y + (box.h - totalH) / 2) + fs * 1.05], []);
+  const fillId = `${id}-g`, shadowId = `${id}-sh`;
+  // ids του σχήματος με πρόθεμα (πολλά stickers στην ίδια σελίδα), μετά τα χρώματα
+  const body = sanitizeSvgBody(art.body)
+    .replace(/\bid="([^"]+)"/g, `id="${id}-$1"`).replace(/url\(#([^)'"]+)\)/g, `url(#${id}-$1)`).replace(/href="#([^"]+)"/g, `href="#${id}-$1"`)
+    .replace(/\{F\}/g, art.recolor ? (p.fill2 ? `url(#${fillId})` : p.fill) : "currentColor")
+    .replace(/\{F2\}/g, p.fill2 ?? shade(p.fill)).replace(/\{A\}/g, p.border ?? "#FFFFFF").replace(/\{W\}/g, "#FFFFFF");
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${art.w} ${art.h}`} width={p.size} height={Math.round(p.size * (art.h / art.w))} className={className} style={{ overflow: "visible", transform: p.rotate ? `rotate(${p.rotate}deg)` : undefined, ...style }} role="img" aria-label={lines.map((l) => l.text).join(" ") || art.name}>
+      <defs>
+        {p.fill2 && art.recolor && <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.fill} /><stop offset="1" stopColor={p.fill2} /></linearGradient>}
+        {p.shadow && <filter id={shadowId} x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#122A58" floodOpacity="0.28" /></filter>}
+      </defs>
+      {art.recolor
+        ? <g filter={p.shadow ? `url(#${shadowId})` : undefined} dangerouslySetInnerHTML={{ __html: body }} />
+        : /* SVG που ανέβηκε: ως απομονωμένη εικόνα — δικά του <style> / scripts δεν αγγίζουν τη σελίδα */
+          <image href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${art.w} ${art.h}">${sanitizeSvgBody(art.body)}</svg>`)}`} x={0} y={0} width={art.w} height={art.h} filter={p.shadow ? `url(#${shadowId})` : undefined} />}
+      {hasIcon && <svg x={wide ? art.text.x : art.text.x + art.text.w / 2 - iconSize / 2} y={wide ? art.text.y + (art.text.h - iconSize) / 2 : art.text.y} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[p.icon as Exclude<StickerIcon, "none">] }} />}
+      {lines.map((l, i) => (
+        <text key={i} x={box.x + box.w / 2} y={baselines[i] - sizes[i] * 0.22} textAnchor="middle" fontFamily="Manrope, 'Segoe UI', system-ui, sans-serif" fontWeight={l.weight} fontSize={sizes[i]} letterSpacing={l.spacing} fill={p.color}>
+          {l.upper ? l.text.toUpperCase() : l.text}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 export function StickerSvg({ p, className, style, id = "s" }: { p: StickerParams; className?: string; style?: CSSProperties; id?: string }) {
+  if (p.shape === "art" && p.art) return <ArtSticker p={p} className={className} style={style} id={id} />;
   const H = HEIGHT[p.shape];
   const lines = p.lines.filter((l) => l.text.trim());
   const hasIcon = p.icon !== "none";
@@ -82,7 +133,7 @@ export function StickerSvg({ p, className, style, id = "s" }: { p: StickerParams
   const filter = p.shadow ? `url(#${shadowId})` : undefined;
   const shapeEl = (() => {
     switch (p.shape) {
-      case "circle": return <circle cx={100} cy={100} r={94} fill={fill} {...stroke} filter={filter} />;
+      case "art": case "circle": return <circle cx={100} cy={100} r={94} fill={fill} {...stroke} filter={filter} />;
       case "burst": return <polygon points={polygon(100, 100, 96, 78, Math.max(8, p.points))} fill={fill} {...stroke} filter={filter} strokeLinejoin="round" />;
       case "seal": return <path d={seal(100, 100, 86, Math.max(8, Math.min(28, p.points)))} fill={fill} {...stroke} filter={filter} />;
       case "hex": return <polygon points={hex(100, 100, 94)} fill={fill} {...stroke} filter={filter} strokeLinejoin="round" />;

@@ -4,20 +4,22 @@ import { ChevronLeft } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
-import { DEFAULT_STICKER, STICKER_PRESETS, type StickerParams } from "@/lib/stickers/model";
+import { DEFAULT_STICKER, STICKER_PRESETS, paramsFromArt, type StickerParams } from "@/lib/stickers/model";
+import { ART_PRESETS } from "@/lib/stickers/art";
 import { StickerDesigner } from "@/components/admin/stickers/StickerDesigner";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sticker designer" };
 
-export default async function StickerEditPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ preset?: string }> }) {
+export default async function StickerEditPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ preset?: string; art?: string }> }) {
   const user = await requirePermission("catalog.promos.write");
   const { id } = await params;
-  const { preset } = await searchParams;
+  const { preset, art } = await searchParams;
   let initial: { id: string | null; key: string; name: string; params: StickerParams; active: boolean };
   if (id === "new") {
     const t = STICKER_PRESETS.find((p) => p.key === preset);
-    initial = { id: null, key: t ? t.key : "", name: t ? t.name : "", params: t ? t.params : DEFAULT_STICKER, active: true };
+    const a = art != null ? ART_PRESETS[Number(art)] : undefined;
+    initial = a ? { id: null, key: "", name: a.art.name, params: paramsFromArt(a), active: true } : { id: null, key: t ? t.key : "", name: t ? t.name : "", params: t ? t.params : DEFAULT_STICKER, active: true };
   } else {
     const row = await db.sticker.findUnique({ where: { id } });
     if (!row) notFound();

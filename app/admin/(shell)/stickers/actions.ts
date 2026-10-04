@@ -57,3 +57,29 @@ export async function exportStickerToMedia(input: { name: string; svg?: string; 
     return { ok: false, error: e instanceof Error ? e.message : "Αποτυχία εξαγωγής." };
   }
 }
+
+/** SVG που ανέβηκε → artwork (καθαρισμένο). Για τον σχεδιαστή: αλλάζει το σχήμα του sticker που επεξεργάζεσαι. */
+export async function sanitizeStickerSvg(name: string, svg: string): Promise<{ ok: true; art: import("@/lib/stickers/art").StickerArt } | { ok: false; error: string }> {
+  await requirePermission("catalog.promos.write");
+  try { const { svgToArt } = await import("@/lib/stickers/sanitize"); return { ok: true, art: svgToArt(svg, name) }; }
+  catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Μη έγκυρο SVG." }; }
+}
+
+/** Νέο sticker απευθείας από αρχείο SVG (μόνο SVG). Χρώματα όπως στο αρχείο· κείμενο προαιρετικά από τον σχεδιαστή. */
+export async function createStickerFromSvg(fileName: string, svg: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await requirePermission("catalog.promos.write");
+  if (!/\.svg$/i.test(fileName)) return { ok: false, error: "Δεκτά μόνο αρχεία .svg." };
+  try {
+    const { svgToArt } = await import("@/lib/stickers/sanitize");
+    const { DEFAULT_STICKER, stickerKeyFromName } = await import("@/lib/stickers/model");
+    const name = fileName.replace(/\.svg$/i, "").replace(/[-_]+/g, " ").trim() || "Sticker";
+    const art = svgToArt(svg, name);
+    let key = stickerKeyFromName(name) || "sticker";
+    for (let i = 2; await db.sticker.findUnique({ where: { key } }); i++) key = `${stickerKeyFromName(name) || "sticker"}-${i}`;
+    const params = { ...DEFAULT_STICKER, shape: "art" as const, art, size: art.w / art.h > 1.6 ? 150 : 110, rotate: 0, shadow: false, lines: [], icon: "none" as const, animation: "none" as const, position: "tl" as const };
+    const row = await db.sticker.create({ data: { key, name, params: params as object, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${art.w} ${art.h}">${art.body}</svg>`, createdBy: user.id } });
+    await audit(user.id, "sticker.upload", "Sticker", row.id, null, { key, name, bytes: svg.length });
+    revalidatePath("/admin/stickers");
+    return { ok: true, id: row.id };
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Μη έγκυρο SVG." }; }
+}
