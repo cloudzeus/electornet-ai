@@ -56,7 +56,7 @@ export default async function ErpCustomersPage() {
       <section className="rounded-xl border border-eu-line bg-white p-3 @md:p-4 grid gap-1">
         <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Λογαριασμοί του σημερινού eshop (nopCommerce)</h3>
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Email, κωδικοί σύνδεσης, newsletter και διευθύνσεις των λογαριασμών υπάρχουν μόνο στη βάση του nopCommerce. Με την εξαγωγή του (Customers → Export) θα ενωθούν με τους πελάτες εδώ — με ταίριασμα email / κινητού / ΑΦΜ.</p>
-        <Link href="/admin/customers?f=history" className="font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit min-h-11 inline-flex items-center">Δες τους πελάτες από το ιστορικό →</Link>
+        <div className="flex flex-wrap gap-x-4"><Link href="/admin/customers/import" className="font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit min-h-11 inline-flex items-center">Εισαγωγή από nopCommerce →</Link><Link href="/admin/customers?f=history" className="font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit min-h-11 inline-flex items-center">Δες τους πελάτες από το ιστορικό →</Link></div>
       </section>
     </div>
   );

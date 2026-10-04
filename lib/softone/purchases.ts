@@ -276,7 +276,7 @@ export async function geocodePending(customerIds?: string[], limit = 5000) {
  * διευθύνσεις, συσκευές και αγορές περνούν στον σωστό και ο διπλός φεύγει — μόνο αν τον δημιούργησε ο συγχρονισμός και
  * δεν έχει τίποτα δικό του (λογαριασμό, email, παραγγελίες νέου eshop, συναινέσεις, σημειώσεις).
  */
-async function mergeHistoryCustomer(fromId: string, toId: string) {
+export async function mergeHistoryCustomer(fromId: string, toId: string) {
   const c = await db.customer.findUnique({ where: { id: fromId }, select: { source: true, email: true, passwordHash: true, _count: { select: { orders: true, consents: true, customerNotes: true, tickets: true, social: true } } } });
   if (!c || c.source !== "softone-history" || c.email || c.passwordHash || Object.values(c._count).some((n) => n > 0)) return;
   if (await db.purchase.count({ where: { customerId: fromId, s1Findoc: null } })) return;

@@ -60,6 +60,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex gap-2">
           {gdprOpen > 0 && <Link href="/admin/gdpr" className="inline-flex items-center gap-2 rounded-full bg-eu-red/10 text-eu-red font-extrabold text-[length:var(--fs-14)] px-4 min-h-11"><AlertTriangle className="size-4" aria-hidden /> {gdprOpen} ανοιχτά GDPR</Link>}
+          {can(user.permissions, "customers.write") && <Link href="/admin/customers/import" className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-chip">Εισαγωγή nopCommerce</Link>}
           {can(user.permissions, "customers.write") && <Link href="/admin/customers/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέος πελάτης</Link>}
         </div>
       </div>
