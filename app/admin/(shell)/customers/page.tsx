@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Mail, Building2, Link2, AlertTriangle } from "lucide-react";
+import { Plus, Mail, Building2, Link2, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -12,10 +12,26 @@ import { Pagination } from "@/components/admin/Pagination";
 export const metadata = { title: "Πελάτες" };
 export const dynamic = "force-dynamic";
 
+/** Ταξινόμηση από τις κεφαλίδες του πίνακα: `?s=<στήλη>&d=asc|desc`. Πρώτο κλικ: κείμενο Α→Ω, αριθμοί μεγαλύτερο πρώτα. */
+type Dir = "asc" | "desc";
+const SORTS: Record<string, { first: Dir; order: (d: Dir) => Prisma.CustomerOrderByWithRelationInput[] }> = {
+  name: { first: "asc", order: (d) => [{ lastName: d }, { firstName: d }] },
+  contact: { first: "asc", order: (d) => [{ email: { sort: d, nulls: "last" } }] },
+  vat: { first: "asc", order: (d) => [{ vatNumber: { sort: d, nulls: "last" } }, { erpCode: { sort: d, nulls: "last" } }] },
+  orders: { first: "desc", order: (d) => [{ purchaseCount: d }, { purchaseTotal: d }, { lastPurchaseAt: { sort: d, nulls: "last" } }] },
+  points: { first: "desc", order: (d) => [{ loyaltyPoints: d }] },
+  store: { first: "asc", order: (d) => [{ preferredStore: { city: d } }] },
+  status: { first: "asc", order: (d) => [{ status: d }] },
+};
+
 /** Retail customers: search, filters, ERP link state. */
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; p?: string; region?: string; store?: string; near?: string; km?: string; view?: string }> }) {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; p?: string; region?: string; store?: string; near?: string; km?: string; view?: string; s?: string; d?: string }> }) {
   const user = await requirePermission("customers.read");
-  const { q = "", f = "", p = "1", region = "", store = "", near = "", km = "25", view = "" } = await searchParams;
+  const { q = "", f = "", p = "1", region = "", store = "", near = "", km = "25", view = "", s: sRaw = "", d: dRaw = "" } = await searchParams;
+  const sort = SORTS[sRaw] ? sRaw : "";
+  const dir: Dir = dRaw === "asc" || dRaw === "desc" ? dRaw : sort ? SORTS[sort].first : "desc";
+  const s = sort, d = sort ? dir : "";
+  const orderBy: Prisma.CustomerOrderByWithRelationInput[] = sort ? [...SORTS[sort].order(dir), { number: "desc" }] : [{ createdAt: "desc" }];
   // location segmentation: by prefecture, by nearest store, or within a radius of a geocoded place
   let center: { lat: number; lng: number; label: string } | null = null;
   if (near.trim()) { const g = await geocodeAddress(/ελλάδα|greece/i.test(near) ? near : `${near}, Ελλάδα`).catch(() => null); if (g) center = { lat: g.lat, lng: g.lng, label: g.label.split(",")[0] }; }
@@ -39,7 +55,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     where.addresses = { some: { lat: { gte: center.lat - dLat, lte: center.lat + dLat }, lng: { gte: center.lng - dLng, lte: center.lng + dLng } } };
   }
   const [rows, total, stats] = await Promise.all([
-    db.customer.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * take, take, include: { _count: { select: { orders: true, devices: true, tickets: true } }, preferredStore: { select: { city: true } }, addresses: { where: { lat: { not: null } }, select: { id: true, lat: true, lng: true, city: true, region: true, isDefault: true, nearestStoreId: true, nearestKm: true } } } }),
+    db.customer.findMany({ where, orderBy, skip: (page - 1) * take, take, include: { _count: { select: { orders: true, devices: true, tickets: true } }, preferredStore: { select: { city: true } }, addresses: { where: { lat: { not: null } }, select: { id: true, lat: true, lng: true, city: true, region: true, isDefault: true, nearestStoreId: true, nearestKm: true } } } }),
     db.customer.count({ where }),
     Promise.all([db.customer.count(), db.customer.count({ where: { type: "business" } }), db.customer.count({ where: { newsletter: true } }), db.customer.count({ where: { erpTrdr: null, status: "active" } }), db.customer.count({ where: { erpSyncStatus: "failed" } }), db.gdprRequest.count({ where: { status: { in: ["open", "verifying", "in-progress"] } } })]),
   ]);
@@ -48,8 +64,19 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const [regions, storesWithCustomers] = await Promise.all([db.address.groupBy({ by: ["region"], _count: { _all: true }, orderBy: { region: "asc" }, where: { region: { not: "" } } }), db.address.groupBy({ by: ["nearestStoreId"], _count: { _all: true }, where: { nearestStoreId: { not: null } } })]);
   const storeNames = storesWithCustomers.length ? await db.store.findMany({ where: { id: { in: storesWithCustomers.map((s) => s.nearestStoreId!) } }, select: { id: true, name: true, city: true } }) : [];
   const chip = (on: boolean) => `rounded-full px-3 min-h-9 inline-flex items-center gap-1 font-bold text-[length:var(--fs-13)] ${on ? "bg-eu-navy text-white" : "bg-white border border-eu-line text-eu-ink hover:border-eu-navy"}`;
-  const keep = (o: Record<string, string>) => { const u = new URLSearchParams({ q, f, region, store, near, km, view, ...o }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };
+  const keep = (o: Record<string, string>) => { const u = new URLSearchParams({ q, f, region, store, near, km, view, s, d, ...o }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };
   const link = (nf: string) => keep({ f: nf });
+  const th = (key: string, label: string) => {
+    const on = sort === key, next: Dir = on ? (dir === "asc" ? "desc" : "asc") : SORTS[key].first;
+    const Icon = on ? (dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th className="p-0 font-bold" aria-sort={on ? (dir === "asc" ? "ascending" : "descending") : "none"}>
+        <Link href={keep({ s: key, d: next })} scroll={false} title={`Ταξινόμηση ${next === "asc" ? "αύξουσα" : "φθίνουσα"}`} aria-label={`${label}: ταξινόμηση ${next === "asc" ? "αύξουσα" : "φθίνουσα"}`} className={`flex items-center gap-1 p-3 min-h-11 whitespace-nowrap hover:text-eu-navy hover:bg-eu-surface ${on ? "text-eu-navy" : ""}`}>
+          {label} <Icon className={`size-3.5 shrink-0 ${on ? "" : "opacity-40"}`} aria-hidden />
+        </Link>
+      </th>
+    );
+  };
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -65,7 +92,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <form className="flex gap-2 flex-1 min-w-[240px]"><input type="hidden" name="f" value={f} /><input name="q" defaultValue={q} placeholder="Όνομα, email, τηλέφωνο, ΑΦΜ, κωδικός ERP…" className="flex-1 rounded-full border-2 border-eu-line px-4 min-h-10 text-[length:var(--fs-14)] outline-none focus:border-eu-blue" /><button type="submit" className="rounded-full bg-eu-navy text-white font-bold px-4 min-h-10 text-[length:var(--fs-14)]">Αναζήτηση</button></form>
+        <form className="flex gap-2 flex-1 min-w-[240px]"><input type="hidden" name="f" value={f} />{s && <><input type="hidden" name="s" value={s} /><input type="hidden" name="d" value={d} /></>}<input name="q" defaultValue={q} placeholder="Όνομα, email, τηλέφωνο, ΑΦΜ, κωδικός ERP…" className="flex-1 rounded-full border-2 border-eu-line px-4 min-h-10 text-[length:var(--fs-14)] outline-none focus:border-eu-blue" /><button type="submit" className="rounded-full bg-eu-navy text-white font-bold px-4 min-h-10 text-[length:var(--fs-14)]">Αναζήτηση</button></form>
         <Link href={link("")} className={chip(!f)}>Όλοι {all}</Link>
         <Link href={link("business")} className={chip(f === "business")}><Building2 className="size-3.5" aria-hidden /> Εταιρείες {business}</Link>
         <Link href={link("newsletter")} className={chip(f === "newsletter")}><Mail className="size-3.5" aria-hidden /> Newsletter {newsletter}</Link>
@@ -76,12 +103,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <Link href={link("blocked")} className={chip(f === "blocked")}>Μπλοκαρισμένοι</Link>
         <Link href={link("anonymised")} className={chip(f === "anonymised")}>Ανωνυμοποιημένοι</Link>
       </div>
-      <SegmentTools regions={regions.map((r) => ({ value: r.region, count: r._count._all }))} stores={storeNames.map((st) => ({ id: st.id, label: `${st.city} — ${st.name}`, count: storesWithCustomers.find((x) => x.nearestStoreId === st.id)?._count._all ?? 0 }))} current={{ region, store, near, km: String(radiusKm), view }} center={center} matched={exact.length} canExport={can(user.permissions, "customers.export")} exportRows={exact.map((c) => ({ email: c.email, name: c.type === "business" && c.company ? c.company : `${c.lastName} ${c.firstName}`, phone: c.mobile ?? c.phone ?? "", city: c.addresses.find((a) => a.isDefault)?.city ?? c.addresses[0]?.city ?? "", region: c.addresses.find((a) => a.isDefault)?.region ?? c.addresses[0]?.region ?? "", newsletter: c.newsletter, points: c.loyaltyPoints }))} />
+      <SegmentTools regions={regions.map((r) => ({ value: r.region, count: r._count._all }))} stores={storeNames.map((st) => ({ id: st.id, label: `${st.city} — ${st.name}`, count: storesWithCustomers.find((x) => x.nearestStoreId === st.id)?._count._all ?? 0 }))} current={{ q, f, region, store, near, km: String(radiusKm), view, s, d }} center={center} matched={exact.length} canExport={can(user.permissions, "customers.export")} exportRows={exact.map((c) => ({ email: c.email, name: c.type === "business" && c.company ? c.company : `${c.lastName} ${c.firstName}`, phone: c.mobile ?? c.phone ?? "", city: c.addresses.find((a) => a.isDefault)?.city ?? c.addresses[0]?.city ?? "", region: c.addresses.find((a) => a.isDefault)?.region ?? c.addresses[0]?.region ?? "", newsletter: c.newsletter, points: c.loyaltyPoints }))} />
       {view === "map" && <StoreMapClient markers={exact.flatMap((c) => c.addresses.map((a) => ({ id: a.id, lat: a.lat!, lng: a.lng!, label: `${c.lastName} ${c.firstName} · ${a.city}`, href: `/admin/customers/${c.id}`, tone: a.isDefault ? "navy" : "green" as const })))} />}
       <div className="rounded-2xl bg-white border border-eu-line overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[length:var(--fs-14)]">
-            <thead><tr className="text-left text-eu-muted"><th className="p-3 font-bold">Πελάτης</th><th className="p-3 font-bold">Επικοινωνία</th><th className="p-3 font-bold">ΑΦΜ / SoftOne</th><th className="p-3 font-bold">Παραγγελίες</th><th className="p-3 font-bold">Πόντοι</th><th className="p-3 font-bold">Κατάστημα</th><th className="p-3 font-bold">Κατάσταση</th></tr></thead>
+            <thead><tr className="text-left text-eu-muted">{th("name", "Πελάτης")}{th("contact", "Επικοινωνία")}{th("vat", "ΑΦΜ / SoftOne")}{th("orders", "Παραγγελίες")}{th("points", "Πόντοι")}{th("store", "Κατάστημα")}{th("status", "Κατάσταση")}</tr></thead>
             <tbody>
               {exact.map((c) => (
                 <tr key={c.id} className="border-t border-eu-line-2 hover:bg-eu-surface/60">
@@ -99,7 +126,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           </table>
         </div>
         <div className="flex items-center justify-between px-3 py-2 border-t border-eu-line">
-          <Pagination page={page} pages={Math.max(1, Math.ceil(total / take))} total={total} label="πελάτες" href={(n) => `?${new URLSearchParams({ q, f, region, store, near, km, view, p: String(n) })}`} />
+          <Pagination page={page} pages={Math.max(1, Math.ceil(total / take))} total={total} label="πελάτες" href={(n) => keep({ p: String(n) })} />
         </div>
       </div>
     </>
