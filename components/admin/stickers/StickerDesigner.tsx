@@ -111,7 +111,7 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           </div>
           {msg && <p role="status" className="m-0 rounded-xl bg-eu-yellow/30 text-eu-navy font-bold text-[length:var(--fs-14)] px-3 py-2">{msg}</p>}
         </div>
-        {/* πάνω: η εφαρμογή στην κάρτα (μεγάλο) και το sticker μόνο του (μικρό)· μένει ορατό όσο αλλάζεις κείμενα και χρώματα */}
+        {/* πάνω: η εφαρμογή στην κάρτα (μεγάλο) και δεξιά θέση / μέγεθος και το sticker μόνο του· μένει ορατό όσο αλλάζεις κείμενα και χρώματα */}
         <div className="grid gap-3 @2xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] items-start @4xl:sticky @4xl:top-2 z-10 bg-eu-surface-2/95 backdrop-blur rounded-2xl p-2 -m-2">
           <div className="grid gap-1.5">
             <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Εφαρμογή στην κάρτα προϊόντος</div>
@@ -130,10 +130,35 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
           </div>
-          <div className="grid gap-2 content-start">
+          <div className="grid gap-3 content-start">
+            {/* δεξιά της κάρτας: θέση, μέγεθος, περιστροφή */}
+            <div className="grid gap-2 rounded-2xl bg-white border border-eu-line p-3">
+              <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση και μέγεθος <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
+              <div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["center", "Κέντρο"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"]] as const).map(([v, l]) => { const [px, py] = presetXY(v); const [cx, cy] = stickerXY(p); return <button key={v} type="button" onClick={() => setP((s) => ({ ...s, position: v, x: px, y: py }))} className={chip(cx === px && cy === py)}>{l}</button>; })}</div>
+              {([["x", "Οριζόντια", "Αριστερά", "Δεξιά"], ["y", "Κάθετα", "Πάνω", "Κάτω"]] as const).map(([k, l, from, to]) => { const v = stickerXY(p)[k === "x" ? 0 : 1]; return (
+                <label key={k} className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                  <span className="flex justify-between"><span>{l}</span><span className="tabular-nums text-eu-muted">{v}%</span></span>
+                  <input type="range" min={0} max={100} value={v} onChange={(e) => { const n = Number(e.target.value); setP((s) => { const [cx, cy] = stickerXY(s); return { ...s, x: k === "x" ? n : cx, y: k === "y" ? n : cy }; }); }} className="w-full accent-eu-navy min-h-11" aria-label={`${l} θέση`} />
+                  <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>{from}</span><span>{to}</span></span>
+                </label>
+              ); })}
+              <div className="grid gap-2 border-t border-eu-line pt-2">
+                <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                  <span className="flex justify-between"><span>Μέγεθος στην κάρτα</span><span className="tabular-nums text-eu-muted font-normal">{p.size}px · ≈{Math.round((p.size / 280) * 100)}% του πλάτους</span></span>
+                  <input type="range" min={48} max={220} value={p.size} onChange={(e) => set("size", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Μέγεθος στην κάρτα" />
+                  <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>Διακριτικό</span><span>Κυρίαρχο</span></span>
+                </label>
+                <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                  <span className="flex justify-between"><span>Περιστροφή</span><span className="tabular-nums text-eu-muted font-normal">{p.rotate}°</span></span>
+                  <input type="range" min={-30} max={30} value={p.rotate} onChange={(e) => set("rotate", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Περιστροφή" />
+                </label>
+              </div>
+              <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} className="size-5 accent-eu-navy" /> Δείξε τα σταθερά στοιχεία της κάρτας (έκπτωση, tag, καρδιά, γρήγορη προβολή) για να μη συγκρούονται</label>
+              {showAuto && shown.moved && <p role="status" className="m-0 rounded-lg bg-eu-yellow/30 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">Η θέση αυτή πέφτει πάνω σε σταθερό στοιχείο της κάρτας· στη βιτρίνα το sticker μπαίνει αυτόματα στην πλησιέστερη ελεύθερη θέση (όπως φαίνεται).</p>}
+            </div>
             <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Το sticker μόνο του</div>
-          <div className="rounded-2xl border border-eu-line bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:20px_20px] h-44 grid place-items-center p-3" ref={svgRef}>
-            <StickerSvg p={{ ...p, size: Math.min(150, Math.max(p.size, 110)) }} id="d" className={anim} />
+          <div className="rounded-2xl border border-eu-line bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:20px_20px] h-32 grid place-items-center p-2" ref={svgRef}>
+            <StickerSvg p={{ ...p, size: Math.min(110, Math.max(p.size, 80)) }} id="d" className={anim} />
           </div>
         <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => download(svgString(), `${fileBase()}.svg`, "image/svg+xml")} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy"><Download className="size-4" aria-hidden /> SVG</button>
@@ -143,31 +168,6 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
         </div>
           </div>
         </div>
-        {/* αμέσως κάτω από την κάρτα: θέση, μέγεθος, περιστροφή */}
-          <div className="grid gap-2 rounded-2xl bg-white border border-eu-line p-3">
-            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση και μέγεθος <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
-            <div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["center", "Κέντρο"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"]] as const).map(([v, l]) => { const [px, py] = presetXY(v); const [cx, cy] = stickerXY(p); return <button key={v} type="button" onClick={() => setP((s) => ({ ...s, position: v, x: px, y: py }))} className={chip(cx === px && cy === py)}>{l}</button>; })}</div>
-            {([["x", "Οριζόντια", "Αριστερά", "Δεξιά"], ["y", "Κάθετα", "Πάνω", "Κάτω"]] as const).map(([k, l, from, to]) => { const v = stickerXY(p)[k === "x" ? 0 : 1]; return (
-              <label key={k} className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
-                <span className="flex justify-between"><span>{l}</span><span className="tabular-nums text-eu-muted">{v}%</span></span>
-                <input type="range" min={0} max={100} value={v} onChange={(e) => { const n = Number(e.target.value); setP((s) => { const [cx, cy] = stickerXY(s); return { ...s, x: k === "x" ? n : cx, y: k === "y" ? n : cy }; }); }} className="w-full accent-eu-navy min-h-11" aria-label={`${l} θέση`} />
-                <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>{from}</span><span>{to}</span></span>
-              </label>
-            ); })}
-            <div className="grid gap-2 border-t border-eu-line pt-2">
-              <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
-                <span className="flex justify-between"><span>Μέγεθος στην κάρτα</span><span className="tabular-nums text-eu-muted font-normal">{p.size}px · ≈{Math.round((p.size / 280) * 100)}% του πλάτους</span></span>
-                <input type="range" min={48} max={220} value={p.size} onChange={(e) => set("size", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Μέγεθος στην κάρτα" />
-                <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>Διακριτικό</span><span>Κυρίαρχο</span></span>
-              </label>
-              <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
-                <span className="flex justify-between"><span>Περιστροφή</span><span className="tabular-nums text-eu-muted font-normal">{p.rotate}°</span></span>
-                <input type="range" min={-30} max={30} value={p.rotate} onChange={(e) => set("rotate", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Περιστροφή" />
-              </label>
-            </div>
-            <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} className="size-5 accent-eu-navy" /> Δείξε τα σταθερά στοιχεία της κάρτας (έκπτωση, tag, καρδιά, γρήγορη προβολή) για να μη συγκρούονται</label>
-            {showAuto && shown.moved && <p role="status" className="m-0 rounded-lg bg-eu-yellow/30 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">Η θέση αυτή πέφτει πάνω σε σταθερό στοιχείο της κάρτας· στη βιτρίνα το sticker μπαίνει αυτόματα στην πλησιέστερη ελεύθερη θέση (όπως φαίνεται).</p>}
-          </div>
       </div>
 
       {/* controls column */}
