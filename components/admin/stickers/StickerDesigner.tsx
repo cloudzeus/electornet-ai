@@ -175,6 +175,28 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           {canExport && <button type="button" disabled={pending} onClick={toMedia} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white disabled:opacity-50"><Images className="size-4" aria-hidden /> Στη βιβλιοθήκη media</button>}
           <button type="button" onClick={() => navigator.clipboard.writeText(JSON.stringify(p, null, 2)).then(() => setMsg("Τα params αντιγράφηκαν (JSON)."))} className="inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:bg-eu-blue/10"><Copy className="size-4" aria-hidden /> JSON</button>
         </div>
+            <Section title="Κείμενο του sticker">
+              {p.lines.map((l, i) => (
+                <div key={i} className="grid gap-2 rounded-xl border border-eu-line p-2">
+                  <div className="flex gap-2">
+                    <input value={l.text} onChange={(e) => setLine(i, { text: e.target.value })} placeholder={`Γραμμή ${i + 1}`} className={field} aria-label={`Γραμμή ${i + 1}`} />
+                    <button type="button" onClick={() => setP((s) => ({ ...s, lines: s.lines.filter((_, j) => j !== i) }))} aria-label="Αφαίρεση γραμμής" className="size-11 shrink-0 rounded-full text-eu-muted hover:bg-eu-red/10 hover:text-eu-red inline-flex items-center justify-center"><Trash2 className="size-4" aria-hidden /></button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)] font-bold">
+                    <select value={l.weight} onChange={(e) => setLine(i, { weight: Number(e.target.value) as StickerLine["weight"] })} className="rounded-full border border-eu-line px-2 min-h-9 bg-white" aria-label="Πάχος"><option value={700}>Bold</option><option value={800}>Extra bold</option><option value={900}>Black</option></select>
+                    <label className="inline-flex items-center gap-1 min-h-9"><input type="checkbox" checked={l.upper} onChange={(e) => setLine(i, { upper: e.target.checked })} className="size-4 accent-eu-navy" /> ΚΕΦΑΛΑΙΑ</label>
+                    <label className="grid gap-0.5 basis-full font-bold text-eu-ink">
+                      <span className="flex justify-between"><span>Μέγεθος γραμμάτων</span><span className="tabular-nums text-eu-muted font-normal">{Math.round((l.scale ?? 1) * 100)}%{(l.scale ?? 1) === 1 ? " · όσο χωρά" : ""}</span></span>
+                      <input type="range" min={30} max={100} step={5} value={Math.round((l.scale ?? 1) * 100)} onChange={(e) => setLine(i, { scale: Number(e.target.value) / 100, size: 0 })} className="w-full accent-eu-navy min-h-11" aria-label={`Μέγεθος γραμμάτων γραμμής ${i + 1}`} />
+                      <span className="text-eu-muted font-normal text-[length:var(--fs-12)]">100% = το μεγαλύτερο που χωρά στο σχήμα· το κείμενο δεν βγαίνει ποτέ έξω.</span>
+                    </label>
+                    <label className="inline-flex items-center gap-1 min-h-9">Αραίωση <input type="number" min={-2} max={8} step={0.5} value={l.spacing} onChange={(e) => setLine(i, { spacing: Number(e.target.value) })} className="w-16 rounded-full border border-eu-line px-2 min-h-9" /></label>
+                  </div>
+                </div>
+              ))}
+              {p.lines.length < 3 && <button type="button" onClick={() => setP((s) => ({ ...s, lines: [...s.lines, { text: "", size: 0, weight: 700, upper: false, spacing: 0 }] }))} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-eu-line px-3 min-h-10 font-bold text-eu-blue text-[length:var(--fs-14)] hover:border-eu-blue"><Plus className="size-4" aria-hidden /> Γραμμή</button>}
+              <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Εικονίδιο</span><div className="flex flex-wrap gap-1.5">{ICONS.map((ic) => <button key={ic.v} type="button" onClick={() => set("icon", ic.v)} className={chip(p.icon === ic.v)}>{ic.l}</button>)}</div></div>
+            </Section>
           </div>
         </div>
       </div>
@@ -211,28 +233,6 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           {(p.shape === "burst" || p.shape === "seal") && (
             <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>{p.shape === "burst" ? "Ακτίνες" : "Δόντια"}</span><span className="tabular-nums text-eu-muted">{p.points}</span></span><input type="range" min={8} max={28} value={p.points} onChange={(e) => set("points", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>
           )}
-        </Section>
-        <Section title="Κείμενο">
-          {p.lines.map((l, i) => (
-            <div key={i} className="grid gap-2 rounded-xl border border-eu-line p-2">
-              <div className="flex gap-2">
-                <input value={l.text} onChange={(e) => setLine(i, { text: e.target.value })} placeholder={`Γραμμή ${i + 1}`} className={field} aria-label={`Γραμμή ${i + 1}`} />
-                <button type="button" onClick={() => setP((s) => ({ ...s, lines: s.lines.filter((_, j) => j !== i) }))} aria-label="Αφαίρεση γραμμής" className="size-11 shrink-0 rounded-full text-eu-muted hover:bg-eu-red/10 hover:text-eu-red inline-flex items-center justify-center"><Trash2 className="size-4" aria-hidden /></button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)] font-bold">
-                <select value={l.weight} onChange={(e) => setLine(i, { weight: Number(e.target.value) as StickerLine["weight"] })} className="rounded-full border border-eu-line px-2 min-h-9 bg-white" aria-label="Πάχος"><option value={700}>Bold</option><option value={800}>Extra bold</option><option value={900}>Black</option></select>
-                <label className="inline-flex items-center gap-1 min-h-9"><input type="checkbox" checked={l.upper} onChange={(e) => setLine(i, { upper: e.target.checked })} className="size-4 accent-eu-navy" /> ΚΕΦΑΛΑΙΑ</label>
-                <label className="grid gap-0.5 basis-full font-bold text-eu-ink">
-                  <span className="flex justify-between"><span>Μέγεθος γραμμάτων</span><span className="tabular-nums text-eu-muted font-normal">{Math.round((l.scale ?? 1) * 100)}%{(l.scale ?? 1) === 1 ? " · όσο χωρά" : ""}</span></span>
-                  <input type="range" min={30} max={100} step={5} value={Math.round((l.scale ?? 1) * 100)} onChange={(e) => setLine(i, { scale: Number(e.target.value) / 100, size: 0 })} className="w-full accent-eu-navy min-h-11" aria-label={`Μέγεθος γραμμάτων γραμμής ${i + 1}`} />
-                  <span className="text-eu-muted font-normal text-[length:var(--fs-12)]">100% = το μεγαλύτερο που χωρά στο σχήμα· το κείμενο δεν βγαίνει ποτέ έξω.</span>
-                </label>
-                <label className="inline-flex items-center gap-1 min-h-9">Αραίωση <input type="number" min={-2} max={8} step={0.5} value={l.spacing} onChange={(e) => setLine(i, { spacing: Number(e.target.value) })} className="w-16 rounded-full border border-eu-line px-2 min-h-9" /></label>
-              </div>
-            </div>
-          ))}
-          {p.lines.length < 3 && <button type="button" onClick={() => setP((s) => ({ ...s, lines: [...s.lines, { text: "", size: 0, weight: 700, upper: false, spacing: 0 }] }))} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-eu-line px-3 min-h-10 font-bold text-eu-blue text-[length:var(--fs-14)] hover:border-eu-blue"><Plus className="size-4" aria-hidden /> Γραμμή</button>}
-          <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Εικονίδιο</span><div className="flex flex-wrap gap-1.5">{ICONS.map((ic) => <button key={ic.v} type="button" onClick={() => set("icon", ic.v)} className={chip(p.icon === ic.v)}>{ic.l}</button>)}</div></div>
         </Section>
         <Section title="Στην κάρτα">
           <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Κίνηση</span><div className="flex flex-wrap gap-1.5">{([["none", "Καμία"], ["shimmer", "Λάμψη"], ["breathe", "Αναπνοή"], ["wiggle", "Κούνημα"], ["bump", "Αναπήδηση"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => set("animation", v)} className={chip(p.animation === v)}>{l}</button>)}</div></div>
