@@ -1,7 +1,7 @@
 import type { Product } from "@/lib/data/types";
 import { discountPct, priceShort } from "@/lib/format";
 import type { StickerParams } from "@/lib/stickers/model";
-import { StickerSvg, stickerAnimationClass, stickerPositionClass } from "@/components/stickers/StickerSvg";
+import { StickerSvg, stickerAnimationClass, stickerPlacementStyle } from "@/components/stickers/StickerSvg";
 
 export type Sticker =
   | { kind: "discount"; pct: number; save: number }
@@ -118,7 +118,7 @@ export function UrgencyPill({ s }: { s: Sticker }) {
 export function CustomSticker({ s }: { s: Sticker }) {
   if (s.kind !== "custom") return null;
   return (
-    <span className={`pointer-events-none absolute z-[1] ${stickerPositionClass[s.params.position]}`}>
+    <span className="pointer-events-none z-[1]" style={stickerPlacementStyle(s.params)}>
       <StickerSvg p={s.params} id={`ps-${s.params.lines[0]?.text ?? "x"}`} className={stickerAnimationClass[s.params.animation]} />
     </span>
   );

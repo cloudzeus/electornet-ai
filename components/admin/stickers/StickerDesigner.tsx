@@ -3,8 +3,8 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Download, Images, Plus, Trash2, Copy } from "lucide-react";
-import { BRAND_COLORS, STICKER_PRESETS, stickerKeyFromName, type StickerParams, type StickerShape, type StickerIcon, type StickerLine } from "@/lib/stickers/model";
-import { StickerSvg, stickerAnimationClass, stickerPositionClass } from "@/components/stickers/StickerSvg";
+import { BRAND_COLORS, STICKER_PRESETS, stickerKeyFromName, stickerXY, presetXY, type StickerParams, type StickerShape, type StickerIcon, type StickerLine } from "@/lib/stickers/model";
+import { StickerSvg, stickerAnimationClass, stickerPlacementStyle } from "@/components/stickers/StickerSvg";
 import { saveSticker, exportStickerToMedia, sanitizeStickerSvg } from "@/app/admin/(shell)/stickers/actions";
 import { ART, fitWidth } from "@/lib/stickers/art";
 
@@ -32,6 +32,15 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
   const [hover, setHover] = useState(false);
   const [pending, start] = useTransition();
   const svgRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [showAuto, setShowAuto] = useState(false);
+  // θέση από το σημείο του δείκτη: 0–100 % του πλαισίου (με το περιθώριο των 8 px)
+  const dragTo = (cx: number, cy: number) => {
+    const r = frameRef.current?.getBoundingClientRect(); if (!r) return;
+    const pct = (v: number, a: number, len: number) => Math.round(Math.min(100, Math.max(0, ((v - a - 8) / Math.max(1, len - 16)) * 100)));
+    setP((s) => ({ ...s, x: pct(cx, r.left, r.width), y: pct(cy, r.top, r.height) }));
+  };
   const set = <K extends keyof StickerParams>(k: K, v: StickerParams[K]) => setP((s) => ({ ...s, [k]: v }));
   const setLine = (i: number, patch: Partial<StickerLine>) => setP((s) => ({ ...s, lines: s.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
 
@@ -99,10 +108,14 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           <div className="grid gap-2">
             <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Στην κάρτα προϊόντος</div>
             <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} className="group/card rounded-2xl bg-white border border-eu-line overflow-hidden shadow-[var(--shadow-raised)]">
-              <div className="relative aspect-square eu-cutout-field">
+              <div ref={frameRef} className="relative aspect-square eu-cutout-field touch-none cursor-grab active:cursor-grabbing" title="Σύρε το sticker για να το μετακινήσεις"
+                onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); dragTo(e.clientX, e.clientY); setDragging(true); }}
+                onPointerMove={(e) => { if (dragging) dragTo(e.clientX, e.clientY); }} onPointerUp={() => setDragging(false)} onPointerCancel={() => setDragging(false)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={SAMPLE.img} alt="" className={`absolute inset-0 size-full object-contain p-[8%] eu-cutout-shadow transition-transform duration-500 ${hover ? "scale-[1.06]" : ""}`} />
-                <span className={`absolute ${stickerPositionClass[p.position]} pointer-events-none`}><StickerSvg p={p} id="c" className={anim} /></span>
+                {showAuto && <span className="absolute top-0 left-0 pointer-events-none inline-flex flex-col items-start bg-eu-red text-white rounded-br-2xl rounded-tl-2xl px-3 py-1.5 leading-none"><span className="font-extrabold text-[length:var(--fs-19)]">−19%</span></span>}
+                {showAuto && <span className="absolute left-3 top-14 pointer-events-none inline-flex rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight">Δωρεάν τοποθέτηση</span>}
+                <span className={`pointer-events-none ${dragging ? "outline-2 outline-dashed outline-eu-blue outline-offset-4 rounded" : ""}`} style={stickerPlacementStyle(p)}><StickerSvg p={p} id="c" className={dragging ? "" : anim} /></span>
               </div>
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
@@ -181,7 +194,18 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κόκκινο μόνο για εκπτώσεις (κανόνας brand).</p>
         </Section>
         <Section title="Στην κάρτα">
-          <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση</span><div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"], ["center", "Κέντρο"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => set("position", v)} className={chip(p.position === v)}>{l}</button>)}</div></div>
+          <div className="grid gap-2">
+            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
+            <div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["center", "Κέντρο"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"]] as const).map(([v, l]) => { const [px, py] = presetXY(v); const [cx, cy] = stickerXY(p); return <button key={v} type="button" onClick={() => setP((s) => ({ ...s, position: v, x: px, y: py }))} className={chip(cx === px && cy === py)}>{l}</button>; })}</div>
+            {([["x", "Οριζόντια", "Αριστερά", "Δεξιά"], ["y", "Κάθετα", "Πάνω", "Κάτω"]] as const).map(([k, l, from, to]) => { const v = stickerXY(p)[k === "x" ? 0 : 1]; return (
+              <label key={k} className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                <span className="flex justify-between"><span>{l}</span><span className="tabular-nums text-eu-muted">{v}%</span></span>
+                <input type="range" min={0} max={100} value={v} onChange={(e) => { const n = Number(e.target.value); setP((s) => { const [cx, cy] = stickerXY(s); return { ...s, x: k === "x" ? n : cx, y: k === "y" ? n : cy }; }); }} className="w-full accent-eu-navy min-h-11" aria-label={`${l} θέση`} />
+                <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>{from}</span><span>{to}</span></span>
+              </label>
+            ); })}
+            <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} className="size-5 accent-eu-navy" /> Δείξε και τα αυτόματα σήματα της κάρτας (έκπτωση, tag) για να μη συγκρούονται</label>
+          </div>
           <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Κίνηση</span><div className="flex flex-wrap gap-1.5">{([["none", "Καμία"], ["shimmer", "Λάμψη"], ["breathe", "Αναπνοή"], ["wiggle", "Κούνημα"], ["bump", "Αναπήδηση"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => set("animation", v)} className={chip(p.animation === v)}>{l}</button>)}</div></div>
         </Section>
       </div>

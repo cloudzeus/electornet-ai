@@ -33,6 +33,9 @@ export interface StickerParams {
   lines: StickerLine[];
   icon: StickerIcon;
   position: StickerPosition;
+  /** ελεύθερη θέση στη φωτογραφία της κάρτας, % (0 = αριστερά / πάνω, 100 = δεξιά / κάτω) — υπερισχύει της `position` */
+  x?: number;
+  y?: number;
   animation: StickerAnimation;
   /** shape «art»: vector σχήμα της βιβλιοθήκης ή SVG που ανέβηκε (καθαρισμένο) — το κείμενο μπαίνει στην περιοχή `art.text` */
   art?: import("./art").StickerArt | null;
@@ -91,3 +94,8 @@ export function paramsFromArt(preset: import("./art").ArtPreset): StickerParams 
     lines: preset.lines.filter((t): t is string => !!t).map((t, i) => line(t, { weight: i === 0 ? 900 : 700 })), icon: "none", animation: "none",
   };
 }
+
+const PRESET_XY: Record<StickerPosition, [number, number]> = { tl: [0, 0], tr: [100, 0], bl: [0, 100], br: [100, 100], center: [50, 50] };
+/** Η θέση του sticker σε % (από τις ελεύθερες συντεταγμένες ή από τη γωνία). */
+export const stickerXY = (p: Pick<StickerParams, "position" | "x" | "y">): [number, number] => (p.x != null && p.y != null ? [p.x, p.y] : PRESET_XY[p.position] ?? [100, 100]);
+export const presetXY = (pos: StickerPosition) => PRESET_XY[pos];

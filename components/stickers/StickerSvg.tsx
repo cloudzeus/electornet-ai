@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { StickerParams, StickerIcon, StickerShape } from "@/lib/stickers/model";
+import { stickerXY, type StickerParams, type StickerIcon, type StickerShape } from "@/lib/stickers/model";
 import { sanitizeSvgBody } from "@/lib/stickers/sanitize";
 
 /**
@@ -189,3 +189,12 @@ export const stickerPositionClass: Record<StickerParams["position"], string> = {
   br: "bottom-2 right-2",
   center: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
 };
+
+/**
+ * Θέση πάνω στη φωτογραφία της κάρτας (ο γονέας είναι `relative`): x/y σε %, με περιθώριο `inset` px από τις άκρες.
+ * Στο 0% το sticker ακουμπά αριστερά / πάνω, στο 100% δεξιά / κάτω — ποτέ δεν βγαίνει έξω από το πλαίσιο.
+ */
+export function stickerPlacementStyle(p: Pick<StickerParams, "position" | "x" | "y">, inset = 8): CSSProperties {
+  const [x, y] = stickerXY(p);
+  return { position: "absolute", left: `calc(${inset}px + (100% - ${inset * 2}px) * ${x / 100})`, top: `calc(${inset}px + (100% - ${inset * 2}px) * ${y / 100})`, transform: `translate(-${x}%, -${y}%)` };
+}
