@@ -101,3 +101,49 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
     .map((k) => ({ field: k, sent: norm(ITEM_FIELDS[k].kind, changes[k]!.to), got: after ? norm(ITEM_FIELDS[k].kind, after[k]) : "—" }));
   return { ok: !mismatches.length, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
+
+/** Υπάρχει ήδη είδος με αυτόν τον κωδικό στο SoftOne; (ο κωδικός είναι μοναδικός ανά εταιρεία — η συνεδρία είναι ήδη σε αυτήν) */
+export async function itemCodeTaken(code: string): Promise<number | null> {
+  const rows = await getTable("MTRL", ["MTRL", "CODE"], `SODTYPE=51 AND CODE='${code.replace(/'/g, "''")}'`);
+  const r = rows.find((x) => x[1]?.trim().toLowerCase() === code.trim().toLowerCase());
+  return r ? Number(r[0]) : null;
+}
+
+export interface NewItem {
+  code: string;
+  fields: Partial<Record<ItemField, ItemValue>>;
+  /** MTRMANFCTR, CCCWEBGRSPECS, CCCWEBCATEGORY1/2 και ό,τι αντιγράφεται από ένα είδος της ίδιας ομάδας (ΦΠΑ, μονάδα, ομάδα, κατηγορία, μάρκα) */
+  refs: { manufacturer: number; specGroup: number; webCat1: number | null; webCat2: number | null; vat: number | null; unit: number | null; itemGroup: number | null; commCategory: number | null; mark: number | null };
+}
+
+/**
+ * Νέο είδος στο SoftOne με setData ITEM χωρίς KEY (εισαγωγή). Ο κωδικός ελέγχεται πρώτα ότι είναι ελεύθερος· μετά την
+ * εγγραφή το είδος ξαναδιαβάζεται και επαληθεύονται κωδικός και όνομα. Το ERP είναι σε παραγωγή: τίποτα «έξυπνο» εδώ —
+ * μόνο τα πεδία που ξέρουμε, με τιμές αντιγραμμένες από υπάρχον είδος της ίδιας ομάδας.
+ */
+export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: number; error?: string }> {
+  const code = item.code.trim();
+  if (!code || code.length > 25) return { ok: false, error: "Ο κωδικός είδους χρειάζεται 1–25 χαρακτήρες." };
+  const name = norm("text", item.fields.name);
+  if (!name) return { ok: false, error: "Το όνομα δεν μπορεί να είναι κενό." };
+  for (const [k, v] of Object.entries(item.fields) as [ItemField, ItemValue][]) {
+    const f = ITEM_FIELDS[k], s = norm(f.kind, v);
+    if (f.max && s.length > f.max) return { ok: false, error: `«${f.label}»: έως ${f.max} χαρακτήρες (τώρα ${s.length}).` };
+  }
+  const taken = await itemCodeTaken(code);
+  if (taken) return { ok: false, error: `Ο κωδικός «${code}» υπάρχει ήδη στο SoftOne (MTRL ${taken}).` };
+
+  const row: Record<string, string | number> = { CODE: code, MTRMANFCTR: item.refs.manufacturer, CCCWEBGRSPECS: item.refs.specGroup };
+  const refs: [string, number | null][] = [["CCCWEBCATEGORY1", item.refs.webCat1], ["CCCWEBCATEGORY2", item.refs.webCat2], ["VAT", item.refs.vat], ["MTRUNIT1", item.refs.unit], ["MTRGROUP", item.refs.itemGroup], ["MTRCATEGORY", item.refs.commCategory], ["MTRMARK", item.refs.mark]];
+  for (const [k, v] of refs) if (v != null) row[k] = v;
+  for (const [k, v] of Object.entries(item.fields) as [ItemField, ItemValue][]) { const f = ITEM_FIELDS[k]; if (norm(f.kind, v) !== "" || f.kind === "bool") row[f.s1] = toS1(f.kind, v); }
+
+  const r = await s1("setData", { OBJECT: "ITEM", data: { ITEM: [row] } }).catch((e: Error) => ({ success: false, error: e.message }));
+  if (!r?.success) return { ok: false, error: `Το SoftOne αρνήθηκε τη δημιουργία: ${r?.error ?? "άγνωστο σφάλμα"}` };
+  const mtrl = Number(r.id);
+  if (!Number.isInteger(mtrl) || mtrl <= 0) return { ok: false, error: "Το SoftOne απάντησε «επιτυχία» χωρίς αριθμό είδους — έλεγξε στο ERP." };
+  const back = await getTable("MTRL", ["MTRL", "CODE", "NAME"], `MTRL=${mtrl}`);
+  const b = back.find((x) => Number(x[0]) === mtrl);
+  if (!b || b[1]?.trim() !== code || norm("text", b[2]) !== name) return { ok: false, mtrl, error: `Το είδος MTRL ${mtrl} δημιουργήθηκε αλλά η ανάγνωση δεν ταιριάζει (${b ? `${b[1]} · ${b[2]}` : "δεν βρέθηκε"}) — έλεγξε στο ERP.` };
+  return { ok: true, mtrl };
+}
