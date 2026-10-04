@@ -7,6 +7,7 @@ import { audit } from "@/lib/rbac/audit";
 import { ingest } from "@/lib/media/repo";
 import type { StickerParams } from "@/lib/stickers/model";
 import type { MediaAssetDTO } from "@/lib/media/types";
+import type { PromoTarget } from "@/lib/promo/engine";
 
 export interface StickerDTO { id: string; key: string; name: string; params: StickerParams; svg: string; active: boolean; updatedAt: string }
 
@@ -92,4 +93,48 @@ export async function stickerOptions(): Promise<{ id: string; key: string; name:
   if (!can(user.permissions, "catalog.promos.write") && !can(user.permissions, "catalog.products.write")) throw new Error("forbidden");
   const rows = await db.sticker.findMany({ where: { active: true }, orderBy: [{ sort: "asc" }, { name: "asc" }], select: { id: true, key: true, name: true, params: true } });
   return rows.map((r) => ({ ...r, params: r.params as unknown as StickerParams }));
+}
+
+// ---------- Κανόνες εφαρμογής ----------
+
+export interface RuleInput { id?: string | null; name: string; stickerId: string; targets: PromoTarget[]; minPrice: number | null; maxPrice: number | null; onlyInStock: boolean; startsAt: string | null; endsAt: string | null; priority: number; active: boolean }
+
+/** Ποια προϊόντα (ορατά στη βιτρίνα) πιάνει ένας κανόνας — πλήθος και δείγμα, πριν την αποθήκευση. */
+export async function previewStickerRule(r: Pick<RuleInput, "targets" | "minPrice" | "maxPrice" | "onlyInStock">): Promise<{ count: number; sample: { id: string; title: string }[] }> {
+  await requirePermission("catalog.promos.write");
+  const inc = r.targets.filter((t) => !t.exclude), exc = r.targets.filter((t) => t.exclude);
+  if (!inc.length && r.minPrice == null && r.maxPrice == null) return { count: 0, sample: [] };
+  const cats = await db.category.findMany({ select: { id: true, parentId: true } });
+  const kids = new Map<string, string[]>(); for (const c of cats) if (c.parentId) kids.set(c.parentId, [...(kids.get(c.parentId) ?? []), c.id]);
+  const subtree = (id: string): string[] => [id, ...(kids.get(id) ?? []).flatMap(subtree)];
+  const cond = (t: PromoTarget) => t.kind === "product" ? { id: t.refId } : t.kind === "brand" ? { brandId: t.refId } : t.kind === "category" ? { categoryId: { in: subtree(t.refId) } } : (() => { const [b, c] = t.refId.split("|"); return { brandId: b, categoryId: { in: subtree(c) } }; })();
+  const { LISTED } = await import("@/lib/data/db-catalog");
+  const where = { AND: [LISTED, ...(inc.length ? [{ OR: inc.map(cond) }] : []), ...exc.map((t) => ({ NOT: cond(t) })), ...(r.minPrice != null ? [{ price: { gte: r.minPrice } }] : []), ...(r.maxPrice != null ? [{ price: { lte: r.maxPrice } }] : []), ...(r.onlyInStock ? [{ stock: { gt: 0 } }] : [])] };
+  const [count, sample] = await Promise.all([db.product.count({ where }), db.product.findMany({ where, take: 8, orderBy: { stock: "desc" }, select: { id: true, title: true } })]);
+  return { count, sample };
+}
+
+export async function saveStickerRule(r: RuleInput): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await requirePermission("catalog.promos.write");
+  if (!r.name.trim()) return { ok: false, error: "Δώσε όνομα στον κανόνα." };
+  if (!r.stickerId) return { ok: false, error: "Διάλεξε sticker." };
+  if (!r.targets.some((t) => !t.exclude) && r.minPrice == null && r.maxPrice == null) return { ok: false, error: "Διάλεξε πού ισχύει (κατηγορία, μάρκα, προϊόντα) ή εύρος τιμής." };
+  if (r.minPrice != null && r.maxPrice != null && r.minPrice > r.maxPrice) return { ok: false, error: "Η ελάχιστη τιμή είναι μεγαλύτερη από τη μέγιστη." };
+  if (r.startsAt && r.endsAt && new Date(r.endsAt) < new Date(r.startsAt)) return { ok: false, error: "Η λήξη είναι πριν από την έναρξη." };
+  const data = { name: r.name.trim().slice(0, 120), stickerId: r.stickerId, targets: r.targets as unknown as object, minPrice: r.minPrice, maxPrice: r.maxPrice, onlyInStock: r.onlyInStock, startsAt: r.startsAt ? new Date(r.startsAt) : null, endsAt: r.endsAt ? new Date(r.endsAt) : null, priority: Math.max(0, Math.min(999, Math.round(r.priority || 100))), active: r.active };
+  const row = r.id ? await db.stickerRule.update({ where: { id: r.id }, data }) : await db.stickerRule.create({ data: { ...data, createdBy: user.id } });
+  await audit(user.id, r.id ? "sticker.rule.update" : "sticker.rule.create", "StickerRule", row.id, null, data);
+  const { resetStickerCatalog } = await import("@/lib/stickers/server"); resetStickerCatalog();
+  const { resetCatalogCache } = await import("@/lib/data/db-catalog"); resetCatalogCache();
+  revalidatePath("/admin/stickers/kanones");
+  return { ok: true, id: row.id };
+}
+
+export async function deleteStickerRule(id: string) {
+  const user = await requirePermission("catalog.promos.write");
+  const row = await db.stickerRule.delete({ where: { id } });
+  await audit(user.id, "sticker.rule.delete", "StickerRule", id, { name: row.name, targets: row.targets }, null);
+  const { resetStickerCatalog } = await import("@/lib/stickers/server"); resetStickerCatalog();
+  revalidatePath("/admin/stickers/kanones");
+  return { ok: true as const };
 }

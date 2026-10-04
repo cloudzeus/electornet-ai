@@ -132,7 +132,7 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
           <div className="grid gap-2 rounded-2xl bg-white border border-eu-line p-3">
-            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
+            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση και μέγεθος <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
             <div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["center", "Κέντρο"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"]] as const).map(([v, l]) => { const [px, py] = presetXY(v); const [cx, cy] = stickerXY(p); return <button key={v} type="button" onClick={() => setP((s) => ({ ...s, position: v, x: px, y: py }))} className={chip(cx === px && cy === py)}>{l}</button>; })}</div>
             {([["x", "Οριζόντια", "Αριστερά", "Δεξιά"], ["y", "Κάθετα", "Πάνω", "Κάτω"]] as const).map(([k, l, from, to]) => { const v = stickerXY(p)[k === "x" ? 0 : 1]; return (
               <label key={k} className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
@@ -141,6 +141,17 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
                 <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>{from}</span><span>{to}</span></span>
               </label>
             ); })}
+            <div className="grid gap-2 border-t border-eu-line pt-2">
+              <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                <span className="flex justify-between"><span>Μέγεθος στην κάρτα</span><span className="tabular-nums text-eu-muted font-normal">{p.size}px · ≈{Math.round((p.size / 280) * 100)}% του πλάτους</span></span>
+                <input type="range" min={48} max={220} value={p.size} onChange={(e) => set("size", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Μέγεθος στην κάρτα" />
+                <span className="flex justify-between text-eu-muted text-[length:var(--fs-12)] font-normal"><span>Διακριτικό</span><span>Κυρίαρχο</span></span>
+              </label>
+              <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]">
+                <span className="flex justify-between"><span>Περιστροφή</span><span className="tabular-nums text-eu-muted font-normal">{p.rotate}°</span></span>
+                <input type="range" min={-30} max={30} value={p.rotate} onChange={(e) => set("rotate", Number(e.target.value))} className="w-full accent-eu-navy min-h-11" aria-label="Περιστροφή" />
+              </label>
+            </div>
             <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} className="size-5 accent-eu-navy" /> Δείξε τα σταθερά στοιχεία της κάρτας (έκπτωση, tag, καρδιά, γρήγορη προβολή) για να μη συγκρούονται</label>
             {showAuto && shown.moved && <p role="status" className="m-0 rounded-lg bg-eu-yellow/30 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">Η θέση αυτή πέφτει πάνω σε σταθερό στοιχείο της κάρτας· στη βιτρίνα το sticker μπαίνει αυτόματα στην πλησιέστερη ελεύθερη θέση (όπως φαίνεται).</p>}
           </div>
@@ -186,10 +197,6 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           {(p.shape === "burst" || p.shape === "seal") && (
             <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>{p.shape === "burst" ? "Ακτίνες" : "Δόντια"}</span><span className="tabular-nums text-eu-muted">{p.points}</span></span><input type="range" min={8} max={28} value={p.points} onChange={(e) => set("points", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>Μέγεθος</span><span className="tabular-nums text-eu-muted">{p.size}px</span></span><input type="range" min={48} max={220} value={p.size} onChange={(e) => set("size", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>
-            <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>Περιστροφή</span><span className="tabular-nums text-eu-muted">{p.rotate}°</span></span><input type="range" min={-30} max={30} value={p.rotate} onChange={(e) => set("rotate", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>
-          </div>
         </Section>
         <Section title="Κείμενο">
           {p.lines.map((l, i) => (

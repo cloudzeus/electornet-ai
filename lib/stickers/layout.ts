@@ -3,14 +3,14 @@ import { stickerXY, type StickerParams } from "./model";
 /**
  * Διάταξη πολλών stickers σε μία κάρτα. Η φωτογραφία χωρίζεται σε 9 ζώνες (3×3)· κάθε sticker θέλει τη ζώνη της θέσης
  * του. Κανόνες:
- * - με σειρά προτεραιότητας (μικρότερος αριθμός πρώτα): έκπτωση/προσφορά → χειροκίνητα → ετικέτες·
+ * - με σειρά προτεραιότητας (μικρότερος αριθμός πρώτα): προσφορά → χειροκίνητα → κανόνες → ετικέτες·
  * - ζώνες που πιάνουν τα σταθερά στοιχεία της κάρτας (καρδιά, γρήγορη προβολή, σήμα έκπτωσης, χρώματα) είναι κλειστές·
  * - αν η ζώνη είναι πιασμένη, το sticker πάει στην πλησιέστερη ελεύθερη — ποτέ δύο στην ίδια, ποτέ επικάλυψη·
  * - το κέντρο (πάνω στο προϊόν) μόνο όταν το sticker είναι το μοναδικό·
  * - έως `max` ορατά· όσα περισσεύουν εναλλάσσονται στην τελευταία θέση (η σελίδα προϊόντος τα δείχνει όλα).
  */
 export type Zone = "tl" | "tc" | "tr" | "ml" | "mc" | "mr" | "bl" | "bc" | "br";
-export interface CardSticker { key: string; params: StickerParams; priority: number; source: "promo" | "manual" | "tag" }
+export interface CardSticker { key: string; params: StickerParams; priority: number; source: "promo" | "manual" | "rule" | "tag" }
 export interface Placed { s: CardSticker; x: number; y: number }
 export interface Layout { placed: Placed[]; rotating: Placed[] }
 

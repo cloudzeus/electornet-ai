@@ -88,7 +88,7 @@ export async function findCategoryPath(segments: string[]): Promise<CatNode[] | 
 // ---------- Προϊόν ----------
 
 const PRODUCT_SELECT = {
-  id: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true, price: true, stock: true,
+  id: true, brandId: true, categoryId: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true, price: true, stock: true,
   brand: { select: { name: true, slug: true } },
   category: { select: { slug: true, name: true, parent: { select: { slug: true, name: true, parent: { select: { slug: true, name: true } } } } } },
   media: { where: SHOWN, orderBy: { sortNo: "asc" as const }, select: { url: true } },

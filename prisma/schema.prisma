@@ -1627,6 +1627,31 @@ model Sticker {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   products  ProductSticker[]
+  rules     StickerRule[]
+}
+
+/// Γενικός κανόνας εφαρμογής sticker: σε μάρκες / κατηγορίες (με τις υποκατηγορίες) / μάρκα-σε-κατηγορία / προϊόντα, με
+/// εξαιρέσεις, εύρος τιμής, «μόνο διαθέσιμα», διάστημα ισχύος και προτεραιότητα. Στόχευση ίδια με των προσφορών.
+model StickerRule {
+  id          String    @id @default(cuid())
+  name        String
+  stickerId   String
+  sticker     Sticker   @relation(fields: [stickerId], references: [id], onDelete: Cascade)
+  /// [{ kind: brand | category | brandcat | product, refId, exclude }]
+  targets     Json      @default("[]")
+  minPrice    Float?
+  maxPrice    Float?
+  onlyInStock Boolean   @default(false)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  /// μικρότερος = πρώτος (ανάμεσα στους κανόνες)
+  priority    Int       @default(100)
+  active      Boolean   @default(true)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([active])
 }
 
 /// Sticker που μπήκε χειροκίνητα σε ένα προϊόν (από την καρτέλα του), προαιρετικά με διάστημα ισχύος.

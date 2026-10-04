@@ -307,7 +307,7 @@ function RewardFields({ d, setReward, setRules }: { d: PromoDraft; setReward: (p
   }
 }
 
-function Picker({ kind, onPick, placeholder }: { kind: "product" | "brand" | "category"; onPick: (x: { id: string; label: string; sub?: string }) => void; placeholder: string }) {
+export function Picker({ kind, onPick, placeholder }: { kind: "product" | "brand" | "category"; onPick: (x: { id: string; label: string; sub?: string }) => void; placeholder: string }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<{ id: string; label: string; sub?: string }[]>([]);
   useEffect(() => {
@@ -338,7 +338,7 @@ type SetNames = (f: (n: Record<string, string>) => Record<string, string>) => vo
 const KIND: Record<PromoTarget["kind"], string> = { product: "Προϊόν", brand: "Μάρκα παντού", category: "Κατηγορία", brandcat: "Μάρκα σε κατηγορία" };
 
 /** Οι στόχοι σε λόγια + chips για αφαίρεση. */
-function TargetChips({ list, names, onRemove, tone }: { list: PromoTarget[]; names: Record<string, string>; onRemove: (t: PromoTarget) => void; tone: "in" | "out" }) {
+export function TargetChips({ list, names, onRemove, tone }: { list: PromoTarget[]; names: Record<string, string>; onRemove: (t: PromoTarget) => void; tone: "in" | "out" }) {
   return (
     <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">
       {list.map((t) => (
@@ -364,7 +364,7 @@ function Group({ n, title, desc, children }: { n: string; title: string; desc?: 
   );
 }
 
-function OptionCard({ on, onClick, title, desc, tone = "navy" }: { on: boolean; onClick: () => void; title: string; desc: string; tone?: "navy" | "red" }) {
+export function OptionCard({ on, onClick, title, desc, tone = "navy" }: { on: boolean; onClick: () => void; title: string; desc: string; tone?: "navy" | "red" }) {
   return (
     <button type="button" aria-pressed={on} onClick={onClick} className={`text-left rounded-2xl border-2 p-3 grid gap-0.5 min-w-0 ${on ? (tone === "red" ? "border-eu-red bg-eu-red/5" : "border-eu-navy bg-eu-chip") : "border-eu-line hover:border-eu-blue"}`}>
       <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5">{on ? <Check className="size-4" aria-hidden /> : <span className="size-4 rounded-full border-2 border-eu-line" aria-hidden />}{title}</span>

@@ -10,7 +10,7 @@ import { addProductSticker, removeProductSticker, moveProductSticker, type Produ
 
 const input = "rounded-lg border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-14)]";
 const icon = "size-11 grid place-items-center rounded-full hover:bg-eu-surface text-eu-ink-3 disabled:opacity-40";
-const SRC: Record<CardSticker["source"], string> = { promo: "από προσφορά", tag: "από ετικέτα", manual: "χειροκίνητο" };
+const SRC: Record<CardSticker["source"], string> = { promo: "από προσφορά", rule: "από κανόνα", tag: "από ετικέτα", manual: "χειροκίνητο" };
 
 /**
  * Stickers του προϊόντος: όσα μπαίνουν χειροκίνητα (με προαιρετικές ημερομηνίες και σειρά) και, για πληροφορία, όσα έρχονται
@@ -27,7 +27,7 @@ export function ProductStickersAdmin({ productId, initial, auto, canWrite }: { p
   const thumb = (p: CardSticker["params"], id: string) => <StickerSvg p={{ ...p, size: p.art ? fitWidth(p.art, 44) : 44, rotate: 0, animation: "none" }} id={id} />;
   return (
     <div className="grid gap-3">
-      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Στην κάρτα φαίνονται έως <strong>2</strong> (1 στο κινητό), με σειρά: προσφορά → χειροκίνητα → ετικέτες· όσα περισσεύουν εναλλάσσονται. Τοποθετούνται αυτόματα σε ελεύθερες θέσεις — ποτέ πάνω στην καρδιά, στην έκπτωση ή στη γρήγορη προβολή. Η σελίδα του προϊόντος τα δείχνει όλα.</p>
+      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Στην κάρτα φαίνονται έως <strong>2</strong> (1 στο κινητό), με σειρά: προσφορά → χειροκίνητα → κανόνες → ετικέτες· όσα περισσεύουν εναλλάσσονται. Τοποθετούνται αυτόματα σε ελεύθερες θέσεις — ποτέ πάνω στην καρδιά, στην έκπτωση ή στη γρήγορη προβολή. Η σελίδα του προϊόντος τα δείχνει όλα.</p>
       {auto.length > 0 && (
         <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
           {auto.map((s) => <li key={s.key} className="inline-flex items-center gap-2 rounded-xl border border-dashed border-eu-line px-2 py-1"><span className="grid place-items-center h-12">{thumb(s.params, `auto-${s.key}`)}</span><span className="text-[length:var(--fs-12)] text-eu-muted">{SRC[s.source]}</span></li>)}

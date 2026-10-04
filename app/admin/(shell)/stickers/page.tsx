@@ -5,6 +5,7 @@ import { listStickers } from "./actions";
 import { STICKER_PRESETS, paramsFromArt } from "@/lib/stickers/model";
 import { ART_PRESETS, fitWidth } from "@/lib/stickers/art";
 import { StickerSvgUpload } from "@/components/admin/stickers/StickerSvgUpload";
+import { StickerTabs } from "@/components/admin/stickers/StickerTabs";
 import { StickerSvg } from "@/components/stickers/StickerSvg";
 import { StickerListActions } from "@/components/admin/stickers/StickerListActions";
 
@@ -25,6 +26,7 @@ export default async function StickersPage() {
         </div>
         <div className="flex flex-wrap items-start gap-2"><StickerSvgUpload /><Link href="/admin/stickers/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέο sticker</Link></div>
       </div>
+      <StickerTabs active="stickers" />
       <section className="grid gap-3">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Αποθηκευμένα ({stickers.length})</h3>
         {stickers.length === 0 ? (
