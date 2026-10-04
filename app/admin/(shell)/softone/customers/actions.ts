@@ -12,7 +12,11 @@ export async function startPurchaseSync(full: boolean): Promise<{ ok: boolean; e
   const running = await db.s1SyncRun.findFirst({ where: { kind: "cust-purchases", ok: false, ms: 0, error: null, at: { gt: new Date(Date.now() - 60 * 60_000) } }, select: { id: true } }).catch(() => null);
   if (running) return { ok: false, error: "Τρέχει ήδη συγχρονισμός — περίμενε να τελειώσει." };
   await audit(user.id, "softone.purchases.sync", "S1SyncRun", full ? "full" : "delta", null, null);
-  after(async () => { await syncPurchases({ since: full ? new Date("2020-01-01") : undefined, trigger: "manual" }); });
+  after(async () => {
+    if (!full) { await syncPurchases({ trigger: "manual" }); return; }
+    // πλήρες ιστορικό ανά έτος: μικρότερες παρτίδες και ορατή πρόοδος στη λίστα εκτελέσεων
+    for (let y = 2020; y <= new Date().getFullYear(); y++) await syncPurchases({ since: new Date(`${y}-01-01`), until: new Date(`${y + 1}-01-01`), trigger: "manual" });
+  });
   revalidatePath("/admin/softone/customers");
   return { ok: true };
 }

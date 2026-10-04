@@ -51,16 +51,18 @@ function extendedYears(title: string) {
   return m ? Number(m[1]) : 1;
 }
 
-interface Doc { findoc: number; series: number; fincode: string; date: Date; trdr: number; total: number | null; net: number | null; vat: number | null; parent: number | null }
+/** `buyer` = FINDOC.COMMENTS1: το ονοματεπώνυμο του αγοραστή (ίδιο με το CCCSHPNAME όπου υπάρχουν και τα δύο — και υπάρχει όπου εκείνο λείπει) */
+interface Doc { findoc: number; series: number; fincode: string; date: Date; trdr: number; total: number | null; net: number | null; vat: number | null; parent: number | null; buyer: string | null }
 
 /** Συγχρονισμός: όλες οι αγορές από `since` (προεπιλογή 2020) ή, χωρίς όρισμα μετά τον πρώτο, όσες άλλαξαν. */
-export function syncPurchases(opts: { since?: Date; trigger?: Trigger } = {}) {
+export function syncPurchases(opts: { since?: Date; until?: Date; trigger?: Trigger } = {}) {
   return logged("cust-purchases", opts.trigger ?? "manual", async () => {
     const state = await db.s1SyncState.findUnique({ where: { kind: "purchases" } });
     const since = opts.since ?? (state?.cursor ? new Date(state.cursor.getTime() - 2 * 86_400_000) : new Date("2020-01-01"));
-    const filter = `SERIES IN (${Object.keys(SERIES).join(",")}) AND (TRNDATE>='${since.toISOString().slice(0, 10)}' OR UPDDATE>='${since.toISOString().slice(0, 19).replace("T", " ")}')`;
-    const rows = await getTable("FINDOC", ["FINDOC", "SERIES", "FINCODE", "TRNDATE", "TRDR", "SUMAMNT", "NETAMNT", "VATAMNT", "CCCFINDOCS", "UPDDATE"], filter);
-    const docs: Doc[] = rows.map((r) => ({ findoc: int(r[0])!, series: int(r[1])!, fincode: r[2] ?? "", date: date(r[3])!, trdr: int(r[4]) ?? 0, total: num(r[5]), net: num(r[6]), vat: num(r[7]), parent: int(r[8]) })).filter((d) => d.findoc && d.date && SERIES[d.series]);
+    const until = opts.until ? ` AND TRNDATE<'${opts.until.toISOString().slice(0, 10)}'` : "";
+    const filter = `SERIES IN (${Object.keys(SERIES).join(",")}) AND ${opts.until ? `TRNDATE>='${since.toISOString().slice(0, 10)}'${until}` : `(TRNDATE>='${since.toISOString().slice(0, 10)}' OR UPDDATE>='${since.toISOString().slice(0, 19).replace("T", " ")}')`}`;
+    const rows = await getTable("FINDOC", ["FINDOC", "SERIES", "FINCODE", "TRNDATE", "TRDR", "SUMAMNT", "NETAMNT", "VATAMNT", "CCCFINDOCS", "UPDDATE", "COMMENTS1"], filter);
+    const docs: Doc[] = rows.map((r) => ({ findoc: int(r[0])!, series: int(r[1])!, fincode: r[2] ?? "", date: date(r[3])!, trdr: int(r[4]) ?? 0, total: num(r[5]), net: num(r[6]), vat: num(r[7]), parent: int(r[8]), buyer: txt(r[10]) })).filter((d) => d.findoc && d.date && SERIES[d.series]);
     let maxUpd = state?.cursor ?? null;
     for (const r of rows) { const u = date(r[9]); if (u && (!maxUpd || u > maxUpd)) maxUpd = u; }
 
@@ -72,12 +74,16 @@ export function syncPurchases(opts: { since?: Date; trigger?: Trigger } = {}) {
     const members = new Set<number>();
     for (const [t, i] of trdrInfo) if (i.TRDBUSINESS?.trim() || i.TRDPGROUP?.trim()) members.add(t);
     const mine = docs.filter((d) => d.trdr === RETAIL_TRDR || (trdrInfo.has(d.trdr) && !members.has(d.trdr)));
+    const byFindoc = new Map(mine.map((d) => [d.findoc, d]));
+    // Παραγγελία λιανικής που τιμολογήθηκε σε επιχείρηση: η παραγγελία ανήκει στον πελάτη του τιμολογίου (όχι σε «νέο» πελάτη από το τηλέφωνο)
+    const invoiceTrdrOf = new Map<number, number>();
+    for (const d of mine) if (SERIES[d.series].kind !== "order" && d.parent && d.trdr !== RETAIL_TRDR) invoiceTrdrOf.set(d.parent, d.trdr);
 
     // Αγοραστής (MTRDOC) και γραμμές (MTRLINES)
     const recip = new Map<number, { name: string | null; phone: string | null; address: string | null; afm: string | null; job: string | null }>();
     const lines = new Map<number, { lineNo: number; mtrl: number | null; qty: number; price: number | null; total: number | null; member: number | null }[]>();
     for (const part of chunk(mine.map((d) => d.findoc), 500)) {
-      for (const r of await getTable("MTRDOC", ["FINDOC", "CCCSHPNAME", "CCCSHPPHONE", "CCCSHPADDRESS", "CCCSHPAFM", "CCCSHPJOB"], `FINDOC IN (${part.join(",")})`)) recip.set(int(r[0])!, { name: txt(r[1]), phone: txt(r[2]), address: txt(r[3]), afm: txt(r[4]), job: txt(r[5]) });
+      for (const r of await getTable("MTRDOC", ["FINDOC", "CCCSHPNAME", "CCCSHPPHONE", "CCCSHPADDRESS", "CCCSHPAFM", "CCCSHPJOB"], `FINDOC IN (${part.join(",")})`)) { const f = int(r[0])!; recip.set(f, { name: txt(r[1]) ?? byFindoc.get(f)?.buyer ?? null, phone: txt(r[2]), address: txt(r[3]), afm: txt(r[4]), job: txt(r[5]) }); }
       for (const r of await getTable("MTRLINES", ["FINDOC", "MTRLINES", "MTRL", "QTY1", "PRICE", "LINEVAL", "CCCCUSTOMER"], `FINDOC IN (${part.join(",")})`)) {
         const f = int(r[0])!; const l = lines.get(f) ?? []; lines.set(f, l);
         l.push({ lineNo: int(r[1]) ?? l.length + 1, mtrl: int(r[2]), qty: num(r[3]) ?? 1, price: num(r[4]), total: num(r[5]), member: int(r[6]) });
@@ -98,8 +104,13 @@ export function syncPurchases(opts: { since?: Date; trigger?: Trigger } = {}) {
     const series = new Map((await db.docSeries.findMany({ where: { s1Id: { in: Object.keys(SERIES) } }, select: { s1Id: true, code: true, name: true } })).map((s) => [Number(s.s1Id), s]));
 
     for (const d of ordered) {
-      const def = SERIES[d.series], rc = recip.get(d.findoc) ?? null, info = trdrInfo.get(d.trdr);
-      const customerId = await resolveCustomer(d, rc, info).catch(() => null);
+      const def = SERIES[d.series], rc = recip.get(d.findoc) ?? (d.buyer ? { name: d.buyer, phone: null, address: null, afm: null, job: null } : null);
+      const billed = d.trdr === RETAIL_TRDR ? invoiceTrdrOf.get(d.findoc) : undefined;
+      const asDoc = billed ? { ...d, trdr: billed } : d, info = trdrInfo.get(asDoc.trdr);
+      // σταθερότητα: η αγορά κρατά τον πελάτη της· παραστατικό λιανικής → ο πελάτης της παραγγελίας του (ίδιος αγοραστής)
+      const kept = idOfFindoc.has(d.findoc) ? (await db.purchase.findUnique({ where: { id: idOfFindoc.get(d.findoc)! }, select: { customerId: true } }))?.customerId ?? null : null;
+      const parentCustomer = def.kind !== "order" && d.parent && d.trdr === RETAIL_TRDR && idOfFindoc.has(d.parent) ? (await db.purchase.findUnique({ where: { id: idOfFindoc.get(d.parent)! }, select: { customerId: true } }))?.customerId ?? null : null;
+      const customerId = (!billed && (kept ?? parentCustomer)) || await resolveCustomer(asDoc, rc, info).catch(() => null);
       if (customerId) touchedCustomers.add(customerId);
       const recipient = { name: rc?.name ?? info?.NAME ?? null, phone: rc?.phone ?? (info?.PHONE02 || info?.PHONE01 || null), address: rc?.address ?? ([info?.ADDRESS, info?.ZIP, info?.CITY].filter(Boolean).join(", ") || null), afm: rc?.afm ?? info?.AFM ?? null, company: d.trdr !== RETAIL_TRDR ? info?.NAME ?? null : null };
       const parentId = def.kind !== "order" && d.parent ? idOfFindoc.get(d.parent) ?? null : null;
@@ -108,15 +119,23 @@ export function syncPurchases(opts: { since?: Date; trigger?: Trigger } = {}) {
         customerId, source: "softone", kind: def.kind, status: def.status ?? (def.kind === "order" ? "pending" : "issued"), s1Series: d.series, seriesCode: s?.code ?? null, seriesName: s?.name ?? null,
         docNo: d.fincode || null, date: d.date, trdr: d.trdr, total: d.total, net: d.net, vat: d.vat, recipient: recipient as Prisma.InputJsonValue, parentId, syncedAt: new Date(),
       };
+      // οι γραμμές του SoftOne είναι χωρίς ΦΠΑ· δείχνονται με ΦΠΑ, όπως το σύνολο του παραστατικού
+      const gross = d.total && d.net && d.net > 0 ? d.total / d.net : 1;
+      const g = (v: number | null) => (v == null ? null : Math.round(v * gross * 100) / 100);
       const ls = (lines.get(d.findoc) ?? []).sort((a, b) => a.lineNo - b.lineNo).map((l, i) => {
         const it = l.mtrl ? known.get(l.mtrl) : undefined;
-        return { lineNo: i + 1, mtrl: l.mtrl, productId: l.mtrl ? productOf.get(l.mtrl)?.id ?? null : null, code: it?.code ?? null, title: it?.name || "Είδος", qty: l.qty, unitPrice: l.price, lineTotal: l.total, memberTrdr: l.member };
+        return { lineNo: i + 1, mtrl: l.mtrl, productId: l.mtrl ? productOf.get(l.mtrl)?.id ?? null : null, code: it?.code ?? null, title: it?.name || "Είδος", qty: l.qty, unitPrice: g(l.price), lineTotal: g(l.total), memberTrdr: l.member };
       });
       const existing = idOfFindoc.get(d.findoc);
+      if (existing && customerId) { const prev = await db.purchase.findUnique({ where: { id: existing }, select: { customerId: true } }); if (prev?.customerId && prev.customerId !== customerId) await mergeHistoryCustomer(prev.customerId, customerId); }
       const p = await db.$transaction(async (tx) => {
         const row = existing ? await tx.purchase.update({ where: { id: existing }, data, select: { id: true } }) : await tx.purchase.create({ data: { ...data, s1Findoc: d.findoc }, select: { id: true } });
-        await tx.purchaseLine.deleteMany({ where: { purchaseId: row.id } });
-        if (ls.length) await tx.purchaseLine.createMany({ data: ls.map((l) => ({ ...l, purchaseId: row.id })) });
+        // γραμμές στη θέση τους (σταθερά ids: οι συσκευές δείχνουν σε αυτές)
+        if (!existing) { if (ls.length) await tx.purchaseLine.createMany({ data: ls.map((l) => ({ ...l, purchaseId: row.id })) }); }
+        else {
+          for (const l of ls) await tx.purchaseLine.upsert({ where: { purchaseId_lineNo: { purchaseId: row.id, lineNo: l.lineNo } }, create: { ...l, purchaseId: row.id }, update: l });
+          await tx.purchaseLine.deleteMany({ where: { purchaseId: row.id, lineNo: { gt: ls.length } } });
+        }
         return row;
       });
       idOfFindoc.set(d.findoc, p.id);
@@ -148,7 +167,13 @@ async function resolveCustomer(d: Doc, rc: { name: string | null; phone: string 
   if (afm) or.push({ vatNumber: afm });
   if (email) or.push({ email });
   if (pk && !isInvoice) or.push({ phoneKey: pk });
-  const found = or.length ? await db.customer.findFirst({ where: { OR: or, status: { not: "anonymised" } }, orderBy: { createdAt: "asc" }, select: { id: true, erpTrdr: true, phoneKey: true, vatNumber: true, email: true } }) : null;
+  let found = or.length ? await db.customer.findFirst({ where: { OR: or, status: { not: "anonymised" } }, orderBy: { createdAt: "asc" }, select: { id: true, erpTrdr: true, phoneKey: true, vatNumber: true, email: true } }) : null;
+  // χωρίς κανένα κλειδί: ίδιο ονοματεπώνυμο ΚΑΙ ίδιος Τ.Κ. (μόνο σε πελάτες από το ιστορικό)
+  const zip = rc?.address ? parseAddress(rc.address).zip : "";
+  if (!found && !isInvoice && name && zip) {
+    const n0 = splitName(name);
+    found = await db.customer.findFirst({ where: { source: "softone-history", type: "individual", firstName: { equals: n0.firstName, mode: "insensitive" }, lastName: { equals: n0.lastName, mode: "insensitive" }, addresses: { some: { zip } } }, orderBy: { createdAt: "asc" }, select: { id: true, erpTrdr: true, phoneKey: true, vatNumber: true, email: true } });
+  }
   if (found) {
     const patch: Prisma.CustomerUpdateInput = {};
     if (isInvoice && !found.erpTrdr) { patch.erpTrdr = String(d.trdr); patch.erpCode = info!.CODE || null; patch.erpSyncStatus = "linked"; }
@@ -159,9 +184,8 @@ async function resolveCustomer(d: Doc, rc: { name: string | null; phone: string 
     await addAddress(found.id, rc?.address ?? null, info, rc?.name ?? null, rc?.phone ?? null);
     return found.id;
   }
-  if (!name) return null;
-  const n = isInvoice ? { firstName: "", lastName: name } : splitName(name);
-  const mobile = pk?.startsWith("69") ? pk : null, phone = pk && !pk.startsWith("69") ? pk : null;
+  const n = !name ? { firstName: "", lastName: "Πελάτης λιανικής" } : isInvoice ? { firstName: "", lastName: name } : splitName(name);
+  const mobile = pk?.startsWith("69") ? pk : null, phone = pk && !pk.startsWith("69") ? pk : !pk ? (rc?.phone ?? null)?.slice(0, 30) ?? null : null;
   const c = await db.customer.create({ data: {
     type: isInvoice ? "business" : "individual", email: email && !(await db.customer.findUnique({ where: { email }, select: { id: true } })) ? email : null,
     firstName: n.firstName.slice(0, 80), lastName: n.lastName.slice(0, 120), company: isInvoice ? name.slice(0, 200) : null, vatNumber: afm, doy: isInvoice ? info!.IRSDATA || null : null, profession: isInvoice ? info!.JOBTYPETRD || null : null,
@@ -203,7 +227,8 @@ async function devicesFor(customerId: string, purchaseId: string, d: Doc, ls: Li
 /** Σύνοψη αγορών ανά πελάτη: παραγγελίες που δεν ακυρώθηκαν (SoftOne) + παραγγελίες του νέου eshop. */
 export async function refreshCustomerTotals(ids: string[]) {
   for (const part of chunk(ids, 200)) {
-    const agg = await db.purchase.groupBy({ by: ["customerId"], where: { customerId: { in: part }, kind: "order", NOT: { status: "cancelled" } }, _count: { _all: true }, _sum: { total: true }, _min: { date: true }, _max: { date: true } });
+    // μία αγορά = παραγγελία που δεν ακυρώθηκε, ή παραστατικό πώλησης χωρίς παραγγελία
+    const agg = await db.purchase.groupBy({ by: ["customerId"], where: { customerId: { in: part }, OR: [{ kind: "order", NOT: { status: "cancelled" } }, { kind: { in: ["receipt", "invoice"] }, parentId: null }] }, _count: { _all: true }, _sum: { total: true }, _min: { date: true }, _max: { date: true } });
     const shop = await db.order.groupBy({ by: ["customerId"], where: { customerId: { in: part }, status: { notIn: ["cancelled", "pending"] } }, _count: { _all: true }, _sum: { total: true }, _min: { createdAt: true }, _max: { createdAt: true } });
     for (const id of part) {
       const a = agg.find((x) => x.customerId === id), s = shop.find((x) => x.customerId === id);
@@ -244,4 +269,26 @@ export async function geocodePending(customerIds?: string[], limit = 5000) {
     }
   } finally { geocoding = false; }
   return { ok, missed, busy: false };
+}
+
+/**
+ * Ένας πελάτης «από το ιστορικό» που αποδείχθηκε ίδιος με άλλον (π.χ. η παραγγελία του τιμολογήθηκε σε επιχείρηση):
+ * διευθύνσεις, συσκευές και αγορές περνούν στον σωστό και ο διπλός φεύγει — μόνο αν τον δημιούργησε ο συγχρονισμός και
+ * δεν έχει τίποτα δικό του (λογαριασμό, email, παραγγελίες νέου eshop, συναινέσεις, σημειώσεις).
+ */
+async function mergeHistoryCustomer(fromId: string, toId: string) {
+  const c = await db.customer.findUnique({ where: { id: fromId }, select: { source: true, email: true, passwordHash: true, _count: { select: { orders: true, consents: true, customerNotes: true, tickets: true, social: true } } } });
+  if (!c || c.source !== "softone-history" || c.email || c.passwordHash || Object.values(c._count).some((n) => n > 0)) return;
+  if (await db.purchase.count({ where: { customerId: fromId, s1Findoc: null } })) return;
+  await db.$transaction(async (tx) => {
+    await tx.purchase.updateMany({ where: { customerId: fromId }, data: { customerId: toId } });
+    await tx.customerDevice.updateMany({ where: { customerId: fromId }, data: { customerId: toId } });
+    const target = await tx.address.findMany({ where: { customerId: toId }, select: { street: true, zip: true } });
+    for (const a of await tx.address.findMany({ where: { customerId: fromId } })) {
+      if (target.some((t) => t.street.toLowerCase() === a.street.toLowerCase() && t.zip === a.zip)) continue;
+      await tx.address.update({ where: { id: a.id }, data: { customerId: toId, isDefault: false } });
+    }
+    await tx.customerEvent.create({ data: { customerId: toId, kind: "erp-pull", meta: { merged: fromId, reason: "ίδιος αγοραστής" } } });
+    await tx.customer.delete({ where: { id: fromId } });
+  });
 }
