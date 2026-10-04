@@ -25,7 +25,9 @@ import { specAttrs } from "@/lib/catalog/compare-specs";
  * κατηγορία βρίσκεται και μόνη της — έτσι δουλεύουν και οι παλιοί σύνδεσμοι (`findCategoryPath`).
  */
 const SHOWN: Prisma.MediaWhereInput = { kind: "image", hidden: false };
-export const LISTED: Prisma.ProductWhereInput = { source: "softone", active: true, media: { some: SHOWN } };
+/** Προϊόντα του καταστήματος: όσα έρχονται από το SoftOne και όσα μπήκαν μόνο στο eshop (εισαγωγή excel). */
+export const SHOP_SOURCES = ["softone", "import"];
+export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
 // ---------- Δέντρο ----------
@@ -168,7 +170,7 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
 
 export async function dbProductBySlug(slug: string): Promise<Product | null> {
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
-  const r = await db.product.findFirst({ where: { slug, source: "softone", active: true }, select: {
+  const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true }, select: {
     ...PRODUCT_SELECT, specs: { orderBy: [{ sortNo: "asc" }], select: { groupName: true, key: true, value: true } },
     facetValues: { where: { source: { in: ["spec", "title"] } }, orderBy: { facet: { sortNo: "asc" } }, take: 8, select: { value: true, facet: { select: { label: true } } } },
   } });
@@ -216,7 +218,7 @@ const withAttrs = (p: Product, a: Map<string, NonNullable<Product["attrs"]>>): P
 
 export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
   if (!ids.length) return [];
-  const rows = await db.product.findMany({ where: { id: { in: ids }, source: "softone" }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 160, select: { groupName: true, key: true, value: true } } } });
+  const rows = await db.product.findMany({ where: { id: { in: ids }, source: { in: SHOP_SOURCES } }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 160, select: { groupName: true, key: true, value: true } } } });
   const a = await attrsFor(rows.map((r) => r.id));
   return rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a));
 }

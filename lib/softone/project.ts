@@ -243,12 +243,13 @@ const BOOL = new Set(["nai", "ochi"]);
  * - φίλτρο όπου κυριαρχεί το Ναι/Όχι → οι υπόλοιπες περιγραφές («BT 5.4») σημαίνουν «Ναι».
  * Το είδος του φίλτρου (boolean / range / checkbox) και οι μετρητές βγαίνουν από τις πραγματικές τιμές.
  */
-async function projectFacetValues(onlyCategoryId?: string): Promise<FacetValuesResult> {
+export async function projectFacetValues(onlyCategoryId?: string): Promise<FacetValuesResult> {
   const cats = await db.category.findMany({ where: { source: SOURCE, depth: 2, ...(onlyCategoryId ? { id: onlyCategoryId } : {}) }, select: { id: true, name: true, facets: { where: { source: SOURCE, key: { startsWith: "s1:" } }, select: { id: true, label: true } } } });
   let products = 0, rewritten = 0, values = 0; const bySource: Record<string, number> = { spec: 0, title: 0, text: 0 };
   for (const c of cats) {
     if (!c.facets.length) continue;
-    const rows = await db.product.findMany({ where: { categoryId: c.id, source: SOURCE }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: DESC_SOURCE }, orderBy: { sortNo: "asc" }, select: { key: true, value: true } } } });
+    // και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel): τα χαρακτηριστικά τους είναι γραμμές «import»
+    const rows = await db.product.findMany({ where: { categoryId: c.id, source: { in: [SOURCE, "import"] } }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: { in: [DESC_SOURCE, "import"] } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true } } } });
     if (!rows.length) continue;
     products += rows.length;
     const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: p.title, summary: p.summary, description: p.description, specs: p.specs, typeName: c.name })]));

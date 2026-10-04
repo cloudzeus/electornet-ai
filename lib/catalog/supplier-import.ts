@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { parseDescription } from "@/lib/softone/describe";
 import { syncItem } from "@/lib/softone/catalog";
-import { projectItem } from "@/lib/softone/project";
+import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
 
@@ -154,6 +154,12 @@ export async function applyImport(file: ParsedFile, opts: ImportOptions, keys: s
       else out.push({ key: r.key, ...(opts.toSoftone ? await createInSoftone(r, d.brand!, groups.get(r.groupS1Id)!, opts) : await createEshopOnly(r, d.brand!, opts)) });
     } catch (e) { out.push({ key: r.key, ok: false, message: (e as Error).message }); }
     if (opts.toSoftone) await sleep(150);
+  }
+  // Μόνο στο eshop: τα φίλτρα της κατηγορίας ξαναϋπολογίζονται εδώ (για το SoftOne το κάνει η προβολή του είδους)
+  if (!opts.toSoftone) {
+    const done = new Set(out.filter((r) => r.ok && r.productId).map((r) => r.productId!));
+    const cats = await db.product.findMany({ where: { id: { in: [...done] } }, select: { categoryId: true }, distinct: ["categoryId"] });
+    for (const c of cats) await projectFacetValues(c.categoryId);
   }
   return out;
 }
