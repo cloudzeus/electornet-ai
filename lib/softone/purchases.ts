@@ -96,7 +96,8 @@ export function syncPurchases(opts: { since?: Date; until?: Date; trigger?: Trig
     for (const part of chunk(unknown, 500)) for (const r of await getTable("MTRL", ["MTRL", "CODE", "NAME", "GUARTIME"], `MTRL IN (${part.join(",")})`)) known.set(int(r[0])!, { mtrl: int(r[0])!, code: r[1] ?? "", name: (r[2] ?? "").trim(), guaranteeMonths: int(r[3]) });
     const productOf = new Map((await db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, brand: { select: { name: true } }, modelCode: true } })).map((p) => [Number(p.erpCode), p]));
 
-    let created = 0, updated = 0, skipped = 0;
+    let created = 0, updated = 0, skipped = 0, failed = 0;
+    const errors: string[] = [];
     const touchedCustomers = new Set<string>();
     // Πρώτα οι παραγγελίες, μετά τα παραστατικά (ώστε να βρουν τον «γονέα» τους)
     const ordered = [...mine].sort((a, b) => Number(SERIES[a.series].kind !== "order") - Number(SERIES[b.series].kind !== "order") || +a.date - +b.date);
@@ -128,7 +129,9 @@ export function syncPurchases(opts: { since?: Date; until?: Date; trigger?: Trig
       });
       const existing = idOfFindoc.get(d.findoc);
       if (existing && customerId) { const prev = await db.purchase.findUnique({ where: { id: existing }, select: { customerId: true } }); if (prev?.customerId && prev.customerId !== customerId) await mergeHistoryCustomer(prev.customerId, customerId); }
-      const p = await db.$transaction(async (tx) => {
+      let p: { id: string };
+      try {
+      p = await db.$transaction(async (tx) => {
         const row = existing ? await tx.purchase.update({ where: { id: existing }, data, select: { id: true } }) : await tx.purchase.create({ data: { ...data, s1Findoc: d.findoc }, select: { id: true } });
         // γραμμές στη θέση τους (σταθερά ids: οι συσκευές δείχνουν σε αυτές)
         if (!existing) { if (ls.length) await tx.purchaseLine.createMany({ data: ls.map((l) => ({ ...l, purchaseId: row.id })) }); }
@@ -137,7 +140,8 @@ export function syncPurchases(opts: { since?: Date; until?: Date; trigger?: Trig
           await tx.purchaseLine.deleteMany({ where: { purchaseId: row.id, lineNo: { gt: ls.length } } });
         }
         return row;
-      });
+      }, { timeout: 60_000, maxWait: 15_000 }); // απομακρυσμένη βάση: πολλές γραμμές σε ένα παραστατικό θέλουν χρόνο
+      } catch (e) { failed++; if (failed <= 20) errors.push(`FINDOC ${d.findoc}: ${(e as Error).message.split("\n").pop()?.slice(0, 160)}`); continue; }
       idOfFindoc.set(d.findoc, p.id);
       if (existing) updated++; else created++;
       // Συσκευές: από παραγγελίες που δεν ακυρώθηκαν (τα παραστατικά συχνά εκδίδει το κατάστημα-μέλος, όχι εδώ)
@@ -149,7 +153,8 @@ export function syncPurchases(opts: { since?: Date; until?: Date; trigger?: Trig
     // Geodata: οι νέες διευθύνσεις παίρνουν συντεταγμένες, νομό και πλησιέστερο κατάστημα — στο παρασκήνιο, με τον ρυθμό του geocoder
     void geocodePending([...touchedCustomers]);
     await db.s1SyncState.upsert({ where: { kind: "purchases" }, update: { cursor: maxUpd, lastFullAt: opts.since ? new Date() : undefined }, create: { kind: "purchases", cursor: maxUpd, lastFullAt: new Date() } });
-    return { fetched: docs.length, created, updated, missing: docs.length - mine.length, skipped };
+    if (failed) console.warn(`[purchases] ${failed} παραστατικά δεν γράφτηκαν:`, errors.join(" | "));
+    return { fetched: docs.length, created, updated, missing: docs.length - mine.length, skipped: skipped + failed };
   });
 }
 
