@@ -58,7 +58,7 @@ export async function runCartReminders(opts: { force?: boolean } = {}) {
   let sent = 0;
   for (const c of carts) {
     const cu = c.customer;
-    if (!cu || cu.status !== "active" || !allowed.has(cu.id)) continue;
+    if (!cu || !cu.email || cu.status !== "active" || !allowed.has(cu.id)) continue;
     // ολοκλήρωσε παραγγελία μετά την τελευταία αλλαγή του καλαθιού; τότε δεν είναι εγκαταλελειμμένο
     if (await db.order.count({ where: { customerId: cu.id, createdAt: { gte: c.updatedAt } } })) { await db.$executeRaw`UPDATE "Cart" SET "remindedAt" = now() WHERE id = ${c.id}`; continue; }
     const lines = c.lines.map((l) => ({ title: l.variant.product.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: Number(l.variant.price) }));

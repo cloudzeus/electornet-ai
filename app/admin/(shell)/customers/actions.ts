@@ -177,6 +177,7 @@ export async function gdprAnonymise(customerId: string) {
 export async function sendPasswordReset(customerId: string) {
   const user = await requirePermission("customers.write");
   const c = await db.customer.findUniqueOrThrow({ where: { id: customerId } });
+  if (!c.email) return { ok: false as const, error: "Ο πελάτης δεν έχει email — πρόσθεσε πρώτα email στο προφίλ." };
   const r = await requestPasswordReset(c.email, { staffId: user.id });
   await audit(user.id, "customer.password.reset-request", "Customer", customerId, null, { throttled: r.throttled });
   paths(customerId);

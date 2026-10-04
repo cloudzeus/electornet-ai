@@ -16,6 +16,6 @@ export async function POST(req: Request) {
   await db.customerEvent.create({ data: { customerId: me.id, kind: "ticket", meta: { by: "customer", number: t.number, kind: t.kind } } }).catch(() => null);
   if (b.scanId) await recordSnapAction(b.scanId, "service");
   const m = await renderTemplate("service-received", { firstName: me.firstName, number: t.number, device: b.device ?? "—", description: t.description, mode: b.mode === "pickup" ? "Παραλαβή από το σπίτι" : b.mode === "store" ? "Στο κατάστημα" : "Επίσκεψη τεχνικού" });
-  await sendMail({ to: me.email, template: "service-received", meta: { ticketId: t.id }, ...m });
+  if (me.email) await sendMail({ to: me.email, template: "service-received", meta: { ticketId: t.id }, ...m });
   return NextResponse.json({ ok: true, number: t.number });
 }

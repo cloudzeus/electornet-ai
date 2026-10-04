@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MapPin, Map as MapIcon, Download, X, Store as StoreIcon } from "lucide-react";
 
 /** Location segmentation controls for the customers list: prefecture, store catchment, radius from a place; map toggle; CSV export of the segment. */
-export function SegmentTools({ regions, stores, current, center, matched, canExport, exportRows }: { regions: { value: string; count: number }[]; stores: { id: string; label: string; count: number }[]; current: { region: string; store: string; near: string; km: string; view: string }; center: { lat: number; lng: number; label: string } | null; matched: number; canExport: boolean; exportRows: { email: string; name: string; phone: string; city: string; region: string; newsletter: boolean; points: number }[] }) {
+export function SegmentTools({ regions, stores, current, center, matched, canExport, exportRows }: { regions: { value: string; count: number }[]; stores: { id: string; label: string; count: number }[]; current: { region: string; store: string; near: string; km: string; view: string }; center: { lat: number; lng: number; label: string } | null; matched: number; canExport: boolean; exportRows: { email: string | null; name: string; phone: string; city: string; region: string; newsletter: boolean; points: number }[] }) {
   const [near, setNear] = useState(current.near);
   const [km, setKm] = useState(current.km);
   const q = (o: Record<string, string>) => { const u = new URLSearchParams({ ...current, ...o }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };

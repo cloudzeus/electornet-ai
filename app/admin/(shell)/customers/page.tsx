@@ -22,8 +22,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const radiusKm = Math.max(1, Number(km) || 25);
   const page = Math.max(1, Number(p) || 1), take = 50;
   const where: Prisma.CustomerWhereInput = {};
-  if (q) where.OR = [{ email: { contains: q, mode: "insensitive" } }, { firstName: { contains: q, mode: "insensitive" } }, { lastName: { contains: q, mode: "insensitive" } }, { company: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }, { mobile: { contains: q } }, { vatNumber: { contains: q } }, { erpCode: { contains: q, mode: "insensitive" } }];
+  const digits = q.replace(/\D/g, "");
+  if (q) where.OR = [...(digits.length >= 6 ? [{ phoneKey: { contains: digits.slice(-10) } }] : []), { email: { contains: q, mode: "insensitive" } }, { firstName: { contains: q, mode: "insensitive" } }, { lastName: { contains: q, mode: "insensitive" } }, { company: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }, { mobile: { contains: q } }, { vatNumber: { contains: q } }, { erpCode: { contains: q, mode: "insensitive" } }];
   if (f === "business") where.type = "business";
+  if (f === "history") where.source = "softone-history";
+  if (f === "buyers") where.purchaseCount = { gt: 0 };
   if (f === "newsletter") where.newsletter = true;
   if (f === "unlinked") where.erpTrdr = null;
   if (f === "failed") where.erpSyncStatus = "failed";
@@ -67,6 +70,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <Link href={link("newsletter")} className={chip(f === "newsletter")}><Mail className="size-3.5" aria-hidden /> Newsletter {newsletter}</Link>
         <Link href={link("unlinked")} className={chip(f === "unlinked")}><Link2 className="size-3.5" aria-hidden /> Χωρίς SoftOne {unlinked}</Link>
         <Link href={link("failed")} className={chip(f === "failed")}>Αποτυχία sync {failed}</Link>
+        <Link href={link("buyers")} className={chip(f === "buyers")}>Με αγορές</Link>
+        <Link href={link("history")} className={chip(f === "history")}>Από το ιστορικό του SoftOne</Link>
         <Link href={link("blocked")} className={chip(f === "blocked")}>Μπλοκαρισμένοι</Link>
         <Link href={link("anonymised")} className={chip(f === "anonymised")}>Ανωνυμοποιημένοι</Link>
       </div>
@@ -80,9 +85,9 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
               {exact.map((c) => (
                 <tr key={c.id} className="border-t border-eu-line-2 hover:bg-eu-surface/60">
                   <td className="p-3"><Link href={`/admin/customers/${c.id}`} className="font-bold text-eu-navy hover:underline">{c.type === "business" && c.company ? c.company : `${c.lastName} ${c.firstName}`}</Link><div className="text-eu-muted text-[length:var(--fs-13)]">#{c.number} · {c.type === "business" ? `${c.lastName} ${c.firstName}` : c.source}{c.tags.length ? ` · ${c.tags.join(", ")}` : ""}</div></td>
-                  <td className="p-3"><div className="truncate max-w-[240px]">{c.email}</div><div className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{c.mobile ?? c.phone ?? "—"}</div></td>
+                  <td className="p-3"><div className="truncate max-w-[240px]">{c.email ?? <span className="text-eu-muted">χωρίς email</span>}</div><div className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{c.mobile ?? c.phone ?? "—"}</div></td>
                   <td className="p-3 tabular-nums"><div>{c.vatNumber ?? "—"}</div><div className={`text-[length:var(--fs-13)] ${c.erpSyncStatus === "failed" ? "text-eu-red font-bold" : c.erpTrdr ? "text-eu-green" : "text-eu-muted"}`}>{c.erpTrdr ? `${c.erpCode ?? "TRDR"} · ${c.erpSyncStatus ?? "linked"}` : "χωρίς σύνδεση"}</div></td>
-                  <td className="p-3 tabular-nums">{c._count.orders}<div className="text-eu-muted text-[length:var(--fs-13)]">{c._count.devices} συσκευές · {c._count.tickets} service</div></td>
+                  <td className="p-3 tabular-nums">{Math.max(c._count.orders, c.purchaseCount)}{c.purchaseCount > 0 && <span className="text-eu-muted"> · {Number(c.purchaseTotal).toLocaleString("el-GR", { maximumFractionDigits: 0 })} €</span>}<div className="text-eu-muted text-[length:var(--fs-13)]">{c.lastPurchaseAt ? `τελευταία ${c.lastPurchaseAt.toLocaleDateString("el-GR")} · ` : ""}{c._count.devices} συσκευές · {c._count.tickets} service</div></td>
                   <td className="p-3 tabular-nums">{c.loyaltyPoints.toLocaleString("el-GR")}<div className="text-eu-muted text-[length:var(--fs-13)]">{c.loyaltyTier ?? "—"}</div></td>
                   <td className="p-3 text-eu-ink-2">{c.preferredStore?.city ?? "—"}{c.addresses[0] && <div className="text-eu-muted text-[length:var(--fs-13)]">{c.addresses.find((a) => a.isDefault)?.region ?? c.addresses[0].region}{center ? ` · ${Math.min(...c.addresses.map((a) => distanceKm(center!, { lat: a.lat!, lng: a.lng! }))).toFixed(1)} km` : ""}</div>}</td>
                   <td className="p-3">{c.status === "active" ? <span className="text-eu-green font-bold">Ενεργός</span> : c.status === "blocked" ? <span className="text-eu-red font-bold">Μπλοκ</span> : <span className="text-eu-muted font-bold">Ανώνυμος</span>}{c.newsletter && <div className="text-eu-muted text-[length:var(--fs-13)]">newsletter</div>}</td>

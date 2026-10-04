@@ -84,7 +84,7 @@ const KIND_CATEGORY: Record<string, RegExp> = {
   "psygeia": /^ψυγει/, "air-condition": /κλιματιστ/, "tileoraseis": /^τηλεορασ/, "koyzines": /^κουζιν/,
 };
 
-export interface PersonalCandidate { kind: PersonalKind; customerId: string; email: string; firstName: string; key: string; scope: PromoTarget[]; target: string; reason: string }
+export interface PersonalCandidate { kind: PersonalKind; customerId: string; email: string | null; firstName: string; key: string; scope: PromoTarget[]; target: string; reason: string }
 
 /** Ποιοι πελάτες θα πάρουν τι — χωρίς να γράψει τίποτα. */
 export async function personalCandidates(cfg: PersonalConfig, now = new Date()): Promise<PersonalCandidate[]> {
@@ -163,12 +163,12 @@ export async function issuePersonalOffers(opts: { staffId?: string | null } = {}
     const r = cfg.rules[c.kind];
     const expiresAt = new Date(Date.now() + r.validDays * 86_400_000);
     let coupon = null;
-    for (let i = 0; i < 5 && !coupon; i++) coupon = await db.coupon.create({ data: { code: randomCode("ME"), promotionId: promos.get(c.kind)!.id, kind: "unique", customerId: c.customerId, email: c.email.toLowerCase(), trigger: "personal", expiresAt, maxUses: 1, scope: c.scope as unknown as Prisma.InputJsonValue, reason: c.reason, personalKey: c.key } }).catch(() => null);
+    for (let i = 0; i < 5 && !coupon; i++) coupon = await db.coupon.create({ data: { code: randomCode("ME"), promotionId: promos.get(c.kind)!.id, kind: "unique", customerId: c.customerId, email: c.email?.toLowerCase() ?? null, trigger: "personal", expiresAt, maxUses: 1, scope: c.scope as unknown as Prisma.InputJsonValue, reason: c.reason, personalKey: c.key } }).catch(() => null);
     if (!coupon) continue;
     issued++; byKind[c.kind] = (byKind[c.kind] ?? 0) + 1;
     if (allowed.has(c.customerId)) {
       const m = await renderTemplate("personal-offer", { firstName: c.firstName, code: coupon.code, value: `−${r.percent} %`, target: c.target, reason: c.reason, until: expiresAt.toLocaleDateString("el-GR", { day: "numeric", month: "long" }) }).catch(() => null);
-      if (m) { await sendMail({ to: c.email, template: "personal-offer", meta: { couponId: coupon.id }, ...m }).catch(() => null); emailed++; }
+      if (m && c.email) { await sendMail({ to: c.email, template: "personal-offer", meta: { couponId: coupon.id }, ...m }).catch(() => null); emailed++; }
     }
   }
   return { issued, emailed, byKind };

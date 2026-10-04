@@ -415,7 +415,7 @@ export async function previewPersonalAction(cfg: import("@/lib/promo/personal").
   const list = await personalCandidates(sanitizePersonal(cfg));
   const byKind: Record<string, number> = {};
   for (const c of list) byKind[c.kind] = (byKind[c.kind] ?? 0) + 1;
-  return { total: list.length, customers: new Set(list.map((c) => c.customerId)).size, byKind, sample: list.slice(0, 40).map((c) => ({ kind: c.kind, who: `${c.firstName} · ${maskEmail(c.email)}`, target: c.target, reason: c.reason })) };
+  return { total: list.length, customers: new Set(list.map((c) => c.customerId)).size, byKind, sample: list.slice(0, 40).map((c) => ({ kind: c.kind, who: `${c.firstName} · ${c.email ? maskEmail(c.email) : "χωρίς email"}`, target: c.target, reason: c.reason })) };
 }
 
 export async function runPersonalAction() {

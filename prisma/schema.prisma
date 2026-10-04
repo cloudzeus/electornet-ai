@@ -804,7 +804,8 @@ model Customer {
   id               String                 @id @default(cuid())
   number           Int                    @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
   type             String                 @default("individual") // individual | business
-  email            String                 @unique
+  /// Προαιρετικό: πελάτες από το ιστορικό του SoftOne (αγορές λιανικής) έχουν μόνο όνομα, τηλέφωνο και διεύθυνση
+  email            String?                @unique
   emailVerifiedAt  DateTime?
   phone            String?
   mobile           String?
@@ -818,7 +819,17 @@ model Customer {
   gender           String? // m | f | other | null
   locale           String                 @default("el")
   status           String                 @default("active") // active | blocked | anonymised
-  source           String                 @default("web") // web | store | erp | import
+  source           String                 @default("web") // web | store | erp | import | softone-history | nop
+  /// Τελευταία 10 ψηφία κινητού / τηλεφώνου — το κλειδί ταιριάσματος για αγορές χωρίς email
+  phoneKey         String?
+  /// Λογαριασμός του παλιού eshop (nopCommerce Customer.Id)
+  nopId            Int?                   @unique
+  /// Σύνοψη αγορών (όλες οι πηγές) — για λίστες και ταξινόμηση
+  purchaseCount    Int                    @default(0)
+  purchaseTotal    Decimal                @default(0) @db.Decimal(12, 2)
+  firstPurchaseAt  DateTime?
+  lastPurchaseAt   DateTime?
+  purchases        Purchase[]
   tags             String[]               @default([])
   newsletter       Boolean                @default(false)
   passwordHash     String?
@@ -860,6 +871,8 @@ model Customer {
   @@index([vatNumber])
   @@index([status])
   @@index([erpSyncStatus])
+  @@index([phoneKey])
+  @@index([lastPurchaseAt])
 }
 
 /// Social login identities (Google / Microsoft / Facebook / Apple).
@@ -1100,11 +1113,15 @@ model CustomerDevice {
   extendedUntil  DateTime? // paid extended warranty
   extendedPlan   String?
   registeredBy   String          @default("order") // order | erp | manual | staff
+  /// Από ποια γραμμή αγοράς βγήκε (ιστορικό SoftOne) — μία συσκευή ανά γραμμή και τεμάχιο
+  purchaseLineId String?
+  unitNo         Int             @default(1)
   notes          String?
   tickets        ServiceTicket[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  @@unique([purchaseLineId, unitNo])
   @@index([customerId])
   @@index([serial])
 }
@@ -2280,4 +2297,59 @@ model Segment {
   createdById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+/// Αγορά πελάτη από οποιαδήποτε πηγή: παραγγελία ή παραστατικό του SoftOne (ιστορικό του σημερινού eshop), του παλιού
+/// eshop (nopCommerce) ή του νέου. Τα παραστατικά (απόδειξη, τιμολόγιο, πιστωτικό) δένονται στην παραγγελία τους (`parentId`).
+model Purchase {
+  id         String         @id @default(cuid())
+  customerId String?
+  customer   Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  source     String // softone | nop | shop
+  kind       String // order | receipt | invoice | credit
+  status     String? // pending | paid | unpaid | cancelled | phone | issued
+  s1Findoc   Int?           @unique // FINDOC
+  s1Series   Int?
+  seriesCode String?
+  seriesName String?
+  docNo      String? // FINCODE
+  date       DateTime
+  trdr       Int? // πελάτης του παραστατικού στο SoftOne (200 = «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ»)
+  total      Decimal?       @db.Decimal(12, 2)
+  net        Decimal?       @db.Decimal(12, 2)
+  vat        Decimal?       @db.Decimal(12, 2)
+  /// Ο αγοραστής όπως γράφτηκε στο παραστατικό: { name, phone, address, afm, company }
+  recipient  Json?
+  parentId   String?
+  parent     Purchase?      @relation("PurchaseDocs", fields: [parentId], references: [id], onDelete: SetNull)
+  docs       Purchase[]     @relation("PurchaseDocs")
+  orderId    String?        @unique // παραγγελία του νέου eshop από την οποία προήλθε
+  lines      PurchaseLine[]
+  syncedAt   DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  @@index([customerId, date])
+  @@index([trdr])
+  @@index([kind, date])
+  @@index([parentId])
+}
+
+model PurchaseLine {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  lineNo     Int
+  mtrl       Int?
+  productId  String?
+  code       String?
+  title      String
+  qty        Float
+  unitPrice  Decimal? @db.Decimal(12, 2)
+  lineTotal  Decimal? @db.Decimal(12, 2)
+  /// Το κατάστημα-μέλος που εκτέλεσε τη γραμμή (MTRLINES.CCCCUSTOMER)
+  memberTrdr Int?
+
+  @@unique([purchaseId, lineNo])
+  @@index([productId])
+  @@index([mtrl])
 }

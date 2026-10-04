@@ -28,7 +28,7 @@ export async function runWishlistAlerts(opts: { dryRun?: boolean; limit?: number
     if (it.notifyPriceDrop && reference && p.price < reference && !refused.has(`${c.id}:price-drop`)) {
       if (!opts.dryRun) {
         const m = await renderTemplate("wishlist-price-drop", { firstName: c.firstName, product: { title: p.title, brand: p.brand, image: p.image, price: p.price, wasPrice: reference, href: `/proion/${p.slug}` }, was: reference, now: p.price });
-        await sendMail({ to: c.email, template: "wishlist-price-drop", meta: { customerId: c.id, productId: p.id }, ...m });
+        if (c.email) await sendMail({ to: c.email, template: "wishlist-price-drop", meta: { customerId: c.id, productId: p.id }, ...m });
         await db.wishlistItem.update({ where: { id: it.id }, data: { lastNotifiedPrice: p.price, lastNotifiedAt: new Date() } });
         await db.customerEvent.create({ data: { customerId: c.id, kind: "wishlist-alert", meta: { type: "price-drop", productId: p.id, was: reference, now: p.price } } }).catch(() => null);
       }
@@ -39,7 +39,7 @@ export async function runWishlistAlerts(opts: { dryRun?: boolean; limit?: number
     if (it.notifyBackInStock && it.lastSeenAvailability && it.lastSeenAvailability !== "in-stock" && avail === "in-stock" && !refused.has(`${c.id}:back-in-stock`)) {
       if (!opts.dryRun) {
         const m = await renderTemplate("wishlist-back-in-stock", { firstName: c.firstName, product: { title: p.title, brand: p.brand, image: p.image, price: p.price, wasPrice: p.wasPrice ?? null, href: `/proion/${p.slug}` }, store: null });
-        await sendMail({ to: c.email, template: "wishlist-back-in-stock", meta: { customerId: c.id, productId: p.id }, ...m });
+        if (c.email) await sendMail({ to: c.email, template: "wishlist-back-in-stock", meta: { customerId: c.id, productId: p.id }, ...m });
         await db.wishlistItem.update({ where: { id: it.id }, data: { lastStockNotifiedAt: new Date() } });
         await db.customerEvent.create({ data: { customerId: c.id, kind: "wishlist-alert", meta: { type: "back-in-stock", productId: p.id } } }).catch(() => null);
       }

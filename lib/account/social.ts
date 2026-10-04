@@ -38,7 +38,7 @@ export async function signInWithProfile(p: OAuthProfile, opts: { ip?: string | n
   await recordLogin({ customerId, email: p.email ?? "", success: true, method: `social:${p.provider}` }).catch(() => null);
   await db.customerEvent.create({ data: { customerId, kind: "login", meta: { method: `social:${p.provider}`, ip: opts.ip ?? null } } }).catch(() => null);
   await createCustomerSession(customerId);
-  if (created) { const { issueWelcomeCoupon } = await import("@/lib/promo/issue"); const c = await db.customer.findUnique({ where: { id: customerId }, select: { email: true, firstName: true } }); if (c) await issueWelcomeCoupon("signup", { email: c.email, customerId, firstName: c.firstName }); }
+  if (created) { const { issueWelcomeCoupon } = await import("@/lib/promo/issue"); const c = await db.customer.findUnique({ where: { id: customerId }, select: { email: true, firstName: true } }); if (c?.email) await issueWelcomeCoupon("signup", { email: c.email, customerId, firstName: c.firstName }); }
   return { ok: true, customerId, created };
 }
 

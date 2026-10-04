@@ -20,7 +20,7 @@ export default async function MyOffersPage() {
       </div>
     );
   }
-  const offers = await myOffers(me.id, me.email);
+  const offers = await myOffers(me.id, me.email ?? "");
   const until = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("el-GR", { day: "numeric", month: "long" }) : null);
   return (
     <div className="grid gap-4">

@@ -89,7 +89,7 @@ export async function segmentsOf(customerId: string | null | undefined): Promise
 /** Τα μέλη ενός κοινού (για καταμέτρηση και έκδοση κουπονιών), σε παρτίδες. */
 export async function membersOf(rules: SegmentRules, opts: { limit?: number } = {}) {
   const limit = opts.limit ?? 50_000;
-  const out: { id: string; email: string; firstName: string }[] = [];
+  const out: { id: string; email: string | null; firstName: string }[] = [];
   let cursor: string | undefined;
   for (;;) {
     const batch = await db.customer.findMany({ where: { status: "active", anonymisedAt: null }, select: { id: true, email: true, firstName: true }, orderBy: { id: "asc" }, take: 1000, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });

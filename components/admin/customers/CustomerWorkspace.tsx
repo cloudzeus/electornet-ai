@@ -56,7 +56,7 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured }: { 
       {msg && <p role="status" className="m-0 rounded-xl bg-eu-yellow/30 text-eu-navy font-bold text-[length:var(--fs-14)] px-3 py-2">{msg}</p>}
       {c && (
         <nav aria-label="Ενότητες" className="flex flex-wrap gap-1.5">
-          {TABS.map(([k, l]) => { const n = k === "addresses" ? c.addresses.length : k === "orders" ? c.orders.length : k === "devices" ? c.devices.length : k === "service" ? c.tickets.length : k === "consents" ? c.consents.length : k === "logins" ? c.logins.length : k === "notes" ? c.customerNotes.length : k === "wishlist" ? c.wishlists.reduce((n: number, l: Any) => n + l.items.length, 0) : k === "gdpr" ? c.gdprRequests.length : null; return (
+          {TABS.map(([k, l]) => { const n = k === "addresses" ? c.addresses.length : k === "orders" ? c.orders.length + (c.purchases?.length ?? 0) : k === "devices" ? c.devices.length : k === "service" ? c.tickets.length : k === "consents" ? c.consents.length : k === "logins" ? c.logins.length : k === "notes" ? c.customerNotes.length : k === "wishlist" ? c.wishlists.reduce((n: number, l: Any) => n + l.items.length, 0) : k === "gdpr" ? c.gdprRequests.length : null; return (
             <button key={k} type="button" onClick={() => setTab(k)} className={`rounded-full px-3 min-h-9 font-bold text-[length:var(--fs-13)] ${tab === k ? "bg-eu-navy text-white" : "bg-white border border-eu-line text-eu-ink hover:border-eu-navy"}`}>{l}{n ? <span className="opacity-70"> {n}</span> : null}</button>
           ); })}
         </nav>
@@ -64,7 +64,7 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured }: { 
 
       {(tab === "profile" || !c) && <ProfileTab c={c} stores={stores} canWrite={perms.write} run={run} pending={pending} />}
       {c && tab === "addresses" && <AddressesTab c={c} canWrite={perms.write} run={run} pending={pending} />}
-      {c && tab === "orders" && <Card title="Παραγγελίες">{c.orders.length ? <table className="w-full text-[length:var(--fs-14)]"><thead><tr className="text-left text-eu-muted"><th className="py-1">Αριθμός</th><th>Ημερομηνία</th><th>Κατάσταση</th><th>Παράδοση</th><th className="text-right">Σύνολο</th></tr></thead><tbody>{c.orders.map((o: Any) => <tr key={o.id} className="border-t border-eu-line-2"><td className="py-2 font-bold">{o.number}</td><td>{d(o.createdAt)}</td><td>{o.status}</td><td>{o.fulfilment}</td><td className="text-right tabular-nums">{Number(o.total).toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</td></tr>)}</tbody></table> : <p className="m-0 text-eu-muted">Καμία παραγγελία ακόμη. Οι παραγγελίες καταστήματος θα εμφανίζονται εδώ από το SoftOne (FINDOC) μετά τη σύνδεση.</p>}</Card>}
+      {c && tab === "orders" && <OrdersTab c={c} />}
       {c && tab === "devices" && <DevicesTab c={c} canWrite={perms.write} run={run} pending={pending} />}
       {c && tab === "service" && <ServiceTab c={c} stores={stores} canWrite={perms.service} run={run} pending={pending} />}
       {c && tab === "consents" && <ConsentsTab c={c} canWrite={perms.write} run={run} pending={pending} />}
@@ -75,6 +75,35 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured }: { 
       {c && tab === "erp" && <ErpTab c={c} canWrite={perms.write} erpConfigured={erpConfigured} run={run} pending={pending} />}
       {c && tab === "gdpr" && <GdprTab c={c} perms={perms} run={run} pending={pending} />}
       {c && <Card title="Χρονολόγιο"><ul className="m-0 p-0 list-none grid gap-1 text-[length:var(--fs-14)]">{c.events.slice(0, 30).map((e: Any) => <li key={e.id} className="grid grid-cols-[150px_110px_minmax(0,1fr)] gap-2 border-t border-eu-line-2 py-1.5"><span className="tabular-nums text-eu-muted">{dt(e.at)}</span><span className="font-bold">{e.kind}</span><span className="text-eu-ink-2 truncate">{e.meta ? JSON.stringify(e.meta).slice(0, 140) : ""}</span></li>)}</ul></Card>}
+    </div>
+  );
+}
+
+const eur = (v: unknown) => v == null ? "—" : Number(v).toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+const KIND: Record<string, string> = { order: "Παραγγελία", receipt: "Απόδειξη", invoice: "Τιμολόγιο", credit: "Πιστωτικό" };
+const STATUS: Record<string, { l: string; cls: string }> = { paid: { l: "Πληρωμένη", cls: "bg-eu-green/12 text-eu-ink" }, unpaid: { l: "Απλήρωτη", cls: "bg-eu-yellow/30 text-eu-ink" }, cancelled: { l: "Ακυρωμένη", cls: "bg-eu-red/10 text-eu-red" }, pending: { l: "Σε εκκρεμότητα", cls: "bg-eu-surface text-eu-ink-3" }, phone: { l: "Τηλεφωνική", cls: "bg-eu-chip text-eu-navy" }, issued: { l: "Εκδόθηκε", cls: "bg-eu-surface text-eu-ink-3" } };
+
+/** Παραγγελίες του νέου eshop και αγορές από το ιστορικό του SoftOne (σημερινό eshop), με γραμμές και παραστατικά. */
+function OrdersTab({ c }: { c: Any }) {
+  const purchases: Any[] = c.purchases ?? [];
+  return (
+    <div className="grid gap-4">
+      <Card title="Παραγγελίες νέου eshop">{c.orders.length ? <ul className="m-0 p-0 list-none grid gap-2">{c.orders.map((o: Any) => <li key={o.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-eu-line-2 pt-2 text-[length:var(--fs-14)]"><span className="font-bold">{o.number}</span><span className="text-eu-muted">{d(o.createdAt)}</span><span>{o.status}</span><span className="text-eu-muted">{o.fulfilment}</span><span className="ml-auto tabular-nums font-bold">{eur(o.total)}</span></li>)}</ul> : <p className="m-0 text-eu-muted">Καμία παραγγελία στο νέο eshop.</p>}</Card>
+      <Card title="Αγορές από το SoftOne" right={<span className="text-eu-muted text-[length:var(--fs-13)]">Παραγγελίες του σημερινού eshop και τα παραστατικά τους</span>}>
+        {purchases.length ? <ul className="m-0 p-0 list-none grid gap-3">{purchases.map((p: Any) => { const st = STATUS[p.status] ?? null; const r = p.recipient ?? {}; return (
+          <li key={p.id} className="rounded-xl border border-eu-line p-3 grid gap-2 min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="font-bold text-eu-ink">{KIND[p.kind] ?? p.kind} {p.docNo ?? ""}</span>
+              <span className="text-eu-muted text-[length:var(--fs-13)]">{d(p.date)} · {p.seriesName ?? p.seriesCode ?? ""}</span>
+              {st && <span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${st.cls}`}>{st.l}</span>}
+              <span className="ml-auto tabular-nums font-bold">{eur(p.total)}</span>
+            </div>
+            {p.lines.length > 0 && <ul className="m-0 p-0 list-none grid gap-0.5 text-[length:var(--fs-13)]">{p.lines.map((l: Any) => <li key={l.id} className="flex gap-2 min-w-0"><span className="tabular-nums text-eu-muted shrink-0">{Number(l.qty)}×</span><span className="min-w-0 break-words flex-1">{l.productId ? <a href={`/admin/catalog/${l.productId}`} className="text-eu-blue hover:underline">{l.title}</a> : l.title}</span><span className="tabular-nums shrink-0">{eur(l.lineTotal)}</span></li>)}</ul>}
+            {(r.name || r.address) && <p className="m-0 text-eu-muted text-[length:var(--fs-12)] break-words">Παραλήπτης: {[r.name, r.phone, r.address].filter(Boolean).join(" · ")}</p>}
+            {p.docs?.length > 0 && <p className="m-0 text-[length:var(--fs-12)] text-eu-ink-3">Παραστατικά: {p.docs.map((x: Any) => `${KIND[x.kind] ?? x.kind} ${x.docNo ?? ""} (${d(x.date)}, ${eur(x.total)})`).join(" · ")}</p>}
+          </li>
+        ); })}</ul> : <p className="m-0 text-eu-muted">Καμία αγορά από το SoftOne. Συμπληρώνονται από τον συγχρονισμό (SoftOne → Πελάτες ERP).</p>}
+      </Card>
     </div>
   );
 }

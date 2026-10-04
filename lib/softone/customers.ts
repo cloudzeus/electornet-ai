@@ -41,7 +41,7 @@ export function toErpCustomer(c: Customer, addr: Address | null, d: Awaited<Retu
     COUNTRY: d.country,
     SOCURRENCY: d.currency,
     VATSTS: d.vatSts,
-    EMAIL: c.email.slice(0, 128),
+    EMAIL: (c.email ?? "").slice(0, 128),
   };
   if (c.vatNumber) row.AFM = c.vatNumber;
   if (c.doy) row.IRSDATA = c.doy;

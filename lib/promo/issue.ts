@@ -134,6 +134,7 @@ export async function issueToSegment(input: { segmentId: string; promotionCode: 
   const allowed = input.send ? await marketingAllowed(members.map((m) => m.id)) : new Set<string>();
   let issued = 0, existing = 0, emailed = 0, failed = 0;
   for (const m of members) {
+    if (!m.email) continue; // κουπόνι με αποστολή θέλει email
     const send = allowed.has(m.id);
     const r = await issueCoupon({ promotionCode: input.promotionCode, trigger: "manual", email: m.email, customerId: m.id, firstName: m.firstName, send, prefix: "VIP" });
     if (!r.ok) { failed++; if (failed === 1 && !issued && !existing) return { ok: false as const, error: r.reason }; continue; }
