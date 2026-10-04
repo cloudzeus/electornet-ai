@@ -1,9 +1,32 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { Flame, Loader2, Play, Trash2, Mic, Square } from "lucide-react";
 import { prewarm, removePhrase, tryPhrase } from "./actions";
 import { useVoice } from "@/lib/voice/client";
+
+/**
+ * Ένας κοινός player για όλη τη σελίδα: μια νέα φράση σταματά πρώτα όποια παίζει ήδη· δεύτερο κλικ στην ίδια τη σταματά.
+ */
+let current: { url: string; audio: HTMLAudioElement } | null = null;
+const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((l) => l());
+function stopAudio() {
+  if (!current) return;
+  current.audio.pause(); current.audio.currentTime = 0; current = null; notify();
+}
+function playAudio(url: string) {
+  const again = current?.url === url;
+  stopAudio();
+  if (again) return;
+  const audio = new Audio(url);
+  const done = () => { if (current?.audio === audio) { current = null; notify(); } };
+  audio.addEventListener("ended", done); audio.addEventListener("error", done);
+  current = { url, audio }; notify();
+  audio.play().catch(done);
+}
+const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+const usePlaying = (url: string) => useSyncExternalStore(subscribe, () => current?.url === url, () => false);
 
 /** Prewarm button + custom phrase tester + mic tester for the voice cache page. */
 export function VoiceTools({ enabled }: { enabled: boolean }) {
@@ -12,7 +35,7 @@ export function VoiceTools({ enabled }: { enabled: boolean }) {
   const [text, setText] = useState("");
   const [heard, setHeard] = useState<string | null>(null);
   const voice = useVoice();
-  const play = (url: string) => { const a = new Audio(url); void a.play(); };
+  const play = playAudio;
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -39,9 +62,10 @@ export function VoiceTools({ enabled }: { enabled: boolean }) {
 
 export function PhraseRow({ id, url }: { id: string; url: string }) {
   const [pending, start] = useTransition();
+  const playing = usePlaying(url);
   return (
     <span className="inline-flex gap-1">
-      <button type="button" onClick={() => { void new Audio(url).play(); }} aria-label="Αναπαραγωγή" className="size-9 rounded-full bg-eu-chip text-eu-blue inline-flex items-center justify-center hover:bg-eu-blue hover:text-white"><Play className="size-4" aria-hidden /></button>
+      <button type="button" onClick={() => playAudio(url)} aria-label={playing ? "Διακοπή" : "Αναπαραγωγή"} aria-pressed={playing} className={`size-9 rounded-full inline-flex items-center justify-center hover:bg-eu-blue hover:text-white ${playing ? "bg-eu-blue text-white" : "bg-eu-chip text-eu-blue"}`}>{playing ? <Square className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}</button>
       <button type="button" disabled={pending} onClick={() => { if (confirm("Διαγραφή της φράσης από το cache; Θα ξαναδημιουργηθεί (με κόστος) την επόμενη φορά.")) start(() => removePhrase(id)); }} aria-label="Διαγραφή" className="size-9 rounded-full bg-eu-surface text-eu-muted inline-flex items-center justify-center hover:bg-eu-red hover:text-white disabled:opacity-60"><Trash2 className="size-4" aria-hidden /></button>
     </span>
   );
