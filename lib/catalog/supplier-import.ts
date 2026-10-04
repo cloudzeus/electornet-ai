@@ -24,7 +24,7 @@ export interface PlanRow {
   title: string; mtrl?: number; code?: string; productId?: string;
   changes: Change[]; errors: string[]; warnings: string[];
 }
-export interface Plan { brand: { id: string; name: string; s1Id: string | null } | null; kind: "existing" | "new" | null; rows: PlanRow[]; warnings: string[]; counts: Record<PlanRow["action"], number> }
+export interface Plan { brand: { id: string; name: string; s1Id: string | null } | null; kind: "existing" | "new" | "media" | null; rows: PlanRow[]; warnings: string[]; counts: Record<PlanRow["action"], number> }
 
 const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.header])) as Record<FieldKey, string>;
 const KIND = Object.fromEntries(FIELDS.map((f) => [f.key, f.kind])) as Record<FieldKey, "text" | "int" | "num">;

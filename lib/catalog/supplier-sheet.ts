@@ -14,7 +14,7 @@ import { syncSpecGroups } from "@/lib/softone/catalog";
  * (CCCWREMARKS) — από εκεί τα διαβάζει και η προβολή του καταστήματος.
  */
 export const SHEET_VERSION = 1;
-export type SheetKind = "existing" | "new";
+export type SheetKind = "existing" | "new" | "media";
 
 export type FieldKey = "mtrl" | "code" | "name" | "barcode" | "factoryCode" | "shortDesc" | "descText" | "guaranteeMonths" | "widthCm" | "heightCm" | "lengthCm" | "weightKg";
 type FieldKind = "text" | "int" | "num";
@@ -32,7 +32,7 @@ export const FIELDS: { key: FieldKey; header: string; kind: FieldKind; width: nu
   { key: "lengthCm", header: "Βάθος (εκ.)", kind: "num", width: 10, note: "Εξωτερικό βάθος σε εκατοστά." },
   { key: "weightKg", header: "Βάρος (kg)", kind: "num", width: 10, note: "Καθαρό βάρος σε κιλά." },
 ];
-const RESERVED = new Set(["Οδηγίες", "_meta", "_lists"]);
+export const RESERVED = new Set(["Οδηγίες", "_meta", "_lists"]);
 const DATA_ROWS_NEW = 200;
 
 export const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ").replace(/\s*\*\s*$/, "").replace(/\s+/g, " ").trim();
@@ -58,7 +58,7 @@ export async function loadGroups(ids: number[]) {
 }
 type Group = NonNullable<Awaited<ReturnType<typeof loadGroups>> extends Map<number, infer G> ? G : never>;
 
-const groupOfCategory = (erpCode: string | null) => { const m = /^s1:g:(\d+)$/.exec(erpCode ?? ""); return m ? Number(m[1]) : null; };
+export const groupOfCategory = (erpCode: string | null) => { const m = /^s1:g:(\d+)$/.exec(erpCode ?? ""); return m ? Number(m[1]) : null; };
 
 // ---------- Επισκόπηση μάρκας ----------
 
@@ -101,12 +101,12 @@ export function itemValues(it: { mtrl: number; code: string; name: string; barco
   return { fields, specs };
 }
 
-const safeSheetName = (name: string, taken: Set<string>) => {
+export const safeSheetName = (name: string, taken: Set<string>) => {
   const base = name.replace(/[[\]:*?/\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 28) || "Ομάδα";
   let n = base; for (let i = 2; taken.has(n.toLowerCase()) || RESERVED.has(n); i++) n = `${base.slice(0, 26)} ${i}`;
   taken.add(n.toLowerCase()); return n;
 };
-const colName = (i: number) => { let s = ""; for (let n = i; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
+export const colName = (i: number) => { let s = ""; for (let n = i; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
 
 export interface SheetMeta { v: number; kind: SheetKind; brandId: string; brand: string; generatedAt: string; sheets: { name: string; groupS1Id: number; group: string }[] }
 
@@ -214,7 +214,7 @@ export async function buildTemplate(brandId: string, groupIds: number[], kind: S
 export interface ParsedRow { sheet: string; rowNo: number; groupS1Id: number; fields: Partial<Record<FieldKey, string>>; specs: Record<string, string> }
 export interface ParsedFile { meta: SheetMeta | null; rows: ParsedRow[]; warnings: string[]; sheets: { name: string; groupS1Id: number | null; group: string | null; rows: number; ignoredColumns: string[] }[] }
 
-const cellText = (v: ExcelJS.CellValue): string => {
+export const cellText = (v: ExcelJS.CellValue): string => {
   if (v == null) return "";
   if (typeof v === "object") {
     if ("richText" in v && Array.isArray(v.richText)) return v.richText.map((t) => t.text).join("").trim();

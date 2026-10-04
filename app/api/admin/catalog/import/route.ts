@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
-import { ensureFreshSpecGroups, parseWorkbook } from "@/lib/catalog/supplier-sheet";
+import ExcelJS from "exceljs";
+import { ensureFreshSpecGroups, parseWorkbook, cellText, type SheetMeta } from "@/lib/catalog/supplier-sheet";
+import { parseMediaWorkbook, planMedia, applyMedia } from "@/lib/catalog/supplier-media";
 import { planImport, applyImport, type ImportOptions } from "@/lib/catalog/supplier-import";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
@@ -30,8 +32,24 @@ export async function POST(req: Request) {
   }
   try {
     const keysRaw = form.get("keys");
+    const buf = await file.arrayBuffer();
+    // Αρχείο φωτογραφιών / βίντεο: δικός του έλεγχος και εκτέλεση (δεν αγγίζει στοιχεία ούτε το SoftOne)
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    let meta: SheetMeta | null = null;
+    try { meta = JSON.parse(cellText(wb.getWorksheet("_meta")?.getCell("A1").value ?? null) || "null"); } catch { meta = null; }
+    if (meta?.kind === "media") {
+      const replace = form.get("replace") === "1";
+      const m = await parseMediaWorkbook(wb, meta);
+      if (!m.rows.length) return NextResponse.json({ error: "Το αρχείο δεν έχει καμία διεύθυνση φωτογραφίας ή βίντεο." }, { status: 422 });
+      if (!keysRaw) return NextResponse.json(await planMedia(m.rows, m.warnings, meta, replace));
+      const keys = (JSON.parse(String(keysRaw)) as string[]).slice(0, 3);
+      const results = await applyMedia(m.rows, keys, replace, session.user.id);
+      resetCatalogCache();
+      await audit(session.user.id, "catalog.import.media", "Brand", meta.brandId, null, { file: file.name, replace, results: results.map((r) => ({ key: r.key, ok: r.ok, productId: r.productId })) });
+      return NextResponse.json({ results });
+    }
     if (!keysRaw) await ensureFreshSpecGroups();
-    const parsed = await parseWorkbook(await file.arrayBuffer());
+    const parsed = await parseWorkbook(buf);
     if (!parsed.rows.length) return NextResponse.json({ error: "Το αρχείο δεν έχει καμία συμπληρωμένη γραμμή σε φύλλο κατηγορίας." }, { status: 422 });
     if (!keysRaw) return NextResponse.json(await planImport(parsed, opts));
     const keys = (JSON.parse(String(keysRaw)) as string[]).slice(0, 25);

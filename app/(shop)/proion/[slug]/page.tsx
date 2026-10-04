@@ -34,6 +34,7 @@ import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
 import { RichDescription } from "@/components/pdp/RichDescription";
+import { ProductVideos } from "@/components/pdp/ProductVideos";
 import { ReplaceOld } from "@/components/snap/ReplaceOld";
 import { kindOfProduct } from "@/lib/snap/kind";
 
@@ -62,7 +63,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi");
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
-  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
+  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
@@ -169,6 +170,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </section>
         )}
 
+        {p.videos?.length ? <ProductVideos title={`${p.brand} ${p.title}`} videos={p.videos} /> : null}
         <Answers product={p} />
         {p.specs && p.specs.length > 0 && <SpecsTable specs={p.specs} energy={p.energy} />}
         <CompareSimilar product={p} similar={similar} />

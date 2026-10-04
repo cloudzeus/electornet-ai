@@ -146,3 +146,19 @@ export async function removeBackground(bytes: Buffer): Promise<Buffer> {
     await rm(dir, { recursive: true, force: true });
   }
 }
+
+/**
+ * Βίντεο για το web: MP4 H.264 + AAC, έως 1920 px πλάτος, «faststart» (παίζει πριν κατέβει όλο). null όταν δεν υπάρχει
+ * ffmpeg ή αποτύχει — τότε ο καλών κρατά το αρχικό αρχείο, αν είναι ήδη mp4 / webm.
+ */
+export async function toWebMp4(bytes: Buffer): Promise<Buffer | null> {
+  const dir = await mkdtemp(path.join(tmpdir(), "eu-transcode-"));
+  const src = path.join(dir, "in"), dst = path.join(dir, "out.mp4");
+  await writeFile(src, bytes);
+  try {
+    const r = await run("ffmpeg", ["-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-vf", "scale='min(1920,iw)':-2", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", dst]);
+    return r.code === 0 ? await readFile(dst) : null;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}

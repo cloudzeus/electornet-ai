@@ -94,6 +94,8 @@ export interface Product {
   banners?: { url: string; width: number | null; height: number | null; alt: string | null; blur?: string | null }[];
   /** ενότητες «από τον κατασκευαστή» (απόδελτίωση banners): κείμενο + καθαρές φωτογραφίες */
   sections?: import("@/lib/catalog/banner-doc").PublishedSection[];
+  /** βίντεο του προϊόντος: αρχεία στο Bunny ή YouTube / Vimeo (η αφίσα πάντα από το Bunny όταν υπάρχει) */
+  videos?: { url: string; poster: string | null; width: number | null; height: number | null; title: string | null }[];
   highlights?: string[];
   specs?: Spec[];
   variants?: VariantAxis[];

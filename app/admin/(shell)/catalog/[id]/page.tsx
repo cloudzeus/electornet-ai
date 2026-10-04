@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package, ScanText, BadgePercent, Images, Euro, Database, ExternalLink } from "lucide-react";
+import { ArrowLeft, Package, ScanText, BadgePercent, Images, Euro, Database, ExternalLink, Clapperboard } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -15,6 +15,8 @@ import { AccordionItem } from "@/components/admin/ui/Accordion";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { loadBannerStudio } from "@/lib/catalog/banner-studio-data";
 import { BannerStudio } from "@/components/admin/banner-studio/BannerStudio";
+import { ProductVideosAdmin } from "@/components/admin/catalog/ProductVideosAdmin";
+import { productVideos } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim] = await Promise.all([
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos] = await Promise.all([
     listProductImages(p.id),
     listProductImages(p.id, "banner"),
     canWrite ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -45,6 +47,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     fromS1 ? db.s1Item.findUnique({ where: { mtrl } }) : Promise.resolve(null),
     itemWriteEnabled(),
     db.productDimension.findUnique({ where: { productId_source: { productId: id, source: "s1-desc" } } }),
+    productVideos(id),
   ]);
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow) : null;
@@ -83,6 +86,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
       <AccordionItem id="photos" title="Φωτογραφίες" icon={<Images className="size-4" aria-hidden />} summary={visibleImages ? "Η πρώτη είναι η κύρια· η «Όψη AR» γεμίζει την πρόσοψη του στερεού" : "Χωρίς φωτογραφία — δεν εμφανίζεται σωστά στο κατάστημα"} badge={chip(`${visibleImages}`)} defaultOpen>
         <ProductImages productId={p.id} initial={images} canWrite={canWrite} canUploadToLibrary={can(user.permissions, "cms.media.write")} ar={arFront} embedded />
+      </AccordionItem>
+
+      <AccordionItem id="videos" title="Βίντεο" icon={<Clapperboard className="size-4" aria-hidden />} summary={videos.filter((v) => !v.hidden).length ? "Στη σελίδα του προϊόντος, ενότητα «Βίντεο»" : "Κανένα βίντεο — πρόσθεσε σύνδεσμο YouTube, Vimeo ή .mp4"} badge={chip(`${videos.filter((v) => !v.hidden).length}`)}>
+        <ProductVideosAdmin productId={p.id} initial={videos} canWrite={canWrite} />
       </AccordionItem>
 
       {fromS1 && initial ? (

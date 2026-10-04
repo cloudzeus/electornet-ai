@@ -129,3 +129,49 @@ export async function saveProductFields(productId: string, changes: import("@/li
   if (!w.ok) return { ok: false as const, message: w.error ?? "Η αποθήκευση απέτυχε.", conflicts: w.conflicts.map((c) => ({ ...c, label: labels([c.field]) })), mismatches: w.mismatches.map((m) => ({ ...m, label: labels([m.field]) })), written: w.written };
   return { ok: true as const, message: w.written.length ? `Αποθηκεύτηκε στο SoftOne και στο e-shop: ${labels(w.written)}.` : "Καμία αλλαγή για αποθήκευση.", written: w.written };
 }
+
+// ---------- Βίντεο προϊόντος ----------
+
+export interface ProductVideoDTO { id: string; url: string; poster: string | null; hidden: boolean; onBunny: boolean }
+async function listVideos(productId: string): Promise<ProductVideoDTO[]> {
+  const rows = await db.media.findMany({ where: { productId, kind: "video" }, orderBy: [{ hidden: "asc" }, { sortNo: "asc" }], select: { id: true, url: true, thumbUrl: true, hidden: true, assetId: true } });
+  return rows.map((r) => ({ id: r.id, url: r.url, poster: r.thumbUrl, hidden: r.hidden, onBunny: !!r.assetId }));
+}
+
+/** Βίντεο από σύνδεσμο: αρχείο → MP4 στο Bunny· YouTube / Vimeo → ενσωμάτωση με αφίσα στο Bunny. */
+export async function addProductVideo(productId: string, url: string): Promise<{ ok: boolean; error?: string; videos: ProductVideoDTO[] }> {
+  const user = await requirePermission("catalog.products.write");
+  const { parseVideoUrl } = await import("@/lib/catalog/video-url");
+  const { importVideo } = await import("@/lib/catalog/supplier-media");
+  const ref = parseVideoUrl(url);
+  if (!ref) return { ok: false, error: "Δεν είναι σύνδεσμος YouTube, Vimeo ή αρχείου .mp4 / .webm (https).", videos: await listVideos(productId) };
+  const p = await db.product.findUnique({ where: { id: productId }, select: { title: true } });
+  if (!p) return { ok: false, error: "Το προϊόν δεν βρέθηκε.", videos: [] };
+  const dup = await db.media.findFirst({ where: { productId, kind: "video", OR: [{ url: ref.url }, { importFile: ref.url }, { importFile: url.trim() }] }, select: { id: true, hidden: true } });
+  if (dup) {
+    if (dup.hidden) await db.media.update({ where: { id: dup.id }, data: { hidden: false } });
+    else return { ok: false, error: "Το βίντεο υπάρχει ήδη στο προϊόν.", videos: await listVideos(productId) };
+  } else {
+    try {
+      const last = await db.media.aggregate({ where: { productId, kind: "video" }, _max: { sortNo: true } });
+      await importVideo(productId, p.title, { raw: url.trim(), url: ref.url, thumb: ref.thumb }, (last._max.sortNo ?? 0) + 1, user.id);
+    } catch (e) { return { ok: false, error: (e as Error).message, videos: await listVideos(productId) }; }
+  }
+  await audit(user.id, "catalog.product.video.add", "Product", productId, null, { url: ref.url });
+  resetCatalogCache(); revalidatePath(path(productId));
+  return { ok: true, videos: await listVideos(productId) };
+}
+
+/** Απόκρυψη / επαναφορά — τα βίντεο δεν σβήνονται από εδώ. */
+export async function setProductVideoHidden(productId: string, id: string, hidden: boolean): Promise<ProductVideoDTO[]> {
+  const user = await requirePermission("catalog.products.write");
+  await db.media.updateMany({ where: { id, productId, kind: "video" }, data: { hidden } });
+  await audit(user.id, hidden ? "catalog.product.video.hide" : "catalog.product.video.restore", "Product", productId, null, { id });
+  resetCatalogCache(); revalidatePath(path(productId));
+  return listVideos(productId);
+}
+
+export async function productVideos(productId: string) {
+  await requirePermission("catalog.products.read");
+  return listVideos(productId);
+}

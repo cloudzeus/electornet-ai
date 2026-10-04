@@ -8,6 +8,7 @@ const c = copyOf("sectionNav");
 const ITEMS = [
   ["overview", "Με μια ματιά"],
   ["description", "Περιγραφή"],
+  ["videos", "Βίντεο"],
   ["answers", "Γρήγορες απαντήσεις"],
   ["specs", "Χαρακτηριστικά"],
   ["compare", "Σύγκριση"],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, CircleAlert, Download, FileArchive, FileSpreadsheet, FileUp, Loader2, Plus, Search, Upload, X } from "lucide-react";
+import { AlertTriangle, Check, CircleAlert, Download, FileArchive, FileSpreadsheet, FileUp, Images, Loader2, Plus, Search, Upload, X } from "lucide-react";
 import { loadBrandOverview } from "@/app/admin/(shell)/catalog/templates/actions";
 import type { BrandOverview } from "@/lib/catalog/supplier-sheet";
 import type { Plan, PlanRow, ApplyResult } from "@/lib/catalog/supplier-import";
@@ -149,6 +149,10 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
               <button type="button" className={secondary} disabled={!chosen.length || !!busy} onClick={() => download(url("new"), `${o.brandId}n`)}>
                 {busy === `${o.brandId}n` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} Κενό για νέα προϊόντα
               </button>
+              <button type="button" className={secondary} disabled={!chosen.length || !!busy} onClick={() => download(url("media"), `${o.brandId}m`)}>
+                {busy === `${o.brandId}m` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Images className="size-4" aria-hidden />} Φωτογραφίες & βίντεο
+              </button>
+              <p className="m-0 basis-full text-eu-muted text-[length:var(--fs-12)]">Τρία χωριστά αρχεία: στοιχεία υπαρχόντων · κενό για νέα · φωτογραφίες, banners και βίντεο (διευθύνσεις URL — στην εισαγωγή κατεβαίνουν, μετατρέπονται και ανεβαίνουν στο Bunny).</p>
             </div>
           </section>
         );
@@ -156,8 +160,8 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
 
       {selection.length > 1 && (
         <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-eu-navy text-white px-4 py-3 shadow-lg">
-          <span className="text-[length:var(--fs-14)]">{selection.length} μάρκες · ένα zip με δύο αρχεία ανά μάρκα (υπάρχοντα + νέα)</span>
-          <button type="button" disabled={!!busy} onClick={() => download(`/api/admin/catalog/templates?s=${selection.map((x) => `${x.b}~${x.g.join(".")}`).join("|")}&k=both`, "zip")} className={`${btn} bg-eu-yellow text-eu-navy hover:bg-white`}>
+          <span className="text-[length:var(--fs-14)]">{selection.length} μάρκες · ένα zip με τρία αρχεία ανά μάρκα (υπάρχοντα, νέα, φωτογραφίες & βίντεο)</span>
+          <button type="button" disabled={!!busy} onClick={() => download(`/api/admin/catalog/templates?s=${selection.map((x) => `${x.b}~${x.g.join(".")}`).join("|")}&k=all`, "zip")} className={`${btn} bg-eu-yellow text-eu-navy hover:bg-white`}>
             {busy === "zip" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileArchive className="size-4" aria-hidden />} Όλα σε zip
           </button>
         </div>
@@ -199,6 +203,7 @@ function Import({ brands, canErp, writeOn }: { brands: BrandOpt[]; canErp: boole
   const [brandId, setBrandId] = useState("");
   const [toSoftone, setToSoftone] = useState(false);
   const [activate, setActivate] = useState(false);
+  const [replace, setReplace] = useState(false);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [filter, setFilter] = useState<PlanRow["action"] | "all">("all");
   const [checking, setChecking] = useState(false);
@@ -209,16 +214,16 @@ function Import({ brands, canErp, writeOn }: { brands: BrandOpt[]; canErp: boole
   const erpReason = !canErp ? "Χρειάζονται τα δικαιώματα «Επεξεργασία προϊόντων» και «Εκτέλεση συγχρονισμού ERP»." : !writeOn ? "Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne)." : null;
 
   const reset = () => { setPlan(null); setResults({}); setProgress(null); setErr(null); };
-  const form = (extra?: Record<string, string>) => {
-    const f = new FormData(); f.set("file", file!); f.set("brandId", brandId); f.set("toSoftone", toSoftone ? "1" : "0"); f.set("activate", activate ? "1" : "0");
+  const form = (extra?: Record<string, string>, rep = replace) => {
+    const f = new FormData(); f.set("file", file!); f.set("brandId", brandId); f.set("toSoftone", toSoftone ? "1" : "0"); f.set("activate", activate ? "1" : "0"); f.set("replace", rep ? "1" : "0");
     for (const [k, v] of Object.entries(extra ?? {})) f.set(k, v);
     return f;
   };
-  const check = async () => {
+  const check = async (rep = replace) => {
     if (!file) return;
     setChecking(true); reset();
     try {
-      const r = await fetch("/api/admin/catalog/import", { method: "POST", body: form() });
+      const r = await fetch("/api/admin/catalog/import", { method: "POST", body: form(undefined, rep) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? "Ο έλεγχος απέτυχε.");
       setPlan(j); setFilter(j.counts.error ? "error" : "all");
@@ -227,18 +232,20 @@ function Import({ brands, canErp, writeOn }: { brands: BrandOpt[]; canErp: boole
   const todo = plan?.rows.filter((r) => (r.action === "create" || r.action === "update") && !results[r.key]?.ok) ?? [];
   const apply = async () => {
     if (!plan || !todo.length) return;
-    const where = toSoftone ? "στο SoftOne ΚΑΙ στο κατάστημα" : "μόνο στο κατάστημα";
-    if (!confirm(`Θα γραφτούν ${todo.length} ${todo.length === 1 ? "γραμμή" : "γραμμές"} ${where}${activate ? " — τα νέα θα είναι ενεργά" : ""}. Συνέχεια;`)) return;
+    const media = plan.kind === "media";
+    const where = media ? "— οι φωτογραφίες και τα βίντεο θα κατέβουν, θα μετατραπούν και θα ανέβουν στο Bunny" : toSoftone ? "στο SoftOne ΚΑΙ στο κατάστημα" : "μόνο στο κατάστημα";
+    if (!confirm(`Θα γραφτούν ${todo.length} ${todo.length === 1 ? "γραμμή" : "γραμμές"} ${where}${!media && activate ? " — τα νέα θα είναι ενεργά" : ""}${media && replace ? " — ό,τι δεν είναι στο αρχείο θα κρυφτεί" : ""}. Συνέχεια;`)) return;
+    const size = media ? 2 : BATCH;
     setErr(null); setProgress({ done: 0, total: todo.length });
     const keys = todo.map((r) => r.key);
-    for (let i = 0; i < keys.length; i += BATCH) {
+    for (let i = 0; i < keys.length; i += size) {
       try {
-        const r = await fetch("/api/admin/catalog/import", { method: "POST", body: form({ keys: JSON.stringify(keys.slice(i, i + BATCH)) }) });
+        const r = await fetch("/api/admin/catalog/import", { method: "POST", body: form({ keys: JSON.stringify(keys.slice(i, i + size)) }) });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error ?? "Η εισαγωγή σταμάτησε.");
         setResults((prev) => ({ ...prev, ...Object.fromEntries((j.results as ApplyResult[]).map((x) => [x.key, x])) }));
       } catch (e) { setErr(`${(e as Error).message} — όσα έγιναν μέχρι εδώ έμειναν· πάτα ξανά «Εφαρμογή» για τα υπόλοιπα.`); break; }
-      setProgress({ done: Math.min(i + BATCH, keys.length), total: keys.length });
+      setProgress({ done: Math.min(i + size, keys.length), total: keys.length });
     }
   };
   const shown = plan?.rows.filter((r) => filter === "all" || r.action === filter) ?? [];
@@ -286,7 +293,7 @@ function Import({ brands, canErp, writeOn }: { brands: BrandOpt[]; canErp: boole
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className={primary} disabled={!file || checking || !!progress && progress.done < progress.total} onClick={check}>{checking ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />} Έλεγχος αρχείου</button>
+          <button type="button" className={primary} disabled={!file || checking || !!progress && progress.done < progress.total} onClick={() => check()}>{checking ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />} Έλεγχος αρχείου</button>
         </div>
       </section>
 
@@ -296,8 +303,17 @@ function Import({ brands, canErp, writeOn }: { brands: BrandOpt[]; canErp: boole
         <section className="rounded-xl border border-eu-line bg-white p-3 @md:p-4 grid gap-3" aria-labelledby="i-plan">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 id="i-plan" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τι θα γίνει{plan.brand ? ` · ${plan.brand.name}` : ""}</h3>
-            <span className="text-eu-muted text-[length:var(--fs-13)]">{plan.rows.length} γραμμές · {toSoftone ? "SoftOne + κατάστημα" : "μόνο κατάστημα"}</span>
+            <span className="text-eu-muted text-[length:var(--fs-13)]">{plan.rows.length} γραμμές · {plan.kind === "media" ? "φωτογραφίες & βίντεο → Bunny" : toSoftone ? "SoftOne + κατάστημα" : "μόνο κατάστημα"}</span>
           </div>
+          {plan.kind === "media" && (
+            <label className="flex gap-3 items-start rounded-xl border border-eu-line p-3 cursor-pointer">
+              <input type="checkbox" checked={replace} disabled={checking || (!!progress && progress.done < progress.total)} onChange={(e) => { setReplace(e.target.checked); void check(e.target.checked); }} className="size-5 mt-0.5 accent-eu-navy shrink-0" />
+              <span className="grid gap-0.5">
+                <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Αντικατάσταση: το αρχείο ορίζει ποιες φωτογραφίες φαίνονται και με ποια σειρά</span>
+                <span className="text-eu-muted text-[length:var(--fs-12)] leading-snug">Ανά προϊόν και είδος (φωτογραφίες / banners / βίντεο), όπου η γραμμή έχει τουλάχιστον μία διεύθυνση. Ό,τι υπάρχει και δεν είναι στο αρχείο κρύβεται — δεν σβήνεται, ξαναεμφανίζεται από την καρτέλα του προϊόντος. Χωρίς αυτό, τα νέα μπαίνουν στο τέλος.</span>
+              </span>
+            </label>
+          )}
           {plan.warnings.length > 0 && <ul className="m-0 p-0 list-none grid gap-1">{plan.warnings.map((w, i) => <li key={i} className="flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />{w}</li>)}</ul>}
           <div role="tablist" aria-label="Φίλτρο γραμμών" className="flex flex-wrap gap-2">
             {(["all", "create", "update", "error", "unchanged"] as const).map((k) => (
