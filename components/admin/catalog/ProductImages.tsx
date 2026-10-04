@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, GripVertical } from "lucide-react";
+import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import type { ProductImageDTO } from "@/lib/catalog/product-images";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
@@ -97,7 +97,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
           Το προϊόν δεν έχει φωτογραφία.{canWrite ? " Σύρε αρχεία εδώ, πάτησε «Ανέβασμα», ή διάλεξε από τη βιβλιοθήκη." : ""}
         </div>
       ) : (
-        <ol className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
+        <ol className="m-0 p-0 list-none grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]">
           {visible.map((im, i) => (
             <li
               key={im.id}
@@ -106,41 +106,46 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
               onDragEnd={() => setDragId(null)}
               onDragOver={(e) => { if (dragId && dragId !== im.id) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
               onDrop={(e) => { if (dragId && dragId !== im.id) { e.preventDefault(); e.stopPropagation(); move(dragId, i); setDragId(null); } }}
-              className={`grid gap-2 rounded-2xl border-2 p-2 bg-white ${dragId === im.id ? "opacity-40 border-eu-blue" : i === 0 ? "border-eu-yellow" : "border-eu-line"}`}
+              className={`grid gap-1 rounded-xl border-2 p-1.5 bg-white min-w-0 ${canWrite ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === im.id ? "opacity-40 border-eu-blue" : i === 0 ? "border-eu-yellow" : "border-eu-line"}`}
             >
-              <div className="relative aspect-square rounded-xl bg-white overflow-hidden border border-eu-line">
+              <div className="relative aspect-square rounded-lg bg-white overflow-hidden border border-eu-line">
                 {/* Μία εκδοχή στο CDN· το μέγεθος για κάθε οθόνη το παράγει το <Image> */}
-                <Image src={im.url} alt={im.alt ?? ""} fill sizes="(min-width: 640px) 240px, 50vw" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain" />
-                {i === 0 && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-2.5 py-1 text-[length:var(--fs-13)]"><Star className="size-3.5" aria-hidden /> Κύρια</span>}
-                {canWrite && <span className="absolute right-2 top-2 size-8 rounded-full bg-white/90 text-eu-muted inline-flex items-center justify-center cursor-grab" aria-hidden><GripVertical className="size-4" /></span>}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[length:var(--fs-13)]">
-                <span className="rounded-full bg-eu-surface text-eu-ink-3 px-2 py-0.5">{SOURCE[im.source ?? ""] ?? "—"}</span>
-                {im.width && im.height ? <span className="text-eu-muted tabular-nums">{im.width}×{im.height}</span> : null}
-                {im.lowRes && <span className="inline-flex items-center gap-1 rounded-full bg-eu-red/10 text-eu-red font-bold px-2 py-0.5"><AlertTriangle className="size-3.5" aria-hidden /> μικρή</span>}
-              </div>
-              <label className="grid gap-1">
-                <span className="text-eu-ink-3 text-[length:var(--fs-13)] font-bold">Εναλλακτικό κείμενο</span>
-                <input
-                  defaultValue={im.alt ?? ""} disabled={!canWrite} maxLength={200}
-                  onBlur={(e) => { const v = e.target.value; if (v.trim() !== (im.alt ?? "")) start(async () => { const alt = await saveImageAlt(productId, im.id, v); setImages((xs) => xs.map((x) => (x.id === im.id ? { ...x, alt: alt || null } : x))); say("Το εναλλακτικό κείμενο αποθηκεύτηκε."); }); }}
-                  className="w-full rounded-lg border border-eu-line px-2.5 min-h-11 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue"
-                />
-              </label>
-              {canWrite && (
-                <div className="flex items-center justify-between">
-                  <div className="flex">
-                    <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, i - 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση πριν`}><ArrowLeft className="size-4.5" aria-hidden /></button>
-                    <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση μετά`}><ArrowRight className="size-4.5" aria-hidden /></button>
-                    <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, 0)} aria-label={`Ορισμός της φωτογραφίας ${i + 1} ως κύριας`}><Star className="size-4.5" aria-hidden /></button>
-                  </div>
+                <Image src={im.url} alt={im.alt ?? ""} fill sizes="160px" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain p-1" />
+                <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-white/90 text-eu-ink-3 font-bold tabular-nums px-1.5 py-0.5 text-[length:var(--fs-11)]">{i + 1}</span>
+                {i === 0 && <span className="absolute left-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Star className="size-3" aria-hidden /> Κύρια</span>}
+                {im.lowRes && <span className="absolute right-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-red text-white font-bold px-1.5 py-0.5 text-[length:var(--fs-11)]"><AlertTriangle className="size-3" aria-hidden /> μικρή</span>}
+                {canWrite && (
                   <button
-                    type="button" className={`${icon} hover:!bg-eu-red/10 hover:!text-eu-red`}
+                    type="button" className="absolute right-0 top-0 size-11 grid place-items-center cursor-pointer group/rm focus-visible:outline-2 focus-visible:outline-eu-blue rounded-full"
                     aria-label={im.source === "legacy-site" ? `Απόκρυψη της φωτογραφίας ${i + 1}` : `Αφαίρεση της φωτογραφίας ${i + 1} από το προϊόν`}
+                    title={im.source === "legacy-site" ? "Απόκρυψη" : "Αφαίρεση από το προϊόν"}
                     onClick={() => start(async () => { const r = await removeProductImage(productId, im.id); setImages(r.images); say(r.how === "hidden" ? "Η φωτογραφία κρύφτηκε. Θα τη βρεις στις «Κρυμμένες»." : "Αφαιρέθηκε από το προϊόν. Το αρχείο παραμένει στη βιβλιοθήκη."); })}
-                  >{im.source === "legacy-site" ? <EyeOff className="size-4.5" aria-hidden /> : <Trash2 className="size-4.5" aria-hidden />}</button>
+                  ><span className="size-7 grid place-items-center rounded-full bg-white/95 text-eu-muted shadow-sm group-hover/rm:bg-eu-red group-hover/rm:text-white">{im.source === "legacy-site" ? <EyeOff className="size-3.5" aria-hidden /> : <Trash2 className="size-3.5" aria-hidden />}</span></button>
+                )}
+              </div>
+              <div className="truncate text-eu-muted text-[length:var(--fs-12)] tabular-nums" title={`${SOURCE[im.source ?? ""] ?? "—"}${im.width && im.height ? ` · ${im.width}×${im.height}` : ""}`}>
+                {SOURCE[im.source ?? ""] ?? "—"}{im.width && im.height ? ` · ${im.width}×${im.height}` : ""}
+              </div>
+              {canWrite && (
+                <div className="flex items-center justify-between -my-1">
+                  <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, i - 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση πριν`} title="Μία θέση πριν"><ArrowLeft className="size-4" aria-hidden /></button>
+                  <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, 0)} aria-label={`Ορισμός της φωτογραφίας ${i + 1} ως κύριας`} title="Κάν' την κύρια"><Star className="size-4" aria-hidden /></button>
+                  <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση μετά`} title="Μία θέση μετά"><ArrowRight className="size-4" aria-hidden /></button>
                 </div>
               )}
+              <details className="group/alt min-w-0">
+                <summary className={`cursor-pointer list-none flex items-center gap-1 min-h-8 rounded-md px-1 text-[length:var(--fs-12)] font-bold hover:bg-eu-chip ${im.alt ? "text-eu-ink-3" : "text-eu-amber"}`}>
+                  <span className="truncate">{im.alt ? `Alt: ${im.alt}` : "Χωρίς εναλλακτικό κείμενο"}</span>
+                </summary>
+                <label className="grid gap-1 mt-1">
+                  <span className="sr-only">Εναλλακτικό κείμενο</span>
+                  <input
+                    defaultValue={im.alt ?? ""} disabled={!canWrite} maxLength={200} placeholder="Τι δείχνει η φωτογραφία"
+                    onBlur={(e) => { const v = e.target.value; if (v.trim() !== (im.alt ?? "")) start(async () => { const alt = await saveImageAlt(productId, im.id, v); setImages((xs) => xs.map((x) => (x.id === im.id ? { ...x, alt: alt || null } : x))); say("Το εναλλακτικό κείμενο αποθηκεύτηκε."); }); }}
+                    className="w-full rounded-lg border border-eu-line px-2 min-h-10 text-[length:var(--fs-13)] focus-visible:outline-2 focus-visible:outline-eu-blue"
+                  />
+                </label>
+              </details>
             </li>
           ))}
         </ol>

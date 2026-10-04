@@ -28,7 +28,7 @@ export async function ProductPromos({ productId, canWrite }: { productId: string
         {canWrite && (
           <div className="flex flex-wrap gap-2">
             {[["percent", "Έκπτωση %"], ["special", "Ειδική τιμή"], ["nplusm", "1+1 / 2+1"], ["service", "Δωρεάν υπηρεσία"]].map(([t, l]) => (
-              <Link key={t} href={`/admin/prosfores/new?template=${t}&products=${p.id}`} className="inline-flex items-center gap-1 rounded-full border-2 border-eu-navy text-eu-navy px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip"><Plus className="size-4" aria-hidden /> {l}</Link>
+              <Link key={t} href={`/admin/prosfores/new?template=${t}&products=${p.id}`} className="inline-flex items-center gap-1 rounded-full bg-eu-surface text-eu-navy px-3 min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-navy hover:text-white transition-colors"><Plus className="size-3.5" aria-hidden /> {l}</Link>
             ))}
           </div>
         )}

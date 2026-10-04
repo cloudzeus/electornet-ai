@@ -30,26 +30,26 @@ export default async function AdminHome() {
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">Καλημέρα, {user.name}</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Τι χρειάζεται προσοχή</h2>
       </div>
-      <ul className="m-0 p-0 list-none grid grid-cols-2 @lg:grid-cols-4 gap-3">
+      <ul className="m-0 p-0 list-none grid grid-cols-2 @lg:grid-cols-4 gap-2">
         {tiles.map((t) => (
           <li key={t.l}>
-            <Link href={t.h} className="block rounded-2xl bg-white border border-eu-line p-4 hover:border-eu-blue hover:shadow-[var(--shadow-raised)] transition-all">
-              <div className="font-heading font-extrabold text-eu-navy text-[length:var(--fs-32)] leading-none tabular-nums">{t.v.toLocaleString("el-GR")}</div>
-              <div className="mt-1 text-eu-muted text-[length:var(--fs-14)]">{t.l}</div>
+            <Link href={t.h} className="flex items-baseline gap-2 rounded-xl bg-white border border-eu-line px-3 py-2 min-h-11 hover:border-eu-blue hover:shadow-[var(--shadow-raised)] transition-all">
+              <div className="font-heading font-extrabold text-eu-navy text-[length:var(--fs-20)] leading-none tabular-nums shrink-0">{t.v.toLocaleString("el-GR")}</div>
+              <div className="text-eu-muted text-[length:var(--fs-13)] leading-tight min-w-0">{t.l}</div>
             </Link>
           </li>
         ))}
       </ul>
-      <section className="rounded-2xl bg-white border border-eu-line p-5">
-        <h3 className="m-0 mb-3 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Διαθέσιμα τώρα</h3>
-        <div className="flex flex-wrap gap-2">
+      <section className="rounded-xl bg-white border border-eu-line p-3">
+        <h3 className="m-0 mb-2 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]">Διαθέσιμα τώρα</h3>
+        <div className="flex flex-wrap gap-1.5">
           {quick.map((i) => (
-            <Link key={i.href} href={i.href} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 inline-flex items-center hover:bg-eu-navy hover:text-white transition-colors">
+            <Link key={i.href} href={i.href} className="rounded-full bg-eu-surface text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-9 inline-flex items-center hover:bg-eu-navy hover:text-white transition-colors">
               {i.label}
             </Link>
           ))}
         </div>
-        <p className="m-0 mt-3 text-eu-muted text-[length:var(--fs-14)]">Οι ενότητες με «σύντομα» ενεργοποιούνται καθώς χτίζεται το CMS. Τα δικαιώματα ήδη τις ελέγχουν.</p>
+        <p className="m-0 mt-2 text-eu-muted text-[length:var(--fs-12)]">Οι ενότητες με «σύντομα» ενεργοποιούνται καθώς χτίζεται το CMS. Τα δικαιώματα ήδη τις ελέγχουν.</p>
       </section>
     </>
   );
