@@ -101,7 +101,7 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
     <div className="eu-container">
     <div className="grid grid-cols-1 @4xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
       {/* preview column */}
-      <div className="grid gap-4 @4xl:sticky @4xl:top-4">
+      <div className="grid gap-4 content-start self-stretch">
         <div className="rounded-2xl bg-white border border-eu-line p-4 grid gap-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="grid gap-1 flex-1 min-w-[180px] font-bold text-eu-ink text-[length:var(--fs-14)]">Όνομα<input value={name} onChange={(e) => { setName(e.target.value); if (!id && !key) setKey(stickerKeyFromName(e.target.value)); }} placeholder="π.χ. 1+1 Black Friday" className={field} /></label>
@@ -111,12 +111,10 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           </div>
           {msg && <p role="status" className="m-0 rounded-xl bg-eu-yellow/30 text-eu-navy font-bold text-[length:var(--fs-14)] px-3 py-2">{msg}</p>}
         </div>
-        <div className="grid grid-cols-1 @2xl:grid-cols-[minmax(0,1fr)_280px] gap-4">
-          <div className="rounded-2xl border border-eu-line bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:20px_20px] min-h-[360px] grid place-items-center p-6" ref={svgRef}>
-            <StickerSvg p={{ ...p, size: Math.max(p.size, 200) }} id="d" className={anim} />
-          </div>
-          <div className="grid gap-2">
-            <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Στην κάρτα προϊόντος</div>
+        {/* πάνω: η εφαρμογή στην κάρτα (μεγάλο) και το sticker μόνο του (μικρό)· μένει ορατό όσο αλλάζεις κείμενα και χρώματα */}
+        <div className="grid gap-3 @2xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)] items-start @4xl:sticky @4xl:top-2 z-10 bg-eu-surface-2/95 backdrop-blur rounded-2xl p-2 -m-2">
+          <div className="grid gap-1.5">
+            <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Εφαρμογή στην κάρτα προϊόντος</div>
             <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} className="group/card rounded-2xl bg-white border border-eu-line overflow-hidden shadow-[var(--shadow-raised)]">
               <div ref={frameRef} className="relative aspect-square eu-cutout-field touch-none cursor-grab active:cursor-grabbing" title="Σύρε το sticker για να το μετακινήσεις"
                 onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); dragTo(e.clientX, e.clientY); setDragging(true); }}
@@ -131,6 +129,21 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
               </div>
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
+          </div>
+          <div className="grid gap-2 content-start">
+            <div className="text-eu-muted text-[length:var(--fs-13)] font-bold uppercase tracking-wide">Το sticker μόνο του</div>
+          <div className="rounded-2xl border border-eu-line bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:20px_20px] h-44 grid place-items-center p-3" ref={svgRef}>
+            <StickerSvg p={{ ...p, size: Math.min(150, Math.max(p.size, 110)) }} id="d" className={anim} />
+          </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => download(svgString(), `${fileBase()}.svg`, "image/svg+xml")} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy"><Download className="size-4" aria-hidden /> SVG</button>
+          <button type="button" onClick={() => pngBase64(4).then((b) => download(`data:image/png;base64,${b}`, `${fileBase()}@4x.png`, "image/png"))} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy"><Download className="size-4" aria-hidden /> PNG @4x</button>
+          {canExport && <button type="button" disabled={pending} onClick={toMedia} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white disabled:opacity-50"><Images className="size-4" aria-hidden /> Στη βιβλιοθήκη media</button>}
+          <button type="button" onClick={() => navigator.clipboard.writeText(JSON.stringify(p, null, 2)).then(() => setMsg("Τα params αντιγράφηκαν (JSON)."))} className="inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:bg-eu-blue/10"><Copy className="size-4" aria-hidden /> JSON</button>
+        </div>
+          </div>
+        </div>
+        {/* αμέσως κάτω από την κάρτα: θέση, μέγεθος, περιστροφή */}
           <div className="grid gap-2 rounded-2xl bg-white border border-eu-line p-3">
             <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Θέση και μέγεθος <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— ή σύρε το sticker πάνω στην κάρτα</span></span>
             <div className="flex flex-wrap gap-1.5">{([["tl", "Πάνω αριστερά"], ["tr", "Πάνω δεξιά"], ["center", "Κέντρο"], ["bl", "Κάτω αριστερά"], ["br", "Κάτω δεξιά"]] as const).map(([v, l]) => { const [px, py] = presetXY(v); const [cx, cy] = stickerXY(p); return <button key={v} type="button" onClick={() => setP((s) => ({ ...s, position: v, x: px, y: py }))} className={chip(cx === px && cy === py)}>{l}</button>; })}</div>
@@ -155,14 +168,6 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
             <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} className="size-5 accent-eu-navy" /> Δείξε τα σταθερά στοιχεία της κάρτας (έκπτωση, tag, καρδιά, γρήγορη προβολή) για να μη συγκρούονται</label>
             {showAuto && shown.moved && <p role="status" className="m-0 rounded-lg bg-eu-yellow/30 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">Η θέση αυτή πέφτει πάνω σε σταθερό στοιχείο της κάρτας· στη βιτρίνα το sticker μπαίνει αυτόματα στην πλησιέστερη ελεύθερη θέση (όπως φαίνεται).</p>}
           </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => download(svgString(), `${fileBase()}.svg`, "image/svg+xml")} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy"><Download className="size-4" aria-hidden /> SVG</button>
-          <button type="button" onClick={() => pngBase64(4).then((b) => download(`data:image/png;base64,${b}`, `${fileBase()}@4x.png`, "image/png"))} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy"><Download className="size-4" aria-hidden /> PNG @4x</button>
-          {canExport && <button type="button" disabled={pending} onClick={toMedia} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white disabled:opacity-50"><Images className="size-4" aria-hidden /> Στη βιβλιοθήκη media</button>}
-          <button type="button" onClick={() => navigator.clipboard.writeText(JSON.stringify(p, null, 2)).then(() => setMsg("Τα params αντιγράφηκαν (JSON)."))} className="inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:bg-eu-blue/10"><Copy className="size-4" aria-hidden /> JSON</button>
-        </div>
       </div>
 
       {/* controls column */}
