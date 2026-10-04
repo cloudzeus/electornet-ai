@@ -2,12 +2,13 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle } from "lucide-react";
+import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, Box, Check } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import type { ProductImageDTO } from "@/lib/catalog/product-images";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import { useUploader } from "@/components/admin/media/useUploader";
 import { attachFromGallery, saveImageOrder, saveImageAlt, removeProductImage, restoreProductImage } from "@/app/admin/(shell)/catalog/actions";
+import { setArFrontImage } from "@/app/admin/(shell)/ar/actions";
 
 const SOURCE: Record<string, string> = { "legacy-site": "Παλιό site", gallery: "Βιβλιοθήκη", upload: "Ανέβασμα" };
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue";
@@ -18,8 +19,10 @@ const icon = "size-11 inline-flex items-center justify-center rounded-full text-
  * τη βιβλιοθήκη πολυμέσων, σειρά (σύρσιμο ή βελάκια — η πρώτη είναι η κύρια),
  * εναλλακτικό κείμενο, αφαίρεση / επαναφορά. Κάθε αλλαγή αποθηκεύεται αμέσως.
  */
-export function ProductImages({ productId, initial, canWrite, canUploadToLibrary }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean }) {
+export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
   const [images, setImages] = useState(initial);
+  const [arFront, setArFront] = useState(ar?.front ?? null);
+  const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού επιλέγεται πάλι αυτόματα (η πιο μετωπική)."); }); };
   const [picker, setPicker] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -68,7 +71,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Φωτογραφίες <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια. Κάθε αλλαγή αποθηκεύεται αμέσως.</p>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια. Κάθε αλλαγή αποθηκεύεται αμέσως.{ar ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα επιλέγεται αυτόματα η πιο μετωπική"}.</> : null}</p>
         </div>
         {canWrite && (
           <div className="flex flex-wrap gap-2">
@@ -112,6 +115,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                 {/* Μία εκδοχή στο CDN· το μέγεθος για κάθε οθόνη το παράγει το <Image> */}
                 <Image src={im.url} alt={im.alt ?? ""} fill sizes="160px" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain p-1" />
                 <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-white/90 text-eu-ink-3 font-bold tabular-nums px-1.5 py-0.5 text-[length:var(--fs-11)]">{i + 1}</span>
+                {ar && arFront === im.url && <span className="absolute left-1 top-7 inline-flex items-center gap-0.5 rounded-full bg-eu-blue text-white font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Box className="size-3" aria-hidden /> AR</span>}
                 {i === 0 && <span className="absolute left-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Star className="size-3" aria-hidden /> Κύρια</span>}
                 {im.lowRes && <span className="absolute right-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-red text-white font-bold px-1.5 py-0.5 text-[length:var(--fs-11)]"><AlertTriangle className="size-3" aria-hidden /> μικρή</span>}
                 {canWrite && (
@@ -132,6 +136,13 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                   <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, 0)} aria-label={`Ορισμός της φωτογραφίας ${i + 1} ως κύριας`} title="Κάν' την κύρια"><Star className="size-4" aria-hidden /></button>
                   <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση μετά`} title="Μία θέση μετά"><ArrowRight className="size-4" aria-hidden /></button>
                 </div>
+              )}
+              {ar && canWrite && (
+                <button type="button" onClick={() => chooseArFront(arFront === im.url ? null : im.url)} aria-pressed={arFront === im.url}
+                  title="Η φωτογραφία που μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου». Καλύτερα κατά μέτωπο, χωρίς γωνία."
+                  className={`inline-flex items-center justify-center gap-1 rounded-full min-h-9 px-2 text-[length:var(--fs-12)] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-eu-blue ${arFront === im.url ? "bg-eu-blue text-white" : "bg-eu-surface text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}>
+                  {arFront === im.url ? <Check className="size-3.5" aria-hidden /> : <Box className="size-3.5" aria-hidden />} Όψη AR
+                </button>
               )}
               <details className="group/alt min-w-0">
                 <summary className={`cursor-pointer list-none flex items-center gap-1 min-h-8 rounded-md px-1 text-[length:var(--fs-12)] font-bold hover:bg-eu-chip ${im.alt ? "text-eu-ink-3" : "text-eu-amber"}`}>

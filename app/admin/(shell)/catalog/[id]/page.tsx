@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { listProductImages } from "@/lib/catalog/product-images";
 import { ProductImages } from "@/components/admin/catalog/ProductImages";
 import { ProductPromos } from "@/components/admin/promos/ProductPromos";
+import { getProductsByIds } from "@/lib/data/repo";
+import { arPlan } from "@/lib/ar/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +23,16 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, summary: true, source: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
-  const [images, bannerCounts, sectionCount] = await Promise.all([
+  const [images, bannerCounts, sectionCount, arRow, [shop]] = await Promise.all([
     listProductImages(p.id),
     db.media.groupBy({ by: ["hidden"], where: { productId: p.id, kind: "banner" }, _count: { _all: true } }),
     db.productSection.count({ where: { productId: p.id, hidden: false } }),
+    db.productAr.findUnique({ where: { productId: p.id }, select: { enabled: true, glbUrl: true, placement: true, frontImage: true } }),
+    getProductsByIds([p.id]),
   ]);
+  // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
+  const arPl = shop ? arPlan(shop, arRow) : null;
+  const arFront = arPl?.on && !arPl.custom && arPl.archetype !== "tv" ? { front: arRow?.frontImage ?? null } : undefined;
   const bannersShown = bannerCounts.find((b) => !b.hidden)?._count._all ?? 0, bannersHidden = bannerCounts.find((b) => b.hidden)?._count._all ?? 0;
   const path = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter(Boolean).join(" › ");
   const facts: [string, string][] = [["Μάρκα", p.brand.name], ["Κατηγορία", path], ["Κωδικός είδους", p.sku], ["Barcode", p.ean ?? "—"], ["SoftOne MTRL", p.erpCode], ["Χαρακτηριστικά", `${p._count.specs} · ${p._count.facetValues} τιμές φίλτρων`], ["Ενεργειακή κλάση", p.energy?.class ?? "—"], ["Κατάσταση", p.active ? "Ενεργό" : "Ανενεργό"]];
@@ -41,7 +48,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
       {can(user.permissions, "catalog.promos.write") && <ProductPromos productId={p.id} canWrite />}
 
-      <ProductImages productId={p.id} initial={images} canWrite={can(user.permissions, "catalog.products.write")} canUploadToLibrary={can(user.permissions, "cms.media.write")} />
+      <ProductImages productId={p.id} initial={images} canWrite={can(user.permissions, "catalog.products.write")} canUploadToLibrary={can(user.permissions, "cms.media.write")} ar={arFront} />
 
       {(bannersShown + bannersHidden > 0 || sectionCount > 0) && (
         <section className="rounded-2xl border border-eu-line bg-white p-4 flex flex-wrap items-center gap-4">

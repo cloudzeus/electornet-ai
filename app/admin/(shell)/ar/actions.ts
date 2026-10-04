@@ -7,12 +7,22 @@ import { Prisma } from "@prisma/client";
 import { inspectGlb, autoRotationY } from "@/lib/ar/custom";
 import { dimsFor } from "@/lib/data/dims";
 import { getProductsByIds } from "@/lib/data/repo";
+import { arPlan } from "@/lib/ar/plan";
 import { invalidateArIndex } from "@/lib/ar/index";
 import { forgetArLookup } from "@/lib/ar/serve";
 import { readAsset } from "@/lib/ar/serve";
 import { startGeneration, advanceGeneration } from "@/lib/ar/generate";
 
 /** Μετά από κάθε αλλαγή: νέα απόφαση στη σελίδα, στον server των μοντέλων και στα φίλτρα της διαχείρισης */
+/**
+ * Η πρώτη ρύθμιση ενός προϊόντος (όψη, επιφάνεια, προσαρμογή, USDZ) δημιουργεί τη γραμμή ProductAr. Το AR μένει όπως ήταν:
+ * ενεργό αν ήταν αυτόματα ενεργό — αλλιώς μια απλή ρύθμιση θα το έκλεινε, αφού ρητή γραμμή σημαίνει «ισχύει το enabled της».
+ */
+async function autoEnabled(productId: string) {
+  const [p] = await getProductsByIds([productId]);
+  return p ? arPlan(p, null).on : false;
+}
+
 const paths = (productId: string) => { invalidateArIndex(); forgetArLookup(productId); revalidatePath("/admin/ar"); revalidatePath(`/proion`); };
 
 /** Ενεργοποίηση / απενεργοποίηση του AR για ένα προϊόν. */
@@ -26,7 +36,7 @@ export async function setArEnabled(productId: string, enabled: boolean) {
 
 export async function setArFit(productId: string, fitToDims: boolean, fitMode: "box" | "height" = "box") {
   const user = await requirePermission("catalog.products.write");
-  await db.productAr.upsert({ where: { productId }, update: { fitToDims, fitMode, updatedById: user.id }, create: { productId, fitToDims, fitMode, updatedById: user.id } });
+  await db.productAr.upsert({ where: { productId }, update: { fitToDims, fitMode, updatedById: user.id }, create: { productId, enabled: await autoEnabled(productId), fitToDims, fitMode, updatedById: user.id } });
   paths(productId);
   return { ok: true as const };
 }
@@ -52,7 +62,7 @@ export async function attachArModel(productId: string, kind: "glb" | "usdz", ass
     return { ok: true as const, box: info.box, meshes: info.meshes };
   }
   if (!/\.usdz$/i.test(asset.filename)) return { ok: false as const, error: "Για το iPhone χρειάζεται αρχείο .usdz." };
-  await db.productAr.upsert({ where: { productId }, update: { usdzUrl: asset.url, usdzAssetId: asset.id, updatedById: user.id }, create: { productId, usdzUrl: asset.url, usdzAssetId: asset.id, updatedById: user.id } });
+  await db.productAr.upsert({ where: { productId }, update: { usdzUrl: asset.url, usdzAssetId: asset.id, updatedById: user.id }, create: { productId, enabled: await autoEnabled(productId), usdzUrl: asset.url, usdzAssetId: asset.id, updatedById: user.id } });
   await audit(user.id, "ar.model.attach", "ProductAr", productId, null, { kind, filename: asset.filename });
   paths(productId);
   return { ok: true as const };
@@ -87,7 +97,7 @@ export async function pollArGeneration(genId: string) {
 /** Η φωτογραφία που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο. null = αυτόματα η πιο μετωπική. */
 export async function setArFrontImage(productId: string, frontImage: string | null) {
   const user = await requirePermission("catalog.products.write");
-  await db.productAr.upsert({ where: { productId }, update: { frontImage, updatedById: user.id }, create: { productId, frontImage, updatedById: user.id } });
+  await db.productAr.upsert({ where: { productId }, update: { frontImage, updatedById: user.id }, create: { productId, enabled: await autoEnabled(productId), frontImage, updatedById: user.id } });
   await audit(user.id, "ar.front-image", "ProductAr", productId, null, { frontImage });
   paths(productId);
   return { ok: true as const };
@@ -97,7 +107,7 @@ export async function setArFrontImage(productId: string, frontImage: string | nu
 export async function setArPlacement(productId: string, placement: "floor" | "furniture" | "counter" | "wall" | null) {
   const user = await requirePermission("catalog.products.write");
   if (placement && !["floor", "furniture", "counter", "wall"].includes(placement)) throw new Error("Άγνωστη επιφάνεια.");
-  await db.productAr.upsert({ where: { productId }, update: { placement, updatedById: user.id }, create: { productId, placement, updatedById: user.id } });
+  await db.productAr.upsert({ where: { productId }, update: { placement, updatedById: user.id }, create: { productId, enabled: await autoEnabled(productId), placement, updatedById: user.id } });
   await audit(user.id, "ar.placement", "ProductAr", productId, null, { placement });
   paths(productId);
   return { ok: true as const };
