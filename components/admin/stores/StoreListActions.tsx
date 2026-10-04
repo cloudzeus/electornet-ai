@@ -12,7 +12,7 @@ export function StoreListActions({ pendingGeo, total }: { pendingGeo: number; to
     <div className="flex flex-wrap items-center gap-2">
       {total === 0 && <button type="button" disabled={pending} onClick={() => start(async () => { const r = await syncFromSite(false); setMsg(r.ok ? `euronics.gr: ${r.total} καταστήματα, ${r.created} νέα, ${r.updated} ενημερώθηκαν.` : r.error); })} className={btn}><RefreshCw className={`size-4 ${pending ? "animate-spin" : ""}`} aria-hidden /> Αρχική εισαγωγή από euronics.gr</button>}
       <button type="button" disabled={pending || !pendingGeo} onClick={() => start(async () => { const r = await geocodeBatch(); setMsg(`Γεωκωδικοποιήθηκαν ${r.done}, απομένουν ${r.left}.`); })} className={btn}><MapPinned className="size-4" aria-hidden /> Γεωκωδικοποίηση {pendingGeo ? `(${pendingGeo})` : "✓"}</button>
-      {msg && <span role="status" className="text-eu-ink-3 text-[length:var(--fs-14)]">{msg}</span>}
+      {msg && <span role="status" className="text-eu-ink-3 text-[length:var(--fs-13)] basis-full">{msg}</span>}
     </div>
   );
 }
