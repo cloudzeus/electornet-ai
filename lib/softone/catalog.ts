@@ -202,6 +202,41 @@ export function syncItems(mode: "delta" | "full" = "delta", trigger: Trigger = "
   });
 }
 
+/**
+ * Ένα είδος, τώρα: στοιχεία, τιμή eshop και απόθεμα κεντρικής αποθήκης στον καθρέφτη — για το κουμπί «Ενημέρωση από
+ * SoftOne» της καρτέλας προϊόντος και μετά από κάθε εγγραφή μας στο ERP. Μόνο αναγνώσεις (GetTable).
+ * Είδος που δεν είναι πια είδος του site (ή διαγράφηκε) σημαδεύεται `missing` — όπως στον πλήρη συγχρονισμό.
+ */
+export function syncItem(mtrl: number, trigger: Trigger = "manual") {
+  return logged("cat-item", trigger, async () => {
+    const rows = await getTable("MTRL", [...ITEM_FIELDS], `${WEB_FILTER} AND MTRL=${mtrl}`);
+    const m = rows.map(mapItem).find((x) => x?.mtrl === mtrl) ?? null;
+    const before = await db.s1Item.findUnique({ where: { mtrl }, select: { mtrl: true } });
+    if (!m) {
+      if (before) await db.s1Item.update({ where: { mtrl }, data: { missing: true, syncedAt: new Date() } });
+      return { fetched: 0, created: 0, updated: 0, missing: before ? 1 : 0, skipped: 0 };
+    }
+    const groupOk = !m.specGroupS1Id || !!(await db.s1SpecGroup.findUnique({ where: { s1Id: m.specGroupS1Id }, select: { s1Id: true } }));
+    const data = { ...m, specGroupS1Id: groupOk ? m.specGroupS1Id : null, missing: false, syncedAt: new Date() };
+    const year = new Date().getFullYear();
+    const [extra, bal] = await Promise.all([
+      getTable("MTREXTRA", ["MTRL", "NUM04", "DATE01", "BOOL01", "BOOL02"], `MTRL=${mtrl}`),
+      getTable("MTRBALSHEET", ["MTRL", "WHOUSE", "IMPQTY1", "EXPQTY1"], `FISCPRD=${year} AND MTRL=${mtrl}`),
+    ]);
+    const e = extra.find((r) => int(r[0]) === mtrl);
+    const w: Record<string, number> = {};
+    for (const r of bal) if (int(r[0]) === mtrl) w[r[1]] = (w[r[1]] ?? 0) + (num(r[2]) ?? 0) - (num(r[3]) ?? 0);
+    const offers = {
+      eshopPrice: e ? posNum(e[1]) : null, eshopDate01: e ? date(e[2]) : null, eshopFlag1: e ? yes(e[3]) : false, eshopFlag2: e ? yes(e[4]) : false,
+      stockCentral: CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0),
+      stockByWh: Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100])),
+      offersAt: new Date(),
+    };
+    await db.s1Item.upsert({ where: { mtrl }, create: { ...data, ...offers }, update: { ...data, ...offers } });
+    return { fetched: 1, created: before ? 0 : 1, updated: before ? 1 : 0, missing: 0, skipped: 0 };
+  });
+}
+
 // ---------- Τιμή eshop και απόθεμα ----------
 
 /** Οι αποθήκες που σημαίνουν «το έχουμε»: 1 «Κεντρικός», 10 «Κεντρική 2». Οι υπόλοιπες 70+ είναι αποθήκες προμηθευτών / τριγωνικές. */

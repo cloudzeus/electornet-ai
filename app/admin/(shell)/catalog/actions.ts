@@ -60,3 +60,40 @@ export async function runEprelMatch(limit = 60) {
   revalidatePath("/admin/catalog/dimensions");
   return r;
 }
+
+/**
+ * «Ενημέρωση από SoftOne»: το είδος διαβάζεται τώρα από το ERP (μόνο ανάγνωση) και το προϊόν ενημερώνεται αμέσως,
+ * χωρίς να περιμένει τον προγραμματισμένο συγχρονισμό. Επιστρέφει τι άλλαξε, για να το δει ο διαχειριστής.
+ */
+export async function pullFromSoftone(productId: string) {
+  const user = await requirePermission("catalog.products.write");
+  const before = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, title: true, summary: true, description: true, price: true, stock: true, active: true, ean: true, _count: { select: { specs: true } } } });
+  if (!before) return { ok: false as const, message: "Το προϊόν δεν βρέθηκε." };
+  const mtrl = Number(before.erpCode);
+  if (!Number.isInteger(mtrl)) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };
+  const { syncItem } = await import("@/lib/softone/catalog");
+  const { projectItem } = await import("@/lib/softone/project");
+  const s = await syncItem(mtrl, "manual");
+  if (!s.ok) return { ok: false as const, message: `Το SoftOne δεν απάντησε: ${s.error ?? "άγνωστο σφάλμα"}` };
+  const p = await projectItem(mtrl);
+  const after = await db.product.findUnique({ where: { id: productId }, select: { title: true, summary: true, description: true, price: true, stock: true, active: true, ean: true, _count: { select: { specs: true } } } });
+  const changed: string[] = [];
+  if (after) {
+    if (after.title !== before.title) changed.push("τίτλος");
+    if (after.summary !== before.summary) changed.push("σύντομη περιγραφή");
+    if (after.description !== before.description) changed.push("περιγραφή");
+    if (after._count.specs !== before._count.specs) changed.push("χαρακτηριστικά");
+    if (after.price !== before.price) changed.push(`τιμή ${before.price ?? "—"} → ${after.price ?? "—"} €`);
+    if (after.stock !== before.stock) changed.push(`απόθεμα ${before.stock} → ${after.stock}`);
+    if (after.active !== before.active) changed.push(after.active ? "ενεργοποιήθηκε" : "απενεργοποιήθηκε");
+    if (after.ean !== before.ean) changed.push("barcode");
+  }
+  const { forgetArLookup } = await import("@/lib/ar/serve");
+  const { invalidateArIndex } = await import("@/lib/ar/index");
+  forgetArLookup(productId); invalidateArIndex();
+  await audit(user.id, "catalog.product.pull", "Product", productId, null, { mtrl, missing: s.missing > 0, changed, projected: p.ok, reason: p.reason });
+  revalidatePath(path(productId));
+  if (s.missing) return { ok: false as const, message: "Το είδος δεν είναι πια είδος του site στο SoftOne (ή διαγράφηκε). Το προϊόν κρύφτηκε από το κατάστημα." };
+  if (!p.ok) return { ok: false as const, message: p.reason ?? "Η ενημέρωση του καταστήματος απέτυχε." };
+  return { ok: true as const, message: changed.length ? `Ενημερώθηκε από το SoftOne: ${changed.join(", ")}.` : "Ήδη ενημερωμένο — καμία αλλαγή στο SoftOne." };
+}

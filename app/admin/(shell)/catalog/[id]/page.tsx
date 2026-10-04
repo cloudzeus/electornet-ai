@@ -9,6 +9,7 @@ import { ProductImages } from "@/components/admin/catalog/ProductImages";
 import { ProductPromos } from "@/components/admin/promos/ProductPromos";
 import { getProductsByIds } from "@/lib/data/repo";
 import { arPlan } from "@/lib/ar/plan";
+import { SoftoneRefresh } from "@/components/admin/catalog/SoftoneRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -62,9 +63,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       )}
 
       <section className="rounded-2xl border border-eu-line bg-white p-4 grid gap-3">
-        <div>
+        <div className="grid gap-2">
           <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Στοιχεία από το SoftOne</h3>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Μόνο ανάγνωση — αλλάζουν στο ERP και έρχονται με τον επόμενο συγχρονισμό{p.s1SyncedAt ? ` (τελευταίος: ${p.s1SyncedAt.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })})` : ""}.</p>
+          {p.source === "softone" && can(user.permissions, "catalog.products.write") && <SoftoneRefresh productId={p.id} />}
         </div>
         <dl className="m-0 grid gap-x-6 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))]">
           {facts.map(([k, v]) => <div key={k} className="min-w-0"><dt className="text-eu-muted text-[length:var(--fs-13)]">{k}</dt><dd className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)] break-words">{v}</dd></div>)}

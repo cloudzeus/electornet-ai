@@ -149,7 +149,7 @@ async function projectFacets(idOf: Map<string, string>) {
 
 export interface ProjectResult { categories: { created: number; updated: number; orphan: number; visible: number; hidden: number }; facets: { facets: number; created: number; updated: number; removed: number }; facetValues: FacetValuesResult; images: AssociateResult; offers: OffersResult; dimensions: Awaited<ReturnType<typeof projectDimensions>>; products: { total: number; created: number; updated: number; unchanged: number; deactivated: number; skipped: { noBrand: number; noCategory: number } }; specs: number; energy: number }
 
-async function projectProducts(idOf: Map<string, string>) {
+async function projectProducts(idOf: Map<string, string>, only?: number) {
   const [brands, vats, existing] = await Promise.all([
     db.brand.findMany({ where: { s1Id: { not: null } }, select: { id: true, s1Id: true, name: true } }),
     db.vatRate.findMany({ where: { s1Id: { not: null } }, select: { s1Id: true, percent: true } }),
@@ -164,8 +164,8 @@ async function projectProducts(idOf: Map<string, string>) {
   const seen = new Set<string>();
 
   for (let cursor = -2147483648; ;) {
-    const items = await db.s1Item.findMany({ where: { mtrl: { gt: cursor } }, orderBy: { mtrl: "asc" }, take: 500 });
-    if (!items.length) break;
+    const items = await db.s1Item.findMany({ where: only != null ? { mtrl: only } : { mtrl: { gt: cursor } }, orderBy: { mtrl: "asc" }, take: 500 });
+    if (!items.length || (only != null && cursor === only)) break;
     cursor = items[items.length - 1].mtrl;
     const fresh: Prisma.ProductCreateManyInput[] = [];
     const changes: { erpCode: string; data: Prisma.ProductUncheckedUpdateInput }[] = [];
@@ -225,7 +225,8 @@ async function projectProducts(idOf: Map<string, string>) {
   }
 
   // Προϊόντα της προβολής που δεν έχουν πια είδος στον καθρέφτη (ή έχασαν μάρκα/τύπο): κρύβονται
-  const gone = existing.filter((e) => e.source === SOURCE && e.active && !seen.has(e.erpCode)).map((e) => e.id);
+  // (για ένα είδος: μόνο το ίδιο — τα υπόλοιπα δεν τα «είδαμε» απλώς επειδή δεν τα ζητήσαμε)
+  const gone = existing.filter((e) => e.source === SOURCE && e.active && !seen.has(e.erpCode) && (only == null || e.erpCode === String(only))).map((e) => e.id);
   for (const part of chunk(gone, 1000)) await db.product.updateMany({ where: { id: { in: part } }, data: { active: false } });
   return { total: seen.size, created, updated, unchanged, deactivated: gone.length, skipped: { noBrand, noCategory }, specRows, energyRows };
 }
@@ -242,8 +243,8 @@ const BOOL = new Set(["nai", "ochi"]);
  * - φίλτρο όπου κυριαρχεί το Ναι/Όχι → οι υπόλοιπες περιγραφές («BT 5.4») σημαίνουν «Ναι».
  * Το είδος του φίλτρου (boolean / range / checkbox) και οι μετρητές βγαίνουν από τις πραγματικές τιμές.
  */
-async function projectFacetValues(): Promise<FacetValuesResult> {
-  const cats = await db.category.findMany({ where: { source: SOURCE, depth: 2 }, select: { id: true, name: true, facets: { where: { source: SOURCE, key: { startsWith: "s1:" } }, select: { id: true, label: true } } } });
+async function projectFacetValues(onlyCategoryId?: string): Promise<FacetValuesResult> {
+  const cats = await db.category.findMany({ where: { source: SOURCE, depth: 2, ...(onlyCategoryId ? { id: onlyCategoryId } : {}) }, select: { id: true, name: true, facets: { where: { source: SOURCE, key: { startsWith: "s1:" } }, select: { id: true, label: true } } } });
   let products = 0, rewritten = 0, values = 0; const bySource: Record<string, number> = { spec: 0, title: 0, text: 0 };
   for (const c of cats) {
     if (!c.facets.length) continue;
@@ -356,6 +357,23 @@ export async function projectCatalog(trigger: Trigger = "manual"): Promise<{ ok:
     return { fetched: p.total, created: p.created + cats.created, updated: p.updated + cats.updated, missing: p.deactivated, skipped: p.skipped.noBrand + p.skipped.noCategory + cats.skipped };
   });
   return { ok: run.ok, ms: run.ms, error: run.error, result };
+}
+
+/**
+ * Ένα είδος του καθρέφτη → το προϊόν του καταστήματος, αμέσως: στοιχεία, χαρακτηριστικά, ενεργειακή κλάση, τιμή/απόθεμα,
+ * διαστάσεις και φίλτρα της κατηγορίας του. Οι κατηγορίες δεν προβάλλονται εδώ: είδος σε νέο τύπο θέλει πλήρη συγχρονισμό.
+ */
+export async function projectItem(mtrl: number): Promise<{ ok: boolean; productId?: string; created: boolean; updated: boolean; reason?: string }> {
+  const idOf = new Map((await db.category.findMany({ where: { source: SOURCE, erpCode: { not: null } }, select: { id: true, erpCode: true } })).map((c) => [c.erpCode!, c.id]));
+  const p = await projectProducts(idOf, mtrl);
+  const product = await db.product.findUnique({ where: { erpCode: String(mtrl) }, select: { id: true, categoryId: true } });
+  if (!product) return { ok: false, created: false, updated: false, reason: p.skipped.noBrand ? "Το είδος δεν έχει μάρκα (κατασκευαστή) που να υπάρχει στο κατάστημα." : p.skipped.noCategory ? "Ο τύπος του είδους δεν υπάρχει ακόμη στο κατάστημα — τρέξε τον πλήρη συγχρονισμό." : "Το είδος δεν είναι είδος του site." };
+  await projectOffers(); // σύνολα SQL, ~1 s — η τιμή/απόθεμα αλλάζει χωρίς να αλλάξει το ίδιο το είδος
+  const wrote = p.created > 0 || p.updated > 0 || p.deactivated > 0;
+  // Διαστάσεις και φίλτρα βγαίνουν από τα χαρακτηριστικά: μόνο αν γράφτηκε το προϊόν (αλλιώς θα ξαναδιαβαζόταν όλος ο κατάλογος)
+  if (wrote) { await projectDimensions(); await projectFacetValues(product.categoryId); }
+  resetCatalogCache();
+  return { ok: true, productId: product.id, created: p.created > 0, updated: wrote };
 }
 
 export async function projectionStats() {
