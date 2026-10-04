@@ -175,3 +175,49 @@ export async function productVideos(productId: string) {
   await requirePermission("catalog.products.read");
   return listVideos(productId);
 }
+
+// ---------- Stickers προϊόντος (χειροκίνητα) ----------
+
+export interface ProductStickerDTO { id: string; stickerId: string; key: string; name: string; params: import("@/lib/stickers/model").StickerParams; startsAt: string | null; endsAt: string | null }
+async function listProductStickers(productId: string): Promise<ProductStickerDTO[]> {
+  const rows = await db.productSticker.findMany({ where: { productId }, orderBy: [{ sort: "asc" }, { createdAt: "asc" }], include: { sticker: { select: { key: true, name: true, params: true } } } });
+  return rows.map((r) => ({ id: r.id, stickerId: r.stickerId, key: r.sticker.key, name: r.sticker.name, params: r.sticker.params as never, startsAt: r.startsAt?.toISOString() ?? null, endsAt: r.endsAt?.toISOString() ?? null }));
+}
+const afterStickerChange = async (productId: string) => {
+  const { resetStickerCatalog } = await import("@/lib/stickers/server");
+  resetStickerCatalog(); resetCatalogCache(); revalidatePath(path(productId));
+};
+
+export async function addProductSticker(productId: string, stickerId: string, startsAt: string | null, endsAt: string | null): Promise<{ ok: boolean; error?: string; list: ProductStickerDTO[] }> {
+  const user = await requirePermission("catalog.products.write");
+  if (startsAt && endsAt && new Date(endsAt) < new Date(startsAt)) return { ok: false, error: "Η λήξη είναι πριν από την έναρξη.", list: await listProductStickers(productId) };
+  const n = await db.productSticker.count({ where: { productId } });
+  await db.productSticker.upsert({ where: { productId_stickerId: { productId, stickerId } }, create: { productId, stickerId, startsAt: startsAt ? new Date(startsAt) : null, endsAt: endsAt ? new Date(endsAt) : null, sort: n, createdBy: user.id }, update: { startsAt: startsAt ? new Date(startsAt) : null, endsAt: endsAt ? new Date(endsAt) : null } });
+  await audit(user.id, "catalog.product.sticker.add", "Product", productId, null, { stickerId, startsAt, endsAt });
+  await afterStickerChange(productId);
+  return { ok: true, list: await listProductStickers(productId) };
+}
+
+export async function removeProductSticker(productId: string, id: string): Promise<ProductStickerDTO[]> {
+  const user = await requirePermission("catalog.products.write");
+  await db.productSticker.deleteMany({ where: { id, productId } });
+  await audit(user.id, "catalog.product.sticker.remove", "Product", productId, null, { id });
+  await afterStickerChange(productId);
+  return listProductStickers(productId);
+}
+
+export async function moveProductSticker(productId: string, id: string, dir: -1 | 1): Promise<ProductStickerDTO[]> {
+  await requirePermission("catalog.products.write");
+  const list = await listProductStickers(productId);
+  const i = list.findIndex((x) => x.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return list;
+  const order = [...list]; [order[i], order[j]] = [order[j], order[i]];
+  await db.$transaction(order.map((x, k) => db.productSticker.update({ where: { id: x.id }, data: { sort: k } })));
+  await afterStickerChange(productId);
+  return listProductStickers(productId);
+}
+
+export async function productStickers(productId: string) {
+  await requirePermission("catalog.products.read");
+  return listProductStickers(productId);
+}

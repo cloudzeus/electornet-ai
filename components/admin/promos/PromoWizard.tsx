@@ -1,5 +1,7 @@
 "use client";
 
+import { StickerPicker } from "@/components/admin/stickers/StickerPicker";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
@@ -193,6 +195,10 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
             <Field l="Όνομα (εσωτερικό)" hint="Φαίνεται στο διαχειριστικό, στις αναφορές και στο παραστατικό."><input className={input} value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="π.χ. Black Friday · τηλεοράσεις −20 %" /></Field>
             <div className="grid grid-cols-1 @xl:grid-cols-2 gap-4 items-start">
               <Field info="tagLabel" l="Ετικέτα στη βιτρίνα" hint={`Κενό = αυτόματη: «${autoLabel({ ...d, tagLabel: null }, svcTitle)}»`}><input className={input} value={d.tagLabel ?? ""} maxLength={28} onChange={(e) => set({ tagLabel: e.target.value || null })} /></Field>
+              <div className="grid gap-1 basis-full">
+                <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Sticker στις κάρτες <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— μπαίνει σε όσα προϊόντα αφορά η προσφορά, όσο ισχύει (έως 2 ανά κάρτα, με σειρά προτεραιότητας)</span></span>
+                <StickerPicker value={d.stickerKey ?? null} onChange={(v) => set({ stickerKey: v })} />
+              </div>
               <div className="grid gap-1">
                 <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Έτσι φαίνεται στην κάρτα</span>
                 <div className="rounded-2xl border border-eu-line p-4 flex items-center gap-3">

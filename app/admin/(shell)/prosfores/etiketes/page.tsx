@@ -19,7 +19,7 @@ export default async function TagsPage() {
   ]);
   const commercial = new Map<string, { kind: string; label: string; n: number }>();
   for (const o of offers) for (const t of (o.tags as { kind: string; label: string }[]) ?? []) { const k = `${t.kind}|${t.label}`; const c = commercial.get(k) ?? { kind: t.kind, label: t.label, n: 0 }; c.n++; commercial.set(k, c); }
-  const info = INFO_TAGS.map((t) => { const row = tagRows.find((r) => r.slug === t.slug); return { ...t, config: cfg[t.slug], count: row?._count.products ?? 0, products: (row?.products ?? []).map((p) => ({ id: p.product.id, label: `${p.product.title} · ${p.product.sku}` })) }; });
+  const info = INFO_TAGS.map((t) => { const row = tagRows.find((r) => r.slug === t.slug); return { ...t, config: cfg[t.slug], stickerKey: row?.stickerKey ?? null, count: row?._count.products ?? 0, products: (row?.products ?? []).map((p) => ({ id: p.product.id, label: `${p.product.title} · ${p.product.sku}` })) }; });
 
   return (
     <div className="grid gap-5 min-w-0">

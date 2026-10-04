@@ -78,9 +78,9 @@ function ArtSticker({ p, className, style, id }: { p: StickerParams; className?:
   const box = wide ? { ...art.text, x: art.text.x + iconSize + (hasIcon ? 6 : 0), w: art.text.w - iconSize - (hasIcon ? 6 : 0) } : { ...art.text, y: art.text.y + iconSize, h: art.text.h - iconSize };
   const n = Math.max(1, lines.length);
   const sizes = lines.map((l) => {
-    if (l.size > 0) return l.size;
     const chars = Math.max(1, l.text.length + (l.spacing ? l.text.length * l.spacing * 0.08 : 0));
-    return Math.round(Math.min(box.w / (chars * 0.58), (box.h / n) * (n === 1 ? 0.72 : 0.8), wide ? 44 : 84));
+    const fit = Math.min(box.w / (chars * 0.58), (box.h / n) * (n === 1 ? 0.72 : 0.8), wide ? 44 : 84);
+    return Math.max(6, Math.round(Math.min(l.size > 0 ? l.size : fit, fit) * Math.min(1, Math.max(0.3, l.scale ?? 1))));
   });
   const totalH = sizes.reduce((a, b) => a + b * 1.05, 0);
   const baselines = sizes.reduce<number[]>((acc, fs, i) => [...acc, (i ? acc[i - 1] : box.y + (box.h - totalH) / 2) + fs * 1.05], []);
@@ -119,11 +119,10 @@ export function StickerSvg({ p, className, style, id = "s" }: { p: StickerParams
   const n = Math.max(1, lines.length);
   // auto-fit: each line gets an equal share of the height, capped by width (0.58em per char for Manrope bold)
   const sizes = lines.map((l) => {
-    if (l.size > 0) return l.size;
     const chars = Math.max(1, l.text.length + (l.spacing ? l.text.length * l.spacing * 0.08 : 0));
-    const byWidth = box.w / (chars * 0.58);
-    const byHeight = (box.h / n) * (n === 1 ? 0.72 : 0.8);
-    return Math.round(Math.min(byWidth, byHeight, WIDE[p.shape] ? 44 : 84));
+    const fit = Math.min(box.w / (chars * 0.58), (box.h / n) * (n === 1 ? 0.72 : 0.8), WIDE[p.shape] ? 44 : 84);
+    // ποτέ πάνω από όσο χωρά — ούτε με χειροκίνητο μέγεθος
+    return Math.max(6, Math.round(Math.min(l.size > 0 ? l.size : fit, fit) * Math.min(1, Math.max(0.3, l.scale ?? 1))));
   });
   const totalH = sizes.reduce((a, b) => a + b * 1.05, 0);
   const baselines = sizes.reduce<number[]>((acc, fs, i) => { const prev = i ? acc[i - 1] : box.y + (box.h - totalH) / 2; return [...acc, prev + fs * 1.05]; }, []);

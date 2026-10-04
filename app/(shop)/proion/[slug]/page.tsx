@@ -35,6 +35,7 @@ import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
 import { RichDescription } from "@/components/pdp/RichDescription";
 import { ProductVideos } from "@/components/pdp/ProductVideos";
+import { StickerRow } from "@/components/commerce/CardStickers";
 import { ReplaceOld } from "@/components/snap/ReplaceOld";
 import { kindOfProduct } from "@/lib/snap/kind";
 
@@ -102,6 +103,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 </>
               }
             />
+            {p.stickers?.length ? <StickerRow stickers={p.stickers} idPrefix={`pdp-${p.id}`} /> : null}
             <EnergyCost product={p} co2={co2} />
             {p.tradeIn && (
               <div className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">

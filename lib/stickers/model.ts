@@ -10,8 +10,10 @@ export type StickerAnimation = "none" | "shimmer" | "breathe" | "wiggle" | "bump
 
 export interface StickerLine {
   text: string;
-  /** 0 = auto-fit */
+  /** 0 = auto-fit· ό,τι κι αν δοθεί, ποτέ μεγαλύτερο από όσο χωρά στο sticker */
   size: number;
+  /** μέγεθος γραμμάτων ως ποσοστό του μέγιστου που χωρά (0.3–1, προεπιλογή 1) */
+  scale?: number;
   weight: 700 | 800 | 900;
   upper: boolean;
   spacing: number;

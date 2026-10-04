@@ -83,3 +83,13 @@ export async function createStickerFromSvg(fileName: string, svg: string): Promi
     return { ok: true, id: row.id };
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Μη έγκυρο SVG." }; }
 }
+
+/** Τα ενεργά stickers για επιλογή (προσφορά, ετικέτα, καρτέλα προϊόντος). */
+export async function stickerOptions(): Promise<{ id: string; key: string; name: string; params: StickerParams }[]> {
+  const { requireStaff } = await import("@/lib/rbac/guard");
+  const { can } = await import("@/lib/rbac/permissions");
+  const user = await requireStaff();
+  if (!can(user.permissions, "catalog.promos.write") && !can(user.permissions, "catalog.products.write")) throw new Error("forbidden");
+  const rows = await db.sticker.findMany({ where: { active: true }, orderBy: [{ sort: "asc" }, { name: "asc" }], select: { id: true, key: true, name: true, params: true } });
+  return rows.map((r) => ({ ...r, params: r.params as unknown as StickerParams }));
+}

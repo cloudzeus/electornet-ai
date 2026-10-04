@@ -25,6 +25,8 @@ export interface PromoDraft {
   budgetEur: number | null;
   termsText: string | null;
   tagLabel: string | null;
+  /** sticker στις κάρτες των προϊόντων της προσφοράς (κλειδί του /admin/stickers) */
+  stickerKey?: string | null;
   targets: PromoTarget[];
   /** κοινός κωδικός κουπονιού (μόνο για κουπόνια) */
   couponCode?: string | null;
@@ -41,7 +43,7 @@ export function draftOf(p: Row): PromoDraft {
   return {
     id: p.id, template: (p.rules as { template?: string } | null)?.template ?? t.key, name: p.name, mechanism: p.mechanism, priority: p.priority, stacking: p.stacking as Stacking,
     startsAt: p.startsAt?.toISOString() ?? null, endsAt: p.endsAt?.toISOString() ?? null, reward: p.reward as PromoReward, rules: stripMeta(p.rules as PromoRules),
-    maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur != null ? Number(p.budgetEur) : null, termsText: p.termsText, tagLabel: p.tagLabel,
+    maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur != null ? Number(p.budgetEur) : null, termsText: p.termsText, tagLabel: p.tagLabel, stickerKey: p.stickerKey,
     targets: p.targets.map((x) => ({ kind: x.kind as PromoTarget["kind"], refId: x.refId, exclude: x.exclude })),
     couponCode: p.coupons.find((c) => c.kind === "shared")?.code ?? null,
   };
@@ -203,15 +205,16 @@ function dataOf(d: PromoDraft) {
     startsAt: d.startsAt ? new Date(d.startsAt) : null, endsAt: d.endsAt ? new Date(d.endsAt) : null,
     reward: json(d.reward), rules: json({ ...d.rules, template: d.template }),
     maxUses: d.maxUses || null, maxPerCustomer: d.maxPerCustomer || null, budgetEur: d.budgetEur != null && d.budgetEur > 0 ? new Prisma.Decimal(d.budgetEur) : null,
-    termsText: d.termsText?.trim() || null, tagLabel: d.tagLabel?.trim() || null,
+    termsText: d.termsText?.trim() || null, tagLabel: d.tagLabel?.trim() || null, stickerKey: d.stickerKey || null,
   };
 }
 
-export const snapshotOf = (p: Row) => ({ code: p.code, name: p.name, mechanism: p.mechanism, stacking: p.stacking, priority: p.priority, startsAt: p.startsAt, endsAt: p.endsAt, reward: p.reward, rules: p.rules, maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur, termsText: p.termsText, tagLabel: p.tagLabel, targets: p.targets.map((t) => ({ kind: t.kind, refId: t.refId, exclude: t.exclude })) });
+export const snapshotOf = (p: Row) => ({ code: p.code, name: p.name, mechanism: p.mechanism, stacking: p.stacking, priority: p.priority, startsAt: p.startsAt, endsAt: p.endsAt, reward: p.reward, rules: p.rules, maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur, termsText: p.termsText, tagLabel: p.tagLabel, stickerKey: p.stickerKey, targets: p.targets.map((t) => ({ kind: t.kind, refId: t.refId, exclude: t.exclude })) });
 
 /** Μετά από κάθε αλλαγή που επηρεάζει τη βιτρίνα: φρέσκια cache και έτοιμες τιμές (στο παρασκήνιο). */
 export function refreshStorefront() {
   invalidatePromos();
+  void import("@/lib/stickers/server").then((m) => m.resetStickerCatalog());
   void recomputeOffers().catch(() => null);
 }
 

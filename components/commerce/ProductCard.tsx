@@ -15,7 +15,9 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { Tilt } from "@/components/motion/Tilt";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { flyToCart } from "@/lib/motion/flyToCart";
-import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, CustomSticker, stickersFor } from "./Stickers";
+import { CornerSticker, RibbonSticker, UrgencyPill, BurstSticker, ContestSticker, stickersFor } from "./Stickers";
+import { CardStickers } from "./CardStickers";
+import type { CardSticker } from "@/lib/stickers/layout";
 import { FitBadge } from "@/components/space/FitBadge";
 import { copyOf } from "@/lib/cms/copy";
 import { compareScope } from "@/lib/data/compare-scope";
@@ -51,6 +53,9 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
   const burst = stickers.find((s) => s.kind === "bogo" || s.kind === "cashback");
   const contest = stickers.find((s) => s.kind === "contest");
   const custom = stickers.find((s) => s.kind === "custom");
+  // designed stickers: από προσφορές / ετικέτες / χειροκίνητα (p.stickers) + το παλιό «custom» της προσφοράς
+  const designed: CardSticker[] = [...(p.stickers ?? []), ...(custom?.kind === "custom" && !p.stickers?.length ? [{ key: "promo-custom", params: custom.params, priority: 50, source: "promo" as const }] : [])];
+  const pill = !burst && !!(p.promoTags?.[0] || p.infoTags?.[0]);
   const urgency = stickers.filter((s) => s.kind === "last" || s.kind === "ends");
 
   const avail = (() => {
@@ -91,7 +96,8 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                 )}
                 {ribbon && <span className="absolute inset-0 overflow-hidden rounded-t-2xl pointer-events-none"><RibbonSticker s={ribbon} /></span>}
                 {burst && <BurstSticker s={burst} />}
-                {custom && <CustomSticker s={custom} />}
+                {designed.length > 0 && <CardStickers stickers={designed} max={narrow ? 1 : 2} scale={narrow ? 0.72 : 1} idPrefix={`c-${p.id}`}
+                  reserved={{ tl: !!corner || !!contest || pill, tr: true, mr: !!burst, br: !p.noPrice || !!burst, bl: !!(p.energy || p.rating) }} />}
                 {contest ? (
                   <span className={`absolute left-3 ${corner ? "top-14" : "top-3"}`}>
                     <ContestSticker s={contest} />

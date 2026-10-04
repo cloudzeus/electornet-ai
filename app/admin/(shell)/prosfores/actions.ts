@@ -154,6 +154,19 @@ export async function saveTagConfigAction(cfg: import("@/lib/promo/tags").TagCon
   return counts;
 }
 
+/** Sticker μιας ενημερωτικής ετικέτας: μπαίνει στις κάρτες όλων των προϊόντων που την έχουν. */
+export async function setTagStickerAction(slug: string, name: string, stickerKey: string | null) {
+  const user = await requirePermission(PERM);
+  await db.tag.upsert({ where: { slug }, update: { stickerKey }, create: { slug, name, stickerKey } });
+  const { resetStickerCatalog } = await import("@/lib/stickers/server");
+  resetStickerCatalog();
+  const { resetCatalogCache } = await import("@/lib/data/db-catalog");
+  resetCatalogCache();
+  await audit(user.id, "tags.sticker", "Tag", slug, null, { stickerKey });
+  revalidatePath("/admin/prosfores/etiketes");
+  return { ok: true };
+}
+
 export async function setManualTagAction(slug: string, productIds: string[], on: boolean) {
   const user = await requirePermission(PERM);
   const { setManualTag } = await import("@/lib/promo/tags");

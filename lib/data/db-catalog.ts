@@ -2,6 +2,7 @@ import { maybeTickPromos } from "@/lib/promo/offers";
 import { productSections } from "@/lib/catalog/banner-extract";
 import "server-only";
 import type { Prisma } from "@prisma/client";
+import { loadStickerCatalog, stickersOf } from "@/lib/stickers/server";
 import { db } from "@/lib/db";
 import type { EnergyClass, Product, Spec } from "./types";
 import type { NavCategory } from "./nav";
@@ -96,7 +97,9 @@ const PRODUCT_SELECT = {
   // έτοιμη τιμή και tags προσφορών (lib/promo/offers) — διαβάζονται, δεν υπολογίζονται εδώ
   offer: { select: { price: true, listPrice: true, memberPrice: true, lowest30: true, endsAt: true, tags: true } },
   // ενημερωτικές ετικέτες (Νέο, Best Seller, Top Rated…) — lib/promo/tags
-  tags: { select: { tag: { select: { slug: true, name: true } } } },
+  tags: { select: { tag: { select: { slug: true, name: true, stickerKey: true } } } },
+  // stickers που μπήκαν χειροκίνητα στο προϊόν (ημερομηνίες ελέγχονται στο lib/stickers/server)
+  stickers: { select: { startsAt: true, endsAt: true, sort: true, sticker: { select: { key: true, params: true, active: true } } } },
 } satisfies Prisma.ProductSelect;
 type Row = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
 
@@ -165,10 +168,12 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     specs: extra.specs, banners: extra.banners,
     ...offerFields(r),
     ...infoTagFields(r),
+    stickers: stickersOf(r),
   };
 }
 
 export async function dbProductBySlug(slug: string): Promise<Product | null> {
+  await loadStickerCatalog();
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true }, select: {
     ...PRODUCT_SELECT, specs: { orderBy: [{ sortNo: "asc" }], select: { groupName: true, key: true, value: true } },
@@ -217,12 +222,14 @@ const withAttrs = (p: Product, a: Map<string, NonNullable<Product["attrs"]>>): P
 });
 
 export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
+  await loadStickerCatalog();
   if (!ids.length) return [];
   const rows = await db.product.findMany({ where: { id: { in: ids }, source: { in: SHOP_SOURCES } }, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 160, select: { groupName: true, key: true, value: true } } } });
   const a = await attrsFor(rows.map((r) => r.id));
   return rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a));
 }
 export async function dbRelated(p: Product, limit = 8): Promise<Product[]> {
+  await loadStickerCatalog();
   if (!p.typeSlug) return [];
   // Ευρεία δεξαμενή, με προτεραιότητα σε όσα έχουν τεκμηριωμένα χαρακτηριστικά: «παρόμοιο» που δεν έχει τίποτα να συγκριθεί δεν βοηθά
   const rows = await db.product.findMany({ where: { ...LISTED, id: { not: p.id }, category: { slug: p.typeSlug } }, orderBy: [{ specs: { _count: "desc" } }, { stock: "desc" }, { updatedAt: "desc" }], take: limit * 6, select: { ...PRODUCT_SELECT, specs: { orderBy: { sortNo: "asc" }, take: 40, select: { groupName: true, key: true, value: true } } } });
@@ -244,6 +251,7 @@ const smart = (a: string, b: string) => { const na = parseFloat(a.replace(/\./g,
 function leafIds(n: CatNode): string[] { return n.children.length ? n.children.flatMap(leafIds) : [n.id]; }
 
 export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<ListResult> {
+  await loadStickerCatalog();
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const t = await catalogTree();
   const node = t.bySlug.get(f.l3 ?? f.l2 ?? f.l1 ?? "") ?? null;

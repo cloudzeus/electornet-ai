@@ -5,9 +5,10 @@ import { useState, useTransition } from "react";
 import { X, RefreshCw } from "lucide-react";
 import type { InfoTagDef, TagConfig, TagMode } from "@/lib/promo/tags";
 import { ProductBrowser } from "./ProductBrowser";
-import { saveTagConfigAction, setManualTagAction } from "@/app/admin/(shell)/prosfores/actions";
+import { saveTagConfigAction, setManualTagAction, setTagStickerAction } from "@/app/admin/(shell)/prosfores/actions";
+import { StickerPicker } from "@/components/admin/stickers/StickerPicker";
 
-type Row = InfoTagDef & { config: TagConfig[string]; count: number; products: { id: string; label: string }[] };
+type Row = InfoTagDef & { config: TagConfig[string]; stickerKey: string | null; count: number; products: { id: string; label: string }[] };
 const input = "rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] bg-white";
 
 /** Ρύθμιση των ενημερωτικών ετικετών: κλειστή / χειροκίνητη / αυτόματη, παράμετροι κανόνα, προϊόντα. */
@@ -16,6 +17,7 @@ export function InfoTagsEditor({ tags }: { tags: Row[] }) {
   const [cfg, setCfg] = useState<TagConfig>(Object.fromEntries(tags.map((t) => [t.slug, t.config])));
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  const [stk, setStk] = useState<Record<string, string | null>>(Object.fromEntries(tags.map((t) => [t.slug, t.stickerKey])));
   const set = (slug: string, p: Partial<TagConfig[string]>) => setCfg((c) => ({ ...c, [slug]: { ...c[slug], ...p } }));
   const save = () => start(async () => { const n = await saveTagConfigAction(cfg); setMsg(`Αποθηκεύτηκε και υπολογίστηκε: ${tags.map((t) => `${t.name} ${n[t.slug] ?? 0}`).join(" · ")}.`); router.refresh(); });
   return (
@@ -38,6 +40,10 @@ export function InfoTagsEditor({ tags }: { tags: Row[] }) {
                   <option value="off">Κλειστή</option><option value="manual">Χειροκίνητα</option>{!manualOnly && <option value="auto">Αυτόματα (κανόνας)</option>}
                 </select>
               </div>
+              <details className="rounded-xl border border-eu-line" open={!!stk[t.slug]}>
+                <summary className="cursor-pointer px-3 min-h-11 flex items-center font-bold text-eu-ink text-[length:var(--fs-14)]">Sticker στις κάρτες{stk[t.slug] ? ` · ${stk[t.slug]}` : " · κανένα"}</summary>
+                <div className="p-2 pt-0"><StickerPicker value={stk[t.slug] ?? null} onChange={(v) => { setStk((m) => ({ ...m, [t.slug]: v })); start(async () => { await setTagStickerAction(t.slug, t.name, v); setMsg(`«${t.name}»: ${v ? `sticker ${v}` : "χωρίς sticker"}.`); }); }} /></div>
+              </details>
               {c.mode === "auto" && (
                 <div className="flex flex-wrap gap-3 text-[length:var(--fs-14)] font-bold text-eu-ink-2">
                   {t.defaults.days != null && <label className="inline-flex items-center gap-2">Ημέρες <input inputMode="numeric" className={`${input} w-24`} value={c.days ?? ""} onChange={(e) => set(t.slug, { days: Number(e.target.value) || undefined })} /></label>}
