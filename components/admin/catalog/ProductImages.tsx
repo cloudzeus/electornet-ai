@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, Box, Check } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
-import type { ProductImageDTO } from "@/lib/catalog/product-images";
+import type { ProductImageDTO, ProductMediaKind } from "@/lib/catalog/product-images";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import { useUploader } from "@/components/admin/media/useUploader";
 import { attachFromGallery, saveImageOrder, saveImageAlt, removeProductImage, restoreProductImage } from "@/app/admin/(shell)/catalog/actions";
@@ -19,9 +20,19 @@ const icon = "size-11 inline-flex items-center justify-center rounded-full text-
  * τη βιβλιοθήκη πολυμέσων, σειρά (σύρσιμο ή βελάκια — η πρώτη είναι η κύρια),
  * εναλλακτικό κείμενο, αφαίρεση / επαναφορά. Κάθε αλλαγή αποθηκεύεται αμέσως.
  */
-export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar, embedded = false }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
+export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar, embedded = false, kind = "image" }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean; /** banner = εικόνες του κατασκευαστή με κείμενο (χωρίς «κύρια» / AR) */ kind?: ProductMediaKind; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
   const [images, setImages] = useState(initial);
+  // νέα δεδομένα από τον server (router.refresh, π.χ. μετά από δημοσίευση απόδελτίωσης): η λίστα ακολουθεί χωρίς να χαθεί το μήνυμα
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (initial !== prevInitial) { setPrevInitial(initial); setImages(initial); }
   const [arFront, setArFront] = useState(ar?.front ?? null);
+  const banner = kind === "banner";
+  const noun = banner ? "του banner" : "της φωτογραφίας";
+  const router = useRouter();
+  // Banners: η απόδελτίωση πιο κάτω στην ίδια οθόνη πρέπει να δει τα νέα/κρυμμένα banners
+  const ids = images.filter((i) => !i.hidden).map((i) => i.id).join(",");
+  const firstIds = useRef(ids);
+  useEffect(() => { if (banner && ids !== firstIds.current) { firstIds.current = ids; router.refresh(); } }, [banner, ids, router]);
   const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού επιλέγεται πάλι αυτόματα (η πιο μετωπική)."); }); };
   const [picker, setPicker] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: "ok" | "warn" } | null>(null);
@@ -38,7 +49,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
     setImages((xs) => (xs.some((x) => x.id === image.id) ? xs : [...xs, image]));
     setMsg({ text: `Ανέβηκε και μπήκε στο τέλος της σειράς${image.lowRes ? " — προσοχή, είναι μικρή (κάτω από 600px)" : ""}. Υπάρχει πλέον και στη βιβλιοθήκη, στον φάκελο «Προϊόντα».`, tone: image.lowRes ? "warn" : "ok" });
   }, []);
-  const uploader = useUploader(onUploaded, `/api/admin/catalog/products/${productId}/images`);
+  const uploader = useUploader(onUploaded, `/api/admin/catalog/products/${productId}/images${kind === "banner" ? "?kind=banner" : ""}`);
   const busyUploads = uploader.items.filter((u) => u.status === "queued" || u.status === "uploading");
   const failedUploads = uploader.items.filter((u) => u.status === "error");
 
@@ -51,7 +62,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
 
   const persistOrder = (next: ProductImageDTO[]) => {
     setImages([...next, ...hidden]);
-    start(async () => { try { setImages(await saveImageOrder(productId, next.map((i) => i.id))); } catch { say("Η σειρά δεν αποθηκεύτηκε. Δοκίμασε ξανά.", "warn"); } });
+    start(async () => { try { setImages(await saveImageOrder(productId, next.map((i) => i.id), kind)); } catch { say("Η σειρά δεν αποθηκεύτηκε. Δοκίμασε ξανά.", "warn"); } });
   };
   const move = (id: string, to: number) => {
     const from = visible.findIndex((i) => i.id === id);
@@ -70,8 +81,8 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className={embedded ? "sr-only" : "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"}>Φωτογραφίες <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια. Κάθε αλλαγή αποθηκεύεται αμέσως.{ar ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα επιλέγεται αυτόματα η πιο μετωπική"}.</> : null}</p>
+          <h3 className={embedded ? "sr-only" : "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"}>{banner ? "Banners" : "Φωτογραφίες"} <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">{banner ? "Εικόνες του κατασκευαστή με κείμενο (π.χ. από το site του ή το φυλλάδιο). Εμφανίζονται στη σελίδα του προϊόντος με αυτή τη σειρά· πιο κάτω η απόδελτίωση τις κάνει κείμενο και φωτογραφίες." : "Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια."} Κάθε αλλαγή αποθηκεύεται αμέσως.{ar && !banner ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα επιλέγεται αυτόματα η πιο μετωπική"}.</> : null}</p>
         </div>
         {canWrite && (
           <div className="flex flex-wrap gap-2">
@@ -97,7 +108,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
 
       {visible.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-eu-line p-8 text-center text-eu-ink-3 text-[length:var(--fs-15)]">
-          Το προϊόν δεν έχει φωτογραφία.{canWrite ? " Σύρε αρχεία εδώ, πάτησε «Ανέβασμα», ή διάλεξε από τη βιβλιοθήκη." : ""}
+          {banner ? "Το προϊόν δεν έχει banners." : "Το προϊόν δεν έχει φωτογραφία."}{canWrite ? " Σύρε αρχεία εδώ, πάτησε «Ανέβασμα», ή διάλεξε από τη βιβλιοθήκη." : ""}
         </div>
       ) : (
         <ol className="m-0 p-0 list-none grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))]">
@@ -109,21 +120,21 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
               onDragEnd={() => setDragId(null)}
               onDragOver={(e) => { if (dragId && dragId !== im.id) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
               onDrop={(e) => { if (dragId && dragId !== im.id) { e.preventDefault(); e.stopPropagation(); move(dragId, i); setDragId(null); } }}
-              className={`grid gap-1 rounded-xl border-2 p-1.5 bg-white min-w-0 ${canWrite ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === im.id ? "opacity-40 border-eu-blue" : i === 0 ? "border-eu-yellow" : "border-eu-line"}`}
+              className={`grid gap-1 rounded-xl border-2 p-1.5 bg-white min-w-0 ${canWrite ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === im.id ? "opacity-40 border-eu-blue" : i === 0 && !banner ? "border-eu-yellow" : "border-eu-line"}`}
             >
               <div className="relative aspect-square rounded-lg bg-white overflow-hidden border border-eu-line">
                 {/* Μία εκδοχή στο CDN· το μέγεθος για κάθε οθόνη το παράγει το <Image> */}
                 <Image src={im.url} alt={im.alt ?? ""} fill sizes="160px" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain p-1" />
                 <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-white/90 text-eu-ink-3 font-bold tabular-nums px-1.5 py-0.5 text-[length:var(--fs-11)]">{i + 1}</span>
-                {ar && arFront === im.url && <span className="absolute left-1 top-7 inline-flex items-center gap-0.5 rounded-full bg-eu-blue text-white font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Box className="size-3" aria-hidden /> AR</span>}
-                {i === 0 && <span className="absolute left-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Star className="size-3" aria-hidden /> Κύρια</span>}
+                {ar && !banner && arFront === im.url && <span className="absolute left-1 top-7 inline-flex items-center gap-0.5 rounded-full bg-eu-blue text-white font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Box className="size-3" aria-hidden /> AR</span>}
+                {i === 0 && !banner && <span className="absolute left-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Star className="size-3" aria-hidden /> Κύρια</span>}
                 {im.lowRes && <span className="absolute right-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-red text-white font-bold px-1.5 py-0.5 text-[length:var(--fs-11)]"><AlertTriangle className="size-3" aria-hidden /> μικρή</span>}
                 {canWrite && (
                   <button
                     type="button" className="absolute right-0 top-0 size-11 grid place-items-center cursor-pointer group/rm focus-visible:outline-2 focus-visible:outline-eu-blue rounded-full"
-                    aria-label={im.source === "legacy-site" ? `Απόκρυψη της φωτογραφίας ${i + 1}` : `Αφαίρεση της φωτογραφίας ${i + 1} από το προϊόν`}
+                    aria-label={im.source === "legacy-site" ? `Απόκρυψη ${noun} ${i + 1}` : `Αφαίρεση ${noun} ${i + 1} από το προϊόν`}
                     title={im.source === "legacy-site" ? "Απόκρυψη" : "Αφαίρεση από το προϊόν"}
-                    onClick={() => start(async () => { const r = await removeProductImage(productId, im.id); setImages(r.images); say(r.how === "hidden" ? "Η φωτογραφία κρύφτηκε. Θα τη βρεις στις «Κρυμμένες»." : "Αφαιρέθηκε από το προϊόν. Το αρχείο παραμένει στη βιβλιοθήκη."); })}
+                    onClick={() => start(async () => { const r = await removeProductImage(productId, im.id, kind); setImages(r.images); say(r.how === "hidden" ? (banner ? "Το banner κρύφτηκε. Θα το βρεις στα «Κρυμμένα»." : "Η φωτογραφία κρύφτηκε. Θα τη βρεις στις «Κρυμμένες».") : "Αφαιρέθηκε από το προϊόν. Το αρχείο παραμένει στη βιβλιοθήκη."); })}
                   ><span className="size-7 grid place-items-center rounded-full bg-white/95 text-eu-muted shadow-sm group-hover/rm:bg-eu-red group-hover/rm:text-white">{im.source === "legacy-site" ? <EyeOff className="size-3.5" aria-hidden /> : <Trash2 className="size-3.5" aria-hidden />}</span></button>
                 )}
               </div>
@@ -132,12 +143,12 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
               </div>
               {canWrite && (
                 <div className="flex items-center justify-between -my-1">
-                  <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, i - 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση πριν`} title="Μία θέση πριν"><ArrowLeft className="size-4" aria-hidden /></button>
-                  <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, 0)} aria-label={`Ορισμός της φωτογραφίας ${i + 1} ως κύριας`} title="Κάν' την κύρια"><Star className="size-4" aria-hidden /></button>
-                  <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση της φωτογραφίας ${i + 1} μία θέση μετά`} title="Μία θέση μετά"><ArrowRight className="size-4" aria-hidden /></button>
+                  <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, i - 1)} aria-label={`Μετακίνηση ${banner ? "του banner" : "της φωτογραφίας"} ${i + 1} μία θέση πριν`} title="Μία θέση πριν"><ArrowLeft className="size-4" aria-hidden /></button>
+                  {banner ? <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{i + 1}</span> : <button type="button" className={icon} disabled={i === 0} onClick={() => move(im.id, 0)} aria-label={`Ορισμός ${noun} ${i + 1} ως κύριας`} title="Κάν' την κύρια"><Star className="size-4" aria-hidden /></button>}
+                  <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση ${noun} ${i + 1} μία θέση μετά`} title="Μία θέση μετά"><ArrowRight className="size-4" aria-hidden /></button>
                 </div>
               )}
-              {ar && canWrite && (
+              {ar && !banner && canWrite && (
                 <button type="button" onClick={() => chooseArFront(arFront === im.url ? null : im.url)} aria-pressed={arFront === im.url}
                   title="Η φωτογραφία που μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου». Καλύτερα κατά μέτωπο, χωρίς γωνία."
                   className={`inline-flex items-center justify-center gap-1 rounded-full min-h-9 px-2 text-[length:var(--fs-12)] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-eu-blue ${arFront === im.url ? "bg-eu-blue text-white" : "bg-eu-surface text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}>
@@ -164,13 +175,13 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
 
       {hidden.length > 0 && (
         <details className="rounded-xl bg-eu-surface p-3">
-          <summary className="cursor-pointer font-bold text-eu-ink text-[length:var(--fs-14)] min-h-11 inline-flex items-center">Κρυμμένες φωτογραφίες · {hidden.length}</summary>
+          <summary className="cursor-pointer font-bold text-eu-ink text-[length:var(--fs-14)] min-h-11 inline-flex items-center">{banner ? "Κρυμμένα banners" : "Κρυμμένες φωτογραφίες"} · {hidden.length}</summary>
           <p className="m-0 mb-2 text-eu-ink-3 text-[length:var(--fs-13)]">Προέρχονται από την αρχική εισαγωγή. Δεν εμφανίζονται στο κατάστημα· δεν διαγράφονται, ώστε να μην ξαναεμφανιστούν μόνες τους.</p>
           <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
             {hidden.map((im) => (
               <li key={im.id} className="flex items-center gap-2 rounded-xl bg-white border border-eu-line p-1.5 pr-2">
                 <Image src={im.url} alt="" width={56} height={56} className="size-14 rounded-lg object-contain opacity-60" />
-                {canWrite && <button type="button" onClick={() => start(async () => { setImages(await restoreProductImage(productId, im.id)); say("Η φωτογραφία επανήλθε στο τέλος της σειράς."); })} className={`${btn} border-2 border-eu-line text-eu-navy hover:border-eu-navy !px-3`}><RotateCcw className="size-4" aria-hidden /> Επαναφορά</button>}
+                {canWrite && <button type="button" onClick={() => start(async () => { setImages(await restoreProductImage(productId, im.id, kind)); say(banner ? "Το banner επανήλθε στο τέλος της σειράς." : "Η φωτογραφία επανήλθε στο τέλος της σειράς."); })} className={`${btn} border-2 border-eu-line text-eu-navy hover:border-eu-navy !px-3`}><RotateCcw className="size-4" aria-hidden /> Επαναφορά</button>}
               </li>
             ))}
           </ul>
@@ -180,7 +191,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
       {picker && (
         <MediaPickerDialog
           accept={["image"]} multiple canWrite={canUploadToLibrary} onClose={() => setPicker(false)}
-          onSelect={(assets) => { setPicker(false); if (!assets.length) return; start(async () => { const r = await attachFromGallery(productId, assets.map((a) => a.id)); setImages(r.images); say(`${r.added} ${r.added === 1 ? "φωτογραφία προστέθηκε" : "φωτογραφίες προστέθηκαν"}${r.skipped ? ` · ${r.skipped} ήταν ήδη στο προϊόν` : ""}.`, r.added ? "ok" : "warn"); }); }}
+          onSelect={(assets) => { setPicker(false); if (!assets.length) return; start(async () => { const r = await attachFromGallery(productId, assets.map((a) => a.id), kind); setImages(r.images); say(`${r.added} ${r.added === 1 ? "φωτογραφία προστέθηκε" : "φωτογραφίες προστέθηκαν"}${r.skipped ? ` · ${r.skipped} ήταν ήδη στο προϊόν` : ""}.`, r.added ? "ok" : "warn"); }); }}
         />
       )}
     </section>

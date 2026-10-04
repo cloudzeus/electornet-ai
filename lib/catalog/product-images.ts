@@ -22,8 +22,10 @@ type Row = { id: string; url: string; thumbUrl: string | null; blur: string | nu
 export const toImageDTO = (m: Row): ProductImageDTO => ({ ...m, lowRes: m.width != null && m.height != null && Math.max(m.width, m.height) < LOW_RES_PX });
 const SELECT = { id: true, url: true, thumbUrl: true, blur: true, alt: true, sortNo: true, width: true, height: true, source: true, assetId: true, hidden: true } as const;
 
-export async function listProductImages(productId: string): Promise<ProductImageDTO[]> {
-  return (await db.media.findMany({ where: { productId, kind: "image" }, orderBy: [{ hidden: "asc" }, { sortNo: "asc" }, { id: "asc" }], select: SELECT })).map(toImageDTO);
+export type ProductMediaKind = "image" | "banner";
+
+export async function listProductImages(productId: string, kind: ProductMediaKind = "image"): Promise<ProductImageDTO[]> {
+  return (await db.media.findMany({ where: { productId, kind }, orderBy: [{ hidden: "asc" }, { sortNo: "asc" }, { id: "asc" }], select: SELECT })).map(toImageDTO);
 }
 
 export async function productFolderId(): Promise<string> {
@@ -32,11 +34,11 @@ export async function productFolderId(): Promise<string> {
 }
 
 /** Δένει αρχεία της βιβλιοθήκης στο προϊόν, στο τέλος της σειράς. Ό,τι είναι ήδη δεμένο αγνοείται· ό,τι ήταν κρυμμένο ξαναφαίνεται. */
-export async function attachAssets(productId: string, assetIds: string[], source: "gallery" | "upload"): Promise<{ added: ProductImageDTO[]; skipped: number }> {
+export async function attachAssets(productId: string, assetIds: string[], source: "gallery" | "upload", kind: ProductMediaKind = "image"): Promise<{ added: ProductImageDTO[]; skipped: number }> {
   const [product, assets, existing] = await Promise.all([
     db.product.findUnique({ where: { id: productId }, select: { title: true } }),
     db.mediaAsset.findMany({ where: { id: { in: assetIds }, kind: "image" } }),
-    db.media.findMany({ where: { productId }, select: { id: true, url: true, sortNo: true, hidden: true } }),
+    db.media.findMany({ where: { productId, kind }, select: { id: true, url: true, sortNo: true, hidden: true } }),
   ]);
   if (!product) throw new Error("Το προϊόν δεν βρέθηκε.");
   const byUrl = new Map(existing.map((m) => [m.url, m]));
@@ -48,20 +50,20 @@ export async function attachAssets(productId: string, assetIds: string[], source
     const dup = byUrl.get(a.url);
     if (dup) { if (dup.hidden) added.push(toImageDTO(await db.media.update({ where: { id: dup.id }, data: { hidden: false, sortNo: ++next }, select: SELECT }))); else skipped++; continue; }
     count++;
-    const alt = a.alt?.trim() || (count === 1 ? product.title : `${product.title} — φωτογραφία ${count}`);
-    added.push(toImageDTO(await db.media.create({ data: { productId, kind: "image", url: a.url, thumbUrl: a.thumbUrl, width: a.width, height: a.height, blur: a.blur, alt, sortNo: ++next, source, assetId: a.id }, select: SELECT })));
+    const alt = a.alt?.trim() || (kind === "banner" ? `${product.title} — banner ${count}` : count === 1 ? product.title : `${product.title} — φωτογραφία ${count}`);
+    added.push(toImageDTO(await db.media.create({ data: { productId, kind, url: a.url, thumbUrl: a.thumbUrl, width: a.width, height: a.height, blur: a.blur, alt, sortNo: ++next, source, assetId: a.id }, select: SELECT })));
   }
   return { added, skipped };
 }
 
 /** Ανέβασμα από την καρτέλα του προϊόντος: βιβλιοθήκη (φάκελος «Προϊόντα») → δέσιμο. */
-export async function uploadProductImage(productId: string, file: { bytes: Buffer; filename: string; mime: string }, staffId: string | null): Promise<ProductImageDTO> {
+export async function uploadProductImage(productId: string, file: { bytes: Buffer; filename: string; mime: string }, staffId: string | null, kind: ProductMediaKind = "image"): Promise<ProductImageDTO> {
   const product = await db.product.findUnique({ where: { id: productId }, select: { title: true, sku: true } });
   if (!product) throw new Error("Το προϊόν δεν βρέθηκε.");
   const asset = await ingest({ ...file, folderId: await productFolderId(), createdBy: staffId, title: `${product.title} (${product.sku})` });
   if (asset.kind !== "image") throw new Error("Μόνο εικόνες γίνονται φωτογραφίες προϊόντος.");
-  await db.mediaAsset.update({ where: { id: asset.id }, data: { tags: { push: "προϊόν" } } }).catch(() => {});
-  const { added } = await attachAssets(productId, [asset.id], "upload");
+  await db.mediaAsset.update({ where: { id: asset.id }, data: { tags: { push: kind === "banner" ? "banner" : "προϊόν" } } }).catch(() => {});
+  const { added } = await attachAssets(productId, [asset.id], "upload", kind);
   if (!added[0]) throw new Error("Η φωτογραφία ανέβηκε αλλά δεν δέθηκε στο προϊόν.");
   return added[0];
 }

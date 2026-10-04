@@ -3,26 +3,26 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
-import { attachAssets, listProductImages, reorderImages, removeImage, restoreImage } from "@/lib/catalog/product-images";
+import { attachAssets, listProductImages, reorderImages, removeImage, restoreImage, type ProductMediaKind } from "@/lib/catalog/product-images";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 
 const path = (id: string) => `/admin/catalog/${id}`;
 
-export async function attachFromGallery(productId: string, assetIds: string[]) {
+export async function attachFromGallery(productId: string, assetIds: string[], kind: ProductMediaKind = "image") {
   const user = await requirePermission("catalog.products.write");
-  const r = await attachAssets(productId, assetIds.slice(0, 40), "gallery");
+  const r = await attachAssets(productId, assetIds.slice(0, 40), "gallery", kind);
   resetCatalogCache(); // προϊόν που απέκτησε την πρώτη του φωτογραφία μπαίνει στις λίστες
   await audit(user.id, "catalog.product.image.attach", "Product", productId, null, { assetIds, added: r.added.length, skipped: r.skipped });
   revalidatePath(path(productId));
-  return { images: await listProductImages(productId), added: r.added.length, skipped: r.skipped };
+  return { images: await listProductImages(productId, kind), added: r.added.length, skipped: r.skipped };
 }
 
-export async function saveImageOrder(productId: string, ids: string[]) {
+export async function saveImageOrder(productId: string, ids: string[], kind: ProductMediaKind = "image") {
   const user = await requirePermission("catalog.products.write");
   await reorderImages(productId, ids);
-  await audit(user.id, "catalog.product.image.reorder", "Product", productId, null, { ids });
+  await audit(user.id, "catalog.product.image.reorder", "Product", productId, null, { ids, kind });
   revalidatePath(path(productId));
-  return listProductImages(productId);
+  return listProductImages(productId, kind);
 }
 
 export async function saveImageAlt(productId: string, id: string, alt: string) {
@@ -34,21 +34,21 @@ export async function saveImageAlt(productId: string, id: string, alt: string) {
   return clean;
 }
 
-export async function removeProductImage(productId: string, id: string) {
+export async function removeProductImage(productId: string, id: string, kind: ProductMediaKind = "image") {
   const user = await requirePermission("catalog.products.write");
   const how = await removeImage(productId, id);
   resetCatalogCache();
   await audit(user.id, "catalog.product.image.remove", "Product", productId, null, { id, how });
   revalidatePath(path(productId));
-  return { how, images: await listProductImages(productId) };
+  return { how, images: await listProductImages(productId, kind) };
 }
 
-export async function restoreProductImage(productId: string, id: string) {
+export async function restoreProductImage(productId: string, id: string, kind: ProductMediaKind = "image") {
   const user = await requirePermission("catalog.products.write");
   await restoreImage(productId, id);
   await audit(user.id, "catalog.product.image.restore", "Product", productId, null, { id });
   revalidatePath(path(productId));
-  return listProductImages(productId);
+  return listProductImages(productId, kind);
 }
 
 /** Μία παρτίδα αντιστοίχισης με το EPREL (το πλήρες πέρασμα γίνεται με scripts/match-eprel.ts). */

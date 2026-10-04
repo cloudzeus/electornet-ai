@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, FileUp, Loader2, Maximize2, Minimize2, Monitor, Plus, RotateCcw, ScanText, Smartphone, Sparkles, Upload } from "lucide-react";
 import { BoxCanvas, type BoxSel } from "./BoxCanvas";
 import { SectionEditor } from "./SectionEditor";
@@ -80,7 +81,8 @@ function previewSections(docs: StudioDoc[]): (PublishedSection & { _doc: StudioD
   })).sort((a, b) => a._rank - b._rank);
 }
 
-export function BannerStudio({ product, banners, drafts, publishedCount, nextHref }: { product: StudioProduct; banners: StudioBanner[]; drafts: StudioDraft[]; publishedCount: number; nextHref: string | null }) {
+export function BannerStudio({ product, banners, drafts, publishedCount, nextHref, embedded = false }: { product: StudioProduct; banners: StudioBanner[]; drafts: StudioDraft[]; publishedCount: number; nextHref: string | null; /** μέσα στην καρτέλα προϊόντος: χωρίς δικό του τίτλο */ embedded?: boolean }) {
+  const router = useRouter();
   const [step, setStepRaw] = useState<Step>("pick");
   const [dir, setDir] = useState<1 | -1>(1);
   const ORDER: Record<Step, number> = { pick: 0, review: 1, publish: 2, done: 3 };
@@ -327,6 +329,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "Η δημοσίευση απέτυχε.");
       setResult(j); setStep("done");
+      router.refresh(); // η καρτέλα προϊόντος δείχνει αμέσως ποια banners κρύφτηκαν
     } catch (e) { setError((e as Error).message); } finally { setPublishing(false); }
   };
 
@@ -336,11 +339,11 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
 
   return (
     <div className="grid gap-5 min-w-0 @container">
-      <div className="grid gap-1">
+      {!embedded && <div className="grid gap-1">
         <Link href={`/admin/catalog/${product.id}`} className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit"><ArrowLeft className="size-4" aria-hidden /> Καρτέλα προϊόντος</Link>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><ScanText className="size-4" aria-hidden /> Απόδελτίωση banners · {product.path}</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] text-balance">{product.brand} {product.title}</h2>
-      </div>
+      </div>}
 
       <div className="rounded-2xl border border-eu-line bg-white p-2"><Stepper step={step} can={(s) => s === "pick" || (s === "review" && ready.length > 0)} go={setStep} /></div>
 

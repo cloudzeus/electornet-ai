@@ -13,6 +13,8 @@ import { SoftoneRefresh } from "@/components/admin/catalog/SoftoneRefresh";
 import { ProductEditor, type EditorValues } from "@/components/admin/catalog/ProductEditor";
 import { AccordionItem } from "@/components/admin/ui/Accordion";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
+import { loadBannerStudio } from "@/lib/catalog/banner-studio-data";
+import { BannerStudio } from "@/components/admin/banner-studio/BannerStudio";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +34,11 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
-  const [images, bannerCounts, sectionCount, arRow, [shop], item, writeOn, descDim] = await Promise.all([
+  const canWrite = can(user.permissions, "catalog.products.write");
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim] = await Promise.all([
     listProductImages(p.id),
-    db.media.groupBy({ by: ["hidden"], where: { productId: p.id, kind: "banner" }, _count: { _all: true } }),
+    listProductImages(p.id, "banner"),
+    canWrite ? loadBannerStudio(p.id) : Promise.resolve(null),
     db.productSection.count({ where: { productId: p.id, hidden: false } }),
     db.productAr.findUnique({ where: { productId: p.id }, select: { enabled: true, glbUrl: true, placement: true, frontImage: true } }),
     getProductsByIds([p.id]),
@@ -45,9 +49,8 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow) : null;
   const arFront = arPl?.on && !arPl.custom && arPl.archetype !== "tv" ? { front: arRow?.frontImage ?? null } : undefined;
-  const bannersShown = bannerCounts.find((b) => !b.hidden)?._count._all ?? 0, bannersHidden = bannerCounts.find((b) => b.hidden)?._count._all ?? 0;
+  const bannersShown = banners.filter((b) => !b.hidden).length, bannersHidden = banners.length - bannersShown;
   const path = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter(Boolean).join(" › ");
-  const canWrite = can(user.permissions, "catalog.products.write");
   const canErp = canWrite && can(user.permissions, "catalog.sync.run");
   const visibleImages = images.filter((i) => !i.hidden).length;
   const when = (d: Date | null | undefined) => d ? d.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -98,11 +101,20 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         <p className="m-0 mt-2 text-eu-muted text-[length:var(--fs-12)]">Η τιμή (MTREXTRA.NUM04) και το απόθεμα έρχονται από το SoftOne — αλλάζουν εκεί.</p>
       </AccordionItem>
 
-      {(bannersShown + bannersHidden > 0 || sectionCount > 0) && (
-        <AccordionItem id="banners" title="Banners κατασκευαστή → κείμενο" icon={<ScanText className="size-4" aria-hidden />} summary={`${bannersShown} ${bannersShown === 1 ? "banner" : "banners"} ως εικόνα${bannersHidden ? ` · ${bannersHidden} κρυμμένα` : ""} · ${sectionCount} ${sectionCount === 1 ? "ενότητα" : "ενότητες"} στη σελίδα`}>
-          {canWrite && <Link href={`/admin/catalog/${p.id}/banners`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold px-5 min-h-11 text-[length:var(--fs-14)] hover:bg-eu-blue">{sectionCount ? "Διόρθωση / νέα απόδελτίωση" : "Απόδελτίωση"}</Link>}
-        </AccordionItem>
-      )}
+      <AccordionItem id="banners" title="Banners κατασκευαστή & απόδελτίωση" icon={<ScanText className="size-4" aria-hidden />} summary={`${bannersShown} ${bannersShown === 1 ? "banner" : "banners"} ως εικόνα${bannersHidden ? ` · ${bannersHidden} κρυμμένα` : ""} · ${sectionCount} ${sectionCount === 1 ? "ενότητα κειμένου" : "ενότητες κειμένου"} στη σελίδα`} badge={chip(`${bannersShown}`)}>
+        <div className="grid gap-5">
+          <ProductImages kind="banner" productId={p.id} initial={banners} canWrite={canWrite} canUploadToLibrary={can(user.permissions, "cms.media.write")} embedded />
+          {studio && (
+            <div className="grid gap-3 border-t border-eu-line pt-4">
+              <div>
+                <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Απόδελτίωση: banner → κείμενο της σελίδας</h3>
+                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Ο βοηθός διαβάζει το κείμενο των banners, ξεχωρίζει τις φωτογραφίες και φτιάχνει ενότητες της σελίδας του προϊόντος· ελέγχεις πριν δημοσιευτούν.</p>
+              </div>
+              <BannerStudio key={studio.banners.map((b) => b.id).join()} {...studio} embedded />
+            </div>
+          )}
+        </div>
+      </AccordionItem>
 
       {fromS1 && (
         <AccordionItem id="sync" title="Συγχρονισμός με SoftOne" icon={<Database className="size-4" aria-hidden />} summary={`Τελευταία ανάγνωση: ${when(item?.syncedAt ?? p.s1SyncedAt)}${writeOn ? " · εγγραφή ανοιχτή" : " · μόνο ανάγνωση"}`} defaultOpen>
