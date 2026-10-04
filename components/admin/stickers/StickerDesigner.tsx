@@ -129,6 +129,15 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
               </div>
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
+            <Section title="Χρώματα">
+              <ColorRow label="Γέμισμα" value={p.fill} onChange={(v) => set("fill", v ?? "#F1C400")} />
+              <ColorRow label="Διαβάθμιση προς" value={p.fill2} onChange={(v) => set("fill2", v)} allowNone />
+              <ColorRow label="Κείμενο & εικονίδιο" value={p.color} onChange={(v) => set("color", v ?? "#122A58")} />
+              <ColorRow label="Περίγραμμα" value={p.border} onChange={(v) => set("border", v)} allowNone />
+              {p.border && <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>Πάχος περιγράμματος</span><span className="tabular-nums text-eu-muted">{p.borderWidth}</span></span><input type="range" min={1} max={12} value={p.borderWidth || 4} onChange={(e) => set("borderWidth", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>}
+              <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={p.shadow} onChange={(e) => set("shadow", e.target.checked)} className="size-5 accent-eu-navy" /> Σκιά</label>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κόκκινο μόνο για εκπτώσεις (κανόνας brand).</p>
+            </Section>
           </div>
           <div className="grid gap-3 content-start">
             {/* δεξιά της κάρτας: θέση, μέγεθος, περιστροφή */}
@@ -224,15 +233,6 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
           ))}
           {p.lines.length < 3 && <button type="button" onClick={() => setP((s) => ({ ...s, lines: [...s.lines, { text: "", size: 0, weight: 700, upper: false, spacing: 0 }] }))} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-eu-line px-3 min-h-10 font-bold text-eu-blue text-[length:var(--fs-14)] hover:border-eu-blue"><Plus className="size-4" aria-hidden /> Γραμμή</button>}
           <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Εικονίδιο</span><div className="flex flex-wrap gap-1.5">{ICONS.map((ic) => <button key={ic.v} type="button" onClick={() => set("icon", ic.v)} className={chip(p.icon === ic.v)}>{ic.l}</button>)}</div></div>
-        </Section>
-        <Section title="Χρώματα">
-          <ColorRow label="Γέμισμα" value={p.fill} onChange={(v) => set("fill", v ?? "#F1C400")} />
-          <ColorRow label="Διαβάθμιση προς" value={p.fill2} onChange={(v) => set("fill2", v)} allowNone />
-          <ColorRow label="Κείμενο & εικονίδιο" value={p.color} onChange={(v) => set("color", v ?? "#122A58")} />
-          <ColorRow label="Περίγραμμα" value={p.border} onChange={(v) => set("border", v)} allowNone />
-          {p.border && <label className="grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]"><span className="flex justify-between"><span>Πάχος περιγράμματος</span><span className="tabular-nums text-eu-muted">{p.borderWidth}</span></span><input type="range" min={1} max={12} value={p.borderWidth || 4} onChange={(e) => set("borderWidth", Number(e.target.value))} className="accent-eu-navy min-h-11" /></label>}
-          <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={p.shadow} onChange={(e) => set("shadow", e.target.checked)} className="size-5 accent-eu-navy" /> Σκιά</label>
-          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κόκκινο μόνο για εκπτώσεις (κανόνας brand).</p>
         </Section>
         <Section title="Στην κάρτα">
           <div className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Κίνηση</span><div className="flex flex-wrap gap-1.5">{([["none", "Καμία"], ["shimmer", "Λάμψη"], ["breathe", "Αναπνοή"], ["wiggle", "Κούνημα"], ["bump", "Αναπήδηση"]] as const).map(([v, l]) => <button key={v} type="button" onClick={() => set("animation", v)} className={chip(p.animation === v)}>{l}</button>)}</div></div>
