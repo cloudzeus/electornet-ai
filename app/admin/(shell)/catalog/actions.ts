@@ -97,3 +97,35 @@ export async function pullFromSoftone(productId: string) {
   if (!p.ok) return { ok: false as const, message: p.reason ?? "Η ενημέρωση του καταστήματος απέτυχε." };
   return { ok: true as const, message: changed.length ? `Ενημερώθηκε από το SoftOne: ${changed.join(", ")}.` : "Ήδη ενημερωμένο — καμία αλλαγή στο SoftOne." };
 }
+
+/**
+ * Αποθήκευση από την καρτέλα προϊόντος: γράφεται στο είδος του SoftOne (με έλεγχο σύγκρουσης και επαλήθευση — βλ.
+ * lib/softone/item-write.ts) και αμέσως μετά το είδος ξαναδιαβάζεται και ενημερώνεται το προϊόν του e-shop.
+ * Αν το SoftOne δεν δεχτεί την αλλαγή, δεν αλλάζει ούτε το e-shop.
+ */
+export async function saveProductFields(productId: string, changes: import("@/lib/softone/item-write").ItemChanges) {
+  const user = await requirePermission("catalog.products.write");
+  const { can } = await import("@/lib/rbac/permissions");
+  if (!can(user.permissions, "catalog.sync.run")) return { ok: false as const, message: "Χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP» για αλλαγές στο SoftOne." };
+  const { writeItem, itemWriteEnabled, ITEM_FIELDS } = await import("@/lib/softone/item-write");
+  if (!(await itemWriteEnabled())) return { ok: false as const, message: "Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne)." };
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
+  const mtrl = Number(p?.erpCode);
+  if (!p || p.source !== "softone" || !Number.isInteger(mtrl)) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };
+  const w = await writeItem(mtrl, changes);
+  const labels = (keys: string[]) => keys.map((k) => ITEM_FIELDS[k as keyof typeof ITEM_FIELDS]?.label ?? k).join(", ");
+  await audit(user.id, w.ok ? "catalog.product.s1-write" : "catalog.product.s1-write-failed", "Product", productId, Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v?.from])), { mtrl, to: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v?.to])), written: w.written, conflicts: w.conflicts, mismatches: w.mismatches, error: w.error });
+  // Ό,τι γράφτηκε (έστω και μέρος) περνά αμέσως στο e-shop
+  if (w.written.length) {
+    const { syncItem } = await import("@/lib/softone/catalog");
+    const { projectItem } = await import("@/lib/softone/project");
+    await syncItem(mtrl, "manual");
+    await projectItem(mtrl);
+    const { forgetArLookup } = await import("@/lib/ar/serve");
+    const { invalidateArIndex } = await import("@/lib/ar/index");
+    forgetArLookup(productId); invalidateArIndex();
+    revalidatePath(path(productId));
+  }
+  if (!w.ok) return { ok: false as const, message: w.error ?? "Η αποθήκευση απέτυχε.", conflicts: w.conflicts.map((c) => ({ ...c, label: labels([c.field]) })), mismatches: w.mismatches.map((m) => ({ ...m, label: labels([m.field]) })), written: w.written };
+  return { ok: true as const, message: w.written.length ? `Αποθηκεύτηκε στο SoftOne και στο e-shop: ${labels(w.written)}.` : "Καμία αλλαγή για αποθήκευση.", written: w.written };
+}

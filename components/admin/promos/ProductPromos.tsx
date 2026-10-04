@@ -8,7 +8,7 @@ import { STATUS_LABEL, describePromo, type PromoStatus } from "@/lib/promo/catal
 const eur = (v: unknown) => `${Number(v).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
 /** Στην καρτέλα προϊόντος του admin: η τρέχουσα τιμή προσφοράς, ποιες προσφορές το αφορούν και γρήγορη δημιουργία νέας. */
-export async function ProductPromos({ productId, canWrite }: { productId: string; canWrite: boolean }) {
+export async function ProductPromos({ productId, canWrite, embedded = false }: { productId: string; canWrite: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean }) {
   const p = await db.product.findUnique({ where: { id: productId }, select: { id: true, brandId: true, categoryId: true, variants: { select: { id: true }, take: 1 }, offer: true } });
   if (!p) return null;
   const cats = await db.category.findMany({ select: { id: true, parentId: true } });
@@ -19,10 +19,10 @@ export async function ProductPromos({ productId, canWrite }: { productId: string
   const o = p.offer;
   const tags = (o?.tags as { label: string }[] | null) ?? [];
   return (
-    <section className="rounded-2xl border border-eu-line bg-white p-4 grid gap-3" aria-labelledby="pp-h">
+    <section className={embedded ? "grid gap-3" : "rounded-2xl border border-eu-line bg-white p-4 grid gap-3"} aria-labelledby="pp-h">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id="pp-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] inline-flex items-center gap-1.5"><BadgePercent className="size-5 text-eu-blue" aria-hidden /> Προσφορές</h3>
+          <h3 id="pp-h" className={embedded ? "sr-only" : "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] inline-flex items-center gap-1.5"}><BadgePercent className="size-5 text-eu-blue" aria-hidden /> Προσφορές</h3>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">{o ? <>Στη βιτρίνα: <strong className="text-eu-red">{eur(o.price)}</strong>{Number(o.price) < Number(o.listPrice) && <> αντί <s>{eur(o.listPrice)}</s></>}{o.lowest30 != null && <> · χαμηλότερη 30 ημερών {eur(o.lowest30)}</>}{tags.length > 0 && <> · {tags.map((t) => t.label).join(", ")}</>}{o.endsAt && <> · λήγει {o.endsAt.toLocaleDateString("el-GR")}</>}</> : "Καμία ενεργή προσφορά στη βιτρίνα."}</p>
         </div>
         {canWrite && (

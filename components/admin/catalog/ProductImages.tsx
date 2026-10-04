@@ -19,7 +19,7 @@ const icon = "size-11 inline-flex items-center justify-center rounded-full text-
  * τη βιβλιοθήκη πολυμέσων, σειρά (σύρσιμο ή βελάκια — η πρώτη είναι η κύρια),
  * εναλλακτικό κείμενο, αφαίρεση / επαναφορά. Κάθε αλλαγή αποθηκεύεται αμέσως.
  */
-export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
+export function ProductImages({ productId, initial, canWrite, canUploadToLibrary, ar, embedded = false }: { productId: string; initial: ProductImageDTO[]; canWrite: boolean; canUploadToLibrary: boolean; /** μέσα σε ενότητα (accordion): χωρίς δικό του πλαίσιο και τίτλο */ embedded?: boolean; /** «Δες το στον χώρο σου»: ποια φωτογραφία γεμίζει την πρόσοψη του στερεού (null = αυτόματα η πιο μετωπική) */ ar?: { front: string | null } }) {
   const [images, setImages] = useState(initial);
   const [arFront, setArFront] = useState(ar?.front ?? null);
   const chooseArFront = (url: string | null) => { setArFront(url); start(async () => { await setArFrontImage(productId, url); say(url ? "Αυτή η φωτογραφία είναι πλέον η όψη του στερεού στο AR." : "Η όψη του στερεού επιλέγεται πάλι αυτόματα (η πιο μετωπική)."); }); };
@@ -63,14 +63,14 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
 
   return (
     <section
-      className={`grid gap-4 rounded-2xl border-2 bg-white p-4 transition-colors ${dropFiles ? "border-eu-blue bg-eu-chip/40" : "border-eu-line"}`}
+      className={`grid gap-4 transition-colors ${embedded ? `rounded-xl ${dropFiles ? "outline-2 outline-dashed outline-eu-blue bg-eu-chip/40" : ""}` : `rounded-2xl border-2 bg-white p-4 ${dropFiles ? "border-eu-blue bg-eu-chip/40" : "border-eu-line"}`}`}
       onDragOver={(e) => { if (canWrite && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropFiles(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropFiles(false); }}
       onDrop={(e) => { if (canWrite && e.dataTransfer.files.length) { e.preventDefault(); setDropFiles(false); addFiles(e.dataTransfer.files); } }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Φωτογραφίες <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
+          <h3 className={embedded ? "sr-only" : "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]"}>Φωτογραφίες <span className="text-eu-muted font-normal tabular-nums">· {visible.length}</span></h3>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η πρώτη είναι η κύρια. Σύρε για να αλλάξεις σειρά, ή χρησιμοποίησε τα βελάκια. Κάθε αλλαγή αποθηκεύεται αμέσως.{ar ? <> Η «Όψη AR» μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου»{arFront ? "" : " — τώρα επιλέγεται αυτόματα η πιο μετωπική"}.</> : null}</p>
         </div>
         {canWrite && (
