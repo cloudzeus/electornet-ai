@@ -26,11 +26,12 @@ interface Msg {
   /** ποια προϊόντα πρότεινε ο Ερμής σε αυτόν τον γύρο — για να ξέρει τι είναι «αυτά» στον επόμενο */
   products?: string[];
 }
-type AnswerLike = { text: string; products: { id?: string; slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string } };
+type AnswerLike = { text: string; products: { id?: string; slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string }; links?: { label: string; href: string }[] };
 const CHAT_KEY = "eu-aris-chat";
 const WELCOME_KEY = "eu-aris-welcomed";
 const chipsOf = (ans: AnswerLike) => [
   ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} ${p.price > 0 ? ` · ${p.price.toLocaleString("el-GR")} €` : ""}${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
+  ...(ans.links ?? []),
   ...(ans.href ? [ans.href] : []),
 ];
 
@@ -227,7 +228,7 @@ export function AdvisorOrb() {
           q: "Θέλω να μιλήσω με το κατάστημα",
           a: () => ({
             role: "advisor",
-            text: "Το κοντινότερο κατάστημα είναι το ΜΠΡΙΛΑΚΗ ΑΦΟΙ Ε.Ε. (3,6 km), ανοιχτό έως 21:00. Να ζητήσω να σε πάρουν;",
+            text: "Πες μου τη διεύθυνση, την περιοχή ή τον Τ.Κ. σου και θα σου πω το κοντινότερο κατάστημα, με τηλέφωνο και ωράριο.",
             chips: [{ label: "Καταστήματα", href: "/katastimata" }],
           }),
         },

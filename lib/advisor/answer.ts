@@ -12,6 +12,8 @@ export interface AdvisorAnswer {
   text: string;
   products: { id: string; slug: string; brand: string; title: string; price: number; wasPrice?: number; image: string | null; why: string; fit?: "fits" | "tight" | "no" }[];
   href?: { label: string; href: string };
+  /** extra links (e.g. the nearest stores) */
+  links?: { label: string; href: string }[];
 }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

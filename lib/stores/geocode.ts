@@ -7,12 +7,16 @@ import { db } from "@/lib/db";
  */
 export interface GeoResult { lat: number; lng: number; label: string; score: number }
 
-export async function geocodeAddress(q: string): Promise<GeoResult | null> {
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=gr&accept-language=el&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { headers: { "User-Agent": "euronics-redesign/1.0 (store locator; admin@euronics.gr)" }, signal: AbortSignal.timeout(15000) });
+export async function geocodeAddress(q: string, opts: { timeoutMs?: number; preferPlace?: boolean } = {}): Promise<GeoResult | null> {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${opts.preferPlace ? 5 : 1}&countrycodes=gr&accept-language=el&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers: { "User-Agent": "euronics-redesign/1.0 (store locator; admin@euronics.gr)" }, signal: AbortSignal.timeout(opts.timeoutMs ?? 15000) });
   if (!res.ok) return null;
-  const j = (await res.json()) as { lat: string; lon: string; display_name: string; importance?: number }[];
-  const r = j[0];
+  const j = (await res.json()) as { lat: string; lon: string; display_name: string; importance?: number; category?: string }[];
+  // preferPlace (διεύθυνση πελάτη): μόνο οδοί, κτίρια, οικισμοί — ποτέ επιχείρηση με το ίδιο όνομα («Ηράκλειο Κρήτης» = κατάστημα ρούχων)·
+  // και ανάμεσά τους ο οικισμός όταν είναι σαφώς πιο σημαντικός από έναν ομώνυμο δρόμο
+  const ok = opts.preferPlace ? j.filter((x) => ["place", "boundary", "highway", "building", "landuse", "railway"].includes(x.category ?? "")) : j;
+  let r = ok[0];
+  if (opts.preferPlace && r) { const place = ok.find((x) => (x.category === "place" || x.category === "boundary") && (x.importance ?? 0) > (r.importance ?? 0) + 0.15); if (place) r = place; }
   return r ? { lat: Number(r.lat), lng: Number(r.lon), label: r.display_name, score: r.importance ?? 0 } : null;
 }
 
