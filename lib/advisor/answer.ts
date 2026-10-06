@@ -14,7 +14,10 @@ export interface AdvisorAnswer {
   href?: { label: string; href: string };
   /** extra links (e.g. the nearest stores) */
   links?: { label: string; href: string }[];
+  /** χάρτης: η διεύθυνση του πελάτη και τα κοντινότερα καταστήματα */
+  map?: AdvisorMap;
 }
+export interface AdvisorMap { home: { lat: number; lng: number; label: string }; stores: { name: string; address: string; city: string; phone: string | null; km: number; today: string; slug: string; lat: number; lng: number }[] }
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 

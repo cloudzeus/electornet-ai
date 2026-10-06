@@ -7,8 +7,8 @@ import { geocodeAddress, distanceKm, type GeoResult } from "@/lib/stores/geocode
  * απόσταση σε ευθεία από τις συντεταγμένες των καταστημάτων. Ο Nominatim θέλει ≤ 1 αίτημα/δευτερόλεπτο και cache:
  * τα αιτήματα μπαίνουν σε σειρά και κάθε αποτέλεσμα κρατιέται μία μέρα. Χωρίς geocoding: ταίριασμα πόλης / Τ.Κ. στα καταστήματα.
  */
-export interface NearStore { name: string; address: string; city: string; zip: string; phone: string | null; km: number; today: string; openNow: boolean; services: string[]; slug: string }
-export interface NearResult { searched: string; found: boolean; located: string | null; stores: NearStore[] }
+export interface NearStore { name: string; address: string; city: string; zip: string; phone: string | null; km: number; today: string; openNow: boolean; services: string[]; slug: string; lat: number; lng: number }
+export interface NearResult { searched: string; found: boolean; located: string | null; /** το σημείο της διεύθυνσης του πελάτη (ή της περιοχής του) */ origin: { lat: number; lng: number } | null; stores: NearStore[] }
 
 const DAY = 864e5;
 const geoCache = new Map<string, { at: number; r: GeoResult | null }>();
@@ -61,7 +61,7 @@ export async function nearestStores(place: string, take = 3): Promise<NearResult
     const m = rows.find((s) => zip && s.zip.replace(/\s/g, "") === zip[1] + zip[2]) ?? rows.find((s) => s.city.length > 3 && n.includes(norm(s.city)));
     if (m) origin = { lat: m.lat, lng: m.lng };
   }
-  if (!origin) return { searched, found: false, located: null, stores: [] };
+  if (!origin) return { searched, found: false, located: null, origin: null, stores: [] };
 
   const now = athensNow();
   const stores = rows
@@ -74,8 +74,8 @@ export async function nearestStores(place: string, take = 3): Promise<NearResult
       return {
         name: s.name, address: s.address, city: s.city, zip: s.zip, phone: s.phone ?? s.mobile ?? null, km: Math.round(km * 10) / 10,
         today: open ? `σήμερα ${h!.open}–${h!.close}` : "σήμερα κλειστό", openNow: open && now.hm >= h!.open && now.hm < h!.close,
-        services: (Array.isArray(s.services) ? (s.services as string[]) : []).map((x) => SERVICES[x] ?? x), slug: s.slug,
+        services: (Array.isArray(s.services) ? (s.services as string[]) : []).map((x) => SERVICES[x] ?? x), slug: s.slug, lat: s.lat, lng: s.lng,
       };
     });
-  return { searched, found: true, located: geo?.label.split(",").slice(0, 3).join(",").trim() ?? null, stores };
+  return { searched, found: true, located: geo?.label.split(",").slice(0, 3).join(",").trim() ?? null, origin, stores };
 }

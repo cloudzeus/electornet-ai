@@ -16,6 +16,8 @@ import { useMySpace } from "@/components/space/MySpaceProvider";
 import { fitVerdict } from "@/lib/space/fit";
 import { StoreHandoff } from "./StoreHandoff";
 import { copyOf } from "@/lib/cms/copy";
+import { NearbyMapPreview, NearbyMapDialog } from "./NearbyMap";
+import type { AdvisorMap } from "@/lib/advisor/answer";
 
 const c = copyOf("advisorOrb");
 
@@ -25,8 +27,10 @@ interface Msg {
   chips?: { label: string; href: string }[];
   /** ποια προϊόντα πρότεινε ο Ερμής σε αυτόν τον γύρο — για να ξέρει τι είναι «αυτά» στον επόμενο */
   products?: string[];
+  /** χάρτης με τη διεύθυνση του πελάτη και τα κοντινότερα καταστήματα */
+  map?: AdvisorMap;
 }
-type AnswerLike = { text: string; products: { id?: string; slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string }; links?: { label: string; href: string }[] };
+type AnswerLike = { text: string; products: { id?: string; slug: string; brand: string; title: string; price: number; fit?: string }[]; href?: { label: string; href: string }; links?: { label: string; href: string }[]; map?: AdvisorMap };
 const CHAT_KEY = "eu-aris-chat";
 const WELCOME_KEY = "eu-aris-welcomed";
 const chipsOf = (ans: AnswerLike) => [
@@ -60,6 +64,7 @@ export function AdvisorOrb() {
   useEffect(() => { if (!typing) return; const t = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 1800); return () => { clearInterval(t); setTimeout(() => setStep(0), 0); }; }, [typing]); // eslint-disable-line react-hooks/exhaustive-deps
   const [input, setInput] = useState("");
   const [handoff, setHandoff] = useState(false);
+  const [mapView, setMapView] = useState<AdvisorMap | null>(null);
   const askRef = useRef<((q: string) => void) | null>(null);
   const voice = useVoice();
   const greeted = useRef(false);
@@ -136,10 +141,11 @@ export function AdvisorOrb() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    // Esc: πρώτα κλείνει ο μεγάλος χάρτης, μετά το παράθυρο
+    const onKey = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (mapView) setMapView(null); else setOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, mapView]);
 
   useEffect(() => {
     list.current?.scrollTo({
@@ -269,7 +275,7 @@ export function AdvisorOrb() {
           return;
         }
         if (ans.state) advisorState.current = ans.state;
-        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans), products: ans.products.map((p) => p.id).filter((x): x is string => !!x) }]);
+        setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans), map: ans.map, products: ans.products.map((p) => p.id).filter((x): x is string => !!x) }]);
         say(ans.text);
       })
       .catch(() => {
@@ -391,6 +397,7 @@ export function AdvisorOrb() {
                   className={`max-w-[88%] rounded-2xl px-4 py-3 text-[length:var(--fs-15)] leading-snug ${m.role === "user" ? "justify-self-end bg-eu-navy text-white rounded-br-md" : "justify-self-start bg-white border border-eu-line text-eu-ink rounded-bl-md"}`}
                 >
                   {m.text}
+                  {m.map && <NearbyMapPreview map={m.map} onOpen={() => setMapView(m.map!)} />}
                   {m.chips && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {m.chips.map((c) =>
@@ -512,6 +519,7 @@ export function AdvisorOrb() {
           </div>
         </div>
       )}
+      {mapView && <NearbyMapDialog map={mapView} onClose={() => setMapView(null)} />}
     </>
   );
 }

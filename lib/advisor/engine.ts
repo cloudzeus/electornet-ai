@@ -444,6 +444,7 @@ export async function smartAdvisor(input: AdvisorInput, ctx: AdvisorContext): Pr
   return {
     q: input.q, understood: u.understood, text, products,
     href: chosen.length ? { label: `Όλα: ${chosen[0].node.name}`, href: `${hrefOf(chosen[0].path)}${u.maxPrice ? `?max=${u.maxPrice}` : ""}` } : undefined,
+    map: near?.found && near.origin ? { home: { ...near.origin, label: near.searched }, stores: near.stores.slice(0, 2).map(({ name, address, city, phone, km, today, slug, lat, lng }) => ({ name, address, city, phone, km, today, slug, lat, lng })) } : undefined,
     links: near?.found ? near.stores.slice(0, 2).map((st) => ({ label: `${st.city}: ${st.name} · ${st.km.toLocaleString("el-GR")} km`, href: `/katastimata/${st.slug}` })) : undefined,
     state, shown: [...new Set([...shownIds, ...products.map((p) => p.id)])].slice(-12),
   };
