@@ -266,7 +266,12 @@ export async function streamSpeech(rawText: string, opts: { key?: string } = {})
   // ffmpeg in pass-through mode: raw pcm in → tempo-adjusted raw pcm out, chunk by chunk
   let proc: ReturnType<typeof spawn> | null = null;
   if (tempo !== 1) {
-    try { proc = spawn(ff, ["-hide_banner", "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", "-filter:a", `atempo=${tempo.toFixed(2)}`, "-flush_packets", "1", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "pipe:1"]); proc.on("error", () => { proc = null; }); proc.stdin?.on("error", () => {}); } catch { proc = null; }
+    try { proc = spawn(ff, ["-hide_banner", "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", "-filter:a", `atempo=${tempo.toFixed(2)}`, "-flush_packets", "1", "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "pipe:1"]); proc.stdin?.on("error", () => {}); } catch { proc = null; }
+    // Χωρίς ffmpeg στον server το spawn αποτυγχάνει ασύγχρονα και το «close» του έκλεινε τη ροή πριν φτάσει ήχος (0 bytes,
+    // ο Ερμής σιωπούσε). Περιμένουμε να ξεκινήσει πραγματικά· αλλιώς ο ήχος πάει όπως είναι, σε φυσική ταχύτητα.
+    const p = proc;
+    if (p && !(await new Promise<boolean>((r) => { p.once("spawn", () => r(true)); p.once("error", () => r(false)); }))) proc = null;
+    proc?.on("error", () => { proc = null; });
   }
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   let closed = false;

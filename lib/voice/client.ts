@@ -25,7 +25,11 @@ export function useVoice() {
   const provider = useRef<"openrouter" | "elevenlabs">("openrouter");
   const [speakOn, setSpeakOnState] = useState(false);
   /** στη συνομιλία μίλησε με τη φωνή του: απαντάμε φωναχτά, χωρίς να αλλάξει η μόνιμη επιλογή του */
-  const [voiceTurn, setVoiceTurn] = useState(false);
+  const [voiceTurn, setVoiceTurnState] = useState(false);
+  // Το speak() διαβάζει τις τρέχουσες τιμές από refs: όταν ο επισκέπτης μιλά στο μικρόφωνο, η ερώτηση και η απάντηση φεύγουν
+  // από closures του προηγούμενου render (voiceTurn ακόμη false) και ο Ερμής σιωπούσε.
+  const live = useRef({ enabled: false, speakOn: false, voiceTurn: false });
+  const setVoiceTurn = useCallback((v: boolean) => { live.current.voiceTurn = v; setVoiceTurnState(v); }, []);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -40,10 +44,10 @@ export function useVoice() {
 
   useEffect(() => {
     let on = true;
-    void voiceConfig().then((j) => { if (on) { setEnabled(!!j.enabled); rate.current = j.rate || 1; provider.current = j.provider ?? "openrouter"; } });
+    void voiceConfig().then((j) => { if (on) { live.current.enabled = !!j.enabled; setEnabled(!!j.enabled); rate.current = j.rate || 1; provider.current = j.provider ?? "openrouter"; } });
     // Ηχείο ΚΛΕΙΣΤΟ εκτός αν ο επισκέπτης το άνοιξε ο ίδιος (η επιλογή του μένει). Μιλάει επίσης όταν ο επισκέπτης
     // του μίλησε με το μικρόφωνο — φωνή απαντά σε φωνή, γραπτό σε γραπτό. Ποτέ ήχος χωρίς δική του ενέργεια.
-    try { const v = localStorage.getItem(KEY); if (v === "1") setTimeout(() => on && setSpeakOnState(true), 0); } catch {}
+    try { const v = localStorage.getItem(KEY); if (v === "1") setTimeout(() => { if (on) { live.current.speakOn = true; setSpeakOnState(true); } }, 0); } catch {}
     return () => { on = false; };
   }, []);
 
@@ -75,10 +79,10 @@ export function useVoice() {
   }, [enabled]);
 
   const setSpeakOn = useCallback((v: boolean) => {
-    setSpeakOnState(v);
+    live.current.speakOn = v; setSpeakOnState(v);
     try { localStorage.setItem(KEY, v ? "1" : "0"); } catch {}
     if (!v) { setVoiceTurn(false); gen.current++; audio.current?.pause(); stopPcm(); setSpeaking(false); }
-  }, [stopPcm]);
+  }, [stopPcm, setVoiceTurn]);
 
   /** Split an answer into sentence-sized parts: each is cached on its own and the first one starts playing while the rest are still being fetched. */
   const parts = (text: string) => {
@@ -148,6 +152,7 @@ export function useVoice() {
     await new Promise<void>((r) => setTimeout(r, remaining * 1000 + 30));
   };
   const speak = useCallback(async (text: string, key?: string) => {
+    const { enabled, speakOn, voiceTurn } = live.current;
     if (!enabled || !(speakOn || voiceTurn)) return;
     const my = ++gen.current;
     // ElevenLabs: ΟΛΗ η απάντηση σε ένα αίτημα ροής — ο πρώτος ήχος έρχεται σε < 1 s, η στίξη και ο ρυθμός μένουν σωστά, και δεν
@@ -169,7 +174,7 @@ export function useVoice() {
         if (my !== gen.current) return;
       }
     } finally { if (my === gen.current) setSpeaking(false); }
-  }, [enabled, speakOn, voiceTurn]);
+  }, []); // reads live.current
 
   const stop = useCallback(() => {
     if (stopTimer.current) clearTimeout(stopTimer.current);
@@ -247,9 +252,9 @@ export function useVoice() {
       if (res.ok && j.text) { setVoiceTurn(true); return { text: j.text }; }
       return { text: "", error: "failed" };
     } catch { return { text: "", error: "failed" }; } finally { setTranscribing(false); }
-  }, [enabled, stopPcm]);
+  }, [enabled, stopPcm, setVoiceTurn]);
 
   /** ο επισκέπτης έγραψε: από εδώ και πέρα γραπτές απαντήσεις (εκτός αν έχει ανοίξει μόνιμα το ηχείο) */
-  const typed = useCallback(() => setVoiceTurn(false), []);
+  const typed = useCallback(() => setVoiceTurn(false), [setVoiceTurn]);
   return { enabled, speakOn, setSpeakOn, speak, playPreset, listen, stop, listening, speaking, transcribing, voiceTurn, typed };
 }
