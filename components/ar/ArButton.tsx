@@ -50,6 +50,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   const [copied, setCopied] = useState(false);
   const [added, setAdded] = useState(false);
   const holder = useRef<HTMLDivElement>(null);
+  const directRef = useRef<HTMLSpanElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const mvRef = useRef<(HTMLElement & { cameraOrbit?: string; activateAR?: () => Promise<void> }) | null>(null);
@@ -241,6 +242,25 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   const wallShown = placement === "wall" && ((isQl && ios) || ((env === "sceneviewer" || env === "inapp-android") && !noSceneViewer));
   const launchReserve = wallShown ? "bottom-[8.5rem]" : launchShown ? "bottom-[5.25rem]" : "bottom-0";
   const direct = env === "quicklook" ? !!ios : env === "sceneviewer";
+  // Πριν πατήσει: το εγγενές AR δείχνει αμέσως την κάμερα, αλλά τη συσκευή μόνο αφού φορτώσει το αρχείο και αναγνωρίσει
+  // την επιφάνεια (στο iPhone μετρήσαμε 1,6″ στον τοίχο έως 8″ στο πάτωμα). Χωρίς οδηγία ο πελάτης βλέπει «κάμερα χωρίς τίποτα» και φεύγει.
+  const howTo = placement === "wall"
+    ? "Ανοίγει η κάμερα: στόχευσε τον τοίχο από 1–2 μέτρα και κούνα αργά το κινητό δεξιά-αριστερά. Η συσκευή εμφανίζεται μόλις αναγνωριστεί ο τοίχος."
+    : `Ανοίγει η κάμερα: στόχευσε ${SURFACE_TARGET[surface]} 1–2 μέτρα μπροστά σου και κούνα αργά το κινητό. Η συσκευή εμφανίζεται σε λίγα δευτερόλεπτα.`;
+  // Προφόρτωση: μόλις το κουμπί φανεί στην οθόνη, το αρχείο του AR κατεβαίνει στην cache (και χτίζεται στον server αν
+  // είναι η πρώτη φορά) — στο πάτημα το Quick Look / Scene Viewer το βρίσκουν έτοιμο αντί να περιμένουν δίκτυο.
+  useEffect(() => {
+    if (!direct || !directRef.current) return;
+    const url = env === "sceneviewer" ? glbFor(surface) : usdzFor(surface);
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      void fetch(url, { cache: "force-cache", priority: "low" } as RequestInit).catch(() => {});
+    }, { rootMargin: "200px" });
+    io.observe(directRef.current);
+    return () => io.disconnect();
+  }, [direct, env, surface, id, version]); // eslint-disable-line react-hooks/exhaustive-deps -- glbFor/usdzFor εξαρτώνται μόνο από id/version
+
 
   // Ίδια θέση πριν και μετά το hydration (το env ξέρουμε μόνο στον browser): στον server ένα απλό κουμπί προεπισκόπησης
   const launchCls = "absolute left-1/2 -translate-x-1/2 bottom-4 z-10 inline-flex items-center justify-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-6 min-h-14 shadow-[var(--shadow-overlay)] whitespace-nowrap no-underline text-[length:var(--fs-16)]";
@@ -251,7 +271,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   return (
     <>
       {direct ? (
-        <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span ref={directRef} className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
           {env === "sceneviewer" ? (
             <a href={sceneViewer()} onClick={watchLaunch} className={pill}>{label}</a>
           ) : qlLink(surface, pill, label, "Δες το στον χώρο σου")}
@@ -265,6 +285,7 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
             </span>
           )}
           {added && <span role="status" className="basis-full inline-flex items-center gap-1.5 text-eu-green font-bold text-[length:var(--fs-14)]"><Check className="size-4" aria-hidden /> Μπήκε στο καλάθι</span>}
+          <span className="basis-full inline-flex items-start gap-1.5 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug max-w-[34rem]"><Smartphone className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />{howTo}</span>
           {hint && <span className="basis-full inline-flex items-start gap-1.5 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug max-w-[34rem]"><Box className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />{hint}</span>}
         </span>
       ) : (
