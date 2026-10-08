@@ -11,7 +11,6 @@ import { arPlan } from "@/lib/ar/plan";
 import { invalidateArIndex } from "@/lib/ar/index";
 import { forgetArLookup } from "@/lib/ar/serve";
 import { readAsset } from "@/lib/ar/serve";
-import { startGeneration, advanceGeneration } from "@/lib/ar/generate";
 
 /** Μετά από κάθε αλλαγή: νέα απόφαση στη σελίδα, στον server των μοντέλων και στα φίλτρα της διαχείρισης */
 /**
@@ -75,23 +74,6 @@ export async function detachArModel(productId: string, kind: "glb" | "usdz") {
   await audit(user.id, "ar.model.detach", "ProductAr", productId, null, { kind });
   paths(productId);
   return { ok: true as const };
-}
-
-/** 3D από φωτογραφία με το Tripo3D: ξεκινά τη δημιουργία και επιστρέφει την εγγραφή για παρακολούθηση. */
-export async function generateArModel(productId: string, imageUrl: string, views: { left?: string; back?: string; right?: string } = {}) {
-  const user = await requirePermission("catalog.products.write");
-  const g = await startGeneration(productId, imageUrl, user.id, views);
-  await audit(user.id, "ar.generate.start", "ArGeneration", g.id, null, { productId, imageUrl, status: g.status, error: g.error });
-  paths(productId);
-  return JSON.parse(JSON.stringify(g)) as typeof g;
-}
-
-/** Η οθόνη ρωτά κάθε λίγα δευτερόλεπτα· κάθε κλήση προχωρά τη ροή κατά ένα βήμα. */
-export async function pollArGeneration(genId: string) {
-  await requirePermission("catalog.products.read");
-  const g = await advanceGeneration(genId);
-  if (g && (g.status === "done" || g.status === "failed")) paths(g.productId);
-  return g ? (JSON.parse(JSON.stringify(g)) as typeof g) : null;
 }
 
 /** Η φωτογραφία που γεμίζει την πρόσοψη του στερεού όταν δεν υπάρχει 3D μοντέλο. null = αυτόματα η πιο μετωπική. */

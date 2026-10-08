@@ -5,8 +5,7 @@ import { getProductsByIds } from "@/lib/data/repo";
 import { dimsFor } from "@/lib/data/dims";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Pagination } from "@/components/admin/Pagination";
-import { ArRow, type ArRowData, type GenData } from "./ArRow";
-import { tripoBalance, hasTripoKey } from "@/lib/tripo/client";
+import { ArRow, type ArRowData } from "./ArRow";
 import { profileFor } from "@/lib/ar/placement";
 import { arPlan } from "@/lib/ar/plan";
 import { arIndex, arSearchText, type ArIndexRow } from "@/lib/ar/index";
@@ -39,20 +38,17 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
   await requirePermission("catalog.products.read");
   const { q = "", f = "", page: p = "1" } = await searchParams;
   const page = Math.max(1, Number(p) || 1);
-  const tripoOn = await hasTripoKey();
-  const [index, balance] = await Promise.all([arIndex(), tripoOn ? tripoBalance().catch(() => null) : Promise.resolve(null)]);
+  const index = await arIndex();
   const nq = arSearchText(q.trim());
   const filter = FILTERS.find((x) => x.v === f) ?? FILTERS[0];
   const rows = index.filter((r) => (!nq || r.text.includes(nq)) && filter.test(r));
   const total = rows.length, pages = Math.max(1, Math.ceil(total / PAGE));
   const ids = rows.slice((page - 1) * PAGE, page * PAGE).map((r) => r.id);
-  const [prods, settings, gens] = await Promise.all([
+  const [prods, settings] = await Promise.all([
     getProductsByIds(ids),
     db.productAr.findMany({ where: { productId: { in: ids } } }),
-    db.arGeneration.findMany({ where: { productId: { in: ids } }, orderBy: { createdAt: "desc" }, distinct: ["productId"] }),
   ]);
   const byId = new Map(settings.map((s) => [s.productId, s]));
-  const genBy = new Map(gens.map((g) => [g.productId, g]));
   const prodBy = new Map(prods.map((x) => [x.id, x]));
   const slice: ArRowData[] = ids.flatMap((id) => {
     const pr = prodBy.get(id);
@@ -69,7 +65,6 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
       modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
       glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: prof.surface, autoHint: prof.hint,
       images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x))],
-      gen: (() => { const g = genBy.get(pr.id); return g ? (JSON.parse(JSON.stringify(g)) as GenData) : null; })(),
     }];
   });
   const href = (n: number) => `?${new URLSearchParams({ q, f, page: String(n) })}`;
@@ -84,7 +79,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Το AR είναι <b>αυτόματα ενεργό</b> σε κάθε προϊόν με ελεγμένες διαστάσεις και φωτογραφία, εκτός από μικρές/προσωπικές συσκευές και αξεσουάρ· εδώ βλέπεις γιατί ένα προϊόν δεν έχει AR, το ανοίγεις ή το κλείνεις ρητά, ή ανεβάζεις δικό σου μοντέλο. Χωρίς δικό μας μοντέλο, ο πελάτης βλέπει τον όγκο της συσκευής σε πραγματική κλίμακα με τη φωτογραφία της, από τις διαστάσεις (EPREL, ERP ή τυπικές). Με ανεβασμένο GLB του κατασκευαστή βλέπει το ίδιο το προϊόν σε 3D· το USDZ για iPhone είναι προαιρετικό, αλλιώς μετατρέπεται στη συσκευή.</p>
       </div>
 
-      <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3"><b className="text-eu-ink">{enabled.toLocaleString("el-GR")}</b> προϊόντα με AR από <b className="text-eu-ink">{index.length.toLocaleString("el-GR")}</b> · <b className="text-eu-ink">{custom}</b> με δικό μας μοντέλο · <b className="text-eu-ink">{fixed}</b> με διαστάσεις που διορθώθηκαν αυτόματα · <b className={bounds ? "text-eu-red" : "text-eu-ink"}>{bounds}</b> κρυφά επειδή οι διαστάσεις είναι εκτός λογικών ορίων (διόρθωσέ τες στις Διαστάσεις του καταλόγου). Τα μοντέλα της γεννήτριας αποθηκεύονται στο Bunny CDN (φάκελος ar/). {tripoOn ? <>Tripo3D: <b className="text-eu-ink">{balance ? balance.balance.toLocaleString("el-GR") : "—"}</b> credits{balance && balance.balance <= 0 ? <span className="text-eu-red font-bold"> — χωρίς credits η δημιουργία 3D από φωτογραφία δεν θα τρέξει· αγόρασε στο platform.tripo3d.ai</span> : null}. Το κόστος κάθε μοντέλου μπαίνει στην αναφορά κόστους AI.</> : "Λείπει το κλειδί Tripo3D (Ρυθμίσεις → AI)."}</p>
+      <p className="m-0 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] text-eu-ink-3"><b className="text-eu-ink">{enabled.toLocaleString("el-GR")}</b> προϊόντα με AR από <b className="text-eu-ink">{index.length.toLocaleString("el-GR")}</b> · <b className="text-eu-ink">{custom}</b> με δικό μας μοντέλο · <b className="text-eu-ink">{fixed}</b> με διαστάσεις που διορθώθηκαν αυτόματα · <b className={bounds ? "text-eu-red" : "text-eu-ink"}>{bounds}</b> κρυφά επειδή οι διαστάσεις είναι εκτός λογικών ορίων (διόρθωσέ τες στις Διαστάσεις του καταλόγου). Τα μοντέλα της γεννήτριας αποθηκεύονται στο Bunny CDN (φάκελος ar/).</p>
 
       <form className="grid gap-2 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,18rem)_auto] items-end">
         <label className="grid gap-1 text-[length:var(--fs-13)] font-bold text-eu-ink-2">Αναζήτηση

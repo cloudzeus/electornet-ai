@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check, Sparkles } from "lucide-react";
-import { setArEnabled, setArFit, attachArModel, detachArModel, generateArModel, pollArGeneration, rotateArModel, setArPlacement, setArFrontImage } from "./actions";
+import { useRef, useState, useTransition } from "react";
+import { Loader2, Upload, Trash2, ExternalLink, AlertTriangle, Check } from "lucide-react";
+import { setArEnabled, setArFit, attachArModel, detachArModel, rotateArModel, setArPlacement, setArFrontImage } from "./actions";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import type { MediaAssetDTO } from "@/lib/media/types";
 
@@ -13,61 +13,7 @@ export interface ArRowData {
   /** υπάρχει ρητή ρύθμιση από τη διαχείριση */
   explicit: boolean;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; gen: GenData | null; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "furniture" | "counter" | "wall"; autoHint: string; frontImage: string | null;
-}
-export interface GenData { id: string; status: string; step: string | null; progress: number; error: string | null; fullUrl: string | null; lightUrl: string | null; fullBytes: number | null; lightBytes: number | null; renderUrl: string | null; imageUrl: string; createdAt: string | Date; creditsFull: number | null; creditsLight: number | null; views?: unknown }
-
-const kb = (n: number | null) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
-
-/**
- * 3D από φωτογραφία (Tripo3D). Επιλογή εικόνας, εκκίνηση, και παρακολούθηση
- * κάθε 5 s όσο τρέχει· όταν τελειώσει, το μοντέλο έχει ήδη δεθεί με το προϊόν.
- */
-function Generate({ productId, images, gen: g0, onModel }: { productId: string; images: string[]; gen: GenData | null; onModel: (box?: { w: number; h: number; d: number }) => void }) {
-  const [gen, setGen] = useState<GenData | null>(g0);
-  const [img, setImg] = useState(images[0] ?? "");
-  const [views, setViews] = useState<{ left?: string; back?: string; right?: string }>({});
-  const [more, setMore] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const active = !!gen && ["queued", "running", "converting"].includes(gen.status);
-  useEffect(() => {
-    if (!active || !gen) return;
-    const t = setInterval(async () => { const n = await pollArGeneration(gen.id); if (n) { setGen(n); if (n.status === "done" || (n.status === "converting" && n.fullUrl)) onModel(); } }, 5000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, gen?.id]);
-  const start = async () => { if (!img) return; setBusy(true); try { setGen(await generateArModel(productId, img, views)); } finally { setBusy(false); } };
-  const name = (u: string) => `${u.includes("/cutouts/") ? "Cutout · " : ""}${u.split("/").pop()}`;
-  return (
-    <div className="grid gap-1.5 min-w-0 text-[length:var(--fs-13)]">
-      {gen && (
-        <div className={`rounded-lg px-2.5 py-1.5 ${gen.status === "failed" ? "bg-eu-red/10 text-eu-red" : gen.status === "done" ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-ink-3"}`}>
-          {active && <span className="inline-flex items-center gap-1.5"><Loader2 className="size-3.5 animate-spin" aria-hidden /> {gen.step ?? "Σε εξέλιξη"} · {gen.progress}%</span>}
-          {gen.status === "done" && <span className="font-bold">Έτοιμο{gen.views ? " (πολλαπλές όψεις)" : ""}: πλήρες {kb(gen.fullBytes)}{gen.lightUrl ? ` · ελαφρύ ${kb(gen.lightBytes)}` : ""}{gen.creditsFull != null ? ` · κόστος ${gen.creditsFull + (gen.creditsLight ?? 0)} credits` : ""}{gen.error ? ` · ${gen.error}` : ""}</span>}
-          {gen.status === "failed" && <span className="font-bold">{gen.error ?? "Απέτυχε."}</span>}
-        </div>
-      )}
-      {!active && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <select value={img} onChange={(e) => setImg(e.target.value)} aria-label="Φωτογραφία για 3D" className="rounded-lg border border-eu-line px-2 min-h-9 bg-white max-w-[180px] truncate">
-            {images.map((u) => <option key={u} value={u}>{u.includes("/cutouts/") ? "Cutout · " : ""}{u.split("/").pop()}</option>)}
-          </select>
-          <button type="button" disabled={busy || !img} onClick={start} className={small}>{busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />} {gen ? "Ξανά" : "Δημιουργία 3D"}</button>
-          {images.length > 1 && <button type="button" onClick={() => setMore((m) => !m)} className="text-eu-blue font-bold underline">{more ? "Λιγότερες όψεις" : "Περισσότερες όψεις"}</button>}
-        </div>
-      )}
-      {!active && more && (
-        <div className="grid gap-1 rounded-lg bg-eu-surface p-2">
-          <div className="text-eu-muted">Η μπροστινή όψη είναι η παραπάνω· δώσε και πλαϊνές/πίσω για σωστό βάθος.</div>
-          {(["left", "back", "right"] as const).map((k) => (
-            <label key={k} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">{k === "left" ? "Αριστερά" : k === "back" ? "Πίσω" : "Δεξιά"}
-              <select value={views[k] ?? ""} onChange={(e) => setViews((v) => ({ ...v, [k]: e.target.value || undefined }))} className="rounded-lg border border-eu-line px-2 min-h-8 bg-white truncate"><option value="">—</option>{images.map((u) => <option key={u} value={u}>{name(u)}</option>)}</select>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  glbLightUrl: string | null; source: string | null; images: string[]; rotationY: number; fitMode: string; placement: string | null; autoPlacement: "floor" | "furniture" | "counter" | "wall"; autoHint: string; frontImage: string | null;
 }
 
 const SOURCE: Record<string, string> = { eprel: "EPREL (χωρίς προεξοχές)", specs: "κατασκευαστής", category: "τυπικές κατηγορίας" };
@@ -130,7 +76,7 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           {r.enabled && <a href={`/proion/${r.slug}?ar=1`} target="_blank" rel="noreferrer" className={`${small} min-h-11 no-underline`}><ExternalLink className="size-3.5" aria-hidden /> Προεπισκόπηση</a>}
         </div>
       </header>
-      <div className="grid gap-3 @3xl:grid-cols-[repeat(4,minmax(0,1fr))] border-t border-eu-line pt-3">
+      <div className="grid gap-3 @3xl:grid-cols-[repeat(3,minmax(0,1fr))] border-t border-eu-line pt-3">
       <section className="min-w-0 grid content-start gap-1" aria-label="Τοποθέτηση και διαστάσεις">
         <label className="mb-1.5 grid gap-1 text-[length:var(--fs-13)] text-eu-ink-3">Τοποθέτηση
           <select value={r.placement ?? ""} disabled={pending} title={r.autoHint} onChange={(e) => { const v = (e.target.value || null) as "floor" | "furniture" | "counter" | "wall" | null; setR({ ...r, placement: v }); start(async () => { await setArPlacement(r.id, v); }); }} className="rounded-lg border border-eu-line px-2 min-h-11 bg-white w-full">
@@ -170,7 +116,7 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           {r.glbUrl ? (
             <>
               <div className="inline-flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
-                <span className="rounded-full bg-eu-navy text-white font-bold px-2 py-0.5">{r.source === "tripo" ? "3D από φωτογραφία" : "Δικό μας GLB"}</span>
+                <span className="rounded-full bg-eu-navy text-white font-bold px-2 py-0.5">Δικό μας GLB</span>
                 {r.glbLightUrl && <span className="rounded-full bg-eu-green/12 text-eu-green font-bold px-2 py-0.5">+ ελαφριά έκδοση</span>}
                 {r.modelBox && <span className="tabular-nums text-eu-ink-3">μετρήθηκε {r.modelBox.w} × {r.modelBox.h} × {r.modelBox.d} εκ.</span>}
                 {mismatch != null && mismatch > 10 && !r.fitToDims && <span className="inline-flex items-center gap-1 text-eu-amber font-bold"><AlertTriangle className="size-3.5" aria-hidden /> {mismatch}% από το δηλωμένο ύψος</span>}
@@ -196,9 +142,6 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           )}
           {msg && <div className="text-[length:var(--fs-13)] text-eu-ink-3">{msg}</div>}
         </div>
-      </section>
-      <section className="min-w-0" aria-label="3D από φωτογραφία">
-        <Generate productId={r.id} images={r.images} gen={r.gen} onModel={() => setR((x) => ({ ...x, enabled: true, glbUrl: x.glbUrl ?? "✓", source: "tripo" }))} />
       </section>
       </div>
     </article>
