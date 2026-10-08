@@ -26,7 +26,7 @@ import type { Product } from "@/lib/data/types";
 export interface ArInput { id: string; title: string; dims: Dims; /** υποψήφιες φωτογραφίες, cutouts πρώτα */ images: string[]; /** επιλογή διαχειριστή: αυτή γεμίζει την πρόσοψη */ frontImage?: string | null; /** ειδική μορφή (βλ. placement profiles) */ archetype?: "tv"; /** τηλεόραση: πάνελ και βάση (βλ. arPlan) */ tv?: TvSpec }
 export interface ArModel { glb: Buffer; usdz: Buffer; etag: string }
 
-const VERSION = 20; // 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης · 19: πραγματική βάση TV, USDZ κατά ARKit · 20: ένα mesh στον τοίχο, ετικέτες στο μέγεθος της έδρας
+const VERSION = 21; // 21: πάντα συμπαγές στερεό (η φωτογραφία υπό γωνία μπαίνει ολόκληρη στην πρόσοψη) · 17: ρεαλιστικό σώμα · 18: τηλεόραση ως πάνελ με/χωρίς βάση, προφίλ τοποθέτησης · 19: πραγματική βάση TV, USDZ κατά ARKit · 20: ένα mesh στον τοίχο, ετικέτες στο μέγεθος της έδρας
 const mem = new Map<string, ArModel>();
 
 export const arKey = (i: ArInput) => createHash("sha1").update(JSON.stringify({ v: VERSION, id: i.id, w: i.dims.w, h: i.dims.h, d: i.dims.d, imgs: i.images, front: i.frontImage ?? null, a: i.archetype ?? null, tv: i.tv ?? null })).digest("hex").slice(0, 20);
@@ -77,13 +77,15 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
   if (sg && su) { const m = { glb: sg, usdz: su, etag: key }; mem.set(key, m); return m; }
 
   const [logo, picked] = await Promise.all([logoTexture(), pickFront(input.frontImage ? [input.frontImage] : input.images, input.dims.w / input.dims.h, !!input.frontImage, input.dims.h < 0.35 * Math.min(input.dims.w, input.dims.d) ? input.dims.w / input.dims.d : undefined)]);
-  // Με μετωπική φωτογραφία: ρεαλιστικό σώμα στο χρώμα του προϊόντος. Χωρίς (μόνο φωτογραφία υπό γωνία): ο διαφανής όγκος
-  // μέτρησης με τη φωτογραφία όρθια μέσα του — σε συμπαγές σώμα θα κρυβόταν.
-  const solid = picked?.mode === "face" || picked?.mode === "top";
-  const body = solid && picked ? await bodyColorOf(picked) : null;
-  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: picked?.mode ?? "face", aspect: picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels }, style: solid ? "solid" : "volume", bodyColor: body ? toLinear(body) : undefined });
+  // Πάντα συμπαγές στερεό στις διαστάσεις, στο χρώμα του προϊόντος. Η πρόσοψη: η φωτογραφία που διάλεξε ο διαχειριστής
+  // (γεμίζει την έδρα) ή η καλύτερη μετωπική· αν υπάρχει μόνο φωτογραφία υπό γωνία, μπαίνει ολόκληρη, χωρίς παραμόρφωση,
+  // στο κέντρο της πρόσοψης. (Ο παλιός διαφανής όγκος με τις διάστικτες ακμές έβγαζε 30× βαρύτερο USDZ: 3″ φόρτωση στο iPhone.)
+  const solid = true;
+  const angled = picked?.mode === "billboard";
+  const body = picked ? await bodyColorOf(picked) : ([236, 236, 236] as [number, number, number]);
+  const { prims, materials, frontAspect } = buildGeometry({ dims: input.dims, labelAspect: LABEL_ASPECT, logoAspect: logo.aspect, front: { mode: angled ? "face" : picked?.mode ?? "face", aspect: angled ? input.dims.w / input.dims.h : picked?.aspect ?? input.dims.w / input.dims.h }, parts: { labels: withLabels }, style: solid ? "solid" : "volume", bodyColor: body ? toLinear(body) : undefined });
   const [front, lw, lh, ld] = await Promise.all([
-    frontTexture(picked, frontAspect, body ?? undefined),
+    frontTexture(picked, frontAspect, body, angled ? "contain" : "fill"),
     labelTexture("Π", input.dims.w), labelTexture("Υ", input.dims.h), labelTexture("Β", input.dims.d),
   ]);
   const textures = { front, "label-w": lw, "label-h": lh, "label-d": ld, logo: logo.png };

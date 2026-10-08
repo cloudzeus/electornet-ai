@@ -159,7 +159,7 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
                   </select>
                 </span>
               </label>
-              {r.frontImage && <span className="text-eu-muted">Γεμίζει ολόκληρη την πρόσοψη Π×Υ.</span>}
+              <span className="text-eu-muted">{r.frontImage ? "Γεμίζει ολόκληρη την πρόσοψη Π×Υ." : "Αυτόματα: η πιο μετωπική φωτογραφία· αν είναι υπό γωνία, μπαίνει ολόκληρη στο κέντρο της πρόσοψης. Διάλεξε μετωπική για να γεμίσει την έδρα."}</span>
             </>
           )}
           {picker && <MediaPickerDialog accept={["image"]} multiple={false} canWrite onSelect={(a) => { if (a[0]) setFront(a[0].url); setPicker(false); }} onClose={() => setPicker(false)} />}

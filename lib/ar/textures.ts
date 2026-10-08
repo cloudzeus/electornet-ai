@@ -69,11 +69,12 @@ export async function bodyColorOf(front: FrontSource): Promise<[number, number, 
 export const toLinear = (c: [number, number, number]): [number, number, number] => c.map((v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }) as [number, number, number];
 
 /** Η επιλεγμένη φωτογραφία τεντωμένη στον λόγο του επιπέδου που θα τη δείξει (για billboard είναι ο δικός της). bg: αδιαφανής πρόσοψη στο χρώμα του σώματος. */
-export async function frontTexture(front: FrontSource | null, planeAspect: number, bg?: [number, number, number]): Promise<Buffer> {
+export async function frontTexture(front: FrontSource | null, planeAspect: number, bg?: [number, number, number], fit: "fill" | "contain" = "fill"): Promise<Buffer> {
   const W = planeAspect >= 1 ? 1024 : Math.round(1024 * planeAspect), H = planeAspect >= 1 ? Math.round(1024 / planeAspect) : 1024;
   if (!front) return sharp({ create: { width: W, height: H, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } }).png().toBuffer();
   if (bg) {
-    const photo = await sharp(front.trimmed).resize({ width: W, height: H, fit: "fill" }).png().toBuffer();
+    // contain: φωτογραφία υπό γωνία — ολόκληρη, με τις αναλογίες της, στο κέντρο της πρόσοψης· το υπόλοιπο στο χρώμα του σώματος
+    const photo = await sharp(front.trimmed).resize({ width: W, height: H, fit, background: { r: bg[0], g: bg[1], b: bg[2], alpha: 0 } }).png().toBuffer();
     return sharp({ create: { width: W, height: H, channels: 3, background: { r: bg[0], g: bg[1], b: bg[2] } } }).composite([{ input: photo }]).png({ palette: true, quality: 92, compressionLevel: 9 }).toBuffer();
   }
   // PNG με παλέτα: ίδια εμφάνιση, περίπου το ένα τρίτο του μεγέθους — το μοντέλο ανοίγει γρήγορα και σε 4G
