@@ -149,9 +149,11 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
             <Link href={s.primary.href} className="group inline-flex items-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 py-3.5 min-h-12 hover:bg-eu-yellow-dark transition-colors">
               {s.primary.label} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>
-            <Link href={s.secondary.href} className="rounded-full border-2 border-white/40 text-white font-bold text-[length:var(--fs-16)] px-5 py-3 min-h-12 inline-flex items-center hover:border-white hover:bg-white/10 transition-colors">
-              {s.secondary.label}
-            </Link>
+            {s.secondary && (
+              <Link href={s.secondary.href} className="rounded-full border-2 border-white/40 text-white font-bold text-[length:var(--fs-16)] px-5 py-3 min-h-12 inline-flex items-center hover:border-white hover:bg-white/10 transition-colors">
+                {s.secondary.label}
+              </Link>
+            )}
           </div>
           <ul data-copy style={hidden} className="hidden @sm:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
             {s.bullets.map((b, k) => (

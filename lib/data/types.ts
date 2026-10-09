@@ -202,7 +202,7 @@ export interface HeroSlide {
   title: string[];
   body: string;
   primary: { label: string; href: string };
-  secondary: { label: string; href: string };
+  secondary?: { label: string; href: string };
   bullets: string[];
   image: string;
   alt: string;
@@ -212,6 +212,10 @@ export interface HeroSlide {
   productHref?: string;
   /** optional ambient video loop (mp4, muted) behind the slide; the photo stays as poster/fallback */
   video?: string;
+  /** κάθετη φωτογραφία για κινητά (≤ 767px) — art direction */
+  imageMobile?: string;
+  /** τρέχουσα τιμή του προϊόντος του slide */
+  price?: number;
 }
 
 export interface Faq {

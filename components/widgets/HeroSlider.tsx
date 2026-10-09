@@ -73,9 +73,11 @@ export function HeroSlider({ slides, intervalMs = 6000 }: { slides: HeroSlide[];
                   <Link href={s.primary.href} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 py-3.5 min-h-11 inline-flex items-center hover:bg-eu-yellow-dark">
                     {s.primary.label}
                   </Link>
+                  {s.secondary && (
                   <Link href={s.secondary.href} className="rounded-full border-2 border-white/50 text-white font-bold text-[length:var(--fs-16)] px-5 py-3 min-h-11 inline-flex items-center hover:border-white">
                     {s.secondary.label}
                   </Link>
+                  )}
                 </div>
                 <ul className="hidden @sm:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] border-t border-white/20 pt-4">
                   {s.bullets.map((b, k) => (
