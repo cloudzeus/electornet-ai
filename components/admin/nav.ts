@@ -23,7 +23,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Περιεχόμενο",
     items: [
       { href: "/admin/cms/zones", label: "Ζώνες αρχικής", icon: LayoutTemplate, perm: "cms.zones.read", soon: true },
-      { href: "/admin/cms/slides", label: "Hero slides", icon: LayoutTemplate, perm: "cms.slides.write", soon: true },
+      { href: "/admin/cms/slides", label: "Hero slides", icon: LayoutTemplate, perm: "cms.slides.write" },
       { href: "/admin/cms/campaigns", label: "Καμπάνιες", icon: Megaphone, perm: "cms.campaigns.write", soon: true },
       { href: "/admin/cms/brand-stores", label: "Σελίδες μαρκών", icon: Store, perm: "cms.brandstores.write" },
       { href: "/admin/cms/pages", label: "Ζώνες σελίδων", icon: LayoutTemplate, perm: "cms.pages.write" },
