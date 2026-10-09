@@ -133,7 +133,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
   }, [reducedMotion, i]);
 
   return (
-    <div ref={stage} className="relative overflow-hidden rounded-lg bg-eu-navy-2 min-h-[380px] @md:min-h-[420px] @lg:min-h-[480px] @xl:min-h-[540px] h-full isolate eu-container" aria-roledescription="carousel" aria-label={c.kampanies}>
+    <div ref={stage} style={{ containerType: "size" }} className="relative overflow-hidden rounded-lg bg-eu-navy-2 h-[640px] @md:h-[480px] @lg:h-[500px] @xl:h-[540px] isolate" aria-roledescription="carousel" aria-label={c.kampanies}>
       {/* backdrop photos of ALL slides, stacked: each loads once and slides crossfade by opacity. (One keyed layer per
           slide used to unmount on every change and reload its photo — a navy flash between slides.) */}
       {slides.map((sl, k) => (
@@ -148,17 +148,17 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
       <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" aria-hidden />
       {/* the products of the other slides load ahead, with the same sizes, so the next slide finds them in the cache */}
       <div aria-hidden className="absolute size-px overflow-hidden opacity-0 pointer-events-none">
-        {slides.map((sl, k) => (k !== i && sl.cutout ? <Image key={`pre-${sl.id}`} src={sl.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" loading="eager" fetchPriority="low" unoptimized={sl.cutout.startsWith("http")} /> : null))}
+        {slides.map((sl, k) => (k !== i && sl.cutout ? <Image key={`pre-${sl.id}`} src={sl.cutout} alt="" fill sizes="(max-width: 1024px) 90vw, 640px" loading="eager" fetchPriority="low" unoptimized={sl.cutout.startsWith("http")} /> : null))}
       </div>
       {motion.hero.ambient && <span className="eu-ambient" aria-hidden />}
       {motion.hero.spotlight && <Spotlight />}
       {motion.hero.rays && <StarLight size={64} className="right-[12%] top-[10%] hidden @lg:block" />}
 
-      <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] items-center">
+      <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 content-start @lg:content-normal @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] @lg:items-center">
         {/* text */}
-        <div className="relative z-10 p-5 pb-2 @md:p-7 @md:pb-2 @lg:p-[40px_36px] text-white max-w-[36rem]">
-          <div data-copy style={hidden} className="inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-4">{s.kicker}</div>
-          <h1 className="m-0 font-heading font-extrabold text-[length:var(--fs-50)] @md:text-[length:var(--fs-66)] @xl:text-[length:var(--fs-80)] leading-[0.98] tracking-[-0.035em] mb-4">
+        <div className="relative z-10 px-4 pt-4 @md:p-7 @lg:px-[5cqi] @lg:pt-[6cqh] @lg:pb-0 text-white max-w-[40rem] self-start">
+          <div data-copy style={hidden} className="inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-[3cqh]">{s.kicker}</div>
+          <h1 style={{ ["--chars" as string]: Math.max(6, ...s.title.map((l) => l.length)) }} className="m-0 font-heading font-extrabold [--col:150] @lg:[--col:82] text-[length:clamp(1.75rem,min(11cqi,12.5cqh,calc(var(--col)*1cqi/var(--chars))),5rem)] leading-[0.98] tracking-[-0.035em] mb-[3cqh]">
             {s.title.map((line, k) => (
               <span key={k} className="block">
                 {line.split(" ").map((w, j) => (
@@ -169,20 +169,20 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
               </span>
             ))}
           </h1>
-          <p data-copy style={hidden} className="m-0 text-eu-on-dark text-[length:var(--fs-17)] leading-[1.55] mb-5 max-w-[28em]">
+          <p data-copy style={hidden} className="m-0 text-eu-on-dark text-[length:clamp(0.9375rem,3cqh,1.0625rem)] leading-[1.5] mb-[3.5cqh] max-w-[28em] line-clamp-2">
             {s.body}
           </p>
-          <div data-copy style={hidden} className="flex flex-wrap gap-2.5 mb-4 @lg:mb-6">
-            <Link href={s.primary.href} className="group inline-flex items-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 py-3.5 min-h-12 hover:bg-eu-yellow-dark transition-colors">
+          <div data-copy style={hidden} className="flex flex-wrap gap-2 mb-[3cqh]">
+            <Link href={s.primary.href} className="group inline-flex items-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 py-2.5 min-h-11 whitespace-nowrap hover:bg-eu-yellow-dark transition-colors">
               {s.primary.label} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>
             {s.secondary && (
-              <Link href={s.secondary.href} className="rounded-full border-2 border-white/40 text-white font-bold text-[length:var(--fs-16)] px-5 py-3 min-h-12 inline-flex items-center hover:border-white hover:bg-white/10 transition-colors">
+              <Link href={s.secondary.href} className="rounded-full border-2 border-white/40 text-white font-bold text-[length:var(--fs-15)] px-4 py-2 min-h-11 hidden @md:inline-flex items-center whitespace-nowrap hover:border-white hover:bg-white/10 transition-colors">
                 {s.secondary.label}
               </Link>
             )}
           </div>
-          <ul data-copy style={hidden} className="hidden @sm:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
+          <ul data-copy style={hidden} className="hidden @6xl:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
             {s.bullets.map((b, k) => (
               <li key={b} className="flex items-center gap-5">
                 {k > 0 && (
@@ -198,10 +198,10 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
 
         {/* floating product */}
         {s.cutout && (
-          <div data-product style={hidden} className="relative w-[62%] max-w-[300px] ml-auto -mt-6 mr-4 mb-16 @md:mb-16 @lg:mt-0 @lg:mr-0 @lg:mb-0 @lg:ml-0 @lg:w-auto @lg:max-w-none @lg:h-full @lg:flex @lg:items-center @lg:justify-center @lg:pr-8">
+          <div data-product style={hidden} className="relative order-first mx-4 mt-4 h-[42cqh] @md:h-[36cqh] @md:mx-7 @md:mt-7 flex items-center justify-center @lg:order-none @lg:absolute @lg:mx-0 @lg:mt-0 @lg:right-[2cqi] @lg:top-[4%] @lg:bottom-[11%] @lg:h-auto @lg:w-[47%]">
             <span className="eu-rays hidden @lg:block" style={{ width: "140%", left: "-20%", top: "-20%" }} aria-hidden />
-            <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full @lg:w-[88%] @xl:w-[92%] max-w-[560px] aspect-square eu-float">
-              <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" preload={i === 0} className="object-contain eu-cutout-shadow-dark" unoptimized={s.cutout.startsWith("http")} />
+            <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full h-full eu-float">
+              <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 90vw, 640px" preload={i === 0} className="object-contain eu-cutout-shadow-dark" unoptimized={s.cutout.startsWith("http")} />
               {s.price ? <span className="absolute left-1/2 -translate-x-1/2 bottom-[4%] rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-1.5 text-[length:var(--fs-16)] shadow-lg whitespace-nowrap tabular-nums">{priceLong(s.price)}</span> : null}
             </Link>
           </div>
@@ -209,7 +209,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
       </div>
 
       {/* controls */}
-      <div className="absolute bottom-4 left-5 right-4 @lg:left-9 @lg:bottom-5 @lg:right-[22px] flex items-center justify-between gap-3 z-20">
+      <div className="absolute bottom-4 left-4 right-4 @md:bottom-6 @md:left-7 @md:right-7 @lg:left-[5cqi] @lg:right-[2cqi] @lg:bottom-[4cqh] flex items-center justify-between gap-3 z-20">
         <div className="flex gap-2" role="tablist" aria-label={c.epilogi_diafaneias}>
           {slides.map((sl, k) => (
             <button key={sl.id} type="button" role="tab" aria-selected={k === i} aria-label={`Διαφάνεια ${k + 1}`} onClick={() => go(k)} className="group/dot relative w-10 h-11 flex items-center bg-transparent">
