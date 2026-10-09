@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Image from "next/image";
-import { ArrowLeft, ArrowRight, CalendarDays, Film, ImagePlus, Loader2, Package, Plus, RotateCcw, Save, Search, Send, Trash2, Type, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarDays, GalleryHorizontal, Wrench, Zap, Film, ImagePlus, Loader2, Package, Plus, RotateCcw, Save, Search, Send, Trash2, Type, X } from "lucide-react";
 import { CinematicHero } from "@/components/widgets/CinematicHero";
 import { SettingsProvider } from "@/components/site/SettingsProvider";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
 import type { Settings } from "@/lib/cms/settings";
 import { priceLong } from "@/lib/format";
-import { MAX_SLIDES, emptySlide, slideStatus, toHeroSlide, validateDoc, type HeroDoc, type HeroSlideDoc, type ProductInfo, type SlideIssue, type SlideTone } from "@/lib/cms/hero-slides-model";
+import { MAX_SLIDES, athensDay, emptySlide, slideStatus, toHeroSlide, validateDoc, type HeroDoc, type HeroSlideDoc, type ProductInfo, type SlideIssue, type SlideTone } from "@/lib/cms/hero-slides-model";
 import { publishHeroAction, revertHeroAction, saveHeroAction, searchHeroProductsAction } from "./actions";
 
 const TONE: Record<SlideTone, string> = { live: "bg-eu-green/12 text-eu-green", soon: "bg-eu-blue/10 text-eu-blue", ended: "bg-eu-red/10 text-eu-red", permanent: "bg-eu-yellow/40 text-eu-navy", off: "bg-eu-surface text-eu-muted" };
@@ -47,7 +47,8 @@ function MediaRow({ title, help, url, video, onPick, onClear, error, children }:
   );
 }
 
-function ProductField({ s, info, onPick, onClear }: { s: HeroSlideDoc; info: ProductInfo | null; onPick: (id: string, p: ProductInfo) => void; onClear: () => void }) {
+/** Αναζήτηση προϊόντος του καταλόγου (όνομα ή κωδικός) — για slide ή για προσφορά ημέρας. */
+function ProductSearch({ onPick, label = "Αναζήτηση προϊόντος" }: { onPick: (id: string, p: ProductInfo) => void; label?: string }) {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<(ProductInfo & { id: string; sku: string })[]>([]);
   const [busy, setBusy] = useState(false);
@@ -58,22 +59,15 @@ function ProductField({ s, info, onPick, onClear }: { s: HeroSlideDoc; info: Pro
     if (v.trim().length < 2) { setRes([]); return; }
     timer.current = setTimeout(async () => { setBusy(true); try { setRes(await searchHeroProductsAction(v)); } finally { setBusy(false); } }, 250);
   };
-  const current = info ? `${info.title}${info.price ? ` · ${priceLong(info.price)}` : ""}` : s.cutout ? "Το αρχικό προϊόν του slide (χωρίς σύνδεση με τον κατάλογο)" : null;
   return (
-    <Field label="Προϊόν (προαιρετικό)" help="Η φωτογραφία του χωρίς φόντο «επιπλέει» στο slide, με σύνδεσμο στη σελίδα του και την τρέχουσα τιμή του καταλόγου.">
-      {current && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-eu-chip text-eu-navy font-bold px-3 py-1.5 text-[length:var(--fs-14)] min-w-0"><Package className="size-4 shrink-0" aria-hidden /><span className="truncate">{current}</span></span>
-          <button type="button" onClick={onClear} className={small}><X className="size-4" aria-hidden /> Αφαίρεση</button>
-        </div>
-      )}
+    <div className="grid gap-1.5 min-w-0">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
-        <input aria-label="Αναζήτηση προϊόντος" value={q} onChange={(e) => search(e.target.value)} placeholder="Όνομα ή κωδικός προϊόντος…" className={`${input} pl-9`} />
+        <input aria-label={label} value={q} onChange={(e) => search(e.target.value)} placeholder="Όνομα ή κωδικός προϊόντος…" className={`${input} pl-9`} />
         {busy && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-eu-muted" aria-hidden />}
       </div>
       {res.length > 0 && (
-        <ul className="m-0 p-0 list-none max-h-64 overflow-y-auto rounded-xl border border-eu-line divide-y divide-eu-line">
+        <ul className="m-0 p-0 list-none max-h-64 overflow-y-auto rounded-xl border border-eu-line divide-y divide-eu-line bg-white">
           {res.map((p) => (
             <li key={p.id}>
               <button type="button" onClick={() => { onPick(p.id, { title: p.title, slug: p.slug, cutout: p.cutout, price: p.price }); setQ(""); setRes([]); }} className="w-full flex items-center gap-2 text-left px-3 py-2 min-h-11 hover:bg-eu-chip">
@@ -84,7 +78,95 @@ function ProductField({ s, info, onPick, onClear }: { s: HeroSlideDoc; info: Pro
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function ProductField({ s, info, onPick, onClear }: { s: HeroSlideDoc; info: ProductInfo | null; onPick: (id: string, p: ProductInfo) => void; onClear: () => void }) {
+  const current = info ? `${info.title}${info.price ? ` · ${priceLong(info.price)}` : ""}` : s.cutout ? "Το αρχικό προϊόν του slide (χωρίς σύνδεση με τον κατάλογο)" : null;
+  return (
+    <Field label="Προϊόν (προαιρετικό)" help="Η φωτογραφία του χωρίς φόντο «επιπλέει» στο slide, με σύνδεσμο στη σελίδα του και την τρέχουσα τιμή του καταλόγου.">
+      {current && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-eu-chip text-eu-navy font-bold px-3 py-1.5 text-[length:var(--fs-14)] min-w-0"><Package className="size-4 shrink-0" aria-hidden /><span className="truncate">{current}</span></span>
+          <button type="button" onClick={onClear} className={small}><X className="size-4" aria-hidden /> Αφαίρεση</button>
+        </div>
+      )}
+      <ProductSearch onPick={onPick} />
     </Field>
+  );
+}
+
+/** Οι επόμενες 14 ημέρες (ώρα Ελλάδας) ως YYYY-MM-DD. */
+function nextDays(n: number): string[] {
+  const [y, m, d] = athensDay(new Date()).split("-").map(Number);
+  return Array.from({ length: n }, (_, k) => new Date(Date.UTC(y, m - 1, d + k)).toISOString().slice(0, 10));
+}
+const dayLabel = (day: string, k: number) => {
+  const dt = new Date(`${day}T12:00:00Z`);
+  const wd = dt.toLocaleDateString("el-GR", { weekday: "long", timeZone: "UTC" });
+  return `${k === 0 ? "Σήμερα" : k === 1 ? "Αύριο" : wd.charAt(0).toUpperCase() + wd.slice(1)} ${dt.getUTCDate()}/${dt.getUTCMonth() + 1}`;
+};
+
+/** «Προσφορά ημέρας»: προϊόν ανά ημέρα· κενή ημέρα = αυτόματα η μεγαλύτερη πραγματική έκπτωση. */
+function DealsPanel({ deals, products, onSet }: { deals: { day: string; productId: string }[]; products: Record<string, ProductInfo>; onSet: (day: string, id: string | null, p?: ProductInfo) => void }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const days = useMemo(() => nextDays(14), []);
+  return (
+    <div className="grid gap-3 min-w-0">
+      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Διάλεξε προϊόν για κάθε ημέρα. Η τιμή, η παλιά τιμή και η έκπτωση έρχονται ζωντανά από την προσφορά του προϊόντος· το countdown λήγει τα μεσάνυχτα. Σε ημέρα χωρίς επιλογή μπαίνει <b>αυτόματα η μεγαλύτερη πραγματική έκπτωση</b> με απόθεμα — αν δεν υπάρχει καμία, το πλακίδιο δεν εμφανίζεται.</p>
+      <ol className="m-0 p-0 list-none grid gap-2">
+        {days.map((day, k) => {
+          const id = deals.find((d) => d.day === day)?.productId ?? null, info = id ? products[id] : null;
+          return (
+            <li key={day} className="rounded-xl border border-eu-line bg-white p-2 grid gap-2 @md:grid-cols-[10rem_minmax(0,1fr)_auto] @md:items-center">
+              <span className={`font-bold text-[length:var(--fs-14)] ${k === 0 ? "text-eu-navy" : "text-eu-ink-2"}`}>{dayLabel(day, k)}</span>
+              <span className="min-w-0 flex items-center gap-2">
+                {id ? (
+                  <>
+                    <span className="relative size-10 shrink-0 rounded bg-eu-surface overflow-hidden">{info?.cutout && <Image src={info.cutout} alt="" fill sizes="40px" className="object-contain" unoptimized={unopt(info.cutout)} />}</span>
+                    <span className="min-w-0 font-bold text-eu-ink text-[length:var(--fs-14)] truncate">{info ? `${info.title}${info.price ? ` · ${priceLong(info.price)}` : ""}` : "Επιλεγμένο προϊόν"}</span>
+                  </>
+                ) : <span className="text-eu-muted text-[length:var(--fs-14)]">Αυτόματα (μεγαλύτερη πραγματική έκπτωση)</span>}
+              </span>
+              <span className="flex gap-1.5">
+                <button type="button" onClick={() => setEditing(editing === day ? null : day)} className={small}><Package className="size-4" aria-hidden /> {id ? "Αλλαγή" : "Επιλογή"}</button>
+                {id && <button type="button" onClick={() => onSet(day, null)} className={small} aria-label={`Αφαίρεση προϊόντος ${dayLabel(day, k)}`}><X className="size-4" aria-hidden /></button>}
+              </span>
+              {editing === day && <div className="@md:col-span-3"><ProductSearch label={`Προϊόν για ${dayLabel(day, k)}`} onPick={(pid, p) => { onSet(day, pid, p); setEditing(null); }} /></div>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/** Υπηρεσίες του πλακιδίου: ποιες και με ποια σειρά (καμία επιλογή = οι πρώτες 6). */
+function ServicesPanel({ all, chosen, onChange }: { all: { slug: string; title: string; blurb: string }[]; chosen: string[]; onChange: (v: string[]) => void }) {
+  const ordered = [...chosen.map((slug) => all.find((x) => x.slug === slug)).filter((x): x is (typeof all)[number] => !!x), ...all.filter((x) => !chosen.includes(x.slug))];
+  const move = (slug: string, dir: -1 | 1) => { const i = chosen.indexOf(slug), j = i + dir; if (i < 0 || j < 0 || j >= chosen.length) return; const a = [...chosen]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
+  return (
+    <div className="grid gap-3 min-w-0">
+      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Τσέκαρε ποιες υπηρεσίες εναλλάσσονται στο πλακίδιο και άλλαξε τη σειρά τους. Χωρίς επιλογή εμφανίζονται οι πρώτες 6. Τα κείμενα αλλάζουν στις σελίδες των υπηρεσιών.</p>
+      <ol className="m-0 p-0 list-none grid gap-1.5">
+        {ordered.map((x) => {
+          const on = chosen.includes(x.slug), idx = chosen.indexOf(x.slug);
+          return (
+            <li key={x.slug} className={`rounded-xl border bg-white p-2 flex items-center gap-2 ${on ? "border-eu-navy" : "border-eu-line"}`}>
+              <label className="flex flex-1 min-w-0 items-center gap-2 min-h-11 cursor-pointer">
+                <input type="checkbox" className="size-5 shrink-0" checked={on} onChange={(e) => onChange(e.target.checked ? [...chosen, x.slug] : chosen.filter((y) => y !== x.slug))} />
+                <span className="min-w-0"><span className="block font-bold text-eu-ink text-[length:var(--fs-14)]">{on ? `${idx + 1}. ` : ""}{x.title}</span><span className="block text-eu-muted text-[length:var(--fs-13)] truncate">{x.blurb}</span></span>
+              </label>
+              {on && <>
+                <button type="button" aria-label={`${x.title}: πιο πάνω`} disabled={idx === 0} onClick={() => move(x.slug, -1)} className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
+                <button type="button" aria-label={`${x.title}: πιο κάτω`} disabled={idx === chosen.length - 1} onClick={() => move(x.slug, 1)} className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
+              </>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -194,7 +276,8 @@ function SlideForm({ s, issues, info, tab, onTab, onChange, onMedia, onProduct, 
   );
 }
 
-export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, products: p0, settings, canUpload }: { initial: HeroDoc; hasPublished: boolean; publishedAt: string | null; products: Record<string, ProductInfo>; settings: Settings; canUpload: boolean }) {
+export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, products: p0, settings, canUpload, services: allServices }: { initial: HeroDoc; hasPublished: boolean; publishedAt: string | null; products: Record<string, ProductInfo>; settings: Settings; canUpload: boolean; services: { slug: string; title: string; blurb: string }[] }) {
+  const [section, setSection] = useState<"slides" | "deal" | "services">("slides");
   const [doc, setDoc] = useState<HeroDoc>(initial);
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(initial));
   const [published, setPublished] = useState(hasPublished);
@@ -209,19 +292,20 @@ export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, pr
   const now = useMemo(() => new Date(), []);
   const dirty = JSON.stringify(doc) !== savedJson;
 
-  const patch = (id: string, p: Partial<HeroSlideDoc>) => setDoc((d) => ({ slides: d.slides.map((s) => (s.id === id ? { ...s, ...p } : s)) }));
+  const patch = (id: string, p: Partial<HeroSlideDoc>) => setDoc((d) => ({ ...d, slides: d.slides.map((s) => (s.id === id ? { ...s, ...p } : s)) }));
+  const setDeal = (day: string, id: string | null, info?: ProductInfo) => { if (id && info) setProducts((m) => ({ ...m, [id]: info })); setDoc((d) => ({ ...d, deals: [...(d.deals ?? []).filter((x) => x.day !== day), ...(id ? [{ day, productId: id }] : [])].sort((a, b) => a.day.localeCompare(b.day)) })); };
   const move = (id: string, dir: -1 | 1) => setDoc((d) => {
     const i = d.slides.findIndex((s) => s.id === id), j = i + dir;
     if (i < 0 || j < 0 || j >= d.slides.length) return d;
     const a = [...d.slides]; [a[i], a[j]] = [a[j], a[i]];
-    return { slides: a };
+    return { ...d, slides: a };
   });
   const remove = (id: string) => {
     if (!confirm("Διαγραφή του slide; Φεύγει από το site με την επόμενη δημοσίευση.")) return;
     const rest = doc.slides.filter((s) => s.id !== id);
-    setDoc({ slides: rest }); setSelId(rest[0]?.id ?? null);
+    setDoc((d) => ({ ...d, slides: rest })); setSelId(rest[0]?.id ?? null);
   };
-  const add = () => { const s = emptySlide(); setDoc((d) => ({ slides: [...d.slides, s] })); setSelId(s.id); setTab("text"); };
+  const add = () => { const s = emptySlide(); setDoc((d) => ({ ...d, slides: [...d.slides, s] })); setSelId(s.id); setTab("text"); };
   const loaded = (d: HeroDoc) => { setDoc(d); setSavedJson(JSON.stringify(d)); };
   const firstBad = (v: Record<string, SlideIssue[]>) => { const id = Object.keys(v)[0]; if (!id) return; setSelId(id); setTab(TABS.find((t) => v[id].some((i) => t.fields.includes(i.field)))?.id ?? "text"); };
 
@@ -257,6 +341,18 @@ export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, pr
       </div>
       {msg && <p role="status" className={`m-0 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${msg.ok ? "bg-eu-green/10 text-eu-green" : "bg-eu-red/10 text-eu-red"}`}>{msg.text}</p>}
 
+      {/* τρία μέρη του hero */}
+      <div role="tablist" aria-label="Μέρη του hero" className="grid grid-cols-3 gap-1 rounded-full bg-eu-surface p-1 @md:max-w-xl">
+        {([["slides", "Slides", GalleryHorizontal], ["deal", "Προσφορά ημέρας", Zap], ["services", "Υπηρεσίες", Wrench]] as const).map(([id, label, Icon]) => (
+          <button key={id} type="button" role="tab" aria-selected={section === id} onClick={() => setSection(id)} className={`inline-flex items-center justify-center gap-1.5 rounded-full min-h-11 px-2 font-bold text-[length:var(--fs-14)] ${section === id ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-3 hover:text-eu-navy"}`}>
+            <Icon className="size-4 shrink-0" aria-hidden /> <span className="truncate">{label}</span>
+          </button>
+        ))}
+      </div>
+      {section === "deal" && <DealsPanel deals={doc.deals ?? []} products={products} onSet={setDeal} />}
+      {section === "services" && <ServicesPanel all={allServices} chosen={doc.services ?? []} onChange={(v) => setDoc((d) => ({ ...d, services: v }))} />}
+
+      {section === "slides" && <>
       {/* λωρίδα slides: όλα με μια ματιά */}
       <ol className="m-0 p-0 list-none grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr))] @md:[grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr))]" aria-label="Slides με τη σειρά προβολής">
         {doc.slides.map((s, k) => {
@@ -301,6 +397,7 @@ export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, pr
       ) : (
         <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-3 text-[length:var(--fs-14)]">Πάτησε «Νέο slide» για να ξεκινήσεις.</p>
       )}
+      </>}
 
       {picker && (
         <MediaPickerDialog accept={[picker.field === "video" ? "video" : "image"]} canWrite={canUpload} onClose={() => setPicker(null)}
