@@ -99,12 +99,6 @@ export async function getNearestStoreWithGeo(): Promise<{ store: Store; city?: s
 export async function getGuides(): Promise<Guide[]> {
   return guides;
 }
-export async function getDealOfDay(): Promise<{ product: Product; endsAt: string }> {
-  const end = new Date();
-  end.setHours(23, 59, 59, 0);
-  const product = products.find((p) => p.id === "p-lg-43nano82") ?? products[0];
-  return { product, endsAt: end.toISOString() };
-}
 export async function getWeeklyDeals(): Promise<{ products: Product[]; endsAt: string; label: string }> {
   // Real expiry: next Sunday 23:59 (Omnibus: no fake countdowns)
   const end = new Date();
