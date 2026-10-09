@@ -86,7 +86,7 @@ const dm = (day: string) => `${+day.slice(8, 10)}/${+day.slice(5, 7)}`;
 export type SlideTone = "live" | "soon" | "ended" | "permanent" | "off";
 export function slideStatus(s: HeroSlideDoc, now: Date): { tone: SlideTone; label: string } {
   if (!s.active) return { tone: "off", label: "Ανενεργό" };
-  if (s.permanent) return { tone: "permanent", label: "Μόνιμο (όταν δεν υπάρχει άλλο)" };
+  if (s.permanent) return { tone: "permanent", label: "Μόνιμο" };
   const day = athensDay(now);
   if (s.from && day < s.from) return { tone: "soon", label: `Από ${dm(s.from)}` };
   if (s.to && day > s.to) return { tone: "ended", label: `Έληξε ${dm(s.to)}` };

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ChevronDown, Film, ImagePlus, Loader2, Package, Plus, RotateCcw, Save, Search, Send, Smartphone, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Film, ImagePlus, Loader2, Package, Plus, RotateCcw, Save, Search, Send, Trash2, Type, X } from "lucide-react";
 import { CinematicHero } from "@/components/widgets/CinematicHero";
 import { SettingsProvider } from "@/components/site/SettingsProvider";
 import { MediaPickerDialog } from "@/components/admin/media/MediaPicker";
@@ -88,63 +88,108 @@ function ProductField({ s, info, onPick, onClear }: { s: HeroSlideDoc; info: Pro
   );
 }
 
-function SlideForm({ s, issues, info, onChange, onMedia, onProduct, onRemove }: { s: HeroSlideDoc; issues: SlideIssue[]; info: ProductInfo | null; onChange: (p: Partial<HeroSlideDoc>) => void; onMedia: (m: Media) => void; onProduct: (id: string | null, p?: ProductInfo) => void; onRemove: () => void }) {
+/**
+ * Προεπισκόπηση σε πραγματική κλίμακα: ο hero ζωγραφίζεται στο πλάτος που έχει στην αρχική (880 px) και μικραίνει
+ * ώστε να χωρά στη στήλη — έτσι οι γραμμές του τίτλου σπάνε ακριβώς όπως στο site.
+ */
+const SITE_W = 880;
+function ScaledPreview({ children }: { children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null), inner = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ scale: 1, h: 0 });
+  useEffect(() => {
+    const o = outer.current, i = inner.current;
+    if (!o || !i) return;
+    const fit = () => { const scale = Math.min(1, o.clientWidth / SITE_W); setBox({ scale, h: i.offsetHeight * scale }); };
+    const ro = new ResizeObserver(fit);
+    ro.observe(o); ro.observe(i);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={outer} className="relative w-full overflow-hidden rounded-xl" style={{ height: box.h || undefined }}>
+      <div ref={inner} className="@container origin-top-left" style={{ width: SITE_W, transform: `scale(${box.scale})` }}>{children}</div>
+    </div>
+  );
+}
+
+type Tab = "text" | "media" | "when";
+const TABS: { id: Tab; label: string; icon: typeof Type; fields: SlideIssue["field"][] }[] = [
+  { id: "text", label: "Κείμενα", icon: Type, fields: ["title", "primary", "secondary"] },
+  { id: "media", label: "Εικόνα", icon: ImagePlus, fields: ["image"] },
+  { id: "when", label: "Πότε", icon: CalendarDays, fields: ["dates"] },
+];
+
+/** Η φόρμα ενός slide σε τρεις σύντομες καρτέλες — ποτέ όλα τα πεδία μαζί. */
+function SlideForm({ s, issues, info, tab, onTab, onChange, onMedia, onProduct, onRemove }: { s: HeroSlideDoc; issues: SlideIssue[]; info: ProductInfo | null; tab: Tab; onTab: (t: Tab) => void; onChange: (p: Partial<HeroSlideDoc>) => void; onMedia: (m: Media) => void; onProduct: (id: string | null, p?: ProductInfo) => void; onRemove: () => void }) {
   const err = (f: SlideIssue["field"]) => issues.filter((i) => i.field === f).map((i) => i.message).join(" ") || undefined;
   const lines = [0, 1, 2].map((k) => s.title[k] ?? "");
   const bullets = [0, 1, 2].map((k) => s.bullets[k] ?? "");
   const setLine = (k: number, v: string) => onChange({ title: lines.map((x, j) => (j === k ? v : x)) });
   const setBullet = (k: number, v: string) => onChange({ bullets: bullets.map((x, j) => (j === k ? v : x)) });
   const setSecondary = (p: { label?: string; href?: string }) => { const next = { label: s.secondary?.label ?? "", href: s.secondary?.href ?? "", ...p }; onChange({ secondary: next.label || next.href ? next : null }); };
-  const legend = "font-heading font-bold text-eu-ink text-[length:var(--fs-16)] mb-1";
-  const set = "grid gap-3 min-w-0 m-0 p-0 border-0";
   return (
-    <div className="grid gap-5 border-t border-eu-line p-3 @md:p-4">
-      <fieldset className={set}>
-        <legend className={legend}>Πότε φαίνεται</legend>
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
+    <div className="grid gap-3 min-w-0">
+      <div role="tablist" aria-label="Στοιχεία του slide" className="grid grid-cols-3 gap-1 rounded-full bg-eu-surface p-1">
+        {TABS.map((t) => {
+          const on = tab === t.id, bad = issues.some((i) => t.fields.includes(i.field));
+          return (
+            <button key={t.id} type="button" role="tab" aria-selected={on} onClick={() => onTab(t.id)} className={`inline-flex items-center justify-center gap-1.5 rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${on ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-3 hover:text-eu-navy"}`}>
+              <t.icon className="size-4" aria-hidden /> {t.label}{bad && <span className="size-2 rounded-full bg-eu-red" aria-label="θέλει διόρθωση" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "text" && (
+        <div role="tabpanel" className="grid gap-3">
+          <Field label="Μικρός τίτλος" help="Η κίτρινη ετικέτα, π.χ. «Φθινόπωρο 2026 · ψυγεία»."><input className={input} maxLength={60} value={s.kicker} onChange={(e) => onChange({ kicker: e.target.value })} /></Field>
+          <Field label="Μεγάλος τίτλος" help="Έως 3 σύντομες γραμμές." error={err("title")}>
+            <div className="grid gap-1.5">{lines.map((v, k) => <input key={k} aria-label={`Γραμμή ${k + 1}`} placeholder={`Γραμμή ${k + 1}`} className={input} maxLength={40} value={v} onChange={(e) => setLine(k, e.target.value)} />)}</div>
+          </Field>
+          <Field label="Κείμενο"><textarea className={`${input} min-h-20 py-2`} maxLength={300} value={s.body} onChange={(e) => onChange({ body: e.target.value })} /></Field>
+          <Field label="Κουμπί" help="Σύνδεσμος: σελίδα του site (/k/…) ή https://…" error={err("primary")}>
+            <div className="grid gap-1.5 @sm:grid-cols-2"><input aria-label="Κείμενο κουμπιού" placeholder="Δες τα ψυγεία" className={input} maxLength={60} value={s.primary.label} onChange={(e) => onChange({ primary: { ...s.primary, label: e.target.value } })} /><input aria-label="Σύνδεσμος κουμπιού" placeholder="/k/…" className={input} value={s.primary.href} onChange={(e) => onChange({ primary: { ...s.primary, href: e.target.value } })} /></div>
+          </Field>
+          <details className="group rounded-xl border border-eu-line" open={!!s.secondary || bullets.some(Boolean) || !!err("secondary")}>
+            <summary className="cursor-pointer list-none px-3 min-h-11 flex items-center font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Περισσότερα: δεύτερο κουμπί, σημεία</summary>
+            <div className="grid gap-3 px-3 pb-3">
+              <Field label="Δεύτερο κουμπί" help="Κενό = χωρίς δεύτερο κουμπί." error={err("secondary")}>
+                <div className="grid gap-1.5 @sm:grid-cols-2"><input aria-label="Κείμενο δεύτερου κουμπιού" placeholder="Οδηγός επιλογής" className={input} maxLength={60} value={s.secondary?.label ?? ""} onChange={(e) => setSecondary({ label: e.target.value })} /><input aria-label="Σύνδεσμος δεύτερου κουμπιού" placeholder="/odigoi/…" className={input} value={s.secondary?.href ?? ""} onChange={(e) => setSecondary({ href: e.target.value })} /></div>
+              </Field>
+              <Field label="Σημεία κάτω από τα κουμπιά" help="Έως 3, π.χ. «Δωρεάν μεταφορά».">
+                <div className="grid gap-1.5">{bullets.map((v, k) => <input key={k} aria-label={`Σημείο ${k + 1}`} className={input} maxLength={40} value={v} onChange={(e) => setBullet(k, e.target.value)} />)}</div>
+              </Field>
+            </div>
+          </details>
+        </div>
+      )}
+
+      {tab === "media" && (
+        <div role="tabpanel" className="grid gap-4">
+          <MediaRow title="Φωτογραφία φόντου" help="Οριζόντια, ≥ 1600 px πλάτος." url={s.image.url || null} onPick={() => onMedia("image")} error={err("image")}>
+            <input aria-label="Τι δείχνει η φωτογραφία" placeholder="Τι δείχνει η φωτογραφία" className={input} maxLength={160} value={s.image.alt} onChange={(e) => onChange({ image: { ...s.image, alt: e.target.value } })} />
+          </MediaRow>
+          <ProductField s={s} info={info} onPick={(id, p) => onProduct(id, p)} onClear={() => onProduct(null)} />
+          <details className="rounded-xl border border-eu-line" open={!!s.imageMobile || !!s.video}>
+            <summary className="cursor-pointer list-none px-3 min-h-11 flex items-center font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Περισσότερα: φωτογραφία κινητού, βίντεο</summary>
+            <div className="grid gap-4 px-3 pb-3">
+              <MediaRow title="Φωτογραφία για κινητά" help="Κάθετη. Χωρίς αυτήν το κινητό δείχνει την οριζόντια." url={s.imageMobile?.url ?? null} onPick={() => onMedia("imageMobile")} onClear={() => onChange({ imageMobile: null })} />
+              <MediaRow title="Βίντεο φόντου" help="Σύντομο mp4 χωρίς ήχο· η φωτογραφία μένει για αργές συνδέσεις." url={s.video?.url ?? null} video onPick={() => onMedia("video")} onClear={() => onChange({ video: null })} />
+            </div>
+          </details>
+        </div>
+      )}
+
+      {tab === "when" && (
+        <div role="tabpanel" className="grid gap-3">
           <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5" checked={s.active} onChange={(e) => onChange({ active: e.target.checked })} /> Ενεργό</label>
-          <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5" checked={s.permanent} onChange={(e) => onChange({ permanent: e.target.checked, ...(e.target.checked ? { from: null, to: null } : {}) })} /> Μόνιμο</label>
+          <div className="grid gap-3 @sm:grid-cols-2">
+            <Field label="Από" help="Κενό = από τώρα" error={err("dates")}><input type="date" className={input} disabled={s.permanent} value={s.from ?? ""} onChange={(e) => onChange({ from: e.target.value || null })} /></Field>
+            <Field label="Έως (και)" help="Κενό = χωρίς λήξη"><input type="date" className={input} disabled={s.permanent} value={s.to ?? ""} onChange={(e) => onChange({ to: e.target.value || null })} /></Field>
+          </div>
+          <label className="inline-flex items-start gap-2 min-h-11 text-eu-ink-2 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 mt-0.5" checked={s.permanent} onChange={(e) => onChange({ permanent: e.target.checked, ...(e.target.checked ? { from: null, to: null } : {}) })} /> <span><b>Μόνιμο</b> — χωρίς ημερομηνίες· βγαίνει μόνο όταν δεν υπάρχει άλλο ενεργό slide, ώστε η αρχική να μην είναι ποτέ άδεια.</span></label>
+          <button type="button" onClick={onRemove} className={`${btn} justify-self-start border border-eu-red/40 text-eu-red hover:bg-eu-red/10`}><Trash2 className="size-4" aria-hidden /> Διαγραφή slide</button>
         </div>
-        <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Τα μόνιμα δεν έχουν ημερομηνίες: εμφανίζονται μόνο όταν δεν υπάρχει άλλο ενεργό slide, ώστε η αρχική να μη μείνει ποτέ χωρίς hero.</p>
-        <div className="grid gap-3 @sm:grid-cols-2">
-          <Field label="Πρώτη ημέρα" help="Κενό = από τώρα" error={err("dates")}><input type="date" className={input} disabled={s.permanent} value={s.from ?? ""} onChange={(e) => onChange({ from: e.target.value || null })} /></Field>
-          <Field label="Τελευταία ημέρα" help="Κενό = χωρίς λήξη· μετρά ολόκληρη η ημέρα"><input type="date" className={input} disabled={s.permanent} value={s.to ?? ""} onChange={(e) => onChange({ to: e.target.value || null })} /></Field>
-        </div>
-      </fieldset>
-
-      <fieldset className={set}>
-        <legend className={legend}>Κείμενα</legend>
-        <Field label="Μικρός τίτλος" help="Η κίτρινη ετικέτα πάνω από τον τίτλο, π.χ. «Φθινόπωρο 2026 · ψυγεία»."><input className={input} maxLength={60} value={s.kicker} onChange={(e) => onChange({ kicker: e.target.value })} /></Field>
-        <Field label="Μεγάλος τίτλος" help="Έως 3 σύντομες γραμμές — κάθε γραμμή μένει μόνη της." error={err("title")}>
-          <div className="grid gap-2">{lines.map((v, k) => <input key={k} aria-label={`Γραμμή ${k + 1}`} placeholder={`Γραμμή ${k + 1}`} className={input} maxLength={40} value={v} onChange={(e) => setLine(k, e.target.value)} />)}</div>
-        </Field>
-        <Field label="Κείμενο" help="Μία–δύο προτάσεις κάτω από τον τίτλο."><textarea className={`${input} min-h-24 py-2`} maxLength={300} value={s.body} onChange={(e) => onChange({ body: e.target.value })} /></Field>
-        <Field label="Σημεία (προαιρετικά)" help="Έως 3 σύντομα, κάτω από τα κουμπιά, π.χ. «Δωρεάν μεταφορά».">
-          <div className="grid gap-2 @sm:grid-cols-3">{bullets.map((v, k) => <input key={k} aria-label={`Σημείο ${k + 1}`} className={input} maxLength={40} value={v} onChange={(e) => setBullet(k, e.target.value)} />)}</div>
-        </Field>
-      </fieldset>
-
-      <fieldset className={set}>
-        <legend className={legend}>Κουμπιά</legend>
-        <Field label="Κύριο κουμπί (κίτρινο)" help="Σύνδεσμος: σελίδα του site (π.χ. /k/leykes-syskeyes/psygeia) ή https://…" error={err("primary")}>
-          <div className="grid gap-2 @sm:grid-cols-2"><input aria-label="Κείμενο κύριου κουμπιού" placeholder="Κείμενο" className={input} maxLength={60} value={s.primary.label} onChange={(e) => onChange({ primary: { ...s.primary, label: e.target.value } })} /><input aria-label="Σύνδεσμος κύριου κουμπιού" placeholder="/k/…" className={input} value={s.primary.href} onChange={(e) => onChange({ primary: { ...s.primary, href: e.target.value } })} /></div>
-        </Field>
-        <Field label="Δεύτερο κουμπί (προαιρετικό)" help="Άφησε και τα δύο κενά αν δεν χρειάζεται." error={err("secondary")}>
-          <div className="grid gap-2 @sm:grid-cols-2"><input aria-label="Κείμενο δεύτερου κουμπιού" placeholder="Κείμενο" className={input} maxLength={60} value={s.secondary?.label ?? ""} onChange={(e) => setSecondary({ label: e.target.value })} /><input aria-label="Σύνδεσμος δεύτερου κουμπιού" placeholder="/odigoi/…" className={input} value={s.secondary?.href ?? ""} onChange={(e) => setSecondary({ href: e.target.value })} /></div>
-        </Field>
-      </fieldset>
-
-      <fieldset className={set}>
-        <legend className={legend}>Εικόνα, βίντεο, προϊόν</legend>
-        <MediaRow title="Φωτογραφία φόντου" help="Οριζόντια, τουλάχιστον 1600 px πλάτος. Μπαίνει αχνή πίσω από το κείμενο." url={s.image.url || null} onPick={() => onMedia("image")} error={err("image")}>
-          <input aria-label="Τι δείχνει η φωτογραφία" placeholder="Τι δείχνει η φωτογραφία (π.χ. «Κουζίνα με inox ψυγείο»)" className={input} maxLength={160} value={s.image.alt} onChange={(e) => onChange({ image: { ...s.image, alt: e.target.value } })} />
-        </MediaRow>
-        <MediaRow title="Φωτογραφία για κινητά (προαιρετική)" help="Κάθετη, για οθόνες έως 767 px. Χωρίς αυτήν το κινητό δείχνει την οριζόντια." url={s.imageMobile?.url ?? null} onPick={() => onMedia("imageMobile")} onClear={() => onChange({ imageMobile: null })} />
-        <MediaRow title="Βίντεο φόντου (προαιρετικό)" help="Σύντομο mp4 χωρίς ήχο, σε επανάληψη. Δεν παίζει με «εξοικονόμηση δεδομένων» ή «λιγότερη κίνηση» — τότε μένει η φωτογραφία." url={s.video?.url ?? null} video onPick={() => onMedia("video")} onClear={() => onChange({ video: null })} />
-        <ProductField s={s} info={info} onPick={(id, p) => onProduct(id, p)} onClear={() => onProduct(null)} />
-      </fieldset>
-
-      <button type="button" onClick={onRemove} className={`${btn} justify-self-start border border-eu-red/40 text-eu-red hover:bg-eu-red/10`}><Trash2 className="size-4" aria-hidden /> Διαγραφή slide</button>
+      )}
     </div>
   );
 }
@@ -155,7 +200,8 @@ export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, pr
   const [published, setPublished] = useState(hasPublished);
   const [publishedAt, setPublishedAt] = useState(pubAt);
   const [products, setProducts] = useState(p0);
-  const [openId, setOpenId] = useState<string | null>(initial.slides[0]?.id ?? null);
+  const [selId, setSelId] = useState<string | null>(initial.slides[0]?.id ?? null);
+  const [tab, setTab] = useState<Tab>("text");
   const [issues, setIssues] = useState<Record<string, SlideIssue[]>>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [picker, setPicker] = useState<{ id: string; field: Media } | null>(null);
@@ -170,87 +216,99 @@ export function HeroSlidesEditor({ initial, hasPublished, publishedAt: pubAt, pr
     const a = [...d.slides]; [a[i], a[j]] = [a[j], a[i]];
     return { slides: a };
   });
-  const remove = (id: string) => { if (confirm("Διαγραφή του slide; Φεύγει από το site με την επόμενη δημοσίευση.")) setDoc((d) => ({ slides: d.slides.filter((s) => s.id !== id) })); };
-  const add = () => { const s = emptySlide(); setDoc((d) => ({ slides: [...d.slides, s] })); setOpenId(s.id); };
+  const remove = (id: string) => {
+    if (!confirm("Διαγραφή του slide; Φεύγει από το site με την επόμενη δημοσίευση.")) return;
+    const rest = doc.slides.filter((s) => s.id !== id);
+    setDoc({ slides: rest }); setSelId(rest[0]?.id ?? null);
+  };
+  const add = () => { const s = emptySlide(); setDoc((d) => ({ slides: [...d.slides, s] })); setSelId(s.id); setTab("text"); };
   const loaded = (d: HeroDoc) => { setDoc(d); setSavedJson(JSON.stringify(d)); };
+  const firstBad = (v: Record<string, SlideIssue[]>) => { const id = Object.keys(v)[0]; if (!id) return; setSelId(id); setTab(TABS.find((t) => v[id].some((i) => t.fields.includes(i.field)))?.id ?? "text"); };
 
-  const save = () => start(async () => { const r = await saveHeroAction(doc); loaded(r.doc); setMsg({ ok: true, text: "Το πρόχειρο αποθηκεύτηκε. Το site αλλάζει μόνο με τη «Δημοσίευση»." }); });
+  const save = () => start(async () => { const r = await saveHeroAction(doc); loaded(r.doc); setMsg({ ok: true, text: "Αποθηκεύτηκε ως πρόχειρο. Το site αλλάζει μόνο με «Δημοσίευση»." }); });
   const publish = () => {
     const v = validateDoc(doc);
     setIssues(v);
-    if (Object.keys(v).length) { setOpenId(Object.keys(v)[0]); setMsg({ ok: false, text: "Διόρθωσε τα σημειωμένα πεδία και ξαναπάτα «Δημοσίευση»." }); return; }
+    if (Object.keys(v).length) { firstBad(v); setMsg({ ok: false, text: "Κάποια πεδία θέλουν διόρθωση (κόκκινη τελεία στην καρτέλα)." }); return; }
     start(async () => {
       const r = await publishHeroAction(doc);
-      if (!r.ok) { setIssues(r.issues); setOpenId(Object.keys(r.issues)[0] ?? null); setMsg({ ok: false, text: "Διόρθωσε τα σημειωμένα πεδία και ξαναπάτα «Δημοσίευση»." }); return; }
+      if (!r.ok) { setIssues(r.issues); firstBad(r.issues); setMsg({ ok: false, text: "Κάποια πεδία θέλουν διόρθωση (κόκκινη τελεία στην καρτέλα)." }); return; }
       loaded(r.doc); setPublished(true); setPublishedAt(r.publishedAt); setIssues({});
       setMsg({ ok: true, text: "Δημοσιεύτηκε — το βλέπουν τώρα οι επισκέπτες." });
     });
   };
-  const revert = () => { if (confirm("Ακύρωση όλων των αλλαγών; Το πρόχειρο γυρίζει σε ό,τι δείχνει τώρα το site.")) start(async () => { const r = await revertHeroAction(); loaded(r.doc); setIssues({}); setMsg({ ok: true, text: "Το πρόχειρο γύρισε στο δημοσιευμένο." }); }); };
+  const revert = () => { if (confirm("Ακύρωση όλων των αλλαγών; Το πρόχειρο γυρίζει σε ό,τι δείχνει τώρα το site.")) start(async () => { const r = await revertHeroAction(); loaded(r.doc); setIssues({}); setSelId(r.doc.slides[0]?.id ?? null); setMsg({ ok: true, text: "Το πρόχειρο γύρισε στο δημοσιευμένο." }); }); };
 
-  const open = doc.slides.find((s) => s.id === openId) ?? null;
-  const preview = open ? toHeroSlide(open, open.productId ? products[open.productId] ?? null : null) : null;
+  const sel = doc.slides.find((s) => s.id === selId) ?? null;
+  const selIdx = sel ? doc.slides.indexOf(sel) : -1;
+  const preview = sel ? toHeroSlide(sel, sel.productId ? products[sel.productId] ?? null : null) : null;
   const when = publishedAt ? new Date(publishedAt).toLocaleString("el-GR", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
-    <div className="grid gap-4 min-w-0">
+    <div className="grid gap-3 min-w-0">
+      {/* γραμμή ενεργειών */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 py-2 bg-white/95 backdrop-blur border-b border-eu-line">
         <span className="mr-auto text-[length:var(--fs-14)] text-eu-ink-3 min-w-0">
-          {dirty ? <b className="text-eu-red">Υπάρχουν αλλαγές που δεν έχουν αποθηκευτεί.</b> : published ? `Δημοσιευμένο${when ? ` · ${when}` : ""}` : "Δεν έχει δημοσιευτεί ακόμη — η αρχική δείχνει τα αρχικά slides."}
+          {dirty ? <b className="text-eu-red">Μη αποθηκευμένες αλλαγές</b> : published ? `Δημοσιευμένο${when ? ` · ${when}` : ""}` : "Δεν έχει δημοσιευτεί ακόμη"}
         </span>
-        <button type="button" onClick={save} disabled={pending || !dirty} className={`${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`}>{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση πρόχειρου</button>
         {published && <button type="button" onClick={revert} disabled={pending} className={`${btn} text-eu-ink-3 hover:bg-eu-surface`}><RotateCcw className="size-4" aria-hidden /> Επαναφορά</button>}
+        <button type="button" onClick={save} disabled={pending || !dirty} className={`${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`}>{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση</button>
         <button type="button" onClick={publish} disabled={pending} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}><Send className="size-4" aria-hidden /> Δημοσίευση</button>
       </div>
       {msg && <p role="status" className={`m-0 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${msg.ok ? "bg-eu-green/10 text-eu-green" : "bg-eu-red/10 text-eu-red"}`}>{msg.text}</p>}
 
-      <div className="grid gap-4 @5xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] items-start">
-        <ol className="m-0 p-0 list-none grid gap-2 min-w-0">
-          {doc.slides.map((s, k) => {
-            const st = slideStatus(s, now), isOpen = s.id === openId, iss = issues[s.id] ?? [];
-            return (
-              <li key={s.id} className={`rounded-2xl border bg-white min-w-0 ${isOpen ? "border-eu-navy" : iss.length ? "border-eu-red" : "border-eu-line"}`}>
-                <div className="flex items-center gap-1 p-2">
-                  <button type="button" onClick={() => setOpenId(isOpen ? null : s.id)} aria-expanded={isOpen} className="flex flex-1 min-w-0 items-center gap-3 text-left min-h-11">
-                    <span className="relative size-12 shrink-0 rounded-lg overflow-hidden bg-eu-surface">{s.image.url && <Image src={s.image.url} alt="" fill sizes="48px" className="object-cover" unoptimized={unopt(s.image.url)} />}</span>
-                    <span className="min-w-0">
-                      <span className="block font-bold text-eu-ink truncate text-[length:var(--fs-15)]">{s.title.filter((t) => t.trim()).join(" ") || "Χωρίς τίτλο"}</span>
-                      <span className={`inline-block mt-0.5 rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${TONE[st.tone]}`}>{st.label}</span>
-                      {iss.length > 0 && <span className="ml-1.5 text-eu-red font-bold text-[length:var(--fs-12)]">Θέλει διόρθωση</span>}
-                    </span>
-                    <ChevronDown className={`size-4 ml-auto shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-                  </button>
-                  <button type="button" aria-label="Μετακίνηση πιο πάνω" disabled={k === 0} onClick={() => move(s.id, -1)} className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
-                  <button type="button" aria-label="Μετακίνηση πιο κάτω" disabled={k === doc.slides.length - 1} onClick={() => move(s.id, 1)} className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
-                </div>
-                {isOpen && (
-                  <SlideForm s={s} issues={iss} info={s.productId ? products[s.productId] ?? null : null} onChange={(p) => patch(s.id, p)} onMedia={(field) => setPicker({ id: s.id, field })} onRemove={() => remove(s.id)}
-                    onProduct={(id, info) => { if (id && info) setProducts((m) => ({ ...m, [id]: info })); patch(s.id, { productId: id, cutout: null, productHref: null }); }} />
-                )}
-              </li>
-            );
-          })}
-          {doc.slides.length < MAX_SLIDES && <li><button type="button" onClick={add} className={`${btn} w-full border-2 border-dashed border-eu-line text-eu-navy hover:border-eu-navy`}><Plus className="size-4" aria-hidden /> Νέο slide</button></li>}
-        </ol>
+      {/* λωρίδα slides: όλα με μια ματιά */}
+      <ol className="m-0 p-0 list-none grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr))] @md:[grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr))]" aria-label="Slides με τη σειρά προβολής">
+        {doc.slides.map((s, k) => {
+          const st = slideStatus(s, now), on = s.id === selId, bad = !!issues[s.id]?.length;
+          return (
+            <li key={s.id}>
+              <button type="button" onClick={() => setSelId(s.id)} aria-current={on} className={`w-full text-left rounded-xl border-2 bg-white p-1.5 min-h-11 ${on ? "border-eu-navy" : bad ? "border-eu-red" : "border-eu-line hover:border-eu-navy/50"}`}>
+                <span className="relative block aspect-[16/7] rounded-lg overflow-hidden bg-eu-navy">
+                  {s.image.url && <Image src={s.image.url} alt="" fill sizes="180px" className="object-cover opacity-60" unoptimized={unopt(s.image.url)} />}
+                  <span className="absolute left-1.5 top-1.5 rounded bg-white/90 px-1.5 text-[length:var(--fs-12)] font-bold text-eu-navy tabular-nums">{k + 1}</span>
+                </span>
+                <span className="block mt-1 font-bold text-eu-ink truncate text-[length:var(--fs-14)]">{s.title.filter((t) => t.trim()).join(" ") || "Χωρίς τίτλο"}</span>
+                <span className={`inline-block mt-0.5 rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${TONE[st.tone]}`}>{bad ? "Θέλει διόρθωση" : st.label}</span>
+              </button>
+            </li>
+          );
+        })}
+        {doc.slides.length < MAX_SLIDES && (
+          <li><button type="button" onClick={add} className="w-full h-full min-h-20 rounded-xl border-2 border-dashed border-eu-line text-eu-navy font-bold inline-flex items-center justify-center gap-1.5 hover:border-eu-navy text-[length:var(--fs-14)]"><Plus className="size-4" aria-hidden /> Νέο slide</button></li>
+        )}
+      </ol>
 
-        <div className="grid gap-2 min-w-0 @5xl:sticky @5xl:top-16">
-          <div className="inline-flex items-center gap-1.5 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><Smartphone className="size-4" aria-hidden /> Προεπισκόπηση</div>
-          {preview ? (
-            <div className="@container rounded-xl overflow-hidden">
-              <SettingsProvider settings={settings}><CinematicHero key={JSON.stringify(preview)} slides={[preview]} /></SettingsProvider>
+      {sel ? (
+        <div className="grid gap-4 @4xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] items-start">
+          {/* προεπισκόπηση: πάντα ορατή δίπλα (ή πάνω) από τη φόρμα */}
+          <div className="grid gap-2 min-w-0 @4xl:sticky @4xl:top-16">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mr-auto">Slide {selIdx + 1} από {doc.slides.length} · όπως θα φανεί</span>
+              <button type="button" aria-label="Νωρίτερα στη σειρά" disabled={selIdx <= 0} onClick={() => move(sel.id, -1)} className="size-11 grid place-items-center rounded-full border border-eu-line hover:border-eu-navy disabled:opacity-30"><ArrowLeft className="size-4" aria-hidden /></button>
+              <button type="button" aria-label="Αργότερα στη σειρά" disabled={selIdx >= doc.slides.length - 1} onClick={() => move(sel.id, 1)} className="size-11 grid place-items-center rounded-full border border-eu-line hover:border-eu-navy disabled:opacity-30"><ArrowRight className="size-4" aria-hidden /></button>
             </div>
-          ) : <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-3 text-[length:var(--fs-14)]">Άνοιξε ένα slide για να το δεις όπως θα φανεί.</p>}
-          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Το πραγματικό hero της αρχικής με τα στοιχεία του πρόχειρου. Στο site, δίπλα του μπαίνουν η προσφορά ημέρας, το κοντινότερο κατάστημα και οι υπηρεσίες.</p>
+            <ScaledPreview>
+              <SettingsProvider settings={settings}><CinematicHero key={JSON.stringify(preview)} slides={[preview!]} /></SettingsProvider>
+            </ScaledPreview>
+          </div>
+          <div className="rounded-2xl border border-eu-line bg-white p-3 min-w-0">
+            <SlideForm s={sel} issues={issues[sel.id] ?? []} info={sel.productId ? products[sel.productId] ?? null : null} tab={tab} onTab={setTab}
+              onChange={(p) => patch(sel.id, p)} onMedia={(field) => setPicker({ id: sel.id, field })} onRemove={() => remove(sel.id)}
+              onProduct={(id, info) => { if (id && info) setProducts((m) => ({ ...m, [id]: info })); patch(sel.id, { productId: id, cutout: null, productHref: null }); }} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-3 text-[length:var(--fs-14)]">Πάτησε «Νέο slide» για να ξεκινήσεις.</p>
+      )}
 
       {picker && (
         <MediaPickerDialog accept={[picker.field === "video" ? "video" : "image"]} canWrite={canUpload} onClose={() => setPicker(null)}
           onSelect={(a) => {
             const x = a[0];
             if (x) {
-              const s = doc.slides.find((y) => y.id === picker.id);
-              if (picker.field === "image") patch(picker.id, { image: { url: x.url, alt: s?.image.alt || x.alt || "" } });
+              const cur = doc.slides.find((y) => y.id === picker.id);
+              if (picker.field === "image") patch(picker.id, { image: { url: x.url, alt: cur?.image.alt || x.alt || "" } });
               else if (picker.field === "imageMobile") patch(picker.id, { imageMobile: { url: x.url } });
               else patch(picker.id, { video: { url: x.url } });
             }

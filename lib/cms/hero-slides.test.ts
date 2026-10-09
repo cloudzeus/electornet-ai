@@ -40,7 +40,7 @@ test("slideStatus: ετικέτες κατάστασης", () => {
   assert.deepEqual(slideStatus(slide({ active: false }), now), { tone: "off", label: "Ανενεργό" });
   assert.deepEqual(slideStatus(slide({ from: "2026-10-15" }), now), { tone: "soon", label: "Από 15/10" });
   assert.deepEqual(slideStatus(slide({ to: "2026-09-30" }), now), { tone: "ended", label: "Έληξε 30/9" });
-  assert.deepEqual(slideStatus(slide({ permanent: true }), now), { tone: "permanent", label: "Μόνιμο (όταν δεν υπάρχει άλλο)" });
+  assert.deepEqual(slideStatus(slide({ permanent: true }), now), { tone: "permanent", label: "Μόνιμο" });
   assert.deepEqual(slideStatus(slide({ to: "2026-10-31" }), now), { tone: "live", label: "Ενεργό έως 31/10" });
   assert.deepEqual(slideStatus(slide(), now), { tone: "live", label: "Ενεργό τώρα" });
 });
