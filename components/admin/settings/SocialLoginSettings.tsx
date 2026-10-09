@@ -106,8 +106,15 @@ export function SocialLoginSettings({ data, secretSet, origin, prodBase, storedM
     startProbe(async () => { const r = await probeSocial(p, fd); setProbes((x) => ({ ...x, [p]: r })); setProbing(null); });
   };
 
-  const bases = [{ label: prodBase && prodBase !== origin ? "Αυτό το περιβάλλον" : "Διεύθυνση καταστήματος", base: origin }, ...(prodBase && prodBase !== origin ? [{ label: "Παραγωγή", base: prodBase }] : [])];
-  const site = prodBase ?? origin;
+  // ΠΡΟΣΩΡΙΝΟ: μέχρι το euronics.gr να δείχνει σε αυτή την εφαρμογή, το live site είναι το euronics.dgsoft.gr — εκεί
+  // επιστρέφουν οι πάροχοι. Φαίνονται και τα δύο, ώστε να δηλωθούν από τώρα και να μη σπάσει τίποτα στη μετάβαση.
+  const LIVE_NOW = "https://euronics.dgsoft.gr";
+  const bases = [
+    { label: prodBase && prodBase !== origin ? "Αυτό το περιβάλλον" : "Διεύθυνση καταστήματος", base: origin },
+    ...(origin !== LIVE_NOW ? [{ label: "Live τώρα (euronics.dgsoft.gr)", base: LIVE_NOW }] : []),
+    ...(prodBase && prodBase !== origin && prodBase !== LIVE_NOW ? [{ label: "Τελικό site (μετά τη μετάβαση)", base: prodBase }] : []),
+  ];
+  const site = /^https:\/\//.test(origin) ? origin : LIVE_NOW; // ΠΡΟΣΩΡΙΝΟ: πολιτική απορρήτου κλπ. από το live site
   const host = (u: string) => u.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   const redirects = (p: P) => bases.map((b) => <CopyValue key={b.base} label={`Redirect URI · ${b.label}`} value={`${b.base}/api/account/oauth/${p}/callback`} />);
   const secretProps = (k: string) => ({ name: k, stored: !!stored[k], rule: RULES[k], onChange: (v: string) => setTyped((t) => ({ ...t, [k]: !!v })), onDirty: recompute });
