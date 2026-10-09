@@ -17,7 +17,7 @@ const ICONS = [Truck, Wrench, Clock, ShieldCheck, Recycle, Sparkles];
  * Hover pauses. Off under reduced motion (shows the list). Data: services
  * with price from the CMS.
  */
-export function ServicesTile({ services, total = 13 }: { services: { title: string; blurb?: string }[]; total?: number }) {
+export function ServicesTile({ services, total = 13, list = false, className = "" }: { services: { title: string; blurb?: string }[]; total?: number; /** ψηλό πλακίδιο (χωρίς προσφορά ημέρας, desktop): όλες οι υπηρεσίες σε λίστα, χωρίς εναλλαγή */ list?: boolean; className?: string }) {
   const { motion } = useSettings();
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -28,18 +28,40 @@ export function ServicesTile({ services, total = 13 }: { services: { title: stri
     return () => clearTimeout(t);
   }, []);
   useEffect(() => {
-    if (paused || rm || services.length < 2) return;
+    if (list || paused || rm || services.length < 2) return;
     const t = setInterval(() => setI((k) => (k + 1) % services.length), motion.servicesTile.intervalMs);
     return () => clearInterval(t);
-  }, [paused, rm, services.length, motion.servicesTile.intervalMs]);
+  }, [list, paused, rm, services.length, motion.servicesTile.intervalMs]);
   useEffect(() => {
     if (!box.current || rm) return;
     gsap.fromTo(box.current.querySelectorAll("[data-line]"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out", stagger: 0.06 });
   }, [i, rm]);
   const s = services[i];
   const Icon = ICONS[i % ICONS.length];
+  if (list) return (
+    <Link href="/ypiresies" className={`group relative bg-eu-surface text-eu-ink rounded-lg p-4 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 hover:bg-eu-chip transition-colors ${className || "grid"}`}>
+      <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide">{c.ypiresies}</span>
+      <ul className="m-0 p-0 list-none grid content-evenly gap-2.5">
+        {services.slice(0, 4).map((x, k) => {
+          const I = ICONS[k % ICONS.length];
+          return (
+            <li key={x.title} className="flex items-start gap-3 min-w-0">
+              <span className="size-9 shrink-0 rounded-xl bg-eu-navy text-eu-yellow inline-flex items-center justify-center"><I className="size-4" aria-hidden /></span>
+              <span className="min-w-0">
+                <span className="block font-heading font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight line-clamp-1">{x.title}</span>
+                {x.blurb && <span className="block text-eu-ink-3 text-[length:var(--fs-13)] leading-snug line-clamp-1 mt-0.5">{x.blurb}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <span className="font-extrabold text-eu-blue text-[length:var(--fs-14)] inline-flex items-center gap-1 justify-self-end">
+        Όλες οι υπηρεσίες <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />
+      </span>
+    </Link>
+  );
   return (
-    <Link href="/ypiresies" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className="group relative bg-eu-surface text-eu-ink rounded-lg p-4 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-2 hover:bg-eu-chip transition-colors overflow-hidden">
+    <Link href="/ypiresies" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} className={`group relative bg-eu-surface text-eu-ink rounded-lg p-4 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-2 hover:bg-eu-chip transition-colors overflow-hidden ${className}`}>
       <div className="flex items-center justify-between">
         <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide">{c.ypiresies}</span>
         <span className="font-heading font-extrabold text-eu-navy/20 text-[length:var(--fs-22)] leading-none tabular-nums">{String(i + 1).padStart(2, "0")}</span>

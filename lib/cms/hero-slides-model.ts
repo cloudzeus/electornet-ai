@@ -33,7 +33,7 @@ export interface HeroDoc {
   slides: HeroSlideDoc[];
   /** επιλογές «Προσφορά ημέρας»· χωρίς επιλογή για σήμερα → αυτόματα η μεγαλύτερη πραγματική έκπτωση */
   deals?: HeroDeal[];
-  /** slugs των υπηρεσιών του πλακιδίου, με τη σειρά τους· κενό = οι πρώτες 6 */
+  /** slugs των υπηρεσιών του πλακιδίου, με τη σειρά τους· κενό = οι πρώτες 4 */
   services?: string[];
 }
 export interface SlideIssue { field: "title" | "image" | "primary" | "secondary" | "dates"; message: string }

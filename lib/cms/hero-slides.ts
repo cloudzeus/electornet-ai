@@ -87,10 +87,10 @@ export const getHeroDeal = cache(async (): Promise<{ product: Product; endsAt: s
   return { product: p, endsAt: p.dealEndsAt && p.dealEndsAt < dayEnd ? p.dealEndsAt : dayEnd };
 });
 
-/** Οι υπηρεσίες του πλακιδίου, με τη σειρά που όρισε ο διαχειριστής (αλλιώς οι πρώτες 6). */
+/** Οι υπηρεσίες του πλακιδίου, με τη σειρά που όρισε ο διαχειριστής (αλλιώς οι πρώτες 4). */
 export const getHeroServices = cache(async (): Promise<{ title: string; blurb: string }[]> => {
   const chosen = (await getPublishedHeroDoc())?.services ?? [];
-  const list = chosen.length ? chosen.map((slug) => ALL_SERVICES.find((x) => x.slug === slug)).filter((x): x is (typeof ALL_SERVICES)[number] => !!x) : ALL_SERVICES.slice(0, 6);
+  const list = chosen.length ? chosen.map((slug) => ALL_SERVICES.find((x) => x.slug === slug)).filter((x): x is (typeof ALL_SERVICES)[number] => !!x) : ALL_SERVICES.slice(0, 4);
   return list.map((x) => ({ title: x.title, blurb: x.blurb }));
 });
 

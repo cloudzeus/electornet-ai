@@ -134,14 +134,21 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
 
   return (
     <div ref={stage} className="relative overflow-hidden rounded-lg bg-eu-navy-2 min-h-[380px] @md:min-h-[420px] @lg:min-h-[480px] @xl:min-h-[540px] h-full isolate eu-container" aria-roledescription="carousel" aria-label={c.kampanies}>
-      {/* backdrop photo, dimmed, for depth */}
-      <div data-backdrop className="absolute inset-0" key={`bd-${s.id}`}>
-        <HeroBackdrop s={s} first={i === 0} />
-        {s.video && motion.hero.video && !reducedMotion && !saveData && (
-          // Ambient loop, muted and decorative; the photo underneath is the poster and the fallback.
-          <video src={s.video} poster={s.image} autoPlay muted loop playsInline preload="metadata" aria-hidden className="absolute inset-0 size-full object-cover opacity-35" />
-        )}
-        <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" />
+      {/* backdrop photos of ALL slides, stacked: each loads once and slides crossfade by opacity. (One keyed layer per
+          slide used to unmount on every change and reload its photo — a navy flash between slides.) */}
+      {slides.map((sl, k) => (
+        <div key={`bd-${sl.id}`} data-backdrop={k === i ? "" : undefined} aria-hidden className={`absolute inset-0 transition-opacity duration-700 ease-out ${k === i ? "opacity-100" : "opacity-0"}`}>
+          <HeroBackdrop s={sl} first={k === 0} />
+          {k === i && sl.video && motion.hero.video && !reducedMotion && !saveData && (
+            // Ambient loop, muted and decorative; the photo underneath is the poster and the fallback.
+            <video src={sl.video} poster={sl.image} autoPlay muted loop playsInline preload="metadata" aria-hidden className="absolute inset-0 size-full object-cover opacity-35" />
+          )}
+        </div>
+      ))}
+      <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" aria-hidden />
+      {/* the products of the other slides load ahead, with the same sizes, so the next slide finds them in the cache */}
+      <div aria-hidden className="absolute size-px overflow-hidden opacity-0 pointer-events-none">
+        {slides.map((sl, k) => (k !== i && sl.cutout ? <Image key={`pre-${sl.id}`} src={sl.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" loading="eager" fetchPriority="low" unoptimized={sl.cutout.startsWith("http")} /> : null))}
       </div>
       {motion.hero.ambient && <span className="eu-ambient" aria-hidden />}
       {motion.hero.spotlight && <Spotlight />}

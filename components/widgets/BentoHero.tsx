@@ -35,17 +35,29 @@ export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback"
   return (
     <section className="relative bg-eu-navy eu-container" aria-label={c.proteinomena}>
       <ZoneBadge no={zoneNo} />
-      <div className="eu-full eu-gutter-wide py-3 @lg:py-3.5 grid grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-[2fr_1fr] @5xl:grid-rows-[auto_auto] gap-3 @lg:gap-3.5">
+      <div className={`eu-full eu-gutter-wide py-3 @lg:py-3.5 grid grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-[2fr_1fr] ${deal ? "@5xl:grid-rows-[auto_auto]" : "@5xl:grid-rows-[auto_minmax(0,1fr)]"} gap-3 @lg:gap-3.5`}>
         <div className="@md:col-span-2 @5xl:col-span-1 @5xl:row-span-2">
           <CinematicHero slides={slides} intervalMs={intervalMs} />
         </div>
 
-        {deal && <DealOfDayTile product={deal.product} endsAt={deal.endsAt} />}
-
-        <div className={`grid grid-rows-2 gap-3 @lg:gap-3.5 ${deal ? "" : "@md:col-span-2 @5xl:col-span-1 @5xl:row-span-2"}`}>
-          <StoreTile initial={{ id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng }} geoCity={geoCity} geoSource={geoSource} />
-          <ServicesTile services={services} />
-        </div>
+        {deal ? (
+          <>
+            <DealOfDayTile product={deal.product} endsAt={deal.endsAt} />
+            <div className="grid grid-rows-2 gap-3 @lg:gap-3.5">
+              <StoreTile initial={{ id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng }} geoCity={geoCity} geoSource={geoSource} />
+              <ServicesTile services={services} />
+            </div>
+          </>
+        ) : (
+          // Χωρίς προσφορά ημέρας: κατάστημα και υπηρεσίες γίνονται οι δύο σειρές δίπλα στο hero — παίρνουν το ύψος του
+          // αντί να το φουσκώνουν (το εσωτερικό grid-rows-2 εξίσωνε τις σειρές και μεγάλωνε όλο το hero).
+          <>
+            <StoreTile initial={{ id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng }} geoCity={geoCity} geoSource={geoSource} />
+            {/* desktop: όλη η λίστα δίπλα στο hero · tablet/κινητό: το μικρό πλακίδιο με εναλλαγή */}
+            <ServicesTile services={services} className="@5xl:hidden" />
+            <ServicesTile services={services} list className="hidden @5xl:grid" />
+          </>
+        )}
       </div>
       <span className="sr-only">
         <Image src="/design/star.svg" alt="" width={1} height={1} />

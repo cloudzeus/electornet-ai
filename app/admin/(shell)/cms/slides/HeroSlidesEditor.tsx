@@ -142,13 +142,13 @@ function DealsPanel({ deals, products, onSet }: { deals: { day: string; productI
   );
 }
 
-/** Υπηρεσίες του πλακιδίου: ποιες και με ποια σειρά (καμία επιλογή = οι πρώτες 6). */
+/** Υπηρεσίες του πλακιδίου: ποιες και με ποια σειρά (καμία επιλογή = οι πρώτες 4). */
 function ServicesPanel({ all, chosen, onChange }: { all: { slug: string; title: string; blurb: string }[]; chosen: string[]; onChange: (v: string[]) => void }) {
   const ordered = [...chosen.map((slug) => all.find((x) => x.slug === slug)).filter((x): x is (typeof all)[number] => !!x), ...all.filter((x) => !chosen.includes(x.slug))];
   const move = (slug: string, dir: -1 | 1) => { const i = chosen.indexOf(slug), j = i + dir; if (i < 0 || j < 0 || j >= chosen.length) return; const a = [...chosen]; [a[i], a[j]] = [a[j], a[i]]; onChange(a); };
   return (
     <div className="grid gap-3 min-w-0">
-      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Τσέκαρε ποιες υπηρεσίες εναλλάσσονται στο πλακίδιο και άλλαξε τη σειρά τους. Χωρίς επιλογή εμφανίζονται οι πρώτες 6. Τα κείμενα αλλάζουν στις σελίδες των υπηρεσιών.</p>
+      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Τσέκαρε ποιες υπηρεσίες εμφανίζονται και με ποια σειρά — προτείνονται 3–4. Στο desktop φαίνονται σε λίστα οι 4 πρώτες· σε tablet και κινητό εναλλάσσονται μία-μία. Χωρίς επιλογή: οι πρώτες 4. Τα κείμενα αλλάζουν στις σελίδες των υπηρεσιών.</p>
       <ol className="m-0 p-0 list-none grid gap-1.5">
         {ordered.map((x) => {
           const on = chosen.includes(x.slug), idx = chosen.indexOf(x.slug);
