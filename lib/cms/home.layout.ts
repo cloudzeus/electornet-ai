@@ -37,12 +37,12 @@ export async function getHomeLayout(): Promise<PageLayout> {
         slot: "main",
         widgets: [
           {
-            id: "hero-summer",
+            id: "hero-main",
             type: "bento-hero",
             zoneNo: 4,
-            label: "Καλοκαίρι 2026 · κλιματισμός",
+            // Μόνιμο: το περιεχόμενο το ορίζουν τα slides. (Ως «Καλοκαίρι 2026» είχε λήξη 30/9 και η αρχική έμεινε χωρίς hero.)
+            label: "Κεντρικά slides",
             props: { slides: "all", intervalMs: 6000 },
-            schedule: { from: "2026-06-01T00:00:00+03:00", to: "2026-09-30T23:59:59+03:00" },
           },
         ],
       },
