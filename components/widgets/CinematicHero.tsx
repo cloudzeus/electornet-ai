@@ -2,7 +2,7 @@
 
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import Link from "next/link";
 import { Pause, Play, ArrowRight } from "lucide-react";
 import gsap from "gsap";
@@ -11,6 +11,7 @@ import { useDevice } from "@/components/fluid/DeviceProvider";
 import { StarLight } from "@/components/motion/StarLight";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { copyOf } from "@/lib/cms/copy";
+import { priceLong } from "@/lib/format";
 
 const c = copyOf("hero");
 
@@ -27,6 +28,25 @@ const c = copyOf("hero");
  * sits behind the text at the right, smaller, so the title never wraps
  * around it. Every text ≥ 14px.
  */
+/**
+ * Φωτογραφία φόντου. Με ξεχωριστή φωτογραφία κινητού: <picture> (art direction, getImageProps) ώστε κάθε συσκευή να
+ * κατεβάζει μόνο τη δική της — χωρίς preload, όπως ορίζει η τεκμηρίωση του Next για art direction.
+ */
+function HeroBackdrop({ s, first }: { s: HeroSlide; first: boolean }) {
+  const cls = "object-cover opacity-25 scale-105";
+  if (!s.imageMobile) return <Image src={s.image} alt="" fill preload={first} sizes="(max-width: 1024px) 100vw, 66vw" className={cls} unoptimized={s.image.startsWith("http")} />;
+  const common = { alt: "", fill: true, sizes: "(max-width: 767px) 100vw, 66vw", fetchPriority: first ? ("high" as const) : undefined };
+  const desktop = getImageProps({ ...common, src: s.image, unoptimized: s.image.startsWith("http") }).props;
+  const { srcSet: mobileSet, ...rest } = getImageProps({ ...common, src: s.imageMobile, unoptimized: s.imageMobile.startsWith("http") }).props;
+  return (
+    <picture>
+      <source media="(min-width: 768px)" srcSet={desktop.srcSet ?? desktop.src} />
+      {/* eslint-disable-next-line jsx-a11y/alt-text -- alt="" μέσα στο rest: διακοσμητικό φόντο */}
+      <img {...rest} srcSet={mobileSet} className={cls} />
+    </picture>
+  );
+}
+
 export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: HeroSlide[]; intervalMs?: number }) {
   const { motion } = useSettings();
   const intervalMs = intervalProp ?? motion.hero.intervalMs;
@@ -116,7 +136,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
     <div ref={stage} className="relative overflow-hidden rounded-lg bg-eu-navy-2 min-h-[380px] @md:min-h-[420px] @lg:min-h-[480px] @xl:min-h-[540px] h-full isolate eu-container" aria-roledescription="carousel" aria-label={c.kampanies}>
       {/* backdrop photo, dimmed, for depth */}
       <div data-backdrop className="absolute inset-0" key={`bd-${s.id}`}>
-        <Image src={s.image} alt="" fill priority={i === 0} sizes="(max-width: 1024px) 100vw, 66vw" className="object-cover opacity-25 scale-105" unoptimized={s.image.startsWith("http")} />
+        <HeroBackdrop s={s} first={i === 0} />
         {s.video && motion.hero.video && !reducedMotion && !saveData && (
           // Ambient loop, muted and decorative; the photo underneath is the poster and the fallback.
           <video src={s.video} poster={s.image} autoPlay muted loop playsInline preload="metadata" aria-hidden className="absolute inset-0 size-full object-cover opacity-35" />
@@ -174,7 +194,8 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
           <div data-product style={hidden} className="relative w-[62%] max-w-[300px] ml-auto -mt-6 mr-4 mb-16 @md:mb-16 @lg:mt-0 @lg:mr-0 @lg:mb-0 @lg:ml-0 @lg:w-auto @lg:max-w-none @lg:h-full @lg:flex @lg:items-center @lg:justify-center @lg:pr-8">
             <span className="eu-rays hidden @lg:block" style={{ width: "140%", left: "-20%", top: "-20%" }} aria-hidden />
             <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full @lg:w-[88%] @xl:w-[92%] max-w-[560px] aspect-square eu-float">
-              <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" priority={i === 0} className="object-contain eu-cutout-shadow-dark" />
+              <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 60vw, 560px" preload={i === 0} className="object-contain eu-cutout-shadow-dark" unoptimized={s.cutout.startsWith("http")} />
+              {s.price ? <span className="absolute left-1/2 -translate-x-1/2 bottom-[4%] rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-1.5 text-[length:var(--fs-16)] shadow-lg whitespace-nowrap tabular-nums">{priceLong(s.price)}</span> : null}
             </Link>
           </div>
         )}
