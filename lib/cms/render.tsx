@@ -17,7 +17,8 @@ import { CampaignSpotlight, type VendorCampaign } from "@/components/widgets/Cam
 import { getNews } from "@/lib/data/repo";
 import { NewsletterBand } from "@/components/widgets/NewsletterBand";
 import { Reveal } from "@/components/motion/Reveal";
-import { getCategories, getDealOfDay, getGuides, getHeroSlides, getNearestStoreWithGeo, getProduct, getServices, getWeeklyDeals } from "@/lib/data/catalog";
+import { getLiveHeroSlides } from "@/lib/cms/hero-slides";
+import { getCategories, getDealOfDay, getGuides, getNearestStoreWithGeo, getProduct, getServices, getWeeklyDeals } from "@/lib/data/catalog";
 
 /**
  * Widget registry: type → async server component. Each widget resolves
@@ -32,7 +33,7 @@ const registry: Record<string, Renderer> = {
     return <AnnouncementBar key={w.id} {...p} zoneNo={w.zoneNo} />;
   },
   "bento-hero": async (w, ctx) => {
-    const [slides, deal, geo, services] = await Promise.all([getHeroSlides(), getDealOfDay(), getNearestStoreWithGeo(), getServices(6)]);
+    const [slides, deal, geo, services] = await Promise.all([getLiveHeroSlides(), getDealOfDay(), getNearestStoreWithGeo(), getServices(6)]);
     const p = w.props as { intervalMs?: number };
     // Save-Data: a single static slide, no slideshow.
     const shown = ctx.saveData ? slides.slice(0, 1) : slides;

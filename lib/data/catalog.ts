@@ -1,5 +1,5 @@
 import "server-only";
-import type { Category, Guide, HeroSlide, Product, Service, Store } from "./types";
+import type { Category, Guide, Product, Service, Store } from "./types";
 
 /**
  * Data layer. Today these are typed fixtures reproduced from the design
@@ -75,49 +75,6 @@ const guides: Guide[] = [
   },
 ];
 
-const heroSlides: HeroSlide[] = [
-  {
-    id: "summer-clima",
-    kicker: "Καλοκαίρι 2026 · κλιματισμός",
-    title: ["Δροσιά", "που δεν καίει", "ρεύμα"],
-    body: "Inverter έως A+++, τοποθέτηση από πιστοποιημένο τεχνικό του καταστήματος της γειτονιάς σου, δόσεις χωρίς κάρτα.",
-    primary: { label: "Δες τα 186 μοντέλα", href: "/k/klimatismos/air-condition" },
-    secondary: { label: "Υπολόγισε BTU", href: "/odigoi/epilogi-klimatistikou" },
-    bullets: ["Δωρεάν μεταφορά", "Εγκατάσταση", "Εγγύηση έως 5 έτη"],
-    image: "/img/hero-clima.jpg",
-    alt: "Δροσερό σαλόνι με κλιματιστικό inverter",
-    cutout: "/img/cutouts/r-152092-0.webp",
-    productHref: "/proion/inventor-veri-vero-18wfi-klimatistiko",
-    video: "/video/hero-clima.mp4",
-  },
-  {
-    id: "back-to-school",
-    kicker: "Σεπτέμβριος · computing",
-    title: ["Laptop", "για κάθε", "σχολή"],
-    body: "Από 399 €, με δωρεάν τσάντα και εγκατάσταση Office από το κατάστημα.",
-    primary: { label: "Δες τα 154 μοντέλα", href: "/k/computing/laptops" },
-    secondary: { label: "Οδηγός επιλογής", href: "/odigoi" },
-    bullets: ["Δωρεάν μεταφορά", "Δόσεις χωρίς κάρτα", "Επίσημη εγγύηση"],
-    image: "/img/hero-laptop.jpg",
-    alt: "Φοιτήτρια με laptop στο γραφείο της",
-    cutout: "/img/cutouts/r-157206-0.webp",
-    productHref: "/proion/apple-mdhe4gr-a-midnight",
-  },
-  {
-    id: "renew",
-    kicker: "Euronics Renew",
-    title: ["Refurbished", "με 2 χρόνια", "εγγύηση"],
-    body: "Έλεγχος 60 σημείων, μπαταρία ≥85%, Grade A/B με σαφή περιγραφή.",
-    primary: { label: "Δες τα Renew", href: "/renew" },
-    secondary: { label: "Τι είναι το Renew", href: "/renew" },
-    bullets: ["2 έτη εγγύηση", "Επιστροφή σε 14 ημέρες", "Δόσεις"],
-    image: "/img/hero-renew.jpg",
-    alt: "Refurbished smartphone στο χέρι",
-    cutout: "/img/cutouts/r-146037-0.webp",
-    productHref: "/renew",
-  },
-];
-
 export async function getProducts(): Promise<Product[]> {
   return products;
 }
@@ -141,9 +98,6 @@ export async function getNearestStoreWithGeo(): Promise<{ store: Store; city?: s
 }
 export async function getGuides(): Promise<Guide[]> {
   return guides;
-}
-export async function getHeroSlides(): Promise<HeroSlide[]> {
-  return heroSlides;
 }
 export async function getDealOfDay(): Promise<{ product: Product; endsAt: string }> {
   const end = new Date();
