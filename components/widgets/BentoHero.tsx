@@ -11,7 +11,8 @@ const c = copyOf("bento");
 
 interface Props {
   slides: HeroSlide[];
-  deal: { product: Product; endsAt: string };
+  /** null: δεν υπάρχει πραγματική προσφορά σήμερα — το πλακίδιο δεν εμφανίζεται */
+  deal: { product: Product; endsAt: string } | null;
   store: Store;
   geoCity?: string;
   geoSource?: "ip" | "fallback" | "gps" | "manual";
@@ -39,9 +40,9 @@ export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback"
           <CinematicHero slides={slides} intervalMs={intervalMs} />
         </div>
 
-        <DealOfDayTile product={deal.product} endsAt={deal.endsAt} />
+        {deal && <DealOfDayTile product={deal.product} endsAt={deal.endsAt} />}
 
-        <div className="grid grid-rows-2 gap-3 @lg:gap-3.5">
+        <div className={`grid grid-rows-2 gap-3 @lg:gap-3.5 ${deal ? "" : "@md:col-span-2 @5xl:col-span-1 @5xl:row-span-2"}`}>
           <StoreTile initial={{ id: store.id, slug: store.slug, name: store.name, city: store.city, distanceKm: store.distanceKm, openUntil: store.openUntil, lat: store.lat, lng: store.lng }} geoCity={geoCity} geoSource={geoSource} />
           <ServicesTile services={services} />
         </div>

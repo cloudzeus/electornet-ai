@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_HERO_DOC, athensDay, emptySlide, normalizeDoc, pickSlides, slideStatus, validateDoc, validateSlide, type HeroDoc, type HeroSlideDoc } from "./hero-slides-model";
+import { DEFAULT_HERO_DOC, athensDay, dealFor, emptySlide, endOfAthensDay, normalizeDoc, pickSlides, slideStatus, validateDoc, validateSlide, type HeroDoc, type HeroSlideDoc } from "./hero-slides-model";
 
 const slide = (o: Partial<HeroSlideDoc> = {}): HeroSlideDoc => ({ ...emptySlide(), id: o.id ?? "s", title: ["Τίτλος"], primary: { label: "Δες", href: "/k" }, image: { url: "/img/a.jpg", alt: "Περιγραφή" }, ...o });
 const doc = (...slides: HeroSlideDoc[]): HeroDoc => ({ slides });
@@ -69,5 +69,24 @@ test("normalizeDoc: καθαρίζει είσοδο και αδειάζει ημ
   assert.equal(s.image.alt, "alt");
   assert.equal(s.imageMobile, null);
   assert.equal(s.productId, null);
-  assert.deepEqual(normalizeDoc("σκουπίδια"), { slides: [] });
+  assert.deepEqual(normalizeDoc("σκουπίδια"), { slides: [], deals: [], services: [] });
+});
+
+test("dealFor: η επιλογή της ημέρας (ώρα Ελλάδας)", () => {
+  const d: HeroDoc = { slides: [], deals: [{ day: "2026-10-09", productId: "p1" }, { day: "2026-10-10", productId: "p2" }] };
+  assert.equal(dealFor(d, at("2026-10-09T20:59:00Z")), "p1"); // 23:59 Ελλάδας
+  assert.equal(dealFor(d, at("2026-10-09T21:01:00Z")), "p2"); // 00:01 της 10/10
+  assert.equal(dealFor(d, at("2026-10-11T10:00:00Z")), null);
+  assert.equal(dealFor(null, at("2026-10-11T10:00:00Z")), null);
+});
+
+test("endOfAthensDay: τέλος ημέρας με θερινή/χειμερινή ώρα", () => {
+  assert.equal(endOfAthensDay("2026-10-09"), "2026-10-09T20:59:59.000Z"); // UTC+3
+  assert.equal(endOfAthensDay("2026-12-15"), "2026-12-15T21:59:59.000Z"); // UTC+2
+});
+
+test("normalizeDoc: προσφορές ημέρας και υπηρεσίες", () => {
+  const n = normalizeDoc({ slides: [], deals: [{ day: "2026-10-09", productId: "a" }, { day: "2026-10-09", productId: "b" }, { day: "κακό", productId: "c" }, { day: "2026-10-10", productId: "" }], services: ["epektasi-eggyisis", "", "epektasi-eggyisis", "x"] });
+  assert.deepEqual(n.deals, [{ day: "2026-10-09", productId: "b" }]);
+  assert.deepEqual(n.services, ["epektasi-eggyisis", "x"]);
 });

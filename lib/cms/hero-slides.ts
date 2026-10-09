@@ -4,8 +4,9 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getProductsByIds } from "@/lib/data/repo";
 import { cutoutFor } from "@/lib/data/cutouts";
-import type { HeroSlide } from "@/lib/data/types";
-import { DEFAULT_HERO_DOC, pickSlides, toHeroSlide, type HeroDoc, type HeroSlideDoc, type ProductInfo } from "./hero-slides-model";
+import type { HeroSlide, Product } from "@/lib/data/types";
+import { services as ALL_SERVICES } from "@/lib/data/fixtures/services";
+import { DEFAULT_HERO_DOC, athensDay, dealFor, endOfAthensDay, pickSlides, toHeroSlide, type HeroDoc, type HeroSlideDoc, type ProductInfo } from "./hero-slides-model";
 
 /**
  * Hero slides στη βάση: CmsDocument «hero.slides»/«home». `data` = πρόχειρο, `published` = ό,τι βλέπει ο πελάτης.
@@ -50,8 +51,48 @@ async function resolve(slides: HeroSlideDoc[]): Promise<HeroSlide[]> {
   return slides.map((s) => toHeroSlide(s, s.productId ? info[s.productId] ?? null : null));
 }
 
-/** Τα slides του hero για αυτό το αίτημα (μία ανάγνωση ανά αίτημα). */
-export const getLiveHeroSlides = cache(async (): Promise<HeroSlide[]> => {
+/** Το δημοσιευμένο έγγραφο (μία ανάγνωση ανά αίτημα). */
+const getPublishedHeroDoc = cache(async (): Promise<HeroDoc | null> => {
   const d = await db.cmsDocument.findUnique({ where, select: { published: true } }).catch(() => null);
-  return resolve(pickSlides(asDoc(d?.published), new Date()));
+  return asDoc(d?.published);
 });
+
+/** Τα slides του hero για αυτό το αίτημα. */
+export const getLiveHeroSlides = cache(async (): Promise<HeroSlide[]> => resolve(pickSlides(await getPublishedHeroDoc(), new Date())));
+
+/**
+ * «Προσφορά ημέρας»: το προϊόν που διάλεξε ο διαχειριστής για σήμερα· αλλιώς η μεγαλύτερη ΠΡΑΓΜΑΤΙΚΗ έκπτωση
+ * (ProductOffer, έναντι της χαμηλότερης τιμής 30 ημερών — Omnibus) σε προϊόν με απόθεμα. Χωρίς τίποτα → null και το
+ * πλακίδιο δεν εμφανίζεται: ποτέ σταθερό ή επινοημένο προϊόν/τιμή. Λήξη: τα μεσάνυχτα, ή νωρίτερα αν λήγει η προσφορά.
+ */
+export const getHeroDeal = cache(async (): Promise<{ product: Product; endsAt: string } | null> => {
+  const now = new Date();
+  let id = dealFor(await getPublishedHeroDoc(), now);
+  if (!id) {
+    const offers = await db.productOffer.findMany({
+      where: { OR: [{ endsAt: null }, { endsAt: { gt: now } }], product: { active: true, stock: { gt: 0 } } },
+      select: { productId: true, price: true, listPrice: true, lowest30: true }, take: 1000,
+    }).catch(() => []);
+    let best = 0;
+    for (const o of offers) {
+      const price = Number(o.price), ref = Number(o.lowest30 ?? o.listPrice);
+      const pct = ref > 0 ? 1 - price / ref : 0;
+      if (price > 0 && pct > best) { best = pct; id = o.productId; }
+    }
+  }
+  if (!id) return null;
+  const [p] = await getProductsByIds([id]).catch(() => []);
+  if (!p || p.noPrice || !p.price) return null;
+  const dayEnd = endOfAthensDay(athensDay(now));
+  return { product: p, endsAt: p.dealEndsAt && p.dealEndsAt < dayEnd ? p.dealEndsAt : dayEnd };
+});
+
+/** Οι υπηρεσίες του πλακιδίου, με τη σειρά που όρισε ο διαχειριστής (αλλιώς οι πρώτες 6). */
+export const getHeroServices = cache(async (): Promise<{ title: string; blurb: string }[]> => {
+  const chosen = (await getPublishedHeroDoc())?.services ?? [];
+  const list = chosen.length ? chosen.map((slug) => ALL_SERVICES.find((x) => x.slug === slug)).filter((x): x is (typeof ALL_SERVICES)[number] => !!x) : ALL_SERVICES.slice(0, 6);
+  return list.map((x) => ({ title: x.title, blurb: x.blurb }));
+});
+
+/** Όλες οι υπηρεσίες (για τον επεξεργαστή). */
+export const allHeroServices = () => ALL_SERVICES.map((x) => ({ slug: x.slug, title: x.title, blurb: x.blurb }));

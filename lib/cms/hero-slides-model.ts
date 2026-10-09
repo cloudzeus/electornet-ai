@@ -27,7 +27,15 @@ export interface HeroSlideDoc {
   cutout?: string | null;
   productHref?: string | null;
 }
-export interface HeroDoc { slides: HeroSlideDoc[] }
+/** Προσφορά ημέρας: προϊόν ανά ημέρα (ώρα Ελλάδας) */
+export interface HeroDeal { day: string; productId: string }
+export interface HeroDoc {
+  slides: HeroSlideDoc[];
+  /** επιλογές «Προσφορά ημέρας»· χωρίς επιλογή για σήμερα → αυτόματα η μεγαλύτερη πραγματική έκπτωση */
+  deals?: HeroDeal[];
+  /** slugs των υπηρεσιών του πλακιδίου, με τη σειρά τους· κενό = οι πρώτες 6 */
+  services?: string[];
+}
 export interface SlideIssue { field: "title" | "image" | "primary" | "secondary" | "dates"; message: string }
 /** Ό,τι χρειάζεται ο hero από ένα προϊόν του καταλόγου — η τιμή διαβάζεται τη στιγμή της προβολής */
 export interface ProductInfo { title: string; slug: string; cutout: string | null; price: number | null }
@@ -80,6 +88,21 @@ export function pickSlides(doc: HeroDoc | null, now: Date): HeroSlideDoc[] {
   const fallback = d.slides.filter((s) => s.active && s.permanent);
   if (fallback.length) return fallback;
   return doc ? pickSlides(null, now) : [];
+}
+
+/** Το προϊόν που διάλεξε ο διαχειριστής για σήμερα (ή null → αυτόματη επιλογή). */
+export function dealFor(doc: HeroDoc | null, now: Date): string | null {
+  const day = athensDay(now);
+  return doc?.deals?.find((d) => d.day === day)?.productId ?? null;
+}
+
+/** 23:59:59 ώρας Ελλάδας της ημέρας, ως ISO (UTC) — η πραγματική λήξη για το countdown. */
+export function endOfAthensDay(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const guess = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
+  const off = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Athens", timeZoneName: "shortOffset" }).formatToParts(guess).find((x) => x.type === "timeZoneName")?.value ?? "GMT+2";
+  const hours = Number(off.replace("GMT", "")) || 0;
+  return new Date(guess.getTime() - hours * 3600_000).toISOString();
 }
 
 const dm = (day: string) => `${+day.slice(8, 10)}/${+day.slice(5, 7)}`;
@@ -151,7 +174,14 @@ export function normalizeDoc(input: unknown): HeroDoc {
       productHref: str(s.productHref, 300) || null,
     };
   });
-  return { slides };
+  const deals = new Map<string, string>();
+  for (const x of Array.isArray(obj(input).deals) ? (obj(input).deals as unknown[]) : []) {
+    const o = obj(x), dd = day(o.day), pid = str(o.productId, 60);
+    if (dd && pid) deals.set(dd, pid); // μία επιλογή ανά ημέρα — η τελευταία κερδίζει
+  }
+  const rawServices = obj(input).services;
+  const services = [...new Set((Array.isArray(rawServices) ? rawServices : []).map((x) => str(x, 80)).filter(Boolean))].slice(0, 13);
+  return { slides, deals: [...deals].map(([d, productId]) => ({ day: d, productId })).sort((a, b) => a.day.localeCompare(b.day)).slice(-120), services };
 }
 
 /** Έγγραφο → ό,τι ζωγραφίζει ο hero. Με προϊόν του καταλόγου: το cutout, ο σύνδεσμος και η τρέχουσα τιμή του. */
