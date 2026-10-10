@@ -29,16 +29,14 @@ export async function saveBulkyRules(raw: unknown, userId: string) {
 }
 
 export type ShipLimit = ShipVerdict & { weightKg: number | null; dimsCm: [number, number, number] | null };
+/** Τα στοιχεία ενός προϊόντος που κρίνουν την αποστολή (χωρίς τους κανόνες): κατηγορία με τις γονικές, βάρος, διαστάσεις. */
+export type ShipFactsRow = { id: string; categoryId: string; path: string[]; weightKg: number | null; dimsCm: [number, number, number] | null };
 
-/**
- * Courier / θυρίδα ανά προϊόν: κατηγορία (και γονικές), βάρος από τα χαρακτηριστικά (πρώτα της συσκευασίας),
- * διαστάσεις του ERP (CCCLENGTH/WIDTH/HEIGHT).
- */
-export async function shippingLimits(productIds: string[], rulesOverride?: BulkyRules): Promise<Map<string, ShipLimit>> {
+/** Βάρος από τα χαρακτηριστικά (πρώτα της συσκευασίας) ή το ERP, διαστάσεις του ERP (CCCLENGTH/WIDTH/HEIGHT). */
+export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[]> {
   const ids = [...new Set(productIds.filter(Boolean))];
-  if (!ids.length) return new Map();
-  const [rules, prods, specs] = await Promise.all([
-    rulesOverride ?? getBulkyRules(),
+  if (!ids.length) return [];
+  const [prods, specs] = await Promise.all([
     db.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true, erpCode: true } }),
     db.spec.findMany({ where: { productId: { in: ids }, key: { contains: "άρος", mode: "insensitive" } }, select: { productId: true, key: true, value: true } }),
   ]);
@@ -50,10 +48,38 @@ export async function shippingLimits(productIds: string[], rulesOverride?: Bulky
   const im = new Map(items.map((i) => [String(i.mtrl), i]));
   const sm = new Map<string, { key: string; value: string }[]>();
   for (const s of specs) sm.set(s.productId, [...(sm.get(s.productId) ?? []), s]);
-  return new Map(prods.map((p) => {
+  return prods.map((p) => {
     const it = p.erpCode ? im.get(p.erpCode) : undefined;
     const dimsCm = it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : null;
     const weightKg = (it?.weightKg && it.weightKg > 0 ? it.weightKg : null) ?? shippingWeight(sm.get(p.id) ?? []);
-    return [p.id, { ...decideShipping({ categoryPath: paths.get(p.categoryId) ?? [], weightKg, dimsCm }, rules), weightKg, dimsCm }];
-  }));
+    return { id: p.id, categoryId: p.categoryId, path: paths.get(p.categoryId) ?? [], weightKg, dimsCm };
+  });
+}
+
+/** Courier / θυρίδα ανά προϊόν με τους τρέχοντες (ή δοκιμαστικούς) κανόνες. */
+export async function shippingLimits(productIds: string[], rulesOverride?: BulkyRules): Promise<Map<string, ShipLimit>> {
+  const [rules, facts] = await Promise.all([rulesOverride ?? getBulkyRules(), shippingFacts(productIds)]);
+  return new Map(facts.map((f) => [f.id, { ...decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules), weightKg: f.weightKg, dimsCm: f.dimsCm }]));
+}
+
+/** Τα στοιχεία όλων των ενεργών προϊόντων (5′ στη μνήμη) — για την επίπτωση των κανόνων σε πραγματικό χρόνο. */
+let factsMem: { at: number; rows: ShipFactsRow[] } | null = null;
+export async function allShippingFacts(): Promise<ShipFactsRow[]> {
+  if (factsMem && Date.now() - factsMem.at < 300_000) return factsMem.rows;
+  const ids = (await db.product.findMany({ where: { active: true }, select: { id: true } })).map((p) => p.id);
+  const rows = await shippingFacts(ids);
+  factsMem = { at: Date.now(), rows };
+  return rows;
+}
+
+/** Πόσα πάνε με courier, πόσα μόνο από κατάστημα, πόσα σε θυρίδα, πόσα χωρίς στοιχεία — και «μόνο κατάστημα» ανά κατηγορία. */
+export function tallyShipping(rows: ShipFactsRow[], rules: BulkyRules) {
+  const t = { courier: 0, store: 0, locker: 0, unknown: 0, storeByCat: {} as Record<string, number> };
+  for (const f of rows) {
+    const v = decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules);
+    if (v.courier) t.courier++; else { t.store++; t.storeByCat[f.categoryId] = (t.storeByCat[f.categoryId] ?? 0) + 1; }
+    if (v.locker) t.locker++;
+    if (f.weightKg == null && !f.dimsCm) t.unknown++;
+  }
+  return t;
 }
