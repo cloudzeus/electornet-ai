@@ -191,8 +191,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
                       <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}</div>
                     </div>
                     <div className={`tabular-nums font-bold text-[length:var(--fs-14)] ${m.stock >= (m.qty || 1) ? "text-eu-green" : "text-eu-red"}`}>{m.stock >= (m.qty || 1) ? `${m.stock} τεμ.` : "Χωρίς απόθεμα"}</div>
-                    <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»
-                      <SetMemberLabel spcs={set.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.name} canWrite={canWrite} />
+                    <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»{m.suggested && !m.label ? " · αυτόματη πρόταση" : ""}
+                      <SetMemberLabel spcs={set.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.suggested ?? m.name} canWrite={canWrite} />
                     </label>
                   </li>
                 ))}

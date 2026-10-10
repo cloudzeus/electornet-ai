@@ -19,7 +19,7 @@ const FILTERS: { v: string; label: string; test: (s: SetRow) => boolean }[] = [
   { v: "available", label: "Διαθέσιμα τώρα", test: (s) => s.available > 0 },
   { v: "parts", label: "Εξαρτήματα (π.χ. κλιματιστικά)", test: (s) => s.kind === "parts" },
   { v: "gift", label: "Με δώρο", test: (s) => s.kind === "gift" },
-  { v: "labels", label: "Χωρίς ονόματα για το site", test: (s) => s.members.some((m) => !m.label) },
+  { v: "labels", label: "Χωρίς όνομα για το site (ούτε πρόταση)", test: (s) => s.kind === "parts" && s.members.some((m) => !m.label && !m.suggested) },
 ];
 const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -109,8 +109,8 @@ export default async function SetsPage({ searchParams }: { searchParams: Promise
                         <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}{m.productId && !m.isMain ? <> · <Link href={`/admin/catalog/${m.productId}`} className="text-eu-blue hover:underline">στον κατάλογο</Link></> : ""}</div>
                       </div>
                       <div className={`tabular-nums font-bold text-[length:var(--fs-14)] ${m.stock >= (m.qty || 1) ? "text-eu-green" : "text-eu-red"}`}>{m.stock >= (m.qty || 1) ? `${m.stock} τεμ.` : "Χωρίς απόθεμα"}</div>
-                      <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»
-                        <SetMemberLabel spcs={s.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.name} canWrite={canWrite} />
+                      <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»{m.suggested && !m.label ? " · αυτόματη πρόταση" : ""}
+                        <SetMemberLabel spcs={s.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.suggested ?? m.name} canWrite={canWrite} />
                       </label>
                     </li>
                   ))}

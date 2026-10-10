@@ -1,12 +1,13 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { suggestSetLabel } from "./set-labels";
 
 /**
  * Τα «Set ειδών» του SoftOne όπως τα βλέπει η διαχείριση και το site: κύριο προϊόν, μέλη, απόθεμα (= πόσα πλήρη sets
  * βγαίνουν από τα μέλη) και προβλήματα. Πηγή: ο καθρέφτης S1Set / S1SetLine (lib/softone/sets.ts).
  */
-export interface SetMember { lineNum: number; mtrl: number; code: string | null; name: string; label: string | null; qty: number; stock: number; isMain: boolean; productId: string | null; productActive: boolean }
+export interface SetMember { lineNum: number; mtrl: number; code: string | null; name: string; label: string | null; /** αυτόματη πρόταση (κλιματιστικά: εσωτερική / εξωτερική μονάδα) */ suggested: string | null; qty: number; stock: number; isMain: boolean; productId: string | null; productActive: boolean }
 /** parts = εξαρτήματα (π.χ. εξωτερική μονάδα, δεν πωλείται χωριστά) · gift = με δώρο (κανονικό προϊόν ή «+ ΔΩΡΟ» στο όνομα) */
 export type SetKind = "parts" | "gift";
 export const isGiftName = (name: string) => /δ[ωώ]ρ/i.test(name);
@@ -28,7 +29,7 @@ async function buildRows(where: Prisma.S1SetWhereInput): Promise<SetRow[]> {
   const now = Date.now();
   return sets.map((s) => {
     const mp = pm.get(String(s.mtrl));
-    const members: SetMember[] = s.lines.map((l) => { const p = pm.get(String(l.mtrl)); return { lineNum: l.lineNum, mtrl: l.mtrl, code: l.code, name: l.name, label: l.label, qty: l.qty, stock: l.stockCentral, isMain: l.mtrl === s.mtrl, productId: p?.id ?? null, productActive: !!p?.active }; });
+    const members: SetMember[] = s.lines.map((l) => { const p = pm.get(String(l.mtrl)); return { lineNum: l.lineNum, mtrl: l.mtrl, code: l.code, name: l.name, label: l.label, suggested: suggestSetLabel(l.name, s.name, { isMain: l.mtrl === s.mtrl, members: s.lines.length }), qty: l.qty, stock: l.stockCentral, isMain: l.mtrl === s.mtrl, productId: p?.id ?? null, productActive: !!p?.active }; });
     const kind: SetKind = isGiftName(s.name) || members.some((m) => !m.isMain && m.productActive) ? "gift" : "parts";
     const avail = (ms: SetMember[]) => (ms.length ? Math.max(0, Math.min(...ms.map((m) => Math.floor(m.stock / (m.qty || 1))))) : 0);
     // με δώρο: το κύριο προϊόν πουλιέται και μόνο του — διαθεσιμότητα από το κύριο είδος
@@ -64,5 +65,5 @@ export async function setPartsForSite(productId: string): Promise<{ name: string
   const sold = new Set((others.length ? await db.product.findMany({ where: { erpCode: { in: others }, active: true }, select: { erpCode: true } }) : []).map((p) => p.erpCode));
   const s = sets.find((x) => !isGiftName(x.name) && x.lines.every((l) => l.mtrl === m || !sold.has(String(l.mtrl))));
   if (!s || s.lines.length < 2) return null;
-  return s.lines.map((l) => ({ name: l.label?.trim() || l.name, qty: l.qty }));
+  return s.lines.map((l) => ({ name: l.label?.trim() || suggestSetLabel(l.name, s.name, { isMain: l.mtrl === m, members: s.lines.length }) || l.name, qty: l.qty }));
 }
