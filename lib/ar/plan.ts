@@ -2,7 +2,7 @@ import type { Dims } from "@/lib/data/dims";
 import { dimsFor } from "@/lib/data/dims";
 import type { Product } from "@/lib/data/types";
 import { unifyDims } from "@/lib/catalog/dimensions";
-import { profileFor, slugsOf, surfaceFor, type Bounds, type Surface } from "./placement";
+import { isSurface, profileFor, slugsOf, type Bounds, type Surface } from "./placement";
 
 /**
  * Μία απόφαση ανά προϊόν για το «Δες το στον χώρο σου», κοινή για τη σελίδα προϊόντος, τον server των μοντέλων και τη
@@ -34,8 +34,20 @@ export interface ArPlan {
   custom: boolean;
 }
 export type ArOffCode = "admin-off" | "cat-off" | "none" | "no-dims" | "bounds" | "no-image";
-/** Επιλογή της διαχείρισης ανά κατηγορία (slug → συμμετέχει ή όχι)· ισχύει η βαθύτερη ρητή επιλογή της διαδρομής. */
-export type ArCats = Record<string, boolean>;
+/**
+ * Επιλογές της διαχείρισης ανά κατηγορία (slug → κανόνας): αν συμμετέχει στο AR και σε ποια επιφάνεια μπαίνει.
+ * Για καθένα ισχύει χωριστά η βαθύτερη ρητή επιλογή της διαδρομής.
+ */
+export interface ArCatRule { on?: boolean; surface?: Surface }
+export type ArCats = Record<string, ArCatRule>;
+
+/** Οδηγία για τον πελάτη όταν η επιφάνεια ορίζεται από την κατηγορία και διαφέρει από τον τύπο. */
+const SURFACE_HINT: Record<Surface, string> = {
+  floor: "Μπαίνει στο πάτωμα, με την πρόσοψη προς το δωμάτιο.",
+  furniture: "Ακούμπησέ το σε έπιπλο, τραπέζι ή ράφι για να δεις το πραγματικό του μέγεθος.",
+  counter: "Μπαίνει στον πάγκο της κουζίνας, με την πλάτη προς τον τοίχο.",
+  wall: "Μπαίνει στον τοίχο — στόχευσε την κάμερα σε έναν τοίχο.",
+};
 type ArRow = { enabled: boolean; glbUrl: string | null; placement: string | null } | null;
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -100,8 +112,21 @@ export function productDims(p: Product): Dims | null {
 /** Η ρητή επιλογή της διαχείρισης για την κατηγορία του προϊόντος (η βαθύτερη της διαδρομής), αν υπάρχει. */
 export function arCategoryChoice(p: Product, cats: ArCats | null | undefined): { slug: string; name: string; on: boolean } | null {
   if (!cats) return null;
-  for (const slug of slugsOf(p)) if (typeof cats[slug] === "boolean") return { slug, name: p.path?.find((x) => x.slug === slug)?.name ?? slug, on: cats[slug] };
+  for (const slug of slugsOf(p)) { const on = cats[slug]?.on; if (typeof on === "boolean") return { slug, name: p.path?.find((x) => x.slug === slug)?.name ?? slug, on }; }
   return null;
+}
+
+/**
+ * Η επιφάνεια χωρίς επιλογή στο ίδιο το προϊόν: της κατηγορίας (η βαθύτερη ρητή) ή του τύπου, με την οδηγία της.
+ * `from` λέει στη διαχείριση από πού ήρθε.
+ */
+export function arAutoSurface(p: Product, cats?: ArCats | null): { surface: Surface; hint: string; from: "category" | "type" } {
+  const prof = profileFor(p);
+  for (const slug of slugsOf(p)) {
+    const s = cats?.[slug]?.surface;
+    if (isSurface(s)) return { surface: s, hint: s === prof.surface ? prof.hint : SURFACE_HINT[s], from: "category" };
+  }
+  return { surface: prof.surface, hint: prof.hint, from: "type" };
 }
 
 const GENERIC: Bounds = { w: [1, 250], h: [1, 250], d: [0.5, 250] };
@@ -124,9 +149,11 @@ function sane(d: Dims, bounds?: Bounds): { dims: Dims; fix?: string } | null {
 export function arPlan(p: Product, ar: ArRow, cats?: ArCats | null): ArPlan {
   const prof = profileFor(p);
   const custom = !!ar?.glbUrl;
-  const surface = surfaceFor(p, ar?.placement);
+  // επιφάνεια: του προϊόντος (διαχείριση) → της κατηγορίας → του τύπου
+  const auto = arAutoSurface(p, cats);
+  const surface = isSurface(ar?.placement) ? ar.placement : auto.surface;
   const alt = prof.alt && prof.alt !== surface ? prof.alt : surface !== prof.surface && !prof.none ? prof.surface : undefined;
-  const base = { surface, alt, hint: prof.hint, custom };
+  const base = { surface, alt, hint: surface === auto.surface ? auto.hint : surface === prof.surface ? prof.hint : SURFACE_HINT[surface], custom };
   const off = (code: ArOffCode, reason: string): ArPlan => ({ ...base, on: false, code, reason, dims: null });
   if (ar && !ar.enabled) return off("admin-off", "Κλειστό από τη διαχείριση.");
   const cat = arCategoryChoice(p, cats);

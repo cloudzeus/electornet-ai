@@ -15,7 +15,7 @@ export interface ArRowData {
   /** υπάρχει ρητή ρύθμιση από τη διαχείριση */
   explicit: boolean;
   enabled: boolean; glbUrl: string | null; usdzUrl: string | null; fitToDims: boolean; modelBox: { w: number; h: number; d: number } | null;
-  glbLightUrl: string | null; source: string | null; images: string[]; rotationY: number; fitMode: string; placement: string | null; autoPlacement: Surface; autoHint: string; frontImage: string | null;
+  glbLightUrl: string | null; source: string | null; images: string[]; rotationY: number; fitMode: string; placement: string | null; autoPlacement: Surface; autoFrom: "category" | "type"; autoHint: string; frontImage: string | null;
 }
 
 /** Σύντομος λόγος για το chip της γραμμής· η πλήρης εξήγηση φαίνεται στις ρυθμίσεις. */
@@ -147,7 +147,7 @@ export function ArRow({ row: r0, open: open0 = false }: { row: ArRowData; open?:
           <div className="grid gap-5 @4xl:grid-cols-2">
             <Block title="Πού μπαίνει" hint={r.autoHint}>
               <div role="radiogroup" aria-label="Επιφάνεια" className="grid grid-cols-2 @sm:grid-cols-5 gap-1.5">
-                {[{ v: null as Surface | null, label: `Αυτόματα`, sub: surfOf(r.autoPlacement).label, Icon: Wand2 }, ...SURF.map((x) => ({ ...x, v: x.v as Surface | null, sub: "" }))].map((o) => {
+                {[{ v: null as Surface | null, label: `Αυτόματα`, sub: `${surfOf(r.autoPlacement).label}${r.autoFrom === "category" ? " · κατηγορίας" : ""}`, Icon: Wand2 }, ...SURF.map((x) => ({ ...x, v: x.v as Surface | null, sub: "" }))].map((o) => {
                   const on = (r.placement ?? null) === o.v;
                   return (
                     <button key={o.v ?? "auto"} type="button" role="radio" aria-checked={on} disabled={pending} onClick={() => setPlace(o.v)}

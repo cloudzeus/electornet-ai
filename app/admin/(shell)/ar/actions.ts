@@ -107,12 +107,12 @@ export async function rotateArModel(productId: string, delta: 90 | -90) {
 }
 
 /** Ποιες κατηγορίες συμμετέχουν στο AR (slug → ναι/όχι· ό,τι λείπει = αυτόματο). Ισχύει αμέσως σε site, μοντέλα και λίστα. */
-export async function saveArCategoriesAction(choices: Record<string, boolean>) {
+export async function saveArCategoriesAction(choices: Record<string, { on?: boolean; surface?: string }>) {
   const user = await requirePermission("catalog.products.write");
   const { catalogTree } = await import("@/lib/data/db-catalog");
-  const { saveArCategories } = await import("@/lib/ar/categories");
+  const { saveArCategories, normalizeArCats } = await import("@/lib/ar/categories");
   const known = (await catalogTree()).bySlug;
-  const clean = Object.fromEntries(Object.entries(choices).filter(([k, v]) => known.has(k) && typeof v === "boolean"));
+  const clean = Object.fromEntries(Object.entries(normalizeArCats(choices)).filter(([k]) => known.has(k)));
   const prev = await saveArCategories(clean, user.id);
   await audit(user.id, "ar.categories", "Setting", "ar.categories", prev, clean);
   invalidateArIndex(); forgetArLookup();

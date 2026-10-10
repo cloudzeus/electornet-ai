@@ -77,7 +77,7 @@ export default async function ArAdminPage({ searchParams }: { searchParams: Prom
     const path = [...chain, { slug: c.slug }];
     const children = c.children.map((k) => toNode(k, path)).filter((k) => k.count > 0);
     const own = per.get(c.slug) ?? { n: 0, on: 0 };
-    return { slug: c.slug, name: c.name, children, def: children.length ? undefined : !profileFor({ path }).none,
+    return { slug: c.slug, name: c.name, children, def: children.length ? undefined : !profileFor({ path }).none, defSurface: children.length ? undefined : profileFor({ path }).surface,
       count: own.n + children.reduce((a, k) => a + k.count, 0), on: own.on + children.reduce((a, k) => a + k.on, 0) };
   };
   const catTree = cats.roots.map((c) => toNode(c, [])).filter((n) => n.count > 0);

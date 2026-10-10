@@ -27,14 +27,24 @@ test("με διαστάσεις: AR αυτόματα", () => {
 
 test("κατηγορία «Όχι» κλείνει το AR — η βαθύτερη επιλογή υπερισχύει", () => {
   const p = prod({ dims });
-  assert.equal(arPlan(p, null, { "leykes-syskeyes": false }).code, "cat-off");
-  assert.equal(arPlan(p, null, { "leykes-syskeyes": false, "plyntiria-roychon": true }).on, true);
-  assert.equal(arPlan(p, null, { "leykes-syskeyes": true, "plyntiria-roychon": false }).code, "cat-off");
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { on: false } }).code, "cat-off");
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { on: false }, "plyntiria-roychon": { on: true } }).on, true);
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { on: true }, "plyntiria-roychon": { on: false } }).code, "cat-off");
 });
 
 test("κατηγορία «Ναι» ανοίγει μικρές συσκευές με διαστάσεις· χωρίς διαστάσεις όχι", () => {
   const acc = prod({ dims: { w: 20, h: 10, d: 15, source: "eprel" }, path: [{ slug: "kiniti-tilefonia", name: "Κινητή" }], category: "kiniti-tilefonia", subcategory: "kiniti-tilefonia", typeSlug: "kiniti-tilefonia" });
   assert.equal(arPlan(acc, null).code, "none");
-  assert.equal(arPlan(acc, null, { "kiniti-tilefonia": true }).on, true);
-  assert.equal(arPlan({ ...acc, dims: undefined }, null, { "kiniti-tilefonia": true }).code, "no-dims");
+  assert.equal(arPlan(acc, null, { "kiniti-tilefonia": { on: true } }).on, true);
+  assert.equal(arPlan({ ...acc, dims: undefined }, null, { "kiniti-tilefonia": { on: true } }).code, "no-dims");
+});
+
+test("θέση ανά κατηγορία: προϊόν → κατηγορία (βαθύτερη) → τύπος", () => {
+  const p = prod({ dims });
+  assert.equal(arPlan(p, null).surface, "floor");
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { surface: "wall" } }).surface, "wall");
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { surface: "wall" }, "plyntiria-roychon": { surface: "counter" } }).surface, "counter");
+  assert.equal(arPlan(p, { enabled: true, glbUrl: null, placement: "furniture" }, { "plyntiria-roychon": { surface: "wall" } }).surface, "furniture");
+  // η θέση δεν αλλάζει τη συμμετοχή
+  assert.equal(arPlan(p, null, { "leykes-syskeyes": { surface: "wall" } }).on, true);
 });
