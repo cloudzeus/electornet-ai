@@ -37,3 +37,8 @@ test("υπηρεσίες αρχικής: προεπιλογή οι πρώτες 
   assert.deepEqual(homeServiceSlugs(undefined, cat), ["a", "b", "c", "d", "e", "f"]);
   assert.deepEqual(homeServiceSlugs({ items: [{ slug: "g" }, { slug: "a", hidden: true }, { slug: "x" }, { slug: "c" }] }, cat), ["g", "c"]);
 });
+
+test("καμπάνιες: οι κρυφές δεν φαίνονται στο site", () => {
+  const w = sectionWidget({ id: "campaigns", props: { campaigns: [{ id: "a" }, { id: "b", hidden: true }, { id: "c" }] } })!;
+  assert.deepEqual((w.props.campaigns as { id: string }[]).map((c) => c.id), ["a", "c"]);
+});
