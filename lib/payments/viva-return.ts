@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { paymentPagePath, settleViva } from "./order-payment";
+import { devicePath } from "@/lib/warranty/link";
 
 /**
  * Επιστροφή του πελάτη από τη Viva (Success / Failure URL της πηγής πληρωμής). Η Viva προσθέτει t (συναλλαγή) και
@@ -13,9 +14,9 @@ export async function vivaReturn(req: Request, failed: boolean) {
   const to = (path: string) => NextResponse.redirect(new URL(path, u.origin), 303);
   let number: string | null = null, verdict = "unknown", kind: string | undefined;
   if (t) ({ number, verdict, kind } = await settleViva(t).catch(() => ({ number: null, verdict: "unknown" as const, kind: undefined })));
-  // αγορά επέκτασης εγγύησης → πίσω στις συσκευές του πελάτη
-  if (!kind && s && (await db.warrantyExtension.count({ where: { psp: "viva", pspRef: { startsWith: s } } }))) kind = "warranty";
-  if (kind === "warranty") return to(`/logariasmos/eggyiseis?ext=${verdict === "paid" ? "ok" : verdict === "pending" || (!failed && verdict === "unknown") ? "pending" : "failed"}`);
+  // αγορά επέκτασης εγγύησης → πίσω στη σελίδα της συσκευής (προσωπικός σύνδεσμος: λειτουργεί και χωρίς σύνδεση)
+  const ext = kind === "order" || (!t && !s) ? null : await db.warrantyExtension.findFirst({ where: { psp: "viva", OR: [...(number ? [{ number }] : []), ...(s ? [{ pspRef: { startsWith: s } }] : [])] }, select: { deviceId: true } }).catch(() => null);
+  if (ext) return to(devicePath(ext.deviceId, `?ext=${verdict === "paid" ? "ok" : verdict === "pending" || (!failed && verdict === "unknown") ? "pending" : "failed"}`));
   if (!number && s) number = (await db.payment.findFirst({ where: { psp: "viva", pspRef: { startsWith: s } }, select: { order: { select: { number: true } } } }))?.order.number ?? null;
   if (!number) return to("/checkout");
   if (verdict === "paid") return to(`/checkout/epityxia?no=${encodeURIComponent(number)}`);

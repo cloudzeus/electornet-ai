@@ -24,13 +24,12 @@ export async function startPaidExtension(customerId: string, deviceId: string, p
   const offer = (await extOffers([{ ...d, warrantyUntil: until }])).get(d.id);
   if (offer?.kind === "free") return { ok: false, error: "Αυτή η συσκευή παίρνει την επέκταση δωρεάν." };
   if (offer?.kind !== "paid") return { ok: false, error: offer?.reason ?? "Δεν γίνεται επέκταση για αυτή τη συσκευή." };
-  if (!d.customer.email) return { ok: false, error: "Πρόσθεσε email στα στοιχεία σου για να λάβεις την απόδειξη." };
   // μία ενεργή πληρωμή τη φορά για κάθε συσκευή: οι παλιές εκκρεμείς ακυρώνονται
   await db.warrantyExtension.updateMany({ where: { deviceId: d.id, status: "pending" }, data: { status: "cancelled" } });
   const number = `EXT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(randomInt(1000, 9999))}`;
   const ext = await db.warrantyExtension.create({ data: { number, customerId, deviceId: d.id, months: EXTENSION_MONTHS, amount: offer.price, tier: offer.tier as unknown as Prisma.InputJsonValue, psp: "viva" } });
   try {
-    const code = await createVivaOrder(c, { amount: cents(offer.price), number, customer: { email: d.customer.email, fullName: `${d.customer.firstName} ${d.customer.lastName}`.trim(), phone: d.customer.mobile ?? d.customer.phone } });
+    const code = await createVivaOrder(c, { amount: cents(offer.price), number, customer: { email: d.customer.email ?? "", fullName: `${d.customer.firstName} ${d.customer.lastName}`.trim(), phone: d.customer.mobile ?? d.customer.phone } });
     await db.warrantyExtension.update({ where: { id: ext.id }, data: { pspRef: code } });
     return { ok: true, url: checkoutUrl(c.mode, code, pay) };
   } catch {

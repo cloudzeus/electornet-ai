@@ -8,9 +8,10 @@ const eur = (n: number) => n.toLocaleString("el-GR", { style: "currency", curren
 
 /**
  * Επέκταση εγγύησης +2 έτη για παλιά αγορά. Δωρεάν (CCCWARRANTY): ενεργοποιείται αμέσως. Με τιμή: πληρωμή στη Viva
- * και ενεργοποίηση μόλις επιβεβαιωθεί. Οι όροι και η τιμή ελέγχονται στον server.
+ * και ενεργοποίηση μόλις επιβεβαιωθεί. Οι όροι και η τιμή ελέγχονται στον server. `token`: από τον προσωπικό
+ * σύνδεσμο της συσκευής (χωρίς σύνδεση).
  */
-export function ExtendWarrantyButton({ deviceId, price = null }: { deviceId: string; price?: number | null }) {
+export function ExtendWarrantyButton({ deviceId, price = null, token }: { deviceId: string; price?: number | null; token?: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -20,12 +21,16 @@ export function ExtendWarrantyButton({ deviceId, price = null }: { deviceId: str
     setBusy(true); setMsg(null);
     try {
       if (paid) {
-        const r = await fetch(`/api/account/devices/${deviceId}/extend/pay`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+        const r = token
+          ? await fetch(`/api/eg/${token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "pay" }) })
+          : await fetch(`/api/account/devices/${deviceId}/extend/pay`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
         const j = (await r.json()) as { ok: boolean; url?: string; error?: string };
         if (j.ok && j.url) { window.location.assign(j.url); return; }
         setMsg({ ok: false, text: j.error ?? "Η πληρωμή δεν ξεκίνησε." });
       } else {
-        const r = await fetch(`/api/account/devices/${deviceId}/extend`, { method: "POST" });
+        const r = token
+          ? await fetch(`/api/eg/${token}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "free" }) })
+          : await fetch(`/api/account/devices/${deviceId}/extend`, { method: "POST" });
         const j = (await r.json()) as { ok: boolean; extendedUntil?: string; error?: string };
         if (j.ok) { setMsg({ ok: true, text: `Έγινε! Εγγύηση έως ${new Date(j.extendedUntil!).toLocaleDateString("el-GR")}.` }); router.refresh(); }
         else setMsg({ ok: false, text: j.error ?? "Δεν έγινε η επέκταση." });

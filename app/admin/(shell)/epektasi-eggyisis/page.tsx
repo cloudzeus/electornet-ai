@@ -40,14 +40,14 @@ export default async function WarrantyExtensionAdmin() {
   const paid = totals.find((t) => t.status === "paid");
   const tiles = [
     { Icon: CreditCard, label: "Πληρωμένες επεκτάσεις", value: String(paid?._count._all ?? 0), sub: eur(Number(paid?._sum.amount ?? 0)) },
-    { Icon: Mail, label: "Υπενθυμίσεις (επόμενες 60 ημέρες)", value: remind ? String(remind.free + remind.paid) : "—", sub: remind ? `${remind.free} δωρεάν · ${remind.paid} επί πληρωμή · ${remind.alreadyReminded} έχουν σταλεί` : "δεν υπολογίστηκε" },
+    { Icon: Mail, label: "Υπενθυμίσεις προς αποστολή (60 ημέρες)", value: remind ? String(remind.free + remind.paid) : "—", sub: remind ? `${remind.free} δωρεάν · ${remind.paid} επί πληρωμή · ${remind.emails} email · ${remind.smsProvider ? `${remind.sms} SMS` : `${remind.smsNoProvider} SMS μόλις οριστεί πάροχος`}` : "δεν υπολογίστηκε" },
   ];
   return (
     <div className="grid gap-6 max-w-6xl">
       <div>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><ShieldCheck className="size-4" aria-hidden /> Εμπόριο</div>
         <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">Επέκταση εγγύησης</h1>
-        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">+2 έτη για αγορές Euronics (e-shop και καταστήματα) με ενεργή εγγύηση, μία φορά. Δωρεάν στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne· στα υπόλοιπα με πληρωμή μέσω Viva, με τιμή από τις κλίμακες παρακάτω. Οι πελάτες λαμβάνουν email 60 ημέρες πριν λήξει η εγγύηση, αν δεν έχουν αρνηθεί τις «Υπενθυμίσεις service & εγγύησης».</p>
+        <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">+2 έτη για αγορές Euronics (e-shop και καταστήματα) με ενεργή εγγύηση, μία φορά. Δωρεάν στα είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) στο SoftOne· στα υπόλοιπα με πληρωμή μέσω Viva, με τιμή από τις κλίμακες παρακάτω. Οι πελάτες λαμβάνουν email και SMS 60 ημέρες πριν λήξει η εγγύηση, αν δεν έχουν αρνηθεί τις «Υπενθυμίσεις service & εγγύησης».</p>
       </div>
       <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
         {tiles.map((t) => (
@@ -61,6 +61,13 @@ export default async function WarrantyExtensionAdmin() {
           </div>
         ))}
       </div>
+      {remind?.sample && (
+        <section className="grid gap-2">
+          <h2 className="m-0 font-bold text-eu-ink text-[length:var(--fs-19)]">Το SMS της υπενθύμισης</h2>
+          <p className="m-0 rounded-xl border border-eu-line bg-white px-4 py-3 font-mono text-[length:var(--fs-14)] text-eu-ink break-words">{remind.sample}</p>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Κεφαλαία χωρίς τόνους ώστε να χωράει σε ένα SMS (160 χαρακτήρες). Ο σύνδεσμος είναι προσωπικός και ανοίγει τη συσκευή χωρίς σύνδεση· εκεί γίνεται και η διακοπή των υπενθυμίσεων. Πάροχος: Ρυθμίσεις → Email & SMS (Yuboto).</p>
+        </section>
+      )}
       <section className="grid gap-3">
         <h2 className="m-0 font-bold text-eu-ink text-[length:var(--fs-19)]">Κλίμακες τιμών</h2>
         <ExtPricingForm initial={pricing} categories={categories} canWrite={can(user.permissions, "catalog.promos.write")} />

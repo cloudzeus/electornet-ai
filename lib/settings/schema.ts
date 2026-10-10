@@ -352,7 +352,7 @@ export const SECTIONS: Section[] = [
       { key: "newsletterApiKey", label: "Newsletter API key", type: "secret", width: "half", group: "newsletter", showIf: not("newsletterProvider", "") },
       { key: "newsletterList", label: "Λίστα / audience ID", type: "text", width: "half", group: "newsletter", showIf: not("newsletterProvider", ""), help: "Mailchimp: Audience → Settings → Audience ID. Klaviyo: Lists → η λίστα → List ID." },
       { key: "smsProvider", label: "Πάροχος SMS", type: "select", options: [{ value: "", label: "Κανένας" }, { value: "yuboto", label: "Yuboto" }, { value: "apifon", label: "Apifon" }, { value: "twilio", label: "Twilio" }], width: "half", group: "sms" },
-      { key: "smsApiKey", label: "SMS API key", type: "secret", width: "half", group: "sms", showIf: not("smsProvider", "") },
+      { key: "smsApiKey", label: "SMS API key", type: "secret", width: "half", group: "sms", showIf: not("smsProvider", ""), help: "Yuboto: το API key από το Octapush (όπως δίνεται ή ήδη σε Base64). Προς το παρόν υλοποιημένος πάροχος: Yuboto." },
       { key: "smsSender", label: "Όνομα αποστολέα SMS", type: "text", placeholder: "EURONICS", width: "half", group: "sms", showIf: not("smsProvider", ""), rule: { re: /^[A-Za-z0-9 ]{1,11}$/, bad: "Έως 11 λατινικοί χαρακτήρες ή ψηφία" }, help: "Πρέπει να έχει εγκριθεί από τον πάροχο." },
     ],
   },

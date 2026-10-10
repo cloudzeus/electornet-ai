@@ -57,7 +57,7 @@ export async function createVivaOrder(c: VivaConfig, i: VivaOrderInput): Promise
   const body = {
     amount: i.amount,
     customerTrns: `Euronics · παραγγελία ${i.number}`,
-    customer: { email: i.customer.email, fullName: i.customer.fullName, phone: i.customer.phone ?? undefined, countryCode: i.customer.countryCode ?? "GR", requestLang: "el-GR" },
+    customer: { email: i.customer.email || undefined, fullName: i.customer.fullName, phone: i.customer.phone ?? undefined, countryCode: i.customer.countryCode ?? "GR", requestLang: "el-GR" },
     paymentTimeout: 1800,
     maxInstallments: Math.min(c.maxInstalments, i.instalments && i.instalments > 1 ? i.instalments : c.maxInstalments),
     merchantTrns: i.number,
