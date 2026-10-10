@@ -11,8 +11,11 @@ export async function vivaReturn(req: Request, failed: boolean) {
   const u = new URL(req.url);
   const t = u.searchParams.get("t"), s = u.searchParams.get("s");
   const to = (path: string) => NextResponse.redirect(new URL(path, u.origin), 303);
-  let number: string | null = null, verdict = "unknown";
-  if (t) ({ number, verdict } = await settleViva(t).catch(() => ({ number: null, verdict: "unknown" as const })));
+  let number: string | null = null, verdict = "unknown", kind: string | undefined;
+  if (t) ({ number, verdict, kind } = await settleViva(t).catch(() => ({ number: null, verdict: "unknown" as const, kind: undefined })));
+  // αγορά επέκτασης εγγύησης → πίσω στις συσκευές του πελάτη
+  if (!kind && s && (await db.warrantyExtension.count({ where: { psp: "viva", pspRef: { startsWith: s } } }))) kind = "warranty";
+  if (kind === "warranty") return to(`/logariasmos/eggyiseis?ext=${verdict === "paid" ? "ok" : verdict === "pending" || (!failed && verdict === "unknown") ? "pending" : "failed"}`);
   if (!number && s) number = (await db.payment.findFirst({ where: { psp: "viva", pspRef: { startsWith: s } }, select: { order: { select: { number: true } } } }))?.order.number ?? null;
   if (!number) return to("/checkout");
   if (verdict === "paid") return to(`/checkout/epityxia?no=${encodeURIComponent(number)}`);

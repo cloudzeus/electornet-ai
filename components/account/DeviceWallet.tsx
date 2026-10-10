@@ -29,6 +29,8 @@ export interface DeviceRow {
   href?: string | null;
   /** μπορεί να ενεργοποιήσει τώρα τη δωρεάν επέκταση (+2 έτη) · αλλιώς γιατί όχι */
   extendable?: boolean;
+  /** επέκταση επί πληρωμή (χωρίς CCCWARRANTY): η τιμή από την κλίμακα · null = δεν προσφέρεται */
+  extendPrice?: number | null;
   extendNote?: string | null;
 }
 
@@ -128,7 +130,7 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
               <Link href={`/logariasmos/eggyiseis?service=${d.productId}`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">
                 <Wrench className="size-4" aria-hidden /> {cp.dilosi_vlavis_service}
               </Link>
-              {d.real && d.extendable && d.deviceId && <ExtendWarrantyButton deviceId={d.deviceId} />}
+              {d.real && d.deviceId && (d.extendable || d.extendPrice) && <ExtendWarrantyButton deviceId={d.deviceId} price={d.extendable ? null : d.extendPrice} />}
               {!d.real && !d.ext && d.daysLeft > 0 && (
                 <Link href="/ypiresies/epektasi-eggyisis" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-white">
                   {cp.epektasi_se_5_eti}

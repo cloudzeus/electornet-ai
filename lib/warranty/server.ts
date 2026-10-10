@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { addMonths, canExtend, EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS, warrantyFromSpecs } from "./policy";
+import { addMonths, canExtend, canExtendAtAll, EXTENSION_MONTHS, EXTENSION_SLUG, extensionPrice, LEGAL_WARRANTY_MONTHS, warrantyFromSpecs, type ExtPricing, type ExtTier } from "./policy";
+import { categoryPaths, getExtPricing } from "./pricing";
 
 /** Ποια προϊόντα δικαιούνται τη δωρεάν επέκταση: το είδος τους στο SoftOne έχει «Επέκταση Εγγύησης» (CCCWARRANTY). */
 export async function extEligibleMap(productIds: string[]): Promise<Map<string, boolean>> {
@@ -62,12 +63,53 @@ export async function extendDevice(customerId: string, deviceId: string): Promis
   return { ok: true, extendedUntil };
 }
 
+export type ExtOffer =
+  | { kind: "free" }
+  | { kind: "paid"; price: number; tier: ExtTier & { purchasePrice: number } }
+  | { kind: null; reason: string | null };
+
+type OfferDevice = { id: string; productId: string | null; registeredBy: string; warrantyUntil: Date | null; extendedUntil: Date | null; orderLineId: string | null; purchaseLineId: string | null };
+
+/**
+ * Τι επέκταση μπορεί να πάρει κάθε συσκευή τώρα: δωρεάν (CCCWARRANTY), επί πληρωμή (τιμή από την κλίμακα της κατηγορίας
+ * και της τιμής αγοράς) ή καμία, με τον λόγο. Τιμή αγοράς: η γραμμή της παραγγελίας / του παραστατικού, αλλιώς η τρέχουσα.
+ */
+export async function extOffers(devs: OfferDevice[], now = new Date(), pricingOverride?: ExtPricing): Promise<Map<string, ExtOffer>> {
+  const out = new Map<string, ExtOffer>();
+  const open = devs.filter((d) => { const b = canExtendAtAll(d, now); if (!b.eligible) out.set(d.id, { kind: null, reason: d.extendedUntil ? null : b.reason }); return b.eligible; });
+  if (!open.length) return out;
+  const pids = open.map((d) => d.productId).filter((x): x is string => !!x);
+  const [free, pricing] = await Promise.all([extEligibleMap(pids), pricingOverride ?? getExtPricing()]);
+  const paid = open.filter((d) => !(d.productId && free.get(d.productId)));
+  for (const d of open) if (!paid.includes(d)) out.set(d.id, { kind: "free" });
+  if (!paid.length) return out;
+  if (!pricing.enabled || !pricing.tiers.length) { for (const d of paid) out.set(d.id, { kind: null, reason: "Αυτό το προϊόν δεν έχει επέκταση εγγύησης." }); return out; }
+  const olIds = paid.map((d) => d.orderLineId).filter((x): x is string => !!x), plIds = paid.map((d) => d.purchaseLineId).filter((x): x is string => !!x);
+  const ppids = [...new Set(paid.map((d) => d.productId).filter((x): x is string => !!x))];
+  const [ols, pls, prods] = await Promise.all([
+    olIds.length ? db.orderLine.findMany({ where: { id: { in: olIds } }, select: { id: true, unitPrice: true } }) : Promise.resolve([]),
+    plIds.length ? db.purchaseLine.findMany({ where: { id: { in: plIds } }, select: { id: true, unitPrice: true, lineTotal: true, qty: true } }) : Promise.resolve([]),
+    ppids.length ? db.product.findMany({ where: { id: { in: ppids } }, select: { id: true, categoryId: true, variants: { select: { price: true }, take: 1 } } }) : Promise.resolve([]),
+  ]);
+  const olP = new Map(ols.map((l) => [l.id, Number(l.unitPrice)]));
+  const plP = new Map(pls.map((l) => [l.id, l.unitPrice != null ? Number(l.unitPrice) : l.lineTotal != null && l.qty ? Number(l.lineTotal) / l.qty : null]));
+  const pm = new Map(prods.map((p) => [p.id, p]));
+  const paths = await categoryPaths(prods.map((p) => p.categoryId));
+  for (const d of paid) {
+    const p = d.productId ? pm.get(d.productId) : undefined;
+    const bought = (d.orderLineId ? olP.get(d.orderLineId) : null) ?? (d.purchaseLineId ? plP.get(d.purchaseLineId) : null) ?? (p?.variants[0] ? Number(p.variants[0].price) : null);
+    const tier = extensionPrice(pricing, p ? paths.get(p.categoryId) ?? [] : [], bought ?? null);
+    out.set(d.id, tier && bought ? { kind: "paid", price: tier.price, tier: { ...tier, purchasePrice: bought } } : { kind: null, reason: "Αυτό το προϊόν δεν έχει επέκταση εγγύησης." });
+  }
+  return out;
+}
+
 /** «Οι συσκευές μου» του συνδεδεμένου πελάτη: εγγύηση, επέκταση και αν μπορεί να την ενεργοποιήσει τώρα. */
 export async function customerDevices(customerId: string, now = new Date()) {
   const devs = await db.customerDevice.findMany({ where: { customerId }, orderBy: [{ purchasedAt: "desc" }, { createdAt: "desc" }] });
   const pids = devs.map((d) => d.productId).filter((x): x is string => !!x);
-  const [eligible, prods] = await Promise.all([
-    extEligibleMap(pids),
+  const [offers, prods] = await Promise.all([
+    extOffers(devs.map((d) => ({ ...d, warrantyUntil: d.warrantyUntil ?? addMonths(d.purchasedAt ?? d.createdAt, d.warrantyMonths || LEGAL_WARRANTY_MONTHS) })), now),
     pids.length ? db.product.findMany({ where: { id: { in: pids } }, select: { id: true, slug: true, active: true, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } }) : Promise.resolve([]),
   ]);
   const pm = new Map(prods.map((p) => [p.id, p]));
@@ -77,12 +119,13 @@ export async function customerDevices(customerId: string, now = new Date()) {
     const until = d.warrantyUntil ?? addMonths(from, d.warrantyMonths || LEGAL_WARRANTY_MONTHS);
     const to = d.extendedUntil ?? until;
     const total = Math.max(1, to.getTime() - from.getTime()), left = Math.max(0, to.getTime() - now.getTime());
-    const check = canExtend({ registeredBy: d.registeredBy, productEligible: d.productId ? eligible.get(d.productId) ?? false : false, warrantyUntil: until, extendedUntil: d.extendedUntil }, now);
+    const offer = offers.get(d.id) ?? { kind: null, reason: null };
     return {
       key: d.id, deviceId: d.id, productId: p?.slug ?? d.id, href: p?.active ? `/proion/${p.slug}` : null, title: d.title, brand: d.brand, image: p?.media[0]?.url ?? null,
       order: d.invoiceNo ?? "", bought: from.toISOString(), years: Math.round(((to.getTime() - from.getTime()) / (365.25 * 86400000)) * 10) / 10,
       ext: !!d.extendedUntil, to: to.toISOString().slice(0, 10), daysLeft: Math.ceil(left / 86400000), pct: Math.round((left / total) * 100),
-      real: true as const, extendable: check.eligible, extendNote: check.eligible ? null : d.extendedUntil ? null : check.reason,
+      real: true as const, extendable: offer.kind === "free", extendPrice: offer.kind === "paid" ? offer.price : null,
+      extendNote: offer.kind === null ? offer.reason : null,
     };
   });
 }

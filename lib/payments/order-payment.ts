@@ -46,18 +46,22 @@ export async function startVivaPayment(orderId: string, pay: VivaPay): Promise<s
  * Επιβεβαίωση από τη Viva (επιστροφή πελάτη ή webhook): ανάκτηση της συναλλαγής, έλεγχος κωδικού και ποσού, ενημέρωση.
  * Ιδεμπότητη — δεύτερη κλήση για ήδη πληρωμένη παραγγελία δεν κάνει τίποτα.
  */
-export async function settleViva(transactionId: string): Promise<{ number: string | null; verdict: VivaVerdict | "unknown" }> {
+export async function settleViva(transactionId: string): Promise<{ number: string | null; verdict: VivaVerdict | "unknown"; kind?: "order" | "warranty" }> {
   const c = await vivaConfig();
   if (!c) return { number: null, verdict: "unknown" };
   const t = await getVivaTransaction(c, transactionId);
   const pay = await db.payment.findFirst({ where: { psp: "viva", pspRef: { startsWith: String(t.orderCode) } }, select: { orderId: true, pspRef: true, status: true, order: { select: { number: true, total: true } } } });
-  if (!pay) return { number: null, verdict: "unknown" };
+  if (!pay) {
+    // όχι παραγγελία: ίσως αγορά επέκτασης εγγύησης από το προφίλ
+    const ext = await import("@/lib/warranty/paid").then((m) => m.settleExtension(t, transactionId));
+    return ext ? { ...ext, kind: "warranty" } : { number: null, verdict: "unknown" };
+  }
   const code = pay.pspRef!.split(":")[0];
   const verdict = judgeTransaction(t, { orderCode: code, totalCents: cents(pay.order.total) });
-  if (pay.status === "paid") return { number: pay.order.number, verdict: "paid" };
+  if (pay.status === "paid") return { number: pay.order.number, verdict: "paid", kind: "order" };
   if (verdict === "paid") await markPaid(pay.orderId, `${code}:${transactionId}`);
   else await db.payment.update({ where: { orderId: pay.orderId }, data: { status: verdict === "pending" ? "processing" : verdict === "mismatch" ? "review" : "failed" } });
-  return { number: pay.order.number, verdict };
+  return { number: pay.order.number, verdict, kind: "order" };
 }
 
 /** Πληρωμένη: κατάσταση, παραστατικό προς ERP, email επιβεβαίωσης. Μόνο μία φορά (ατομικός έλεγχος). */

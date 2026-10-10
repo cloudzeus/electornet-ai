@@ -47,6 +47,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },
       { href: "/admin/gdpr", label: "GDPR", icon: ShieldCheck, perm: "customers.read" },
       { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },
+      { href: "/admin/epektasi-eggyisis", label: "Επέκταση εγγύησης", icon: ShieldCheck, perm: "catalog.products.read" },
       { href: "/admin/service", label: "Service & εγγυήσεις", icon: Wrench, perm: "service.tickets.read", soon: true },
     ],
   },

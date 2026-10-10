@@ -838,71 +838,72 @@ model Service {
 /// Retail customer (e-shop account). Mirrors SoftOne CUSTOMER (TRDR) through erpTrdr/erpCode; the shop is the master for
 /// consents, devices, loyalty events and notes, the ERP is the master for fiscal identity (ΑΦΜ/ΔΟΥ) once linked.
 model Customer {
-  id               String                 @id @default(cuid())
-  number           Int                    @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
-  type             String                 @default("individual") // individual | business
+  id                 String                 @id @default(cuid())
+  number             Int                    @unique @default(autoincrement()) // shop customer number → ERP CODE "<prefix><number>"
+  type               String                 @default("individual") // individual | business
   /// Προαιρετικό: πελάτες από το ιστορικό του SoftOne (αγορές λιανικής) έχουν μόνο όνομα, τηλέφωνο και διεύθυνση
-  email            String?                @unique
-  emailVerifiedAt  DateTime?
-  phone            String?
-  mobile           String?
-  firstName        String
-  lastName         String
-  company          String? // legal name for business customers
-  vatNumber        String? // ΑΦΜ
-  doy              String? // Δ.Ο.Υ.
-  profession       String?
-  birthday         DateTime?
-  gender           String? // m | f | other | null
-  locale           String                 @default("el")
-  status           String                 @default("active") // active | blocked | anonymised
-  source           String                 @default("web") // web | store | erp | import | softone-history | nop
+  email              String?                @unique
+  emailVerifiedAt    DateTime?
+  phone              String?
+  mobile             String?
+  firstName          String
+  lastName           String
+  company            String? // legal name for business customers
+  vatNumber          String? // ΑΦΜ
+  doy                String? // Δ.Ο.Υ.
+  profession         String?
+  birthday           DateTime?
+  gender             String? // m | f | other | null
+  locale             String                 @default("el")
+  status             String                 @default("active") // active | blocked | anonymised
+  source             String                 @default("web") // web | store | erp | import | softone-history | nop
   /// Τελευταία 10 ψηφία κινητού / τηλεφώνου — το κλειδί ταιριάσματος για αγορές χωρίς email
-  phoneKey         String?
+  phoneKey           String?
   /// Λογαριασμός του παλιού eshop (nopCommerce Customer.Id)
-  nopId            Int?                   @unique
+  nopId              Int?                   @unique
   /// Σύνοψη αγορών (όλες οι πηγές) — για λίστες και ταξινόμηση
-  purchaseCount    Int                    @default(0)
-  purchaseTotal    Decimal                @default(0) @db.Decimal(12, 2)
-  firstPurchaseAt  DateTime?
-  lastPurchaseAt   DateTime?
-  purchases        Purchase[]
-  tags             String[]               @default([])
-  newsletter       Boolean                @default(false)
-  passwordHash     String?
-  lastLoginAt      DateTime?
-  preferredStoreId String?
-  preferredStore   Store?                 @relation(fields: [preferredStoreId], references: [id], onDelete: SetNull)
-  loyaltyPoints    Int                    @default(0)
-  loyaltyTier      String? // bronze | silver | gold
-  loyaltyCard      String? // ERP TRDRBONUSCARD / physical card number
+  purchaseCount      Int                    @default(0)
+  purchaseTotal      Decimal                @default(0) @db.Decimal(12, 2)
+  firstPurchaseAt    DateTime?
+  lastPurchaseAt     DateTime?
+  purchases          Purchase[]
+  tags               String[]               @default([])
+  newsletter         Boolean                @default(false)
+  passwordHash       String?
+  lastLoginAt        DateTime?
+  preferredStoreId   String?
+  preferredStore     Store?                 @relation(fields: [preferredStoreId], references: [id], onDelete: SetNull)
+  loyaltyPoints      Int                    @default(0)
+  loyaltyTier        String? // bronze | silver | gold
+  loyaltyCard        String? // ERP TRDRBONUSCARD / physical card number
   // ERP link (SoftOne CUSTOMER / TRDR)
-  erpTrdr          String?                @unique
-  erpCode          String?
-  erpSyncStatus    String? // linked | queued | sent | failed | conflict
-  erpSyncedAt      DateTime?
-  erpLastError     String?                @db.Text
-  notes            String?                @db.Text // internal
-  anonymisedAt     DateTime?
-  addresses        Address[]
-  cards            SavedCard[]
-  consents         Consent[]
-  wishlists        WishlistList[]
-  orders           Order[]
-  carts            Cart[]
-  social           SocialAccount[]
-  devices          CustomerDevice[]
-  tickets          ServiceTicket[]
-  loyalty          LoyaltyTransaction[]
-  customerNotes    CustomerNote[]
-  events           CustomerEvent[]
-  logins           LoginEvent[]
-  gdprRequests     GdprRequest[]
-  subscriptions    NewsletterSubscriber[]
-  passwordResets   PasswordReset[]
-  savedCarts       SavedCart[]
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  erpTrdr            String?                @unique
+  erpCode            String?
+  erpSyncStatus      String? // linked | queued | sent | failed | conflict
+  erpSyncedAt        DateTime?
+  erpLastError       String?                @db.Text
+  notes              String?                @db.Text // internal
+  anonymisedAt       DateTime?
+  addresses          Address[]
+  cards              SavedCard[]
+  consents           Consent[]
+  wishlists          WishlistList[]
+  orders             Order[]
+  carts              Cart[]
+  social             SocialAccount[]
+  devices            CustomerDevice[]
+  warrantyExtensions WarrantyExtension[]
+  tickets            ServiceTicket[]
+  loyalty            LoyaltyTransaction[]
+  customerNotes      CustomerNote[]
+  events             CustomerEvent[]
+  logins             LoginEvent[]
+  gdprRequests       GdprRequest[]
+  subscriptions      NewsletterSubscriber[]
+  passwordResets     PasswordReset[]
+  savedCarts         SavedCart[]
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
   @@index([lastName, firstName])
   @@index([vatNumber])
@@ -1131,9 +1132,9 @@ model EmailLog {
 
 /// Appliances the customer owns (warranty wallet). Filled from order lines, store purchases (ERP) or manual registration.
 model CustomerDevice {
-  id             String          @id @default(cuid())
+  id             String              @id @default(cuid())
   customerId     String
-  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   productId      String?
   brand          String
   title          String
@@ -1145,22 +1146,48 @@ model CustomerDevice {
   storeId        String?
   invoiceNo      String? // ERP FINDOC number
   invoiceUrl     String?
-  warrantyMonths Int             @default(24)
+  warrantyMonths Int                 @default(24)
   warrantyUntil  DateTime?
   extendedUntil  DateTime? // paid extended warranty
   extendedPlan   String?
-  registeredBy   String          @default("order") // order | erp | manual | staff
+  registeredBy   String              @default("order") // order | erp | manual | staff
   /// Από ποια γραμμή αγοράς βγήκε (ιστορικό SoftOne) — μία συσκευή ανά γραμμή και τεμάχιο
   purchaseLineId String?
-  unitNo         Int             @default(1)
+  unitNo         Int                 @default(1)
   notes          String?
   tickets        ServiceTicket[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  extensions     WarrantyExtension[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@unique([purchaseLineId, unitNo])
   @@index([customerId])
   @@index([serial])
+}
+
+/// Αγορά επέκτασης εγγύησης από το προφίλ (συσκευή χωρίς δωρεάν επέκταση): πληρωμή Viva → +μήνες στη συσκευή.
+model WarrantyExtension {
+  id         String         @id @default(cuid())
+  number     String         @unique // EXT-YYYYMMDD-0000 (merchantTrns στη Viva)
+  customerId String
+  customer   Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  deviceId   String
+  device     CustomerDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  months     Int            @default(24)
+  /// Τιμή με ΦΠΑ, από την κλίμακα που ίσχυε τη στιγμή της αγοράς
+  amount     Decimal        @db.Decimal(10, 2)
+  /// Η κλίμακα (κατηγορία, εύρος, τιμή αγοράς της συσκευής) — ίχνος για τη λογιστική και το ERP
+  tier       Json?
+  status     String         @default("pending") // pending | processing | paid | failed | review | cancelled
+  psp        String? // viva
+  pspRef     String? // orderCode[:transactionId]
+  paidAt     DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([deviceId])
+  @@index([pspRef])
 }
 
 /// Service / installation / delivery requests and appointments. ERP: SoftOne service job (SRVJOB) via erpJob.
