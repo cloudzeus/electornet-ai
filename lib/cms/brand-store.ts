@@ -54,6 +54,8 @@ interface BlockBase {
   zone?: string;
   /** σε ποιες συσκευές ΔΕΝ εμφανίζεται (κινητό < 768px · tablet 768–1023px · υπολογιστής ≥ 1024px) */
   hideOn?: Device[];
+  /** σε ποιους εμφανίζεται (αρχική): όλους · μόνο επισκέπτες χωρίς σύνδεση · μόνο συνδεδεμένους πελάτες */
+  audience?: "all" | "guest" | "customer";
   /** optional editorial title/kicker override for the block */
   kicker?: string;
   title?: string;

@@ -24,7 +24,7 @@ const blockState = (b: BrandBlock): { s: "live" | "off" | "incomplete"; t: strin
  * Σε κάθε ζώνη: προσθήκη (ομαδοποιημένα, με εξήγηση), απόκρυψη, σειρά, αντίγραφο, διαγραφή, μετακίνηση σε άλλη ζώνη,
  * προγραμματισμός εμφάνισης. Τα errors εμφανίζονται στην κάρτα της ενότητας.
  */
-export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, brandName, ctx, open, setOpen, adding, setAdding, markers, allowed }: {
+export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, brandName, ctx, open, setOpen, adding, setAdding, markers, allowed, audience = false, moveZones, compactEmpty = false }: {
   blocks: BrandBlock[];
   setBlocks: (fn: (b: BrandBlock[]) => BrandBlock[]) => void;
   zones: ZoneDef[];
@@ -38,6 +38,12 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
   setAdding: (z: string | null) => void;
   markers?: Record<string, { before?: string; after?: string }>;
   allowed?: BrandBlock["type"][];
+  /** ρύθμιση «σε ποιους εμφανίζεται» (επισκέπτες / πελάτες) — αρχική */
+  audience?: boolean;
+  /** οι ζώνες του «Μετακίνηση σε άλλο σημείο» (προεπιλογή: όσες εμφανίζει αυτό το component) */
+  moveZones?: ZoneDef[];
+  /** κενή ζώνη = ένα λεπτό κουμπί «+ Component εδώ» (αρχική: ζώνες ανάμεσα σε ενότητες) */
+  compactEmpty?: boolean;
 }) {
   const setBlock = (i: number, b: BrandBlock) => setBlocks((bl) => bl.map((y, k) => (k === i ? b : y)));
   const swapBlocks = (i: number, j: number) => setBlocks((bl) => { const x = [...bl]; [x[i], x[j]] = [x[j], x[i]]; return x; });
@@ -52,6 +58,9 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
     <>
         {zones.map((z) => {
           const inZone = blocks.map((b, i) => ({ b, i })).filter(({ b }) => (b.zone ?? defaultZone) === z.key);
+          if (compactEmpty && !inZone.length && adding !== z.key) return (
+            <button key={z.key} id={`zone-${z.key}`} type="button" onClick={() => setAdding(z.key)} title={z.help} className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-eu-line text-eu-muted hover:border-eu-navy hover:text-eu-navy min-h-11 font-bold text-[length:var(--fs-13)] scroll-mt-40"><Plus className="size-4" aria-hidden /> Component εδώ <span className="font-normal hidden @md:inline">· {z.label}</span></button>
+          );
           return (
             <div key={z.key} id={`zone-${z.key}`} className="grid gap-3 rounded-2xl border-2 border-dashed border-eu-line p-3 @md:p-4 scroll-mt-40">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -90,7 +99,7 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
                             <div className="grid @xl:grid-cols-2 gap-3">
                               <label className="grid gap-1 min-w-0">
                                 <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Ζώνη</span>
-                                <select value={b.zone ?? defaultZone} onChange={(e) => setBlock(i, { ...b, zone: e.target.value })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">{zones.map((zz) => <option key={zz.key} value={zz.key}>{zz.label}</option>)}</select>
+                                <select value={b.zone ?? defaultZone} onChange={(e) => setBlock(i, { ...b, zone: e.target.value })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">{(moveZones ?? zones).map((zz) => <option key={zz.key} value={zz.key}>{zz.label}</option>)}</select>
                                 <span className="text-eu-muted text-[length:var(--fs-13)]">Μετακίνηση σε άλλο σημείο της σελίδας.</span>
                               </label>
                               <fieldset className="m-0 p-0 border-0 grid gap-1 min-w-0">
@@ -105,6 +114,15 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
                                 <span className="text-eu-muted text-[length:var(--fs-13)]">Πάτα για να το κρύψεις σε μια συσκευή (κινητό έως 767px, tablet 768–1023px, υπολογιστής από 1024px).</span>
                               </fieldset>
                             </div>
+                            {audience && (
+                              <label className="grid gap-1 min-w-0 @xl:max-w-sm">
+                                <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Σε ποιους εμφανίζεται</span>
+                                <select value={b.audience ?? "all"} onChange={(e) => setBlock(i, { ...b, audience: e.target.value === "all" ? undefined : (e.target.value as "guest" | "customer") })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">
+                                  <option value="all">Σε όλους</option><option value="guest">Μόνο σε επισκέπτες χωρίς σύνδεση</option><option value="customer">Μόνο σε συνδεδεμένους πελάτες</option>
+                                </select>
+                                <span className="text-eu-muted text-[length:var(--fs-13)]">Π.χ. κουπόνι καλωσορίσματος μόνο σε επισκέπτες, προσφορά για μέλη μόνο σε πελάτες.</span>
+                              </label>
+                            )}
                             <details className="rounded-xl bg-eu-surface/60 border border-eu-line" open={!!(b.schedule?.from || b.schedule?.to)}>
                               <summary className="cursor-pointer list-none flex items-center gap-2 px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><CalendarClock className="size-4" aria-hidden /> Πότε εμφανίζεται (προαιρετικό)</summary>
                               <div className="px-3 pb-3 grid @xl:grid-cols-2 gap-x-5 gap-y-4">

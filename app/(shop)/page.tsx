@@ -1,26 +1,64 @@
-import { getHomeLayout } from "@/lib/cms/home.layout";
-import { renderZones } from "@/lib/cms/render";
+import { Fragment } from "react";
+import { renderZone } from "@/lib/cms/render";
 import { getDevice } from "@/lib/device";
 import type { RenderContext } from "@/lib/cms/zones";
 import { ZonesToggle } from "@/components/site/ZonesToggle";
 import { AdSlot } from "@/components/promo/AdSlot";
+import { auth } from "@/lib/auth";
+import { can } from "@/lib/rbac/permissions";
+import { getCustomerSession } from "@/lib/account/session";
+import { blockActive, type BrandBlock } from "@/lib/cms/brand-store";
+import { renderBlock, resolveBlocks } from "@/lib/cms/blocks-render";
+import { EURONICS_THEME } from "@/lib/cms/info-pages";
+import { BrandFrame } from "@/components/brand/BrandFrame";
+import { getHomeDoc, getPublishedHome } from "@/lib/cms/home-store";
+import { afterZone, audienceOk, hideClass, sectionActive, sectionDef, sectionExtras, sectionWidget, TOP_ZONE } from "@/lib/cms/home-sections";
 
 /**
- * Homepage = zones resolved from the CMS layout for *this* request
- * (device, audience, schedule, A/B bucket), rendered by the widget
- * registry. The frame (header, nav, footer, drawers) lives in the
- * (shop) layout.
+ * Αρχική = οι ενότητες και τα components της διαχείρισης (Περιεχόμενο → Ζώνες αρχικής), όπως ισχύουν για αυτό το
+ * αίτημα: ημερομηνίες, κοινό (επισκέπτης / πελάτης), συσκευή (με CSS). Χωρίς δημοσίευση: η προεπιλεγμένη αρχική.
+ * ?preview=1: το πρόχειρο, μόνο για προσωπικό με δικαίωμα ζωνών αρχικής. Το πλαίσιο (header, footer) είναι στο layout.
  */
 export default async function HomePage({ searchParams }: PageProps<"/">) {
-  const [{ device, saveData }, layout, sp] = await Promise.all([getDevice(), getHomeLayout(), searchParams]);
-  const ctx: RenderContext = { now: new Date(), device, audience: "guest", saveData, bucket: 0 };
-  const [main, preFooter] = await Promise.all([renderZones(layout.zones, ctx, "main"), renderZones(layout.zones, ctx, "pre-footer")]);
+  const [{ device, saveData }, sp, me] = await Promise.all([getDevice(), searchParams, getCustomerSession().catch(() => null)]);
+  let doc = await getPublishedHome();
+  let preview = false;
+  if (sp.preview === "1") {
+    const user = (await auth())?.user;
+    if (user && can(user.permissions, "cms.zones.read")) { doc = (await getHomeDoc()).draft; preview = true; }
+  }
+  const viewer = me ? "customer" : "guest";
+  const now = new Date();
+  const ctx: RenderContext = { now, device, audience: viewer, saveData, bucket: 0 };
+
+  const blocks = doc.blocks.filter((b) => blockActive(b, now) && audienceOk(b.audience, viewer));
+  const [data, sections] = await Promise.all([
+    blocks.length ? resolveBlocks(blocks) : Promise.resolve(null),
+    Promise.all(doc.sections.map(async (s) => {
+      if (!sectionActive(s, now, viewer)) return { s, el: null };
+      if (s.id === "ad-strip") return { s, el: <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" /> };
+      const w = sectionWidget(s);
+      if (!w) return { s, el: null };
+      const el = await renderZone({ id: s.id, label: sectionDef(s.id)!.label, slot: "main", widgets: [w, ...sectionExtras(s)] }, ctx);
+      return { s, el };
+    })),
+  ]);
+  const zone = (key: string) => {
+    const here: BrandBlock[] = blocks.filter((b) => (b.zone ?? TOP_ZONE) === key);
+    if (!here.length || !data) return null;
+    return <div data-zone={key}><BrandFrame theme={EURONICS_THEME}>{here.map((b) => renderBlock(b, data, { brandName: "Euronics" }))}</BrandFrame></div>;
+  };
   return (
     <>
+      {preview && <div role="status" className="sticky top-0 z-40 bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-14)] px-4 py-2">Προεπισκόπηση πρόχειρου της αρχικής — οι επισκέπτες δεν το βλέπουν</div>}
       <ZonesToggle enabled={sp.zones === "1"} />
-      {main}
-      <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" />
-      {preFooter}
+      {zone(TOP_ZONE)}
+      {sections.map(({ s, el }) => (
+        <Fragment key={s.id}>
+          {el && (s.hideOn?.length ? <div className={hideClass(s.hideOn)}>{el}</div> : el)}
+          {zone(afterZone(s.id))}
+        </Fragment>
+      ))}
     </>
   );
 }
