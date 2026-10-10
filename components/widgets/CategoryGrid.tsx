@@ -14,7 +14,7 @@ import { SectionHead } from "./SectionHead";
  * Adaptive: 3 columns ≥ 820px container, 2 at tablet widths, a single
  * column with compact rows on phones (count moves inline).
  */
-export function CategoryGrid({ categories, featured, zoneNo }: { categories: Category[]; featured?: string; zoneNo?: number }) {
+export function CategoryGrid({ categories, featured, zoneNo, title = ["Ό,τι χρειάζεται το σπίτι σου,", "σε εννέα κατηγορίες."] }: { categories: Category[]; featured?: string; zoneNo?: number; title?: string | [string, string] }) {
   return (
     <section className="relative eu-container bg-white" aria-labelledby="cat-grid-title">
       <ZoneBadge no={zoneNo} />
@@ -22,7 +22,7 @@ export function CategoryGrid({ categories, featured, zoneNo }: { categories: Cat
         <SectionHead
           id="cat-grid-title"
           kicker="Κατάλογος"
-          title={["Ό,τι χρειάζεται το σπίτι σου,", "σε εννέα κατηγορίες."]}
+          title={title}
           link={{ label: "Όλος ο κατάλογος →", href: "/proionta" }}
         />
         <ul className="grid grid-cols-1 @sm:grid-cols-2 @lg:grid-cols-3 gap-px bg-eu-line border border-eu-line rounded-lg overflow-hidden m-0 p-0 list-none">
@@ -52,7 +52,7 @@ export function CategoryGrid({ categories, featured, zoneNo }: { categories: Cat
                       )}
                     </div>
                     <div className={`font-medium text-[length:var(--fs-14)] mt-2 ${dark ? "text-eu-on-dark-2" : "text-eu-muted-2"}`}>
-                      {c.count} προϊόντα{c.meta ? ` · ${c.meta}` : ""}
+                      {c.count.toLocaleString("el-GR")} προϊόντα{c.meta ? ` · ${c.meta}` : ""}
                     </div>
                   </div>
                   <ArrowRight className={`size-4 mt-1 shrink-0 transition-transform group-hover:translate-x-1 ${dark ? "text-eu-yellow" : "text-eu-blue"}`} aria-hidden />

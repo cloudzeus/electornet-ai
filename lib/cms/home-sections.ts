@@ -26,7 +26,8 @@ export type SectionField =
   | { key: string; kind: "number"; label: string; help?: string; min: number; max: number; unit?: string }
   | { key: string; kind: "lines"; label: string; help?: string; max?: number }
   | { key: string; kind: "link"; label: string; help?: string }
-  | { key: string; kind: "campaigns"; label: string; help?: string };
+  | { key: string; kind: "campaigns"; label: string; help?: string }
+  | { key: string; kind: "category-cells"; label: string; help?: string };
 
 export interface SectionDef {
   id: HomeSectionId; label: string; help: string;
@@ -42,7 +43,7 @@ export interface SectionDef {
 export const HOME_SECTIONS: SectionDef[] = [
   { id: "hero", label: "Κεντρικά slides (hero)", help: "Το μεγάλο bento στην κορυφή: slides, προσφορά ημέρας, κοντινό κατάστημα, υπηρεσίες.", widget: { type: "bento-hero", zoneNo: 4, props: { slides: "all", intervalMs: 6000 } }, fields: [{ key: "intervalMs", kind: "number", label: "Χρόνος ανά slide", min: 3, max: 20, unit: "δευτ.", help: "Πόσο μένει κάθε slide πριν αλλάξει." }], managedAt: { label: "Hero slides", href: "/admin/cms/slides" } },
   { id: "ticker", label: "Κίτρινο ticker", help: "Λωρίδα που κυλά με σύντομα εμπορικά μηνύματα.", widget: { type: "ticker", zoneNo: 5, props: { items: ["Δωρεάν μεταφορά συσκευών εντός περιφέρειας", "Δόσεις χωρίς κάρτα έως 24 μήνες", "Επίσημη εγγύηση αντιπροσωπείας", "Φύλαξη συσκευών μέχρι να ετοιμαστεί ο χώρος σου", "Παραλαβή σε 2 ώρες"] } }, fields: [{ key: "items", kind: "lines", label: "Μηνύματα", help: "Ένα σύντομο μήνυμα ανά γραμμή (3–6 προτείνονται).", max: 10 }] },
-  { id: "categories", label: "Πλέγμα κατηγοριών", help: "Τυπογραφικό πλέγμα με τις κύριες κατηγορίες· μία τονίζεται σκούρα.", widget: { type: "category-grid", zoneNo: 6, props: { featured: "clima" } }, fields: [{ key: "featured", kind: "text", label: "Τονισμένη κατηγορία (κωδικός)", help: "Ο κωδικός της κατηγορίας που εμφανίζεται σκούρα (π.χ. clima). Κενό = η προεπιλογή." }] },
+  { id: "categories", label: "Πλέγμα κατηγοριών", help: "Τυπογραφικό πλέγμα με τις κύριες κατηγορίες· μία τονίζεται σκούρα.", widget: { type: "category-grid", zoneNo: 6, props: {} }, fields: [{ key: "cells", kind: "category-cells", label: "Κατηγορίες του πλέγματος", help: "Σύρε για σειρά · ★ = τονισμένη (σκούρο κελί) · μάτι = ορατή ή κρυφή. Πλήθος προϊόντων και σύνδεσμος ενημερώνονται μόνα τους από τον κατάλογο." }, { key: "title", kind: "text", label: "Τίτλος ενότητας", max: 80, help: "Κενό = «Ό,τι χρειάζεται το σπίτι σου, σε εννέα κατηγορίες.» με τον αριθμό των ορατών κατηγοριών." }] },
   { id: "deals", label: "Προσφορές της εβδομάδας", help: "Προϊόντα της εβδομαδιαίας προσφοράς με πραγματική αντίστροφη μέτρηση.", widget: { type: "deals-rail", zoneNo: 7, props: { title: "Προσφορές της εβδομάδας" }, query: { kind: "tag", value: "weekly-deals", limit: 4, pin: ["p-inventor-ikura"] } }, fields: [{ key: "title", kind: "text", label: "Τίτλος", max: 60 }, { key: "limit", kind: "number", label: "Πλήθος προϊόντων", min: 2, max: 12 }] },
   { id: "campaigns", label: "Καμπάνιες κατασκευαστών", help: "Κάρτες με key visuals κατασκευαστών (Samsung, Miele…) προς τις αντίστοιχες λίστες.", widget: { type: "campaign-spotlight", zoneNo: 8, props: { kicker: "Τρέχουν τώρα", title: "Καμπάνιες κατασκευαστών", link: { label: "Όλες οι προσφορές", href: "/prosfores" }, campaigns: [
     { id: "samsung-vision-ai", brand: "Samsung", title: "Samsung Vision AI is here", text: "QLED · Neo QLED · Neo QLED 8K · OLED · The Frame.", cta: "Ανακάλυψε τις νέες AI τηλεοράσεις", href: "/k/eikona-ixos/tileoraseis", image: "/img/campaigns/samsung-vision-ai.jpg", alt: "Samsung Vision AI — QLED, Neo QLED, Neo QLED 8K, OLED, The Frame" },
@@ -97,7 +98,6 @@ export function sectionWidget(s: HomeSection): WidgetInstance | null {
   const p = { ...d.widget.props, ...(s.props ?? {}) } as Record<string, unknown>;
   if (s.id === "hero" && typeof p.intervalMs === "number" && p.intervalMs < 100) p.intervalMs = p.intervalMs * 1000; // δευτερόλεπτα στη φόρμα
   if (s.id === "ticker" && Array.isArray(p.items)) p.items = (p.items as unknown[]).map(String).map((x) => x.trim()).filter(Boolean);
-  if (s.id === "categories" && !String(p.featured ?? "").trim()) p.featured = d.widget.props.featured;
   const query = d.widget.query && s.id === "deals" && typeof p.limit === "number" ? { ...d.widget.query, limit: p.limit } : d.widget.query;
   return { ...d.widget, id: `home-${s.id}`, label: d.label, props: p, query };
 }

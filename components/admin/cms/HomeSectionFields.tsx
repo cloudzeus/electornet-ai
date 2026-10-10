@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Info, Plus, Trash2, Undo2 } from "lucide-react";
 import { sectionDef, type HomeSection, type SectionField } from "@/lib/cms/home-sections";
 import { Area, LinkField, MediaUrl, StringList, Txt } from "./brand/fields";
+import { CategoryCellsField } from "./CategoryCellsField";
 
 type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string };
 
@@ -36,6 +37,7 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
           </div>
         );
       }
+      case "category-cells": return <CategoryCellsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} help={f.help} />;
       case "campaigns": {
         const list = ((val(f.key) as Campaign[] | undefined) ?? []).map((c) => ({ ...c }));
         const setList = (l: Campaign[]) => put(f.key, l);

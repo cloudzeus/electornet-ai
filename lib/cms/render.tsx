@@ -18,6 +18,9 @@ import { getNews } from "@/lib/data/repo";
 import { NewsletterBand } from "@/components/widgets/NewsletterBand";
 import { Reveal } from "@/components/motion/Reveal";
 import { getHeroDeal, getHeroServices, getLiveHeroSlides } from "@/lib/cms/hero-slides";
+import { catalogTree, type CatNode } from "@/lib/data/db-catalog";
+import { cellsOf, gridCategories, gridTitle, type CatInfo } from "./category-cells";
+import type { Category } from "@/lib/data/types";
 import { getCategories, getGuides, getNearestStoreWithGeo, getProduct, getServices, getWeeklyDeals } from "@/lib/data/catalog";
 
 /**
@@ -40,7 +43,17 @@ const registry: Record<string, Renderer> = {
     return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} />;
   },
   ticker: async (w) => <Ticker key={w.id} items={(w.props as { items: string[] }).items} zoneNo={w.zoneNo} />,
-  "category-grid": async (w) => <CategoryGrid key={w.id} categories={await getCategories()} featured={(w.props as { featured?: string }).featured} zoneNo={w.zoneNo} />,
+  "category-grid": async (w) => {
+    // κελιά της διαχείρισης → πραγματικές κατηγορίες (πλήθος, σύνδεσμος) · χωρίς κατάλογο: τα σταθερά του σχεδίου
+    const props = w.props as Record<string, unknown>;
+    const { cells, focus } = cellsOf(props);
+    const tree = await catalogTree().catch(() => null);
+    if (!tree) return <CategoryGrid key={w.id} categories={await getCategories()} featured={String(props.featured ?? "")} zoneNo={w.zoneNo} />;
+    const pathOf = (n: CatNode) => { const p: string[] = []; for (let c: CatNode | undefined = n; c; c = c.parentId ? tree.byId.get(c.parentId) : undefined) p.unshift(c.slug); return p.join("/"); };
+    const find = (ref: string): CatInfo | undefined => { const n = tree.bySlug.get(ref) ?? tree.byId.get(ref); return n ? { id: n.id, slug: n.slug, name: n.name, count: n.count, path: pathOf(n) } : undefined; };
+    const cats = gridCategories(cells, focus, find);
+    return <CategoryGrid key={w.id} categories={cats as unknown as Category[]} featured={cats.find((c) => c.featured)?.id} title={gridTitle(props.title, cats.length)} zoneNo={w.zoneNo} />;
+  },
   "deals-rail": async (w, ctx) => {
     const deals = await getWeeklyDeals();
     const limit = w.query?.limit ?? 4;
