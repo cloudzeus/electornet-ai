@@ -11,6 +11,9 @@ import { getSetting } from "@/lib/settings/store";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
 import { carrierDef } from "@/lib/shipping/carriers";
+import { isVivaPay } from "@/lib/payments/viva-core";
+import { vivaConfig } from "@/lib/payments/viva";
+import { paymentPagePath, startVivaPayment } from "@/lib/payments/order-payment";
 
 /**
  * Ολοκλήρωση παραγγελίας. Ο server ξαναϋπολογίζει ΤΑ ΠΑΝΤΑ από την αρχή (τιμές, προσφορές, κουπόνι, μεταφορικά) — ο
@@ -78,6 +81,8 @@ export async function placeOrder(input: PlaceInput) {
   const svcBySlug = new Map(services.map((s) => [s.slug, s]));
   const usedSlugs = [...new Set(q.lines.flatMap((l) => l.addons.map((a) => a.slug)))];
 
+  // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
+  const viva = isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
   let number = "";
   try {
     const result = await db.$transaction(async (tx) => {
@@ -101,7 +106,7 @@ export async function placeOrder(input: PlaceInput) {
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,
-          payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1) } },
+          payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1), ...(viva ? { psp: "viva" } : {}) } },
         },
       });
       for (const l of q.engine.lines) {
@@ -151,12 +156,17 @@ export async function placeOrder(input: PlaceInput) {
         gifts: q.gifts.map((g) => ({ erpCode: g.erpCode, title: g.title, qty: g.qty, value: g.value / 100, promo: `${g.code} v${g.version}`, terms: termsOf.get(g.promotionId) ?? null })),
       });
       const mode = String((await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }))).data.orderPush ?? "preview");
-      if (mode !== "off") await tx.erpSync.create({ data: { orderId: order.id, status: "preview", payload: doc as unknown as Prisma.InputJsonValue } });
+      if (mode !== "off") await tx.erpSync.create({ data: { orderId: order.id, status: viva ? "awaiting-payment" : "preview", payload: doc as unknown as Prisma.InputJsonValue } });
       await tx.cartLine.deleteMany({ where: { cartId: cart.id } });
       if (input.dryRun) throw Object.assign(new Abort("dry-run"), { preview: { number, quote: publicQuote(q), erp: doc } });
       return { orderId: order.id };
     }, { timeout: 20000 });
     invalidatePromos(); // οι μετρητές άλλαξαν
+    // Viva: ο πελάτης πάει στη σελίδα πληρωμής· το email φεύγει όταν επιβεβαιωθεί η πληρωμή (lib/payments/order-payment)
+    if (viva && isVivaPay(input.payment)) {
+      const redirect = await startVivaPayment(result.orderId, input.payment).catch(() => paymentPagePath(number, "&e=start"));
+      return { ok: true as const, number, total: q.total, nextCoupon: null, redirect };
+    }
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Banknote, Smartphone, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
+import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
 import { instalment, priceLong } from "@/lib/format";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
 import { Stepper } from "./Stepper";
@@ -21,7 +21,18 @@ import { carrierDef } from "@/lib/shipping/carriers";
 const c = copyOf("checkout");
 
 type StoreLite = { id: string; slug: string; name: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string };
-type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut";
+type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut" | "paypal" | "klarna";
+
+/** Τρόποι μέσω Viva — ο πελάτης μεταφέρεται στη σελίδα της Viva, ανοιχτή στον τρόπο που διάλεξε. */
+const VIVA_OPTS: { v: Pay; icon: typeof Truck; t: string; sub: string; mark?: React.ReactNode }[] = [
+  { v: "card", icon: CreditCard, t: "Κάρτα", sub: "Visa · Mastercard · Amex" },
+  { v: "apple", icon: CreditCard, t: "Apple Pay", sub: "Με Face ID / Touch ID", mark: <AppleMark className="size-5" /> },
+  { v: "google", icon: CreditCard, t: "Google Pay", sub: "Με την κάρτα του Google λογαριασμού σου", mark: <GoogleMark className="size-5" /> },
+  { v: "paypal", icon: Wallet2, t: "PayPal", sub: "Με τον λογαριασμό PayPal σου" },
+  { v: "iris", icon: Smartphone, t: "IRIS", sub: "Άμεσα από το e-banking, χωρίς προμήθεια" },
+  { v: "klarna", icon: Smartphone, t: "Klarna", sub: "Σε δόσεις χωρίς κάρτα" },
+];
+const VIVA_NAME: Record<string, string> = { card: "την κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna" };
 
 const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρισα", "Ηράκλειο", "Χανιά", "Δωδεκάνησα", "Ιωάννινα", "Μαγνησία", "Καβάλα", "Κέρκυρα", "Εύβοια", "Μεσσηνία", "Σέρρες", "Άλλη"];
 
@@ -35,7 +46,10 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite[]; boxnowPartnerId?: string | null }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[] }) {
+  // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
+  const viva = vivaPays.length > 0;
+  const viaViva = (p: string) => viva && vivaPays.includes(p);
   const router = useRouter();
   const { lines, subtotal, addonsTotal, hydrated, clear, freeShippingFrom } = useCart();
   const [step, setStep] = useState<2 | 3>(2);
@@ -140,6 +154,7 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
     if (!f.terms) return setErr("Πρέπει να αποδεχτείς τους όρους χρήσης για να συνεχίσεις.");
     if (offline.length) return setErr(`Το «${offline[0].product.title}» δεν διατίθεται για online αγορά. Αφαίρεσέ το από το καλάθι για να συνεχίσεις.`);
     setErr(null);
+    if (viaViva(pay)) return finish();
     if (pay === "apple" || pay === "google" || pay === "revolut") return setWallet(pay);
     if (pay === "card" || pay === "no-card") {
       setSca("pending");
@@ -160,12 +175,14 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
         carrier: ful === "courier" ? offer?.id ?? null : null, locker: toLocker ? locker : null,
         coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
       }) });
-      const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; nextCoupon?: { code: string; value: string; until: string | null } | null };
+      const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; redirect?: string; nextCoupon?: { code: string; value: string; until: string | null } | null };
       if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); setSca("idle"); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
       const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, address: { ...f, password: "" }, recycle: f.recycle, nextCoupon: j.nextCoupon ?? null };
       try { localStorage.setItem("euronics.lastOrder", JSON.stringify(order)); } catch {}
       clear();
       saveCoupon(null);
+      // Viva: η πληρωμή ολοκληρώνεται στη σελίδα της· επιστρέφει στο /api/payments/viva/success|failure
+      if (j.redirect) { window.location.assign(j.redirect); return; }
       router.push(`/checkout/epityxia?no=${j.number}`);
     } catch { setSca("idle"); setErr("Σφάλμα δικτύου. Η παραγγελία δεν ολοκληρώθηκε."); } finally { setPlacing(false); }
   };
@@ -204,7 +221,12 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
     { v: "click-collect", icon: StoreIcon, t: "Παραλαβή από κατάστημα", price: "Δωρεάν", sub: "Σε 2 ώρες όπου υπάρχει απόθεμα · 350 καταστήματα" },
     { v: "appointment", icon: CalendarClock, t: "Με ραντεβού", price: heavy ? "Δωρεάν" : "Δωρεάν από 100 €", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Επιλέγεις ημέρα και ώρα" },
   ];
-  const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = [
+  const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = viva ? [
+    ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
+    { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Θα δεις το IBAN μετά την παραγγελία" },
+    { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
+    ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
+  ] : [
     { v: "card", icon: CreditCard, t: "Κάρτα", sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` },
     { v: "apple", icon: CreditCard, t: "Apple Pay", sub: "Με Face ID / Touch ID, χωρίς πληκτρολόγηση", mark: <AppleMark className="size-5" /> },
     { v: "google", icon: CreditCard, t: "Google Pay", sub: "Με την κάρτα του Google λογαριασμού σου", mark: <GoogleMark className="size-5" /> },
@@ -230,20 +252,31 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
                   </h1>
                   <span className="text-eu-muted text-[length:var(--fs-14)] hidden @sm:inline">{c.dieythynsi_pliromi_apo_to}</span>
                 </div>
+                {viva ? (
+                  <div className="grid grid-cols-2 @md:grid-cols-4 gap-2">
+                    {(["apple", "google", "paypal", "iris"] as Pay[]).filter((m) => vivaPays.includes(m)).map((m) => (
+                      <button key={m} type="button" onClick={() => { setPay(m); document.getElementById("fld-firstName")?.focus(); }} aria-label={`Πληρωμή με ${VIVA_NAME[m]}`}
+                        className={`rounded-full font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 ${m === "google" ? "bg-white text-eu-ink border-2 border-eu-line hover:border-eu-blue" : m === "iris" ? "bg-eu-blue text-white hover:bg-eu-blue-dark" : m === "paypal" ? "bg-[#ffc439] text-[#003087] hover:brightness-95" : "bg-black text-white hover:bg-black/85"}`}>
+                        {m === "apple" ? <><AppleMark className="size-5" /> Pay</> : m === "google" ? <><GoogleMark className="size-5" /> Pay</> : m === "paypal" ? "PayPal" : "IRIS"}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
                 <div className="grid grid-cols-2 @md:grid-cols-4 gap-2">
-                  <button type="button" onClick={() => setWallet("apple")} aria-label={c.pliromi_me_apple_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
-                    <AppleMark className="size-5" /> Pay
-                  </button>
-                  <button type="button" onClick={() => setWallet("google")} aria-label={c.pliromi_me_google_pay} className="rounded-full bg-white text-eu-ink border-2 border-eu-line font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:border-eu-blue">
-                    <GoogleMark className="size-5" /> Pay
-                  </button>
-                  <button type="button" onClick={() => setWallet("revolut")} aria-label={c.pliromi_me_revolut_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
-                    <RevolutMark className="h-4" /> Pay
-                  </button>
-                  <button type="button" onClick={() => setPay("iris")} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue-dark">
-                    IRIS
-                  </button>
-                </div>
+                    <button type="button" onClick={() => setWallet("apple")} aria-label={c.pliromi_me_apple_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
+                      <AppleMark className="size-5" /> Pay
+                    </button>
+                    <button type="button" onClick={() => setWallet("google")} aria-label={c.pliromi_me_google_pay} className="rounded-full bg-white text-eu-ink border-2 border-eu-line font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:border-eu-blue">
+                      <GoogleMark className="size-5" /> Pay
+                    </button>
+                    <button type="button" onClick={() => setWallet("revolut")} aria-label={c.pliromi_me_revolut_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
+                      <RevolutMark className="h-4" /> Pay
+                    </button>
+                    <button type="button" onClick={() => setPay("iris")} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue-dark">
+                      IRIS
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-eu-muted text-[length:var(--fs-14)]">
                   <span className="flex-1 h-px bg-eu-line" /> {c.i_symplirose_ta_stoicheia} <span className="flex-1 h-px bg-eu-line" />
                 </div>
@@ -442,7 +475,14 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
                   ))}
                 </div>
 
-                {pay === "card" && (
+                {viaViva(pay) && (
+                  <div className="grid gap-3 rounded-xl bg-eu-surface p-4 @md:p-5 text-[length:var(--fs-15)] text-eu-ink-2">
+                    <p className="m-0 flex items-start gap-2"><ExternalLink className="size-5 text-eu-blue shrink-0" aria-hidden /> <span>Θα μεταφερθείς στην ασφαλή σελίδα πληρωμής της <b className="text-eu-ink">Viva</b> για να πληρώσεις με {VIVA_NAME[pay]}. Αν έχεις πληρώσει με Viva σε άλλο κατάστημα, θα δεις εκεί τις αποθηκευμένες κάρτες σου.</span></p>
+                    {pay === "card" && maxInst > 1 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τις άτοκες δόσεις (έως {maxInst}) τις διαλέγεις στη σελίδα της Viva.</p>}
+                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2"><ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία πληρωμής δεν περνούν από εμάς.</p>
+                  </div>
+                )}
+                {pay === "card" && !viva && (
                   <div className="grid gap-4 rounded-xl bg-eu-surface p-4 @md:p-5">
                     <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
                       <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink @sm:col-span-2">
@@ -478,7 +518,7 @@ export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite
                 )}
                 {pay === "no-card" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_metafertheis_sto_asfales}</p>}
                 {pay === "bank" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.oi_logariasmoi_ethniki_peiraios}</p>}
-                {pay === "iris" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_anoixei_to_mobile}</p>}
+                {pay === "iris" && !viva && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_anoixei_to_mobile}</p>}
               </Section>
 
               <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3">

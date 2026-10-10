@@ -3,12 +3,13 @@ import { tickPromos } from "@/lib/promo/offers";
 import { refreshInfoTags } from "@/lib/promo/tags";
 import { runBirthdays, runCartReminders, runPersonalOffers } from "@/lib/promo/jobs";
 
-let lastTags = 0;
+let lastTags = 0, lastUnpaid = 0;
 
 /**
  * Cron (Coolify / εξωτερικός scheduler, ανά λεπτό): `GET /api/cron/promos` με `Authorization: Bearer $CRON_SECRET`.
  * ?force=1 = πλήρης επαναϋπολογισμός. Οι αυτόματες ετικέτες (Best Seller, Top Rated…) ξαναϋπολογίζονται μία φορά την ώρα ή με ?tags=1.
  * Κουπόνια γενεθλίων: μία φορά την ημέρα. Υπενθυμίσεις καλαθιού: ανά 15 λεπτά. Και τα δύο μόνο αν είναι ενεργά στους κανόνες.
+ * Απλήρωτες online παραγγελίες (Viva) άνω των 24 ωρών: ακύρωση + επιστροφή χρήσεων προσφορών/κουπονιού, ανά 15 λεπτά.
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -18,5 +19,7 @@ export async function GET(req: Request) {
   let tags: Record<string, number> | null = null;
   if (u.searchParams.get("tags") === "1" || Date.now() - lastTags > 3600_000) { lastTags = Date.now(); tags = await refreshInfoTags().catch(() => null); }
   const [birthdays, carts, personal] = await Promise.all([runBirthdays().catch((e) => ({ error: String(e) })), runCartReminders().catch((e) => ({ error: String(e) })), runPersonalOffers().catch((e) => ({ error: String(e) }))]);
-  return NextResponse.json({ ...promos, tags, birthdays, carts, personal });
+  let unpaid: unknown = null;
+  if (Date.now() - lastUnpaid > 15 * 60_000) { lastUnpaid = Date.now(); const { cancelUnpaidOnline } = await import("@/lib/payments/order-payment"); unpaid = await cancelUnpaidOnline(24).catch((e) => ({ error: String(e) })); }
+  return NextResponse.json({ ...promos, tags, birthdays, carts, personal, unpaid });
 }
