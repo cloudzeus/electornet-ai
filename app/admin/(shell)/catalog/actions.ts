@@ -61,6 +61,16 @@ export async function runEprelMatch(limit = 60) {
   return r;
 }
 
+/** «Αναζήτηση στο EPREL» για ένα προϊόν, από τη σελίδα του (καρτέλα Διαστάσεις · AR · EPREL). */
+export async function matchEprelAction(productId: string) {
+  const user = await requirePermission("catalog.products.write");
+  const { matchProductEprel } = await import("@/lib/catalog/eprel-match");
+  const r = await matchProductEprel(productId);
+  await audit(user.id, "catalog.eprel.match-one", "Product", productId, null, r);
+  if (r.ok && r.status === "matched") { resetCatalogCache(); revalidatePath(`/admin/catalog/${productId}`); }
+  return r;
+}
+
 /**
  * «Ενημέρωση από SoftOne»: το είδος διαβάζεται τώρα από το ERP (μόνο ανάγνωση) και το προϊόν ενημερώνεται αμέσως,
  * χωρίς να περιμένει τον προγραμματισμένο συγχρονισμό. Επιστρέφει τι άλλαξε, για να το δει ο διαχειριστής.

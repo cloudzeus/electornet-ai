@@ -239,6 +239,31 @@ export async function matchEprelBatch(opts: { limit?: number; retry?: boolean; c
   return { ok: true, ...r, remaining: await db.product.count({ where }) };
 }
 
+/**
+ * Αναζήτηση στο EPREL για ΕΝΑ προϊόν (από τη σελίδα του): ίδια λογική με τον worker του matchEprelBatch — ομάδες της
+ * κατηγορίας, μοντέλο από τον τίτλο/κωδικό ή τη φωτογραφία, αποθήκευση ετικέτας, χαρακτηριστικών και διαστάσεων.
+ */
+export async function matchProductEprel(productId: string): Promise<{ ok: true; status: MatchOutcome["status"]; model: string | null; candidates?: string[]; registrationNumber?: string } | { ok: false; error: string }> {
+  if (!hasEprelKey()) return { ok: false, error: "Λείπει το EPREL_API_KEY — χωρίς αυτό το EPREL δεν απαντά." };
+  const p = await db.product.findUnique({ where: { id: productId }, select: { id: true, sku: true, title: true, ean: true, category: { select: { name: true } }, brand: { select: { name: true } } } });
+  if (!p) return { ok: false, error: "Δεν βρέθηκε το προϊόν." };
+  const groups = eprelGroupsFor(p.category.name);
+  if (!groups) return { ok: false, error: `Η κατηγορία «${p.category.name}» δεν έχει ενεργειακή ετικέτα στο EPREL.` };
+  const keys = p.ean ? [p.ean, `0${p.ean}`, `00${p.ean}`] : [];
+  const img = keys.length ? await db.imageImport.findFirst({ where: { seq: 1, key: { in: keys } }, select: { model: true } }) : null;
+  const imageModel = img?.model ?? null;
+  const cands = modelCandidates(p, imageModel);
+  try {
+    const out = cands.length ? await findInEprel(p, imageModel, p.brand.name, groups) : ({ status: "none", model: null } as MatchOutcome);
+    let registrationNumber: string | undefined;
+    if (out.status === "matched") { registrationNumber = (await storeEprelMatch(p.id, out.raw)).registrationNumber; await refreshDimStatus([p.id]); }
+    await db.product.update({ where: { id: p.id }, data: { eprelStatus: out.status, eprelCheckedAt: new Date(), modelCode: out.model ?? cands[0] ?? null } });
+    return { ok: true, status: out.status, model: out.model ?? cands[0] ?? null, candidates: out.status === "ambiguous" ? out.candidates : undefined, registrationNumber };
+  } catch (e) {
+    return { ok: false, error: e instanceof EprelError && (e.code === "NO_KEY" || e.status === 401) ? "Το EPREL απέρριψε το κλειδί API." : (e as Error).message };
+  }
+}
+
 export async function eprelMatchStats() {
   const types = (await db.category.findMany({ where: { source: "softone", depth: 2, productCount: { gt: 0 } }, select: { id: true, name: true } })).filter((c) => eprelGroupsFor(c.name));
   const ids = types.map((t) => t.id);
