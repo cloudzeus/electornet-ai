@@ -1355,6 +1355,7 @@ model Order {
   payment       Payment?
   erpSync       ErpSync?
   returns       Return[]
+  shipments     Shipment[]
   tracking      String?
   courier       String?
   createdAt     DateTime         @default(now())
@@ -1410,6 +1411,39 @@ model Payment {
   status      String   @default("pending")
   scaDone     Boolean  @default(false)
   updatedAt   DateTime @updatedAt
+}
+
+/// Αποστολή με courier (voucher): έκδοση, ετικέτα, ακύρωση, κλείσιμο ημέρας, παρακολούθηση. Μία παραγγελία μπορεί να έχει
+/// περισσότερες (π.χ. ακυρωμένη και νέα). Κοινό για όλους τους couriers (lib/couriers/*).
+model Shipment {
+  id             String    @id @default(cuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  carrier        String // geniki | acs | boxnow | elta | asap
+  env            String    @default("test") // test | live — το περιβάλλον του courier όπου εκδόθηκε
+  jobId          String?
+  voucher        String?
+  subVouchers    String[]
+  pieces         Int       @default(1)
+  weightKg       Decimal   @db.Decimal(8, 2)
+  codAmount      Decimal   @default(0) @db.Decimal(10, 2)
+  services       String?
+  /// created | closed | in-transit | out-for-delivery | attempted | on-hold | returning | returned | delivered | cancelled
+  status         String    @default("created")
+  closedAt       DateTime?
+  cancelledAt    DateTime?
+  deliveredAt    DateTime?
+  /// Τελευταίο σημείο της διαδρομής (κωδικός, περιγραφή, ημερομηνία, κατάστημα)
+  lastCheckpoint Json?
+  trackedAt      DateTime?
+  error          String?   @db.Text
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([carrier, status])
+  @@index([voucher])
 }
 
 /// Outbox for writing orders to the ERP with retries; the shop never blocks on the ERP.

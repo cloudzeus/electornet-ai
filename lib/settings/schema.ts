@@ -69,7 +69,10 @@ const CARRIER_SETUP: { id: string; title: string; help: string; fee: string; eta
     { key: "acsPassword", label: "Κωδικός", type: "secret", width: "half" }, { key: "acsApiKey", label: "API key", type: "secret", width: "half" }] },
   { id: "geniki", title: "Γενική Ταχυδρομική", help: "Στοιχεία web services από τη Γενική Ταχυδρομική (όνομα χρήστη, κωδικός, app key).", fee: "4.90", eta: "1–3 εργάσιμες", creds: [
     { key: "genikiUser", label: "Όνομα χρήστη", type: "text", width: "half" }, { key: "genikiPassword", label: "Κωδικός", type: "secret", width: "half" },
-    { key: "genikiAppKey", label: "App key", type: "secret", width: "half" }] },
+    { key: "genikiAppKey", label: "App key", type: "secret", width: "half" },
+    { key: "genikiEnv", label: "Περιβάλλον", type: "select", width: "half", options: [{ value: "test", label: "Δοκιμαστικό (testvoucher)" }, { value: "live", label: "Παραγωγή" }], help: "Η Γενική δίνει στοιχεία παραγωγής αφού δει υλοποιημένα: σύνδεση, έκδοση, εκτύπωση, ακύρωση, κλείσιμο ημέρας." },
+    { key: "genikiSubCode", label: "Κέντρο κόστους (SubCode)", type: "text", width: "half", help: "Μόνο αν η Γενική σάς έχει δώσει κέντρα κόστους." },
+    { key: "genikiLabel", label: "Χαρτί ετικέτας", type: "select", width: "half", options: [{ value: "Flyer", label: "A4 (Flyer)" }, { value: "Sticker", label: "Αυτοκόλλητο (Sticker)" }, { value: "StickerF6", label: "Αυτοκόλλητο A6 (StickerF6)" }] }] },
   { id: "elta", title: "ΕΛΤΑ Courier", help: "Τα στοιχεία web services δίνονται από την ΕΛΤΑ Courier (info@elta-courier.gr): κωδικός πελάτη, χρήστης, κωδικός.", fee: "3.90", eta: "2–4 εργάσιμες", creds: [
     { key: "eltaCustomerCode", label: "Κωδικός πελάτη", type: "text", width: "half" }, { key: "eltaUser", label: "Χρήστης", type: "text", width: "half" },
     { key: "eltaPassword", label: "Κωδικός", type: "secret", width: "half" }] },
