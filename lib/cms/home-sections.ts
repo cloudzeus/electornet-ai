@@ -29,7 +29,8 @@ export type SectionField =
   | { key: string; kind: "campaigns"; label: string; help?: string }
   | { key: string; kind: "category-cells"; label: string; help?: string }
   | { key: string; kind: "deals-source"; label: string; help?: string }
-  | { key: string; kind: "hero-info"; label: string; help?: string };
+  | { key: string; kind: "hero-info"; label: string; help?: string }
+  | { key: string; kind: "ticker-items"; label: string; help?: string; max?: number };
 
 export interface SectionDef {
   id: HomeSectionId; label: string; help: string;
@@ -46,7 +47,7 @@ export interface SectionDef {
 
 export const HOME_SECTIONS: SectionDef[] = [
   { id: "hero", label: "Κεντρικά slides (hero)", help: "Το μεγάλο bento στην κορυφή: slides, προσφορά ημέρας, κοντινό κατάστημα, υπηρεσίες.", widget: { type: "bento-hero", zoneNo: 4, props: { slides: "all", intervalMs: 6000 } }, how: ["Τα μεγάλα slides και η «Προσφορά ημέρας» (το πλακίδιο δεξιά) ορίζονται στη σελίδα «Hero slides».","Εδώ αλλάζεις μόνο πόσο μένει κάθε slide και πότε/σε ποιους φαίνεται η ενότητα."], fields: [{ key: "heroInfo", kind: "hero-info", label: "Τι δείχνει σήμερα" }, { key: "intervalMs", kind: "number", label: "Χρόνος ανά slide", min: 3, max: 20, unit: "δευτ.", help: "Πόσο μένει κάθε slide πριν αλλάξει." }], managedAt: { label: "Hero slides", href: "/admin/cms/slides" } },
-  { id: "ticker", label: "Κίτρινο ticker", help: "Λωρίδα που κυλά με σύντομα εμπορικά μηνύματα.", widget: { type: "ticker", zoneNo: 5, props: { items: ["Δωρεάν μεταφορά συσκευών εντός περιφέρειας", "Δόσεις χωρίς κάρτα έως 24 μήνες", "Επίσημη εγγύηση αντιπροσωπείας", "Φύλαξη συσκευών μέχρι να ετοιμαστεί ο χώρος σου", "Παραλαβή σε 2 ώρες"] } }, how: ["Γράψε τα μηνύματα που κυλούν στην κίτρινη λωρίδα — ένα ανά γραμμή.","Σύρε ή άλλαξε σειρά με τα βέλη· κράτα τα σύντομα (έως ~50 χαρακτήρες)."], fields: [{ key: "items", kind: "lines", label: "Μηνύματα", help: "Ένα σύντομο μήνυμα ανά γραμμή (3–6 προτείνονται).", max: 10 }] },
+  { id: "ticker", label: "Κίτρινο ticker", help: "Λωρίδα που κυλά με σύντομα εμπορικά μηνύματα.", widget: { type: "ticker", zoneNo: 5, props: { items: ["Δωρεάν μεταφορά συσκευών εντός περιφέρειας", "Δόσεις χωρίς κάρτα έως 24 μήνες", "Επίσημη εγγύηση αντιπροσωπείας", "Φύλαξη συσκευών μέχρι να ετοιμαστεί ο χώρος σου", "Παραλαβή σε 2 ώρες"] } }, how: ["Γράψε κάθε μήνυμα στο δικό του πλαίσιο — «Νέο μήνυμα» για προσθήκη.","Σύρε από τη λαβή (ή βέλη) για τη σειρά· ο διακόπτης το κάνει ενεργό ή ανενεργό χωρίς να σβηστεί.","Κράτα τα σύντομα: έως ~60 χαρακτήρες διαβάζονται άνετα καθώς κυλούν."], fields: [{ key: "items", kind: "ticker-items", label: "Μηνύματα", help: "Σύρε για σειρά · διακόπτης = ενεργό ή ανενεργό (μένει αποθηκευμένο). 3–6 σύντομα μηνύματα προτείνονται.", max: 12 }] },
   { id: "categories", label: "Πλέγμα κατηγοριών", help: "Τυπογραφικό πλέγμα με τις κύριες κατηγορίες· μία τονίζεται σκούρα.", widget: { type: "category-grid", zoneNo: 6, props: {} }, how: ["Σύρε τα κελιά για να αλλάξεις τη σειρά.","Πάτα ★ για να τονίσεις ένα κελί (σκούρο) και το μάτι για να το κρύψεις.","«Προσθήκη κατηγορίας» για νέο κελί από τον κατάλογο."], fields: [{ key: "cells", kind: "category-cells", label: "Κατηγορίες του πλέγματος", help: "Σύρε για σειρά · ★ = τονισμένη (σκούρο κελί) · μάτι = ορατή ή κρυφή. Πλήθος προϊόντων και σύνδεσμος ενημερώνονται μόνα τους από τον κατάλογο." }, { key: "title", kind: "text", label: "Τίτλος ενότητας", max: 80, help: "Κενό = «Ό,τι χρειάζεται το σπίτι σου, σε εννέα κατηγορίες.» με τον αριθμό των ορατών κατηγοριών." }] },
   { id: "deals", label: "Προσφορές της εβδομάδας", help: "Τα προϊόντα που διαλέγεις εσύ (ή μιας προσφοράς), με πραγματική αντίστροφη μέτρηση μέχρι τη λήξη.", widget: { type: "deals-rail", zoneNo: 7, props: { title: "Προσφορές της εβδομάδας", source: "auto", limit: 4 } }, how: ["Πάτα «Διάλεξε προϊόντα» και επίλεξε όσα θέλεις να φαίνονται στην αρχική.","Βάλε τη σειρά τους (σύρσιμο ή βέλη) και ως πότε ισχύουν — αυτή είναι η αντίστροφη μέτρηση.","Εναλλακτικά: τα προϊόντα μιας προσφοράς ή αυτόματα οι μεγαλύτερες εκπτώσεις."], fields: [{ key: "deals", kind: "deals-source", label: "Από πού έρχονται τα προϊόντα" }, { key: "title", kind: "text", label: "Τίτλος", max: 60 }, { key: "limit", kind: "number", label: "Πλήθος προϊόντων", min: 2, max: 12 }] },
 
@@ -96,13 +97,17 @@ export function sectionActive(s: HomeSection, now: Date, viewer: "guest" | "cust
   return audienceOk(s.audience, viewer);
 }
 
+/** Μήνυμα του ticker: παλιά μορφή (κείμενο) ή { text, off } — το «off» μένει αποθηκευμένο αλλά δεν φαίνεται. */
+export type TickerItem = { text: string; off?: boolean };
+export const tickerItems = (raw: unknown): TickerItem[] => (Array.isArray(raw) ? raw : []).map((x) => (typeof x === "string" ? { text: x } : { text: String((x as TickerItem)?.text ?? ""), off: (x as TickerItem)?.off === true || undefined })).map((x) => ({ ...x, text: x.text.trim() })).filter((x) => x.text);
+
 /** Το widget της ενότητας με τις αλλαγές του διαχειριστή (κείμενα, πλήθος, καμπάνιες). */
 export function sectionWidget(s: HomeSection): WidgetInstance | null {
   const d = sectionDef(s.id);
   if (!d?.widget) return null;
   const p = { ...d.widget.props, ...(s.props ?? {}) } as Record<string, unknown>;
   if (s.id === "hero" && typeof p.intervalMs === "number" && p.intervalMs < 100) p.intervalMs = p.intervalMs * 1000; // δευτερόλεπτα στη φόρμα
-  if (s.id === "ticker" && Array.isArray(p.items)) p.items = (p.items as unknown[]).map(String).map((x) => x.trim()).filter(Boolean);
+  if (s.id === "ticker" && Array.isArray(p.items)) p.items = tickerItems(p.items).filter((x) => !x.off).map((x) => x.text);
   const query = d.widget.query && s.id === "deals" && typeof p.limit === "number" ? { ...d.widget.query, limit: p.limit } : d.widget.query;
   return { ...d.widget, id: `home-${s.id}`, label: d.label, props: p, query };
 }

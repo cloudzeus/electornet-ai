@@ -24,6 +24,7 @@ test("ορατότητα: απόκρυψη, ημερομηνίες, κοινό·
   assert.equal(sectionActive({ id: "ticker", audience: "customer" }, now, "customer"), true);
   const t = sectionWidget({ id: "ticker", props: { items: [" Α ", "", "Β"] } })!;
   assert.deepEqual(t.props.items, ["Α", "Β"]);
+  assert.deepEqual(sectionWidget({ id: "ticker", props: { items: [{ text: "Α" }, { text: "Β", off: true }, "Γ"] } })!.props.items, ["Α", "Γ"]);
   assert.equal(sectionWidget({ id: "hero", props: { intervalMs: 8 } })!.props.intervalMs, 8000);
   assert.equal(sectionWidget({ id: "deals", props: { limit: 8, source: "promotion" } })!.props.limit, 8);
   assert.equal(sectionWidget({ id: "deals" })!.props.source, "auto");
