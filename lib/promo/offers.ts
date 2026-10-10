@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, inactiveReason, matches, MULTI_MECHANISMS, type EngineLine } from "./engine";
 import { activePromos, invalidatePromos, lowest30 } from "./server";
 import { autoLabel } from "./catalog";
@@ -79,7 +79,7 @@ async function computeOnce(): Promise<RecomputeResult> {
     const chain = (id: string) => { const out: string[] = []; for (let c: string | null | undefined = id, g = 0; c && g < 8; c = parent.get(c), g++) out.push(c); return out; };
     const giftIds = [...new Set(display.flatMap((p) => (p.mechanism === "gift" && p.reward.giftProductId ? [p.reward.giftProductId] : [])))];
     const giftTitles = new Map((giftIds.length ? await db.product.findMany({ where: { id: { in: giftIds } }, select: { id: true, title: true } }) : []).map((g) => [g.id, g.title]));
-    const svcTitle = new Map(services.map((s) => [s.slug, s.title]));
+    const svcTitle = new Map((await getServiceList()).map((s) => [s.slug, s.title]));
 
     const rows: { productId: string; variantId: string; listPrice: number; price: number; memberPrice: number | null; promotionId: string | null; promoCode: string | null; endsAt: Date | null; tags: OfferTag[] }[] = [];
     for (const p of products) {

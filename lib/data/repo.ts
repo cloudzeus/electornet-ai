@@ -5,7 +5,7 @@ import type { Appointment, Brand, ConsentPref, Customer, Faq, Guide, InstalmentP
 import { navCategories, type NavCategory } from "./nav";
 import { products } from "./fixtures/products";
 import { findStores, findStoreBySlug, storeRegions } from "@/lib/stores/repo";
-import { services } from "./fixtures/services";
+import { getServiceBySlug, getServiceList } from "@/lib/services/catalog";
 import { guides } from "./fixtures/guides";
 import { faqs, policies } from "./fixtures/content";
 import { livePolicies } from "./fixtures/policies.live";
@@ -311,10 +311,10 @@ export async function getRegions() {
 }
 
 export async function getServicesFull(): Promise<Service[]> {
-  return services;
+  return getServiceList();
 }
 export async function getService(slug: string) {
-  return services.find((s) => s.slug === slug) ?? null;
+  return getServiceBySlug(slug);
 }
 export async function getGuidesFull(): Promise<Guide[]> {
   return guides;

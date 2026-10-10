@@ -252,7 +252,7 @@ export async function ermisDraftAction(text: string) {
   const names = await targetNames(r.draft.targets);
   return {
     ok: true as const, via: r.via, notes: r.notes, name: r.draft.name,
-    summary: describePromo(r.draft, { service: (await import("@/lib/data/fixtures/services")).services.find((x) => x.slug === r.draft.reward.serviceSlug)?.title.toLocaleLowerCase("el-GR") }),
+    summary: describePromo(r.draft, { service: (await (await import("@/lib/services/catalog")).getServiceList()).find((x) => x.slug === r.draft.reward.serviceSlug)?.title.toLocaleLowerCase("el-GR") }),
     targets: r.draft.targets.map((x) => names[x.refId] ?? x.refId), startsAt: r.draft.startsAt, endsAt: r.draft.endsAt,
     encoded: Buffer.from(JSON.stringify(r.draft), "utf8").toString("base64url"),
   };

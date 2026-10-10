@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { draftOf, pendingChange, targetNames } from "@/lib/promo/admin";
 import { PendingChange } from "@/components/admin/promos/PendingChange";
 import { PromoWizard } from "@/components/admin/promos/PromoWizard";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { describePromo, type PromoStatus } from "@/lib/promo/catalog";
 import type { PromoReward, PromoRules } from "@/lib/promo/engine";
 
@@ -39,7 +39,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
           by={who.get((change ? change.by : p.createdById) ?? "") ?? null} at={(change?.at ?? p.updatedAt).toISOString()} />
       )}
       <PromoWizard initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, Number(step) || 3))}
-        services={services.map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
+        services={(await getServiceList()).map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
         stores={(await db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true } }))}
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />
 

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getProductsByIds } from "@/lib/data/repo";
 import { cutoutFor } from "@/lib/data/cutouts";
 import type { HeroSlide, Product } from "@/lib/data/types";
-import { services as ALL_SERVICES } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { DEFAULT_HERO_DOC, athensDay, dealFor, endOfAthensDay, pickSlides, toHeroSlide, type HeroDoc, type HeroSlideDoc, type ProductInfo } from "./hero-slides-model";
 
 /**
@@ -97,9 +97,10 @@ export async function heroDealInfo(): Promise<{ title: string; image: string | n
 /** Οι υπηρεσίες του πλακιδίου, με τη σειρά που όρισε ο διαχειριστής (αλλιώς οι πρώτες 4). */
 export const getHeroServices = cache(async (): Promise<{ title: string; blurb: string }[]> => {
   const chosen = (await getPublishedHeroDoc())?.services ?? [];
+  const ALL_SERVICES = await getServiceList();
   const list = chosen.length ? chosen.map((slug) => ALL_SERVICES.find((x) => x.slug === slug)).filter((x): x is (typeof ALL_SERVICES)[number] => !!x) : ALL_SERVICES.slice(0, 4);
   return list.map((x) => ({ title: x.title, blurb: x.blurb }));
 });
 
 /** Όλες οι υπηρεσίες (για τον επεξεργαστή). */
-export const allHeroServices = () => ALL_SERVICES.map((x) => ({ slug: x.slug, title: x.title, blurb: x.blurb }));
+export const allHeroServices = async () => (await getServiceList()).map((x) => ({ slug: x.slug, title: x.title, blurb: x.blurb }));

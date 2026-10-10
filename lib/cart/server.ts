@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { getPromoPolicy } from "@/lib/promo/policy";
 import { segmentsOf } from "@/lib/promo/segments";
 import { getCustomerSession } from "@/lib/account/session";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, type EngineResult } from "@/lib/promo/engine";
 import { activePromos, isNewCustomer, linesFor, lowest30, resolveCoupon, usesByPromo, type LineInfo } from "@/lib/promo/server";
 import { getSetting } from "@/lib/settings/store";
@@ -66,7 +66,7 @@ export async function syncCart(items: CartItemIn[]) {
   const clean = items.filter((i) => i.productId && i.qty > 0).slice(0, 60);
   const products = await db.product.findMany({ where: { id: { in: clean.map((i) => i.productId) }, active: true }, select: { id: true, variants: { select: { id: true, price: true }, take: 1 } } });
   const variantOf = new Map(products.flatMap((p) => (p.variants[0] && Number(p.variants[0].price) > 0 ? [[p.id, p.variants[0].id] as const] : [])));
-  const known = new Set(services.map((s) => s.slug));
+  const known = new Set((await getServiceList()).map((s) => s.slug));
   const rows = clean.flatMap((i) => { const v = variantOf.get(i.productId); return v ? [{ cartId: cart.id, variantId: v, qty: Math.min(99, Math.max(1, Math.floor(i.qty))), addons: (i.addons ?? []).filter((a) => known.has(a.slug)).map((a) => ({ slug: a.slug })) }] : []; });
   // πρώτα το UPDATE του καλαθιού: κλειδώνει τη γραμμή του, ώστε δύο ταυτόχρονα PUT να εκτελούνται το ένα μετά το άλλο
   // (αλλιώς και τα δύο σβήνουν τις παλιές γραμμές και γράφουν τις δικές τους → διπλές γραμμές)
@@ -121,7 +121,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     coupon, maxLinePct: policy.maxLinePct, costFloor: policy.belowCost === "block",
   });
   const low = await lowest30(lines.map((l) => l.variantId));
-  const svc = new Map(services.map((s) => [s.slug, s]));
+  const svc = new Map((await getServiceList()).map((s) => [s.slug, s]));
   const addonsOf = new Map((cart?.lines ?? []).map((l) => [l.id, ((l.addons as StoredAddon[] | null) ?? []).flatMap((a): QuoteAddon[] => { const s = svc.get(a.slug); return s ? [{ slug: s.slug, title: s.title, price: cents(s.priceFrom ?? 0), value: cents(s.priceFrom ?? 0) }] : []; })]));
   // δωρεάν υπηρεσίες: μπαίνουν αυτόματα στη γραμμή (ή γίνονται 0 € αν τις είχε ήδη διαλέξει ο πελάτης)
   for (const f of engine.services) {

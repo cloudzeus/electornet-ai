@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
 import { currentCart, publicQuote, quoteCart } from "@/lib/cart/server";
 import { invalidatePromos } from "@/lib/promo/server";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { buildSaldoc } from "@/lib/softone/order-doc";
 import { getSetting } from "@/lib/settings/store";
 import { renderTemplate } from "@/lib/email/templates";
@@ -79,6 +79,7 @@ export async function placeOrder(input: PlaceInput) {
   const appliedIds = [...new Set([...q.engine.lines.flatMap((l) => l.adjustments.map((a) => a.promotionId)), ...q.gifts.map((g) => g.promotionId), ...q.lines.flatMap((l) => l.addons.flatMap((a) => (a.free ? [a.free.promotionId] : []))), ...(q.freeShipping ? [q.freeShipping.promotionId] : [])])];
   const promoRows = appliedIds.length ? await db.promotion.findMany({ where: { id: { in: appliedIds } }, select: { id: true, termsText: true, code: true, version: true } }) : [];
   const termsOf = new Map(promoRows.map((p) => [p.id, p.termsText]));
+  const services = await getServiceList();
   const svcBySlug = new Map(services.map((s) => [s.slug, s]));
   const usedSlugs = [...new Set(q.lines.flatMap((l) => l.addons.map((a) => a.slug)))];
 

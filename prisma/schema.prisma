@@ -818,6 +818,8 @@ model Store {
   @@index([active])
 }
 
+/// Υπηρεσίες Euronics (Εμπόριο → Υπηρεσίες): σελίδες /ypiresies, πρόσθετες υπηρεσίες σε προϊόν/checkout, αρχική, hero,
+/// προσφορές. `no` = σειρά εμφάνισης. Χωρίς εγγραφές ισχύουν οι αρχικές του σχεδίου (lib/data/fixtures/services).
 model Service {
   id         String           @id @default(cuid())
   slug       String           @unique
@@ -829,8 +831,14 @@ model Service {
   /// Where the service is offered as an add-on: pdp | checkout | delivery
   addonAt    Json?
   faq        Json?
+  /// «Πώς λειτουργεί» — βήματα της σελίδας της υπηρεσίας (string[])
+  steps      Json?
+  /// εικόνα για κάρτες και σελίδα (Media / προϊόντα)
+  image      String?
   active     Boolean          @default(true)
   orderLines OrderLineAddon[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @default(now()) @updatedAt
 }
 
 // ---------- Customers, carts, orders ----------

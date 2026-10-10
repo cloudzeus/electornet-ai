@@ -7,7 +7,7 @@ import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { PromoTable, type PromoRowDTO } from "@/components/admin/promos/PromoTable";
 import { describePromo, MECHANISM_LABEL, STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import type { PromoReward, PromoRules } from "@/lib/promo/engine";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 
 export const metadata = { title: "Προσφορές" };
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
   const c = (k: string) => counts.find((x) => x.status === k)?._count ?? 0;
   const giftIds = rows.flatMap((r) => ((r.reward as PromoReward).giftProductId ? [(r.reward as PromoReward).giftProductId!] : []));
   const gifts = new Map((giftIds.length ? await db.product.findMany({ where: { id: { in: giftIds } }, select: { id: true, title: true } }) : []).map((g) => [g.id, g.title]));
-  const svc = new Map(services.map((x) => [x.slug, x.title.toLocaleLowerCase("el-GR")]));
+  const svc = new Map((await getServiceList()).map((x) => [x.slug, x.title.toLocaleLowerCase("el-GR")]));
 
   const dto: PromoRowDTO[] = rows.map((r) => ({
     id: r.id, code: r.code, name: r.name, status: r.status as PromoStatus, mechanism: r.mechanism, held: r.held,

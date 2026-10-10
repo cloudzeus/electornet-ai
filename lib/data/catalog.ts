@@ -10,6 +10,7 @@ import type { Category, Guide, Product, Service, Store } from "./types";
 
 
 import { products } from "./fixtures/products";
+import { getServiceList } from "@/lib/services/catalog";
 import { geoFromRequest, storesNear } from "@/lib/geo/ip";
 import { stores } from "./fixtures/stores";
 
@@ -25,20 +26,6 @@ const categories: Category[] = [
   { id: "care", no: "09", slug: "frontida", title: "Προσωπική Φροντίδα", titleBreak: ["Προσωπική", "Φροντίδα"], count: 208, children: [] },
 ];
 
-const services: Service[] = [
-  { no: "01", slug: "epektasi-eggyisis", title: "Επέκταση εγγύησης", blurb: "Δωρεάν +2 έτη σε επιλεγμένα προϊόντα", priceFrom: 0 },
-  { no: "02", slug: "paradosi-egkatastasi", title: "Παράδοση & εγκατάσταση", blurb: "Με ραντεβού, από τεχνικό του καταστήματος" },
-  { no: "03", slug: "paralavi-2-ores", title: "Παραλαβή σε 2 ώρες", blurb: "Σε 350 σημεία · χωρίς κόστος" },
-  { no: "04", slug: "anakyklosi-aiie", title: "Ανακύκλωση ΑΗΗΕ", blurb: "Δωρεάν παραλαβή της παλιάς συσκευής" },
-  { no: "05", slug: "dorean-fylaxi", title: "Φύλαξη συσκευών", blurb: "Μέχρι να ετοιμαστεί ο χώρος σου" },
-  { no: "06", slug: "syntirisi-episkeyi", title: "Δικό μας service", blurb: "Συντήρηση & επισκευή, με ανταλλακτικά αντιπροσωπείας" },
-  { no: "07", slug: "e-support", title: "E-Support", blurb: "Απομακρυσμένη υποστήριξη συσκευών υψηλής τεχνολογίας" },
-  { no: "08", slug: "eggyisi-xamiloteris-timis", title: "Εγγύηση χαμηλότερης τιμής", blurb: "Διαφορά τιμής πίσω, με απλή απόδειξη" },
-  { no: "09", slug: "eggyisi-allagis", title: "Εγγύηση αλλαγής", blurb: "Αλλαγή προϊόντος εντός 14 ημερών" },
-  { no: "10", slug: "xrimatodotisi", title: "Χρηματοδότηση", blurb: "Δόσεις με ή χωρίς κάρτα, έως 24 μήνες" },
-  { no: "11", slug: "symvouleytiki", title: "Συμβουλευτική από ειδικούς", blurb: "Στο κατάστημα, τηλεφωνικά ή με video" },
-  { no: "12", slug: "kartes-dorou", title: "Κάρτες δώρου", blurb: "Ψηφιακές ή φυσικές, εξαργύρωση παντού" },
-];
 
 
 
@@ -84,8 +71,10 @@ export async function getProduct(id: string): Promise<Product | undefined> {
 export async function getCategories(): Promise<Category[]> {
   return categories;
 }
+/** Οι υπηρεσίες της αρχικής — ο ίδιος κατάλογος με όλο το site (Εμπόριο → Υπηρεσίες). */
 export async function getServices(limit?: number): Promise<Service[]> {
-  return limit ? services.slice(0, limit) : services;
+  const list = await getServiceList();
+  return limit ? list.slice(0, limit) : list;
 }
 /** @dynamic Nearest store from the request IP (city level); GPS refinement happens client-side. */
 export async function getNearestStore(): Promise<Store> {

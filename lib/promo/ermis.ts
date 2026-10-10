@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
 import { emptyDraft, type PromoDraft } from "./admin";
 import { TEMPLATES } from "./catalog";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 
 /**
  * Ερμής για το διαχειριστικό: «−20 % σε όλα τα πλυντήρια LG μέχρι τέλος Νοεμβρίου» → προσυμπληρωμένος οδηγός.
@@ -60,7 +60,7 @@ async function ai(text: string, now: Date): Promise<Parsed | null> {
   const r = await chat({
     feature: "promo-draft",
     messages: [
-      { role: "system", content: `Μετατρέπεις περιγραφές προσφορών e-shop ηλεκτρικών σε JSON για τον οδηγό του διαχειριστικού. Σήμερα: ${now.toISOString().slice(0, 10)}. Πρότυπα: ${TEMPLATES.filter((x) => !x.held).map((x) => `${x.key} (${x.title})`).join(", ")}. Υπηρεσίες: ${services.map((s) => `${s.slug} (${s.title})`).join(", ")}. Απαντάς ΜΟΝΟ με JSON: {"template": string, "name": string (σύντομο εσωτερικό όνομα), "percent"?: number, "amount"?: number (σε ευρώ), "buy"?: number, "get"?: number, "nth"?: number, "serviceSlug"?: string, "minValue"?: number (ευρώ), "customers"?: "all"|"new"|"registered", "startsAt"?: "YYYY-MM-DD", "endsAt"?: "YYYY-MM-DD", "brands"?: string[], "categories"?: string[] (όπως τις λέει ο χρήστης, π.χ. «πλυντήρια ρούχων»), "products"?: string[] (κωδικοί ή τίτλοι), "tagLabel"?: string (έως 20 χαρακτήρες), "couponCode"?: string, "maxPerCustomer"?: number}. Μην επινοείς τίποτα που δεν λέει ο χρήστης.` },
+      { role: "system", content: `Μετατρέπεις περιγραφές προσφορών e-shop ηλεκτρικών σε JSON για τον οδηγό του διαχειριστικού. Σήμερα: ${now.toISOString().slice(0, 10)}. Πρότυπα: ${TEMPLATES.filter((x) => !x.held).map((x) => `${x.key} (${x.title})`).join(", ")}. Υπηρεσίες: ${(await getServiceList()).map((s) => `${s.slug} (${s.title})`).join(", ")}. Απαντάς ΜΟΝΟ με JSON: {"template": string, "name": string (σύντομο εσωτερικό όνομα), "percent"?: number, "amount"?: number (σε ευρώ), "buy"?: number, "get"?: number, "nth"?: number, "serviceSlug"?: string, "minValue"?: number (ευρώ), "customers"?: "all"|"new"|"registered", "startsAt"?: "YYYY-MM-DD", "endsAt"?: "YYYY-MM-DD", "brands"?: string[], "categories"?: string[] (όπως τις λέει ο χρήστης, π.χ. «πλυντήρια ρούχων»), "products"?: string[] (κωδικοί ή τίτλοι), "tagLabel"?: string (έως 20 χαρακτήρες), "couponCode"?: string, "maxPerCustomer"?: number}. Μην επινοείς τίποτα που δεν λέει ο χρήστης.` },
       { role: "user", content: text },
     ],
     json: true, maxTokens: 500, reasoning: "low", timeoutMs: 15000,
@@ -85,7 +85,7 @@ async function findInText(text: string) {
   const stem = (w: string) => w.replace(/(ια|ιο|ες|ος|α|ο|η|ες|ων|εις|ης)$/u, "");
   const words = new Set(t.split(/[^\p{L}\d]+/u).filter((w) => w.length > 3).map(stem));
   // όχι «κατηγορίες» που είναι ονόματα υπηρεσιών (π.χ. «Επέκταση εγγύησης» στο «δωρεάν επέκταση εγγύησης»)
-  const svc = new Set(services.map((x) => norm(x.title)));
+  const svc = new Set((await getServiceList()).map((x) => norm(x.title)));
   const c = cats.filter((x) => { if (svc.has(norm(x.name)) || /εγγυησ/.test(norm(x.name))) return false; const ws = norm(x.name).split(/[^\p{L}\d]+/u).filter((w) => w.length > 3).map(stem); return ws.length > 0 && ws.every((w) => words.has(w)); }).sort((a, b2) => b2.depth - a.depth);
   return { brands: b, categories: c.slice(0, 3) };
 }
@@ -104,7 +104,7 @@ export async function draftFromText(text: string): Promise<{ draft: PromoDraft; 
   if (p.buy) d.reward.buy = p.buy;
   if (p.get) d.reward.get = p.get;
   if (p.nth) d.reward.nth = p.nth;
-  if (p.serviceSlug && services.some((s) => s.slug === p.serviceSlug && s.slug !== "paradosi-egkatastasi")) d.reward.serviceSlug = p.serviceSlug;
+  if (p.serviceSlug && (await getServiceList()).some((s) => s.slug === p.serviceSlug && s.slug !== "paradosi-egkatastasi")) d.reward.serviceSlug = p.serviceSlug;
   if (p.minValue) d.rules.minValue = p.minValue;
   if (p.customers && p.customers !== "all") d.rules.customers = p.customers;
   d.startsAt = p.startsAt ?? null;

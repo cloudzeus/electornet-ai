@@ -21,7 +21,7 @@ export default async function HeroSlidesPage() {
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Hero slides</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Τα μεγάλα slides στην κορυφή της αρχικής. Slides, προσφορά ημέρας και υπηρεσίες· ό,τι αλλάζεις φαίνεται στο site με τη «Δημοσίευση».</p>
       </div>
-      <HeroSlidesEditor initial={doc.draft} hasPublished={!!doc.published} publishedAt={doc.publishedAt?.toISOString() ?? null} products={products} settings={settings} canUpload={can(user.permissions, "cms.media.write")} services={allHeroServices()} />
+      <HeroSlidesEditor initial={doc.draft} hasPublished={!!doc.published} publishedAt={doc.publishedAt?.toISOString() ?? null} products={products} settings={settings} canUpload={can(user.permissions, "cms.media.write")} services={await allHeroServices()} />
     </div>
   );
 }

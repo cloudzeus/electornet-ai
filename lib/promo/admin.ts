@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { services } from "@/lib/data/fixtures/services";
+import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, matches, MULTI_MECHANISMS, PRICE_MECHANISMS, type EngineLine, type EnginePromo, type PromoReward, type PromoRules, type PromoTarget, type Stacking } from "./engine";
 import { TEMPLATES, type PromoStatus } from "./catalog";
 import { getPromoPolicy } from "./policy";
@@ -51,7 +51,7 @@ export function draftOf(p: Row): PromoDraft {
 const stripMeta = (r: PromoRules & { template?: string }) => { const { template: _t, ...rest } = r ?? {}; void _t; return rest; };
 
 // ---- επικύρωση ----
-export function validateDraft(d: PromoDraft): string[] {
+export function validateDraft(d: PromoDraft, serviceSlugs: string[] = []): string[] {
   const e: string[] = [];
   const t = TEMPLATES.find((x) => x.key === d.template);
   if (!t) e.push("Άγνωστο πρότυπο.");
@@ -67,7 +67,7 @@ export function validateDraft(d: PromoDraft): string[] {
     case "nth-discount": if (!(r.nth && r.nth >= 2) || !pct(r.percent)) e.push("Συμπλήρωσε ποιο τεμάχιο (2ο, 3ο…) και το ποσοστό."); break;
     case "qty-tiers": if (!(r.tiers ?? []).length || (r.tiers ?? []).some((x) => !(x.minQty >= 2) || !pct(x.percent))) e.push("Κάθε κλίμακα θέλει ποσότητα από 2 και ποσοστό."); break;
     case "gift": if (!r.giftProductId) e.push("Διάλεξε το προϊόν-δώρο."); break;
-    case "service": if (!services.some((s) => s.slug === r.serviceSlug)) e.push("Διάλεξε την υπηρεσία που γίνεται δωρεάν."); break;
+    case "service": if (!serviceSlugs.includes(r.serviceSlug ?? "")) e.push("Διάλεξε την υπηρεσία που γίνεται δωρεάν."); break;
     case "together":
       if (!(r.with ?? []).some((t) => !t.exclude)) e.push("Διάλεξε τα συνοδευτικά που γίνονται φθηνότερα (βήμα «Προϊόντα»).");
       if (!(pct(r.percent) || (r.amount && r.amount > 0))) e.push("Συμπλήρωσε την έκπτωση στο συνοδευτικό.");
@@ -188,7 +188,7 @@ export async function analyzeDraft(d0: PromoDraft): Promise<DraftAnalysis> {
   if (d.budgetEur != null && d.budgetEur > policy.approvalAboveBudget) reasons.push(`budget ${d.budgetEur.toLocaleString("el-GR")} € (όριο ${policy.approvalAboveBudget.toLocaleString("el-GR")} €)`);
   if (d.budgetEur == null && d.mechanism.startsWith("coupon") && !d.maxUses) reasons.push("κουπόνι χωρίς budget και χωρίς μέγιστες χρήσεις");
   if (mine.length > policy.approvalAboveProducts) reasons.push(`${mine.length.toLocaleString("el-GR")} προϊόντα (όριο ${policy.approvalAboveProducts.toLocaleString("el-GR")})`);
-  return { products: mine.length, sample, maxPct, capped, conflicts, approval: { needed: reasons.length > 0, reasons }, errors: validateDraft(d) };
+  return { products: mine.length, sample, maxPct, capped, conflicts, approval: { needed: reasons.length > 0, reasons }, errors: validateDraft(d, (await getServiceList()).map((x) => x.slug)) };
 }
 
 // ---- αποθήκευση ----
@@ -229,7 +229,7 @@ export interface SaveResult { ok: boolean; id?: string; code?: string; status?: 
  */
 export async function savePromotion(d: PromoDraft, staff: { id: string; canApprove: boolean }, intent: SaveIntent): Promise<SaveResult> {
   d = normalizeDraft(d);
-  const errors = validateDraft(d);
+  const errors = validateDraft(d, (await getServiceList()).map((x) => x.slug));
   if (intent === "publish" && errors.length) return { ok: false, errors };
   if (!d.name.trim()) return { ok: false, errors: ["Δώσε όνομα στην προσφορά."] };
   const analysis = intent === "publish" ? await analyzeDraft(d) : null;
