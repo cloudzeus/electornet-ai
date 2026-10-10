@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
 import { catalogTree, dbProductsByIds, hrefOf, LISTED, type CatNode } from "@/lib/data/db-catalog";
+import { rankCandidates } from "./rank";
 import { searchVector } from "@/lib/vector/index";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { fitVerdict, type MySpace } from "@/lib/space/fit";
@@ -201,8 +202,6 @@ async function mapNeeds(needs: string[], facets: FacetInfo[]): Promise<{ filters
 
 // ---------- 3. Ανάκτηση από τη βάση ----------
 
-interface Cand { id: string; brandId: string; erpCode: string | null; price: number | null; stock: number; score: number; noise: number | null; kwh: number | null; cls: string | null }
-const CLASS_ORDER = ["A+++", "A++", "A+", "A", "B", "C", "D", "E", "F", "G"];
 
 /** Ονόματα σειράς μέσα στην ερώτηση («iphone 17», «galaxy s25», «ps5», «kuro»): ό,τι έχει λέξη + αριθμό, ή λατινική λέξη ≥ 4 γραμμάτων που δεν είναι γενικός όρος. */
 const GENERIC_NAMES = new Set(["ps", "gb", "usb", "hdmi", "wifi", "dvb", "hdr"]);
@@ -229,8 +228,9 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
     ...(maxPrice ? [{ price: { gt: 0, lte: maxPrice } }] : []), ...(u.minPrice ? [{ price: { gte: u.minPrice } }] : []), ...(u.inStockOnly ? [{ stock: { gt: 0 } }] : []),
     ...fs.map((f) => ({ facetValues: { some: { facet: { label: { in: f.raw } }, value: { in: f.values } } } })),
   ] });
-  const select = { id: true, brandId: true, erpCode: true, price: true, stock: true, energy: { select: { class: true, eprel: { select: { annualKwh: true, noise: true } } } }, dimensions: { select: { source: true, w: true, h: true, d: true } } } satisfies Prisma.ProductSelect;
-  const fetch = (w: Prisma.ProductWhereInput) => db.product.findMany({ where: w, take: 400, orderBy: [{ stock: "desc" }, { price: "desc" }], select });
+  const select = { id: true, brandId: true, erpCode: true, price: true, stock: true, offer: { select: { price: true, listPrice: true, tags: true } }, energy: { select: { class: true, eprel: { select: { annualKwh: true, noise: true } } } }, dimensions: { select: { source: true, w: true, h: true, d: true } } } satisfies Prisma.ProductSelect;
+  // όλος ο τύπος (π.χ. 457 πλυντήρια ρούχων) — η κατάταξη γίνεται παρακάτω (rankCandidates), όχι με κόφτη στη βάση
+  const fetch = (w: Prisma.ProductWhereInput) => db.product.findMany({ where: w, take: 2000, orderBy: [{ stock: "desc" }, { price: "asc" }], select });
 
   const active = [...filters];
   let maxPrice = u.maxPrice, rows = await fetch(build(active, maxPrice));
@@ -246,7 +246,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   const names = nameTerms(u.search + " " + (u.understood.join(" ") ?? ""));
   if (names.length) {
     const byName = (rs: typeof rows, titles: Map<string, string>) => rs.filter((r) => { const t = norm(titles.get(r.id) ?? ""); return names.some((n) => t.includes(n) || t.includes(n.replace(" ", ""))); });
-    const titled = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { OR: names.flatMap((n) => [{ title: { contains: n, mode: "insensitive" as const } }, { title: { contains: n.replace(" ", ""), mode: "insensitive" as const } }]) }] }, take: 400, orderBy: [{ stock: "desc" }, { price: "desc" }], select: { ...select, title: true } });
+    const titled = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { OR: names.flatMap((n) => [{ title: { contains: n, mode: "insensitive" as const } }, { title: { contains: n.replace(" ", ""), mode: "insensitive" as const } }]) }] }, take: 2000, orderBy: [{ stock: "desc" }, { price: "asc" }], select: { ...select, title: true } });
     if (titled.length) { const titles = new Map(titled.map((t) => [t.id, t.title])); const inRows = byName(rows, titles); rows = inRows.length ? inRows : titled; if (!inRows.length) { active.length = 0; relaxed.push(`κράτησα τα «${names.join(", ")}» και χαλάρωσα τα υπόλοιπα κριτήρια`); } }
   }
   // Χαλάρωση, από το λιγότερο δεσμευτικό: τελευταία απαίτηση → … → προϋπολογισμός +15 % → μάρκα. Ο Ερμής το λέει στον πελάτη.
@@ -262,18 +262,12 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
 
   const sims = new Map<string, number>();
   if (rows.length > 1) { const hits = await searchVector(search, { refIds: rows.map((r) => r.erpCode).filter(Boolean) as string[], activeOnly: false }, 60).catch(() => []); for (const h of hits) sims.set(h.refId, h.score); }
-  const cands: Cand[] = rows.map((r) => ({ id: r.id, brandId: r.brandId, erpCode: r.erpCode, price: r.price, stock: r.stock, noise: r.energy?.eprel?.noise ?? null, kwh: r.energy?.eprel?.annualKwh ?? null, cls: r.energy?.class ?? null,
-    score: (sims.get(r.erpCode ?? "") ?? 0) + (r.stock > 0 ? 0.06 : 0) + (r.price && r.price > 0 ? 0.05 : -0.25) + (r.energy ? 0.02 : 0) }));
-  cands.sort((a, b) => b.score - a.score);
-  const top = cands.slice(0, take * 2);
-  if (u.priority === "price") top.sort((a, b) => (a.price || 1e9) - (b.price || 1e9));
-  if (u.priority === "quiet") top.sort((a, b) => (a.noise ?? 999) - (b.noise ?? 999));
-  if (u.priority === "energy") top.sort((a, b) => (CLASS_ORDER.indexOf(a.cls ?? "") + 1 || 99) - (CLASS_ORDER.indexOf(b.cls ?? "") + 1 || 99) || (a.kwh ?? 1e9) - (b.kwh ?? 1e9));
-  if (u.priority === "quality") top.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
-  // Ένας σοβαρός πωλητής δείχνει εύρος, όχι παραλλαγές της ίδιας σειράς: έως 4 ανά μάρκα στα υποψήφια της έρευνας
-  const perBrand = new Map<string, number>(), picked: Cand[] = [];
-  for (const c of top) { if ((perBrand.get(c.brandId) ?? 0) >= 4 && !u.brands.length) continue; perBrand.set(c.brandId, (perBrand.get(c.brandId) ?? 0) + 1); picked.push(c); if (picked.length === take) break; }
-  return { ids: (picked.length >= 3 ? picked : top.slice(0, take)).map((c) => c.id), total: rows.length, relaxed, applied: active };
+  // κανόνας καταστήματος: προσφορές και άμεσα διαθέσιμα πρώτα (lib/advisor/rank.ts)
+  const onOffer = (o: (typeof rows)[number]["offer"]) => !!o && (Number(o.price) < Number(o.listPrice) || (Array.isArray(o.tags) && o.tags.length > 0));
+  const generic = !u.needs.length && !specNeeds.length && !active.length && !u.priority && !u.maxPrice && !u.minPrice && !u.brands.length && !names.length;
+  const ids = rankCandidates(rows.map((r) => ({ id: r.id, brandId: r.brandId, price: r.price, stock: r.stock, sim: sims.get(r.erpCode ?? "") ?? 0, offer: onOffer(r.offer), energy: !!r.energy, noise: r.energy?.eprel?.noise ?? null, kwh: r.energy?.eprel?.annualKwh ?? null, cls: r.energy?.class ?? null })),
+    { take, priority: u.priority, generic, brandLock: u.brands.length > 0 });
+  return { ids, total: rows.length, relaxed, applied: active };
 }
 
 async function byModelCode(codes: string[]): Promise<string[]> {
@@ -296,7 +290,7 @@ function brief(p: Product, space: MySpace | null | undefined) {
   const facts = (p.attrs ?? []).filter((a) => a.value !== "Όχι" && !/^Διαστάσεις|^Μάρκα$/.test(a.key)).slice(0, 8).map((a) => (a.value === "Ναι" ? a.key : `${a.key}: ${a.value}`));
   const label = (p.specs ?? []).filter((s) => s.group === "Από την ενεργειακή ετικέτα").slice(0, 4).map((s) => `${s.key}: ${s.value}`);
   const fit = fitOf(p, space);
-  return `${p.brand} ${p.title.slice(0, 80)} | ${p.noPrice ? "τιμή στο κατάστημα" : eur(p.price)} | ${p.availability.kind === "in-stock" ? "άμεσα" : "παραγγελία"} | ${[...facts, ...label, p.dims ? `${p.dims.w}×${p.dims.h}×${p.dims.d} εκ.` : "", fit?.text ?? ""].filter(Boolean).join(" · ")}`;
+  return `${p.brand} ${p.title.slice(0, 80)} | ${p.noPrice ? "τιμή στο κατάστημα" : eur(p.price)}${p.wasPrice && p.wasPrice > p.price ? ` ΠΡΟΣΦΟΡΑ (από ${eur(p.wasPrice)})` : ""} | ${p.availability.kind === "in-stock" ? "άμεσα" : "παραγγελία"} | ${[...facts, ...label, p.dims ? `${p.dims.w}×${p.dims.h}×${p.dims.d} εκ.` : "", fit?.text ?? ""].filter(Boolean).join(" · ")}`;
 }
 
 /**
@@ -328,7 +322,7 @@ async function shortlist(u: Understood, thread: Turn[], briefs: string[], notes:
   const r = await chat({
     feature: "advisor-research", accounting: "background", model: ROUTER, json: true, maxTokens: 400, temperature: 0, timeoutMs: 9000, reasoning: "low",
     messages: [
-      { role: "system", content: `Είσαι ο ερευνητής ενός σοβαρού πωλητή ηλεκτρικών. Σου δίνονται οι απαιτήσεις του πελάτη και έως 30 υποψήφια από τον κατάλογο (μία γραμμή το καθένα). Διαλέγεις τα 6 που ΑΞΙΖΕΙ να εξεταστούν πλήρως: πρώτα όσα ικανοποιούν ΟΛΕΣ τις απαιτήσεις και το σωστό μέγεθος για τη χρήση, μετά η προτεραιότητα του πελάτη (τιμή / κατανάλωση / θόρυβος / ποιότητα), μετά τα άμεσα διαθέσιμα, και ΕΥΡΟΣ (όχι έξι παραλλαγές της ίδιας σειράς — αλλά αν το ζητούμενο είναι μία μάρκα, μένεις σε αυτήν). Απαντάς ΜΟΝΟ με JSON {"keep": number[]} (δείκτες, το πιο κατάλληλο πρώτο).
+      { role: "system", content: `Είσαι ο ερευνητής ενός σοβαρού πωλητή ηλεκτρικών. Σου δίνονται οι απαιτήσεις του πελάτη και έως 30 υποψήφια από τον κατάλογο (μία γραμμή το καθένα). Διαλέγεις τα 6 που ΑΞΙΖΕΙ να εξεταστούν πλήρως: πρώτα όσα ικανοποιούν ΟΛΕΣ τις απαιτήσεις και το σωστό μέγεθος για τη χρήση· ανάμεσα σε αυτά, ΚΑΝΟΝΑΣ ΚΑΤΑΣΤΗΜΑΤΟΣ: πρώτα όσα είναι σε ΠΡΟΣΦΟΡΑ και «άμεσα», μετά όσα είναι σε προσφορά, μετά τα «άμεσα» (τα υποψήφια έρχονται ήδη με αυτή τη σειρά)· μετά η προτεραιότητα του πελάτη (τιμή / κατανάλωση / θόρυβος / ποιότητα), και ΕΥΡΟΣ (όχι έξι παραλλαγές της ίδιας σειράς — αλλά αν το ζητούμενο είναι μία μάρκα, μένεις σε αυτήν). Απαντάς ΜΟΝΟ με JSON {"keep": number[]} (δείκτες, το πιο κατάλληλο πρώτο).
 ${EXPERTISE}` },
       { role: "user", content: `ΑΠΑΙΤΗΣΕΙΣ: ${JSON.stringify({ understood: u.understood, needs: u.needs, sizing: u.sizing, priority: u.priority, maxPrice: u.maxPrice, brands: u.brands })}\nΣΗΜΕΙΩΣΕΙΣ: ${notes.join(" · ") || "—"}\nΤΕΛΕΥΤΑΙΑ ΛΟΓΙΑ ΠΕΛΑΤΗ: ${thread.filter((t) => t.role === "user").slice(-2).map((t) => t.text).join(" / ")}\n\nΥΠΟΨΗΦΙΑ:\n${briefs.map((b, i) => `${i}| ${b}`).join("\n")}` },
     ],
@@ -359,7 +353,7 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Ποτέ προϊόν, τιμή, διαθεσιμότητα ή χαρακτηριστικό εκτός δεδομένων. Ποτέ ανταγωνιστές.
 - Ο ΚΑΤΑΛΟΓΟΣ ΕΙΝΑΙ ΠΙΟ ΠΡΟΣΦΑΤΟΣ ΑΠΟ ΤΗ ΓΝΩΣΗ ΣΟΥ: ποτέ δεν λες ότι ένα προϊόν «δεν υπάρχει ακόμα» ή «δεν κυκλοφορεί» — αν είναι στα δελτία, υπάρχει και πωλείται.
 - Αν στις ΣΗΜΕΙΩΣΕΙΣ γράφει ότι κάτι δεν βρέθηκε όπως ζητήθηκε, το λες ευθέως και δίνεις την κοντινότερη λύση.
-- Έως 3 προϊόντα, το καλύτερο πρώτο, και εξηγείς ΤΗ ΔΙΑΦΟΡΑ τους (τι παίρνει παραπάνω με τα επιπλέον χρήματα). Όταν συγκρίνει, απαντάς με τα νούμερα (dB, kWh, kg, BTU, εκ.) και τι σημαίνουν στην πράξη. Προτιμάς τα άμεσα διαθέσιμα όταν είναι ισάξια.
+- Έως 3 προϊόντα, το καλύτερο πρώτο, και εξηγείς ΤΗ ΔΙΑΦΟΡΑ τους (τι παίρνει παραπάνω με τα επιπλέον χρήματα). Όταν συγκρίνει, απαντάς με τα νούμερα (dB, kWh, kg, BTU, εκ.) και τι σημαίνουν στην πράξη. ΚΑΝΟΝΑΣ ΚΑΤΑΣΤΗΜΑΤΟΣ: ανάμεσα σε όσα ταιριάζουν, προτείνεις πρώτα όσα είναι σε προσφορά (υπάρχει wasPrice) και άμεσα διαθέσιμα, μετά όσα είναι σε προσφορά, μετά τα άμεσα διαθέσιμα· για προσφορά λες απλά το όφελος («από 599 € τώρα 499 €»).
 - Αν δίνεται «fit», το λαμβάνεις υπόψη. Όταν ρωτά για κόστος ρεύματος, το υπολογίζεις από τα kWh του δελτίου × kwhPriceEur και δίνεις € τον χρόνο (στρογγυλά).
 - Κλείνεις με ΜΙΑ ερώτηση μόνο όταν χρειάζεται όντως κάτι για να αποφασίσεις· αν ο πελάτης έχει δώσει αρκετά, δίνεις τη σύστασή σου και τελειώνεις. Ποτέ ερώτηση που έχει ήδη απαντηθεί στο νήμα.
 - ΚΑΤΑΣΤΗΜΑΤΑ: αν δίνεται nearestStores με found=true, λες ποιο είναι το κοντινότερο κατάστημα στη διεύθυνσή του — όνομα, διεύθυνση και πόλη, απόσταση σε χιλιόμετρα (στρογγυλά), τηλέφωνο και το σημερινό ωράριο — και, αν είναι κοντά (έως ~2 km διαφορά), ένα δεύτερο ως εναλλακτική. Αν found=false, λες ότι δεν εντόπισες τη διεύθυνση και ζητάς Τ.Κ. ή περιοχή. Αν nearestStores.needPlace=true, ζητάς διεύθυνση, περιοχή ή Τ.Κ. για να του πεις το κοντινότερο. ΔΕΝ έχουμε καταγεγραμμένο τι έχει κάθε κατάστημα στην έκθεση ή στο απόθεμα: ποτέ μη λες ότι ένα κατάστημα έχει συγκεκριμένο μοντέλο — προτείνεις να τηλεφωνήσει πριν πάει. Ποτέ διεύθυνση ή τηλέφωνο καταστήματος εκτός nearestStores.
