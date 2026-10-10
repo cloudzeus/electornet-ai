@@ -39,39 +39,47 @@ export function syncSets(trigger: Trigger = "manual") {
       await sleep(250);
     }
 
+    // μαζικές εγγραφές σε μία συναλλαγή (η βάση είναι απομακρυσμένη: μία-μία θα ήθελαν λεπτά). Οι ετικέτες «Περιλαμβάνει»
+    // της διαχείρισης κρατιούνται ανά (set, γραμμή).
     const now = new Date();
-    let created = 0, updated = 0;
-    for (const h of heads) {
-      const spcs = int(h[0]), mtrl = int(h[4]);
-      if (spcs == null || mtrl == null) continue;
-      const data = { code: h[1] ?? "", name: h[2] ?? "", active: h[3] === "1", mtrl, fromDate: date(h[5]), finalDate: date(h[6]), syncedAt: now };
-      const had = await db.s1Set.findUnique({ where: { spcs }, select: { spcs: true } });
-      await db.s1Set.upsert({ where: { spcs }, create: { spcs, ...data }, update: data });
-      if (had) updated++; else created++;
-      const ls = mine.filter((l) => int(l[0]) === spcs);
-      for (const l of ls) {
-        const lineNum = int(l[1]), m = int(l[2]);
-        if (lineNum == null || m == null) continue;
-        const d = { mtrl: m, qty: num(l[3]) || 1, code: info.get(m)?.code ?? null, name: info.get(m)?.name ?? String(m), stockCentral: Math.max(0, Math.round((stock.get(m) ?? 0) * 100) / 100) };
-        await db.s1SetLine.upsert({ where: { spcs_lineNum: { spcs, lineNum } }, create: { spcs, lineNum, ...d }, update: d });
-      }
-      await db.s1SetLine.deleteMany({ where: { spcs, lineNum: { notIn: ls.map((l) => int(l[1])).filter((x): x is number => x != null) } } });
-    }
-    // sets που δεν υπάρχουν πια στο SoftOne
-    const gone = await db.s1Set.deleteMany({ where: { spcs: { notIn: [...ids] } } });
+    const setRows = heads.flatMap((h) => { const spcs = int(h[0]), mtrl = int(h[4]); return spcs == null || mtrl == null ? [] : [{ spcs, code: h[1] ?? "", name: h[2] ?? "", active: h[3] === "1", mtrl, fromDate: date(h[5]), finalDate: date(h[6]), syncedAt: now }]; });
+    const lineRows = mine.flatMap((l) => { const spcs = int(l[0]), lineNum = int(l[1]), m = int(l[2]); return spcs == null || lineNum == null || m == null ? [] : [{ spcs, lineNum, mtrl: m, qty: num(l[3]) || 1, code: info.get(m)?.code ?? null, name: info.get(m)?.name ?? String(m), stockCentral: Math.max(0, Math.round((stock.get(m) ?? 0) * 100) / 100) }]; });
+    const before = new Set((await db.s1Set.findMany({ select: { spcs: true } })).map((x) => x.spcs));
+    const labels = new Map((await db.s1SetLine.findMany({ where: { label: { not: null } }, select: { spcs: true, lineNum: true, label: true } })).map((x) => [`${x.spcs}:${x.lineNum}`, x.label]));
+    const keep = setRows.map((x) => x.spcs);
+    const [gone] = await db.$transaction([
+      db.s1Set.deleteMany({ where: { spcs: { notIn: keep } } }),
+      db.s1SetLine.deleteMany({ where: { spcs: { in: keep } } }),
+      db.s1Set.deleteMany({ where: { spcs: { in: keep } } }),
+      db.s1Set.createMany({ data: setRows }),
+      db.s1SetLine.createMany({ data: lineRows.map((x) => ({ ...x, label: labels.get(`${x.spcs}:${x.lineNum}`) ?? null })) }),
+    ]);
+    const created = keep.filter((x) => !before.has(x)).length, updated = keep.length - created;
     return { fetched: heads.length + mine.length, created, updated, missing: gone.count, skipped: 0 };
   });
 }
 
-/** Απόθεμα του set = πόσα πλήρη sets βγαίνουν (το μικρότερο floor(απόθεμα / ποσότητα) των μελών). Μόνο ενεργά sets. */
+/**
+ * Sets «εξαρτημάτων»: κανένα άλλο μέλος δεν πωλείται χωριστά στο site (π.χ. εξωτερική μονάδα κλιματιστικού). Μόνο σε αυτά
+ * το απόθεμα του προϊόντος = όσα πλήρη sets βγαίνουν από τα μέλη. Sets «με δώρο» (το μέλος είναι κανονικό προϊόν, π.χ.
+ * ψυγείο + σκούπα, ή «+ ΔΩΡΟ» στο όνομα) δεν αγγίζουν το απόθεμα — το κύριο προϊόν πουλιέται και μόνο του.
+ */
+const PARTS_SETS = `
+  SELECT s.spcs, s.mtrl FROM "S1Set" s
+  WHERE s.active AND (s."finalDate" IS NULL OR s."finalDate" >= now())
+    AND s.name !~* 'δ[ωώ]ρ'
+    AND NOT EXISTS (SELECT 1 FROM "S1SetLine" l JOIN "Product" p ON p."erpCode" = l.mtrl::text AND p.active WHERE l.spcs = s.spcs AND l.mtrl <> s.mtrl)`;
+
+/** Απόθεμα προϊόντων-set (μόνο «εξαρτήματα»): το καλύτερο από τα sets του προϊόντος, καθένα = το μικρότερο floor(απόθεμα / ποσότητα) των μελών. */
 export async function projectSetStock(): Promise<number> {
   return db.$executeRawUnsafe(`
-    UPDATE "Product" p SET stock = x.s
+    UPDATE "Product" p SET stock = a.s
     FROM (
-      SELECT s.mtrl, MIN(GREATEST(0, floor(l."stockCentral" / NULLIF(l.qty, 0))))::int AS s
-      FROM "S1Set" s JOIN "S1SetLine" l ON l.spcs = s.spcs
-      WHERE s.active AND (s."finalDate" IS NULL OR s."finalDate" >= now())
-      GROUP BY s.spcs, s.mtrl
-    ) x
-    WHERE p."erpCode" = x.mtrl::text AND p.stock IS DISTINCT FROM x.s`);
+      SELECT x.mtrl, MAX(x.s)::int AS s FROM (
+        SELECT ps.spcs, ps.mtrl, MIN(GREATEST(0, floor(l."stockCentral" / NULLIF(l.qty, 0)))) AS s
+        FROM (${PARTS_SETS}) ps JOIN "S1SetLine" l ON l.spcs = ps.spcs
+        GROUP BY ps.spcs, ps.mtrl) x
+      GROUP BY x.mtrl
+    ) a
+    WHERE p."erpCode" = a.mtrl::text AND p.stock IS DISTINCT FROM a.s`);
 }

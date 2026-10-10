@@ -17,6 +17,8 @@ const FILTERS: { v: string; label: string; test: (s: SetRow) => boolean }[] = [
   { v: "member-out", label: PROBLEM_LABEL["member-out"], test: (s) => s.problems.includes("member-out") },
   { v: "no-product", label: PROBLEM_LABEL["no-product"], test: (s) => s.problems.includes("no-product") || s.problems.includes("inactive") },
   { v: "available", label: "Διαθέσιμα τώρα", test: (s) => s.available > 0 },
+  { v: "parts", label: "Εξαρτήματα (π.χ. κλιματιστικά)", test: (s) => s.kind === "parts" },
+  { v: "gift", label: "Με δώρο", test: (s) => s.kind === "gift" },
   { v: "labels", label: "Χωρίς ονόματα για το site", test: (s) => s.members.some((m) => !m.label) },
 ];
 const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -46,7 +48,7 @@ export default async function SetsPage({ searchParams }: { searchParams: Promise
       <div className="grid gap-1">
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Boxes className="size-3.5" aria-hidden /> Κατάλογος</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Bundles · sets</h2>
-        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">Προϊόντα που πουλιούνται μαζί με άλλα είδη — στο SoftOne «Set ειδών» (π.χ. κλιματιστικό = εσωτερική + εξωτερική μονάδα). Το set είναι <b className="text-eu-ink">διαθέσιμο όσο φτάνουν όλα τα μέλη</b>· ο πελάτης βλέπει τα μέλη στο «Περιλαμβάνει» της σελίδας του προϊόντος, με τα ονόματα που ορίζεις εδώ.</p>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[75ch]">Προϊόντα που πουλιούνται μαζί με άλλα είδη — στο SoftOne «Set ειδών» (π.χ. κλιματιστικό = εσωτερική + εξωτερική μονάδα). Δύο είδη: <b className="text-eu-ink">εξαρτήματα</b> — διαθέσιμο όσο φτάνουν όλα τα μέλη, και ο πελάτης τα βλέπει στο «Περιλαμβάνει» με τα ονόματα που ορίζεις εδώ — και <b className="text-eu-ink">με δώρο</b> — το προϊόν πουλιέται και μόνο του, το δώρο δεν αλλάζει τη διαθεσιμότητα.</p>
       </div>
 
       {all === null ? (
@@ -82,7 +84,7 @@ export default async function SetsPage({ searchParams }: { searchParams: Promise
                     {s.main.image ? <img src={s.main.image} alt="" loading="lazy" className="size-full object-contain" /> : <Boxes className="size-5 text-eu-muted" aria-hidden />}
                   </div>
                   <div className="min-w-0 flex-1 basis-60 grid gap-1">
-                    <div className="font-bold text-eu-ink break-words">{s.name}</div>
+                    <div className="font-bold text-eu-ink break-words"><span className={`mr-1.5 align-middle rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${s.kind === "gift" ? "bg-eu-yellow text-eu-navy" : "bg-eu-surface text-eu-ink-3"}`}>{s.kind === "gift" ? "Με δώρο" : "Εξαρτήματα"}</span>{s.name}</div>
                     <div className="text-eu-muted text-[length:var(--fs-13)]">
                       Set {s.code} · {s.main.productId ? <Link href={`/admin/catalog/${s.main.productId}?tab=set`} className="font-bold text-eu-blue hover:underline">{s.main.title}</Link> : `κύριο είδος MTRL ${s.main.mtrl}`}
                       {s.main.price ? ` · ${s.main.price.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : ""}
@@ -101,7 +103,7 @@ export default async function SetsPage({ searchParams }: { searchParams: Promise
                     <li key={m.lineNum} className={`grid gap-2 p-3 @3xl:grid-cols-[minmax(0,1fr)_7rem_minmax(0,18rem)] @3xl:items-center ${i ? "border-t border-eu-line" : ""}`}>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${m.isMain ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-3"}`}>{m.isMain ? "Κύριο" : "Μέλος"}</span>
+                          <span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${m.isMain ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-3"}`}>{m.isMain ? "Κύριο" : s.kind === "gift" ? "Δώρο" : "Μέλος"}</span>
                           <span className="font-bold text-eu-ink break-words">{m.name}</span>
                         </div>
                         <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}{m.productId && !m.isMain ? <> · <Link href={`/admin/catalog/${m.productId}`} className="text-eu-blue hover:underline">στον κατάλογο</Link></> : ""}</div>
