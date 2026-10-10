@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useContext, useState } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, GripVertical, Package, Sparkles, Tag, X, Zap } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ExternalLink, GalleryHorizontal, GripVertical, Package, PanelRightOpen, Sparkles, Tag, X, Zap } from "lucide-react";
 import { useOptions } from "./brand/BlockEditors";
 import { ProductPickerDialog } from "./brand/ProductPicker";
 import { DateTime } from "./brand/fields";
@@ -11,11 +11,15 @@ import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 /** Τι δείχνει σήμερα η αρχική (από τον server): «Προσφορά ημέρας», slides, αυτόματες προσφορές. */
 export type HomeLive = { heroDeal: { title: string; image: string | null; manual: boolean } | null; slides: number; autoDeals: number };
 export const HomeLiveInfo = createContext<HomeLive>({ heroDeal: null, slides: 0, autoDeals: 0 });
+/** Ο editor ξαναδιαβάζει από τον server ό,τι αλλάζει έξω από το έγγραφο (π.χ. hero slides) και ανανεώνει την προεπισκόπηση. */
+export const HomeRefresh = createContext<() => void>(() => {});
 export const HomeProductInfo = createContext<{ info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void }>({ info: {}, onInfo: () => {} });
 
 /** Ενότητα slides: τι δείχνει σήμερα το πλακίδιο «Προσφορά ημέρας» και από πού αλλάζει. */
 export function HeroInfoField() {
   const live = useContext(HomeLiveInfo);
+  const refresh = useContext(HomeRefresh);
+  const [open, setOpen] = useState(false);
   return (
     <div className="grid gap-2 rounded-xl border border-eu-line bg-eu-surface/60 p-3">
       <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Σήμερα στην αρχική</span>
@@ -27,8 +31,32 @@ export function HeroInfoField() {
           <span className="text-eu-muted text-[length:var(--fs-13)]">{live.heroDeal ? (live.heroDeal.manual ? "Ορίστηκε για σήμερα στα Hero slides." : "Αυτόματα: το προϊόν με τη μεγαλύτερη έκπτωση.") : "Δεν υπάρχουν προϊόντα σε έκπτωση· όρισε μία για σήμερα στα Hero slides."}</span>
         </span>
       </div>
-      <Link href="/admin/cms/slides" className="justify-self-start inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue">Slides & Προσφορά ημέρας <ExternalLink className="size-4" aria-hidden /></Link>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue"><PanelRightOpen className="size-4" aria-hidden /> Επεξεργασία slides εδώ</button>
+        <Link href="/admin/cms/slides" className="inline-flex items-center gap-1 rounded-full px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-white">σε δική τους σελίδα <ExternalLink className="size-3.5" aria-hidden /></Link>
+      </div>
+      {open && <SlidesPanel onClose={() => { setOpen(false); refresh(); }} />}
     </div>
+  );
+}
+
+/** Τα Hero slides σε πλαϊνό πάνελ, χωρίς να φύγεις από τις Ζώνες αρχικής· στο κλείσιμο ανανεώνεται η προεπισκόπηση. */
+function SlidesPanel({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  // χωρίς close() στο cleanup: στο StrictMode θα έκλεινε αμέσως (το event close → onClose)· στο unmount φεύγει μόνο του
+  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
+  return (
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label="Hero slides" className="m-0 ml-auto h-dvh max-h-dvh w-[min(72rem,100vw)] max-w-[100vw] p-0 bg-eu-surface backdrop:bg-black/40">
+      <div className="grid grid-rows-[auto_minmax(0,1fr)] h-full">
+        <div className="flex items-center gap-2 px-4 min-h-14 bg-white border-b border-eu-line">
+          <GalleryHorizontal className="size-5 text-eu-blue" aria-hidden />
+          <h2 className="m-0 flex-1 min-w-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Hero slides & Προσφορά ημέρας</h2>
+          <span className="hidden @md:inline text-eu-muted text-[length:var(--fs-13)]">Έχουν δική τους «Δημοσίευση» μέσα στο πάνελ.</span>
+          <button type="button" onClick={onClose} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue"><X className="size-4" aria-hidden /> Τέλος</button>
+        </div>
+        <iframe title="Hero slides" src="/admin/embed/slides" className="block w-full h-full border-0 bg-eu-surface" />
+      </div>
+    </dialog>
   );
 }
 

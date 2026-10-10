@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronRight, FolderTree, Loader2, Package, Plus, Search, TriangleAlert, X } from "lucide-react";
-import { brandCategoriesAction, brandProductsAction, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
+import { createPortal } from "react-dom";
+import { ArrowDown, ArrowUp, Check, ChevronRight, ClipboardList, FolderTree, Loader2, Package, Plus, Search, TriangleAlert, X } from "lucide-react";
+import { brandCategoriesAction, brandProductsAction, productsByCodesAction, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 
 type Cat = { id: string; name: string; parentId: string | null; count: number };
 const norm = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -22,6 +23,20 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
   const [picked, setPicked] = useState<string[]>(selected);
   const [info, setInfo] = useState<Record<string, PickProduct>>({});
   const [loading, start] = useTransition();
+  const [paste, setPaste] = useState(false);
+  const [codes, setCodes] = useState("");
+  const [pasteMsg, setPasteMsg] = useState<{ added: number; missing: string[]; full: boolean } | null>(null);
+  const [pasting, startPaste] = useTransition();
+  const addCodes = () => startPaste(async () => {
+    const r = await productsByCodesAction({ codes: codes.split(/[\s,;]+/), brandId });
+    setInfo((x) => ({ ...x, ...Object.fromEntries(r.items.map((p) => [p.id, p])) }));
+    let added = 0, full = false;
+    const l = [...picked];
+    for (const p of r.items) { if (l.includes(p.id)) continue; if (max && l.length >= max) { full = true; break; } l.push(p.id); added++; }
+    setPicked(l);
+    setPasteMsg({ added, missing: r.missing, full });
+    setCodes(r.missing.join("\n"));
+  });
   const current = path[path.length - 1] ?? null;
 
   useEffect(() => {
@@ -51,7 +66,9 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
     setPicked((x) => (x.includes(p.id) ? x.filter((i) => i !== p.id) : max && x.length >= max ? x : [...x, p.id]));
   };
 
-  return (
+  // portal στο body: αλλιώς ένας sticky πρόγονος (π.χ. στήλη ρυθμίσεων) το κλείνει κάτω από την προεπισκόπηση
+  if (typeof document === "undefined" || !document.body) return null;
+  return createPortal(
     <div className="fixed inset-0 z-50 @container" role="dialog" aria-modal="true" aria-label={`Επιλογή προϊόντων ${brandName}`}>
       <button type="button" aria-label="Κλείσιμο" onClick={onClose} className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" />
       <div className="absolute inset-0 @3xl:inset-6 @6xl:inset-x-[10%] @3xl:rounded-2xl bg-white flex flex-col overflow-hidden shadow-[var(--shadow-overlay)]">
@@ -87,6 +104,26 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden />
                 <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Γράψε για να στενέψει η λίστα (τίτλος ή κωδικός)…" className="w-full rounded-xl border-2 border-eu-line pl-9 pr-3 min-h-11 text-[length:var(--fs-16)] outline-none focus:border-eu-blue" />
               </label>
+              {!single && (
+                <div className="grid gap-2">
+                  <button type="button" onClick={() => setPaste((v) => !v)} aria-expanded={paste} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-3 min-h-10 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy"><ClipboardList className="size-4" aria-hidden /> {paste ? "Κλείσιμο λίστας κωδικών" : "Έχω λίστα κωδικών"}</button>
+                  {paste && (
+                    <div className="grid gap-2 rounded-xl bg-eu-surface p-3">
+                      <label className="grid gap-1">
+                        <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Επικόλλησε κωδικούς</span>
+                        <textarea value={codes} onChange={(e) => setCodes(e.target.value)} rows={4} placeholder={"Ένας ανά γραμμή (ή με κόμμα): SKU, κωδικός ERP ή barcode\nπ.χ. 4242005284373"} className="w-full rounded-xl border-2 border-eu-line px-3 py-2 text-[length:var(--fs-16)] bg-white font-mono" />
+                        <span className="text-eu-muted text-[length:var(--fs-13)]">Από Excel ή email: αντιγραφή της στήλης και επικόλληση. Μπαίνουν με τη σειρά της λίστας.</span>
+                      </label>
+                      <button type="button" onClick={addCodes} disabled={pasting || !codes.trim()} className="justify-self-start inline-flex items-center gap-2 rounded-full bg-eu-navy text-white px-4 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-blue disabled:opacity-50">{pasting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Πρόσθεσε όσα βρεθούν</button>
+                      {pasteMsg && (
+                        <p role="status" className={`m-0 rounded-lg px-3 py-2 text-[length:var(--fs-14)] ${pasteMsg.missing.length || pasteMsg.full ? "bg-eu-amber/15 text-eu-ink-2" : "bg-eu-green/10 text-eu-ink-2"}`}>
+                          <b>Προστέθηκαν {pasteMsg.added}.</b>{pasteMsg.full ? ` Έφτασες το όριο (${max}).` : ""}{pasteMsg.missing.length ? <> Δεν βρέθηκαν (ή είναι ανενεργά): <span className="font-mono break-all">{pasteMsg.missing.slice(0, 12).join(", ")}{pasteMsg.missing.length > 12 ? ` +${pasteMsg.missing.length - 12}` : ""}</span> — έμειναν στο πλαίσιο για διόρθωση.</> : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <span className="text-eu-muted text-[length:var(--fs-13)]">{loading ? "Φόρτωση…" : `${shown.length}${total > items.length ? ` από ${total}` : ""} προϊόντα${current ? ` · ${current.name}` : ""}${!single && max ? ` · έως ${max}` : ""}`}</span>
             </div>
             <ul className="m-0 p-2 list-none overflow-y-auto flex-1 grid gap-1 content-start">
@@ -117,7 +154,7 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
         )}
       </div>
     </div>
-  );
+  , document.body);
 }
 
 /** Τα επιλεγμένα προϊόντα με τη σειρά που θα εμφανιστούν: μετακίνηση, αφαίρεση, προσθήκη. */

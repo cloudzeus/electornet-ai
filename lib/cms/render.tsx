@@ -46,7 +46,7 @@ const registry: Record<string, Renderer> = {
     const shown = ctx.saveData ? slides.slice(0, 1) : slides;
     return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} />;
   },
-  ticker: async (w) => <Ticker key={w.id} items={(w.props as { items: string[] }).items} zoneNo={w.zoneNo} />,
+  ticker: async (w) => { const items = ((w.props as { items?: string[] }).items ?? []).filter(Boolean); return items.length ? <Ticker key={w.id} items={items} zoneNo={w.zoneNo} /> : null; },
   "category-grid": async (w) => {
     // κελιά της διαχείρισης → πραγματικές κατηγορίες (πλήθος, σύνδεσμος) · χωρίς κατάλογο: τα σταθερά του σχεδίου
     const props = w.props as Record<string, unknown>;
@@ -84,9 +84,10 @@ const registry: Record<string, Renderer> = {
   },
   "campaign-spotlight": async (w) => {
     const p = w.props as { campaigns: VendorCampaign[]; title?: string; kicker?: string; link?: { label: string; href: string } };
+    if (!p.campaigns?.length) return null;
     return <CampaignSpotlight key={w.id} campaigns={p.campaigns} title={p.title} kicker={p.kicker} link={p.link} zoneNo={w.zoneNo} />;
   },
-  "news-band": async (w) => <NewsBand key={w.id} items={await getNews({ limit: (w.props as { limit?: number }).limit ?? 3 })} zoneNo={w.zoneNo} />,
+  "news-band": async (w) => { const items = await getNews({ limit: (w.props as { limit?: number }).limit ?? 3 }); return items.length ? <NewsBand key={w.id} items={items} zoneNo={w.zoneNo} /> : null; },
   "smart-guides": async (w) => {
     const keys = Object.keys(GUIDES);
     const kinds = orderedVisible((w.props as Record<string, unknown>).smart, keys, keys) as GuideKind[];

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { ChevronLeft, Images, Loader2, Package, Search, Tag, X, Check } from "lucide-react";
 import { brandProductsAction, imageTagsAction, imagesByTagAction, productImagesAction, type PickImage, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
@@ -70,7 +71,9 @@ export function ImagePickerDialog({ kind = "image", current, onPick, onClose }: 
   if (tab === "library") return <MediaPickerDialog accept={[kind]} canWrite={false} onClose={() => (brand ? setTab("product") : onClose())} onSelect={(a) => { if (a[0]) pick(a[0].url); }} />;
 
   const shownProducts = q ? products.filter((p) => norm(`${p.title} ${p.sku}`).includes(norm(q))) : products;
-  return (
+  // portal στο body: αλλιώς ένας sticky πρόγονος (π.χ. στήλη ρυθμίσεων) το κλείνει κάτω από άλλες στήλες
+  if (typeof document === "undefined" || !document.body) return null;
+  return createPortal(
     <div className="fixed inset-0 z-[70] @container" role="dialog" aria-modal="true" aria-label={kind === "video" ? "Επιλογή βίντεο" : "Επιλογή εικόνας"}>
       <button type="button" aria-label="Κλείσιμο" onClick={onClose} className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" />
       <div className="absolute inset-0 @3xl:inset-6 @6xl:inset-x-[8%] @3xl:rounded-2xl bg-white flex flex-col overflow-hidden shadow-[var(--shadow-overlay)]">
@@ -135,5 +138,5 @@ export function ImagePickerDialog({ kind = "image", current, onPick, onClose }: 
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }

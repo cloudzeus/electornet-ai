@@ -59,6 +59,29 @@ export async function brandProductsAction(input: { brandId: string | null; categ
   return { total, items: rows.map((r) => ({ id: r.id, title: r.title, sku: r.sku, price: r.price ?? null, image: r.media[0]?.thumbUrl ?? r.media[0]?.url ?? null })) };
 }
 
+/**
+ * Γρήγορη επιλογή: λίστα κωδικών (SKU, κωδικός ERP ή barcode EAN — ένας ανά γραμμή, ή με κόμμα/κενό) → προϊόντα,
+ * με τη σειρά της λίστας. Επιστρέφει και όσους κωδικούς δεν βρέθηκαν.
+ */
+export async function productsByCodesAction(input: { codes: string[]; brandId?: string | null }): Promise<{ items: PickProduct[]; missing: string[] }> {
+  await requireCms();
+  const codes = [...new Set(input.codes.map((c) => c.trim()).filter(Boolean))].slice(0, 200);
+  if (!codes.length) return { items: [], missing: [] };
+  const rows = await db.product.findMany({
+    where: { active: true, ...(input.brandId ? { brandId: input.brandId } : {}), OR: [{ sku: { in: codes, mode: "insensitive" } }, { erpCode: { in: codes } }, { ean: { in: codes } }] },
+    select: { id: true, title: true, sku: true, erpCode: true, ean: true, price: true, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true, thumbUrl: true } } },
+  });
+  const items: PickProduct[] = [], missing: string[] = [], seen = new Set<string>();
+  for (const c of codes) {
+    const r = rows.find((x) => x.sku.toLowerCase() === c.toLowerCase() || x.erpCode === c || x.ean === c);
+    if (!r) { missing.push(c); continue; }
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    items.push({ id: r.id, title: r.title, sku: r.sku, price: r.price ?? null, image: r.media[0]?.thumbUrl ?? r.media[0]?.url ?? null });
+  }
+  return { items, missing };
+}
+
 /** Στοιχεία για τα προϊόντα που ήδη υπάρχουν στη σελίδα (και demo ids). */
 export async function productsInfoAction(ids: string[]): Promise<PickProduct[]> {
   await requireCms();

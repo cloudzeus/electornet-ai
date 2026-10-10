@@ -12,18 +12,28 @@ import { renderBlock, resolveBlocks } from "@/lib/cms/blocks-render";
 import { EURONICS_THEME } from "@/lib/cms/info-pages";
 import { BrandFrame } from "@/components/brand/BrandFrame";
 import { getHomeDoc, getPublishedHome } from "@/lib/cms/home-store";
+import { previewTokenOk, runDueScenarios } from "@/lib/cms/home-plans";
 import { afterZone, audienceOk, hideClass, sectionActive, sectionDef, sectionExtras, sectionWidget, TOP_ZONE } from "@/lib/cms/home-sections";
 
 /**
  * Αρχική = οι ενότητες και τα components της διαχείρισης (Περιεχόμενο → Ζώνες αρχικής), όπως ισχύουν για αυτό το
  * αίτημα: ημερομηνίες, κοινό (επισκέπτης / πελάτης), συσκευή (με CSS). Χωρίς δημοσίευση: η προεπιλεγμένη αρχική.
- * ?preview=1: το πρόχειρο, μόνο για προσωπικό με δικαίωμα ζωνών αρχικής. Το πλαίσιο (header, footer) είναι στο layout.
+ * ?preview=1: το πρόχειρο, μόνο για προσωπικό με δικαίωμα ζωνών αρχικής · ?pt=<token>: το πρόχειρο μέσω συνδέσμου
+ * προεπισκόπησης (λήγει). Προγραμματισμένα σενάρια δημοσιεύονται εδώ στην ώρα τους. Το πλαίσιο (header, footer) είναι στο layout.
  */
+/** Οι προεπισκοπήσεις του πρόχειρου δεν ευρετηριάζονται. */
+export async function generateMetadata({ searchParams }: PageProps<"/">) {
+  const sp = await searchParams;
+  return sp.pt || sp.preview ? { robots: { index: false, follow: false } } : {};
+}
+
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const [{ device, saveData }, sp, me] = await Promise.all([getDevice(), searchParams, getCustomerSession().catch(() => null)]);
+  await runDueScenarios().catch(() => false);
   let doc = await getPublishedHome();
   let preview = false;
-  if (sp.preview === "1") {
+  if (previewTokenOk(sp.pt)) { doc = (await getHomeDoc()).draft; preview = true; }
+  else if (sp.preview === "1") {
     const user = (await auth())?.user;
     if (user && can(user.permissions, "cms.zones.read")) { doc = (await getHomeDoc()).draft; preview = true; }
   }
