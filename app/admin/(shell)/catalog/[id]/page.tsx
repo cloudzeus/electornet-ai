@@ -148,7 +148,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             {editor(["dims"])}
             {shop && arApplies && (
               <Section title="Δες το στον χώρο σου (AR)" hint="Το στερεό φτιάχνεται από τις διαστάσεις· η «Όψη AR» (καρτέλα Εικόνες) ντύνει την πρόσοψή του.">
-                <ArRow row={arRowDataFor(shop, arRow, arCats)} />
+                <ArRow row={arRowDataFor(shop, arRow, arCats)} open />
               </Section>
             )}
             <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />

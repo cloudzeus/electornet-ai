@@ -13,7 +13,7 @@ export function arRowDataFor(pr: Product, s: ProductAr | null, cats?: ArCats | n
   return {
     id: pr.id, slug: pr.slug, brand: pr.brand, title: pr.title, image: pr.image ?? null, cutout: cutoutFor(pr.image),
     dims: dims ? { w: dims.w, h: dims.h, d: dims.d, source: dims.source } : null,
-    plan: { on: plan.on, reason: plan.reason ?? null, fix: plan.fix ?? null, surface: plan.surface, tv: plan.archetype === "tv", dims: plan.on && plan.dims ? { w: plan.dims.w, h: plan.dims.h, d: plan.dims.d } : null },
+    plan: { on: plan.on, code: plan.code ?? null, reason: plan.reason ?? null, fix: plan.fix ?? null, surface: plan.surface, tv: plan.archetype === "tv", dims: plan.on && plan.dims ? { w: plan.dims.w, h: plan.dims.h, d: plan.dims.d } : null },
     enabled: plan.on, explicit: !!s, glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
     modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
     glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: prof.surface, autoHint: prof.hint,
