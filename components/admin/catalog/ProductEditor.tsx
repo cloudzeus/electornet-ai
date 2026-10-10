@@ -53,6 +53,8 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
   only?: EditorSection[];
 }) {
   const show = (k: EditorSection) => !only || only.includes(k);
+  // σε καρτέλα (only) οι ενότητες είναι το κύριο περιεχόμενο — ανοιχτές
+  const open = !!only;
   const [base, setBase] = useState(initial);
   const [v, setV] = useState(initial);
   const [confirm, setConfirm] = useState(false);
@@ -119,7 +121,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
       )}
 
       {show("texts") && (
-      <AccordionItem id="texts" title="Περιγραφές" icon={<FileText className="size-4" aria-hidden />} summary={String(v.shortDesc ?? "") || "Χωρίς σύντομη περιγραφή"} badge={S1}>
+      <AccordionItem id="texts" title="Περιγραφές" icon={<FileText className="size-4" aria-hidden />} summary={String(v.shortDesc ?? "") || "Χωρίς σύντομη περιγραφή"} badge={S1} defaultOpen={open}>
         <div className="grid gap-3">
           <Field label="Σύντομη περιγραφή" help="Μία–δύο προτάσεις κάτω από τον τίτλο του προϊόντος.">
             <textarea disabled={dis} rows={2} maxLength={4000} value={String(v.shortDesc ?? "")} onChange={(e) => set("shortDesc", e.target.value)} className={`${input} py-2 min-h-16`} />
@@ -132,7 +134,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
       )}
 
       {show("specs") && (
-      <AccordionItem id="specs" title="Χαρακτηριστικά" icon={<ListChecks className="size-4" aria-hidden />} summary={`${rows.length} χαρακτηριστικά — τροφοδοτούν τα φίλτρα και τη σύγκριση`} badge={S1}>
+      <AccordionItem id="specs" title="Χαρακτηριστικά" icon={<ListChecks className="size-4" aria-hidden />} summary={`${rows.length} χαρακτηριστικά — τροφοδοτούν τα φίλτρα και τη σύγκριση`} badge={S1} defaultOpen={open}>
         {html ? (
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η περιγραφή αυτού του είδους έχει μορφοποίηση HTML. Για να μη χαλάσει, άλλαξε τα χαρακτηριστικά απευθείας στην «Αναλυτική περιγραφή».</p>
         ) : (
@@ -154,7 +156,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
       )}
 
       {show("dims") && (
-      <AccordionItem id="dims" title="Διαστάσεις & βάρος" icon={<Ruler className="size-4" aria-hidden />} summary={[v.widthCm, v.heightCm, v.lengthCm].some((x) => x) ? `${v.widthCm || "—"} × ${v.heightCm || "—"} × ${v.lengthCm || "—"} εκ.${v.weightKg ? ` · ${v.weightKg} kg` : ""}` : "Δεν έχουν συμπληρωθεί στο SoftOne"} badge={S1}>
+      <AccordionItem id="dims" title="Διαστάσεις & βάρος" icon={<Ruler className="size-4" aria-hidden />} summary={[v.widthCm, v.heightCm, v.lengthCm].some((x) => x) ? `${v.widthCm || "—"} × ${v.heightCm || "—"} × ${v.lengthCm || "—"} εκ.${v.weightKg ? ` · ${v.weightKg} kg` : ""}` : "Δεν έχουν συμπληρωθεί στο SoftOne"} badge={S1} defaultOpen={open}>
         <div className="grid gap-3 grid-cols-2 @2xl:grid-cols-4">
           {num("widthCm", "Πλάτος", "εκ.")}{num("heightCm", "Ύψος", "εκ.")}{num("lengthCm", "Βάθος", "εκ.")}{num("weightKg", "Βάρος", "kg")}
         </div>
@@ -169,7 +171,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
       )}
 
       {show("warranty") && (
-      <AccordionItem id="warranty" title="Εγγύηση & διαθεσιμότητα" icon={<ShieldCheck className="size-4" aria-hidden />} summary={`${v.guaranteeMonths ? `${v.guaranteeMonths} μήνες εγγύηση` : "Χωρίς εγγύηση στο SoftOne"}${String(v.availText ?? "") ? ` · «${String(v.availText).slice(0, 40)}»` : ""}`} badge={S1}>
+      <AccordionItem id="warranty" title="Εγγύηση & διαθεσιμότητα" icon={<ShieldCheck className="size-4" aria-hidden />} summary={`${v.guaranteeMonths ? `${v.guaranteeMonths} μήνες εγγύηση` : "Χωρίς εγγύηση στο SoftOne"}${String(v.availText ?? "") ? ` · «${String(v.availText).slice(0, 40)}»` : ""}`} badge={S1} defaultOpen={open}>
         <div className="grid gap-3 @2xl:grid-cols-2">
           <Field label="Εγγύηση (μήνες)"><input type="number" inputMode="numeric" min={0} step={1} disabled={dis} value={v.guaranteeMonths == null ? "" : String(v.guaranteeMonths)} onChange={(e) => set("guaranteeMonths", e.target.value === "" ? null : e.target.value)} className={input} /></Field>
           <label className="flex items-center gap-2 min-h-11 self-end font-bold text-eu-ink-2 text-[length:var(--fs-14)]">
