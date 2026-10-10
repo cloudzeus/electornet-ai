@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createContext, useContext, useState } from "react";
-import { ExternalLink, Package, Sparkles, Tag, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, GripVertical, Package, Sparkles, Tag, X, Zap } from "lucide-react";
 import { useOptions } from "./brand/BlockEditors";
 import { ProductPickerDialog } from "./brand/ProductPicker";
 import { DateTime } from "./brand/fields";
@@ -33,10 +33,10 @@ export function HeroInfoField() {
 }
 
 type Deals = { source?: "auto" | "promotion" | "products"; promotionId?: string; productIds?: string[]; endsAt?: string };
-const SRC: { v: NonNullable<Deals["source"]>; t: string; d: string; I: typeof Zap }[] = [
-  { v: "auto", t: "Αυτόματα", d: "Τα προϊόντα με τη μεγαλύτερη έκπτωση αυτή τη στιγμή. Δεν χρειάζεται τίποτα άλλο.", I: Zap },
+const SRC: { v: NonNullable<Deals["source"]>; t: string; d: string; I: typeof Zap; rec?: boolean }[] = [
+  { v: "products", t: "Διαλέγω τα προϊόντα", d: "Εσύ αποφασίζεις ποια προϊόντα φαίνονται στην αρχική, με ποια σειρά και ως πότε.", I: Package, rec: true },
   { v: "promotion", t: "Από μια προσφορά", d: "Τα προϊόντα μιας προσφοράς από «Προσφορές & κουπόνια», με τη δική της λήξη.", I: Tag },
-  { v: "products", t: "Προϊόντα που διαλέγω", d: "Διαλέγεις εσύ τα προϊόντα και ως πότε φαίνονται.", I: Package },
+  { v: "auto", t: "Αυτόματα", d: "Τα προϊόντα με τη μεγαλύτερη έκπτωση αυτή τη στιγμή. Δεν χρειάζεται τίποτα άλλο.", I: Zap },
 ];
 
 /** «Προσφορές της εβδομάδας»: από πού έρχονται τα προϊόντα — με απλές κάρτες και τον αντίστοιχο έλεγχο. */
@@ -45,6 +45,7 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
   const { info, onInfo } = useContext(HomeProductInfo);
   const o = useOptions();
   const [picking, setPicking] = useState(false);
+  const [drag, setDrag] = useState<number | null>(null);
   const d = (props ?? {}) as Deals;
   const src = d.source ?? "auto";
   const ids = d.productIds ?? [];
@@ -57,7 +58,7 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
           <label key={x.v} className={`flex items-start gap-3 rounded-xl border-2 px-3 py-2.5 min-h-14 cursor-pointer ${src === x.v ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-navy/50"}`}>
             <input type="radio" name="deals-src" checked={src === x.v} onChange={() => set({ source: x.v })} className="mt-1 size-4 accent-eu-navy" />
             <x.I className="size-5 mt-0.5 shrink-0 text-eu-blue" aria-hidden />
-            <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{x.t}</span><span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{x.d}</span></span>
+            <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{x.t}{x.rec && <span className="ml-2 rounded-full bg-eu-green/15 text-eu-green px-2 py-0.5 text-[length:var(--fs-13)] font-extrabold align-middle">προτείνεται</span>}</span><span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{x.d}</span></span>
           </label>
         ))}
       </div>
@@ -78,17 +79,25 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
       )}
       {src === "products" && (
         <div className="grid gap-3">
+          <button type="button" onClick={() => setPicking(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-eu-navy text-white px-4 min-h-12 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-blue"><Sparkles className="size-5" aria-hidden /> {ids.length ? "Πρόσθεσε ή άλλαξε προϊόντα" : "Διάλεξε προϊόντα"}</button>
           {ids.length ? (
-            <ul className="m-0 p-0 list-none grid gap-1.5">
-              {ids.map((id) => { const p = info[id]; return (
-                <li key={id} className="flex items-center gap-3 rounded-xl border border-eu-line px-3 py-2">
-                  <span className="size-10 shrink-0 rounded-md bg-white border border-eu-line bg-contain bg-center bg-no-repeat" style={p?.image ? { backgroundImage: `url("${p.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
-                  <span className="min-w-0 grid text-[length:var(--fs-14)]"><span className="font-bold text-eu-ink truncate">{p?.title ?? id}</span>{p?.price != null && <span className="text-eu-muted">{p.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span>}</span>
+            <ol className="m-0 p-0 list-none grid gap-1.5" onDragOver={(e) => e.preventDefault()}>
+              {ids.map((id, i) => { const p = info[id]; return (
+                <li key={id} className={`flex items-center gap-2 rounded-xl border border-eu-line bg-white pr-1 ${drag === i ? "opacity-40" : ""}`}
+                  onDragOver={(e) => { if (drag == null) return; e.preventDefault(); }}
+                  onDrop={(e) => { e.preventDefault(); if (drag != null && drag !== i) { const l = [...ids]; const [x] = l.splice(drag, 1); l.splice(i, 0, x); set({ productIds: l }); } setDrag(null); }}>
+                  <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-7 self-stretch cursor-grab text-eu-muted"><GripVertical className="size-4" /></span>
+                  <span className="w-5 shrink-0 font-extrabold text-eu-muted text-[length:var(--fs-13)] tabular-nums">{i + 1}</span>
+                  <span className="size-11 shrink-0 rounded-md bg-white border border-eu-line bg-contain bg-center bg-no-repeat" style={p?.image ? { backgroundImage: `url("${p.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
+                  <span className="min-w-0 flex-1 grid py-1.5 text-[length:var(--fs-14)]"><span className="font-bold text-eu-ink leading-snug line-clamp-2">{p?.title ?? id}</span>{p?.price != null && <span className="text-eu-muted">{p.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span>}</span>
+                  <button type="button" disabled={i === 0} onClick={() => { const l = [...ids]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; set({ productIds: l }); }} aria-label="Πιο πάνω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
+                  <button type="button" disabled={i === ids.length - 1} onClick={() => { const l = [...ids]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; set({ productIds: l }); }} aria-label="Πιο κάτω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
+                  <button type="button" onClick={() => set({ productIds: ids.filter((x) => x !== id) })} aria-label={`Αφαίρεση: ${p?.title ?? id}`} className="size-11 shrink-0 grid place-items-center rounded-full text-eu-red hover:bg-eu-red/10"><X className="size-4" aria-hidden /></button>
                 </li>
               ); })}
-            </ul>
-          ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν έχεις διαλέξει προϊόντα ακόμη.</p>}
-          <button type="button" onClick={() => setPicking(true)} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Sparkles className="size-4" aria-hidden /> {ids.length ? "Αλλαγή προϊόντων" : "Διάλεξε προϊόντα"}</button>
+            </ol>
+          ) : <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]">Δεν έχεις διαλέξει προϊόντα ακόμη — μέχρι τότε η ενότητα δείχνει αυτόματα τις μεγαλύτερες εκπτώσεις (αν υπάρχουν).</p>}
+          {ids.length > 0 && <span className="text-eu-muted text-[length:var(--fs-13)] -mt-1">Φαίνονται τα πρώτα όσα ορίζει το «Πλήθος προϊόντων», με αυτή τη σειρά. Σύρε από τη λαβή ή άλλαξε σειρά με τα βέλη.</span>}
           <DateTime label="Λήξη (για την αντίστροφη μέτρηση)" value={d.endsAt} onChange={(v) => set({ endsAt: v })} help="Κενό = την Κυριακή στις 23:59. Μετά τη λήξη η ενότητα δείχνει αυτόματα τις μεγαλύτερες εκπτώσεις." />
           {picking && <ProductPickerDialog brandId={null} brandName="Euronics" selected={ids} max={12} onClose={() => setPicking(false)} onDone={(sel, list) => { onInfo(list); set({ productIds: sel }); setPicking(false); }} />}
         </div>
