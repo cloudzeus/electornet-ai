@@ -340,7 +340,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
   return (
     <div className="grid gap-5 min-w-0 @container">
       {!embedded && <div className="grid gap-1">
-        <Link href={`/admin/catalog/${product.id}`} className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit"><ArrowLeft className="size-4" aria-hidden /> Καρτέλα προϊόντος</Link>
+        <Link href={`/admin/catalog/${product.id}?tab=content`} className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline w-fit"><ArrowLeft className="size-4" aria-hidden /> Καρτέλα προϊόντος</Link>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><ScanText className="size-4" aria-hidden /> Απόδελτίωση banners · {product.path}</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] text-balance">{product.brand} {product.title}</h2>
       </div>}
@@ -589,7 +589,7 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
           <div className="flex flex-wrap gap-3">
             <a href={`/proion/${product.slug}#description`} target="_blank" rel="noreferrer" className={primary}>Δες τη σελίδα <ExternalLink className="size-4" aria-hidden /></a>
             {nextHref && <Link href={nextHref} className={secondary}>Επόμενο προϊόν <ArrowRight className="size-4" aria-hidden /></Link>}
-            <Link href={`/admin/catalog/${product.id}`} className={ghost}>Πίσω στην καρτέλα</Link>
+            <Link href={`/admin/catalog/${product.id}?tab=content`} className={ghost}>Πίσω στην καρτέλα</Link>
           </div>
         </div>
       )}

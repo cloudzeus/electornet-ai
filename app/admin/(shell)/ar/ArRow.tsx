@@ -61,7 +61,7 @@ export function ArRow({ row: r0 }: { row: ArRowData }) {
           <img src={r.cutout ?? r.image} alt="" className="size-14 shrink-0 object-contain rounded-lg bg-eu-surface" />
         )}
         <div className="min-w-0 flex-1 basis-60">
-          <div className="font-bold text-eu-ink break-words">{r.brand} {r.title}</div>
+          <a href={`/admin/catalog/${r.id}?tab=dims`} className="font-bold text-eu-ink break-words hover:text-eu-blue hover:underline">{r.brand} {r.title}</a>
           <div className="text-eu-muted text-[length:var(--fs-13)] break-all">{r.slug}</div>
           <p className={`m-0 mt-1 text-[length:var(--fs-13)] font-semibold ${r.plan.on ? "text-eu-green" : "text-eu-amber"}`}>
             {r.plan.on ? `Ο πελάτης βλέπει AR · ${SURF[r.plan.surface]}${r.plan.tv ? " · μοντέλο τηλεόρασης" : ""}${r.plan.dims ? ` · ${r.plan.dims.w} × ${r.plan.dims.h} × ${r.plan.dims.d} εκ.` : ""}` : `Χωρίς AR: ${r.plan.reason ?? ""}`}

@@ -94,7 +94,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {r.media[0] ? <img src={r.media[0].url} alt="" loading="lazy" className="size-14 rounded-lg border border-eu-line object-contain bg-white shrink-0" /> : <span className="size-14 rounded-lg bg-eu-surface shrink-0" />}
                 <div className="min-w-0 flex-1 basis-60">
-                  <Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline text-[length:var(--fs-15)] line-clamp-2">{r.title}</Link>
+                  <Link href={`/admin/catalog/${r.id}?tab=content`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline text-[length:var(--fs-15)] line-clamp-2">{r.title}</Link>
                   <div className="text-eu-muted text-[length:var(--fs-14)]">{r.brand.name} · {r.category.name}{r.stock > 0 ? " · σε απόθεμα" : ""}{r.price ? ` · ${r.price.toLocaleString("el-GR")} €` : ""}</div>
                 </div>
                 <span className="text-eu-ink-3 text-[length:var(--fs-14)] tabular-nums whitespace-nowrap">{r._count.media} banners</span>
