@@ -127,6 +127,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                 <Image src={im.url} alt={im.alt ?? ""} fill sizes="160px" draggable={false} placeholder={im.blur ? "blur" : "empty"} blurDataURL={im.blur ?? undefined} className="object-contain p-1" />
                 <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-white/90 text-eu-ink-3 font-bold tabular-nums px-1.5 py-0.5 text-[length:var(--fs-11)]">{i + 1}</span>
                 {ar && !banner && arFront === im.url && <span className="absolute left-1 top-7 inline-flex items-center gap-0.5 rounded-full bg-eu-blue text-white font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Box className="size-3" aria-hidden /> AR</span>}
+                {im.source === "eprel-label" && <span className="absolute left-1 bottom-1 inline-flex items-center rounded-full bg-eu-green text-white font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]" title="Μπαίνει αυτόματα από το EPREL και μένει πάντα τελευταία">Ετικέτα EPREL</span>}
                 {i === 0 && !banner && <span className="absolute left-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-yellow text-eu-navy font-extrabold px-1.5 py-0.5 text-[length:var(--fs-11)]"><Star className="size-3" aria-hidden /> Κύρια</span>}
                 {im.lowRes && <span className="absolute right-1 bottom-1 inline-flex items-center gap-0.5 rounded-full bg-eu-red text-white font-bold px-1.5 py-0.5 text-[length:var(--fs-11)]"><AlertTriangle className="size-3" aria-hidden /> μικρή</span>}
                 {canWrite && (
@@ -148,7 +149,7 @@ export function ProductImages({ productId, initial, canWrite, canUploadToLibrary
                   <button type="button" className={icon} disabled={i === visible.length - 1} onClick={() => move(im.id, i + 1)} aria-label={`Μετακίνηση ${noun} ${i + 1} μία θέση μετά`} title="Μία θέση μετά"><ArrowRight className="size-4" aria-hidden /></button>
                 </div>
               )}
-              {ar && !banner && canWrite && (
+              {ar && !banner && canWrite && im.source !== "eprel-label" && (
                 <button type="button" onClick={() => chooseArFront(arFront === im.url ? null : im.url)} aria-pressed={arFront === im.url}
                   title="Η φωτογραφία που μπαίνει στην πρόσοψη του στερεού στο «Δες το στον χώρο σου». Καλύτερα κατά μέτωπο, χωρίς γωνία."
                   className={`inline-flex items-center justify-center gap-1 rounded-full min-h-9 px-2 text-[length:var(--fs-12)] font-bold cursor-pointer focus-visible:outline-2 focus-visible:outline-eu-blue ${arFront === im.url ? "bg-eu-blue text-white" : "bg-eu-surface text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}>

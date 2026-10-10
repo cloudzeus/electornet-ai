@@ -53,6 +53,8 @@ export async function attachAssets(productId: string, assetIds: string[], source
     const alt = a.alt?.trim() || (kind === "banner" ? `${product.title} — banner ${count}` : count === 1 ? product.title : `${product.title} — φωτογραφία ${count}`);
     added.push(toImageDTO(await db.media.create({ data: { productId, kind, url: a.url, thumbUrl: a.thumbUrl, width: a.width, height: a.height, blur: a.blur, alt, sortNo: ++next, source, assetId: a.id }, select: SELECT })));
   }
+  // η ετικέτα EPREL μένει τελευταία — και μπαίνει τώρα, αν το προϊόν δεν είχε άλλη φωτογραφία
+  if (kind === "image" && added.length) await (await import("./eprel-photo")).ensureEprelLabelPhoto(productId).catch(() => null);
   return { added, skipped };
 }
 
@@ -73,6 +75,7 @@ export async function reorderImages(productId: string, ids: string[]) {
   const mine = new Set((await db.media.findMany({ where: { productId }, select: { id: true } })).map((m) => m.id));
   const ordered = ids.filter((id, i) => mine.has(id) && ids.indexOf(id) === i);
   await db.$transaction(ordered.map((id, i) => db.media.update({ where: { id }, data: { sortNo: i + 1 } })));
+  await (await import("./eprel-photo")).keepEprelLabelLast(productId);
 }
 
 /** Αφαίρεση από το προϊόν. Το αρχείο μένει στη βιβλιοθήκη / στο CDN. Οι φωτογραφίες της αρχικής εισαγωγής κρύβονται αντί να σβηστούν. */

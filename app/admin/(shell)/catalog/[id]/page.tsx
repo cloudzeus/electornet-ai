@@ -72,7 +72,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const pathNames = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter((x): x is string => !!x);
   const path = pathNames.join(" › ");
   const canErp = canWrite && can(user.permissions, "catalog.sync.run");
-  const shown = images.filter((i) => !i.hidden);
+  const shown = images.filter((i) => !i.hidden && i.source !== "eprel-label"); // η ετικέτα EPREL δεν μετρά ως φωτογραφία
   const when = (d: Date | null | undefined) => d ? d.toLocaleString("el-GR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
   const eur = (v: number | null | undefined) => v != null ? `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—";
   const initial: EditorValues | null = item ? {

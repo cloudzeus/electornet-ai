@@ -6,6 +6,7 @@ import { upsertFromRaw, linkProduct } from "@/lib/eprel/sync";
 import { normalizeModel, customerLines, eprelDimsCm } from "@/lib/eprel/normalize";
 import { bareKey } from "./image-files";
 import { refreshDimStatus } from "./product-dimensions";
+import { ensureEprelLabelPhoto } from "./eprel-photo";
 import { eprelGroupsFor } from "./energy-types";
 export { eprelGroupsFor };
 
@@ -182,6 +183,7 @@ export async function storeEprelMatch(productId: string, raw: EprelRaw) {
     const data = { kind: "product", ...dims, rawKey: `EPREL ${saved.registrationNumber}`, rawValue: `${raw.dimensionWidth} × ${raw.dimensionHeight} × ${raw.dimensionDepth} (Π×Υ×Β, όπως δηλώθηκαν)`, warning: null };
     await db.productDimension.upsert({ where: { productId_source: { productId, source: "eprel" } }, create: { productId, source: "eprel", ...data }, update: data });
   }
+  await ensureEprelLabelPhoto(productId).catch(() => null); // η ετικέτα ως τελευταία φωτογραφία
   return { registrationNumber: saved.registrationNumber, specs: lines.length, hasDims: !!dims };
 }
 

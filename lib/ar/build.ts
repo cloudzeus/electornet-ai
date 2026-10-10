@@ -8,6 +8,7 @@ import { buildGeometry, buildTvGeometry } from "./geometry";
 import type { ArPlan, TvSpec } from "./plan";
 import { pickFront, frontTexture, labelTexture, logoTexture, bodyColorOf, toLinear, screenTexture, LABEL_ASPECT } from "./textures";
 import { writeGlb } from "./glb";
+import { isEprelLabelUrl } from "@/lib/catalog/eprel-label-url";
 import { writeUsdz } from "./usdz";
 import type { Dims } from "@/lib/data/dims";
 import { cutoutFor } from "@/lib/data/cutouts";
@@ -100,7 +101,7 @@ export async function buildArModel(input: ArInput, opts: { labels?: boolean; wal
 
 /** Υποψήφιες φωτογραφίες του προϊόντος: τα cutouts πρώτα, μετά οι κανονικές, χωρίς διπλά. */
 export function arCandidates(p: Pick<Product, "image" | "images">): string[] {
-  const all = [p.image, ...(p.images ?? [])].filter((x): x is string => !!x);
+  const all = [p.image, ...(p.images ?? [])].filter((x): x is string => !!x && !isEprelLabelUrl(x));
   const cuts = all.map((x) => cutoutFor(x)).filter((x): x is string => !!x);
   return [...new Set([...cuts, ...all])];
 }

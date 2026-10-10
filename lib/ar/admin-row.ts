@@ -2,6 +2,7 @@ import type { ProductAr } from "@prisma/client";
 import type { Product } from "@/lib/data/types";
 import type { ArRowData } from "@/app/admin/(shell)/ar/ArRow";
 import { cutoutFor } from "@/lib/data/cutouts";
+import { isEprelLabelUrl } from "@/lib/catalog/eprel-label-url";
 import { arAutoSurface, arPlan, productDims, type ArCats } from "./plan";
 
 /** Η γραμμή AR της διαχείρισης για ένα προϊόν — ίδια στη σελίδα AR και στην καρτέλα «Διαστάσεις · AR · EPREL» του προϊόντος. */
@@ -16,6 +17,6 @@ export function arRowDataFor(pr: Product, s: ProductAr | null, cats?: ArCats | n
     enabled: plan.on, explicit: !!s, glbUrl: s?.glbUrl ?? null, usdzUrl: s?.usdzUrl ?? null, fitToDims: s?.fitToDims ?? true,
     modelBox: (s?.modelBox as { w: number; h: number; d: number } | null) ?? null,
     glbLightUrl: s?.glbLightUrl ?? null, source: s?.source ?? null, rotationY: s?.rotationY ?? 0, fitMode: s?.fitMode ?? "box", placement: s?.placement ?? null, frontImage: s?.frontImage ?? null, autoPlacement: auto.surface, autoFrom: auto.from, autoHint: auto.hint,
-    images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x))],
+    images: [...new Set([pr.image, ...(pr.images ?? []), cutoutFor(pr.image)].filter((x): x is string => !!x && !isEprelLabelUrl(x)))],
   };
 }
