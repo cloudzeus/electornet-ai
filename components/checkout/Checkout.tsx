@@ -54,7 +54,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
   const { lines, subtotal, addonsTotal, hydrated, clear, freeShippingFrom } = useCart();
   const [step, setStep] = useState<2 | 3>(2);
   const [f, setF] = useState({ firstName: "", lastName: "", email: "", phone: "", street: "", number: "", floor: "", city: "", zip: "", region: "Αττική", notes: "", invoice: false, vat: "", company: "", doy: "", activity: "", createAccount: false, password: "", newsletter: false, terms: false, recycle: false });
-  const [ful, setFul] = useState<Fulfilment>("courier");
+  const [fulPick, setFul] = useState<Fulfilment>("courier");
   // ο courier (όταν ο διαχειριστής έχει ενεργοποιήσει couriers) και, για BOX NOW, η θυρίδα
   const [carrierPick, setCarrierPick] = useState<string | null>(null);
   const [locker, setLocker] = useState<Locker | null>(null);
@@ -74,7 +74,10 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
   const [couponCode, setCouponCode] = useState<string | null>(() => savedCoupon());
   const [placing, setPlacing] = useState(false);
   const offline = lines.filter((l) => !l.product.fromDb);
-  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, storeId: ful === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick });
+  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: fulPick, storeId: fulPick === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick });
+  // μεγάλες συσκευές: ο server αποφασίζει (κατηγορία, βάρος, μέγεθος) — χωρίς courier, με ραντεβού ή παραλαβή
+  const courierBlocked = !!quote && !quote.bulky.courier;
+  const ful: Fulfilment = courierBlocked && fulPick === "courier" ? "appointment" : fulPick;
   const offers = quote?.carriers ?? [];
   // η επιλογή φαίνεται αμέσως· το κόστος το επιβεβαιώνει ο server (quote.carrier)
   const offer = offers.find((o) => o.id === carrierPick && o.available) ?? offers.find((o) => o.id === quote?.carrier) ?? null;
@@ -97,7 +100,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
   const discCoupon = quote ? quote.discCoupon / 100 : 0;
   const discPayment = quote ? quote.discPayment / 100 : 0;
   const discount = discPrice + discCoupon + discPayment;
-  const heavy = lines.some((l) => l.product.installation);
+  const heavy = quote ? !quote.bulky.courier : lines.some((l) => l.product.installation);
   const shipping = quote ? quote.shipping / 100 : ful !== "courier" ? 0 : localGoods >= freeShippingFrom ? 0 : 4.9;
   const codFee = quote ? quote.codFee / 100 : pay === "cod" ? 2 : 0;
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
@@ -214,13 +217,15 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
   );
   const text = (k: keyof typeof f, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => <input id={`fld-${k}`} value={f[k] as string} onChange={(e) => set(k, e.target.value)} onBlur={() => touch(k)} className={inputCls(k)} {...extra} />;
 
-  const delivery: { v: Fulfilment; icon: typeof Truck; t: string; price: string; sub: string }[] = [
+  type DeliveryOpt = { v: Fulfilment; icon: typeof Truck; t: string; price: string; sub: string; disabled?: boolean };
+  const delivery: DeliveryOpt[] = ([
     offers.length
       ? (() => { const ok = offers.filter((o) => o.available); const min = Math.min(...ok.map((o) => o.fee)); return { v: "courier" as Fulfilment, icon: Truck, t: "Με courier", price: !ok.length ? "—" : min === 0 ? "Δωρεάν" : `από ${priceLong(min / 100)}`, sub: offers.some((o) => o.kind === "locker") ? "Στο σπίτι ή σε θυρίδα BOX NOW" : "Στη διεύθυνσή σου" }; })()
       : { v: "courier", icon: Truck, t: "Στη διεύθυνσή μου", price: goods >= freeShippingFrom ? "Δωρεάν" : "4,90 €", sub: "1–3 εργάσιμες" },
+  ] as DeliveryOpt[]).map((d) => (d.v === "courier" && courierBlocked ? { ...d, price: "—", sub: "Δεν αποστέλλεται με courier", disabled: true } : d)).concat([
     { v: "click-collect", icon: StoreIcon, t: "Παραλαβή από κατάστημα", price: "Δωρεάν", sub: "Σε 2 ώρες όπου υπάρχει απόθεμα · 350 καταστήματα" },
     { v: "appointment", icon: CalendarClock, t: "Με ραντεβού", price: heavy ? "Δωρεάν" : "Δωρεάν από 100 €", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Επιλέγεις ημέρα και ώρα" },
-  ];
+  ]);
   const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = viva ? [
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
     { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Θα δεις το IBAN μετά την παραγγελία" },
@@ -310,9 +315,9 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
               <Section n={2} title={c.paradosi} lead="Το κόστος και ο χρόνος φαίνονται πριν διαλέξεις.">
                 <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-2.5">
                   {delivery.map((d) => (
-                    <label key={d.v} className={`rounded-xl border-2 p-4 cursor-pointer grid gap-1 ${ful === d.v ? "border-eu-blue bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
+                    <label key={d.v} className={`rounded-xl border-2 p-4 grid gap-1 ${d.disabled ? "border-eu-line opacity-60 cursor-not-allowed" : ful === d.v ? "border-eu-blue bg-eu-chip cursor-pointer" : "border-eu-line hover:border-eu-blue cursor-pointer"}`}>
                       <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-16)]">
-                        <input type="radio" name="ful" checked={ful === d.v} onChange={() => setFul(d.v)} className="accent-eu-blue size-[18px]" />
+                        <input type="radio" name="ful" checked={ful === d.v} disabled={d.disabled} onChange={() => setFul(d.v)} className="accent-eu-blue size-[18px]" />
                         <d.icon className="size-5 text-eu-blue shrink-0" aria-hidden /> {d.t}
                       </span>
                       <span className={`pl-7 font-extrabold text-[length:var(--fs-15)] ${d.price === "Δωρεάν" ? "text-eu-green" : "text-eu-ink"}`}>{d.price}</span>
@@ -321,6 +326,11 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
                   ))}
                 </div>
 
+                {courierBlocked && (
+                  <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
+                    <b className="text-eu-ink">{quote!.bulky.titles.length === 1 ? quote!.bulky.titles[0] : `${quote!.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote!.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote!.bulky.reason?.split(":")[0].toLowerCase()}). {quote!.bulky.titles.length === 1 ? "Το παραδίδει το κατάστημα με ραντεβού, ή το παραλαμβάνεις" : "Τα παραδίδει το κατάστημα με ραντεβού, ή τα παραλαμβάνεις"} από κατάστημα.
+                  </p>
+                )}
                 {ful === "courier" && offers.length > 0 && (
                   <fieldset className="m-0 p-0 border-0 grid gap-2">
                     <legend className="mb-2 font-bold text-eu-ink text-[length:var(--fs-15)]">Courier</legend>

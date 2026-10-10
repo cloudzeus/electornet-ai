@@ -1,5 +1,6 @@
 import "server-only";
 import { carrierOffers, pickCarrier, type CarrierId, type CarrierOffer } from "@/lib/shipping/carriers";
+import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { extEligibleMap } from "@/lib/warranty/server";
 import { EXTENSION_SLUG } from "@/lib/warranty/policy";
 import { randomBytes } from "node:crypto";
@@ -87,6 +88,8 @@ export interface Quote {
   trace: EngineResult["trace"]; freeShippingFrom: number;
   /** οι ενεργοί couriers με το κόστος τους για αυτό το καλάθι, και αυτός που ισχύει (null = κανένας ενεργός → γενικό κόστος) */
   carriers: CarrierOffer[]; carrier: CarrierId | null;
+  /** μεγάλες συσκευές (lib/shipping/bulky): αν επιτρέπεται courier / θυρίδα για όλο το καλάθι και ποια προϊόντα το εμποδίζουν */
+  bulky: { courier: boolean; locker: boolean; reason: string | null; titles: string[] };
   /** για την παραγγελία: ποσά ανά προσφορά */
   engine: EngineResult;
 }
@@ -148,17 +151,23 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
   const goods = engine.total + addons;
   // couriers: ο καθένας με το δικό του κόστος· χωρίς ενεργό courier ισχύει το γενικό κόστος
-  const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom);
+  // μεγάλες συσκευές: χωρίς courier (παράδοση με ραντεβού ή παραλαβή) · θυρίδα μόνο αν χωράνε όλα
+  const limits = await shippingLimits(out.map((l) => l.productId));
+  const blockers = out.filter((l) => limits.get(l.productId)?.courier === false);
+  const bulky = { courier: !blockers.length, locker: !blockers.length && out.every((l) => limits.get(l.productId)?.locker), reason: blockers.length ? limits.get(blockers[0].productId)!.reason : null, titles: blockers.map((l) => l.title) };
+  const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom).map((o) =>
+    !bulky.courier ? { ...o, available: false, reason: "Το καλάθι έχει μεγάλη συσκευή: παράδοση με ραντεβού ή παραλαβή από κατάστημα" }
+    : o.kind === "locker" && !bulky.locker ? { ...o, available: false, reason: "Δεν χωράει σε θυρίδα (έως 20 κιλά, 36 × 45 × 60 εκ.)" } : o);
   const carrier = pickCarrier(carriers, input.carrier);
   const courierFee = carrier ? carrier.fee : goods >= rules.freeFrom ? 0 : rules.fee;
-  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") ? 0 : courierFee;
+  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") || !bulky.courier ? 0 : courierFee;
   const freeShipping = engine.freeShipping && baseShipping > 0 ? { ...engine.freeShipping, saved: baseShipping } : null;
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, carriers, carrier: carrier?.id ?? null, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, carriers, carrier: carrier?.id ?? null, bulky, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

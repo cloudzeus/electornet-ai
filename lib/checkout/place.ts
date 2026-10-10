@@ -67,6 +67,7 @@ export async function placeOrder(input: PlaceInput) {
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
   const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip, email, carrier: input.carrier ?? null }, cart);
   // ο courier που χρεώθηκε· αν ο πελάτης διάλεξε κάποιον που δεν ισχύει (π.χ. ASAP εκτός Αττικής), δεν αλλάζουμε σιωπηλά
+  if (input.fulfilment === "courier" && !q.bulky.courier) return { ok: false as const, error: `${q.bulky.titles[0] ?? "Μια συσκευή"} δεν αποστέλλεται με courier. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
   if (input.fulfilment === "courier" && q.carriers.length && input.carrier && q.carrier !== input.carrier) return { ok: false as const, error: `Ο courier «${carrierDef(input.carrier)?.name ?? input.carrier}» δεν είναι διαθέσιμος για αυτή τη διεύθυνση. Διάλεξε άλλον.`, quote: publicQuote(q) };
   const lockerAt = input.fulfilment === "courier" && carrierDef(q.carrier)?.kind === "locker" ? input.locker ?? null : null;
   const carrier = input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) } : {};
