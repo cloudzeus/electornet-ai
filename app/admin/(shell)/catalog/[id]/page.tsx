@@ -20,6 +20,7 @@ import { ProductStickersAdmin } from "@/components/admin/catalog/ProductStickers
 import { productReadiness, type TabId } from "@/lib/catalog/readiness";
 import { ReadinessBar, WorkspaceTabs, WorkspaceSection as Section, isTab } from "@/components/admin/catalog/ProductWorkspace";
 import { SiteCardPreview } from "@/components/admin/catalog/SiteCardPreview";
+import { SpecSources } from "@/components/admin/catalog/SpecSources";
 import { EnergyLabelPanel } from "@/components/admin/catalog/EnergyLabelPanel";
 import { ArRow } from "@/app/admin/(shell)/ar/ArRow";
 import { arRowDataFor } from "@/lib/ar/admin-row";
@@ -50,7 +51,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
   const canMedia = can(user.permissions, "cms.media.write");
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats] = await Promise.all([
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows] = await Promise.all([
     listProductImages(p.id),
     tab === "content" ? listProductImages(p.id, "banner") : Promise.resolve([]),
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -64,6 +65,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     tab === "commerce" ? productStickers(id).catch(() => []) : Promise.resolve([]),
     getSettings(),
     getArCategories(),
+    tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
   ]);
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow, arCats) : null;
@@ -130,6 +132,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
           {tab === "content" && (<>
             {editor(["texts", "specs"])}
+            <Section title={`Χαρακτηριστικά στο site (${specRows.length})`} hint="Όλα όσα βλέπει ο πελάτης, με την πηγή του καθενός: EPREL (ενεργειακή ετικέτα), ERP (περιγραφή SoftOne), Icecat ή web.">
+              <SpecSources specs={specRows} eprel={p.energy?.eprelRegistrationNumber ?? null} />
+            </Section>
             <Section title="Banners κατασκευαστή & απόδελτίωση" hint={`${bannersShown} ${bannersShown === 1 ? "banner" : "banners"} ως εικόνα${bannersHidden ? ` · ${bannersHidden} κρυμμένα` : ""} · ${sectionCount} ${sectionCount === 1 ? "ενότητα κειμένου" : "ενότητες κειμένου"} στη σελίδα.`}>
               <ProductImages kind="banner" productId={p.id} initial={banners} canWrite={canWrite} canUploadToLibrary={canMedia} embedded />
               {studio && (

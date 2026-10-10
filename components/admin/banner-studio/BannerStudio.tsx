@@ -44,15 +44,15 @@ function Stepper({ step, can, go }: { step: Step; can: (s: Step) => boolean; go:
         const body = (
           <>
             <span key={state} className={`size-9 shrink-0 rounded-full inline-flex items-center justify-center font-extrabold text-[length:var(--fs-15)] ${state !== "next" ? "eu-pop" : ""} ${state === "now" ? "bg-eu-navy text-white ring-4 ring-eu-yellow/60" : state === "done" ? "bg-eu-green text-white" : "bg-eu-surface text-eu-muted"}`}>{state === "done" ? <Check className="size-5" aria-hidden /> : i + 1}</span>
-            <span className="min-w-0 text-left">
-              <span className={`block font-extrabold text-[length:var(--fs-15)] ${state === "next" ? "text-eu-muted" : "text-eu-ink"}`}>{s.t}</span>
-              <span className="block text-eu-muted text-[length:var(--fs-13)] truncate">{s.d}</span>
+            <span className="min-w-0 max-w-full text-center @md:text-left">
+              <span className={`block font-extrabold text-[length:var(--fs-15)] break-words hyphens-auto ${state === "next" ? "text-eu-muted" : "text-eu-ink"}`}>{s.t}</span>
+              <span className="hidden @md:block text-eu-muted text-[length:var(--fs-13)] truncate">{s.d}</span>
             </span>
           </>
         );
         return (
-          <li key={s.k} aria-current={state === "now" ? "step" : undefined}>
-            {clickable ? <button type="button" onClick={() => go(s.k)} className="w-full flex items-center gap-3 rounded-2xl p-2 hover:bg-eu-chip min-h-14">{body}</button> : <div className="flex items-center gap-3 p-2 min-h-14">{body}</div>}
+          <li key={s.k} aria-current={state === "now" ? "step" : undefined} className="min-w-0">
+            {clickable ? <button type="button" onClick={() => go(s.k)} className="w-full flex flex-col @md:flex-row items-center gap-1.5 @md:gap-3 rounded-2xl p-2 hover:bg-eu-chip min-h-14">{body}</button> : <div className="flex flex-col @md:flex-row items-center gap-1.5 @md:gap-3 p-2 min-h-14">{body}</div>}
           </li>
         );
       })}

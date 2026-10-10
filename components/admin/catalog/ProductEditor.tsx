@@ -139,7 +139,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η περιγραφή αυτού του είδους έχει μορφοποίηση HTML. Για να μη χαλάσει, άλλαξε τα χαρακτηριστικά απευθείας στην «Αναλυτική περιγραφή».</p>
         ) : (
           <div className="grid gap-2">
-            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Κάθε γραμμή αλλάζει επί τόπου στην αναλυτική περιγραφή — το υπόλοιπο κείμενο μένει όπως είναι.</p>
+            <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Εδώ αλλάζουν τα χαρακτηριστικά του <b>ERP</b>: κάθε γραμμή αλλάζει επί τόπου στην αναλυτική περιγραφή του SoftOne — το υπόλοιπο κείμενο μένει όπως είναι. Όσα έρχονται από EPREL, Icecat ή web φαίνονται με την πηγή τους στα «Χαρακτηριστικά στο site».</p>
             <ul className="m-0 p-0 list-none grid gap-1.5">
               {rows.map((r) => (
                 <li key={r.line} className="grid gap-1.5 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center rounded-lg bg-eu-surface p-1.5">
