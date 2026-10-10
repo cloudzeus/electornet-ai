@@ -30,6 +30,7 @@ import { buildArModel, arInputOf, arKey } from "@/lib/ar/build";
 import { db } from "@/lib/db";
 import { AR_SERVE_VERSION, primeArLookup } from "@/lib/ar/serve";
 import { arPlan, arVariants } from "@/lib/ar/plan";
+import { getArCategories } from "@/lib/ar/categories";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
@@ -71,8 +72,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const co2 = await getGridFactor().catch(() => null);
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
-  const ar = await db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null);
-  const arP = arPlan(p, ar);
+  const [ar, arCats] = await Promise.all([db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories()]);
+  const arP = arPlan(p, ar, arCats);
   primeArLookup(p.id, { p, ar, plan: arP });
   const arInput = arP.on && arP.dims ? arInputOf(p, arP, ar?.frontImage ?? null) : null;
   const arVersion = arInput ? (ar?.glbUrl ? `c${ar.updatedAt.getTime().toString(36)}-${AR_SERVE_VERSION}-${arP.dims!.w}x${arP.dims!.h}x${arP.dims!.d}` : arKey(arInput)) : "";

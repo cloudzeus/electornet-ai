@@ -82,7 +82,7 @@ const DEFAULT = P("floor", "Μπαίνει στο πάτωμα, με την πρ
 
 type Cat = { category?: string; subcategory?: string; path?: { slug: string }[] };
 /** Από το βαθύτερο προς το γενικότερο: L3 → L2 → L1, και μετά τα πεδία κατηγορίας (για τα demo προϊόντα χωρίς διαδρομή). */
-const slugsOf = (p: Cat) => [...new Set([...(p.path?.map((x) => x.slug).reverse() ?? []), p.subcategory, p.category].filter(Boolean) as string[])];
+export const slugsOf = (p: Cat) => [...new Set([...(p.path?.map((x) => x.slug).reverse() ?? []), p.subcategory, p.category].filter(Boolean) as string[])];
 
 export function profileFor(p: Cat): PlacementProfile {
   for (const s of slugsOf(p)) for (const [re, prof] of RULES) if (re.test(s)) return prof;

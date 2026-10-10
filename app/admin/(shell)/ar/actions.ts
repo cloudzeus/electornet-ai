@@ -8,6 +8,7 @@ import { inspectGlb, autoRotationY } from "@/lib/ar/custom";
 import { dimsFor } from "@/lib/data/dims";
 import { getProductsByIds } from "@/lib/data/repo";
 import { arPlan } from "@/lib/ar/plan";
+import { getArCategories } from "@/lib/ar/categories";
 import { invalidateArIndex } from "@/lib/ar/index";
 import { forgetArLookup } from "@/lib/ar/serve";
 import { readAsset } from "@/lib/ar/serve";
@@ -18,8 +19,8 @@ import { readAsset } from "@/lib/ar/serve";
  * ενεργό αν ήταν αυτόματα ενεργό — αλλιώς μια απλή ρύθμιση θα το έκλεινε, αφού ρητή γραμμή σημαίνει «ισχύει το enabled της».
  */
 async function autoEnabled(productId: string) {
-  const [p] = await getProductsByIds([productId]);
-  return p ? arPlan(p, null).on : false;
+  const [[p], cats] = await Promise.all([getProductsByIds([productId]), getArCategories()]);
+  return p ? arPlan(p, null, cats).on : false;
 }
 
 const paths = (productId: string) => { invalidateArIndex(); forgetArLookup(productId); revalidatePath("/admin/ar"); revalidatePath(`/proion`); };
@@ -103,4 +104,18 @@ export async function rotateArModel(productId: string, delta: 90 | -90) {
   await db.productAr.update({ where: { productId }, data: { rotationY, updatedById: user.id } });
   paths(productId);
   return { ok: true as const, rotationY };
+}
+
+/** Ποιες κατηγορίες συμμετέχουν στο AR (slug → ναι/όχι· ό,τι λείπει = αυτόματο). Ισχύει αμέσως σε site, μοντέλα και λίστα. */
+export async function saveArCategoriesAction(choices: Record<string, boolean>) {
+  const user = await requirePermission("catalog.products.write");
+  const { catalogTree } = await import("@/lib/data/db-catalog");
+  const { saveArCategories } = await import("@/lib/ar/categories");
+  const known = (await catalogTree()).bySlug;
+  const clean = Object.fromEntries(Object.entries(choices).filter(([k, v]) => known.has(k) && typeof v === "boolean"));
+  const prev = await saveArCategories(clean, user.id);
+  await audit(user.id, "ar.categories", "Setting", "ar.categories", prev, clean);
+  invalidateArIndex(); forgetArLookup();
+  revalidatePath("/admin/ar"); revalidatePath("/proion/[slug]", "page");
+  return { ok: true as const, count: Object.keys(clean).length };
 }

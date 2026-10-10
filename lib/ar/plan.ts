@@ -2,7 +2,7 @@ import type { Dims } from "@/lib/data/dims";
 import { dimsFor } from "@/lib/data/dims";
 import type { Product } from "@/lib/data/types";
 import { unifyDims } from "@/lib/catalog/dimensions";
-import { profileFor, surfaceFor, type Bounds, type Surface } from "./placement";
+import { profileFor, slugsOf, surfaceFor, type Bounds, type Surface } from "./placement";
 
 /**
  * Μία απόφαση ανά προϊόν για το «Δες το στον χώρο σου», κοινή για τη σελίδα προϊόντος, τον server των μοντέλων και τη
@@ -33,7 +33,9 @@ export interface ArPlan {
   fix?: string;
   custom: boolean;
 }
-export type ArOffCode = "admin-off" | "none" | "no-tv" | "no-dims" | "category" | "bounds" | "no-image";
+export type ArOffCode = "admin-off" | "cat-off" | "none" | "no-dims" | "bounds" | "no-image";
+/** Επιλογή της διαχείρισης ανά κατηγορία (slug → συμμετέχει ή όχι)· ισχύει η βαθύτερη ρητή επιλογή της διαδρομής. */
+export type ArCats = Record<string, boolean>;
 type ArRow = { enabled: boolean; glbUrl: string | null; placement: string | null } | null;
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -85,6 +87,23 @@ function tvFrom(title: string, d: Dims | null): { dims: Dims; tv: TvSpec; fix?: 
   return { dims: { w: r1(w), h: r1(panelH + standH), d: standD, source: d?.source ?? "specs" }, tv: { panelH, panelD, standH, standD }, fix };
 }
 
+/**
+ * Οι διαστάσεις ΤΟΥ ΠΡΟΪΟΝΤΟΣ για το AR — ποτέ οι τυπικές της κατηγορίας ή μια εκτίμηση από τον τίτλο.
+ * Προϊόν της βάσης: διαχειριστής → ERP → EPREL (`p.dims`). Χωρίς αυτές το προϊόν δεν συμμετέχει στο AR.
+ */
+export function productDims(p: Product): Dims | null {
+  if (p.fromDb) return p.dims ?? null;
+  const d = dimsFor(p);
+  return d && d.source !== "category" ? d : null;
+}
+
+/** Η ρητή επιλογή της διαχείρισης για την κατηγορία του προϊόντος (η βαθύτερη της διαδρομής), αν υπάρχει. */
+export function arCategoryChoice(p: Product, cats: ArCats | null | undefined): { slug: string; name: string; on: boolean } | null {
+  if (!cats) return null;
+  for (const slug of slugsOf(p)) if (typeof cats[slug] === "boolean") return { slug, name: p.path?.find((x) => x.slug === slug)?.name ?? slug, on: cats[slug] };
+  return null;
+}
+
 const GENERIC: Bounds = { w: [1, 250], h: [1, 250], d: [0.5, 250] };
 const within = (x: { w: number; h: number; d: number }, b: Bounds) => AXES.every((a) => x[a] >= b[a][0] && x[a] <= b[a][1]);
 
@@ -102,7 +121,7 @@ function sane(d: Dims, bounds?: Bounds): { dims: Dims; fix?: string } | null {
   return null;
 }
 
-export function arPlan(p: Product, ar: ArRow): ArPlan {
+export function arPlan(p: Product, ar: ArRow, cats?: ArCats | null): ArPlan {
   const prof = profileFor(p);
   const custom = !!ar?.glbUrl;
   const surface = surfaceFor(p, ar?.placement);
@@ -110,15 +129,17 @@ export function arPlan(p: Product, ar: ArRow): ArPlan {
   const base = { surface, alt, hint: prof.hint, custom };
   const off = (code: ArOffCode, reason: string): ArPlan => ({ ...base, on: false, code, reason, dims: null });
   if (ar && !ar.enabled) return off("admin-off", "Κλειστό από τη διαχείριση.");
-  if (!ar && prof.none) return off("none", "Μικρή ή προσωπική συσκευή/αξεσουάρ: χωρίς αυτόματο AR (ανοίγει ρητά από εδώ).");
-  const raw = dimsFor(p);
+  const cat = arCategoryChoice(p, cats);
+  if (cat && !cat.on) return off("cat-off", `Η κατηγορία «${cat.name}» δεν συμμετέχει στο AR (AR → Κατηγορίες).`);
+  if (!ar && !cat && prof.none) return off("none", "Μικρή ή προσωπική συσκευή/αξεσουάρ: χωρίς αυτόματο AR (ανοίγει ρητά από εδώ ή από τις Κατηγορίες).");
+  // κανόνας: χωρίς διαστάσεις του προϊόντος δεν υπάρχει AR — ούτε με τυπικές της κατηγορίας, ούτε από τη διαγώνιο του τίτλου
+  const raw = productDims(p);
+  if (!raw) return off("no-dims", "Χωρίς διαστάσεις προϊόντος — συμπλήρωσέ τες στις Διαστάσεις για να συμμετέχει στο AR.");
   if (prof.archetype === "tv" && !custom) {
-    const t = tvFrom(p.title, raw && raw.source !== "category" ? raw : null);
+    const t = tvFrom(p.title, raw);
     if (t) return { ...base, on: true, dims: t.dims, archetype: "tv", tv: t.tv, fix: t.fix };
-    if (!ar) return off("no-tv", "Δεν βρέθηκαν ούτε διαστάσεις ούτε διαγώνιος τηλεόρασης στον τίτλο.");
+    return off("bounds", `Οι διαστάσεις (${raw.w} × ${raw.h} × ${raw.d} εκ.) δεν ταιριάζουν με τηλεόραση — διόρθωσέ τες στις Διαστάσεις του καταλόγου.`);
   }
-  if (!raw) return off("no-dims", "Χωρίς διαστάσεις.");
-  if (raw.source === "category" && !ar) return off("category", "Μόνο τυπικές διαστάσεις της κατηγορίας — όχι του προϊόντος.");
   const s = sane(raw, prof.bounds);
   if (!s) return off("bounds", `Διαστάσεις εκτός λογικών ορίων (${raw.w} × ${raw.h} × ${raw.d} εκ.) — διόρθωσέ τες στις Διαστάσεις του καταλόγου.`);
   if (!custom && !p.image) return off("no-image", "Χωρίς φωτογραφία για την πρόσοψη.");

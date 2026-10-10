@@ -1,15 +1,14 @@
 import type { ProductAr } from "@prisma/client";
 import type { Product } from "@/lib/data/types";
 import type { ArRowData } from "@/app/admin/(shell)/ar/ArRow";
-import { dimsFor } from "@/lib/data/dims";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { profileFor } from "./placement";
-import { arPlan } from "./plan";
+import { arPlan, productDims, type ArCats } from "./plan";
 
 /** Η γραμμή AR της διαχείρισης για ένα προϊόν — ίδια στη σελίδα AR και στην καρτέλα «Διαστάσεις · AR · EPREL» του προϊόντος. */
-export function arRowDataFor(pr: Product, s: ProductAr | null): ArRowData {
-  const dims = dimsFor(pr);
-  const plan = arPlan(pr, s);
+export function arRowDataFor(pr: Product, s: ProductAr | null, cats?: ArCats | null): ArRowData {
+  const dims = productDims(pr);
+  const plan = arPlan(pr, s, cats);
   const prof = profileFor(pr);
   return {
     id: pr.id, slug: pr.slug, brand: pr.brand, title: pr.title, image: pr.image ?? null, cutout: cutoutFor(pr.image),

@@ -12,6 +12,7 @@ export const AR_SERVE_VERSION = 12;
 import { addFrameToGlb } from "./frame";
 import { anchorOf, isSurface } from "./placement";
 import { arPlan } from "./plan";
+import { getArCategories } from "./categories";
 
 /**
  * Σερβίρισμα μοντέλου AR. Αυτόματα για κάθε προϊόν με πραγματικές διαστάσεις (όχι τυπικές της κατηγορίας)·
@@ -42,8 +43,8 @@ const looked = new Map<string, { at: number; v: Lookup }>();
 async function lookup(id: string): Promise<Lookup> {
   const hit = looked.get(id);
   if (hit && Date.now() - hit.at < 60_000) return hit.v;
-  const [[p], ar] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } })]);
-  const v = { p, ar, plan: p ? arPlan(p, ar) : null };
+  const [[p], ar, cats] = await Promise.all([getProductsByIds([id]), db.productAr.findUnique({ where: { productId: id } }), getArCategories()]);
+  const v = { p, ar, plan: p ? arPlan(p, ar, cats) : null };
   looked.set(id, { at: Date.now(), v });
   if (looked.size > 500) looked.delete(looked.keys().next().value as string);
   return v;
@@ -55,8 +56,8 @@ export function primeArLookup(id: string, v: Lookup) {
 }
 
 /** Μετά από αλλαγή στη διαχείριση: η επόμενη αίτηση ξαναδιαβάζει τη βάση. */
-export function forgetArLookup(id: string) {
-  looked.delete(id);
+export function forgetArLookup(id?: string) {
+  if (id) looked.delete(id); else looked.clear();
 }
 
 export async function serveArModel(req: Request, id: string, kind: "glb" | "usdz") {

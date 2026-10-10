@@ -8,7 +8,7 @@ import { listProductImages } from "@/lib/catalog/product-images";
 import { ProductImages } from "@/components/admin/catalog/ProductImages";
 import { ProductPromos } from "@/components/admin/promos/ProductPromos";
 import { getProductsByIds } from "@/lib/data/repo";
-import { arPlan } from "@/lib/ar/plan";
+import { arPlan, productDims } from "@/lib/ar/plan";
 import { SoftoneRefresh } from "@/components/admin/catalog/SoftoneRefresh";
 import { ProductEditor, type EditorValues } from "@/components/admin/catalog/ProductEditor";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
@@ -23,7 +23,7 @@ import { SiteCardPreview } from "@/components/admin/catalog/SiteCardPreview";
 import { EnergyLabelPanel } from "@/components/admin/catalog/EnergyLabelPanel";
 import { ArRow } from "@/app/admin/(shell)/ar/ArRow";
 import { arRowDataFor } from "@/lib/ar/admin-row";
-import { dimsFor } from "@/lib/data/dims";
+import { getArCategories } from "@/lib/ar/categories";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
 import { getSettings } from "@/lib/cms/settings-server";
@@ -50,7 +50,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
   const canMedia = can(user.permissions, "cms.media.write");
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings] = await Promise.all([
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats] = await Promise.all([
     listProductImages(p.id),
     tab === "content" ? listProductImages(p.id, "banner") : Promise.resolve([]),
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -63,9 +63,10 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     productVideos(id),
     tab === "commerce" ? productStickers(id).catch(() => []) : Promise.resolve([]),
     getSettings(),
+    getArCategories(),
   ]);
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
-  const arPl = shop ? arPlan(shop, arRow) : null;
+  const arPl = shop ? arPlan(shop, arRow, arCats) : null;
   const arFront = arPl?.on && !arPl.custom && arPl.archetype !== "tv" ? { front: arRow?.frontImage ?? null } : undefined;
   const bannersShown = banners.filter((b) => !b.hidden).length, bannersHidden = banners.length - bannersShown;
   const pathNames = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter((x): x is string => !!x);
@@ -80,14 +81,14 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   } : null;
   const readonlyReason = !canErp ? "Μόνο ανάγνωση: χρειάζονται τα δικαιώματα «Επεξεργασία προϊόντων» και «Εκτέλεση συγχρονισμού ERP»." : !writeOn ? "Μόνο ανάγνωση: η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne)." : undefined;
 
-  const arApplies = !!arPl && arPl.code !== "none" && arPl.code !== "category";
+  const arApplies = !!arPl && arPl.code !== "none" && arPl.code !== "cat-off";
   const energyNeeded = hasEnergyLabel(p.category.name);
   const r = productReadiness({
     photos: shown.length,
     mainLowRes: shown[0] ? (shown[0].width != null ? shown[0].lowRes : null) : null,
     description: !!(item?.longDesc?.trim() || item?.shortDesc?.trim() || p.summary?.trim()),
     specs: p._count.specs,
-    dims: { needed: arApplies || fitMatters(pathNames), present: !!(shop && dimsFor(shop)) },
+    dims: { needed: arApplies || fitMatters(pathNames), present: !!(shop && productDims(shop)) },
     energy: { needed: energyNeeded, present: !!p.energy },
     ar: { applies: arApplies, on: !!arPl?.on, reason: arPl?.reason ?? null },
     price: p.price,
@@ -147,7 +148,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             {editor(["dims"])}
             {shop && arApplies && (
               <Section title="Δες το στον χώρο σου (AR)" hint="Το στερεό φτιάχνεται από τις διαστάσεις· η «Όψη AR» (καρτέλα Εικόνες) ντύνει την πρόσοψή του.">
-                <ArRow row={arRowDataFor(shop, arRow)} />
+                <ArRow row={arRowDataFor(shop, arRow, arCats)} />
               </Section>
             )}
             <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />
