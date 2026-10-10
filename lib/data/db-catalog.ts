@@ -54,6 +54,16 @@ export async function catalogTree(): Promise<Tree> {
   treeCache = { roots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
   return treeCache;
 }
+/** Ονόματα των «Set ειδών» και των μελών τους, ανά κύριο είδος (erpCode), για την αναζήτηση. 5′ στη μνήμη· 719 sets. */
+let setIndex: { at: number; rows: { mtrl: string; text: string }[] } | null = null;
+async function setSearchIndex() {
+  if (setIndex && Date.now() - setIndex.at < TTL) return setIndex.rows;
+  const sets = await db.s1Set.findMany({ where: { active: true }, select: { mtrl: true, name: true, code: true, lines: { select: { name: true, code: true, label: true } } } }).catch(() => []);
+  const rows = sets.map((s) => ({ mtrl: String(s.mtrl), text: norm([s.name, s.code, ...s.lines.flatMap((l) => [l.name, l.code ?? "", l.label ?? ""])].join(" ")) }));
+  setIndex = { at: Date.now(), rows };
+  return rows;
+}
+
 /** Μετά από «Προβολή στο κατάστημα» ή ανέβασμα φωτογραφιών. */
 export const resetCatalogCache = () => { treeCache = null; };
 
@@ -257,8 +267,15 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
   const node = t.bySlug.get(f.l3 ?? f.l2 ?? f.l1 ?? "") ?? null;
   const scope: Prisma.ProductWhereInput = { ...LISTED, ...(node ? { categoryId: { in: leafIds(node) } } : {}) };
   const words = f.q ? norm(f.q).split(/\s+/).filter((w) => w.length >= 2) : [];
-  // Ο τίτλος στη βάση έχει τόνους· η αναζήτηση εδώ είναι απλό «περιέχει» ανά λέξη (η σημασιολογική ζει στον Ερμή)
-  const text: Prisma.ProductWhereInput = words.length ? { AND: (f.q ?? "").trim().split(/\s+/).filter((w) => w.length >= 2).map((w) => ({ OR: [{ title: { contains: w, mode: "insensitive" as const } }, { sku: { contains: w, mode: "insensitive" as const } }, { ean: { contains: w } }, { brand: { name: { contains: w, mode: "insensitive" as const } } }] })) } : {};
+  // Ο τίτλος στη βάση έχει τόνους· η αναζήτηση εδώ είναι απλό «περιέχει» ανά λέξη (η σημασιολογική ζει στον Ερμή).
+  // Κάθε λέξη: τίτλος, κωδικός, μοντέλο, EAN, μάρκα — ή το όνομα του «Set ειδών» στο SoftOne / των μελών του
+  // (π.χ. «MX1-EF» υπάρχει μόνο στο όνομα του set «Midea MX1-EF-09RD1 SOLUNAR», όχι στον τίτλο του προϊόντος).
+  const qWords = (f.q ?? "").trim().split(/\s+/).filter((w) => w.length >= 2);
+  const sets = qWords.length ? await setSearchIndex() : [];
+  const text: Prisma.ProductWhereInput = words.length ? { AND: qWords.map((w) => {
+    const viaSet = sets.filter((s) => s.text.includes(norm(w))).map((s) => s.mtrl);
+    return { OR: [{ title: { contains: w, mode: "insensitive" as const } }, { sku: { contains: w, mode: "insensitive" as const } }, { modelCode: { contains: w, mode: "insensitive" as const } }, { ean: { contains: w } }, { brand: { name: { contains: w, mode: "insensitive" as const } } }, ...(viaSet.length ? [{ erpCode: { in: viaSet } }] : [])] };
+  }) } : {};
   const base: Prisma.ProductWhereInput = { AND: [scope, text] };
 
   // Φίλτρα χαρακτηριστικών: μόνο σε επίπεδο τύπου, όπου τα ορίζει το ERP
