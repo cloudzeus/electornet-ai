@@ -78,7 +78,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
           <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">Αποστολές</h1>
           <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τι φεύγει με courier, τι μόνο από κατάστημα και τι χωράει σε θυρίδα — ίδιος κανόνας σε καλάθι, checkout και παραγγελία.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[length:var(--fs-13)]">
+        <div data-help="ship.status" className="flex flex-wrap items-center gap-1.5 text-[length:var(--fs-13)]">
           <span className="font-bold text-eu-ink-2">Ενεργά στο checkout:</span>
           {couriers.length ? couriers.map((c) => <span key={c} className="inline-flex items-center gap-1 rounded-full bg-eu-green/10 text-eu-green font-bold px-2.5 h-8"><Truck className="size-3.5" aria-hidden />{COURIER[c] ?? c}</span>) : <span className="inline-flex items-center gap-1 rounded-full bg-eu-amber/20 text-eu-ink font-bold px-2.5 h-8"><CircleAlert className="size-3.5" aria-hidden />Κανένας courier</span>}
           <span className={`inline-flex items-center gap-1 rounded-full font-bold px-2.5 h-8 ${clickCollect ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}><Store className="size-3.5" aria-hidden />Παραλαβή από κατάστημα{clickCollect ? "" : ": όχι"}</span>
@@ -91,12 +91,12 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
       <div className="grid gap-4 @4xl:grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] items-start">
         {/* ---- οι κανόνες, σε τρία βήματα ---- */}
         <div className="grid gap-3 min-w-0">
-          <Step n={1} title="Μεγάλες συσκευές: μόνο από κατάστημα" help="Αυτές οι κατηγορίες (και οι υποκατηγορίες τους) δεν φεύγουν με courier· ο πελάτης βλέπει «Με ραντεβού» ή «Παραλαβή από κατάστημα».">
+          <Step help-key="ship.store" n={1} title="Μεγάλες συσκευές: μόνο από κατάστημα" help="Αυτές οι κατηγορίες (και οι υποκατηγορίες τους) δεν φεύγουν με courier· ο πελάτης βλέπει «Με ραντεβού» ή «Παραλαβή από κατάστημα».">
             <CatList items={storeList} kind="store" map={map} count={storeIn} canWrite={canWrite} onRemove={(s) => removeFrom(s, "store")} />
             {canWrite && <CatSearch cats={cats} exclude={new Set(storeList.map((c) => c.slug))} covered={(c) => coveredBy(c, storeList)} placeholder="Πρόσθεσε κατηγορία, π.χ. «καταψύκτες»" onPick={(s) => setChoice(s, "store")} />}
           </Step>
 
-          <Step n={2} title="Όρια για όλα τα υπόλοιπα" help="Ό,τι ξεπερνά αυτά τα όρια πάει μόνο από κατάστημα. Βάρος συσκευασίας από τα χαρακτηριστικά ή το ERP· διαστάσεις από το ERP.">
+          <Step help-key="ship.limits" n={2} title="Όρια για όλα τα υπόλοιπα" help="Ό,τι ξεπερνά αυτά τα όρια πάει μόνο από κατάστημα. Βάρος συσκευασίας από τα χαρακτηριστικά ή το ERP· διαστάσεις από το ERP.">
             <div className="grid grid-cols-1 @md:grid-cols-3 gap-2">
               <Num label="Μέγιστο βάρος για courier" unit="κιλά" value={lim.maxKg} disabled={!canWrite} onChange={(v) => setLim((x) => ({ ...x, maxKg: v }))} />
               <Num label="Μεγαλύτερη πλευρά για courier" unit="εκ." value={lim.maxSideCm} disabled={!canWrite} onChange={(v) => setLim((x) => ({ ...x, maxSideCm: v }))} />
@@ -104,7 +104,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
             </div>
           </Step>
 
-          <Step n={3} title="Εξαιρέσεις: πάντα με courier" help="Υποκατηγορίες που φεύγουν με courier ακόμη κι αν η γονική τους είναι «μόνο από κατάστημα» ή ξεπερνούν τα όρια (π.χ. mini bar μέσα στα ψυγεία)." collapsedEmpty={!courierList.length}>
+          <Step help-key="ship.exceptions" n={3} title="Εξαιρέσεις: πάντα με courier" help="Υποκατηγορίες που φεύγουν με courier ακόμη κι αν η γονική τους είναι «μόνο από κατάστημα» ή ξεπερνούν τα όρια (π.χ. mini bar μέσα στα ψυγεία)." collapsedEmpty={!courierList.length}>
             <CatList items={courierList} kind="courier" map={map} count={storeIn} canWrite={canWrite} onRemove={(s) => removeFrom(s, "courier")} />
             {canWrite && <CatSearch cats={cats} exclude={new Set(courierList.map((c) => c.slug))} covered={(c) => coveredBy(c, courierList)} placeholder="Πρόσθεσε εξαίρεση, π.χ. «mini bar»" onPick={(s) => setChoice(s, "courier")} />}
           </Step>
@@ -112,7 +112,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
 
         {/* ---- επίπτωση + έλεγχος προϊόντος ---- */}
         <aside className="grid gap-3 @4xl:sticky @4xl:top-4 min-w-0">
-          <section aria-labelledby="impact-h" className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
+          <section data-help="ship.impact" aria-labelledby="impact-h" className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
             <div className="flex items-center gap-2">
               <h2 id="impact-h" className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)]">Τι σημαίνει για τον κατάλογο</h2>
               {calc && <Loader2 className="size-4 animate-spin text-eu-muted" aria-label="Υπολογισμός" />}
@@ -141,9 +141,9 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
   );
 }
 
-function Step({ n, title, help, children, collapsedEmpty }: { n: number; title: string; help: string; children: React.ReactNode; collapsedEmpty?: boolean }) {
+function Step({ n, title, help, children, collapsedEmpty, "help-key": helpKey }: { "help-key": string; n: number; title: string; help: string; children: React.ReactNode; collapsedEmpty?: boolean }) {
   return (
-    <section aria-labelledby={`step-${n}`} className="rounded-xl border border-eu-line bg-white p-3 grid gap-2.5">
+    <section data-help={helpKey} aria-labelledby={`step-${n}`} className="rounded-xl border border-eu-line bg-white p-3 grid gap-2.5">
       <div className="flex items-start gap-2.5">
         <span className="size-7 shrink-0 grid place-items-center rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)]" aria-hidden>{n}</span>
         <div className="grid min-w-0">
@@ -245,7 +245,7 @@ function ProductCheck({ rules }: { rules: unknown }) {
   }, [q, rules]);
   const shown = q.trim().length < 2 ? null : res;
   return (
-    <section aria-labelledby="check-h" className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
+    <section data-help="ship.check" aria-labelledby="check-h" className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
       <h2 id="check-h" className="m-0 inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-15)]"><PackageSearch className="size-4 text-eu-blue" aria-hidden /> Γιατί πάει έτσι;</h2>
       <label className="relative block">
         <span className="sr-only">Αναζήτηση προϊόντος</span>

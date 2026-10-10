@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { HelpDrawer } from "./help/HelpDrawer";
+import { HelpSpotlight } from "./help/HelpSpotlight";
 import { LogOut, ExternalLink } from "lucide-react";
 import { visibleNav } from "./nav";
 import { getFeatures } from "@/lib/admin/features";
@@ -60,11 +62,16 @@ export async function AdminShell({ user, children, title }: { user: { name?: str
       <div className="min-w-0 flex flex-col">
         <header className="bg-white border-b border-eu-line px-4 @md:px-6 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0"><AdminTitle fallback={title ?? "Διαχείριση"} /></div>
-          <Link href="/" className="shrink-0 inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline min-h-11 whitespace-nowrap">
-            <ExternalLink className="size-4" aria-hidden /><span className="hidden @md:inline">Προβολή site</span>
-          </Link>
+          <div className="shrink-0 flex items-center gap-2">
+            <HelpDrawer />
+            <Link href="/" className="shrink-0 inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline min-h-11 whitespace-nowrap">
+              <ExternalLink className="size-4" aria-hidden /><span className="hidden @md:inline">Προβολή site</span>
+            </Link>
+          </div>
         </header>
         <main className="eu-container min-w-0 p-4 @md:p-6 grid gap-6 content-start">{children}</main>
+        {/* «Δείξε μου» / σημεία βοήθειας / ?help=… πάνω σε κάθε σελίδα */}
+        <Suspense fallback={null}><HelpSpotlight /></Suspense>
       </div>
     </div>
   );

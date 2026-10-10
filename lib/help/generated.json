@@ -1,0 +1,2762 @@
+{
+ "generatedAt": "2026-10-10T23:42:20.482Z",
+ "routes": [
+  {
+   "route": "/admin",
+   "slug": "dashboard",
+   "file": "app/admin/(shell)/page.tsx",
+   "title": "Dashboard",
+   "doc": "Ο πανόπτης της διαχείρισης: ζώνες με components ανά ρόλο, όλα με πραγματικά δεδομένα και πάντα φιλτραρισμένα με τα δικαιώματα του χρήστη. ?role=<ρόλος>: όποιος διαχειρίζεται ρόλους σχεδιάζει την προεπιλογή ενός ρόλου.",
+   "perm": "*",
+   "nav": {
+    "group": "Dashboard",
+    "label": "Dashboard"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "dash.refresh",
+    "dash.cards",
+    "dash.role",
+    "dash.tabs",
+    "dash.card"
+   ],
+   "changes": [
+    {
+     "hash": "369b264",
+     "date": "2026-10-11T02:24:15+03:00",
+     "text": "Μενού διαχείρισης ανά περιοχή εργασίας (Πωλήσεις & πελάτες, Αποστολές, Κατάλογος, Προσφορές & υπηρεσίες, Περιεχόμενο, Marketing & αναφορές, SoftOne ERP, Διαχείριση) που δείχνει μόνο ό,τι είναι ενεργό στις Ρυθμίσεις κα…"
+    },
+    {
+     "hash": "95418fc",
+     "date": "2026-10-11T02:17:12+03:00",
+     "text": "Dashboard ανά ρόλο («πανόπτης»): καρτέλες (Επισκόπηση με τις καρφιτσωμένες κάρτες, Λειτουργία, Πωλήσεις & Προσφορές, Κατάλογος & Περιεχόμενο, Πελάτες, Σύστημα) με μετρητή για ό,τι θέλει ενέργεια"
+    },
+    {
+     "hash": "7594df1",
+     "date": "2026-10-11T01:49:25+03:00",
+     "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
+    },
+    {
+     "hash": "8d80655",
+     "date": "2026-10-04T08:55:35+03:00",
+     "text": "Διαχείριση: συμπαγές dashboard, μικρές φωτογραφίες προϊόντος, grid με δικές του στήλες ξανά σε στήλες"
+    },
+    {
+     "hash": "5ee1b5d",
+     "date": "2026-09-13T18:55:06+03:00",
+     "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
+    },
+    {
+     "hash": "2e479cd",
+     "date": "2026-09-13T12:18:45+03:00",
+     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+    },
+    {
+     "hash": "d73bc06",
+     "date": "2026-09-13T12:11:50+03:00",
+     "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
+    },
+    {
+     "hash": "5e2365e",
+     "date": "2026-09-13T11:31:18+03:00",
+     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
+    },
+    {
+     "hash": "be42963",
+     "date": "2026-09-13T11:21:34+03:00",
+     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
+    }
+   ],
+   "updatedAt": "2026-10-11T02:24:15+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/apostoles",
+   "slug": "apostoles",
+   "file": "app/admin/(shell)/apostoles/page.tsx",
+   "title": "Αποστολές",
+   "doc": "Αποστολές: ποια προϊόντα φεύγουν με courier, ποια μόνο από κατάστημα (μεγάλες συσκευές: ραντεβού ή παραλαβή) και ποια χωράνε σε θυρίδα. Ο ίδιος κανόνας ισχύει στο καλάθι, στο checkout και στην καταχώριση της παραγγελίας.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Αποστολές"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "ship.status",
+    "ship.store",
+    "ship.limits",
+    "ship.exceptions",
+    "ship.impact",
+    "ship.check"
+   ],
+   "changes": [
+    {
+     "hash": "d2b1624",
+     "date": "2026-10-11T02:32:03+03:00",
+     "text": "Αποστολές: από 234 γραμμές κατηγοριών σε τρία βήματα"
+    },
+    {
+     "hash": "8c44bfe",
+     "date": "2026-10-10T13:42:24+03:00",
+     "text": "Μεγάλες συσκευές χωρίς courier: κανόνας ανά κατηγορία (ψυγεία, πλυντήρια, κουζίνες, κλιματιστικά…), βάρος συσκευασίας > 30 κ. ή διάσταση > 150 εκ. → μόνο ραντεβού ή παραλαβή"
+    },
+    {
+     "hash": "0088511",
+     "date": "2026-10-10T10:02:35+03:00",
+     "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
+    }
+   ],
+   "updatedAt": "2026-10-11T02:32:03+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/apostoles/vouchers",
+   "slug": "apostoles.vouchers",
+   "file": "app/admin/(shell)/apostoles/vouchers/page.tsx",
+   "title": "Vouchers · Γενική Ταχυδρομική",
+   "doc": "Vouchers Γενικής Ταχυδρομικής: παραγγελίες courier που περιμένουν voucher, έκδοση (βάρος από τα προϊόντα, αντικαταβολή αν πληρώνεται έτσι), ετικέτες, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας και παρακολούθηση.",
+   "perm": "orders.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Vouchers · Γενική Ταχυδρομική"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "e304c31",
+     "date": "2026-10-10T14:00:00+03:00",
+     "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
+    }
+   ],
+   "updatedAt": "2026-10-10T14:00:00+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/ar",
+   "slug": "ar",
+   "file": "app/admin/(shell)/ar/page.tsx",
+   "title": "AR · Δες το στον χώρο σου",
+   "doc": "Ποια προϊόντα έχουν «Δες το στον χώρο σου» και με τι: τον όγκο που χτίζει η γεννήτρια από ελεγμένες διαστάσεις + φωτογραφία, ή δικό μας μοντέλο GLB (και προαιρετικά USDZ για iPhone). Όλα τα προϊόντα του καταλόγου, με τον λόγο όταν το AR δεν εμφανίζεται (ίδια απόφαση με τη σελίδα προϊόντος — βλ. arPlan).",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "AR · στον χώρο σου"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "b0f496f",
+     "date": "2026-10-10T09:29:44+03:00",
+     "text": "AR: θέση (πάτωμα/έπιπλο/πάγκος/τοίχος) ανά κατηγορία"
+    },
+    {
+     "hash": "d3615a8",
+     "date": "2026-10-10T09:25:07+03:00",
+     "text": "AR διαχείριση: συμπαγείς γραμμές με κατάσταση και διακόπτη, ρυθμίσεις σε ανάπτυξη (επιφάνεια με εικονίδια, πρόσοψη από μικρογραφίες, 3D μοντέλο χωριστά), πλακίδια-φίλτρα"
+    },
+    {
+     "hash": "d955445",
+     "date": "2026-10-10T09:17:44+03:00",
+     "text": "AR: χωρίς διαστάσεις προϊόντος δεν υπάρχει AR (ούτε τυπικές κατηγορίας ή διαγώνιος τίτλου) + επιλογή κατηγοριών που συμμετέχουν από τη διαχείριση"
+    },
+    {
+     "hash": "5cbaff8",
+     "date": "2026-10-10T09:11:55+03:00",
+     "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας"
+    },
+    {
+     "hash": "bdcfc76",
+     "date": "2026-10-10T09:03:18+03:00",
+     "text": "AR: η γραμμή της διαχείρισης ως κοινή συνάρτηση (arRowDataFor), για χρήση και στη σελίδα προϊόντος"
+    },
+    {
+     "hash": "7ecfe1d",
+     "date": "2026-10-08T10:19:04+03:00",
+     "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
+    },
+    {
+     "hash": "b36bcf9",
+     "date": "2026-10-08T10:13:04+03:00",
+     "text": "AR: πάντα συμπαγές στερεό διαστάσεων με την πρόσοψη που διαλέγει ο διαχειριστής"
+    },
+    {
+     "hash": "6e4a0ae",
+     "date": "2026-10-04T09:02:29+03:00",
+     "text": "Φωτογραφίες προϊόντος: επιλογή «Όψη AR» για την πρόσοψη του στερεού"
+    },
+    {
+     "hash": "655290d",
+     "date": "2026-10-03T20:00:07+03:00",
+     "text": "AR διαχείριση: όλα τα προϊόντα του καταλόγου με τον λόγο όταν δεν έχουν AR, φίλτρα, κάρτες χωρίς οριζόντια κύλιση"
+    },
+    {
+     "hash": "9ad2f5b",
+     "date": "2026-10-03T12:42:14+03:00",
+     "text": "AR: προφίλ τοποθέτησης ανά κατηγορία + τηλεόραση ως πάνελ με/χωρίς βάση"
+    }
+   ],
+   "updatedAt": "2026-10-10T09:29:44+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/audit",
+   "slug": "audit",
+   "file": "app/admin/(shell)/audit/page.tsx",
+   "title": "Audit log",
+   "doc": "Who changed what, when. Before/after JSON expandable per row.",
+   "perm": "audit.read",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Audit log"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "e8cc364",
+     "date": "2026-09-14T16:15:12+03:00",
+     "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
+    },
+    {
+     "hash": "be42963",
+     "date": "2026-09-13T11:21:34+03:00",
+     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
+    }
+   ],
+   "updatedAt": "2026-09-14T16:15:12+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/backups",
+   "slug": "backups",
+   "file": "app/admin/(shell)/backups/page.tsx",
+   "title": "Backups βάσης",
+   "doc": "Super admin: daily database backups to Bunny Storage — history, download, run now, setup checklist.",
+   "perm": "super-admin",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Backups βάσης"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "809cea7",
+     "date": "2026-09-13T17:09:18+03:00",
+     "text": "Backups page: no page-level overflow, compact last-backup tile"
+    },
+    {
+     "hash": "8ba727d",
+     "date": "2026-09-13T17:08:24+03:00",
+     "text": "Backups page: wrap long commands, responsive stat tiles"
+    },
+    {
+     "hash": "8452b06",
+     "date": "2026-09-13T17:07:23+03:00",
+     "text": "Daily database backups to Bunny Storage: pg_dump -Fc → AES-256 (BACKUP_PASSPHRASE) → storage zone (dedicated or _backups/), retention pruning, BackupRun history, cron route, CLI script, super-admin page with run-now a…"
+    }
+   ],
+   "updatedAt": "2026-09-13T17:09:18+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog",
+   "slug": "catalog",
+   "file": "app/admin/(shell)/catalog/page.tsx",
+   "title": "Κατάλογος",
+   "doc": "Τα προϊόντα του καταστήματος (προβολή του SoftOne). Από εδώ ανοίγει η καρτέλα κάθε προϊόντος για τις φωτογραφίες του.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Προϊόντα"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "a234171",
+     "date": "2026-10-10T10:43:51+03:00",
+     "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
+    },
+    {
+     "hash": "2666dd2",
+     "date": "2026-10-10T09:02:18+03:00",
+     "text": "EPREL: αναζήτηση για ένα προϊόν (ίδια λογική με τη μαζική) + server action"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "a893d41",
+     "date": "2026-10-04T11:10:48+03:00",
+     "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
+    },
+    {
+     "hash": "8a5a468",
+     "date": "2026-10-04T09:27:41+03:00",
+     "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
+    },
+    {
+     "hash": "413b738",
+     "date": "2026-10-04T09:19:04+03:00",
+     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
+    },
+    {
+     "hash": "1d4d3a7",
+     "date": "2026-10-04T09:05:45+03:00",
+     "text": "Καρτέλα προϊόντος: «Ενημέρωση από SoftOne»"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    },
+    {
+     "hash": "5cc8436",
+     "date": "2026-09-27T11:27:32+03:00",
+     "text": "Εργαλείο απόδελτίωσης banners: OCR + ανάλυση διάταξης → κείμενο και καθαρές φωτογραφίες στη σελίδα προϊόντος"
+    },
+    {
+     "hash": "7802c57",
+     "date": "2026-09-21T13:03:56+03:00",
+     "text": "Βιτρίνα από τη βάση (βήμα 1): κατηγορίες, λίστες, φίλτρα, αναζήτηση, μάρκες και σελίδα προϊόντος από την προβολή του SoftOne"
+    }
+   ],
+   "updatedAt": "2026-10-10T10:43:51+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/[id]",
+   "slug": "catalog.id",
+   "file": "app/admin/(shell)/catalog/[id]/page.tsx",
+   "title": "[id]",
+   "doc": "Χώρος εργασίας ενός προϊόντος: κεφαλίδα με την ετοιμότητα για το site (κάθε έλλειψη ανοίγει την καρτέλα που τη διορθώνει), πέντε καρτέλες (`?tab=`) με τη σειρά της δουλειάς και η κάρτα όπως στο site. Αποδίδεται μόνο η ενεργή καρτέλα.",
+   "perm": "catalog.products.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "6b98982",
+     "date": "2026-10-10T10:59:05+03:00",
+     "text": "Bundles: αυτόματη πρόταση «Εσωτερική / Εξωτερική μονάδα» για τα κλιματιστικά (κωδικοί ERP και κατασκευαστών, 771/786 μέλη), στο «Περιλαμβάνει» όταν δεν έχει οριστεί όνομα"
+    },
+    {
+     "hash": "a234171",
+     "date": "2026-10-10T10:43:51+03:00",
+     "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
+    },
+    {
+     "hash": "87d1452",
+     "date": "2026-10-10T09:44:26+03:00",
+     "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό"
+    },
+    {
+     "hash": "53c720d",
+     "date": "2026-10-10T09:41:08+03:00",
+     "text": "EPREL: η ενεργειακή ετικέτα ως τελευταία φωτογραφία στα προϊόντα που βρέθηκαν (στο ταίριασμα + μαζικά), πάντα τελευταία, εκτός AR και μετρήσεων"
+    },
+    {
+     "hash": "d3615a8",
+     "date": "2026-10-10T09:25:07+03:00",
+     "text": "AR διαχείριση: συμπαγείς γραμμές με κατάσταση και διακόπτη, ρυθμίσεις σε ανάπτυξη (επιφάνεια με εικονίδια, πρόσοψη από μικρογραφίες, 3D μοντέλο χωριστά), πλακίδια-φίλτρα"
+    },
+    {
+     "hash": "d955445",
+     "date": "2026-10-10T09:17:44+03:00",
+     "text": "AR: χωρίς διαστάσεις προϊόντος δεν υπάρχει AR (ούτε τυπικές κατηγορίας ή διαγώνιος τίτλου) + επιλογή κατηγοριών που συμμετέχουν από τη διαχείριση"
+    },
+    {
+     "hash": "75e0c5c",
+     "date": "2026-10-10T09:11:05+03:00",
+     "text": "Σελίδα προϊόντος: χώρος εργασίας με ετοιμότητα, 5 καρτέλες (?tab=), κάρτα όπως στο site και ενεργειακή ετικέτα με αναζήτηση EPREL"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "a893d41",
+     "date": "2026-10-04T11:10:48+03:00",
+     "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
+    },
+    {
+     "hash": "8a5a468",
+     "date": "2026-10-04T09:27:41+03:00",
+     "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
+    }
+   ],
+   "updatedAt": "2026-10-10T10:59:05+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/[id]/banners",
+   "slug": "catalog.id.banners",
+   "file": "app/admin/(shell)/catalog/[id]/banners/page.tsx",
+   "title": "Απόδελτίωση banners",
+   "doc": "Εργαλείο απόδελτίωσης για ένα προϊόν: banners → κείμενο + φωτογραφίες → ενότητες της σελίδας (και μέσα στην καρτέλα προϊόντος).",
+   "perm": "catalog.products.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8a5a468",
+     "date": "2026-10-04T09:27:41+03:00",
+     "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
+    },
+    {
+     "hash": "5cc8436",
+     "date": "2026-09-27T11:27:32+03:00",
+     "text": "Εργαλείο απόδελτίωσης banners: OCR + ανάλυση διάταξης → κείμενο και καθαρές φωτογραφίες στη σελίδα προϊόντος"
+    }
+   ],
+   "updatedAt": "2026-10-04T09:27:41+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/banners",
+   "slug": "catalog.banners",
+   "file": "app/admin/(shell)/catalog/banners/page.tsx",
+   "title": "Απόδελτίωση banners",
+   "doc": "Λίστα εργασίας: ποια προϊόντα έχουν ακόμη banners-εικόνες στη σελίδα τους, με σειρά προτεραιότητας (απόθεμα, τιμή). Από εδώ ο καταχωριστής πηγαίνει από προϊόν σε προϊόν — στο τέλος κάθε δημοσίευσης το εργαλείο προτείνει το επόμενο.",
+   "perm": "catalog.products.write",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Απόδελτίωση banners"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5cbaff8",
+     "date": "2026-10-10T09:11:55+03:00",
+     "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας"
+    },
+    {
+     "hash": "ad3d768",
+     "date": "2026-09-27T16:35:29+03:00",
+     "text": "Απόδελτίωση: τίποτα στο site χωρίς έγκριση, καθαρές εικόνες, σωστά κομμένα εικονίδια"
+    },
+    {
+     "hash": "a2d041b",
+     "date": "2026-09-27T12:00:03+03:00",
+     "text": "Απόδελτίωση σε όλα τα banners, με σχεδιαστή σελίδας AI"
+    },
+    {
+     "hash": "bace5b8",
+     "date": "2026-09-27T11:39:44+03:00",
+     "text": "Απόδελτίωση banners: κίνηση που εξηγεί τι συμβαίνει"
+    },
+    {
+     "hash": "5cc8436",
+     "date": "2026-09-27T11:27:32+03:00",
+     "text": "Εργαλείο απόδελτίωσης banners: OCR + ανάλυση διάταξης → κείμενο και καθαρές φωτογραφίες στη σελίδα προϊόντος"
+    }
+   ],
+   "updatedAt": "2026-10-10T09:11:55+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/dimensions",
+   "slug": "catalog.dimensions",
+   "file": "app/admin/(shell)/catalog/dimensions/page.tsx",
+   "title": "Διαστάσεις & EPREL",
+   "doc": "Διαστάσεις για το AR: τι λέει η περιγραφή του ERP, τι δηλώνει ο κατασκευαστής στο EPREL, και πού διαφωνούν.",
+   "perm": "catalog.products.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5cbaff8",
+     "date": "2026-10-10T09:11:55+03:00",
+     "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας"
+    },
+    {
+     "hash": "dfb300b",
+     "date": "2026-09-21T11:56:45+03:00",
+     "text": "Διαστάσεις για το AR από το ERP και αντιστοίχιση προϊόντων με το EPREL"
+    }
+   ],
+   "updatedAt": "2026-10-10T09:11:55+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/sets",
+   "slug": "catalog.sets",
+   "file": "app/admin/(shell)/catalog/sets/page.tsx",
+   "title": "Bundles · sets",
+   "doc": "Προϊόντα που πουλιούνται μαζί με άλλα είδη — στο SoftOne «Set ειδών» (π.χ. κλιματιστικό = εσωτερική + εξωτερική μονάδα). Μόνο ανάγνωση από το ERP· εδώ ελέγχεις μέλη και απόθεμα (το set είναι διαθέσιμο όσο φτάνουν όλα τα μέλη) και ορίζεις πώς φαίνεται κάθε μέλος στο «Περιλαμβάνει» της σελίδας του προϊόντος.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Bundles · sets"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "6b98982",
+     "date": "2026-10-10T10:59:05+03:00",
+     "text": "Bundles: αυτόματη πρόταση «Εσωτερική / Εξωτερική μονάδα» για τα κλιματιστικά (κωδικοί ERP και κατασκευαστών, 771/786 μέλη), στο «Περιλαμβάνει» όταν δεν έχει οριστεί όνομα"
+    },
+    {
+     "hash": "5b1f69f",
+     "date": "2026-10-10T10:54:31+03:00",
+     "text": "Bundles: διάκριση «εξαρτήματα» / «με δώρο» (το δώρο δεν αλλάζει τη διαθεσιμότητα, ούτε μπαίνει στο «Περιλαμβάνει»), καλύτερο set όταν ένα προϊόν έχει πολλά, μαζική ανάγνωση (6 s αντί 270 s)"
+    },
+    {
+     "hash": "a234171",
+     "date": "2026-10-10T10:43:51+03:00",
+     "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
+    }
+   ],
+   "updatedAt": "2026-10-10T10:59:05+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/templates",
+   "slug": "catalog.templates",
+   "file": "app/admin/(shell)/catalog/templates/page.tsx",
+   "title": "Templates & εισαγωγή excel",
+   "doc": "Templates excel προς τους προμηθευτές (ανά μάρκα, ένα φύλλο ανά κατηγορία) και μαζική εισαγωγή προϊόντων από αυτά.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Templates & excel"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "35847e8",
+     "date": "2026-10-04T10:54:52+03:00",
+     "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
+    }
+   ],
+   "updatedAt": "2026-10-04T10:54:52+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/brand-stores",
+   "slug": "cms.brand-stores",
+   "file": "app/admin/(shell)/cms/brand-stores/page.tsx",
+   "title": "Σελίδες μαρκών",
+   "doc": "",
+   "perm": "cms.brandstores.write",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Σελίδες μαρκών"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "7594df1",
+     "date": "2026-10-11T01:49:25+03:00",
+     "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
+    },
+    {
+     "hash": "7fa3685",
+     "date": "2026-10-10T20:58:19+03:00",
+     "text": "Ζώνες αρχικής, πιο εύκολη και γρήγορη διαχείριση: πιο καθαρός χάρτης (μία γραμμή, κείμενο μόνο όταν κάτι διαφέρει) με σημάδια για κενές ζώνες, λήξεις και ελέγχους"
+    },
+    {
+     "hash": "412bc4a",
+     "date": "2026-10-03T14:02:22+03:00",
+     "text": "Συλλογή components με δείγματα, 9 νέα components (προσφορές & σελίδες), ορατότητα ανά συσκευή"
+    },
+    {
+     "hash": "f45b6e8",
+     "date": "2026-10-03T11:26:48+03:00",
+     "text": "Λογότυπα μαρκών: αυτόματη περικοπή & ομοιόμορφο μέγεθος, λογότυπα στις κάρτες /brands"
+    },
+    {
+     "hash": "a9ad4f9",
+     "date": "2026-10-03T09:54:14+03:00",
+     "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
+    },
+    {
+     "hash": "c29d3ad",
+     "date": "2026-10-03T09:31:57+03:00",
+     "text": "Σελίδες μαρκών: δυναμικές από τη βάση + εργαλείο διαχείρισης, στυλ από το επίσημο site, 9 νέα components σε ζώνες"
+    }
+   ],
+   "updatedAt": "2026-10-11T01:49:25+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/brand-stores/[slug]",
+   "slug": "cms.brand-stores.slug",
+   "file": "app/admin/(shell)/cms/brand-stores/[slug]/page.tsx",
+   "title": "[slug]",
+   "doc": "",
+   "perm": "cms.brandstores.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "editor.undo",
+    "editor.more",
+    "editor.publish",
+    "editor.map",
+    "editor.add",
+    "editor.inspector",
+    "editor.preview"
+   ],
+   "changes": [
+    {
+     "hash": "7594df1",
+     "date": "2026-10-11T01:49:25+03:00",
+     "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
+    },
+    {
+     "hash": "f45b6e8",
+     "date": "2026-10-03T11:26:48+03:00",
+     "text": "Λογότυπα μαρκών: αυτόματη περικοπή & ομοιόμορφο μέγεθος, λογότυπα στις κάρτες /brands"
+    },
+    {
+     "hash": "a9ad4f9",
+     "date": "2026-10-03T09:54:14+03:00",
+     "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
+    },
+    {
+     "hash": "c29d3ad",
+     "date": "2026-10-03T09:31:57+03:00",
+     "text": "Σελίδες μαρκών: δυναμικές από τη βάση + εργαλείο διαχείρισης, στυλ από το επίσημο site, 9 νέα components σε ζώνες"
+    }
+   ],
+   "updatedAt": "2026-10-11T01:49:25+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/components",
+   "slug": "cms.components",
+   "file": "app/admin/(shell)/cms/components/page.tsx",
+   "title": "Συλλογή components",
+   "doc": "",
+   "perm": "*",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Συλλογή components"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "412bc4a",
+     "date": "2026-10-03T14:02:22+03:00",
+     "text": "Συλλογή components με δείγματα, 9 νέα components (προσφορές & σελίδες), ορατότητα ανά συσκευή"
+    }
+   ],
+   "updatedAt": "2026-10-03T14:02:22+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/copy",
+   "slug": "cms.copy",
+   "file": "app/admin/(shell)/cms/copy/page.tsx",
+   "title": "Κείμενα UI",
+   "doc": "",
+   "perm": "cms.copy.write",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Κείμενα UI"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "2ccbb67",
+     "date": "2026-10-03T15:15:40+03:00",
+     "text": "Κείμενα UI: αναζήτηση, επεξεργασία με πρόχειρο → δημοσίευση, αλλαγμένα, επαναφορά στο αρχικό"
+    }
+   ],
+   "updatedAt": "2026-10-03T15:15:40+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/home",
+   "slug": "cms.home",
+   "file": "app/admin/(shell)/cms/home/page.tsx",
+   "title": "Ζώνες αρχικής",
+   "doc": "Η αρχική σελίδα: ενότητες (σειρά, απόκρυψη, ημερομηνίες, συσκευές, κοινό, κείμενα) και components ανάμεσά τους.",
+   "perm": "cms.zones.read",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Ζώνες αρχικής"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "editor.undo",
+    "editor.more",
+    "editor.publish",
+    "editor.map",
+    "editor.add",
+    "editor.inspector",
+    "editor.preview"
+   ],
+   "changes": [
+    {
+     "hash": "7594df1",
+     "date": "2026-10-11T01:49:25+03:00",
+     "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
+    },
+    {
+     "hash": "7fa3685",
+     "date": "2026-10-10T20:58:19+03:00",
+     "text": "Ζώνες αρχικής, πιο εύκολη και γρήγορη διαχείριση: πιο καθαρός χάρτης (μία γραμμή, κείμενο μόνο όταν κάτι διαφέρει) με σημάδια για κενές ζώνες, λήξεις και ελέγχους"
+    },
+    {
+     "hash": "14626d3",
+     "date": "2026-10-10T20:18:36+03:00",
+     "text": "Οδηγοί αγοράς στην αρχική: δύο λίστες μέσα στην ενότητα (έξυπνοι οδηγοί της σκούρας ζώνης, άρθρα οδηγών) με σύρσιμο ή βέλη για τη σειρά, μάτι για ορατό/κρυφό (μένει αποθηκευμένο), αρίθμηση ορατών"
+    },
+    {
+     "hash": "2c989af",
+     "date": "2026-10-10T20:10:24+03:00",
+     "text": "Καμπάνιες κατασκευαστών: γραμμές με μικρογραφία, σύρσιμο ή βέλη για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη), άνοιγμα για επεξεργασία"
+    },
+    {
+     "hash": "f564624",
+     "date": "2026-10-10T19:54:40+03:00",
+     "text": "Αρχική → Υπηρεσίες: όλες οι υπηρεσίες σε λίστα μέσα στην ενότητα, σύρσιμο ή βέλη για τη σειρά στην αρχική, μάτι για ορατή/κρυφή, μετρητής ορατών (προτείνονται 3/6/9), σύνδεσμος προς Εμπόριο → Υπηρεσίες"
+    },
+    {
+     "hash": "dba0ffb",
+     "date": "2026-10-10T19:17:48+03:00",
+     "text": "Κίτρινο ticker: κάθε μήνυμα σε δικό του μεγάλο πεδίο, σύρσιμο ή βέλη για σειρά, διακόπτης ενεργό/ανενεργό (μένει αποθηκευμένο), μετρητής χαρακτήρων με σύσταση έως 60, «Νέο μήνυμα»"
+    },
+    {
+     "hash": "4374916",
+     "date": "2026-10-10T19:13:34+03:00",
+     "text": "Προσφορές της εβδομάδας: η επιλογή προϊόντων γίνεται η κύρια («Διαλέγω τα προϊόντα», προτείνεται)"
+    },
+    {
+     "hash": "27b8d4d",
+     "date": "2026-10-10T19:04:21+03:00",
+     "text": "Αρχική: «Προσφορές της εβδομάδας» με πραγματικά δεδομένα"
+    },
+    {
+     "hash": "5eba8ac",
+     "date": "2026-10-10T18:56:31+03:00",
+     "text": "Αρχική: πλέγμα κατηγοριών από τον πραγματικό κατάλογο (σύρσιμο για σειρά, ορατή/κρυφή, ★ τονισμένη, δικός μας τίτλος/κείμενο, προσθήκη με αναζήτηση, πραγματικά πλήθη, τίτλος «σε Ν κατηγορίες»)"
+    },
+    {
+     "hash": "0be31ba",
+     "date": "2026-10-10T14:56:01+03:00",
+     "text": "Ζώνες αρχικής: νέος, πολύ πιο απλός editor (μοτίβο theme editor)"
+    }
+   ],
+   "updatedAt": "2026-10-11T01:49:25+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/pages",
+   "slug": "cms.pages",
+   "file": "app/admin/(shell)/cms/pages/page.tsx",
+   "title": "Ζώνες σελίδων",
+   "doc": "",
+   "perm": "cms.pages.write",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Ζώνες σελίδων"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "a9ad4f9",
+     "date": "2026-10-03T09:54:14+03:00",
+     "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
+    }
+   ],
+   "updatedAt": "2026-10-03T09:54:14+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/pages/[key]",
+   "slug": "cms.pages.key",
+   "file": "app/admin/(shell)/cms/pages/[key]/page.tsx",
+   "title": "[key]",
+   "doc": "",
+   "perm": "cms.pages.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "a9ad4f9",
+     "date": "2026-10-03T09:54:14+03:00",
+     "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
+    }
+   ],
+   "updatedAt": "2026-10-03T09:54:14+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/cms/slides",
+   "slug": "cms.slides",
+   "file": "app/admin/(shell)/cms/slides/page.tsx",
+   "title": "Hero slides",
+   "doc": "Τα slides του hero της αρχικής: πρόχειρο → δημοσίευση, ημερομηνίες ανά slide, ζωντανή προεπισκόπηση.",
+   "perm": "cms.slides.write",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Hero slides"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "0270e43",
+     "date": "2026-10-09T18:39:10+03:00",
+     "text": "Hero: χωρίς flickering ανάμεσα στα slides, πλακίδια που γεμίζουν σωστά τον χώρο σε κάθε οθόνη"
+    },
+    {
+     "hash": "429229c",
+     "date": "2026-10-09T18:29:32+03:00",
+     "text": "Hero slides: ενότητες «Προσφορά ημέρας» (προϊόν ανά ημέρα για 14 ημέρες) και «Υπηρεσίες» (επιλογή και σειρά) στον επεξεργαστή"
+    },
+    {
+     "hash": "d8d149c",
+     "date": "2026-10-09T18:18:31+03:00",
+     "text": "Hero slides: απλούστερος επεξεργαστής"
+    },
+    {
+     "hash": "bf927aa",
+     "date": "2026-10-09T18:08:19+03:00",
+     "text": "Hero slides: επεξεργαστής με πρόχειρο/δημοσίευση, κατάσταση ανά slide και ζωντανή προεπισκόπηση"
+    },
+    {
+     "hash": "788fa25",
+     "date": "2026-10-09T18:07:39+03:00",
+     "text": "Hero slides: server actions (αποθήκευση, δημοσίευση με επικύρωση, επαναφορά, αναζήτηση προϊόντων)"
+    }
+   ],
+   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/customers",
+   "slug": "customers",
+   "file": "app/admin/(shell)/customers/page.tsx",
+   "title": "Πελάτες",
+   "doc": "Retail customers: search, filters, ERP link state.",
+   "perm": "customers.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Πελάτες"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "ebc995f",
+     "date": "2026-10-04T15:58:38+03:00",
+     "text": "Πελάτες: ταξινόμηση από τις κεφαλίδες του πίνακα (όνομα, επικοινωνία, ΑΦΜ, αγορές, πόντοι, κατάστημα, κατάσταση)"
+    },
+    {
+     "hash": "f05f643",
+     "date": "2026-10-04T12:02:48+03:00",
+     "text": "Πελάτες: εισαγωγή από το nopCommerce (Excel / XML / newsletter CSV) με διασταύρωση"
+    },
+    {
+     "hash": "55460cd",
+     "date": "2026-10-04T11:35:35+03:00",
+     "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
+    },
+    {
+     "hash": "e8cc364",
+     "date": "2026-09-14T16:15:12+03:00",
+     "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
+    },
+    {
+     "hash": "ea5bca6",
+     "date": "2026-09-13T14:22:27+03:00",
+     "text": "Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin …"
+    },
+    {
+     "hash": "b5e568f",
+     "date": "2026-09-13T14:02:50+03:00",
+     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
+    },
+    {
+     "hash": "746f971",
+     "date": "2026-09-13T13:55:32+03:00",
+     "text": "Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer …"
+    },
+    {
+     "hash": "dd5e47e",
+     "date": "2026-09-13T13:46:07+03:00",
+     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
+    }
+   ],
+   "updatedAt": "2026-10-04T15:58:38+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/customers/[id]",
+   "slug": "customers.id",
+   "file": "app/admin/(shell)/customers/[id]/page.tsx",
+   "title": "Πελάτης",
+   "doc": "",
+   "perm": "customers.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "55460cd",
+     "date": "2026-10-04T11:35:35+03:00",
+     "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
+    },
+    {
+     "hash": "b5e568f",
+     "date": "2026-09-13T14:02:50+03:00",
+     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
+    },
+    {
+     "hash": "dd5e47e",
+     "date": "2026-09-13T13:46:07+03:00",
+     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
+    }
+   ],
+   "updatedAt": "2026-10-04T11:35:35+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/customers/[id]/consent-proof",
+   "slug": "customers.id.consent-proof",
+   "file": "app/admin/(shell)/customers/[id]/consent-proof/page.tsx",
+   "title": "Απόδειξη συναίνεσης",
+   "doc": "Print-ready evidence bundle for the DPA: identity, every consent decision with device/IP proof, the wordings shown, logins.",
+   "perm": "customers.export",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "dd5e47e",
+     "date": "2026-09-13T13:46:07+03:00",
+     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
+    }
+   ],
+   "updatedAt": "2026-09-13T13:46:07+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/customers/import",
+   "slug": "customers.import",
+   "file": "app/admin/(shell)/customers/import/page.tsx",
+   "title": "Εισαγωγή από nopCommerce",
+   "doc": "",
+   "perm": "customers.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "f05f643",
+     "date": "2026-10-04T12:02:48+03:00",
+     "text": "Πελάτες: εισαγωγή από το nopCommerce (Excel / XML / newsletter CSV) με διασταύρωση"
+    }
+   ],
+   "updatedAt": "2026-10-04T12:02:48+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/emails",
+   "slug": "emails",
+   "file": "app/admin/(shell)/emails/page.tsx",
+   "title": "Emails πελατών",
+   "doc": "Every customer email, grouped by job, with a live thumbnail rendered from its sample data.",
+   "perm": "marketing.emails.write",
+   "nav": {
+    "group": "Marketing & αναφορές",
+    "label": "Emails πελατών"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "40e4e9d",
+     "date": "2026-09-13T14:16:33+03:00",
+     "text": "Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typ…"
+    }
+   ],
+   "updatedAt": "2026-09-13T14:16:33+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/emails/[key]",
+   "slug": "emails.key",
+   "file": "app/admin/(shell)/emails/[key]/page.tsx",
+   "title": "[key]",
+   "doc": "",
+   "perm": "marketing.emails.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "40e4e9d",
+     "date": "2026-09-13T14:16:33+03:00",
+     "text": "Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typ…"
+    }
+   ],
+   "updatedAt": "2026-09-13T14:16:33+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/epektasi-eggyisis",
+   "slug": "epektasi-eggyisis",
+   "file": "app/admin/(shell)/epektasi-eggyisis/page.tsx",
+   "title": "Επέκταση εγγύησης",
+   "doc": "Επέκταση εγγύησης +2 έτη: δωρεάν στα είδη με CCCWARRANTY (SoftOne), επί πληρωμή στα υπόλοιπα με τις κλίμακες αυτής της σελίδας. Οι πελάτες την αγοράζουν από «Οι συσκευές μου» όσο η εγγύηση είναι σε ισχύ, και λαμβάνουν υπενθύμιση με email 60 ημέρες πριν τη λήξη.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Προσφορές & υπηρεσίες",
+    "label": "Επέκταση εγγύησης"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "639d1fa",
+     "date": "2026-10-10T13:27:32+03:00",
+     "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…"
+    },
+    {
+     "hash": "964f9be",
+     "date": "2026-10-10T12:59:25+03:00",
+     "text": "Επέκταση εγγύησης επί πληρωμή: ενεργές εγγυήσεις αγορών Euronics χωρίς επέκταση → +2 έτη με πληρωμή Viva από «Οι συσκευές μου» (CCCWARRANTY παραμένει δωρεάν)"
+    }
+   ],
+   "updatedAt": "2026-10-10T13:27:32+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/eprel",
+   "slug": "eprel",
+   "file": "app/admin/(shell)/eprel/page.tsx",
+   "title": "EPREL · ενεργειακές ετικέτες",
+   "doc": "EPREL: το ευρωπαϊκό μητρώο ενεργειακής σήμανσης. Από εδώ φέρνουμε για κάθε μοντέλο που πουλάμε την επίσημη ετικέτα, το δελτίο πληροφοριών και όλα τα τεχνικά που δήλωσε ο κατασκευαστής — και τα κρατάμε στη δική μας βάση και CDN.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Ενεργειακές ετικέτες (EPREL)"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "4fb66e4",
+     "date": "2026-09-16T19:24:24+03:00",
+     "text": "EPREL: μοντέλα και server-side ολοκλήρωση"
+    }
+   ],
+   "updatedAt": "2026-09-16T19:24:24+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/gdpr",
+   "slug": "gdpr",
+   "file": "app/admin/(shell)/gdpr/page.tsx",
+   "title": "GDPR",
+   "doc": "",
+   "perm": "customers.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "GDPR"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "dd5e47e",
+     "date": "2026-09-13T13:46:07+03:00",
+     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
+    }
+   ],
+   "updatedAt": "2026-09-13T13:46:07+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/media",
+   "slug": "media",
+   "file": "app/admin/(shell)/media/page.tsx",
+   "title": "Media",
+   "doc": "Media library page. Same component serves as picker inside CMS forms.",
+   "perm": "cms.media.read",
+   "nav": {
+    "group": "Περιεχόμενο",
+    "label": "Media"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "fbace70",
+     "date": "2026-09-13T16:45:53+03:00",
+     "text": "Media: one-click migration of local files (assets + thumbs + email JPEGs + voice cache) to Bunny CDN, tile-size slider for the grid, copy-link icon on cards"
+    },
+    {
+     "hash": "d73bc06",
+     "date": "2026-09-13T12:11:50+03:00",
+     "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
+    },
+    {
+     "hash": "9020b2b",
+     "date": "2026-09-13T11:59:22+03:00",
+     "text": "Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal poi…"
+    }
+   ],
+   "updatedAt": "2026-09-13T16:45:53+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/newsletter",
+   "slug": "newsletter",
+   "file": "app/admin/(shell)/newsletter/page.tsx",
+   "title": "Newsletter",
+   "doc": "",
+   "perm": "marketing.newsletter.write",
+   "nav": {
+    "group": "Marketing & αναφορές",
+    "label": "Newsletter"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "7361160",
+     "date": "2026-09-13T18:58:12+03:00",
+     "text": "Newsletter page: date helper outside render (lint purity)"
+    },
+    {
+     "hash": "dd5e47e",
+     "date": "2026-09-13T13:46:07+03:00",
+     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
+    }
+   ],
+   "updatedAt": "2026-09-13T18:58:12+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores",
+   "slug": "prosfores",
+   "file": "app/admin/(shell)/prosfores/page.tsx",
+   "title": "Προσφορές",
+   "doc": "Όλες οι προσφορές: KPIs, φίλτρα, κατάσταση με μια ματιά, μαζικές ενέργειες.",
+   "perm": "catalog.promos.write",
+   "nav": {
+    "group": "Προσφορές & υπηρεσίες",
+    "label": "Προσφορές & κουπόνια"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "55460cd",
+     "date": "2026-10-04T11:35:35+03:00",
+     "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
+    },
+    {
+     "hash": "f6a094e",
+     "date": "2026-10-03T08:10:14+03:00",
+     "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
+    },
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "5196db3",
+     "date": "2026-10-02T22:03:52+03:00",
+     "text": "Φάση 1"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/[id]",
+   "slug": "prosfores.id",
+   "file": "app/admin/(shell)/prosfores/[id]/page.tsx",
+   "title": "Προσφορά",
+   "doc": "Επεξεργασία μιας προσφοράς + οι εκδόσεις της (όπως ίσχυαν) + οι χρήσεις της ανά παραστατικό.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "f6a094e",
+     "date": "2026-10-03T08:10:14+03:00",
+     "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
+    },
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/anafores",
+   "slug": "prosfores.anafores",
+   "file": "app/admin/(shell)/prosfores/anafores/page.tsx",
+   "title": "Αναφορές προσφορών",
+   "doc": "Αναφορά ανά καμπάνια και ανά παραστατικό: ποια προσφορά, σε ποια παραγγελία, με ποιους όρους (έκδοση) και πόσο κόστισε. Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας.",
+   "perm": "reports.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/anafores/paraggelia/[id]",
+   "slug": "prosfores.anafores.paraggelia.id",
+   "file": "app/admin/(shell)/prosfores/anafores/paraggelia/[id]/page.tsx",
+   "title": "Παραστατικό · προσφορές",
+   "doc": "Ένα παραστατικό: κάθε γραμμή με τιμή καταλόγου, εκπτώσεις ανά είδος (DISC1/DISC2), τις προσφορές με κωδικό και έκδοση, τους όρους όπως ίσχυαν τη στιγμή της παραγγελίας και το SALDOC όπως θα σταλεί στο SoftOne (προεπισκόπηση).",
+   "perm": "reports.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/ermis",
+   "slug": "prosfores.ermis",
+   "file": "app/admin/(shell)/prosfores/ermis/page.tsx",
+   "title": "Προσφορά με τον Ερμή",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/etiketes",
+   "slug": "prosfores.etiketes",
+   "file": "app/admin/(shell)/prosfores/etiketes/page.tsx",
+   "title": "Ετικέτες προϊόντων",
+   "doc": "Εμπορικές ετικέτες (αυτόματα από τις προσφορές) και ενημερωτικές (κανόνες ή χειροκίνητα).",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-04T13:00:24+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/excel",
+   "slug": "prosfores.excel",
+   "file": "app/admin/(shell)/prosfores/excel/page.tsx",
+   "title": "Ειδικές τιμές από Excel",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/imerologio",
+   "slug": "prosfores.imerologio",
+   "file": "app/admin/(shell)/prosfores/imerologio/page.tsx",
+   "title": "Ημερολόγιο προσφορών",
+   "doc": "Έξι εβδομάδες με μια ματιά: ποια προσφορά τρέχει πότε, πού επικαλύπτονται και τι ισχύει σε κάθε προϊόν κάθε ημέρα.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/kanones",
+   "slug": "prosfores.kanones",
+   "file": "app/admin/(shell)/prosfores/kanones/page.tsx",
+   "title": "Κανόνες προσφορών",
+   "doc": "Δικλείδες, κανόνες επικάλυψης, όρια έγκρισης και κουπόνια καλωσορίσματος — τα αλλάζει ο υπεύθυνος προσφορών.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/koina",
+   "slug": "prosfores.koina",
+   "file": "app/admin/(shell)/prosfores/koina/page.tsx",
+   "title": "Κοινά πελατών",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:19:17+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/kouponia",
+   "slug": "prosfores.kouponia",
+   "file": "app/admin/(shell)/prosfores/kouponia/page.tsx",
+   "title": "Κουπόνια",
+   "doc": "Κουπόνια: οι προσφορές-κουπόνια, οι κωδικοί τους (κοινοί, προσωπικοί, παρτίδες) και πόσο χρησιμοποιήθηκαν.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/new",
+   "slug": "prosfores.new",
+   "file": "app/admin/(shell)/prosfores/new/page.tsx",
+   "title": "Νέα προσφορά",
+   "doc": "Νέα προσφορά. Ανοίγει και προσυμπληρωμένη: ?template=nplusm, ?products=id1,id2 (από την καρτέλα ή μαζικά από τον κατάλογο), ?brand=… / ?category=…, ?draft=<base64 JSON> (από τον Ερμή ή το Excel). Τίποτα δεν δημοσιεύεται χωρίς τον χρήστη.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "f6a094e",
+     "date": "2026-10-03T08:10:14+03:00",
+     "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
+    },
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/prosomoiotis",
+   "slug": "prosfores.prosomoiotis",
+   "file": "app/admin/(shell)/prosfores/prosomoiotis/page.tsx",
+   "title": "Προσομοιωτής καλαθιού",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "ca3d246",
+     "date": "2026-10-02T21:44:45+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:19:17+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/prosopikes",
+   "slug": "prosfores.prosopikes",
+   "file": "app/admin/(shell)/prosfores/prosopikes/page.tsx",
+   "title": "Προσωπικές προσφορές",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "f6a094e",
+     "date": "2026-10-03T08:10:14+03:00",
+     "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
+    }
+   ],
+   "updatedAt": "2026-10-03T08:10:14+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/selides",
+   "slug": "prosfores.selides",
+   "file": "app/admin/(shell)/prosfores/selides/page.tsx",
+   "title": "Landing pages προσφορών",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "5196db3",
+     "date": "2026-10-02T22:03:52+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/selides/[id]",
+   "slug": "prosfores.selides.id",
+   "file": "app/admin/(shell)/prosfores/selides/[id]/page.tsx",
+   "title": "Landing page",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5196db3",
+     "date": "2026-10-02T22:03:52+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-02T22:03:52+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/theseis",
+   "slug": "prosfores.theseis",
+   "file": "app/admin/(shell)/prosfores/theseis/page.tsx",
+   "title": "Διαφημιστικές θέσεις",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "5196db3",
+     "date": "2026-10-02T22:03:52+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/voitheia",
+   "slug": "prosfores.voitheia",
+   "file": "app/admin/(shell)/prosfores/voitheia/page.tsx",
+   "title": "Βοήθεια προσφορών",
+   "doc": "Κέντρο βοήθειας του διαχειριστικού προσφορών.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    }
+   ],
+   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/radar",
+   "slug": "radar",
+   "file": "app/admin/(shell)/radar/page.tsx",
+   "title": "Ραντάρ ζήτησης",
+   "doc": "@dynamic Admin «Ραντάρ ζήτησης» (demo, no auth): what the market asked for and the shop could not serve — missing / out-of-stock models with a purchasing suggestion, the questions that worry buyers, price ceilings customers state, and products that fail door widths. One hue for magnitude (navy), status as icon + text, every list is also a table.",
+   "perm": "*",
+   "nav": {
+    "group": "Marketing & αναφορές",
+    "label": "Ραντάρ ζήτησης"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "b06f225",
+     "date": "2026-09-13T15:22:47+03:00",
+     "text": "Snap & Find: AI recognition of the old appliance from a photo"
+    },
+    {
+     "hash": "be42963",
+     "date": "2026-09-13T11:21:34+03:00",
+     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
+    }
+   ],
+   "updatedAt": "2026-09-13T15:22:47+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/reports",
+   "slug": "reports",
+   "file": "app/admin/(shell)/reports/page.tsx",
+   "title": "Αναφορές",
+   "doc": "",
+   "perm": "reports.read",
+   "nav": {
+    "group": "Marketing & αναφορές",
+    "label": "Αναφορές"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "b5e568f",
+     "date": "2026-09-13T14:02:50+03:00",
+     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
+    },
+    {
+     "hash": "2e479cd",
+     "date": "2026-09-13T12:18:45+03:00",
+     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+    }
+   ],
+   "updatedAt": "2026-09-13T14:02:50+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/reports/ai",
+   "slug": "reports.ai",
+   "file": "app/admin/(shell)/reports/ai/page.tsx",
+   "title": "Κόστος AI",
+   "doc": "Admin view: billed cost (markup included) in € per day / model / feature. Raw OpenRouter cost is shown only to super-admins.",
+   "perm": "reports.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "954e3b4",
+     "date": "2026-09-20T16:02:35+03:00",
+     "text": "SoftOne: καθρέφτης καταλόγου με μηχανισμό συγχρονισμού, και διανυσματικό ευρετήριο για τον Ερμή"
+    },
+    {
+     "hash": "de77ede",
+     "date": "2026-09-16T22:13:36+03:00",
+     "text": "Tripo3D στις ρυθμίσεις AI και στην αναφορά κόστους"
+    },
+    {
+     "hash": "5ee1b5d",
+     "date": "2026-09-13T18:55:06+03:00",
+     "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
+    },
+    {
+     "hash": "0a6d215",
+     "date": "2026-09-13T15:59:18+03:00",
+     "text": "Voice for Άρης (experimental): Whisper speech-to-text, chat-audio text-to-speech, audio cache; search hand-off keeps the thread"
+    },
+    {
+     "hash": "2e479cd",
+     "date": "2026-09-13T12:18:45+03:00",
+     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+    }
+   ],
+   "updatedAt": "2026-09-20T16:02:35+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/reports/ai/voice",
+   "slug": "reports.ai.voice",
+   "file": "app/admin/(shell)/reports/ai/voice/page.tsx",
+   "title": "Φωνή & audio cache",
+   "doc": "Admin: the voice advisor's audio cache — preset phrases, dynamic phrases, hits, money saved, prewarm/test tools.",
+   "perm": "reports.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "7648d25",
+     "date": "2026-10-04T15:17:56+03:00",
+     "text": "Φωνή & audio cache: ένας κοινός player"
+    },
+    {
+     "hash": "ff814c5",
+     "date": "2026-09-16T21:49:54+03:00",
+     "text": "Φωνή: η αιτία αποτυχίας καταγράφεται και φαίνεται"
+    },
+    {
+     "hash": "5ee1b5d",
+     "date": "2026-09-13T18:55:06+03:00",
+     "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
+    },
+    {
+     "hash": "0a6d215",
+     "date": "2026-09-13T15:59:18+03:00",
+     "text": "Voice for Άρης (experimental): Whisper speech-to-text, chat-audio text-to-speech, audio cache; search hand-off keeps the thread"
+    }
+   ],
+   "updatedAt": "2026-10-04T15:17:56+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/reports/wishlist",
+   "slug": "reports.wishlist",
+   "file": "app/admin/(shell)/reports/wishlist/page.tsx",
+   "title": "Αγαπημένα",
+   "doc": "Merchandising signal: which products customers save, how many wait for a price drop / stock.",
+   "perm": "reports.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "63cb9aa",
+     "date": "2026-09-13T14:30:56+03:00",
+     "text": "Cart by email (SavedCart with restore link, cart-page button, real exit-intent send, restore on /kalathi) and wishlist price-drop / back-in-stock alerts (one email per drop, consent-aware, cron endpoint, admin runner …"
+    },
+    {
+     "hash": "b5e568f",
+     "date": "2026-09-13T14:02:50+03:00",
+     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
+    }
+   ],
+   "updatedAt": "2026-09-13T14:30:56+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/roles",
+   "slug": "roles",
+   "file": "app/admin/(shell)/roles/page.tsx",
+   "title": "Ρόλοι & δικαιώματα",
+   "doc": "Role × permission matrix. Rows = permissions grouped by area, columns = roles.",
+   "perm": "staff.roles.write",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Ρόλοι & δικαιώματα"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "be42963",
+     "date": "2026-09-13T11:21:34+03:00",
+     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
+    }
+   ],
+   "updatedAt": "2026-09-13T11:21:34+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/settings",
+   "slug": "settings",
+   "file": "app/admin/(shell)/settings/page.tsx",
+   "title": "Ρυθμίσεις & διασυνδέσεις",
+   "doc": "Αρχική: κάθε ενότητα με την κατάστασή της και αναζήτηση πεδίων. Μόνο Super Admin.",
+   "perm": "super-admin",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Ρυθμίσεις & διασυνδέσεις"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "9c97666",
+     "date": "2026-10-03T08:36:00+03:00",
+     "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
+    },
+    {
+     "hash": "31f9efa",
+     "date": "2026-09-21T15:43:41+03:00",
+     "text": "Φωνή του Ερμή: ElevenLabs ως δεύτερος πάροχος, με επιλογή του super admin"
+    },
+    {
+     "hash": "bf3aede",
+     "date": "2026-09-13T12:35:05+03:00",
+     "text": "SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial"
+    },
+    {
+     "hash": "2e479cd",
+     "date": "2026-09-13T12:18:45+03:00",
+     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+    },
+    {
+     "hash": "d73bc06",
+     "date": "2026-09-13T12:11:50+03:00",
+     "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
+    },
+    {
+     "hash": "5e2365e",
+     "date": "2026-09-13T11:31:18+03:00",
+     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
+    }
+   ],
+   "updatedAt": "2026-10-03T08:36:00+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/settings/[section]",
+   "slug": "settings.section",
+   "file": "app/admin/(shell)/settings/[section]/page.tsx",
+   "title": "[section]",
+   "doc": "",
+   "perm": "super-admin",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "9c97666",
+     "date": "2026-10-03T08:36:00+03:00",
+     "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
+    },
+    {
+     "hash": "2e479cd",
+     "date": "2026-09-13T12:18:45+03:00",
+     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+    },
+    {
+     "hash": "5e2365e",
+     "date": "2026-09-13T11:31:18+03:00",
+     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
+    }
+   ],
+   "updatedAt": "2026-10-03T08:36:00+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone",
+   "slug": "softone",
+   "file": "app/admin/(shell)/softone/page.tsx",
+   "title": "SoftOne ERP · πίνακες",
+   "doc": "Reference tables synced from SoftOne into our own models, with the mapping the storefront uses.",
+   "perm": "settings.integrations.write",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Βασικοί πίνακες"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5670ff9",
+     "date": "2026-09-14T16:46:46+03:00",
+     "text": "Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN"
+    },
+    {
+     "hash": "6a07b9f",
+     "date": "2026-09-14T15:37:54+03:00",
+     "text": "Brand logos via Brandfetch"
+    },
+    {
+     "hash": "1af3105",
+     "date": "2026-09-14T14:58:39+03:00",
+     "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
+    },
+    {
+     "hash": "fc119c6",
+     "date": "2026-09-14T14:27:48+03:00",
+     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
+    }
+   ],
+   "updatedAt": "2026-09-14T16:46:46+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone/[kind]",
+   "slug": "softone.kind",
+   "file": "app/admin/(shell)/softone/[kind]/page.tsx",
+   "title": "[kind]",
+   "doc": "",
+   "perm": "settings.integrations.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5670ff9",
+     "date": "2026-09-14T16:46:46+03:00",
+     "text": "Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN"
+    },
+    {
+     "hash": "e8cc364",
+     "date": "2026-09-14T16:15:12+03:00",
+     "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
+    },
+    {
+     "hash": "d22b21d",
+     "date": "2026-09-14T16:07:58+03:00",
+     "text": "Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables"
+    },
+    {
+     "hash": "6a07b9f",
+     "date": "2026-09-14T15:37:54+03:00",
+     "text": "Brand logos via Brandfetch"
+    },
+    {
+     "hash": "1af3105",
+     "date": "2026-09-14T14:58:39+03:00",
+     "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
+    },
+    {
+     "hash": "fc119c6",
+     "date": "2026-09-14T14:27:48+03:00",
+     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
+    }
+   ],
+   "updatedAt": "2026-09-14T16:46:46+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone/brand/logos",
+   "slug": "softone.brand.logos",
+   "file": "app/admin/(shell)/softone/brand/logos/page.tsx",
+   "title": "Λογότυπα μαρκών",
+   "doc": "Έλεγχος λογοτύπων που βρήκε το Brandfetch. Ο διαχειριστής βλέπει την εικόνα δίπλα στο όνομα της μάρκας και εγκρίνει ή απορρίπτει· με την έγκριση το αρχείο κατεβαίνει και ανεβαίνει στο δικό μας Bunny CDN.",
+   "perm": "settings.integrations.write",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Λογότυπα μαρκών"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "5670ff9",
+     "date": "2026-09-14T16:46:46+03:00",
+     "text": "Λογότυπα μαρκών: έγκριση διαχειριστή και αποθήκευση στο δικό μας CDN"
+    }
+   ],
+   "updatedAt": "2026-09-14T16:46:46+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone/catalog",
+   "slug": "softone.catalog",
+   "file": "app/admin/(shell)/softone/catalog/page.tsx",
+   "title": "SoftOne · Κατάλογος & CCC",
+   "doc": "Καθρέφτης του καταλόγου του SoftOne: κατηγορίες site, τύποι προϊόντος με τα χαρακτηριστικά τους, και τα είδη που ανήκουν στο site. Από εδώ χτίζεται και το διανυσματικό ευρετήριο που χρησιμοποιεί ο Ερμής.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Κατάλογος & CCC"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "14513b1",
+     "date": "2026-09-21T13:55:15+03:00",
+     "text": "Τιμή eshop και διαθεσιμότητα από το SoftOne, επιβεβαιωμένες στο ζωντανό euronics.gr"
+    },
+    {
+     "hash": "de9a313",
+     "date": "2026-09-21T11:02:07+03:00",
+     "text": "Φωτογραφίες προϊόντων: εφάπαξ μαζική εισαγωγή από τον φάκελο του παλιού site (WebP → Bunny → Media)"
+    },
+    {
+     "hash": "e25c1c1",
+     "date": "2026-09-21T10:36:52+03:00",
+     "text": "Φίλτρα με τιμές: κάθε προϊόν παίρνει τιμή στα φίλτρα του τύπου του (ProductFacetValue)"
+    },
+    {
+     "hash": "e6829fa",
+     "date": "2026-09-21T10:18:51+03:00",
+     "text": "Προβολή του καθρέφτη SoftOne στο κατάστημα: Category › Product › Spec › Facet"
+    },
+    {
+     "hash": "b69bc86",
+     "date": "2026-09-21T10:01:01+03:00",
+     "text": "Ευρετήριο Ερμή: πρώτος πραγματικός συγχρονισμός 9.081 ειδών, αναζήτηση με πρόθεση τύπου προϊόντος και κωδικό μοντέλου, μαζικές εγγραφές"
+    },
+    {
+     "hash": "954e3b4",
+     "date": "2026-09-20T16:02:35+03:00",
+     "text": "SoftOne: καθρέφτης καταλόγου με μηχανισμό συγχρονισμού, και διανυσματικό ευρετήριο για τον Ερμή"
+    }
+   ],
+   "updatedAt": "2026-09-21T13:55:15+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone/customers",
+   "slug": "softone.customers",
+   "file": "app/admin/(shell)/softone/customers/page.tsx",
+   "title": "Πελάτες ERP",
+   "doc": "Πελάτες του eshop από το SoftOne. Το σημερινό eshop (nopCommerce) κρατά τους λογαριασμούς στη δική του βάση· στο SoftOne φτάνουν οι παραγγελίες και τα παραστατικά, με τον αγοραστή γραμμένο πάνω τους. Από εκεί χτίζονται πελάτες, αγορές, συσκευές και εγγυήσεις στο νέο eshop.",
+   "perm": "settings.integrations.write",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Πελάτες ERP"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "f05f643",
+     "date": "2026-10-04T12:02:48+03:00",
+     "text": "Πελάτες: εισαγωγή από το nopCommerce (Excel / XML / newsletter CSV) με διασταύρωση"
+    },
+    {
+     "hash": "8e60c8a",
+     "date": "2026-10-04T11:53:54+03:00",
+     "text": "Πελάτες από το SoftOne: όνομα αγοραστή από COMMENTS1, παραγγελία στον πελάτη του τιμολογίου, σταθερή αντιστοίχιση, τιμές γραμμών με ΦΠΑ, πλήρες ιστορικό ανά έτος"
+    },
+    {
+     "hash": "55460cd",
+     "date": "2026-10-04T11:35:35+03:00",
+     "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
+    }
+   ],
+   "updatedAt": "2026-10-04T12:02:48+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/softone/sync",
+   "slug": "softone.sync",
+   "file": "app/admin/(shell)/softone/sync/page.tsx",
+   "title": "Συγχρονισμοί SoftOne",
+   "doc": "Every sync run across all reference tables, newest first, plus what the nightly cron does.",
+   "perm": "settings.integrations.write",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Συγχρονισμοί & ιστορικό"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "1af3105",
+     "date": "2026-09-14T14:58:39+03:00",
+     "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
+    },
+    {
+     "hash": "fc119c6",
+     "date": "2026-09-14T14:27:48+03:00",
+     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
+    }
+   ],
+   "updatedAt": "2026-09-14T14:58:39+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/staff",
+   "slug": "staff",
+   "file": "app/admin/(shell)/staff/page.tsx",
+   "title": "Χρήστες",
+   "doc": "Staff accounts of the back office: roles, store scope, active flag.",
+   "perm": "staff.read",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Χρήστες"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "be42963",
+     "date": "2026-09-13T11:21:34+03:00",
+     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
+    }
+   ],
+   "updatedAt": "2026-09-13T11:21:34+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stickers",
+   "slug": "stickers",
+   "file": "app/admin/(shell)/stickers/page.tsx",
+   "title": "Stickers",
+   "doc": "Saved stickers + brand templates to start from.",
+   "perm": "catalog.promos.write",
+   "nav": {
+    "group": "Προσφορές & υπηρεσίες",
+    "label": "Stickers"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "2023dda",
+     "date": "2026-10-04T13:15:44+03:00",
+     "text": "Stickers: γενικοί κανόνες εφαρμογής (μάρκα, κατηγορία με υποκατηγορίες, μάρκα σε κατηγορία, προϊόντα, εξαιρέσεις, τιμή, διαθεσιμότητα, ημερομηνίες) με προεπισκόπηση"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "bcf345d",
+     "date": "2026-10-04T12:28:36+03:00",
+     "text": "Stickers: βιβλιοθήκη 24 vector σχημάτων σε 30 συνδυασμούς αποχρώσεων (χρώματα και κείμενο από τον σχεδιαστή) και ανέβασμα δικών σου SVG με καθαρισμό και απομόνωση"
+    },
+    {
+     "hash": "51ecdce",
+     "date": "2026-09-13T12:06:33+03:00",
+     "text": "SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, S…"
+    }
+   ],
+   "updatedAt": "2026-10-04T13:15:44+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stickers/[id]",
+   "slug": "stickers.id",
+   "file": "app/admin/(shell)/stickers/[id]/page.tsx",
+   "title": "Sticker designer",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "bcf345d",
+     "date": "2026-10-04T12:28:36+03:00",
+     "text": "Stickers: βιβλιοθήκη 24 vector σχημάτων σε 30 συνδυασμούς αποχρώσεων (χρώματα και κείμενο από τον σχεδιαστή) και ανέβασμα δικών σου SVG με καθαρισμό και απομόνωση"
+    },
+    {
+     "hash": "51ecdce",
+     "date": "2026-09-13T12:06:33+03:00",
+     "text": "SVG sticker designer: StickerParams model + brand templates, shared StickerSvg renderer (8 shapes, auto-fit text, icons, gradient/border/shadow, animations), admin designer with live product-card preview, save/list, S…"
+    }
+   ],
+   "updatedAt": "2026-10-04T12:28:36+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stickers/kanones",
+   "slug": "stickers.kanones",
+   "file": "app/admin/(shell)/stickers/kanones/page.tsx",
+   "title": "Κανόνες stickers",
+   "doc": "Γενικοί κανόνες: ποιο sticker μπαίνει σε ποιες μάρκες / κατηγορίες / προϊόντα.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "2023dda",
+     "date": "2026-10-04T13:15:44+03:00",
+     "text": "Stickers: γενικοί κανόνες εφαρμογής (μάρκα, κατηγορία με υποκατηγορίες, μάρκα σε κατηγορία, προϊόντα, εξαιρέσεις, τιμή, διαθεσιμότητα, ημερομηνίες) με προεπισκόπηση"
+    }
+   ],
+   "updatedAt": "2026-10-04T13:15:44+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stickers/kanones/[id]",
+   "slug": "stickers.kanones.id",
+   "file": "app/admin/(shell)/stickers/kanones/[id]/page.tsx",
+   "title": "Κανόνας sticker",
+   "doc": "",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "2023dda",
+     "date": "2026-10-04T13:15:44+03:00",
+     "text": "Stickers: γενικοί κανόνες εφαρμογής (μάρκα, κατηγορία με υποκατηγορίες, μάρκα σε κατηγορία, προϊόντα, εξαιρέσεις, τιμή, διαθεσιμότητα, ημερομηνίες) με προεπισκόπηση"
+    }
+   ],
+   "updatedAt": "2026-10-04T13:15:44+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stores",
+   "slug": "stores",
+   "file": "app/admin/(shell)/stores/page.tsx",
+   "title": "Καταστήματα",
+   "doc": "Network of member stores: map + table, QA filters for coordinates.",
+   "perm": "stores.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Καταστήματα"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "bd83367",
+     "date": "2026-10-04T12:11:34+03:00",
+     "text": "Καταστήματα (admin): λίστα και χάρτης δίπλα-δίπλα στο ύψος της οθόνης, φίλτρα σε μία γραμμή με επιλογή νομού, χάρτης που εστιάζει στα καταστήματα"
+    },
+    {
+     "hash": "a1f74f9",
+     "date": "2026-09-13T13:04:45+03:00",
+     "text": "Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode …"
+    }
+   ],
+   "updatedAt": "2026-10-04T12:11:34+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/stores/[id]",
+   "slug": "stores.id",
+   "file": "app/admin/(shell)/stores/[id]/page.tsx",
+   "title": "Κατάστημα",
+   "doc": "",
+   "perm": "stores.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "a1f74f9",
+     "date": "2026-09-13T13:04:45+03:00",
+     "text": "Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode …"
+    }
+   ],
+   "updatedAt": "2026-09-13T13:04:45+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/ypiresies",
+   "slug": "ypiresies",
+   "file": "app/admin/(shell)/ypiresies/page.tsx",
+   "title": "Υπηρεσίες",
+   "doc": "Οι υπηρεσίες Euronics: ένας κατάλογος για σελίδες υπηρεσιών, πρόσθετες υπηρεσίες, αρχική, hero, προσφορές και Ερμή.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Προσφορές & υπηρεσίες",
+    "label": "Υπηρεσίες"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    }
+   ],
+   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "shots": {}
+  }
+ ],
+ "recent": [
+  {
+   "hash": "d2b1624",
+   "date": "2026-10-11T02:32:03+03:00",
+   "text": "Αποστολές: από 234 γραμμές κατηγοριών σε τρία βήματα",
+   "routes": [
+    "/admin",
+    "/admin/apostoles"
+   ]
+  },
+  {
+   "hash": "369b264",
+   "date": "2026-10-11T02:24:15+03:00",
+   "text": "Μενού διαχείρισης ανά περιοχή εργασίας (Πωλήσεις & πελάτες, Αποστολές, Κατάλογος, Προσφορές & υπηρεσίες, Περιεχόμενο, Marketing & αναφορές, SoftOne ERP, Διαχείριση) που δείχνει μόνο ό,τι είναι ενεργό στις Ρυθμίσεις κα…",
+   "routes": [
+    "/admin"
+   ]
+  },
+  {
+   "hash": "95418fc",
+   "date": "2026-10-11T02:17:12+03:00",
+   "text": "Dashboard ανά ρόλο («πανόπτης»): καρτέλες (Επισκόπηση με τις καρφιτσωμένες κάρτες, Λειτουργία, Πωλήσεις & Προσφορές, Κατάλογος & Περιεχόμενο, Πελάτες, Σύστημα) με μετρητή για ό,τι θέλει ενέργεια",
+   "routes": [
+    "/admin"
+   ]
+  },
+  {
+   "hash": "7594df1",
+   "date": "2026-10-11T01:49:25+03:00",
+   "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα",
+   "routes": [
+    "/admin",
+    "/admin/cms/brand-stores",
+    "/admin/cms/brand-stores/[slug]",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "7fa3685",
+   "date": "2026-10-10T20:58:19+03:00",
+   "text": "Ζώνες αρχικής, πιο εύκολη και γρήγορη διαχείριση: πιο καθαρός χάρτης (μία γραμμή, κείμενο μόνο όταν κάτι διαφέρει) με σημάδια για κενές ζώνες, λήξεις και ελέγχους",
+   "routes": [
+    "/admin",
+    "/admin/cms/brand-stores",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "14626d3",
+   "date": "2026-10-10T20:18:36+03:00",
+   "text": "Οδηγοί αγοράς στην αρχική: δύο λίστες μέσα στην ενότητα (έξυπνοι οδηγοί της σκούρας ζώνης, άρθρα οδηγών) με σύρσιμο ή βέλη για τη σειρά, μάτι για ορατό/κρυφό (μένει αποθηκευμένο), αρίθμηση ορατών",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "2c989af",
+   "date": "2026-10-10T20:10:24+03:00",
+   "text": "Καμπάνιες κατασκευαστών: γραμμές με μικρογραφία, σύρσιμο ή βέλη για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη), άνοιγμα για επεξεργασία",
+   "routes": []
+  },
+  {
+   "hash": "f564624",
+   "date": "2026-10-10T19:54:40+03:00",
+   "text": "Αρχική → Υπηρεσίες: όλες οι υπηρεσίες σε λίστα μέσα στην ενότητα, σύρσιμο ή βέλη για τη σειρά στην αρχική, μάτι για ορατή/κρυφή, μετρητής ορατών (προτείνονται 3/6/9), σύνδεσμος προς Εμπόριο → Υπηρεσίες",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "8fc17d3",
+   "date": "2026-10-10T19:26:28+03:00",
+   "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)",
+   "routes": [
+    "/admin",
+    "/admin/cms/slides",
+    "/admin/prosfores",
+    "/admin/prosfores/[id]",
+    "/admin/prosfores/new",
+    "/admin/ypiresies"
+   ]
+  },
+  {
+   "hash": "dba0ffb",
+   "date": "2026-10-10T19:17:48+03:00",
+   "text": "Κίτρινο ticker: κάθε μήνυμα σε δικό του μεγάλο πεδίο, σύρσιμο ή βέλη για σειρά, διακόπτης ενεργό/ανενεργό (μένει αποθηκευμένο), μετρητής χαρακτήρων με σύσταση έως 60, «Νέο μήνυμα»",
+   "routes": []
+  },
+  {
+   "hash": "4374916",
+   "date": "2026-10-10T19:13:34+03:00",
+   "text": "Προσφορές της εβδομάδας: η επιλογή προϊόντων γίνεται η κύρια («Διαλέγω τα προϊόντα», προτείνεται)",
+   "routes": []
+  },
+  {
+   "hash": "27b8d4d",
+   "date": "2026-10-10T19:04:21+03:00",
+   "text": "Αρχική: «Προσφορές της εβδομάδας» με πραγματικά δεδομένα",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "5eba8ac",
+   "date": "2026-10-10T18:56:31+03:00",
+   "text": "Αρχική: πλέγμα κατηγοριών από τον πραγματικό κατάλογο (σύρσιμο για σειρά, ορατή/κρυφή, ★ τονισμένη, δικός μας τίτλος/κείμενο, προσθήκη με αναζήτηση, πραγματικά πλήθη, τίτλος «σε Ν κατηγορίες»)",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "0be31ba",
+   "date": "2026-10-10T14:56:01+03:00",
+   "text": "Ζώνες αρχικής: νέος, πολύ πιο απλός editor (μοτίβο theme editor)",
+   "routes": []
+  },
+  {
+   "hash": "92275aa",
+   "date": "2026-10-10T14:43:10+03:00",
+   "text": "Ζώνες αρχικής: οι 11 ενότητες της αρχικής (slides, ticker, κατηγορίες, προσφορές, καμπάνιες, υπηρεσίες, καταστήματα, οδηγοί, νέα, διαφημιστική λωρίδα, newsletter) με σειρά, απόκρυψη, ημερομηνίες, συσκευές, κοινό (επισ…",
+   "routes": [
+    "/admin",
+    "/admin/cms/home"
+   ]
+  },
+  {
+   "hash": "cf40604",
+   "date": "2026-10-10T14:18:12+03:00",
+   "text": "Σελίδες για τα social logins: πολιτική απορρήτου, όροι χρήσης και cookies με το κείμενο του euronics.gr αλλά με τις διευθύνσεις του domain που τις ανοίγει (dev, demo, live) και τις δικές μας διαδρομές",
+   "routes": []
+  },
+  {
+   "hash": "5681ab5",
+   "date": "2026-10-10T14:13:40+03:00",
+   "text": "Social login: κουμπί «Δημιουργία οδηγού»",
+   "routes": []
+  },
+  {
+   "hash": "e304c31",
+   "date": "2026-10-10T14:00:00+03:00",
+   "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/apostoles/vouchers"
+   ]
+  },
+  {
+   "hash": "8c44bfe",
+   "date": "2026-10-10T13:42:24+03:00",
+   "text": "Μεγάλες συσκευές χωρίς courier: κανόνας ανά κατηγορία (ψυγεία, πλυντήρια, κουζίνες, κλιματιστικά…), βάρος συσκευασίας > 30 κ. ή διάσταση > 150 εκ. → μόνο ραντεβού ή παραλαβή",
+   "routes": [
+    "/admin",
+    "/admin/apostoles"
+   ]
+  },
+  {
+   "hash": "639d1fa",
+   "date": "2026-10-10T13:27:32+03:00",
+   "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…",
+   "routes": [
+    "/admin",
+    "/admin/epektasi-eggyisis"
+   ]
+  },
+  {
+   "hash": "964f9be",
+   "date": "2026-10-10T12:59:25+03:00",
+   "text": "Επέκταση εγγύησης επί πληρωμή: ενεργές εγγυήσεις αγορών Euronics χωρίς επέκταση → +2 έτη με πληρωμή Viva από «Οι συσκευές μου» (CCCWARRANTY παραμένει δωρεάν)",
+   "routes": [
+    "/admin",
+    "/admin/epektasi-eggyisis"
+   ]
+  },
+  {
+   "hash": "8b574ec",
+   "date": "2026-10-10T12:44:42+03:00",
+   "text": "Λογαριασμός πελάτη με πραγματικά δεδομένα: παραγγελίες e-shop + αγορές καταστημάτων και παλιού e-shop, ραντεβού/service από τα αιτήματα, πληρωμές & δόσεις, επιστροφές (αίτημα RMA), συγκαταθέσεις (ιστορικό), στοιχεία, …",
+   "routes": []
+  },
+  {
+   "hash": "f2b622a",
+   "date": "2026-10-10T12:25:44+03:00",
+   "text": "Εγγύηση: εγγύηση κατασκευαστή από την περιγραφή του ERP στη σελίδα προϊόντος",
+   "routes": []
+  },
+  {
+   "hash": "a024361",
+   "date": "2026-10-10T11:40:42+03:00",
+   "text": "Αναζήτηση site: και στον κωδικό μοντέλου και στα ονόματα των «Set ειδών» του SoftOne και των μελών τους (π.χ. «mx1-ef» → Midea MX1-…RD1H SOLUNAR)",
+   "routes": []
+  },
+  {
+   "hash": "bcea2df",
+   "date": "2026-10-10T11:14:35+03:00",
+   "text": "Ερμής: προσφορές και άμεσα διαθέσιμα πρώτα (προσφορά+άμεσα → προσφορά → άμεσα → υπόλοιπα), όλος ο τύπος χωρίς κόφτη 400, σε γενική ερώτηση εύρος φθηνά/μεσαία/ακριβά",
+   "routes": []
+  },
+  {
+   "hash": "6b98982",
+   "date": "2026-10-10T10:59:05+03:00",
+   "text": "Bundles: αυτόματη πρόταση «Εσωτερική / Εξωτερική μονάδα» για τα κλιματιστικά (κωδικοί ERP και κατασκευαστών, 771/786 μέλη), στο «Περιλαμβάνει» όταν δεν έχει οριστεί όνομα",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/catalog/sets"
+   ]
+  },
+  {
+   "hash": "5b1f69f",
+   "date": "2026-10-10T10:54:31+03:00",
+   "text": "Bundles: διάκριση «εξαρτήματα» / «με δώρο» (το δώρο δεν αλλάζει τη διαθεσιμότητα, ούτε μπαίνει στο «Περιλαμβάνει»), καλύτερο set όταν ένα προϊόν έχει πολλά, μαζική ανάγνωση (6 s αντί 270 s)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/sets"
+   ]
+  },
+  {
+   "hash": "a234171",
+   "date": "2026-10-10T10:43:51+03:00",
+   "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/catalog/sets"
+   ]
+  },
+  {
+   "hash": "f8be0f1",
+   "date": "2026-10-10T10:14:27+03:00",
+   "text": "Πληρωμές μέσω Viva Smart Checkout: κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Klarna (ενεργοποίηση ανά τρόπο), redirect με προεπιλεγμένο τρόπο και στοιχεία πελάτη (αναγνώριση αποθηκευμένων καρτών Viva), επιβεβαίωση α…",
+   "routes": []
+  },
+  {
+   "hash": "0088511",
+   "date": "2026-10-10T10:02:35+03:00",
+   "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)",
+   "routes": []
+  },
+  {
+   "hash": "87d1452",
+   "date": "2026-10-10T09:44:26+03:00",
+   "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
+   "hash": "53c720d",
+   "date": "2026-10-10T09:41:08+03:00",
+   "text": "EPREL: η ενεργειακή ετικέτα ως τελευταία φωτογραφία στα προϊόντα που βρέθηκαν (στο ταίριασμα + μαζικά), πάντα τελευταία, εκτός AR και μετρήσεων",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
+   "hash": "b0f496f",
+   "date": "2026-10-10T09:29:44+03:00",
+   "text": "AR: θέση (πάτωμα/έπιπλο/πάγκος/τοίχος) ανά κατηγορία",
+   "routes": [
+    "/admin",
+    "/admin/ar"
+   ]
+  },
+  {
+   "hash": "d3615a8",
+   "date": "2026-10-10T09:25:07+03:00",
+   "text": "AR διαχείριση: συμπαγείς γραμμές με κατάσταση και διακόπτη, ρυθμίσεις σε ανάπτυξη (επιφάνεια με εικονίδια, πρόσοψη από μικρογραφίες, 3D μοντέλο χωριστά), πλακίδια-φίλτρα",
+   "routes": [
+    "/admin",
+    "/admin/ar",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
+   "hash": "d955445",
+   "date": "2026-10-10T09:17:44+03:00",
+   "text": "AR: χωρίς διαστάσεις προϊόντος δεν υπάρχει AR (ούτε τυπικές κατηγορίας ή διαγώνιος τίτλου) + επιλογή κατηγοριών που συμμετέχουν από τη διαχείριση",
+   "routes": [
+    "/admin",
+    "/admin/ar",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
+   "hash": "5cbaff8",
+   "date": "2026-10-10T09:11:55+03:00",
+   "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας",
+   "routes": [
+    "/admin",
+    "/admin/ar",
+    "/admin/catalog",
+    "/admin/catalog/banners",
+    "/admin/catalog/dimensions"
+   ]
+  },
+  {
+   "hash": "75e0c5c",
+   "date": "2026-10-10T09:11:05+03:00",
+   "text": "Σελίδα προϊόντος: χώρος εργασίας με ετοιμότητα, 5 καρτέλες (?tab=), κάρτα όπως στο site και ενεργειακή ετικέτα με αναζήτηση EPREL",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
+   "hash": "e477df9",
+   "date": "2026-10-10T09:03:40+03:00",
+   "text": "ProductEditor: only",
+   "routes": []
+  },
+  {
+   "hash": "bdcfc76",
+   "date": "2026-10-10T09:03:18+03:00",
+   "text": "AR: η γραμμή της διαχείρισης ως κοινή συνάρτηση (arRowDataFor), για χρήση και στη σελίδα προϊόντος",
+   "routes": [
+    "/admin",
+    "/admin/ar"
+   ]
+  },
+  {
+   "hash": "2666dd2",
+   "date": "2026-10-10T09:02:18+03:00",
+   "text": "EPREL: αναζήτηση για ένα προϊόν (ίδια λογική με τη μαζική) + server action",
+   "routes": [
+    "/admin",
+    "/admin/catalog"
+   ]
+  }
+ ],
+ "helpKeys": {
+  "ship.status": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.store": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.limits": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.exceptions": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.impact": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.check": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "editor.undo": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.more": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.publish": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.map": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.add": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.inspector": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "editor.preview": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
+  "dash.refresh": [
+   "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "dash.cards": [
+   "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "dash.role": [
+   "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "dash.tabs": [
+   "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "dash.card": [
+   "components/admin/dashboard/Dashboard.tsx"
+  ]
+ }
+}

@@ -134,15 +134,15 @@ export function Dashboard({ name, roleLabel, storeName, layout: initial, data, a
           <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{roleEdit ? "Ισχύει για όσους έχουν αυτόν τον ρόλο και δεν έχουν δική τους διάταξη." : <>{roleLabel}{storeName ? ` · ${storeName}` : ""}{source === "user" ? " · δική σου διάταξη" : ""}</>}</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center rounded-full border border-eu-line bg-white pl-3 pr-0.5 h-10 text-eu-muted text-[length:var(--fs-13)]">
+          <span data-help="dash.refresh" className="inline-flex items-center rounded-full border border-eu-line bg-white pl-3 pr-0.5 h-10 text-eu-muted text-[length:var(--fs-13)]">
             {refreshing && <Loader2 className="size-3.5 mr-1 animate-spin" aria-hidden />}
             <span aria-live="polite" suppressHydrationWarning>{stamp.toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}</span>
             <button type="button" onClick={refresh} aria-label="Ανανέωση τώρα" title="Ανανέωση τώρα" className="size-9 grid place-items-center rounded-full hover:bg-eu-surface"><RefreshCw className="size-4" aria-hidden /></button>
             <button type="button" onClick={() => setAuto((v) => !v)} aria-pressed={auto} aria-label={auto ? "Παύση αυτόματης ανανέωσης" : "Αυτόματη ανανέωση κάθε λεπτό"} title={auto ? "Ανανεώνεται μόνο του κάθε λεπτό" : "Χωρίς αυτόματη ανανέωση"} className="size-9 grid place-items-center rounded-full hover:bg-eu-surface">{auto ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}</button>
           </span>
-          <button type="button" onClick={() => setLibrary(true)} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 h-10 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Κάρτες</button>
+          <button data-help="dash.cards" type="button" onClick={() => setLibrary(true)} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 h-10 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Κάρτες</button>
           {roles && !roleEdit && (
-            <select aria-label="Σχεδίαση dashboard ρόλου" defaultValue="" onChange={(e) => { if (e.target.value) router.push(`/admin?role=${e.target.value}`); }} className="rounded-full border-2 border-eu-line bg-white px-3 h-10 font-bold text-eu-ink-2 text-[length:var(--fs-13)]">
+            <select data-help="dash.role" aria-label="Σχεδίαση dashboard ρόλου" defaultValue="" onChange={(e) => { if (e.target.value) router.push(`/admin?role=${e.target.value}`); }} className="rounded-full border-2 border-eu-line bg-white px-3 h-10 font-bold text-eu-ink-2 text-[length:var(--fs-13)]">
               <option value="">Σχεδίαση για ρόλο…</option>
               {roles.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
             </select>
@@ -159,7 +159,7 @@ export function Dashboard({ name, roleLabel, storeName, layout: initial, data, a
       {msg && <p role="status" className={`m-0 flex items-center gap-2 rounded-xl px-3 py-1.5 font-bold text-[length:var(--fs-13)] ${msg.ok ? "bg-eu-green/10 text-eu-ink-2" : "bg-eu-red/10 text-eu-red"}`}>{msg.ok ? <Check className="size-4 text-eu-green" aria-hidden /> : <CircleAlert className="size-4" aria-hidden />}{msg.message}<button type="button" onClick={() => setMsg(null)} aria-label="Κλείσιμο" className="ml-auto size-8 grid place-items-center rounded-full hover:bg-white/60"><X className="size-4" aria-hidden /></button></p>}
 
       {/* ---- καρτέλες (και στόχοι για σύρσιμο) ---- */}
-      <div role="tablist" aria-label="Περιοχές" className="sticky top-0 z-20 -mx-1 px-1 py-1.5 bg-eu-surface/95 backdrop-blur flex flex-wrap gap-1"
+      <div data-help="dash.tabs" role="tablist" aria-label="Περιοχές" className="sticky top-0 z-20 -mx-1 px-1 py-1.5 bg-eu-surface/95 backdrop-blur flex flex-wrap gap-1"
         onKeyDown={(e) => { if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return; const i = TABS.findIndex((t) => t.id === tab); const n = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length]; setTab(n.id); document.getElementById(`tab-${n.id}`)?.focus(); }}>
         {TABS.map((t) => {
           const n = tabAlerts(t.id), count = listOf(layout, t.id).length, on = tab === t.id, over = drag?.overTab === t.id;
@@ -239,7 +239,7 @@ function Card({ def, data: d, size, quick, pinned, menuOpen, menu, onDragStart, 
 }) {
   const bad = d?.badge?.tone === "bad";
   return (
-    <article aria-labelledby={`wt-${def.id}`} className={`group relative h-full rounded-xl border bg-white grid grid-rows-[auto_1fr_auto] ${bad ? "border-eu-red/40" : "border-eu-line"} hover:border-eu-blue/40 transition-colors`}>
+    <article data-help="dash.card" aria-labelledby={`wt-${def.id}`} className={`group relative h-full rounded-xl border bg-white grid grid-rows-[auto_1fr_auto] ${bad ? "border-eu-red/40" : "border-eu-line"} hover:border-eu-blue/40 transition-colors`}>
       <header className="flex items-center gap-1 pl-1 pr-1 pt-1">
         <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", def.id); onDragStart(); }} onDragEnd={onDragEnd} title="Σύρε: σειρά, άλλη καρτέλα ή Επισκόπηση" aria-hidden className="size-8 shrink-0 grid place-items-center rounded-lg cursor-grab active:cursor-grabbing text-eu-muted/60 group-hover:text-eu-muted hover:bg-eu-surface"><GripVertical className="size-4" /></span>
         <span className="size-7 shrink-0 grid place-items-center rounded-lg bg-eu-chip text-eu-blue">{ico(def.icon, "size-4")}</span>

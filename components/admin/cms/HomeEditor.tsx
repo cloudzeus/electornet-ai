@@ -238,10 +238,10 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
             </span>
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <button type="button" onClick={undo} disabled={!past.length || !canWrite} aria-label="Αναίρεση" title="Αναίρεση (Ctrl/⌘ Z)" className={iconBtn}><Undo2 className="size-5" aria-hidden /></button>
+            <button data-help="editor.undo" type="button" onClick={undo} disabled={!past.length || !canWrite} aria-label="Αναίρεση" title="Αναίρεση (Ctrl/⌘ Z)" className={iconBtn}><Undo2 className="size-5" aria-hidden /></button>
             <button type="button" onClick={redo} disabled={!future.length || !canWrite} aria-label="Επανάληψη" title="Επανάληψη (Ctrl/⌘ ⇧ Z)" className={iconBtn}><Redo2 className="size-5" aria-hidden /></button>
             <div className="relative">
-              <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-haspopup="menu" aria-label="Περισσότερα" title="Σενάρια, ιστορικό, QR, πλήκτρα" className={iconBtn}><MoreHorizontal className="size-5" aria-hidden /></button>
+              <button data-help="editor.more" type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-haspopup="menu" aria-label="Περισσότερα" title="Σενάρια, ιστορικό, QR, πλήκτρα" className={iconBtn}><MoreHorizontal className="size-5" aria-hidden /></button>
               {more && (
                 <>
                   <button type="button" aria-label="Κλείσιμο μενού" onClick={() => setMore(false)} className="fixed inset-0 z-40 cursor-default" />
@@ -257,11 +257,11 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
               )}
             </div>
             {canPublish ? (
-              <button type="button" onClick={publish} disabled={busy || !canPublishNow} title="Έλεγχος & δημοσίευση (Ctrl/⌘ Enter)" className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
+              <button data-help="editor.publish" type="button" onClick={publish} disabled={busy || !canPublishNow} title="Έλεγχος & δημοσίευση (Ctrl/⌘ Enter)" className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
                 {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}Δημοσίευση{changes > 0 && <span className="rounded-full bg-white/20 px-1.5 text-[length:var(--fs-13)] tabular-nums">{changes}</span>}
               </button>
             ) : canWrite && (
-              <button type="button" onClick={publish} disabled={busy || !canPublishNow} className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
+              <button data-help="editor.publish" type="button" onClick={publish} disabled={busy || !canPublishNow} className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
                 {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />}Για έγκριση
               </button>
             )}
@@ -290,12 +290,12 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
         <div className="grid gap-4 items-start" style={{ gridTemplateColumns: mode === "s" ? "minmax(0,1fr)" : mode === "m" ? "minmax(18rem,22rem) minmax(0,1fr)" : sel ? "minmax(18rem,22rem) minmax(22rem,27rem) minmax(0,1fr)" : "minmax(18rem,24rem) minmax(0,1fr)" }}>
           {/* ---- ο χάρτης της σελίδας: πάντα ορατός ---- */}
           <div className={`${mode === "s" && view !== "page" ? "hidden" : ""} min-w-0 ${mode === "s" ? "" : "sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1"}`}>
-              <section aria-label="Η αρχική από πάνω προς τα κάτω" className="grid gap-3">
+              <section data-help="editor.map" aria-label="Η αρχική από πάνω προς τα κάτω" className="grid gap-3">
                 {warnings.length > 0 || errors.length > 0 ? (
                   <p className={`m-0 inline-flex items-start gap-2 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${errors.length ? "bg-eu-red/10 text-eu-red" : "bg-eu-amber/15 text-eu-ink-2"}`}><CircleAlert className="size-4 mt-0.5 shrink-0" aria-hidden />{errors.length ? `${errors.length} components θέλουν διόρθωση πριν τη δημοσίευση — άνοιξε όσα έχουν κόκκινη ένδειξη.` : `${warnings.length} συστάσεις — άνοιξε όσα έχουν πορτοκαλί ένδειξη.`}</p>
                 ) : null}
                 {emptyCount > 0 && <p className="m-0 inline-flex items-start gap-2 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold bg-eu-amber/15 text-eu-ink-2"><EyeOff className="size-4 mt-0.5 shrink-0" aria-hidden />{emptyCount === 1 ? "1 ενότητα είναι ενεργή αλλά κενή — δεν φαίνεται στο site." : `${emptyCount} ενότητες είναι ενεργές αλλά κενές — δεν φαίνονται στο site.`}</p>}
-                {canWrite && <button type="button" onClick={() => setAdding({ after: null })} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-chip"><Plus className="size-5" aria-hidden /> Προσθήκη στην αρχική</button>}
+                {canWrite && <button data-help="editor.add" type="button" onClick={() => setAdding({ after: null })} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-chip"><Plus className="size-5" aria-hidden /> Προσθήκη στην αρχική</button>}
                 <ol className="m-0 p-0 list-none grid" onDragOver={(e) => e.preventDefault()}>
                   {items.map((it, i) => {
                     const v = visSummary(visOf(it));
@@ -340,7 +340,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
 
           {/* ---- ρυθμίσεις (στήλη δίπλα στον χάρτη) ---- */}
           {mode !== "s" && sel && (mode === "l" || right === "settings") && (
-            <div className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">
+            <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">
               {mode === "m" && <RightSwitch right={right} setRight={setRight} />}
               {inspector(sel)}
             </div>
@@ -348,7 +348,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
 
           {/* ---- ζωντανή προεπισκόπηση ---- */}
           {(mode === "s" ? view === "preview" : mode === "l" || !sel || right === "preview") && (
-            <div className="min-w-0 sticky top-24">
+            <div data-help="editor.preview" className="min-w-0 sticky top-24">
               {mode === "m" && sel && <RightSwitch right={right} setRight={setRight} />}
               <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setRight("settings"); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
             </div>

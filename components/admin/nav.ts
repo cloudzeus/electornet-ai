@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck, BadgePercent, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, Images, LayoutDashboard, LayoutTemplate, Mail, Megaphone, Package, Radar,
+  BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, Images, LayoutDashboard, LayoutTemplate, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
@@ -99,6 +99,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/softone/orders", label: "Παραγγελίες προς ERP", icon: ShoppingBag, perm: "settings.integrations.write", soon: true, feature: "softone" },
     ],
   },
+  { label: "Βοήθεια", items: [{ href: "/admin/help", label: "Wiki & οδηγοί", icon: BookOpen, perm: "*" }] },
   {
     label: "Διαχείριση",
     items: [

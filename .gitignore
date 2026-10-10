@@ -47,3 +47,6 @@ public/uploads/
 
 # τοπικά logs μακρών εργασιών (αντιστοίχιση EPREL, εισαγωγή φωτογραφιών)
 /logs/
+
+# βοήθεια/wiki: προφίλ Chrome για τα screenshots (σύνδεση διαχειριστή)
+.help-profile/

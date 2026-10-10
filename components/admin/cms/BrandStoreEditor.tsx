@@ -289,10 +289,10 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
             </span>
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <button type="button" onClick={undo} disabled={!past.length} aria-label="Αναίρεση" title="Αναίρεση (Ctrl/⌘ Z)" className={iconBtn}><Undo2 className="size-5" aria-hidden /></button>
+            <button data-help="editor.undo" type="button" onClick={undo} disabled={!past.length} aria-label="Αναίρεση" title="Αναίρεση (Ctrl/⌘ Z)" className={iconBtn}><Undo2 className="size-5" aria-hidden /></button>
             <button type="button" onClick={redo} disabled={!future.length} aria-label="Επανάληψη" title="Επανάληψη (Ctrl/⌘ ⇧ Z)" className={iconBtn}><Redo2 className="size-5" aria-hidden /></button>
             <div className="relative">
-              <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-haspopup="menu" aria-label="Περισσότερα" title="Σενάρια, ιστορικό, QR, απόσυρση" className={iconBtn}><MoreHorizontal className="size-5" aria-hidden /></button>
+              <button data-help="editor.more" type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} aria-haspopup="menu" aria-label="Περισσότερα" title="Σενάρια, ιστορικό, QR, απόσυρση" className={iconBtn}><MoreHorizontal className="size-5" aria-hidden /></button>
               {more && (
                 <>
                   <button type="button" aria-label="Κλείσιμο μενού" onClick={() => setMore(false)} className="fixed inset-0 z-40 cursor-default" />
@@ -307,7 +307,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
                 </>
               )}
             </div>
-            <button type="button" onClick={() => setDialog("publish")} disabled={busy || !canPublishNow} title="Έλεγχος & δημοσίευση (Ctrl/⌘ Enter)" className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
+            <button data-help="editor.publish" type="button" onClick={() => setDialog("publish")} disabled={busy || !canPublishNow} title="Έλεγχος & δημοσίευση (Ctrl/⌘ Enter)" className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : canPublish ? <Rocket className="size-4" aria-hidden /> : <Send className="size-4" aria-hidden />}{canPublish ? "Δημοσίευση" : "Για έγκριση"}{canPublish && changes > 0 && <span className="rounded-full bg-white/20 px-1.5 text-[length:var(--fs-13)] tabular-nums">{changes}</span>}
             </button>
           </div>
@@ -343,10 +343,10 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
                 <h2 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Ρυθμίσεις σελίδας</h2>
                 <ol className="m-0 p-0 list-none grid">{settingsItems.map((it, i) => row(it, i))}</ol>
               </section>
-              <section aria-label="Η σελίδα από πάνω προς τα κάτω" className="grid gap-1">
+              <section data-help="editor.map" aria-label="Η σελίδα από πάνω προς τα κάτω" className="grid gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">Η σελίδα από πάνω προς τα κάτω</h2>
-                  <button type="button" onClick={() => setAdding({ after: "part:hero" })} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 min-h-10 font-bold text-[length:var(--fs-13)] hover:bg-eu-chip"><Plus className="size-4" aria-hidden /> Προσθήκη</button>
+                  <button data-help="editor.add" type="button" onClick={() => setAdding({ after: "part:hero" })} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 min-h-10 font-bold text-[length:var(--fs-13)] hover:bg-eu-chip"><Plus className="size-4" aria-hidden /> Προσθήκη</button>
                 </div>
                 <ol className="m-0 p-0 list-none grid" onDragOver={(e) => e.preventDefault()}>
                   {pageItems.map((it, k) => row(it, k + 2))}
@@ -359,7 +359,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
 
           {/* ---- ρυθμίσεις ---- */}
           {mode !== "s" && sel && (mode === "l" || right === "settings") && (
-            <div className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">
+            <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">
               {mode === "m" && <RightSwitch right={right} setRight={setRight} />}
               {inspector(sel)}
             </div>
@@ -367,7 +367,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
 
           {/* ---- ζωντανή προεπισκόπηση ---- */}
           {(mode === "s" ? view === "preview" : mode === "l" || !sel || right === "preview") && (
-            <div className="min-w-0 sticky top-24">
+            <div data-help="editor.preview" className="min-w-0 sticky top-24">
               {mode === "m" && sel && <RightSwitch right={right} setRight={setRight} />}
               <LivePreview src={`/brands/${s.slug}?preview=1`} attr="data-cms-item" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={sel && (sel.kind === "block" || sel.key === "part:hero") ? selected : null} notice={notice}
                 onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setRight("settings"); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
