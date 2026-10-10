@@ -48,7 +48,7 @@ export async function AdminShell({ user, children, title }: { user: { name?: str
   return (
     <div className="eu-admin min-h-dvh grid grid-cols-1 @5xl:grid-cols-[clamp(15rem,13rem+4vw,18rem)_minmax(0,1fr)] bg-eu-surface eu-container">
       {/* μεγάλη οθόνη: πλαϊνή στήλη που μένει στη θέση της · κινητό / tablet: λεπτή μπάρα με «Μενού» (συρτάρι) */}
-      <aside className="bg-eu-navy text-white flex flex-col @5xl:sticky @5xl:top-0 @5xl:h-dvh @5xl:overflow-y-auto">
+      <aside className="bg-eu-navy text-white flex flex-col">
         <div className="px-4 @5xl:px-5 min-h-14 @5xl:py-4 flex items-center gap-3 @5xl:border-b border-white/10">
           <Image src="/design/logo-on-blue.svg" alt="euronics" width={110} height={28} className="h-6 w-auto shrink-0" />
           <span className="hidden @sm:inline rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] px-2 py-0.5">Admin</span>
