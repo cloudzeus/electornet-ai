@@ -42,12 +42,17 @@ function Field({ label, help, children, wide = false }: { label: string; help?: 
  * αμέσως ενημερώνει το e-shop. Τα χαρακτηριστικά είναι γραμμές της αναλυτικής περιγραφής: ο πίνακας τις αλλάζει επί τόπου,
  * χωρίς να πειράζει το υπόλοιπο κείμενο.
  */
-export function ProductEditor({ productId, initial, readonly, readonlyReason, meta, descDims }: {
+export type EditorSection = "basics" | "texts" | "specs" | "dims" | "warranty";
+
+export function ProductEditor({ productId, initial, readonly, readonlyReason, meta, descDims, only }: {
   productId: string; initial: EditorValues; readonly: boolean; readonlyReason?: string;
   /** διαστάσεις που βγήκαν από τη γραμμή «Διαστάσεις (ΥxΠxΒ)» της περιγραφής, σε εκ. (με διόρθωση μονάδας/αξόνων) */
   descDims?: { w: number; h: number; d: number; line: string; note: string | null } | null;
   meta: { code: string; mtrl: string; brand: string; category: string };
+  /** μόνο αυτές οι ενότητες (καρτέλες της σελίδας προϊόντος)· χωρίς = όλες */
+  only?: EditorSection[];
 }) {
+  const show = (k: EditorSection) => !only || only.includes(k);
   const [base, setBase] = useState(initial);
   const [v, setV] = useState(initial);
   const [confirm, setConfirm] = useState(false);
@@ -94,6 +99,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
         <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Lock className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />{readonlyReason}</p>
       )}
 
+      {show("basics") && (
       <AccordionItem id="basics" title="Βασικά στοιχεία" icon={<Tag className="size-4" aria-hidden />} summary={`${String(v.name ?? "")} · κωδικός ${meta.code}`} badge={S1} defaultOpen>
         <div className="grid gap-3 @2xl:grid-cols-2">
           <Field label="Όνομα στο SoftOne" help="Ο τίτλος στο e-shop είναι η μάρκα + αυτό το όνομα (η μάρκα μπαίνει μόνη της αν λείπει)." wide>
@@ -110,7 +116,9 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
           </dl>
         </div>
       </AccordionItem>
+      )}
 
+      {show("texts") && (
       <AccordionItem id="texts" title="Περιγραφές" icon={<FileText className="size-4" aria-hidden />} summary={String(v.shortDesc ?? "") || "Χωρίς σύντομη περιγραφή"} badge={S1}>
         <div className="grid gap-3">
           <Field label="Σύντομη περιγραφή" help="Μία–δύο προτάσεις κάτω από τον τίτλο του προϊόντος.">
@@ -121,7 +129,9 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
           </Field>
         </div>
       </AccordionItem>
+      )}
 
+      {show("specs") && (
       <AccordionItem id="specs" title="Χαρακτηριστικά" icon={<ListChecks className="size-4" aria-hidden />} summary={`${rows.length} χαρακτηριστικά — τροφοδοτούν τα φίλτρα και τη σύγκριση`} badge={S1}>
         {html ? (
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Η περιγραφή αυτού του είδους έχει μορφοποίηση HTML. Για να μη χαλάσει, άλλαξε τα χαρακτηριστικά απευθείας στην «Αναλυτική περιγραφή».</p>
@@ -141,7 +151,9 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
           </div>
         )}
       </AccordionItem>
+      )}
 
+      {show("dims") && (
       <AccordionItem id="dims" title="Διαστάσεις & βάρος" icon={<Ruler className="size-4" aria-hidden />} summary={[v.widthCm, v.heightCm, v.lengthCm].some((x) => x) ? `${v.widthCm || "—"} × ${v.heightCm || "—"} × ${v.lengthCm || "—"} εκ.${v.weightKg ? ` · ${v.weightKg} kg` : ""}` : "Δεν έχουν συμπληρωθεί στο SoftOne"} badge={S1}>
         <div className="grid gap-3 grid-cols-2 @2xl:grid-cols-4">
           {num("widthCm", "Πλάτος", "εκ.")}{num("heightCm", "Ύψος", "εκ.")}{num("lengthCm", "Βάθος", "εκ.")}{num("weightKg", "Βάρος", "kg")}
@@ -154,7 +166,9 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
         )}
         <p className="m-0 mt-2 text-eu-muted text-[length:var(--fs-12)]">Για μεταφορικά, «Χωράει στον χώρο μου» και AR. Όπου υπάρχει EPREL, έχει προτεραιότητα για το «χωράει;».</p>
       </AccordionItem>
+      )}
 
+      {show("warranty") && (
       <AccordionItem id="warranty" title="Εγγύηση & διαθεσιμότητα" icon={<ShieldCheck className="size-4" aria-hidden />} summary={`${v.guaranteeMonths ? `${v.guaranteeMonths} μήνες εγγύηση` : "Χωρίς εγγύηση στο SoftOne"}${String(v.availText ?? "") ? ` · «${String(v.availText).slice(0, 40)}»` : ""}`} badge={S1}>
         <div className="grid gap-3 @2xl:grid-cols-2">
           <Field label="Εγγύηση (μήνες)"><input type="number" inputMode="numeric" min={0} step={1} disabled={dis} value={v.guaranteeMonths == null ? "" : String(v.guaranteeMonths)} onChange={(e) => set("guaranteeMonths", e.target.value === "" ? null : e.target.value)} className={input} /></Field>
@@ -166,6 +180,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
           </Field>
         </div>
       </AccordionItem>
+      )}
 
       {(dirty.length > 0 || result) && (
         <div className="sticky bottom-3 z-20 rounded-2xl border border-eu-line bg-white/95 backdrop-blur shadow-[var(--shadow-overlay)] p-3 grid gap-2">
