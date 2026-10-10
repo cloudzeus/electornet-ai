@@ -5,6 +5,8 @@ import { getHeroAdminDoc } from "@/lib/cms/hero-slides";
 import { slideStatus } from "@/lib/cms/hero-slides-model";
 import { snapStats } from "@/lib/snap/stats";
 import { can } from "@/lib/rbac/permissions";
+import { getFeatures } from "@/lib/admin/features";
+import { getSetting } from "@/lib/settings/store";
 import type { Tone, WidgetData } from "./catalog";
 
 /**
@@ -119,6 +121,25 @@ const L: Record<string, Loader> = {
       parts: [{ label: "Παραδόθηκαν", value: grp(["delivered"]), tone: "ok" }, { label: "Στον δρόμο", value: grp(["created", "closed", "in-transit", "out-for-delivery"]), tone: "info" }, { label: "Πρόβλημα", value: grp(["attempted", "on-hold", "returning", "returned"]), tone: "bad" }],
       empty: "Καμία αποστολή με πρόβλημα.", href: "/admin/apostoles/vouchers", hrefLabel: "Vouchers",
       badge: problems.length ? { n: problems.length, tone: "bad" } : undefined,
+    };
+  },
+
+  async couriers() {
+    const f = await getFeatures();
+    const ship = (await getSetting("shipping").catch(() => ({ data: {} as Record<string, unknown> }))).data;
+    const C: { id: "geniki" | "acs" | "boxnow" | "elta" | "asap"; name: string; api: boolean; env?: string }[] = [
+      { id: "geniki", name: "Γενική Ταχυδρομική", api: true, env: ship.genikiEnv === "live" ? "Παραγωγή" : "Δοκιμαστικό" },
+      { id: "acs", name: "ACS", api: false }, { id: "boxnow", name: "BOX NOW", api: false, env: ship.boxnowEnv === "production" ? "Παραγωγή" : "Δοκιμαστικό" },
+      { id: "elta", name: "ΕΛΤΑ Courier", api: false }, { id: "asap", name: "ASAP", api: false },
+    ];
+    const on = C.filter((c) => f[c.id]);
+    const by = await db.shipment.groupBy({ by: ["carrier", "status"], where: { createdAt: { gte: dayStart(30) } }, _count: { _all: true } }).catch(() => []);
+    const n = (carrier: string, st?: string[]) => by.filter((r) => r.carrier === carrier && (!st || st.includes(r.status))).reduce((s2, r) => s2 + r._count._all, 0);
+    return {
+      stats: [{ label: "Click & Collect", value: f.clickCollect ? "Ενεργό" : "Ανενεργό", tone: f.clickCollect ? "ok" : "muted" }, { label: "Παράδοση με ραντεβού", value: f.appointment ? "Ενεργή" : "Ανενεργή", tone: f.appointment ? "ok" : "muted" }],
+      rows: on.map((c) => ({ title: c.name, sub: `${c.api ? `Vouchers από εδώ · ${c.env}` : "Χωρίς σύνδεση API ακόμη"}${c.api ? ` · ${n(c.id, ["created"])} ανοιχτά` : ""}`, meta: `${n(c.id)} / 30 ημ.`, tone: c.api ? (c.env === "Παραγωγή" ? "ok" : "warn") : "muted", href: c.id === "geniki" ? "/admin/apostoles/vouchers" : "/admin/settings/shipping" })),
+      empty: "Κανένας courier ενεργός — ενεργοποίηση στις Ρυθμίσεις → Αποστολές.", emptyTone: "warn",
+      href: "/admin/apostoles", hrefLabel: "Κανόνες αποστολής",
     };
   },
 

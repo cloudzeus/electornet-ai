@@ -56,7 +56,8 @@ export function AdminNavLinks({ groups, variant = "sidebar", footer }: { groups:
           <div key={g.label}>
             {single ? (
               <Link href={g.items[0].href} onClick={close} aria-current={isActive(g.items[0].href) ? "page" : undefined} className={`flex items-center justify-between gap-2 rounded-lg px-3 ${row} font-extrabold ${headFs} uppercase tracking-wide ${isActive(g.items[0].href) ? "bg-white text-eu-navy" : "text-eu-yellow hover:bg-white/10"}`}>
-                {g.items[0].label}
+                {/* ομάδα με ένα στοιχείο: το όνομα της ομάδας (π.χ. «Αποστολές»), όχι του στοιχείου */}
+                {g.label}
               </Link>
             ) : (
               <button type="button" onClick={() => toggle(g.label, !isOpen)} aria-expanded={isOpen} className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 ${row} font-extrabold ${headFs} uppercase tracking-wide ${activeHere ? "text-white" : "text-eu-yellow"} hover:bg-white/10`}>

@@ -311,7 +311,9 @@ function Body({ d, size }: { d: WidgetData; size: WidgetSize }) {
             return <li key={k}>{r.href ? <Link href={r.href} className="flex items-start gap-2 py-1.5 min-h-10 hover:bg-eu-surface/60 rounded">{inner}</Link> : <div className="flex items-start gap-2 py-1.5">{inner}</div>}</li>;
           })}
         </ul>
-      ) : d.empty && !d.bars?.length && !d.series ? <p className="m-0 inline-flex items-center gap-1.5 text-eu-green font-bold text-[length:var(--fs-13)]"><Check className="size-4" aria-hidden />{d.empty}</p> : null}
+      ) : d.empty && !d.bars?.length && !d.series ? (d.emptyTone === "warn"
+        ? <p className="m-0 flex items-start gap-1.5 rounded-lg bg-eu-amber/15 px-2 py-1.5 text-eu-ink-2 font-bold text-[length:var(--fs-13)]"><Info className="size-4 mt-px shrink-0" aria-hidden />{d.empty}</p>
+        : <p className="m-0 inline-flex items-center gap-1.5 text-eu-green font-bold text-[length:var(--fs-13)]"><Check className="size-4" aria-hidden />{d.empty}</p>) : null}
       {d.note && size !== "s" && <p className="m-0 text-eu-muted text-[length:var(--fs-12)] leading-snug">{d.note}</p>}
     </>
   );

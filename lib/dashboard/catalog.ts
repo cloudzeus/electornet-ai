@@ -19,14 +19,17 @@ export interface WidgetDef {
   perms: string[];
   superOnly?: boolean;
   size: WidgetSize;
+  /** εμφανίζεται μόνο αν η λειτουργία είναι ενεργή στις Ρυθμίσεις (βλ. lib/admin/features) */
+  feature?: "softone" | "advisor" | "courier" | "clickCollect";
 }
 
 export const WIDGETS: WidgetDef[] = [
   // ---- Χρειάζονται εσένα
   { id: "approvals", title: "Εγκρίσεις", help: "Ό,τι περιμένει την έγκρισή σου: αλλαγές σε προσφορές, αρχική και σελίδες μαρκών.", icon: "stamp", category: "Εγκρίσεις", perms: ["catalog.promos.approve", "cms.zones.publish", "cms.publish", "cms.zones.write", "cms.brandstores.write"], size: "s" },
   { id: "orders-queue", title: "Παραγγελίες προς εκτέλεση", help: "Νέες, πληρωμένες και σε επεξεργασία — οι παλαιότερες πρώτα.", icon: "shopping-cart", category: "Λειτουργία", perms: ["orders.read"], size: "m" },
-  { id: "shipments", title: "Αποστολές", help: "Παραγγελίες χωρίς voucher, vouchers για κλείσιμο ημέρας και αποστολές με πρόβλημα.", icon: "truck", category: "Λειτουργία", perms: ["orders.read"], size: "s" },
-  { id: "pickups", title: "Παραλαβές από κατάστημα", help: "Παραγγελίες «παραλαβή από κατάστημα» που ετοιμάζονται ή περιμένουν τον πελάτη.", icon: "store", category: "Λειτουργία", perms: ["orders.read"], size: "s" },
+  { id: "shipments", title: "Αποστολές", help: "Παραγγελίες χωρίς voucher, vouchers για κλείσιμο ημέρας και αποστολές με πρόβλημα.", icon: "truck", category: "Λειτουργία", perms: ["orders.read"], size: "s", feature: "courier" },
+  { id: "couriers", title: "Couriers", help: "Ποιοι couriers είναι ενεργοί, σε ποιο περιβάλλον, και vouchers ανά courier.", icon: "truck", category: "Λειτουργία", perms: ["orders.read", "catalog.products.read"], size: "s" },
+  { id: "pickups", title: "Παραλαβές από κατάστημα", help: "Παραγγελίες «παραλαβή από κατάστημα» που ετοιμάζονται ή περιμένουν τον πελάτη.", icon: "store", category: "Λειτουργία", perms: ["orders.read"], size: "s", feature: "clickCollect" },
   { id: "service", title: "Service & ραντεβού", help: "Ανοιχτά αιτήματα service, εγκαταστάσεις και ραντεβού της ημέρας.", icon: "wrench", category: "Λειτουργία", perms: ["service.tickets.read"], size: "m" },
   { id: "gdpr", title: "Αιτήματα GDPR", help: "Ανοιχτά αιτήματα δεδομένων και προθεσμίες 30 ημερών.", icon: "shield", category: "Πελάτες", perms: ["customers.read"], size: "s" },
   { id: "payments", title: "Πληρωμές & ERP", help: "Πληρωμές που απέτυχαν ή κρέμονται και παραγγελίες που δεν πέρασαν στο SoftOne.", icon: "credit-card", category: "Λειτουργία", perms: ["orders.read"], size: "s" },
@@ -43,9 +46,9 @@ export const WIDGETS: WidgetDef[] = [
   { id: "hero", title: "Hero slides", help: "Πόσα slides παίζουν, ποια έρχονται και ποια έληξαν.", icon: "gallery", category: "Περιεχόμενο", perms: ["cms.slides.write"], size: "s" },
   { id: "ar", title: "AR μοντέλα", help: "Προϊόντα με AR και μετατροπές που απέτυχαν ή περιμένουν.", icon: "box", category: "Κατάλογος", perms: ["catalog.products.read"], size: "s" },
   { id: "wishlist", title: "Ειδοποιήσεις τιμής", help: "Πόσοι περιμένουν πτώση τιμής ή επαναφορά αποθέματος.", icon: "heart", category: "Πελάτες", perms: ["reports.read"], size: "s" },
-  { id: "ermis", title: "Ερμής & Snap", help: "Συνομιλίες του συμβούλου σήμερα και σαρώσεις Snap της εβδομάδας.", icon: "sparkles", category: "Πελάτες", perms: ["marketing.radar.read", "reports.read"], size: "s" },
+  { id: "ermis", title: "Ερμής & Snap", help: "Συνομιλίες του συμβούλου σήμερα και σαρώσεις Snap της εβδομάδας.", icon: "sparkles", category: "Πελάτες", perms: ["marketing.radar.read", "reports.read"], size: "s", feature: "advisor" },
   // ---- Σύστημα
-  { id: "erp", title: "SoftOne", help: "Τελευταίοι συγχρονισμοί καταλόγου, αποτυχίες και πελάτες σε σύγκρουση.", icon: "refresh", category: "Σύστημα", perms: ["settings.integrations.write"], size: "s" },
+  { id: "erp", title: "SoftOne", help: "Τελευταίοι συγχρονισμοί καταλόγου, αποτυχίες και πελάτες σε σύγκρουση.", icon: "refresh", category: "Σύστημα", perms: ["settings.integrations.write"], size: "s", feature: "softone" },
   { id: "emails", title: "Emails", help: "Αποστολές του τελευταίου 24ώρου και όσα απέτυχαν.", icon: "mail", category: "Σύστημα", perms: ["marketing.emails.write"], size: "s" },
   { id: "ai", title: "Κόστος AI", help: "Χρέωση AI σήμερα και τον μήνα, ανά λειτουργία.", icon: "cpu", category: "Σύστημα", perms: ["reports.read"], size: "s" },
   { id: "backups", title: "Αντίγραφα ασφαλείας", help: "Πότε έγινε το τελευταίο backup και αν πέτυχε.", icon: "database", category: "Σύστημα", perms: [], superOnly: true, size: "s" },
@@ -56,10 +59,11 @@ export const WIDGETS: WidgetDef[] = [
 export const widgetDef = (id: string) => WIDGETS.find((w) => w.id === id);
 
 /* ---------------- καρτέλες ---------------- */
-export type TabId = "overview" | "ops" | "sales" | "catalog" | "customers" | "system";
+export type TabId = "overview" | "ops" | "shipping" | "sales" | "catalog" | "customers" | "system";
 export const TABS: { id: TabId; title: string; help: string }[] = [
   { id: "overview", title: "Επισκόπηση", help: "Ό,τι καρφίτσωσες — σύρε εδώ μια κάρτα από άλλη καρτέλα για να την καρφιτσώσεις." },
-  { id: "ops", title: "Λειτουργία", help: "Παραγγελίες, αποστολές, παραλαβές, service, εγκρίσεις." },
+  { id: "ops", title: "Λειτουργία", help: "Παραγγελίες, service, πληρωμές, εγκρίσεις." },
+  { id: "shipping", title: "Αποστολές", help: "Couriers, vouchers, αποστολές με πρόβλημα, παραλαβές από κατάστημα." },
   { id: "sales", title: "Πωλήσεις & Προσφορές", help: "Τζίρος, τάσεις, προσφορές, διαφημίσεις, εγγυήσεις." },
   { id: "catalog", title: "Κατάλογος & Περιεχόμενο", help: "Ποιότητα καταλόγου, AR, πρόχειρα, hero." },
   { id: "customers", title: "Πελάτες", help: "Λογαριασμοί, newsletter, GDPR, ειδοποιήσεις, Ερμής." },
@@ -67,7 +71,8 @@ export const TABS: { id: TabId; title: string; help: string }[] = [
 ];
 /** η «σπιτική» καρτέλα κάθε component (όπου μπαίνει αν δεν το έχει μετακινήσει ο χρήστης) */
 export const HOME_TAB: Record<string, Exclude<TabId, "overview">> = {
-  approvals: "ops", "orders-queue": "ops", shipments: "ops", pickups: "ops", service: "ops", payments: "ops",
+  approvals: "ops", "orders-queue": "ops", service: "ops", payments: "ops",
+  shipments: "shipping", couriers: "shipping", pickups: "shipping",
   sales: "sales", "orders-trend": "sales", promos: "sales", ads: "sales", warranty: "sales",
   "catalog-health": "catalog", ar: "catalog", cms: "catalog", hero: "catalog",
   customers: "customers", gdpr: "customers", wishlist: "customers", ermis: "customers",
@@ -126,8 +131,9 @@ export interface WidgetData {
   rows?: { title: string; sub?: string; meta?: string; tone?: Tone; href?: string }[];
   /** μικρό ραβδόγραμμα (χρονοσειρά) */
   bars?: { label: string; value: number; display: string }[];
-  /** μήνυμα όταν δεν υπάρχει τίποτα (θετικό: «όλα εντάξει») */
+  /** μήνυμα όταν δεν υπάρχει τίποτα (θετικό: «όλα εντάξει»· με emptyTone «warn» = κάτι λείπει) */
   empty?: string;
+  emptyTone?: "ok" | "warn";
   /** πόσα υπάρχουν συνολικά στην ουρά (όταν δείχνονται λιγότερα) */
   total?: number;
   href?: string; hrefLabel?: string;

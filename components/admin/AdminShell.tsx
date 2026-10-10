@@ -2,7 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { LogOut, ExternalLink } from "lucide-react";
-import { ADMIN_NAV } from "./nav";
+import { visibleNav } from "./nav";
+import { getFeatures } from "@/lib/admin/features";
 import { can } from "@/lib/rbac/permissions";
 import { signOut } from "@/lib/auth";
 import { AdminNavLinks } from "./AdminNavLinks";
@@ -10,13 +11,14 @@ import { AdminTitle } from "./AdminTitle";
 import { DensityToggle } from "./DensityToggle";
 
 /**
- * Back-office frame: navy sidebar (groups filtered by the user's permissions),
+ * Back-office frame: navy sidebar (groups filtered by the user's permissions and the features enabled in Settings),
  * top bar with the signed-in user and sign-out, content area on the grey
  * surface. Adaptive: πλαϊνή στήλη από @5xl· κάτω από αυτό λεπτή μπάρα με συρτάρι μενού.
  */
-export function AdminShell({ user, children, title }: { user: { name?: string | null; email?: string | null; roles: string[]; permissions: string[] }; children: ReactNode; title?: string }) {
-  const groups = ADMIN_NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.superOnly ? user.roles.includes("super-admin") : can(user.permissions, i.perm))) })).filter((g) => g.items.length);
-  const navGroups = groups.map((g) => ({ label: g.label, items: g.items.map((i) => ({ href: i.href, label: i.label, soon: i.soon })) }));
+export async function AdminShell({ user, children, title }: { user: { name?: string | null; email?: string | null; roles: string[]; permissions: string[] }; children: ReactNode; title?: string }) {
+  // μόνο ό,τι επιτρέπουν τα δικαιώματα ΚΑΙ είναι ενεργό στις Ρυθμίσεις
+  const groups = visibleNav(user, await getFeatures().catch(() => ({})), can);
+  const navGroups = groups.map((g) => ({ label: g.label, items: g.items.map((i) => ({ href: i.href, label: i.label })) }));
   const userBlock = (
     <div className="px-5 py-4 text-[length:var(--fs-14)]">
       <div className="font-bold truncate">{user.name}</div>

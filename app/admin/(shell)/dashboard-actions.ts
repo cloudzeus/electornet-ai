@@ -7,13 +7,14 @@ import { ROLE_DEFAULTS } from "@/lib/dashboard/catalog";
 import { allowedFor, resetRoleLayout, resetUserLayout, saveRoleLayout, saveUserLayout, userLayout } from "@/lib/dashboard/store";
 import { normalizeLayout } from "@/lib/dashboard/catalog";
 import { stable } from "@/lib/cms/list-diff";
+import { getFeatures } from "@/lib/admin/features";
 
 /** Η διάταξη του dashboard του χρήστη (ζώνες, σειρά, μέγεθος, ποια components). */
 export async function saveDashboardAction(layout: unknown): Promise<{ ok: boolean; saved: boolean }> {
   const user = await requireStaff();
   // τίποτα δεν άλλαξε → καμία εγγραφή (και καμία ανανέωση της σελίδας: την ανανεώνει ο ίδιος ο client όταν χρειάζεται)
   const cur = await userLayout(user);
-  if (stable(normalizeLayout(layout, allowedFor(user))) === stable(cur.layout)) return { ok: true, saved: false };
+  if (stable(normalizeLayout(layout, allowedFor(user, await getFeatures().catch(() => ({}))))) === stable(cur.layout)) return { ok: true, saved: false };
   await saveUserLayout(user, layout);
   return { ok: true, saved: true };
 }

@@ -1,7 +1,8 @@
 import { requireStaff } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
-import { ADMIN_NAV } from "@/components/admin/nav";
+import { visibleNav } from "@/components/admin/nav";
+import { getFeatures } from "@/lib/admin/features";
 import { Dashboard } from "@/components/admin/dashboard/Dashboard";
 import { normalizeLayout, ROLE_DEFAULTS, WIDGETS, type WidgetData } from "@/lib/dashboard/catalog";
 import { allowedFor, roleLayout, userLayout } from "@/lib/dashboard/store";
@@ -21,7 +22,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const roleName = (k: string) => ROLES.find((r) => r.key === k)?.name ?? k;
   const roleEdit = canRoles && sp.role && sp.role in ROLE_DEFAULTS ? { role: sp.role, label: roleName(sp.role) } : null;
 
-  const allowed = allowedFor(user);
+  const features = await getFeatures().catch(() => ({}));
+  const allowed = allowedFor(user, features);
   const mine = await userLayout(user);
   const layout = roleEdit ? normalizeLayout((await roleLayout(roleEdit.role)).layout, allowed) : mine.layout;
   // όλες οι καρτέλες φορτώνουν μαζί: η εναλλαγή καρτέλας είναι άμεση
@@ -31,7 +33,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     user.storeId ? db.store.findUnique({ where: { id: user.storeId }, select: { name: true } }).catch(() => null) : null,
   ]);
   const data: Record<string, WidgetData | null> = Object.fromEntries(entries);
-  const quick = ADMIN_NAV.flatMap((g) => g.items).filter((i) => !i.soon && i.href !== "/admin" && (i.superOnly ? user.roles.includes("super-admin") : can(user.permissions, i.perm))).map((i) => ({ href: i.href, label: i.label }));
+  const quick = visibleNav(user, features, can).flatMap((g) => g.items).filter((i) => i.href !== "/admin").map((i) => ({ href: i.href, label: i.label }));
 
   return (
     <Dashboard
