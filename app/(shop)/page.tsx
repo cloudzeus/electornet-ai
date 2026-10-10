@@ -46,7 +46,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const zone = (key: string) => {
     const here: BrandBlock[] = blocks.filter((b) => (b.zone ?? TOP_ZONE) === key);
     if (!here.length || !data) return null;
-    return <div data-zone={key}><BrandFrame theme={EURONICS_THEME}>{here.map((b) => renderBlock(b, data, { brandName: "Euronics" }))}</BrandFrame></div>;
+    return <div data-zone={key}><BrandFrame theme={EURONICS_THEME}>{here.map((b) => (preview ? <div key={b.id} data-home-item={`blk:${b.id}`}>{renderBlock(b, data, { brandName: "Euronics" })}</div> : renderBlock(b, data, { brandName: "Euronics" })))}</BrandFrame></div>;
   };
   return (
     <>
@@ -55,7 +55,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       {zone(TOP_ZONE)}
       {sections.map(({ s, el }) => (
         <Fragment key={s.id}>
-          {el && (s.hideOn?.length ? <div className={hideClass(s.hideOn)}>{el}</div> : el)}
+          {/* προεπισκόπηση: κάθε ενότητα σημαδεμένη, ώστε ο editor να κυλά / τονίζει / επιλέγει με κλικ */}
+          {el && (preview ? <div data-home-item={`sec:${s.id}`} className={hideClass(s.hideOn)}>{el}</div> : s.hideOn?.length ? <div className={hideClass(s.hideOn)}>{el}</div> : el)}
           {zone(afterZone(s.id))}
         </Fragment>
       ))}

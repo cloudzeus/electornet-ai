@@ -1,133 +1,132 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { createElement, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, CalendarClock, Check, ChevronDown, CircleAlert, ExternalLink, Eye, EyeOff, Info, Laptop, Loader2, Plus, Rocket, Smartphone, Tablet, Trash2, TriangleAlert, Undo2, X } from "lucide-react";
+import {
+  ArrowDown, ArrowLeft, ArrowUp, Bell, BookOpen, CalendarClock, Check, CircleAlert, Copy, ExternalLink, Eye, EyeOff, FileText, GalleryHorizontal,
+  GripVertical, HelpCircle, Image as ImageIcon, LayoutGrid, Laptop, ListOrdered, Loader2, Mail, Megaphone, MessageSquare, Monitor, Newspaper,
+  Package, Percent, Plus, Redo2, Rocket, Search, ShoppingBag, Smartphone, Sparkles, Store, Tablet, Tag, Ticket, Timer, Trash2, Truck, Undo2, Video, Wrench, X, Zap,
+  type LucideIcon,
+} from "lucide-react";
 import type { BrandBlock, Device } from "@/lib/cms/brand-store";
 import { DEVICES } from "@/lib/cms/brand-store";
 import { checkBlocks, type Issue } from "@/lib/cms/brand-store-check";
-import { afterZone, sectionDef, TOP_ZONE, type HomeAudience, type HomeDoc, type HomeSection, type SectionField } from "@/lib/cms/home-sections";
+import { afterZone, sectionDef, TOP_ZONE, type HomeAudience, type HomeDoc, type HomeSection, type HomeSectionId } from "@/lib/cms/home-sections";
 import { publishHomeAction, revertHomeAction, saveHomeAction } from "@/app/admin/(shell)/cms/home/actions";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
-import { StatusPill, ResultBanner } from "@/components/admin/settings/ui";
-import { ZoneBlocks } from "./ZoneBlocks";
-import { Preview } from "./BrandStoreEditor";
+import { ResultBanner } from "@/components/admin/settings/ui";
 import { PickerBrand } from "./brand/ImagePicker";
-import { Area, DateTime, LinkField, MediaUrl, StringList, Txt } from "./brand/fields";
+import { BLOCK_GROUPS, BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
+import { DateTime } from "./brand/fields";
+import { SectionFields } from "./HomeSectionFields";
 
-const stable = (v: unknown): string => (Array.isArray(v) ? `[${v.map(stable).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v as object).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v));
-const AUD: { v: HomeAudience; label: string }[] = [{ v: "all", label: "Σε όλους" }, { v: "guest", label: "Μόνο σε επισκέπτες χωρίς σύνδεση" }, { v: "customer", label: "Μόνο σε συνδεδεμένους πελάτες" }];
+/* ---------------- μοντέλο: μία ενιαία λίστα (ενότητες + components) ---------------- */
+type Item = { key: string; kind: "section"; s: HomeSection } | { key: string; kind: "block"; b: BrandBlock };
+const secKey = (id: string) => `sec:${id}`;
+const blkKey = (id: string) => `blk:${id}`;
 
-type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string };
-
-const sectionState = (s: HomeSection): { s: "live" | "off" | "incomplete"; t: string } => {
-  if (s.enabled === false) return { s: "off", t: "Κρυφή" };
-  if (s.schedule?.from && new Date(s.schedule.from) > new Date()) return { s: "incomplete", t: `Από ${new Date(s.schedule.from).toLocaleDateString("el-GR")}` };
-  if (s.schedule?.to && new Date(s.schedule.to) < new Date()) return { s: "off", t: "Έληξε" };
-  return { s: "live", t: s.audience === "guest" ? "Μόνο επισκέπτες" : s.audience === "customer" ? "Μόνο πελάτες" : "Εμφανίζεται" };
-};
-
-/** Φόρμα των ρυθμίσεων μιας ενότητας (κείμενα, πλήθος, καμπάνιες) — τιμή = αλλαγή του διαχειριστή ή η προεπιλογή. */
-function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<string, unknown>) => void }) {
-  const d = sectionDef(s.id)!;
-  const base = (d.widget?.props ?? {}) as Record<string, unknown>;
-  const val = (k: string) => (s.props && k in s.props ? s.props[k] : k === "limit" && d.widget?.query?.limit ? d.widget.query.limit : base[k]);
-  const put = (k: string, v: unknown) => set({ ...(s.props ?? {}), [k]: v });
-  const field = (f: SectionField) => {
-    switch (f.kind) {
-      case "text": return <Txt key={f.key} label={f.label} value={String(val(f.key) ?? "")} onChange={(v) => put(f.key, v)} help={f.help} max={f.max} />;
-      case "number": {
-        const raw = Number(val(f.key) ?? f.min);
-        const shown = f.key === "intervalMs" ? Math.round(raw >= 100 ? raw / 1000 : raw) : raw;
-        return (
-          <label key={f.key} className="grid gap-1 min-w-0">
-            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{f.label}{f.unit ? ` (${f.unit})` : ""}</span>
-            <input type="number" min={f.min} max={f.max} value={shown} onChange={(e) => { const n = Math.min(f.max, Math.max(f.min, Number(e.target.value) || f.min)); put(f.key, n); }} className="w-full max-w-[10rem] rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white tabular-nums" />
-            {f.help && <span className="text-eu-muted text-[length:var(--fs-13)]">{f.help}</span>}
-          </label>
-        );
-      }
-      case "lines": return <StringList key={f.key} label={f.label} help={f.help} items={((val(f.key) as string[] | undefined) ?? []).map(String)} onChange={(v) => put(f.key, v)} max={f.max} addLabel="Νέο μήνυμα" />;
-      case "link": {
-        const l = (val(f.key) as { label?: string; href?: string } | undefined) ?? {};
-        return (
-          <div key={f.key} className="grid @xl:grid-cols-2 gap-3">
-            <Txt label={`${f.label} · κείμενο`} value={l.label ?? ""} onChange={(v) => put(f.key, { ...l, label: v })} max={40} />
-            <LinkField label={`${f.label} · σύνδεσμος`} value={l.href ?? ""} onChange={(v) => put(f.key, { ...l, href: v })} />
-          </div>
-        );
-      }
-      case "campaigns": {
-        const list = ((val(f.key) as Campaign[] | undefined) ?? []).map((c) => ({ ...c }));
-        const setList = (l: Campaign[]) => put(f.key, l);
-        const upd = (i: number, p: Partial<Campaign>) => setList(list.map((c, k) => (k === i ? { ...c, ...p } : c)));
-        return (
-          <div key={f.key} className="grid gap-3">
-            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{f.label}</span>
-            {f.help && <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">{f.help}</span>}
-            <ol className="m-0 p-0 list-none grid gap-3">
-              {list.map((c, i) => (
-                <li key={c.id || i} className="rounded-xl border border-eu-line p-3 grid gap-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{i + 1}. {c.brand || "Καμπάνια"}{c.title ? ` · ${c.title}` : ""}</span>
-                    <span className="flex">
-                      <button type="button" disabled={i === 0} onClick={() => { const l = [...list]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; setList(l); }} aria-label="Πιο πάνω" className="size-11 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
-                      <button type="button" disabled={i === list.length - 1} onClick={() => { const l = [...list]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; setList(l); }} aria-label="Πιο κάτω" className="size-11 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
-                      <button type="button" onClick={() => { if (window.confirm("Διαγραφή της καμπάνιας;")) setList(list.filter((_, k) => k !== i)); }} aria-label="Διαγραφή" className="size-11 grid place-items-center rounded-full text-eu-red hover:bg-eu-red/10"><Trash2 className="size-4" aria-hidden /></button>
-                    </span>
-                  </div>
-                  <MediaUrl label="Εικόνα (key visual)" value={c.image} onChange={(v) => upd(i, { image: v })} help="Οριζόντια εικόνα της καμπάνιας, από τα Media ή τα προϊόντα." />
-                  <div className="grid @xl:grid-cols-2 gap-3">
-                    <Txt label="Μάρκα" value={c.brand} onChange={(v) => upd(i, { brand: v })} max={30} />
-                    <Txt label="Τίτλος" value={c.title} onChange={(v) => upd(i, { title: v })} max={60} />
-                  </div>
-                  <Area label="Κείμενο" value={c.text} onChange={(v) => upd(i, { text: v })} max={160} rows={2} />
-                  <div className="grid @xl:grid-cols-2 gap-3">
-                    <Txt label="Κουμπί" value={c.cta} onChange={(v) => upd(i, { cta: v })} max={40} />
-                    <LinkField label="Σύνδεσμος" value={c.href} onChange={(v) => upd(i, { href: v })} />
-                  </div>
-                  <Txt label="Περιγραφή εικόνας (alt)" value={c.alt} onChange={(v) => upd(i, { alt: v })} max={120} help="Για προσβασιμότητα και Google." />
-                </li>
-              ))}
-            </ol>
-            <button type="button" onClick={() => setList([...list, { id: `c-${Date.now().toString(36)}`, brand: "", title: "", text: "", cta: "Δες περισσότερα", href: "/prosfores", image: "", alt: "" }])} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Νέα καμπάνια</button>
-          </div>
-        );
-      }
-    }
-  };
-  return (
-    <div className="grid gap-4">
-      {d.managedAt && <p className="m-0 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Το περιεχόμενο ρυθμίζεται στο <a href={d.managedAt.href} className="text-eu-blue underline font-bold">{d.managedAt.label}</a>.</span></p>}
-      {d.fields.map(field)}
-      {s.props && Object.keys(s.props).length > 0 && <button type="button" onClick={() => set({})} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-10 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface"><Undo2 className="size-3.5" aria-hidden /> Επαναφορά στις αρχικές ρυθμίσεις</button>}
-    </div>
-  );
+/** Έγγραφο → λίστα με τη σειρά που εμφανίζεται στη σελίδα. */
+function flatten(doc: HomeDoc): Item[] {
+  const at = (zone: string) => doc.blocks.filter((b) => (b.zone ?? TOP_ZONE) === zone).map((b): Item => ({ key: blkKey(b.id), kind: "block", b }));
+  return [...at(TOP_ZONE), ...doc.sections.flatMap((s) => [{ key: secKey(s.id), kind: "section", s } as Item, ...at(afterZone(s.id))])];
+}
+/** Λίστα → έγγραφο: κάθε component παίρνει τη ζώνη της ενότητας που προηγείται (ή «κορυφή»). */
+function rebuild(items: Item[]): HomeDoc {
+  let zone = TOP_ZONE;
+  const sections: HomeSection[] = [], blocks: BrandBlock[] = [];
+  for (const it of items) {
+    if (it.kind === "section") { sections.push(it.s); zone = afterZone(it.s.id); } else blocks.push({ ...it.b, zone });
+  }
+  return { sections, blocks };
 }
 
+const stable = (v: unknown): string => (Array.isArray(v) ? `[${v.map(stable).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v as object).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v));
+
+/** Πόσες αλλαγές έχει το πρόχειρο από τη δημοσίευση (προσθήκες, αφαιρέσεις, αλλαγές, μετακινήσεις). */
+function changeCount(doc: HomeDoc, pub: HomeDoc | null): number {
+  if (!pub) return 0;
+  const a = flatten(doc), b = flatten(pub);
+  const bm = new Map(b.map((x, i) => [x.key, { x, i }]));
+  let n = 0;
+  for (const x of a) { const o = bm.get(x.key); if (!o) n++; else if (stable(x.kind === "section" ? x.s : { ...x.b, zone: undefined }) !== stable(o.x.kind === "section" ? o.x.s : { ...o.x.b, zone: undefined })) n++; }
+  n += b.filter((x) => !a.some((y) => y.key === x.key)).length;
+  const order = (l: Item[]) => l.filter((x) => bm.has(x.key) && a.some((y) => y.key === x.key)).map((x) => x.key).join("|");
+  if (order(a) !== order(b)) n++;
+  return n;
+}
+
+/* ---------------- εικονίδια & περιγραφές ---------------- */
+const SECTION_ICON: Record<HomeSectionId, LucideIcon> = { hero: GalleryHorizontal, ticker: Megaphone, categories: LayoutGrid, deals: Percent, campaigns: Sparkles, services: Wrench, stores: Store, guides: BookOpen, news: Newspaper, "ad-strip": ImageIcon, newsletter: Mail };
+const BLOCK_ICON: Partial<Record<BrandBlock["type"], LucideIcon>> = {
+  ad: ImageIcon, "deal-hero": Zap, "promo-products": Percent, "promo-grid": Tag, countdown: Timer, "promo-landing": Megaphone, coupon: Ticket,
+  "products-auto": ShoppingBag, "new-arrivals": Package, offers: Percent, series: LayoutGrid, categories: LayoutGrid,
+  banner: ImageIcon, story: FileText, gallery: GalleryHorizontal, video: Video,
+  text: FileText, steps: ListOrdered, callout: Bell, faq: HelpCircle, tech: Sparkles, support: Wrench,
+  contact: MessageSquare, stores: Store, services: Truck, guides: BookOpen, newsletter: Mail,
+  announcement: Megaphone, usp: Check, cta: Rocket,
+};
+const itemIcon = (it: Item) => (it.kind === "section" ? SECTION_ICON[it.s.id] : BLOCK_ICON[it.b.type] ?? Package);
+/** εικονίδιο χωρίς «component μέσα στο render» */
+const ico = (I: LucideIcon, className: string) => createElement(I, { className, "aria-hidden": true });
+const itemName = (it: Item) => (it.kind === "section" ? sectionDef(it.s.id)!.label : `${BLOCK_INFO[it.b.type].label}${it.b.title ? ` · ${it.b.title}` : ""}`);
+const AUD_LABEL: Record<HomeAudience, string> = { all: "Σε όλους", guest: "Μόνο επισκέπτες", customer: "Μόνο πελάτες" };
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString("el-GR", { day: "numeric", month: "short" });
+
+type Vis = { enabled?: boolean; hideOn?: Device[]; audience?: HomeAudience; schedule?: { from?: string; to?: string } };
+const visOf = (it: Item): Vis => (it.kind === "section" ? it.s : it.b);
+/** Η ορατότητα σε μία φράση: «Κρυφή», «Από 1 Νοε · μόνο κινητό», «Σε όλους · όλες οι συσκευές». */
+function visSummary(v: Vis): { live: boolean; text: string } {
+  if (v.enabled === false) return { live: false, text: "Κρυφή" };
+  const now = Date.now();
+  if (v.schedule?.to && new Date(v.schedule.to).getTime() < now) return { live: false, text: `Έληξε ${shortDate(v.schedule.to)}` };
+  const parts: string[] = [];
+  if (v.schedule?.from && new Date(v.schedule.from).getTime() > now) parts.push(`Από ${shortDate(v.schedule.from)}`);
+  else if (v.schedule?.to) parts.push(`Έως ${shortDate(v.schedule.to)}`);
+  parts.push(AUD_LABEL[v.audience ?? "all"]);
+  const shown = DEVICES.filter((d) => !v.hideOn?.includes(d.key));
+  parts.push(shown.length === 3 ? "όλες οι συσκευές" : shown.length ? `μόνο ${shown.map((d) => d.label.toLowerCase()).join(" & ")}` : "καμία συσκευή");
+  return { live: !(v.schedule?.from && new Date(v.schedule.from).getTime() > now) && shown.length > 0, text: parts.join(" · ") };
+}
+
+/* ---------------- editor ---------------- */
 export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info: initInfo, canWrite, canPublish }: { initial: HomeDoc; published: HomeDoc | null; savedAt: string | null; info: Record<string, PickProduct>; canWrite: boolean; canPublish: boolean }) {
   const router = useRouter();
-  const [doc, setDoc] = useState<HomeDoc>(initial);
+  const [doc, setDocRaw] = useState<HomeDoc>(initial);
+  const [past, setPast] = useState<HomeDoc[]>([]);
+  const [future, setFuture] = useState<HomeDoc[]>([]);
+  const lastPush = useRef<{ tag: string; at: number }>({ tag: "", at: 0 });
   const [info, setInfo] = useState(initInfo);
   const [save, setSave] = useState<"idle" | "pending" | "saving" | "error">("idle");
   const [savedAt, setSavedAt] = useState(initSavedAt);
-  const [pubJson, setPubJson] = useState(pub ? stable(pub) : null);
-  const [open, setOpen] = useState<Set<string>>(new Set());
-  const [adding, setAdding] = useState<string | null>(null);
-  const [view, setView] = useState<"edit" | "preview">("edit");
+  const [published, setPublished] = useState<HomeDoc | null>(pub);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<"content" | "visibility">("content");
+  const [adding, setAdding] = useState<{ after: string | null } | null>(null);
+  const [view, setView] = useState<"page" | "preview">("page");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [pv, setPv] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string; errors?: Issue[] } | null>(null);
-  const [showIssues, setShowIssues] = useState(false);
+  const [drag, setDrag] = useState<{ from: string; over: number | null } | null>(null);
   const [busy, start] = useTransition();
   const latest = useRef(doc);
   const savedJson = useRef(stable(initial));
-
   const onInfo = useCallback((list: PickProduct[]) => setInfo((x) => ({ ...x, ...Object.fromEntries(list.map((p) => [p.id, p])) })), []);
-  const published = pubJson !== null;
-  // χωρίς δημοσίευση: η πρώτη δημοσίευση «παίρνει» τη διαχείριση της αρχικής
-  const changed = published ? stable(doc) !== pubJson : true;
 
+  /** Κάθε αλλαγή περνά από εδώ: ιστορικό αναίρεσης (οι συνεχόμενες πληκτρολογήσεις στο ίδιο πεδίο = ένα βήμα). */
+  const update = useCallback((fn: (d: HomeDoc) => HomeDoc, tag = "") => {
+    if (!canWrite) return;
+    setDocRaw((d) => {
+      const next = fn(d);
+      const now = Date.now();
+      if (!(tag && tag === lastPush.current.tag && now - lastPush.current.at < 1500)) { setPast((p) => [...p.slice(-49), d]); setFuture([]); }
+      lastPush.current = { tag, at: now };
+      return next;
+    });
+  }, [canWrite]);
+  const undo = useCallback(() => setPast((p) => { if (!p.length) return p; const prev = p[p.length - 1]; setFuture((f) => [latest.current, ...f]); setDocRaw(prev); lastPush.current = { tag: "", at: 0 }; return p.slice(0, -1); }), []);
+  const redo = useCallback(() => setFuture((f) => { if (!f.length) return f; const nx = f[0]; setPast((p) => [...p, latest.current]); setDocRaw(nx); lastPush.current = { tag: "", at: 0 }; return f.slice(1); }), []);
+
+  // αυτόματη αποθήκευση του πρόχειρου
   const flush = useCallback(async () => {
     setSave("saving");
     const r = await saveHomeAction(latest.current);
@@ -140,7 +139,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
     latest.current = doc;
     if (!canWrite || stable(doc) === savedJson.current) return;
     const t0 = setTimeout(() => setSave("pending"), 0);
-    const t = setTimeout(() => { void flush(); }, 1200);
+    const t = setTimeout(() => { void flush(); }, 1000);
     return () => { clearTimeout(t0); clearTimeout(t); };
   }, [doc, flush, canWrite]);
   useEffect(() => {
@@ -149,137 +148,366 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
     window.addEventListener("beforeunload", h);
     return () => window.removeEventListener("beforeunload", h);
   }, [save]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, [contenteditable]")) return; // η αναίρεση του πεδίου ανήκει στο πεδίο
+      e.preventDefault(); if (e.shiftKey) redo(); else undo();
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [undo, redo]);
 
-  const setBlocks = (fn: (b: BrandBlock[]) => BrandBlock[]) => setDoc((d) => ({ ...d, blocks: fn(d.blocks) }));
-  const setSection = (i: number, s: HomeSection) => setDoc((d) => ({ ...d, sections: d.sections.map((x, k) => (k === i ? s : x)) }));
-  const moveSection = (i: number, j: number) => setDoc((d) => { const x = [...d.sections]; [x[i], x[j]] = [x[j], x[i]]; return { ...d, sections: x }; });
+  const items = useMemo(() => flatten(doc), [doc]);
+  const idx = (key: string) => items.findIndex((x) => x.key === key);
+  const sel = selected ? items.find((x) => x.key === selected) ?? null : null;
   const { errors, warnings } = checkBlocks(doc.blocks);
-  const go = (anchor?: string) => { if (!anchor) return; setView("edit"); if (anchor.startsWith("blk-")) setOpen((o) => new Set(o).add(anchor.slice(4))); setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
+  const changes = changeCount(doc, published);
+  const isPublished = published !== null;
+  const canPublishNow = !isPublished || changes > 0;
+
+  const move = (key: string, to: number) => update((d) => { const l = flatten(d); const i = l.findIndex((x) => x.key === key); if (i < 0) return d; const [x] = l.splice(i, 1); l.splice(Math.max(0, Math.min(l.length, to > i ? to - 1 : to)), 0, x); return rebuild(l); });
+  const setItem = (it: Item, tag = "") => update((d) => rebuild(flatten(d).map((x) => (x.key === it.key ? it : x))), tag);
+  const toggle = (it: Item) => setItem(it.kind === "section" ? { ...it, s: { ...it.s, enabled: it.s.enabled === false ? undefined : false } } : { ...it, b: { ...it.b, enabled: it.b.enabled === false ? undefined : false } });
+  const remove = (it: Item) => { if (it.kind !== "block") return; update((d) => ({ ...d, blocks: d.blocks.filter((b) => b.id !== it.b.id) })); setSelected(null); };
+  const duplicate = (it: Item) => { if (it.kind !== "block") return; const c = { ...structuredClone(it.b), id: newBlock(it.b.type, "Euronics").id }; update((d) => { const l = flatten(d); l.splice(l.findIndex((x) => x.key === it.key) + 1, 0, { key: blkKey(c.id), kind: "block", b: c }); return rebuild(l); }); setSelected(blkKey(c.id)); };
+  const add = (type: BrandBlock["type"], after: string | null) => {
+    const b = newBlock(type, "Euronics");
+    update((d) => { const l = flatten(d); const at = after ? l.findIndex((x) => x.key === after) + 1 : 0; l.splice(at, 0, { key: blkKey(b.id), kind: "block", b }); return rebuild(l); });
+    setAdding(null); setSelected(blkKey(b.id)); setTab("content");
+  };
+  const open = (key: string) => { setSelected(key); setTab("content"); };
+
   const publish = () => {
-    if (errors.length) { setShowIssues(true); setResult({ ok: false, message: `Υπάρχουν ${errors.length} θέματα που πρέπει να διορθωθούν πριν τη δημοσίευση.`, errors }); return; }
-    if (!window.confirm("Δημοσίευση της αρχικής; Οι επισκέπτες θα δουν τις αλλαγές αμέσως.")) return;
+    if (errors.length) { setResult({ ok: false, message: `Υπάρχουν ${errors.length} θέματα που πρέπει να διορθωθούν πριν τη δημοσίευση.`, errors }); return; }
+    if (!window.confirm(isPublished ? `Δημοσίευση ${changes} ${changes === 1 ? "αλλαγής" : "αλλαγών"} στην αρχική; Οι επισκέπτες θα τις δουν αμέσως.` : "Δημοσίευση της αρχικής; Από εδώ και πέρα την ελέγχει αυτή η σελίδα.")) return;
     start(async () => {
       if (save !== "idle" && !(await flush())) { setResult({ ok: false, message: "Η αποθήκευση απέτυχε — δοκίμασε ξανά." }); return; }
       const r = await publishHomeAction();
       setResult(r);
-      if (r.ok) { setPubJson(stable(latest.current)); router.refresh(); }
+      if (r.ok) { setPublished(structuredClone(latest.current)); router.refresh(); }
     });
   };
   const revert = () => { if (!window.confirm("Να χαθούν οι αλλαγές του πρόχειρου και να γυρίσει στη δημοσιευμένη αρχική;")) return; start(async () => { setResult(await revertHomeAction()); window.location.reload(); }); };
-  const status = !published ? (["off", "Δεν έχει δημοσιευτεί — φαίνεται η αρχική όπως είναι"] as const) : changed ? (["incomplete", "Δημοσιευμένη · αλλαγές στο πρόχειρο"] as const) : (["live", "Δημοσιευμένη"] as const);
-  const saveText = save === "saving" ? "Αποθήκευση…" : save === "pending" ? "Αλλαγές…" : save === "error" ? "Η αποθήκευση απέτυχε" : savedAt ? `Πρόχειρο αποθηκεύτηκε ${new Date(savedAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}` : "Δεν έχει αλλαγές";
-  const zoneDefs = [{ key: TOP_ZONE, label: "Στην κορυφή", help: "Κάτω από το μενού, πριν την πρώτη ενότητα — για λεπτή λωρίδα ανακοίνωσης ή αντίστροφης μέτρησης." }, ...doc.sections.map((s) => ({ key: afterZone(s.id), label: `Μετά από «${sectionDef(s.id)!.label}»`, help: "Components ανάμεσα σε αυτή και την επόμενη ενότητα. Ακολουθούν την ενότητα αν αλλάξει η σειρά." }))];
-  const zoneBlocks = (key: string) => (
-    <ZoneBlocks
-      blocks={doc.blocks} setBlocks={setBlocks}
-      zones={zoneDefs.filter((z) => z.key === key)} moveZones={zoneDefs} defaultZone={TOP_ZONE}
-      errors={errors} brandName="Euronics" ctx={{ brandId: null, brandName: "Euronics", info, onInfo }}
-      open={open} setOpen={setOpen} adding={adding} setAdding={setAdding} audience compactEmpty
-    />
-  );
+  const go = (anchor?: string) => { if (anchor?.startsWith("blk-")) open(blkKey(anchor.slice(4))); };
+
+  const saveText = save === "saving" ? "Αποθήκευση…" : save === "pending" ? "Αλλαγές…" : save === "error" ? "Η αποθήκευση απέτυχε" : savedAt ? `Αποθηκεύτηκε ${new Date(savedAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}` : "Χωρίς αλλαγές";
+  const iconBtn = "size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30 disabled:hover:bg-transparent";
 
   return (
     <PickerBrand.Provider value={{ brandId: null, brandName: "Euronics" }}>
-      <div className="grid gap-4 min-w-0">
-        <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-3 bg-eu-surface/95 backdrop-blur border-b border-eu-line grid gap-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)] min-w-0">Ζώνες αρχικής</h2>
-            <StatusPill status={status[0]} text={status[1]} />
-            <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-13)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>{save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}{saveText}</span>
+      <div className="grid gap-3 min-w-0">
+        {/* ---- πάνω μπάρα: κατάσταση, αναίρεση, δημοσίευση ---- */}
+        <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2.5 bg-white/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="min-w-0 grid">
+            <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">Αρχική σελίδα</h1>
+            <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-13)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>
+              {save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}
+              {saveText} · {!isPublished ? "δεν έχει δημοσιευτεί ακόμη" : changes ? `${changes} ${changes === 1 ? "αλλαγή" : "αλλαγές"} για δημοσίευση` : "ίδια με το site"}
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {canPublish && <button type="button" onClick={publish} disabled={busy || !changed} className="inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-4 @md:px-5 min-h-12 hover:bg-eu-blue disabled:opacity-50 flex-1 @md:flex-none min-w-0">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}{changed ? (published ? "Δημοσίευση αλλαγών" : "Δημοσίευση") : "Χωρίς αλλαγές για δημοσίευση"}</button>}
-            <button type="button" onClick={() => setShowIssues((x) => !x)} aria-expanded={showIssues} title="Έλεγχος πριν τη δημοσίευση" className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border-2 px-4 min-h-12 font-bold text-[length:var(--fs-14)] ${errors.length ? "border-eu-red text-eu-red" : warnings.length ? "border-eu-amber text-eu-amber" : "border-eu-green text-eu-green"}`}>{errors.length ? <CircleAlert className="size-4" aria-hidden /> : warnings.length ? <TriangleAlert className="size-4" aria-hidden /> : <Check className="size-4" aria-hidden />}{errors.length ? <>{errors.length}<span className="hidden @md:inline"> για διόρθωση</span></> : warnings.length ? <>{warnings.length}<span className="hidden @md:inline"> συστάσεις</span></> : "Έτοιμη"}</button>
+          <div className="ml-auto flex items-center gap-1">
+            <button type="button" onClick={undo} disabled={!past.length || !canWrite} aria-label="Αναίρεση" title="Αναίρεση (Ctrl/⌘ Z)" className={iconBtn}><Undo2 className="size-5" aria-hidden /></button>
+            <button type="button" onClick={redo} disabled={!future.length || !canWrite} aria-label="Επανάληψη" title="Επανάληψη (Ctrl/⌘ ⇧ Z)" className={iconBtn}><Redo2 className="size-5" aria-hidden /></button>
+            <a href="/?preview=1" target="_blank" rel="noopener noreferrer" aria-label="Προεπισκόπηση σε νέα καρτέλα" title="Προεπισκόπηση σε νέα καρτέλα" className={iconBtn}><ExternalLink className="size-5" aria-hidden /></a>
+            {canPublish && (
+              <button type="button" onClick={publish} disabled={busy || !canPublishNow} className="ml-1 inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-50">
+                {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}Δημοσίευση
+              </button>
+            )}
           </div>
-          {!canWrite && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Μόνο προβολή — δεν έχεις δικαίωμα επεξεργασίας της αρχικής.</p>}
-          {result && <div className="relative"><ResultBanner ok={result.ok}><span className="block pr-8">{result.message}</span></ResultBanner><button type="button" onClick={() => setResult(null)} aria-label="Κλείσιμο" className="absolute top-1 right-1 size-10 grid place-items-center rounded-full text-eu-muted hover:bg-white/60"><X className="size-4" aria-hidden /></button></div>}
-          {showIssues && (errors.length > 0 || warnings.length > 0) && (
-            <ul className="m-0 p-0 list-none grid gap-1 max-h-[40vh] overflow-y-auto rounded-xl bg-white border border-eu-line p-2">
-              {[...errors.map((e) => ({ ...e, err: true })), ...warnings.map((w) => ({ ...w, err: false }))].map((x, k) => (
-                <li key={k}><button type="button" onClick={() => go(x.anchor)} className="w-full text-left flex items-start gap-2 rounded-lg px-2 py-1.5 min-h-11 hover:bg-eu-surface">{x.err ? <CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden /> : <TriangleAlert className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />}<span className="text-[length:var(--fs-14)]"><b>{x.where}:</b> {x.msg}</span></button></li>
-              ))}
-            </ul>
+          {result && (
+            <div className="relative basis-full">
+              <ResultBanner ok={result.ok}><span className="block pr-8">{result.message}</span></ResultBanner>
+              {result.errors?.length ? <ul className="m-0 mt-1 p-0 list-none grid gap-1">{result.errors.map((e, k) => <li key={k}><button type="button" onClick={() => go(e.anchor)} className="text-left text-eu-red font-bold text-[length:var(--fs-14)] underline min-h-11">{e.where}: {e.msg}</button></li>)}</ul> : null}
+              <button type="button" onClick={() => setResult(null)} aria-label="Κλείσιμο" className="absolute top-1 right-1 size-10 grid place-items-center rounded-full text-eu-muted hover:bg-white/60"><X className="size-4" aria-hidden /></button>
+            </div>
           )}
-          <div className="@7xl:hidden grid grid-cols-2 gap-1 rounded-full bg-white border border-eu-line p-1" role="tablist" aria-label="Προβολή">
-            {(["edit", "preview"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`rounded-full min-h-10 font-bold text-[length:var(--fs-14)] ${view === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{v === "edit" ? "Επεξεργασία" : "Προεπισκόπηση"}</button>)}
+          {isPublished && changes > 0 && canWrite && <button type="button" onClick={revert} disabled={busy} className="basis-full @md:basis-auto text-left text-eu-ink-3 font-bold text-[length:var(--fs-13)] underline min-h-11">Ακύρωση αλλαγών (επιστροφή στη δημοσιευμένη)</button>}
+          <div className="@5xl:hidden basis-full grid grid-cols-2 gap-1 rounded-full bg-eu-surface p-1" role="tablist" aria-label="Προβολή">
+            {(["page", "preview"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${view === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{v === "page" ? "Σελίδα" : "Προεπισκόπηση"}</button>)}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <a href="/?preview=1" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Προεπισκόπηση <ExternalLink className="size-4" aria-hidden /></a>
-          <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Στο site <ExternalLink className="size-4" aria-hidden /></a>
-          {published && changed && canWrite && <button type="button" onClick={revert} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Undo2 className="size-4" aria-hidden /> Ακύρωση αλλαγών</button>}
-        </div>
-
-        <div className="grid grid-cols-1 @7xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
-          <div className={`${view === "edit" ? "min-w-0 grid gap-4" : "hidden @7xl:grid min-w-0 gap-4"} ${canWrite ? "" : "pointer-events-none opacity-80"}`}>
-            <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-2">
-              <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Τι κάνω εδώ;</h3>
-              <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] leading-relaxed">Η αρχική αποτελείται από <b>{doc.sections.length} ενότητες</b> (slides, κατηγορίες, προσφορές, καμπάνιες…). Μπορείς να αλλάξεις τη σειρά τους, να τις κρύψεις, να ορίσεις <b>πότε</b>, <b>σε ποιες συσκευές</b> και <b>σε ποιους</b> εμφανίζονται, και να διορθώσεις τα κείμενά τους. Ανάμεσά τους μπαίνουν <b>components</b> της συλλογής: banner, προϊόντα, προσφορά ημέρας, κουπόνι, διαφήμιση και άλλα.</p>
-              <p className="m-0 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Οι αλλαγές αποθηκεύονται αυτόματα ως <b>πρόχειρο</b> και φαίνονται στην «Προεπισκόπηση». Οι επισκέπτες τις βλέπουν μόλις πατήσεις «Δημοσίευση».</span></p>
-            </section>
-
-            <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-4 min-w-0" aria-label="Ενότητες και ζώνες">
-              {zoneBlocks(TOP_ZONE)}
-              {doc.sections.map((s, i) => {
-                const d = sectionDef(s.id)!;
-                const st = sectionState(s);
-                const isOpen = open.has(`sec-${s.id}`);
-                return (
-                  <Fragment key={s.id}>
-                    <article id={`sec-${s.id}`} className={`rounded-xl border-2 scroll-mt-40 min-w-0 ${s.enabled === false ? "border-eu-line bg-eu-surface/60" : "border-eu-navy/40 bg-eu-chip/40"}`}>
-                      <div className="flex flex-wrap items-center gap-2 p-2 pl-3">
-                        <button type="button" onClick={() => setOpen((o) => { const n = new Set(o); const k = `sec-${s.id}`; if (n.has(k)) n.delete(k); else n.add(k); return n; })} aria-expanded={isOpen} className="flex items-center gap-2 min-h-11 text-left flex-1 min-w-[12rem]">
-                          <span className="shrink-0 rounded-lg bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] px-2 py-1">Ενότητα {i + 1}</span>
-                          <span className="grid min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-16)] truncate">{d.label}</span><span className="flex flex-wrap gap-1.5 items-center"><StatusPill status={st.s} text={st.t} />{s.hideOn?.length ? <span className="rounded-full bg-eu-surface px-2 py-0.5 text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Όχι σε: {s.hideOn.map((x) => DEVICES.find((dv) => dv.key === x)?.label).join(", ")}</span> : null}{s.props && Object.keys(s.props).length ? <span className="rounded-full bg-eu-surface px-2 py-0.5 text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Με αλλαγές</span> : null}</span></span>
-                          <ChevronDown className={`ml-auto size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-                        </button>
-                        <span className="flex items-center">
-                          <button type="button" onClick={() => setSection(i, { ...s, enabled: s.enabled === false ? undefined : false })} aria-label={s.enabled === false ? "Εμφάνιση" : "Απόκρυψη"} title={s.enabled === false ? "Εμφάνιση" : "Απόκρυψη"} className="size-11 grid place-items-center rounded-full hover:bg-white">{s.enabled === false ? <EyeOff className="size-4 text-eu-muted" aria-hidden /> : <Eye className="size-4" aria-hidden />}</button>
-                          <button type="button" disabled={i === 0} onClick={() => moveSection(i, i - 1)} aria-label="Πιο πάνω" className="size-11 grid place-items-center rounded-full hover:bg-white disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
-                          <button type="button" disabled={i === doc.sections.length - 1} onClick={() => moveSection(i, i + 1)} aria-label="Πιο κάτω" className="size-11 grid place-items-center rounded-full hover:bg-white disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>
-                        </span>
-                      </div>
-                      {isOpen && (
-                        <div className="border-t border-eu-line bg-white rounded-b-xl p-3 @md:p-4 grid gap-4">
-                          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">{d.help}</p>
-                          <SectionFields s={s} set={(props) => setSection(i, { ...s, props: Object.keys(props).length ? props : undefined })} />
-                          <div className="grid @xl:grid-cols-2 gap-3">
-                            <fieldset className="m-0 p-0 border-0 grid gap-1 min-w-0">
-                              <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Ορατό σε</legend>
-                              <div className="flex flex-wrap gap-2">
-                                {DEVICES.map((dv) => {
-                                  const on = !s.hideOn?.includes(dv.key);
-                                  const Icon = dv.key === "mobile" ? Smartphone : dv.key === "tablet" ? Tablet : Laptop;
-                                  return <button key={dv.key} type="button" aria-pressed={on} title={dv.help} onClick={() => { const cur = new Set<Device>(s.hideOn ?? []); if (on) cur.add(dv.key); else cur.delete(dv.key); setSection(i, { ...s, hideOn: cur.size ? [...cur] : undefined }); }} className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3 min-h-11 font-bold text-[length:var(--fs-14)] ${on ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-muted line-through"}`}><Icon className="size-4" aria-hidden />{dv.label}</button>;
-                                })}
-                              </div>
-                              <span className="text-eu-muted text-[length:var(--fs-13)]">Πάτα για να την κρύψεις σε μια συσκευή.</span>
-                            </fieldset>
-                            <label className="grid gap-1 min-w-0">
-                              <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Σε ποιους εμφανίζεται</span>
-                              <select value={s.audience ?? "all"} onChange={(e) => setSection(i, { ...s, audience: e.target.value === "all" ? undefined : (e.target.value as HomeAudience) })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">{AUD.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}</select>
-                            </label>
-                          </div>
-                          <details className="rounded-xl bg-eu-surface/60 border border-eu-line" open={!!(s.schedule?.from || s.schedule?.to)}>
-                            <summary className="cursor-pointer list-none flex items-center gap-2 px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)]"><CalendarClock className="size-4" aria-hidden /> Πότε εμφανίζεται (προαιρετικό)</summary>
-                            <div className="px-3 pb-3 grid @xl:grid-cols-2 gap-x-5 gap-y-4">
-                              <DateTime label="Από" value={s.schedule?.from} onChange={(v) => setSection(i, { ...s, schedule: { ...s.schedule, from: v } })} help="Κενό = από τώρα." />
-                              <DateTime label="Έως" value={s.schedule?.to} onChange={(v) => setSection(i, { ...s, schedule: { ...s.schedule, to: v } })} help="Κενό = χωρίς λήξη." />
-                            </div>
-                          </details>
+        <div className="grid grid-cols-1 @5xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)] gap-5 items-start">
+          {/* ---- αριστερά: χάρτης ή επιθεωρητής ---- */}
+          <div className={`${view === "page" ? "" : "hidden @5xl:block"} min-w-0`}>
+            {!sel ? (
+              <section aria-label="Η αρχική από πάνω προς τα κάτω" className="grid gap-3">
+                {warnings.length > 0 || errors.length > 0 ? (
+                  <p className={`m-0 inline-flex items-start gap-2 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${errors.length ? "bg-eu-red/10 text-eu-red" : "bg-eu-amber/15 text-eu-ink-2"}`}><CircleAlert className="size-4 mt-0.5 shrink-0" aria-hidden />{errors.length ? `${errors.length} components θέλουν διόρθωση πριν τη δημοσίευση — άνοιξε όσα έχουν κόκκινη ένδειξη.` : `${warnings.length} συστάσεις — άνοιξε όσα έχουν πορτοκαλί ένδειξη.`}</p>
+                ) : null}
+                {canWrite && <button type="button" onClick={() => setAdding({ after: null })} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-chip"><Plus className="size-5" aria-hidden /> Προσθήκη στην αρχική</button>}
+                <ol className="m-0 p-0 list-none grid" onDragOver={(e) => e.preventDefault()}>
+                  {items.map((it, i) => {
+                    const v = visSummary(visOf(it));
+                    const bad = it.kind === "block" ? errors.some((e) => e.anchor === `blk-${it.b.id}`) : false;
+                    const warn = it.kind === "block" && !bad ? warnings.some((e) => e.anchor === `blk-${it.b.id}`) : false;
+                    return (
+                      <li key={it.key} className="relative"
+                        onDragOver={(e) => { if (!drag) return; e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); const over = e.clientY < r.top + r.height / 2 ? i : i + 1; if (over !== drag.over) setDrag({ ...drag, over }); }}
+                        onDrop={(e) => { e.preventDefault(); if (drag?.over != null) move(drag.from, drag.over); setDrag(null); }}>
+                        {drag?.over === i && <span aria-hidden className="absolute -top-0.5 inset-x-0 h-1 rounded-full bg-eu-blue" />}
+                        <div className={`group flex items-center gap-1 rounded-xl border mb-1.5 ${it.kind === "section" ? "bg-white border-eu-line" : "bg-eu-chip/50 border-eu-blue/30 ml-4"} ${drag?.from === it.key ? "opacity-40" : ""}`}>
+                          {canWrite && (
+                            <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag({ from: it.key, over: null }); }} onDragEnd={() => setDrag(null)} title="Σύρε για αλλαγή σειράς" aria-hidden className="hidden @md:grid place-items-center w-7 self-stretch cursor-grab text-eu-muted hover:text-eu-ink"><GripVertical className="size-4" /></span>
+                          )}
+                          <button type="button" onClick={() => open(it.key)}
+                            onKeyDown={(e) => { if (!e.altKey || !canWrite) return; if (e.key === "ArrowUp" && i > 0) { e.preventDefault(); move(it.key, i - 1); } if (e.key === "ArrowDown" && i < items.length - 1) { e.preventDefault(); move(it.key, i + 2); } }}
+                            aria-label={`${itemName(it)} — ${v.text}. Άνοιγμα ρυθμίσεων. Alt + βέλη για μετακίνηση.`}
+                            className="flex-1 min-w-0 flex items-center gap-3 text-left px-2 py-2 min-h-14 rounded-xl hover:bg-eu-surface/70 focus-visible:outline-2 focus-visible:outline-eu-blue">
+                            <span className={`size-9 shrink-0 grid place-items-center rounded-lg ${it.kind === "section" ? "bg-eu-navy text-white" : "bg-white text-eu-blue border border-eu-blue/30"} ${v.live ? "" : "opacity-50"}`}>{ico(itemIcon(it), "size-[18px]")}</span>
+                            <span className="grid min-w-0">
+                              <span className={`font-bold text-[length:var(--fs-15)] leading-snug ${v.live ? "text-eu-ink" : "text-eu-muted line-through decoration-1"}`}>{itemName(it)}</span>
+                              <span className={`text-[length:var(--fs-13)] leading-snug ${bad ? "text-eu-red font-bold" : warn ? "text-eu-amber font-bold" : "text-eu-muted"}`}>{bad ? "Θέλει διόρθωση · " : warn ? "Σύσταση · " : ""}{it.kind === "block" ? "Component · " : ""}{v.text}</span>
+                            </span>
+                          </button>
+                          {canWrite && <button type="button" onClick={() => toggle(it)} aria-label={visOf(it).enabled === false ? `Εμφάνιση: ${itemName(it)}` : `Απόκρυψη: ${itemName(it)}`} title={visOf(it).enabled === false ? "Εμφάνιση" : "Απόκρυψη"} className={iconBtn}>{visOf(it).enabled === false ? <EyeOff className="size-4 text-eu-muted" aria-hidden /> : <Eye className="size-4" aria-hidden />}</button>}
+                          {canWrite && <button type="button" onClick={() => setAdding({ after: it.key })} aria-label={`Προσθήκη κάτω από: ${itemName(it)}`} title="Προσθήκη από κάτω" className={iconBtn}><Plus className="size-4" aria-hidden /></button>}
                         </div>
-                      )}
-                    </article>
-                    {zoneBlocks(afterZone(s.id))}
-                  </Fragment>
-                );
-              })}
-            </section>
+                        {drag?.over === items.length && i === items.length - 1 && <span aria-hidden className="absolute -bottom-0.5 inset-x-0 h-1 rounded-full bg-eu-blue" />}
+                      </li>
+                    );
+                  })}
+                </ol>
+                <p className="m-0 text-eu-muted text-[length:var(--fs-13)] leading-relaxed">Πάτα ένα στοιχείο για να το ρυθμίσεις. Σειρά: σύρε από τη λαβή ή, στη ρύθμισή του, «Πιο πάνω / Πιο κάτω». Οι αλλαγές αποθηκεύονται μόνες τους ως πρόχειρο· οι επισκέπτες τις βλέπουν μετά τη «Δημοσίευση».</p>
+              </section>
+            ) : (
+              <Inspector
+                it={sel} index={idx(sel.key)} count={items.length} tab={tab} setTab={setTab} canWrite={canWrite}
+                errors={errors.filter((e) => sel.kind === "block" && e.anchor === `blk-${sel.b.id}`)}
+                onBack={() => setSelected(null)} onChange={(x, tag) => setItem(x, tag)} onToggle={() => toggle(sel)}
+                onMove={(d) => move(sel.key, d < 0 ? idx(sel.key) - 1 : idx(sel.key) + 2)} onDuplicate={() => duplicate(sel)} onRemove={() => { if (window.confirm(`Διαγραφή του «${itemName(sel)}»; (Για να μη φαίνεται χωρίς να χαθεί, πάτα το μάτι.)`)) remove(sel); }}
+                blockCtx={{ brandId: null, brandName: "Euronics", info, onInfo }}
+              />
+            )}
           </div>
-          <div className={view === "preview" ? "min-w-0" : "hidden @7xl:block min-w-0"}><Preview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} /></div>
+
+          {/* ---- δεξιά: ζωντανή προεπισκόπηση ---- */}
+          <div className={`${view === "preview" ? "" : "hidden @5xl:block"} min-w-0 @5xl:sticky @5xl:top-24`}>
+            <LivePreview v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} onPick={(key) => { if (items.some((x) => x.key === key)) { open(key); setView("page"); } }} />
+          </div>
         </div>
       </div>
+      {adding && <AddDialog after={adding.after} items={items} onAdd={add} onClose={() => setAdding(null)} />}
     </PickerBrand.Provider>
+  );
+}
+
+/* ---------------- επιθεωρητής ---------------- */
+function Inspector({ it, index, count, tab, setTab, canWrite, errors, onBack, onChange, onToggle, onMove, onDuplicate, onRemove, blockCtx }: {
+  it: Item; index: number; count: number; tab: "content" | "visibility"; setTab: (t: "content" | "visibility") => void; canWrite: boolean; errors: Issue[];
+  onBack: () => void; onChange: (it: Item, tag?: string) => void; onToggle: () => void; onMove: (d: -1 | 1) => void; onDuplicate: () => void; onRemove: () => void;
+  blockCtx: { brandId: string | null; brandName: string; info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void };
+}) {
+  const v = visOf(it);
+  const sum = visSummary(v);
+  const setVis = (p: Vis) => onChange(it.kind === "section" ? { ...it, s: { ...it.s, ...p } } : { ...it, b: { ...it.b, ...p } as BrandBlock });
+  const help = it.kind === "section" ? sectionDef(it.s.id)!.help : BLOCK_INFO[it.b.type].help;
+  const iconBtn = "size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30";
+  return (
+    <section aria-label={`Ρυθμίσεις: ${itemName(it)}`} className="grid gap-3">
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 rounded-full pl-2 pr-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:bg-eu-surface"><ArrowLeft className="size-4" aria-hidden /> Όλη η σελίδα</button>
+        <span className="ml-auto text-eu-muted text-[length:var(--fs-13)] tabular-nums">{index + 1} / {count}</span>
+      </div>
+      <div className="rounded-2xl border border-eu-line bg-white grid">
+        <div className="flex items-start gap-3 p-3">
+          <span className={`size-10 shrink-0 grid place-items-center rounded-lg ${it.kind === "section" ? "bg-eu-navy text-white" : "bg-eu-chip text-eu-blue"}`}>{ico(itemIcon(it), "size-5")}</span>
+          <div className="min-w-0 grid gap-0.5">
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] leading-tight">{it.kind === "section" ? sectionDef(it.s.id)!.label : BLOCK_INFO[it.b.type].label}</h2>
+            <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{help}</p>
+          </div>
+        </div>
+        {canWrite && (
+          <div className="flex flex-wrap items-center gap-1 border-t border-eu-line px-2 py-1">
+            <button type="button" onClick={onToggle} className="inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-surface">{v.enabled === false ? <><Eye className="size-4" aria-hidden /> Εμφάνιση</> : <><EyeOff className="size-4" aria-hidden /> Απόκρυψη</>}</button>
+            <button type="button" onClick={() => onMove(-1)} disabled={index === 0} aria-label="Πιο πάνω" title="Πιο πάνω" className={iconBtn}><ArrowUp className="size-4" aria-hidden /></button>
+            <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label="Πιο κάτω" title="Πιο κάτω" className={iconBtn}><ArrowDown className="size-4" aria-hidden /></button>
+            {it.kind === "block" && <>
+              <button type="button" onClick={onDuplicate} aria-label="Αντίγραφο" title="Αντίγραφο" className={iconBtn}><Copy className="size-4" aria-hidden /></button>
+              <button type="button" onClick={onRemove} aria-label="Διαγραφή" title="Διαγραφή" className={`${iconBtn} ml-auto text-eu-red hover:bg-eu-red/10`}><Trash2 className="size-4" aria-hidden /></button>
+            </>}
+          </div>
+        )}
+      </div>
+      {errors.length > 0 && <ul className="m-0 p-0 list-none grid gap-1 rounded-xl bg-eu-red/10 px-3 py-2">{errors.map((e, k) => <li key={k} className="text-eu-red font-bold text-[length:var(--fs-14)]">{e.msg}</li>)}</ul>}
+      <div role="tablist" aria-label="Ρυθμίσεις" className="grid grid-cols-2 gap-1 rounded-full bg-eu-surface p-1">
+        <button type="button" role="tab" aria-selected={tab === "content"} onClick={() => setTab("content")} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${tab === "content" ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-2"}`}>Περιεχόμενο</button>
+        <button type="button" role="tab" aria-selected={tab === "visibility"} onClick={() => setTab("visibility")} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${tab === "visibility" ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-2"}`}>Πότε & σε ποιους</button>
+      </div>
+      <div className={`rounded-2xl border border-eu-line bg-white p-3 @md:p-4 grid gap-4 ${canWrite ? "" : "pointer-events-none opacity-80"}`}>
+        {tab === "content" ? (
+          it.kind === "section"
+            ? <SectionFields s={it.s} set={(props) => onChange({ ...it, s: { ...it.s, props: Object.keys(props).length ? props : undefined } }, `p:${it.key}`)} />
+            : <BlockFields b={it.b} set={(nb) => onChange({ ...it, b: nb }, `b:${it.key}`)} ctx={blockCtx} />
+        ) : (
+          <VisibilityForm v={v} summary={sum.text} onChange={setVis} />
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** «Πότε & σε ποιους»: συσκευές (κουμπιά), κοινό (επιλογές με εξήγηση), ημερομηνίες. */
+function VisibilityForm({ v, summary, onChange }: { v: Vis; summary: string; onChange: (p: Vis) => void }) {
+  const AUD: { v: HomeAudience; t: string; d: string }[] = [
+    { v: "all", t: "Σε όλους", d: "Επισκέπτες και συνδεδεμένοι πελάτες." },
+    { v: "guest", t: "Μόνο σε επισκέπτες", d: "Όσοι δεν έχουν συνδεθεί — π.χ. κουπόνι εγγραφής." },
+    { v: "customer", t: "Μόνο σε πελάτες", d: "Όσοι έχουν συνδεθεί — π.χ. προσφορά για μέλη." },
+  ];
+  return (
+    <div className="grid gap-5">
+      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><b>Τώρα:</b> {summary}</p>
+      <fieldset className="m-0 p-0 border-0 grid gap-2">
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1">Σε ποιες συσκευές</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {DEVICES.map((dv) => {
+            const on = !v.hideOn?.includes(dv.key);
+            return (
+              <button key={dv.key} type="button" aria-pressed={on} onClick={() => { const cur = new Set<Device>(v.hideOn ?? []); if (on) cur.add(dv.key); else cur.delete(dv.key); onChange({ hideOn: cur.size ? [...cur] : undefined }); }}
+                className={`grid justify-items-center gap-1 rounded-xl border-2 px-2 py-2 min-h-16 font-bold text-[length:var(--fs-13)] ${on ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-muted"}`}>
+                {ico(dv.key === "mobile" ? Smartphone : dv.key === "tablet" ? Tablet : Laptop, "size-5")}{dv.label}<span className="font-normal">{on ? "Ναι" : "Όχι"}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <fieldset className="m-0 p-0 border-0 grid gap-2">
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1">Σε ποιους</legend>
+        {AUD.map((a) => {
+          const on = (v.audience ?? "all") === a.v;
+          return (
+            <label key={a.v} className={`flex items-start gap-3 rounded-xl border-2 px-3 py-2.5 min-h-12 cursor-pointer ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-navy/50"}`}>
+              <input type="radio" name="aud" checked={on} onChange={() => onChange({ audience: a.v === "all" ? undefined : a.v })} className="mt-1 size-4 accent-eu-navy" />
+              <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{a.t}</span><span className="text-eu-muted text-[length:var(--fs-13)]">{a.d}</span></span>
+            </label>
+          );
+        })}
+      </fieldset>
+      <fieldset className="m-0 p-0 border-0 grid gap-3">
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1 inline-flex items-center gap-2"><CalendarClock className="size-4" aria-hidden /> Πότε</legend>
+        <DateTime label="Από" value={v.schedule?.from} onChange={(x) => onChange({ schedule: { ...v.schedule, from: x } })} help="Κενό = από τώρα." />
+        <DateTime label="Έως" value={v.schedule?.to} onChange={(x) => onChange({ schedule: { ...v.schedule, to: x } })} help="Κενό = χωρίς λήξη. Μετά κρύβεται μόνο του." />
+      </fieldset>
+    </div>
+  );
+}
+
+/* ---------------- προσθήκη ---------------- */
+function AddDialog({ after, items, onAdd, onClose }: { after: string | null; items: Item[]; onAdd: (t: BrandBlock["type"], after: string | null) => void; onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const [pos, setPos] = useState<string>(after ?? "");
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const d = ref.current; d?.showModal(); return () => d?.close(); }, []);
+  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const groups = BLOCK_GROUPS.map((g) => ({ ...g, types: g.types.filter((t) => !q || norm(`${BLOCK_INFO[t].label} ${BLOCK_INFO[t].help}`).includes(norm(q))) })).filter((g) => g.types.length);
+  return (
+    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label="Προσθήκη στην αρχική" className="m-auto w-[min(56rem,calc(100vw-2rem))] max-h-[calc(100dvh-2rem)] rounded-2xl p-0 backdrop:bg-black/50 bg-white">
+      <div className="grid grid-rows-[auto_minmax(0,1fr)] max-h-[calc(100dvh-2rem)]">
+        <div className="grid gap-3 p-4 border-b border-eu-line">
+          <div className="flex items-center gap-2">
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Τι θέλεις να προσθέσεις;</h2>
+            <button type="button" onClick={onClose} aria-label="Κλείσιμο" className="ml-auto size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button>
+          </div>
+          <div className="grid @xl:grid-cols-2 gap-2">
+            <label className="relative">
+              <span className="sr-only">Αναζήτηση</span>
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-eu-muted" aria-hidden />
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση: banner, κουπόνι, προϊόντα…" className="w-full rounded-xl border-2 border-eu-line pl-9 pr-3 min-h-12 text-[length:var(--fs-16)] bg-white" />
+            </label>
+            <label className="grid">
+              <span className="sr-only">Θέση</span>
+              <select value={pos} onChange={(e) => setPos(e.target.value)} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-15)] bg-white">
+                <option value="">Θέση: στην κορυφή της σελίδας</option>
+                {items.map((it) => <option key={it.key} value={it.key}>Θέση: κάτω από «{itemName(it)}»</option>)}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div className="overflow-y-auto p-4 grid gap-5">
+          {groups.length ? groups.map((g) => (
+            <section key={g.label} className="grid gap-2">
+              <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{g.label}</h3>
+              <div className="grid grid-cols-1 @xl:grid-cols-2 @3xl:grid-cols-3 gap-2">
+                {g.types.map((t) => {
+                  return (
+                    <button key={t} type="button" onClick={() => onAdd(t, pos || null)} className="text-left flex items-start gap-3 rounded-xl border-2 border-eu-line p-3 min-h-16 hover:border-eu-navy hover:bg-eu-chip/40 focus-visible:outline-2 focus-visible:outline-eu-blue">
+                      <span className="size-10 shrink-0 grid place-items-center rounded-lg bg-eu-chip text-eu-blue">{ico(BLOCK_ICON[t] ?? Package, "size-5")}</span>
+                      <span className="grid gap-0.5 min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{BLOCK_INFO[t].label}</span><span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{BLOCK_INFO[t].help}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )) : <p className="m-0 text-eu-muted">Τίποτα με «{q}». Δοκίμασε άλλη λέξη.</p>}
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+/* ---------------- ζωντανή προεπισκόπηση ---------------- */
+/**
+ * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
+ * το στοιχείο αντί να ανοίγει συνδέσμους. Ανανεώνεται μετά από κάθε αποθήκευση.
+ */
+function LivePreview({ v, device, setDevice, saving, focus, onPick }: { v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; onPick: (key: string) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [w, setW] = useState(0);
+  const [loaded, setLoaded] = useState(0);
+  const pick = useRef(onPick);
+  useEffect(() => { pick.current = onPick; }, [onPick]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // τονισμός + κύλιση στο επιλεγμένο
+  useEffect(() => {
+    const d = frame.current?.contentDocument;
+    if (!d) return;
+    d.querySelectorAll("[data-home-item]").forEach((n) => { (n as HTMLElement).style.outline = ""; (n as HTMLElement).style.outlineOffset = ""; });
+    if (!focus) return;
+    const el = d.querySelector(`[data-home-item="${focus}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focus, loaded]);
+  const onLoad = () => {
+    const d = frame.current?.contentDocument;
+    if (d) {
+      const st = d.createElement("style");
+      st.textContent = "[data-home-item]{cursor:pointer}[data-home-item]:hover{box-shadow:inset 0 0 0 3px rgba(29,66,138,.45)}";
+      d.head.appendChild(st);
+      d.addEventListener("click", (e) => {
+        const t = (e.target as HTMLElement).closest("[data-home-item]");
+        e.preventDefault(); e.stopPropagation();
+        if (t) pick.current(t.getAttribute("data-home-item")!);
+      }, true);
+    }
+    setLoaded((n) => n + 1);
+  };
+  const target = device === "desktop" ? 1280 : 390;
+  const scale = w ? Math.min(1, w / target) : 1;
+  const h = 900;
+  return (
+    <div className="grid gap-2 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] inline-flex items-center gap-2">Προεπισκόπηση{saving && <Loader2 className="size-3.5 animate-spin" aria-hidden />}<span className="font-normal text-eu-muted">· πάτα πάνω της για να επιλέξεις</span></span>
+        <div className="flex gap-1 rounded-full bg-white border border-eu-line p-1" role="radiogroup" aria-label="Συσκευή προεπισκόπησης">
+          {(["desktop", "mobile"] as const).map((d) => <button key={d} type="button" role="radio" aria-checked={device === d} onClick={() => setDevice(d)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] ${device === d ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{d === "desktop" ? <Monitor className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{d === "desktop" ? "Υπολογιστής" : "Κινητό"}</button>)}
+        </div>
+      </div>
+      <div ref={box} className="rounded-2xl border border-eu-line bg-eu-line-2 overflow-hidden" style={{ height: Math.min(h * scale, 760) }}>
+        <div style={{ width: target, height: Math.min(h * scale, 760) / scale, transform: `scale(${scale})`, transformOrigin: "top left", margin: device === "mobile" && w > target ? "0 auto" : undefined }}>
+          <iframe ref={frame} key={v} onLoad={onLoad} title="Προεπισκόπηση αρχικής" src={`/?preview=1&v=${v}`} className="block bg-white" style={{ width: target, height: "100%", border: 0 }} />
+        </div>
+      </div>
+    </div>
   );
 }
