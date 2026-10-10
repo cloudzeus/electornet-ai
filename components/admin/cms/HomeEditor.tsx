@@ -22,6 +22,7 @@ import { SectionFields } from "./HomeSectionFields";
 import { HomeCatalog, type CatOption } from "./CategoryCellsField";
 import { HomeLiveInfo, HomeProductInfo, type HomeLive } from "./HomeInfoFields";
 import { HomeServices, type ServiceOption } from "./ServiceCellsField";
+import { HomeLists, type OrderOption } from "./OrderToggleField";
 
 /* ---------------- μοντέλο: μία ενιαία λίστα (ενότητες + components) ---------------- */
 type Item = { key: string; kind: "section"; s: HomeSection } | { key: string; kind: "block"; b: BrandBlock };
@@ -92,7 +93,7 @@ function visSummary(v: Vis): { live: boolean; text: string } {
 }
 
 /* ---------------- editor ---------------- */
-export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info: initInfo, canWrite, canPublish, categories, live, services }: { initial: HomeDoc; published: HomeDoc | null; savedAt: string | null; info: Record<string, PickProduct>; canWrite: boolean; canPublish: boolean; categories: CatOption[]; live: HomeLive; services: ServiceOption[] }) {
+export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info: initInfo, canWrite, canPublish, categories, live, services, lists }: { initial: HomeDoc; published: HomeDoc | null; savedAt: string | null; info: Record<string, PickProduct>; canWrite: boolean; canPublish: boolean; categories: CatOption[]; live: HomeLive; services: ServiceOption[]; lists: Record<string, { options: OrderOption[]; defaults: string[] }> }) {
   const router = useRouter();
   const [doc, setDocRaw] = useState<HomeDoc>(initial);
   const [past, setPast] = useState<HomeDoc[]>([]);
@@ -221,6 +222,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
     <HomeCatalog.Provider value={categories}>
     <HomeLiveInfo.Provider value={live}>
     <HomeServices.Provider value={services}>
+    <HomeLists.Provider value={lists}>
     <HomeProductInfo.Provider value={{ info, onInfo }}>
     <PickerBrand.Provider value={{ brandId: null, brandName: "Euronics" }}>
       <div ref={root} className="grid gap-3 min-w-0">
@@ -321,6 +323,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
       {adding && <AddDialog after={adding.after} items={items} onAdd={add} onClose={() => setAdding(null)} />}
     </PickerBrand.Provider>
     </HomeProductInfo.Provider>
+    </HomeLists.Provider>
     </HomeServices.Provider>
     </HomeLiveInfo.Provider>
     </HomeCatalog.Provider>

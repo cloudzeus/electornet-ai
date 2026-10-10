@@ -21,9 +21,11 @@ import { getHeroDeal, getHeroServices, getLiveHeroSlides } from "@/lib/cms/hero-
 import { catalogTree, type CatNode } from "@/lib/data/db-catalog";
 import { cellsOf, gridCategories, gridTitle, type CatInfo } from "./category-cells";
 import { homeDeals, type DealsProps } from "./home-deals";
-import { homeServiceSlugs } from "./home-sections";
+import { DEFAULT_GUIDE_ARTICLES, homeServiceSlugs, orderedVisible } from "./home-sections";
+import { GUIDES, type GuideKind } from "@/lib/guides/smart";
+import { getGuidesFull } from "@/lib/data/repo";
 import type { Category } from "@/lib/data/types";
-import { getCategories, getGuides, getNearestStoreWithGeo, getProduct, getServices } from "@/lib/data/catalog";
+import { getCategories, getNearestStoreWithGeo, getProduct, getServices } from "@/lib/data/catalog";
 
 /**
  * Widget registry: type → async server component. Each widget resolves
@@ -85,8 +87,17 @@ const registry: Record<string, Renderer> = {
     return <CampaignSpotlight key={w.id} campaigns={p.campaigns} title={p.title} kicker={p.kicker} link={p.link} zoneNo={w.zoneNo} />;
   },
   "news-band": async (w) => <NewsBand key={w.id} items={await getNews({ limit: (w.props as { limit?: number }).limit ?? 3 })} zoneNo={w.zoneNo} />,
-  "smart-guides": async (w) => <SmartGuidesBand key={w.id} zoneNo={w.zoneNo} />,
-  guides: async (w) => <GuidesBand key={w.id} guides={await getGuides()} zoneNo={w.zoneNo} />,
+  "smart-guides": async (w) => {
+    const keys = Object.keys(GUIDES);
+    const kinds = orderedVisible((w.props as Record<string, unknown>).smart, keys, keys) as GuideKind[];
+    return kinds.length ? <SmartGuidesBand key={w.id} kinds={kinds} zoneNo={w.zoneNo} /> : null;
+  },
+  guides: async (w) => {
+    const all = await getGuidesFull();
+    const by = new Map(all.map((g) => [g.slug, g]));
+    const list = orderedVisible((w.props as Record<string, unknown>).articles, all.map((g) => g.slug), DEFAULT_GUIDE_ARTICLES).map((s) => by.get(s)!).filter(Boolean);
+    return list.length ? <GuidesBand key={w.id} guides={list} zoneNo={w.zoneNo} /> : null;
+  },
   newsletter: async (w) => <NewsletterBand key={w.id} zoneNo={w.zoneNo} />,
 };
 

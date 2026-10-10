@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { ZoneBadge } from "@/components/site/ZoneBadge";
-import { GUIDES } from "@/lib/guides/smart";
+import { GUIDES, type GuideKind } from "@/lib/guides/smart";
 import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("smartGuidesBand");
@@ -12,7 +12,8 @@ const c = copyOf("smartGuidesBand");
  * customer states the use, the guide returns a justified pick. This is
  * the early-intent entry point that marketplaces don't have.
  */
-export function SmartGuidesBand({ zoneNo }: { zoneNo?: number }) {
+export function SmartGuidesBand({ zoneNo, kinds }: { zoneNo?: number; kinds?: GuideKind[] }) {
+  const list = kinds ? kinds.map((k) => GUIDES[k]).filter(Boolean) : Object.values(GUIDES);
   return (
     <section className="relative bg-eu-navy text-white eu-container" aria-labelledby="smart-guides-title">
       <ZoneBadge no={zoneNo} />
@@ -31,7 +32,7 @@ export function SmartGuidesBand({ zoneNo }: { zoneNo?: number }) {
           </Link>
         </div>
         <ul className="m-0 p-0 list-none grid grid-cols-1 @md:grid-cols-3 gap-4">
-          {Object.values(GUIDES).map((g) => (
+          {list.map((g) => (
             <li key={g.kind}>
               <Link href={`/odigos-agoras/${g.kind}`} className="group flex @md:flex-col gap-4 rounded-2xl bg-white/[.06] border border-white/10 p-4 hover:bg-white/10 transition-colors h-full">
                 <div className="relative size-24 @md:size-auto @md:aspect-[16/9] shrink-0 rounded-xl overflow-hidden">

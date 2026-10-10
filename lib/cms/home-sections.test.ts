@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { defaultHomeDoc, HOME_SECTIONS, homeServiceSlugs, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
+import { defaultHomeDoc, HOME_SECTIONS, homeServiceSlugs, orderedVisible, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
 
 test("προεπιλογή = η σημερινή αρχική, με τη σειρά του σχεδίου", () => {
   const d = defaultHomeDoc();
@@ -41,4 +41,9 @@ test("υπηρεσίες αρχικής: προεπιλογή οι πρώτες 
 test("καμπάνιες: οι κρυφές δεν φαίνονται στο site", () => {
   const w = sectionWidget({ id: "campaigns", props: { campaigns: [{ id: "a" }, { id: "b", hidden: true }, { id: "c" }] } })!;
   assert.deepEqual((w.props.campaigns as { id: string }[]).map((c) => c.id), ["a", "c"]);
+});
+
+test("οδηγοί: σειρά και ορατότητα, προεπιλογές", () => {
+  assert.deepEqual(orderedVisible(undefined, ["a", "b", "c"], ["c", "a", "z"]), ["c", "a"]);
+  assert.deepEqual(orderedVisible([{ key: "b" }, { key: "a", hidden: true }, { key: "q" }, { key: "c" }], ["a", "b", "c"], []), ["b", "c"]);
 });

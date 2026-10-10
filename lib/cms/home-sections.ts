@@ -31,7 +31,8 @@ export type SectionField =
   | { key: string; kind: "deals-source"; label: string; help?: string }
   | { key: string; kind: "hero-info"; label: string; help?: string }
   | { key: string; kind: "ticker-items"; label: string; help?: string; max?: number }
-  | { key: string; kind: "service-cells"; label: string; help?: string };
+  | { key: string; kind: "service-cells"; label: string; help?: string }
+  | { key: string; kind: "order-toggle"; source: "smart-guides" | "guides"; label: string; help?: string };
 
 export interface SectionDef {
   id: HomeSectionId; label: string; help: string;
@@ -60,7 +61,7 @@ export const HOME_SECTIONS: SectionDef[] = [
   ] } }, how: ["Σύρε τις καμπάνιες (ή βέλη) για τη σειρά τους· το μάτι τις κάνει ορατές ή κρυφές χωρίς να σβηστούν.","Πάτα μια καμπάνια για να αλλάξεις εικόνα, τίτλο, κουμπί και σύνδεσμο.","«Νέα καμπάνια» για προσθήκη."], fields: [{ key: "kicker", kind: "text", label: "Μικρός τίτλος", max: 40 }, { key: "title", kind: "text", label: "Τίτλος", max: 60 }, { key: "link", kind: "link", label: "Σύνδεσμος «Όλες»" }, { key: "campaigns", kind: "campaigns", label: "Καμπάνιες", help: "Κάθε κάρτα: εικόνα (key visual), μάρκα, τίτλος, κείμενο, κουμπί και σύνδεσμος." }] },
   { id: "services", label: "Υπηρεσίες", help: "Σκούρη ζώνη με τις υπηρεσίες Euronics (εγκατάσταση, μεταφορά, επέκταση εγγύησης…).", widget: { type: "services-band", zoneNo: 9, props: { limit: 6 } }, how: ["Σύρε τις υπηρεσίες για να αλλάξεις τη σειρά τους στην αρχική.", "Το μάτι ορίζει ποιες φαίνονται στην αρχική (προτείνονται 3, 6 ή 9 για γεμάτες σειρές).", "Τίτλους, κείμενα και νέες υπηρεσίες αλλάζεις στο Εμπόριο → Υπηρεσίες."], fields: [{ key: "items", kind: "service-cells", label: "Υπηρεσίες στην αρχική" }] },
   { id: "stores", label: "Εντοπισμός καταστήματος", help: "Το πιο κοντινό κατάστημα στον επισκέπτη, με χάρτη και ωράριο.", widget: { type: "store-finder", zoneNo: 10, props: {} }, how: ["Δείχνει μόνο του το πιο κοντινό κατάστημα στον επισκέπτη — δεν χρειάζεται ρύθμιση."], fields: [] },
-  { id: "guides", label: "Οδηγοί αγοράς", help: "Έξυπνοι οδηγοί και οι πιο πρόσφατοι οδηγοί αγοράς.", widget: { type: "smart-guides", zoneNo: 11, props: {} }, extra: [{ type: "guides", zoneNo: 11, props: {}, visibility: { hideOnSaveData: true } }], how: ["Δείχνει μόνο του τους οδηγούς αγοράς — δεν χρειάζεται ρύθμιση."], fields: [] },
+  { id: "guides", label: "Οδηγοί αγοράς", help: "Οι έξυπνοι οδηγοί («Ποια τηλεόραση σού ταιριάζει;») και τα άρθρα οδηγών αγοράς.", widget: { type: "smart-guides", zoneNo: 11, props: {} }, extra: [{ type: "guides", zoneNo: 11, props: {}, visibility: { hideOnSaveData: true } }], how: ["Σύρε τους οδηγούς (ή βέλη) για τη σειρά τους στην αρχική.", "Το μάτι ορίζει ποιοι φαίνονται· αν κρύψεις όλους τους έξυπνους οδηγούς (ή όλα τα άρθρα), η αντίστοιχη ζώνη δεν εμφανίζεται.", "Στα άρθρα, το πρώτο ορατό εμφανίζεται μεγάλο."], fields: [{ key: "smart", kind: "order-toggle", source: "smart-guides", label: "Έξυπνοι οδηγοί (σκούρα ζώνη)" }, { key: "articles", kind: "order-toggle", source: "guides", label: "Άρθρα οδηγών αγοράς" }] },
   { id: "news", label: "Νέα & ανακοινώσεις", help: "Τα πιο πρόσφατα νέα.", widget: { type: "news-band", zoneNo: 12, props: { limit: 3 } }, how: ["Δείχνει μόνο του τα πιο πρόσφατα νέα· εδώ ορίζεις πόσα."], fields: [{ key: "limit", kind: "number", label: "Πλήθος νέων", min: 1, max: 6 }] },
   { id: "ad-strip", label: "Διαφημιστική λωρίδα", help: "Η διαφημιστική θέση «home-strip» των Προσφορών: όποιο banner είναι ενεργό εκεί.", widget: null, how: ["Το banner ορίζεται στις Προσφορές → Διαφημιστικές θέσεις, στη θέση «home-strip» (με ημερομηνίες και προτεραιότητα)."], fields: [], managedAt: { label: "Προσφορές → Διαφημιστικές θέσεις", href: "/admin/prosfores" } },
   { id: "newsletter", label: "Newsletter", help: "Εγγραφή στο newsletter, πριν το footer.", widget: { type: "newsletter", zoneNo: 13, props: {} }, how: ["Η φόρμα εγγραφής στο newsletter — δεν χρειάζεται ρύθμιση."], fields: [] },
@@ -124,7 +125,16 @@ export function sectionWidget(s: HomeSection): WidgetInstance | null {
 }
 
 /** Τα επιπλέον widgets της ενότητας (χωρίς αλλαγές του διαχειριστή). */
-export const sectionExtras = (s: HomeSection): WidgetInstance[] => (sectionDef(s.id)?.extra ?? []).map((w, i) => ({ ...w, id: `home-${s.id}-${i + 1}` }));
+export const sectionExtras = (s: HomeSection): WidgetInstance[] => (sectionDef(s.id)?.extra ?? []).map((w, i) => ({ ...w, id: `home-${s.id}-${i + 1}`, props: { ...w.props, ...(s.props ?? {}) } }));
+
+/** Λίστα με σειρά και ορατότητα (ανά key): χωρίς επιλογή → `defaults` με τη σειρά τους· άγνωστα keys αγνοούνται. */
+export type OrderCell = { key: string; hidden?: boolean };
+export function orderedVisible(raw: unknown, known: string[], defaults: string[]): string[] {
+  const set = new Set(known);
+  if (!Array.isArray(raw)) return defaults.filter((k) => set.has(k));
+  return (raw as OrderCell[]).filter((c) => c && set.has(c.key) && !c.hidden).map((c) => c.key);
+}
+export const DEFAULT_GUIDE_ARTICLES = ["epilogi-klimatistikou", "mikrosyskeves-foititiko", "nea-energeiaki-etiketa"];
 
 /** Κλάσεις απόκρυψης ανά συσκευή — ίδιες με τα components (κινητό < 768 · tablet 768–1023 · υπολογιστής ≥ 1024). */
 const HIDE: Record<Device, string> = { mobile: "max-md:hidden", tablet: "md:max-lg:hidden", desktop: "lg:hidden" };
