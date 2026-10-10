@@ -21,6 +21,7 @@ import { getHeroDeal, getHeroServices, getLiveHeroSlides } from "@/lib/cms/hero-
 import { catalogTree, type CatNode } from "@/lib/data/db-catalog";
 import { cellsOf, gridCategories, gridTitle, type CatInfo } from "./category-cells";
 import { homeDeals, type DealsProps } from "./home-deals";
+import { homeServiceSlugs } from "./home-sections";
 import type { Category } from "@/lib/data/types";
 import { getCategories, getGuides, getNearestStoreWithGeo, getProduct, getServices } from "@/lib/data/catalog";
 
@@ -68,7 +69,13 @@ const registry: Record<string, Renderer> = {
     const p = await getProduct("p-inventor-ikura");
     return p ? <QuickBuyExplainer key={w.id} product={p} zoneNo={w.zoneNo} /> : null;
   },
-  "services-band": async (w) => <ServicesBand key={w.id} services={await getServices((w.props as { limit?: number }).limit ?? 6)} zoneNo={w.zoneNo} />,
+  "services-band": async (w) => {
+    // σειρά και ορατότητα της αρχικής (Ζώνες αρχικής) πάνω στον κατάλογο υπηρεσιών
+    const all = await getServices();
+    const bySlug = new Map(all.map((s) => [s.slug, s]));
+    const list = homeServiceSlugs(w.props as Record<string, unknown>, all.map((s) => s.slug)).map((slug) => bySlug.get(slug)!).filter(Boolean);
+    return list.length ? <ServicesBand key={w.id} services={list} zoneNo={w.zoneNo} /> : null;
+  },
   "store-finder": async (w) => {
     const g = await getNearestStoreWithGeo();
     return <StoreFinder key={w.id} store={g.store} geoCity={g.city} geoSource={g.source} image="/img/store-front.jpg" zoneNo={w.zoneNo} />;

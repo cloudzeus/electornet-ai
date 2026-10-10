@@ -6,6 +6,7 @@ import { Area, LinkField, MediaUrl, StringList, Txt } from "./brand/fields";
 import { CategoryCellsField } from "./CategoryCellsField";
 import { DealsSourceField, HeroInfoField } from "./HomeInfoFields";
 import { TickerItemsField } from "./TickerItemsField";
+import { ServiceCellsField } from "./ServiceCellsField";
 import { ListChecks } from "lucide-react";
 
 type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string };
@@ -40,6 +41,7 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
           </div>
         );
       }
+      case "service-cells": return <ServiceCellsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} />;
       case "ticker-items": return <TickerItemsField key={f.key} value={val(f.key)} onChange={(v) => put(f.key, v)} label={f.label} help={f.help} max={f.max} />;
       case "deals-source": return <DealsSourceField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} />;
       case "hero-info": return <HeroInfoField key={f.key} />;

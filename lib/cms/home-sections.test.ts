@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { defaultHomeDoc, HOME_SECTIONS, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
+import { defaultHomeDoc, HOME_SECTIONS, homeServiceSlugs, normalizeHomeDoc, sectionActive, sectionWidget, hideClass } from "./home-sections";
 
 test("προεπιλογή = η σημερινή αρχική, με τη σειρά του σχεδίου", () => {
   const d = defaultHomeDoc();
@@ -30,4 +30,10 @@ test("ορατότητα: απόκρυψη, ημερομηνίες, κοινό·
   assert.equal(sectionWidget({ id: "deals" })!.props.source, "auto");
   assert.equal(sectionWidget({ id: "ad-strip" }), null);
   assert.equal(hideClass(["mobile", "desktop"]), "max-md:hidden lg:hidden");
+});
+
+test("υπηρεσίες αρχικής: προεπιλογή οι πρώτες 6, αλλιώς σειρά και ορατότητα της επιλογής", () => {
+  const cat = ["a", "b", "c", "d", "e", "f", "g"];
+  assert.deepEqual(homeServiceSlugs(undefined, cat), ["a", "b", "c", "d", "e", "f"]);
+  assert.deepEqual(homeServiceSlugs({ items: [{ slug: "g" }, { slug: "a", hidden: true }, { slug: "x" }, { slug: "c" }] }, cat), ["g", "c"]);
 });

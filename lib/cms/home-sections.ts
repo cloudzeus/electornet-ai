@@ -30,7 +30,8 @@ export type SectionField =
   | { key: string; kind: "category-cells"; label: string; help?: string }
   | { key: string; kind: "deals-source"; label: string; help?: string }
   | { key: string; kind: "hero-info"; label: string; help?: string }
-  | { key: string; kind: "ticker-items"; label: string; help?: string; max?: number };
+  | { key: string; kind: "ticker-items"; label: string; help?: string; max?: number }
+  | { key: string; kind: "service-cells"; label: string; help?: string };
 
 export interface SectionDef {
   id: HomeSectionId; label: string; help: string;
@@ -57,7 +58,7 @@ export const HOME_SECTIONS: SectionDef[] = [
     { id: "miele-25y-motor", brand: "Miele", title: "25 χρόνια εγγύηση μοτέρ", text: "Σε πλυντήρια, στεγνωτήρια και πλυντήρια-στεγνωτήρια Miele, από 1 Οκτωβρίου 2025.", cta: "Δες τα πλυντήρια Miele", href: "/k/leykes-syskeyes/plyntiria", image: "/img/campaigns/miele-25y-motor.jpg", alt: "Miele — 25 χρόνια εγγύηση μοτέρ" },
     { id: "dell-monitors", brand: "Dell", title: "Οθόνες κορυφαίων επιδόσεων", text: "S2721HN · S2421HN · E2221HN · E2421HN.", cta: "Δες τις οθόνες Dell", href: "/k/computing/othones", image: "/img/campaigns/dell-monitors.jpg", alt: "Dell Οθόνες Κορυφαίων Επιδόσεων" },
   ] } }, how: ["Κάθε κάρτα είναι μια καμπάνια κατασκευαστή: εικόνα, τίτλος, κουμπί και σύνδεσμος.","Πάτα μια κάρτα για να την αλλάξεις ή «Νέα καμπάνια» για προσθήκη. Η σειρά αλλάζει με τα βέλη."], fields: [{ key: "kicker", kind: "text", label: "Μικρός τίτλος", max: 40 }, { key: "title", kind: "text", label: "Τίτλος", max: 60 }, { key: "link", kind: "link", label: "Σύνδεσμος «Όλες»" }, { key: "campaigns", kind: "campaigns", label: "Καμπάνιες", help: "Κάθε κάρτα: εικόνα (key visual), μάρκα, τίτλος, κείμενο, κουμπί και σύνδεσμος." }] },
-  { id: "services", label: "Υπηρεσίες", help: "Σκούρη ζώνη με τις υπηρεσίες Euronics (εγκατάσταση, μεταφορά, επέκταση εγγύησης…).", widget: { type: "services-band", zoneNo: 9, props: { limit: 6 } }, how: ["Οι υπηρεσίες έρχονται από τη σελίδα Υπηρεσίες· εδώ ορίζεις πόσες φαίνονται."], fields: [{ key: "limit", kind: "number", label: "Πλήθος υπηρεσιών", min: 3, max: 9 }] },
+  { id: "services", label: "Υπηρεσίες", help: "Σκούρη ζώνη με τις υπηρεσίες Euronics (εγκατάσταση, μεταφορά, επέκταση εγγύησης…).", widget: { type: "services-band", zoneNo: 9, props: { limit: 6 } }, how: ["Σύρε τις υπηρεσίες για να αλλάξεις τη σειρά τους στην αρχική.", "Το μάτι ορίζει ποιες φαίνονται στην αρχική (προτείνονται 3, 6 ή 9 για γεμάτες σειρές).", "Τίτλους, κείμενα και νέες υπηρεσίες αλλάζεις στο Εμπόριο → Υπηρεσίες."], fields: [{ key: "items", kind: "service-cells", label: "Υπηρεσίες στην αρχική" }] },
   { id: "stores", label: "Εντοπισμός καταστήματος", help: "Το πιο κοντινό κατάστημα στον επισκέπτη, με χάρτη και ωράριο.", widget: { type: "store-finder", zoneNo: 10, props: {} }, how: ["Δείχνει μόνο του το πιο κοντινό κατάστημα στον επισκέπτη — δεν χρειάζεται ρύθμιση."], fields: [] },
   { id: "guides", label: "Οδηγοί αγοράς", help: "Έξυπνοι οδηγοί και οι πιο πρόσφατοι οδηγοί αγοράς.", widget: { type: "smart-guides", zoneNo: 11, props: {} }, extra: [{ type: "guides", zoneNo: 11, props: {}, visibility: { hideOnSaveData: true } }], how: ["Δείχνει μόνο του τους οδηγούς αγοράς — δεν χρειάζεται ρύθμιση."], fields: [] },
   { id: "news", label: "Νέα & ανακοινώσεις", help: "Τα πιο πρόσφατα νέα.", widget: { type: "news-band", zoneNo: 12, props: { limit: 3 } }, how: ["Δείχνει μόνο του τα πιο πρόσφατα νέα· εδώ ορίζεις πόσα."], fields: [{ key: "limit", kind: "number", label: "Πλήθος νέων", min: 1, max: 6 }] },
@@ -100,6 +101,15 @@ export function sectionActive(s: HomeSection, now: Date, viewer: "guest" | "cust
 /** Μήνυμα του ticker: παλιά μορφή (κείμενο) ή { text, off } — το «off» μένει αποθηκευμένο αλλά δεν φαίνεται. */
 export type TickerItem = { text: string; off?: boolean };
 export const tickerItems = (raw: unknown): TickerItem[] => (Array.isArray(raw) ? raw : []).map((x) => (typeof x === "string" ? { text: x } : { text: String((x as TickerItem)?.text ?? ""), off: (x as TickerItem)?.off === true || undefined })).map((x) => ({ ...x, text: x.text.trim() })).filter((x) => x.text);
+
+/** Υπηρεσίες της αρχικής: σειρά και ορατότητα ανά slug· χωρίς επιλογή, οι πρώτες `limit` του καταλόγου. */
+export type ServiceCell = { slug: string; hidden?: boolean };
+export function homeServiceSlugs(props: Record<string, unknown> | undefined, catalog: string[]): string[] {
+  const items = Array.isArray(props?.items) ? (props!.items as ServiceCell[]).filter((x) => x && typeof x.slug === "string") : null;
+  if (!items) return catalog.slice(0, Math.max(1, Math.min(12, Number(props?.limit) || 6)));
+  const known = new Set(catalog);
+  return items.filter((x) => !x.hidden && known.has(x.slug)).map((x) => x.slug);
+}
 
 /** Το widget της ενότητας με τις αλλαγές του διαχειριστή (κείμενα, πλήθος, καμπάνιες). */
 export function sectionWidget(s: HomeSection): WidgetInstance | null {
