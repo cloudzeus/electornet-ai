@@ -60,14 +60,15 @@ export async function ensureEprelLabelPhoto(productId: string, staffId: string |
 }
 
 /** Μαζικά: τα προϊόντα που βρέθηκαν στο EPREL και δεν έχουν ακόμη τη φωτογραφία-ετικέτα (παρτίδες, συνεχίζει όπου σταμάτησε). */
-export async function backfillEprelLabelPhotos(limit = 50, staffId: string | null = null) {
+export async function backfillEprelLabelPhotos(limit = 50, staffId: string | null = null, skip: string[] = []) {
   const ids = (await db.energyLabel.findMany({
-    where: { eprelRegistrationNumber: { not: null }, product: { media: { none: { source: EPREL_LABEL_SOURCE } }, AND: [{ media: { some: { kind: "image", hidden: false } } }] } },
+    where: { eprelRegistrationNumber: { not: null }, productId: { notIn: skip }, product: { media: { none: { source: EPREL_LABEL_SOURCE } }, AND: [{ media: { some: { kind: "image", hidden: false } } }] } },
     select: { productId: true }, take: limit,
   })).map((x) => x.productId);
   const out: Record<LabelPhotoResult, number> = { added: 0, kept: 0, removed: 0, "no-label": 0, "no-photos": 0, failed: 0 };
-  for (const id of ids) out[await ensureEprelLabelPhoto(id, staffId).catch(() => "failed" as const)]++;
-  return { checked: ids.length, ...out };
+  const failed: string[] = [];
+  for (const id of ids) { const r = await ensureEprelLabelPhoto(id, staffId).catch(() => "failed" as const); out[r]++; if (r !== "added" && r !== "kept") failed.push(id); }
+  return { checked: ids.length, ...out, skipped: failed };
 }
 
 export async function eprelLabelPhotoCounts() {

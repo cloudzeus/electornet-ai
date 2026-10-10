@@ -321,6 +321,8 @@ export async function projectOffers(): Promise<OffersResult> {
     `UPDATE "Product" p SET price = s."eshopPrice", stock = GREATEST(0, floor(coalesce(s."stockCentral", 0)))::int
      FROM "S1Item" s WHERE p.source = $1 AND p."erpCode" = s.mtrl::text
        AND (p.price IS DISTINCT FROM s."eshopPrice" OR p.stock <> GREATEST(0, floor(coalesce(s."stockCentral", 0)))::int)`, SOURCE);
+  // προϊόντα-set: απόθεμα = όσα πλήρη sets βγαίνουν από τα μέλη (τελευταία ανάγνωση των sets)
+  await import("./sets").then((m) => m.projectSetStock()).catch(() => 0);
   const changed = `FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE p.source = $1 AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`;
   await db.$executeRawUnsafe(`UPDATE "PriceHistory" h SET "to" = now() FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE h."variantId" = v.id AND h."to" IS NULL AND p.source = $1 AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`, SOURCE);
   const priceChanges = await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, round(p.price::numeric, 2), now() ${changed}`, SOURCE);

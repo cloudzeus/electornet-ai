@@ -17,8 +17,10 @@ import { BannerStudio } from "@/components/admin/banner-studio/BannerStudio";
 import { ProductVideosAdmin } from "@/components/admin/catalog/ProductVideosAdmin";
 import { productVideos, productStickers } from "../actions";
 import { ProductStickersAdmin } from "@/components/admin/catalog/ProductStickersAdmin";
-import { productReadiness, type TabId } from "@/lib/catalog/readiness";
-import { ReadinessBar, WorkspaceTabs, WorkspaceSection as Section, isTab } from "@/components/admin/catalog/ProductWorkspace";
+import { productReadiness } from "@/lib/catalog/readiness";
+import { ReadinessBar, WorkspaceTabs, WorkspaceSection as Section, isTab, type WorkspaceTab } from "@/components/admin/catalog/ProductWorkspace";
+import { setForProduct } from "@/lib/catalog/sets";
+import { SetMemberLabel } from "@/components/admin/catalog/SetMemberLabel";
 import { SiteCardPreview } from "@/components/admin/catalog/SiteCardPreview";
 import { SpecSources } from "@/components/admin/catalog/SpecSources";
 import { EnergyLabelPanel } from "@/components/admin/catalog/EnergyLabelPanel";
@@ -44,14 +46,14 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const user = await requirePermission("catalog.products.read");
   const { id } = await params;
   const t = (await searchParams).tab;
-  const tab: TabId = isTab(t) ? t : "media";
+  const tab: WorkspaceTab = isTab(t) ? t : "media";
   const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
   const canMedia = can(user.permissions, "cms.media.write");
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows] = await Promise.all([
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows, set] = await Promise.all([
     listProductImages(p.id),
     tab === "content" ? listProductImages(p.id, "banner") : Promise.resolve([]),
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -66,6 +68,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     getSettings(),
     getArCategories(),
     tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
+    setForProduct(p.erpCode).catch(() => null),
   ]);
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow, arCats) : null;
@@ -95,7 +98,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     ar: { applies: arApplies, on: !!arPl?.on, reason: arPl?.reason ?? null },
     price: p.price,
   });
-  const href = (to: TabId) => `/admin/catalog/${p.id}?tab=${to}`;
+  const href = (to: WorkspaceTab) => `/admin/catalog/${p.id}?tab=${to}`;
 
   const editor = (only: Parameters<typeof ProductEditor>[0]["only"]) => fromS1 && initial ? (
     <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} descDims={descDim ? { w: descDim.w, h: descDim.h, d: descDim.d, line: `${descDim.rawKey ?? "Διαστάσεις"}: ${descDim.rawValue ?? ""}`.slice(0, 120), note: descDim.warning } : null} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
@@ -111,6 +114,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] text-balance">{p.title}</h2>
         <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
           <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
+          {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
           <span className="text-eu-muted">κωδικός {p.sku}{p.ean ? ` · EAN ${p.ean}` : ""}</span>
           {p.active && <a href={`/proion/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-eu-blue hover:underline min-h-9"><ExternalLink className="size-3.5" aria-hidden /> Στο site</a>}
         </div>
@@ -119,7 +123,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <div className="grid gap-3 @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:items-start">
         <div className="grid gap-3 min-w-0">
           <ReadinessBar r={r} href={href} />
-          <WorkspaceTabs active={tab} states={r.tabs} href={href} />
+          <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={set ? [] : ["set"]} />
 
           {tab === "media" && (<>
             <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px.">
@@ -175,6 +179,27 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
               <ProductStickersAdmin productId={p.id} initial={manualStickers} auto={(shop?.stickers ?? []).filter((s) => s.source !== "manual")} canWrite={canWrite} />
             </Section>
           </>)}
+
+          {tab === "set" && set && (
+            <Section title={`Set: ${set.name}`} hint={`Πουλιέται μαζί με ${set.members.length - 1 === 1 ? "ένα ακόμη είδος" : `${set.members.length - 1} ακόμη είδη`} (SoftOne «Set ειδών» ${set.code}). Διαθέσιμο όσο φτάνουν όλα τα μέλη.`}>
+              <p className={`m-0 font-bold text-[length:var(--fs-15)] ${set.available > 0 ? "text-eu-green" : "text-eu-ink-3"}`}>{set.available > 0 ? `${set.available} διαθέσιμα sets` : "Κάποιο μέλος δεν έχει απόθεμα — ο πελάτης βλέπει «κατόπιν παραγγελίας»."}</p>
+              <ul className="m-0 p-0 list-none grid gap-2">
+                {set.members.map((m) => (
+                  <li key={m.lineNum} className="grid gap-2 rounded-xl border border-eu-line p-3 @3xl:grid-cols-[minmax(0,1fr)_7rem_minmax(0,18rem)] @3xl:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5"><span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${m.isMain ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-3"}`}>{m.isMain ? "Κύριο" : "Μέλος"}</span><span className="font-bold text-eu-ink break-words">{m.name}</span></div>
+                      <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}</div>
+                    </div>
+                    <div className={`tabular-nums font-bold text-[length:var(--fs-14)] ${m.stock >= (m.qty || 1) ? "text-eu-green" : "text-eu-red"}`}>{m.stock >= (m.qty || 1) ? `${m.stock} τεμ.` : "Χωρίς απόθεμα"}</div>
+                    <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»
+                      <SetMemberLabel spcs={set.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.name} canWrite={canWrite} />
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <Link href={`/admin/catalog/sets?q=${encodeURIComponent(set.code)}`} className="justify-self-start font-bold text-eu-blue hover:underline text-[length:var(--fs-14)] min-h-11 inline-flex items-center">Όλα τα sets →</Link>
+            </Section>
+          )}
 
           {tab === "erp" && (<>
             {editor(["basics", "warranty"])}

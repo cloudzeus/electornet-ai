@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncCatalog } from "@/lib/softone/catalog";
 import { projectCatalog } from "@/lib/softone/project";
+import { projectSetStock, syncSets } from "@/lib/softone/sets";
 import { refreshProductDocs, embedStale } from "@/lib/vector/index";
 
 export const maxDuration = 300;
@@ -20,5 +21,7 @@ export async function GET(req: Request) {
   // Χωρίς επιτυχή συγχρονισμό δεν αγγίζουμε ούτε το κατάστημα ούτε το ευρετήριο
   const project = ok ? await projectCatalog("cron") : null;
   const index = ok ? { docs: await refreshProductDocs(), emb: await embedStale(3000) } : null;
-  return NextResponse.json({ ok: ok && project?.ok !== false && !index?.emb.error, mode, sync, project, index }, { status: ok ? 200 : 500 });
+  // «Set ειδών» (bundles): μέλη και απόθεμα → το απόθεμα του set στο προϊόν. Ανεξάρτητο — αποτυχία εδώ δεν σταματά τον κατάλογο.
+  const sets = ok ? await syncSets("cron").then(async (r) => ({ ...r, stockUpdated: r.ok ? await projectSetStock() : 0 })).catch((e) => ({ ok: false, error: String(e) })) : null;
+  return NextResponse.json({ ok: ok && project?.ok !== false && !index?.emb.error, mode, sync, project, index, sets }, { status: ok ? 200 : 500 });
 }

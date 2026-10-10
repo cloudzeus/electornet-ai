@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Recycle } from "lucide-react";
+import { Check, Package, Recycle } from "lucide-react";
 import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
+import { setPartsForSite } from "@/lib/catalog/sets";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
 import { CompareSimilar } from "@/components/pdp/CompareSimilar";
@@ -70,6 +71,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
   // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
   const co2 = await getGridFactor().catch(() => null);
+  // «Set ειδών» του SoftOne: τι περιλαμβάνει (π.χ. εσωτερική + εξωτερική μονάδα)
+  const setParts = p.fromDb ? await setPartsForSite(p.id).catch(() => null) : null;
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const [ar, arCats] = await Promise.all([db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories()]);
@@ -142,6 +145,20 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </li>
             ))}
           </ul>
+          {setParts && (
+            <div className="mt-4 rounded-xl bg-eu-surface p-4 grid gap-2">
+              <h3 className="m-0 inline-flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-17)]"><Package className="size-5 text-eu-blue" aria-hidden /> Περιλαμβάνει</h3>
+              <ul className="m-0 p-0 list-none grid gap-1.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
+                {setParts.map((x) => (
+                  <li key={x.name} className="flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-16)]">
+                    <Check className="size-5 shrink-0 mt-0.5 text-eu-green" aria-hidden />
+                    <span>{x.qty !== 1 ? `${x.qty} × ` : ""}{x.name}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Πωλούνται μαζί, σε μία τιμή.</p>
+            </div>
+          )}
         </section>
 
         {!!(p.description || p.sections?.length) && (

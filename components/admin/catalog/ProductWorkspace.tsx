@@ -3,14 +3,17 @@ import { AlertCircle, CheckCircle2, CircleAlert } from "lucide-react";
 import type { Readiness, TabId, TabState } from "@/lib/catalog/readiness";
 
 /** Οι καρτέλες της σελίδας προϊόντος, με τη σειρά της δουλειάς (συχνότερα πρώτα). */
-export const TABS: { id: TabId; label: string; short: string }[] = [
+/** Οι καρτέλες του χώρου εργασίας: οι πέντε της ετοιμότητας και η «Set» (μόνο σε προϊόντα που πουλιούνται ως set). */
+export type WorkspaceTab = TabId | "set";
+export const TABS: { id: WorkspaceTab; label: string; short: string }[] = [
   { id: "media", label: "Εικόνες & βίντεο", short: "Εικόνες" },
   { id: "content", label: "Κείμενα & χαρακτηριστικά", short: "Κείμενα" },
   { id: "dims", label: "Διαστάσεις · AR · EPREL", short: "Διαστάσεις" },
   { id: "commerce", label: "Τιμή · προσφορές · stickers", short: "Τιμή" },
+  { id: "set", label: "Set · μέλη", short: "Set" },
   { id: "erp", label: "ERP", short: "ERP" },
 ];
-export const isTab = (v: string | undefined): v is TabId => TABS.some((t) => t.id === v);
+export const isTab = (v: string | undefined): v is WorkspaceTab => TABS.some((t) => t.id === v);
 
 const DOT: Record<TabState, string> = { ok: "", warn: "bg-eu-amber", bad: "bg-eu-red" };
 
@@ -44,11 +47,11 @@ export function ReadinessBar({ r, href }: { r: Readiness; href: (t: TabId) => st
 }
 
 /** Λωρίδα καρτελών (σύνδεσμοι — η καρτέλα μένει στη διεύθυνση), με τελεία όπου κάτι λείπει. */
-export function WorkspaceTabs({ active, states, href }: { active: TabId; states: Record<TabId, TabState>; href: (t: TabId) => string }) {
+export function WorkspaceTabs({ active, states, href, hide = [] }: { active: WorkspaceTab; states: Record<TabId, TabState>; href: (t: WorkspaceTab) => string; hide?: WorkspaceTab[] }) {
   return (
     <nav aria-label="Ενότητες προϊόντος" className="grid grid-cols-3 @2xl:flex @2xl:flex-wrap gap-1 rounded-2xl bg-eu-surface p-1">
-      {TABS.map((t) => {
-        const on = t.id === active, st = states[t.id];
+      {TABS.filter((t) => !hide.includes(t.id)).map((t) => {
+        const on = t.id === active, st = t.id === "set" ? "ok" : states[t.id];
         return (
           <Link key={t.id} href={href(t.id)} aria-current={on ? "page" : undefined} scroll={false}
             className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2 @2xl:px-3 min-h-11 font-bold text-[length:var(--fs-14)] ${on ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-3 hover:text-eu-navy"}`}>

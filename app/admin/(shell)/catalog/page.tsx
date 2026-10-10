@@ -26,7 +26,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : {}),
   };
   const [rows, total, masters, all, withImg, lowRes] = await Promise.all([
-    db.product.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, sku: true, ean: true, active: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true } } } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown } } } } }),
+    db.product.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, sku: true, ean: true, erpCode: true, active: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true } } } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown } } } } }),
     db.product.count({ where }),
     db.category.findMany({ where: { depth: 0, active: true }, orderBy: { sortNo: "asc" }, select: { id: true, name: true } }),
     db.product.count({ where: { active: true } }),
@@ -34,6 +34,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     db.product.count({ where: { active: true, media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));
+  // προϊόντα που πουλιούνται ως «Set ειδών» στο SoftOne (σήμανση «Set»)
+  const codes = rows.map((r) => Number(r.erpCode)).filter(Number.isInteger);
+  const setHeads = new Set(codes.length ? (await db.s1Set.findMany({ where: { mtrl: { in: codes }, active: true }, select: { mtrl: true } }).catch(() => [])).map((s) => String(s.mtrl)) : []);
   const href = (n: number) => `?${new URLSearchParams({ q, f, cat, page: String(n) })}`;
   const n = (v: number) => v.toLocaleString("el-GR");
 
@@ -92,7 +95,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                     {m ? <Image src={m.url} alt="" width={64} height={64} className="size-full object-contain" /> : <span className="size-full grid place-items-center text-eu-muted"><ImageOff className="size-5" aria-hidden /></span>}
                   </Link>
                 </td>
-                <td className="py-2 px-3"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline">{r.title}</Link><div className="text-eu-muted text-[length:var(--fs-13)]">{r.brand.name}{r.active ? "" : " · ανενεργό"}</div></td>
+                <td className="py-2 px-3"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline">{r.title}</Link>{setHeads.has(r.erpCode ?? "") && <Link href={`/admin/catalog/${r.id}?tab=set`} className="ml-1.5 align-middle rounded-full bg-eu-navy text-white font-bold px-2 py-0.5 text-[length:var(--fs-12)] hover:bg-eu-blue">Set</Link>}<div className="text-eu-muted text-[length:var(--fs-13)]">{r.brand.name}{r.active ? "" : " · ανενεργό"}</div></td>
                 <td className="py-2 px-3 text-eu-ink-3">{r.category.parent?.name ? `${r.category.parent.name} › ` : ""}{r.category.name}</td>
                 <td className="py-2 px-3 font-mono text-[length:var(--fs-13)] whitespace-nowrap">{r.sku}<div className="text-eu-muted">{r.ean ?? "—"}</div></td>
                 <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">{r._count.media ? n(r._count.media) : <span className="text-eu-red font-bold">καμία</span>}{small && <div className="text-eu-red text-[length:var(--fs-13)] font-bold">μικρή κύρια</div>}</td>

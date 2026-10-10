@@ -464,6 +464,40 @@ model S1Item {
   @@index([code])
 }
 
+/// «Set ειδών» του SoftOne (SPCS, SODTYPE=70): προϊόν που πουλιέται μαζί με άλλα είδη (π.χ. κλιματιστικό = εσωτερική +
+/// εξωτερική μονάδα). Καθρέφτης μόνο ανάγνωσης (GetTable)· το κύριο είδος (`mtrl`) είναι το προϊόν του site.
+model S1Set {
+  spcs      Int         @id
+  code      String
+  name      String
+  active    Boolean
+  /// το κύριο είδος (SPCS.MTRL) — το προϊόν του site
+  mtrl      Int
+  fromDate  DateTime?
+  finalDate DateTime?
+  syncedAt  DateTime
+  lines     S1SetLine[]
+
+  @@index([mtrl])
+}
+
+/// Μέλος ενός set (SPCLINES). `stockCentral` = υπόλοιπο αποθηκών 1 + 10 (MTRBALSHEET)· `label` = πώς το βλέπει ο πελάτης
+/// στο «Περιλαμβάνει» (ορίζεται στη διαχείριση, δεν αλλάζει από τον συγχρονισμό).
+model S1SetLine {
+  spcs         Int
+  lineNum      Int
+  mtrl         Int
+  qty          Float
+  code         String?
+  name         String
+  stockCentral Float   @default(0)
+  label        String?
+  set          S1Set   @relation(fields: [spcs], references: [spcs], onDelete: Cascade)
+
+  @@id([spcs, lineNum])
+  @@index([mtrl])
+}
+
 /// Δείκτης προόδου ανά είδος συγχρονισμού: από πού συνεχίζει το delta (UPDDATE) και πότε έγινε ο τελευταίος πλήρης.
 model S1SyncState {
   kind        String    @id // webcat | specgroup | item
