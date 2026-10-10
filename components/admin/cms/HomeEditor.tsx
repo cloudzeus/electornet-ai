@@ -1,27 +1,26 @@
 "use client";
 
-import { createElement, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowDown, ArrowUp, Bell, BookOpen, CalendarClock, Check, ChevronDown, CircleAlert, Copy, ExternalLink, Eye, EyeOff, FileText, GalleryHorizontal,
-  GripVertical, HelpCircle, History, Image as ImageIcon, Keyboard, LayoutGrid, Laptop, ListOrdered, Loader2, Mail, Megaphone, MessageSquare, Monitor, MoreHorizontal, Newspaper,
-  Package, Percent, Plus, QrCode, Redo2, Rocket, Search, Send, ShoppingBag, Smartphone, Sparkles, Store, Tablet, Tag, Ticket, Timer, Trash2, Truck, Undo2, Video, Wrench, X, Zap,
-  type LucideIcon,
+  ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, CircleAlert, Copy, ExternalLink, Eye, EyeOff, GalleryHorizontal,
+  GripVertical, History, Image as ImageIcon, Keyboard, LayoutGrid, Loader2, Mail, Megaphone, MoreHorizontal, Newspaper,
+  Package, Percent, Plus, QrCode, Redo2, Rocket, Send, Sparkles, Store, Trash2, Undo2, Wrench, X, type LucideIcon,
 } from "lucide-react";
-import type { BrandBlock, Device } from "@/lib/cms/brand-store";
-import { DEVICES } from "@/lib/cms/brand-store";
+import type { BrandBlock } from "@/lib/cms/brand-store";
 import { checkBlocks, type Issue } from "@/lib/cms/brand-store-check";
-import { normalizeHomeDoc, sectionDef, type HomeAudience, type HomeDoc, type HomeSectionId } from "@/lib/cms/home-sections";
+import { normalizeHomeDoc, sectionDef, type HomeDoc, type HomeSectionId } from "@/lib/cms/home-sections";
 import { blkKey, diffHome, flatten, rebuild, revertChange, stable, type HomeChange, type HomeItem } from "@/lib/cms/home-diff";
 import type { HomeHealth } from "@/lib/cms/home-health";
 import type { HomeReview } from "@/lib/cms/home-plans";
-import { clearReviewAction, homeHealthAction, homePlansAction, publishHomeAction, revertHomeAction, saveHomeAction, saveScenarioAction, submitReviewAction } from "@/app/admin/(shell)/cms/home/actions";
-import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog } from "./HomeDialogs";
+import { homeHealthAction, publishHomeAction, revertHomeAction, saveHomeAction } from "@/app/admin/(shell)/cms/home/actions";
+import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog, type Noun } from "./EditorDialogs";
+import { AddDialog, BLOCK_ICON, ico, LivePreview, RightSwitch, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
+import { clearReviewAction, plansAction, saveScenarioAction, submitReviewAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { ResultBanner } from "@/components/admin/settings/ui";
 import { PickerBrand } from "./brand/ImagePicker";
-import { BLOCK_GROUPS, BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
-import { DateTime } from "./brand/fields";
+import { BLOCK_INFO, BlockFields, newBlock } from "./brand/BlockEditors";
 import { SectionFields } from "./HomeSectionFields";
 import { HomeCatalog, type CatOption } from "./CategoryCellsField";
 import { HomeLiveInfo, HomeProductInfo, HomeRefresh, type HomeLive } from "./HomeInfoFields";
@@ -33,48 +32,12 @@ type Item = HomeItem;
 
 /* ---------------- εικονίδια & περιγραφές ---------------- */
 const SECTION_ICON: Record<HomeSectionId, LucideIcon> = { hero: GalleryHorizontal, ticker: Megaphone, categories: LayoutGrid, deals: Percent, campaigns: Sparkles, services: Wrench, stores: Store, guides: BookOpen, news: Newspaper, "ad-strip": ImageIcon, newsletter: Mail };
-const BLOCK_ICON: Partial<Record<BrandBlock["type"], LucideIcon>> = {
-  ad: ImageIcon, "deal-hero": Zap, "promo-products": Percent, "promo-grid": Tag, countdown: Timer, "promo-landing": Megaphone, coupon: Ticket,
-  "products-auto": ShoppingBag, "new-arrivals": Package, offers: Percent, series: LayoutGrid, categories: LayoutGrid,
-  banner: ImageIcon, story: FileText, gallery: GalleryHorizontal, video: Video,
-  text: FileText, steps: ListOrdered, callout: Bell, faq: HelpCircle, tech: Sparkles, support: Wrench,
-  contact: MessageSquare, stores: Store, services: Truck, guides: BookOpen, newsletter: Mail,
-  announcement: Megaphone, usp: Check, cta: Rocket,
-};
 const itemIcon = (it: Item) => (it.kind === "section" ? SECTION_ICON[it.s.id] : BLOCK_ICON[it.b.type] ?? Package);
-/** εικονίδιο χωρίς «component μέσα στο render» */
-const ico = (I: LucideIcon, className: string) => createElement(I, { className, "aria-hidden": true });
 const itemName = (it: Item) => (it.kind === "section" ? sectionDef(it.s.id)!.label : `${BLOCK_INFO[it.b.type].label}${it.b.title ? ` · ${it.b.title}` : ""}`);
-const AUD_LABEL: Record<HomeAudience, string> = { all: "Σε όλους", guest: "Μόνο επισκέπτες", customer: "Μόνο πελάτες" };
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString("el-GR", { day: "numeric", month: "short" });
-
-type Vis = { enabled?: boolean; hideOn?: Device[]; audience?: HomeAudience; schedule?: { from?: string; to?: string } };
 const visOf = (it: Item): Vis => (it.kind === "section" ? it.s : it.b);
-/**
- * Η ορατότητα σε μία φράση: «Κρυφή», «Από 1 Νοε · μόνο κινητό», «Σε όλους · όλες οι συσκευές».
- * plain = η προεπιλογή (όλοι, όλες οι συσκευές, χωρίς ημερομηνίες) — ο χάρτης τότε δεν γράφει τίποτα · soon = λήγει σε ≤ 3 ημέρες.
- */
-function visSummary(v: Vis): { live: boolean; text: string; plain: boolean; soon: boolean } {
-  if (v.enabled === false) return { live: false, text: "Κρυφή", plain: false, soon: false };
-  const now = Date.now();
-  if (v.schedule?.to && new Date(v.schedule.to).getTime() < now) return { live: false, text: `Έληξε ${shortDate(v.schedule.to)}`, plain: false, soon: false };
-  const parts: string[] = [];
-  let soon = false;
-  if (v.schedule?.from && new Date(v.schedule.from).getTime() > now) parts.push(`Από ${shortDate(v.schedule.from)}`);
-  else if (v.schedule?.to) {
-    const days = Math.ceil((new Date(v.schedule.to).getTime() - now) / 86_400_000);
-    soon = days <= 3;
-    parts.push(soon ? (days <= 1 ? "Λήγει σήμερα/αύριο" : `Λήγει σε ${days} ημέρες`) : `Έως ${shortDate(v.schedule.to)}`);
-  }
-  const aud = v.audience ?? "all";
-  if (aud !== "all" || parts.length) parts.push(AUD_LABEL[aud]);
-  const shown = DEVICES.filter((d) => !v.hideOn?.includes(d.key));
-  if (shown.length !== 3 || parts.length) parts.push(shown.length === 3 ? "όλες οι συσκευές" : shown.length ? `μόνο ${shown.map((d) => d.label.toLowerCase()).join(" & ")}` : "καμία συσκευή");
-  const plain = !parts.length;
-  return { live: !(v.schedule?.from && new Date(v.schedule.from).getTime() > now) && shown.length > 0, text: plain ? "Σε όλους · όλες οι συσκευές" : parts.join(" · "), plain, soon };
-}
-
 /* ---------------- editor ---------------- */
+const PLAN: PlanRef = { kind: "home" };
+const NOUN: Noun = { the: "η αρχική", of: "της αρχικής", order: "Νέα σειρά ενοτήτων" };
 type Dialog = "publish" | "plans" | "history" | "share" | "keys" | null;
 export type HomePlansInfo = { review: HomeReview | null; scheduled: { name: string; publishAt: string }[] };
 const whenShort = (iso: string) => new Date(iso).toLocaleString("el-GR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -181,7 +144,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   const open = (key: string) => { setSelected((cur) => (cur === key && mode === "s" ? null : key)); setRight("settings"); };
   const goKey = (key: string) => { if (!items.some((x) => x.key === key)) return; setDialog(null); setSelected(key); setRight("settings"); setView("page"); };
   const loadDoc = (d: HomeDoc, label: string) => { update(() => normalizeHomeDoc(structuredClone(d))); setDialog(null); setSelected(null); setResult({ ok: true, message: `Φορτώθηκε στο πρόχειρο: ${label}. Δες την προεπισκόπηση και πάτα «Δημοσίευση» για να ανέβει (ή Αναίρεση για να γυρίσεις).` }); };
-  const refreshPlans = () => { void homePlansAction().then((p) => { setReview(p.review); setScheduled(p.scenarios.filter((x) => x.status === "scheduled" && x.publishAt).map((x) => ({ name: x.name, publishAt: x.publishAt! })).sort((a, b) => Date.parse(a.publishAt) - Date.parse(b.publishAt))); }); };
+  const refreshPlans = () => { void plansAction(PLAN).then((p) => { setReview(p.review); setScheduled(p.scenarios.filter((x) => x.status === "scheduled" && x.publishAt).map((x) => ({ name: x.name, publishAt: x.publishAt! })).sort((a, b) => Date.parse(a.publishAt) - Date.parse(b.publishAt))); }); };
   const refreshServer = useCallback(() => { router.refresh(); setPv((v) => v + 1); void homeHealthAction(latest.current).then(setHealth).catch(() => null); }, [router]);
 
   const ensureSaved = async () => save === "idle" || (await flush());
@@ -193,16 +156,16 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   });
   const doSchedule = (iso: string, name: string) => start(async () => {
     if (!(await ensureSaved())) { setResult({ ok: false, message: "Η αποθήκευση απέτυχε — δοκίμασε ξανά." }); return; }
-    const r = await saveScenarioAction(name.trim() || `Δημοσίευση ${whenShort(iso)}`, latest.current, iso);
+    const r = await saveScenarioAction(PLAN, name.trim() || `Δημοσίευση ${whenShort(iso)}`, latest.current, iso);
     setResult(r);
     if (r.ok) { setDialog(null); refreshPlans(); }
   });
   const doReview = (note: string) => start(async () => {
     if (!(await ensureSaved())) { setResult({ ok: false, message: "Η αποθήκευση απέτυχε — δοκίμασε ξανά." }); return; }
-    const r = await submitReviewAction(note, changes);
+    const r = await submitReviewAction(PLAN, note, changes);
     setResult(r); setDialog(null); refreshPlans();
   });
-  const dropReview = (reason: "rejected" | "withdrawn") => { if (!window.confirm(reason === "rejected" ? "Απόρριψη του αιτήματος; Το πρόχειρο μένει ως έχει." : "Ανάκληση του αιτήματος έγκρισης;")) return; start(async () => { setResult(await clearReviewAction(reason)); setReview(null); }); };
+  const dropReview = (reason: "rejected" | "withdrawn") => { if (!window.confirm(reason === "rejected" ? "Απόρριψη του αιτήματος; Το πρόχειρο μένει ως έχει." : "Ανάκληση του αιτήματος έγκρισης;")) return; start(async () => { setResult(await clearReviewAction(PLAN, reason)); setReview(null); }); };
   const publish = () => { if (canWrite || canPublish) setDialog("publish"); };
   const revert = () => { if (!window.confirm("Να χαθούν οι αλλαγές του πρόχειρου και να γυρίσει στη δημοσιευμένη αρχική;")) return; start(async () => { setResult(await revertHomeAction()); window.location.reload(); }); };
   const go = (anchor?: string) => { if (anchor?.startsWith("blk-")) open(blkKey(anchor.slice(4))); };
@@ -387,20 +350,20 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
           {(mode === "s" ? view === "preview" : mode === "l" || !sel || right === "preview") && (
             <div className="min-w-0 sticky top-24">
               {mode === "m" && sel && <RightSwitch right={right} setRight={setRight} />}
-              <LivePreview v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setRight("settings"); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
+              <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setRight("settings"); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
             </div>
           )}
         </div>
       </div>
-      {adding && <AddDialog after={adding.after} items={items} onAdd={add} onClose={() => setAdding(null)} />}
+      {adding && <AddDialog label="Προσθήκη στην αρχική" after={adding.after} positions={items.map((it) => ({ key: it.key, label: `Θέση: κάτω από «${itemName(it)}»` }))} onAdd={add} onClose={() => setAdding(null)} />}
       {dialog === "publish" && (
-        <PublishDialog firstTime={!isPublished} changes={diff} nameOf={itemName} nameOfKey={nameOfKey} onRevert={(c: HomeChange) => published && update((d) => revertChange(d, published, c))}
+        <PublishDialog noun={NOUN} firstTime={!isPublished} changes={diff} nameOf={itemName} nameOfKey={nameOfKey} onRevert={(c: HomeChange) => published && update((d) => revertChange(d, published, c))}
           health={health} errors={errors} warnings={warnings} canPublish={canPublish} busy={busy} review={review}
           onClose={() => setDialog(null)} onPublish={doPublish} onSchedule={doSchedule} onSubmitReview={doReview} onGo={goKey} />
       )}
-      {dialog === "plans" && <PlansDialog doc={doc} canWrite={canWrite} canPublish={canPublish} onLoad={loadDoc} onClose={() => setDialog(null)} onChanged={refreshPlans} />}
-      {dialog === "history" && <HistoryDialog doc={doc} canWrite={canWrite} onLoad={loadDoc} onClose={() => setDialog(null)} />}
-      {dialog === "share" && <ShareDialog onClose={() => setDialog(null)} />}
+      {dialog === "plans" && <PlansDialog planRef={PLAN} diffCount={(a, b) => diffHome(a, b).length} doc={doc} canWrite={canWrite} canPublish={canPublish} onLoad={loadDoc} onClose={() => setDialog(null)} onChanged={refreshPlans} />}
+      {dialog === "history" && <HistoryDialog planRef={PLAN} noun={NOUN} diffCount={(a, b) => diffHome(a, b).length} doc={doc} canWrite={canWrite} onLoad={loadDoc} onClose={() => setDialog(null)} />}
+      {dialog === "share" && <ShareDialog planRef={PLAN} noun={NOUN} onClose={() => setDialog(null)} />}
       {dialog === "keys" && <KeysDialog onClose={() => setDialog(null)} />}
     </PickerBrand.Provider>
     </HomeProductInfo.Provider>
@@ -413,15 +376,6 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
 }
 
 /* ---------------- επιθεωρητής ---------------- */
-/** Ρυθμίσεις → στήλη δίπλα στον χάρτη: διακόπτης ρυθμίσεις / προεπισκόπηση (μεσαίες οθόνες). */
-function RightSwitch({ right, setRight }: { right: "settings" | "preview"; setRight: (r: "settings" | "preview") => void }) {
-  return (
-    <div role="tablist" aria-label="Δεξιά στήλη" className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-eu-surface p-1">
-      {(["settings", "preview"] as const).map((r) => <button key={r} type="button" role="tab" aria-selected={right === r} onClick={() => setRight(r)} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${right === r ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-2"}`}>{r === "settings" ? "Ρυθμίσεις" : "Προεπισκόπηση"}</button>)}
-    </div>
-  );
-}
-
 function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, focusText, onClose, onChange, onToggle, onMove, onDuplicate, onRemove, blockCtx }: {
   it: Item; index: number; count: number; prev: string | null; canWrite: boolean; errors: Issue[]; empty: string | null; issues: { msg: string }[]; focusText: { text: string; n: number } | null;
   onClose: () => void; onChange: (it: Item, tag?: string) => void; onToggle: () => void; onMove: (d: -1 | 1) => void; onDuplicate: () => void; onRemove: () => void;
@@ -433,25 +387,7 @@ function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, fo
   const help = it.kind === "section" ? sectionDef(it.s.id)!.help : BLOCK_INFO[it.b.type].help;
   const iconBtn = "size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30";
   const box = useRef<HTMLElement>(null);
-  // κλικ σε κείμενο της προεπισκόπησης → το αντίστοιχο πεδίο, έτοιμο για γράψιμο
-  useEffect(() => {
-    if (!focusText) return;
-    const t = setTimeout(() => {
-      const norm = (x: string) => x.replace(/\s+/g, " ").trim().toLocaleLowerCase("el-GR");
-      const want = norm(focusText.text);
-      if (want.length < 2) return;
-      const fields = [...(box.current?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input:not([type=checkbox]):not([type=radio]):not([type=number]):not([type=datetime-local]), textarea") ?? [])].filter((f) => f.value.trim().length > 1);
-      const score = (f: HTMLInputElement | HTMLTextAreaElement) => { const val = norm(f.value); return val === want ? 3 : want.includes(val) && val.length >= 4 ? 2 : val.includes(want) && want.length >= 4 ? 1 : 0; };
-      const best = fields.map((f) => ({ f, s: score(f) })).filter((x) => x.s).sort((a, b) => b.s - a.s)[0]?.f;
-      if (!best) return;
-      best.closest("details")?.setAttribute("open", "");
-      best.scrollIntoView({ block: "center", behavior: "smooth" });
-      best.focus({ preventScroll: true });
-      best.select?.();
-      best.animate?.([{ boxShadow: "0 0 0 4px rgba(241,196,0,.9)" }, { boxShadow: "0 0 0 0 rgba(241,196,0,0)" }], { duration: 1400, easing: "ease-out" });
-    }, 120);
-    return () => clearTimeout(t);
-  }, [focusText, it.key]);
+  useFocusText(box, focusText, it.key);
   return (
     <section ref={box} aria-label={`Ρυθμίσεις: ${itemName(it)}`} className="grid gap-3">
       {/* σταθερή κεφαλίδα: πού είσαι, τι είναι, οι ενέργειες */}
@@ -499,173 +435,3 @@ function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, fo
   );
 }
 
-/** «Πότε & σε ποιους»: συσκευές (κουμπιά), κοινό (επιλογές με εξήγηση), ημερομηνίες. */
-function VisibilityForm({ v, summary, onChange }: { v: Vis; summary: string; onChange: (p: Vis) => void }) {
-  const AUD: { v: HomeAudience; t: string; d: string }[] = [
-    { v: "all", t: "Σε όλους", d: "Επισκέπτες και συνδεδεμένοι πελάτες." },
-    { v: "guest", t: "Μόνο σε επισκέπτες", d: "Όσοι δεν έχουν συνδεθεί — π.χ. κουπόνι εγγραφής." },
-    { v: "customer", t: "Μόνο σε πελάτες", d: "Όσοι έχουν συνδεθεί — π.χ. προσφορά για μέλη." },
-  ];
-  return (
-    <div className="grid gap-5">
-      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><b>Τώρα:</b> {summary}</p>
-      <fieldset className="m-0 p-0 border-0 grid gap-2">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1">Σε ποιες συσκευές</legend>
-        <div className="grid grid-cols-3 gap-2">
-          {DEVICES.map((dv) => {
-            const on = !v.hideOn?.includes(dv.key);
-            return (
-              <button key={dv.key} type="button" aria-pressed={on} onClick={() => { const cur = new Set<Device>(v.hideOn ?? []); if (on) cur.add(dv.key); else cur.delete(dv.key); onChange({ hideOn: cur.size ? [...cur] : undefined }); }}
-                className={`grid justify-items-center gap-1 rounded-xl border-2 px-2 py-2 min-h-16 font-bold text-[length:var(--fs-13)] ${on ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-muted"}`}>
-                {ico(dv.key === "mobile" ? Smartphone : dv.key === "tablet" ? Tablet : Laptop, "size-5")}{dv.label}<span className="font-normal">{on ? "Ναι" : "Όχι"}</span>
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-      <fieldset className="m-0 p-0 border-0 grid gap-2">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1">Σε ποιους</legend>
-        {AUD.map((a) => {
-          const on = (v.audience ?? "all") === a.v;
-          return (
-            <label key={a.v} className={`flex items-start gap-3 rounded-xl border-2 px-3 py-2.5 min-h-12 cursor-pointer ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-navy/50"}`}>
-              <input type="radio" name="aud" checked={on} onChange={() => onChange({ audience: a.v === "all" ? undefined : a.v })} className="mt-1 size-4 accent-eu-navy" />
-              <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{a.t}</span><span className="text-eu-muted text-[length:var(--fs-13)]">{a.d}</span></span>
-            </label>
-          );
-        })}
-      </fieldset>
-      <fieldset className="m-0 p-0 border-0 grid gap-3">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-1 inline-flex items-center gap-2"><CalendarClock className="size-4" aria-hidden /> Πότε</legend>
-        <DateTime label="Από" value={v.schedule?.from} onChange={(x) => onChange({ schedule: { ...v.schedule, from: x } })} help="Κενό = από τώρα." />
-        <DateTime label="Έως" value={v.schedule?.to} onChange={(x) => onChange({ schedule: { ...v.schedule, to: x } })} help="Κενό = χωρίς λήξη. Μετά κρύβεται μόνο του." />
-      </fieldset>
-    </div>
-  );
-}
-
-/* ---------------- προσθήκη ---------------- */
-function AddDialog({ after, items, onAdd, onClose }: { after: string | null; items: Item[]; onAdd: (t: BrandBlock["type"], after: string | null) => void; onClose: () => void }) {
-  const [q, setQ] = useState("");
-  const [pos, setPos] = useState<string>(after ?? "");
-  const ref = useRef<HTMLDialogElement>(null);
-  // χωρίς close() στο cleanup: στο StrictMode θα έκλεινε αμέσως (το event close → onClose)· στο unmount φεύγει μόνο του
-  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal(); }, []);
-  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const groups = BLOCK_GROUPS.map((g) => ({ ...g, types: g.types.filter((t) => !q || norm(`${BLOCK_INFO[t].label} ${BLOCK_INFO[t].help}`).includes(norm(q))) })).filter((g) => g.types.length);
-  return (
-    <dialog ref={ref} onClose={onClose} onCancel={onClose} aria-label="Προσθήκη στην αρχική" className="m-auto w-[min(56rem,calc(100vw-2rem))] max-h-[calc(100dvh-2rem)] rounded-2xl p-0 backdrop:bg-black/50 bg-white">
-      <div className="grid grid-rows-[auto_minmax(0,1fr)] max-h-[calc(100dvh-2rem)]">
-        <div className="grid gap-3 p-4 border-b border-eu-line">
-          <div className="flex items-center gap-2">
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Τι θέλεις να προσθέσεις;</h2>
-            <button type="button" onClick={onClose} aria-label="Κλείσιμο" className="ml-auto size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button>
-          </div>
-          <div className="grid @xl:grid-cols-2 gap-2">
-            <label className="relative">
-              <span className="sr-only">Αναζήτηση</span>
-              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-eu-muted" aria-hidden />
-              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση: banner, κουπόνι, προϊόντα…" className="w-full rounded-xl border-2 border-eu-line pl-9 pr-3 min-h-12 text-[length:var(--fs-16)] bg-white" />
-            </label>
-            <label className="grid">
-              <span className="sr-only">Θέση</span>
-              <select value={pos} onChange={(e) => setPos(e.target.value)} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-15)] bg-white">
-                <option value="">Θέση: στην κορυφή της σελίδας</option>
-                {items.map((it) => <option key={it.key} value={it.key}>Θέση: κάτω από «{itemName(it)}»</option>)}
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="overflow-y-auto p-4 grid gap-5">
-          {groups.length ? groups.map((g) => (
-            <section key={g.label} className="grid gap-2">
-              <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{g.label}</h3>
-              <div className="grid grid-cols-1 @xl:grid-cols-2 @3xl:grid-cols-3 gap-2">
-                {g.types.map((t) => {
-                  return (
-                    <button key={t} type="button" onClick={() => onAdd(t, pos || null)} className="text-left flex items-start gap-3 rounded-xl border-2 border-eu-line p-3 min-h-16 hover:border-eu-navy hover:bg-eu-chip/40 focus-visible:outline-2 focus-visible:outline-eu-blue">
-                      <span className="size-10 shrink-0 grid place-items-center rounded-lg bg-eu-chip text-eu-blue">{ico(BLOCK_ICON[t] ?? Package, "size-5")}</span>
-                      <span className="grid gap-0.5 min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">{BLOCK_INFO[t].label}</span><span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{BLOCK_INFO[t].help}</span></span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )) : <p className="m-0 text-eu-muted">Τίποτα με «{q}». Δοκίμασε άλλη λέξη.</p>}
-        </div>
-      </div>
-    </dialog>
-  );
-}
-
-/* ---------------- ζωντανή προεπισκόπηση ---------------- */
-/**
- * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
- * το στοιχείο αντί να ανοίγει συνδέσμους. Ανανεώνεται μετά από κάθε αποθήκευση.
- */
-function LivePreview({ v, device, setDevice, saving, focus, notice, onPick }: { v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void }) {
-  const box = useRef<HTMLDivElement>(null);
-  const frame = useRef<HTMLIFrameElement>(null);
-  const [w, setW] = useState(0);
-  const [bh, setBh] = useState(0);
-  const [loaded, setLoaded] = useState(0);
-  const [missing, setMissing] = useState(false);
-  const pick = useRef(onPick);
-  useEffect(() => { pick.current = onPick; }, [onPick]);
-  useEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => { setW(e.contentRect.width); setBh(e.contentRect.height); });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  // τονισμός + κύλιση στο επιλεγμένο
-  useEffect(() => {
-    const d = frame.current?.contentDocument;
-    if (!d) return;
-    d.querySelectorAll("[data-home-item]").forEach((n) => { (n as HTMLElement).style.outline = ""; (n as HTMLElement).style.outlineOffset = ""; });
-    const el = focus ? (d.querySelector(`[data-home-item="${focus}"]`) as HTMLElement | null) : null;
-    // το επιλεγμένο δεν υπάρχει (κρυφό, κενό, άλλη συσκευή) ή δεν φαίνεται σε αυτή τη συσκευή → μήνυμα αντί για σιωπή
-    const gone = !!focus && (!el || el.offsetParent === null || el.getBoundingClientRect().height < 2);
-    queueMicrotask(() => setMissing(gone));
-    if (!focus || !el || gone) return;
-    el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focus, loaded]);
-  const onLoad = () => {
-    const d = frame.current?.contentDocument;
-    if (d) {
-      const st = d.createElement("style");
-      st.textContent = "[data-home-item]{cursor:pointer}[data-home-item]:hover{box-shadow:inset 0 0 0 3px rgba(29,66,138,.45)}";
-      d.head.appendChild(st);
-      d.addEventListener("click", (e) => {
-        const t = (e.target as HTMLElement).closest("[data-home-item]");
-        e.preventDefault(); e.stopPropagation();
-        // το κείμενο που πατήθηκε → ο editor ανοίγει το αντίστοιχο πεδίο
-        const txt = (e.target as HTMLElement).closest("h1,h2,h3,h4,p,a,button,li,span,strong,b,em")?.textContent?.trim() ?? null;
-        if (t) pick.current(t.getAttribute("data-home-item")!, txt && txt.length < 300 ? txt : null);
-      }, true);
-    }
-    setLoaded((n) => n + 1);
-  };
-  const target = device === "desktop" ? 1280 : 390;
-  const scale = w ? Math.min(1, w / target) : 1;
-  const inner = (bh || 760) / scale;
-  const msg = focus && (notice || missing) ? notice ?? "Το επιλεγμένο δεν φαίνεται σε αυτή την προβολή — π.χ. είναι κρυφό σε αυτή τη συσκευή ή δεν έχει περιεχόμενο τώρα." : null;
-  return (
-    <div className="grid gap-2 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] inline-flex items-center gap-2">Προεπισκόπηση{saving && <Loader2 className="size-3.5 animate-spin" aria-hidden />}<span className="font-normal text-eu-muted">· πάτα ένα κείμενο για να το αλλάξεις</span></span>
-        <div className="flex gap-1 rounded-full bg-white border border-eu-line p-1" role="radiogroup" aria-label="Συσκευή προεπισκόπησης">
-          {(["desktop", "mobile"] as const).map((d) => <button key={d} type="button" role="radio" aria-checked={device === d} onClick={() => setDevice(d)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] ${device === d ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{d === "desktop" ? <Monitor className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{d === "desktop" ? "Υπολογιστής" : "Κινητό"}</button>)}
-        </div>
-      </div>
-      <div ref={box} className="relative rounded-2xl border border-eu-line bg-eu-line-2 overflow-hidden h-[calc(100dvh-10.5rem)] min-h-[26rem]">
-        {msg && <p role="status" className="absolute z-10 left-3 right-3 top-3 m-0 flex items-start gap-2 rounded-xl bg-eu-navy/95 text-white px-3 py-2.5 text-[length:var(--fs-14)] shadow-lg"><EyeOff className="size-4 mt-0.5 shrink-0" aria-hidden /><span>{msg}</span></p>}
-        <div style={{ width: target, height: inner, transform: `scale(${scale})`, transformOrigin: "top left", margin: device === "mobile" && w > target ? "0 auto" : undefined }}>
-          <iframe ref={frame} key={v} onLoad={onLoad} title="Προεπισκόπηση αρχικής" src={`/?preview=1&v=${v}`} className="block bg-white" style={{ width: target, height: "100%", border: 0 }} />
-        </div>
-      </div>
-    </div>
-  );
-}

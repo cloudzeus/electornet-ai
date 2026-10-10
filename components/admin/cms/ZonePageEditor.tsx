@@ -11,7 +11,7 @@ import { publishZonesAction, revertZonesAction, saveZonesAction } from "@/app/ad
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { StatusPill, ResultBanner } from "@/components/admin/settings/ui";
 import { ZoneBlocks } from "./ZoneBlocks";
-import { Preview } from "./BrandStoreEditor";
+import { Preview } from "./BrandPreview";
 import { PickerBrand } from "./brand/ImagePicker";
 
 const stable = (v: unknown): string => (Array.isArray(v) ? `[${v.map(stable).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v as object).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v));

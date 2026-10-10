@@ -5,12 +5,11 @@ import QRCode from "qrcode";
 import {
   ArrowDownUp, CalendarClock, Check, CircleAlert, Copy, History, Keyboard, Loader2, Minus, Pencil, Plus, QrCode, Rocket, Send, Trash2, Undo2, X,
 } from "lucide-react";
-import type { HomeDoc } from "@/lib/cms/home-sections";
-import { diffHome, type HomeChange, type HomeItem } from "@/lib/cms/home-diff";
+import type { ListChange } from "@/lib/cms/list-diff";
 import type { HomeHealth } from "@/lib/cms/home-health";
-import type { HomePublish, HomeReview, HomeScenario } from "@/lib/cms/home-plans";
+import type { PublishEntry, Review, Scenario } from "@/lib/cms/doc-plans";
 import type { Issue } from "@/lib/cms/brand-store-check";
-import { deleteScenarioAction, homeHistoryAction, homePlansAction, previewLinkAction, saveScenarioAction, scheduleScenarioAction } from "@/app/admin/(shell)/cms/home/actions";
+import { deleteScenarioAction, historyAction, plansAction, previewLinkAction, saveScenarioAction, scheduleScenarioAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import { DateTime } from "./brand/fields";
 
 const when = (iso: string) => new Date(iso).toLocaleString("el-GR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -38,17 +37,25 @@ export function Modal({ title, icon, onClose, children, footer, wide }: { title:
   );
 }
 
+/**
+ * Κοινά παράθυρα των editors σελίδων (αρχική, σελίδες μαρκών): έλεγχος & δημοσίευση, σενάρια, ιστορικό,
+ * σύνδεσμος/QR προεπισκόπησης, πλήκτρα. Η σελίδα δίνει τα ονόματα (`noun`) και πώς μετρά διαφορές.
+ */
+export type Noun = { the: string; of: string; order: string };
+
+const defaultIssueKey = (e: Issue) => (e.anchor?.startsWith("blk-") ? `blk:${e.anchor.slice(4)}` : "");
+
 /* ---------------- δημοσίευση: τι αλλάζει, έλεγχοι, τώρα / αργότερα / για έγκριση ---------------- */
-const CH: Record<HomeChange["type"], { t: string; I: typeof Plus; c: string }> = {
+const CH: Record<ListChange<unknown>["type"], { t: string; I: typeof Plus; c: string }> = {
   added: { t: "Νέο", I: Plus, c: "bg-eu-green/15 text-eu-green" },
   removed: { t: "Αφαιρέθηκε", I: Minus, c: "bg-eu-red/10 text-eu-red" },
   changed: { t: "Αλλαγή", I: Pencil, c: "bg-eu-chip text-eu-blue" },
   order: { t: "Σειρά", I: ArrowDownUp, c: "bg-eu-amber/15 text-eu-ink-2" },
 };
 
-export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert, health, errors, warnings, canPublish, busy, review, onClose, onPublish, onSchedule, onSubmitReview, onGo }: {
-  firstTime: boolean; changes: HomeChange[]; nameOf: (it: HomeItem) => string; nameOfKey: (key: string) => string; onRevert: (c: HomeChange) => void;
-  health: HomeHealth; errors: Issue[]; warnings: Issue[]; canPublish: boolean; busy: boolean; review: HomeReview | null;
+export function PublishDialog<T>({ noun, issueKey = defaultIssueKey, firstTime, changes, nameOf, nameOfKey, onRevert, health, errors, warnings, canPublish, busy, review, onClose, onPublish, onSchedule, onSubmitReview, onGo }: {
+  noun: Noun; issueKey?: (i: Issue) => string; firstTime: boolean; changes: ListChange<T>[]; nameOf: (it: T) => string; nameOfKey: (key: string) => string; onRevert: (c: ListChange<T>) => void;
+  health: HomeHealth; errors: Issue[]; warnings: Issue[]; canPublish: boolean; busy: boolean; review: Review | null;
   onClose: () => void; onPublish: () => void; onSchedule: (iso: string, name: string) => void; onSubmitReview: (note: string) => void; onGo: (key: string) => void;
 }) {
   const [mode, setMode] = useState<"now" | "later">("now");
@@ -59,14 +66,14 @@ export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert,
   const [note, setNote] = useState("");
   const empties = Object.entries(health.empty);
   const checks = [
-    ...errors.map((e) => ({ key: e.anchor?.startsWith("blk-") ? `blk:${e.anchor.slice(4)}` : "", msg: `${e.where}: ${e.msg}`, level: "error" as const })),
+    ...errors.map((e) => ({ key: issueKey(e), msg: `${e.where}: ${e.msg}`, level: "error" as const })),
     ...empties.map(([key, why]) => ({ key, msg: `«${nameOfKey(key)}» δεν θα φαίνεται: ${why}`, level: "warn" as const })),
     ...health.issues.map((i) => ({ key: i.key, msg: i.msg, level: "warn" as const })),
-    ...warnings.map((e) => ({ key: e.anchor?.startsWith("blk-") ? `blk:${e.anchor.slice(4)}` : "", msg: `${e.where}: ${e.msg}`, level: "warn" as const })),
+    ...warnings.map((e) => ({ key: issueKey(e), msg: `${e.where}: ${e.msg}`, level: "warn" as const })),
   ];
   const blocked = errors.length > 0;
   return (
-    <Modal wide title={canPublish ? (firstTime ? "Πρώτη δημοσίευση της αρχικής" : "Έλεγχος πριν τη δημοσίευση") : "Υποβολή για έγκριση"} icon={canPublish ? <Rocket className="size-5 text-eu-blue" aria-hidden /> : <Send className="size-5 text-eu-blue" aria-hidden />} onClose={onClose}
+    <Modal wide title={canPublish ? (firstTime ? `Πρώτη δημοσίευση ${noun.of}` : "Έλεγχος πριν τη δημοσίευση") : "Υποβολή για έγκριση"} icon={canPublish ? <Rocket className="size-5 text-eu-blue" aria-hidden /> : <Send className="size-5 text-eu-blue" aria-hidden />} onClose={onClose}
       footer={<>
         <button type="button" onClick={onClose} className={ghost}>Άκυρο</button>
         {canPublish
@@ -80,8 +87,8 @@ export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert,
       )}
       <section className="grid gap-2" aria-label="Τι αλλάζει">
         <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{firstTime ? "Τι γίνεται" : `Τι αλλάζει (${changes.length})`}</h3>
-        {firstTime ? <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Από εδώ και πέρα η αρχική του site ελέγχεται από αυτή τη σελίδα. Οι επισκέπτες θα δουν ό,τι βλέπεις στην προεπισκόπηση.</p>
-          : !changes.length ? <p className="m-0 text-eu-muted">Καμία αλλαγή από τη δημοσιευμένη αρχική.</p>
+        {firstTime ? <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Οι επισκέπτες θα δουν ό,τι βλέπεις στην προεπισκόπηση· από εδώ και πέρα οι αλλαγές ανεβαίνουν με «Δημοσίευση».</p>
+          : !changes.length ? <p className="m-0 text-eu-muted">Καμία αλλαγή από τη δημοσιευμένη έκδοση.</p>
           : <ul className="m-0 p-0 list-none grid gap-1.5">
               {changes.map((c) => {
                 const k = CH[c.type];
@@ -89,8 +96,8 @@ export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert,
                   <li key={`${c.type}:${c.key}`} className="flex items-center gap-2 rounded-xl border border-eu-line px-2 py-1.5 min-h-14">
                     <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-1 font-extrabold text-[length:var(--fs-13)] ${k.c}`}><k.I className="size-3.5" aria-hidden />{k.t}</span>
                     <span className="grid min-w-0 flex-1 text-[length:var(--fs-14)]">
-                      <span className="font-bold text-eu-ink leading-snug">{c.type === "order" ? "Νέα σειρά ενοτήτων" : nameOf(c.item)}</span>
-                      <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{c.type === "changed" ? c.what.join(" · ") : c.type === "order" ? (c.moved.length ? `Μετακινήθηκαν: ${c.moved.map(nameOfKey).join(", ")}` : "Άλλαξε η σειρά") : c.type === "added" ? "Προστέθηκε στην αρχική" : "Βγήκε από την αρχική"}</span>
+                      <span className="font-bold text-eu-ink leading-snug">{c.type === "order" ? noun.order : nameOf(c.item)}</span>
+                      <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{c.type === "changed" ? c.what.join(" · ") : c.type === "order" ? (c.moved.length ? `Μετακινήθηκαν: ${c.moved.map(nameOfKey).join(", ")}` : "Άλλαξε η σειρά") : c.type === "added" ? "Προστέθηκε" : "Αφαιρέθηκε"}</span>
                     </span>
                     {c.type !== "order" && c.type !== "removed" && <button type="button" onClick={() => onGo(c.key)} className="shrink-0 rounded-full px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-eu-surface">Δες</button>}
                     <button type="button" onClick={() => onRevert(c)} aria-label={`Αναίρεση: ${c.type === "order" ? "σειρά" : nameOf(c.item)}`} title="Αναίρεση μόνο αυτής της αλλαγής" className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface"><Undo2 className="size-4" aria-hidden /> Αναίρεση</button>
@@ -128,7 +135,7 @@ export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert,
           </div>
           {mode === "later" && (
             <div className="grid gap-3 rounded-xl bg-eu-surface p-3">
-              <DateTime label="Ημερομηνία και ώρα δημοσίευσης" value={at} onChange={setAt} help={at && !laterOk ? "Διάλεξε ώρα στο μέλλον." : "Δημοσιεύεται η αρχική όπως είναι τώρα· όσα αλλάξεις μετά μένουν στο πρόχειρο."} />
+              <DateTime label="Ημερομηνία και ώρα δημοσίευσης" value={at} onChange={setAt} help={at && !laterOk ? "Διάλεξε ώρα στο μέλλον." : `Δημοσιεύεται ${noun.the} όπως είναι τώρα· όσα αλλάξεις μετά μένουν στο πρόχειρο.`} />
               <label className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Όνομα (προαιρετικό)</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="π.χ. Black Friday" className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white" /></label>
             </div>
           )}
@@ -145,32 +152,33 @@ export function PublishDialog({ firstTime, changes, nameOf, nameOfKey, onRevert,
 }
 
 /* ---------------- σενάρια & προγραμματισμός ---------------- */
-const STATUS: Record<HomeScenario["status"], { t: string; c: string }> = {
+const STATUS: Record<Scenario<unknown>["status"], { t: string; c: string }> = {
   saved: { t: "Αποθηκευμένο", c: "bg-eu-surface text-eu-ink-2" },
   scheduled: { t: "Προγραμματισμένο", c: "bg-eu-chip text-eu-blue" },
   published: { t: "Δημοσιεύτηκε", c: "bg-eu-green/15 text-eu-green" },
   failed: { t: "Δεν δημοσιεύτηκε", c: "bg-eu-amber/15 text-eu-ink-2" },
 };
 
-export function PlansDialog({ doc, canWrite, canPublish, onLoad, onClose, onChanged }: { doc: HomeDoc; canWrite: boolean; canPublish: boolean; onLoad: (d: HomeDoc, label: string) => void; onClose: () => void; onChanged: () => void }) {
-  const [list, setList] = useState<HomeScenario[] | null>(null);
+export function PlansDialog<T>({ planRef, doc, diffCount, canWrite, canPublish, onLoad, onClose, onChanged }: { planRef: PlanRef; doc: T; diffCount: (a: T, b: T) => number; canWrite: boolean; canPublish: boolean; onLoad: (d: T, label: string) => void; onClose: () => void; onChanged: () => void }) {
+  const [list, setList] = useState<Scenario<T>[] | null>(null);
   const [name, setName] = useState("");
   const [at, setAt] = useState<string | undefined>(undefined);
   const [edit, setEdit] = useState<{ id: string; at?: string } | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, start] = useTransition();
-  const load = () => homePlansAction().then((p) => setList(p.scenarios));
-  useEffect(() => { void load(); }, []);
+  const [ref0] = useState(planRef); // σταθερό για το effect
+  const load = () => plansAction(ref0).then((p) => setList(p.scenarios as Scenario<T>[]));
+  useEffect(() => { void plansAction(ref0).then((p) => setList(p.scenarios as Scenario<T>[])); }, [ref0]);
   const run = (fn: () => Promise<{ ok: boolean; message: string }>) => start(async () => { const r = await fn(); setMsg(r); if (r.ok) { await load(); onChanged(); } });
   return (
     <Modal wide title="Σενάρια & προγραμματισμός" icon={<CalendarClock className="size-5 text-eu-blue" aria-hidden />} onClose={onClose}>
-      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Ένα σενάριο είναι μια ολόκληρη αρχική αποθηκευμένη με όνομα (π.χ. «Black Friday»: ticker + προσφορές + hero). Ετοίμασέ το από πριν και όρισε πότε θα δημοσιευτεί — ανεβαίνει μόνο του στην ώρα του.</p>
+      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Ένα σενάριο είναι ολόκληρη η σελίδα αποθηκευμένη με όνομα (π.χ. «Black Friday»). Ετοίμασέ το από πριν και όρισε πότε θα δημοσιευτεί — ανεβαίνει μόνο του στην ώρα του.</p>
       {canWrite && (
         <section className="grid gap-3 rounded-2xl border border-eu-line p-3" aria-label="Νέο σενάριο">
           <h3 className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)]">Αποθήκευση του τωρινού πρόχειρου ως σενάριο</h3>
           <label className="grid gap-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Όνομα</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="π.χ. Black Friday 2026" className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white" /></label>
           {canPublish && <DateTime label="Δημοσίευση στις (προαιρετικό)" value={at} onChange={setAt} help="Κενό = μένει αποθηκευμένο, χωρίς ώρα." />}
-          <button type="button" disabled={busy || !name.trim()} onClick={() => run(async () => { const r = await saveScenarioAction(name, doc, at ?? null); if (r.ok) { setName(""); setAt(undefined); } return r; })} className={`${primary} justify-self-start`}>{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} {at ? "Αποθήκευση & προγραμματισμός" : "Αποθήκευση σεναρίου"}</button>
+          <button type="button" disabled={busy || !name.trim()} onClick={() => run(async () => { const r = await saveScenarioAction(planRef, name, doc, at ?? null); if (r.ok) { setName(""); setAt(undefined); } return r; })} className={`${primary} justify-self-start`}>{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} {at ? "Αποθήκευση & προγραμματισμός" : "Αποθήκευση σεναρίου"}</button>
         </section>
       )}
       {msg && <p role="status" className={`m-0 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${msg.ok ? "bg-eu-green/10 text-eu-ink-2" : "bg-eu-red/10 text-eu-red"}`}>{msg.message}</p>}
@@ -185,17 +193,17 @@ export function PlansDialog({ doc, canWrite, canPublish, onLoad, onClose, onChan
                     <span className="font-bold text-eu-ink text-[length:var(--fs-15)] min-w-0">{s.name}</span>
                     <span className={`rounded-full px-2 py-0.5 font-extrabold text-[length:var(--fs-13)] ${STATUS[s.status].c}`}>{STATUS[s.status].t}{s.status === "scheduled" && s.publishAt ? ` · ${when(s.publishAt)}` : s.status === "published" && s.publishedAt ? ` · ${when(s.publishedAt)}` : ""}</span>
                   </div>
-                  <span className="text-eu-muted text-[length:var(--fs-13)]">{s.byName} · {when(s.createdAt)} · {diffHome(s.doc, doc).length ? `${diffHome(s.doc, doc).length} διαφορές από το πρόχειρο` : "ίδιο με το πρόχειρο"}{s.note ? ` · ${s.note}` : ""}</span>
+                  <span className="text-eu-muted text-[length:var(--fs-13)]">{s.byName} · {when(s.createdAt)} · {diffCount(s.doc, doc) ? `${diffCount(s.doc, doc)} διαφορές από το πρόχειρο` : "ίδιο με το πρόχειρο"}{s.note ? ` · ${s.note}` : ""}</span>
                   <div className="flex flex-wrap gap-1">
                     {canWrite && <button type="button" onClick={() => onLoad(s.doc, `σενάριο «${s.name}»`)} className={ghost}>Φόρτωση στο πρόχειρο</button>}
                     {canPublish && s.status !== "published" && (edit?.id === s.id
                       ? <span className="grid gap-2 basis-full rounded-xl bg-eu-surface p-3">
                           <DateTime label="Δημοσίευση στις" value={edit.at} onChange={(v) => setEdit({ id: s.id, at: v })} />
-                          <span className="flex flex-wrap gap-2"><button type="button" disabled={busy || !edit.at} onClick={() => run(() => scheduleScenarioAction(s.id, edit.at!))} className={primary}>Αποθήκευση ώρας</button><button type="button" onClick={() => setEdit(null)} className={ghost}>Άκυρο</button></span>
+                          <span className="flex flex-wrap gap-2"><button type="button" disabled={busy || !edit.at} onClick={() => run(() => scheduleScenarioAction(planRef, s.id, edit.at!))} className={primary}>Αποθήκευση ώρας</button><button type="button" onClick={() => setEdit(null)} className={ghost}>Άκυρο</button></span>
                         </span>
                       : <button type="button" onClick={() => setEdit({ id: s.id, at: s.publishAt ?? undefined })} className={ghost}><CalendarClock className="size-4" aria-hidden /> {s.status === "scheduled" ? "Άλλαξε ώρα" : "Προγραμμάτισε"}</button>)}
-                    {canPublish && s.status === "scheduled" && <button type="button" disabled={busy} onClick={() => run(() => scheduleScenarioAction(s.id, null))} className={ghost}>Ακύρωση προγραμματισμού</button>}
-                    {canWrite && <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Διαγραφή του σεναρίου «${s.name}»;`)) run(() => deleteScenarioAction(s.id)); }} aria-label={`Διαγραφή: ${s.name}`} className={`${btn} text-eu-red hover:bg-eu-red/10 ml-auto`}><Trash2 className="size-4" aria-hidden /> Διαγραφή</button>}
+                    {canPublish && s.status === "scheduled" && <button type="button" disabled={busy} onClick={() => run(() => scheduleScenarioAction(planRef, s.id, null))} className={ghost}>Ακύρωση προγραμματισμού</button>}
+                    {canWrite && <button type="button" disabled={busy} onClick={() => { if (window.confirm(`Διαγραφή του σεναρίου «${s.name}»;`)) run(() => deleteScenarioAction(planRef, s.id)); }} aria-label={`Διαγραφή: ${s.name}`} className={`${btn} text-eu-red hover:bg-eu-red/10 ml-auto`}><Trash2 className="size-4" aria-hidden /> Διαγραφή</button>}
                   </div>
                 </li>
               ))}
@@ -206,17 +214,18 @@ export function PlansDialog({ doc, canWrite, canPublish, onLoad, onClose, onChan
 }
 
 /* ---------------- ιστορικό δημοσιεύσεων ---------------- */
-export function HistoryDialog({ doc, canWrite, onLoad, onClose }: { doc: HomeDoc; canWrite: boolean; onLoad: (d: HomeDoc, label: string) => void; onClose: () => void }) {
-  const [list, setList] = useState<HomePublish[] | null>(null);
-  useEffect(() => { void homeHistoryAction().then(setList); }, []);
+export function HistoryDialog<T>({ planRef, noun, doc, diffCount, canWrite, onLoad, onClose }: { planRef: PlanRef; noun: Noun; doc: T; diffCount: (a: T, b: T) => number; canWrite: boolean; onLoad: (d: T, label: string) => void; onClose: () => void }) {
+  const [list, setList] = useState<PublishEntry<T>[] | null>(null);
+  const [ref0] = useState(planRef); // σταθερό για το effect
+  useEffect(() => { void historyAction(ref0).then((l) => setList(l as PublishEntry<T>[])); }, [ref0]);
   return (
     <Modal title="Ιστορικό δημοσιεύσεων" icon={<History className="size-5 text-eu-blue" aria-hidden />} onClose={onClose}>
-      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Κάθε δημοσίευση της αρχικής, με ποιος και πότε. «Φόρτωση στο πρόχειρο» τη φέρνει πίσω για έλεγχο — στο site αλλάζει μόνο με νέα «Δημοσίευση».</p>
+      <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Κάθε δημοσίευση {noun.of}, με ποιος και πότε. «Φόρτωση στο πρόχειρο» τη φέρνει πίσω για έλεγχο — στο site αλλάζει μόνο με νέα «Δημοσίευση».</p>
       {!list ? <span className="inline-flex items-center gap-2 text-eu-muted min-h-11"><Loader2 className="size-4 animate-spin" aria-hidden /> Φόρτωση…</span>
         : !list.length ? <p className="m-0 text-eu-muted">Δεν υπάρχει ακόμη δημοσίευση.</p>
         : <ol className="m-0 p-0 list-none grid gap-2">
             {list.map((h, i) => {
-              const n = diffHome(h.doc, doc).length;
+              const n = diffCount(h.doc, doc);
               return (
                 <li key={h.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-eu-line px-3 py-2 min-h-14">
                   <span className="grid min-w-0 flex-1">
@@ -233,11 +242,12 @@ export function HistoryDialog({ doc, canWrite, onLoad, onClose }: { doc: HomeDoc
 }
 
 /* ---------------- σύνδεσμος προεπισκόπησης + QR ---------------- */
-export function ShareDialog({ onClose }: { onClose: () => void }) {
+export function ShareDialog({ planRef, noun, onClose }: { planRef: PlanRef; noun: Noun; onClose: () => void }) {
   const [link, setLink] = useState<{ url: string; expires: string } | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  useEffect(() => { void previewLinkAction().then(async (l) => { setLink(l); setQr(await QRCode.toDataURL(l.url, { margin: 1, width: 480, color: { dark: "#0b1f44", light: "#ffffff" } })); }); }, []);
+  const [ref0] = useState(planRef); // σταθερό για το effect
+  useEffect(() => { void previewLinkAction(ref0).then(async (l) => { setLink(l); setQr(await QRCode.toDataURL(l.url, { margin: 1, width: 480, color: { dark: "#0b1f44", light: "#ffffff" } })); }); }, [ref0]);
   const copy = async () => { if (!link) return; try { await navigator.clipboard.writeText(link.url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* χωρίς πρόσβαση στο πρόχειρο: ο σύνδεσμος φαίνεται για αντιγραφή με το χέρι */ } };
   return (
     <Modal title="Προεπισκόπηση σε κινητό ή για έγκριση" icon={<QrCode className="size-5 text-eu-blue" aria-hidden />} onClose={onClose}>
@@ -245,7 +255,7 @@ export function ShareDialog({ onClose }: { onClose: () => void }) {
       {!link ? <span className="inline-flex items-center gap-2 text-eu-muted min-h-11"><Loader2 className="size-4 animate-spin" aria-hidden /> Δημιουργία συνδέσμου…</span> : (
         <div className="grid @md:grid-cols-[14rem_minmax(0,1fr)] gap-4 items-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- QR από data URL */}
-          {qr ? <img src={qr} alt="QR για την προεπισκόπηση της αρχικής" width={224} height={224} className="justify-self-center size-56 rounded-xl border border-eu-line" /> : <span className="size-56 rounded-xl bg-eu-surface" />}
+          {qr ? <img src={qr} alt={`QR για την προεπισκόπηση ${noun.of}`} width={224} height={224} className="justify-self-center size-56 rounded-xl border border-eu-line" /> : <span className="size-56 rounded-xl bg-eu-surface" />}
           <div className="grid gap-2 min-w-0">
             <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Σύνδεσμος</span>
             <span className="rounded-xl bg-eu-surface px-3 py-2 font-mono text-[length:var(--fs-13)] break-all select-all">{link.url}</span>

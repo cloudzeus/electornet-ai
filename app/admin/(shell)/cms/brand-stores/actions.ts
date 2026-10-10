@@ -11,6 +11,10 @@ import { checkStore, type Issue } from "@/lib/cms/brand-store-check";
 import { getStoreDoc, publishDraft, revertDraft, saveDraft, unpublish } from "@/lib/cms/brand-stores";
 import { paletteFromAccent, scrapeBrandStyle, type StyleSuggestion } from "@/lib/cms/brand-style";
 import { getProductsByIds } from "@/lib/data/repo";
+import { brandHealth } from "@/lib/cms/brand-health";
+import type { HomeHealth } from "@/lib/cms/home-health";
+import { updatePlans } from "@/lib/cms/doc-plans";
+import { brandTarget } from "@/lib/cms/brand-plans";
 
 const PERM = "cms.brandstores.write";
 
@@ -96,8 +100,12 @@ export async function saveDraftAction(slug: string, store: BrandStore): Promise<
   return { ok: true, at: r.updatedAt.toISOString() };
 }
 
+/** Δημοσίευση/απόσυρση: χρειάζεται και το δικαίωμα «Δημοσίευση οποιουδήποτε CMS εγγράφου» — οι υπόλοιποι στέλνουν για έγκριση. */
+const PUBLISH = "cms.publish";
+async function requirePublisher() { const user = await requirePermission(PERM); if (!can(user.permissions, PUBLISH)) redirect(`/admin/forbidden?need=${PUBLISH}`); return user; }
+
 export async function publishAction(slug: string): Promise<{ ok: boolean; message: string; errors?: Issue[] }> {
-  const user = await requirePermission(PERM);
+  const user = await requirePublisher();
   const doc = await getStoreDoc(slug);
   if (!doc) return { ok: false, message: "Δεν υπάρχει πρόχειρο." };
   const { errors } = checkStore(doc.draft);
@@ -108,6 +116,7 @@ export async function publishAction(slug: string): Promise<{ ok: boolean; messag
   if (gone.length) errors.push({ where: "Προϊόντα", msg: `${gone.length} προϊόντα της σελίδας δεν υπάρχουν πια ή είναι ανενεργά — αφαίρεσέ τα (σημειώνονται με κόκκινο).` });
   if (errors.length) return { ok: false, message: "Διόρθωσε τα παρακάτω πριν τη δημοσίευση.", errors };
   await publishDraft(slug, user.id);
+  await updatePlans(brandTarget(slug), user.id, (p) => (p.review ? { ...p, review: null } : p)).catch(() => null);
   await audit(user.id, "cms.brandstore.publish", "CmsDocument", `brand.stores/${slug}`, doc.published, doc.draft);
   revalidatePath(`/brands/${slug}`);
   revalidatePath("/brands");
@@ -115,7 +124,7 @@ export async function publishAction(slug: string): Promise<{ ok: boolean; messag
 }
 
 export async function unpublishAction(slug: string) {
-  const user = await requirePermission(PERM);
+  const user = await requirePublisher();
   const doc = await getStoreDoc(slug);
   await unpublish(slug, user.id);
   await audit(user.id, "cms.brandstore.unpublish", "CmsDocument", `brand.stores/${slug}`, doc?.published ?? null, null);
@@ -261,4 +270,10 @@ export async function fetchLogoAction(url: string): Promise<{ ok: true; kind: "s
   if (type.includes("svg") || u.pathname.endsWith(".svg")) return { ok: true, kind: "svg", text: buf.toString("utf8") };
   if (!/^image\/(png|jpe?g|webp|gif)/.test(type)) return { ok: false, message: "Υποστηρίζονται SVG, PNG, JPG, WebP." };
   return { ok: true, kind: "raster", dataUrl: `data:${type.split(";")[0]};base64,${buf.toString("base64")}` };
+}
+
+/** Ποια components βγαίνουν κενά τώρα + έλεγχοι πριν τη δημοσίευση (για το πρόχειρο που βλέπει ο editor). */
+export async function brandHealthAction(store: BrandStore): Promise<HomeHealth> {
+  await requirePermission(PERM);
+  return brandHealth(store);
 }

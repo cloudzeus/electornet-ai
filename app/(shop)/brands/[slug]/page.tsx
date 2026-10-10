@@ -13,17 +13,26 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac/permissions";
 import { getStoreDoc } from "@/lib/cms/brand-stores";
+import { previewTokenOk, runDueScenarios } from "@/lib/cms/doc-plans";
+import { brandTarget } from "@/lib/cms/brand-plans";
 
-/** ?preview=1 από το προσωπικό με δικαίωμα σελίδων μαρκών: δείχνει το ΠΡΟΧΕΙΡΟ (ποτέ σε πελάτες). */
-async function previewStore(slug: string) {
+/**
+ * ?preview=1 από το προσωπικό με δικαίωμα σελίδων μαρκών, ή ?pt=<token> από σύνδεσμο προεπισκόπησης (λήγει):
+ * δείχνει το ΠΡΟΧΕΙΡΟ (ποτέ σε πελάτες).
+ */
+async function previewStore(slug: string, sp: Record<string, string | undefined>) {
+  if (previewTokenOk(sp.pt, `brand:${slug}`)) return (await getStoreDoc(slug))?.draft ?? null;
+  if (sp.preview !== "1") return null;
   const user = (await auth())?.user;
   if (!user || !can(user.permissions, "cms.brandstores.write")) return null;
   return (await getStoreDoc(slug))?.draft ?? null;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const slug = (await params).slug;
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | undefined>> }): Promise<Metadata> {
+  const [slug, sp] = [(await params).slug, await searchParams];
   const store = await getBrandStore(slug);
+  // οι προεπισκοπήσεις του πρόχειρου δεν ευρετηριάζονται
+  if (sp.pt || sp.preview) return { title: store?.seo.title ?? slug, robots: { index: false, follow: false } };
   if (store) return { title: store.seo.title, description: store.seo.description };
   const b = await getBrand(slug);
   return b ? { title: `${b.name} — προϊόντα`, description: `Όλα τα προϊόντα ${b.name} στη Euronics με εργοστασιακή εγγύηση και δόσεις.` } : {};
@@ -34,7 +43,9 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
   const brand = await getBrand(slug);
   if (!brand) notFound();
   // Brand store (CMS record) → the manufacturer's own page; ?all=1 shows the plain listing.
-  const preview = sp.preview === "1" && !sp.all ? await previewStore(slug) : null;
+  // προγραμματισμένα σενάρια της σελίδας δημοσιεύονται στην ώρα τους (το πολύ ένας έλεγχος ανά 30″)
+  await runDueScenarios(brandTarget(slug)).catch(() => false);
+  const preview = !sp.all ? await previewStore(slug, sp) : null;
   const store = sp.all ? null : preview ?? (await getBrandStore(slug));
   const result = await listProducts({ brand: [slug], energy: sp.energy?.split(",").filter(Boolean), minPrice: sp.min ? Number(sp.min) : undefined, maxPrice: sp.max ? Number(sp.max) : undefined, avail: sp.avail === "in-stock" ? "in-stock" : undefined, sale: sp.sale === "1", sort: (sp.sort as ListFilter["sort"]) ?? "relevance", page: sp.page ? Number(sp.page) : 1 });
   if (store) {
@@ -42,7 +53,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
       <div className="eu-container">
         {preview && <div role="status" className="sticky top-0 z-40 bg-eu-yellow text-eu-navy text-center font-extrabold text-[length:var(--fs-14)] px-4 py-2">Προεπισκόπηση πρόχειρου — οι πελάτες δεν το βλέπουν</div>}
         <Breadcrumbs items={[{ label: "Μάρκες", href: "/brands" }, { label: brand.name }]} />
-        {await renderBrandStore(store)}
+        {await renderBrandStore(store, new Date(), { mark: !!preview })}
         <div className="eu-canvas eu-gutter py-10 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">Κατάλογος</div>
