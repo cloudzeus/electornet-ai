@@ -6,6 +6,7 @@ import { ExternalLink, ShieldCheck, LogIn, Loader2, ChevronDown, Info, X } from 
 import { AppleMark, GoogleMark, MicrosoftMark, FacebookMark } from "@/components/checkout/BrandMarks";
 import { saveSection, probeSocial, type ActionResult } from "@/app/admin/(shell)/settings/actions";
 import { TextField, SecretField, ToggleField, SelectField, CopyValue, StatusPill, SaveBar, ResultBanner, type Rule, type Status } from "./ui";
+import { SocialGuideButton, SocialGuidePanel } from "./SocialGuideButton";
 
 type P = "google" | "microsoft" | "facebook" | "apple";
 type Vals = Record<string, string | boolean>;
@@ -140,6 +141,7 @@ export function SocialLoginSettings({ data, secretSet, origin, prodBase, storedM
             );
           })}
         </ul>
+        <SocialGuidePanel tenant={String(vals.microsoftTenant || "consumers")} />
         <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)] flex items-start gap-2"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden />{live.length ? <>Στη σελίδα σύνδεσης, στην εγγραφή και στο checkout εμφανίζονται τώρα: <b>{live.map((p) => META[p].label).join(", ")}</b>.</> : "Αυτή τη στιγμή οι πελάτες δεν βλέπουν κανένα κουμπί social login — εμφανίζονται μόνο οι πάροχοι που είναι ανοιχτοί ΚΑΙ πλήρως ρυθμισμένοι."}</p>
       </header>
 
@@ -180,7 +182,10 @@ export function SocialLoginSettings({ data, secretSet, origin, prodBase, storedM
                   <ChevronDown className="size-5 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
                 </summary>
                 <div className="px-4 pb-4 grid gap-4">
-                  <a href={META[p].consoleUrl} target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">Άνοιγμα {META[p].consoleLabel} <ExternalLink className="size-4" aria-hidden /></a>
+                  <div className="flex flex-wrap gap-2 items-start">
+                    <a href={META[p].consoleUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">Άνοιγμα {META[p].consoleLabel} <ExternalLink className="size-4" aria-hidden /></a>
+                    <SocialGuideButton providers={[p]} tenant={String(vals.microsoftTenant || "consumers")} compact label={`Αναλυτικός οδηγός ${META[p].label}`} />
+                  </div>
                   <Guide p={p} redirects={redirects(p)} bases={bases} site={site} host={host} />
                 </div>
               </details>
