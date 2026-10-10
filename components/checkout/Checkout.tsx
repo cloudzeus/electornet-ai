@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreditCard, Landmark, Banknote, Smartphone, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
@@ -15,6 +15,8 @@ import { AppleMark, GoogleMark, RevolutMark } from "./BrandMarks";
 import { copyOf } from "@/lib/cms/copy";
 import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon, type ServerQuote } from "./useServerQuote";
 import { FreeShippingNote, GiftLines, PromoHints } from "./PromoPerks";
+import { BoxNowPicker, type Locker } from "./BoxNowPicker";
+import { carrierDef } from "@/lib/shipping/carriers";
 
 const c = copyOf("checkout");
 
@@ -33,12 +35,16 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores }: { stores: StoreLite[] }) {
+export function Checkout({ stores, boxnowPartnerId = null }: { stores: StoreLite[]; boxnowPartnerId?: string | null }) {
   const router = useRouter();
   const { lines, subtotal, addonsTotal, hydrated, clear, freeShippingFrom } = useCart();
   const [step, setStep] = useState<2 | 3>(2);
   const [f, setF] = useState({ firstName: "", lastName: "", email: "", phone: "", street: "", number: "", floor: "", city: "", zip: "", region: "Αττική", notes: "", invoice: false, vat: "", company: "", doy: "", activity: "", createAccount: false, password: "", newsletter: false, terms: false, recycle: false });
   const [ful, setFul] = useState<Fulfilment>("courier");
+  // ο courier (όταν ο διαχειριστής έχει ενεργοποιήσει couriers) και, για BOX NOW, η θυρίδα
+  const [carrierPick, setCarrierPick] = useState<string | null>(null);
+  const [locker, setLocker] = useState<Locker | null>(null);
+  const pickLocker = useCallback((l: Locker) => setLocker(l), []);
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [slot, setSlot] = useState("morning");
   const [pay, setPay] = useState<Pay>("card");
@@ -54,7 +60,11 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const [couponCode, setCouponCode] = useState<string | null>(() => savedCoupon());
   const [placing, setPlacing] = useState(false);
   const offline = lines.filter((l) => !l.product.fromDb);
-  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, storeId: ful === "click-collect" ? storeId : null, zip: /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null });
+  const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: ful, storeId: ful === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick });
+  const offers = quote?.carriers ?? [];
+  // η επιλογή φαίνεται αμέσως· το κόστος το επιβεβαιώνει ο server (quote.carrier)
+  const offer = offers.find((o) => o.id === carrierPick && o.available) ?? offers.find((o) => o.id === quote?.carrier) ?? null;
+  const toLocker = ful === "courier" && offer?.kind === "locker";
   // συνδεδεμένος πελάτης (και μετά από σύνδεση με Google / Microsoft / Facebook / Apple): συμπλήρωση στοιχείων
   useEffect(() => {
     let on = true;
@@ -79,7 +89,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
   const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
   const store = stores.find((s) => s.id === storeId);
-  const eta = ful === "click-collect" ? "Έτοιμη σε 2 ώρες" : ful === "appointment" ? "Ραντεβού εντός 24 ωρών" : "Παράδοση σε 1–3 εργάσιμες";
+  const eta = ful === "click-collect" ? "Έτοιμη σε 2 ώρες" : ful === "appointment" ? "Ραντεβού εντός 24 ωρών" : offer ? `${offer.name} · ${offer.eta}` : "Παράδοση σε 1–3 εργάσιμες";
 
   const set = (k: keyof typeof f, v: string | boolean) => setF((s) => ({ ...s, [k]: v }));
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
@@ -90,7 +100,8 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
     if (!f.lastName.trim()) e.lastName = "Συμπλήρωσε το επώνυμό σου";
     if (!/\S+@\S+\.\S+/.test(f.email)) e.email = "Έγκυρο email, π.χ. maria@example.gr";
     if (!/^\d{10}$/.test(f.phone.replace(/\s/g, ""))) e.phone = "10 ψηφία, π.χ. 6912345678";
-    if (ful !== "click-collect") {
+    if (toLocker) { if (!locker?.id) e.locker = "Διάλεξε θυρίδα BOX NOW"; }
+    else if (ful !== "click-collect") {
       if (!f.street.trim()) e.street = "Οδός";
       if (!f.number.trim()) e.number = "Αριθμός";
       if (!f.city.trim()) e.city = "Πόλη";
@@ -98,7 +109,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
     }
     if (f.invoice && !/^\d{9}$/.test(f.vat)) e.vat = "Ο ΑΦΜ έχει 9 ψηφία";
     return e;
-  }, [f, ful]);
+  }, [f, ful, toLocker, locker]);
   const validStep2 = Object.keys(errors).length === 0;
 
   const lookupVat = () => {
@@ -146,6 +157,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
         address: ful === "click-collect" ? {} : { street: f.street, number: f.number, floor: f.floor, city: f.city, zip: f.zip, region: f.region, notes: f.notes },
         invoice: f.invoice ? { vatNumber: f.vat, company: f.company, doy: f.doy, activity: f.activity } : null,
         fulfilment: ful, storeId: ful === "click-collect" ? storeId : null, payment: pay, instalments: inst,
+        carrier: ful === "courier" ? offer?.id ?? null : null, locker: toLocker ? locker : null,
         coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
       }) });
       const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; nextCoupon?: { code: string; value: string; until: string | null } | null };
@@ -186,7 +198,9 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
   const text = (k: keyof typeof f, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => <input id={`fld-${k}`} value={f[k] as string} onChange={(e) => set(k, e.target.value)} onBlur={() => touch(k)} className={inputCls(k)} {...extra} />;
 
   const delivery: { v: Fulfilment; icon: typeof Truck; t: string; price: string; sub: string }[] = [
-    { v: "courier", icon: Truck, t: "Στη διεύθυνσή μου", price: goods >= freeShippingFrom ? "Δωρεάν" : "4,90 €", sub: "1–3 εργάσιμες · ACS / Γενική Ταχυδρομική" },
+    offers.length
+      ? (() => { const ok = offers.filter((o) => o.available); const min = Math.min(...ok.map((o) => o.fee)); return { v: "courier" as Fulfilment, icon: Truck, t: "Με courier", price: !ok.length ? "—" : min === 0 ? "Δωρεάν" : `από ${priceLong(min / 100)}`, sub: offers.some((o) => o.kind === "locker") ? "Στο σπίτι ή σε θυρίδα BOX NOW" : "Στη διεύθυνσή σου" }; })()
+      : { v: "courier", icon: Truck, t: "Στη διεύθυνσή μου", price: goods >= freeShippingFrom ? "Δωρεάν" : "4,90 €", sub: "1–3 εργάσιμες" },
     { v: "click-collect", icon: StoreIcon, t: "Παραλαβή από κατάστημα", price: "Δωρεάν", sub: "Σε 2 ώρες όπου υπάρχει απόθεμα · 350 καταστήματα" },
     { v: "appointment", icon: CalendarClock, t: "Με ραντεβού", price: heavy ? "Δωρεάν" : "Δωρεάν από 100 €", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Επιλέγεις ημέρα και ώρα" },
   ];
@@ -274,7 +288,32 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
                   ))}
                 </div>
 
-                {ful === "click-collect" ? (
+                {ful === "courier" && offers.length > 0 && (
+                  <fieldset className="m-0 p-0 border-0 grid gap-2">
+                    <legend className="mb-2 font-bold text-eu-ink text-[length:var(--fs-15)]">Courier</legend>
+                    {offers.map((o) => {
+                      const on = offer?.id === o.id;
+                      return (
+                        <label key={o.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border-2 px-4 py-3 min-h-14 ${!o.available ? "border-eu-line opacity-60 cursor-not-allowed" : on ? "border-eu-blue bg-eu-chip cursor-pointer" : "border-eu-line hover:border-eu-blue cursor-pointer"}`}>
+                          <input type="radio" name="carrier" checked={on} disabled={!o.available} onChange={() => setCarrierPick(o.id)} className="accent-eu-blue size-[18px]" />
+                          <span className="min-w-0 flex-1 basis-40">
+                            <span className="block font-bold text-eu-ink text-[length:var(--fs-16)]">{o.name}{o.kind === "locker" ? " · σε θυρίδα" : ""}</span>
+                            <span className="block text-eu-muted text-[length:var(--fs-14)]">{o.reason ?? o.eta}</span>
+                          </span>
+                          <span className={`font-extrabold text-[length:var(--fs-15)] ${o.fee === 0 ? "text-eu-green" : "text-eu-ink"}`}>{o.fee === 0 ? "Δωρεάν" : priceLong(o.fee / 100)}</span>
+                        </label>
+                      );
+                    })}
+                  </fieldset>
+                )}
+                {offers.some((o) => o.kind === "locker") && (
+                  <div hidden={!toLocker} id="fld-locker">
+                    <BoxNowPicker partnerId={boxnowPartnerId} zip={/^\d{5}$/.test(f.zip) ? f.zip : undefined} value={locker} onSelect={pickLocker} />
+                    {touched.locker && errors.locker && <span className="text-eu-red font-semibold text-[length:var(--fs-14)]">{errors.locker}</span>}
+                  </div>
+                )}
+
+                {toLocker ? null : ful === "click-collect" ? (
                   <div className="grid gap-3 rounded-xl bg-eu-surface p-4">
                     <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
                       {c.katastima_paralavis}
@@ -386,7 +425,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
             <>
               <div className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3">
                 <Done label="Στοιχεία" value={`${f.firstName} ${f.lastName} · ${f.email} · ${f.phone}`} onEdit={() => setStep(2)} />
-                <Done label="Παράδοση" value={ful === "click-collect" && store ? `Παραλαβή από ${store.name}, ${store.city} · Έτοιμη σε 2 ώρες` : `${f.street} ${f.number}${f.floor ? `, ${f.floor}` : ""}, ${f.zip} ${f.city} · ${eta}`} onEdit={() => setStep(2)} />
+                <Done label="Παράδοση" value={ful === "click-collect" && store ? `Παραλαβή από ${store.name}, ${store.city} · Έτοιμη σε 2 ώρες` : toLocker && locker ? `Θυρίδα BOX NOW: ${[locker.name, locker.address, locker.zip].filter(Boolean).join(", ")} · ${eta}` : `${f.street} ${f.number}${f.floor ? `, ${f.floor}` : ""}, ${f.zip} ${f.city} · ${eta}`} onEdit={() => setStep(2)} />
                 <Done label="Παραστατικό" value={f.invoice ? `Τιμολόγιο · ΑΦΜ ${f.vat} · ${f.company}` : "Απόδειξη λιανικής"} onEdit={() => setStep(2)} />
               </div>
 
@@ -552,7 +591,7 @@ export function Checkout({ stores }: { stores: StoreLite[] }) {
               {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
               {discPayment > 0 && <Row k={quote?.payment?.label ?? "Έκπτωση πληρωμής"} v={`− ${priceLong(discPayment)}`} cls="text-eu-green" />}
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
-              <Row k={ful === "courier" ? "Μεταφορικά" : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
+              <Row k={ful === "courier" ? (offer ? `Μεταφορικά · ${offer.name}` : "Μεταφορικά") : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               {codFee > 0 && <Row k="Αντικαταβολή" v={priceLong(codFee)} />}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(total - total / 1.24)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">

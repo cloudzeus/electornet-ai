@@ -1,4 +1,5 @@
 import "server-only";
+import { carrierOffers, pickCarrier, type CarrierId, type CarrierOffer } from "@/lib/shipping/carriers";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -70,7 +71,7 @@ export async function syncCart(items: CartItemIn[]) {
   return { cartId: cart.id, kept: rows.length, skipped: clean.length - rows.length };
 }
 
-export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null }
+export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null; /** ο courier που διάλεξε ο πελάτης (βλ. lib/shipping/carriers) */ carrier?: string | null }
 /** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
 export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
 export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
@@ -82,6 +83,8 @@ export interface Quote {
   goods: number; addons: number; discPrice: number; discCoupon: number; discPayment: number; payment: EngineResult["payment"]; shipping: number; codFee: number; total: number; vat: number;
   coupon: { applied: string | null; message: string | null };
   trace: EngineResult["trace"]; freeShippingFrom: number;
+  /** οι ενεργοί couriers με το κόστος τους για αυτό το καλάθι, και αυτός που ισχύει (null = κανένας ενεργός → γενικό κόστος) */
+  carriers: CarrierOffer[]; carrier: CarrierId | null;
   /** για την παραγγελία: ποσά ανά προσφορά */
   engine: EngineResult;
 }
@@ -91,7 +94,7 @@ async function shippingRules() {
   const empty = { data: {} as Record<string, unknown> };
   const [s, p] = await Promise.all([getSetting("shipping").catch(() => empty), getSetting("payments").catch(() => empty)]);
   const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v) : d);
-  return { freeFrom: cents(num(s.data.freeShippingFrom, 100)), fee: cents(num(s.data.shippingFee, 4.9)), cod: cents(num(p.data.codFee, 2)) };
+  return { freeFrom: cents(num(s.data.freeShippingFrom, 100)), fee: cents(num(s.data.shippingFee, 4.9)), cod: cents(num(p.data.codFee, 2)), data: s.data };
 }
 
 /** Ο υπολογισμός του καλαθιού — ο ίδιος για τη σελίδα καλαθιού, το checkout και την παραγγελία. Ποσά σε λεπτά. */
@@ -135,14 +138,18 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // υπηρεσίες ανά τεμάχιο (π.χ. επέκταση εγγύησης για κάθε συσκευή), όπως τις δείχνει και το καλάθι
   const addons = out.reduce((a, l) => a + l.addons.reduce((b, x) => b + x.price, 0) * l.qty, 0);
   const goods = engine.total + addons;
-  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") ? 0 : goods >= rules.freeFrom ? 0 : rules.fee;
+  // couriers: ο καθένας με το δικό του κόστος· χωρίς ενεργό courier ισχύει το γενικό κόστος
+  const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom);
+  const carrier = pickCarrier(carriers, input.carrier);
+  const courierFee = carrier ? carrier.fee : goods >= rules.freeFrom ? 0 : rules.fee;
+  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") ? 0 : courierFee;
   const freeShipping = engine.freeShipping && baseShipping > 0 ? { ...engine.freeShipping, saved: baseShipping } : null;
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, carriers, carrier: carrier?.id ?? null, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

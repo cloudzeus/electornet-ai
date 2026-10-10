@@ -59,6 +59,41 @@ const R = {
 };
 const yesNo = (key: string, label: string, help?: string, pub = false): Field => ({ key, label, type: "toggle", help, public: pub, width: "half" });
 
+/**
+ * Couriers του checkout (βλ. lib/shipping/carriers.ts): ανά courier διακόπτης, κόστος, «δωρεάν από», χρόνος παράδοσης
+ * (δημόσια) και τα στοιχεία σύνδεσης για την έκδοση vouchers (κρυφά).
+ */
+const CARRIER_SETUP: { id: string; title: string; help: string; fee: string; eta: string; creds: Field[] }[] = [
+  { id: "acs", title: "ACS Courier", help: "Στοιχεία web services από την ACS (Company ID, User ID, κωδικός, API key).", fee: "4.90", eta: "1–3 εργάσιμες", creds: [
+    { key: "acsCompanyId", label: "Company ID", type: "text", width: "half" }, { key: "acsUserId", label: "User ID", type: "text", width: "half" },
+    { key: "acsPassword", label: "Κωδικός", type: "secret", width: "half" }, { key: "acsApiKey", label: "API key", type: "secret", width: "half" }] },
+  { id: "geniki", title: "Γενική Ταχυδρομική", help: "Στοιχεία web services από τη Γενική Ταχυδρομική (όνομα χρήστη, κωδικός, app key).", fee: "4.90", eta: "1–3 εργάσιμες", creds: [
+    { key: "genikiUser", label: "Όνομα χρήστη", type: "text", width: "half" }, { key: "genikiPassword", label: "Κωδικός", type: "secret", width: "half" },
+    { key: "genikiAppKey", label: "App key", type: "secret", width: "half" }] },
+  { id: "elta", title: "ΕΛΤΑ Courier", help: "Τα στοιχεία web services δίνονται από την ΕΛΤΑ Courier (info@elta-courier.gr): κωδικός πελάτη, χρήστης, κωδικός.", fee: "3.90", eta: "2–4 εργάσιμες", creds: [
+    { key: "eltaCustomerCode", label: "Κωδικός πελάτη", type: "text", width: "half" }, { key: "eltaUser", label: "Χρήστης", type: "text", width: "half" },
+    { key: "eltaPassword", label: "Κωδικός", type: "secret", width: "half" }] },
+  { id: "asap", title: "ASAP Couriers", help: "Αυθημερόν / express στην Αττική. Το API δίνεται μετά από αίτηση στο asapcouriers.gr/eshop-partners.", fee: "6.90", eta: "Αυθημερόν στην Αττική", creds: [
+    { key: "asapAtticaOnly", label: "Μόνο για Αττική", type: "toggle", public: true, width: "half", help: "Με ΤΚ εκτός Αττικής ο πελάτης δεν μπορεί να τον διαλέξει." },
+    { key: "asapApiKey", label: "API key", type: "secret", width: "half" }] },
+  { id: "boxnow", title: "BOX NOW (θυρίδες)", help: "Ο πελάτης διαλέγει θυρίδα σε χάρτη. Partner ID, Client ID και Client secret από το BOX NOW (boxnow.gr → e-shops).", fee: "2.90", eta: "1–2 εργάσιμες σε θυρίδα", creds: [
+    { key: "boxnowPartnerId", label: "Partner ID", type: "text", public: true, width: "half", help: "Χρειάζεται για τον χάρτη θυρίδων στο checkout." },
+    { key: "boxnowClientId", label: "Client ID", type: "text", width: "half" },
+    { key: "boxnowApiKey", label: "Client secret", type: "secret", width: "half" },
+    { key: "boxnowEnv", label: "Περιβάλλον", type: "select", width: "half", options: [{ value: "stage", label: "Δοκιμαστικό (stage)" }, { value: "production", label: "Παραγωγή" }] }] },
+];
+const CARRIER_GROUPS = CARRIER_SETUP.map((c) => ({ key: c.id, title: c.title, help: c.help }));
+const CARRIER_FIELDS: Field[] = CARRIER_SETUP.flatMap((c) => {
+  const shown = (v: Values) => v[`${c.id}On`] === true;
+  return [
+    { key: `${c.id}On`, label: `Προσφέρεται στο checkout`, type: "toggle", public: true, width: "half", group: c.id } as Field,
+    { key: `${c.id}Fee`, label: "Κόστος αποστολής", type: "number", public: true, width: "half", group: c.id, showIf: shown, min: 0, step: 0.01, unit: "€", placeholder: c.fee },
+    { key: `${c.id}FreeFrom`, label: "Δωρεάν από", type: "number", public: true, width: "half", group: c.id, showIf: shown, min: 0, step: 1, unit: "€", help: "Κενό = όπως το γενικό «Δωρεάν αποστολή από»." },
+    { key: `${c.id}Eta`, label: "Χρόνος παράδοσης", type: "text", public: true, width: "half", group: c.id, showIf: shown, placeholder: c.eta, help: "Όπως το βλέπει ο πελάτης στο checkout." },
+    ...c.creds.map((f) => ({ ...f, group: c.id, showIf: shown })),
+  ];
+});
+
 export const SECTIONS: Section[] = [
   {
     key: "general",
@@ -219,20 +254,17 @@ export const SECTIONS: Section[] = [
   {
     key: "shipping",
     title: "Αποστολές & courier",
-    description: "Διασυνδέσεις courier και κανόνες αποστολής.",
+    description: "Ποιοι couriers προσφέρονται στο checkout, με τι κόστος και χρόνο παράδοσης, και τα στοιχεία σύνδεσης για τα vouchers.",
     group: "commerce",
     groups: [
-      { key: "courier", title: "Courier", help: "Με τα στοιχεία API τα vouchers εκδίδονται από την παραγγελία χωρίς αντιγραφή." },
-      { key: "cost", title: "Κόστος αποστολής", help: "Εμφανίζεται στο καλάθι και στο checkout· ειδικές χρεώσεις ανά προϊόν (π.χ. ογκώδη) υπερισχύουν." },
-      { key: "delivery", title: "Τρόποι παράδοσης" },
+      { key: "cost", title: "Γενικό κόστος αποστολής", help: "Ισχύει όταν δεν είναι ενεργός κανένας courier, και ως «δωρεάν από» για όσους δεν έχουν δικό τους." },
+      ...CARRIER_GROUPS,
+      { key: "delivery", title: "Άλλοι τρόποι παράδοσης" },
     ],
     fields: ([
-      { key: "courier", label: "Κύριος courier", type: "select", public: true, options: [{ value: "acs", label: "ACS" }, { value: "geniki", label: "Γενική Ταχυδρομική" }, { value: "elta", label: "ΕΛΤΑ Courier" }, { value: "speedex", label: "Speedex" }, { value: "boxnow", label: "BOX NOW" }], width: "half", group: "courier" },
-      { key: "courierAccount", label: "Κωδικός πελάτη courier", type: "text", width: "half", group: "courier", help: "Ο αριθμός σύμβασης / πελάτη στον courier." },
-      { key: "courierApiKey", label: "Courier API key", type: "secret", width: "half", group: "courier" },
-      { key: "boxnowApiKey", label: "BOX NOW API key", type: "secret", width: "half", group: "courier", help: "Για παράδοση σε lockers, ακόμη κι αν ο κύριος courier είναι άλλος." },
       { key: "freeShippingFrom", label: "Δωρεάν αποστολή από", type: "number", public: true, width: "half", group: "cost", min: 0, step: 1, unit: "€", placeholder: "49", help: "Κενό = ποτέ δωρεάν. Το καλάθι δείχνει «σου λείπουν Χ € για δωρεάν αποστολή»." },
       { key: "shippingFee", label: "Βασικό κόστος αποστολής", type: "number", public: true, width: "half", group: "cost", min: 0, step: 0.01, unit: "€", placeholder: "3.90" },
+      ...CARRIER_FIELDS,
       yesNo("clickCollect", "Click & Collect", "Παραλαβή από κατάστημα, χωρίς χρέωση.", true),
       { key: "clickCollectHours", label: "Έτοιμο για παραλαβή σε", type: "number", public: true, width: "half", group: "delivery", showIf: on("clickCollect"), min: 1, max: 240, step: 1, unit: "ώρες", placeholder: "2", help: "Η υπόσχεση που βλέπει ο πελάτης στο checkout." },
       yesNo("appointmentDelivery", "Παράδοση με ραντεβού (λευκές συσκευές)", "Ο πελάτης διαλέγει ημέρα και ώρα για ψυγεία, πλυντήρια, κουζίνες.", true),

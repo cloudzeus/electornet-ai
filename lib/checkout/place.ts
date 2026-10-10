@@ -10,6 +10,7 @@ import { buildSaldoc } from "@/lib/softone/order-doc";
 import { getSetting } from "@/lib/settings/store";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
+import { carrierDef } from "@/lib/shipping/carriers";
 
 /**
  * Ολοκλήρωση παραγγελίας. Ο server ξαναϋπολογίζει ΤΑ ΠΑΝΤΑ από την αρχή (τιμές, προσφορές, κουπόνι, μεταφορικά) — ο
@@ -25,6 +26,9 @@ export interface PlaceInput {
   invoice?: { vatNumber: string; company?: string; doy?: string; activity?: string } | null;
   fulfilment: "courier" | "click-collect" | "appointment";
   storeId?: string | null;
+  /** ο courier (lib/shipping/carriers) και, για BOX NOW, η θυρίδα που διάλεξε ο πελάτης στον χάρτη */
+  carrier?: string | null;
+  locker?: { id: string; name?: string; address?: string; zip?: string } | null;
   payment: string; instalments?: number;
   coupon?: string | null;
   terms: boolean; newsletter?: boolean;
@@ -42,7 +46,9 @@ function validate(i: PlaceInput): string | null {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(i.contact.email ?? "")) return "Το email δεν φαίνεται σωστό.";
   if (!/^\d{10}$/.test((i.contact.phone ?? "").replace(/\s/g, ""))) return "Το τηλέφωνο θέλει 10 ψηφία.";
   if (!["courier", "click-collect", "appointment"].includes(i.fulfilment)) return "Διάλεξε τρόπο παράδοσης.";
-  if (i.fulfilment !== "click-collect" && !/^\d{5}$/.test(i.address?.zip ?? "")) return "Ο ΤΚ θέλει 5 ψηφία.";
+  const toLocker = i.fulfilment === "courier" && carrierDef(i.carrier)?.kind === "locker";
+  if (toLocker && !i.locker?.id) return "Διάλεξε θυρίδα BOX NOW στον χάρτη.";
+  if (i.fulfilment !== "click-collect" && !toLocker && !/^\d{5}$/.test(i.address?.zip ?? "")) return "Ο ΤΚ θέλει 5 ψηφία.";
   if (i.fulfilment === "click-collect" && !i.storeId) return "Διάλεξε κατάστημα παραλαβής.";
   if (i.invoice && !/^\d{9}$/.test(i.invoice.vatNumber ?? "")) return "Ο ΑΦΜ θέλει 9 ψηφία.";
   return null;
@@ -55,7 +61,12 @@ export async function placeOrder(input: PlaceInput) {
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
-  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip: input.address?.zip ?? null, email }, cart);
+  const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
+  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip, email, carrier: input.carrier ?? null }, cart);
+  // ο courier που χρεώθηκε· αν ο πελάτης διάλεξε κάποιον που δεν ισχύει (π.χ. ASAP εκτός Αττικής), δεν αλλάζουμε σιωπηλά
+  if (input.fulfilment === "courier" && q.carriers.length && input.carrier && q.carrier !== input.carrier) return { ok: false as const, error: `Ο courier «${carrierDef(input.carrier)?.name ?? input.carrier}» δεν είναι διαθέσιμος για αυτή τη διεύθυνση. Διάλεξε άλλον.`, quote: publicQuote(q) };
+  const lockerAt = input.fulfilment === "courier" && carrierDef(q.carrier)?.kind === "locker" ? input.locker ?? null : null;
+  const carrier = input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) } : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   if (input.expectedTotal != null && input.expectedTotal !== q.total) return { ok: false as const, changed: true, error: "Το σύνολο άλλαξε (τιμή ή προσφορά). Δες το νέο ποσό πριν συνεχίσεις.", quote: publicQuote(q) };
   if (input.coupon && !q.coupon.applied) return { ok: false as const, error: q.coupon.message ?? "Το κουπόνι δεν ισχύει.", quote: publicQuote(q) };
@@ -86,7 +97,7 @@ export async function placeOrder(input: PlaceInput) {
       const order = await tx.order.create({
         data: {
           number, customerId: me?.id ?? null, guestEmail: me ? null : email, status: "pending", fulfilment: input.fulfilment, pickupStoreId: input.fulfilment === "click-collect" ? input.storeId : null,
-          shipping: { ...input.contact, ...input.address } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
+          shipping: { ...input.contact, ...input.address, ...carrier } as Prisma.InputJsonValue, invoice: input.invoice ? (input.invoice as Prisma.InputJsonValue) : undefined,
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,
@@ -153,8 +164,9 @@ export async function placeOrder(input: PlaceInput) {
         firstName: input.contact.firstName, number,
         lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
         subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
-        payment: input.payment, fulfilment: input.fulfilment, address: [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
-        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : "1–3 εργάσιμες",
+        payment: input.payment, fulfilment: input.fulfilment,
+        address: lockerAt ? `Θυρίδα BOX NOW: ${[lockerAt.name, lockerAt.address, lockerAt.zip].filter(Boolean).join(", ")}` : [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
+        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
       }).catch(() => null);
       if (tpl) await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: result.orderId } }).catch(() => null);
     })();
