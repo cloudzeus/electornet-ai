@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { getDevices, getOrders } from "@/lib/data/repo";
-import { DeviceCard, deviceRows } from "@/components/account/DeviceWallet";
+import { DeviceCard, deviceRows, type DeviceRow } from "@/components/account/DeviceWallet";
 import { ServiceRequest } from "@/components/account/ServiceRequest";
 import { Reveal } from "@/components/motion/Reveal";
+import { getCustomerSession } from "@/lib/account/session";
+import { customerDevices } from "@/lib/warranty/server";
 
 export const metadata: Metadata = { title: "Οι συσκευές μου · Εγγυήσεις & service" };
 
@@ -13,8 +15,10 @@ export const metadata: Metadata = { title: "Οι συσκευές μου · Εγ
  * the request form for that device.
  */
 export default async function DevicesPage({ searchParams }: { searchParams: Promise<{ service?: string }> }) {
-  const [{ service }, orders, infos] = await Promise.all([searchParams, getOrders(), getDevices()]);
-  const rows = deviceRows(orders, infos);
+  const [{ service }, me] = await Promise.all([searchParams, getCustomerSession()]);
+  // συνδεδεμένος πελάτης: οι πραγματικές συσκευές του (e-shop, καταστήματα από το SoftOne, καταχωρίσεις) — αλλιώς επίδειξη
+  const rows: DeviceRow[] = me ? await customerDevices(me.id) : deviceRows(await getOrders(), await getDevices());
+  const extendable = rows.filter((r) => r.extendable).length;
   const target = service ? rows.find((r) => r.productId === service) : null;
   const active = rows.filter((r) => r.daysLeft > 0).length;
   return (
@@ -27,6 +31,14 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
             <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)]">
               {rows.length} συσκευές · {active} με ενεργή εγγύηση · αποδείξεις, πιστοποιητικά, εγχειρίδια και ιστορικό service σε ένα μέρος.
             </p>
+            {extendable > 0 && (
+              <p className="m-0 mt-2 rounded-xl bg-eu-green/10 px-3 py-2 text-eu-green font-bold text-[length:var(--fs-15)]">
+                {extendable === 1 ? "Μία συσκευή σου μπορεί" : `${extendable} συσκευές σου μπορούν`} να πάρει δωρεάν επέκταση εγγύησης +2 έτη — πάτα «Δωρεάν επέκταση» στην κάρτα της.
+              </p>
+            )}
+            {me && rows.length === 0 && (
+              <p className="m-0 mt-2 text-eu-ink-3 text-[length:var(--fs-15)]">Δεν έχουμε ακόμη συσκευές στον λογαριασμό σου. Οι αγορές σου από το e-shop και τα καταστήματα Euronics εμφανίζονται εδώ αυτόματα.</p>
+            )}
           </div>
         </div>
       </Reveal>

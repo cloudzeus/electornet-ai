@@ -67,6 +67,7 @@ export async function markPaid(orderId: string, pspRef: string) {
   await db.order.update({ where: { id: orderId }, data: { status: "paid" } });
   await db.erpSync.updateMany({ where: { orderId, status: "awaiting-payment" }, data: { status: "preview" } });
   await sendConfirmation(orderId).catch(() => null);
+  await import("@/lib/warranty/server").then((m) => m.devicesFromOrder(orderId)).catch(() => null);
 }
 
 /** Email επιβεβαίωσης από τα στοιχεία της παραγγελίας στη βάση (για πληρωμές που ολοκληρώνονται αργότερα). */

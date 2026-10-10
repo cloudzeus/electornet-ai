@@ -1,5 +1,7 @@
 import "server-only";
 import { carrierOffers, pickCarrier, type CarrierId, type CarrierOffer } from "@/lib/shipping/carriers";
+import { extEligibleMap } from "@/lib/warranty/server";
+import { EXTENSION_SLUG } from "@/lib/warranty/policy";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
@@ -126,6 +128,13 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     const cur = list.find((a) => a.slug === f.slug);
     if (cur) { cur.price = 0; cur.free = free; } else list.push({ slug: s.slug, title: s.title, price: 0, value: cents(s.priceFrom ?? 0), free });
     addonsOf.set(f.lineKey, list);
+  }
+  // Επέκταση εγγύησης: ΔΩΡΕΑΝ +24 μήνες μόνο σε είδη με «Επέκταση Εγγύησης» (CCCWARRANTY) — μπαίνει μόνη της· αλλού δεν υπάρχει
+  const extOk = await extEligibleMap(items.map((i) => i.productId));
+  for (const it of items) {
+    const list = (addonsOf.get(it.key) ?? []).filter((a) => a.slug !== EXTENSION_SLUG);
+    if (extOk.get(it.productId)) list.push({ slug: EXTENSION_SLUG, title: "Επέκταση εγγύησης +2 έτη", price: 0, value: 0 });
+    addonsOf.set(it.key, list);
   }
   // δώρα: τα στοιχεία του προϊόντος-δώρου από τη βάση (αν δεν πωλείται πια, δεν μπαίνει)
   const giftLines = engine.gifts.length ? (await linesFor(engine.gifts.map((g) => ({ key: `gift:${g.promotionId}`, productId: g.productId, qty: g.qty })))).lines : [];

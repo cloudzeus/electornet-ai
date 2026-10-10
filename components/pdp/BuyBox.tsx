@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package } from "lucide-react";
+import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package, ShieldCheck } from "lucide-react";
 import type { Product, Service, Store } from "@/lib/data/types";
 import { discountPct, instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
@@ -20,7 +20,8 @@ const c = copyOf("buybox");
  * «Ολοκληρωμένη λύση» bundle: warranty extension, e-support and an
  * accessory with a running total. Quick buy is the primary action.
  */
-export function BuyBox({ product: p, addons, stores, accessory }: { product: Product; addons: Service[]; stores: Store[]; accessory?: Product | null }) {
+/** warranty: εγγύηση κατασκευαστή (μήνες) και δωρεάν επέκταση (μήνες, 0 = δεν ισχύει για αυτό το είδος) */
+export function BuyBox({ product: p, addons, stores, accessory, warranty }: { product: Product; addons: Service[]; stores: Store[]; accessory?: Product | null; warranty?: { months: number; extMonths: number } }) {
   const { add, openQuickBuy } = useCart();
   const [qty, setQty] = useState(1);
   const [sel, setSel] = useState<Record<string, string>>(() => Object.fromEntries((p.variants ?? []).map((v) => [v.name, v.options[0].label])));
@@ -168,6 +169,21 @@ export function BuyBox({ product: p, addons, stores, accessory }: { product: Pro
           </label>
         )}
       </fieldset>
+
+      {warranty && (
+        <div className={`rounded-xl border-2 p-3.5 flex items-start gap-2.5 ${warranty.extMonths ? "border-eu-green/40 bg-eu-green/5" : "border-eu-line"}`}>
+          <ShieldCheck className={`size-5 shrink-0 mt-0.5 ${warranty.extMonths ? "text-eu-green" : "text-eu-blue"}`} aria-hidden />
+          <span className="flex-1 min-w-0">
+            <span className="flex justify-between gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
+              {warranty.extMonths ? `Εγγύηση ${(warranty.months + warranty.extMonths) / 12} έτη` : `Εγγύηση ${warranty.months % 12 ? `${warranty.months} μήνες` : `${warranty.months / 12} ${warranty.months === 12 ? "έτος" : "έτη"}`}`}
+              {warranty.extMonths > 0 && <span className="text-eu-green shrink-0">Δωρεάν</span>}
+            </span>
+            <span className="block text-eu-muted text-[length:var(--fs-13-5)]">
+              {warranty.extMonths ? `${warranty.months / 12} ${warranty.months === 12 ? "έτος" : "έτη"} κατασκευαστή + ${warranty.extMonths / 12} έτη επέκταση από Euronics, χωρίς χρέωση· τη βλέπεις στις συσκευές του λογαριασμού σου.` : "Εγγύηση κατασκευαστή, με την απόδειξη αγοράς."}
+            </span>
+          </span>
+        </div>
+      )}
 
       {(addons.length > 0 || accessory) && (
         <fieldset className="m-0 p-0 border-0 min-w-0 grid gap-2">

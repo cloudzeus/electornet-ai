@@ -7,6 +7,8 @@ import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
 import { setPartsForSite } from "@/lib/catalog/sets";
+import { extEligibleMap, productWarranty } from "@/lib/warranty/server";
+import { EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS } from "@/lib/warranty/policy";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
 import { CompareSimilar } from "@/components/pdp/CompareSimilar";
@@ -64,7 +66,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!p) notFound();
   const [l1, related, accessories, services, stores] = await Promise.all([getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores()]);
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
-  const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi");
+  // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
+  const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
   const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
@@ -73,6 +76,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const co2 = await getGridFactor().catch(() => null);
   // «Set ειδών» του SoftOne: τι περιλαμβάνει (π.χ. εσωτερική + εξωτερική μονάδα)
   const setParts = p.fromDb ? await setPartsForSite(p.id).catch(() => null) : null;
+  // εγγύηση κατασκευαστή (από την περιγραφή του ERP) και δωρεάν επέκταση +2 έτη όπου ισχύει
+  const [maker, extOk] = p.fromDb ? await Promise.all([productWarranty(p.id).catch(() => null), extEligibleMap([p.id]).then((m) => m.get(p.id) ?? false).catch(() => false)]) : [null, false];
+  const warranty = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const [ar, arCats] = await Promise.all([db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories()]);
@@ -122,7 +128,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             )}
           </div>
           <StickySidebar className="min-w-0">
-            {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} />}
+            {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} warranty={warranty} />}
             <AdSlot slot="pdp-below-buybox" category={p.category} className="mt-4" />
           </StickySidebar>
         </div>

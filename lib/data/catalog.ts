@@ -26,7 +26,7 @@ const categories: Category[] = [
 ];
 
 const services: Service[] = [
-  { no: "01", slug: "epektasi-eggyisis", title: "Επέκταση εγγύησης", blurb: "Έως 5 έτη, από 19 € · καλύπτει και βλάβη από υγρά", priceFrom: 19 },
+  { no: "01", slug: "epektasi-eggyisis", title: "Επέκταση εγγύησης", blurb: "Δωρεάν +2 έτη σε επιλεγμένα προϊόντα", priceFrom: 0 },
   { no: "02", slug: "paradosi-egkatastasi", title: "Παράδοση & εγκατάσταση", blurb: "Με ραντεβού, από τεχνικό του καταστήματος" },
   { no: "03", slug: "paralavi-2-ores", title: "Παραλαβή σε 2 ώρες", blurb: "Σε 350 σημεία · χωρίς κόστος" },
   { no: "04", slug: "anakyklosi-aiie", title: "Ανακύκλωση ΑΗΗΕ", blurb: "Δωρεάν παραλαβή της παλιάς συσκευής" },

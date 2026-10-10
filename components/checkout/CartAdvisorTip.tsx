@@ -21,7 +21,8 @@ export function CartAdvisorTip({ lines, subtotal, freeShippingFrom }: { lines: C
   if (!lines.length) return null;
   const heavy = lines.find((l) => HEAVY.has(l.product.subcategory));
   const noInstall = heavy && !l_has(heavy, "paradosi-egkatastasi");
-  const noWarranty = lines.find((l) => l.product.price >= 300 && !l_has(l, "epektasi-eggyisis"));
+  // η επέκταση εγγύησης δεν πωλείται πια: είναι δωρεάν και αυτόματη στα είδη που την έχουν (lib/warranty)
+  const noWarranty = null as (typeof lines)[number] | null;
   const gap = freeShippingFrom - subtotal;
   let text: string;
   let q: string;

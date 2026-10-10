@@ -167,6 +167,8 @@ export async function placeOrder(input: PlaceInput) {
       const redirect = await startVivaPayment(result.orderId, input.payment).catch(() => paymentPagePath(number, "&e=start"));
       return { ok: true as const, number, total: q.total, nextCoupon: null, redirect };
     }
+    // «Οι συσκευές μου»: εγγύηση (και δωρεάν επέκταση όπου ισχύει) στο προφίλ του πελάτη
+    void import("@/lib/warranty/server").then((m) => m.devicesFromOrder(result.orderId)).catch(() => null);
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;

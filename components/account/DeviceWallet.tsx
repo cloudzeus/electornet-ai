@@ -5,6 +5,7 @@ import type { DeviceInfo, ServiceEvent } from "@/lib/data/fixtures/devices";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { Tilt } from "@/components/motion/Tilt";
 import { copyOf } from "@/lib/cms/copy";
+import { ExtendWarrantyButton } from "./ExtendWarrantyButton";
 
 const cp = copyOf("deviceWallet");
 
@@ -22,6 +23,13 @@ export interface DeviceRow {
   daysLeft: number;
   pct: number;
   info?: DeviceInfo;
+  /** πραγματική συσκευή του πελάτη (CustomerDevice) — όχι επίδειξη */
+  real?: boolean;
+  deviceId?: string;
+  href?: string | null;
+  /** μπορεί να ενεργοποιήσει τώρα τη δωρεάν επέκταση (+2 έτη) · αλλιώς γιατί όχι */
+  extendable?: boolean;
+  extendNote?: string | null;
 }
 
 /** Warranty and service facts for every appliance in the customer's orders. */
@@ -98,13 +106,15 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
           <div className="min-w-0">
             <div className="text-eu-muted-2 font-bold text-[length:var(--fs-13)] uppercase">{d.brand}</div>
             <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] leading-tight line-clamp-2">
-              <Link href={`/proion/${d.productId.replace(/^p-/, "")}`} className="hover:text-eu-blue">
-                {d.title}
-              </Link>
+              {d.href === null ? d.title : (
+                <Link href={d.href ?? `/proion/${d.productId.replace(/^p-/, "")}`} className="hover:text-eu-blue">
+                  {d.title}
+                </Link>
+              )}
             </h3>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-13)] font-extrabold ${d.ext ? "bg-eu-navy text-white" : "bg-eu-green/12 text-eu-green"}`}>
-                <ShieldCheck className="size-3.5" aria-hidden /> {d.ext ? "Επέκταση 5 έτη" : "Εγγύηση 2 έτη"}
+                <ShieldCheck className="size-3.5" aria-hidden /> {d.real ? (d.ext ? `Με επέκταση · ${d.years.toLocaleString("el-GR")} έτη` : `Εγγύηση ${d.years.toLocaleString("el-GR")} έτη`) : d.ext ? "Επέκταση 5 έτη" : "Εγγύηση 2 έτη"}
               </span>
               <span className="inline-flex items-center rounded-full bg-eu-surface px-2 py-0.5 text-[length:var(--fs-13)] font-semibold text-eu-ink-3">έως {new Date(d.to).toLocaleDateString("el-GR")}</span>
               {d.info?.serial && <span className="hidden @md:inline-flex items-center rounded-full bg-eu-surface px-2 py-0.5 text-[length:var(--fs-13)] font-semibold text-eu-ink-3 tabular-nums">S/N {d.info.serial}</span>}
@@ -118,7 +128,8 @@ export function DeviceCard({ d, compact = false }: { d: DeviceRow; compact?: boo
               <Link href={`/logariasmos/eggyiseis?service=${d.productId}`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue">
                 <Wrench className="size-4" aria-hidden /> {cp.dilosi_vlavis_service}
               </Link>
-              {!d.ext && d.daysLeft > 0 && (
+              {d.real && d.extendable && d.deviceId && <ExtendWarrantyButton deviceId={d.deviceId} />}
+              {!d.real && !d.ext && d.daysLeft > 0 && (
                 <Link href="/ypiresies/epektasi-eggyisis" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-white">
                   {cp.epektasi_se_5_eti}
                 </Link>
