@@ -4,6 +4,8 @@ import { ArrowDown, ArrowUp, Info, Plus, Trash2, Undo2 } from "lucide-react";
 import { sectionDef, type HomeSection, type SectionField } from "@/lib/cms/home-sections";
 import { Area, LinkField, MediaUrl, StringList, Txt } from "./brand/fields";
 import { CategoryCellsField } from "./CategoryCellsField";
+import { DealsSourceField, HeroInfoField } from "./HomeInfoFields";
+import { ListChecks } from "lucide-react";
 
 type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string };
 
@@ -37,6 +39,8 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
           </div>
         );
       }
+      case "deals-source": return <DealsSourceField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} />;
+      case "hero-info": return <HeroInfoField key={f.key} />;
       case "category-cells": return <CategoryCellsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} help={f.help} />;
       case "campaigns": {
         const list = ((val(f.key) as Campaign[] | undefined) ?? []).map((c) => ({ ...c }));
@@ -80,7 +84,13 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
   };
   return (
     <div className="grid gap-4">
-      {d.managedAt && <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Το περιεχόμενο ρυθμίζεται στο <a href={d.managedAt.href} className="text-eu-blue underline font-bold">{d.managedAt.label}</a>.</span></p>}
+      {d.how.length > 0 && (
+        <div className="rounded-xl bg-eu-chip/60 px-3 py-2.5 grid gap-1.5">
+          <span className="inline-flex items-center gap-1.5 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide"><ListChecks className="size-4" aria-hidden /> Πώς το αλλάζω</span>
+          <ol className="m-0 pl-5 grid gap-1 text-eu-ink-2 text-[length:var(--fs-14)] leading-snug">{d.how.map((h, i) => <li key={i}>{h}</li>)}</ol>
+        </div>
+      )}
+      {d.managedAt && s.id !== "hero" && <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Το περιεχόμενο ρυθμίζεται στο <a href={d.managedAt.href} className="text-eu-blue underline font-bold">{d.managedAt.label}</a>.</span></p>}
       {d.fields.length ? d.fields.map(field) : !d.managedAt && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Αυτή η ενότητα ενημερώνεται αυτόματα — δεν έχει κείμενα για ρύθμιση. Από το «Πότε & σε ποιους» ορίζεις πού και πότε εμφανίζεται.</p>}
       {s.props && Object.keys(s.props).length > 0 && <button type="button" onClick={() => set({})} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface"><Undo2 className="size-3.5" aria-hidden /> Επαναφορά στις αρχικές ρυθμίσεις</button>}
     </div>

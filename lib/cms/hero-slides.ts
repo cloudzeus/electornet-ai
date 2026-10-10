@@ -87,6 +87,13 @@ export const getHeroDeal = cache(async (): Promise<{ product: Product; endsAt: s
   return { product: p, endsAt: p.dealEndsAt && p.dealEndsAt < dayEnd ? p.dealEndsAt : dayEnd };
 });
 
+/** Για τη διαχείριση της αρχικής: ποια είναι σήμερα η «Προσφορά ημέρας» και αν ορίστηκε χειροκίνητα ή αυτόματα. */
+export async function heroDealInfo(): Promise<{ title: string; image: string | null; manual: boolean } | null> {
+  const manual = !!dealFor(await getPublishedHeroDoc(), new Date());
+  const d = await getHeroDeal();
+  return d ? { title: `${d.product.brand} ${d.product.title}`, image: d.product.image ?? null, manual } : null;
+}
+
 /** Οι υπηρεσίες του πλακιδίου, με τη σειρά που όρισε ο διαχειριστής (αλλιώς οι πρώτες 4). */
 export const getHeroServices = cache(async (): Promise<{ title: string; blurb: string }[]> => {
   const chosen = (await getPublishedHeroDoc())?.services ?? [];

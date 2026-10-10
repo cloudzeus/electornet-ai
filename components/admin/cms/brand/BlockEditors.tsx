@@ -17,7 +17,7 @@ export const PROMO_TYPES: BrandBlock["type"][] = ["ad", "promo-products", "promo
 
 let optCache: BlockOptions | null = null;
 /** Οι επιλογές από Προσφορές / καταστήματα / μάρκες, μία φορά ανά συνεδρία του editor. */
-function useOptions() {
+export function useOptions() {
   const [o, setO] = useState<BlockOptions | null>(optCache);
   useEffect(() => { if (!o) blockOptionsAction().then((x) => { optCache = x; setO(x); }); }, [o]);
   return o;

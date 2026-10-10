@@ -20,8 +20,9 @@ import { Reveal } from "@/components/motion/Reveal";
 import { getHeroDeal, getHeroServices, getLiveHeroSlides } from "@/lib/cms/hero-slides";
 import { catalogTree, type CatNode } from "@/lib/data/db-catalog";
 import { cellsOf, gridCategories, gridTitle, type CatInfo } from "./category-cells";
+import { homeDeals, type DealsProps } from "./home-deals";
 import type { Category } from "@/lib/data/types";
-import { getCategories, getGuides, getNearestStoreWithGeo, getProduct, getServices, getWeeklyDeals } from "@/lib/data/catalog";
+import { getCategories, getGuides, getNearestStoreWithGeo, getProduct, getServices } from "@/lib/data/catalog";
 
 /**
  * Widget registry: type → async server component. Each widget resolves
@@ -55,13 +56,13 @@ const registry: Record<string, Renderer> = {
     return <CategoryGrid key={w.id} categories={cats as unknown as Category[]} featured={cats.find((c) => c.featured)?.id} title={gridTitle(props.title, cats.length)} zoneNo={w.zoneNo} />;
   },
   "deals-rail": async (w, ctx) => {
-    const deals = await getWeeklyDeals();
-    const limit = w.query?.limit ?? 4;
-    const pinned = w.query?.pin ?? [];
-    const ordered = [...deals.products].sort((a, b) => Number(pinned.includes(b.id)) - Number(pinned.includes(a.id)));
-    // Phones get the same four in a swipe rail; Save-Data trims to two.
-    const products = ordered.slice(0, ctx.saveData ? 2 : limit);
-    return <DealsRail key={w.id} products={products} endsAt={deals.endsAt} label={deals.label} title={(w.props as { title: string }).title} zoneNo={w.zoneNo} />;
+    // πηγή από τη διαχείριση (Ζώνες αρχικής): αυτόματα / μια προσφορά / επιλεγμένα προϊόντα — πραγματικά δεδομένα
+    const p = w.props as DealsProps & { title?: string };
+    const deals = await homeDeals({ ...p, limit: p.limit ?? w.query?.limit ?? 4 });
+    if (!deals.products.length) return null;
+    // Save-Data: δύο προϊόντα
+    const products = deals.products.slice(0, ctx.saveData ? 2 : deals.products.length);
+    return <DealsRail key={w.id} products={products} endsAt={deals.endsAt} label={deals.label} title={p.title ?? "Προσφορές της εβδομάδας"} zoneNo={w.zoneNo} />;
   },
   "quick-buy-explainer": async (w) => {
     const p = await getProduct("p-inventor-ikura");
