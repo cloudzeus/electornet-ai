@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Package, Truck, ShieldCheck, Gift, CalendarClock, CreditCard, Bell, User, Heart, ArrowRight } from "lucide-react";
-import { getAppointments, getCustomer, getDevices, getInstalmentPlans, getOrders } from "@/lib/data/repo";
-import { DeviceCard, deviceRows } from "@/components/account/DeviceWallet";
+import { notFound } from "next/navigation";
+import { accountAppointments, accountCustomer, accountInstalments, accountOrders, requireCustomer } from "@/lib/account/data";
+import { customerDevices } from "@/lib/warranty/server";
+import { DeviceCard } from "@/components/account/DeviceWallet";
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal } from "@/components/motion/Reveal";
 import { StarLight } from "@/components/motion/StarLight";
@@ -18,12 +20,13 @@ export const metadata: Metadata = { title: "Ο λογαριασμός μου" };
  * to its section; the active delivery shows its live courier timeline.
  */
 export default async function AccountHome() {
-  const [c, orders, plans, appts, infos] = await Promise.all([getCustomer(), getOrders(), getInstalmentPlans(), getAppointments(), getDevices()]);
-  const devices = deviceRows(orders, infos);
+  const me = await requireCustomer();
+  const [c, orders, plans, appts, devices] = await Promise.all([accountCustomer(me.id), accountOrders(me.id), accountInstalments(me.id), accountAppointments(me.id), customerDevices(me.id)]);
+  if (!c) notFound();
   const activeWarranties = devices.filter((d) => d.daysLeft > 0).length;
   const active = orders.find((o) => ["paid", "processing", "shipped", "ready-for-pickup"].includes(o.status));
   const nextAppt = appts.find((a) => a.status === "scheduled" || a.status === "confirmed");
-  const nextPlan = [...plans].sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
+  const nextPlan = plans.filter((p) => p.nextDate).sort((a, b) => a.nextDate.localeCompare(b.nextDate))[0];
   const tiles = [
     { icon: Package, n: String(orders.length), t: "Παραγγελίες", h: "/logariasmos/paraggelies" },
     { icon: Truck, n: active ? "1" : "0", t: "Σε εξέλιξη", h: active ? `/logariasmos/paraggelies/${active.number}` : "/logariasmos/paraggelies" },
@@ -42,7 +45,7 @@ export default async function AccountHome() {
           <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide">Ο λογαριασμός μου</div>
           <h1 className="m-0 font-heading font-bold text-[length:var(--fs-28)] leading-tight">Καλώς ήρθες, {c.firstName}</h1>
           <p className="m-0 mt-1 text-eu-on-dark text-[length:var(--fs-15)]">
-            {c.email} · {c.phone} · μέλος από {new Date(c.memberSince).getFullYear()}
+            {[c.email, c.phone, `μέλος από ${new Date(c.memberSince).getFullYear()}`].filter(Boolean).join(" · ")}
           </p>
         </div>
         <div className="relative flex flex-wrap gap-2">

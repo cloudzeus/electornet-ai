@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarClock, Wrench, Truck, Store as StoreIcon, MapPin, User } from "lucide-react";
-import { getAppointments } from "@/lib/data/repo";
+import { accountAppointments, requireCustomer } from "@/lib/account/data";
+import { CancelAppointment } from "@/components/account/CancelAppointment";
 
 export const metadata: Metadata = { title: "Ραντεβού & service" };
 
 const KIND = { installation: { icon: Wrench, label: "Εγκατάσταση" }, service: { icon: Wrench, label: "Service" }, delivery: { icon: Truck, label: "Παράδοση" }, pickup: { icon: StoreIcon, label: "Παραλαβή" } };
-const STATUS = { scheduled: { label: "Προγραμματισμένο", tone: "bg-eu-chip text-eu-blue" }, confirmed: { label: "Επιβεβαιωμένο", tone: "bg-eu-green/10 text-eu-green" }, done: { label: "Ολοκληρώθηκε", tone: "bg-eu-surface text-eu-muted" }, cancelled: { label: "Ακυρώθηκε", tone: "bg-eu-red/10 text-eu-red" } };
+const STATUS = { scheduled: { label: "Σε αναμονή ραντεβού", tone: "bg-eu-amber/15 text-eu-ink-2" }, confirmed: { label: "Επιβεβαιωμένο", tone: "bg-eu-green/10 text-eu-green" }, done: { label: "Ολοκληρώθηκε", tone: "bg-eu-surface text-eu-muted" }, cancelled: { label: "Ακυρώθηκε", tone: "bg-eu-red/10 text-eu-red" } };
 
 /**
  * @dynamic /logariasmos/rantevou — `getAppointments(session)` from the
@@ -14,7 +15,8 @@ const STATUS = { scheduled: { label: "Προγραμματισμένο", tone: "
  * scheduler. Reschedule / cancel call the store calendar API.
  */
 export default async function AppointmentsPage() {
-  const all = await getAppointments();
+  const me = await requireCustomer("/logariasmos/rantevou");
+  const all = await accountAppointments(me.id);
   const upcoming = all.filter((a) => a.status === "scheduled" || a.status === "confirmed");
   const past = all.filter((a) => a.status === "done" || a.status === "cancelled");
   const Card = ({ a }: { a: (typeof all)[number] }) => {
@@ -35,10 +37,11 @@ export default async function AppointmentsPage() {
             <div className="flex items-center gap-1.5 flex-wrap">
               <CalendarClock className="size-4 text-eu-blue shrink-0" aria-hidden />
               <dd className="m-0">
-                {new Date(a.date).toLocaleDateString("el-GR", { weekday: "short", day: "numeric", month: "long" })} · {a.slot}
+                {a.status === "scheduled" ? `Αίτημα στις ${new Date(a.date).toLocaleDateString("el-GR", { day: "numeric", month: "long" })}` : new Date(a.date).toLocaleDateString("el-GR", { weekday: "short", day: "numeric", month: "long" })}{a.slot ? ` · ${a.slot}` : ""}
               </dd>
-              {(a.status === "scheduled" || a.status === "confirmed") && (() => {
+              {a.status === "confirmed" && (() => {
                 const days = Math.ceil((new Date(a.date).getTime() - Date.now()) / 86400000);
+                if (days < 0) return null; // παρελθόν, χωρίς ακόμη «ολοκληρώθηκε» από το service
                 return <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-13)] font-extrabold ${days <= 1 ? "bg-eu-yellow text-eu-navy" : "bg-eu-chip text-eu-blue"}`}>{days <= 0 ? "σήμερα" : days === 1 ? "αύριο" : `σε ${days} ημέρες`}</span>;
               })()}
             </div>
@@ -56,7 +59,7 @@ export default async function AppointmentsPage() {
               <div>
                 <dd className="m-0">
                   Παραγγελία{" "}
-                  <Link href={`/logariasmos/paraggelies/${a.orderNumber}`} className="text-eu-blue underline">
+                  <Link href={`/logariasmos/paraggelies/${encodeURIComponent(a.orderNumber)}`} className="text-eu-blue underline">
                     {a.orderNumber}
                   </Link>
                 </dd>
@@ -67,12 +70,10 @@ export default async function AppointmentsPage() {
         </div>
         {(a.status === "scheduled" || a.status === "confirmed") && (
           <div className="flex @md:flex-col gap-2 self-start">
-            <button type="button" className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-surface">
-              Αλλαγή ώρας
-            </button>
-            <button type="button" className="rounded-full border-2 border-eu-line text-eu-muted font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:border-eu-red hover:text-eu-red">
-              Ακύρωση
-            </button>
+            <a href="tel:2104835143" className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 inline-flex items-center hover:bg-eu-surface">
+              Αλλαγή ώρας · 210 483 5143
+            </a>
+            {a.canCancel && <CancelAppointment id={a.id} />}
           </div>
         )}
       </li>

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { getConsents } from "@/lib/data/repo";
+import { accountConsents, requireCustomer } from "@/lib/account/data";
 import { ConsentsForm } from "@/components/account/ConsentsForm";
 
 export const metadata: Metadata = { title: "Ειδοποιήσεις & συγκαταθέσεις" };
 
-/** @dynamic /logariasmos/eidopoiiseis — consent ledger read; each toggle writes a ledger row. */
+/** /logariasmos/eidopoiiseis — από το μητρώο συναινέσεων· κάθε αλλαγή γράφει νέα εγγραφή (POST /api/account/consents). */
 export default async function NotificationsPage() {
-  const consents = await getConsents();
+  const me = await requireCustomer("/logariasmos/eidopoiiseis");
+  const consents = await accountConsents(me.id);
   return (
     <div className="grid grid-cols-1 gap-4">
       <div>

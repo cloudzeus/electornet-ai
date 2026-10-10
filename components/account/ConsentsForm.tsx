@@ -22,11 +22,16 @@ const CH: { key: keyof ConsentPref["channels"]; label: string }[] = [
  */
 export function ConsentsForm({ initial }: { initial: ConsentPref[] }) {
   const [prefs, setPrefs] = useState(initial);
-  const [saved, setSaved] = useState(false);
-  const toggle = (topic: ConsentPref["topic"], ch: keyof ConsentPref["channels"]) => {
-    setPrefs((ps) => ps.map((p) => (p.topic === topic ? { ...p, channels: { ...p.channels, [ch]: !p.channels[ch] }, updated: new Date().toISOString().slice(0, 10) } : p)));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const [saved, setSaved] = useState<boolean | "error">(false);
+  // κάθε αλλαγή = μία εγγραφή στο μητρώο συναινέσεων (POST /api/account/consents)· αν αποτύχει, επιστρέφει όπως ήταν
+  const toggle = async (topic: ConsentPref["topic"], ch: keyof ConsentPref["channels"]) => {
+    const before = prefs.find((p) => p.topic === topic)!;
+    const granted = !before.channels[ch];
+    setPrefs((ps) => ps.map((p) => (p.topic === topic ? { ...p, channels: { ...p.channels, [ch]: granted }, updated: new Date().toISOString().slice(0, 10) } : p)));
+    const ok = await fetch("/api/account/consents", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topic, channel: ch, granted }) }).then((r) => r.ok).catch(() => false);
+    if (!ok) setPrefs((ps) => ps.map((p) => (p.topic === topic ? before : p)));
+    setSaved(ok ? true : "error");
+    setTimeout(() => setSaved(false), 2500);
   };
   return (
     <div className="grid gap-3">
@@ -45,7 +50,7 @@ export function ConsentsForm({ initial }: { initial: ConsentPref[] }) {
               <div className="min-w-0">
                 <div className="font-bold text-eu-ink text-[length:var(--fs-16)]">{p.label}</div>
                 <div className="text-eu-muted text-[length:var(--fs-14)]">{p.help}</div>
-                <div className="text-eu-muted-2 text-[length:var(--fs-13)] mt-0.5">Τελευταία αλλαγή {new Date(p.updated).toLocaleDateString("el-GR")}</div>
+                <div className="text-eu-muted-2 text-[length:var(--fs-13)] mt-0.5">{p.updated ? `Τελευταία αλλαγή ${new Date(p.updated).toLocaleDateString("el-GR")}` : "Δεν έχει οριστεί ακόμη"}</div>
               </div>
               {CH.map((c) => {
                 const locked = p.topic === "orders" && c.key === "email";
@@ -63,11 +68,12 @@ export function ConsentsForm({ initial }: { initial: ConsentPref[] }) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 text-[length:var(--fs-14)] text-eu-muted">
         <span>Οι αλλαγές αποθηκεύονται αμέσως και καταγράφονται με ημερομηνία (GDPR άρθρο 7).</span>
-        {saved && (
-          <span className="inline-flex items-center gap-1.5 text-eu-green font-bold">
+        {saved === true && (
+          <span role="status" className="inline-flex items-center gap-1.5 text-eu-green font-bold">
             <Check className="size-4" aria-hidden /> {c.apothikeytike}
           </span>
         )}
+        {saved === "error" && <span role="alert" className="text-eu-red font-bold">Δεν αποθηκεύτηκε — δοκίμασε ξανά.</span>}
       </div>
     </div>
   );

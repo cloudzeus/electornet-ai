@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { getDevices, getOrders } from "@/lib/data/repo";
-import { DeviceCard, deviceRows, type DeviceRow } from "@/components/account/DeviceWallet";
+import { DeviceCard, type DeviceRow } from "@/components/account/DeviceWallet";
 import { ServiceRequest } from "@/components/account/ServiceRequest";
 import { Reveal } from "@/components/motion/Reveal";
-import { getCustomerSession } from "@/lib/account/session";
+import { requireCustomer } from "@/lib/account/data";
 import { customerDevices } from "@/lib/warranty/server";
 
 export const metadata: Metadata = { title: "Οι συσκευές μου · Εγγυήσεις & service" };
@@ -15,9 +14,9 @@ export const metadata: Metadata = { title: "Οι συσκευές μου · Εγ
  * the request form for that device.
  */
 export default async function DevicesPage({ searchParams }: { searchParams: Promise<{ service?: string }> }) {
-  const [{ service }, me] = await Promise.all([searchParams, getCustomerSession()]);
-  // συνδεδεμένος πελάτης: οι πραγματικές συσκευές του (e-shop, καταστήματα από το SoftOne, καταχωρίσεις) — αλλιώς επίδειξη
-  const rows: DeviceRow[] = me ? await customerDevices(me.id) : deviceRows(await getOrders(), await getDevices());
+  const [{ service }, me] = await Promise.all([searchParams, requireCustomer("/logariasmos/eggyiseis")]);
+  // οι πραγματικές συσκευές του πελάτη (e-shop, καταστήματα από το SoftOne, καταχωρίσεις)
+  const rows: DeviceRow[] = await customerDevices(me.id);
   const extendable = rows.filter((r) => r.extendable).length;
   const target = service ? rows.find((r) => r.productId === service) : null;
   const active = rows.filter((r) => r.daysLeft > 0).length;
@@ -36,13 +35,13 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
                 {extendable === 1 ? "Μία συσκευή σου μπορεί" : `${extendable} συσκευές σου μπορούν`} να πάρει δωρεάν επέκταση εγγύησης +2 έτη — πάτα «Δωρεάν επέκταση» στην κάρτα της.
               </p>
             )}
-            {me && rows.length === 0 && (
+            {rows.length === 0 && (
               <p className="m-0 mt-2 text-eu-ink-3 text-[length:var(--fs-15)]">Δεν έχουμε ακόμη συσκευές στον λογαριασμό σου. Οι αγορές σου από το e-shop και τα καταστήματα Euronics εμφανίζονται εδώ αυτόματα.</p>
             )}
           </div>
         </div>
       </Reveal>
-      {target && <ServiceRequest device={{ title: `${target.brand} ${target.title}`, serial: target.info?.serial, inWarranty: target.daysLeft > 0 }} />}
+      {target && <ServiceRequest device={{ id: target.deviceId, title: `${target.brand} ${target.title}`, serial: target.info?.serial, inWarranty: target.daysLeft > 0 }} />}
       <Reveal className="grid grid-cols-1 @5xl:grid-cols-2 gap-4" stagger={0.08}>
         {rows.map((d) => (
           <div key={d.key} data-reveal className="min-w-0">

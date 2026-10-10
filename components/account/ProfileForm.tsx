@@ -1,36 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Download, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Download, Trash2 } from "lucide-react";
 import type { Customer } from "@/lib/data/types";
 import { copyOf } from "@/lib/cms/copy";
 
 const cp = copyOf("profile");
 
 /**
- * @dynamic Profile form — reads/writes the SoftOne CUSTOMER record
- * through the account API (PATCH /api/account/profile). Demo: local
- * state with a saved confirmation. GDPR actions (export, delete) call
- * the DPO workflow in production.
+ * Τα στοιχεία του πελάτη: PATCH /api/account/profile (όνομα, κινητό, γενέθλια, ΑΦΜ — το email είναι το όνομα σύνδεσης,
+ * αλλάζει μόνο μέσω επικοινωνίας), αλλαγή κωδικού (POST /api/account/password/change), αιτήματα GDPR (POST /api/account/gdpr)
+ * που χειρίζεται ο DPO από τη διαχείριση.
  */
 export function ProfileForm({ customer: c }: { customer: Customer }) {
   const [f, setF] = useState({ firstName: c.firstName, lastName: c.lastName, email: c.email, phone: c.phone, birthday: c.birthday ?? "", vat: c.vat ?? "" });
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
   const [pw, setPw] = useState({ cur: "", next: "", again: "" });
-  const [twoFa, setTwoFa] = useState(!!c.twoFactor);
+  const [busy, setBusy] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const call = async (key: string, url: string, method: string, body: unknown, okText: string | ((j: Record<string, unknown>) => string)) => {
+    setBusy(key);
+    try {
+      const r = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+      const j = (await r.json()) as Record<string, unknown> & { ok: boolean; error?: string };
+      flash(j.ok ? (typeof okText === "string" ? okText : okText(j)) : j.error ?? "Δεν αποθηκεύτηκε.", j.ok);
+      return j.ok;
+    } catch { flash("Σφάλμα δικτύου. Δοκίμασε ξανά.", false); return false; } finally { setBusy(null); }
+  };
   const input = "rounded-xl border-2 border-eu-line bg-white px-4 min-h-12 text-[length:var(--fs-16)] w-full outline-none focus-visible:border-eu-blue";
   const label = "grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink";
-  const flash = (t: string) => {
-    setSaved(t);
-    setTimeout(() => setSaved(null), 2500);
+  const flash = (text: string, ok = true) => {
+    setSaved({ ok, text });
+    setTimeout(() => setSaved(null), 4000);
   };
   return (
     <div className="grid gap-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          flash("Τα στοιχεία σου αποθηκεύτηκαν.");
+          void call("profile", "/api/account/profile", "PATCH", { firstName: f.firstName, lastName: f.lastName, phone: f.phone, birthday: f.birthday, vat: f.vat }, "Τα στοιχεία σου αποθηκεύτηκαν.");
         }}
         className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-4"
       >
@@ -43,7 +51,8 @@ export function ProfileForm({ customer: c }: { customer: Customer }) {
             {cp.eponymo} <input value={f.lastName} onChange={(e) => set("lastName", e.target.value)} className={input} autoComplete="family-name" />
           </label>
           <label className={label}>
-            Email <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} className={input} autoComplete="email" />
+            Email <span className="font-normal text-eu-muted">(το όνομα σύνδεσης — για αλλαγή, επικοινώνησε μαζί μας)</span>
+            <input type="email" value={f.email} readOnly className={`${input} bg-eu-surface text-eu-ink-3`} autoComplete="email" />
           </label>
           <label className={label}>
             {cp.kinito} <input type="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} className={input} autoComplete="tel" />
@@ -58,12 +67,12 @@ export function ProfileForm({ customer: c }: { customer: Customer }) {
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-6 min-h-12 hover:bg-eu-blue">
-            {cp.apothikeysi}
+          <button type="submit" disabled={busy === "profile"} className="rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-6 min-h-12 hover:bg-eu-blue disabled:opacity-60">
+            {busy === "profile" ? "Αποθήκευση…" : cp.apothikeysi}
           </button>
           {saved && (
-            <span className="inline-flex items-center gap-1.5 text-eu-green font-bold text-[length:var(--fs-15)]">
-              <Check className="size-4" aria-hidden /> {saved}
+            <span role="status" className={`inline-flex items-center gap-1.5 font-bold text-[length:var(--fs-15)] ${saved.ok ? "text-eu-green" : "text-eu-red"}`}>
+              {saved.ok && <Check className="size-4" aria-hidden />} {saved.text}
             </span>
           )}
         </div>
@@ -72,9 +81,8 @@ export function ProfileForm({ customer: c }: { customer: Customer }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (pw.next.length < 8 || pw.next !== pw.again) return flash("Ο νέος κωδικός πρέπει να έχει 8+ χαρακτήρες και να ταιριάζει.");
-          setPw({ cur: "", next: "", again: "" });
-          flash("Ο κωδικός άλλαξε.");
+          if (pw.next.length < 8 || pw.next !== pw.again) return flash("Ο νέος κωδικός πρέπει να έχει 8+ χαρακτήρες και να ταιριάζει.", false);
+          void call("pw", "/api/account/password/change", "POST", { current: pw.cur, next: pw.next }, (j) => (j.first ? "Ορίστηκε κωδικός — μπορείς να συνδέεσαι και με email." : "Ο κωδικός άλλαξε.")).then((ok) => { if (ok) setPw({ cur: "", next: "", again: "" }); });
         }}
         className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-4"
       >
@@ -90,16 +98,6 @@ export function ProfileForm({ customer: c }: { customer: Customer }) {
             {cp.epanalipsi} <input type="password" value={pw.again} onChange={(e) => setPw({ ...pw, again: e.target.value })} className={input} autoComplete="new-password" />
           </label>
         </div>
-        <label className="flex items-start gap-3 rounded-xl bg-eu-surface p-4 cursor-pointer">
-          <input type="checkbox" checked={twoFa} onChange={(e) => setTwoFa(e.target.checked)} className="mt-1 size-[18px] accent-eu-blue" />
-          <span className="text-[length:var(--fs-15)] text-eu-ink-2">
-            <strong className="text-eu-ink inline-flex items-center gap-1.5">
-              <ShieldCheck className="size-4 text-eu-green" aria-hidden /> {cp.epalitheysi_dyo_vimaton}
-            </strong>
-            <br />
-            Κωδικός μίας χρήσης με SMS στο {f.phone} σε κάθε νέα συσκευή.
-          </span>
-        </label>
         <button type="submit" className="justify-self-start rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-6 min-h-12 hover:bg-eu-surface">
           {cp.allagi_kodikoy}
         </button>
@@ -109,10 +107,10 @@ export function ProfileForm({ customer: c }: { customer: Customer }) {
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Τα δεδομένα μου (GDPR)</h2>
         <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Μέλος από {new Date(c.memberSince).toLocaleDateString("el-GR", { month: "long", year: "numeric" })}. Μπορείς να κατεβάσεις ό,τι έχουμε για σένα ή να ζητήσεις διαγραφή· η αίτηση απαντάται εντός 30 ημερών (άρθρα 15 & 17).</p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => flash("Θα λάβεις email με το αρχείο εντός 24 ωρών.")} className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-surface">
+          <button type="button" disabled={busy === "gdpr"} onClick={() => void call("gdpr", "/api/account/gdpr", "POST", { type: "access" }, (j) => `Το αίτημα ${String(j.number)} καταχωρήθηκε — θα λάβεις τα δεδομένα σου με email εντός 30 ημερών.`)} className="inline-flex items-center gap-2 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-surface">
             <Download className="size-4" aria-hidden /> {cp.lipsi_dedomenon}
           </button>
-          <button type="button" onClick={() => flash("Η αίτηση διαγραφής καταχωρήθηκε. Θα επικοινωνήσουμε για επιβεβαίωση.")} className="inline-flex items-center gap-2 rounded-full border-2 border-eu-line text-eu-muted font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:border-eu-red hover:text-eu-red">
+          <button type="button" disabled={busy === "gdpr"} onClick={() => { if (confirm("Να καταχωρηθεί αίτημα διαγραφής του λογαριασμού σου; Θα επικοινωνήσουμε για επιβεβαίωση πριν διαγραφεί οτιδήποτε.")) void call("gdpr", "/api/account/gdpr", "POST", { type: "erasure" }, (j) => `Το αίτημα διαγραφής ${String(j.number)} καταχωρήθηκε. Θα επικοινωνήσουμε για επιβεβαίωση.`); }} className="inline-flex items-center gap-2 rounded-full border-2 border-eu-line text-eu-muted font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:border-eu-red hover:text-eu-red">
             <Trash2 className="size-4" aria-hidden /> {cp.diagrafi_logariasmoy}
           </button>
         </div>

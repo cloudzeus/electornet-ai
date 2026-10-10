@@ -7,13 +7,13 @@ import { copyOf } from "@/lib/cms/copy";
 const c = copyOf("serviceRequest");
 
 /**
- * @dynamic Fault report / service booking for a device: symptom, photo or
- * video, preferred slot; in warranty → free pickup or technician visit.
- * Demo: local confirmation with a ticket number; production: SoftOne SRVJOB
- * + store calendar, SMS/email confirmation, status in the account.
+ * Δήλωση βλάβης / ραντεβού service για μια συσκευή: σύμπτωμα, προτιμώμενη ώρα, τρόπος (επίσκεψη / παραλαβή / κατάστημα).
+ * POST /api/account/tickets → αίτημα service (αριθμός SRV-…, email επιβεβαίωσης), φαίνεται στα «Ραντεβού & service».
  */
-export function ServiceRequest({ device }: { device: { title: string; serial?: string; inWarranty: boolean } }) {
+export function ServiceRequest({ device }: { device: { id?: string; title: string; serial?: string; inWarranty: boolean } }) {
   const [sent, setSent] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [symptom, setSymptom] = useState("");
   const [slot, setSlot] = useState("Πρωί 9–13");
   const [mode, setMode] = useState<"visit" | "pickup" | "store">("visit");
@@ -33,7 +33,13 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        setSent(`SRV-${Math.floor(Math.random() * 90000 + 10000)}`);
+        if (symptom.trim().length < 5) return setErr("Περιέγραψε λίγο τη βλάβη.");
+        setBusy(true); setErr(null);
+        fetch("/api/account/tickets", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: device.inWarranty ? "warranty-claim" : "repair", mode, deviceId: device.id, device: device.title, description: `${symptom.trim()}\nΠροτίμηση: ${slot}` }) })
+          .then((r) => r.json() as Promise<{ ok: boolean; number?: string; error?: string }>)
+          .then((j) => (j.ok ? setSent(j.number ?? "") : setErr(j.error ?? "Το αίτημα δεν καταχωρήθηκε.")))
+          .catch(() => setErr("Σφάλμα δικτύου. Δοκίμασε ξανά."))
+          .finally(() => setBusy(false));
       }}
       className="rounded-2xl bg-eu-navy text-white p-5 @md:p-6 grid gap-4 relative overflow-hidden isolate"
     >
@@ -79,10 +85,11 @@ export function ServiceRequest({ device }: { device: { title: string; serial?: s
             ))}
           </select>
         </label>
-        <button type="submit" className="ml-auto rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 hover:bg-eu-yellow-dark">
-          {c.apostoli_aitimatos}
+        <button type="submit" disabled={busy} className="ml-auto rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] px-6 min-h-12 hover:bg-eu-yellow-dark disabled:opacity-60">
+          {busy ? "Αποστολή…" : c.apostoli_aitimatos}
         </button>
       </div>
+      {err && <p role="alert" className="m-0 font-bold text-eu-yellow text-[length:var(--fs-15)]">{err}</p>}
     </form>
   );
 }

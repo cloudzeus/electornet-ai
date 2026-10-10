@@ -1,4 +1,5 @@
 import type { Order } from "@/lib/data/types";
+import { payLabel } from "@/lib/account/labels";
 import { priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
@@ -86,7 +87,7 @@ export function OrderTimeline({ order: o }: { order: Order }) {
         ))}
       </ul>
       <div className="flex justify-between font-extrabold text-eu-ink text-[length:var(--fs-17)] border-t border-eu-line pt-2">
-        <span>Σύνολο ({o.payment.method}{o.payment.instalments ? `, ${o.payment.instalments} δόσεις` : ""})</span>
+        <span>Σύνολο ({payLabel(o.payment.method)}{o.payment.instalments && o.payment.instalments > 1 ? `, ${o.payment.instalments} δόσεις` : ""})</span>
         <span>{priceLong(o.total)}</span>
       </div>
     </div>

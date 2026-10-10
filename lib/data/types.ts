@@ -263,6 +263,9 @@ export interface Order {
   payment: { method: string; instalments?: number; last4?: string };
   tracking?: { courier: string; code: string; url: string; events: { date: string; text: string }[] };
   invoice?: { vat: string; company: string; doy: string };
+  /** πού έγινε η αγορά: e-shop, παλιό e-shop ή κατάστημα (παραστατικά του SoftOne) — και ποιο παραστατικό */
+  channel?: "eshop" | "legacy" | "store";
+  docLabel?: string;
 }
 
 export interface Policy {

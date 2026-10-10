@@ -9,11 +9,17 @@ type O = { number: string; date: string; lines: { id: string; title: string; qty
 const input = "rounded-md border border-eu-line bg-white px-3 py-2.5 min-h-11 text-[length:var(--fs-15)] w-full";
 const label = "grid gap-1 text-[length:var(--fs-14)] font-semibold text-eu-ink";
 
-/** Online RMA — the current site handles returns only by email/phone. */
+/** Αίτημα επιστροφής online (POST /api/account/returns) για παραγγελίες e-shop· ο αριθμός RMA έρχεται από τον server. */
 export function ReturnForm({ orders, preselect }: { orders: O[]; preselect?: string }) {
-  const [no, setNo] = useState(preselect ?? orders[0]?.number ?? "");
+  const [no, setNo] = useState(preselect && orders.some((x) => x.number === preselect) ? preselect : orders[0]?.number ?? "");
   const [items, setItems] = useState<string[]>([]);
+  const [reason, setReason] = useState("changed-mind");
+  const [method, setMethod] = useState("store");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  if (!orders.length) return <p className="m-0 bg-white rounded-xl border border-eu-line p-5 text-[length:var(--fs-15)] text-eu-ink-2">Δεν υπάρχουν παραγγελίες e-shop για επιστροφή. Για αγορές από κατάστημα, η επιστροφή γίνεται στο κατάστημα με την απόδειξη.</p>;
   const o = orders.find((x) => x.number === no);
   if (done)
     return (
@@ -26,7 +32,12 @@ export function ReturnForm({ orders, preselect }: { orders: O[]; preselect?: str
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        setDone(`RMA-${Date.now().toString().slice(-6)}`);
+        setBusy(true); setErr(null);
+        fetch("/api/account/returns", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ orderNumber: no, reason, method, notes, lines: (o?.lines ?? []).filter((l) => items.includes(l.id)).map((l) => ({ title: l.title, qty: l.qty })) }) })
+          .then((r) => r.json() as Promise<{ ok: boolean; rma?: string; error?: string }>)
+          .then((j) => (j.ok ? setDone(j.rma ?? "") : setErr(j.error ?? "Το αίτημα δεν καταχωρήθηκε.")))
+          .catch(() => setErr("Σφάλμα δικτύου. Δοκίμασε ξανά."))
+          .finally(() => setBusy(false));
       }}
       className="bg-white rounded-xl border border-eu-line p-5 grid gap-4"
     >
@@ -51,24 +62,25 @@ export function ReturnForm({ orders, preselect }: { orders: O[]; preselect?: str
       </fieldset>
       <label className={label}>
         {c.logos}
-        <select className={input}>
-          <option>Άλλαξα γνώμη (μέσα σε 14 ημέρες)</option>
-          <option>Ελαττωματικό κατά την παραλαβή (DOA)</option>
-          <option>{c.lathos_proion}</option>
-          <option>{c.zimia_sti_metafora}</option>
+        <select value={reason} onChange={(e) => setReason(e.target.value)} className={input}>
+          <option value="changed-mind">Άλλαξα γνώμη (μέσα σε 14 ημέρες)</option>
+          <option value="defective">Ελαττωματικό κατά την παραλαβή (DOA)</option>
+          <option value="wrong-item">{c.lathos_proion}</option>
+          <option value="damaged">{c.zimia_sti_metafora}</option>
         </select>
       </label>
       <label className={label}>
         {c.tropos_epistrofis}
-        <select className={input}>
-          <option>Παράδοση σε κατάστημα Euronics (δωρεάν)</option>
-          <option>Παραλαβή από courier (χρέωση 5,90 €, δωρεάν για DOA/λάθος)</option>
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className={input}>
+          <option value="store">Παράδοση σε κατάστημα Euronics (δωρεάν)</option>
+          <option value="courier">Παραλαβή από courier (χρέωση 5,90 €, δωρεάν για DOA/λάθος)</option>
         </select>
       </label>
       <label className={label}>
-        {c.scholia} <textarea rows={3} className="rounded-md border border-eu-line bg-white px-3 py-2 text-[length:var(--fs-15)]" />
+        {c.scholia} <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} className="rounded-md border border-eu-line bg-white px-3 py-2 text-[length:var(--fs-15)]" />
       </label>
-      <button type="submit" disabled={items.length === 0} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-40">
+      {err && <p role="alert" className="m-0 text-eu-red font-bold text-[length:var(--fs-14)]">{err}</p>}
+      <button type="submit" disabled={items.length === 0 || busy} className="justify-self-start rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue disabled:opacity-40">
         {c.ypovoli_aitimatos}
       </button>
     </form>
