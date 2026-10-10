@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PolicyPage } from "@/components/site/PolicyPage";
 import { getPolicy } from "@/lib/data/repo";
+import { sitePolicy } from "@/lib/data/policies-social";
+import { publicOrigin } from "@/lib/account/oauth-flow";
 
 export async function generateMetadata(): Promise<Metadata> {
   const p = await getPolicy("oroi-chrisis");
@@ -11,5 +13,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page({ searchParams }: { searchParams: Promise<{ preview?: string }> }) {
   const p = await getPolicy("oroi-chrisis");
   if (!p) notFound();
-  return <PolicyPage policy={p} zones={{ page: "oroi-chrisis", preview: (await searchParams).preview === "1" }} />;
+  // οι διευθύνσεις του κειμένου ακολουθούν το domain που ανοίγει τη σελίδα (dev, demo, live)
+  return <PolicyPage policy={sitePolicy(p, await publicOrigin())} zones={{ page: "oroi-chrisis", preview: (await searchParams).preview === "1" }} />;
 }

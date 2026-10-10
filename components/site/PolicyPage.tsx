@@ -121,6 +121,9 @@ export function PolicyPage({
           {children}
           {zones && <PageZone page={zones.page} zone="after" preview={zones.preview} />}
           {zones && <PageZone page={zones.page} zone="aside" preview={zones.preview} copy className="@3xl:hidden" />}
+          {!policy.sourceUrl && policy.updated && (
+            <p className="m-0 text-eu-muted-2 text-[length:var(--fs-13-5)] border-t border-eu-line pt-3">Τελευταία ενημέρωση: {new Date(policy.updated).toLocaleDateString("el-GR", { day: "numeric", month: "long", year: "numeric" })}</p>
+          )}
           {policy.sourceUrl && (
             <p className="m-0 text-eu-muted-2 text-[length:var(--fs-13-5)] border-t border-eu-line pt-3">
               {policy.verbatim
