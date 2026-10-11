@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowDown, ArrowUp, BookOpen, CalendarClock, Check, ChevronDown, CircleAlert, Copy, ExternalLink, Eye, EyeOff, GalleryHorizontal,
+  ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChevronUp, CalendarClock, Check, ChevronDown, CircleAlert, Copy, ExternalLink, Eye, EyeOff, GalleryHorizontal,
   GripVertical, History, Image as ImageIcon, Keyboard, LayoutGrid, Loader2, Mail, Megaphone, MoreHorizontal, Newspaper,
   Package, Percent, Plus, QrCode, Redo2, Rocket, Send, Sparkles, Store, Trash2, Undo2, Wrench, X, type LucideIcon,
 } from "lucide-react";
@@ -15,7 +15,7 @@ import type { HomeHealth } from "@/lib/cms/home-health";
 import type { HomeReview } from "@/lib/cms/home-plans";
 import { homeHealthAction, publishHomeAction, revertHomeAction, saveHomeAction } from "@/app/admin/(shell)/cms/home/actions";
 import { HistoryDialog, KeysDialog, PlansDialog, PublishDialog, ShareDialog, type Noun } from "./EditorDialogs";
-import { AddDialog, BLOCK_ICON, ico, LivePreview, RightSwitch, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
+import { AddDialog, BLOCK_ICON, ico, LivePreview, useFocusText, visSummary, VisibilityForm, type Vis } from "./EditorKit";
 import { clearReviewAction, plansAction, saveScenarioAction, submitReviewAction, type PlanRef } from "@/app/admin/(shell)/cms/plans-actions";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { ResultBanner } from "@/components/admin/settings/ui";
@@ -54,14 +54,14 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   const [savedAt, setSavedAt] = useState(initSavedAt);
   const [published, setPublished] = useState<HomeDoc | null>(pub);
   const [selected, setSelected] = useState<string | null>(null);
-  const [right, setRight] = useState<"settings" | "preview">("settings");
   const root = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<"s" | "m" | "l">("s");
   useEffect(() => {
     const el = root.current;
     if (!el) return;
-    // s: κινητό/tablet (ρυθμίσεις μέσα στη λίστα) · m: χάρτης + ρυθμίσεις ή προεπισκόπηση · l: χάρτης + ρυθμίσεις + προεπισκόπηση
-    const ro = new ResizeObserver(([e]) => { const w = e.contentRect.width; setMode(w >= 1180 ? "l" : w >= 900 ? "m" : "s"); });
+    // s: κινητό/tablet (ρυθμίσεις μέσα στη λίστα) · m: αριστερά χάρτης ή ρυθμίσεις, δεξιά ΠΑΝΤΑ η προεπισκόπηση ·
+    // l (πολύ φαρδιά): χάρτης + ρυθμίσεις + προεπισκόπηση. Η προεπισκόπηση δεν κρύβεται ποτέ όσο ρυθμίζεις (ui-ux-pro-max).
+    const ro = new ResizeObserver(([e]) => { const w = e.contentRect.width; setMode(w >= 1500 ? "l" : w >= 900 ? "m" : "s"); });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -139,10 +139,10 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   const add = (type: BrandBlock["type"], after: string | null) => {
     const b = newBlock(type, "Euronics");
     update((d) => { const l = flatten(d); const at = after ? l.findIndex((x) => x.key === after) + 1 : 0; l.splice(at, 0, { key: blkKey(b.id), kind: "block", b }); return rebuild(l); });
-    setAdding(null); setSelected(blkKey(b.id)); setRight("settings");
+    setAdding(null); setSelected(blkKey(b.id));
   };
-  const open = (key: string) => { setSelected((cur) => (cur === key && mode === "s" ? null : key)); setRight("settings"); };
-  const goKey = (key: string) => { if (!items.some((x) => x.key === key)) return; setDialog(null); setSelected(key); setRight("settings"); setView("page"); };
+  const open = (key: string) => { setSelected((cur) => (cur === key && mode === "s" ? null : key)); };
+  const goKey = (key: string) => { if (!items.some((x) => x.key === key)) return; setDialog(null); setSelected(key); setView("page"); };
   const loadDoc = (d: HomeDoc, label: string) => { update(() => normalizeHomeDoc(structuredClone(d))); setDialog(null); setSelected(null); setResult({ ok: true, message: `Φορτώθηκε στο πρόχειρο: ${label}. Δες την προεπισκόπηση και πάτα «Δημοσίευση» για να ανέβει (ή Αναίρεση για να γυρίσεις).` }); };
   const refreshPlans = () => { void plansAction(PLAN).then((p) => { setReview(p.review); setScheduled(p.scenarios.filter((x) => x.status === "scheduled" && x.publishAt).map((x) => ({ name: x.name, publishAt: x.publishAt! })).sort((a, b) => Date.parse(a.publishAt) - Date.parse(b.publishAt))); }); };
   const refreshServer = useCallback(() => { router.refresh(); setPv((v) => v + 1); void homeHealthAction(latest.current).then(setHealth).catch(() => null); }, [router]);
@@ -186,7 +186,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
         e.preventDefault();
         const i = selected ? idx(selected) : -1;
         const n = e.code === "KeyJ" ? Math.min(items.length - 1, i + 1) : Math.max(0, i < 0 ? 0 : i - 1);
-        setSelected(items[n].key); setRight("settings");
+        setSelected(items[n].key);
         document.getElementById(`map-${items[n].key}`)?.scrollIntoView({ block: "nearest" });
         return;
       }
@@ -201,6 +201,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
       errors={errors.filter((e) => x.kind === "block" && e.anchor === `blk-${x.b.id}`)}
       empty={health.empty[x.key] ?? null} issues={issuesOf(x.key)} focusText={focusText}
       onClose={() => setSelected(null)} onChange={(y, tag) => setItem(y, tag)} onToggle={() => toggle(x)}
+      onStep={(d) => { const n = idx(x.key) + d; if (items[n]) setSelected(items[n].key); }} drill={mode === "m"}
       onMove={(d) => move(x.key, d < 0 ? idx(x.key) - 1 : idx(x.key) + 2)} onDuplicate={() => duplicate(x)} onRemove={() => { if (window.confirm(`Διαγραφή του «${itemName(x)}»; (Για να μη φαίνεται χωρίς να χαθεί, πάτα το μάτι.)`)) remove(x); }}
       blockCtx={{ brandId: null, brandName: "Euronics", info, onInfo }}
     />
@@ -287,14 +288,22 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
           </div>
         </div>
 
-        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: mode === "s" ? "minmax(0,1fr)" : mode === "m" ? "minmax(18rem,22rem) minmax(0,1fr)" : sel ? "minmax(18rem,22rem) minmax(22rem,27rem) minmax(0,1fr)" : "minmax(18rem,24rem) minmax(0,1fr)" }}>
+        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: mode === "s" ? "minmax(0,1fr)" : mode === "m" ? "minmax(20rem,24rem) minmax(0,1fr)" : sel ? "minmax(18rem,22rem) minmax(24rem,28rem) minmax(0,1fr)" : "minmax(18rem,24rem) minmax(0,1fr)" }}>
           {/* ---- ο χάρτης της σελίδας: πάντα ορατός ---- */}
-          <div className={`${mode === "s" && view !== "page" ? "hidden" : ""} min-w-0 ${mode === "s" ? "" : "sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1"}`}>
+          {mode === "m" && sel && (
+            <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">{inspector(sel)}</div>
+          )}
+          <div className={`${(mode === "s" && view !== "page") || (mode === "m" && sel) ? "hidden" : ""} min-w-0 ${mode === "s" ? "" : "sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1"}`}>
               <section data-help="editor.map" aria-label="Η αρχική από πάνω προς τα κάτω" className="grid gap-3">
                 {warnings.length > 0 || errors.length > 0 ? (
                   <p className={`m-0 inline-flex items-start gap-2 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold ${errors.length ? "bg-eu-red/10 text-eu-red" : "bg-eu-amber/15 text-eu-ink-2"}`}><CircleAlert className="size-4 mt-0.5 shrink-0" aria-hidden />{errors.length ? `${errors.length} components θέλουν διόρθωση πριν τη δημοσίευση — άνοιξε όσα έχουν κόκκινη ένδειξη.` : `${warnings.length} συστάσεις — άνοιξε όσα έχουν πορτοκαλί ένδειξη.`}</p>
                 ) : null}
-                {emptyCount > 0 && <p className="m-0 inline-flex items-start gap-2 rounded-xl px-3 py-2 text-[length:var(--fs-14)] font-bold bg-eu-amber/15 text-eu-ink-2"><EyeOff className="size-4 mt-0.5 shrink-0" aria-hidden />{emptyCount === 1 ? "1 ενότητα είναι ενεργή αλλά κενή — δεν φαίνεται στο site." : `${emptyCount} ενότητες είναι ενεργές αλλά κενές — δεν φαίνονται στο site.`}</p>}
+                {emptyCount > 0 && (
+                  <div className="grid gap-1 rounded-xl px-3 py-2 bg-eu-amber/15 text-eu-ink-2 text-[length:var(--fs-13)]">
+                    <span className="inline-flex items-start gap-2 font-bold"><EyeOff className="size-4 mt-0.5 shrink-0" aria-hidden />{emptyCount === 1 ? "1 ενότητα είναι ενεργή αλλά κενή: δεν φαίνεται στο site." : `${emptyCount} ενότητες είναι ενεργές αλλά κενές: δεν φαίνονται στο site.`}</span>
+                    <span className="flex flex-wrap gap-1 pl-6">{items.filter((it) => health.empty[it.key] && visSummary(visOf(it)).live).map((it) => <button key={it.key} type="button" onClick={() => open(it.key)} className="rounded-full bg-white px-2.5 min-h-11 md:min-h-7 font-bold text-eu-navy text-[length:var(--fs-12)] hover:bg-eu-chip">{itemName(it)} →</button>)}</span>
+                  </div>
+                )}
                 {canWrite && <button data-help="editor.add" type="button" onClick={() => setAdding({ after: null })} className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-chip"><Plus className="size-5" aria-hidden /> Προσθήκη στην αρχική</button>}
                 <ol className="m-0 p-0 list-none grid" onDragOver={(e) => e.preventDefault()}>
                   {items.map((it, i) => {
@@ -334,23 +343,19 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
                     );
                   })}
                 </ol>
-                <p className="m-0 text-eu-muted text-[length:var(--fs-13)] leading-relaxed">Πάτα ένα στοιχείο για να το ρυθμίσεις ή πάτα πάνω στην προεπισκόπηση. Σειρά: σύρε από τη λαβή ή Alt + βέλη. Οι αλλαγές αποθηκεύονται μόνες τους· οι επισκέπτες τις βλέπουν μετά τη «Δημοσίευση». Πάτα <kbd className="rounded border border-eu-line px-1 font-mono">?</kbd> για τα πλήκτρα.</p>
+                <p className="m-0 text-eu-muted text-[length:var(--fs-12)] leading-relaxed">Πάτα μια ενότητα (ή πάνω στην προεπισκόπηση) για ρυθμίσεις. Σειρά: σύρε τη λαβή ή Alt + βέλη. Αποθηκεύεται μόνο του· οι επισκέπτες το βλέπουν μετά τη «Δημοσίευση». <kbd className="rounded border border-eu-line px-1 font-mono">?</kbd> πλήκτρα.</p>
               </section>
           </div>
 
           {/* ---- ρυθμίσεις (στήλη δίπλα στον χάρτη) ---- */}
-          {mode !== "s" && sel && (mode === "l" || right === "settings") && (
-            <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">
-              {mode === "m" && <RightSwitch right={right} setRight={setRight} />}
-              {inspector(sel)}
-            </div>
+          {mode === "l" && sel && (
+            <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">{inspector(sel)}</div>
           )}
 
           {/* ---- ζωντανή προεπισκόπηση ---- */}
-          {(mode === "s" ? view === "preview" : mode === "l" || !sel || right === "preview") && (
+          {(mode === "s" ? view === "preview" : true) && (
             <div data-help="editor.preview" className="min-w-0 sticky top-24">
-              {mode === "m" && sel && <RightSwitch right={right} setRight={setRight} />}
-              <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setRight("settings"); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
+              <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
             </div>
           )}
         </div>
@@ -376,9 +381,11 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
 }
 
 /* ---------------- επιθεωρητής ---------------- */
-function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, focusText, onClose, onChange, onToggle, onMove, onDuplicate, onRemove, blockCtx }: {
+function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, focusText, onClose, onChange, onToggle, onMove, onDuplicate, onRemove, onStep, drill, blockCtx }: {
   it: Item; index: number; count: number; prev: string | null; canWrite: boolean; errors: Issue[]; empty: string | null; issues: { msg: string }[]; focusText: { text: string; n: number } | null;
   onClose: () => void; onChange: (it: Item, tag?: string) => void; onToggle: () => void; onMove: (d: -1 | 1) => void; onDuplicate: () => void; onRemove: () => void;
+  /** προηγούμενη / επόμενη ενότητα χωρίς επιστροφή στη λίστα */ onStep: (d: -1 | 1) => void;
+  /** η αριστερή στήλη δείχνει τις ρυθμίσεις αντί για τη λίστα: «← Όλες οι ενότητες» */ drill?: boolean;
   blockCtx: { brandId: string | null; brandName: string; info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void };
 }) {
   const v = visOf(it);
@@ -392,9 +399,16 @@ function Inspector({ it, index, count, prev, canWrite, errors, empty, issues, fo
     <section ref={box} aria-label={`Ρυθμίσεις: ${itemName(it)}`} className="grid gap-3">
       {/* σταθερή κεφαλίδα: πού είσαι, τι είναι, οι ενέργειες */}
       <div className="sticky top-0 z-10 -mx-1 px-1 pb-1 bg-eu-surface grid gap-2">
-        <div className="flex items-center gap-2">
-          <span className="min-w-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug"><b className="text-eu-ink tabular-nums">Θέση {index + 1} από {count}</b>{prev ? <> · μετά από «{prev}»</> : " · στην κορυφή"}</span>
-          <button type="button" onClick={onClose} aria-label="Κλείσιμο ρυθμίσεων (Esc)" title="Κλείσιμο (Esc)" className="ml-auto size-11 shrink-0 grid place-items-center rounded-full hover:bg-white"><X className="size-5" aria-hidden /></button>
+        <div className="flex items-center gap-1">
+          {drill
+            ? <button type="button" onClick={onClose} title="Πίσω στη λίστα (Esc)" className="inline-flex items-center gap-1 rounded-full px-2 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-white"><ArrowLeft className="size-4" aria-hidden /> Όλες οι ενότητες</button>
+            : <span className="min-w-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug"><b className="text-eu-ink tabular-nums">Θέση {index + 1} από {count}</b>{prev ? <> · μετά από «{prev}»</> : " · στην κορυφή"}</span>}
+          <span className="ml-auto inline-flex items-center">
+            {drill && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums mr-1">{index + 1}/{count}</span>}
+            <button type="button" onClick={() => onStep(-1)} disabled={index === 0} aria-label="Προηγούμενη ενότητα (K)" title="Προηγούμενη (K)" className="size-11 md:size-9 grid place-items-center rounded-full hover:bg-white disabled:opacity-30"><ChevronUp className="size-4" aria-hidden /></button>
+            <button type="button" onClick={() => onStep(1)} disabled={index === count - 1} aria-label="Επόμενη ενότητα (J)" title="Επόμενη (J)" className="size-11 md:size-9 grid place-items-center rounded-full hover:bg-white disabled:opacity-30"><ChevronDown className="size-4" aria-hidden /></button>
+            {!drill && <button type="button" onClick={onClose} aria-label="Κλείσιμο ρυθμίσεων (Esc)" title="Κλείσιμο (Esc)" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-white"><X className="size-5" aria-hidden /></button>}
+          </span>
         </div>
         <div className="rounded-2xl border border-eu-line bg-white grid">
           <div className="flex items-center gap-3 px-3 pt-3 pb-2">

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T09:46:32.833Z",
+ "generatedAt": "2026-10-11T10:03:27.284Z",
  "routes": [
   {
    "route": "/admin",
@@ -746,9 +746,9 @@
     "editor.undo",
     "editor.more",
     "editor.publish",
+    "editor.inspector",
     "editor.map",
     "editor.add",
-    "editor.inspector",
     "editor.preview"
    ],
    "changes": [
@@ -827,12 +827,17 @@
    ],
    "changes": [
     {
+     "hash": "c7abbcc",
+     "date": "2026-10-11T12:46:32+03:00",
+     "text": "Κείμενα UI: νέος σχεδιασμός (ui-ux-pro-max)"
+    },
+    {
      "hash": "2ccbb67",
      "date": "2026-10-03T15:15:40+03:00",
      "text": "Κείμενα UI: αναζήτηση, επεξεργασία με πρόχειρο → δημοσίευση, αλλαγμένα, επαναφορά στο αρχικό"
     }
    ],
-   "updatedAt": "2026-10-03T15:15:40+03:00",
+   "updatedAt": "2026-10-11T12:46:32+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.copy-d.jpg",
     "mobile": "/api/help-shot/cms.copy-m.jpg"
@@ -854,9 +859,9 @@
     "editor.undo",
     "editor.more",
     "editor.publish",
+    "editor.inspector",
     "editor.map",
     "editor.add",
-    "editor.inspector",
     "editor.preview"
    ],
    "changes": [
@@ -2951,6 +2956,15 @@
  ],
  "recent": [
   {
+   "hash": "c7abbcc",
+   "date": "2026-10-11T12:46:32+03:00",
+   "text": "Κείμενα UI: νέος σχεδιασμός (ui-ux-pro-max)",
+   "routes": [
+    "/admin",
+    "/admin/cms/copy"
+   ]
+  },
+  {
    "hash": "6ee4ce9",
    "date": "2026-10-11T12:17:49+03:00",
    "text": "Βοήθεια: screenshot Χαρακτηριστικών με ανοιχτό τύπο (Κλιματιστικά Inverter)",
@@ -3281,12 +3295,6 @@
     "/admin",
     "/admin/cms/home"
    ]
-  },
-  {
-   "hash": "cf40604",
-   "date": "2026-10-10T14:18:12+03:00",
-   "text": "Σελίδες για τα social logins: πολιτική απορρήτου, όροι χρήσης και cookies με το κείμενο του euronics.gr αλλά με τις διευθύνσεις του domain που τις ανοίγει (dev, demo, live) και τις δικές μας διαδρομές",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3419,15 +3427,15 @@
    "components/admin/cms/BrandStoreEditor.tsx",
    "components/admin/cms/HomeEditor.tsx"
   ],
+  "editor.inspector": [
+   "components/admin/cms/BrandStoreEditor.tsx",
+   "components/admin/cms/HomeEditor.tsx"
+  ],
   "editor.map": [
    "components/admin/cms/BrandStoreEditor.tsx",
    "components/admin/cms/HomeEditor.tsx"
   ],
   "editor.add": [
-   "components/admin/cms/BrandStoreEditor.tsx",
-   "components/admin/cms/HomeEditor.tsx"
-  ],
-  "editor.inspector": [
    "components/admin/cms/BrandStoreEditor.tsx",
    "components/admin/cms/HomeEditor.tsx"
   ],

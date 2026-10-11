@@ -75,14 +75,6 @@ export function useFocusText(box: RefObject<HTMLElement | null>, focusText: { te
   }, [box, focusText, itemKey]);
 }
 
-/** Ρυθμίσεις → στήλη δίπλα στον χάρτη: διακόπτης ρυθμίσεις / προεπισκόπηση (μεσαίες οθόνες). */
-export function RightSwitch({ right, setRight }: { right: "settings" | "preview"; setRight: (r: "settings" | "preview") => void }) {
-  return (
-    <div role="tablist" aria-label="Δεξιά στήλη" className="mb-3 grid grid-cols-2 gap-1 rounded-full bg-eu-surface p-1">
-      {(["settings", "preview"] as const).map((r) => <button key={r} type="button" role="tab" aria-selected={right === r} onClick={() => setRight(r)} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-14)] ${right === r ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-2"}`}>{r === "settings" ? "Ρυθμίσεις" : "Προεπισκόπηση"}</button>)}
-    </div>
-  );
-}
 
 /** «Πότε & σε ποιους»: συσκευές (κουμπιά), κοινό (επιλογές με εξήγηση), ημερομηνίες. */
 export function VisibilityForm({ v, summary, onChange, audience = true }: { v: Vis; summary: string; onChange: (p: Vis) => void; audience?: boolean }) {
@@ -195,6 +187,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
   const [w, setW] = useState(0);
   const [bh, setBh] = useState(0);
   const [loaded, setLoaded] = useState(0);
+  const [loadedV, setLoadedV] = useState<number | null>(null);
   const [missing, setMissing] = useState(false);
   const pick = useRef(onPick);
   useEffect(() => { pick.current = onPick; }, [onPick]);
@@ -206,9 +199,11 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     return () => ro.disconnect();
   }, []);
   // τονισμός + κύλιση στο επιλεγμένο
+  // μόνο όταν η ΤΡΕΧΟΥΣΑ προεπισκόπηση (έκδοση v) έχει φορτώσει: αλλιώς το στυλ μπαίνει πριν το hydration της σελίδας
+  const ready = loadedV === v;
   useEffect(() => {
     const d = frame.current?.contentDocument;
-    if (!d) return;
+    if (!d || !ready) return;
     d.querySelectorAll(`[${attr}]`).forEach((n) => { (n as HTMLElement).style.outline = ""; (n as HTMLElement).style.outlineOffset = ""; });
     const el = focus ? (d.querySelector(`[${attr}="${focus}"]`) as HTMLElement | null) : null;
     // το επιλεγμένο δεν υπάρχει (κρυφό, κενό, άλλη συσκευή) ή δεν φαίνεται σε αυτή τη συσκευή → μήνυμα αντί για σιωπή
@@ -217,7 +212,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     if (!focus || !el || gone) return;
     el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
     el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focus, loaded, attr]);
+  }, [focus, loaded, attr, ready]);
   const onLoad = () => {
     const d = frame.current?.contentDocument;
     if (d) {
@@ -232,7 +227,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
         if (t) pick.current(t.getAttribute(attr)!, txt && txt.length < 300 ? txt : null);
       }, true);
     }
-    setLoaded((n) => n + 1);
+    setLoaded((n) => n + 1); setLoadedV(v);
   };
   const target = device === "desktop" ? 1280 : 390;
   const scale = w ? Math.min(1, w / target) : 1;
