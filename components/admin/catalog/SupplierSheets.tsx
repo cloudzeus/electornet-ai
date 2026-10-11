@@ -67,7 +67,7 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
     try {
       const r = await fetch(url);
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? "Το αρχείο δεν δημιουργήθηκε.");
-      const name = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? "template.xlsx";
+      const name = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? "paketo.zip";
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = name; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
@@ -143,7 +143,10 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
             </ul>
             <AddGroup groups={groups.filter((g) => !o.groups.some((x) => x.groupS1Id === g.id) && !extras.some((x) => x.id === g.id))} onAdd={(g) => { setExtra((e) => ({ ...e, [o.brandId]: [...(e[o.brandId] ?? []), g] })); setSel((s) => ({ ...s, [o.brandId]: [...(s[o.brandId] ?? []), g.id] })); }} />
             <div className="flex flex-wrap gap-2 border-t border-eu-line pt-3">
-              <button type="button" className={primary} disabled={!existingGroups.length || !!busy} onClick={() => download(`/api/admin/catalog/templates?b=${o.brandId}&g=${existingGroups.join(",")}&k=existing`, `${o.brandId}e`)}>
+              <button type="button" className={primary} disabled={!chosen.length || !!busy} onClick={() => download(`/api/admin/catalog/templates?s=${o.brandId}~${chosen.join(".")}&k=all`, `${o.brandId}all`)}>
+                {busy === `${o.brandId}all` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileArchive className="size-4" aria-hidden />} Πακέτο για τον προμηθευτή
+              </button>
+              <button type="button" className={secondary} disabled={!existingGroups.length || !!busy} onClick={() => download(`/api/admin/catalog/templates?b=${o.brandId}&g=${existingGroups.join(",")}&k=existing`, `${o.brandId}e`)}>
                 {busy === `${o.brandId}e` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} Υπάρχοντα προϊόντα
               </button>
               <button type="button" className={secondary} disabled={!chosen.length || !!busy} onClick={() => download(url("new"), `${o.brandId}n`)}>
@@ -152,7 +155,7 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
               <button type="button" className={secondary} disabled={!chosen.length || !!busy} onClick={() => download(url("media"), `${o.brandId}m`)}>
                 {busy === `${o.brandId}m` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Images className="size-4" aria-hidden />} Φωτογραφίες & βίντεο
               </button>
-              <p className="m-0 basis-full text-eu-muted text-[length:var(--fs-12)]">Τρία χωριστά αρχεία: στοιχεία υπαρχόντων · κενό για νέα · φωτογραφίες, banners και βίντεο (διευθύνσεις URL — στην εισαγωγή κατεβαίνουν, μετατρέπονται και ανεβαίνουν στο Bunny).</p>
+              <p className="m-0 basis-full text-eu-muted text-[length:var(--fs-12)]">Το «Πακέτο για τον προμηθευτή» είναι ένα zip με τα τρία excel (στοιχεία υπαρχόντων, κενό για νέα, φωτογραφίες, banners και βίντεο) και το Word «Οδηγίες συμπλήρωσης» με αναλυτικές οδηγίες, κάθε στήλη με παράδειγμα και τα χαρακτηριστικά κάθε κατηγορίας με τις προτεινόμενες τιμές. Κάθε μεμονωμένο αρχείο έρχεται κι αυτό με το Word.</p>
             </div>
           </section>
         );
@@ -160,7 +163,7 @@ function Templates({ brands, groups }: { brands: BrandOpt[]; groups: GroupOpt[] 
 
       {selection.length > 1 && (
         <div className="sticky bottom-2 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-eu-navy text-white px-4 py-3 shadow-lg">
-          <span className="text-[length:var(--fs-14)]">{selection.length} μάρκες · ένα zip με τρία αρχεία ανά μάρκα (υπάρχοντα, νέα, φωτογραφίες & βίντεο)</span>
+          <span className="text-[length:var(--fs-14)]">{selection.length} μάρκες · ένα zip με τα τρία excel και το Word με τις οδηγίες για κάθε μάρκα</span>
           <button type="button" disabled={!!busy} onClick={() => download(`/api/admin/catalog/templates?s=${selection.map((x) => `${x.b}~${x.g.join(".")}`).join("|")}&k=all`, "zip")} className={`${btn} bg-eu-yellow text-eu-navy hover:bg-white`}>
             {busy === "zip" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileArchive className="size-4" aria-hidden />} Όλα σε zip
           </button>

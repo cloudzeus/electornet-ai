@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BookOpen, Compass, Keyboard, LayoutTemplate, RefreshCw, Rocket, ShieldCheck, ToggleRight, type LucideIcon } from "lucide-react";
+import { BookOpen, Compass, Database, FileText, Filter, Keyboard, LayoutTemplate, Package, RefreshCw, Rocket, ShieldCheck, ToggleRight, Users, type LucideIcon } from "lucide-react";
 import { HELP_TOPICS } from "@/lib/help/content";
 
-export const TOPIC_ICON: Record<string, LucideIcon> = { compass: Compass, rocket: Rocket, layout: LayoutTemplate, shield: ShieldCheck, toggle: ToggleRight, keyboard: Keyboard, refresh: RefreshCw };
+export const TOPIC_ICON: Record<string, LucideIcon> = { compass: Compass, rocket: Rocket, layout: LayoutTemplate, shield: ShieldCheck, toggle: ToggleRight, keyboard: Keyboard, refresh: RefreshCw, package: Package, filter: Filter, database: Database, users: Users, file: FileText };
 
 /** Πλαίσιο του wiki: πλαϊνά τα γενικά άρθρα και οι ομάδες σελίδων, στο κέντρο το περιεχόμενο. */
 export function WikiFrame({ groups, current, children }: { groups: { group: string; pages: { slug: string; title: string }[] }[]; current?: string; children: ReactNode }) {
