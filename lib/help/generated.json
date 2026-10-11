@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T10:28:59.238Z",
+ "generatedAt": "2026-10-11T10:41:53.510Z",
  "routes": [
   {
    "route": "/admin",
@@ -871,6 +871,11 @@
    ],
    "changes": [
     {
+     "hash": "8ed8787",
+     "date": "2026-10-11T13:29:05+03:00",
+     "text": "Ζώνες αρχικής: «δείξε μου» όπως στις ζώνες σελίδων"
+    },
+    {
      "hash": "c4063a2",
      "date": "2026-10-11T13:03:37+03:00",
      "text": "Ζώνες αρχικής & σελίδες μαρκών (ui-ux-pro-max): σε οθόνη laptop οι ρυθμίσεις δεν κρύβουν πια την προεπισκόπηση"
@@ -914,14 +919,9 @@
      "hash": "4374916",
      "date": "2026-10-10T19:13:34+03:00",
      "text": "Προσφορές της εβδομάδας: η επιλογή προϊόντων γίνεται η κύρια («Διαλέγω τα προϊόντα», προτείνεται)"
-    },
-    {
-     "hash": "27b8d4d",
-     "date": "2026-10-10T19:04:21+03:00",
-     "text": "Αρχική: «Προσφορές της εβδομάδας» με πραγματικά δεδομένα"
     }
    ],
-   "updatedAt": "2026-10-11T13:03:37+03:00",
+   "updatedAt": "2026-10-11T13:29:05+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -1015,19 +1015,39 @@
    "slug": "cms.slides",
    "file": "app/admin/(shell)/cms/slides/page.tsx",
    "title": "Hero slides",
-   "doc": "Τα slides του hero της αρχικής: πρόχειρο → δημοσίευση, ημερομηνίες ανά slide, ζωντανή προεπισκόπηση.",
+   "doc": "Τα slides του hero της αρχικής: πρόχειρο → δημοσίευση, ημερομηνίες ανά slide, ζωντανή προεπισκόπηση (υπολογιστής / κινητό).",
    "perm": "cms.slides.write",
    "nav": {
     "group": "Περιεχόμενο",
     "label": "Hero slides"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "deals.list",
+    "services.list",
+    "slides.header",
+    "slides.check",
+    "slides.publish",
+    "slides.sections",
+    "slides.strip",
+    "slides.preview",
+    "slides.form"
+   ],
    "changes": [
     {
      "hash": "8fc17d3",
      "date": "2026-10-10T19:26:28+03:00",
      "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "27b8d4d",
+     "date": "2026-10-10T19:04:21+03:00",
+     "text": "Αρχική: «Προσφορές της εβδομάδας» με πραγματικά δεδομένα"
+    },
+    {
+     "hash": "3e88e17",
+     "date": "2026-10-09T18:46:57+03:00",
+     "text": "Hero: σταθερό ύψος με προσαρμοζόμενο κείμενο, μεγάλη εικόνα, ίσα περιθώρια"
     },
     {
      "hash": "0270e43",
@@ -1038,6 +1058,11 @@
      "hash": "429229c",
      "date": "2026-10-09T18:29:32+03:00",
      "text": "Hero slides: ενότητες «Προσφορά ημέρας» (προϊόν ανά ημέρα για 14 ημέρες) και «Υπηρεσίες» (επιλογή και σειρά) στον επεξεργαστή"
+    },
+    {
+     "hash": "2d38427",
+     "date": "2026-10-09T18:27:38+03:00",
+     "text": "Hero: προσφορά ημέρας από επιλογή ανά ημέρα ή από την πραγματική μεγαλύτερη έκπτωση"
     },
     {
      "hash": "d8d149c",
@@ -1053,6 +1078,11 @@
      "hash": "788fa25",
      "date": "2026-10-09T18:07:39+03:00",
      "text": "Hero slides: server actions (αποθήκευση, δημοσίευση με επικύρωση, επαναφορά, αναζήτηση προϊόντων)"
+    },
+    {
+     "hash": "5f92854",
+     "date": "2026-10-09T18:07:33+03:00",
+     "text": "Hero: φωτογραφία κινητού (art direction), τιμή του προϊόντος, preload αντί του παρωχημένου priority"
     }
    ],
    "updatedAt": "2026-10-10T19:26:28+03:00",
@@ -2998,6 +3028,12 @@
  ],
  "recent": [
   {
+   "hash": "8ed8787",
+   "date": "2026-10-11T13:29:05+03:00",
+   "text": "Ζώνες αρχικής: «δείξε μου» όπως στις ζώνες σελίδων",
+   "routes": []
+  },
+  {
    "hash": "26f418c",
    "date": "2026-10-11T13:27:55+03:00",
    "text": "Ζώνες σελίδων: μάτι σε κάθε ζώνη (και στα chips ζωνών)",
@@ -3325,15 +3361,6 @@
    "date": "2026-10-10T19:13:34+03:00",
    "text": "Προσφορές της εβδομάδας: η επιλογή προϊόντων γίνεται η κύρια («Διαλέγω τα προϊόντα», προτείνεται)",
    "routes": []
-  },
-  {
-   "hash": "27b8d4d",
-   "date": "2026-10-10T19:04:21+03:00",
-   "text": "Αρχική: «Προσφορές της εβδομάδας» με πραγματικά δεδομένα",
-   "routes": [
-    "/admin",
-    "/admin/cms/home"
-   ]
   }
  ],
  "helpKeys": {
@@ -3363,6 +3390,33 @@
   ],
   "zones.list": [
    "app/admin/(shell)/cms/pages/page.tsx"
+  ],
+  "deals.list": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "services.list": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.header": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.check": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.publish": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.sections": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.strip": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.preview": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "slides.form": [
+   "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
   ],
   "customers.kpis": [
    "app/admin/(shell)/customers/page.tsx"

@@ -13,5 +13,5 @@ export default async function HeroSlidesEmbed() {
   const doc = await getHeroAdminDoc();
   const ids = [...new Set([...doc.draft.slides.map((s) => s.productId), ...(doc.draft.deals ?? []).map((d) => d.productId)].filter((x): x is string => !!x))];
   const [products, settings, services] = await Promise.all([productInfos(ids), getSettings(), allHeroServices()]);
-  return <HeroSlidesEditor initial={doc.draft} hasPublished={!!doc.published} publishedAt={doc.publishedAt?.toISOString() ?? null} products={products} settings={settings} canUpload={can(user.permissions, "cms.media.write")} services={services} />;
+  return <HeroSlidesEditor initial={doc.draft} embedded published={doc.published} publishedAt={doc.publishedAt?.toISOString() ?? null} products={products} settings={settings} canUpload={can(user.permissions, "cms.media.write")} services={services} />;
 }
