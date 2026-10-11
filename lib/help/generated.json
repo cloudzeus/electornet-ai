@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T07:56:36.653Z",
+ "generatedAt": "2026-10-11T08:02:52.749Z",
  "routes": [
   {
    "route": "/admin",
@@ -299,7 +299,12 @@
     "label": "Προϊόντα"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "catalog.filters",
+    "catalog.peek",
+    "catalog.table",
+    "catalog.cards"
+   ],
    "changes": [
     {
      "hash": "a234171",
@@ -375,6 +380,11 @@
    ],
    "changes": [
     {
+     "hash": "2250762",
+     "date": "2026-10-11T10:56:48+03:00",
+     "text": "Καρτέλα προϊόντος: μενού Ενέργειες με διορθώσεις σε παράθυρο (κείμενα & χαρακτηριστικά, διαστάσεις & βάρος, εγγύηση, ενεργειακή ετικέτα EPREL, stickers), ενημέρωση από SoftOne, νέα προσφορά, στο site, αντιγραφή κωδικών"
+    },
+    {
      "hash": "bbf6ae4",
      "date": "2026-10-11T10:49:29+03:00",
      "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση"
@@ -418,14 +428,9 @@
      "hash": "9d1f72e",
      "date": "2026-10-04T13:00:24+03:00",
      "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
-    },
-    {
-     "hash": "a893d41",
-     "date": "2026-10-04T11:10:48+03:00",
-     "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
     }
    ],
-   "updatedAt": "2026-10-11T10:49:29+03:00",
+   "updatedAt": "2026-10-11T10:56:48+03:00",
    "shots": {}
   },
   {
@@ -2853,6 +2858,16 @@
  ],
  "recent": [
   {
+   "hash": "2250762",
+   "date": "2026-10-11T10:56:48+03:00",
+   "text": "Καρτέλα προϊόντος: μενού Ενέργειες με διορθώσεις σε παράθυρο (κείμενα & χαρακτηριστικά, διαστάσεις & βάρος, εγγύηση, ενεργειακή ετικέτα EPREL, stickers), ενημέρωση από SoftOne, νέα προσφορά, στο site, αντιγραφή κωδικών",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
    "hash": "bbf6ae4",
    "date": "2026-10-11T10:49:29+03:00",
    "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση",
@@ -3183,16 +3198,6 @@
     "/admin/catalog/[id]",
     "/admin/catalog/sets"
    ]
-  },
-  {
-   "hash": "5b1f69f",
-   "date": "2026-10-10T10:54:31+03:00",
-   "text": "Bundles: διάκριση «εξαρτήματα» / «με δώρο» (το δώρο δεν αλλάζει τη διαθεσιμότητα, ούτε μπαίνει στο «Περιλαμβάνει»), καλύτερο set όταν ένα προϊόν έχει πολλά, μαζική ανάγνωση (6 s αντί 270 s)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/sets"
-   ]
   }
  ],
  "helpKeys": {
@@ -3216,6 +3221,9 @@
   ],
   "product.actions": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
+  "catalog.filters": [
+   "app/admin/(shell)/catalog/page.tsx"
   ],
   "customers.kpis": [
    "app/admin/(shell)/customers/page.tsx"
@@ -3277,8 +3285,17 @@
   "product.overview": [
    "components/admin/catalog/ProductOverview.tsx"
   ],
+  "catalog.peek": [
+   "components/admin/catalog/ProductPeek.tsx"
+  ],
   "product.sources": [
    "components/admin/catalog/ProductSources.tsx"
+  ],
+  "catalog.table": [
+   "components/admin/catalog/ProductTable.tsx"
+  ],
+  "catalog.cards": [
+   "components/admin/catalog/ProductTable.tsx"
   ],
   "product.tabs": [
    "components/admin/catalog/ProductWorkspace.tsx"

@@ -231,3 +231,10 @@ export async function productStickers(productId: string) {
   await requirePermission("catalog.products.read");
   return listProductStickers(productId);
 }
+
+/** Η γρήγορη εικόνα ενός προϊόντος για το άνοιγμα γραμμής στη λίστα (μόνο ανάγνωση). */
+export async function productPeekAction(id: string) {
+  await requirePermission("catalog.products.read");
+  const { productPeek } = await import("@/lib/catalog/product-peek");
+  return productPeek(id);
+}
