@@ -181,7 +181,7 @@ export function AddDialog({ after, positions, top = "Θέση: στην κορυ
  * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
  * το στοιχείο αντί να ανοίγει συνδέσμους. Ανανεώνεται μετά από κάθε αποθήκευση.
  */
-export function LivePreview({ src, attr = "data-home-item", v, device, setDevice, saving, focus, notice, onPick }: { src: string; attr?: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void }) {
+export function LivePreview({ src, attr = "data-home-item", v, device, setDevice, saving, focus, notice, onPick, peek = null }: { src: string; attr?: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void; /** προσωρινός κίτρινος τονισμός (hover στη λίστα) */ peek?: string | null }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const [w, setW] = useState(0);
@@ -213,6 +213,18 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [focus, loaded, attr, ready]);
+  // «δείξε μου»: κίτρινος τονισμός με σκίαση γύρω (κανόνας CSS, όχι inline στυλ) και κύλιση εκεί
+  useEffect(() => {
+    const d = frame.current?.contentDocument;
+    if (!d || !ready) return;
+    let st = d.getElementById("eu-peek") as HTMLStyleElement | null;
+    if (!st) { st = d.createElement("style"); st.id = "eu-peek"; d.head.appendChild(st); }
+    if (!peek) { st.textContent = ""; return; }
+    const sel = `[${attr}="${peek.replace(/"/g, "")}"]`;
+    st.textContent = `${sel}{outline:8px solid #f5b400!important;outline-offset:-4px;box-shadow:0 0 0 9999px rgba(11,31,77,.18)!important;position:relative;z-index:1}`;
+    const el = [...d.querySelectorAll<HTMLElement>(sel)].find((n) => n.offsetParent !== null && n.getBoundingClientRect().height > 2);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [peek, attr, ready]);
   const onLoad = () => {
     const d = frame.current?.contentDocument;
     if (d) {

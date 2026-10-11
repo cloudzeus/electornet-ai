@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowDown, ArrowLeft, ArrowUp, BookOpen, ChevronUp, CalendarClock, Check, ChevronDown, CircleAlert, Copy, ExternalLink, Eye, EyeOff, GalleryHorizontal,
   GripVertical, History, Image as ImageIcon, Keyboard, LayoutGrid, Loader2, Mail, Megaphone, MoreHorizontal, Newspaper,
-  Package, Percent, Plus, QrCode, Redo2, Rocket, Send, Sparkles, Store, Trash2, Undo2, Wrench, X, type LucideIcon,
+  LocateFixed, Package, Percent, Plus, QrCode, Redo2, Rocket, Send, Sparkles, Store, Trash2, Undo2, Wrench, X, type LucideIcon,
 } from "lucide-react";
 import type { BrandBlock } from "@/lib/cms/brand-store";
 import { checkBlocks, type Issue } from "@/lib/cms/brand-store-check";
@@ -54,6 +54,9 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
   const [savedAt, setSavedAt] = useState(initSavedAt);
   const [published, setPublished] = useState<HomeDoc | null>(pub);
   const [selected, setSelected] = useState<string | null>(null);
+  // «δείξε μου»: hover/εστίαση σε γραμμή = προσωρινός κίτρινος τονισμός στην προεπισκόπηση, ◎ = μένει
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const [pinKey, setPinKey] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<"s" | "m" | "l">("s");
   useEffect(() => {
@@ -314,6 +317,8 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
                     const meta = [bad ? "Θέλει διόρθωση" : warn ? "Θέλει έλεγχο" : "", empty ? "Κενή — δεν φαίνεται" : "", it.kind === "block" ? "Component" : "", v.plain ? "" : v.text].filter(Boolean).join(" · ");
                     return (
                       <li key={it.key} id={`map-${it.key}`} className="relative"
+                        onMouseEnter={() => setHoverKey(it.key)} onMouseLeave={() => setHoverKey((k) => (k === it.key ? null : k))}
+                        onFocus={() => setHoverKey(it.key)} onBlur={() => setHoverKey((k) => (k === it.key ? null : k))}
                         onDragOver={(e) => { if (!drag) return; e.preventDefault(); const r = e.currentTarget.getBoundingClientRect(); const over = e.clientY < r.top + r.height / 2 ? i : i + 1; if (over !== drag.over) setDrag({ ...drag, over }); }}
                         onDrop={(e) => { e.preventDefault(); if (drag?.over != null) move(drag.from, drag.over); setDrag(null); }}>
                         {drag?.over === i && <span aria-hidden className="absolute -top-0.5 inset-x-0 h-1 rounded-full bg-eu-blue" />}
@@ -334,6 +339,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
                               {meta && <span className={`text-[length:var(--fs-13)] leading-snug ${bad ? "text-eu-red font-bold" : warn || empty || v.soon ? "text-eu-ink-2 font-bold" : "text-eu-muted"}`}>{meta}</span>}
                             </span>
                           </button>
+                          <button type="button" onClick={() => { const on = pinKey !== it.key; setPinKey(on ? it.key : null); if (on && mode === "s") setView("preview"); }} aria-pressed={pinKey === it.key} aria-label={`Δείξε στην προεπισκόπηση: ${itemName(it)}`} title="Δείξε στην προεπισκόπηση (κίτρινο)" className={`${iconBtn} ${pinKey === it.key ? "bg-eu-yellow text-eu-navy hover:bg-eu-yellow" : "text-eu-ink-3"}`}><LocateFixed className="size-4" aria-hidden /></button>
                           {canWrite && <button type="button" onClick={() => toggle(it)} aria-label={visOf(it).enabled === false ? `Εμφάνιση: ${itemName(it)}` : `Απόκρυψη: ${itemName(it)}`} title={visOf(it).enabled === false ? "Εμφάνιση (H)" : "Απόκρυψη (H)"} className={iconBtn}>{visOf(it).enabled === false ? <EyeOff className="size-4 text-eu-muted" aria-hidden /> : <Eye className="size-4" aria-hidden />}</button>}
                           {canWrite && <button type="button" onClick={() => setAdding({ after: it.key })} aria-label={`Προσθήκη κάτω από: ${itemName(it)}`} title="Προσθήκη από κάτω" className={iconBtn}><Plus className="size-4" aria-hidden /></button>}
                         </div>
@@ -355,7 +361,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
           {/* ---- ζωντανή προεπισκόπηση ---- */}
           {(mode === "s" ? view === "preview" : true) && (
             <div data-help="editor.preview" className="min-w-0 sticky top-24">
-              <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
+              <LivePreview src="/?preview=1" v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} focus={selected} notice={notice} peek={hoverKey ?? pinKey} onPick={(key, text) => { if (items.some((x) => x.key === key)) { setSelected(key); setView("page"); if (text) setFocusText((f) => ({ text, n: (f?.n ?? 0) + 1 })); } }} />
             </div>
           )}
         </div>
