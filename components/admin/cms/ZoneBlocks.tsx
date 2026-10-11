@@ -24,7 +24,11 @@ const blockState = (b: BrandBlock): { s: "live" | "off" | "incomplete"; t: strin
  * Σε κάθε ζώνη: προσθήκη (ομαδοποιημένα, με εξήγηση), απόκρυψη, σειρά, αντίγραφο, διαγραφή, μετακίνηση σε άλλη ζώνη,
  * προγραμματισμός εμφάνισης. Τα errors εμφανίζονται στην κάρτα της ενότητας.
  */
-export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, brandName, ctx, open, setOpen, adding, setAdding, markers, allowed, audience = false, moveZones, compactEmpty = false }: {
+export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, brandName, ctx, open, setOpen, adding, setAdding, markers, allowed, audience = false, moveZones, compactEmpty = false, peek = null, onPeek }: {
+  /** η ζώνη που τονίζεται τώρα στην προεπισκόπηση (μάτι) */
+  peek?: string | null;
+  /** μάτι ζώνης: hover/εστίαση = προσωρινός τονισμός (pin=false), κλικ = εναλλαγή μόνιμου τονισμού (pin=true) */
+  onPeek?: (zone: string | null, pin: boolean) => void;
   blocks: BrandBlock[];
   setBlocks: (fn: (b: BrandBlock[]) => BrandBlock[]) => void;
   zones: ZoneDef[];
@@ -62,10 +66,15 @@ export function ZoneBlocks({ blocks, setBlocks, zones, defaultZone, errors, bran
             <button key={z.key} id={`zone-${z.key}`} type="button" onClick={() => setAdding(z.key)} title={z.help} className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-eu-line text-eu-muted hover:border-eu-navy hover:text-eu-navy min-h-11 font-bold text-[length:var(--fs-13)] scroll-mt-40"><Plus className="size-4" aria-hidden /> Component εδώ <span className="font-normal hidden @md:inline">· {z.label}</span></button>
           );
           return (
-            <div key={z.key} id={`zone-${z.key}`} className="grid gap-3 rounded-2xl border-2 border-dashed border-eu-line p-3 @md:p-4 scroll-mt-40">
+            <div key={z.key} id={`zone-${z.key}`} className={`grid gap-3 rounded-2xl border-2 border-dashed p-3 @md:p-4 scroll-mt-40 transition-colors ${peek === z.key ? "border-eu-yellow bg-eu-yellow/5" : "border-eu-line"}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0"><h4 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)]">{z.label} <span className="text-eu-muted font-normal text-[length:var(--fs-14)]">({inZone.length})</span></h4><p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{z.help}</p></div>
-                <button type="button" onClick={() => setAdding(z.key)} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 min-h-10 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Προσθήκη εδώ</button>
+                <span className="flex items-center gap-1">
+                  {onPeek && <button type="button" aria-pressed={peek === z.key} aria-label={`Δείξε τη ζώνη «${z.label}» στην προεπισκόπηση`} title="Δείξε τη ζώνη στην προεπισκόπηση"
+                    onMouseEnter={() => onPeek(z.key, false)} onMouseLeave={() => onPeek(null, false)} onFocus={() => onPeek(z.key, false)} onBlur={() => onPeek(null, false)} onClick={() => onPeek(z.key, true)}
+                    className={`size-11 md:size-9 grid place-items-center rounded-full ${peek === z.key ? "bg-eu-yellow text-eu-navy" : "text-eu-ink-3 hover:bg-eu-yellow/30 hover:text-eu-navy"}`}><Eye className="size-4" aria-hidden /></button>}
+                  <button type="button" onClick={() => setAdding(z.key)} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-3 min-h-10 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Προσθήκη εδώ</button>
+                </span>
               </div>
               {markers?.[z.key]?.before && <div className="rounded-xl bg-eu-surface px-3 py-2 text-eu-muted text-[length:var(--fs-13)] font-bold">{markers[z.key]!.before}</div>}
               {inZone.length > 0 ? (

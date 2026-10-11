@@ -4,7 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Monitor, Smartphone } from "lucide-react";
 
 /** Ζωντανή προεπισκόπηση του πρόχειρου (iframe), σε πλάτος υπολογιστή (σμίκρυνση) ή κινητού. */
-export function Preview({ src, v, device, setDevice, saving }: { src: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean }) {
+export function Preview({ src, v, device, setDevice, saving, highlight = null, attr = "data-zone" }: { src: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; /** τιμή του attr που τονίζεται (π.χ. ζώνη «top») */ highlight?: string | null; attr?: string }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [loadedV, setLoadedV] = useState<number | null>(null);
+  // τονισμός με κανόνα CSS (όχι inline στυλ), μόνο αφού φορτώσει η τρέχουσα έκδοση — χωρίς παρέμβαση στο hydration
+  useEffect(() => {
+    const d = frame.current?.contentDocument;
+    if (!d || loadedV !== v) return;
+    let st = d.getElementById("eu-hl") as HTMLStyleElement | null;
+    if (!st) { st = d.createElement("style"); st.id = "eu-hl"; d.head.appendChild(st); }
+    if (!highlight) { st.textContent = ""; return; }
+    const sel = `[${attr}="${highlight.replace(/"/g, "")}"]`;
+    st.textContent = `${sel}{outline:8px solid #f5b400!important;outline-offset:-4px;background-color:rgba(245,180,0,.25)!important;border-radius:12px;box-shadow:0 0 0 9999px rgba(11,31,77,.18)!important;transition:outline-color .15s}`;
+    const el = [...d.querySelectorAll<HTMLElement>(sel)].find((n) => n.offsetParent !== null);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlight, attr, loadedV, v]);
   const box = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   const [bh, setBh] = useState(0);
@@ -29,7 +43,7 @@ export function Preview({ src, v, device, setDevice, saving }: { src: string; v:
       </div>
       <div ref={box} className="rounded-2xl border border-eu-line bg-eu-line-2 overflow-hidden" style={{ height: "max(24rem, calc(100dvh - 11rem))" }}>
         <div style={{ width: target, height: h, transform: `scale(${scale})`, transformOrigin: "top left", margin: device === "mobile" && w > target ? "0 auto" : undefined }}>
-          <iframe key={v} title="Προεπισκόπηση σελίδας" src={`${src}${src.includes("?") ? "&" : "?"}v=${v}`} className="block bg-white" style={{ width: target, height: h, border: 0 }} />
+          <iframe ref={frame} onLoad={() => setLoadedV(v)} key={v} title="Προεπισκόπηση σελίδας" src={`${src}${src.includes("?") ? "&" : "?"}v=${v}`} className="block bg-white" style={{ width: target, height: h, border: 0 }} />
         </div>
       </div>
       <span className="text-eu-muted text-[length:var(--fs-13)]">Ανανεώνεται μόνη της μετά από κάθε αλλαγή. Οι πελάτες δεν βλέπουν το πρόχειρο.</span>

@@ -45,6 +45,19 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<string | null>(null);
   const [view, setView] = useState<"edit" | "preview">("edit");
+  // μάτι ζώνης: ο προσωρινός τονισμός (hover/εστίαση) κερδίζει τον μόνιμο (κλικ)
+  const [hover, setHover] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  const previewBox = useRef<HTMLDivElement>(null);
+  const peek = (z: string | null, pin: boolean) => {
+    if (!pin) { setHover(z); return; }
+    // κλικ: εναλλαγή του μόνιμου τονισμού αυτής της ζώνης (ανεξάρτητα από το hover / την εστίαση)
+    const next = pinned === z ? null : z;
+    setPinned(next);
+    // στενή οθόνη (καρτέλες): η προεπισκόπηση είναι κρυφή → πήγαινε εκεί για να φανεί η ζώνη
+    if (next && previewBox.current?.offsetParent === null) setView("preview");
+  };
+  const shown = hover ?? pinned;
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [pv, setPv] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string; errors?: Issue[] } | null>(null);
@@ -132,7 +145,7 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
           <div className={view === "edit" ? "min-w-0 grid gap-3" : "hidden @4xl:grid min-w-0 gap-3"}>
             <nav data-help="zones.nav" aria-label="Ζώνες της σελίδας" className="rounded-xl bg-white border border-eu-line p-2.5 grid gap-2">
               <div className="flex flex-wrap gap-1">
-                {page.zones.map((z) => <button key={z} type="button" onClick={() => document.getElementById(`zone-${z}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className={`inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] ${counts[z] ? "bg-eu-chip text-eu-navy" : "bg-eu-surface text-eu-ink-3"} hover:ring-2 hover:ring-eu-blue/30`}>{INFO_ZONES[z].label}<span className="tabular-nums opacity-70">{counts[z]}</span></button>)}
+                {page.zones.map((z) => <button key={z} type="button" onMouseEnter={() => peek(z, false)} onMouseLeave={() => peek(null, false)} onClick={() => document.getElementById(`zone-${z}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className={`inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] ${counts[z] ? "bg-eu-chip text-eu-navy" : "bg-eu-surface text-eu-ink-3"} hover:ring-2 hover:ring-eu-blue/30`}>{INFO_ZONES[z].label}<span className="tabular-nums opacity-70">{counts[z]}</span></button>)}
               </div>
               <details className="group">
                 <summary className="list-none cursor-pointer inline-flex items-center gap-1.5 min-h-11 md:min-h-7 text-eu-blue font-semibold text-[length:var(--fs-12)] [&::-webkit-details-marker]:hidden"><Info className="size-3.5" aria-hidden /> Τι είναι οι ζώνες; Πού φαίνεται κάθε μία</summary>
@@ -156,10 +169,12 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
                 adding={adding}
                 setAdding={setAdding}
                 markers={{ after: { before: "↑ Κείμενο της σελίδας" } }}
+                peek={shown}
+                onPeek={peek}
               />
             </section>
           </div>
-          <div data-help="zones.preview" className={view === "preview" ? "min-w-0" : "hidden @4xl:block min-w-0 @4xl:sticky @4xl:top-16"}><Preview src={`${page.path}?preview=1`} v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} /></div>
+          <div ref={previewBox} data-help="zones.preview" className={view === "preview" ? "min-w-0" : "hidden @4xl:block min-w-0 @4xl:sticky @4xl:top-16"}><Preview src={`${page.path}?preview=1`} v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} highlight={shown} /></div>
         </div>
       </div>
     </PickerBrand.Provider>
