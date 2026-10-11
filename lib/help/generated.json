@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T07:05:29.632Z",
+ "generatedAt": "2026-10-11T07:12:40.447Z",
  "routes": [
   {
    "route": "/admin",
@@ -934,6 +934,11 @@
    ],
    "changes": [
     {
+     "hash": "0464501",
+     "date": "2026-10-11T10:05:33+03:00",
+     "text": "Πελάτες: μενού ενεργειών (⋯) σε κάθε γραμμή"
+    },
+    {
      "hash": "ec0fca5",
      "date": "2026-10-11T09:59:14+03:00",
      "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές"
@@ -977,14 +982,9 @@
      "hash": "746f971",
      "date": "2026-09-13T13:55:32+03:00",
      "text": "Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer …"
-    },
-    {
-     "hash": "dd5e47e",
-     "date": "2026-09-13T13:46:07+03:00",
-     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-10-11T09:59:14+03:00",
+   "updatedAt": "2026-10-11T10:05:33+03:00",
    "shots": {}
   },
   {
@@ -2828,6 +2828,15 @@
  ],
  "recent": [
   {
+   "hash": "0464501",
+   "date": "2026-10-11T10:05:33+03:00",
+   "text": "Πελάτες: μενού ενεργειών (⋯) σε κάθε γραμμή",
+   "routes": [
+    "/admin",
+    "/admin/customers"
+   ]
+  },
+  {
    "hash": "ec0fca5",
    "date": "2026-10-11T09:59:14+03:00",
    "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές",
@@ -3153,16 +3162,6 @@
    "hash": "87d1452",
    "date": "2026-10-10T09:44:26+03:00",
    "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "53c720d",
-   "date": "2026-10-10T09:41:08+03:00",
-   "text": "EPREL: η ενεργειακή ετικέτα ως τελευταία φωτογραφία στα προϊόντα που βρέθηκαν (στο ταίριασμα + μαζικά), πάντα τελευταία, εκτός AR και μετρήσεων",
    "routes": [
     "/admin",
     "/admin/catalog",

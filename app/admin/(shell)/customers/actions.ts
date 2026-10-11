@@ -221,3 +221,29 @@ export async function geocodeCustomerAction(customerId: string) {
   paths(customerId);
   return { ok: true as const, total: list.length, done, failed };
 }
+
+/* ---------- ΑΑΔΕ (afm2info) ---------- */
+/** Σύγκριση των στοιχείων του πελάτη με το μητρώο ΑΑΔΕ (μόνο ανάγνωση). */
+export async function aadeCheckAction(customerId: string) {
+  await requirePermission("customers.read");
+  const { aadeCheck } = await import("@/lib/customers/aade-refresh");
+  return aadeCheck(customerId);
+}
+
+/**
+ * Εφαρμογή στοιχείων ΑΑΔΕ: πάντα στο e-shop· στο SoftOne μόνο όταν το ζητήσει ρητά ο χρήστης (`toErp`), οπότε
+ * ακολουθεί η ίδια εγγραφή με την «Ενημέρωση SoftOne από e-shop».
+ */
+export async function aadeApplyAction(customerId: string, keys: ("company" | "doy" | "profession" | "address")[], toErp: boolean) {
+  const user = await requirePermission("customers.write");
+  const { aadeApply } = await import("@/lib/customers/aade-refresh");
+  const r = await aadeApply(customerId, keys);
+  if (!r.ok) return r;
+  if (r.addressId) await geocodeCustomerAddress(r.addressId, { force: true }).catch(() => null);
+  await audit(user.id, "customer.aade.refresh", "Customer", customerId, null, { fields: r.changed, toErp });
+  await ev(customerId, "profile", { by: user.name, source: "ΑΑΔΕ", fields: r.changed }, user.id);
+  let erp: { ok: boolean; error?: string } | null = null;
+  if (toErp) { const p = await pushCustomerToErp(customerId, user.id); erp = p.ok ? { ok: true } : { ok: false, error: "error" in p ? String(p.error) : "αποτυχία" }; await audit(user.id, "customer.erp.push", "Customer", customerId, null, p); }
+  paths(customerId);
+  return { ok: true as const, changed: r.changed, erp, erpLinked: r.erpLinked };
+}

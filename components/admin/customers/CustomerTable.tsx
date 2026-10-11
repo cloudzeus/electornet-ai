@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, Building2, CircleAlert, Check } from "lucide-react";
 import { CustomerPeek, loadPeek, type CustomerRow } from "./CustomerList";
-import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
+import { BulkAade, CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (c: CustomerRow) => ReactNode; title?: (c: CustomerRow) => string };
 const eur = (v: number) => `${v.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
@@ -103,7 +103,8 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from, ca
     <div data-help="customers.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-eu-line text-[length:var(--fs-13)]">
         <span className="text-eu-ink-3 tabular-nums">{total ? `${from.toLocaleString("el-GR")}–${Math.min(total, from + rows.length - 1).toLocaleString("el-GR")} από ${total.toLocaleString("el-GR")}` : "0 πελάτες"}</span>
-        <label className="ml-auto inline-flex items-center gap-1.5 text-eu-ink-2 font-bold">Ανά σελίδα
+        {canWrite && <span className="ml-auto"><BulkAade rows={rows.map((r) => ({ id: r.id, name: r.name, vat: r.vat, erpLinked: r.erp.linked }))} erpOn={erpOn} onDone={setToast} /></span>}
+        <label className={`${canWrite ? "" : "ml-auto "}inline-flex items-center gap-1.5 text-eu-ink-2 font-bold`}>Ανά σελίδα
           <select value={perPage} onChange={(e) => { location.href = href({ n: e.target.value, p: "" }); }} className="rounded-lg border border-eu-line bg-white px-2 min-h-9 font-normal">{[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}</option>)}</select>
         </label>
         <div ref={pickerRef} className="relative">
@@ -153,7 +154,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from, ca
                   <tr className={`border-t border-eu-line-2 ${isOpen ? "bg-eu-chip/50" : "hover:bg-eu-surface/60"}`}>
                     <td className="px-1 py-0.5"><button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadPeek(r.id)} onFocus={() => void loadPeek(r.id)} aria-expanded={isOpen} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.name}`} className={`size-8 grid place-items-center rounded-full ${isOpen ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button></td>
                     {shown.map((c) => <td key={c.id} title={c.title?.(r)} className={`px-2 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-0 ${c.right ? "text-right" : ""}`}><span className={`flex min-w-0 ${c.right ? "justify-end" : ""}`}>{c.cell(r)}</span></td>)}
-                    <td className={`sticky right-0 px-1 py-0.5 ${isOpen ? "bg-eu-chip" : "bg-white"}`}><CustomerActions c={{ id: r.id, name: r.name, email: r.email, phone: r.phone, erpLinked: r.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [r.id]: (m[r.id] ?? 0) + 1 }))} /></td>
+                    <td className={`sticky right-0 px-1 py-0.5 ${isOpen ? "bg-eu-chip" : "bg-white"}`}><CustomerActions c={{ id: r.id, name: r.name, email: r.email, phone: r.phone, vat: r.vat, erpLinked: r.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [r.id]: (m[r.id] ?? 0) + 1 }))} /></td>
                   </tr>
                   {isOpen && <tr><td colSpan={shown.length + 2} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><CustomerPeek key={rev[r.id] ?? 0} id={r.id} /></div></td></tr>}
                 </Fragment>

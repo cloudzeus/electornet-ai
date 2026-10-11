@@ -58,7 +58,7 @@ export function CustomerList({ rows, heads, canWrite = false, erpOn = false }: {
                     <span className="text-eu-muted text-[length:var(--fs-12)] truncate">#{c.number} · {c.sub}{c.tags.length ? ` · ${c.tags.join(", ")}` : ""}</span>
                   </span>
                 </div>
-                <span className="@5xl:hidden justify-self-end inline-flex items-center gap-1"><span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${stCls}`}>{st}</span><CustomerActions c={{ id: c.id, name: c.name, email: c.email, phone: c.phone, erpLinked: c.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [c.id]: (m[c.id] ?? 0) + 1 }))} /></span>
+                <span className="@5xl:hidden justify-self-end inline-flex items-center gap-1"><span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${stCls}`}>{st}</span><CustomerActions c={{ id: c.id, name: c.name, email: c.email, phone: c.phone, vat: c.vat, erpLinked: c.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [c.id]: (m[c.id] ?? 0) + 1 }))} /></span>
                 <div className="col-start-2 col-span-2 @5xl:col-start-auto @5xl:col-span-1 min-w-0 grid text-[length:var(--fs-13)]">
                   <span className="truncate text-eu-ink-2">{c.email ?? <span className="text-eu-muted">χωρίς email</span>}</span>
                   <span className="text-eu-muted tabular-nums">{c.phone ?? "—"}{c.vat ? ` · ΑΦΜ ${c.vat}` : ""}</span>
