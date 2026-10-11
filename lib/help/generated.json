@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T00:30:39.848Z",
+ "generatedAt": "2026-10-11T01:42:35.843Z",
  "routes": [
   {
    "route": "/admin",
@@ -1314,6 +1314,11 @@
    ],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "8fc17d3",
      "date": "2026-10-10T19:26:28+03:00",
      "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
@@ -1357,14 +1362,9 @@
      "hash": "6e70d7b",
      "date": "2026-10-02T21:52:49+03:00",
      "text": "Φάση 1"
-    },
-    {
-     "hash": "ca3d246",
-     "date": "2026-10-02T21:44:45+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores-d.jpg",
     "mobile": "/api/help-shot/prosfores-m.jpg"
@@ -1386,6 +1386,11 @@
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
     {
      "hash": "8fc17d3",
      "date": "2026-10-10T19:26:28+03:00",
@@ -1430,14 +1435,9 @@
      "hash": "6e70d7b",
      "date": "2026-10-02T21:52:49+03:00",
      "text": "Φάση 1"
-    },
-    {
-     "hash": "ca3d246",
-     "date": "2026-10-02T21:44:45+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {}
   },
   {
@@ -1457,6 +1457,11 @@
    ],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1472,7 +1477,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {}
   },
   {
@@ -1517,6 +1522,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
@@ -1527,7 +1537,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.ermis-d.jpg",
     "mobile": "/api/help-shot/prosfores.ermis-m.jpg"
@@ -1542,12 +1552,20 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.tags.commercial",
+    "promo.tags.info"
+   ],
    "changes": [
     {
      "hash": "9d1f72e",
      "date": "2026-10-04T13:00:24+03:00",
      "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
     },
     {
      "hash": "78ba51b",
@@ -1578,6 +1596,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
@@ -1588,7 +1611,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.excel-d.jpg",
     "mobile": "/api/help-shot/prosfores.excel-m.jpg"
@@ -1603,8 +1626,17 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.calendar",
+    "promo.calendar.day",
+    "promo.calendar.inspector"
+   ],
    "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
     {
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
@@ -1616,7 +1648,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "updatedAt": "2026-10-03T07:30:09+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.imerologio-d.jpg",
     "mobile": "/api/help-shot/prosfores.imerologio-m.jpg"
@@ -1659,7 +1691,11 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.segments.editor",
+    "promo.segments.templates",
+    "promo.segments.list"
+   ],
    "changes": [
     {
      "hash": "7494398",
@@ -1678,11 +1714,15 @@
    "slug": "prosfores.kouponia",
    "file": "app/admin/(shell)/prosfores/kouponia/page.tsx",
    "title": "Κουπόνια",
-   "doc": "Κουπόνια: οι προσφορές-κουπόνια, οι κωδικοί τους (κοινοί, προσωπικοί, παρτίδες) και πόσο χρησιμοποιήθηκαν.",
+   "doc": "Κουπόνια: KPIs, αριστερά οι προσφορές-κουπόνια (πάτα μία για τους κωδικούς της), δεξιά οι κωδικοί με αναζήτηση, φίλτρο κατάστασης και τις ενέργειες «Παρτίδα κωδικών» / «Κωδικός σε πελάτη».",
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.coupons.kpis",
+    "promo.coupons.promos",
+    "promo.coupons.codes"
+   ],
    "changes": [
     {
      "hash": "c26f587",
@@ -1718,6 +1758,11 @@
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
     {
      "hash": "8fc17d3",
      "date": "2026-10-10T19:26:28+03:00",
@@ -1762,14 +1807,9 @@
      "hash": "6e70d7b",
      "date": "2026-10-02T21:52:49+03:00",
      "text": "Φάση 1"
-    },
-    {
-     "hash": "ca3d246",
-     "date": "2026-10-02T21:44:45+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-10T19:26:28+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.new-d.jpg",
     "mobile": "/api/help-shot/prosfores.new-m.jpg"
@@ -1784,8 +1824,17 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.sim.cart",
+    "promo.sim.scenario",
+    "promo.sim.result"
+   ],
    "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
     {
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
@@ -1802,7 +1851,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:19:17+03:00",
+   "updatedAt": "2026-10-03T07:30:09+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.prosomoiotis-d.jpg",
     "mobile": "/api/help-shot/prosfores.prosomoiotis-m.jpg"
@@ -1843,6 +1892,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1858,7 +1912,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.selides-d.jpg",
     "mobile": "/api/help-shot/prosfores.selides-m.jpg"
@@ -1898,6 +1952,11 @@
    ],
    "changes": [
     {
+     "hash": "d9a30a4",
+     "date": "2026-10-11T03:31:01+03:00",
+     "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1913,7 +1972,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T03:31:01+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
     "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
@@ -2721,6 +2780,20 @@
  ],
  "recent": [
   {
+   "hash": "d9a30a4",
+   "date": "2026-10-11T03:31:01+03:00",
+   "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/[id]",
+    "/admin/prosfores/anafores",
+    "/admin/prosfores/ermis",
+    "/admin/prosfores/excel",
+    "/admin/prosfores/selides"
+   ]
+  },
+  {
    "hash": "705ab72",
    "date": "2026-10-11T03:08:55+03:00",
    "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails",
@@ -3049,18 +3122,6 @@
     "/admin/catalog",
     "/admin/catalog/[id]"
    ]
-  },
-  {
-   "hash": "5cbaff8",
-   "date": "2026-10-10T09:11:55+03:00",
-   "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας",
-   "routes": [
-    "/admin",
-    "/admin/ar",
-    "/admin/catalog",
-    "/admin/catalog/banners",
-    "/admin/catalog/dimensions"
-   ]
   }
  ],
  "helpKeys": {
@@ -3096,6 +3157,18 @@
   ],
   "promo.report.ads": [
    "app/admin/(shell)/prosfores/anafores/page.tsx"
+  ],
+  "promo.tags.commercial": [
+   "app/admin/(shell)/prosfores/etiketes/page.tsx"
+  ],
+  "promo.coupons.kpis": [
+   "app/admin/(shell)/prosfores/kouponia/page.tsx"
+  ],
+  "promo.coupons.promos": [
+   "app/admin/(shell)/prosfores/kouponia/page.tsx"
+  ],
+  "promo.coupons.codes": [
+   "app/admin/(shell)/prosfores/kouponia/page.tsx"
   ],
   "promo.new": [
    "app/admin/(shell)/prosfores/page.tsx"
@@ -3161,8 +3234,20 @@
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
   ],
+  "promo.tags.info": [
+   "components/admin/promos/InfoTagsEditor.tsx"
+  ],
   "promo.slots": [
    "components/admin/promos/PlacementsEditor.tsx"
+  ],
+  "promo.calendar": [
+   "components/admin/promos/PromoCalendar.tsx"
+  ],
+  "promo.calendar.day": [
+   "components/admin/promos/PromoCalendar.tsx"
+  ],
+  "promo.calendar.inspector": [
+   "components/admin/promos/PromoCalendar.tsx"
   ],
   "promo.table": [
    "components/admin/promos/PromoTable.tsx"
@@ -3178,6 +3263,24 @@
   ],
   "promo.where": [
    "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.segments.editor": [
+   "components/admin/promos/SegmentsEditor.tsx"
+  ],
+  "promo.segments.templates": [
+   "components/admin/promos/SegmentsEditor.tsx"
+  ],
+  "promo.segments.list": [
+   "components/admin/promos/SegmentsEditor.tsx"
+  ],
+  "promo.sim.cart": [
+   "components/admin/promos/Simulator.tsx"
+  ],
+  "promo.sim.scenario": [
+   "components/admin/promos/Simulator.tsx"
+  ],
+  "promo.sim.result": [
+   "components/admin/promos/Simulator.tsx"
   ],
   "settings.search": [
    "components/admin/settings/SettingsIndex.tsx"

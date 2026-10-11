@@ -489,7 +489,7 @@ export function Picker({ kind, onPick, placeholder }: { kind: "product" | "brand
       {shown.length > 0 && (
         <ul className="m-0 p-0 list-none max-h-72 overflow-y-auto rounded-xl border border-eu-line divide-y divide-eu-line">
           {shown.map((x) => (
-            <li key={x.id}><button type="button" onClick={() => onPick(x)} className="w-full text-left px-3 py-2 min-h-11 hover:bg-eu-chip"><span className="block font-bold text-eu-ink text-[length:var(--fs-14)]">{x.label}</span>{x.sub && <span className="block text-eu-muted text-[length:var(--fs-13)]">{x.sub}</span>}</button></li>
+            <li key={x.id}><button type="button" onClick={() => { onPick(x); setQ(""); setRes([]); }} className="w-full text-left px-3 py-2 min-h-11 hover:bg-eu-chip"><span className="block font-bold text-eu-ink text-[length:var(--fs-14)]">{x.label}</span>{x.sub && <span className="block text-eu-muted text-[length:var(--fs-13)]">{x.sub}</span>}</button></li>
           ))}
         </ul>
       )}

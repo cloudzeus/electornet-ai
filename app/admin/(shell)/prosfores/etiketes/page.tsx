@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { PromoTabs } from "@/components/admin/promos/PromoTabs";
@@ -23,14 +24,17 @@ export default async function TagsPage() {
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs help="tags" active="tags" title="Ετικέτες προϊόντων" lead="Οι εμπορικές ετικέτες βγαίνουν αυτόματα από τις προσφορές (έως 2 ανά κάρτα). Οι ενημερωτικές μπαίνουν με κανόνα ή χειροκίνητα και φαίνονται όταν δεν υπάρχει ετικέτα προσφοράς." />
-      <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3">
-        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Εμπορικές (αυτόματες) · {offers.length.toLocaleString("el-GR")} προϊόντα με προσφορά</h3>
+      <PromoTabs active="tags" title="Ετικέτες προϊόντων" lead="Τα σήματα στις κάρτες προϊόντων: οι εμπορικές βγαίνουν αυτόματα από τις προσφορές, οι ενημερωτικές με κανόνα ή χειροκίνητα. Έως 2 ανά κάρτα, πρώτα της προσφοράς." />
+      <section data-help="promo.tags.commercial" aria-labelledby="tags-com" className="rounded-2xl bg-white border border-eu-line p-3 @md:p-4 grid gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 id="tags-com" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Εμπορικές · αυτόματα από τις προσφορές</h3>
+          <span className="text-eu-muted text-[length:var(--fs-13)]">{offers.length.toLocaleString("el-GR")} προϊόντα με προσφορά τώρα</span>
+        </div>
         {commercial.size ? (
-          <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
-            {[...commercial.values()].sort((a, b) => b.n - a.n).map((c) => <li key={c.kind + c.label} className="inline-flex items-center gap-2 rounded-full bg-eu-chip text-eu-navy pl-3 pr-1.5 min-h-10 text-[length:var(--fs-14)] font-bold">{c.label}<span className="text-eu-muted font-semibold">{KIND[c.kind] ?? c.kind}</span><span className="rounded-full bg-white px-2 py-0.5 tabular-nums">{c.n.toLocaleString("el-GR")}</span></li>)}
+          <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">
+            {[...commercial.values()].sort((a, b) => b.n - a.n).map((c) => <li key={c.kind + c.label} className="inline-flex items-center gap-2 rounded-full bg-eu-chip text-eu-navy pl-3 pr-1.5 min-h-9 text-[length:var(--fs-13)] font-bold">{c.label}<span className="text-eu-muted font-semibold">{KIND[c.kind] ?? c.kind}</span><span className="rounded-full bg-white px-2 py-0.5 tabular-nums">{c.n.toLocaleString("el-GR")}</span></li>)}
           </ul>
-        ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Καμία ενεργή προσφορά αυτή τη στιγμή.</p>}
+        ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Καμία ενεργή προσφορά αυτή τη στιγμή — οι ετικέτες εμφανίζονται μόλις ξεκινήσει μία. <Link href="/admin/prosfores/new" className="font-bold text-eu-blue hover:underline">Νέα προσφορά</Link></p>}
       </section>
       <InfoTagsEditor tags={info} />
     </div>

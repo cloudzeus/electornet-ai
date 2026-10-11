@@ -25,10 +25,17 @@ export default async function PromoCalendarPage({ searchParams }: { searchParams
   const from = monday(f);
   const data = await calendarData(from, DAYS);
   const shift = (w: number) => iso(new Date(from.getTime() + w * 7 * 86400_000));
+  const fmt = (d: Date) => d.toLocaleDateString("el-GR", { day: "numeric", month: "short" });
+  const range = `${fmt(from)} – ${fmt(new Date(from.getTime() + (DAYS - 1) * 86400_000))}`;
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs help="calendar" active="calendar" title="Ημερολόγιο & επικαλύψεις" lead="Κάθε μπάρα είναι μια προσφορά. Η ζώνη πάνω δείχνει τις ημέρες όπου δύο προσφορές πέφτουν στα ίδια προϊόντα: κίτρινο όταν ανταγωνίζονται ως εκπτώσεις τιμής (κερδίζει η καλύτερη για τον πελάτη), μπλε όταν απλώς συνδυάζονται."
-        actions={<div className="flex gap-2"><Link href={`?from=${shift(-4)}`} className="inline-flex items-center gap-1 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><ChevronLeft className="size-4" aria-hidden /> 4 εβδ.</Link><Link href="?" className="inline-flex items-center rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Σήμερα</Link><Link href={`?from=${shift(4)}`} className="inline-flex items-center gap-1 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">4 εβδ. <ChevronRight className="size-4" aria-hidden /></Link></div>} />
+      <PromoTabs active="calendar" title="Ημερολόγιο & επικαλύψεις" lead="Ποια προσφορά τρέχει πότε, πού πέφτουν δύο στα ίδια προϊόντα και ποια κερδίζει — έξι εβδομάδες με μια ματιά."
+        actions={<nav aria-label="Εβδομάδες" className="flex items-center gap-1.5">
+          <Link href={`?from=${shift(-4)}`} aria-label="4 εβδομάδες πίσω" className="inline-flex items-center gap-1 rounded-full border border-eu-line bg-white px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><ChevronLeft className="size-4" aria-hidden /> 4 εβδ.</Link>
+          <span className="px-2 text-center font-bold text-eu-ink text-[length:var(--fs-14)] tabular-nums">{range}</span>
+          <Link href={`?from=${shift(4)}`} aria-label="4 εβδομάδες μπροστά" className="inline-flex items-center gap-1 rounded-full border border-eu-line bg-white px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">4 εβδ. <ChevronRight className="size-4" aria-hidden /></Link>
+          {f && <Link href="?" className="inline-flex items-center rounded-full bg-eu-navy text-white px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue">Σήμερα</Link>}
+        </nav>} />
       <PromoCalendar from={from.toISOString()} promos={data.promos} days={data.days} />
     </div>
   );

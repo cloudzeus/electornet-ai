@@ -19,9 +19,32 @@ const EDITOR_PARTS = (what: string) => [
 const topicTasks = (t: PromoTopic) => (t.steps?.length ? [{ title: t.title, steps: t.steps }] : []);
 const WIZARD_ROUTES = ["/admin/prosfores/new", "/admin/prosfores/[id]"];
 const PROMO_PAGES: [string, keyof typeof PAGE_HELP, Partial<HelpPage>?][] = [
-  ["/admin/prosfores/imerologio", "calendar"], ["/admin/prosfores/kouponia", "coupons"], ["/admin/prosfores/etiketes", "tags"],
-  ["/admin/prosfores/prosomoiotis", "sim"], ["/admin/prosfores/kanones", "rules"], ["/admin/prosfores/selides", "landing"],
-  ["/admin/prosfores/excel", "excel"], ["/admin/prosfores/ermis", "ermis"], ["/admin/prosfores/prosopikes", "personal"], ["/admin/prosfores/koina", "segments"],
+  ["/admin/prosfores/imerologio", "calendar", { parts: [
+    { key: "promo.calendar", title: "Έξι εβδομάδες", text: "Μια μπάρα ανά προσφορά με το όνομά της (χρώμα = κατάσταση), η κίτρινη γραμμή = σήμερα. Η ζώνη «Επικαλύψεις»: κίτρινο όταν δύο εκπτώσεις τιμής πέφτουν στα ίδια προϊόντα, μπλε όταν απλώς συνδυάζονται — πάτα μια ημέρα." },
+    { key: "promo.calendar.day", title: "Η ημέρα", text: "Ποιες προσφορές τρέχουν την επιλεγμένη ημέρα (αρχικά σήμερα), ποιες συναντιούνται στα ίδια προϊόντα και ποια κερδίζει." },
+    { key: "promo.calendar.inspector", title: "Τι ισχύει σε ένα προϊόν", text: "Γράψε ένα προϊόν: βλέπεις την τελική τιμή την επιλεγμένη ημέρα και γιατί εφαρμόστηκε (ή όχι) κάθε προσφορά, και οι πρόχειρες." },
+  ], files: ["components/admin/promos/PromoCalendar.tsx"] }],
+  ["/admin/prosfores/kouponia", "coupons", { parts: [
+    { key: "promo.coupons.kpis", title: "Με μια ματιά", text: "Προσφορές-κουπόνια σε ισχύ, κωδικοί σε ισχύ, όσοι λήγουν σε 7 ημέρες, χρήσεις 30 ημερών." },
+    { key: "promo.coupons.promos", title: "Προσφορές-κουπόνια", text: "Πάτα μία για να δεις μόνο τους κωδικούς της· «Όλοι οι κωδικοί» για όλους." },
+    { key: "promo.coupons.codes", title: "Κωδικοί", text: "Φίλτρο κατάστασης (σε ισχύ, χρησιμοποιήθηκαν, έληξαν), αναζήτηση με κωδικό ή email, «Λήξη» ανά κωδικό. «Παρτίδα κωδικών» (μοναδικοί + CSV) και «Κωδικός σε πελάτη» ανοίγουν σε παράθυρο." },
+  ], files: ["components/admin/promos/CouponTools.tsx"] }],
+  ["/admin/prosfores/etiketes", "tags", { parts: [
+    { key: "promo.tags.commercial", title: "Εμπορικές", text: "Βγαίνουν μόνες τους από τις ενεργές προσφορές (−20 %, 2+1, Δώρο…) με το πλήθος προϊόντων." },
+    { key: "promo.tags.info", title: "Ενημερωτικές", text: "Κάθε ετικέτα σε κάρτα: Κλειστή / Χειροκίνητα / Αυτόματα με ένα πάτημα, οι παράμετροι του κανόνα, τα προϊόντα (αναζήτηση) και το sticker. Η μπάρα «Αποθήκευση & υπολογισμός» εμφανίζεται μόνο όταν αλλάξεις κάτι." },
+  ], files: ["components/admin/promos/InfoTagsEditor.tsx"] }],
+  ["/admin/prosfores/prosomoiotis", "sim", { parts: [
+    { key: "promo.sim.cart", title: "Καλάθι δοκιμής", text: "Γράψε προϊόν για να το προσθέσεις (ή περιήγηση στον κατάλογο), άλλαξε ποσότητα με − / +." },
+    { key: "promo.sim.scenario", title: "Σενάριο", text: "Ποιος αγοράζει (επισκέπτης, μέλος 1ης αγοράς, μέλος με αγορές, κοινά), πότε, με ποιο κουπόνι, ΤΚ, παράδοση και πληρωμή." },
+    { key: "promo.sim.result", title: "Αποτέλεσμα", text: "Υπολογίζεται μόνο του σε κάθε αλλαγή: τι πληρώνει, τι κερδίζει, ανά γραμμή, δώρα/υπηρεσίες/μεταφορικά και το ίχνος: ✓ εφαρμόστηκε, ✗ όχι — με τον λόγο." },
+  ], files: ["components/admin/promos/Simulator.tsx"] }],
+  ["/admin/prosfores/kanones", "rules"], ["/admin/prosfores/selides", "landing"],
+  ["/admin/prosfores/excel", "excel"], ["/admin/prosfores/ermis", "ermis"], ["/admin/prosfores/prosopikes", "personal"],
+  ["/admin/prosfores/koina", "segments", { parts: [
+    { key: "promo.segments.templates", title: "Έτοιμα κοινά", text: "Πέντε συνηθισμένα κοινά (newsletter, πιστοί, ανενεργοί, χωρίς αγορά, γενέθλια) — πάτα ένα για να ανοίξει έτοιμο, ή «Νέο κοινό από την αρχή»." },
+    { key: "promo.segments.editor", title: "Κριτήρια & μέτρηση", text: "Κριτήρια σε τρεις ομάδες (Αγορές, Λογαριασμός, Περιοχή & ετικέτες) — ισχύουν όλα μαζί. Δίπλα μετρά μόνο του πόσοι ταιριάζουν, πόσοι με συναίνεση για email και το % της βάσης." },
+    { key: "promo.segments.list", title: "Τα κοινά σου", text: "Μέλη, % των πελατών, σε πόσες προσφορές χρησιμοποιείται· «Αλλαγή», «Κουπόνια» (προσωπικοί κωδικοί σε όλα τα μέλη) και «Απόσυρση»." },
+  ], files: ["components/admin/promos/SegmentsEditor.tsx"] }],
   ["/admin/prosfores/theseis", "ads", { parts: [{ key: "promo.slots", title: "Θέσεις", text: "Κάθε σημείο της βιτρίνας σε μία κάρτα: τι φαίνεται τώρα (πράσινο) ή «Κενή», τα banners της με προβολές, κλικ και CTR. Πάτα ένα banner για αλλαγή ή «+ Banner» για νέο· η φόρμα ανοίγει σε παράθυρο." }], files: ["components/admin/promos/PlacementsEditor.tsx"] }],
   ["/admin/prosfores/anafores", "report", { parts: [
     { key: "promo.report.filters", title: "Καμπάνια & περίοδος", text: "Διάλεξε μία καμπάνια (ή όλες) και περίοδο 7 / 30 / 90 ημερών ή 1 έτους· όλα συγκρίνονται με την προηγούμενη ίση περίοδο." },
