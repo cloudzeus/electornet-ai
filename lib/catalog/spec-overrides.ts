@@ -11,6 +11,8 @@ export const SECTION = "spec-overrides";
 export type SpecOverride = { label?: string | null; filter?: boolean | null; sort?: number | null };
 export type SpecOverrides = Record<string, SpecOverride>;
 export const okey = (groupS1Id: number, code: number) => `${groupS1Id}:${code}`;
+/** Αλλαγή «περιεχομένου» (όνομα ή φίλτρο) — η σειρά μόνη της δεν μετρά ως αλλαγή χαρακτηριστικού. */
+export const changesContent = (o: SpecOverride | null | undefined) => !!o && (!!o.label || typeof o.filter === "boolean");
 
 export async function getSpecOverrides(): Promise<SpecOverrides> {
   const s = await db.setting.findUnique({ where: { section: SECTION } }).catch(() => null);
@@ -30,4 +32,18 @@ export async function setSpecOverride(groupS1Id: number, code: number, next: Spe
   const data = { overrides: all } as unknown as Prisma.InputJsonValue;
   await db.setting.upsert({ where: { section: SECTION }, create: { section: SECTION, data, updatedById: staffId }, update: { data, updatedById: staffId } });
   return { prev, next: all[k] ?? null };
+}
+
+/**
+ * Σειρά φίλτρων ενός τύπου στο e-shop (drag & drop): οι κωδικοί με τη νέα τους σειρά → sort 1, 2, 3… (ίδια κλίμακα με τους κωδικούς του SoftOne, που είναι η προεπιλεγμένη σειρά) Με κενή λίστα
+ * καθαρίζει τη σειρά όλων (ξανά όπως το SoftOne). Οι υπόλοιπες αλλαγές (όνομα, φίλτρο) μένουν.
+ */
+export async function setSpecOrder(groupS1Id: number, codes: number[], staffId: string | null) {
+  const all = await getSpecOverrides();
+  const prev = Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith(`${groupS1Id}:`)));
+  for (const k of Object.keys(prev)) { const o = { ...all[k], sort: null }; if (o.label == null && o.filter == null) delete all[k]; else all[k] = o; }
+  codes.slice(0, 500).forEach((code, i) => { const k = okey(groupS1Id, code); all[k] = { label: all[k]?.label ?? null, filter: all[k]?.filter ?? null, sort: i + 1 }; });
+  const data = { overrides: all } as unknown as Prisma.InputJsonValue;
+  await db.setting.upsert({ where: { section: SECTION }, create: { section: SECTION, data, updatedById: staffId }, update: { data, updatedById: staffId } });
+  return { prev };
 }

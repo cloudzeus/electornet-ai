@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getSpecOverrides, okey, type SpecOverride } from "./spec-overrides";
+import { changesContent, getSpecOverrides, okey, type SpecOverride } from "./spec-overrides";
 
 /**
  * Δεδομένα της σελίδας «Χαρακτηριστικά»: το δέντρο κατηγοριών web του SoftOne με τις ομάδες χαρακτηριστικών (τύπους
@@ -28,7 +28,7 @@ export async function specTree() {
     s.specs++;
     const ov = overrides[okey(d.groupS1Id, d.code)];
     if (ov?.filter ?? d.isFilter) s.filters++;
-    if (ov) s.changed++;
+    if (changesContent(ov)) s.changed++;
   }
   const masters = cats.filter((c) => c.level === 1);
   const mains = cats.filter((c) => c.level === 2);

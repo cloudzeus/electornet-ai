@@ -291,3 +291,16 @@ export async function changeSpecAction(groupS1Id: number, change: import("@/lib/
   revalidatePath("/admin/catalog/specs");
   return r;
 }
+
+/** Νέα σειρά φίλτρων ενός τύπου στο e-shop (κενή λίστα = όπως το SoftOne) και άμεση προβολή των φίλτρων. */
+export async function setSpecOrderAction(groupS1Id: number, codes: number[]) {
+  const user = await requirePermission("catalog.products.write");
+  const { setSpecOrder } = await import("@/lib/catalog/spec-overrides");
+  const { projectFacetsNow } = await import("@/lib/softone/project");
+  const r = await setSpecOrder(groupS1Id, codes.filter((c) => Number.isInteger(c)), user.id);
+  const cat = await db.category.findFirst({ where: { erpCode: `s1:g:${groupS1Id}` }, select: { id: true } });
+  await projectFacetsNow(cat ? [cat.id] : []);
+  await audit(user.id, "catalog.spec.order", "S1SpecGroup", String(groupS1Id), r.prev, { codes });
+  revalidatePath("/admin/catalog/specs");
+  return { ok: true as const };
+}
