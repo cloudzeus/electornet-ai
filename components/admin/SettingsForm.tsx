@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { PlugZap, Loader2, X } from "lucide-react";
+import { PlugZap, Loader2, X, ChevronDown, SlidersHorizontal, BookOpen } from "lucide-react";
 import { SECTIONS, type Field, type Values } from "@/lib/settings/schema";
 import { saveSection, testSection, type ActionResult } from "@/app/admin/(shell)/settings/actions";
 import { SoftoneObjsPicker } from "./SoftoneObjsPicker";
@@ -26,6 +26,10 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
   const [dirty, setDirty] = useState(false);
   const [pending, start] = useTransition();
   const [testing, startTest] = useTransition();
+  // «Για προχωρημένους» ανά ομάδα: κλειστό αρχικά, ανοίγει μόνο του όταν ζητηθεί πεδίο του (#f-…)
+  const [advOpen, setAdvOpen] = useState<Record<string, boolean>>({});
+
+  const groupKey = (f: Field) => (section.groups?.some((g) => g.key === f.group) ? f.group! : section.groups?.[0]?.key ?? "_");
 
   // «έχει αλλαγές» = η φόρμα διαφέρει από την τελευταία αποθηκευμένη εικόνα της
   const snapshot = useRef("");
@@ -33,10 +37,12 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
   const recompute = useCallback(() => setTimeout(() => setDirty(serialize() !== snapshot.current), 0), []);
   useEffect(() => { snapshot.current = serialize(); }, [ver]); // νέα εικόνα μετά από κάθε αποθήκευση
   // από την αναζήτηση των ρυθμίσεων (#f-<πεδίο>): κύλιση στο πεδίο, επισήμανση και focus
+  const hashDone = useRef(false);
   useEffect(() => {
-    if (!location.hash.startsWith("#f-")) return;
+    if (hashDone.current || !location.hash.startsWith("#f-")) return;
     const key = decodeURIComponent(location.hash.slice(3));
     const def = section.fields.find((f) => f.key === key);
+    if (def?.advanced && !advOpen[groupKey(def)]) { setTimeout(() => setAdvOpen((o) => ({ ...o, [groupKey(def)]: true })), 0); return; } // ξανατρέχει μόλις ανοίξει
     let el = document.getElementById(`f-${key}`);
     if (!el && def) {
       // κρυφό πεδίο (εξαρτάται από άλλη επιλογή): δείξε την ομάδα του και πες πώς εμφανίζεται
@@ -45,12 +51,14 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
       if (!el) return () => clearTimeout(t0);
     }
     if (!el) return;
+    hashDone.current = true;
     el.scrollIntoView({ block: "center" });
     el.classList.add("ring-4", "ring-eu-yellow/70");
     el.querySelector<HTMLElement>("input:not([type=hidden]),select,textarea")?.focus({ preventScroll: true });
     const t = setTimeout(() => el.classList.remove("ring-4", "ring-eu-yellow/70"), 2500);
     return () => clearTimeout(t);
-  }, [section]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- μία φορά ανά ενότητα, και ξανά όταν ανοίξει το «Για προχωρημένους»
+  }, [section, advOpen]);
 
   const set = (k: string, v: string | boolean) => { setVals((p) => ({ ...p, [k]: v })); setErrors((e) => (e[k] ? { ...e, [k]: "" } : e)); recompute(); };
   const visible = (f: Field) => !f.showIf || f.showIf(vals);
@@ -86,8 +94,14 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
   };
 
   const groups = section.groups?.length ? section.groups : [{ key: "_", title: "Ρυθμίσεις" }];
-  const groupOf = (f: Field) => (section.groups?.some((g) => g.key === f.group) ? f.group! : groups[0].key);
+  const groupOf = groupKey;
   const visibleGroups = groups.filter((g) => section.fields.some((f) => groupOf(f) === g.key && visible(f)));
+  const firstAdv = visibleGroups.find((g) => section.fields.some((f) => f.advanced && groupOf(f) === g.key && visible(f)))?.key;
+  const renderField = (f: Field) => (
+    <div key={f.key} id={`f-${f.key}`} className={`min-w-0 scroll-mt-24 rounded-xl ring-offset-4 transition-shadow ${f.width === "half" ? "" : "@2xl:col-span-2"}`}>
+      <FieldInput f={f} value={vals[f.key]} set={(v) => set(f.key, v)} stored={!!stored[f.key]} ver={ver} error={errors[f.key]} data={data} onSecret={(v) => { setTyped((t) => ({ ...t, [f.key]: !!v })); setErrors((e) => (e[f.key] ? { ...e, [f.key]: "" } : e)); }} onDirty={recompute} />
+    </div>
+  );
 
   return (
     <form ref={formRef} onSubmit={submit} onChange={recompute} onInput={recompute} noValidate className="grid gap-4 min-w-0">
@@ -98,7 +112,7 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
           {section.testHelp && <p className="m-0 mt-2 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)] max-w-[75ch]"><PlugZap className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span><b>Δοκιμή σύνδεσης</b> (κάτω, δίπλα στην αποθήκευση): {section.testHelp}</span></p>}
         </div>
         {visibleGroups.length > 2 && (
-          <nav aria-label="Σε αυτή τη σελίδα" className="flex flex-wrap gap-2">
+          <nav data-help="settings.groups" aria-label="Σε αυτή τη σελίδα" className="flex flex-wrap gap-2">
             {visibleGroups.map((g) => <a key={g.key} href={`#g-${g.key}`} className="inline-flex items-center rounded-full bg-eu-surface px-3 min-h-10 font-bold text-eu-ink-2 text-[length:var(--fs-14)] hover:bg-eu-chip hover:text-eu-blue">{g.title}</a>)}
           </nav>
         )}
@@ -113,11 +127,24 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
             {fields.filter((f) => !visible(f) && f.type !== "secret" && f.type !== "softone-objs").map((f) => (f.type === "toggle" ? (vals[f.key] === true ? <input key={f.key} type="hidden" name={f.key} value="on" /> : null) : <input key={f.key} type="hidden" name={f.key} value={String(vals[f.key] ?? "")} />))}
             {shown.length > 0 && (
               <FieldGroup id={`g-${g.key}`} title={g.title} help={g.help}>
-                {shown.map((f) => (
-                  <div key={f.key} id={`f-${f.key}`} className={`min-w-0 scroll-mt-24 rounded-xl ring-offset-4 transition-shadow ${f.width === "half" ? "" : "@2xl:col-span-2"}`}>
-                    <FieldInput f={f} value={vals[f.key]} set={(v) => set(f.key, v)} stored={!!stored[f.key]} ver={ver} error={errors[f.key]} data={data} onSecret={(v) => { setTyped((t) => ({ ...t, [f.key]: !!v })); setErrors((e) => (e[f.key] ? { ...e, [f.key]: "" } : e)); }} onDirty={recompute} />
-                  </div>
-                ))}
+                {"guide" in g && g.guide && (
+                  <details className="group/guide @2xl:col-span-2 rounded-xl bg-eu-chip/50">
+                    <summary className="list-none cursor-pointer flex items-center gap-2 px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)]"><BookOpen className="size-4 shrink-0" aria-hidden /><span className="flex-1">Οδηγίες ρύθμισης στον πάροχο</span><ChevronDown className="size-4 shrink-0 transition-transform group-open/guide:rotate-180" aria-hidden /></summary>
+                    <p className="m-0 px-3 pb-3 text-eu-ink-2 text-[length:var(--fs-14)] leading-relaxed break-words">{g.guide}</p>
+                  </details>
+                )}
+                {shown.filter((f) => !f.advanced).map(renderField)}
+                {/* help-key="settings.advanced": μόνο στην πρώτη ομάδα με προχωρημένα, για να το βρίσκει το «Δείξε μου» */}
+                {shown.some((f) => f.advanced) && (
+                  <details data-help={g.key === firstAdv ? "settings.advanced" : undefined} open={!!advOpen[g.key]} onToggle={(e) => { const o = e.currentTarget.open; setAdvOpen((p) => (p[g.key] === o ? p : { ...p, [g.key]: o })); }} className="group/adv @2xl:col-span-2 rounded-xl border border-dashed border-eu-line-2 open:border-solid open:bg-eu-surface/40">
+                    <summary className="list-none cursor-pointer flex items-center gap-2 px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-14)] hover:text-eu-blue">
+                      <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
+                      <span className="flex-1">Για προχωρημένους <span className="font-normal text-eu-muted">· {shown.filter((f) => f.advanced).length} ρυθμίσεις, οι προεπιλογές αρκούν</span></span>
+                      <ChevronDown className="size-4 shrink-0 transition-transform group-open/adv:rotate-180" aria-hidden />
+                    </summary>
+                    <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-5 gap-y-4 items-start px-3 pb-4 pt-1">{shown.filter((f) => f.advanced).map(renderField)}</div>
+                  </details>
+                )}
               </FieldGroup>
             )}
           </div>
@@ -137,7 +164,7 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
           </div>
         )}
         extra={section.test && (
-          <span className="inline-flex items-center gap-2 flex-wrap">
+          <span data-help="settings.test" className="inline-flex items-center gap-2 flex-wrap">
             <button
               type="button"
               disabled={testing}

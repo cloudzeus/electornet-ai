@@ -29,19 +29,21 @@ export interface Field {
   max?: number;
   step?: number;
   unit?: string;
+  /** τεχνική/σπάνια ρύθμιση: μαζεμένη στο «Για προχωρημένους» της ομάδας της (βλ. ADVANCED) */
+  advanced?: boolean;
 }
 
 export interface Section {
   key: string;
   title: string;
   description: string;
-  group: "site" | "integrations" | "marketing" | "commerce";
+  group: "store" | "checkout" | "customers" | "marketing" | "systems";
   /** server action name for a «Δοκιμή σύνδεσης» button */
   test?: "softone" | "smtp" | "openrouter" | "bunny";
   /** τι κάνει η δοκιμή, κάτω από το κουμπί */
   testHelp?: string;
   /** κάρτες της φόρμας, με τη σειρά· πεδία χωρίς group πάνε στην πρώτη */
-  groups?: { key: string; title: string; help?: string }[];
+  groups?: { key: string; title: string; help?: string; guide?: string }[];
   fields: Field[];
 }
 
@@ -102,7 +104,7 @@ export const SECTIONS: Section[] = [
     key: "general",
     title: "Γενικά",
     description: "Ταυτότητα του site και στοιχεία εταιρείας που εμφανίζονται σε footer, έγγραφα και emails.",
-    group: "site",
+    group: "store",
     groups: [
       { key: "site", title: "Το site", help: "Το όνομα και η διεύθυνση που βλέπουν οι πελάτες και οι μηχανές αναζήτησης." },
       { key: "company", title: "Στοιχεία εταιρείας", help: "Εμφανίζονται στο footer, στα «Οικονομικά στοιχεία» και στα emails παραγγελιών (υποχρέωση κατά τον νόμο για ηλεκτρονικό εμπόριο)." },
@@ -124,7 +126,7 @@ export const SECTIONS: Section[] = [
     key: "social",
     title: "Social προφίλ",
     description: "Σύνδεσμοι που εμφανίζονται στο footer και στα share/OG metadata.",
-    group: "marketing",
+    group: "store",
     groups: [
       { key: "profiles", title: "Προφίλ", help: "Όσα συμπληρώσεις εμφανίζονται ως εικονίδια στο footer· τα κενά κρύβονται." },
       { key: "share", title: "Κοινοποίηση", help: "Η εικόνα που εμφανίζεται όταν κάποιος μοιράζεται σελίδα του site χωρίς δική της εικόνα." },
@@ -143,7 +145,7 @@ export const SECTIONS: Section[] = [
     key: "social-login",
     title: "Social login",
     description: "Οι πελάτες συνδέονται ή φτιάχνουν λογαριασμό με Google, Microsoft, Facebook ή Apple — χωρίς κωδικό. Τα secrets αποθηκεύονται κρυπτογραφημένα.",
-    group: "integrations",
+    group: "customers",
     fields: [
       yesNo("googleEnabled", "Google", undefined, true),
       { key: "googleClientId", label: "Google client ID", type: "text", width: "half", placeholder: "123456789-abc….apps.googleusercontent.com" },
@@ -190,7 +192,7 @@ export const SECTIONS: Section[] = [
     key: "softone",
     title: "SoftOne ERP (Web Services)",
     description: "Σύνδεση με το SoftOne μέσω των επίσημων s1services (login → authenticate, session ανά ημέρα, Windows-1253).",
-    group: "integrations",
+    group: "systems",
     test: "softone",
     testHelp: "Κάνει login + authenticate με τα στοιχεία της φόρμας (και μη αποθηκευμένα). Μόνο ανάγνωση — δεν γράφει τίποτα στο ERP.",
     groups: [
@@ -226,9 +228,9 @@ export const SECTIONS: Section[] = [
     key: "payments",
     title: "Πληρωμές",
     description: "Πάροχος καρτών, wallets και εναλλακτικοί τρόποι πληρωμής.",
-    group: "commerce",
+    group: "checkout",
     groups: [
-      { key: "cards", title: "Πληρωμή με κάρτα", help: "Τα στοιχεία από το περιβάλλον του παρόχου. Ξεκίνα σε «Test» και γύρνα σε «Live» μόνο αφού ολοκληρωθεί μια δοκιμαστική αγορά. Viva: στην πηγή πληρωμής (Online payments → Websites/Apps) βάλε Success URL https://<το site>/api/payments/viva/success και Failure URL https://<το site>/api/payments/viva/failure· στα Webhooks πρόσθεσε https://<το site>/api/webhooks/viva για «Transaction Payment Created» και «Transaction Failed»." },
+      { key: "cards", title: "Πληρωμή με κάρτα", help: "Τα στοιχεία από το περιβάλλον του παρόχου. Ξεκίνα σε «Test» και γύρνα σε «Live» μόνο αφού ολοκληρωθεί μια δοκιμαστική αγορά.", guide: "Viva: στην πηγή πληρωμής (Online payments → Websites/Apps) βάλε Success URL https://<το site>/api/payments/viva/success και Failure URL https://<το site>/api/payments/viva/failure· στα Webhooks πρόσθεσε https://<το site>/api/webhooks/viva για «Transaction Payment Created» και «Transaction Failed»." },
       { key: "wallets", title: "Wallets & άλλοι τρόποι (μέσω Viva)", help: "Ο πελάτης τα διαλέγει στο checkout και η σελίδα της Viva ανοίγει κατευθείαν σε αυτά. Ο πελάτης που έχει πληρώσει με Viva σε άλλο κατάστημα βλέπει εκεί τις αποθηκευμένες κάρτες του. Apple Pay / Google Pay εμφανίζονται μόνο σε συσκευές που τα υποστηρίζουν." },
       { key: "cod", title: "Αντικαταβολή" },
       { key: "bank", title: "Κατάθεση σε τράπεζα", help: "Ο πελάτης βλέπει το IBAN μετά την παραγγελία και στο email επιβεβαίωσης." },
@@ -261,7 +263,7 @@ export const SECTIONS: Section[] = [
     key: "shipping",
     title: "Αποστολές & courier",
     description: "Ποιοι couriers προσφέρονται στο checkout, με τι κόστος και χρόνο παράδοσης, και τα στοιχεία σύνδεσης για τα vouchers.",
-    group: "commerce",
+    group: "checkout",
     groups: [
       { key: "cost", title: "Γενικό κόστος αποστολής", help: "Ισχύει όταν δεν είναι ενεργός κανένας courier, και ως «δωρεάν από» για όσους δεν έχουν δικό τους." },
       ...CARRIER_GROUPS,
@@ -280,7 +282,7 @@ export const SECTIONS: Section[] = [
     key: "bunny",
     title: "Bunny CDN",
     description: "Αποθήκευση και διανομή εικόνων, cutouts, 3D μοντέλων και video μέσω Bunny Storage + Pull Zone, με Bunny Optimizer για responsive εικόνες.",
-    group: "integrations",
+    group: "systems",
     test: "bunny",
     testHelp: "Διαβάζει τη λίστα αρχείων του storage zone (και του pull zone, αν δώσεις Account API key). Δεν ανεβάζει ούτε σβήνει τίποτα.",
     groups: [
@@ -310,7 +312,7 @@ export const SECTIONS: Section[] = [
     key: "aade",
     title: "ΑΑΔΕ",
     description: "Αναζήτηση ΑΦΜ στο μητρώο επιχειρήσεων (RgWsPublic2) για τιμολόγηση: επωνυμία, ΔΟΥ, έδρα, ΚΑΔ και αν ο ΑΦΜ είναι ενεργός.",
-    group: "integrations",
+    group: "checkout",
     groups: [
       { key: "vat", title: "Αναζήτηση ΑΦΜ στο checkout", help: "Ο πελάτης που ζητά τιμολόγιο γράφει τον ΑΦΜ και τα υπόλοιπα στοιχεία συμπληρώνονται μόνα τους." },
       { key: "soap", title: "Απευθείας σύνδεση ΑΑΔΕ", help: "Ειδικοί κωδικοί από το TAXISnet για την υπηρεσία «Αναζήτηση Βασικών Στοιχείων Μητρώου Επιχειρήσεων» — ΟΧΙ οι κωδικοί TAXISnet της εταιρείας." },
@@ -329,7 +331,7 @@ export const SECTIONS: Section[] = [
     key: "email",
     title: "Email & SMS",
     description: "Αποστολή συναλλακτικών emails, newsletter και SMS.",
-    group: "integrations",
+    group: "customers",
     test: "smtp",
     testHelp: "Για SMTP: ελέγχει ότι ο server απαντά στη θύρα. Δεν στέλνει email.",
     groups: [
@@ -363,7 +365,7 @@ export const SECTIONS: Section[] = [
     key: "ai",
     title: "AI & υπηρεσίες",
     description: "Ο Ερμής (σύμβουλος), γεωεντοπισμός, χάρτες, αναζήτηση.",
-    group: "integrations",
+    group: "systems",
     test: "openrouter",
     testHelp: "Ελέγχει το κλειδί OpenRouter, κάνει μια μικρή κλήση στο κύριο μοντέλο και δείχνει τις φωνές του ElevenLabs. Κόστος: κλάσματα του cent.",
     groups: [
@@ -417,12 +419,32 @@ export const SECTIONS: Section[] = [
   },
 ];
 
-export const SECTION_GROUPS: { key: Section["group"]; label: string }[] = [
-  { key: "site", label: "Site" },
-  { key: "commerce", label: "Εμπόριο" },
-  { key: "marketing", label: "Marketing" },
-  { key: "integrations", label: "Διασυνδέσεις" },
+export const SECTION_GROUPS: { key: Section["group"]; label: string; help: string }[] = [
+  { key: "store", label: "Το κατάστημα", help: "Ταυτότητα, στοιχεία εταιρείας, social." },
+  { key: "checkout", label: "Checkout: πληρωμή & παράδοση", help: "Τι βλέπει ο πελάτης όταν αγοράζει." },
+  { key: "customers", label: "Πελάτες & επικοινωνία", help: "Σύνδεση πελατών, emails, SMS, newsletter." },
+  { key: "marketing", label: "Marketing & μετρήσεις", help: "Analytics και pixels διαφημίσεων." },
+  { key: "systems", label: "Συστήματα & AI", help: "ERP, CDN, AI και κλειδιά για τρίτους." },
 ];
+
+/**
+ * Τεχνικές ή σπάνιες ρυθμίσεις ανά ενότητα: στη φόρμα μαζεύονται στο «Για προχωρημένους» κάθε ομάδας, ώστε να φαίνονται
+ * πρώτα τα απαραίτητα. Οι προεπιλογές τους δουλεύουν· αλλάζουν μόνο με λόγο. Ένα υποχρεωτικό πεδίο δεν μπαίνει ποτέ εδώ.
+ */
+const ADVANCED: Record<string, string[]> = {
+  softone: ["syncMinutes", "customerCodePrefix", "customerCountry", "customerCurrency", "customerVatSts", "customerTrdCategory", "customerPayment", "webFilter"],
+  payments: ["sourceCode", "webhookSecret"],
+  shipping: ["genikiSubCode"],
+  bunny: ["pullZoneId", "accountApiKey", "storageRegion", "basePath", "tokenAuthKey", "imageQuality", "backupRetentionDays"],
+  aade: ["vatProxyUrl", "vatCalledBy", "vatEndpoint"],
+  email: ["emailAssetUrl", "mailgunRegion", "smtpPort"],
+  ai: [
+    "routing", "providerSort", "modelFast", "modelVision", "fallbackModels", "embedModel", "maxTokens", "temperature", "siteTitle",
+    "voiceRate", "elevenModel", "elevenTags", "elevenAutoTags", "elevenSpeed", "elevenTempo", "elevenStability", "elevenSimilarity", "elevenUsdPer1kChars",
+    "voiceTtsModel", "voiceStyle", "voiceTempo", "voiceSttModel", "voiceCacheMaxChars", "rembgCommand",
+  ],
+};
+for (const s of SECTIONS) for (const f of s.fields) if (ADVANCED[s.key]?.includes(f.key) && !f.required) f.advanced = true;
 
 export const sectionByKey = (key: string) => SECTIONS.find((s) => s.key === key);
 export const isSecret = (f: Field) => f.type === "secret";

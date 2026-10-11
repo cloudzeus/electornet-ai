@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-10T23:42:20.482Z",
+ "generatedAt": "2026-10-11T00:08:34.935Z",
  "routes": [
   {
    "route": "/admin",
@@ -21,6 +21,11 @@
     "dash.card"
    ],
    "changes": [
+    {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    },
     {
      "hash": "369b264",
      "date": "2026-10-11T02:24:15+03:00",
@@ -67,8 +72,11 @@
      "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
     }
    ],
-   "updatedAt": "2026-10-11T02:24:15+03:00",
-   "shots": {}
+   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "shots": {
+    "desktop": "/api/help-shot/dashboard-d.jpg",
+    "mobile": "/api/help-shot/dashboard-m.jpg"
+   }
   },
   {
    "route": "/admin/apostoles",
@@ -92,6 +100,11 @@
    ],
    "changes": [
     {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    },
+    {
      "hash": "d2b1624",
      "date": "2026-10-11T02:32:03+03:00",
      "text": "Αποστολές: από 234 γραμμές κατηγοριών σε τρία βήματα"
@@ -107,8 +120,11 @@
      "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
     }
    ],
-   "updatedAt": "2026-10-11T02:32:03+03:00",
-   "shots": {}
+   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "shots": {
+    "desktop": "/api/help-shot/apostoles-d.jpg",
+    "mobile": "/api/help-shot/apostoles-m.jpg"
+   }
   },
   {
    "route": "/admin/apostoles/vouchers",
@@ -131,7 +147,10 @@
     }
    ],
    "updatedAt": "2026-10-10T14:00:00+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
+    "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
+   }
   },
   {
    "route": "/admin/ar",
@@ -199,7 +218,10 @@
     }
    ],
    "updatedAt": "2026-10-10T09:29:44+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/ar-d.jpg",
+    "mobile": "/api/help-shot/ar-m.jpg"
+   }
   },
   {
    "route": "/admin/audit",
@@ -260,7 +282,10 @@
     }
    ],
    "updatedAt": "2026-09-13T17:09:18+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/backups-d.jpg",
+    "mobile": "/api/help-shot/backups-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog",
@@ -328,7 +353,10 @@
     }
    ],
    "updatedAt": "2026-10-10T10:43:51+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog-d.jpg",
+    "mobile": "/api/help-shot/catalog-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/[id]",
@@ -461,7 +489,10 @@
     }
    ],
    "updatedAt": "2026-10-10T09:11:55+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.banners-d.jpg",
+    "mobile": "/api/help-shot/catalog.banners-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/dimensions",
@@ -486,7 +517,10 @@
     }
    ],
    "updatedAt": "2026-10-10T09:11:55+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.dimensions-d.jpg",
+    "mobile": "/api/help-shot/catalog.dimensions-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/sets",
@@ -519,7 +553,10 @@
     }
    ],
    "updatedAt": "2026-10-10T10:59:05+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.sets-d.jpg",
+    "mobile": "/api/help-shot/catalog.sets-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/templates",
@@ -542,7 +579,10 @@
     }
    ],
    "updatedAt": "2026-10-04T10:54:52+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.templates-d.jpg",
+    "mobile": "/api/help-shot/catalog.templates-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/brand-stores",
@@ -590,7 +630,10 @@
     }
    ],
    "updatedAt": "2026-10-11T01:49:25+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/cms.brand-stores-d.jpg",
+    "mobile": "/api/help-shot/cms.brand-stores-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/brand-stores/[slug]",
@@ -612,6 +655,11 @@
    ],
    "changes": [
     {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    },
+    {
      "hash": "7594df1",
      "date": "2026-10-11T01:49:25+03:00",
      "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
@@ -632,7 +680,7 @@
      "text": "Σελίδες μαρκών: δυναμικές από τη βάση + εργαλείο διαχείρισης, στυλ από το επίσημο site, 9 νέα components σε ζώνες"
     }
    ],
-   "updatedAt": "2026-10-11T01:49:25+03:00",
+   "updatedAt": "2026-10-11T02:49:41+03:00",
    "shots": {}
   },
   {
@@ -656,7 +704,10 @@
     }
    ],
    "updatedAt": "2026-10-03T14:02:22+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/cms.components-d.jpg",
+    "mobile": "/api/help-shot/cms.components-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/copy",
@@ -679,7 +730,10 @@
     }
    ],
    "updatedAt": "2026-10-03T15:15:40+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/cms.copy-d.jpg",
+    "mobile": "/api/help-shot/cms.copy-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/home",
@@ -703,6 +757,11 @@
     "editor.preview"
    ],
    "changes": [
+    {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    },
     {
      "hash": "7594df1",
      "date": "2026-10-11T01:49:25+03:00",
@@ -747,15 +806,13 @@
      "hash": "5eba8ac",
      "date": "2026-10-10T18:56:31+03:00",
      "text": "Αρχική: πλέγμα κατηγοριών από τον πραγματικό κατάλογο (σύρσιμο για σειρά, ορατή/κρυφή, ★ τονισμένη, δικός μας τίτλος/κείμενο, προσθήκη με αναζήτηση, πραγματικά πλήθη, τίτλος «σε Ν κατηγορίες»)"
-    },
-    {
-     "hash": "0be31ba",
-     "date": "2026-10-10T14:56:01+03:00",
-     "text": "Ζώνες αρχικής: νέος, πολύ πιο απλός editor (μοτίβο theme editor)"
     }
    ],
-   "updatedAt": "2026-10-11T01:49:25+03:00",
-   "shots": {}
+   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "shots": {
+    "desktop": "/api/help-shot/cms.home-d.jpg",
+    "mobile": "/api/help-shot/cms.home-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/pages",
@@ -778,7 +835,10 @@
     }
    ],
    "updatedAt": "2026-10-03T09:54:14+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/cms.pages-d.jpg",
+    "mobile": "/api/help-shot/cms.pages-m.jpg"
+   }
   },
   {
    "route": "/admin/cms/pages/[key]",
@@ -846,7 +906,10 @@
     }
    ],
    "updatedAt": "2026-10-10T19:26:28+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/cms.slides-d.jpg",
+    "mobile": "/api/help-shot/cms.slides-m.jpg"
+   }
   },
   {
    "route": "/admin/customers",
@@ -997,7 +1060,10 @@
     }
    ],
    "updatedAt": "2026-09-13T14:16:33+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/emails-d.jpg",
+    "mobile": "/api/help-shot/emails-m.jpg"
+   }
   },
   {
    "route": "/admin/emails/[key]",
@@ -1045,7 +1111,10 @@
     }
    ],
    "updatedAt": "2026-10-10T13:27:32+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/epektasi-eggyisis-d.jpg",
+    "mobile": "/api/help-shot/epektasi-eggyisis-m.jpg"
+   }
   },
   {
    "route": "/admin/eprel",
@@ -1068,7 +1137,10 @@
     }
    ],
    "updatedAt": "2026-09-16T19:24:24+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/eprel-d.jpg",
+    "mobile": "/api/help-shot/eprel-m.jpg"
+   }
   },
   {
    "route": "/admin/gdpr",
@@ -1091,6 +1163,69 @@
     }
    ],
    "updatedAt": "2026-09-13T13:46:07+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/help",
+   "slug": "help",
+   "file": "app/admin/(shell)/help/page.tsx",
+   "title": "Wiki & οδηγοί",
+   "doc": "Το wiki της διαχείρισης: αναζήτηση, «Ξεκινώντας», όλες οι σελίδες που βλέπει ο χρήστης ανά περιοχή και τι άλλαξε πρόσφατα. Παράγεται από την ίδια την εφαρμογή (npm run help:gen) — ενημερώνεται σε κάθε αλλαγή.",
+   "perm": "*",
+   "nav": {
+    "group": "Βοήθεια",
+    "label": "Wiki & οδηγοί"
+   },
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    }
+   ],
+   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/help/p/[slug]",
+   "slug": "help.p.slug",
+   "file": "app/admin/(shell)/help/p/[slug]/page.tsx",
+   "title": "[slug]",
+   "doc": "Ο οδηγός μιας σελίδας: τι κάνει, εικόνες, τα σημεία της με «Δείξε μου στη σελίδα», βήματα, συμβουλές, ιστορικό.",
+   "perm": "*",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    }
+   ],
+   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/help/t/[slug]",
+   "slug": "help.t.slug",
+   "file": "app/admin/(shell)/help/t/[slug]/page.tsx",
+   "title": "[slug]",
+   "doc": "Γενικό άρθρο του wiki (π.χ. «Πρόχειρο, έλεγχος & δημοσίευση»).",
+   "perm": "*",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "c4dd688",
+     "date": "2026-10-11T02:49:41+03:00",
+     "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…"
+    }
+   ],
+   "updatedAt": "2026-10-11T02:49:41+03:00",
    "shots": {}
   },
   {
@@ -1124,7 +1259,10 @@
     }
    ],
    "updatedAt": "2026-09-13T16:45:53+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/media-d.jpg",
+    "mobile": "/api/help-shot/media-m.jpg"
+   }
   },
   {
    "route": "/admin/newsletter",
@@ -1220,7 +1358,10 @@
     }
    ],
    "updatedAt": "2026-10-10T19:26:28+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores-d.jpg",
+    "mobile": "/api/help-shot/prosfores-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/[id]",
@@ -1340,7 +1481,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.ermis-d.jpg",
+    "mobile": "/api/help-shot/prosfores.ermis-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/etiketes",
@@ -1370,7 +1514,10 @@
     }
    ],
    "updatedAt": "2026-10-04T13:00:24+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.etiketes-d.jpg",
+    "mobile": "/api/help-shot/prosfores.etiketes-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/excel",
@@ -1395,7 +1542,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.excel-d.jpg",
+    "mobile": "/api/help-shot/prosfores.excel-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/imerologio",
@@ -1420,7 +1570,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.imerologio-d.jpg",
+    "mobile": "/api/help-shot/prosfores.imerologio-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/kanones",
@@ -1445,7 +1598,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.kanones-d.jpg",
+    "mobile": "/api/help-shot/prosfores.kanones-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/koina",
@@ -1465,7 +1621,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:19:17+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.koina-d.jpg",
+    "mobile": "/api/help-shot/prosfores.koina-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/kouponia",
@@ -1495,7 +1654,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:30:09+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.kouponia-d.jpg",
+    "mobile": "/api/help-shot/prosfores.kouponia-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/new",
@@ -1535,7 +1697,10 @@
     }
    ],
    "updatedAt": "2026-10-10T19:26:28+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.new-d.jpg",
+    "mobile": "/api/help-shot/prosfores.new-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/prosomoiotis",
@@ -1565,7 +1730,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:19:17+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.prosomoiotis-d.jpg",
+    "mobile": "/api/help-shot/prosfores.prosomoiotis-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/prosopikes",
@@ -1585,7 +1753,10 @@
     }
    ],
    "updatedAt": "2026-10-03T08:10:14+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.prosopikes-d.jpg",
+    "mobile": "/api/help-shot/prosfores.prosopikes-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/selides",
@@ -1615,7 +1786,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:30:09+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.selides-d.jpg",
+    "mobile": "/api/help-shot/prosfores.selides-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/selides/[id]",
@@ -1660,7 +1834,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
+    "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/voitheia",
@@ -1680,7 +1857,10 @@
     }
    ],
    "updatedAt": "2026-10-03T07:05:06+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.voitheia-d.jpg",
+    "mobile": "/api/help-shot/prosfores.voitheia-m.jpg"
+   }
   },
   {
    "route": "/admin/radar",
@@ -1708,7 +1888,10 @@
     }
    ],
    "updatedAt": "2026-09-13T15:22:47+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/radar-d.jpg",
+    "mobile": "/api/help-shot/radar-m.jpg"
+   }
   },
   {
    "route": "/admin/reports",
@@ -1736,7 +1919,10 @@
     }
    ],
    "updatedAt": "2026-09-13T14:02:50+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/reports-d.jpg",
+    "mobile": "/api/help-shot/reports-m.jpg"
+   }
   },
   {
    "route": "/admin/reports/ai",
@@ -1776,7 +1962,10 @@
     }
    ],
    "updatedAt": "2026-09-20T16:02:35+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/reports.ai-d.jpg",
+    "mobile": "/api/help-shot/reports.ai-m.jpg"
+   }
   },
   {
    "route": "/admin/reports/ai/voice",
@@ -1811,7 +2000,10 @@
     }
    ],
    "updatedAt": "2026-10-04T15:17:56+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/reports.ai.voice-d.jpg",
+    "mobile": "/api/help-shot/reports.ai.voice-m.jpg"
+   }
   },
   {
    "route": "/admin/reports/wishlist",
@@ -1859,55 +2051,86 @@
     }
    ],
    "updatedAt": "2026-09-13T11:21:34+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/roles-d.jpg",
+    "mobile": "/api/help-shot/roles-m.jpg"
+   }
   },
   {
    "route": "/admin/settings",
    "slug": "settings",
    "file": "app/admin/(shell)/settings/page.tsx",
    "title": "Ρυθμίσεις & διασυνδέσεις",
-   "doc": "Αρχική: κάθε ενότητα με την κατάστασή της και αναζήτηση πεδίων. Μόνο Super Admin.",
+   "doc": "Αρχική των ρυθμίσεων: τι θέλει προσοχή (με σύνδεσμο κατευθείαν στο πεδίο), τι είναι ενεργό στο site, και οι ενότητες ανά σκοπό με την κατάστασή τους· αναζήτηση που βρίσκει και μεμονωμένα πεδία. Μόνο Super Admin.",
    "perm": "super-admin",
    "nav": {
     "group": "Διαχείριση",
     "label": "Ρυθμίσεις & διασυνδέσεις"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "settings.search",
+    "settings.attention",
+    "settings.sections",
+    "settings.features"
+   ],
    "changes": [
+    {
+     "hash": "e304c31",
+     "date": "2026-10-10T14:00:00+03:00",
+     "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
+    },
+    {
+     "hash": "639d1fa",
+     "date": "2026-10-10T13:27:32+03:00",
+     "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…"
+    },
+    {
+     "hash": "f8be0f1",
+     "date": "2026-10-10T10:14:27+03:00",
+     "text": "Πληρωμές μέσω Viva Smart Checkout: κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Klarna (ενεργοποίηση ανά τρόπο), redirect με προεπιλεγμένο τρόπο και στοιχεία πελάτη (αναγνώριση αποθηκευμένων καρτών Viva), επιβεβαίωση α…"
+    },
+    {
+     "hash": "0088511",
+     "date": "2026-10-10T10:02:35+03:00",
+     "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
+    },
+    {
+     "hash": "7ecfe1d",
+     "date": "2026-10-08T10:19:04+03:00",
+     "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
+    },
+    {
+     "hash": "413b738",
+     "date": "2026-10-04T09:19:04+03:00",
+     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
+    },
+    {
+     "hash": "781aef2",
+     "date": "2026-10-03T11:29:38+03:00",
+     "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
+    },
     {
      "hash": "9c97666",
      "date": "2026-10-03T08:36:00+03:00",
      "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
     },
     {
-     "hash": "31f9efa",
-     "date": "2026-09-21T15:43:41+03:00",
-     "text": "Φωνή του Ερμή: ElevenLabs ως δεύτερος πάροχος, με επιλογή του super admin"
+     "hash": "6561fd3",
+     "date": "2026-10-02T17:11:55+03:00",
+     "text": "Φάση 0"
     },
     {
-     "hash": "bf3aede",
-     "date": "2026-09-13T12:35:05+03:00",
-     "text": "SoftOne settings: only URL/App ID/username/password required; company, branch, module and refid picked from the login objs via «Σύνδεση & ανάκτηση»; URL accepts full s1services endpoint or oncloud serial"
-    },
-    {
-     "hash": "2e479cd",
-     "date": "2026-09-13T12:18:45+03:00",
-     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
-    },
-    {
-     "hash": "d73bc06",
-     "date": "2026-09-13T12:11:50+03:00",
-     "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
-    },
-    {
-     "hash": "5e2365e",
-     "date": "2026-09-13T11:31:18+03:00",
-     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
+     "hash": "5786fe8",
+     "date": "2026-10-02T14:13:29+03:00",
+     "text": "Ερμής, φωνή: σωστά ελληνικά (αριθμοί, αρκτικόλεξα, ερωτήσεις), χρωματισμός ανά πρόταση, χωρίς αυτόματη ενεργοποίηση"
     }
    ],
-   "updatedAt": "2026-10-03T08:36:00+03:00",
-   "shots": {}
+   "updatedAt": "2026-10-10T14:00:00+03:00",
+   "shots": {
+    "desktop": "/api/help-shot/settings-d.jpg",
+    "mobile": "/api/help-shot/settings-m.jpg"
+   }
   },
   {
    "route": "/admin/settings/[section]",
@@ -1918,25 +2141,65 @@
    "perm": "super-admin",
    "nav": null,
    "dynamic": true,
-   "helpKeys": [],
+   "helpKeys": [
+    "settings.groups",
+    "settings.advanced",
+    "settings.test",
+    "settings.rail"
+   ],
    "changes": [
+    {
+     "hash": "e304c31",
+     "date": "2026-10-10T14:00:00+03:00",
+     "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
+    },
+    {
+     "hash": "639d1fa",
+     "date": "2026-10-10T13:27:32+03:00",
+     "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…"
+    },
+    {
+     "hash": "f8be0f1",
+     "date": "2026-10-10T10:14:27+03:00",
+     "text": "Πληρωμές μέσω Viva Smart Checkout: κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Klarna (ενεργοποίηση ανά τρόπο), redirect με προεπιλεγμένο τρόπο και στοιχεία πελάτη (αναγνώριση αποθηκευμένων καρτών Viva), επιβεβαίωση α…"
+    },
+    {
+     "hash": "0088511",
+     "date": "2026-10-10T10:02:35+03:00",
+     "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
+    },
+    {
+     "hash": "7ecfe1d",
+     "date": "2026-10-08T10:19:04+03:00",
+     "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
+    },
+    {
+     "hash": "413b738",
+     "date": "2026-10-04T09:19:04+03:00",
+     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
+    },
+    {
+     "hash": "781aef2",
+     "date": "2026-10-03T11:29:38+03:00",
+     "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
+    },
     {
      "hash": "9c97666",
      "date": "2026-10-03T08:36:00+03:00",
      "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
     },
     {
-     "hash": "2e479cd",
-     "date": "2026-09-13T12:18:45+03:00",
-     "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
+     "hash": "6561fd3",
+     "date": "2026-10-02T17:11:55+03:00",
+     "text": "Φάση 0"
     },
     {
-     "hash": "5e2365e",
-     "date": "2026-09-13T11:31:18+03:00",
-     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
+     "hash": "5786fe8",
+     "date": "2026-10-02T14:13:29+03:00",
+     "text": "Ερμής, φωνή: σωστά ελληνικά (αριθμοί, αρκτικόλεξα, ερωτήσεις), χρωματισμός ανά πρόταση, χωρίς αυτόματη ενεργοποίηση"
     }
    ],
-   "updatedAt": "2026-10-03T08:36:00+03:00",
+   "updatedAt": "2026-10-10T14:00:00+03:00",
    "shots": {}
   },
   {
@@ -1975,7 +2238,10 @@
     }
    ],
    "updatedAt": "2026-09-14T16:46:46+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/softone-d.jpg",
+    "mobile": "/api/help-shot/softone-m.jpg"
+   }
   },
   {
    "route": "/admin/softone/[kind]",
@@ -2043,7 +2309,10 @@
     }
    ],
    "updatedAt": "2026-09-14T16:46:46+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/softone.brand.logos-d.jpg",
+    "mobile": "/api/help-shot/softone.brand.logos-m.jpg"
+   }
   },
   {
    "route": "/admin/softone/catalog",
@@ -2091,7 +2360,10 @@
     }
    ],
    "updatedAt": "2026-09-21T13:55:15+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/softone.catalog-d.jpg",
+    "mobile": "/api/help-shot/softone.catalog-m.jpg"
+   }
   },
   {
    "route": "/admin/softone/customers",
@@ -2152,7 +2424,10 @@
     }
    ],
    "updatedAt": "2026-09-14T14:58:39+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/softone.sync-d.jpg",
+    "mobile": "/api/help-shot/softone.sync-m.jpg"
+   }
   },
   {
    "route": "/admin/staff",
@@ -2213,7 +2488,10 @@
     }
    ],
    "updatedAt": "2026-10-04T13:15:44+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/stickers-d.jpg",
+    "mobile": "/api/help-shot/stickers-m.jpg"
+   }
   },
   {
    "route": "/admin/stickers/[id]",
@@ -2258,7 +2536,10 @@
     }
    ],
    "updatedAt": "2026-10-04T13:15:44+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/stickers.kanones-d.jpg",
+    "mobile": "/api/help-shot/stickers.kanones-m.jpg"
+   }
   },
   {
    "route": "/admin/stickers/kanones/[id]",
@@ -2306,7 +2587,10 @@
     }
    ],
    "updatedAt": "2026-10-04T12:11:34+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/stores-d.jpg",
+    "mobile": "/api/help-shot/stores-m.jpg"
+   }
   },
   {
    "route": "/admin/stores/[id]",
@@ -2349,10 +2633,31 @@
     }
    ],
    "updatedAt": "2026-10-10T19:26:28+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/ypiresies-d.jpg",
+    "mobile": "/api/help-shot/ypiresies-m.jpg"
+   }
   }
  ],
  "recent": [
+  {
+   "hash": "e398f2c",
+   "date": "2026-10-11T02:53:30+03:00",
+   "text": "Αριστερό μενού διαχείρισης χωρίς δικό του scroller: παίρνει όσο ύψος χρειάζεται και κυλά μαζί με τη σελίδα",
+   "routes": []
+  },
+  {
+   "hash": "c4dd688",
+   "date": "2026-10-11T02:49:41+03:00",
+   "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/help",
+    "/admin/help/p/[slug]",
+    "/admin/help/t/[slug]"
+   ]
+  },
   {
    "hash": "d2b1624",
    "date": "2026-10-11T02:32:03+03:00",
@@ -2676,24 +2981,6 @@
    "date": "2026-10-10T09:03:40+03:00",
    "text": "ProductEditor: only",
    "routes": []
-  },
-  {
-   "hash": "bdcfc76",
-   "date": "2026-10-10T09:03:18+03:00",
-   "text": "AR: η γραμμή της διαχείρισης ως κοινή συνάρτηση (arRowDataFor), για χρήση και στη σελίδα προϊόντος",
-   "routes": [
-    "/admin",
-    "/admin/ar"
-   ]
-  },
-  {
-   "hash": "2666dd2",
-   "date": "2026-10-10T09:02:18+03:00",
-   "text": "EPREL: αναζήτηση για ένα προϊόν (ίδια λογική με τη μαζική) + server action",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
   }
  ],
  "helpKeys": {
@@ -2714,6 +3001,15 @@
   ],
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "settings.groups": [
+   "components/admin/SettingsForm.tsx"
+  ],
+  "settings.advanced": [
+   "components/admin/SettingsForm.tsx"
+  ],
+  "settings.test": [
+   "components/admin/SettingsForm.tsx"
   ],
   "editor.undo": [
    "components/admin/cms/BrandStoreEditor.tsx",
@@ -2757,6 +3053,21 @@
   ],
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "settings.search": [
+   "components/admin/settings/SettingsIndex.tsx"
+  ],
+  "settings.attention": [
+   "components/admin/settings/SettingsIndex.tsx"
+  ],
+  "settings.sections": [
+   "components/admin/settings/SettingsIndex.tsx"
+  ],
+  "settings.features": [
+   "components/admin/settings/SettingsIndex.tsx"
+  ],
+  "settings.rail": [
+   "components/admin/settings/SettingsRail.tsx"
   ]
  }
 }
