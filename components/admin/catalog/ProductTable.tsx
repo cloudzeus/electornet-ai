@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, ImageOff } from "lucide-react";
 import { ProductPeek, loadProductPeek } from "./ProductPeek";
+import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
 import { sourceOf } from "./sources";
 
 export type ProductRow = {
-  id: string; title: string; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean; isSet: boolean;
+  id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean; isSet: boolean;
   thumb: string | null; photos: number; lowMain: boolean; specs: number;
   price: number | null; offer: number | null; stock: number; sold: number;
   energy: { cls: string; source: string | null } | null; energyNeeded: boolean; dims: number; dimStatus: string | null;
@@ -57,7 +58,10 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
  * ταξινόμηση, εγγραφές ανά σελίδα, επιλογή για μαζική προσφορά και άνοιγμα κάθε γραμμής (▾) σε καρτέλες με όλη την
  * εικόνα του προϊόντος. Στήλες και πλάτη θυμάται ο browser.
  */
-export function ProductTable({ rows, sort, dir, query, perPage, total, from, canPromo }: { rows: ProductRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canPromo: boolean }) {
+const ctx = (r: ProductRow) => ({ id: r.id, title: r.title, slug: r.slug, active: r.active, sku: r.sku, ean: r.ean, erpCode: r.erpCode, fromS1: r.fromS1, energyNeeded: r.energyNeeded });
+
+export function ProductTable({ rows, sort, dir, query, perPage, total, from, canPromo, can }: { rows: ProductRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canPromo: boolean; can: RowCan }) {
+  const { setToast, bar } = useToast();
   const [cols, setCols] = useState<string[]>(DEFAULT);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -100,8 +104,9 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
     const up = (ev: PointerEvent) => { setW(c.id, w0 + ev.clientX - x0, true); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.documentElement.classList.remove("cursor-col-resize"); };
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); document.documentElement.classList.add("cursor-col-resize");
   };
-  const lead = canPromo ? 76 : 40;
+  const lead = (canPromo ? 76 : 40) + 44;
   const tableW = lead + shown.reduce((a, c) => a + wOf(c), 0);
+  const span = shown.length + (canPromo ? 3 : 2);
 
   return (
     <div data-help="catalog.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -129,7 +134,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
       </div>
       <div ref={scrollRef} className="overflow-x-auto">
         <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
-          <colgroup><col style={{ width: 40 }} />{canPromo && <col style={{ width: 36 }} />}{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}</colgroup>
+          <colgroup><col style={{ width: 40 }} />{canPromo && <col style={{ width: 36 }} />}{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
             <tr>
               <th className="p-0" aria-label="Άνοιγμα γραμμής" />
@@ -148,6 +153,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
                   </th>
                 );
               })}
+              <th data-help="catalog.actions" className="sticky right-0 bg-eu-surface p-0" aria-label="Ενέργειες" />
             </tr>
           </thead>
           <tbody>
@@ -159,22 +165,25 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
                     <td className="px-1 py-0.5"><button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadProductPeek(r.id)} onFocus={() => void loadProductPeek(r.id)} aria-expanded={isOpen} aria-controls={`ppeek-${r.id}`} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.title}`} className={`size-8 grid place-items-center rounded-full ${isOpen ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button></td>
                     {canPromo && <td className="px-1"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή για προσφορά: ${r.title}`} className="size-4 accent-eu-navy" /></td>}
                     {shown.map((c) => <td key={c.id} title={c.title?.(r)} className={`px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0 ${c.right ? "text-right" : ""}`}><span className={`flex min-w-0 ${c.right ? "justify-end" : ""}`}>{c.cell(r)}</span></td>)}
+                    <td className={`sticky right-0 px-1 py-0.5 ${isOpen ? "bg-eu-chip" : "bg-white"}`}><ProductRowActions r={ctx(r)} can={can} onToast={setToast} /></td>
                   </tr>
-                  {isOpen && <tr><td colSpan={shown.length + (canPromo ? 2 : 1)} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><ProductPeek id={r.id} canPromo={canPromo} /></div></td></tr>}
+                  {isOpen && <tr><td colSpan={span} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><ProductPeek id={r.id} canPromo={canPromo} /></div></td></tr>}
                 </Fragment>
               );
             })}
-            {!rows.length && <tr><td colSpan={shown.length + (canPromo ? 2 : 1)} className="p-8 text-center text-eu-muted">Κανένα προϊόν με αυτά τα κριτήρια.</td></tr>}
+            {!rows.length && <tr><td colSpan={span} className="p-8 text-center text-eu-muted">Κανένα προϊόν με αυτά τα κριτήρια.</td></tr>}
           </tbody>
         </table>
       </div>
+      {bar}
     </div>
   );
 }
 
 /** Λίστα προϊόντων για κινητό/στενή οθόνη: κάρτες με τα βασικά και ▾ που ανοίγει τις ίδιες καρτέλες. */
-export function ProductCards({ rows, canPromo }: { rows: ProductRow[]; canPromo: boolean }) {
+export function ProductCards({ rows, canPromo, can }: { rows: ProductRow[]; canPromo: boolean; can: RowCan }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const { setToast, bar } = useToast();
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
     <ul data-help="catalog.cards" className="m-0 p-0 list-none rounded-2xl bg-white border border-eu-line divide-y divide-eu-line overflow-hidden">
@@ -190,6 +199,7 @@ export function ProductCards({ rows, canPromo }: { rows: ProductRow[]; canPromo:
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[length:var(--fs-13)]"><Price r={r} /><span className={r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}>{r.stock > 0 ? `${r.stock} τεμ.` : "κατόπιν παρ."}</span><Energy r={r} />{!r.photos && <span className="text-eu-red font-bold">χωρίς φωτο</span>}</span>
               </span>
               <span className="grid justify-items-end gap-1">
+                <ProductRowActions r={ctx(r)} can={can} onToast={setToast} />
                 <button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadProductPeek(r.id)} aria-expanded={isOpen} aria-controls={`ppeek-${r.id}`} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.title}`} className={`size-11 grid place-items-center rounded-full border ${isOpen ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink-3"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button>
                 {canPromo && <label className="size-11 grid place-items-center"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή για προσφορά: ${r.title}`} className="size-5 accent-eu-navy" /></label>}
               </span>
@@ -199,6 +209,7 @@ export function ProductCards({ rows, canPromo }: { rows: ProductRow[]; canPromo:
         );
       })}
       {!rows.length && <li className="p-8 text-center text-eu-muted">Κανένα προϊόν με αυτά τα κριτήρια.</li>}
+      {bar}
     </ul>
   );
 }

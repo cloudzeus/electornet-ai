@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { ProductActions } from "@/components/admin/catalog/ProductActions";
+import { PromoPicker } from "@/components/admin/catalog/QuickActions";
 import { ProductSources, type SourcesData } from "@/components/admin/catalog/ProductSources";
 import { warrantyFromSpecs } from "@/lib/warranty/policy";
 import { productOverview } from "@/lib/catalog/product-overview";
@@ -128,31 +129,39 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   );
 
   return (
-    <div className="@container grid gap-3 min-w-0">
-      <div className="grid gap-1">
-        <Link href="/admin/catalog" className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline justify-self-start"><ArrowLeft className="size-4" aria-hidden /> Όλα τα προϊόντα</Link>
-        <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Package className="size-3.5" aria-hidden /> {path}</div>
-        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] text-balance">{p.title}</h2>
-        <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
-          <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
-          {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
-          <span className="text-eu-muted">κωδικός {p.sku}{p.ean ? ` · EAN ${p.ean}` : ""}{p.brand?.name ? ` · ${p.brand.name}` : ""}</span>
+    <div className="@container grid gap-2.5 min-w-0">
+      <header className="grid gap-1 min-w-0">
+        <nav aria-label="Διαδρομή" className="flex flex-wrap items-center gap-x-1.5 text-[length:var(--fs-12)] text-eu-muted">
+          <Link href="/admin/catalog" className="inline-flex items-center gap-1 min-h-11 md:min-h-7 font-bold text-eu-blue hover:underline"><ArrowLeft className="size-3.5" aria-hidden /> Προϊόντα</Link>
+          {pathNames.map((n) => <span key={n} className="inline-flex items-center gap-1.5"><span aria-hidden>/</span>{n}</span>)}
+        </nav>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="grid gap-1 min-w-0 flex-1 basis-[22rem]">
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight text-balance">{p.title}</h2>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[length:var(--fs-12)]">
+              <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
+              {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
+              <span className="text-eu-ink-3">{p.brand?.name}</span>
+              <span className="text-eu-muted font-mono">{p.sku}{p.ean ? ` · ${p.ean}` : ""}</span>
+            </div>
+          </div>
+          <div data-help="product.actions" className="shrink-0">
+            <ProductActions productId={p.id} title={p.title} siteHref={p.active ? `/proion/${p.slug}` : null} canPromo={can(user.permissions, "catalog.promos.write")} canSoftone={fromS1 && canWrite}
+              codes={[{ label: "κωδικού", value: p.sku }, ...(p.ean ? [{ label: "EAN", value: p.ean }] : []), ...(p.erpCode ? [{ label: "MTRL", value: p.erpCode }] : [])]}
+              modals={{
+                ...(can(user.permissions, "catalog.promos.write") ? { promo: <div className="@container"><PromoPicker productId={p.id} /></div> } : {}),
+                texts: editor(["texts", "specs"]),
+                dims: editor(["dims"]),
+                warranty: editor(["basics", "warranty"]),
+                energy: <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />,
+                stickers: <ProductStickersAdmin productId={p.id} initial={manualStickers} auto={(shop?.stickers ?? []).filter((s) => s.source !== "manual")} canWrite={canWrite} />,
+              }} />
+          </div>
         </div>
-        <div data-help="product.actions" className="pt-1">
-          <ProductActions productId={p.id} title={p.title} siteHref={p.active ? `/proion/${p.slug}` : null} canPromo={can(user.permissions, "catalog.promos.write")} canSoftone={fromS1 && canWrite}
-            codes={[{ label: "κωδικού", value: p.sku }, ...(p.ean ? [{ label: "EAN", value: p.ean }] : []), ...(p.erpCode ? [{ label: "MTRL", value: p.erpCode }] : [])]}
-            modals={{
-              texts: editor(["texts", "specs"]),
-              dims: editor(["dims"]),
-              warranty: editor(["basics", "warranty"]),
-              energy: <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />,
-              stickers: <ProductStickersAdmin productId={p.id} initial={manualStickers} auto={(shop?.stickers ?? []).filter((s) => s.source !== "manual")} canWrite={canWrite} />,
-            }} />
-        </div>
-      </div>
+      </header>
 
-      <div className="grid gap-3 @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:items-start">
-        <div className="grid gap-3 min-w-0">
+      <div className="grid gap-2.5 @5xl:grid-cols-[minmax(0,1fr)_15rem] @5xl:items-start">
+        <div className="grid gap-2.5 min-w-0">
           <ReadinessBar r={r} href={href} />
           <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={set ? [] : ["set"]} />
 
@@ -188,13 +197,15 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           </>)}
 
           {tab === "dims" && (<>
-            {editor(["dims"])}
+            <div className="grid gap-2.5 @4xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
+              <div className="grid gap-2.5 min-w-0">{editor(["dims"])}</div>
+              <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />
+            </div>
             {shop && arApplies && (
-              <Section title="Δες το στον χώρο σου (AR)" hint="Το στερεό φτιάχνεται από τις διαστάσεις· η «Όψη AR» (καρτέλα Εικόνες) ντύνει την πρόσοψή του.">
-                <ArRow row={arRowDataFor(shop, arRow, arCats)} open />
+              <Section title="Δες το στον χώρο σου (AR)" hint="Το στερεό φτιάχνεται από τις διαστάσεις. Η «Όψη AR» (καρτέλα Εικόνες) ντύνει την πρόσοψή του.">
+                <ArRow row={arRowDataFor(shop, arRow, arCats)} />
               </Section>
             )}
-            <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />
           </>)}
 
           {tab === "commerce" && (<>

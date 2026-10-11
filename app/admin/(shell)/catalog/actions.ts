@@ -238,3 +238,24 @@ export async function productPeekAction(id: string) {
   const { productPeek } = await import("@/lib/catalog/product-peek");
   return productPeek(id);
 }
+
+/** Οι ανοιχτές προσφορές για το «Προσθήκη σε προσφορά» του μενού Ενέργειες (μόνο ανάγνωση). */
+export async function productPromoChoicesAction(productId: string) {
+  await requirePermission("catalog.promos.write");
+  const { promoChoices } = await import("@/lib/promo/quick-add");
+  return promoChoices(productId);
+}
+
+/** Προσθήκη / αφαίρεση του προϊόντος σε προσφορά — ίδια αποθήκευση με τον οδηγό (έγκριση όπου χρειάζεται). */
+export async function setProductPromoAction(productId: string, promoId: string, opts: { remove?: boolean; price?: number | null }) {
+  const user = await requirePermission("catalog.promos.write");
+  const { hasPermission } = await import("@/lib/rbac/guard");
+  const { setProductInPromo } = await import("@/lib/promo/quick-add");
+  const r = await setProductInPromo(productId, promoId, opts, { id: user.id, canApprove: hasPermission(user, "catalog.promos.approve") });
+  if (r.ok) {
+    await audit(user.id, opts.remove ? "promo.product.remove" : "promo.product.add", "Promotion", promoId, null, { productId, price: opts.price ?? null, status: r.status });
+    revalidatePath(path(productId));
+    revalidatePath("/admin/prosfores");
+  }
+  return r;
+}

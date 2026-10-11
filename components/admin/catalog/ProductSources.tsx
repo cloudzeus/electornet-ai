@@ -9,7 +9,7 @@ export type SourcesData = {
   warranty: { months: number; from: "specs" | "softone" | "default"; text: string | null; source: string | null };
   canFix: { texts: boolean; dims: boolean; warranty: boolean; energy: boolean };
 };
-const row = "grid grid-cols-[8.5rem_minmax(0,1fr)_auto] gap-x-2 items-center px-2.5 py-2 text-[length:var(--fs-13)]";
+const row = "grid grid-cols-[8rem_minmax(0,1fr)_auto] gap-x-2 items-center px-2.5 py-1.5 text-[length:var(--fs-13)]";
 
 /**
  * «Πηγές πληροφοριών»: από πού έρχεται κάθε πληροφορία του προϊόντος, με το ίδιο χρώμα παντού (EPREL πράσινο, SoftOne
@@ -19,9 +19,9 @@ export function ProductSources({ d }: { d: SourcesData }) {
   const total = d.specs.reduce((a, s) => a + s.n, 0);
   const W = { specs: "Χαρακτηριστικά προϊόντος", softone: "SoftOne (GUARTIME)", default: "Νόμιμη 2ετής (καμία δήλωση)" } as const;
   return (
-    <section data-help="product.sources" aria-labelledby="ps-h" className="rounded-2xl bg-white border border-eu-line p-3 @md:p-4 grid gap-2 min-w-0">
+    <section data-help="product.sources" aria-labelledby="ps-h" className="rounded-xl bg-white border border-eu-line p-3 grid gap-2 min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id="ps-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Πηγές πληροφοριών</h3>
+        <h3 id="ps-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-14)]">Πηγές πληροφοριών</h3>
         <ul className="m-0 p-0 list-none flex flex-wrap gap-x-3 gap-y-1 text-eu-muted text-[length:var(--fs-12)]" aria-label="Υπόμνημα πηγών">
           {(Object.keys(SOURCES) as SourceKey[]).filter((k) => k !== "other").map((k) => <li key={k} className="inline-flex items-center gap-1"><span className={`size-2.5 rounded-full ${SOURCES[k].dot}`} aria-hidden />{SOURCES[k].label}</li>)}
         </ul>

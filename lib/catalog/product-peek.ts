@@ -22,7 +22,7 @@ export async function productPeek(id: string) {
     productOverview(id),
     db.media.findMany({ where: { productId: id, kind: "image" }, orderBy: { sortNo: "asc" }, select: { id: true, url: true, thumbUrl: true, width: true, height: true, hidden: true, source: true } }),
     db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { groupName: true, key: true, value: true, source: true } }),
-    db.productDimension.findMany({ where: { productId: id }, orderBy: { source: "asc" }, select: { source: true, kind: true, w: true, h: true, d: true, warning: true } }),
+    db.productDimension.findMany({ where: { productId: id }, orderBy: { source: "asc" }, select: { source: true, kind: true, w: true, h: true, d: true, warning: true, rawKey: true, rawValue: true } }),
     p.source === "softone" && Number.isInteger(mtrl) ? db.s1Item.findUnique({ where: { mtrl }, select: { code: true, name: true, barcode: true, factoryCode: true, active: true, priceRetail: true, eshopPrice: true, stockCentral: true, stockByWh: true, availText: true, extWarranty: true, guaranteeMonths: true, weightKg: true, widthCm: true, heightCm: true, lengthCm: true, shortDesc: true, longDesc: true, onOrder: true, missing: true, s1UpdatedAt: true, syncedAt: true } }) : null,
   ]);
   const pathNames = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter((x): x is string => !!x);

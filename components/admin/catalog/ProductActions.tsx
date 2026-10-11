@@ -7,8 +7,9 @@ import { createPortal } from "react-dom";
 import { MoreVertical, FileText, Ruler, ShieldCheck, Zap, Tag, RefreshCw, ExternalLink, BadgePercent, Copy, X, Loader2, ChevronDown } from "lucide-react";
 import { pullFromSoftone } from "@/app/admin/(shell)/catalog/actions";
 
-export type ProductModal = "texts" | "dims" | "warranty" | "energy" | "stickers";
+export type ProductModal = "promo" | "texts" | "dims" | "warranty" | "energy" | "stickers";
 const MODALS: Record<ProductModal, { label: string; hint: string; Icon: typeof FileText; wide?: boolean }> = {
+  promo: { label: "Προσθήκη σε προσφορά", hint: "σε ζωντανή ή προγραμματισμένη, ή αφαίρεση", Icon: BadgePercent, wide: true },
   texts: { label: "Κείμενα & χαρακτηριστικά", hint: "όνομα, περιγραφές, χαρακτηριστικά (SoftOne + eshop)", Icon: FileText, wide: true },
   dims: { label: "Διαστάσεις & βάρος", hint: "για AR, αποστολή και «χωράει;»", Icon: Ruler },
   warranty: { label: "Εγγύηση & βασικά στοιχεία", hint: "μήνες εγγύησης, επέκταση, barcode, διαθεσιμότητα", Icon: ShieldCheck },
@@ -57,20 +58,20 @@ export function ProductActions({ productId, title, modals, siteHref, canPromo, c
     items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
   };
   const refresh = () => start(async () => { const r = await pullFromSoftone(productId); setMsg({ ok: r.ok, text: r.message }); router.refresh(); });
-  const item = "w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-[length:var(--fs-14)] hover:bg-eu-surface focus-visible:bg-eu-surface outline-none disabled:opacity-40";
+  const item = "w-full flex items-start gap-2.5 rounded-md px-2 py-1.5 text-left text-[length:var(--fs-13)] hover:bg-eu-surface focus-visible:bg-eu-surface outline-none disabled:opacity-40";
   const meta = open ? MODALS[open] : null;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={!!pos} onClick={() => { if (pos) return close(); const r = btn.current!.getBoundingClientRect(); setPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); }} className={`inline-flex items-center gap-1.5 rounded-full px-4 min-h-10 font-bold text-[length:var(--fs-14)] ${pos ? "bg-eu-navy text-white" : "bg-eu-navy/10 text-eu-navy hover:bg-eu-navy hover:text-white"}`}>
+        <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={!!pos} onClick={() => { if (pos) return close(); const r = btn.current!.getBoundingClientRect(); setPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); }} className={`inline-flex items-center gap-1.5 rounded-full px-3.5 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] ${pos ? "bg-eu-navy text-white" : "bg-eu-navy/10 text-eu-navy hover:bg-eu-navy hover:text-white"}`}>
           {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <MoreVertical className="size-4" aria-hidden />} Ενέργειες <ChevronDown className={`size-4 transition-transform ${pos ? "rotate-180" : ""}`} aria-hidden />
         </button>
         {msg && <span role="status" className={`text-[length:var(--fs-13)] font-semibold ${msg.ok ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</span>}
       </div>
       {pos && createPortal(
-        <div ref={menu} role="menu" aria-label={`Ενέργειες: ${title}`} onKeyDown={keyNav} className="fixed z-[70] w-[22rem] max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-eu-line bg-white p-1.5 shadow-[var(--shadow-raised)] grid gap-0.5" style={{ top: pos.top, right: Math.max(8, pos.right) }}>
-          <span className="px-2.5 pt-1 pb-1 font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Διορθώσεις</span>
+        <div ref={menu} role="menu" aria-label={`Ενέργειες: ${title}`} onKeyDown={keyNav} className="fixed z-[70] w-[20rem] max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-lg border border-eu-line bg-white p-1 shadow-[var(--shadow-raised)] grid" style={{ top: pos.top, right: Math.max(8, pos.right) }}>
+          <span className="px-2 pt-1 pb-0.5 font-bold text-eu-muted text-[length:var(--fs-12)]">Σε παράθυρο</span>
           {(Object.keys(MODALS) as ProductModal[]).filter((k) => modals[k]).map((k) => { const m = MODALS[k]; return (
             <button key={k} type="button" role="menuitem" onClick={() => { close(); setOpen(k); }} className={item}><m.Icon className="size-4 mt-0.5 text-eu-blue shrink-0" aria-hidden /><span className="grid"><b>{m.label}</b><span className="text-eu-muted text-[length:var(--fs-12)]">{m.hint}</span></span></button>
           ); })}
@@ -83,14 +84,14 @@ export function ProductActions({ productId, title, modals, siteHref, canPromo, c
         document.body,
       )}
       {/* <dialog> με showModal() ανεβαίνει στο top layer — δεν χρειάζεται portal */}
-      <dialog ref={dlg} onClose={() => setOpen(null)} aria-label={meta ? meta.label : "Διόρθωση"} className={`m-auto ${meta?.wide ? "w-[min(60rem,calc(100vw-1.5rem))]" : "w-[min(44rem,calc(100vw-1.5rem))]"} max-h-[calc(100dvh-2rem)] rounded-2xl p-0 backdrop:bg-black/40`}>
+      <dialog ref={dlg} onClose={() => setOpen(null)} aria-label={meta ? meta.label : "Διόρθωση"} className={`m-auto ${meta?.wide ? "w-[min(60rem,calc(100vw-1.5rem))]" : "w-[min(44rem,calc(100vw-1.5rem))]"} max-h-[calc(100dvh-2rem)] rounded-xl p-0 backdrop:bg-eu-ink/45 shadow-[var(--shadow-overlay)]`}>
           {open && meta && (
             <div className="bg-white @container">
-              <div className="sticky top-0 z-10 flex items-start justify-between gap-2 bg-white border-b border-eu-line px-4 py-3">
-                <div className="grid min-w-0"><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] inline-flex items-center gap-2"><meta.Icon className="size-5 text-eu-blue" aria-hidden />{meta.label}</h3><span className="text-eu-muted text-[length:var(--fs-13)] truncate">{title}</span></div>
-                <button type="button" aria-label="Κλείσιμο" onClick={() => setOpen(null)} className="size-10 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button>
+              <div className="sticky top-0 z-10 flex items-start justify-between gap-2 bg-white border-b border-eu-line px-3 py-2">
+                <div className="grid min-w-0"><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><meta.Icon className="size-4 text-eu-blue" aria-hidden />{meta.label}</h3><span className="text-eu-muted text-[length:var(--fs-12)] truncate">{title}</span></div>
+                <button type="button" aria-label="Κλείσιμο" onClick={() => setOpen(null)} className="size-11 md:size-8 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-4" aria-hidden /></button>
               </div>
-              <div className="p-3 @md:p-4 grid gap-3">{modals[open]}</div>
+              <div className="p-3 grid gap-2.5">{modals[open]}</div>
             </div>
           )}
       </dialog>
