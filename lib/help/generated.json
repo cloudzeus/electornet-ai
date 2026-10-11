@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T08:47:34.645Z",
+ "generatedAt": "2026-10-11T08:48:01.429Z",
  "routes": [
   {
    "route": "/admin",
@@ -585,9 +585,15 @@
    "helpKeys": [
     "specs.tree",
     "specs.detail",
-    "specs.table"
+    "specs.table",
+    "specs.layers"
    ],
    "changes": [
+    {
+     "hash": "855cfdb",
+     "date": "2026-10-11T11:47:51+03:00",
+     "text": "Χαρακτηριστικά: νέος σχεδιασμός (ui-ux-pro-max, master-detail + progressive disclosure)"
+    },
     {
      "hash": "91d0809",
      "date": "2026-10-11T11:37:59+03:00",
@@ -632,14 +638,9 @@
      "hash": "de9a313",
      "date": "2026-09-21T11:02:07+03:00",
      "text": "Φωτογραφίες προϊόντων: εφάπαξ μαζική εισαγωγή από τον φάκελο του παλιού site (WebP → Bunny → Media)"
-    },
-    {
-     "hash": "e25c1c1",
-     "date": "2026-09-21T10:36:52+03:00",
-     "text": "Φίλτρα με τιμές: κάθε προϊόν παίρνει τιμή στα φίλτρα του τύπου του (ProductFacetValue)"
     }
    ],
-   "updatedAt": "2026-10-11T11:37:59+03:00",
+   "updatedAt": "2026-10-11T11:47:51+03:00",
    "shots": {}
   },
   {
@@ -2932,6 +2933,12 @@
  ],
  "recent": [
   {
+   "hash": "855cfdb",
+   "date": "2026-10-11T11:47:51+03:00",
+   "text": "Χαρακτηριστικά: νέος σχεδιασμός (ui-ux-pro-max, master-detail + progressive disclosure)",
+   "routes": []
+  },
+  {
    "hash": "91d0809",
    "date": "2026-10-11T11:37:59+03:00",
    "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)",
@@ -3272,12 +3279,6 @@
    "date": "2026-10-10T12:44:42+03:00",
    "text": "Λογαριασμός πελάτη με πραγματικά δεδομένα: παραγγελίες e-shop + αγορές καταστημάτων και παλιού e-shop, ραντεβού/service από τα αιτήματα, πληρωμές & δόσεις, επιστροφές (αίτημα RMA), συγκαταθέσεις (ιστορικό), στοιχεία, …",
    "routes": []
-  },
-  {
-   "hash": "f2b622a",
-   "date": "2026-10-10T12:25:44+03:00",
-   "text": "Εγγύηση: εγγύηση κατασκευαστή από την περιγραφή του ERP στη σελίδα προϊόντος",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3393,6 +3394,9 @@
    "components/admin/catalog/SpecManager.tsx"
   ],
   "specs.table": [
+   "components/admin/catalog/SpecManager.tsx"
+  ],
+  "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
   ],
   "editor.undo": [

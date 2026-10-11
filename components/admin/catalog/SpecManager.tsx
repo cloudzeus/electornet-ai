@@ -203,7 +203,7 @@ function Sheet({ open, onClose, title, sub, children }: { open: boolean; onClose
             <div className="grid min-w-0"><span className="text-eu-muted text-[length:var(--fs-12)] truncate">{sub}</span><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] leading-tight">{title}</h3></div>
             <button type="button" aria-label="Κλείσιμο" onClick={onClose} className="size-11 md:size-9 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button>
           </div>
-          <div className="overflow-y-auto overscroll-contain p-4 grid gap-4 content-start">{children}</div>
+          <div data-help="specs.layers" className="overflow-y-auto overscroll-contain p-4 grid gap-4 content-start">{children}</div>
         </div>
       )}
     </dialog>
