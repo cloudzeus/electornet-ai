@@ -28,9 +28,9 @@ const Card = ({ title, children, right }: { title: string; children: React.React
   <section className="rounded-2xl bg-white border border-eu-line p-5 grid gap-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">{title}</h3>{right}</div>{children}</section>
 );
 
-export function CustomerWorkspace({ customer, stores, perms, erpConfigured }: { customer: Any | null; stores: { id: string; name: string; city: string }[]; perms: { write: boolean; export: boolean; service: boolean }; erpConfigured: boolean }) {
+export function CustomerWorkspace({ customer, stores, perms, erpConfigured, initialTab }: { customer: Any | null; stores: { id: string; name: string; city: string }[]; perms: { write: boolean; export: boolean; service: boolean }; erpConfigured: boolean; initialTab?: string }) {
   const router = useRouter();
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>("profile");
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(() => (TABS.find(([k]) => k === initialTab)?.[0] ?? "profile"));
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const c = customer;

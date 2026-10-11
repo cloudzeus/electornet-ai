@@ -190,3 +190,10 @@ export async function regeocodeAddress(customerId: string, addressId: string) {
   paths(customerId);
   return r;
 }
+
+/** Η γρήγορη εικόνα ενός πελάτη για το άνοιγμα γραμμής στη λίστα (μόνο ανάγνωση). */
+export async function customerPeekAction(id: string) {
+  await requirePermission("customers.read");
+  const { customerPeek } = await import("@/lib/customers/peek");
+  return customerPeek(id);
+}

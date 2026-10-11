@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T01:42:35.843Z",
+ "generatedAt": "2026-10-11T06:56:42.449Z",
  "routes": [
   {
    "route": "/admin",
@@ -916,14 +916,21 @@
    "slug": "customers",
    "file": "app/admin/(shell)/customers/page.tsx",
    "title": "Πελάτες",
-   "doc": "Retail customers: search, filters, ERP link state.",
+   "doc": "Πελάτες: KPIs, αναζήτηση, φίλτρα με πλήθη, τοποθεσία (αναδιπλούμενη), και πυκνή λίστα όπου κάθε γραμμή ανοίγει σε όλη την εικόνα του πελάτη (στοιχεία, αγορές e-shop & SoftOne, αιτήματα, εγγυήσεις, πόντοι & συναινέσεις, SoftOne).",
    "perm": "customers.read",
    "nav": {
     "group": "Πωλήσεις & πελάτες",
     "label": "Πελάτες"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "customers.kpis",
+    "customers.filters",
+    "customers.list",
+    "customers.peek",
+    "customers.table",
+    "customers.location"
+   ],
    "changes": [
     {
      "hash": "ebc995f",
@@ -1387,6 +1394,11 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
      "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
@@ -1430,14 +1442,9 @@
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
-    },
-    {
-     "hash": "6e70d7b",
-     "date": "2026-10-02T21:52:49+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {}
   },
   {
@@ -1558,6 +1565,11 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "9d1f72e",
      "date": "2026-10-04T13:00:24+03:00",
      "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
@@ -1578,7 +1590,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-04T13:00:24+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.etiketes-d.jpg",
     "mobile": "/api/help-shot/prosfores.etiketes-m.jpg"
@@ -1633,6 +1645,11 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1648,7 +1665,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.imerologio-d.jpg",
     "mobile": "/api/help-shot/prosfores.imerologio-m.jpg"
@@ -1698,12 +1715,17 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
     }
    ],
-   "updatedAt": "2026-10-03T07:19:17+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.koina-d.jpg",
     "mobile": "/api/help-shot/prosfores.koina-m.jpg"
@@ -1725,6 +1747,11 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1740,7 +1767,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {}
   },
   {
@@ -1758,6 +1785,11 @@
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
     {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
@@ -1802,14 +1834,9 @@
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
-    },
-    {
-     "hash": "6e70d7b",
-     "date": "2026-10-02T21:52:49+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.new-d.jpg",
     "mobile": "/api/help-shot/prosfores.new-m.jpg"
@@ -1831,6 +1858,11 @@
    ],
    "changes": [
     {
+     "hash": "1368c63",
+     "date": "2026-10-11T04:42:52+03:00",
+     "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
+    },
+    {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
@@ -1851,7 +1883,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-11T04:42:52+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.prosomoiotis-d.jpg",
     "mobile": "/api/help-shot/prosfores.prosomoiotis-m.jpg"
@@ -2780,6 +2812,19 @@
  ],
  "recent": [
   {
+   "hash": "1368c63",
+   "date": "2026-10-11T04:42:52+03:00",
+   "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/etiketes",
+    "/admin/prosfores/imerologio",
+    "/admin/prosfores/koina",
+    "/admin/prosfores/kouponia"
+   ]
+  },
+  {
    "hash": "d9a30a4",
    "date": "2026-10-11T03:31:01+03:00",
    "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα",
@@ -3111,17 +3156,6 @@
     "/admin/catalog",
     "/admin/catalog/[id]"
    ]
-  },
-  {
-   "hash": "d955445",
-   "date": "2026-10-10T09:17:44+03:00",
-   "text": "AR: χωρίς διαστάσεις προϊόντος δεν υπάρχει AR (ούτε τυπικές κατηγορίας ή διαγώνιος τίτλου) + επιλογή κατηγοριών που συμμετέχουν από τη διαχείριση",
-   "routes": [
-    "/admin",
-    "/admin/ar",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
   }
  ],
  "helpKeys": {
@@ -3142,6 +3176,12 @@
   ],
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "customers.kpis": [
+   "app/admin/(shell)/customers/page.tsx"
+  ],
+  "customers.filters": [
+   "app/admin/(shell)/customers/page.tsx"
   ],
   "promo.perf": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
@@ -3218,6 +3258,18 @@
   "editor.preview": [
    "components/admin/cms/BrandStoreEditor.tsx",
    "components/admin/cms/HomeEditor.tsx"
+  ],
+  "customers.list": [
+   "components/admin/customers/CustomerList.tsx"
+  ],
+  "customers.peek": [
+   "components/admin/customers/CustomerList.tsx"
+  ],
+  "customers.table": [
+   "components/admin/customers/CustomerTable.tsx"
+  ],
+  "customers.location": [
+   "components/admin/customers/SegmentTools.tsx"
   ],
   "dash.refresh": [
    "components/admin/dashboard/Dashboard.tsx"

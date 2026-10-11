@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Map as MapIcon, Download, X, Store as StoreIcon } from "lucide-react";
+import { MapPin, Map as MapIcon, Download, X, Store as StoreIcon, ChevronDown } from "lucide-react";
 
 /** Location segmentation controls for the customers list: prefecture, store catchment, radius from a place; map toggle; CSV export of the segment. */
 export function SegmentTools({ regions, stores, current, center, matched, canExport, exportRows }: { regions: { value: string; count: number }[]; stores: { id: string; label: string; count: number }[]; current: { region: string; store: string; near: string; km: string; view: string } & Record<string, string>; center: { lat: number; lng: number; label: string } | null; matched: number; canExport: boolean; exportRows: { email: string | null; name: string; phone: string; city: string; region: string; newsletter: boolean; points: number }[] }) {
@@ -13,9 +13,14 @@ export function SegmentTools({ regions, stores, current, center, matched, canExp
   const active = current.region || current.store || current.near;
   const exportCsv = () => { const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`; const csv = ["email,name,phone,city,region,newsletter,points", ...exportRows.map((r) => [r.email, r.name, r.phone, r.city, r.region, r.newsletter ? "yes" : "no", r.points].map(esc).join(","))].join("\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })); a.download = `segment-${current.region || current.store || current.near || "all"}.csv`; a.click(); };
   return (
-    <div className="rounded-2xl bg-white border border-eu-line p-3 grid gap-2">
+    <details data-help="customers.location" open={!!active || current.view === "map"} className="group rounded-2xl bg-white border border-eu-line">
+      <summary className="list-none cursor-pointer flex flex-wrap items-center gap-2 px-3 min-h-12 [&::-webkit-details-marker]:hidden">
+        <MapPin className="size-4 text-eu-blue" aria-hidden /><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Τοποθεσία, χάρτης & εξαγωγή</span>
+        <span className="text-eu-ink-3 text-[length:var(--fs-13)] flex-1 min-w-0 truncate">{active ? [current.region, stores.find((x) => x.id === current.store)?.label, current.near && `${current.km} km από ${current.near}`].filter(Boolean).join(" · ") + ` · ${matched} πελάτες` : "νομός, κατάστημα ή ακτίνα γύρω από ένα σημείο"}</span>
+        <ChevronDown className="size-4 text-eu-muted transition-transform group-open:rotate-180" aria-hidden />
+      </summary>
+    <div className="px-3 pb-3 grid gap-2">
       <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-14)]">
-        <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink"><MapPin className="size-4 text-eu-blue" aria-hidden /> Segmentation ανά τοποθεσία</span>
         <form action="" className="flex flex-wrap items-center gap-2">
           {Object.entries(current).filter(([k, v]) => v && !["region", "store", "near", "km"].includes(k)).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
           <select name="region" defaultValue={current.region} className={field} aria-label="Νομός"><option value="">Όλοι οι νομοί</option>{regions.map((r) => <option key={r.value} value={r.value}>{r.value} ({r.count})</option>)}</select>
@@ -33,5 +38,6 @@ export function SegmentTools({ regions, stores, current, center, matched, canExp
         <span className="inline-flex items-center gap-1 text-eu-muted text-[length:var(--fs-13)]"><StoreIcon className="size-3.5" aria-hidden /> Κάθε διεύθυνση γεωκωδικοποιείται και δένεται με το κοντινότερο κατάστημα.</span>
       </div>
     </div>
+    </details>
   );
 }

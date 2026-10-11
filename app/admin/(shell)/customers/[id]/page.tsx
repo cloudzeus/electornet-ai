@@ -10,9 +10,10 @@ import { getS1Config } from "@/lib/softone";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Πελάτης" };
 
-export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const user = await requirePermission("customers.read");
   const { id } = await params;
+  const { tab } = await searchParams;
   const stores = await db.store.findMany({ where: { active: true }, orderBy: [{ region: "asc" }, { city: "asc" }], select: { id: true, name: true, city: true } });
   const perms = { write: can(user.permissions, "customers.write"), export: can(user.permissions, "customers.export"), service: can(user.permissions, "service.tickets.write") };
   if (id === "new") return (<><Link href="/admin/customers" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline"><ChevronLeft className="size-4" aria-hidden /> Πελάτες</Link><CustomerWorkspace customer={null} stores={stores} perms={perms} erpConfigured={false} /></>);
@@ -22,7 +23,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <Link href="/admin/customers" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline"><ChevronLeft className="size-4" aria-hidden /> Πελάτες</Link>
-      <CustomerWorkspace customer={j} stores={stores} perms={perms} erpConfigured={!!(await getS1Config())} />
+      <CustomerWorkspace customer={j} stores={stores} perms={perms} erpConfigured={!!(await getS1Config())} initialTab={tab} />
     </>
   );
 }
