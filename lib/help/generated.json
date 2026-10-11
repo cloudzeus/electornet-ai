@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T09:03:21.733Z",
+ "generatedAt": "2026-10-11T09:10:36.178Z",
  "routes": [
   {
    "route": "/admin",
@@ -641,7 +641,10 @@
     }
    ],
    "updatedAt": "2026-10-11T11:54:13+03:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.specs-d.jpg",
+    "mobile": "/api/help-shot/catalog.specs-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/templates",
@@ -658,6 +661,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "ef0394f",
+     "date": "2026-10-11T12:04:10+03:00",
+     "text": "Templates προμηθευτών: Word «Οδηγίες συμπλήρωσης» σε κάθε πακέτο"
+    },
+    {
      "hash": "a893d41",
      "date": "2026-10-04T11:10:48+03:00",
      "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
@@ -668,7 +676,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-10-04T11:10:48+03:00",
+   "updatedAt": "2026-10-11T12:04:10+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -2938,6 +2946,18 @@
  ],
  "recent": [
   {
+   "hash": "66b7487",
+   "date": "2026-10-11T12:10:22+03:00",
+   "text": "Βοήθεια: screenshots υπολογιστή και κινητού για Προϊόντα, Χαρακτηριστικά και Templates & excel",
+   "routes": []
+  },
+  {
+   "hash": "ef0394f",
+   "date": "2026-10-11T12:04:10+03:00",
+   "text": "Templates προμηθευτών: Word «Οδηγίες συμπλήρωσης» σε κάθε πακέτο",
+   "routes": []
+  },
+  {
    "hash": "f5e1d3a",
    "date": "2026-10-11T11:54:13+03:00",
    "text": "Χαρακτηριστικά: σειρά φίλτρων στο e-shop με drag & drop",
@@ -3265,24 +3285,6 @@
     "/admin",
     "/admin/apostoles",
     "/admin/apostoles/vouchers"
-   ]
-  },
-  {
-   "hash": "8c44bfe",
-   "date": "2026-10-10T13:42:24+03:00",
-   "text": "Μεγάλες συσκευές χωρίς courier: κανόνας ανά κατηγορία (ψυγεία, πλυντήρια, κουζίνες, κλιματιστικά…), βάρος συσκευασίας > 30 κ. ή διάσταση > 150 εκ. → μόνο ραντεβού ή παραλαβή",
-   "routes": [
-    "/admin",
-    "/admin/apostoles"
-   ]
-  },
-  {
-   "hash": "639d1fa",
-   "date": "2026-10-10T13:27:32+03:00",
-   "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…",
-   "routes": [
-    "/admin",
-    "/admin/epektasi-eggyisis"
    ]
   }
  ],
