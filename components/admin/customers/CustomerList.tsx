@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 import { ChevronDown, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Mail, Phone, MapPin, Building2, Store, Loader2, ShoppingBag, Wrench, ShieldCheck, Star, Link2, Activity, LayoutGrid, CircleAlert, Check, X, Undo2, FileText, StickyNote } from "lucide-react";
 import { customerPeekAction } from "@/app/admin/(shell)/customers/actions";
 import type { Peek } from "@/lib/customers/peek";
@@ -25,8 +26,11 @@ const STATUS: Record<string, [string, string]> = { active: ["Ενεργός", "b
  * Η λίστα πελατών: πυκνές γραμμές (σε στενή οθόνη κάρτες) με αγορές, SoftOne, πόντους, περιοχή, κατάσταση· κάθε γραμμή
  * ανοίγει από το βέλος σε πλήρη εικόνα του πελάτη με καρτέλες (φορτώνεται εκείνη τη στιγμή).
  */
-export function CustomerList({ rows, heads }: { rows: CustomerRow[]; heads: SortHead[] }) {
+export function CustomerList({ rows, heads, canWrite = false, erpOn = false }: { rows: CustomerRow[]; heads: SortHead[]; canWrite?: boolean; erpOn?: boolean }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<Toast>(null);
+  const [rev, setRev] = useState<Record<string, number>>({});
+  const closeToast = useCallback(() => setToast(null), []);
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   return (
     <div data-help="customers.list" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -54,7 +58,7 @@ export function CustomerList({ rows, heads }: { rows: CustomerRow[]; heads: Sort
                     <span className="text-eu-muted text-[length:var(--fs-12)] truncate">#{c.number} · {c.sub}{c.tags.length ? ` · ${c.tags.join(", ")}` : ""}</span>
                   </span>
                 </div>
-                <span className={`@5xl:hidden justify-self-end rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${stCls}`}>{st}</span>
+                <span className="@5xl:hidden justify-self-end inline-flex items-center gap-1"><span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${stCls}`}>{st}</span><CustomerActions c={{ id: c.id, name: c.name, email: c.email, phone: c.phone, erpLinked: c.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [c.id]: (m[c.id] ?? 0) + 1 }))} /></span>
                 <div className="col-start-2 col-span-2 @5xl:col-start-auto @5xl:col-span-1 min-w-0 grid text-[length:var(--fs-13)]">
                   <span className="truncate text-eu-ink-2">{c.email ?? <span className="text-eu-muted">χωρίς email</span>}</span>
                   <span className="text-eu-muted tabular-nums">{c.phone ?? "—"}{c.vat ? ` · ΑΦΜ ${c.vat}` : ""}</span>
@@ -72,17 +76,19 @@ export function CustomerList({ rows, heads }: { rows: CustomerRow[]; heads: Sort
                   <span className="hidden @5xl:flex flex-wrap items-center gap-1 text-[length:var(--fs-12)]"><span className={`rounded-full px-2 py-0.5 font-bold ${stCls}`}>{st}</span>{c.newsletter && <span className="text-eu-muted">newsletter</span>}{c.km != null && <span className="text-eu-muted">{c.km.toFixed(1)} km</span>}</span>
                 </div>
               </div>
-              {isOpen && <CustomerPeek id={c.id} />}
+              {isOpen && <CustomerPeek key={rev[c.id] ?? 0} id={c.id} />}
             </li>
           );
         })}
       </ul>
+      <ToastBar t={toast} onClose={closeToast} />
     </div>
   );
 }
 
 /** Μνήμη ανά πελάτη (για όσο μένει ανοιχτή η σελίδα) + προφόρτωση όταν ο δείκτης πάει στο βέλος, για άμεσο άνοιγμα. */
 const peekCache = new Map<string, Promise<Peek | null>>();
+export const invalidatePeek = (id: string) => { peekCache.delete(id); };
 export function loadPeek(id: string) { let p = peekCache.get(id); if (!p) { p = customerPeekAction(id).catch(() => { peekCache.delete(id); return null; }); peekCache.set(id, p); } return p; }
 
 const TABS = [

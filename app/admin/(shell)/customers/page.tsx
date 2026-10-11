@@ -3,6 +3,7 @@ import { Plus, Mail, Building2, Link2, AlertTriangle, Search, ShoppingBag, Histo
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
+import { getS1Config } from "@/lib/softone";
 import type { Prisma } from "@prisma/client";
 import { geocodeAddress, distanceKm } from "@/lib/stores/geocode";
 import { StoreMapClient } from "@/components/admin/stores/StoreMapClient";
@@ -78,6 +79,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const storeNames = storesWithCustomers.length ? await db.store.findMany({ where: { id: { in: storesWithCustomers.map((s) => s.nearestStoreId!) } }, select: { id: true, name: true, city: true } }) : [];
   const n = take === 50 ? "" : String(take);
   const keep = (o: Record<string, string>) => { const u = new URLSearchParams({ q, f, region, store, near, km, view, s, d, n, ...o }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };
+  const canWrite = can(user.permissions, "customers.write");
+  const erpOn = !!(await getS1Config());
   const pct = (x: number) => (all ? Math.round((x / all) * 100) : 0);
   const FILTERS = [
     { k: "", t: "Όλοι", n: all, I: null },
@@ -147,8 +150,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       {view === "map" && <StoreMapClient markers={exact.flatMap((c) => c.addresses.filter((a) => a.lat != null).map((a) => ({ id: a.id, lat: a.lat!, lng: a.lng!, label: `${c.lastName} ${c.firstName} · ${a.city}`, href: `/admin/customers/${c.id}`, tone: a.isDefault ? "navy" : "green" as const })))} />}
 
       {list.length ? <>
-        <div className="hidden @3xl:block"><CustomerTable rows={list} sort={sort} dir={dir} query={{ q, f, region, store, near, km: near ? km : "", view, s, d, n }} perPage={take} total={total} from={(page - 1) * take + 1} /></div>
-        <div className="@3xl:hidden"><CustomerList rows={list} heads={heads} /></div>
+        <div className="hidden @3xl:block"><CustomerTable rows={list} sort={sort} dir={dir} query={{ q, f, region, store, near, km: near ? km : "", view, s, d, n }} perPage={take} total={total} from={(page - 1) * take + 1} canWrite={canWrite} erpOn={erpOn} /></div>
+        <div className="@3xl:hidden"><CustomerList rows={list} heads={heads} canWrite={canWrite} erpOn={erpOn} /></div>
       </> : <p className="m-0 rounded-2xl bg-white border border-eu-line p-6 text-center text-eu-muted text-[length:var(--fs-15)]">Κανένας πελάτης με αυτά τα κριτήρια.{(q || f || region || store || near) && <> <Link href="/admin/customers" className="font-bold text-eu-blue hover:underline">Καθαρισμός φίλτρων</Link></>}</p>}
       {total > take && <div className="flex justify-center"><Pagination page={page} pages={Math.max(1, Math.ceil(total / take))} total={total} label="πελάτες" href={(n) => keep({ p: String(n) })} /></div>}
     </div>

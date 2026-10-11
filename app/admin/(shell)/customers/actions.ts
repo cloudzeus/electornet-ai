@@ -197,3 +197,27 @@ export async function customerPeekAction(id: string) {
   const { customerPeek } = await import("@/lib/customers/peek");
   return customerPeek(id);
 }
+
+/** Τα στοιχεία του πελάτη για τη γρήγορη διόρθωση από τη λίστα (ίδια μορφή με την πλήρη καρτέλα → saveCustomer). */
+export async function customerFormAction(id: string): Promise<(CustomerInput & { id: string; erpLinked: boolean }) | null> {
+  await requirePermission("customers.write");
+  const c = await db.customer.findUnique({ where: { id } });
+  if (!c) return null;
+  return {
+    id: c.id, erpLinked: !!c.erpTrdr, type: c.type === "business" ? "business" : "individual", email: c.email ?? "", firstName: c.firstName, lastName: c.lastName, company: c.company ?? "", vatNumber: c.vatNumber ?? "", doy: c.doy ?? "", profession: c.profession ?? "",
+    phone: c.phone ?? "", mobile: c.mobile ?? "", birthday: c.birthday ? c.birthday.toISOString().slice(0, 10) : "", gender: c.gender ?? "", status: c.status === "blocked" ? "blocked" : "active", newsletter: c.newsletter, tags: c.tags,
+    preferredStoreId: c.preferredStoreId ?? "", loyaltyTier: c.loyaltyTier ?? "", loyaltyCard: c.loyaltyCard ?? "", notes: c.notes ?? "",
+  };
+}
+
+/** Γεωδεδομένα από τη διεύθυνση: ξανά γεωκωδικοποίηση όλων των διευθύνσεων του πελάτη και κοντινότερο κατάστημα. */
+export async function geocodeCustomerAction(customerId: string) {
+  await requirePermission("customers.write");
+  const list = await db.address.findMany({ where: { customerId }, select: { id: true, city: true } });
+  if (!list.length) return { ok: false as const, error: "Ο πελάτης δεν έχει διεύθυνση." };
+  let done = 0;
+  const failed: string[] = [];
+  for (const a of list) { const r = await geocodeCustomerAddress(a.id, { force: true }); if (r.ok) done++; else failed.push(`${a.city}: ${r.error}`); }
+  paths(customerId);
+  return { ok: true as const, total: list.length, done, failed };
+}

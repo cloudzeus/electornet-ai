@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T06:56:42.449Z",
+ "generatedAt": "2026-10-11T07:05:29.632Z",
  "routes": [
   {
    "route": "/admin",
@@ -929,9 +929,20 @@
     "customers.list",
     "customers.peek",
     "customers.table",
+    "customers.actions",
     "customers.location"
    ],
    "changes": [
+    {
+     "hash": "ec0fca5",
+     "date": "2026-10-11T09:59:14+03:00",
+     "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές"
+    },
+    {
+     "hash": "d6e4c0c",
+     "date": "2026-10-11T09:57:09+03:00",
+     "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις"
+    },
     {
      "hash": "ebc995f",
      "date": "2026-10-04T15:58:38+03:00",
@@ -973,7 +984,7 @@
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-10-04T15:58:38+03:00",
+   "updatedAt": "2026-10-11T09:59:14+03:00",
    "shots": {}
   },
   {
@@ -987,6 +998,11 @@
    "dynamic": true,
    "helpKeys": [],
    "changes": [
+    {
+     "hash": "d6e4c0c",
+     "date": "2026-10-11T09:57:09+03:00",
+     "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις"
+    },
     {
      "hash": "55460cd",
      "date": "2026-10-04T11:35:35+03:00",
@@ -1003,7 +1019,7 @@
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-10-04T11:35:35+03:00",
+   "updatedAt": "2026-10-11T09:57:09+03:00",
    "shots": {}
   },
   {
@@ -2812,6 +2828,22 @@
  ],
  "recent": [
   {
+   "hash": "ec0fca5",
+   "date": "2026-10-11T09:59:14+03:00",
+   "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές",
+   "routes": []
+  },
+  {
+   "hash": "d6e4c0c",
+   "date": "2026-10-11T09:57:09+03:00",
+   "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις",
+   "routes": [
+    "/admin",
+    "/admin/customers",
+    "/admin/customers/[id]"
+   ]
+  },
+  {
    "hash": "1368c63",
    "date": "2026-10-11T04:42:52+03:00",
    "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα",
@@ -3136,26 +3168,6 @@
     "/admin/catalog",
     "/admin/catalog/[id]"
    ]
-  },
-  {
-   "hash": "b0f496f",
-   "date": "2026-10-10T09:29:44+03:00",
-   "text": "AR: θέση (πάτωμα/έπιπλο/πάγκος/τοίχος) ανά κατηγορία",
-   "routes": [
-    "/admin",
-    "/admin/ar"
-   ]
-  },
-  {
-   "hash": "d3615a8",
-   "date": "2026-10-10T09:25:07+03:00",
-   "text": "AR διαχείριση: συμπαγείς γραμμές με κατάσταση και διακόπτη, ρυθμίσεις σε ανάπτυξη (επιφάνεια με εικονίδια, πρόσοψη από μικρογραφίες, 3D μοντέλο χωριστά), πλακίδια-φίλτρα",
-   "routes": [
-    "/admin",
-    "/admin/ar",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
   }
  ],
  "helpKeys": {
@@ -3266,6 +3278,9 @@
    "components/admin/customers/CustomerList.tsx"
   ],
   "customers.table": [
+   "components/admin/customers/CustomerTable.tsx"
+  ],
+  "customers.actions": [
    "components/admin/customers/CustomerTable.tsx"
   ],
   "customers.location": [

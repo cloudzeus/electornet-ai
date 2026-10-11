@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, Building2, CircleAlert, Check } from "lucide-react";
 import { CustomerPeek, loadPeek, type CustomerRow } from "./CustomerList";
+import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (c: CustomerRow) => ReactNode; title?: (c: CustomerRow) => string };
 const eur = (v: number) => `${v.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
@@ -16,7 +17,7 @@ const muted = (v: ReactNode) => <span className="text-eu-muted">{v}</span>;
 const COLS: Col[] = [
   { id: "name", label: "Πελάτης", w: 185, sort: "name", def: true, title: (c) => `${c.name} · #${c.number}`, cell: (c) => <span className="inline-flex items-center gap-1.5 min-w-0 max-w-full">{c.business && <Building2 className="size-3.5 shrink-0 text-eu-blue" aria-label="εταιρεία" />}{c.status !== "active" && <span className={`size-2 shrink-0 rounded-full ${c.status === "blocked" ? "bg-eu-red" : "bg-eu-muted-3"}`} aria-label={ST[c.status]?.[0]} />}<Link href={`/admin/customers/${c.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline truncate">{c.name}</Link></span> },
   { id: "number", label: "#", w: 70, sort: "number", right: true, cell: (c) => <span className="tabular-nums text-eu-ink-3">{c.number}</span> },
-  { id: "email", label: "Email", w: 180, sort: "contact", def: true, title: (c) => c.email ?? "", cell: (c) => (c.email ? <span className="truncate">{c.email}</span> : muted("—")) },
+  { id: "email", label: "Email", w: 165, sort: "contact", def: true, title: (c) => c.email ?? "", cell: (c) => (c.email ? <span className="truncate">{c.email}</span> : muted("—")) },
   { id: "phone", label: "Τηλέφωνο", w: 105, def: true, cell: (c) => <span className="tabular-nums">{c.phone ?? "—"}</span> },
   { id: "vat", label: "ΑΦΜ", w: 100, sort: "vat", cell: (c) => <span className="tabular-nums">{c.vat ?? "—"}</span> },
   { id: "type", label: "Τύπος", w: 90, cell: (c) => (c.business ? "Εταιρεία" : "Ιδιώτης") },
@@ -48,7 +49,10 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
  * σύρσιμο ή βέλη στη λαβή, ταξινόμηση σε κάθε στήλη που το υποστηρίζει, εγγραφές ανά σελίδα, και άνοιγμα γραμμής (▾)
  * σε όλη την εικόνα του πελάτη. Στήλες και πλάτη θυμάται ο browser.
  */
-export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: { rows: CustomerRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number }) {
+export function CustomerTable({ rows, sort, dir, query, perPage, total, from, canWrite, erpOn }: { rows: CustomerRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canWrite: boolean; erpOn: boolean }) {
+  const [toast, setToast] = useState<Toast>(null);
+  const [rev, setRev] = useState<Record<string, number>>({});
+  const closeToast = useCallback(() => setToast(null), []);
   const [cols, setCols] = useState<string[]>(DEFAULT);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -93,7 +97,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
     const up = (ev: PointerEvent) => { setW(c.id, w0 + ev.clientX - x0, true); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.documentElement.classList.remove("cursor-col-resize"); };
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); document.documentElement.classList.add("cursor-col-resize");
   };
-  const tableW = 40 + shown.reduce((a, c) => a + wOf(c), 0);
+  const tableW = 40 + 44 + shown.reduce((a, c) => a + wOf(c), 0);
 
   return (
     <div data-help="customers.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -120,7 +124,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
       </div>
       <div ref={scrollRef} className="overflow-x-auto">
         <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
-          <colgroup><col style={{ width: 40 }} />{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}</colgroup>
+          <colgroup><col style={{ width: 40 }} />{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
             <tr>
               <th className="p-0" aria-label="Άνοιγμα γραμμής" />
@@ -138,6 +142,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
                   </th>
                 );
               })}
+              <th data-help="customers.actions" className="sticky right-0 bg-eu-surface p-0" aria-label="Ενέργειες" />
             </tr>
           </thead>
           <tbody>
@@ -148,14 +153,16 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
                   <tr className={`border-t border-eu-line-2 ${isOpen ? "bg-eu-chip/50" : "hover:bg-eu-surface/60"}`}>
                     <td className="px-1 py-0.5"><button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadPeek(r.id)} onFocus={() => void loadPeek(r.id)} aria-expanded={isOpen} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.name}`} className={`size-8 grid place-items-center rounded-full ${isOpen ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button></td>
                     {shown.map((c) => <td key={c.id} title={c.title?.(r)} className={`px-2 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-0 ${c.right ? "text-right" : ""}`}><span className={`flex min-w-0 ${c.right ? "justify-end" : ""}`}>{c.cell(r)}</span></td>)}
+                    <td className={`sticky right-0 px-1 py-0.5 ${isOpen ? "bg-eu-chip" : "bg-white"}`}><CustomerActions c={{ id: r.id, name: r.name, email: r.email, phone: r.phone, erpLinked: r.erp.linked, canWrite, erpOn }} onToast={setToast} onChanged={() => setRev((m) => ({ ...m, [r.id]: (m[r.id] ?? 0) + 1 }))} /></td>
                   </tr>
-                  {isOpen && <tr><td colSpan={shown.length + 1} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><CustomerPeek id={r.id} /></div></td></tr>}
+                  {isOpen && <tr><td colSpan={shown.length + 2} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><CustomerPeek key={rev[r.id] ?? 0} id={r.id} /></div></td></tr>}
                 </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
+      <ToastBar t={toast} onClose={closeToast} />
     </div>
   );
 }
