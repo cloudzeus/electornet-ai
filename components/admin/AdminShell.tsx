@@ -22,7 +22,7 @@ export async function AdminShell({ user, children, title }: { user: { name?: str
   const groups = visibleNav(user, await getFeatures().catch(() => ({})), can);
   const navGroups = groups.map((g) => ({ label: g.label, items: g.items.map((i) => ({ href: i.href, label: i.label })) }));
   const userBlock = (
-    <div className="px-5 py-4 text-[length:var(--fs-14)]">
+    <div data-private className="px-5 py-4 text-[length:var(--fs-14)]">
       <div className="font-bold truncate">{user.name}</div>
       <div className="text-eu-on-dark-2 truncate">{user.email}</div>
       <div className="mt-1 flex flex-wrap gap-1">

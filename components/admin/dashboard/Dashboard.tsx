@@ -130,7 +130,7 @@ export function Dashboard({ name, roleLabel, storeName, layout: initial, data, a
       {/* ---- κεφαλίδα: σύντομη ---- */}
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0">
-          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">{roleEdit ? `Dashboard ρόλου «${roleEdit.label}»` : `${hello}, ${name.split(" ")[0]}`}</h2>
+          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">{roleEdit ? `Dashboard ρόλου «${roleEdit.label}»` : <>{hello}, <span data-private>{name.split(" ")[0]}</span></>}</h2>
           <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{roleEdit ? "Ισχύει για όσους έχουν αυτόν τον ρόλο και δεν έχουν δική τους διάταξη." : <>{roleLabel}{storeName ? ` · ${storeName}` : ""}{source === "user" ? " · δική σου διάταξη" : ""}</>}</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">

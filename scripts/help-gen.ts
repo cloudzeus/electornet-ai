@@ -65,7 +65,7 @@ const routes: GenRoute[] = pages.map((file) => {
   const mine = (f: string) => (f.startsWith(dir) && !subdirs.some((s) => f.startsWith(s))) || (curated?.files ?? []).some((x) => f === x || f.startsWith(x));
   const changes: GenChange[] = commits.filter((c) => c.files.some(mine)).slice(0, 10).map(({ hash, date, text }) => ({ hash, date, text }));
   const slug = routeSlug(route);
-  const shot = (k: string) => (existsSync(join(ROOT, "public/help/shots", `${slug}-${k}.jpg`)) ? `/help/shots/${slug}-${k}.jpg` : undefined);
+  const shot = (k: string) => (existsSync(join(ROOT, "help-shots", `${slug}-${k}.jpg`)) ? `/api/help-shot/${slug}-${k}.jpg` : undefined);
   const keysHere = Object.entries(helpKeys).filter(([, fs]) => fs.some(mine)).map(([k]) => k);
   return { route, slug, file, title, doc, perm, nav: nav && { group: nav.group, label: nav.label }, dynamic: route.includes("["), helpKeys: keysHere, changes, updatedAt: changes[0]?.date ?? null, shots: { desktop: shot("d"), mobile: shot("m") } };
 }).filter((r) => r.route !== "/admin/forbidden").sort((a, b) => a.route.localeCompare(b.route));

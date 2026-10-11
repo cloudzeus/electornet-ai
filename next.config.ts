@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   typedRoutes: false,
+  /** τα screenshots του wiki (εκτός public/) μπαίνουν στο standalone για το /api/help-shot */
+  outputFileTracingIncludes: { "/api/help-shot/[name]": ["./help-shots/**"] },
 };
 
 export default nextConfig;

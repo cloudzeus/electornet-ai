@@ -17,10 +17,13 @@ import { routeSlug, type Generated } from "../lib/help/types";
 
 const BASE = process.env.HELP_BASE ?? "http://localhost:3111";
 const PROFILE = join(process.cwd(), ".help-profile");
-const OUT = join(process.cwd(), "public/help/shots");
+// εκτός public/: τα σερβίρει μόνο σε συνδεδεμένο προσωπικό το /api/help-shot/<αρχείο>
+const OUT = join(process.cwd(), "help-shots");
 const SKIP = new Set(["/admin/help", "/admin/forbidden"]);
+/** σελίδες με προσωπικά δεδομένα πελατών/προσωπικού: ΠΟΤΕ σε εικόνα (GDPR) */
+const PII = new Set(["/admin/customers", "/admin/customers/import", "/admin/gdpr", "/admin/staff", "/admin/audit", "/admin/newsletter", "/admin/softone/customers", "/admin/prosfores/anafores", "/admin/reports/wishlist"]);
 const only = process.argv.slice(2).filter((a) => a.startsWith("/admin"));
-const routes = (generated as unknown as Generated).routes.filter((r) => !r.dynamic && !SKIP.has(r.route) && (!only.length || only.includes(r.route)));
+const routes = (generated as unknown as Generated).routes.filter((r) => !r.dynamic && !SKIP.has(r.route) && !PII.has(r.route) && (!only.length || only.includes(r.route)));
 
 const open = (headless: boolean) => chromium.launchPersistentContext(PROFILE, { channel: "chrome", headless, viewport: { width: 1440, height: 900 } });
 
@@ -45,7 +48,7 @@ async function main() {
   const page = await ctx.newPage();
   // χωρίς το σήμα του dev server και χωρίς κινούμενα στοιχεία στις εικόνες
   await page.addInitScript(() => {
-    const css = "nextjs-portal{display:none!important}*{animation:none!important;transition:none!important;caret-color:transparent!important}";
+    const css = "[data-private]{filter:blur(7px)!important}nextjs-portal{display:none!important}*{animation:none!important;transition:none!important;caret-color:transparent!important}";
     document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = css; document.head.appendChild(s); });
   });
   let ok = 0;
