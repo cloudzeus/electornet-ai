@@ -54,6 +54,16 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [picker, setPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  // το άνοιγμα γραμμής έχει πάντα το ορατό πλάτος του πίνακα (όχι όλο το πλάτος των στηλών), για να αναδιπλώνεται
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [viewW, setViewW] = useState<number | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setViewW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // προτιμήσεις του χρήστη από τον browser (μετά το πρώτο render, ώστε server και client να ξεκινούν ίδια)
   useEffect(() => {
     const c = read<string[]>(KEY_COLS), w = read<Record<string, number>>(KEY_W);
@@ -108,7 +118,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
           )}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div ref={scrollRef} className="overflow-x-auto">
         <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
           <colgroup><col style={{ width: 40 }} />{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}</colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
@@ -139,7 +149,7 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from }: 
                     <td className="px-1 py-0.5"><button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadPeek(r.id)} onFocus={() => void loadPeek(r.id)} aria-expanded={isOpen} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.name}`} className={`size-8 grid place-items-center rounded-full ${isOpen ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button></td>
                     {shown.map((c) => <td key={c.id} title={c.title?.(r)} className={`px-2 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-0 ${c.right ? "text-right" : ""}`}><span className={`flex min-w-0 ${c.right ? "justify-end" : ""}`}>{c.cell(r)}</span></td>)}
                   </tr>
-                  {isOpen && <tr><td colSpan={shown.length + 1} className="p-0 bg-eu-surface/40"><div className="sticky left-0 max-w-[min(100%,calc(100vw-2rem))] pt-2"><CustomerPeek id={r.id} /></div></td></tr>}
+                  {isOpen && <tr><td colSpan={shown.length + 1} className="p-0 bg-eu-surface/40"><div className="sticky left-0 pt-1.5 min-w-0" style={{ width: viewW ?? "100%" }}><CustomerPeek id={r.id} /></div></td></tr>}
                 </Fragment>
               );
             })}
