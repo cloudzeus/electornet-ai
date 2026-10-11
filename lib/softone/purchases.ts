@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { getTable } from "@/lib/softone/lookups";
 import { logged, type Trigger } from "@/lib/softone/catalog";
 import { geocodeCustomerAddress } from "@/lib/customers/geocode-address";
+import { planDevices, type PlanLine } from "@/lib/warranty/erp-devices";
+import { warrantyFromSpecs } from "@/lib/warranty/policy";
 
 /**
  * Ιστορικό αγορών του σημερινού eshop από το SoftOne → πελάτες, αγορές, συσκευές και εγγυήσεις στο νέο eshop.
@@ -23,8 +25,6 @@ const SERIES: Record<number, { kind: "order" | "receipt" | "invoice" | "credit";
   7315: { kind: "receipt" }, 7415: { kind: "receipt" }, 7261: { kind: "invoice" },
   7151: { kind: "credit" }, 7150: { kind: "credit" }, 7319: { kind: "credit" },
 };
-const DEVICE_MIN_PRICE = 50; // κάτω από αυτό: αξεσουάρ / αναλώσιμα, όχι συσκευή
-const LEGAL_WARRANTY = 24;
 
 const int = (v: string | undefined) => { const n = parseInt(v ?? "", 10); return Number.isFinite(n) ? n : null; };
 const num = (v: string | undefined) => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
@@ -44,11 +44,6 @@ function parseAddress(raw: string) {
   const street = before.replace(/[,\s-]+$/, "").trim() || raw.trim();
   const city = after.replace(/^[,\s-]+/, "").split(/[,(]/)[0].trim();
   return { street: street.slice(0, 200), zip, city: city.slice(0, 80) };
-}
-function extendedYears(title: string) {
-  if (!/επ[εέ]κτασ|extended|εγγ[υύ]ησ/i.test(title)) return null;
-  const m = /(\d)\s*(?:ετ|έτ|χρ|years?|y\b)/i.exec(title) ?? /\+\s*(\d)/.exec(title);
-  return m ? Number(m[1]) : 1;
 }
 
 /** `buyer` = FINDOC.COMMENTS1: το ονοματεπώνυμο του αγοραστή (ίδιο με το CCCSHPNAME όπου υπάρχουν και τα δύο — και υπάρχει όπου εκείνο λείπει) */
@@ -212,21 +207,68 @@ async function addAddress(customerId: string, raw: string | null, info: Record<s
 }
 
 type Line = { lineNo: number; mtrl: number | null; productId: string | null; code: string | null; title: string; qty: number; unitPrice: number | null; lineTotal: number | null };
+/** Εγγύηση κατασκευαστή από τα χαρακτηριστικά των προϊόντων («Εγγύηση: 5 χρόνια»), σε μήνες. */
+async function specWarranties(productIds: string[]) {
+  const out = new Map<string, number>();
+  if (!productIds.length) return out;
+  const specs = await db.spec.findMany({ where: { productId: { in: productIds }, key: { contains: "γγ", mode: "insensitive" } }, select: { productId: true, key: true, value: true } });
+  const by = new Map<string, { key: string; value: string }[]>();
+  for (const s of specs) by.set(s.productId, [...(by.get(s.productId) ?? []), s]);
+  for (const [id, list] of by) { const w = warrantyFromSpecs(list); if (w) out.set(id, w.months); }
+  return out;
+}
+
+/** Συσκευές ενός παραστατικού: εγγύηση κατασκευαστή (GUARTIME → χαρακτηριστικά → 24) και επέκταση στη σωστή συσκευή. */
 async function devicesFor(customerId: string, purchaseId: string, d: Doc, ls: Line[], productOf: Map<number, { id: string; brand: { name: string }; modelCode: string | null }>, known: Map<number, { guaranteeMonths: number | null }>) {
   const lineIds = new Map((await db.purchaseLine.findMany({ where: { purchaseId }, select: { id: true, lineNo: true } })).map((l) => [l.lineNo, l.id]));
-  const ext = ls.map((l) => ({ l, years: extendedYears(l.title) })).find((x) => x.years);
-  for (const l of ls) {
-    if (!l.mtrl || (l.unitPrice ?? 0) < DEVICE_MIN_PRICE || extendedYears(l.title)) continue;
-    const p = productOf.get(l.mtrl);
-    const months = known.get(l.mtrl)?.guaranteeMonths || LEGAL_WARRANTY;
-    const until = new Date(d.date); until.setMonth(until.getMonth() + months);
-    const extUntil = ext ? new Date(until.getTime()) : null; if (extUntil && ext) extUntil.setFullYear(extUntil.getFullYear() + ext.years!);
+  const pid = (l: { mtrl: number | null }) => (l.mtrl ? productOf.get(l.mtrl)?.id ?? null : null);
+  const specW = await specWarranties([...new Set(ls.map(pid).filter((x): x is string => !!x))]);
+  const plan = planDevices(ls as PlanLine[], (l) => (l.mtrl ? known.get(l.mtrl)?.guaranteeMonths : null) || specW.get(pid(l) ?? "") || null);
+  for (const pd of plan) {
+    const l = ls.find((x) => x.lineNo === pd.lineNo)!;
+    const p = l.mtrl ? productOf.get(l.mtrl) : undefined;
     const lineId = lineIds.get(l.lineNo); if (!lineId) continue;
-    for (let u = 1; u <= Math.min(5, Math.max(1, Math.round(l.qty))); u++) {
-      const data = { customerId, productId: p?.id ?? null, brand: p?.brand.name ?? "", title: l.title, model: p?.modelCode ?? l.code, purchasedAt: d.date, invoiceNo: d.fincode || String(d.findoc), warrantyMonths: months, warrantyUntil: until, extendedUntil: extUntil, extendedPlan: ext ? ext.l.title : null, registeredBy: "erp" };
-      await db.customerDevice.upsert({ where: { purchaseLineId_unitNo: { purchaseLineId: lineId, unitNo: u } }, create: { ...data, purchaseLineId: lineId, unitNo: u }, update: data }).catch(() => null);
+    const until = new Date(d.date); until.setMonth(until.getMonth() + pd.months);
+    const extUntil = pd.extMonths ? new Date(until.getTime()) : null; if (extUntil) extUntil.setMonth(extUntil.getMonth() + pd.extMonths!);
+    const data = { customerId, productId: p?.id ?? null, brand: p?.brand.name ?? "", title: l.title, model: p?.modelCode ?? l.code, purchasedAt: d.date, invoiceNo: d.fincode || String(d.findoc), warrantyMonths: pd.months, warrantyUntil: until, extendedUntil: extUntil, extendedPlan: pd.extPlan, registeredBy: "erp" };
+    await db.customerDevice.upsert({ where: { purchaseLineId_unitNo: { purchaseLineId: lineId, unitNo: pd.unit } }, create: { ...data, purchaseLineId: lineId, unitNo: pd.unit }, update: data }).catch(() => null);
+  }
+}
+
+/**
+ * Επανυπολογισμός εγγυήσεων των συσκευών από το SoftOne με τα ήδη αποθηκευμένα παραστατικά — χωρίς κλήση στο SoftOne.
+ * Με `dryRun` μόνο μετρά τι θα άλλαζε. Δεν αγγίζει επεκτάσεις που πληρώθηκαν από το e-shop.
+ */
+export async function recomputeErpWarranties(opts: { dryRun?: boolean } = {}) {
+  const stats = { docs: 0, devices: 0, monthsChanged: 0, extAdded: 0, extRemoved: 0, untouchedPaid: 0, samples: [] as string[] };
+  const docIds = (await db.$queryRawUnsafe<{ id: string }[]>(`select distinct l."purchaseId" id from "CustomerDevice" d join "PurchaseLine" l on l.id = d."purchaseLineId" where d."registeredBy" = 'erp'`)).map((x) => x.id);
+  for (let i = 0; i < docIds.length; i += 200) {
+    const docs = await db.purchase.findMany({ where: { id: { in: docIds.slice(i, i + 200) } }, select: { id: true, date: true, lines: { select: { id: true, lineNo: true, mtrl: true, code: true, title: true, qty: true, unitPrice: true, productId: true } } } });
+    const devs = await db.customerDevice.findMany({ where: { registeredBy: "erp", purchaseLineId: { in: docs.flatMap((dc) => dc.lines.map((l) => l.id)) } }, select: { id: true, purchaseLineId: true, unitNo: true, warrantyMonths: true, extendedUntil: true, extendedPlan: true, extensions: { where: { status: "paid" }, select: { id: true } } } });
+    const specW = await specWarranties([...new Set(docs.flatMap((dc) => dc.lines.map((l) => l.productId)).filter((x): x is string => !!x))]);
+    for (const dc of docs) {
+      stats.docs++;
+      const lines: PlanLine[] = dc.lines.map((l) => ({ lineNo: l.lineNo, mtrl: l.mtrl, code: l.code, title: l.title, qty: l.qty, unitPrice: l.unitPrice == null ? null : Number(l.unitPrice), productId: l.productId }));
+      const plan = planDevices(lines, (l) => specW.get(l.productId ?? "") ?? null);
+      for (const l of dc.lines) for (const dev of devs.filter((x) => x.purchaseLineId === l.id)) {
+        stats.devices++;
+        const pd = plan.find((x) => x.lineNo === l.lineNo && x.unit === dev.unitNo);
+        if (!pd) continue;
+        const paid = dev.extensions.length > 0;
+        if (paid) stats.untouchedPaid++;
+        const until = new Date(dc.date); until.setMonth(until.getMonth() + pd.months);
+        const extUntil = pd.extMonths ? new Date(until.getTime()) : null; if (extUntil) extUntil.setMonth(extUntil.getMonth() + pd.extMonths!);
+        const monthsChanged = dev.warrantyMonths !== pd.months, hadExt = !!dev.extendedUntil, hasExt = !!extUntil;
+        if (monthsChanged) stats.monthsChanged++;
+        if (!paid && hadExt !== hasExt) { if (hasExt) stats.extAdded++; else stats.extRemoved++; }
+        if (stats.samples.length < 8 && (monthsChanged || (!paid && hadExt !== hasExt))) stats.samples.push(`${l.title.slice(0, 50)}: ${dev.warrantyMonths}→${pd.months} μήνες${!paid && hadExt !== hasExt ? (hasExt ? " · +επέκταση" : " · −επέκταση") : ""}`);
+        if (!opts.dryRun && (monthsChanged || (!paid && (hadExt !== hasExt || (hasExt && +dev.extendedUntil! !== +extUntil!))))) {
+          await db.customerDevice.update({ where: { id: dev.id }, data: { warrantyMonths: pd.months, warrantyUntil: until, ...(paid ? {} : { extendedUntil: extUntil, extendedPlan: pd.extPlan }) } });
+        }
+      }
     }
   }
+  return stats;
 }
 
 /** Σύνοψη αγορών ανά πελάτη: παραγγελίες που δεν ακυρώθηκαν (SoftOne) + παραγγελίες του νέου eshop. */

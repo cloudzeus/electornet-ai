@@ -1,14 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin } from "lucide-react";
+import { Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin, Building2 } from "lucide-react";
+import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
+import { CustomerOverviewTab } from "./CustomerOverview";
 import { regeocodeAddress, sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
-const TABS = [["profile", "Προφίλ"], ["addresses", "Διευθύνσεις"], ["orders", "Παραγγελίες"], ["devices", "Συσκευές & εγγυήσεις"], ["service", "Service"], ["consents", "Συναινέσεις"], ["logins", "Συνδέσεις"], ["loyalty", "Πόντοι"], ["wishlist", "Αγαπημένα"], ["notes", "Σημειώσεις"], ["erp", "SoftOne"], ["gdpr", "GDPR"]] as const;
+const TABS = [["overview", "Επισκόπηση"], ["profile", "Προφίλ"], ["addresses", "Διευθύνσεις"], ["orders", "Παραγγελίες"], ["devices", "Συσκευές & εγγυήσεις"], ["service", "Service"], ["consents", "Συναινέσεις"], ["logins", "Συνδέσεις"], ["loyalty", "Πόντοι"], ["wishlist", "Αγαπημένα"], ["notes", "Σημειώσεις"], ["erp", "SoftOne"], ["gdpr", "GDPR"]] as const;
+/** Οι 13 ενότητες σε 9 περιοχές· όσες έχουν πάνω από μία σελίδα δείχνουν δεύτερη σειρά. */
+const GROUPS: { k: string; t: string; tabs: string[] }[] = [
+  { k: "overview", t: "Επισκόπηση", tabs: ["overview"] },
+  { k: "data", t: "Στοιχεία", tabs: ["profile", "addresses"] },
+  { k: "orders", t: "Αγορές", tabs: ["orders"] },
+  { k: "devices", t: "Συσκευές & εγγυήσεις", tabs: ["devices"] },
+  { k: "service", t: "Service", tabs: ["service"] },
+  { k: "comms", t: "Επικοινωνία", tabs: ["consents", "notes", "logins"] },
+  { k: "loyalty", t: "Πόντοι & αγαπημένα", tabs: ["loyalty", "wishlist"] },
+  { k: "erp", t: "SoftOne", tabs: ["erp"] },
+  { k: "gdpr", t: "GDPR", tabs: ["gdpr"] },
+];
 const CONSENT_TOPICS: { topic: string; label: string; channels: string[] }[] = [
   { topic: "newsletter", label: "Newsletter", channels: ["email"] },
   { topic: "offers", label: "Προσφορές & ειδοποιήσεις", channels: ["email", "sms", "viber", "push"] },
@@ -30,7 +44,10 @@ const Card = ({ title, children, right }: { title: string; children: React.React
 
 export function CustomerWorkspace({ customer, stores, perms, erpConfigured, initialTab }: { customer: Any | null; stores: { id: string; name: string; city: string }[]; perms: { write: boolean; export: boolean; service: boolean }; erpConfigured: boolean; initialTab?: string }) {
   const router = useRouter();
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>(() => (TABS.find(([k]) => k === initialTab)?.[0] ?? "profile"));
+  const [tab, setTabState] = useState<(typeof TABS)[number][0]>(() => (customer ? TABS.find(([k]) => k === initialTab)?.[0] ?? "overview" : "profile"));
+  const setTab = (k: string) => { const t = TABS.find(([x]) => x === k)?.[0]; if (!t) return; setTabState(t); const u = new URL(location.href); u.searchParams.set("tab", t); history.replaceState(null, "", u); };
+  const [toast, setToast] = useState<Toast>(null);
+  const closeToast = useCallback(() => setToast(null), []);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const c = customer;
@@ -39,29 +56,50 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured, init
 
   return (
     <div className="eu-container grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">{c ? `Πελάτης #${c.number} · ${c.type === "business" ? "εταιρεία" : "ιδιώτης"} · ${c.source}` : "Λιανική"}</div>
-          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{name}</h2>
-          {c && <div className="text-eu-ink-3 text-[length:var(--fs-14)]">{c.email}{c.mobile ? ` · ${c.mobile}` : c.phone ? ` · ${c.phone}` : ""} · μέλος από {d(c.createdAt)}{c.lastLoginAt ? ` · τελευταία σύνδεση ${dt(c.lastLoginAt)}` : ""}</div>}
-        </div>
-        {c && (
-          <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)] font-bold">
-            <span className={`rounded-full px-3 py-1 ${c.status === "active" ? "bg-eu-green/10 text-eu-green" : c.status === "blocked" ? "bg-eu-red/10 text-eu-red" : "bg-eu-surface text-eu-muted"}`}>{c.status === "active" ? "Ενεργός" : c.status === "blocked" ? "Μπλοκαρισμένος" : "Ανωνυμοποιημένος"}</span>
-            <span className={`rounded-full px-3 py-1 ${c.erpTrdr ? "bg-eu-navy/10 text-eu-navy" : "bg-eu-surface text-eu-muted"}`}>{c.erpTrdr ? `SoftOne ${c.erpCode ?? c.erpTrdr}` : "Χωρίς SoftOne"}</span>
-            <span className="rounded-full px-3 py-1 bg-eu-yellow/40 text-eu-navy">{c.loyaltyPoints.toLocaleString("el-GR")} πόντοι{c.loyaltyTier ? ` · ${c.loyaltyTier}` : ""}</span>
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 flex items-start gap-3">
+          {c && <span className={`hidden @md:grid size-12 shrink-0 place-items-center rounded-full font-extrabold text-[length:var(--fs-16)] ${c.type === "business" ? "bg-eu-blue/10 text-eu-blue" : "bg-eu-chip text-eu-navy"}`} aria-hidden>{c.type === "business" ? <Building2 className="size-5" /> : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("")}</span>}
+          <div className="min-w-0">
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">{name}</h2>
+            {c ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-ink-3 text-[length:var(--fs-13)]">
+                <span>#{c.number} · {c.type === "business" ? `εταιρεία${c.vatNumber ? ` · ΑΦΜ ${c.vatNumber}` : ""}` : "ιδιώτης"}</span>
+                {(c.email || c.mobile || c.phone) && <span className="min-w-0 break-all">· {[c.email, c.mobile ?? c.phone].filter(Boolean).join(" · ")}</span>}
+                <span>· {c.source === "softone-history" ? `από το ιστορικό SoftOne${c.firstPurchaseAt ? ` · πρώτη αγορά ${d(c.firstPurchaseAt)}` : ""}` : `μέλος από ${d(c.createdAt)}`}{c.lastLoginAt ? ` · τελευταία σύνδεση ${dt(c.lastLoginAt)}` : ""}</span>
+              </div>
+            ) : <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Συμπλήρωσε τα στοιχεία και αποθήκευσε.</p>}
+            {c && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[length:var(--fs-12)] font-bold">
+                <span className={`rounded-full px-2.5 py-0.5 ${c.status === "active" ? "bg-eu-green/10 text-eu-green" : c.status === "blocked" ? "bg-eu-red/10 text-eu-red" : "bg-eu-surface text-eu-muted"}`}>{c.status === "active" ? "Ενεργός" : c.status === "blocked" ? "Μπλοκαρισμένος" : "Ανωνυμοποιημένος"}</span>
+                <span className={`rounded-full px-2.5 py-0.5 ${c.erpSyncStatus === "failed" ? "bg-eu-red/10 text-eu-red" : c.erpTrdr ? "bg-eu-navy/10 text-eu-navy" : "bg-eu-surface text-eu-muted"}`}>{c.erpTrdr ? `SoftOne ${c.erpCode ?? c.erpTrdr}${c.erpSyncStatus === "failed" ? " · αποτυχία sync" : ""}` : "Χωρίς SoftOne"}</span>
+                <span className="rounded-full px-2.5 py-0.5 bg-eu-yellow/40 text-eu-navy">{c.loyaltyPoints.toLocaleString("el-GR")} πόντοι{c.loyaltyTier ? ` · ${c.loyaltyTier}` : ""}</span>
+                {c.newsletter && <span className="rounded-full px-2.5 py-0.5 bg-eu-chip text-eu-blue">newsletter</span>}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+        {c && <div data-help="customer.actions" className="flex items-center gap-2"><span className="text-eu-ink-3 font-bold text-[length:var(--fs-13)]">Ενέργειες</span><CustomerActions c={{ id: c.id, name, email: c.email, phone: c.mobile ?? c.phone ?? null, vat: c.vatNumber, erpLinked: !!c.erpTrdr, canWrite: perms.write, erpOn: erpConfigured }} onToast={setToast} onChanged={() => router.refresh()} /></div>}
+      </header>
       {msg && <p role="status" className="m-0 rounded-xl bg-eu-yellow/30 text-eu-navy font-bold text-[length:var(--fs-14)] px-3 py-2">{msg}</p>}
-      {c && (
-        <nav aria-label="Ενότητες" className="flex flex-wrap gap-1.5">
-          {TABS.map(([k, l]) => { const n = k === "addresses" ? c.addresses.length : k === "orders" ? c.orders.length + (c.purchases?.length ?? 0) : k === "devices" ? c.devices.length : k === "service" ? c.tickets.length : k === "consents" ? c.consents.length : k === "logins" ? c.logins.length : k === "notes" ? c.customerNotes.length : k === "wishlist" ? c.wishlists.reduce((n: number, l: Any) => n + l.items.length, 0) : k === "gdpr" ? c.gdprRequests.length : null; return (
-            <button key={k} type="button" onClick={() => setTab(k)} className={`rounded-full px-3 min-h-9 font-bold text-[length:var(--fs-13)] ${tab === k ? "bg-eu-navy text-white" : "bg-white border border-eu-line text-eu-ink hover:border-eu-navy"}`}>{l}{n ? <span className="opacity-70"> {n}</span> : null}</button>
-          ); })}
-        </nav>
-      )}
+      {c && (() => {
+        const count = (k: string) => (k === "addresses" ? c.addresses.length : k === "orders" ? c.orders.length + (c.purchases?.length ?? 0) : k === "devices" ? c.devices.length : k === "service" ? c.tickets.length : k === "consents" ? c.consents.length : k === "logins" ? c.logins.length : k === "loyalty" ? c.loyalty.length : k === "wishlist" ? c.wishlists.reduce((a: number, l: Any) => a + l.items.length, 0) : k === "notes" ? c.customerNotes.length : k === "gdpr" ? c.gdprRequests.length : 0);
+        const group = GROUPS.find((g) => g.tabs.includes(tab)) ?? GROUPS[0];
+        const label = (k: string) => TABS.find(([x]) => x === k)?.[1] ?? k;
+        return (
+          <nav data-help="customer.tabs" aria-label="Ενότητες πελάτη" className="grid gap-2">
+            <ul className="m-0 p-0 list-none flex flex-wrap gap-x-1 border-b border-eu-line">
+              {GROUPS.map((g) => { const on = g.k === group.k; const n = g.tabs.reduce((a, k) => a + count(k), 0); const alert = (g.k === "erp" && c.erpSyncStatus === "failed") || (g.k === "service" && c.tickets.some((t: Any) => !["done", "cancelled"].includes(t.status))) || (g.k === "gdpr" && c.gdprRequests.some((r: Any) => !["done", "rejected"].includes(r.status))); return (
+                <li key={g.k}><button type="button" aria-current={on ? "page" : undefined} onClick={() => setTab(g.tabs[0])} className={`relative inline-flex items-center gap-1.5 px-3 min-h-11 -mb-px border-b-[3px] font-bold text-[length:var(--fs-14)] ${on ? "border-eu-navy text-eu-navy" : "border-transparent text-eu-ink-3 hover:text-eu-blue"}`}>{g.t}{n > 0 && g.k !== "overview" && <span className="rounded-full bg-eu-surface px-1.5 text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums">{n}</span>}{alert && <span className="size-2 rounded-full bg-eu-red" aria-label="θέλει προσοχή" />}</button></li>
+              ); })}
+            </ul>
+            {group.tabs.length > 1 && (
+              <div className="flex flex-wrap gap-1.5">{group.tabs.map((k) => <button key={k} type="button" aria-current={tab === k ? "page" : undefined} onClick={() => setTab(k)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-9 font-bold text-[length:var(--fs-13)] ${tab === k ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-2 hover:bg-eu-chip"}`}>{label(k)}{count(k) > 0 && <span className={`tabular-nums text-[length:var(--fs-12)] ${tab === k ? "text-white/80" : "text-eu-muted"}`}>{count(k)}</span>}</button>)}</div>
+            )}
+          </nav>
+        );
+      })()}
 
+      {c && tab === "overview" && <CustomerOverviewTab id={c.id} go={setTab} />}
       {(tab === "profile" || !c) && <ProfileTab c={c} stores={stores} canWrite={perms.write} run={run} pending={pending} />}
       {c && tab === "addresses" && <AddressesTab c={c} canWrite={perms.write} run={run} pending={pending} />}
       {c && tab === "orders" && <OrdersTab c={c} />}
@@ -74,7 +112,7 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured, init
       {c && tab === "notes" && <NotesTab c={c} canWrite={perms.write} run={run} pending={pending} />}
       {c && tab === "erp" && <ErpTab c={c} canWrite={perms.write} erpConfigured={erpConfigured} run={run} pending={pending} />}
       {c && tab === "gdpr" && <GdprTab c={c} perms={perms} run={run} pending={pending} />}
-      {c && <Card title="Χρονολόγιο"><ul className="m-0 p-0 list-none grid gap-1 text-[length:var(--fs-14)]">{c.events.slice(0, 30).map((e: Any) => <li key={e.id} className="grid grid-cols-[150px_110px_minmax(0,1fr)] gap-2 border-t border-eu-line-2 py-1.5"><span className="tabular-nums text-eu-muted">{dt(e.at)}</span><span className="font-bold">{e.kind}</span><span className="text-eu-ink-2 truncate">{e.meta ? JSON.stringify(e.meta).slice(0, 140) : ""}</span></li>)}</ul></Card>}
+      <ToastBar t={toast} onClose={closeToast} />
     </div>
   );
 }
@@ -113,31 +151,48 @@ function ProfileTab({ c, stores, canWrite, run, pending }: { c: Any; stores: { i
   const [f, setF] = useState<CustomerInput>({ type: c?.type ?? "individual", email: c?.email ?? "", firstName: c?.firstName ?? "", lastName: c?.lastName ?? "", company: c?.company ?? "", vatNumber: c?.vatNumber ?? "", doy: c?.doy ?? "", profession: c?.profession ?? "", phone: c?.phone ?? "", mobile: c?.mobile ?? "", birthday: c?.birthday ? c.birthday.slice(0, 10) : "", gender: c?.gender ?? "", status: c?.status === "blocked" ? "blocked" : "active", newsletter: c?.newsletter ?? false, tags: c?.tags ?? [], preferredStoreId: c?.preferredStoreId ?? "", loyaltyTier: c?.loyaltyTier ?? "", loyaltyCard: c?.loyaltyCard ?? "", notes: c?.notes ?? "" });
   const set = <K extends keyof CustomerInput>(k: K, v: CustomerInput[K]) => setF((s) => ({ ...s, [k]: v }));
   const dis = !canWrite || c?.status === "anonymised";
+  const [initial, setInitial] = useState(() => JSON.stringify(f));
+  const dirty = JSON.stringify(f) !== initial;
+  const save = () => run(async () => { const r = await saveCustomer(c?.id ?? null, f); if (r.ok) setInitial(JSON.stringify(f)); if (r.ok && !c) router.replace(`/admin/customers/${r.id}`); return r; });
+  const sec = "m-0 rounded-xl border border-eu-line p-3 grid gap-3 grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 min-w-0";
+  const leg = "px-1 font-extrabold text-eu-navy text-[length:var(--fs-13)]";
   return (
-    <Card title="Στοιχεία" right={canWrite && <button type="button" disabled={pending || dis} onClick={() => run(async () => { const r = await saveCustomer(c?.id ?? null, f); if (r.ok && !c) router.replace(`/admin/customers/${r.id}`); return r; })} className={btn}><Check className="size-4" aria-hidden /> Αποθήκευση</button>}>
-      <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3">
+    <Card title="Στοιχεία" right={canWrite && <button type="button" disabled={pending || dis || (!!c && !dirty)} onClick={save} className={btn}><Check className="size-4" aria-hidden /> {c ? "Αποθήκευση" : "Δημιουργία πελάτη"}</button>}>
+      <fieldset className={sec}><legend className={leg}>Ταυτότητα</legend>
         <label className={label}>Τύπος<select value={f.type} onChange={(e) => set("type", e.target.value as CustomerInput["type"])} disabled={dis} className={field}><option value="individual">Ιδιώτης</option><option value="business">Εταιρεία / επαγγελματίας</option></select></label>
-        <label className={label}>Email<input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} disabled={dis} className={field} /></label>
+        {f.type === "business" && <label className={`${label} @5xl:col-span-2`}>Επωνυμία εταιρείας *<input value={f.company} onChange={(e) => set("company", e.target.value)} disabled={dis} className={field} /></label>}
+        <label className={label}>Όνομα *<input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} disabled={dis} className={field} /></label>
+        <label className={label}>Επώνυμο *<input value={f.lastName} onChange={(e) => set("lastName", e.target.value)} disabled={dis} className={field} /></label>
         <label className={label}>Κατάσταση<select value={f.status} onChange={(e) => set("status", e.target.value as CustomerInput["status"])} disabled={dis} className={field}><option value="active">Ενεργός</option><option value="blocked">Μπλοκαρισμένος (περιορισμός επεξεργασίας)</option></select></label>
-        <label className={label}>Όνομα<input value={f.firstName} onChange={(e) => set("firstName", e.target.value)} disabled={dis} className={field} /></label>
-        <label className={label}>Επώνυμο<input value={f.lastName} onChange={(e) => set("lastName", e.target.value)} disabled={dis} className={field} /></label>
-        {f.type === "business" && <label className={label}>Επωνυμία εταιρείας<input value={f.company} onChange={(e) => set("company", e.target.value)} disabled={dis} className={field} /></label>}
-        <label className={label}>ΑΦΜ<input value={f.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} disabled={dis} className={`${field} font-mono`} inputMode="numeric" /></label>
-        <label className={label}>ΔΟΥ<input value={f.doy} onChange={(e) => set("doy", e.target.value)} disabled={dis} className={field} /></label>
-        <label className={label}>Επάγγελμα<input value={f.profession} onChange={(e) => set("profession", e.target.value)} disabled={dis} className={field} /></label>
-        <label className={label}>Τηλέφωνο<input value={f.phone} onChange={(e) => set("phone", e.target.value)} disabled={dis} className={field} /></label>
-        <label className={label}>Κινητό<input value={f.mobile} onChange={(e) => set("mobile", e.target.value)} disabled={dis} className={field} /></label>
         <label className={label}>Γενέθλια<input type="date" value={f.birthday} onChange={(e) => set("birthday", e.target.value)} disabled={dis} className={field} /></label>
         <label className={label}>Φύλο<select value={f.gender} onChange={(e) => set("gender", e.target.value)} disabled={dis} className={field}><option value="">—</option><option value="f">Γυναίκα</option><option value="m">Άνδρας</option><option value="other">Άλλο</option></select></label>
+      </fieldset>
+      <fieldset className={sec}><legend className={leg}>Επικοινωνία</legend>
+        <label className={label}>Email *<input type="email" inputMode="email" value={f.email} onChange={(e) => set("email", e.target.value)} disabled={dis} className={field} /></label>
+        <label className={label}>Κινητό<input type="tel" inputMode="tel" value={f.mobile} onChange={(e) => set("mobile", e.target.value)} disabled={dis} className={field} /></label>
+        <label className={label}>Σταθερό<input type="tel" inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} disabled={dis} className={field} /></label>
+        <label className="inline-flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-14)] min-h-11 @2xl:col-span-2 @5xl:col-span-3"><input type="checkbox" checked={f.newsletter} onChange={(e) => set("newsletter", e.target.checked)} disabled={dis} className="size-5 accent-eu-navy" /> Newsletter <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">(η αλλαγή καταγράφεται ως συναίνεση από τη διαχείριση)</span></label>
+      </fieldset>
+      <fieldset className={sec}><legend className={leg}>Φορολογικά <span className="font-normal text-eu-muted">— «Ενέργειες → Επικαιροποίηση από ΑΑΔΕ» τα συμπληρώνει από το μητρώο</span></legend>
+        <label className={label}>ΑΦΜ<input value={f.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} maxLength={9} disabled={dis} className={`${field} font-mono`} inputMode="numeric" /></label>
+        <label className={label}>Δ.Ο.Υ.<input value={f.doy} onChange={(e) => set("doy", e.target.value)} disabled={dis} className={field} /></label>
+        <label className={label}>Επάγγελμα / ΚΑΔ<input value={f.profession} onChange={(e) => set("profession", e.target.value)} disabled={dis} className={field} /></label>
+      </fieldset>
+      <fieldset className={sec}><legend className={leg}>Λιανική & πιστότητα</legend>
         <label className={label}>Κατάστημα προτίμησης<select value={f.preferredStoreId} onChange={(e) => set("preferredStoreId", e.target.value)} disabled={dis} className={field}><option value="">—</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.city} — {s.name}</option>)}</select></label>
         <label className={label}>Επίπεδο loyalty<select value={f.loyaltyTier} onChange={(e) => set("loyaltyTier", e.target.value)} disabled={dis} className={field}><option value="">—</option><option value="bronze">Bronze</option><option value="silver">Silver</option><option value="gold">Gold</option></select></label>
         <label className={label}>Κάρτα loyalty<input value={f.loyaltyCard} onChange={(e) => set("loyaltyCard", e.target.value)} disabled={dis} className={`${field} font-mono`} /></label>
-        <label className={label}>Tags <span className="font-normal text-eu-muted">(με κόμμα)</span><input value={f.tags.join(", ")} onChange={(e) => set("tags", e.target.value.split(",").map((t) => t.trim()).filter(Boolean))} disabled={dis} className={field} /></label>
-        <label className="inline-flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-14)] min-h-11 self-end"><input type="checkbox" checked={f.newsletter} onChange={(e) => set("newsletter", e.target.checked)} disabled={dis} className="size-5 accent-eu-navy" /> Newsletter <span className="font-normal text-eu-muted">(η αλλαγή καταγράφεται ως συναίνεση από διαχείριση)</span></label>
-      </div>
+        <label className={`${label} @2xl:col-span-2 @5xl:col-span-3`}>Ετικέτες <span className="font-normal text-eu-muted">(με κόμμα, π.χ. vip, b2b)</span><input value={f.tags.join(", ")} onChange={(e) => set("tags", e.target.value.split(",").map((t) => t.trim()).filter(Boolean))} disabled={dis} className={field} /></label>
+      </fieldset>
       <label className={label}>Εσωτερικές σημειώσεις προφίλ<textarea rows={2} value={f.notes} onChange={(e) => set("notes", e.target.value)} disabled={dis} className={`${field} py-2`} /></label>
       {c?.social?.length > 0 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Social login: {c.social.map((s: Any) => s.provider).join(", ")}</p>}
       {c && canWrite && c.status === "active" && <div className="flex flex-wrap items-center gap-2 border-t border-eu-line-2 pt-3"><button type="button" disabled={pending} onClick={() => run(() => sendPasswordReset(c.id), "Στάλθηκε email με κωδικό OTP επαναφοράς στον πελάτη.")} className={btn2}>Αποστολή κωδικού επαναφοράς (OTP)</button><span className="text-eu-muted text-[length:var(--fs-13)]">Ο πελάτης λαμβάνει 6ψήφιο κωδικό στο email του· το προσωπικό δεν βλέπει ποτέ κωδικούς.</span></div>}
+      {canWrite && c && dirty && (
+        <div className="sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-eu-navy text-white px-4 py-2.5 shadow-[var(--shadow-raised)]">
+          <span className="font-bold text-[length:var(--fs-14)]">Μη αποθηκευμένες αλλαγές στα στοιχεία</span>
+          <span className="flex gap-2"><button type="button" onClick={() => setF(JSON.parse(initial))} className="rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-white/10">Αναίρεση</button><button type="button" disabled={pending} onClick={save} className="inline-flex items-center gap-1.5 rounded-full bg-eu-yellow text-eu-navy px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] disabled:opacity-50"><Check className="size-4" aria-hidden /> Αποθήκευση</button></span>
+        </div>
+      )}
     </Card>
   );
 }
@@ -186,15 +241,31 @@ function AddressesTab({ c, canWrite, run, pending }: { c: Any; canWrite: boolean
 function DevicesTab({ c, canWrite, run, pending }: { c: Any; canWrite: boolean; run: Any; pending: boolean }) {
   const empty = { brand: "", title: "", model: "", serial: "", purchasedAt: "", warrantyMonths: 24, extendedUntil: "", extendedPlan: "", invoiceNo: "", notes: "" };
   const [edit, setEdit] = useState<{ id: string | null; d: typeof empty } | null>(null);
+  const [now] = useState(() => Date.now());
   const set = (k: keyof typeof empty, v: string | number) => setEdit((e) => (e ? { ...e, d: { ...e.d, [k]: v } } : e));
   return (
     <Card title="Συσκευές & εγγυήσεις" right={canWrite && <button type="button" onClick={() => setEdit({ id: null, d: empty })} className={btn}><Plus className="size-4" aria-hidden /> Καταχώρηση συσκευής</button>}>
-      <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 gap-3">
+      {c.devices.length > 0 && (() => {
+        const left = (dev: Any) => { const u = dev.extendedUntil ?? dev.warrantyUntil; return u ? (new Date(u).getTime() - now) / 86400000 : null; };
+        const inW = c.devices.filter((x: Any) => (left(x) ?? -1) > 60).length, soon = c.devices.filter((x: Any) => { const l = left(x); return l != null && l >= 0 && l <= 60; }).length, gone = c.devices.filter((x: Any) => (left(x) ?? 0) < 0).length, ext = c.devices.filter((x: Any) => x.extendedUntil).length;
+        return (
+          <div className="grid gap-2">
+            <div className="flex flex-wrap gap-1.5 text-[length:var(--fs-13)] font-bold">
+              <span className="rounded-full bg-eu-green/12 text-eu-green px-2.5 py-1">{inW} σε εγγύηση</span>
+              <span className="rounded-full bg-eu-amber/15 text-eu-amber px-2.5 py-1">{soon} λήγουν σε ≤ 60 ημέρες</span>
+              <span className="rounded-full bg-eu-surface text-eu-muted px-2.5 py-1">{gone} έληξαν</span>
+              <span className="rounded-full bg-eu-chip text-eu-blue px-2.5 py-1">{ext} με επέκταση</span>
+            </div>
+            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Από SoftOne: μία συσκευή ανά είδος ≥ 50 € των παραγγελιών· εγγύηση κατασκευαστή από τα χαρακτηριστικά του προϊόντος (αλλιώς 24 μήνες)· επέκταση στη συσκευή που αντιστοιχεί στη γραμμή «Επέκταση εγγύησης» του παραστατικού.</p>
+          </div>
+        );
+      })()}
+      <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 @6xl:grid-cols-3 gap-2">
         {c.devices.map((dev: Any) => { const s = warrantyStatus(dev); return (
-          <li key={dev.id} className="rounded-xl border border-eu-line p-3 text-[length:var(--fs-14)]">
+          <li key={dev.id} className="rounded-xl border border-eu-line px-3 py-2 text-[length:var(--fs-14)] grid gap-0.5 content-start">
             <div className="font-bold text-eu-ink">{dev.brand} {dev.title}</div>
             <div className="text-eu-ink-2">{dev.model ?? ""}{dev.serial ? ` · S/N ${dev.serial}` : ""}</div>
-            <div className="text-eu-muted text-[length:var(--fs-13)]">Αγορά {d(dev.purchasedAt)} · εγγύηση {dev.warrantyMonths} μήνες{dev.extendedPlan ? ` + ${dev.extendedPlan}` : ""}{dev.invoiceNo ? ` · ${dev.invoiceNo}` : ""} · {dev.registeredBy}</div>
+            <div className="text-eu-muted text-[length:var(--fs-13)]">Αγορά {d(dev.purchasedAt)} · εγγύηση {dev.warrantyMonths} μήνες{dev.extendedUntil ? ` + επέκταση έως ${d(dev.extendedUntil)}` : ""}{dev.invoiceNo ? ` · ${dev.invoiceNo}` : ""} · {({ order: "παραγγελία e-shop", erp: "SoftOne", manual: "χειροκίνητα", staff: "προσωπικό" } as Record<string, string>)[dev.registeredBy] ?? dev.registeredBy}</div>
             <div className={`font-bold ${s.cls}`}>{s.t}</div>
             {canWrite && <button type="button" onClick={() => setEdit({ id: dev.id, d: { brand: dev.brand, title: dev.title, model: dev.model ?? "", serial: dev.serial ?? "", purchasedAt: dev.purchasedAt?.slice(0, 10) ?? "", warrantyMonths: dev.warrantyMonths, extendedUntil: dev.extendedUntil?.slice(0, 10) ?? "", extendedPlan: dev.extendedPlan ?? "", invoiceNo: dev.invoiceNo ?? "", notes: dev.notes ?? "" } })} className={`${btn2} mt-2`}>Επεξεργασία</button>}
           </li>

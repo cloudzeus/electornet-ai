@@ -100,7 +100,7 @@ const TABS = [
   { k: "erp", t: "SoftOne", s: "SoftOne", I: Link2 },
   { k: "activity", t: "Δραστηριότητα", s: "Ιστορικό", I: Activity },
 ] as const;
-type TabKey = (typeof TABS)[number]["k"];
+export type TabKey = (typeof TABS)[number]["k"];
 const WORKSPACE_TAB: Record<TabKey, string> = { overview: "profile", buys: "orders", requests: "service", warranty: "devices", loyalty: "loyalty", erp: "erp", activity: "profile" };
 
 /** Η πλήρης εικόνα ενός πελάτη μέσα στη λίστα, σε καρτέλες. Φορτώνεται όταν ανοίξει η γραμμή. */
@@ -148,7 +148,7 @@ const H = ({ children, right }: { children: ReactNode; right?: ReactNode }) => <
 const Empty = ({ children }: { children: ReactNode }) => <p className="m-0 rounded-lg bg-eu-surface/60 px-2.5 py-2 text-eu-muted text-[length:var(--fs-13)]">{children}</p>;
 const Pill = ({ tone, children }: { tone: "ok" | "warn" | "bad" | "info" | "mute"; children: ReactNode }) => <span className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${{ ok: "bg-eu-green/12 text-eu-green", warn: "bg-eu-amber/15 text-eu-amber", bad: "bg-eu-red/10 text-eu-red", info: "bg-eu-chip text-eu-blue", mute: "bg-eu-surface text-eu-muted" }[tone]}`}>{children}</span>;
 
-function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
+export function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
   const max = Math.max(1, ...p.byYear.map((y) => y.total));
   const addr = p.addresses[0];
   return (
@@ -163,7 +163,7 @@ function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
           {p.store && <li className="flex gap-2"><Store className="size-4 mt-0.5 shrink-0 text-eu-muted" aria-hidden /><span>{p.store}</span></li>}
           {(p.vat || p.doy) && <li className="flex gap-2"><FileText className="size-4 mt-0.5 shrink-0 text-eu-muted" aria-hidden /><span className="tabular-nums">ΑΦΜ {p.vat ?? "—"}{p.doy ? ` · ΔΟΥ ${p.doy}` : ""}</span></li>}
         </ul>
-        <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Μέλος από {day(p.createdAt)} · πηγή {p.source}{p.lastLoginAt ? ` · τελευταία σύνδεση ${day(p.lastLoginAt)}` : " · δεν έχει συνδεθεί"}{p.birthday ? ` · γενέθλια ${new Date(p.birthday).toLocaleDateString("el-GR", { day: "numeric", month: "long" })}` : ""}</p>
+        <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{p.source === "softone-history" ? `Από το ιστορικό SoftOne${p.kpi.first ? ` · πρώτη αγορά ${day(p.kpi.first)}` : ""}` : `Μέλος από ${day(p.createdAt)} · ${({ web: "e-shop", store: "κατάστημα", erp: "SoftOne", import: "εισαγωγή", nop: "παλιό e-shop" } as Record<string, string>)[p.source] ?? p.source}`}{p.lastLoginAt ? ` · τελευταία σύνδεση ${day(p.lastLoginAt)}` : " · δεν έχει συνδεθεί"}{p.birthday ? ` · γενέθλια ${new Date(p.birthday).toLocaleDateString("el-GR", { day: "numeric", month: "long" })}` : ""}</p>
         {p.notes.length > 0 && (
           <ul className="m-0 p-0 list-none grid gap-1">{p.notes.map((x) => <li key={x.id} className="flex gap-2 rounded-lg bg-eu-yellow/15 px-2.5 py-1.5 text-[length:var(--fs-13)]"><StickyNote className="size-4 shrink-0 mt-px text-eu-yellow-dark" aria-hidden /><span className="min-w-0">{x.text}</span></li>)}</ul>
         )}
@@ -215,7 +215,7 @@ function Buys({ p }: { p: Peek }) {
 
 const TICKET: Record<string, string> = { repair: "Επισκευή", installation: "Εγκατάσταση", delivery: "Παράδοση", pickup: "Παραλαβή", appointment: "Ραντεβού", "warranty-claim": "Εγγύηση" };
 const TSTATUS: Record<string, [string, "ok" | "warn" | "info" | "mute"]> = { new: ["Νέο", "warn"], scheduled: ["Προγραμματισμένο", "info"], "in-progress": ["Σε εξέλιξη", "info"], "waiting-parts": ["Αναμονή ανταλλακτικών", "warn"], done: ["Ολοκληρώθηκε", "ok"], cancelled: ["Ακυρώθηκε", "mute"] };
-function Requests({ p }: { p: Peek }) {
+export function Requests({ p }: { p: Peek }) {
   const r = p.requests;
   if (!r.tickets.length && !r.returns.length && !r.gdpr.length && !r.reviews.length) return <Empty>Κανένα αίτημα: ούτε service, ούτε επιστροφή, ούτε GDPR, ούτε κριτική.</Empty>;
   return (
@@ -240,7 +240,7 @@ function Requests({ p }: { p: Peek }) {
 }
 
 const REG: Record<string, string> = { order: "παραγγελία e-shop", erp: "SoftOne", manual: "χειροκίνητα", staff: "προσωπικό" };
-function Warranty({ p }: { p: Peek }) {
+export function Warranty({ p }: { p: Peek }) {
   if (!p.devices.length) return <Empty>Καμία καταχωρημένη συσκευή. Οι συσκευές μπαίνουν από τις παραγγελίες, το SoftOne ή χειροκίνητα στην πλήρη καρτέλα.</Empty>;
   return (
     <div className="grid gap-2">
@@ -318,7 +318,7 @@ function Erp({ p }: { p: Peek }) {
 }
 
 const EVENT: Record<string, string> = { login: "Σύνδεση", register: "Εγγραφή", order: "Παραγγελία", consent: "Συναίνεση", profile: "Αλλαγή στοιχείων", address: "Διεύθυνση", device: "Συσκευή", ticket: "Service", loyalty: "Πόντοι", note: "Σημείωση", erp: "SoftOne", gdpr: "GDPR" };
-function ActivityTab({ p }: { p: Peek }) {
+export function ActivityTab({ p }: { p: Peek }) {
   if (!p.events.length) return <Empty>Καμία καταγεγραμμένη δραστηριότητα.</Empty>;
   return (
     <ol className="m-0 p-0 list-none grid gap-0.5">
