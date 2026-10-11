@@ -1,16 +1,11 @@
-import { Database, ExternalLink, Globe, Zap, Package } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { SOURCES, sourceOf } from "./sources";
 
 export interface SpecRow { id: string; groupName: string; key: string; value: string; source: string | null }
 
-/** Από πού ήρθε κάθε χαρακτηριστικό και πού αλλάζει. */
-const SRC: Record<string, { label: string; cls: string; Icon: typeof Zap; where: string }> = {
-  eprel: { label: "EPREL", cls: "bg-eu-green/12 text-eu-green", Icon: Zap, where: "Από την ενεργειακή ετικέτα (EPREL) — ενημερώνονται με νέα αναζήτηση στο EPREL (καρτέλα Διαστάσεις · AR · EPREL)." },
-  "s1-desc": { label: "ERP", cls: "bg-eu-navy/10 text-eu-navy", Icon: Database, where: "Από την αναλυτική περιγραφή του SoftOne — αλλάζουν στα «Χαρακτηριστικά» πιο πάνω." },
-  icecat: { label: "Icecat", cls: "bg-eu-blue/10 text-eu-blue", Icon: Package, where: "Από τον κατάλογο Icecat του κατασκευαστή." },
-  web: { label: "Web", cls: "bg-eu-amber/15 text-eu-ink-2", Icon: Globe, where: "Από το site του κατασκευαστή / το παλιό site." },
-};
-const other = { label: "Άλλη πηγή", cls: "bg-eu-surface text-eu-ink-3", Icon: Package, where: "Χωρίς καταγεγραμμένη πηγή." };
-const srcOf = (s: string | null) => (s && SRC[s]) || other;
+/** Από πού ήρθε κάθε χαρακτηριστικό και πού αλλάζει — κοινά χρώματα με όλη τη σελίδα (βλ. sources.tsx). */
+const other = SOURCES.other;
+const srcOf = sourceOf;
 
 /**
  * Όλα τα χαρακτηριστικά που βλέπει ο πελάτης στη σελίδα του προϊόντος, με την πηγή τους σε κάθε γραμμή

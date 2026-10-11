@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, ListChecks, Ruler, ShieldCheck, Tag, Plus, Trash2, Loader2, Save, Undo2, AlertTriangle, Lock } from "lucide-react";
 import { AccordionItem } from "@/components/admin/ui/Accordion";
+import { SourceBadge } from "./sources";
 import { parseDescription } from "@/lib/softone/describe";
 import { saveProductFields } from "@/app/admin/(shell)/catalog/actions";
 import type { ItemField, ItemValue } from "@/lib/softone/item-write";
@@ -44,10 +45,14 @@ function Field({ label, help, children, wide = false }: { label: string; help?: 
  */
 export type EditorSection = "basics" | "texts" | "specs" | "dims" | "warranty";
 
-export function ProductEditor({ productId, initial, readonly, readonlyReason, meta, descDims, only }: {
+export type DimCandidate = { source: string; w: number; h: number; d: number; line: string; note: string | null; kind?: string };
+
+export function ProductEditor({ productId, initial, readonly, readonlyReason, meta, descDims, dimCandidates, only }: {
   productId: string; initial: EditorValues; readonly: boolean; readonlyReason?: string;
   /** διαστάσεις που βγήκαν από τη γραμμή «Διαστάσεις (ΥxΠxΒ)» της περιγραφής, σε εκ. (με διόρθωση μονάδας/αξόνων) */
   descDims?: { w: number; h: number; d: number; line: string; note: string | null } | null;
+  /** διαστάσεις που βρέθηκαν στο περιεχόμενο (EPREL, περιγραφή SoftOne) — «Χρήση αυτών» γεμίζει τα πεδία */
+  dimCandidates?: DimCandidate[];
   meta: { code: string; mtrl: string; brand: string; category: string };
   /** μόνο αυτές οι ενότητες (καρτέλες της σελίδας προϊόντος)· χωρίς = όλες */
   only?: EditorSection[];
@@ -160,12 +165,25 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
         <div className="grid gap-3 grid-cols-2 @2xl:grid-cols-4">
           {num("widthCm", "Πλάτος", "εκ.")}{num("heightCm", "Ύψος", "εκ.")}{num("lengthCm", "Βάθος", "εκ.")}{num("weightKg", "Βάρος", "kg")}
         </div>
-        {descDims && !readonly && !(same(v.widthCm, descDims.w) && same(v.heightCm, descDims.h) && same(v.lengthCm, descDims.d)) && (
-          <div className="mt-3 grid gap-1.5 rounded-lg bg-eu-surface p-2.5">
-            <p className="m-0 text-eu-ink-2 text-[length:var(--fs-13)]">Από την περιγραφή: <b>«{descDims.line}»</b> → Π {descDims.w} · Υ {descDims.h} · Β {descDims.d} εκ.{descDims.note ? <span className="block text-eu-amber font-semibold">{descDims.note}</span> : null}</p>
-            <button type="button" disabled={dis} onClick={() => { set("widthCm", descDims.w); set("heightCm", descDims.h); set("lengthCm", descDims.d); }} className="justify-self-start inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold px-3 min-h-10 text-[length:var(--fs-13)] hover:bg-eu-blue cursor-pointer"><Ruler className="size-4" aria-hidden /> Συμπλήρωση από την περιγραφή</button>
-          </div>
-        )}
+        {(() => {
+          const list: DimCandidate[] = dimCandidates ?? (descDims ? [{ source: "s1-desc", ...descDims }] : []);
+          const differs = list.filter((c) => !(same(v.widthCm, c.w) && same(v.heightCm, c.h) && same(v.lengthCm, c.d)));
+          if (!list.length) return null;
+          return (
+            <div className="mt-3 grid gap-1.5" data-help="product.dims-from-content">
+              <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Βρέθηκαν στο περιεχόμενο</span>
+              {list.map((c, i) => { const isSame = !differs.includes(c); return (
+                <div key={i} className={`flex flex-wrap items-center gap-2 rounded-lg p-2.5 ${isSame ? "bg-eu-green/8" : "bg-eu-surface"}`}>
+                  <SourceBadge source={c.source} size="xs" />
+                  <span className="text-eu-ink text-[length:var(--fs-13)] tabular-nums font-bold">Π {c.w} · Υ {c.h} · Β {c.d} εκ.{c.kind && c.kind !== "product" ? ` (${c.kind})` : ""}</span>
+                  <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 truncate basis-full @2xl:basis-auto @2xl:flex-1">«{c.line}»{c.note ? <span className="text-eu-amber font-semibold"> · {c.note}</span> : null}</span>
+                  {isSame ? <span className="text-eu-green font-bold text-[length:var(--fs-12)]">ίδιες με τα πεδία</span> : !readonly && <button type="button" disabled={dis} onClick={() => { set("widthCm", c.w); set("heightCm", c.h); set("lengthCm", c.d); }} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold px-3 min-h-10 text-[length:var(--fs-13)] hover:bg-eu-blue cursor-pointer"><Ruler className="size-4" aria-hidden /> Χρήση αυτών</button>}
+                </div>
+              ); })}
+              {differs.length > 0 && !readonly && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Μετά πάτα «Αποθήκευση σε SoftOne + eshop» — ενημερώνονται και τα δύο.</p>}
+            </div>
+          );
+        })()}
         <p className="m-0 mt-2 text-eu-muted text-[length:var(--fs-12)]">Για μεταφορικά, «Χωράει στον χώρο μου» και AR. Όπου υπάρχει EPREL, έχει προτεραιότητα για το «χωράει;».</p>
       </AccordionItem>
       )}

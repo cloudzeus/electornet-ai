@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T07:48:52.637Z",
+ "generatedAt": "2026-10-11T07:56:36.653Z",
  "routes": [
   {
    "route": "/admin",
@@ -370,9 +370,15 @@
    "helpKeys": [
     "product.actions",
     "product.overview",
+    "product.sources",
     "product.tabs"
    ],
    "changes": [
+    {
+     "hash": "bbf6ae4",
+     "date": "2026-10-11T10:49:29+03:00",
+     "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση"
+    },
     {
      "hash": "6b98982",
      "date": "2026-10-10T10:59:05+03:00",
@@ -417,14 +423,9 @@
      "hash": "a893d41",
      "date": "2026-10-04T11:10:48+03:00",
      "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
-    },
-    {
-     "hash": "8a5a468",
-     "date": "2026-10-04T09:27:41+03:00",
-     "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
     }
    ],
-   "updatedAt": "2026-10-10T10:59:05+03:00",
+   "updatedAt": "2026-10-11T10:49:29+03:00",
    "shots": {}
   },
   {
@@ -2852,6 +2853,16 @@
  ],
  "recent": [
   {
+   "hash": "bbf6ae4",
+   "date": "2026-10-11T10:49:29+03:00",
+   "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
    "hash": "d29568e",
    "date": "2026-10-11T10:38:47+03:00",
    "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne",
@@ -3182,17 +3193,6 @@
     "/admin/catalog",
     "/admin/catalog/sets"
    ]
-  },
-  {
-   "hash": "a234171",
-   "date": "2026-10-10T10:43:51+03:00",
-   "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]",
-    "/admin/catalog/sets"
-   ]
   }
  ],
  "helpKeys": {
@@ -3271,8 +3271,14 @@
   "settings.test": [
    "components/admin/SettingsForm.tsx"
   ],
+  "product.dims-from-content": [
+   "components/admin/catalog/ProductEditor.tsx"
+  ],
   "product.overview": [
    "components/admin/catalog/ProductOverview.tsx"
+  ],
+  "product.sources": [
+   "components/admin/catalog/ProductSources.tsx"
   ],
   "product.tabs": [
    "components/admin/catalog/ProductWorkspace.tsx"

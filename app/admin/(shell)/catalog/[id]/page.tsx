@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package, ExternalLink, BadgePercent } from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
+import { ProductActions } from "@/components/admin/catalog/ProductActions";
+import { ProductSources, type SourcesData } from "@/components/admin/catalog/ProductSources";
+import { warrantyFromSpecs } from "@/lib/warranty/policy";
 import { productOverview } from "@/lib/catalog/product-overview";
 import { ProductOverview } from "@/components/admin/catalog/ProductOverview";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -64,15 +67,20 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     getProductsByIds([p.id]),
     fromS1 ? db.s1Item.findUnique({ where: { mtrl } }) : Promise.resolve(null),
     itemWriteEnabled(),
-    db.productDimension.findUnique({ where: { productId_source: { productId: id, source: "s1-desc" } } }),
+    db.productDimension.findMany({ where: { productId: id }, orderBy: { source: "asc" } }),
     productVideos(id),
-    tab === "commerce" ? productStickers(id).catch(() => []) : Promise.resolve([]),
+    productStickers(id).catch(() => []),
     getSettings(),
     getArCategories(),
     tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
     setForProduct(p.erpCode).catch(() => null),
   ]);
-  const overview = tab === "overview" ? await productOverview(p.id) : null;
+  const [overview, specSrc, dimRows, warrantySpecs] = await Promise.all([
+    tab === "overview" ? productOverview(p.id) : null,
+    tab === "overview" ? db.spec.groupBy({ by: ["source"], where: { productId: id }, _count: true }) : [],
+    tab === "overview" ? db.productDimension.findMany({ where: { productId: id }, select: { source: true, w: true, h: true, d: true, kind: true, warning: true } }) : [],
+    tab === "overview" ? db.spec.findMany({ where: { productId: id, key: { contains: "γγ", mode: "insensitive" } }, select: { key: true, value: true, source: true } }) : [],
+  ]);
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow, arCats) : null;
   const arFront = arPl?.on && !arPl.custom && arPl.archetype !== "tv" ? { front: arRow?.frontImage ?? null } : undefined;
@@ -101,10 +109,20 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     ar: { applies: arApplies, on: !!arPl?.on, reason: arPl?.reason ?? null },
     price: p.price,
   });
+  const ws = warrantyFromSpecs(warrantySpecs);
+  const wsRow = ws ? warrantySpecs.find((x) => x.value.trim() === ws.text) ?? warrantySpecs[0] : null;
+  const sources: SourcesData = {
+    specs: specSrc.map((x) => ({ source: x.source, n: x._count })),
+    energy: p.energy ? { cls: p.energy.class, source: p.energy.source, eprel: p.energy.eprelRegistrationNumber } : null,
+    energyNeeded: hasEnergyLabel(p.category.name),
+    dims: dimRows,
+    warranty: item?.guaranteeMonths ? { months: item.guaranteeMonths, from: "softone", text: null, source: "s1-desc" } : ws ? { months: ws.months, from: "specs", text: ws.text, source: wsRow?.source ?? null } : { months: 24, from: "default", text: null, source: null },
+    canFix: { texts: !!(fromS1 && initial), dims: !!(fromS1 && initial), warranty: !!(fromS1 && initial), energy: canWrite },
+  };
   const href = (to: WorkspaceTab) => `/admin/catalog/${p.id}?tab=${to}`;
 
   const editor = (only: Parameters<typeof ProductEditor>[0]["only"]) => fromS1 && initial ? (
-    <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} descDims={descDim ? { w: descDim.w, h: descDim.h, d: descDim.d, line: `${descDim.rawKey ?? "Διαστάσεις"}: ${descDim.rawValue ?? ""}`.slice(0, 120), note: descDim.warning } : null} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
+    <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} dimCandidates={descDim.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning }))} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
   ) : (
     <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Το προϊόν δεν προέρχεται από το SoftOne — τα στοιχεία του δεν επεξεργάζονται από εδώ.</p>
   );
@@ -120,10 +138,16 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
           <span className="text-eu-muted">κωδικός {p.sku}{p.ean ? ` · EAN ${p.ean}` : ""}{p.brand?.name ? ` · ${p.brand.name}` : ""}</span>
         </div>
-        <div data-help="product.actions" className="flex flex-wrap items-center gap-1.5 pt-1">
-          {p.active && <a href={`/proion/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-eu-surface text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:bg-eu-navy hover:text-white"><ExternalLink className="size-3.5" aria-hidden /> Στο site</a>}
-          {can(user.permissions, "catalog.promos.write") && <Link href={`/admin/prosfores/new?products=${p.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-surface text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:bg-eu-navy hover:text-white"><BadgePercent className="size-3.5" aria-hidden /> Νέα προσφορά</Link>}
-          {fromS1 && canWrite && <SoftoneRefresh productId={p.id} />}
+        <div data-help="product.actions" className="pt-1">
+          <ProductActions productId={p.id} title={p.title} siteHref={p.active ? `/proion/${p.slug}` : null} canPromo={can(user.permissions, "catalog.promos.write")} canSoftone={fromS1 && canWrite}
+            codes={[{ label: "κωδικού", value: p.sku }, ...(p.ean ? [{ label: "EAN", value: p.ean }] : []), ...(p.erpCode ? [{ label: "MTRL", value: p.erpCode }] : [])]}
+            modals={{
+              texts: editor(["texts", "specs"]),
+              dims: editor(["dims"]),
+              warranty: editor(["basics", "warranty"]),
+              energy: <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />,
+              stickers: <ProductStickersAdmin productId={p.id} initial={manualStickers} auto={(shop?.stickers ?? []).filter((s) => s.source !== "manual")} canWrite={canWrite} />,
+            }} />
         </div>
       </div>
 
@@ -133,6 +157,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={set ? [] : ["set"]} />
 
           {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
+          {tab === "overview" && <ProductSources d={sources} />}
 
           {tab === "media" && (<>
             <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px.">
