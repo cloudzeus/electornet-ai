@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T07:12:40.447Z",
+ "generatedAt": "2026-10-11T07:23:07.142Z",
  "routes": [
   {
    "route": "/admin",
@@ -928,11 +928,17 @@
     "customers.filters",
     "customers.list",
     "customers.peek",
+    "customers.preflight",
     "customers.table",
     "customers.actions",
     "customers.location"
    ],
    "changes": [
+    {
+     "hash": "f48f845",
+     "date": "2026-10-11T10:12:48+03:00",
+     "text": "Πελάτες: επικαιροποίηση από την ΑΑΔΕ (afm2info / ειδικοί κωδικοί)"
+    },
     {
      "hash": "0464501",
      "date": "2026-10-11T10:05:33+03:00",
@@ -977,14 +983,9 @@
      "hash": "b5e568f",
      "date": "2026-09-13T14:02:50+03:00",
      "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
-    },
-    {
-     "hash": "746f971",
-     "date": "2026-09-13T13:55:32+03:00",
-     "text": "Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer …"
     }
    ],
-   "updatedAt": "2026-10-11T10:05:33+03:00",
+   "updatedAt": "2026-10-11T10:12:48+03:00",
    "shots": {}
   },
   {
@@ -2828,6 +2829,15 @@
  ],
  "recent": [
   {
+   "hash": "f48f845",
+   "date": "2026-10-11T10:12:48+03:00",
+   "text": "Πελάτες: επικαιροποίηση από την ΑΑΔΕ (afm2info / ειδικοί κωδικοί)",
+   "routes": [
+    "/admin",
+    "/admin/customers"
+   ]
+  },
+  {
    "hash": "0464501",
    "date": "2026-10-11T10:05:33+03:00",
    "text": "Πελάτες: μενού ενεργειών (⋯) σε κάθε γραμμή",
@@ -3157,16 +3167,6 @@
    "date": "2026-10-10T10:02:35+03:00",
    "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)",
    "routes": []
-  },
-  {
-   "hash": "87d1452",
-   "date": "2026-10-10T09:44:26+03:00",
-   "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
   }
  ],
  "helpKeys": {
@@ -3274,6 +3274,9 @@
    "components/admin/customers/CustomerList.tsx"
   ],
   "customers.peek": [
+   "components/admin/customers/CustomerList.tsx"
+  ],
+  "customers.preflight": [
    "components/admin/customers/CustomerList.tsx"
   ],
   "customers.table": [

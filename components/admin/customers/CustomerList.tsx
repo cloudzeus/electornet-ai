@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 import { ChevronDown, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Mail, Phone, MapPin, Building2, Store, Loader2, ShoppingBag, Wrench, ShieldCheck, Star, Link2, Activity, LayoutGrid, CircleAlert, Check, X, Undo2, FileText, StickyNote } from "lucide-react";
-import { customerPeekAction } from "@/app/admin/(shell)/customers/actions";
+import { customerPeekAction, erpPreflightAction } from "@/app/admin/(shell)/customers/actions";
 import type { Peek } from "@/lib/customers/peek";
 
 export type CustomerRow = {
@@ -283,20 +283,35 @@ function Loyalty({ p }: { p: Peek }) {
   );
 }
 
+type Preflight = Awaited<ReturnType<typeof erpPreflightAction>>;
+const FIELD_LABEL: Record<string, string> = { CODE: "Κωδικός", NAME: "Επωνυμία", AFM: "ΑΦΜ", IRSDATA: "Δ.Ο.Υ.", EMAIL: "Email", PHONE01: "Τηλέφωνο", PHONE02: "Κινητό", JOBTYPETRD: "Επάγγελμα", ADDRESS: "Διεύθυνση", ZIP: "ΤΚ", CITY: "Πόλη", DISTRICT: "Νομός", COUNTRY: "Χώρα", SOCURRENCY: "Νόμισμα", VATSTS: "Καθ. ΦΠΑ" };
 function Erp({ p }: { p: Peek }) {
   const e = p.erp;
+  const [pf, setPf] = useState<Preflight | undefined>(undefined);
+  useEffect(() => { let live = true; void erpPreflightAction(p.id).then((x) => { if (live) setPf(x); }); return () => { live = false; }; }, [p.id]);
   return (
-    <div className="grid gap-2.5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <div className="grid grid-cols-2 gap-1.5 content-start">
-        <Tile label="Σύνδεση" value={e.trdr ? "Συνδεδεμένος" : "Χωρίς σύνδεση"} sub={e.trdr ? `TRDR ${e.trdr}${e.code ? ` · ${e.code}` : ""}` : "δεν έχει καρτέλα στο SoftOne"} />
-        <Tile label="Συγχρονισμός" value={e.status ?? "—"} sub={e.syncedAt ? `τελευταίος ${day(e.syncedAt)}` : undefined} />
-        <Tile label="Παραστατικά SoftOne" value={e.docs.toLocaleString("el-GR")} sub="στο ιστορικό αγορών" />
-        <Tile label="Σύνολο εγγραφών" value={e.docsTotal.toLocaleString("el-GR")} sub="παραστατικά & παραγγελίες" />
+    <div className="grid gap-2.5 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="grid gap-2 content-start">
+        <div className="grid grid-cols-2 gap-1.5">
+          <Tile label="Σύνδεση" value={e.trdr ? "Συνδεδεμένος" : "Χωρίς σύνδεση"} sub={e.trdr ? `TRDR ${e.trdr}${e.code ? ` · ${e.code}` : ""}` : "δεν έχει καρτέλα στο SoftOne"} />
+          <Tile label="Συγχρονισμός" value={e.status === "failed" ? "Αποτυχία" : e.status ?? "—"} sub={e.syncedAt ? `τελευταίος ${day(e.syncedAt)}` : undefined} />
+          <Tile label="Παραστατικά SoftOne" value={e.docs.toLocaleString("el-GR")} sub="στο ιστορικό αγορών" />
+          <Tile label="Σύνολο εγγραφών" value={e.docsTotal.toLocaleString("el-GR")} sub="παραστατικά & παραγγελίες" />
+        </div>
+        {e.error && <p className="m-0 rounded-lg bg-eu-red/10 text-eu-red px-2.5 py-1.5 text-[length:var(--fs-13)] font-semibold">Τελευταίο σφάλμα: {e.error}</p>}
+        <Link href={`/admin/customers/${p.id}?tab=erp`} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-navy text-eu-navy px-3 min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-chip">Καρτέλα SoftOne του πελάτη <ExternalLink className="size-3.5" aria-hidden /></Link>
       </div>
-      <div className="grid gap-2 content-start text-[length:var(--fs-14)]">
-        {e.error && <p className="m-0 rounded-xl bg-eu-red/10 text-eu-red px-3 py-2 font-semibold">Τελευταίο σφάλμα: {e.error}</p>}
-        <p className="m-0 text-eu-ink-3">Από εδώ βλέπεις μόνο. Η σύνδεση με καρτέλα SoftOne, η αναζήτηση με ΑΦΜ και ο συγχρονισμός γίνονται στην πλήρη καρτέλα του πελάτη.</p>
-        <Link href={`/admin/customers/${p.id}?tab=erp`} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-navy text-eu-navy px-4 min-h-10 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip">Καρτέλα SoftOne του πελάτη <ExternalLink className="size-3.5" aria-hidden /></Link>
+      <div className="grid gap-1.5 content-start" data-help="customers.preflight">
+        <H right={<span className="text-eu-muted text-[length:var(--fs-12)]">χωρίς κλήση στο SoftOne</span>}>Έλεγχος πριν την αποστολή</H>
+        {pf === undefined ? <span className="inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin" aria-hidden /> Έλεγχος…</span> : !pf ? null : (
+          <>
+            {pf.issues.length ? <ul className="m-0 p-0 list-none grid gap-1">{pf.issues.map((i, k) => <li key={k} className={`flex gap-2 rounded-lg px-2.5 py-1 text-[length:var(--fs-13)] ${i.level === "error" ? "bg-eu-red/10 text-eu-red" : "bg-eu-amber/12 text-eu-ink-2"}`}><CircleAlert className={`size-4 shrink-0 mt-px ${i.level === "error" ? "" : "text-eu-amber"}`} aria-hidden /><span><b>{i.field}:</b> {i.text}</span></li>)}</ul> : <p className="m-0 flex items-center gap-1.5 rounded-lg bg-eu-green/10 text-eu-green px-2.5 py-1 font-bold text-[length:var(--fs-13)]"><Check className="size-4" aria-hidden /> Όλα αντιστοιχίζονται στους πίνακες του SoftOne.</p>}
+            <dl className="m-0 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5 rounded-lg border border-eu-line px-2.5 py-1.5 text-[length:var(--fs-12)]">
+              {Object.entries(pf.row).filter(([k]) => FIELD_LABEL[k]).map(([k, v]) => <div key={k} className="contents"><dt className="text-eu-muted">{FIELD_LABEL[k]}</dt><dd className="m-0 min-w-0 truncate text-eu-ink">{v}{k === "IRSDATA" && pf.labels.IRSDATA ? ` · ${pf.labels.IRSDATA}` : ""}{k === "DISTRICT" && pf.labels.DISTRICT ? ` · ${pf.labels.DISTRICT}` : ""}</dd></div>)}
+              {pf.linked && <><dt className="text-eu-muted">Εμπορικά</dt><dd className="m-0 text-eu-ink-3">χώρα, νόμισμα, ΦΠΑ, κατηγορία, πληρωμή: μένουν όπως στο SoftOne</dd></>}
+            </dl>
+          </>
+        )}
       </div>
     </div>
   );

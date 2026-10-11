@@ -3,6 +3,7 @@ import type { Address, Customer } from "@prisma/client";
 import { db } from "@/lib/db";
 import { s1, getS1Config } from "@/lib/softone";
 import { getSetting } from "@/lib/settings/store";
+import { erpCodes, mapCustomer } from "./customer-map";
 
 /**
  * SoftOne CUSTOMER (table TRDR) ⇄ shop Customer.
@@ -19,8 +20,9 @@ async function defaults() {
   const { data } = await getSetting("softone");
   return {
     prefix: String(data.customerCodePrefix || "WEB"),
-    country: String(data.customerCountry || "1000"),
-    currency: String(data.customerCurrency || "100"),
+    // κενό = από τους πίνακες του SoftOne (Ελλάδα / EUR) — βλ. customer-map.ts
+    country: String(data.customerCountry || ""),
+    currency: String(data.customerCurrency || ""),
     vatSts: String(data.customerVatSts || "1"),
     trdCategory: String(data.customerTrdCategory || ""),
     payment: String(data.customerPayment || ""),
@@ -31,37 +33,34 @@ async function defaults() {
 export const erpCodeFor = (prefix: string, number: number) => `${prefix}${String(number).padStart(6, "0")}`;
 export const displayName = (c: Pick<Customer, "type" | "company" | "firstName" | "lastName">) => (c.type === "business" && c.company ? c.company : `${c.lastName} ${c.firstName}`.trim());
 
-/** Shop customer + default address → CUSTOMER master row (fields we own). */
+/**
+ * Shop customer + default address → CUSTOMER master row (fields we own). Οι κωδικοί πινάκων (IRSDATA, DISTRICT) και τα
+ * εμπορικά πεδία (COUNTRY, SOCURRENCY, VATSTS, TRDCATEGORY, PAYMENT) προστίθενται στο push από το customer-map.
+ */
 export function toErpCustomer(c: Customer, addr: Address | null, d: Awaited<ReturnType<typeof defaults>>) {
   const row: Record<string, string> = {
     CODE: c.erpCode || erpCodeFor(d.prefix, c.number),
     NAME: displayName(c).slice(0, 128),
     ISACTIVE: c.status === "active" ? "1" : "0",
     ISPROSP: "0",
-    COUNTRY: d.country,
-    SOCURRENCY: d.currency,
-    VATSTS: d.vatSts,
-    EMAIL: (c.email ?? "").slice(0, 128),
   };
+  // κενά πεδία δεν στέλνονται: δεν σβήνουμε ό,τι έχει ήδη η καρτέλα του SoftOne
+  if (c.email) row.EMAIL = c.email.slice(0, 128);
   if (c.vatNumber) row.AFM = c.vatNumber;
-  if (c.doy) row.IRSDATA = c.doy;
   if (c.phone) row.PHONE01 = c.phone.slice(0, 20);
   if (c.mobile) row.PHONE02 = c.mobile.slice(0, 20);
   if (c.profession) row.JOBTYPETRD = c.profession.slice(0, 128);
   if (addr) {
-    row.ADDRESS = `${addr.street}${addr.number ? ` ${addr.number}` : ""}`.slice(0, 100);
-    row.ZIP = addr.zip;
-    row.CITY = addr.city.slice(0, 30);
-    row.DISTRICT = addr.region.slice(0, 30);
+    if (addr.street.trim()) row.ADDRESS = `${addr.street}${addr.number ? ` ${addr.number}` : ""}`.slice(0, 100);
+    if (addr.zip.replace(/\D/g, "")) row.ZIP = addr.zip.replace(/\D/g, "");
+    if (addr.city.trim()) row.CITY = addr.city.slice(0, 30);
   }
-  if (d.trdCategory) row.TRDCATEGORY = d.trdCategory;
-  if (d.payment) row.PAYMENT = d.payment;
   row.REMARKS = `e-shop πελάτης #${c.number}${c.type === "business" ? " (εταιρεία)" : ""}`;
   return row;
 }
 
 /** Extra addresses → CUSBRANCH lines (LINENUM kept for existing, ≥ 9000001 for new). */
-export function toErpBranches(addrs: Address[]) {
+export function toErpBranches(addrs: Address[], districtOf: (a: Address) => string | null = () => null) {
   let next = 9000001;
   return addrs.map((a) => ({
     LINENUM: a.erpBranch ?? next++,
@@ -72,7 +71,7 @@ export function toErpBranches(addrs: Address[]) {
     ADDRESS: `${a.street}${a.number ? ` ${a.number}` : ""}`.slice(0, 100),
     ZIP: a.zip,
     CITY: a.city.slice(0, 30),
-    DISTRICT: a.region.slice(0, 30),
+    ...(districtOf(a) ? { DISTRICT: districtOf(a)! } : {}),
     ...(a.phone ? { PHONE01: a.phone.slice(0, 20) } : {}),
     ...(a.notes ? { REMARKS: a.notes.slice(0, 2000) } : {}),
   }));
@@ -96,12 +95,20 @@ export async function pushCustomerToErp(customerId: string, staffId?: string | n
       if (!cur.success) throw new Error(cur.error ?? "getData failed");
       existing = (cur.data?.CUSTOMER?.[0] ?? {}) as Record<string, string>;
     }
-    const row = { ...existing, ...toErpCustomer(c, main, d) };
+    const codes = await erpCodes();
+    const mapped = mapCustomer(c, main, codes, d);
+    const blocking = mapped.issues.filter((i) => i.level === "error");
+    if (blocking.length) throw new Error(blocking.map((i) => `${i.field}: ${i.text}`).join(" · "));
+    // εμπορικά πεδία (χώρα, νόμισμα, καθεστώς ΦΠΑ, κατηγορία, πληρωμή): μόνο σε νέα καρτέλα ή όπου η καρτέλα είναι κενή —
+    // το SoftOne δεν επιτρέπει αλλαγή νομίσματος σε συναλλασσόμενο με παραστατικά
+    const commercial = Object.fromEntries(Object.entries(mapped.commercial).filter(([k]) => !c.erpTrdr || !existing[k]));
+    const row = { ...existing, ...toErpCustomer(c, main, d), ...mapped.fields, ...commercial };
     // ERP owns fiscal identity once linked: never blank AFM/IRSDATA from the shop
     if (c.erpTrdr && existing.AFM && !c.vatNumber) row.AFM = existing.AFM;
-    if (c.erpTrdr && existing.IRSDATA && !c.doy) row.IRSDATA = existing.IRSDATA;
+    if (c.erpTrdr && existing.IRSDATA && !mapped.fields.IRSDATA) row.IRSDATA = existing.IRSDATA;
     const data: Record<string, unknown> = { CUSTOMER: [row] };
-    if (extras.length) data.CUSBRANCH = toErpBranches(extras);
+    const districtOf = (a: Address) => mapCustomer(c, a, codes, d).fields.DISTRICT ?? null;
+    if (extras.length) data.CUSBRANCH = toErpBranches(extras, districtOf);
     const res = await s1("setData", { OBJECT: "CUSTOMER", KEY: c.erpTrdr ?? "", data });
     if (!res.success) throw new Error(res.error ?? `setData errorcode ${res.errorcode}`);
     const trdr = String(res.id ?? c.erpTrdr ?? "");
@@ -162,4 +169,16 @@ export async function linkCustomerToErp(customerId: string, trdr: string, staffI
 
 export async function shouldAutoPush() {
   return (await defaults()).autoPush && !!(await getS1Config());
+}
+
+/** Έλεγχος πριν την αποστολή: τι θα σταλεί και τι λείπει — χωρίς καμία κλήση στο SoftOne. */
+export async function erpPreflight(customerId: string) {
+  const c = await db.customer.findUnique({ where: { id: customerId }, include: { addresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] } } });
+  if (!c) return null;
+  const d = await defaults();
+  const main = c.addresses.find((a) => a.isDefault) ?? c.addresses[0] ?? null;
+  const codes = await erpCodes();
+  const m = mapCustomer(c, main, codes, d);
+  const row: Record<string, string> = { ...toErpCustomer(c, main, d), ...m.fields, ...(c.erpTrdr ? {} : m.commercial) };
+  return { linked: !!c.erpTrdr, row, commercial: m.commercial, issues: m.issues, lastError: c.erpLastError };
 }

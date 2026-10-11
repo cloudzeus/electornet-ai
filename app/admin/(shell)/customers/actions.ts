@@ -247,3 +247,16 @@ export async function aadeApplyAction(customerId: string, keys: ("company" | "do
   paths(customerId);
   return { ok: true as const, changed: r.changed, erp, erpLinked: r.erpLinked };
 }
+
+/** Έλεγχος πριν την αποστολή στο SoftOne: τι θα σταλεί και τι λείπει (μόνο ανάγνωση, χωρίς κλήση στο SoftOne). */
+export async function erpPreflightAction(customerId: string) {
+  await requirePermission("customers.read");
+  const { erpPreflight } = await import("@/lib/softone/customers");
+  const p = await erpPreflight(customerId);
+  if (!p) return null;
+  const [tax, dist] = await Promise.all([
+    p.row.IRSDATA ? db.taxOffice.findFirst({ where: { s1Id: p.row.IRSDATA }, select: { name: true } }) : null,
+    p.row.DISTRICT ? db.district.findFirst({ where: { s1Id: p.row.DISTRICT }, select: { name: true } }) : null,
+  ]);
+  return { ...p, labels: { IRSDATA: tax?.name ?? null, DISTRICT: dist?.name ?? null } };
+}
