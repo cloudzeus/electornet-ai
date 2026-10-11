@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T07:38:29.577Z",
+ "generatedAt": "2026-10-11T07:48:52.637Z",
  "routes": [
   {
    "route": "/admin",
@@ -367,7 +367,11 @@
    "perm": "catalog.products.read",
    "nav": null,
    "dynamic": true,
-   "helpKeys": [],
+   "helpKeys": [
+    "product.actions",
+    "product.overview",
+    "product.tabs"
+   ],
    "changes": [
     {
      "hash": "6b98982",
@@ -935,6 +939,11 @@
    ],
    "changes": [
     {
+     "hash": "d29568e",
+     "date": "2026-10-11T10:38:47+03:00",
+     "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne"
+    },
+    {
      "hash": "6f93115",
      "date": "2026-10-11T10:23:26+03:00",
      "text": "SoftOne πελάτες: η αποστολή χρησιμοποιεί πλέον τους πίνακες του SoftOne αντί για σταθερές/κείμενα"
@@ -978,14 +987,9 @@
      "hash": "e8cc364",
      "date": "2026-09-14T16:15:12+03:00",
      "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
-    },
-    {
-     "hash": "ea5bca6",
-     "date": "2026-09-13T14:22:27+03:00",
-     "text": "Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin …"
     }
    ],
-   "updatedAt": "2026-10-11T10:23:26+03:00",
+   "updatedAt": "2026-10-11T10:38:47+03:00",
    "shots": {}
   },
   {
@@ -1003,6 +1007,11 @@
     "customer.tabs"
    ],
    "changes": [
+    {
+     "hash": "d29568e",
+     "date": "2026-10-11T10:38:47+03:00",
+     "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne"
+    },
     {
      "hash": "d6e4c0c",
      "date": "2026-10-11T09:57:09+03:00",
@@ -1034,7 +1043,7 @@
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-10-11T09:57:09+03:00",
+   "updatedAt": "2026-10-11T10:38:47+03:00",
    "shots": {}
   },
   {
@@ -2843,6 +2852,12 @@
  ],
  "recent": [
   {
+   "hash": "d29568e",
+   "date": "2026-10-11T10:38:47+03:00",
+   "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne",
+   "routes": []
+  },
+  {
    "hash": "6f93115",
    "date": "2026-10-11T10:23:26+03:00",
    "text": "SoftOne πελάτες: η αποστολή χρησιμοποιεί πλέον τους πίνακες του SoftOne αντί για σταθερές/κείμενα",
@@ -3178,12 +3193,6 @@
     "/admin/catalog/[id]",
     "/admin/catalog/sets"
    ]
-  },
-  {
-   "hash": "f8be0f1",
-   "date": "2026-10-10T10:14:27+03:00",
-   "text": "Πληρωμές μέσω Viva Smart Checkout: κάρτα, Apple Pay, Google Pay, PayPal, IRIS, Klarna (ενεργοποίηση ανά τρόπο), redirect με προεπιλεγμένο τρόπο και στοιχεία πελάτη (αναγνώριση αποθηκευμένων καρτών Viva), επιβεβαίωση α…",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3204,6 +3213,9 @@
   ],
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "product.actions": [
+   "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
   "customers.kpis": [
    "app/admin/(shell)/customers/page.tsx"
@@ -3258,6 +3270,12 @@
   ],
   "settings.test": [
    "components/admin/SettingsForm.tsx"
+  ],
+  "product.overview": [
+   "components/admin/catalog/ProductOverview.tsx"
+  ],
+  "product.tabs": [
+   "components/admin/catalog/ProductWorkspace.tsx"
   ],
   "editor.undo": [
    "components/admin/cms/BrandStoreEditor.tsx",

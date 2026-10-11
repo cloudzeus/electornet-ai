@@ -68,7 +68,10 @@ export function BarChart({ labels, series, unit = "", height = 220 }: { labels: 
   const W = 720, H = height, padL = 52, padR = 12, padT = 12, padB = 28;
   const n = labels.length;
   const totals = labels.map((_, i) => series.reduce((a, s) => a + (s.values[i] ?? 0), 0));
-  const max = nice(Math.max(1e-9, ...totals));
+  // ακέραια δεδομένα (τεμάχια, παραγγελίες): άξονας με ακέραιες υποδιαιρέσεις (όχι 1,25 / 2,5)
+  const ints = series.every((s) => s.values.every((v) => Number.isInteger(v)));
+  const max0 = nice(Math.max(1e-9, ...totals));
+  const max = ints ? Math.max(4, Math.ceil(max0 / 4) * 4) : max0;
   const slot = (W - padL - padR) / Math.max(1, n);
   const bw = Math.max(4, Math.min(36, slot - 4));
   const y = (v: number) => padT + (H - padT - padB) * (1 - v / max);

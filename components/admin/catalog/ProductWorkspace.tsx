@@ -4,8 +4,9 @@ import type { Readiness, TabId, TabState } from "@/lib/catalog/readiness";
 
 /** Οι καρτέλες της σελίδας προϊόντος, με τη σειρά της δουλειάς (συχνότερα πρώτα). */
 /** Οι καρτέλες του χώρου εργασίας: οι πέντε της ετοιμότητας και η «Set» (μόνο σε προϊόντα που πουλιούνται ως set). */
-export type WorkspaceTab = TabId | "set";
+export type WorkspaceTab = TabId | "set" | "overview";
 export const TABS: { id: WorkspaceTab; label: string; short: string }[] = [
+  { id: "overview", label: "Επισκόπηση", short: "Σύνοψη" },
   { id: "media", label: "Εικόνες & βίντεο", short: "Εικόνες" },
   { id: "content", label: "Κείμενα & χαρακτηριστικά", short: "Κείμενα" },
   { id: "dims", label: "Διαστάσεις · AR · EPREL", short: "Διαστάσεις" },
@@ -18,7 +19,7 @@ export const isTab = (v: string | undefined): v is WorkspaceTab => TABS.some((t)
 const DOT: Record<TabState, string> = { ok: "", warn: "bg-eu-amber", bad: "bg-eu-red" };
 
 /** «Ετοιμότητα N/M» και οι ελλείψεις ως chips — κάθε chip ανοίγει την καρτέλα που τη διορθώνει. */
-export function ReadinessBar({ r, href }: { r: Readiness; href: (t: TabId) => string }) {
+export function ReadinessBar({ r, href }: { r: Readiness; href: (t: WorkspaceTab) => string }) {
   const pct = r.total ? Math.round((r.done / r.total) * 100) : 100;
   const full = r.done === r.total;
   return (
@@ -49,9 +50,9 @@ export function ReadinessBar({ r, href }: { r: Readiness; href: (t: TabId) => st
 /** Λωρίδα καρτελών (σύνδεσμοι — η καρτέλα μένει στη διεύθυνση), με τελεία όπου κάτι λείπει. */
 export function WorkspaceTabs({ active, states, href, hide = [] }: { active: WorkspaceTab; states: Record<TabId, TabState>; href: (t: WorkspaceTab) => string; hide?: WorkspaceTab[] }) {
   return (
-    <nav aria-label="Ενότητες προϊόντος" className="grid grid-cols-3 @2xl:flex @2xl:flex-wrap gap-1 rounded-2xl bg-eu-surface p-1">
+    <nav data-help="product.tabs" aria-label="Ενότητες προϊόντος" className="grid grid-cols-3 @2xl:flex @2xl:flex-wrap gap-1 rounded-2xl bg-eu-surface p-1">
       {TABS.filter((t) => !hide.includes(t.id)).map((t) => {
-        const on = t.id === active, st = t.id === "set" ? "ok" : states[t.id];
+        const on = t.id === active, st = t.id === "set" || t.id === "overview" ? "ok" : states[t.id];
         return (
           <Link key={t.id} href={href(t.id)} aria-current={on ? "page" : undefined} scroll={false}
             className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2 @2xl:px-3 min-h-11 font-bold text-[length:var(--fs-14)] ${on ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-3 hover:text-eu-navy"}`}>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package, ExternalLink } from "lucide-react";
+import { ArrowLeft, Package, ExternalLink, BadgePercent } from "lucide-react";
+import { productOverview } from "@/lib/catalog/product-overview";
+import { ProductOverview } from "@/components/admin/catalog/ProductOverview";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -46,7 +48,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const user = await requirePermission("catalog.products.read");
   const { id } = await params;
   const t = (await searchParams).tab;
-  const tab: WorkspaceTab = isTab(t) ? t : "media";
+  const tab: WorkspaceTab = isTab(t) ? t : "overview";
   const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
@@ -70,6 +72,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
     setForProduct(p.erpCode).catch(() => null),
   ]);
+  const overview = tab === "overview" ? await productOverview(p.id) : null;
   // «Όψη AR» μόνο όπου ο πελάτης βλέπει το στερεό από φωτογραφία (όχι με δικό μας 3D μοντέλο ή χωρίς AR)
   const arPl = shop ? arPlan(shop, arRow, arCats) : null;
   const arFront = arPl?.on && !arPl.custom && arPl.archetype !== "tv" ? { front: arRow?.frontImage ?? null } : undefined;
@@ -115,8 +118,12 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         <div className="flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
           <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
           {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
-          <span className="text-eu-muted">κωδικός {p.sku}{p.ean ? ` · EAN ${p.ean}` : ""}</span>
-          {p.active && <a href={`/proion/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-eu-blue hover:underline min-h-9"><ExternalLink className="size-3.5" aria-hidden /> Στο site</a>}
+          <span className="text-eu-muted">κωδικός {p.sku}{p.ean ? ` · EAN ${p.ean}` : ""}{p.brand?.name ? ` · ${p.brand.name}` : ""}</span>
+        </div>
+        <div data-help="product.actions" className="flex flex-wrap items-center gap-1.5 pt-1">
+          {p.active && <a href={`/proion/${p.slug}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-eu-surface text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:bg-eu-navy hover:text-white"><ExternalLink className="size-3.5" aria-hidden /> Στο site</a>}
+          {can(user.permissions, "catalog.promos.write") && <Link href={`/admin/prosfores/new?products=${p.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-eu-surface text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-9 hover:bg-eu-navy hover:text-white"><BadgePercent className="size-3.5" aria-hidden /> Νέα προσφορά</Link>}
+          {fromS1 && canWrite && <SoftoneRefresh productId={p.id} />}
         </div>
       </div>
 
@@ -124,6 +131,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         <div className="grid gap-3 min-w-0">
           <ReadinessBar r={r} href={href} />
           <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={set ? [] : ["set"]} />
+
+          {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
 
           {tab === "media" && (<>
             <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px.">
