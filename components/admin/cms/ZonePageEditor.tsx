@@ -98,48 +98,51 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
 
   return (
     <PickerBrand.Provider value={{ brandId: null, brandName: "Euronics" }}>
-      <div className="grid gap-4 min-w-0">
-        <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-3 bg-eu-surface/95 backdrop-blur border-b border-eu-line grid gap-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Link href="/admin/cms/pages" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline"><ChevronLeft className="size-4" aria-hidden /> Ζώνες σελίδων</Link>
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)] min-w-0">{page.title}</h2>
+      <div className="@container grid gap-3 min-w-0">
+        {/* λεπτή σταθερή κεφαλίδα: πού είσαι, κατάσταση, έλεγχος, δημοσίευση */}
+        <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2 bg-eu-surface/95 backdrop-blur border-b border-eu-line grid gap-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <Link href="/admin/cms/pages" aria-label="Πίσω στις ζώνες σελίδων" className="inline-flex items-center gap-0.5 text-eu-blue font-bold text-[length:var(--fs-13)] min-h-11 md:min-h-8 hover:underline"><ChevronLeft className="size-4" aria-hidden /> Σελίδες</Link>
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] min-w-0">{page.title}</h2>
             <StatusPill status={status[0]} text={status[1]} />
-            <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-13)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>{save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}{saveText}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={publish} disabled={busy || !changed} className="inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-4 @md:px-5 min-h-12 hover:bg-eu-blue disabled:opacity-50 flex-1 @md:flex-none min-w-0">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}{changed ? (published ? "Δημοσίευση αλλαγών" : "Δημοσίευση") : "Χωρίς αλλαγές για δημοσίευση"}</button>
-            <button type="button" onClick={() => setShowIssues((x) => !x)} aria-expanded={showIssues} title="Έλεγχος πριν τη δημοσίευση" className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border-2 px-4 min-h-12 font-bold text-[length:var(--fs-14)] ${errors.length ? "border-eu-red text-eu-red" : warnings.length ? "border-eu-amber text-eu-amber" : "border-eu-green text-eu-green"}`}>{errors.length ? <CircleAlert className="size-4" aria-hidden /> : warnings.length ? <TriangleAlert className="size-4" aria-hidden /> : <Check className="size-4" aria-hidden />}{errors.length ? <>{errors.length}<span className="hidden @md:inline"> για διόρθωση</span></> : warnings.length ? <>{warnings.length}<span className="hidden @md:inline"> συστάσεις</span></> : "Έτοιμη"}</button>
+            <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-12)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>{save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}{saveText}</span>
+            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+              <a href={`${page.path}?preview=1`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-9 font-bold text-eu-ink-3 text-[length:var(--fs-13)] hover:bg-white" title="Το πρόχειρο σε νέα καρτέλα">Προεπισκόπηση <ExternalLink className="size-3.5" aria-hidden /></a>
+              {published && <a href={page.path} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-9 font-bold text-eu-ink-3 text-[length:var(--fs-13)] hover:bg-white">Στο site <ExternalLink className="size-3.5" aria-hidden /></a>}
+              {published && changed && <button type="button" onClick={revert} disabled={busy} className="inline-flex items-center gap-1 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:border-eu-navy"><Undo2 className="size-4" aria-hidden /> Ακύρωση</button>}
+              <button type="button" onClick={() => setShowIssues((x) => !x)} aria-expanded={showIssues} title="Έλεγχος πριν τη δημοσίευση" className={`inline-flex items-center gap-1 rounded-full border px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] bg-white ${errors.length ? "border-eu-red text-eu-red" : warnings.length ? "border-eu-amber text-eu-ink-2" : "border-eu-green/50 text-eu-green"}`}>{errors.length ? <CircleAlert className="size-4" aria-hidden /> : warnings.length ? <TriangleAlert className="size-4 text-eu-amber" aria-hidden /> : <Check className="size-4" aria-hidden />}{errors.length ? `${errors.length} για διόρθωση` : warnings.length ? `${warnings.length} συστάσεις` : "Έτοιμη"}</button>
+              <button data-help="zones.publish" type="button" onClick={publish} disabled={busy || !changed} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-4 min-h-11 md:min-h-9 hover:bg-eu-blue disabled:opacity-45">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}{changed ? "Δημοσίευση" : "Χωρίς αλλαγές"}</button>
+            </div>
           </div>
           {result && <div className="relative"><ResultBanner ok={result.ok}><span className="block pr-8">{result.message}</span></ResultBanner><button type="button" onClick={() => setResult(null)} aria-label="Κλείσιμο" className="absolute top-1 right-1 size-10 grid place-items-center rounded-full text-eu-muted hover:bg-white/60"><X className="size-4" aria-hidden /></button></div>}
           {showIssues && (errors.length > 0 || warnings.length > 0) && (
             <ul className="m-0 p-0 list-none grid gap-1 max-h-[40vh] overflow-y-auto rounded-xl bg-white border border-eu-line p-2">
               {[...errors.map((e) => ({ ...e, err: true })), ...warnings.map((w) => ({ ...w, err: false }))].map((x, k) => (
-                <li key={k}><button type="button" onClick={() => go(x.anchor)} className="w-full text-left flex items-start gap-2 rounded-lg px-2 py-1.5 min-h-11 hover:bg-eu-surface">{x.err ? <CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden /> : <TriangleAlert className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />}<span className="text-[length:var(--fs-14)]"><b>{x.where}:</b> {x.msg}</span></button></li>
+                <li key={k}><button type="button" onClick={() => go(x.anchor)} className="w-full text-left flex items-start gap-2 rounded-lg px-2 py-1.5 min-h-11 hover:bg-eu-surface">{x.err ? <CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden /> : <TriangleAlert className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />}<span className="text-[length:var(--fs-13)]"><b>{x.where}:</b> {x.msg}</span></button></li>
               ))}
             </ul>
           )}
-          <div className="@7xl:hidden grid grid-cols-2 gap-1 rounded-full bg-white border border-eu-line p-1" role="tablist" aria-label="Προβολή">
-            {(["edit", "preview"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`rounded-full min-h-10 font-bold text-[length:var(--fs-14)] ${view === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{v === "edit" ? "Επεξεργασία" : "Προεπισκόπηση"}</button>)}
+          <div className="@4xl:hidden grid grid-cols-2 gap-1 rounded-full bg-white border border-eu-line p-0.5" role="tablist" aria-label="Προβολή">
+            {(["edit", "preview"] as const).map((v) => <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`rounded-full min-h-11 font-bold text-[length:var(--fs-13)] ${view === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{v === "edit" ? "Επεξεργασία" : "Προεπισκόπηση"}</button>)}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <a href={`${page.path}?preview=1`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Προεπισκόπηση <ExternalLink className="size-4" aria-hidden /></a>
-          {published && <a href={page.path} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy">Στο site <ExternalLink className="size-4" aria-hidden /></a>}
-          {published && changed && <button type="button" onClick={revert} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Undo2 className="size-4" aria-hidden /> Ακύρωση αλλαγών</button>}
-        </div>
-
-        <div className="grid grid-cols-1 @7xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
-          <div className={view === "edit" ? "min-w-0 grid gap-4" : "hidden @7xl:grid min-w-0 gap-4"}>
-            <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,18rem)] gap-4 items-start">
-              <div className="grid gap-2">
-                <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Τι κάνω εδώ;</h3>
-                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] leading-relaxed">Η σελίδα «{page.title}» έχει {page.zones.length} <b>ζώνες</b> — σημεία όπου μπορείς να βάλεις components: διαφημίσεις από τις Προσφορές, προϊόντα προσφοράς, κουπόνι, banner, καταστήματα, συχνές ερωτήσεις κ.ά. Το κείμενο της σελίδας δεν αλλάζει.</p>
-                <p className="m-0 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Όσα συνδέονται με προσφορές <b>κρύβονται μόνα τους</b> όταν η προσφορά λήξει. Κάθε αλλαγή μένει πρόχειρο μέχρι να πατήσεις «Δημοσίευση».</span></p>
+        {/* επεξεργασία αριστερά, προεπισκόπηση δεξιά — πάντα μαζί από 896 px (ui-ux-pro-max: άμεση οπτική ανάδραση) */}
+        <div className="grid grid-cols-1 @4xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] gap-3 items-start">
+          <div className={view === "edit" ? "min-w-0 grid gap-3" : "hidden @4xl:grid min-w-0 gap-3"}>
+            <nav data-help="zones.nav" aria-label="Ζώνες της σελίδας" className="rounded-xl bg-white border border-eu-line p-2.5 grid gap-2">
+              <div className="flex flex-wrap gap-1">
+                {page.zones.map((z) => <button key={z} type="button" onClick={() => document.getElementById(`zone-${z}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className={`inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] ${counts[z] ? "bg-eu-chip text-eu-navy" : "bg-eu-surface text-eu-ink-3"} hover:ring-2 hover:ring-eu-blue/30`}>{INFO_ZONES[z].label}<span className="tabular-nums opacity-70">{counts[z]}</span></button>)}
               </div>
-              <ZoneMap page={page} counts={counts} onPick={(z) => { setAdding(z); setTimeout(() => document.getElementById(`zone-${z}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
-            </section>
-            <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-4 min-w-0" aria-label="Ζώνες">
+              <details className="group">
+                <summary className="list-none cursor-pointer inline-flex items-center gap-1.5 min-h-11 md:min-h-7 text-eu-blue font-semibold text-[length:var(--fs-12)] [&::-webkit-details-marker]:hidden"><Info className="size-3.5" aria-hidden /> Τι είναι οι ζώνες; Πού φαίνεται κάθε μία</summary>
+                <div className="grid gap-2 pt-1">
+                  <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] leading-relaxed">Σημεία της σελίδας «{page.title}» όπου βάζεις components: διαφημίσεις και προϊόντα από τις Προσφορές, κουπόνι, banner, καταστήματα, συχνές ερωτήσεις. Το κείμενο της σελίδας δεν αλλάζει. Όσα συνδέονται με προσφορά κρύβονται μόνα τους όταν λήξει. Όλα μένουν πρόχειρο μέχρι τη «Δημοσίευση».</p>
+                  <ZoneMap page={page} counts={counts} onPick={(z) => { setAdding(z); setTimeout(() => document.getElementById(`zone-${z}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
+                </div>
+              </details>
+            </nav>
+            <section data-help="zones.blocks" className="rounded-xl bg-white border border-eu-line p-3 grid gap-3 min-w-0" aria-label="Ζώνες">
               <ZoneBlocks
                 blocks={blocks}
                 setBlocks={(fn) => setBlocksState((x) => fn(x))}
@@ -156,7 +159,7 @@ export function ZonePageEditor({ page, initial, published: pub, savedAt: initSav
               />
             </section>
           </div>
-          <div className={view === "preview" ? "min-w-0" : "hidden @7xl:block min-w-0"}><Preview src={`${page.path}?preview=1`} v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} /></div>
+          <div data-help="zones.preview" className={view === "preview" ? "min-w-0" : "hidden @4xl:block min-w-0 @4xl:sticky @4xl:top-16"}><Preview src={`${page.path}?preview=1`} v={pv} device={device} setDevice={setDevice} saving={save !== "idle"} /></div>
         </div>
       </div>
     </PickerBrand.Provider>
