@@ -10,8 +10,9 @@ export const dynamic = "force-dynamic";
 
 const ST: Record<string, string> = { draft: "Πρόχειρη", published: "Δημοσιευμένη", archived: "Αρχείο" };
 
-export default async function LandingListPage() {
+export default async function LandingListPage({ searchParams }: { searchParams: Promise<{ promo?: string }> }) {
   await requirePermission("catalog.promos.write");
+  const { promo } = await searchParams;
   const [pages, promos] = await Promise.all([
     db.landingPage.findMany({ where: { status: { not: "archived" } }, orderBy: { updatedAt: "desc" } }),
     db.promotion.findMany({ where: { status: { in: ["active", "scheduled", "draft", "pending", "paused"] } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
@@ -20,7 +21,7 @@ export default async function LandingListPage() {
   return (
     <div className="grid gap-5 min-w-0">
       <PromoTabs help="landing" active="landing" title="Landing pages" lead="Σελίδες προσφορών στο /prosfores/… φτιαγμένες από blocks: hero, αντίστροφη μέτρηση με την πραγματική λήξη, τα προϊόντα της προσφοράς (αυτόματα), κατηγορίες, κουπόνι, όροι, συχνές ερωτήσεις. Όταν η προσφορά λήξει, η σελίδα το λέει μόνη της." />
-      <NewLanding promos={promos.map((p) => ({ id: p.id, label: `${p.name} · ${p.code}` }))} />
+      <NewLanding initialPromo={promo} promos={promos.map((p) => ({ id: p.id, label: `${p.name} · ${p.code}` }))} />
       <div className="rounded-2xl border border-eu-line bg-white overflow-hidden">
         <table className="eu-rtable w-full text-[length:var(--fs-14)]">
           <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Σελίδα</th><th className="py-2 px-3">Προσφορά</th><th className="py-2 px-3">Κατάσταση</th><th className="py-2 px-3">Blocks</th><th className="py-2 px-3"></th></tr></thead>

@@ -137,3 +137,39 @@ export function StatTile({ label, value, sub, accent }: { label: string; value: 
     </div>
   );
 }
+
+/** Μικρή καμπύλη τάσης (χωρίς άξονες) για KPI· το κείμενο της τάσης δίνεται στο aria-label. */
+export function Sparkline({ values, label, color = SERIES[1], height = 32 }: { values: number[]; label: string; color?: string; height?: number }) {
+  const w = 120, h = height, max = Math.max(1e-9, ...values), n = values.length;
+  if (n < 2) return null;
+  const pts = values.map((v, i) => [(i / (n - 1)) * w, h - 2 - (v / max) * (h - 4)] as const);
+  const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={label} className="w-full block" style={{ height }}>
+      <polygon points={`0,${h} ${line} ${w},${h}`} fill={color} opacity={0.12} />
+      <polyline points={line} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/**
+ * KPI σε πυκνή κάρτα: τιμή, ετικέτα, σύγκριση με την προηγούμενη περίοδο (βέλος + κείμενο, όχι μόνο χρώμα) και
+ * προαιρετική καμπύλη τάσης. Αν δοθεί `href`, όλη η κάρτα είναι σύνδεσμος (π.χ. φίλτρο της λίστας).
+ */
+export function KpiTile({ label, value, sub, delta, trend, href, tone }: { label: string; value: string; sub?: string; delta?: { pct: number; good: "up" | "down" } | null; trend?: number[]; href?: string; tone?: "warn" }) {
+  const up = delta && delta.pct > 0, flat = delta && Math.abs(delta.pct) < 1;
+  const good = delta && !flat && (up ? delta.good === "up" : delta.good === "down");
+  const body = (
+    <>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-eu-muted text-[length:var(--fs-13)] font-bold">{label}</span>
+        {delta && <span className={`text-[length:var(--fs-12)] font-bold tabular-nums ${flat ? "text-eu-muted" : good ? "text-eu-green" : "text-eu-red"}`}>{flat ? "≈" : up ? "▲" : "▼"} {Math.abs(Math.round(delta.pct))}%<span className="sr-only"> σε σχέση με την προηγούμενη περίοδο</span></span>}
+      </div>
+      <div className={`font-heading font-extrabold text-[length:var(--fs-24)] leading-tight tabular-nums ${tone === "warn" ? "text-eu-amber" : "text-eu-ink"}`}>{value}</div>
+      {trend && trend.some((v) => v > 0) ? <Sparkline values={trend} label={`Τάση: ${label}`} /> : null}
+      {sub && <div className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{sub}</div>}
+    </>
+  );
+  const cls = "rounded-2xl bg-white border border-eu-line p-3.5 grid gap-1 content-start min-w-0";
+  return href ? <a href={href} className={`${cls} hover:border-eu-blue focus-visible:outline-2 focus-visible:outline-eu-blue`}>{body}</a> : <div className={cls}>{body}</div>;
+}

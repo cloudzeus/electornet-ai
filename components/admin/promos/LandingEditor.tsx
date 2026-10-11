@@ -16,10 +16,10 @@ type Opt = { id: string; label: string };
 const localDt = (iso: string | null) => { if (!iso) return ""; const d = new Date(iso); const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 /** Γρήγορη δημιουργία: τίτλος + προσφορά → σελίδα με βασικά blocks. */
-export function NewLanding({ promos }: { promos: Opt[] }) {
+export function NewLanding({ promos, initialPromo }: { promos: Opt[]; initialPromo?: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [promotionId, setPromotionId] = useState(promos[0]?.id ?? "");
+  const [promotionId, setPromotionId] = useState(initialPromo && promos.some((p) => p.id === initialPromo) ? initialPromo : promos[0]?.id ?? "");
   const [busy, start] = useTransition();
   return (
     <form onSubmit={(e) => { e.preventDefault(); start(async () => { const r = await createLandingAction({ title, promotionId: promotionId || null }); router.push(`/admin/prosfores/selides/${r.id}`); }); }} className="rounded-2xl bg-white border border-eu-line p-4 grid grid-cols-1 @3xl:grid-cols-[1fr_1fr_auto] gap-3 items-end">

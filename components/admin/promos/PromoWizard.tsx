@@ -5,11 +5,11 @@ import { StickerPicker } from "@/components/admin/stickers/StickerPicker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkles, ChevronLeft, ChevronRight, Ban } from "lucide-react";
+import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkles, ChevronLeft, ChevronRight, Ban, ChevronDown, CircleAlert, PanelsTopLeft, LayoutTemplate, Megaphone, ExternalLink, ListChecks } from "lucide-react";
 import type { PromoDraft, DraftAnalysis } from "@/lib/promo/admin";
 import type { PromoTarget } from "@/lib/promo/engine";
 import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, PAYMENT_OPTIONS, autoLabel, describePromo, type PromoStatus } from "@/lib/promo/catalog";
-import { HelpPanel, Hint } from "./Help";
+import { Hint } from "./Help";
 import { STEP_HELP, FIELD_HELP } from "@/lib/promo/help";
 import { ProductBrowser, type BrowseProduct } from "./ProductBrowser";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
@@ -32,8 +32,37 @@ function Field({ l, children, hint, info }: { l: string; children: ReactNode; hi
   return <label className={label}><span className="inline-flex items-center gap-1">{l}{info && <Hint k={info} />}</span>{children}{hint && <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">{hint}</span>}</label>;
 }
 
-/** Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι. */
-export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0 }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number }) {
+export type WizardAppearance = { kind: "zone" | "landing" | "ad"; place: string; what: string; live: boolean; href: string };
+type Issues = { errors: string[]; warns: string[] };
+
+/** Τι λείπει ή θέλει προσοχή ανά βήμα — για τις ενδείξεις των βημάτων και τη λίστα ελέγχου της σύνοψης. */
+function stepIssues(d: PromoDraft): Issues[] {
+  const r = d.reward, m = d.mechanism;
+  const cartWide = m.startsWith("coupon") || m.startsWith("payment") || m === "shipping";
+  const t: Issues = { errors: [], warns: [] }, rr: Issues = { errors: [], warns: [] }, look: Issues = { errors: [], warns: [] };
+  if (m === "bundle") { if ((r.bundle?.length ?? 0) < 2) t.errors.push("Το πακέτο θέλει τουλάχιστον 2 προϊόντα"); }
+  else if (m === "special-price") { const v = Object.values(r.price ?? {}); if (!v.length) t.errors.push("Διάλεξε προϊόντα με ειδική τιμή"); else if (v.some((c) => !c)) t.errors.push("Λείπει η νέα τιμή σε κάποια προϊόντα"); }
+  else if (!cartWide && !d.targets.some((x) => !x.exclude)) t.errors.push("Δεν διάλεξες σε ποια προϊόντα ισχύει");
+  if (m === "gift" && !r.giftProductId) t.errors.push("Διάλεξε το προϊόν-δώρο");
+  if (m === "together" && !(r.with?.length)) t.errors.push("Διάλεξε τα συνοδευτικά");
+  const needPct = ["price-percent", "coupon-percent", "nth-discount", "payment-percent"].includes(m), needAmt = ["price-amount", "coupon-amount", "payment-amount"].includes(m);
+  if (needPct && !r.percent) rr.errors.push("Γράψε το ποσοστό έκπτωσης");
+  if (needAmt && !r.amount) rr.errors.push("Γράψε το ποσό της έκπτωσης");
+  if (m === "n-plus-m" && !(r.buy && r.get)) rr.errors.push("Γράψε «αγοράζεις» και «παίρνεις δωρεάν»");
+  if (m === "bundle" && !r.bundlePrice) rr.errors.push("Γράψε την τιμή του πακέτου");
+  if (m.startsWith("payment") && !d.rules.payment?.length) rr.errors.push("Διάλεξε τρόπο πληρωμής");
+  if (!d.endsAt) rr.warns.push("Χωρίς λήξη η προσφορά τρέχει για πάντα");
+  if (d.startsAt && d.endsAt && d.endsAt <= d.startsAt) rr.errors.push("Η λήξη είναι πριν από την έναρξη");
+  if (!d.termsText?.trim()) look.warns.push("Χωρίς όρους για τον πελάτη");
+  return [{ errors: [], warns: [] }, t, rr, look, { errors: [], warns: [] }];
+}
+
+/**
+ * Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Δίπλα (σε κινητό επάνω, αναδιπλούμενη) η σύνοψη: η
+ * προσφορά σε μία πρόταση, πώς φαίνεται στην κάρτα, τα βασικά στοιχεία, η λίστα ελέγχου ανά βήμα και πού θα εμφανίζεται.
+ * Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι.
+ */
+export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0, appears = [], overview }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number; appears?: WizardAppearance[]; overview?: ReactNode }) {
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
@@ -47,6 +76,8 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   const isCoupon = d.mechanism.startsWith("coupon");
   const svcTitle = services.find((s) => s.slug === d.reward.serviceSlug)?.title;
   const summary = describePromo(d, { gift: names[d.reward.giftProductId ?? ""], service: svcTitle?.toLocaleLowerCase("el-GR") });
+  const base = useMemo(() => stepIssues(d), [d]);
+  const issues = analysis ? [...base.slice(0, 4), { errors: analysis.errors, warns: analysis.approval.needed ? ["Χρειάζεται έγκριση"] : [] }] : base;
 
   useEffect(() => {
     if (step !== 4) return;
@@ -62,9 +93,12 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
     setStep(1);
   };
 
+  // χωρίς όνομα αποθηκεύεται με την περιγραφή της (αλλάζει στο βήμα «Εμφάνιση»)
   const save = (intent: "draft" | "publish") => start(async () => {
     setMsg(null);
-    const r = await saveAction(d, intent);
+    const draft = d.name.trim() ? d : { ...d, name: summary.slice(0, 120) };
+    if (draft !== d) set({ name: draft.name });
+    const r = await saveAction(draft, intent);
     if (!r.ok) { setMsg({ tone: "err", text: (r.errors ?? ["Δεν αποθηκεύτηκε."]).join(" ") }); return; }
     const st = r.status ? STATUS_LABEL[r.status].label : "";
     setMsg({ tone: "ok", text: intent === "publish" ? (r.status === "pending" ? `Στάλθηκε για έγκριση (${r.approval?.join(", ")}).` : `Δημοσιεύτηκε · ${st}. Η βιτρίνα ενημερώνεται.`) : `Αποθηκεύτηκε · ${st}.` });
@@ -72,47 +106,67 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
     else router.refresh();
     if (r.id) set({ id: r.id });
   });
+  const go = (i: number) => { setStep(i); document.getElementById("wz-top")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+
+  const aside = <WizardSummary d={d} summary={summary} svcTitle={svcTitle} issues={issues} step={step} go={go} appears={appears} status={status} code={code} />;
 
   return (
-    <div className="grid gap-5 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="grid gap-4 min-w-0">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <Link href="/admin/prosfores" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline"><ChevronLeft className="size-4" aria-hidden /> Όλες οι προσφορές</Link>
-          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)]">{d.name || (d.id ? "Προσφορά" : "Νέα προσφορά")}</h2>
-          <div className="text-eu-ink-3 text-[length:var(--fs-14)]">{code && <span className="font-mono">{code} · </span>}{status && <span className="font-bold">{STATUS_LABEL[status].label} · </span>}{summary}</div>
+          <Link href="/admin/prosfores" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-10 hover:underline"><ChevronLeft className="size-4" aria-hidden /> Όλες οι προσφορές</Link>
+          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">{d.name || (d.id ? "Προσφορά" : "Νέα προσφορά")}</h2>
+          <div className="text-eu-ink-3 text-[length:var(--fs-14)]">{code && <span className="font-mono">{code} · </span>}{status && <span className="font-bold">{STATUS_LABEL[status].label}</span>}{!status && "Πρόχειρο · δεν φαίνεται ακόμη στους πελάτες"}</div>
         </div>
       </div>
 
-      <ol className="m-0 p-0 list-none grid grid-cols-5 gap-1.5" aria-label="Βήματα">
-        {STEPS.map((s, i) => (
-          <li key={s}>
-            <button type="button" onClick={() => setStep(i)} aria-current={i === step ? "step" : undefined} className={`w-full rounded-xl px-2 min-h-12 text-left border-2 ${i === step ? "border-eu-navy bg-eu-navy text-white" : i < step ? "border-eu-line bg-eu-chip text-eu-navy" : "border-eu-line bg-white text-eu-muted"}`}>
-              <span className="block text-[length:var(--fs-13)] font-bold text-center @2xl:text-left">{i + 1}</span>
-              <span className="hidden @2xl:block font-extrabold text-[length:var(--fs-14)] truncate">{s}</span>
-              <span className="sr-only @2xl:hidden">{s}</span>
-            </button>
-          </li>
-        ))}
+      {overview}
+
+      <ol id="wz-top" data-help="promo.steps" className="m-0 p-0 list-none grid grid-cols-5 gap-1.5 scroll-mt-4" aria-label="Βήματα">
+        {STEPS.map((s, i) => {
+          const is = issues[i], cur = i === step, err = is.errors.length > 0 && (i < step || i === 4), warn = !err && is.warns.length > 0 && i <= step;
+          return (
+            <li key={s}>
+              <button type="button" onClick={() => go(i)} aria-current={cur ? "step" : undefined} title={[...is.errors, ...is.warns].join(" · ") || undefined}
+                className={`w-full rounded-xl px-2 min-h-12 text-left border-2 flex items-center gap-2 ${cur ? "border-eu-navy bg-eu-navy text-white" : err ? "border-eu-red/40 bg-white text-eu-ink" : "border-eu-line bg-white text-eu-ink-2 hover:border-eu-blue"}`}>
+                <span className={`size-6 shrink-0 rounded-full grid place-items-center text-[length:var(--fs-12)] font-extrabold mx-auto @2xl:mx-0 ${cur ? "bg-white text-eu-navy" : err ? "bg-eu-red text-white" : warn ? "bg-eu-amber text-white" : i < step ? "bg-eu-green text-white" : "bg-eu-surface text-eu-ink-3"}`}>
+                  {err || warn ? "!" : i < step ? <Check className="size-3.5" aria-hidden /> : i + 1}
+                </span>
+                <span className="hidden @2xl:block min-w-0 font-extrabold text-[length:var(--fs-14)] truncate">{s}</span>
+                <span className="sr-only @2xl:hidden">{`${i + 1}. ${s}`}</span>
+                {err && <span className="sr-only"> — θέλει διόρθωση</span>}
+              </button>
+            </li>
+          );
+        })}
       </ol>
 
-      <p className="@2xl:hidden m-0 -mt-3 font-extrabold text-eu-navy text-[length:var(--fs-16)]">Βήμα {step + 1} από {STEPS.length} · {STEPS[step]}</p>
+      <details className="@5xl:hidden group rounded-2xl border border-eu-line bg-white">
+        <summary className="list-none cursor-pointer flex items-center gap-2 px-4 min-h-12 font-bold text-eu-ink text-[length:var(--fs-14)] [&::-webkit-details-marker]:hidden">
+          <ListChecks className="size-4 text-eu-blue shrink-0" aria-hidden /><span className="flex-1 min-w-0 truncate">Βήμα {step + 1}/{STEPS.length} · {STEPS[step]} — {summary}</span><ChevronDown className="size-4 shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+        </summary>
+        <div className="px-4 pb-4">{aside}</div>
+      </details>
 
-      <HelpPanel key={step} id={`wizard-${step}`} topic={STEP_HELP[step]} compact />
-
-      <section className="rounded-2xl bg-white border border-eu-line p-3 @md:p-6 grid gap-5 min-w-0">
+      <div className="grid gap-4 items-start @5xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="grid gap-4 min-w-0">
+          <section className="rounded-2xl bg-white border border-eu-line p-3 @md:p-5 grid gap-4 min-w-0">
+            <div className="grid gap-0.5">
+              <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">{STEP_HELP[step].title.replace(/^Βήμα \d · /, "")}</h3>
+              <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug max-w-[80ch]">{STEP_HELP[step].what}</p>
+            </div>
         {step === 0 && (
-          <div className="grid gap-5">
+          <div className="grid gap-4">
             {GROUPS.map((g) => (
               <div key={g.key} className="grid gap-2">
-                <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{g.label}</h3>
-                <div className="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-3 gap-2.5">
+                <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">{g.label}</h4>
+                <div className="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-3 gap-2">
                   {TEMPLATES.filter((t) => t.group === g.key).map((t) => (
                     <button key={t.key} type="button" onClick={() => pickTemplate(t.key)} disabled={!!t.held} aria-pressed={d.template === t.key}
-                      className={`text-left rounded-2xl border-2 p-4 grid gap-1 ${t.held ? "border-dashed border-eu-line bg-eu-surface cursor-not-allowed" : d.template === t.key ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
-                      <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] inline-flex items-center gap-1.5">{t.held && <Lock className="size-4 text-eu-muted" aria-hidden />}{t.title}</span>
-                      <span className="text-eu-ink-3 text-[length:var(--fs-14)]">{t.blurb}</span>
-                      <span className="text-eu-muted text-[length:var(--fs-13)] italic">π.χ. {t.example}</span>
-                      {t.held && <span className="text-eu-amber font-bold text-[length:var(--fs-13)]">{t.held}</span>}
+                      className={`text-left rounded-xl border-2 px-3 py-2.5 grid gap-0.5 ${t.held ? "border-dashed border-eu-line bg-eu-surface cursor-not-allowed" : d.template === t.key ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
+                      <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5">{t.held ? <Lock className="size-4 text-eu-muted" aria-hidden /> : d.template === t.key ? <Check className="size-4 text-eu-navy" aria-hidden /> : null}{t.title}</span>
+                      <span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{t.blurb} <span className="text-eu-muted italic">π.χ. {t.example}</span></span>
+                      {t.held && <span className="text-eu-amber font-bold text-[length:var(--fs-12)]">{t.held}</span>}
                     </button>
                   ))}
                 </div>
@@ -124,11 +178,25 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
         {step === 1 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} />}
 
         {step === 2 && (
-          <div className="grid gap-4">
-            <Group n="Α" title="Η έκπτωση" desc="Πόσο κερδίζει ο πελάτης.">
+          <div className="grid gap-3">
+            <Group title="Η έκπτωση" desc="Πόσο κερδίζει ο πελάτης.">
               <RewardFields d={d} setReward={setReward} setRules={setRules} />
             </Group>
-            <Group n="Β" title="Για ποιους πελάτες" desc={FIELD_HELP.customers}>
+            <Group title="Πότε ισχύει" desc="Η λήξη είναι πραγματική: σε αυτή μετρά η αντίστροφη μέτρηση στη βιτρίνα.">
+              <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
+                <Field l="Έναρξη" hint={FIELD_HELP.startsAt}><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: fromLocal(e.target.value) })} /></Field>
+                <Field l="Λήξη" hint={d.endsAt ? FIELD_HELP.endsAt : "Χωρίς λήξη η προσφορά τρέχει για πάντα — βάλε ημερομηνία."}><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: fromLocal(e.target.value) })} /></Field>
+              </div>
+            </Group>
+            {isCoupon && (
+              <Group title="Κωδικός κουπονιού" desc={FIELD_HELP.coupon}>
+                <Field l="Κοινός κωδικός" hint="Προαιρετικό. Για προσωπικούς κωδικούς μίας χρήσης (παρτίδες, email, κοινό) πήγαινε στα «Κουπόνια» μετά την αποθήκευση.">
+                  <input className={`${input} font-mono uppercase @xl:max-w-sm`} value={d.couponCode ?? ""} onChange={(e) => set({ couponCode: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") || null })} placeholder="π.χ. WELCOME10" />
+                </Field>
+              </Group>
+            )}
+            <p className="m-0 mt-1 font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Προαιρετικά — πάτα για αλλαγή</p>
+            <Group title="Για ποιους πελάτες" desc={FIELD_HELP.customers} value={customersText(d, segments)} fold open={!!(d.rules.customers || d.rules.segments?.length || d.rules.earlyAccess)}>
               <div className="grid grid-cols-1 @xl:grid-cols-3 gap-2">
                 <OptionCard on={(d.rules.customers ?? "all") === "all"} onClick={() => setRules({ customers: undefined })} title="Όλοι" desc="Επισκέπτες και μέλη." />
                 <OptionCard on={d.rules.customers === "new"} onClick={() => setRules({ customers: "new" })} title="Πρώτη αγορά" desc="Μόνο όσοι δεν έχουν παραγγείλει ποτέ." />
@@ -136,32 +204,26 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               </div>
               <SegmentRules d={d} setRules={setRules} segments={segments} />
             </Group>
-            <Group n="Γ" title="Ελάχιστο καλάθι" desc="Προαιρετικό. Ο πελάτης βλέπει στο καλάθι «σου λείπουν Χ €» ή «πρόσθεσε 1 ακόμη».">
+            <Group title="Ελάχιστο καλάθι" desc="Ο πελάτης βλέπει στο καλάθι «σου λείπουν Χ €» ή «πρόσθεσε 1 ακόμη»." value={d.rules.minValue || d.rules.minQty ? [d.rules.minValue ? `από ${eur(d.rules.minValue)}` : "", d.rules.minQty ? `από ${d.rules.minQty} τεμ.` : ""].filter(Boolean).join(" · ") : "Χωρίς ελάχιστο"} fold open={!!(d.rules.minValue || d.rules.minQty)}>
               <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
                 <Field l="Ελάχιστη αξία (€)" hint={FIELD_HELP.minValue}><input inputMode="decimal" className={input} value={toEur(d.rules.minValue)} onChange={(e) => setRules({ minValue: toCents(e.target.value) })} placeholder="χωρίς ελάχιστο" /></Field>
                 <Field l="Ελάχιστα τεμάχια" hint={FIELD_HELP.minQty}><input inputMode="numeric" className={input} value={d.rules.minQty ?? ""} onChange={(e) => setRules({ minQty: Number(e.target.value) || undefined })} placeholder="χωρίς ελάχιστο" /></Field>
               </div>
             </Group>
-            <Group n="Δ" title="Πότε ισχύει" desc="Η λήξη είναι πραγματική: σε αυτή μετρά η αντίστροφη μέτρηση στη βιτρίνα.">
-              <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
-                <Field l="Έναρξη" hint={FIELD_HELP.startsAt}><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: fromLocal(e.target.value) })} /></Field>
-                <Field l="Λήξη" hint={d.endsAt ? FIELD_HELP.endsAt : "Χωρίς λήξη η προσφορά τρέχει για πάντα — βάλε ημερομηνία."}><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: fromLocal(e.target.value) })} /></Field>
-              </div>
-            </Group>
-            <Group n="Ε" title="Όρια" desc="Προαιρετικά. Η προσφορά σταματά μόνη της όταν φτάσει σε κάποιο όριο.">
+            <Group title="Όρια" desc="Η προσφορά σταματά μόνη της όταν φτάσει σε κάποιο όριο." value={limitsText(d)} fold open={!!(d.maxUses || d.maxPerCustomer || d.budgetEur)}>
               <div className="grid grid-cols-1 @xl:grid-cols-3 gap-3">
                 <Field l="Μέγιστες χρήσεις" hint={FIELD_HELP.maxUses}><input inputMode="numeric" className={input} value={d.maxUses ?? ""} onChange={(e) => set({ maxUses: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
                 <Field l="Ανά πελάτη" hint={FIELD_HELP.maxPerCustomer}><input inputMode="numeric" className={input} value={d.maxPerCustomer ?? ""} onChange={(e) => set({ maxPerCustomer: Number(e.target.value) || null })} placeholder="απεριόριστες" /></Field>
                 <Field l="Budget (€)" hint={FIELD_HELP.budget}><input inputMode="decimal" className={input} value={d.budgetEur ?? ""} onChange={(e) => set({ budgetEur: Number(e.target.value.replace(",", ".")) || null })} placeholder="χωρίς όριο" /></Field>
               </div>
             </Group>
-            <Group n="ΣΤ" title="Μαζί με άλλες προσφορές" desc="Τι γίνεται όταν το ίδιο προϊόν έχει κι άλλη προσφορά.">
+            <Group title="Μαζί με άλλες προσφορές" desc="Τι γίνεται όταν το ίδιο προϊόν έχει κι άλλη προσφορά." value={`${STACKING_LABEL[d.stacking].label} · προτεραιότητα ${d.priority}`} fold>
               <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-2">
                 {(Object.keys(STACKING_LABEL) as (keyof typeof STACKING_LABEL)[]).map((k) => <OptionCard key={k} on={d.stacking === k} onClick={() => set({ stacking: k })} title={STACKING_LABEL[k].label} desc={STACKING_LABEL[k].help} />)}
               </div>
               <Field l="Προτεραιότητα" hint={FIELD_HELP.priority}><input inputMode="numeric" className={`${input} @xl:max-w-40`} value={d.priority} onChange={(e) => set({ priority: Number(e.target.value) || 100 })} /></Field>
             </Group>
-            <Group n="Ζ" title="Πού και πώς" desc="Προαιρετικά: περιορισμός σε κανάλι, περιοχή, πληρωμή ή παράδοση.">
+            <Group title="Πού και πώς" desc="Περιορισμός σε κανάλι, κατάστημα, περιοχή, πληρωμή ή παράδοση." value={whereText(d)} fold open={whereText(d) !== "Παντού, με κάθε πληρωμή και παράδοση"}>
               <div className="grid grid-cols-1 @xl:grid-cols-2 @5xl:grid-cols-4 gap-2">
                 <OptionCard on={!d.rules.channels?.length} onClick={() => setRules({ channels: undefined })} title="Παντού" desc="Online (αποστολή ή παραλαβή) — και στο ταμείο, αν το συνδέσετε." />
                 <OptionCard on={d.rules.channels?.length === 1 && d.rules.channels[0] === "online"} onClick={() => setRules({ channels: ["online"] })} title="Μόνο αποστολή" desc="Όταν ο πελάτης παραλαμβάνει στο σπίτι." />
@@ -177,65 +239,166 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
                 </fieldset>
               )}
               <fieldset className="m-0 p-0 border-0 grid gap-1"><legend className="font-bold text-eu-ink-2 text-[length:var(--fs-14)] mb-1">Μόνο με τρόπο παράδοσης</legend>
-                <div className="grid grid-cols-1 @md:grid-cols-3 gap-x-4">{([["courier", "Αποστολή στο σπίτι"], ["click-collect", "Παραλαβή από κατάστημα"], ["appointment", "Παράδοση με ραντεβού"]] as const).map(([v, l]) => { const on = !!d.rules.delivery?.includes(v); return <label key={v} className="inline-flex items-center gap-2 min-h-11 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 accent-eu-navy" checked={on} onChange={(e) => setRules({ delivery: e.target.checked ? [...(d.rules.delivery ?? []), v] : (d.rules.delivery ?? []).filter((x) => x !== v) })} />{l}</label>; })}</div>
+                <div className="grid grid-cols-1 @md:grid-cols-3 gap-x-4">{DELIVERY.map(([v, l]) => { const on = !!d.rules.delivery?.includes(v); return <label key={v} className="inline-flex items-center gap-2 min-h-11 text-[length:var(--fs-14)]"><input type="checkbox" className="size-5 accent-eu-navy" checked={on} onChange={(e) => setRules({ delivery: e.target.checked ? [...(d.rules.delivery ?? []), v] : (d.rules.delivery ?? []).filter((x) => x !== v) })} />{l}</label>; })}</div>
               </fieldset>
             </Group>
-            {isCoupon && (
-              <Group n="Η" title="Κωδικός κουπονιού" desc={FIELD_HELP.coupon}>
-                <Field l="Κοινός κωδικός" hint="Προαιρετικό. Για προσωπικούς κωδικούς μίας χρήσης (παρτίδες, email, κοινό) πήγαινε στα «Κουπόνια» μετά την αποθήκευση.">
-                  <input className={`${input} font-mono uppercase @xl:max-w-sm`} value={d.couponCode ?? ""} onChange={(e) => set({ couponCode: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") || null })} placeholder="π.χ. WELCOME10" />
-                </Field>
-              </Group>
-            )}
           </div>
         )}
 
         {step === 3 && (
-          <div className="grid gap-5">
-            <Field l="Όνομα (εσωτερικό)" hint="Φαίνεται στο διαχειριστικό, στις αναφορές και στο παραστατικό."><input className={input} value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="π.χ. Black Friday · τηλεοράσεις −20 %" /></Field>
-            <div className="grid grid-cols-1 @xl:grid-cols-2 gap-4 items-start">
+          <div className="grid gap-4">
+            <Field l="Όνομα (εσωτερικό)" hint={`Φαίνεται στο διαχειριστικό, στις αναφορές και στο παραστατικό. Κενό = «${summary}».`}><input className={input} value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="π.χ. Black Friday · τηλεοράσεις −20 %" /></Field>
+            <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 items-start">
               <Field info="tagLabel" l="Ετικέτα στη βιτρίνα" hint={`Κενό = αυτόματη: «${autoLabel({ ...d, tagLabel: null }, svcTitle)}»`}><input className={input} value={d.tagLabel ?? ""} maxLength={28} onChange={(e) => set({ tagLabel: e.target.value || null })} /></Field>
-              <div className="grid gap-1 basis-full">
-                <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Sticker στις κάρτες <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— μπαίνει σε όσα προϊόντα αφορά η προσφορά, όσο ισχύει (έως 2 ανά κάρτα, με σειρά προτεραιότητας)</span></span>
-                <StickerPicker value={d.stickerKey ?? null} onChange={(v) => set({ stickerKey: v })} />
-              </div>
               <div className="grid gap-1">
-                <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Έτσι φαίνεται στην κάρτα</span>
-                <div className="rounded-2xl border border-eu-line p-4 flex items-center gap-3">
-                  <span className="size-16 rounded-xl bg-eu-surface grid place-items-center text-eu-muted"><Store className="size-6" aria-hidden /></span>
-                  <div className="grid gap-1">
-                    <span className={`inline-flex w-fit rounded-full px-2.5 py-1 font-extrabold text-[length:var(--fs-13)] ${d.mechanism.startsWith("price") || d.mechanism === "special-price" ? "bg-eu-red text-white" : "bg-eu-navy text-white"}`}>{autoLabel(d, svcTitle)}</span>
-                    <span className="text-eu-muted text-[length:var(--fs-13)]">έως 2 ετικέτες ανά κάρτα · countdown όταν λήγει σε ≤ 3 ημέρες</span>
-                  </div>
-                </div>
+                <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Sticker στις κάρτες <span className="text-eu-muted font-normal text-[length:var(--fs-13)]">— σε όσα προϊόντα αφορά, όσο ισχύει (έως 2 ανά κάρτα)</span></span>
+                <StickerPicker value={d.stickerKey ?? null} onChange={(v) => set({ stickerKey: v })} />
               </div>
             </div>
             <Field info="terms" l="Όροι (εμφανίζονται στον πελάτη και γράφονται στο παραστατικό)">
-              <textarea rows={5} className={`${input} py-2`} value={d.termsText ?? ""} onChange={(e) => set({ termsText: e.target.value || null })} />
+              <textarea rows={4} className={`${input} py-2`} value={d.termsText ?? ""} onChange={(e) => set({ termsText: e.target.value || null })} />
             </Field>
             <button type="button" onClick={() => set({ termsText: termsFor(d, summary) })} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Σύνταξη όρων από τα στοιχεία</button>
+            <WhereItAppears id={d.id ?? null} appears={appears} />
           </div>
         )}
 
         {step === 4 && <ReviewStep d={d} a={analysis} summary={summary} canApprove={canApprove} />}
-      </section>
+          </section>
 
-      {msg && <p role={msg.tone === "err" ? "alert" : "status"} className={`m-0 rounded-xl px-4 py-3 font-semibold text-[length:var(--fs-14)] ${msg.tone === "err" ? "bg-eu-red/10 text-eu-red" : "bg-eu-green/10 text-eu-green"}`}>{msg.text}</p>}
+          {msg && <p role={msg.tone === "err" ? "alert" : "status"} className={`m-0 rounded-xl px-4 py-3 font-semibold text-[length:var(--fs-14)] ${msg.tone === "err" ? "bg-eu-red/10 text-eu-red" : "bg-eu-green/10 text-eu-green"}`}>{msg.text}</p>}
 
-      <div className="sticky bottom-0 z-20 -mx-4 @md:mx-0 px-4 @md:px-0 py-3 bg-eu-surface/95 backdrop-blur border-t border-eu-line @md:border-0 @md:bg-transparent @md:backdrop-blur-none @md:static flex items-center justify-between gap-2">
-        <button type="button" disabled={step === 0} onClick={() => setStep((s) => s - 1)} aria-label="Πίσω" className="shrink-0 inline-flex items-center justify-center gap-1 rounded-full border-2 border-eu-line min-w-11 px-2 @md:px-4 min-h-11 font-bold text-[length:var(--fs-14)] disabled:opacity-40"><ChevronLeft className="size-4" aria-hidden /><span className="hidden @md:inline">Πίσω</span></button>
-        <div className="flex gap-2 min-w-0">
-          <button type="button" disabled={busy || !d.name.trim()} onClick={() => save("draft")} title={!d.name.trim() ? "Δώσε όνομα στο βήμα «Εμφάνιση»" : undefined} className="rounded-full border-2 border-eu-navy text-eu-navy px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-chip disabled:opacity-40"><span className="@md:hidden">{d.id && status && status !== "draft" ? "Αποθήκευση" : "Πρόχειρο"}</span><span className="hidden @md:inline">{d.id && status && status !== "draft" ? "Αποθήκευση αλλαγών" : "Αποθήκευση πρόχειρου"}</span></button>
-          {step < 4 ? (
-            <button type="button" onClick={() => setStep((s) => s + 1)} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-blue">Επόμενο <ChevronRight className="size-4" aria-hidden /></button>
-          ) : (
-            <button type="button" disabled={busy || !analysis || analysis.errors.length > 0} onClick={() => save("publish")} className="rounded-full bg-eu-yellow text-eu-navy px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-yellow-dark disabled:opacity-40">
-              {busy ? "Γίνεται…" : analysis?.approval.needed && !canApprove ? "Υποβολή για έγκριση" : status && ["active", "scheduled", "paused"].includes(status) ? "Δημοσίευση νέας έκδοσης" : "Δημοσίευση"}
-            </button>
-          )}
+          <div className="sticky bottom-0 z-20 -mx-4 @md:mx-0 px-4 @md:px-3 py-3 bg-white/95 backdrop-blur border-t border-eu-line @md:border @md:rounded-2xl flex items-center justify-between gap-2">
+            <button type="button" disabled={step === 0} onClick={() => go(step - 1)} aria-label="Πίσω" className="shrink-0 inline-flex items-center justify-center gap-1 rounded-full border-2 border-eu-line min-w-11 px-2 @md:px-4 min-h-11 font-bold text-[length:var(--fs-14)] disabled:opacity-40"><ChevronLeft className="size-4" aria-hidden /><span className="hidden @md:inline">Πίσω</span></button>
+            <div className="flex gap-2 min-w-0">
+              <button type="button" disabled={busy} onClick={() => save("draft")} className="rounded-full border-2 border-eu-navy text-eu-navy px-4 @md:px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-chip disabled:opacity-40"><span className="@md:hidden">{d.id && status && status !== "draft" ? "Αποθήκευση" : "Πρόχειρο"}</span><span className="hidden @md:inline">{d.id && status && status !== "draft" ? "Αποθήκευση αλλαγών" : "Αποθήκευση πρόχειρου"}</span></button>
+              {step < 4 ? (
+                <button type="button" onClick={() => go(step + 1)} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-blue">{STEPS[step + 1]} <ChevronRight className="size-4" aria-hidden /></button>
+              ) : (
+                <button type="button" disabled={busy || !analysis || analysis.errors.length > 0 || issues.slice(0, 4).some((x) => x.errors.length)} onClick={() => save("publish")} className="rounded-full bg-eu-yellow text-eu-navy px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-yellow-dark disabled:opacity-40">
+                  {busy ? "Γίνεται…" : analysis?.approval.needed && !canApprove ? "Υποβολή για έγκριση" : status && ["active", "scheduled", "paused"].includes(status) ? "Δημοσίευση νέας έκδοσης" : "Δημοσίευση"}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
+        <aside data-help="promo.summary" aria-label="Σύνοψη προσφοράς" className="hidden @5xl:block [@media(min-height:820px)]:sticky top-4 rounded-2xl bg-white border border-eu-line p-4">{aside}</aside>
       </div>
     </div>
+  );
+}
+
+const DELIVERY = [["courier", "Αποστολή στο σπίτι"], ["click-collect", "Παραλαβή από κατάστημα"], ["appointment", "Παράδοση με ραντεβού"]] as const;
+const CUSTOMERS = { all: "Όλοι οι πελάτες", new: "Μόνο πρώτη αγορά", registered: "Μόνο μέλη" } as const;
+function customersText(d: PromoDraft, segments: { id: string; label: string }[]) {
+  const segs = (d.rules.segments ?? []).map((id) => segments.find((s) => s.id === id)?.label.replace(/ \(\d+\)$/, "") ?? id);
+  return [CUSTOMERS[d.rules.customers ?? "all"], segs.length ? `κοινά: ${segs.join(", ")}` : "", d.rules.earlyAccess ? `early access ${d.rules.earlyAccess.hours} ώρες` : ""].filter(Boolean).join(" · ");
+}
+function limitsText(d: PromoDraft) {
+  return [d.maxUses ? `${d.maxUses} χρήσεις` : "", d.maxPerCustomer ? `${d.maxPerCustomer}/πελάτη` : "", d.budgetEur ? `budget ${d.budgetEur.toLocaleString("el-GR")} €` : ""].filter(Boolean).join(" · ") || "Χωρίς όρια";
+}
+const CH: Record<string, string> = { online: "μόνο αποστολή", "click-collect": "μόνο παραλαβή", pos: "μόνο ταμείο" };
+function whereText(d: PromoDraft) {
+  const r = d.rules;
+  const parts = [r.channels?.length ? r.channels.map((c) => CH[c] ?? c).join(", ") : "", r.stores?.length ? `${r.stores.length} καταστήματα` : "", r.zips?.length ? `ΤΚ ${r.zips.slice(0, 3).join(", ")}${r.zips.length > 3 ? "…" : ""}` : "", !d.mechanism.startsWith("payment") && r.payment?.length ? `πληρωμή: ${r.payment.map((p) => PAYMENT_OPTIONS.find((o) => o.value === p)?.label ?? p).join(", ")}` : "", r.delivery?.length ? `παράδοση: ${r.delivery.map((v) => DELIVERY.find((x) => x[0] === v)?.[1] ?? v).join(", ")}` : ""].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Παντού, με κάθε πληρωμή και παράδοση";
+}
+
+const KIND_ICON = { zone: PanelsTopLeft, landing: LayoutTemplate, ad: Megaphone } as const;
+const dt = (s: string | null) => (s ? new Date(s).toLocaleString("el-GR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : null);
+
+/** Η σύνοψη δίπλα στον οδηγό: πρόταση, κάρτα, βασικά στοιχεία, λίστα ελέγχου ανά βήμα, πού εμφανίζεται. */
+function WizardSummary({ d, summary, svcTitle, issues, step, go, appears, status, code }: { d: PromoDraft; summary: string; svcTitle?: string; issues: Issues[]; step: number; go: (i: number) => void; appears: WizardAppearance[]; status: PromoStatus | null; code: string | null }) {
+  const label = d.tagLabel || autoLabel({ ...d, tagLabel: null }, svcTitle);
+  const facts: [string, string][] = [
+    ["Διάρκεια", `${dt(d.startsAt) ?? "από τη δημοσίευση"} → ${dt(d.endsAt) ?? "χωρίς λήξη"}`],
+    ["Για", [CUSTOMERS[d.rules.customers ?? "all"], d.rules.segments?.length ? `${d.rules.segments.length} κοινά` : ""].filter(Boolean).join(" · ")],
+    ["Όρια", limitsText(d)],
+    ["Συνδυασμός", STACKING_LABEL[d.stacking].label],
+  ];
+  return (
+    <div className="grid gap-4 text-[length:var(--fs-14)]">
+      <div className="grid gap-2">
+        <span className="font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Σύνοψη{code ? ` · ${code}` : ""}{status ? ` · ${STATUS_LABEL[status].label}` : ""}</span>
+        <p className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] leading-snug">{summary}</p>
+        <div className="rounded-xl border border-eu-line p-2.5 flex items-center gap-3" aria-label="Έτσι φαίνεται στην κάρτα προϊόντος">
+          <span className="size-12 shrink-0 rounded-lg bg-eu-surface grid place-items-center text-eu-muted"><Store className="size-5" aria-hidden /></span>
+          <div className="grid gap-1 min-w-0">
+            <span className={`inline-flex w-fit rounded-full px-2.5 py-0.5 font-extrabold text-[length:var(--fs-13)] ${d.mechanism.startsWith("price") || d.mechanism === "special-price" ? "bg-eu-red text-white" : "bg-eu-navy text-white"}`}>{label}</span>
+            <span className="text-eu-muted text-[length:var(--fs-12)] leading-snug">ετικέτα στην κάρτα{d.stickerKey ? " + sticker" : ""} · countdown στις τελευταίες 3 ημέρες</span>
+          </div>
+        </div>
+      </div>
+      <dl className="m-0 grid gap-1">
+        {facts.map(([k, v]) => <div key={k} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2"><dt className="text-eu-muted">{k}</dt><dd className="m-0 text-eu-ink font-semibold leading-snug">{v}</dd></div>)}
+      </dl>
+      <div className="grid gap-1">
+        <span className="font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Έλεγχος</span>
+        <ul className="m-0 p-0 list-none grid gap-0.5">
+          {STEPS.map((s, i) => {
+            const is = issues[i], first = is.errors[0] ?? is.warns[0];
+            const Icon = is.errors.length ? CircleAlert : is.warns.length ? AlertTriangle : Check;
+            return (
+              <li key={s}>
+                <button type="button" onClick={() => go(i)} className={`w-full text-left flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-eu-surface ${i === step ? "bg-eu-surface" : ""}`}>
+                  <Icon className={`size-4 mt-0.5 shrink-0 ${is.errors.length ? "text-eu-red" : is.warns.length ? "text-eu-amber" : "text-eu-green"}`} aria-hidden />
+                  <span className="grid min-w-0"><span className="font-bold text-eu-ink">{i + 1}. {s}</span>{first && <span className={`text-[length:var(--fs-13)] leading-snug ${is.errors.length ? "text-eu-red" : "text-eu-ink-3"}`}>{first}</span>}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div className="grid gap-1">
+        <span className="font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Πού εμφανίζεται</span>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">Πάντα: κάρτες & σελίδες των προϊόντων της, καλάθι, /prosfores{appears.length ? ` · και σε ${appears.length} ${appears.length === 1 ? "σημείο" : "σημεία"}:` : "."}</p>
+        {appears.length > 0 && <AppearList appears={appears} />}
+        <button type="button" onClick={() => go(3)} className="justify-self-start font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline min-h-9">Πρόσθεσε σε ζώνη, banner ή landing page →</button>
+      </div>
+    </div>
+  );
+}
+
+function AppearList({ appears }: { appears: WizardAppearance[] }) {
+  return (
+    <ul className="m-0 p-0 list-none grid gap-1">
+      {appears.map((a, i) => { const I = KIND_ICON[a.kind]; return (
+        <li key={i}><Link href={a.href} className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-eu-surface text-[length:var(--fs-13)]">
+          <I className="size-4 mt-px shrink-0 text-eu-muted" aria-hidden />
+          <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink leading-snug">{a.place}</span><span className="text-eu-ink-3 leading-snug">{a.what}</span></span>
+          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${a.live ? "bg-eu-green/15 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{a.live ? "φαίνεται" : "όχι ακόμη"}</span>
+        </Link></li>
+      ); })}
+    </ul>
+  );
+}
+
+/** Βήμα «Εμφάνιση»: πού φαίνεται αυτόματα, πού έχει μπει ρητά, και πώς τη βάζεις σε ζώνη, banner ή landing page. */
+function WhereItAppears({ id, appears }: { id: string | null; appears: WizardAppearance[] }) {
+  const add = [
+    { href: "/admin/cms/home", I: PanelsTopLeft, t: "Σε ζώνη της αρχικής", s: "Blocks «Προϊόντα προσφοράς», «Αντίστροφη μέτρηση», «Προσφορά ημέρας» ή η ενότητα «Προσφορές της εβδομάδας»." },
+    { href: id ? `/admin/prosfores/selides?promo=${id}` : "/admin/prosfores/selides", I: LayoutTemplate, t: "Δική της landing page", s: "Σελίδα /prosfores/… με τα προϊόντα της αυτόματα, countdown και όρους." },
+    { href: "/admin/prosfores/theseis", I: Megaphone, t: "Banner σε διαφημιστική θέση", s: "Αρχική, λίστες, σελίδα προϊόντος, καλάθι· φαίνεται μόνο όσο τρέχει η προσφορά." },
+    { href: "/admin/cms/brand-stores", I: Store, t: "Σε σελίδα μάρκας", s: "Τα ίδια blocks προσφορών στη σελίδα μιας μάρκας." },
+  ];
+  return (
+    <section data-help="promo.where" aria-labelledby="wz-where" className="grid gap-3 rounded-2xl bg-eu-surface/60 p-3 @md:p-4">
+      <div className="grid gap-0.5">
+        <h4 id="wz-where" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Πού θα εμφανίζεται</h4>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Αυτόματα, χωρίς ρύθμιση: στις κάρτες και στη σελίδα κάθε προϊόντος της (ετικέτα, τιμή, countdown), στο καλάθι, στη σελίδα /prosfores και στα blocks «Προϊόντα · σε προσφορά».</p>
+      </div>
+      {appears.length > 0 && <div className="rounded-xl bg-white border border-eu-line p-1.5"><AppearList appears={appears} /></div>}
+      {!id && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Αποθήκευσε πρώτα την προσφορά για να τη διαλέξεις σε ζώνες, banners και landing pages.</p>}
+      <ul className="m-0 p-0 list-none grid gap-2 @3xl:grid-cols-2">
+        {add.map((x) => (
+          <li key={x.t}><Link href={x.href} target="_blank" className="flex items-start gap-2.5 rounded-xl bg-white border border-eu-line p-3 h-full hover:border-eu-blue">
+            <x.I className="size-5 mt-0.5 shrink-0 text-eu-blue" aria-hidden />
+            <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)] inline-flex items-center gap-1">{x.t} <ExternalLink className="size-3.5 text-eu-muted" aria-hidden /><span className="sr-only">(νέα καρτέλα)</span></span><span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{x.s}</span></span>
+          </Link></li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -351,12 +514,22 @@ export function TargetChips({ list, names, onRemove, tone }: { list: PromoTarget
   );
 }
 
-/** Ομάδα πεδίων με τίτλο και ορατή εξήγηση. */
-function Group({ n, title, desc, children }: { n: string; title: string; desc?: string; children: ReactNode }) {
+/** Ομάδα πεδίων με τίτλο και ορατή εξήγηση· με `fold` αναδιπλώνεται και δείχνει την τρέχουσα τιμή σε μία γραμμή. */
+function Group({ title, desc, children, value, fold = false, open = false }: { title: string; desc?: string; children: ReactNode; value?: string; fold?: boolean; open?: boolean }) {
+  if (fold) return (
+    <details open={open} className="group/g rounded-2xl border border-eu-line min-w-0 open:pb-3">
+      <summary className="list-none cursor-pointer flex items-center gap-3 px-3 @md:px-4 min-h-12 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="grid min-w-0 flex-1"><span className="font-extrabold text-eu-navy text-[length:var(--fs-15)]">{title}</span>{value && <span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{value}</span>}</span>
+        <span className="shrink-0 font-bold text-eu-blue text-[length:var(--fs-13)] group-open/g:hidden">Αλλαγή</span>
+        <ChevronDown className="size-4 shrink-0 text-eu-muted transition-transform group-open/g:rotate-180" aria-hidden />
+      </summary>
+      <div className="grid gap-3 px-3 @md:px-4">{desc && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{desc}</p>}{children}</div>
+    </details>
+  );
   return (
     <section className="rounded-2xl border border-eu-line p-3 @md:p-4 grid gap-3 min-w-0">
       <div className="grid gap-0.5">
-        <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-16)] inline-flex items-center gap-2"><span className="min-w-7 h-7 px-1.5 rounded-full bg-eu-chip text-eu-navy grid place-items-center text-[length:var(--fs-13)]">{n}</span>{title}</h3>
+        <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">{title}</h4>
         {desc && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug">{desc}</p>}
       </div>
       {children}

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T00:08:34.935Z",
+ "generatedAt": "2026-10-11T00:30:39.848Z",
  "routes": [
   {
    "route": "/admin",
@@ -21,6 +21,11 @@
     "dash.card"
    ],
    "changes": [
+    {
+     "hash": "b97e8e9",
+     "date": "2026-10-11T03:08:55+03:00",
+     "text": "Screenshots βοήθειας χωρίς προσωπικά δεδομένα: εκτός public (help-shots/, μόνο για συνδεδεμένο προσωπικό μέσω /api/help-shot), σελίδες με στοιχεία πελατών/προσωπικού δεν φωτογραφίζονται, το όνομα χρήστη θολώνεται (dat…"
+    },
     {
      "hash": "c4dd688",
      "date": "2026-10-11T02:49:41+03:00",
@@ -65,14 +70,9 @@
      "hash": "5e2365e",
      "date": "2026-09-13T11:31:18+03:00",
      "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
-    },
-    {
-     "hash": "be42963",
-     "date": "2026-09-13T11:21:34+03:00",
-     "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
     }
    ],
-   "updatedAt": "2026-10-11T02:49:41+03:00",
+   "updatedAt": "2026-10-11T03:08:55+03:00",
    "shots": {
     "desktop": "/api/help-shot/dashboard-d.jpg",
     "mobile": "/api/help-shot/dashboard-m.jpg"
@@ -1297,14 +1297,21 @@
    "slug": "prosfores",
    "file": "app/admin/(shell)/prosfores/page.tsx",
    "title": "Προσφορές",
-   "doc": "Όλες οι προσφορές: KPIs, φίλτρα, κατάσταση με μια ματιά, μαζικές ενέργειες.",
+   "doc": "Προσφορές: ό,τι θέλει ενέργεια, KPIs 30 ημερών με τάση, φίλτρα κατάστασης με πλήθη και η λίστα με διάρκεια, απόδοση και πού εμφανίζεται κάθε προσφορά στο site.",
    "perm": "catalog.promos.write",
    "nav": {
     "group": "Προσφορές & υπηρεσίες",
     "label": "Προσφορές & κουπόνια"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.new",
+    "promo.kpis",
+    "promo.attention",
+    "promo.filters",
+    "promo.table",
+    "promo.nav"
+   ],
    "changes": [
     {
      "hash": "8fc17d3",
@@ -1372,7 +1379,12 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": true,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.perf",
+    "promo.steps",
+    "promo.summary",
+    "promo.where"
+   ],
    "changes": [
     {
      "hash": "8fc17d3",
@@ -1380,14 +1392,44 @@
      "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
     },
     {
+     "hash": "2023dda",
+     "date": "2026-10-04T13:15:44+03:00",
+     "text": "Stickers: γενικοί κανόνες εφαρμογής (μάρκα, κατηγορία με υποκατηγορίες, μάρκα σε κατηγορία, προϊόντα, εξαιρέσεις, τιμή, διαθεσιμότητα, ημερομηνίες) με προεπισκόπηση"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
      "hash": "f6a094e",
      "date": "2026-10-03T08:10:14+03:00",
      "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
     },
     {
+     "hash": "0523818",
+     "date": "2026-10-03T07:38:44+03:00",
+     "text": "Admin adaptive: συρτάρι μενού σε κινητό/tablet, επιλογέας καταλόγου βήμα-βήμα σε στενή οθόνη, τίποτα δεν ξεχειλώνει"
+    },
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
+    },
+    {
+     "hash": "6e70d7b",
+     "date": "2026-10-02T21:52:49+03:00",
+     "text": "Φάση 1"
     },
     {
      "hash": "ca3d246",
@@ -1403,11 +1445,16 @@
    "slug": "prosfores.anafores",
    "file": "app/admin/(shell)/prosfores/anafores/page.tsx",
    "title": "Αναφορές προσφορών",
-   "doc": "Αναφορά ανά καμπάνια και ανά παραστατικό: ποια προσφορά, σε ποια παραγγελία, με ποιους όρους (έκδοση) και πόσο κόστισε. Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας.",
+   "doc": "Αναφορές προσφορών: KPIs με σύγκριση με την προηγούμενη περίοδο, παραγγελίες και έκπτωση ανά ημέρα, απόδοση ανά καμπάνια (έσοδα ανά 1 € έκπτωσης), ανά μηχανισμό, κουπόνια, διαφημιστικές θέσεις, προϊόντα και παραστατικά. Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας + μετρητές banners.",
    "perm": "reports.read",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.report.filters",
+    "promo.report.kpis",
+    "promo.report.campaigns",
+    "promo.report.ads"
+   ],
    "changes": [
     {
      "hash": "c26f587",
@@ -1654,10 +1701,7 @@
     }
    ],
    "updatedAt": "2026-10-03T07:30:09+03:00",
-   "shots": {
-    "desktop": "/api/help-shot/prosfores.kouponia-d.jpg",
-    "mobile": "/api/help-shot/prosfores.kouponia-m.jpg"
-   }
+   "shots": {}
   },
   {
    "route": "/admin/prosfores/new",
@@ -1668,7 +1712,11 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.steps",
+    "promo.summary",
+    "promo.where"
+   ],
    "changes": [
     {
      "hash": "8fc17d3",
@@ -1676,14 +1724,39 @@
      "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
     },
     {
+     "hash": "2023dda",
+     "date": "2026-10-04T13:15:44+03:00",
+     "text": "Stickers: γενικοί κανόνες εφαρμογής (μάρκα, κατηγορία με υποκατηγορίες, μάρκα σε κατηγορία, προϊόντα, εξαιρέσεις, τιμή, διαθεσιμότητα, ημερομηνίες) με προεπισκόπηση"
+    },
+    {
+     "hash": "9d1f72e",
+     "date": "2026-10-04T13:00:24+03:00",
+     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
+    },
+    {
      "hash": "f6a094e",
      "date": "2026-10-03T08:10:14+03:00",
      "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
     },
     {
+     "hash": "0523818",
+     "date": "2026-10-03T07:38:44+03:00",
+     "text": "Admin adaptive: συρτάρι μενού σε κινητό/tablet, επιλογέας καταλόγου βήμα-βήμα σε στενή οθόνη, τίποτα δεν ξεχειλώνει"
+    },
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
+    {
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "78ba51b",
+     "date": "2026-10-03T07:05:06+03:00",
+     "text": "Προσφορές"
     },
     {
      "hash": "6e70d7b",
@@ -1820,8 +1893,15 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "promo.slots"
+   ],
    "changes": [
+    {
+     "hash": "c26f587",
+     "date": "2026-10-03T07:30:09+03:00",
+     "text": "Προσφορές"
+    },
     {
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
@@ -1833,7 +1913,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:05:06+03:00",
+   "updatedAt": "2026-10-03T07:30:09+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
     "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
@@ -2076,6 +2156,11 @@
    ],
    "changes": [
     {
+     "hash": "705ab72",
+     "date": "2026-10-11T03:08:55+03:00",
+     "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
+    },
+    {
      "hash": "e304c31",
      "date": "2026-10-10T14:00:00+03:00",
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
@@ -2119,14 +2204,9 @@
      "hash": "6561fd3",
      "date": "2026-10-02T17:11:55+03:00",
      "text": "Φάση 0"
-    },
-    {
-     "hash": "5786fe8",
-     "date": "2026-10-02T14:13:29+03:00",
-     "text": "Ερμής, φωνή: σωστά ελληνικά (αριθμοί, αρκτικόλεξα, ερωτήσεις), χρωματισμός ανά πρόταση, χωρίς αυτόματη ενεργοποίηση"
     }
    ],
-   "updatedAt": "2026-10-10T14:00:00+03:00",
+   "updatedAt": "2026-10-11T03:08:55+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2149,6 +2229,11 @@
    ],
    "changes": [
     {
+     "hash": "705ab72",
+     "date": "2026-10-11T03:08:55+03:00",
+     "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
+    },
+    {
      "hash": "e304c31",
      "date": "2026-10-10T14:00:00+03:00",
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
@@ -2192,14 +2277,9 @@
      "hash": "6561fd3",
      "date": "2026-10-02T17:11:55+03:00",
      "text": "Φάση 0"
-    },
-    {
-     "hash": "5786fe8",
-     "date": "2026-10-02T14:13:29+03:00",
-     "text": "Ερμής, φωνή: σωστά ελληνικά (αριθμοί, αρκτικόλεξα, ερωτήσεις), χρωματισμός ανά πρόταση, χωρίς αυτόματη ενεργοποίηση"
     }
    ],
-   "updatedAt": "2026-10-10T14:00:00+03:00",
+   "updatedAt": "2026-10-11T03:08:55+03:00",
    "shots": {}
   },
   {
@@ -2641,6 +2721,22 @@
  ],
  "recent": [
   {
+   "hash": "705ab72",
+   "date": "2026-10-11T03:08:55+03:00",
+   "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails",
+   "routes": [
+    "/admin",
+    "/admin/settings",
+    "/admin/settings/[section]"
+   ]
+  },
+  {
+   "hash": "b97e8e9",
+   "date": "2026-10-11T03:08:55+03:00",
+   "text": "Screenshots βοήθειας χωρίς προσωπικά δεδομένα: εκτός public (help-shots/, μόνο για συνδεδεμένο προσωπικό μέσω /api/help-shot), σελίδες με στοιχεία πελατών/προσωπικού δεν φωτογραφίζονται, το όνομα χρήστη θολώνεται (dat…",
+   "routes": []
+  },
+  {
    "hash": "e398f2c",
    "date": "2026-10-11T02:53:30+03:00",
    "text": "Αριστερό μενού διαχείρισης χωρίς δικό του scroller: παίρνει όσο ύψος χρειάζεται και κυλά μαζί με τη σελίδα",
@@ -2965,22 +3061,6 @@
     "/admin/catalog/banners",
     "/admin/catalog/dimensions"
    ]
-  },
-  {
-   "hash": "75e0c5c",
-   "date": "2026-10-10T09:11:05+03:00",
-   "text": "Σελίδα προϊόντος: χώρος εργασίας με ετοιμότητα, 5 καρτέλες (?tab=), κάρτα όπως στο site και ενεργειακή ετικέτα με αναζήτηση EPREL",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "e477df9",
-   "date": "2026-10-10T09:03:40+03:00",
-   "text": "ProductEditor: only",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3001,6 +3081,33 @@
   ],
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "promo.perf": [
+   "app/admin/(shell)/prosfores/[id]/page.tsx"
+  ],
+  "promo.report.filters": [
+   "app/admin/(shell)/prosfores/anafores/page.tsx"
+  ],
+  "promo.report.kpis": [
+   "app/admin/(shell)/prosfores/anafores/page.tsx"
+  ],
+  "promo.report.campaigns": [
+   "app/admin/(shell)/prosfores/anafores/page.tsx"
+  ],
+  "promo.report.ads": [
+   "app/admin/(shell)/prosfores/anafores/page.tsx"
+  ],
+  "promo.new": [
+   "app/admin/(shell)/prosfores/page.tsx"
+  ],
+  "promo.kpis": [
+   "app/admin/(shell)/prosfores/page.tsx"
+  ],
+  "promo.attention": [
+   "app/admin/(shell)/prosfores/page.tsx"
+  ],
+  "promo.filters": [
+   "app/admin/(shell)/prosfores/page.tsx"
   ],
   "settings.groups": [
    "components/admin/SettingsForm.tsx"
@@ -3053,6 +3160,24 @@
   ],
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "promo.slots": [
+   "components/admin/promos/PlacementsEditor.tsx"
+  ],
+  "promo.table": [
+   "components/admin/promos/PromoTable.tsx"
+  ],
+  "promo.nav": [
+   "components/admin/promos/PromoTabs.tsx"
+  ],
+  "promo.steps": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.summary": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.where": [
+   "components/admin/promos/PromoWizard.tsx"
   ],
   "settings.search": [
    "components/admin/settings/SettingsIndex.tsx"

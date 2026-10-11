@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Plus, Pencil, X } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Plus, Pencil, X, Eye, MousePointerClick } from "lucide-react";
 import { SLOTS } from "@/lib/promo/landing-blocks";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
 import { ImageUrlField } from "./ImageUrlField";
@@ -16,20 +16,29 @@ const ST: Record<string, string> = { draft: "Πρόχειρο", active: "Ενε�
 const localDt = (iso: string | null) => { if (!iso) return ""; const d = new Date(iso); const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const blank = (slot: string): PlacementInput => ({ id: null, slot, title: "", image: null, imageMobile: null, alt: null, href: null, promotionId: null, landingId: null, status: "draft", startsAt: null, endsAt: null, priority: 100, categories: [] });
 
-/** Οι θέσεις ανά σημείο της βιτρίνας, με στατιστικά και φόρμα επεξεργασίας. */
+const live = (r: Row, now: number) => r.status === "active" && r.promoLive !== false && (!r.startsAt || +new Date(r.startsAt) <= now) && (!r.endsAt || +new Date(r.endsAt) > now);
+
+/**
+ * Οι θέσεις της βιτρίνας σε πυκνό πλέγμα: ανά θέση τι φαίνεται τώρα, τα banners της με προβολές/κλικ/CTR και «+ Banner».
+ * Η επεξεργασία ανοίγει σε παράθυρο πάνω από τη σελίδα, όποια θέση κι αν πατήσεις.
+ */
 export function PlacementsEditor({ rows, promos, landings, categories }: { rows: Row[]; promos: Opt[]; landings: Opt[]; categories: Opt[] }) {
   const router = useRouter();
   const [edit, setEdit] = useState<PlacementInput | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, start] = useTransition();
   const set = (p: Partial<PlacementInput>) => setEdit((x) => (x ? { ...x, ...p } : x));
+  const dlg = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const d = dlg.current; if (edit && d && !d.open) d.showModal(); if (!edit && d?.open) d.close(); }, [edit]);
+  const [now] = useState(() => Date.now());
   const save = () => edit && start(async () => { const r = await savePlacementAction(edit); if (!r.ok) return setMsg({ ok: false, t: r.error }); setMsg({ ok: true, t: "Αποθηκεύτηκε. Η βιτρίνα ενημερώνεται σε λίγα δευτερόλεπτα." }); setEdit(null); router.refresh(); });
 
   return (
     <div className="grid gap-4">
       {msg && <p role="status" className={`m-0 rounded-xl px-4 py-2 font-semibold text-[length:var(--fs-14)] ${msg.ok ? "bg-eu-green/10 text-eu-green" : "bg-eu-red/10 text-eu-red"}`}>{msg.t}</p>}
+      <dialog ref={dlg} onClose={() => setEdit(null)} aria-label={edit?.id ? "Επεξεργασία banner" : "Νέο banner"} className="m-auto w-[min(60rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-2rem)] rounded-2xl p-0 backdrop:bg-black/40 @container">
       {edit && (
-        <section className="rounded-2xl bg-white border-2 border-eu-navy p-4 @md:p-5 grid gap-3">
+        <section className="bg-white p-4 @md:p-5 grid gap-3">
           <div className="flex items-center justify-between"><h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-16)]">{edit.id ? "Επεξεργασία banner" : "Νέο banner"}</h3><button type="button" aria-label="Κλείσιμο" onClick={() => setEdit(null)} className="size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button></div>
           <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
             <label className={lbl}><span className="inline-flex items-center gap-1">Θέση <Hint k="slot" /></span><select className={input} value={edit.slot} onChange={(e) => set({ slot: e.target.value })}>{SLOTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
@@ -50,34 +59,50 @@ export function PlacementsEditor({ rows, promos, landings, categories }: { rows:
               <div className="flex flex-wrap gap-1.5">{categories.map((c) => { const on = edit.categories.includes(c.id); return <button key={c.id} type="button" aria-pressed={on} onClick={() => set({ categories: on ? edit.categories.filter((x) => x !== c.id) : [...edit.categories, c.id] })} className={`rounded-full px-3 min-h-10 text-[length:var(--fs-13)] font-semibold border ${on ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line"}`}>{c.label}</button>; })}</div>
             </div>
           )}
-          <button type="button" disabled={busy} onClick={save} className="justify-self-start rounded-full bg-eu-navy text-white px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-blue disabled:opacity-40">{busy ? "Αποθήκευση…" : "Αποθήκευση"}</button>
+          {msg && !msg.ok && <p role="alert" className="m-0 rounded-xl px-4 py-2 font-semibold text-[length:var(--fs-14)] bg-eu-red/10 text-eu-red">{msg.t}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={save} className="rounded-full bg-eu-navy text-white px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-blue disabled:opacity-40">{busy ? "Αποθήκευση…" : "Αποθήκευση"}</button>
+            <button type="button" onClick={() => setEdit(null)} className="rounded-full border-2 border-eu-line px-5 min-h-11 font-bold text-[length:var(--fs-14)]">Ακύρωση</button>
+          </div>
         </section>
       )}
-      {SLOTS.map((s) => {
-        const list = rows.filter((r) => r.slot === s.key);
-        return (
-          <section key={s.key} className="rounded-2xl bg-white border border-eu-line p-4 grid gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div><h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">{s.label}</h3><div className="text-eu-muted text-[length:var(--fs-13)]">{s.size}</div></div>
-              <button type="button" onClick={() => { setMsg(null); setEdit(blank(s.key)); }} className="inline-flex items-center gap-1 rounded-full border-2 border-eu-line px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Plus className="size-4" aria-hidden /> Banner</button>
-            </div>
-            {list.length ? (
-              <ul className="m-0 p-0 list-none grid gap-2">
-                {list.map((r) => (
-                  <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-eu-line p-2">
-                    {r.image ? <span className="w-40 h-12 rounded-lg bg-center bg-cover border border-eu-line" style={{ backgroundImage: `url("${r.image}")` }} aria-hidden /> : <span className="w-40 h-12 rounded-lg bg-eu-surface grid place-items-center text-eu-muted text-[length:var(--fs-13)]">χωρίς εικόνα</span>}
-                    <div className="flex-1 min-w-[12rem]">
-                      <div className="font-bold text-eu-ink text-[length:var(--fs-14)]">{r.title} <span className="font-normal text-eu-muted">· {ST[r.status]}{r.promoLive === false ? " · η προσφορά δεν είναι ενεργή (κρυφό)" : ""}</span></div>
-                      <div className="text-eu-muted text-[length:var(--fs-13)] tabular-nums">{r.impressions.toLocaleString("el-GR")} προβολές · {r.clicks.toLocaleString("el-GR")} κλικ{r.impressions ? ` · CTR ${((r.clicks / r.impressions) * 100).toFixed(2)} %` : ""} · προτεραιότητα {r.priority}</div>
-                    </div>
-                    <button type="button" onClick={() => { setMsg(null); setEdit({ ...r }); }} className="inline-flex items-center gap-1 rounded-full border border-eu-line px-3 min-h-11 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Pencil className="size-4" aria-hidden /> Αλλαγή</button>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Κενή θέση — δεν εμφανίζεται τίποτα.</p>}
-          </section>
-        );
-      })}
+      </dialog>
+      <ul data-help="promo.slots" className="m-0 p-0 list-none grid gap-3 @3xl:grid-cols-2 @6xl:grid-cols-3">
+        {SLOTS.map((s) => {
+          const list = rows.filter((r) => r.slot === s.key);
+          const showing = list.filter((r) => live(r, now)).sort((a, b) => a.priority - b.priority)[0];
+          return (
+            <li key={s.key} className="rounded-2xl bg-white border border-eu-line p-3 grid gap-2 content-start min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0"><h3 className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)] leading-snug">{s.label}</h3><div className="text-eu-muted text-[length:var(--fs-12)]">{s.size}</div></div>
+                <button type="button" onClick={() => { setMsg(null); setEdit(blank(s.key)); }} aria-label={`Νέο banner: ${s.label}`} className="shrink-0 inline-flex items-center gap-1 rounded-full border border-eu-line px-3 min-h-10 font-bold text-[length:var(--fs-13)] hover:border-eu-navy"><Plus className="size-4" aria-hidden /> Banner</button>
+              </div>
+              <p className={`m-0 rounded-lg px-2.5 py-1.5 text-[length:var(--fs-13)] font-bold ${showing ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{showing ? `Τώρα φαίνεται: ${showing.title}` : "Κενή — δεν φαίνεται τίποτα"}</p>
+              {list.length > 0 && (
+                <ul className="m-0 p-0 list-none grid gap-1.5">
+                  {list.map((r) => (
+                    <li key={r.id}>
+                      <button type="button" onClick={() => { setMsg(null); setEdit({ ...r }); }} className="w-full text-left grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-eu-line p-1.5 hover:border-eu-blue">
+                        {r.image ? <span className="h-10 rounded-lg bg-center bg-cover border border-eu-line" style={{ backgroundImage: `url("${r.image}")` }} aria-hidden /> : <span className="h-10 rounded-lg bg-eu-surface grid place-items-center text-eu-muted text-[length:var(--fs-12)]">χωρίς</span>}
+                        <span className="min-w-0 grid">
+                          <span className="font-bold text-eu-ink text-[length:var(--fs-13)] truncate">{r.title}</span>
+                          <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums inline-flex flex-wrap gap-x-2">
+                            <span>{ST[r.status]}{r.promoLive === false ? " · προσφορά ανενεργή" : ""}</span>
+                            <span className="inline-flex items-center gap-0.5"><Eye className="size-3" aria-hidden />{r.impressions.toLocaleString("el-GR")}</span>
+                            <span className="inline-flex items-center gap-0.5"><MousePointerClick className="size-3" aria-hidden />{r.clicks.toLocaleString("el-GR")}</span>
+                            {r.impressions > 0 && <span>CTR {((r.clicks / r.impressions) * 100).toLocaleString("el-GR", { maximumFractionDigits: 2 })} %</span>}
+                          </span>
+                        </span>
+                        <Pencil className="size-4 text-eu-muted mr-1" aria-label="Αλλαγή" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

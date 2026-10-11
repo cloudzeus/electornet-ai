@@ -9,6 +9,9 @@ import { PromoWizard } from "@/components/admin/promos/PromoWizard";
 import { getServiceList } from "@/lib/services/catalog";
 import { describePromo, type PromoStatus } from "@/lib/promo/catalog";
 import type { PromoReward, PromoRules } from "@/lib/promo/engine";
+import { promoStats, delta } from "@/lib/promo/stats";
+import { promoAppearances } from "@/lib/promo/where";
+import { KpiTile, LineChart } from "@/components/admin/charts/Charts";
 
 export const metadata = { title: "Προσφορά" };
 export const dynamic = "force-dynamic";
@@ -29,6 +32,9 @@ export default async function PromotionPage({ params, searchParams }: { params: 
     db.staff.findMany({ where: { id: { in: [p.createdById, p.approvedById, change?.by ?? null, ...p.versions.map((v) => v.createdById)].filter((x): x is string => !!x) } }, select: { id: true, name: true } }),
   ]);
   const who = new Map(staff.map((s) => [s.id, s.name]));
+  const [stats, where] = await Promise.all([promoStats(30, p.id), promoAppearances([p.id])]);
+  const appears = where.get(p.id) ?? [];
+  const everUsed = p.usedCount > 0 || stats.total.orders > 0;
   const eur = (v: number) => `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
   return (
@@ -38,7 +44,23 @@ export default async function PromotionPage({ params, searchParams }: { params: 
           summary={change ? `${change.draft.name}: ${describePromo(change.draft)}` : `${p.name}: ${describePromo({ mechanism: p.mechanism, reward: p.reward as PromoReward, rules: p.rules as PromoRules })}`}
           by={who.get((change ? change.by : p.createdById) ?? "") ?? null} at={(change?.at ?? p.updatedAt).toISOString()} />
       )}
-      <PromoWizard initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, Number(step) || 3))}
+      <PromoWizard appears={appears} overview={everUsed ? (
+        <section data-help="promo.perf" aria-labelledby="pp-h" className="grid gap-3 rounded-2xl bg-white border border-eu-line p-3 @md:p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 id="pp-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Απόδοση · 30 ημέρες</h3>
+            <Link href={`/admin/prosfores/anafores?promo=${p.id}`} className="font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline">Πλήρης αναφορά →</Link>
+          </div>
+          <div className="grid gap-3 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] items-start">
+            <div className="grid grid-cols-2 gap-2">
+              <KpiTile label="Παραγγελίες" value={stats.total.orders.toLocaleString("el-GR")} delta={delta(stats.total.orders, stats.prev.orders)} />
+              <KpiTile label="Έκπτωση" value={eur(stats.total.discount)} delta={delta(stats.total.discount, stats.prev.discount, "down")} />
+              <KpiTile label="Χρήσεις συνολικά" value={`${p.usedCount.toLocaleString("el-GR")}${p.maxUses ? ` / ${p.maxUses.toLocaleString("el-GR")}` : ""}`} />
+              <KpiTile label="Budget" value={p.budgetEur ? `${Math.round((Number(p.spentEur) / Number(p.budgetEur)) * 100)} %` : "—"} sub={p.budgetEur ? `${eur(Number(p.spentEur))} από ${eur(Number(p.budgetEur))}` : "χωρίς όριο"} tone={p.budgetEur && Number(p.spentEur) / Number(p.budgetEur) >= 0.8 ? "warn" : undefined} />
+            </div>
+            {stats.orders.some((v) => v > 0) ? <LineChart labels={stats.labels} height={170} series={[{ key: "o", label: "Παραγγελίες", values: stats.orders }]} /> : <p className="m-0 grid place-items-center min-h-32 rounded-xl bg-eu-surface/60 text-eu-muted text-[length:var(--fs-14)] text-center px-4">Καμία παραγγελία τις τελευταίες 30 ημέρες.</p>}
+          </div>
+        </section>
+      ) : undefined} initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, Number(step) || 3))}
         services={(await getServiceList()).map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
         stores={(await db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true } }))}
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />

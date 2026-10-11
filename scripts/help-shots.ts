@@ -21,7 +21,7 @@ const PROFILE = join(process.cwd(), ".help-profile");
 const OUT = join(process.cwd(), "help-shots");
 const SKIP = new Set(["/admin/help", "/admin/forbidden"]);
 /** σελίδες με προσωπικά δεδομένα πελατών/προσωπικού: ΠΟΤΕ σε εικόνα (GDPR) */
-const PII = new Set(["/admin/customers", "/admin/customers/import", "/admin/gdpr", "/admin/staff", "/admin/audit", "/admin/newsletter", "/admin/softone/customers", "/admin/prosfores/anafores", "/admin/reports/wishlist"]);
+const PII = new Set(["/admin/customers", "/admin/customers/import", "/admin/gdpr", "/admin/staff", "/admin/audit", "/admin/newsletter", "/admin/softone/customers", "/admin/prosfores/anafores", "/admin/prosfores/kouponia", "/admin/reports/wishlist"]);
 const only = process.argv.slice(2).filter((a) => a.startsWith("/admin"));
 const routes = (generated as unknown as Generated).routes.filter((r) => !r.dynamic && !SKIP.has(r.route) && !PII.has(r.route) && (!only.length || only.includes(r.route)));
 

@@ -1,4 +1,5 @@
 import type { HelpPage, HelpTopic } from "../types";
+import { PAGE_HELP, STEP_HELP, type HelpTopic as PromoTopic } from "@/lib/promo/help";
 
 /*
  * Γραμμένοι οδηγοί των σελίδων της διαχείρισης. Κάθε `parts[].key` είναι ίδιο με ένα `data-help="…"` στο UI
@@ -12,6 +13,22 @@ const EDITOR_PARTS = (what: string) => [
   { key: "editor.publish", title: "Δημοσίευση", text: "Ανοίγει τον έλεγχο: τι αλλάζει (με αναίρεση μίας αλλαγής), έλεγχοι (κενές ζώνες, λήξεις, απόθεμα), δημοσίευση τώρα ή σε συγκεκριμένη ώρα. Όποιος δεν έχει δικαίωμα δημοσίευσης βλέπει «Για έγκριση»." },
   { key: "editor.more", title: "Περισσότερα (⋯)", text: "Σενάρια & προγραμματισμός, ιστορικό δημοσιεύσεων με επαναφορά, σύνδεσμος & QR προεπισκόπησης για κινητό ή συνάδελφο, συντομεύσεις πλήκτρων." },
   { key: "editor.undo", title: "Αναίρεση / επανάληψη", text: "Κάθε αλλαγή αναιρείται (Ctrl/⌘ Z). Το πρόχειρο αποθηκεύεται μόνο του· οι πελάτες δεν βλέπουν τίποτα μέχρι τη δημοσίευση." },
+];
+
+/* Οι σελίδες «Προσφορές»: η βοήθειά τους ζει στο lib/promo/help.ts (ίδια πηγή με τα «i» των πεδίων) και εμφανίζεται εδώ. */
+const topicTasks = (t: PromoTopic) => (t.steps?.length ? [{ title: t.title, steps: t.steps }] : []);
+const WIZARD_ROUTES = ["/admin/prosfores/new", "/admin/prosfores/[id]"];
+const PROMO_PAGES: [string, keyof typeof PAGE_HELP, Partial<HelpPage>?][] = [
+  ["/admin/prosfores/imerologio", "calendar"], ["/admin/prosfores/kouponia", "coupons"], ["/admin/prosfores/etiketes", "tags"],
+  ["/admin/prosfores/prosomoiotis", "sim"], ["/admin/prosfores/kanones", "rules"], ["/admin/prosfores/selides", "landing"],
+  ["/admin/prosfores/excel", "excel"], ["/admin/prosfores/ermis", "ermis"], ["/admin/prosfores/prosopikes", "personal"], ["/admin/prosfores/koina", "segments"],
+  ["/admin/prosfores/theseis", "ads", { parts: [{ key: "promo.slots", title: "Θέσεις", text: "Κάθε σημείο της βιτρίνας σε μία κάρτα: τι φαίνεται τώρα (πράσινο) ή «Κενή», τα banners της με προβολές, κλικ και CTR. Πάτα ένα banner για αλλαγή ή «+ Banner» για νέο· η φόρμα ανοίγει σε παράθυρο." }], files: ["components/admin/promos/PlacementsEditor.tsx"] }],
+  ["/admin/prosfores/anafores", "report", { parts: [
+    { key: "promo.report.filters", title: "Καμπάνια & περίοδος", text: "Διάλεξε μία καμπάνια (ή όλες) και περίοδο 7 / 30 / 90 ημερών ή 1 έτους· όλα συγκρίνονται με την προηγούμενη ίση περίοδο." },
+    { key: "promo.report.kpis", title: "KPIs", text: "Έκπτωση, παραγγελίες με προσφορά (και ποσοστό όλων), έσοδα γραμμών σε προσφορά με «έσοδα ανά 1 € έκπτωσης», μέση έκπτωση ανά παραγγελία." },
+    { key: "promo.report.campaigns", title: "Ανά καμπάνια", text: "Παραγγελίες, τεμάχια, έσοδα, έκπτωση και «Απόδοση» = έσοδα ανά 1 € έκπτωσης (πράσινο ≥ 5×, κόκκινο < 2×). Πάτα το όνομα για αναφορά μόνο αυτής." },
+    { key: "promo.report.ads", title: "Διαφημιστικές θέσεις", text: "Εμφανίσεις, κλικ και CTR κάθε banner (από την αρχή του)." },
+  ], files: ["lib/promo/stats.ts"] }],
 ];
 
 export const HELP_PAGES: HelpPage[] = [
@@ -131,14 +148,45 @@ export const HELP_PAGES: HelpPage[] = [
   {
     route: "/admin/prosfores",
     title: "Προσφορές & κουπόνια",
-    summary: "Όλες οι προσφορές με KPIs, φίλτρα και κατάσταση. Από εδώ: νέα προσφορά, ημερολόγιο, κουπόνια, ετικέτες, κανόνες, σελίδες προσφορών, διαφημιστικές θέσεις, αναφορές.",
-    tasks: [
-      { title: "Νέα προσφορά", steps: ["«Νέα προσφορά» (ή από πρότυπο).", "Μηχανισμός, προϊόντα, ημερομηνίες, budget.", "Αποθήκευση· αν ξεπερνά τα όρια έγκρισης, περιμένει έγκριση."], link: { label: "Νέα προσφορά", href: "/admin/prosfores/new" } },
-      { title: "Βλέπω τι τρέχει πότε", steps: ["Άνοιξε το Ημερολόγιο: έξι εβδομάδες, επικαλύψεις, τι ισχύει κάθε ημέρα."], link: { label: "Ημερολόγιο", href: "/admin/prosfores/imerologio" } },
+    summary: "Ο πίνακας ελέγχου των προσφορών: KPIs 30 ημερών με τάση, ό,τι θέλει προσοχή (εγκρίσεις, λήξεις 48 ωρών, budget, χωρίς λήξη), φίλτρα κατάστασης με πλήθη και η λίστα με διάρκεια, απόδοση και πού εμφανίζεται κάθε προσφορά.",
+    parts: [
+      { key: "promo.nav", title: "Περιοχές προσφορών", text: "Έξι περιοχές αντί για δώδεκα καρτέλες: Προσφορές (λίστα, ημερολόγιο), Κουπόνια, Στόχευση (κοινά, προσωπικές), Στο site (θέσεις, landing pages, ετικέτες), Αναφορές, Εργαλεία (προσομοιωτής, κανόνες, οδηγοί). Οι σελίδες κάθε περιοχής φαίνονται στη δεύτερη σειρά." },
+      { key: "promo.new", title: "Νέα προσφορά", text: "Ανοίγει τον οδηγό 5 βημάτων. Εναλλακτικά: «Με τον Ερμή» (την περιγράφεις με λόγια) ή «Από Excel» (τιμοκατάλογος ειδικών τιμών)." },
+      { key: "promo.kpis", title: "KPIs 30 ημερών", text: "Ενεργές, προγραμματισμένες, έκπτωση και παραγγελίες με προσφορά. Το ▲/▼ συγκρίνει με τις προηγούμενες 30 ημέρες και η καμπύλη δείχνει την τάση. Πάτα ένα για φίλτρο ή αναφορά." },
+      { key: "promo.attention", title: "Θέλουν προσοχή", text: "Εγκρίσεις που περιμένουν, προσφορές που λήγουν σε 48 ώρες, budget ≥ 80 %, ενεργές χωρίς λήξη. Εμφανίζεται μόνο όταν υπάρχει κάτι." },
+      { key: "promo.filters", title: "Φίλτρα", text: "Κατάσταση με πλήθος σε κάθε επιλογή (εμφανίζονται μόνο όσες έχουν προσφορές), αναζήτηση με όνομα, κωδικό CMP-… ή κωδικό κουπονιού, και μηχανισμός." },
+      { key: "promo.table", title: "Η λίστα", text: "Ανά προσφορά: κατάσταση και πρόοδος διάρκειας, «Στο site» (ζώνες, landing pages, banners — πράσινη κουκκίδα = φαίνεται τώρα), παραγγελίες και έκπτωση 30 ημερών, χρήσεις και budget. Τσέκαρε για μαζικές ενέργειες." },
     ],
-    related: [{ label: "Κέντρο βοήθειας προσφορών", href: "/admin/prosfores/voitheia" }, { label: "Stickers", href: "/admin/stickers" }],
-    keywords: ["καμπάνια", "έκπτωση", "κουπόνι", "budget"],
+    tasks: [
+      { title: "Νέα προσφορά", steps: ["«Νέα προσφορά».", "Πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος· δίπλα βλέπεις τη σύνοψη και τι λείπει.", "«Δημοσίευση» — ή «Υποβολή για έγκριση» αν ξεπερνά τα όρια."], link: { label: "Νέα προσφορά", href: "/admin/prosfores/new" } },
+      { title: "Βλέπω τι τρέχει πότε", steps: ["Προσφορές → Ημερολόγιο & επικαλύψεις: έξι εβδομάδες, επικαλύψεις, τι ισχύει κάθε ημέρα."], link: { label: "Ημερολόγιο", href: "/admin/prosfores/imerologio" } },
+      ...topicTasks(PAGE_HELP.list),
+    ],
+    tips: [...(PAGE_HELP.list.tips ?? []), ...(PAGE_HELP.list.watch ?? [])],
+    related: [{ label: "Οδηγοί & γλωσσάρι προσφορών", href: "/admin/prosfores/voitheia" }, { label: "Stickers", href: "/admin/stickers" }, { label: "Ζώνες αρχικής", href: "/admin/cms/home" }],
+    files: ["components/admin/promos/PromoTabs.tsx", "components/admin/promos/PromoTable.tsx", "lib/promo/where.ts", "lib/promo/stats.ts"],
+    keywords: ["καμπάνια", "έκπτωση", "κουπόνι", "budget", "λήξη"],
   },
+  ...WIZARD_ROUTES.map((route) => ({
+    route,
+    title: route.endsWith("new") ? "Νέα προσφορά" : "Προσφορά",
+    summary: "Ο οδηγός 5 βημάτων: πρότυπο, προϊόντα, κανόνες, εμφάνιση, έλεγχος. Δίπλα η σύνοψη: η προσφορά σε μία πρόταση, πώς φαίνεται στην κάρτα, τα βασικά, η λίστα ελέγχου ανά βήμα και πού εμφανίζεται. Σε υπάρχουσα προσφορά, επάνω η απόδοση 30 ημερών.",
+    parts: [
+      { key: "promo.steps", title: "Βήματα", text: "Πάτα οποιοδήποτε βήμα. Πράσινο ✓ = εντάξει, πορτοκαλί ! = προειδοποίηση (π.χ. χωρίς λήξη), κόκκινο ! = λείπει κάτι που εμποδίζει τη δημοσίευση." },
+      { key: "promo.summary", title: "Σύνοψη & έλεγχος", text: "Η προσφορά σε μία πρόταση, η ετικέτα της κάρτας, διάρκεια, πελάτες, όρια, συνδυασμός, και η λίστα ελέγχου: πάτα ένα βήμα για να πας εκεί. Σε κινητό είναι η αναδιπλούμενη γραμμή πάνω από τη φόρμα." },
+      { key: "promo.where", title: "Πού θα εμφανίζεται", text: "Αυτόματα: κάρτες και σελίδες προϊόντων, καλάθι, /prosfores. Ρητά: ζώνες αρχικής και σελίδων μαρκών, landing pages, banners — με «φαίνεται / όχι ακόμη» και σύνδεσμο για προσθήκη." },
+      { key: "promo.perf", title: "Απόδοση", text: "Μόνο σε προσφορά με χρήσεις: παραγγελίες και έκπτωση 30 ημερών με σύγκριση, χρήσεις, budget και γράφημα ανά ημέρα." },
+    ],
+    tasks: STEP_HELP.map((t) => ({ title: t.title, steps: [t.what, ...(t.steps ?? [])] })),
+    tips: STEP_HELP.flatMap((t) => [...(t.tips ?? []).slice(0, 1), ...(t.watch ?? [])]),
+    related: [{ label: "Προσομοιωτής καλαθιού", href: "/admin/prosfores/prosomoiotis" }, { label: "Ημερολόγιο", href: "/admin/prosfores/imerologio" }],
+    files: ["components/admin/promos/PromoWizard.tsx", "lib/promo/help.ts"],
+    keywords: ["οδηγός", "wizard", "πρότυπο", "λήξη", "έγκριση"],
+  })),
+  ...PROMO_PAGES.map(([route, key, extra]) => {
+    const t = PAGE_HELP[key];
+    return { route, title: t.title, summary: t.what, tasks: topicTasks(t), tips: [...(t.tips ?? []), ...(t.watch ?? [])], related: [{ label: "Όλες οι προσφορές", href: "/admin/prosfores" }], keywords: ["προσφορές"], ...extra } satisfies HelpPage;
+  }),
   {
     route: "/admin/catalog",
     title: "Κατάλογος",
