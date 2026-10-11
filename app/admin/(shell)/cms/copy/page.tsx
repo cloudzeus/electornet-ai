@@ -7,10 +7,10 @@ import { CopyEditor, type CopyGroup } from "@/components/admin/cms/CopyEditor";
 export const metadata = { title: "Κείμενα UI" };
 export const dynamic = "force-dynamic";
 
-export default async function CopyPage() {
+export default async function CopyPage({ searchParams }: { searchParams: Promise<{ g?: string }> }) {
   await requirePermission("cms.copy.write");
   const defs = defaultCopy();
-  const doc = await getCopyDoc();
+  const [doc, { g }] = await Promise.all([getCopyDoc(), searchParams]);
   const groups: CopyGroup[] = Object.entries(defs).map(([ns, keys]) => ({ ns, ...metaOf(ns), entries: Object.entries(keys).map(([key, def]) => ({ key, def })) })).sort((a, b) => a.area.localeCompare(b.area, "el") || a.label.localeCompare(b.label, "el"));
-  return <CopyEditor groups={groups} draft={doc.draft} published={doc.published} savedAt={doc.updatedAt?.toISOString() ?? null} />;
+  return <CopyEditor groups={groups} draft={doc.draft} published={doc.published} savedAt={doc.updatedAt?.toISOString() ?? null} initialGroup={g ?? null} />;
 }

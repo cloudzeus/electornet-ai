@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T09:17:32.535Z",
+ "generatedAt": "2026-10-11T09:46:32.833Z",
  "routes": [
   {
    "route": "/admin",
@@ -819,7 +819,12 @@
     "label": "Κείμενα UI"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "copy.header",
+    "copy.search",
+    "copy.groups",
+    "copy.table"
+   ],
    "changes": [
     {
      "hash": "2ccbb67",
@@ -2946,6 +2951,12 @@
  ],
  "recent": [
   {
+   "hash": "6ee4ce9",
+   "date": "2026-10-11T12:17:49+03:00",
+   "text": "Βοήθεια: screenshot Χαρακτηριστικών με ανοιχτό τύπο (Κλιματιστικά Inverter)",
+   "routes": []
+  },
+  {
    "hash": "ffe42ff",
    "date": "2026-10-11T12:10:45+03:00",
    "text": "Βοήθεια: ευρετήριο με τα νέα screenshots",
@@ -3276,12 +3287,6 @@
    "date": "2026-10-10T14:18:12+03:00",
    "text": "Σελίδες για τα social logins: πολιτική απορρήτου, όροι χρήσης και cookies με το κείμενο του euronics.gr αλλά με τις διευθύνσεις του domain που τις ανοίγει (dev, demo, live) και τις δικές μας διαδρομές",
    "routes": []
-  },
-  {
-   "hash": "5681ab5",
-   "date": "2026-10-10T14:13:40+03:00",
-   "text": "Social login: κουμπί «Δημιουργία οδηγού»",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3429,6 +3434,18 @@
   "editor.preview": [
    "components/admin/cms/BrandStoreEditor.tsx",
    "components/admin/cms/HomeEditor.tsx"
+  ],
+  "copy.header": [
+   "components/admin/cms/CopyEditor.tsx"
+  ],
+  "copy.search": [
+   "components/admin/cms/CopyEditor.tsx"
+  ],
+  "copy.groups": [
+   "components/admin/cms/CopyEditor.tsx"
+  ],
+  "copy.table": [
+   "components/admin/cms/CopyEditor.tsx"
   ],
   "customers.list": [
    "components/admin/customers/CustomerList.tsx"

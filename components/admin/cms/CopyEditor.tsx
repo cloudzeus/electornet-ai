@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, CircleAlert, ExternalLink, Info, Loader2, Rocket, RotateCcw, Search, Undo2, X } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, ExternalLink, Info, Loader2, Rocket, RotateCcw, Search, Undo2, X } from "lucide-react";
 import { placeholdersOf, type CopyOverrides } from "@/lib/cms/copy";
 import { publishCopyAction, revertCopyAction, saveCopyAction, type CopyIssue } from "@/app/admin/(shell)/cms/copy/actions";
-import { ResultBanner, StatusPill, inputCls } from "@/components/admin/settings/ui";
+import { ResultBanner, StatusPill } from "@/components/admin/settings/ui";
 
 export type CopyGroup = { ns: string; label: string; area: string; where: string; href?: string; entries: { key: string; def: string }[] };
 
@@ -13,21 +13,25 @@ const norm = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replac
 const count = (o: CopyOverrides) => Object.values(o).reduce((a, x) => a + Object.keys(x).length, 0);
 const same = (a: CopyOverrides, b: CopyOverrides) => { const k = (o: CopyOverrides) => Object.entries(o).flatMap(([ns, v]) => Object.entries(v).map(([key, val]) => `${ns}|${key}|${val}`)).sort().join("\n"); return k(a) === k(b); };
 type Filter = "all" | "changed" | "unpublished";
+const field = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] outline-none focus:border-eu-blue focus-visible:ring-2 focus-visible:ring-eu-blue/20";
+/** «καλάθι {name}» → το {name} τονισμένο: φαίνεται τι αντικαθίσταται αυτόματα. */
+const withTokens = (s: string): ReactNode => s.split(/(\{[^}]+\})/g).map((p, i) => (/^\{[^}]+\}$/.test(p) ? <code key={i} className="rounded bg-eu-chip text-eu-navy px-1 text-[length:var(--fs-12)]">{p}</code> : <Fragment key={i}>{p}</Fragment>));
 
 /**
- * Κείμενα UI: όλα τα σταθερά κείμενα της βιτρίνας, ομαδοποιημένα ανά σημείο του site. Αναζήτηση σε κείμενο, όνομα ή
- * ομάδα· αλλαγή με αυτόματη αποθήκευση στο πρόχειρο· έλεγχος ότι μένουν τα {placeholders}· επαναφορά στο αρχικό·
- * δημοσίευση όλων μαζί. Αποθηκεύονται μόνο οι αλλαγμένες τιμές.
+ * Κείμενα UI (ui-ux-pro-max: master-detail, πυκνός πίνακας, επεξεργασία επί τόπου). Αριστερά οι ομάδες ανά σημείο του
+ * site με πλήθη και ένδειξη αλλαγών· δεξιά τα κείμενα της ομάδας σε δύο στήλες: το αρχικό (με τα {…} τονισμένα και το
+ * όνομα του κειμένου) και αυτό που βλέπει ο πελάτης, που αλλάζει επί τόπου. Η αναζήτηση ψάχνει σε όλα τα κείμενα.
+ * Αυτόματη αποθήκευση στο πρόχειρο, έλεγχος ότι μένουν τα {placeholders}, επαναφορά ανά κείμενο, δημοσίευση όλων μαζί.
  */
-export function CopyEditor({ groups, draft: initDraft, published: initPub, savedAt: initSaved }: { groups: CopyGroup[]; draft: CopyOverrides; published: CopyOverrides; savedAt: string | null }) {
+export function CopyEditor({ groups, draft: initDraft, published: initPub, savedAt: initSaved, initialGroup }: { groups: CopyGroup[]; draft: CopyOverrides; published: CopyOverrides; savedAt: string | null; initialGroup?: string | null }) {
   const router = useRouter();
   const [ov, setOv] = useState<CopyOverrides>(initDraft);
   const [pub, setPub] = useState<CopyOverrides>(initPub);
   const [q, setQ] = useState("");
   const dq = norm(useDeferredValue(q).trim());
   const [filter, setFilter] = useState<Filter>("all");
-  const [area, setArea] = useState("");
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [nav, setNav] = useState("");
+  const [sel, setSel] = useState<string | null>(initialGroup && groups.some((g) => g.ns === initialGroup) ? initialGroup : null);
   const [save, setSave] = useState<"idle" | "pending" | "saving" | "error">("idle");
   const [savedAt, setSavedAt] = useState(initSaved);
   const [issues, setIssues] = useState<CopyIssue[]>([]);
@@ -35,7 +39,9 @@ export function CopyEditor({ groups, draft: initDraft, published: initPub, saved
   const [busy, start] = useTransition();
   const latest = useRef(ov);
   const saved = useRef(initDraft);
+  const listRef = useRef<HTMLDivElement>(null);
 
+  // αυτόματη αποθήκευση στο πρόχειρο (1″ μετά την τελευταία αλλαγή)
   const flush = useCallback(async () => {
     setSave("saving");
     const r = await saveCopyAction(latest.current).catch(() => null);
@@ -56,6 +62,8 @@ export function CopyEditor({ groups, draft: initDraft, published: initPub, saved
     window.addEventListener("beforeunload", h);
     return () => window.removeEventListener("beforeunload", h);
   }, [save]);
+  // η ομάδα στη διεύθυνση (?g=) — ο σύνδεσμος ανοίγει την ίδια ομάδα
+  useEffect(() => { const u = new URL(location.href); if (sel) u.searchParams.set("g", sel); else u.searchParams.delete("g"); history.replaceState(null, "", u); }, [sel]);
 
   const setVal = (ns: string, key: string, def: string, v: string) => setOv((o) => {
     const n = { ...o, [ns]: { ...(o[ns] ?? {}) } };
@@ -65,34 +73,44 @@ export function CopyEditor({ groups, draft: initDraft, published: initPub, saved
   });
   const pending = !same(ov, pub);
   const issueOf = (ns: string, key: string) => issues.find((i) => i.ns === ns && i.key === key)?.msg;
+  const badOf = (g: CopyGroup, e: { key: string; def: string }) => {
+    const cur = ov[g.ns]?.[e.key] ?? e.def, ph = placeholdersOf(e.def);
+    return issueOf(g.ns, e.key) ?? (ph.join(" ") !== placeholdersOf(cur).join(" ") ? `Πρέπει να περιέχει ακριβώς: ${ph.join(" ") || "κανένα {…}"}` : !cur.trim() ? "Κενό κείμενο: γράψε κάτι ή πάτα επαναφορά." : null);
+  };
+  const isChanged = (ns: string, key: string) => !!ov[ns] && key in ov[ns];
+  const isUnpub = (ns: string, key: string) => (ov[ns]?.[key] ?? null) !== (pub[ns]?.[key] ?? null);
 
-  /** Λάθη που φαίνονται ήδη στον browser (κενό, λάθος {…}) — μαζί με όσα επέστρεψε ο server. */
-  const badCount = useMemo(() => {
-    const local = groups.flatMap((g) => g.entries.filter((e) => {
-      const v = ov[g.ns]?.[e.key];
-      return v !== undefined && (!v.trim() || placeholdersOf(v).join(" ") !== placeholdersOf(e.def).join(" "));
-    }).map((e) => `${g.ns}.${e.key}`));
-    return new Set([...local, ...issues.map((i) => `${i.ns}.${i.key}`)]).size;
-  }, [groups, ov, issues]);
-  const anyPh = useMemo(() => groups.some((g) => g.entries.some((e) => placeholdersOf(e.def).length)), [groups]);
-  const areas = useMemo(() => [...new Set(groups.map((g) => g.area))], [groups]);
-  const view = useMemo(() => groups
-    .filter((g) => !area || g.area === area)
-    .map((g) => ({ ...g, entries: g.entries.filter((e) => {
-      const cur = ov[g.ns]?.[e.key] ?? e.def;
-      if (filter === "changed" && !(g.ns in ov && e.key in ov[g.ns])) return false;
-      if (filter === "unpublished" && (ov[g.ns]?.[e.key] ?? null) === (pub[g.ns]?.[e.key] ?? null)) return false;
-      if (!dq) return true;
-      return norm(`${cur} ${e.def} ${e.key} ${g.label} ${g.where}`).includes(dq);
-    }) }))
-    .filter((g) => g.entries.length), [groups, area, filter, dq, ov, pub]);
-  const total = view.reduce((a, g) => a + g.entries.length, 0);
-  const expanded = (ns: string) => open.has(ns) || !!dq || filter !== "all";
+  const badCount = useMemo(() => new Set([
+    ...groups.flatMap((g) => g.entries.filter((e) => { const v = ov[g.ns]?.[e.key]; return v !== undefined && (!v.trim() || placeholdersOf(v).join(" ") !== placeholdersOf(e.def).join(" ")); }).map((e) => `${g.ns}.${e.key}`)),
+    ...issues.map((i) => `${i.ns}.${i.key}`),
+  ]).size, [groups, ov, issues]);
+  const counts = useMemo(() => ({ all: groups.reduce((a, g) => a + g.entries.length, 0), changed: count(ov), unpublished: groups.reduce((a, g) => a + g.entries.filter((e) => isUnpub(g.ns, e.key)).length, 0) }), [groups, ov, pub]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pass = useCallback((g: CopyGroup, e: { key: string; def: string }) => (filter === "changed" ? isChanged(g.ns, e.key) : filter === "unpublished" ? isUnpub(g.ns, e.key) : true), [filter, ov, pub]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // αριστερή στήλη: περιοχές → ομάδες (με το φίλτρο της λίστας ομάδων και το φίλτρο κατάστασης)
+  const navT = norm(nav.trim());
+  const areas = useMemo(() => {
+    const out: { area: string; groups: (CopyGroup & { shown: number; changed: number; unpub: number })[] }[] = [];
+    for (const g of groups) {
+      if (navT && !norm(`${g.label} ${g.where} ${g.area}`).includes(navT)) continue;
+      const shown = g.entries.filter((e) => pass(g, e)).length;
+      if (!shown) continue;
+      const changed = g.entries.filter((e) => isChanged(g.ns, e.key)).length, unpub = g.entries.filter((e) => isUnpub(g.ns, e.key)).length;
+      let a = out.find((x) => x.area === g.area); if (!a) { a = { area: g.area, groups: [] }; out.push(a); }
+      a.groups.push({ ...g, shown, changed, unpub });
+    }
+    return out;
+  }, [groups, navT, pass]); // eslint-disable-line react-hooks/exhaustive-deps
+  const current = sel ? groups.find((g) => g.ns === sel) ?? null : null;
+
+  // δεξιά: αναζήτηση σε όλα ή η επιλεγμένη ομάδα
+  const results = useMemo(() => dq ? groups.map((g) => ({ g, entries: g.entries.filter((e) => pass(g, e) && norm(`${ov[g.ns]?.[e.key] ?? e.def} ${e.def} ${e.key} ${g.label}`).includes(dq)) })).filter((x) => x.entries.length) : [], [dq, groups, ov, pass]);
+  const resultCount = results.reduce((a, x) => a + x.entries.length, 0);
 
   const publish = () => {
     if (!window.confirm(`Δημοσίευση ${count(ov)} αλλαγμένων κειμένων; Θα φαίνονται αμέσως στο site.`)) return;
     start(async () => {
-      if (save !== "idle" && !(await flush())) { setResult({ ok: false, message: "Η αποθήκευση απέτυχε — δοκίμασε ξανά." }); return; }
+      if (save !== "idle" && !(await flush())) { setResult({ ok: false, message: "Η αποθήκευση απέτυχε. Δοκίμασε ξανά." }); return; }
       const r = await publishCopyAction();
       setResult(r);
       if (r.issues) setIssues(r.issues);
@@ -100,91 +118,123 @@ export function CopyEditor({ groups, draft: initDraft, published: initPub, saved
     });
   };
   const revert = () => { if (!window.confirm("Να χαθούν οι αλλαγές που δεν δημοσιεύτηκαν;")) return; start(async () => { setResult(await revertCopyAction()); setOv(pub); saved.current = pub; }); };
+  /** Enter: πήγαινε στο επόμενο κείμενο (στα μεγάλα κείμενα: Ctrl/⌘ + Enter). */
+  const next = (el: HTMLElement) => { const all = [...(listRef.current?.querySelectorAll<HTMLElement>("[data-copy-input]") ?? [])]; all[all.indexOf(el) + 1]?.focus(); };
+
+  const row = (g: CopyGroup, e: { key: string; def: string }) => {
+    const cur = ov[g.ns]?.[e.key] ?? e.def;
+    const changed = cur !== e.def, unpub = isUnpub(g.ns, e.key), bad = badOf(g, e);
+    const long = e.def.length > 48 || cur.length > 48; // ό,τι δεν χωράει σε μία γραμμή γίνεται πολυγραμμικό, για να φαίνεται ολόκληρο
+    const common = {
+      value: cur, "data-copy-input": "", "aria-label": `${g.label}: ${e.def.slice(0, 50)}`, "aria-invalid": !!bad,
+      onChange: (ev: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setVal(g.ns, e.key, e.def, ev.target.value),
+      className: `${field} ${bad ? "border-eu-red bg-eu-red/5" : changed ? "border-eu-blue/50 bg-eu-blue/[0.04]" : ""}`,
+    };
+    return (
+      <li key={`${g.ns}.${e.key}`} className={`grid gap-x-3 gap-y-1 px-3 py-1.5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_6.5rem] items-start ${changed ? "border-l-2 border-l-eu-blue" : "border-l-2 border-l-transparent"}`}>
+        <div className="grid gap-0.5 min-w-0 @3xl:pt-1.5">
+          <span title={`Κλειδί: ${g.ns}.${e.key}`} className="text-eu-ink-2 text-[length:var(--fs-13)] leading-snug break-words">{withTokens(e.def)}</span>
+        </div>
+        <div className="grid gap-1 min-w-0">
+          {long
+            ? <textarea {...common} rows={Math.min(6, Math.ceil(Math.max(e.def.length, cur.length) / 55))} onKeyDown={(ev) => { if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); next(ev.currentTarget); } }} className={`${common.className} py-1.5 leading-relaxed resize-y`} />
+            : <input {...common} type="text" enterKeyHint="next" onKeyDown={(ev) => { if (ev.key === "Enter") { ev.preventDefault(); next(ev.currentTarget); } }} />}
+          {bad && <span role="alert" className="inline-flex items-start gap-1 text-eu-red font-semibold text-[length:var(--fs-12)]"><CircleAlert className="size-3.5 mt-px shrink-0" aria-hidden />{bad}</span>}
+        </div>
+        <div className="flex @3xl:flex-col @3xl:items-end items-center gap-1.5 @3xl:pt-1.5">
+          {changed ? <>
+            <span className={`rounded-full px-2 py-px font-bold text-[length:var(--fs-12)] ${unpub ? "bg-eu-amber/15 text-eu-ink-2" : "bg-eu-green/12 text-eu-green"}`}>{unpub ? "Πρόχειρο" : "Στο site"}</span>
+            <button type="button" onClick={() => setVal(g.ns, e.key, e.def, e.def)} aria-label={`Επαναφορά στο αρχικό: ${e.def.slice(0, 40)}`} className="inline-flex items-center gap-1 rounded-full px-2 min-h-11 md:min-h-7 font-bold text-eu-ink-3 text-[length:var(--fs-12)] hover:bg-eu-surface hover:text-eu-navy"><RotateCcw className="size-3.5" aria-hidden /> Αρχικό</button>
+          </> : unpub ? <span className="rounded-full px-2 py-px font-bold text-[length:var(--fs-12)] bg-eu-amber/15 text-eu-ink-2" title="Στο site είναι ακόμη αλλαγμένο· θα επιστρέψει στο αρχικό με τη δημοσίευση">Επαναφορά · πρόχειρο</span> : null}
+        </div>
+      </li>
+    );
+  };
+
+  const tableHead = <div className="hidden @3xl:grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_6.5rem] gap-x-3 px-3 py-1.5 bg-eu-surface/70 border-b border-eu-line text-eu-ink-3 font-bold text-[length:var(--fs-12)]"><span>Αρχικό κείμενο</span><span>Στο site</span><span className="text-right">Κατάσταση</span></div>;
 
   return (
-    <div className="grid gap-4 min-w-0">
-      <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-3 bg-eu-surface/95 backdrop-blur border-b border-eu-line grid gap-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-22)]">Κείμενα UI</h2>
-          <StatusPill status={pending ? "incomplete" : count(pub) ? "live" : "off"} text={pending ? "Αλλαγές στο πρόχειρο" : count(pub) ? `${count(pub)} αλλαγμένα κείμενα στο site` : "Όλα στα αρχικά"} />
-          <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-13)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>{save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}{save === "saving" ? "Αποθήκευση…" : save === "pending" ? "Αλλαγές…" : save === "error" ? "Η αποθήκευση απέτυχε" : savedAt ? `Πρόχειρο ${new Date(savedAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+    <div className="@container grid gap-3 min-w-0">
+      {/* λεπτή σταθερή κεφαλίδα: κατάσταση, αποθήκευση, δημοσίευση */}
+      <div data-help="copy.header" className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2 bg-eu-surface/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)]">Κείμενα UI</h2>
+        <StatusPill status={pending ? "incomplete" : count(pub) ? "live" : "off"} text={pending ? `${counts.unpublished} ${counts.unpublished === 1 ? "αλλαγή" : "αλλαγές"} στο πρόχειρο` : count(pub) ? `${count(pub)} ${count(pub) === 1 ? "αλλαγμένο" : "αλλαγμένα"} στο site` : "Όλα στα αρχικά"} />
+        <span role="status" className={`inline-flex items-center gap-1.5 text-[length:var(--fs-12)] font-semibold ${save === "error" ? "text-eu-red" : "text-eu-muted"}`}>{save === "saving" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : save === "idle" ? <Check className="size-3.5" aria-hidden /> : null}{save === "saving" ? "Αποθήκευση…" : save === "pending" ? "Αλλαγές…" : save === "error" ? "Η αποθήκευση απέτυχε" : savedAt ? `Πρόχειρο ${new Date(savedAt).toLocaleTimeString("el-GR", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {badCount > 0 && <span className="inline-flex items-center gap-1 text-eu-red font-bold text-[length:var(--fs-13)]"><CircleAlert className="size-4" aria-hidden />{badCount} για διόρθωση</span>}
+          {pending && <button type="button" onClick={revert} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:border-eu-navy"><Undo2 className="size-4" aria-hidden /> Ακύρωση</button>}
+          <button type="button" onClick={publish} disabled={busy || !pending || badCount > 0} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-4 min-h-11 md:min-h-9 hover:bg-eu-blue disabled:opacity-45">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}{badCount ? "Διόρθωσε πρώτα" : pending ? `Δημοσίευση (${counts.unpublished})` : "Δημοσίευση"}</button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={publish} disabled={busy || !pending || badCount > 0} className="inline-flex items-center justify-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:bg-eu-blue disabled:opacity-50 flex-1 @md:flex-none">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rocket className="size-4" aria-hidden />}{!pending ? "Χωρίς αλλαγές για δημοσίευση" : badCount ? "Διόρθωσε πρώτα τα σημειωμένα" : "Δημοσίευση αλλαγών"}</button>
-          {pending && <button type="button" onClick={revert} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-4 min-h-12 font-bold text-[length:var(--fs-14)] hover:border-eu-navy"><Undo2 className="size-4" aria-hidden /> Ακύρωση αλλαγών</button>}
-          {badCount > 0 && <span className="inline-flex items-center gap-1.5 text-eu-red font-bold text-[length:var(--fs-14)]"><CircleAlert className="size-4" aria-hidden />{badCount} για διόρθωση</span>}
-        </div>
-        {result && <div className="relative"><ResultBanner ok={result.ok}><span className="block pr-8">{result.message}</span></ResultBanner><button type="button" onClick={() => setResult(null)} aria-label="Κλείσιμο" className="absolute top-1 right-1 size-10 grid place-items-center rounded-full text-eu-muted hover:bg-white/60"><X className="size-4" aria-hidden /></button></div>}
+        {result && <div className="basis-full relative"><ResultBanner ok={result.ok}><span className="block pr-8">{result.message}</span></ResultBanner><button type="button" onClick={() => setResult(null)} aria-label="Κλείσιμο" className="absolute top-1 right-1 size-10 grid place-items-center rounded-full text-eu-muted hover:bg-white/60"><X className="size-4" aria-hidden /></button></div>}
       </div>
 
-      <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3">
-        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Όλα τα σταθερά κείμενα του site — κουμπιά, ετικέτες, μηνύματα, τίτλοι ενοτήτων — ομαδοποιημένα ανά σημείο. Γράψε π.χ. «καλάθι» για να βρεις κείμενο. Ό,τι αλλάζεις μένει πρόχειρο μέχρι τη δημοσίευση· το αρχικό κείμενο φαίνεται πάντα από κάτω και επιστρέφει με ένα κλικ.</p>
-        {anyPh && <p className="m-0 inline-flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Λέξεις μέσα σε άγκιστρα, όπως <code className="rounded bg-eu-surface px-1">{"{name}"}</code>, αντικαθίστανται αυτόματα (όνομα πελάτη, προϊόν…) — πρέπει να μείνουν στο κείμενο.</span></p>}
-        <div className="grid @3xl:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-end">
-          <label className="relative block min-w-0">
-            <span className="sr-only">Αναζήτηση κειμένου</span>
-            <Search className="size-5 absolute left-3 top-1/2 -translate-y-1/2 text-eu-muted pointer-events-none" aria-hidden />
-            <input type="text" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Βρες κείμενο… π.χ. καλάθι, δόσεις, Ερμής" className={`${inputCls} rounded-full pl-11`} />
-          </label>
-          <select value={area} onChange={(e) => setArea(e.target.value)} aria-label="Σημείο του site" className={`${inputCls} rounded-full`}><option value="">Όλο το site</option>{areas.map((a) => <option key={a} value={a}>{a}</option>)}</select>
-          <div className="flex flex-wrap gap-1 rounded-full bg-eu-surface p-1" role="radiogroup" aria-label="Φίλτρο">
-            {([["all", "Όλα"], ["changed", "Αλλαγμένα"], ["unpublished", "Μη δημοσιευμένα"]] as const).map(([v, l]) => <button key={v} type="button" role="radio" aria-checked={filter === v} onClick={() => setFilter(v)} className={`rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-14)] ${filter === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{l}</button>)}
-          </div>
+      {/* αναζήτηση σε όλα + φίλτρο κατάστασης */}
+      <div data-help="copy.search" className="grid gap-2 @2xl:flex @2xl:items-center">
+        <label className="relative flex-1 min-w-0"><span className="sr-only">Αναζήτηση σε όλα τα κείμενα</span><Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-eu-muted pointer-events-none" aria-hidden /><input type="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Αναζήτηση σε ${counts.all} κείμενα, π.χ. καλάθι, δόσεις, Ερμής`} className={`${field} pl-9 rounded-full`} /></label>
+        <div role="radiogroup" aria-label="Ποια κείμενα" className="inline-flex rounded-full bg-white border border-eu-line p-0.5 shrink-0">
+          {([["all", "Όλα", counts.all], ["changed", "Αλλαγμένα", counts.changed], ["unpublished", "Μη δημοσιευμένα", counts.unpublished]] as const).map(([v, l, n]) => <button key={v} type="button" role="radio" aria-checked={filter === v} onClick={() => setFilter(v)} className={`rounded-full px-3 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] ${filter === v ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:text-eu-navy"}`}>{l} <span className="tabular-nums opacity-70">{n}</span></button>)}
         </div>
-        <span className="text-eu-muted text-[length:var(--fs-13)]">{total} κείμενα σε {view.length} ομάδες{dq ? ` για «${q}»` : ""}.</span>
-      </section>
+      </div>
+      <p className="m-0 inline-flex items-start gap-1.5 text-eu-ink-3 text-[length:var(--fs-12)]"><Info className="size-3.5 mt-px shrink-0 text-eu-blue" aria-hidden /><span>Ό,τι γράφεις αποθηκεύεται στο πρόχειρο και φαίνεται στο site μετά τη «Δημοσίευση». Τα <code className="rounded bg-eu-chip text-eu-navy px-1">{"{…}"}</code> αντικαθίστανται αυτόματα (όνομα, προϊόν) και πρέπει να μείνουν. Enter: επόμενο κείμενο.</span></p>
 
-      {areas.filter((a) => view.some((g) => g.area === a)).map((a) => (
-        <section key={a} className="grid gap-2" aria-label={a}>
-          <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{a}</h3>
-          {view.filter((g) => g.area === a).map((g) => {
-            const isOpen = expanded(g.ns);
-            const changed = Object.keys(ov[g.ns] ?? {}).length;
-            return (
-              <div key={g.ns} className="rounded-2xl bg-white border border-eu-line min-w-0">
-                <button type="button" onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.ns)) n.delete(g.ns); else n.add(g.ns); return n; })} aria-expanded={isOpen} className="w-full flex items-center gap-3 px-4 min-h-14 text-left">
-                  <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink text-[length:var(--fs-16)]">{g.label}</span><span className="text-eu-muted text-[length:var(--fs-13)]">{g.where} · {g.entries.length} κείμενα{changed ? ` · ${changed} αλλαγμένα` : ""}</span></span>
-                  <ChevronDown className={`size-5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-                </button>
-                {isOpen && (
-                  <div className="border-t border-eu-line p-3 @md:p-4 grid gap-4">
-                    {g.href && <a href={g.href} target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-10 hover:underline">Δες το στο site <ExternalLink className="size-4" aria-hidden /></a>}
-                    {g.entries.map((e) => {
-                      const cur = ov[g.ns]?.[e.key] ?? e.def;
-                      const isChanged = cur !== e.def;
-                      const live = (pub[g.ns]?.[e.key] ?? e.def) === cur;
-                      const ph = placeholdersOf(e.def);
-                      const bad = issueOf(g.ns, e.key) ?? (ph.join(" ") !== placeholdersOf(cur).join(" ") ? `Πρέπει να περιέχει: ${ph.join(" ") || "κανένα {…}"}` : !cur.trim() ? "Κενό κείμενο" : null);
-                      const long = e.def.length > 70;
-                      return (
-                        <div key={e.key} className="grid gap-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            {isChanged ? <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-13)] font-bold ${live ? "bg-eu-green/10 text-eu-green" : "bg-eu-amber/15 text-eu-amber"}`}>{live ? "Αλλαγμένο · στο site" : "Αλλαγμένο · πρόχειρο"}</span> : null}
-                            {ph.map((p) => <code key={p} className="rounded bg-eu-chip text-eu-navy px-1.5 text-[length:var(--fs-13)]">{p}</code>)}
-                          </div>
-                          {long ? (
-                            <textarea value={cur} onChange={(ev) => setVal(g.ns, e.key, e.def, ev.target.value)} rows={Math.min(5, Math.ceil(e.def.length / 70) + 1)} aria-label={`${g.label}: ${e.def.slice(0, 40)}`} aria-invalid={!!bad} className={`${inputCls} py-2 leading-relaxed ${bad ? "border-eu-red" : isChanged ? "border-eu-blue" : ""}`} />
-                          ) : (
-                            <input value={cur} onChange={(ev) => setVal(g.ns, e.key, e.def, ev.target.value)} aria-label={`${g.label}: ${e.def.slice(0, 40)}`} aria-invalid={!!bad} className={`${inputCls} ${bad ? "border-eu-red" : isChanged ? "border-eu-blue" : ""}`} />
-                          )}
-                          {bad && <span role="alert" className="text-eu-red font-bold text-[length:var(--fs-13)]">{bad}</span>}
-                          {isChanged && (
-                            <span className="flex flex-wrap items-center gap-2 text-eu-muted text-[length:var(--fs-13)]">
-                              <span className="min-w-0">Αρχικό: «{e.def}»</span>
-                              <button type="button" onClick={() => setVal(g.ns, e.key, e.def, e.def)} className="inline-flex items-center gap-1 rounded-full border border-eu-line px-2.5 min-h-9 font-bold text-eu-ink-2 hover:border-eu-navy"><RotateCcw className="size-3.5" aria-hidden /> Επαναφορά</button>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+      <div className="grid gap-3 @4xl:grid-cols-[17rem_minmax(0,1fr)] items-start">
+        {/* ομάδες */}
+        <aside data-help="copy.groups" aria-label="Ομάδες κειμένων" className={`${sel || dq ? "hidden @4xl:grid" : "grid"} grid-rows-[auto_minmax(0,1fr)] rounded-xl border border-eu-line bg-white overflow-hidden @4xl:sticky @4xl:top-16 @4xl:h-[calc(100dvh-10rem)]`}>
+          <div className="p-2 border-b border-eu-line"><label className="relative block"><span className="sr-only">Φίλτρο ομάδων</span><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input type="search" value={nav} onChange={(e) => setNav(e.target.value)} placeholder={`${groups.length} ομάδες`} className={`${field} pl-8`} /></label></div>
+          <nav className="overflow-y-auto overscroll-contain">
+            {areas.length ? areas.map((a) => (
+              <section key={a.area} aria-label={a.area}>
+                <h3 className="sticky top-0 z-[1] m-0 bg-eu-surface/95 backdrop-blur px-3 py-1 font-bold text-eu-ink-3 text-[length:var(--fs-12)]">{a.area}</h3>
+                <ul className="m-0 p-1 list-none grid">
+                  {a.groups.map((g) => { const on = g.ns === sel && !dq; return (
+                    <li key={g.ns}><button type="button" onClick={() => { setSel(g.ns); setQ(""); listRef.current?.scrollIntoView({ block: "start" }); }} aria-current={on ? "true" : undefined} className={`w-full grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 rounded-lg px-2.5 min-h-11 text-left ${on ? "bg-eu-navy text-white" : "hover:bg-eu-surface"}`}>
+                      <span className="grid min-w-0"><span className={`truncate font-semibold text-[length:var(--fs-13)] ${on ? "" : "text-eu-ink"}`}>{g.label}</span>{g.changed > 0 && <span className={`text-[length:var(--fs-12)] ${on ? "text-white/80" : g.unpub ? "text-eu-amber font-semibold" : "text-eu-green font-semibold"}`}>{g.changed} αλλαγμένα{g.unpub ? " · πρόχειρο" : ""}</span>}</span>
+                      <span className={`tabular-nums text-[length:var(--fs-12)] ${on ? "text-white/80" : "text-eu-muted"}`}>{filter === "all" ? g.entries.length : g.shown}</span>
+                    </button></li>
+                  ); })}
+                </ul>
+              </section>
+            )) : <p className="m-0 p-4 text-eu-muted text-[length:var(--fs-13)]">Καμία ομάδα.</p>}
+          </nav>
+        </aside>
+
+        {/* κείμενα */}
+        <div ref={listRef} data-help="copy.table" className={`${!sel && !dq ? "hidden @4xl:grid" : "grid"} gap-2 min-w-0 scroll-mt-20`}>
+          {dq ? (
+            <section aria-label="Αποτελέσματα αναζήτησης" className="rounded-xl border border-eu-line bg-white overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-eu-line"><b className="text-eu-ink text-[length:var(--fs-14)]">{resultCount} {resultCount === 1 ? "κείμενο" : "κείμενα"} για «{q}»</b><button type="button" onClick={() => setQ("")} className="inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-8 font-bold text-eu-ink-3 text-[length:var(--fs-12)] hover:bg-eu-surface"><X className="size-3.5" aria-hidden /> Καθαρισμός</button></div>
+              {tableHead}
+              {results.length ? results.map(({ g, entries }) => (
+                <div key={g.ns}>
+                  <h4 className="m-0 px-3 pt-2 pb-1 font-bold text-eu-navy text-[length:var(--fs-12)]">{g.area} › {g.label}</h4>
+                  <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">{entries.map((e) => row(g, e))}</ul>
+                </div>
+              )) : <p className="m-0 p-6 text-center text-eu-muted text-[length:var(--fs-13)]">Κανένα κείμενο για «{q}». Δοκίμασε άλλη λέξη ή το φίλτρο «Όλα».</p>}
+            </section>
+          ) : current ? (
+            <section aria-labelledby="cg-h" className="rounded-xl border border-eu-line bg-white overflow-hidden">
+              <div className="flex flex-wrap items-start justify-between gap-2 px-3 py-2.5 border-b border-eu-line">
+                <div className="grid min-w-0">
+                  <button type="button" onClick={() => setSel(null)} className="@4xl:hidden justify-self-start inline-flex items-center gap-1 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)]"><ArrowLeft className="size-4" aria-hidden /> Όλες οι ομάδες</button>
+                  <span className="text-eu-muted text-[length:var(--fs-12)]">{current.area}</span>
+                  <h3 id="cg-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] leading-tight">{current.label}</h3>
+                  <span className="text-eu-ink-3 text-[length:var(--fs-12)]">{current.where} · {current.entries.length} κείμενα</span>
+                </div>
+                {current.href && <a href={current.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy">Δες το στο site <ExternalLink className="size-3.5" aria-hidden /></a>}
               </div>
-            );
-          })}
-        </section>
-      ))}
-      {!view.length && <p className="m-0 rounded-2xl bg-white border border-eu-line p-6 text-eu-muted">Κανένα κείμενο {dq ? `για «${q}»` : "με αυτό το φίλτρο"}.</p>}
+              {tableHead}
+              {(() => { const list = current.entries.filter((e) => pass(current, e)); return list.length
+                ? <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">{list.map((e) => row(current, e))}</ul>
+                : <p className="m-0 p-6 text-center text-eu-muted text-[length:var(--fs-13)]">Κανένα κείμενο με αυτό το φίλτρο σε αυτή την ομάδα.</p>; })()}
+            </section>
+          ) : (
+            <div className="grid place-items-center gap-1 rounded-xl border border-dashed border-eu-line bg-white p-10 text-center">
+              <p className="m-0 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Διάλεξε ομάδα ή ψάξε ένα κείμενο</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{counts.all} κείμενα σε {groups.length} ομάδες.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
