@@ -52,7 +52,7 @@ export async function AdminShell({ user, children, title }: { user: { name?: str
         <div className="px-4 @5xl:px-5 min-h-14 @5xl:py-4 flex items-center gap-3 @5xl:border-b border-white/10">
           <Image src="/design/logo-on-blue.svg" alt="euronics" width={110} height={28} className="h-6 w-auto shrink-0" />
           <span className="hidden @sm:inline rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] px-2 py-0.5">Admin</span>
-          <span className="ml-auto @5xl:hidden min-w-0"><AdminNavLinks variant="drawer" groups={navGroups} footer={userBlock} /></span>
+          <span className="ml-auto @5xl:hidden min-w-0 flex justify-end"><AdminNavLinks variant="drawer" groups={navGroups} footer={userBlock} /></span>
         </div>
         <div className="hidden @5xl:flex flex-col flex-1">
           <AdminNavLinks groups={navGroups} />

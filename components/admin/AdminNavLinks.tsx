@@ -96,8 +96,8 @@ export function AdminNavLinks({ groups, variant = "sidebar", footer }: { groups:
   // κινητό / tablet: ένα κουμπί στη μπάρα, το μενού ανοίγει ως συρτάρι πάνω από τη σελίδα
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="admin-drawer" className="inline-flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 pl-3 pr-4 min-h-11 font-bold text-[length:var(--fs-14)] min-w-0">
-        <Menu className="size-5 shrink-0" aria-hidden /> <span className="truncate max-w-[40vw]">{activeLabel ?? "Μενού"}</span>
+      <button type="button" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="admin-drawer" className="inline-flex items-center gap-2 rounded-full bg-white/10 hover:bg-white/20 pl-3 pr-4 min-h-11 font-bold text-[length:var(--fs-14)] min-w-0 max-w-full">
+        <Menu className="size-5 shrink-0" aria-hidden /> <span className="truncate max-w-[32vw]">{activeLabel ?? "Μενού"}</span>
       </button>
       {open && (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Μενού διαχείρισης" id="admin-drawer">
