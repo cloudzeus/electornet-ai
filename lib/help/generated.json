@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T08:18:47.152Z",
+ "generatedAt": "2026-10-11T08:37:28.330Z",
  "routes": [
   {
    "route": "/admin",
@@ -309,6 +309,11 @@
    ],
    "changes": [
     {
+     "hash": "a5eea75",
+     "date": "2026-10-11T11:19:28+03:00",
+     "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)"
+    },
+    {
      "hash": "d4db0c6",
      "date": "2026-10-11T11:03:11+03:00",
      "text": "Κατάλογος προϊόντων: πίνακας όπως των πελατών"
@@ -352,14 +357,9 @@
      "hash": "6e70d7b",
      "date": "2026-10-02T21:52:49+03:00",
      "text": "Φάση 1"
-    },
-    {
-     "hash": "5cc8436",
-     "date": "2026-09-27T11:27:32+03:00",
-     "text": "Εργαλείο απόδελτίωσης banners: OCR + ανάλυση διάταξης → κείμενο και καθαρές φωτογραφίες στη σελίδα προϊόντος"
     }
    ],
-   "updatedAt": "2026-10-11T11:03:11+03:00",
+   "updatedAt": "2026-10-11T11:19:28+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -381,6 +381,11 @@
     "product.tabs"
    ],
    "changes": [
+    {
+     "hash": "a5eea75",
+     "date": "2026-10-11T11:19:28+03:00",
+     "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)"
+    },
     {
      "hash": "2250762",
      "date": "2026-10-11T10:56:48+03:00",
@@ -425,14 +430,9 @@
      "hash": "75e0c5c",
      "date": "2026-10-10T09:11:05+03:00",
      "text": "Σελίδα προϊόντος: χώρος εργασίας με ετοιμότητα, 5 καρτέλες (?tab=), κάρτα όπως στο site και ενεργειακή ετικέτα με αναζήτηση EPREL"
-    },
-    {
-     "hash": "9d1f72e",
-     "date": "2026-10-04T13:00:24+03:00",
-     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
     }
    ],
-   "updatedAt": "2026-10-11T10:56:48+03:00",
+   "updatedAt": "2026-10-11T11:19:28+03:00",
    "shots": {}
   },
   {
@@ -569,6 +569,79 @@
     "desktop": "/api/help-shot/catalog.sets-d.jpg",
     "mobile": "/api/help-shot/catalog.sets-m.jpg"
    }
+  },
+  {
+   "route": "/admin/catalog/specs",
+   "slug": "catalog.specs",
+   "file": "app/admin/(shell)/catalog/specs/page.tsx",
+   "title": "Χαρακτηριστικά",
+   "doc": "Χαρακτηριστικά & ομάδες χαρακτηριστικών ανά τύπο προϊόντος, όπως στο SoftOne, με αλλαγές μόνο e-shop ή και στο SoftOne.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Χαρακτηριστικά"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "specs.tree",
+    "specs.detail",
+    "specs.layers",
+    "specs.table"
+   ],
+   "changes": [
+    {
+     "hash": "a234171",
+     "date": "2026-10-10T10:43:51+03:00",
+     "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
+    },
+    {
+     "hash": "f2607d7",
+     "date": "2026-10-04T11:14:32+03:00",
+     "text": "Κατάστημα: εμφανίζονται και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel), με φίλτρα κατηγορίας από τα χαρακτηριστικά τους"
+    },
+    {
+     "hash": "1d4d3a7",
+     "date": "2026-10-04T09:05:45+03:00",
+     "text": "Καρτέλα προϊόντος: «Ενημέρωση από SoftOne»"
+    },
+    {
+     "hash": "f608035",
+     "date": "2026-10-02T21:11:51+03:00",
+     "text": "Φάση 1"
+    },
+    {
+     "hash": "14513b1",
+     "date": "2026-09-21T13:55:15+03:00",
+     "text": "Τιμή eshop και διαθεσιμότητα από το SoftOne, επιβεβαιωμένες στο ζωντανό euronics.gr"
+    },
+    {
+     "hash": "7802c57",
+     "date": "2026-09-21T13:03:56+03:00",
+     "text": "Βιτρίνα από τη βάση (βήμα 1): κατηγορίες, λίστες, φίλτρα, αναζήτηση, μάρκες και σελίδα προϊόντος από την προβολή του SoftOne"
+    },
+    {
+     "hash": "dfb300b",
+     "date": "2026-09-21T11:56:45+03:00",
+     "text": "Διαστάσεις για το AR από το ERP και αντιστοίχιση προϊόντων με το EPREL"
+    },
+    {
+     "hash": "de9a313",
+     "date": "2026-09-21T11:02:07+03:00",
+     "text": "Φωτογραφίες προϊόντων: εφάπαξ μαζική εισαγωγή από τον φάκελο του παλιού site (WebP → Bunny → Media)"
+    },
+    {
+     "hash": "e25c1c1",
+     "date": "2026-09-21T10:36:52+03:00",
+     "text": "Φίλτρα με τιμές: κάθε προϊόν παίρνει τιμή στα φίλτρα του τύπου του (ProductFacetValue)"
+    },
+    {
+     "hash": "e6829fa",
+     "date": "2026-09-21T10:18:51+03:00",
+     "text": "Προβολή του καθρέφτη SoftOne στο κατάστημα: Category › Product › Spec › Facet"
+    }
+   ],
+   "updatedAt": "2026-10-10T10:43:51+03:00",
+   "shots": {}
   },
   {
    "route": "/admin/catalog/templates",
@@ -2860,6 +2933,16 @@
  ],
  "recent": [
   {
+   "hash": "a5eea75",
+   "date": "2026-10-11T11:19:28+03:00",
+   "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
+  {
    "hash": "d4db0c6",
    "date": "2026-10-11T11:03:11+03:00",
    "text": "Κατάλογος προϊόντων: πίνακας όπως των πελατών",
@@ -3192,12 +3275,6 @@
    "date": "2026-10-10T11:40:42+03:00",
    "text": "Αναζήτηση site: και στον κωδικό μοντέλου και στα ονόματα των «Set ειδών» του SoftOne και των μελών τους (π.χ. «mx1-ef» → Midea MX1-…RD1H SOLUNAR)",
    "routes": []
-  },
-  {
-   "hash": "bcea2df",
-   "date": "2026-10-10T11:14:35+03:00",
-   "text": "Ερμής: προσφορές και άμεσα διαθέσιμα πρώτα (προσφορά+άμεσα → προσφορά → άμεσα → υπόλοιπα), όλος ο τύπος χωρίς κόφτη 400, σε γενική ερώτηση εύρος φθηνά/μεσαία/ακριβά",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3305,6 +3382,18 @@
   ],
   "product.promo-picker": [
    "components/admin/catalog/QuickActions.tsx"
+  ],
+  "specs.tree": [
+   "components/admin/catalog/SpecManager.tsx"
+  ],
+  "specs.detail": [
+   "components/admin/catalog/SpecManager.tsx"
+  ],
+  "specs.layers": [
+   "components/admin/catalog/SpecManager.tsx"
+  ],
+  "specs.table": [
+   "components/admin/catalog/SpecManager.tsx"
   ],
   "editor.undo": [
    "components/admin/cms/BrandStoreEditor.tsx",

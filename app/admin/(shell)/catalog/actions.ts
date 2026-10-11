@@ -259,3 +259,35 @@ export async function setProductPromoAction(productId: string, promoId: string, 
   }
   return r;
 }
+
+// ---------- Χαρακτηριστικά (ομάδες χαρακτηριστικών SoftOne) ----------
+
+/** Αλλαγή «μόνο e-shop» σε ένα χαρακτηριστικό (όνομα φίλτρου, φίλτρο ναι/όχι, σειρά) και άμεση προβολή των φίλτρων. */
+export async function setSpecOverrideAction(groupS1Id: number, code: number, next: { label?: string | null; filter?: boolean | null; sort?: number | null }) {
+  const user = await requirePermission("catalog.products.write");
+  const { setSpecOverride } = await import("@/lib/catalog/spec-overrides");
+  const { projectFacetsNow } = await import("@/lib/softone/project");
+  const r = await setSpecOverride(groupS1Id, code, next, user.id);
+  const cat = await db.category.findFirst({ where: { erpCode: `s1:g:${groupS1Id}` }, select: { id: true } });
+  const facets = await projectFacetsNow(cat ? [cat.id] : []);
+  await audit(user.id, "catalog.spec.override", "S1SpecDef", `${groupS1Id}:${code}`, r.prev, r.next);
+  revalidatePath("/admin/catalog/specs");
+  return { ok: true as const, override: r.next, facets };
+}
+
+/** Αλλαγή στο SoftOne (με επαλήθευση) και μετά προβολή των φίλτρων της κατηγορίας. */
+export async function changeSpecAction(groupS1Id: number, change: import("@/lib/softone/spec-write").SpecChange) {
+  const user = await requirePermission("catalog.products.write");
+  const { can } = await import("@/lib/rbac/permissions");
+  if (!can(user.permissions, "catalog.sync.run")) return { ok: false as const, error: "Χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP» για αλλαγές στο SoftOne." };
+  const { changeSpecGroup } = await import("@/lib/softone/spec-write");
+  const { projectFacetsNow } = await import("@/lib/softone/project");
+  const r = await changeSpecGroup(groupS1Id, change);
+  await audit(user.id, `softone.spec.${change.kind}`, "S1SpecGroup", String(groupS1Id), null, { change, result: r });
+  if (r.ok || "details" in r) {
+    const cat = await db.category.findFirst({ where: { erpCode: `s1:g:${groupS1Id}` }, select: { id: true } });
+    await projectFacetsNow(cat ? [cat.id] : []);
+  }
+  revalidatePath("/admin/catalog/specs");
+  return r;
+}

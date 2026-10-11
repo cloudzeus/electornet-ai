@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { getSpecOverrides } from "@/lib/catalog/spec-overrides";
 import { slugify } from "@/lib/slug";
 import { logged, type Trigger } from "@/lib/softone/catalog";
 import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
@@ -111,23 +112,42 @@ async function refreshCategoryCounts(nodes: CatNode[], idOf: Map<string, string>
 
 // ---------- Φίλτρα ----------
 
-/** Τα `isFilter` χαρακτηριστικά κάθε τύπου προϊόντος → Facet της κατηγορίας του. Η μάρκα, η τιμή και η ενεργειακή κλάση έχουν δικά τους, σταθερά κλειδιά. */
-async function projectFacets(idOf: Map<string, string>) {
-  const defs = await db.s1SpecDef.findMany({ where: { isFilter: true, active: true, missing: false }, orderBy: [{ groupS1Id: "asc" }, { code: "asc" }] });
+/**
+ * Τα `isFilter` χαρακτηριστικά κάθε τύπου προϊόντος → Facet της κατηγορίας του. Η μάρκα, η τιμή και η ενεργειακή κλάση
+ * έχουν δικά τους param. Οι αλλαγές «μόνο e-shop» (spec-overrides: όνομα, φίλτρο ναι/όχι, σειρά) εφαρμόζονται εδώ. Το param
+ * (σύνδεσμος ?f_…) ενός υπάρχοντος φίλτρου ΔΕΝ αλλάζει όταν μετονομαστεί το χαρακτηριστικό: πάνω του κρέμονται σύνδεσμοι.
+ */
+export async function facetRows(idOf: Map<string, string>) {
+  const [all, overrides, existing] = await Promise.all([
+    db.s1SpecDef.findMany({ where: { active: true, missing: false }, orderBy: [{ groupS1Id: "asc" }, { code: "asc" }] }),
+    getSpecOverrides(),
+    db.facet.findMany({ where: { source: SOURCE }, select: { categoryId: true, key: true, param: true } }),
+  ]);
+  const paramOf = new Map(existing.map((f) => [`${f.categoryId}|${f.key}`, f.param]));
+  const defs = all.filter((d) => overrides[`${d.groupS1Id}:${d.code}`]?.filter ?? d.isFilter);
   const rows: Prisma.FacetCreateManyInput[] = [];
   const params = new Map<string, Set<string>>();
   for (const d of defs) {
     const categoryId = idOf.get(`s1:g:${d.groupS1Id}`); if (!categoryId) continue;
-    const label = clean(d.name), n = plain(label);
+    const ov = overrides[`${d.groupS1Id}:${d.code}`];
+    const name = clean(d.name), n = plain(name);
+    const label = ov?.label ? clean(ov.label) : name;
     const special = /^(εταιρε?ια|κατασκευαστησ|μαρκα|brand)$/.test(n) ? { key: "brand", param: "brand", kind: "checkbox" }
       : /^(ευροσ τιμησ|τιμη)$/.test(n) ? { key: "price", param: "price", kind: "range" }
       : /^ενεργειακη κλαση$/.test(n) ? { key: "energy", param: "energy", kind: "checkbox" } : null;
     const taken = params.get(categoryId) ?? new Set<string>(); params.set(categoryId, taken);
     if (special && taken.has(special.param)) continue; // δύο «Εταιρία» στον ίδιο τύπο: κρατάμε την πρώτη
-    const param = special?.param ?? uniqueSlug(slugify(label), String(d.code), taken, `f-${d.code}`);
+    const key = special?.key ?? `s1:${d.code}`;
+    const kept = paramOf.get(`${categoryId}|${key}`);
+    const param = special?.param ?? (kept && !taken.has(kept) ? kept : uniqueSlug(slugify(name), String(d.code), taken, `f-${d.code}`));
     taken.add(param);
-    rows.push({ categoryId, key: special?.key ?? `s1:${d.code}`, label, param, kind: special?.kind ?? "checkbox", sortNo: d.code, source: SOURCE });
+    rows.push({ categoryId, key, label, param, kind: special?.kind ?? "checkbox", sortNo: ov?.sort ?? d.code, source: SOURCE });
   }
+  return rows;
+}
+
+async function projectFacets(idOf: Map<string, string>) {
+  const rows = await facetRows(idOf);
   // Διαφορά ανά (κατηγορία, param): τα ids των φίλτρων μένουν σταθερά, γιατί πάνω τους κρέμονται οι τιμές των προϊόντων (ProductFacetValue)
   const before = new Map((await db.facet.findMany({ where: { source: SOURCE } })).map((f) => [`${f.categoryId}|${f.param}`, f]));
   const wanted = new Set(rows.map((r) => `${r.categoryId}|${r.param}`));
@@ -377,6 +397,20 @@ export async function projectItem(mtrl: number): Promise<{ ok: boolean; productI
   if (wrote) { await projectDimensions(); await projectFacetValues(product.categoryId); }
   resetCatalogCache();
   return { ok: true, productId: product.id, created: p.created > 0, updated: wrote };
+}
+
+/**
+ * Μόνο τα φίλτρα (μετά από αλλαγή χαρακτηριστικών): ορισμοί φίλτρων όλων των τύπων και τιμές για όσες κατηγορίες δόθηκαν.
+ * Χωρίς κατηγορίες και προϊόντα — δεν αλλάζει τίποτα άλλο στη βιτρίνα.
+ */
+export const categoryIdOf = async () => new Map((await db.category.findMany({ where: { source: SOURCE, erpCode: { not: null } }, select: { id: true, erpCode: true } })).map((c) => [c.erpCode!, c.id]));
+
+export async function projectFacetsNow(categoryIds: string[] = []) {
+  const idOf = await categoryIdOf();
+  const facets = await projectFacets(idOf);
+  for (const id of categoryIds) await projectFacetValues(id);
+  resetCatalogCache();
+  return facets;
 }
 
 export async function projectionStats() {
