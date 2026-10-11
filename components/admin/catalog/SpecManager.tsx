@@ -3,49 +3,40 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { ArrowLeft, ChevronRight, Database, Filter, Layers, ListChecks, Loader2, Lock, MoreHorizontal, Pencil, Plus, Search, Store, Tags } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ChevronRight, Database, EyeOff, Filter, Loader2, Lock, Plus, RotateCcw, Search, Store, X } from "lucide-react";
 import { changeSpecAction, setSpecOverrideAction } from "@/app/admin/(shell)/catalog/actions";
 import type { SpecGroupDetail, SpecTree } from "@/lib/catalog/spec-admin";
 import type { SpecChange } from "@/lib/softone/spec-write";
-import { Dialog, useToast } from "./QuickActions";
+import { useToast } from "./QuickActions";
 
 type Spec = SpecGroupDetail["specs"][number];
 type Can = { local: boolean; softone: boolean; softoneReason: string | null };
+type Toast = { ok: boolean; text: string } | null;
 const n = (v: number) => v.toLocaleString("el-GR");
-const input = "w-full rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
+const field = "w-full rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue disabled:bg-eu-surface disabled:text-eu-ink-3";
+const label = "text-eu-ink-2 font-semibold text-[length:var(--fs-12)]";
+const help = "text-eu-muted text-[length:var(--fs-12)] leading-snug";
 const SPECIAL: Record<string, string> = { brand: "φίλτρο μάρκας", price: "φίλτρο τιμής", energy: "ενεργειακή κλάση" };
-
-/** Διακόπτης (role=switch) πυκνός στον υπολογιστή, με περιοχή αφής 44px στο κινητό. */
-function Switch({ on, label, disabled, onClick, busy }: { on: boolean; label: string; disabled?: boolean; onClick: () => void; busy?: boolean }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} title={label} disabled={disabled || busy} onClick={onClick} className="group/sw relative inline-grid place-items-center min-h-11 min-w-11 md:min-h-7 md:min-w-9 disabled:cursor-not-allowed">
-      <span className={`relative h-[18px] w-8 rounded-full transition-colors ${on ? "bg-eu-navy" : "bg-eu-line-2"} ${disabled ? "opacity-55" : "group-hover/sw:ring-2 group-hover/sw:ring-eu-blue/25"}`}>
-        <span className={`absolute top-[2px] size-[14px] rounded-full bg-white shadow transition-transform ${on ? "translate-x-[16px]" : "translate-x-[2px]"}`} />
-        <span className="sr-only">{on ? "ναι" : "όχι"}</span>
-      </span>
-      {busy && <Loader2 className="absolute size-3.5 animate-spin text-eu-blue" aria-hidden />}
-    </button>
-  );
-}
+const shopFilter = (s: Pick<Spec, "active" | "isFilter" | "override">) => s.active && (s.override?.filter ?? s.isFilter);
 
 /**
- * «Χαρακτηριστικά»: αριστερά οι κατηγορίες web του SoftOne με τους τύπους προϊόντων (ομάδες χαρακτηριστικών), δεξιά τα
- * χαρακτηριστικά του επιλεγμένου τύπου σε δύο στρώσεις: SoftOne (ισχύει παντού, και στο παλιό site, πάντα με επιβεβαίωση
- * και επαλήθευση) και «μόνο e-shop» (όνομα φίλτρου, φίλτρο ναι/όχι, σειρά — χωρίς να αγγίζει το SoftOne).
+ * «Χαρακτηριστικά» (ui-ux-pro-max: master-detail, progressive disclosure). Αριστερά οι τύποι προϊόντων (ομάδες
+ * χαρακτηριστικών του SoftOne) ανά κατηγορία. Δεξιά η λίστα χαρακτηριστικών του τύπου, μόνο για ανάγνωση και σάρωση:
+ * όνομα, κατάσταση, πόσα προϊόντα έχουν τιμή. Κάθε αλλαγή γίνεται σε πλαϊνό πάνελ με δύο ξεχωριστές ενότητες και ρητή
+ * αποθήκευση: «Στο e-shop» (δεν αγγίζει το SoftOne) και «Στο SoftOne» (ισχύει και στο παλιό site, με επιβεβαίωση).
  */
 export function SpecManager({ tree, group, can }: { tree: SpecTree; group: SpecGroupDetail | null; can: Can }) {
-  const [q, setQ] = useState("");
   const { setToast, bar } = useToast();
   return (
-    <div className="@container grid gap-2.5 min-w-0">
-      <div className="grid gap-2.5 @4xl:grid-cols-[17rem_minmax(0,1fr)] items-start">
-        <aside data-help="specs.tree" className={`${group ? "hidden @4xl:grid" : "grid"} gap-1.5 rounded-xl border border-eu-line bg-white p-2 min-w-0 @4xl:sticky @4xl:top-2 @4xl:max-h-[calc(100dvh-6rem)] @4xl:overflow-y-auto`}>
-          <label className="relative"><span className="sr-only">Αναζήτηση τύπου</span><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Τύπος προϊόντος" className={`${input} pl-8`} /></label>
-          <Tree tree={tree} q={q} selected={group?.id ?? null} />
-        </aside>
+    <div className="@container min-w-0">
+      <div className="grid gap-3 @4xl:grid-cols-[18rem_minmax(0,1fr)] items-start">
+        <TypePicker tree={tree} selected={group?.id ?? null} hidden={!!group} />
         {group ? <Detail key={group.id} g={group} can={can} onToast={setToast} /> : (
-          <div className="hidden @4xl:grid place-items-center rounded-xl border border-dashed border-eu-line bg-white p-8 text-center text-eu-muted text-[length:var(--fs-13)]">Διάλεξε τύπο προϊόντος από αριστερά.</div>
+          <div className="hidden @4xl:grid place-items-center gap-1 rounded-xl border border-dashed border-eu-line bg-white p-10 text-center">
+            <Filter className="size-6 text-eu-muted" aria-hidden />
+            <p className="m-0 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Διάλεξε τύπο προϊόντος</p>
+            <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Τα χαρακτηριστικά και τα φίλτρα του εμφανίζονται εδώ.</p>
+          </div>
         )}
       </div>
       {bar}
@@ -53,284 +44,323 @@ export function SpecManager({ tree, group, can }: { tree: SpecTree; group: SpecG
   );
 }
 
-function Tree({ tree, q, selected }: { tree: SpecTree; q: string; selected: number | null }) {
+/* ---------------- τύποι προϊόντων ---------------- */
+
+function TypePicker({ tree, selected, hidden }: { tree: SpecTree; selected: number | null; hidden: boolean }) {
+  const masterOfSel = tree.find((m) => m.mains.some((x) => x.groups.some((g) => g.id === selected)))?.id ?? null;
+  const [master, setMaster] = useState<number | "all">(masterOfSel ?? "all");
+  const [q, setQ] = useState("");
   const t = q.trim().toLocaleLowerCase("el");
-  const list = useMemo(() => tree.map((m) => ({ ...m, mains: m.mains.map((x) => ({ ...x, groups: x.groups.filter((g) => !t || `${g.name} ${g.code ?? ""} ${x.name} ${m.name}`.toLocaleLowerCase("el").includes(t)) })).filter((x) => x.groups.length) })).filter((m) => m.mains.length), [tree, t]);
-  if (!list.length) return <p className="m-0 px-1 text-eu-muted text-[length:var(--fs-13)]">Κανένας τύπος.</p>;
+  const sections = useMemo(() => tree.filter((m) => t || master === "all" || m.id === master).flatMap((m) => m.mains.map((x) => ({
+    key: `${m.id}:${x.id}`, title: t || master === "all" ? `${m.name} › ${x.name}` : x.name,
+    groups: x.groups.filter((g) => !t || `${g.name} ${g.code ?? ""} ${x.name} ${m.name}`.toLocaleLowerCase("el").includes(t)),
+  }))).filter((s) => s.groups.length), [tree, master, t]);
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { listRef.current?.querySelector("[aria-current=page]")?.scrollIntoView({ block: "center" }); }, []);
   return (
-    <nav aria-label="Τύποι προϊόντων" className="grid gap-0.5 text-[length:var(--fs-13)]">
-      {list.map((m) => {
-        const hasSel = m.mains.some((x) => x.groups.some((g) => g.id === selected));
-        return (
-          <details key={m.id} open={!!t || hasSel} className="group/m">
-            <summary className="list-none cursor-pointer flex items-center gap-1.5 rounded-md px-1.5 min-h-11 md:min-h-8 font-bold text-eu-ink hover:bg-eu-surface [&::-webkit-details-marker]:hidden"><ChevronRight className="size-3.5 text-eu-muted transition-transform group-open/m:rotate-90" aria-hidden /><span className="truncate flex-1">{m.name}</span><span className="text-eu-muted font-normal tabular-nums">{m.mains.reduce((a, x) => a + x.groups.length, 0)}</span></summary>
-            <div className="grid gap-0.5 pl-3">
-              {m.mains.map((x) => (
-                <div key={x.id} className="grid">
-                  <span className="px-1.5 pt-1 text-eu-muted font-semibold text-[length:var(--fs-12)] truncate">{x.name}</span>
-                  {x.groups.map((g) => (
-                    <Link key={g.id} href={`?g=${g.id}`} scroll={false} aria-current={g.id === selected ? "page" : undefined}
-                      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 rounded-md px-1.5 min-h-11 md:min-h-8 ${g.id === selected ? "bg-eu-navy text-white" : "hover:bg-eu-surface text-eu-ink-2"} ${g.active ? "" : "opacity-60"}`}>
-                      <span className="truncate">{g.name}{g.changed ? <span className={`ml-1 ${g.id === selected ? "text-white" : "text-eu-purple"}`} title="έχει αλλαγές μόνο e-shop">•</span> : null}</span>
-                      <span className={`tabular-nums text-[length:var(--fs-12)] ${g.id === selected ? "text-white/80" : "text-eu-muted"}`} title={`${g.specs} χαρακτηριστικά, ${g.filters} φίλτρα, ${g.items} είδη`}>{g.filters}/{g.specs}</span>
-                    </Link>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </details>
-        );
-      })}
-    </nav>
+    <aside data-help="specs.tree" aria-label="Τύποι προϊόντων" className={`${hidden ? "hidden @4xl:grid" : "grid"} grid-rows-[auto_minmax(0,1fr)] rounded-xl border border-eu-line bg-white min-w-0 max-h-[75dvh] @4xl:max-h-none @4xl:sticky @4xl:top-2 @4xl:h-[calc(100dvh-7rem)] overflow-hidden`}>
+      <div className="grid gap-1.5 p-2 border-b border-eu-line">
+        <label className="grid gap-0.5"><span className="sr-only">Κατηγορία</span>
+          <select value={String(master)} onChange={(e) => setMaster(e.target.value === "all" ? "all" : Number(e.target.value))} className={field}>
+            <option value="all">Όλες οι κατηγορίες</option>
+            {tree.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.mains.reduce((a, x) => a + x.groups.length, 0)})</option>)}
+          </select>
+        </label>
+        <label className="relative"><span className="sr-only">Αναζήτηση τύπου</span><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση τύπου" className={`${field} pl-8`} /></label>
+      </div>
+      <div ref={listRef} className="overflow-y-auto overscroll-contain">
+        {sections.length ? sections.map((s) => (
+          <section key={s.key} aria-label={s.title}>
+            <h3 className="sticky top-0 z-[1] m-0 bg-eu-surface/95 backdrop-blur px-3 py-1 font-bold text-eu-ink-3 text-[length:var(--fs-12)] truncate">{s.title}</h3>
+            <ul className="m-0 p-1 list-none grid">
+              {s.groups.map((g) => { const on = g.id === selected; return (
+                <li key={g.id}>
+                  <Link href={`?g=${g.id}`} scroll={false} aria-current={on ? "page" : undefined} className={`grid gap-0.5 rounded-lg px-2.5 py-1.5 min-h-11 ${on ? "bg-eu-navy text-white" : "hover:bg-eu-surface"} ${g.active ? "" : "opacity-60"}`}>
+                    <span className="flex items-center gap-1.5 min-w-0"><span className={`truncate font-semibold text-[length:var(--fs-13)] ${on ? "" : "text-eu-ink"}`}>{g.name}</span>{g.changed > 0 && <span className={`shrink-0 rounded-full px-1.5 text-[length:var(--fs-12)] font-bold ${on ? "bg-white/20" : "bg-eu-purple/12 text-eu-purple"}`} title="αλλαγές μόνο e-shop">e-shop</span>}</span>
+                    <span className={`text-[length:var(--fs-12)] tabular-nums ${on ? "text-white/80" : "text-eu-muted"}`}>{g.filters} φίλτρα · {n(g.products)} προϊόντα</span>
+                  </Link>
+                </li>
+              ); })}
+            </ul>
+          </section>
+        )) : <p className="m-0 p-4 text-eu-muted text-[length:var(--fs-13)]">Κανένας τύπος για «{q}».</p>}
+      </div>
+    </aside>
   );
 }
 
-type Pending = { title: string; lines: ReactNode[]; change: SpecChange; danger?: boolean } | null;
+/* ---------------- ο τύπος ---------------- */
 
-function Detail({ g, can, onToast }: { g: SpecGroupDetail; can: Can; onToast: (t: { ok: boolean; text: string } | null) => void }) {
-  const router = useRouter();
-  const [showOff, setShowOff] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<Pending>(null);
-  const [dlg, setDlg] = useState<{ kind: "add" | "rename" | "options" | "local"; spec?: Spec } | null>(null);
-  const [, start] = useTransition();
-  const specs = g.specs.filter((s) => showOff || s.active);
-  const off = g.specs.filter((s) => !s.active).length;
+type View = "all" | "filters" | "nofilter" | "changed" | "off";
 
-  const runSoftone = (change: SpecChange, key: string) => {
-    setBusy(key); setConfirm(null); setDlg(null);
-    start(async () => {
-      const r = await changeSpecAction(g.id, change);
-      setBusy(null);
-      onToast(r.ok ? { ok: true, text: "Αποθηκεύτηκε στο SoftOne και επαληθεύτηκε. Τα φίλτρα του e-shop ενημερώθηκαν." } : { ok: false, text: [r.error, ...("details" in r && r.details ? r.details : [])].join(" ") });
-      router.refresh();
-    });
+function Detail({ g, can, onToast }: { g: SpecGroupDetail; can: Can; onToast: (t: Toast) => void }) {
+  const [view, setView] = useState<View>("all");
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState<number | "new" | null>(null);
+  const counts: Record<View, number> = {
+    all: g.specs.filter((s) => s.active).length,
+    filters: g.specs.filter(shopFilter).length,
+    nofilter: g.specs.filter((s) => s.active && !shopFilter(s)).length,
+    changed: g.specs.filter((s) => s.override).length,
+    off: g.specs.filter((s) => !s.active).length,
   };
-  const runLocal = (s: Spec, next: { label?: string | null; filter?: boolean | null; sort?: number | null }) => {
-    setBusy(`l${s.code}`); setDlg(null);
-    start(async () => {
-      await setSpecOverrideAction(g.id, s.code, next);
-      setBusy(null);
-      onToast({ ok: true, text: "Αποθηκεύτηκε μόνο για το e-shop. Τα φίλτρα ενημερώθηκαν." });
-      router.refresh();
-    });
-  };
-  const flag = (s: Spec, field: "isFilter" | "isView" | "active") => {
-    const now = s[field], label = { isFilter: "Φίλτρο", isView: "Προβολή", active: "Ενεργό" }[field];
-    const lines: ReactNode[] = [<>«{s.name}»: <b>{label} {now ? "Ναι → Όχι" : "Όχι → Ναι"}</b></>];
-    if (field === "isFilter") lines.push(now ? <>Το φίλτρο φεύγει από τον τύπο στο παλιό site{s.override?.filter == null ? " και στο e-shop" : ""}{s.facet ? `, σήμερα το έχουν ${n(s.facet.products)} προϊόντα` : ""}.</> : <>Νέο φίλτρο στον τύπο. Τιμή παίρνουν όσα προϊόντα έχουν γραμμή «{s.name} : …» στην περιγραφή (σήμερα {n(s.descLines)}).</>);
-    if (field === "active") lines.push(now ? <>Δεν θα εμφανίζεται ούτε ως φίλτρο ούτε στην προβολή. Ο κωδικός {s.code} μένει (δεν διαγράφεται) και ενεργοποιείται ξανά όποτε θέλεις.</> : <>Ξαναγίνεται ενεργό με τις ρυθμίσεις φίλτρου/προβολής που έχει.</>);
-    if (field === "isView") lines.push(<>Αφορά την προβολή στο παλιό site. Το νέο e-shop δείχνει τα χαρακτηριστικά από την περιγραφή του είδους.</>);
-    setConfirm({ title: `${label} στο SoftOne`, lines, danger: now && field !== "isView", change: { kind: "set-spec", code: s.code, patch: { [field]: !now } } });
-  };
+  const t = q.trim().toLocaleLowerCase("el");
+  const list = g.specs.filter((s) => (view === "all" ? s.active : view === "filters" ? shopFilter(s) : view === "nofilter" ? s.active && !shopFilter(s) : view === "changed" ? !!s.override : !s.active) && (!t || `${s.name} ${s.override?.label ?? ""}`.toLocaleLowerCase("el").includes(t)));
+  const max = Math.max(1, g.products);
+  const current = typeof open === "number" ? g.specs.find((s) => s.code === open) ?? null : null;
+  const tabs: [View, string][] = [["all", "Όλα"], ["filters", "Φίλτρα"], ["nofilter", "Χωρίς φίλτρο"], ["changed", "Αλλαγές e-shop"], ["off", "Ανενεργά"]];
 
   return (
-    <section data-help="specs.detail" aria-labelledby="sg-h" className="grid gap-2.5 min-w-0">
-      <header className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
-        <Link href="?" scroll={false} className="@4xl:hidden justify-self-start inline-flex items-center gap-1 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)]"><ArrowLeft className="size-4" aria-hidden /> Όλοι οι τύποι</Link>
-        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-          <div className="grid min-w-0">
-            <span className="text-eu-muted text-[length:var(--fs-12)]">{g.path}</span>
-            <h2 id="sg-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">{g.name}</h2>
-            <span className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[length:var(--fs-12)] text-eu-ink-3">
-              <span>ομάδα <b className="font-mono">{g.code ?? g.id}</b> (id {g.id})</span>
-              <span>{n(g.items)} είδη SoftOne</span>
-              <span>{n(g.products)} προϊόντα στο site</span>
-              {!g.active && <span className="font-bold text-eu-amber">ανενεργή ομάδα</span>}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {g.shopHref && <a href={g.shopHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy"><Store className="size-4" aria-hidden /> Στο κατάστημα</a>}
-            <button type="button" disabled={!can.softone} title={can.softoneReason ?? undefined} onClick={() => setDlg({ kind: "add" })} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-45"><Plus className="size-4" aria-hidden /> Νέο χαρακτηριστικό</button>
+    <section data-help="specs.detail" aria-labelledby="sg-h" className="grid gap-3 min-w-0">
+      <header className="rounded-xl border border-eu-line bg-white overflow-hidden">
+        <div className="p-3 grid gap-2">
+          <Link href="?" scroll={false} className="@4xl:hidden justify-self-start inline-flex items-center gap-1 min-h-11 font-bold text-eu-blue text-[length:var(--fs-13)]"><ArrowLeft className="size-4" aria-hidden /> Όλοι οι τύποι</Link>
+          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="grid min-w-0">
+              <span className="text-eu-muted text-[length:var(--fs-12)]">{g.path}</span>
+              <h2 id="sg-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">{g.name}</h2>
+              <span className="text-eu-muted text-[length:var(--fs-12)]">Ομάδα χαρακτηριστικών SoftOne <span className="font-mono">{g.code ?? "-"}</span> · id {g.id}{!g.active && <b className="text-eu-amber"> · ανενεργή</b>}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {g.shopHref && <a href={g.shopHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy"><Store className="size-4" aria-hidden /> Στο κατάστημα</a>}
+              <button type="button" onClick={() => setOpen("new")} disabled={!can.softone} title={can.softoneReason ?? undefined} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-3.5 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-45"><Plus className="size-4" aria-hidden /> Νέο χαρακτηριστικό</button>
+            </div>
           </div>
         </div>
-        <div data-help="specs.layers" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-eu-line-2 pt-2 text-[length:var(--fs-12)]">
-          <span className="inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 rounded-full bg-eu-navy/10 text-eu-navy font-bold px-2 py-0.5"><Database className="size-3" aria-hidden />SoftOne</span><span className="text-eu-ink-3">ισχύει παντού, και στο παλιό site</span></span>
-          <span className="inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 rounded-full bg-eu-purple/12 text-eu-purple font-bold px-2 py-0.5"><Store className="size-3" aria-hidden />Μόνο e-shop</span><span className="text-eu-ink-3">δεν αγγίζει το SoftOne</span></span>
-          {!can.softone && <span className="inline-flex items-center gap-1 text-eu-amber font-semibold"><Lock className="size-3.5" aria-hidden />{can.softoneReason}</span>}
-          {off > 0 && <label className="ml-auto inline-flex items-center gap-1.5 min-h-11 md:min-h-7 font-semibold text-eu-ink-2 cursor-pointer"><input type="checkbox" checked={showOff} onChange={(e) => setShowOff(e.target.checked)} className="size-4 accent-eu-navy" />Ανενεργά ({off})</label>}
-        </div>
+        <dl className="m-0 grid grid-cols-2 @2xl:grid-cols-4 border-t border-eu-line-2 [&>div]:px-3 [&>div]:py-2 [&>div]:border-eu-line-2 [&>div:not(:last-child)]:border-r">
+          {([["Χαρακτηριστικά", counts.all], ["Φίλτρα στο e-shop", counts.filters], ["Προϊόντα στο site", g.products], ["Είδη στο SoftOne", g.items]] as const).map(([k, v]) => <div key={k}><dt className="text-eu-muted text-[length:var(--fs-12)]">{k}</dt><dd className="m-0 font-heading font-extrabold text-eu-ink text-[length:var(--fs-18)] tabular-nums">{n(v)}</dd></div>)}
+        </dl>
       </header>
 
-      <div data-help="specs.table" className="rounded-xl border border-eu-line bg-white overflow-hidden">
-        <div className="hidden @3xl:grid grid-cols-[2.25rem_minmax(0,1fr)_repeat(3,3rem)_auto_5.5rem_2.25rem] items-end gap-x-2 px-2.5 py-1.5 bg-eu-surface/70 text-eu-ink-3 font-bold text-[length:var(--fs-12)]">
-          <span>Κωδ.</span><span>Χαρακτηριστικό</span>
-          <span className="text-center text-eu-navy" title="SoftOne: φίλτρο">Φίλτρο</span><span className="text-center text-eu-navy" title="SoftOne: προβάλλεται">Προβολή</span><span className="text-center text-eu-navy" title="SoftOne: ενεργό">Ενεργό</span>
-          <span className="text-eu-purple">Φίλτρο e-shop</span><span className="text-right" title="προϊόντα με τιμή στο φίλτρο / διαφορετικές τιμές">Προϊόντα</span><span />
-        </div>
-        <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
-          {specs.map((s) => (
-            <li key={s.code} className={`grid grid-cols-[minmax(0,1fr)_auto] @3xl:grid-cols-[2.25rem_minmax(0,1fr)_repeat(3,3rem)_auto_5.5rem_2.25rem] items-center gap-x-2 gap-y-1 px-2.5 py-1 ${s.active ? "" : "bg-eu-surface/50 text-eu-ink-3"}`}>
-              <span className="hidden @3xl:block font-mono text-eu-muted text-[length:var(--fs-12)] tabular-nums">{s.code}</span>
-              <span className="min-w-0 grid">
-                <span className="flex items-baseline gap-1.5 min-w-0"><span className="@3xl:hidden font-mono text-eu-muted text-[length:var(--fs-12)]">{s.code}</span><b className="line-clamp-2 text-eu-ink text-[length:var(--fs-13)] leading-snug" title={s.name}>{s.name}</b></span>
-                {(s.special || !s.active || s.override?.label || s.override?.sort != null || s.options.length > 0) && (
-                  <span className="flex flex-wrap gap-x-2 text-[length:var(--fs-12)]">
-                    {s.special && <span className="text-eu-ink-3">{SPECIAL[s.special]}</span>}
-                    {!s.active && <span className="text-eu-amber font-bold">ανενεργό</span>}
-                    {s.override?.label && <span className="text-eu-purple">στο e-shop: «{s.override.label}»</span>}
-                    {s.override?.sort != null && <span className="text-eu-purple">σειρά {s.override.sort}</span>}
-                    {s.options.length > 0 && <span className="text-eu-muted">{s.options.filter((o) => o.active).length} προκαθορισμένες τιμές</span>}
-                  </span>
-                )}
-              </span>
-              <span className="row-start-2 col-span-2 @3xl:row-start-auto @3xl:col-span-1 @3xl:contents flex flex-wrap items-center gap-x-1 text-[length:var(--fs-12)]">
-                <span className="@3xl:hidden text-eu-navy font-bold">SoftOne</span>
-                <span className="inline-flex items-center @3xl:justify-center"><span className="@3xl:hidden text-eu-ink-3">Φίλτρο</span><Switch on={s.isFilter} label={`SoftOne φίλτρο: ${s.name}`} disabled={!can.softone || !!s.special} busy={busy === `s${s.code}isFilter`} onClick={() => flag(s, "isFilter")} /></span>
-                <span className="inline-flex items-center @3xl:justify-center"><span className="@3xl:hidden text-eu-ink-3">Προβολή</span><Switch on={s.isView} label={`SoftOne προβολή: ${s.name}`} disabled={!can.softone} busy={busy === `s${s.code}isView`} onClick={() => flag(s, "isView")} /></span>
-                <span className="inline-flex items-center @3xl:justify-center"><span className="@3xl:hidden text-eu-ink-3">Ενεργό</span><Switch on={s.active} label={`SoftOne ενεργό: ${s.name}`} disabled={!can.softone} busy={busy === `s${s.code}active`} onClick={() => flag(s, "active")} /></span>
-                <span className="@3xl:hidden basis-full h-0" />
-                <span className="@3xl:hidden text-eu-purple font-bold">e-shop</span>
-                <LocalFilter s={s} disabled={!can.local || !s.active || !!s.special} busy={busy === `l${s.code}`} onSet={(filter) => runLocal(s, { filter })} />
-                <span className="ml-auto @3xl:ml-0 text-right tabular-nums text-eu-ink-2" title={s.facet ? `${s.facet.products} προϊόντα με τιμή στο φίλτρο, ${s.facet.values} διαφορετικές τιμές · ${s.descLines} γραμμές περιγραφής με το ίδιο όνομα` : `${s.descLines} γραμμές περιγραφής με το ίδιο όνομα`}>{s.facet ? <><b>{n(s.facet.products)}</b><span className="text-eu-muted"> /{n(s.facet.values)}</span></> : <span className="text-eu-muted">{s.descLines ? `${n(s.descLines)} περιγρ.` : "-"}</span>}</span>
-              </span>
-              <span className="row-start-1 col-start-2 @3xl:row-start-auto @3xl:col-start-auto justify-self-end"><RowMenu s={s} can={can} onPick={(kind) => setDlg({ kind, spec: s })} onToggleActive={() => flag(s, "active")} /></span>
-            </li>
-          ))}
-          {!specs.length && <li className="p-6 text-center text-eu-muted text-[length:var(--fs-13)]">Κανένα χαρακτηριστικό σε αυτόν τον τύπο.</li>}
-        </ul>
-      </div>
-      <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Τα χαρακτηριστικά παίρνουν τιμή ανά προϊόν από τις γραμμές «Όνομα : τιμή» της περιγραφής του είδους. Γι’ αυτό η μετονομασία στο SoftOne θέλει προσοχή: οι περιγραφές κρατούν το παλιό όνομα. Ο σύνδεσμος του φίλτρου στο site μένει ίδιος.</p>
+      {!can.softone && <p className="m-0 flex items-start gap-2 rounded-lg bg-eu-amber/12 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Lock className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />{can.softoneReason} Οι αλλαγές μόνο για το e-shop δουλεύουν κανονικά.</p>}
 
-      <Dialog open={!!confirm} onClose={() => setConfirm(null)} title={confirm?.title ?? ""} sub={`${g.name} · SoftOne`} icon={<Database className="size-4 text-eu-navy" aria-hidden />}>
-        {confirm && <>
-          <ul className="m-0 pl-4 grid gap-1 text-eu-ink-2 text-[length:var(--fs-13)]">{confirm.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
-          <p className="m-0 rounded-lg bg-eu-surface px-2.5 py-1.5 text-eu-ink-3 text-[length:var(--fs-12)]">Γράφεται στο SoftOne (παραγωγή): διαβάζεται όλη η ομάδα, στέλνεται ολόκληρη και επαληθεύεται ότι δεν χάθηκε καμία γραμμή. Ισχύει και στο παλιό site.</p>
-          <div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setConfirm(null)} className="rounded-full border border-eu-line px-3.5 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)]">Άκυρο</button><button type="button" onClick={() => runSoftone(confirm.change, confirm.change.kind === "set-spec" ? `s${confirm.change.code}${Object.keys(confirm.change.patch)[0]}` : "x")} className={`rounded-full px-4 min-h-11 md:min-h-9 font-bold text-white text-[length:var(--fs-13)] ${confirm.danger ? "bg-eu-red hover:opacity-90" : "bg-eu-navy hover:bg-eu-blue"}`}>Ναι, αλλαγή στο SoftOne</button></div>
-        </>}
-      </Dialog>
-      <Dialog open={dlg?.kind === "add"} onClose={() => setDlg(null)} title="Νέο χαρακτηριστικό" sub={`${g.name} · SoftOne`} icon={<Plus className="size-4 text-eu-navy" aria-hidden />}>
-        <AddSpec existing={g.specs.map((s) => s.name)} onSave={(name, isFilter, isView) => runSoftone({ kind: "add-spec", name, isFilter, isView }, "add")} busy={busy === "add"} />
-      </Dialog>
-      <Dialog open={dlg?.kind === "rename"} onClose={() => setDlg(null)} title="Μετονομασία στο SoftOne" sub={dlg?.spec?.name} icon={<Pencil className="size-4 text-eu-navy" aria-hidden />}>
-        {dlg?.spec && <Rename s={dlg.spec} onSave={(name) => runSoftone({ kind: "set-spec", code: dlg.spec!.code, patch: { name } }, `s${dlg.spec!.code}name`)} />}
-      </Dialog>
-      <Dialog open={dlg?.kind === "options"} onClose={() => setDlg(null)} title="Προκαθορισμένες τιμές" sub={dlg?.spec?.name} icon={<Tags className="size-4 text-eu-navy" aria-hidden />}>
-        {dlg?.spec && <Options s={dlg.spec} canWrite={can.softone} onChange={(change) => runSoftone(change, "opt")} />}
-      </Dialog>
-      <Dialog open={dlg?.kind === "local"} onClose={() => setDlg(null)} title="Ρυθμίσεις μόνο για το e-shop" sub={dlg?.spec?.name} icon={<Store className="size-4 text-eu-purple" aria-hidden />}>
-        {dlg?.spec && <LocalSettings s={dlg.spec} onSave={(next) => runLocal(dlg.spec!, next)} />}
-      </Dialog>
+      <div data-help="specs.table" className="rounded-xl border border-eu-line bg-white overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-eu-line p-2">
+          <div role="tablist" aria-label="Προβολή" className="flex flex-wrap gap-0.5 rounded-lg bg-eu-surface p-0.5">
+            {tabs.filter(([k]) => k === "all" || counts[k] > 0 || view === k).map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} className={`inline-flex items-center gap-1 rounded-md px-2.5 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] ${view === k ? "bg-white text-eu-navy shadow-sm" : "text-eu-ink-3 hover:text-eu-navy"}`}>{l}<span className="tabular-nums opacity-70">{counts[k]}</span></button>
+            ))}
+          </div>
+          <label className="relative ml-auto w-full @2xl:w-56"><span className="sr-only">Αναζήτηση χαρακτηριστικού</span><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση" className={`${field} pl-8`} /></label>
+        </div>
+        {list.length ? (
+          <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
+            {list.map((s) => {
+              const products = s.facet?.products ?? 0, pct = Math.round((products / max) * 100);
+              return (
+                <li key={s.code}>
+                  <button type="button" onClick={() => setOpen(s.code)} className={`w-full grid grid-cols-[minmax(0,1fr)_auto] @2xl:grid-cols-[2rem_minmax(0,1fr)_minmax(9rem,13rem)_1rem] items-center gap-x-3 gap-y-1 px-3 py-2 text-left hover:bg-eu-surface/60 focus-visible:bg-eu-surface focus-visible:outline-none ${s.active ? "" : "opacity-70"}`}>
+                    <span className="hidden @2xl:block font-mono text-eu-muted text-[length:var(--fs-12)] tabular-nums">{s.code}</span>
+                    <span className="grid gap-1 min-w-0">
+                      <span className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{s.override?.label ?? s.name}{s.override?.label && <span className="font-normal text-eu-muted text-[length:var(--fs-12)]"> (SoftOne: {s.name})</span>}</span>
+                      <span className="flex flex-wrap gap-1">
+                        {!s.active ? <Badge tone="amber">Ανενεργό</Badge> : shopFilter(s) ? <Badge tone="navy" icon={<Filter className="size-3" aria-hidden />}>Φίλτρο</Badge> : <Badge tone="mute">Όχι φίλτρο</Badge>}
+                        {s.active && !s.isView && <Badge tone="mute" icon={<EyeOff className="size-3" aria-hidden />}>Δεν προβάλλεται</Badge>}
+                        {s.override && <Badge tone="purple" icon={<Store className="size-3" aria-hidden />}>Αλλαγή e-shop</Badge>}
+                        {s.special && <Badge tone="mute">{SPECIAL[s.special]}</Badge>}
+                        {s.options.length > 0 && <Badge tone="mute">{s.options.filter((o) => o.active).length} τιμές</Badge>}
+                      </span>
+                    </span>
+                    <span className="hidden @2xl:grid gap-1" title={`${products} από ${g.products} προϊόντα έχουν τιμή`}>
+                      {shopFilter(s) && !s.special ? <>
+                        <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden"><span className={`block h-full rounded-full ${pct >= 50 ? "bg-eu-green" : pct >= 15 ? "bg-eu-amber" : "bg-eu-red/70"}`} style={{ width: `${pct}%` }} /></span>
+                        <span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums">{n(products)} προϊόντα ({pct} %) · {n(s.facet?.values ?? 0)} τιμές</span>
+                      </> : <span className="text-eu-muted text-[length:var(--fs-12)]">{s.special ? "υπολογίζεται αυτόματα" : `${n(s.descLines)} γραμμές περιγραφής`}</span>}
+                    </span>
+                    <ChevronRight className="size-4 text-eu-muted justify-self-end" aria-hidden />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="m-0 p-6 text-center text-eu-muted text-[length:var(--fs-13)]">{t ? `Κανένα χαρακτηριστικό για «${q}».` : "Κανένα χαρακτηριστικό σε αυτή την προβολή."}</p>}
+      </div>
+      <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Κάθε προϊόν παίρνει τιμή από τη γραμμή «Όνομα : τιμή» της περιγραφής του είδους στο SoftOne. Πάτα ένα χαρακτηριστικό για αλλαγές.</p>
+
+      <Sheet open={open != null} onClose={() => setOpen(null)} title={open === "new" ? "Νέο χαρακτηριστικό" : current?.override?.label ?? current?.name ?? ""} sub={g.name}>
+        {open === "new" ? <NewSpec g={g} onDone={(t) => { onToast(t); if (t?.ok) setOpen(null); }} />
+          : current && <Inspector key={current.code} g={g} s={current} can={can} onToast={onToast} />}
+      </Sheet>
     </section>
   );
 }
 
-/** Φίλτρο στο e-shop: όπως το SoftOne / πάντα / ποτέ. */
-function LocalFilter({ s, disabled, busy, onSet }: { s: Spec; disabled: boolean; busy: boolean; onSet: (v: boolean | null) => void }) {
-  const cur = s.override?.filter ?? null;
-  const opts: [boolean | null, string, string][] = [[null, "Όπως S1", `όπως το SoftOne (${s.isFilter ? "ναι" : "όχι"})`], [true, "Ναι", "πάντα φίλτρο στο e-shop"], [false, "Όχι", "ποτέ φίλτρο στο e-shop"]];
+function Badge({ tone, icon, children }: { tone: "navy" | "purple" | "amber" | "mute"; icon?: ReactNode; children: ReactNode }) {
+  const c = { navy: "bg-eu-navy/10 text-eu-navy", purple: "bg-eu-purple/12 text-eu-purple", amber: "bg-eu-amber/15 text-eu-ink-2", mute: "bg-eu-surface text-eu-ink-3" }[tone];
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-px font-semibold text-[length:var(--fs-12)] ${c}`}>{icon}{children}</span>;
+}
+
+/** Πλαϊνό πάνελ (native <dialog> στο top layer): δεξιά στον υπολογιστή, όλη η οθόνη στο κινητό. Esc / ✕ / κλικ έξω. */
+function Sheet({ open, onClose, title, sub, children }: { open: boolean; onClose: () => void; title: string; sub: string; children: ReactNode }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
   return (
-    <span role="radiogroup" aria-label={`Φίλτρο στο e-shop: ${s.name}`} className={`inline-flex rounded-md bg-eu-surface p-0.5 font-bold text-[length:var(--fs-12)] ${disabled ? "opacity-45" : ""}`}>
-      {opts.map(([v, l, t]) => <button key={String(v)} type="button" role="radio" aria-checked={cur === v} title={t} disabled={disabled || busy} onClick={() => cur !== v && onSet(v)} className={`rounded px-1.5 min-h-11 md:min-h-6 whitespace-nowrap ${cur === v ? (v === null ? "bg-white text-eu-ink-2 shadow-sm" : "bg-eu-purple text-white") : "text-eu-ink-3 hover:text-eu-purple"}`}>{l}</button>)}
-    </span>
+    <dialog ref={ref} onClose={onClose} onClick={(e) => { if (e.target === ref.current) onClose(); }} aria-label={title}
+      className="m-0 ml-auto h-dvh max-h-dvh w-full md:w-[30rem] max-w-full p-0 bg-white shadow-[var(--shadow-overlay)] backdrop:bg-eu-ink/40">
+      {open && (
+        <div className="grid grid-rows-[auto_minmax(0,1fr)] h-full">
+          <div className="flex items-start justify-between gap-2 border-b border-eu-line px-4 py-3">
+            <div className="grid min-w-0"><span className="text-eu-muted text-[length:var(--fs-12)] truncate">{sub}</span><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)] leading-tight">{title}</h3></div>
+            <button type="button" aria-label="Κλείσιμο" onClick={onClose} className="size-11 md:size-9 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-5" aria-hidden /></button>
+          </div>
+          <div className="overflow-y-auto overscroll-contain p-4 grid gap-4 content-start">{children}</div>
+        </div>
+      )}
+    </dialog>
   );
 }
 
-function RowMenu({ s, can, onPick, onToggleActive }: { s: Spec; can: Can; onPick: (k: "rename" | "options" | "local") => void; onToggleActive: () => void }) {
-  const btn = useRef<HTMLButtonElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
-  const close = () => setPos(null);
-  useEffect(() => {
-    if (!pos) return;
-    const out = (e: Event) => { if (e instanceof KeyboardEvent) { if (e.key === "Escape") { close(); btn.current?.focus(); } return; } if (!menu.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) close(); };
-    document.addEventListener("mousedown", out); document.addEventListener("keydown", out); window.addEventListener("scroll", close, true);
-    menu.current?.querySelector<HTMLElement>("[role=menuitem]:not([disabled])")?.focus();
-    return () => { document.removeEventListener("mousedown", out); document.removeEventListener("keydown", out); window.removeEventListener("scroll", close, true); };
-  }, [pos]);
-  const item = "w-full flex items-center gap-2.5 rounded-md px-2 min-h-11 md:min-h-8 text-left text-[length:var(--fs-13)] hover:bg-eu-surface focus-visible:bg-eu-surface outline-none disabled:opacity-40";
-  const head = "px-2 pt-1.5 pb-0.5 font-bold text-[length:var(--fs-12)]";
+/** Ενότητα του πάνελ: τίτλος με τη στρώση (χρώμα + κείμενο), εξήγηση, περιεχόμενο. */
+function Panel({ layer, title, note, children }: { layer: "shop" | "s1"; title: string; note?: string; children: ReactNode }) {
+  const tag = layer === "shop" ? <Badge tone="purple" icon={<Store className="size-3" aria-hidden />}>Μόνο e-shop</Badge> : <Badge tone="navy" icon={<Database className="size-3" aria-hidden />}>SoftOne</Badge>;
+  return (
+    <section className={`grid gap-3 rounded-xl border p-3 ${layer === "shop" ? "border-eu-purple/30" : "border-eu-navy/25"}`}>
+      <div className="grid gap-0.5"><div className="flex items-center justify-between gap-2"><h4 className="m-0 font-bold text-eu-ink text-[length:var(--fs-14)]">{title}</h4>{tag}</div>{note && <p className={`m-0 ${help}`}>{note}</p>}</div>
+      {children}
+    </section>
+  );
+}
+
+/** Διακόπτης με ετικέτα και εξήγηση (όλη η γραμμή πατιέται). */
+function Toggle({ on, onChange, title, desc, disabled }: { on: boolean; onChange: (v: boolean) => void; title: string; desc?: string; disabled?: boolean }) {
+  return (
+    <label className={`flex items-start justify-between gap-3 min-h-11 py-1 ${disabled ? "opacity-55" : "cursor-pointer"}`}>
+      <span className="grid gap-0.5"><span className="font-semibold text-eu-ink text-[length:var(--fs-13)]">{title}</span>{desc && <span className={help}>{desc}</span>}</span>
+      <input type="checkbox" role="switch" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span aria-hidden className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-eu-blue ${on ? "bg-eu-navy" : "bg-eu-line-2"}`}><span className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-[18px]" : "translate-x-0.5"}`} /></span>
+    </label>
+  );
+}
+
+/* ---------------- πάνελ χαρακτηριστικού ---------------- */
+
+function Inspector({ g, s, can, onToast }: { g: SpecGroupDetail; s: Spec; can: Can; onToast: (t: Toast) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  // στο e-shop
+  const [lbl, setLbl] = useState(s.override?.label ?? "");
+  const [flt, setFlt] = useState<boolean | null>(s.override?.filter ?? null);
+  const [srt, setSrt] = useState(s.override?.sort != null ? String(s.override.sort) : "");
+  const shopDirty = (lbl.trim() || null) !== (s.override?.label ?? null) || flt !== (s.override?.filter ?? null) || (srt === "" ? null : Number(srt)) !== (s.override?.sort ?? null);
+  // στο SoftOne
+  const [name, setName] = useState(s.name);
+  const [isFilter, setIsFilter] = useState(s.isFilter);
+  const [isView, setIsView] = useState(s.isView);
+  const [active, setActive] = useState(s.active);
+  const [confirm, setConfirm] = useState(false);
+  const patch = { ...(name.trim() !== s.name ? { name: name.trim() } : {}), ...(isFilter !== s.isFilter ? { isFilter } : {}), ...(isView !== s.isView ? { isView } : {}), ...(active !== s.active ? { active } : {}) };
+  const s1Dirty = Object.keys(patch).length > 0 && !!name.trim();
+  const [opt, setOpt] = useState("");
+
+  const saveShop = (reset = false) => start(async () => {
+    await setSpecOverrideAction(g.id, s.code, reset ? { label: null, filter: null, sort: null } : { label: lbl.trim() || null, filter: flt, sort: srt === "" ? null : Number(srt) });
+    if (reset) { setLbl(""); setFlt(null); setSrt(""); }
+    onToast({ ok: true, text: reset ? "Το χαρακτηριστικό ακολουθεί ξανά το SoftOne στο e-shop." : "Αποθηκεύτηκε στο e-shop. Τα φίλτρα ενημερώθηκαν." });
+    router.refresh();
+  });
+  const s1 = (change: SpecChange, ok: string) => start(async () => {
+    const r = await changeSpecAction(g.id, change);
+    setConfirm(false);
+    onToast(r.ok ? { ok: true, text: ok } : { ok: false, text: [r.error, ...("details" in r && r.details ? r.details : [])].join(" ") });
+    if (r.ok) { setOpt(""); router.refresh(); }
+  });
+
+  // τι επηρεάζει η αλλαγή στο SoftOne, σε απλά λόγια
+  const impact: ReactNode[] = [];
+  if (patch.name) impact.push(<><b>{n(s.descLines)}</b> γραμμές περιγραφών γράφουν «{s.name}» και δεν θα ταιριάζουν πια{s.facet ? `: το φίλτρο χάνει τις τιμές τους (σήμερα ${n(s.facet.products)} προϊόντα)` : ""} μέχρι να αλλάξουν. Ο σύνδεσμος του φίλτρου μένει ίδιος.</>);
+  if (patch.isFilter === false) impact.push(<>Το φίλτρο φεύγει από τον τύπο στο παλιό site{s.override?.filter == null ? " και στο e-shop" : ""}.</>);
+  if (patch.isFilter === true) impact.push(<>Νέο φίλτρο στον τύπο{s.override?.filter === false ? " (στο e-shop μένει κρυφό λόγω αλλαγής e-shop)" : ""}.</>);
+  if (patch.active === false) impact.push(<>Δεν εμφανίζεται πουθενά. Ο κωδικός {s.code} μένει και ενεργοποιείται ξανά όποτε θέλεις.</>);
+  if (patch.isView != null) impact.push(<>Η προβολή αφορά το παλιό site. Το νέο e-shop δείχνει τα χαρακτηριστικά από την περιγραφή.</>);
+  const nowFilter = shopFilter({ active: s.active, isFilter: s.isFilter, override: { ...s.override, filter: flt } });
+
   return (
     <>
-      <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={!!pos} aria-label={`Ενέργειες: ${s.name}`} onClick={() => { if (pos) return close(); const b = btn.current!.getBoundingClientRect(); setPos({ top: b.bottom + 4, right: window.innerWidth - b.right }); }} className={`size-11 md:size-8 grid place-items-center rounded-full ${pos ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><MoreHorizontal className="size-4" aria-hidden /></button>
-      {pos && createPortal(
-        <div ref={menu} role="menu" aria-label={`Ενέργειες: ${s.name}`} onKeyDown={(e) => { if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return; e.preventDefault(); const items = [...(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem]:not([disabled])") ?? [])]; const i = items.indexOf(document.activeElement as HTMLElement); items[(i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus(); }}
-          className="fixed z-[70] w-64 max-w-[calc(100vw-1rem)] rounded-lg border border-eu-line bg-white p-1 shadow-[var(--shadow-raised)] grid" style={{ top: Math.min(pos.top, window.innerHeight - 260), right: Math.max(8, pos.right) }}>
-          <span className={`${head} text-eu-purple`}>Μόνο e-shop</span>
-          <button type="button" role="menuitem" disabled={!can.local || !s.active} onClick={() => { close(); onPick("local"); }} className={item}><Store className="size-4 text-eu-purple" aria-hidden />Όνομα φίλτρου & σειρά…</button>
-          <div className="border-t border-eu-line-2 my-1" />
-          <span className={`${head} text-eu-navy`}>SoftOne (και παλιό site)</span>
-          <button type="button" role="menuitem" disabled={!can.softone} onClick={() => { close(); onPick("rename"); }} className={item}><Pencil className="size-4 text-eu-navy" aria-hidden />Μετονομασία…</button>
-          <button type="button" role="menuitem" onClick={() => { close(); onPick("options"); }} className={item}><ListChecks className="size-4 text-eu-navy" aria-hidden />Προκαθορισμένες τιμές{s.options.length ? ` (${s.options.length})` : ""}…</button>
-          <button type="button" role="menuitem" disabled={!can.softone} onClick={() => { close(); onToggleActive(); }} className={item}><Layers className="size-4 text-eu-navy" aria-hidden />{s.active ? "Απενεργοποίηση (δεν διαγράφεται)" : "Ενεργοποίηση"}</button>
-          {s.facet && <><div className="border-t border-eu-line-2 my-1" /><span className="px-2 py-1 text-eu-muted text-[length:var(--fs-12)]">Σύνδεσμος φίλτρου: <span className="font-mono">?f_{s.facet.param}</span></span></>}
-        </div>,
-        document.body,
-      )}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {([["Προϊόντα με τιμή", s.facet ? n(s.facet.products) : "-"], ["Διαφορετικές τιμές", s.facet ? n(s.facet.values) : "-"], ["Γραμμές περιγραφής", n(s.descLines)]] as const).map(([k, v]) => <div key={k} className="rounded-lg bg-eu-surface/70 px-2 py-1.5"><div className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-16)] tabular-nums">{v}</div><div className="text-eu-muted text-[length:var(--fs-12)] leading-tight">{k}</div></div>)}
+      </div>
+      {s.facet && <p className={`m-0 ${help}`}>Σύνδεσμος φίλτρου στο site: <span className="font-mono text-eu-ink-3">?f_{s.facet.param}</span>{s.special ? ` · ${SPECIAL[s.special]}, οι τιμές του υπολογίζονται αυτόματα` : ""}</p>}
+
+      <Panel layer="shop" title="Στο e-shop" note="Αλλάζει μόνο ό,τι βλέπει ο πελάτης στο νέο e-shop. Το SoftOne, το παλιό site και οι περιγραφές μένουν ίδια.">
+        <fieldset disabled={!can.local || pending || !s.active} className="m-0 p-0 border-0 grid gap-3 min-w-0">
+          <label className="grid gap-1"><span className={label}>Όνομα φίλτρου</span><input value={lbl} onChange={(e) => setLbl(e.target.value)} placeholder={s.name} maxLength={80} className={field} /><span className={help}>Κενό = όπως στο SoftOne.</span></label>
+          <div className="grid gap-1" role="radiogroup" aria-label="Φίλτρο στο e-shop">
+            <span className={label}>Φίλτρο στο e-shop</span>
+            <div className="grid grid-cols-3 rounded-lg bg-eu-surface p-0.5">
+              {([[null, "Όπως SoftOne"], [true, "Πάντα"], [false, "Ποτέ"]] as const).map(([v, l]) => <button key={String(v)} type="button" role="radio" aria-checked={flt === v} disabled={!!s.special} onClick={() => setFlt(v)} className={`rounded-md min-h-11 md:min-h-8 font-bold text-[length:var(--fs-12)] disabled:opacity-50 ${flt === v ? "bg-white text-eu-purple shadow-sm" : "text-eu-ink-3 hover:text-eu-purple"}`}>{l}</button>)}
+            </div>
+            <span className={help}>Με αυτή την επιλογή {nowFilter ? "είναι" : "δεν είναι"} φίλτρο στο e-shop (στο SoftOne: {s.isFilter ? "ναι" : "όχι"}).</span>
+          </div>
+          <label className="grid gap-1 max-w-44"><span className={label}>Σειρά στα φίλτρα</span><input inputMode="numeric" value={srt} onChange={(e) => setSrt(e.target.value.replace(/[^\d]/g, ""))} placeholder={String(s.code)} className={`${field} tabular-nums`} /><span className={help}>Μικρότερο = πιο ψηλά.</span></label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {s.override ? <button type="button" onClick={() => saveShop(true)} className="inline-flex items-center gap-1 rounded-full px-2.5 min-h-11 md:min-h-9 font-bold text-eu-ink-3 text-[length:var(--fs-13)] hover:bg-eu-surface"><RotateCcw className="size-4" aria-hidden /> Όπως το SoftOne</button> : <span />}
+            <button type="button" disabled={!shopDirty} onClick={() => saveShop()} className="inline-flex items-center gap-1.5 rounded-full bg-eu-purple text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-40">{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Αποθήκευση στο e-shop</button>
+          </div>
+        </fieldset>
+      </Panel>
+
+      <Panel layer="s1" title="Στο SoftOne" note="Ισχύει στο SoftOne και στο παλιό site. Πριν γραφτεί βλέπεις τι επηρεάζει.">
+        <fieldset disabled={!can.softone || pending} className="m-0 p-0 border-0 grid gap-1 min-w-0">
+          {!can.softone && <p className="m-0 flex items-start gap-1.5 text-eu-ink-3 text-[length:var(--fs-12)]"><Lock className="size-3.5 mt-0.5 shrink-0" aria-hidden />{can.softoneReason}</p>}
+          <label className="grid gap-1 pb-1"><span className={label}>Όνομα (όπως στις περιγραφές «Όνομα : τιμή»)</span><input value={name} onChange={(e) => { setName(e.target.value); setConfirm(false); }} maxLength={100} className={field} /></label>
+          <Toggle on={isFilter} onChange={(v) => { setIsFilter(v); setConfirm(false); }} disabled={!!s.special || !can.softone} title="Φίλτρο" desc="Εμφανίζεται ως φίλτρο στον τύπο." />
+          <Toggle on={isView} onChange={(v) => { setIsView(v); setConfirm(false); }} disabled={!can.softone} title="Προβάλλεται" desc="Στο παλιό site, στα χαρακτηριστικά του προϊόντος." />
+          <Toggle on={active} onChange={(v) => { setActive(v); setConfirm(false); }} disabled={!can.softone} title="Ενεργό" desc="Ανενεργό = κρυφό παντού. Δεν διαγράφεται ποτέ." />
+          {s1Dirty && (confirm ? (
+            <div role="alert" className="mt-1 grid gap-2 rounded-lg border border-eu-amber/40 bg-eu-amber/10 p-2.5">
+              <p className="m-0 inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-amber" aria-hidden /> Θα γραφτεί στο SoftOne (παραγωγή)</p>
+              <ul className="m-0 pl-4 grid gap-1 text-eu-ink-2 text-[length:var(--fs-12)]">{impact.map((l, i) => <li key={i}>{l}</li>)}<li>Διαβάζεται όλη η ομάδα, στέλνεται ολόκληρη και επαληθεύεται ότι δεν χάθηκε καμία γραμμή.</li></ul>
+              <div className="flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setConfirm(false)} className="rounded-full border border-eu-line bg-white px-3.5 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)]">Πίσω</button><button type="button" onClick={() => s1({ kind: "set-spec", code: s.code, patch }, "Αποθηκεύτηκε στο SoftOne και επαληθεύτηκε. Τα φίλτρα ενημερώθηκαν.")} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue">{pending && <Loader2 className="size-4 animate-spin" aria-hidden />} Ναι, γράψε στο SoftOne</button></div>
+            </div>
+          ) : (
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+              <button type="button" onClick={() => { setName(s.name); setIsFilter(s.isFilter); setIsView(s.isView); setActive(s.active); }} className="rounded-full px-2.5 min-h-11 md:min-h-9 font-bold text-eu-ink-3 text-[length:var(--fs-13)] hover:bg-eu-surface">Αναίρεση</button>
+              <button type="button" onClick={() => setConfirm(true)} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue">Αποθήκευση στο SoftOne…</button>
+            </div>
+          ))}
+        </fieldset>
+      </Panel>
+
+      <Panel layer="s1" title="Προκαθορισμένες τιμές" note={s.options.length ? "Οι επιλογές του χαρακτηριστικού στο SoftOne. Αφαίρεση = ανενεργή." : "Χωρίς προκαθορισμένες τιμές: η τιμή κάθε προϊόντος έρχεται από την περιγραφή του."}>
+        {s.options.length > 0 && (
+          <ul className="m-0 p-0 list-none grid divide-y divide-eu-line-2 rounded-lg border border-eu-line">
+            {s.options.map((o) => (
+              <li key={o.code} className="px-2.5">
+                <Toggle on={o.active} disabled={!can.softone || pending} onChange={(v) => s1({ kind: "set-option", code: s.code, option: o.code, patch: { active: v } }, v ? `Η τιμή «${o.name}» ενεργοποιήθηκε.` : `Η τιμή «${o.name}» απενεργοποιήθηκε.`)} title={o.name} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {can.softone && (
+          <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (opt.trim()) s1({ kind: "add-option", code: s.code, name: opt.trim() }, `Η τιμή «${opt.trim()}» προστέθηκε στο SoftOne.`); }}>
+            <label className="flex-1"><span className="sr-only">Νέα τιμή</span><input value={opt} onChange={(e) => setOpt(e.target.value)} placeholder="Νέα τιμή" maxLength={100} disabled={pending} className={field} /></label>
+            <button disabled={!opt.trim() || pending} className="inline-flex items-center gap-1 rounded-full border border-eu-navy text-eu-navy px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-navy hover:text-white disabled:opacity-40"><Plus className="size-4" aria-hidden />Προσθήκη</button>
+          </form>
+        )}
+      </Panel>
     </>
   );
 }
 
-function AddSpec({ existing, onSave, busy }: { existing: string[]; onSave: (name: string, isFilter: boolean, isView: boolean) => void; busy: boolean }) {
+function NewSpec({ g, onDone }: { g: SpecGroupDetail; onDone: (t: Toast) => void }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
   const [name, setName] = useState(""), [isFilter, setFilter] = useState(true), [isView, setView] = useState(true);
-  const dup = existing.some((e) => e.trim().toLocaleLowerCase("el") === name.trim().toLocaleLowerCase("el"));
+  const dup = g.specs.some((e) => e.name.trim().toLocaleLowerCase("el") === name.trim().toLocaleLowerCase("el"));
+  const submit = () => start(async () => {
+    const r = await changeSpecAction(g.id, { kind: "add-spec", name: name.trim(), isFilter, isView });
+    onDone(r.ok ? { ok: true, text: `Το «${name.trim()}» προστέθηκε στο SoftOne με κωδικό ${r.code}.` } : { ok: false, text: [r.error, ...("details" in r && r.details ? r.details : [])].join(" ") });
+    if (r.ok) router.refresh();
+  });
   return (
-    <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); if (name.trim() && !dup) onSave(name.trim(), isFilter, isView); }}>
-      <label className="grid gap-0.5"><span className="text-eu-ink-2 font-semibold text-[length:var(--fs-12)]">Όνομα (όπως θα γράφεται και στις περιγραφές «Όνομα : τιμή»)</span><input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className={input} />{dup && <span role="alert" className="text-eu-red text-[length:var(--fs-12)]">Υπάρχει ήδη χαρακτηριστικό με αυτό το όνομα.</span>}</label>
-      <div className="flex flex-wrap gap-x-4">
-        <label className="inline-flex items-center gap-2 min-h-11 md:min-h-8 text-[length:var(--fs-13)] font-semibold"><input type="checkbox" checked={isFilter} onChange={(e) => setFilter(e.target.checked)} className="size-4 accent-eu-navy" />Φίλτρο</label>
-        <label className="inline-flex items-center gap-2 min-h-11 md:min-h-8 text-[length:var(--fs-13)] font-semibold"><input type="checkbox" checked={isView} onChange={(e) => setView(e.target.checked)} className="size-4 accent-eu-navy" />Προβάλλεται</label>
-      </div>
-      <p className="m-0 rounded-lg bg-eu-surface px-2.5 py-1.5 text-eu-ink-3 text-[length:var(--fs-12)]">Μπαίνει με τον επόμενο ελεύθερο κωδικό στην ομάδα του SoftOne και φαίνεται και στο παλιό site. Τιμή παίρνει όταν η περιγραφή ενός είδους έχει γραμμή «Όνομα : τιμή».</p>
-      <div className="flex justify-end"><button disabled={!name.trim() || dup || busy} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-45">{busy && <Loader2 className="size-4 animate-spin" aria-hidden />}Προσθήκη στο SoftOne</button></div>
-    </form>
+    <Panel layer="s1" title="Στο SoftOne" note="Μπαίνει στην ομάδα με τον επόμενο ελεύθερο κωδικό και φαίνεται και στο παλιό site.">
+      <form className="grid gap-1" onSubmit={(e) => { e.preventDefault(); if (name.trim() && !dup) submit(); }}>
+        <label className="grid gap-1 pb-1"><span className={label}>Όνομα (όπως θα γράφεται στις περιγραφές «Όνομα : τιμή»)</span><input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className={field} />{dup && <span role="alert" className="text-eu-red text-[length:var(--fs-12)]">Υπάρχει ήδη χαρακτηριστικό με αυτό το όνομα.</span>}</label>
+        <Toggle on={isFilter} onChange={setFilter} title="Φίλτρο" desc="Εμφανίζεται ως φίλτρο στον τύπο." />
+        <Toggle on={isView} onChange={setView} title="Προβάλλεται" desc="Στο παλιό site, στα χαρακτηριστικά του προϊόντος." />
+        <p className={`m-0 pt-1 ${help}`}>Τιμή παίρνει όταν η περιγραφή ενός είδους έχει γραμμή «{name.trim() || "Όνομα"} : τιμή».</p>
+        <div className="flex justify-end pt-1"><button disabled={!name.trim() || dup || pending} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-40">{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Προσθήκη στο SoftOne</button></div>
+      </form>
+    </Panel>
   );
 }
-
-function Rename({ s, onSave }: { s: Spec; onSave: (name: string) => void }) {
-  const [name, setName] = useState(s.name);
-  const changed = name.trim() && name.trim() !== s.name;
-  return (
-    <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); if (changed) onSave(name.trim()); }}>
-      <label className="grid gap-0.5"><span className="text-eu-ink-2 font-semibold text-[length:var(--fs-12)]">Νέο όνομα</span><input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className={input} /></label>
-      <ul className="m-0 pl-4 grid gap-1 text-eu-ink-2 text-[length:var(--fs-13)]">
-        <li>Αλλάζει στο SoftOne και στο παλιό site.</li>
-        <li><b>{n(s.descLines)}</b> γραμμές περιγραφών γράφουν «{s.name}». Δεν θα ταιριάζουν πια με το νέο όνομα, οπότε {s.facet ? `το φίλτρο θα χάσει τις τιμές τους (σήμερα ${n(s.facet.products)} προϊόντα)` : "δεν θα δίνουν τιμή"} μέχρι να αλλάξουν και οι περιγραφές.</li>
-        <li>Ο σύνδεσμος του φίλτρου στο e-shop μένει ίδιος.</li>
-      </ul>
-      <p className="m-0 rounded-lg bg-eu-purple/10 px-2.5 py-1.5 text-eu-ink-2 text-[length:var(--fs-12)]">Αν θέλεις μόνο άλλο όνομα στο φίλτρο του e-shop, προτίμησε «Όνομα φίλτρου & σειρά» (μόνο e-shop): δεν αγγίζει τις περιγραφές ούτε το παλιό site.</p>
-      <div className="flex justify-end"><button disabled={!changed} className="rounded-full bg-eu-red text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-45">Μετονομασία στο SoftOne</button></div>
-    </form>
-  );
-}
-
-function Options({ s, canWrite, onChange }: { s: Spec; canWrite: boolean; onChange: (c: SpecChange) => void }) {
-  const [name, setName] = useState("");
-  return (
-    <div className="grid gap-2.5">
-      {s.options.length ? (
-        <ul className="m-0 p-0 list-none rounded-lg border border-eu-line divide-y divide-eu-line-2 max-h-[45dvh] overflow-y-auto">
-          {s.options.map((o) => (
-            <li key={o.code} className={`flex items-center gap-2 px-2.5 py-1 text-[length:var(--fs-13)] ${o.active ? "" : "text-eu-muted"}`}>
-              <span className="font-mono text-eu-muted text-[length:var(--fs-12)] w-6">{o.code}</span><span className="flex-1 truncate">{o.name}</span>
-              <Switch on={o.active} label={`Ενεργή τιμή: ${o.name}`} disabled={!canWrite} onClick={() => onChange({ kind: "set-option", code: s.code, option: o.code, patch: { active: !o.active } })} />
-            </li>
-          ))}
-        </ul>
-      ) : <p className="m-0 rounded-lg bg-eu-surface/60 px-2.5 py-2 text-eu-muted text-[length:var(--fs-13)]">Χωρίς προκαθορισμένες τιμές: η τιμή κάθε προϊόντος έρχεται από την περιγραφή του.</p>}
-      {canWrite && (
-        <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (name.trim()) onChange({ kind: "add-option", code: s.code, name: name.trim() }); }}>
-          <label className="flex-1"><span className="sr-only">Νέα τιμή</span><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Νέα τιμή" maxLength={100} className={input} /></label>
-          <button disabled={!name.trim()} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-45"><Plus className="size-4" aria-hidden />Προσθήκη</button>
-        </form>
-      )}
-      <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Αλλάζουν στο SoftOne (και στο παλιό site), με επαλήθευση. Αφαίρεση = ανενεργή τιμή.</p>
-    </div>
-  );
-}
-
-function LocalSettings({ s, onSave }: { s: Spec; onSave: (next: { label: string | null; sort: number | null }) => void }) {
-  const [label, setLabel] = useState(s.override?.label ?? "");
-  const [sort, setSort] = useState(s.override?.sort != null ? String(s.override.sort) : "");
-  return (
-    <form className="grid gap-2.5" onSubmit={(e) => { e.preventDefault(); onSave({ label: label.trim() || null, sort: sort.trim() === "" ? null : Number(sort) }); }}>
-      <label className="grid gap-0.5"><span className="text-eu-ink-2 font-semibold text-[length:var(--fs-12)]">Όνομα φίλτρου στο e-shop</span><input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={s.name} maxLength={80} className={input} /><span className="text-eu-muted text-[length:var(--fs-12)]">Κενό = όπως στο SoftOne. Οι περιγραφές και ο σύνδεσμος δεν αλλάζουν.</span></label>
-      <label className="grid gap-0.5 max-w-40"><span className="text-eu-ink-2 font-semibold text-[length:var(--fs-12)]">Σειρά</span><input inputMode="numeric" value={sort} onChange={(e) => setSort(e.target.value.replace(/[^\d]/g, ""))} placeholder={String(s.code)} className={`${input} tabular-nums`} /><span className="text-eu-muted text-[length:var(--fs-12)]">Μικρότερο = πιο ψηλά.</span></label>
-      <div className="flex flex-wrap justify-between gap-2">
-        {(s.override?.label || s.override?.sort != null) ? <button type="button" onClick={() => onSave({ label: null, sort: null })} className="rounded-full border border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-3 text-[length:var(--fs-13)]">Επαναφορά</button> : <span />}
-        <button className="inline-flex items-center gap-1 rounded-full bg-eu-purple text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)]"><Filter className="size-4" aria-hidden />Αποθήκευση στο e-shop</button>
-      </div>
-    </form>
-  );
-}
-

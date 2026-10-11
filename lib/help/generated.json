@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-11T08:37:28.330Z",
+ "generatedAt": "2026-10-11T08:47:34.645Z",
  "routes": [
   {
    "route": "/admin",
@@ -309,6 +309,11 @@
    ],
    "changes": [
     {
+     "hash": "91d0809",
+     "date": "2026-10-11T11:37:59+03:00",
+     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
+    },
+    {
      "hash": "a5eea75",
      "date": "2026-10-11T11:19:28+03:00",
      "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)"
@@ -352,14 +357,9 @@
      "hash": "1d4d3a7",
      "date": "2026-10-04T09:05:45+03:00",
      "text": "Καρτέλα προϊόντος: «Ενημέρωση από SoftOne»"
-    },
-    {
-     "hash": "6e70d7b",
-     "date": "2026-10-02T21:52:49+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T11:19:28+03:00",
+   "updatedAt": "2026-10-11T11:37:59+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -585,10 +585,14 @@
    "helpKeys": [
     "specs.tree",
     "specs.detail",
-    "specs.layers",
     "specs.table"
    ],
    "changes": [
+    {
+     "hash": "91d0809",
+     "date": "2026-10-11T11:37:59+03:00",
+     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
+    },
     {
      "hash": "a234171",
      "date": "2026-10-10T10:43:51+03:00",
@@ -633,14 +637,9 @@
      "hash": "e25c1c1",
      "date": "2026-09-21T10:36:52+03:00",
      "text": "Φίλτρα με τιμές: κάθε προϊόν παίρνει τιμή στα φίλτρα του τύπου του (ProductFacetValue)"
-    },
-    {
-     "hash": "e6829fa",
-     "date": "2026-09-21T10:18:51+03:00",
-     "text": "Προβολή του καθρέφτη SoftOne στο κατάστημα: Category › Product › Spec › Facet"
     }
    ],
-   "updatedAt": "2026-10-10T10:43:51+03:00",
+   "updatedAt": "2026-10-11T11:37:59+03:00",
    "shots": {}
   },
   {
@@ -2368,6 +2367,11 @@
    ],
    "changes": [
     {
+     "hash": "91d0809",
+     "date": "2026-10-11T11:37:59+03:00",
+     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
+    },
+    {
      "hash": "705ab72",
      "date": "2026-10-11T03:08:55+03:00",
      "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
@@ -2411,14 +2415,9 @@
      "hash": "9c97666",
      "date": "2026-10-03T08:36:00+03:00",
      "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
-    },
-    {
-     "hash": "6561fd3",
-     "date": "2026-10-02T17:11:55+03:00",
-     "text": "Φάση 0"
     }
    ],
-   "updatedAt": "2026-10-11T03:08:55+03:00",
+   "updatedAt": "2026-10-11T11:37:59+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2441,6 +2440,11 @@
    ],
    "changes": [
     {
+     "hash": "91d0809",
+     "date": "2026-10-11T11:37:59+03:00",
+     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
+    },
+    {
      "hash": "705ab72",
      "date": "2026-10-11T03:08:55+03:00",
      "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
@@ -2484,14 +2488,9 @@
      "hash": "9c97666",
      "date": "2026-10-03T08:36:00+03:00",
      "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
-    },
-    {
-     "hash": "6561fd3",
-     "date": "2026-10-02T17:11:55+03:00",
-     "text": "Φάση 0"
     }
    ],
-   "updatedAt": "2026-10-11T03:08:55+03:00",
+   "updatedAt": "2026-10-11T11:37:59+03:00",
    "shots": {}
   },
   {
@@ -2933,6 +2932,16 @@
  ],
  "recent": [
   {
+   "hash": "91d0809",
+   "date": "2026-10-11T11:37:59+03:00",
+   "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/specs"
+   ]
+  },
+  {
    "hash": "a5eea75",
    "date": "2026-10-11T11:19:28+03:00",
    "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)",
@@ -3269,12 +3278,6 @@
    "date": "2026-10-10T12:25:44+03:00",
    "text": "Εγγύηση: εγγύηση κατασκευαστή από την περιγραφή του ERP στη σελίδα προϊόντος",
    "routes": []
-  },
-  {
-   "hash": "a024361",
-   "date": "2026-10-10T11:40:42+03:00",
-   "text": "Αναζήτηση site: και στον κωδικό μοντέλου και στα ονόματα των «Set ειδών» του SoftOne και των μελών τους (π.χ. «mx1-ef» → Midea MX1-…RD1H SOLUNAR)",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3387,9 +3390,6 @@
    "components/admin/catalog/SpecManager.tsx"
   ],
   "specs.detail": [
-   "components/admin/catalog/SpecManager.tsx"
-  ],
-  "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
   ],
   "specs.table": [
