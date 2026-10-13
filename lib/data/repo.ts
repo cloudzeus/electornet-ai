@@ -433,11 +433,12 @@ export async function getDevices(): Promise<DeviceInfo[]> {
  * null όταν η μάρκα δείχνει μόνο τον κατάλογο. Τα fixtures χρησιμοποιούνται μόνο σε βάση χωρίς κανένα brand store
  * (νέα εγκατάσταση / demo).
  */
-async function storesInDb() {
+/** Υπάρχουν σελίδες μαρκών στη βάση; (αλλάζει σπάνια — 1′ στη μνήμη αντί για μέτρηση σε κάθε επίσκεψη) */
+const storesInDb = swr(async () => {
   const { COLLECTION } = await import("@/lib/cms/brand-stores");
   const { db } = await import("@/lib/db");
   return (await dbEnabled()) && (await db.cmsDocument.count({ where: { collection: COLLECTION } }).catch(() => 0)) > 0;
-}
+}, 60_000);
 export async function getBrandStore(slug: string): Promise<BrandStore | null> {
   if (await storesInDb()) return (await import("@/lib/cms/brand-stores")).getPublishedStore(slug);
   return brandStores.find((b) => b.slug === slug) ?? null;

@@ -130,6 +130,8 @@ async function computeOnce(): Promise<RecomputeResult> {
     if (removed.length) writes.push(db.productOffer.deleteMany({ where: { productId: { in: removed } } }));
     for (let i = 0; i < writes.length; i += 200) await db.$transaction(writes.slice(i, i + 200));
     state.computedAt = now.getTime();
+    // άλλαξαν τιμές / ετικέτες: οι λίστες και οι σελίδες προϊόντων της μνήμης ανανεώνονται (dynamic import: κύκλος με τον κατάλογο)
+    if (writes.length) await import("@/lib/data/db-catalog").then((m) => m.resetCatalogCache()).catch(() => null);
     return { products: products.length, withOffer: rows.length, changed, removed: removed.length, ms: Date.now() - t0 };
   }
 }

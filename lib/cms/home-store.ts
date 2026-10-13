@@ -1,4 +1,5 @@
 import "server-only";
+import { swr } from "@/lib/cache/swr";
 import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -11,10 +12,13 @@ import { defaultHomeDoc, normalizeHomeDoc, type HomeDoc } from "./home-sections"
 const COLLECTION = "home.layout";
 const where = { collection_key_locale: { collection: COLLECTION, key: "home", locale: "el" } };
 
-export const getPublishedHome = cache(async (): Promise<HomeDoc> => {
+/** Η δημοσιευμένη αρχική — σε κάθε επίσκεψη· κοινή μνήμη 15″ (έως 1′), μηδενίζεται σε κάθε δημοσίευση / σενάριο. */
+const publishedHome = swr(async (): Promise<HomeDoc> => {
   const d = await db.cmsDocument.findUnique({ where, select: { published: true } }).catch(() => null);
   return d?.published ? normalizeHomeDoc(d.published) : defaultHomeDoc();
-});
+}, 15_000, { maxStaleMs: 60_000 });
+export const resetPublishedHome = () => publishedHome.reset();
+export const getPublishedHome = cache(() => publishedHome());
 
 export async function getHomeDoc() {
   const d = await db.cmsDocument.findUnique({ where });
@@ -33,7 +37,9 @@ export async function saveHomeDraft(doc: HomeDoc, by: string) {
 export async function publishHome(by: string) {
   const d = await db.cmsDocument.findUnique({ where });
   if (!d?.data) throw new Error("Δεν υπάρχει πρόχειρο.");
-  return db.cmsDocument.update({ where, data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  const r = await db.cmsDocument.update({ where, data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  publishedHome.reset();
+  return r;
 }
 
 export async function revertHome(by: string) {

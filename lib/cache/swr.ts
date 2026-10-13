@@ -7,8 +7,8 @@
 
 /** Πολλές τιμές με κλειδί (π.χ. ανά χρήστη) — η καθεμία με το ίδιο swr. */
 export function swrMap<T>(ttlMs: number, opts: { maxStaleMs?: number; max?: number } = {}) {
-  const m = new Map<string, { get: () => Promise<T>; load: { current: () => Promise<T> } }>();
-  return (key: string, load: () => Promise<T>): Promise<T> => {
+  const m = new Map<string, { get: ReturnType<typeof swr<T>>; load: { current: () => Promise<T> } }>();
+  const fn = (key: string, load: () => Promise<T>): Promise<T> => {
     let e = m.get(key);
     if (!e) {
       if (m.size >= (opts.max ?? 500)) m.delete(m.keys().next().value!);
@@ -19,6 +19,11 @@ export function swrMap<T>(ttlMs: number, opts: { maxStaleMs?: number; max?: numb
     e.load.current = load;
     return e.get();
   };
+  /** Όλες οι τιμές «παλιές» (π.χ. αλλαγή καταλόγου): σερβίρονται άλλη μία φορά και ανανεώνονται. */
+  fn.invalidateAll = () => { for (const e of m.values()) e.get.invalidate(); };
+  /** Σβήνει όλες τις τιμές (π.χ. αλλαγή προϊόντος από τη διαχείριση — να φανεί αμέσως στο site). */
+  fn.resetAll = () => { m.clear(); };
+  return fn;
 }
 export function swr<T>(load: () => Promise<T>, ttlMs: number, opts: { maxStaleMs?: number } = {}) {
   const maxStale = opts.maxStaleMs ?? Infinity;
@@ -32,5 +37,7 @@ export function swr<T>(load: () => Promise<T>, ttlMs: number, opts: { maxStaleMs
   };
   /** Μετά από αλλαγή στη διαχείριση: η τιμή γίνεται «παλιά» — ο επόμενος παίρνει αμέσως αυτήν και ξεκινά ανανέωση. */
   get.invalidate = () => { if (value) value = { ...value, at: 0 }; };
+  /** Σβήνει την τιμή: ο επόμενος περιμένει φρέσκα (π.χ. μετά από αποθήκευση ρυθμίσεων — να φανεί αμέσως). */
+  get.reset = () => { value = null; };
   return get;
 }

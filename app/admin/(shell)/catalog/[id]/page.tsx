@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Product } from "@/lib/data/types";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ProductActions } from "@/components/admin/catalog/ProductActions";
@@ -13,7 +14,7 @@ import { db } from "@/lib/db";
 import { listProductImages } from "@/lib/catalog/product-images";
 import { ProductImages } from "@/components/admin/catalog/ProductImages";
 import { ProductPromos } from "@/components/admin/promos/ProductPromos";
-import { getProductsByIds } from "@/lib/data/repo";
+import { getProductBySlug, getProductsByIds } from "@/lib/data/repo";
 import { arPlan, productDims } from "@/lib/ar/plan";
 import { SoftoneRefresh } from "@/components/admin/catalog/SoftoneRefresh";
 import { ProductEditor, type EditorValues } from "@/components/admin/catalog/ProductEditor";
@@ -66,7 +67,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
     tab === "content" ? db.productSection.count({ where: { productId: p.id, hidden: false } }) : Promise.resolve(0),
     db.productAr.findUnique({ where: { productId: p.id } }),
-    getProductsByIds([p.id]),
+    // το προϊόν όπως το βλέπει ο πελάτης (για την απόφαση AR) — από τη μνήμη του καταλόγου
+    // (ανενεργό / χωρίς φωτογραφία δεν είναι στη μνήμη του site → απευθείας, όπως πριν)
+    getProductBySlug(p.slug).then((x): Promise<Product[]> | Product[] => (x ? [x] : getProductsByIds([p.id]))),
     fromS1 ? db.s1Item.findUnique({ where: { mtrl } }) : Promise.resolve(null),
     itemWriteEnabled(),
     db.productDimension.findMany({ where: { productId: id }, orderBy: { source: "asc" } }),

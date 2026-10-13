@@ -29,7 +29,9 @@ export async function saveHeroDraft(doc: HeroDoc, by: string) {
 export async function publishHero(by: string) {
   const d = await db.cmsDocument.findUnique({ where });
   if (!d) throw new Error("Δεν υπάρχει πρόχειρο.");
-  return db.cmsDocument.update({ where, data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  const r = await db.cmsDocument.update({ where, data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  publishedHero.reset(); heroDealShared.invalidate();
+  return r;
 }
 
 /** Το πρόχειρο γυρίζει στη δημοσιευμένη έκδοση. */
@@ -53,10 +55,12 @@ async function resolve(slides: HeroSlideDoc[]): Promise<HeroSlide[]> {
 }
 
 /** Το δημοσιευμένο έγγραφο (μία ανάγνωση ανά αίτημα). */
-const getPublishedHeroDoc = cache(async (): Promise<HeroDoc | null> => {
+/** Τα δημοσιευμένα slides — σε κάθε επίσκεψη της αρχικής· κοινή μνήμη 15″ (έως 1′), μηδενίζεται με τη δημοσίευση. */
+const publishedHero = swr(async (): Promise<HeroDoc | null> => {
   const d = await db.cmsDocument.findUnique({ where, select: { published: true } }).catch(() => null);
   return asDoc(d?.published);
-});
+}, 15_000, { maxStaleMs: 60_000 });
+const getPublishedHeroDoc = cache(() => publishedHero());
 
 /** Τα slides του hero για αυτό το αίτημα. */
 export const getLiveHeroSlides = cache(async (): Promise<HeroSlide[]> => resolve(pickSlides(await getPublishedHeroDoc(), new Date())));

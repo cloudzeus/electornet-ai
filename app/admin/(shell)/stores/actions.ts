@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { resetStoresCache } from "@/lib/stores/repo";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
@@ -28,7 +29,7 @@ export async function saveStore(id: string | null, input: StoreInput) {
   };
   const row = id ? await db.store.update({ where: { id }, data }) : await db.store.create({ data: { ...data, geocoded: "manual" } });
   await audit(user.id, id ? "store.update" : "store.create", "Store", row.id, before ? { name: before.name, address: before.address, lat: before.lat, lng: before.lng, active: before.active } : null, { name: data.name, address: data.address, lat: data.lat, lng: data.lng, active: data.active });
-  revalidatePath("/admin/stores");
+  revalidatePath("/admin/stores"); resetStoresCache();
   revalidatePath("/katastimata");
   return { ok: true as const, id: row.id, slug };
 }
@@ -37,7 +38,7 @@ export async function geocodeStoreAction(id: string, force: boolean) {
   const user = await requirePermission("stores.write");
   const r = await geocodeStore(id, force);
   if (r.ok) await audit(user.id, "store.geocode", "Store", id, null, { lat: r.lat, lng: r.lng, applied: r.applied, deltaKm: r.deltaKm });
-  revalidatePath("/admin/stores");
+  revalidatePath("/admin/stores"); resetStoresCache();
   return r;
 }
 
@@ -53,7 +54,7 @@ export async function geocodeBatch() {
   }
   const left = await db.store.count({ where: { OR: [{ lat: 0 }, { geoLat: null }] } });
   await audit(user.id, "store.geocode.batch", "Store", "*", null, { ok, left });
-  revalidatePath("/admin/stores");
+  revalidatePath("/admin/stores"); resetStoresCache();
   return { ok: true as const, done: ok, left };
 }
 
@@ -64,7 +65,7 @@ export async function syncFromSite(overwriteContact: boolean) {
     const list = await fetchLiveStores();
     const r = await upsertStores(list, { overwriteContact });
     await audit(user.id, "store.sync", "Store", "*", null, r);
-    revalidatePath("/admin/stores");
+    revalidatePath("/admin/stores"); resetStoresCache();
     return { ok: true as const, ...r };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : "Αποτυχία" };
@@ -75,6 +76,6 @@ export async function toggleStore(id: string, active: boolean) {
   const user = await requirePermission("stores.write");
   await db.store.update({ where: { id }, data: { active } });
   await audit(user.id, active ? "store.activate" : "store.deactivate", "Store", id, null, { active });
-  revalidatePath("/admin/stores");
+  revalidatePath("/admin/stores"); resetStoresCache();
   return { ok: true as const };
 }

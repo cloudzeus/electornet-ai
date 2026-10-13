@@ -1,4 +1,5 @@
 import { maybeTickPromos } from "@/lib/promo/offers";
+import { swrMap } from "@/lib/cache/swr";
 import { productSections } from "@/lib/catalog/banner-extract";
 import "server-only";
 import type { Prisma } from "@prisma/client";
@@ -76,7 +77,7 @@ const resetListeners = new Set<() => void>();
 /** Κάτι που εξαρτάται από τον κατάλογο (π.χ. το mega menu) ενημερώνεται μαζί με το δέντρο. */
 export const onCatalogReset = (fn: () => void) => { resetListeners.add(fn); };
 /** Μετά από αλλαγή στον κατάλογο: το δέντρο (και ό,τι ακούει) γίνεται «παλιό» και ξαναχτίζεται στο παρασκήνιο. */
-export const resetCatalogCache = () => { if (treeCache) treeCache = { ...treeCache, at: 0 }; for (const fn of resetListeners) fn(); };
+export const resetCatalogCache = () => { if (treeCache) treeCache = { ...treeCache, at: 0 }; productCache.resetAll(); listCache.resetAll(); relatedCache.resetAll(); brandsCache.invalidateAll(); for (const fn of resetListeners) fn(); };
 
 export const dbEnabled = async () => (await catalogTree()).roots.length > 0;
 
@@ -193,7 +194,20 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
   };
 }
 
-export async function dbProductBySlug(slug: string): Promise<Product | null> {
+/**
+ * Σελίδα προϊόντος και λίστες: ίδιες για όλους τους επισκέπτες → κοινή μνήμη 1′ (έως 5′ με ανανέωση στο παρασκήνιο).
+ * Κάθε αλλαγή καταλόγου (resetCatalogCache: διαχείριση, συγχρονισμός SoftOne, stickers, προσφορές) τις σβήνει — ό,τι
+ * άλλαξε φαίνεται στο site με την επόμενη προβολή.
+ * Πριν: 7–8 ερωτήματα σε κάθε προβολή, με τη βάση σε άλλο μηχάνημα και κοινή με άλλα projects.
+ */
+const productCache = swrMap<Product | null>(60_000, { maxStaleMs: 5 * 60_000, max: 600 });
+const listCache = swrMap<ListResult>(60_000, { maxStaleMs: 5 * 60_000, max: 400 });
+export const dbProductBySlug = (slug: string): Promise<Product | null> => productCache(slug, () => productBySlugFresh(slug));
+export const dbListProducts = (f: ListFilter & { l3?: string }): Promise<ListResult> => {
+  maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
+  return listCache(JSON.stringify(f), () => listProductsFresh(f));
+};
+async function productBySlugFresh(slug: string): Promise<Product | null> {
   await loadStickerCatalog();
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true }, select: {
@@ -249,7 +263,10 @@ export async function dbProductsByIds(ids: string[]): Promise<Product[]> {
   const a = await attrsFor(rows.map((r) => r.id));
   return rows.map((r) => withAttrs(toProduct(r, { specs: r.specs.map((s) => ({ group: s.groupName, key: s.key, value: s.value })) }), a));
 }
-export async function dbRelated(p: Product, limit = 8): Promise<Product[]> {
+const relatedCache = swrMap<Product[]>(60_000, { maxStaleMs: 5 * 60_000, max: 600 });
+/** «Παρόμοια» μιας σελίδας προϊόντος — ίδια για όλους, στη μνήμη του καταλόγου. */
+export const dbRelated = (p: Product, limit = 8): Promise<Product[]> => relatedCache(`${p.id}:${limit}`, () => relatedFresh(p, limit));
+async function relatedFresh(p: Product, limit = 8): Promise<Product[]> {
   await loadStickerCatalog();
   if (!p.typeSlug) return [];
   // Ευρεία δεξαμενή, με προτεραιότητα σε όσα έχουν τεκμηριωμένα χαρακτηριστικά: «παρόμοιο» που δεν έχει τίποτα να συγκριθεί δεν βοηθά
@@ -271,9 +288,8 @@ const smart = (a: string, b: string) => { const na = parseFloat(a.replace(/\./g,
 /** Όλοι οι απόγονοι-τύποι μιας κατηγορίας (τα προϊόντα κρέμονται μόνο από τύπους). */
 function leafIds(n: CatNode): string[] { return n.children.length ? n.children.flatMap(leafIds) : [n.id]; }
 
-export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<ListResult> {
+async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListResult> {
   await loadStickerCatalog();
-  maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
   const t = await catalogTree();
   const node = t.bySlug.get(f.l3 ?? f.l2 ?? f.l1 ?? "") ?? null;
   const scope: Prisma.ProductWhereInput = { ...LISTED, ...(node ? { categoryId: { in: leafIds(node) } } : {}) };
@@ -328,7 +344,10 @@ export async function dbListProducts(f: ListFilter & { l3?: string }): Promise<L
 
 // ---------- Μάρκες ----------
 
-export async function dbBrands() {
+/** Μάρκες με πλήθη (σελίδα Μάρκες, μενού) — ίδιες για όλους, στη μνήμη του καταλόγου 5′. */
+const brandsCache = swrMap<Awaited<ReturnType<typeof brandsFresh>>>(5 * 60_000, { maxStaleMs: 30 * 60_000, max: 1 });
+export const dbBrands = () => brandsCache("all", brandsFresh);
+async function brandsFresh() {
   const counts = await db.product.groupBy({ by: ["brandId"], where: LISTED, _count: { _all: true } });
   const rows = await db.brand.findMany({ where: { id: { in: counts.map((c) => c.brandId) } }, select: { id: true, slug: true, name: true, logo: true, logoCdn: true, logoStatus: true } });
   const n = new Map(counts.map((c) => [c.brandId, c._count._all]));

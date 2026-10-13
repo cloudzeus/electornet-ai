@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { resetPublishedStores } from "@/lib/cms/brand-stores";
+import { resetPublishedHome } from "@/lib/cms/home-store";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { runDueScenarios } from "@/lib/cms/doc-plans";
@@ -13,10 +15,10 @@ export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const published: string[] = [];
-  if (await runDueScenarios(HOME_TARGET, { force: true })) { published.push("home"); revalidatePath("/"); }
+  if (await runDueScenarios(HOME_TARGET, { force: true })) { published.push("home"); resetPublishedHome(); revalidatePath("/"); }
   const brands = await db.cmsDocument.findMany({ where: { collection: "brand.stores.plans", locale: "el" }, select: { key: true } });
   for (const { key } of brands) {
-    if (await runDueScenarios(brandTarget(key), { force: true }).catch(() => false)) { published.push(`brand:${key}`); revalidatePath(`/brands/${key}`); revalidatePath("/brands"); }
+    if (await runDueScenarios(brandTarget(key), { force: true }).catch(() => false)) { published.push(`brand:${key}`); resetPublishedStores(); revalidatePath(`/brands/${key}`); revalidatePath("/brands"); }
   }
   return NextResponse.json({ published });
 }

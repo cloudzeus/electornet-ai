@@ -1,4 +1,5 @@
 import "server-only";
+import { swr } from "@/lib/cache/swr";
 import { db } from "@/lib/db";
 import { s1 } from "@/lib/softone";
 
@@ -151,7 +152,11 @@ const readSource = (def: LookupDef) => (def.browser ? getBrowserRows(def.browser
  * existing rows, one createMany for the unseen ones, targeted updates only
  * where the SoftOne mirror actually changed, one updateMany for the vanished.
  */
+/** Συγχρονισμός ενός πίνακα — μετά, τα στατιστικά της σελίδας SoftOne μηδενίζονται για να φανούν αμέσως. */
 export async function syncLookup(kind: string, trigger: "manual" | "cron" | "script" = "manual") {
+  try { return await syncLookupRun(kind, trigger); } finally { statsCache.reset(); }
+}
+async function syncLookupRun(kind: string, trigger: "manual" | "cron" | "script") {
   const def = lookupByKind(kind);
   if (!def) throw new Error(`unknown lookup ${kind}`);
   const t0 = Date.now();
@@ -213,7 +218,13 @@ export async function syncAllLookups(trigger: "manual" | "cron" | "script" = "cr
 }
 
 /** Overview numbers for the admin: rows, linked to S1, missing in S1, last run. */
-export async function lookupStats() {
+/**
+ * Στατιστικά ανά πίνακα (5 μετρήσεις × κάθε πίνακας — δεκάδες ερωτήματα μαζί με 8 συνδέσεις) — 1′ στη μνήμη,
+ * μηδενίζονται μετά από κάθε συγχρονισμό.
+ */
+const statsCache = swr(() => lookupStatsFresh(), 60_000, { maxStaleMs: 5 * 60_000 });
+export const lookupStats = () => statsCache();
+async function lookupStatsFresh() {
   return Promise.all(LOOKUPS.map(async (def) => {
     const d = delegate(def.model);
     const [total, linked, missing, active, last] = await Promise.all([d.count(), d.count({ where: { s1Id: { not: null } } }), d.count({ where: { s1Missing: true } }), d.count({ where: { active: true } }), db.s1SyncRun.findFirst({ where: { kind: def.kind }, orderBy: { at: "desc" } })]);

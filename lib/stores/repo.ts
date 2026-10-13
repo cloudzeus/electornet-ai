@@ -1,4 +1,5 @@
 import "server-only";
+import { swr } from "@/lib/cache/swr";
 import type { Store as StoreRow } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { Store } from "@/lib/data/types";
@@ -45,8 +46,11 @@ export function toStoreView(r: StoreRow, origin = SYNTAGMA): Store {
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+/** Τα ενεργά καταστήματα — σε κάθε σελίδα προϊόντος και 2× στην αρχική· μνήμη 1′ (έως 10′), μηδενίζεται από τη διαχείριση. */
+const storeRows = swr(() => db.store.findMany({ where: { active: true }, orderBy: [{ sort: "asc" }, { name: "asc" }] }), 60_000, { maxStaleMs: 10 * 60_000 });
+export const resetStoresCache = () => storeRows.reset();
 export async function dbStores(origin = SYNTAGMA): Promise<Store[] | null> {
-  const rows = await db.store.findMany({ where: { active: true }, orderBy: [{ sort: "asc" }, { name: "asc" }] }).catch(() => []);
+  const rows = await storeRows().catch(() => []);
   return rows.length ? rows.map((r) => toStoreView(r, origin)) : null;
 }
 

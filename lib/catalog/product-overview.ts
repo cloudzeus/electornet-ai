@@ -12,7 +12,7 @@ const MONTHS = 12;
 
 export async function productOverview(productId: string, now = new Date()) {
   const since = new Date(now.getFullYear(), now.getMonth() - (MONTHS - 1), 1);
-  const [erpLines, credits, shopLines, devices, tickets, reviewAgg, reviewsPending, questions, unanswered, wish, offer] = await Promise.all([
+  const [erpLines, credits, shopLines, devices, tickets, reviewAgg, reviewsPending, questions, unanswered, wish, offer, ticketCounts] = await Promise.all([
     db.purchaseLine.findMany({ where: { productId, purchase: { parentId: null, kind: { in: ["order", "receipt", "invoice"] }, NOT: { status: "cancelled" } } }, select: { qty: true, lineTotal: true, unitPrice: true, purchase: { select: { id: true, date: true, source: true, seriesName: true, docNo: true, customer: { select: { id: true, firstName: true, lastName: true, company: true, type: true } } } } } }),
     db.purchaseLine.aggregate({ where: { productId, purchase: { kind: "credit" } }, _sum: { qty: true } }),
     db.orderLine.findMany({ where: { variant: { productId }, isGift: false, order: { status: { notIn: ["cancelled", "failed"] } } }, select: { qty: true, lineTotal: true, unitPrice: true, order: { select: { id: true, number: true, createdAt: true, customer: { select: { id: true, firstName: true, lastName: true, company: true, type: true } } } } } }),
@@ -24,9 +24,10 @@ export async function productOverview(productId: string, now = new Date()) {
     db.question.count({ where: { productId, answer: null } }),
     db.wishlistItem.count({ where: { productId } }),
     db.productOffer.findUnique({ where: { productId }, select: { price: true, listPrice: true, memberPrice: true, endsAt: true, lowest30: true, promotionId: true } }),
+    db.serviceTicket.groupBy({ by: ["status"], where: { device: { productId } }, _count: true }),
   ]);
+  // μόνο όταν το προϊόν είναι σε προσφορά (λίγα) — ένας ακόμη γύρος
   const promo = offer?.promotionId ? await db.promotion.findUnique({ where: { id: offer.promotionId }, select: { id: true, name: true } }) : null;
-  const ticketCounts = await db.serviceTicket.groupBy({ by: ["status"], where: { device: { productId } }, _count: true });
 
   const nameOf = (c: { firstName: string; lastName: string; company: string | null; type: string } | null) => (c ? (c.type === "business" && c.company ? c.company : `${c.lastName} ${c.firstName}`.trim()) : null);
   const sales = [

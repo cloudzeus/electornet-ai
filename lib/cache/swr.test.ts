@@ -34,3 +34,14 @@ test("swrMap: ξεχωριστές τιμές ανά κλειδί", async () => 
   assert.equal(await get("b", async () => "B"), "B");
   assert.equal(await get("a", async () => "X"), "A");
 });
+
+test("swrMap: resetAll σβήνει, invalidateAll σερβίρει μία φορά το παλιό", async () => {
+  let n = 0;
+  const get = swrMap<number>(1000);
+  assert.equal(await get("k", async () => ++n), 1);
+  get.invalidateAll();
+  assert.equal(await get("k", async () => ++n), 1); // παλιό, ανανέωση στο παρασκήνιο
+  await new Promise((r) => setTimeout(r, 5));
+  get.resetAll();
+  assert.equal(await get("k", async () => ++n), 3); // φρέσκο αμέσως
+});

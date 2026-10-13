@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { resetPublishedStores } from "@/lib/cms/brand-stores";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
@@ -44,7 +45,7 @@ export default async function BrandPage({ params, searchParams }: { params: Prom
   if (!brand) notFound();
   // Brand store (CMS record) → the manufacturer's own page; ?all=1 shows the plain listing.
   // προγραμματισμένα σενάρια της σελίδας δημοσιεύονται στην ώρα τους (το πολύ ένας έλεγχος ανά 30″)
-  await runDueScenarios(brandTarget(slug)).catch(() => false);
+  if (await runDueScenarios(brandTarget(slug)).catch(() => false)) resetPublishedStores();
   const preview = !sp.all ? await previewStore(slug, sp) : null;
   const store = sp.all ? null : preview ?? (await getBrandStore(slug));
   const result = await listProducts({ brand: [slug], energy: sp.energy?.split(",").filter(Boolean), minPrice: sp.min ? Number(sp.min) : undefined, maxPrice: sp.max ? Number(sp.max) : undefined, avail: sp.avail === "in-stock" ? "in-stock" : undefined, sale: sp.sale === "1", sort: (sp.sort as ListFilter["sort"]) ?? "relevance", page: sp.page ? Number(sp.page) : 1 });

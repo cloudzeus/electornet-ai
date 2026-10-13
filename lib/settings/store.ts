@@ -3,13 +3,27 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 import { SECTIONS, isSecret, sectionByKey } from "./schema";
 import { decryptJson, encryptJson } from "./crypto";
+import { swr } from "@/lib/cache/swr";
 
 export type SettingValues = Record<string, string | number | boolean>;
 
+/**
+ * Όλες οι ρυθμίσεις σε μία κοινή μνήμη: τις διαβάζει ΚΑΘΕ αίτημα (layouts shop και διαχείρισης, features, couriers) και
+ * αλλάζουν σπάνια — 30″ φρέσκες, έως 2′ με ανανέωση στο παρασκήνιο. Η αποθήκευση από τη διαχείριση τη σβήνει (saveSetting),
+ * ώστε η αλλαγή να φαίνεται στο επόμενο αίτημα. Οι ενότητες που γράφονται αλλού απευθείας (κλειδώματα προσφορών, session
+ * SoftOne…) διαβάζονται και από εκεί απευθείας — όχι από εδώ.
+ */
+const allSettings = swr(async () => {
+  const rows = await db.setting.findMany({ select: { section: true, data: true, secrets: true } });
+  return new Map(rows.map((r) => [r.section, { data: (r.data as SettingValues) ?? {}, secrets: decryptJson(r.secrets) }]));
+}, 30_000, { maxStaleMs: 120_000 });
+/** Μετά από εγγραφή ρυθμίσεων εκτός saveSetting (π.χ. script): ο επόμενος διαβάζει φρέσκα. */
+export const resetSettingsCache = () => allSettings.reset();
+
 /** Full section values (secrets decrypted) — server-side use only (integrations). */
 export const getSetting = cache(async (section: string): Promise<{ data: SettingValues; secrets: Record<string, string> }> => {
-  const row = await db.setting.findUnique({ where: { section } });
-  return { data: ((row?.data as SettingValues) ?? {}), secrets: decryptJson(row?.secrets) };
+  const row = (await allSettings()).get(section);
+  return { data: { ...(row?.data ?? {}) }, secrets: { ...(row?.secrets ?? {}) } };
 });
 
 /** Which secret fields are set (for the admin form: show «•••• αποθηκευμένο»). */
@@ -41,16 +55,16 @@ export async function saveSetting(section: string, values: SettingValues, secret
     update: { data, secrets: encryptJson(secrets), updatedById },
     create: { section, data, secrets: encryptJson(secrets), updatedById },
   });
+  allSettings.reset();
   return { before: (prev?.data as SettingValues) ?? {}, after: data, secretKeys: Object.keys(secrets) };
 }
 
 /** Storefront-safe view: only fields marked `public`, all sections, no secrets. */
 export const getPublicSettings = cache(async (): Promise<Record<string, SettingValues>> => {
-  const rows = await db.setting.findMany().catch(() => []);
+  const rows = await allSettings().catch(() => new Map<string, { data: SettingValues }>());
   const out: Record<string, SettingValues> = {};
   for (const s of SECTIONS) {
-    const row = rows.find((r) => r.section === s.key);
-    const data = (row?.data as SettingValues) ?? {};
+    const data = rows.get(s.key)?.data ?? {};
     out[s.key] = Object.fromEntries(s.fields.filter((f) => f.public && data[f.key] !== undefined && data[f.key] !== "").map((f) => [f.key, data[f.key]]));
   }
   return out;

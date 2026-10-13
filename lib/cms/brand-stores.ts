@@ -1,4 +1,5 @@
 import "server-only";
+import { swr } from "@/lib/cache/swr";
 import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -22,10 +23,13 @@ export const getPublishedStore = cache(async (slug: string): Promise<BrandStore 
 });
 
 /** Όλες οι δημοσιευμένες (για τη σελίδα /brands). */
-export const getPublishedStores = cache(async (): Promise<BrandStore[]> => {
+/** Οι δημοσιευμένες σελίδες μαρκών (σελίδα Μάρκες) — 30″ στη μνήμη (έως 1′), μηδενίζεται σε δημοσίευση / απόσυρση. */
+const publishedStores = swr(async (): Promise<BrandStore[]> => {
   const rows = await db.cmsDocument.findMany({ where: { collection: COLLECTION, locale: LOCALE, published: { not: Prisma.DbNull } }, orderBy: { publishedAt: "desc" }, select: { published: true } }).catch(() => []);
   return rows.map((r) => asStore(r.published)).filter((s): s is BrandStore => !!s);
-});
+}, 30_000, { maxStaleMs: 60_000 });
+export const resetPublishedStores = () => publishedStores.reset();
+export const getPublishedStores = cache(() => publishedStores());
 
 export async function getStoreDoc(slug: string) {
   const d = await db.cmsDocument.findUnique({ where: where(slug) });
@@ -50,11 +54,15 @@ export async function saveDraft(slug: string, store: BrandStore, by: string) {
 export async function publishDraft(slug: string, by: string) {
   const d = await db.cmsDocument.findUnique({ where: where(slug) });
   if (!d) throw new Error("Δεν υπάρχει πρόχειρο.");
-  return db.cmsDocument.update({ where: where(slug), data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  const r = await db.cmsDocument.update({ where: where(slug), data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
+  publishedStores.reset();
+  return r;
 }
 
 export async function unpublish(slug: string, by: string) {
-  return db.cmsDocument.update({ where: where(slug), data: { published: Prisma.DbNull, updatedBy: by } });
+  const r = await db.cmsDocument.update({ where: where(slug), data: { published: Prisma.DbNull, updatedBy: by } });
+  publishedStores.reset();
+  return r;
 }
 
 /** Το πρόχειρο γυρίζει στη δημοσιευμένη έκδοση (ακύρωση αλλαγών). */

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pdpExtras } from "@/lib/catalog/pdp-extras";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, Package, Recycle } from "lucide-react";
@@ -6,8 +7,6 @@ import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
-import { setPartsForSite } from "@/lib/catalog/sets";
-import { extEligibleMap, productWarranty } from "@/lib/warranty/server";
 import { EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS } from "@/lib/warranty/policy";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
@@ -30,7 +29,6 @@ import { getGridFactor } from "@/lib/energy/emissions";
 import { after } from "next/server";
 import { headers } from "next/headers";
 import { buildArModel, arInputOf, arKey } from "@/lib/ar/build";
-import { db } from "@/lib/db";
 import { AR_SERVE_VERSION, primeArLookup } from "@/lib/ar/serve";
 import { arPlan, arVariants } from "@/lib/ar/plan";
 import { getArCategories } from "@/lib/ar/categories";
@@ -65,17 +63,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = await getProductBySlug(slug);
   if (!p) notFound();
   // όλα ανεξάρτητα μεταξύ τους → ένας γύρος (πριν ήταν 5 διαδοχικοί: ~1″ με τη βάση σε άλλο μηχάνημα)
-  const [l1, related, accessories, services, stores, co2, setParts, maker, extOk, ar, arCats] = await Promise.all([
+  const [l1, related, accessories, services, stores, co2, { setParts, maker, extOk, ar }, arCats] = await Promise.all([
     getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
     // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
     getGridFactor().catch(() => null),
-    // «Set ειδών» του SoftOne: τι περιλαμβάνει (π.χ. εσωτερική + εξωτερική μονάδα)
-    p.fromDb ? setPartsForSite(p.id).catch(() => null) : null,
-    // εγγύηση κατασκευαστή (από την περιγραφή του ERP) και δωρεάν επέκταση +2 έτη όπου ισχύει
-    p.fromDb ? productWarranty(p.id).catch(() => null) : null,
-    p.fromDb ? extEligibleMap([p.id]).then((m) => m.get(p.id) ?? false).catch(() => false) : false,
-    // «Δες το στον χώρο σου»: ρύθμιση από τη διαχείριση (/admin/ar) και κατηγορίες με AR
-    db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories(),
+    // set ειδών (π.χ. εσωτερική + εξωτερική μονάδα), εγγύηση κατασκευαστή, δωρεάν επέκταση +2 έτη, ρύθμιση AR — στη μνήμη ανά προϊόν
+    pdpExtras(p.id, !!p.fromDb),
+    // «Δες το στον χώρο σου»: κατηγορίες με AR
+    getArCategories(),
   ]);
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)

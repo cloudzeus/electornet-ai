@@ -36,12 +36,17 @@ const key = () => process.env.EMITIONS_API_KEY ?? process.env.EMISSIONS_API_KEY 
 export const hasEmissionsKey = () => key().length > 0;
 const month = () => new Date().toISOString().slice(0, 7);
 
+/** Ο αποθηκευμένος συντελεστής αλλάζει το πολύ μία φορά τον μήνα — 10′ στη μνήμη (σε κάθε σελίδα προϊόντος). */
+let mem: { at: number; v: Stored } | null = null;
 async function readStore(): Promise<Stored> {
+  if (mem && Date.now() - mem.at < 10 * 60_000) return mem.v;
   const row = await db.setting.findUnique({ where: { section: SECTION } }).catch(() => null);
-  return ((row?.data as Stored) ?? {});
+  mem = { at: Date.now(), v: (row?.data as Stored) ?? {} };
+  return mem.v;
 }
 async function writeStore(s: Stored) {
   await db.setting.upsert({ where: { section: SECTION }, update: { data: s as object }, create: { section: SECTION, data: s as object } });
+  mem = { at: Date.now(), v: s };
 }
 
 /** Μία κλήση στο API: ένταση δικτύου της χώρας. Μετρά στον μηνιαίο προϋπολογισμό. */
