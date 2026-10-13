@@ -38,8 +38,15 @@ export interface CatNode { id: string; slug: string; name: string; depth: number
 interface Tree { roots: CatNode[]; bySlug: Map<string, CatNode>; byId: Map<string, CatNode>; at: number }
 let treeCache: Tree | null = null;
 
+/** Το δέντρο κατηγοριών με πλήθη — κοινό σε όλες τις σελίδες, στη μνήμη 5' με ανανέωση στο παρασκήνιο. */
 export async function catalogTree(): Promise<Tree> {
   if (treeCache && Date.now() - treeCache.at < TTL) return treeCache;
+  if (treeCache) { refreshTree().catch(() => null); return treeCache; }
+  return refreshTree();
+}
+let treeLoading: Promise<Tree> | null = null;
+const refreshTree = () => (treeLoading ??= buildTree().finally(() => { treeLoading = null; }));
+async function buildTree(): Promise<Tree> {
   const [cats, counts] = await Promise.all([
     db.category.findMany({ where: { source: "softone", active: true }, orderBy: [{ depth: "asc" }, { sortNo: "asc" }], select: { id: true, slug: true, name: true, depth: true, parentId: true } }),
     db.product.groupBy({ by: ["categoryId"], where: LISTED, _count: { _all: true } }),
@@ -65,7 +72,11 @@ async function setSearchIndex() {
 }
 
 /** Μετά από «Προβολή στο κατάστημα» ή ανέβασμα φωτογραφιών. */
-export const resetCatalogCache = () => { treeCache = null; };
+const resetListeners = new Set<() => void>();
+/** Κάτι που εξαρτάται από τον κατάλογο (π.χ. το mega menu) ενημερώνεται μαζί με το δέντρο. */
+export const onCatalogReset = (fn: () => void) => { resetListeners.add(fn); };
+/** Μετά από αλλαγή στον κατάλογο: το δέντρο (και ό,τι ακούει) γίνεται «παλιό» και ξαναχτίζεται στο παρασκήνιο. */
+export const resetCatalogCache = () => { if (treeCache) treeCache = { ...treeCache, at: 0 }; for (const fn of resetListeners) fn(); };
 
 export const dbEnabled = async () => (await catalogTree()).roots.length > 0;
 

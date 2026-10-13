@@ -1,5 +1,7 @@
 import { attributeFacets, matchesAttrs, type AttrFacet } from "./attributes";
-import { dbEnabled, dbNavTree, dbListProducts, dbProductBySlug, dbProductsByIds, dbRelated, dbBrands, dbSuggest, findCategoryPath, catalogTree } from "./db-catalog";
+import { cache } from "react";
+import { swr } from "@/lib/cache/swr";
+import { dbEnabled, dbNavTree, dbListProducts, dbProductBySlug, dbProductsByIds, dbRelated, dbBrands, dbSuggest, findCategoryPath, catalogTree, onCatalogReset } from "./db-catalog";
 import "server-only";
 import type { Appointment, Brand, ConsentPref, Customer, Faq, Guide, InstalmentPlan, NewsItem, Order, PaymentMethod, Policy, Product, Service, Store } from "./types";
 import { navCategories, type NavCategory } from "./nav";
@@ -193,9 +195,8 @@ export async function listProducts(f: ListFilter = {}): Promise<ListResult> {
   };
 }
 
-export async function getProductBySlug(slug: string) {
-  return products.find((p) => p.slug === slug) ?? (await dbProductBySlug(slug));
-}
+/** Μία φορά ανά αίτημα (τη ζητούν και τα metadata και η σελίδα — χωρίς cache ήταν δύο πλήρεις φορτώσεις). */
+export const getProductBySlug = cache(async (slug: string) => products.find((p) => p.slug === slug) ?? (await dbProductBySlug(slug)));
 /** Ids του demo και της βάσης μαζί (σύγκριση, λίστα επιθυμιών, πρόσφατα), με τη σειρά που ζητήθηκαν. */
 export async function getProductsByIds(ids: string[]) {
   const demo = new Map(products.filter((p) => ids.includes(p.id)).map((p) => [p.id, p]));
@@ -379,8 +380,13 @@ export interface MegaMenuEntry {
   top: Product[];
   guide: { title: string; href: string; image?: string } | null;
 }
-/** @dynamic Per-category menu content (promo product, top brands, quick filters, guide) — from the CMS «menu» zone with fallbacks computed from the catalogue. Cached 5 min. */
-export async function getMegaMenuData(): Promise<MegaMenuEntry[]> {
+/**
+ * Per-category menu content (top brands, counts, three products, guide). Τρέχει σε ΚΑΘΕ σελίδα του shop (layout) και
+ * κοστίζει μία λίστα προϊόντων ανά κύρια κατηγορία (~1–3 s) — γι' αυτό μένει στη μνήμη 10' με ανανέωση στο παρασκήνιο.
+ */
+export const getMegaMenuData = swr(buildMegaMenuData, 10 * 60_000);
+onCatalogReset(getMegaMenuData.invalidate);
+async function buildMegaMenuData(): Promise<MegaMenuEntry[]> {
   const smart: Record<string, { title: string; href: string; image?: string }> = {
     "eikona-ixos": { title: "Ποια τηλεόραση σού ταιριάζει;", href: "/odigos-agoras/tileoraseis", image: "/img/guide-tv.jpg" },
     computing: { title: "Ποιος υπολογιστής σού ταιριάζει;", href: "/odigos-agoras/ypologistes", image: "/img/hero-laptop.jpg" },

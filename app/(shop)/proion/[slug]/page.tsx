@@ -64,7 +64,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const p = await getProductBySlug(slug);
   if (!p) notFound();
-  const [l1, related, accessories, services, stores] = await Promise.all([getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores()]);
+  // όλα ανεξάρτητα μεταξύ τους → ένας γύρος (πριν ήταν 5 διαδοχικοί: ~1″ με τη βάση σε άλλο μηχάνημα)
+  const [l1, related, accessories, services, stores, co2, setParts, maker, extOk, ar, arCats] = await Promise.all([
+    getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
+    // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
+    getGridFactor().catch(() => null),
+    // «Set ειδών» του SoftOne: τι περιλαμβάνει (π.χ. εσωτερική + εξωτερική μονάδα)
+    p.fromDb ? setPartsForSite(p.id).catch(() => null) : null,
+    // εγγύηση κατασκευαστή (από την περιγραφή του ERP) και δωρεάν επέκταση +2 έτη όπου ισχύει
+    p.fromDb ? productWarranty(p.id).catch(() => null) : null,
+    p.fromDb ? extEligibleMap([p.id]).then((m) => m.get(p.id) ?? false).catch(() => false) : false,
+    // «Δες το στον χώρο σου»: ρύθμιση από τη διαχείριση (/admin/ar) και κατηγορίες με AR
+    db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories(),
+  ]);
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
@@ -72,16 +84,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
-  // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
-  const co2 = await getGridFactor().catch(() => null);
-  // «Set ειδών» του SoftOne: τι περιλαμβάνει (π.χ. εσωτερική + εξωτερική μονάδα)
-  const setParts = p.fromDb ? await setPartsForSite(p.id).catch(() => null) : null;
-  // εγγύηση κατασκευαστή (από την περιγραφή του ERP) και δωρεάν επέκταση +2 έτη όπου ισχύει
-  const [maker, extOk] = p.fromDb ? await Promise.all([productWarranty(p.id).catch(() => null), extEligibleMap([p.id]).then((m) => m.get(p.id) ?? false).catch(() => false)]) : [null, false];
   const warranty = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
-  const [ar, arCats] = await Promise.all([db.productAr.findUnique({ where: { productId: p.id } }).catch(() => null), getArCategories()]);
   const arP = arPlan(p, ar, arCats);
   primeArLookup(p.id, { p, ar, plan: arP });
   const arInput = arP.on && arP.dims ? arInputOf(p, arP, ar?.frontImage ?? null) : null;

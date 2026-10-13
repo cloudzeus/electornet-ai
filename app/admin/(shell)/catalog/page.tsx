@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { swr } from "@/lib/cache/swr";
 import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText, Search } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -24,6 +25,16 @@ const SORTS: Record<string, (d: Dir) => Prisma.ProductOrderByWithRelationInput> 
 const shown = { kind: "image", hidden: false } as const;
 
 /** Τα προϊόντα του καταστήματος (προβολή του SoftOne). Από εδώ ανοίγει η καρτέλα κάθε προϊόντος για τις φωτογραφίες του. */
+/** Γενικά σύνολα του καταλόγου (ίδια για όλους) — 1′ στη μνήμη: τρεις μετρήσεις σε όλα τα προϊόντα με έλεγχο φωτογραφιών. */
+const totalsCache = swr(async () => {
+  return Promise.all([
+    db.product.count({ where: { active: true } }),
+    db.product.count({ where: { active: true, media: { some: shown } } }),
+    db.product.count({ where: { active: true, media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } }),
+  ]);
+}, 60_000, { maxStaleMs: 10 * 60_000 });
+const catalogTotals = () => totalsCache();
+
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; cat?: string; page?: string; s?: string; d?: string; n?: string }> }) {
   const user = await requirePermission("catalog.products.read");
   const promoWrite = can(user.permissions, "catalog.promos.write");
@@ -37,25 +48,24 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(cat ? { category: { parent: { parentId: cat } } } : {}),
     ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : {}),
   };
-  const [rows, total, masters, all, withImg, lowRes] = await Promise.all([
+  const [rows, total, masters, [all, withImg, lowRes]] = await Promise.all([
     db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
     db.product.count({ where }),
     db.category.findMany({ where: { depth: 0, active: true }, orderBy: { sortNo: "asc" }, select: { id: true, name: true } }),
-    db.product.count({ where: { active: true } }),
-    db.product.count({ where: { active: true, media: { some: shown } } }),
-    db.product.count({ where: { active: true, media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } }),
+    catalogTotals(),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));
   // προϊόντα που πουλιούνται ως «Set ειδών» στο SoftOne (σήμανση «Set»)
   const codes = rows.map((r) => Number(r.erpCode)).filter(Number.isInteger);
-  const setHeads = new Set(codes.length ? (await db.s1Set.findMany({ where: { mtrl: { in: codes }, active: true }, select: { mtrl: true } }).catch(() => [])).map((s) => String(s.mtrl)) : []);
-  // τεμάχια που πουλήθηκαν (e-shop + παραστατικά SoftOne, χωρίς ακυρωμένα) — μόνο για τις γραμμές της σελίδας
+  // sets και τεμάχια που πουλήθηκαν (e-shop + παραστατικά SoftOne, χωρίς ακυρωμένα) — μόνο για τις γραμμές της σελίδας, σε έναν γύρο
   const ids = rows.map((r) => r.id);
-  const [erpSold, variants] = await Promise.all([
+  const [setRows, erpSold, variants, shopSold] = await Promise.all([
+    codes.length ? db.s1Set.findMany({ where: { mtrl: { in: codes }, active: true }, select: { mtrl: true } }).catch(() => []) : [],
     db.purchaseLine.groupBy({ by: ["productId"], where: { productId: { in: ids }, purchase: { parentId: null, kind: { in: ["order", "receipt", "invoice"] }, NOT: { status: "cancelled" } } }, _sum: { qty: true } }),
     db.variant.findMany({ where: { productId: { in: ids } }, select: { id: true, productId: true } }),
+    db.orderLine.groupBy({ by: ["variantId"], where: { variant: { productId: { in: ids } }, isGift: false, order: { status: { notIn: ["cancelled", "failed"] } } }, _sum: { qty: true } }),
   ]);
-  const shopSold = variants.length ? await db.orderLine.groupBy({ by: ["variantId"], where: { variantId: { in: variants.map((v) => v.id) }, isGift: false, order: { status: { notIn: ["cancelled", "failed"] } } }, _sum: { qty: true } }) : [];
+  const setHeads = new Set(setRows.map((s) => String(s.mtrl)));
   const sold = new Map<string, number>();
   for (const x of erpSold) if (x.productId) sold.set(x.productId, (sold.get(x.productId) ?? 0) + (x._sum.qty ?? 0));
   const vp = new Map(variants.map((v) => [v.id, v.productId]));

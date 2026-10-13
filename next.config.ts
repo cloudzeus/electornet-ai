@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
   },
   typedRoutes: false,
   /** τα screenshots του wiki (εκτός public/) μπαίνουν στο standalone για το /api/help-shot */
-  outputFileTracingIncludes: { "/api/help-shot/[name]": ["./help-shots/**"] },
+  /** η γραμματοσειρά (ελληνικά) του δελτίου παράδοσης PDF διαβάζεται από αρχείο */
+  outputFileTracingIncludes: { "/api/help-shot/[name]": ["./help-shots/**"], "/api/admin/shipments/deltio": ["./lib/couriers/fonts/**"] },
 };
 
 export default nextConfig;

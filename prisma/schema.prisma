@@ -4,7 +4,10 @@
 // (zones, widgets, guides, consents, reviews, sessions).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Σχέσεις σε ΕΝΑ ερώτημα (LATERAL JOIN) αντί για ένα ανά σχέση: ο Postgres είναι σε άλλο μηχάνημα και κάθε γύρος
+  // κοστίζει — σελίδα προϊόντος ~1,7″ → ~0,45″, λίστα διαχείρισης 7 ερωτήματα → 1 (μέτρηση 13/10/2026).
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

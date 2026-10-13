@@ -1,4 +1,5 @@
 import "server-only";
+import { swrMap } from "@/lib/cache/swr";
 import { db } from "@/lib/db";
 import { getPlans } from "@/lib/cms/home-plans";
 import { getHeroAdminDoc } from "@/lib/cms/hero-slides";
@@ -443,12 +444,20 @@ const L: Record<string, Loader> = {
   },
 };
 
+/**
+ * Κρυφή μνήμη ανά χρήστη και component: 30″ φρέσκο, έως 5′ σερβίρεται το παλιό με ανανέωση στο παρασκήνιο. Το
+ * dashboard τρέχει ~26 components × 2–3 ερωτήματα με 8 συνδέσεις (κοινός Postgres) — χωρίς αυτό κάθε επιστροφή στην
+ * αρχική της διαχείρισης περίμενε 1–2″. Τα σφάλματα δεν μένουν στη μνήμη.
+ */
+const widgetCache = swrMap<WidgetData>(30_000, { maxStaleMs: 5 * 60_000, max: 2000 });
+
 /** Δεδομένα ενός component· ποτέ δεν ρίχνει σφάλμα (το component δείχνει τι πήγε στραβά). */
 export async function loadWidget(id: string, u: DashUser): Promise<WidgetData | null> {
   const fn = L[id];
   if (!fn) return null;
   try {
-    return await Promise.race([fn(u), new Promise<WidgetData>((_, rej) => setTimeout(() => rej(new Error("Αργή απάντηση της βάσης")), 8000))]);
+    const key = `${id}:${u.id}:${u.storeId ?? ""}:${u.permissions.length}`;
+    return await Promise.race([widgetCache(key, () => fn(u)), new Promise<WidgetData>((_, rej) => setTimeout(() => rej(new Error("Αργή απάντηση της βάσης")), 8000))]);
   } catch (e) {
     console.error(`[dashboard] ${id}`, e);
     return { error: e instanceof Error ? e.message : "Σφάλμα" };
