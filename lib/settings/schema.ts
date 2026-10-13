@@ -75,9 +75,12 @@ const CARRIER_SETUP: { id: string; title: string; help: string; fee: string; eta
     { key: "genikiEnv", label: "Περιβάλλον", type: "select", width: "half", options: [{ value: "test", label: "Δοκιμαστικό (testvoucher)" }, { value: "live", label: "Παραγωγή" }], help: "Η Γενική δίνει στοιχεία παραγωγής αφού δει υλοποιημένα: σύνδεση, έκδοση, εκτύπωση, ακύρωση, κλείσιμο ημέρας." },
     { key: "genikiSubCode", label: "Κέντρο κόστους (SubCode)", type: "text", width: "half", help: "Μόνο αν η Γενική σάς έχει δώσει κέντρα κόστους." },
     { key: "genikiLabel", label: "Χαρτί ετικέτας", type: "select", width: "half", options: [{ value: "Flyer", label: "A4 (Flyer)" }, { value: "Sticker", label: "Αυτοκόλλητο (Sticker)" }, { value: "StickerF6", label: "Αυτοκόλλητο A6 (StickerF6)" }] }] },
-  { id: "elta", title: "ΕΛΤΑ Courier", help: "Τα στοιχεία web services δίνονται από την ΕΛΤΑ Courier (info@elta-courier.gr): κωδικός πελάτη, χρήστης, κωδικός.", fee: "3.90", eta: "2–4 εργάσιμες", creds: [
+  { id: "elta", title: "ΕΛΤΑ Courier", help: "Τα στοιχεία web services δίνονται από την ΕΛΤΑ Courier (info@elta-courier.gr): κωδικός πελάτη, χρήστης, κωδικός. Αν υπάρχουν στο .env του server (ELTA_PELATIS, ELTA_USER, ELTA_PASS), ισχύουν εκείνα.", fee: "3.90", eta: "2–4 εργάσιμες", creds: [
     { key: "eltaCustomerCode", label: "Κωδικός πελάτη", type: "text", width: "half" }, { key: "eltaUser", label: "Χρήστης", type: "text", width: "half" },
-    { key: "eltaPassword", label: "Κωδικός", type: "secret", width: "half" }] },
+    { key: "eltaPassword", label: "Κωδικός", type: "secret", width: "half" },
+    { key: "eltaEnv", label: "Περιβάλλον", type: "select", width: "half", options: [{ value: "stage", label: "Δοκιμαστικό (wsstage)" }, { value: "production", label: "Παραγωγή" }], help: "Τα δοκιμαστικά στοιχεία δεν δουλεύουν στην παραγωγή (και αντίστροφα)· η ΕΛΤΑ δίνει ξεχωριστά." },
+    { key: "eltaSubCode", label: "Υποκωδικός πελάτη (pelSubCode)", type: "text", width: "half", help: "Μόνο αν η ΕΛΤΑ σάς έχει δώσει υποκωδικούς (π.χ. ανά αποθήκη)." },
+    { key: "eltaPickup", label: "Παραγγελία παραλαβής με κάθε voucher", type: "toggle", width: "half", help: "Η ΕΛΤΑ έρχεται να πάρει το δέμα την επόμενη εργάσιμη. Κλειστό αν έχετε σταθερή καθημερινή παραλαβή ή τα πηγαίνετε στο κατάστημα." }] },
   { id: "asap", title: "ASAP Couriers", help: "Αυθημερόν / express στην Αττική. Το API δίνεται μετά από αίτηση στο asapcouriers.gr/eshop-partners.", fee: "6.90", eta: "Αυθημερόν στην Αττική", creds: [
     { key: "asapAtticaOnly", label: "Μόνο για Αττική", type: "toggle", public: true, width: "half", help: "Με ΤΚ εκτός Αττικής ο πελάτης δεν μπορεί να τον διαλέξει." },
     { key: "asapApiKey", label: "API key", type: "secret", width: "half" }] },

@@ -43,7 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Αποστολές",
     items: [
       { href: "/admin/apostoles", label: "Αποστολές", icon: Truck, perm: "catalog.products.read" },
-      { href: "/admin/apostoles/vouchers", label: "Vouchers · Γενική Ταχυδρομική", icon: Truck, perm: "orders.read", feature: "geniki" },
+      { href: "/admin/apostoles/vouchers", label: "Vouchers courier", icon: Truck, perm: "orders.read", feature: "vouchers" },
     ],
   },
   {

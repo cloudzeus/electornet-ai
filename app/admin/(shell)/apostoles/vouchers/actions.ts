@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { cancelShipment, closeDay, createShipment, trackShipments } from "@/lib/couriers/shipments";
 import { genikiConfig, genikiPing, GenikiError } from "@/lib/couriers/geniki/client";
+import { eltaConfig, eltaPing, EltaError } from "@/lib/couriers/elta/client";
 
 const done = () => revalidatePath("/admin/apostoles/vouchers");
 
@@ -38,8 +39,13 @@ export async function trackNowAction() {
   return r;
 }
 
-export async function pingGenikiAction() {
+export async function pingCourierAction(carrier: "geniki" | "elta") {
   await requirePermission("orders.read");
+  if (carrier === "elta") {
+    const c = await eltaConfig();
+    if (!c) return { ok: false as const, error: "Δεν έχουν συμπληρωθεί κωδικός πελάτη, χρήστης και κωδικός της ΕΛΤΑ (ELTA_PELATIS, ELTA_USER, ELTA_PASS)." };
+    try { await eltaPing(c); return { ok: true as const, env: c.env === "production" ? "live" : "test" }; } catch (e) { return { ok: false as const, error: e instanceof EltaError ? e.message : "Η σύνδεση απέτυχε." }; }
+  }
   const c = await genikiConfig();
   if (!c) return { ok: false as const, error: "Δεν έχουν συμπληρωθεί όνομα χρήστη, κωδικός και app key." };
   try { await genikiPing(c); return { ok: true as const, env: c.env }; } catch (e) { return { ok: false as const, error: e instanceof GenikiError ? e.message : "Η σύνδεση απέτυχε." }; }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileDown, Loader2, PackagePlus, PlugZap, RefreshCw, Truck, XCircle } from "lucide-react";
-import { cancelVoucherAction, closeDayAction, createVoucherAction, pingGenikiAction, trackNowAction } from "./actions";
+import { cancelVoucherAction, closeDayAction, createVoucherAction, pingCourierAction, trackNowAction } from "./actions";
 
 const btn = "inline-flex items-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 disabled:opacity-50";
 const field = "w-full rounded-lg border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-15)] tabular-nums";
@@ -35,13 +35,13 @@ export function CreateVoucher({ orderId, weightKg, weightKnown, pieces, disabled
   );
 }
 
-export function CancelVoucher({ id }: { id: string }) {
+export function CancelVoucher({ id, courier }: { id: string; courier: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   return (
     <span className="inline-grid gap-1">
-      <button type="button" disabled={pending} onClick={() => { if (!window.confirm("Ακύρωση του voucher στη Γενική Ταχυδρομική;")) return; start(async () => { const r = await cancelVoucherAction(id); setErr(r.ok ? null : r.error); router.refresh(); }); }} className={`${btn} border border-eu-line text-eu-red hover:bg-eu-red/5`}>
+      <button type="button" disabled={pending} onClick={() => { if (!window.confirm(`Ακύρωση του voucher στην ${courier};`)) return; start(async () => { const r = await cancelVoucherAction(id); setErr(r.ok ? null : r.error); router.refresh(); }); }} className={`${btn} border border-eu-line text-eu-red hover:bg-eu-red/5`}>
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <XCircle className="size-4" aria-hidden />} Ακύρωση
       </button>
       {err && <span role="alert" className="text-eu-red font-bold text-[length:var(--fs-13)]">{err}</span>}
@@ -49,8 +49,8 @@ export function CancelVoucher({ id }: { id: string }) {
   );
 }
 
-/** Ενέργειες ημέρας: δοκιμή σύνδεσης, εκτύπωση ανοιχτών, κλείσιμο ημέρας, ενημέρωση παρακολούθησης. */
-export function DayActions({ openIds, canWrite }: { openIds: string[]; canWrite: boolean }) {
+/** Ενέργειες ημέρας: δοκιμή σύνδεσης, εκτύπωση ανοιχτών, κλείσιμο ημέρας (μόνο Γενική), ενημέρωση παρακολούθησης. */
+export function DayActions({ carrier, openIds, canWrite }: { carrier: "geniki" | "elta"; openIds: string[]; canWrite: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -58,9 +58,9 @@ export function DayActions({ openIds, canWrite }: { openIds: string[]; canWrite:
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={pending} onClick={() => run(async () => { const r = await pingGenikiAction(); return r.ok ? { ok: true, text: `Σύνδεση OK (${r.env === "live" ? "παραγωγή" : "δοκιμαστικό"}).` } : { ok: false, text: r.error }; })} className={`${btn} border border-eu-line text-eu-ink-2 hover:bg-eu-surface`}><PlugZap className="size-4" aria-hidden /> Δοκιμή σύνδεσης</button>
+        <button type="button" disabled={pending} onClick={() => run(async () => { const r = await pingCourierAction(carrier); return r.ok ? { ok: true, text: `Σύνδεση OK (${r.env === "live" ? "παραγωγή" : "δοκιμαστικό"}).` } : { ok: false, text: r.error }; })} className={`${btn} border border-eu-line text-eu-ink-2 hover:bg-eu-surface`}><PlugZap className="size-4" aria-hidden /> Δοκιμή σύνδεσης</button>
         {openIds.length > 0 && <a href={`/api/admin/shipments/label?ids=${openIds.join(",")}`} target="_blank" rel="noreferrer" className={`${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-surface`}><FileDown className="size-4" aria-hidden /> Ετικέτες ανοιχτών ({openIds.length})</a>}
-        {canWrite && <button type="button" disabled={pending || !openIds.length} onClick={() => { if (!window.confirm(`Κλείσιμο ημέρας: η Γενική θα ενημερωθεί για ${openIds.length} vouchers. Μετά δεν ακυρώνονται από εδώ. Έχουν τυπωθεί οι ετικέτες;`)) return; run(async () => { const r = await closeDayAction(); return r.ok ? { ok: true, text: `Έκλεισαν ${r.closed} vouchers.` } : { ok: false, text: r.error }; }); }} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}><Truck className="size-4" aria-hidden /> Κλείσιμο ημέρας</button>}
+        {canWrite && carrier === "geniki" && <button type="button" disabled={pending || !openIds.length} onClick={() => { if (!window.confirm(`Κλείσιμο ημέρας: η Γενική θα ενημερωθεί για ${openIds.length} vouchers. Μετά δεν ακυρώνονται από εδώ. Έχουν τυπωθεί οι ετικέτες;`)) return; run(async () => { const r = await closeDayAction(); return r.ok ? { ok: true, text: `Έκλεισαν ${r.closed} vouchers.` } : { ok: false, text: r.error }; }); }} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}><Truck className="size-4" aria-hidden /> Κλείσιμο ημέρας</button>}
         {canWrite && <button type="button" disabled={pending} onClick={() => run(async () => { const r = await trackNowAction(); return { ok: true, text: `Ελέγχθηκαν ${r.checked} αποστολές, ${r.updated} άλλαξαν.` }; })} className={`${btn} border border-eu-line text-eu-ink-2 hover:bg-eu-surface`}>{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Ενημέρωση παρακολούθησης</button>}
       </div>
       {msg && <p role="status" className={`m-0 font-bold text-[length:var(--fs-14)] ${msg.ok ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</p>}
