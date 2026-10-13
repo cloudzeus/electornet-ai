@@ -262,6 +262,8 @@ export interface Order {
   total: number;
   payment: { method: string; instalments?: number; last4?: string };
   tracking?: { courier: string; code: string; url: string; events: { date: string; text: string }[] };
+  /** η αποστολή με τις κινήσεις του courier (widget παρακολούθησης) — μόνο σε παραγγελίες e-shop με voucher */
+  shipment?: import("@/lib/couriers/timeline-model").ShipmentTimeline;
   invoice?: { vat: string; company: string; doy: string };
   /** πού έγινε η αγορά: e-shop, παλιό e-shop ή κατάστημα (παραστατικά του SoftOne) — και ποιο παραστατικό */
   channel?: "eshop" | "legacy" | "store";

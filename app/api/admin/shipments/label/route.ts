@@ -4,7 +4,7 @@ import { shipmentLabels } from "@/lib/couriers/shipments";
 /** GET ?ids=a,b → οι ετικέτες (Γενική / ΕΛΤΑ) σε ένα PDF. */
 export async function GET(req: Request) {
   await requirePermission("orders.read");
-  const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter(Boolean).slice(0, 50);
+  const ids = (new URL(req.url).searchParams.get("ids") ?? "").split(",").filter(Boolean).slice(0, 200);
   try {
     const pdf = await shipmentLabels(ids);
     return new Response(new Uint8Array(pdf), { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="vouchers.pdf"`, "cache-control": "no-store" } });

@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
 import type { Appointment, ConsentPref, Customer, InstalmentPlan, Order } from "@/lib/data/types";
 import { consents as CONSENT_TOPICS } from "@/lib/data/fixtures/account";
+import { shipmentTimeline } from "@/lib/couriers/timeline";
+import { carrierDef } from "@/lib/shipping/carriers";
+import { contactMatches } from "@/lib/orders/contact";
 
 /**
  * Τα δεδομένα του λογαριασμού για τον συνδεδεμένο πελάτη, στους τύπους που περιμένουν ήδη οι σελίδες:
@@ -27,12 +30,39 @@ export async function accountCustomer(id: string): Promise<Customer | null> {
 }
 
 const PRODUCT = { select: { slug: true, brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" as const }, take: 1, select: { url: true } } } } as const;
+/** Τα στοιχεία μιας παραγγελίας e-shop που χρειάζονται οι σελίδες (λογαριασμός, εντοπισμός) — και η τρέχουσα αποστολή. */
+const SHOP_ORDER = {
+  payment: { select: { method: true, instalments: true, status: true } },
+  lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { price: true, service: { select: { slug: true, title: true } } } }, variant: { select: { product: PRODUCT } } } },
+  shipments: { where: { status: { not: "cancelled" } }, orderBy: { createdAt: "desc" as const }, take: 1, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true } },
+} as const;
+type ShopOrderRow = NonNullable<Awaited<ReturnType<typeof db.order.findFirst<{ include: typeof SHOP_ORDER }>>>>;
+
+function toShopOrder(o: ShopOrderRow, storeName: Map<string, string>): Order {
+  const s = (o.shipping ?? {}) as Record<string, string>;
+  const inv = (o.invoice ?? null) as { vatNumber?: string; company?: string; doy?: string } | null;
+  return {
+    number: o.number, date: o.createdAt.toISOString(), status: o.status as Order["status"], fulfilment: o.fulfilment as Order["fulfilment"], channel: "eshop",
+    pickupStore: o.pickupStoreId ? storeName.get(o.pickupStoreId) : undefined,
+    address: o.fulfilment === "click-collect" ? undefined : { id: "", label: s.carrierName ?? "", firstName: s.firstName ?? "", lastName: s.lastName ?? "", street: s.street ?? (s.locker as unknown as { name?: string })?.name ?? "", number: s.number ?? "", floor: s.floor, city: s.city ?? "", zip: s.zip ?? "", region: s.region ?? "", phone: s.phone ?? "" },
+    lines: o.lines.map((l) => ({ productId: l.variant.product.slug || l.id, title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: n(l.unitPrice), addons: l.addons.map((a) => ({ slug: a.service.slug, title: a.service.title, price: n(a.price) })) })),
+    subtotal: n(o.subtotal), shippingFee: n(o.shippingFee), total: n(o.total),
+    payment: { method: o.payment?.method ?? o.paymentMethod ?? "", instalments: o.payment?.instalments ?? undefined },
+    tracking: o.tracking ? { courier: carrierDef(o.courier ?? s.carrier)?.name ?? s.carrierName ?? "Courier", code: o.tracking, url: "", events: [] } : undefined,
+    invoice: inv?.vatNumber ? { vat: inv.vatNumber, company: inv.company ?? "", doy: inv.doy ?? "" } : undefined,
+  };
+}
+/** Η αποστολή με τις κινήσεις από τον courier (ζωντανά, με κρυφή μνήμη 10'). */
+async function withShipment(order: Order, row: ShopOrderRow | undefined): Promise<Order> {
+  const sh = row?.shipments[0];
+  const t = sh ? await shipmentTimeline(sh).catch(() => null) : null;
+  return t ? { ...order, shipment: t } : order;
+}
 
 /** Παραγγελίες e-shop (όλες) + αγορές καταστημάτων από το SoftOne (κύρια παραστατικά, όχι όσα προήλθαν από το e-shop). */
 export async function accountOrders(customerId: string, take = 60): Promise<Order[]> {
   const [shop, store, stores] = await Promise.all([
-    db.order.findMany({ where: { customerId }, orderBy: { createdAt: "desc" }, take,
-      include: { payment: { select: { method: true, instalments: true, status: true } }, lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { price: true, service: { select: { slug: true, title: true } } } }, variant: { select: { product: PRODUCT } } } } } }),
+    db.order.findMany({ where: { customerId }, orderBy: { createdAt: "desc" }, take, include: SHOP_ORDER }),
     db.purchase.findMany({ where: { customerId, parentId: null, orderId: null, kind: { in: ["order", "receipt", "invoice"] } }, orderBy: { date: "desc" }, take,
       include: { lines: { orderBy: { lineNo: "asc" }, select: { lineNo: true, title: true, qty: true, unitPrice: true, productId: true } } } }),
     db.store.findMany({ select: { id: true, name: true, city: true } }),
@@ -42,20 +72,7 @@ export async function accountOrders(customerId: string, take = 60): Promise<Orde
   const prods = pids.length ? await db.product.findMany({ where: { id: { in: pids } }, select: { id: true, ...PRODUCT.select } }) : [];
   const pm = new Map(prods.map((p) => [p.id, p]));
 
-  const fromShop: Order[] = shop.map((o) => {
-    const s = (o.shipping ?? {}) as Record<string, string>;
-    const inv = (o.invoice ?? null) as { vatNumber?: string; company?: string; doy?: string } | null;
-    return {
-      number: o.number, date: o.createdAt.toISOString(), status: o.status as Order["status"], fulfilment: o.fulfilment as Order["fulfilment"], channel: "eshop",
-      pickupStore: o.pickupStoreId ? storeName.get(o.pickupStoreId) : undefined,
-      address: o.fulfilment === "click-collect" ? undefined : { id: "", label: s.carrierName ?? "", firstName: s.firstName ?? "", lastName: s.lastName ?? "", street: s.street ?? (s.locker as unknown as { name?: string })?.name ?? "", number: s.number ?? "", floor: s.floor, city: s.city ?? "", zip: s.zip ?? "", region: s.region ?? "", phone: s.phone ?? "" },
-      lines: o.lines.map((l) => ({ productId: l.variant.product.slug || l.id, title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: n(l.unitPrice), addons: l.addons.map((a) => ({ slug: a.service.slug, title: a.service.title, price: n(a.price) })) })),
-      subtotal: n(o.subtotal), shippingFee: n(o.shippingFee), total: n(o.total),
-      payment: { method: o.payment?.method ?? o.paymentMethod ?? "", instalments: o.payment?.instalments ?? undefined },
-      tracking: o.tracking ? { courier: s.carrierName ?? "Courier", code: o.tracking, url: "", events: [] } : undefined,
-      invoice: inv?.vatNumber ? { vat: inv.vatNumber, company: inv.company ?? "", doy: inv.doy ?? "" } : undefined,
-    };
-  });
+  const fromShop: Order[] = shop.map((o) => toShopOrder(o, storeName));
   // Παραστατικά SoftOne: σειρά PES… = παραγγελίες του ΠΑΛΙΟΥ e-shop (WEB…)· οι υπόλοιπες = αγορές καταστημάτων.
   // Σε ακυρωμένες / απλήρωτες ο «αριθμός» είναι μόνο ο κωδικός σειράς (PES-AK, PES-APL) — τότε σειρά + FINDOC.
   const fromStore: Order[] = store.map((p) => {
@@ -73,7 +90,25 @@ export async function accountOrders(customerId: string, take = 60): Promise<Orde
 }
 
 export async function accountOrder(customerId: string, no: string): Promise<Order | null> {
-  return (await accountOrders(customerId, 200)).find((o) => o.number.toLowerCase() === no.trim().toLowerCase()) ?? null;
+  const o = (await accountOrders(customerId, 200)).find((x) => x.number.toLowerCase() === no.trim().toLowerCase()) ?? null;
+  if (!o || o.channel !== "eshop") return o;
+  const row = await db.order.findFirst({ where: { customerId, number: o.number }, include: SHOP_ORDER });
+  return withShipment(o, row ?? undefined);
+}
+
+/**
+ * Δημόσιος εντοπισμός: αριθμός παραγγελίας + κινητό ή email της παραγγελίας (χωρίς λογαριασμό). Λάθος συνδυασμός =
+ * «δεν βρέθηκε», χωρίς να φανερώνεται αν υπάρχει ο αριθμός.
+ */
+export async function trackOrder(no: string, contact: string): Promise<Order | null> {
+  const number = no.trim().toUpperCase(), c = contact.trim().toLowerCase();
+  if (!/^[A-Z0-9-]{6,30}$/.test(number) || c.length < 5) return null;
+  const row = await db.order.findUnique({ where: { number }, include: { ...SHOP_ORDER, customer: { select: { email: true, mobile: true, phone: true } } } });
+  if (!row) return null;
+  const s = (row.shipping ?? {}) as Record<string, unknown>;
+  if (!contactMatches(c, [s.email, row.guestEmail, row.customer?.email], [s.phone, row.customer?.mobile, row.customer?.phone])) return null;
+  const stores = row.pickupStoreId ? await db.store.findMany({ where: { id: row.pickupStoreId }, select: { id: true, name: true, city: true } }) : [];
+  return withShipment(toShopOrder(row, new Map(stores.map((x) => [x.id, `${x.name}, ${x.city}`]))), row);
 }
 
 /** Δόσεις: παραγγελίες e-shop με πληρωμή σε δόσεις (μηνιαία δόση, πόσες πέρασαν, επόμενη ημερομηνία). */

@@ -3,6 +3,7 @@ import { payLabel } from "@/lib/account/labels";
 import { priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 
 const c = copyOf("orderTimeline");
 
@@ -45,7 +46,11 @@ export function OrderTimeline({ order: o }: { order: Order }) {
           </li>
         ))}
       </ol>
-      {o.tracking && (
+      {o.shipment ? (
+        <div className="rounded-xl border border-eu-line p-4">
+          <ShipmentTracker t={o.shipment} />
+        </div>
+      ) : o.tracking && o.tracking.events.length > 0 ? (
         <div className="rounded-lg bg-eu-surface p-4">
           <div className="flex flex-wrap justify-between gap-2 text-[length:var(--fs-14)] mb-2">
             <span className="font-bold text-eu-ink">
@@ -64,7 +69,9 @@ export function OrderTimeline({ order: o }: { order: Order }) {
             ))}
           </ul>
         </div>
-      )}
+      ) : o.tracking ? (
+        <p className="m-0 rounded-lg bg-eu-surface px-4 py-3 text-eu-ink-2 text-[length:var(--fs-14)]"><b className="text-eu-ink">{o.tracking.courier}</b> · αριθμός αποστολής <span className="font-mono tabular-nums">{o.tracking.code}</span></p>
+      ) : null}
       {o.pickupStore && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Παραλαβή από: {o.pickupStore}</p>}
       <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
         {o.lines.map((l) => (

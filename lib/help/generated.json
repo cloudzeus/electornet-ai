@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-13T07:12:09.596Z",
+ "generatedAt": "2026-10-13T07:29:27.942Z",
  "routes": [
   {
    "route": "/admin",
@@ -131,7 +131,7 @@
    "slug": "apostoles.vouchers",
    "file": "app/admin/(shell)/apostoles/vouchers/page.tsx",
    "title": "Vouchers courier",
-   "doc": "Vouchers courier (Γενική Ταχυδρομική, ΕΛΤΑ Courier — ?c=): παραγγελίες που περιμένουν voucher, έκδοση (βάρος από τα προϊόντα, αντικαταβολή αν πληρώνεται έτσι), ετικέτες, ακύρωση, κλείσιμο ημέρας (Γενική) και παρακολούθηση.",
+   "doc": "Vouchers courier (ui-ux-pro-max): λεπτή κεφαλίδα με courier / περιβάλλον / ενέργειες, KPIs, ουρά έκδοσης σε πυκνές γραμμές και πίνακας vouchers με φίλτρα, επιλογή, εκτύπωση (ετικέτες, δελτίο παράδοσης, όλα σε ένα PDF) και widget παρακολούθησης σε κάθε γραμμή. Γενική Ταχυδρομική και ΕΛΤΑ Courier (?c=).",
    "perm": "orders.read",
    "nav": {
     "group": "Αποστολές",
@@ -139,16 +139,27 @@
    },
    "dynamic": false,
    "helpKeys": [
-    "vouchers.carriers"
+    "vouchers.close",
+    "vouchers.print",
+    "vouchers.list",
+    "vouchers.header",
+    "vouchers.carriers",
+    "vouchers.kpi",
+    "vouchers.queue"
    ],
    "changes": [
+    {
+     "hash": "bd7141e",
+     "date": "2026-10-13T10:12:23+03:00",
+     "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
+    },
     {
      "hash": "e304c31",
      "date": "2026-10-10T14:00:00+03:00",
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-10-10T14:00:00+03:00",
+   "updatedAt": "2026-10-13T10:12:23+03:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
     "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
@@ -2465,6 +2476,11 @@
    ],
    "changes": [
     {
+     "hash": "bd7141e",
+     "date": "2026-10-13T10:12:23+03:00",
+     "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
+    },
+    {
      "hash": "91d0809",
      "date": "2026-10-11T11:37:59+03:00",
      "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
@@ -2508,14 +2524,9 @@
      "hash": "781aef2",
      "date": "2026-10-03T11:29:38+03:00",
      "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
-    },
-    {
-     "hash": "9c97666",
-     "date": "2026-10-03T08:36:00+03:00",
-     "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
     }
    ],
-   "updatedAt": "2026-10-11T11:37:59+03:00",
+   "updatedAt": "2026-10-13T10:12:23+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2538,6 +2549,11 @@
    ],
    "changes": [
     {
+     "hash": "bd7141e",
+     "date": "2026-10-13T10:12:23+03:00",
+     "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
+    },
+    {
      "hash": "91d0809",
      "date": "2026-10-11T11:37:59+03:00",
      "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
@@ -2581,14 +2597,9 @@
      "hash": "781aef2",
      "date": "2026-10-03T11:29:38+03:00",
      "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
-    },
-    {
-     "hash": "9c97666",
-     "date": "2026-10-03T08:36:00+03:00",
-     "text": "Ρυθμίσεις: πραγματικό social login + νέα σελίδα Social login, όλες οι ενότητες ρυθμίσεων ξαναφτιαγμένες"
     }
    ],
-   "updatedAt": "2026-10-11T11:37:59+03:00",
+   "updatedAt": "2026-10-13T10:12:23+03:00",
    "shots": {}
   },
   {
@@ -3030,6 +3041,16 @@
  ],
  "recent": [
   {
+   "hash": "bd7141e",
+   "date": "2026-10-13T10:12:23+03:00",
+   "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/apostoles/vouchers"
+   ]
+  },
+  {
    "hash": "5de9181",
    "date": "2026-10-11T13:42:07+03:00",
    "text": "Hero slides (ui-ux-pro-max): λεπτή κεφαλίδα με κατάσταση (δημοσιευμένο / πρόχειρο με αλλαγές / μη αποθηκευμένες), «Στο site», «Ακύρωση», ζωντανό «Έλεγχος» με λίστα λαθών που ανοίγει το slide και την καρτέλα, αποθήκευσ…",
@@ -3360,12 +3381,6 @@
     "/admin/prosfores/new",
     "/admin/ypiresies"
    ]
-  },
-  {
-   "hash": "dba0ffb",
-   "date": "2026-10-10T19:17:48+03:00",
-   "text": "Κίτρινο ticker: κάθε μήνυμα σε δικό του μεγάλο πεδίο, σύρσιμο ή βέλη για σειρά, διακόπτης ενεργό/ανενεργό (μένει αποθηκευμένο), μετρητής χαρακτήρων με σύσταση έως 60, «Νέο μήνυμα»",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3387,7 +3402,25 @@
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
   ],
+  "vouchers.close": [
+   "app/admin/(shell)/apostoles/vouchers/VoucherControls.tsx"
+  ],
+  "vouchers.print": [
+   "app/admin/(shell)/apostoles/vouchers/VouchersBoard.tsx"
+  ],
+  "vouchers.list": [
+   "app/admin/(shell)/apostoles/vouchers/VouchersBoard.tsx"
+  ],
+  "vouchers.header": [
+   "app/admin/(shell)/apostoles/vouchers/page.tsx"
+  ],
   "vouchers.carriers": [
+   "app/admin/(shell)/apostoles/vouchers/page.tsx"
+  ],
+  "vouchers.kpi": [
+   "app/admin/(shell)/apostoles/vouchers/page.tsx"
+  ],
+  "vouchers.queue": [
    "app/admin/(shell)/apostoles/vouchers/page.tsx"
   ],
   "product.actions": [

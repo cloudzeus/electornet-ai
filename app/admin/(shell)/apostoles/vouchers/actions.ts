@@ -5,6 +5,8 @@ import { audit } from "@/lib/rbac/audit";
 import { cancelShipment, closeDay, createShipment, trackShipments } from "@/lib/couriers/shipments";
 import { genikiConfig, genikiPing, GenikiError } from "@/lib/couriers/geniki/client";
 import { eltaConfig, eltaPing, EltaError } from "@/lib/couriers/elta/client";
+import { shipmentTimeline } from "@/lib/couriers/timeline";
+import { db } from "@/lib/db";
 
 const done = () => revalidatePath("/admin/apostoles/vouchers");
 
@@ -49,4 +51,11 @@ export async function pingCourierAction(carrier: "geniki" | "elta") {
   const c = await genikiConfig();
   if (!c) return { ok: false as const, error: "Δεν έχουν συμπληρωθεί όνομα χρήστη, κωδικός και app key." };
   try { await genikiPing(c); return { ok: true as const, env: c.env }; } catch (e) { return { ok: false as const, error: e instanceof GenikiError ? e.message : "Η σύνδεση απέτυχε." }; }
+}
+
+/** Η διαδρομή ενός voucher για το widget παρακολούθησης (ζωντανά από τον courier· fresh = χωρίς κρυφή μνήμη). */
+export async function voucherTimelineAction(id: string, fresh = false) {
+  await requirePermission("orders.read");
+  const sh = await db.shipment.findUnique({ where: { id }, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true } });
+  return sh ? shipmentTimeline(sh, { fresh }) : null;
 }

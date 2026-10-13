@@ -192,21 +192,25 @@ export async function trackShipments(limit = 100) {
   return { checked, updated };
 }
 
-type Checkpoint = { code: string; text: string; at: string | null; shop: string | null };
-async function trackOne(carrier: VoucherCarrier, voucher: string): Promise<{ state: string | null; deliveredAt: string | null; last: Checkpoint | null }> {
+export type Checkpoint = { code: string; text: string; at: string | null; shop: string | null };
+export interface VoucherTrack { state: string | null; deliveredAt: string | null; checkpoints: Checkpoint[]; last: Checkpoint | null }
+/** Η διαδρομή ενός voucher από τον courier (σημεία με χρονολογική σειρά)· state null = δεν έχει φύγει ακόμη. */
+export async function trackVoucher(carrier: VoucherCarrier, voucher: string): Promise<VoucherTrack> {
   if (carrier === "elta") {
     const c = await eltaConfig();
     if (!c) throw new EltaError("Λείπουν τα στοιχεία της ΕΛΤΑ Courier.");
     const t = await eltaTrack(c, voucher);
-    return { state: t.state, deliveredAt: t.deliveredAt, last: t.checkpoints.at(-1) ?? null };
+    return { state: t.state, deliveredAt: t.deliveredAt, checkpoints: t.checkpoints, last: t.checkpoints.at(-1) ?? null };
   }
   const c = await genikiConfig();
   if (!c) throw new GenikiError("Λείπουν τα στοιχεία της Γενικής.");
   const t = await genikiTrack(c, voucher);
-  const last = t.checkpoints.at(-1) ?? null;
+  const checkpoints = t.checkpoints.map((x) => ({ ...x, at: x.at || null }));
+  const last = checkpoints.at(-1) ?? null;
   const state = t.deliveredAt || /DELIVERED/i.test(t.status ?? "") ? (/RETURN/i.test(t.status ?? "") ? "returned" : "delivered") : stateFromCheckpoint(last?.code) ?? null;
-  return { state: state === "created" ? null : state, deliveredAt: t.deliveredAt, last };
+  return { state: state === "created" ? null : state, deliveredAt: t.deliveredAt, checkpoints, last };
 }
+const trackOne = trackVoucher;
 
 /** Email «Η παραγγελία στάλθηκε» (μόνο σε vouchers παραγωγής), με σύνδεσμο στην παρακολούθηση του site. */
 async function notifyShipped(orderIds: string[]) {
