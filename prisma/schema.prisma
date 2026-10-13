@@ -191,6 +191,8 @@ model Media {
 
   @@unique([productId, url])
   @@index([productId])
+  /// «έχει ορατή φωτογραφία» (EXISTS σε κάθε λίστα / μέτρηση του καταλόγου) χωρίς ανάγνωση των γραμμών
+  @@index([productId, kind, hidden])
   @@index([assetId])
 }
 
