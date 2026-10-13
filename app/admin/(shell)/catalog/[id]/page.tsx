@@ -59,7 +59,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
   const canMedia = can(user.permissions, "cms.media.write");
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows, set] = await Promise.all([
+  // ένας γύρος για όλα (πριν ήταν δύο διαδοχικοί — η επισκόπηση δεν εξαρτάται από τα υπόλοιπα)
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows, set, overview, specSrc, dimRows, warrantySpecs] = await Promise.all([
     listProductImages(p.id),
     tab === "content" ? listProductImages(p.id, "banner") : Promise.resolve([]),
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -75,8 +76,6 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     getArCategories(),
     tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
     setForProduct(p.erpCode).catch(() => null),
-  ]);
-  const [overview, specSrc, dimRows, warrantySpecs] = await Promise.all([
     tab === "overview" ? productOverview(p.id) : null,
     tab === "overview" ? db.spec.groupBy({ by: ["source"], where: { productId: id }, _count: true }) : [],
     tab === "overview" ? db.productDimension.findMany({ where: { productId: id }, select: { source: true, w: true, h: true, d: true, kind: true, warning: true } }) : [],

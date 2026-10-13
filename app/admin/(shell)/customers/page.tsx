@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { swr } from "@/lib/cache/swr";
 import { Plus, Mail, Building2, Link2, AlertTriangle, Search, ShoppingBag, History, Ban, UserX, CircleAlert, Upload } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
@@ -38,6 +39,21 @@ const since30 = () => new Date(Date.now() - 30 * 86400_000);
  * Πελάτες: KPIs, αναζήτηση, φίλτρα με πλήθη, τοποθεσία (αναδιπλούμενη), και πυκνή λίστα όπου κάθε γραμμή ανοίγει σε όλη
  * την εικόνα του πελάτη (στοιχεία, αγορές e-shop & SoftOne, αιτήματα, εγγυήσεις, πόντοι & συναινέσεις, SoftOne).
  */
+/**
+ * Γενικά στατιστικά πελατών (11 μετρήσεις) και ομαδοποιήσεις διευθύνσεων — ίδια για όλους, 1′ στη μνήμη (έως 5′ με
+ * ανανέωση στο παρασκήνιο). Πριν: σε κάθε φόρτωση της λίστας, σε τρεις διαδοχικούς γύρους.
+ */
+const overviewCache = swr(async () => {
+  const [stats, regions, storesWithCustomers] = await Promise.all([
+    Promise.all([db.customer.count(), db.customer.count({ where: { type: "business" } }), db.customer.count({ where: { newsletter: true } }), db.customer.count({ where: { erpTrdr: null, status: "active" } }), db.customer.count({ where: { erpSyncStatus: "failed" } }), db.gdprRequest.count({ where: { status: { in: ["open", "verifying", "in-progress"] } } }), db.customer.count({ where: { purchaseCount: { gt: 0 } } }), db.customer.count({ where: { createdAt: { gte: since30() }, source: { in: ["web", "store"] } } }), db.customer.count({ where: { source: "softone-history" } }), db.customer.count({ where: { status: "blocked" } }), db.customer.count({ where: { status: "anonymised" } })]),
+    db.address.groupBy({ by: ["region"], _count: { _all: true }, orderBy: { region: "asc" }, where: { region: { not: "" } } }),
+    db.address.groupBy({ by: ["nearestStoreId"], _count: { _all: true }, where: { nearestStoreId: { not: null } } }),
+  ]);
+  const storeNames = storesWithCustomers.length ? await db.store.findMany({ where: { id: { in: storesWithCustomers.map((x) => x.nearestStoreId!) } }, select: { id: true, name: true, city: true } }) : [];
+  return { stats, regions, storesWithCustomers, storeNames };
+}, 60_000, { maxStaleMs: 5 * 60_000 });
+const customerOverview = () => overviewCache();
+
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; p?: string; region?: string; store?: string; near?: string; km?: string; view?: string; s?: string; d?: string; n?: string }> }) {
   const user = await requirePermission("customers.read");
   const { q = "", f = "", p = "1", region = "", store = "", near = "", km = "25", view = "", s: sRaw = "", d: dRaw = "", n: nRaw = "" } = await searchParams;
@@ -68,19 +84,18 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     const dLat = radiusKm / 111, dLng = radiusKm / (111 * Math.cos((center.lat * Math.PI) / 180));
     where.addresses = { some: { lat: { gte: center.lat - dLat, lte: center.lat + dLat }, lng: { gte: center.lng - dLng, lte: center.lng + dLng } } };
   }
-  const [rows, total, stats] = await Promise.all([
+  const [rows, total, { stats, regions, storesWithCustomers, storeNames }, s1] = await Promise.all([
     db.customer.findMany({ where, orderBy, skip: (page - 1) * take, take, include: { _count: { select: { orders: true, devices: true, tickets: true } }, preferredStore: { select: { city: true } }, addresses: { select: { id: true, lat: true, lng: true, city: true, region: true, isDefault: true, nearestStoreId: true, nearestKm: true } } } }),
     db.customer.count({ where }),
-    Promise.all([db.customer.count(), db.customer.count({ where: { type: "business" } }), db.customer.count({ where: { newsletter: true } }), db.customer.count({ where: { erpTrdr: null, status: "active" } }), db.customer.count({ where: { erpSyncStatus: "failed" } }), db.gdprRequest.count({ where: { status: { in: ["open", "verifying", "in-progress"] } } }), db.customer.count({ where: { purchaseCount: { gt: 0 } } }), db.customer.count({ where: { createdAt: { gte: since30() }, source: { in: ["web", "store"] } } }), db.customer.count({ where: { source: "softone-history" } }), db.customer.count({ where: { status: "blocked" } }), db.customer.count({ where: { status: "anonymised" } })]),
+    customerOverview(),
+    getS1Config(),
   ]);
   const [all, business, newsletter, unlinked, failed, gdprOpen, buyers, new30, history, blocked, anonymised] = stats;
   const exact = center ? rows.filter((c) => c.addresses.some((a) => a.lat != null && distanceKm(center!, { lat: a.lat, lng: a.lng! }) <= radiusKm)) : rows;
-  const [regions, storesWithCustomers] = await Promise.all([db.address.groupBy({ by: ["region"], _count: { _all: true }, orderBy: { region: "asc" }, where: { region: { not: "" } } }), db.address.groupBy({ by: ["nearestStoreId"], _count: { _all: true }, where: { nearestStoreId: { not: null } } })]);
-  const storeNames = storesWithCustomers.length ? await db.store.findMany({ where: { id: { in: storesWithCustomers.map((s) => s.nearestStoreId!) } }, select: { id: true, name: true, city: true } }) : [];
   const n = take === 50 ? "" : String(take);
   const keep = (o: Record<string, string>) => { const u = new URLSearchParams({ q, f, region, store, near, km, view, s, d, n, ...o }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };
   const canWrite = can(user.permissions, "customers.write");
-  const erpOn = !!(await getS1Config());
+  const erpOn = !!s1;
   const pct = (x: number) => (all ? Math.round((x / all) * 100) : 0);
   const FILTERS = [
     { k: "", t: "Όλοι", n: all, I: null },
