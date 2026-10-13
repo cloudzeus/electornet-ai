@@ -1,4 +1,5 @@
 import "server-only";
+import { swr } from "@/lib/cache/swr";
 import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -65,7 +66,7 @@ export const getLiveHeroSlides = cache(async (): Promise<HeroSlide[]> => resolve
  * (ProductOffer, έναντι της χαμηλότερης τιμής 30 ημερών — Omnibus) σε προϊόν με απόθεμα. Χωρίς τίποτα → null και το
  * πλακίδιο δεν εμφανίζεται: ποτέ σταθερό ή επινοημένο προϊόν/τιμή. Λήξη: τα μεσάνυχτα, ή νωρίτερα αν λήγει η προσφορά.
  */
-export const getHeroDeal = cache(async (): Promise<{ product: Product; endsAt: string } | null> => {
+async function computeHeroDeal(): Promise<{ product: Product; endsAt: string } | null> {
   const now = new Date();
   let id = dealFor(await getPublishedHeroDoc(), now);
   if (!id) {
@@ -85,7 +86,11 @@ export const getHeroDeal = cache(async (): Promise<{ product: Product; endsAt: s
   if (!p || p.noPrice || !p.price) return null;
   const dayEnd = endOfAthensDay(athensDay(now));
   return { product: p, endsAt: p.dealEndsAt && p.dealEndsAt < dayEnd ? p.dealEndsAt : dayEnd };
-});
+}
+/** Ίδια για όλους τους επισκέπτες → κοινή μνήμη 1′ (έως 2′ με ανανέωση στο παρασκήνιο)· η δημοσίευση τη σημαδεύει «παλιά». */
+const heroDealShared = swr(computeHeroDeal, 60_000, { maxStaleMs: 120_000 });
+export const invalidateHeroDeal = () => heroDealShared.invalidate();
+export const getHeroDeal = cache(() => heroDealShared());
 
 /** Για τη διαχείριση της αρχικής: ποια είναι σήμερα η «Προσφορά ημέρας» και αν ορίστηκε χειροκίνητα ή αυτόματα. */
 export async function heroDealInfo(): Promise<{ title: string; image: string | null; manual: boolean } | null> {

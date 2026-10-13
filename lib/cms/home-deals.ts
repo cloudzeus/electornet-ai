@@ -1,4 +1,5 @@
 import "server-only";
+import { swrMap } from "@/lib/cache/swr";
 import { db } from "@/lib/db";
 import { getProductsByIds } from "@/lib/data/repo";
 import type { Product } from "@/lib/data/types";
@@ -17,7 +18,10 @@ export interface DealsProps { source?: DealsSource; promotionId?: string; produc
 const nextSunday = () => { const end = new Date(); end.setDate(end.getDate() + ((7 - end.getDay()) % 7 || 7)); end.setHours(23, 59, 0, 0); return end; };
 const label = (iso: string) => `Λήγουν ${new Intl.DateTimeFormat("el-GR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(iso))}`;
 
-async function autoDeals(limit: number): Promise<{ ids: string[]; endsAt: string }> {
+/** Οι αυτόματες «Προσφορές της εβδομάδας» είναι ίδιες για όλους → κοινή μνήμη 1′ (έως 5′ με ανανέωση στο παρασκήνιο). */
+const autoCache = swrMap<{ ids: string[]; endsAt: string }>(60_000, { maxStaleMs: 5 * 60_000 });
+const autoDeals = (limit: number) => autoCache(String(limit), () => computeAutoDeals(limit));
+async function computeAutoDeals(limit: number): Promise<{ ids: string[]; endsAt: string }> {
   const now = new Date();
   const offers = await db.productOffer.findMany({
     where: { OR: [{ endsAt: null }, { endsAt: { gt: now } }], product: { active: true, stock: { gt: 0 } } },
@@ -36,7 +40,11 @@ async function autoDeals(limit: number): Promise<{ ids: string[]; endsAt: string
   return { ids: pick.map((x) => x.o.productId), endsAt: (ends ?? nextSunday()).toISOString() };
 }
 
-export async function homeDeals(props: DealsProps): Promise<{ products: Product[]; endsAt: string; label: string; source: DealsSource }> {
+type HomeDeals = { products: Product[]; endsAt: string; label: string; source: DealsSource };
+/** Ίδιο αποτέλεσμα για όλους με τις ίδιες ρυθμίσεις → κοινή μνήμη 1′ (έως 5′ με ανανέωση στο παρασκήνιο). */
+const dealsCache = swrMap<HomeDeals>(60_000, { maxStaleMs: 5 * 60_000 });
+export const homeDeals = (props: DealsProps): Promise<HomeDeals> => dealsCache(JSON.stringify(props), () => computeHomeDeals(props));
+async function computeHomeDeals(props: DealsProps): Promise<HomeDeals> {
   const limit = Math.max(2, Math.min(12, Number(props.limit) || 4));
   let source: DealsSource = props.source ?? "auto";
   let ids: string[] = [], endsAt = nextSunday().toISOString();

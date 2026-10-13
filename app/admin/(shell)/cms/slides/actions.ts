@@ -6,7 +6,7 @@ import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { normalizeDoc, validateDoc, type HeroDoc, type ProductInfo, type SlideIssue } from "@/lib/cms/hero-slides-model";
-import { publishHero, revertHero, saveHeroDraft } from "@/lib/cms/hero-slides";
+import { invalidateHeroDeal, publishHero, revertHero, saveHeroDraft } from "@/lib/cms/hero-slides";
 
 const PERM = "cms.slides.write";
 const ENTITY = "hero.slides/home";
@@ -27,6 +27,7 @@ export async function publishHeroAction(input: HeroDoc): Promise<{ ok: true; doc
   await saveHeroDraft(doc, u.id);
   const r = await publishHero(u.id);
   await audit(u.id, "cms.hero.publish", "CmsDocument", ENTITY, null, { slides: doc.slides.length });
+  invalidateHeroDeal();
   revalidatePath("/");
   return { ok: true, doc, publishedAt: (r.publishedAt ?? new Date()).toISOString() };
 }
