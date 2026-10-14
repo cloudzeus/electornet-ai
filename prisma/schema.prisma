@@ -11,8 +11,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Η εφαρμογή μέσω PgBouncer (θύρα 6432)· οι αλλαγές σχήματος (db push / migrate) απευθείας στον Postgres (5432)
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------- Catalogue (mirrored from the ERP) ----------
