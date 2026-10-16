@@ -141,12 +141,12 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
 
           {step === 2 && campaign && (
             <div className="grid gap-5">
-              <Members title="Προσφορές" icon={TicketPercent} kind="promotion" id={campaign.id} available={campaign.available.promotions}
+              <Members data-help="campaign.promotion" title="Προσφορές" icon={TicketPercent} kind="promotion" id={campaign.id} available={campaign.available.promotions}
                 rows={campaign.promotions.map((p) => ({ id: p.id, href: `/admin/prosfores/${p.id}`, title: p.name, sub: `${p.code} · ${MECHANISM_LABEL[p.mechanism] ?? p.mechanism}${p.coupons.length ? ` · ${p.coupons.join(", ")}` : ""} · ${day(p.startsAt)} – ${day(p.endsAt)}`, badge: <Badge tone={promoTone(p.status)}>{STATUS_LABEL[p.status as PromoStatus]?.label ?? p.status}</Badge> }))}
                 extra={<Link href={`/admin/prosfores/new?campaign=${campaign.id}`} className={`${btn} border border-eu-line bg-white hover:border-eu-navy`}><Plus className="size-4" aria-hidden /> Νέα προσφορά σε αυτή την καμπάνια</Link>} />
-              <Members title="Landing pages" icon={LayoutTemplate} kind="landing" id={campaign.id} available={campaign.available.landings}
+              <Members data-help="campaign.landing" title="Landing pages" icon={LayoutTemplate} kind="landing" id={campaign.id} available={campaign.available.landings}
                 rows={campaign.landings.map((l) => ({ id: l.id, href: `/admin/prosfores/selides/${l.id}`, title: l.title, sub: `/prosfores/${l.slug} · ${day(l.startsAt)} – ${day(l.endsAt)}`, badge: <Badge tone={l.status === "published" ? "good" : "neutral"}>{l.status === "published" ? "Δημοσιευμένη" : "Πρόχειρη"}</Badge> }))} />
-              <Members title="Banners" icon={Megaphone} kind="ad" id={campaign.id} available={campaign.available.ads}
+              <Members data-help="campaign.ad" title="Banners" icon={Megaphone} kind="ad" id={campaign.id} available={campaign.available.ads}
                 rows={campaign.ads.map((a) => ({ id: a.id, href: "/admin/prosfores/theseis", title: a.title, sub: `${a.slot} · ${day(a.startsAt)} – ${day(a.endsAt)}`, badge: <Badge tone={a.status === "active" ? "good" : "neutral"}>{a.status === "active" ? "Ενεργό" : a.status === "paused" ? "Σε παύση" : "Πρόχειρο"}</Badge> }))} />
             </div>
           )}
@@ -247,7 +247,7 @@ function Issues({ tone, title, items }: { tone: "bad" | "warn"; title: string; i
 
 type Row = { id: string; href: string; title: string; sub: string; badge: React.ReactNode };
 /** Λίστα περιεχομένων της καμπάνιας με αφαίρεση και «Προσθήκη» από αναζητήσιμη λίστα. */
-function Members({ title, icon: Icon, kind, id, rows, available, extra }: { title: string; icon: typeof Megaphone; kind: "promotion" | "landing" | "ad"; id: string; rows: Row[]; available: Avail[]; extra?: React.ReactNode }) {
+function Members({ title, icon: Icon, kind, id, rows, available, extra, "data-help": help }: { title: string; icon: typeof Megaphone; kind: "promotion" | "landing" | "ad"; id: string; rows: Row[]; available: Avail[]; extra?: React.ReactNode; "data-help": string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -261,7 +261,7 @@ function Members({ title, icon: Icon, kind, id, rows, available, extra }: { titl
     setPicked([]); setOpen(false); router.refresh();
   });
   return (
-    <section data-help={`campaign.${kind}`} className="grid gap-2 min-w-0">
+    <section data-help={help} className="grid gap-2 min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="m-0 inline-flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]"><Icon className="size-4 text-eu-blue" aria-hidden />{title} <span className="text-eu-muted tabular-nums text-[length:var(--fs-13)]">{rows.length}</span></h4>
         <span className="ml-auto flex flex-wrap gap-1.5">

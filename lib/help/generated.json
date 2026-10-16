@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-16T11:09:12.819Z",
+ "generatedAt": "2026-10-16T14:10:42.656Z",
  "routes": [
   {
    "route": "/admin",
@@ -889,6 +889,11 @@
    ],
    "changes": [
     {
+     "hash": "417cbe2",
+     "date": "2026-10-16T17:09:21+03:00",
+     "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»"
+    },
+    {
      "hash": "8ed8787",
      "date": "2026-10-11T13:29:05+03:00",
      "text": "Ζώνες αρχικής: «δείξε μου» όπως στις ζώνες σελίδων"
@@ -932,14 +937,9 @@
      "hash": "dba0ffb",
      "date": "2026-10-10T19:17:48+03:00",
      "text": "Κίτρινο ticker: κάθε μήνυμα σε δικό του μεγάλο πεδίο, σύρσιμο ή βέλη για σειρά, διακόπτης ενεργό/ανενεργό (μένει αποθηκευμένο), μετρητής χαρακτήρων με σύσταση έως 60, «Νέο μήνυμα»"
-    },
-    {
-     "hash": "4374916",
-     "date": "2026-10-10T19:13:34+03:00",
-     "text": "Προσφορές της εβδομάδας: η επιλογή προϊόντων γίνεται η κύρια («Διαλέγω τα προϊόντα», προτείνεται)"
     }
    ],
-   "updatedAt": "2026-10-11T13:29:05+03:00",
+   "updatedAt": "2026-10-16T17:09:21+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -1575,6 +1575,11 @@
    ],
    "changes": [
     {
+     "hash": "ffac74e",
+     "date": "2026-10-16T14:12:27+03:00",
+     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
+    },
+    {
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
      "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών"
@@ -1590,7 +1595,7 @@
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-10-16T13:29:14+03:00",
+   "updatedAt": "2026-10-16T14:12:27+03:00",
    "shots": {}
   },
   {
@@ -1619,6 +1624,11 @@
    ],
    "changes": [
     {
+     "hash": "ffac74e",
+     "date": "2026-10-16T14:12:27+03:00",
+     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
+    },
+    {
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
      "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών"
@@ -1629,7 +1639,7 @@
      "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
     }
    ],
-   "updatedAt": "2026-10-16T13:29:14+03:00",
+   "updatedAt": "2026-10-16T14:12:27+03:00",
    "shots": {}
   },
   {
@@ -1653,6 +1663,16 @@
     "promo.nav"
    ],
    "changes": [
+    {
+     "hash": "4060650",
+     "date": "2026-10-16T17:08:16+03:00",
+     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
+    },
+    {
+     "hash": "1e93fcd",
+     "date": "2026-10-16T17:04:47+03:00",
+     "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
+    },
     {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
@@ -1692,19 +1712,9 @@
      "hash": "78ba51b",
      "date": "2026-10-03T07:05:06+03:00",
      "text": "Προσφορές"
-    },
-    {
-     "hash": "5196db3",
-     "date": "2026-10-02T22:03:52+03:00",
-     "text": "Φάση 1"
-    },
-    {
-     "hash": "6e70d7b",
-     "date": "2026-10-02T21:52:49+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-16T17:08:16+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores-d.jpg",
     "mobile": "/api/help-shot/prosfores-m.jpg"
@@ -1720,12 +1730,29 @@
    "nav": null,
    "dynamic": true,
    "helpKeys": [
+    "promo.campaign-link",
     "promo.perf",
     "promo.steps",
+    "promo.campaign",
     "promo.summary",
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "417cbe2",
+     "date": "2026-10-16T17:09:21+03:00",
+     "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»"
+    },
+    {
+     "hash": "4060650",
+     "date": "2026-10-16T17:08:16+03:00",
+     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
+    },
+    {
+     "hash": "1e93fcd",
+     "date": "2026-10-16T17:04:47+03:00",
+     "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
+    },
     {
      "hash": "1368c63",
      "date": "2026-10-11T04:42:52+03:00",
@@ -1760,24 +1787,9 @@
      "hash": "0523818",
      "date": "2026-10-03T07:38:44+03:00",
      "text": "Admin adaptive: συρτάρι μενού σε κινητό/tablet, επιλογέας καταλόγου βήμα-βήμα σε στενή οθόνη, τίποτα δεν ξεχειλώνει"
-    },
-    {
-     "hash": "c26f587",
-     "date": "2026-10-03T07:30:09+03:00",
-     "text": "Προσφορές"
-    },
-    {
-     "hash": "7494398",
-     "date": "2026-10-03T07:19:17+03:00",
-     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
-    },
-    {
-     "hash": "78ba51b",
-     "date": "2026-10-03T07:05:06+03:00",
-     "text": "Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-11T04:42:52+03:00",
+   "updatedAt": "2026-10-16T17:09:21+03:00",
    "shots": {}
   },
   {
@@ -1785,7 +1797,7 @@
    "slug": "prosfores.anafores",
    "file": "app/admin/(shell)/prosfores/anafores/page.tsx",
    "title": "Αναφορές προσφορών",
-   "doc": "Αναφορές προσφορών: KPIs με σύγκριση με την προηγούμενη περίοδο, παραγγελίες και έκπτωση ανά ημέρα, απόδοση ανά καμπάνια (έσοδα ανά 1 € έκπτωσης), ανά μηχανισμό, κουπόνια, διαφημιστικές θέσεις, προϊόντα και παραστατικά. Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας + μετρητές banners.",
+   "doc": "Αναφορές προσφορών: KPIs με σύγκριση με την προηγούμενη περίοδο, παραγγελίες και έκπτωση ανά ημέρα, απόδοση ανά προσφορά (έσοδα ανά 1 € έκπτωσης), ανά μηχανισμό, κουπόνια, διαφημιστικές θέσεις, προϊόντα και παραστατικά. Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας + μετρητές banners.",
    "perm": "reports.read",
    "nav": null,
    "dynamic": false,
@@ -1796,6 +1808,11 @@
     "promo.report.ads"
    ],
    "changes": [
+    {
+     "hash": "417cbe2",
+     "date": "2026-10-16T17:09:21+03:00",
+     "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»"
+    },
     {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
@@ -1817,7 +1834,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-16T17:09:21+03:00",
    "shots": {}
   },
   {
@@ -1831,6 +1848,11 @@
    "dynamic": true,
    "helpKeys": [],
    "changes": [
+    {
+     "hash": "ffac74e",
+     "date": "2026-10-16T14:12:27+03:00",
+     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
+    },
     {
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
@@ -1847,7 +1869,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-03T07:30:09+03:00",
+   "updatedAt": "2026-10-16T14:12:27+03:00",
    "shots": {}
   },
   {
@@ -2005,6 +2027,50 @@
    }
   },
   {
+   "route": "/admin/prosfores/kampanies",
+   "slug": "prosfores.kampanies",
+   "file": "app/admin/(shell)/prosfores/kampanies/page.tsx",
+   "title": "Καμπάνιες",
+   "doc": "Καμπάνιες: φάκελοι που ομαδοποιούν προσφορές, landing pages και banners με κοινές ημερομηνίες και budget. Φίλτρα κατάστασης με πλήθη, αναζήτηση, πίνακας στον υπολογιστή και κάρτες στο κινητό.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "campaigns.new",
+    "campaigns.filters",
+    "campaigns.table"
+   ],
+   "changes": [
+    {
+     "hash": "1e93fcd",
+     "date": "2026-10-16T17:04:47+03:00",
+     "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
+    }
+   ],
+   "updatedAt": "2026-10-16T17:04:47+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/kampanies/[id]",
+   "slug": "prosfores.kampanies.id",
+   "file": "app/admin/(shell)/prosfores/kampanies/[id]/page.tsx",
+   "title": "[id]",
+   "doc": "Καρτέλα καμπάνιας: ο οδηγός 5 βημάτων (και για νέα).",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [],
+   "changes": [
+    {
+     "hash": "1e93fcd",
+     "date": "2026-10-16T17:04:47+03:00",
+     "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
+    }
+   ],
+   "updatedAt": "2026-10-16T17:04:47+03:00",
+   "shots": {}
+  },
+  {
    "route": "/admin/prosfores/kanones",
    "slug": "prosfores.kanones",
    "file": "app/admin/(shell)/prosfores/kanones/page.tsx",
@@ -2114,10 +2180,26 @@
    "dynamic": false,
    "helpKeys": [
     "promo.steps",
+    "promo.campaign",
     "promo.summary",
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "417cbe2",
+     "date": "2026-10-16T17:09:21+03:00",
+     "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»"
+    },
+    {
+     "hash": "4060650",
+     "date": "2026-10-16T17:08:16+03:00",
+     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
+    },
+    {
+     "hash": "1e93fcd",
+     "date": "2026-10-16T17:04:47+03:00",
+     "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
+    },
     {
      "hash": "1368c63",
      "date": "2026-10-11T04:42:52+03:00",
@@ -2152,24 +2234,9 @@
      "hash": "0523818",
      "date": "2026-10-03T07:38:44+03:00",
      "text": "Admin adaptive: συρτάρι μενού σε κινητό/tablet, επιλογέας καταλόγου βήμα-βήμα σε στενή οθόνη, τίποτα δεν ξεχειλώνει"
-    },
-    {
-     "hash": "c26f587",
-     "date": "2026-10-03T07:30:09+03:00",
-     "text": "Προσφορές"
-    },
-    {
-     "hash": "7494398",
-     "date": "2026-10-03T07:19:17+03:00",
-     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
-    },
-    {
-     "hash": "78ba51b",
-     "date": "2026-10-03T07:05:06+03:00",
-     "text": "Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-11T04:42:52+03:00",
+   "updatedAt": "2026-10-16T17:09:21+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.new-d.jpg",
     "mobile": "/api/help-shot/prosfores.new-m.jpg"
@@ -2257,6 +2324,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "4060650",
+     "date": "2026-10-16T17:08:16+03:00",
+     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
+    },
+    {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
      "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα"
@@ -2277,7 +2349,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-16T17:08:16+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.selides-d.jpg",
     "mobile": "/api/help-shot/prosfores.selides-m.jpg"
@@ -2313,9 +2385,15 @@
    "nav": null,
    "dynamic": false,
    "helpKeys": [
+    "ads.campaigns",
     "promo.slots"
    ],
    "changes": [
+    {
+     "hash": "4060650",
+     "date": "2026-10-16T17:08:16+03:00",
+     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
+    },
     {
      "hash": "d9a30a4",
      "date": "2026-10-11T03:31:01+03:00",
@@ -2337,7 +2415,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T03:31:01+03:00",
+   "updatedAt": "2026-10-16T17:08:16+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
     "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
@@ -2580,6 +2658,11 @@
    ],
    "changes": [
     {
+     "hash": "ffac74e",
+     "date": "2026-10-16T14:12:27+03:00",
+     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
+    },
+    {
      "hash": "bd7141e",
      "date": "2026-10-13T10:12:23+03:00",
      "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
@@ -2623,14 +2706,9 @@
      "hash": "413b738",
      "date": "2026-10-04T09:19:04+03:00",
      "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
-    },
-    {
-     "hash": "781aef2",
-     "date": "2026-10-03T11:29:38+03:00",
-     "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
     }
    ],
-   "updatedAt": "2026-10-13T10:12:23+03:00",
+   "updatedAt": "2026-10-16T14:12:27+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2653,6 +2731,11 @@
    ],
    "changes": [
     {
+     "hash": "ffac74e",
+     "date": "2026-10-16T14:12:27+03:00",
+     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
+    },
+    {
      "hash": "bd7141e",
      "date": "2026-10-13T10:12:23+03:00",
      "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
@@ -2696,14 +2779,9 @@
      "hash": "413b738",
      "date": "2026-10-04T09:19:04+03:00",
      "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
-    },
-    {
-     "hash": "781aef2",
-     "date": "2026-10-03T11:29:38+03:00",
-     "text": "Ερμής: φωνή ElevenLabs 30% πιο γρήγορη με διατήρηση τόνου + ffmpeg στο image"
     }
    ],
-   "updatedAt": "2026-10-13T10:12:23+03:00",
+   "updatedAt": "2026-10-16T14:12:27+03:00",
    "shots": {}
   },
   {
@@ -3150,6 +3228,90 @@
  ],
  "recent": [
   {
+   "hash": "417cbe2",
+   "date": "2026-10-16T17:09:21+03:00",
+   "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/anafores"
+   ]
+  },
+  {
+   "hash": "4060650",
+   "date": "2026-10-16T17:08:16+03:00",
+   "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/[id]",
+    "/admin/prosfores/new",
+    "/admin/prosfores/selides",
+    "/admin/prosfores/theseis"
+   ]
+  },
+  {
+   "hash": "1e93fcd",
+   "date": "2026-10-16T17:04:47+03:00",
+   "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/kampanies",
+    "/admin/prosfores/kampanies/[id]"
+   ]
+  },
+  {
+   "hash": "76fad25",
+   "date": "2026-10-16T16:58:28+03:00",
+   "text": "Καμπάνιες (Φ1): λίστα, καρτέλα, αποθήκευση, περιεχόμενα (με μετακίνηση), δημοσίευση με τη λογική των προσφορών, παύση / λήξη / αρχείο, συγχρονισμός ημερομηνιών",
+   "routes": []
+  },
+  {
+   "hash": "2fd65f6",
+   "date": "2026-10-16T16:55:57+03:00",
+   "text": "Καμπάνιες (Φ1): καθαρή λογική",
+   "routes": []
+  },
+  {
+   "hash": "7234088",
+   "date": "2026-10-16T16:54:22+03:00",
+   "text": "Καμπάνιες (Φ1): σχήμα, δικαίωμα οικονομικής έγκρισης, ρόλοι Εμπορική / Οικονομική διεύθυνση",
+   "routes": []
+  },
+  {
+   "hash": "a09f78e",
+   "date": "2026-10-16T16:50:47+03:00",
+   "text": "Πλάνο Φάσης 1 (καμπάνιες) και μελέτη: SoftOne ως πηγή κόστους / περιθωρίου",
+   "routes": []
+  },
+  {
+   "hash": "fcbd5de",
+   "date": "2026-10-16T16:47:33+03:00",
+   "text": "Ασφάλεια: κεφαλίδες X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Strict-Transport-Security, Permissions-Policy, βασικό Content-Security-Policy",
+   "routes": []
+  },
+  {
+   "hash": "76f2b90",
+   "date": "2026-10-16T16:40:26+03:00",
+   "text": "Προδιαγραφή: καμπάνιες, έγκριση δύο επιπέδων, οδηγοί με πραγματικά παραδείγματα, αναφορά ανά καμπάνια",
+   "routes": []
+  },
+  {
+   "hash": "ffac74e",
+   "date": "2026-10-16T14:12:27+03:00",
+   "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login",
+   "routes": [
+    "/admin",
+    "/admin/orders",
+    "/admin/orders/[number]",
+    "/admin/prosfores",
+    "/admin/prosfores/anafores",
+    "/admin/prosfores/anafores/paraggelia/[id]",
+    "/admin/settings"
+   ]
+  },
+  {
    "hash": "8dc0c8a",
    "date": "2026-10-16T13:29:14+03:00",
    "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών",
@@ -3396,101 +3558,6 @@
     "/admin",
     "/admin/customers"
    ]
-  },
-  {
-   "hash": "f48f845",
-   "date": "2026-10-11T10:12:48+03:00",
-   "text": "Πελάτες: επικαιροποίηση από την ΑΑΔΕ (afm2info / ειδικοί κωδικοί)",
-   "routes": [
-    "/admin",
-    "/admin/customers"
-   ]
-  },
-  {
-   "hash": "0464501",
-   "date": "2026-10-11T10:05:33+03:00",
-   "text": "Πελάτες: μενού ενεργειών (⋯) σε κάθε γραμμή",
-   "routes": [
-    "/admin",
-    "/admin/customers"
-   ]
-  },
-  {
-   "hash": "ec0fca5",
-   "date": "2026-10-11T09:59:14+03:00",
-   "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές",
-   "routes": []
-  },
-  {
-   "hash": "d6e4c0c",
-   "date": "2026-10-11T09:57:09+03:00",
-   "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις",
-   "routes": [
-    "/admin",
-    "/admin/customers",
-    "/admin/customers/[id]"
-   ]
-  },
-  {
-   "hash": "1368c63",
-   "date": "2026-10-11T04:42:52+03:00",
-   "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/etiketes",
-    "/admin/prosfores/imerologio",
-    "/admin/prosfores/koina",
-    "/admin/prosfores/kouponia"
-   ]
-  },
-  {
-   "hash": "d9a30a4",
-   "date": "2026-10-11T03:31:01+03:00",
-   "text": "Προσφορές πιο καθαρές: 6 περιοχές αντί για 12 καρτέλες (Προσφορές, Κουπόνια, Στόχευση, Στο site, Αναφορές, Εργαλεία) με συμπαγή κεφαλίδα",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/[id]",
-    "/admin/prosfores/anafores",
-    "/admin/prosfores/ermis",
-    "/admin/prosfores/excel",
-    "/admin/prosfores/selides"
-   ]
-  },
-  {
-   "hash": "705ab72",
-   "date": "2026-10-11T03:08:55+03:00",
-   "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails",
-   "routes": [
-    "/admin",
-    "/admin/settings",
-    "/admin/settings/[section]"
-   ]
-  },
-  {
-   "hash": "b97e8e9",
-   "date": "2026-10-11T03:08:55+03:00",
-   "text": "Screenshots βοήθειας χωρίς προσωπικά δεδομένα: εκτός public (help-shots/, μόνο για συνδεδεμένο προσωπικό μέσω /api/help-shot), σελίδες με στοιχεία πελατών/προσωπικού δεν φωτογραφίζονται, το όνομα χρήστη θολώνεται (dat…",
-   "routes": []
-  },
-  {
-   "hash": "e398f2c",
-   "date": "2026-10-11T02:53:30+03:00",
-   "text": "Αριστερό μενού διαχείρισης χωρίς δικό του scroller: παίρνει όσο ύψος χρειάζεται και κυλά μαζί με τη σελίδα",
-   "routes": []
-  },
-  {
-   "hash": "c4dd688",
-   "date": "2026-10-11T02:49:41+03:00",
-   "text": "Βοήθεια & wiki της διαχείρισης, που ενημερώνονται μαζί με την εφαρμογή: σε κάθε σελίδα κουμπί «Βοήθεια» (F1) με τι κάνει η σελίδα, τα σημεία της με «Δείξε μου» (τονισμός πάνω στη σελίδα) και «Σημεία βοήθειας» (αριθμημ…",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/help",
-    "/admin/help/p/[slug]",
-    "/admin/help/t/[slug]"
-   ]
   }
  ],
  "helpKeys": {
@@ -3635,6 +3702,9 @@
   "orders.views": [
    "app/admin/(shell)/orders/page.tsx"
   ],
+  "promo.campaign-link": [
+   "app/admin/(shell)/prosfores/[id]/page.tsx"
+  ],
   "promo.perf": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
   ],
@@ -3652,6 +3722,15 @@
   ],
   "promo.tags.commercial": [
    "app/admin/(shell)/prosfores/etiketes/page.tsx"
+  ],
+  "campaigns.new": [
+   "app/admin/(shell)/prosfores/kampanies/page.tsx"
+  ],
+  "campaigns.filters": [
+   "app/admin/(shell)/prosfores/kampanies/page.tsx"
+  ],
+  "campaigns.table": [
+   "app/admin/(shell)/prosfores/kampanies/page.tsx"
   ],
   "promo.coupons.kpis": [
    "app/admin/(shell)/prosfores/kouponia/page.tsx"
@@ -3673,6 +3752,9 @@
   ],
   "promo.filters": [
    "app/admin/(shell)/prosfores/page.tsx"
+  ],
+  "ads.campaigns": [
+   "app/admin/(shell)/prosfores/theseis/page.tsx"
   ],
   "settings.groups": [
    "components/admin/SettingsForm.tsx"
@@ -3819,6 +3901,39 @@
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
   ],
+  "campaign.steps": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.title": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.goal": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.dates": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.budget": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.promotion": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.landing": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.ad": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.review": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.summary": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.state": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
   "promo.tags.info": [
    "components/admin/promos/InfoTagsEditor.tsx"
   ],
@@ -3841,6 +3956,9 @@
    "components/admin/promos/PromoTabs.tsx"
   ],
   "promo.steps": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.campaign": [
    "components/admin/promos/PromoWizard.tsx"
   ],
   "promo.summary": [
