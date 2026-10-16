@@ -119,9 +119,18 @@ model Product {
   reviews        Review[]
   questions      Question[]
   tags           ProductTag[]
+  /// item | set — το «Set ειδών» του SoftOne ως προϊόν (docs/superpowers/specs/2026-10-16-item-sets-design.md)
+  kind           String              @default("item")
+  /// το σετ (SPCS) που είναι αυτό το προϊόν (μόνο kind = set)
+  setSpcs        Int?                @unique
+  /// auto | yes | no — «Πωλείται και μόνο του» για κύριο είδος σετ (auto: όχι αν είναι κύριο σε σετ εξαρτημάτων)
+  soldAloneMode  String              @default("auto")
+  /// υπολογισμένο από την προβολή σετ: false = εκτός λιστών, η σελίδα οδηγεί στο σετ
+  soldAlone      Boolean             @default(true)
   updatedAt      DateTime            @updatedAt
   createdAt      DateTime            @default(now())
 
+  @@index([kind])
   @@index([categoryId, active])
   @@index([brandId])
   @@index([eprelStatus])
@@ -1401,6 +1410,9 @@ model OrderLine {
   erpCode     String?
   /// Δώρο / δωρεάν υπηρεσία: γραμμή με την πραγματική αξία και έκπτωση 100 %
   isGift      Boolean          @default(false)
+  /// σετ: ποιο (SPCS) και τα μέλη του τη στιγμή της παραγγελίας [{ mtrl, qty, name }] — για το παραστατικό
+  setSpcs     Int?
+  setParts    Json?
   /// [{ promotionId, code, version, kind, amount, label }]
   promotions  Json?
   addons      OrderLineAddon[]
