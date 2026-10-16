@@ -68,7 +68,7 @@ export function syncSets(trigger: Trigger = "manual") {
  * Γράφει μόνο ό,τι άλλαξε. Ασφαλές για επανάληψη.
  */
 export async function projectSetProducts(): Promise<{ sets: number; created: number; updated: number; deactivated: number; mainsHidden: number }> {
-  const { setErp, setPrice, setStock, setTitle } = await import("@/lib/catalog/set-core");
+  const { setErp, setPrice, setStock, setTitle, validSet } = await import("@/lib/catalog/set-core");
   const { isGiftName } = await import("@/lib/catalog/sets");
   const { slugify } = await import("@/lib/slug");
   const now = new Date();
@@ -91,10 +91,10 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
     const main = prodOf.get(set.mtrl);
     const kind = isGiftName(set.name) || set.lines.some((l) => l.mtrl !== set.mtrl && prodOf.get(l.mtrl)?.active) ? "gift" : "parts";
     const live = set.active && (!set.finalDate || set.finalDate >= now) && !!main?.active;
-    if (live && kind === "parts") mainOfParts.add(set.mtrl);
+    if (live && kind === "parts" && validSet(set.lines, set.mtrl)) mainOfParts.add(set.mtrl);
     const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
     const stock = setStock(set.lines.map((l) => ({ stock: l.stockCentral, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
-    const active = live && price > 0 && set.lines.length > 1;
+    const active = live && price > 0 && validSet(set.lines, set.mtrl);
     const e = bySpcs.get(set.spcs);
     if (!main) { if (e?.active) { await db.product.update({ where: { id: e.id }, data: { active: false } }); updated++; } continue; }
     const data = { price: price > 0 ? price : null, stock, active, brandId: main.brandId, categoryId: main.categoryId, vatRate: main.vatRate };

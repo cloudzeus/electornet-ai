@@ -13,13 +13,19 @@ export function spcsOf(erpCode: string | null | undefined): number | null {
 }
 
 /**
- * Τιμή σετ με ΦΠΑ = Σ (τιμή web μέλους × ποσότητα)· μέλος χωρίς τιμή μετρά 0. Σε σετ με δώρο το δώρο δεν χρεώνεται
- * (όπως το γράφει και το SoftOne: γραμμή δώρου με τιμή 0), οπότε μετρά μόνο το κύριο είδος.
+ * Τιμή σετ με ΦΠΑ = τιμή web του κύριου είδους × την ποσότητά του. Έτσι είναι στημένο το SoftOne: το κύριο έχει την τιμή
+ * όλου του σετ και στο παραστατικό τα υπόλοιπα μέλη (εξαρτήματα, δώρα) γράφονται με 0 — άρα το «άθροισμα των μελών».
+ * Διπλή γραμμή κύριου (λάθος στο ERP) μετρά μία φορά.
  */
 export function setPrice(members: { price: number | null; qty: number; isMain?: boolean }[], kind: "parts" | "gift" = "parts"): number {
-  const sum = members.filter((m) => kind === "parts" || m.isMain).reduce((a, m) => a + (m.price ?? 0) * (m.qty || 1), 0);
+  void kind;
+  const main = members.find((m) => m.isMain);
+  const sum = main ? (main.price ?? 0) * (main.qty || 1) : 0;
   return Math.round((sum + Number.EPSILON) * 100) / 100;
 }
+
+/** Έγκυρο σετ: περιέχει το κύριο είδος και τουλάχιστον ένα άλλο. */
+export const validSet = (lines: { mtrl: number }[], main: number) => lines.some((l) => l.mtrl === main) && lines.some((l) => l.mtrl !== main);
 
 /** Πόσα πλήρη σετ βγαίνουν από το απόθεμα των μελών. Και στα σετ με δώρο το δώρο απαιτείται. */
 export function setStock(members: { stock: number; qty: number; isMain: boolean }[], kind: "parts" | "gift"): number {

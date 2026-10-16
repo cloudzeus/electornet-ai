@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle } from "./set-core";
+import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet } from "./set-core";
 
 test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(setErp(594), "SET-594");
@@ -10,10 +10,21 @@ test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(spcsOf("SET-x"), null);
 });
 
-test("τιμή σετ = άθροισμα μελών × ποσότητα· χωρίς τιμή = 0", () => {
-  assert.equal(setPrice([{ price: 399, qty: 1 }, { price: null, qty: 1 }]), 399);
-  assert.equal(setPrice([{ price: 10.005, qty: 2 }]), 20.01);
+test("τιμή σετ = τιμή κύριου × ποσότητα του (τα μέλη γράφονται με 0, όπως στο SoftOne)", () => {
+  assert.equal(setPrice([{ price: 399, qty: 1, isMain: true }, { price: null, qty: 1, isMain: false }]), 399);
+  assert.equal(setPrice([{ price: 10.005, qty: 2, isMain: true }]), 20.01);
   assert.equal(setPrice([]), 0);
+  // διπλή γραμμή κύριου (λάθος στο SoftOne): μετρά μία φορά
+  assert.equal(setPrice([{ price: 479, qty: 1, isMain: true }, { price: 479, qty: 1, isMain: true }]), 479);
+  // μέλος με δική του τιμή (εξάρτημα): δεν χρεώνεται χωριστά
+  assert.equal(setPrice([{ price: 399, qty: 1, isMain: true }, { price: 50, qty: 1, isMain: false }]), 399);
+});
+
+test("έγκυρο σετ: χρειάζεται κύριο και τουλάχιστον ένα άλλο είδος", () => {
+  assert.equal(validSet([{ mtrl: 1 }, { mtrl: 2 }], 1), true);
+  assert.equal(validSet([{ mtrl: 1 }, { mtrl: 1 }], 1), false);
+  assert.equal(validSet([{ mtrl: 2 }, { mtrl: 3 }], 1), false);
+  assert.equal(validSet([{ mtrl: 1 }], 1), false);
 });
 
 test("απόθεμα σετ = πόσα πλήρη σετ βγαίνουν", () => {
