@@ -4,6 +4,7 @@ import { emptyDraft, targetNames } from "@/lib/promo/admin";
 import { PromoWizard } from "@/components/admin/promos/PromoWizard";
 import { getServiceList } from "@/lib/services/catalog";
 import { TEMPLATES } from "@/lib/promo/catalog";
+import { campaignOptions } from "@/lib/promo/campaigns";
 
 export const metadata = { title: "Νέα προσφορά" };
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * Νέα προσφορά. Ανοίγει και προσυμπληρωμένη: ?template=nplusm, ?products=id1,id2 (από την καρτέλα ή μαζικά από τον κατάλογο),
  * ?brand=… / ?category=…, ?draft=<base64 JSON> (από τον Ερμή ή το Excel). Τίποτα δεν δημοσιεύεται χωρίς τον χρήστη.
  */
-export default async function NewPromotionPage({ searchParams }: { searchParams: Promise<{ template?: string; products?: string | string[]; brand?: string; category?: string; draft?: string }> }) {
+export default async function NewPromotionPage({ searchParams }: { searchParams: Promise<{ template?: string; products?: string | string[]; brand?: string; category?: string; draft?: string; campaign?: string }> }) {
   const user = await requirePermission("catalog.promos.write");
   const sp = await searchParams;
   const tpl = TEMPLATES.find((t) => t.key === sp.template && !t.held)?.key;
@@ -29,9 +30,12 @@ export default async function NewPromotionPage({ searchParams }: { searchParams:
   if (sp.brand) d.targets = [...d.targets, { kind: "brand", refId: sp.brand, exclude: false }];
   if (sp.category) d.targets = [...d.targets, { kind: "category", refId: sp.category, exclude: false }];
   const names = await targetNames([...d.targets, ...Object.keys(d.reward.price ?? {}).map((refId) => ({ kind: "product", refId })), ...(d.reward.giftProductId ? [{ kind: "product", refId: d.reward.giftProductId }] : [])]);
+  // ?campaign=<id>: νέα προσφορά μέσα σε καμπάνια (από τον οδηγό καμπάνιας)
+  const campaigns = await campaignOptions();
+  if (sp.campaign && campaigns.some((c) => c.id === sp.campaign)) d.campaignId = sp.campaign;
   const prefilled = !!(tpl || sp.draft || ids.length || sp.brand || sp.category);
   return (
-    <PromoWizard initial={d} names={names} status={null} code={null} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={prefilled ? (tpl || sp.draft ? 1 : 0) : 0}
+    <PromoWizard campaigns={campaigns} initial={d} names={names} status={null} code={null} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={prefilled ? (tpl || sp.draft ? 1 : 0) : 0}
       services={(await getServiceList()).map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
         stores={(await db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true } }))}
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />

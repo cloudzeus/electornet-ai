@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft } from "lucide-react";
+import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban } from "lucide-react";
 import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { approveAction, bulkAction } from "@/app/admin/(shell)/prosfores/actions";
 
@@ -11,6 +11,8 @@ export interface PromoRowDTO {
   id: string; code: string; name: string; status: PromoStatus; mechanism: string; held: boolean; summary: string;
   startsAt: string | null; endsAt: string | null; usedCount: number; maxUses: number | null; spent: number; budget: number | null;
   targets: number; coupon: string | null; coupons: number; version: number; stacking: string; priority: number;
+  /** καμπάνια (φάκελος) */
+  campaign?: { id: string; code: string } | null;
   /** αλλαγή σε ζωντανή προσφορά που περιμένει έγκριση */
   pendingChange: boolean;
   /** απόδοση 30 ημερών */
@@ -96,7 +98,7 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
                 <div className="min-w-0 grid gap-0.5">
                   <Link href={`/admin/prosfores/${r.id}`} className="font-bold text-eu-ink text-[length:var(--fs-15)] leading-snug hover:text-eu-blue hover:underline">{r.name}</Link>
                   <span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{r.summary}</span>
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-muted text-[length:var(--fs-12)]"><span className="font-mono">{r.code} · v{r.version}</span>{r.targets ? <span>{r.targets} στόχοι</span> : null}{r.coupon && <span className="inline-flex items-center gap-1 rounded-md bg-eu-surface px-1.5 py-0.5 font-mono font-bold text-eu-navy"><TicketPercent className="size-3.5" aria-hidden /> {r.coupon}{r.coupons > 1 ? ` +${r.coupons - 1}` : ""}</span>}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-muted text-[length:var(--fs-12)]"><span className="font-mono">{r.code} · v{r.version}</span>{r.campaign && <Link href={`/admin/prosfores?c=${r.campaign.id}&s=all`} title="Όλες οι προσφορές της καμπάνιας" className="inline-flex items-center gap-1 rounded-md bg-eu-chip px-1.5 py-0.5 font-mono font-bold text-eu-navy hover:underline"><FolderKanban className="size-3.5" aria-hidden />{r.campaign.code}</Link>}{r.targets ? <span>{r.targets} στόχοι</span> : null}{r.coupon && <span className="inline-flex items-center gap-1 rounded-md bg-eu-surface px-1.5 py-0.5 font-mono font-bold text-eu-navy"><TicketPercent className="size-3.5" aria-hidden /> {r.coupon}{r.coupons > 1 ? ` +${r.coupons - 1}` : ""}</span>}</span>
                 </div>
                 <div className="min-w-0 grid gap-1.5">
                   <span className="flex flex-wrap items-center gap-1.5">

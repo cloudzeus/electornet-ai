@@ -62,7 +62,7 @@ function stepIssues(d: PromoDraft): Issues[] {
  * προσφορά σε μία πρόταση, πώς φαίνεται στην κάρτα, τα βασικά στοιχεία, η λίστα ελέγχου ανά βήμα και πού θα εμφανίζεται.
  * Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι.
  */
-export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0, appears = [], overview }: { initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number; appears?: WizardAppearance[]; overview?: ReactNode }) {
+export function PromoWizard({ initial, names: initialNames, status, code, canApprove, services, segments = [], stores = [], startStep = 0, appears = [], overview, campaigns = [] }: { campaigns?: { id: string; label: string; published: boolean }[]; initial: PromoDraft; names: Record<string, string>; status: PromoStatus | null; code: string | null; canApprove: boolean; services: Svc[]; segments?: { id: string; label: string }[]; stores?: StoreOpt[]; startStep?: number; appears?: WizardAppearance[]; overview?: ReactNode }) {
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
@@ -106,6 +106,9 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
     else router.refresh();
     if (r.id) set({ id: r.id });
   });
+  // προσφορά σε καμπάνια που δεν έχει δημοσιευτεί: αποθηκεύεται πρόχειρη και δημοσιεύεται μαζί με την καμπάνια
+  const camp = campaigns.find((c) => c.id === d.campaignId);
+  const waitsCampaign = !!camp && !camp.published && (!status || status === "draft");
   const go = (i: number) => { setStep(i); document.getElementById("wz-top")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
 
   const aside = <WizardSummary d={d} summary={summary} svcTitle={svcTitle} issues={issues} step={step} go={go} appears={appears} status={status} code={code} />;
@@ -263,6 +266,15 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
           </div>
         )}
 
+        {step === 4 && (
+          <label data-help="promo.campaign" className="grid gap-1 rounded-xl border border-eu-line p-3 text-[length:var(--fs-14)] font-bold text-eu-ink">Καμπάνια
+            <select value={d.campaignId ?? ""} onChange={(e) => set({ campaignId: e.target.value || null })} className="w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-10 text-[length:var(--fs-14)] font-normal outline-none focus:border-eu-blue">
+              <option value="">Χωρίς καμπάνια</option>
+              {campaigns.map((c) => <option key={c.id} value={c.id}>{c.label}{c.published ? "" : " (πρόχειρη)"}</option>)}
+            </select>
+            <span className="font-normal text-eu-ink-3 text-[length:var(--fs-12)] leading-snug">{waitsCampaign ? "Η καμπάνια δεν έχει δημοσιευτεί: η προσφορά αποθηκεύεται πρόχειρη και δημοσιεύεται μαζί με την καμπάνια." : "Η καμπάνια ομαδοποιεί προσφορές με κοινές ημερομηνίες, budget και αναφορά. Χωρίς δικές της ημερομηνίες, η προσφορά παίρνει της καμπάνιας."}</span>
+          </label>
+        )}
         {step === 4 && <ReviewStep d={d} a={analysis} summary={summary} canApprove={canApprove} />}
           </section>
 
@@ -275,8 +287,8 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               {step < 4 ? (
                 <button type="button" onClick={() => go(step + 1)} className="inline-flex items-center gap-1 rounded-full bg-eu-navy text-white px-5 min-h-11 font-extrabold text-[length:var(--fs-14)] hover:bg-eu-blue">{STEPS[step + 1]} <ChevronRight className="size-4" aria-hidden /></button>
               ) : (
-                <button type="button" disabled={busy || !analysis || analysis.errors.length > 0 || issues.slice(0, 4).some((x) => x.errors.length)} onClick={() => save("publish")} className="rounded-full bg-eu-yellow text-eu-navy px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-yellow-dark disabled:opacity-40">
-                  {busy ? "Γίνεται…" : analysis?.approval.needed && !canApprove ? "Υποβολή για έγκριση" : status && ["active", "scheduled", "paused"].includes(status) ? "Δημοσίευση νέας έκδοσης" : "Δημοσίευση"}
+                <button type="button" disabled={busy || !analysis || analysis.errors.length > 0 || issues.slice(0, 4).some((x) => x.errors.length)} onClick={() => save(waitsCampaign ? "draft" : "publish")} className="rounded-full bg-eu-yellow text-eu-navy px-6 min-h-11 font-extrabold text-[length:var(--fs-15)] hover:bg-eu-yellow-dark disabled:opacity-40">
+                  {busy ? "Γίνεται…" : waitsCampaign ? "Αποθήκευση — δημοσιεύεται με την καμπάνια" : analysis?.approval.needed && !canApprove ? "Υποβολή για έγκριση" : status && ["active", "scheduled", "paused"].includes(status) ? "Δημοσίευση νέας έκδοσης" : "Δημοσίευση"}
                 </button>
               )}
             </div>

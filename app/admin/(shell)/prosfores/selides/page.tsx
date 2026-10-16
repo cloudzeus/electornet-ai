@@ -14,7 +14,7 @@ export default async function LandingListPage({ searchParams }: { searchParams: 
   await requirePermission("catalog.promos.write");
   const { promo } = await searchParams;
   const [pages, promos] = await Promise.all([
-    db.landingPage.findMany({ where: { status: { not: "archived" } }, orderBy: { updatedAt: "desc" } }),
+    db.landingPage.findMany({ where: { status: { not: "archived" } }, orderBy: { updatedAt: "desc" }, include: { campaign: { select: { id: true, code: true } } } }),
     db.promotion.findMany({ where: { status: { in: ["active", "scheduled", "draft", "pending", "paused"] } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
   ]);
   const byId = new Map(promos.map((p) => [p.id, p]));
@@ -28,7 +28,7 @@ export default async function LandingListPage({ searchParams }: { searchParams: 
           <tbody>
             {pages.map((p) => { const pr = p.promotionId ? byId.get(p.promotionId) : null; return (
               <tr key={p.id} className="border-t border-eu-line">
-                <td className="py-2 px-3"><Link href={`/admin/prosfores/selides/${p.id}`} className="font-bold hover:text-eu-blue hover:underline">{p.title}</Link><div className="text-eu-muted font-mono text-[length:var(--fs-13)]">/prosfores/{p.slug}</div></td>
+                <td className="py-2 px-3"><Link href={`/admin/prosfores/selides/${p.id}`} className="font-bold hover:text-eu-blue hover:underline">{p.title}</Link><div className="text-eu-muted font-mono text-[length:var(--fs-13)]">/prosfores/{p.slug}</div>{p.campaign?.code && <Link href={`/admin/prosfores/kampanies/${p.campaign.id}`} className="inline-flex items-center rounded-md bg-eu-chip px-1.5 py-0.5 font-mono font-bold text-eu-navy text-[length:var(--fs-12)] hover:underline">{p.campaign.code}</Link>}</td>
                 <td data-label="Προσφορά" className="py-2 px-3">{pr ? <Link href={`/admin/prosfores/${pr.id}`} className="hover:underline">{pr.name}</Link> : "—"}</td>
                 <td data-label="Κατάσταση" className="py-2 px-3">{ST[p.status] ?? p.status}</td>
                 <td data-label="Blocks" className="py-2 px-3 tabular-nums">{(p.blocks as unknown[]).length}</td>

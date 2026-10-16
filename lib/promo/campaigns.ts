@@ -178,6 +178,13 @@ export async function setCampaignState(id: string, action: "pause" | "resume" | 
   return { ok: true };
 }
 
+export type CampaignOption = { id: string; label: string; published: boolean };
+/** Καμπάνιες που μπορούν να δεχτούν προσφορά (όχι στο αρχείο / όχι λήξη), για τον οδηγό προσφοράς. */
+export async function campaignOptions(): Promise<CampaignOption[]> {
+  const rows = await db.campaign.findMany({ where: { code: { not: null }, status: { notIn: ["archived", "ended"] } }, orderBy: { startsAt: "desc" }, select: { id: true, code: true, title: true, status: true, startsAt: true, endsAt: true } });
+  return rows.filter((c) => shownStatus(c) !== "ended").map((c) => ({ id: c.id, label: `${c.code} · ${c.title}`, published: ["scheduled", "live", "paused"].includes(c.status) }));
+}
+
 /** Οι ημερομηνίες της καμπάνιας άλλαξαν: όσες προσφορές / landings / banners είχαν τις παλιές της, παίρνουν τις νέες. */
 export async function syncCampaignDates(id: string, old: { startsAt: Date; endsAt: Date }) {
   const c = await db.campaign.findUnique({ where: { id }, select: { startsAt: true, endsAt: true } });

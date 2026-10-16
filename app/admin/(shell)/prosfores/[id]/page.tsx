@@ -13,6 +13,9 @@ import { promoStats, delta } from "@/lib/promo/stats";
 import { promoAppearances } from "@/lib/promo/where";
 import { KpiTile, LineChart } from "@/components/admin/charts/Charts";
 
+import { campaignOptions } from "@/lib/promo/campaigns";
+import { FolderKanban } from "lucide-react";
+
 export const metadata = { title: "Προσφορά" };
 export const dynamic = "force-dynamic";
 
@@ -21,7 +24,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
   const user = await requirePermission("catalog.promos.write");
   const { id } = await params;
   const { step } = await searchParams;
-  const p = await db.promotion.findUnique({ where: { id }, include: { targets: true, coupons: true, versions: { orderBy: { version: "desc" } } } });
+  const p = await db.promotion.findUnique({ where: { id }, include: { targets: true, coupons: true, versions: { orderBy: { version: "desc" } }, campaign: { select: { id: true, code: true, title: true } } } });
   if (!p) notFound();
   const change = await pendingChange(p.id, p.version);
   const d = draftOf(p);
@@ -32,7 +35,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
     db.staff.findMany({ where: { id: { in: [p.createdById, p.approvedById, change?.by ?? null, ...p.versions.map((v) => v.createdById)].filter((x): x is string => !!x) } }, select: { id: true, name: true } }),
   ]);
   const who = new Map(staff.map((s) => [s.id, s.name]));
-  const [stats, where] = await Promise.all([promoStats(30, p.id), promoAppearances([p.id])]);
+  const [stats, where, campaigns] = await Promise.all([promoStats(30, p.id), promoAppearances([p.id]), campaignOptions()]);
   const appears = where.get(p.id) ?? [];
   const everUsed = p.usedCount > 0 || stats.total.orders > 0;
   const eur = (v: number) => `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -44,7 +47,12 @@ export default async function PromotionPage({ params, searchParams }: { params: 
           summary={change ? `${change.draft.name}: ${describePromo(change.draft)}` : `${p.name}: ${describePromo({ mechanism: p.mechanism, reward: p.reward as PromoReward, rules: p.rules as PromoRules })}`}
           by={who.get((change ? change.by : p.createdById) ?? "") ?? null} at={(change?.at ?? p.updatedAt).toISOString()} />
       )}
-      <PromoWizard appears={appears} overview={everUsed ? (
+      {p.campaign && (
+        <Link href={`/admin/prosfores/kampanies/${p.campaign.id}`} data-help="promo.campaign-link" className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:border-eu-navy">
+          <FolderKanban className="size-4 text-eu-blue" aria-hidden /> Καμπάνια: <span className="font-mono">{p.campaign.code}</span> · <span className="font-bold">{p.campaign.title}</span> →
+        </Link>
+      )}
+      <PromoWizard campaigns={campaigns} appears={appears} overview={everUsed ? (
         <section data-help="promo.perf" aria-labelledby="pp-h" className="grid gap-3 rounded-2xl bg-white border border-eu-line p-3 @md:p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3 id="pp-h" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Απόδοση · 30 ημέρες</h3>

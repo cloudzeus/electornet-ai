@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Tag, Sparkles, FileSpreadsheet, Search, CircleAlert, Hourglass, Clock, Wallet, CalendarX, ArrowRight } from "lucide-react";
+import { FolderKanban, Plus, Tag, Sparkles, FileSpreadsheet, Search, CircleAlert, Hourglass, Clock, Wallet, CalendarX, ArrowRight } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
@@ -29,19 +29,21 @@ const FILTERS: { key: string; label: string }[] = [
  * Προσφορές: ό,τι θέλει ενέργεια, KPIs 30 ημερών με τάση, φίλτρα κατάστασης με πλήθη και η λίστα με διάρκεια,
  * απόδοση και πού εμφανίζεται κάθε προσφορά στο site.
  */
-export default async function PromotionsPage({ searchParams }: { searchParams: Promise<{ q?: string; s?: string; m?: string }> }) {
+export default async function PromotionsPage({ searchParams }: { searchParams: Promise<{ q?: string; s?: string; m?: string; c?: string }> }) {
   const user = await requirePermission("catalog.promos.write");
-  const { q = "", s = "live", m = "" } = await searchParams;
+  const { q = "", s = "live", m = "", c: camp = "" } = await searchParams;
   const statusWhere: Prisma.PromotionWhereInput = s === "live" ? { status: { in: LIVE } } : s === "all" ? { status: { not: "archived" } } : { status: s };
   const where: Prisma.PromotionWhereInput = {
     ...statusWhere,
     ...(m ? { mechanism: m } : {}),
+    ...(camp ? { campaignId: camp } : {}),
     ...(q.trim() ? { OR: [{ name: { contains: q.trim(), mode: "insensitive" } }, { code: { contains: q.trim(), mode: "insensitive" } }, { coupons: { some: { code: q.trim().toUpperCase() } } }] } : {}),
   };
   const now = requestTime();
+  const campRow = camp ? await db.campaign.findUnique({ where: { id: camp }, select: { code: true, title: true } }) : null;
   const [rows, counts, stats, ordersAll, offers, live] = await Promise.all([
-    db.promotion.findMany({ where, orderBy: [{ status: "asc" }, { startsAt: "desc" }, { createdAt: "desc" }], take: 300, include: { _count: { select: { targets: true, coupons: true } }, coupons: { where: { kind: "shared" }, take: 1, select: { code: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { version: true } } } }),
-    db.promotion.groupBy({ by: ["status"], _count: true }),
+    db.promotion.findMany({ where, orderBy: [{ status: "asc" }, { startsAt: "desc" }, { createdAt: "desc" }], take: 300, include: { campaign: { select: { id: true, code: true } }, _count: { select: { targets: true, coupons: true } }, coupons: { where: { kind: "shared" }, take: 1, select: { code: true } }, versions: { orderBy: { version: "desc" }, take: 1, select: { version: true } } } }),
+    db.promotion.groupBy({ by: ["status"], _count: true, ...(camp ? { where: { campaignId: camp } } : {}) }),
     promoStats(30, undefined, now),
     db.order.count({ where: { createdAt: { gte: new Date(now - 30 * 86400_000) }, status: { notIn: ["cancelled"] } } }),
     db.productOffer.count(),
@@ -67,6 +69,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
       usedCount: r.usedCount, maxUses: r.maxUses, spent: Number(r.spentEur), budget: r.budgetEur != null ? Number(r.budgetEur) : null,
       targets: r._count.targets, coupon: r.coupons[0]?.code ?? null, coupons: r._count.coupons, version: r.version, stacking: r.stacking, priority: r.priority,
       pendingChange: (r.versions[0]?.version ?? 0) > r.version,
+      campaign: r.campaign?.code ? { id: r.campaign.id, code: r.campaign.code } : null,
       perf: { orders: perf?.orders ?? 0, discount: perf?.discount ?? 0 },
       appears: app.map((a) => ({ kind: a.kind, place: a.place, what: a.what, live: a.live, href: a.href })),
     };
@@ -85,7 +88,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
     noEnd.length && { Icon: CalendarX, tone: "text-eu-ink-3", text: `${noEnd.length} ενεργ${noEnd.length === 1 ? "ή" : "ές"} χωρίς ημερομηνία λήξης`, sub: noEnd.slice(0, 3).map((p) => p.name).join(" · "), href: "?s=active", cta: "Βάλε λήξη" },
   ].filter(Boolean) as { Icon: typeof Clock; tone: string; text: string; sub: string; href: string; cta: string }[];
 
-  const qs = (x: Record<string, string>) => { const p = new URLSearchParams({ ...(q ? { q } : {}), ...(m ? { m } : {}), s, ...x }); if (p.get("s") === "live") p.delete("s"); const t = p.toString(); return t ? `?${t}` : "/admin/prosfores"; };
+  const qs = (x: Record<string, string>) => { const p = new URLSearchParams({ ...(q ? { q } : {}), ...(m ? { m } : {}), ...(camp ? { c: camp } : {}), s, ...x }); if (p.get("s") === "live") p.delete("s"); const t = p.toString(); return t ? `?${t}` : "/admin/prosfores"; };
 
   return (
     <div className="grid gap-4 min-w-0">
@@ -132,8 +135,16 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
             );
           })}
         </nav>
+        {camp && (
+          <p className="m-0 inline-flex flex-wrap items-center gap-2 text-[length:var(--fs-13)]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-eu-chip text-eu-navy font-bold px-3 min-h-9"><FolderKanban className="size-4" aria-hidden /> Καμπάνια: <span className="font-mono">{campRow?.code ?? "—"}</span>{campRow ? ` · ${campRow.title}` : ""}</span>
+            <Link href={s === "live" ? "/admin/prosfores" : `?s=${s}`} className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-9 inline-flex items-center">Όλες οι προσφορές</Link>
+            {campRow && <Link href={`/admin/prosfores/kampanies/${camp}`} className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-9 inline-flex items-center">Η καμπάνια →</Link>}
+          </p>
+        )}
         <form className="flex flex-wrap gap-2">
           {s !== "live" && <input type="hidden" name="s" value={s} />}
+          {camp && <input type="hidden" name="c" value={camp} />}
           <label className="relative flex-1 min-w-[min(100%,16rem)]">
             <span className="sr-only">Αναζήτηση</span>
             <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-eu-muted pointer-events-none" aria-hidden />
