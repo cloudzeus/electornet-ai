@@ -30,6 +30,8 @@ export interface PromoDraft {
   targets: PromoTarget[];
   /** κοινός κωδικός κουπονιού (μόνο για κουπόνια) */
   couponCode?: string | null;
+  /** καμπάνια (φάκελος) — undefined = δεν αλλάζει, null = εκτός καμπάνιας */
+  campaignId?: string | null;
 }
 
 export const emptyDraft = (template = "percent"): PromoDraft => {
@@ -46,6 +48,7 @@ export function draftOf(p: Row): PromoDraft {
     maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur != null ? Number(p.budgetEur) : null, termsText: p.termsText, tagLabel: p.tagLabel, stickerKey: p.stickerKey,
     targets: p.targets.map((x) => ({ kind: x.kind as PromoTarget["kind"], refId: x.refId, exclude: x.exclude })),
     couponCode: p.coupons.find((c) => c.kind === "shared")?.code ?? null,
+    campaignId: p.campaignId ?? null,
   };
 }
 const stripMeta = (r: PromoRules & { template?: string }) => { const { template: _t, ...rest } = r ?? {}; void _t; return rest; };
@@ -206,6 +209,7 @@ function dataOf(d: PromoDraft) {
     reward: json(d.reward), rules: json({ ...d.rules, template: d.template }),
     maxUses: d.maxUses || null, maxPerCustomer: d.maxPerCustomer || null, budgetEur: d.budgetEur != null && d.budgetEur > 0 ? new Prisma.Decimal(d.budgetEur) : null,
     termsText: d.termsText?.trim() || null, tagLabel: d.tagLabel?.trim() || null, stickerKey: d.stickerKey || null,
+    ...(d.campaignId !== undefined ? { campaignId: d.campaignId || null } : {}),
   };
 }
 
