@@ -12,9 +12,12 @@ export function spcsOf(erpCode: string | null | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Τιμή σετ με ΦΠΑ = Σ (τιμή web μέλους × ποσότητα)· μέλος χωρίς τιμή μετρά 0. */
-export function setPrice(members: { price: number | null; qty: number }[]): number {
-  const sum = members.reduce((a, m) => a + (m.price ?? 0) * (m.qty || 1), 0);
+/**
+ * Τιμή σετ με ΦΠΑ = Σ (τιμή web μέλους × ποσότητα)· μέλος χωρίς τιμή μετρά 0. Σε σετ με δώρο το δώρο δεν χρεώνεται
+ * (όπως το γράφει και το SoftOne: γραμμή δώρου με τιμή 0), οπότε μετρά μόνο το κύριο είδος.
+ */
+export function setPrice(members: { price: number | null; qty: number; isMain?: boolean }[], kind: "parts" | "gift" = "parts"): number {
+  const sum = members.filter((m) => kind === "parts" || m.isMain).reduce((a, m) => a + (m.price ?? 0) * (m.qty || 1), 0);
   return Math.round((sum + Number.EPSILON) * 100) / 100;
 }
 

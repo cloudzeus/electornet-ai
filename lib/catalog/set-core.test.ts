@@ -36,3 +36,8 @@ test("τίτλος σετ: χωρίς διπλά κενά, μάρκα μία φ�
   assert.equal(setTitle("43UR78006LK.API + MR24GN.AEU", "LG"), "LG 43UR78006LK.API + MR24GN.AEU");
   assert.equal(setTitle("PHILIPS GC9660/30 + Δώρο σιδερώστρα", "Philips"), "PHILIPS GC9660/30 + Δώρο σιδερώστρα");
 });
+
+test("τιμή σετ με δώρο: το δώρο δεν χρεώνεται (μετρά μόνο το κύριο)", () => {
+  assert.equal(setPrice([{ price: 299, qty: 1, isMain: true }, { price: 29, qty: 1, isMain: false }], "gift"), 299);
+  assert.equal(setPrice([{ price: 399, qty: 1, isMain: true }, { price: 0, qty: 1, isMain: false }], "parts"), 399);
+});

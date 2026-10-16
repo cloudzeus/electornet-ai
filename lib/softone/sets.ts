@@ -60,26 +60,84 @@ export function syncSets(trigger: Trigger = "manual") {
 }
 
 /**
- * Sets «εξαρτημάτων»: κανένα άλλο μέλος δεν πωλείται χωριστά στο site (π.χ. εξωτερική μονάδα κλιματιστικού). Μόνο σε αυτά
- * το απόθεμα του προϊόντος = όσα πλήρη sets βγαίνουν από τα μέλη. Sets «με δώρο» (το μέλος είναι κανονικό προϊόν, π.χ.
- * ψυγείο + σκούπα, ή «+ ΔΩΡΟ» στο όνομα) δεν αγγίζουν το απόθεμα — το κύριο προϊόν πουλιέται και μόνο του.
+ * Τα «Set ειδών» ως προϊόντα του καταλόγου (docs/superpowers/specs/2026-10-16-item-sets-design.md):
+ * - ένα προϊόν ανά σετ (erpCode SET-<spcs>, πηγή softone-set) με τιμή = Σ τιμών web των μελών, απόθεμα = πλήρη σετ,
+ *   μάρκα / κατηγορία / ΦΠΑ από το κύριο είδος, εικόνες του κύριου την πρώτη φορά· ο τίτλος γράφεται μόνο στη δημιουργία
+ *   (αλλάζει από τη διαχείριση)
+ * - «Πωλείται και μόνο του» των κύριων: auto → όχι όταν είναι κύριο σε ενεργό σετ εξαρτημάτων
+ * Γράφει μόνο ό,τι άλλαξε. Ασφαλές για επανάληψη.
  */
-const PARTS_SETS = `
-  SELECT s.spcs, s.mtrl FROM "S1Set" s
-  WHERE s.active AND (s."finalDate" IS NULL OR s."finalDate" >= now())
-    AND s.name !~* 'δ[ωώ]ρ'
-    AND NOT EXISTS (SELECT 1 FROM "S1SetLine" l JOIN "Product" p ON p."erpCode" = l.mtrl::text AND p.active WHERE l.spcs = s.spcs AND l.mtrl <> s.mtrl)`;
+export async function projectSetProducts(): Promise<{ sets: number; created: number; updated: number; deactivated: number; mainsHidden: number }> {
+  const { setErp, setPrice, setStock, setTitle } = await import("@/lib/catalog/set-core");
+  const { isGiftName } = await import("@/lib/catalog/sets");
+  const { slugify } = await import("@/lib/slug");
+  const now = new Date();
+  const sets = await db.s1Set.findMany({ include: { lines: { orderBy: { lineNum: "asc" } } } });
+  const mtrls = [...new Set(sets.flatMap((x) => [x.mtrl, ...x.lines.map((l) => l.mtrl)]))];
+  const [items, prods, existing] = await Promise.all([
+    db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, eshopPrice: true } }),
+    db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, active: true, brandId: true, categoryId: true, vatRate: true, brand: { select: { name: true } } } }),
+    db.product.findMany({ where: { OR: [{ kind: "set" }, { erpCode: { startsWith: "SET-" } }] }, select: { id: true, setSpcs: true, erpCode: true, price: true, stock: true, active: true, brandId: true, categoryId: true, _count: { select: { media: true } } } }),
+  ]);
+  const priceOf = new Map(items.map((i) => [i.mtrl, i.eshopPrice]));
+  const prodOf = new Map(prods.map((p) => [Number(p.erpCode), p]));
+  const bySpcs = new Map(existing.filter((e) => e.setSpcs != null).map((e) => [e.setSpcs!, e]));
+  const taken = { slug: new Set((await db.product.findMany({ select: { slug: true } })).map((x) => x.slug)), sku: new Set((await db.product.findMany({ select: { sku: true } })).map((x) => x.sku)) };
+  let created = 0, updated = 0;
+  const mainOfParts = new Set<number>();
+  const newMedia: { setId: string; mainId: string }[] = [];
 
-/** Απόθεμα προϊόντων-set (μόνο «εξαρτήματα»): το καλύτερο από τα sets του προϊόντος, καθένα = το μικρότερο floor(απόθεμα / ποσότητα) των μελών. */
-export async function projectSetStock(): Promise<number> {
-  return db.$executeRawUnsafe(`
-    UPDATE "Product" p SET stock = a.s
-    FROM (
-      SELECT x.mtrl, MAX(x.s)::int AS s FROM (
-        SELECT ps.spcs, ps.mtrl, MIN(GREATEST(0, floor(l."stockCentral" / NULLIF(l.qty, 0)))) AS s
-        FROM (${PARTS_SETS}) ps JOIN "S1SetLine" l ON l.spcs = ps.spcs
-        GROUP BY ps.spcs, ps.mtrl) x
-      GROUP BY x.mtrl
-    ) a
-    WHERE p."erpCode" = a.mtrl::text AND p.stock IS DISTINCT FROM a.s`);
+  for (const set of sets) {
+    const main = prodOf.get(set.mtrl);
+    const kind = isGiftName(set.name) || set.lines.some((l) => l.mtrl !== set.mtrl && prodOf.get(l.mtrl)?.active) ? "gift" : "parts";
+    const live = set.active && (!set.finalDate || set.finalDate >= now) && !!main?.active;
+    if (live && kind === "parts") mainOfParts.add(set.mtrl);
+    const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
+    const stock = setStock(set.lines.map((l) => ({ stock: l.stockCentral, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
+    const active = live && price > 0 && set.lines.length > 1;
+    const e = bySpcs.get(set.spcs);
+    if (!main) { if (e?.active) { await db.product.update({ where: { id: e.id }, data: { active: false } }); updated++; } continue; }
+    const data = { price: price > 0 ? price : null, stock, active, brandId: main.brandId, categoryId: main.categoryId, vatRate: main.vatRate };
+    if (!e) {
+      const title = setTitle(set.name, main.brand.name);
+      let slug = `${slugify(title).slice(0, 90).replace(/-+$/, "")}-set`;
+      for (let i = 2; taken.slug.has(slug); i++) slug = `${slugify(title).slice(0, 86).replace(/-+$/, "")}-set-${i}`;
+      const sku = taken.sku.has(`SET-${set.code}`) ? `SET-${set.code}-${set.spcs}` : `SET-${set.code}`;
+      taken.slug.add(slug); taken.sku.add(sku);
+      const p = await db.product.create({ data: { ...data, erpCode: setErp(set.spcs), slug, sku, title, kind: "set", setSpcs: set.spcs, source: "softone-set", s1SyncedAt: now } });
+      newMedia.push({ setId: p.id, mainId: main.id });
+      created++;
+    } else {
+      const changed = e.price !== data.price || e.stock !== stock || e.active !== active || e.brandId !== main.brandId || e.categoryId !== main.categoryId;
+      if (changed) { await db.product.update({ where: { id: e.id }, data: { ...data, s1SyncedAt: now } }); updated++; }
+      if (!e._count.media) newMedia.push({ setId: e.id, mainId: main.id });
+    }
+  }
+  // σετ που δεν υπάρχουν πια στο SoftOne → ανενεργά
+  const alive = new Set(sets.map((x) => x.spcs));
+  const gone = existing.filter((e) => e.setSpcs != null && !alive.has(e.setSpcs) && e.active).map((e) => e.id);
+  if (gone.length) await db.product.updateMany({ where: { id: { in: gone } }, data: { active: false } });
+
+  // εικόνες του κύριου ως αφετηρία (ίδια αρχεία· η διαχείριση τις αλλάζει ανεξάρτητα)
+  for (const m of newMedia) {
+    const imgs = await db.media.findMany({ where: { productId: m.mainId, kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, select: { url: true, alt: true, sortNo: true, thumbUrl: true, width: true, height: true, blur: true, assetId: true } });
+    if (imgs.length) await db.media.createMany({ data: imgs.map((x) => ({ ...x, productId: m.setId, kind: "image", source: "set-main" })), skipDuplicates: true });
+  }
+
+  // παραλλαγή + ιστορικό τιμής (Omnibus) για τα προϊόντα-σετ
+  await db.$executeRawUnsafe(`UPDATE "PriceHistory" h SET "to" = now() FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE h."variantId" = v.id AND h."to" IS NULL AND p.kind = 'set' AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`);
+  await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, round(p.price::numeric, 2), now() FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE p.kind = 'set' AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`);
+  await db.$executeRawUnsafe(`UPDATE "Variant" v SET price = round(p.price::numeric, 2), "updatedAt" = now() FROM "Product" p WHERE p.id = v."productId" AND p.kind = 'set' AND p.price IS NOT NULL AND v.price <> round(p.price::numeric, 2)`);
+  await db.$executeRawUnsafe(`INSERT INTO "Variant" (id, "productId", "erpCode", axis, price, "updatedAt") SELECT 'var_' || p."erpCode", p.id, p."erpCode", '{}'::jsonb, round(p.price::numeric, 2), now() FROM "Product" p WHERE p.kind = 'set' AND p.price IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Variant" v WHERE v."productId" = p.id) ON CONFLICT DO NOTHING`);
+  await db.$executeRawUnsafe(`INSERT INTO "PriceHistory" (id, "variantId", price, "from") SELECT 'ph_' || md5(random()::text || v.id), v.id, v.price, now() FROM "Variant" v JOIN "Product" p ON p.id = v."productId" WHERE p.kind = 'set' AND NOT EXISTS (SELECT 1 FROM "PriceHistory" h WHERE h."variantId" = v.id)`);
+
+  // «Πωλείται και μόνο του» των ειδών: yes / no ρητά, auto → όχι μόνο στα κύρια ενεργών σετ εξαρτημάτων
+  const parts = [...mainOfParts].map(String);
+  const mainsHidden = await db.$executeRawUnsafe(
+    `UPDATE "Product" SET "soldAlone" = ("soldAloneMode" = 'yes' OR ("soldAloneMode" = 'auto' AND NOT ("erpCode" = ANY($1::text[]))))
+     WHERE kind = 'item' AND "soldAlone" IS DISTINCT FROM ("soldAloneMode" = 'yes' OR ("soldAloneMode" = 'auto' AND NOT ("erpCode" = ANY($1::text[]))))`, parts);
+  return { sets: sets.length, created, updated: updated + gone.length, deactivated: gone.length, mainsHidden };
 }
+
+/** Παλιό όνομα (cron / κουμπί συγχρονισμού): η προβολή των σετ ως προϊόντα. */
+export const projectSetStock = async () => { const r = await projectSetProducts(); return r.created + r.updated; };
