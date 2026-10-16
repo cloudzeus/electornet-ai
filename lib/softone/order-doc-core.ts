@@ -34,6 +34,26 @@ export interface SaldocLine {
   /** ΦΠΑ % του είδους (24, 13, 6) */
   vatRate: number;
   promo?: string | null; terms?: string | null;
+  /** σετ ειδών: το σετ (SPCS) και τα μέλη του όπως ήταν στην παραγγελία — η γραμμή «ανοίγει» σε κύριο + μέλη */
+  setSpcs?: number | null;
+  setParts?: { mtrl: number; qty: number; name: string; main: boolean }[] | null;
+}
+
+/**
+ * Γραμμή σετ → γραμμές όπως τις γράφει το SoftOne / το σημερινό eshop: το κύριο είδος με όλη την τιμή (και τις εκπτώσεις
+ * της γραμμής), τα υπόλοιπα μέλη με τιμή 0· όλες με SPCS. Γραμμή χωρίς σετ μένει ως έχει.
+ */
+export function expandSetLines(lines: SaldocLine[]): (SaldocLine & { spcs?: number; partOfSet?: boolean })[] {
+  return lines.flatMap((l) => {
+    if (!l.setSpcs) return [l];
+    const parts = l.setParts ?? [];
+    const main = parts.find((p) => p.main);
+    if (!main) return [{ ...l, erpCode: null, spcs: l.setSpcs }];
+    return [
+      { ...l, erpCode: String(main.mtrl), qty: l.qty * (main.qty || 1), listPrice: l.listPrice / (main.qty || 1), spcs: l.setSpcs, partOfSet: true },
+      ...parts.filter((p) => !p.main).map((p) => ({ erpCode: String(p.mtrl), title: p.name, qty: l.qty * (p.qty || 1), listPrice: 0, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: l.vatRate, spcs: l.setSpcs!, partOfSet: true })),
+    ];
+  });
 }
 export interface SaldocOrder {
   number: string; fulfilment: string; payment: string; email: string | null;
@@ -67,7 +87,7 @@ const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const cut = (s: string, n: number) => s.replace(/\s+/g, " ").trim().slice(0, n);
 const netOf = (gross: number, rate: number) => gross / (1 + rate / 100);
 /** τιμή χωρίς ΦΠΑ προς τα πάνω και εκπτώσεις προς τα κάτω: το σύνολο του SoftOne βγαίνει ≥ του δικού μας και κλείνει με έκπτωση κεφαλίδας */
-const ceil2 = (n: number) => Math.ceil(r2(n * 100) - 1e-9) / 100;
+const ceil2 = (n: number) => Math.ceil(r2(n * 100) - 1e-9) / 100 || 0;
 const floor2 = (n: number) => Math.floor(r2(n * 100) + 1e-9) / 100;
 
 interface NetLine { rate: number; net: number }
@@ -103,16 +123,17 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
 
   // γραμμές: τιμή και εκπτώσεις χωρίς ΦΠΑ
   const nets: NetLine[] = [];
-  const itelines: Record<string, unknown>[] = o.lines.map((l) => {
-    if (!l.erpCode) needs.push(`Κωδικός είδους SoftOne για «${l.title}»`);
+  const itelines: Record<string, unknown>[] = expandSetLines(o.lines).map((l) => {
+    if (!l.erpCode) needs.push(l.spcs ? `Τα μέλη του σετ για «${l.title}» (η παραγγελία δεν κράτησε στιγμιότυπο)` : `Κωδικός είδους SoftOne για «${l.title}»`);
     const price = ceil2(netOf(l.listPrice, l.vatRate));
-    // δώρο / δωρεάν: η έκπτωση καλύπτει ακριβώς την αξία (μηδενική γραμμή)
-    const free = l.discPrice + l.discCoupon + l.discPayment >= l.listPrice * l.qty - 0.005;
+    // δώρο / δωρεάν: η έκπτωση καλύπτει ακριβώς την αξία (μηδενική γραμμή)· μέλος σετ με τιμή 0: απλώς 0
+    const free = l.listPrice > 0 && l.discPrice + l.discCoupon + l.discPayment >= l.listPrice * l.qty - 0.005;
     const d1 = free ? r2(price * l.qty) : floor2(netOf(l.discPrice, l.vatRate)), d2 = free ? 0 : floor2(netOf(l.discCoupon, l.vatRate)), d3 = free ? 0 : floor2(netOf(l.discPayment, l.vatRate));
     nets.push({ rate: l.vatRate, net: r2(r2(price * l.qty) - d1 - d2 - d3) });
     return {
       MTRL: l.erpCode ? Number(l.erpCode) : null, QTY1: l.qty, PRICE: price,
       ...(d1 ? { DISC1VAL: d1 } : {}), ...(d2 ? { DISC2VAL: d2 } : {}), ...(d3 ? { DISC3VAL: d3 } : {}),
+      ...(l.spcs ? { SPCS: l.spcs } : {}),
       ...(l.promo ? { COMMENTS: cut(l.promo, 255) } : {}), ...(l.terms ? { COMMENTS1: cut(l.terms, 2000) } : {}),
     };
   });

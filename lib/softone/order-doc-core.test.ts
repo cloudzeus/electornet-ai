@@ -99,3 +99,19 @@ test("σύνολα: ΦΠΑ ανά συντελεστή, έκπτωση κεφα�
 });
 
 const r = (n: number) => Math.round(n * 100) / 100;
+
+test("σετ: κύριο με όλη την τιμή + μέλη με 0, όλα με SPCS (όπως το σημερινό eshop)", () => {
+  const o: SaldocOrder = { ...base, total: 798, lines: [{ erpCode: "SET-594", title: "Κλιματιστικό TOYOTOMI", qty: 2, listPrice: 399, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24,
+    setSpcs: 594, setParts: [{ mtrl: 142219, qty: 1, name: "TAN-09IG", main: true }, { mtrl: 142220, qty: 1, name: "TAG-09IG", main: false }] }] };
+  const d = composeSaldoc(o, S);
+  assert.equal(d.data.ITELINES.length, 2);
+  assert.deepEqual([d.data.ITELINES[0].MTRL, d.data.ITELINES[0].QTY1, d.data.ITELINES[0].PRICE, d.data.ITELINES[0].SPCS], [142219, 2, 321.78, 594]);
+  assert.deepEqual([d.data.ITELINES[1].MTRL, d.data.ITELINES[1].QTY1, d.data.ITELINES[1].PRICE, d.data.ITELINES[1].SPCS], [142220, 2, 0, 594]);
+  assert.equal(d.totals.gross, 798);
+  assert.deepEqual(d.needs, []);
+});
+
+test("σετ χωρίς στιγμιότυπο μελών → λείπει (δεν στέλνεται κωδικός SET-)", () => {
+  const d = composeSaldoc({ ...base, lines: [{ erpCode: "SET-594", title: "Σετ", qty: 1, listPrice: 249.9, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24, setSpcs: 594 }] }, S);
+  assert.ok(d.needs.some((n) => n.includes("μέλη")));
+});

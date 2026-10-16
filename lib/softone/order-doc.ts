@@ -34,7 +34,7 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
       lines: {
         orderBy: { id: "asc" },
         select: {
-          title: true, qty: true, listPrice: true, unitPrice: true, discPrice: true, discCoupon: true, discPayment: true, erpCode: true, isGift: true, promotions: true,
+          title: true, qty: true, listPrice: true, unitPrice: true, discPrice: true, discCoupon: true, discPayment: true, erpCode: true, isGift: true, promotions: true, setSpcs: true, setParts: true,
           variant: { select: { product: { select: { vatRate: true } } } },
           addons: { select: { price: true, service: { select: { title: true } } } },
         },
@@ -59,6 +59,8 @@ export async function saldocForOrder(orderId: string, client: Client = db): Prom
       discPrice: n(l.discPrice), discCoupon: n(l.discCoupon), discPayment: n(l.discPayment), vatRate: n(l.variant.product.vatRate) || 24,
       promo: promos.map((p) => `${p.code} v${p.version}${l.isGift ? " · δώρο" : ""}`).join(" · ") || null,
       terms: promos.map((p) => (p.promotionId ? terms.get(p.promotionId) : null)).filter(Boolean).join(" · ") || null,
+      // σετ: ανοίγει σε κύριο + μέλη από το στιγμιότυπο της αγοράς (όχι από τα σημερινά μέλη του SoftOne)
+      setSpcs: l.setSpcs, setParts: (l.setParts ?? null) as SaldocLine["setParts"],
     });
     // υπηρεσίες της γραμμής (εγκατάσταση, επέκταση εγγύησης κ.λπ.): δική τους γραμμή — ο κωδικός είδους ορίζεται ανά υπηρεσία
     for (const a of l.addons) lines.push({ erpCode: null, title: a.service.title, qty: 1, listPrice: n(a.price), discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 });
