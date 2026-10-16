@@ -7,6 +7,7 @@ import { currentCart, publicQuote, quoteCart } from "@/lib/cart/server";
 import { invalidatePromos } from "@/lib/promo/server";
 import { getServiceList } from "@/lib/services/catalog";
 import { saldocForOrder } from "@/lib/softone/order-doc";
+import { setPartsSnapshot, spcsOf } from "@/lib/catalog/set-core";
 import { getSetting } from "@/lib/settings/store";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
@@ -115,12 +116,17 @@ export async function placeOrder(input: PlaceInput) {
           payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1), ...(viva ? { psp: "viva" } : klarna ? { psp: "klarna" } : {}) } },
         },
       });
+      // σετ: στιγμιότυπο των μελών τη στιγμή της παραγγελίας (το παραστατικό βγαίνει από αυτό, όχι από το σημερινό σετ)
+      const setIds = [...new Set(q.lines.map((x) => spcsOf(x.erpCode)).filter((x): x is number => x != null))];
+      const setDefs = new Map((setIds.length ? await tx.s1Set.findMany({ where: { spcs: { in: setIds } }, select: { spcs: true, mtrl: true, lines: { orderBy: { lineNum: "asc" }, select: { mtrl: true, qty: true, name: true } } } }) : []).map((x) => [x.spcs, x]));
       for (const l of q.engine.lines) {
         const info = q.lines.find((x) => x.key === l.key)!;
+        const setDef = setDefs.get(spcsOf(info.erpCode) ?? -1);
         const ol = await tx.orderLine.create({
           data: {
             orderId: order.id, variantId: l.variantId, title: `${info.brand} ${info.title}`, qty: l.qty, unitPrice: eur(l.unitFinal), listPrice: eur(l.unit),
             discPrice: eur(l.discPrice), discCoupon: eur(l.discCoupon), discPayment: eur(l.discPayment), lineTotal: eur(l.total), erpCode: info.erpCode,
+            ...(setDef ? { setSpcs: setDef.spcs, setParts: setPartsSnapshot(setDef) as unknown as Prisma.InputJsonValue } : {}),
             promotions: l.adjustments.map((a) => ({ promotionId: a.promotionId, code: a.code, version: a.version, kind: a.kind, amount: a.amount, label: a.label })) as Prisma.InputJsonValue,
             addons: info.addons.length ? { create: info.addons.map((a) => ({ serviceId: svcIds.get(a.slug)!, price: eur(a.price * l.qty) })) } : undefined,
           },

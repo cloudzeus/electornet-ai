@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet } from "./set-core";
+import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot } from "./set-core";
 
 test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(setErp(594), "SET-594");
@@ -51,4 +51,11 @@ test("τίτλος σετ: χωρίς διπλά κενά, μάρκα μία φ�
 test("τιμή σετ με δώρο: το δώρο δεν χρεώνεται (μετρά μόνο το κύριο)", () => {
   assert.equal(setPrice([{ price: 299, qty: 1, isMain: true }, { price: 29, qty: 1, isMain: false }], "gift"), 299);
   assert.equal(setPrice([{ price: 399, qty: 1, isMain: true }, { price: 0, qty: 1, isMain: false }], "parts"), 399);
+});
+
+test("στιγμιότυπο μελών για την παραγγελία: κύριο πρώτο, διπλές γραμμές κύριου μία φορά", () => {
+  const parts = setPartsSnapshot({ mtrl: 142219, lines: [{ mtrl: 142219, qty: 1, name: "TAN-09IG" }, { mtrl: 142220, qty: 1, name: "TAG-09IG" }] });
+  assert.deepEqual(parts, [{ mtrl: 142219, qty: 1, name: "TAN-09IG", main: true }, { mtrl: 142220, qty: 1, name: "TAG-09IG", main: false }]);
+  assert.equal(setPartsSnapshot({ mtrl: 1, lines: [{ mtrl: 2, qty: 1, name: "b" }, { mtrl: 1, qty: 1, name: "a" }, { mtrl: 1, qty: 1, name: "a" }] })[0].mtrl, 1);
+  assert.equal(setPartsSnapshot({ mtrl: 1, lines: [{ mtrl: 1, qty: 1, name: "a" }, { mtrl: 1, qty: 1, name: "a" }, { mtrl: 2, qty: 3, name: "b" }] }).length, 2);
 });

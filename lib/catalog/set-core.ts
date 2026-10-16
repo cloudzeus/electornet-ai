@@ -43,3 +43,13 @@ export function setTitle(name: string, brand: string): string {
   const plain = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replace(/[̀-ͯ]/g, "");
   return plain(t).includes(plain(brand)) ? t : `${brand} ${t}`;
 }
+
+export type SetPart = { mtrl: number; qty: number; name: string; main: boolean };
+/** Τα μέλη ενός σετ όπως αποθηκεύονται στη γραμμή παραγγελίας (για το παραστατικό): κύριο πρώτο, χωρίς διπλές γραμμές του κύριου. */
+export function setPartsSnapshot(set: { mtrl: number; lines: { mtrl: number; qty: number; name: string }[] }): SetPart[] {
+  const main = set.lines.find((l) => l.mtrl === set.mtrl);
+  return [
+    ...(main ? [{ mtrl: main.mtrl, qty: main.qty || 1, name: main.name, main: true }] : []),
+    ...set.lines.filter((l) => l.mtrl !== set.mtrl).map((l) => ({ mtrl: l.mtrl, qty: l.qty || 1, name: l.name, main: false })),
+  ];
+}
