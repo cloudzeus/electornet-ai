@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { pdpExtras } from "@/lib/catalog/pdp-extras";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Check, Package, Recycle } from "lucide-react";
 import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
@@ -63,7 +63,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = await getProductBySlug(slug);
   if (!p) notFound();
   // όλα ανεξάρτητα μεταξύ τους → ένας γύρος (πριν ήταν 5 διαδοχικοί: ~1″ με τη βάση σε άλλο μηχάνημα)
-  const [l1, related, accessories, services, stores, co2, { setParts, maker, extOk, ar }, arCats] = await Promise.all([
+  const [l1, related, accessories, services, stores, co2, { setParts, setLinks, soldAlone, maker, extOk, ar }, arCats] = await Promise.all([
     getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
     // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
     getGridFactor().catch(() => null),
@@ -72,6 +72,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     // «Δες το στον χώρο σου»: κατηγορίες με AR
     getArCategories(),
   ]);
+  // κύριο είδος που πωλείται μόνο σε σετ: η σελίδα του οδηγεί στο (φθηνότερο ενεργό) σετ· χωρίς ενεργό σετ δεν πωλείται
+  if (!soldAlone) { if (setLinks[0]) permanentRedirect(`/proion/${setLinks[0].slug}`); notFound(); }
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
@@ -158,11 +160,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {setParts.map((x) => (
                   <li key={x.name} className="flex items-start gap-2 text-eu-ink-2 text-[length:var(--fs-16)]">
                     <Check className="size-5 shrink-0 mt-0.5 text-eu-green" aria-hidden />
-                    <span>{x.qty !== 1 ? `${x.qty} × ` : ""}{x.name}</span>
+                    <span>{x.qty !== 1 ? `${x.qty} × ` : ""}{x.name}{x.gift && <span className="ml-1.5 inline-flex rounded-full bg-eu-yellow/40 px-2 py-0.5 align-middle font-bold text-eu-navy text-[length:var(--fs-12)]">Δώρο</span>}</span>
                   </li>
                 ))}
               </ul>
-              <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Πωλούνται μαζί, σε μία τιμή.</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">{setParts.some((x) => x.gift) ? "Το δώρο περιλαμβάνεται στην τιμή." : "Πωλούνται μαζί, σε μία τιμή."}</p>
+            </div>
+          )}
+          {setLinks.length > 0 && (
+            <div className="mt-4 rounded-xl border border-eu-line p-4 grid gap-2">
+              <h3 className="m-0 inline-flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-17)]"><Package className="size-5 text-eu-blue" aria-hidden /> Διαθέσιμο και σε σετ</h3>
+              <ul className="m-0 p-0 list-none grid gap-1.5">
+                {setLinks.map((x) => (
+                  <li key={x.id}><Link href={`/proion/${x.slug}`} className="inline-flex flex-wrap items-baseline gap-x-2 min-h-11 md:min-h-9 font-bold text-eu-blue hover:underline text-[length:var(--fs-16)]">{x.title}{x.price ? <span className="font-normal text-eu-ink-3 tabular-nums">{x.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span> : null}</Link></li>
+                ))}
+              </ul>
             </div>
           )}
         </section>

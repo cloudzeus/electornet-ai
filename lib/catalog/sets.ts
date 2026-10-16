@@ -54,16 +54,31 @@ export async function setForProduct(erpCode: string | null): Promise<SetRow | nu
   return (await buildRows({ mtrl: m, active: true }).catch(() => []))[0] ?? null;
 }
 
-/** «Περιλαμβάνει» για τη σελίδα του προϊόντος: όλα τα μέλη (και το κύριο), με την ετικέτα της διαχείρισης ή το όνομα του ERP. */
-export async function setPartsForSite(productId: string): Promise<{ name: string; qty: number }[] | null> {
-  const erpCode = (await db.product.findUnique({ where: { id: productId }, select: { erpCode: true } }).catch(() => null))?.erpCode;
-  const m = Number(erpCode);
-  if (!Number.isInteger(m)) return null;
-  const sets = await db.s1Set.findMany({ where: { mtrl: m, active: true, OR: [{ finalDate: null }, { finalDate: { gte: new Date() } }] }, select: { name: true, lines: { orderBy: { lineNum: "asc" }, select: { name: true, label: true, qty: true, mtrl: true } } } }).catch(() => []);
-  // μόνο sets «εξαρτημάτων» (π.χ. εσωτερική + εξωτερική μονάδα) — τα δώρα δεν είναι μέρος του προϊόντος
-  const others = sets.flatMap((x) => x.lines.filter((l) => l.mtrl !== m).map((l) => String(l.mtrl)));
-  const sold = new Set((others.length ? await db.product.findMany({ where: { erpCode: { in: others }, active: true }, select: { erpCode: true } }) : []).map((p) => p.erpCode));
-  const s = sets.find((x) => !isGiftName(x.name) && x.lines.every((l) => l.mtrl === m || !sold.has(String(l.mtrl))));
+/**
+ * «Περιλαμβάνει» για τη σελίδα ενός προϊόντος-σετ: όλα τα μέλη (και το κύριο), με την ετικέτα της διαχείρισης ή την
+ * αυτόματη πρόταση ή το όνομα του ERP· στα σετ με δώρο τα υπόλοιπα μέλη σημειώνονται «Δώρο».
+ */
+export async function setPartsForSite(productId: string): Promise<{ name: string; qty: number; gift: boolean }[] | null> {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { kind: true, setSpcs: true } }).catch(() => null);
+  if (p?.kind !== "set" || p.setSpcs == null) return null;
+  const s = await db.s1Set.findUnique({ where: { spcs: p.setSpcs }, select: { name: true, mtrl: true, lines: { orderBy: { lineNum: "asc" }, select: { name: true, label: true, qty: true, mtrl: true } } } });
   if (!s || s.lines.length < 2) return null;
-  return s.lines.map((l) => ({ name: l.label?.trim() || suggestSetLabel(l.name, s.name, { isMain: l.mtrl === m, members: s.lines.length }) || l.name, qty: l.qty }));
+  const others = s.lines.filter((l) => l.mtrl !== s.mtrl).map((l) => String(l.mtrl));
+  const sold = new Set((others.length ? await db.product.findMany({ where: { erpCode: { in: others }, active: true }, select: { erpCode: true } }) : []).map((x) => x.erpCode));
+  const gift = isGiftName(s.name) || others.some((m) => sold.has(m));
+  const seen = new Set<number>();
+  return s.lines.filter((l) => (seen.has(l.mtrl) ? false : (seen.add(l.mtrl), true))).map((l) => ({
+    name: l.label?.trim() || suggestSetLabel(l.name, s.name, { isMain: l.mtrl === s.mtrl, members: s.lines.length }) || l.name,
+    qty: l.qty, gift: gift && l.mtrl !== s.mtrl,
+  }));
+}
+
+/** Τα ενεργά προϊόντα-σετ που περιέχουν αυτό το είδος ως κύριο (για «Διαθέσιμο και σε σετ» / ανακατεύθυνση). */
+export async function setsOfMain(productId: string): Promise<{ id: string; slug: string; title: string; price: number | null }[]> {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { kind: true, erpCode: true } }).catch(() => null);
+  const m = Number(p?.erpCode);
+  if (p?.kind !== "item" || !Number.isInteger(m)) return [];
+  const spcs = (await db.s1Set.findMany({ where: { mtrl: m }, select: { spcs: true } })).map((x) => x.spcs);
+  if (!spcs.length) return [];
+  return db.product.findMany({ where: { setSpcs: { in: spcs }, active: true }, orderBy: [{ price: "asc" }], select: { id: true, slug: true, title: true, price: true } });
 }

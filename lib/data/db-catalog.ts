@@ -28,8 +28,10 @@ import { specAttrs } from "@/lib/catalog/compare-specs";
  */
 const SHOWN: Prisma.MediaWhereInput = { kind: "image", hidden: false };
 /** Προϊόντα του καταστήματος: όσα έρχονται από το SoftOne και όσα μπήκαν μόνο στο eshop (εισαγωγή excel). */
-export const SHOP_SOURCES = ["softone", "import"];
-export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, media: { some: SHOWN } };
+/** softone-set = τα «Set ειδών» του SoftOne ως προϊόντα (lib/softone/sets.ts → projectSetProducts) */
+export const SHOP_SOURCES = ["softone", "import", "softone-set"];
+/** Στις λίστες / αναζήτηση: όχι τα κύρια είδη που πωλούνται μόνο σε σετ (soldAlone = false) */
+export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, soldAlone: true, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
 // ---------- Δέντρο ----------
@@ -62,12 +64,12 @@ async function buildTree(): Promise<Tree> {
   treeCache = { roots, byId, bySlug: new Map([...byId.values()].map((n) => [n.slug, n])), at: Date.now() };
   return treeCache;
 }
-/** Ονόματα των «Set ειδών» και των μελών τους, ανά κύριο είδος (erpCode), για την αναζήτηση. 5′ στη μνήμη· 719 sets. */
-let setIndex: { at: number; rows: { mtrl: string; text: string }[] } | null = null;
+/** Ονόματα των «Set ειδών» και των μελών τους → το κύριο είδος και το προϊόν-σετ (SET-<spcs>), για την αναζήτηση. 5′ στη μνήμη. */
+let setIndex: { at: number; rows: { mtrl: string; set: string; text: string }[] } | null = null;
 async function setSearchIndex() {
   if (setIndex && Date.now() - setIndex.at < TTL) return setIndex.rows;
-  const sets = await db.s1Set.findMany({ where: { active: true }, select: { mtrl: true, name: true, code: true, lines: { select: { name: true, code: true, label: true } } } }).catch(() => []);
-  const rows = sets.map((s) => ({ mtrl: String(s.mtrl), text: norm([s.name, s.code, ...s.lines.flatMap((l) => [l.name, l.code ?? "", l.label ?? ""])].join(" ")) }));
+  const sets = await db.s1Set.findMany({ where: { active: true }, select: { spcs: true, mtrl: true, name: true, code: true, lines: { select: { name: true, code: true, label: true } } } }).catch(() => []);
+  const rows = sets.map((s) => ({ mtrl: String(s.mtrl), set: `SET-${s.spcs}`, text: norm([s.name, s.code, ...s.lines.flatMap((l) => [l.name, l.code ?? "", l.label ?? ""])].join(" ")) }));
   setIndex = { at: Date.now(), rows };
   return rows;
 }
@@ -300,7 +302,7 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   const qWords = (f.q ?? "").trim().split(/\s+/).filter((w) => w.length >= 2);
   const sets = qWords.length ? await setSearchIndex() : [];
   const text: Prisma.ProductWhereInput = words.length ? { AND: qWords.map((w) => {
-    const viaSet = sets.filter((s) => s.text.includes(norm(w))).map((s) => s.mtrl);
+    const viaSet = sets.filter((s) => s.text.includes(norm(w))).flatMap((s) => [s.mtrl, s.set]);
     return { OR: [{ title: { contains: w, mode: "insensitive" as const } }, { sku: { contains: w, mode: "insensitive" as const } }, { modelCode: { contains: w, mode: "insensitive" as const } }, { ean: { contains: w } }, { brand: { name: { contains: w, mode: "insensitive" as const } } }, ...(viaSet.length ? [{ erpCode: { in: viaSet } }] : [])] };
   }) } : {};
   const base: Prisma.ProductWhereInput = { AND: [scope, text] };
