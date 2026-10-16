@@ -58,15 +58,18 @@ export interface LineInfo extends EngineLine { title: string; brand: string; ima
 export async function linesFor(items: CartItemRef[]): Promise<{ lines: LineInfo[]; missing: string[] }> {
   const ids = [...new Set(items.map((i) => i.productId))];
   const products = await db.product.findMany({
-    where: { id: { in: ids }, active: true },
+    // «μόνο σε σετ» είδη δεν αγοράζονται μόνα τους (π.χ. η εσωτερική μονάδα χωρίς την εξωτερική) → «δεν διατίθεται»
+    where: { id: { in: ids }, active: true, soldAlone: true },
     select: { id: true, title: true, slug: true, brandId: true, categoryId: true, brand: { select: { name: true } }, variants: { select: { id: true, price: true, erpCode: true }, take: 1 }, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
+  const { setMainIds } = await import("@/lib/catalog/sets");
+  const mainOf = await setMainIds(products.map((p) => p.id)).catch(() => new Map<string, string>());
   const lines: LineInfo[] = [], missing: string[] = [];
   for (const it of items) {
     const p = byId.get(it.productId), v = p?.variants[0];
     if (!p || !v || Number(v.price) <= 0) { missing.push(it.productId); continue; }
-    lines.push({ key: it.key, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: await categoryChain(p.categoryId), qty: Math.max(1, Math.min(99, Math.floor(it.qty))), unit: cents(v.price), title: p.title, brand: p.brand.name, image: p.media[0]?.url ?? null, erpCode: v.erpCode, slug: p.slug });
+    lines.push({ key: it.key, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: await categoryChain(p.categoryId), qty: Math.max(1, Math.min(99, Math.floor(it.qty))), unit: cents(v.price), ...(mainOf.has(p.id) ? { aliasIds: [mainOf.get(p.id)!] } : {}), title: p.title, brand: p.brand.name, image: p.media[0]?.url ?? null, erpCode: v.erpCode, slug: p.slug });
   }
   return { lines, missing };
 }

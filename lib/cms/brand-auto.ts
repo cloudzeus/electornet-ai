@@ -37,12 +37,12 @@ export async function categoryHref(id: string, brandSlug?: string) {
 /** Τα ids των προϊόντων για ένα «Προϊόντα (αυτόματα)». */
 export async function autoProductIds(brandSlug: string | null, source: AutoSource, limit: number, categoryId?: string): Promise<string[]> {
   const take = Math.max(2, Math.min(12, limit || 8));
-  const where: Prisma.ProductWhereInput = { active: true, ...(brandSlug ? { brand: { slug: brandSlug } } : {}), price: { not: null }, media: { some: { hidden: false, kind: "image" } }, ...(categoryId ? { categoryId: { in: await subtree(categoryId) } } : {}) };
+  const where: Prisma.ProductWhereInput = { active: true, soldAlone: true, ...(brandSlug ? { brand: { slug: brandSlug } } : {}), price: { not: null }, media: { some: { hidden: false, kind: "image" } }, ...(categoryId ? { categoryId: { in: await subtree(categoryId) } } : {}) };
   if (source === "offers") {
     // προϊόντα με ενεργή προσφορά τιμής (ProductOffer: τελική τιμή < τιμή καταλόγου)
     const rows = await db.$queryRaw<{ id: string }[]>`
       SELECT p.id FROM "Product" p JOIN "ProductOffer" o ON o."productId" = p.id JOIN "Brand" b ON b.id = p."brandId"
-      WHERE p.active ${brandSlug ? Prisma.sql`AND b.slug = ${brandSlug}` : Prisma.empty} AND o.price < o."listPrice" ${categoryId ? Prisma.sql`AND p."categoryId" = ANY(${await subtree(categoryId)})` : Prisma.empty}
+      WHERE p.active AND p."soldAlone" ${brandSlug ? Prisma.sql`AND b.slug = ${brandSlug}` : Prisma.empty} AND o.price < o."listPrice" ${categoryId ? Prisma.sql`AND p."categoryId" = ANY(${await subtree(categoryId)})` : Prisma.empty}
       ORDER BY (o."listPrice" - o.price) / NULLIF(o."listPrice", 0) DESC LIMIT ${take}`.catch(() => []);
     return rows.map((r) => r.id);
   }
@@ -57,7 +57,7 @@ export type CategoryTile = { id: string; name: string; href: string; count: numb
 export async function categoryTiles(brandSlug: string | null, opts: { mode: "auto" | "manual"; items?: { id: string; name: string; image?: string }[]; limit?: number }): Promise<CategoryTile[]> {
   const cats = await categories();
   const by = new Map(cats.map((c) => [c.id, c]));
-  const rows = await db.product.groupBy({ by: ["categoryId"], where: { active: true, ...(brandSlug ? { brand: { slug: brandSlug } } : {}) }, _count: { _all: true } });
+  const rows = await db.product.groupBy({ by: ["categoryId"], where: { active: true, soldAlone: true, ...(brandSlug ? { brand: { slug: brandSlug } } : {}) }, _count: { _all: true } });
   const count = new Map<string, number>();
   for (const r of rows) for (let id: string | null = r.categoryId, g = 0; id && g < 8; g++) { count.set(id, (count.get(id) ?? 0) + r._count._all); id = by.get(id)?.parentId ?? null; }
   let picked: { id: string; name: string; image?: string }[];

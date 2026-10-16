@@ -1,4 +1,5 @@
 import "server-only";
+import { setShipFacts } from "@/lib/catalog/set-core";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { categoryPaths } from "@/lib/warranty/pricing";
@@ -37,10 +38,13 @@ export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[
   const ids = [...new Set(productIds.filter(Boolean))];
   if (!ids.length) return [];
   const [prods, specs] = await Promise.all([
-    db.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true, erpCode: true } }),
+    db.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true, erpCode: true, setSpcs: true } }),
     db.spec.findMany({ where: { productId: { in: ids }, key: { contains: "άρος", mode: "insensitive" } }, select: { productId: true, key: true, value: true } }),
   ]);
-  const mtrls = prods.map((p) => Number(p.erpCode)).filter((n) => Number.isInteger(n) && n > 0);
+  // σετ: τα μέλη του (κάθε μέλος σε δικό του δέμα) — βάρος = άθροισμα, διαστάσεις = του μεγαλύτερου
+  const spcs = prods.flatMap((p) => (p.setSpcs != null ? [p.setSpcs] : []));
+  const setLines = spcs.length ? await db.s1SetLine.findMany({ where: { spcs: { in: spcs } }, select: { spcs: true, mtrl: true, qty: true } }) : [];
+  const mtrls = [...new Set([...prods.map((p) => Number(p.erpCode)), ...setLines.map((l) => l.mtrl)])].filter((n) => Number.isInteger(n) && n > 0);
   const [items, paths] = await Promise.all([
     mtrls.length ? db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, lengthCm: true, widthCm: true, heightCm: true, weightKg: true } }) : Promise.resolve([]),
     categoryPaths(prods.map((p) => p.categoryId)),
@@ -49,6 +53,15 @@ export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[
   const sm = new Map<string, { key: string; value: string }[]>();
   for (const s of specs) sm.set(s.productId, [...(sm.get(s.productId) ?? []), s]);
   return prods.map((p) => {
+    if (p.setSpcs != null) {
+      const seen = new Set<number>();
+      const members = setLines.filter((l) => l.spcs === p.setSpcs && (seen.has(l.mtrl) ? false : (seen.add(l.mtrl), true))).map((l) => {
+        const it = im.get(String(l.mtrl));
+        return { weightKg: it?.weightKg && it.weightKg > 0 ? it.weightKg : null, dims: it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : null, qty: l.qty };
+      });
+      const f = setShipFacts(members);
+      return { id: p.id, categoryId: p.categoryId, path: paths.get(p.categoryId) ?? [], weightKg: f.weightKg ?? shippingWeight(sm.get(p.id) ?? []), dimsCm: f.dimsCm };
+    }
     const it = p.erpCode ? im.get(p.erpCode) : undefined;
     const dimsCm = it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : null;
     const weightKg = (it?.weightKg && it.weightKg > 0 ? it.weightKg : null) ?? shippingWeight(sm.get(p.id) ?? []);

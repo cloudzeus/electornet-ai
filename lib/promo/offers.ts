@@ -72,7 +72,8 @@ async function computeOnce(): Promise<RecomputeResult> {
     // κουπόνια, έκπτωση πληρωμής και μεταφορικά όλου του καλαθιού δεν δίνουν tag σε προϊόν
     const display = promos.filter((p) => !p.mechanism.startsWith("coupon") && !p.mechanism.startsWith("payment") && !(p.mechanism === "shipping" && !p.targets.some((t) => !t.exclude)));
     const [products, cats] = await Promise.all([
-      db.product.findMany({ where: { active: true }, select: { id: true, brandId: true, categoryId: true, variants: { select: { id: true, price: true }, take: 1 } } }),
+      // τα «μόνο σε σετ» είδη δεν φαίνονται πουθενά μόνα τους → χωρίς τιμή προσφοράς (τη δίνει το σετ τους)
+      db.product.findMany({ where: { active: true, soldAlone: true }, select: { id: true, brandId: true, categoryId: true, variants: { select: { id: true, price: true }, take: 1 } } }),
       db.category.findMany({ select: { id: true, parentId: true } }),
     ]);
     const parent = new Map(cats.map((c) => [c.id, c.parentId]));
@@ -80,12 +81,14 @@ async function computeOnce(): Promise<RecomputeResult> {
     const giftIds = [...new Set(display.flatMap((p) => (p.mechanism === "gift" && p.reward.giftProductId ? [p.reward.giftProductId] : [])))];
     const giftTitles = new Map((giftIds.length ? await db.product.findMany({ where: { id: { in: giftIds } }, select: { id: true, title: true } }) : []).map((g) => [g.id, g.title]));
     const svcTitle = new Map((await getServiceList()).map((s) => [s.slug, s.title]));
+    const { setMainIds } = await import("@/lib/catalog/sets");
+    const mainOf = await setMainIds().catch(() => new Map<string, string>()); // προσφορά στο κύριο είδος → και στο σετ του
 
     const rows: { productId: string; variantId: string; listPrice: number; price: number; memberPrice: number | null; promotionId: string | null; promoCode: string | null; endsAt: Date | null; tags: OfferTag[] }[] = [];
     for (const p of products) {
       const v = p.variants[0];
       if (!v || Number(v.price) <= 0) continue;
-      const line: EngineLine = { key: p.id, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: chain(p.categoryId), qty: 1, unit: Math.round(Number(v.price) * 100) };
+      const line: EngineLine = { key: p.id, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: chain(p.categoryId), qty: 1, unit: Math.round(Number(v.price) * 100), ...(mainOf.has(p.id) ? { aliasIds: [mainOf.get(p.id)!] } : {}) };
       const mine = display.filter((x) => matches(x, line));
       if (!mine.length) continue;
       const guest = evaluate([line], mine, { now, customer: { registered: false, isNew: true }, ...guard });

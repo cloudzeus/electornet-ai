@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { pdpExtras } from "@/lib/catalog/pdp-extras";
 import Link from "next/link";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Check, Package, Recycle } from "lucide-react";
 import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
@@ -73,7 +73,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     getArCategories(),
   ]);
   // κύριο είδος που πωλείται μόνο σε σετ: η σελίδα του οδηγεί στο (φθηνότερο ενεργό) σετ· χωρίς ενεργό σετ δεν πωλείται
-  if (!soldAlone) { if (setLinks[0]) permanentRedirect(`/proion/${setLinks[0].slug}`); notFound(); }
+  // προσωρινή (307): ο στόχος αλλάζει (φθηνότερο σετ) και ο διαχειριστής μπορεί να το κάνει «Ναι»
+  if (!soldAlone) { if (setLinks[0]) redirect(`/proion/${setLinks[0].slug}`); notFound(); }
   const l2 = l1?.children.find((c) => c.slug === p.subcategory);
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);

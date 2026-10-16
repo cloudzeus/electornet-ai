@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot, setKind, soldAloneChange } from "./set-core";
+import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot, setKind, soldAloneChange, setLive, setShipFacts } from "./set-core";
 
 test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(setErp(594), "SET-594");
@@ -78,4 +78,20 @@ test("μαζική αλλαγή «Πωλείται και μόνο του»: π�
   assert.deepEqual(soldAloneChange(rows, "no"), { changed: 3, hide: 2, show: 0 });
   assert.deepEqual(soldAloneChange(rows, "yes"), { changed: 2, hide: 0, show: 1 });
   assert.deepEqual(soldAloneChange(rows, "auto"), { changed: 1, hide: 1, show: 0 });
+});
+
+test("ζωντανό σετ: ενεργό, έχει ξεκινήσει (FROMDATE) και ισχύει όλη την ημέρα λήξης (FINALDATE)", () => {
+  const now = new Date("2026-10-16T15:00:00Z");
+  assert.equal(setLive({ active: true, fromDate: null, finalDate: null }, now), true);
+  assert.equal(setLive({ active: false, fromDate: null, finalDate: null }, now), false);
+  assert.equal(setLive({ active: true, fromDate: new Date("2026-10-20T00:00:00Z"), finalDate: null }, now), false);
+  assert.equal(setLive({ active: true, fromDate: new Date("2026-10-01T00:00:00Z"), finalDate: new Date("2026-10-16T00:00:00Z") }, now), true);
+  assert.equal(setLive({ active: true, fromDate: null, finalDate: new Date("2026-10-15T00:00:00Z") }, now), false);
+});
+
+test("αποστολή σετ: βάρος = άθροισμα μελών × ποσότητα, διαστάσεις = του μεγαλύτερου μέλους", () => {
+  assert.deepEqual(setShipFacts([{ weightKg: 9, dims: [80, 30, 20], qty: 1 }, { weightKg: 25, dims: [70, 55, 30], qty: 1 }]), { weightKg: 34, dimsCm: [70, 55, 30] });
+  assert.deepEqual(setShipFacts([{ weightKg: 2, dims: null, qty: 2 }]), { weightKg: 4, dimsCm: null });
+  // άγνωστο βάρος μέλους → άγνωστο βάρος σετ (όχι υποεκτίμηση)
+  assert.deepEqual(setShipFacts([{ weightKg: 9, dims: null, qty: 1 }, { weightKg: null, dims: null, qty: 1 }]), { weightKg: null, dimsCm: null });
 });

@@ -71,3 +71,22 @@ export function soldAloneChange(rows: { mode: string; soldAlone: boolean; mainOf
   }
   return { changed, hide, show };
 }
+
+/** Ζωντανό σετ: ενεργό στο SoftOne, έχει ξεκινήσει (FROMDATE) και δεν έχει λήξει — η FINALDATE ισχύει όλη την ημέρα. */
+export function setLive(s: { active: boolean; fromDate: Date | null; finalDate: Date | null }, now: Date): boolean {
+  if (!s.active) return false;
+  if (s.fromDate && s.fromDate.getTime() > now.getTime()) return false;
+  return !s.finalDate || s.finalDate.getTime() + 86_400_000 > now.getTime();
+}
+
+/**
+ * Στοιχεία αποστολής ενός σετ από τα μέλη του: βάρος = Σ βάρος × ποσότητα (άγνωστο αν λείπει κάποιο — όχι υποεκτίμηση),
+ * διαστάσεις = του μεγαλύτερου (σε όγκο) μέλους, γιατί κάθε μέλος ταξιδεύει σε δικό του δέμα.
+ */
+export function setShipFacts(members: { weightKg: number | null; dims: [number, number, number] | null; qty: number }[]): { weightKg: number | null; dimsCm: [number, number, number] | null } {
+  const known = members.every((m) => m.weightKg != null && m.weightKg > 0);
+  const weightKg = known && members.length ? Math.round(members.reduce((a, m) => a + m.weightKg! * (m.qty || 1), 0) * 1000) / 1000 : null;
+  const vol = (d: [number, number, number]) => d[0] * d[1] * d[2];
+  const dimsCm = members.reduce<[number, number, number] | null>((a, m) => (m.dims && (!a || vol(m.dims) > vol(a)) ? m.dims : a), null);
+  return { weightKg, dimsCm };
+}

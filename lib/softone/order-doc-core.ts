@@ -45,13 +45,15 @@ export interface SaldocLine {
  */
 export function expandSetLines(lines: SaldocLine[]): (SaldocLine & { spcs?: number; partOfSet?: boolean })[] {
   return lines.flatMap((l) => {
-    if (!l.setSpcs) return [l];
+    // γραμμή σετ χωρίς ορισμό (π.χ. δώρο προσφοράς ή σετ που χάθηκε από το SoftOne πριν την παραγγελία): κωδικός SET-<spcs>
+    const spcs = l.setSpcs ?? (/^SET-(\d+)$/.exec(l.erpCode ?? "") ? Number(l.erpCode!.slice(4)) : null);
+    if (!spcs) return [l];
     const parts = l.setParts ?? [];
     const main = parts.find((p) => p.main);
-    if (!main) return [{ ...l, erpCode: null, spcs: l.setSpcs }];
+    if (!main) return [{ ...l, erpCode: null, spcs }];
     return [
-      { ...l, erpCode: String(main.mtrl), qty: l.qty * (main.qty || 1), listPrice: l.listPrice / (main.qty || 1), spcs: l.setSpcs, partOfSet: true },
-      ...parts.filter((p) => !p.main).map((p) => ({ erpCode: String(p.mtrl), title: p.name, qty: l.qty * (p.qty || 1), listPrice: 0, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: l.vatRate, spcs: l.setSpcs!, partOfSet: true })),
+      { ...l, erpCode: String(main.mtrl), qty: l.qty * (main.qty || 1), listPrice: l.listPrice / (main.qty || 1), spcs, partOfSet: true },
+      ...parts.filter((p) => !p.main).map((p) => ({ erpCode: String(p.mtrl), title: p.name, qty: l.qty * (p.qty || 1), listPrice: 0, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: l.vatRate, spcs, partOfSet: true })),
     ];
   });
 }
@@ -124,14 +126,14 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   // γραμμές: τιμή και εκπτώσεις χωρίς ΦΠΑ
   const nets: NetLine[] = [];
   const itelines: Record<string, unknown>[] = expandSetLines(o.lines).map((l) => {
-    if (!l.erpCode) needs.push(l.spcs ? `Τα μέλη του σετ για «${l.title}» (η παραγγελία δεν κράτησε στιγμιότυπο)` : `Κωδικός είδους SoftOne για «${l.title}»`);
+    if (!l.erpCode || !/^\d+$/.test(l.erpCode)) needs.push(l.spcs ? `Τα μέλη του σετ για «${l.title}» (η παραγγελία δεν κράτησε στιγμιότυπο)` : `Κωδικός είδους SoftOne για «${l.title}»`);
     const price = ceil2(netOf(l.listPrice, l.vatRate));
     // δώρο / δωρεάν: η έκπτωση καλύπτει ακριβώς την αξία (μηδενική γραμμή)· μέλος σετ με τιμή 0: απλώς 0
     const free = l.listPrice > 0 && l.discPrice + l.discCoupon + l.discPayment >= l.listPrice * l.qty - 0.005;
     const d1 = free ? r2(price * l.qty) : floor2(netOf(l.discPrice, l.vatRate)), d2 = free ? 0 : floor2(netOf(l.discCoupon, l.vatRate)), d3 = free ? 0 : floor2(netOf(l.discPayment, l.vatRate));
     nets.push({ rate: l.vatRate, net: r2(r2(price * l.qty) - d1 - d2 - d3) });
     return {
-      MTRL: l.erpCode ? Number(l.erpCode) : null, QTY1: l.qty, PRICE: price,
+      MTRL: l.erpCode && /^\d+$/.test(l.erpCode) ? Number(l.erpCode) : null, QTY1: l.qty, PRICE: price,
       ...(d1 ? { DISC1VAL: d1 } : {}), ...(d2 ? { DISC2VAL: d2 } : {}), ...(d3 ? { DISC3VAL: d3 } : {}),
       ...(l.spcs ? { SPCS: l.spcs } : {}),
       ...(l.promo ? { COMMENTS: cut(l.promo, 255) } : {}), ...(l.terms ? { COMMENTS1: cut(l.terms, 2000) } : {}),

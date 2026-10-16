@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { suggestSetLabel } from "./set-labels";
-import { setKind, validSet } from "./set-core";
+import { setKind, setLive, validSet } from "./set-core";
 import { swr } from "@/lib/cache/swr";
 
 /**
@@ -35,7 +35,7 @@ async function buildRows(where: Prisma.S1SetWhereInput): Promise<SetRow[]> {
     const avail = (ms: SetMember[]) => (ms.length ? Math.max(0, Math.min(...ms.map((m) => Math.floor(m.stock / (m.qty || 1))))) : 0);
     // με δώρο: το κύριο προϊόν πουλιέται και μόνο του — διαθεσιμότητα από το κύριο είδος
     const available = kind === "parts" ? avail(members) : avail(members.filter((m) => m.isMain));
-    const expired = !!s.finalDate && s.finalDate.getTime() < now;
+    const expired = !!s.finalDate && s.finalDate.getTime() + 86_400_000 <= now;
     const out = members.some((m) => !m.isMain && m.stock < (m.qty || 1));
     const problems: SetProblem[] = [
       ...(!mp ? ["no-product" as const] : !mp.active ? ["inactive" as const] : []),
@@ -72,7 +72,7 @@ export interface SetIndex {
  * του». Ο ίδιος κανόνας με την προβολή (lib/softone/sets.ts projectSetProducts). 1′ στη μνήμη.
  */
 const indexCache = swr(async (): Promise<SetIndex> => {
-  const sets = await db.s1Set.findMany({ select: { spcs: true, mtrl: true, name: true, active: true, finalDate: true, lines: { select: { mtrl: true } } } });
+  const sets = await db.s1Set.findMany({ select: { spcs: true, mtrl: true, name: true, active: true, fromDate: true, finalDate: true, lines: { select: { mtrl: true } } } });
   const mtrls = [...new Set(sets.flatMap((s) => [s.mtrl, ...s.lines.map((l) => l.mtrl)]))].map(String);
   const live = new Set((mtrls.length ? await db.product.findMany({ where: { erpCode: { in: mtrls }, active: true }, select: { erpCode: true } }) : []).map((p) => Number(p.erpCode)));
   const now = new Date();
@@ -82,7 +82,7 @@ const indexCache = swr(async (): Promise<SetIndex> => {
     const mainOnSite = live.has(s.mtrl);
     ix.bySpcs.set(s.spcs, { kind, members: new Set(s.lines.map((l) => l.mtrl)).size, mainOnSite });
     ix.mainSets.set(String(s.mtrl), (ix.mainSets.get(String(s.mtrl)) ?? 0) + 1);
-    if (s.active && (!s.finalDate || s.finalDate >= now) && mainOnSite && kind === "parts" && validSet(s.lines, s.mtrl)) ix.mainOfParts.add(String(s.mtrl));
+    if (setLive(s, now) && mainOnSite && kind === "parts" && validSet(s.lines, s.mtrl)) ix.mainOfParts.add(String(s.mtrl));
   }
   return ix;
 }, 60_000, { maxStaleMs: 10 * 60_000 });
@@ -115,4 +115,14 @@ export async function setsOfMain(productId: string): Promise<{ id: string; slug:
   const spcs = (await db.s1Set.findMany({ where: { mtrl: m }, select: { spcs: true } })).map((x) => x.spcs);
   if (!spcs.length) return [];
   return db.product.findMany({ where: { setSpcs: { in: spcs }, active: true }, orderBy: [{ price: "asc" }], select: { id: true, slug: true, title: true, price: true } });
+}
+
+/** Προϊόν-σετ → id του κύριου είδους του (για προσφορές που στοχεύουν το κύριο: ισχύουν και στο σετ). */
+export async function setMainIds(productIds?: string[]): Promise<Map<string, string>> {
+  const sets = await db.product.findMany({ where: { kind: "set", setSpcs: { not: null }, ...(productIds ? { id: { in: productIds } } : {}) }, select: { id: true, setSpcs: true } });
+  if (!sets.length) return new Map();
+  const heads = await db.s1Set.findMany({ where: { spcs: { in: sets.map((x) => x.setSpcs!) } }, select: { spcs: true, mtrl: true } });
+  const mains = await db.product.findMany({ where: { kind: "item", erpCode: { in: [...new Set(heads.map((h) => String(h.mtrl)))] } }, select: { id: true, erpCode: true } });
+  const mainOf = new Map(heads.map((h) => [h.spcs, mains.find((m) => m.erpCode === String(h.mtrl))?.id]));
+  return new Map(sets.flatMap((x) => { const m = mainOf.get(x.setSpcs!); return m ? [[x.id, m] as const] : []; }));
 }

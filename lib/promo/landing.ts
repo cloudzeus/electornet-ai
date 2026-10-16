@@ -37,7 +37,7 @@ export async function blockProducts(b: Extract<Block, { type: "products" }>["pro
   else if (b.source === "manual") ids = (b.ids ?? []).slice(0, limit);
   else if (b.source === "category" && b.categoryId) {
     const cats = await db.category.findMany({ where: { OR: [{ id: b.categoryId }, { parentId: b.categoryId }, { parent: { parentId: b.categoryId } }] }, select: { id: true } });
-    ids = (await db.product.findMany({ where: { active: true, categoryId: { in: cats.map((c) => c.id) }, price: { gt: 0 } }, orderBy: b.sort === "price-asc" ? { price: "asc" } : b.sort === "price-desc" ? { price: "desc" } : { offer: { price: "asc" } }, take: limit, select: { id: true } })).map((p) => p.id);
+    ids = (await db.product.findMany({ where: { active: true, soldAlone: true, categoryId: { in: cats.map((c) => c.id) }, price: { gt: 0 } }, orderBy: b.sort === "price-asc" ? { price: "asc" } : b.sort === "price-desc" ? { price: "desc" } : { offer: { price: "asc" } }, take: limit, select: { id: true } })).map((p) => p.id);
   }
   if (!ids.length) return [];
   const products = await dbProductsByIds(ids);

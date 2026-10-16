@@ -74,6 +74,8 @@ export interface EnginePromo {
 }
 export interface EngineLine {
   key: string; variantId: string; productId: string; brandId?: string | null; categoryIds: string[];
+  /** άλλα προϊόντα που «είναι» αυτή η γραμμή για τις προσφορές — π.χ. το κύριο είδος ενός προϊόντος-σετ */
+  aliasIds?: string[];
   qty: number;
   /** τιμή καταλόγου μονάδας (λεπτά, με ΦΠΑ) */
   unit: number;
@@ -148,9 +150,9 @@ function ruleReason(p: EnginePromo, ctx: EngineCtx): string | null {
 }
 
 /** Ταιριάζει η γραμμή στο πεδίο της προσφοράς; Χωρίς «συμπερίληψη» = όλα τα προϊόντα. Οι εξαιρέσεις κερδίζουν πάντα. */
-export function matches(p: { targets: PromoTarget[] }, l: Pick<EngineLine, "productId" | "variantId" | "brandId" | "categoryIds">): boolean {
+export function matches(p: { targets: PromoTarget[] }, l: Pick<EngineLine, "productId" | "variantId" | "brandId" | "categoryIds" | "aliasIds">): boolean {
   const hit = (t: PromoTarget) => {
-    if (t.kind === "product") return t.refId === l.productId || t.refId === l.variantId;
+    if (t.kind === "product") return t.refId === l.productId || t.refId === l.variantId || !!l.aliasIds?.includes(t.refId);
     if (t.kind === "brand") return t.refId === l.brandId;
     if (t.kind === "brandcat") { const [b, c] = t.refId.split("|"); return b === l.brandId && l.categoryIds.includes(c); }
     return l.categoryIds.includes(t.refId);

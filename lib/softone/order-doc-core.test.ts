@@ -115,3 +115,14 @@ test("σετ χωρίς στιγμιότυπο μελών → λείπει (δε
   const d = composeSaldoc({ ...base, lines: [{ erpCode: "SET-594", title: "Σετ", qty: 1, listPrice: 249.9, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24, setSpcs: 594 }] }, S);
   assert.ok(d.needs.some((n) => n.includes("μέλη")));
 });
+
+test("γραμμή SET- χωρίς setSpcs (π.χ. δώρο ή χωρίς ορισμό) → λείπει, ποτέ MTRL NaN/null σιωπηλά", () => {
+  const d = composeSaldoc({ ...base, lines: [{ erpCode: "SET-594", title: "Σετ", qty: 1, listPrice: 249.9, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 }] }, S);
+  assert.ok(d.needs.some((n) => n.includes("μέλη")), d.needs.join(" | "));
+  assert.ok(d.data.ITELINES.every((l) => l.MTRL === null || Number.isInteger(l.MTRL)));
+});
+
+test("γραμμή με μη αριθμητικό κωδικό είδους → λείπει «Κωδικός είδους SoftOne»", () => {
+  const d = composeSaldoc({ ...base, lines: [{ erpCode: "ABC-1", title: "Κάτι", qty: 1, listPrice: 10, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 }] }, S);
+  assert.ok(d.needs.some((n) => n.includes("Κωδικός είδους")), d.needs.join(" | "));
+});

@@ -55,7 +55,7 @@ export async function refreshInfoTags() {
     if (c.mode === "manual") { out[t.slug] = await db.productTag.count({ where: { tagId: id } }); continue; }
     let ids: string[] = [];
     if (c.mode === "auto") {
-      if (t.slug === "neo") ids = (await db.product.findMany({ where: { active: true, createdAt: { gte: new Date(Date.now() - (c.days ?? 30) * 86400_000) } }, select: { id: true }, take: 2000 })).map((p) => p.id);
+      if (t.slug === "neo") ids = (await db.product.findMany({ where: { active: true, soldAlone: true, createdAt: { gte: new Date(Date.now() - (c.days ?? 30) * 86400_000) } }, select: { id: true }, take: 2000 })).map((p) => p.id);
       if (t.slug === "best-seller") {
         const since = new Date(Date.now() - (c.days ?? 30) * 86400_000);
         const rows = await db.orderLine.groupBy({ by: ["variantId"], where: { isGift: false, order: { createdAt: { gte: since }, status: { notIn: ["cancelled"] } } }, _sum: { qty: true }, orderBy: { _sum: { qty: "desc" } }, take: c.top ?? 50 });

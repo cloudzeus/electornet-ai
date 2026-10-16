@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allocate, evaluate, type EngineCtx, type EngineLine, type EnginePromo } from "./engine";
+import { allocate, evaluate, matches, type EngineCtx, type EngineLine, type EnginePromo } from "./engine";
 
 const now = new Date("2026-10-07T10:00:00Z");
 const ctx = (o: Partial<EngineCtx> = {}): EngineCtx => ({ now, customer: { registered: true, isNew: false }, channel: "online", maxLinePct: 40, ...o });
@@ -204,4 +204,11 @@ test("προσφορά καταστήματος: μόνο με παραλαβή 
   const pos = promo({ reward: { percent: 5 }, rules: { channels: ["pos"] } });
   assert.equal(evaluate([line("x", 10000)], [pos], ctx()).discPrice, 0);
   assert.equal(evaluate([line("x", 10000)], [pos], ctx({ channel: "pos", storeId: "s1" })).discPrice, 500);
+});
+
+test("προσφορά στο κύριο είδος ισχύει και στο σετ του (γραμμή σετ με alias το κύριο)· εξαίρεση του κύριου εξαιρεί και το σετ", () => {
+  const set = { productId: "set1", variantId: "var_SET-594", brandId: "b", categoryIds: ["c"], aliasIds: ["main1"] };
+  assert.equal(matches({ targets: [{ kind: "product", refId: "main1", exclude: false }] }, set), true);
+  assert.equal(matches({ targets: [{ kind: "product", refId: "other", exclude: false }] }, set), false);
+  assert.equal(matches({ targets: [{ kind: "brand", refId: "b", exclude: false }, { kind: "product", refId: "main1", exclude: true }] }, set), false);
 });

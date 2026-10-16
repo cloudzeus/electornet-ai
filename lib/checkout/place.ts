@@ -117,16 +117,19 @@ export async function placeOrder(input: PlaceInput) {
         },
       });
       // σετ: στιγμιότυπο των μελών τη στιγμή της παραγγελίας (το παραστατικό βγαίνει από αυτό, όχι από το σημερινό σετ)
-      const setIds = [...new Set(q.lines.map((x) => spcsOf(x.erpCode)).filter((x): x is number => x != null))];
+      // (και για τα δώρα)· σετ χωρίς ορισμό (χάθηκε από το SoftOne στο μεταξύ) → η παραγγελία δεν περνά, αντί για ελλιπές παραστατικό
+      const setIds = [...new Set([...q.lines.map((x) => x.erpCode), ...q.gifts.map((g) => g.erpCode)].map((c) => spcsOf(c)).filter((x): x is number => x != null))];
       const setDefs = new Map((setIds.length ? await tx.s1Set.findMany({ where: { spcs: { in: setIds } }, select: { spcs: true, mtrl: true, lines: { orderBy: { lineNum: "asc" }, select: { mtrl: true, qty: true, name: true } } } }) : []).map((x) => [x.spcs, x]));
+      const lost = setIds.filter((id) => !setDefs.get(id)?.lines.some((l) => l.mtrl === setDefs.get(id)!.mtrl));
+      if (lost.length) throw new Abort("Ένα σετ του καλαθιού δεν διατίθεται πια. Αφαίρεσέ το και δοκίμασε ξανά.");
+      const setData = (erpCode: string | null) => { const d = setDefs.get(spcsOf(erpCode) ?? -1); return d ? { setSpcs: d.spcs, setParts: setPartsSnapshot(d) as unknown as Prisma.InputJsonValue } : {}; };
       for (const l of q.engine.lines) {
         const info = q.lines.find((x) => x.key === l.key)!;
-        const setDef = setDefs.get(spcsOf(info.erpCode) ?? -1);
         const ol = await tx.orderLine.create({
           data: {
             orderId: order.id, variantId: l.variantId, title: `${info.brand} ${info.title}`, qty: l.qty, unitPrice: eur(l.unitFinal), listPrice: eur(l.unit),
             discPrice: eur(l.discPrice), discCoupon: eur(l.discCoupon), discPayment: eur(l.discPayment), lineTotal: eur(l.total), erpCode: info.erpCode,
-            ...(setDef ? { setSpcs: setDef.spcs, setParts: setPartsSnapshot(setDef) as unknown as Prisma.InputJsonValue } : {}),
+            ...setData(info.erpCode),
             promotions: l.adjustments.map((a) => ({ promotionId: a.promotionId, code: a.code, version: a.version, kind: a.kind, amount: a.amount, label: a.label })) as Prisma.InputJsonValue,
             addons: info.addons.length ? { create: info.addons.map((a) => ({ serviceId: svcIds.get(a.slug)!, price: eur(a.price * l.qty) })) } : undefined,
           },
@@ -138,7 +141,7 @@ export async function placeOrder(input: PlaceInput) {
       for (const l of q.engine.lines) for (const a of l.adjustments) perPromo.set(a.promotionId, (perPromo.get(a.promotionId) ?? 0) + a.amount);
       // δώρα: γραμμή με την αξία τους και έκπτωση 100 %
       for (const g of q.gifts) {
-        const gl = await tx.orderLine.create({ data: { orderId: order.id, variantId: g.variantId, title: `${g.brand} ${g.title}`, qty: g.qty, unitPrice: eur(0), listPrice: eur(g.value / g.qty), discPrice: eur(g.value), lineTotal: eur(0), erpCode: g.erpCode, isGift: true, promotions: [{ promotionId: g.promotionId, code: g.code, version: g.version, kind: "gift", amount: g.value, label: g.label }] as Prisma.InputJsonValue } });
+        const gl = await tx.orderLine.create({ data: { orderId: order.id, variantId: g.variantId, title: `${g.brand} ${g.title}`, qty: g.qty, unitPrice: eur(0), listPrice: eur(g.value / g.qty), discPrice: eur(g.value), lineTotal: eur(0), erpCode: g.erpCode, ...setData(g.erpCode), isGift: true, promotions: [{ promotionId: g.promotionId, code: g.code, version: g.version, kind: "gift", amount: g.value, label: g.label }] as Prisma.InputJsonValue } });
         await tx.promotionUsage.create({ data: { promotionId: g.promotionId, version: g.version, orderId: order.id, orderLineId: gl.id, customerId: me?.id ?? null, email, amount: eur(g.value) } });
         perPromo.set(g.promotionId, (perPromo.get(g.promotionId) ?? 0) + g.value);
       }

@@ -64,7 +64,7 @@ export async function syncCart(items: CartItemIn[]) {
   const cart = await currentCart(true);
   if (!cart) return null;
   const clean = items.filter((i) => i.productId && i.qty > 0).slice(0, 60);
-  const products = await db.product.findMany({ where: { id: { in: clean.map((i) => i.productId) }, active: true }, select: { id: true, variants: { select: { id: true, price: true }, take: 1 } } });
+  const products = await db.product.findMany({ where: { id: { in: clean.map((i) => i.productId) }, active: true, soldAlone: true }, select: { id: true, variants: { select: { id: true, price: true }, take: 1 } } });
   const variantOf = new Map(products.flatMap((p) => (p.variants[0] && Number(p.variants[0].price) > 0 ? [[p.id, p.variants[0].id] as const] : [])));
   const known = new Set((await getServiceList()).map((s) => s.slug));
   const rows = clean.flatMap((i) => { const v = variantOf.get(i.productId); return v ? [{ cartId: cart.id, variantId: v, qty: Math.min(99, Math.max(1, Math.floor(i.qty))), addons: (i.addons ?? []).filter((a) => known.has(a.slug)).map((a) => ({ slug: a.slug })) }] : []; });

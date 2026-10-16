@@ -3,12 +3,12 @@ import { db } from "@/lib/db";
 import { addMonths, canExtend, canExtendAtAll, EXTENSION_MONTHS, EXTENSION_SLUG, extensionPrice, LEGAL_WARRANTY_MONTHS, warrantyFromSpecs, type ExtPricing, type ExtTier } from "./policy";
 import { categoryPaths, getExtPricing } from "./pricing";
 
-/** Ποια προϊόντα δικαιούνται τη δωρεάν επέκταση: το είδος τους στο SoftOne έχει «Επέκταση Εγγύησης» (CCCWARRANTY). */
+/** Ποια προϊόντα δικαιούνται τη δωρεάν επέκταση: το είδος τους στο SoftOne έχει «Επέκταση Εγγύησης» (CCCWARRANTY)· για σετ, το κύριο είδος. */
 export async function extEligibleMap(productIds: string[]): Promise<Map<string, boolean>> {
   const ids = [...new Set(productIds.filter(Boolean))];
   if (!ids.length) return new Map();
   const rows = await db.$queryRawUnsafe<{ id: string }[]>(
-    `SELECT p.id FROM "Product" p JOIN "S1Item" s ON s.mtrl::text = p."erpCode" WHERE p.id = ANY($1::text[]) AND s."extWarranty" = true`, ids).catch(() => []);
+    `SELECT p.id FROM "Product" p JOIN "S1Item" s ON s.mtrl::text = COALESCE((SELECT x.mtrl::text FROM "S1Set" x WHERE x.spcs = p."setSpcs"), p."erpCode") WHERE p.id = ANY($1::text[]) AND s."extWarranty" = true`, ids).catch(() => []);
   const yes = new Set(rows.map((r) => r.id));
   return new Map(ids.map((id) => [id, yes.has(id)]));
 }
