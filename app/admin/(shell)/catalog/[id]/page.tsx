@@ -26,7 +26,8 @@ import { productVideos, productStickers } from "../actions";
 import { ProductStickersAdmin } from "@/components/admin/catalog/ProductStickersAdmin";
 import { productReadiness } from "@/lib/catalog/readiness";
 import { ReadinessBar, WorkspaceTabs, WorkspaceSection as Section, isTab, type WorkspaceTab } from "@/components/admin/catalog/ProductWorkspace";
-import { setForProduct } from "@/lib/catalog/sets";
+import { setsForMain, setOfSetProduct, setIndex, PROBLEM_LABEL, type SetRow } from "@/lib/catalog/sets";
+import { SoldAloneSwitch } from "@/components/admin/catalog/SoldAloneSwitch";
 import { SetMemberLabel } from "@/components/admin/catalog/SetMemberLabel";
 import { SiteCardPreview } from "@/components/admin/catalog/SiteCardPreview";
 import { SpecSources } from "@/components/admin/catalog/SpecSources";
@@ -54,14 +55,14 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const { id } = await params;
   const t = (await searchParams).tab;
   const tab: WorkspaceTab = isTab(t) ? t : "overview";
-  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
+  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
   const canWrite = can(user.permissions, "catalog.products.write");
   const canMedia = can(user.permissions, "cms.media.write");
   // ένας γύρος για όλα (πριν ήταν δύο διαδοχικοί — η επισκόπηση δεν εξαρτάται από τα υπόλοιπα)
-  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows, set, overview, specSrc, dimRows, warrantySpecs] = await Promise.all([
+  const [images, banners, studio, sectionCount, arRow, [shop], item, writeOn, descDim, videos, manualStickers, settings, arCats, specRows, sets, overview, specSrc, dimRows, warrantySpecs] = await Promise.all([
     listProductImages(p.id),
     tab === "content" ? listProductImages(p.id, "banner") : Promise.resolve([]),
     canWrite && tab === "content" ? loadBannerStudio(p.id) : Promise.resolve(null),
@@ -78,7 +79,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     getSettings(),
     getArCategories(),
     tab === "content" ? db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, groupName: true, key: true, value: true, source: true } }) : Promise.resolve([]),
-    setForProduct(p.erpCode).catch(() => null),
+    (p.kind === "set" ? setOfSetProduct(p.setSpcs).then((x) => (x ? [x] : [])) : setsForMain(p.erpCode)).catch((): SetRow[] => []),
     tab === "overview" ? productOverview(p.id) : null,
     tab === "overview" ? db.spec.groupBy({ by: ["source"], where: { productId: id }, _count: true }) : [],
     tab === "overview" ? db.productDimension.findMany({ where: { productId: id }, select: { source: true, w: true, h: true, d: true, kind: true, warning: true } }) : [],
@@ -123,6 +124,14 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     canFix: { texts: !!(fromS1 && initial), dims: !!(fromS1 && initial), warranty: !!(fromS1 && initial), energy: canWrite },
   };
   const href = (to: WorkspaceTab) => `/admin/catalog/${p.id}?tab=${to}`;
+  // σετ: το προϊόν-σετ κάθε σετ (σύνδεσμοι) και αν το είδος είναι κύριο σε ενεργό σετ εξαρτημάτων (για το «Αυτόματα»)
+  const isSetProduct = p.kind === "set";
+  const [setProducts, ix] = sets.length && tab === "set" ? await Promise.all([
+    db.product.findMany({ where: { setSpcs: { in: sets.map((x) => x.spcs) } }, select: { id: true, setSpcs: true, active: true, price: true } }),
+    setIndex().catch(() => null),
+  ]) : [[], null];
+  const setProductOf = new Map(setProducts.map((x) => [x.setSpcs, x]));
+  const KIND_LABEL = { parts: "Σετ εξαρτημάτων", gift: "Σετ με δώρο" } as const;
 
   const editor = (only: Parameters<typeof ProductEditor>[0]["only"]) => fromS1 && initial ? (
     <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} dimCandidates={descDim.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning }))} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
@@ -142,7 +151,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight text-balance">{p.title}</h2>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[length:var(--fs-12)]">
               <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
-              {set && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">Set · {set.members.length} είδη</Link>}
+              {isSetProduct && sets[0] && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">{KIND_LABEL[sets[0].kind]} · {((n) => `${n} ${n === 1 ? "μέλος" : "μέλη"}`)(new Set(sets[0].members.map((m) => m.mtrl)).size)}</Link>}
+              {!isSetProduct && sets.length > 0 && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-chip text-eu-navy hover:bg-eu-navy hover:text-white">Κύριο σε {sets.length === 1 ? "σετ" : `${sets.length} σετ`}</Link>}
+              {!isSetProduct && !p.soldAlone && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-amber/15 text-eu-ink hover:bg-eu-amber/25">Μόνο σε σετ</Link>}
               <span className="text-eu-ink-3">{p.brand?.name}</span>
               <span className="text-eu-muted font-mono">{p.sku}{p.ean ? ` · ${p.ean}` : ""}</span>
             </div>
@@ -165,7 +176,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
       <div className="grid gap-2.5 @5xl:grid-cols-[minmax(0,1fr)_15rem] @5xl:items-start">
         <div className="grid gap-2.5 min-w-0">
           <ReadinessBar r={r} href={href} />
-          <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={set ? [] : ["set"]} />
+          <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={sets.length || isSetProduct || p.soldAloneMode !== "auto" ? [] : ["set"]} />
 
           {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
           {tab === "overview" && <ProductSources d={sources} />}
@@ -227,26 +238,47 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             </Section>
           </>)}
 
-          {tab === "set" && set && (
-            <Section title={`Set: ${set.name}`} hint={`Πουλιέται μαζί με ${set.members.length - 1 === 1 ? "ένα ακόμη είδος" : `${set.members.length - 1} ακόμη είδη`} (SoftOne «Set ειδών» ${set.code}). Διαθέσιμο όσο φτάνουν όλα τα μέλη.`}>
-              <p className={`m-0 font-bold text-[length:var(--fs-15)] ${set.available > 0 ? "text-eu-green" : "text-eu-ink-3"}`}>{set.available > 0 ? `${set.available} διαθέσιμα sets` : "Κάποιο μέλος δεν έχει απόθεμα — ο πελάτης βλέπει «κατόπιν παραγγελίας»."}</p>
-              <ul className="m-0 p-0 list-none grid gap-2">
-                {set.members.map((m) => (
-                  <li key={m.lineNum} className="grid gap-2 rounded-xl border border-eu-line p-3 @3xl:grid-cols-[minmax(0,1fr)_7rem_minmax(0,18rem)] @3xl:items-center">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5"><span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${m.isMain ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-3"}`}>{m.isMain ? "Κύριο" : "Μέλος"}</span><span className="font-bold text-eu-ink break-words">{m.name}</span></div>
-                      <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}</div>
-                    </div>
-                    <div className={`tabular-nums font-bold text-[length:var(--fs-14)] ${m.stock >= (m.qty || 1) ? "text-eu-green" : "text-eu-red"}`}>{m.stock >= (m.qty || 1) ? `${m.stock} τεμ.` : "Χωρίς απόθεμα"}</div>
-                    <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»{m.suggested && !m.label ? " · αυτόματη πρόταση" : ""}
-                      <SetMemberLabel spcs={set.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.suggested ?? m.name} canWrite={canWrite} />
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              <Link href={`/admin/catalog/sets?q=${encodeURIComponent(set.code)}`} className="justify-self-start font-bold text-eu-blue hover:underline text-[length:var(--fs-14)] min-h-11 inline-flex items-center">Όλα τα sets →</Link>
+          {tab === "set" && !isSetProduct && (
+            <Section title="Πωλείται και μόνο του" hint="Αν το είδος εμφανίζεται μόνο του στο site ή μόνο μέσα στα σετ του. Το SoftOne δεν έχει αυτή την ένδειξη — ορίζεται εδώ.">
+              <SoldAloneSwitch productId={p.id} mode={p.soldAloneMode} soldAlone={p.soldAlone} mainOfParts={!!ix?.mainOfParts.has(p.erpCode)} canWrite={canWrite} />
             </Section>
           )}
+          {tab === "set" && sets.map((set) => {
+            const sp = setProductOf.get(set.spcs);
+            const main = set.members.find((m) => m.isMain);
+            return (
+              <Section key={set.spcs} title={`${isSetProduct ? "Μέλη του σετ" : "Σετ"}: ${set.name}`} hint={`${KIND_LABEL[set.kind]} · SoftOne «Set ειδών» ${set.code}${set.active ? "" : " · ανενεργό στο SoftOne"}. Μέλη και ποσότητες αλλάζουν στο SoftOne· εδώ ορίζεις πώς φαίνεται κάθε μέλος στο «Περιλαμβάνει».`}>
+                <div data-help="product.set" className="grid gap-1 text-[length:var(--fs-14)]">
+                  <p className={`m-0 font-bold ${set.available > 0 ? "text-eu-green" : "text-eu-ink-3"}`}>{set.available > 0 ? `Βγαίνουν ${set.available} πλήρη σετ από το απόθεμα` : "Κάποιο μέλος δεν έχει απόθεμα — ο πελάτης βλέπει «κατόπιν παραγγελίας»."}</p>
+                  <p className="m-0 text-eu-ink-3">Τιμή σετ = τιμή web του κύριου είδους{main?.price != null ? ` (${eur(main.price * (main.qty || 1))})` : ""}, όπως στο SoftOne· τα υπόλοιπα μέλη γράφονται στο παραστατικό με 0, όλα με τον κωδικό του σετ.</p>
+                  {set.problems.length > 0 && <p className="m-0 text-eu-red font-bold">{set.problems.map((x) => PROBLEM_LABEL[x]).join(" · ")}</p>}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {!isSetProduct && (sp ? <Link href={`/admin/catalog/${sp.id}?tab=set`} className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-7 inline-flex items-center">Το προϊόν-σετ{sp.active ? ` · ${eur(sp.price)}` : " · ανενεργό"} →</Link> : <span className="text-eu-muted">Δεν έχει γίνει ακόμη προϊόν (τρέχει με τον επόμενο συγχρονισμό).</span>)}
+                    {isSetProduct && main?.productId && <Link href={`/admin/catalog/${main.productId}?tab=set`} className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-7 inline-flex items-center">Κύριο είδος: «Πωλείται και μόνο του» →</Link>}
+                  </div>
+                </div>
+                <ul className="m-0 p-0 list-none grid gap-2">
+                  {set.members.map((m) => (
+                    <li key={m.lineNum} className="grid gap-2 rounded-xl border border-eu-line p-3 @3xl:grid-cols-[minmax(0,1fr)_6rem_7rem_minmax(0,18rem)] @3xl:items-center">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${m.isMain ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-ink-3"}`}>{m.isMain ? "Κύριο" : set.kind === "gift" ? "Δώρο" : "Εξάρτημα"}</span>
+                          {m.productId ? <Link href={`/admin/catalog/${m.productId}`} className="font-bold text-eu-ink break-words hover:text-eu-blue hover:underline">{m.name}</Link> : <span className="font-bold text-eu-ink break-words">{m.name}</span>}
+                        </div>
+                        <div className="text-eu-muted text-[length:var(--fs-13)]">{m.code ? `κωδικός ${m.code} · ` : ""}MTRL {m.mtrl}{m.qty !== 1 ? ` · × ${m.qty}` : ""}{m.productId ? (m.productActive ? " · στο site" : " · ανενεργό στο site") : " · εκτός site"}</div>
+                      </div>
+                      <div className="tabular-nums text-[length:var(--fs-14)]"><span className="sr-only">Τιμή: </span>{m.isMain ? <b>{eur(m.price)}</b> : <span className="text-eu-muted" title="Στο σετ γράφεται με 0">0 € στο σετ</span>}</div>
+                      <div className={`tabular-nums font-bold text-[length:var(--fs-14)] ${m.stock >= (m.qty || 1) ? "text-eu-green" : "text-eu-red"}`}>{m.stock >= (m.qty || 1) ? `${m.stock} τεμ.` : "Χωρίς απόθεμα"}</div>
+                      <label className="grid gap-1 text-[length:var(--fs-12)] font-bold text-eu-ink-3 min-w-0">Όνομα στο «Περιλαμβάνει»{m.suggested && !m.label ? " · αυτόματη πρόταση" : ""}
+                        <SetMemberLabel spcs={set.spcs} lineNum={m.lineNum} initial={m.label} placeholder={m.suggested ?? m.name} canWrite={canWrite} />
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            );
+          })}
+          {tab === "set" && !sets.length && isSetProduct && <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Το σετ δεν υπάρχει πια στο SoftOne — το προϊόν μένει ανενεργό.</p>}
 
           {tab === "erp" && (<>
             {editor(["basics", "warranty"])}

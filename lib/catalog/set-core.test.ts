@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot } from "./set-core";
+import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot, setKind, soldAloneChange } from "./set-core";
 
 test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(setErp(594), "SET-594");
@@ -58,4 +58,24 @@ test("στιγμιότυπο μελών για την παραγγελία: κύ
   assert.deepEqual(parts, [{ mtrl: 142219, qty: 1, name: "TAN-09IG", main: true }, { mtrl: 142220, qty: 1, name: "TAG-09IG", main: false }]);
   assert.equal(setPartsSnapshot({ mtrl: 1, lines: [{ mtrl: 2, qty: 1, name: "b" }, { mtrl: 1, qty: 1, name: "a" }, { mtrl: 1, qty: 1, name: "a" }] })[0].mtrl, 1);
   assert.equal(setPartsSnapshot({ mtrl: 1, lines: [{ mtrl: 1, qty: 1, name: "a" }, { mtrl: 1, qty: 1, name: "a" }, { mtrl: 2, qty: 3, name: "b" }] }).length, 2);
+});
+
+test("είδος σετ: με δώρο αν το λέει το όνομα ή αν άλλο μέλος πουλιέται στο site· αλλιώς εξαρτήματα", () => {
+  const lines = [{ mtrl: 1 }, { mtrl: 2 }];
+  assert.equal(setKind("TOYOTOMI TAN/TAG-09IG", lines, 1, () => false), "parts");
+  assert.equal(setKind("PHILIPS GC9660 + Δώρο σιδερώστρα", lines, 1, () => false), "gift");
+  assert.equal(setKind("LG 43UR + soundbar", lines, 1, (m) => m === 2), "gift");
+  // το κύριο που πουλιέται δεν κάνει το σετ «με δώρο»
+  assert.equal(setKind("TOYOTOMI", lines, 1, (m) => m === 1), "parts");
+});
+
+test("μαζική αλλαγή «Πωλείται και μόνο του»: πόσα αλλάζουν, πόσα κρύβονται, πόσα εμφανίζονται", () => {
+  const rows = [
+    { mode: "auto", soldAlone: false, mainOfParts: true },  // κύριο εξαρτημάτων, κρυφό
+    { mode: "auto", soldAlone: true, mainOfParts: false },  // απλό είδος
+    { mode: "yes", soldAlone: true, mainOfParts: true },    // ρητά ναι
+  ];
+  assert.deepEqual(soldAloneChange(rows, "no"), { changed: 3, hide: 2, show: 0 });
+  assert.deepEqual(soldAloneChange(rows, "yes"), { changed: 2, hide: 0, show: 1 });
+  assert.deepEqual(soldAloneChange(rows, "auto"), { changed: 1, hide: 1, show: 0 });
 });

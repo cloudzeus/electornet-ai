@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-16T14:25:09.537Z",
+ "generatedAt": "2026-10-16T14:49:26.752Z",
  "routes": [
   {
    "route": "/admin",
@@ -318,14 +318,42 @@
    },
    "dynamic": false,
    "helpKeys": [
+    "catalog.sets-sync",
     "catalog.filters",
+    "catalog.type",
     "catalog.peek",
     "catalog.table",
     "catalog.actions",
     "catalog.cards",
-    "product.promo-picker"
+    "product.promo-picker",
+    "catalog.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "02f005b",
+     "date": "2026-10-16T17:41:07+03:00",
+     "text": "Σετ (Φ1): η γραμμή παραγγελίας σετ κρατά το σετ (SPCS) και στιγμιότυπο των μελών του τη στιγμή της αγοράς"
+    },
+    {
+     "hash": "8b14cd5",
+     "date": "2026-10-16T17:40:20+03:00",
+     "text": "Σετ (Φ1): στο site"
+    },
+    {
+     "hash": "e7384cd",
+     "date": "2026-10-16T17:37:28+03:00",
+     "text": "Σετ (Φ1): τιμή = τιμή κύριου είδους (όπως το SoftOne"
+    },
+    {
+     "hash": "841902e",
+     "date": "2026-10-16T17:36:24+03:00",
+     "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα"
+    },
+    {
+     "hash": "79043b7",
+     "date": "2026-10-16T17:30:06+03:00",
+     "text": "Σετ (Φ1): καθαρή λογική"
+    },
     {
      "hash": "8f953ca",
      "date": "2026-10-13T18:54:42+03:00",
@@ -350,34 +378,9 @@
      "hash": "d4db0c6",
      "date": "2026-10-11T11:03:11+03:00",
      "text": "Κατάλογος προϊόντων: πίνακας όπως των πελατών"
-    },
-    {
-     "hash": "a234171",
-     "date": "2026-10-10T10:43:51+03:00",
-     "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
-    },
-    {
-     "hash": "2666dd2",
-     "date": "2026-10-10T09:02:18+03:00",
-     "text": "EPREL: αναζήτηση για ένα προϊόν (ίδια λογική με τη μαζική) + server action"
-    },
-    {
-     "hash": "9d1f72e",
-     "date": "2026-10-04T13:00:24+03:00",
-     "text": "Stickers σε προϊόντα: από προσφορά, ετικέτα ή χειροκίνητα"
-    },
-    {
-     "hash": "a893d41",
-     "date": "2026-10-04T11:10:48+03:00",
-     "text": "Templates προμηθευτών: χωριστό excel για φωτογραφίες, banners και βίντεο"
-    },
-    {
-     "hash": "8a5a468",
-     "date": "2026-10-04T09:27:41+03:00",
-     "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
     }
    ],
-   "updatedAt": "2026-10-13T18:54:42+03:00",
+   "updatedAt": "2026-10-16T17:41:07+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -394,9 +397,11 @@
    "dynamic": true,
    "helpKeys": [
     "product.actions",
+    "product.set",
     "product.overview",
     "product.sources",
-    "product.tabs"
+    "product.tabs",
+    "product.sold-alone"
    ],
    "changes": [
     {
@@ -556,13 +561,10 @@
    "route": "/admin/catalog/sets",
    "slug": "catalog.sets",
    "file": "app/admin/(shell)/catalog/sets/page.tsx",
-   "title": "Bundles · sets",
-   "doc": "Προϊόντα που πουλιούνται μαζί με άλλα είδη — στο SoftOne «Set ειδών» (π.χ. κλιματιστικό = εσωτερική + εξωτερική μονάδα). Μόνο ανάγνωση από το ERP· εδώ ελέγχεις μέλη και απόθεμα (το set είναι διαθέσιμο όσο φτάνουν όλα τα μέλη) και ορίζεις πώς φαίνεται κάθε μέλος στο «Περιλαμβάνει» της σελίδας του προϊόντος.",
-   "perm": "catalog.products.read",
-   "nav": {
-    "group": "Κατάλογος",
-    "label": "Bundles · sets"
-   },
+   "title": "sets",
+   "doc": "Τα σετ ζουν πια στον κατάλογο μαζί με τα είδη (φίλτρο «Τύπος: Σετ»)· η παλιά σελίδα «Bundles · sets» οδηγεί εκεί.",
+   "perm": "*",
+   "nav": null,
    "dynamic": false,
    "helpKeys": [],
    "changes": [
@@ -608,6 +610,11 @@
    ],
    "changes": [
     {
+     "hash": "841902e",
+     "date": "2026-10-16T17:36:24+03:00",
+     "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα"
+    },
+    {
      "hash": "f5e1d3a",
      "date": "2026-10-11T11:54:13+03:00",
      "text": "Χαρακτηριστικά: σειρά φίλτρων στο e-shop με drag & drop"
@@ -651,14 +658,9 @@
      "hash": "14513b1",
      "date": "2026-09-21T13:55:15+03:00",
      "text": "Τιμή eshop και διαθεσιμότητα από το SoftOne, επιβεβαιωμένες στο ζωντανό euronics.gr"
-    },
-    {
-     "hash": "7802c57",
-     "date": "2026-09-21T13:03:56+03:00",
-     "text": "Βιτρίνα από τη βάση (βήμα 1): κατηγορίες, λίστες, φίλτρα, αναζήτηση, μάρκες και σελίδα προϊόντος από την προβολή του SoftOne"
     }
    ],
-   "updatedAt": "2026-10-11T11:54:13+03:00",
+   "updatedAt": "2026-10-16T17:36:24+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.specs-d.jpg",
     "mobile": "/api/help-shot/catalog.specs-m.jpg"
@@ -2042,12 +2044,17 @@
    ],
    "changes": [
     {
+     "hash": "373b7ac",
+     "date": "2026-10-16T17:25:30+03:00",
+     "text": "Καμπάνιες (Φ1): διορθώσεις τελικού ελέγχου"
+    },
+    {
      "hash": "1e93fcd",
      "date": "2026-10-16T17:04:47+03:00",
      "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-16T17:04:47+03:00",
+   "updatedAt": "2026-10-16T17:25:30+03:00",
    "shots": {}
   },
   {
@@ -3228,6 +3235,64 @@
  ],
  "recent": [
   {
+   "hash": "ba74864",
+   "date": "2026-10-16T17:43:45+03:00",
+   "text": "Σετ (Φ1): στο παραστατικό SoftOne η γραμμή σετ ανοίγει σε κύριο είδος με όλη την τιμή + μέλη με 0, όλα με SPCS",
+   "routes": []
+  },
+  {
+   "hash": "02f005b",
+   "date": "2026-10-16T17:41:07+03:00",
+   "text": "Σετ (Φ1): η γραμμή παραγγελίας σετ κρατά το σετ (SPCS) και στιγμιότυπο των μελών του τη στιγμή της αγοράς",
+   "routes": []
+  },
+  {
+   "hash": "8b14cd5",
+   "date": "2026-10-16T17:40:20+03:00",
+   "text": "Σετ (Φ1): στο site",
+   "routes": []
+  },
+  {
+   "hash": "e7384cd",
+   "date": "2026-10-16T17:37:28+03:00",
+   "text": "Σετ (Φ1): τιμή = τιμή κύριου είδους (όπως το SoftOne",
+   "routes": []
+  },
+  {
+   "hash": "841902e",
+   "date": "2026-10-16T17:36:24+03:00",
+   "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα",
+   "routes": []
+  },
+  {
+   "hash": "79043b7",
+   "date": "2026-10-16T17:30:06+03:00",
+   "text": "Σετ (Φ1): καθαρή λογική",
+   "routes": []
+  },
+  {
+   "hash": "987200c",
+   "date": "2026-10-16T17:29:31+03:00",
+   "text": "Σετ (Φ1): πεδία",
+   "routes": []
+  },
+  {
+   "hash": "a6e76c4",
+   "date": "2026-10-16T17:28:41+03:00",
+   "text": "Προδιαγραφή και πλάνο: σετ ειδών ως προϊόντα του καταλόγου (με «Πωλείται και μόνο του»)",
+   "routes": []
+  },
+  {
+   "hash": "373b7ac",
+   "date": "2026-10-16T17:25:30+03:00",
+   "text": "Καμπάνιες (Φ1): διορθώσεις τελικού ελέγχου",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/kampanies"
+   ]
+  },
+  {
    "hash": "a763714",
    "date": "2026-10-16T17:15:11+03:00",
    "text": "Καμπάνιες (Φ1): βοήθεια",
@@ -3479,82 +3544,6 @@
    "date": "2026-10-11T12:04:10+03:00",
    "text": "Templates προμηθευτών: Word «Οδηγίες συμπλήρωσης» σε κάθε πακέτο",
    "routes": []
-  },
-  {
-   "hash": "f5e1d3a",
-   "date": "2026-10-11T11:54:13+03:00",
-   "text": "Χαρακτηριστικά: σειρά φίλτρων στο e-shop με drag & drop",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "8ce30e2",
-   "date": "2026-10-11T11:48:01+03:00",
-   "text": "Χαρακτηριστικά: σημείο βοήθειας στο πλαϊνό πάνελ",
-   "routes": []
-  },
-  {
-   "hash": "855cfdb",
-   "date": "2026-10-11T11:47:51+03:00",
-   "text": "Χαρακτηριστικά: νέος σχεδιασμός (ui-ux-pro-max, master-detail + progressive disclosure)",
-   "routes": []
-  },
-  {
-   "hash": "91d0809",
-   "date": "2026-10-11T11:37:59+03:00",
-   "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/specs"
-   ]
-  },
-  {
-   "hash": "a5eea75",
-   "date": "2026-10-11T11:19:28+03:00",
-   "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "d4db0c6",
-   "date": "2026-10-11T11:03:11+03:00",
-   "text": "Κατάλογος προϊόντων: πίνακας όπως των πελατών",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "2250762",
-   "date": "2026-10-11T10:56:48+03:00",
-   "text": "Καρτέλα προϊόντος: μενού Ενέργειες με διορθώσεις σε παράθυρο (κείμενα & χαρακτηριστικά, διαστάσεις & βάρος, εγγύηση, ενεργειακή ετικέτα EPREL, stickers), ενημέρωση από SoftOne, νέα προσφορά, στο site, αντιγραφή κωδικών",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "bbf6ae4",
-   "date": "2026-10-11T10:49:29+03:00",
-   "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "d29568e",
-   "date": "2026-10-11T10:38:47+03:00",
-   "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3600,7 +3589,16 @@
   "product.actions": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
+  "product.set": [
+   "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
+  "catalog.sets-sync": [
+   "app/admin/(shell)/catalog/page.tsx"
+  ],
   "catalog.filters": [
+   "app/admin/(shell)/catalog/page.tsx"
+  ],
+  "catalog.type": [
    "app/admin/(shell)/catalog/page.tsx"
   ],
   "zones.list": [
@@ -3788,6 +3786,12 @@
   ],
   "product.promo-picker": [
    "components/admin/catalog/QuickActions.tsx"
+  ],
+  "catalog.sold-alone": [
+   "components/admin/catalog/SoldAloneBulk.tsx"
+  ],
+  "product.sold-alone": [
+   "components/admin/catalog/SoldAloneSwitch.tsx"
   ],
   "specs.tree": [
    "components/admin/catalog/SpecManager.tsx"

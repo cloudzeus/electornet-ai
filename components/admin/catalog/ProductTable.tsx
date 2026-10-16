@@ -8,7 +8,9 @@ import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
 import { sourceOf } from "./sources";
 
 export type ProductRow = {
-  id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean; isSet: boolean;
+  id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean;
+  /** προϊόν-σετ: είδος σετ και πλήθος μελών */ set: { kind: "parts" | "gift"; members: number } | null;
+  /** είδος: σε πόσα σετ είναι κύριο */ mainOf: number; soldAlone: boolean; soldAloneMode: string;
   thumb: string | null; photos: number; lowMain: boolean; specs: number;
   price: number | null; offer: number | null; stock: number; sold: number;
   energy: { cls: string; source: string | null } | null; energyNeeded: boolean; dims: number; dimStatus: string | null;
@@ -27,11 +29,19 @@ export const Thumb = ({ r, size = "size-10" }: { r: ProductRow; size?: string })
   </span>
 );
 const Energy = ({ r }: { r: ProductRow }) => r.energy ? <span className="inline-flex items-center gap-1" title={`Πηγή: ${sourceOf(r.energy.source).label}`}><b className="rounded bg-eu-green text-white px-1.5 text-[length:var(--fs-12)]">{r.energy.cls}</b><span className={`size-2 rounded-full ${sourceOf(r.energy.source).dot}`} aria-label={sourceOf(r.energy.source).label} /></span> : r.energyNeeded ? <span className="text-eu-red font-bold">λείπει</span> : muted("—");
+/** Ετικέτες σετ: «Σετ · N μέλη», «Κύριο σε σετ», «Μόνο σε σετ» (κρυφό από τις λίστες). Λέξεις, όχι μόνο χρώμα. */
+export const SetChips = ({ r }: { r: ProductRow }) => (
+  <>
+    {r.set && <span className="rounded px-1.5 font-bold bg-eu-navy text-white whitespace-nowrap" title={r.set.kind === "gift" ? "Σετ με δώρο" : "Σετ εξαρτημάτων"}>Σετ · {r.set.members} {r.set.members === 1 ? "μέλος" : "μέλη"}{r.set.kind === "gift" ? " · δώρο" : ""}</span>}
+    {r.mainOf > 0 && <span className="rounded px-1.5 font-bold bg-eu-chip text-eu-navy whitespace-nowrap" title={`Κύριο είδος σε ${r.mainOf} ${r.mainOf === 1 ? "σετ" : "σετ"}`}>Κύριο σε {r.mainOf === 1 ? "σετ" : `${r.mainOf} σετ`}</span>}
+    {!r.set && !r.soldAlone && <span className="rounded px-1.5 font-bold bg-eu-amber/15 text-eu-ink whitespace-nowrap" title={r.soldAloneMode === "no" ? "Ορίστηκε «Όχι»: δεν εμφανίζεται μόνο του στο site" : "Αυτόματα: κύριο σε σετ εξαρτημάτων — δεν εμφανίζεται μόνο του στο site"}>Μόνο σε σετ</span>}
+  </>
+);
 const Price = ({ r }: { r: ProductRow }) => r.offer != null && r.price != null && r.offer < r.price ? <span className="tabular-nums"><s className="text-eu-muted">{eur(r.price)}</s> <b className="text-eu-red">{eur(r.offer)}</b></span> : <span className="tabular-nums font-semibold">{r.price ? eur(r.price) : <span className="text-eu-red font-bold">χωρίς τιμή</span>}</span>;
 
 /** Όλες οι διαθέσιμες στήλες· `def` = ορατή αρχικά. Το `sort` είναι το κλειδί ταξινόμησης του server (?s=). */
 const COLS: Col[] = [
-  { id: "title", label: "Προϊόν", w: 320, sort: "title", def: true, title: (r) => r.title, cell: (r) => <span className="flex items-center gap-2 min-w-0"><Thumb r={r} size="size-9" /><span className="grid min-w-0"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline truncate">{r.title}</Link><span className="text-eu-muted text-[length:var(--fs-12)] truncate">{r.brand}{r.isSet ? " · Set" : ""}{r.active ? "" : " · ανενεργό"}</span></span></span> },
+  { id: "title", label: "Προϊόν", w: 320, sort: "title", def: true, title: (r) => r.title, cell: (r) => <span className="flex items-center gap-2 min-w-0"><Thumb r={r} size="size-9" /><span className="grid min-w-0"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline truncate">{r.title}</Link><span className="flex items-center gap-1 min-w-0 text-eu-muted text-[length:var(--fs-12)]"><span className="truncate">{r.brand}{r.active ? "" : " · ανενεργό"}</span><SetChips r={r} /></span></span></span> },
   { id: "category", label: "Κατηγορία", w: 170, sort: "category", def: true, title: (r) => r.category, cell: (r) => <span className="truncate text-eu-ink-3">{r.category}</span> },
   { id: "brand", label: "Μάρκα", w: 110, sort: "brand", cell: (r) => <span className="truncate">{r.brand}</span> },
   { id: "sku", label: "Κωδικός", w: 120, sort: "sku", def: true, cell: (r) => <span className="font-mono truncate">{r.sku}</span> },
@@ -60,7 +70,7 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
  */
 const ctx = (r: ProductRow) => ({ id: r.id, title: r.title, slug: r.slug, active: r.active, sku: r.sku, ean: r.ean, erpCode: r.erpCode, fromS1: r.fromS1, energyNeeded: r.energyNeeded });
 
-export function ProductTable({ rows, sort, dir, query, perPage, total, from, canPromo, can }: { rows: ProductRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canPromo: boolean; can: RowCan }) {
+export function ProductTable({ rows, sort, dir, query, perPage, total, from, canPromo, canSelect = canPromo, can }: { rows: ProductRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canPromo: boolean; /** επιλογή γραμμών (μαζική προσφορά / «Πωλείται και μόνο του») */ canSelect?: boolean; can: RowCan }) {
   const { setToast, bar } = useToast();
   const [cols, setCols] = useState<string[]>(DEFAULT);
   const [widths, setWidths] = useState<Record<string, number>>({});
@@ -104,9 +114,9 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
     const up = (ev: PointerEvent) => { setW(c.id, w0 + ev.clientX - x0, true); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.documentElement.classList.remove("cursor-col-resize"); };
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); document.documentElement.classList.add("cursor-col-resize");
   };
-  const lead = (canPromo ? 76 : 40) + 44;
+  const lead = (canSelect ? 76 : 40) + 44;
   const tableW = lead + shown.reduce((a, c) => a + wOf(c), 0);
-  const span = shown.length + (canPromo ? 3 : 2);
+  const span = shown.length + (canSelect ? 3 : 2);
 
   return (
     <div data-help="catalog.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -134,11 +144,11 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
       </div>
       <div ref={scrollRef} className="overflow-x-auto">
         <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
-          <colgroup><col style={{ width: 40 }} />{canPromo && <col style={{ width: 36 }} />}{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
+          <colgroup><col style={{ width: 40 }} />{canSelect && <col style={{ width: 36 }} />}{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
             <tr>
               <th className="p-0" aria-label="Άνοιγμα γραμμής" />
-              {canPromo && <th className="p-0"><span className="sr-only">Επιλογή για προσφορά</span></th>}
+              {canSelect && <th className="p-0"><span className="sr-only">Επιλογή</span></th>}
               {shown.map((c) => {
                 const on = !!c.sort && sort === c.sort, next = on ? (dir === "asc" ? "desc" : "asc") : "";
                 const I = on ? (dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
@@ -163,7 +173,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
                 <Fragment key={r.id}>
                   <tr className={`border-t border-eu-line-2 ${isOpen ? "bg-eu-chip/50" : "hover:bg-eu-surface/60"} ${r.active ? "" : "text-eu-ink-3"}`}>
                     <td className="px-1 py-0.5"><button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadProductPeek(r.id)} onFocus={() => void loadProductPeek(r.id)} aria-expanded={isOpen} aria-controls={`ppeek-${r.id}`} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.title}`} className={`size-8 grid place-items-center rounded-full ${isOpen ? "bg-eu-navy text-white" : "text-eu-ink-3 hover:bg-eu-chip hover:text-eu-navy"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button></td>
-                    {canPromo && <td className="px-1"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή για προσφορά: ${r.title}`} className="size-4 accent-eu-navy" /></td>}
+                    {canSelect && <td className="px-1"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή: ${r.title}`} className="size-4 accent-eu-navy" /></td>}
                     {shown.map((c) => <td key={c.id} title={c.title?.(r)} className={`px-2 py-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-0 ${c.right ? "text-right" : ""}`}><span className={`flex min-w-0 ${c.right ? "justify-end" : ""}`}>{c.cell(r)}</span></td>)}
                     <td className={`sticky right-0 px-1 py-0.5 ${isOpen ? "bg-eu-chip" : "bg-white"}`}><ProductRowActions r={ctx(r)} can={can} onToast={setToast} /></td>
                   </tr>
@@ -181,7 +191,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
 }
 
 /** Λίστα προϊόντων για κινητό/στενή οθόνη: κάρτες με τα βασικά και ▾ που ανοίγει τις ίδιες καρτέλες. */
-export function ProductCards({ rows, canPromo, can }: { rows: ProductRow[]; canPromo: boolean; can: RowCan }) {
+export function ProductCards({ rows, canPromo, canSelect = canPromo, can }: { rows: ProductRow[]; canPromo: boolean; canSelect?: boolean; can: RowCan }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const { setToast, bar } = useToast();
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -196,12 +206,13 @@ export function ProductCards({ rows, canPromo, can }: { rows: ProductRow[]; canP
               <span className="grid min-w-0 gap-0.5">
                 <Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug line-clamp-2 hover:text-eu-blue">{r.title}</Link>
                 <span className="text-eu-muted text-[length:var(--fs-12)] truncate">{r.brand} · <span className="font-mono">{r.sku}</span>{r.active ? "" : " · ανενεργό"}</span>
+                {(r.set || r.mainOf > 0 || !r.soldAlone) && <span className="flex flex-wrap gap-1 text-[length:var(--fs-12)]"><SetChips r={r} /></span>}
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[length:var(--fs-13)]"><Price r={r} /><span className={r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}>{r.stock > 0 ? `${r.stock} τεμ.` : "κατόπιν παρ."}</span><Energy r={r} />{!r.photos && <span className="text-eu-red font-bold">χωρίς φωτο</span>}</span>
               </span>
               <span className="grid justify-items-end gap-1">
                 <ProductRowActions r={ctx(r)} can={can} onToast={setToast} />
                 <button type="button" onClick={() => toggle(r.id)} onPointerEnter={() => void loadProductPeek(r.id)} aria-expanded={isOpen} aria-controls={`ppeek-${r.id}`} aria-label={`${isOpen ? "Κλείσιμο" : "Άνοιγμα"}: ${r.title}`} className={`size-11 grid place-items-center rounded-full border ${isOpen ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink-3"}`}><ChevronDown className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} aria-hidden /></button>
-                {canPromo && <label className="size-11 grid place-items-center"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή για προσφορά: ${r.title}`} className="size-5 accent-eu-navy" /></label>}
+                {canSelect && <label className="size-11 grid place-items-center"><input type="checkbox" form="bulk-promo" name="products" value={r.id} aria-label={`Επιλογή: ${r.title}`} className="size-5 accent-eu-navy" /></label>}
               </span>
             </div>
             {isOpen && <div className="pb-1"><ProductPeek id={r.id} canPromo={canPromo} /></div>}

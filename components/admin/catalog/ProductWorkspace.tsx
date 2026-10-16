@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, CircleAlert } from "lucide-react";
 import type { Readiness, TabId, TabState } from "@/lib/catalog/readiness";
 
 /** Οι καρτέλες της σελίδας προϊόντος, με τη σειρά της δουλειάς (συχνότερα πρώτα). */
-/** Οι καρτέλες του χώρου εργασίας: οι πέντε της ετοιμότητας και η «Set» (μόνο σε προϊόντα που πουλιούνται ως set). */
+/** Οι καρτέλες του χώρου εργασίας: οι πέντε της ετοιμότητας και η «Σετ» (σε προϊόντα-σετ και σε κύρια είδη σετ). */
 export type WorkspaceTab = TabId | "set" | "overview";
 export const TABS: { id: WorkspaceTab; label: string; short: string }[] = [
   { id: "overview", label: "Επισκόπηση", short: "Σύνοψη" },
@@ -11,7 +11,7 @@ export const TABS: { id: WorkspaceTab; label: string; short: string }[] = [
   { id: "content", label: "Κείμενα & χαρακτηριστικά", short: "Κείμενα" },
   { id: "dims", label: "Διαστάσεις · AR · EPREL", short: "Διαστάσεις" },
   { id: "commerce", label: "Τιμή · προσφορές · stickers", short: "Τιμή" },
-  { id: "set", label: "Set · μέλη", short: "Set" },
+  { id: "set", label: "Σετ", short: "Σετ" },
   { id: "erp", label: "ERP", short: "ERP" },
 ];
 export const isTab = (v: string | undefined): v is WorkspaceTab => TABS.some((t) => t.id === v);

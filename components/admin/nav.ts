@@ -51,7 +51,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/catalog", label: "Προϊόντα", icon: Package, perm: "catalog.products.read" },
       { href: "/admin/catalog/specs", label: "Χαρακτηριστικά", icon: ListChecks, perm: "catalog.products.read" },
-      { href: "/admin/catalog/sets", label: "Bundles · sets", icon: Boxes, perm: "catalog.products.read" },
+      { href: "/admin/catalog?type=set", label: "Σετ ειδών", icon: Boxes, perm: "catalog.products.read" },
       { href: "/admin/catalog/templates", label: "Templates & excel", icon: FileSpreadsheet, perm: "catalog.products.read" },
       { href: "/admin/catalog/banners", label: "Απόδελτίωση banners", icon: ScanText, perm: "catalog.products.write" },
       { href: "/admin/eprel", label: "Ενεργειακές ετικέτες (EPREL)", icon: Zap, perm: "catalog.products.read" },

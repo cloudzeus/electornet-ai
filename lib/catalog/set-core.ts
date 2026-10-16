@@ -53,3 +53,21 @@ export function setPartsSnapshot(set: { mtrl: number; lines: { mtrl: number; qty
     ...set.lines.filter((l) => l.mtrl !== set.mtrl).map((l) => ({ mtrl: l.mtrl, qty: l.qty || 1, name: l.name, main: false })),
   ];
 }
+
+/** «Δώρο» στο όνομα του σετ (π.χ. «+ ΔΩΡΟ σιδερώστρα»). */
+export const isGiftName = (name: string) => /δ[ωώ]ρ/i.test(name);
+/** Είδος σετ: με δώρο αν το λέει το όνομα ή αν κάποιο άλλο μέλος πουλιέται στο site· αλλιώς εξαρτήματα. */
+export const setKind = (name: string, lines: { mtrl: number }[], main: number, sold: (mtrl: number) => boolean): "parts" | "gift" =>
+  isGiftName(name) || lines.some((l) => l.mtrl !== main && sold(l.mtrl)) ? "gift" : "parts";
+
+/** Τι θα κάνει η μαζική αλλαγή «Πωλείται και μόνο του»: πόσα αλλάζουν ρύθμιση, πόσα κρύβονται από / εμφανίζονται στις λίστες. */
+export function soldAloneChange(rows: { mode: string; soldAlone: boolean; mainOfParts: boolean }[], mode: string): { changed: number; hide: number; show: number } {
+  let changed = 0, hide = 0, show = 0;
+  for (const r of rows) {
+    if (r.mode !== mode) changed++;
+    const next = soldAloneFor(mode, r.mainOfParts);
+    if (r.soldAlone && !next) hide++;
+    if (!r.soldAlone && next) show++;
+  }
+  return { changed, hide, show };
+}

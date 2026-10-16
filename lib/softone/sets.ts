@@ -68,8 +68,7 @@ export function syncSets(trigger: Trigger = "manual") {
  * Γράφει μόνο ό,τι άλλαξε. Ασφαλές για επανάληψη.
  */
 export async function projectSetProducts(): Promise<{ sets: number; created: number; updated: number; deactivated: number; mainsHidden: number }> {
-  const { setErp, setPrice, setStock, setTitle, validSet } = await import("@/lib/catalog/set-core");
-  const { isGiftName } = await import("@/lib/catalog/sets");
+  const { setErp, setPrice, setStock, setTitle, validSet, setKind } = await import("@/lib/catalog/set-core");
   const { slugify } = await import("@/lib/slug");
   const now = new Date();
   const sets = await db.s1Set.findMany({ include: { lines: { orderBy: { lineNum: "asc" } } } });
@@ -89,7 +88,7 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
 
   for (const set of sets) {
     const main = prodOf.get(set.mtrl);
-    const kind = isGiftName(set.name) || set.lines.some((l) => l.mtrl !== set.mtrl && prodOf.get(l.mtrl)?.active) ? "gift" : "parts";
+    const kind = setKind(set.name, set.lines, set.mtrl, (m) => !!prodOf.get(m)?.active);
     const live = set.active && (!set.finalDate || set.finalDate >= now) && !!main?.active;
     if (live && kind === "parts" && validSet(set.lines, set.mtrl)) mainOfParts.add(set.mtrl);
     const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);

@@ -304,3 +304,48 @@ export async function setSpecOrderAction(groupS1Id: number, codes: number[]) {
   revalidatePath("/admin/catalog/specs");
   return { ok: true as const };
 }
+
+type SoldAloneMode = "auto" | "yes" | "no";
+const SOLD_ALONE_MODES: SoldAloneMode[] = ["auto", "yes", "no"];
+/** Τα είδη (όχι προϊόντα-σετ) της επιλογής με ό,τι χρειάζεται για να φανεί τι αλλάζει. */
+async function soldAloneRows(ids: string[]) {
+  const { setIndex } = await import("@/lib/catalog/sets");
+  const [rows, ix] = await Promise.all([
+    db.product.findMany({ where: { id: { in: ids.slice(0, 500) } }, select: { id: true, kind: true, erpCode: true, soldAlone: true, soldAloneMode: true } }),
+    setIndex(),
+  ]);
+  const items = rows.filter((r) => r.kind === "item").map((r) => ({ id: r.id, mode: r.soldAloneMode, soldAlone: r.soldAlone, mainOfParts: ix.mainOfParts.has(r.erpCode) }));
+  return { items, sets: rows.length - items.length };
+}
+
+/** Προεπισκόπηση της μαζικής αλλαγής «Πωλείται και μόνο του» (για την επιβεβαίωση): πόσα αλλάζουν, κρύβονται, εμφανίζονται. */
+export async function soldAlonePreview(ids: string[], mode: SoldAloneMode) {
+  await requirePermission("catalog.products.write");
+  if (!SOLD_ALONE_MODES.includes(mode)) return { ok: false as const, error: "Άγνωστη επιλογή." };
+  const { soldAloneChange } = await import("@/lib/catalog/set-core");
+  const { items, sets } = await soldAloneRows(ids);
+  return { ok: true as const, items: items.length, sets, ...soldAloneChange(items, mode) };
+}
+
+/**
+ * «Πωλείται και μόνο του» για είδη: Αυτόματα (όχι μόνο όταν είναι κύριο σε σετ εξαρτημάτων) · Ναι · Όχι. Με «Όχι» το
+ * είδος φεύγει από λίστες, αναζήτηση και προσφορές και η σελίδα του οδηγεί στο σετ. Τα προϊόντα-σετ αγνοούνται.
+ */
+export async function soldAloneAction(ids: string[], mode: SoldAloneMode) {
+  const user = await requirePermission("catalog.products.write");
+  if (!SOLD_ALONE_MODES.includes(mode)) return { ok: false as const, error: "Άγνωστη επιλογή." };
+  const { soldAloneFor, soldAloneChange } = await import("@/lib/catalog/set-core");
+  const { items } = await soldAloneRows(ids);
+  if (!items.length) return { ok: false as const, error: "Δεν επιλέχθηκε κανένα είδος (τα σετ δεν έχουν αυτή τη ρύθμιση)." };
+  const r = soldAloneChange(items, mode);
+  const parts = items.filter((i) => i.mainOfParts).map((i) => i.id), plain = items.filter((i) => !i.mainOfParts).map((i) => i.id);
+  await db.$transaction([
+    db.product.updateMany({ where: { id: { in: parts } }, data: { soldAloneMode: mode, soldAlone: soldAloneFor(mode, true) } }),
+    db.product.updateMany({ where: { id: { in: plain } }, data: { soldAloneMode: mode, soldAlone: soldAloneFor(mode, false) } }),
+  ]);
+  await audit(user.id, "catalog.product.sold-alone", "Product", items.length === 1 ? items[0].id : null, { modes: items.map((i) => [i.id, i.mode]) }, { mode, ...r });
+  resetCatalogCache();
+  revalidatePath("/admin/catalog");
+  if (items.length === 1) revalidatePath(path(items[0].id));
+  return { ok: true as const, ...r };
+}

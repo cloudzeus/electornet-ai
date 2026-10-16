@@ -12,17 +12,18 @@ export async function setMemberLabelAction(spcs: number, lineNum: number, label:
   if (!prev) return { ok: false as const, error: "Το μέλος δεν βρέθηκε." };
   await db.s1SetLine.update({ where: { spcs_lineNum: { spcs, lineNum } }, data: { label: v } });
   await audit(user.id, "catalog.set.label", "S1SetLine", `${spcs}:${lineNum}`, { label: prev.label }, { label: v });
-  revalidatePath("/admin/catalog/sets");
+  revalidatePath("/admin/catalog/[id]", "page");
   return { ok: true as const, label: v };
 }
 
-/** Ανάγνωση των sets από το SoftOne (μόνο GetTable) και ενημέρωση του αποθέματος των προϊόντων-set. */
+/** Ανάγνωση των σετ από το SoftOne (μόνο GetTable) και προβολή τους ως προϊόντα (τιμή, απόθεμα, «Πωλείται και μόνο του»). */
 export async function syncSetsAction() {
   const user = await requirePermission("catalog.sync.run");
   const { syncSets, projectSetStock } = await import("@/lib/softone/sets");
   const r = await syncSets("manual");
   const stockUpdated = r.ok ? await projectSetStock() : 0;
   await audit(user.id, "catalog.sets.sync", "S1Set", null, null, { ...r, stockUpdated });
-  revalidatePath("/admin/catalog/sets");
+  if (r.ok) (await import("@/lib/data/db-catalog")).resetCatalogCache();
+  revalidatePath("/admin/catalog");
   return { ...r, stockUpdated };
 }
