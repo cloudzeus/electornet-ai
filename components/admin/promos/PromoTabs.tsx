@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy, Sparkles, Wrench, MonitorSmartphone, FileSpreadsheet, type LucideIcon } from "lucide-react";
+import { FolderKanban, ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy, Sparkles, Wrench, MonitorSmartphone, FileSpreadsheet, type LucideIcon } from "lucide-react";
 import type { PAGE_HELP } from "@/lib/promo/help";
 
 type Page = { key: string; href: string; label: string; Icon: LucideIcon; hidden?: boolean };
 type Group = { key: string; label: string; Icon: LucideIcon; pages: Page[] };
 
 /**
- * Η ενότητα «Προσφορές» σε 6 περιοχές εργασίας αντί για 12 καρτέλες: Προσφορές (λίστα, ημερολόγιο), Κουπόνια,
+ * Η ενότητα «Προσφορές» σε 7 περιοχές εργασίας: Καμπάνιες (φάκελοι προσφορών), Προσφορές (λίστα, ημερολόγιο), Κουπόνια,
  * Στόχευση (κοινά, προσωπικές), Στο site (θέσεις, landing pages, ετικέτες), Αναφορές, Εργαλεία.
  */
 const GROUPS: Group[] = [
+  { key: "campaigns", label: "Καμπάνιες", Icon: FolderKanban, pages: [{ key: "campaigns", href: "/admin/prosfores/kampanies", label: "Καμπάνιες", Icon: FolderKanban }] },
   { key: "promos", label: "Προσφορές", Icon: ListChecks, pages: [
     { key: "list", href: "/admin/prosfores", label: "Λίστα", Icon: ListChecks },
     { key: "calendar", href: "/admin/prosfores/imerologio", label: "Ημερολόγιο & επικαλύψεις", Icon: CalendarRange },

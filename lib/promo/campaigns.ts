@@ -11,6 +11,8 @@ import { budgetUse, campaignDay, liveState, nextCampaignCode, validateCampaign, 
  * έλεγχοι και η ίδια έγκριση. Η αρχειοθέτηση καμπάνιας ΔΕΝ αρχειοθετεί / σβήνει προσφορές.
  */
 const LIVE_PROMO = ["active", "scheduled", "paused"];
+/** «όχι σε αυτή την καμπάνια» — μαζί με όσα δεν ανήκουν σε καμία (το SQL NOT x = id αφήνει έξω τα NULL) */
+const notIn = (id: string) => [{ campaignId: null }, { campaignId: { not: id } }];
 const n = (d: Prisma.Decimal | number | null | undefined) => (d == null ? null : Number(d));
 
 export type CampaignRow = {
@@ -66,9 +68,9 @@ export async function getCampaign(id: string) {
   if (!c?.code) return null;
   const [spent, promos, landings, ads] = await Promise.all([
     spentBy([c.id]).then((m) => m.get(c.id) ?? 0),
-    db.promotion.findMany({ where: { status: { notIn: ["archived", "ended"] }, NOT: { campaignId: c.id } }, orderBy: { createdAt: "desc" }, take: 300, select: { id: true, code: true, name: true, status: true, mechanism: true, campaign: { select: { code: true } } } }),
-    db.landingPage.findMany({ where: { status: { not: "archived" }, NOT: { campaignId: c.id } }, orderBy: { updatedAt: "desc" }, take: 200, select: { id: true, slug: true, title: true, status: true, campaign: { select: { code: true } } } }),
-    db.adPlacement.findMany({ where: { status: { not: "archived" }, NOT: { campaignId: c.id } }, orderBy: { updatedAt: "desc" }, take: 200, select: { id: true, slot: true, title: true, status: true, campaign: { select: { code: true } } } }),
+    db.promotion.findMany({ where: { status: { notIn: ["archived", "ended"] }, OR: notIn(c.id) }, orderBy: { createdAt: "desc" }, take: 300, select: { id: true, code: true, name: true, status: true, mechanism: true, campaign: { select: { code: true } } } }),
+    db.landingPage.findMany({ where: { status: { not: "archived" }, OR: notIn(c.id) }, orderBy: { updatedAt: "desc" }, take: 200, select: { id: true, slug: true, title: true, status: true, campaign: { select: { code: true } } } }),
+    db.adPlacement.findMany({ where: { status: { not: "archived" }, OR: notIn(c.id) }, orderBy: { updatedAt: "desc" }, take: 200, select: { id: true, slot: true, title: true, status: true, campaign: { select: { code: true } } } }),
   ]);
   const b = n(c.budgetEur);
   return {
