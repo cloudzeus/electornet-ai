@@ -3,9 +3,11 @@
 import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin, Building2 } from "lucide-react";
+import { ArrowLeft, Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin, Building2 } from "lucide-react";
 import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 import { CustomerOverviewTab } from "./CustomerOverview";
+import { OrderStatusBadge } from "@/components/admin/orders/ui";
+import { FULFILMENT, type Fulfilment } from "@/lib/orders/model";
 import { regeocodeAddress, sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -31,7 +33,7 @@ const CONSENT_TOPICS: { topic: string; label: string; channels: string[] }[] = [
   { topic: "service", label: "Service & εγγυήσεις", channels: ["email", "sms"] },
   { topic: "profiling", label: "Προσωποποίηση (profiling)", channels: ["web"] },
 ];
-const field = "rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] font-normal outline-none focus:border-eu-blue bg-white w-full disabled:bg-eu-surface";
+const field = "rounded-lg border border-eu-line px-3 min-h-11 md:min-h-10 text-[length:var(--fs-14)] font-normal outline-none focus:border-eu-blue bg-white w-full disabled:bg-eu-surface";
 const label = "grid gap-1 font-bold text-eu-ink text-[length:var(--fs-14)]";
 const btn = "inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue disabled:opacity-50";
 const btn2 = "inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-3 min-h-10 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy disabled:opacity-50";
@@ -39,7 +41,7 @@ const dt = (s?: string | null) => (s ? new Date(s).toLocaleString("el-GR") : "�
 const d = (s?: string | null) => (s ? new Date(s).toLocaleDateString("el-GR") : "—");
 const warrantyStatus = (dev: Any) => { const until = dev.extendedUntil ?? dev.warrantyUntil; if (!until) return { t: "—", cls: "text-eu-muted" }; const days = Math.ceil((new Date(until).getTime() - Date.now()) / 86400000); return days < 0 ? { t: `Έληξε ${d(until)}`, cls: "text-eu-red" } : days < 90 ? { t: `Λήγει σε ${days} ημ.`, cls: "text-eu-amber" } : { t: `Σε εγγύηση έως ${d(until)}`, cls: "text-eu-green" }; };
 const Card = ({ title, children, right }: { title: string; children: React.ReactNode; right?: React.ReactNode }) => (
-  <section className="rounded-2xl bg-white border border-eu-line p-5 grid gap-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">{title}</h3>{right}</div>{children}</section>
+  <section className="rounded-xl bg-white border border-eu-line p-4 grid gap-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">{title}</h3>{right}</div>{children}</section>
 );
 
 export function CustomerWorkspace({ customer, stores, perms, erpConfigured, initialTab }: { customer: Any | null; stores: { id: string; name: string; city: string }[]; perms: { write: boolean; export: boolean; service: boolean }; erpConfigured: boolean; initialTab?: string }) {
@@ -56,11 +58,12 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured, init
 
   return (
     <div className="eu-container grid gap-4">
-      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0 flex items-start gap-3">
-          {c && <span className={`hidden @md:grid size-12 shrink-0 place-items-center rounded-full font-extrabold text-[length:var(--fs-16)] ${c.type === "business" ? "bg-eu-blue/10 text-eu-blue" : "bg-eu-chip text-eu-navy"}`} aria-hidden>{c.type === "business" ? <Building2 className="size-5" /> : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("")}</span>}
-          <div className="min-w-0">
-            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">{name}</h2>
+      <header data-help="customer.header" className="@md:sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2 bg-eu-surface/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link href="/admin/customers" className="basis-full @md:basis-auto inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-13)] min-h-11 md:min-h-8 hover:underline shrink-0"><ArrowLeft className="size-4" aria-hidden /> Πελάτες</Link>
+          {c && <span className={`hidden @md:grid size-10 shrink-0 place-items-center rounded-full font-extrabold text-[length:var(--fs-14)] ${c.type === "business" ? "bg-eu-blue/10 text-eu-blue" : "bg-eu-chip text-eu-navy"}`} aria-hidden>{c.type === "business" ? <Building2 className="size-5" /> : name.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("")}</span>}
+          <div className="min-w-0 flex-1">
+            <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight">{name}</h2>
             {c ? (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-ink-3 text-[length:var(--fs-13)]">
                 <span>#{c.number} · {c.type === "business" ? `εταιρεία${c.vatNumber ? ` · ΑΦΜ ${c.vatNumber}` : ""}` : "ιδιώτης"}</span>
@@ -69,7 +72,7 @@ export function CustomerWorkspace({ customer, stores, perms, erpConfigured, init
               </div>
             ) : <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Συμπλήρωσε τα στοιχεία και αποθήκευσε.</p>}
             {c && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[length:var(--fs-12)] font-bold">
+              <div className="mt-1 flex flex-wrap gap-1 text-[length:var(--fs-12)] font-bold">
                 <span className={`rounded-full px-2.5 py-0.5 ${c.status === "active" ? "bg-eu-green/10 text-eu-green" : c.status === "blocked" ? "bg-eu-red/10 text-eu-red" : "bg-eu-surface text-eu-muted"}`}>{c.status === "active" ? "Ενεργός" : c.status === "blocked" ? "Μπλοκαρισμένος" : "Ανωνυμοποιημένος"}</span>
                 <span className={`rounded-full px-2.5 py-0.5 ${c.erpSyncStatus === "failed" ? "bg-eu-red/10 text-eu-red" : c.erpTrdr ? "bg-eu-navy/10 text-eu-navy" : "bg-eu-surface text-eu-muted"}`}>{c.erpTrdr ? `SoftOne ${c.erpCode ?? c.erpTrdr}${c.erpSyncStatus === "failed" ? " · αποτυχία sync" : ""}` : "Χωρίς SoftOne"}</span>
                 <span className="rounded-full px-2.5 py-0.5 bg-eu-yellow/40 text-eu-navy">{c.loyaltyPoints.toLocaleString("el-GR")} πόντοι{c.loyaltyTier ? ` · ${c.loyaltyTier}` : ""}</span>
@@ -126,7 +129,7 @@ function OrdersTab({ c }: { c: Any }) {
   const purchases: Any[] = c.purchases ?? [];
   return (
     <div className="grid gap-4">
-      <Card title="Παραγγελίες νέου eshop">{c.orders.length ? <ul className="m-0 p-0 list-none grid gap-2">{c.orders.map((o: Any) => <li key={o.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-eu-line-2 pt-2 text-[length:var(--fs-14)]"><span className="font-bold">{o.number}</span><span className="text-eu-muted">{d(o.createdAt)}</span><span>{o.status}</span><span className="text-eu-muted">{o.fulfilment}</span><span className="ml-auto tabular-nums font-bold">{eur(o.total)}</span></li>)}</ul> : <p className="m-0 text-eu-muted">Καμία παραγγελία στο νέο eshop.</p>}</Card>
+      <Card title="Παραγγελίες νέου eshop" right={c.orders.length ? <Link href={`/admin/orders?q=${encodeURIComponent(c.email ?? c.lastName ?? "")}`} className="text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline">Όλες στις Παραγγελίες →</Link> : undefined}>{c.orders.length ? <ul className="m-0 p-0 list-none divide-y divide-eu-line rounded-xl border border-eu-line">{c.orders.map((o: Any) => <li key={o.id}><Link href={`/admin/orders/${encodeURIComponent(o.number)}`} className="grid grid-cols-[minmax(0,1fr)_auto] @3xl:grid-cols-[9rem_7rem_minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 items-center px-2.5 py-1.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:bg-eu-surface"><span className="font-bold text-eu-blue font-mono">{o.number}</span><span className="text-eu-ink-3 tabular-nums">{d(o.createdAt)}</span><span className="col-span-2 @3xl:col-span-1 flex flex-wrap items-center gap-1.5 min-w-0"><OrderStatusBadge status={o.status} /><span className="text-eu-muted truncate">{FULFILMENT[o.fulfilment as Fulfilment] ?? o.fulfilment}</span></span><span className={`row-start-1 col-start-2 @3xl:row-start-auto @3xl:col-start-auto text-right tabular-nums font-bold ${o.status === "cancelled" ? "line-through text-eu-muted" : ""}`}>{eur(o.total)}</span></Link></li>)}</ul> : <p className="m-0 text-eu-muted">Καμία παραγγελία στο νέο eshop.</p>}</Card>
       <Card title="Αγορές από το SoftOne" right={<span className="text-eu-muted text-[length:var(--fs-13)]">Παραγγελίες του σημερινού eshop και τα παραστατικά τους</span>}>
         {purchases.length ? <ul className="m-0 p-0 list-none grid gap-3">{purchases.map((p: Any) => { const st = STATUS[p.status] ?? null; const r = p.recipient ?? {}; return (
           <li key={p.id} className="rounded-xl border border-eu-line p-3 grid gap-2 min-w-0">

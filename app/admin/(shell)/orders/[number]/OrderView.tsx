@@ -193,7 +193,7 @@ export function OrderView({ o, draft, canWrite, canRefund }: { o: OrderDetail; d
 
         {/* πλαϊνή στήλη */}
         <div className="grid gap-3 min-w-0 print:mt-3">
-          <Card title="Πελάτης" icon={User} data-help="order.customer" right={o.customer ? <Link href={`/admin/customers?q=${encodeURIComponent(o.customer.email ?? o.customer.lastName)}`} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Καρτέλα πελάτη <ExternalLink className="size-3.5" aria-hidden /></Link> : <Badge tone="neutral">Επισκέπτης</Badge>}>
+          <Card title="Πελάτης" icon={User} data-help="order.customer" right={o.customer ? <Link href={`/admin/customers/${o.customer.id}`} className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Καρτέλα πελάτη <ExternalLink className="size-3.5" aria-hidden /></Link> : <Badge tone="neutral">Επισκέπτης</Badge>}>
             <dl data-private className="m-0 grid gap-1">
               <Row k="Όνομα"><b className="text-eu-ink">{name}</b>{o.customer?.company ? <> · {o.customer.company}</> : null}</Row>
               {email && <Row k="Email"><a href={`mailto:${email}`} className="text-eu-blue hover:underline break-all">{email}</a></Row>}

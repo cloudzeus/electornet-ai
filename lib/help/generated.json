@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-16T10:03:10.755Z",
+ "generatedAt": "2026-10-16T10:28:51.865Z",
  "routes": [
   {
    "route": "/admin",
@@ -1122,6 +1122,7 @@
    },
    "dynamic": false,
    "helpKeys": [
+    "customers.header",
     "customers.kpis",
     "customers.filters",
     "customers.list",
@@ -1197,6 +1198,7 @@
    "dynamic": true,
    "helpKeys": [
     "customer.overview",
+    "customer.header",
     "customer.actions",
     "customer.tabs"
    ],
@@ -1568,12 +1570,17 @@
    ],
    "changes": [
     {
+     "hash": "ff6db32",
+     "date": "2026-10-16T13:04:03+03:00",
+     "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
+    },
+    {
      "hash": "06fa557",
      "date": "2026-10-13T10:29:46+03:00",
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-10-13T10:29:46+03:00",
+   "updatedAt": "2026-10-16T13:04:03+03:00",
    "shots": {}
   },
   {
@@ -1600,8 +1607,14 @@
     "order.history",
     "order.promos"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "ff6db32",
+     "date": "2026-10-16T13:04:03+03:00",
+     "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
+    }
+   ],
+   "updatedAt": "2026-10-16T13:04:03+03:00",
    "shots": {}
   },
   {
@@ -3122,6 +3135,16 @@
  ],
  "recent": [
   {
+   "hash": "ff6db32",
+   "date": "2026-10-16T13:04:03+03:00",
+   "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…",
+   "routes": [
+    "/admin",
+    "/admin/orders",
+    "/admin/orders/[number]"
+   ]
+  },
+  {
    "hash": "b8488d0",
    "date": "2026-10-14T11:55:04+03:00",
    "text": "PgBouncer: μέσω της θύρας 6432 η εφαρμογή ανοίγει έως 25 συνδέσεις ανά διεργασία (απευθείας στη 5432 μένει 8)",
@@ -3450,14 +3473,6 @@
     "/admin",
     "/admin/apostoles"
    ]
-  },
-  {
-   "hash": "369b264",
-   "date": "2026-10-11T02:24:15+03:00",
-   "text": "Μενού διαχείρισης ανά περιοχή εργασίας (Πωλήσεις & πελάτες, Αποστολές, Κατάλογος, Προσφορές & υπηρεσίες, Περιεχόμενο, Marketing & αναφορές, SoftOne ERP, Διαχείριση) που δείχνει μόνο ό,τι είναι ενεργό στις Ρυθμίσεις κα…",
-   "routes": [
-    "/admin"
-   ]
   }
  ],
  "helpKeys": {
@@ -3535,6 +3550,9 @@
   ],
   "slides.form": [
    "app/admin/(shell)/cms/slides/HeroSlidesEditor.tsx"
+  ],
+  "customers.header": [
+   "app/admin/(shell)/customers/page.tsx"
   ],
   "customers.kpis": [
    "app/admin/(shell)/customers/page.tsx"
@@ -3755,6 +3773,9 @@
   ],
   "customers.actions": [
    "components/admin/customers/CustomerTable.tsx"
+  ],
+  "customer.header": [
+   "components/admin/customers/CustomerWorkspace.tsx"
   ],
   "customer.actions": [
    "components/admin/customers/CustomerWorkspace.tsx"

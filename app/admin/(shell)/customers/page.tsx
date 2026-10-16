@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { swr } from "@/lib/cache/swr";
-import { Plus, Mail, Building2, Link2, AlertTriangle, Search, ShoppingBag, History, Ban, UserX, CircleAlert, Upload } from "lucide-react";
+import { Plus, Mail, Building2, Link2, AlertTriangle, Search, ShoppingBag, History, Ban, UserX, CircleAlert, Upload, Users } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -124,15 +124,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   });
   return (
     <div className="grid gap-3 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">Πελάτες</h2>
-          <p className="m-0 mt-0.5 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[90ch]">Λογαριασμοί e-shop και πελάτες καταστημάτων με το ιστορικό τους από το SoftOne. Άνοιξε μια γραμμή (▾) για όλη την εικόνα του πελάτη.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {gdprOpen > 0 && <Link href="/admin/gdpr" className="inline-flex items-center gap-1.5 rounded-full bg-eu-red/10 text-eu-red font-extrabold text-[length:var(--fs-14)] px-4 min-h-11"><AlertTriangle className="size-4" aria-hidden /> {gdprOpen} ανοιχτά GDPR</Link>}
-          {can(user.permissions, "customers.write") && <Link href="/admin/customers/import" className="inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 font-bold text-eu-navy text-[length:var(--fs-14)] hover:bg-eu-chip"><Upload className="size-4" aria-hidden /> Εισαγωγή nopCommerce</Link>}
-          {can(user.permissions, "customers.write") && <Link href="/admin/customers/new" className="inline-flex items-center gap-2 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέος πελάτης</Link>}
+      <div data-help="customers.header" className="@md:sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2 bg-eu-surface/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] inline-flex items-center gap-2"><Users className="size-5 text-eu-blue" aria-hidden /> Πελάτες</h2>
+        <span className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">{total.toLocaleString("el-GR")} {q || f || region || store || near ? "με αυτά τα κριτήρια" : "συνολικά"}</span>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {gdprOpen > 0 && <Link href="/admin/gdpr" className="inline-flex items-center gap-1.5 rounded-full bg-eu-red/10 text-eu-red font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9"><AlertTriangle className="size-4" aria-hidden /> {gdprOpen} ανοιχτά GDPR</Link>}
+          {can(user.permissions, "customers.write") && <Link href="/admin/customers/import" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:border-eu-navy" title="Εισαγωγή λογαριασμών από το nopCommerce"><Upload className="size-4" aria-hidden /> Εισαγωγή</Link>}
+          {can(user.permissions, "customers.write") && <Link href="/admin/customers/new" className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-3.5 min-h-11 md:min-h-9 hover:bg-eu-blue"><Plus className="size-4" aria-hidden /> Νέος πελάτης</Link>}
         </div>
       </div>
 
@@ -148,14 +146,14 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       </dl>
 
       <div data-help="customers.filters" className="grid gap-2">
-        <form className="flex gap-2">
+        <form className="flex gap-1.5">
           <input type="hidden" name="f" value={f} />{s && <><input type="hidden" name="s" value={s} /><input type="hidden" name="d" value={d} /></>}{region && <input type="hidden" name="region" value={region} />}{store && <input type="hidden" name="store" value={store} />}
-          <label className="relative flex-1 min-w-0"><span className="sr-only">Αναζήτηση πελάτη</span><Search className="size-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-eu-muted pointer-events-none" aria-hidden /><input name="q" defaultValue={q} enterKeyHint="search" placeholder="Όνομα, email, κινητό, ΑΦΜ, κωδικός SoftOne…" className="w-full rounded-full border-2 border-eu-line bg-white pl-11 pr-4 min-h-12 text-[length:var(--fs-15)] outline-none focus:border-eu-blue" /></label>
-          <button type="submit" className="rounded-full bg-eu-navy text-white font-bold px-5 min-h-12 text-[length:var(--fs-14)] hover:bg-eu-blue">Αναζήτηση</button>
+          <label className="relative flex-1 min-w-0"><span className="sr-only">Αναζήτηση πελάτη</span><Search className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-eu-muted pointer-events-none" aria-hidden /><input name="q" defaultValue={q} enterKeyHint="search" placeholder="Όνομα, email, κινητό, ΑΦΜ, κωδικός SoftOne…" aria-label="Αναζήτηση πελάτη" type="search" className="w-full rounded-lg border border-eu-line bg-white pl-8 pr-3 min-h-11 md:min-h-9 text-[length:var(--fs-14)] outline-none focus:border-eu-blue" /></label>
+          <button type="submit" className="rounded-full bg-eu-navy text-white font-bold px-3.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:bg-eu-blue">Αναζήτηση</button>
         </form>
-        <nav aria-label="Φίλτρα πελατών" className="flex flex-wrap gap-1.5">
+        <nav aria-label="Φίλτρα πελατών" className="flex flex-wrap gap-1">
           {FILTERS.filter((x) => x.n > 0 || x.k === "" || x.k === f).map((x) => { const on = f === x.k; return (
-            <Link key={x.k} href={keep({ f: x.k, p: "" })} aria-current={on ? "page" : undefined} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] border ${on ? "bg-eu-navy text-white border-eu-navy" : "bg-white text-eu-ink-2 border-eu-line hover:border-eu-blue"}`}>
+            <Link key={x.k} href={keep({ f: x.k, p: "" })} aria-current={on ? "page" : undefined} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-13)] border ${on ? "bg-eu-navy text-white border-eu-navy" : "bg-white text-eu-ink-2 border-eu-line hover:border-eu-blue"}`}>
               {x.I && <x.I className="size-3.5" aria-hidden />}{x.t}<span className={`tabular-nums text-[length:var(--fs-12)] rounded-full px-1.5 ${on ? "bg-white/20" : x.k === "failed" ? "bg-eu-red/10 text-eu-red" : "bg-eu-surface text-eu-muted"}`}>{x.n.toLocaleString("el-GR")}</span>
             </Link>
           ); })}
@@ -167,7 +165,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       {list.length ? <>
         <div className="hidden @3xl:block"><CustomerTable rows={list} sort={sort} dir={dir} query={{ q, f, region, store, near, km: near ? km : "", view, s, d, n }} perPage={take} total={total} from={(page - 1) * take + 1} canWrite={canWrite} erpOn={erpOn} /></div>
         <div className="@3xl:hidden"><CustomerList rows={list} heads={heads} canWrite={canWrite} erpOn={erpOn} /></div>
-      </> : <p className="m-0 rounded-2xl bg-white border border-eu-line p-6 text-center text-eu-muted text-[length:var(--fs-15)]">Κανένας πελάτης με αυτά τα κριτήρια.{(q || f || region || store || near) && <> <Link href="/admin/customers" className="font-bold text-eu-blue hover:underline">Καθαρισμός φίλτρων</Link></>}</p>}
+      </> : <p className="m-0 rounded-xl bg-white border border-eu-line p-6 text-center text-eu-muted text-[length:var(--fs-14)]">Κανένας πελάτης με αυτά τα κριτήρια.{(q || f || region || store || near) && <> <Link href="/admin/customers" className="font-bold text-eu-blue hover:underline">Καθαρισμός φίλτρων</Link></>}</p>}
       {total > take && <div className="flex justify-center"><Pagination page={page} pages={Math.max(1, Math.ceil(total / take))} total={total} label="πελάτες" href={(n) => keep({ p: String(n) })} /></div>}
     </div>
   );

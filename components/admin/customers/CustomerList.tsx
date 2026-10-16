@@ -203,7 +203,7 @@ function Buys({ p }: { p: Peek }) {
         {p.buys.map((b) => (
           <li key={b.id} className="grid grid-cols-[minmax(0,1fr)_auto] @3xl:grid-cols-[7rem_minmax(0,1fr)_auto_auto] gap-x-3 gap-y-0.5 items-center px-2.5 py-1 text-[length:var(--fs-13)]">
             <span className="text-eu-ink-3 tabular-nums text-[length:var(--fs-13)]">{day(b.date)}</span>
-            <span className="row-start-2 col-span-2 @3xl:row-start-auto @3xl:col-span-1 min-w-0"><span className="font-bold text-eu-ink font-mono text-[length:var(--fs-13)]">{b.ref}</span> <span className="text-eu-ink-3 text-[length:var(--fs-13)]">· {b.lines} {b.lines === 1 ? "είδος" : "είδη"}{b.what ? ` · ${b.what}` : ""}</span></span>
+            <span className="row-start-2 col-span-2 @3xl:row-start-auto @3xl:col-span-1 min-w-0">{b.src === "eshop" ? <Link href={`/admin/orders/${encodeURIComponent(b.ref)}`} className="font-bold text-eu-blue font-mono text-[length:var(--fs-13)] hover:underline">{b.ref}</Link> : <span className="font-bold text-eu-ink font-mono text-[length:var(--fs-13)]">{b.ref}</span>} <span className="text-eu-ink-3 text-[length:var(--fs-13)]">· {b.lines} {b.lines === 1 ? "είδος" : "είδη"}{b.what ? ` · ${b.what}` : ""}</span></span>
             <span className="row-start-1 col-start-2 @3xl:row-start-auto @3xl:col-start-auto flex items-center gap-1.5"><Pill tone={SRC[b.src][1]}>{SRC[b.src][0]}</Pill>{b.status && <span className={`text-[length:var(--fs-12)] ${b.status === "cancelled" ? "text-eu-red" : "text-eu-muted"}`}>{BSTATUS[b.status] ?? b.status}</span>}</span>
             <span className={`hidden @3xl:block text-right font-bold tabular-nums ${b.status === "cancelled" ? "line-through text-eu-muted" : ""}`}>{eur2(b.total)}</span>
           </li>

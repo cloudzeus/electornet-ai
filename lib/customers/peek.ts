@@ -1,4 +1,5 @@
 import "server-only";
+import { FULFILMENT, type Fulfilment } from "@/lib/orders/model";
 import { db } from "@/lib/db";
 
 /**
@@ -40,7 +41,7 @@ export async function customerPeek(id: string) {
   // ενιαίο χρονολόγιο αγορών: παραγγελίες e-shop + παραστατικά SoftOne (χωρίς διπλά όσα προήλθαν από παραγγελία του e-shop)
   const fromShop = new Set(c.purchases.map((p) => p.orderId).filter(Boolean));
   const buys = [
-    ...c.orders.map((o) => ({ id: o.id, src: "eshop" as const, ref: o.number, date: iso(o.createdAt)!, total: n(o.total) ?? 0, status: o.status, lines: o._count.lines, what: o.fulfilment, erp: fromShop.has(o.id) })),
+    ...c.orders.map((o) => ({ id: o.id, src: "eshop" as const, ref: o.number, date: iso(o.createdAt)!, total: n(o.total) ?? 0, status: o.status, lines: o._count.lines, what: FULFILMENT[o.fulfilment as Fulfilment] ?? o.fulfilment, erp: fromShop.has(o.id) })),
     ...c.purchases.filter((p) => !p.orderId).map((p) => ({ id: p.id, src: p.source === "nop" ? ("nop" as const) : ("softone" as const), ref: [p.seriesName, p.docNo].filter(Boolean).join(" ") || p.kind, date: iso(p.date)!, total: n(p.total) ?? 0, status: p.status ?? p.kind, lines: p._count.lines, what: p.lines.map((l) => `${l.qty > 1 ? `${l.qty}× ` : ""}${l.title}`).join(" · "), erp: p.source === "softone" })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 

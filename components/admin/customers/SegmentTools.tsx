@@ -14,7 +14,7 @@ export function SegmentTools({ regions, stores, current, center, matched, canExp
   const exportCsv = () => { const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`; const csv = ["email,name,phone,city,region,newsletter,points", ...exportRows.map((r) => [r.email, r.name, r.phone, r.city, r.region, r.newsletter ? "yes" : "no", r.points].map(esc).join(","))].join("\n"); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })); a.download = `segment-${current.region || current.store || current.near || "all"}.csv`; a.click(); };
   return (
     <details data-help="customers.location" open={!!active || current.view === "map"} className="group rounded-2xl bg-white border border-eu-line">
-      <summary className="list-none cursor-pointer flex flex-wrap items-center gap-2 px-3 min-h-12 [&::-webkit-details-marker]:hidden">
+      <summary className="list-none cursor-pointer flex flex-wrap items-center gap-2 px-3 min-h-11 md:min-h-9 [&::-webkit-details-marker]:hidden">
         <MapPin className="size-4 text-eu-blue" aria-hidden /><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Τοποθεσία, χάρτης & εξαγωγή</span>
         <span className="text-eu-ink-3 text-[length:var(--fs-13)] flex-1 min-w-0 truncate">{active ? [current.region, stores.find((x) => x.id === current.store)?.label, current.near && `${current.km} km από ${current.near}`].filter(Boolean).join(" · ") + ` · ${matched} πελάτες` : "νομός, κατάστημα ή ακτίνα γύρω από ένα σημείο"}</span>
         <ChevronDown className="size-4 text-eu-muted transition-transform group-open:rotate-180" aria-hidden />
