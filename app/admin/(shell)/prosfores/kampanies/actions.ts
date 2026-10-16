@@ -9,7 +9,7 @@ const done = (id?: string) => { revalidatePath("/admin/prosfores/kampanies"); if
 
 export async function saveCampaignAction(d: CampaignDraft) {
   const user = await requirePermission(PERM);
-  const r = await saveCampaign(d, user.id);
+  const r = await saveCampaign(d, { id: user.id, canApprove: hasPermission(user, "catalog.promos.approve") });
   if (r.ok) done(r.id);
   return r;
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { budgetUse, campaignDay, liveState, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS } from "./campaign-core";
+import { budgetUse, campaignDay, displayStatus, liveState, publishOutcome, takesCampaignDates, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS } from "./campaign-core";
 
 test("κωδικός: επόμενος της χρονιάς, ξεκινά από 001", () => {
   assert.equal(nextCampaignCode([], 2026), "KAM-2026-001");
@@ -71,4 +71,42 @@ test("ημέρα καμπάνιας σε ώρα Ελλάδας (χειμεριν
   assert.equal(campaignDay("2026-07-01", "start")!.toISOString(), "2026-06-30T21:00:00.000Z");
   assert.equal(campaignDay("", "start"), null);
   assert.equal(campaignDay("όχι ημερομηνία", "start"), null);
+});
+
+test("κατάσταση προς προβολή: η «Λήξη» είναι οριστική, ακόμη κι αν η λήξη έγινε πριν την έναρξη", () => {
+  const s = new Date("2026-11-20"), e = new Date("2026-10-16T10:00:00Z"), now = new Date("2026-10-16T12:00:00Z");
+  assert.equal(displayStatus("ended", s, e, now), "ended");
+  assert.equal(displayStatus("ended", new Date("2026-10-01"), new Date("2026-10-31"), now), "ended");
+  assert.equal(displayStatus("scheduled", new Date("2026-10-01"), new Date("2026-10-31"), now), "live");
+  assert.equal(displayStatus("live", new Date("2026-10-01"), new Date("2026-10-10"), now), "ended");
+  assert.equal(displayStatus("paused", new Date("2026-10-01"), new Date("2026-10-31"), now), "paused");
+  assert.equal(displayStatus("draft", new Date("2026-10-01"), new Date("2026-10-31"), now), "draft");
+});
+
+test("liveState: λήξη πριν την έναρξη (τερματισμένη) = έληξε", () => {
+  assert.equal(liveState(new Date("2026-11-20"), new Date("2026-10-16"), new Date("2026-10-17")), "ended");
+});
+
+test("μήνυμα δημοσίευσης: επιτυχία, μερική, απόρριψη", () => {
+  assert.deepEqual(publishOutcome({ errors: [], published: 3, pending: 1, rejected: false }), { tone: "ok", text: "Δημοσιεύτηκε: 3 σε ισχύ / προγραμματισμένες · 1 αναμένει έγκριση." });
+  const p = publishOutcome({ errors: ["«A»: λάθος"], published: 2, pending: 0, rejected: false });
+  assert.equal(p.tone, "warn"); assert.match(p.text, /^Δημοσιεύτηκε με προβλήματα: 2 σε ισχύ/); assert.match(p.text, /1 απέτυχε: «A»: λάθος/);
+  assert.deepEqual(publishOutcome({ errors: ["Η λήξη είναι στο παρελθόν."], published: 0, pending: 0, rejected: true }), { tone: "bad", text: "Δεν δημοσιεύτηκε: Η λήξη είναι στο παρελθόν." });
+});
+
+test("ποια δεν παίρνουν ημερομηνίες καμπάνιας: μόνο πρόχειρα χωρίς δικές τους", () => {
+  assert.equal(takesCampaignDates({ status: "draft", startsAt: null }), true);
+  assert.equal(takesCampaignDates({ status: "active", startsAt: null }), false);
+  assert.equal(takesCampaignDates({ status: "draft", startsAt: new Date() }), false);
+});
+
+test("στόχος: άγνωστη τιμή απορρίπτεται", () => {
+  const r = validateCampaign({ title: "Black Friday", goal: "x" as never, startsAt: "2026-11-20", endsAt: "2026-11-30", budgetEur: null }, [], { publish: false, now: new Date("2026-10-16") });
+  assert.ok(r.errors.some((e) => e.includes("στόχο")));
+});
+
+test("έλεγχος: ενεργή προσφορά χωρίς λήξη μέσα στην καμπάνια → προειδοποίηση (δεν αλλάζει σιωπηλά)", () => {
+  const d = { title: "Black Friday 2026", goal: "sales" as const, startsAt: "2026-11-20", endsAt: "2026-11-30", budgetEur: null };
+  const r = validateCampaign(d, [{ id: "p", name: "Airfryer −20%", status: "active", startsAt: new Date("2026-10-01"), endsAt: null }], { publish: true, now: new Date("2026-10-16") });
+  assert.ok(r.warnings.some((w) => w.includes("Airfryer −20%") && w.includes("χωρίς λήξη")));
 });

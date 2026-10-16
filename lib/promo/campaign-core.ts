@@ -30,8 +30,25 @@ export const CAMPAIGN_STATUS: Record<CampaignStatus, { label: string; tone: Tone
 
 /** Δημοσιευμένη καμπάνια: η κατάσταση βγαίνει από τις ημερομηνίες. */
 export function liveState(start: Date, end: Date, now: Date): "scheduled" | "live" | "ended" {
-  if (now < start) return "scheduled";
-  return now > end ? "ended" : "live";
+  // πρώτα η λήξη: καμπάνια που τερματίστηκε πριν ξεκινήσει (λήξη < έναρξη) έχει λήξει
+  if (now > end) return "ended";
+  return now < start ? "scheduled" : "live";
+}
+
+/** Η κατάσταση που βλέπει ο χρήστης: «Προγραμματισμένη» / «Σε εξέλιξη» από τις ημερομηνίες· η «Λήξη» (και κάθε άλλη) μένει όπως αποθηκεύτηκε. */
+export function displayStatus(stored: string, start: Date, end: Date, now: Date): CampaignStatus {
+  return stored === "scheduled" || stored === "live" ? liveState(start, end, now) : (stored as CampaignStatus);
+}
+
+/** Μόνο πρόχειρα χωρίς δικές τους ημερομηνίες παίρνουν τις ημερομηνίες της καμπάνιας — ό,τι τρέχει ήδη δεν αλλάζει σιωπηλά. */
+export const takesCampaignDates = (x: { status: string; startsAt: Date | null }) => x.status === "draft" && !x.startsAt;
+
+/** Το μήνυμα μετά τη δημοσίευση: επιτυχία, μερική (η καμπάνια δημοσιεύτηκε, κάποιες προσφορές όχι) ή απόρριψη (τίποτα δεν άλλαξε). */
+export function publishOutcome(r: { errors: string[]; published: number; pending: number; rejected: boolean }): { tone: "ok" | "warn" | "bad"; text: string } {
+  if (r.rejected) return { tone: "bad", text: `Δεν δημοσιεύτηκε: ${r.errors.join(" ")}` };
+  const parts = [`${r.published} σε ισχύ / προγραμματισμένες`, ...(r.pending ? [`${r.pending} ${r.pending === 1 ? "αναμένει" : "αναμένουν"} έγκριση`] : [])];
+  if (!r.errors.length) return { tone: "ok", text: `Δημοσιεύτηκε: ${parts.join(" · ")}.` };
+  return { tone: "warn", text: `Δημοσιεύτηκε με προβλήματα: ${parts.join(" · ")} · ${r.errors.length} ${r.errors.length === 1 ? "απέτυχε" : "απέτυχαν"}: ${r.errors.join(" ")}` };
 }
 
 export interface CampaignDraft {
@@ -45,7 +62,7 @@ export interface CampaignDraft {
   ownerId?: string | null;
 }
 
-type PromoWindow = { id: string; name: string; startsAt: Date | null; endsAt: Date | null };
+type PromoWindow = { id: string; name: string; startsAt: Date | null; endsAt: Date | null; status?: string };
 
 /** Ώρα Ελλάδας (+2 / +3 με θερινή) σε λεπτά, για μια στιγμή. */
 function athensOffsetMin(at: Date): number {
@@ -74,6 +91,7 @@ const day = (d: Date) => d.toLocaleDateString("el-GR", { day: "numeric", month: 
 export function validateCampaign(d: CampaignDraft, promos: PromoWindow[], opts: { publish: boolean; now: Date }): { errors: string[]; warnings: string[] } {
   const errors: string[] = [], warnings: string[] = [];
   if (d.title.trim().length < 3) errors.push("Δώσε όνομα στην καμπάνια (τουλάχιστον 3 χαρακτήρες).");
+  if (!(d.goal in CAMPAIGN_GOALS)) errors.push("Διάλεξε στόχο για την καμπάνια.");
   const start = campaignDay(d.startsAt, "start"), end = campaignDay(d.endsAt, "end");
   if (!start) errors.push("Βάλε ημερομηνία έναρξης.");
   if (!end) errors.push("Βάλε ημερομηνία λήξης.");
@@ -85,6 +103,7 @@ export function validateCampaign(d: CampaignDraft, promos: PromoWindow[], opts: 
     for (const p of promos) {
       const out = (p.startsAt && p.startsAt < start) || (p.endsAt && p.endsAt > end);
       if (out) warnings.push(`Η προσφορά «${p.name}» έχει δικές της ημερομηνίες (${p.startsAt ? day(p.startsAt) : "…"} – ${p.endsAt ? day(p.endsAt) : "…"}) εκτός της καμπάνιας.`);
+      if (!p.endsAt && p.status && ["active", "scheduled", "paused"].includes(p.status)) warnings.push(`Η προσφορά «${p.name}» τρέχει ήδη χωρίς λήξη — δεν παίρνει αυτόματα τις ημερομηνίες της καμπάνιας· βάλε λήξη στην ίδια την προσφορά.`);
     }
   }
   return { errors, warnings };

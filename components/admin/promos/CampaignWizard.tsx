@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, LayoutTemplate, Loader2, Megaphone, Pause, Play, Plus, Search, Square, Archive, TicketPercent, X } from "lucide-react";
 import { Badge } from "@/components/admin/orders/ui";
-import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "@/lib/promo/campaign-core";
+import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, publishOutcome, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "@/lib/promo/campaign-core";
 import { MECHANISM_LABEL, STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { campaignStateAction, membershipAction, publishCampaignAction, saveCampaignAction } from "@/app/admin/(shell)/prosfores/kampanies/actions";
 
@@ -44,13 +44,14 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
   const [step, setStep] = useState(initialStep);
   const [d, setD] = useState<CampaignDraft>({ id: campaign?.id, title: campaign?.title ?? "", goal: campaign?.goal ?? "sales", brief: campaign?.brief ?? "", startsAt: campaign?.startsAt ?? null, endsAt: campaign?.endsAt ?? null, budgetEur: campaign?.budgetEur ?? null });
   const [errors, setErrors] = useState<string[]>([]);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: "ok" | "warn" | "bad"; text: string } | null>(null);
   const [pending, start] = useTransition();
   const set = (p: Partial<CampaignDraft>) => { setD((x) => ({ ...x, ...p })); setErrors([]); };
   const status = campaign?.status ?? "draft";
   const published = !["draft", "review", "approved", "rejected"].includes(status);
 
-  const promoWindows = useMemo(() => (campaign?.promotions ?? []).map((p) => ({ id: p.id, name: p.name, startsAt: p.startsAt ? new Date(p.startsAt) : null, endsAt: p.endsAt ? new Date(p.endsAt) : null })), [campaign]);
+  const promoWindows = useMemo(() => (campaign?.promotions ?? []).map((p) => ({ id: p.id, name: p.name, status: p.status, startsAt: p.startsAt ? new Date(p.startsAt) : null, endsAt: p.endsAt ? new Date(p.endsAt) : null })), [campaign]);
+  const pendingCount = (campaign?.promotions ?? []).filter((p) => p.status === "pending").length;
   const [now] = useState(() => new Date());
   const check = validateCampaign(d, promoWindows, { publish: true, now });
 
@@ -191,11 +192,11 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
                   const s = await saveCampaignAction(d);
                   if (!s.ok) { setErrors(s.errors); return; }
                   const r = await publishCampaignAction(campaign.id);
-                  setMsg({ ok: r.ok, text: r.ok ? `Δημοσιεύτηκε: ${r.published} προσφορές σε ισχύ / προγραμματισμένες${r.pending ? ` · ${r.pending} αναμένουν έγκριση` : ""}.` : [...r.errors].join(" ") });
+                  setMsg(publishOutcome(r));
                   router.refresh();
                 })} className={`${btn} justify-self-start bg-eu-navy text-white hover:bg-eu-blue`}>{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Δημοσίευση καμπάνιας</button>
               )}
-              {msg && <p role="status" className={`m-0 font-bold text-[length:var(--fs-13)] ${msg.ok ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</p>}
+              {msg && <p role={msg.tone === "bad" ? "alert" : "status"} className={`m-0 font-bold text-[length:var(--fs-13)] ${msg.tone === "ok" ? "text-eu-green" : msg.tone === "warn" ? "text-eu-amber" : "text-eu-red"}`}>{msg.text}</p>}
             </div>
           )}
 
@@ -218,6 +219,7 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
         <p className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] break-words">{d.title || "Χωρίς όνομα"}</p>
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">{day(d.startsAt)} – {day(d.endsAt)}</p>
         {campaign && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{campaign.promotions.length} προσφορές · {campaign.landings.length} landing · {campaign.ads.length} banners</p>}
+        {pendingCount > 0 && <p data-help="campaign.pending" className="m-0 inline-flex items-center gap-1.5 rounded-lg bg-eu-amber/10 px-2.5 py-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-amber" aria-hidden /> {pendingCount} {pendingCount === 1 ? "προσφορά αναμένει" : "προσφορές αναμένουν"} έγκριση</p>}
         {campaign && campaign.budget.pct != null && (
           <div className="grid gap-1">
             <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden"><span className={`block h-full ${campaign.budget.over ? "bg-eu-red" : "bg-eu-blue"}`} style={{ width: `${Math.min(100, campaign.budget.pct)}%` }} /></span>

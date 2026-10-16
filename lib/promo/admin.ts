@@ -233,6 +233,11 @@ export interface SaveResult { ok: boolean; id?: string; code?: string; status?: 
  */
 export async function savePromotion(d: PromoDraft, staff: { id: string; canApprove: boolean }, intent: SaveIntent): Promise<SaveResult> {
   d = normalizeDraft(d);
+  // σε δημοσιευμένη καμπάνια: προσφορά χωρίς δικές της ημερομηνίες παίρνει της καμπάνιας (όπως λέει ο οδηγός)
+  if (d.campaignId && (!d.startsAt || !d.endsAt)) {
+    const c = await db.campaign.findUnique({ where: { id: d.campaignId }, select: { status: true, startsAt: true, endsAt: true } });
+    if (c && ["scheduled", "live", "paused"].includes(c.status)) d = { ...d, startsAt: d.startsAt ?? c.startsAt.toISOString(), endsAt: d.endsAt ?? c.endsAt.toISOString() };
+  }
   const errors = validateDraft(d, (await getServiceList()).map((x) => x.slug));
   if (intent === "publish" && errors.length) return { ok: false, errors };
   if (!d.name.trim()) return { ok: false, errors: ["Δώσε όνομα στην προσφορά."] };

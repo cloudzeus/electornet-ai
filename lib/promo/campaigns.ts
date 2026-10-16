@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/rbac/audit";
 import { bulkPromotions, draftOf, refreshStorefront, savePromotion } from "./admin";
-import { budgetUse, campaignDay, liveState, nextCampaignCode, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "./campaign-core";
+import { budgetUse, campaignDay, displayStatus, liveState, nextCampaignCode, takesCampaignDates, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "./campaign-core";
 
 /**
  * Καμπάνιες: ο φάκελος των προσφορών, landing pages και banners. Η δημοσίευση / παύση / λήξη εφαρμόζεται και στις
@@ -22,8 +22,21 @@ export type CampaignRow = {
 };
 
 /** Η κατάσταση που βλέπει ο χρήστης: οι δημοσιευμένες από τις ημερομηνίες. */
-function shownStatus(c: { status: string; startsAt: Date; endsAt: Date }, now = new Date()): CampaignStatus {
-  return ["scheduled", "live", "ended"].includes(c.status) ? liveState(c.startsAt, c.endsAt, now) : (c.status as CampaignStatus);
+const shownStatus = (c: { status: string; startsAt: Date; endsAt: Date }, now = new Date()): CampaignStatus => displayStatus(c.status, c.startsAt, c.endsAt, now);
+type Staff = { id: string; canApprove: boolean };
+/** Η καμπάνια έχει δημοσιευτεί (ό,τι προστίθεται παίρνει τις ημερομηνίες της). */
+const PUBLISHED = ["scheduled", "live", "paused"];
+
+/**
+ * Νέες ημερομηνίες σε προσφορά της καμπάνιας: τα πρόχειρα αλλάζουν κατευθείαν· οι ζωντανές μέσω της λογικής των
+ * προσφορών (νέα έκδοση / στιγμιότυπο, έγκριση όπου χρειάζεται) — ώστε οι παραγγελίες να δείχνουν τους όρους που ίσχυαν.
+ */
+async function redatePromotion(id: string, dates: { startsAt?: Date; endsAt?: Date }, staff: Staff) {
+  const p = await db.promotion.findUnique({ where: { id }, include: { targets: true, coupons: true } });
+  if (!p || ["archived", "ended"].includes(p.status)) return;
+  if (p.status === "draft") { await db.promotion.update({ where: { id }, data: dates }); return; }
+  const d = draftOf(p);
+  await savePromotion({ ...d, ...(dates.startsAt ? { startsAt: dates.startsAt.toISOString() } : {}), ...(dates.endsAt ? { endsAt: dates.endsAt.toISOString() } : {}) }, staff, "draft");
 }
 
 async function spentBy(campaignIds: string[]) {
@@ -83,10 +96,12 @@ export async function getCampaign(id: string) {
   };
 }
 
-export async function saveCampaign(d: CampaignDraft, staffId: string): Promise<{ ok: true; id: string; code: string } | { ok: false; errors: string[] }> {
-  const prev = d.id ? await db.campaign.findUnique({ where: { id: d.id }, include: { promotions: { select: { id: true, name: true, startsAt: true, endsAt: true } } } }) : null;
+export async function saveCampaign(d: CampaignDraft, staffArg: string | Staff): Promise<{ ok: true; id: string; code: string } | { ok: false; errors: string[] }> {
+  const staff: Staff = typeof staffArg === "string" ? { id: staffArg, canApprove: false } : staffArg;
+  const staffId = staff.id;
+  const prev = d.id ? await db.campaign.findUnique({ where: { id: d.id }, include: { promotions: { select: { id: true, name: true, startsAt: true, endsAt: true, status: true } } } }) : null;
   if (d.id && !prev) return { ok: false, errors: ["Η καμπάνια δεν βρέθηκε."] };
-  if (prev?.status === "archived") return { ok: false, errors: ["Η καμπάνια είναι στο αρχείο."] };
+  if (prev && ["archived", "ended"].includes(prev.status)) return { ok: false, errors: [prev.status === "archived" ? "Η καμπάνια είναι στο αρχείο." : "Η καμπάνια έχει λήξει — δεν αλλάζει πια."] };
   const v = validateCampaign(d, prev?.promotions ?? [], { publish: false, now: new Date() });
   if (v.errors.length) return { ok: false, errors: v.errors };
   const data = {
@@ -97,7 +112,7 @@ export async function saveCampaign(d: CampaignDraft, staffId: string): Promise<{
   if (prev) {
     const row = await db.campaign.update({ where: { id: prev.id }, data });
     await audit(staffId, "campaign.update", "Campaign", prev.id, { title: prev.title, startsAt: prev.startsAt, endsAt: prev.endsAt, budgetEur: n(prev.budgetEur) }, { title: row.title, startsAt: row.startsAt, endsAt: row.endsAt, budgetEur: n(row.budgetEur) });
-    if (prev.startsAt.getTime() !== row.startsAt.getTime() || prev.endsAt.getTime() !== row.endsAt.getTime()) await syncCampaignDates(prev.id, { startsAt: prev.startsAt, endsAt: prev.endsAt });
+    if (prev.startsAt.getTime() !== row.startsAt.getTime() || prev.endsAt.getTime() !== row.endsAt.getTime()) await syncCampaignDates(prev.id, { startsAt: prev.startsAt, endsAt: prev.endsAt }, staff);
     return { ok: true, id: row.id, code: row.code! };
   }
   const year = new Date().getFullYear();
@@ -124,41 +139,52 @@ export async function setMembership(campaignId: string, kind: Kind, ids: string[
   if (kind === "promotion") await db.promotion.updateMany({ where: scope, data });
   else if (kind === "landing") await db.landingPage.updateMany({ where: scope, data });
   else await db.adPlacement.updateMany({ where: scope, data });
+  if (attach) {
+    // σε δημοσιευμένη καμπάνια, ό,τι πρόχειρο προστίθεται χωρίς ημερομηνίες παίρνει τις δικές της (τα ζωντανά δεν αλλάζουν σιωπηλά)
+    const c = await db.campaign.findUnique({ where: { id: campaignId }, select: { status: true, startsAt: true, endsAt: true } });
+    if (c && PUBLISHED.includes(c.status)) {
+      const draft = { id: { in: list }, status: "draft", startsAt: null } as const;
+      if (kind === "promotion") await db.promotion.updateMany({ where: draft, data: { startsAt: c.startsAt, endsAt: c.endsAt } });
+      else if (kind === "landing") await db.landingPage.updateMany({ where: draft, data: { startsAt: c.startsAt, endsAt: c.endsAt } });
+      else await db.adPlacement.updateMany({ where: draft, data: { startsAt: c.startsAt, endsAt: c.endsAt } });
+    }
+  }
   if (staffId) await audit(staffId, attach ? "campaign.attach" : "campaign.detach", "Campaign", campaignId, null, { kind, ids: list });
   return { moved: [...new Set(prevCodes)] };
 }
 
 /**
- * Δημοσίευση: προσφορές / landings / banners χωρίς δικές τους ημερομηνίες παίρνουν της καμπάνιας· κάθε πρόχειρη
- * προσφορά δημοσιεύεται με τη λογική των προσφορών (όσες θέλουν έγκριση μένουν «Για έγκριση»).
+ * Δημοσίευση (μία φορά, από πρόχειρη): τα πρόχειρα χωρίς δικές τους ημερομηνίες παίρνουν της καμπάνιας — ό,τι τρέχει
+ * ήδη δεν αλλάζει σιωπηλά. Κάθε πρόχειρη προσφορά δημοσιεύεται με τη λογική των προσφορών (όσες θέλουν έγκριση μένουν
+ * «Για έγκριση»). rejected = τίποτα δεν άλλαξε· errors χωρίς rejected = η καμπάνια δημοσιεύτηκε, κάποιες προσφορές όχι.
  */
-export async function publishCampaign(id: string, staff: { id: string; canApprove: boolean }) {
+export async function publishCampaign(id: string, staff: Staff) {
+  const none = { published: 0, pending: 0 };
   const c = await db.campaign.findUnique({ where: { id }, include: { promotions: { include: { targets: true, coupons: true } } } });
-  if (!c?.code) return { ok: false, errors: ["Η καμπάνια δεν βρέθηκε."], warnings: [], published: 0, pending: 0 };
+  if (!c?.code) return { rejected: true, errors: ["Η καμπάνια δεν βρέθηκε."], warnings: [], ...none };
   const draft: CampaignDraft = { title: c.title, goal: c.goal as CampaignGoal, startsAt: c.startsAt.toISOString(), endsAt: c.endsAt.toISOString(), budgetEur: n(c.budgetEur) };
   const v = validateCampaign(draft, c.promotions, { publish: true, now: new Date() });
-  if (v.errors.length) return { ok: false, errors: v.errors, warnings: v.warnings, published: 0, pending: 0 };
-  await db.promotion.updateMany({ where: { campaignId: id, startsAt: null }, data: { startsAt: c.startsAt } });
-  await db.promotion.updateMany({ where: { campaignId: id, endsAt: null }, data: { endsAt: c.endsAt } });
-  for (const m of [db.landingPage, db.adPlacement] as const) {
-    await (m as typeof db.landingPage).updateMany({ where: { campaignId: id, startsAt: null }, data: { startsAt: c.startsAt } });
-    await (m as typeof db.landingPage).updateMany({ where: { campaignId: id, endsAt: null }, data: { endsAt: c.endsAt } });
-  }
+  if (v.errors.length) return { rejected: true, errors: v.errors, warnings: v.warnings, ...none };
+  // ατομική «κράτηση»: δύο ταυτόχρονες δημοσιεύσεις ή δημοσίευση σε ήδη δημοσιευμένη / σε παύση / αρχείο δεν περνούν
+  const claimed = await db.campaign.updateMany({ where: { id, status: { in: ["draft", "approved", "rejected"] } }, data: { status: liveState(c.startsAt, c.endsAt, new Date()) } });
+  if (claimed.count !== 1) return { rejected: true, errors: ["Η καμπάνια έχει ήδη δημοσιευτεί."], warnings: v.warnings, ...none };
+  const fill = { startsAt: c.startsAt, endsAt: c.endsAt };
+  await db.landingPage.updateMany({ where: { campaignId: id, status: "draft", startsAt: null }, data: fill });
+  await db.adPlacement.updateMany({ where: { campaignId: id, status: "draft", startsAt: null }, data: fill });
   let published = 0, pending = 0;
   const errors: string[] = [];
-  const fresh = await db.promotion.findMany({ where: { campaignId: id, status: { in: ["draft", "pending"] } }, include: { targets: true, coupons: true } });
-  for (const p of fresh) {
+  for (const p of c.promotions) {
     if (p.status === "pending") { pending++; continue; }
-    const r = await savePromotion(draftOf(p), staff, "publish");
+    if (p.status !== "draft") continue;
+    const d = draftOf(p);
+    const r = await savePromotion(takesCampaignDates(p) ? { ...d, startsAt: c.startsAt.toISOString(), endsAt: d.endsAt ?? c.endsAt.toISOString() } : d, staff, "publish");
     if (!r.ok) errors.push(`«${p.name}»: ${(r.errors ?? []).join(" ")}`);
     else if (r.status === "pending") pending++;
     else published++;
   }
-  const status = liveState(c.startsAt, c.endsAt, new Date());
-  await db.campaign.update({ where: { id }, data: { status } });
-  await audit(staff.id, "campaign.publish", "Campaign", id, { status: c.status }, { status, published, pending, errors: errors.length });
+  await audit(staff.id, "campaign.publish", "Campaign", id, { status: c.status }, { published, pending, errors: errors.length });
   refreshStorefront();
-  return { ok: errors.length === 0, errors, warnings: v.warnings, published, pending };
+  return { rejected: false, errors, warnings: v.warnings, published, pending };
 }
 
 /** Παύση / συνέχεια / λήξη εφαρμόζονται και στις ζωντανές προσφορές· η αρχειοθέτηση λήγει ό,τι τρέχει αλλά κρατά τις προσφορές. */
@@ -168,10 +194,30 @@ export async function setCampaignState(id: string, action: "pause" | "resume" | 
   const shown = shownStatus(c);
   const live = c.promotions.filter((p) => LIVE_PROMO.includes(p.status)).map((p) => p.id);
   let status: string;
-  if (action === "pause") { if (!["live", "scheduled"].includes(shown)) return { ok: false, error: "Παύση γίνεται μόνο σε καμπάνια σε εξέλιξη ή προγραμματισμένη." }; await bulkPromotions(live, "pause", staffId); status = "paused"; }
-  else if (action === "resume") { if (shown !== "paused") return { ok: false, error: "Η καμπάνια δεν είναι σε παύση." }; await bulkPromotions(live, "resume", staffId); status = liveState(c.startsAt, c.endsAt, new Date()); }
-  else if (action === "end") { await bulkPromotions(live, "end", staffId); status = "ended"; if (c.endsAt > new Date()) await db.campaign.update({ where: { id }, data: { endsAt: new Date() } }); }
-  else { await bulkPromotions(live, "end", staffId); status = "archived"; }
+  const now = new Date();
+  // banners / landing pages της καμπάνιας ακολουθούν: παύση = τα banners σε παύση· λήξη / αρχείο = λήγουν τώρα
+  const stopContent = async () => {
+    await db.adPlacement.updateMany({ where: { campaignId: id, status: { in: ["active", "paused"] } }, data: { status: "paused" } });
+    for (const m of ["ad", "landing"] as const) {
+      const where = { campaignId: id, status: { not: "archived" }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] };
+      if (m === "ad") await db.adPlacement.updateMany({ where, data: { endsAt: now } });
+      else await db.landingPage.updateMany({ where, data: { endsAt: now } });
+    }
+  };
+  if (action === "pause") {
+    if (!["live", "scheduled"].includes(shown)) return { ok: false, error: "Παύση γίνεται μόνο σε καμπάνια σε εξέλιξη ή προγραμματισμένη." };
+    await bulkPromotions(live, "pause", staffId);
+    await db.adPlacement.updateMany({ where: { campaignId: id, status: "active" }, data: { status: "paused" } });
+    status = "paused";
+  } else if (action === "resume") {
+    if (shown !== "paused") return { ok: false, error: "Η καμπάνια δεν είναι σε παύση." };
+    await bulkPromotions(live, "resume", staffId);
+    await db.adPlacement.updateMany({ where: { campaignId: id, status: "paused" }, data: { status: "active" } });
+    status = liveState(c.startsAt, c.endsAt, now);
+  } else if (action === "end") {
+    if (["ended", "archived", "draft"].includes(shown)) return { ok: false, error: "Η καμπάνια δεν τρέχει." };
+    await bulkPromotions(live, "end", staffId); await stopContent(); status = "ended";
+  } else { await bulkPromotions(live, "end", staffId); await stopContent(); status = "archived"; }
   await db.campaign.update({ where: { id }, data: { status } });
   await audit(staffId, `campaign.${action}`, "Campaign", id, { status: c.status }, { status });
   refreshStorefront();
@@ -185,13 +231,21 @@ export async function campaignOptions(): Promise<CampaignOption[]> {
   return rows.filter((c) => shownStatus(c) !== "ended").map((c) => ({ id: c.id, label: `${c.code} · ${c.title}`, published: ["scheduled", "live", "paused"].includes(c.status) }));
 }
 
-/** Οι ημερομηνίες της καμπάνιας άλλαξαν: όσες προσφορές / landings / banners είχαν τις παλιές της, παίρνουν τις νέες. */
-export async function syncCampaignDates(id: string, old: { startsAt: Date; endsAt: Date }) {
+/**
+ * Οι ημερομηνίες της καμπάνιας άλλαξαν: όσα είχαν τις παλιές της παίρνουν τις νέες. Οι ζωντανές προσφορές περνούν από
+ * τη λογική των προσφορών (νέα έκδοση)· όσες έχουν λήξει / είναι στο αρχείο δεν αγγίζονται.
+ */
+export async function syncCampaignDates(id: string, old: { startsAt: Date; endsAt: Date }, staff: Staff) {
   const c = await db.campaign.findUnique({ where: { id }, select: { startsAt: true, endsAt: true } });
   if (!c) return;
-  for (const m of [db.promotion, db.landingPage, db.adPlacement] as const) {
-    await (m as typeof db.landingPage).updateMany({ where: { campaignId: id, startsAt: old.startsAt }, data: { startsAt: c.startsAt } });
-    await (m as typeof db.landingPage).updateMany({ where: { campaignId: id, endsAt: old.endsAt }, data: { endsAt: c.endsAt } });
+  const promos = await db.promotion.findMany({ where: { campaignId: id, status: { notIn: ["archived", "ended"] }, OR: [{ startsAt: old.startsAt }, { endsAt: old.endsAt }] }, select: { id: true, startsAt: true, endsAt: true } });
+  for (const p of promos) {
+    await redatePromotion(p.id, { ...(p.startsAt?.getTime() === old.startsAt.getTime() ? { startsAt: c.startsAt } : {}), ...(p.endsAt?.getTime() === old.endsAt.getTime() ? { endsAt: c.endsAt } : {}) }, staff);
   }
+  const live = { campaignId: id, status: { not: "archived" } };
+  await db.landingPage.updateMany({ where: { ...live, startsAt: old.startsAt }, data: { startsAt: c.startsAt } });
+  await db.landingPage.updateMany({ where: { ...live, endsAt: old.endsAt }, data: { endsAt: c.endsAt } });
+  await db.adPlacement.updateMany({ where: { ...live, startsAt: old.startsAt }, data: { startsAt: c.startsAt } });
+  await db.adPlacement.updateMany({ where: { ...live, endsAt: old.endsAt }, data: { endsAt: c.endsAt } });
   refreshStorefront();
 }

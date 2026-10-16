@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-16T14:10:42.656Z",
+ "generatedAt": "2026-10-16T14:25:09.537Z",
  "routes": [
   {
    "route": "/admin",
@@ -3228,6 +3228,12 @@
  ],
  "recent": [
   {
+   "hash": "a763714",
+   "date": "2026-10-16T17:15:11+03:00",
+   "text": "Καμπάνιες (Φ1): βοήθεια",
+   "routes": []
+  },
+  {
    "hash": "417cbe2",
    "date": "2026-10-16T17:09:21+03:00",
    "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»",
@@ -3549,15 +3555,6 @@
    "date": "2026-10-11T10:38:47+03:00",
    "text": "Καρτέλα πελάτη & εγγυήσεις από SoftOne",
    "routes": []
-  },
-  {
-   "hash": "6f93115",
-   "date": "2026-10-11T10:23:26+03:00",
-   "text": "SoftOne πελάτες: η αποστολή χρησιμοποιεί πλέον τους πίνακες του SoftOne αντί για σταθερές/κείμενα",
-   "routes": [
-    "/admin",
-    "/admin/customers"
-   ]
   }
  ],
  "helpKeys": {
@@ -3929,6 +3926,9 @@
    "components/admin/promos/CampaignWizard.tsx"
   ],
   "campaign.summary": [
+   "components/admin/promos/CampaignWizard.tsx"
+  ],
+  "campaign.pending": [
    "components/admin/promos/CampaignWizard.tsx"
   ],
   "campaign.state": [
