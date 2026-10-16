@@ -21,7 +21,7 @@ import { carrierDef } from "@/lib/shipping/carriers";
 const c = copyOf("checkout");
 
 type StoreLite = { id: string; slug: string; name: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string };
-type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut" | "paypal" | "klarna";
+type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut" | "paypal" | "klarna" | "tbi";
 
 /** Τρόποι μέσω Viva — ο πελάτης μεταφέρεται στη σελίδα της Viva, ανοιχτή στον τρόπο που διάλεξε. */
 const VIVA_OPTS: { v: Pay; icon: typeof Truck; t: string; sub: string; mark?: React.ReactNode }[] = [
@@ -30,9 +30,10 @@ const VIVA_OPTS: { v: Pay; icon: typeof Truck; t: string; sub: string; mark?: Re
   { v: "google", icon: CreditCard, t: "Google Pay", sub: "Με την κάρτα του Google λογαριασμού σου", mark: <GoogleMark className="size-5" /> },
   { v: "paypal", icon: Wallet2, t: "PayPal", sub: "Με τον λογαριασμό PayPal σου" },
   { v: "iris", icon: Smartphone, t: "IRIS", sub: "Άμεσα από το e-banking, χωρίς προμήθεια" },
-  { v: "klarna", icon: Smartphone, t: "Klarna", sub: "Σε δόσεις χωρίς κάρτα" },
+  { v: "klarna", icon: Smartphone, t: "Klarna", sub: "Σε 3 άτοκες δόσεις χωρίς κάρτα" },
+  { v: "tbi", icon: Smartphone, t: "Δόσεις χωρίς κάρτα", sub: "TBI Bank · έγκριση online σε λίγα λεπτά" },
 ];
-const VIVA_NAME: Record<string, string> = { card: "την κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna" };
+const VIVA_NAME: Record<string, string> = { card: "την κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna", tbi: "την TBI Bank (δόσεις χωρίς κάρτα)" };
 
 const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρισα", "Ηράκλειο", "Χανιά", "Δωδεκάνησα", "Ιωάννινα", "Μαγνησία", "Καβάλα", "Κέρκυρα", "Εύβοια", "Μεσσηνία", "Σέρρες", "Άλλη"];
 
@@ -46,10 +47,13 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[] }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
+  // Klarna με απευθείας σύμβαση: ο πελάτης μεταφέρεται στη σελίδα της Klarna
+  const viaKlarna = (p: string) => klarnaDirect && p === "klarna";
+  const KLARNA_OPT = { v: "klarna" as Pay, icon: Smartphone, t: "Klarna", sub: "Σε 3 άτοκες δόσεις, χωρίς πιστωτική κάρτα" };
   const router = useRouter();
   const { lines, subtotal, addonsTotal, hydrated, clear, freeShippingFrom } = useCart();
   const [step, setStep] = useState<2 | 3>(2);
@@ -157,7 +161,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
     if (!f.terms) return setErr("Πρέπει να αποδεχτείς τους όρους χρήσης για να συνεχίσεις.");
     if (offline.length) return setErr(`Το «${offline[0].product.title}» δεν διατίθεται για online αγορά. Αφαίρεσέ το από το καλάθι για να συνεχίσεις.`);
     setErr(null);
-    if (viaViva(pay)) return finish();
+    if (viaViva(pay) || viaKlarna(pay)) return finish();
     if (pay === "apple" || pay === "google" || pay === "revolut") return setWallet(pay);
     if (pay === "card" || pay === "no-card") {
       setSca("pending");
@@ -228,6 +232,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
   ]);
   const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = viva ? [
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
+    ...(klarnaDirect ? [KLARNA_OPT] : []),
     { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Θα δεις το IBAN μετά την παραγγελία" },
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
@@ -238,6 +243,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
     { v: "revolut", icon: CreditCard, t: "Revolut Pay", sub: "Επιβεβαίωση στην εφαρμογή Revolut, χωρίς προμήθεια", mark: <RevolutMark className="h-4" /> },
     { v: "no-card", icon: Smartphone, t: "Δόσεις χωρίς κάρτα", sub: total >= 200 && total <= 2000 ? `Eurobank · έως 24 × ${priceLong(instalment(total, 24))}` : "Για αγορές 200–2.000 €", disabled: total < 200 || total > 2000 },
     { v: "iris", icon: Smartphone, t: "IRIS", sub: "Άμεσα από το mobile banking, χωρίς προμήθεια" },
+    ...(klarnaDirect ? [KLARNA_OPT] : []),
     { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Εθνική · Πειραιώς · Eurobank · Alpha" },
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
@@ -485,6 +491,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [] }: { st
                   ))}
                 </div>
 
+                {viaKlarna(pay) && (
+                  <div className="grid gap-3 rounded-xl bg-eu-surface p-4 @md:p-5 text-[length:var(--fs-15)] text-eu-ink-2">
+                    <p className="m-0 flex items-start gap-2"><ExternalLink className="size-5 text-eu-blue shrink-0" aria-hidden /> <span>Θα μεταφερθείς στη σελίδα της <b className="text-eu-ink">Klarna</b>: εγκρίνεσαι σε λίγα δευτερόλεπτα και πληρώνεις σε 3 άτοκες δόσεις.</span></p>
+                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2"><ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία πληρωμής δεν περνούν από εμάς.</p>
+                  </div>
+                )}
                 {viaViva(pay) && (
                   <div className="grid gap-3 rounded-xl bg-eu-surface p-4 @md:p-5 text-[length:var(--fs-15)] text-eu-ink-2">
                     <p className="m-0 flex items-start gap-2"><ExternalLink className="size-5 text-eu-blue shrink-0" aria-hidden /> <span>Θα μεταφερθείς στην ασφαλή σελίδα πληρωμής της <b className="text-eu-ink">Viva</b> για να πληρώσεις με {VIVA_NAME[pay]}. Αν έχεις πληρώσει με Viva σε άλλο κατάστημα, θα δεις εκεί τις αποθηκευμένες κάρτες σου.</span></p>

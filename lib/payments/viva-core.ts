@@ -5,7 +5,8 @@
  */
 export type VivaMode = "test" | "live";
 /** Οι τρόποι του δικού μας checkout που πληρώνονται μέσω Viva. Ο πελάτης μπορεί να αλλάξει τρόπο στη σελίδα της Viva. */
-export const VIVA_METHODS = { card: 0, apple: 20, google: 21, paypal: 23, klarna: 26, iris: 29 } as const;
+/** null = χωρίς προεπιλογή: η Viva δεν δημοσιεύει id για την TBI Bank — η σελίδα ανοίγει με όλους τους τρόπους. */
+export const VIVA_METHODS: Record<"card" | "apple" | "google" | "paypal" | "klarna" | "iris" | "tbi", number | null> = { card: 0, apple: 20, google: 21, paypal: 23, klarna: 26, iris: 29, tbi: null };
 export type VivaPay = keyof typeof VIVA_METHODS;
 export const isVivaPay = (p: string | null | undefined): p is VivaPay => !!p && p in VIVA_METHODS;
 
@@ -14,7 +15,7 @@ export const vivaHosts = (mode: VivaMode) => mode === "live"
   : { accounts: "https://demo-accounts.vivapayments.com", api: "https://demo-api.vivapayments.com", web: "https://demo.vivapayments.com" };
 
 export const checkoutUrl = (mode: VivaMode, orderCode: string, pay: VivaPay) =>
-  `${vivaHosts(mode).web}/web/checkout?ref=${encodeURIComponent(orderCode)}&paymentMethod=${VIVA_METHODS[pay]}`;
+  `${vivaHosts(mode).web}/web/checkout?ref=${encodeURIComponent(orderCode)}${VIVA_METHODS[pay] == null ? "" : `&paymentMethod=${VIVA_METHODS[pay]}`}`;
 
 /** Η συναλλαγή όπως την επιστρέφει το Retrieve Transaction (checkout/v2/transactions/{id}). */
 export interface VivaTransaction { statusId: string; amount: number; orderCode: number | string; merchantTrns?: string | null; email?: string | null; totalInstallments?: number | null }
@@ -34,6 +35,7 @@ export function judgeTransaction(t: VivaTransaction, expect: { orderCode: string
 /** Οι τρόποι Viva που δείχνει το checkout, από τις δημόσιες ρυθμίσεις πληρωμών (η κάρτα πάντα). */
 export function enabledVivaPays(p: Record<string, unknown>): VivaPay[] {
   if (p.provider !== "viva") return [];
-  const on = (k: string) => p[k] === true;
-  return (["card", "apple", "google", "paypal", "iris", "klarna"] as VivaPay[]).filter((m) => m === "card" || on({ apple: "applePay", google: "googlePay", paypal: "paypal", iris: "iris", klarna: "klarna" }[m]!));
+  // Klarna «απευθείας»: δεν πάει μέσω Viva (βλ. lib/payments/klarna.ts)
+  const on = (k: string) => p[k] === true && !(k === "klarna" && p.klarnaVia === "direct");
+  return (["card", "apple", "google", "paypal", "iris", "klarna", "tbi"] as VivaPay[]).filter((m) => m === "card" || on({ apple: "applePay", google: "googlePay", paypal: "paypal", iris: "iris", klarna: "klarna", tbi: "tbi" }[m]!));
 }

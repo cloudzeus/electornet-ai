@@ -9,7 +9,7 @@ import { payLabel } from "@/lib/account/labels";
 import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 import { Badge, ErpBadge, OrderStatusBadge, PaymentBadge, ReturnBadge, dateTime, eur } from "@/components/admin/orders/ui";
 import { CreateVoucher } from "../../apostoles/vouchers/VoucherControls";
-import { NotesPanel, OrderHeaderActions, RefundForm, ReturnControls } from "./OrderControls";
+import { ErpCheck, NotesPanel, OrderHeaderActions, RefundForm, ReturnControls } from "./OrderControls";
 
 
 const ACTION: Record<string, string> = {
@@ -35,7 +35,7 @@ const Row = ({ k, children }: { k: string; children: React.ReactNode }) => <div 
  */
 export type Draft = Awaited<ReturnType<typeof shipmentDraft>>;
 /** Η παρουσίαση της καρτέλας (χωριστά από τη φόρτωση — δοκιμάζεται και με ψεύτικα δεδομένα). */
-export function OrderView({ o, draft, canWrite, canRefund }: { o: OrderDetail; draft: Draft; canWrite: boolean; canRefund: boolean }) {
+export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDetail; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number } | null; canWrite: boolean; canRefund: boolean }) {
   const s = (o.shipping ?? {}) as ShipTo;
   const inv = (o.invoice ?? null) as { vatNumber?: string; company?: string; doy?: string; activity?: string } | null;
   const activeShip = o.shipments.find((x) => x.status !== "cancelled") ?? null;
@@ -226,6 +226,11 @@ export function OrderView({ o, draft, canWrite, canRefund }: { o: OrderDetail; d
             {o.erpSync && <dl className="m-0 grid gap-1">
               {o.erpSync.erpDocId && <Row k="Παραστατικό"><span className="font-mono">{o.erpSync.erpDocId}</span></Row>}
               <Row k="Προσπάθειες">{o.erpSync.attempts}</Row>
+              {erp && <Row k="Σύνολο στο SoftOne"><span className={`tabular-nums font-bold ${erp.gross === erp.expected ? "text-eu-green" : "text-eu-amber"}`}>{eur(erp.gross)}{erp.gross === erp.expected ? " ✓" : ` (παραγγελία ${eur(erp.expected)})`}</span></Row>}
+              {erp && erp.needs.length > 0 && <div className="grid gap-1 rounded-lg bg-eu-amber/10 border border-eu-amber/30 px-3 py-2 text-[length:var(--fs-12)]"><span className="font-bold text-eu-ink">Λείπουν για να σταλεί ({erp.needs.length})</span><ul className="m-0 pl-4 grid gap-0.5 text-eu-ink-2">{erp.needs.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+              {erp && erp.needs.length === 0 && <p className="m-0 inline-flex items-center gap-1 text-eu-green font-bold text-[length:var(--fs-12)]"><Check className="size-3.5" aria-hidden /> Το παραστατικό είναι πλήρες</p>}
+              {erp?.warnings.map((x) => <p key={x} className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">{x}</p>)}
+              {erp && erp.needs.length === 0 && canWrite && ["preview", "awaiting-payment"].includes(o.erpSync.status) && <ErpCheck orderId={o.id} />}
               {o.erpSync.payload ? <Link href={`/admin/prosfores/anafores/paraggelia/${o.id}`} className="text-eu-blue font-bold text-[length:var(--fs-12)] hover:underline print:hidden">Προσχέδιο παραστατικού →</Link> : null}
             </dl>}
           </Card>

@@ -67,3 +67,10 @@ export async function refundAction(orderId: string, number: string, amount: numb
   done(number);
   return r;
 }
+
+/** «Έλεγχος στο SoftOne»: calculate χωρίς αποθήκευση — το σύνολο του SoftOne πρέπει να ταιριάζει με την παραγγελία. */
+export async function erpCheckAction(orderId: string) {
+  await requirePermission("orders.write");
+  const { checkSaldocInSoftone } = await import("@/lib/softone/order-doc");
+  return checkSaldocInSoftone(orderId).catch((e) => ({ ok: false, message: e instanceof Error ? e.message : "Σφάλμα σύνδεσης με το SoftOne." }));
+}

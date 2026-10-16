@@ -19,6 +19,7 @@ import { createVivaOrder, getVivaTransaction, vivaConfig } from "./viva";
 // ---------- ασφαλής σύνδεσμος της σελίδας πληρωμής ----------
 const secret = () => process.env.SETTINGS_KEY || process.env.AUTH_SECRET || "dev-only";
 const sign = (number: string) => createHmac("sha256", secret()).update(`pay:${number}`).digest("base64url").slice(0, 22);
+export const paymentKey = sign;
 export const paymentPagePath = (number: string, extra = "") => `/checkout/pliromi?no=${encodeURIComponent(number)}&k=${sign(number)}${extra}`;
 export function validPaymentKey(number: string, k: string | null | undefined) {
   const a = Buffer.from(sign(number)), b = Buffer.from(k ?? "");
@@ -71,6 +72,8 @@ export async function markPaid(orderId: string, pspRef: string) {
   if (n.count !== 1) return;
   await db.order.update({ where: { id: orderId }, data: { status: "paid" } });
   await db.erpSync.updateMany({ where: { orderId, status: "awaiting-payment" }, data: { status: "preview" } });
+  // ο τελικός τρόπος πληρωμής (μπορεί να άλλαξε στο «Δοκίμασε ξανά») στο παραστατικό
+  await import("@/lib/softone/order-doc").then((m) => m.refreshSaldocPreview(orderId)).catch(() => null);
   await sendConfirmation(orderId).catch(() => null);
   await import("@/lib/warranty/server").then((m) => m.devicesFromOrder(orderId)).catch(() => null);
 }
@@ -110,7 +113,7 @@ export async function rollbackPromos(tx: Prisma.TransactionClient, orderId: stri
  */
 export async function cancelUnpaidOnline(hours = 24) {
   const since = new Date(Date.now() - hours * 3600_000);
-  const due = await db.order.findMany({ where: { status: "pending", createdAt: { lt: since }, payment: { psp: "viva", status: { notIn: ["paid", "processing", "review"] } } }, select: { id: true, couponCode: true }, take: 100 });
+  const due = await db.order.findMany({ where: { status: "pending", createdAt: { lt: since }, payment: { psp: { in: ["viva", "klarna"] }, status: { notIn: ["paid", "processing", "review"] } } }, select: { id: true, couponCode: true }, take: 100 });
   for (const o of due) {
     await db.$transaction(async (tx) => {
       const n = await tx.order.updateMany({ where: { id: o.id, status: "pending" }, data: { status: "cancelled" } });

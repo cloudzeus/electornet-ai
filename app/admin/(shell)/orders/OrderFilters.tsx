@@ -34,7 +34,7 @@ export function OrderFilters({ q, ful, pay, from, to, sort }: { q: string; ful: 
         <option value="">Όλοι οι τρόποι παράδοσης</option><option value="courier">Courier</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option>
       </select>
       <select aria-label="Τρόπος πληρωμής" value={pay} onChange={(e) => set({ pay: e.target.value })} className={sel}>
-        <option value="">Όλες οι πληρωμές</option><option value="card">Κάρτα</option><option value="cod">Αντικαταβολή</option><option value="bank">Κατάθεση</option><option value="iris">IRIS</option><option value="no-card">Δόσεις χωρίς κάρτα</option><option value="store">Στο κατάστημα</option>
+        <option value="">Όλες οι πληρωμές</option><option value="card">Κάρτα</option><option value="cod">Αντικαταβολή</option><option value="bank">Κατάθεση</option><option value="iris">IRIS</option><option value="klarna">Klarna</option><option value="tbi">TBI Bank</option><option value="no-card">Δόσεις χωρίς κάρτα</option><option value="store">Στο κατάστημα</option>
       </select>
       <span className="inline-flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)]">
         <input type="date" aria-label="Από ημερομηνία" value={from} onChange={(e) => set({ from: e.target.value })} className={`${sel} tabular-nums`} />

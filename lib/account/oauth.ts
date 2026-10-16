@@ -120,6 +120,42 @@ export async function exchange(c: ProviderConfig, origin: string, code: string, 
  * (ο πάροχος δέχτηκε την εφαρμογή, απέρριψε μόνο το code). Λάθος → «invalid_client» κ.λπ.
  */
 export async function probe(c: ProviderConfig, origin: string): Promise<{ ok: boolean; message: string }> {
+  // συχνό λάθος: επικόλληση μαζί με άλλο κείμενο (π.χ. «Value  Secret ID  ημερομηνία» από το Azure)
+  if (c.provider !== "apple" && /\s/.test(c.secret)) return { ok: false, message: `Το ${c.provider === "facebook" ? "App secret" : "Client secret"} περιέχει κενά ή αλλαγές γραμμής — επικολλήθηκε περισσότερο κείμενο από όσο χρειάζεται.${c.provider === "microsoft" ? " Στο Azure αντίγραψε ΜΟΝΟ τη στήλη «Value» (περίπου 40 χαρακτήρες), όχι το «Secret ID» ή την ημερομηνία λήξης." : ""}` };
+  const r = await probeToken(c, origin);
+  if (!r.ok) return r;
+  const red = await probeRedirect(c, origin);
+  return red ?? r;
+}
+
+/**
+ * Το πρώτο βήμα της σύνδεσης, όπως το κάνει ένας πελάτης: ανοίγουμε τη σελίδα σύνδεσης του παρόχου και ελέγχουμε αν
+ * δέχεται τη διεύθυνση επιστροφής μας (redirect URI). Google / Microsoft το λένε πριν ζητήσουν κωδικό· το Facebook μόνο μετά.
+ */
+export async function probeRedirect(c: ProviderConfig, origin: string): Promise<{ ok: boolean; message: string } | null> {
+  if (c.provider !== "google" && c.provider !== "microsoft") return null;
+  try {
+    const r = await fetch(authorizeUrl(c, origin, newFlow()), { redirect: "manual", signal: AbortSignal.timeout(15_000), headers: { "accept-language": "el,en" } });
+    const loc = r.headers.get("location") ?? "";
+    if (c.provider === "google") {
+      const ae = loc.includes("authError=") ? new URL(loc).searchParams.get("authError") ?? "" : "";
+      const why = ae ? Buffer.from(ae.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8") : "";
+      if (/redirect_uri_mismatch/.test(why)) return { ok: false, message: `Τα στοιχεία είναι σωστά, αλλά η Google δεν δέχεται τη διεύθυνση επιστροφής. Στο Google Cloud Console → Clients → το client → «Authorized redirect URIs» πρόσθεσε ακριβώς: ${redirectUri(origin, "google")}` };
+      if (/invalid_client|deleted_client/.test(why)) return { ok: false, message: "Η Google δεν βρίσκει αυτό το Client ID (ίσως διαγράφηκε ή ανήκει σε άλλο έργο)." };
+      if (/access_denied|has not completed/.test(why)) return { ok: false, message: "Η εφαρμογή στη Google είναι σε «Testing»: Audience → «Publish app»." };
+      return null;
+    }
+    const body = await r.text();
+    const code = /AADSTS(\d+)/.exec(body)?.[1];
+    if (code === "50011") return { ok: false, message: `Τα στοιχεία είναι σωστά, αλλά η Microsoft δεν δέχεται τη διεύθυνση επιστροφής. Azure → App registrations → η εφαρμογή → Authentication → πλατφόρμα «Web» → «Redirect URIs»: πρόσθεσε ακριβώς ${redirectUri(origin, "microsoft")}` };
+    if (code === "50194" || code === "9002331" || code === "50020") return { ok: false, message: `Ο τύπος λογαριασμών της εφαρμογής στο Azure δεν ταιριάζει με τη ρύθμιση «${c.tenant}». Azure → η εφαρμογή → Authentication → «Supported account types»: για πελάτες «Personal Microsoft accounts only» (και εδώ «consumers») ή «…any organizational directory and personal Microsoft accounts» (και εδώ «common»).` };
+    if (code === "700016") return { ok: false, message: "Η Microsoft δεν βρίσκει εφαρμογή με αυτό το Application (client) ID για αυτούς τους λογαριασμούς." };
+    if (code) return { ok: false, message: `Η Microsoft απάντησε με σφάλμα AADSTS${code} στη σελίδα σύνδεσης.` };
+    return null;
+  } catch { return null; }
+}
+
+async function probeToken(c: ProviderConfig, origin: string): Promise<{ ok: boolean; message: string }> {
   try {
     if (c.provider === "facebook") {
       const r = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?client_id=${encodeURIComponent(c.clientId)}&client_secret=${encodeURIComponent(c.secret)}&grant_type=client_credentials`, { signal: AbortSignal.timeout(15_000) });
@@ -138,7 +174,9 @@ export async function probe(c: ProviderConfig, origin: string): Promise<{ ok: bo
       if (/AADSTS700016/.test(desc)) return { ok: false, message: "Η Microsoft δεν βρίσκει εφαρμογή με αυτό το Application (client) ID σε αυτούς τους λογαριασμούς. Έλεγξε το ID και το «Supported account types»." };
       if (/AADSTS90002|AADSTS900023/.test(desc)) return { ok: false, message: "Άγνωστος tenant. Για πελάτες κατάστημα συνήθως χρειάζεται «Προσωπικοί λογαριασμοί»." };
       if (/AADSTS7000222/.test(desc)) return { ok: false, message: "Το client secret έχει λήξει. Φτιάξε νέο στο Azure (Certificates & secrets)." };
-      if (/AADSTS70000|AADSTS9002313|AADSTS54005/.test(desc)) return { ok: true, message: "Η Microsoft αναγνώρισε την εφαρμογή — τα στοιχεία είναι σωστά." };
+      if (/AADSTS70000|AADSTS54005/.test(desc)) return { ok: true, message: "Η Microsoft αναγνώρισε την εφαρμογή — τα στοιχεία είναι σωστά." };
+      // με δοκιμαστικό code η Microsoft σταματά πριν ελέγξει το secret: αυτό ελέγχεται μόνο σε πραγματική σύνδεση
+      if (/AADSTS9002313/.test(desc)) return { ok: true, message: "Η Microsoft αναγνωρίζει την εφαρμογή (Client ID). Το Client secret ελέγχεται μόνο σε πραγματική σύνδεση — πάτα «Δοκιμαστική σύνδεση»." };
     }
     if (j.error === "invalid_client" || j.error === "unauthorized_client") return { ok: false, message: c.provider === "apple" ? "Η Apple απέρριψε τα στοιχεία: έλεγξε Services ID, Team ID, Key ID και ότι το κλειδί .p8 έχει ενεργό το «Sign in with Apple»." : "Ο πάροχος απέρριψε τα στοιχεία: λάθος Client ID ή Client secret." };
     return { ok: false, message: `Απρόσμενη απάντηση: ${j.error ?? r.status}${desc ? ` — ${desc.split("\n")[0].slice(0, 200)}` : ""}` };

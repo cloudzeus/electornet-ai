@@ -86,6 +86,13 @@ export async function testSection(section: string, fd: FormData): Promise<Action
       } else if (val("voiceProvider") === "elevenlabs") details.ElevenLabs = "λείπει το ELEVENLABS_API_KEY από το περιβάλλον — χρησιμοποιείται το OpenRouter";
       return { ok: true, message: "Η σύνδεση με το OpenRouter λειτουργεί.", details };
     }
+    if (def.test === "klarna") {
+      if (val("klarnaVia") !== "direct") return { ok: false, message: "Η Klarna είναι «μέσω Viva»: δεν χρειάζεται δοκιμή εδώ — ενεργοποιείται στον λογαριασμό της Viva." };
+      const { testKlarna } = await import("@/lib/payments/klarna");
+      const r = await testKlarna({ mode: val("klarnaMode") === "live" ? "live" : "test", username: val("klarnaUsername").trim(), password: sec("klarnaPassword").trim(), capture: "shipment" });
+      await audit(user.id, "settings.test", "Setting", section, null, { ok: r.ok, provider: "klarna" });
+      return { ok: r.ok, message: r.message };
+    }
     if (def.test === "bunny") {
       const zone = val("storageZone");
       const pw = sec("storagePassword");

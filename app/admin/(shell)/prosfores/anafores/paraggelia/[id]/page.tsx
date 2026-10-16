@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, FileText, ScrollText } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
+import { saldocForOrder } from "@/lib/softone/order-doc";
 
 export const metadata = { title: "Παραστατικό · προσφορές" };
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
   await requirePermission("reports.read");
   const { id } = await params;
   const o = await db.order.findUnique({ where: { id }, include: { lines: { include: { addons: { include: { service: { select: { title: true } } } } } }, promoUsages: true, erpSync: true } });
+  // όσο δεν έχει σταλεί: με τις τρέχουσες ρυθμίσεις SoftOne
+  const payload = o && o.erpSync && ["preview", "awaiting-payment"].includes(o.erpSync.status) ? await saldocForOrder(o.id).catch(() => o.erpSync?.payload ?? null) : o?.erpSync?.payload ?? null;
   if (!o) notFound();
   const keys = [...new Map(o.promoUsages.map((u) => [`${u.promotionId}:${u.version}`, { promotionId: u.promotionId, version: u.version }])).values()];
   const versions = keys.length ? await db.promotionVersion.findMany({ where: { OR: keys } }) : [];
@@ -69,8 +72,8 @@ export default async function OrderPromoPage({ params }: { params: Promise<{ id:
         </section>
         <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3 min-w-0">
           <h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><FileText className="size-4" aria-hidden /> Παραστατικό SoftOne · {o.erpSync?.status === "preview" ? "προεπισκόπηση (δεν στάλθηκε)" : o.erpSync?.status ?? "—"}</h3>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Το SALDOC με τις γραμμές ITELINES όπως θα σταλεί. Η αποστολή στο SoftOne είναι απενεργοποιημένη μέχρι ρητή εντολή.</p>
-          {o.erpSync?.payload ? <pre className="m-0 max-h-[480px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] leading-snug">{JSON.stringify(o.erpSync.payload, null, 2)}</pre> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν υπάρχει.</p>}
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Το SALDOC με τα στοιχεία αποστολής (MTRDOC) και τις γραμμές ITELINES όπως θα σταλεί — τιμές χωρίς ΦΠΑ. Η αποστολή στο SoftOne είναι απενεργοποιημένη μέχρι ρητή εντολή.</p>
+          {payload ? <pre className="m-0 max-h-[480px] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all rounded-xl bg-eu-surface p-3 text-[length:var(--fs-13)] leading-snug">{JSON.stringify(payload, null, 2)}</pre> : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν υπάρχει.</p>}
         </section>
       </div>
     </div>

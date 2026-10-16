@@ -80,11 +80,14 @@ export async function changeStatus(orderId: string, to: OrderStatus, opts: { not
     return true;
   });
   if (!changed) return { ok: false, error: "Η παραγγελία άλλαξε στο μεταξύ — ανανέωσε τη σελίδα." };
+  // Klarna (απευθείας): χρέωση με την αποστολή / παραλαβή, ακύρωση της έγκρισης όταν ακυρώνεται πριν χρεωθεί
+  const klarna = await import("@/lib/payments/klarna-order").then((m) => m.klarnaAfterStatus(o.id, to)).catch((e) => (e instanceof Error ? e.message : null));
   let mail: string | null = null;
   if (opts.notify && NOTIFY_ON[to]) mail = await notifyStatus(o.id, to, reason).catch((e) => (e instanceof Error ? e.message : "σφάλμα email"));
   await audit(staff.id, "order.status", "Order", o.id, { status: o.status }, { status: to, reason, notify: opts.notify && !!NOTIFY_ON[to], ...(mail ? { mailError: mail } : {}) });
   const label = ORDER_STATUS[to].label;
-  return { ok: true, message: opts.notify && NOTIFY_ON[to] ? (mail ? `${label} — το email δεν στάλθηκε (${mail}).` : `${label} — ο πελάτης ενημερώθηκε με email.`) : `${label}.` };
+  const msg = opts.notify && NOTIFY_ON[to] ? (mail ? `${label} — το email δεν στάλθηκε (${mail}).` : `${label} — ο πελάτης ενημερώθηκε με email.`) : `${label}.`;
+  return { ok: true, message: klarna ? `${msg} ${klarna}` : msg };
 }
 
 export async function resendConfirmation(orderId: string, staff: Staff): Promise<Result> {
@@ -147,6 +150,10 @@ export async function recordRefund(orderId: string, amount: number, method: stri
   if (!o?.payment) return { ok: false, error: "Η παραγγελία δεν έχει πληρωμή." };
   const total = Number(o.total), amt = Math.round(Number(amount) * 100) / 100;
   if (!(amt > 0) || amt > total + 0.001) return { ok: false, error: `Το ποσό πρέπει να είναι από 0,01 έως ${total.toLocaleString("el-GR", { minimumFractionDigits: 2 })} €.` };
+  // Klarna (απευθείας): η επιστροφή γίνεται μέσω του API της Klarna· αν αποτύχει, δεν καταγράφεται
+  const k = await import("@/lib/payments/klarna-order").then((m) => m.klarnaRefund(orderId, amt));
+  if (k && !k.ok) return { ok: false, error: k.message };
+  if (k) method = [method.trim(), k.message].filter(Boolean).join(" · ");
   const status = amt >= total - 0.001 ? "refunded" : "partially-refunded";
   await db.payment.update({ where: { orderId }, data: { status } });
   const text = `Επιστροφή χρημάτων ${amt.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}${method.trim() ? ` · ${method.trim().slice(0, 120)}` : ""}`;

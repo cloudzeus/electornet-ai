@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 
-const NAME: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna" };
+const NAME: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", paypal: "PayPal", iris: "IRIS", klarna: "Klarna", tbi: "TBI Bank" };
 
 /** «Δοκίμασε ξανά»: νέα πληρωμή στη Viva για την ίδια παραγγελία, με τον τρόπο που θα διαλέξει ο πελάτης. */
 export function RetryPayment({ number, k, methods, current }: { number: string; k: string; methods: string[]; current: string }) {

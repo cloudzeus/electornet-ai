@@ -1,57 +1,110 @@
 import "server-only";
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
+import { composeSaldoc, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
 
 /**
- * Παραγγελία e-shop → παραστατικό πώλησης SoftOne (SALDOC + ITELINES), με την αντιστοίχιση που επιβεβαιώθηκε στην
- * εγκατάσταση της Euronics (getTableFields, 2/10/2026):
- *   PRICE / NODSCLNVAL  = τιμή καταλόγου πριν την προσφορά
- *   DISC1VAL            = έκπτωση προσφοράς τιμής (ή 100 % της αξίας σε δώρο / δωρεάν υπηρεσία)
- *   DISC2VAL            = μερίδιο του κουπονιού καλαθιού (κατανεμημένο αναλογικά)
- *   DISC3VAL            = έκπτωση τρόπου πληρωμής (Φάση 2)
- *   COMMENTS (255)      = Campaign ID και έκδοση («CMP-2026-118 v2 · WELCOME10») — μέχρι να υπάρξουν CCCPROMO / CCCPROMOVER
- *   COMMENTS1 (2000)    = σύντομοι όροι της προσφοράς όπως ίσχυαν
- * Μόνο σύνθεση: εδώ ΔΕΝ γίνεται καμία κλήση στο ERP.
+ * Το παραστατικό SoftOne μιας παραγγελίας, από τα στοιχεία της όπως αποθηκεύτηκαν (γραμμές, εκπτώσεις, ΦΠΑ είδους,
+ * διεύθυνση, τιμολόγιο, κατάστημα). Μόνο σύνθεση: εδώ ΔΕΝ γίνεται καμία κλήση στο ERP. Η αντιστοίχιση στα πεδία του
+ * SoftOne είναι στο order-doc-core.ts.
  */
+type Client = PrismaClient | Prisma.TransactionClient;
 
-export interface DocLineIn { erpCode: string | null; title: string; qty: number; listPrice: number; discPrice: number; discCoupon: number; discPayment: number; isGift: boolean; promotions: { code: string; version: number; kind: string; label: string }[]; terms?: string | null }
-export interface DocIn {
-  number: string; customerTrdr: string | null; email: string; fulfilment: string; payment: string; lines: DocLineIn[];
-  /** price = αξία της υπηρεσίας, discount = ό,τι χάρισε προσφορά (100 % της αξίας για δωρεάν υπηρεσία) */
-  services: { slug: string; title: string; price: number; discount?: number; promo?: string | null; erpCode: string | null }[];
-  /** δώρα: αξία με έκπτωση 100 % */
-  gifts?: { erpCode: string | null; title: string; qty: number; value: number; promo: string; terms?: string | null }[];
+export async function saldocSettings(): Promise<SaldocSettings> {
+  const { data } = await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }));
+  const s = (k: string) => String(data[k] ?? "").trim() || null;
+  const payment: Record<string, string> = {};
+  for (const k of ["card", "no-card", "iris", "paypal", "klarna", "tbi", "bank", "cod", "store", "revolut"]) {
+    const v = s(`orderPay_${k}`);
+    if (v) payment[k] = v;
+  }
+  // Apple / Google Pay είναι πληρωμή με κάρτα
+  if (payment.card) { payment.apple ??= payment.card; payment.google ??= payment.card; }
+  return { series: s("orderSeries"), retailTrdr: s("orderRetailTrdr"), payment, shippingMtrl: s("orderShippingMtrl") };
 }
 
-const r2 = (n: number) => Math.round(n * 100) / 100;
-
-export async function buildSaldoc(o: DocIn) {
-  const { data } = await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }));
-  const series = String(data.orderSeries ?? "").trim() || null;
-  const trdr = o.customerTrdr ?? (String(data.orderRetailTrdr ?? "").trim() || null);
-  const needs: string[] = [];
-  if (!series) needs.push("Σειρά παραστατικού (Ρυθμίσεις → SoftOne → Σειρά παραστατικού παραγγελίας e-shop)");
-  if (!trdr) needs.push("Πελάτης λιανικής για επισκέπτες (TRDR)");
-  const itelines = o.lines.map((l) => {
-    if (!l.erpCode) needs.push(`Κωδικός είδους για «${l.title}»`);
-    const codes = l.promotions.map((p) => `${p.code} v${p.version}`).join(" · ");
-    return {
-      MTRL: l.erpCode ? Number(l.erpCode) : null, QTY1: l.qty,
-      PRICE: r2(l.listPrice), NODSCLNVAL: r2(l.listPrice * l.qty),
-      ...(l.discPrice ? { DISC1VAL: r2(l.discPrice) } : {}), ...(l.discCoupon ? { DISC2VAL: r2(l.discCoupon) } : {}), ...(l.discPayment ? { DISC3VAL: r2(l.discPayment) } : {}),
-      ...(codes ? { COMMENTS: codes.slice(0, 255) } : {}), ...(l.terms ? { COMMENTS1: l.terms.slice(0, 2000) } : {}),
-    };
+export async function saldocForOrder(orderId: string, client: Client = db): Promise<SaldocDoc | null> {
+  const o = await client.order.findUnique({
+    where: { id: orderId },
+    select: {
+      number: true, fulfilment: true, paymentMethod: true, payment: { select: { method: true } }, guestEmail: true, shipping: true, invoice: true, shippingFee: true, total: true,
+      customer: { select: { email: true, erpTrdr: true, vatNumber: true } },
+      pickupStore: { select: { name: true, address: true, zip: true, city: true } },
+      lines: {
+        orderBy: { id: "asc" },
+        select: {
+          title: true, qty: true, listPrice: true, unitPrice: true, discPrice: true, discCoupon: true, discPayment: true, erpCode: true, isGift: true, promotions: true,
+          variant: { select: { product: { select: { vatRate: true } } } },
+          addons: { select: { price: true, service: { select: { title: true } } } },
+        },
+      },
+    },
   });
-  for (const s of o.services) {
-    if (!s.erpCode) needs.push(`Κωδικός είδους υπηρεσίας για «${s.title}» στο SoftOne`);
-    itelines.push({ MTRL: s.erpCode ? Number(s.erpCode) : null, QTY1: 1, PRICE: r2(s.price), NODSCLNVAL: r2(s.price), ...(s.discount ? { DISC1VAL: r2(s.discount) } : {}), ...(s.promo ? { COMMENTS: s.promo.slice(0, 255) } : {}) });
+  if (!o) return null;
+  const sh = (o.shipping ?? {}) as { firstName?: string; lastName?: string; email?: string; phone?: string; street?: string; number?: string; floor?: string; zip?: string; city?: string; region?: string; notes?: string; carrierName?: string; locker?: { name?: string; address?: string; zip?: string } };
+  const inv = (o.invoice ?? null) as { vatNumber?: string; doy?: string; company?: string } | null;
+
+  // όροι κάθε προσφοράς όπως ίσχυαν (για το COMMENTS1 της γραμμής)
+  type Promo = { promotionId?: string; code?: string; version?: number; kind?: string };
+  const promoIds = [...new Set(o.lines.flatMap((l) => ((l.promotions ?? []) as Promo[]).map((p) => p.promotionId).filter(Boolean) as string[]))];
+  const terms = new Map((promoIds.length ? await client.promotion.findMany({ where: { id: { in: promoIds } }, select: { id: true, termsText: true } }) : []).map((p) => [p.id, p.termsText]));
+
+  const lines: SaldocLine[] = [];
+  for (const l of o.lines) {
+    const promos = (l.promotions ?? []) as Promo[];
+    const n = (d: unknown) => Number(d ?? 0);
+    lines.push({
+      erpCode: l.erpCode, title: l.title, qty: l.qty, listPrice: n(l.listPrice ?? l.unitPrice),
+      discPrice: n(l.discPrice), discCoupon: n(l.discCoupon), discPayment: n(l.discPayment), vatRate: n(l.variant.product.vatRate) || 24,
+      promo: promos.map((p) => `${p.code} v${p.version}${l.isGift ? " · δώρο" : ""}`).join(" · ") || null,
+      terms: promos.map((p) => (p.promotionId ? terms.get(p.promotionId) : null)).filter(Boolean).join(" · ") || null,
+    });
+    // υπηρεσίες της γραμμής (εγκατάσταση, επέκταση εγγύησης κ.λπ.): δική τους γραμμή — ο κωδικός είδους ορίζεται ανά υπηρεσία
+    for (const a of l.addons) lines.push({ erpCode: null, title: a.service.title, qty: 1, listPrice: n(a.price), discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 });
   }
-  for (const g of o.gifts ?? []) {
-    if (!g.erpCode) needs.push(`Κωδικός είδους για το δώρο «${g.title}»`);
-    itelines.push({ MTRL: g.erpCode ? Number(g.erpCode) : null, QTY1: g.qty, PRICE: r2(g.value / g.qty), NODSCLNVAL: r2(g.value), DISC1VAL: r2(g.value), COMMENTS: `${g.promo} · δώρο`.slice(0, 255), ...(g.terms ? { COMMENTS1: g.terms.slice(0, 2000) } : {}) });
+
+  // τιμολόγιο: η καρτέλα του πελάτη στο SoftOne με αυτόν τον ΑΦΜ (του λογαριασμού ή άλλου πελάτη με τον ίδιο ΑΦΜ)
+  let invoiceTrdr: string | null = null;
+  if (inv?.vatNumber) {
+    const vat = inv.vatNumber.replace(/\D/g, "");
+    invoiceTrdr = o.customer?.erpTrdr && o.customer.vatNumber?.replace(/\D/g, "") === vat ? o.customer.erpTrdr
+      : (await client.customer.findFirst({ where: { vatNumber: vat, erpTrdr: { not: null } }, select: { erpTrdr: true } }))?.erpTrdr ?? null;
   }
-  return {
-    OBJECT: "SALDOC",
-    data: { SALDOC: [{ SERIES: series ? Number(series) : null, TRDR: trdr ? Number(trdr) : null, COMMENTS: `e-shop ${o.number}`.slice(0, 255), COMMENTS1: `${o.fulfilment} · ${o.payment} · ${o.email}`.slice(0, 255) }], ITELINES: itelines },
-    needs: [...new Set(needs)],
-  };
+
+  return composeSaldoc({
+    number: o.number, fulfilment: o.fulfilment, payment: o.payment?.method ?? o.paymentMethod ?? "", email: sh.email ?? o.customer?.email ?? o.guestEmail ?? null,
+    contact: { firstName: sh.firstName, lastName: sh.lastName, phone: sh.phone },
+    address: { street: sh.street, number: sh.number, floor: sh.floor, zip: sh.zip, city: sh.city, region: sh.region, notes: sh.notes },
+    carrierName: sh.carrierName ?? null, locker: sh.locker ?? null,
+    store: o.fulfilment === "click-collect" && o.pickupStore ? o.pickupStore : null,
+    invoice: inv, invoiceTrdr, lines, shippingFee: Number(o.shippingFee), total: Number(o.total),
+  }, await saldocSettings());
+}
+
+/** Ξαναχτίζει το προσχέδιο όσο δεν έχει σταλεί (π.χ. μετά από αλλαγή ρυθμίσεων). Επιστρέφει το νέο. */
+export async function refreshSaldocPreview(orderId: string): Promise<SaldocDoc | null> {
+  const doc = await saldocForOrder(orderId);
+  if (doc) await db.erpSync.updateMany({ where: { orderId, status: { in: ["preview", "awaiting-payment"] } }, data: { payload: doc as unknown as Prisma.InputJsonValue } });
+  return doc;
+}
+
+/**
+ * Έλεγχος στο ίδιο το SoftOne με την υπηρεσία `calculate`: υπολογίζει το παραστατικό ΧΩΡΙΣ να το αποθηκεύσει και
+ * επιστρέφει τα σύνολά του. Σύγκριση με το ποσό της παραγγελίας. Δεν γράφει τίποτα στο ERP.
+ */
+export async function checkSaldocInSoftone(orderId: string): Promise<{ ok: boolean; message: string }> {
+  const doc = await saldocForOrder(orderId);
+  if (!doc) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
+  if (doc.needs.length) return { ok: false, message: `Πρώτα συμπληρώστε: ${doc.needs.join(" · ")}` };
+  const { s1 } = await import("@/lib/softone");
+  const r = await s1("calculate", { OBJECT: "SALDOC", KEY: "", LOCATEINFO: "SALDOC:SUMAMNT,NETAMNT,VATAMNT;ITELINES:MTRL,QTY1,PRICE,LINEVAL,VATAMNT", data: doc.data });
+  if (!r?.success) return { ok: false, message: `Το SoftOne απέρριψε το παραστατικό: ${r?.error ?? r?.errorcode ?? "άγνωστο σφάλμα"}` };
+  const h = (r.data?.SALDOC?.[0] ?? {}) as Record<string, unknown>;
+  const sum = Math.round(Number(h.SUMAMNT ?? NaN) * 100) / 100;
+  if (!Number.isFinite(sum)) return { ok: false, message: "Το SoftOne δεν επέστρεψε σύνολο." };
+  const eurS = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+  return sum === doc.totals.expected
+    ? { ok: true, message: `Το SoftOne υπολογίζει ${eurS(sum)} (καθαρή αξία ${eurS(Number(h.NETAMNT))}, ΦΠΑ ${eurS(Number(h.VATAMNT))}) — ίδιο με την παραγγελία. Τίποτα δεν αποθηκεύτηκε.` }
+    : { ok: false, message: `Το SoftOne υπολογίζει ${eurS(sum)} ενώ η παραγγελία είναι ${eurS(doc.totals.expected)}. Τίποτα δεν αποθηκεύτηκε.` };
 }

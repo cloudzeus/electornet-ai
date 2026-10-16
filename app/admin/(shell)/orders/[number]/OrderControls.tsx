@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2, Mail, MoreHorizontal, Pin, PinOff, Printer, Send, Trash2, X } from "lucide-react";
 import { NOTIFY_ON, ORDER_STATUS, RETURN_ACTION, RETURN_NEXT, type OrderStatus } from "@/lib/orders/model";
-import { addNoteAction, changeStatusAction, deleteNoteAction, pinNoteAction, refundAction, resendConfirmationAction, returnStatusAction } from "../actions";
+import { addNoteAction, changeStatusAction, deleteNoteAction, erpCheckAction, pinNoteAction, refundAction, resendConfirmationAction, returnStatusAction } from "../actions";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 disabled:opacity-45";
 const field = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] outline-none focus:border-eu-blue";
@@ -166,5 +166,19 @@ export function RefundForm({ orderId, number, total }: { orderId: string; number
       </div>
       <div className="flex items-center gap-1.5"><Note m={msg} /><button type="button" onClick={() => setOpen(false)} className={`${btn} ml-auto border border-eu-line bg-white`}>Άκυρο</button><button type="submit" disabled={pending} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}>{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}Καταγραφή</button></div>
     </form>
+  );
+}
+
+/** «Έλεγχος στο SoftOne»: το SoftOne υπολογίζει το παραστατικό χωρίς να το αποθηκεύσει (calculate) — ταιριάζει το σύνολο; */
+export function ErpCheck({ orderId }: { orderId: string }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<Msg>(null);
+  return (
+    <div className="grid gap-1 print:hidden">
+      <button type="button" disabled={pending} onClick={() => start(async () => { const r = await erpCheckAction(orderId); setMsg({ ok: r.ok, text: r.message }); })} className={`${btn} justify-self-start border border-eu-line bg-white hover:border-eu-navy`} title="Το SoftOne υπολογίζει το παραστατικό χωρίς να το αποθηκεύσει">
+        {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Έλεγχος στο SoftOne
+      </button>
+      <Note m={msg} />
+    </div>
   );
 }

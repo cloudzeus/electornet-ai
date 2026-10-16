@@ -6,7 +6,7 @@ import { getCustomerSession } from "@/lib/account/session";
 import { currentCart, publicQuote, quoteCart } from "@/lib/cart/server";
 import { invalidatePromos } from "@/lib/promo/server";
 import { getServiceList } from "@/lib/services/catalog";
-import { buildSaldoc } from "@/lib/softone/order-doc";
+import { saldocForOrder } from "@/lib/softone/order-doc";
 import { getSetting } from "@/lib/settings/store";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
@@ -14,6 +14,9 @@ import { carrierDef } from "@/lib/shipping/carriers";
 import { isVivaPay } from "@/lib/payments/viva-core";
 import { vivaConfig } from "@/lib/payments/viva";
 import { paymentPagePath, startVivaPayment } from "@/lib/payments/order-payment";
+import { klarnaConfig } from "@/lib/payments/klarna";
+import { startKlarnaPayment } from "@/lib/payments/klarna-order";
+import { publicOrigin } from "@/lib/account/oauth-flow";
 
 /**
  * Ολοκλήρωση παραγγελίας. Ο server ξαναϋπολογίζει ΤΑ ΠΑΝΤΑ από την αρχή (τιμές, προσφορές, κουπόνι, μεταφορικά) — ο
@@ -77,14 +80,15 @@ export async function placeOrder(input: PlaceInput) {
 
   // όροι και έκδοση κάθε προσφοράς που εφαρμόστηκε (για το παραστατικό και το reporting)
   const appliedIds = [...new Set([...q.engine.lines.flatMap((l) => l.adjustments.map((a) => a.promotionId)), ...q.gifts.map((g) => g.promotionId), ...q.lines.flatMap((l) => l.addons.flatMap((a) => (a.free ? [a.free.promotionId] : []))), ...(q.freeShipping ? [q.freeShipping.promotionId] : [])])];
-  const promoRows = appliedIds.length ? await db.promotion.findMany({ where: { id: { in: appliedIds } }, select: { id: true, termsText: true, code: true, version: true } }) : [];
-  const termsOf = new Map(promoRows.map((p) => [p.id, p.termsText]));
+  const promoRows = appliedIds.length ? await db.promotion.findMany({ where: { id: { in: appliedIds } }, select: { id: true, code: true, version: true } }) : [];
   const services = await getServiceList();
   const svcBySlug = new Map(services.map((s) => [s.slug, s]));
   const usedSlugs = [...new Set(q.lines.flatMap((l) => l.addons.map((a) => a.slug)))];
 
   // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
-  const viva = isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
+  // Klarna με απευθείας σύμβαση (Ρυθμίσεις → Πληρωμές → Klarna «απευθείας»)· αλλιώς η Klarna πάει μέσω Viva
+  const klarna = input.payment === "klarna" && !input.dryRun ? await klarnaConfig() : null;
+  const viva = !klarna && isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
   let number = "";
   try {
     const result = await db.$transaction(async (tx) => {
@@ -108,7 +112,7 @@ export async function placeOrder(input: PlaceInput) {
           subtotal: eur(q.goods + q.addons), shippingFee: eur(q.shipping + q.codFee), vat: eur(q.vat), total: eur(q.total), discountTotal: eur(discountTotal),
           couponCode: q.coupon.applied, paymentMethod: input.payment,
           promoTrace: q.trace.map((t) => ({ code: t.code, name: t.name, applied: t.applied, amount: t.amount, reason: t.reason })) as Prisma.InputJsonValue,
-          payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1), ...(viva ? { psp: "viva" } : {}) } },
+          payment: { create: { method: input.payment, instalments: Math.max(1, input.instalments ?? 1), ...(viva ? { psp: "viva" } : klarna ? { psp: "klarna" } : {}) } },
         },
       });
       for (const l of q.engine.lines) {
@@ -151,19 +155,18 @@ export async function placeOrder(input: PlaceInput) {
         if (n !== 1) throw new Abort("Το κουπόνι μόλις χρησιμοποιήθηκε. Δοκίμασε χωρίς αυτό.");
       }
       // παραστατικό SoftOne: χτίζεται πάντα, αποθηκεύεται σε «προεπισκόπηση» — καμία κλήση στο ERP από εδώ
-      const doc = await buildSaldoc({
-        number, customerTrdr: me ? ((await tx.customer.findUnique({ where: { id: me.id }, select: { erpTrdr: true } }))?.erpTrdr ?? null) : null, email, fulfilment: input.fulfilment, payment: input.payment,
-        lines: q.engine.lines.map((l) => { const info = q.lines.find((x) => x.key === l.key)!; return { erpCode: info.erpCode, title: info.title, qty: l.qty, listPrice: l.unit / 100, discPrice: l.discPrice / 100, discCoupon: l.discCoupon / 100, discPayment: l.discPayment / 100, isGift: false, promotions: l.adjustments.map((a) => ({ code: a.code, version: a.version, kind: a.kind, label: a.label })), terms: l.adjustments.map((a) => termsOf.get(a.promotionId)).filter(Boolean).join(" · ") || null }; }),
-        services: q.lines.flatMap((l) => l.addons.map((a) => ({ slug: a.slug, title: a.title, price: (a.value * l.qty) / 100, discount: a.free ? (a.value * l.qty) / 100 : 0, promo: a.free ? `${a.free.code} v${a.free.version}` : null, erpCode: null }))),
-        gifts: q.gifts.map((g) => ({ erpCode: g.erpCode, title: g.title, qty: g.qty, value: g.value / 100, promo: `${g.code} v${g.version}`, terms: termsOf.get(g.promotionId) ?? null })),
-      });
+      const doc = await saldocForOrder(order.id, tx);
       const mode = String((await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }))).data.orderPush ?? "preview");
-      if (mode !== "off") await tx.erpSync.create({ data: { orderId: order.id, status: viva ? "awaiting-payment" : "preview", payload: doc as unknown as Prisma.InputJsonValue } });
+      if (mode !== "off") await tx.erpSync.create({ data: { orderId: order.id, status: viva || klarna ? "awaiting-payment" : "preview", payload: doc as unknown as Prisma.InputJsonValue } });
       await tx.cartLine.deleteMany({ where: { cartId: cart.id } });
       if (input.dryRun) throw Object.assign(new Abort("dry-run"), { preview: { number, quote: publicQuote(q), erp: doc } });
       return { orderId: order.id };
     }, { timeout: 20000 });
     invalidatePromos(); // οι μετρητές άλλαξαν
+    if (klarna) {
+      const redirect = await startKlarnaPayment(result.orderId, await publicOrigin()).catch(() => paymentPagePath(number, "&e=start"));
+      return { ok: true as const, number, total: q.total, nextCoupon: null, redirect };
+    }
     // Viva: ο πελάτης πάει στη σελίδα πληρωμής· το email φεύγει όταν επιβεβαιωθεί η πληρωμή (lib/payments/order-payment)
     if (viva && isVivaPay(input.payment)) {
       const redirect = await startVivaPayment(result.orderId, input.payment).catch(() => paymentPagePath(number, "&e=start"));

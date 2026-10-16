@@ -64,7 +64,7 @@ export const TEMPLATES: PromoTemplate[] = [
 
 export const MECHANISM_LABEL: Record<string, string> = Object.fromEntries(TEMPLATES.filter((t) => t.group !== "held").map((t) => [t.mechanism, t.title]));
 
-const PAY: Record<string, string> = { card: "κάρτα", "no-card": "δόσεις χωρίς κάρτα", iris: "IRIS", bank: "τραπεζική κατάθεση", cod: "αντικαταβολή", store: "πληρωμή στο κατάστημα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut" };
+const PAY: Record<string, string> = { card: "κάρτα", "no-card": "δόσεις χωρίς κάρτα", iris: "IRIS", tbi: "δόσεις χωρίς κάρτα (TBI)", klarna: "Klarna", bank: "τραπεζική κατάθεση", cod: "αντικαταβολή", store: "πληρωμή στο κατάστημα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut" };
 export const PAYMENT_OPTIONS = Object.entries(PAY).map(([value, label]) => ({ value, label }));
 const payNames = (codes: string[] = []) => codes.map((c) => PAY[c] ?? c).join(" ή ") || "—";
 

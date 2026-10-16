@@ -5,6 +5,7 @@ import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { getPublicSettings } from "@/lib/settings/store";
 import { enabledVivaPays } from "@/lib/payments/viva-core";
+import { klarnaConfig } from "@/lib/payments/klarna";
 import { paymentPagePath, validPaymentKey } from "@/lib/payments/order-payment";
 import { priceLong } from "@/lib/format";
 import { RetryPayment } from "@/components/checkout/RetryPayment";
@@ -14,14 +15,14 @@ export const dynamic = "force-dynamic";
 
 /**
  * Η σελίδα μιας online πληρωμής που δεν ολοκληρώθηκε (ή επιβεβαιώνεται ακόμη). Ανοίγει μόνο με τον υπογεγραμμένο
- * σύνδεσμο (k). Εκκρεμής παραγγελία → «Δοκίμασε ξανά» με όποιον τρόπο Viva· μετά από 24 ώρες ακυρώνεται αυτόματα.
+ * σύνδεσμο (k). Εκκρεμής παραγγελία → «Δοκίμασε ξανά» με όποιον τρόπο Viva ή Klarna· μετά από 24 ώρες ακυρώνεται αυτόματα.
  */
 export default async function PaymentPage({ searchParams }: { searchParams: Promise<{ no?: string; k?: string; e?: string; s?: string }> }) {
   const { no = "", k, e, s } = await searchParams;
   if (!no || !validPaymentKey(no, k)) notFound();
-  const [o, pub] = await Promise.all([
+  const [o, pub, klarna] = await Promise.all([
     db.order.findUnique({ where: { number: no }, select: { number: true, total: true, status: true, createdAt: true, payment: { select: { status: true, method: true } } } }),
-    getPublicSettings(),
+    getPublicSettings(), klarnaConfig(),
   ]);
   if (!o) notFound();
   const paid = o.payment?.status === "paid";
@@ -58,7 +59,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
                 {e === "start" ? "Η σελίδα πληρωμής δεν άνοιξε. " : "Η πληρωμή ακυρώθηκε ή δεν εγκρίθηκε — δεν χρεώθηκες. "}
                 Η παραγγελία <b>{o.number}</b> ({priceLong(Number(o.total))}) σε περιμένει μέχρι {until}.
               </p>
-              <RetryPayment number={o.number} k={k!} methods={enabledVivaPays(pub.payments ?? {})} current={o.payment?.method ?? "card"} />
+              <RetryPayment number={o.number} k={k!} methods={[...enabledVivaPays(pub.payments ?? {}), ...(klarna ? ["klarna"] : [])]} current={o.payment?.method ?? "card"} />
             </>
           )}
           <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Χρειάζεσαι βοήθεια; Κάλεσε στο 210 483 5143 με τον αριθμό παραγγελίας.</p>

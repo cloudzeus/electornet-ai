@@ -168,7 +168,7 @@ export function inScope(p: EnginePromo, l: Pick<EngineLine, "productId" | "varia
   return matches(p, l);
 }
 
-const PAY_LABEL: Record<string, string> = { card: "κάρτα", "no-card": "δόσεις χωρίς κάρτα", iris: "IRIS", bank: "τραπεζική κατάθεση", cod: "αντικαταβολή", store: "πληρωμή στο κατάστημα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut" };
+const PAY_LABEL: Record<string, string> = { card: "κάρτα", "no-card": "δόσεις χωρίς κάρτα", iris: "IRIS", tbi: "δόσεις χωρίς κάρτα (TBI)", klarna: "Klarna", bank: "τραπεζική κατάθεση", cod: "αντικαταβολή", store: "πληρωμή στο κατάστημα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut" };
 export const payLabel = (codes: string[] = []) => codes.map((c) => PAY_LABEL[c] ?? c).join(" ή ");
 
 /** Έκπτωση μονάδας μιας προσφοράς τιμής (λεπτά), ποτέ αρνητική ούτε πάνω από την τιμή. */

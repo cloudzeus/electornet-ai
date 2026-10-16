@@ -32,7 +32,7 @@ interface Saved {
   nextCoupon?: { code: string; value: string; until: string | null } | null;
 }
 
-const PAY: Record<string, string> = { card: "Κάρτα", "no-card": "Δόσεις χωρίς κάρτα (Eurobank)", iris: "IRIS", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Πληρωμή στο κατάστημα" };
+const PAY: Record<string, string> = { card: "Κάρτα", "no-card": "Δόσεις χωρίς κάρτα (Eurobank)", iris: "IRIS", tbi: "Δόσεις χωρίς κάρτα (TBI Bank)", klarna: "Klarna", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Πληρωμή στο κατάστημα" };
 
 /** Confirmation: number, what happens next, summary, tracking link, account prompt. */
 export function OrderSuccess({ number }: { number: string }) {

@@ -39,7 +39,7 @@ export interface Section {
   description: string;
   group: "store" | "checkout" | "customers" | "marketing" | "systems";
   /** server action name for a «Δοκιμή σύνδεσης» button */
-  test?: "softone" | "smtp" | "openrouter" | "bunny";
+  test?: "softone" | "smtp" | "openrouter" | "bunny" | "klarna";
   /** τι κάνει η δοκιμή, κάτω από το κουμπί */
   testHelp?: string;
   /** κάρτες της φόρμας, με τη σειρά· πεδία χωρίς group πάνε στην πρώτη */
@@ -224,8 +224,13 @@ export const SECTIONS: Section[] = [
       { key: "priceList", label: "Τιμοκατάλογος web", type: "text", placeholder: "π.χ. 1", width: "half", group: "items", help: "Ο τιμοκατάλογος του ERP από τον οποίο έρχονται οι τιμές του e-shop." },
       { key: "webFilter", label: "Φίλτρο ειδών web", type: "textarea", placeholder: "ITEM.WEBACTIVE=1", group: "items", help: "Φίλτρο του browser του SoftOne (μόνο «=», με & ανάμεσα), π.χ. ITEM.WEBACTIVE=1&ITEM.ISACTIVE=1." },
       { key: "orderPush", label: "Παραγγελίες προς SoftOne", type: "select", options: [{ value: "preview", label: "Μόνο προεπισκόπηση (προεπιλογή)" }, { value: "off", label: "Ανενεργό" }], help: "Στην προεπισκόπηση χτίζεται το παραστατικό αλλά ΔΕΝ στέλνεται. Η πραγματική αποστολή (setData SALDOC) ενεργοποιείται μόνο μετά από δοκιμή σε σειρά δοκιμών και ρητή έγκριση.", width: "half", group: "orders" },
-      { key: "orderSeries", label: "Σειρά παραστατικού παραγγελίας (SERIES)", type: "text", placeholder: "π.χ. 7021", help: "Από τον πελάτη / ERP. Χωρίς σειρά, το παραστατικό μένει σε προεπισκόπηση.", width: "half", group: "orders", rule: R.int },
-      { key: "orderRetailTrdr", label: "Πελάτης λιανικής για επισκέπτες (TRDR)", type: "text", placeholder: "π.χ. 12345", help: "Για παραγγελίες χωρίς κωδικό πελάτη στο SoftOne.", width: "half", group: "orders", rule: R.int },
+      { key: "orderSeries", label: "Σειρά παραστατικού παραγγελίας (SERIES)", type: "text", placeholder: "7005", help: "Η σειρά «ΠΑΡΑΓΓΕΛΙΑ e-Shop» που χρησιμοποιεί σήμερα το eshop είναι η 7005 (PES). Χωρίς σειρά, το παραστατικό μένει σε προεπισκόπηση.", width: "half", group: "orders", rule: R.int },
+      { key: "orderRetailTrdr", label: "Πελάτης λιανικής (TRDR)", type: "text", placeholder: "200", help: "Οι αποδείξεις γράφονται στον γενικό πελάτη 200 «ΠΕΛΑΤΗΣ ΛΙΑΝΙΚΗΣ»· όταν ζητηθεί τιμολόγιο, στην καρτέλα του πελάτη με τον ΑΦΜ του.", width: "half", group: "orders", rule: R.int },
+      { key: "orderShippingMtrl", label: "Είδος μεταφορικών (MTRL)", type: "text", placeholder: "π.χ. 103700", help: "Το είδος υπηρεσίας του SoftOne με το οποίο γράφονται τα μεταφορικά και η χρέωση αντικαταβολής. Το σημερινό eshop δεν χρεώνει μεταφορικά, οπότε το είδος πρέπει να το ορίσει το λογιστήριο.", width: "half", group: "orders", rule: R.int },
+      ...([
+        ["card", "Κάρτα (και Apple / Google Pay)", "1001"], ["no-card", "Δόσεις χωρίς κάρτα", "1004"], ["cod", "Αντικαταβολή", "1000"], ["bank", "Κατάθεση σε τράπεζα", "1003"],
+        ["paypal", "PayPal", "1002"], ["iris", "IRIS", ""], ["klarna", "Klarna", ""], ["tbi", "TBI Bank (δόσεις χωρίς κάρτα)", ""], ["store", "Πληρωμή στο κατάστημα", ""], ["revolut", "Revolut Pay", ""],
+      ] as const).map(([k, l, d]): Field => ({ key: `orderPay_${k}`, label: `Κωδικός πληρωμής: ${l}`, type: "text", placeholder: d || "π.χ. 1005", help: d ? `Κενό = ${d} (ο κωδικός που χρησιμοποιεί σήμερα το eshop).` : "Δεν υπάρχει ακόμη στο SoftOne — τον ορίζει το λογιστήριο (πίνακας «Τρόποι πληρωμής»).", width: "half", group: "orders", rule: R.int, advanced: true })),
     ],
   },
   {
@@ -233,9 +238,12 @@ export const SECTIONS: Section[] = [
     title: "Πληρωμές",
     description: "Πάροχος καρτών, wallets και εναλλακτικοί τρόποι πληρωμής.",
     group: "checkout",
+    test: "klarna",
+    testHelp: "Ελέγχει τα στοιχεία της Klarna (απευθείας σύμβαση): δημιουργεί μια δοκιμαστική session 1 € που λήγει μόνη της. Καμία χρέωση.",
     groups: [
       { key: "cards", title: "Πληρωμή με κάρτα", help: "Τα στοιχεία από το περιβάλλον του παρόχου. Ξεκίνα σε «Test» και γύρνα σε «Live» μόνο αφού ολοκληρωθεί μια δοκιμαστική αγορά.", guide: "Viva: στην πηγή πληρωμής (Online payments → Websites/Apps) βάλε Success URL https://<το site>/api/payments/viva/success και Failure URL https://<το site>/api/payments/viva/failure· στα Webhooks πρόσθεσε https://<το site>/api/webhooks/viva για «Transaction Payment Created» και «Transaction Failed»." },
       { key: "wallets", title: "Wallets & άλλοι τρόποι (μέσω Viva)", help: "Ο πελάτης τα διαλέγει στο checkout και η σελίδα της Viva ανοίγει κατευθείαν σε αυτά. Ο πελάτης που έχει πληρώσει με Viva σε άλλο κατάστημα βλέπει εκεί τις αποθηκευμένες κάρτες του. Apple Pay / Google Pay εμφανίζονται μόνο σε συσκευές που τα υποστηρίζουν." },
+      { key: "klarna", title: "Klarna — πληρωμή σε 3 άτοκες δόσεις", help: "Δύο τρόποι: μέσω Viva (χωρίς ξεχωριστή σύμβαση — ενεργοποιείται στον λογαριασμό της Viva) ή με απευθείας σύμβαση με την Klarna (δικά της στοιχεία API). Ο πελάτης εγκρίνεται στη σελίδα της Klarna· εμείς πληρωνόμαστε ολόκληρο το ποσό από την Klarna.", guide: "Απευθείας: Klarna Merchant Portal → Settings → Klarna API credentials → «Generate new credentials» (username τύπου K123456_… και password). Ξεκίνα σε «Test» (playground)." },
       { key: "cod", title: "Αντικαταβολή" },
       { key: "bank", title: "Κατάθεση σε τράπεζα", help: "Ο πελάτης βλέπει το IBAN μετά την παραγγελία και στο email επιβεβαίωσης." },
     ],
@@ -253,7 +261,13 @@ export const SECTIONS: Section[] = [
       yesNo("googlePay", "Google Pay", undefined, true),
       yesNo("paypal", "PayPal", "Μέσω Viva.", true),
       yesNo("iris", "IRIS", "Άμεσα από το e-banking, μέσω Viva. Η επιβεβαίωση μπορεί να αργήσει λίγα λεπτά.", true),
-      yesNo("klarna", "Klarna", "Πληρωμή σε δόσεις χωρίς κάρτα, μέσω Viva.", true),
+      yesNo("klarna", "Klarna στο checkout", "Πληρωμή σε 3 άτοκες δόσεις, χωρίς πιστωτική κάρτα.", true),
+      { key: "klarnaVia", label: "Πώς συνδέεται η Klarna", type: "select", public: true, group: "klarna", showIf: on("klarna"), width: "half", options: [{ value: "viva", label: "Μέσω Viva (χωρίς ξεχωριστή σύμβαση)" }, { value: "direct", label: "Απευθείας σύμβαση με την Klarna" }], help: "«Μέσω Viva»: η Klarna εμφανίζεται στη σελίδα πληρωμής της Viva — χρειάζεται μόνο ενεργοποίηση από τη Viva. «Απευθείας»: δικά σας στοιχεία API από την Klarna." },
+      { key: "klarnaMode", label: "Περιβάλλον Klarna", type: "select", group: "klarna", showIf: (v) => v.klarna === true && v.klarnaVia === "direct", width: "half", options: [{ value: "test", label: "Test / playground — καμία πραγματική χρέωση" }, { value: "live", label: "Live — πραγματικές χρεώσεις" }] },
+      { key: "klarnaUsername", label: "Klarna API username", type: "text", group: "klarna", showIf: (v) => v.klarna === true && v.klarnaVia === "direct", width: "half", placeholder: "K123456_abcdef123456", help: "Merchant Portal → Settings → Klarna API credentials." },
+      { key: "klarnaPassword", label: "Klarna API password", type: "secret", group: "klarna", showIf: (v) => v.klarna === true && v.klarnaVia === "direct", width: "half", help: "Φαίνεται μόνο μία φορά όταν δημιουργείται — αντέγραψέ το τότε." },
+      { key: "klarnaCapture", label: "Πότε χρεώνεται ο πελάτης", type: "select", group: "klarna", showIf: (v) => v.klarna === true && v.klarnaVia === "direct", width: "half", options: [{ value: "shipment", label: "Με την αποστολή / παραλαβή (προτείνεται)" }, { value: "immediate", label: "Αμέσως με την έγκριση" }], help: "Η Klarna ζητά χρέωση όταν φεύγει το προϊόν. Γίνεται αυτόματα όταν η παραγγελία γίνει «Στάλθηκε», «Έτοιμη για παραλαβή» ή «Παραδόθηκε»." },
+      yesNo("tbi", "Δόσεις χωρίς κάρτα — TBI Bank", "Μέσω Viva: ο πελάτης παίρνει χρηματοδότηση από την TBI Bank online· εσείς πληρώνεστε όλο το ποσό την επόμενη ημέρα. Ενεργοποιείται από τη Viva (Settings → API Access).", true),
       yesNo("revolutPay", "Revolut Pay", "Πληρωμή με τον λογαριασμό Revolut του πελάτη.", true),
       { key: "revolutApiKey", label: "Revolut merchant API key", type: "secret", group: "wallets", showIf: on("revolutPay"), help: "Revolut Business → Merchant → APIs → Production secret key." },
       yesNo("cod", "Αντικαταβολή", "Πληρωμή στον courier κατά την παράδοση.", true),
@@ -261,7 +275,7 @@ export const SECTIONS: Section[] = [
       { key: "codMax", label: "Μέγιστο ποσό αντικαταβολής", type: "number", public: true, width: "half", group: "cod", showIf: on("cod"), min: 0, step: 1, unit: "€", placeholder: "500", help: "Πάνω από αυτό η αντικαταβολή δεν προσφέρεται. Νόμιμο όριο μετρητών: 500 €." },
       yesNo("bankTransfer", "Κατάθεση σε τράπεζα", undefined, true),
       { key: "iban", label: "IBAN", type: "text", public: true, group: "bank", showIf: on("bankTransfer"), placeholder: "GR16 0110 1250 0000 0001 2300 695", rule: { re: /^GR(\s*\d){25}$/i, bad: "Ελληνικό IBAN: GR + 25 ψηφία" } },
-    ] as Field[]).map((f) => (["applePay", "googlePay", "paypal", "iris", "klarna", "revolutPay"].includes(f.key) ? { ...f, group: "wallets" } : f.key === "cod" ? { ...f, group: "cod" } : f.key === "bankTransfer" ? { ...f, group: "bank" } : f)),
+    ] as Field[]).map((f) => (f.key === "klarna" ? { ...f, group: "klarna" } : ["applePay", "googlePay", "paypal", "iris", "tbi", "revolutPay"].includes(f.key) ? { ...f, group: "wallets" } : f.key === "cod" ? { ...f, group: "cod" } : f.key === "bankTransfer" ? { ...f, group: "bank" } : f)),
   },
   {
     key: "shipping",

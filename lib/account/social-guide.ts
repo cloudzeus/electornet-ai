@@ -92,6 +92,7 @@ export function buildSocialGuide(input: { origin: string; providers?: GuideProvi
       ],
       errors: [
         { code: "AADSTS50011: The redirect URI … does not match", fix: `Πρόσθεσε ακριβώς ${cb("microsoft")} στο «Authentication» → πλατφόρμα Web.` },
+        { code: "«Το Client secret περιέχει κενά» (στον «Έλεγχο στοιχείων»)", fix: "Επικολλήθηκε όλη η γραμμή του Azure (Value, Secret ID, ημερομηνία). Αντίγραψε μόνο τη στήλη «Value» με το κουμπί αντιγραφής δίπλα της." },
         { code: "AADSTS7000215: Invalid client secret provided", fix: "Μπήκε το «Secret ID» αντί για το «Value», ή το secret έληξε. Φτιάξε νέο και αντίγραψε το «Value»." },
         { code: "AADSTS700016: Application … was not found in the directory", fix: "Το «Microsoft λογαριασμοί» της διαχείρισης δεν ταιριάζει με το «Supported account types» (π.χ. consumers ενώ η εφαρμογή είναι single tenant), ή λάθος Client ID." },
         { code: "unauthorized_client / «not enabled for consumers»", fix: "Η εφαρμογή δεν δέχεται προσωπικούς λογαριασμούς: άλλαξε το «Supported account types» (Authentication → Supported account types) ή διάλεξε το αντίστοιχο στη διαχείριση." },
