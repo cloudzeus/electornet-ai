@@ -1371,6 +1371,7 @@ model Order {
   erpSync       ErpSync?
   returns       Return[]
   shipments     Shipment[]
+  notes         OrderNote[]
   tracking      String?
   courier       String?
   createdAt     DateTime         @default(now())
@@ -1405,6 +1406,20 @@ model OrderLine {
   addons      OrderLineAddon[]
 
   @@index([orderId])
+}
+
+/// Εσωτερικές σημειώσεις του προσωπικού σε μια παραγγελία (δεν τις βλέπει ο πελάτης)
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  staffId   String?
+  staffName String?
+  text      String   @db.Text
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 model OrderLineAddon {

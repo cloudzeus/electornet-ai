@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { renderTemplate } from "@/lib/email/templates";
@@ -95,6 +96,14 @@ export async function sendConfirmation(orderId: string) {
   await sendMail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: o.id } });
 }
 
+/** Ακύρωση παραγγελίας: οι χρήσεις προσφορών (μετρητής + budget) και του κουπονιού επιστρέφουν. Μέσα σε transaction. */
+export async function rollbackPromos(tx: Prisma.TransactionClient, orderId: string, couponCode: string | null) {
+  const uses = await tx.promotionUsage.groupBy({ by: ["promotionId"], where: { orderId }, _sum: { amount: true } });
+  for (const u of uses) await tx.$executeRaw`UPDATE "Promotion" SET "usedCount" = GREATEST("usedCount" - 1, 0), "spentEur" = GREATEST("spentEur" - ${Number(u._sum.amount ?? 0)}, 0) WHERE id = ${u.promotionId}`;
+  await tx.promotionUsage.deleteMany({ where: { orderId } });
+  if (couponCode) await tx.$executeRaw`UPDATE "Coupon" SET "usedCount" = GREATEST("usedCount" - 1, 0) WHERE code = ${couponCode}`;
+}
+
 /**
  * Απλήρωτες online παραγγελίες μετά από `hours`: ακύρωση, επιστροφή χρήσεων προσφορών (μετρητής + budget) και κουπονιού,
  * καμία αποστολή στο ERP. Τρέχει από το cron.
@@ -106,10 +115,7 @@ export async function cancelUnpaidOnline(hours = 24) {
     await db.$transaction(async (tx) => {
       const n = await tx.order.updateMany({ where: { id: o.id, status: "pending" }, data: { status: "cancelled" } });
       if (n.count !== 1) return;
-      const uses = await tx.promotionUsage.groupBy({ by: ["promotionId"], where: { orderId: o.id }, _sum: { amount: true } });
-      for (const u of uses) await tx.$executeRaw`UPDATE "Promotion" SET "usedCount" = GREATEST("usedCount" - 1, 0), "spentEur" = GREATEST("spentEur" - ${Number(u._sum.amount ?? 0)}, 0) WHERE id = ${u.promotionId}`;
-      await tx.promotionUsage.deleteMany({ where: { orderId: o.id } });
-      if (o.couponCode) await tx.$executeRaw`UPDATE "Coupon" SET "usedCount" = GREATEST("usedCount" - 1, 0) WHERE code = ${o.couponCode}`;
+      await rollbackPromos(tx, o.id, o.couponCode);
       await tx.payment.update({ where: { orderId: o.id }, data: { status: "cancelled" } });
       await tx.erpSync.deleteMany({ where: { orderId: o.id, status: "awaiting-payment" } });
     });

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-13T07:29:27.942Z",
+ "generatedAt": "2026-10-16T10:03:10.755Z",
  "routes": [
   {
    "route": "/admin",
@@ -21,6 +21,11 @@
     "dash.card"
    ],
    "changes": [
+    {
+     "hash": "8f953ca",
+     "date": "2026-10-13T18:54:42+03:00",
+     "text": "Ταχύτητα: το mega menu (9 λίστες προϊόντων σε ΚΑΘΕ σελίδα του shop"
+    },
     {
      "hash": "b97e8e9",
      "date": "2026-10-11T03:08:55+03:00",
@@ -65,14 +70,9 @@
      "hash": "d73bc06",
      "date": "2026-09-13T12:11:50+03:00",
      "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
-    },
-    {
-     "hash": "5e2365e",
-     "date": "2026-09-13T11:31:18+03:00",
-     "text": "Settings & integrations module (super-admin only): schema-driven sections (general, social, social login, analytics/pixels, SoftOne ERP, payments, shipping, Bunny CDN, email/SMS, AI), AES-256-GCM secrets, connection t…"
     }
    ],
-   "updatedAt": "2026-10-11T03:08:55+03:00",
+   "updatedAt": "2026-10-13T18:54:42+03:00",
    "shots": {
     "desktop": "/api/help-shot/dashboard-d.jpg",
     "mobile": "/api/help-shot/dashboard-m.jpg"
@@ -149,6 +149,11 @@
    ],
    "changes": [
     {
+     "hash": "06fa557",
+     "date": "2026-10-13T10:29:46+03:00",
+     "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
+    },
+    {
      "hash": "bd7141e",
      "date": "2026-10-13T10:12:23+03:00",
      "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
@@ -159,7 +164,7 @@
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-10-13T10:12:23+03:00",
+   "updatedAt": "2026-10-13T10:29:46+03:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
     "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
@@ -305,7 +310,7 @@
    "slug": "catalog",
    "file": "app/admin/(shell)/catalog/page.tsx",
    "title": "Κατάλογος",
-   "doc": "Τα προϊόντα του καταστήματος (προβολή του SoftOne). Από εδώ ανοίγει η καρτέλα κάθε προϊόντος για τις φωτογραφίες του.",
+   "doc": "",
    "perm": "catalog.products.read",
    "nav": {
     "group": "Κατάλογος",
@@ -321,6 +326,11 @@
     "product.promo-picker"
    ],
    "changes": [
+    {
+     "hash": "8f953ca",
+     "date": "2026-10-13T18:54:42+03:00",
+     "text": "Ταχύτητα: το mega menu (9 λίστες προϊόντων σε ΚΑΘΕ σελίδα του shop"
+    },
     {
      "hash": "f5e1d3a",
      "date": "2026-10-11T11:54:13+03:00",
@@ -365,14 +375,9 @@
      "hash": "8a5a468",
      "date": "2026-10-04T09:27:41+03:00",
      "text": "Καρτέλα προϊόντος: banners κατασκευαστή (ανέβασμα, βιβλιοθήκη, σειρά, απόκρυψη) και απόδελτίωση στην ίδια ενότητα"
-    },
-    {
-     "hash": "413b738",
-     "date": "2026-10-04T09:19:04+03:00",
-     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
     }
    ],
-   "updatedAt": "2026-10-11T11:54:13+03:00",
+   "updatedAt": "2026-10-13T18:54:42+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -394,6 +399,16 @@
     "product.tabs"
    ],
    "changes": [
+    {
+     "hash": "9b7e9bf",
+     "date": "2026-10-13T20:12:49+03:00",
+     "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)"
+    },
+    {
+     "hash": "77eccbf",
+     "date": "2026-10-13T19:24:29+03:00",
+     "text": "Διαχείριση: Πελάτες"
+    },
     {
      "hash": "a5eea75",
      "date": "2026-10-11T11:19:28+03:00",
@@ -433,19 +448,9 @@
      "hash": "d3615a8",
      "date": "2026-10-10T09:25:07+03:00",
      "text": "AR διαχείριση: συμπαγείς γραμμές με κατάσταση και διακόπτη, ρυθμίσεις σε ανάπτυξη (επιφάνεια με εικονίδια, πρόσοψη από μικρογραφίες, 3D μοντέλο χωριστά), πλακίδια-φίλτρα"
-    },
-    {
-     "hash": "d955445",
-     "date": "2026-10-10T09:17:44+03:00",
-     "text": "AR: χωρίς διαστάσεις προϊόντος δεν υπάρχει AR (ούτε τυπικές κατηγορίας ή διαγώνιος τίτλου) + επιλογή κατηγοριών που συμμετέχουν από τη διαχείριση"
-    },
-    {
-     "hash": "75e0c5c",
-     "date": "2026-10-10T09:11:05+03:00",
-     "text": "Σελίδα προϊόντος: χώρος εργασίας με ετοιμότητα, 5 καρτέλες (?tab=), κάρτα όπως στο site και ενεργειακή ετικέτα με αναζήτηση EPREL"
     }
    ],
-   "updatedAt": "2026-10-11T11:19:28+03:00",
+   "updatedAt": "2026-10-13T20:12:49+03:00",
    "shots": {}
   },
   {
@@ -1048,6 +1053,16 @@
    ],
    "changes": [
     {
+     "hash": "9b7e9bf",
+     "date": "2026-10-13T20:12:49+03:00",
+     "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)"
+    },
+    {
+     "hash": "d62f895",
+     "date": "2026-10-13T19:20:04+03:00",
+     "text": "Αρχική: «Προσφορά ημέρας» και «Προσφορές της εβδομάδας» (ίδιες για όλους) σε κοινή μνήμη 1′ με ανανέωση στο παρασκήνιο"
+    },
+    {
      "hash": "5de9181",
      "date": "2026-10-11T13:42:07+03:00",
      "text": "Hero slides (ui-ux-pro-max): λεπτή κεφαλίδα με κατάσταση (δημοσιευμένο / πρόχειρο με αλλαγές / μη αποθηκευμένες), «Στο site», «Ακύρωση», ζωντανό «Έλεγχος» με λίστα λαθών που ανοίγει το slide και την καρτέλα, αποθήκευσ…"
@@ -1086,19 +1101,9 @@
      "hash": "d8d149c",
      "date": "2026-10-09T18:18:31+03:00",
      "text": "Hero slides: απλούστερος επεξεργαστής"
-    },
-    {
-     "hash": "bf927aa",
-     "date": "2026-10-09T18:08:19+03:00",
-     "text": "Hero slides: επεξεργαστής με πρόχειρο/δημοσίευση, κατάσταση ανά slide και ζωντανή προεπισκόπηση"
-    },
-    {
-     "hash": "788fa25",
-     "date": "2026-10-09T18:07:39+03:00",
-     "text": "Hero slides: server actions (αποθήκευση, δημοσίευση με επικύρωση, επαναφορά, αναζήτηση προϊόντων)"
     }
    ],
-   "updatedAt": "2026-10-11T13:42:07+03:00",
+   "updatedAt": "2026-10-13T20:12:49+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.slides-d.jpg",
     "mobile": "/api/help-shot/cms.slides-m.jpg"
@@ -1109,7 +1114,7 @@
    "slug": "customers",
    "file": "app/admin/(shell)/customers/page.tsx",
    "title": "Πελάτες",
-   "doc": "Πελάτες: KPIs, αναζήτηση, φίλτρα με πλήθη, τοποθεσία (αναδιπλούμενη), και πυκνή λίστα όπου κάθε γραμμή ανοίγει σε όλη την εικόνα του πελάτη (στοιχεία, αγορές e-shop & SoftOne, αιτήματα, εγγυήσεις, πόντοι & συναινέσεις, SoftOne).",
+   "doc": "",
    "perm": "customers.read",
    "nav": {
     "group": "Πωλήσεις & πελάτες",
@@ -1127,6 +1132,11 @@
     "customers.location"
    ],
    "changes": [
+    {
+     "hash": "77eccbf",
+     "date": "2026-10-13T19:24:29+03:00",
+     "text": "Διαχείριση: Πελάτες"
+    },
     {
      "hash": "d29568e",
      "date": "2026-10-11T10:38:47+03:00",
@@ -1171,14 +1181,9 @@
      "hash": "55460cd",
      "date": "2026-10-04T11:35:35+03:00",
      "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
-    },
-    {
-     "hash": "e8cc364",
-     "date": "2026-09-14T16:15:12+03:00",
-     "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
     }
    ],
-   "updatedAt": "2026-10-11T10:38:47+03:00",
+   "updatedAt": "2026-10-13T19:24:29+03:00",
    "shots": {}
   },
   {
@@ -1526,6 +1531,77 @@
     }
    ],
    "updatedAt": "2026-09-13T18:58:12+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/orders",
+   "slug": "orders",
+   "file": "app/admin/(shell)/orders/page.tsx",
+   "title": "Παραγγελίες",
+   "doc": "Παραγγελίες (ui-ux-pro-max): λεπτή κεφαλίδα, σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη, φίλτρα στη διεύθυνση (κοινοποιούνται / μένουν στο «πίσω»), πυκνός πίνακας με επιλογή και μαζικές ενέργειες, κάρτες στο κινητό.",
+   "perm": "orders.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Παραγγελίες"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "orders.filters",
+    "orders.list",
+    "orders.bulk",
+    "order.header",
+    "order.progress",
+    "order.lines",
+    "order.payment",
+    "order.delivery",
+    "order.returns",
+    "order.customer",
+    "order.address",
+    "order.invoice",
+    "order.erp",
+    "order.notes",
+    "order.history",
+    "order.promos",
+    "orders.header",
+    "orders.kpi",
+    "orders.views"
+   ],
+   "changes": [
+    {
+     "hash": "06fa557",
+     "date": "2026-10-13T10:29:46+03:00",
+     "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
+    }
+   ],
+   "updatedAt": "2026-10-13T10:29:46+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/orders/[number]",
+   "slug": "orders.number",
+   "file": "app/admin/(shell)/orders/[number]/page.tsx",
+   "title": "[number]",
+   "doc": "",
+   "perm": "orders.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "order.header",
+    "order.progress",
+    "order.lines",
+    "order.payment",
+    "order.delivery",
+    "order.returns",
+    "order.customer",
+    "order.address",
+    "order.invoice",
+    "order.erp",
+    "order.notes",
+    "order.history",
+    "order.promos"
+   ],
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -2976,6 +3052,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "9b7e9bf",
+     "date": "2026-10-13T20:12:49+03:00",
+     "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)"
+    },
+    {
      "hash": "bd83367",
      "date": "2026-10-04T12:11:34+03:00",
      "text": "Καταστήματα (admin): λίστα και χάρτης δίπλα-δίπλα στο ύψος της οθόνης, φίλτρα σε μία γραμμή με επιλογή νομού, χάρτης που εστιάζει στα καταστήματα"
@@ -2986,7 +3067,7 @@
      "text": "Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode …"
     }
    ],
-   "updatedAt": "2026-10-04T12:11:34+03:00",
+   "updatedAt": "2026-10-13T20:12:49+03:00",
    "shots": {
     "desktop": "/api/help-shot/stores-d.jpg",
     "mobile": "/api/help-shot/stores-m.jpg"
@@ -3040,6 +3121,68 @@
   }
  ],
  "recent": [
+  {
+   "hash": "b8488d0",
+   "date": "2026-10-14T11:55:04+03:00",
+   "text": "PgBouncer: μέσω της θύρας 6432 η εφαρμογή ανοίγει έως 25 συνδέσεις ανά διεργασία (απευθείας στη 5432 μένει 8)",
+   "routes": []
+  },
+  {
+   "hash": "9b7e9bf",
+   "date": "2026-10-13T20:12:49+03:00",
+   "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/stores"
+   ]
+  },
+  {
+   "hash": "77eccbf",
+   "date": "2026-10-13T19:24:29+03:00",
+   "text": "Διαχείριση: Πελάτες",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/customers"
+   ]
+  },
+  {
+   "hash": "d62f895",
+   "date": "2026-10-13T19:20:04+03:00",
+   "text": "Αρχική: «Προσφορά ημέρας» και «Προσφορές της εβδομάδας» (ίδιες για όλους) σε κοινή μνήμη 1′ με ανανέωση στο παρασκήνιο",
+   "routes": [
+    "/admin",
+    "/admin/cms/slides"
+   ]
+  },
+  {
+   "hash": "50c1233",
+   "date": "2026-10-13T18:56:27+03:00",
+   "text": "Ευρετήριο Media(productId, kind, hidden): ο έλεγχος «έχει ορατή φωτογραφία» σε κάθε λίστα και μέτρηση του καταλόγου διαβάζει μόνο το ευρετήριο (457 → 39 ms στη βάση)",
+   "routes": []
+  },
+  {
+   "hash": "8f953ca",
+   "date": "2026-10-13T18:54:42+03:00",
+   "text": "Ταχύτητα: το mega menu (9 λίστες προϊόντων σε ΚΑΘΕ σελίδα του shop",
+   "routes": [
+    "/admin",
+    "/admin/catalog"
+   ]
+  },
+  {
+   "hash": "06fa557",
+   "date": "2026-10-13T10:29:46+03:00",
+   "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/apostoles/vouchers"
+   ]
+  },
   {
    "hash": "bd7141e",
    "date": "2026-10-13T10:12:23+03:00",
@@ -3315,72 +3458,6 @@
    "routes": [
     "/admin"
    ]
-  },
-  {
-   "hash": "95418fc",
-   "date": "2026-10-11T02:17:12+03:00",
-   "text": "Dashboard ανά ρόλο («πανόπτης»): καρτέλες (Επισκόπηση με τις καρφιτσωμένες κάρτες, Λειτουργία, Πωλήσεις & Προσφορές, Κατάλογος & Περιεχόμενο, Πελάτες, Σύστημα) με μετρητή για ό,τι θέλει ενέργεια",
-   "routes": [
-    "/admin"
-   ]
-  },
-  {
-   "hash": "7594df1",
-   "date": "2026-10-11T01:49:25+03:00",
-   "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα",
-   "routes": [
-    "/admin",
-    "/admin/cms/brand-stores",
-    "/admin/cms/brand-stores/[slug]",
-    "/admin/cms/home"
-   ]
-  },
-  {
-   "hash": "7fa3685",
-   "date": "2026-10-10T20:58:19+03:00",
-   "text": "Ζώνες αρχικής, πιο εύκολη και γρήγορη διαχείριση: πιο καθαρός χάρτης (μία γραμμή, κείμενο μόνο όταν κάτι διαφέρει) με σημάδια για κενές ζώνες, λήξεις και ελέγχους",
-   "routes": [
-    "/admin",
-    "/admin/cms/brand-stores",
-    "/admin/cms/home"
-   ]
-  },
-  {
-   "hash": "14626d3",
-   "date": "2026-10-10T20:18:36+03:00",
-   "text": "Οδηγοί αγοράς στην αρχική: δύο λίστες μέσα στην ενότητα (έξυπνοι οδηγοί της σκούρας ζώνης, άρθρα οδηγών) με σύρσιμο ή βέλη για τη σειρά, μάτι για ορατό/κρυφό (μένει αποθηκευμένο), αρίθμηση ορατών",
-   "routes": [
-    "/admin",
-    "/admin/cms/home"
-   ]
-  },
-  {
-   "hash": "2c989af",
-   "date": "2026-10-10T20:10:24+03:00",
-   "text": "Καμπάνιες κατασκευαστών: γραμμές με μικρογραφία, σύρσιμο ή βέλη για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη), άνοιγμα για επεξεργασία",
-   "routes": []
-  },
-  {
-   "hash": "f564624",
-   "date": "2026-10-10T19:54:40+03:00",
-   "text": "Αρχική → Υπηρεσίες: όλες οι υπηρεσίες σε λίστα μέσα στην ενότητα, σύρσιμο ή βέλη για τη σειρά στην αρχική, μάτι για ορατή/κρυφή, μετρητής ορατών (προτείνονται 3/6/9), σύνδεσμος προς Εμπόριο → Υπηρεσίες",
-   "routes": [
-    "/admin",
-    "/admin/cms/home"
-   ]
-  },
-  {
-   "hash": "8fc17d3",
-   "date": "2026-10-10T19:26:28+03:00",
-   "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)",
-   "routes": [
-    "/admin",
-    "/admin/cms/slides",
-    "/admin/prosfores",
-    "/admin/prosfores/[id]",
-    "/admin/prosfores/new",
-    "/admin/ypiresies"
-   ]
   }
  ],
  "helpKeys": {
@@ -3464,6 +3541,63 @@
   ],
   "customers.filters": [
    "app/admin/(shell)/customers/page.tsx"
+  ],
+  "orders.filters": [
+   "app/admin/(shell)/orders/OrderFilters.tsx"
+  ],
+  "orders.list": [
+   "app/admin/(shell)/orders/OrdersTable.tsx"
+  ],
+  "orders.bulk": [
+   "app/admin/(shell)/orders/OrdersTable.tsx"
+  ],
+  "order.header": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.progress": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.lines": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.payment": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.delivery": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.returns": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.customer": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.address": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.invoice": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.erp": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.notes": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.history": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "order.promos": [
+   "app/admin/(shell)/orders/[number]/OrderView.tsx"
+  ],
+  "orders.header": [
+   "app/admin/(shell)/orders/page.tsx"
+  ],
+  "orders.kpi": [
+   "app/admin/(shell)/orders/page.tsx"
+  ],
+  "orders.views": [
+   "app/admin/(shell)/orders/page.tsx"
   ],
   "promo.perf": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
