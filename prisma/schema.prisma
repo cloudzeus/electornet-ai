@@ -1544,14 +1544,39 @@ model Widget {
   @@index([zoneId, sortNo])
 }
 
+/// Καμπάνια: φάκελος προσφορών, landing pages και banners με κοινές ημερομηνίες, budget και έγκριση
+/// (docs/superpowers/specs/2026-10-16-campaigns-approval-design.md). Λογική στο lib/promo/campaign-core.ts.
 model Campaign {
-  id       String   @id @default(cuid())
-  slug     String   @unique
-  title    String
-  startsAt DateTime
+  id          String         @id @default(cuid())
+  /// = ο κωδικός σε πεζά (κοινά URLs / tags)
+  slug        String         @unique
+  /// KAM-2026-007
+  code        String?        @unique
+  title       String
+  /// sales | clearance | acquisition | launch | seasonal
+  goal        String         @default("sales")
+  brief       String?        @db.Text
+  startsAt    DateTime
   /// Real expiry — the same value drives every countdown (Omnibus).
-  endsAt   DateTime
-  tagSlug  String?
+  endsAt      DateTime
+  /// draft | review | approved | scheduled | live | paused | ended | archived | rejected
+  status      String         @default("draft")
+  /// μέγιστο κόστος εκπτώσεων (€)
+  budgetEur   Decimal?       @db.Decimal(12, 2)
+  ownerId     String?
+  createdById String?
+  version     Int            @default(1)
+  /// απαιτούμενα επίπεδα έγκρισης τη στιγμή της υποβολής (Φάση 2)
+  approvals   Json?
+  submittedAt DateTime?
+  tagSlug     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  promotions  Promotion[]
+  landings    LandingPage[]
+  ads         AdPlacement[]
+
+  @@index([status, startsAt, endsAt])
 }
 
 model Guide {
@@ -2301,8 +2326,11 @@ model Promotion {
   versions       PromotionVersion[]
   coupons        Coupon[]
   usages         PromotionUsage[]
+  campaignId     String?
+  campaign       Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([status, startsAt, endsAt])
+  @@index([campaignId])
 }
 
 /// Αμετάβλητο στιγμιότυπο κάθε έκδοσης: οι παραγγελίες δείχνουν τους όρους με τους οποίους έγιναν
@@ -2422,8 +2450,11 @@ model LandingPage {
   createdById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([status])
+  @@index([campaignId])
 }
 
 /// Διαφημιστική θέση (banner) σε συγκεκριμένο σημείο της βιτρίνας. Αν είναι δεμένη με προσφορά, φαίνεται μόνο όσο
@@ -2451,8 +2482,11 @@ model AdPlacement {
   createdById String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([slot, status])
+  @@index([campaignId])
 }
 
 /// Κοινό πελατών (segment): κανόνες που υπολογίζονται κάθε φορά από τα δεδομένα του πελάτη — όποιος καλύψει

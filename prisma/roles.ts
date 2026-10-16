@@ -31,6 +31,18 @@ export const ROLES: { key: string; name: string; description: string; system?: b
     permissions: ["cms.*", "marketing.*", "catalog.products.read", "catalog.promos.write", "reports.read"],
   },
   {
+    key: "commercial-director",
+    name: "Εμπορική διεύθυνση",
+    description: "Προσφορές και καμπάνιες· εμπορική έγκριση (έκπτωση, προϊόντα, ημερομηνίες).",
+    permissions: ["catalog.promos.write", "catalog.promos.approve", "catalog.products.read", "reports.read"],
+  },
+  {
+    key: "finance-director",
+    name: "Οικονομική διεύθυνση",
+    description: "Οικονομική έγκριση καμπανιών (budget, χρηματοδότηση, τρόποι πληρωμής, κάτω από κόστος) και αναφορές.",
+    permissions: ["catalog.promos.approve-finance", "catalog.products.read", "reports.read"],
+  },
+  {
     key: "editor",
     name: "Editor",
     description: "Περιεχόμενο: κείμενα, σελίδες, νέα, slides, brand stores, web πεδία προϊόντων. Χωρίς δημοσίευση.",
