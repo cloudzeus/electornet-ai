@@ -7,8 +7,8 @@ import { Area, LinkField, MediaUrl, Txt } from "./brand/fields";
 export type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string; hidden?: boolean };
 
 /**
- * Καμπάνιες κατασκευαστών: γραμμές με μικρογραφία, σύρσιμο (ή βέλη) για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη),
- * άνοιγμα για επεξεργασία (εικόνα, μάρκα, τίτλος, κείμενο, κουμπί, σύνδεσμος, alt), «Νέα καμπάνια».
+ * Key visuals κατασκευαστών (αρχική): γραμμές με μικρογραφία, σύρσιμο (ή βέλη) για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη),
+ * άνοιγμα για επεξεργασία (εικόνα, μάρκα, τίτλος, κείμενο, κουμπί, σύνδεσμος, alt), «Νέο key visual».
  */
 export function CampaignsField({ value, onChange, label, help }: { value: unknown; onChange: (l: Campaign[]) => void; label: string; help?: string }) {
   const list = ((Array.isArray(value) ? value : []) as Campaign[]).map((c) => ({ ...c }));
@@ -43,21 +43,21 @@ export function CampaignsField({ value, onChange, label, help }: { value: unknow
               </div>
               {isOpen && (
                 <div className="grid gap-3 border-t border-eu-line p-3">
-                  <MediaUrl label="Εικόνα (key visual)" value={c.image} onChange={(v) => upd(i, { image: v })} help="Οριζόντια εικόνα της καμπάνιας, από τα Media ή τα προϊόντα." />
+                  <MediaUrl label="Εικόνα (key visual)" value={c.image} onChange={(v) => upd(i, { image: v })} help="Οριζόντια εικόνα του key visual, από τα Media ή τα προϊόντα." />
                   <Txt label="Μάρκα" value={c.brand} onChange={(v) => upd(i, { brand: v })} max={30} />
                   <Txt label="Τίτλος" value={c.title} onChange={(v) => upd(i, { title: v })} max={60} />
                   <Area label="Κείμενο" value={c.text} onChange={(v) => upd(i, { text: v })} max={160} rows={2} />
                   <Txt label="Κουμπί" value={c.cta} onChange={(v) => upd(i, { cta: v })} max={40} />
                   <LinkField label="Σύνδεσμος" value={c.href} onChange={(v) => upd(i, { href: v })} />
                   <Txt label="Περιγραφή εικόνας (alt)" value={c.alt} onChange={(v) => upd(i, { alt: v })} max={120} help="Για προσβασιμότητα και Google." />
-                  <button type="button" onClick={() => { if (window.confirm("Οριστική διαγραφή της καμπάνιας; (Για να μη φαίνεται χωρίς να χαθεί, πάτα το μάτι.)")) { onChange(list.filter((_, k) => k !== i)); setOpen(null); } }} className="justify-self-end inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 text-eu-red font-bold text-[length:var(--fs-14)] hover:bg-eu-red/10"><Trash2 className="size-4" aria-hidden /> Διαγραφή</button>
+                  <button type="button" onClick={() => { if (window.confirm("Οριστική διαγραφή του key visual; (Για να μη φαίνεται χωρίς να χαθεί, πάτα το μάτι.)")) { onChange(list.filter((_, k) => k !== i)); setOpen(null); } }} className="justify-self-end inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 text-eu-red font-bold text-[length:var(--fs-14)] hover:bg-eu-red/10"><Trash2 className="size-4" aria-hidden /> Διαγραφή</button>
                 </div>
               )}
             </li>
           );
         })}
       </ol>
-      <button type="button" onClick={() => { const id = `c-${Date.now().toString(36)}`; onChange([...list, { id, brand: "", title: "", text: "", cta: "Δες περισσότερα", href: "/prosfores", image: "", alt: "" }]); setOpen(id); }} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Νέα καμπάνια</button>
+      <button type="button" onClick={() => { const id = `c-${Date.now().toString(36)}`; onChange([...list, { id, brand: "", title: "", text: "", cta: "Δες περισσότερα", href: "/prosfores", image: "", alt: "" }]); setOpen(id); }} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Plus className="size-4" aria-hidden /> Νέο key visual</button>
     </div>
   );
 }

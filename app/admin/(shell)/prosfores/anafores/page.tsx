@@ -21,7 +21,7 @@ const Empty = () => <p className="m-0 grid place-items-center min-h-32 rounded-x
 
 /**
  * Αναφορές προσφορών: KPIs με σύγκριση με την προηγούμενη περίοδο, παραγγελίες και έκπτωση ανά ημέρα, απόδοση ανά
- * καμπάνια (έσοδα ανά 1 € έκπτωσης), ανά μηχανισμό, κουπόνια, διαφημιστικές θέσεις, προϊόντα και παραστατικά.
+ * προσφορά (έσοδα ανά 1 € έκπτωσης), ανά μηχανισμό, κουπόνια, διαφημιστικές θέσεις, προϊόντα και παραστατικά.
  * Πηγή: PromotionUsage (γράφεται στη συναλλαγή της παραγγελίας) + γραμμές παραγγελίας + μετρητές banners.
  */
 export default async function PromoReportsPage({ searchParams }: { searchParams: Promise<{ d?: string; promo?: string }> }) {
@@ -48,7 +48,7 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
   ]);
   const lineById = new Map(lines.map((l) => [l.id, l]));
 
-  // ανά καμπάνια, ανά μηχανισμό, ανά κουπόνι, ανά προϊόν
+  // ανά προσφορά, ανά μηχανισμό, ανά κουπόνι, ανά προϊόν
   type Row = { id: string; name: string; code: string; mechanism: string; orders: Set<string>; amount: number; revenue: number; units: number };
   const byPromo = new Map<string, Row>(), byMech = new Map<string, number>(), byCoupon = new Map<string, { uses: number; amount: number }>(), byProduct = new Map<string, number>();
   for (const u of usages) {
@@ -78,9 +78,9 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
         actions={
           <form className="flex flex-wrap items-center gap-2" data-help="promo.report.filters">
             <input type="hidden" name="d" value={days} />
-            <label className="sr-only" htmlFor="rp-promo">Καμπάνια</label>
+            <label className="sr-only" htmlFor="rp-promo">Προσφορά</label>
             <select id="rp-promo" name="promo" defaultValue={promo} className="rounded-full border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-14)] max-w-[16rem]">
-              <option value="">Όλες οι καμπάνιες</option>
+              <option value="">Όλες οι προσφορές</option>
               {promoRow && !campaigns.some((c) => c.id === promoRow.id) && <option value={promoRow.id}>{promoRow.name}</option>}
               {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -97,7 +97,7 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
         <KpiTile label="Έκπτωση που δόθηκε" value={eur0(stats.total.discount)} delta={delta(stats.total.discount, stats.prev.discount, "down")} trend={stats.discount} />
         <KpiTile label="Παραγγελίες με προσφορά" value={n(stats.total.orders)} sub={ordersAll ? `${share} % όλων (πριν ${Math.round(prevShare)} %)` : "καμία παραγγελία"} delta={delta(stats.total.orders, stats.prev.orders)} trend={stats.orders} />
         <KpiTile label="Έσοδα γραμμών σε προσφορά" value={eur0(revenue)} sub={stats.total.discount ? `${(revenue / stats.total.discount).toLocaleString("el-GR", { maximumFractionDigits: 1 })} € έσοδα ανά 1 € έκπτωσης` : undefined} />
-        <KpiTile label="Μέση έκπτωση ανά παραγγελία" value={stats.total.orders ? eur(stats.total.discount / stats.total.orders) : "—"} sub={`${n(promos.length)} καμπάνιες με χρήσεις`} />
+        <KpiTile label="Μέση έκπτωση ανά παραγγελία" value={stats.total.orders ? eur(stats.total.discount / stats.total.orders) : "—"} sub={`${n(promos.length)} προσφορές με χρήσεις`} />
       </div>
 
       <div className="grid gap-3 @4xl:grid-cols-2">
@@ -106,9 +106,9 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
       </div>
 
       <section data-help="promo.report.campaigns" className="rounded-2xl bg-white border border-eu-line overflow-hidden" aria-labelledby="rp-c">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-3"><h3 id="rp-c" className={h3}>Ανά καμπάνια</h3><span className="text-eu-muted text-[length:var(--fs-13)]">«Απόδοση» = έσοδα γραμμών ανά 1 € έκπτωσης</span></div>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-3"><h3 id="rp-c" className={h3}>Ανά προσφορά</h3><span className="text-eu-muted text-[length:var(--fs-13)]">«Απόδοση» = έσοδα γραμμών ανά 1 € έκπτωσης</span></div>
         <table className="eu-rtable w-full text-[length:var(--fs-14)] mt-2">
-          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Καμπάνια</th><th className="py-2 px-3 text-right">Παραγγελίες</th><th className="py-2 px-3 text-right">Τεμάχια</th><th className="py-2 px-3 text-right">Έσοδα</th><th className="py-2 px-3 text-right">Έκπτωση</th><th className="py-2 px-3 text-right">Απόδοση</th></tr></thead>
+          <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Προσφορά</th><th className="py-2 px-3 text-right">Παραγγελίες</th><th className="py-2 px-3 text-right">Τεμάχια</th><th className="py-2 px-3 text-right">Έσοδα</th><th className="py-2 px-3 text-right">Έκπτωση</th><th className="py-2 px-3 text-right">Απόδοση</th></tr></thead>
           <tbody>
             {promos.map((p) => {
               const roi = p.amount ? p.revenue / p.amount : 0;
@@ -141,7 +141,7 @@ export default async function PromoReportsPage({ searchParams }: { searchParams:
             <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Banner</th><th className="py-2 px-3">Θέση</th><th className="py-2 px-3 text-right">Εμφανίσεις</th><th className="py-2 px-3 text-right">Κλικ</th><th className="py-2 px-3 text-right">CTR</th></tr></thead>
             <tbody>{ads.map((a) => <tr key={a.id} className="border-t border-eu-line"><td className="py-2 px-3 font-bold">{a.title}{a.status !== "active" && <span className="ml-1 font-normal text-eu-muted">({a.status === "paused" ? "σε παύση" : a.status === "draft" ? "πρόχειρο" : a.status})</span>}</td><td data-label="Θέση" className="py-2 px-3 text-eu-ink-3">{SLOTS.find((s) => s.key === a.slot)?.label ?? a.slot}</td><td data-label="Εμφανίσεις" className="py-2 px-3 text-right tabular-nums">{n(a.impressions)}</td><td data-label="Κλικ" className="py-2 px-3 text-right tabular-nums">{n(a.clicks)}</td><td data-label="CTR" className="py-2 px-3 text-right tabular-nums font-bold">{a.impressions ? `${((a.clicks / a.impressions) * 100).toLocaleString("el-GR", { maximumFractionDigits: 2 })} %` : "—"}</td></tr>)}</tbody>
           </table>
-        ) : <p className="m-0 px-4 pb-4 pt-1 text-eu-muted text-[length:var(--fs-14)]">Κανένα banner με εμφανίσεις{promo ? " για αυτή την καμπάνια" : ""}. <Link href="/admin/prosfores/theseis" className="font-bold text-eu-blue hover:underline">Διαφημιστικές θέσεις →</Link></p>}
+        ) : <p className="m-0 px-4 pb-4 pt-1 text-eu-muted text-[length:var(--fs-14)]">Κανένα banner με εμφανίσεις{promo ? " για αυτή την προσφορά" : ""}. <Link href="/admin/prosfores/theseis" className="font-bold text-eu-blue hover:underline">Διαφημιστικές θέσεις →</Link></p>}
       </section>
 
       <details className="group rounded-2xl bg-white border border-eu-line overflow-hidden">

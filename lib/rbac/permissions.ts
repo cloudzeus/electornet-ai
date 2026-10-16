@@ -23,7 +23,7 @@ export const PERMISSIONS: { key: string; group: PermissionGroup; description: st
   { key: "cms.zones.write", group: "cms", description: "Επεξεργασία ζωνών αρχικής (σειρά, props, schedule)" },
   { key: "cms.zones.publish", group: "cms", description: "Δημοσίευση ζωνών" },
   { key: "cms.slides.write", group: "cms", description: "Hero slides" },
-  { key: "cms.campaigns.write", group: "cms", description: "Καμπάνιες κατασκευαστών" },
+  { key: "cms.campaigns.write", group: "cms", description: "Key visuals κατασκευαστών στην αρχική (CMS· όχι οι καμπάνιες προσφορών)" },
   { key: "cms.brandstores.write", group: "cms", description: "Brand stores" },
   { key: "cms.menu.write", group: "cms", description: "Mega menu" },
   { key: "cms.pages.write", group: "cms", description: "Σελίδες, πολιτικές, FAQ" },
