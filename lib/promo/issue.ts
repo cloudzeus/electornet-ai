@@ -115,14 +115,25 @@ export async function createCouponBatch(input: { promotionId: string; count: num
  * καταγραφή, η επιλογή newsletter του λογαριασμού. Χωρίς συναίνεση: ο κωδικός εκδίδεται αλλά δεν στέλνεται email.
  */
 export async function marketingAllowed(customerIds: string[]): Promise<Set<string>> {
-  if (!customerIds.length) return new Set();
+  return (await marketingConsent(customerIds)).allowed;
+}
+
+/**
+ * Ο κανόνας συναίνεσης marketing σε ένα σημείο: η τελευταία συναίνεση offers/newsletter (email), αλλιώς το `Customer.newsletter`.
+ * `allowed` = επιτρέπεται· `optedOut` = η τελευταία ρητή συναίνεση είναι «όχι» (αποκλείει το email ακόμη και ως συνδρομητή).
+ */
+export async function marketingConsent(customerIds: string[]): Promise<{ allowed: Set<string>; optedOut: Set<string> }> {
+  if (!customerIds.length) return { allowed: new Set(), optedOut: new Set() };
   const [consents, customers] = await Promise.all([
     db.consent.findMany({ where: { customerId: { in: customerIds }, topic: { in: ["offers", "newsletter"] }, channel: "email" }, orderBy: { at: "desc" }, select: { customerId: true, granted: true } }),
     db.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, newsletter: true } }),
   ]);
   const latest = new Map<string, boolean>();
   for (const c of consents) if (c.customerId && !latest.has(c.customerId)) latest.set(c.customerId, c.granted);
-  return new Set(customers.filter((c) => latest.get(c.id) ?? c.newsletter).map((c) => c.id));
+  return {
+    allowed: new Set(customers.filter((c) => latest.get(c.id) ?? c.newsletter).map((c) => c.id)),
+    optedOut: new Set([...latest].filter(([, granted]) => !granted).map(([id]) => id)),
+  };
 }
 
 /** Προσωπικά κουπόνια σε όλα τα μέλη ενός κοινού. Email μόνο σε όσους έχουν δώσει συναίνεση. */

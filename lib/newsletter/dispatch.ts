@@ -1,12 +1,13 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
 import { emailCtx } from "@/lib/email/layout";
 import { mailgunTarget, sendMail, transportReady } from "@/lib/email/send";
-import { marketingAllowed } from "@/lib/promo/issue";
+import { marketingConsent } from "@/lib/promo/issue";
 import { audit } from "@/lib/rbac/audit";
-import { audienceOf, batches, contentHash, failRatio, recipientVariables, startCheck, validateSchedule, type AudienceRow, type Block } from "./core";
+import { audienceOf, batches, contentHash, finalStatus, recipientVariables, startCheck, validateSchedule, type AudienceRow, type Block, type SendCounts } from "./core";
 import { productCards } from "./draft";
 import { renderNewsletter } from "./render";
 
@@ -21,6 +22,10 @@ const BATCH = 1000; // Mailgun: έως 1.000 παραλήπτες ανά κλή�
 const SINGLE_PER_TICK = 60; // χωρίς Mailgun API: ένα-ένα με sendMail
 const MAX_ATTEMPTS = 3;
 const MAX_TEST = 10;
+const PROVIDER_TIMEOUT = 60_000; // κλήση Mailgun ανά πακέτο — πολύ κάτω από τη μίσθωση του tick (5′)
+const TICK_BUDGET = 3 * 60_000; // μετά από τόσο χρόνο ένα tick δεν ξεκινά νέο πακέτο
+/** Γραμμή «σε πτήση» (διεκδικήθηκε, χωρίς αποτέλεσμα) πάνω από τόσο → αβέβαιη (κόπηκε η διεργασία γύρω από την κλήση). */
+const STALE_MS = 10 * 60_000;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const testmode = () => process.env.NEWSLETTER_TESTMODE === "1";
 const athens = new Intl.DateTimeFormat("el-GR", { timeZone: "Europe/Athens", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -69,37 +74,42 @@ async function utmOf(src: Awaited<ReturnType<typeof sourceCheck>>): Promise<stri
 
 // ---- κοινό ----
 
-/** Πελάτες με τελευταία συναίνεση offers/newsletter (email) = «όχι». */
-async function optedOutOf(customerIds: string[]): Promise<Set<string>> {
-  if (!customerIds.length) return new Set();
-  const rows = await db.consent.findMany({ where: { customerId: { in: customerIds }, topic: { in: ["offers", "newsletter"] }, channel: "email" }, orderBy: { at: "desc" }, select: { customerId: true, granted: true } });
-  const latest = new Map<string, boolean>();
-  for (const r of rows) if (r.customerId && !latest.has(r.customerId)) latest.set(r.customerId, r.granted);
-  return new Set([...latest].filter(([, g]) => !g).map(([id]) => id));
+/** Ρυθμίσεις κοινού του newsletter: `segmentId` (κοινό πελατών) και `emails` (λίστα επιτρεπόμενων — π.χ. δοκιμή· αποθηκεύεται στη γραμμή). */
+type AudienceSpec = { segmentId?: string; emails?: string[] };
+function audienceSpec(a: Prisma.JsonValue): AudienceSpec {
+  const o = (a && typeof a === "object" && !Array.isArray(a) ? a : {}) as Record<string, unknown>;
+  return {
+    ...(typeof o.segmentId === "string" && o.segmentId ? { segmentId: o.segmentId } : {}),
+    ...(Array.isArray(o.emails) ? { emails: o.emails.filter((e): e is string => typeof e === "string").map((e) => e.trim().toLowerCase()) } : {}),
+  };
 }
 
-/** Το κοινό τώρα: συνδρομητές ∪ πελάτες με συναίνεση (σε σελίδες των 5.000), προαιρετικά μόνο μέλη του κοινού (segment). */
+/**
+ * Το κοινό τώρα: συνδρομητές ∪ πελάτες με συναίνεση (σε σελίδες των 5.000, κανόνας στο `marketingConsent`), προαιρετικά
+ * μόνο μέλη του κοινού (segment) και μόνο οι διευθύνσεις της λίστας `emails` — που περνούν κι αυτές τους κανόνες συναίνεσης.
+ */
 async function loadAudience(n: { audience: Prisma.JsonValue }): Promise<{ rows: AudienceRow[] } | { error: string }> {
-  const subscribers = await db.newsletterSubscriber.findMany({ select: { id: true, email: true, status: true, firstName: true, customerId: true } });
+  const spec = audienceSpec(n.audience);
+  const only = spec.emails ? { OR: spec.emails.map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) } : {};
+  if (spec.emails && !spec.emails.length) return { rows: [] };
+  const subscribers = await db.newsletterSubscriber.findMany({ where: only, select: { id: true, email: true, status: true, firstName: true, customerId: true } });
   const customers: { id: string; email: string | null; firstName: string | null; allowed: boolean; optedOut: boolean }[] = [];
   let cursor: string | undefined;
   for (;;) {
-    const page = await db.customer.findMany({ where: { email: { not: null }, anonymisedAt: null }, select: { id: true, email: true, firstName: true }, orderBy: { id: "asc" }, take: 5000, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
+    const page = await db.customer.findMany({ where: { email: { not: null }, anonymisedAt: null, ...only }, select: { id: true, email: true, firstName: true }, orderBy: { id: "asc" }, take: 5000, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}) });
     if (!page.length) break;
-    const ids = page.map((c) => c.id);
-    const [allowed, optedOut] = await Promise.all([marketingAllowed(ids), optedOutOf(ids)]);
-    for (const c of page) customers.push({ id: c.id, email: c.email, firstName: c.firstName || null, allowed: allowed.has(c.id), optedOut: optedOut.has(c.id) });
+    const consent = await marketingConsent(page.map((c) => c.id));
+    for (const c of page) customers.push({ id: c.id, email: c.email, firstName: c.firstName || null, allowed: consent.allowed.has(c.id), optedOut: consent.optedOut.has(c.id) });
     cursor = page[page.length - 1].id;
   }
   let segment: Set<string> | null = null;
-  const segmentId = (n.audience as { segmentId?: unknown } | null)?.segmentId;
-  if (typeof segmentId === "string" && segmentId) {
-    const seg = await db.segment.findUnique({ where: { id: segmentId }, select: { rules: true } });
+  if (spec.segmentId) {
+    const seg = await db.segment.findUnique({ where: { id: spec.segmentId }, select: { rules: true } });
     if (!seg) return { error: "Το κοινό (segment) του newsletter δεν βρέθηκε." };
     const { membersOf } = await import("@/lib/promo/segments");
     segment = new Set((await membersOf(seg.rules as never, { limit: Number.MAX_SAFE_INTEGER })).map((m) => m.id));
   }
-  return { rows: audienceOf({ subscribers, customers, segment }) };
+  return { rows: audienceOf({ subscribers, customers, segment, emails: spec.emails ?? null }) };
 }
 
 // ---- Mailgun ----
@@ -131,7 +141,7 @@ async function mailgunBatch(mg: Mg, p: { newsletterId: string; emails: string[];
   const log = await db.emailLog.create({ data: { to: `Newsletter (${p.emails.length} παραλήπτες)`, subject: p.subject, template: p.template, provider: "mailgun", meta: { newsletterId: p.newsletterId, batch: p.emails.length, testmode: testmode() } } });
   let res: BatchResult;
   try {
-    const r = await fetch(`${mg.base}/v3/${encodeURIComponent(mg.domain)}/messages`, { method: "POST", headers: { Authorization: mg.auth, "Content-Type": "application/x-www-form-urlencoded" }, body: form });
+    const r = await fetch(`${mg.base}/v3/${encodeURIComponent(mg.domain)}/messages`, { method: "POST", headers: { Authorization: mg.auth, "Content-Type": "application/x-www-form-urlencoded" }, body: form, signal: AbortSignal.timeout(PROVIDER_TIMEOUT) });
     if (r.ok) res = { kind: "ok", id: ((await r.json().catch(() => ({}))) as { id?: string }).id ?? null };
     else {
       const error = `Mailgun ${r.status}: ${(await r.text().catch(() => "")).slice(0, 300)}`;
@@ -266,10 +276,9 @@ export async function claimDue(now: Date): Promise<string[]> {
 
 /**
  * Έναρξη (μία φορά, για `sending` χωρίς startedAt): έλεγχος προσφοράς/καμπάνιας (→ cancelled), ανανέωση προϊόντων
- * (αφαιρέσεις στο log· block που άδειασε → paused), κοινό (0 → cancelled), ουρά παραληπτών.
- * `opts.audience` αντικαθιστά το κοινό — ΜΟΝΟ για scripts δοκιμής (ώστε να μη μπει ποτέ πραγματικός πελάτης στην ουρά).
+ * (αφαιρέσεις στο log· block που άδειασε → paused), κοινό από τη γραμμή (`audience`: segment / λίστα emails· 0 → cancelled), ουρά παραληπτών.
  */
-export async function startSending(id: string, opts: { audience?: AudienceRow[] } = {}): Promise<{ ok: boolean; status: string; recipients?: number; reason?: string }> {
+export async function startSending(id: string): Promise<{ ok: boolean; status: string; recipients?: number; reason?: string }> {
   const n = await db.newsletter.findUnique({ where: { id } });
   if (!n) return { ok: false, status: "missing" };
   if (n.status !== "sending" || n.startedAt) return { ok: false, status: n.status };
@@ -299,7 +308,7 @@ export async function startSending(id: string, opts: { audience?: AudienceRow[] 
     }
   }
 
-  const aud = opts.audience ? { rows: opts.audience } : await loadAudience(n);
+  const aud = await loadAudience(n);
   if ("error" in aud || !aud.rows.length) {
     const reason = "error" in aud ? aud.error : "Κανένας παραλήπτης με συναίνεση.";
     await transition(id, ["sending"], { status: "cancelled", cancelReason: reason, finishedAt: now }, "cancel", `Δεν ξεκίνησε: ${reason}`);
@@ -318,29 +327,52 @@ export async function startSending(id: string, opts: { audience?: AudienceRow[] 
   return { ok: true, status: "sending", recipients: count };
 }
 
-/** Μετρητές από τις γραμμές (όχι προσθέσεις): σωστοί και μετά από διπλές/κομμένες εκτελέσεις. */
-async function recount(id: string) {
-  const g = await db.newsletterRecipient.groupBy({ by: ["status"], where: { newsletterId: id }, _count: { _all: true } });
+/**
+ * Μετρητές από τις γραμμές (όχι προσθέσεις): σωστοί και μετά από διπλές/κομμένες εκτελέσεις.
+ * `inflight` = status «sending» (διεκδικήθηκαν για αποστολή)· `stale` = όσες είναι έτσι πάνω από STALE_MS (το `sentAt` κρατά την ώρα διεκδίκησης).
+ */
+async function recount(id: string): Promise<SendCounts> {
+  const [g, stale] = await Promise.all([
+    db.newsletterRecipient.groupBy({ by: ["status"], where: { newsletterId: id }, _count: { _all: true } }),
+    db.newsletterRecipient.count({ where: { newsletterId: id, status: "sending", sentAt: { lt: new Date(Date.now() - STALE_MS) } } }),
+  ]);
   const c = Object.fromEntries(g.map((x) => [x.status, x._count._all])) as Record<string, number>;
   await db.newsletter.update({ where: { id }, data: { sent: c.sent ?? 0, failed: c.failed ?? 0 } });
-  return { sent: c.sent ?? 0, failed: c.failed ?? 0, queued: c.queued ?? 0 };
+  return { queued: c.queued ?? 0, inflight: c.sending ?? 0, stale, sent: c.sent ?? 0, failed: c.failed ?? 0 };
 }
 
-/** Αποτυχία προσπάθειας: attempts+1· στην 3η → failed. */
-async function bump(rowIds: string[], error: string) {
-  await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds } }, data: { attempts: { increment: 1 }, error } });
-  await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds }, status: "queued", attempts: { gte: MAX_ATTEMPTS } }, data: { status: "failed" } });
+type ClaimedRow = { id: string; email: string; token: string; firstName: string | null };
+
+/**
+ * Διεκδίκηση γραμμών ΠΡΙΝ από την κλήση στον πάροχο (at-most-once): queued → sending (σε πτήση), attempts+1, sentAt = ώρα διεκδίκησης.
+ * Επιστρέφει μόνο όσες πήρε αυτή η κλήση (SKIP LOCKED + έλεγχος status) — ένα παράλληλο tick δεν τις ξαναστέλνει.
+ * Αν η διεργασία κοπεί μετά, μένουν «sending»: δεν ξαναμπαίνουν στην ουρά (βλ. `finalStatus`).
+ */
+async function claimRows(newsletterId: string, limit: number): Promise<ClaimedRow[]> {
+  return db.$queryRaw<ClaimedRow[]>`
+    UPDATE "NewsletterRecipient" SET status = 'sending', attempts = attempts + 1, "sentAt" = now()
+    WHERE id IN (SELECT id FROM "NewsletterRecipient" WHERE "newsletterId" = ${newsletterId} AND status = 'queued' ORDER BY id LIMIT ${limit} FOR UPDATE SKIP LOCKED)
+      AND status = 'queued'
+    RETURNING id, email, token, "firstName"`;
+}
+
+/** Αποτυχία (δεν στάλθηκε): πίσω στην ουρά, ή failed αν εξαντλήθηκαν οι προσπάθειες. Επιστρέφει πόσες έγιναν failed. */
+async function release(rowIds: string[], error: string): Promise<number> {
+  const failed = await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds }, status: "sending", attempts: { gte: MAX_ATTEMPTS } }, data: { status: "failed", sentAt: null, error } });
+  await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds }, status: "sending" }, data: { status: "queued", sentAt: null, error } });
+  return failed.count;
 }
 
 const pause = (id: string, reason: string) => transition(id, ["sending"], { status: "paused", cancelReason: reason }, "pause", `Παύση: ${reason}`);
 
 /**
- * Έως `maxBatches` πακέτα των 1.000 (Mailgun) ή έως 60 emails ένα-ένα (`sendMail`). 429 / 5xx → το πακέτο μένει στην ουρά
- * (attempts+1, μετά από 3 → failed)· άλλο 4xx → paused με το μήνυμα του παρόχου· > 20 % αποτυχίες → paused. Άδεια ουρά → sent.
+ * Έως `maxBatches` πακέτα των 1.000 (Mailgun) ή έως 60 emails ένα-ένα (`sendMail`), κάθε φορά με διεκδίκηση των γραμμών πριν από την κλήση.
+ * 429 / 5xx / δίκτυο / timeout → πίσω στην ουρά (μετά από 3 προσπάθειες → failed)· άλλο 4xx → πίσω στην ουρά και paused με το μήνυμα του παρόχου.
+ * Στο τέλος `finalStatus`: > 20 % αποτυχίες ή αβέβαιες γραμμές → paused· άδεια ουρά → sent.
  */
-export async function sendBatches(id: string, maxBatches = 5): Promise<{ status: string; sent: number; failed: number; queued: number }> {
+export async function sendBatches(id: string, maxBatches = 5, deadline = Date.now() + TICK_BUDGET): Promise<{ status: string } & SendCounts> {
   const n = await db.newsletter.findUnique({ where: { id } });
-  if (!n || n.status !== "sending" || !n.startedAt) return { status: n?.status ?? "missing", sent: n?.sent ?? 0, failed: n?.failed ?? 0, queued: 0 };
+  if (!n || n.status !== "sending" || !n.startedAt) return { status: n?.status ?? "missing", queued: 0, inflight: 0, stale: 0, sent: n?.sent ?? 0, failed: n?.failed ?? 0 };
   const { data, secrets } = await getSetting("email");
   let mg: Mg | null = null;
   try { mg = mailgunTarget(data, secrets); } catch (e) { await pause(id, e instanceof Error ? e.message : String(e)); }
@@ -350,72 +382,78 @@ export async function sendBatches(id: string, maxBatches = 5): Promise<{ status:
   const [ctx, src, products] = await Promise.all([emailCtx(), sourceCheck(n), productCards(productIdsOf(blocks))]);
   const utm = await utmOf(src);
   const viewUrl = `${ctx.baseUrl}/newsletter/v/${id}`;
-  const stillSending = async () => (await db.newsletter.findUnique({ where: { id }, select: { status: true } }))?.status === "sending";
+  const canSend = async () => Date.now() < deadline && (await db.newsletter.findUnique({ where: { id }, select: { status: true } }))?.status === "sending";
 
   if (mg) {
     const r = renderNewsletter({ subject: n.subject, preheader: n.preheader, blocks, products, ctx, utm, unsubscribe: "%recipient.unsub%", viewUrl });
-    for (let i = 0; i < maxBatches && (await stillSending()); i++) {
-      const rows = await db.newsletterRecipient.findMany({ where: { newsletterId: id, status: "queued" }, orderBy: { id: "asc" }, take: BATCH, select: { id: true, email: true, token: true, firstName: true } });
+    for (let i = 0; i < maxBatches && (await canSend()); i++) {
+      const rows = await claimRows(id, BATCH);
       if (!rows.length) break;
-      const res = await mailgunBatch(mg, { newsletterId: id, emails: rows.map((x) => x.email), vars: recipientVariables(rows, ctx.baseUrl), subject: n.subject, html: r.html, text: r.text, template: "newsletter" });
       const rowIds = rows.map((x) => x.id);
+      const res = await mailgunBatch(mg, { newsletterId: id, emails: rows.map((x) => x.email), vars: recipientVariables(rows, ctx.baseUrl), subject: n.subject, html: r.html, text: r.text, template: "newsletter" });
       if (res.kind === "ok") {
-        await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds } }, data: { status: "sent", messageId: res.id, sentAt: new Date(), attempts: { increment: 1 }, error: null } });
+        await db.newsletterRecipient.updateMany({ where: { id: { in: rowIds }, status: "sending" }, data: { status: "sent", messageId: res.id, sentAt: new Date(), error: null } });
       } else if (res.kind === "retry") {
-        await bump(rowIds, res.error);
-        await appendLog(id, "retry", `Πακέτο ${rows.length} παραληπτών: ${res.error} — νέα προσπάθεια στο επόμενο λεπτό.`);
+        const failed = await release(rowIds, res.error);
+        await appendLog(id, "retry", failed
+          ? `Πακέτο ${rows.length} παραληπτών: ${res.error} — ${failed} απέτυχαν οριστικά μετά από ${MAX_ATTEMPTS} προσπάθειες${failed < rows.length ? `, ${rows.length - failed} ξανά στο επόμενο λεπτό` : ""}.`
+          : `Πακέτο ${rows.length} παραληπτών: ${res.error} — νέα προσπάθεια στο επόμενο λεπτό.`);
         break;
       } else {
+        await release(rowIds, res.error);
         await pause(id, res.error);
         break;
       }
-      const c = await recount(id);
-      if (failRatio(c.sent, c.failed)) { await pause(id, `Πάνω από 20 % αποτυχίες (${c.failed} από ${c.sent + c.failed}).`); break; }
     }
-  } else if (await stillSending()) {
+  } else if (await canSend()) {
     const fromEmail = String(data.fromEmail || "noreply@euronics.gr");
     const SENTINEL = "__NL_TOKEN__";
     const unsubOf = (token: string) => `${ctx.baseUrl}/api/newsletter/u/${token}`;
     const r = renderNewsletter({ subject: n.subject, preheader: n.preheader, blocks, products, ctx, utm, unsubscribe: unsubOf(SENTINEL), viewUrl });
-    const rows = await db.newsletterRecipient.findMany({ where: { newsletterId: id, status: "queued" }, orderBy: { id: "asc" }, take: SINGLE_PER_TICK, select: { id: true, email: true, token: true } });
-    for (const row of rows) {
-      if (!(await stillSending())) break;
+    for (let i = 0; i < SINGLE_PER_TICK && (await canSend()); i++) {
+      const [row] = await claimRows(id, 1);
+      if (!row) break;
       const res = await sendMail({
         to: row.email, subject: n.subject, html: r.html.replaceAll(SENTINEL, row.token), text: r.text.replaceAll(SENTINEL, row.token), template: "newsletter",
         meta: { newsletterId: id, recipientId: row.id },
         headers: { "List-Unsubscribe": listUnsub(unsubOf(row.token), fromEmail), "List-Unsubscribe-Post": "List-Unsubscribe=One-Click", ...(testmode() ? { "X-Mailgun-Drop-Message": "yes" } : {}) },
       });
-      if (res.ok) await db.newsletterRecipient.update({ where: { id: row.id }, data: { status: "sent", messageId: res.messageId ?? null, sentAt: new Date(), attempts: { increment: 1 }, error: null } });
-      else if (res.skipped) { await pause(id, "Δεν έχει ρυθμιστεί αποστολή email (Ρυθμίσεις → Email & SMS)."); break; }
-      else await bump([row.id], res.error);
+      if (res.ok) await db.newsletterRecipient.updateMany({ where: { id: row.id, status: "sending" }, data: { status: "sent", messageId: res.messageId ?? null, sentAt: new Date(), error: null } });
+      else if (res.skipped) { await release([row.id], "Δεν έχει ρυθμιστεί αποστολή email."); await pause(id, "Δεν έχει ρυθμιστεί αποστολή email (Ρυθμίσεις → Email & SMS)."); break; }
+      else await release([row.id], res.error);
     }
-    const c = await recount(id);
-    if (failRatio(c.sent, c.failed)) await pause(id, `Πάνω από 20 % αποτυχίες (${c.failed} από ${c.sent + c.failed}).`);
   }
 
   const c = await recount(id);
-  if (!c.queued) await transition(id, ["sending"], { status: "sent", finishedAt: new Date() }, "sent", `Ολοκληρώθηκε: ${c.sent} στάλθηκαν, ${c.failed} απέτυχαν.`);
+  const f = finalStatus(c);
+  if (f.status === "sent") await transition(id, ["sending"], { status: "sent", finishedAt: new Date() }, "sent", `Ολοκληρώθηκε: ${c.sent} στάλθηκαν, ${c.failed} απέτυχαν.`);
+  else if (f.status === "paused") await pause(id, f.reason);
   const status = (await db.newsletter.findUnique({ where: { id }, select: { status: true } }))?.status ?? "missing";
+  // «Διακοπή» όσο ήταν σε πτήση: ό,τι γύρισε στην ουρά μετά δεν στέλνεται
+  if (status === "cancelled") await db.newsletterRecipient.updateMany({ where: { newsletterId: id, status: "queued" }, data: { status: "skipped" } });
   return { status, ...c };
 }
 
 // ---- κλείδωμα ανάμεσα σε διεργασίες ----
 // Μίσθωση σε γραμμή του Setting με λήξη (όπως το lib/promo/offers.ts): τα session advisory locks του Postgres δεν είναι
 // αξιόπιστα πίσω από PgBouncer / pool του Prisma (το unlock μπορεί να πάει σε άλλη σύνδεση από το lock).
+// Ο κάτοχος (τυχαίο token) γράφεται στη μίσθωση· η αποδέσμευση γίνεται μόνο από τον ίδιο (όχι από ένα tick που ξεκίνησε μετά τη λήξη).
 const LOCK = "newsletter-tick-lock";
-async function acquireLock(ttlMs = 5 * 60_000) {
+async function acquireLock(owner: string, ttlMs = 5 * 60_000) {
   const now = Date.now();
   await db.$executeRaw`INSERT INTO "Setting" (section, data, "updatedAt", "createdAt") VALUES (${LOCK}, '{"until":0}'::jsonb, now(), now()) ON CONFLICT (section) DO NOTHING`;
-  const got = await db.$executeRaw`UPDATE "Setting" SET data = jsonb_build_object('until', ${now + ttlMs}::bigint), "updatedAt" = now() WHERE section = ${LOCK} AND COALESCE((data->>'until')::bigint, 0) < ${now}::bigint`;
+  const got = await db.$executeRaw`UPDATE "Setting" SET data = jsonb_build_object('until', ${now + ttlMs}::bigint, 'owner', ${owner}::text), "updatedAt" = now() WHERE section = ${LOCK} AND COALESCE((data->>'until')::bigint, 0) < ${now}::bigint`;
   return got > 0;
 }
-async function releaseLock() {
-  await db.$executeRaw`UPDATE "Setting" SET data = jsonb_build_object('until', 0), "updatedAt" = now() WHERE section = ${LOCK}`;
+async function releaseLock(owner: string) {
+  await db.$executeRaw`UPDATE "Setting" SET data = jsonb_build_object('until', 0), "updatedAt" = now() WHERE section = ${LOCK} AND data->>'owner' = ${owner}::text`;
 }
 
 /** Ανά λεπτό από το cron: διεκδίκηση όσων ήρθε η ώρα τους → έναρξη → πακέτα για κάθε `sending`. Ένα tick τη φορά. */
 export async function tickNewsletters(now = new Date()) {
-  if (!(await acquireLock())) return { skipped: "locked" as const };
+  const owner = randomUUID();
+  if (!(await acquireLock(owner))) return { skipped: "locked" as const };
+  const deadline = Date.now() + TICK_BUDGET;
   try {
     const claimed = await claimDue(now);
     const out: Record<string, unknown> = {};
@@ -424,10 +462,10 @@ export async function tickNewsletters(now = new Date()) {
       out[id] = await startSending(id).catch((e) => ({ error: String(e) }));
     }
     for (const { id } of await db.newsletter.findMany({ where: { status: "sending", startedAt: { not: null } }, select: { id: true } })) {
-      out[id] = await sendBatches(id).catch((e) => ({ error: String(e) }));
+      out[id] = await sendBatches(id, 5, deadline).catch((e) => ({ error: String(e) }));
     }
     return { claimed: claimed.length, newsletters: out };
   } finally {
-    await releaseLock().catch(() => {});
+    await releaseLock(owner).catch(() => {});
   }
 }

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { audienceOf, batches, contentHash, factCheck, failRatio, recipientVariables, startCheck, validateSchedule, verifyMailgun, type Block } from "./core";
+import { audienceOf, batches, contentHash, factCheck, failRatio, finalStatus, recipientVariables, startCheck, validateSchedule, verifyMailgun, type Block } from "./core";
 
 const sub = (id: string, email: string, status = "subscribed", extra: { firstName?: string | null; customerId?: string | null } = {}) => ({ id, email, status, ...extra });
 const cust = (id: string, email: string | null, allowed = true, firstName: string | null = null) => ({ id, email, firstName, allowed });
@@ -200,4 +200,36 @@ test("failRatio: > 20 % αποτυχίες με τουλάχιστον 50 προ
   assert.equal(failRatio(40, 10), false); // ακριβώς 20 %
   assert.equal(failRatio(39, 11), true); // 22 % σε 50
   assert.equal(failRatio(0, 0), false);
+});
+
+test("κοινό: λίστα επιτρεπόμενων (emails) κρατά μόνο αυτές, αλλά οι κανόνες συναίνεσης ισχύουν ακόμη", () => {
+  const input = {
+    subscribers: [sub("s1", "a@b.gr"), sub("s2", "blocked@b.gr", "unsubscribed")],
+    customers: [cust("c1", "c@b.gr", true), cust("c2", "noconsent@b.gr", false), cust("c3", "blocked@b.gr", true)],
+  };
+  const rows = audienceOf({ ...input, emails: [" A@B.gr ", "noconsent@b.gr", "blocked@b.gr", "missing@b.gr"] });
+  assert.deepEqual(rows.map((r) => r.email), ["a@b.gr"]);
+  // κενή λίστα = κανείς· null/undefined = χωρίς περιορισμό
+  assert.deepEqual(audienceOf({ ...input, emails: [] }), []);
+  assert.deepEqual(audienceOf({ ...input, emails: null }).map((r) => r.email), ["a@b.gr", "c@b.gr"]);
+});
+
+test("finalStatus: ουρά / σε πτήση / αποτυχίες → sending, sent ή paused", () => {
+  const c = (o: Partial<{ queued: number; inflight: number; stale: number; sent: number; failed: number }>) => ({ queued: 0, inflight: 0, stale: 0, sent: 0, failed: 0, ...o });
+  assert.deepEqual(finalStatus(c({ sent: 10 })), { status: "sent" });
+  assert.deepEqual(finalStatus(c({ queued: 5, sent: 10 })), { status: "sending" });
+  // σε πτήση πρόσφατα (άλλη διεργασία στέλνει) → περιμένουμε
+  assert.deepEqual(finalStatus(c({ inflight: 3, sent: 10 })), { status: "sending" });
+  // σε πτήση πολύ ώρα (κόπηκε μετά την κλήση;) → παύση για έλεγχο, ποτέ ξανά στην ουρά
+  const st = finalStatus(c({ inflight: 3, stale: 3, sent: 10 }));
+  assert.equal(st.status, "paused");
+  assert.match((st as { reason: string }).reason, /3/);
+  // > 20 % αποτυχίες με ≥ 50 προσπάθειες: παύση πριν από το sent, ακόμη κι αν άδειασε η ουρά
+  assert.equal(finalStatus(c({ sent: 100, failed: 30 })).status, "paused");
+  assert.equal(finalStatus(c({ queued: 10, sent: 100, failed: 30 })).status, "paused");
+  // όλες απέτυχαν (λίγες) → όχι «sent»
+  assert.equal(finalStatus(c({ failed: 1 })).status, "paused");
+  assert.deepEqual(finalStatus(c({ sent: 9, failed: 1 })), { status: "sent" });
+  // τίποτα (π.χ. όλοι skipped) → sent
+  assert.deepEqual(finalStatus(c({})), { status: "sent" });
 });

@@ -1559,31 +1559,31 @@ model Widget {
 /// Καμπάνια: φάκελος προσφορών, landing pages και banners με κοινές ημερομηνίες, budget και έγκριση
 /// (docs/superpowers/specs/2026-10-16-campaigns-approval-design.md). Λογική στο lib/promo/campaign-core.ts.
 model Campaign {
-  id          String         @id @default(cuid())
+  id          String        @id @default(cuid())
   /// = ο κωδικός σε πεζά (κοινά URLs / tags)
-  slug        String         @unique
+  slug        String        @unique
   /// KAM-2026-007
-  code        String?        @unique
+  code        String?       @unique
   title       String
   /// sales | clearance | acquisition | launch | seasonal
-  goal        String         @default("sales")
-  brief       String?        @db.Text
+  goal        String        @default("sales")
+  brief       String?       @db.Text
   startsAt    DateTime
   /// Real expiry — the same value drives every countdown (Omnibus).
   endsAt      DateTime
   /// draft | review | approved | scheduled | live | paused | ended | archived | rejected
-  status      String         @default("draft")
+  status      String        @default("draft")
   /// μέγιστο κόστος εκπτώσεων (€)
-  budgetEur   Decimal?       @db.Decimal(12, 2)
+  budgetEur   Decimal?      @db.Decimal(12, 2)
   ownerId     String?
   createdById String?
-  version     Int            @default(1)
+  version     Int           @default(1)
   /// απαιτούμενα επίπεδα έγκρισης τη στιγμή της υποβολής (Φάση 2)
   approvals   Json?
   submittedAt DateTime?
   tagSlug     String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   promotions  Promotion[]
   landings    LandingPage[]
   ads         AdPlacement[]
@@ -2583,7 +2583,7 @@ model Newsletter {
   subject        String
   preheader      String                @default("")
   blocks         Json                  @default("[]")
-  audience       Json                  @default("{}") // { segmentId?: string }
+  audience       Json                  @default("{}") // { segmentId?: string, emails?: string[] } — emails = λίστα επιτρεπόμενων (δοκιμές)
   status         String                @default("draft") // draft | scheduled | sending | paused | sent | cancelled
   scheduledAt    DateTime?
   startedAt      DateTime?
@@ -2624,7 +2624,7 @@ model NewsletterRecipient {
   customerId     String?
   firstName      String?
   token          String     @unique @default(cuid()) // διαγραφή / one-click
-  status         String     @default("queued") // queued | sent | failed | skipped
+  status         String     @default("queued") // queued | sending (σε πτήση: διεκδικήθηκε πριν από την κλήση, sentAt = ώρα διεκδίκησης) | sent | failed | skipped
   messageId      String?
   attempts       Int        @default(0)
   error          String?

@@ -34,11 +34,13 @@ export type AudienceRow = { email: string; subscriberId: string | null; customer
  * Κοινό αποστολής: συνδρομητές subscribed ∪ πελάτες με συναίνεση, ένα ανά email.
  * Κερδίζει η γραμμή συνδρομητή· αποκλεισμός (unsubscribed/bounced/complained ή πελάτης με τελευταία συναίνεση «όχι») νικά πάντα.
  * Με segment (id πελατών) μένουν μόνο όσοι αντιστοιχούν σε πελάτη του συνόλου.
+ * Με `emails` (λίστα επιτρεπόμενων, π.χ. δοκιμή) μένουν μόνο αυτές — οι κανόνες συναίνεσης ισχύουν κανονικά· [] = κανείς.
  */
 export function audienceOf(input: {
   subscribers: { id: string; email: string; status: string; firstName?: string | null; customerId?: string | null }[];
   customers: { id: string; email: string | null; firstName?: string | null; allowed: boolean; optedOut?: boolean }[];
   segment?: Set<string> | null;
+  emails?: string[] | null;
 }): AudienceRow[] {
   const blocked = new Set<string>();
   for (const s of input.subscribers) if (BLOCKED.has(s.status)) blocked.add(normEmail(s.email));
@@ -65,7 +67,8 @@ export function audienceOf(input: {
     out.set(email, { email, subscriberId: null, customerId: c.id, firstName: c.firstName ?? null });
   }
 
-  const rows = [...out.values()];
+  let rows = [...out.values()];
+  if (input.emails) { const only = new Set(input.emails.map(normEmail)); rows = rows.filter((r) => only.has(r.email)); }
   return input.segment ? rows.filter((r) => r.customerId !== null && input.segment!.has(r.customerId)) : rows;
 }
 
@@ -144,4 +147,19 @@ export function startCheck(n: { promotion?: { status: string; held: boolean; end
 export function failRatio(sent: number, failed: number): boolean {
   const total = sent + failed;
   return total >= 50 && failed / total > 0.2;
+}
+
+export type SendCounts = { queued: number; inflight: number; stale: number; sent: number; failed: number };
+
+/**
+ * Κατάσταση μετά από έναν γύρο πακέτων. `inflight` = γραμμές που διεκδικήθηκαν για αποστολή και δεν έχουν αποτέλεσμα·
+ * `stale` = όσες από αυτές μένουν έτσι πολλή ώρα (κόπηκε η διεργασία γύρω από την κλήση — δεν ξέρουμε αν στάλθηκαν).
+ * Δεν ξαναμπαίνουν ποτέ στην ουρά (καλύτερα να χαθεί ένα email παρά να σταλεί δύο φορές): παύση για έλεγχο.
+ */
+export function finalStatus(c: SendCounts): { status: "sending" | "sent" } | { status: "paused"; reason: string } {
+  if (failRatio(c.sent, c.failed)) return { status: "paused", reason: `Πάνω από 20 % αποτυχίες (${c.failed} από ${c.sent + c.failed}).` };
+  if (c.queued > 0 || c.inflight > c.stale) return { status: "sending" };
+  if (c.stale > 0) return { status: "paused", reason: `${c.stale} παραλήπτες σε αβέβαιη κατάσταση (η αποστολή κόπηκε κατά την κλήση στον πάροχο) — δεν ξαναστέλνονται αυτόματα· ελέγξτε τα logs του παρόχου.` };
+  if (c.failed > 0 && c.sent === 0) return { status: "paused", reason: `Καμία επιτυχής αποστολή (${c.failed} αποτυχίες).` };
+  return { status: "sent" };
 }
