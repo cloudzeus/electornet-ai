@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-16T15:08:39.985Z",
+ "generatedAt": "2026-10-17T02:47:54.285Z",
  "routes": [
   {
    "route": "/admin",
@@ -1536,7 +1536,9 @@
     "label": "Newsletter"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "subscribers.campaigns"
+   ],
    "changes": [
     {
      "hash": "7361160",
@@ -1743,6 +1745,7 @@
    "dynamic": true,
    "helpKeys": [
     "promo.campaign-link",
+    "promo.newsletter",
     "promo.perf",
     "promo.steps",
     "promo.campaign",
@@ -2076,7 +2079,9 @@
    "perm": "catalog.promos.write",
    "nav": null,
    "dynamic": true,
-   "helpKeys": [],
+   "helpKeys": [
+    "campaign.newsletter"
+   ],
    "changes": [
     {
      "hash": "1e93fcd",
@@ -2258,6 +2263,71 @@
     "desktop": "/api/help-shot/prosfores.new-d.jpg",
     "mobile": "/api/help-shot/prosfores.new-m.jpg"
    }
+  },
+  {
+   "route": "/admin/prosfores/newsletter",
+   "slug": "prosfores.newsletter",
+   "file": "app/admin/(shell)/prosfores/newsletter/page.tsx",
+   "title": "Newsletter προσφορών",
+   "doc": "Newsletter προσφορών: λίστα με κατάσταση σε λέξεις, προσφορά/καμπάνια, ώρα, παραλήπτες, ανοίγματα και κλικ, με φίλτρο κατάστασης. Νέο newsletter φτιάχνεται από την καρτέλα μιας προσφοράς ή καμπάνιας (κουμπί «Newsletter»).",
+   "perm": "marketing.newsletter.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "newsletters.filters",
+    "newsletters.empty",
+    "newsletters.table"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/prosfores/newsletter/[id]",
+   "slug": "prosfores.newsletter.id",
+   "file": "app/admin/(shell)/prosfores/newsletter/[id]/page.tsx",
+   "title": "Newsletter",
+   "doc": "Newsletter προσφοράς: σε πρόχειρο ο editor (πεδία με μετρητές, προϊόντα, κεφαλίδα, κουμπί, κοινό, ζωντανή προεπισκόπηση, δοκιμαστική αποστολή, αποστολή τώρα / προγραμματισμός)· μετά την αποστολή η κατάσταση, τα αποτελέσματα και το ιστορικό.",
+   "perm": "marketing.newsletter.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "newsletter.source",
+    "newsletter.controls",
+    "newsletter.title",
+    "newsletter.subject",
+    "newsletter.preheader",
+    "newsletter.intro",
+    "newsletter.hero",
+    "newsletter.products",
+    "newsletter.cta",
+    "newsletter.audience",
+    "newsletter.preview",
+    "newsletter.actions",
+    "newsletter.test",
+    "newsletter.stats",
+    "newsletter.clicks",
+    "newsletter.log"
+   ],
+   "changes": [
+    {
+     "hash": "98b6a94",
+     "date": "2026-10-17T05:29:43+03:00",
+     "text": "Newsletter προσφοράς (6/7): διαγραφή, webhooks Mailgun, προβολή στον browser"
+    },
+    {
+     "hash": "bb580f8",
+     "date": "2026-10-17T05:21:20+03:00",
+     "text": "Newsletter προσφοράς (5/7) διόρθωση: at-most-once ανά πακέτο (διεκδίκηση γραμμών σε «sending» πριν από την κλήση, χωρίς αυτόματη επανάληψη αβέβαιων), timeout 60″ στο Mailgun, μίσθωση με κάτοχο, λίστα emails αποθηκευμέ…"
+    },
+    {
+     "hash": "cd299dc",
+     "date": "2026-10-17T05:12:10+03:00",
+     "text": "Newsletter προσφοράς (5/7): αποστολή"
+    }
+   ],
+   "updatedAt": "2026-10-17T05:29:43+03:00",
+   "shots": {}
   },
   {
    "route": "/admin/prosfores/prosomoiotis",
@@ -2675,6 +2745,11 @@
    ],
    "changes": [
     {
+     "hash": "d1316c3",
+     "date": "2026-10-17T04:47:09+03:00",
+     "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
+    },
+    {
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
@@ -2718,14 +2793,9 @@
      "hash": "7ecfe1d",
      "date": "2026-10-08T10:19:04+03:00",
      "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
-    },
-    {
-     "hash": "413b738",
-     "date": "2026-10-04T09:19:04+03:00",
-     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
     }
    ],
-   "updatedAt": "2026-10-16T14:12:27+03:00",
+   "updatedAt": "2026-10-17T04:47:09+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2748,6 +2818,11 @@
    ],
    "changes": [
     {
+     "hash": "d1316c3",
+     "date": "2026-10-17T04:47:09+03:00",
+     "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
+    },
+    {
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
@@ -2791,14 +2866,9 @@
      "hash": "7ecfe1d",
      "date": "2026-10-08T10:19:04+03:00",
      "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
-    },
-    {
-     "hash": "413b738",
-     "date": "2026-10-04T09:19:04+03:00",
-     "text": "Καρτέλα προϊόντος σε accordion με επεξεργασία που γράφει ταυτόχρονα SoftOne και eshop"
     }
    ],
-   "updatedAt": "2026-10-16T14:12:27+03:00",
+   "updatedAt": "2026-10-17T04:47:09+03:00",
    "shots": {}
   },
   {
@@ -3245,6 +3315,78 @@
  ],
  "recent": [
   {
+   "hash": "98b6a94",
+   "date": "2026-10-17T05:29:43+03:00",
+   "text": "Newsletter προσφοράς (6/7): διαγραφή, webhooks Mailgun, προβολή στον browser",
+   "routes": []
+  },
+  {
+   "hash": "bb580f8",
+   "date": "2026-10-17T05:21:20+03:00",
+   "text": "Newsletter προσφοράς (5/7) διόρθωση: at-most-once ανά πακέτο (διεκδίκηση γραμμών σε «sending» πριν από την κλήση, χωρίς αυτόματη επανάληψη αβέβαιων), timeout 60″ στο Mailgun, μίσθωση με κάτοχο, λίστα emails αποθηκευμέ…",
+   "routes": []
+  },
+  {
+   "hash": "cd299dc",
+   "date": "2026-10-17T05:12:10+03:00",
+   "text": "Newsletter προσφοράς (5/7): αποστολή",
+   "routes": []
+  },
+  {
+   "hash": "efa0064",
+   "date": "2026-10-17T05:03:56+03:00",
+   "text": "Newsletter προσφοράς (4/7) διόρθωση: οι προσφορές μιας καμπάνιας στο πρόχειρο μόνο όσες είναι scheduled/active και όχι held (facts και προϊόντα)",
+   "routes": []
+  },
+  {
+   "hash": "d694432",
+   "date": "2026-10-17T05:01:14+03:00",
+   "text": "Newsletter προσφοράς (4/7): αυτόματο πρόχειρο από προσφορά / καμπάνια",
+   "routes": []
+  },
+  {
+   "hash": "6b564a7",
+   "date": "2026-10-17T04:55:33+03:00",
+   "text": "Newsletter προσφοράς (3/7): απόδοση email",
+   "routes": []
+  },
+  {
+   "hash": "95a6b9f",
+   "date": "2026-10-17T04:51:46+03:00",
+   "text": "Newsletter προσφοράς (2/7) διόρθωση: έλεγχος γεγονότων για τιμές ≥ 1.000 € σε ελληνική μορφή και αποκλεισμός πελατών με τελευταία συναίνεση «όχι» (optedOut)",
+   "routes": []
+  },
+  {
+   "hash": "85d2d12",
+   "date": "2026-10-17T04:49:44+03:00",
+   "text": "Newsletter προσφοράς (2/7): καθαρή λογική lib/newsletter/core.ts",
+   "routes": []
+  },
+  {
+   "hash": "d1316c3",
+   "date": "2026-10-17T04:47:09+03:00",
+   "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey",
+   "routes": []
+  },
+  {
+   "hash": "604f3de",
+   "date": "2026-10-17T04:43:19+03:00",
+   "text": "Πλάνο: newsletter προσφοράς (7 εργασίες)",
+   "routes": []
+  },
+  {
+   "hash": "fa944db",
+   "date": "2026-10-17T04:39:27+03:00",
+   "text": "Προδιαγραφή: newsletter προσφοράς",
+   "routes": []
+  },
+  {
+   "hash": "2494b3f",
+   "date": "2026-10-16T18:08:50+03:00",
+   "text": "Βοήθεια: νέα screenshots καταλόγου (φίλτρο «Τύπος», ετικέτες σετ, «Πωλείται και μόνο του»)",
+   "routes": []
+  },
+  {
    "hash": "26c22b3",
    "date": "2026-10-16T18:04:40+03:00",
    "text": "Σετ (Φ1): διορθώσεις τελικού ελέγχου",
@@ -3467,98 +3609,6 @@
     "/admin",
     "/admin/cms/slides"
    ]
-  },
-  {
-   "hash": "50c1233",
-   "date": "2026-10-13T18:56:27+03:00",
-   "text": "Ευρετήριο Media(productId, kind, hidden): ο έλεγχος «έχει ορατή φωτογραφία» σε κάθε λίστα και μέτρηση του καταλόγου διαβάζει μόνο το ευρετήριο (457 → 39 ms στη βάση)",
-   "routes": []
-  },
-  {
-   "hash": "8f953ca",
-   "date": "2026-10-13T18:54:42+03:00",
-   "text": "Ταχύτητα: το mega menu (9 λίστες προϊόντων σε ΚΑΘΕ σελίδα του shop",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "06fa557",
-   "date": "2026-10-13T10:29:46+03:00",
-   "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/apostoles/vouchers"
-   ]
-  },
-  {
-   "hash": "bd7141e",
-   "date": "2026-10-13T10:12:23+03:00",
-   "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/apostoles/vouchers"
-   ]
-  },
-  {
-   "hash": "5de9181",
-   "date": "2026-10-11T13:42:07+03:00",
-   "text": "Hero slides (ui-ux-pro-max): λεπτή κεφαλίδα με κατάσταση (δημοσιευμένο / πρόχειρο με αλλαγές / μη αποθηκευμένες), «Στο site», «Ακύρωση», ζωντανό «Έλεγχος» με λίστα λαθών που ανοίγει το slide και την καρτέλα, αποθήκευσ…",
-   "routes": [
-    "/admin",
-    "/admin/cms/slides"
-   ]
-  },
-  {
-   "hash": "8ed8787",
-   "date": "2026-10-11T13:29:05+03:00",
-   "text": "Ζώνες αρχικής: «δείξε μου» όπως στις ζώνες σελίδων",
-   "routes": []
-  },
-  {
-   "hash": "26f418c",
-   "date": "2026-10-11T13:27:55+03:00",
-   "text": "Ζώνες σελίδων: μάτι σε κάθε ζώνη (και στα chips ζωνών)",
-   "routes": []
-  },
-  {
-   "hash": "a86f1f2",
-   "date": "2026-10-11T13:23:55+03:00",
-   "text": "Ζώνες σελίδων (ui-ux-pro-max): η λίστα από 10 μεγάλες κάρτες γίνεται πυκνός πίνακας (σελίδα, κατάσταση, components ανά ζώνη με τόνο μόνο όπου υπάρχει περιεχόμενο, αλλαγή, Στο site / Ζώνες) με λωρίδα συνόλων",
-   "routes": [
-    "/admin",
-    "/admin/cms/pages"
-   ]
-  },
-  {
-   "hash": "c4063a2",
-   "date": "2026-10-11T13:03:37+03:00",
-   "text": "Ζώνες αρχικής & σελίδες μαρκών (ui-ux-pro-max): σε οθόνη laptop οι ρυθμίσεις δεν κρύβουν πια την προεπισκόπηση",
-   "routes": []
-  },
-  {
-   "hash": "c7abbcc",
-   "date": "2026-10-11T12:46:32+03:00",
-   "text": "Κείμενα UI: νέος σχεδιασμός (ui-ux-pro-max)",
-   "routes": [
-    "/admin",
-    "/admin/cms/copy"
-   ]
-  },
-  {
-   "hash": "6ee4ce9",
-   "date": "2026-10-11T12:17:49+03:00",
-   "text": "Βοήθεια: screenshot Χαρακτηριστικών με ανοιχτό τύπο (Κλιματιστικά Inverter)",
-   "routes": []
-  },
-  {
-   "hash": "ffe42ff",
-   "date": "2026-10-11T12:10:45+03:00",
-   "text": "Βοήθεια: ευρετήριο με τα νέα screenshots",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3655,6 +3705,9 @@
   "customers.filters": [
    "app/admin/(shell)/customers/page.tsx"
   ],
+  "subscribers.campaigns": [
+   "app/admin/(shell)/newsletter/page.tsx"
+  ],
   "orders.filters": [
    "app/admin/(shell)/orders/OrderFilters.tsx"
   ],
@@ -3715,6 +3768,9 @@
   "promo.campaign-link": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
   ],
+  "promo.newsletter": [
+   "app/admin/(shell)/prosfores/[id]/page.tsx"
+  ],
   "promo.perf": [
    "app/admin/(shell)/prosfores/[id]/page.tsx"
   ],
@@ -3733,6 +3789,9 @@
   "promo.tags.commercial": [
    "app/admin/(shell)/prosfores/etiketes/page.tsx"
   ],
+  "campaign.newsletter": [
+   "app/admin/(shell)/prosfores/kampanies/[id]/page.tsx"
+  ],
   "campaigns.new": [
    "app/admin/(shell)/prosfores/kampanies/page.tsx"
   ],
@@ -3750,6 +3809,21 @@
   ],
   "promo.coupons.codes": [
    "app/admin/(shell)/prosfores/kouponia/page.tsx"
+  ],
+  "newsletter.source": [
+   "app/admin/(shell)/prosfores/newsletter/[id]/page.tsx"
+  ],
+  "newsletter.controls": [
+   "app/admin/(shell)/prosfores/newsletter/[id]/page.tsx"
+  ],
+  "newsletters.filters": [
+   "app/admin/(shell)/prosfores/newsletter/page.tsx"
+  ],
+  "newsletters.empty": [
+   "app/admin/(shell)/prosfores/newsletter/page.tsx"
+  ],
+  "newsletters.table": [
+   "app/admin/(shell)/prosfores/newsletter/page.tsx"
   ],
   "promo.new": [
    "app/admin/(shell)/prosfores/page.tsx"
@@ -3955,6 +4029,48 @@
   ],
   "promo.tags.info": [
    "components/admin/promos/InfoTagsEditor.tsx"
+  ],
+  "newsletter.title": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.subject": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.preheader": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.intro": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.hero": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.products": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.cta": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.audience": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.preview": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.actions": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.test": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.stats": [
+   "components/admin/promos/NewsletterStats.tsx"
+  ],
+  "newsletter.clicks": [
+   "components/admin/promos/NewsletterStats.tsx"
+  ],
+  "newsletter.log": [
+   "components/admin/promos/NewsletterStats.tsx"
   ],
   "promo.slots": [
    "components/admin/promos/PlacementsEditor.tsx"

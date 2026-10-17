@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderKanban, ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy, Sparkles, Wrench, MonitorSmartphone, FileSpreadsheet, type LucideIcon } from "lucide-react";
+import { FolderKanban, ListChecks, CalendarRange, TicketPercent, Tags, ShieldCheck, FlaskConical, BarChart3, LayoutTemplate, Megaphone, Users, LifeBuoy, Sparkles, Wrench, MonitorSmartphone, FileSpreadsheet, Mail, type LucideIcon } from "lucide-react";
 import type { PAGE_HELP } from "@/lib/promo/help";
 
 type Page = { key: string; href: string; label: string; Icon: LucideIcon; hidden?: boolean };
@@ -7,7 +7,7 @@ type Group = { key: string; label: string; Icon: LucideIcon; pages: Page[] };
 
 /**
  * Η ενότητα «Προσφορές» σε 7 περιοχές εργασίας: Καμπάνιες (φάκελοι προσφορών), Προσφορές (λίστα, ημερολόγιο), Κουπόνια,
- * Στόχευση (κοινά, προσωπικές), Στο site (θέσεις, landing pages, ετικέτες), Αναφορές, Εργαλεία.
+ * Στόχευση (κοινά, προσωπικές), Στο site (θέσεις, landing pages, ετικέτες, newsletter), Αναφορές, Εργαλεία.
  */
 const GROUPS: Group[] = [
   { key: "campaigns", label: "Καμπάνιες", Icon: FolderKanban, pages: [{ key: "campaigns", href: "/admin/prosfores/kampanies", label: "Καμπάνιες", Icon: FolderKanban }] },
@@ -26,6 +26,7 @@ const GROUPS: Group[] = [
     { key: "ads", href: "/admin/prosfores/theseis", label: "Διαφημιστικές θέσεις", Icon: Megaphone },
     { key: "landing", href: "/admin/prosfores/selides", label: "Landing pages", Icon: LayoutTemplate },
     { key: "tags", href: "/admin/prosfores/etiketes", label: "Ετικέτες", Icon: Tags },
+    { key: "newsletter", href: "/admin/prosfores/newsletter", label: "Newsletter", Icon: Mail },
   ] },
   { key: "report", label: "Αναφορές", Icon: BarChart3, pages: [{ key: "report", href: "/admin/prosfores/anafores", label: "Αναφορές", Icon: BarChart3 }] },
   { key: "tools", label: "Εργαλεία", Icon: Wrench, pages: [

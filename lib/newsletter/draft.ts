@@ -8,6 +8,7 @@ import { promotionProductIds } from "@/lib/promo/landing";
 import type { Block as LandingBlock } from "@/lib/promo/landing-blocks";
 import type { PromoReward } from "@/lib/promo/engine";
 import { contentHash, factCheck, type Block } from "./core";
+import { LIMITS, type CopyField } from "./edit";
 import type { NewsletterProduct } from "./render";
 
 /**
@@ -16,10 +17,10 @@ import type { NewsletterProduct } from "./render";
  * δεν προκύπτει από αυτά (`factCheck`) αντικαθίσταται από σταθερό πρότυπο. Χωρίς AI → όλα πρότυπα.
  */
 
-export type CopyField = "subject" | "preheader" | "intro" | "cta";
+export type { CopyField };
 export type Copy = Record<CopyField, string>;
-/** Όρια χαρακτήρων ανά πεδίο (spec §4). */
-export const LIMITS: Record<CopyField, number> = { subject: 60, preheader: 110, intro: 400, cta: 24 };
+/** Όρια χαρακτήρων ανά πεδίο (spec §4) — κοινά με τους μετρητές του editor (lib/newsletter/edit.ts). */
+export { LIMITS };
 
 const DEFAULT_PRODUCTS = 6;
 /** Υποψήφια προϊόντα ανά προσφορά πριν το φιλτράρισμα ορατότητας. */

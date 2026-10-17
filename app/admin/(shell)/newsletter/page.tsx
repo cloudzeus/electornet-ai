@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Send } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { NewsletterAdmin } from "@/components/admin/customers/NewsletterAdmin";
@@ -26,6 +27,7 @@ export default async function NewsletterPage({ searchParams }: { searchParams: P
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase">Marketing</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Newsletter</h2>
         <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Εγγραφές με double opt-in. Κάθε εγγραφή, επιβεβαίωση και διαγραφή καταγράφεται στο ledger συναινέσεων με IP, συσκευή, URL και έκδοση κειμένου. Οι πελάτες με λογαριασμό συνδέονται αυτόματα.</p>
+        <Link href="/admin/prosfores/newsletter" data-help="subscribers.campaigns" className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-3.5 min-h-11 md:min-h-9 hover:bg-eu-blue"><Send className="size-4" aria-hidden /> Αποστολές newsletter</Link>
       </div>
       <div className="grid grid-cols-2 @lg:grid-cols-5 gap-3">
         <StatTile label="Ενεργοί εγγεγραμμένοι" value={n("subscribed").toLocaleString("el-GR")} accent />

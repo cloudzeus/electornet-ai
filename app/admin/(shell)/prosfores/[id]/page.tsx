@@ -14,6 +14,7 @@ import { promoAppearances } from "@/lib/promo/where";
 import { KpiTile, LineChart } from "@/components/admin/charts/Charts";
 
 import { campaignOptions } from "@/lib/promo/campaigns";
+import { NewsletterCreateButton } from "@/components/admin/promos/NewsletterEditor";
 import { FolderKanban } from "lucide-react";
 
 export const metadata = { title: "Προσφορά" };
@@ -38,6 +39,8 @@ export default async function PromotionPage({ params, searchParams }: { params: 
   const [stats, where, campaigns] = await Promise.all([promoStats(30, p.id), promoAppearances([p.id]), campaignOptions()]);
   const appears = where.get(p.id) ?? [];
   const everUsed = p.usedCount > 0 || stats.total.orders > 0;
+  const canNewsletter = hasPermission(user, "marketing.newsletter.write");
+  const newsletters = canNewsletter ? await db.newsletter.count({ where: { promotionId: p.id } }) : 0;
   const eur = (v: number) => `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
   return (
@@ -47,10 +50,16 @@ export default async function PromotionPage({ params, searchParams }: { params: 
           summary={change ? `${change.draft.name}: ${describePromo(change.draft)}` : `${p.name}: ${describePromo({ mechanism: p.mechanism, reward: p.reward as PromoReward, rules: p.rules as PromoRules })}`}
           by={who.get((change ? change.by : p.createdById) ?? "") ?? null} at={(change?.at ?? p.updatedAt).toISOString()} />
       )}
-      {p.campaign && (
-        <Link href={`/admin/prosfores/kampanies/${p.campaign.id}`} data-help="promo.campaign-link" className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:border-eu-navy">
-          <FolderKanban className="size-4 text-eu-blue" aria-hidden /> Καμπάνια: <span className="font-mono">{p.campaign.code}</span> · <span className="font-bold">{p.campaign.title}</span> →
-        </Link>
+      {(p.campaign || canNewsletter) && (
+        <div className="flex flex-wrap items-start gap-2">
+          {p.campaign && (
+            <Link href={`/admin/prosfores/kampanies/${p.campaign.id}`} data-help="promo.campaign-link" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-13)] hover:border-eu-navy">
+              <FolderKanban className="size-4 text-eu-blue" aria-hidden /> Καμπάνια: <span className="font-mono">{p.campaign.code}</span> · <span className="font-bold">{p.campaign.title}</span> →
+            </Link>
+          )}
+          {canNewsletter && <NewsletterCreateButton data-help="promo.newsletter" kind="promotion" sourceId={p.id} />}
+          {canNewsletter && newsletters > 0 && <Link href="/admin/prosfores/newsletter" className="inline-flex items-center min-h-11 md:min-h-9 font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline">{newsletters} newsletter →</Link>}
+        </div>
       )}
       <PromoWizard campaigns={campaigns} appears={appears} overview={everUsed ? (
         <section data-help="promo.perf" aria-labelledby="pp-h" className="grid gap-3 rounded-2xl bg-white border border-eu-line p-3 @md:p-4">

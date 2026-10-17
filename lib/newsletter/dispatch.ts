@@ -9,6 +9,7 @@ import { marketingConsent } from "@/lib/promo/issue";
 import { audit } from "@/lib/rbac/audit";
 import { audienceOf, batches, contentHash, finalStatus, recipientVariables, startCheck, validateSchedule, type AudienceRow, type Block, type SendCounts } from "./core";
 import { productCards } from "./draft";
+import { canResume } from "./edit";
 import { renderNewsletter } from "./render";
 
 /**
@@ -272,6 +273,33 @@ export async function stopNewsletter(id: string, staffId: string): Promise<Ok> {
   const skipped = await db.newsletterRecipient.updateMany({ where: { newsletterId: id, status: "queued" }, data: { status: "skipped" } });
   await audit(staffId, "newsletter.stop", "Newsletter", id, null, { status: "cancelled", skipped: skipped.count });
   return { ok: true };
+}
+
+/**
+ * «Συνέχεια» newsletter σε παύση (paused → sending): στέλνονται μόνο όσοι είναι ακόμη στην ουρά (`queued`)·
+ * οι γραμμές σε πτήση / αβέβαιες δεν ξαναστέλνονται. Αν δεν είχε ξεκινήσει, το επόμενο tick ξανακάνει τους ελέγχους έναρξης.
+ */
+export async function resumeNewsletter(id: string, staffId: string): Promise<Ok> {
+  const n = await db.newsletter.findUnique({ where: { id }, select: { status: true, startedAt: true, cancelReason: true } });
+  if (!n) return { ok: false, error: "Το newsletter δεν βρέθηκε." };
+  const queued = await db.newsletterRecipient.count({ where: { newsletterId: id, status: "queued" } });
+  if (!canResume({ status: n.status, started: !!n.startedAt, queued })) {
+    return { ok: false, error: n.status !== "paused" ? "Συνεχίζεται μόνο newsletter σε παύση." : "Δεν έμεινε κανένας παραλήπτης στην ουρά — δεν υπάρχει κάτι να συνεχιστεί." };
+  }
+  const { data, secrets } = await getSetting("email");
+  if (!transportReady(data, secrets)) return { ok: false, error: "Δεν έχει ρυθμιστεί αποστολή email (Ρυθμίσεις → Email & SMS)." };
+  const text = n.startedAt ? `Συνέχεια αποστολής — ${queued} παραλήπτες στην ουρά.` : "Συνέχεια — νέοι έλεγχοι έναρξης στο επόμενο λεπτό.";
+  if (!(await transition(id, ["paused"], { status: "sending", cancelReason: null }, "resume", text, staffId))) return { ok: false, error: "Η κατάσταση του newsletter άλλαξε στο μεταξύ — ανανεώστε τη σελίδα." };
+  await audit(staffId, "newsletter.resume", "Newsletter", id, { status: "paused", reason: n.cancelReason }, { status: "sending", queued });
+  return { ok: true };
+}
+
+/** Προεκτίμηση παραληπτών με το αποθηκευμένο κοινό (ίδιος υπολογισμός με τον προγραμματισμό και την έναρξη). */
+export async function estimateAudience(id: string): Promise<{ ok: true; recipients: number } | { ok: false; error: string }> {
+  const n = await db.newsletter.findUnique({ where: { id }, select: { audience: true } });
+  if (!n) return { ok: false, error: "Το newsletter δεν βρέθηκε." };
+  const aud = await loadAudience(n);
+  return "error" in aud ? { ok: false, error: aud.error } : { ok: true, recipients: aud.rows.length };
 }
 
 // ---- εκτέλεση ----

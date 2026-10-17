@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/rbac/guard";
+import { hasPermission, requirePermission } from "@/lib/rbac/guard";
+import { NewsletterCreateButton } from "@/components/admin/promos/NewsletterEditor";
 import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { CampaignWizard, type WizardCampaign } from "@/components/admin/promos/CampaignWizard";
 import { getCampaign } from "@/lib/promo/campaigns";
@@ -18,7 +19,7 @@ const slotLabel = (k: string) => SLOTS.find((s) => s.key === k)?.label ?? k;
 
 /** Καρτέλα καμπάνιας: ο οδηγός 5 βημάτων (και για νέα). */
 export default async function CampaignPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ step?: string }> }) {
-  await requirePermission("catalog.promos.write");
+  const user = await requirePermission("catalog.promos.write");
   const { id } = await params;
   const step = Math.max(0, Math.min(4, Number((await searchParams).step) || 0));
   let campaign: WizardCampaign | null = null;
@@ -40,7 +41,8 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   }
   return (
     <div className="@container grid gap-4 min-w-0">
-      <PromoTabs active="campaigns" title={campaign ? campaign.title : "Νέα καμπάνια"} lead={campaign ? `${campaign.code} · φάκελος προσφορών, landing pages και banners` : "Ο οδηγός σε 5 βήματα: στόχος, budget, περιεχόμενα, προβολή, έλεγχος."} />
+      <PromoTabs active="campaigns" title={campaign ? campaign.title : "Νέα καμπάνια"} lead={campaign ? `${campaign.code} · φάκελος προσφορών, landing pages και banners` : "Ο οδηγός σε 5 βήματα: στόχος, budget, περιεχόμενα, προβολή, έλεγχος."}
+        actions={campaign && hasPermission(user, "marketing.newsletter.write") ? <NewsletterCreateButton data-help="campaign.newsletter" kind="campaign" sourceId={campaign.id} /> : undefined} />
       <CampaignWizard campaign={campaign} initialStep={campaign ? step : 0} />
     </div>
   );
