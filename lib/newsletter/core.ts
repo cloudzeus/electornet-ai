@@ -32,16 +32,17 @@ export type AudienceRow = { email: string; subscriberId: string | null; customer
 
 /**
  * Κοινό αποστολής: συνδρομητές subscribed ∪ πελάτες με συναίνεση, ένα ανά email.
- * Κερδίζει η γραμμή συνδρομητή· αποκλεισμός (unsubscribed/bounced/complained) νικά πάντα.
+ * Κερδίζει η γραμμή συνδρομητή· αποκλεισμός (unsubscribed/bounced/complained ή πελάτης με τελευταία συναίνεση «όχι») νικά πάντα.
  * Με segment (id πελατών) μένουν μόνο όσοι αντιστοιχούν σε πελάτη του συνόλου.
  */
 export function audienceOf(input: {
   subscribers: { id: string; email: string; status: string; firstName?: string | null; customerId?: string | null }[];
-  customers: { id: string; email: string | null; firstName?: string | null; allowed: boolean }[];
+  customers: { id: string; email: string | null; firstName?: string | null; allowed: boolean; optedOut?: boolean }[];
   segment?: Set<string> | null;
 }): AudienceRow[] {
   const blocked = new Set<string>();
   for (const s of input.subscribers) if (BLOCKED.has(s.status)) blocked.add(normEmail(s.email));
+  for (const c of input.customers) if (c.optedOut) blocked.add(normEmail(c.email));
 
   const customerByEmail = new Map<string, { id: string; firstName?: string | null }>();
   for (const c of input.customers) {
@@ -68,12 +69,12 @@ export function audienceOf(input: {
   return input.segment ? rows.filter((r) => r.customerId !== null && input.segment!.has(r.customerId)) : rows;
 }
 
-/** Αριθμός → κανονική μορφή ("20,50" → "20.5"). */
-const num = (s: string) => String(parseFloat(s.replace(",", ".")));
+/** Αριθμός → κανονική μορφή: "20,50" → "20.5", ελληνικά χιλιάδες "1.299,90" → "1299.9". */
+const num = (s: string) => String(parseFloat(/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(s) ? s.replace(/\./g, "").replace(",", ".") : s.replace(",", ".")));
 /** Μονάδες και ημερομηνίες ενός κειμένου, κανονικοποιημένες: "20%", "199€", "31/10". */
 function claims(text: string): Set<string> {
   const out = new Set<string>();
-  for (const m of text.matchAll(/(?<![\d.,])(\d+(?:[.,]\d+)?)\s?(%|€)/g)) out.add(`${num(m[1])}${m[2]}`);
+  for (const m of text.matchAll(/(?<![\d.,])([1-9]\d{0,2}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\s?(%|€)/g)) out.add(`${num(m[1])}${m[2]}`);
   for (const m of text.matchAll(/(?<![\d/])(\d{1,2})\/(\d{1,2})(?!\d)/g)) out.add(`${Number(m[1])}/${Number(m[2])}`);
   return out;
 }

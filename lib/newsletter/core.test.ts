@@ -154,3 +154,20 @@ test("contentHash: σταθερό για ίδια είσοδο, αλλάζει �
   assert.notEqual(contentHash({ subject: "Θέμα", preheader: "P", blocks: changed }), a);
   assert.notEqual(contentHash({ subject: "Άλλο", preheader: "P", blocks }), a);
 });
+
+test("factCheck: ελληνική μορφή τιμών ≥ 1.000 € (τελεία χιλιάδων, κόμμα δεκαδικών)", () => {
+  assert.equal(factCheck("Μόνο 1.299,90€", ["1299,90€"]), true);
+  assert.equal(factCheck("Μόνο 1.299,90€", []), false);
+  assert.equal(factCheck("Μόνο 1.299,90€", ["1.299,90 €"]), true);
+  assert.equal(factCheck("Μόνο 1.299,90€", ["1.299€"]), false);
+  assert.equal(factCheck("1.200€", ["1,2€"]), false);
+  assert.equal(factCheck("από 1.299 €", ["1.299€"]), true);
+  assert.equal(factCheck("από 1.299 €", ["1299€"]), true);
+});
+
+test("κοινό: πελάτης με τελευταία συναίνεση «όχι» (optedOut) αποκλείει το email ακόμη και με subscribed συνδρομητή", () => {
+  assert.deepEqual(audienceOf({ subscribers: [sub("s1", "a@b.gr")], customers: [{ id: "c1", email: "A@b.gr", allowed: false, optedOut: true }] }), []);
+  // allowed=false χωρίς optedOut δεν αποκλείει συνδρομητή
+  const rows = audienceOf({ subscribers: [sub("s1", "a@b.gr")], customers: [{ id: "c1", email: "a@b.gr", allowed: false }] });
+  assert.deepEqual(rows.map((r) => r.subscriberId), ["s1"]);
+});
