@@ -91,11 +91,14 @@ type PromoRow = Prisma.PromotionGetPayload<{ select: typeof promoSelect }>;
 
 const labelOf = (p: PromoRow) => autoLabel({ mechanism: p.mechanism, reward: (p.reward ?? {}) as PromoReward, tagLabel: p.tagLabel, name: p.name, rules: p.rules } as Parameters<typeof autoLabel>[0]);
 
+/** Καμπάνια: μόνο προσφορές που ισχύουν ή θα ισχύσουν (όχι πρόχειρες / σε παύση / ανενεργές) — αλλιώς το newsletter διαφημίζει έκπτωση που δεν υπάρχει. */
+const LIVE_STATUSES = ["scheduled", "active"];
+
 type Source = { kind: "promotion" | "campaign"; name: string; endsAt: Date | null; promos: PromoRow[]; campaignId: string | null; promotionId: string | null };
 
 async function loadSource(n: { promotionId?: string | null; campaignId?: string | null }): Promise<Source | null> {
   if (n.campaignId) {
-    const c = await db.campaign.findUnique({ where: { id: n.campaignId }, select: { id: true, title: true, endsAt: true, promotions: { where: { status: { notIn: ["archived", "ended"] } }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }], select: promoSelect } } });
+    const c = await db.campaign.findUnique({ where: { id: n.campaignId }, select: { id: true, title: true, endsAt: true, promotions: { where: { status: { in: LIVE_STATUSES }, held: false }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }], select: promoSelect } } });
     return c ? { kind: "campaign", name: c.title, endsAt: c.endsAt, promos: c.promotions, campaignId: c.id, promotionId: null } : null;
   }
   if (n.promotionId) {
