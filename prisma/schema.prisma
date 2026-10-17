@@ -2572,3 +2572,81 @@ model PurchaseLine {
   @@index([productId])
   @@index([mtrl])
 }
+
+/// Newsletter προσφοράς: αυτόματο εικαστικό email προς συνδρομητές. Πίνακες από scripts/apply-newsletter.ts (ποτέ db push).
+/// Το promotionId / campaignId είναι απλά πεδία (χωρίς σχέση), ώστε να μην αλλάξουν τα μοντέλα Promotion / Campaign.
+model Newsletter {
+  id             String                @id @default(cuid())
+  title          String // εσωτερικός τίτλος
+  promotionId    String?
+  campaignId     String?
+  subject        String
+  preheader      String                @default("")
+  blocks         Json                  @default("[]")
+  audience       Json                  @default("{}") // { segmentId?: string }
+  status         String                @default("draft") // draft | scheduled | sending | paused | sent | cancelled
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  cancelReason   String?
+  contentHash    String                @default("") // αποτύπωμα θέματος + blocks
+  testHash       String? // η δοκιμή ισχύει μόνο όταν testHash = contentHash
+  testSentAt     DateTime?
+  testSentTo     String?
+  /// Μετρητές. Το πλήθος παραληπτών λέγεται recipientCount γιατί το «recipients» είναι η σχέση.
+  recipientCount Int                   @default(0)
+  sent           Int                   @default(0)
+  failed         Int                   @default(0)
+  delivered      Int                   @default(0)
+  opened         Int                   @default(0)
+  clicked        Int                   @default(0)
+  unsubscribed   Int                   @default(0)
+  bounced        Int                   @default(0)
+  complained     Int                   @default(0)
+  createdById    String
+  sentById       String?
+  log            Json                  @default("[]") // ιστορικό (π.χ. αφαιρέθηκε προϊόν εκτός προσφοράς)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  recipients     NewsletterRecipient[]
+
+  @@index([status, scheduledAt])
+  @@index([promotionId])
+  @@index([campaignId])
+}
+
+model NewsletterRecipient {
+  id             String     @id @default(cuid())
+  newsletterId   String
+  newsletter     Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+  email          String // πεζά
+  subscriberId   String?
+  customerId     String?
+  firstName      String?
+  token          String     @unique @default(cuid()) // διαγραφή / one-click
+  status         String     @default("queued") // queued | sent | failed | skipped
+  messageId      String?
+  attempts       Int        @default(0)
+  error          String?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  unsubscribedAt DateTime?
+  bouncedAt      DateTime?
+  complainedAt   DateTime?
+
+  @@unique([newsletterId, email])
+  @@index([newsletterId, status])
+}
+
+/// Ιδεμπότητα webhooks Mailgun: id = id γεγονότος Mailgun. Το recipientId χωρίς FK.
+model NewsletterEvent {
+  id          String   @id
+  recipientId String
+  type        String
+  url         String?
+  at          DateTime
+
+  @@index([recipientId])
+}

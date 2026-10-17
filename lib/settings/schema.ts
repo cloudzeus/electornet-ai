@@ -367,6 +367,7 @@ export const SECTIONS: Section[] = [
       { key: "apiKey", label: "API key παρόχου", type: "secret", width: "half", group: "transport", showIf: not("transport", "smtp", "") },
       { key: "mailgunDomain", label: "Mailgun domain", type: "text", placeholder: "mg.euronics.gr", help: "Το επιβεβαιωμένο sending domain. Κενό = το domain του email αποστολέα.", width: "half", group: "transport", showIf: is("transport", "mailgun") },
       { key: "mailgunRegion", label: "Mailgun region", type: "select", options: [{ value: "eu", label: "EU (api.eu.mailgun.net)" }, { value: "us", label: "US (api.mailgun.net)" }], width: "half", group: "transport", showIf: is("transport", "mailgun"), help: "Όπου δημιουργήθηκε το domain στο Mailgun." },
+      { key: "mailgunWebhookKey", label: "Mailgun webhook signing key", type: "secret", width: "half", group: "transport", showIf: is("transport", "mailgun"), help: "Mailgun → Sending → Webhooks → HTTP webhook signing key" },
       { key: "smtpHost", label: "SMTP host", type: "text", width: "half", group: "transport", showIf: is("transport", "smtp", ""), placeholder: "smtp.office365.com" },
       { key: "smtpPort", label: "SMTP port", type: "number", placeholder: "587", width: "half", group: "transport", showIf: is("transport", "smtp", ""), min: 1, max: 65535, step: 1, help: "587 (STARTTLS) ή 465 (SSL)." },
       { key: "smtpUser", label: "SMTP user", type: "text", width: "half", group: "transport", showIf: is("transport", "smtp", "") },
