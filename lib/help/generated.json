@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-17T02:47:54.285Z",
+ "generatedAt": "2026-10-17T02:54:44.799Z",
  "routes": [
   {
    "route": "/admin",
@@ -1541,6 +1541,11 @@
    ],
    "changes": [
     {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    },
+    {
      "hash": "7361160",
      "date": "2026-09-13T18:58:12+03:00",
      "text": "Newsletter page: date helper outside render (lint purity)"
@@ -1551,7 +1556,7 @@
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-09-13T18:58:12+03:00",
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {}
   },
   {
@@ -1678,6 +1683,11 @@
    ],
    "changes": [
     {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    },
+    {
      "hash": "4060650",
      "date": "2026-10-16T17:08:16+03:00",
      "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
@@ -1721,14 +1731,9 @@
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
-    },
-    {
-     "hash": "78ba51b",
-     "date": "2026-10-03T07:05:06+03:00",
-     "text": "Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-16T17:08:16+03:00",
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores-d.jpg",
     "mobile": "/api/help-shot/prosfores-m.jpg"
@@ -1753,6 +1758,11 @@
     "promo.where"
    ],
    "changes": [
+    {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    },
     {
      "hash": "417cbe2",
      "date": "2026-10-16T17:09:21+03:00",
@@ -1797,14 +1807,9 @@
      "hash": "f6a094e",
      "date": "2026-10-03T08:10:14+03:00",
      "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
-    },
-    {
-     "hash": "0523818",
-     "date": "2026-10-03T07:38:44+03:00",
-     "text": "Admin adaptive: συρτάρι μενού σε κινητό/tablet, επιλογέας καταλόγου βήμα-βήμα σε στενή οθόνη, τίποτα δεν ξεχειλώνει"
     }
    ],
-   "updatedAt": "2026-10-16T17:09:21+03:00",
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {}
   },
   {
@@ -2084,12 +2089,17 @@
    ],
    "changes": [
     {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    },
+    {
      "hash": "1e93fcd",
      "date": "2026-10-16T17:04:47+03:00",
      "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-16T17:04:47+03:00",
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {}
   },
   {
@@ -2278,8 +2288,14 @@
     "newsletters.empty",
     "newsletters.table"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    }
+   ],
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {}
   },
   {
@@ -2305,11 +2321,18 @@
     "newsletter.preview",
     "newsletter.actions",
     "newsletter.test",
+    "newsletter.actions-mobile",
+    "newsletter.more",
     "newsletter.stats",
     "newsletter.clicks",
     "newsletter.log"
    ],
    "changes": [
+    {
+     "hash": "7d938f8",
+     "date": "2026-10-17T05:48:25+03:00",
+     "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
+    },
     {
      "hash": "98b6a94",
      "date": "2026-10-17T05:29:43+03:00",
@@ -2326,7 +2349,7 @@
      "text": "Newsletter προσφοράς (5/7): αποστολή"
     }
    ],
-   "updatedAt": "2026-10-17T05:29:43+03:00",
+   "updatedAt": "2026-10-17T05:48:25+03:00",
    "shots": {}
   },
   {
@@ -3315,6 +3338,21 @@
  ],
  "recent": [
   {
+   "hash": "7d938f8",
+   "date": "2026-10-17T05:48:25+03:00",
+   "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια",
+   "routes": [
+    "/admin",
+    "/admin/newsletter",
+    "/admin/prosfores",
+    "/admin/prosfores/[id]",
+    "/admin/prosfores/kampanies",
+    "/admin/prosfores/kampanies/[id]",
+    "/admin/prosfores/newsletter",
+    "/admin/prosfores/newsletter/[id]"
+   ]
+  },
+  {
    "hash": "98b6a94",
    "date": "2026-10-17T05:29:43+03:00",
    "text": "Newsletter προσφοράς (6/7): διαγραφή, webhooks Mailgun, προβολή στον browser",
@@ -3599,15 +3637,6 @@
     "/admin/catalog",
     "/admin/catalog/[id]",
     "/admin/customers"
-   ]
-  },
-  {
-   "hash": "d62f895",
-   "date": "2026-10-13T19:20:04+03:00",
-   "text": "Αρχική: «Προσφορά ημέρας» και «Προσφορές της εβδομάδας» (ίδιες για όλους) σε κοινή μνήμη 1′ με ανανέωση στο παρασκήνιο",
-   "routes": [
-    "/admin",
-    "/admin/cms/slides"
    ]
   }
  ],
@@ -4061,6 +4090,12 @@
    "components/admin/promos/NewsletterEditor.tsx"
   ],
   "newsletter.test": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.actions-mobile": [
+   "components/admin/promos/NewsletterEditor.tsx"
+  ],
+  "newsletter.more": [
    "components/admin/promos/NewsletterEditor.tsx"
   ],
   "newsletter.stats": [

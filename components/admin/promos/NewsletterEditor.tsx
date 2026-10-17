@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Check, CircleAlert, Copy, Eye, FlaskConical, Loader2, Mail, Monitor, Pause, Pencil, Play, Plus, Save, Search, Send, Smartphone, Sparkles, Square, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Check, CircleAlert, Copy, Eye, FlaskConical, Loader2, Mail, Monitor, MoreHorizontal, Pause, Pencil, Play, Plus, Save, Search, Send, Smartphone, Sparkles, Square, X } from "lucide-react";
 import { ImageUrlField } from "./ImageUrlField";
 import { HARD, LIMITS, MAX_PRODUCTS, NEWSLETTER_STATUS, athensLocal, type CopyField, type NewsletterForm } from "@/lib/newsletter/edit";
 import { cancel, createFromCampaign, createFromPromotion, duplicate, estimateRecipients, previewHtml, resume, rewriteWithAi, saveNewsletter, schedule, searchProducts, stop, testSend } from "@/app/admin/(shell)/prosfores/newsletter/actions";
@@ -106,8 +106,8 @@ export function NewsletterPreview({ html, busy, "data-help": dataHelp }: { html:
           ))}
         </div>
       </div>
-      <div className="rounded-2xl border border-eu-line bg-eu-surface p-2 grid justify-items-center overflow-hidden">
-        <iframe title="Προεπισκόπηση του email" srcDoc={html} sandbox="allow-popups allow-popups-to-escape-sandbox" className="block bg-white rounded-lg border-0 max-w-full h-[70dvh] min-h-[480px]" style={{ width: mode === "mobile" ? 375 : "100%" }} />
+      <div className="rounded-2xl border border-eu-line bg-eu-surface p-2 grid grid-cols-[minmax(0,1fr)] justify-items-center overflow-hidden min-w-0">
+        <iframe title="Προεπισκόπηση του email" srcDoc={html} sandbox="allow-popups allow-popups-to-escape-sandbox" className="block bg-white rounded-lg border-0 min-w-0 h-[70dvh] min-h-[480px]" style={{ width: mode === "mobile" ? 375 : "100%", maxWidth: "100%" }} />
       </div>
       <p className={helpTxt}>Τιμές και προϊόντα όπως είναι τώρα· στην αποστολή ξαναδιαβάζονται και ό,τι δεν φαίνεται πια στο site αφαιρείται.</p>
     </section>
@@ -222,6 +222,13 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
   const testWhy = noTransport ? "Δεν έχει ρυθμιστεί πάροχος email." : dirty ? "Αποθηκεύστε πρώτα τις αλλαγές." : null;
   const sendWhy = testWhy ?? d.sourceProblem ?? (!tested ? "Χρειάζεται δοκιμαστική αποστολή μετά την τελευταία αλλαγή." : null);
 
+  // κινητό: η μία «επόμενη» ενέργεια και η κατάσταση σε μία γραμμή
+  const [sheet, setSheet] = useState(false);
+  const next: "save" | "test" | "send" | null = dirty ? "save" : !tested && !testWhy ? "test" : !sendWhy ? "send" : null;
+  const testedAt = d.testSentAt ? ` ${new Date(d.testSentAt).toLocaleString("el-GR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Athens" })}` : "";
+  const dirtyOrTest = dirty ? "Μη αποθηκευμένες αλλαγές" : tested ? `Δοκιμάστηκε${testedAt}` : d.testHash ? "Άλλαξε μετά τη δοκιμή — χρειάζεται νέα" : "Δεν έχει γίνει δοκιμή";
+  const statusText = msg?.text ?? (next === null && (noTransport || sendWhy) ? (noTransport ? "Χωρίς πάροχο email" : sendWhy!) : dirtyOrTest);
+
   const openConfirm = (at: string) => startAct(async () => {
     const r = await estimateRecipients(d.id, at);
     if (!r.ok) {
@@ -327,7 +334,7 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
       </div>
 
       {/* μπάρα ενεργειών */}
-      <div data-help="newsletter.actions" className="sticky bottom-0 z-20 rounded-t-2xl border border-eu-line bg-white/95 backdrop-blur px-3 py-2.5 grid gap-2 shadow-[0_-6px_18px_rgba(0,0,0,0.06)]">
+      <div data-help="newsletter.actions" className="hidden md:grid sticky bottom-0 z-20 rounded-t-2xl border border-eu-line bg-white/95 backdrop-blur px-3 py-2.5 gap-2 shadow-[0_-6px_18px_rgba(0,0,0,0.06)]">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[length:var(--fs-13)]" aria-live="polite">
           {dirty ? <span className="inline-flex items-center gap-1.5 font-bold text-eu-amber"><AlertTriangle className="size-4" aria-hidden /> Μη αποθηκευμένες αλλαγές</span>
             : tested ? <span className="inline-flex items-center gap-1.5 font-bold text-eu-green"><Check className="size-4" aria-hidden /> Δοκιμάστηκε{d.testSentAt ? ` ${new Date(d.testSentAt).toLocaleString("el-GR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Europe/Athens" })}` : ""}{d.testSentCount ? ` · ${d.testSentCount} ${d.testSentCount === 1 ? "διεύθυνση" : "διευθύνσεις"}` : ""}</span>
@@ -347,6 +354,32 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
           </p>
         )}
       </div>
+
+      {/* κινητό (< md): μία συμπαγής γραμμή — η επόμενη ενέργεια + «Περισσότερα». Είναι sticky μέσα στη ροή, άρα το τελευταίο πεδίο δεν κρύβεται. */}
+      <div data-help="newsletter.actions-mobile" className="md:hidden sticky bottom-0 z-20 flex items-center gap-2 rounded-t-2xl border border-eu-line bg-white/95 backdrop-blur px-2.5 py-2 shadow-[0_-6px_18px_rgba(0,0,0,0.06)] min-w-0">
+        <span className={`min-w-0 flex-1 truncate font-bold text-[length:var(--fs-13)] ${msg ? (msg.tone === "ok" ? "text-eu-green" : "text-eu-red") : dirty ? "text-eu-amber" : tested ? "text-eu-green" : "text-eu-ink-3"}`} title={statusText} aria-live="polite">{statusText}</span>
+        {next === "save" && <button type="button" onClick={save} disabled={saving} className={`${primary} shrink-0`}>{saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση</button>}
+        {next === "test" && <button type="button" onClick={() => setDialog({ kind: "test" })} disabled={acting} className={`${primary} shrink-0`}><FlaskConical className="size-4" aria-hidden /> Δοκιμή</button>}
+        {next === "send" && <button type="button" onClick={() => setSheet(true)} className={`${primary} shrink-0`}><Send className="size-4" aria-hidden /> Αποστολή…</button>}
+        <button type="button" data-help="newsletter.more" onClick={() => setSheet(true)} aria-haspopup="dialog" aria-expanded={sheet} className={`${ghost} shrink-0 !px-3 min-w-11`}><MoreHorizontal className="size-4" aria-hidden /><span className="sr-only">Περισσότερα</span><span aria-hidden className="hidden min-[400px]:inline">Περισσότερα</span></button>
+      </div>
+      {sheet && (
+        <Modal title="Ενέργειες" onClose={() => setSheet(false)}>
+          <p className={`m-0 font-bold text-[length:var(--fs-14)] ${dirty ? "text-eu-amber" : tested ? "text-eu-green" : "text-eu-ink-3"}`}>{dirtyOrTest}</p>
+          {msg && <p role={msg.tone === "bad" ? "alert" : "status"} className={`m-0 font-bold text-[length:var(--fs-13)] ${msg.tone === "ok" ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</p>}
+          <div className="grid gap-2">
+            <button type="button" onClick={() => { setSheet(false); save(); }} disabled={!dirty || saving} className={`${dirty ? primary : ghost} w-full`}><Save className="size-4" aria-hidden /> Αποθήκευση</button>
+            <button type="button" onClick={() => { setSheet(false); setDialog({ kind: "test" }); }} disabled={!!testWhy || acting} className={`${!dirty && !tested && !testWhy ? primary : ghost} w-full`}><FlaskConical className="size-4" aria-hidden /> Δοκιμαστική αποστολή</button>
+            <button type="button" onClick={() => { setSheet(false); openConfirm("now"); }} disabled={!!sendWhy || acting} className={`${ghost} w-full`}><Send className="size-4" aria-hidden /> Αποστολή τώρα</button>
+            <button type="button" onClick={() => { setSheet(false); setDialog({ kind: "schedule" }); }} disabled={!!sendWhy || acting} className={`${!sendWhy ? primary : ghost} w-full`}><CalendarClock className="size-4" aria-hidden /> Προγραμματισμός</button>
+          </div>
+          {(sendWhy || noTransport) && (
+            <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">
+              {noTransport ? <>Η αποστολή είναι κλειδωμένη: δεν έχει ρυθμιστεί πάροχος email. <Link href="/admin/settings/email" className="font-bold text-eu-blue underline">Ρυθμίσεις → Email</Link></> : <>Αποστολή / προγραμματισμός: {sendWhy}</>}
+            </p>
+          )}
+        </Modal>
+      )}
 
       {dialog?.kind === "test" && <TestDialog id={d.id} me={d.me} staff={d.staff} onClose={() => setDialog(null)} onDone={(text) => { setDialog(null); setMsg({ tone: "ok", text }); router.refresh(); }} />}
       {dialog?.kind === "schedule" && <ScheduleDialog busy={acting} error={schedErr} onClose={() => { setDialog(null); setSchedErr(null); }} onNext={openConfirm} />}
