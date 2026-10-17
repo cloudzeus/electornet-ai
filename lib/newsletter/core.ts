@@ -123,3 +123,25 @@ export function verifyMailgun(sig: { timestamp: string; token: string; signature
   const given = Buffer.from(sig.signature ?? "");
   return given.length === expected.length && timingSafeEqual(given, expected);
 }
+
+/**
+ * Έλεγχος πριν από (και στην έναρξη της) αποστολής: προσφορά scheduled|active, όχι held, όχι ληγμένη· καμπάνια scheduled|live.
+ * Επιστρέφει τον λόγο ακύρωσης ή null. Newsletter χωρίς προσφορά και καμπάνια (γενικό) περνά.
+ */
+export function startCheck(n: { promotion?: { status: string; held: boolean; endsAt: Date | null } | null; campaign?: { status: string } | null }, now: Date): string | null {
+  const p = n.promotion;
+  if (p) {
+    if (p.held) return "Η προσφορά είναι σε αναμονή (held) — δεν εφαρμόζεται.";
+    if (p.status !== "scheduled" && p.status !== "active") return `Η προσφορά δεν είναι προγραμματισμένη ή ενεργή (κατάσταση: ${p.status}).`;
+    if (p.endsAt && p.endsAt.getTime() <= now.getTime()) return "Η προσφορά έληξε.";
+  }
+  const c = n.campaign;
+  if (c && c.status !== "scheduled" && c.status !== "live") return `Η καμπάνια δεν είναι προγραμματισμένη ή σε εξέλιξη (κατάσταση: ${c.status}).`;
+  return null;
+}
+
+/** Πάνω από 20 % αποτυχίες, μόνο όταν οι προσπάθειες είναι τουλάχιστον 50 (λίγες αποτυχίες στην αρχή δεν σταματούν την αποστολή). */
+export function failRatio(sent: number, failed: number): boolean {
+  const total = sent + failed;
+  return total >= 50 && failed / total > 0.2;
+}

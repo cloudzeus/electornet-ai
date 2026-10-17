@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { audienceOf, batches, contentHash, factCheck, recipientVariables, validateSchedule, verifyMailgun, type Block } from "./core";
+import { audienceOf, batches, contentHash, factCheck, failRatio, recipientVariables, startCheck, validateSchedule, verifyMailgun, type Block } from "./core";
 
 const sub = (id: string, email: string, status = "subscribed", extra: { firstName?: string | null; customerId?: string | null } = {}) => ({ id, email, status, ...extra });
 const cust = (id: string, email: string | null, allowed = true, firstName: string | null = null) => ({ id, email, firstName, allowed });
@@ -170,4 +170,34 @@ test("κοινό: πελάτης με τελευταία συναίνεση «ό
   // allowed=false χωρίς optedOut δεν αποκλείει συνδρομητή
   const rows = audienceOf({ subscribers: [sub("s1", "a@b.gr")], customers: [{ id: "c1", email: "a@b.gr", allowed: false }] });
   assert.deepEqual(rows.map((r) => r.subscriberId), ["s1"]);
+});
+
+test("startCheck: προσφορά ended / held / ληγμένη → λόγος· active ή scheduled → null", () => {
+  const now = new Date("2026-10-20T10:00:00Z");
+  const future = new Date("2026-10-31T21:00:00Z");
+  assert.match(startCheck({ promotion: { status: "ended", held: false, endsAt: future } }, now) ?? "", /προσφορά/i);
+  assert.match(startCheck({ promotion: { status: "active", held: true, endsAt: future } }, now) ?? "", /αναμονή/);
+  assert.match(startCheck({ promotion: { status: "active", held: false, endsAt: new Date("2026-10-20T09:59:00Z") } }, now) ?? "", /έληξε/);
+  assert.equal(startCheck({ promotion: { status: "active", held: false, endsAt: future } }, now), null);
+  assert.equal(startCheck({ promotion: { status: "scheduled", held: false, endsAt: null } }, now), null);
+});
+
+test("startCheck: καμπάνια paused → λόγος· scheduled / live → null· χωρίς προσφορά και καμπάνια → null", () => {
+  const now = new Date("2026-10-20T10:00:00Z");
+  assert.match(startCheck({ campaign: { status: "paused" } }, now) ?? "", /καμπάνια/i);
+  assert.equal(startCheck({ campaign: { status: "live" } }, now), null);
+  assert.equal(startCheck({ campaign: { status: "scheduled" } }, now), null);
+  assert.equal(startCheck({ promotion: null, campaign: null }, now), null);
+  assert.equal(startCheck({}, now), null);
+  // και τα δύο: αρκεί ένα πρόβλημα
+  assert.match(startCheck({ promotion: { status: "active", held: false, endsAt: null }, campaign: { status: "ended" } }, now) ?? "", /καμπάνια/i);
+});
+
+test("failRatio: > 20 % αποτυχίες με τουλάχιστον 50 προσπάθειες", () => {
+  assert.equal(failRatio(100, 30), true);
+  assert.equal(failRatio(10, 5), false);
+  assert.equal(failRatio(40, 9), false); // 49 προσπάθειες: λίγες ακόμη
+  assert.equal(failRatio(40, 10), false); // ακριβώς 20 %
+  assert.equal(failRatio(39, 11), true); // 22 % σε 50
+  assert.equal(failRatio(0, 0), false);
 });

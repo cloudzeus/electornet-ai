@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { tickPromos } from "@/lib/promo/offers";
 import { refreshInfoTags } from "@/lib/promo/tags";
 import { runBirthdays, runCartReminders, runPersonalOffers } from "@/lib/promo/jobs";
+import { tickNewsletters } from "@/lib/newsletter/dispatch";
 
 let lastTags = 0, lastUnpaid = 0;
 
@@ -10,6 +11,7 @@ let lastTags = 0, lastUnpaid = 0;
  * ?force=1 = πλήρης επαναϋπολογισμός. Οι αυτόματες ετικέτες (Best Seller, Top Rated…) ξαναϋπολογίζονται μία φορά την ώρα ή με ?tags=1.
  * Κουπόνια γενεθλίων: μία φορά την ημέρα. Υπενθυμίσεις καλαθιού: ανά 15 λεπτά. Και τα δύο μόνο αν είναι ενεργά στους κανόνες.
  * Απλήρωτες online παραγγελίες (Viva) άνω των 24 ωρών: ακύρωση + επιστροφή χρήσεων προσφορών/κουπονιού, ανά 15 λεπτά.
+ * Newsletters: κάθε λεπτό — διεκδίκηση όσων ήρθε η ώρα τους και έως 5 πακέτα ανά αποστολή (lib/newsletter/dispatch.ts).
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -21,5 +23,6 @@ export async function GET(req: Request) {
   const [birthdays, carts, personal] = await Promise.all([runBirthdays().catch((e) => ({ error: String(e) })), runCartReminders().catch((e) => ({ error: String(e) })), runPersonalOffers().catch((e) => ({ error: String(e) }))]);
   let unpaid: unknown = null;
   if (Date.now() - lastUnpaid > 15 * 60_000) { lastUnpaid = Date.now(); const { cancelUnpaidOnline } = await import("@/lib/payments/order-payment"); unpaid = await cancelUnpaidOnline(24).catch((e) => ({ error: String(e) })); }
-  return NextResponse.json({ ...promos, tags, birthdays, carts, personal, unpaid });
+  const newsletters = await tickNewsletters().catch((e) => ({ error: String(e) }));
+  return NextResponse.json({ ...promos, tags, birthdays, carts, personal, unpaid, newsletters });
 }
