@@ -156,6 +156,19 @@ async function mailgunBatch(mg: Mg, p: { newsletterId: string; emails: string[];
 
 const listUnsub = (url: string, fromEmail: string) => `<${url}>, <mailto:${fromEmail}?subject=unsubscribe>`;
 
+// ---- προβολή στον browser ----
+
+/**
+ * HTML του newsletter για τη δημόσια «Προβολή στον browser»: ίδια απόδοση με την αποστολή (προϊόντα και UTM τώρα),
+ * χωρίς προσωπικά — η διαγραφή δείχνει στη σελίδα συνδρομής και το `viewUrl` είναι ο ίδιος ο σύνδεσμος.
+ */
+export async function renderForWeb(n: { id: string; subject: string; preheader: string; blocks: Prisma.JsonValue; promotionId: string | null; campaignId: string | null }): Promise<string> {
+  const blocks = blocksOf(n.blocks);
+  const [ctx, src, products] = await Promise.all([emailCtx(), sourceCheck(n), productCards(productIdsOf(blocks))]);
+  const utm = await utmOf(src);
+  return renderNewsletter({ subject: n.subject, preheader: n.preheader, blocks, products, ctx, utm, unsubscribe: `${ctx.baseUrl}/newsletter`, viewUrl: `${ctx.baseUrl}/newsletter/v/${n.id}` }).html;
+}
+
 // ---- δοκιμή ----
 
 /**
