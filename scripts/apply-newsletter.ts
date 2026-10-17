@@ -1,5 +1,5 @@
 /**
- * Newsletter προσφοράς: πίνακες Newsletter / NewsletterRecipient / NewsletterEvent. Μόνο προσθήκες, ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
+ * Newsletter προσφοράς: πίνακες Newsletter / NewsletterRecipient / NewsletterEvent (+ στήλες testMode, single). Μόνο προσθήκες, ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
  *   npx tsx scripts/apply-newsletter.ts
  */
 import "dotenv/config";
@@ -78,11 +78,17 @@ const SQL = [
     CONSTRAINT "NewsletterEvent_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE INDEX IF NOT EXISTS "NewsletterEvent_recipientId_idx" ON "NewsletterEvent"("recipientId")`,
+  // λειτουργία δοκιμής αποθηκευμένη στη γραμμή· παραλήπτης που στέλνεται μόνος του μετά από 400 σε πακέτο
+  `ALTER TABLE "Newsletter" ADD COLUMN IF NOT EXISTS "testMode" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "NewsletterRecipient" ADD COLUMN IF NOT EXISTS "single" BOOLEAN NOT NULL DEFAULT false`,
 ];
 (async () => {
   const exists = async () => Number((await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_name IN ('Newsletter','NewsletterRecipient','NewsletterEvent')`))[0].n);
+  const cols = async () => Number((await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.columns WHERE (table_name = 'Newsletter' AND column_name = 'testMode') OR (table_name = 'NewsletterRecipient' AND column_name = 'single')`))[0].n);
   const before = await exists();
+  const colsBefore = await cols();
   for (const q of SQL) await db.$executeRawUnsafe(q);
   console.log(before === 3 ? "Πίνακες newsletter: υπήρχαν ήδη." : "Πίνακες newsletter: εφαρμόστηκαν.");
+  console.log(colsBefore === 2 ? "Στήλες testMode / single: υπήρχαν ήδη." : `Στήλες testMode / single: προστέθηκαν (${await cols()}/2).`);
   await db.$disconnect();
 })().catch(async (e) => { console.error(e instanceof Error ? e.message : e); await db.$disconnect(); process.exit(1); });

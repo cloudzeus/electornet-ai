@@ -23,7 +23,13 @@ export function contentHash(n: { subject: string; preheader: string; blocks: Blo
   return createHash("sha256").update(stable({ subject: n.subject, preheader: n.preheader, blocks: n.blocks })).digest("hex");
 }
 
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+/**
+ * Αυστηρός έλεγχος email (ένας για όλο το newsletter): τοπικό μέρος χωρίς κενά και χωρίς `,;<>"()[]\\`, χωρίς τελεία
+ * στην αρχή/τέλος ή διπλή· domain από ετικέτες [A-Za-z0-9-] (όχι «-» στην αρχή/τέλος), χωρίς διπλή τελεία, TLD ≥ 2 γράμματα.
+ * Έτσι το «a@x.gr,b» (δύο παραλήπτες σε ένα πεδίο) ή το «a@b..gr» δεν φτάνουν ποτέ στον πάροχο.
+ */
+const EMAIL_RE = /^(?!\.)(?!.*\.\.)[^\s@,;<>"()[\]\\]+(?<!\.)@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+export const isEmail = (e: string) => EMAIL_RE.test(e);
 const normEmail = (e: string | null | undefined) => (e ?? "").trim().toLowerCase();
 /** Καταστάσεις συνδρομητή που αποκλείουν το email ακόμη και αν υπάρχει πελάτης με συναίνεση. */
 const BLOCKED = new Set(["unsubscribed", "bounced", "complained"]);
@@ -56,14 +62,14 @@ export function audienceOf(input: {
   for (const s of input.subscribers) {
     if (s.status !== "subscribed") continue;
     const email = normEmail(s.email);
-    if (!EMAIL_RE.test(email) || blocked.has(email) || out.has(email)) continue;
+    if (!isEmail(email) || blocked.has(email) || out.has(email)) continue;
     const c = customerByEmail.get(email);
     out.set(email, { email, subscriberId: s.id, customerId: s.customerId ?? c?.id ?? null, firstName: s.firstName ?? c?.firstName ?? null });
   }
   for (const c of input.customers) {
     if (!c.allowed) continue;
     const email = normEmail(c.email);
-    if (!EMAIL_RE.test(email) || blocked.has(email) || out.has(email)) continue;
+    if (!isEmail(email) || blocked.has(email) || out.has(email)) continue;
     out.set(email, { email, subscriberId: null, customerId: c.id, firstName: c.firstName ?? null });
   }
 
@@ -72,13 +78,49 @@ export function audienceOf(input: {
   return input.segment ? rows.filter((r) => r.customerId !== null && input.segment!.has(r.customerId)) : rows;
 }
 
+/** Ρυθμίσεις κοινού του newsletter (`audience` της γραμμής): `segmentId` (κοινό πελατών) και `emails` (λίστα επιτρεπόμενων — π.χ. δοκιμή). */
+export type AudienceSpec = { segmentId?: string; emails?: string[] };
+/** `emails` που υπάρχει αλλά δεν είναι πίνακας → [] (κανείς): χαλασμένη λίστα δοκιμής δεν γίνεται ποτέ «όλοι». */
+export function audienceSpec(a: unknown): AudienceSpec {
+  const o = (a && typeof a === "object" && !Array.isArray(a) ? a : {}) as Record<string, unknown>;
+  return {
+    ...(typeof o.segmentId === "string" && o.segmentId ? { segmentId: o.segmentId } : {}),
+    ...("emails" in o ? { emails: Array.isArray(o.emails) ? o.emails.filter((e): e is string => typeof e === "string").map(normEmail).filter(Boolean) : [] } : {}),
+  };
+}
+
+/** Λειτουργία δοκιμής: env `NEWSLETTER_TESTMODE=1` της διεργασίας ή σημαία `testMode` της γραμμής (μπήκε όταν φτιάχτηκε / προγραμματίστηκε σε δοκιμή). */
+export function isTestMode(row: { testMode?: boolean | null } | null | undefined, env: Record<string, string | undefined> = process.env): boolean {
+  return env.NEWSLETTER_TESTMODE === "1" || !!row?.testMode;
+}
+
 /** Αριθμός → κανονική μορφή: "20,50" → "20.5", ελληνικά χιλιάδες "1.299,90" → "1299.9". */
 const num = (s: string) => String(parseFloat(/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(s) ? s.replace(/\./g, "").replace(",", ".") : s.replace(",", ".")));
-/** Μονάδες και ημερομηνίες ενός κειμένου, κανονικοποιημένες: "20%", "199€", "31/10". */
+const MONTHS = ["ιανουαρ", "φεβρουαρ", "μαρτ", "απριλ", "μαι", "ιουν", "ιουλ", "αυγουστ", "σεπτεμβρ", "οκτωβρ", "νοεμβρ", "δεκεμβρ"];
+const NUMBER = String.raw`([1-9]\d{0,2}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)`;
+/** Μονάδα μετά τον αριθμό: % / «τοις εκατό» / «τοις %» → %, € / ευρώ / EUR → €. */
+const UNIT = String.raw`(%|€|(?:ευρω|eur|τοι[σς]\s+εκατο)(?!\p{L})|τοι[σς]\s*%)`;
+/** Ποσότητες που μοιάζουν με ημερομηνία («2-3 ημέρες») δεν είναι ημερομηνίες. */
+const QUANTITY = String.raw`\s*(?:ημερ|ωρ|εργασιμ|χρον|ετ[ηω]|τεμαχ|ατομ|λεπτ|μην|εβδομαδ)`;
+const unitOf = (u: string) => (u.startsWith("%") || u.startsWith("τοι") ? "%" : "€");
+const dayMonth = (d: string, m: string | number) => { const dd = Number(d), mm = Number(m); return dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12 ? `${dd}/${mm}` : null; };
+
+/**
+ * Μονάδες και ημερομηνίες ενός κειμένου, κανονικοποιημένες: "20%", "199€", "31/10".
+ * Πιάνει και ελληνικές διατυπώσεις: «30 τοις εκατό», «399 ευρώ», «EUR», «€399», «15 Νοεμβρίου» / «1η Δεκεμβρίου»,
+ * «15.11», «15-11-2026» (χωρίς τόνους / κεφαλαία).
+ */
 function claims(text: string): Set<string> {
+  const t = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   const out = new Set<string>();
-  for (const m of text.matchAll(/(?<![\d.,])([1-9]\d{0,2}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)\s?(%|€)/g)) out.add(`${num(m[1])}${m[2]}`);
-  for (const m of text.matchAll(/(?<![\d/])(\d{1,2})\/(\d{1,2})(?!\d)/g)) out.add(`${Number(m[1])}/${Number(m[2])}`);
+  const add = (v: string | null) => { if (v) out.add(v); };
+  for (const m of t.matchAll(new RegExp(String.raw`(?<![\d.,])${NUMBER}\s?${UNIT}`, "gu"))) out.add(`${num(m[1])}${unitOf(m[2])}`);
+  for (const m of t.matchAll(new RegExp(String.raw`€\s?${NUMBER}(?![\d.,]*\s?(?:%|€))`, "gu"))) out.add(`${num(m[1])}€`);
+  for (const m of t.matchAll(/(?<![\d/])(\d{1,2})\/(\d{1,2})(?!\d)/g)) out.add(`${Number(m[1])}/${Number(m[2])}`);
+  // d.m, d.m.yyyy, d-m, d-m-yyyy (όχι δεκαδικά με μονάδα, εύρη ποσοστών ή ποσότητες)
+  for (const m of t.matchAll(new RegExp(String.raw`(?<![\d.,/-])(\d{1,2})([.-])(\d{1,2})(?:\2\d{2,4})?(?![\d.,]*\s?${UNIT}|[\d]|[.,]\d|-\d|${QUANTITY})`, "gu"))) add(dayMonth(m[1], m[3]));
+  // «15 Νοεμβρίου», «1η Δεκεμβρίου», «5 Μαΐου» (ονομαστική και γενική)
+  for (const m of t.matchAll(new RegExp(String.raw`(?<![\d.,/])(\d{1,2})(?:ης|η)?\s+(${MONTHS.join("|")})(?:ιος|ιου|ιοσ|ος|ου|οσ)(?!\p{L})`, "gu"))) add(dayMonth(m[1], MONTHS.indexOf(m[2]) + 1));
   return out;
 }
 
@@ -141,6 +183,38 @@ export function startCheck(n: { promotion?: { status: string; held: boolean; end
   const c = n.campaign;
   if (c && c.status !== "scheduled" && c.status !== "live") return `Η καμπάνια δεν είναι προγραμματισμένη ή σε εξέλιξη (κατάσταση: ${c.status}).`;
   return null;
+}
+
+/** Σφάλματα σύνδεσης όπου το αίτημα δεν έφτασε ποτέ στον server (DNS, άρνηση / αδύνατη σύνδεση, timeout σύνδεσης). */
+const NOT_CONNECTED = new Set(["ENOTFOUND", "ECONNREFUSED", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH", "UND_ERR_CONNECT_TIMEOUT", "EDNS"]);
+
+export type SendErrorKind = "retry" | "fatal" | "uncertain";
+
+/**
+ * Τι σημαίνει μια αποτυχία κλήσης στον πάροχο για τους παραλήπτες της:
+ * - «retry»: σίγουρα δεν στάλθηκε — το αίτημα δεν έφτασε (DNS / άρνηση σύνδεσης) ή απάντηση HTTP 429 / 5xx → ξανά στην ουρά.
+ * - «fatal»: ο πάροχος απάντησε με άλλο 4xx (κλειδί, domain, άκυρο αίτημα) — δεν στάλθηκε, αλλά δεν διορθώνεται μόνο του.
+ * - «uncertain»: timeout / abort / κοπή σύνδεσης αφού γράφτηκε το αίτημα (ECONNRESET κ.λπ.) ή άγνωστο — ίσως στάλθηκε.
+ *   Ποτέ ξανά στην ουρά (καλύτερα να χαθεί ένα email παρά να φτάσει 1.000 φορές διπλό): μένει «σε πτήση» → παύση για έλεγχο.
+ * Δέχεται απάντηση `{ status }` (HTTP), σφάλμα SMTP με `responseCode` ή σφάλμα του fetch (αλυσίδα `cause`, AggregateError).
+ */
+export function classifySendError(e: unknown): SendErrorKind {
+  if (e && typeof e === "object") {
+    const o = e as { status?: unknown; responseCode?: unknown; code?: unknown };
+    if (typeof o.status === "number") return o.status === 429 || o.status >= 500 ? "retry" : "fatal";
+    // SMTP: ο server απάντησε — 4xx προσωρινό, 5xx οριστικό· EAUTH πριν από οποιαδήποτε αποστολή
+    if (typeof o.responseCode === "number") return o.responseCode >= 500 ? "fatal" : "retry";
+    if (o.code === "EAUTH") return "fatal";
+  }
+  const notConnected = (x: unknown, depth = 0): boolean => {
+    if (!x || typeof x !== "object" || depth > 5) return false;
+    const o = x as { code?: unknown; cause?: unknown; errors?: unknown };
+    if (typeof o.code === "string" && NOT_CONNECTED.has(o.code)) return true;
+    // Happy Eyeballs: όλες οι διευθύνσεις απέτυχαν να συνδεθούν
+    if (Array.isArray(o.errors) && o.errors.length && o.errors.every((er) => notConnected(er, depth + 1))) return true;
+    return notConnected(o.cause, depth + 1);
+  };
+  return notConnected(e) ? "retry" : "uncertain";
 }
 
 /** Πάνω από 20 % αποτυχίες, μόνο όταν οι προσπάθειες είναι τουλάχιστον 50 (λίγες αποτυχίες στην αρχή δεν σταματούν την αποστολή). */

@@ -576,9 +576,9 @@ function ScheduleDialog({ busy, error, onClose, onNext }: { busy: boolean; error
 
 /**
  * Κατάσταση και ενέργειες για newsletter που δεν είναι πια πρόχειρο: Ακύρωση (προγραμματισμένο), Διακοπή (σε αποστολή / παύση),
- * Συνέχεια (παύση με παραλήπτες στην ουρά), Αντίγραφο (πάντα — νέο πρόχειρο για νέα αποστολή). Όσο στέλνεται, ανανεώνεται μόνο του.
+ * Συνέχεια (παύση με παραλήπτες στην ουρά — ή πριν την έναρξη, μόνο με το περιεχόμενο της δοκιμής), Αντίγραφο (πάντα — νέο πρόχειρο για νέα αποστολή). Όσο στέλνεται, ανανεώνεται μόνο του.
  */
-export function NewsletterControls({ id, status, scheduledAt, reason, resumable, queued, "data-help": dataHelp }: { id: string; status: string; scheduledAt: string | null; reason: string | null; resumable: boolean; queued: number; "data-help"?: string }) {
+export function NewsletterControls({ id, status, scheduledAt, reason, resumable, resumeNote, queued, "data-help": dataHelp }: { id: string; status: string; scheduledAt: string | null; reason: string | null; resumable: boolean; resumeNote?: string | null; queued: number; "data-help"?: string }) {
   const router = useRouter();
   const [ask, setAsk] = useState<null | "cancel" | "stop" | "resume">(null);
   const [err, setErr] = useState<string | null>(null);
@@ -616,7 +616,7 @@ export function NewsletterControls({ id, status, scheduledAt, reason, resumable,
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">
             {status === "scheduled" ? "Θα σταλεί αυτόματα (ώρα Ελλάδας). Το περιεχόμενο δεν αλλάζει πια — για αλλαγές: «Ακύρωση αποστολής» και μετά «Αντίγραφο»."
               : status === "sending" ? "Στέλνεται σε πακέτα κάθε λεπτό· η σελίδα ανανεώνεται μόνη της."
-              : status === "paused" ? <>Η αποστολή σταμάτησε: <strong className="text-eu-ink-2">{reason ?? "άγνωστος λόγος"}</strong>{resumable ? "" : " — δεν έμεινε κανείς στην ουρά· «Διακοπή» για να κλείσει."}</>
+              : status === "paused" ? <>Η αποστολή σταμάτησε: <strong className="text-eu-ink-2">{reason ?? "άγνωστος λόγος"}</strong>{resumable ? "" : ` — ${(resumeNote ?? "Δεν έμεινε κανείς στην ουρά").replace(/[.\s]+$/, "")}· «Διακοπή» για να κλείσει.`}</>
               : status === "cancelled" ? <>Δεν στάλθηκε (ή διακόπηκε){reason ? <>: <strong className="text-eu-ink-2">{reason}</strong></> : "."} Για νέα αποστολή: «Αντίγραφο».</>
               : "Ολοκληρώθηκε. Κάθε newsletter στέλνεται μία φορά — για νέα αποστολή: «Αντίγραφο»."}
           </p>

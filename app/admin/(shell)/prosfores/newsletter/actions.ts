@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { LISTED } from "@/lib/data/db-catalog";
-import { contentHash, validateSchedule } from "@/lib/newsletter/core";
+import { audienceSpec, contentHash, isTestMode, validateSchedule } from "@/lib/newsletter/core";
 import { aiCopy, draftFromCampaign, draftFromPromotion, newsletterFacts, productCards } from "@/lib/newsletter/draft";
 import { cancelNewsletter, estimateAudience, renderForWeb, resumeNewsletter, scheduleNewsletter, sendTest, stopNewsletter } from "@/lib/newsletter/dispatch";
 import { athensLocal, fromForm, isNight, safeHref, sanitizeNewsletter, type CopyField, type NewsletterForm } from "@/lib/newsletter/edit";
@@ -55,6 +55,7 @@ export async function duplicate(id: string): Promise<{ ok: true; id: string } | 
       subject: n.subject, preheader: n.preheader, blocks: n.blocks as Prisma.InputJsonValue,
       audience: typeof a.segmentId === "string" && a.segmentId ? { segmentId: a.segmentId } : {},
       status: "draft", contentHash: contentHash({ subject: n.subject, preheader: n.preheader, blocks }), createdById: user.id,
+      testMode: isTestMode(n), // αντίγραφο δοκιμής μένει δοκιμή
       log: [{ at: new Date().toISOString(), event: "copy", text: `Αντίγραφο του «${n.title}».`, by: user.id }],
     },
     select: { id: true },
@@ -79,8 +80,9 @@ export async function saveNewsletter(id: string, form: NewsletterForm): Promise<
   if (!r.ok) return r;
   const v = r.value;
   if (v.audience.segmentId && !(await db.segment.findFirst({ where: { id: v.audience.segmentId, archived: false }, select: { id: true } }))) return { ok: false, errors: ["Το κοινό πελατών δεν βρέθηκε (ή αρχειοθετήθηκε)."] };
-  const prev = (n.audience && typeof n.audience === "object" && !Array.isArray(n.audience) ? n.audience : {}) as { emails?: unknown };
-  const audience = Array.isArray(prev.emails) ? { ...v.audience, emails: prev.emails.filter((e): e is string => typeof e === "string") } : v.audience;
+  // λίστα δοκιμής που υπάρχει (ακόμη και χαλασμένη → []) κρατιέται: ποτέ «κανείς» → «όλοι» με μια αποθήκευση
+  const prev = audienceSpec(n.audience);
+  const audience = prev.emails ? { ...v.audience, emails: prev.emails } : v.audience;
   const hash = contentHash({ subject: v.subject, preheader: v.preheader, blocks: v.blocks });
   const upd = await db.newsletter.updateMany({
     where: { id, status: "draft" },

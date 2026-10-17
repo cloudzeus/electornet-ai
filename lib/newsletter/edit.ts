@@ -149,10 +149,24 @@ export function isNight(d: Date): boolean {
   return h >= 22 || h < 8;
 }
 
-/** «Συνέχεια» έχει νόημα μόνο σε παύση: αν δεν ξεκίνησε (θα ξαναγίνουν οι έλεγχοι έναρξης) ή αν μένουν παραλήπτες στην ουρά. */
-export function canResume(n: { status: string; started: boolean; queued: number }): boolean {
-  return n.status === "paused" && (!n.started || n.queued > 0);
+export const CONTENT_CHANGED = "Το περιεχόμενο άλλαξε πριν την αποστολή· κάνε «Αντίγραφο», έλεγξε και ξαναδοκίμασε";
+
+type ResumeInput = { status: string; started: boolean; queued: number; contentHash: string; testHash: string | null; blocks: unknown };
+
+/**
+ * Γιατί δεν επιτρέπεται «Συνέχεια» (ή null): μόνο σε παύση· μετά την έναρξη αν μένουν παραλήπτες στην ουρά.
+ * Πριν την έναρξη (θα ξαναγίνουν οι έλεγχοι έναρξης) μόνο αν το περιεχόμενο είναι ακόμη αυτό της δοκιμής
+ * (`contentHash` = `testHash`) και κανένα block προϊόντων δεν άδειασε — αλλιώς θα έφευγε κάτι που δεν δοκιμάστηκε.
+ */
+export function resumeBlock(n: ResumeInput): string | null {
+  if (n.status !== "paused") return "Συνεχίζεται μόνο newsletter σε παύση.";
+  if (n.started) return n.queued > 0 ? null : "Δεν έμεινε κανένας παραλήπτης στην ουρά — δεν υπάρχει κάτι να συνεχιστεί.";
+  const blocks = (Array.isArray(n.blocks) ? n.blocks : []) as { type?: unknown; ids?: unknown }[];
+  const emptyProducts = blocks.some((b) => b?.type === "products" && (!Array.isArray(b.ids) || !b.ids.length));
+  return !n.testHash || n.contentHash !== n.testHash || emptyProducts ? CONTENT_CHANGED : null;
 }
+
+export const canResume = (n: ResumeInput): boolean => resumeBlock(n) === null;
 
 /** Emails σε κείμενο (π.χ. ιστορικό) → «m•••@domain» — η σελίδα δεν δείχνει προσωπικά στοιχεία. */
 export function maskEmails(text: string): string {

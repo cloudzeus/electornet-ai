@@ -87,7 +87,7 @@ Blocks (με σειρά, όλα προαιρετικά εκτός από το fo
 
 **Εκτέλεση**: `tickNewsletters()` από το cron ανά λεπτό (`/api/cron/promos`), με κλείδωμα:
 1. Newsletters με `scheduled` και `scheduledAt ≤ τώρα` (και όσα πατήθηκαν «τώρα») → έλεγχοι, ανανέωση τιμών, παραλήπτες σε ουρά, `sending`.
-2. Για κάθε `sending`: έως 5 πακέτα των 1.000 ανά λεπτό (ρύθμιση). Mailgun: `to` + `recipient-variables` (unsub URL, όνομα), `h:List-Unsubscribe: <https://…/api/newsletter/u/<token>>, <mailto:…>`, `h:List-Unsubscribe-Post: List-Unsubscribe=One-Click`, `o:tag`, `v:newsletter`, `o:tracking-opens/clicks = yes`. Χωρίς Mailgun: ένα-ένα με `sendMail` (έως 60 ανά λεπτό). Ένα `EmailLog` ανά πακέτο.
+2. Για κάθε `sending`: έως 5 πακέτα των 1.000 ανά λεπτό (ρύθμιση). Mailgun: `to` + `recipient-variables` (unsub URL, όνομα), `h:List-Unsubscribe: <https://…/api/newsletter/u/<token>>` (χωρίς mailto — απόφαση τελικής αναθεώρησης), `h:List-Unsubscribe-Post: List-Unsubscribe=One-Click`, `o:tag`, `v:newsletter`, `o:tracking-opens/clicks = yes`. Χωρίς Mailgun: ένα-ένα με `sendMail` (έως 60 ανά λεπτό). Ένα `EmailLog` ανά πακέτο.
 3. Αποτυχία πακέτου: έως 3 προσπάθειες· μόνιμη → `failed`. Πάνω από 20 % αποτυχίες → `paused` και ειδοποίηση στη σελίδα.
 4. Όταν αδειάσει η ουρά → `sent`, `finishedAt`.
 

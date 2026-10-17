@@ -4,6 +4,7 @@ import { recordConsent } from "@/lib/gdpr/consent";
 import { sendMail } from "@/lib/email/send";
 import { renderTemplate } from "@/lib/email/templates";
 import { issueWelcomeCoupon } from "@/lib/promo/issue";
+import { isEmail } from "./core";
 
 const base = () => (process.env.AUTH_URL ?? "http://localhost:3111").replace(/\/$/, "");
 
@@ -14,7 +15,7 @@ const base = () => (process.env.AUTH_URL ?? "http://localhost:3111").replace(/\/
  */
 export async function subscribe(input: { email: string; firstName?: string | null; source: string; url?: string | null; timezone?: string | null; consentText?: string; lists?: string[]; customerId?: string | null }) {
   const email = input.email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false as const, error: "Μη έγκυρο email." };
+  if (!isEmail(email)) return { ok: false as const, error: "Μη έγκυρο email." };
   const existing = await db.newsletterSubscriber.findUnique({ where: { email } });
   if (existing?.status === "subscribed") return { ok: true as const, status: "subscribed" as const, already: true };
   const customer = input.customerId ? null : await db.customer.findUnique({ where: { email }, select: { id: true } });
@@ -42,12 +43,14 @@ export async function confirm(token: string, url?: string | null) {
   return { ok: true as const, already: false };
 }
 
-export async function unsubscribe(token: string, reason?: string | null, url?: string | null, staffId?: string | null) {
+/** `notify: false` → χωρίς email επιβεβαίωσης (π.χ. ξανά-εφαρμογή από παλιό σύνδεσμο newsletter). */
+export async function unsubscribe(token: string, reason?: string | null, url?: string | null, staffId?: string | null, opts: { notify?: boolean } = {}) {
   const sub = await db.newsletterSubscriber.findUnique({ where: { token } });
   if (!sub) return { ok: false as const, error: "Ο σύνδεσμος δεν ισχύει." };
   await db.newsletterSubscriber.update({ where: { id: sub.id }, data: { status: "unsubscribed", unsubscribedAt: new Date(), unsubscribeReason: reason ?? null } });
   await recordConsent({ subscriberId: sub.id, customerId: sub.customerId, email: sub.email, topic: "newsletter", channel: "email", granted: false, method: staffId ? "admin" : "checkbox", source: staffId ? "admin" : "email-link", textKey: "newsletter", url, staffId, evidence: { step: "unsubscribe", reason: reason ?? null } });
   if (sub.customerId) await db.customer.update({ where: { id: sub.customerId }, data: { newsletter: false } });
+  if (opts.notify === false) return { ok: true as const };
   const m = await renderTemplate("newsletter-unsubscribed", { email: sub.email });
   await sendMail({ to: sub.email, template: "newsletter-unsubscribed", meta: { subscriberId: sub.id }, ...m });
   return { ok: true as const };

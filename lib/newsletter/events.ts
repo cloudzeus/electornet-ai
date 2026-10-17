@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { recordConsent } from "@/lib/gdpr/consent";
+import { marketingConsent } from "@/lib/promo/issue";
 import { unsubscribe } from "./index";
 
 /**
@@ -27,10 +28,23 @@ async function identities(rec: { email: string; subscriberId: string | null; cus
   return { subscriber, customer };
 }
 
+/** Πελάτης που διαγράφεται χωριστά από τον συνδρομητή (χωρίς συνδρομητή ή με άλλον πελάτη στον συνδρομητή). */
+const ownCustomer = (subscriber: { customerId: string | null } | null, customer: { id: string } | null) => (customer && (!subscriber || subscriber.customerId !== customer.id) ? customer : null);
+
+/** Consent granted=false (offers, newsletter) + `customer.newsletter=false` για πελάτη χωρίς δικό του συνδρομητή. */
+async function optOutCustomer(customerId: string, email: string, via: UnsubVia, newsletterId: string, again = false) {
+  for (const topic of TOPICS) {
+    await recordConsent({ customerId, email, topic, channel: "email", granted: false, method: "one-click", source: "api", textKey: topic === "newsletter" ? "newsletter" : undefined, evidence: { step: "unsubscribe", via, newsletterId, ...(again ? { again: true } : {}) } });
+  }
+  await db.customer.update({ where: { id: customerId }, data: { newsletter: false } });
+}
+
 /**
  * Διαγραφή από προσωπικό σύνδεσμο / one-click / Mailgun.
  * Συνδρομητής → `unsubscribe` (status + Consent + email επιβεβαίωσης)· πελάτης χωρίς συνδρομητή → Consent granted=false
  * (offers και newsletter) + `customer.newsletter=false`. `unsubscribedAt` και μετρητής μόνο την πρώτη φορά· άγνωστο token → ok:false.
+ * Παλιός σύνδεσμος μετά από νέα εγγραφή (ο συνδρομητής είναι πάλι subscribed / ο πελάτης έδωσε πάλι συναίνεση): η διαγραφή
+ * εφαρμόζεται ξανά, χωρίς μετρητή και χωρίς email επιβεβαίωσης.
  */
 export async function unsubscribeRecipient(token: string, via: UnsubVia): Promise<{ ok: boolean; email?: string }> {
   if (!token || token.length > 128) return { ok: false };
@@ -42,16 +56,18 @@ export async function unsubscribeRecipient(token: string, via: UnsubVia): Promis
     if (r.count) await tx.newsletter.update({ where: { id: rec.newsletterId }, data: { unsubscribed: { increment: 1 } } });
     return r.count > 0;
   });
-  if (!first) return { ok: true, email: rec.email };
+  if (!first) {
+    const { subscriber, customer } = await identities(rec);
+    if (subscriber?.status === "subscribed") await unsubscribe(subscriber.token, `newsletter:${via}`, null, null, { notify: false });
+    const own = ownCustomer(subscriber, customer);
+    if (own && (await marketingConsent([own.id])).allowed.has(own.id)) await optOutCustomer(own.id, lower(rec.email), via, rec.newsletterId, true);
+    return { ok: true, email: rec.email };
+  }
   try {
     const { subscriber, customer } = await identities(rec);
     if (subscriber) await unsubscribe(subscriber.token, `newsletter:${via}`);
-    if (customer && (!subscriber || subscriber.customerId !== customer.id)) {
-      for (const topic of TOPICS) {
-        await recordConsent({ customerId: customer.id, email: lower(rec.email), topic, channel: "email", granted: false, method: "one-click", source: "api", textKey: topic === "newsletter" ? "newsletter" : undefined, evidence: { step: "unsubscribe", via, newsletterId: rec.newsletterId } });
-      }
-      await db.customer.update({ where: { id: customer.id }, data: { newsletter: false } });
-    }
+    const own = ownCustomer(subscriber, customer);
+    if (own) await optOutCustomer(own.id, lower(rec.email), via, rec.newsletterId);
   } catch (e) {
     // Δεν εφαρμόστηκε ολόκληρη: ξεκλείδωμα, ώστε η επόμενη προσπάθεια (ο χρήστης ή ο πάροχος) να τη ξανακάνει.
     await db.$transaction([
@@ -122,10 +138,17 @@ export async function applyMailgunEvent(e: MailgunEvent): Promise<EventResult> {
       });
       const { subscriber, customer } = await identities(rec);
       if (subscriber || customer) {
+        const subscriberId = subscriber?.id ?? null;
+        const customerId = customer?.id ?? subscriber?.customerId ?? null;
         for (const topic of TOPICS) {
-          // ένα παράπονο = μία γραμμή ανά θέμα (δεύτερο γεγονός για τον ίδιο παραλήπτη δεν διπλογράφει· η επανάληψη μετά από σφάλμα συμπληρώνει)
-          if (await db.consent.findFirst({ where: { email, topic, method: "complaint", granted: false }, select: { id: true } })) continue;
-          await recordConsent({ subscriberId: subscriber?.id ?? null, customerId: customer?.id ?? subscriber?.customerId ?? null, email, topic, channel: "email", granted: false, method: "complaint", source: "api", textKey: topic === "newsletter" ? "newsletter" : undefined, evidence: { step: "complaint", eventId: e.id, newsletterId: rec.newsletterId } });
+          // γραμμή μόνο αν η ΤΕΛΕΥΤΑΙΑ συναίνεση του θέματος δεν είναι ήδη «όχι» (π.χ. νέα εγγραφή μετά από παλιό παράπονο → ξανά γραμμή)·
+          // δεύτερο γεγονός ή επανάληψη μετά από σφάλμα δεν διπλογράφει
+          const latest = await db.consent.findFirst({
+            where: { topic, channel: "email", OR: [{ email: { equals: email, mode: "insensitive" } }, ...(customerId ? [{ customerId }] : []), ...(subscriberId ? [{ subscriberId }] : [])] },
+            orderBy: { at: "desc" }, select: { granted: true },
+          });
+          if (latest && !latest.granted) continue;
+          await recordConsent({ subscriberId, customerId, email, topic, channel: "email", granted: false, method: "complaint", source: "api", textKey: topic === "newsletter" ? "newsletter" : undefined, evidence: { step: "complaint", eventId: e.id, newsletterId: rec.newsletterId } });
         }
         const cid = customer?.id ?? subscriber?.customerId;
         if (cid) await db.customer.update({ where: { id: cid }, data: { newsletter: false } });

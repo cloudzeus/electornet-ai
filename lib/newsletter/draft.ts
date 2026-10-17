@@ -7,7 +7,7 @@ import { autoLabel } from "@/lib/promo/catalog";
 import { promotionProductIds } from "@/lib/promo/landing";
 import type { Block as LandingBlock } from "@/lib/promo/landing-blocks";
 import type { PromoReward } from "@/lib/promo/engine";
-import { contentHash, factCheck, type Block } from "./core";
+import { contentHash, factCheck, isTestMode, type Block } from "./core";
 import { LIMITS, type CopyField } from "./edit";
 import type { NewsletterProduct } from "./render";
 
@@ -253,6 +253,7 @@ async function createDraft(src: Source, staffId: string): Promise<{ id: string }
       status: "draft",
       contentHash: contentHash({ subject: copy.subject, preheader: copy.preheader, blocks }),
       createdById: staffId,
+      testMode: isTestMode(null), // φτιάχτηκε σε λειτουργία δοκιμής → κάθε αποστολή του μόνο με o:testmode
       log: [],
     },
     select: { id: true },

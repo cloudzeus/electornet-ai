@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { audienceOf, batches, contentHash, factCheck, failRatio, finalStatus, recipientVariables, startCheck, validateSchedule, verifyMailgun, type Block } from "./core";
+import { audienceOf, audienceSpec, batches, classifySendError, contentHash, factCheck, failRatio, finalStatus, isEmail, isTestMode, recipientVariables, startCheck, validateSchedule, verifyMailgun, type Block } from "./core";
 
 const sub = (id: string, email: string, status = "subscribed", extra: { firstName?: string | null; customerId?: string | null } = {}) => ({ id, email, status, ...extra });
 const cust = (id: string, email: string | null, allowed = true, firstName: string | null = null) => ({ id, email, firstName, allowed });
@@ -232,4 +232,85 @@ test("finalStatus: ουρά / σε πτήση / αποτυχίες → sending, 
   assert.deepEqual(finalStatus(c({ sent: 9, failed: 1 })), { status: "sent" });
   // τίποτα (π.χ. όλοι skipped) → sent
   assert.deepEqual(finalStatus(c({})), { status: "sent" });
+});
+
+test("factCheck: ελληνικές διατυπώσεις (μήνες, ευρώ, τοις εκατό, ημερομηνίες με . και -)", () => {
+  const facts = ["20%", "31/10/2026", "499,00 €"];
+  for (const t of ["Ισχύει έως 15 Νοεμβρίου", "Έκπτωση 30 τοις εκατό", "Από 399 ευρώ", "Από €399", "Έως 15.11", "Έως 15-11-2026"]) {
+    assert.equal(factCheck(t, facts), false, t);
+  }
+  for (const t of ["Έως 31 Οκτωβρίου", "Έκπτωση 20 τοις εκατό", "Από 499 ευρώ", "Από €499", "Έως 31.10"]) {
+    assert.equal(factCheck(t, facts), true, t);
+  }
+});
+
+test("factCheck: μήνες σε ονομαστική / γενική / κεφαλαία, «1η», EUR, «τοις %», € με κενό", () => {
+  assert.equal(factCheck("από 1η Δεκεμβρίου", ["1/12/2026"]), true);
+  assert.equal(factCheck("από 1η Δεκεμβρίου", ["2/12/2026"]), false);
+  assert.equal(factCheck("ΕΩΣ 31 ΟΚΤΩΒΡΙΟΥ", ["31/10"]), true);
+  assert.equal(factCheck("Μάιος: 5 Μαΐου", ["5/5"]), true);
+  assert.equal(factCheck("Μάιος: 6 Μαΐου", ["5/5"]), false);
+  assert.equal(factCheck("μόνο 499 EUR", ["499€"]), true);
+  assert.equal(factCheck("μόνο 499 EUR", ["399€"]), false);
+  assert.equal(factCheck("20 τοις %", ["20%"]), true);
+  assert.equal(factCheck("από € 499", ["499 ευρώ"]), true);
+  assert.equal(factCheck("έως 31-10", ["31/10/2026"]), true);
+  assert.equal(factCheck("έως 31.10.2026", ["31/10/2026"]), true);
+  // όχι ημερομηνία: εύρος ποσοστού, δεκαδικά με μονάδα, ποσότητες
+  assert.equal(factCheck("έκπτωση 10-20%", ["20%", "10%"]), true);
+  assert.equal(factCheck("Παράδοση σε 2-3 ημέρες", []), true);
+});
+
+test("isEmail: αυστηρός έλεγχος διεύθυνσης", () => {
+  for (const ok of ["a@b.gr", "maria.p+promo@shop-1.example.com", "x_y@sub.domain.gr"]) assert.equal(isEmail(ok), true, ok);
+  for (const bad of ["a@x.gr,b", "a@b..gr", "a@b", "a b@c.gr", "@b.gr", "xxx", "a@-b.gr", "a@b-.gr", "a@b.g", "a@b.1r", "a,b@c.gr", "a;b@c.gr", "<a@b.gr>", "\"a\"@b.gr", "a(b)@c.gr", "a[b]@c.gr", "a\\b@c.gr", "a@b.gr;c@d.gr", ".a@b.gr", "a.@b.gr", "a..b@c.gr", "a@.b.gr", "a@b.gr.", ""]) {
+    assert.equal(isEmail(bad), false, bad);
+  }
+});
+
+test("κοινό: αυστηρό email — «a@x.gr,b» και «a@b..gr» εκτός", () => {
+  assert.deepEqual(audienceOf({ subscribers: [sub("s1", "a@x.gr,b"), sub("s2", "a@b..gr")], customers: [cust("c1", "c@d.gr;e@f.gr")] }), []);
+});
+
+test("classifySendError: retry μόνο αν το αίτημα δεν έφτασε / 429 / 5xx· timeout και κοπή μετά την αποστολή → uncertain", () => {
+  const net = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error(code), { code }) });
+  for (const code of ["ENOTFOUND", "ECONNREFUSED", "EAI_AGAIN"]) assert.equal(classifySendError(net(code)), "retry", code);
+  assert.equal(classifySendError(net("ECONNRESET")), "uncertain");
+  assert.equal(classifySendError(net("UND_ERR_SOCKET")), "uncertain");
+  assert.equal(classifySendError(new DOMException("The operation was aborted due to timeout", "TimeoutError")), "uncertain");
+  assert.equal(classifySendError(new DOMException("aborted", "AbortError")), "uncertain");
+  assert.equal(classifySendError(new Error("κάτι άγνωστο")), "uncertain");
+  assert.equal(classifySendError("x"), "uncertain");
+  // Happy Eyeballs: AggregateError με όλες τις συνδέσεις απορριφθείσες → δεν έφτασε
+  const agg = Object.assign(new TypeError("fetch failed"), { cause: new AggregateError([Object.assign(new Error("a"), { code: "ECONNREFUSED" }), Object.assign(new Error("b"), { code: "ENETUNREACH" })]) });
+  assert.equal(classifySendError(agg), "retry");
+  // απάντηση HTTP
+  assert.equal(classifySendError({ status: 429 }), "retry");
+  assert.equal(classifySendError({ status: 500 }), "retry");
+  assert.equal(classifySendError({ status: 503 }), "retry");
+  assert.equal(classifySendError({ status: 400 }), "fatal");
+  assert.equal(classifySendError({ status: 401 }), "fatal");
+  assert.equal(classifySendError({ status: 404 }), "fatal");
+  // SMTP: ο server απάντησε (4xx προσωρινό, 5xx οριστικό)
+  assert.equal(classifySendError(Object.assign(new Error("x"), { responseCode: 451 })), "retry");
+  assert.equal(classifySendError(Object.assign(new Error("x"), { responseCode: 550 })), "fatal");
+});
+
+test("audienceSpec: emails που δεν είναι πίνακας → [] (κανείς)· segmentId μόνο string", () => {
+  assert.deepEqual(audienceSpec({}), {});
+  assert.deepEqual(audienceSpec(null), {});
+  assert.deepEqual(audienceSpec([]), {});
+  assert.deepEqual(audienceSpec({ segmentId: "s1" }), { segmentId: "s1" });
+  assert.deepEqual(audienceSpec({ segmentId: 5 }), {});
+  assert.deepEqual(audienceSpec({ emails: [" A@B.gr ", 3, null] }), { emails: ["a@b.gr"] });
+  assert.deepEqual(audienceSpec({ emails: "a@b.gr" }), { emails: [] });
+  assert.deepEqual(audienceSpec({ emails: { a: 1 } }), { emails: [] });
+  assert.deepEqual(audienceSpec({ emails: null }), { emails: [] });
+});
+
+test("isTestMode: env NEWSLETTER_TESTMODE=1 ή σημαία της γραμμής", () => {
+  assert.equal(isTestMode(null, {}), false);
+  assert.equal(isTestMode({ testMode: false }, { NEWSLETTER_TESTMODE: "0" }), false);
+  assert.equal(isTestMode({ testMode: true }, {}), true);
+  assert.equal(isTestMode(null, { NEWSLETTER_TESTMODE: "1" }), true);
 });

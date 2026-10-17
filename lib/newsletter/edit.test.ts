@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { athensLocal, canResume, fromForm, isNight, maskEmails, safeHref, sanitizeNewsletter, toForm, type NewsletterForm } from "./edit";
+import { athensLocal, canResume, resumeBlock, fromForm, isNight, maskEmails, safeHref, sanitizeNewsletter, toForm, type NewsletterForm } from "./edit";
 import type { Block } from "./core";
 
 test("href: http(s), σχετικοί του site και mailto περνούν", () => {
@@ -89,10 +89,30 @@ test("νύχτα = 22:00–08:00 ώρα Ελλάδας", () => {
 });
 
 test("συνέχεια: μόνο σε παύση, με παραλήπτες στην ουρά ή αν δεν ξεκίνησε", () => {
-  assert.equal(canResume({ status: "paused", started: true, queued: 10 }), true);
-  assert.equal(canResume({ status: "paused", started: false, queued: 0 }), true);
-  assert.equal(canResume({ status: "paused", started: true, queued: 0 }), false);
-  assert.equal(canResume({ status: "sending", started: true, queued: 5 }), false);
+  const tested = { contentHash: "h1", testHash: "h1", blocks: [{ type: "products", ids: ["p1"] }] };
+  assert.equal(canResume({ status: "paused", started: true, queued: 10, ...tested }), true);
+  assert.equal(canResume({ status: "paused", started: false, queued: 0, ...tested }), true);
+  assert.equal(canResume({ status: "paused", started: true, queued: 0, ...tested }), false);
+  assert.equal(canResume({ status: "sending", started: true, queued: 5, ...tested }), false);
+});
+
+test("συνέχεια πριν την έναρξη: όχι αν άλλαξε το περιεχόμενο μετά τη δοκιμή ή άδειασε block προϊόντων", () => {
+  const MSG = "Το περιεχόμενο άλλαξε πριν την αποστολή· κάνε «Αντίγραφο», έλεγξε και ξαναδοκίμασε";
+  const base = { status: "paused", started: false, queued: 0 };
+  // άδειασε το block προϊόντων (startSending: ids: [] και νέο contentHash)
+  assert.equal(canResume({ ...base, contentHash: "h2", testHash: "h1", blocks: [{ type: "products", ids: [] }] }), false);
+  assert.equal(resumeBlock({ ...base, contentHash: "h2", testHash: "h1", blocks: [{ type: "products", ids: [] }] }), MSG);
+  // άδειο block ακόμη κι αν (θεωρητικά) ταιριάζει το αποτύπωμα
+  assert.equal(resumeBlock({ ...base, contentHash: "h1", testHash: "h1", blocks: [{ type: "text", body: "x" }, { type: "products", ids: [] }] }), MSG);
+  // άλλαξε μόνο το αποτύπωμα (π.χ. αφαιρέθηκε ένα από τα προϊόντα) ή δεν έγινε ποτέ δοκιμή
+  assert.equal(resumeBlock({ ...base, contentHash: "h2", testHash: "h1", blocks: [{ type: "products", ids: ["p1"] }] }), MSG);
+  assert.equal(resumeBlock({ ...base, contentHash: "h1", testHash: null, blocks: [] }), MSG);
+  // ίδιο αποτύπωμα, προϊόντα εκεί → επιτρέπεται
+  assert.equal(resumeBlock({ ...base, contentHash: "h1", testHash: "h1", blocks: [{ type: "products", ids: ["p1"] }] }), null);
+  // μετά την έναρξη μετρά μόνο η ουρά (το αποτύπωμα δεν παίζει ρόλο)
+  assert.equal(resumeBlock({ status: "paused", started: true, queued: 3, contentHash: "h2", testHash: "h1", blocks: [] }), null);
+  assert.match(resumeBlock({ status: "paused", started: true, queued: 0, contentHash: "h1", testHash: "h1", blocks: [] }) ?? "", /ουρά/);
+  assert.match(resumeBlock({ status: "sent", started: true, queued: 0, contentHash: "h1", testHash: "h1", blocks: [] }) ?? "", /παύση/);
 });
 
 test("emails στο ιστορικό εμφανίζονται κρυμμένα", () => {

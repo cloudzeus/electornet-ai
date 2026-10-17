@@ -5,10 +5,10 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
 import { transportReady } from "@/lib/email/send";
-import { contentHash, startCheck, type Block } from "@/lib/newsletter/core";
+import { audienceSpec, contentHash, startCheck, type Block } from "@/lib/newsletter/core";
 import { productCards } from "@/lib/newsletter/draft";
 import { renderForWeb } from "@/lib/newsletter/dispatch";
-import { canResume, maskEmails, NEWSLETTER_STATUS, toForm } from "@/lib/newsletter/edit";
+import { maskEmails, NEWSLETTER_STATUS, resumeBlock, toForm } from "@/lib/newsletter/edit";
 import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { Badge } from "@/components/admin/orders/ui";
 import { NewsletterControls, NewsletterEditor, NewsletterPreview, type ProductInfo } from "@/components/admin/promos/NewsletterEditor";
@@ -104,7 +104,6 @@ export default async function NewsletterPage({ params }: { params: Promise<{ id:
   if (n.status === "draft") {
     const blocks = (Array.isArray(n.blocks) ? n.blocks : []) as unknown as Block[];
     const form = toForm(n);
-    const aud = (n.audience && typeof n.audience === "object" && !Array.isArray(n.audience) ? n.audience : {}) as { emails?: unknown };
     const ids = form.productIds;
     const [{ data, secrets }, segments, me, staff, rows, cards] = await Promise.all([
       getSetting("email"),
@@ -128,7 +127,7 @@ export default async function NewsletterPage({ params }: { params: Promise<{ id:
           testSentCount: n.testSentTo ? n.testSentTo.split(",").filter((x) => x.trim()).length : 0,
           transport: transportReady(data, secrets),
           sourceProblem: (n.promotionId && !promotion) ? "Η προσφορά δεν υπάρχει πια." : (n.campaignId && !campaign) ? "Η καμπάνια δεν υπάρχει πια." : startCheck({ promotion, campaign }, new Date()),
-          restricted: Array.isArray(aud.emails) ? aud.emails.length : null,
+          restricted: audienceSpec(n.audience).emails?.length ?? null,
           products, segments: segments.map((s) => ({ id: s.id, label: `${s.name} (${s.members.toLocaleString("el-GR")} μέλη)` })),
           me: me?.email ?? "", staff, html,
         }} />
@@ -138,10 +137,12 @@ export default async function NewsletterPage({ params }: { params: Promise<{ id:
 
   const queued = await db.newsletterRecipient.count({ where: { newsletterId: id, status: "queued" } });
   const started = !!n.startedAt;
+  const nblocks = (Array.isArray(n.blocks) ? n.blocks : []) as unknown as Block[];
+  const resumeNote = n.status === "paused" ? resumeBlock({ status: n.status, started, queued, contentHash: contentHash({ subject: n.subject, preheader: n.preheader, blocks: nblocks }), testHash: n.testHash, blocks: nblocks }) : null;
   return (
     <div className="@container grid gap-4 min-w-0">
       {header}
-      <NewsletterControls data-help="newsletter.controls" id={n.id} status={n.status} scheduledAt={n.scheduledAt?.toISOString() ?? null} reason={n.cancelReason} resumable={canResume({ status: n.status, started, queued })} queued={queued} />
+      <NewsletterControls data-help="newsletter.controls" id={n.id} status={n.status} scheduledAt={n.scheduledAt?.toISOString() ?? null} reason={n.cancelReason} resumable={n.status === "paused" && !resumeNote} resumeNote={resumeNote} queued={queued} />
       <div className="grid gap-4 @5xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start">
         <div className="min-w-0">
           <NewsletterStats d={await stats(id, n)} results={started} />

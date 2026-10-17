@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
+import { classifySendError, type SendErrorKind } from "@/lib/newsletter/core";
 
 /**
  * Transactional email through Settings → «Email & SMS»: SMTP (nodemailer) or
@@ -33,7 +34,13 @@ export function transportReady(data: EmailData, secrets: Record<string, string>)
   return ((t === "resend" || t === "sendgrid" || t === "mailgun") && !!secrets.apiKey) || ((t === "smtp" || t === "mailgun") && !!data.smtpHost);
 }
 
-/** `headers`: επιπλέον κεφαλίδες (π.χ. List-Unsubscribe) — περνούν σε όλους τους παρόχους. */
+/** Ο πάροχος απάντησε με σφάλμα HTTP: το `status` κρατιέται για την κατάταξη (σίγουρα δεν στάλθηκε). */
+const httpError = (provider: string, status: number, body: string) => Object.assign(new Error(`${provider} ${status}: ${body.slice(0, 200)}`), { status });
+
+/**
+ * `headers`: επιπλέον κεφαλίδες (π.χ. List-Unsubscribe) — περνούν σε όλους τους παρόχους.
+ * Σε αποτυχία `kind` (βλ. `classifySendError`): «uncertain» = timeout / κοπή σύνδεσης αφού στάλθηκε το αίτημα — ίσως παραδόθηκε.
+ */
 export async function sendMail(input: { to: string; subject: string; html: string; text?: string; template: string; meta?: unknown; headers?: Record<string, string> }) {
   const { data, secrets } = await getSetting("email");
   const from = fromOf(data);
@@ -44,11 +51,11 @@ export async function sendMail(input: { to: string; subject: string; html: strin
     let messageId: string | null = null;
     if (transport === "resend" && secrets.apiKey) {
       const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${secrets.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [input.to], subject: input.subject, html: input.html, text: input.text, ...(headers ? { headers } : {}) }) });
-      if (!r.ok) throw new Error(`Resend ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw httpError("Resend", r.status, await r.text().catch(() => ""));
       messageId = ((await r.json()) as { id?: string }).id ?? null;
     } else if (transport === "sendgrid" && secrets.apiKey) {
       const r = await fetch("https://api.sendgrid.com/v3/mail/send", { method: "POST", headers: { Authorization: `Bearer ${secrets.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ personalizations: [{ to: [{ email: input.to }] }], from: { email: String(data.fromEmail || "noreply@euronics.gr"), name: String(data.fromName || "Euronics") }, subject: input.subject, content: [{ type: "text/plain", value: input.text ?? "" }, { type: "text/html", value: input.html }], ...(headers ? { headers } : {}) }) });
-      if (!r.ok) throw new Error(`SendGrid ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw httpError("SendGrid", r.status, await r.text().catch(() => ""));
       messageId = r.headers.get("x-message-id");
     } else if (transport === "mailgun" && secrets.apiKey) {
       // Mailgun HTTP API
@@ -56,7 +63,7 @@ export async function sendMail(input: { to: string; subject: string; html: strin
       const form = new URLSearchParams({ from, to: input.to, subject: input.subject, html: input.html, ...(input.text ? { text: input.text } : {}) });
       for (const [k, v] of Object.entries(headers ?? {})) form.append(`h:${k}`, v);
       const r = await fetch(`${mg.base}/v3/${encodeURIComponent(mg.domain)}/messages`, { method: "POST", headers: { Authorization: mg.auth, "Content-Type": "application/x-www-form-urlencoded" }, body: form });
-      if (!r.ok) throw new Error(`Mailgun ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      if (!r.ok) throw httpError("Mailgun", r.status, await r.text().catch(() => ""));
       messageId = ((await r.json()) as { id?: string }).id ?? null;
     } else if ((transport === "smtp" || transport === "mailgun") && data.smtpHost) {
       const nodemailer = await import("nodemailer");
@@ -72,7 +79,8 @@ export async function sendMail(input: { to: string; subject: string; html: strin
     return { ok: true as const, logId: log.id, messageId };
   } catch (e) {
     const error = e instanceof Error ? e.message : "send failed";
+    const kind: SendErrorKind = classifySendError(e);
     await db.emailLog.update({ where: { id: log.id }, data: { status: "failed", error } });
-    return { ok: false as const, skipped: false as const, error, logId: log.id };
+    return { ok: false as const, skipped: false as const, error, kind, logId: log.id };
   }
 }

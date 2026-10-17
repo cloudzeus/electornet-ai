@@ -2593,6 +2593,7 @@ model Newsletter {
   testHash       String? // η δοκιμή ισχύει μόνο όταν testHash = contentHash
   testSentAt     DateTime?
   testSentTo     String?
+  testMode       Boolean               @default(false) // φτιάχτηκε / προγραμματίστηκε με NEWSLETTER_TESTMODE=1 → κάθε αποστολή του μόνο με Mailgun o:testmode
   /// Μετρητές. Το πλήθος παραληπτών λέγεται recipientCount γιατί το «recipients» είναι η σχέση.
   recipientCount Int                   @default(0)
   sent           Int                   @default(0)
@@ -2635,6 +2636,7 @@ model NewsletterRecipient {
   unsubscribedAt DateTime?
   bouncedAt      DateTime?
   complainedAt   DateTime?
+  single         Boolean    @default(false) // πακέτο απορρίφθηκε με 400 → στέλνεται μόνος του (ο άκυρος γίνεται skipped)
 
   @@unique([newsletterId, email])
   @@index([newsletterId, status])
