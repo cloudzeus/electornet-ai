@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-19T10:08:25.070Z",
+ "generatedAt": "2026-10-19T16:01:06.588Z",
  "routes": [
   {
    "route": "/admin",
@@ -1314,12 +1314,22 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "f495de2",
+     "date": "2026-10-19T18:08:50+03:00",
+     "text": "Ασφάλεια: αυστηρότερο CSP"
+    },
+    {
+     "hash": "bf98a3e",
+     "date": "2026-10-19T13:09:02+03:00",
+     "text": "Email templates: η δοκιμαστική αποστολή δέχεται πολλά emails χωρισμένα με κόμμα (έως 5, έλεγχος ανά διεύθυνση)"
+    },
+    {
      "hash": "40e4e9d",
      "date": "2026-09-13T14:16:33+03:00",
      "text": "Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typ…"
     }
    ],
-   "updatedAt": "2026-09-13T14:16:33+03:00",
+   "updatedAt": "2026-10-19T18:08:50+03:00",
    "shots": {
     "desktop": "/api/help-shot/emails-d.jpg",
     "mobile": "/api/help-shot/emails-m.jpg"
@@ -1337,12 +1347,17 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "f495de2",
+     "date": "2026-10-19T18:08:50+03:00",
+     "text": "Ασφάλεια: αυστηρότερο CSP"
+    },
+    {
      "hash": "40e4e9d",
      "date": "2026-09-13T14:16:33+03:00",
      "text": "Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typ…"
     }
    ],
-   "updatedAt": "2026-09-13T14:16:33+03:00",
+   "updatedAt": "2026-10-19T18:08:50+03:00",
    "shots": {}
   },
   {
@@ -2337,6 +2352,11 @@
    ],
    "changes": [
     {
+     "hash": "f495de2",
+     "date": "2026-10-19T18:08:50+03:00",
+     "text": "Ασφάλεια: αυστηρότερο CSP"
+    },
+    {
      "hash": "39425fe",
      "date": "2026-10-17T06:18:14+03:00",
      "text": "Newsletter προσφοράς: διορθώσεις τελικής αναθεώρησης"
@@ -2367,7 +2387,7 @@
      "text": "Newsletter προσφοράς (5/7): αποστολή"
     }
    ],
-   "updatedAt": "2026-10-17T06:18:14+03:00",
+   "updatedAt": "2026-10-19T18:08:50+03:00",
    "shots": {}
   },
   {
@@ -3356,6 +3376,34 @@
  ],
  "recent": [
   {
+   "hash": "f495de2",
+   "date": "2026-10-19T18:08:50+03:00",
+   "text": "Ασφάλεια: αυστηρότερο CSP",
+   "routes": [
+    "/admin",
+    "/admin/emails",
+    "/admin/emails/[key]",
+    "/admin/prosfores",
+    "/admin/prosfores/newsletter",
+    "/admin/prosfores/newsletter/[id]"
+   ]
+  },
+  {
+   "hash": "a88a39d",
+   "date": "2026-10-19T13:09:10+03:00",
+   "text": "Βοήθεια: screenshots της σελίδας «Newsletter προσφορών» (υπολογιστής + κινητό)",
+   "routes": []
+  },
+  {
+   "hash": "bf98a3e",
+   "date": "2026-10-19T13:09:02+03:00",
+   "text": "Email templates: η δοκιμαστική αποστολή δέχεται πολλά emails χωρισμένα με κόμμα (έως 5, έλεγχος ανά διεύθυνση)",
+   "routes": [
+    "/admin",
+    "/admin/emails"
+   ]
+  },
+  {
    "hash": "6733f47",
    "date": "2026-10-19T13:04:34+03:00",
    "text": "Ασφάλεια: Content-Security-Policy με nonce σε κάθε σελίδα (proxy.ts, scripts μόνο με nonce + strict-dynamic, χωρίς unsafe-inline/unsafe-eval σε παραγωγή, πηγές μόνο https), robots.txt, X-Robots-Tag noindex στη διαχείρ…",
@@ -3615,42 +3663,6 @@
    "date": "2026-10-16T16:40:26+03:00",
    "text": "Προδιαγραφή: καμπάνιες, έγκριση δύο επιπέδων, οδηγοί με πραγματικά παραδείγματα, αναφορά ανά καμπάνια",
    "routes": []
-  },
-  {
-   "hash": "ffac74e",
-   "date": "2026-10-16T14:12:27+03:00",
-   "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login",
-   "routes": [
-    "/admin",
-    "/admin/orders",
-    "/admin/orders/[number]",
-    "/admin/prosfores",
-    "/admin/prosfores/anafores",
-    "/admin/prosfores/anafores/paraggelia/[id]",
-    "/admin/settings"
-   ]
-  },
-  {
-   "hash": "8dc0c8a",
-   "date": "2026-10-16T13:29:14+03:00",
-   "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών",
-   "routes": [
-    "/admin",
-    "/admin/customers",
-    "/admin/customers/[id]",
-    "/admin/orders",
-    "/admin/orders/[number]"
-   ]
-  },
-  {
-   "hash": "ff6db32",
-   "date": "2026-10-16T13:04:03+03:00",
-   "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…",
-   "routes": [
-    "/admin",
-    "/admin/orders",
-    "/admin/orders/[number]"
-   ]
   }
  ],
  "helpKeys": {

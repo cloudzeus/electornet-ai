@@ -81,9 +81,13 @@ const CARRIER_SETUP: { id: string; title: string; help: string; fee: string; eta
     { key: "eltaEnv", label: "Περιβάλλον", type: "select", width: "half", options: [{ value: "stage", label: "Δοκιμαστικό (wsstage)" }, { value: "production", label: "Παραγωγή" }], help: "Τα δοκιμαστικά στοιχεία δεν δουλεύουν στην παραγωγή (και αντίστροφα)· η ΕΛΤΑ δίνει ξεχωριστά." },
     { key: "eltaSubCode", label: "Υποκωδικός πελάτη (pelSubCode)", type: "text", width: "half", help: "Μόνο αν η ΕΛΤΑ σάς έχει δώσει υποκωδικούς (π.χ. ανά αποθήκη)." },
     { key: "eltaPickup", label: "Παραγγελία παραλαβής με κάθε voucher", type: "toggle", width: "half", help: "Η ΕΛΤΑ έρχεται να πάρει το δέμα την επόμενη εργάσιμη. Κλειστό αν έχετε σταθερή καθημερινή παραλαβή ή τα πηγαίνετε στο κατάστημα." }] },
-  { id: "asap", title: "ASAP Couriers", help: "Αυθημερόν / express στην Αττική. Το API δίνεται μετά από αίτηση στο asapcouriers.gr/eshop-partners.", fee: "6.90", eta: "Αυθημερόν στην Αττική", creds: [
+  { id: "asap", title: "ASAP Couriers (LastMily)", help: "Η ASAP εκδίδει vouchers μέσω της πλατφόρμας LastMily. Ζήτα από την ASAP τα στοιχεία του «External API» (Client ID και Client secret) και τον αριθμό (ID) της ASAP ως courier στο LastMily.", fee: "6.90", eta: "Αυθημερόν στην Αττική", creds: [
     { key: "asapAtticaOnly", label: "Μόνο για Αττική", type: "toggle", public: true, width: "half", help: "Με ΤΚ εκτός Αττικής ο πελάτης δεν μπορεί να τον διαλέξει." },
-    { key: "asapApiKey", label: "API key", type: "secret", width: "half" }] },
+    { key: "asapClientId", label: "Client ID", type: "text", width: "half", help: "Από το LastMily (External API). Στέλνεται σε κάθε αίτημα ως «Authorization: Bearer»." },
+    { key: "asapClientSecret", label: "Client secret", type: "secret", width: "half", help: "Υπογράφει κάθε αίτημα (HMAC-SHA256)· δεν στέλνεται ποτέ ως έχει." },
+    { key: "asapCourierId", label: "ID της ASAP στο LastMily", type: "text", width: "half", rule: R.int, help: "Ο αριθμός courier (courier_company_ids) που δίνει η ASAP / το LastMily — χωρίς αυτόν δεν βγαίνει voucher." },
+    { key: "asapDelivery", label: "Ταχύτητα παράδοσης", type: "select", width: "half", options: [{ value: "1", label: "Express (αυθημερόν)" }, { value: "3", label: "Επόμενη εργάσιμη" }, { value: "2", label: "Μέσω κέντρου διαλογής" }], help: "Τι ζητάμε σε κάθε voucher (shipment_delivery_type)." },
+    { key: "asapApiUrl", label: "Διεύθυνση API", type: "url", width: "half", rule: R.url, placeholder: "https://apps.lastmily.com/api/external/v1", help: "Κενό = η παραγωγή του LastMily. Αλλάζει μόνο αν σας δώσουν δοκιμαστικό περιβάλλον." }] },
   { id: "boxnow", title: "BOX NOW (θυρίδες)", help: "Ο πελάτης διαλέγει θυρίδα σε χάρτη. Partner ID, Client ID και Client secret από το BOX NOW (boxnow.gr → e-shops).", fee: "2.90", eta: "1–2 εργάσιμες σε θυρίδα", creds: [
     { key: "boxnowPartnerId", label: "Partner ID", type: "text", public: true, width: "half", help: "Χρειάζεται για τον χάρτη θυρίδων στο checkout." },
     { key: "boxnowClientId", label: "Client ID", type: "text", width: "half" },
@@ -453,7 +457,7 @@ export const SECTION_GROUPS: { key: Section["group"]; label: string; help: strin
 const ADVANCED: Record<string, string[]> = {
   softone: ["syncMinutes", "customerCodePrefix", "customerCountry", "customerCurrency", "customerVatSts", "customerTrdCategory", "customerPayment", "webFilter"],
   payments: ["sourceCode", "webhookSecret"],
-  shipping: ["genikiSubCode"],
+  shipping: ["genikiSubCode", "asapApiUrl"],
   bunny: ["pullZoneId", "accountApiKey", "storageRegion", "basePath", "tokenAuthKey", "imageQuality", "backupRetentionDays"],
   aade: ["vatProxyUrl", "vatCalledBy", "vatEndpoint"],
   email: ["emailAssetUrl", "mailgunRegion", "smtpPort"],

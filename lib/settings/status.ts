@@ -34,7 +34,7 @@ const COURIERS = [
   { id: "acs", label: "ACS", creds: ["acsCompanyId", "acsUserId"], sec: ["acsPassword", "acsApiKey"] },
   { id: "elta", label: "ΕΛΤΑ Courier", creds: ["eltaCustomerCode", "eltaUser"], sec: ["eltaPassword"] },
   { id: "boxnow", label: "BOX NOW", creds: ["boxnowPartnerId", "boxnowClientId"], sec: ["boxnowApiKey"] },
-  { id: "asap", label: "ASAP", creds: [], sec: ["asapApiKey"] },
+  { id: "asap", label: "ASAP (LastMily)", creds: ["asapClientId", "asapCourierId"], sec: ["asapClientSecret"] },
 ];
 
 const PROVIDER: Record<string, string> = { viva: "Viva", everypay: "EveryPay", cardlink: "Cardlink", stripe: "Stripe" };
