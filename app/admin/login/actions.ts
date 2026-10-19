@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { recordLogin } from "@/lib/gdpr/consent";
 import { issueStaffOtp, maskEmail } from "@/lib/auth/otp";
+import { LOGIN_LIMITS, loginBlocked } from "@/lib/auth/throttle";
+import { captureEvidence } from "@/lib/gdpr/evidence";
 
 const COOKIE = "eu_admin_chal";
 
@@ -20,6 +22,16 @@ export async function requestOtp(_prev: Step1State, fd: FormData): Promise<Step1
   const password = String(fd.get("password") ?? "");
   const generic = "Λάθος email ή κωδικός.";
   if (!email || !password) return { error: generic };
+  // πολλές αποτυχίες για αυτό το email ή από αυτή τη διεύθυνση IP: παύση πριν ελεγχθεί ο κωδικός
+  const since = new Date(Date.now() - LOGIN_LIMITS.windowMin * 60_000);
+  const { ipHash } = await captureEvidence();
+  // μετρούν οι λάθος κωδικοί / άγνωστα email — όχι οι ίδιες οι φραγές, ώστε η φραγή να λήγει 15′ μετά την τελευταία προσπάθεια
+  const failed = { success: false, method: "admin", reason: { in: ["bad-password", "unknown", "blocked"] }, at: { gte: since } };
+  const [byEmail, byIp] = await Promise.all([db.loginEvent.count({ where: { ...failed, email } }), ipHash ? db.loginEvent.count({ where: { ...failed, ipHash } }) : 0]);
+  if (loginBlocked({ byEmail, byIp })) {
+    await recordLogin({ email, success: false, method: "admin", reason: "throttled" });
+    return { error: `Πολλές αποτυχημένες προσπάθειες. Δοκίμασε ξανά σε ${LOGIN_LIMITS.windowMin} λεπτά.` };
+  }
   const staff = await db.staff.findUnique({ where: { email }, include: { roles: true } });
   if (!staff || !staff.active || !staff.passwordHash) {
     await recordLogin({ email, success: false, method: "admin", reason: !staff ? "unknown" : "blocked" });

@@ -32,6 +32,18 @@
       ],
       "port": 3111,
       "autoPort": false
+    },
+    {
+      "name": "euronics-prod-check",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "--port",
+        "3222"
+      ],
+      "port": 3222,
+      "autoPort": false
     }
   ]
 }

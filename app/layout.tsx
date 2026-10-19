@@ -4,6 +4,7 @@ import { DeviceProvider } from "@/components/fluid/DeviceProvider";
 import { getDevice } from "@/lib/device";
 import { getPublicSettings } from "@/lib/settings/store";
 import { Analytics, type AnalyticsIds } from "@/components/site/Analytics";
+import { headers } from "next/headers";
 import "./globals.css";
 
 // Brand typeface "Euronics" is proprietary. Manrope (variable, Greek +
@@ -39,7 +40,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [{ device, touch, saveData }, pub] = await Promise.all([getDevice(), getPublicSettings()]);
+  const [{ device, touch, saveData }, pub, h] = await Promise.all([getDevice(), getPublicSettings(), headers()]);
   const analytics = (pub.analytics ?? {}) as AnalyticsIds;
   return (
     <html
@@ -49,7 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-white text-eu-ink">
         <DeviceProvider initial={{ device, touch, saveData }}>{children}</DeviceProvider>
-        <Analytics {...analytics} />
+        <Analytics {...analytics} nonce={h.get("x-nonce") ?? undefined} />
       </body>
     </html>
   );
