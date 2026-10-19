@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
       headers: [
         // ο browser δεν «μαντεύει» τύπο αρχείου (π.χ. δεν εκτελεί ως script κάτι που δηλώνεται εικόνα)
         { key: "X-Content-Type-Options", value: "nosniff" },
+        // παλιός μηχανισμός των browsers (οι σημερινοί τον αγνοούν — την προστασία τη δίνει το CSP του proxy.ts)· δηλώνεται για παλιούς browsers και ελέγχους ασφαλείας
+        { key: "X-XSS-Protection", value: "1; mode=block" },
         // το site δεν μπαίνει σε iframe άλλου site (clickjacking)
         { key: "X-Frame-Options", value: "SAMEORIGIN" },
         // σε εξωτερικούς συνδέσμους φεύγει μόνο το domain, όχι η πλήρης διεύθυνση

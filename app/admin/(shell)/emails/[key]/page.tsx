@@ -13,6 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ key: stri
 export default async function EmailPage({ params }: { params: Promise<{ key: string }> }) {
   const user = await requirePermission("marketing.emails.write");
   const h = await headers();
+  const nonce = h.get("x-nonce") ?? undefined;
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3111"}`;
   const { key } = await params;
   const t = templateByKey(key);
@@ -25,7 +26,7 @@ export default async function EmailPage({ params }: { params: Promise<{ key: str
       <Link href="/admin/emails" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline"><ChevronLeft className="size-4" aria-hidden /> Emails πελατών</Link>
       <EmailPreview
         tpl={{ key: t.key, name: t.name, description: t.description, trigger: t.trigger, group: EMAIL_GROUPS.find((g) => g.key === t.group)?.label ?? t.group, marketing: !!t.marketing }}
-        subject={m.subject} html={m.html} text={m.text} sample={JSON.stringify(sample, null, 2)} staffEmail={user.email ?? ""}
+        nonce={nonce} subject={m.subject} html={m.html} text={m.text} sample={JSON.stringify(sample, null, 2)} staffEmail={user.email ?? ""}
         log={log.map((l) => ({ id: l.id, to: l.to, status: l.status, at: l.at.toISOString(), error: l.error, subject: l.subject }))}
       />
     </>

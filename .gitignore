@@ -50,3 +50,6 @@ public/uploads/
 
 # βοήθεια/wiki: προφίλ Chrome για τα screenshots (σύνδεση διαχειριστή)
 .help-profile/
+
+# tesseract.js worker/πυρήνας (scripts/vendor-tesseract.mjs, πριν από dev/build)
+/public/vendor/tesseract/

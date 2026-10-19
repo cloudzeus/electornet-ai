@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
+import { withStyleNonce } from "@/lib/security/csp";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Check, CircleAlert, Copy, Eye, FlaskConical, Loader2, Mail, Monitor, MoreHorizontal, Pause, Pencil, Play, Plus, Save, Search, Send, Smartphone, Sparkles, Square, X } from "lucide-react";
@@ -27,6 +28,8 @@ export type EditorData = {
   me: string;
   staff: { email: string; name: string }[];
   html: string;
+  /** nonce του CSP της σελίδας, για την προεπισκόπηση */
+  nonce?: string;
 };
 
 const field = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-10 text-[length:var(--fs-14)] outline-none focus:border-eu-blue";
@@ -94,7 +97,7 @@ function TextField({ label, help, value, onChange, limit, hard, multiline, rows 
 }
 
 /** Προεπισκόπηση σε iframe (χωρίς scripts): υπολογιστής 600px / κινητό 375px. */
-export function NewsletterPreview({ html, busy, "data-help": dataHelp }: { html: string; busy?: boolean; "data-help"?: string }) {
+export function NewsletterPreview({ html, busy, nonce, "data-help": dataHelp }: { html: string; busy?: boolean; /** nonce του CSP της σελίδας (το srcDoc το κληρονομεί) */ nonce?: string; "data-help"?: string }) {
   const [mode, setMode] = useState<"desktop" | "mobile">("desktop");
   return (
     <section data-help={dataHelp} aria-label="Προεπισκόπηση" className="grid gap-2 min-w-0">
@@ -107,7 +110,7 @@ export function NewsletterPreview({ html, busy, "data-help": dataHelp }: { html:
         </div>
       </div>
       <div className="rounded-2xl border border-eu-line bg-eu-surface p-2 grid grid-cols-[minmax(0,1fr)] justify-items-center overflow-hidden min-w-0">
-        <iframe title="Προεπισκόπηση του email" srcDoc={html} sandbox="allow-popups allow-popups-to-escape-sandbox" className="block bg-white rounded-lg border-0 min-w-0 h-[70dvh] min-h-[480px]" style={{ width: mode === "mobile" ? 375 : "100%", maxWidth: "100%" }} />
+        <iframe title="Προεπισκόπηση του email" srcDoc={withStyleNonce(html, nonce)} sandbox="allow-popups allow-popups-to-escape-sandbox" className="block bg-white rounded-lg border-0 min-w-0 h-[70dvh] min-h-[480px]" style={{ width: mode === "mobile" ? 375 : "100%", maxWidth: "100%" }} />
       </div>
       <p className={helpTxt}>Τιμές και προϊόντα όπως είναι τώρα· στην αποστολή ξαναδιαβάζονται και ό,τι δεν φαίνεται πια στο site αφαιρείται.</p>
     </section>
@@ -329,7 +332,7 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
         </div>
 
         <div className={`${tab === "edit" ? "hidden @5xl:block" : "block"} @5xl:sticky @5xl:top-4 min-w-0`}>
-          <NewsletterPreview data-help="newsletter.preview" html={html} busy={previewBusy} />
+          <NewsletterPreview data-help="newsletter.preview" html={html} busy={previewBusy} nonce={d.nonce} />
         </div>
       </div>
 

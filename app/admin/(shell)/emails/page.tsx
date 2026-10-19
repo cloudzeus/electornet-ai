@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { headers } from "next/headers";
+import { withStyleNonce } from "@/lib/security/csp";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { EMAIL_GROUPS, EMAIL_TEMPLATES, renderTemplate } from "@/lib/email/templates";
@@ -12,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function EmailsPage() {
   await requirePermission("marketing.emails.write");
   const h = await headers();
+  const nonce = h.get("x-nonce");
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3111"}`;
   const [sent, transport] = await Promise.all([db.emailLog.groupBy({ by: ["template"], _count: { _all: true } }), db.setting.findUnique({ where: { section: "email" } })]);
   const count = (k: string) => sent.find((s) => s.template === k)?._count._all ?? 0;
@@ -34,7 +36,7 @@ export default async function EmailsPage() {
               <li key={t.key}>
                 <Link href={`/admin/emails/${t.key}`} className="group grid rounded-2xl bg-white border border-eu-line overflow-hidden hover:border-eu-blue hover:shadow-[var(--shadow-raised)] transition-all">
                   <div className="relative h-44 bg-eu-surface overflow-hidden pointer-events-none">
-                    <iframe title={t.name} srcDoc={html.get(t.key)} sandbox="" tabIndex={-1} className="absolute top-0 left-1/2 -translate-x-1/2 w-[640px] h-[880px] origin-top scale-[0.42] border-0" />
+                    <iframe title={t.name} srcDoc={withStyleNonce(html.get(t.key) ?? "", nonce)} sandbox="" tabIndex={-1} className="absolute top-0 left-1/2 -translate-x-1/2 w-[640px] h-[880px] origin-top scale-[0.42] border-0" />
                     <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-eu-surface to-transparent" />
                   </div>
                   <div className="p-3">

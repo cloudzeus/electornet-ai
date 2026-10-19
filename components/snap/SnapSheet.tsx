@@ -122,7 +122,8 @@ export function SnapSheet() {
     const ocrP = (async () => {
       try {
         const { createWorker } = await import("tesseract.js");
-        const worker = await createWorker(["eng", "ell"]);
+        // worker και πυρήνας από το δικό μας domain (public/vendor/tesseract) — όχι CDN, για το Content-Security-Policy
+        const worker = await createWorker(["eng", "ell"], 1, { workerPath: "/vendor/tesseract/worker.min.js", corePath: "/vendor/tesseract", workerBlobURL: false });
         const { data: d } = await worker.recognize(data);
         await worker.terminate();
         const text = d.text.replace(/[|]/g, "I");

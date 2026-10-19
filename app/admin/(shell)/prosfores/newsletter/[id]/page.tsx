@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FolderKanban, ListChecks } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -72,6 +73,7 @@ async function stats(id: string, n: { recipientCount: number; delivered: number;
  * δοκιμαστική αποστολή, αποστολή τώρα / προγραμματισμός)· μετά την αποστολή η κατάσταση, τα αποτελέσματα και το ιστορικό.
  */
 export default async function NewsletterPage({ params }: { params: Promise<{ id: string }> }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const user = await requirePermission("marketing.newsletter.write");
   const { id } = await params;
   const n = await db.newsletter.findUnique({ where: { id } });
@@ -123,6 +125,7 @@ export default async function NewsletterPage({ params }: { params: Promise<{ id:
       <div className="@container grid gap-4 min-w-0">
         {header}
         <NewsletterEditor d={{
+          nonce,
           id: n.id, form, contentHash: hash, testHash: n.testHash, testSentAt: n.testSentAt?.toISOString() ?? null,
           testSentCount: n.testSentTo ? n.testSentTo.split(",").filter((x) => x.trim()).length : 0,
           transport: transportReady(data, secrets),
@@ -148,7 +151,7 @@ export default async function NewsletterPage({ params }: { params: Promise<{ id:
           <NewsletterStats d={await stats(id, n)} results={started} />
         </div>
         <div className="min-w-0 @5xl:sticky @5xl:top-4">
-          <NewsletterPreview html={html} />
+          <NewsletterPreview html={html} nonce={nonce} />
         </div>
       </div>
     </div>
