@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-17T03:14:07.757Z",
+ "generatedAt": "2026-10-19T10:08:25.070Z",
  "routes": [
   {
    "route": "/admin",
@@ -2290,13 +2290,21 @@
    ],
    "changes": [
     {
+     "hash": "39425fe",
+     "date": "2026-10-17T06:18:14+03:00",
+     "text": "Newsletter προσφοράς: διορθώσεις τελικής αναθεώρησης"
+    },
+    {
      "hash": "7d938f8",
      "date": "2026-10-17T05:48:25+03:00",
      "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
     }
    ],
-   "updatedAt": "2026-10-17T05:48:25+03:00",
-   "shots": {}
+   "updatedAt": "2026-10-17T06:18:14+03:00",
+   "shots": {
+    "desktop": "/api/help-shot/prosfores.newsletter-d.jpg",
+    "mobile": "/api/help-shot/prosfores.newsletter-m.jpg"
+   }
   },
   {
    "route": "/admin/prosfores/newsletter/[id]",
@@ -2329,6 +2337,11 @@
    ],
    "changes": [
     {
+     "hash": "39425fe",
+     "date": "2026-10-17T06:18:14+03:00",
+     "text": "Newsletter προσφοράς: διορθώσεις τελικής αναθεώρησης"
+    },
+    {
      "hash": "9248139",
      "date": "2026-10-17T05:55:12+03:00",
      "text": "Newsletter προσφοράς (7/7) διόρθωση: στο κινητό η μπάρα ενεργειών του editor γίνεται μία γραμμή (κατάσταση + η επόμενη ενέργεια + «Περισσότερα» σε bottom sheet με όλες τις ενέργειες και τον λόγο κλειδώματος)"
@@ -2354,7 +2367,7 @@
      "text": "Newsletter προσφοράς (5/7): αποστολή"
     }
    ],
-   "updatedAt": "2026-10-17T05:55:12+03:00",
+   "updatedAt": "2026-10-17T06:18:14+03:00",
    "shots": {}
   },
   {
@@ -3343,6 +3356,23 @@
  ],
  "recent": [
   {
+   "hash": "6733f47",
+   "date": "2026-10-19T13:04:34+03:00",
+   "text": "Ασφάλεια: Content-Security-Policy με nonce σε κάθε σελίδα (proxy.ts, scripts μόνο με nonce + strict-dynamic, χωρίς unsafe-inline/unsafe-eval σε παραγωγή, πηγές μόνο https), robots.txt, X-Robots-Tag noindex στη διαχείρ…",
+   "routes": []
+  },
+  {
+   "hash": "39425fe",
+   "date": "2026-10-17T06:18:14+03:00",
+   "text": "Newsletter προσφοράς: διορθώσεις τελικής αναθεώρησης",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/newsletter",
+    "/admin/prosfores/newsletter/[id]"
+   ]
+  },
+  {
    "hash": "9248139",
    "date": "2026-10-17T05:55:12+03:00",
    "text": "Newsletter προσφοράς (7/7) διόρθωση: στο κινητό η μπάρα ενεργειών του editor γίνεται μία γραμμή (κατάσταση + η επόμενη ενέργεια + «Περισσότερα» σε bottom sheet με όλες τις ενέργειες και τον λόγο κλειδώματος)",
@@ -3620,23 +3650,6 @@
     "/admin",
     "/admin/orders",
     "/admin/orders/[number]"
-   ]
-  },
-  {
-   "hash": "b8488d0",
-   "date": "2026-10-14T11:55:04+03:00",
-   "text": "PgBouncer: μέσω της θύρας 6432 η εφαρμογή ανοίγει έως 25 συνδέσεις ανά διεργασία (απευθείας στη 5432 μένει 8)",
-   "routes": []
-  },
-  {
-   "hash": "9b7e9bf",
-   "date": "2026-10-13T20:12:49+03:00",
-   "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]",
-    "/admin/stores"
    ]
   }
  ],
