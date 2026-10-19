@@ -50,7 +50,7 @@ export function CancelVoucher({ id, courier, compact = false }: { id: string; co
 }
 
 /** Ενέργειες: δοκιμή σύνδεσης, ενημέρωση παρακολούθησης, κλείσιμο ημέρας (μόνο Γενική). */
-export function DayActions({ carrier, openIds, canWrite }: { carrier: "geniki" | "elta"; openIds: string[]; canWrite: boolean }) {
+export function DayActions({ carrier, openIds, canWrite }: { carrier: "geniki" | "elta" | "asap"; openIds: string[]; canWrite: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-19T16:01:06.588Z",
+ "generatedAt": "2026-10-19T16:11:47.328Z",
  "routes": [
   {
    "route": "/admin",
@@ -136,7 +136,7 @@
    "slug": "apostoles.vouchers",
    "file": "app/admin/(shell)/apostoles/vouchers/page.tsx",
    "title": "Vouchers courier",
-   "doc": "Vouchers courier (ui-ux-pro-max): λεπτή κεφαλίδα με courier / περιβάλλον / ενέργειες, KPIs, ουρά έκδοσης σε πυκνές γραμμές και πίνακας vouchers με φίλτρα, επιλογή, εκτύπωση (ετικέτες, δελτίο παράδοσης, όλα σε ένα PDF) και widget παρακολούθησης σε κάθε γραμμή. Γενική Ταχυδρομική και ΕΛΤΑ Courier (?c=).",
+   "doc": "Vouchers courier (ui-ux-pro-max): λεπτή κεφαλίδα με courier / περιβάλλον / ενέργειες, KPIs, ουρά έκδοσης σε πυκνές γραμμές και πίνακας vouchers με φίλτρα, επιλογή, εκτύπωση (ετικέτες, δελτίο παράδοσης, όλα σε ένα PDF) και widget παρακολούθησης σε κάθε γραμμή. Γενική Ταχυδρομική, ΕΛΤΑ Courier και ASAP (LastMily) (?c=).",
    "perm": "orders.read",
    "nav": {
     "group": "Αποστολές",
@@ -2806,6 +2806,11 @@
    ],
    "changes": [
     {
+     "hash": "3d85dfd",
+     "date": "2026-10-19T19:01:08+03:00",
+     "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
+    },
+    {
      "hash": "d1316c3",
      "date": "2026-10-17T04:47:09+03:00",
      "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
@@ -2849,14 +2854,9 @@
      "hash": "0088511",
      "date": "2026-10-10T10:02:35+03:00",
      "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
-    },
-    {
-     "hash": "7ecfe1d",
-     "date": "2026-10-08T10:19:04+03:00",
-     "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
     }
    ],
-   "updatedAt": "2026-10-17T04:47:09+03:00",
+   "updatedAt": "2026-10-19T19:01:08+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -2879,6 +2879,11 @@
    ],
    "changes": [
     {
+     "hash": "3d85dfd",
+     "date": "2026-10-19T19:01:08+03:00",
+     "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
+    },
+    {
      "hash": "d1316c3",
      "date": "2026-10-17T04:47:09+03:00",
      "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
@@ -2922,14 +2927,9 @@
      "hash": "0088511",
      "date": "2026-10-10T10:02:35+03:00",
      "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
-    },
-    {
-     "hash": "7ecfe1d",
-     "date": "2026-10-08T10:19:04+03:00",
-     "text": "AR: η διαχείριση χωρίς τη δημιουργία 3D (Tripo3D)"
     }
    ],
-   "updatedAt": "2026-10-17T04:47:09+03:00",
+   "updatedAt": "2026-10-19T19:01:08+03:00",
    "shots": {}
   },
   {
@@ -3376,6 +3376,12 @@
  ],
  "recent": [
   {
+   "hash": "3d85dfd",
+   "date": "2026-10-19T19:01:08+03:00",
+   "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily",
+   "routes": []
+  },
+  {
    "hash": "f495de2",
    "date": "2026-10-19T18:08:50+03:00",
    "text": "Ασφάλεια: αυστηρότερο CSP",
@@ -3656,12 +3662,6 @@
    "hash": "fcbd5de",
    "date": "2026-10-16T16:47:33+03:00",
    "text": "Ασφάλεια: κεφαλίδες X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Strict-Transport-Security, Permissions-Policy, βασικό Content-Security-Policy",
-   "routes": []
-  },
-  {
-   "hash": "76f2b90",
-   "date": "2026-10-16T16:40:26+03:00",
-   "text": "Προδιαγραφή: καμπάνιες, έγκριση δύο επιπέδων, οδηγοί με πραγματικά παραδείγματα, αναφορά ανά καμπάνια",
    "routes": []
   }
  ],

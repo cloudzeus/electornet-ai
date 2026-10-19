@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { asapConfig, asapPing, AsapError } from "@/lib/couriers/asap/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { cancelShipment, closeDay, createShipment, trackShipments } from "@/lib/couriers/shipments";
@@ -41,8 +42,13 @@ export async function trackNowAction() {
   return r;
 }
 
-export async function pingCourierAction(carrier: "geniki" | "elta") {
+export async function pingCourierAction(carrier: "geniki" | "elta" | "asap") {
   await requirePermission("orders.read");
+  if (carrier === "asap") {
+    const c = await asapConfig();
+    if (!c) return { ok: false as const, error: "Δεν έχουν συμπληρωθεί Client ID, Client secret και ID της ASAP στο LastMily." };
+    try { await asapPing(c); return { ok: true as const, env: "live" }; } catch (e) { return { ok: false as const, error: e instanceof AsapError ? e.message : "Η σύνδεση με το LastMily απέτυχε." }; }
+  }
   if (carrier === "elta") {
     const c = await eltaConfig();
     if (!c) return { ok: false as const, error: "Δεν έχουν συμπληρωθεί κωδικός πελάτη, χρήστης και κωδικός της ΕΛΤΑ (ELTA_PELATIS, ELTA_USER, ELTA_PASS)." };

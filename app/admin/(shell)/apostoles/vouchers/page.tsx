@@ -18,7 +18,7 @@ const waitingWhere = (carrier: VoucherCarrier): Prisma.OrderWhereInput => ({ ful
 /**
  * Vouchers courier (ui-ux-pro-max): λεπτή κεφαλίδα με courier / περιβάλλον / ενέργειες, KPIs, ουρά έκδοσης σε πυκνές
  * γραμμές και πίνακας vouchers με φίλτρα, επιλογή, εκτύπωση (ετικέτες, δελτίο παράδοσης, όλα σε ένα PDF) και widget
- * παρακολούθησης σε κάθε γραμμή. Γενική Ταχυδρομική και ΕΛΤΑ Courier (?c=).
+ * παρακολούθησης σε κάθε γραμμή. Γενική Ταχυδρομική, ΕΛΤΑ Courier και ASAP (LastMily) (?c=).
  */
 export default async function VouchersPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const user = await requirePermission("orders.read");
@@ -57,6 +57,8 @@ export default async function VouchersPage({ searchParams }: { searchParams: Pro
   });
   const flow = carrier === "geniki"
     ? "Έκδοση voucher → εκτύπωση (ετικέτες + δελτίο παράδοσης) → «Κλείσιμο ημέρας» πριν παραδοθούν τα δέματα. Ακύρωση μόνο πριν το κλείσιμο."
+    : carrier === "asap"
+      ? "Έκδοση voucher (η διεύθυνση εντοπίζεται αυτόματα στον χάρτη του LastMily) → εκτύπωση ετικέτας → παραλαβή από την ASAP. Χωρίς κλείσιμο ημέρας· η ακύρωση γίνεται από την ASAP."
     : "Έκδοση voucher → εκτύπωση (ετικέτα A6 ανά τεμάχιο + δελτίο παράδοσης) → παράδοση στην ΕΛΤΑ. Χωρίς κλείσιμο ημέρας: με την πρώτη κίνηση η αποστολή φεύγει και ο πελάτης παίρνει email. Ακύρωση μέχρι τότε.";
   const KPI: [string, number, string, string?][] = [["Προς έκδοση", kpi.queue, "Παραγγελίες που περιμένουν voucher"], ["Ανοιχτά", kpi.open, carrier === "geniki" ? "Εκδόθηκαν, πριν το κλείσιμο ημέρας" : "Εκδόθηκαν, περιμένουν παραλαβή"], ["Σε διαδρομή", kpi.moving, "Στον courier ή σε διανομή"], ["Προβλήματα", kpi.problem, "Ανεπιτυχής επίδοση ή επιστροφή", kpi.problem ? "text-eu-red" : undefined], ["Παραδόθηκαν · 7 ημ.", kpi.delivered, "Παραδόσεις των τελευταίων 7 ημερών"]];
 
@@ -78,7 +80,7 @@ export default async function VouchersPage({ searchParams }: { searchParams: Pro
 
       {!env && (
         <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-red/5 border border-eu-red/20 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]"><CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-red" aria-hidden /><span>
-          {carrier === "geniki" ? <>Συμπλήρωσε όνομα χρήστη, κωδικό και app key της Γενικής στις <Link href="/admin/settings/shipping" className="text-eu-blue underline font-bold">Ρυθμίσεις → Αποστολές & courier</Link>.</> : <>Λείπουν τα στοιχεία της ΕΛΤΑ Courier: ELTA_PELATIS, ELTA_USER, ELTA_PASS στο .env του server ή στις <Link href="/admin/settings/shipping" className="text-eu-blue underline font-bold">Ρυθμίσεις → Αποστολές & courier</Link>.</>}
+          {carrier === "geniki" ? <>Συμπλήρωσε όνομα χρήστη, κωδικό και app key της Γενικής στις <Link href="/admin/settings/shipping" className="text-eu-blue underline font-bold">Ρυθμίσεις → Αποστολές & courier</Link>.</> : carrier === "asap" ? <>Συμπλήρωσε Client ID, Client secret και το ID της ASAP στο LastMily στις <Link href="/admin/settings/shipping" className="text-eu-blue underline font-bold">Ρυθμίσεις → Αποστολές & courier</Link>.</> : <>Λείπουν τα στοιχεία της ΕΛΤΑ Courier: ELTA_PELATIS, ELTA_USER, ELTA_PASS στο .env του server ή στις <Link href="/admin/settings/shipping" className="text-eu-blue underline font-bold">Ρυθμίσεις → Αποστολές & courier</Link>.</>}
         </span></p>
       )}
 

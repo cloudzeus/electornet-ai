@@ -17,7 +17,7 @@ export const getFeatures = cache(async (): Promise<Features> => {
     ...carriers,
     courier: Object.values(carriers).some(Boolean),
     // couriers με έκδοση voucher από τη διαχείριση (lib/couriers/shipments.ts)
-    vouchers: carriers.geniki || carriers.elta,
+    vouchers: carriers.geniki || carriers.elta || carriers.asap,
     clickCollect: on(ship.clickCollect),
     appointment: on(ship.appointmentDelivery),
     softone: on(s1.enabled),

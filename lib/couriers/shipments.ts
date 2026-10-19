@@ -5,25 +5,28 @@ import { PDFDocument } from "pdf-lib";
 import { genikiCancel, genikiClose, genikiConfig, genikiCreateVoucher, genikiLabels, genikiTrack, GenikiError } from "./geniki/client";
 import { e164, stateFromCheckpoint, zip5 } from "./geniki/soap";
 import { appendLabel, eltaCancel, eltaConfig, eltaCreateVoucher, eltaLabels, eltaTrack, EltaError } from "./elta/client";
+import { asapConfig, asapCreateShipment, asapLabels, asapTrack, AsapError } from "./asap/client";
 import { carrierDef } from "@/lib/shipping/carriers";
 import { renderTemplate } from "@/lib/email/templates";
 import { emailCtx } from "@/lib/email/layout";
 import { sendMail } from "@/lib/email/send";
 
 /**
- * Αποστολές με courier (Γενική Ταχυδρομική, ΕΛΤΑ Courier): προσχέδιο από την παραγγελία, έκδοση voucher, ετικέτες,
+ * Αποστολές με courier (Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP μέσω LastMily): προσχέδιο από την παραγγελία, έκδοση voucher, ετικέτες,
  * ακύρωση, κλείσιμο ημέρας (μόνο Γενική) και παρακολούθηση. Ο courier είναι αυτός που διάλεξε ο πελάτης στο checkout.
  */
-export const VOUCHER_CARRIERS = ["geniki", "elta"] as const;
+export const VOUCHER_CARRIERS = ["geniki", "elta", "asap"] as const;
 export type VoucherCarrier = (typeof VOUCHER_CARRIERS)[number];
 export const isVoucherCarrier = (v: unknown): v is VoucherCarrier => VOUCHER_CARRIERS.includes(v as VoucherCarrier);
-export const COURIER_NAME: Record<VoucherCarrier, string> = { geniki: "Γενική Ταχυδρομική", elta: "ΕΛΤΑ Courier" };
+export const COURIER_NAME: Record<VoucherCarrier, string> = { geniki: "Γενική Ταχυδρομική", elta: "ΕΛΤΑ Courier", asap: "ASAP Couriers" };
 /** Περιβάλλον του courier όπως αποθηκεύεται στο Shipment.env (test | live) — null = χωρίς στοιχεία σύνδεσης. */
 export async function courierEnv(carrier: VoucherCarrier): Promise<"test" | "live" | null> {
   if (carrier === "elta") { const c = await eltaConfig(); return c ? (c.env === "production" ? "live" : "test") : null; }
+  // το LastMily δίνει μόνο παραγωγή
+  if (carrier === "asap") return (await asapConfig()) ? "live" : null;
   const c = await genikiConfig(); return c ? c.env : null;
 }
-const errText = (e: unknown, fallback: string) => (e instanceof GenikiError || e instanceof EltaError ? e.message : fallback);
+const errText = (e: unknown, fallback: string) => (e instanceof GenikiError || e instanceof EltaError || e instanceof AsapError ? e.message : fallback);
 export const COD_MAX = 2000; // μέγιστη αντικαταβολή μετρητοίς
 const DEFAULT_KG = 2; // όταν δεν ξέρουμε το βάρος ενός προϊόντος (βασική χρέωση Γενικής: έως 2 κιλά)
 const ACTIVE = ["created", "closed", "in-transit", "out-for-delivery", "attempted", "on-hold", "returning"];
@@ -73,10 +76,22 @@ export async function createShipment(orderId: string, input: { weightKg: number;
   if (d.blockers.length) return { ok: false as const, error: d.blockers.join(" ") };
   if (!d.name || !d.address || !d.city || d.zip.length !== 5) return { ok: false as const, error: "Λείπουν στοιχεία παραλήπτη (ονοματεπώνυμο, διεύθυνση, πόλη, ΤΚ)." };
   const weightKg = Math.min(999, Math.max(0.5, Number(input.weightKg) || d.weightKg)), pieces = Math.min(99, Math.max(1, Math.round(Number(input.pieces) || d.pieces)));
-  const carrier: VoucherCarrier = d.carrier === "elta" ? "elta" : "geniki";
+  const carrier: VoucherCarrier = d.carrier === "elta" || d.carrier === "asap" ? d.carrier : "geniki";
   try {
     let made: { env: "test" | "live"; jobId: string | null; voucher: string; subVouchers: string[]; services: string | null };
-    if (carrier === "elta") {
+    if (carrier === "asap") {
+      const c = await asapConfig();
+      if (!c) return { ok: false as const, error: "Λείπουν τα στοιχεία της ASAP (Ρυθμίσεις → Αποστολές & courier → ASAP Couriers: Client ID, Client secret, ID της ASAP στο LastMily)." };
+      // ο LastMily θέλει οδό / αριθμό χωριστά (για τις συντεταγμένες) — από τη διεύθυνση της παραγγελίας
+      const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true } });
+      const s = (o?.shipping ?? {}) as ShipTo & { notes?: string };
+      const notes = [s.floor ? `${s.floor}ος όροφος` : "", input.comments ?? "", s.notes ?? ""].filter((x) => x.trim()).join(" · ");
+      const v = await asapCreateShipment(c, {
+        order: d.number, pieces, weightKg, cod: d.cod,
+        recipient: { name: d.name, phone: d.phone, street: s.street ?? d.address, number: s.number ?? null, zip: d.zip, city: d.city, notes },
+      });
+      made = { env: "live", jobId: v.shipmentId, voucher: v.voucher, subVouchers: v.parcels.filter((x) => x !== v.voucher), services: d.cod > 0 ? "cod" : null };
+    } else if (carrier === "elta") {
       const c = await eltaConfig();
       if (!c) return { ok: false as const, error: "Λείπουν τα στοιχεία της ΕΛΤΑ Courier (ELTA_PELATIS, ELTA_USER, ELTA_PASS στο .env ή Ρυθμίσεις → Αποστολές & courier)." };
       const v = await eltaCreateVoucher(c, {
@@ -98,13 +113,15 @@ export async function createShipment(orderId: string, input: { weightKg: number;
     await db.order.update({ where: { id: orderId }, data: { tracking: made.voucher, courier: carrier, ...(d.cod === 0 ? { status: "processing" } : {}) } });
     return { ok: true as const, shipment: sh };
   } catch (e) {
-    return { ok: false as const, error: errText(e, `Η σύνδεση με ${carrier === "elta" ? "την ΕΛΤΑ Courier" : "τη Γενική"} απέτυχε.`) };
+    return { ok: false as const, error: errText(e, `Η σύνδεση με ${carrier === "elta" ? "την ΕΛΤΑ Courier" : carrier === "asap" ? "την ASAP" : "τη Γενική"} απέτυχε.`) };
   }
 }
 
 export async function cancelShipment(id: string) {
   const sh = await db.shipment.findUnique({ where: { id }, select: { id: true, jobId: true, status: true, orderId: true, voucher: true, carrier: true } });
   if (!sh || !isVoucherCarrier(sh.carrier)) return { ok: false as const, error: "Η αποστολή δεν βρέθηκε." };
+  // το API του LastMily δεν έχει ακύρωση αποστολής
+  if (sh.carrier === "asap") return { ok: false as const, error: "Η ακύρωση αποστολής ASAP γίνεται από την ίδια την ASAP (τηλεφωνικά / στην πλατφόρμα LastMily) — το API δεν την υποστηρίζει." };
   if (sh.status !== "created") return { ok: false as const, error: sh.carrier === "geniki" ? "Ακυρώνεται μόνο πριν το κλείσιμο ημέρας. Μετά, επικοινωνία με το κατάστημα της Γενικής." : "Ακυρώνεται μόνο πριν την παραλάβει η ΕΛΤΑ. Μετά, επικοινωνία με την ΕΛΤΑ Courier." };
   try {
     if (sh.carrier === "elta") {
@@ -124,11 +141,13 @@ export async function cancelShipment(id: string) {
 
 /** Ετικέτες PDF για όσα vouchers δοθούν — αν είναι από δύο couriers, σε ένα PDF (πρώτα Γενική, μετά ΕΛΤΑ). */
 export async function shipmentLabels(ids: string[]): Promise<Buffer> {
-  const rows = await db.shipment.findMany({ where: { id: { in: ids }, carrier: { in: [...VOUCHER_CARRIERS] }, status: { not: "cancelled" }, voucher: { not: null } }, select: { voucher: true, carrier: true }, orderBy: { createdAt: "asc" } });
+  const rows = await db.shipment.findMany({ where: { id: { in: ids }, carrier: { in: [...VOUCHER_CARRIERS] }, status: { not: "cancelled" }, voucher: { not: null } }, select: { voucher: true, carrier: true, jobId: true }, orderBy: { createdAt: "asc" } });
   const of = (c: VoucherCarrier) => rows.filter((r) => r.carrier === c).map((r) => r.voucher!);
   const parts: Buffer[] = [];
   if (of("geniki").length) { const c = await genikiConfig(); if (!c) throw new GenikiError("Λείπουν τα στοιχεία της Γενικής."); parts.push(await genikiLabels(c, of("geniki"))); }
   if (of("elta").length) { const c = await eltaConfig(); if (!c) throw new EltaError("Λείπουν τα στοιχεία της ΕΛΤΑ Courier."); parts.push(await eltaLabels(c, of("elta"))); }
+  const asapIds = rows.filter((r) => r.carrier === "asap" && r.jobId).map((r) => r.jobId!);
+  if (asapIds.length) { const c = await asapConfig(); if (!c) throw new AsapError("Λείπουν τα στοιχεία της ASAP."); parts.push(await asapLabels(c, asapIds)); }
   if (!parts.length) throw new GenikiError("Δεν υπάρχουν vouchers για εκτύπωση.");
   if (parts.length === 1) return parts[0];
   const out = await PDFDocument.create();
@@ -169,7 +188,8 @@ export async function trackShipments(limit = 100) {
   for (const carrier of VOUCHER_CARRIERS) {
     const env = await courierEnv(carrier);
     if (!env) continue;
-    const statuses = carrier === "elta" ? ["created", ...MOVING] : MOVING;
+    // ΕΛΤΑ και ASAP δεν έχουν κλείσιμο ημέρας: ελέγχονται και τα «created» (η πρώτη κίνηση = έφυγε)
+    const statuses = carrier === "elta" || carrier === "asap" ? ["created", ...MOVING] : MOVING;
     const due = await db.shipment.findMany({ where: { carrier, env, status: { in: statuses }, OR: [{ trackedAt: null }, { trackedAt: { lt: new Date(Date.now() - 2 * 3600_000) } }] }, select: { id: true, orderId: true, voucher: true, status: true }, take: limit, orderBy: { trackedAt: { sort: "asc", nulls: "first" } } });
     checked += due.length;
     const shipped: string[] = [];
@@ -196,6 +216,12 @@ export type Checkpoint = { code: string; text: string; at: string | null; shop: 
 export interface VoucherTrack { state: string | null; deliveredAt: string | null; checkpoints: Checkpoint[]; last: Checkpoint | null }
 /** Η διαδρομή ενός voucher από τον courier (σημεία με χρονολογική σειρά)· state null = δεν έχει φύγει ακόμη. */
 export async function trackVoucher(carrier: VoucherCarrier, voucher: string): Promise<VoucherTrack> {
+  if (carrier === "asap") {
+    const c = await asapConfig();
+    if (!c) throw new AsapError("Λείπουν τα στοιχεία της ASAP.");
+    const t = await asapTrack(c, voucher);
+    return { state: t.state, deliveredAt: t.deliveredAt, checkpoints: t.checkpoints, last: t.checkpoints.at(-1) ?? null };
+  }
   if (carrier === "elta") {
     const c = await eltaConfig();
     if (!c) throw new EltaError("Λείπουν τα στοιχεία της ΕΛΤΑ Courier.");
@@ -220,7 +246,7 @@ async function notifyShipped(orderIds: string[]) {
     const s = (o.shipping ?? {}) as ShipTo;
     const to = s.email ?? o.customer?.email ?? o.guestEmail;
     if (!to || !o.tracking) continue;
-    const m = await renderTemplate("order-shipped", { firstName: s.firstName ?? o.customer?.firstName ?? "", number: o.number, courier: carrierDef(o.courier)?.name ?? "Γενική Ταχυδρομική", code: o.tracking, url: `${baseUrl}/entopismos?no=${encodeURIComponent(o.number)}`, eta: o.courier === "elta" ? "2–4 εργάσιμες" : "1–2 εργάσιμες" });
+    const m = await renderTemplate("order-shipped", { firstName: s.firstName ?? o.customer?.firstName ?? "", number: o.number, courier: carrierDef(o.courier)?.name ?? "Γενική Ταχυδρομική", code: o.tracking, url: `${baseUrl}/entopismos?no=${encodeURIComponent(o.number)}`, eta: o.courier === "elta" ? "2–4 εργάσιμες" : o.courier === "asap" ? "αυθημερόν / την επόμενη εργάσιμη" : "1–2 εργάσιμες" });
     await sendMail({ to, template: "order-shipped", meta: { orderId: o.id }, ...m });
   }
 }
