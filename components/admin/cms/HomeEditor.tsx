@@ -291,7 +291,7 @@ export function HomeEditor({ initial, published: pub, savedAt: initSavedAt, info
           </div>
         </div>
 
-        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: mode === "s" ? "minmax(0,1fr)" : mode === "m" ? "minmax(20rem,24rem) minmax(0,1fr)" : sel ? "minmax(18rem,22rem) minmax(24rem,28rem) minmax(0,1fr)" : "minmax(18rem,24rem) minmax(0,1fr)" }}>
+        <div className={`grid gap-4 items-start ${mode === "s" ? "grid-cols-[minmax(0,1fr)]" : mode === "m" ? "grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]" : sel ? "grid-cols-[minmax(18rem,22rem)_minmax(24rem,28rem)_minmax(0,1fr)]" : "grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]"}`}>
           {/* ---- ο χάρτης της σελίδας: πάντα ορατός ---- */}
           {mode === "m" && sel && (
             <div data-help="editor.inspector" className="min-w-0 sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pr-1">{inspector(sel)}</div>

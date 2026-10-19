@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, CircleAlert, CircleCheck, Clock, Info, Mail, MapPin, Phone, Wrench } from "lucide-react";
 import type { BrandBlock } from "@/lib/cms/brand-store";

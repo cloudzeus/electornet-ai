@@ -2,7 +2,7 @@
 
 import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import type { CartLine } from "@/components/commerce/CartProvider";
 import { priceLong } from "@/lib/format";
 import { AskAris } from "@/components/advisor/AskAris";

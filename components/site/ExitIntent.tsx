@@ -2,7 +2,7 @@
 
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { usePathname } from "next/navigation";
 import { X, Mail, Check, Sparkles } from "lucide-react";
 import { useCart } from "@/components/commerce/CartProvider";

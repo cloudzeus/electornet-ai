@@ -23,6 +23,10 @@ export function StatusChip({ status }: { status: Order["status"] }) {
   return <span className={`inline-block rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-13-5)] ${s.tone}`}>{s.label}</span>;
 }
 
+// καθυστέρηση της μπάρας κάθε βήματος (0,15″ ανά βήμα) — σταθερές κλάσεις αντί για style· με «!» για να μην τη
+// μηδενίζει το shorthand `animation` της animate-[…] (όπως υπερίσχυε πριν το inline style)
+const STEP_DELAY = ["[animation-delay:0s]!", "[animation-delay:.15s]!", "[animation-delay:.3s]!", "[animation-delay:.45s]!"];
+
 /** Order header + courier timeline + lines. Used by tracking and account order detail. */
 export function OrderTimeline({ order: o }: { order: Order }) {
   const steps = ["Καταχωρήθηκε", "Πληρώθηκε", o.fulfilment === "click-collect" ? "Έτοιμη στο κατάστημα" : "Σε διανομή", o.fulfilment === "click-collect" ? "Παραλήφθηκε" : "Παραδόθηκε"];
@@ -40,7 +44,7 @@ export function OrderTimeline({ order: o }: { order: Order }) {
         {steps.map((s, i) => (
           <li key={s} className="grid gap-1.5">
             <span className="h-1.5 rounded-full bg-eu-line overflow-hidden" aria-hidden>
-              {i <= idx && <span className="block h-full w-full rounded-full bg-eu-green origin-left animate-[eu-grow_.7s_var(--eu-ease-out)_both]" style={{ animationDelay: `${i * 0.15}s` }} />}
+              {i <= idx && <span className={`block h-full w-full rounded-full bg-eu-green origin-left animate-[eu-grow_.7s_var(--eu-ease-out)_both] ${STEP_DELAY[i]}`} />}
             </span>
             <span className={`text-[length:var(--fs-13)] font-semibold ${i <= idx ? "text-eu-ink" : "text-eu-muted-2"}`}>{s}</span>
           </li>

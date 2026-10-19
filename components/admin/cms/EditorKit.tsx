@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useRef, useState, type RefObject } from "react";
+import { createElement, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   Bell, BookOpen, Check, FileText, GalleryHorizontal, HelpCircle, Image as ImageIcon, Laptop, ListOrdered, Loader2, Mail, Megaphone, MessageSquare, Monitor, Package, Percent,
   CalendarClock, EyeOff, LayoutGrid, Rocket, Search, ShoppingBag, Smartphone, Sparkles, Store, Tablet, Tag, Ticket, Timer, Truck, Video, Wrench, X, Zap, type LucideIcon,
@@ -10,6 +10,7 @@ import { DEVICES } from "@/lib/cms/brand-store";
 import type { HomeAudience } from "@/lib/cms/home-sections";
 import { BLOCK_GROUPS, BLOCK_INFO } from "./brand/BlockEditors";
 import { DateTime } from "./brand/fields";
+import { sx } from "@/components/ui/sx";
 
 /*
  * Κοινά κομμάτια των editors σελίδων (Ζώνες αρχικής, σελίδες μαρκών): εικονίδια components, σύνοψη και φόρμα
@@ -177,6 +178,8 @@ export function AddDialog({ after, positions, top = "Θέση: στην κορυ
 }
 
 /* ---------------- ζωντανή προεπισκόπηση ---------------- */
+/** Το nonce του CSP της σελίδας μέσα στο iframe: ένα <style> που φτιάχνουμε εκεί χωρίς αυτό θα μπλοκαριζόταν. */
+const nonceOf = (d: Document) => d.querySelector<HTMLElement>("script[nonce], style[nonce]")?.nonce ?? "";
 /**
  * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
  * το στοιχείο αντί να ανοίγει συνδέσμους. Ανανεώνεται μετά από κάθε αποθήκευση.
@@ -218,7 +221,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     const d = frame.current?.contentDocument;
     if (!d || !ready) return;
     let st = d.getElementById("eu-peek") as HTMLStyleElement | null;
-    if (!st) { st = d.createElement("style"); st.id = "eu-peek"; d.head.appendChild(st); }
+    if (!st) { st = d.createElement("style"); st.id = "eu-peek"; st.nonce = nonceOf(d); d.head.appendChild(st); }
     if (!peek) { st.textContent = ""; return; }
     const sel = `[${attr}="${peek.replace(/"/g, "")}"]`;
     st.textContent = `${sel}{outline:8px solid #f5b400!important;outline-offset:-4px;box-shadow:0 0 0 9999px rgba(11,31,77,.18)!important;position:relative;z-index:1}`;
@@ -229,6 +232,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     const d = frame.current?.contentDocument;
     if (d) {
       const st = d.createElement("style");
+      st.nonce = nonceOf(d);
       st.textContent = `[${attr}]{cursor:pointer}[${attr}]:hover{box-shadow:inset 0 0 0 3px rgba(29,66,138,.45)}`;
       d.head.appendChild(st);
       d.addEventListener("click", (e) => {
@@ -244,6 +248,17 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
   const target = device === "desktop" ? 1280 : 390;
   const scale = w ? Math.min(1, w / target) : 1;
   const inner = (bh || 760) / scale;
+  // το πλάτος (από τη συσκευή) μπαίνει με κλάση· ύψος / κλίμακα / κεντράρισμα αλλάζουν με το μέγεθος του πλαισίου και
+  // γράφονται απευθείας στο στοιχείο (CSSOM — το CSP δεν επιτρέπει style attributes στο HTML)
+  const innerEl = useRef<HTMLDivElement>(null);
+  const wide = sx({ width: target });
+  useLayoutEffect(() => {
+    const el = innerEl.current;
+    if (!el) return;
+    el.style.height = `${inner}px`;
+    el.style.transform = `scale(${scale})`;
+    el.style.margin = device === "mobile" && w > target ? "0 auto" : "";
+  }, [inner, scale, device, w, target]);
   const msg = focus && (notice || missing) ? notice ?? "Το επιλεγμένο δεν φαίνεται σε αυτή την προβολή — π.χ. είναι κρυφό σε αυτή τη συσκευή ή δεν έχει περιεχόμενο τώρα." : null;
   return (
     <div className="grid gap-2 min-w-0">
@@ -255,8 +270,9 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
       </div>
       <div ref={box} className="relative rounded-2xl border border-eu-line bg-eu-line-2 overflow-hidden h-[calc(100dvh-10.5rem)] min-h-[26rem]">
         {msg && <p role="status" className="absolute z-10 left-3 right-3 top-3 m-0 flex items-start gap-2 rounded-xl bg-eu-navy/95 text-white px-3 py-2.5 text-[length:var(--fs-14)] shadow-lg"><EyeOff className="size-4 mt-0.5 shrink-0" aria-hidden /><span>{msg}</span></p>}
-        <div style={{ width: target, height: inner, transform: `scale(${scale})`, transformOrigin: "top left", margin: device === "mobile" && w > target ? "0 auto" : undefined }}>
-          <iframe ref={frame} key={v} onLoad={onLoad} title="Προεπισκόπηση" src={`${src}${src.includes("?") ? "&" : "?"}v=${v}`} className="block bg-white" style={{ width: target, height: "100%", border: 0 }} />
+        {wide.node}
+        <div ref={innerEl} className={`origin-top-left h-[760px] ${wide.className}`}>
+          <iframe ref={frame} key={v} onLoad={onLoad} title="Προεπισκόπηση" src={`${src}${src.includes("?") ? "&" : "?"}v=${v}`} className="block bg-white w-full h-full border-0" />
         </div>
       </div>
     </div>

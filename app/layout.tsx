@@ -5,6 +5,7 @@ import { getDevice } from "@/lib/device";
 import { getPublicSettings } from "@/lib/settings/store";
 import { Analytics, type AnalyticsIds } from "@/components/site/Analytics";
 import { headers } from "next/headers";
+import { NonceProvider } from "@/components/ui/SxStyleTag";
 import "./globals.css";
 
 // Brand typeface "Euronics" is proprietary. Manrope (variable, Greek +
@@ -49,7 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white text-eu-ink">
-        <DeviceProvider initial={{ device, touch, saveData }}>{children}</DeviceProvider>
+        <NonceProvider nonce={h.get("x-nonce") ?? undefined}><DeviceProvider initial={{ device, touch, saveData }}>{children}</DeviceProvider></NonceProvider>
         <Analytics {...analytics} nonce={h.get("x-nonce") ?? undefined} />
       </body>
     </html>

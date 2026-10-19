@@ -7,8 +7,19 @@ import "leaflet/dist/leaflet.css";
 export interface MapMarker { id: string; lat: number; lng: number; label: string; href?: string; tone?: "navy" | "red" | "yellow" | "green" }
 
 const COLORS = { navy: "#122A58", red: "#D62828", yellow: "#F1C400", green: "#1E7B3C" };
-const icon = (tone: keyof typeof COLORS, big = false) =>
-  L.divIcon({ className: "", iconSize: big ? [22, 22] : [14, 14], iconAnchor: big ? [11, 11] : [7, 7], html: `<span style="display:block;width:100%;height:100%;border-radius:50%;background:${COLORS[tone]};border:2px solid #fff;box-shadow:0 2px 6px rgba(18,42,88,.35)"></span>` });
+// Το CSP δεν επιτρέπει style attributes μέσα σε markup (html: string)· το στοιχείο φτιάχνεται με DOM και μορφοποιείται μέσω CSSOM
+const icon = (tone: keyof typeof COLORS, big = false) => {
+  const dot = document.createElement("span");
+  Object.assign(dot.style, { display: "block", width: "100%", height: "100%", borderRadius: "50%", background: COLORS[tone], border: "2px solid #fff", boxShadow: "0 2px 6px rgba(18,42,88,.35)" });
+  return L.divIcon({ className: "", iconSize: big ? [22, 22] : [14, 14], iconAnchor: big ? [11, 11] : [7, 7], html: dot });
+};
+// σύνδεσμος στο popup (στοιχείο DOM, όχι markup με style attribute)
+const popupLink = (href: string, label: string) => {
+  const a = document.createElement("a");
+  a.href = href; a.textContent = label;
+  a.style.fontWeight = "700"; a.style.color = "#1D428A";
+  return a;
+};
 
 /**
  * Leaflet + OpenStreetMap tiles. Two modes: many markers (list page) or one
@@ -38,7 +49,7 @@ export default function StoreMap({ markers, editable, onMove, alt, height = 420,
       if (!mk.lat && !mk.lng) continue;
       pts.push([mk.lat, mk.lng]);
       const marker = L.marker([mk.lat, mk.lng], { icon: icon(mk.tone ?? "navy", !!editable), draggable: !!editable, title: mk.label });
-      if (mk.href) marker.bindPopup(`<a href="${mk.href}" style="font-weight:700;color:#1D428A">${mk.label}</a>`);
+      if (mk.href) marker.bindPopup(popupLink(mk.href, mk.label));
       else marker.bindTooltip(mk.label);
       if (editable && onMove) marker.on("dragend", () => { const p = marker.getLatLng(); onMove({ lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 }); });
       marker.addTo(g); byId.current.set(mk.id, marker);

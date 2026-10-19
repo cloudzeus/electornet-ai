@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { SearchBox } from "@/components/site/SearchBox";
 import { getSettings } from "@/lib/cms/settings-server";
 

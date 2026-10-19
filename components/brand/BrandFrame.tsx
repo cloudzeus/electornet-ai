@@ -1,5 +1,6 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { BrandTheme } from "@/lib/cms/brand-store";
+import { sx } from "@/components/ui/sx";
 
 /**
  * Theme provider for a brand store: the CMS tokens become CSS variables
@@ -8,9 +9,10 @@ import type { BrandTheme } from "@/lib/cms/brand-store";
  * outside, in Euronics colours.
  */
 export function BrandFrame({ theme, children }: { theme: BrandTheme; children: ReactNode }) {
-  const style = { "--bs-bg": theme.bg, "--bs-bg2": theme.bg2, "--bs-ink": theme.ink, "--bs-muted": theme.muted, "--bs-accent": theme.accent, "--bs-accent-ink": theme.accentInk } as CSSProperties;
+  const vars = sx({ "--bs-bg": theme.bg, "--bs-bg2": theme.bg2, "--bs-ink": theme.ink, "--bs-muted": theme.muted, "--bs-accent": theme.accent, "--bs-accent-ink": theme.accentInk });
   return (
-    <div data-brand-mode={theme.mode} style={style} className="bg-[var(--bs-bg)] text-[var(--bs-ink)] eu-container">
+    <div data-brand-mode={theme.mode} className={`bg-[var(--bs-bg)] text-[var(--bs-ink)] eu-container ${vars.className}`}>
+      {vars.node}
       {children}
     </div>
   );

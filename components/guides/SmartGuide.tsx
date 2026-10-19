@@ -10,6 +10,7 @@ import { instalment, priceLong, priceShort } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("smartGuide");
 
@@ -48,6 +49,7 @@ export function SmartGuide({ kind, products }: { kind: GuideKind; products: Prod
   };
 
   if (done && result) return <Results kind={kind} a={a} result={result} onEdit={() => setDone(false)} onReset={() => (setA({}), setI(0), setDone(false))} />;
+  const progress = sx({ width: `${((i + (canNext ? 1 : 0)) / def.questions.length) * 100}%` });
 
   return (
     <div className="grid gap-6 max-w-[860px] mx-auto">
@@ -59,7 +61,8 @@ export function SmartGuide({ kind, products }: { kind: GuideKind; products: Prod
           <span>{Math.round((i / def.questions.length) * 100)}%</span>
         </div>
         <div className="h-2 rounded-full bg-eu-surface-2 overflow-hidden">
-          <div className="h-full bg-eu-yellow rounded-full transition-[width]" style={{ width: `${((i + (canNext ? 1 : 0)) / def.questions.length) * 100}%` }} />
+          {progress.node}
+          <div className={`h-full bg-eu-yellow rounded-full transition-[width] ${progress.className}`} />
         </div>
       </div>
       <div key={q.id} className="grid gap-5 motion-safe:animate-[fade-up_.3s_ease-out]">
@@ -177,6 +180,7 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
   const p = s.product;
   const reasons = compact ? s.reasons.slice(0, 3) : s.reasons;
   const cons = compact ? s.cons.slice(0, 2) : s.cons;
+  const fit = sx({ width: `${s.pct}%` });
   return (
     <article className={`bg-white rounded-2xl border-2 overflow-hidden ${rank === 1 ? "border-eu-yellow shadow-[var(--shadow-raised)]" : "border-eu-line"}`}>
       <div className={`px-5 py-3 flex items-center justify-between gap-3 ${rank === 1 ? "bg-eu-yellow text-eu-navy" : "bg-eu-surface text-eu-ink"}`}>
@@ -206,7 +210,8 @@ function Pick({ s, rank, noun, compact = false, onAdd, onQuick, onCompare, compa
         </div>
         <div className="grid gap-4 content-start">
           <div className="h-2 rounded-full bg-eu-surface-2 overflow-hidden">
-            <div className={`h-full rounded-full ${s.pct >= 75 ? "bg-eu-green" : s.pct >= 50 ? "bg-eu-yellow" : "bg-eu-amber"}`} style={{ width: `${s.pct}%` }} />
+            {fit.node}
+            <div className={`h-full rounded-full ${s.pct >= 75 ? "bg-eu-green" : s.pct >= 50 ? "bg-eu-yellow" : "bg-eu-amber"} ${fit.className}`} />
           </div>
           <div>
             <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.giati_soy_tairiazei}</div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { sx } from "@/components/ui/sx";
 
 /**
  * A4-landscape page of the proposal document. On screen: one card per
@@ -70,15 +71,18 @@ export function Table({ head, rows, widths, headTone = "navy", dense = false }: 
     <table className={`w-full border-collapse ${dense ? "text-[10px] leading-[1.35]" : "text-[11.5px] leading-[1.5]"} bg-white rounded-lg overflow-hidden`}>
       <thead>
         <tr>
-          {head.map((h, i) => (
-            <th
-              key={h}
-              style={{ width: widths?.[i] }}
-              className={`text-left ${dense ? "px-2 py-2" : "px-3 py-2.5"} font-extrabold text-[10px] tracking-[0.05em] text-white ${headTone === "mixed" && i === head.length - 1 ? "bg-eu-blue" : "bg-eu-navy"}`}
-            >
-              {h}
-            </th>
-          ))}
+          {head.map((h, i) => {
+            const w = sx({ width: widths?.[i] });
+            return (
+              <th
+                key={h}
+                className={`text-left ${dense ? "px-2 py-2" : "px-3 py-2.5"} font-extrabold text-[10px] tracking-[0.05em] text-white ${headTone === "mixed" && i === head.length - 1 ? "bg-eu-blue" : "bg-eu-navy"} ${w.className}`}
+              >
+                {w.node}
+                {h}
+              </th>
+            );
+          })}
         </tr>
       </thead>
       <tbody>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCsp, appliesCsp, withStyleNonce } from "./csp";
+import { buildCsp, appliesCsp } from "./csp";
 
 const parse = (csp: string) => new Map(csp.split(";").map((d) => d.trim()).filter(Boolean).map((d) => { const [k, ...v] = d.split(/\s+/); return [k, v] as const; }));
 
@@ -21,11 +21,12 @@ test("CSP παραγωγής: scripts μόνο με nonce + strict-dynamic, χω
   for (const [, v] of p) assert.ok(!v.some((s) => s === "http:" || s.startsWith("http://")), v.join(" "));
 });
 
-test("CSP παραγωγής: στοιχεία <style> μόνο με nonce· unsafe-inline μόνο για style attributes (style-src-attr)", () => {
-  const p = parse(buildCsp({ nonce: "abc123", dev: false }));
+test("CSP παραγωγής: styles μόνο με nonce — κανένα 'unsafe-inline' (ούτε για style attributes)", () => {
+  const csp = buildCsp({ nonce: "abc123", dev: false });
+  const p = parse(csp);
   assert.ok(p.get("style-src")!.includes("'nonce-abc123'"));
-  assert.ok(!p.get("style-src")!.includes("'unsafe-inline'"));
-  assert.deepEqual(p.get("style-src-attr"), ["'unsafe-inline'"]);
+  assert.ok(!csp.includes("'unsafe-inline'"), csp);
+  assert.ok(!p.has("style-src-attr"));
 });
 
 test("CSP παραγωγής: καμία γενική πηγή «https:» εκτός από εικόνες και φόρμες πληρωμής", () => {
@@ -46,12 +47,4 @@ test("CSP ανάπτυξης: unsafe-eval (React), inline styles του dev κα
 test("το CSP δεν τρέχει σε στατικά αρχεία, API και στην προβολή newsletter (έχει δικό της CSP)", () => {
   for (const path of ["/", "/proion/x", "/admin/catalog", "/k/klimatistika", "/newsletter"]) assert.ok(appliesCsp(path), path);
   for (const path of ["/api/cart", "/_next/static/chunks/a.js", "/_next/image", "/favicon.ico", "/robots.txt", "/img/logo.png", "/newsletter/v/abc", "/ar/x.glb", "/vendor/tesseract/worker.min.js"]) assert.ok(!appliesCsp(path), path);
-});
-
-test("προεπισκοπήσεις email (iframe srcDoc κληρονομεί το CSP): nonce σε κάθε <style>", () => {
-  const html = `<head><style>a{}</style><STYLE type="text/css">b{}</STYLE></head><p style="color:red">x</p>`;
-  const out = withStyleNonce(html, "n1");
-  assert.equal((out.match(/<style nonce="n1"/gi) ?? []).length, 2);
-  assert.ok(out.includes('style="color:red"'));
-  assert.equal(withStyleNonce(html, null), html);
 });

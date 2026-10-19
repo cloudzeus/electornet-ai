@@ -7,6 +7,7 @@ import { useOptions } from "./brand/BlockEditors";
 import { ProductPickerDialog } from "./brand/ProductPicker";
 import { DateTime } from "./brand/fields";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
+import { sx } from "@/components/ui/sx";
 
 /** Τι δείχνει σήμερα η αρχική (από τον server): «Προσφορά ημέρας», slides, αυτόματες προσφορές. */
 export type HomeLive = { heroDeal: { title: string; image: string | null; manual: boolean } | null; slides: number; autoDeals: number };
@@ -14,6 +15,12 @@ export const HomeLiveInfo = createContext<HomeLive>({ heroDeal: null, slides: 0,
 /** Ο editor ξαναδιαβάζει από τον server ό,τι αλλάζει έξω από το έγγραφο (π.χ. hero slides) και ανανεώνει την προεπισκόπηση. */
 export const HomeRefresh = createContext<() => void>(() => {});
 export const HomeProductInfo = createContext<{ info: Record<string, PickProduct>; onInfo: (p: PickProduct[]) => void }>({ info: {}, onInfo: () => {} });
+
+/** Μικρογραφία ως background-image (το URL από δεδομένα → sx· το CSP δεν επιτρέπει style attributes). */
+function Thumb({ url, className }: { url?: string | null; className: string }) {
+  const t = sx(url ? { backgroundImage: `url("${url.replace(/"/g, "")}")` } : {});
+  return <>{t.node}<span className={`${className} ${t.className}`} aria-hidden /></>;
+}
 
 /** Ενότητα slides: τι δείχνει σήμερα το πλακίδιο «Προσφορά ημέρας» και από πού αλλάζει. */
 export function HeroInfoField() {
@@ -25,7 +32,7 @@ export function HeroInfoField() {
       <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Σήμερα στην αρχική</span>
       <span className="text-eu-ink-2 text-[length:var(--fs-14)]">{live.slides ? `${live.slides} ενεργά slides` : "Κανένα ενεργό slide"}</span>
       <div className="flex items-center gap-3">
-        <span className="size-12 shrink-0 rounded-lg bg-white border border-eu-line bg-contain bg-center bg-no-repeat" style={live.heroDeal?.image ? { backgroundImage: `url("${live.heroDeal.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
+        <Thumb url={live.heroDeal?.image} className="size-12 shrink-0 rounded-lg bg-white border border-eu-line bg-contain bg-center bg-no-repeat" />
         <span className="grid min-w-0 text-[length:var(--fs-14)]">
           <span className="font-bold text-eu-ink">Προσφορά ημέρας: {live.heroDeal ? live.heroDeal.title : "καμία"}</span>
           <span className="text-eu-muted text-[length:var(--fs-13)]">{live.heroDeal ? (live.heroDeal.manual ? "Ορίστηκε για σήμερα στα Hero slides." : "Αυτόματα: το προϊόν με τη μεγαλύτερη έκπτωση.") : "Δεν υπάρχουν προϊόντα σε έκπτωση· όρισε μία για σήμερα στα Hero slides."}</span>
@@ -116,7 +123,7 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
                   onDrop={(e) => { e.preventDefault(); if (drag != null && drag !== i) { const l = [...ids]; const [x] = l.splice(drag, 1); l.splice(i, 0, x); set({ productIds: l }); } setDrag(null); }}>
                   <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-7 self-stretch cursor-grab text-eu-muted"><GripVertical className="size-4" /></span>
                   <span className="w-5 shrink-0 font-extrabold text-eu-muted text-[length:var(--fs-13)] tabular-nums">{i + 1}</span>
-                  <span className="size-11 shrink-0 rounded-md bg-white border border-eu-line bg-contain bg-center bg-no-repeat" style={p?.image ? { backgroundImage: `url("${p.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
+                  <Thumb url={p?.image} className="size-11 shrink-0 rounded-md bg-white border border-eu-line bg-contain bg-center bg-no-repeat" />
                   <span className="min-w-0 flex-1 grid py-1.5 text-[length:var(--fs-14)]"><span className="font-bold text-eu-ink leading-snug line-clamp-2">{p?.title ?? id}</span>{p?.price != null && <span className="text-eu-muted">{p.price.toLocaleString("el-GR", { style: "currency", currency: "EUR" })}</span>}</span>
                   <button type="button" disabled={i === 0} onClick={() => { const l = [...ids]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; set({ productIds: l }); }} aria-label="Πιο πάνω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowUp className="size-4" aria-hidden /></button>
                   <button type="button" disabled={i === ids.length - 1} onClick={() => { const l = [...ids]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; set({ productIds: l }); }} aria-label="Πιο κάτω" className="size-11 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface disabled:opacity-30"><ArrowDown className="size-4" aria-hidden /></button>

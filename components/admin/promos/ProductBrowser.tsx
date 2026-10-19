@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ChevronRight, Check, Plus, FolderTree, Tag, Package, Search, Loader2 } from "lucide-react";
 import { browseBrandsAction, browseCategoriesAction, browseProductsAction } from "@/app/admin/(shell)/prosfores/actions";
+import { sx } from "@/components/ui/sx";
 
 export type BrowseCat = { id: string; name: string };
 export type BrowseProduct = { id: string; title: string; sku: string; brand: string; price: number | null; image: string | null };
@@ -184,9 +185,10 @@ export function ProductBrowser({ mode, selected, onCategory, onBrandInCategory, 
         <Filter value={fProd} onChange={setFProd} placeholder={cat ? `Περιορισμός στα ${cat.name}${brand ? ` · ${brand.name}` : ""}…` : "Αναζήτηση σε όλο τον κατάλογο…"} label="Περιορισμός προϊόντων" />
         {(items.length > 0 || fProd) && <p className={sub} role="status">Εμφανίζονται {shown.length.toLocaleString("el-GR")}{total > items.length ? ` από ${total.toLocaleString("el-GR")} — γράψε για να βρεις τα υπόλοιπα` : ` από ${items.length.toLocaleString("el-GR")}`}</p>}
         <ul className="m-0 p-0 list-none grid gap-1 @4xl:max-h-[28rem] @4xl:overflow-y-auto">
-          {shown.map((p) => { const on = selected.has(p.id); return (
+          {shown.map((p) => { const on = selected.has(p.id); const sThumb = sx({ backgroundImage: p.image ? `url("${p.image}")` : undefined }); return (
             <li key={p.id} className={`flex items-center gap-2 rounded-xl border px-2 py-1.5 ${on ? "border-eu-green bg-eu-green/5" : "border-eu-line"}`}>
-              {p.image ? <span className="size-10 shrink-0 rounded-lg bg-white bg-center bg-contain bg-no-repeat border border-eu-line-2" style={{ backgroundImage: `url("${p.image}")` }} aria-hidden /> : <span className="size-10 shrink-0 rounded-lg bg-eu-surface" aria-hidden />}
+              {sThumb.node}
+              {p.image ? <span className={`size-10 shrink-0 rounded-lg bg-white bg-center bg-contain bg-no-repeat border border-eu-line-2 ${sThumb.className}`} aria-hidden /> : <span className="size-10 shrink-0 rounded-lg bg-eu-surface" aria-hidden />}
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold text-eu-ink text-[length:var(--fs-14)] leading-snug line-clamp-2">{p.title}</span>
                 <span className="block text-[length:var(--fs-13)]"><strong className="text-eu-ink">{eur(p.price)}</strong> <span className="text-eu-muted">· {p.brand}</span></span>

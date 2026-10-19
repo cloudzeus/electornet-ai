@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { sx } from "@/components/ui/sx";
 
 /**
  * Smart sticky column (filters, buy box) without an inner scrollbar.
@@ -14,7 +15,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 export function StickySidebar({ children, top: topProp, gap = 16, className = "" }: { children: ReactNode; top?: number; gap?: number; className?: string }) {
   const col = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<CSSProperties>({ position: "sticky", top: topProp ?? 16 });
+  // αρχική θέση ως κλάση (στον server)· οι αλλαγές στο scroll απευθείας στο element.style (χωρίς render)
+  const initial = sx({ position: "sticky", top: topProp ?? 16 });
 
   useEffect(() => {
     const c = col.current;
@@ -27,9 +29,10 @@ export function StickySidebar({ children, top: topProp, gap = 16, className = ""
     let state: "top" | "bottom" | "free" = "top";
     let freeOffset = 0;
     const apply = () => {
-      if (state === "top") setStyle({ position: "sticky", top: topNow() });
-      else if (state === "bottom") setStyle({ position: "sticky", top: window.innerHeight - b.offsetHeight - gap });
-      else setStyle({ position: "relative", top: freeOffset });
+      const set = (position: string, top: number) => { b.style.position = position; b.style.top = `${top}px`; };
+      if (state === "top") set("sticky", topNow());
+      else if (state === "bottom") set("sticky", window.innerHeight - b.offsetHeight - gap);
+      else set("relative", freeOffset);
     };
     const onScroll = () => {
       const y = window.scrollY;
@@ -88,7 +91,8 @@ export function StickySidebar({ children, top: topProp, gap = 16, className = ""
 
   return (
     <div ref={col} className={`self-stretch ${className}`}>
-      <div ref={box} style={style}>
+      {initial.node}
+      <div ref={box} className={initial.className}>
         {children}
       </div>
     </div>

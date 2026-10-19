@@ -30,6 +30,9 @@ const anchor = (s: StudioSection): Box | null => [...textBoxes(s), ...s.images.m
  * διακεκομμένο = εικονίδιο χαρακτηριστικού. Η επιλεγμένη φωτογραφία / εικονίδιο μετακινείται και αλλάζει μέγεθος με το
  * ποντίκι (γωνίες) ή με τα βελάκια (Shift = μεγαλύτερο βήμα, Alt = αλλαγή μεγέθους). Σε λειτουργία «σχεδίασης» ένα
  * σύρσιμο πάνω στην εικόνα φτιάχνει νέο πλαίσιο φωτογραφίας για την ενότητα.
+ * Τα `style` των πλαισίων είναι σκόπιμα: το BoxCanvas εμφανίζεται μόνο μετά από ενέργεια του χρήστη (βήμα «έλεγχος»), ποτέ
+ * στο HTML του server — το React τα εφαρμόζει μέσω CSSOM, που το CSP επιτρέπει — και οι τιμές αλλάζουν σε κάθε frame του
+ * σύρσιματος (κλάση ανά τιμή θα γέμιζε <style>).
  */
 export function BoxCanvas({ doc, selectedSection, selectedBox, drawFor, onSelectSection, onSelectBox, onBoxChange, onDraw }: {
   doc: StudioDoc;

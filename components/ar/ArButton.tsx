@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Box, X, Smartphone, RotateCcw, Ruler, Copy, Check, ExternalLink } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import QRCode from "qrcode";
 import type { Dims } from "@/lib/data/dims";
 import type { Product } from "@/lib/data/types";
@@ -12,6 +12,7 @@ import { priceLong } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { SURFACE_LABEL, SURFACE_TARGET, anchorOf, type Surface } from "@/lib/ar/placement";
 import { detectEnv, type ArEnv as Env } from "@/lib/ar/env";
+import { useNonce } from "@/components/ui/SxStyleTag";
 
 const c = copyOf("ar");
 const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -37,6 +38,8 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
   /** «Προσθήκη στο καλάθι» μέσα στο AR του iPhone */ buy?: { product: Product; price: number };
   className?: string;
 }) {
+  // nonce του CSP για τα <style> του διαλόγου (χωρίς αυτό ο browser τα αγνοεί)
+  const nonce = useNonce();
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "ar">("loading");
@@ -331,8 +334,8 @@ export function ArButton({ id, title, dims, tv, version = "", ios = true, light 
               {placement === "wall" && (env === "sceneviewer" || env === "inapp-android") && !noSceneViewer && (
                 <a href={sceneViewer("floor")} onClick={watchLaunch} className="absolute left-1/2 -translate-x-1/2 bottom-[4.75rem] z-10 rounded-full bg-white/95 text-eu-navy font-bold shadow px-4 min-h-11 inline-flex items-center whitespace-nowrap no-underline text-[length:var(--fs-14)]">Δεν πιάνει τον τοίχο; Δες το στο πάτωμα</a>
               )}
-              {env !== "desktop" && <style>{`model-viewer [data-eu-slot]{display:none!important}`}</style>}
-              <style>{`
+              {env !== "desktop" && <style nonce={nonce}>{`model-viewer [data-eu-slot]{display:none!important}`}</style>}
+              <style nonce={nonce}>{`
                 .eu-dim{pointer-events:none;transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0;transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .2s ease;transition-delay:calc(var(--i,0) * 60ms)}
                 .eu-dim[data-visible]{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}
                 .eu-dim-pill{display:inline-flex;align-items:baseline;gap:.35em;white-space:nowrap;border-radius:999px;padding:.3em .7em .3em .3em;background:#122A58;color:#fff;font-weight:800;font-size:var(--fs-15);line-height:1;box-shadow:0 6px 18px rgba(18,42,88,.35),0 0 0 2px rgba(255,255,255,.85);animation:eu-dim-float 3.2s ease-in-out infinite;animation-delay:calc(var(--i,0) * -1s)}

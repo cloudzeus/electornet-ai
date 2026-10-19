@@ -5,6 +5,7 @@ import { Copy, Check, Crop, Download, ExternalLink, FileText, Replace, Scissors,
 import type { MediaAssetDTO, MediaFolderDTO } from "@/lib/media/types";
 import { updateAsset, removeBackgroundAction, setVideoPoster, aiDescribeAsset } from "@/app/admin/(shell)/media/actions";
 import { fmtBytes, fmtDuration, fileExt } from "./format";
+import { sx } from "@/components/ui/sx";
 
 /** Right-hand detail panel: preview, editable metadata, focal point, actions. Mount with key={asset.id} so the form resets per asset. */
 export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete, onEdit, onReplace, onCreated }: {
@@ -52,6 +53,7 @@ export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete,
   const poster = () => start(async () => { const r = await setVideoPoster(a.id, posterAt); if (r.ok) { onChange(r.asset); setMsg("Το poster ενημερώθηκε."); } else setMsg(r.error); });
 
   const field = "rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] font-normal outline-none focus:border-eu-blue bg-white w-full";
+  const sFocal = sx({ left: `${a.focalX * 100}%`, top: `${a.focalY * 100}%` });
   const action = "inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line px-3 min-h-10 font-bold text-eu-ink text-[length:var(--fs-14)] hover:border-eu-navy disabled:opacity-50";
   return (
     <aside className="grid content-start gap-4 bg-white border-l border-eu-line p-4 @lg:p-5 overflow-y-auto" aria-label="Λεπτομέρειες αρχείου">
@@ -68,7 +70,7 @@ export function AssetDrawer({ a, folders, canWrite, onClose, onChange, onDelete,
           <div onClick={setFocal} className={`relative ${canWrite ? "cursor-crosshair" : ""}`} title={canWrite ? "Κλικ για focal point" : undefined}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={a.url} alt={a.alt ?? ""} className="block w-full max-h-[320px] object-contain" />
-            <span className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-eu-yellow bg-eu-navy/60 grid place-items-center pointer-events-none" style={{ left: `${a.focalX * 100}%`, top: `${a.focalY * 100}%` }}><Crosshair className="size-3.5 text-eu-yellow" aria-hidden /></span>
+            <span className={`absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-eu-yellow bg-eu-navy/60 grid place-items-center pointer-events-none ${sFocal.className}`}>{sFocal.node}<Crosshair className="size-3.5 text-eu-yellow" aria-hidden /></span>
           </div>
         )}
         {a.kind === "video" && <video src={a.url} poster={a.thumbUrl ?? undefined} controls preload="metadata" className="block w-full max-h-[320px] bg-black" />}

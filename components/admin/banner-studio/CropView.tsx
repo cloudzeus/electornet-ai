@@ -3,6 +3,9 @@ import type { Box } from "@/lib/catalog/banner-doc";
 /**
  * Προεπισκόπηση ενός πλαισίου της αρχικής εικόνας χωρίς κόψιμο στον server: η εικόνα ως φόντο, μεγεθυμένη και
  * μετατοπισμένη ώστε να φαίνεται μόνο το πλαίσιο. Ίδιες αναλογίες με το τελικό WebP.
+ * Το `style` εδώ είναι σκόπιμο: το CropView εμφανίζεται μόνο μετά από ενέργεια του χρήστη (βήματα έλεγχος/δημοσίευση του
+ * Banner Studio), ποτέ στο HTML του server — το React τότε το εφαρμόζει μέσω CSSOM, που το CSP επιτρέπει — και οι τιμές
+ * αλλάζουν σε κάθε σύρσιμο πλαισίου (κλάση ανά τιμή θα γέμιζε <style>).
  */
 export function CropView({ src, box, width, height, className = "", alt = "" }: { src: string; box: Box; width: number; height: number; className?: string; alt?: string }) {
   const [x, y, w, h] = box;

@@ -13,6 +13,7 @@ import { CompareStacked } from "./CompareStacked";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { CompareVerdict } from "./CompareVerdict";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("compare");
 
@@ -45,6 +46,7 @@ export function CompareTable({ initial }: { initial: Product[] }) {
     );
   }
   const { groups, val } = compareRows(initial);
+  const tableW = sx({ minWidth: `${180 + initial.length * 220}px` });
   const differs = (k: string) => new Set(initial.map((p) => val(p, k))).size > 1;
   const cheapest = Math.min(...initial.map((p) => p.price));
   const th = "text-left p-3 @md:p-4 font-bold text-eu-ink bg-eu-surface sticky left-0 z-10 w-[180px] text-[length:var(--fs-15)]";
@@ -67,7 +69,8 @@ export function CompareTable({ initial }: { initial: Product[] }) {
         <CompareStacked products={initial} rows={groups.map(([group, keys]) => ({ group, keys: keys.filter((k) => !onlyDiff || differs(k)) })).filter((g) => g.keys.length)} val={val} />
       </div>
       <div className="hidden @3xl:block rounded-2xl border border-eu-line bg-white overflow-x-auto">
-        <table className="w-full table-fixed border-collapse text-[length:var(--fs-16)]" style={{ minWidth: `${180 + initial.length * 220}px` }}>
+        {tableW.node}
+        <table className={`w-full table-fixed border-collapse text-[length:var(--fs-16)] ${tableW.className}`}>
           <thead>
             <tr className="align-top">
               <th className={`${th} bg-white`} />

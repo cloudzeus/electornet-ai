@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ChevronDown, Sparkles } from "lucide-react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { navCategories as demoCategories, navUtility, SUB_BLURB, type NavCategory } from "@/lib/data/nav";
 import gsap from "gsap";
 import type { MegaMenuEntry } from "@/lib/data/repo";

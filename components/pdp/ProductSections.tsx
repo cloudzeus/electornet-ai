@@ -1,6 +1,7 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Fragment, type ReactNode } from "react";
 import { autoLayout, type ImageSize, type PublishedSection, type SectionImage, type SectionFeature, type SectionLayout } from "@/lib/catalog/banner-doc";
+import { sx } from "@/components/ui/sx";
 
 /**
  * «Από τον κατασκευαστή»: οι ενότητες που βγήκαν από τα banners, ως πραγματικό κείμενο και καθαρές φωτογραφίες, σε
@@ -21,17 +22,20 @@ type Render = {
   editable?: boolean;
   sel?: string | null;
 };
-const SIZE_W: Record<ImageSize, string> = { s: "min(100%, 14rem)", m: "min(100%, 24rem)", l: "min(100%, 38rem)", full: "100%" };
-/** Πλάτος θέσης φωτογραφίας: η επιλογή του διαχειριστή, αλλιώς η προεπιλογή της διάταξης. */
-const slotW = (im: SectionImage | undefined, def: string) => ({ width: im?.size ? SIZE_W[im.size] : def });
+// πλάτη ως σταθερές κλάσεις (όχι style attribute — το CSP δεν το επιτρέπει)
+const SIZE_W: Record<ImageSize, string> = { s: "w-[min(100%,14rem)]", m: "w-[min(100%,24rem)]", l: "w-[min(100%,38rem)]", full: "w-full" };
+/** Πλάτος θέσης φωτογραφίας (κλάση): η επιλογή του διαχειριστή, αλλιώς η προεπιλογή της διάταξης. */
+const slotW = (im: SectionImage | undefined, def: string) => (im?.size ? SIZE_W[im.size] : def);
 /** Σημάδια επεξεργασίας (μόνο στην προεπισκόπηση του εργαλείου). */
 const mark = (r: Render, key: string) => (r.editable ? { "data-edit": key, ...(r.sel === key ? { "data-selected": "" } : {}) } : {});
 const featKey = (s: PublishedSection, f: SectionFeature, k: number) => `feat:${s.id}:${f.fid ?? k}`;
 
 function Img({ im, variant, sizes, r }: { im: SectionImage; variant: "main" | "more"; sizes: string; r: Render }) {
   // ποτέ μεγαλύτερη από το πραγματικό της πλάτος: μια περικοπή 270px απλωμένη στα 760px είναι θολή
+  const maxW = sx({ maxWidth: im.width });
   return (
-    <div {...mark(r, `img:${im.url}`)} style={{ maxWidth: im.width }} className="w-full mx-auto">
+    <div {...mark(r, `img:${im.url}`)} className={`w-full mx-auto ${maxW.className}`}>
+      {maxW.node}
       {r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} className="w-full h-auto rounded-xl" />}
     </div>
   );
@@ -118,7 +122,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
     case "hero":
       return (
         <section className="grid gap-5">
-          {main && <div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes="(min-width: 1024px) 760px, 100vw" r={r} /></div>}
+          {main && <div className={`mx-auto ${slotW(main, "w-full")}`}><Img im={main} variant="main" sizes="(min-width: 1024px) 760px, 100vw" r={r} /></div>}
           <div className="grid gap-3 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
           {s.features.length > 0 && <div className="mx-auto w-full max-w-[60rem]"><FeatureList s={s} r={r} /></div>}
           <Foot s={s} center />
@@ -129,7 +133,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       if (!s.features.some((f) => f.iconUrl)) return (
         <section className="grid gap-4">
           <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
-          {main && <div style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div className={slotW(main, "w-[min(100%,36rem)]")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]">
             {s.features.map((f, k) => <li key={k} {...mark(r, featKey(s, f, k))} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug border-b border-eu-line-2 pb-2"><span className="mt-[0.5em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden /><span>{f.text ? <><strong className="text-eu-ink">{f.label}</strong> — {f.text}</> : f.label}</span></li>)}
           </ul>
@@ -140,7 +144,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       if (s.features.some((f) => f.text || f.label.length > 48)) return (
         <section className="grid gap-6">
           <div className="grid gap-2"><Heading s={s} /><Body s={s} /></div>
-          {main && <div style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div className={slotW(main, "w-[min(100%,36rem)]")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 gap-x-10 gap-y-7">
             {s.features.map((f, k) => (
               <li key={k} {...mark(r, featKey(s, f, k))} className="flex items-start gap-4 min-w-0">
@@ -158,7 +162,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
       return (
         <section className="grid gap-5">
           <div className="grid gap-2 justify-items-center"><Heading s={s} center /><Body s={s} center /></div>
-          {main && <div className="mx-auto" style={slotW(main, "min(100%, 36rem)")}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
+          {main && <div className={`mx-auto ${slotW(main, "w-[min(100%,36rem)]")}`}><Img im={main} variant="main" sizes={sizes} r={r} /></div>}
           <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
             {s.features.map((f, k) => (
               <li key={k} {...mark(r, featKey(s, f, k))} className="rounded-2xl bg-eu-surface px-4 py-5 grid gap-3 content-start justify-items-center text-center">
@@ -177,7 +181,7 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
           <Stats s={s} />
           {main ? (
             <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-5 @2xl:gap-8 items-center">
-              <div className={flip ? "@2xl:order-2" : ""}><div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
+              <div className={flip ? "@2xl:order-2" : ""}><div className={`mx-auto ${slotW(main, "w-full")}`}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
               <div className="grid gap-3 content-start"><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>
             </div>
           ) : <div className="grid gap-3"><Body s={s} center /><FeatureList s={s} r={r} /><Foot s={s} center /></div>}
@@ -212,12 +216,12 @@ function Section({ s, layout, flip, sizes, r }: { s: PublishedSection; layout: S
         <section className="grid gap-4">
           {main ? (
             <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-5 @2xl:gap-8 items-center">
-              <div className={flip ? "@2xl:order-2" : ""}><div className="mx-auto" style={slotW(main, "100%")}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
+              <div className={flip ? "@2xl:order-2" : ""}><div className={`mx-auto ${slotW(main, "w-full")}`}><Img im={main} variant="main" sizes={sizes} r={r} /></div></div>
               <div className="grid gap-3 content-start min-w-0"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>
             </div>
           ) : oneIcon(s) ? <IconText s={s} r={r} /> : <div className="grid gap-3 max-w-[78ch]"><Heading s={s} /><Body s={s} /><FeatureList s={s} r={r} /><Foot s={s} /></div>}
           {/* δευτερεύουσες φωτογραφίες: μέτριο μέγεθος στο κέντρο — ποτέ μια λεπτομέρεια σε όλο το πλάτος */}
-          {more.length > 0 && <div className="flex flex-wrap justify-center gap-4">{more.map((im, k) => <div key={k} style={slotW(im, "min(100%, 24rem)")}><Img im={im} variant="more" sizes="(min-width: 1024px) 384px, 90vw" r={r} /></div>)}</div>}
+          {more.length > 0 && <div className="flex flex-wrap justify-center gap-4">{more.map((im, k) => <div key={k} className={slotW(im, "w-[min(100%,24rem)]")}><Img im={im} variant="more" sizes="(min-width: 1024px) 384px, 90vw" r={r} /></div>)}</div>}
         </section>
       );
   }

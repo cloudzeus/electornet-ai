@@ -4,6 +4,7 @@ import { CreditCard, CalendarClock, ShieldCheck } from "lucide-react";
 import { accountInstalments, accountPayments, requireCustomer } from "@/lib/account/data";
 import { payLabel } from "@/lib/account/labels";
 import { priceLong } from "@/lib/format";
+import { sx } from "@/components/ui/sx";
 
 export const metadata: Metadata = { title: "Πληρωμές & δόσεις" };
 
@@ -61,6 +62,7 @@ export default async function PaymentsPage() {
           {active.map((p) => {
             const left = p.months - p.paid;
             const pct = Math.round((p.paid / p.months) * 100);
+            const bar = sx({ width: `${pct}%` });
             return (
               <li key={p.id} className="bg-white rounded-2xl border border-eu-line p-5 grid gap-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -80,7 +82,8 @@ export default async function PaymentsPage() {
                   </div>
                 </div>
                 <div className="h-2.5 rounded-full bg-eu-surface-2 overflow-hidden">
-                  <div className="h-full rounded-full bg-eu-green origin-left animate-[eu-grow_.9s_var(--eu-ease-out)_both]" style={{ width: `${pct}%` }} />
+                  {bar.node}
+                  <div className={`h-full rounded-full bg-eu-green origin-left animate-[eu-grow_.9s_var(--eu-ease-out)_both] ${bar.className}`} />
                 </div>
                 <div className="flex flex-wrap justify-between gap-2 text-[length:var(--fs-14)] text-eu-ink-2">
                   <span>

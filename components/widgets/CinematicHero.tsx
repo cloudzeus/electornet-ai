@@ -2,7 +2,8 @@
 
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image, { getImageProps } from "next/image";
+import Image from "@/components/ui/Image";
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import { Pause, Play, ArrowRight } from "lucide-react";
 import gsap from "gsap";
@@ -12,6 +13,7 @@ import { StarLight } from "@/components/motion/StarLight";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { copyOf } from "@/lib/cms/copy";
 import { priceLong } from "@/lib/format";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("hero");
 
@@ -37,7 +39,9 @@ function HeroBackdrop({ s, first }: { s: HeroSlide; first: boolean }) {
   if (!s.imageMobile) return <Image src={s.image} alt="" fill preload={first} sizes="(max-width: 1024px) 100vw, 66vw" className={cls} unoptimized={s.image.startsWith("http")} />;
   const common = { alt: "", fill: true, sizes: "(max-width: 767px) 100vw, 66vw", fetchPriority: first ? ("high" as const) : undefined };
   const desktop = getImageProps({ ...common, src: s.image, unoptimized: s.image.startsWith("http") }).props;
-  const { srcSet: mobileSet, ...rest } = getImageProps({ ...common, src: s.imageMobile, unoptimized: s.imageMobile.startsWith("http") }).props;
+  // χωρίς το style του Next (fill): το καλύπτει ο κανόνας img[data-nimg="fill"] στο globals.css
+  const { srcSet: mobileSet, ...withStyle } = getImageProps({ ...common, src: s.imageMobile, unoptimized: s.imageMobile.startsWith("http") }).props;
+  const rest = { ...withStyle, style: undefined };
   return (
     <picture>
       <source media="(min-width: 768px)" srcSet={desktop.srcSet ?? desktop.src} />
@@ -61,7 +65,9 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
   const [changed, setChanged] = useState(false);
   // Only slides after the first one animate in (the first is static for LCP and never flickers).
   const anim = changed && !reducedMotion;
-  const hidden = anim ? { opacity: 0 } : undefined;
+  // αρχική απόκρυψη ως κλάση (όχι style attribute — CSP)· το GSAP μετά γράφει opacity στο element.style, που υπερισχύει
+  const hidden = anim ? "opacity-0" : "";
+  const chars = sx({ "--chars": Math.max(6, ...s.title.map((l) => l.length)) });
 
   const go = useCallback(
     (k: number) => {
@@ -84,7 +90,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
   }, [i, paused, reducedMotion, intervalMs, n, go]);
 
   // Entrance choreography on slide change: words rise, product slides in from the right.
-  // Elements start hidden via inline style (no first-frame flash) and are always left visible.
+  // Elements start hidden via the `opacity-0` class (no first-frame flash) and are always left visible.
   useLayoutEffect(() => {
     const el = root.current;
     if (!el || !anim) return;
@@ -133,7 +139,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
   }, [reducedMotion, i]);
 
   return (
-    <div ref={stage} style={{ containerType: "size" }} className="relative overflow-hidden rounded-lg bg-eu-navy-2 h-[640px] @md:h-[480px] @lg:h-[500px] @xl:h-[540px] isolate" aria-roledescription="carousel" aria-label={c.kampanies}>
+    <div ref={stage} className="[container-type:size] relative overflow-hidden rounded-lg bg-eu-navy-2 h-[640px] @md:h-[480px] @lg:h-[500px] @xl:h-[540px] isolate" aria-roledescription="carousel" aria-label={c.kampanies}>
       {/* backdrop photos of ALL slides, stacked: each loads once and slides crossfade by opacity. (One keyed layer per
           slide used to unmount on every change and reload its photo — a navy flash between slides.) */}
       {slides.map((sl, k) => (
@@ -157,22 +163,23 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
       <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 content-start @lg:content-normal @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] @lg:items-center">
         {/* text */}
         <div className="relative z-10 px-4 pt-4 @md:p-7 @lg:px-[5cqi] @lg:pt-[6cqh] @lg:pb-0 text-white max-w-[40rem] self-start">
-          <div data-copy style={hidden} className="inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-[3cqh]">{s.kicker}</div>
-          <h1 style={{ ["--chars" as string]: Math.max(6, ...s.title.map((l) => l.length)) }} className="m-0 font-heading font-extrabold [--col:150] @lg:[--col:82] text-[length:clamp(1.75rem,min(11cqi,12.5cqh,calc(var(--col)*1cqi/var(--chars))),5rem)] leading-[0.98] tracking-[-0.035em] mb-[3cqh]">
+          <div data-copy className={`${hidden} inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-[3cqh]`}>{s.kicker}</div>
+          {chars.node}
+          <h1 className={`m-0 font-heading font-extrabold [--col:150] @lg:[--col:82] text-[length:clamp(1.75rem,min(11cqi,12.5cqh,calc(var(--col)*1cqi/var(--chars))),5rem)] leading-[0.98] tracking-[-0.035em] mb-[3cqh] ${chars.className}`}>
             {s.title.map((line, k) => (
               <span key={k} className="block">
                 {line.split(" ").map((w, j) => (
-                  <span key={j} data-word style={hidden} className="inline-block mr-[0.22em] last:mr-0">
+                  <span key={j} data-word className={`inline-block mr-[0.22em] last:mr-0 ${hidden}`}>
                     {w}
                   </span>
                 ))}
               </span>
             ))}
           </h1>
-          <p data-copy style={hidden} className="m-0 text-eu-on-dark text-[length:clamp(0.9375rem,3cqh,1.0625rem)] leading-[1.5] mb-[3.5cqh] max-w-[28em] line-clamp-2">
+          <p data-copy className={`m-0 text-eu-on-dark text-[length:clamp(0.9375rem,3cqh,1.0625rem)] leading-[1.5] mb-[3.5cqh] max-w-[28em] line-clamp-2 ${hidden}`}>
             {s.body}
           </p>
-          <div data-copy style={hidden} className="flex flex-wrap gap-2 mb-[3cqh]">
+          <div data-copy className={`flex flex-wrap gap-2 mb-[3cqh] ${hidden}`}>
             <Link href={s.primary.href} className="group inline-flex items-center gap-2 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 py-2.5 min-h-11 whitespace-nowrap hover:bg-eu-yellow-dark transition-colors">
               {s.primary.label} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
             </Link>
@@ -182,7 +189,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
               </Link>
             )}
           </div>
-          <ul data-copy style={hidden} className="hidden @6xl:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4">
+          <ul data-copy className={`hidden @6xl:flex flex-wrap gap-x-5 gap-y-1 m-0 p-0 list-none font-semibold text-[length:var(--fs-14)] text-eu-on-dark border-t border-white/15 pt-4 ${hidden}`}>
             {s.bullets.map((b, k) => (
               <li key={b} className="flex items-center gap-5">
                 {k > 0 && (
@@ -198,8 +205,8 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
 
         {/* floating product */}
         {s.cutout && (
-          <div data-product style={hidden} className="relative order-first mx-4 mt-4 h-[42cqh] @md:h-[36cqh] @md:mx-7 @md:mt-7 flex items-center justify-center @lg:order-none @lg:absolute @lg:mx-0 @lg:mt-0 @lg:right-[2cqi] @lg:top-[4%] @lg:bottom-[11%] @lg:h-auto @lg:w-[47%]">
-            <span className="eu-rays hidden @lg:block" style={{ width: "140%", left: "-20%", top: "-20%" }} aria-hidden />
+          <div data-product className={`${hidden} relative order-first mx-4 mt-4 h-[42cqh] @md:h-[36cqh] @md:mx-7 @md:mt-7 flex items-center justify-center @lg:order-none @lg:absolute @lg:mx-0 @lg:mt-0 @lg:right-[2cqi] @lg:top-[4%] @lg:bottom-[11%] @lg:h-auto @lg:w-[47%]`}>
+            <span className="eu-rays hidden @lg:block w-[140%] left-[-20%] top-[-20%]" aria-hidden />
             <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full h-full eu-float">
               <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 90vw, 640px" preload={i === 0} className="object-contain eu-cutout-shadow-dark" unoptimized={s.cutout.startsWith("http")} />
               {s.price ? <span className="absolute left-1/2 -translate-x-1/2 bottom-[4%] rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-1.5 text-[length:var(--fs-16)] shadow-lg whitespace-nowrap tabular-nums">{priceLong(s.price)}</span> : null}

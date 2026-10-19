@@ -32,8 +32,9 @@ export function StoreTile({ initial, geoCity, geoSource }: { initial: NearStore;
     <form action="/katastimata" className="relative bg-eu-blue text-white rounded-lg p-4 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden isolate">
       {/* radar */}
       <span className="pointer-events-none absolute -right-10 -top-10 size-44 rounded-full" aria-hidden>
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="absolute inset-0 rounded-full border border-white/25 animate-[eu-radar_3.6s_ease-out_infinite]" style={{ animationDelay: `${i * 1.2}s` }} />
+        {/* καθυστερήσεις ως κλάσεις (όχι style attribute — CSP)· «!» ώστε να μην τις μηδενίζει το shorthand της animate-[…] */}
+        {["[animation-delay:0s]!", "[animation-delay:1.2s]!", "[animation-delay:2.4s]!"].map((d) => (
+          <span key={d} className={`absolute inset-0 rounded-full border border-white/25 animate-[eu-radar_3.6s_ease-out_infinite] ${d}`} />
         ))}
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 size-3 rounded-full bg-eu-yellow shadow-[0_0_0_6px_rgba(241,196,0,.25)]" />
       </span>

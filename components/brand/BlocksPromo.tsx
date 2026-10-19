@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, Clock, MapPin, Phone, Ticket } from "lucide-react";
 import type { BrandBlock } from "@/lib/cms/brand-store";

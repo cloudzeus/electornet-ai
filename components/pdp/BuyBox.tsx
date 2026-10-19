@@ -10,6 +10,7 @@ import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
 import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistButton";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("buybox");
 
@@ -105,9 +106,11 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
           <div className="flex flex-wrap gap-2">
             {v.options.map((o) => {
               const on = sel[v.name] === o.label;
+              const sw = sx({ background: o.swatch });
               return (
                 <button key={o.label} type="button" aria-pressed={on} onClick={() => setSel((s) => ({ ...s, [v.name]: o.label }))} className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 min-h-11 text-[length:var(--fs-14)] font-semibold ${on ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line text-eu-ink hover:border-eu-blue"}`}>
-                  {o.swatch && <span className="size-4 rounded-full border border-black/10" style={{ background: o.swatch }} aria-hidden />}
+                  {o.swatch && sw.node}
+                  {o.swatch && <span className={`size-4 rounded-full border border-black/10 ${sw.className}`} aria-hidden />}
                   {o.label}
                   {o.price && o.price !== p.price && <span className={on ? "text-eu-yellow" : "text-eu-muted"}>{priceShort(o.price)}</span>}
                 </button>

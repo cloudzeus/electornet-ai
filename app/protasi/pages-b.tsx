@@ -1,5 +1,5 @@
 /* eslint-disable react/jsx-key -- Table assigns keys per cell when rendering */
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Body, Callout, DocPage, Kicker, PageHead, Table } from "@/components/doc/DocPage";
 
 /** Pages 7–11: Proposal A, Proposal B, the decision, compliance, tech & plan. */

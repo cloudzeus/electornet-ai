@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";

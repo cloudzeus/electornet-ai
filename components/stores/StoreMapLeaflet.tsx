@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { openLabel } from "@/lib/stores/open";
+import { sx } from "@/components/ui/sx";
 
 export interface MapStore { id: string; slug: string; name: string; city: string; address?: string; zip?: string; phone?: string; openUntil?: string; lat: number; lng: number }
 
@@ -13,12 +14,15 @@ export interface MapStore { id: string; slug: string; name: string; city: string
  * popups with address / phone / links. Listens to `eu:store-focus`
  * (detail = store id) fired by the list to fly to a store and open it.
  */
-const dot = (active = false) => L.divIcon({ className: "", iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -8], html: `<span style="display:block;width:16px;height:16px;border-radius:50%;background:${active ? "#F1C400" : "#1D428A"};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(18,42,88,.4)"></span>` });
-const clusterIcon = (n: number) => { const s = n < 10 ? 32 : n < 50 ? 40 : 48; return L.divIcon({ className: "", iconSize: [s, s], iconAnchor: [s / 2, s / 2], html: `<span style="display:grid;place-items:center;width:${s}px;height:${s}px;border-radius:50%;background:#122A58;color:#fff;font:800 ${s < 40 ? 13 : 14}px Manrope,system-ui,sans-serif;border:3px solid #fff;box-shadow:0 4px 12px rgba(18,42,88,.35)">${n}</span>` }); };
+// Markers / popups: HTML που περνά από innerHTML του Leaflet — μόνο κλάσεις, όχι style attributes (τα μπλοκάρει το CSP).
+// Το «!» στα χρώματα των συνδέσμων: το `.leaflet-container a` έχει μεγαλύτερη ειδικότητα από μία κλάση (πριν υπερίσχυε το inline style).
+const dot = (active = false) => L.divIcon({ className: "", iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -8], html: `<span class="block size-[16px] rounded-full ${active ? "bg-[#F1C400]" : "bg-[#1D428A]"} border-[2.5px] border-solid border-white shadow-[0_2px_6px_rgba(18,42,88,.4)]"></span>` });
+const CLUSTER: Record<number, string> = { 32: "size-[32px] text-[length:var(--fs-13)]", 40: "size-[40px] text-[length:var(--fs-14)]", 48: "size-[48px] text-[length:var(--fs-14)]" };
+const clusterIcon = (n: number) => { const s = n < 10 ? 32 : n < 50 ? 40 : 48; return L.divIcon({ className: "", iconSize: [s, s], iconAnchor: [s / 2, s / 2], html: `<span class="grid place-items-center ${CLUSTER[s]} rounded-full bg-[#122A58] text-white font-extrabold leading-[normal] [font-family:Manrope,system-ui,sans-serif] border-[3px] border-solid border-white shadow-[0_4px_12px_rgba(18,42,88,.35)]">${n}</span>` }); };
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const popupHtml = (s: MapStore) => `<div style="font-family:Manrope,system-ui,sans-serif;min-width:220px"><div style="font-weight:800;color:#1a1a1a;font-size:15px;line-height:1.25">${esc(s.city)} — ${esc(s.name)}</div>${s.address ? `<div style="color:#4d4d4d;font-size:14px;margin-top:4px">${esc(s.address)}, ${esc(s.zip ?? "")} ${esc(s.city)}</div>` : ""}<div style="color:#4d4d4d;font-size:14px;margin-top:2px">${s.openUntil ? esc(openLabel(s.openUntil)) : ""}${s.phone ? ` · <a href="tel:${esc(s.phone)}" style="color:#1D428A;font-weight:700">${esc(s.phone)}</a>` : ""}</div><div style="display:flex;gap:6px;margin-top:8px"><a href="/katastimata/${esc(s.slug)}" style="background:#122A58;color:#fff;font-weight:800;font-size:13px;padding:7px 12px;border-radius:999px;text-decoration:none">Το κατάστημα</a><a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" rel="noreferrer" style="border:2px solid #122A58;color:#122A58;font-weight:800;font-size:13px;padding:5px 12px;border-radius:999px;text-decoration:none">Οδηγίες</a></div></div>`;
+const popupHtml = (s: MapStore) => `<div class="[font-family:Manrope,system-ui,sans-serif] min-w-[220px]"><div class="font-extrabold text-[#1a1a1a] text-[length:var(--fs-15)] leading-[1.25]">${esc(s.city)} — ${esc(s.name)}</div>${s.address ? `<div class="text-[#4d4d4d] text-[length:var(--fs-14)] mt-[4px]">${esc(s.address)}, ${esc(s.zip ?? "")} ${esc(s.city)}</div>` : ""}<div class="text-[#4d4d4d] text-[length:var(--fs-14)] mt-[2px]">${s.openUntil ? esc(openLabel(s.openUntil)) : ""}${s.phone ? ` · <a href="tel:${esc(s.phone)}" class="text-[#1D428A]! font-bold">${esc(s.phone)}</a>` : ""}</div><div class="flex gap-[6px] mt-[8px]"><a href="/katastimata/${esc(s.slug)}" class="bg-[#122A58] text-white! font-extrabold text-[length:var(--fs-13)] py-[7px] px-[12px] rounded-[999px] no-underline">Το κατάστημα</a><a href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank" rel="noreferrer" class="border-2 border-solid border-[#122A58] text-[#122A58]! font-extrabold text-[length:var(--fs-13)] py-[5px] px-[12px] rounded-[999px] no-underline">Οδηγίες</a></div></div>`;
 
-const visitorIcon = () => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span style="position:relative;display:block;width:22px;height:22px"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(29,66,138,.25);animation:eu-geo-pulse 1.8s ease-out infinite"></span><span style="position:absolute;inset:5px;border-radius:50%;background:#1D428A;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(18,42,88,.4)"></span></span>` });
+const visitorIcon = () => L.divIcon({ className: "", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span class="relative block size-[22px]"><span class="absolute inset-0 rounded-full bg-[rgba(29,66,138,.25)] animate-[eu-geo-pulse_1.8s_ease-out_infinite]"></span><span class="absolute inset-[5px] rounded-full bg-[#1D428A] border-[2.5px] border-solid border-white shadow-[0_2px_6px_rgba(18,42,88,.4)]"></span></span>` });
 
 export default function StoreMapLeaflet({ stores, height = 520, single = false, className = "", visitor }: { stores: MapStore[]; /** desktop height; phones get ~70% of it (min 320) */ height?: number; single?: boolean; className?: string; visitor?: { lat: number; lng: number; label?: string } | null }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -89,5 +93,11 @@ export default function StoreMapLeaflet({ stores, height = 520, single = false, 
     return () => { m.off("zoomend moveend", renderAll); window.removeEventListener("eu:store-focus", focus); };
   }, [stores, single, visitor]);
 
-  return <div ref={ref} style={{ height: `clamp(320px, 60dvh, ${height}px)` }} className={`w-full rounded-xl overflow-hidden border border-eu-line z-0 ${className}`} role="region" aria-label="Χάρτης καταστημάτων" />;
+  const h = sx({ height: `clamp(320px, 60dvh, ${height}px)` });
+  return (
+    <>
+      {h.node}
+      <div ref={ref} className={`w-full rounded-xl overflow-hidden border border-eu-line z-0 ${h.className} ${className}`} role="region" aria-label="Χάρτης καταστημάτων" />
+    </>
+  );
 }

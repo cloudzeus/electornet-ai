@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban } from "lucide-react";
 import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { approveAction, bulkAction } from "@/app/admin/(shell)/prosfores/actions";
+import { sx } from "@/components/ui/sx";
 
 export interface PromoRowDTO {
   id: string; code: string; name: string; status: PromoStatus; mechanism: string; held: boolean; summary: string;
@@ -40,6 +41,12 @@ function Appears({ list }: { list: PromoRowDTO["appears"] }) {
 const d = (s: string | null) => (s ? new Date(s).toLocaleDateString("el-GR", { day: "numeric", month: "short" }) : null);
 const eur = (v: number) => `${v.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 
+/** Η γεμάτη μπάρα μιας προόδου (πλάτος από τα δεδομένα). */
+function Fill({ pct, className }: { pct: number; className: string }) {
+  const s = sx({ width: `${pct}%` });
+  return <span className={`${className} ${s.className}`}>{s.node}</span>;
+}
+
 function Window({ startsAt, endsAt, now }: { startsAt: string | null; endsAt: string | null; now: number }) {
   const a = startsAt ? +new Date(startsAt) : null, b = endsAt ? +new Date(endsAt) : null;
   const pct = a && b ? Math.min(100, Math.max(0, ((now - a) / (b - a)) * 100)) : a && now >= a ? 100 : 0;
@@ -47,7 +54,7 @@ function Window({ startsAt, endsAt, now }: { startsAt: string | null; endsAt: st
   return (
     <div className="grid gap-1 min-w-0">
       <div className="text-eu-ink-2 text-[length:var(--fs-13)] tabular-nums">{d(startsAt) ?? "από τώρα"} → {d(endsAt) ?? "χωρίς λήξη"}</div>
-      <div className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><div className="h-full rounded-full bg-eu-blue" style={{ width: `${pct}%` }} /></div>
+      <div className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><Fill pct={pct} className="block h-full rounded-full bg-eu-blue" /></div>
       {left != null && a != null && a <= now && <div className="text-eu-muted text-[length:var(--fs-13)]">{left === 1 ? "λήγει αύριο" : `${left} ημέρες ακόμη`}</div>}
     </div>
   );
@@ -111,7 +118,7 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
                 <div className="min-w-0 @5xl:text-right tabular-nums text-[length:var(--fs-13)] flex flex-wrap gap-x-4 @5xl:grid @5xl:gap-0.5">
                   <span>{r.perf.orders ? <><b className="text-eu-ink">{r.perf.orders.toLocaleString("el-GR")}</b> παραγγ. · −{eur(r.perf.discount)}</> : <span className="text-eu-muted">καμία χρήση 30 ημ.</span>}</span>
                   <span className="text-eu-ink-3">{r.usedCount.toLocaleString("el-GR")}{r.maxUses ? ` / ${r.maxUses.toLocaleString("el-GR")}` : ""} χρήσεις</span>
-                  {r.budget ? <span className="grid gap-1 min-w-[8rem]"><span className="text-eu-ink-3">{eur(r.spent)} / {eur(r.budget)}</span><span className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><span className={`block h-full rounded-full ${r.spent / r.budget > 0.9 ? "bg-eu-red" : "bg-eu-green"}`} style={{ width: `${Math.min(100, (r.spent / r.budget) * 100)}%` }} /></span></span> : null}
+                  {r.budget ? <span className="grid gap-1 min-w-[8rem]"><span className="text-eu-ink-3">{eur(r.spent)} / {eur(r.budget)}</span><span className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><Fill pct={Math.min(100, (r.spent / r.budget) * 100)} className={`block h-full rounded-full ${r.spent / r.budget > 0.9 ? "bg-eu-red" : "bg-eu-green"}`} /></span></span> : null}
                 </div>
                 <div className="col-start-2 @5xl:col-start-auto flex @5xl:justify-end w-full @5xl:w-24">
                   {(r.status === "pending" || r.pendingChange) && canApprove && (

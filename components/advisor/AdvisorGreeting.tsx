@@ -3,7 +3,7 @@
 import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { X } from "lucide-react";
 import { copyOf } from "@/lib/cms/copy";
 

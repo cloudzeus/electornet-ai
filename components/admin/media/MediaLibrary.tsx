@@ -11,6 +11,7 @@ import { AssetCard } from "./AssetCard";
 import { AssetDrawer } from "./AssetDrawer";
 import { ImageEditor } from "./ImageEditor";
 import { fmtBytes } from "./format";
+import { sx } from "@/components/ui/sx";
 
 /**
  * @dynamic Media library — the one component behind /admin/media and every
@@ -106,6 +107,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
 
   const chip = (active: boolean) => `rounded-full px-3 min-h-9 font-bold text-[length:var(--fs-13)] transition-colors ${active ? "bg-eu-navy text-white" : "bg-white border border-eu-line text-eu-ink hover:border-eu-navy"}`;
   const uploadsActive = uploader.items.filter((u) => u.status !== "done");
+  const sGrid = sx({ gridTemplateColumns: `repeat(auto-fill, minmax(min(${tile}px, 100%), 1fr))` });
 
   return (
     <div className={`eu-container ${mode === "picker" ? "h-full min-h-0" : ""}`}>
@@ -199,7 +201,8 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
               </div>
             </div>
           ) : view === "grid" ? (
-            <ul className="m-0 p-0 list-none grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${tile}px, 100%), 1fr))` }}>
+            <ul className={`m-0 p-0 list-none grid gap-3 ${sGrid.className}`}>
+              {sGrid.node}
               {data.items.map((a) => (
                 <li key={a.id} className={selectable(a) ? "" : "opacity-40 pointer-events-none"}>
                   <AssetCard a={a} selected={selected.has(a.id)} onToggle={() => toggle(a.id)} onOpen={() => openAsset(a)} draggableIds={selected.has(a.id) ? ids : []} />

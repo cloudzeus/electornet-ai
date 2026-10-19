@@ -7,6 +7,7 @@ import type { Product } from "@/lib/data/types";
 import { CountUp } from "@/components/motion/CountUp";
 import { estimateKwh, OLD_APPLIANCE_KWH } from "@/lib/energy/estimate";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 import type { GridFactor } from "@/lib/energy/emissions";
 import { Leaf } from "lucide-react";
 
@@ -76,7 +77,7 @@ export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFa
               w: pct,
               cls: "bg-eu-yellow",
             },
-          ].map((r) => (
+          ].map((r) => { const bar = sx({ width: `${r.w}%` }); return (
             <div
               key={r.l}
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 items-center"
@@ -88,13 +89,13 @@ export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFa
                 {r.v} €/έτος
               </dd>
               <div className="col-span-2 h-2.5 rounded-full bg-white/10 overflow-hidden mt-1">
+                {bar.node}
                 <div
-                  className={`h-full rounded-full ${r.cls} transition-[width] duration-1000 ease-[var(--eu-ease-out)]`}
-                  style={{ width: `${r.w}%` }}
+                  className={`h-full rounded-full ${r.cls} transition-[width] duration-1000 ease-[var(--eu-ease-out)] ${bar.className}`}
                 />
               </div>
             </div>
-          ))}
+          ); })}
         </dl>
         {co2Kg != null && co2Kg > 0 && (
           <div className="mt-4 flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3">

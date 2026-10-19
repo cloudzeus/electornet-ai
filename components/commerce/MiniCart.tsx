@@ -9,6 +9,7 @@ import { useCart } from "./CartProvider";
 import { instalment, priceLong, priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("miniCart");
 
@@ -26,12 +27,13 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
   const shipping = goods >= freeShippingFrom || goods === 0 ? 0 : 4.9;
   const missing = Math.max(0, freeShippingFrom - goods);
   const pct = Math.min(100, Math.round((goods / freeShippingFrom) * 100));
+  const bar = sx({ width: `${pct}%` });
   const inCart = new Set(lines.map((l) => l.product.id));
   const picks = suggestions.filter((s) => !inCart.has(s.id)).slice(0, 3);
 
   return (
     <Sheet open={miniOpen} onOpenChange={setMiniOpen}>
-      <SheetContent side="right" className="w-full p-0 gap-0 border-0 shadow-[var(--shadow-overlay)] text-eu-ink eu-container" style={{ maxWidth: "min(100vw, 480px)" }} showCloseButton={false}>
+      <SheetContent side="right" className="w-full p-0 gap-0 border-0 shadow-[var(--shadow-overlay)] text-eu-ink eu-container max-w-[min(100vw,480px)]!" showCloseButton={false}>
         <div className="flex flex-col h-full">
           <div className="bg-eu-navy text-white px-5 py-4 flex items-center justify-between gap-3">
             <SheetTitle className="m-0 font-extrabold text-white text-[length:var(--fs-17)] flex items-center gap-2 whitespace-nowrap min-w-0">
@@ -69,7 +71,8 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
                     <span className="tabular-nums">{pct}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
-                    <div className={`h-full rounded-full ${missing === 0 ? "bg-white" : "bg-eu-navy"}`} style={{ width: `${pct}%` }} />
+                    {bar.node}
+                    <div className={`h-full rounded-full ${missing === 0 ? "bg-white" : "bg-eu-navy"} ${bar.className}`} />
                   </div>
                 </div>
 

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, Cpu, Eye, Zap, Wifi, ShieldCheck, Sparkles, Leaf, Camera } from "lucide-react";
 import type { BrandBlock } from "@/lib/cms/brand-store";

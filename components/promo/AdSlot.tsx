@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { pickAd, pickAdById } from "@/lib/promo/landing";
 
 /**

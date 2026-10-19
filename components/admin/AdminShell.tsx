@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Suspense, type ReactNode } from "react";
 import { HelpDrawer } from "./help/HelpDrawer";
 import { HelpSpotlight } from "./help/HelpSpotlight";

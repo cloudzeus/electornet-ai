@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Gift, Sparkles } from "lucide-react";
 import { getCustomerSession } from "@/lib/account/session";
 import { myOffers } from "@/lib/promo/personal";

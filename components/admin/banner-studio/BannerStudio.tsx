@@ -11,6 +11,7 @@ import { CropView } from "./CropView";
 import { pdfToImages } from "./pdf";
 import { StepTransition, SwapText, ScanOverlay, SuccessBurst, motion } from "./motion";
 import { ProductSections } from "@/components/pdp/ProductSections";
+import { sx } from "@/components/ui/sx";
 import { emptySection, sectionHasContent, type Box, type ImageSize, type PublishedSection, type SectionLayout, type StudioDoc, type StudioSection } from "@/lib/catalog/banner-doc";
 
 export interface StudioBanner { id: string; url: string; width: number | null; height: number | null; hidden: boolean; extraction: { id: string; status: string } | null }
@@ -388,10 +389,13 @@ export function BannerStudio({ product, banners, drafts, publishedCount, nextHre
               <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
                 {visible.map((b, i) => {
                   const on = picked.has(b.id), st = b.extraction?.status;
+                  const delay = sx({ animationDelay: `${Math.min(i, 12) * 40}ms` });
+                  const ratioBox = sx({ aspectRatio: b.width && b.height ? `${b.width} / ${Math.min(b.height, b.width * 1.2)}` : "2 / 1" });
                   return (
                     <li key={b.id}>
-                      <label style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }} className={`block rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 eu-card-in ${on ? "border-eu-navy shadow-[0_6px_18px_rgba(18,42,88,.14)]" : "border-eu-line hover:border-eu-blue"}`}>
-                        <span className="relative block bg-eu-surface" style={{ aspectRatio: b.width && b.height ? `${b.width} / ${Math.min(b.height, b.width * 1.2)}` : "2 / 1" }}>
+                      {delay.node}{ratioBox.node}
+                      <label className={`${delay.className} block rounded-2xl border-2 bg-white overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 eu-card-in ${on ? "border-eu-navy shadow-[0_6px_18px_rgba(18,42,88,.14)]" : "border-eu-line hover:border-eu-blue"}`}>
+                        <span className={`relative block bg-eu-surface ${ratioBox.className}`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={b.url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top" />
                           <span className={`absolute top-2 left-2 size-8 rounded-lg inline-flex items-center justify-center border-2 ${on ? "bg-eu-navy border-eu-navy text-white" : "bg-white/90 border-eu-line"}`}>{on && <Check className="size-5 eu-pop" aria-hidden />}</span>

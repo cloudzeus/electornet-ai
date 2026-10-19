@@ -1,10 +1,18 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import type { Product } from "@/lib/data/types";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { StarLight } from "@/components/motion/StarLight";
 import { CountUp } from "@/components/motion/CountUp";
 import { AskAris } from "@/components/advisor/AskAris";
+
+// θέση/μέγεθος/καθυστέρηση των τριών cutouts — σταθερές κλάσεις αντί για style (το «!» στην καθυστέρηση: να μην τη
+// μηδενίζει το shorthand `animation` της eu-float, όπως υπερίσχυε πριν το inline style)
+const CUT_POS = [
+  "left-[0%] top-[22%] w-[38%] [animation-delay:0s]! z-[1]",
+  "left-[38%] top-[0%] w-[40%] [animation-delay:.7s]! z-[2]",
+  "left-[66%] top-[30%] w-[34%] [animation-delay:1.4s]! z-[1]",
+];
 
 /**
  * @dynamic Category opener (v4): navy stage with the category numeral as a
@@ -46,7 +54,7 @@ export function CategoryOpener({ kicker, title, no, count, lead, products, quest
           <div className="relative h-[200px] @md:h-[240px] @lg:h-[280px] min-w-0">
             <StarLight size={48} className="right-[38%] top-[-2%] hidden @lg:block" />
             {cuts.map((c, i) => (
-              <span key={c.id} className="absolute eu-float" style={{ left: `${[0, 38, 66][i]}%`, top: `${[22, 0, 30][i]}%`, width: `${[38, 40, 34][i]}%`, animationDelay: `${i * 0.7}s`, zIndex: i === 1 ? 2 : 1 }}>
+              <span key={c.id} className={`absolute eu-float ${CUT_POS[i]}`}>
                 <span className="relative block aspect-square">
                   <Image src={c.src!} alt={c.alt} fill sizes="(max-width: 1024px) 40vw, 260px" className="object-contain eu-cutout-shadow-dark" />
                 </span>

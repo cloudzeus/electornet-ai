@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Camera, X, Loader2, ScanLine, ArrowRight, Sparkles, Check, RefreshCw, Wrench, Recycle, Smartphone, Zap, Ruler } from "lucide-react";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
 import type { SnapResult } from "@/lib/snap/identify";
 import { SnapCompareCard } from "./SnapCompare";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("snap");
 
@@ -169,6 +170,7 @@ export function SnapSheet() {
   };
 
   const a = ai?.appliance;
+  const conf = sx({ width: a ? `${Math.round(a.confidence * 100)}%` : undefined });
   const label = a ? [a.brand, a.model].filter(Boolean).join(" ") || a.kindLabel : "";
   const track = (act: Action) => ai && fetch("/api/snap/identify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scanId: ai.scanId, action: act }) }).catch(() => null);
 
@@ -284,7 +286,7 @@ export function SnapSheet() {
             )}
             {stage === "reading" && (
               <div className="grid gap-2" aria-live="polite">
-                {[0, 1, 2].map((i) => <div key={i} className="h-14 rounded-xl bg-eu-surface animate-pulse" style={{ animationDelay: `${i * 120}ms` }} />)}
+                {["[animation-delay:0ms]!", "[animation-delay:120ms]!", "[animation-delay:240ms]!"].map((d) => <div key={d} className={`h-14 rounded-xl bg-eu-surface animate-pulse ${d}`} />)}
               </div>
             )}
             {aiNote && stage !== "reading" && <p className="m-0 rounded-xl bg-eu-surface p-3 text-eu-ink-3 text-[length:var(--fs-14)]">{aiNote}</p>}
@@ -304,7 +306,7 @@ export function SnapSheet() {
                     <span className="text-eu-on-dark-3 text-[length:var(--fs-13)] tabular-nums">Βεβαιότητα {Math.round(a.confidence * 100)}%</span>
                   </div>
                   <div className="font-heading font-bold text-[length:var(--fs-20)] leading-tight">{a.kindLabel}{label && label !== a.kindLabel ? ` · ${label}` : ""}</div>
-                  <div className="h-1 rounded-full bg-white/15 overflow-hidden"><span className="block h-full bg-eu-yellow" style={{ width: `${Math.round(a.confidence * 100)}%` }} /></div>
+                  <div className="h-1 rounded-full bg-white/15 overflow-hidden">{conf.node}<span className={`block h-full bg-eu-yellow ${conf.className}`} /></div>
                   <div className="flex flex-wrap gap-1.5 text-[length:var(--fs-13)]">
                     {a.energyClass && <span className="rounded-full bg-white/12 px-2.5 py-1 font-bold">Κλάση {a.energyClass}</span>}
                     {a.ageYears != null && <span className="rounded-full bg-white/12 px-2.5 py-1 font-bold">~{a.ageYears} ετών</span>}

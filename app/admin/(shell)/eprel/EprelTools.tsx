@@ -3,6 +3,8 @@ import { useState, useTransition } from "react";
 import { RefreshCw, Loader2, Search, Download, CloudUpload, Trash2, FileText, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { syncEprelGroups, refreshEprel, searchEprel, importEprel, mirrorEprel, removeEprel, setGroupActive } from "./actions";
 import { scaleLabel } from "@/lib/eprel/normalize";
+import { useNonce } from "@/components/ui/SxStyleTag";
+import { stylesToClasses } from "@/lib/ui/inline-styles";
 
 type Hit = { registrationNumber: string; modelIdentifier: string; supplierOrTrademark: string; energyClass: string | null; energyClassRange: string | null; annualKwh: number | null; status: string | null; onMarketEnd: string | Date | null };
 
@@ -100,8 +102,9 @@ export function EprelTools({ mode, groups }: { mode: "header" | "search"; groups
 export function ClassBadge({ cls, range }: { cls: string | null; range: string | null }) {
   if (!cls) return <span className="text-eu-muted">—</span>;
   const c = cls.replace(/\+/g, "");
-  const color: Record<string, string> = { A: "#00a651", B: "#4cb848", C: "#bfd730", D: "#fff200", E: "#fdb913", F: "#f37021", G: "#ed1c24" };
-  return <span className="inline-flex items-center gap-1.5"><span className="inline-flex items-center justify-center min-w-8 min-h-7 px-1.5 rounded font-extrabold text-white text-[length:var(--fs-13)]" style={{ background: color[c] ?? "#666", color: c === "D" || c === "C" ? "#122a58" : "#fff" }}>{cls}</span><span className="text-eu-muted text-[length:var(--fs-13)]">{scaleLabel(range)}</span></span>;
+  // πλήρεις κλάσεις (όχι style attribute — το CSP δεν το επιτρέπει): φόντο + χρώμα γραμμάτων ανά κλάση
+  const color: Record<string, string> = { A: "bg-[#00a651] text-white", B: "bg-[#4cb848] text-white", C: "bg-[#bfd730] text-[#122a58]", D: "bg-[#fff200] text-[#122a58]", E: "bg-[#fdb913] text-white", F: "bg-[#f37021] text-white", G: "bg-[#ed1c24] text-white" };
+  return <span className="inline-flex items-center gap-1.5"><span className={`inline-flex items-center justify-center min-w-8 min-h-7 px-1.5 rounded font-extrabold text-[length:var(--fs-13)] ${color[c] ?? "bg-[#666] text-white"}`}>{cls}</span><span className="text-eu-muted text-[length:var(--fs-13)]">{scaleLabel(range)}</span></span>;
 }
 
 export function GroupToggle({ code, active }: { code: string; active: boolean }) {
@@ -113,10 +116,14 @@ export function StoredRow({ row }: { row: { registrationNumber: string; modelIde
   const [pending, start] = useTransition();
   const [gone, setGone] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const nonce = useNonce();
   if (gone) return null;
+  // η ετικέτα έρχεται έτοιμη από το EPREL και μπορεί να έχει style attributes / <style>: το CSP τα μπλοκάρει, γι' αυτό
+  // γίνονται κλάσεις με nonce (lib/ui/inline-styles)
+  const svg = row.nestedLabelSvg && /\sstyle=|<style\b/i.test(row.nestedLabelSvg) ? stylesToClasses(row.nestedLabelSvg, nonce) : row.nestedLabelSvg;
   return (
     <tr className="border-t border-eu-line align-top">
-      <td className="py-2 px-3">{row.nestedLabelSvg ? <span className="inline-block w-16 [&>svg]:w-full [&>svg]:h-auto" dangerouslySetInnerHTML={{ __html: row.nestedLabelSvg }} /> : <ClassBadge cls={row.energyClass} range={row.energyClassRange} />}</td>
+      <td className="py-2 px-3">{svg ? <span className="inline-block w-16 [&>svg]:w-full [&>svg]:h-auto" dangerouslySetInnerHTML={{ __html: svg }} /> : <ClassBadge cls={row.energyClass} range={row.energyClassRange} />}</td>
       <td className="py-2 px-3"><div className="font-bold text-eu-ink">{row.modelIdentifier}</div><div className="text-eu-muted text-[length:var(--fs-13)]">{row.supplierOrTrademark} · EPREL {row.registrationNumber}{row.linked ? ` · ${row.linked} προϊόν` : ""}</div></td>
       <td className="py-2 px-3 text-eu-ink-3">{row.groupName}</td>
       <td className="py-2 px-3"><ClassBadge cls={row.energyClass} range={row.energyClassRange} /></td>

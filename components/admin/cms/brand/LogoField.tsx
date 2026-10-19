@@ -5,6 +5,7 @@ import { Check, Crop, Images, Loader2, TriangleAlert, Undo2, X } from "lucide-re
 import { fetchLogoAction } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { trimRaster, trimSvg, logoBox } from "@/lib/cms/logo-trim";
 import { ImagePickerDialog } from "./ImagePicker";
+import { sx } from "@/components/ui/sx";
 
 type V = { logo?: string; logoAspect?: number };
 const measure = (url: string) => new Promise<number | undefined>((res) => { const i = new Image(); i.onload = () => res(i.naturalWidth && i.naturalHeight ? i.naturalWidth / i.naturalHeight : undefined); i.onerror = () => res(undefined); i.src = url; });
@@ -59,16 +60,20 @@ export function LogoField({ value, onChange, brandLogo, bg, dark, name }: { valu
     // eslint-disable-next-line react-hooks/exhaustive-deps -- μία φορά, στο άνοιγμα
   }, []);
   const box = logoBox(value.logoAspect);
+  const sBg = sx({ background: bg });
+  const sImg = sx({ height: box.height, maxWidth: `min(${box.maxWidth}, 100%)` });
+  const sName = sx({ color: dark ? "#fff" : "#111" });
   return (
     <div className="grid gap-2 min-w-0">
       <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Λογότυπο (προαιρετικό)</span>
       <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug -mt-1">SVG ή PNG. Περικόπτεται αυτόματα ώστε όλα τα λογότυπα να έχουν το ίδιο οπτικό βάρος. {dark ? "Η σελίδα είναι σκούρα: χρειάζεται λευκή ή ανοιχτόχρωμη εκδοχή." : ""}</span>
       <div className="grid @xl:grid-cols-[minmax(0,1fr)_auto] gap-3 items-center">
-        <div className="rounded-xl border border-eu-line p-4 min-h-20 flex items-center gap-3 min-w-0" style={{ background: bg }} aria-label="Προεπισκόπηση λογοτύπου στο φόντο της σελίδας">
+        <div className={`rounded-xl border border-eu-line p-4 min-h-20 flex items-center gap-3 min-w-0 ${sBg.className}`} aria-label="Προεπισκόπηση λογοτύπου στο φόντο της σελίδας">
+          {sBg.node}{sImg.node}{sName.node}
           {value.logo ? (
             // eslint-disable-next-line @next/next/no-img-element -- προεπισκόπηση
-            <img src={value.logo} alt="" style={{ height: box.height, maxWidth: `min(${box.maxWidth}, 100%)` }} className="block w-auto object-contain" />
-          ) : <span className="font-heading font-extrabold text-[length:var(--fs-24)]" style={{ color: dark ? "#fff" : "#111" }}>{name}</span>}
+            <img src={value.logo} alt="" className={`block w-auto object-contain ${sImg.className}`} />
+          ) : <span className={`font-heading font-extrabold text-[length:var(--fs-24)] ${sName.className}`}>{name}</span>}
           {busy && <Loader2 className="size-5 animate-spin text-eu-blue shrink-0" aria-label="Επεξεργασία" />}
         </div>
         <div className="flex flex-wrap gap-2">

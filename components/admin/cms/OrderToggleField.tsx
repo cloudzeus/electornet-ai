@@ -3,10 +3,17 @@
 import { createContext, useContext, useState } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical } from "lucide-react";
 import type { OrderCell } from "@/lib/cms/home-sections";
+import { sx } from "@/components/ui/sx";
 
 export type OrderOption = { key: string; title: string; subtitle?: string; image?: string | null };
 /** Οι επιλογές κάθε λίστας της αρχικής (π.χ. έξυπνοι οδηγοί, άρθρα) + ποια είναι ορατά χωρίς επιλογή. */
 export const HomeLists = createContext<Record<string, { options: OrderOption[]; defaults: string[] }>>({});
+
+/** Μικρογραφία ως background-image (το URL από δεδομένα → sx· το CSP δεν επιτρέπει style attributes). */
+function Thumb({ url, className }: { url?: string | null; className: string }) {
+  const t = sx(url ? { backgroundImage: `url("${url.replace(/"/g, "")}")` } : {});
+  return <>{t.node}<span className={`${className} ${t.className}`} aria-hidden /></>;
+}
 
 /** Γενική λίστα με σύρσιμο (ή βέλη) για σειρά και μάτι για ορατό/κρυφό· τα νέα στοιχεία μπαίνουν κρυφά στο τέλος. */
 export function OrderToggleField({ source, value, onChange, label }: { source: string; value: unknown; onChange: (cells: OrderCell[]) => void; label: string }) {
@@ -34,7 +41,7 @@ export function OrderToggleField({ source, value, onChange, label }: { source: s
               onDrop={(e) => { e.preventDefault(); if (drag != null && drag !== i) move(drag, i); setDrag(null); }}>
               <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-9 self-stretch cursor-grab text-eu-muted hover:text-eu-ink"><GripVertical className="size-5" /></span>
               <span className={`w-7 shrink-0 font-extrabold text-[length:var(--fs-13)] tabular-nums ${c.hidden ? "text-eu-muted" : "text-eu-blue"}`}>{no ?? "—"}</span>
-              {o.image !== undefined && <span className={`h-11 w-16 shrink-0 rounded-md bg-eu-surface bg-cover bg-center ${c.hidden ? "opacity-40" : ""}`} style={o.image ? { backgroundImage: `url("${o.image.replace(/"/g, "")}")` } : undefined} aria-hidden />}
+              {o.image !== undefined && <Thumb url={o.image} className={`h-11 w-16 shrink-0 rounded-md bg-eu-surface bg-cover bg-center ${c.hidden ? "opacity-40" : ""}`} />}
               <span className="flex-1 min-w-0 grid px-2 py-2 min-h-14">
                 <span className={`font-bold text-[length:var(--fs-15)] leading-snug ${c.hidden ? "text-eu-muted" : "text-eu-ink"}`}>{o.title}</span>
                 {o.subtitle && <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug line-clamp-1">{o.subtitle}</span>}

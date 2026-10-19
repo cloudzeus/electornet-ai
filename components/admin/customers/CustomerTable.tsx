@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, Building2, CircleAlert, Check } from "lucide-react";
 import { CustomerPeek, loadPeek, type CustomerRow } from "./CustomerList";
 import { BulkAade, CustomerActions, ToastBar, type Toast } from "./CustomerActions";
+import { sx } from "@/components/ui/sx";
 
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (c: CustomerRow) => ReactNode; title?: (c: CustomerRow) => string };
 const eur = (v: number) => `${v.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
@@ -98,6 +99,20 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from, ca
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); document.documentElement.classList.add("cursor-col-resize");
   };
   const tableW = 40 + 44 + shown.reduce((a, c) => a + wOf(c), 0);
+  // πλάτη στηλών: οι κλάσεις (sx) έχουν τα προεπιλεγμένα πλάτη ως εφεδρικές τιμές των μεταβλητών --w-<στήλη> / --tw·
+  // τα πλάτη του χρήστη (σύρσιμο, localStorage) μπαίνουν από το CSSOM, χωρίς style attributes και χωρίς νέα κλάση σε κάθε pixel
+  const tableRef = useRef<HTMLTableElement>(null);
+  useLayoutEffect(() => {
+    const el = tableRef.current;
+    if (!el) return;
+    for (const c of COLS) el.style.setProperty(`--w-${c.id}`, `${widths[c.id] ?? c.w}px`);
+    el.style.setProperty("--tw", `${tableW}px`);
+  }, [widths, tableW]);
+  const defaultTableW = 40 + 44 + shown.reduce((a, c) => a + c.w, 0);
+  const sTable = sx({ width: `max(100%, var(--tw, ${defaultTableW}px))` });
+  const sColActions = sx({ width: 40 });
+  const sColEnd = sx({ width: 44 });
+  const sCols = shown.map((c) => sx({ width: `var(--w-${c.id}, ${c.w}px)` }));
 
   return (
     <div data-help="customers.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -124,8 +139,9 @@ export function CustomerTable({ rows, sort, dir, query, perPage, total, from, ca
         </div>
       </div>
       <div ref={scrollRef} className="overflow-x-auto">
-        <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
-          <colgroup><col style={{ width: 40 }} />{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
+        {sTable.node}{sColActions.node}{sColEnd.node}{sCols.map((x, i) => <Fragment key={shown[i].id}>{x.node}</Fragment>)}
+        <table ref={tableRef} className={`table-fixed border-collapse text-[length:var(--fs-13)] ${sTable.className}`}>
+          <colgroup><col className={sColActions.className} />{shown.map((c, i) => <col key={c.id} className={sCols[i].className} />)}<col className={sColEnd.className} /></colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
             <tr>
               <th className="p-0" aria-label="Άνοιγμα γραμμής" />

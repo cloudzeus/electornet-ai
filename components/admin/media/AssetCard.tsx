@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Check, FileText, Film, Play, Link2 } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import { fileExt, fmtBytes, fmtDuration } from "./format";
+import { sx } from "@/components/ui/sx";
 
 /** Grid tile: thumbnail (focal-point aware), kind badge, selection checkbox, meta line. Draggable to folders. */
 export function AssetCard({ a, selected, onToggle, onOpen, draggableIds }: { a: MediaAssetDTO; selected: boolean; onToggle: () => void; onOpen: () => void; draggableIds: string[] }) {
   const [copied, setCopied] = useState(false);
+  const sImg = sx({ objectPosition: `${a.focalX * 100}% ${a.focalY * 100}%`, backgroundImage: a.blur ? `url(${a.blur})` : undefined, backgroundSize: "cover" });
   const copyLink = async () => {
     const url = a.url.startsWith("http") ? a.url : `${window.location.origin}${a.url}`;
     try { await navigator.clipboard.writeText(url); } catch { window.open(url, "_blank", "noopener"); return; }
@@ -24,7 +26,7 @@ export function AssetCard({ a, selected, onToggle, onOpen, draggableIds }: { a: 
         <div className="relative aspect-square bg-[repeating-conic-gradient(#eef0f4_0_25%,#fff_0_50%)] bg-[length:16px_16px]">
           {a.thumbUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={a.thumbUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" style={{ objectPosition: `${a.focalX * 100}% ${a.focalY * 100}%`, backgroundImage: a.blur ? `url(${a.blur})` : undefined, backgroundSize: "cover" }} />
+            <><img src={a.thumbUrl} alt="" loading="lazy" className={`absolute inset-0 size-full object-cover ${sImg.className}`} />{sImg.node}</>
           ) : (
             <div className="absolute inset-0 grid place-items-center text-eu-muted">
               {a.kind === "video" ? <Film className="size-10" aria-hidden /> : <FileText className="size-10" aria-hidden />}

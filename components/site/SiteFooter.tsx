@@ -1,6 +1,6 @@
 import { copyOf } from "@/lib/cms/copy";
 import { getPublicSettings } from "@/lib/settings/store";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 
 const c = copyOf("footer");

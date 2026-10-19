@@ -4,6 +4,13 @@ import { snapStats } from "@/lib/snap/stats";
 import { radar } from "@/lib/data/fixtures/radar";
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal } from "@/components/motion/Reveal";
+import { sx } from "@/components/ui/sx";
+
+/** Μπάρα με πλάτος από δεδομένα (χωρίς style attribute — το CSP δεν το επιτρέπει). */
+function Bar({ width, className }: { width: string; className: string }) {
+  const s = sx({ width });
+  return <>{s.node}<span className={`block ${className} ${s.className}`} aria-hidden /></>;
+}
 
 export const metadata: Metadata = { title: "Ραντάρ ζήτησης · Διοίκηση", robots: { index: false } };
 
@@ -79,7 +86,7 @@ export default async function RadarPage() {
                       </td>
                       <td className="py-2.5 pr-3 min-w-[140px]">
                         <div className="flex items-center gap-2">
-                          <span className="h-2 rounded-full bg-eu-navy" style={{ width: `${Math.max(8, (m.asks / maxAsk) * 100)}px` }} aria-hidden />
+                          <Bar className="h-2 rounded-full bg-eu-navy" width={`${Math.max(8, (m.asks / maxAsk) * 100)}px`} />
                           <span className="font-extrabold text-eu-ink tabular-nums">{m.asks}</span>
                         </div>
                       </td>
@@ -110,7 +117,7 @@ export default async function RadarPage() {
                     <span className="font-extrabold text-eu-navy tabular-nums">{it.share}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-eu-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full bg-eu-navy" style={{ width: `${it.share}%` }} />
+                    <Bar className="h-full rounded-full bg-eu-navy" width={`${it.share}%`} />
                   </div>
                   <div className="text-eu-muted text-[length:var(--fs-14)]">{it.example}</div>
                 </li>
@@ -201,7 +208,7 @@ export default async function RadarPage() {
                   <ul className="m-0 p-0 list-none grid gap-1.5">
                     {snap.kinds.map((k) => (
                       <li key={k.key} className="grid grid-cols-[1fr_auto] items-center gap-2 text-[length:var(--fs-14)]">
-                        <span className="grid gap-0.5"><span className="text-eu-ink">{k.label}</span><span className="h-1.5 rounded-full bg-eu-surface-3 overflow-hidden"><span className="block h-full bg-eu-navy" style={{ width: `${Math.round((k.n / maxKind) * 100)}%` }} /></span></span>
+                        <span className="grid gap-0.5"><span className="text-eu-ink">{k.label}</span><span className="h-1.5 rounded-full bg-eu-surface-3 overflow-hidden"><Bar className="h-full bg-eu-navy" width={`${Math.round((k.n / maxKind) * 100)}%`} /></span></span>
                         <span className="font-extrabold text-eu-navy tabular-nums">{k.n}</span>
                       </li>
                     ))}

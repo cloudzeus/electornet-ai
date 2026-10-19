@@ -5,7 +5,7 @@ import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { CheckCircle2 } from "lucide-react";
 import { priceLong } from "@/lib/format";
 import { Stepper } from "./Stepper";

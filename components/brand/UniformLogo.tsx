@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logoBox } from "@/lib/cms/logo-trim";
+import { sx } from "@/components/ui/sx";
 
 /**
  * Λογότυπο με ομοιόμορφο οπτικό βάρος όταν δεν ξέρουμε από πριν την αναλογία του (π.χ. λογότυπα καταλόγου):
@@ -13,16 +14,19 @@ export function UniformLogo({ src, alt, aspect: known, base = 2, className = "" 
   const read = (i: HTMLImageElement | null) => { if (!known && i?.complete && i.naturalWidth && i.naturalHeight) setAspect(i.naturalWidth / i.naturalHeight); };
   useEffect(() => { const t = setTimeout(() => read(ref.current), 0); return () => clearTimeout(t); });
   const box = logoBox(aspect, base);
+  const s = sx({ height: box.height, maxWidth: `min(${box.maxWidth}, 100%)` });
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- λογότυπα SVG/PNG (βιβλιοθήκη ή hotlink Brandfetch)
-    <img
-      ref={ref}
-      src={src}
-      alt={alt}
-      loading="lazy"
-      onLoad={(e) => read(e.currentTarget)}
-      style={{ height: box.height, maxWidth: `min(${box.maxWidth}, 100%)`, opacity: aspect ? 1 : 0 }}
-      className={`block w-auto object-contain ${className}`}
-    />
+    <>
+      {s.node}
+      {/* eslint-disable-next-line @next/next/no-img-element -- λογότυπα SVG/PNG (βιβλιοθήκη ή hotlink Brandfetch) */}
+      <img
+        ref={ref}
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={(e) => read(e.currentTarget)}
+        className={`block w-auto object-contain ${s.className} ${aspect ? "" : "opacity-0"} ${className}`}
+      />
+    </>
   );
 }

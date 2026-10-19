@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { Pause, Play } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -20,7 +20,11 @@ export function HeroSlider({ slides, intervalMs = 6000 }: { slides: HeroSlide[];
   const { reducedMotion, device } = useDevice();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const next = useCallback(() => setI((n) => (n + 1) % slides.length), [slides.length]);
+  // Μέχρι την πρώτη αλλαγή διαφάνειας το motion.div δεν παίρνει initial/animate: αλλιώς το motion γράφει
+  // `style="opacity:1"` στο HTML του server, που το CSP δεν επιτρέπει (η εμφάνιση είναι ίδια — opacity 1 εξ ορισμού).
+  const [changed, setChanged] = useState(false);
+  const show = useCallback((k: number) => { setChanged(true); setI(k); }, []);
+  const next = useCallback(() => { setChanged(true); setI((n) => (n + 1) % slides.length); }, [slides.length]);
 
   useEffect(() => {
     if (paused || reducedMotion || slides.length < 2) return;
@@ -39,8 +43,8 @@ export function HeroSlider({ slides, intervalMs = 6000 }: { slides: HeroSlide[];
           <AnimatePresence initial={false}>
             <motion.div
               key={s.id}
-              initial={reducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
+              initial={reducedMotion || !changed ? false : { opacity: 0 }}
+              animate={changed ? { opacity: 1 } : undefined}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.45, ease: [0.2, 0.7, 0.3, 1] }}
               className="absolute inset-0"
@@ -113,7 +117,7 @@ export function HeroSlider({ slides, intervalMs = 6000 }: { slides: HeroSlide[];
                   role="tab"
                   aria-selected={k === i}
                   aria-label={`Διαφάνεια ${k + 1}`}
-                  onClick={() => setI(k)}
+                  onClick={() => show(k)}
                   className={`w-[26px] h-[3px] rounded-full ${k === i ? "bg-eu-yellow" : "bg-white/45 hover:bg-white/80"}`}
                 />
               ))}

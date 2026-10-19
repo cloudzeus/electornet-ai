@@ -8,6 +8,7 @@ import { changeSpecAction, setSpecOrderAction, setSpecOverrideAction } from "@/a
 import type { SpecGroupDetail, SpecTree } from "@/lib/catalog/spec-admin";
 import type { SpecChange } from "@/lib/softone/spec-write";
 import { useToast } from "./QuickActions";
+import { sx } from "@/components/ui/sx";
 
 type Spec = SpecGroupDetail["specs"][number];
 type Can = { local: boolean; softone: boolean; softoneReason: string | null };
@@ -180,6 +181,7 @@ function Detail({ g, can, onToast }: { g: SpecGroupDetail; can: Can; onToast: (t
           <ul ref={listRef} onPointerMove={onDragMove} onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)} className={`m-0 p-0 list-none divide-y divide-eu-line-2 ${drag != null ? "select-none" : ""}`}>
             {list.map((s, i) => {
               const products = s.facet?.products ?? 0, pct = Math.round((products / max) * 100);
+              const bar = sx({ width: `${pct}%` });
               return (
                 <li key={s.code} data-code={s.code} className={`flex items-stretch ${drag === s.code ? "relative z-[1] bg-eu-chip shadow-[var(--shadow-raised)]" : ""}`}>
                   {sortable && s.active && (
@@ -205,7 +207,7 @@ function Detail({ g, can, onToast }: { g: SpecGroupDetail; can: Can; onToast: (t
                     </span>
                     <span className="hidden @2xl:grid gap-1" title={`${products} από ${g.products} προϊόντα έχουν τιμή`}>
                       {shopFilter(s) && !s.special ? <>
-                        <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden"><span className={`block h-full rounded-full ${pct >= 50 ? "bg-eu-green" : pct >= 15 ? "bg-eu-amber" : "bg-eu-red/70"}`} style={{ width: `${pct}%` }} /></span>
+                        <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden">{bar.node}<span className={`block h-full rounded-full ${pct >= 50 ? "bg-eu-green" : pct >= 15 ? "bg-eu-amber" : "bg-eu-red/70"} ${bar.className}`} /></span>
                         <span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums">{n(products)} προϊόντα ({pct} %) · {n(s.facet?.values ?? 0)} τιμές</span>
                       </> : <span className="text-eu-muted text-[length:var(--fs-12)]">{s.special ? "υπολογίζεται αυτόματα" : `${n(s.descLines)} γραμμές περιγραφής`}</span>}
                     </span>

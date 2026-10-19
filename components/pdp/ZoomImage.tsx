@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 
 /** Hosts που επιτρέπει το next.config (remotePatterns): μόνο αυτά περνούν από τον βελτιστοποιητή του <Image>. */

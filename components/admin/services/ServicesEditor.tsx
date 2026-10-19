@@ -7,6 +7,7 @@ import { deleteServiceAction, importServicesAction, reorderServicesAction, saveS
 import { Area, MediaUrl, StringList, Txt } from "@/components/admin/cms/brand/fields";
 import { PickerBrand } from "@/components/admin/cms/brand/ImagePicker";
 import { ResultBanner } from "@/components/admin/settings/ui";
+import { sx } from "@/components/ui/sx";
 
 type Row = ServiceInput & { used: number };
 const ADDON: { v: string; t: string; d: string }[] = [
@@ -51,14 +52,16 @@ export function ServicesEditor({ initial, fromDb, canWrite }: { initial: Row[]; 
           {rows.map((r, i) => {
             const key = r.id ?? r.slug;
             const isOpen = open === key;
+            const sThumb = sx({ backgroundImage: r.image ? `url("${r.image.replace(/"/g, "")}")` : undefined });
             return (
               <li key={key} className={`rounded-xl border bg-white ${r.active ? "border-eu-line" : "border-eu-line opacity-70"} ${drag === i ? "opacity-40" : ""}`}
                 onDragOver={(e) => { if (drag != null) e.preventDefault(); }}
                 onDrop={(e) => { e.preventDefault(); if (drag != null && drag !== i) reorder(drag, i); setDrag(null); }}>
                 <div className="flex items-center gap-1 pr-1">
+                  {sThumb.node}
                   {editable && <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-9 self-stretch cursor-grab text-eu-muted hover:text-eu-ink"><GripVertical className="size-5" /></span>}
                   <span className="w-7 shrink-0 text-center font-extrabold text-eu-muted text-[length:var(--fs-13)] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="size-11 shrink-0 rounded-lg bg-eu-surface bg-cover bg-center" style={r.image ? { backgroundImage: `url("${r.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
+                  <span className={`size-11 shrink-0 rounded-lg bg-eu-surface bg-cover bg-center ${sThumb.className}`} aria-hidden />
                   <button type="button" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen} className="flex-1 min-w-0 grid text-left px-2 py-2 min-h-14">
                     <span className={`font-bold text-[length:var(--fs-15)] leading-snug ${r.active ? "text-eu-ink" : "text-eu-muted line-through decoration-1"}`}>{r.title}</span>
                     <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug line-clamp-1">{r.blurb}</span>

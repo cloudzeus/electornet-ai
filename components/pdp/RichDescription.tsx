@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ProductSections } from "./ProductSections";
 import type { PublishedSection } from "@/lib/catalog/banner-doc";
 

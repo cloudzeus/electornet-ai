@@ -4,6 +4,7 @@ import type { Order } from "@/lib/data/types";
 import type { DeviceInfo, ServiceEvent } from "@/lib/data/fixtures/devices";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { Tilt } from "@/components/motion/Tilt";
+import { sx } from "@/components/ui/sx";
 import { copyOf } from "@/lib/cms/copy";
 import { ExtendWarrantyButton } from "./ExtendWarrantyButton";
 
@@ -61,9 +62,11 @@ export function WarrantyRing({ pct, daysLeft, years, size = 84 }: { pct: number;
   const r = 36;
   const c = 2 * Math.PI * r;
   const days = Math.max(0, daysLeft);
+  const box = sx({ width: size, height: size });
   return (
     <div className="grid justify-items-center gap-1 shrink-0" role="img" aria-label={`Εγγύηση ${years} ετών, απομένουν ${days.toLocaleString("el-GR")} ημέρες`}>
-      <div className="relative" style={{ width: size, height: size }}>
+      {box.node}
+      <div className={`relative ${box.className}`}>
         <svg viewBox="0 0 84 84" className="size-full -rotate-90" aria-hidden>
           <circle cx="42" cy="42" r={r} fill="none" stroke="var(--eu-surface-3)" strokeWidth="7" />
           <circle cx="42" cy="42" r={r} fill="none" stroke={pct > 15 ? "var(--eu-green)" : "var(--eu-amber)"} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} className="transition-[stroke-dashoffset] duration-1000 ease-[var(--eu-ease-out)]" />

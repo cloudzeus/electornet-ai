@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Loader2, Save, Undo2 } from "lucide-react";
 import { saveArCategoriesAction } from "./actions";
+import { sx } from "@/components/ui/sx";
 
 type Surface = "floor" | "furniture" | "counter" | "wall";
 type Rule = { on?: boolean; surface?: Surface };
@@ -77,11 +78,12 @@ export function ArCategories({ tree, initial, canWrite }: { tree: ArCatNode[]; i
         </div>
       </div>
     );
-    const pad = { paddingInlineStart: `${depth * 0.75}rem` };
+    const pad = sx({ paddingInlineStart: `${depth * 0.75}rem` });
     const next = { on: own.on ?? inh.on, surface: own.surface ?? inh.surface };
-    if (!n.children.length) return <li key={n.slug} className="border-t border-eu-line py-2 pr-1" style={pad}>{head}</li>;
+    if (!n.children.length) return <li key={n.slug} className={`border-t border-eu-line py-2 pr-1 ${pad.className}`}>{pad.node}{head}</li>;
     return (
-      <li key={n.slug} className="border-t border-eu-line" style={pad}>
+      <li key={n.slug} className={`border-t border-eu-line ${pad.className}`}>
+        {pad.node}
         <details className="group/c">
           <summary className="flex items-start gap-1.5 py-2 pr-1 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-4 mt-3 shrink-0 text-eu-muted transition-transform group-open/c:rotate-90" aria-hidden />

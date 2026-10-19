@@ -7,6 +7,7 @@ import { SLOTS } from "@/lib/promo/landing-blocks";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
 import { ImageUrlField } from "./ImageUrlField";
 import { Hint } from "./Help";
+import { sx } from "@/components/ui/sx";
 
 type Row = PlacementInput & { id: string; impressions: number; clicks: number; promoLive: boolean | null };
 type Opt = { id: string; label: string };
@@ -80,10 +81,11 @@ export function PlacementsEditor({ rows, promos, landings, categories }: { rows:
               <p className={`m-0 rounded-lg px-2.5 py-1.5 text-[length:var(--fs-13)] font-bold ${showing ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{showing ? `Τώρα φαίνεται: ${showing.title}` : "Κενή — δεν φαίνεται τίποτα"}</p>
               {list.length > 0 && (
                 <ul className="m-0 p-0 list-none grid gap-1.5">
-                  {list.map((r) => (
+                  {list.map((r) => { const sThumb = sx({ backgroundImage: r.image ? `url("${r.image}")` : undefined }); return (
                     <li key={r.id}>
                       <button type="button" onClick={() => { setMsg(null); setEdit({ ...r }); }} className="w-full text-left grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-eu-line p-1.5 hover:border-eu-blue">
-                        {r.image ? <span className="h-10 rounded-lg bg-center bg-cover border border-eu-line" style={{ backgroundImage: `url("${r.image}")` }} aria-hidden /> : <span className="h-10 rounded-lg bg-eu-surface grid place-items-center text-eu-muted text-[length:var(--fs-12)]">χωρίς</span>}
+                        {sThumb.node}
+                        {r.image ? <span className={`h-10 rounded-lg bg-center bg-cover border border-eu-line ${sThumb.className}`} aria-hidden /> : <span className="h-10 rounded-lg bg-eu-surface grid place-items-center text-eu-muted text-[length:var(--fs-12)]">χωρίς</span>}
                         <span className="min-w-0 grid">
                           <span className="font-bold text-eu-ink text-[length:var(--fs-13)] truncate">{r.title}</span>
                           <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums inline-flex flex-wrap gap-x-2">
@@ -96,7 +98,7 @@ export function PlacementsEditor({ rows, promos, landings, categories }: { rows:
                         <Pencil className="size-4 text-eu-muted mr-1" aria-label="Αλλαγή" />
                       </button>
                     </li>
-                  ))}
+                  ); })}
                 </ul>
               )}
             </li>

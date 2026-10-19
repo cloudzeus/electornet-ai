@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { TODO, ORDER } from "@/lib/catalog/banner-worklist";
 import { Pagination } from "@/components/admin/Pagination";
+import { sx } from "@/components/ui/sx";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Απόδελτίωση banners" };
@@ -43,6 +44,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
   const href = (p: number) => `?${new URLSearchParams({ ...(f !== "todo" ? { f } : {}), ...(q ? { q } : {}), ...(cat ? { cat } : {}), page: String(p) })}`;
   const tabs = [{ k: "todo", t: "Εκκρεμούν", n: null }, { k: "approve", t: "Για έγκριση", n: nApprove }, { k: "review", t: "Για έλεγχο", n: nReview }, { k: "auto", t: "Δημοσιευμένες αυτόματα", n: nAuto }] as const;
   const pctDone = withBanners ? Math.round((done / withBanners) * 100) : 0;
+  const doneBar = sx({ width: `${pctDone}%` });
 
   return (
     <div className="grid gap-5 min-w-0">
@@ -54,7 +56,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
 
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
         <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)]">Προϊόντα με banners</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(withBanners)}</div><div className="text-eu-ink-3 text-[length:var(--fs-14)]">{n(nTodo)} περιμένουν απόδελτίωση</div></div>
-        <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><CheckCircle2 className="size-4 text-eu-green" aria-hidden /> Με ενότητες στη σελίδα</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(done)}</div><div className="mt-2 h-2 rounded-full bg-eu-surface overflow-hidden" role="progressbar" aria-valuenow={pctDone} aria-valuemin={0} aria-valuemax={100} aria-label="Πρόοδος απόδελτίωσης"><div className="h-full bg-eu-green eu-grow-x" style={{ width: `${pctDone}%` }} /></div></div>
+        <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><CheckCircle2 className="size-4 text-eu-green" aria-hidden /> Με ενότητες στη σελίδα</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(done)}</div><div className="mt-2 h-2 rounded-full bg-eu-surface overflow-hidden" role="progressbar" aria-valuenow={pctDone} aria-valuemin={0} aria-valuemax={100} aria-label="Πρόοδος απόδελτίωσης">{doneBar.node}<div className={`h-full bg-eu-green eu-grow-x ${doneBar.className}`} /></div></div>
         <div className="rounded-2xl bg-white border border-eu-line p-4"><div className="text-eu-muted text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><FileText className="size-4 text-eu-amber" aria-hidden /> Με ανοιχτό πρόχειρο</div><div className="font-heading font-bold text-eu-ink text-[length:var(--fs-28)] tabular-nums">{n(drafts)}</div><div className="text-eu-ink-3 text-[length:var(--fs-14)]">η δουλειά αποθηκεύεται αυτόματα</div></div>
       </div>
 
@@ -89,8 +91,9 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
           <p className="m-0 p-6 text-eu-ink-3 text-[length:var(--fs-15)]">{q || cat ? "Κανένα προϊόν με αυτό το φίλτρο." : f === "review" ? "Τίποτα για έλεγχο." : f === "approve" ? "Τίποτα για έγκριση." : f === "auto" ? "Καμία αυτόματη απόδελτίωση ακόμη." : "Όλα τα προϊόντα με banners έχουν αποδελτιωθεί."}</p>
         ) : (
           <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
-            {rows.map((r, i) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5 eu-card-in" style={{ animationDelay: `${Math.min(i, 14) * 30}ms` }}>
+            {rows.map((r, i) => { const d = sx({ animationDelay: `${Math.min(i, 14) * 30}ms` }); return (
+              <li key={r.id} className={`flex flex-wrap items-center gap-3 px-3 py-2.5 eu-card-in ${d.className}`}>
+                {d.node}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {r.media[0] ? <img src={r.media[0].url} alt="" loading="lazy" className="size-14 rounded-lg border border-eu-line object-contain bg-white shrink-0" /> : <span className="size-14 rounded-lg bg-eu-surface shrink-0" />}
                 <div className="min-w-0 flex-1 basis-60">
@@ -101,7 +104,7 @@ export default async function BannerWorklist({ searchParams }: { searchParams: P
                 {r._count.extractions > 0 && <span className="rounded-full bg-eu-yellow/30 text-eu-navy font-bold px-2.5 py-1 text-[length:var(--fs-13)]">πρόχειρο</span>}
                 <Link href={`/admin/catalog/${r.id}/banners`} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold px-4 min-h-11 text-[length:var(--fs-14)] hover:bg-eu-chip">{f === "review" ? "Έλεγχος" : f === "approve" ? "Έγκριση" : f === "auto" ? "Προβολή" : r._count.extractions ? "Συνέχεια" : "Απόδελτίωση"} <ArrowRight className="size-4" aria-hidden /></Link>
               </li>
-            ))}
+            ); })}
           </ul>
         )}
         {pages > 1 && <div className="flex justify-center px-3 py-3 border-t border-eu-line"><Pagination page={page} pages={pages} total={total} label="προϊόντα" href={href} /></div>}

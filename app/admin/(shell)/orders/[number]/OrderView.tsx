@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { AlertTriangle, ArrowLeft, Building2, Check, CreditCard, ExternalLink, FileText, Gift, History, Mail, MapPin, MessageSquare, Package, Phone, RotateCcw, Store, Tag, Truck, User } from "lucide-react";
 import type { OrderDetail } from "@/lib/orders/admin";
 import { pickupCode, rmaOf } from "@/lib/orders/ops";

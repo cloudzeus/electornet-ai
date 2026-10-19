@@ -1,5 +1,6 @@
 import type { EnergyClass } from "@/lib/data/types";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("energyChip");
 
@@ -18,11 +19,12 @@ const COLORS: Record<string, string> = {
 
 /** EU 2017/1369 / EPREL: class chip + product fiche link on every online display, not just the PDP. */
 export function EnergyChip({ cls, fiche, compact = false }: { cls: EnergyClass; fiche: string; compact?: boolean }) {
+  const s = sx({ background: COLORS[cls] ?? "#4f9a2f", color: cls === "D" ? "#1a1a1a" : "#fff" });
   return (
     <>
+      {s.node}
       <span
-        className="text-white font-extrabold text-[length:var(--fs-13)] px-1.5 py-1 rounded-sm"
-        style={{ background: COLORS[cls] ?? "#4f9a2f", color: cls === "D" ? "#1a1a1a" : "#fff" }}
+        className={`text-white font-extrabold text-[length:var(--fs-13)] px-1.5 py-1 rounded-sm ${s.className}`}
         aria-label={`Ενεργειακή κλάση ${cls}`}
       >
         {cls}

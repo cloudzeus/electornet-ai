@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronRight, Download, FileText, Loader2, MessageSquare, Package, RotateCcw, Store, Truck, X } from "lucide-react";

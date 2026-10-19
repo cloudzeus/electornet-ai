@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { stickerXY, type StickerParams, type StickerIcon, type StickerShape } from "@/lib/stickers/model";
 import { sanitizeSvgBody } from "@/lib/stickers/sanitize";
+import { sx } from "@/components/ui/sx";
+import type { SxStyle } from "@/lib/ui/sx-core";
 
 /**
  * @dynamic Renders a designed sticker (StickerParams) as inline SVG. Used by
@@ -68,8 +70,17 @@ function shade(hex: string, k = 0.78) {
   return `#${c(n >> 16)}${c((n >> 8) & 255)}${c(n & 255)}`;
 }
 
+/**
+ * Η κλίση του sticker ως κλάση sx (όχι style attribute — το CSP δεν το επιτρέπει). Το `overflow-visible!` κρατά την
+ * προτεραιότητα που είχε το inline style απέναντι στο `overflow: hidden` της eu-shimmer.
+ */
+function tilt(p: StickerParams, className?: string) {
+  const r = sx({ transform: p.rotate ? `rotate(${p.rotate}deg)` : undefined });
+  return { node: r.node, className: `overflow-visible! ${r.className} ${className ?? ""}`.trim() };
+}
+
 /** Artwork (βιβλιοθήκη ή SVG που ανέβηκε): το σχήμα με τα χρώματα του sticker και το κείμενο στη δική του περιοχή. */
-function ArtSticker({ p, className, style, id }: { p: StickerParams; className?: string; style?: CSSProperties; id: string }) {
+function ArtSticker({ p, className, id }: { p: StickerParams; className?: string; id: string }) {
   const art = p.art!;
   const lines = p.lines.filter((l) => l.text.trim());
   const hasIcon = p.icon !== "none";
@@ -90,28 +101,32 @@ function ArtSticker({ p, className, style, id }: { p: StickerParams; className?:
     .replace(/\bid="([^"]+)"/g, `id="${id}-$1"`).replace(/url\(#([^)'"]+)\)/g, `url(#${id}-$1)`).replace(/href="#([^"]+)"/g, `href="#${id}-$1"`)
     .replace(/\{F\}/g, art.recolor ? (p.fill2 ? `url(#${fillId})` : p.fill) : "currentColor")
     .replace(/\{F2\}/g, p.fill2 ?? shade(p.fill)).replace(/\{A\}/g, p.border ?? "#FFFFFF").replace(/\{W\}/g, "#FFFFFF");
+  const t = tilt(p, className);
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${art.w} ${art.h}`} width={p.size} height={Math.round(p.size * (art.h / art.w))} className={className} style={{ overflow: "visible", transform: p.rotate ? `rotate(${p.rotate}deg)` : undefined, ...style }} role="img" aria-label={lines.map((l) => l.text).join(" ") || art.name}>
-      <defs>
-        {p.fill2 && art.recolor && <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.fill} /><stop offset="1" stopColor={p.fill2} /></linearGradient>}
-        {p.shadow && <filter id={shadowId} x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#122A58" floodOpacity="0.28" /></filter>}
-      </defs>
-      {art.recolor
-        ? <g filter={p.shadow ? `url(#${shadowId})` : undefined} dangerouslySetInnerHTML={{ __html: body }} />
-        : /* SVG που ανέβηκε: ως απομονωμένη εικόνα — δικά του <style> / scripts δεν αγγίζουν τη σελίδα */
-          <image href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${art.w} ${art.h}">${sanitizeSvgBody(art.body)}</svg>`)}`} x={0} y={0} width={art.w} height={art.h} filter={p.shadow ? `url(#${shadowId})` : undefined} />}
-      {hasIcon && <svg x={wide ? art.text.x : art.text.x + art.text.w / 2 - iconSize / 2} y={wide ? art.text.y + (art.text.h - iconSize) / 2 : art.text.y} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[p.icon as Exclude<StickerIcon, "none">] }} />}
-      {lines.map((l, i) => (
-        <text key={i} x={box.x + box.w / 2} y={baselines[i] - sizes[i] * 0.22} textAnchor="middle" fontFamily="Manrope, 'Segoe UI', system-ui, sans-serif" fontWeight={l.weight} fontSize={sizes[i]} letterSpacing={l.spacing} fill={p.color}>
-          {l.upper ? l.text.toUpperCase() : l.text}
-        </text>
-      ))}
-    </svg>
+    <>
+      {t.node}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${art.w} ${art.h}`} width={p.size} height={Math.round(p.size * (art.h / art.w))} className={t.className} role="img" aria-label={lines.map((l) => l.text).join(" ") || art.name}>
+        <defs>
+          {p.fill2 && art.recolor && <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.fill} /><stop offset="1" stopColor={p.fill2} /></linearGradient>}
+          {p.shadow && <filter id={shadowId} x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#122A58" floodOpacity="0.28" /></filter>}
+        </defs>
+        {art.recolor
+          ? <g filter={p.shadow ? `url(#${shadowId})` : undefined} dangerouslySetInnerHTML={{ __html: body }} />
+          : /* SVG που ανέβηκε: ως απομονωμένη εικόνα — δικά του <style> / scripts δεν αγγίζουν τη σελίδα */
+            <image href={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${art.w} ${art.h}">${sanitizeSvgBody(art.body)}</svg>`)}`} x={0} y={0} width={art.w} height={art.h} filter={p.shadow ? `url(#${shadowId})` : undefined} />}
+        {hasIcon && <svg x={wide ? art.text.x : art.text.x + art.text.w / 2 - iconSize / 2} y={wide ? art.text.y + (art.text.h - iconSize) / 2 : art.text.y} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[p.icon as Exclude<StickerIcon, "none">] }} />}
+        {lines.map((l, i) => (
+          <text key={i} x={box.x + box.w / 2} y={baselines[i] - sizes[i] * 0.22} textAnchor="middle" fontFamily="Manrope, 'Segoe UI', system-ui, sans-serif" fontWeight={l.weight} fontSize={sizes[i]} letterSpacing={l.spacing} fill={p.color}>
+            {l.upper ? l.text.toUpperCase() : l.text}
+          </text>
+        ))}
+      </svg>
+    </>
   );
 }
 
-export function StickerSvg({ p, className, style, id = "s" }: { p: StickerParams; className?: string; style?: CSSProperties; id?: string }) {
-  if (p.shape === "art" && p.art) return <ArtSticker p={p} className={className} style={style} id={id} />;
+export function StickerSvg({ p, className, id = "s" }: { p: StickerParams; className?: string; id?: string }) {
+  if (p.shape === "art" && p.art) return <ArtSticker p={p} className={className} id={id} />;
   const H = HEIGHT[p.shape];
   const lines = p.lines.filter((l) => l.text.trim());
   const hasIcon = p.icon !== "none";
@@ -145,29 +160,33 @@ export function StickerSvg({ p, className, style, id = "s" }: { p: StickerParams
   const iconSize = WIDE[p.shape] ? H * 0.42 : 34;
   const iconX = WIDE[p.shape] ? box.x - iconSize - 6 : 100 - iconSize / 2;
   const iconY = WIDE[p.shape] ? (H - iconSize) / 2 : box.y - iconSize + 6;
+  const t = tilt(p, className);
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${VB} ${H}`} width={p.size} height={Math.round(p.size * (H / VB))} className={className} style={{ overflow: "visible", transform: p.rotate ? `rotate(${p.rotate}deg)` : undefined, ...style }} role="img" aria-label={lines.map((l) => l.text).join(" ")}>
-      <defs>
-        {p.fill2 && (
-          <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.fill} /><stop offset="1" stopColor={p.fill2} /></linearGradient>
+    <>
+      {t.node}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${VB} ${H}`} width={p.size} height={Math.round(p.size * (H / VB))} className={t.className} role="img" aria-label={lines.map((l) => l.text).join(" ")}>
+        <defs>
+          {p.fill2 && (
+            <linearGradient id={fillId} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.fill} /><stop offset="1" stopColor={p.fill2} /></linearGradient>
+          )}
+          {p.shadow && (
+            <filter id={shadowId} x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#122A58" floodOpacity="0.28" /></filter>
+          )}
+        </defs>
+        {shapeEl}
+        {hasIcon && (
+          <svg x={iconX} y={iconY} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[p.icon as Exclude<StickerIcon, "none">] }} />
         )}
-        {p.shadow && (
-          <filter id={shadowId} x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#122A58" floodOpacity="0.28" /></filter>
-        )}
-      </defs>
-      {shapeEl}
-      {hasIcon && (
-        <svg x={iconX} y={iconY} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: ICONS[p.icon as Exclude<StickerIcon, "none">] }} />
-      )}
-      {lines.map((l, i) => {
-        const fs = sizes[i];
-        return (
-          <text key={i} x={box.x + box.w / 2} y={baselines[i] - fs * 0.22} textAnchor="middle" fontFamily="Manrope, 'Segoe UI', system-ui, sans-serif" fontWeight={l.weight} fontSize={fs} letterSpacing={l.spacing} fill={p.color} style={{ textTransform: l.upper ? "uppercase" : undefined }}>
-            {l.upper ? l.text.toUpperCase() : l.text}
-          </text>
-        );
-      })}
-    </svg>
+        {lines.map((l, i) => {
+          const fs = sizes[i];
+          return (
+            <text key={i} x={box.x + box.w / 2} y={baselines[i] - fs * 0.22} textAnchor="middle" fontFamily="Manrope, 'Segoe UI', system-ui, sans-serif" fontWeight={l.weight} fontSize={fs} letterSpacing={l.spacing} fill={p.color} className={l.upper ? "uppercase" : undefined}>
+              {l.upper ? l.text.toUpperCase() : l.text}
+            </text>
+          );
+        })}
+      </svg>
+    </>
   );
 }
 
@@ -196,4 +215,9 @@ export const stickerPositionClass: Record<StickerParams["position"], string> = {
 export function stickerPlacementStyle(p: Pick<StickerParams, "position" | "x" | "y">, inset = 8): CSSProperties {
   const [x, y] = stickerXY(p);
   return { position: "absolute", left: `calc(${inset}px + (100% - ${inset * 2}px) * ${x / 100})`, top: `calc(${inset}px + (100% - ${inset * 2}px) * ${y / 100})`, transform: `translate(-${x}%, -${y}%)` };
+}
+
+/** Η ίδια θέση ως κλάση sx (`{ className, node }`) — για ό,τι αποδίδεται στον server (το CSP δεν επιτρέπει style attributes). */
+export function stickerPlacementSx(p: Pick<StickerParams, "position" | "x" | "y">, inset = 8) {
+  return sx(stickerPlacementStyle(p, inset) as SxStyle);
 }

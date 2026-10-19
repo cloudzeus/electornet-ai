@@ -6,6 +6,7 @@ import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 import { ChevronDown, ArrowUp, ArrowDown, ArrowUpDown, ExternalLink, Mail, Phone, MapPin, Building2, Store, Loader2, ShoppingBag, Wrench, ShieldCheck, Star, Link2, Activity, LayoutGrid, CircleAlert, Check, X, Undo2, FileText, StickyNote } from "lucide-react";
 import { customerPeekAction, erpPreflightAction } from "@/app/admin/(shell)/customers/actions";
 import type { Peek } from "@/lib/customers/peek";
+import { sx } from "@/components/ui/sx";
 
 export type CustomerRow = {
   id: string; number: number; name: string; sub: string; business: boolean; email: string | null; phone: string | null; vat: string | null;
@@ -148,6 +149,12 @@ const H = ({ children, right }: { children: ReactNode; right?: ReactNode }) => <
 const Empty = ({ children }: { children: ReactNode }) => <p className="m-0 rounded-lg bg-eu-surface/60 px-2.5 py-2 text-eu-muted text-[length:var(--fs-13)]">{children}</p>;
 const Pill = ({ tone, children }: { tone: "ok" | "warn" | "bad" | "info" | "mute"; children: ReactNode }) => <span className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-12)] font-bold ${{ ok: "bg-eu-green/12 text-eu-green", warn: "bg-eu-amber/15 text-eu-amber", bad: "bg-eu-red/10 text-eu-red", info: "bg-eu-chip text-eu-blue", mute: "bg-eu-surface text-eu-muted" }[tone]}`}>{children}</span>;
 
+/** Μία στήλη του γραφήματος «Αγορές ανά έτος» (ύψος από τα δεδομένα). */
+function YearBar({ y, max }: { y: { y: number | string; total: number }; max: number }) {
+  const s = sx({ height: `${Math.max(y.total ? 6 : 2, (y.total / max) * 44)}px`, opacity: y.total ? 1 : 0.2 });
+  return <li className="grid gap-1 h-full content-end text-center" title={`${y.y}: ${eur(y.total)}`}>{s.node}<span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums">{y.total ? eur(y.total).replace(" €", "") : ""}</span><span className={`rounded-t-md bg-eu-blue ${s.className}`} /><span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{y.y}</span></li>;
+}
+
 export function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
   const max = Math.max(1, ...p.byYear.map((y) => y.total));
   const addr = p.addresses[0];
@@ -178,7 +185,7 @@ export function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
         <div className="grid gap-1.5">
           <H>Αγορές ανά έτος</H>
           <ul className="m-0 p-0 list-none grid grid-cols-6 gap-1.5 items-end h-20" aria-label="Αγορές ανά έτος">
-            {p.byYear.map((y) => <li key={y.y} className="grid gap-1 h-full content-end text-center" title={`${y.y}: ${eur(y.total)}`}><span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums">{y.total ? eur(y.total).replace(" €", "") : ""}</span><span className="rounded-t-md bg-eu-blue" style={{ height: `${Math.max(y.total ? 6 : 2, (y.total / max) * 44)}px`, opacity: y.total ? 1 : 0.2 }} /><span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{y.y}</span></li>)}
+            {p.byYear.map((y) => <YearBar key={y.y} y={y} max={max} />)}
           </ul>
         </div>
         <div className="flex flex-wrap gap-1.5">

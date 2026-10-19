@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, Sparkles, ListChecks, Scale, MessageSquareText } from "lucide-react";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";

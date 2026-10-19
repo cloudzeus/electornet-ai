@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, CircleAlert } from "lucide-react";
 import type { Readiness, TabId, TabState } from "@/lib/catalog/readiness";
+import { sx } from "@/components/ui/sx";
 
 /** Οι καρτέλες της σελίδας προϊόντος, με τη σειρά της δουλειάς (συχνότερα πρώτα). */
 /** Οι καρτέλες του χώρου εργασίας: οι πέντε της ετοιμότητας και η «Σετ» (σε προϊόντα-σετ και σε κύρια είδη σετ). */
@@ -22,12 +23,14 @@ const DOT: Record<TabState, string> = { ok: "", warn: "bg-eu-amber", bad: "bg-eu
 export function ReadinessBar({ r, href }: { r: Readiness; href: (t: WorkspaceTab) => string }) {
   const pct = r.total ? Math.round((r.done / r.total) * 100) : 100;
   const full = r.done === r.total;
+  const bar = sx({ width: `${pct}%` });
   return (
     <section aria-label="Ετοιμότητα για το site" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-eu-line bg-white px-3 py-2 min-w-0">
       <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-13)] whitespace-nowrap">
         {full ? <CheckCircle2 className="size-4 text-eu-green" aria-hidden /> : <CircleAlert className="size-4 text-eu-amber" aria-hidden />} Ετοιμότητα {r.done}/{r.total}
         <span className="w-20 h-1.5 rounded-full bg-eu-surface overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Ποσοστό ετοιμότητας">
-          <span className={`block h-full rounded-full ${full ? "bg-eu-green" : "bg-eu-amber"}`} style={{ width: `${pct}%` }} />
+          {bar.node}
+          <span className={`block h-full rounded-full ${full ? "bg-eu-green" : "bg-eu-amber"} ${bar.className}`} />
         </span>
       </span>
       {r.missing.length > 0 ? (

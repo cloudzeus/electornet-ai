@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import type { HeroSlide, Product, Store } from "@/lib/data/types";
 import { CinematicHero } from "./CinematicHero";
 import { DealOfDayTile } from "./DealOfDayTile";

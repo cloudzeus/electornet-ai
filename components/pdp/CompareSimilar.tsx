@@ -7,6 +7,7 @@ import { CompareStacked } from "@/components/catalog/CompareStacked";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { compareScope } from "@/lib/data/compare-scope";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("compareSimilar");
 
@@ -17,6 +18,7 @@ const c = copyOf("compareSimilar");
  */
 export function CompareSimilar({ product: p, similar }: { product: Product; similar: Product[] }) {
   const all = [p, ...similar.slice(0, 3)];
+  const tableW = sx({ minWidth: `${160 + all.length * 170}px` });
   const attrs = new Map(all.map((x) => [x.id, attributesOf(x).filter((a) => !["Μάρκα", "Ενεργειακή κλάση"].includes(a.key))]));
   const shared = [...new Set(all.flatMap((x) => attrs.get(x.id)!.map((a) => a.key)))].filter((k) => all.filter((x) => attrs.get(x.id)!.some((a) => a.key === k)).length >= 2);
   // Πρώτα όσα έχει ΑΥΤΟ το προϊόν· γραμμές όπου το ίδιο δείχνει «—» μπαίνουν μόνο για να μη μείνει ο πίνακας σχεδόν άδειος
@@ -42,7 +44,8 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
         <CompareStacked products={all} rows={[{ group: "Χαρακτηριστικά", keys }]} val={val} current={p.id} />
       </div>
       <div className="hidden @3xl:block rounded-xl border border-eu-line overflow-x-auto">
-        <table className="w-full table-fixed border-collapse text-[length:var(--fs-16)]" style={{ minWidth: `${160 + all.length * 170}px` }}>
+        {tableW.node}
+        <table className={`w-full table-fixed border-collapse text-[length:var(--fs-16)] ${tableW.className}`}>
           <thead>
             <tr className="align-top">
               <th className="text-left p-3 w-[160px] bg-eu-surface sticky left-0 z-10" />

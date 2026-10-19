@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
 import { Area, LinkField, MediaUrl, Txt } from "./brand/fields";
+import { sx } from "@/components/ui/sx";
 
 export type Campaign = { id: string; brand: string; title: string; text: string; cta: string; href: string; image: string; alt: string; hidden?: boolean };
+
+/** Μικρογραφία ως background-image (το URL από δεδομένα → sx· το CSP δεν επιτρέπει style attributes). */
+function Thumb({ url, className }: { url?: string | null; className: string }) {
+  const t = sx(url ? { backgroundImage: `url("${url.replace(/"/g, "")}")` } : {});
+  return <>{t.node}<span className={`${className} ${t.className}`} aria-hidden /></>;
+}
 
 /**
  * Key visuals κατασκευαστών (αρχική): γραμμές με μικρογραφία, σύρσιμο (ή βέλη) για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη),
@@ -31,7 +38,7 @@ export function CampaignsField({ value, onChange, label, help }: { value: unknow
               onDrop={(e) => { e.preventDefault(); if (drag != null && drag !== i) move(drag, i); setDrag(null); }}>
               <div className="flex items-center gap-1 pr-1">
                 <span draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDrag(i); }} onDragEnd={() => setDrag(null)} aria-hidden title="Σύρε για αλλαγή σειράς" className="grid place-items-center w-9 self-stretch cursor-grab text-eu-muted hover:text-eu-ink"><GripVertical className="size-5" /></span>
-                <span className={`h-11 w-16 shrink-0 rounded-md bg-eu-surface bg-cover bg-center ${c.hidden ? "opacity-40" : ""}`} style={c.image ? { backgroundImage: `url("${c.image.replace(/"/g, "")}")` } : undefined} aria-hidden />
+                <Thumb url={c.image} className={`h-11 w-16 shrink-0 rounded-md bg-eu-surface bg-cover bg-center ${c.hidden ? "opacity-40" : ""}`} />
                 <button type="button" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen} className="flex-1 min-w-0 grid text-left px-2 py-2 min-h-14">
                   <span className={`font-bold text-[length:var(--fs-15)] leading-snug truncate ${c.hidden ? "text-eu-muted line-through decoration-1" : "text-eu-ink"}`}>{c.brand || "Καμπάνια"}{c.title ? ` · ${c.title}` : ""}</span>
                   <span className="text-eu-muted text-[length:var(--fs-13)] truncate">{c.hidden ? "Κρυφή" : c.href || "χωρίς σύνδεσμο"}</span>

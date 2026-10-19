@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import type { Product } from "@/lib/data/types";
 import { instalment, priceLong } from "@/lib/format";
 import { ZoneBadge } from "@/components/site/ZoneBadge";

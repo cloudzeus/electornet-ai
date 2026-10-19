@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ImagePlus, X, Film, FileText } from "lucide-react";
 import type { MediaAssetDTO, MediaKind } from "@/lib/media/types";
 import { MediaLibrary } from "./MediaLibrary";
+import { sx } from "@/components/ui/sx";
 
 /** Modal wrapper of the library in picker mode. */
 export function MediaPickerDialog({ accept, multiple, canWrite, onSelect, onClose }: { accept?: MediaKind[]; multiple?: boolean; canWrite: boolean; onSelect: (a: MediaAssetDTO[]) => void; onClose: () => void }) {
@@ -46,6 +47,7 @@ export function MediaField({ label, value, accept = ["image"], canWrite, onChang
 }
 
 function FieldThumb({ a }: { a: MediaAssetDTO }) {
+  const s = sx({ objectPosition: `${a.focalX * 100}% ${a.focalY * 100}%` });
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={a.thumbUrl ?? ""} alt="" className="size-12 rounded-lg object-cover" style={{ objectPosition: `${a.focalX * 100}% ${a.focalY * 100}%` }} />;
+  return <><img src={a.thumbUrl ?? ""} alt="" className={`size-12 rounded-lg object-cover ${s.className}`} />{s.node}</>;
 }

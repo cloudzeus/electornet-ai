@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Upload, Images, Star, ArrowLeft, ArrowRight, Trash2, EyeOff, RotateCcw, Loader2, AlertTriangle, Box, Check } from "lucide-react";
 import type { MediaAssetDTO } from "@/lib/media/types";
 import type { ProductImageDTO, ProductMediaKind } from "@/lib/catalog/product-images";

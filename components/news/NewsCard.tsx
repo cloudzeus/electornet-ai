@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import type { NewsItem } from "@/lib/data/types";

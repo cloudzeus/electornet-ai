@@ -16,6 +16,7 @@ import { CartAdvisorTip } from "./CartAdvisorTip";
 import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon } from "./useServerQuote";
 import { GiftLines, PromoHints } from "./PromoPerks";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("cart");
 
@@ -46,6 +47,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
   const freeByPromo = !!quote?.freeShipping;
   const missing = freeByPromo ? 0 : Math.max(0, freeShippingFrom - payable);
   const pct = freeByPromo ? 100 : Math.min(100, Math.round((payable / freeShippingFrom) * 100));
+  const bar = sx({ width: `${pct}%` });
   const count = lines.reduce((n, l) => n + l.qty, 0);
   const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
@@ -111,7 +113,8 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
               <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{pct}%</span>
             </div>
             <div className="mt-3 h-2.5 rounded-full bg-black/10 overflow-hidden">
-              <div className={`h-full rounded-full transition-[width] ${missing === 0 ? "bg-white" : "bg-eu-navy"}`} style={{ width: `${pct}%` }} />
+              {bar.node}
+              <div className={`h-full rounded-full transition-[width] ${missing === 0 ? "bg-white" : "bg-eu-navy"} ${bar.className}`} />
             </div>
           </div>
 

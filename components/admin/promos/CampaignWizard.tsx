@@ -7,7 +7,14 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink,
 import { Badge } from "@/components/admin/orders/ui";
 import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, publishOutcome, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "@/lib/promo/campaign-core";
 import { MECHANISM_LABEL, STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
+import { sx } from "@/components/ui/sx";
 import { campaignStateAction, membershipAction, publishCampaignAction, saveCampaignAction } from "@/app/admin/(shell)/prosfores/kampanies/actions";
+
+/** Η γεμάτη μπάρα του προϋπολογισμού (πλάτος από τα δεδομένα). */
+function BudgetFill({ pct, over }: { pct: number; over: boolean }) {
+  const s = sx({ width: `${pct}%` });
+  return <span className={`block h-full ${over ? "bg-eu-red" : "bg-eu-blue"} ${s.className}`}>{s.node}</span>;
+}
 
 type Avail = { id: string; label: string; sub: string; status: string; campaignCode: string | null };
 export type WizardCampaign = {
@@ -222,7 +229,7 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
         {pendingCount > 0 && <p data-help="campaign.pending" className="m-0 inline-flex items-center gap-1.5 rounded-lg bg-eu-amber/10 px-2.5 py-1.5 font-bold text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-amber" aria-hidden /> {pendingCount} {pendingCount === 1 ? "προσφορά αναμένει" : "προσφορές αναμένουν"} έγκριση</p>}
         {campaign && campaign.budget.pct != null && (
           <div className="grid gap-1">
-            <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden"><span className={`block h-full ${campaign.budget.over ? "bg-eu-red" : "bg-eu-blue"}`} style={{ width: `${Math.min(100, campaign.budget.pct)}%` }} /></span>
+            <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden"><BudgetFill pct={Math.min(100, campaign.budget.pct)} over={campaign.budget.over} /></span>
             <span className={`text-[length:var(--fs-12)] tabular-nums ${campaign.budget.over ? "text-eu-red font-bold" : "text-eu-ink-3"}`}>{eur(campaign.spent)} από {eur(campaign.budgetEur!)}</span>
           </div>
         )}

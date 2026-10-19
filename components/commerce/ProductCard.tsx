@@ -2,7 +2,7 @@
 
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ViewTransition } from "react";
 import { useRef } from "react";
 import { Heart, Plus, Scale, Eye, MapPin } from "lucide-react";

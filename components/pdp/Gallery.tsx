@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ViewTransition } from "react";
 import type { Product } from "@/lib/data/types";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
@@ -71,13 +71,7 @@ export function Gallery({
             className={`relative aspect-square rounded-2xl border border-eu-line-2 overflow-hidden ${cutout ? "eu-cutout-field" : "bg-white"}`}
           >
             <span
-              className="eu-rays"
-              style={{
-                width: "120%",
-                left: "-10%",
-                top: "-10%",
-                opacity: cutout ? 0.5 : 0,
-              }}
+              className={`eu-rays w-[120%] left-[-10%] top-[-10%] ${cutout ? "opacity-50" : "opacity-0"}`}
               aria-hidden
             />
             <ViewTransition name={`product-${productId}`}>

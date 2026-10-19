@@ -1,7 +1,7 @@
 "use client";
 
 import { useSettings } from "@/components/site/SettingsProvider";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";

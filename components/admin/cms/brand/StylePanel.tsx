@@ -7,6 +7,7 @@ import { contrast } from "@/lib/cms/brand-store-check";
 import { paletteAction, scrapeStyleAction } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import type { StyleSuggestion } from "@/lib/cms/brand-style";
 import { inputCls, ResultBanner } from "@/components/admin/settings/ui";
+import { sx } from "@/components/ui/sx";
 
 const HEX = /^#([0-9a-f]{3}){1,2}$/i;
 const FIELDS: { k: keyof Omit<BrandTheme, "mode">; label: string; help: string }[] = [
@@ -27,18 +28,32 @@ function Ratio({ a, b, min }: { a: string; b: string; min: number }) {
 
 /** Μικρό δείγμα της σελίδας με τα χρώματα — για να κρίνεις πριν εφαρμόσεις. */
 export function MiniPreview({ t, name }: { t: BrandTheme; name: string }) {
+  const sRoot = sx({ background: t.bg, color: t.ink });
+  const sAccent = sx({ color: t.accent });
+  const sMuted = sx({ color: t.muted });
+  const sBtn = sx({ background: t.accent, color: t.accentInk });
+  const sCard = sx({ background: t.bg2 });
   return (
-    <div className="rounded-xl overflow-hidden border border-eu-line" style={{ background: t.bg, color: t.ink }} aria-hidden>
+    <div className={`rounded-xl overflow-hidden border border-eu-line ${sRoot.className}`} aria-hidden>
+      {sRoot.node}{sAccent.node}{sMuted.node}{sBtn.node}{sCard.node}
       <div className="p-3 grid gap-1.5">
         <span className="font-heading font-extrabold text-[length:var(--fs-16)]">{name}</span>
-        <span className="font-heading font-extrabold leading-tight text-[length:var(--fs-18)]">Νέα σειρά<br /><span style={{ color: t.accent }}>για το σπίτι σου.</span></span>
-        <span className="text-[length:var(--fs-13)]" style={{ color: t.muted }}>Εγγύηση, service αντιπροσωπείας, δόσεις.</span>
+        <span className="font-heading font-extrabold leading-tight text-[length:var(--fs-18)]">Νέα σειρά<br /><span className={sAccent.className}>για το σπίτι σου.</span></span>
+        <span className={`text-[length:var(--fs-13)] ${sMuted.className}`}>Εγγύηση, service αντιπροσωπείας, δόσεις.</span>
         <span className="flex gap-2 mt-1">
-          <span className="rounded-full px-3 py-1.5 font-extrabold text-[length:var(--fs-13)]" style={{ background: t.accent, color: t.accentInk }}>Δες τα προϊόντα</span>
-          <span className="rounded-lg px-3 py-1.5 text-[length:var(--fs-13)]" style={{ background: t.bg2 }}>Κάρτα</span>
+          <span className={`rounded-full px-3 py-1.5 font-extrabold text-[length:var(--fs-13)] ${sBtn.className}`}>Δες τα προϊόντα</span>
+          <span className={`rounded-lg px-3 py-1.5 text-[length:var(--fs-13)] ${sCard.className}`}>Κάρτα</span>
         </span>
       </div>
     </div>
+  );
+}
+
+/** Κουμπί-δείγμα χρώματος (το χρώμα έρχεται από τα δεδομένα). */
+function Swatch({ hex, on, onPick }: { hex: string; on: boolean; onPick: () => void }) {
+  const s = sx({ background: hex });
+  return (
+    <button type="button" onClick={onPick} aria-pressed={on} title={hex} className={`size-11 rounded-xl border-2 ${on ? "border-eu-navy ring-2 ring-eu-navy/30" : "border-eu-line"} ${s.className}`}>{s.node}<span className="sr-only">{hex}</span></button>
   );
 }
 
@@ -80,7 +95,7 @@ export function StylePanel({ theme, onTheme, website, onWebsite, name }: { theme
               <span className="font-bold text-eu-ink text-[length:var(--fs-13)]">Χρώματα που βρέθηκαν — πάτα ένα για να γίνει χρώμα μάρκας</span>
               <div className="flex flex-wrap gap-2">
                 {sug.swatches.map((s) => (
-                  <button key={s.hex} type="button" onClick={() => pickAccent(s.hex)} aria-pressed={proposal.accent.toLowerCase() === s.hex} title={s.hex} className={`size-11 rounded-xl border-2 ${proposal.accent.toLowerCase() === s.hex ? "border-eu-navy ring-2 ring-eu-navy/30" : "border-eu-line"}`} style={{ background: s.hex }}><span className="sr-only">{s.hex}</span></button>
+                  <Swatch key={s.hex} hex={s.hex} on={proposal.accent.toLowerCase() === s.hex} onPick={() => pickAccent(s.hex)} />
                 ))}
               </div>
             </div>

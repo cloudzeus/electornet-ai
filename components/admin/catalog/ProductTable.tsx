@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, Imag
 import { ProductPeek, loadProductPeek } from "./ProductPeek";
 import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
 import { sourceOf } from "./sources";
+import { sx } from "@/components/ui/sx";
 
 export type ProductRow = {
   id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean;
@@ -78,6 +79,7 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
   const [picker, setPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const [viewW, setViewW] = useState<number | null>(null);
   useEffect(() => {
     const el = scrollRef.current;
@@ -110,13 +112,28 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
   const startDrag = (c: Col, e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
     const x0 = e.clientX, w0 = wOf(c);
-    const mv = (ev: PointerEvent) => setW(c.id, w0 + ev.clientX - x0);
-    const up = (ev: PointerEvent) => { setW(c.id, w0 + ev.clientX - x0, true); window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.documentElement.classList.remove("cursor-col-resize"); };
+    // κατά το σύρσιμο το πλάτος γράφεται απευθείας στο <col> και στον πίνακα (CSSOM — το CSP δεν επιτρέπει style
+    // attributes στο HTML, και κλάση ανά pixel θα έφτιαχνε <style> σε κάθε κίνηση)· στο τέλος περνά στο state
+    const tbl = tableRef.current, col = tbl?.querySelector<HTMLElement>(`col[data-col="${c.id}"]`) ?? null;
+    const base = tableW - w0;
+    const fit = (w: number) => Math.max(56, Math.min(600, Math.round(w)));
+    const mv = (ev: PointerEvent) => { const w = fit(w0 + ev.clientX - x0); if (col) col.style.width = `${w}px`; if (tbl) tbl.style.width = `max(100%, ${base + w}px)`; };
+    const up = (ev: PointerEvent) => {
+      if (col) col.style.width = "";
+      if (tbl) tbl.style.width = "";
+      setW(c.id, w0 + ev.clientX - x0, true);
+      window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); document.documentElement.classList.remove("cursor-col-resize");
+    };
     window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); document.documentElement.classList.add("cursor-col-resize");
   };
   const lead = (canSelect ? 76 : 40) + 44;
   const tableW = lead + shown.reduce((a, c) => a + wOf(c), 0);
   const span = shown.length + (canSelect ? 3 : 2);
+  // πλάτη από δεδομένα → κλάσεις sx (μία <style> ανά διαφορετική τιμή)
+  const rules = new Map<string, ReactNode>();
+  const cls = (style: Parameters<typeof sx>[0]) => { const r = sx(style); rules.set(r.className, r.node); return r.className; };
+  const tableCls = cls({ width: `max(100%, ${tableW}px)` });
+  const colCls = shown.map((c) => cls({ width: wOf(c) }));
 
   return (
     <div data-help="catalog.table" className="rounded-2xl bg-white border border-eu-line overflow-hidden">
@@ -143,8 +160,9 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
         </div>
       </div>
       <div ref={scrollRef} className="overflow-x-auto">
-        <table className="table-fixed border-collapse text-[length:var(--fs-13)]" style={{ width: `max(100%, ${tableW}px)` }}>
-          <colgroup><col style={{ width: 40 }} />{canSelect && <col style={{ width: 36 }} />}{shown.map((c) => <col key={c.id} style={{ width: wOf(c) }} />)}<col style={{ width: 44 }} /></colgroup>
+        {[...rules.values()]}
+        <table ref={tableRef} className={`table-fixed border-collapse text-[length:var(--fs-13)] ${tableCls}`}>
+          <colgroup><col className="w-[40px]" />{canSelect && <col className="w-[36px]" />}{shown.map((c, i) => <col key={c.id} data-col={c.id} className={colCls[i]} />)}<col className="w-[44px]" /></colgroup>
           <thead className="bg-eu-surface/70 text-eu-ink-3">
             <tr>
               <th className="p-0" aria-label="Άνοιγμα γραμμής" />

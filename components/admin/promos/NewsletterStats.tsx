@@ -1,4 +1,5 @@
 import { History, MousePointerClick } from "lucide-react";
+import { sx } from "@/components/ui/sx";
 
 /** Αποτελέσματα αποστολής newsletter: πρόοδος, μετρητές, κλικ ανά σύνδεσμο / προϊόν, ιστορικό. Χωρίς προσωπικά στοιχεία. */
 export type NewsletterStatsData = {
@@ -29,6 +30,9 @@ export function NewsletterStats({ d, results = true }: { d: NewsletterStatsData;
   const done = d.rows.sent + d.rows.failed + d.rows.skipped;
   const p = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
   const base = d.delivered || d.rows.sent;
+  const sSent = sx({ width: `${total ? (d.rows.sent / total) * 100 : 0}%` });
+  const sFailed = sx({ width: `${total ? (d.rows.failed / total) * 100 : 0}%` });
+  const sSkipped = sx({ width: `${total ? (d.rows.skipped / total) * 100 : 0}%` });
   return (
     <div className="grid gap-4 min-w-0">
       {results && <section data-help="newsletter.stats" aria-labelledby="ns-h" className="grid gap-3 rounded-2xl bg-white border border-eu-line p-3 @md:p-4 min-w-0">
@@ -39,9 +43,10 @@ export function NewsletterStats({ d, results = true }: { d: NewsletterStatsData;
             <span className="text-eu-muted tabular-nums">{p} %{d.rows.queued ? ` · ${num(d.rows.queued)} στην ουρά` : ""}{d.rows.sending ? ` · ${num(d.rows.sending)} σε αποστολή` : ""}</span>
           </div>
           <div className="h-2.5 rounded-full bg-eu-surface overflow-hidden flex" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={p} aria-label="Πρόοδος αποστολής">
-            <span className="block h-full bg-eu-green" style={{ width: `${total ? (d.rows.sent / total) * 100 : 0}%` }} />
-            <span className="block h-full bg-eu-red" style={{ width: `${total ? (d.rows.failed / total) * 100 : 0}%` }} />
-            <span className="block h-full bg-eu-line-2" style={{ width: `${total ? (d.rows.skipped / total) * 100 : 0}%` }} />
+            {sSent.node}{sFailed.node}{sSkipped.node}
+            <span className={`block h-full bg-eu-green ${sSent.className}`} />
+            <span className={`block h-full bg-eu-red ${sFailed.className}`} />
+            <span className={`block h-full bg-eu-line-2 ${sSkipped.className}`} />
           </div>
           <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Πράσινο: στάλθηκαν · κόκκινο: απέτυχαν{d.rows.failed ? ` (${num(d.rows.failed)})` : ""} · γκρι: δεν στάλθηκαν μετά από διακοπή{d.rows.skipped ? ` (${num(d.rows.skipped)})` : ""}.</p>
         </div>

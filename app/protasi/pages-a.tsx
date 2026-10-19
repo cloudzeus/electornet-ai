@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Body, Callout, DocPage, Finding, Kicker, PageHead } from "@/components/doc/DocPage";
 
 /** Pages 1–6: cover, method, findings, before → after. */

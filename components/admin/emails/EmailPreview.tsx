@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { withStyleNonce } from "@/lib/security/csp";
+import { stylesToClasses } from "@/lib/ui/inline-styles";
 import { Monitor, Smartphone, Send, FileText, Code2 } from "lucide-react";
 import { sendTestEmail } from "@/app/admin/(shell)/emails/actions";
 
@@ -35,8 +35,8 @@ export function EmailPreview({ tpl, subject, html, text, sample, staffEmail, log
         <button type="button" onClick={() => setView("data")} className={chip(view === "data")}><Code2 className="size-4" aria-hidden /> Δεδομένα δείγματος</button>
       </div>
       <div className="rounded-2xl bg-eu-surface border border-eu-line p-4 grid place-items-center min-h-[600px]">
-        {view === "desktop" && <iframe title="Προεπισκόπηση desktop" srcDoc={withStyleNonce(html, nonce)} sandbox="allow-same-origin" className="w-full max-w-[720px] h-[900px] bg-white rounded-xl border border-eu-line" />}
-        {view === "mobile" && <div className="rounded-[36px] border-[10px] border-eu-navy bg-eu-navy p-0 shadow-[var(--shadow-overlay)]"><iframe title="Προεπισκόπηση κινητού" srcDoc={withStyleNonce(html, nonce)} sandbox="allow-same-origin" className="w-[375px] h-[760px] bg-white rounded-[26px] border-0" /></div>}
+        {view === "desktop" && <iframe title="Προεπισκόπηση desktop" srcDoc={stylesToClasses(html, nonce)} sandbox="allow-same-origin" className="w-full max-w-[720px] h-[900px] bg-white rounded-xl border border-eu-line" />}
+        {view === "mobile" && <div className="rounded-[36px] border-[10px] border-eu-navy bg-eu-navy p-0 shadow-[var(--shadow-overlay)]"><iframe title="Προεπισκόπηση κινητού" srcDoc={stylesToClasses(html, nonce)} sandbox="allow-same-origin" className="w-[375px] h-[760px] bg-white rounded-[26px] border-0" /></div>}
         {view === "text" && <pre className="m-0 w-full max-w-[720px] whitespace-pre-wrap rounded-xl bg-white border border-eu-line p-4 font-mono text-[length:var(--fs-14)] text-eu-ink">{text}</pre>}
         {view === "data" && <pre className="m-0 w-full max-w-[720px] whitespace-pre-wrap rounded-xl bg-white border border-eu-line p-4 font-mono text-[length:var(--fs-14)] text-eu-ink">{sample}</pre>}
       </div>

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
-import { withStyleNonce } from "@/lib/security/csp";
+import { stylesToClasses } from "@/lib/ui/inline-styles";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Check, CircleAlert, Copy, Eye, FlaskConical, Loader2, Mail, Monitor, MoreHorizontal, Pause, Pencil, Play, Plus, Save, Search, Send, Smartphone, Sparkles, Square, X } from "lucide-react";
 import { ImageUrlField } from "./ImageUrlField";
+import { sx } from "@/components/ui/sx";
 import { HARD, LIMITS, MAX_PRODUCTS, NEWSLETTER_STATUS, athensLocal, type CopyField, type NewsletterForm } from "@/lib/newsletter/edit";
 import { cancel, createFromCampaign, createFromPromotion, duplicate, estimateRecipients, previewHtml, resume, rewriteWithAi, saveNewsletter, schedule, searchProducts, stop, testSend } from "@/app/admin/(shell)/prosfores/newsletter/actions";
 
@@ -110,7 +111,7 @@ export function NewsletterPreview({ html, busy, nonce, "data-help": dataHelp }: 
         </div>
       </div>
       <div className="rounded-2xl border border-eu-line bg-eu-surface p-2 grid grid-cols-[minmax(0,1fr)] justify-items-center overflow-hidden min-w-0">
-        <iframe title="Προεπισκόπηση του email" srcDoc={withStyleNonce(html, nonce)} sandbox="allow-popups allow-popups-to-escape-sandbox" className="block bg-white rounded-lg border-0 min-w-0 h-[70dvh] min-h-[480px]" style={{ width: mode === "mobile" ? 375 : "100%", maxWidth: "100%" }} />
+        <iframe title="Προεπισκόπηση του email" srcDoc={stylesToClasses(html, nonce)} sandbox="allow-popups allow-popups-to-escape-sandbox" className={`block bg-white rounded-lg border-0 min-w-0 h-[70dvh] min-h-[480px] max-w-full ${mode === "mobile" ? "w-[375px]" : "w-full"}`} />
       </div>
       <p className={helpTxt}>Τιμές και προϊόντα όπως είναι τώρα· στην αποστολή ξαναδιαβάζονται και ό,τι δεν φαίνεται πια στο site αφαιρείται.</p>
     </section>
@@ -465,10 +466,12 @@ function Products({ ids, products, onChange, onFound, "data-help": dataHelp }: {
         <ol className="m-0 p-0 list-none divide-y divide-eu-line rounded-lg border border-eu-line">
           {ids.map((id, i) => {
             const p = products[id];
+            const sThumb = sx({ backgroundImage: p?.image ? `url("${p.image}")` : undefined });
             return (
               <li key={id} className="flex items-center gap-2 px-2 py-1.5 min-w-0">
+                {sThumb.node}
                 <span className="w-5 shrink-0 text-center tabular-nums text-eu-muted text-[length:var(--fs-12)]">{i + 1}</span>
-                {p?.image ? <span className="size-10 shrink-0 rounded-md border border-eu-line bg-white bg-center bg-contain bg-no-repeat" style={{ backgroundImage: `url("${p.image}")` }} aria-hidden /> : <span className="size-10 shrink-0 rounded-md bg-eu-surface" aria-hidden />}
+                {p?.image ? <span className={`size-10 shrink-0 rounded-md border border-eu-line bg-white bg-center bg-contain bg-no-repeat ${sThumb.className}`} aria-hidden /> : <span className="size-10 shrink-0 rounded-md bg-eu-surface" aria-hidden />}
                 <span className="grid min-w-0 flex-1 text-[length:var(--fs-13)]">
                   <span className="font-bold text-eu-ink break-words">{p ? p.title : "Άγνωστο προϊόν"}</span>
                   <span className="text-eu-muted text-[length:var(--fs-12)]">{p ? `${p.brand}${p.price ? ` · ${eur(p.price)}` : ""}` : id}</span>

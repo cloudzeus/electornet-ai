@@ -3,7 +3,7 @@
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Search, X, Clock, TrendingUp, ArrowRight, BookOpen, Mic, Camera, Sparkles, Check, AlertTriangle } from "lucide-react";
 import type { AdvisorAnswer } from "@/lib/advisor/answer";
@@ -261,8 +261,8 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
                   </div>
                   {thinking && !ans ? (
                     <div className="mt-3 flex gap-1" aria-label={c.o_symvoylos_skeftetai}>
-                      {[0, 1, 2].map((i) => (
-                        <span key={i} className="size-2 rounded-full bg-eu-yellow animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+                      {["[animation-delay:0ms]!", "[animation-delay:120ms]!", "[animation-delay:240ms]!"].map((d) => (
+                        <span key={d} className={`size-2 rounded-full bg-eu-yellow animate-bounce ${d}`} />
                       ))}
                     </div>
                   ) : ans ? (

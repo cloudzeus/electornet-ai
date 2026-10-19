@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { useCart } from "./CartProvider";
 import { priceLong } from "@/lib/format";
 import { copyOf } from "@/lib/cms/copy";

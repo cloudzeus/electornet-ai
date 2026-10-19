@@ -6,6 +6,7 @@ import { ExternalLink, Plus, Search, Loader2, ChevronRight, Info } from "lucide-
 import { createStoreAction } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { StatusPill } from "@/components/admin/settings/ui";
 import { logoBox } from "@/lib/cms/logo-trim";
+import { sx } from "@/components/ui/sx";
 
 export type StoreRow = { slug: string; name: string; logo: string | null; storeLogo: string | null; logoAspect: number | null; accent: string; bg: string; products: number; status: "live" | "changed" | "draft"; updatedAt: string; publishedAt: string | null; blocks: number };
 export type BrandOption = { slug: string; name: string; products: number; logo: string | null };
@@ -15,11 +16,32 @@ const ST = { live: ["live", "Δημοσιευμένη"], changed: ["incomplete",
 const date = (s: string) => new Date(s).toLocaleDateString("el-GR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function Mark({ name, logo, bg, accent }: { name: string; logo: string | null; bg?: string; accent?: string }) {
+  // χρώματα από δεδομένα → sx (το CSP δεν επιτρέπει style attributes)
+  const back = sx({ background: bg ?? "#fff" }), ink = sx({ color: accent ?? "#0a3d91" });
   return (
-    <span className="shrink-0 size-14 rounded-xl border border-eu-line inline-flex items-center justify-center overflow-hidden" style={{ background: bg ?? "#fff" }}>
+    <span className={`shrink-0 size-14 rounded-xl border border-eu-line inline-flex items-center justify-center overflow-hidden ${back.className}`}>
+      {back.node}
       {/* eslint-disable-next-line @next/next/no-img-element -- λογότυπο μάρκας (hotlink) */}
-      {logo ? <img src={logo} alt="" className="max-h-8 max-w-[80%] object-contain" /> : <span className="font-heading font-extrabold text-[length:var(--fs-15)]" style={{ color: accent ?? "#0a3d91" }}>{name.slice(0, 3)}</span>}
+      {logo ? <img src={logo} alt="" className="max-h-8 max-w-[80%] object-contain" /> : <>{ink.node}<span className={`font-heading font-extrabold text-[length:var(--fs-15)] ${ink.className}`}>{name.slice(0, 3)}</span></>}
     </span>
+  );
+}
+
+/** Στρογγυλό δείγμα χρώματος μάρκας. */
+function Dot({ color, title }: { color: string; title: string }) {
+  const c = sx({ background: color });
+  return <>{c.node}<span className={`ml-auto shrink-0 size-6 rounded-full border border-eu-line ${c.className}`} title={title} aria-hidden /></>;
+}
+
+/** Λογότυπο με μέγεθος από την αναλογία του. */
+function Logo({ src, alt, aspect }: { src: string; alt: string; aspect: number | null }) {
+  const b = sx(logoBox(aspect ?? undefined, 2));
+  return (
+    <>
+      {b.node}
+      {/* eslint-disable-next-line @next/next/no-img-element -- λογότυπο */}
+      <img src={src} alt={alt} className={`block w-auto object-contain ${b.className}`} />
+    </>
   );
 }
 
@@ -45,13 +67,12 @@ export function BrandStoreList({ rows, brands }: { rows: StoreRow[]; brands: Bra
             <p className="m-0 mt-0.5 text-eu-muted text-[length:var(--fs-14)]">Όλα τα λογότυπα με το ίδιο οπτικό βάρος, όπως στις σελίδες. Αν κάποιο φαίνεται μικρό ή με φόντο, άνοιξε τη σελίδα του και πάτα «Περικοπή & ομοιομορφία».</p>
           </div>
           <ul className="m-0 p-0 list-none flex flex-wrap items-center gap-x-8 gap-y-4">
-            {rows.filter((r) => r.storeLogo).map((r) => { const box = logoBox(r.logoAspect ?? undefined, 2); return (
+            {rows.filter((r) => r.storeLogo).map((r) => (
               <li key={r.slug} className="grid justify-items-start gap-1">
-                {/* eslint-disable-next-line @next/next/no-img-element -- λογότυπο */}
-                <img src={r.storeLogo!} alt={r.name} style={{ height: box.height, maxWidth: box.maxWidth }} className="block w-auto object-contain" />
+                <Logo src={r.storeLogo!} alt={r.name} aspect={r.logoAspect} />
                 <span className={`text-[length:var(--fs-13)] font-bold ${r.logoAspect ? "text-eu-muted" : "text-eu-amber"}`}>{r.name}{r.logoAspect ? "" : " · χωρίς περικοπή"}</span>
               </li>
-            ); })}
+            ))}
           </ul>
         </section>
       )}
@@ -70,7 +91,7 @@ export function BrandStoreList({ rows, brands }: { rows: StoreRow[]; brands: Bra
                       <div className="font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">{r.name}</div>
                       <StatusPill status={s} text={t} />
                     </div>
-                    <span className="ml-auto shrink-0 size-6 rounded-full border border-eu-line" style={{ background: r.accent }} title={`Χρώμα μάρκας ${r.accent}`} aria-hidden />
+                    <Dot color={r.accent} title={`Χρώμα μάρκας ${r.accent}`} />
                   </div>
                   <div className="text-eu-muted text-[length:var(--fs-13)]">{r.blocks} ενότητες · {r.products} προϊόντα στον κατάλογο · αλλαγή {date(r.updatedAt)}{r.publishedAt ? ` · δημοσίευση ${date(r.publishedAt)}` : ""}</div>
                   <div className="flex flex-wrap gap-2">

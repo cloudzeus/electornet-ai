@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sx } from "@/components/ui/sx";
 
 /**
  * Small SVG chart kit for the back office (no library). Follows the house
@@ -17,11 +18,17 @@ const fmt = (v: number, unit: string) => (unit === "€" ? `${v.toLocaleString("
 const showLabel = (i: number, n: number, step: number) => (i === n - 1 ? true : i % step === 0 && n - 1 - i >= Math.ceil(step / 2));
 const nice = (max: number) => { if (max <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(max))); const n = max / p; const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10; return step * p; };
 
+/** Χρωματιστό τετραγωνάκι με χρώμα από δεδομένα (χωρίς style attribute — το CSP δεν το επιτρέπει). */
+function Swatch({ color, className }: { color: string; className: string }) {
+  const c = sx({ background: color });
+  return <>{c.node}<span className={`${className} ${c.className}`} aria-hidden /></>;
+}
+
 export function Legend({ series }: { series: Series[] }) {
   if (series.length < 2) return null;
   return (
     <ul className="m-0 p-0 list-none flex flex-wrap gap-x-4 gap-y-1 text-[length:var(--fs-13)] font-bold text-eu-ink-2">
-      {series.map((s, i) => <li key={s.key} className="inline-flex items-center gap-1.5"><span className="size-3 rounded-sm" style={{ background: s.color ?? SERIES[i] }} aria-hidden /> {s.label}</li>)}
+      {series.map((s, i) => <li key={s.key} className="inline-flex items-center gap-1.5"><Swatch className="size-3 rounded-sm" color={s.color ?? SERIES[i]} /> {s.label}</li>)}
     </ul>
   );
 }
@@ -41,7 +48,7 @@ export function LineChart({ labels, series, unit = "", height = 220 }: { labels:
       <Legend series={series} />
       <div className="relative">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={series.map((s) => s.label).join(", ")} onMouseLeave={() => setHi(null)}>
-          {ticks.map((t) => <g key={t}><line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e6e8ee" strokeWidth={1} /><text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#7a7a7a" style={{ fontVariantNumeric: "tabular-nums" }}>{unit === "€" || unit === "$" ? t.toFixed(t < 1 ? 2 : 0) : t}</text></g>)}
+          {ticks.map((t) => <g key={t}><line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e6e8ee" strokeWidth={1} /><text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#7a7a7a" className="tabular-nums">{unit === "€" || unit === "$" ? t.toFixed(t < 1 ? 2 : 0) : t}</text></g>)}
           {labels.map((l, i) => showLabel(i, n, step) && <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fill="#7a7a7a">{l}</text>)}
           {series.map((s, si) => {
             const c = s.color ?? SERIES[si];
@@ -82,7 +89,7 @@ export function BarChart({ labels, series, unit = "", height = 220 }: { labels: 
       <Legend series={series} />
       <div className="relative">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={series.map((s) => s.label).join(", ")} onMouseLeave={() => setHi(null)}>
-          {ticks.map((t) => <g key={t}><line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e6e8ee" strokeWidth={1} /><text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#7a7a7a" style={{ fontVariantNumeric: "tabular-nums" }}>{unit === "€" || unit === "$" ? t.toFixed(t < 1 ? 2 : 0) : t}</text></g>)}
+          {ticks.map((t) => <g key={t}><line x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} stroke="#e6e8ee" strokeWidth={1} /><text x={padL - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#7a7a7a" className="tabular-nums">{unit === "€" || unit === "$" ? t.toFixed(t < 1 ? 2 : 0) : t}</text></g>)}
           {labels.map((l, i) => {
             const cx = padL + slot * i + slot / 2;
             let acc = 0;
@@ -114,6 +121,11 @@ export function BarChart({ labels, series, unit = "", height = 220 }: { labels: 
   );
 }
 
+function RankBar({ width, color }: { width: string; color: string }) {
+  const b = sx({ width, background: color });
+  return <div className="col-span-2 h-2 rounded-full bg-eu-surface overflow-hidden">{b.node}<div className={`h-full rounded-full ${b.className}`} /></div>;
+}
+
 /** Horizontal ranked bars (e.g. cost per model) with direct value labels. */
 export function RankBars({ rows, unit = "" }: { rows: { label: string; value: number; sub?: string }[]; unit?: string }) {
   const max = Math.max(1e-9, ...rows.map((r) => r.value));
@@ -123,7 +135,7 @@ export function RankBars({ rows, unit = "" }: { rows: { label: string; value: nu
         <li key={r.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center text-[length:var(--fs-14)]">
           <div className="min-w-0"><div className="truncate font-bold text-eu-ink font-mono text-[length:var(--fs-13)]">{r.label}</div>{r.sub && <div className="text-eu-muted text-[length:var(--fs-13)]">{r.sub}</div>}</div>
           <div className="tabular-nums font-bold text-eu-ink">{fmt(r.value, unit)}</div>
-          <div className="col-span-2 h-2 rounded-full bg-eu-surface overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: SERIES[i % SERIES.length] }} /></div>
+          <RankBar width={`${(r.value / max) * 100}%`} color={SERIES[i % SERIES.length]} />
         </li>
       ))}
       {!rows.length && <li className="text-eu-muted">Χωρίς δεδομένα.</li>}
@@ -148,7 +160,7 @@ export function Sparkline({ values, label, color = SERIES[1], height = 32 }: { v
   const pts = values.map((v, i) => [(i / (n - 1)) * w, h - 2 - (v / max) * (h - 4)] as const);
   const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={label} className="w-full block" style={{ height }}>
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={label} className="w-full block" height={height}>
       <polygon points={`0,${h} ${line} ${w},${h}`} fill={color} opacity={0.12} />
       <polyline points={line} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>

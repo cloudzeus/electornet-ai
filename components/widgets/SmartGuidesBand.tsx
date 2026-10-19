@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { ZoneBadge } from "@/components/site/ZoneBadge";

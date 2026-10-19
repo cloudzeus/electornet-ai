@@ -1,13 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 /** Μετάβαση ανάμεσα στα βήματα: γλιστρά προς τα εμπρός ή προς τα πίσω, ανάλογα με την κατεύθυνση. */
 export function StepTransition({ stepKey, dir, children }: { stepKey: string; dir: 1 | -1; children: ReactNode }) {
   const still = useReducedMotion();
+  // το motion γράφει στον server `style="opacity:1;transform:none"` (το CSP δεν το επιτρέπει)· στον server και στο
+  // πρώτο render του browser βγαίνει απλό <div>, και μόλις γίνει το hydration μπαίνει το animation
+  const client = useSyncExternalStore(() => () => {}, () => true, () => false);
+  if (!client) return <div>{children}</div>;
   return (
     <AnimatePresence mode="wait" initial={false} custom={dir}>
       <motion.div key={stepKey} custom={dir}

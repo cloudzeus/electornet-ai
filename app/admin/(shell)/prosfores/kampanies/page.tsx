@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { Badge } from "@/components/admin/orders/ui";
 import { listCampaigns, type CampaignRow } from "@/lib/promo/campaigns";
+import { sx } from "@/components/ui/sx";
 import { CAMPAIGN_GOALS, CAMPAIGN_STATUS } from "@/lib/promo/campaign-core";
 
 export const metadata = { title: "Καμπάνιες" };
@@ -19,10 +20,10 @@ const day = (d: Date) => d.toLocaleDateString("el-GR", { day: "numeric", month: 
 /** Μπάρα budget: πόσο από το budget δόθηκε σε εκπτώσεις (κόκκινη σε υπέρβαση). */
 function BudgetBar({ r }: { r: CampaignRow }) {
   if (r.budget.pct == null) return <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{r.spent ? `${eur(r.spent)} εκπτώσεις · χωρίς budget` : "χωρίς budget"}</span>;
-  const w = Math.min(100, r.budget.pct);
+  const bar = sx({ width: `${Math.min(100, r.budget.pct)}%` });
   return (
     <span className="grid gap-0.5 min-w-0">
-      <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden" role="img" aria-label={`${r.budget.pct}% του budget`}><span className={`block h-full rounded-full ${r.budget.over ? "bg-eu-red" : "bg-eu-blue"}`} style={{ width: `${w}%` }} /></span>
+      <span className="h-1.5 rounded-full bg-eu-surface overflow-hidden" role="img" aria-label={`${r.budget.pct}% του budget`}>{bar.node}<span className={`block h-full rounded-full ${r.budget.over ? "bg-eu-red" : "bg-eu-blue"} ${bar.className}`} /></span>
       <span className={`text-[length:var(--fs-12)] tabular-nums ${r.budget.over ? "text-eu-red font-bold" : "text-eu-ink-3"}`}>{eur(r.spent)} / {eur(r.budgetEur!)}{r.budget.over ? " · υπέρβαση" : ` · ${r.budget.pct}%`}</span>
     </span>
   );

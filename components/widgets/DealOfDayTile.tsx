@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { Plus, Zap } from "lucide-react";
 import type { Product } from "@/lib/data/types";
 import { discountPct, instalment, priceLong, priceShort } from "@/lib/format";
@@ -13,6 +13,7 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Tilt } from "@/components/motion/Tilt";
 import { flyToCart } from "@/lib/motion/flyToCart";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("dealTile");
 
@@ -40,6 +41,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
       clearInterval(i);
     };
   }, [endsAt]);
+  const bar = sx({ width: `${progress}%` });
   return (
     <Tilt max={3} className="h-full">
       <div className="group/deal relative h-full bg-white rounded-lg overflow-hidden shadow-[var(--shadow-card)] grid grid-rows-[auto_minmax(0,1fr)_auto] isolate">
@@ -64,7 +66,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
             </div>
           </div>
           <div className="relative aspect-square eu-cutout-field rounded-xl overflow-hidden" data-tilt-layer>
-            <span className="eu-rays" style={{ width: "150%", left: "-25%", top: "-25%", opacity: 0.7 }} aria-hidden />
+            <span className="eu-rays w-[150%] left-[-25%] top-[-25%] opacity-70" aria-hidden />
             {cutout ? (
               <Image src={cutout} alt="" fill sizes="180px" className="object-contain p-[6%] eu-cutout-shadow eu-float transition-transform duration-500 group-hover/deal:scale-110" />
             ) : (
@@ -80,7 +82,8 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
         </div>
         <div className="relative px-4 pb-3.5 grid gap-2.5">
           <div className="h-1 rounded-full bg-eu-surface-3 overflow-hidden" aria-hidden>
-            <div className="h-full rounded-full bg-eu-yellow transition-[width] duration-1000" style={{ width: `${progress}%` }} />
+            {bar.node}
+            <div className={`h-full rounded-full bg-eu-yellow transition-[width] duration-1000 ${bar.className}`} />
           </div>
           <div className="flex gap-1.5">
             <button type="button" onClick={() => openQuickBuy(p)} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-15)] py-3 min-h-11 hover:bg-eu-blue">

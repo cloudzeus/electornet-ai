@@ -4,7 +4,8 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Download, Images, Plus, Trash2, Copy } from "lucide-react";
 import { BRAND_COLORS, STICKER_PRESETS, stickerKeyFromName, stickerXY, presetXY, type StickerParams, type StickerShape, type StickerIcon, type StickerLine } from "@/lib/stickers/model";
-import { StickerSvg, stickerAnimationClass, stickerPlacementStyle } from "@/components/stickers/StickerSvg";
+import { StickerSvg, stickerAnimationClass, stickerPlacementSx } from "@/components/stickers/StickerSvg";
+import { sx } from "@/components/ui/sx";
 import { saveSticker, exportStickerToMedia, sanitizeStickerSvg } from "@/app/admin/(shell)/stickers/actions";
 import { ART, fitWidth } from "@/lib/stickers/art";
 import { layoutStickers, zoneOf } from "@/lib/stickers/layout";
@@ -96,6 +97,8 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
   const field = "rounded-xl border-2 border-eu-line px-3 min-h-11 text-[length:var(--fs-15)] font-normal outline-none focus:border-eu-blue bg-white w-full";
   const chip = (on: boolean) => `rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] border-2 transition-colors ${on ? "bg-eu-navy border-eu-navy text-white" : "bg-white border-eu-line text-eu-ink hover:border-eu-navy"}`;
   const anim = useMemo(() => stickerAnimationClass[p.animation], [p.animation]);
+  // θέση του sticker πάνω στην κάρτα (στο σύρσιμο ακολουθεί το δείκτη)
+  const sPlace = stickerPlacementSx(dragging ? p : shown.params);
 
   return (
     <div className="eu-container">
@@ -125,7 +128,7 @@ export function StickerDesigner({ initial, canExport }: { initial: { id: string 
                 {showAuto && <span className="absolute top-2 right-2 size-11 rounded-full bg-white shadow-[var(--shadow-card)] grid place-items-center pointer-events-none text-eu-navy" aria-hidden>♡</span>}
                 {showAuto && <span className="absolute bottom-3 right-3 h-10 px-3 rounded-full bg-white/95 shadow-[var(--shadow-card)] inline-flex items-center pointer-events-none text-eu-navy font-bold text-[length:var(--fs-13)]" aria-hidden>Γρήγορη προβολή</span>}
                 {showAuto && <span className="absolute left-3 top-14 pointer-events-none inline-flex rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-13)] px-2.5 py-1 leading-tight">Δωρεάν τοποθέτηση</span>}
-                <span className={`pointer-events-none ${dragging ? "outline-2 outline-dashed outline-eu-blue outline-offset-4 rounded" : ""}`} style={stickerPlacementStyle(dragging ? p : shown.params)}><StickerSvg p={p} id="c" className={dragging ? "" : anim} /></span>
+                <span className={`pointer-events-none ${dragging ? "outline-2 outline-dashed outline-eu-blue outline-offset-4 rounded" : ""} ${sPlace.className}`}>{sPlace.node}<StickerSvg p={p} id="c" className={dragging ? "" : anim} /></span>
               </div>
               <div className="p-3"><div className="text-eu-muted text-[length:var(--fs-13)] font-bold">{SAMPLE.brand}</div><div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug">{SAMPLE.title}</div><div className="mt-1 flex items-baseline gap-2"><span className="font-extrabold text-eu-ink text-[length:var(--fs-18)]">{SAMPLE.price}</span><span className="text-eu-muted line-through text-[length:var(--fs-13)]">{SAMPLE.was}</span></div></div>
             </div>
@@ -248,6 +251,11 @@ return (
   <section className="grid gap-2 rounded-2xl bg-white border border-eu-line p-4"><h3 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)] uppercase tracking-wide">{title}</h3>{children}</section>
 );
 }
+/** Κουμπί-χρώμα της παλέτας μάρκας (το χρώμα έρχεται από τα δεδομένα). */
+function ColorDot({ c, on, onPick }: { c: { value: string; label: string }; on: boolean; onPick: () => void }) {
+  const s = sx({ background: c.value });
+  return <button type="button" title={c.label} aria-label={c.label} onClick={onPick} className={`size-9 rounded-full border-2 ${on ? "border-eu-navy ring-2 ring-eu-yellow" : "border-eu-line"} ${s.className}`}>{s.node}</button>;
+}
 function ColorRow({ label, value, onChange, allowNone }: { label: string; value: string | null; onChange: (v: string | null) => void; allowNone?: boolean }) {
 return (
   <div className="grid gap-1">
@@ -255,7 +263,7 @@ return (
     <div className="flex flex-wrap items-center gap-1.5">
       {allowNone && <button type="button" onClick={() => onChange(null)} aria-label="Κανένα" className={`size-9 rounded-full border-2 grid place-items-center text-[length:var(--fs-13)] font-bold ${value === null ? "border-eu-navy" : "border-eu-line"}`}>—</button>}
       {BRAND_COLORS.map((c) => (
-        <button key={c.value} type="button" title={c.label} aria-label={c.label} onClick={() => onChange(c.value)} className={`size-9 rounded-full border-2 ${value?.toUpperCase() === c.value ? "border-eu-navy ring-2 ring-eu-yellow" : "border-eu-line"}`} style={{ background: c.value }} />
+        <ColorDot key={c.value} c={c} on={value?.toUpperCase() === c.value} onPick={() => onChange(c.value)} />
       ))}
       <label className="inline-flex items-center gap-1 rounded-full border-2 border-eu-line px-2 min-h-9 text-[length:var(--fs-13)] font-bold cursor-pointer"><input type="color" value={value ?? "#ffffff"} onChange={(e) => onChange(e.target.value.toUpperCase())} className="size-6 border-0 bg-transparent p-0 cursor-pointer" aria-label={`${label}: προσαρμοσμένο`} /> custom</label>
     </div>

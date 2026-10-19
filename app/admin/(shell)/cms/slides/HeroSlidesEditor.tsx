@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarDays, Check, CircleAlert, Copy, ExternalLink, Film, GalleryHorizontal, GripVertical, ImagePlus, Info, Loader2, Monitor, Package, Plus, RotateCcw, Save, Search, Send, Smartphone, Trash2, Type, Wrench, X, Zap } from "lucide-react";
 import { CinematicHero } from "@/components/widgets/CinematicHero";
 import { SettingsProvider } from "@/components/site/SettingsProvider";
@@ -10,6 +10,7 @@ import { ResultBanner, StatusPill } from "@/components/admin/settings/ui";
 import type { Settings } from "@/lib/cms/settings";
 import { priceLong } from "@/lib/format";
 import { MAX_SLIDES, athensDay, emptySlide, normalizeDoc, slideStatus, toHeroSlide, validateDoc, type HeroDoc, type HeroSlideDoc, type ProductInfo, type SlideIssue, type SlideTone } from "@/lib/cms/hero-slides-model";
+import { sx } from "@/components/ui/sx";
 import { publishHeroAction, revertHeroAction, saveHeroAction, searchHeroProductsAction } from "./actions";
 
 /*
@@ -224,14 +225,22 @@ function ServicesPanel({ all, chosen, onChange }: { all: { slug: string; title: 
  */
 function ScaledPreview({ width, children }: { width: number; children: ReactNode }) {
   const outer = useRef<HTMLDivElement>(null), inner = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ scale: 1, h: 0, left: 0 });
+  // η αρχική κατάσταση (πριν μετρηθεί) είναι με κλάσεις· οι μετρήσεις γράφονται απευθείας στο στοιχείο (CSSOM — το CSP δεν
+  // επιτρέπει style attributes στο HTML)
+  const w = sx({ width });
   useEffect(() => {
     const o = outer.current, i = inner.current;
     if (!o || !i) return;
     const fit = () => {
       const maxH = Math.max(260, window.innerHeight - 190);
       const scale = Math.min(1, o.clientWidth / width, maxH / Math.max(1, i.offsetHeight));
-      setBox({ scale, h: i.offsetHeight * scale, left: Math.max(0, (o.clientWidth - width * scale) / 2) });
+      const h = i.offsetHeight * scale, left = Math.max(0, (o.clientWidth - width * scale) / 2);
+      o.style.height = h ? `${h}px` : "";
+      o.style.aspectRatio = h ? "auto" : "";
+      o.style.maxHeight = h ? "none" : "";
+      i.style.left = `${left}px`;
+      i.style.transform = `scale(${scale})`;
+      i.style.visibility = h ? "visible" : "hidden";
     };
     const ro = new ResizeObserver(fit);
     ro.observe(o); ro.observe(i);
@@ -239,8 +248,9 @@ function ScaledPreview({ width, children }: { width: number; children: ReactNode
     return () => { ro.disconnect(); window.removeEventListener("resize", fit); };
   }, [width]);
   return (
-    <div ref={outer} className="relative w-full overflow-hidden" style={box.h ? { height: box.h } : { aspectRatio: width === 880 ? "880 / 540" : "390 / 640", maxHeight: "60vh" }}>
-      <div ref={inner} className="@container origin-top-left absolute top-0" style={{ width, left: box.left, transform: `scale(${box.scale})`, visibility: box.h ? "visible" : "hidden" }}>{children}</div>
+    <div ref={outer} className={`relative w-full overflow-hidden max-h-[60vh] ${width === 880 ? "aspect-[880/540]" : "aspect-[390/640]"}`}>
+      {w.node}
+      <div ref={inner} className={`@container origin-top-left absolute top-0 left-0 invisible ${w.className}`}>{children}</div>
     </div>
   );
 }

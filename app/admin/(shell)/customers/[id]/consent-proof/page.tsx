@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
+import { SxStyleTag } from "@/components/ui/SxStyleTag";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Απόδειξη συναίνεσης" };
@@ -16,8 +17,8 @@ export default async function ConsentProof({ params }: { params: Promise<{ id: s
   const texts = keys.length ? await db.consentText.findMany({ where: { key: { in: keys } } }) : [];
   const dt = (x: Date | null) => (x ? x.toLocaleString("el-GR") : "—");
   return (
-    <div className="bg-white text-eu-ink max-w-[960px] p-6 print:p-0 text-[length:var(--fs-14)] grid gap-5" style={{ fontFamily: "Manrope, system-ui, sans-serif" }}>
-      <style>{`@media print { aside, header, nav, .no-print { display: none !important } main { padding: 0 !important } body { background: #fff } }`}</style>
+    <div className="bg-white text-eu-ink max-w-[960px] p-6 print:p-0 text-[length:var(--fs-14)] grid gap-5 [font-family:Manrope,system-ui,sans-serif]">
+      <SxStyleTag id="consent-proof-print" css="@media print { aside, header, nav, .no-print { display: none !important } main { padding: 0 !important } body { background: #fff } }" />
       <div className="flex items-start justify-between gap-4 border-b border-eu-line pb-3">
         <div><div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] uppercase tracking-wide">MEGA ELECTRICS ΑΕΒΕ · euronics.gr</div><h1 className="m-0 font-heading font-bold text-[length:var(--fs-22)]">Αποδεικτικό συναινέσεων υποκειμένου δεδομένων</h1><div className="text-eu-muted">Παράχθηκε {new Date().toLocaleString("el-GR")} από {user.name} · Πελάτης #{c.number}</div></div>
         <button type="button" className="no-print rounded-full bg-eu-navy text-white font-extrabold px-4 min-h-11" onClick={undefined}>{/* client-side print handled by browser */}Εκτύπωση: Ctrl/Cmd+P</button>

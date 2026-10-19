@@ -7,6 +7,7 @@ import type { CalendarDay, CalendarPromo } from "@/lib/promo/admin";
 import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { simulateAction, type SimResult } from "@/app/admin/(shell)/prosfores/actions";
 import { Picker } from "./PromoWizard";
+import { sx } from "@/components/ui/sx";
 
 const BAR: Record<string, string> = { active: "bg-eu-green", scheduled: "bg-eu-blue", paused: "bg-eu-amber", pending: "bg-eu-yellow" };
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -31,8 +32,9 @@ export function PromoCalendar({ from, promos, days }: { from: string; promos: Ca
   const label = (iso: string) => new Date(iso).toLocaleDateString("el-GR", { weekday: "short", day: "numeric", month: "short" });
   const d0 = start + day * DAY, d1 = d0 + DAY;
   const liveOnDay = promos.filter((p) => (p.startsAt ? +new Date(p.startsAt) : -Infinity) < d1 && (p.endsAt ? +new Date(p.endsAt) : Infinity) > d0);
-  const cols = { gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` };
-  const today = todayIdx >= 0 && todayIdx < days.length ? { left: `calc(${pctOf(todayIdx)} + ${100 / days.length / 2}%)` } : null;
+  const sCols = sx({ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` });
+  const today = todayIdx >= 0 && todayIdx < days.length;
+  const sToday = sx({ left: `calc(13rem + 0.75rem + (100% - 13.75rem) * ${(todayIdx + 0.5) / days.length})` });
 
   return (
     <div className="grid gap-4 min-w-0">
@@ -40,7 +42,8 @@ export function PromoCalendar({ from, promos, days }: { from: string; promos: Ca
       <div data-help="promo.calendar" className="rounded-2xl border border-eu-line bg-white p-3 @md:p-4 grid gap-2 min-w-0">
         <div className="grid grid-cols-1 @4xl:grid-cols-[13rem_minmax(0,1fr)] gap-x-3">
           <div className="hidden @4xl:block text-eu-muted text-[length:var(--fs-13)] font-bold self-end pb-1">{promos.length} {promos.length === 1 ? "προσφορά" : "προσφορές"}</div>
-          <div className="grid" style={cols} aria-hidden>
+          <div className={`grid ${sCols.className}`} aria-hidden>
+            {sCols.node}
             {days.map((d, i) => { const dt = new Date(d.date); const mark = dt.getDay() === 1 || dt.getDate() === 1 || i === 0; const wk = dt.getDay() === 0 || dt.getDay() === 6; return (
               <div key={d.date} className={`text-center text-[length:var(--fs-12)] leading-tight py-0.5 ${wk ? "bg-eu-surface" : ""} ${mark ? "border-l border-eu-navy/40" : ""} ${i === todayIdx ? "bg-eu-yellow/40 rounded-sm" : ""}`}>
                 {mark || i === todayIdx ? <><div className="font-extrabold text-eu-navy">{dt.getDate()}</div><div className="text-eu-muted">{i === todayIdx ? "σήμ." : dt.toLocaleDateString("el-GR", { month: "short" }).slice(0, 3)}</div></> : <div className="text-eu-line-3">·</div>}
@@ -50,7 +53,8 @@ export function PromoCalendar({ from, promos, days }: { from: string; promos: Ca
         </div>
         <div className="grid grid-cols-1 @4xl:grid-cols-[13rem_minmax(0,1fr)] gap-x-3 items-center">
           <div className="text-eu-ink-2 text-[length:var(--fs-13)] font-bold inline-flex items-center gap-1.5"><Layers className="size-4" aria-hidden /> Επικαλύψεις · πάτα ημέρα</div>
-          <div className="grid" style={cols}>
+          <div className={`grid ${sCols.className}`}>
+            {sCols.node}
             {days.map((d, i) => {
               const price = d.clashes.filter((c) => c.kind === "price").length, comb = d.clashes.length - price;
               const tone = price ? (price > 2 ? "bg-eu-amber" : "bg-eu-yellow") : comb ? "bg-eu-blue/40" : d.live ? "bg-eu-green/15" : "bg-eu-surface";
@@ -59,9 +63,10 @@ export function PromoCalendar({ from, promos, days }: { from: string; promos: Ca
           </div>
         </div>
         <div className="relative grid gap-2">
-          {today && <div aria-hidden className="pointer-events-none absolute inset-y-0 hidden @4xl:block" style={{ left: `calc(13rem + 0.75rem + (100% - 13.75rem) * ${(todayIdx + 0.5) / days.length})` }}><div className="h-full w-0.5 bg-eu-yellow-dark" /></div>}
+          {today && <div aria-hidden className={`pointer-events-none absolute inset-y-0 hidden @4xl:block ${sToday.className}`}>{sToday.node}<div className="h-full w-0.5 bg-eu-yellow-dark" /></div>}
           {promos.map((p) => {
             const a = idx(p.startsAt, false), b = idx(p.endsAt, true);
+            const sBar = sx({ left: pctOf(a), width: pctOf(b - a) });
             return (
               <div key={p.id} className="grid grid-cols-1 @4xl:grid-cols-[13rem_minmax(0,1fr)] gap-x-3 gap-y-1 items-center border-t border-eu-line-2 pt-2">
                 <Link href={`/admin/prosfores/${p.id}`} className="min-w-0 hover:text-eu-blue">
@@ -69,7 +74,8 @@ export function PromoCalendar({ from, promos, days }: { from: string; promos: Ca
                   <span className="block text-eu-muted text-[length:var(--fs-12)]">{STATUS_LABEL[p.status as PromoStatus]?.label} · {p.products ? `${p.products.toLocaleString("el-GR")} προϊόντα` : "όλο το καλάθι"}</span>
                 </Link>
                 <div className="relative h-7 rounded-md bg-eu-surface">
-                  {b > a && <Link href={`/admin/prosfores/${p.id}`} title={`${p.name} · ${p.code}`} className={`absolute top-0 h-7 rounded-md ${BAR[p.status] ?? "bg-eu-muted"} ${p.status === "pending" ? "bg-[repeating-linear-gradient(45deg,var(--color-eu-yellow)_0_6px,#fff_6px_10px)] text-eu-navy" : "text-white"} text-[length:var(--fs-12)] font-bold px-2 truncate leading-7`} style={{ left: pctOf(a), width: pctOf(b - a) }}>{p.name}</Link>}
+                  {sBar.node}
+                  {b > a && <Link href={`/admin/prosfores/${p.id}`} title={`${p.name} · ${p.code}`} className={`absolute top-0 h-7 rounded-md ${BAR[p.status] ?? "bg-eu-muted"} ${p.status === "pending" ? "bg-[repeating-linear-gradient(45deg,var(--color-eu-yellow)_0_6px,#fff_6px_10px)] text-eu-navy" : "text-white"} text-[length:var(--fs-12)] font-bold px-2 truncate leading-7 ${sBar.className}`}>{p.name}</Link>}
                 </div>
               </div>
             );

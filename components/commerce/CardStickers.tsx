@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { StickerSvg, stickerAnimationClass, stickerPlacementStyle } from "@/components/stickers/StickerSvg";
+import { StickerSvg, stickerAnimationClass, stickerPlacementSx } from "@/components/stickers/StickerSvg";
 import { layoutStickers, type CardSticker, type Placed, type Zone } from "@/lib/stickers/layout";
 
 /**
@@ -19,8 +19,10 @@ export function CardStickers({ stickers, max, reserved, scale = 1, idPrefix }: {
   }, [n]);
   const one = (p: Placed, i: number, extra?: { visible: boolean }) => {
     const params = { ...p.s.params, x: p.x, y: p.y, size: Math.round(p.s.params.size * scale) };
+    const at = stickerPlacementSx(params);
     return (
-      <span key={`${p.s.key}-${i}`} className={`pointer-events-none z-[1] transition-opacity duration-500 ${extra && !extra.visible ? "opacity-0" : "opacity-100"}`} style={stickerPlacementStyle(params)} aria-hidden={extra && !extra.visible ? true : undefined}>
+      <span key={`${p.s.key}-${i}`} className={`pointer-events-none z-[1] transition-opacity duration-500 ${extra && !extra.visible ? "opacity-0" : "opacity-100"} ${at.className}`} aria-hidden={extra && !extra.visible ? true : undefined}>
+        {at.node}
         <StickerSvg p={params} id={`${idPrefix}-${p.s.key}-${i}`} className={stickerAnimationClass[params.animation]} />
       </span>
     );

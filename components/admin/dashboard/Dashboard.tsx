@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { createElement, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createElement, Fragment, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, BadgeCheck, BarChart3, Box, Check, CircleAlert, Cpu, CreditCard, Database, EyeOff, FilePen, GalleryHorizontal, GripVertical, Heart, History, Info,
@@ -9,6 +9,7 @@ import {
   Stamp, Store, TrendingDown, TrendingUp, Truck, UserCog, Users, Wrench, X, Zap, type LucideIcon,
 } from "lucide-react";
 import { HOME_TAB, TABS, WIDGETS, widgetDef, type DashItem, type DashLayout, type TabId, type Tone, type WidgetData, type WidgetSize } from "@/lib/dashboard/catalog";
+import { sx } from "@/components/ui/sx";
 import { resetDashboardAction, resetRoleDashboardAction, saveDashboardAction, saveRoleDashboardAction } from "@/app/admin/(shell)/dashboard-actions";
 
 const ICON: Record<string, LucideIcon> = {
@@ -289,7 +290,7 @@ function Body({ d, size }: { d: WidgetData; size: WidgetSize }) {
               <>
                 <dd className={`m-0 inline-flex items-center gap-1 font-bold text-[length:var(--fs-16)] leading-none tabular-nums ${s.tone === "bad" ? "text-eu-red" : "text-eu-ink"}`}>{s.tone && s.tone !== "muted" && <span className={`size-1.5 rounded-full ${DOT[s.tone]}`} aria-hidden />}{s.value}{s.tone === "bad" && <span className="sr-only"> (θέλει προσοχή)</span>}</dd>
                 <dt className="text-eu-muted text-[length:var(--fs-12)] leading-tight">{s.label}</dt>
-                {s.of ? <span className="h-1 rounded-full bg-eu-line overflow-hidden" aria-hidden><span className={`block h-full rounded-full ${FILL[s.tone ?? "info"]}`} style={{ width: `${Math.min(100, Math.max(s.n ? 2 : 0, ((s.n ?? 0) / s.of) * 100))}%` }} /></span> : null}
+                {s.of ? <StatBar pct={Math.min(100, Math.max(s.n ? 2 : 0, ((s.n ?? 0) / s.of) * 100))} fill={FILL[s.tone ?? "info"]} /> : null}
               </>
             );
             return s.href
@@ -341,6 +342,29 @@ function Spark({ series }: { series: NonNullable<WidgetData["series"]> }) {
   );
 }
 
+/** Μικρή ράβδος προόδου μιας τιμής (πλάτος από τα δεδομένα). */
+function StatBar({ pct, fill }: { pct: number; fill: string }) {
+  const s = sx({ width: `${pct}%` });
+  return <span className="h-1 rounded-full bg-eu-line overflow-hidden" aria-hidden><span className={`block h-full rounded-full ${fill} ${s.className}`}>{s.node}</span></span>;
+}
+
+/** Μία στήλη του ραβδογράμματος (ύψος από τα δεδομένα). */
+function BarCol({ b, on, max }: { b: { label: string; display: string; value: number }; on: boolean; max: number }) {
+  const s = sx({ height: `${b.value ? Math.max(4, (b.value / max) * 100) : 2}%` });
+  return (
+    <div className="group/bar relative flex-1 h-full flex items-end" title={`${b.label}: ${b.display}`}>
+      {s.node}
+      <div className={`w-full rounded-t-[4px] ${on ? "bg-eu-navy" : "bg-eu-blue/50"} group-hover/bar:bg-eu-navy ${s.className}`} />
+    </div>
+  );
+}
+
+/** Ένα τμήμα της ράβδου κατανομής (flex από την τιμή). */
+function PartSeg({ label, value, fill }: { label: string; value: number; fill: string }) {
+  const s = sx({ flex: value });
+  return <Fragment>{s.node}<span className={`${fill} ${s.className}`} title={`${label}: ${value}`} /></Fragment>;
+}
+
 /** Ραβδόγραμμα μίας σειράς: λεπτές μπάρες με στρογγυλή κορυφή και κενό 2px, η μέγιστη τονισμένη. */
 function Bars({ bars }: { bars: NonNullable<WidgetData["bars"]> }) {
   const max = Math.max(1, ...bars.map((b) => b.value));
@@ -349,9 +373,7 @@ function Bars({ bars }: { bars: NonNullable<WidgetData["bars"]> }) {
     <figure className="m-0 grid gap-1">
       <div className="relative h-20 flex items-end gap-[2px] border-b border-eu-line" aria-hidden>
         {bars.map((b, i) => (
-          <div key={i} className="group/bar relative flex-1 h-full flex items-end" title={`${b.label}: ${b.display}`}>
-            <div className={`w-full rounded-t-[4px] ${b === top && b.value ? "bg-eu-navy" : "bg-eu-blue/50"} group-hover/bar:bg-eu-navy`} style={{ height: `${b.value ? Math.max(4, (b.value / max) * 100) : 2}%` }} />
-          </div>
+          <BarCol key={i} b={b} on={b === top && !!b.value} max={max} />
         ))}
         {top.value > 0 && <span className="absolute right-0 -top-0.5 text-eu-muted text-[length:var(--fs-12)] tabular-nums">μέγ. {top.value}</span>}
       </div>
@@ -367,7 +389,7 @@ function Parts({ parts }: { parts: NonNullable<WidgetData["parts"]> }) {
   return (
     <figure className="m-0 grid gap-1">
       <div className="flex h-2.5 gap-[2px] rounded-full overflow-hidden" aria-hidden>
-        {parts.filter((p) => p.value).map((p) => <span key={p.label} className={FILL[p.tone]} style={{ flex: p.value }} title={`${p.label}: ${p.value}`} />)}
+        {parts.filter((p) => p.value).map((p) => <PartSeg key={p.label} label={p.label} value={p.value} fill={FILL[p.tone]} />)}
       </div>
       <figcaption className="flex flex-wrap gap-x-3 gap-y-0.5 text-[length:var(--fs-12)] text-eu-ink-2">
         {parts.map((p) => <span key={p.label} className="inline-flex items-center gap-1"><span className={`size-2 rounded-sm ${FILL[p.tone]}`} aria-hidden />{p.label} <b className="tabular-nums">{p.value}</b><span className="text-eu-muted tabular-nums">({total ? Math.round((p.value / total) * 100) : 0}%)</span></span>)}

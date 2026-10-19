@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { ArrowRight } from "lucide-react";
 import type { BrandStore } from "@/lib/cms/brand-store";
 import { getProductsByIds } from "@/lib/data/repo";
@@ -7,6 +7,7 @@ import { cutoutFor } from "@/lib/data/cutouts";
 import { Reveal } from "@/components/motion/Reveal";
 import { copyOf } from "@/lib/cms/copy";
 import { BrandLogo } from "./BrandLogo";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("brandTiles");
 
@@ -22,19 +23,27 @@ export async function BrandStoreTiles({ stores }: { stores: BrandStore[] }) {
         {stores.map((s) => {
           const p = products.find((x) => x.id === s.hero.productId);
           const cut = p ? cutoutFor(p.image) : null;
+          const tile = sx({ background: s.theme.bg, color: s.theme.ink });
+          const glow = sx({ background: s.theme.accent });
+          const muted = sx({ color: s.theme.muted });
+          const cta = sx({ background: s.theme.accent, color: s.theme.accentInk });
           return (
-            <Link key={s.slug} href={`/brands/${s.slug}`} data-reveal className="group relative block rounded-3xl overflow-hidden p-5 min-h-[220px] isolate" style={{ background: s.theme.bg, color: s.theme.ink }}>
-              <span className="pointer-events-none absolute -right-10 -top-10 size-48 rounded-full blur-2xl opacity-60" style={{ background: s.theme.accent }} aria-hidden />
+            <Link key={s.slug} href={`/brands/${s.slug}`} data-reveal className={`group relative block rounded-3xl overflow-hidden p-5 min-h-[220px] isolate ${tile.className}`}>
+              {tile.node}
+              {glow.node}
+              {muted.node}
+              {cta.node}
+              <span className={`pointer-events-none absolute -right-10 -top-10 size-48 rounded-full blur-2xl opacity-60 ${glow.className}`} aria-hidden />
               <div className="relative">
                 <BrandLogo logo={s.logo} aspect={s.logoAspect} wordmark={s.wordmark} base={2.1} textClass="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.04em]" className="mb-1.5" />
-                <div className="text-[length:var(--fs-14)] font-semibold" style={{ color: s.theme.muted }}>{s.tagline}</div>
+                <div className={`text-[length:var(--fs-14)] font-semibold ${muted.className}`}>{s.tagline}</div>
               </div>
               {(cut || p?.image) && (
                 <span className="absolute right-4 bottom-4 w-[45%] aspect-square transition-transform duration-500 group-hover:scale-105 eu-float">
                   <Image src={cut ?? p!.image!} alt="" fill sizes="200px" className="object-contain" />
                 </span>
               )}
-              <span className="absolute left-5 bottom-5 inline-flex items-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-10" style={{ background: s.theme.accent, color: s.theme.accentInk }}>
+              <span className={`absolute left-5 bottom-5 inline-flex items-center gap-1.5 rounded-full font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 ${cta.className}`}>
                 {c.des_ti_selida} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />
               </span>
             </Link>

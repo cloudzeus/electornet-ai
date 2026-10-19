@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, Folder, FolderOpen, FolderPlus, Images, Pencil, Trash2 } from "lucide-react";
 import type { MediaFolderDTO } from "@/lib/media/types";
+import { sx } from "@/components/ui/sx";
 
 export function FolderTree({ folders, current, total, canWrite, onSelect, onCreate, onRename, onDelete, onDropAssets }: {
   folders: MediaFolderDTO[];
@@ -30,13 +31,14 @@ export function FolderTree({ folders, current, total, canWrite, onSelect, onCrea
     const kids = children(f.id);
     const isOpen = open[f.id] ?? depth < 1;
     const active = current === f.id;
+    const sPad = sx({ paddingLeft: `${depth * 14 + 4}px` });
     return (
       <li>
+        {sPad.node}
         <div
           onDragOver={allow}
           onDrop={drop(f.id)}
-          className={`group flex items-center gap-1 rounded-lg pr-1 min-h-10 ${active ? "bg-eu-navy text-white" : "hover:bg-eu-surface text-eu-ink"}`}
-          style={{ paddingLeft: `${depth * 14 + 4}px` }}
+          className={`group flex items-center gap-1 rounded-lg pr-1 min-h-10 ${active ? "bg-eu-navy text-white" : "hover:bg-eu-surface text-eu-ink"} ${sPad.className}`}
         >
           <button type="button" onClick={() => setOpen((o) => ({ ...o, [f.id]: !isOpen }))} aria-label={isOpen ? "Σύμπτυξη" : "Ανάπτυξη"} className={`size-7 inline-flex items-center justify-center rounded-md ${kids.length ? "" : "invisible"}`}>
             <ChevronRight className={`size-4 transition-transform ${isOpen ? "rotate-90" : ""}`} aria-hidden />

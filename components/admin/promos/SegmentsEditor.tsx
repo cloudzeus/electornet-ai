@@ -6,6 +6,13 @@ import { Plus, Pencil, X, Users, Send, Archive, Loader2, Mail, Repeat, Moon, Sho
 import type { SegmentRules } from "@/lib/promo/segments";
 import { archiveSegmentAction, issueSegmentCouponsAction, previewSegmentAction, saveSegmentAction, type SegmentInput } from "@/app/admin/(shell)/prosfores/actions";
 import { Hint } from "./Help";
+import { sx } from "@/components/ui/sx";
+
+/** Η γεμάτη μπλε μπάρα του ποσοστού (πλάτος από τα δεδομένα). */
+function BlueFill({ pct }: { pct: number }) {
+  const s = sx({ width: `${pct}%` });
+  return <div className={`h-full rounded-full bg-eu-blue ${s.className}`}>{s.node}</div>;
+}
 
 type Opt = { id: string; label: string };
 type Row = { id: string; name: string; description: string | null; rules: SegmentRules; members: number; computedAt: string | null; summary: string; usedIn: number };
@@ -106,7 +113,7 @@ export function SegmentsEditor({ segments, categories, coupons, customers }: { s
             <span className="font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide inline-flex items-center gap-1.5">Ταιριάζουν τώρα {measuring && <Loader2 className="size-3.5 animate-spin" aria-label="μέτρηση" />}</span>
             <div className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-32)] leading-none tabular-nums">{count ? count.count.toLocaleString("el-GR") : "…"}</div>
             {count && <>
-              <div className="h-2 rounded-full bg-eu-surface overflow-hidden" aria-hidden><div className="h-full rounded-full bg-eu-blue" style={{ width: `${Math.min(100, pct(count.count))}%` }} /></div>
+              <div className="h-2 rounded-full bg-eu-surface overflow-hidden" aria-hidden><BlueFill pct={Math.min(100, pct(count.count))} /></div>
               <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{pct(count.count).toLocaleString("el-GR")} % των {customers.toLocaleString("el-GR")} ενεργών πελατών · <b className="text-eu-ink">{count.consent.toLocaleString("el-GR")}</b> με συναίνεση για προωθητικά email</p>
             </>}
             <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Η μέτρηση ενημερώνεται μόνη της· μετά την αποθήκευση τα μέλη αλλάζουν αυτόματα όσο αλλάζουν οι πελάτες.</p>
@@ -152,7 +159,7 @@ export function SegmentsEditor({ segments, categories, coupons, customers }: { s
             {segments.map((s) => (
               <li key={s.id} className="rounded-2xl bg-white border border-eu-line p-3 grid gap-2 content-start">
                 <div className="flex items-start justify-between gap-2"><span className="font-bold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5 min-w-0"><Users className="size-4 shrink-0 text-eu-blue" aria-hidden /><span className="truncate">{s.name}</span></span><span className="shrink-0 font-heading font-extrabold text-eu-ink text-[length:var(--fs-18)] tabular-nums">{s.members.toLocaleString("el-GR")}</span></div>
-                <div className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><div className="h-full rounded-full bg-eu-blue" style={{ width: `${Math.min(100, pct(s.members))}%` }} /></div>
+                <div className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><BlueFill pct={Math.min(100, pct(s.members))} /></div>
                 <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{s.summary}</p>
                 <p className="m-0 flex flex-wrap gap-x-3 text-eu-muted text-[length:var(--fs-12)]"><span>{pct(s.members).toLocaleString("el-GR")} % των πελατών</span><span className="inline-flex items-center gap-1"><Tag className="size-3" aria-hidden />{s.usedIn ? `σε ${s.usedIn} ${s.usedIn === 1 ? "προσφορά" : "προσφορές"}` : "σε καμία προσφορά"}</span>{s.computedAt && <span>μέτρηση {new Date(s.computedAt).toLocaleDateString("el-GR")}</span>}</p>
                 <div className="flex flex-wrap gap-1.5">

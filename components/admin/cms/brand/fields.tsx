@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Images, Plus, X } from "lucide-react";
 import { ImagePickerDialog } from "./ImagePicker";
 import { inputCls } from "@/components/admin/settings/ui";
+import { sx } from "@/components/ui/sx";
 
 /** Μικρά, κοινά πεδία του editor σελίδων μάρκας — πάντα με ορατή εξήγηση και μετρητή όπου μετρά το μήκος. */
 
@@ -48,11 +49,13 @@ export function LinkField({ label, value, onChange, help }: { label: string; val
 export function MediaUrl({ label, value, onChange, help, kind = "image" }: { label: string; value: string; onChange: (v: string) => void; help?: ReactNode; kind?: "image" | "video" }) {
   const [open, setOpen] = useState(false);
   const id = useId();
+  const sThumb = sx({ backgroundImage: value && kind === "image" ? `url("${value}")` : undefined });
   return (
     <div className="grid gap-1 min-w-0">
       <label htmlFor={id} className="font-bold text-eu-ink text-[length:var(--fs-14)]">{label}</label>
       <div className="grid grid-cols-[auto_minmax(0,1fr)] @md:grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-center">
-        <span className="size-12 rounded-lg border border-eu-line bg-eu-surface bg-center bg-contain bg-no-repeat" style={value && kind === "image" ? { backgroundImage: `url("${value}")` } : undefined} aria-hidden />
+        {sThumb.node}
+        <span className={`size-12 rounded-lg border border-eu-line bg-eu-surface bg-center bg-contain bg-no-repeat ${sThumb.className}`} aria-hidden />
         <input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="https://euronics.b-cdn.net/…" spellCheck={false} className={`${inputCls} font-mono text-[length:var(--fs-14)]`} />
         <button type="button" onClick={() => setOpen(true)} className="col-span-2 @md:col-span-1 inline-flex items-center justify-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-navy hover:text-white"><Images className="size-4" aria-hidden /> Επιλογή</button>
       </div>

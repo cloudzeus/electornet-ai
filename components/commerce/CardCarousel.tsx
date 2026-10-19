@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import gsap from "gsap";
 import { useDevice } from "@/components/fluid/DeviceProvider";
 import { copyOf } from "@/lib/cms/copy";
+import { sx } from "@/components/ui/sx";
 
 const c = copyOf("carousel");
 
@@ -43,6 +44,7 @@ export function CardCarousel({ children, minItem = 240, minItemNarrow = 300, gap
   const cardPx = w ? (w - (per - 1) * gap) / per : 0;
   const go = (d: 1 | -1) => setStart(Math.max(0, Math.min(maxStart, cur + d)));
   const narrow = !w || w < 700;
+  const cols = sx({ gap, gridAutoColumns: `calc((100% - ${(per - 1) * gap}px) / ${per})` });
   const arrow = "absolute top-[38%] size-12 rounded-full bg-white border border-eu-line shadow-[var(--shadow-raised)] inline-flex items-center justify-center text-eu-navy hover:bg-eu-navy hover:text-white transition-colors disabled:opacity-0 disabled:pointer-events-none z-10";
 
   // Tween the track to the current position (GSAP, no CSS scroll).
@@ -68,7 +70,8 @@ export function CardCarousel({ children, minItem = 240, minItemNarrow = 300, gap
         }}
         onPointerCancel={() => (drag.current = null)}
       >
-        <ul ref={track} className="m-0 p-0 list-none grid grid-flow-col will-change-transform" style={{ gap, gridAutoColumns: `calc((100% - ${(per - 1) * gap}px) / ${per})` }}>
+        {cols.node}
+        <ul ref={track} className={`m-0 p-0 list-none grid grid-flow-col will-change-transform ${cols.className}`}>
           {items.map((it, i) => (
             <li key={i} className="min-w-0" aria-hidden={multi && (i < cur || i >= cur + per) ? true : undefined}>
               {it}

@@ -6,7 +6,7 @@ import { useSettings } from "@/components/site/SettingsProvider";
 import { tpl } from "@/lib/cms/settings";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/Image";
 import { X, Send, Sparkles, Store, Ruler, Zap, Scale, Mic, Square, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { useVoice } from "@/lib/voice/client";
 import gsap from "gsap";
@@ -439,8 +439,8 @@ export function AdvisorOrb() {
                   aria-label={c.o_symvoylos_grafei}
                 >
                   <span className="flex gap-1" aria-hidden>
-                    {[0, 1, 2].map((i) => (
-                      <span key={i} className="size-2 rounded-full bg-eu-blue/60 animate-bounce" style={{ animationDelay: `${i * 120}ms` }} />
+                    {["[animation-delay:0ms]!", "[animation-delay:120ms]!", "[animation-delay:240ms]!"].map((d) => (
+                      <span key={d} className={`size-2 rounded-full bg-eu-blue/60 animate-bounce ${d}`} />
                     ))}
                   </span>
                   <span className="text-eu-muted text-[length:var(--fs-14)]">{STEPS[step]}</span>
