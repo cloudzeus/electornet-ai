@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20T11:10:36.932Z",
+ "generatedAt": "2026-10-20T11:44:54.851Z",
  "routes": [
   {
    "route": "/admin",
@@ -269,10 +269,22 @@
     "security.actions",
     "security.history",
     "security.recent",
-    "security.explain"
+    "security.explain",
+    "security.summary-unsent"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "0bbf691",
+     "date": "2026-10-20T14:37:24+03:00",
+     "text": "Ασφάλεια: ειδοποιήσεις χωρίς χαμένα κλειδώματα, σύνοψη που δεν στάλθηκε, παράθυρα ελέγχου"
+    },
+    {
+     "hash": "c1932ba",
+     "date": "2026-10-20T14:11:10+03:00",
+     "text": "Ασφάλεια: σελίδα «Ασφάλεια» (μόνο super-admin)"
+    }
+   ],
+   "updatedAt": "2026-10-20T14:37:24+03:00",
    "shots": {}
   },
   {
@@ -288,8 +300,14 @@
     "security.report.meta",
     "security.report.checks"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "c1932ba",
+     "date": "2026-10-20T14:11:10+03:00",
+     "text": "Ασφάλεια: σελίδα «Ασφάλεια» (μόνο super-admin)"
+    }
+   ],
+   "updatedAt": "2026-10-20T14:11:10+03:00",
    "shots": {}
   },
   {
@@ -3676,6 +3694,37 @@
  ],
  "recent": [
   {
+   "hash": "c9ebaa0",
+   "date": "2026-10-20T14:43:40+03:00",
+   "text": "Ασφάλεια: φύλακας",
+   "routes": []
+  },
+  {
+   "hash": "ee514ea",
+   "date": "2026-10-20T14:40:31+03:00",
+   "text": "Ασφάλεια: Bunny μόνο τα νέα ως κρίσιμα, κατώφλια λογικής, αλλαγή παραληπτών → κρίσιμο",
+   "routes": []
+  },
+  {
+   "hash": "0bbf691",
+   "date": "2026-10-20T14:37:24+03:00",
+   "text": "Ασφάλεια: ειδοποιήσεις χωρίς χαμένα κλειδώματα, σύνοψη που δεν στάλθηκε, παράθυρα ελέγχου",
+   "routes": [
+    "/admin",
+    "/admin/asfaleia"
+   ]
+  },
+  {
+   "hash": "c1932ba",
+   "date": "2026-10-20T14:11:10+03:00",
+   "text": "Ασφάλεια: σελίδα «Ασφάλεια» (μόνο super-admin)",
+   "routes": [
+    "/admin",
+    "/admin/asfaleia",
+    "/admin/asfaleia/[id]"
+   ]
+  },
+  {
    "hash": "a625701",
    "date": "2026-10-20T13:54:01+03:00",
    "text": "Ασφάλεια: φύλακας",
@@ -3916,30 +3965,6 @@
    "date": "2026-10-20T05:39:53+03:00",
    "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)",
    "routes": []
-  },
-  {
-   "hash": "f0cb366",
-   "date": "2026-10-20T05:36:28+03:00",
-   "text": "Εισαγωγή από ξένο Excel: όριο 10.000 γραμμές, detectHeaderRow με τις περισσότερες διαφορετικές τιμές (Gedore, συγχωνευμένος τίτλος), τιμές μονάδος/χονδρικής → κόστος, unique headerSignature στο ImportMapping και upser…",
-   "routes": []
-  },
-  {
-   "hash": "2722eb6",
-   "date": "2026-10-20T05:34:08+03:00",
-   "text": "Εισαγωγή από ξένο Excel: ανάγνωση xlsx/csv (read.ts, όρια 15 MB / 5.000 γραμμές), parseCsv και αποθηκευμένες αντιστοιχίσεις στηλών ανά επικεφαλίδα (configToSaved / configForHeaders, saveMapping / findMapping)",
-   "routes": []
-  },
-  {
-   "hash": "1dbe169",
-   "date": "2026-10-20T05:29:15+03:00",
-   "text": "«Μόνο κενά»: ο memo μένει αυτούσιος και writeWebPrice με onlyIfBlank",
-   "routes": []
-  },
-  {
-   "hash": "a73882e",
-   "date": "2026-10-20T05:24:56+03:00",
-   "text": "Εισαγωγή: «μόνο κενά» για υπάρχοντα είδη και writeWebPrice",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4004,6 +4029,9 @@
    "app/admin/(shell)/asfaleia/page.tsx"
   ],
   "security.explain": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.summary-unsent": [
    "app/admin/(shell)/asfaleia/page.tsx"
   ],
   "product.actions": [
