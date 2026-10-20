@@ -144,7 +144,35 @@ const CDN_FEATURES: (CdnFeature & { re: RegExp })[] = [
   { re: /^\/cdn-cgi\/apps\//, name: "Cloudflare Apps", severity: "critical" },
   { re: /^\/cdn-cgi\/rum/, name: "Cloudflare Web Analytics (RUM)", severity: "critical" },
 ];
-const cdnFeature = (path: string): CdnFeature => CDN_FEATURES.find((f) => f.re.test(path)) ?? { name: "λειτουργία του Cloudflare (/cdn-cgi/)", severity: "critical" };
+const UNKNOWN_CDN: CdnFeature = { name: "λειτουργία του Cloudflare (/cdn-cgi/)", severity: "critical" };
+/**
+ * Η διαδρομή αποκωδικοποιημένη (%2f, %2e, %63…) — ή null αν είναι ύποπτη (.., \\, //, διπλή κωδικοποίηση): τότε καμία
+ * γνωστή λειτουργία δεν αναγνωρίζεται («/cdn-cgi/challenge-platform/..%2fzaraz/s.js» δεν είναι Bot Fight Mode).
+ */
+function cleanPath(p: string): string | null {
+  let d: string;
+  try { d = decodeURIComponent(p); } catch { return null; }
+  return /(?:^|\/)\.\.?(?:\/|$)|\\|\/\/|%/.test(d) ? null : d;
+}
+const cdnFeature = (path: string | null): CdnFeature => (path === null ? UNKNOWN_CDN : CDN_FEATURES.find((f) => f.re.test(path)) ?? UNKNOWN_CDN);
+/** Η μόνη διαδρομή που φορτώνει ο loader του Cloudflare JavaScript detections. */
+const JSD_PATH = /^\/cdn-cgi\/challenge-platform\/(?:h\/[a-z]\/)?scripts\/jsd\/(?:[0-9a-f]+\/)?main\.js$/;
+/**
+ * Inline loader του Cloudflare JavaScript detections (Bot Fight Mode) — ΜΟΝΟ το γνωστό του σχήμα: μικρός (< 2 KB), με
+ * `__CF$cv$params`, κάθε /cdn-cgi/ και κάθε `.src =` είναι ακριβώς ο main.js του JSD, κανένα απόλυτο URL προς άλλο host,
+ * χωρίς cookies / fetch / XMLHttpRequest / Image / sendBeacon / eval / Function / atob / zaraz / δείκτες ClickFix.
+ */
+function isJsdLoader(code: string, origin: URL): boolean {
+  if (code.length >= 2048 || !code.includes("__CF$cv$params")) return false;
+  const cdn = [...code.matchAll(/\/cdn-cgi\/[^\s"'`\\)<>?#;]*/g)].map((m) => m[0]);
+  if (!cdn.length || !cdn.every((p) => JSD_PATH.test(p))) return false;
+  const srcs = [...code.matchAll(/\.src\s*=\s*([^;,)}]+)/g)].map((m) => m[1].trim());
+  if (!srcs.length || !srcs.every((v) => /^(['"])([^'"]*)\1$/.test(v) && JSD_PATH.test(v.slice(1, -1)))) return false;
+  for (const m of code.matchAll(/(?:[a-z][a-z0-9+.-]*:)?\/\/([^\s"'`\\/?#)]+)/gi)) if (m[1].toLowerCase() !== origin.host) return false;
+  // case-sensitive: το «function(){» του loader δεν είναι «Function»
+  return !/\bcookie\b|\bfetch\b|XMLHttpRequest|\bImage\b|sendBeacon|\beval\b|\bFunction\b|\batob\b|\bimportScripts\b|WebSocket|\blocalStorage\b/.test(code) && !/\bzaraz\b/i.test(code)
+    && !markerHits(code).length;
+}
 const CDN_DETAIL = "Το προσθέτει το Cloudflare στις σελίδες μας — δεν το βάζει η εφαρμογή, και δεν χρησιμοποιούμε καμία λειτουργία /cdn-cgi/. "
   + "Αν δεν το ενεργοποιήσατε εσείς, ελέγξτε αμέσως τον λογαριασμό Cloudflare (Zaraz → Tools/Custom HTML, Rules, Speed → Optimization). "
   + "Αν είναι γνωστή και επιθυμητή λειτουργία, η διαδρομή μπαίνει ρητά στο ALLOWED_CDN_CGI (lib/security/audit/policy.ts).";
@@ -189,10 +217,9 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
 
   const { scripts, iframes } = parseScripts(html);
   const byNonce = new Map<string, ParsedScript[]>();
-  // scripts που είναι ΜΟΝΟ γνωστή λειτουργία του Cloudflare επιπέδου warn (ή εγκεκριμένη) χωρίς κανέναν δείκτη ClickFix:
-  // χωρίς nonce / με δικό τους nonce δεν τα κάνουν critical (το εύρημα της λειτουργίας τα αναφέρει)
+  // αθώα scripts του Cloudflare: εξωτερικά /cdn-cgi/ του ΔΙΚΟΥ μας origin επιπέδου warn (ή εγκεκριμένα) και inline ΜΟΝΟ
+  // ο γνήσιος loader του JSD (isJsdLoader)· χωρίς nonce / με δικό τους nonce δεν δίνουν critical (τα αναφέρει το εύρημα της λειτουργίας)
   const benign = new Set<ParsedScript>();
-  const cdnBenign = (p: string) => cdnOk(p) || cdnFeature(p).severity === "warn";
   for (const s of scripts) {
     if (s.nonce) byNonce.set(s.nonce, [...(byNonce.get(s.nonce) ?? []), s]);
     if (s.type && /^[0-9a-f]+-text\/javascript$/i.test(s.type.trim())) {
@@ -200,15 +227,17 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     }
     if (s.inline) {
       if (!isExecutable(s.type)) continue;
-      const all = [...new Set([...s.code.matchAll(/\/cdn-cgi\/[^\s"'`\\)<>?#]*/g)].map((m) => m[0]))].sort();
-      const paths = all.filter((p) => !cdnOk(p));
+      const paths = [...new Set([...s.code.matchAll(/\/cdn-cgi\/[^\s"'`\\)<>?#]*/g)].map((m) => m[0]))].filter((p) => { const c = cleanPath(p); return !c || !cdnOk(c); }).sort();
       const zaraz = /\bzaraz\b/i.test(s.code) && !cdnOk("/cdn-cgi/zaraz/");
-      if (all.length && !zaraz && all.every(cdnBenign) && !markerHits(s.code).length) benign.add(s);
-      if (!s.nonce && !benign.has(s)) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", snip(s.code, 120));
+      const jsd = isJsdLoader(s.code, base);
+      if (jsd) benign.add(s);
+      if (!s.nonce && !jsd) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", snip(s.code, 120));
       if (paths.length || zaraz) {
-        const f = cdnFeature(zaraz ? "/cdn-cgi/zaraz/" : paths.find((p) => cdnFeature(p).severity === "critical") ?? paths[0]);
+        // warn μόνο για τον γνήσιο loader του JSD· ό,τι άλλο αναφέρει /cdn-cgi/ (ακόμη και «challenge-platform») → critical
+        const known = cdnFeature(zaraz ? "/cdn-cgi/zaraz/" : cleanPath(paths.find((p) => cdnFeature(cleanPath(p)).severity === "critical") ?? paths[0]));
+        const f: CdnFeature = jsd ? known : { ...known, severity: "critical" };
         add({ severity: f.severity, title: `Inline script του Cloudflare: ${f.name}`,
-          detail: `${s.nonce ? "Έχει nonce — το Cloudflare προσθέτει δικό του nonce στο CSP μας, οπότε ο browser το εκτελεί. " : "Χωρίς nonce (το CSP μας το μπλοκάρει). "}${cdnDetail(f)}`,
+          detail: `${s.nonce ? "Έχει nonce — το Cloudflare προσθέτει δικό του nonce στο CSP μας, οπότε ο browser το εκτελεί. " : "Χωρίς nonce (το CSP μας το μπλοκάρει). "}${jsd || known.severity === "critical" ? cdnDetail(f) : `Αναφέρει «${known.name}» αλλά ΔΕΝ έχει το γνωστό σχήμα του loader του Cloudflare — αντιμετωπίστε το ως ένεση. ${CDN_DETAIL}`}`,
           evidence: paths.length ? paths.join(", ") : "zaraz" });
       }
       continue;
@@ -217,10 +246,22 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     try { u = new URL(s.src!, base); } catch { crit("Script με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", snip(s.src!, 120)); continue; }
     if (u.protocol !== "https:" && u.protocol !== "http:") { crit(`Script από ${u.protocol} (όχι αρχείο)`, "Κώδικας μέσα στη διεύθυνση του script — δεν το κάνει ποτέ η εφαρμογή.", snip(s.src!, 80)); continue; }
     const same = u.origin === base.origin;
-    if (u.pathname.startsWith("/cdn-cgi/") && same && cdnBenign(u.pathname)) benign.add(s);
-    if (u.pathname.startsWith("/cdn-cgi/") && !cdnOk(u.pathname)) {
-      const f = cdnFeature(u.pathname);
-      add({ severity: f.severity, title: `Script του Cloudflare: ${f.name}`, detail: cdnDetail(f), evidence: same ? u.pathname : `${u.host}${u.pathname}` });
+    const dp = cleanPath(u.pathname); // null = ύποπτη κωδικοποίηση (..%2f, %2e, \\, διπλή κωδικοποίηση)
+    let loose = u.pathname;
+    try { loose = decodeURIComponent(u.pathname); } catch { /* μένει η ακατέργαστη */ }
+    if (dp !== null ? dp.startsWith("/cdn-cgi/") : /\/cdn-cgi\//i.test(loose)) {
+      // γνωστή λειτουργία (warn / εγκεκριμένη) ΜΟΝΟ από το δικό μας origin με καθαρή διαδρομή· αλλιώς → critical
+      const known = cdnFeature(dp);
+      const ours = same && dp !== null;
+      if (ours && (cdnOk(dp) || known.severity === "warn")) benign.add(s);
+      if (ours && cdnOk(dp)) continue;
+      const f: CdnFeature = ours ? known : { ...known, severity: "critical" };
+      add({ severity: f.severity, title: `Script του Cloudflare: ${f.name}${same ? "" : " — από ξένο host"}`,
+        detail: same ? cdnDetail(f) : `Διαδρομή /cdn-cgi/ σε host που δεν είναι το site μας — δεν είναι λειτουργία του δικού μας Cloudflare. ${CDN_DETAIL}`,
+        evidence: same ? u.pathname : `${u.host}${u.pathname}` });
+      if (same) continue;
+    } else if (same && dp === null) {
+      crit("Script από το δικό μας domain με ύποπτη διαδρομή", "Κωδικοποιημένα «..», «/» ή «\\» στη διαδρομή — δεν τα παράγει ποτέ η εφαρμογή.", u.pathname);
       continue;
     }
     if (same) {
