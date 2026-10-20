@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyObject, svgThreat, bunnyOutcome, objectPath, underBase, MAX_OBJECTS, SVG_MAX_BYTES, type Flagged } from "./bunny-core";
+import { classifyObject, svgThreat, bunnyOutcome, objectPath, underBase, capHit, MAX_FILES, MAX_DIRS, SVG_MAX_BYTES, type Flagged } from "./bunny-core";
 import { BUNNY_ALLOWED } from "../policy";
 
 test("objectPath: διαδρομή μέσα στη ζώνη από το Path + ObjectName του Bunny", () => {
@@ -44,7 +44,7 @@ test("bunnyOutcome: πλήρης σάρωση χωρίς ευρήματα → ok
   assert.equal(full.status, "ok");
   assert.match(full.summary, /1\.?200 αρχεία/);
   assert.match(full.summary, /30\/30 SVG/);
-  const cut = bunnyOutcome({ files: MAX_OBJECTS, dirs: 10, truncated: true, svgTotal: 5, svgChecked: 5, findings: [] });
+  const cut = bunnyOutcome({ files: MAX_FILES, dirs: 10, truncated: true, truncatedBy: "files", svgTotal: 5, svgChecked: 5, findings: [] });
   assert.equal(cut.status, "warn");
   assert.match(cut.summary, /μερική σάρωση/);
   assert.equal(cut.complete, false);
@@ -130,4 +130,36 @@ test("underBase (F-3): διαδρομή μέσα στα basePath της εφαρ
   assert.ok(!underBase("a.jpg", ["/media"]));
   assert.ok(underBase("anything.jpg", []));
   assert.ok(underBase("anything.jpg", [""]));
+});
+
+test("capHit: μετράνε αρχεία και φακέλους ξεχωριστά — 10.990 αρχεία + 9.010 φακέλοι (η ζώνη μας) δεν φτάνουν κανένα όριο", () => {
+  assert.equal(capHit(10_990, 9_010, true), null);
+  assert.equal(capHit(10_990, 9_010, false), null);
+  assert.equal(capHit(20_000, 0, false), null); // το παλιό κοινό όριο δεν ισχύει πια
+  assert.equal(capHit(0, 20_000, true), null);
+});
+
+test("capHit: μόνο όταν γεμίσει το δικό του όριο — αρχεία 100.000, φάκελοι 50.000", () => {
+  assert.equal(capHit(MAX_FILES - 1, 0, false), null);
+  assert.equal(capHit(MAX_FILES, 0, false), "files");
+  assert.equal(capHit(MAX_FILES, 0, true), null); // γεμάτα αρχεία δεν εμποδίζουν φακέλους (χωρίς νέα αρχεία δεν υπάρχει τίποτα να ελεγχθεί)
+  assert.equal(capHit(0, MAX_DIRS - 1, true), null);
+  assert.equal(capHit(0, MAX_DIRS, true), "dirs");
+  assert.equal(capHit(0, MAX_DIRS, false), null);
+});
+
+test("bunnyOutcome: 10.990 αρχεία σε 9.010 φακέλους χωρίς όριο/χρονικό κόψιμο → ok και complete (όχι «μερική σάρωση»)", () => {
+  const r = bunnyOutcome({ files: 10_990, dirs: 9_010, truncated: false, svgTotal: 8, svgChecked: 8, findings: [] });
+  assert.equal(r.status, "ok");
+  assert.equal(r.complete, true);
+  assert.doesNotMatch(r.summary, /μερική σάρωση/);
+});
+
+test("bunnyOutcome: μερική σάρωση ονομάζει το όριο που έφτασε (αρχεία ή φάκελοι)", () => {
+  const f = bunnyOutcome({ files: MAX_FILES, dirs: 5, truncated: true, truncatedBy: "files", svgTotal: 0, svgChecked: 0, findings: [] });
+  assert.equal(f.complete, false);
+  assert.match(f.findings[0].detail, /100\.000 αρχείων/);
+  assert.match(f.summary, /όριο 100\.000 αρχείων/);
+  const d = bunnyOutcome({ files: 10, dirs: MAX_DIRS, truncated: true, truncatedBy: "dirs", svgTotal: 0, svgChecked: 0, findings: [] });
+  assert.match(d.findings[0].detail, /50\.000 φακέλων/);
 });
