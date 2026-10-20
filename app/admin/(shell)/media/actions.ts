@@ -9,6 +9,7 @@ import { activeStorage } from "@/lib/media/storage";
 import { describeImage } from "@/lib/ai/tasks";
 import type { MediaAssetDTO, MediaFolderDTO, MediaKind } from "@/lib/media/types";
 import type { Prisma } from "@prisma/client";
+import { resolveInside } from "@/lib/security/local-path";
 
 const PAGE = 60;
 
@@ -139,7 +140,9 @@ async function fetchBytes(url: string): Promise<Buffer> {
   if (url.startsWith("/")) {
     const { readFile } = await import("node:fs/promises");
     const path = await import("node:path");
-    return readFile(path.join(process.cwd(), "public", url));
+    const file = resolveInside(path.join(process.cwd(), "public"), url);
+    if (!file) throw new Error("Μη έγκυρη διαδρομή αρχείου.");
+    return readFile(file);
   }
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Δεν κατέβηκε το αρχείο (${res.status})`);

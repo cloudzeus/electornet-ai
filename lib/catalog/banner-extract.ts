@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { resolveInside } from "@/lib/security/local-path";
 import { storeBytes } from "@/lib/media/storage";
 import { analyseBanner, cropBox, cropIcon, type BannerAnalysis, type OcrText } from "./banner-ocr";
 import { uid, sectionHasContent, type StudioDoc, type StudioText, type PublishedSection, type SectionImage, type SectionFeature, type Stat } from "./banner-doc";
@@ -17,7 +18,13 @@ const folderKey = (p: { ean: string | null; sku: string; id: string }) => (p.ean
 
 /** Τα bytes μιας εικόνας από το CDN μας ή από τον τοπικό φάκελο uploads. */
 export async function fetchSource(url: string): Promise<Buffer> {
-  if (url.startsWith("/uploads/")) { const { readFile } = await import("node:fs/promises"); const path = await import("node:path"); return readFile(path.join(process.cwd(), "public", url)); }
+  if (url.startsWith("/uploads/")) {
+    const { readFile } = await import("node:fs/promises"); const path = await import("node:path");
+    // μόνο μέσα στο public/uploads (όχι «/uploads/../../.env»)
+    const file = resolveInside(path.join(process.cwd(), "public", "uploads"), url.slice("/uploads/".length));
+    if (!file) throw new Error("Μη έγκυρη διαδρομή αρχείου.");
+    return readFile(file);
+  }
   const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`Η εικόνα δεν κατέβηκε (${res.status}).`);
   return Buffer.from(await res.arrayBuffer());

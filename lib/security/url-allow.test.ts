@@ -37,3 +37,11 @@ test("safeAdHref: όχι javascript:/data:/vbscript:, protocol-relative, backsla
     "vbscript:msgbox", "//evil.com", "/\\evil.com", "\\\\evil.com", "https://user:pw@evil.com/", "ftp://x.gr/a", "mailto:a@b.gr", "", null, undefined, 5];
   for (const h of bad) assert.equal(safeAdHref(h), null, `πέρασε: ${JSON.stringify(h)}`);
 });
+
+test("safeAdHref: επιστρέφει την κανονικοποιημένη διεύθυνση (u.href / κανονική διαδρομή)", () => {
+  assert.equal(safeAdHref("https:evil.com"), "https://evil.com/");
+  assert.equal(safeAdHref("http:/evil.com"), "http://evil.com/");
+  assert.equal(safeAdHref("HTTPS://WWW.LG.COM/gr"), "https://www.lg.com/gr");
+  assert.equal(safeAdHref("/prosfores/./a/../b"), "/prosfores/b");
+  assert.equal(safeAdHref("/x/..//evil.com"), null);
+});

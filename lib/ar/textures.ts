@@ -2,6 +2,7 @@ import "server-only";
 import sharp from "sharp";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { resolveInside } from "@/lib/security/local-path";
 
 /**
  * Υφές του μοντέλου AR, όλες PNG με διαφάνεια:
@@ -19,7 +20,8 @@ async function loadImage(src: string): Promise<Buffer | null> {
       const r = await fetch(src, { signal: AbortSignal.timeout(15000) });
       return r.ok ? Buffer.from(await r.arrayBuffer()) : null;
     }
-    return await readFile(path.join(process.cwd(), "public", src.replace(/^\//, "")));
+    const file = resolveInside(path.join(process.cwd(), "public"), src);
+    return file ? await readFile(file) : null;
   } catch { return null; }
 }
 

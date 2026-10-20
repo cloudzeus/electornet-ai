@@ -4,6 +4,7 @@ import path from "node:path";
 import { emailThumbOf } from "@/lib/media/process";
 import { getBunny } from "@/lib/media/cdn";
 import { allowedCdnUrl, cdnHosts } from "@/lib/security/url-allow";
+import { resolveInside } from "@/lib/security/local-path";
 
 /**
  * Email-safe image on demand: `/api/img/email?src=/img/cutouts/x.webp` →
@@ -17,8 +18,9 @@ export async function GET(req: Request) {
   let bytes: Buffer | null = null;
   try {
     if (src.startsWith("/") && !src.startsWith("//")) {
-      const safe = path.normalize(src).replace(/^(\.\.[/\\])+/, "");
-      bytes = await readFile(path.join(process.cwd(), "public", safe));
+      const file = resolveInside(path.join(process.cwd(), "public"), src);
+      if (!file) return new NextResponse("not found", { status: 404 });
+      bytes = await readFile(file);
     } else {
       // ακριβές host του CDN μετά από ανάλυση (όχι startsWith: «…b-cdn.net@άλλο-host», «…b-cdn.net.evil.com»)
       const b = await getBunny();

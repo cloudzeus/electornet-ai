@@ -13,6 +13,7 @@ import { addFrameToGlb } from "./frame";
 import { anchorOf, isSurface } from "./placement";
 import { arPlan } from "./plan";
 import { getArCategories } from "./categories";
+import { resolveInside } from "@/lib/security/local-path";
 
 /**
  * Σερβίρισμα μοντέλου AR. Αυτόματα για κάθε προϊόν με πραγματικές διαστάσεις (όχι τυπικές της κατηγορίας)·
@@ -25,7 +26,8 @@ const custom = new Map<string, Buffer>();
 export async function readAsset(url: string): Promise<Buffer | null> {
   try {
     if (/^https?:\/\//.test(url)) { const r = await fetch(url, { signal: AbortSignal.timeout(30000) }); return r.ok ? Buffer.from(await r.arrayBuffer()) : null; }
-    return await readFile(path.join(process.cwd(), "public", url.replace(/^\//, "")));
+    const file = resolveInside(path.join(process.cwd(), "public"), url);
+    return file ? await readFile(file) : null;
   } catch { return null; }
 }
 

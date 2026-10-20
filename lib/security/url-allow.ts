@@ -33,5 +33,5 @@ export function safeAdHref(href: unknown): string | null {
   let u: URL;
   try { u = new URL(h); } catch { return null; }
   if ((u.protocol !== "https:" && u.protocol !== "http:") || u.username || u.password || !u.hostname) return null;
-  return h;
+  return u.href; // κανονική μορφή («https:evil.com» → «https://evil.com/»)
 }
