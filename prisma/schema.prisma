@@ -2716,3 +2716,23 @@ model MarkupRule {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+/// Καθημερινή αναφορά ασφαλείας: ένας έλεγχος (προγραμματισμένος ή χειροκίνητος) με τα αποτελέσματά του.
+model SecurityReport {
+  id         String    @id @default(cuid())
+  mode       String // scheduled | manual
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String // running | ok | warning | critical | error
+  checks     Json
+  alerted    Boolean   @default(false)
+
+  @@index([startedAt])
+}
+
+/// Dedupe ειδοποιήσεων ασφαλείας: ίδιο εύρημα (fingerprint) δεν ξαναστέλνεται πριν περάσει 24ωρο.
+model SecurityAlert {
+  fingerprint String   @id
+  lastSentAt  DateTime
+  count       Int      @default(1)
+}

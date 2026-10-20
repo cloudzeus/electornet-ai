@@ -61,6 +61,15 @@ const R = {
 };
 const yesNo = (key: string, label: string, help?: string, pub = false): Field => ({ key, label, type: "toggle", help, public: pub, width: "half" });
 
+/** Παραλήπτες αναφοράς ασφαλείας: προεπιλογή όταν η ρύθμιση είναι κενή, και όριο πλήθους. */
+export const DEFAULT_SECURITY_EMAILS = "gkozyris@i4ria.com";
+export const MAX_SECURITY_EMAILS = 10;
+const SEC_EMAIL = "[^\\s@,;]+@[^\\s@,;]+\\.[a-z]{2,}";
+const SECURITY_EMAILS_RULE = {
+  re: new RegExp(`^(?!(?:[^@]*@){${MAX_SECURITY_EMAILS + 1}})${SEC_EMAIL}(?:\\s*[,\\n]\\s*${SEC_EMAIL})*$`, "i"),
+  bad: `Ένα έγκυρο email ανά γραμμή ή με κόμμα, έως ${MAX_SECURITY_EMAILS}`,
+};
+
 /**
  * Couriers του checkout (βλ. lib/shipping/carriers.ts): ανά courier διακόπτης, κόστος, «δωρεάν από», χρόνος παράδοσης
  * (δημόσια) και τα στοιχεία σύνδεσης για την έκδοση vouchers (κρυφά).
@@ -438,6 +447,18 @@ export const SECTIONS: Section[] = [
       { key: "searchProvider", label: "Αναζήτηση", type: "select", options: [{ value: "local", label: "Ενσωματωμένη" }, { value: "algolia", label: "Algolia" }, { value: "meilisearch", label: "Meilisearch" }], width: "half", group: "services" },
       { key: "searchApiKey", label: "Search API key", type: "secret", width: "half", group: "services", showIf: not("searchProvider", "local", "") },
       { key: "searchHost", label: "Search host / app ID", type: "text", width: "half", group: "services", showIf: not("searchProvider", "local", ""), help: "Algolia: Application ID. Meilisearch: URL του server." },
+    ],
+  },
+  {
+    key: "security",
+    title: "Ασφάλεια",
+    description: "Ποιοι λαμβάνουν την καθημερινή αναφορά ασφαλείας και τις ειδοποιήσεις όταν ο έλεγχος βρίσκει πρόβλημα.",
+    group: "systems",
+    groups: [
+      { key: "report", title: "Αναφορά ασφαλείας", help: "Ο έλεγχος τρέχει καθημερινά (μόνο αναγνώσεις) και στέλνει email με το αποτέλεσμα. Το ιστορικό φαίνεται στη σελίδα «Ασφάλεια»." },
+    ],
+    fields: [
+      { key: "securityReportEmails", label: "Παραλήπτες αναφοράς", type: "textarea", group: "report", placeholder: DEFAULT_SECURITY_EMAILS, rule: SECURITY_EMAILS_RULE, help: `Ένα email ανά γραμμή ή χωρισμένα με κόμμα (έως ${MAX_SECURITY_EMAILS}). Κενό = ${DEFAULT_SECURITY_EMAILS}.` },
     ],
   },
 ];
