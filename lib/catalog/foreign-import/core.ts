@@ -15,6 +15,11 @@ export type Target =
   | { kind: "rrp" }
   | { kind: "ignore" };
 
+/** Σφάλμα με μήνυμα για τον χρήστη (ελληνικά, ασφαλές να φανεί)· κάθε άλλο σφάλμα δείχνεται ως γενικό μήνυμα. */
+export class UserError extends Error {
+  constructor(message: string) { super(message); this.name = "UserError"; }
+}
+
 export type ForeignRow = {
   rowNo: number; // αριθμός γραμμής στο Excel (1-based)
   fields: Partial<Record<FieldKey, string>>;

@@ -187,21 +187,23 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
 
-  const can = (s: Step) => s === 1 || (!!sheet && (s < 4 || !!plan));
+  // Στο βήμα 3 μπαίνεις μόνο μέσω goValues (αυτόματη προεπιλογή) και μόνο με έγκυρες στήλες· το 4 θέλει προεπισκόπηση
+  const colsOk = mapped > 0 && !specMissing;
+  const can = (s: Step) => s === 1 || (!!sheet && (s === 2 || (colsOk && (s === 3 || !!plan))));
   const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμές"], [4, "Προεπισκόπηση"]];
 
   return (
     <div className="grid gap-4 min-w-0">
       <ol data-help="foreign.steps" aria-label="Βήματα" className="m-0 p-0 list-none grid grid-cols-2 sm:grid-cols-4 gap-2">
         {STEPS.map(([n, l]) => (
-          <li key={n}><button type="button" disabled={!can(n) || !!busy} onClick={() => setStep(n)} aria-current={step === n ? "step" : undefined}
+          <li key={n}><button type="button" disabled={!can(n) || !!busy} onClick={() => (n === 3 ? goValues() : setStep(n))} aria-current={step === n ? "step" : undefined}
             className={`w-full flex items-center gap-2 rounded-xl border-2 px-3 min-h-11 md:min-h-9 text-left font-bold text-[length:var(--fs-14)] disabled:opacity-50 disabled:cursor-not-allowed ${step === n ? "border-eu-navy bg-eu-navy text-white" : n < step ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
             <span className={`grid place-items-center size-6 shrink-0 rounded-full text-[length:var(--fs-12)] ${step === n ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{n < step ? <Check className="size-3.5" aria-hidden /> : n}</span>{l}
           </button></li>
         ))}
       </ol>
 
-      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden />{err}</p>}
+      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
 
       {step === 1 && (
         <>
@@ -211,7 +213,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">.xlsx ή .csv (με ; , ή tab), έως 15 MB και 10.000 γραμμές. Τίποτα δεν γράφεται πριν πατήσεις «Εκτέλεση» στο τελευταίο βήμα. {writeOn ? "Οι αλλαγές προς το SoftOne είναι ανοιχτές: τα κενά στοιχεία των υπαρχόντων ειδών θα γραφτούν στο ERP." : "Οι αλλαγές προς το SoftOne είναι κλειστές (Ρυθμίσεις → SoftOne): τα στοιχεία θα μείνουν σε αναμονή, οι φωτογραφίες θα ανέβουν κανονικά."}</p>
             </div>
             <label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void inspect(f); }}
-              className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed border-eu-line-2 bg-eu-surface/50 p-4 cursor-pointer hover:border-eu-blue min-w-0">
+              className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-dashed border-eu-line-2 bg-eu-surface/50 p-4 cursor-pointer hover:border-eu-blue focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-eu-blue min-w-0">
               {busy === "inspect" ? <Loader2 className="size-6 text-eu-blue shrink-0 animate-spin" aria-hidden /> : <Upload className="size-6 text-eu-blue shrink-0" aria-hidden />}
               <span className="min-w-0 flex-1 grid">
                 <span className="font-bold text-eu-ink text-[length:var(--fs-15)] break-all">{busy === "inspect" ? "Διαβάζω το αρχείο…" : file ? file.name : "Διάλεξε ή σύρε εδώ ένα .xlsx / .csv"}</span>
@@ -246,7 +248,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
                     <label key={i} className={`flex gap-2 items-start rounded-lg px-2 py-1.5 cursor-pointer min-w-0 ${on ? "bg-eu-navy text-white" : i < headerRow ? "text-eu-muted hover:bg-eu-surface" : "text-eu-ink hover:bg-eu-surface"}`}>
                       <input type="radio" name="headerRow" checked={on} onChange={() => choose(sheet, sheetIdx, i)} className="size-5 mt-0.5 accent-eu-yellow shrink-0" />
                       <span className={`shrink-0 tabular-nums font-bold text-[length:var(--fs-12)] mt-0.5 ${on ? "text-eu-yellow" : "text-eu-muted"}`}>{i + 1}</span>
-                      <span className="min-w-0 break-words line-clamp-2 text-[length:var(--fs-13)]">{cells.join(" · ")}</span>
+                      <span className="min-w-0 [overflow-wrap:anywhere] line-clamp-2 text-[length:var(--fs-13)]">{cells.join(" · ")}</span>
                     </label>
                   );
                 })}
@@ -257,7 +259,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
           {sheet && saved && (
             <section data-help="foreign.saved-mapping" className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-eu-chip/50 border border-eu-blue/30 p-3 min-w-0">
               <span className="flex gap-2 items-start min-w-0 text-eu-ink text-[length:var(--fs-14)]"><BookmarkCheck className="size-5 text-eu-blue shrink-0" aria-hidden />
-                <span className="min-w-0 break-words">{usedMapping?.id === saved.id ? <>Εφαρμόστηκε η αποθηκευμένη αντιστοίχιση «<strong>{saved.name}</strong>».</> : <>Υπάρχει αποθηκευμένη αντιστοίχιση για αυτές τις επικεφαλίδες: «<strong>{saved.name}</strong>».</>}</span>
+                <span className="min-w-0 [overflow-wrap:anywhere]">{usedMapping?.id === saved.id ? <>Εφαρμόστηκε η αποθηκευμένη αντιστοίχιση «<strong>{saved.name}</strong>».</> : <>Υπάρχει αποθηκευμένη αντιστοίχιση για αυτές τις επικεφαλίδες: «<strong>{saved.name}</strong>».</>}</span>
               </span>
               {usedMapping?.id !== saved.id && <button type="button" className={secondary} onClick={() => initColumns(sheet, headerRow, saved)}>Χρήση αποθηκευμένης αντιστοίχισης «{saved.name}»</button>}
             </section>
@@ -286,9 +288,9 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
                   <li key={i} className={`rounded-xl border-2 p-3 grid gap-2 content-start min-w-0 ${v === "ignore" ? "border-eu-line bg-eu-surface/40" : "border-eu-blue/40 bg-white"}`}>
                     <div className="flex items-baseline gap-2 min-w-0">
                       <span className={`${chip} bg-eu-surface text-eu-ink-3 shrink-0`}>{colName(i)}</span>
-                      <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 break-words">{h || <span className="text-eu-muted font-normal">(χωρίς τίτλο)</span>}</span>
+                      <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{h || <span className="text-eu-muted font-normal">(χωρίς τίτλο)</span>}</span>
                     </div>
-                    <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 break-words line-clamp-3">{ex.length ? ex.join(" · ") : "— κενή στις πρώτες γραμμές —"}</p>
+                    <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere] line-clamp-3">{ex.length ? ex.join(" · ") : "— κενή στις πρώτες γραμμές —"}</p>
                     <select aria-label={`Στόχος της στήλης ${colName(i)} ${h}`} value={v} onChange={(e) => { const nv = e.target.value; setCols((c) => ({ ...c, [i]: nv })); if (nv === "spec" && !(labels[i] ?? "").trim()) setLabels((l) => ({ ...l, [i]: h })); touch(); }} className={input}>
                       {TARGETS.map((g) => <optgroup key={g.group} label={g.group}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>)}
                     </select>
@@ -347,7 +349,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
                   <ul className="m-0 p-0 list-none grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]">
                     {g.vals.values.map((v) => (
                       <li key={v} className="grid gap-1 rounded-lg border border-eu-line p-2 min-w-0">
-                        <span className="font-bold text-eu-ink text-[length:var(--fs-13)] break-words">{v}</span>
+                        <span className="font-bold text-eu-ink text-[length:var(--fs-13)] min-w-0 [overflow-wrap:anywhere]">{v}</span>
                         <OptionPicker label={`${g.kind === "brand" ? "Μάρκα" : "Κατηγορία"} για «${v}»`} options={g.opts} value={g.map[v] ?? null} onChange={(id) => { g.set((m) => ({ ...m, [v]: id })); touch(); }} empty="Χωρίς αντιστοίχιση" />
                       </li>
                     ))}
@@ -410,7 +412,7 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
     for (let i = 0; i < rows.length; i += BATCH) {
       const part = rows.slice(i, i + BATCH);
       let res;
-      try { res = await runForeignBatch(plan.jobId, part); } catch (e) { res = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
+      try { res = await runForeignBatch(plan.jobId, part, plan.writeOn); } catch (e) { res = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
       if ("error" in res) { setErr(`${res.error} — όσα έγιναν μέχρι εδώ έμειναν· πάτα ξανά «Εκτέλεση» για τα υπόλοιπα.`); setRunning(false); return; }
       const errs = new Map(res.errors.map((e) => [e.rowNo, e.error]));
       setResults((prev) => {
@@ -466,7 +468,7 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
           <Link href="/admin/catalog/templates/nea-eidi" className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-9 inline-flex items-center">Άνοιγμα «Νέα είδη»</Link>
         </p>
       )}
-      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden />{err}</p>}
+      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
       {blocked && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />{blocked}</p>}
 
       <div data-help="foreign.run" className="sticky bottom-2 z-10 grid gap-2 rounded-2xl bg-eu-navy text-white px-4 py-3 shadow-lg">
@@ -495,13 +497,13 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
         <div className="grid gap-1 min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
             <span className={`${chip} ${st.cls}`}>{st.label}</span>
-            <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 break-words">{r.title || "—"}</span>
-            <span className="text-eu-muted text-[length:var(--fs-12)]">γραμμή {r.rowNo}{r.mtrl ? ` · MTRL ${r.mtrl}` : ""}{r.code ? ` · ${r.code}` : ""}</span>
+            <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{r.title || "—"}</span>
+            <span className="min-w-0 break-all text-eu-muted text-[length:var(--fs-12)]">γραμμή {r.rowNo}{r.mtrl ? ` · MTRL ${r.mtrl}` : ""}{r.code ? ` · ${r.code}` : ""}</span>
           </div>
-          {r.problem && <p className="m-0 flex gap-1.5 items-start text-eu-red text-[length:var(--fs-13)] break-words"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />{r.problem}</p>}
+          {r.problem && <p className="m-0 flex gap-1.5 items-start text-eu-red text-[length:var(--fs-13)] min-w-0 [overflow-wrap:anywhere]"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{r.problem}</span></p>}
           {r.changes.length > 0 && !problem && (
             <ul className="m-0 p-0 list-none grid gap-0.5 text-[length:var(--fs-13)]">
-              {r.changes.slice(0, 8).map((c, i) => <li key={i} className="break-words min-w-0"><span className="text-eu-ink-3">{c.label}:</span> {r.status !== "new" && <><s className="text-eu-muted">{c.from || "—"}</s> → </>}<strong className="text-eu-ink">{c.to}</strong></li>)}
+              {r.changes.slice(0, 8).map((c, i) => <li key={i} className="min-w-0 [overflow-wrap:anywhere]"><span className="text-eu-ink-3">{c.label}:</span> {r.status !== "new" && <><s className="text-eu-muted">{c.from || "—"}</s> → </>}<strong className="text-eu-ink">{c.to}</strong></li>)}
               {r.changes.length > 8 && <li className="text-eu-muted">+{r.changes.length - 8} ακόμη</li>}
             </ul>
           )}
@@ -517,9 +519,9 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
               )}
             </div>
           )}
-          {r.warnings.slice(0, 4).map((w, i) => <p key={i} className="m-0 flex gap-1.5 items-start text-eu-ink-3 text-[length:var(--fs-12)] break-words"><AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden />{w}</p>)}
+          {r.warnings.slice(0, 4).map((w, i) => <p key={i} className="m-0 flex gap-1.5 items-start text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]"><AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{w}</span></p>)}
           {r.warnings.length > 4 && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">+{r.warnings.length - 4} ακόμη προειδοποιήσεις</p>}
-          {res && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] break-words ${res.ok ? "text-eu-ink" : "text-eu-red"}`}>{res.ok ? <Check className="size-3.5 text-eu-green shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{res.text}</p>}
+          {res && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] min-w-0 [overflow-wrap:anywhere] ${res.ok ? "text-eu-ink" : "text-eu-red"}`}>{res.ok ? <Check className="size-3.5 text-eu-green shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}<span className="min-w-0">{res.text}</span></p>}
         </div>
       </div>
     </li>

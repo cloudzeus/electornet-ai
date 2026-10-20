@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks } from "./plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle } from "./plan-core";
 import type { ForeignRow } from "./core";
 
 const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, cost: null, rrp: null });
@@ -92,4 +92,24 @@ test("sameItemRows: ίδιο MTRL σε 2+ γραμμές (από όλο το α�
 test("chunks: χωρίζει σε κομμάτια το πολύ n", () => {
   assert.deepEqual(chunks([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(chunks([], 3), []);
+});
+
+test("sectionTitle: νέα γραμμή χωρίς έγκυρο κόστος που είναι μόνο τίτλος → true", () => {
+  const r = (f: ForeignRow["fields"], extra: Partial<ForeignRow> = {}): ForeignRow => ({ ...row(1, f), ...extra });
+  // χωρίς κωδικό/EAN/κωδικό κατασκευαστή και χωρίς κόστος
+  assert.equal(sectionTitle(r({ name: "IP VIDEO DOOR PHONES" })), true);
+  assert.equal(sectionTitle(r({})), true);
+  // ο τίτλος στη στήλη «Part Number» (κωδικός κατασκευαστή), τίποτε άλλο — όπως στο Allwan
+  assert.equal(sectionTitle(r({ factoryCode: "IP VIDEO DOOR PHONES" })), true);
+  // συγχωνευμένο κελί: ίδιο κείμενο σε όλες τις στήλες, και στο «κόστος» (δεν είναι ποσό)
+  assert.equal(sectionTitle(r({ factoryCode: "Colour Screen Phones", descText: "Colour Screen Phones" }, { cost: "Colour Screen Phones" })), true);
+});
+
+test("sectionTitle: πραγματικά είδη → false", () => {
+  const r = (f: ForeignRow["fields"], extra: Partial<ForeignRow> = {}): ForeignRow => ({ ...row(1, f), ...extra });
+  assert.equal(sectionTitle(r({ factoryCode: "D140", descText: "Entry level phone" })), false); // κωδικός + περιγραφή, χωρίς κόστος
+  assert.equal(sectionTitle(r({ name: "Τηλέφωνο" }, { cost: "45,00" })), false); // χωρίς κωδικό αλλά με κόστος
+  assert.equal(sectionTitle(r({ factoryCode: "D140" }, { cost: "45" })), false);
+  assert.equal(sectionTitle(r({ barcode: "5201234567890", name: "X" })), false);
+  assert.equal(sectionTitle(r({ mtrl: "123" })), false); // ρητό MTRL = υπάρχον είδος, όχι τίτλος
 });

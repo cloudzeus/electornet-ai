@@ -6,7 +6,8 @@ import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } fr
 import { itemWriteEnabled, writeWebPrice } from "@/lib/softone/item-write";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
 import { toRows, resolveMatches, buildMatchIndex, normEan, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, SECTION_TITLE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { UserError } from "@/lib/catalog/foreign-import/core";
 
 export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
@@ -17,7 +18,8 @@ export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/pla
  * μέσω της βιβλιοθήκης, τιμή web μόνο αν λείπει· νέα είδη → PendingItem για έγκριση. Με κλειστή εγγραφή στο SoftOne τα
  * στοιχεία του ERP μένουν «σε αναμονή» και δεν γράφεται τίποτα (ούτε στο κατάστημα)· οι φωτογραφίες περνούν κανονικά.
  */
-type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; results?: Record<number, string> };
+/** writeOn = ο διακόπτης του SoftOne τη στιγμή της προεπισκόπησης (ο χρήστης ενέκρινε αυτό που είδε) */
+type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; results?: Record<number, string> };
 type Ctx = { row: ForeignRow; plan: ForeignPlanRow; mtrl: number | null; groupS1Id: number | null; specs: Record<string, string>; parsed?: ParsedRow; media?: MediaRow };
 
 const SHEET = "Εισαγωγή";
@@ -129,6 +131,8 @@ async function compute(all: ForeignRow[], writeOn: boolean, only?: { rowNos: Set
       if (groupS1Id == null) problem ??= "Το είδος δεν έχει ομάδα χαρακτηριστικών στο SoftOne.";
       else if (!groups.has(groupS1Id)) problem ??= "Η ομάδα χαρακτηριστικών του είδους δεν υπάρχει πια στο SoftOne.";
     } else {
+      // Τίτλος ενότητας του τιμοκαταλόγου, όχι είδος: πρόβλημα, ώστε να μη γίνει ποτέ PendingItem (ούτε στην εκτέλεση)
+      if (sectionTitle(row)) problem ??= SECTION_TITLE;
       groupS1Id = row.categoryId ? groupOfCat.get(row.categoryId) ?? null : null;
       if (groupS1Id != null && !groups.has(groupS1Id)) groupS1Id = null;
       if (groupS1Id == null) plan.warnings.push(row.categoryId ? "Δεν βρέθηκε ομάδα χαρακτηριστικών για την κατηγορία — θα οριστεί στην έγκριση." : "Χωρίς κατηγορία site — η ομάδα χαρακτηριστικών θα οριστεί στην έγκριση.");
@@ -206,7 +210,7 @@ export async function planForeign(
   const foreign = toRows(input.sheet, input.headerRow, input.config);
   const writeOn = await itemWriteEnabled();
   const rows = (await compute(foreign, writeOn)).map((c) => c.plan);
-  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config };
+  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn };
   const job = await db.importJob.create({ data: { fileName: input.fileName, mappingId: input.mappingId ?? null, rows: stored as object, counts: countStatus(rows), status: "draft", createdById: staffId }, select: { id: true } });
   return { jobId: job.id, rows, writeOn };
 }
@@ -219,10 +223,12 @@ export async function planForeign(
  */
 export async function applyForeign(jobId: string, rowNos: number[], staffId: string | null): Promise<{ done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[] }> {
   const job = await db.importJob.findUnique({ where: { id: jobId } });
-  if (!job) throw new Error("Η εισαγωγή δεν βρέθηκε.");
+  if (!job) throw new UserError("Η εισαγωγή δεν βρέθηκε.");
   const stored = job.rows as unknown as Stored;
   const storedPlan = new Map(stored.plan.map((p) => [p.rowNo, p]));
   const writeOn = await itemWriteEnabled();
+  // Η προεπισκόπηση έδειξε «θα γραφτεί στο SoftOne» ή «σε αναμονή»· αν ο διακόπτης άλλαξε από τότε, δεν εκτελείται τίποτα
+  if (stored.writeOn !== writeOn) throw new UserError("Ο διακόπτης του SoftOne άλλαξε από την προεπισκόπηση — ξανακάνε προεπισκόπηση.");
   const want = new Set(rowNos);
   const ctx = await compute(stored.foreign, writeOn, { rowNos: want, stored: stored.plan });
   const errors: { rowNo: number; error: string }[] = [];

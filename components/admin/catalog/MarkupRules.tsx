@@ -80,7 +80,7 @@ export function MarkupRules({ rules, brands, categories, canWrite }: { rules: Ru
           <li key={r.id} className={`rounded-xl border p-3 grid gap-2 min-w-0 ${r.active ? "border-eu-line bg-white" : "border-eu-line bg-eu-surface/60"}`}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
               <span className={`${chip} ${scopeOf(r) === "general" ? "bg-eu-navy text-white" : "bg-eu-chip text-eu-navy"}`}>{SCOPES.find((s) => s.value === scopeOf(r))!.label}</span>
-              <span className="font-bold text-eu-ink text-[length:var(--fs-15)] min-w-0 break-words">{scopeLabel(r)}</span>
+              <span className="font-bold text-eu-ink text-[length:var(--fs-15)] min-w-0 [overflow-wrap:anywhere]">{scopeLabel(r)}</span>
               <span className="font-extrabold text-eu-navy text-[length:var(--fs-16)] tabular-nums">+{pct(r.percent)}</span>
               <span className={`${chip} bg-eu-surface text-eu-ink-2`}>Στρογγύλεμα: {ROUNDINGS.find((x) => x.value === roundingOf(r.rounding))!.label}</span>
               {!r.active && <span className={`${chip} bg-eu-surface text-eu-muted`}>Ανενεργός</span>}

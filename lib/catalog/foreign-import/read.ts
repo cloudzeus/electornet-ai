@@ -3,7 +3,9 @@ import ExcelJS from "exceljs";
 import iconv from "iconv-lite";
 import { db } from "@/lib/db";
 import { cellText } from "@/lib/catalog/supplier-sheet";
-import { configToSaved, headerSignature, parseCsv, type MappingConfig, type SavedConfig } from "@/lib/catalog/foreign-import/core";
+import { configToSaved, headerSignature, parseCsv, UserError, type MappingConfig, type SavedConfig } from "@/lib/catalog/foreign-import/core";
+
+export { UserError };
 
 /**
  * Ανάγνωση ξένου αρχείου (xlsx / csv) σε πίνακα κειμένων και αποθηκευμένες αντιστοιχίσεις στηλών ανά υπογραφή επικεφαλίδων.
@@ -19,12 +21,12 @@ const nonEmpty = (r: string[]) => r.some((c) => c);
 
 /** Όριο γραμμών: μη κενές γραμμές μείον μία (επικεφαλίδα) — απλό και συντηρητικό. */
 function checkRows(sheets: Sheet[]) {
-  for (const s of sheets) if (s.matrix.filter(nonEmpty).length - 1 > MAX_ROWS) throw new Error("Το αρχείο έχει πάνω από 10.000 γραμμές.");
+  for (const s of sheets) if (s.matrix.filter(nonEmpty).length - 1 > MAX_ROWS) throw new UserError("Το αρχείο έχει πάνω από 10.000 γραμμές.");
 }
 
 async function readXlsx(buf: ArrayBuffer): Promise<Sheet[]> {
   const wb = new ExcelJS.Workbook();
-  try { await wb.xlsx.load(buf as unknown as ExcelJS.Buffer); } catch { throw new Error("Το αρχείο δεν διαβάζεται ως .xlsx — ίσως είναι κατεστραμμένο ή προστατευμένο με κωδικό."); }
+  try { await wb.xlsx.load(buf as unknown as ExcelJS.Buffer); } catch { throw new UserError("Το αρχείο δεν διαβάζεται ως .xlsx — ίσως είναι κατεστραμμένο ή προστατευμένο με κωδικό."); }
   const sheets: Sheet[] = [];
   for (const ws of wb.worksheets) {
     if (ws.name === "_meta") continue;
@@ -53,8 +55,8 @@ function readCsv(buf: ArrayBuffer, fileName: string): Sheet[] {
 /** Διαβάζει .xlsx (όλα τα φύλλα με περιεχόμενο) ή .csv (ένα φύλλο, διαχωριστής `;` `,` ή tab). Άλλος τύπος ή υπέρβαση ορίων → Error με ελληνικό μήνυμα. */
 export async function readWorkbook(buf: ArrayBuffer, fileName: string): Promise<{ sheets: Sheet[] }> {
   const ext = /\.([^./\\]+)$/.exec(fileName)?.[1]?.toLowerCase();
-  if (ext !== "xlsx" && ext !== "csv") throw new Error(BAD_TYPE);
-  if (buf.byteLength > MAX_BYTES) throw new Error("Το αρχείο ξεπερνά τα 15 MB.");
+  if (ext !== "xlsx" && ext !== "csv") throw new UserError(BAD_TYPE);
+  if (buf.byteLength > MAX_BYTES) throw new UserError("Το αρχείο ξεπερνά τα 15 MB.");
   const sheets = ext === "xlsx" ? await readXlsx(buf) : readCsv(buf, fileName);
   checkRows(sheets);
   return { sheets };
@@ -67,7 +69,7 @@ export type StoredMapping = { id: string; name: string; headerSignature: string;
 /** Αποθηκεύει την αντιστοίχιση στηλών (με κλειδί επικεφαλίδας). Ίδια υπογραφή επικεφαλίδων (unique) → ενημέρωση ονόματος/ρυθμίσεων της υπάρχουσας. */
 export async function saveMapping(name: string, headers: string[], config: MappingConfig, staffId: string | null): Promise<StoredMapping> {
   const signature = headerSignature(headers);
-  if (!signature) throw new Error("Δεν υπάρχουν επικεφαλίδες για να αποθηκευτεί η αντιστοίχιση.");
+  if (!signature) throw new UserError("Δεν υπάρχουν επικεφαλίδες για να αποθηκευτεί η αντιστοίχιση.");
   const data = { name, config: configToSaved(config, headers) as object };
   const row = await db.importMapping.upsert({ where: { headerSignature: signature }, update: data, create: { ...data, headerSignature: signature, createdById: staffId } });
   return row as unknown as StoredMapping;

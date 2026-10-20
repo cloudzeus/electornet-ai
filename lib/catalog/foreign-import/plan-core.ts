@@ -109,3 +109,19 @@ export function chunks<T>(list: T[], n: number): T[][] {
   for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
   return out;
 }
+
+export const SECTION_TITLE = "Γραμμή χωρίς κωδικό και κόστος — μάλλον τίτλος ενότητας.";
+
+/**
+ * Νέα γραμμή που μοιάζει με τίτλο ενότητας του τιμοκαταλόγου (π.χ. «IP VIDEO DOOR PHONES»), όχι με είδος: χωρίς έγκυρο
+ * κόστος ΚΑΙ (κανένα κλειδί — κωδικός / κωδικός κατασκευαστή / EAN — ή ένα μόνο κείμενο σε όλη τη γραμμή, όπως ένα
+ * συγχωνευμένο κελί ή ο τίτλος στη στήλη «Part Number»). Ρητό MTRL = υπάρχον είδος, ποτέ τίτλος.
+ */
+export function sectionTitle(r: ForeignRow): boolean {
+  const t = (s?: string | null) => (s ?? "").trim();
+  if (t(r.fields.mtrl)) return false;
+  if (r.cost && parseMoney(r.cost) != null) return false;
+  if (!t(r.fields.code) && !t(r.fields.factoryCode) && !t(r.fields.barcode)) return true;
+  const texts = [...Object.values(r.fields), ...Object.values(r.specs), r.cost, r.rrp, ...r.media.image, ...r.media.banner, ...r.media.video].map(t).filter(Boolean);
+  return new Set(texts).size <= 1;
+}

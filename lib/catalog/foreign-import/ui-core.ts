@@ -1,5 +1,5 @@
 import type { FieldKey } from "@/lib/catalog/supplier-sheet";
-import { detectHeaderRow, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
+import { detectHeaderRow, UserError, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Εισαγωγή από ξένο Excel — καθαρά κομμάτια της οθόνης (χωρίς βάση, server-only ή React): τι στέλνει ο έλεγχος αρχείου
@@ -81,8 +81,8 @@ function parseTarget(v: unknown): Target | null {
   if (!isObj(v) || typeof v.kind !== "string") return null;
   if (v.kind === "spec") {
     const label = txt(v.label);
-    if (!label) throw new Error("Κάθε στήλη-χαρακτηριστικό χρειάζεται ετικέτα.");
-    if (label.length > 80) throw new Error("Η ετικέτα χαρακτηριστικού έχει έως 80 χαρακτήρες.");
+    if (!label) throw new UserError("Κάθε στήλη-χαρακτηριστικό χρειάζεται ετικέτα.");
+    if (label.length > 80) throw new UserError("Η ετικέτα χαρακτηριστικού έχει έως 80 χαρακτήρες.");
     return { kind: "spec", label };
   }
   const t = decodeTarget(v.kind === "field" ? `field:${v.key}` : v.kind === "media" ? `media:${v.type}` : v.kind);
@@ -91,7 +91,7 @@ function parseTarget(v: unknown): Target | null {
 
 function parseMap(v: unknown): Record<string, string | null> {
   if (v == null) return {};
-  if (!isObj(v)) throw new Error("Μη έγκυρη αντιστοίχιση τιμών.");
+  if (!isObj(v)) throw new UserError("Μη έγκυρη αντιστοίχιση τιμών.");
   const out: Record<string, string | null> = {};
   for (const [k, x] of Object.entries(v).slice(0, 5000)) if (k.trim()) out[k] = idOrNull(x);
   return out;
@@ -99,13 +99,13 @@ function parseMap(v: unknown): Record<string, string | null> {
 
 /** Η αντιστοίχιση όπως ήρθε από τον browser → MappingConfig, ή Error με ελληνικό μήνυμα. Άγνωστοι στόχοι απορρίπτονται. */
 export function parseConfig(raw: unknown): MappingConfig {
-  if (!isObj(raw) || !isObj(raw.columns)) throw new Error("Μη έγκυρη αντιστοίχιση στηλών.");
+  if (!isObj(raw) || !isObj(raw.columns)) throw new UserError("Μη έγκυρη αντιστοίχιση στηλών.");
   const columns: Record<number, Target> = {};
   for (const [k, v] of Object.entries(raw.columns)) {
     const i = Number(k);
-    if (!Number.isInteger(i) || i < 0 || i >= MAX_COLS) throw new Error("Μη έγκυρη στήλη στην αντιστοίχιση.");
+    if (!Number.isInteger(i) || i < 0 || i >= MAX_COLS) throw new UserError("Μη έγκυρη στήλη στην αντιστοίχιση.");
     const t = parseTarget(v);
-    if (!t) throw new Error(`Μη έγκυρος στόχος για τη στήλη ${i + 1}.`);
+    if (!t) throw new UserError(`Μη έγκυρος στόχος για τη στήλη ${i + 1}.`);
     if (t.kind !== "ignore") columns[i] = t;
   }
   return { columns, brandMap: parseMap(raw.brandMap), categoryMap: parseMap(raw.categoryMap), sheetBrandId: idOrNull(raw.sheetBrandId), sheetCategoryId: idOrNull(raw.sheetCategoryId) };

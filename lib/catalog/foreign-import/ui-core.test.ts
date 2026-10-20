@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { UserError } from "./core";
 import { inspectSheet, valuesAfter, encodeTarget, decodeTarget, parseConfig, configIds, autoMatch, nameKey, MAX_VALUES } from "./ui-core";
 
 test("inspectSheet: επικεφαλίδα, πλήθος γραμμών, τιμές στήλης με τελευταία γραμμή", () => {
@@ -38,6 +39,8 @@ test("parseConfig: δέχεται έγκυρη αντιστοίχιση, πετ�
   assert.throws(() => parseConfig({ columns: { 0: { kind: "spec", label: "" } } }), /ετικέτα/);
   assert.throws(() => parseConfig({ columns: { "-1": { kind: "cost" } } }), /στήλη/);
   assert.throws(() => parseConfig(null), /Μη έγκυρη/);
+  // σφάλματα για τον χρήστη: UserError (μόνο αυτά φτάνουν αυτούσια στον browser)
+  assert.throws(() => parseConfig(null), UserError);
 });
 
 test("configIds: μοναδικά ids μάρκας/κατηγορίας από χάρτες και φύλλο", () => {

@@ -36,7 +36,7 @@ export function OptionPicker({ options, value, onChange, label, empty = "—", d
       <div className="flex gap-1 items-center">
         <Search className="size-4 text-eu-muted shrink-0 ml-1.5" aria-hidden />
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Αναζήτηση: ${label}`} placeholder="Αναζήτηση…"
-          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setOpen(false); } if (e.key === "Enter" && list[0]) { e.preventDefault(); pick(list[0].id); } }}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setOpen(false); } if (e.key === "Enter") { e.preventDefault(); if (list[0]) pick(list[0].id); } }}
           className="min-w-0 flex-1 bg-transparent px-1 min-h-11 md:min-h-9 text-[length:var(--fs-14)] outline-none" />
         <button type="button" onClick={() => setOpen(false)} aria-label="Κλείσιμο" className="size-11 md:size-9 shrink-0 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-4" aria-hidden /></button>
       </div>
@@ -44,7 +44,7 @@ export function OptionPicker({ options, value, onChange, label, empty = "—", d
         <li><button type="button" onClick={() => pick(null)} className="w-full text-left rounded-md px-2 min-h-11 md:min-h-9 text-eu-ink-3 text-[length:var(--fs-13)] hover:bg-eu-surface">{empty}</button></li>
         {list.map((o) => (
           <li key={o.id}><button type="button" onClick={() => pick(o.id)} className={`w-full text-left rounded-md px-2 py-1 min-h-11 md:min-h-9 grid hover:bg-eu-surface ${o.id === value ? "bg-eu-chip" : ""}`}>
-            <span className="text-eu-ink text-[length:var(--fs-14)] break-words">{o.name}</span>
+            <span className="text-eu-ink text-[length:var(--fs-14)] [overflow-wrap:anywhere]">{o.name}</span>
             {o.hint && <span className="text-eu-muted text-[length:var(--fs-12)]">{o.hint}</span>}
           </button></li>
         ))}

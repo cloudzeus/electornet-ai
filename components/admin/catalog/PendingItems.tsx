@@ -75,11 +75,11 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
   return (
     <div className="grid gap-3 min-w-0">
       {lock && OPEN.has(status) && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><Lock className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />{lock}</p>}
-      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden />{err}</p>}
+      {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
       {done.length > 0 && !busy && (
         <div role="status" className="grid gap-1 rounded-xl border border-eu-line bg-white p-3 text-[length:var(--fs-13)]">
           <span className="font-bold text-eu-ink">{done.length - failed.length} ολοκληρώθηκαν{failed.length ? ` · ${failed.length} απέτυχαν` : ""}</span>
-          {failed.slice(0, 20).map((r, i) => <span key={i} className="flex gap-1.5 items-start text-eu-red break-words"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden /><strong>{r.code}:</strong> {r.text}</span>)}
+          {failed.slice(0, 20).map((r, i) => <span key={i} className="flex gap-1.5 items-start text-eu-red [overflow-wrap:anywhere]"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden /><strong>{r.code}:</strong> {r.text}</span>)}
         </div>
       )}
 
@@ -111,23 +111,23 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
                 {OPEN.has(status) && canWrite && <input type="checkbox" checked={sel.has(p.id)} disabled={!can || !!busy} onChange={() => toggle(p.id)} aria-label={`Επιλογή ${p.code || p.name}`} className="size-5 mt-0.5 accent-eu-navy shrink-0" />}
                 <div className="grid gap-1 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
-                    <span className="font-bold text-eu-ink text-[length:var(--fs-15)] min-w-0 break-words">{p.name || <span className="text-eu-muted font-normal">(χωρίς όνομα)</span>}</span>
-                    {p.code && <span className={`${chip} bg-eu-surface text-eu-ink-2`}>{p.code}</span>}
+                    <span className="font-bold text-eu-ink text-[length:var(--fs-15)] min-w-0 [overflow-wrap:anywhere]">{p.name || <span className="text-eu-muted font-normal">(χωρίς όνομα)</span>}</span>
+                    {p.code && <span className={`${chip} bg-eu-surface text-eu-ink-2 min-w-0 break-all`}>{p.code}</span>}
                     {p.mtrl != null && <span className={`${chip} bg-eu-green/12 text-eu-ink`}>MTRL {p.mtrl}</span>}
                   </div>
                   <dl className="m-0 grid gap-x-4 gap-y-0.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,13rem),1fr))] text-[length:var(--fs-13)]">
-                    <div className="min-w-0"><dt className="inline text-eu-muted">Μάρκα: </dt><dd className="inline m-0 text-eu-ink break-words">{p.brandName ?? "—"}</dd></div>
-                    <div className="min-w-0"><dt className="inline text-eu-muted">Ομάδα: </dt><dd className="inline m-0 text-eu-ink break-words">{p.groupName ?? "—"}</dd></div>
+                    <div className="min-w-0"><dt className="inline text-eu-muted">Μάρκα: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.brandName ?? "—"}</dd></div>
+                    <div className="min-w-0"><dt className="inline text-eu-muted">Ομάδα: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.groupName ?? "—"}</dd></div>
                     <div className="min-w-0"><dt className="inline text-eu-muted">Τιμή web: </dt><dd className="inline m-0 text-eu-ink tabular-nums">{eur(p.price)}</dd>{p.cost != null && <span className="text-eu-muted tabular-nums"> · κόστος {eur(p.cost)}</span>}{p.rrp != null && <span className="text-eu-muted tabular-nums"> · ΤΛΤ {eur(p.rrp)}</span>}</div>
                     <div className="min-w-0 inline-flex items-center gap-1 text-eu-ink-2"><Images className="size-3.5" aria-hidden /> {p.photos} πολυμέσα</div>
-                    {p.category && <div className="min-w-0"><dt className="inline text-eu-muted">Κατηγορία αρχείου: </dt><dd className="inline m-0 text-eu-ink break-words">{p.category}</dd></div>}
-                    {p.file && <div className="min-w-0 text-eu-muted break-words">{p.file} · γραμμή {p.rowNo}</div>}
+                    {p.category && <div className="min-w-0"><dt className="inline text-eu-muted">Κατηγορία αρχείου: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.category}</dd></div>}
+                    {p.file && <div className="min-w-0 text-eu-muted [overflow-wrap:anywhere]">{p.file} · γραμμή {p.rowNo}</div>}
                   </dl>
                   {can && (p.missing.length ? (
                     <p data-help="pending.missing" className="m-0 flex flex-wrap gap-1 items-center text-[length:var(--fs-13)]"><span className="text-eu-ink-3">Τι λείπει:</span>{p.missing.map((m) => <span key={m} className={`${chip} bg-eu-red/10 text-eu-red`}>{m}</span>)}</p>
                   ) : <p className="m-0 inline-flex gap-1 items-center text-eu-ink-2 text-[length:var(--fs-13)]"><Check className="size-3.5 text-eu-green" aria-hidden /> Έτοιμο για έγκριση</p>)}
-                  {p.error && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] break-words ${p.status === "created" ? "text-eu-ink-3" : "text-eu-red"}`}>{p.status === "created" ? <AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{p.status === "created" ? `Σημείωση: ${p.error}` : p.error}</p>}
-                  {res && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] break-words ${res.ok ? "text-eu-ink" : "text-eu-red"}`}>{res.ok ? <Check className="size-3.5 text-eu-green shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{res.text}</p>}
+                  {p.error && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] [overflow-wrap:anywhere] ${p.status === "created" ? "text-eu-ink-3" : "text-eu-red"}`}>{p.status === "created" ? <AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{p.status === "created" ? `Σημείωση: ${p.error}` : p.error}</p>}
+                  {res && <p className={`m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] [overflow-wrap:anywhere] ${res.ok ? "text-eu-ink" : "text-eu-red"}`}>{res.ok ? <Check className="size-3.5 text-eu-green shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{res.text}</p>}
                 </div>
               </div>
               {can && canWrite && (
