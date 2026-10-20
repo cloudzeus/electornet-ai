@@ -2692,7 +2692,7 @@ model PendingItem {
   cost          Float?
   rrp           Float?
   price         Float?
-  status        String   @default("pending") // pending | approved | rejected | …
+  status        String   @default("pending") // pending | creating | created | error | discarded
   mtrl          Int?
   productId     String?
   error         String?

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pendingMissing, pendingRow, pendingMedia } from "./pending-core";
+import { pendingMissing, pendingRow, pendingMedia, isStaleCreating, canApprove, STALE_MIN } from "./pending-core";
 
 const ok = { code: "ABC-1", fields: { name: "Ψυγείο" }, brandId: "b1", brandS1Id: "77", specGroupS1Id: 12, webCategoryId: "c1" };
 
@@ -26,14 +26,14 @@ test("pendingMissing: μάρκα, και μάρκα χωρίς σύνδεση μ
   assert.deepEqual(pendingMissing({ ...ok, brandS1Id: null }), ["Μάρκα συνδεδεμένη με το SoftOne"]);
 });
 
-test("pendingMissing: ομάδα χαρακτηριστικών και κατηγορία site", () => {
+test("pendingMissing: ομάδα χαρακτηριστικών (η κατηγορία site βγαίνει από αυτήν — το webCategoryId δεν απαιτείται)", () => {
   assert.deepEqual(pendingMissing({ ...ok, specGroupS1Id: null }), ["Ομάδα χαρακτηριστικών"]);
-  assert.deepEqual(pendingMissing({ ...ok, webCategoryId: null }), ["Κατηγορία site"]);
-  assert.deepEqual(pendingMissing({ ...ok, webCategoryId: "" }), ["Κατηγορία site"]);
+  assert.deepEqual(pendingMissing({ ...ok, webCategoryId: null }), []);
+  assert.deepEqual(pendingMissing({ ...ok, webCategoryId: "" }), []);
 });
 
 test("pendingMissing: όλα μαζί, με σταθερή σειρά", () => {
-  assert.deepEqual(pendingMissing({ code: "", fields: {}, brandId: null, brandS1Id: null, specGroupS1Id: null, webCategoryId: null }), ["Κωδικός", "Όνομα", "Μάρκα", "Ομάδα χαρακτηριστικών", "Κατηγορία site"]);
+  assert.deepEqual(pendingMissing({ code: "", fields: {}, brandId: null, brandS1Id: null, specGroupS1Id: null, webCategoryId: null }), ["Κωδικός", "Όνομα", "Μάρκα", "Ομάδα χαρακτηριστικών"]);
 });
 
 test("pendingRow: ο κωδικός του PendingItem υπερισχύει, χωρίς MTRL, μόνο κείμενα στα χαρακτηριστικά", () => {
@@ -44,4 +44,25 @@ test("pendingRow: ο κωδικός του PendingItem υπερισχύει, χ�
 test("pendingMedia: λίστες URLs, ό,τι άλλο αγνοείται", () => {
   assert.deepEqual(pendingMedia({ image: ["a.jpg", "", 3], video: "x" }), { image: ["a.jpg"], banner: [], video: [] });
   assert.deepEqual(pendingMedia(null), { image: [], banner: [], video: [] });
+});
+
+test("isStaleCreating: «creating» πάνω από 15 λεπτά → ανακτήσιμο", () => {
+  const now = new Date("2026-10-20T12:00:00Z"), ago = (min: number) => new Date(now.getTime() - min * 60_000);
+  assert.equal(STALE_MIN, 15);
+  assert.equal(isStaleCreating({ status: "creating", updatedAt: ago(16) }, now), true);
+  assert.equal(isStaleCreating({ status: "creating", updatedAt: ago(15.01) }, now), true);
+  assert.equal(isStaleCreating({ status: "creating", updatedAt: ago(15) }, now), false);
+  assert.equal(isStaleCreating({ status: "creating", updatedAt: ago(1) }, now), false);
+  assert.equal(isStaleCreating({ status: "error", updatedAt: ago(60) }, now), false);
+});
+
+test("canApprove: pending/error χωρίς MTRL, ή «creating» που κόλλησε", () => {
+  const now = new Date("2026-10-20T12:00:00Z"), old = new Date(now.getTime() - 20 * 60_000);
+  assert.equal(canApprove({ status: "pending", updatedAt: now, mtrl: null }, now), true);
+  assert.equal(canApprove({ status: "error", updatedAt: now, mtrl: null }, now), true);
+  assert.equal(canApprove({ status: "error", updatedAt: now, mtrl: 5 }, now), false);
+  assert.equal(canApprove({ status: "creating", updatedAt: now, mtrl: null }, now), false);
+  assert.equal(canApprove({ status: "creating", updatedAt: old, mtrl: null }, now), true);
+  assert.equal(canApprove({ status: "created", updatedAt: old, mtrl: 5 }, now), false);
+  assert.equal(canApprove({ status: "discarded", updatedAt: old, mtrl: null }, now), false);
 });

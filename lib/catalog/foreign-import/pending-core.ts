@@ -5,7 +5,17 @@ import type { FieldKey, ParsedRow } from "@/lib/catalog/supplier-sheet";
  * Νέα είδη από ξένο Excel σε αναμονή έγκρισης — καθαρές αποφάσεις (χωρίς βάση). Ο pending.ts τις τροφοδοτεί και εκτελεί.
  */
 export type PendingFields = Partial<Record<FieldKey, string>>;
-export type PendingCheck = Pick<PendingItem, "code" | "fields" | "brandId" | "specGroupS1Id" | "webCategoryId"> & { brandS1Id: string | null };
+/** Το webCategoryId δεν ελέγχεται: η κατηγορία του site βγαίνει από την ομάδα χαρακτηριστικών (προβολή → s1:g:N) — είναι μόνο ένδειξη. */
+export type PendingCheck = Pick<PendingItem, "code" | "fields" | "brandId" | "specGroupS1Id"> & { brandS1Id: string | null; webCategoryId?: string | null };
+
+/** Καταστάσεις από τις οποίες ξεκινά έγκριση / αλλαγή / απόρριψη. */
+export const OPEN = ["pending", "error"];
+/** «creating» παλιότερο από τόσα λεπτά = η έγκριση διακόπηκε (π.χ. επανεκκίνηση) — ανακτήσιμο. */
+export const STALE_MIN = 15;
+export const staleBefore = (now: Date) => new Date(now.getTime() - STALE_MIN * 60_000);
+export const isStaleCreating = (p: Pick<PendingItem, "status" | "updatedAt">, now: Date) => p.status === "creating" && p.updatedAt < staleBefore(now);
+/** Μπορεί να ξεκινήσει έγκριση: pending/error που δεν έχει ήδη είδος στο SoftOne, ή «creating» που κόλλησε. */
+export const canApprove = (p: Pick<PendingItem, "status" | "updatedAt" | "mtrl">, now: Date) => (OPEN.includes(p.status) && p.mtrl == null) || isStaleCreating(p, now);
 
 /** Τα πεδία της γραμμής ως αντικείμενο (το Json της βάσης μπορεί να είναι οτιδήποτε). */
 export const pendingFields = (v: PendingItem["fields"]): PendingFields =>
@@ -19,7 +29,6 @@ export function pendingMissing(p: PendingCheck): string[] {
   if (!(pendingFields(p.fields).name ?? "").trim()) out.push("Όνομα");
   if (!p.brandId) out.push("Μάρκα"); else if (!p.brandS1Id) out.push("Μάρκα συνδεδεμένη με το SoftOne");
   if (p.specGroupS1Id == null) out.push("Ομάδα χαρακτηριστικών");
-  if (!p.webCategoryId) out.push("Κατηγορία site");
   return out;
 }
 
