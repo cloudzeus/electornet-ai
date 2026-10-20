@@ -8,16 +8,18 @@ import { athens } from "../execute";
  *             χωρίς ημερομηνία) · οποιοδήποτε αρχείο εκτός του φακέλου της εφαρμογής (basePath) που άλλαξε στο διάστημα ·
  *             SVG με script / on…= / javascript: / foreignObject.
  *   Warn: ΕΝΑ εύρημα για όσα επικίνδυνα αρχεία προϋπήρχαν (πλήθος + τα 10 πρώτα — εκτός όσων είναι στο BUNNY_ALLOWED) ·
- *         άλλοι άγνωστοι τύποι (ανά κατάληξη) · SVG > 1 MB που δεν ελέγχθηκε · μερική σάρωση (μόνο όταν φτάσει πραγματικά ένα όριο: 100.000 αρχεία / 50.000 φάκελοι, ή τελείωσε ο χρόνος).
+ *         άλλοι άγνωστοι τύποι (ανά κατάληξη) · SVG > 1 MB που δεν ελέγχθηκε · μερική σάρωση (μόνο όταν φτάσει πραγματικά ένα όριο: 250.000 αρχεία / 120.000 φάκελοι, ή τελείωσε ο χρόνος) · προειδοποίηση «αυξήστε το όριο» από το 80%.
  * Χωρίς αυτό, ένα παλιό αρχείο θα ήταν «κρίσιμο» σε κάθε έλεγχο για πάντα — και τα νέα θα χάνονταν ανάμεσά τους.
  */
 
 /**
  * Όρια της λίστας: μετράνε ΞΕΧΩΡΙΣΤΑ αρχεία και φακέλους (πριν, ένα κοινό όριο 20.000 «αντικειμένων» έκοβε πάντα τη ζώνη μας
- * των 10.990 αρχείων + 9.010 φακέλων). Το όριο φακέλων είναι ασφάλεια απέναντι σε ατέλειωτη δομή.
+ * των 10.990 αρχείων + 9.010 φακέλων). Το όριο φακέλων είναι ασφάλεια απέναντι σε ατέλειωτη δομή. Στο 80% του ορίου
+ * (NEAR_CAP) το report προειδοποιεί να αυξηθεί, πριν αρχίσουν οι μερικές σαρώσεις.
  */
-export const MAX_FILES = 100_000;
-export const MAX_DIRS = 50_000;
+export const MAX_FILES = 250_000;
+export const MAX_DIRS = 120_000;
+export const NEAR_CAP = 0.8;
 export type CapHit = "files" | "dirs";
 /** Θα ξεπερνούσε το επόμενο αντικείμενο (φάκελος ή αρχείο) κάποιο όριο; Τα πλήθη είναι όσα έχουν ήδη μετρηθεί. */
 export function capHit(files: number, dirs: number, nextIsDir: boolean): CapHit | null {
@@ -88,6 +90,7 @@ export function bunnyOutcome(input: {
   /** αρχή του διαστήματος ελέγχου — χωρίς αυτό κάθε επικίνδυνο αρχείο είναι critical */ since?: Date;
   /** BUNNY_ALLOWED (ακριβείς διαδρομές) */ allowed?: readonly string[];
   /** αρχεία εκτός basePath που άλλαξαν στο διάστημα (οποιουδήποτε τύπου) */ outsideChanged?: { path: string; changedAt: Date }[];
+  /** διάρκεια της λίστας και ο χρόνος που της αναλογεί (LIST_BUDGET_MS) */ listMs?: number; listBudgetMs?: number;
 }): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
   const findings: Finding[] = [];
   const flagged = input.flagged ?? [];
@@ -119,12 +122,21 @@ export function bunnyOutcome(input: {
   const P = "Μερική σάρωση του Bunny Storage";
   if (input.listIncomplete) findings.push({ severity: "warn", title: P, detail: "Τελείωσε ο χρόνος πριν ολοκληρωθεί η λίστα των φακέλων — όσοι δεν διαβάστηκαν δεν ελέγχθηκαν." });
   else if (input.truncated) findings.push({ severity: "warn", title: P, detail: `Η λίστα σταμάτησε στο όριο των ${capText(input.truncatedBy)} — τα υπόλοιπα δεν ελέγχθηκαν.` });
+  if (!input.truncated) {
+    const near = [
+      input.files >= MAX_FILES * NEAR_CAP && `${n(input.files)} / ${n(MAX_FILES)} αρχεία (${Math.floor((input.files / MAX_FILES) * 100)}%) — αυξήστε το MAX_FILES`,
+      input.dirs >= MAX_DIRS * NEAR_CAP && `${n(input.dirs)} / ${n(MAX_DIRS)} φάκελοι (${Math.floor((input.dirs / MAX_DIRS) * 100)}%) — αυξήστε το MAX_DIRS`,
+    ].filter(Boolean);
+    if (near.length) findings.push({ severity: "warn", title: "Τα αρχεία του Bunny Storage πλησιάζουν το όριο του ελέγχου", detail: `${near.join("· ")} (lib/security/audit/checks/bunny-core.ts) και, αν χρειαστεί, τον χρόνο της λίστας (bunny.ts). Η σημερινή σάρωση είναι πλήρης· όταν το όριο γεμίσει, η λίστα κόβεται και ό,τι περισσεύει δεν ελέγχεται.` });
+  }
+  const sec = (ms: number) => `${Math.round(ms / 1000)}″`;
+  if (!input.listIncomplete && input.listMs != null && input.listBudgetMs && input.listMs >= input.listBudgetMs * NEAR_CAP) findings.push({ severity: "warn", title: "Η λίστα του Bunny Storage πλησιάζει το χρονικό όριο του ελέγχου", detail: `Η λίστα ολοκληρώθηκε σε ${sec(input.listMs)} από ${sec(input.listBudgetMs)} (${Math.floor((input.listMs / input.listBudgetMs) * 100)}%). Αν το Bunny αργήσει λίγο ακόμα, η σάρωση θα μείνει μερική — αυξήστε το LIST_BUDGET_MS / LIST_CONCURRENCY (lib/security/audit/checks/bunny.ts), μέσα στα 300″ του cron.` });
   if (failedDirs.length) findings.push({ severity: "warn", title: P, detail: `${failedDirs.length} φάκελοι δεν διαβάστηκαν (σφάλμα του Bunny) και δεν ελέγχθηκαν: ${failedDirs.slice(0, 5).map((d) => `/${d}`).join(", ")}${failedDirs.length > 5 ? "…" : ""}.` });
   if (input.svgChecked < input.svgTotal) {
     const timedOut = input.svgTotal - input.svgChecked - svgFailed;
     findings.push({ severity: "warn", title: P, detail: `Ελέγχθηκε το περιεχόμενο ${n(input.svgChecked)} από ${n(input.svgTotal)} SVG${svgFailed ? ` · ${n(svgFailed)} SVG δεν διαβάστηκαν (σφάλμα)` : ""}${timedOut > 0 ? ` · ${n(timedOut)} δεν πρόλαβαν (τελείωσε ο χρόνος)` : ""}.` });
   }
   const risky = flagged.filter((x) => x.kind === "critical").length;
-  const summary = `${partial ? "μερική σάρωση — " : ""}${n(input.files)} αρχεία σε ${n(input.dirs)} φακέλους${input.listIncomplete ? " (η λίστα δεν ολοκληρώθηκε)" : input.truncated ? ` (όριο ${capText(input.truncatedBy)})` : ""}${failedDirs.length ? ` (${failedDirs.length} φάκελοι δεν διαβάστηκαν)` : ""} · περιεχόμενο ${n(input.svgChecked)}/${n(input.svgTotal)} SVG ελέγχθηκε για script${risky ? ` · επικίνδυνου τύπου: ${n(risky - pre.length - allowedCount)} νέα/αλλαγμένα${input.since ? ` από ${athens(input.since)}` : ""}, ${n(pre.length)} παλαιότερα${allowedCount ? `, ${n(allowedCount)} εγκεκριμένα (BUNNY_ALLOWED)` : ""}` : ""}${input.outsideChanged ? ` · εκτός του φακέλου της εφαρμογής: ${n(outside.length)} αλλαγές στο διάστημα` : ""}`;
+  const summary = `${partial ? "μερική σάρωση — " : ""}${n(input.files)} αρχεία σε ${n(input.dirs)} φακέλους${input.listIncomplete ? " (η λίστα δεν ολοκληρώθηκε)" : input.truncated ? ` (όριο ${capText(input.truncatedBy)})` : ""}${failedDirs.length ? ` (${failedDirs.length} φάκελοι δεν διαβάστηκαν)` : ""}${input.listMs != null ? ` · λίστα σε ${sec(input.listMs)}` : ""} · περιεχόμενο ${n(input.svgChecked)}/${n(input.svgTotal)} SVG ελέγχθηκε για script${risky ? ` · επικίνδυνου τύπου: ${n(risky - pre.length - allowedCount)} νέα/αλλαγμένα${input.since ? ` από ${athens(input.since)}` : ""}, ${n(pre.length)} παλαιότερα${allowedCount ? `, ${n(allowedCount)} εγκεκριμένα (BUNNY_ALLOWED)` : ""}` : ""}${input.outsideChanged ? ` · εκτός του φακέλου της εφαρμογής: ${n(outside.length)} αλλαγές στο διάστημα` : ""}`;
   return { status: worst(findings.map((f) => f.severity)), summary, findings, complete: !partial };
 }

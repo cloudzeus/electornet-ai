@@ -139,7 +139,9 @@ test("capHit: μετράνε αρχεία και φακέλους ξεχωρισ
   assert.equal(capHit(0, 20_000, true), null);
 });
 
-test("capHit: μόνο όταν γεμίσει το δικό του όριο — αρχεία 100.000, φάκελοι 50.000", () => {
+test("capHit: μόνο όταν γεμίσει το δικό του όριο — αρχεία 250.000, φάκελοι 120.000", () => {
+  assert.equal(MAX_FILES, 250_000);
+  assert.equal(MAX_DIRS, 120_000);
   assert.equal(capHit(MAX_FILES - 1, 0, false), null);
   assert.equal(capHit(MAX_FILES, 0, false), "files");
   assert.equal(capHit(MAX_FILES, 0, true), null); // γεμάτα αρχεία δεν εμποδίζουν φακέλους (χωρίς νέα αρχεία δεν υπάρχει τίποτα να ελεγχθεί)
@@ -158,8 +160,58 @@ test("bunnyOutcome: 10.990 αρχεία σε 9.010 φακέλους χωρίς �
 test("bunnyOutcome: μερική σάρωση ονομάζει το όριο που έφτασε (αρχεία ή φάκελοι)", () => {
   const f = bunnyOutcome({ files: MAX_FILES, dirs: 5, truncated: true, truncatedBy: "files", svgTotal: 0, svgChecked: 0, findings: [] });
   assert.equal(f.complete, false);
-  assert.match(f.findings[0].detail, /100\.000 αρχείων/);
-  assert.match(f.summary, /όριο 100\.000 αρχείων/);
+  assert.match(f.findings[0].detail, /250\.000 αρχείων/);
+  assert.match(f.summary, /όριο 250\.000 αρχείων/);
   const d = bunnyOutcome({ files: 10, dirs: MAX_DIRS, truncated: true, truncatedBy: "dirs", svgTotal: 0, svgChecked: 0, findings: [] });
-  assert.match(d.findings[0].detail, /50\.000 φακέλων/);
+  assert.match(d.findings[0].detail, /120\.000 φακέλων/);
+});
+
+const NEAR = /πλησιάζουν το όριο/;
+test("bunnyOutcome: αρχεία ≥ 80% του ορίου (πλήρης σάρωση) → warn «αυξήστε το MAX_FILES», αλλά η σάρωση μένει complete", () => {
+  const r = bunnyOutcome({ files: 200_000, dirs: 30_000, truncated: false, svgTotal: 0, svgChecked: 0, findings: [] });
+  const w = r.findings.filter((f) => NEAR.test(f.title));
+  assert.equal(w.length, 1);
+  assert.equal(w[0].severity, "warn");
+  assert.match(w[0].detail, /200\.000 \/ 250\.000 αρχεία \(80%\)/);
+  assert.match(w[0].detail, /MAX_FILES/);
+  assert.equal(r.status, "warn");
+  assert.equal(r.complete, true);
+});
+
+test("bunnyOutcome: φάκελοι ≥ 80% του ορίου → ίδια προειδοποίηση για MAX_DIRS", () => {
+  const r = bunnyOutcome({ files: 10, dirs: 96_000, truncated: false, svgTotal: 0, svgChecked: 0, findings: [] });
+  const w = r.findings.filter((f) => NEAR.test(f.title));
+  assert.equal(w.length, 1);
+  assert.match(w[0].detail, /96\.000 \/ 120\.000 φάκελοι/);
+  assert.match(w[0].detail, /MAX_DIRS/);
+});
+
+test("bunnyOutcome: κάτω από 80% (η ζώνη σήμερα: 86.425 αρχεία, 14.142 φάκελοι) → καμία προειδοποίηση ορίου, ok", () => {
+  const r = bunnyOutcome({ files: 86_425, dirs: 14_142, truncated: false, svgTotal: 0, svgChecked: 0, findings: [] });
+  assert.equal(r.findings.some((f) => NEAR.test(f.title)), false);
+  assert.equal(r.status, "ok");
+  assert.equal(199_999 < MAX_FILES * 0.8, true);
+  assert.equal(bunnyOutcome({ files: 199_999, dirs: 0, truncated: false, svgTotal: 0, svgChecked: 0, findings: [] }).findings.length, 0);
+});
+
+test("bunnyOutcome: όταν το όριο ήδη έκοψε τη λίστα, μόνο η «μερική σάρωση» — όχι και «πλησιάζουν»", () => {
+  const r = bunnyOutcome({ files: MAX_FILES, dirs: 5, truncated: true, truncatedBy: "files", svgTotal: 0, svgChecked: 0, findings: [] });
+  assert.equal(r.findings.some((f) => NEAR.test(f.title)), false);
+});
+
+const SLOW = /πλησιάζει το χρονικό όριο/;
+test("bunnyOutcome: λίστα που ολοκληρώθηκε αλλά πήρε ≥ 80% του χρόνου της (193″ / 210″) → warn για τον χρόνο, η σάρωση μένει complete", () => {
+  const r = bunnyOutcome({ files: 86_425, dirs: 14_142, truncated: false, svgTotal: 8, svgChecked: 8, findings: [], listMs: 193_000, listBudgetMs: 210_000 });
+  const w = r.findings.filter((f) => SLOW.test(f.title));
+  assert.equal(w.length, 1);
+  assert.match(w[0].detail, /193″ από 210″/);
+  assert.match(w[0].detail, /LIST_BUDGET_MS/);
+  assert.equal(r.complete, true);
+  assert.match(r.summary, /φακέλους · λίστα σε 193″ · περιεχόμενο/);
+});
+
+test("bunnyOutcome: γρήγορη λίστα (68″ / 210″) ή λίστα που ήδη δεν πρόλαβε → καμία προειδοποίηση χρόνου", () => {
+  assert.equal(bunnyOutcome({ files: 86_425, dirs: 14_142, truncated: false, svgTotal: 0, svgChecked: 0, findings: [], listMs: 68_000, listBudgetMs: 210_000 }).findings.length, 0);
+  const late = bunnyOutcome({ files: 50_000, dirs: 9_000, truncated: false, listIncomplete: true, svgTotal: 0, svgChecked: 0, findings: [], listMs: 210_500, listBudgetMs: 210_000 });
+  assert.equal(late.findings.some((f) => SLOW.test(f.title)), false);
 });

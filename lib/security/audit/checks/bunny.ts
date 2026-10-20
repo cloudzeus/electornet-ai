@@ -6,16 +6,19 @@ import type { Check } from "../types";
 import { bunnyOutcome, classifyObject, objectPath, svgThreat, underBase, capHit, type CapHit, type Flagged } from "./bunny-core";
 
 /**
- * Bunny Storage: λίστα ΟΛΗΣ της ζώνης (όχι μόνο του basePath) αναδρομικά, έως 100.000 αρχεία (και 50.000 φακέλους — όριο ασφαλείας), και ανάγνωση των SVG
- * (< 1 MB) για script. Μόνο LIST / GET — καμία εγγραφή. Χρονικό όριο ~3′· ό,τι δεν πρόλαβε ή δεν διαβάστηκε (υποφάκελος,
+ * Bunny Storage: λίστα ΟΛΗΣ της ζώνης (όχι μόνο του basePath) αναδρομικά, έως 250.000 αρχεία (και 120.000 φακέλους — όριο ασφαλείας), και ανάγνωση των SVG
+ * (< 1 MB) για script. Μόνο LIST / GET — καμία εγγραφή. Χρονικό όριο ~4′· ό,τι δεν πρόλαβε ή δεν διαβάστηκε (υποφάκελος,
  * SVG) → «μερική σάρωση» (warn). Μόνο αποτυχία στη ρίζα της ζώνης → error. Κρίσιμα μόνο όσα πρόσθεσε / άλλαξε κάποιος στο
  * διάστημα του ελέγχου (LastChanged ≥ since) — τα παλαιότερα επικίνδυνα σε ΕΝΑ warn (bunny-core.ts).
  */
 
-/** λίστα: έως 150″· τα SVG έχουν δικό τους περιθώριο ως τα 185″ (το timeout του ελέγχου είναι 200″) */
-const LIST_BUDGET_MS = 150_000;
-const TOTAL_BUDGET_MS = 185_000;
-const LIST_CONCURRENCY = 16;
+/**
+ * λίστα: έως 210″ (μετρημένο: 86.425 αρχεία σε 68″–193″ με 16 παράλληλες, 49″ με 24 — ανάλογα με την ταχύτητα του Bunny)· τα SVG έχουν δικό τους περιθώριο ως
+ * τα 245″ (το timeout του ελέγχου είναι 260″, ώστε όλο το full να μένει κάτω από τα 300″ του cron)
+ */
+const LIST_BUDGET_MS = 210_000;
+const TOTAL_BUDGET_MS = 245_000;
+const LIST_CONCURRENCY = 24;
 const GET_CONCURRENCY = 8;
 type Entry = { ObjectName: string; Path: string; IsDirectory: boolean; Length: number; LastChanged?: string };
 
@@ -37,7 +40,7 @@ export const bunnyCheck: Check = {
   key: "bunny",
   title: "Αρχεία στο Bunny Storage (CDN)",
   modes: ["full"],
-  timeoutMs: 200_000,
+  timeoutMs: 260_000,
   async run({ since, signal }) {
     const t0 = Date.now();
     const b = await getBunny();
@@ -84,6 +87,7 @@ export const bunnyCheck: Check = {
       }
     }, () => truncated || late());
     const listIncomplete = !truncated && queue.length > 0; // σταμάτησε ο χρόνος με φακέλους που δεν διαβάστηκαν
+    const listMs = Date.now() - t0;
 
     // 2) περιεχόμενο SVG
     const findings: Finding[] = [];
@@ -96,6 +100,6 @@ export const bunnyCheck: Check = {
       if (why) findings.push({ severity: "critical", title: "SVG με εκτελέσιμο κώδικα στο Bunny Storage", detail: `${s.path}: ${why}${s.changed ?? ""}. Ανοιγμένο απευθείας από το CDN εκτελεί κώδικα στο domain του CDN.`, evidence: s.path });
     }, lateTotal);
 
-    return bunnyOutcome({ files, dirs, truncated, ...(truncatedBy ? { truncatedBy } : {}), listIncomplete, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged, since, allowed: BUNNY_ALLOWED, ...(bases.length ? { outsideChanged } : {}) });
+    return bunnyOutcome({ files, dirs, truncated, ...(truncatedBy ? { truncatedBy } : {}), listIncomplete, listMs, listBudgetMs: LIST_BUDGET_MS, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged, since, allowed: BUNNY_ALLOWED, ...(bases.length ? { outsideChanged } : {}) });
   },
 };
