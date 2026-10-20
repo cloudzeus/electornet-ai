@@ -39,19 +39,6 @@ export function shouldRecordPing(last: Date | null, now: Date): boolean {
 export type RunView = { id: string; startedAt: string; status: string };
 
 /**
- * Το νεότερο report (οι γραμμές με σειρά startedAt desc) που περιέχει ΟΛΟΥΣ τους ελέγχους `keys`, με οποιαδήποτε
- * κατάσταση (και error — φαίνεται στο status). Τα χειροκίνητα reports ενός μόνο ελέγχου δεν μετρούν ως «έτρεξε ο full».
- */
-export function latestCompleteRun(rows: { id: string; startedAt: Date; status: string; checks: unknown }[], keys: string[]): RunView | null {
-  for (const r of rows) {
-    if (!Array.isArray(r.checks)) continue;
-    const have = new Set(r.checks.map((c) => (c && typeof c === "object" ? (c as { key?: unknown }).key : undefined)));
-    if (keys.every((k) => have.has(k))) return { id: r.id, startedAt: r.startedAt.toISOString(), status: r.status };
-  }
-  return null;
-}
-
-/**
  * `Authorization: Bearer <secret>` σε σταθερό χρόνο (σύγκριση των SHA-256, ίσου μήκους πάντα — δεν διαρρέει ούτε το
  * μήκος). Χωρίς ρυθμισμένο μυστικό → false.
  */

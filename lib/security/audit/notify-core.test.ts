@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fingerprint, type Finding } from "./rules";
 import type { StoredCheck } from "./types";
-import { alertsToSend, escapeHtml, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, athensDateTime } from "./notify-core";
+import { alertsToSend, escapeHtml, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, athensDateTime, deliveryOutcome, nextRetry, parseRetry, alertsUndelivered, asSeverity, MAX_ALERT_ATTEMPTS } from "./notify-core";
 
 const now = new Date("2026-10-20T07:00:00Z");
 const ago = (h: number) => new Date(now.getTime() - h * 3_600_000);
@@ -119,4 +119,53 @@ test("renderAlert: θέμα ΚΡΙΣΙΜΟ, escaped, σύνδεσμος ανά r
   assert.ok(!r.html.includes("<script>x"));
   assert.ok(r.html.includes("https://h/admin/asfaleia/r1") && r.text.includes("https://h/admin/asfaleia/r1"));
   assert.equal(renderAlert([...alerts, ...alerts], () => "l").subject, "[Euronics] ΚΡΙΣΙΜΟ: 2 ευρήματα ασφαλείας");
+});
+
+test("alertsToSend: dedupe 23 ωρών — το καθημερινό full (κάθε ~24 ώρες) ξαναστέλνει κρίσιμο που επιμένει", () => {
+  const fp = fingerprint("site", crit);
+  const items = [{ checkKey: "site", f: crit }];
+  assert.equal(alertsToSend(items, new Map([[fp, ago(22.9)]]), now).length, 0);
+  assert.equal(alertsToSend(items, new Map([[fp, ago(23)]]), now).length, 1);
+  assert.equal(alertsToSend(items, new Map([[fp, ago(23.9)]]), now).length, 1);
+});
+
+test("asSeverity / renderSummary: άγνωστο status → «Σφάλμα ελέγχου», ποτέ «undefined»", () => {
+  assert.equal(asSeverity("warning"), "error");
+  assert.equal(asSeverity("critical"), "critical");
+  const r = renderSummary({ status: "warning" as never, results: [], startedAt: now, mode: "full" }, "l");
+  assert.match(r.subject, /: Σφάλμα ελέγχου$/);
+  assert.ok(!/undefined/.test(r.subject + r.html + r.text));
+  const c = renderSummary({ status: "ok", results: [{ ...chk("a", "ok"), status: "bogus" as never }], startedAt: now, mode: "full" }, "l");
+  assert.ok(!/undefined/.test(c.html + c.text));
+});
+
+test("deliveryOutcome: παραδόθηκε αν έστω ένας πήρε το email· «uncertain» = στάλθηκε· αποτυχημένοι για νέα προσπάθεια", () => {
+  assert.deepEqual(deliveryOutcome([{ to: "a@x.gr", ok: true }, { to: "b@x.gr", ok: false }]), { delivered: true, failed: ["b@x.gr"] });
+  assert.deepEqual(deliveryOutcome([{ to: "a@x.gr", ok: false, kind: "uncertain" }, { to: "b@x.gr", ok: false, kind: "permanent" }]), { delivered: true, failed: ["b@x.gr"] });
+  assert.deepEqual(deliveryOutcome([{ to: "a@x.gr", ok: false }, { to: "b@x.gr", ok: false, kind: "transient" }]), { delivered: false, failed: ["a@x.gr", "b@x.gr"] });
+  assert.deepEqual(deliveryOutcome([]), { delivered: false, failed: [] });
+});
+
+test("nextRetry: μόνο οι αποτυχημένοι παραλήπτες, έως 3 προσπάθειες συνολικά, μετά καταγράφεται ότι εγκαταλείφθηκε", () => {
+  const base = { fps: ["f1"], reportIds: ["r1"] };
+  assert.equal(nextRetry(null, [], base, now), null);
+  const r1 = nextRetry(null, ["b@x.gr"], base, now)!;
+  assert.deepEqual({ to: r1.to, attempts: r1.attempts, gaveUp: r1.gaveUp }, { to: ["b@x.gr"], attempts: 1, gaveUp: false });
+  const r2 = nextRetry(r1, ["b@x.gr"], base, now)!;
+  assert.equal(r2.attempts, 2); assert.equal(r2.gaveUp, false);
+  const r3 = nextRetry(r2, ["b@x.gr"], base, now)!;
+  assert.equal(r3.attempts, MAX_ALERT_ATTEMPTS); assert.equal(r3.gaveUp, true);
+  assert.equal(nextRetry(r2, [], base, now), null, "πέτυχε στη 2η → τίποτα εκκρεμές");
+  assert.deepEqual(parseRetry(JSON.parse(JSON.stringify(r3))), r3);
+  for (const junk of [null, "x", { to: "a" }, { to: [1], attempts: 1, fps: [], reportIds: [] }]) assert.equal(parseRetry(junk), null);
+});
+
+test("alertsUndelivered: report >2 ώρες (έως 48) χωρίς ειδοποίηση ή με παραλήπτες που δεν την πήραν", () => {
+  const row = (h: number, alerted: boolean, alertRetry: unknown = null) => ({ startedAt: ago(h), alerted, alertRetry });
+  assert.equal(alertsUndelivered([row(1, false), row(3, true)], now), false, "<2 ώρες: ίσως απλώς τρέχει");
+  assert.equal(alertsUndelivered([row(3, false)], now), true);
+  assert.equal(alertsUndelivered([row(49, false)], now), false, "εκτός 48 ωρών");
+  const retry = nextRetry(null, ["b@x.gr"], { fps: ["f"], reportIds: ["r"] }, ago(3));
+  assert.equal(alertsUndelivered([row(3, true, retry)], now), true);
+  assert.equal(alertsUndelivered([row(3, true, null)], now), false);
 });

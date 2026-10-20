@@ -10,7 +10,11 @@ import type { StoredCheck } from "./types";
  * Η σύνοψη λέει τι ελέγχθηκε (τη γραμμή σύνοψης κάθε ελέγχου): ένα email «ΟΚ» είναι τεκμήριο για τον auditor.
  */
 
-export const DEDUPE_MS = 24 * 3_600_000;
+/**
+ * Το ίδιο κρίσιμο εύρημα δεν ξαναστέλνεται πριν περάσουν 23 ώρες. Όχι ακριβώς 24: το καθημερινό full τρέχει κάθε ~24 ώρες
+ * και με όριο 24 ωρών ένα κρίσιμο που βρίσκει μόνο ο full θα παρέλειπε κάθε δεύτερη μέρα.
+ */
+export const DEDUPE_MS = 23 * 3_600_000;
 /** Ευρήματα ανά έλεγχο στο email· τα υπόλοιπα στη σελίδα της αναφοράς. */
 export const EMAIL_FINDINGS = 25;
 
@@ -54,6 +58,8 @@ export function alertsToSend<T extends { checkKey: string; f: Finding }>(finding
 }
 
 const SEVERITIES = new Set(["ok", "warn", "critical", "error"]);
+/** Τιμή status από τη βάση → Severity· άγνωστη → "error" (ποτέ «undefined» ή ψευδές ΟΚ). */
+export const asSeverity = (v: unknown): Severity => (typeof v === "string" && SEVERITIES.has(v) ? (v as Severity) : "error");
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 /**
  * Τα checks ενός αποθηκευμένου report (Json) → μόνο τα γνωστά πεδία: key, title, status, summary, findings, ms, complete.
@@ -89,6 +95,50 @@ export function pendingAlerts(reports: { id: string; startedAt: Date; checks: un
   return alertsToSend(items, sent, now);
 }
 
+// ── Παράδοση ανά παραλήπτη ──────────────────────────────────────────────────────────────────────────────────────────
+export const MAX_ALERT_ATTEMPTS = 3;
+/**
+ * Αποτέλεσμα αποστολής σε όλους τους παραλήπτες: «παραδόθηκε» αν έστω ένας το πήρε (ok, ή «uncertain» = ίσως παραδόθηκε —
+ * θεωρείται σταλμένο, όχι ξανά)· `failed` = όσοι σίγουρα δεν το πήραν (ξαναδοκιμάζονται μόνο αυτοί).
+ */
+export function deliveryOutcome(results: { to: string; ok: boolean; kind?: string }[]): { delivered: boolean; failed: string[] } {
+  const got = (r: { ok: boolean; kind?: string }) => r.ok || r.kind === "uncertain";
+  return { delivered: results.some(got), failed: results.filter((r) => !got(r)).map((r) => r.to) };
+}
+
+/**
+ * Εκκρεμής ειδοποίηση για παραλήπτες που δεν την πήραν (SecurityReport.alertRetry του νεότερου report της παρτίδας):
+ * ποιοι (`to`), πόσες προσπάθειες έγιναν, ποια ευρήματα (`fps`) από ποια reports. Μετά από 3 προσπάθειες `gaveUp`.
+ */
+export type AlertRetry = { to: string[]; attempts: number; fps: string[]; reportIds: string[]; at: string; gaveUp: boolean };
+export function nextRetry(prev: AlertRetry | null, failed: string[], base: { fps: string[]; reportIds: string[] }, now: Date): AlertRetry | null {
+  if (!failed.length) return null;
+  const attempts = (prev?.attempts ?? 0) + 1;
+  return { to: failed, attempts, fps: prev?.fps ?? base.fps, reportIds: prev?.reportIds ?? base.reportIds, at: now.toISOString(), gaveUp: attempts >= MAX_ALERT_ATTEMPTS };
+}
+const strs = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+export function parseRetry(v: unknown): AlertRetry | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  if (!strs(o.to) || !strs(o.fps) || !strs(o.reportIds) || typeof o.attempts !== "number" || typeof o.at !== "string") return null;
+  return { to: o.to, attempts: o.attempts, fps: o.fps, reportIds: o.reportIds, at: o.at, gaveUp: o.gaveUp === true };
+}
+
+export const UNDELIVERED_AFTER_MS = 2 * 3_600_000;
+export const PENDING_MS = 48 * 3_600_000;
+/**
+ * Για τον φύλακα (heartbeat): υπάρχει report 2–48 ωρών του οποίου η ειδοποίηση δεν παραδόθηκε (alerted=false) ή που
+ * κάποιοι παραλήπτες δεν την πήραν (alertRetry). Μόνο boolean — όχι ευρήματα.
+ */
+export function alertsUndelivered(rows: { startedAt: Date; alerted: boolean; alertRetry: unknown }[], now: Date): boolean {
+  return rows.some((r) => {
+    const age = now.getTime() - r.startedAt.getTime();
+    if (age < UNDELIVERED_AFTER_MS || age > PENDING_MS) return false;
+    const retry = parseRetry(r.alertRetry);
+    return !r.alerted || (!!retry && retry.to.length > 0);
+  });
+}
+
 // ── Μορφή ────────────────────────────────────────────────────────────────────────────────────────────────────────────
 const LABEL: Record<Severity, string> = { ok: "ΟΚ", warn: "Προειδοποίηση", critical: "ΚΡΙΣΙΜΟ", error: "Σφάλμα ελέγχου" };
 const SUBJECT: Record<Severity, string> = { ok: "ΟΚ", warn: "Προειδοποιήσεις", critical: "ΚΡΙΣΙΜΟ", error: "Σφάλμα ελέγχου" };
@@ -117,9 +167,10 @@ export type SummaryReport = { id?: string; status: Severity; results: StoredChec
  */
 export function renderSummary(report: SummaryReport, link: string): { subject: string; html: string; text: string } {
   const checks = storedChecks(report.results);
+  const status = asSeverity(report.status);
   const partial = checks.some((c) => c.complete === false);
   const p = parts(report.startedAt);
-  const subject = `[Euronics] Έλεγχος ασφαλείας ${p.day}/${p.month}: ${SUBJECT[report.status]}${partial && report.status !== "critical" ? ` (${PARTIAL})` : ""}`;
+  const subject = `[Euronics] Έλεγχος ασφαλείας ${p.day}/${p.month}: ${SUBJECT[status]}${partial && status !== "critical" ? ` (${PARTIAL})` : ""}`;
   const mode = MODE[report.mode] ?? report.mode;
   const meta: [string, string][] = [
     ["Αναφορά", report.id ?? "—"],
@@ -137,7 +188,7 @@ export function renderSummary(report: SummaryReport, link: string): { subject: s
   }).join("");
 
   const html = wrap(
-    `<h1 style="margin:0 0 4px;font-size:20px">Έλεγχος ασφαλείας ${badge(report.status)}${partial ? ` ${partialBadge}` : ""}</h1>` +
+    `<h1 style="margin:0 0 4px;font-size:20px">Έλεγχος ασφαλείας ${badge(status)}${partial ? ` ${partialBadge}` : ""}</h1>` +
     `<p style="margin:0 0 12px;color:#4b5563">Αυτόματος έλεγχος του e-shop (μόνο αναγνώσεις). Παρακάτω όλοι οι έλεγχοι που έτρεξαν και τι βρήκε ο καθένας.</p>` +
     `<table style="border-collapse:collapse;margin-bottom:12px">${meta.map(([k, v]) => `<tr><td style="padding:2px 12px 2px 0;color:#6b7280">${escapeHtml(k)}</td><td style="padding:2px 0">${escapeHtml(v)}</td></tr>`).join("")}</table>` +
     `<p style="margin:0 0 12px">${linkHtml(link, "Άνοιγμα της αναφοράς στη διαχείριση")}</p>` +
@@ -145,7 +196,7 @@ export function renderSummary(report: SummaryReport, link: string): { subject: s
   );
 
   const text = [
-    `Έλεγχος ασφαλείας: ${LABEL[report.status]}${partial ? ` (${PARTIAL})` : ""}`,
+    `Έλεγχος ασφαλείας: ${LABEL[status]}${partial ? ` (${PARTIAL})` : ""}`,
     ...meta.map(([k, v]) => `${k}: ${v}`),
     `Σύνδεσμος: ${link}`,
     "",

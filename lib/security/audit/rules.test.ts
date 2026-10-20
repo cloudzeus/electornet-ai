@@ -169,6 +169,15 @@ test("scanPage: scripts με δύο διαφορετικά nonce → critical", 
   assert.ok(f.every((x) => !(x.evidence ?? "").includes("ZZ") && !(x.evidence ?? "").includes("N1")));
 });
 
+test("scanPage: το τεκμήριο inline script με ξένο nonce δεν αλλάζει με αριθμούς / hex / base64 που αλλάζουν ανά αίτημα", () => {
+  const ev = (code: string) => scanPage(page(`<script nonce="ZZ">${code}</script>`), ctx()).find((x) => /διαφορετικά nonce/.test(x.title))?.evidence;
+  const a = ev(`window.__cf={t:1729411200123,id:"8f3a9c0d1e2b4a5c",k:"QmFzZTY0VG9rZW4xMjM0NTY3ODk="}`);
+  const b = ev(`window.__cf={t:1729497600456,id:"0b1c2d3e4f5a6b7c",k:"T3RoZXJUb2tlbjk4NzY1NDMyMTA="}`);
+  assert.ok(a);
+  assert.equal(a, b);
+  assert.match(a ?? "", /window\.__cf/);
+});
+
 test("scanPage: το «ξένο» nonce είναι αυτό που ΔΕΝ έχουν τα chunks του Next, ακόμη κι αν έχει περισσότερα scripts", () => {
   const html = `<script src="/_next/static/chunks/webpack-abc.js" nonce="N1"></script>
 <script nonce="CF">(function(){var s=document.createElement("script");s.src="/cdn-cgi/zaraz/s.js?z="+x;document.head.appendChild(s)})()</script>

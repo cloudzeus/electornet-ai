@@ -81,9 +81,10 @@ test("mapOsv: CRITICAL → critical, HIGH → warn, LOW → κανένα εύρ�
     { pkg: { name: "react", version: "19.2.0" }, vulns: [] },
   ]);
   assert.deepEqual(findings.map((f) => f.severity), ["critical", "warn"]);
-  assert.equal(findings[0].evidence, "next@16.2.0: GHSA-crit-0000-0001 (Critical, διόρθωση 16.2.3)");
+  assert.equal(findings[0].evidence, "next@16.2.0: GHSA-crit-0000-0001");
+  assert.match(findings[0].detail, /GHSA-crit-0000-0001 \(Critical, διόρθωση 16\.2\.3\)/);
   assert.match(findings[0].detail, /Αναβάθμιση τουλάχιστον στην 16\.2\.3/);
-  assert.equal(findings[1].evidence, "lodash@4.17.15: GHSA-high-0000-0002 (High, διόρθωση 4.17.21)");
+  assert.equal(findings[1].evidence, "lodash@4.17.15: GHSA-high-0000-0002");
   assert.deepEqual(tally, { packages: 4, vulnerable: 3, byLevel: { CRITICAL: 1, HIGH: 1, MODERATE: 0, LOW: 1, UNKNOWN: 0, MALICIOUS: 0 } });
   assert.match(depsSummary(tally, { lockPath: "package-lock.json", detailsRead: 3, detailsWanted: 3 }), /4 πακέτα παραγωγής.*3 με γνωστές ευπάθειες: 1 Critical, 1 High, 0 Moderate, 1 Low/);
 });
@@ -96,10 +97,11 @@ test("mapOsv: ένα εύρημα ανά πακέτο με τη χειρότερ
   ]);
   assert.equal(findings.length, 2);
   assert.equal(findings[0].severity, "critical");
-  assert.equal(findings[0].evidence, "next@16.2.0: GHSA-crit-0000-0001 (Critical, διόρθωση 16.2.3) · GHSA-high-0000-0002 (High, διόρθωση 16.2.3)");
+  assert.equal(findings[0].evidence, "next@16.2.0: GHSA-crit-0000-0001");
+  assert.match(findings[0].detail, /GHSA-crit-0000-0001 \(Critical, διόρθωση 16\.2\.3\).* · GHSA-high-0000-0002 \(High, διόρθωση 16\.2\.3\)/);
   assert.equal(findings[1].severity, "warn");
   assert.match(findings[1].title, /άγνωστης σοβαρότητας/);
-  assert.equal(findings[1].evidence, "x@1.0.0: GHSA-nodetails-1 (άγνωστη σοβαρότητα)");
+  assert.equal(findings[1].evidence, "x@1.0.0: GHSA-nodetails-1");
   assert.equal(tally.vulnerable, 2);
 });
 
@@ -107,4 +109,10 @@ test("mapOsv: κακόβουλο πακέτο (MAL-…) → critical", () => {
   const { findings } = mapOsv([{ pkg: { name: "evil", version: "0.0.1" }, vulns: [{ id: "MAL-2026-1234", summary: "Malicious code in evil (npm)" }] }]);
   assert.equal(findings[0].severity, "critical");
   assert.match(findings[0].title, /Κακόβουλο πακέτο/);
+});
+
+test("mapOsv: το τεκμήριο (→ fingerprint) δεν αλλάζει όταν αλλάζουν επίπεδα / διορθώσεις / δευτερεύουσες ευπάθειες", () => {
+  const a = mapOsv([{ pkg: { name: "next", version: "16.2.0" }, vulns: [CRIT] }]).findings[0];
+  const b = mapOsv([{ pkg: { name: "next", version: "16.2.0" }, vulns: [CRIT, HIGH] }]).findings[0];
+  assert.equal(a.evidence, b.evidence);
 });

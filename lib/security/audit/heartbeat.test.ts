@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { signHeartbeat, verifyHeartbeat, parseTs, shouldRecordPing, latestCompleteRun, bearerOk, HEARTBEAT_WINDOW_S } from "./heartbeat";
+import { signHeartbeat, verifyHeartbeat, parseTs, shouldRecordPing, bearerOk, HEARTBEAT_WINDOW_S } from "./heartbeat";
 
 const secret = "s3cret-watch";
 const now = 1_792_400_000;
@@ -48,19 +48,6 @@ test("shouldRecordPing: το πολύ μία εγγραφή ανά 10′", () =>
   assert.equal(shouldRecordPing(new Date(t.getTime() - 10 * 60_000), t), true);
   // ώρα στο μέλλον (ρολόι) → δεν μπλοκάρει για πάντα
   assert.equal(shouldRecordPing(new Date(t.getTime() + 3_600_000), t), true);
-});
-
-test("latestCompleteRun: το νεότερο report με όλους τους ελέγχους (και με error) — όχι τα χειροκίνητα ενός ελέγχου", () => {
-  const at = (h: number) => new Date(Date.UTC(2026, 9, 20, h));
-  const c = (key: string, status = "ok") => ({ key, title: key, status, summary: "", findings: [], ms: 1 });
-  const rows = [
-    { id: "r3", startedAt: at(9), status: "ok", checks: [c("site")] },
-    { id: "r2", startedAt: at(8), status: "error", checks: [c("site", "error"), c("staff")] },
-    { id: "r1", startedAt: at(7), status: "ok", checks: [c("site"), c("staff")] },
-  ];
-  assert.deepEqual(latestCompleteRun(rows, ["site", "staff"]), { id: "r2", startedAt: at(8).toISOString(), status: "error" });
-  assert.equal(latestCompleteRun(rows.slice(0, 1), ["site", "staff"]), null);
-  assert.equal(latestCompleteRun([{ id: "x", startedAt: at(1), status: "ok", checks: "junk" }], ["site"]), null);
 });
 
 test("bearerOk: σταθερού χρόνου σύγκριση του Authorization· χωρίς μυστικό → πάντα false", () => {

@@ -112,8 +112,9 @@ export function fixedVersion(v: OsvVuln, pkg: LockPkg): string | null {
 export type OsvTally = { packages: number; vulnerable: number; byLevel: Record<Level | "UNKNOWN" | "MALICIOUS", number> };
 
 /**
- * Ευρήματα: ένα ανά πακέτο@έκδοση με τη χειρότερη σοβαρότητα των ευπαθειών του. Τεκμήριο: «πακέτο@έκδοση: id (επίπεδο,
- * διόρθωση x.y.z) · …» — χωρίς ό,τι αλλάζει (ημερομηνίες), ώστε το ίδιο εύρημα να κρατά το ίδιο fingerprint.
+ * Ευρήματα: ένα ανά πακέτο@έκδοση με τη χειρότερη σοβαρότητα των ευπαθειών του. Τεκμήριο: «πακέτο@έκδοση: id της κύριας
+ * ευπάθειας» — χωρίς ό,τι αλλάζει στο osv.dev (επίπεδα, διορθώσεις, νέες δευτερεύουσες), ώστε το ίδιο εύρημα να κρατά το ίδιο
+ * fingerprint· τα επίπεδα και οι διορθώσεις όλων είναι στο detail.
  */
 export function mapOsv(entries: OsvEntry[]): { findings: Finding[]; tally: OsvTally } {
   const tally: OsvTally = { packages: entries.length, vulnerable: 0, byLevel: { CRITICAL: 0, HIGH: 0, MODERATE: 0, LOW: 0, UNKNOWN: 0, MALICIOUS: 0 } };
@@ -142,7 +143,8 @@ export function mapOsv(entries: OsvEntry[]): { findings: Finding[]; tally: OsvTa
     const detail = top.level === "MALICIOUS"
       ? `Το ${id} είναι καταχωρημένο ως κακόβουλο πακέτο (OpenSSF Malicious Packages, ${top.id}). Αφαιρέστε το αμέσως, ελέγξτε πώς μπήκε στο package-lock.json και θεωρήστε τον server εκτεθειμένο.`
       : `${id}: ${shown.map((r) => `${lbl(r)}${r.summary ? ` — ${r.summary}` : ""}`).join(" · ")}.${fixes.length ? ` Αναβάθμιση τουλάχιστον στην ${fixes[fixes.length - 1]}.` : ""}${shown.some((r) => r.level === "UNKNOWN") ? " Οι λεπτομέρειες κάποιων ευπαθειών δεν διαβάστηκαν ή δεν έχουν βαθμολογία — ελέγξτε τις στο osv.dev." : ""}`;
-    findings.push({ severity: sev(top) as Finding["severity"], title, detail, evidence: `${id}: ${shown.map(lbl).join(" · ")}` });
+    // τεκμήριο → fingerprint: μόνο πακέτο@έκδοση και η κύρια ευπάθεια (επίπεδα/διορθώσεις/υπόλοιπες αλλάζουν στο osv.dev → στο detail)
+    findings.push({ severity: sev(top) as Finding["severity"], title, detail, evidence: `${id}: ${top.id}` });
   }
   return { findings, tally };
 }

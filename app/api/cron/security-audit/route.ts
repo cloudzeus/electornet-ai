@@ -9,7 +9,9 @@ export const maxDuration = 300;
  * Cron: `GET /api/cron/security-audit?mode=full|light` με `Authorization: Bearer $CRON_SECRET` (σύγκριση σταθερού χρόνου).
  * Τρέχει τον έλεγχο ασφαλείας (μόνο αναγνώσεις) και αποθηκεύει report· μετά στέλνει τις άμεσες ειδοποιήσεις «ΚΡΙΣΙΜΟ»
  * (νέα κρίσιμα + όσα δεν στάλθηκαν στις προηγούμενες εκτελέσεις) και, στο full, το email σύνοψης.
- * Coolify scheduled tasks: full 07:00 Europe/Athens, light κάθε ώρα. Η απάντηση δεν περιέχει ευρήματα.
+ * Coolify scheduled tasks: full 07:00 Europe/Athens, light κάθε ώρα στο :05 (όχι :00 — να μη συμπίπτει με τον full· οι
+ * ειδοποιήσεις έχουν ατομικό κλείδωμα ανά εύρημα, αλλά δύο ταυτόχρονοι έλεγχοι διπλασιάζουν τον φόρτο). Η απάντηση δεν
+ * περιέχει ευρήματα.
  */
 export async function GET(req: Request) {
   if (!bearerOk(req.headers.get("authorization"), process.env.CRON_SECRET)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

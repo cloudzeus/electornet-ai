@@ -56,6 +56,11 @@ const FRAME_RE = new RegExp(`<i?frame\\b${ATTRS_PART}>`, "gi");
 const TAG_RE = new RegExp(`<([a-z][a-z0-9-]*)\\b${ATTRS_PART}>`, "gi");
 
 const snip = (s: string, n: number) => { const t = s.replace(/\s+/g, " ").trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
+/**
+ * Απόσπασμα κώδικα ως τεκμήριο (→ fingerprint): ό,τι αλλάζει ανά αίτημα — χρονοσφραγίδες, ids, tokens — γίνεται σταθερό:
+ * τμήματα base64/token ≥ 20 χαρακτήρων με ψηφίο → «…», hex ≥ 8 → «#», αριθμοί → «0».
+ */
+const stableSnip = (s: string, n: number) => snip(s.replace(/[A-Za-z0-9+/_-]{20,}={0,2}/g, (m) => (/\d/.test(m) ? "…" : m)).replace(/[0-9a-f]{8,}/gi, "#").replace(/\d+/g, "0"), n);
 
 function srcHost(src: string): string | null {
   try {
@@ -282,7 +287,7 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     const ours = (s: ParsedScript) => (s.src ? /^\/_next\/static\//.test(s.src) || (srcHost(s.src) === base.hostname && /\/_next\/static\//.test(s.src)) : /__next_[fs]\b/.test(s.code));
     const score = (l: ParsedScript[]) => l.filter(ours).length * 1e6 + l.length;
     const [, ...minority] = [...byNonce.values()].sort((a, b) => score(b) - score(a));
-    const ev = [...new Set(minority.flat().map((s) => (s.src ? s.src.replace(/[?#].*$/, "") : snip(s.code, 80))))].sort().join(" | ");
+    const ev = [...new Set(minority.flat().map((s) => (s.src ? s.src.replace(/[?#].*$/, "") : stableSnip(s.code, 80))))].sort().join(" | ");
     const onlyCf = minority.flat().every((s) => benign.has(s));
     add({ severity: onlyCf ? "warn" : "critical", title: "Scripts με διαφορετικά nonce στην ίδια σελίδα",
       detail: `Βρέθηκαν ${byNonce.size} διαφορετικά nonce· η εφαρμογή βάζει ένα ανά αίτημα. ${onlyCf

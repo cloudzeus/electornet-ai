@@ -1,5 +1,5 @@
 /**
- * Καθημερινή αναφορά ασφαλείας: πίνακες SecurityReport / SecurityAlert + δικαιώματα security.read / security.run
+ * Καθημερινή αναφορά ασφαλείας: πίνακες SecurityReport (+ στήλη alertRetry) / SecurityAlert + δικαιώματα security.read / security.run
  * (ανατίθενται μόνο στον super-admin) + ευρετήριο LoginEvent(method, at) για τον έλεγχο συνδέσεων. Μόνο προσθήκες,
  * ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
  *   npx tsx scripts/apply-security-audit.ts
@@ -29,6 +29,8 @@ const SQL = [
     "count" INTEGER NOT NULL DEFAULT 1,
     CONSTRAINT "SecurityAlert_pkey" PRIMARY KEY ("fingerprint")
   )`,
+  // παραλήπτες που δεν πήραν την ειδοποίηση (νέα προσπάθεια μόνο σε αυτούς) — ΠΡΙΝ το deploy του κώδικα που τη διαβάζει
+  `ALTER TABLE "SecurityReport" ADD COLUMN IF NOT EXISTS "alertRetry" JSONB`,
 ];
 /**
  * CONCURRENTLY: χωρίς κλείδωμα εγγραφών στον (ζωντανό) πίνακα. Δεν τρέχει μέσα σε συναλλαγή — γι' αυτό ξεχωριστή, μόνη της
