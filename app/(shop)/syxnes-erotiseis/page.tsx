@@ -3,6 +3,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { PageIntro } from "@/components/site/PageIntro";
 import { getFaqs } from "@/lib/data/repo";
 import { PageZone, ZonesPreviewBar } from "@/components/site/PageZone";
+import { jsonLd } from "@/lib/security/json-ld";
 
 export const metadata: Metadata = { title: "Συχνές ερωτήσεις", description: "Παραγγελίες, πληρωμές, αποστολή, επιστροφές, υπηρεσίες, καταστήματα." };
 
@@ -53,7 +54,7 @@ export default async function FaqPage({ searchParams }: { searchParams: Promise<
         </div>
       </div>
       <PageZone page="syxnes-erotiseis" zone="bottom" preview={preview} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </div>
   );
 }

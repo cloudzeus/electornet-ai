@@ -33,7 +33,9 @@ export function buildCsp({ nonce, dev }: { nonce: string; dev: boolean }): strin
     ["manifest-src", "'self'"],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
-    // πληρωμές (Viva, Klarna, τράπεζες) επιστρέφουν με φόρμα σε δικά τους domains
+    // πληρωμές (Viva, Klarna, τράπεζες) επιστρέφουν με φόρμα σε δικά τους domains. Συνειδητά ευρύ (όχι λίστα hosts):
+    // τα 3-D Secure / ACS των τραπεζών αλλάζουν και δεν είναι γνωστά εκ των προτέρων. Η προστασία από ένεση φόρμας
+    // είναι το script-src με nonce + το escaping του περιεχομένου (jsonLd, safeNext) — όχι αυτή η οδηγία.
     ["form-action", "'self'", "https:"],
     ["frame-ancestors", "'self'"],
   ];

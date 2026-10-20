@@ -1,3 +1,4 @@
+import { jsonLd } from "@/lib/security/json-ld";
 /** SEO/FAQ accordion under every listing (FAQPage JSON-LD). */
 export function CategoryFaq({ name }: { name: string }) {
   const qa = [
@@ -25,7 +26,7 @@ export function CategoryFaq({ name }: { name: string }) {
           </details>
         ))}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </section>
   );
 }

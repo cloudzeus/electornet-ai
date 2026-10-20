@@ -5,6 +5,7 @@ import { syncEprelGroups, refreshEprel, searchEprel, importEprel, mirrorEprel, r
 import { scaleLabel } from "@/lib/eprel/normalize";
 import { useNonce } from "@/components/ui/SxStyleTag";
 import { stylesToClasses } from "@/lib/ui/inline-styles";
+import { sanitizeSvgBody } from "@/lib/stickers/sanitize";
 
 type Hit = { registrationNumber: string; modelIdentifier: string; supplierOrTrademark: string; energyClass: string | null; energyClassRange: string | null; annualKwh: number | null; status: string | null; onMarketEnd: string | Date | null };
 
@@ -120,7 +121,9 @@ export function StoredRow({ row }: { row: { registrationNumber: string; modelIde
   if (gone) return null;
   // η ετικέτα έρχεται έτοιμη από το EPREL και μπορεί να έχει style attributes / <style>: το CSP τα μπλοκάρει, γι' αυτό
   // γίνονται κλάσεις με nonce (lib/ui/inline-styles)
-  const svg = row.nestedLabelSvg && /\sstyle=|<style\b/i.test(row.nestedLabelSvg) ? stylesToClasses(row.nestedLabelSvg, nonce) : row.nestedLabelSvg;
+  // εξωτερικό SVG μέσα στη σελίδα: πρώτα καθαρισμός (scripts, on…, εξωτερικοί σύνδεσμοι — lib/stickers/sanitize)
+  const clean = row.nestedLabelSvg ? sanitizeSvgBody(row.nestedLabelSvg) : null;
+  const svg = clean && /\sstyle=|<style\b/i.test(clean) ? stylesToClasses(clean, nonce) : clean;
   return (
     <tr className="border-t border-eu-line align-top">
       <td className="py-2 px-3">{svg ? <span className="inline-block w-16 [&>svg]:w-full [&>svg]:h-auto" dangerouslySetInnerHTML={{ __html: svg }} /> : <ClassBadge cls={row.energyClass} range={row.energyClassRange} />}</td>

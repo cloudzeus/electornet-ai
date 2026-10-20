@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { getStoreBySlug, getStores, listProducts } from "@/lib/data/repo";
 import { ProductRail } from "@/components/pdp/ProductRail";
+import { jsonLd } from "@/lib/security/json-ld";
 
 const SERVICE_LABEL: Record<string, string> = { "click-collect": "Παραλαβή σε 2 ώρες", installation: "Εγκατάσταση από τεχνικό", "service-point": "Service point", recycling: "Ανακύκλωση ΑΗΗΕ", parking: "Δωρεάν parking" };
 
@@ -107,7 +108,7 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
           </div>
         </aside>
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </div>
   );
 }

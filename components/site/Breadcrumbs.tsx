@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { copyOf } from "@/lib/cms/copy";
+import { jsonLd } from "@/lib/security/json-ld";
 
 const c = copyOf("breadcrumbs");
 
@@ -35,7 +36,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
           </li>
         ))}
       </ol>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </nav>
   );
 }

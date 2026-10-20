@@ -3,7 +3,8 @@ import { Manrope } from "next/font/google";
 import { DeviceProvider } from "@/components/fluid/DeviceProvider";
 import { getDevice } from "@/lib/device";
 import { getPublicSettings } from "@/lib/settings/store";
-import { Analytics, type AnalyticsIds } from "@/components/site/Analytics";
+import { Analytics } from "@/components/site/Analytics";
+import { cleanAnalyticsIds } from "@/lib/security/analytics-ids";
 import { headers } from "next/headers";
 import { NonceProvider } from "@/components/ui/SxStyleTag";
 import "./globals.css";
@@ -42,7 +43,8 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [{ device, touch, saveData }, pub, h] = await Promise.all([getDevice(), getPublicSettings(), headers()]);
-  const analytics = (pub.analytics ?? {}) as AnalyticsIds;
+  // τα IDs μπαίνουν σε inline scripts: μόνο [A-Za-z0-9_-] (ο έλεγχος της φόρμας ρυθμίσεων τρέχει μόνο στον browser)
+  const analytics = cleanAnalyticsIds(pub.analytics);
   return (
     <html
       lang="el"

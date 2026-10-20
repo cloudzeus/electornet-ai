@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/site/Breadcrumbs";
 import { NewsCard, fmtDate } from "@/components/news/NewsCard";
 import { getNews, getNewsCategories, getNewsItem } from "@/lib/data/repo";
 import { SITE } from "@/lib/seo/product";
+import { jsonLd } from "@/lib/security/json-ld";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const n = await getNewsItem((await params).slug);
@@ -79,7 +80,7 @@ export default async function NewsArticle({ params }: { params: Promise<{ slug: 
           </section>
         )}
       </article>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </div>
   );
 }

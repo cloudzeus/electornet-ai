@@ -40,6 +40,7 @@ import { ProductVideos } from "@/components/pdp/ProductVideos";
 import { StickerRow } from "@/components/commerce/CardStickers";
 import { ReplaceOld } from "@/components/snap/ReplaceOld";
 import { kindOfProduct } from "@/lib/snap/kind";
+import { jsonLd } from "@/lib/security/json-ld";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const p = await getProductBySlug((await params).slug);
@@ -222,7 +223,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         <RecentlyViewed current={{ id: p.id, slug: p.slug, title: p.title, brand: p.brand, image: p.image, price: p.price }} />
       </div>
       <StickyBar product={p} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd(p, crumbs)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(p, crumbs)) }} />
     </div>
   );
 }

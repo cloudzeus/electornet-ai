@@ -8,6 +8,7 @@ import { ProductCard } from "@/components/commerce/ProductCard";
 import { Countdown } from "@/components/commerce/Countdown";
 import { Reveal } from "@/components/motion/Reveal";
 import { BlockHead } from "./BrandFrame";
+import { jsonLd } from "@/lib/security/json-ld";
 
 /**
  * Τα «δυναμικά» components της σελίδας μάρκας. Όλα διαβάζουν μόνο τα --bs-* χρώματα (BrandFrame), άρα δουλεύουν
@@ -124,7 +125,7 @@ export function Faq({ b }: { b: B<"faq"> }) {
           </details>
         ))}
       </div>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(ld) }} />
     </section>
   );
 }
