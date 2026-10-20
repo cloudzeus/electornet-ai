@@ -114,9 +114,11 @@ async function readWebPrice(mtrl: number): Promise<number | null> {
 /**
  * Τιμή web ενός είδους στο SoftOne: setData ITEM με τον πίνακα ITEEXTRA (έτσι εμφανίζεται ο MTREXTRA μέσα στο αντικείμενο
  * ITEM — επιβεβαιωμένο με getData) και μόνο το NUM04. Κλειστό όσο είναι κλειστός ο διακόπτης «Αλλαγές προϊόντων προς
- * SoftOne»· μετά την εγγραφή ξαναδιαβάζεται ο MTREXTRA για επαλήθευση.
+ * SoftOne»· μετά την εγγραφή ξαναδιαβάζεται ο MTREXTRA για επαλήθευση. Με `onlyIfBlank` γράφει μόνο αν η τρέχουσα τιμή στο
+ * SoftOne (ζωντανή ανάγνωση, όχι η τοπική eshopPrice που μπορεί να είναι παλιά) είναι κενή/0.
+ * Το `written` μένει πάντα [] (το NUM04 δεν είναι ItemField) — το αποτέλεσμα το λένε τα `ok` / `error`.
  */
-export async function writeWebPrice(mtrl: number, price: number): Promise<WriteResult> {
+export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean }): Promise<WriteResult> {
   const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
   if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
   if (!Number.isInteger(mtrl) || mtrl <= 0) return fail("Μη έγκυρο είδος.");
@@ -127,7 +129,10 @@ export async function writeWebPrice(mtrl: number, price: number): Promise<WriteR
   const exists = await getTable("MTRL", ["MTRL"], `MTRL=${mtrl}`).catch(() => null);
   if (!exists) return fail("Δεν ήταν δυνατή η ανάγνωση του είδους από το SoftOne.");
   if (!exists.some((r) => Number(r[0]) === mtrl)) return fail("Το είδος δεν βρέθηκε στο SoftOne.");
-  if (same(await readWebPrice(mtrl).catch(() => null))) return { ok: true, written: [], conflicts: [], mismatches: [] };
+  let before: number | null;
+  try { before = await readWebPrice(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της τιμής web από το SoftOne."); }
+  if (opts?.onlyIfBlank && before != null && before > 0) return fail(`Το είδος έχει ήδη τιμή web (${before} €) — δεν αλλάζει.`);
+  if (same(before)) return { ok: true, written: [], conflicts: [], mismatches: [] };
 
   const r = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEEXTRA: [{ NUM04: value }] } }).catch((e: Error) => ({ success: false, error: e.message }));
   if (!r?.success) return fail(`Το SoftOne αρνήθηκε την εγγραφή της τιμής web: ${r?.error ?? "άγνωστο σφάλμα"}`);

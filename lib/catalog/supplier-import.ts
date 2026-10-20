@@ -7,7 +7,7 @@ import { syncItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
-import { blankOnly, newSpecs } from "@/lib/catalog/foreign-import/core";
+import { blankOnly, newSpecs, fillBlankMemo } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Μαζική εισαγωγή από template προμηθευτή. Δύο βήματα, και τα δύο υπολογίζονται από το ίδιο το αρχείο (τίποτα δεν
@@ -111,7 +111,10 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
         out.warnings.push("Η αναλυτική περιγραφή του είδους είναι HTML — περιγραφή και χαρακτηριστικά δεν αλλάζουν από το αρχείο.");
         out.changes = out.changes.filter((c) => c.label !== LABEL.descText && !out.specTo.some((s) => s.label === c.label));
         out.specTo = []; delete out.fieldTo.descText;
-      } else if (out.specTo.length || out.fieldTo.descText != null) out.memo = composeMemo(it.longDesc ?? "", out.specTo, out.fieldTo.descText);
+      } else if (out.specTo.length || out.fieldTo.descText != null) {
+        // «μόνο κενά»: ο memo μένει αυτούσιος (το composeMemo με νέο κείμενο ξαναγράφει όλες τις γραμμές χαρακτηριστικών)
+        out.memo = opts.onlyBlank ? fillBlankMemo(it.longDesc ?? "", out.specTo, out.fieldTo.descText) : composeMemo(it.longDesc ?? "", out.specTo, out.fieldTo.descText);
+      }
       out.action = out.errors.length ? "error" : out.changes.length ? "update" : "unchanged";
       return out;
     }

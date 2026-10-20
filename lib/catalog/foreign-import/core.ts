@@ -205,3 +205,25 @@ export function newSpecs(currentMemo: string, incoming: Record<string, string>):
   for (const [label, value] of Object.entries(incoming)) if (value.trim() && !have.has(labelKey(label))) out[label] = value;
   return out;
 }
+
+/**
+ * Αναλυτική περιγραφή για «μόνο κενά»: ο τρέχων memo μένει ΑΥΤΟΥΣΙΟΣ (καμία γραμμή δεν αλλάζει, φεύγουν μόνο κενές
+ * γραμμές στην αρχή/στο τέλος)· τα χαρακτηριστικά που λείπουν μπαίνουν στο τέλος ως «Ετικέτα : τιμή» και η περιγραφή μπαίνει
+ * από πάνω μόνο αν ο memo δεν έχει ήδη ελεύθερο κείμενο. Όχι composeMemo: εκείνο με νέο κείμενο ξαναγράφει όλα τα χαρακτηριστικά.
+ */
+export function fillBlankMemo(current: string, specs: { label: string; value: string }[], newText?: string): string {
+  const lines = current.replace(/\r\n?/g, "\n").split("\n");
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  const missing = newSpecs(current, Object.fromEntries(specs.map((s) => [s.label, s.value])));
+  const seen = new Set<string>(), add: string[] = [];
+  for (const s of specs) {
+    const k = labelKey(s.label), v = s.value.trim();
+    if (!v || seen.has(k) || !Object.hasOwn(missing, s.label)) continue;
+    seen.add(k); add.push(`${s.label.trim()} : ${v}`);
+  }
+  const hasText = lines.some((l) => l.trim() && !SPEC_LINE.exec(l.trim()));
+  const text = hasText ? "" : (newText ?? "").replace(/\r\n?/g, "\n").trim();
+  const body = [...lines, ...add];
+  return (text && body.length ? [text, "", ...body] : text ? [text] : body).join("\n");
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, type ForeignRow } from "./core";
+import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, type ForeignRow } from "./core";
 
 test("detectHeaderRow: η επικεφαλίδα είναι η πρώτη γραμμή με ≥2 κελιά που έχει δεδομένα από κάτω", () => {
   const m = [[""], ["", ""], ["EAN", "Τιμή", "Όνομα"], ["5901234123457", "10", "Χ"]];
@@ -188,4 +188,24 @@ test("suggestTarget: επικεφαλίδες προμηθευτών που πα
   }
   for (const h of ["Κωδικός", "Κωδ.", "Code", "SKU", "Κωδικός είδους", "Item code"]) assert.deepEqual(suggestTarget(h), F("code"), h);
   assert.deepEqual(suggestTarget("Κατηγορία"), { kind: "category" });
+});
+
+test("fillBlankMemo: memo μόνο με χαρακτηριστικά + νέα περιγραφή → όλες οι αρχικές γραμμές αυτούσιες και με τη σειρά", () => {
+  const memo = "• Χωρητικότητα: 9 kg.\r\n\r\n\r\n- Στροφές : 1400;\r\nΕνεργειακή κλάση : A\r\n";
+  const out = fillBlankMemo(memo, [{ label: "Βάρος", value: "60" }], "Νέο κείμενο.\nΔεύτερη γραμμή.");
+  assert.equal(out, "Νέο κείμενο.\nΔεύτερη γραμμή.\n\n• Χωρητικότητα: 9 kg.\n\n\n- Στροφές : 1400;\nΕνεργειακή κλάση : A\nΒάρος : 60");
+});
+
+test("fillBlankMemo: υπάρχουσα ετικέτα δεν αντικαθίσταται ούτε διπλασιάζεται· χωρίς τίποτα νέο ο memo μένει ίδιος", () => {
+  const memo = "Χρώμα : Μαύρο\nΙσχύς : 2000W";
+  assert.equal(fillBlankMemo(memo, [{ label: "χρωμα", value: "Λευκό" }, { label: "Ισχύς*", value: "1" }]), memo);
+  assert.equal(fillBlankMemo(memo, [{ label: "Βάρος", value: "6" }, { label: "ΒΑΡΟΣ", value: "7" }]), `${memo}\nΒάρος : 6`);
+  assert.equal(fillBlankMemo("", [{ label: "Βάρος", value: "6" }], "Κείμενο"), "Κείμενο\n\nΒάρος : 6");
+  assert.equal(fillBlankMemo("", [], "Κείμενο"), "Κείμενο");
+});
+
+test("fillBlankMemo: αν ο memo έχει ήδη ελεύθερο κείμενο, η περιγραφή δεν γράφεται", () => {
+  const memo = "Ένα πλυντήριο για όλη την οικογένεια.\nΧρώμα : Μαύρο";
+  assert.equal(fillBlankMemo(memo, [], "Άλλο κείμενο"), memo);
+  assert.equal(fillBlankMemo(memo, [{ label: "Βάρος", value: "6" }], "Άλλο κείμενο"), `${memo}\nΒάρος : 6`);
 });
