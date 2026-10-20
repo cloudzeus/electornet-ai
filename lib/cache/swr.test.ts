@@ -20,11 +20,12 @@ test("swr: μοιράζεται έναν υπολογισμό και σερβί�
 
 test("swr: maxStale — πολύ παλιό δεν σερβίρεται", async () => {
   let n = 0;
-  const get = swr(async () => ++n, 10, { maxStaleMs: 30 });
+  // άνετα περιθώρια: σε φορτωμένο μηχάνημα ένα setTimeout(15) μπορεί να κρατήσει >30 ms
+  const get = swr(async () => ++n, 10, { maxStaleMs: 400 });
   assert.equal(await get(), 1);
-  await new Promise((r) => setTimeout(r, 15));
+  await new Promise((r) => setTimeout(r, 20));
   assert.equal(await get(), 1); // παλιό αλλά εντός ορίου
-  await new Promise((r) => setTimeout(r, 40));
+  await new Promise((r) => setTimeout(r, 450));
   assert.equal(await get(), 3); // πέρα από το όριο: περιμένει φρέσκο (η 2 ήταν η ανανέωση στο παρασκήνιο)
 });
 
