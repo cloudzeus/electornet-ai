@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildCsp } from "../../csp";
-import { buildIdOf, connectSrcOf, evaluatePage, mergeFindings, pickLinks, pickOne, siteOutcome, type Fetched, type PageCtx } from "./site-core";
+import { buildIdOf, connectSrcOf, evaluatePage, mergeFindings, mismatchFinding, pickLinks, pickOne, prevSiteSnapshot, siteOutcome, siteSnapshot, type Fetched, type PageCtx, type SiteSnapshot } from "./site-core";
+
+const NOW = new Date("2026-10-20T07:00:00Z");
 
 const ORIGIN = "https://euronics.dgsoft.gr";
 const N = "TjE=";
@@ -41,17 +43,59 @@ test("evaluatePage: άλλο build στο site, όλα τα αρχεία υπά�
   assert.equal(r.recheck, undefined);
 });
 
-test("evaluatePage: άλλο build + αρχεία που λείπουν → recheck (warn)· επιβεβαιωμένο → critical με πλήθος και διαδρομές στη λεπτομέρεια", () => {
-  const html = page(`<script src="/_next/static/chunks/evil.js" nonce="${N}"></script>`, "FAKE_BUILD");
-  const first = evaluatePage(ok("/", html), ctx());
+const EVIL = page(`<script src="/_next/static/chunks/evil.js" nonce="${N}"></script>`, "FAKE_BUILD");
+const SNAP_SAME: SiteSnapshot = { at: "2026-10-20T06:00:00.000Z", serverBuild: "BUILD_A", pages: [{ path: "/admin/login", pageBuild: "FAKE_BUILD", missing: true }] };
+
+test("evaluatePage: άλλο build + αρχεία που λείπουν → recheck (warn, όχι critical) πριν από τη δεύτερη λήψη", () => {
+  const first = evaluatePage(ok("/", EVIL), ctx({ previous: SNAP_SAME }));
   assert.equal(first.recheck, true);
   assert.ok(!first.findings.some((f) => f.severity === "critical"));
-  const again = evaluatePage(ok("/", html), ctx(), { confirmed: true });
-  const c = again.findings.find((f) => f.severity === "critical");
+});
+
+test("mismatchFinding / evaluatePage (ruling J): πρώτη εμφάνιση → warn «Πιθανό deploy», με τις διαδρομές στη λεπτομέρεια", () => {
+  const r = evaluatePage(ok("/", EVIL), ctx({ previous: null }), { confirmed: true });
+  const f = r.findings.find((x) => x.evidence === "site FAKE_BUILD · server BUILD_A")!;
+  assert.equal(f.severity, "warn");
+  assert.equal(f.title, "Πιθανό deploy σε εξέλιξη — αρχεία που λείπουν από το build· επανέλεγχος στην επόμενη εκτέλεση");
+  assert.match(f.detail, /1 αρχεία.*\/_next\/static\/chunks\/evil\.js/);
+  assert.equal(r.recheck, undefined);
+  assert.deepEqual(r.build, { page: "FAKE_BUILD", missing: ["/_next/static/chunks/evil.js"] });
+});
+
+test("mismatchFinding (ruling J): το ίδιο ζεύγος build με αρχεία που λείπουν και στον προηγούμενο έλεγχο → critical", () => {
+  const r = evaluatePage(ok("/", EVIL), ctx({ previous: SNAP_SAME }), { confirmed: true });
+  const c = r.findings.find((f) => f.severity === "critical");
   assert.equal(c?.title, "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server");
   assert.equal(c?.evidence, "site FAKE_BUILD · server BUILD_A");
-  assert.match(c!.detail, /1 αρχεία.*\/_next\/static\/chunks\/evil\.js/);
-  assert.equal(again.recheck, undefined);
+  assert.match(c!.detail, /evil\.js/);
+});
+
+test("mismatchFinding (ruling J): προηγούμενος με άλλο buildId σελίδας / χωρίς αρχεία που λείπουν / άλλο build server → warn ξανά", () => {
+  for (const prev of [
+    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "OTHER_BUILD", missing: true }] },
+    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "FAKE_BUILD", missing: false }] },
+    { ...SNAP_SAME, serverBuild: "OLD_SERVER" },
+  ] as SiteSnapshot[]) {
+    assert.deepEqual(mismatchFinding({ pageBuild: "FAKE_BUILD", serverBuild: "BUILD_A", missing: ["/_next/static/chunks/evil.js"], previous: prev }).severity, "warn");
+  }
+});
+
+test("mismatchFinding (ruling J): ο προηγούμενος έλεγχος δεν διαβάστηκε → warn που το λέει (ποτέ ok)", () => {
+  const f = mismatchFinding({ pageBuild: "FAKE_BUILD", serverBuild: "BUILD_A", missing: ["/_next/static/chunks/evil.js"], previous: "unavailable" });
+  assert.equal(f.severity, "warn");
+  assert.match(f.detail, /προηγούμενος έλεγχος δεν διαβάστηκε/);
+});
+
+test("siteSnapshot / prevSiteSnapshot: buildIds σελίδων + αν έλειπαν αρχεία· ανάγνωση από τα αποθηκευμένα checks", () => {
+  const b = { id: "BUILD_A", files: new Set(["/_next/static/chunks/main-1.js"]) };
+  const pages = [evaluatePage(ok("/", page("")), ctx()), evaluatePage(ok("/admin/login", EVIL), ctx({ previous: null }), { confirmed: true })];
+  const snap = siteSnapshot(pages, b, NOW);
+  assert.deepEqual(snap, { at: NOW.toISOString(), serverBuild: "BUILD_A", pages: [{ path: "/", pageBuild: "BUILD_A", missing: false }, { path: "/admin/login", pageBuild: "FAKE_BUILD", missing: true }] });
+  assert.deepEqual(prevSiteSnapshot([{ key: "staff", snapshot: {} }, { key: "site", status: "warn", snapshot: snap }]), snap);
+  assert.equal(prevSiteSnapshot([{ key: "site", status: "error" }]), null);
+  assert.equal(prevSiteSnapshot("x"), null);
+  const out = siteOutcome({ mode: "light", origin: ORIGIN, originSource: "AUTH_URL", pages, build: b, analytics: { keys: [], hosts: [] }, now: NOW });
+  assert.deepEqual(out.snapshot, snap);
 });
 
 test("evaluatePage: άλλο build + script από ξένο host → critical (οι υπόλοιποι κανόνες ισχύουν)", () => {

@@ -12,8 +12,19 @@ export type Fetched =
   | { path: string; error: string };
 
 export type Build = { id: string | null; files: Set<string> };
-export type PageCtx = { origin: string; build: Build | null; allowedScriptHosts: string[]; expectedConnectSrc: string[] };
-export type PageResult = { path: string; label: string; scanned: boolean; findings: Finding[]; scripts: { external: number; inline: number }; /** άλλο build με αρχεία που λείπουν: να ξαναελεγχθεί */ recheck?: true };
+/**
+ * Τι είδε ο έλεγχος site για τα builds — κρατιέται στο report (snapshot, δεν το δείχνουν UI/email) ώστε ο ΕΠΟΜΕΝΟΣ έλεγχος
+ * να ξεχωρίζει ένα deploy σε εξέλιξη (περνά μέσα σε μία εκτέλεση) από κάτι που επιμένει (ruling J).
+ */
+export type SiteSnapshot = { at: string; serverBuild: string | null; pages: { path: string; pageBuild: string | null; missing: boolean }[] };
+/** null = δεν υπάρχει προηγούμενος έλεγχος site με στιγμιότυπο· "unavailable" = δεν διαβάστηκε (π.χ. βάση εκτός). */
+export type PrevSite = SiteSnapshot | null | "unavailable";
+export type PageCtx = { origin: string; build: Build | null; allowedScriptHosts: string[]; expectedConnectSrc: string[]; /** προεπιλογή "unavailable" */ previous?: PrevSite };
+export type PageResult = {
+  path: string; label: string; scanned: boolean; findings: Finding[]; scripts: { external: number; inline: number };
+  /** άλλο build με αρχεία που λείπουν: να ξαναελεγχθεί */ recheck?: true;
+  /** buildId της σελίδας και τα αρχεία /_next/static που λείπουν από το build του server (μόνο όταν διαφέρει το build) */ build?: { page: string | null; missing: string[] };
+};
 
 /** Οι πηγές του connect-src ενός CSP (όπως τις παράγει το buildCsp) — αυτές περιμένει ο έλεγχος headers. */
 export function connectSrcOf(csp: string): string[] {
@@ -54,8 +65,8 @@ const host = (u: string) => { try { return new URL(u).host; } catch { return u.s
 
 /** Κατάταξη και έλεγχος μίας σελίδας. */
 /**
- * `confirmed`: δεύτερος έλεγχος της ίδιας σελίδας (το I/O την ξαναφέρνει μετά από ~20″ όταν `recheck`) — άλλο build με
- * αρχεία που λείπουν γίνεται τότε critical· χωρίς χρόνο για δεύτερο έλεγχο το I/O καλεί με `confirmed` και `note`.
+ * `confirmed`: δεύτερος έλεγχος της ίδιας σελίδας (το I/O την ξαναφέρνει μετά από ~20″ όταν `recheck`· χωρίς χρόνο
+ * καλεί με `confirmed` και `note`) — άλλο build με αρχεία που λείπουν κρίνεται τότε από το mismatchFinding.
  */
 export function evaluatePage(page: Fetched, ctx: PageCtx, opts: { confirmed?: boolean; note?: string } = {}): PageResult {
   const none = { external: 0, inline: 0 };
@@ -95,25 +106,29 @@ export function evaluatePage(page: Fetched, ctx: PageCtx, opts: { confirmed?: bo
   const findings: Finding[] = [];
   let files: Set<string> | null = null;
   let recheck: true | undefined;
+  let buildSeen: PageResult["build"];
   if (ctx.build) {
     const pageId = buildIdOf(page.html);
+    buildSeen = { page: pageId, missing: [] };
     if (ctx.build.id && pageId && pageId !== ctx.build.id) {
       // άλλο build: τα αρχεία του δεν συγκρίνονται ένα-ένα (scanPage), αλλά ό,τι λείπει από το δικό μας build μετρά —
       // ένας ενδιάμεσος που αλλάζει το buildId δεν «κρύβει» έτσι ένα ξένο chunk
       const missing = missingStatic(scripts, ctx.origin, ctx.build.files);
-      const evidence = `site ${pageId} · server ${ctx.build.id}`;
-      if (missing.length && opts.confirmed) {
-        findings.push({ severity: "critical", title: "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server", detail: `Η σελίδα δηλώνει build ${pageId} (ο server: ${ctx.build.id}) και φορτώνει ${missing.length} αρχεία /_next/static που δεν υπάρχουν στο build του server — και μετά από νέο έλεγχο${opts.note ? ` (${opts.note})` : ""}: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "…" : ""}. Είτε το δημόσιο URL σερβίρεται από άλλο αντίγραφο της εφαρμογής (μακρύ deploy, παλιός server) είτε ενδιάμεσος (Cloudflare Worker / ένεση) άλλαξε τη σελίδα. Επιβεβαιώστε ποιος server απαντά.`, evidence });
+      buildSeen = { page: pageId, missing };
+      if (missing.length && !opts.confirmed) {
+        recheck = true;
+        findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: `Η σελίδα δηλώνει άλλο build και φορτώνει ${missing.length} αρχεία που δεν υπάρχουν στο build του server (θα ξαναελεγχθεί).`, evidence: `site ${pageId} · server ${ctx.build.id}` });
+      } else if (missing.length) {
+        findings.push(mismatchFinding({ pageBuild: pageId, serverBuild: ctx.build.id, missing, previous: ctx.previous === undefined ? "unavailable" : ctx.previous, note: opts.note }));
       } else {
-        if (missing.length) recheck = true;
-        findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: `Η σελίδα δηλώνει άλλο build${missing.length ? ` και φορτώνει ${missing.length} αρχεία που δεν υπάρχουν στο build του server (θα ξαναελεγχθεί)` : " — όλα τα αρχεία /_next/static της υπάρχουν στο build του server"}. Συνήθως: deploy σε εξέλιξη. Αν επιμένει, ελέγξτε ποιος server απαντά στο δημόσιο URL.`, evidence });
+        findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: "Η σελίδα δηλώνει άλλο build — όλα τα αρχεία /_next/static της υπάρχουν στο build του server. Συνήθως: deploy σε εξέλιξη. Αν επιμένει, ελέγξτε ποιος server απαντά στο δημόσιο URL.", evidence: `site ${pageId} · server ${ctx.build.id}` });
       }
     } else files = ctx.build.files;
   }
   findings.push(...scanPage(page.html, { origin: ctx.origin, buildChunks: files, allowedScriptHosts: ctx.allowedScriptHosts }));
   findings.push(...checkHeaders(page.headers, { expectedConnectSrc: ctx.expectedConnectSrc }));
   const moved = page.finalPath && page.finalPath !== page.path ? ` → ${page.finalPath}` : "";
-  return { ...res(`${page.status}${moved}`, findings, true, counts), ...(recheck ? { recheck } : {}) };
+  return { ...res(`${page.status}${moved}`, findings, true, counts), ...(recheck ? { recheck } : {}), ...(buildSeen ? { build: buildSeen } : {}) };
 }
 
 const snip = (s: string, n: number) => { const t = s.replace(/\s+/g, " ").trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
@@ -135,6 +150,38 @@ export function missingStatic(scripts: { src: string | null }[], origin: string,
   return [...out].sort();
 }
 
+/**
+ * Άλλο build στη σελίδα με αρχεία /_next/static που λείπουν από το build του server (και μετά τη δεύτερη λήψη) — ruling J:
+ * critical ΜΟΝΟ αν το ίδιο ζεύγος (buildId σελίδας ≠ buildId server, με αρχεία που λείπουν) υπήρχε και στον προηγούμενο
+ * έλεγχο site (light ή full, ~1 ώρα πριν): ένα deploy δεν κρατά τόσο. Πρώτη εμφάνιση → warn «πιθανό deploy»· ο
+ * προηγούμενος δεν διαβάστηκε → warn που το λέει. (Scripts από ξένο host δίνουν critical αμέσως, από το scanPage.)
+ */
+export function mismatchFinding(i: { pageBuild: string | null; serverBuild: string | null; missing: string[]; previous: PrevSite; note?: string }): Finding {
+  const evidence = `site ${i.pageBuild} · server ${i.serverBuild}`;
+  const files = `${i.missing.length} αρχεία /_next/static που δεν υπάρχουν στο build του server${i.note ? ` (${i.note})` : ""}: ${i.missing.slice(0, 5).join(", ")}${i.missing.length > 5 ? "…" : ""}`;
+  const prev = i.previous;
+  if (prev && prev !== "unavailable" && prev.serverBuild === i.serverBuild && prev.pages.some((p) => p.missing && p.pageBuild === i.pageBuild)) {
+    return { severity: "critical", title: "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Το ίδιο είχε βρεθεί και στον προηγούμενο έλεγχο (${prev.at}) — δεν είναι σύντομο deploy. Είτε το δημόσιο URL σερβίρεται από άλλο αντίγραφο της εφαρμογής (παλιός/δεύτερος server) είτε ενδιάμεσος (Cloudflare Worker / ένεση) άλλαξε τη σελίδα. Επιβεβαιώστε ποιος server απαντά.`, evidence };
+  }
+  if (prev === "unavailable") {
+    return { severity: "warn", title: "Αρχεία που λείπουν από το build — χωρίς σύγκριση με τον προηγούμενο έλεγχο", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Ο προηγούμενος έλεγχος δεν διαβάστηκε (π.χ. η βάση δεν απάντησε), οπότε δεν κρίνεται αν είναι σύντομο deploy ή κάτι που επιμένει — ΔΕΝ είναι «όλα καλά». Ελέγξτε ποιος server απαντά στο δημόσιο URL.`, evidence };
+  }
+  return { severity: "warn", title: "Πιθανό deploy σε εξέλιξη — αρχεία που λείπουν από το build· επανέλεγχος στην επόμενη εκτέλεση", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Πρώτη φορά που εμφανίζεται${prev ? " (ο προηγούμενος έλεγχος είχε άλλη εικόνα)" : ""}: αν το ίδιο βρεθεί και στην επόμενη εκτέλεση, γίνεται κρίσιμο.`, evidence };
+}
+
+/** Στιγμιότυπο builds για τον επόμενο έλεγχο. */
+export function siteSnapshot(pages: PageResult[], build: Build | null, now: Date): SiteSnapshot {
+  return { at: now.toISOString(), serverBuild: build?.id ?? null, pages: pages.filter((p) => p.build).map((p) => ({ path: p.path, pageBuild: p.build!.page, missing: p.build!.missing.length > 0 })) };
+}
+/** Το στιγμιότυπο του ελέγχου site από τα αποθηκευμένα checks ενός report (null αν δεν υπάρχει / άκυρο). */
+export function prevSiteSnapshot(checks: unknown): SiteSnapshot | null {
+  if (!Array.isArray(checks)) return null;
+  const c = checks.find((x) => x && typeof x === "object" && (x as { key?: unknown }).key === "site") as { snapshot?: unknown } | undefined;
+  const s = c?.snapshot as SiteSnapshot | undefined;
+  if (!s || typeof s !== "object" || typeof s.at !== "string" || !Array.isArray(s.pages)) return null;
+  return s.pages.every((p) => p && typeof p.path === "string" && typeof p.missing === "boolean") ? s : null;
+}
+
 /** Το ίδιο εύρημα (σοβαρότητα + τίτλος + τεκμήριο) σε πολλές σελίδες → ένα, με τις σελίδες στη λεπτομέρεια (όχι στο τεκμήριο: fingerprint). */
 export function mergeFindings(pages: { path: string; findings: Finding[] }[]): Finding[] {
   const by = new Map<string, { f: Finding; paths: string[] }>();
@@ -152,7 +199,8 @@ const PICK: Record<PickInfo["source"], string> = { db: "από τη βάση (τ
 export function siteOutcome(input: {
   mode: "full" | "light"; origin: string; originSource: string; pages: PageResult[]; build: Build | null;
   analytics: { keys: string[]; hosts: string[] } | null; pick?: PickInfo; missing?: string[]; /** το URL είναι η ενσωματωμένη προεπιλογή */ originDefault?: boolean;
-}): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
+  now?: Date;
+}): { status: Severity; summary: string; findings: Finding[]; complete: boolean; snapshot: SiteSnapshot } {
   const findings = mergeFindings(input.pages);
   if (input.originDefault) findings.push({ severity: "warn", title: `Δεν έχει οριστεί SECURITY_SITE_URL/AUTH_URL — ελέγχεται η προεπιλογή ${input.origin}`, detail: `Ο έλεγχος δεν ξέρει από τις ρυθμίσεις ποιο είναι το δημόσιο URL της εφαρμογής και ελέγχει την ενσωματωμένη προεπιλογή ${input.origin}. Αν το site έχει μετακομίσει, ο έλεγχος κοιτάζει λάθος site. Ορίστε SECURITY_SITE_URL (ή AUTH_URL) στο περιβάλλον του server.`, evidence: input.origin });
   if (!input.build) findings.push({ severity: "warn", title: "Δεν βρέθηκε το build — ο έλεγχος αρχείων παραλείπεται", detail: "Ο φάκελος .next/static δεν βρέθηκε στον server του ελέγχου: τα scripts /_next/static των σελίδων ΔΕΝ συγκρίθηκαν με τα αρχεία του build (ένα αρχείο που προστέθηκε/αντικαταστάθηκε δεν θα φαινόταν). Οι υπόλοιποι κανόνες εφαρμόστηκαν.", evidence: ".next/static" });
@@ -166,5 +214,5 @@ export function siteOutcome(input: {
     input.analytics ? (input.analytics.keys.length ? `επιτρεπτοί script hosts από τα pixels ${input.analytics.keys.join(", ")}: ${input.analytics.hosts.join(", ")}` : "κανένα pixel ρυθμισμένο — κανένας ξένος script host επιτρεπτός") : "οι ρυθμίσεις Analytics δεν διαβάστηκαν — κανένας ξένος script host επιτρεπτός",
     ...(input.mode === "full" && input.pick ? [`κατηγορία/προϊόν ${PICK[input.pick.source]}${input.pick.note ? ` (${input.pick.note})` : ""}`] : []),
   ].join(" · ");
-  return { status: statusOf(findings), summary, findings, complete: scanned.length === input.pages.length && !(input.missing ?? []).length };
+  return { status: statusOf(findings), summary, findings, complete: scanned.length === input.pages.length && !(input.missing ?? []).length, snapshot: siteSnapshot(input.pages, input.build, input.now ?? new Date()) };
 }
