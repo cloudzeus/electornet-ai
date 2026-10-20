@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20T07:29:30.717Z",
+ "generatedAt": "2026-10-20T07:40:38.198Z",
  "routes": [
   {
    "route": "/admin",
@@ -1732,6 +1732,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "7489938",
+     "date": "2026-10-20T10:40:33+03:00",
+     "text": "Ασφάλεια: διορθώσεις αναθεώρησης"
+    },
+    {
      "hash": "fbace70",
      "date": "2026-09-13T16:45:53+03:00",
      "text": "Media: one-click migration of local files (assets + thumbs + email JPEGs + voice cache) to Bunny CDN, tile-size slider for the grid, copy-link icon on cards"
@@ -1747,7 +1752,7 @@
      "text": "Media library: folders, drag&drop uploads with progress, WebP normalisation with 1920/30px product frame, thumbs + blur placeholders, video probe/poster, canvas image editor (crop/rotate/flip/adjust/export), focal poi…"
     }
    ],
-   "updatedAt": "2026-09-13T16:45:53+03:00",
+   "updatedAt": "2026-10-20T10:40:33+03:00",
    "shots": {
     "desktop": "/api/help-shot/media-d.jpg",
     "mobile": "/api/help-shot/media-m.jpg"
@@ -3630,6 +3635,27 @@
  ],
  "recent": [
   {
+   "hash": "bfa6ed7",
+   "date": "2026-10-20T10:40:33+03:00",
+   "text": "Πακέτα: χωρίς @types/nodemailer (το nodemailer 10 έχει δικούς του τύπους), engines node >=22.13 για το Railpack",
+   "routes": []
+  },
+  {
+   "hash": "7489938",
+   "date": "2026-10-20T10:40:33+03:00",
+   "text": "Ασφάλεια: διορθώσεις αναθεώρησης",
+   "routes": [
+    "/admin",
+    "/admin/media"
+   ]
+  },
+  {
+   "hash": "d555a95",
+   "date": "2026-10-20T10:29:38+03:00",
+   "text": "Βοήθεια: ανανέωση ιστορικού αλλαγών (help:gen) μετά τις διορθώσεις ασφαλείας",
+   "routes": []
+  },
+  {
    "hash": "36e9117",
    "date": "2026-10-20T10:29:30+03:00",
    "text": "Ασφάλεια: αναβαθμίσεις βιβλιοθηκών με γνωστά κενά",
@@ -3917,24 +3943,6 @@
     "/admin/prosfores/newsletter",
     "/admin/prosfores/newsletter/[id]"
    ]
-  },
-  {
-   "hash": "98b6a94",
-   "date": "2026-10-17T05:29:43+03:00",
-   "text": "Newsletter προσφοράς (6/7): διαγραφή, webhooks Mailgun, προβολή στον browser",
-   "routes": []
-  },
-  {
-   "hash": "bb580f8",
-   "date": "2026-10-17T05:21:20+03:00",
-   "text": "Newsletter προσφοράς (5/7) διόρθωση: at-most-once ανά πακέτο (διεκδίκηση γραμμών σε «sending» πριν από την κλήση, χωρίς αυτόματη επανάληψη αβέβαιων), timeout 60″ στο Mailgun, μίσθωση με κάτοχο, λίστα emails αποθηκευμέ…",
-   "routes": []
-  },
-  {
-   "hash": "cd299dc",
-   "date": "2026-10-17T05:12:10+03:00",
-   "text": "Newsletter προσφοράς (5/7): αποστολή",
-   "routes": []
   }
  ],
  "helpKeys": {
