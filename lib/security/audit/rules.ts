@@ -109,11 +109,18 @@ function markerHits(text: string): Hit[] {
   for (const m of CLICKFIX_MARKERS) { const x = m.re.exec(text); if (x) out.push({ label: m.label, kind: m.kind, match: x[0] }); }
   return out;
 }
-/** strong → critical· οδηγία πληκτρολογίου (Win+R…) μαζί με άλλον διαφορετικό δείκτη → critical· αλλιώς → warn. */
+/**
+ * strong → critical. Συντόμευση (keys) μαζί με εργαλείο (tool) ή φράση δολώματος (lure), φράση δολώματος + εργαλείο, ή
+ * το ζεύγος του δολώματος Win+R + Ctrl+V → critical. Οτιδήποτε άλλο (π.χ. «Win+X, Ctrl+C / Ctrl+V, Win+D» σε
+ * περιγραφή πληκτρολογίου, «PowerShell + Windows Terminal» σε περιγραφή λογισμικού) → warn.
+ */
 function markerSeverity(hits: Hit[]): "critical" | "warn" | null {
   if (!hits.length) return null;
-  if (hits.some((h) => h.kind === "strong")) return "critical";
-  return hits.some((h) => h.kind === "keys") && new Set(hits.map((h) => h.label)).size >= 2 ? "critical" : "warn";
+  const kinds = new Set(hits.map((h) => h.kind)), labels = new Set(hits.map((h) => h.label));
+  if (kinds.has("strong")) return "critical";
+  if (kinds.has("keys") && (kinds.has("tool") || kinds.has("lure"))) return "critical";
+  if (kinds.has("lure") && kinds.has("tool")) return "critical";
+  return labels.has("Win+R") && labels.has("Ctrl+V") ? "critical" : "warn"; // ετικέτες του CLICKFIX_MARKERS
 }
 const hitsEvidence = (hits: Hit[]) => hits.map((h) => (h.match.trim() ? `${h.label}: «${snip(h.match, 60)}»` : h.label)).join(" · ");
 
@@ -123,18 +130,27 @@ const hostIn = (host: string, list: readonly string[]) => {
   return list.some((x) => { const a = x.toLowerCase(); return h === a || h.endsWith(`.${a}`); });
 };
 
-const CDN_FEATURES: [RegExp, string][] = [
-  [/^\/cdn-cgi\/zaraz\//, "Cloudflare Zaraz (εργαλεία τρίτων / «Custom HTML» — ο τρόπος της επίθεσης)"],
-  [/rocket-loader/, "Cloudflare Rocket Loader"],
-  [/email-decode/, "Cloudflare Email Obfuscation (Scrape Shield)"],
-  [/^\/cdn-cgi\/challenge-platform\//, "Cloudflare Bot Fight Mode / JavaScript detections"],
-  [/^\/cdn-cgi\/apps\//, "Cloudflare Apps"],
-  [/^\/cdn-cgi\/rum/, "Cloudflare Web Analytics (RUM)"],
+/**
+ * Λειτουργίες του Cloudflare κάτω από /cdn-cgi/. warn = γνωστή λειτουργία που ΔΕΝ εκτελεί περιεχόμενο τρίτων (Email
+ * Obfuscation, Bot Fight Mode / JS detections) — όχι επίθεση. critical = Zaraz (εκτελεί οποιοδήποτε «Custom HTML» — έτσι
+ * έγινε η επίθεση), Rocket Loader (ξαναγράφει τα scripts μας) και κάθε άλλη/άγνωστη διαδρομή.
+ */
+type CdnFeature = { name: string; severity: "warn" | "critical"; off?: string };
+const CDN_FEATURES: (CdnFeature & { re: RegExp })[] = [
+  { re: /^\/cdn-cgi\/zaraz\//, name: "Cloudflare Zaraz (εργαλεία τρίτων / «Custom HTML» — ο τρόπος της επίθεσης)", severity: "critical" },
+  { re: /rocket-loader/, name: "Cloudflare Rocket Loader", severity: "critical" },
+  { re: /^\/cdn-cgi\/scripts\/[0-9a-f]+\/cloudflare-static\/email-decode\.min\.js$/, name: "Cloudflare Email Obfuscation (Scrape Shield)", severity: "warn", off: "Scrape Shield → Email Address Obfuscation" },
+  { re: /^\/cdn-cgi\/challenge-platform\//, name: "Cloudflare Bot Fight Mode / JavaScript detections", severity: "warn", off: "Security → Bots → Bot Fight Mode / JavaScript detections" },
+  { re: /^\/cdn-cgi\/apps\//, name: "Cloudflare Apps", severity: "critical" },
+  { re: /^\/cdn-cgi\/rum/, name: "Cloudflare Web Analytics (RUM)", severity: "critical" },
 ];
-const cdnFeature = (path: string) => CDN_FEATURES.find(([re]) => re.test(path))?.[1] ?? "λειτουργία του Cloudflare (/cdn-cgi/)";
+const cdnFeature = (path: string): CdnFeature => CDN_FEATURES.find((f) => f.re.test(path)) ?? { name: "λειτουργία του Cloudflare (/cdn-cgi/)", severity: "critical" };
 const CDN_DETAIL = "Το προσθέτει το Cloudflare στις σελίδες μας — δεν το βάζει η εφαρμογή, και δεν χρησιμοποιούμε καμία λειτουργία /cdn-cgi/. "
   + "Αν δεν το ενεργοποιήσατε εσείς, ελέγξτε αμέσως τον λογαριασμό Cloudflare (Zaraz → Tools/Custom HTML, Rules, Speed → Optimization). "
   + "Αν είναι γνωστή και επιθυμητή λειτουργία, η διαδρομή μπαίνει ρητά στο ALLOWED_CDN_CGI (lib/security/audit/policy.ts).";
+const cdnDetail = (f: CdnFeature) => (f.severity === "warn"
+  ? `Λειτουργία του Cloudflare — όχι επίθεση: το Cloudflare προσθέτει αυτό το script για τη λειτουργία «${f.name}» (δεν εκτελεί περιεχόμενο τρίτων). Αν δεν τη θέλετε, κλείστε τη στο Cloudflare (${f.off}). Αν την κρατάτε, η διαδρομή μπαίνει στο ALLOWED_CDN_CGI (lib/security/audit/policy.ts).`
+  : CDN_DETAIL);
 
 export type ScanPageCtx = {
   /** η βάση του site, π.χ. https://euronics.dgsoft.gr */
@@ -173,20 +189,27 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
 
   const { scripts, iframes } = parseScripts(html);
   const byNonce = new Map<string, ParsedScript[]>();
+  // scripts που είναι ΜΟΝΟ γνωστή λειτουργία του Cloudflare επιπέδου warn (ή εγκεκριμένη) χωρίς κανέναν δείκτη ClickFix:
+  // χωρίς nonce / με δικό τους nonce δεν τα κάνουν critical (το εύρημα της λειτουργίας τα αναφέρει)
+  const benign = new Set<ParsedScript>();
+  const cdnBenign = (p: string) => cdnOk(p) || cdnFeature(p).severity === "warn";
   for (const s of scripts) {
     if (s.nonce) byNonce.set(s.nonce, [...(byNonce.get(s.nonce) ?? []), s]);
     if (s.type && /^[0-9a-f]+-text\/javascript$/i.test(s.type.trim())) {
       crit("Cloudflare Rocket Loader άλλαξε τα scripts της σελίδας", `Script με type «…-text/javascript»: το Rocket Loader του Cloudflare ξαναγράφει και εκτελεί τα scripts μας. ${CDN_DETAIL}`, "type=…-text/javascript");
     }
     if (s.inline) {
-      if (isExecutable(s.type) && !s.nonce) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", snip(s.code, 120));
       if (!isExecutable(s.type)) continue;
-      const paths = [...new Set([...s.code.matchAll(/\/cdn-cgi\/[^\s"'`\\)<>?#]*/g)].map((m) => m[0]))].filter((p) => !cdnOk(p)).sort();
+      const all = [...new Set([...s.code.matchAll(/\/cdn-cgi\/[^\s"'`\\)<>?#]*/g)].map((m) => m[0]))].sort();
+      const paths = all.filter((p) => !cdnOk(p));
       const zaraz = /\bzaraz\b/i.test(s.code) && !cdnOk("/cdn-cgi/zaraz/");
+      if (all.length && !zaraz && all.every(cdnBenign) && !markerHits(s.code).length) benign.add(s);
+      if (!s.nonce && !benign.has(s)) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", snip(s.code, 120));
       if (paths.length || zaraz) {
-        crit(`Inline script του Cloudflare: ${cdnFeature(paths[0] ?? "/cdn-cgi/zaraz/")}`,
-          `${s.nonce ? "Έχει nonce — το Cloudflare προσθέτει δικό του nonce στο CSP μας, οπότε ο browser το εκτελεί. " : ""}${CDN_DETAIL}`,
-          paths.length ? paths.join(", ") : "zaraz");
+        const f = cdnFeature(zaraz ? "/cdn-cgi/zaraz/" : paths.find((p) => cdnFeature(p).severity === "critical") ?? paths[0]);
+        add({ severity: f.severity, title: `Inline script του Cloudflare: ${f.name}`,
+          detail: `${s.nonce ? "Έχει nonce — το Cloudflare προσθέτει δικό του nonce στο CSP μας, οπότε ο browser το εκτελεί. " : "Χωρίς nonce (το CSP μας το μπλοκάρει). "}${cdnDetail(f)}`,
+          evidence: paths.length ? paths.join(", ") : "zaraz" });
       }
       continue;
     }
@@ -194,8 +217,10 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     try { u = new URL(s.src!, base); } catch { crit("Script με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", snip(s.src!, 120)); continue; }
     if (u.protocol !== "https:" && u.protocol !== "http:") { crit(`Script από ${u.protocol} (όχι αρχείο)`, "Κώδικας μέσα στη διεύθυνση του script — δεν το κάνει ποτέ η εφαρμογή.", snip(s.src!, 80)); continue; }
     const same = u.origin === base.origin;
+    if (u.pathname.startsWith("/cdn-cgi/") && same && cdnBenign(u.pathname)) benign.add(s);
     if (u.pathname.startsWith("/cdn-cgi/") && !cdnOk(u.pathname)) {
-      crit(`Script του Cloudflare: ${cdnFeature(u.pathname)}`, CDN_DETAIL, same ? u.pathname : `${u.host}${u.pathname}`);
+      const f = cdnFeature(u.pathname);
+      add({ severity: f.severity, title: `Script του Cloudflare: ${f.name}`, detail: cdnDetail(f), evidence: same ? u.pathname : `${u.host}${u.pathname}` });
       continue;
     }
     if (same) {
@@ -217,7 +242,12 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     const score = (l: ParsedScript[]) => l.filter(ours).length * 1e6 + l.length;
     const [, ...minority] = [...byNonce.values()].sort((a, b) => score(b) - score(a));
     const ev = [...new Set(minority.flat().map((s) => (s.src ? s.src.replace(/[?#].*$/, "") : snip(s.code, 80))))].sort().join(" | ");
-    crit("Scripts με διαφορετικά nonce στην ίδια σελίδα", `Βρέθηκαν ${byNonce.size} διαφορετικά nonce· η εφαρμογή βάζει ένα ανά αίτημα. Κάτι άλλο (π.χ. Cloudflare Zaraz) πρόσθεσε δικά του scripts με δικό του nonce. Τα scripts με το «ξένο» nonce φαίνονται στο τεκμήριο.`, ev);
+    const onlyCf = minority.flat().every((s) => benign.has(s));
+    add({ severity: onlyCf ? "warn" : "critical", title: "Scripts με διαφορετικά nonce στην ίδια σελίδα",
+      detail: `Βρέθηκαν ${byNonce.size} διαφορετικά nonce· η εφαρμογή βάζει ένα ανά αίτημα. ${onlyCf
+        ? "Το δεύτερο το έχουν μόνο scripts γνωστής λειτουργίας του Cloudflare (βλ. το αντίστοιχο εύρημα) — όχι επίθεση, αλλά δείχνει ότι το Cloudflare προσθέτει scripts στις σελίδες μας."
+        : "Κάτι άλλο (π.χ. Cloudflare Zaraz) πρόσθεσε δικά του scripts με δικό του nonce. Τα scripts με το «ξένο» nonce φαίνονται στο τεκμήριο."}`,
+      evidence: ev });
   }
 
   for (const src of iframes) {
@@ -240,19 +270,28 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
   });
   regions.push({ inline: false, nonce: null, text: rest });
   const hit = regions.map((r) => ({ r, hits: markerHits(r.text) })).filter((x) => x.hits.length);
-  const sev = markerSeverity(hit.flatMap((x) => x.hits));
-  if (sev) for (const { r, hits } of hit) {
-    const critical = sev === "critical";
+  const all = hit.flatMap((x) => x.hits);
+  const sev = markerSeverity(all);
+  if (sev === "warn") {
+    // ένα εύρημα για όλη τη σελίδα: η ίδια λέξη εμφανίζεται και στο κείμενο και στα δεδομένα του Next (__next_f)
+    const uniq = all.filter((h, i) => all.findIndex((x) => x.label === h.label) === i);
+    add({ severity: "warn", title: "Ύποπτη λέξη στη σελίδα", detail: "Λέξη που χρησιμοποιούν τα δολώματα ClickFix, χωρίς το μοτίβο τους (οδηγία πληκτρολογίου + εντολή) — συνήθως νόμιμο κείμενο προϊόντος (λογισμικό, πληκτρολόγιο). Ελέγξτε το.", evidence: hitsEvidence(uniq) });
+  } else if (sev) for (const { r, hits } of hit) {
     add({
       severity: sev,
-      title: r.inline ? (critical ? "Inline script με ύποπτο / συγκαλυμμένο κώδικα" : "Ύποπτη λέξη σε inline script") : (critical ? "Σημάδια ClickFix στη σελίδα" : "Ύποπτη λέξη στη σελίδα"),
-      detail: (r.inline
+      title: r.inline ? "Inline script με ύποπτο / συγκαλυμμένο κώδικα" : "Σημάδια ClickFix στη σελίδα",
+      detail: r.inline
         ? `Δείκτες ClickFix / συγκαλυμμένου κώδικα μέσα σε inline script${r.nonce ? " που ΕΧΕΙ nonce — το nonce δεν αρκεί: ό,τι προσθέτει scripts με δικό του nonce (π.χ. Cloudflare Zaraz) εκτελείται κανονικά" : ""}. Αρχή του script: «${snip(r.text, 100)}».`
-        : "Δείκτες ClickFix (ψεύτικο «επαληθεύστε ότι είστε άνθρωπος» που ζητά εκτέλεση εντολής) στο HTML της σελίδας.")
-        + (critical ? "" : " Μία μόνο ύποπτη λέξη — μπορεί να είναι νόμιμο κείμενο προϊόντος· ελέγξτε το."),
+        : "Δείκτες ClickFix (ψεύτικο «επαληθεύστε ότι είστε άνθρωπος» που ζητά εκτέλεση εντολής) στο HTML της σελίδας.",
       evidence: hitsEvidence(hits),
     });
   }
+
+  // ετικέτες HTML εκτός scripts / σχολίων (το React δεν βγάζει ποτέ on…= attributes)
+  const markup = html.replace(SCRIPT_RE, "").replace(/<!--[\s\S]*?-->/g, "");
+  const open = /<script\b/i.exec(markup);
+  if (open) crit("<script> χωρίς κλείσιμο", "Ετικέτα <script> που δεν κλείνει — ο browser την εκτελεί ως το τέλος της σελίδας· δεν την παράγει η εφαρμογή.", snip(markup.slice(open.index, open.index + 120), 120));
+  scanTags(markup, { page: base, own: [] }, crit);
   return out;
 }
 
@@ -314,7 +353,9 @@ export function checkHeaders(headers: Record<string, string>, opts: { expectedCo
 
     if (!policies.some((p) => p.has("frame-ancestors"))) out.push({ severity: "warn", title: "Λείπει το frame-ancestors από το CSP", detail: `Προστασία από clickjacking.${h["x-frame-options"] ? ` Υπάρχει X-Frame-Options: ${h["x-frame-options"]}.` : ""}`, evidence: "frame-ancestors" });
 
-    if (opts.expectedConnectSrc) {
+    if (opts.expectedConnectSrc && !policies.some((p) => p.has("connect-src") || p.has("default-src"))) {
+      out.push({ severity: "critical", title: "CSP χωρίς connect-src / default-src", detail: "Ο browser επιτρέπεται να στέλνει δεδομένα οπουδήποτε (π.χ. σε διακομιστή επιτιθέμενου).", evidence: "connect-src" });
+    } else if (opts.expectedConnectSrc) {
       const exp = new Set(opts.expectedConnectSrc.map(lc));
       const extra = [...new Set(policies.flatMap((p) => p.get("connect-src") ?? p.get("default-src") ?? []).filter((t) => !exp.has(lc(t))))].sort();
       if (extra.length) out.push({ severity: "critical", title: "CSP: connect-src με πηγές που δεν ορίζει η εφαρμογή", detail: "Ο browser επιτρέπεται να στέλνει δεδομένα σε διευθύνσεις που δεν έβαλε η εφαρμογή (π.χ. διακομιστής επιτιθέμενου).", evidence: extra.join(" ") });
@@ -325,6 +366,43 @@ export function checkHeaders(headers: Record<string, string>, opts: { expectedCo
     if (!v || !r.re.test(v)) out.push({ severity: "warn", title: `Λείπει / άκυρο: ${r.label}`, detail: v ? `Τιμή: ${snip(v, 100)}` : "Το header λείπει.", evidence: r.name });
   }
   return out;
+}
+
+// ── κανόνες ετικετών (κοινοί για περιεχόμενο και σελίδα) ────────────────────────────────────────────────────────────
+/**
+ * on…= χειριστές, javascript:/vbscript: σε attribute, object/embed/applet, meta refresh, base· στο περιεχόμενο επιπλέον
+ * srcdoc και φόρμες προς ξένο host. `page` (σελίδα): meta refresh / base μόνο όταν δείχνουν σε ξένο origin (το Next
+ * βγάζει `<meta http-equiv="refresh">` για τα redirect), και ο «μπλοκαρισμένος» σύνδεσμος του React αγνοείται.
+ */
+function scanTags(text: string, o: { page?: URL; own: string[] }, crit: (title: string, detail: string, evidence: string) => void): void {
+  const foreignForm = (v: string) => {
+    if (!/^(?:https?:)?\/\//i.test(v)) return null;
+    try { const u = new URL(v, "https://relative.invalid"); return o.own.some((x) => hostIn(u.hostname, [x])) ? null : u; } catch { return null; }
+  };
+  const foreignPage = (v: string) => { try { return new URL(v, o.page).origin !== o.page!.origin; } catch { return true; } };
+  for (const m of text.matchAll(TAG_RE)) {
+    const tag = m[1].toLowerCase();
+    const a = attrs(m[2]);
+    const where = snip(m[0], 120);
+    for (const [k, v] of a) {
+      if (/^on[a-z]+$/.test(k)) crit("Χειριστής συμβάντος (on…=) σε ετικέτα", "Π.χ. onerror= / onload=: εκτελεί κώδικα χωρίς <script>.", where);
+      const flat = v.replace(/[\x00-\x20]+/g, "").toLowerCase();
+      const reactBlocked = !!o.page && flat.startsWith("javascript:thrownewerror(") && flat.includes("reacthasblocked");
+      if (!reactBlocked && (/^(?:javascript|vbscript):/.test(flat) || (k === "style" && /javascript:|expression\(/.test(flat)))) crit("javascript: σε σύνδεσμο / attribute", "Κώδικας που εκτελείται με το κλικ ή τη φόρτωση.", where);
+      if (o.page) continue; // srcdoc / φόρμες: η σελίδα τα ελέγχει αλλού (iframes) ή τα έχει νόμιμα (πληρωμές)
+      if (k === "srcdoc") crit("srcdoc σε ετικέτα", "iframe με ενσωματωμένο HTML.", where);
+      if ((tag === "form" && k === "action") || k === "formaction") {
+        const u = foreignForm(v.trim());
+        if (u) crit("Φόρμα που στέλνει σε ξένο host", "Τα στοιχεία που θα πληκτρολογήσει ο επισκέπτης πάνε εκτός site.", `${u.host}${u.pathname}`);
+      }
+    }
+    if (tag === "object" || tag === "embed" || tag === "applet") crit(`Ενσωματωμένο αντικείμενο <${tag}>`, "Φορτώνει εξωτερικό εκτελέσιμο περιεχόμενο.", where);
+    if (tag === "meta" && /refresh/i.test(a.get("http-equiv") ?? "")) {
+      const url = /url\s*=\s*['"]?([^'"]+)/i.exec(a.get("content") ?? "")?.[1]?.trim();
+      if (!o.page || (url && foreignPage(url))) crit("Ανακατεύθυνση <meta refresh>", "Στέλνει τον επισκέπτη σε άλλη σελίδα.", where);
+    }
+    if (tag === "base" && (!o.page || foreignPage(a.get("href") ?? ""))) crit("Ετικέτα <base>", "Αλλάζει πού δείχνουν όλοι οι σχετικοί σύνδεσμοι της σελίδας.", where);
+  }
 }
 
 // ── περιεχόμενο (CMS, περιγραφές, newsletter…) ───────────────────────────────────────────────────────────────────────
@@ -344,28 +422,7 @@ export function scanContent(text: string, opts: { ownHosts?: string[] } = {}): F
   const sc = /<\s*script\b/i.exec(text);
   if (sc) crit("Ετικέτα <script> στο περιεχόμενο", "Κώδικας μέσα σε πεδίο που αποδίδεται ως HTML.", snip(text.slice(sc.index, sc.index + 120), 120));
 
-  const foreign = (v: string) => {
-    if (!/^(?:https?:)?\/\//i.test(v)) return null;
-    try { const u = new URL(v, "https://relative.invalid"); return own.some((o) => hostIn(u.hostname, [o])) ? null : u; } catch { return null; }
-  };
-  for (const m of text.matchAll(TAG_RE)) {
-    const tag = m[1].toLowerCase();
-    const a = attrs(m[2]);
-    const where = snip(m[0], 120);
-    for (const [k, v] of a) {
-      if (/^on[a-z]+$/.test(k)) crit("Χειριστής συμβάντος (on…=) σε ετικέτα", "Π.χ. onerror= / onload=: εκτελεί κώδικα χωρίς <script>.", where);
-      const flat = v.replace(/[\x00-\x20]+/g, "").toLowerCase();
-      if (/^(?:javascript|vbscript):/.test(flat) || (k === "style" && /javascript:|expression\(/.test(flat))) crit("javascript: σε σύνδεσμο / attribute", "Κώδικας που εκτελείται με το κλικ ή τη φόρτωση.", where);
-      if (k === "srcdoc") crit("srcdoc σε ετικέτα", "iframe με ενσωματωμένο HTML.", where);
-      if ((tag === "form" && k === "action") || k === "formaction") {
-        const u = foreign(v.trim());
-        if (u) crit("Φόρμα που στέλνει σε ξένο host", "Τα στοιχεία που θα πληκτρολογήσει ο επισκέπτης πάνε εκτός site.", `${u.host}${u.pathname}`);
-      }
-    }
-    if (tag === "object" || tag === "embed" || tag === "applet") crit(`Ενσωματωμένο αντικείμενο <${tag}>`, "Φορτώνει εξωτερικό εκτελέσιμο περιεχόμενο.", where);
-    if (tag === "meta" && /refresh/i.test(a.get("http-equiv") ?? "")) crit("Ανακατεύθυνση <meta refresh>", "Στέλνει τον επισκέπτη σε άλλη σελίδα.", where);
-    if (tag === "base") crit("Ετικέτα <base>", "Αλλάζει πού δείχνουν όλοι οι σχετικοί σύνδεσμοι της σελίδας.", where);
-  }
+  scanTags(text, { own }, crit);
   const di = /data:\s*text\/html/i.exec(dec);
   if (di) crit("data:text/html στο περιεχόμενο", "Ολόκληρη σελίδα HTML κρυμμένη σε διεύθυνση.", snip(dec.slice(di.index, di.index + 80), 80));
 

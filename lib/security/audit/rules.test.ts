@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { buildCsp } from "../csp";
 import { ALLOWED_CDN_CGI, ALLOWED_FRAME_HOSTS, CLICKFIX_MARKERS, SPAM_MARKERS, REQUIRED_HEADERS, allowedScriptHosts } from "./policy";
 import { parseScripts, classifyPage, scanPage, checkHeaders, scanContent, newOrigins, fingerprint, worst, type Finding } from "./rules";
@@ -140,9 +141,10 @@ test("scanPage: inline loader του Zaraz με nonce → critical (το nonce �
   assert.equal(sev(scanPage(page("", loader), ctx())), "critical");
 });
 
-test("scanPage: άλλες λειτουργίες /cdn-cgi/ (email-decode, rocket-loader) → critical, εκτός αν είναι ρητά στη λίστα", () => {
+test("scanPage: λειτουργίες /cdn-cgi/ — email-decode → warn (ή τίποτα αν είναι στη λίστα)· rocket-loader / άγνωστη → critical", () => {
   const email = `<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>`;
-  assert.equal(sev(scanPage(page(email), ctx())), "critical");
+  assert.equal(sev(scanPage(page(email), ctx())), "warn");
+  assert.equal(sev(scanPage(page(`<script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/other.min.js"></script>`), ctx())), "critical");
   assert.deepEqual(scanPage(page(email.replace("<script ", '<script nonce="N1" ')), ctx({ allowedCdnCgi: ["/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode"] })), []);
   const rocket = `<script src="https://ajax.cloudflare.com/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="abc-|49" defer></script><script type="abc123-text/javascript" nonce="N1">var x=1</script>`;
   assert.equal(sev(scanPage(page(rocket), ctx())), "critical");
@@ -334,4 +336,84 @@ test("worst: critical > error > warn > ok", () => {
   assert.equal(worst(["ok", "critical", "error"]), "critical");
   assert.equal(worst(["ok", "warn"]), "warn");
   assert.equal(worst([]), "ok");
+});
+
+// ── διορθώσεις αναθεώρησης (ακρίβεια) ────────────────────────────────────────────────────────────────────────────────
+test("ClickFix: πλήκτρα συντομεύσεων σε περιγραφή πληκτρολογίου → όχι critical· το πραγματικό δόλωμα → critical", () => {
+  assert.notEqual(sev(scanContent("<p>Πληκτρολόγιο με πλήκτρα συντομεύσεων: Win+X, Ctrl+C / Ctrl+V, Win+D.</p>")), "critical");
+  assert.notEqual(sev(scanPage(page("<p>Πληκτρολόγιο με πλήκτρα συντομεύσεων: Win+X, Ctrl+C / Ctrl+V, Win+D.</p>"), ctx())), "critical");
+  assert.equal(sev(scanContent("<div>Πατήστε Win+R, μετά Ctrl+V και Enter</div>")), "critical");
+  assert.equal(sev(scanContent("<div>Press Ctrl + V after Windows Key + R</div>")), "critical");
+  assert.equal(sev(scanContent("<div>I'm not a robot — press Win+X</div>")), "critical");
+  assert.equal(sev(scanContent("<p>Win+X και μετά Windows Terminal</p>")), "critical");
+});
+
+const JSD = `<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'8f1',t:'MTcy'};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.visibility='hidden';document.body.appendChild(a);c()}})();</script>`;
+const EMAIL = `<a href="/cdn-cgi/l/email-protection#abc">[email&#160;protected]</a><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>`;
+const ZARAZ = `<script src="/cdn-cgi/zaraz/s.js?z=abc" nonce="CF"></script>`;
+
+test("Cloudflare: Email Obfuscation / Bot Fight Mode (JSD) → warn (λειτουργίες, όχι επίθεση)· Zaraz → critical· μαζί → critical", () => {
+  const e = scanPage(page(EMAIL), ctx());
+  assert.equal(sev(e), "warn", JSON.stringify(e));
+  assert.ok(e.some((x) => /όχι επίθεση/.test(x.detail)));
+  for (const html of [JSD, JSD.replace("<script>", '<script nonce="CFN">'), JSD.replace("<script>", '<script nonce="N1">')]) {
+    const f = scanPage(page(html), ctx());
+    assert.equal(sev(f), "warn", JSON.stringify(f));
+  }
+  assert.equal(sev(scanPage(page("", ZARAZ), ctx())), "critical");
+  assert.equal(sev(scanPage(page(EMAIL + JSD, ZARAZ), ctx())), "critical");
+  // ο loader του JSD με κώδικα ClickFix μέσα του δεν θεωρείται αθώος
+  assert.equal(sev(scanPage(page(JSD.replace("c()}", "c();localStorage.getItem('verified')}")), ctx())), "critical");
+  // ξένο script χωρίς nonce δίπλα στον loader → critical
+  assert.equal(sev(scanPage(page(JSD + "<script>window.x=1</script>"), ctx())), "critical");
+});
+
+test("scanPage: μία ύποπτη λέξη σε κείμενο + RSC payload → ένα ουδέτερο warn (όχι «ΕΧΕΙ nonce»)", () => {
+  const desc = "Laptop με Windows 11 Pro και PowerShell 7.";
+  const html = page(`<p>${desc}</p><script nonce="N1">self.__next_f.push([1,"5:[\\"$\\",\\"p\\",null,{\\"children\\":\\"${desc}\\"}]"])</script>`);
+  const f = scanPage(html, ctx());
+  assert.equal(f.length, 1, JSON.stringify(f));
+  assert.equal(f[0].severity, "warn");
+  assert.doesNotMatch(f[0].detail, /ΕΧΕΙ nonce/);
+});
+
+test("checkHeaders: expectedConnectSrc χωρίς connect-src και χωρίς default-src → critical", () => {
+  const h = { ...goodHeaders(), "content-security-policy": "script-src 'nonce-a' 'strict-dynamic'; style-src 'nonce-a'; frame-ancestors 'self'" };
+  assert.equal(sev(checkHeaders(h, { expectedConnectSrc: ["'self'"] })), "critical");
+  assert.deepEqual(checkHeaders({ ...h, "content-security-policy": `default-src 'self'; ${h["content-security-policy"]}` }, { expectedConnectSrc: ["'self'"] }), []);
+});
+
+test("scanPage: κανόνες ετικετών στο HTML (εκτός scripts) και ανολοκλήρωτο <script", () => {
+  for (const x of [
+    `<img src=x onerror="fetch('//c2')">`,
+    `<object data="https://evil.example/x.swf"></object>`,
+    `<embed src="https://evil.example/e">`,
+    `<meta http-equiv="refresh" content="0;url=https://evil.example">`,
+    `<base href="https://evil.example/">`,
+  ]) assert.equal(sev(scanPage(page(x), ctx())), "critical", x);
+  assert.equal(sev(scanPage(`${page()}<script>alert(1)`, ctx())), "critical");
+  assert.equal(sev(scanPage(`${page()}<script src="https://evil.example/x.js">`, ctx())), "critical");
+  // ανακατεύθυνση του Next (meta refresh προς δική μας διαδρομή) και <base> δικό μας → τίποτα
+  assert.deepEqual(scanPage(page(`<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=/kalathi"/>`), ctx()), []);
+  assert.deepEqual(scanPage(page(`<base href="https://euronics.dgsoft.gr/">`), ctx()), []);
+  // κώδικας μέσα σε script / σχόλιο δεν είναι ετικέτα HTML
+  assert.deepEqual(scanPage(page(`<!-- <img onerror=x> -->`), ctx()), []);
+});
+
+test("spam: «Ford Escort» και «με άτοκο δάνειο» → τίποτα· ισχυροί όροι μένουν", () => {
+  assert.deepEqual(scanContent("<p>Συμβατό με Ford Escort και Focus.</p>"), []);
+  assert.deepEqual(scanContent("<p>Αγορά με άτοκο δάνειο ή χωρίς δάνειο.</p>"), []);
+  assert.equal(sev(scanContent("Γρήγορα δάνεια χωρίς δικαιολογητικά")), "warn");
+  assert.equal(sev(scanContent("VIP escort services")), "warn");
+});
+
+test("πραγματική σελίδα: /admin/login του live site (χωρίς το Zaraz) → κανένα εύρημα· με τον loader του Zaraz → critical", () => {
+  // fixtures/admin-login.html: λήψη 2026-10-20 από το live site, αφαιρεμένο μόνο το inline script του Zaraz
+  const html = readFileSync(new URL("./fixtures/admin-login.html", import.meta.url), "utf8");
+  assert.deepEqual(scanPage(html, ctx({ buildChunks: null })), []);
+  const chunks = new Set(parseScripts(html).scripts.flatMap((s) => (s.src ? [s.src.replace(/^\/_next\/static\//, "")] : [])));
+  assert.deepEqual(scanPage(html, ctx({ buildChunks: chunks })), []);
+  const nonce = parseScripts(html).scripts.find((s) => s.nonce)!.nonce!;
+  const loader = `<script data-cfasync="false" nonce="${nonce}">try{(function(w,d){var s=d.createElement("script");s.src="/cdn-cgi/zaraz/s.js?z="+btoa(1);d.head.appendChild(s)})(window,document)}catch(e){throw fetch("/cdn-cgi/zaraz/t"),e;}</script>`;
+  assert.equal(sev(scanPage(html.replace("</head>", `${loader}</head>`), ctx({ buildChunks: null }))), "critical");
 });

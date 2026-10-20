@@ -48,13 +48,14 @@ export const ALLOWED_CDN_CGI: readonly string[] = [];
 /**
  * Δείκτες ClickFix / συγκαλυμμένου κώδικα. Είδη:
  * - `strong`: δεν εμφανίζονται ποτέ σε νόμιμο περιεχόμενο ή κώδικά μας → critical από μόνοι τους.
- * - `keys`: οδηγία πληκτρολογίου του δολώματος (Win+R, Ctrl+V…)· `tool`: όνομα εργαλείου (PowerShell, Windows Terminal).
- *   Μόνοι τους → warn (μπορεί να είναι περιγραφή λογισμικού/πληκτρολογίου)· `keys` μαζί με άλλον διαφορετικό δείκτη
- *   → critical (το μοτίβο του ClickFix: «πατήστε Win+R… επικολλήστε»).
+ * - `keys`: συντόμευση πληκτρολογίου (Win+R, Ctrl+V…)· `tool`: όνομα εργαλείου (PowerShell, Windows Terminal)· `lure`:
+ *   φράση του ψεύτικου CAPTCHA («I'm not a robot»). Μόνοι τους → warn (περιγραφές λογισμικού/πληκτρολογίων). Critical:
+ *   συντόμευση μαζί με εργαλείο ή φράση δολώματος, το ζεύγος του δολώματος Win+R + Ctrl+V, ή φράση δολώματος + εργαλείο.
+ *   Ένα πληκτρολόγιο με «Win+X, Ctrl+C / Ctrl+V, Win+D» μένει warn.
  * Για HTML σελίδων, περιεχόμενο και inline scripts — ΟΧΙ για bundles JS (εκεί υπάρχουν νόμιμα new Function / fetch).
  * Τα \b εμποδίζουν τυχαία ταιριάσματα μέσα σε base64 (εικόνες data:).
  */
-export type MarkerKind = "strong" | "keys" | "tool";
+export type MarkerKind = "strong" | "keys" | "tool" | "lure";
 export type Marker = { label: string; kind: MarkerKind; re: RegExp };
 
 export const CLICKFIX_MARKERS: readonly Marker[] = [
@@ -73,7 +74,7 @@ export const CLICKFIX_MARKERS: readonly Marker[] = [
   { label: "Win+R", kind: "keys", re: /\bwin(?:dows)?(?:\s*key)?\s*\+\s*r\b/i },
   { label: "Win+X", kind: "keys", re: /\bwin(?:dows)?(?:\s*key)?\s*\+\s*x\b/i },
   { label: "Ctrl+V", kind: "keys", re: /\bctrl\s*\+\s*v\b/i },
-  { label: "«I'm not a robot» / «δεν είμαι ρομπότ»", kind: "keys", re: /\bI(?:'|’)?\s*a?m\s+not\s+a\s+robot\b|δεν\s+είμαι\s+ρομπότ/iu },
+  { label: "«I'm not a robot» / «δεν είμαι ρομπότ»", kind: "lure", re: /\bI(?:'|’)?\s*a?m\s+not\s+a\s+robot\b|δεν\s+είμαι\s+ρομπότ/iu },
   { label: "powershell", kind: "tool", re: /\bpowershell\b/i },
   { label: "Windows Terminal", kind: "tool", re: /\bwindows\s+terminal\b/i },
   { label: "cmd /c", kind: "tool", re: /\bcmd(?:\.exe)?\s+\/c\b/i },
@@ -87,8 +88,9 @@ export const SPAM_MARKERS: readonly { label: string; re: RegExp }[] = [
   { label: "casino / καζίνο", re: word("casinos?|καζ[ίι]νο|sportsbook|online\\s+betting|στοιχηματικ\\p{L}*") },
   { label: "φάρμακα (viagra, cialis…)", re: word("viagra|cialis|levitra|tramadol|online\\s+pharmacy|φαρμακε[ίι]ο\\s+online") },
   { label: "crypto", re: word("crypto(?:currency|currencies)?|bitcoin|κρυπτονομ[ίι]σμα\\p{L}*") },
-  { label: "δάνεια / loans", re: word("loans?|payday|δ[άα]νει(?:ο|α|ων)") },
-  { label: "περιεχόμενο ενηλίκων", re: word("porn\\p{L}*|πορν[οό]\\p{L}*|adult\\s+(?:content|dating|videos?|cams?|sites?)|escorts?") },
+  // όχι ενικός «δάνειο» (άτοκο δάνειο / χρηματοδότηση σε νόμιμα κείμενα)
+  { label: "δάνεια / loans", re: word("loans?|payday|δ[άα]νει(?:α|ων)") },
+  { label: "περιεχόμενο ενηλίκων", re: word("porn\\p{L}*|πορν[οό]\\p{L}*|adult\\s+(?:content|dating|videos?|cams?|sites?)|escort\\s+(?:services?|girls?|agency|agencies)") },
   { label: "απομιμήσεις", re: word("replica\\s+(?:watches|rolex|bags)|fake\\s+rolex") },
 ];
 
