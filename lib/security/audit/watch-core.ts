@@ -103,13 +103,24 @@ export function chunkHashDiff(base: Record<string, string>, other: Record<string
 export type ChunkSeen = { status?: number; sha256?: string; error?: string; /** σελίδα ελέγχου του Cloudflare (isChallenge) */ challenge?: boolean };
 const got200 = (c: ChunkSeen | undefined) => !!c && c.error === undefined && c.status === 200 && !!c.sha256;
 /**
- * Σελίδα ελέγχου του Cloudflare (Bot Fight Mode / challenge) αντί για το αρχείο: 403/503 με `cf-mitigated`, ή σώμα
- * σελίδας challenge. Οι IP των GitHub runners δέχονται συχνά τέτοιο έλεγχο — δεν είναι απάντηση της εφαρμογής.
+ * Η απάντηση ΔΕΝ είναι της εφαρμογής αλλά του Cloudflare (ή όριο ρυθμού) — δεν μετρά ως «σαφές μη-200»:
+ *   · 429 (πάντα — περιορισμός αιτημάτων)·
+ *   · 403/503 με `cf-mitigated` ή σώμα challenge («Just a moment…», /cdn-cgi/challenge-platform/)·
+ *   · 403/5xx που είναι σελίδα σφάλματος του Cloudflare: header `cf-error-details`, ή σώμα με id cf-error-details / cf-wrapper /
+ *     «Attention Required», ή (server: cloudflare + cf-ray) και σώμα «Cloudflare Ray ID» / «Error 10xx».
+ * Οι IP των GitHub runners δέχονται συχνά τέτοιο έλεγχο. Σκέτο 403/404/500 της εφαρμογής → false.
  */
 export function isChallenge(status: number, headers: Record<string, string>, body: string): boolean {
-  if (status !== 403 && status !== 503) return false;
-  if (lowerKeys(headers)["cf-mitigated"]) return true;
-  return /\/cdn-cgi\/challenge-platform\/|<title>\s*Just a moment\.\.\.|cf-chl-|cf_chl_/i.test(body.slice(0, 50_000));
+  if (status === 429) return true;
+  if (status !== 403 && status !== 503 && !(status >= 500 && status < 600)) return false;
+  const h = lowerKeys(headers);
+  if ((status === 403 || status === 503) && h["cf-mitigated"]) return true;
+  if (h["cf-error-details"]) return true;
+  const b = body.slice(0, 50_000);
+  if (/\/cdn-cgi\/challenge-platform\/|<title>\s*Just a moment\.\.\.|cf-chl-|cf_chl_/i.test(b)) return true;
+  if (/id=["']cf-error-details["']|id=["']cf-wrapper["']|<title>[^<]*Attention Required/i.test(b)) return true;
+  const viaCloudflare = /cloudflare/i.test(h.server ?? "") && !!h["cf-ray"];
+  return viaCloudflare && /Cloudflare Ray ID|\bError\s+(?:10\d\d|52\d)\b/i.test(b);
 }
 /**
  * Τα αρχεία JS μιας παραλλαγής (σελίδα × user agent, με Referer τη σελίδα) σε σύγκριση με το αντίγραφο του φύλακα:
@@ -123,8 +134,8 @@ export function isChallenge(status: number, headers: Record<string, string>, bod
 export function variantChunks(watch: Record<string, ChunkSeen>, variant: Record<string, ChunkSeen>, onlyInVariant: string[], label: string): Finding[] {
   const sha = (m: Record<string, ChunkSeen>) => Object.fromEntries(Object.entries(m).filter(([, c]) => got200(c)).map(([p, c]) => [p, c.sha256!]));
   const out = chunkHashDiff(sha(watch), sha(variant), label);
-  const definite = (c: ChunkSeen | undefined) => !!c && c.error === undefined && typeof c.status === "number" && c.status !== 200 && !c.challenge;
-  const seen = (p: string) => { const w = watch[p]; return !w ? "δεν ζητήθηκε" : w.error !== undefined ? w.error : w.challenge ? `έλεγχος Cloudflare (HTTP ${w.status})` : `HTTP ${w.status}`; };
+  const definite = (c: ChunkSeen | undefined) => !!c && c.error === undefined && typeof c.status === "number" && c.status !== 200 && c.status !== 429 && !c.challenge;
+  const seen = (p: string) => { const w = watch[p]; return !w ? "δεν ζητήθηκε" : w.error !== undefined ? w.error : w.challenge || w.status === 429 ? `έλεγχος Cloudflare / όριο αιτημάτων (HTTP ${w.status})` : `HTTP ${w.status}`; };
   const missing = uniqSorted(onlyInVariant.filter((p) => !got200(watch[p])));
   const hidden = missing.filter((p) => got200(variant[p]) && definite(watch[p]));
   const unknown = missing.filter((p) => !hidden.includes(p));

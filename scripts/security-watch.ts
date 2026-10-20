@@ -208,7 +208,7 @@ async function heartbeat(origin: string): Promise<Heartbeat> {
   const ts = Math.floor(Date.now() / 1000);
   try {
     const r = await get(new URL(`/api/security/heartbeat?ts=${ts}&sig=${signHeartbeat(secret, ts)}`, origin), { ua: WATCH_UA, accept: "application/json" });
-    if ((r.status === 403 || r.status === 503) && r.headers["cf-mitigated"]) return { kind: "unreachable", error: `σελίδα ελέγχου του Cloudflare (HTTP ${r.status})` };
+    if (isChallenge(r.status, r.headers, r.bytes.toString("utf8"))) return { kind: "unreachable", error: `σελίδα ελέγχου του Cloudflare / όριο αιτημάτων (HTTP ${r.status})` };
     if (r.status !== 200) return { kind: "http", status: r.status };
     try { return { kind: "ok", body: JSON.parse(r.bytes.toString("utf8")) }; } catch { return { kind: "ok", body: null }; }
   } catch (e) { return { kind: "unreachable", error: errText(e) }; }

@@ -382,6 +382,30 @@ test("isChallenge (F-2): 403/503 με cf-mitigated ή σελίδα ελέγχο�
   assert.equal(isChallenge(200, {}, "Just a moment..."), false);
 });
 
+test("isChallenge: 429 και σελίδες σφάλματος του Cloudflare (cf-error-details, «Attention Required», server: cloudflare + cf-ray) → true· σκέτα 403/404/500 της εφαρμογής → false", () => {
+  assert.equal(isChallenge(429, {}, ""), true);
+  assert.equal(isChallenge(429, { "retry-after": "30" }, "Too Many Requests"), true);
+  assert.equal(isChallenge(403, { "cf-error-details": "1020" }, ""), true);
+  assert.equal(isChallenge(403, {}, "<html><head><title>Attention Required! | Cloudflare</title></head>"), true);
+  assert.equal(isChallenge(403, {}, '<body><div id="cf-error-details"><h1>Sorry, you have been blocked</h1></div>'), true);
+  assert.equal(isChallenge(403, { server: "cloudflare", "cf-ray": "8f1a-ATH" }, "<html><body><h1>Error 1020</h1> Cloudflare Ray ID: 8f1a</body></html>"), true);
+  assert.equal(isChallenge(502, { server: "cloudflare", "cf-ray": "8f1a-ATH" }, '<div id="cf-wrapper">Bad gateway</div>'), true);
+  // η εφαρμογή πίσω από το Cloudflare: απλό 403/404/500 χωρίς σελίδα σφάλματος του Cloudflare
+  assert.equal(isChallenge(403, { server: "cloudflare", "cf-ray": "8f1a-ATH" }, "Forbidden"), false);
+  assert.equal(isChallenge(404, { server: "cloudflare", "cf-ray": "8f1a-ATH" }, "Attention Required"), false);
+  assert.equal(isChallenge(500, { server: "cloudflare", "cf-ray": "8f1a-ATH" }, "Internal Server Error"), false);
+  assert.equal(isChallenge(403, { server: "nginx" }, "Cloudflare Ray ID: x"), false); // χωρίς cf-ray/server cloudflare, μόνο κείμενο
+});
+
+test("variantChunks: HTTP 429 ή block page του Cloudflare στον φύλακα → error (όχι critical), ακόμη κι αν λείπει το σημάδι challenge για το 429", () => {
+  const v = { "/m.js": { status: 200, sha256: "77" } };
+  const r429 = variantChunks({ "/m.js": { status: 429 } }, v, ["/m.js"], "iPhone");
+  assert.deepEqual(sev(r429), ["error"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 429, challenge: true } }, v, ["/m.js"], "iPhone")), ["error"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 403, challenge: true } }, v, ["/m.js"], "iPhone")), ["error"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 403 } }, v, ["/m.js"], "iPhone")), ["critical"]); // σαφές 403 της εφαρμογής
+});
+
 test("publicStatus / publicChecks (F-8): το heartbeat δεν μετρά στη δημόσια κατάσταση και δεν υπάρχει στο artifact", () => {
   const checks = [watchCheckOf("pages", "Σελίδες", "s", [{ severity: "warn", title: "x", detail: "d" }], 1), watchCheckOf("heartbeat", "HB", "s", [{ severity: "critical", title: "Δεν απαντά", detail: "d" }], 1)];
   assert.equal(publicStatus(checks), "warn");
