@@ -102,6 +102,41 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
   return { ok: !mismatches.length, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
 
+/** Η τιμή web (MTREXTRA.NUM04) όπως τη διαβάζει και ο συγχρονισμός (`syncItem`) — null αν το είδος δεν έχει γραμμή MTREXTRA. */
+async function readWebPrice(mtrl: number): Promise<number | null> {
+  const rows = await getTable("MTREXTRA", ["MTRL", "NUM04"], `MTRL=${mtrl}`);
+  const row = rows.find((r) => Number(r[0]) === mtrl);
+  if (!row) return null;
+  const n = Number(String(row[1] ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Τιμή web ενός είδους στο SoftOne: setData ITEM με τον πίνακα ITEEXTRA (έτσι εμφανίζεται ο MTREXTRA μέσα στο αντικείμενο
+ * ITEM — επιβεβαιωμένο με getData) και μόνο το NUM04. Κλειστό όσο είναι κλειστός ο διακόπτης «Αλλαγές προϊόντων προς
+ * SoftOne»· μετά την εγγραφή ξαναδιαβάζεται ο MTREXTRA για επαλήθευση.
+ */
+export async function writeWebPrice(mtrl: number, price: number): Promise<WriteResult> {
+  const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
+  if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
+  if (!Number.isInteger(mtrl) || mtrl <= 0) return fail("Μη έγκυρο είδος.");
+  if (!Number.isFinite(price) || price <= 0) return fail("Η τιμή web πρέπει να είναι αριθμός μεγαλύτερος από 0.");
+  const value = Math.round(price * 100) / 100;
+  const same = (n: number | null) => n != null && Math.abs(n - value) < 0.005;
+
+  const exists = await getTable("MTRL", ["MTRL"], `MTRL=${mtrl}`).catch(() => null);
+  if (!exists) return fail("Δεν ήταν δυνατή η ανάγνωση του είδους από το SoftOne.");
+  if (!exists.some((r) => Number(r[0]) === mtrl)) return fail("Το είδος δεν βρέθηκε στο SoftOne.");
+  if (same(await readWebPrice(mtrl).catch(() => null))) return { ok: true, written: [], conflicts: [], mismatches: [] };
+
+  const r = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEEXTRA: [{ NUM04: value }] } }).catch((e: Error) => ({ success: false, error: e.message }));
+  if (!r?.success) return fail(`Το SoftOne αρνήθηκε την εγγραφή της τιμής web: ${r?.error ?? "άγνωστο σφάλμα"}`);
+
+  const after = await readWebPrice(mtrl).catch(() => null);
+  if (!same(after)) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η τιμή web δεν γράφτηκε (στάλθηκε ${value}, διαβάστηκε ${after ?? "—"}).`);
+  return { ok: true, written: [], conflicts: [], mismatches: [] };
+}
+
 /** Υπάρχει ήδη είδος με αυτόν τον κωδικό στο SoftOne; (ο κωδικός είναι μοναδικός ανά εταιρεία — η συνεδρία είναι ήδη σε αυτήν) */
 export async function itemCodeTaken(code: string): Promise<number | null> {
   const rows = await getTable("MTRL", ["MTRL", "CODE"], `SODTYPE=51 AND CODE='${code.replace(/'/g, "''")}'`);

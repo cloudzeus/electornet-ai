@@ -7,6 +7,7 @@ import { syncItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
+import { blankOnly, newSpecs } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Μαζική εισαγωγή από template προμηθευτή. Δύο βήματα, και τα δύο υπολογίζονται από το ίδιο το αρχείο (τίποτα δεν
@@ -16,7 +17,11 @@ import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type Fi
  * Με «και στο SoftOne» οι αλλαγές γράφονται στο ERP (με έλεγχο σύγκρουσης και επαλήθευση) και το κατάστημα ενημερώνεται
  * από εκεί. Χωρίς αυτό γράφεται μόνο το κατάστημα — σε προϊόν του SoftOne η αλλαγή χάνεται όταν αλλάξει το είδος στο ERP.
  */
-export interface ImportOptions { brandId?: string; toSoftone: boolean; activate: boolean }
+export interface ImportOptions {
+  brandId?: string; toSoftone: boolean; activate: boolean;
+  /** «Μόνο κενά» (υπάρχοντα είδη): συμπληρώνονται μόνο κενά πεδία και χαρακτηριστικά που λείπουν — τίποτα υπάρχον δεν αλλάζει */
+  onlyBlank?: boolean;
+}
 export interface Change { label: string; from: string; to: string }
 export interface PlanRow {
   key: string; sheet: string; rowNo: number; groupS1Id: number; group: string;
@@ -66,7 +71,9 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
     if ((r.fields.name ?? "").length > 128) out.errors.push(`Το όνομα έχει ${r.fields.name!.length} χαρακτήρες (έως 128).`);
     const mtrl = r.fields.mtrl ? Number(r.fields.mtrl) : null;
     // Το barcode ελέγχεται μόνο όταν είναι καινούργιο ή αλλάζει — διπλά που ήδη υπάρχουν στο ERP δεν μπλοκάρουν άλλες αλλαγές
-    const barcodeNew = !!r.fields.barcode && (mtrl == null || itemOf.get(mtrl)?.barcode?.trim() !== r.fields.barcode);
+    // («μόνο κενά»: αλλάζει μόνο αν το είδος δεν έχει barcode)
+    const curBarcode = mtrl == null ? undefined : itemOf.get(mtrl)?.barcode?.trim();
+    const barcodeNew = !!r.fields.barcode && (mtrl == null || (opts.onlyBlank ? !curBarcode : curBarcode !== r.fields.barcode));
     if (barcodeNew) {
       const b = r.fields.barcode!, prev = seenBarcode.get(b);
       if (prev) out.errors.push(`Το barcode ${b} υπάρχει και στη γραμμή ${prev}.`); else seenBarcode.set(b, `${r.sheet} ${r.rowNo}`);
@@ -84,12 +91,18 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
       if (r.fields.code && r.fields.code !== it.code) out.warnings.push(`Ο κωδικός δεν αλλάζει από εδώ (μένει ${it.code}).`);
       if (barcodeNew && barcodeRows.some((b) => b.barcode === r.fields.barcode && b.mtrl !== mtrl)) out.errors.push(`Το barcode ${r.fields.barcode} ανήκει σε άλλο είδος (MTRL ${barcodeRows.find((b) => b.barcode === r.fields.barcode && b.mtrl !== mtrl)!.mtrl}).`);
       const cur = itemValues(it, g);
+      // «Μόνο κενά»: πεδία μόνο αν είναι κενά στο είδος· χαρακτηριστικά μόνο αν η ετικέτα λείπει από την αναλυτική περιγραφή
+      // (ίδια ανάγνωση γραμμών με το composeMemo, άρα αυτό μόνο προσθέτει γραμμές) και δεν έχουν ήδη τιμή
+      const blankFields = opts.onlyBlank ? blankOnly(cur.fields, Object.fromEntries(EDITABLE.map((k) => [k, normField(k, r.fields[k])]))) : null;
+      const missingSpecs = opts.onlyBlank ? newSpecs(it.longDesc ?? "", Object.fromEntries(g.specs.map((d) => [d.name, (r.specs[d.name] ?? "").trim()]))) : null;
       for (const k of EDITABLE) {
+        if (blankFields && !Object.hasOwn(blankFields, k)) continue;
         const to = normField(k, r.fields[k]); if (!to) continue; // κενό = καμία αλλαγή
         const from = normField(k, cur.fields[k]);
         if (to !== from) { out.fieldTo[k] = to; out.changes.push({ label: LABEL[k], from: short(from || "—"), to: short(to) }); }
       }
       for (const d of g.specs) {
+        if (missingSpecs && (!Object.hasOwn(missingSpecs, d.name) || (cur.specs[d.name] ?? "").trim())) continue;
         const to = (r.specs[d.name] ?? "").trim(); if (!to) continue;
         const from = (cur.specs[d.name] ?? "").trim();
         if (to !== from) { out.specTo.push({ label: d.name, value: to }); out.changes.push({ label: d.name, from: from || "—", to }); }
