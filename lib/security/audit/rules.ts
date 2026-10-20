@@ -1,4 +1,4 @@
-import { ALLOWED_CDN_CGI, ALLOWED_FRAME_HOSTS, CLICKFIX_MARKERS, SPAM_MARKERS, REQUIRED_HEADERS, type Marker } from "./policy";
+import { ALLOWED_CDN_CGI, ALLOWED_FRAME_HOSTS, CONTENT_FRAME_HOSTS, CLICKFIX_MARKERS, SPAM_MARKERS, REQUIRED_HEADERS, type Marker } from "./policy";
 
 /**
  * Καθαροί κανόνες του ελέγχου ασφαλείας — κοινοί για τον εσωτερικό έλεγχο (εφαρμογή) και τον εξωτερικό φύλακα
@@ -483,7 +483,7 @@ export function scanContent(text: string, opts: { ownHosts?: string[] } = {}): F
     let u: URL | null = null;
     try { u = new URL(src.startsWith("//") ? `https:${src}` : src); } catch { /* άκυρο */ }
     if (!u || (u.protocol !== "https:" && u.protocol !== "http:")) crit("iframe με άκυρη / μη-http διεύθυνση", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", stableSnip(src, 120));
-    else if (!hostIn(u.hostname, [...ALLOWED_FRAME_HOSTS, ...own])) crit("iframe από άγνωστο host", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", `${u.host}${u.pathname}`);
+    else if (!hostIn(u.hostname, [...ALLOWED_FRAME_HOSTS, ...CONTENT_FRAME_HOSTS, ...own])) crit("iframe από άγνωστο host", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", `${u.host}${u.pathname}`);
   }
 
   const hits = markerHits(dec);

@@ -267,6 +267,17 @@ test("scanContent: YouTube iframe + «επαλήθευση στοιχείων» 
   assert.deepEqual(scanContent(`<p>Για επαλήθευση στοιχείων παραγγελίας καλέστε μας.</p><iframe src="https://www.youtube.com/embed/abc" allowfullscreen></iframe>`), []);
 });
 
+test("scanContent: iframe από dam.groupeseb.com (βίντεο προϊόντων SEB) → κανένα εύρημα· ξένος / παραπλανητικός host → critical", () => {
+  assert.deepEqual(scanContent(`<iframe src="https://dam.groupeseb.com/m/5129c9a4ba76b34e/original/Fundamental-Video-X-Clean-4.mp4"></iframe>`), []);
+  assert.deepEqual(scanContent(`<iframe src="https://dam.groupeseb.com/asset/ea0d6bd4/mp4/X-Clean-10-How-to-Use.mp4"></iframe>`), []);
+  for (const src of ["https://evil.example/x.mp4", "https://dam.groupeseb.com.evil.example/x.mp4", "https://evil.example/dam.groupeseb.com/x.mp4"])
+    assert.equal(sev(scanContent(`<iframe src="${src}"></iframe>`)), "critical", src);
+});
+
+test("scanPage: iframe από dam.groupeseb.com ΔΕΝ επιτρέπεται στις σελίδες (η λίστα είναι μόνο για το περιεχόμενο)", () => {
+  assert.equal(sev(scanPage(page(`<iframe src="https://dam.groupeseb.com/m/x/original/v.mp4"></iframe>`), ctx())), "critical");
+});
+
 test("scanContent: ένεση κώδικα → critical", () => {
   for (const html of [
     `<img src=x onerror=alert(1)>`,

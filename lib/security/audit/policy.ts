@@ -38,6 +38,13 @@ export function allowedScriptHosts(ids: Partial<Record<string, unknown>>): strin
 export const ALLOWED_FRAME_HOSTS: readonly string[] = ["youtube.com", "youtube-nocookie.com", "player.vimeo.com", "googletagmanager.com", "td.doubleclick.net"];
 
 /**
+ * Επιπλέον hosts iframe που δέχεται ΜΟΝΟ η σάρωση περιεχομένου (scanContent: περιγραφές ERP, CMS κ.λπ.) — ΟΧΙ το CSP του
+ * site (frame-src) και ΟΧΙ η σάρωση σελίδων (scanPage). Βίντεο προϊόντων Groupe SEB (SEB / Tefal / Rowenta…) στις
+ * περιγραφές SoftOne (longDesc): https://dam.groupeseb.com/…mp4.
+ */
+export const CONTENT_FRAME_HOSTS: readonly string[] = ["dam.groupeseb.com"];
+
+/**
  * Διαδρομές `/cdn-cgi/…` (λειτουργίες του Cloudflare που προσθέτουν δικά τους scripts στις σελίδες μας: Zaraz, Rocket
  * Loader, Email Obfuscation, JS detections κ.λπ.) που επιτρέπονται — ως προθέματα διαδρομής. ΚΕΝΗ: δεν χρησιμοποιούμε
  * καμία. Η επίθεση του 10/2026 μπήκε ακριβώς έτσι (Cloudflare Zaraz «Custom HTML» → /cdn-cgi/zaraz/s.js, με δικό του

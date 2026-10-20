@@ -39,6 +39,15 @@ test("scanRecord: iframe από άγνωστο host σε περιγραφή ERP 
   assert.equal(SOURCES.s1item.html, false);
 });
 
+test("scanRecord: βίντεο dam.groupeseb.com σε longDesc ERP και CMS → κανένα εύρημα· ξένος host → warn (ERP) / critical (CMS)", () => {
+  const ok = '<iframe src="https://dam.groupeseb.com/m/5129c9a4ba76b34e/original/Fundamental-Video-X-Clean-4.mp4"></iframe>';
+  assert.deepEqual(scanRecord("s1item", { id: "141675", label: "GZ5035WO", fields: { longDesc: ok } }), []);
+  assert.deepEqual(scanRecord("cms", { id: "c1", label: "copy", fields: { data: { x: ok } } }), []);
+  const evil = '<iframe src="https://evil.example/x.mp4"></iframe>';
+  assert.deepEqual(scanRecord("s1item", { id: "1", label: "X", fields: { longDesc: evil } }).map((f) => f.severity), ["warn"]);
+  assert.deepEqual(scanRecord("cms", { id: "c1", label: "copy", fields: { data: { x: evil } } }).map((f) => f.severity), ["critical"]);
+});
+
 test("scanRecord: <script> / on…= σε περιγραφή ERP παραμένουν critical (ένδειξη ένεσης στην πηγή)", () => {
   const out = scanRecord("s1item", { id: "9", label: "X", fields: { longDesc: "<script>alert(1)</script>" } });
   assert.equal(out[0].severity, "critical");
