@@ -271,7 +271,7 @@ export function blankOnly(current: Partial<Record<FieldKey, string | null>>, inc
 }
 
 /** ΠΡΕΠΕΙ να μένει ίδια με το `plain` του supplier-sheet.ts (εκεί είναι server-only): ς→σ, χωρίς τελικό «*», ένα κενό. Αλλιώς το newSpecs θα θεωρεί «νέα» μια ετικέτα που το composeMemo θα αντικαταστήσει. */
-const labelKey = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ").replace(/\s*\*\s*$/, "").replace(/\s+/g, " ").trim();
+export const labelKey = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ").replace(/\s*\*\s*$/, "").replace(/\s+/g, " ").trim();
 
 // Ίδια γραμμή «Ετικέτα : τιμή» με το composeMemo του supplier-sheet (εκεί ζουν τα χαρακτηριστικά ενός είδους).
 const SPEC_LINE = /^(?:[•\-–*·]\s*)?([^:\n]{2,60}?)\s*:\s*(\S.*)$/;
