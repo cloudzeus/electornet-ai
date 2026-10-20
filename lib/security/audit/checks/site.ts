@@ -8,7 +8,7 @@ import { buildCsp } from "@/lib/security/csp";
 import { allowedScriptHosts } from "../policy";
 import type { Check } from "../types";
 import { timeoutFor } from "../execute";
-import { connectSrcOf, evaluatePage, pickLinks, pickOne, prevSiteSnapshot, siteOutcome, type Build, type Fetched, type PickInfo, type PrevSite } from "./site-core";
+import { CONFIRM_GAP_MS, connectSrcOf, evaluatePage, pickLinks, pickOne, prevSiteSnapshot, siteOutcome, type Build, type Fetched, type PickInfo, type PrevSite } from "./site-core";
 import { DB_MS, siteOrigin, withTimeout } from "./site-origin";
 
 /**
@@ -85,12 +85,13 @@ async function fetchPage(origin: string, p: string, signal?: AbortSignal): Promi
 }
 
 /**
- * Το στιγμιότυπο του προηγούμενου ελέγχου site (light ή full, έως 48 ώρες πίσω) — για το ruling J (deploy ή κάτι που
+ * Το στιγμιότυπο του προηγούμενου ελέγχου site (light ή full, 10′–48 ώρες πίσω, έως 10 reports) — για το ruling J (deploy ή κάτι που
  * επιμένει). Βάση εκτός → "unavailable" (ο έλεγχος δεν βγάζει ok γι' αυτό, βλ. mismatchFinding).
  */
 async function previousSite(now: Date): Promise<PrevSite> {
   try {
-    const rows = await withTimeout(db.securityReport.findMany({ where: { startedAt: { gte: new Date(now.getTime() - 48 * 3_600_000), lt: now } }, orderBy: { startedAt: "desc" }, take: 60, select: { checks: true } }), DB_MS, "Βάση");
+    // ≥ 10′ πριν (CONFIRM_GAP_MS): μια χειροκίνητη εκτέλεση λίγο μετά από άλλη δεν «επιβεβαιώνει» το ίδιο deploy
+    const rows = await withTimeout(db.securityReport.findMany({ where: { startedAt: { gte: new Date(now.getTime() - 48 * 3_600_000), lte: new Date(now.getTime() - CONFIRM_GAP_MS) } }, orderBy: { startedAt: "desc" }, take: 10, select: { checks: true } }), DB_MS, "Βάση");
     for (const r of rows) { const s = prevSiteSnapshot(r.checks); if (s) return s; }
     return null;
   } catch { return "unavailable"; }
@@ -119,7 +120,7 @@ export const siteCheck: Check = {
   async run({ mode, signal, now }) {
     const t0 = Date.now();
     const [{ origin, source, fallback }, build, an, previous] = await Promise.all([siteOrigin(), loadBuild(), analytics(), previousSite(now)]);
-    const ctx = { origin, build, allowedScriptHosts: an?.hosts ?? [], expectedConnectSrc: connectSrcOf(buildCsp({ nonce: "x", dev: false })), previous };
+    const ctx = { origin, build, allowedScriptHosts: an?.hosts ?? [], expectedConnectSrc: connectSrcOf(buildCsp({ nonce: "x", dev: false })), previous, now };
     const fixed = mode === "full" ? ["/", "/admin/login", "/kalathi"] : ["/", "/admin/login"];
     const dbPick = mode === "full" ? withTimeout(pickFromDb(), DB_MS, "Βάση").then((r) => ({ r, err: null as string | null }), (e: unknown) => ({ r: null, err: errText(e) as string | null })) : null;
     const pages = await Promise.all(fixed.map((p) => fetchPage(origin, p, signal)));

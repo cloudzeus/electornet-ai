@@ -19,7 +19,7 @@ export type Build = { id: string | null; files: Set<string> };
 export type SiteSnapshot = { at: string; serverBuild: string | null; pages: { path: string; pageBuild: string | null; missing: boolean }[] };
 /** null = δεν υπάρχει προηγούμενος έλεγχος site με στιγμιότυπο· "unavailable" = δεν διαβάστηκε (π.χ. βάση εκτός). */
 export type PrevSite = SiteSnapshot | null | "unavailable";
-export type PageCtx = { origin: string; build: Build | null; allowedScriptHosts: string[]; expectedConnectSrc: string[]; /** προεπιλογή "unavailable" */ previous?: PrevSite };
+export type PageCtx = { origin: string; build: Build | null; allowedScriptHosts: string[]; expectedConnectSrc: string[]; /** προεπιλογή "unavailable" */ previous?: PrevSite; /** ώρα του ελέγχου (προεπιλογή: τώρα) */ now?: Date };
 export type PageResult = {
   path: string; label: string; scanned: boolean; findings: Finding[]; scripts: { external: number; inline: number };
   /** άλλο build με αρχεία που λείπουν: να ξαναελεγχθεί */ recheck?: true;
@@ -119,7 +119,7 @@ export function evaluatePage(page: Fetched, ctx: PageCtx, opts: { confirmed?: bo
         recheck = true;
         findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: `Η σελίδα δηλώνει άλλο build και φορτώνει ${missing.length} αρχεία που δεν υπάρχουν στο build του server (θα ξαναελεγχθεί).`, evidence: `site ${pageId} · server ${ctx.build.id}` });
       } else if (missing.length) {
-        findings.push(mismatchFinding({ pageBuild: pageId, serverBuild: ctx.build.id, missing, previous: ctx.previous === undefined ? "unavailable" : ctx.previous, note: opts.note }));
+        findings.push(mismatchFinding({ path: page.path, pageBuild: pageId, serverBuild: ctx.build.id, missing, previous: ctx.previous === undefined ? "unavailable" : ctx.previous, now: ctx.now ?? new Date(), note: opts.note }));
       } else {
         findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: "Η σελίδα δηλώνει άλλο build — όλα τα αρχεία /_next/static της υπάρχουν στο build του server. Συνήθως: deploy σε εξέλιξη. Αν επιμένει, ελέγξτε ποιος server απαντά στο δημόσιο URL.", evidence: `site ${pageId} · server ${ctx.build.id}` });
       }
@@ -150,18 +150,27 @@ export function missingStatic(scripts: { src: string | null }[], origin: string,
   return [...out].sort();
 }
 
+/** Ελάχιστη απόσταση από τον προηγούμενο έλεγχο για να μετρά ως επιβεβαίωση (δύο εκτελέσεις μέσα στο ίδιο deploy δεν μετρούν). */
+export const CONFIRM_GAP_MS = 10 * 60_000;
+
 /**
  * Άλλο build στη σελίδα με αρχεία /_next/static που λείπουν από το build του server (και μετά τη δεύτερη λήψη) — ruling J:
- * critical ΜΟΝΟ αν το ίδιο ζεύγος (buildId σελίδας ≠ buildId server, με αρχεία που λείπουν) υπήρχε και στον προηγούμενο
- * έλεγχο site (light ή full, ~1 ώρα πριν): ένα deploy δεν κρατά τόσο. Πρώτη εμφάνιση → warn «πιθανό deploy»· ο
- * προηγούμενος δεν διαβάστηκε → warn που το λέει. (Scripts από ξένο host δίνουν critical αμέσως, από το scanPage.)
+ * critical ΜΟΝΟ αν ο προηγούμενος έλεγχος site (light ή full, ≥ 10′ πριν) με το ΙΔΙΟ build server είχε στην ΙΔΙΑ σελίδα
+ * άλλο build με αρχεία που έλειπαν: ένα deploy δεν κρατά τόσο. Η τιμή του buildId της σελίδας δεν μετρά (ένας ενδιάμεσος
+ * που το αλλάζει σε κάθε εκτέλεση δεν ξεφεύγει). Πρώτη εμφάνιση → warn «πιθανό deploy»· ο προηγούμενος δεν διαβάστηκε →
+ * warn που το λέει. (Scripts από ξένο host δίνουν critical αμέσως, από το scanPage.)
  */
-export function mismatchFinding(i: { pageBuild: string | null; serverBuild: string | null; missing: string[]; previous: PrevSite; note?: string }): Finding {
+export function mismatchFinding(i: { path: string; pageBuild: string | null; serverBuild: string | null; missing: string[]; previous: PrevSite; now: Date; note?: string }): Finding {
   const evidence = `site ${i.pageBuild} · server ${i.serverBuild}`;
   const files = `${i.missing.length} αρχεία /_next/static που δεν υπάρχουν στο build του server${i.note ? ` (${i.note})` : ""}: ${i.missing.slice(0, 5).join(", ")}${i.missing.length > 5 ? "…" : ""}`;
   const prev = i.previous;
-  if (prev && prev !== "unavailable" && prev.serverBuild === i.serverBuild && prev.pages.some((p) => p.missing && p.pageBuild === i.pageBuild)) {
-    return { severity: "critical", title: "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Το ίδιο είχε βρεθεί και στον προηγούμενο έλεγχο (${prev.at}) — δεν είναι σύντομο deploy. Είτε το δημόσιο URL σερβίρεται από άλλο αντίγραφο της εφαρμογής (παλιός/δεύτερος server) είτε ενδιάμεσος (Cloudflare Worker / ένεση) άλλαξε τη σελίδα. Επιβεβαιώστε ποιος server απαντά.`, evidence };
+  const prevAt = prev && prev !== "unavailable" ? new Date(prev.at).getTime() : NaN;
+  const confirming = !!prev && prev !== "unavailable" && Number.isFinite(prevAt) && i.now.getTime() - prevAt >= CONFIRM_GAP_MS
+    && prev.serverBuild === i.serverBuild && prev.pages.some((p) => p.path === i.path && p.missing && p.pageBuild !== prev.serverBuild);
+  if (confirming) {
+    const p = prev as SiteSnapshot;
+    const before = p.pages.find((x) => x.path === i.path)!;
+    return { severity: "critical", title: "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Το ίδιο (άλλο build${before.pageBuild !== i.pageBuild ? ` — τότε «${before.pageBuild}»` : ""}, αρχεία που λείπουν) είχε βρεθεί και στον προηγούμενο έλεγχο (${p.at}) — δεν είναι σύντομο deploy. Είτε το δημόσιο URL σερβίρεται από άλλο αντίγραφο της εφαρμογής (παλιός/δεύτερος server) είτε ενδιάμεσος (Cloudflare Worker / ένεση) άλλαξε τη σελίδα. Επιβεβαιώστε ποιος server απαντά.`, evidence };
   }
   if (prev === "unavailable") {
     return { severity: "warn", title: "Αρχεία που λείπουν από το build — χωρίς σύγκριση με τον προηγούμενο έλεγχο", detail: `Η σελίδα δηλώνει build ${i.pageBuild} (ο server: ${i.serverBuild}) και φορτώνει ${files}. Ο προηγούμενος έλεγχος δεν διαβάστηκε (π.χ. η βάση δεν απάντησε), οπότε δεν κρίνεται αν είναι σύντομο deploy ή κάτι που επιμένει — ΔΕΝ είναι «όλα καλά». Ελέγξτε ποιος server απαντά στο δημόσιο URL.`, evidence };

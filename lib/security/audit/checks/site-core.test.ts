@@ -11,7 +11,7 @@ const CSP = buildCsp({ nonce: N, dev: false });
 const HEADERS = { "content-type": "text/html; charset=utf-8", "content-security-policy": CSP, "strict-transport-security": "max-age=63072000", "x-content-type-options": "nosniff", server: "cloudflare" };
 const page = (body: string, buildId = "BUILD_A") =>
   `<!DOCTYPE html><html><head><script src="/_next/static/chunks/main-1.js" async="" nonce="${N}"></script></head><body>${body}<script nonce="${N}">self.__next_f.push([1,"0:{\\"P\\":null,\\"b\\":\\"${buildId}\\",\\"c\\":[]}"])</script></body></html>`;
-const ctx = (over: Partial<PageCtx> = {}): PageCtx => ({ origin: ORIGIN, build: { id: "BUILD_A", files: new Set(["/_next/static/chunks/main-1.js"]) }, allowedScriptHosts: [], expectedConnectSrc: connectSrcOf(CSP), ...over });
+const ctx = (over: Partial<PageCtx> = {}): PageCtx => ({ origin: ORIGIN, build: { id: "BUILD_A", files: new Set(["/_next/static/chunks/main-1.js"]) }, allowedScriptHosts: [], expectedConnectSrc: connectSrcOf(CSP), now: NOW, ...over });
 const ok = (path: string, html: string, headers: Record<string, string> = HEADERS, status = 200): Fetched => ({ path, status, headers, html });
 
 test("connectSrcOf: οι πηγές του connect-src του buildCsp (αυτές περιμένει ο έλεγχος headers)", () => {
@@ -44,7 +44,7 @@ test("evaluatePage: άλλο build στο site, όλα τα αρχεία υπά�
 });
 
 const EVIL = page(`<script src="/_next/static/chunks/evil.js" nonce="${N}"></script>`, "FAKE_BUILD");
-const SNAP_SAME: SiteSnapshot = { at: "2026-10-20T06:00:00.000Z", serverBuild: "BUILD_A", pages: [{ path: "/admin/login", pageBuild: "FAKE_BUILD", missing: true }] };
+const SNAP_SAME: SiteSnapshot = { at: "2026-10-20T06:00:00.000Z", serverBuild: "BUILD_A", pages: [{ path: "/", pageBuild: "FAKE_BUILD", missing: true }] };
 
 test("evaluatePage: άλλο build + αρχεία που λείπουν → recheck (warn, όχι critical) πριν από τη δεύτερη λήψη", () => {
   const first = evaluatePage(ok("/", EVIL), ctx({ previous: SNAP_SAME }));
@@ -70,18 +70,33 @@ test("mismatchFinding (ruling J): το ίδιο ζεύγος build με αρχε
   assert.match(c!.detail, /evil\.js/);
 });
 
-test("mismatchFinding (ruling J): προηγούμενος με άλλο buildId σελίδας / χωρίς αρχεία που λείπουν / άλλο build server → warn ξανά", () => {
+const MF = (previous: SiteSnapshot | null | "unavailable", over: { path?: string; pageBuild?: string; now?: Date } = {}) =>
+  mismatchFinding({ path: over.path ?? "/", pageBuild: over.pageBuild ?? "FAKE_BUILD", serverBuild: "BUILD_A", missing: ["/_next/static/chunks/evil.js"], previous, now: over.now ?? NOW });
+
+test("mismatchFinding (ruling J): εναλλασσόμενο ψεύτικο buildId σελίδας ανά εκτέλεση → critical στη 2η (κλειδί: ίδια σελίδα + ίδιο build server)", () => {
+  const run1 = MF(null, { pageBuild: "FORGED_1" });
+  assert.equal(run1.severity, "warn");
+  const snap1: SiteSnapshot = { at: "2026-10-20T06:00:00.000Z", serverBuild: "BUILD_A", pages: [{ path: "/", pageBuild: "FORGED_1", missing: true }] };
+  assert.equal(MF(snap1, { pageBuild: "FORGED_2" }).severity, "critical");
+});
+
+test("mismatchFinding (ruling J): προηγούμενος με άλλο build server (νέο deploy) / άλλη σελίδα / χωρίς αρχεία που λείπουν → warn", () => {
   for (const prev of [
-    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "OTHER_BUILD", missing: true }] },
-    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "FAKE_BUILD", missing: false }] },
     { ...SNAP_SAME, serverBuild: "OLD_SERVER" },
-  ] as SiteSnapshot[]) {
-    assert.deepEqual(mismatchFinding({ pageBuild: "FAKE_BUILD", serverBuild: "BUILD_A", missing: ["/_next/static/chunks/evil.js"], previous: prev }).severity, "warn");
-  }
+    { ...SNAP_SAME, pages: [{ path: "/kalathi", pageBuild: "FAKE_BUILD", missing: true }] },
+    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "FAKE_BUILD", missing: false }] },
+    { ...SNAP_SAME, pages: [{ path: "/", pageBuild: "BUILD_A", missing: true }] },
+  ] as SiteSnapshot[]) assert.equal(MF(prev).severity, "warn", JSON.stringify(prev));
+});
+
+test("mismatchFinding (ruling J): προηγούμενος < 10′ πριν (δύο εκτελέσεις μέσα στο ίδιο deploy) → warn· ≥ 10′ → critical", () => {
+  assert.equal(MF({ ...SNAP_SAME, at: "2026-10-20T06:55:00.000Z" }).severity, "warn");
+  assert.equal(MF({ ...SNAP_SAME, at: "2026-10-20T06:50:00.000Z" }).severity, "critical");
+  assert.equal(MF({ ...SNAP_SAME, at: "όχι ημερομηνία" }).severity, "warn");
 });
 
 test("mismatchFinding (ruling J): ο προηγούμενος έλεγχος δεν διαβάστηκε → warn που το λέει (ποτέ ok)", () => {
-  const f = mismatchFinding({ pageBuild: "FAKE_BUILD", serverBuild: "BUILD_A", missing: ["/_next/static/chunks/evil.js"], previous: "unavailable" });
+  const f = MF("unavailable");
   assert.equal(f.severity, "warn");
   assert.match(f.detail, /προηγούμενος έλεγχος δεν διαβάστηκε/);
 });
