@@ -2657,7 +2657,7 @@ model NewsletterEvent {
 model ImportMapping {
   id              String   @id @default(cuid())
   name            String
-  headerSignature String
+  headerSignature String   @unique
   config          Json
   createdById     String?
   createdAt       DateTime @default(now())

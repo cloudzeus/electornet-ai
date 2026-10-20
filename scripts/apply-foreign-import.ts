@@ -17,6 +17,7 @@ const SQL = [
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "ImportMapping_pkey" PRIMARY KEY ("id")
   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ImportMapping_headerSignature_key" ON "ImportMapping"("headerSignature")`,
   `CREATE TABLE IF NOT EXISTS "ImportJob" (
     "id" TEXT NOT NULL,
     "fileName" TEXT NOT NULL,

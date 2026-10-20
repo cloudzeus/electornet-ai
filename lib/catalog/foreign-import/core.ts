@@ -32,13 +32,17 @@ const txt = (v: unknown) => (v == null ? "" : String(v)).trim();
 
 // ---------- Επικεφαλίδες ----------
 
-/** Η πρώτη γραμμή με ≥ 2 μη κενά κελιά που ακολουθείται από γραμμή δεδομένων· αλλιώς 0. */
+/** Επικεφαλίδα = στις πρώτες 30 γραμμές, αυτή με τις περισσότερες ΔΙΑΦΟΡΕΤΙΚΕΣ τιμές (ο συγχωνευμένος τίτλος που επαναλαμβάνεται σε πολλές στήλες μετράει ως μία)
+ * και με κάποια μη κενή γραμμή από κάτω· ισοπαλία → η πρώτη· αλλιώς 0. */
 export function detectHeaderRow(matrix: string[][]): number {
-  const count = (r: string[]) => r.filter((c) => txt(c)).length;
-  for (let i = 0; i < matrix.length; i++) {
-    if (count(matrix[i]) >= 2 && matrix.slice(i + 1).some((r) => count(r) > 0)) return i;
+  const distinct = (r: string[]) => new Set(r.map(txt).filter(Boolean)).size;
+  const filled = (r: string[]) => r.some((c) => txt(c));
+  let best = 0, bestN = 0;
+  for (let i = 0; i < Math.min(matrix.length, 30); i++) {
+    const n = distinct(matrix[i]);
+    if (n > bestN && matrix.slice(i + 1).some(filled)) { best = i; bestN = n; }
   }
-  return 0;
+  return best;
 }
 
 /** Υπογραφή συνόλου επικεφαλίδων — ίδια για διαφορετική σειρά, πεζά/κεφαλαία, τόνους και κενά (για να θυμόμαστε αντιστοιχίσεις). */
@@ -123,7 +127,7 @@ const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
   { target: { kind: "field", key: "barcode" }, w: ["ean", "barcode", "gtin", "upc"], s: ["μπαρκοντ"] },
   { target: { kind: "brand" }, w: ["brand", "manufacturer"], s: ["μαρκα", "κατασκευαστη"] },
   { target: { kind: "category" }, w: ["category"], s: ["κατηγορια"] },
-  { target: { kind: "cost" }, w: ["cost", "net"], s: ["κοστος", "τιμη αγορας", "τιμη κτησης", "τιμη χονδρικης"] },
+  { target: { kind: "cost" }, w: ["cost", "net", "dealer", "χονδρικη"], s: ["κοστος", "τιμη αγορας", "τιμη κτησης", "τιμη χονδρικης", "τιμη μοναδος", "unit price"] },
   { target: { kind: "rrp" }, w: ["rrp", "msrp", "pvp"], s: ["λιανικη", "τιμη πωλησης"] },
   { target: { kind: "field", key: "shortDesc" }, s: ["συντομη περιγραφη", "short description"] },
   { target: { kind: "field", key: "name" }, w: ["name", "title"], s: ["περιγραφη ειδους", "ονομα", "τιτλος", "ονομασια", "product description"] },

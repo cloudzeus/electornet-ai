@@ -254,3 +254,43 @@ test("configToSaved: διπλές επικεφαλίδες ξεχωρίζουν 
   const back = configForHeaders(saved, ["EAN", "Image", "Image"]);
   assert.deepEqual(back.columns, { 0: T_EAN, 1: { kind: "media", type: "image" }, 2: { kind: "media", type: "banner" } });
 });
+
+// ---------- Διορθώσεις μετά τα πραγματικά αρχεία ----------
+
+test("detectHeaderRow: γραμμές μεταδεδομένων πάνω από την επικεφαλίδα (Gedore) — κερδίζει η γραμμή με τα περισσότερα κελιά", () => {
+  const m = [
+    ["", "GEDORE Werkzeugfabrik"],
+    ["", "", "Version:", "1.1"],
+    ["", "", "Datum:", "Stand 29.10.2025"],
+    [""],
+    [""],
+    ["", "EAN", "Code", "Artikel-Nr.", "Kurzbezeichnung", "Description EN"],
+    ["6000240", "4010886600023", "6000240", "1 B 5", "Ring-Maulschlüssel", "Combination spanner"],
+  ];
+  assert.equal(detectHeaderRow(m), 5);
+  assert.equal(detectHeaderRow([["", "", "Version:", "1.1"], ["", "EAN", "Code", "Name", "Price", "Brand"], ["1", "2", "3", "4", "5", "6"]]), 1);
+});
+
+test("detectHeaderRow: τίτλος με συγχωνευμένα κελιά (ίδιο κείμενο σε πολλές στήλες) μετράει ως ένα κελί", () => {
+  const m = [
+    ["", "ΤΙΜΟΚΑΤΑΛΟΓΟΣ ΧΟΝΔΡΙΚΗΣ", "ΤΙΜΟΚΑΤΑΛΟΓΟΣ ΧΟΝΔΡΙΚΗΣ", "ΤΙΜΟΚΑΤΑΛΟΓΟΣ ΧΟΝΔΡΙΚΗΣ"],
+    ["Part Number", "Περιγραφή", "Τιμή Μονάδος"],
+    ["AK-1", "Θυροτηλέφωνο", "100"],
+  ];
+  assert.equal(detectHeaderRow(m), 1);
+});
+
+test("detectHeaderRow: ισοπαλία → η πρώτη· η τελευταία γραμμή χωρίς δεδομένα από κάτω δεν είναι επικεφαλίδα· μόνο οι πρώτες 30 γραμμές", () => {
+  assert.equal(detectHeaderRow([["a", "b", "c"], ["d", "e", "f"], ["g"]]), 0);
+  assert.equal(detectHeaderRow([["x", "y"], ["1", "2", "3", "4"]]), 0); // η πλουσιότερη είναι η τελευταία → δεν έχει δεδομένα από κάτω
+  const long: string[][] = Array.from({ length: 40 }, () => [""]);
+  long[35] = ["a", "b", "c", "d"]; long[36] = ["1"]; long[3] = ["p", "q"]; long[4] = ["1"];
+  assert.equal(detectHeaderRow(long), 3); // το [35] είναι εκτός των πρώτων 30
+});
+
+test("suggestTarget: τιμές χονδρικής/μονάδος → cost, λιανικής → rrp, «Τιμή» μόνη → ignore", () => {
+  for (const h of ["Τιμή μονάδος", "Τιμή Μονάδος", "Τιμή χονδρικής", "Χονδρική", "Dealer price", "Net price", "Τιμή αγοράς", "Unit price"]) assert.deepEqual(suggestTarget(h), { kind: "cost" }, h);
+  for (const h of ["Τιμή λιανικής", "RRP", "MSRP", "Λιανική"]) assert.deepEqual(suggestTarget(h), { kind: "rrp" }, h);
+  assert.deepEqual(suggestTarget("Τιμή"), { kind: "ignore" });
+  assert.deepEqual(suggestTarget("ΤΙΜΟΚΑΤΑΛΟΓΟΣ ΧΟΝΔΡΙΚΗΣ"), { kind: "ignore" }); // τίτλος, όχι στήλη
+});

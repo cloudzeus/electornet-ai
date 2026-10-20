@@ -12,14 +12,14 @@ import { configToSaved, headerSignature, parseCsv, type MappingConfig, type Save
 export type Sheet = { name: string; matrix: string[][] };
 
 const MAX_BYTES = 15 * 1024 * 1024;
-const MAX_ROWS = 5000;
+const MAX_ROWS = 10000;
 const BAD_TYPE = "Το αρχείο πρέπει να είναι .xlsx ή .csv — άνοιξέ το στο Excel και αποθήκευσέ το ως .xlsx.";
 
 const nonEmpty = (r: string[]) => r.some((c) => c);
 
 /** Όριο γραμμών: μη κενές γραμμές μείον μία (επικεφαλίδα) — απλό και συντηρητικό. */
 function checkRows(sheets: Sheet[]) {
-  for (const s of sheets) if (s.matrix.filter(nonEmpty).length - 1 > MAX_ROWS) throw new Error("Το αρχείο έχει πάνω από 5.000 γραμμές.");
+  for (const s of sheets) if (s.matrix.filter(nonEmpty).length - 1 > MAX_ROWS) throw new Error("Το αρχείο έχει πάνω από 10.000 γραμμές.");
 }
 
 async function readXlsx(buf: ArrayBuffer): Promise<Sheet[]> {
@@ -64,14 +64,12 @@ export async function readWorkbook(buf: ArrayBuffer, fileName: string): Promise<
 
 export type StoredMapping = { id: string; name: string; headerSignature: string; config: SavedConfig; createdById: string | null; createdAt: Date; updatedAt: Date };
 
-/** Αποθηκεύει την αντιστοίχιση στηλών (με κλειδί επικεφαλίδας). Ίδια υπογραφή επικεφαλίδων → ενημέρωση ονόματος/ρυθμίσεων της υπάρχουσας. */
+/** Αποθηκεύει την αντιστοίχιση στηλών (με κλειδί επικεφαλίδας). Ίδια υπογραφή επικεφαλίδων (unique) → ενημέρωση ονόματος/ρυθμίσεων της υπάρχουσας. */
 export async function saveMapping(name: string, headers: string[], config: MappingConfig, staffId: string | null): Promise<StoredMapping> {
   const signature = headerSignature(headers);
+  if (!signature) throw new Error("Δεν υπάρχουν επικεφαλίδες για να αποθηκευτεί η αντιστοίχιση.");
   const data = { name, config: configToSaved(config, headers) as object };
-  const existing = await db.importMapping.findFirst({ where: { headerSignature: signature }, orderBy: { updatedAt: "desc" } });
-  const row = existing
-    ? await db.importMapping.update({ where: { id: existing.id }, data })
-    : await db.importMapping.create({ data: { ...data, headerSignature: signature, createdById: staffId } });
+  const row = await db.importMapping.upsert({ where: { headerSignature: signature }, update: data, create: { ...data, headerSignature: signature, createdById: staffId } });
   return row as unknown as StoredMapping;
 }
 
@@ -79,6 +77,6 @@ export async function saveMapping(name: string, headers: string[], config: Mappi
 export async function findMapping(headers: string[]): Promise<StoredMapping | null> {
   const signature = headerSignature(headers);
   if (!signature) return null;
-  const row = await db.importMapping.findFirst({ where: { headerSignature: signature }, orderBy: { updatedAt: "desc" } });
+  const row = await db.importMapping.findUnique({ where: { headerSignature: signature } });
   return row as unknown as StoredMapping | null;
 }
