@@ -12,8 +12,10 @@ import { bunnyOutcome, classifyObject, objectPath, svgThreat, underBase, capHit,
  * διάστημα του ελέγχου (LastChanged ≥ since) — τα παλαιότερα επικίνδυνα σε ΕΝΑ warn (bunny-core.ts).
  */
 
-const BUDGET_MS = 170_000;
-const LIST_CONCURRENCY = 6;
+/** λίστα: έως 150″· τα SVG έχουν δικό τους περιθώριο ως τα 185″ (το timeout του ελέγχου είναι 200″) */
+const LIST_BUDGET_MS = 150_000;
+const TOTAL_BUDGET_MS = 185_000;
+const LIST_CONCURRENCY = 16;
 const GET_CONCURRENCY = 8;
 type Entry = { ObjectName: string; Path: string; IsDirectory: boolean; Length: number; LastChanged?: string };
 
@@ -40,7 +42,8 @@ export const bunnyCheck: Check = {
     const t0 = Date.now();
     const b = await getBunny();
     if (!b.zone || !b.storagePassword) return { status: "warn", complete: false, summary: "Το Bunny Storage δεν έχει ρυθμιστεί (ζώνη / κωδικός) — δεν ελέγχθηκε.", findings: [{ severity: "warn", title: "Το Bunny Storage δεν ελέγχθηκε", detail: "Λείπουν η ζώνη ή ο κωδικός αποθήκευσης στις Ρυθμίσεις → Bunny CDN." }] };
-    const late = () => !!signal?.aborted || Date.now() - t0 > BUDGET_MS;
+    const late = () => !!signal?.aborted || Date.now() - t0 > LIST_BUDGET_MS;
+    const lateTotal = () => !!signal?.aborted || Date.now() - t0 > TOTAL_BUDGET_MS;
     const sig = () => (signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000));
     const url = (p: string) => `${b.storageHost}/${b.zone}/${p.split("/").map(encodeURIComponent).join("/")}`;
     const get = async (p: string) => {
@@ -91,7 +94,7 @@ export const bunnyCheck: Check = {
       svgChecked++;
       const why = svgThreat(text);
       if (why) findings.push({ severity: "critical", title: "SVG με εκτελέσιμο κώδικα στο Bunny Storage", detail: `${s.path}: ${why}${s.changed ?? ""}. Ανοιγμένο απευθείας από το CDN εκτελεί κώδικα στο domain του CDN.`, evidence: s.path });
-    }, late);
+    }, lateTotal);
 
     return bunnyOutcome({ files, dirs, truncated, ...(truncatedBy ? { truncatedBy } : {}), listIncomplete, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged, since, allowed: BUNNY_ALLOWED, ...(bases.length ? { outsideChanged } : {}) });
   },
