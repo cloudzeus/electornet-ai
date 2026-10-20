@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { statusOf } from "../rules";
 import type { Check } from "../types";
-import { auditsFromFor, baselineFrom, classifyStaffChanges, staffSnapshot, staffSummary, type StaffSnapshot } from "./staff-core";
+import { auditsFromFor, baselineFrom, classifyStaffChanges, staffFloor, staffSnapshot, staffSummary, type StaffSnapshot } from "./staff-core";
 
 const PAGE = 20;
 const MAX_REPORTS = 500;
@@ -38,7 +38,7 @@ export const staffCheck: Check = {
     const S = staff.map((s) => ({ id: s.id, email: s.email, active: s.active, createdAt: s.createdAt, roles: s.roles.map((r) => r.role.key) }));
     const R = roles.map((r) => ({ id: r.id, key: r.key, permissions: r.permissions.map((p) => p.permission.key) }));
     const input = { since, auditsFrom, staff: S, roles: R, audits, baseline: base };
-    const findings = classifyStaffChanges(input);
+    const findings = [...staffFloor(S), ...classifyStaffChanges(input)];
     return { status: statusOf(findings), summary: staffSummary(input), findings, snapshot: staffSnapshot(S, R, now) };
   },
 };

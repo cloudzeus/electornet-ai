@@ -1,5 +1,6 @@
 import type { Finding } from "../rules";
 import { athens } from "../execute";
+import { parseSecurityEmails } from "../../../settings/security-emails";
 
 /**
  * Αλλαγές ρυθμίσεων και API keys — καθαρή λογική (τα δεδομένα τα φέρνει το settings-changes.ts).
@@ -8,7 +9,9 @@ import { athens } from "../execute";
  * γράφτηκαν) και `apikey.*`· επιπλέον το `Setting.updatedAt` και το `ApiKey.createdAt`, ώστε να φαίνεται αλλαγή που έγινε
  * απευθείας στη βάση (χωρίς εγγραφή στο ιστορικό ενεργειών).
  *   Critical: analytics/pixels ή πληρωμές από λογαριασμό που δεν είχε κάνει αλλαγή στην ίδια ενότητα στις 90 ημέρες πριν
- *             από το παράθυρο · analytics/πληρωμές χωρίς εγγραφή στο ιστορικό · νέο API key χωρίς εγγραφή.
+ *             από το παράθυρο · analytics/πληρωμές χωρίς εγγραφή στο ιστορικό · νέο API key χωρίς εγγραφή · αλλαγή των
+ *             παραληπτών ασφαλείας (Ρυθμίσεις → Ασφάλεια) — η ειδοποίηση πάει ΚΑΙ στους προηγούμενους (`notify`), ώστε όποιος
+ *             αλλάξει τη λίστα να μη σβήνει μόνος του την ειδοποίηση.
  *   Warn: κάθε άλλη αλλαγή ρυθμίσεων (email, SoftOne, couriers, ασφάλεια, social login, Bunny…), νέο / επανενεργοποιημένο API key.
  */
 
@@ -36,6 +39,8 @@ const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is st
 const val = (v: unknown) => `«${v === undefined || v === null || v === "" ? "κενό" : String(v)}»`;
 const NO_AUDIT = "Χωρίς εγγραφή στο ιστορικό ενεργειών — η αλλαγή έγινε εκτός της διαχείρισης (απευθείας στη βάση ή από script).";
 const MATCH_MS = 60_000;
+/** Το πεδίο των παραληπτών στις Ρυθμίσεις → Ασφάλεια (lib/settings/schema.ts). */
+const RECIPIENTS = "securityReportEmails";
 
 export function classifySettingsChanges(input: { since: Date; audits: SettingsAudit[]; settings: SettingRow[]; apiKeys: ApiKeyRow[]; emailOf: Record<string, string> }): Finding[] {
   const { since, emailOf } = input;
@@ -74,6 +79,21 @@ export function classifySettingsChanges(input: { since: Date; audits: SettingsAu
       title: newcomer ? `${cat.label}: αλλαγή από λογαριασμό που δεν το είχε ξανακάνει` : `Αλλαγή ρυθμίσεων: ${cat.label}`,
       detail: `${rows.length} ${rows.length === 1 ? "αλλαγή" : "αλλαγές"} από ${who(staffId)} (${rows.map((r) => athens(r.createdAt)).join(", ")}). ${what || "Χωρίς διαφορά στα πεδία."}${newcomer ? " Ο λογαριασμός δεν είχε αλλάξει αυτή την ενότητα στις 90 ημέρες πριν — επιβεβαιώστε ότι η αλλαγή είναι γνωστή (π.χ. νέο pixel / νέος λογαριασμός πληρωμών)." : ""}`,
       evidence: `${section} · ${who(staffId)} · ${keys.size ? [...keys].sort().join(", ") : "μόνο μυστικά"}`,
+    });
+  }
+
+  // 1β) παραλήπτες των ειδοποιήσεων ασφαλείας (σύγκριση ως λίστες — ίδια email με άλλη μορφή δεν είναι αλλαγή)
+  for (const a of inWin) {
+    if (a.action !== "settings.update" || a.entityId !== "security") continue;
+    const b = obj(a.before), af = obj(a.after);
+    if (!(RECIPIENTS in b) && !(RECIPIENTS in af)) continue;
+    const prev = parseSecurityEmails(String(b[RECIPIENTS] ?? "")), next = parseSecurityEmails(String(af[RECIPIENTS] ?? ""));
+    if ([...prev].sort().join(",") === [...next].sort().join(",")) continue;
+    out.push({
+      severity: "critical", title: "Άλλαξαν οι παραλήπτες των ειδοποιήσεων ασφαλείας",
+      detail: `${prev.join(", ")} → ${next.join(", ")}, από ${who(a.staffId)} στις ${athens(a.createdAt)}. Όποιος ελέγχει τη λίστα αποφασίζει ποιος μαθαίνει για ένα κρίσιμο εύρημα — η ειδοποίηση στάλθηκε και στους προηγούμενους παραλήπτες. Επιβεβαιώστε ότι η αλλαγή είναι γνωστή.`,
+      evidence: `security · ${RECIPIENTS} · ${a.createdAt.toISOString()}`,
+      notify: prev,
     });
   }
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyStaffChanges, auditsFromFor, staffSnapshot, baselineFrom, sensitivePermission, staffSummary, type StaffRow, type RoleRow, type StaffAudit } from "./staff-core";
+import { classifyStaffChanges, auditsFromFor, staffSnapshot, baselineFrom, sensitivePermission, staffSummary, staffFloor, type StaffRow, type RoleRow, type StaffAudit } from "./staff-core";
 
 const since = new Date("2026-10-19T06:00:00Z");
 const old = new Date("2026-01-01T00:00:00Z");
@@ -218,4 +218,15 @@ test("νέος ρόλος στη βάση με «*» και χρήστης σε 
   const out = run({ roles: [...roles, { id: "r-z", key: "ops", permissions: ["*"] }], staff: [boss, { ...mary, roles: ["marketing", "ops"] }] });
   assert.ok(out.some((f) => f.severity === "critical" && f.evidence === "ops: +*"));
   assert.ok(out.some((f) => f.evidence === "mary@x.gr → ops"));
+});
+
+test("staffFloor (F-11): κανένας λογαριασμός / κανένας ενεργός super-admin → critical «λάθος βάση ή κλείδωμα»· αλλιώς τίποτα", () => {
+  const sa: StaffRow = { id: "a", email: "boss@x.gr", active: true, createdAt: old, roles: ["super-admin"] };
+  assert.deepEqual(staffFloor([sa]), []);
+  for (const staff of [[], [{ ...sa, active: false }], [{ ...sa, roles: ["admin"] }]]) {
+    const f = staffFloor(staff);
+    assert.deepEqual(f.map((x) => x.severity), ["critical"]);
+    assert.match(f[0].title, /κανένας ενεργός super-admin — λάθος βάση ή κλείδωμα/);
+  }
+  assert.match(staffFloor([])[0].detail, /0 λογαριασμοί/);
 });

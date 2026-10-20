@@ -182,6 +182,16 @@ export function classifyStaffChanges(input: StaffInput): Finding[] {
   return [...out, ...other];
 }
 
+/**
+ * Κατώφλι λογικής: χωρίς κανέναν ενεργό super-admin (ή χωρίς κανέναν λογαριασμό) η διαχείριση είναι κλειδωμένη ή η
+ * εφαρμογή διαβάζει λάθος βάση — critical, όχι «καμία αλλαγή».
+ */
+export function staffFloor(staff: StaffRow[]): Finding[] {
+  const sa = staff.filter((s) => s.active && s.roles.includes(SUPER_ADMIN));
+  if (sa.length) return [];
+  return [{ severity: "critical", title: "κανένας ενεργός super-admin — λάθος βάση ή κλείδωμα", detail: `Η βάση έχει ${staff.length} λογαριασμοί διαχείρισης (${staff.filter((s) => s.active).length} ενεργοί) και κανέναν ενεργό super-admin. Είτε η εφαρμογή διαβάζει λάθος βάση, είτε κάποιος απενεργοποίησε / αφαίρεσε όλους τους super-admin (κλείδωμα της διαχείρισης).`, evidence: "staff: κανένας ενεργός super-admin" }];
+}
+
 export function staffSummary(input: StaffInput): string {
   const { since, staff, roles, baseline } = input;
   const active = staff.filter((s) => s.active);

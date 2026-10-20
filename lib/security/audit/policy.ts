@@ -46,6 +46,13 @@ export const ALLOWED_FRAME_HOSTS: readonly string[] = ["youtube.com", "youtube-n
 export const ALLOWED_CDN_CGI: readonly string[] = [];
 
 /**
+ * Bunny Storage: αρχεία επικίνδυνου τύπου (σελίδες, σενάρια, εκτελέσιμα, .zip) που ΠΡΟΥΠΗΡΧΑΝ στη ζώνη και ελέγχθηκαν ως
+ * νόμιμα — ΑΚΡΙΒΕΙΣ διαδρομές μέσα στη ζώνη (όπως τις γράφει το εύρημα, π.χ. «legacy/manual.zip»). Σωπαίνουν μόνο το
+ * εύρημα «παλαιότερα επικίνδυνα αρχεία»· αν ένα τέτοιο αρχείο αλλάξει, είναι ξανά κρίσιμο. ΚΕΝΗ μέχρι να εγκριθεί κάτι ρητά.
+ */
+export const BUNNY_ALLOWED: readonly string[] = [];
+
+/**
  * Δείκτες ClickFix / συγκαλυμμένου κώδικα. Είδη:
  * - `strong`: δεν εμφανίζονται ποτέ σε νόμιμο περιεχόμενο ή κώδικά μας → critical από μόνοι τους.
  * - `keys`: συντόμευση πληκτρολογίου (Win+R, Ctrl+V…)· `tool`: όνομα εργαλείου (PowerShell, Windows Terminal)· `lure`:

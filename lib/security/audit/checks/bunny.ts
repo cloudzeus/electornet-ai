@@ -1,13 +1,15 @@
 import { getBunny } from "@/lib/media/cdn";
 import type { Finding } from "../rules";
 import { athens } from "../execute";
+import { BUNNY_ALLOWED } from "../policy";
 import type { Check } from "../types";
-import { bunnyOutcome, classifyObject, objectPath, svgThreat, MAX_OBJECTS, type Flagged } from "./bunny-core";
+import { bunnyOutcome, classifyObject, objectPath, svgThreat, underBase, MAX_OBJECTS, type Flagged } from "./bunny-core";
 
 /**
  * Bunny Storage: λίστα ΟΛΗΣ της ζώνης (όχι μόνο του basePath) αναδρομικά, έως 20.000 αντικείμενα, και ανάγνωση των SVG
  * (< 1 MB) για script. Μόνο LIST / GET — καμία εγγραφή. Χρονικό όριο ~3′· ό,τι δεν πρόλαβε ή δεν διαβάστηκε (υποφάκελος,
- * SVG) → «μερική σάρωση» (warn). Μόνο αποτυχία στη ρίζα της ζώνης → error.
+ * SVG) → «μερική σάρωση» (warn). Μόνο αποτυχία στη ρίζα της ζώνης → error. Κρίσιμα μόνο όσα πρόσθεσε / άλλαξε κάποιος στο
+ * διάστημα του ελέγχου (LastChanged ≥ since) — τα παλαιότερα επικίνδυνα σε ΕΝΑ warn (bunny-core.ts).
  */
 
 const BUDGET_MS = 170_000;
@@ -34,7 +36,7 @@ export const bunnyCheck: Check = {
   title: "Αρχεία στο Bunny Storage (CDN)",
   modes: ["full"],
   timeoutMs: 200_000,
-  async run({ signal }) {
+  async run({ since, signal }) {
     const t0 = Date.now();
     const b = await getBunny();
     if (!b.zone || !b.storagePassword) return { status: "warn", complete: false, summary: "Το Bunny Storage δεν έχει ρυθμιστεί (ζώνη / κωδικός) — δεν ελέγχθηκε.", findings: [{ severity: "warn", title: "Το Bunny Storage δεν ελέγχθηκε", detail: "Λείπουν η ζώνη ή ο κωδικός αποθήκευσης στις Ρυθμίσεις → Bunny CDN." }] };
@@ -53,6 +55,9 @@ export const bunnyCheck: Check = {
     const svgs: { path: string; changed?: string }[] = [];
     const flagged: Flagged[] = [];
     const failedDirs: string[] = [];
+    // ο φάκελος όπου γράφει η εφαρμογή (uploads, εικόνες, AR, αντίγραφα ασφαλείας)· κενός = όλη η ζώνη
+    const bases = [b.basePath].filter((x) => x.replace(/\//g, ""));
+    const outsideChanged: { path: string; changedAt: Date }[] = [];
     await pool(() => queue.shift(), LIST_CONCURRENCY, async (dir) => {
       let list: Entry[];
       // η ρίζα της ζώνης πρέπει να διαβαστεί (αλλιώς ο έλεγχος είναι error)· υποφάκελος που αποτυγχάνει = μη ελεγμένος
@@ -64,9 +69,14 @@ export const bunnyCheck: Check = {
         if (o.IsDirectory) { dirs++; queue.push(p); continue; }
         files++;
         const c = classifyObject(p, o.Length);
-        const when = o.LastChanged ? ` (τελευταία αλλαγή ${athens(new Date(`${o.LastChanged.replace(/Z?$/, "Z")}`))})` : "";
+        // το Bunny δίνει LastChanged σε UTC χωρίς «Z»
+        const changedAt = o.LastChanged ? new Date(`${o.LastChanged.replace(/Z?$/, "Z")}`) : null;
+        const at = changedAt && !Number.isNaN(changedAt.getTime()) ? changedAt : null;
+        const when = at ? ` (τελευταία αλλαγή ${athens(at)})` : "";
         if (c.kind === "svg") svgs.push({ path: p, changed: when });
-        else if (c.kind !== "ok") flagged.push({ path: p, kind: c.kind, reason: c.kind === "critical" ? `${c.reason}${when}` : c.reason, group: c.group });
+        else if (c.kind !== "ok") flagged.push({ path: p, kind: c.kind, reason: c.kind === "critical" ? `${c.reason}${when}` : c.reason, group: c.group, changedAt: at });
+        // εκτός basePath: κάθε αρχείο που άλλαξε στο διάστημα (τα επικίνδυνα είναι ήδη κρίσιμα από μόνα τους)
+        if (bases.length && c.kind !== "critical" && !underBase(p, bases) && (!at || at >= since)) outsideChanged.push({ path: p, changedAt: at ?? since });
       }
     }, () => truncated || late());
     const listIncomplete = !truncated && queue.length > 0; // σταμάτησε ο χρόνος με φακέλους που δεν διαβάστηκαν
@@ -82,6 +92,6 @@ export const bunnyCheck: Check = {
       if (why) findings.push({ severity: "critical", title: "SVG με εκτελέσιμο κώδικα στο Bunny Storage", detail: `${s.path}: ${why}${s.changed ?? ""}. Ανοιγμένο απευθείας από το CDN εκτελεί κώδικα στο domain του CDN.`, evidence: s.path });
     }, late);
 
-    return bunnyOutcome({ files, dirs, truncated, listIncomplete, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged });
+    return bunnyOutcome({ files, dirs, truncated, listIncomplete, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged, since, allowed: BUNNY_ALLOWED, ...(bases.length ? { outsideChanged } : {}) });
   },
 };

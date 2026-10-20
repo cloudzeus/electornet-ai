@@ -97,5 +97,8 @@ export function contentOutcome(input: { mode: AuditMode; since: Date; tallies: S
     head = `Η σάρωση δεν ολοκληρώθηκε — σαρώθηκαν ${n(scanned)}/${n(total)} εγγραφές (${scope})`;
     findings.push({ severity: "warn", title: "Η σάρωση περιεχομένου δεν ολοκληρώθηκε", detail: `Τελείωσε ο διαθέσιμος χρόνος: σαρώθηκαν ${n(scanned)} από ${n(total)} εγγραφές. Οι υπόλοιπες δεν ελέγχθηκαν σε αυτή την εκτέλεση.` });
   }
+  // κατώφλι λογικής: ο πλήρης έλεγχος διαβάζει ΟΛΑ τα προϊόντα — κανένα σημαίνει λάθος βάση (ή άδειο αντίγραφο), όχι «καθαρό»
+  const products = input.tallies.find((t) => t.key === "product");
+  if (input.mode === "full" && products && products.total === 0) findings.push({ severity: "error", title: "0 προϊόντα — πιθανώς λάθος βάση", detail: "Ο πλήρης έλεγχος δεν βρήκε κανένα προϊόν στη βάση. Ένα e-shop χωρίς προϊόντα σημαίνει ότι η εφαρμογή διαβάζει λάθος (ή άδεια) βάση — η σάρωση περιεχομένου δεν είναι αξιόπιστη.", evidence: "content: 0 προϊόντα" });
   return { status: worst(findings.map((f) => f.severity)), summary: `${head}: ${per}. Τα πρότυπα email είναι κώδικας της εφαρμογής (όχι βάση) και δεν σαρώνονται εδώ.`, findings, complete: input.complete };
 }

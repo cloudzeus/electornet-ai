@@ -78,3 +78,20 @@ test("settingsSummary: πλήθη αλλαγών, ενότητες και ιστ
   assert.match(s, /analytics, email/);
   assert.match(s, /90 ημερών/);
 });
+
+test("F-16: αλλαγή των παραληπτών ασφαλείας → critical, με τους προηγούμενους παραλήπτες στο notify (και η προεπιλογή όταν ήταν κενό)", () => {
+  const sec = (before: string, after: string, o: Partial<SettingsAudit> = {}) => upd("security", { before: { securityReportEmails: before, x: 1 }, after: { securityReportEmails: after, x: 1, _secretsSet: [] }, ...o });
+  const out = run({ audits: [sec("boss@x.gr\nsec@x.gr", "evil@y.com")] });
+  const c = out.find((f) => f.severity === "critical")!;
+  assert.equal(c.title, "Άλλαξαν οι παραλήπτες των ειδοποιήσεων ασφαλείας");
+  assert.deepEqual(c.notify, ["boss@x.gr", "sec@x.gr"]);
+  assert.match(c.detail, /boss@x\.gr, sec@x\.gr → evil@y\.com/);
+  assert.match(c.detail, /mary@x\.gr/);
+  assert.ok(out.some((f) => f.severity === "warn" && /Ασφάλεια/.test(f.title)), "η γενική αλλαγή ρύθμισης μένει");
+  // κενό πριν = προεπιλογή (gkozyris@…) — ειδοποιείται κι αυτή
+  assert.deepEqual(run({ audits: [sec("", "evil@y.com")] }).find((f) => f.severity === "critical")!.notify, ["gkozyris@i4ria.com"]);
+  // ίδια λίστα με άλλη μορφή (κεφαλαία, κόμματα) → όχι κρίσιμο
+  assert.deepEqual(run({ audits: [sec("Boss@x.gr, sec@x.gr", "sec@x.gr\nboss@x.gr")] }).map((f) => f.severity), ["warn"]);
+  // άλλη ενότητα με πεδίο ίδιου ονόματος → τίποτα κρίσιμο
+  assert.deepEqual(run({ audits: [upd("email", { before: { securityReportEmails: "a@x.gr" }, after: { securityReportEmails: "b@x.gr" } })] }).map((f) => f.severity), ["warn"]);
+});

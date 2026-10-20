@@ -1,10 +1,15 @@
 import { worst, type Finding, type Severity } from "../rules";
+import { athens } from "../execute";
 
 /**
  * Bunny Storage — καθαρή λογική (τη λίστα τη φέρνει το bunny.ts). Η ζώνη σερβίρεται από το CDN μας: ένα .html/.js/.php
  * εκεί είναι σελίδα ή σενάριο «από εμάς» (phishing, payload ClickFix), ένα .exe/.ps1/.zip είναι αρχείο προς λήψη.
- *   Critical: σελίδες, σενάρια, εκτελέσιμα, .zip · SVG με script / on…= / javascript: / foreignObject.
- *   Warn: άλλοι άγνωστοι τύποι (ανά κατάληξη) · SVG > 1 MB που δεν ελέγχθηκε · μερική σάρωση (όριο 20.000 αντικειμένων).
+ *   Critical: σελίδες, σενάρια, εκτελέσιμα, .zip που ΠΡΟΣΤΕΘΗΚΑΝ / ΑΛΛΑΞΑΝ στο διάστημα ελέγχου (LastChanged ≥ since, ή
+ *             χωρίς ημερομηνία) · οποιοδήποτε αρχείο εκτός του φακέλου της εφαρμογής (basePath) που άλλαξε στο διάστημα ·
+ *             SVG με script / on…= / javascript: / foreignObject.
+ *   Warn: ΕΝΑ εύρημα για όσα επικίνδυνα αρχεία προϋπήρχαν (πλήθος + τα 10 πρώτα — εκτός όσων είναι στο BUNNY_ALLOWED) ·
+ *         άλλοι άγνωστοι τύποι (ανά κατάληξη) · SVG > 1 MB που δεν ελέγχθηκε · μερική σάρωση (όριο 20.000 αντικειμένων).
+ * Χωρίς αυτό, ένα παλιό αρχείο θα ήταν «κρίσιμο» σε κάθε έλεγχο για πάντα — και τα νέα θα χάνονταν ανάμεσά τους.
  */
 
 export const MAX_OBJECTS = 20_000;
@@ -55,13 +60,43 @@ export function svgThreat(svg: string): string | null {
   return null;
 }
 
-export type Flagged = { path: string; kind: "warn" | "critical"; reason: string; group: string };
+export type Flagged = { path: string; kind: "warn" | "critical"; reason: string; group: string; /** LastChanged του Bunny (null = άγνωστη) */ changedAt?: Date | null };
 const n = (x: number) => x.toLocaleString("el-GR");
+const trimSlashes = (p: string) => p.replace(/^\/+|\/+$/g, "");
+/** Η διαδρομή είναι μέσα σε έναν από τους φακέλους της εφαρμογής (basePath)· χωρίς ρυθμισμένο basePath → όλα «μέσα». */
+export function underBase(path: string, basePaths: string[]): boolean {
+  const bases = basePaths.map(trimSlashes).filter(Boolean);
+  const p = trimSlashes(path);
+  return !bases.length || bases.some((b) => p === b || p.startsWith(`${b}/`));
+}
+const PRE = 10;
 
-export function bunnyOutcome(input: { files: number; dirs: number; truncated: boolean; listIncomplete?: boolean; failedDirs?: string[]; svgTotal: number; svgChecked: number; svgFailed?: number; findings: Finding[]; flagged?: Flagged[] }): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
+export function bunnyOutcome(input: {
+  files: number; dirs: number; truncated: boolean; listIncomplete?: boolean; failedDirs?: string[]; svgTotal: number; svgChecked: number; svgFailed?: number; findings: Finding[]; flagged?: Flagged[];
+  /** αρχή του διαστήματος ελέγχου — χωρίς αυτό κάθε επικίνδυνο αρχείο είναι critical */ since?: Date;
+  /** BUNNY_ALLOWED (ακριβείς διαδρομές) */ allowed?: readonly string[];
+  /** αρχεία εκτός basePath που άλλαξαν στο διάστημα (οποιουδήποτε τύπου) */ outsideChanged?: { path: string; changedAt: Date }[];
+}): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
   const findings: Finding[] = [];
   const flagged = input.flagged ?? [];
-  for (const f of flagged.filter((x) => x.kind === "critical")) findings.push({ severity: "critical", title: "Επικίνδυνο αρχείο στο Bunny Storage", detail: `${f.path}: ${f.reason}. Δεν πρέπει να υπάρχει στο CDN — ελέγξτε ποιος το ανέβασε και πότε.`, evidence: f.path });
+  const allowed = new Set((input.allowed ?? []).map(trimSlashes));
+  const fresh = (f: Flagged) => !input.since || !f.changedAt || f.changedAt.getTime() >= input.since.getTime();
+  const pre: Flagged[] = [];
+  let allowedCount = 0;
+  for (const f of flagged.filter((x) => x.kind === "critical")) {
+    if (fresh(f)) findings.push({ severity: "critical", title: "Επικίνδυνο αρχείο στο Bunny Storage", detail: `${f.path}: ${f.reason}. ${input.since ? `Νέο ή αλλαγμένο από ${athens(input.since)} — δ` : "Δ"}εν πρέπει να υπάρχει στο CDN — ελέγξτε ποιος το ανέβασε και πότε.`, evidence: f.path });
+    else if (allowed.has(trimSlashes(f.path))) allowedCount++;
+    else pre.push(f);
+  }
+  if (pre.length) {
+    const paths = pre.map((f) => f.path).sort();
+    findings.push({ severity: "warn", title: "Παλαιότερα επικίνδυνα αρχεία στο Bunny Storage", detail: `${n(paths.length)} αρχεία σελίδων / σεναρίων / εκτελέσιμων / .zip που δεν άλλαξαν από ${athens(input.since!)} — δεν είναι νέα, αλλά τέτοια αρχεία δεν θα έπρεπε να σερβίρει το CDN: ${paths.slice(0, PRE).join(", ")}${paths.length > PRE ? ` … (+${n(paths.length - PRE)})` : ""}. Ελέγξτε τα· όσα είναι νόμιμα μπαίνουν στο BUNNY_ALLOWED (lib/security/audit/policy.ts), τα υπόλοιπα διαγράφονται.`, evidence: "bunny: παλαιότερα επικίνδυνα αρχεία" });
+  }
+  const outside = [...(input.outsideChanged ?? [])].sort((a, b) => a.path.localeCompare(b.path));
+  if (outside.length) {
+    const paths = outside.map((o) => o.path);
+    findings.push({ severity: "critical", title: "Νέα αρχεία στο Bunny Storage εκτός του φακέλου της εφαρμογής", detail: `${n(paths.length)} αρχεία άλλαξαν${input.since ? ` από ${athens(input.since)}` : ""} έξω από τον φάκελο (basePath) όπου γράφει η εφαρμογή: ${outside.slice(0, PRE).map((o) => `${o.path} (${athens(o.changedAt)})`).join(", ")}${paths.length > PRE ? ` … (+${n(paths.length - PRE)})` : ""}. Η εφαρμογή δεν ανεβάζει τίποτα εκεί — ελέγξτε ποιος έχει τον κωδικό της ζώνης.`, evidence: paths.slice(0, 20).join(", ") });
+  }
   const byExt = new Map<string, Flagged[]>();
   for (const f of flagged.filter((x) => x.kind === "warn")) { if (!byExt.has(f.group)) byExt.set(f.group, []); byExt.get(f.group)!.push(f); }
   for (const [ext, rows] of byExt) findings.push({ severity: "warn", title: "Αρχεία ασυνήθιστου τύπου στο Bunny Storage", detail: `${rows.length} αρχεία — ${ext} (${rows[0].reason}): ${rows.slice(0, 5).map((r) => r.path).join(", ")}${rows.length > 5 ? "…" : ""}.`, evidence: ext });
@@ -77,6 +112,7 @@ export function bunnyOutcome(input: { files: number; dirs: number; truncated: bo
     const timedOut = input.svgTotal - input.svgChecked - svgFailed;
     findings.push({ severity: "warn", title: P, detail: `Ελέγχθηκε το περιεχόμενο ${n(input.svgChecked)} από ${n(input.svgTotal)} SVG${svgFailed ? ` · ${n(svgFailed)} SVG δεν διαβάστηκαν (σφάλμα)` : ""}${timedOut > 0 ? ` · ${n(timedOut)} δεν πρόλαβαν (τελείωσε ο χρόνος)` : ""}.` });
   }
-  const summary = `${partial ? "μερική σάρωση — " : ""}${n(input.files)} αρχεία σε ${n(input.dirs)} φακέλους${input.listIncomplete ? " (η λίστα δεν ολοκληρώθηκε)" : input.truncated ? ` (όριο ${n(MAX_OBJECTS)} αντικειμένων)` : ""}${failedDirs.length ? ` (${failedDirs.length} φάκελοι δεν διαβάστηκαν)` : ""} · περιεχόμενο ${n(input.svgChecked)}/${n(input.svgTotal)} SVG ελέγχθηκε για script`;
+  const risky = flagged.filter((x) => x.kind === "critical").length;
+  const summary = `${partial ? "μερική σάρωση — " : ""}${n(input.files)} αρχεία σε ${n(input.dirs)} φακέλους${input.listIncomplete ? " (η λίστα δεν ολοκληρώθηκε)" : input.truncated ? ` (όριο ${n(MAX_OBJECTS)} αντικειμένων)` : ""}${failedDirs.length ? ` (${failedDirs.length} φάκελοι δεν διαβάστηκαν)` : ""} · περιεχόμενο ${n(input.svgChecked)}/${n(input.svgTotal)} SVG ελέγχθηκε για script${risky ? ` · επικίνδυνου τύπου: ${n(risky - pre.length - allowedCount)} νέα/αλλαγμένα${input.since ? ` από ${athens(input.since)}` : ""}, ${n(pre.length)} παλαιότερα${allowedCount ? `, ${n(allowedCount)} εγκεκριμένα (BUNNY_ALLOWED)` : ""}` : ""}${input.outsideChanged ? ` · εκτός του φακέλου της εφαρμογής: ${n(outside.length)} αλλαγές στο διάστημα` : ""}`;
   return { status: worst(findings.map((f) => f.severity)), summary, findings, complete: !partial };
 }

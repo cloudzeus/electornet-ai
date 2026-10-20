@@ -114,3 +114,12 @@ test("ίδιος κακός σύνδεσμος σε data και published → έ
   const d = { slides: [{ href: "javascript:alert(1)" }] };
   assert.equal(scanRecord("cms", { id: "c1", label: "hero", fields: { data: d, published: d } }).length, 1);
 });
+
+test("contentOutcome (F-11): full με 0 προϊόντα → error «0 προϊόντα — πιθανώς λάθος βάση»· light (μόνο αλλαγμένα) → όχι", () => {
+  const zero = [tally({ key: "product", scanned: 0, total: 0 }), tally({ key: "cms", scanned: 3, total: 3 })];
+  const r = contentOutcome({ mode: "full", since, tallies: zero, findings: [], complete: true });
+  assert.equal(r.status, "error");
+  assert.ok(r.findings.some((f) => f.severity === "error" && /0 προϊόντα — πιθανώς λάθος βάση/.test(f.title)));
+  assert.equal(contentOutcome({ mode: "light", since, tallies: zero, findings: [], complete: true }).status, "ok");
+  assert.equal(contentOutcome({ mode: "full", since, tallies: [tally({ key: "product", scanned: 5, total: 5 })], findings: [], complete: true }).status, "ok");
+});

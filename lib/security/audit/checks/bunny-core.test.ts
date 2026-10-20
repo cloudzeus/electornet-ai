@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyObject, svgThreat, bunnyOutcome, objectPath, MAX_OBJECTS, SVG_MAX_BYTES } from "./bunny-core";
+import { classifyObject, svgThreat, bunnyOutcome, objectPath, underBase, MAX_OBJECTS, SVG_MAX_BYTES, type Flagged } from "./bunny-core";
+import { BUNNY_ALLOWED } from "../policy";
 
 test("objectPath: διαδρομή μέσα στη ζώνη από το Path + ObjectName του Bunny", () => {
   assert.equal(objectPath("euronics", { Path: "/euronics/products/a/", ObjectName: "x.jpg" }), "products/a/x.jpg");
@@ -78,4 +79,55 @@ test("bunnyOutcome (M-2): φάκελοι / SVG που απέτυχαν να δι
   assert.match(r.summary, /μερική σάρωση/);
   assert.ok(r.findings.some((f) => /2 φάκελοι/.test(f.detail) && /a\/b/.test(f.detail)));
   assert.ok(r.findings.some((f) => /2 SVG.*σφάλμα/.test(f.detail)));
+});
+
+// ── F-3: μόνο τα νέα/αλλαγμένα του διαστήματος είναι κρίσιμα ──────────────────────────────────────────────────────────
+const since = new Date("2026-10-19T04:00:00Z");
+const before = new Date("2026-03-01T10:00:00Z"), inWin = new Date("2026-10-19T12:00:00Z");
+const risky = (path: string, changedAt: Date | null): Flagged => ({ path, kind: "critical", reason: "αρχείο .js", group: ".js", changedAt });
+const base = { files: 100, dirs: 3, truncated: false, svgTotal: 0, svgChecked: 0, findings: [], since };
+
+test("bunnyOutcome (F-3): επικίνδυνο αρχείο που άλλαξε στο διάστημα → critical· παλαιότερο → ΕΝΑ warn με πλήθος + τα 10 πρώτα", () => {
+  const old = Array.from({ length: 12 }, (_, i) => risky(`legacy/p${String(i).padStart(2, "0")}.html`, before));
+  const r = bunnyOutcome({ ...base, flagged: [risky("media/new.js", inWin), ...old] });
+  assert.deepEqual(r.findings.map((f) => [f.severity, f.evidence]), [["critical", "media/new.js"], ["warn", "bunny: παλαιότερα επικίνδυνα αρχεία"]]);
+  const w = r.findings[1];
+  assert.match(w.detail, /12 αρχεία/);
+  assert.match(w.detail, /legacy\/p00\.html/);
+  assert.match(w.detail, /legacy\/p09\.html/);
+  assert.doesNotMatch(w.detail, /legacy\/p10\.html/);
+  assert.match(w.detail, /BUNNY_ALLOWED/);
+  assert.equal(r.status, "critical");
+  // μόνο παλαιότερα → warn, όχι critical
+  assert.equal(bunnyOutcome({ ...base, flagged: old }).status, "warn");
+});
+
+test("bunnyOutcome (F-3): χωρίς ημερομηνία αλλαγής → critical (δεν αποδεικνύεται ότι προϋπήρχε)", () => {
+  assert.deepEqual(bunnyOutcome({ ...base, flagged: [risky("x.php", null)] }).findings.map((f) => f.severity), ["critical"]);
+});
+
+test("bunnyOutcome (F-3): BUNNY_ALLOWED (ακριβείς διαδρομές) σωπαίνει τα παλαιότερα — όχι αν το αρχείο άλλαξε στο διάστημα", () => {
+  const r = bunnyOutcome({ ...base, allowed: ["/legacy/old.html"], flagged: [risky("legacy/old.html", before)] });
+  assert.equal(r.status, "ok");
+  assert.match(r.summary, /1 εγκεκριμέν/);
+  const changed = bunnyOutcome({ ...base, allowed: ["legacy/old.html"], flagged: [risky("legacy/old.html", inWin)] });
+  assert.deepEqual(changed.findings.map((f) => f.severity), ["critical"]);
+  assert.deepEqual(BUNNY_ALLOWED, []);
+});
+
+test("bunnyOutcome (F-3): οποιοδήποτε αρχείο εκτός του φακέλου της εφαρμογής (basePath) που άλλαξε στο διάστημα → ΕΝΑ critical", () => {
+  const r = bunnyOutcome({ ...base, outsideChanged: [{ path: "x/a.jpg", changedAt: inWin }, { path: "b.png", changedAt: inWin }] });
+  assert.deepEqual(r.findings.map((f) => f.severity), ["critical"]);
+  assert.match(r.findings[0].title, /εκτός του φακέλου της εφαρμογής/);
+  assert.match(r.findings[0].detail, /2 αρχεία/);
+  assert.equal(r.findings[0].evidence, "b.png, x/a.jpg");
+});
+
+test("underBase (F-3): διαδρομή μέσα στα basePath της εφαρμογής· χωρίς basePath → όλα «μέσα»", () => {
+  assert.ok(underBase("media/a.jpg", ["/media"]));
+  assert.ok(underBase("media/x/y.js", ["media/"]));
+  assert.ok(!underBase("mediax/a.jpg", ["/media"]));
+  assert.ok(!underBase("a.jpg", ["/media"]));
+  assert.ok(underBase("anything.jpg", []));
+  assert.ok(underBase("anything.jpg", [""]));
 });
