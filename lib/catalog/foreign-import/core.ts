@@ -60,9 +60,12 @@ export function headerSignature(headers: string[]): string {
 
 // ---------- Αποθηκευμένες αντιστοιχίσεις ----------
 
-export type MappingConfig = { columns: Record<number, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> };
+/** sheetBrandId / sheetCategoryId: μάρκα / κατηγορία όλου του φύλλου, όταν η γραμμή δεν έχει τιμή στη στήλη (ή δεν υπάρχει στήλη — π.χ. τιμοκατάλογος μίας μάρκας). */
+type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | null };
+export type MappingConfig = { columns: Record<number, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> } & SheetDefaults;
 /** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
-export type SavedConfig = { columns: Record<string, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> };
+export type SavedConfig = { columns: Record<string, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> } & SheetDefaults;
+const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}) });
 
 /** Κλειδί ανά στήλη: κανονικοποιημένη επικεφαλίδα (όπως στο headerSignature)· η 2η, 3η… ίδια επικεφαλίδα παίρνει «#2», «#3»· κενή → null. */
 function headerKeys(headers: string[]): (string | null)[] {
@@ -81,14 +84,14 @@ export function configToSaved(config: MappingConfig, headers: string[]): SavedCo
   const keys = headerKeys(headers);
   const columns: Record<string, Target> = {};
   for (const [i, t] of Object.entries(config.columns)) { const k = keys[Number(i)]; if (k) columns[k] = t; }
-  return { columns, brandMap: config.brandMap, categoryMap: config.categoryMap };
+  return { columns, brandMap: config.brandMap, categoryMap: config.categoryMap, ...sheetDefaults(config) };
 }
 
 /** Αποθηκευμένη αντιστοίχιση → δείκτες στηλών για τις επικεφαλίδες ΑΥΤΟΥ του αρχείου· άγνωστες επικεφαλίδες μένουν χωρίς στόχο. */
 export function configForHeaders(saved: SavedConfig, headers: string[]): MappingConfig {
   const columns: Record<number, Target> = {};
   headerKeys(headers).forEach((k, i) => { const t = k ? saved.columns[k] : undefined; if (t) columns[i] = t; });
-  return { columns, brandMap: saved.brandMap ?? {}, categoryMap: saved.categoryMap ?? {} };
+  return { columns, brandMap: saved.brandMap ?? {}, categoryMap: saved.categoryMap ?? {}, ...sheetDefaults(saved) };
 }
 
 // ---------- CSV ----------
@@ -183,19 +186,18 @@ export function normEan(v: string): string | null {
 const URL_SPLIT = /[\s,;|]+/;
 const urls = (cell: string) => cell.split(URL_SPLIT).filter((u) => /^https?:\/\/\S+$/i.test(u));
 
-/** Μετατρέπει τον πίνακα (μετά την επικεφαλίδα) σε γραμμές εισαγωγής. Κενές γραμμές (όλες οι αντιστοιχισμένες στήλες κενές) παραλείπονται. */
-export function toRows(
-  matrix: string[][],
-  headerRow: number,
-  config: { columns: Record<number, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> },
-): ForeignRow[] {
+/**
+ * Μετατρέπει τον πίνακα (μετά την επικεφαλίδα) σε γραμμές εισαγωγής. Κενές γραμμές (όλες οι αντιστοιχισμένες στήλες κενές) παραλείπονται.
+ * Κενό κελί μάρκας/κατηγορίας (ή καμία τέτοια στήλη) → μάρκα/κατηγορία του φύλλου· τιμή που ο χρήστης άφησε χωρίς αντιστοίχιση μένει null.
+ */
+export function toRows(matrix: string[][], headerRow: number, config: MappingConfig): ForeignRow[] {
   const cols = Object.entries(config.columns).map(([i, t]) => [Number(i), t] as const).filter(([, t]) => t.kind !== "ignore").sort((a, b) => a[0] - b[0]);
   const out: ForeignRow[] = [];
   for (let r = headerRow + 1; r < matrix.length; r++) {
     const line = matrix[r] ?? [];
     const cells = cols.map(([i, t]) => [t, txt(line[i])] as const);
     if (cells.every(([, c]) => !c)) continue;
-    const row: ForeignRow = { rowNo: r + 1, fields: {}, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, cost: null, rrp: null };
+    const row: ForeignRow = { rowNo: r + 1, fields: {}, specs: {}, media: { image: [], banner: [], video: [] }, brandId: config.sheetBrandId ?? null, categoryId: config.sheetCategoryId ?? null, cost: null, rrp: null };
     for (const [t, c] of cells) {
       if (!c) continue;
       switch (t.kind) {
@@ -215,7 +217,31 @@ export function toRows(
 
 // ---------- Αντιστοίχιση με το SoftOne ----------
 
-export type MatchIndex = { byMtrl: Map<number, number>; byCode: Map<string, number>; byEan: Map<string, number>; byFactory: Map<string, number> };
+export type MatchIndex = {
+  byMtrl: Map<number, number>; byCode: Map<string, number>; byEan: Map<string, number>; byFactory: Map<string, number>;
+  /** κλειδιά που ανήκουν σε 2+ είδη (με τα MTRL τους) — δεν υπάρχουν στους παραπάνω χάρτες· όποια γραμμή τα χτυπήσει έχει πρόβλημα */
+  ambiguous?: { byCode: Map<string, number[]>; byEan: Map<string, number[]>; byFactory: Map<string, number[]> };
+};
+
+/** Ευρετήριο για το resolveMatches από είδη του SoftOne (brandId = η μάρκα του site του κατασκευαστή). Κλειδί σε 2+ είδη → μόνο στο `ambiguous`. */
+export function buildMatchIndex(items: { mtrl: number; code: string; barcode: string | null; factoryCode: string | null; brandId: string | null }[]): MatchIndex {
+  const all = { byCode: new Map<string, number[]>(), byEan: new Map<string, number[]>(), byFactory: new Map<string, number[]>() };
+  const add = (m: Map<string, number[]>, k: string, mtrl: number) => { const l = m.get(k) ?? []; if (!l.includes(mtrl)) l.push(mtrl); m.set(k, l); };
+  const byMtrl = new Map<number, number>();
+  for (const it of items) {
+    byMtrl.set(it.mtrl, it.mtrl);
+    const code = txt(it.code).toLowerCase(); if (code) add(all.byCode, code, it.mtrl);
+    const e = it.barcode ? normEan(it.barcode) : null; if (e) add(all.byEan, e, it.mtrl);
+    const fc = txt(it.factoryCode).toLowerCase(); if (fc && it.brandId) add(all.byFactory, `${it.brandId}|${fc}`, it.mtrl);
+  }
+  const split = (m: Map<string, number[]>) => {
+    const one = new Map<string, number>(), many = new Map<string, number[]>();
+    for (const [k, l] of m) if (l.length === 1) one.set(k, l[0]); else many.set(k, [...l].sort((a, b) => a - b));
+    return [one, many] as const;
+  };
+  const [byCode, aCode] = split(all.byCode), [byEan, aEan] = split(all.byEan), [byFactory, aFactory] = split(all.byFactory);
+  return { byMtrl, byCode, byEan, byFactory, ambiguous: { byCode: aCode, byEan: aEan, byFactory: aFactory } };
+}
 
 /**
  * Βρίσκει το είδος του SoftOne για κάθε γραμμή (MTRL → κωδικός → EAN → κωδικός κατασκευαστή + μάρκα). Αν τα κλειδιά
@@ -233,16 +259,20 @@ export function resolveMatches(rows: ForeignRow[], index: MatchIndex): { rowNo: 
       if (m == null) problem = `Το MTRL ${rawMtrl} δεν υπάρχει στο SoftOne`;
       else hits.push({ key: `MTRL ${rawMtrl}`, mtrl: m });
     }
+    const amb = (m: Map<string, number[]> | undefined, k: string, label: string) => {
+      const l = m?.get(k); if (l) problem ??= `${label} ανήκει σε περισσότερα από ένα είδη (MTRL ${l.join(", ")})`;
+      return !!l;
+    };
     const code = row.fields.code?.trim();
-    if (code) { const m = index.byCode.get(code.toLowerCase()); if (m != null) hits.push({ key: `κωδικός ${code}`, mtrl: m }); }
+    if (code && !amb(index.ambiguous?.byCode, code.toLowerCase(), `Ο κωδικός ${code}`)) { const m = index.byCode.get(code.toLowerCase()); if (m != null) hits.push({ key: `κωδικός ${code}`, mtrl: m }); }
     const bc = row.fields.barcode?.trim();
     if (bc) {
       const e = normEan(bc);
       if (e == null) problem ??= "Μη έγκυρο EAN";
-      else { const m = index.byEan.get(e); if (m != null) hits.push({ key: `EAN ${e}`, mtrl: m }); }
+      else if (!amb(index.ambiguous?.byEan, e, `Το EAN ${e}`)) { const m = index.byEan.get(e); if (m != null) hits.push({ key: `EAN ${e}`, mtrl: m }); }
     }
     const fc = row.fields.factoryCode?.trim();
-    if (fc && row.brandId) { const m = index.byFactory.get(`${row.brandId}|${fc.toLowerCase()}`); if (m != null) hits.push({ key: `κωδικός κατασκευαστή ${fc}`, mtrl: m }); }
+    if (fc && row.brandId && !amb(index.ambiguous?.byFactory, `${row.brandId}|${fc.toLowerCase()}`, `Ο κωδικός κατασκευαστή ${fc}`)) { const m = index.byFactory.get(`${row.brandId}|${fc.toLowerCase()}`); if (m != null) hits.push({ key: `κωδικός κατασκευαστή ${fc}`, mtrl: m }); }
     const distinct = new Set(hits.map((h) => h.mtrl));
     if (distinct.size > 1) {
       return { rowNo: row.rowNo, mtrl: null, problem: `Τα κλειδιά δείχνουν σε διαφορετικά είδη: ${hits.map((h) => `${h.key} → ${h.mtrl}`).join(", ")}` };

@@ -5,8 +5,8 @@ import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-med
 import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } from "@/lib/catalog/supplier-sheet";
 import { itemWriteEnabled, writeWebPrice } from "@/lib/softone/item-write";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
-import { toRows, resolveMatches, normEan, type ForeignRow, type MappingConfig, type MatchIndex } from "@/lib/catalog/foreign-import/core";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { toRows, resolveMatches, buildMatchIndex, normEan, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
 export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
@@ -26,20 +26,36 @@ const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.header])) as Record
 const ROUNDING = new Set<Rounding>(["none", "int", "90", "99"]);
 const short = (s: string) => (s.length > 70 ? `${s.slice(0, 67)}…` : s);
 const mediaCount = (r: ForeignRow) => r.media.image.length + r.media.banner.length + r.media.video.length;
+// Λίστες `in` σε κομμάτια: ένα αρχείο έχει έως 10.000 γραμμές (×2 κωδικοί), το όριο παραμέτρων ανά ερώτημα είναι 32.767
+const CHUNK = 5000;
+async function inChunks<T, R>(values: T[], fn: (part: T[]) => Promise<R[]>): Promise<R[]> {
+  const out: R[] = [];
+  for (const part of chunks(values, CHUNK)) out.push(...(await fn(part)));
+  return out;
+}
 
-/** Το σχέδιο όλων των γραμμών με φρέσκα δεδομένα (καμία εγγραφή). */
-async function compute(foreign: ForeignRow[], writeOn: boolean): Promise<Ctx[]> {
+/**
+ * Το σχέδιο με φρέσκα δεδομένα (καμία εγγραφή). Με `only` υπολογίζονται μόνο αυτές οι γραμμές (η βάση δουλεύει ανάλογα
+ * με αυτές, όχι με όλο το αρχείο)· οι έλεγχοι ανάμεσα σε γραμμές (ίδιο είδος, διπλά νέα) γίνονται σε ΟΛΟ το αρχείο, με το
+ * αποθηκευμένο σχέδιο για τις γραμμές που δεν ξαναϋπολογίζονται.
+ */
+async function compute(all: ForeignRow[], writeOn: boolean, only?: { rowNos: Set<number>; stored: ForeignPlanRow[] }): Promise<Ctx[]> {
+  const foreign = only ? all.filter((r) => only.rowNos.has(r.rowNo)) : all;
   // ---- αντιστοίχιση με το SoftOne ----
   const t = (s?: string) => (s ?? "").trim();
   const mtrls = foreign.map((r) => Number(t(r.fields.mtrl))).filter((n) => Number.isInteger(n) && n > 0);
   const codes = [...new Set(foreign.flatMap((r) => [t(r.fields.code), t(r.fields.factoryCode)]).filter(Boolean))];
   const eans = [...new Set(foreign.map((r) => (r.fields.barcode ? normEan(r.fields.barcode) : null)).filter((x): x is string => !!x))];
   const factory = [...new Set(foreign.map((r) => t(r.fields.factoryCode)).filter(Boolean))];
-  const [items, brands, rules, vats] = await Promise.all([
-    db.s1Item.findMany({
-      where: { missing: false, OR: [{ mtrl: { in: mtrls } }, { code: { in: codes, mode: "insensitive" } }, { barcode: { in: eans } }, { factoryCode: { in: factory, mode: "insensitive" } }] },
-      select: { mtrl: true, code: true, name: true, barcode: true, factoryCode: true, manufacturerS1Id: true, vatS1Id: true, specGroupS1Id: true, eshopPrice: true },
-    }),
+  const select = { mtrl: true, code: true, name: true, barcode: true, factoryCode: true, manufacturerS1Id: true, vatS1Id: true, specGroupS1Id: true, eshopPrice: true } as const;
+  const find = (where: object) => db.s1Item.findMany({ where: { missing: false, ...where }, select, orderBy: { mtrl: "asc" } });
+  const [found, brands, rules, vats] = await Promise.all([
+    Promise.all([
+      inChunks(mtrls, (p) => find({ mtrl: { in: p } })),
+      inChunks(codes, (p) => find({ code: { in: p, mode: "insensitive" } })),
+      inChunks(eans, (p) => find({ barcode: { in: p } })),
+      inChunks(factory, (p) => find({ factoryCode: { in: p, mode: "insensitive" } })),
+    ]),
     db.brand.findMany({ select: { id: true, name: true, s1Id: true } }),
     db.markupRule.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } }),
     db.vatRate.findMany({ where: { s1Id: { not: null } }, select: { s1Id: true, percent: true } }),
@@ -47,26 +63,24 @@ async function compute(foreign: ForeignRow[], writeOn: boolean): Promise<Ctx[]> 
   const brandOfS1 = new Map(brands.filter((b) => b.s1Id).map((b) => [b.s1Id!, b.id]));
   const brandName = new Map(brands.map((b) => [b.id, b.name]));
   const vatOf = new Map(vats.map((v) => [v.s1Id!, Number(v.percent)]));
-  const index: MatchIndex = { byMtrl: new Map(), byCode: new Map(), byEan: new Map(), byFactory: new Map() };
-  for (const it of items) {
-    index.byMtrl.set(it.mtrl, it.mtrl);
-    if (!index.byCode.has(it.code.trim().toLowerCase())) index.byCode.set(it.code.trim().toLowerCase(), it.mtrl);
-    const e = it.barcode ? normEan(it.barcode) : null;
-    if (e && !index.byEan.has(e)) index.byEan.set(e, it.mtrl);
-    const b = it.manufacturerS1Id != null ? brandOfS1.get(String(it.manufacturerS1Id)) : undefined;
-    if (b && it.factoryCode?.trim()) { const k = `${b}|${it.factoryCode.trim().toLowerCase()}`; if (!index.byFactory.has(k)) index.byFactory.set(k, it.mtrl); }
-  }
+  const items = [...new Map(found.flat().map((i) => [i.mtrl, i])).values()].sort((a, b) => a.mtrl - b.mtrl);
+  // Κλειδί (κωδικός / EAN / κωδικός κατασκευαστή) σε 2+ είδη → διφορούμενο: η γραμμή που το χτυπά βγαίνει πρόβλημα
+  const index = buildMatchIndex(items.map((i) => ({ ...i, brandId: i.manufacturerS1Id != null ? brandOfS1.get(String(i.manufacturerS1Id)) ?? null : null })));
   const matches = resolveMatches(foreign, index);
   const mtrlOf = new Map(matches.map((m) => [m.rowNo, m.mtrl]));
   const itemOf = new Map(items.map((i) => [i.mtrl, i]));
-  const dups = newDuplicates(foreign, mtrlOf);
+  // Έλεγχοι ανάμεσα σε γραμμές σε όλο το αρχείο: φρέσκια αντιστοίχιση για όσες ξαναϋπολογίζονται, αποθηκευμένη για τις άλλες
+  const allMtrl = new Map<number, number | null>(all.map((r) => [r.rowNo, null]));
+  for (const p of only?.stored ?? []) if (allMtrl.has(p.rowNo)) allMtrl.set(p.rowNo, p.mtrl ?? null);
+  for (const [n, m] of mtrlOf) allMtrl.set(n, m);
+  const dups = newDuplicates(all, allMtrl), same = sameItemRows(allMtrl);
 
   // ---- προϊόντα του καταστήματος, κατηγορίες, ομάδες χαρακτηριστικών ----
   const matched = [...new Set(matches.map((m) => m.mtrl).filter((x): x is number => x != null))];
   const newCats = [...new Set(foreign.filter((r) => mtrlOf.get(r.rowNo) == null && r.categoryId).map((r) => r.categoryId!))];
   const ruleCats = rules.map((r) => r.categoryId).filter((x): x is string => !!x);
   const [products, cats] = await Promise.all([
-    db.product.findMany({ where: { erpCode: { in: matched.map(String) } }, select: { id: true, erpCode: true, brandId: true, categoryId: true } }),
+    inChunks(matched.map(String), (p) => db.product.findMany({ where: { erpCode: { in: p } }, select: { id: true, erpCode: true, brandId: true, categoryId: true } })),
     db.category.findMany({ where: { id: { in: [...new Set([...newCats, ...ruleCats])] } }, select: { id: true, name: true, erpCode: true } }),
   ]);
   const productOf = new Map(products.map((p) => [p.erpCode, p]));
@@ -78,7 +92,7 @@ async function compute(foreign: ForeignRow[], writeOn: boolean): Promise<Ctx[]> 
   if (viaItems.length) {
     const ps = await db.product.findMany({ where: { categoryId: { in: viaItems } }, select: { erpCode: true, categoryId: true } });
     const nums = ps.filter((p) => /^\d+$/.test(p.erpCode));
-    const sg = await db.s1Item.findMany({ where: { mtrl: { in: nums.map((p) => Number(p.erpCode)) }, missing: false }, select: { mtrl: true, specGroupS1Id: true } });
+    const sg = await inChunks(nums.map((p) => Number(p.erpCode)), (p) => db.s1Item.findMany({ where: { mtrl: { in: p }, missing: false }, select: { mtrl: true, specGroupS1Id: true } }));
     const sgOf = new Map(sg.map((s) => [String(s.mtrl), s.specGroupS1Id]));
     for (const c of viaItems) groupOfCat.set(c, mostCommon(nums.filter((p) => p.categoryId === c).map((p) => sgOf.get(p.erpCode))));
   }
@@ -108,7 +122,7 @@ async function compute(foreign: ForeignRow[], writeOn: boolean): Promise<Ctx[]> 
     const it = m.mtrl != null ? itemOf.get(m.mtrl) : undefined;
     const code = t(row.fields.code) || t(row.fields.factoryCode);
     const plan: ForeignPlanRow = { rowNo: row.rowNo, title: it?.name ?? (t(row.fields.name) || code), status: "unchanged", mtrl: m.mtrl ?? undefined, code: it?.code ?? (code || undefined), changes: [], media: 0, warnings: [] };
-    let problem = m.problem ?? (m.mtrl == null ? dups.get(row.rowNo) : undefined) ?? null;
+    let problem = m.problem ?? (m.mtrl == null ? dups.get(row.rowNo) : same.get(row.rowNo)) ?? null;
     let groupS1Id: number | null;
     if (it) {
       groupS1Id = it.specGroupS1Id;
@@ -198,23 +212,27 @@ export async function planForeign(
 }
 
 /**
- * Εκτέλεση των επιλεγμένων γραμμών. done = υπάρχοντα που ενημερώθηκαν χωρίς σφάλμα· waiting = υπάρχοντα με στοιχεία/τιμή
- * για το SoftOne που περιμένουν να ανοίξει η εγγραφή (οι φωτογραφίες τους έχουν ήδη περάσει)· pending = νέα είδη στην
- * αναμονή έγκρισης (ξανά-εκτέλεση δεν φτιάχνει δεύτερο PendingItem).
+ * Εκτέλεση των επιλεγμένων γραμμών (το UI στέλνει παρτίδες ~50). Ξαναϋπολογίζονται ΜΟΝΟ αυτές με φρέσκα δεδομένα· αν η
+ * αντιστοίχιση άλλαξε από τον έλεγχο (άλλο είδος ή νέο ↔ υπάρχον) η γραμμή δεν εκτελείται. done = υπάρχοντα που
+ * ενημερώθηκαν χωρίς σφάλμα· waiting = υπάρχοντα με στοιχεία/τιμή για το SoftOne που περιμένουν να ανοίξει η εγγραφή (οι
+ * φωτογραφίες τους έχουν ήδη περάσει)· pending = νέα είδη στην αναμονή έγκρισης (ξανά-εκτέλεση δεν φτιάχνει δεύτερο PendingItem).
  */
 export async function applyForeign(jobId: string, rowNos: number[], staffId: string | null): Promise<{ done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[] }> {
   const job = await db.importJob.findUnique({ where: { id: jobId } });
   if (!job) throw new Error("Η εισαγωγή δεν βρέθηκε.");
   const stored = job.rows as unknown as Stored;
+  const storedPlan = new Map(stored.plan.map((p) => [p.rowNo, p]));
   const writeOn = await itemWriteEnabled();
-  const ctx = await compute(stored.foreign, writeOn);
   const want = new Set(rowNos);
-  const sel = ctx.filter((c) => want.has(c.row.rowNo));
+  const ctx = await compute(stored.foreign, writeOn, { rowNos: want, stored: stored.plan });
   const errors: { rowNo: number; error: string }[] = [];
-  for (const n of want) if (!sel.some((c) => c.row.rowNo === n)) errors.push({ rowNo: n, error: "Η γραμμή δεν υπάρχει στην εισαγωγή." });
+  for (const n of want) if (!ctx.some((c) => c.row.rowNo === n)) errors.push({ rowNo: n, error: "Η γραμμή δεν υπάρχει στην εισαγωγή." });
+  const results: Record<number, string> = { ...(stored.results ?? {}) };
+  // Ο χρήστης ενέκρινε ό,τι είδε στον έλεγχο: αν η φρέσκια αντιστοίχιση είναι άλλη, η γραμμή δεν αγγίζεται
+  const changed = new Set(ctx.filter((c) => matchChanged(storedPlan.get(c.row.rowNo), c.plan)).map((c) => c.row.rowNo));
+  const sel = ctx.filter((c) => !changed.has(c.row.rowNo));
   const rowErr = new Map<number, string[]>();
   const fail = (rowNo: number, msg: string) => rowErr.set(rowNo, [...(rowErr.get(rowNo) ?? []), msg]);
-  const results: Record<number, string> = { ...(stored.results ?? {}) };
 
   const existing = sel.filter((c) => c.mtrl != null && !c.plan.problem);
   if (writeOn) {
@@ -223,37 +241,42 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
       const res = await applyImport({ meta: null, rows: withChanges.map((c) => c.parsed!), warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: true }, withChanges.map((c) => keyOf(c.row.rowNo)));
       for (const r of res) if (!r.ok) fail(Number(r.key.split("#")[1]), r.message);
     }
-    for (const c of existing.filter((x) => x.plan.price)) {
+    // Τιμή μόνο αν τα στοιχεία της γραμμής πέρασαν — όχι μισοεκτελεσμένη γραμμή
+    for (const c of existing.filter((x) => x.plan.price && !rowErr.has(x.row.rowNo))) {
       const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { onlyIfBlank: true });
       if (!w.ok) fail(c.row.rowNo, `Τιμή web: ${w.error ?? "δεν γράφτηκε."}`);
     }
   }
-  // Φωτογραφίες: τρέχουν και με το SoftOne σε αναμονή (μόνο προσθήκη, ποτέ αντικατάσταση)
-  const withMedia = existing.filter((c) => c.media);
+  // Φωτογραφίες: τρέχουν και με το SoftOne σε αναμονή (μόνο προσθήκη, ποτέ αντικατάσταση)· όχι σε γραμμή που απέτυχε στο SoftOne
+  const withMedia = existing.filter((c) => c.media && !rowErr.has(c.row.rowNo));
   if (withMedia.length) {
     const res = await applyMedia(withMedia.map((c) => c.media!), withMedia.map((c) => keyOf(c.row.rowNo)), false, staffId);
     for (const r of res) if (!r.ok) fail(Number(r.key.split("#")[1]), r.message);
   }
 
+  // Νέα είδη → PendingItem: μία ανάγνωση για όσα υπάρχουν ήδη και μία εισαγωγή (μοναδικό jobId+rowNo, skipDuplicates)
+  const fresh = sel.filter((c) => c.plan.status === "new");
+  if (fresh.length) {
+    const have = new Set((await db.pendingItem.findMany({ where: { jobId, rowNo: { in: fresh.map((c) => c.row.rowNo) } }, select: { rowNo: true } })).map((p) => p.rowNo));
+    const data = fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => {
+      const r = c.row, fields = { ...r.fields };
+      const e = fields.barcode ? normEan(fields.barcode) : null;
+      if (e) fields.barcode = e;
+      return {
+        jobId, rowNo: r.rowNo, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: c.specs, media: r.media,
+        brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId,
+        cost: r.cost ? parseMoney(r.cost) : null, rrp: r.rrp ? parseMoney(r.rrp) : null, price: c.plan.price?.price ?? null,
+      };
+    });
+    if (data.length) await db.pendingItem.createMany({ data, skipDuplicates: true });
+  }
+
   let done = 0, waiting = 0, pending = 0;
-  for (const c of sel) {
+  for (const c of ctx) {
     const n = c.row.rowNo;
+    if (changed.has(n)) { errors.push({ rowNo: n, error: "Η αντιστοίχιση άλλαξε από τον έλεγχο — ξανακάνε έλεγχο." }); results[n] = "error"; continue; }
     if (c.plan.status === "problem") { errors.push({ rowNo: n, error: c.plan.problem ?? "Πρόβλημα στη γραμμή." }); results[n] = "error"; continue; }
-    if (c.plan.status === "new") {
-      const r = c.row, price = c.plan.price;
-      const ex = await db.pendingItem.findFirst({ where: { jobId, rowNo: n }, select: { id: true } });
-      if (!ex) {
-        const fields = { ...r.fields };
-        const e = fields.barcode ? normEan(fields.barcode) : null;
-        if (e) fields.barcode = e;
-        await db.pendingItem.create({ data: {
-          jobId, rowNo: n, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: c.specs, media: r.media,
-          brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId,
-          cost: r.cost ? parseMoney(r.cost) : null, rrp: r.rrp ? parseMoney(r.rrp) : null, price: price?.price ?? null,
-        } });
-      }
-      pending++; results[n] = "pending"; continue;
-    }
+    if (c.plan.status === "new") { pending++; results[n] = "pending"; continue; }
     const errs = rowErr.get(n);
     if (errs) { errors.push({ rowNo: n, error: errs.join(" · ") }); results[n] = "error"; }
     else if (c.plan.status === "waiting") { waiting++; results[n] = "waiting"; }
@@ -261,10 +284,15 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     else results[n] = "unchanged";
   }
 
-  const plan = ctx.map((c) => c.plan);
+  // Το αποθηκευμένο σχέδιο παίρνει τις φρέσκιες γραμμές — εκτός από όσες άλλαξαν αντιστοίχιση (θέλουν νέο έλεγχο)
+  for (const c of sel) storedPlan.set(c.row.rowNo, c.plan);
+  const plan = stored.plan.map((p) => storedPlan.get(p.rowNo)!);
+  // Κατάσταση και μετρητές από ΟΛΕΣ τις παρτίδες ως τώρα (results ανά γραμμή), όχι μόνο από αυτή
+  const tally = { done: 0, waiting: 0, pending: 0, error: 0, unchanged: 0 } as Record<string, number>;
+  for (const v of Object.values(results)) tally[v] = (tally[v] ?? 0) + 1;
   await db.importJob.update({ where: { id: jobId }, data: {
-    status: errors.length || waiting ? "partial" : "applied",
-    counts: { ...countStatus(plan), applied: { done, waiting, pending, errors: errors.length } },
+    status: tally.error || tally.waiting ? "partial" : "applied",
+    counts: { ...countStatus(plan), applied: { done: tally.done, waiting: tally.waiting, pending: tally.pending, errors: tally.error } },
     rows: { ...stored, plan, results } as object,
   } });
   return { done, waiting, pending, errors };

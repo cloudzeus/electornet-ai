@@ -2700,6 +2700,7 @@ model PendingItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  @@unique([jobId, rowNo])
   @@index([status])
   @@index([jobId])
 }

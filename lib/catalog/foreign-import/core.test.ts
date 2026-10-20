@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, type ForeignRow, type Target } from "./core";
+import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, buildMatchIndex, type ForeignRow, type Target } from "./core";
 
 test("detectHeaderRow: η επικεφαλίδα είναι η πρώτη γραμμή με ≥2 κελιά που έχει δεδομένα από κάτω", () => {
   const m = [[""], ["", ""], ["EAN", "Τιμή", "Όνομα"], ["5901234123457", "10", "Χ"]];
@@ -317,4 +317,57 @@ test("detectHeaderRow: οι γραμμές δεδομένων δεν επιλέ�
     ["6000240", "4010886600023", "6000240", "1 B 5", "Ring-Maulschlüssel", "Combination spanner", "Clé mixte hexagonale", "Chiave combinata", "GEDORE"],
     ["6000241", "4010886600030", "6000241", "2 B 6", "Gabelschlüssel doppelt", "Double open ended spanner", "Clé à fourche double", "Chiave a forchetta doppia", "GEDORE"],
   ]), 3);
+});
+
+// ---------- Διορθώσεις μετά την αναθεώρηση του Task 6 ----------
+
+test("toRows: μάρκα/κατηγορία όλου του φύλλου ως εφεδρεία όταν η γραμμή δεν έχει τιμή στη στήλη (ή δεν υπάρχει στήλη)", () => {
+  const m = [["EAN", "Brand", "Cat"], ["5901234123457", "Sony", ""], ["4006381333931", "", "TV"], ["4006381333931", "Άγνωστη", ""]];
+  const cfg = { columns: { 0: { kind: "field", key: "barcode" } as Target, 1: { kind: "brand" } as Target, 2: { kind: "category" } as Target }, brandMap: { Sony: "b1", "Άγνωστη": null }, categoryMap: { TV: "c1" }, sheetBrandId: "bS", sheetCategoryId: "cS" };
+  const r = toRows(m, 0, cfg);
+  assert.deepEqual(r.map((x) => [x.brandId, x.categoryId]), [["b1", "cS"], ["bS", "c1"], [null, "cS"]]); // τιμή που ο χρήστης άφησε χωρίς αντιστοίχιση ΔΕΝ παίρνει τη μάρκα του φύλλου
+  const noCols = toRows([["EAN"], ["5901234123457"]], 0, { columns: { 0: { kind: "field", key: "barcode" } }, brandMap: {}, categoryMap: {}, sheetBrandId: "bS", sheetCategoryId: null });
+  assert.deepEqual([noCols[0].brandId, noCols[0].categoryId], ["bS", null]);
+});
+
+test("configToSaved + configForHeaders: κρατούν μάρκα/κατηγορία φύλλου", () => {
+  const saved = configToSaved({ columns: { 0: T_EAN }, brandMap: {}, categoryMap: {}, sheetBrandId: "bS", sheetCategoryId: "cS" }, ["EAN"]);
+  assert.equal(saved.sheetBrandId, "bS"); assert.equal(saved.sheetCategoryId, "cS");
+  const back = configForHeaders(saved, ["EAN"]);
+  assert.equal(back.sheetBrandId, "bS"); assert.equal(back.sheetCategoryId, "cS");
+  const none = configForHeaders(configToSaved({ columns: { 0: T_EAN }, brandMap: {}, categoryMap: {} }, ["EAN"]), ["EAN"]);
+  assert.equal(none.sheetBrandId ?? null, null); assert.equal(none.sheetCategoryId ?? null, null);
+});
+
+test("buildMatchIndex: κανονικοποιημένα κλειδιά, και κλειδί σε 2+ είδη → διφορούμενο (όχι στους κανονικούς χάρτες)", () => {
+  const ix = buildMatchIndex([
+    { mtrl: 1, code: " ABC ", barcode: "5901234123457", factoryCode: "WM100", brandId: "b1" },
+    { mtrl: 2, code: "xyz", barcode: "5901234123457", factoryCode: "wm100 ", brandId: "b1" },
+    { mtrl: 3, code: "Q1", barcode: "4006381333931", factoryCode: "WM100", brandId: "b2" },
+    { mtrl: 4, code: "q1", barcode: null, factoryCode: null, brandId: null },
+    { mtrl: 5, code: "solo", barcode: "123", factoryCode: "F5", brandId: null }, // άκυρο EAN, χωρίς μάρκα → όχι στο byFactory
+  ]);
+  assert.deepEqual([...ix.byMtrl.keys()], [1, 2, 3, 4, 5]);
+  assert.deepEqual([...ix.byCode.entries()], [["abc", 1], ["xyz", 2], ["solo", 5]]);
+  assert.deepEqual([...ix.byEan.entries()], [["4006381333931", 3]]);
+  assert.deepEqual([...ix.byFactory.entries()], [["b2|wm100", 3]]);
+  assert.deepEqual([...ix.ambiguous!.byCode.entries()], [["q1", [3, 4]]]);
+  assert.deepEqual([...ix.ambiguous!.byEan.entries()], [["5901234123457", [1, 2]]]);
+  assert.deepEqual([...ix.ambiguous!.byFactory.entries()], [["b1|wm100", [1, 2]]]);
+});
+
+test("resolveMatches: γραμμή σε διφορούμενο κλειδί → πρόβλημα με τα MTRL", () => {
+  const ix = buildMatchIndex([
+    { mtrl: 1, code: "A", barcode: "5901234123457", factoryCode: "WM", brandId: "b1" },
+    { mtrl: 2, code: "B", barcode: "5901234123457", factoryCode: "wm", brandId: "b1" },
+    { mtrl: 3, code: "c", barcode: null, factoryCode: null, brandId: null },
+    { mtrl: 4, code: "C", barcode: null, factoryCode: null, brandId: null },
+  ]);
+  const [e, c, f, ok] = resolveMatches([row(2, { barcode: "5901234123457" }), row(3, { code: "c" }), row(4, { factoryCode: "WM" }, "b1"), row(5, { code: "a" })], ix);
+  assert.deepEqual([e.mtrl, e.problem], [null, "Το EAN 5901234123457 ανήκει σε περισσότερα από ένα είδη (MTRL 1, 2)"]);
+  assert.equal(c.problem, "Ο κωδικός c ανήκει σε περισσότερα από ένα είδη (MTRL 3, 4)");
+  assert.equal(f.problem, "Ο κωδικός κατασκευαστή WM ανήκει σε περισσότερα από ένα είδη (MTRL 1, 2)");
+  assert.deepEqual(ok, { rowNo: 5, mtrl: 1, problem: null });
+  // χωρίς ambiguous (παλιά μορφή ευρετηρίου) όλα δουλεύουν όπως πριν
+  assert.deepEqual(resolveMatches([row(2, { code: "abc" })], idx()), [{ rowNo: 2, mtrl: 1, problem: null }]);
 });

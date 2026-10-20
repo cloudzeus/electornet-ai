@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon } from "./plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks } from "./plan-core";
 import type { ForeignRow } from "./core";
 
 const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, cost: null, rrp: null });
@@ -72,4 +72,24 @@ test("mostCommon: η συχνότερη τιμή (χωρίς null)· ισοπα�
   assert.equal(mostCommon([7, 3, 3, 7]), 7);
   assert.equal(mostCommon([null, null]), null);
   assert.equal(mostCommon([]), null);
+});
+
+test("matchChanged: άλλο MTRL ή αλλαγή νέο↔υπάρχον από τον έλεγχο → true", () => {
+  assert.equal(matchChanged({ mtrl: 5 }, { mtrl: 5 }), false);
+  assert.equal(matchChanged({}, {}), false); // νέο και νέο
+  assert.equal(matchChanged({ mtrl: 5 }, { mtrl: 6 }), true);
+  assert.equal(matchChanged({}, { mtrl: 6 }), true); // ήταν νέο, τώρα βρέθηκε είδος
+  assert.equal(matchChanged({ mtrl: 5 }, {}), true); // ήταν υπάρχον, τώρα νέο
+  assert.equal(matchChanged(undefined, {}), true); // η γραμμή δεν υπήρχε στο σχέδιο
+});
+
+test("sameItemRows: ίδιο MTRL σε 2+ γραμμές (από όλο το αρχείο) → μήνυμα σε κάθε μία", () => {
+  const d = sameItemRows(new Map<number, number | null>([[2, 7], [3, null], [9, 7], [4, 8]]));
+  assert.deepEqual([...d.keys()].sort(), [2, 9]);
+  assert.equal(d.get(2), "Το ίδιο είδος (MTRL 7) βρέθηκε σε περισσότερες γραμμές: 2, 9");
+});
+
+test("chunks: χωρίζει σε κομμάτια το πολύ n", () => {
+  assert.deepEqual(chunks([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  assert.deepEqual(chunks([], 3), []);
 });

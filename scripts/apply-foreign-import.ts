@@ -55,6 +55,8 @@ const SQL = [
   )`,
   `CREATE INDEX IF NOT EXISTS "PendingItem_status_idx" ON "PendingItem"("status")`,
   `CREATE INDEX IF NOT EXISTS "PendingItem_jobId_idx" ON "PendingItem"("jobId")`,
+  // μία γραμμή αρχείου → το πολύ ένα PendingItem (η εκτέλεση ξανατρέχει με skipDuplicates)
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PendingItem_jobId_rowNo_key" ON "PendingItem"("jobId", "rowNo")`,
   `CREATE TABLE IF NOT EXISTS "MarkupRule" (
     "id" TEXT NOT NULL,
     "brandId" TEXT,
@@ -71,6 +73,10 @@ const TABLES = ["ImportMapping", "ImportJob", "PendingItem", "MarkupRule"];
 (async () => {
   const exist = () => db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN (${TABLES.map((t) => `'${t}'`).join(",")})`);
   const before = Number((await exist())[0].n);
+  if (before) {
+    const dup = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM (SELECT 1 FROM "PendingItem" GROUP BY "jobId", "rowNo" HAVING count(*) > 1) d`).catch(() => [{ n: BigInt(0) }]);
+    if (Number(dup[0].n)) throw new Error(`Υπάρχουν ${dup[0].n} διπλά PendingItem (jobId, rowNo) — καθάρισέ τα πριν από το μοναδικό ευρετήριο.`);
+  }
   for (const q of SQL) await db.$executeRawUnsafe(q);
   console.log(before === TABLES.length ? "Πίνακες: υπήρχαν ήδη." : "Πίνακες: εφαρμόστηκαν.");
   await db.$disconnect();

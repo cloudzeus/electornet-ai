@@ -88,3 +88,24 @@ export function mostCommon<T>(values: (T | null | undefined)[]): T | null {
   for (const [v, c] of n) if (c > max) { best = v; max = c; }
   return best;
 }
+
+/** Στην εκτέλεση: η φρέσκια αντιστοίχιση διαφέρει από αυτή που είδε ο χρήστης στον έλεγχο (άλλο είδος, ή νέο ↔ υπάρχον) → δεν εκτελείται. */
+export function matchChanged(stored: { mtrl?: number } | undefined, fresh: { mtrl?: number }): boolean {
+  return !stored || (stored.mtrl ?? null) !== (fresh.mtrl ?? null);
+}
+
+/** Γραμμές του αρχείου που δείχνουν στο ίδιο είδος (ίδιο μήνυμα με το resolveMatches) — για όταν ξαναϋπολογίζεται μόνο ένα μέρος των γραμμών. */
+export function sameItemRows(mtrlOf: Map<number, number | null>): Map<number, string> {
+  const per = new Map<number, number[]>();
+  for (const [rowNo, m] of mtrlOf) if (m != null) per.set(m, [...(per.get(m) ?? []), rowNo]);
+  const out = new Map<number, string>();
+  for (const [m, rows] of per) if (rows.length > 1) for (const n of rows) out.set(n, `Το ίδιο είδος (MTRL ${m}) βρέθηκε σε περισσότερες γραμμές: ${[...rows].sort((a, b) => a - b).join(", ")}`);
+  return out;
+}
+
+/** Κομμάτια το πολύ n στοιχείων (για λίστες `in` κάτω από το όριο παραμέτρων της βάσης). */
+export function chunks<T>(list: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n));
+  return out;
+}
