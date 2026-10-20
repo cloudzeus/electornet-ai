@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle } from "./plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates } from "./plan-core";
 import type { ForeignRow } from "./core";
 
 const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, cost: null, rrp: null });
@@ -112,4 +112,34 @@ test("sectionTitle: πραγματικά είδη → false", () => {
   assert.equal(sectionTitle(r({ factoryCode: "D140" }, { cost: "45" })), false);
   assert.equal(sectionTitle(r({ barcode: "5201234567890", name: "X" })), false);
   assert.equal(sectionTitle(r({ mtrl: "123" })), false); // ρητό MTRL = υπάρχον είδος, όχι τίτλος
+});
+
+// ---------- Διορθώσεις τελικής αναθεώρησης ----------
+
+test("I-1 newDuplicates: ίδιο EAN με/χωρίς αριστερό μηδενικό σε 2 νέες γραμμές → διπλό", () => {
+  const d = newDuplicates([row(2, { barcode: "012345678905" }), row(3, { barcode: "0012345678905" })], new Map([[2, null], [3, null]]));
+  assert.equal(d.size, 2);
+});
+
+test("I-7 namesDiffer: κοινή λέξη ≥3 χαρακτήρων = μοιάζουν· καμία = διαφέρουν· κενό = δεν κρίνεται", () => {
+  assert.equal(namesDiffer("Ψυγείο LG GBB72PZ", "Refrigerator LG GBB72PZ Inox"), false);
+  assert.equal(namesDiffer("Πλυντήριο Ρούχων Bosch WAN28", "ΠΛΥΝΤΗΡΙΟ ΠΙΑΤΩΝ"), false); // τόνοι/πεζά
+  assert.equal(namesDiffer("Ψυγείο LG GBB72", "Τηλεόραση Samsung QE55"), true);
+  assert.equal(namesDiffer("LG", "TV"), false); // καμία λέξη ≥3 → δεν κρίνεται
+  assert.equal(namesDiffer("Ψυγείο", ""), false);
+});
+
+test("I-8 openDuplicates: κωδικός (πεζά/κεφαλαία) ή EAN (GTIN-14) που είναι ήδη ανοιχτό στα «Νέα είδη» άλλης εισαγωγής", () => {
+  const open = [
+    { jobId: "j1", rowNo: 5, code: "ABC-1", fields: { barcode: "0012345678905" } },
+    { jobId: "j2", rowNo: 9, code: "XYZ", fields: {} },
+  ];
+  const d = openDuplicates("j2", [
+    { rowNo: 2, code: "abc-1", barcode: undefined },
+    { rowNo: 3, code: "NEW", barcode: "012345678905" },
+    { rowNo: 4, code: "NEW2", barcode: "5901234123457" },
+    { rowNo: 9, code: "XYZ", barcode: undefined }, // ίδια εισαγωγή και γραμμή = η ίδια (ξανά-εκτέλεση) → όχι
+  ], open);
+  assert.deepEqual([...d.keys()], [2, 3]);
+  assert.match(d.get(2)!, /ήδη στη λίστα «Νέα είδη»/);
 });

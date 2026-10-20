@@ -1,7 +1,8 @@
 import "server-only";
-import { s1 } from "@/lib/softone";
+import { s1, getS1Config } from "@/lib/softone";
 import { getTable } from "@/lib/softone/lookups";
 import { getSetting } from "@/lib/settings/store";
+import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/softone/web-price-core";
 
 /**
  * Εγγραφή στοιχείων ενός είδους στο SoftOne από την καρτέλα προϊόντος — με την επίσημη υπηρεσία setData (ITEM, EditMaster:
@@ -102,24 +103,29 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
   return { ok: !mismatches.length, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
 
-/** Η τιμή web (MTREXTRA.NUM04) όπως τη διαβάζει και ο συγχρονισμός (`syncItem`) — null αν το είδος δεν έχει γραμμή MTREXTRA. */
-async function readWebPrice(mtrl: number): Promise<number | null> {
-  const rows = await getTable("MTREXTRA", ["MTRL", "NUM04"], `MTRL=${mtrl}`);
-  const row = rows.find((r) => Number(r[0]) === mtrl);
-  if (!row) return null;
-  const n = Number(String(row[1] ?? "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
+/** Ξεχωριστός διακόπτης για την τιμή web: η εγγραφή ITEEXTRA δεν έχει δοκιμαστεί σε πραγματικό είδος — ανοίγει μόνο με S1_WEB_PRICE_WRITE=1. */
+export const webPriceWriteEnabled = () => process.env.S1_WEB_PRICE_WRITE === "1";
+export const WEB_PRICE_OFF = "Η εγγραφή τιμής web στο SoftOne δεν έχει ενεργοποιηθεί ακόμη.";
+
+/** Η γραμμή MTREXTRA του είδους με ΟΛΕΣ τις στήλες που διαβάζονται, για την εταιρεία της συνεδρίας (null = δεν έχει γραμμή). */
+async function readExtra(mtrl: number): Promise<{ row: ExtraRow | null; error?: string }> {
+  const [rows, cfg] = await Promise.all([getTable("MTREXTRA", EXTRA_FIELDS, `MTRL=${mtrl}`), getS1Config()]);
+  const r = pickExtraRow(rows, mtrl, cfg?.company ?? "");
+  return r.error ? { row: null, error: r.error } : { row: r.row ?? null };
 }
+const num04 = (row: ExtraRow | null) => { if (!row) return null; const n = Number(String(row.NUM04 ?? "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
 
 /**
  * Τιμή web ενός είδους στο SoftOne: setData ITEM με τον πίνακα ITEEXTRA (έτσι εμφανίζεται ο MTREXTRA μέσα στο αντικείμενο
- * ITEM — επιβεβαιωμένο με getData) και μόνο το NUM04. Κλειστό όσο είναι κλειστός ο διακόπτης «Αλλαγές προϊόντων προς
- * SoftOne»· μετά την εγγραφή ξαναδιαβάζεται ο MTREXTRA για επαλήθευση. Με `onlyIfBlank` γράφει μόνο αν η τρέχουσα τιμή στο
- * SoftOne (ζωντανή ανάγνωση, όχι η τοπική eshopPrice που μπορεί να είναι παλιά) είναι κενή/0.
+ * ITEM — επιβεβαιωμένο με getData) και μόνο το NUM04. Δύο διακόπτες: ο «Αλλαγές προϊόντων προς SoftOne» ΚΑΙ το
+ * S1_WEB_PRICE_WRITE=1 (χωρίς αυτό: καμία κλήση δικτύου). Πριν και μετά διαβάζεται ΟΛΗ η γραμμή MTREXTRA (της εταιρείας της
+ * συνεδρίας· πολλές γραμμές → άρνηση): αν μετά την εγγραφή άλλαξε οποιαδήποτε άλλη στήλη (τα EditList ξαναγράφουν όλη τη
+ * γραμμή), αποτυχία με τη διαφορά. Με `onlyIfBlank` γράφει μόνο αν η τρέχουσα τιμή στο SoftOne (ζωντανή ανάγνωση) είναι κενή/0.
  * Το `written` μένει πάντα [] (το NUM04 δεν είναι ItemField) — το αποτέλεσμα το λένε τα `ok` / `error`.
  */
 export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean }): Promise<WriteResult> {
   const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
+  if (!webPriceWriteEnabled()) return fail(WEB_PRICE_OFF);
   if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
   if (!Number.isInteger(mtrl) || mtrl <= 0) return fail("Μη έγκυρο είδος.");
   if (!Number.isFinite(price) || price <= 0) return fail("Η τιμή web πρέπει να είναι αριθμός μεγαλύτερος από 0.");
@@ -129,16 +135,24 @@ export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIf
   const exists = await getTable("MTRL", ["MTRL"], `MTRL=${mtrl}`).catch(() => null);
   if (!exists) return fail("Δεν ήταν δυνατή η ανάγνωση του είδους από το SoftOne.");
   if (!exists.some((r) => Number(r[0]) === mtrl)) return fail("Το είδος δεν βρέθηκε στο SoftOne.");
-  let before: number | null;
-  try { before = await readWebPrice(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της τιμής web από το SoftOne."); }
-  if (opts?.onlyIfBlank && before != null && before > 0) return fail(`Το είδος έχει ήδη τιμή web (${before} €) — δεν αλλάζει.`);
-  if (same(before)) return { ok: true, written: [], conflicts: [], mismatches: [] };
+  let before: Awaited<ReturnType<typeof readExtra>>;
+  try { before = await readExtra(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της τιμής web από το SoftOne."); }
+  if (before.error) return fail(before.error);
+  const cur = num04(before.row);
+  if (opts?.onlyIfBlank && cur != null && cur > 0) return fail(`Το είδος έχει ήδη τιμή web (${cur} €) — δεν αλλάζει.`);
+  if (same(cur)) return { ok: true, written: [], conflicts: [], mismatches: [] };
 
   const r = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEEXTRA: [{ NUM04: value }] } }).catch((e: Error) => ({ success: false, error: e.message }));
   if (!r?.success) return fail(`Το SoftOne αρνήθηκε την εγγραφή της τιμής web: ${r?.error ?? "άγνωστο σφάλμα"}`);
 
-  const after = await readWebPrice(mtrl).catch(() => null);
-  if (!same(after)) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η τιμή web δεν γράφτηκε (στάλθηκε ${value}, διαβάστηκε ${after ?? "—"}).`);
+  const after = await readExtra(mtrl).catch(() => null);
+  if (!after || after.error || !after.row) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η γραμμή MTREXTRA δεν διαβάζεται μετά την εγγραφή (${after?.error ?? "καμία γραμμή"}) — έλεγξε στο ERP.`);
+  const diff = extraDiff(before.row, after.row);
+  if (diff.length) {
+    console.error("[writeWebPrice] άλλαξαν και άλλα πεδία του MTREXTRA", mtrl, diff);
+    return fail(`ΠΡΟΣΟΧΗ: η εγγραφή της τιμής web άλλαξε και άλλα πεδία του είδους στο SoftOne (MTREXTRA): ${diff.map((d) => `${d.col} «${d.from || "—"}» → «${d.to || "—"}»`).join(", ")}. Έλεγξε και διόρθωσε άμεσα στο ERP.`);
+  }
+  if (!same(num04(after.row))) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η τιμή web δεν γράφτηκε (στάλθηκε ${value}, διαβάστηκε ${num04(after.row) ?? "—"}).`);
   return { ok: true, written: [], conflicts: [], mismatches: [] };
 }
 

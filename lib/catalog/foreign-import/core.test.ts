@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, buildMatchIndex, type ForeignRow, type Target } from "./core";
+import ExcelJS from "exceljs";
+import { parseMoney } from "@/lib/catalog/pricing/markup";
+import { detectHeaderRow, suggestTarget, headerSignature, normEan, gtin14, gs1Valid, eanVariants, sameEan, numCell, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, buildMatchIndex, type ForeignRow, type Target } from "./core";
 
 test("detectHeaderRow: η επικεφαλίδα είναι η πρώτη γραμμή με ≥2 κελιά που έχει δεδομένα από κάτω", () => {
   const m = [[""], ["", ""], ["EAN", "Τιμή", "Όνομα"], ["5901234123457", "10", "Χ"]];
@@ -59,9 +61,9 @@ test("normEan", () => {
   assert.equal(normEan("5.901234123457E+12"), "5901234123457");
   assert.equal(normEan("5.901234123457e12"), "5901234123457");
   assert.equal(normEan("123"), null);
-  assert.equal(normEan("12345678"), "12345678");
-  assert.equal(normEan("123456789012"), "123456789012");
-  assert.equal(normEan("12345678901234"), "12345678901234");
+  assert.equal(normEan("12345670"), "12345670"); // EAN-8
+  assert.equal(normEan("012345678905"), "012345678905"); // UPC-A
+  assert.equal(normEan("00012345678905"), "00012345678905"); // GTIN-14
   assert.equal(normEan("123456789012345"), null);
   assert.equal(normEan("abc"), null);
   assert.equal(normEan(""), null);
@@ -112,7 +114,7 @@ const row = (rowNo: number, fields: ForeignRow["fields"], brandId: string | null
 const idx = () => ({
   byMtrl: new Map([[1, 1], [2, 2], [3, 3]]),
   byCode: new Map([["abc", 1], ["xyz", 2]]),
-  byEan: new Map([["5901234123457", 1], ["4006381333931", 2]]),
+  byEan: new Map([["05901234123457", 1], ["04006381333931", 2]]), // κλειδιά GTIN-14
   byFactory: new Map([["b1|wm100", 3]]),
 });
 
@@ -120,14 +122,14 @@ test("resolveMatches: αντιστοίχιση με κάθε κλειδί", () =
   const r = resolveMatches([
     row(2, { mtrl: "2" }), row(3, { code: " ABC " }), row(5, { factoryCode: "WM100" }, "b1"),
   ], idx());
-  assert.deepEqual(r.map((x) => [x.rowNo, x.mtrl, x.problem]), [[2, 2, null], [3, 1, null], [5, 3, null]]);
+  assert.deepEqual(r.map((x) => [x.rowNo, x.mtrl, x.problem, x.matchedBy]), [[2, 2, null, "mtrl"], [3, 1, null, "code"], [5, 3, null, "factory"]]);
   // EAN σε επιστημονική μορφή (Excel) βρίσκει το είδος
-  assert.deepEqual(resolveMatches([row(2, { barcode: "5.901234123457E+12" })], idx()), [{ rowNo: 2, mtrl: 1, problem: null }]);
+  assert.deepEqual(resolveMatches([row(2, { barcode: "5.901234123457E+12" })], idx()), [{ rowNo: 2, mtrl: 1, problem: null, matchedBy: "ean" }]);
 });
 
 test("resolveMatches: MTRL κερδίζει — κλειδιά που δεν βρέθηκαν δεν μετράνε", () => {
-  const [r] = resolveMatches([row(2, { mtrl: "1", code: "ΔΕΝΥΠΑΡΧΕΙ", barcode: "9999999999999" })], idx());
-  assert.deepEqual(r, { rowNo: 2, mtrl: 1, problem: null });
+  const [r] = resolveMatches([row(2, { mtrl: "1", code: "ΔΕΝΥΠΑΡΧΕΙ", barcode: "9999999999994" })], idx());
+  assert.deepEqual(r, { rowNo: 2, mtrl: 1, problem: null, matchedBy: "mtrl" });
 });
 
 test("resolveMatches: EAN και κωδικός σε διαφορετικά είδη → πρόβλημα", () => {
@@ -212,9 +214,9 @@ test("fillBlankMemo: αν ο memo έχει ήδη ελεύθερο κείμεν�
 
 // ---------- CSV ----------
 
-test("detectDelimiter: το συχνότερο από ; , tab στην πρώτη μη κενή γραμμή (εκτός εισαγωγικών)", () => {
+test("detectDelimiter: το συχνότερο από ; , tab στις πρώτες μη κενές γραμμές (εκτός εισαγωγικών)", () => {
   assert.equal(detectDelimiter("\n\nΚωδικός;Όνομα;Τιμή\n1;Χ;2,5"), ";");
-  assert.equal(detectDelimiter("a,b,c\n1;2;3;4"), ",");
+  assert.equal(detectDelimiter("a,b,c\n1,2,3\n4;5"), ",");
   assert.equal(detectDelimiter("a\tb\tc"), "\t");
   assert.equal(detectDelimiter('"a;b;c,d",e'), ","); // μέσα σε εισαγωγικά δεν μετράει
   assert.equal(detectDelimiter("μοναδική στήλη"), ",");
@@ -349,10 +351,10 @@ test("buildMatchIndex: κανονικοποιημένα κλειδιά, και �
   ]);
   assert.deepEqual([...ix.byMtrl.keys()], [1, 2, 3, 4, 5]);
   assert.deepEqual([...ix.byCode.entries()], [["abc", 1], ["xyz", 2], ["solo", 5]]);
-  assert.deepEqual([...ix.byEan.entries()], [["4006381333931", 3]]);
+  assert.deepEqual([...ix.byEan.entries()], [["04006381333931", 3]]); // GTIN-14
   assert.deepEqual([...ix.byFactory.entries()], [["b2|wm100", 3]]);
   assert.deepEqual([...ix.ambiguous!.byCode.entries()], [["q1", [3, 4]]]);
-  assert.deepEqual([...ix.ambiguous!.byEan.entries()], [["5901234123457", [1, 2]]]);
+  assert.deepEqual([...ix.ambiguous!.byEan.entries()], [["05901234123457", [1, 2]]]);
   assert.deepEqual([...ix.ambiguous!.byFactory.entries()], [["b1|wm100", [1, 2]]]);
 });
 
@@ -367,7 +369,76 @@ test("resolveMatches: γραμμή σε διφορούμενο κλειδί → 
   assert.deepEqual([e.mtrl, e.problem], [null, "Το EAN 5901234123457 ανήκει σε περισσότερα από ένα είδη (MTRL 1, 2)"]);
   assert.equal(c.problem, "Ο κωδικός c ανήκει σε περισσότερα από ένα είδη (MTRL 3, 4)");
   assert.equal(f.problem, "Ο κωδικός κατασκευαστή WM ανήκει σε περισσότερα από ένα είδη (MTRL 1, 2)");
-  assert.deepEqual(ok, { rowNo: 5, mtrl: 1, problem: null });
+  assert.deepEqual(ok, { rowNo: 5, mtrl: 1, problem: null, matchedBy: "code" });
   // χωρίς ambiguous (παλιά μορφή ευρετηρίου) όλα δουλεύουν όπως πριν
-  assert.deepEqual(resolveMatches([row(2, { code: "abc" })], idx()), [{ rowNo: 2, mtrl: 1, problem: null }]);
+  assert.deepEqual(resolveMatches([row(2, { code: "abc" })], idx()), [{ rowNo: 2, mtrl: 1, problem: null, matchedBy: "code" }]);
+});
+
+// ---------- Διορθώσεις τελικής αναθεώρησης ----------
+
+test("I-1 normEan/gtin14: ψηφίο ελέγχου GS1 και EAN χωρίς τα αριστερά μηδενικά", () => {
+  assert.equal(gs1Valid("5901234123457"), true);
+  assert.equal(gs1Valid("5901234123458"), false);
+  assert.equal(normEan("5901234123458"), null); // λάθος ψηφίο ελέγχου
+  assert.equal(normEan("12345678"), null); // EAN-8 με λάθος ψηφίο ελέγχου
+  assert.equal(normEan("12345678905"), "0012345678905"); // το Excel έφαγε τα μηδενικά
+  assert.equal(gtin14("012345678905"), "00012345678905");
+  assert.equal(gtin14("0012345678905"), "00012345678905");
+  assert.equal(gtin14("12345678905"), "00012345678905");
+  assert.equal(gtin14("bad"), null);
+  assert.deepEqual(eanVariants("12345678905"), ["012345678905", "0012345678905", "00012345678905"]);
+  assert.deepEqual(eanVariants("12345670"), ["12345670", "000012345670", "0000012345670", "00000012345670"]);
+  assert.equal(sameEan("012345678905", "0012345678905"), true);
+  assert.equal(sameEan("ABC", " ABC "), true); // όχι EAN → ίδιο κείμενο
+  assert.equal(sameEan("5901234123457", "4006381333931"), false);
+});
+
+test("I-1 resolveMatches: «012345678905» στο αρχείο βρίσκει το αποθηκευμένο «0012345678905»· λάθος ψηφίο ελέγχου → πρόβλημα", () => {
+  const index = buildMatchIndex([{ mtrl: 1, code: "X", barcode: "0012345678905", factoryCode: null, brandId: null }]);
+  const [a, b, c] = resolveMatches([row(2, { barcode: "012345678905" }), row(3, { barcode: "5901234123458" }), row(4, { barcode: "12345678905" })], index);
+  assert.equal(a.mtrl, 1); assert.equal(a.matchedBy, "ean");
+  assert.equal(b.mtrl, null); assert.equal(b.problem, "Μη έγκυρο EAN");
+  assert.equal(c.mtrl, 1); // ίδιο είδος από 2 γραμμές → και πρόβλημα
+  assert.ok(c.problem);
+  // διπλό στο SoftOne σε άλλη μορφή → διφορούμενο
+  const amb = buildMatchIndex([{ mtrl: 1, code: "X", barcode: "0012345678905", factoryCode: null, brandId: null }, { mtrl: 2, code: "Y", barcode: "012345678905", factoryCode: null, brandId: null }]);
+  assert.match(resolveMatches([row(2, { barcode: "12345678905" })], amb)[0].problem!, /περισσότερα από ένα είδη \(MTRL 1, 2\)/);
+});
+
+test("minor toRows: τιμή μάρκας/κατηγορίας «constructor» δεν παίρνει το prototype", () => {
+  const [r] = toRows([["Brand", "Cat"], ["constructor", "toString"]], 0, { columns: { 0: { kind: "brand" }, 1: { kind: "category" } }, brandMap: {}, categoryMap: {} });
+  assert.equal(r.brandId, null);
+  assert.equal(r.categoryId, null);
+});
+
+test("minor detectDelimiter: τίτλος με κόμμα πάνω από γραμμές με ;", () => {
+  assert.equal(detectDelimiter("Τιμοκατάλογος, Ιανουάριος 2026, όλα τα είδη\nΚωδικός;Όνομα;Τιμή\nA1;Ψυγείο;1,5\nA2;Πλυντήριο;2,5"), ";");
+});
+
+test("minor headerSignature/configForHeaders: επικεφαλίδα > 160 χαρακτήρων — η κομμένη της προεπισκόπησης = η πλήρης", () => {
+  const long = `Περιγραφή ${"πολύ μεγάλη ".repeat(20)}τέλος`;
+  const cut = `${long.slice(0, 159)}…`; // όπως το inspectSheet
+  assert.equal(headerSignature(["EAN", cut]), headerSignature(["EAN", long]));
+  const saved = configToSaved({ columns: { 1: { kind: "field", key: "name" } }, brandMap: {}, categoryMap: {} }, ["EAN", long]);
+  assert.deepEqual(configForHeaders(saved, ["EAN", cut]).columns, { 1: { kind: "field", key: "name" } });
+});
+
+test("minor suggestTarget: λιανική με ΦΠΑ / ΤΛΤ / Retail price → ΤΛΤ (rrp)", () => {
+  for (const h of ["Λιανική με ΦΠΑ", "Τιμή λιανικής με ΦΠΑ", "ΤΛΤ", "Retail price", "Λιανική τιμή (με ΦΠΑ)"]) assert.deepEqual(suggestTarget(h), { kind: "rrp" }, h);
+  assert.deepEqual(suggestTarget("ΦΠΑ"), { kind: "ignore" });
+  assert.deepEqual(suggestTarget("Κατηγορία ΦΠΑ"), { kind: "ignore" });
+});
+
+test("I-5 numCell: αριθμητικό κελί 1.234 (xlsx) → parseMoney 1.234· κείμενο «1.234» → 1234", async () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("A");
+  ws.getCell("A1").value = 1.234; ws.getCell("A2").value = "1.234"; ws.getCell("A3").value = 5901234123457; ws.getCell("A4").value = { formula: "A1*1", result: 12.345 };
+  const back = new ExcelJS.Workbook();
+  await back.xlsx.load(await wb.xlsx.writeBuffer());
+  const c = (a: string) => back.getWorksheet("A")!.getCell(a).value;
+  assert.equal(parseMoney(numCell(c("A1"))!), 1.234);
+  assert.equal(numCell(c("A2")), null); // κείμενο → το cellText
+  assert.equal(parseMoney(String(c("A2"))), 1234);
+  assert.equal(numCell(c("A3")), "5901234123457");
+  assert.equal(parseMoney(numCell(c("A4"))!), 12.345);
 });

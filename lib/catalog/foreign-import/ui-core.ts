@@ -1,5 +1,5 @@
 import type { FieldKey } from "@/lib/catalog/supplier-sheet";
-import { detectHeaderRow, UserError, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
+import { detectHeaderRow, UserError, PREVIEW_CELL, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Εισαγωγή από ξένο Excel — καθαρά κομμάτια της οθόνης (χωρίς βάση, server-only ή React): τι στέλνει ο έλεγχος αρχείου
@@ -15,6 +15,8 @@ export const MAX_VALUES = 300;
 /** Διαφορετικές τιμές μιας στήλης με τον τελευταίο δείκτη γραμμής όπου εμφανίζονται (για να κρυφτούν όσες είναι μόνο πάνω από την επικεφαλίδα). */
 export type ColValues = { many: true } | { many?: false; values: { v: string; last: number }[] };
 export type SavedMappingRef = { id: string; name: string; config: SavedConfig };
+/** Μία από τις «Πρόσφατες εισαγωγές» (ImportJob) όπως τη δείχνει η οθόνη. */
+export type RecentJob = { id: string; fileName: string; status: string; createdAt: string; counts: { update: number; unchanged: number; new: number; waiting: number; problem: number }; applied: { done?: number; waiting?: number; pending?: number; errors?: number } | null };
 export type InspectSheet = { name: string; rowCount: number; headerRow: number; preview: string[][]; cols: ColValues[]; mapping: SavedMappingRef | null };
 
 const txt = (v: unknown) => (v == null ? "" : String(v)).trim();
@@ -37,7 +39,8 @@ export function inspectSheet(matrix: string[][]): Omit<InspectSheet, "name" | "m
   return {
     rowCount: matrix.filter((r) => r?.some((c) => txt(c))).length,
     headerRow: detectHeaderRow(matrix),
-    preview: matrix.slice(0, PREVIEW_ROWS).map((r) => (r ?? []).slice(0, PREVIEW_COLS).map((c) => cut(txt(c), 160))),
+    // Κομμένα κελιά μόνο για εμφάνιση/μέγεθος· τα κλειδιά επικεφαλίδων (υπογραφή, αποθηκευμένη αντιστοίχιση) αγνοούν το «…» (core: headKey)
+    preview: matrix.slice(0, PREVIEW_ROWS).map((r) => (r ?? []).slice(0, PREVIEW_COLS).map((c) => cut(txt(c), PREVIEW_CELL))),
     cols,
   };
 }

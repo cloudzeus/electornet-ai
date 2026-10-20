@@ -1,4 +1,4 @@
-import { labelKey, normEan, type ForeignRow } from "@/lib/catalog/foreign-import/core";
+import { labelKey, normEan, gtin14, type ForeignRow, type MatchKind } from "@/lib/catalog/foreign-import/core";
 import { parseMoney, priceFrom, type Rounding } from "@/lib/catalog/pricing/markup";
 
 /**
@@ -9,6 +9,8 @@ export type RowStatus = "update" | "unchanged" | "new" | "waiting" | "problem";
 export type ForeignPrice = { cost: number; price: number; rule: string; capped: boolean; margin: number };
 export type ForeignPlanRow = {
   rowNo: number; title: string; status: RowStatus; mtrl?: number; code?: string;
+  /** υπάρχον είδος: το όνομα της γραμμής στο αρχείο (δίπλα στο δικό μας) και με ποιο κλειδί βρέθηκε — για να φαίνεται λάθος ταίριασμα */
+  fileName?: string; matchedBy?: MatchKind;
   /** αλλαγές στο SoftOne («μόνο κενά») — στα νέα είδη τα πεδία που θα μπουν */
   changes: { label: string; from: string; to: string }[];
   /** νέα πολυμέσα (υπάρχοντα: όσα δεν έχει ήδη το προϊόν· νέα: όλες οι διευθύνσεις) */
@@ -32,8 +34,8 @@ export function newDuplicates(rows: ForeignRow[], mtrlOf: Map<number, number | n
   for (const r of rows) {
     if (mtrlOf.get(r.rowNo) != null) continue;
     const keys = new Map<string, string>();
-    const e = r.fields.barcode ? normEan(r.fields.barcode) : null;
-    if (e) keys.set(`e:${e}`, `Το EAN ${e}`);
+    const e = gtin14(r.fields.barcode); // GTIN-14: «012345678905» = «0012345678905»
+    if (e) keys.set(`e:${e}`, `Το EAN ${normEan(r.fields.barcode!)}`);
     for (const c of [r.fields.code, r.fields.factoryCode]) { const k = (c ?? "").trim().toLowerCase(); if (k && !keys.has(`c:${k}`)) keys.set(`c:${k}`, `Ο κωδικός «${c!.trim()}»`); }
     for (const [k, label] of keys) { const g = groups.get(k) ?? { label, rows: [] }; g.rows.push(r.rowNo); groups.set(k, g); }
   }
@@ -124,4 +126,39 @@ export function sectionTitle(r: ForeignRow): boolean {
   if (!t(r.fields.code) && !t(r.fields.factoryCode) && !t(r.fields.barcode)) return true;
   const texts = [...Object.values(r.fields), ...Object.values(r.specs), r.cost, r.rrp, ...r.media.image, ...r.media.banner, ...r.media.video].map(t).filter(Boolean);
   return new Set(texts).size <= 1;
+}
+
+/** Σημείωση στις γραμμές με τιμή όταν η εγγραφή τιμής web (S1_WEB_PRICE_WRITE) είναι κλειστή. */
+export const PRICE_OFF_NOTE = "Η τιμή δεν θα γραφτεί — η εγγραφή τιμής δεν έχει ενεργοποιηθεί.";
+
+const words = (s: string) => new Set(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ς/g, "σ").split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3));
+
+/** Το όνομα του αρχείου και το δικό μας δεν έχουν ΚΑΜΙΑ κοινή λέξη ≥3 χαρακτήρων (χωρίς τόνους/πεζά) → μάλλον λάθος ταίριασμα. Χωρίς τέτοιες λέξεις δεν κρίνεται. */
+export function namesDiffer(ours: string, file: string): boolean {
+  const a = words(ours ?? ""), b = words(file ?? "");
+  if (!a.size || !b.size) return false;
+  for (const w of a) if (b.has(w)) return false;
+  return true;
+}
+
+export const ALREADY_PENDING = "Υπάρχει ήδη στη λίστα «Νέα είδη»";
+
+/**
+ * Νέες γραμμές που υπάρχουν ΗΔΗ ανοιχτές (pending / error / creating) στα «Νέα είδη» από άλλη εισαγωγή ή γραμμή: ίδιος
+ * κωδικός (πεζά/κεφαλαία) ή ίδιο EAN (GTIN-14). Η ίδια εισαγωγή + γραμμή είναι ξανα-εκτέλεση — την καλύπτει το unique.
+ */
+export function openDuplicates(jobId: string, rows: { rowNo: number; code?: string; barcode?: string }[], open: { jobId: string; rowNo: number; code: string; fields: unknown }[]): Map<number, string> {
+  const byCode = new Map<string, { jobId: string; rowNo: number }>(), byEan = new Map<string, { jobId: string; rowNo: number }>();
+  for (const p of open) {
+    const c = (p.code ?? "").trim().toLowerCase(); if (c && !byCode.has(c)) byCode.set(c, p);
+    const f = p.fields && typeof p.fields === "object" && !Array.isArray(p.fields) ? (p.fields as Record<string, unknown>) : {};
+    const e = typeof f.barcode === "string" ? gtin14(f.barcode) : null; if (e && !byEan.has(e)) byEan.set(e, p);
+  }
+  const out = new Map<number, string>();
+  for (const r of rows) {
+    const c = (r.code ?? "").trim().toLowerCase(), e = gtin14(r.barcode);
+    const hit = [c ? byCode.get(c) : undefined, e ? byEan.get(e) : undefined].find((h) => h && !(h.jobId === jobId && h.rowNo === r.rowNo));
+    if (hit) out.set(r.rowNo, `${ALREADY_PENDING} (${c && byCode.get(c) === hit ? `κωδικός ${r.code!.trim()}` : `EAN ${normEan(r.barcode!)}`}) — δεν μπήκε δεύτερη φορά.`);
+  }
+  return out;
 }

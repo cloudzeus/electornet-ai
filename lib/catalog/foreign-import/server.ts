@@ -3,11 +3,15 @@ import { db } from "@/lib/db";
 import { planImport, applyImport } from "@/lib/catalog/supplier-import";
 import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-media";
 import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } from "@/lib/catalog/supplier-sheet";
-import { itemWriteEnabled, writeWebPrice } from "@/lib/softone/item-write";
+import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
+import { syncItem } from "@/lib/softone/catalog";
+import { projectItem } from "@/lib/softone/project";
+import { OPEN } from "@/lib/catalog/foreign-import/pending-core";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
-import { toRows, resolveMatches, buildMatchIndex, normEan, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, SECTION_TITLE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
+import type { RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 
 export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
@@ -18,8 +22,8 @@ export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/pla
  * μέσω της βιβλιοθήκης, τιμή web μόνο αν λείπει· νέα είδη → PendingItem για έγκριση. Με κλειστή εγγραφή στο SoftOne τα
  * στοιχεία του ERP μένουν «σε αναμονή» και δεν γράφεται τίποτα (ούτε στο κατάστημα)· οι φωτογραφίες περνούν κανονικά.
  */
-/** writeOn = ο διακόπτης του SoftOne τη στιγμή της προεπισκόπησης (ο χρήστης ενέκρινε αυτό που είδε) */
-type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; results?: Record<number, string> };
+/** writeOn / priceOn = ο διακόπτης του SoftOne και η εγγραφή τιμής web (S1_WEB_PRICE_WRITE) τη στιγμή της προεπισκόπησης (ο χρήστης ενέκρινε αυτό που είδε) */
+type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; priceOn?: boolean; results?: Record<number, string> };
 type Ctx = { row: ForeignRow; plan: ForeignPlanRow; mtrl: number | null; groupS1Id: number | null; specs: Record<string, string>; parsed?: ParsedRow; media?: MediaRow };
 
 const SHEET = "Εισαγωγή";
@@ -41,13 +45,14 @@ async function inChunks<T, R>(values: T[], fn: (part: T[]) => Promise<R[]>): Pro
  * με αυτές, όχι με όλο το αρχείο)· οι έλεγχοι ανάμεσα σε γραμμές (ίδιο είδος, διπλά νέα) γίνονται σε ΟΛΟ το αρχείο, με το
  * αποθηκευμένο σχέδιο για τις γραμμές που δεν ξαναϋπολογίζονται.
  */
-async function compute(all: ForeignRow[], writeOn: boolean, only?: { rowNos: Set<number>; stored: ForeignPlanRow[] }): Promise<Ctx[]> {
+async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, only?: { rowNos: Set<number>; stored: ForeignPlanRow[] }): Promise<Ctx[]> {
   const foreign = only ? all.filter((r) => only.rowNos.has(r.rowNo)) : all;
   // ---- αντιστοίχιση με το SoftOne ----
   const t = (s?: string) => (s ?? "").trim();
   const mtrls = foreign.map((r) => Number(t(r.fields.mtrl))).filter((n) => Number.isInteger(n) && n > 0);
   const codes = [...new Set(foreign.flatMap((r) => [t(r.fields.code), t(r.fields.factoryCode)]).filter(Boolean))];
-  const eans = [...new Set(foreign.map((r) => (r.fields.barcode ? normEan(r.fields.barcode) : null)).filter((x): x is string => !!x))];
+  // Όλες οι μορφές που μπορεί να έχει το ίδιο EAN στο SoftOne (8/12/13/14 ψηφία) — το ευρετήριο τα ενώνει σε GTIN-14
+  const eans = [...new Set(foreign.flatMap((r) => eanVariants(r.fields.barcode)))];
   const factory = [...new Set(foreign.map((r) => t(r.fields.factoryCode)).filter(Boolean))];
   const select = { mtrl: true, code: true, name: true, barcode: true, factoryCode: true, manufacturerS1Id: true, vatS1Id: true, specGroupS1Id: true, eshopPrice: true } as const;
   const find = (where: object) => db.s1Item.findMany({ where: { missing: false, ...where }, select, orderBy: { mtrl: "asc" } });
@@ -124,6 +129,12 @@ async function compute(all: ForeignRow[], writeOn: boolean, only?: { rowNos: Set
     const it = m.mtrl != null ? itemOf.get(m.mtrl) : undefined;
     const code = t(row.fields.code) || t(row.fields.factoryCode);
     const plan: ForeignPlanRow = { rowNo: row.rowNo, title: it?.name ?? (t(row.fields.name) || code), status: "unchanged", mtrl: m.mtrl ?? undefined, code: it?.code ?? (code || undefined), changes: [], media: 0, warnings: [] };
+    if (it) {
+      // Λάθος ταίριασμα πρέπει να φαίνεται: το όνομα του αρχείου δίπλα στο δικό μας και με ποιο κλειδί βρέθηκε
+      if (t(row.fields.name)) plan.fileName = t(row.fields.name);
+      if (m.matchedBy) plan.matchedBy = m.matchedBy;
+      if (plan.fileName && namesDiffer(it.name, plan.fileName)) plan.warnings.push("Τα ονόματα δεν μοιάζουν — έλεγξε ότι είναι το σωστό είδος.");
+    }
     let problem = m.problem ?? (m.mtrl == null ? dups.get(row.rowNo) : same.get(row.rowNo)) ?? null;
     let groupS1Id: number | null;
     if (it) {
@@ -192,7 +203,9 @@ async function compute(all: ForeignRow[], writeOn: boolean, only?: { rowNos: Set
       else { c.plan.media = r.changes.length; if (!r.changes.length) c.media = undefined; }
     }
   }
-  for (const c of ctx) c.plan.status = rowStatus({ problem: !!c.plan.problem, mtrl: c.mtrl, changes: c.plan.changes.length, price: !!c.plan.price, photos: c.plan.media, writeOn });
+  // Τιμή με κλειστή εγγραφή τιμής web: φαίνεται με σημείωση, αλλά δεν μετρά ως αλλαγή (δεν θα γραφτεί)
+  for (const c of ctx) if (c.plan.price && !priceOn && !c.plan.problem) c.plan.warnings.unshift(PRICE_OFF_NOTE);
+  for (const c of ctx) c.plan.status = rowStatus({ problem: !!c.plan.problem, mtrl: c.mtrl, changes: c.plan.changes.length, price: !!c.plan.price && priceOn, photos: c.plan.media, writeOn });
   return ctx;
 }
 
@@ -208,11 +221,43 @@ export async function planForeign(
   staffId: string | null,
 ): Promise<{ jobId: string; rows: ForeignPlanRow[]; writeOn: boolean }> {
   const foreign = toRows(input.sheet, input.headerRow, input.config);
-  const writeOn = await itemWriteEnabled();
-  const rows = (await compute(foreign, writeOn)).map((c) => c.plan);
-  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn };
+  const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
+  const rows = (await compute(foreign, writeOn, priceOn)).map((c) => c.plan);
+  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn, priceOn };
   const job = await db.importJob.create({ data: { fileName: input.fileName, mappingId: input.mappingId ?? null, rows: stored as object, counts: countStatus(rows), status: "draft", createdById: staffId }, select: { id: true } });
   return { jobId: job.id, rows, writeOn };
+}
+
+/** Οι τελευταίες εισαγωγές (για «Πρόσφατες εισαγωγές» → «Νέα προεπισκόπηση»). */
+export async function recentForeignJobs(take = 10): Promise<RecentJob[]> {
+  const jobs = await db.importJob.findMany({ orderBy: { createdAt: "desc" }, take, select: { id: true, fileName: true, status: true, counts: true, createdAt: true } });
+  return jobs.map((j) => {
+    const c = (j.counts ?? {}) as Partial<Record<RowStatus, number>> & { applied?: { done?: number; waiting?: number; pending?: number; errors?: number } };
+    const n = (k: RowStatus) => (typeof c[k] === "number" ? c[k]! : 0);
+    return { id: j.id, fileName: j.fileName, status: j.status, createdAt: j.createdAt.toISOString(), counts: { update: n("update"), unchanged: n("unchanged"), new: n("new"), waiting: n("waiting"), problem: n("problem") }, applied: c.applied ?? null };
+  });
+}
+
+/**
+ * «Νέα προεπισκόπηση» μιας αποθηκευμένης εισαγωγής: ξαναϋπολογίζει ΟΛΕΣ τις γραμμές της με τον ΤΩΡΙΝΟ διακόπτη και τα
+ * τωρινά δεδομένα (π.χ. οι «Σε αναμονή» όταν άνοιξε η εγγραφή στο SoftOne) και ενημερώνει το σχέδιο, τον αποθηκευμένο διακόπτη
+ * και τους μετρητές. Το ιστορικό εκτέλεσης (results) μένει. Καμία εγγραφή εκτός από το ImportJob.
+ */
+export async function replanForeign(jobId: string): Promise<{ jobId: string; fileName: string; rows: ForeignPlanRow[]; writeOn: boolean }> {
+  const job = await db.importJob.findUnique({ where: { id: jobId } });
+  if (!job) throw new UserError("Η εισαγωγή δεν βρέθηκε.");
+  const stored = job.rows as unknown as Stored;
+  if (!stored || !Array.isArray(stored.foreign) || !Array.isArray(stored.plan)) throw new UserError("Η εισαγωγή δεν έχει αποθηκευμένες γραμμές — ανέβασε ξανά το αρχείο.");
+  // Μάρκες/κατηγορίες των γραμμών πρέπει να υπάρχουν ακόμη (αλλιώς θα κατέληγαν σε PendingItem με άκυρο id)
+  const brands = [...new Set(stored.foreign.map((r) => r.brandId).filter((x): x is string => !!x))];
+  const cats = [...new Set(stored.foreign.map((r) => r.categoryId).filter((x): x is string => !!x))];
+  const [nb, nc] = await Promise.all([brands.length ? db.brand.count({ where: { id: { in: brands } } }) : 0, cats.length ? db.category.count({ where: { id: { in: cats } } }) : 0]);
+  if (nb !== brands.length || nc !== cats.length) throw new UserError("Κάποια μάρκα ή κατηγορία της εισαγωγής δεν υπάρχει πια — ανέβασε ξανά το αρχείο.");
+  const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
+  const rows = (await compute(stored.foreign, writeOn, priceOn)).map((c) => c.plan);
+  const prev = (job.counts ?? {}) as { applied?: unknown };
+  await db.importJob.update({ where: { id: jobId }, data: { rows: { ...stored, plan: rows, writeOn, priceOn } as object, counts: { ...countStatus(rows), ...(prev.applied ? { applied: prev.applied } : {}) } as object } });
+  return { jobId, fileName: job.fileName, rows, writeOn };
 }
 
 /**
@@ -221,7 +266,7 @@ export async function planForeign(
  * ενημερώθηκαν χωρίς σφάλμα· waiting = υπάρχοντα με στοιχεία/τιμή για το SoftOne που περιμένουν να ανοίξει η εγγραφή (οι
  * φωτογραφίες τους έχουν ήδη περάσει)· pending = νέα είδη στην αναμονή έγκρισης (ξανά-εκτέλεση δεν φτιάχνει δεύτερο PendingItem).
  */
-export async function applyForeign(jobId: string, rowNos: number[], staffId: string | null): Promise<{ done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[] }> {
+export async function applyForeign(jobId: string, rowNos: number[], staffId: string | null): Promise<{ done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[]; notes: { rowNo: number; note: string }[] }> {
   const job = await db.importJob.findUnique({ where: { id: jobId } });
   if (!job) throw new UserError("Η εισαγωγή δεν βρέθηκε.");
   const stored = job.rows as unknown as Stored;
@@ -229,8 +274,11 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   const writeOn = await itemWriteEnabled();
   // Η προεπισκόπηση έδειξε «θα γραφτεί στο SoftOne» ή «σε αναμονή»· αν ο διακόπτης άλλαξε από τότε, δεν εκτελείται τίποτα
   if (stored.writeOn !== writeOn) throw new UserError("Ο διακόπτης του SoftOne άλλαξε από την προεπισκόπηση — ξανακάνε προεπισκόπηση.");
+  // Το ίδιο για την εγγραφή τιμής web (παλιές εισαγωγές χωρίς priceOn: ισχύει ο τωρινός)
+  const priceOn = webPriceWriteEnabled();
+  if (stored.priceOn !== undefined && stored.priceOn !== priceOn) throw new UserError("Η εγγραφή τιμής web άλλαξε από την προεπισκόπηση — ξανακάνε προεπισκόπηση.");
   const want = new Set(rowNos);
-  const ctx = await compute(stored.foreign, writeOn, { rowNos: want, stored: stored.plan });
+  const ctx = await compute(stored.foreign, writeOn, priceOn, { rowNos: want, stored: stored.plan });
   const errors: { rowNo: number; error: string }[] = [];
   for (const n of want) if (!ctx.some((c) => c.row.rowNo === n)) errors.push({ rowNo: n, error: "Η γραμμή δεν υπάρχει στην εισαγωγή." });
   const results: Record<number, string> = { ...(stored.results ?? {}) };
@@ -239,6 +287,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   const sel = ctx.filter((c) => !changed.has(c.row.rowNo));
   const rowErr = new Map<number, string[]>();
   const fail = (rowNo: number, msg: string) => rowErr.set(rowNo, [...(rowErr.get(rowNo) ?? []), msg]);
+  const notes: { rowNo: number; note: string }[] = [];
 
   const existing = sel.filter((c) => c.mtrl != null && !c.plan.problem);
   if (writeOn) {
@@ -247,10 +296,14 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
       const res = await applyImport({ meta: null, rows: withChanges.map((c) => c.parsed!), warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: true }, withChanges.map((c) => keyOf(c.row.rowNo)));
       for (const r of res) if (!r.ok) fail(Number(r.key.split("#")[1]), r.message);
     }
-    // Τιμή μόνο αν τα στοιχεία της γραμμής πέρασαν — όχι μισοεκτελεσμένη γραμμή
-    for (const c of existing.filter((x) => x.plan.price && !rowErr.has(x.row.rowNo))) {
+    // Τιμή μόνο αν τα στοιχεία της γραμμής πέρασαν — όχι μισοεκτελεσμένη γραμμή. Με κλειστή εγγραφή τιμής web: παραλείπεται
+    // (η προεπισκόπηση το έδειξε με σημείωση), όχι σφάλμα.
+    for (const c of priceOn ? existing.filter((x) => x.plan.price && !rowErr.has(x.row.rowNo)) : []) {
       const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { onlyIfBlank: true });
-      if (!w.ok) fail(c.row.rowNo, `Τιμή web: ${w.error ?? "δεν γράφτηκε."}`);
+      if (!w.ok) { fail(c.row.rowNo, `Τιμή web: ${w.error ?? "δεν γράφτηκε."}`); continue; }
+      // Όπως στην έγκριση νέων ειδών: το κατάστημα και ο καθρέφτης παίρνουν αμέσως την τιμή
+      try { await syncItem(c.mtrl!, "manual"); await projectItem(c.mtrl!); }
+      catch (e) { console.error("[foreign-import/price-sync]", c.mtrl, e); notes.push({ rowNo: c.row.rowNo, note: "Η τιμή γράφτηκε στο SoftOne· το κατάστημα θα την πάρει στον επόμενο συγχρονισμό." }); }
     }
   }
   // Φωτογραφίες: τρέχουν και με το SoftOne σε αναμονή (μόνο προσθήκη, ποτέ αντικατάσταση)· όχι σε γραμμή που απέτυχε στο SoftOne
@@ -260,16 +313,21 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     for (const r of res) if (!r.ok) fail(Number(r.key.split("#")[1]), r.message);
   }
 
-  // Νέα είδη → PendingItem: μία ανάγνωση για όσα υπάρχουν ήδη και μία εισαγωγή (μοναδικό jobId+rowNo, skipDuplicates)
+  // Νέα είδη → PendingItem: μία ανάγνωση για όσα υπάρχουν ήδη και μία εισαγωγή (μοναδικό jobId+rowNo, skipDuplicates).
+  // Ίδιος κωδικός / EAN ήδη ανοιχτό στα «Νέα είδη» από άλλη εισαγωγή (π.χ. ξανά το ίδιο αρχείο) → δεν μπαίνει δεύτερο.
   const fresh = sel.filter((c) => c.plan.status === "new");
+  let already = new Map<number, string>();
   if (fresh.length) {
     const have = new Set((await db.pendingItem.findMany({ where: { jobId, rowNo: { in: fresh.map((c) => c.row.rowNo) } }, select: { rowNo: true } })).map((p) => p.rowNo));
-    const data = fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => {
+    const open = await db.pendingItem.findMany({ where: { status: { in: [...OPEN, "creating"] } }, select: { jobId: true, rowNo: true, code: true, fields: true } });
+    already = openDuplicates(jobId, fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => ({ rowNo: c.row.rowNo, code: (c.row.fields.code || c.row.fields.factoryCode || "").trim(), barcode: c.row.fields.barcode })), open);
+    const data = fresh.filter((c) => !have.has(c.row.rowNo) && !already.has(c.row.rowNo)).map((c) => {
       const r = c.row, fields = { ...r.fields };
       const e = fields.barcode ? normEan(fields.barcode) : null;
       if (e) fields.barcode = e;
       return {
-        jobId, rowNo: r.rowNo, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: c.specs, media: r.media,
+        // Χαρακτηριστικά με τις ετικέτες του χρήστη (όχι της ομάδας της προεπισκόπησης): στην έγκριση αντιστοιχίζονται στην ΤΕΛΙΚΗ ομάδα
+        jobId, rowNo: r.rowNo, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: r.specs, media: r.media,
         brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId,
         cost: r.cost ? parseMoney(r.cost) : null, rrp: r.rrp ? parseMoney(r.rrp) : null, price: c.plan.price?.price ?? null,
       };
@@ -282,7 +340,11 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     const n = c.row.rowNo;
     if (changed.has(n)) { errors.push({ rowNo: n, error: "Η αντιστοίχιση άλλαξε από τον έλεγχο — ξανακάνε έλεγχο." }); results[n] = "error"; continue; }
     if (c.plan.status === "problem") { errors.push({ rowNo: n, error: c.plan.problem ?? "Πρόβλημα στη γραμμή." }); results[n] = "error"; continue; }
-    if (c.plan.status === "new") { pending++; results[n] = "pending"; continue; }
+    if (c.plan.status === "new") {
+      const dup = already.get(n);
+      if (dup) { notes.push({ rowNo: n, note: dup }); results[n] = "already"; } else { pending++; results[n] = "pending"; }
+      continue;
+    }
     const errs = rowErr.get(n);
     if (errs) { errors.push({ rowNo: n, error: errs.join(" · ") }); results[n] = "error"; }
     else if (c.plan.status === "waiting") { waiting++; results[n] = "waiting"; }
@@ -301,5 +363,5 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     counts: { ...countStatus(plan), applied: { done: tally.done, waiting: tally.waiting, pending: tally.pending, errors: tally.error } },
     rows: { ...stored, plan, results } as object,
   } });
-  return { done, waiting, pending, errors };
+  return { done, waiting, pending, errors, notes };
 }

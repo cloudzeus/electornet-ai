@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pendingMissing, pendingRow, pendingMedia, isStaleCreating, canApprove, STALE_MIN } from "./pending-core";
+import { pendingMissing, pendingRow, pendingMedia, pendingSpecs, isStaleCreating, canApprove, STALE_MIN } from "./pending-core";
 
 const ok = { code: "ABC-1", fields: { name: "Ψυγείο" }, brandId: "b1", brandS1Id: "77", specGroupS1Id: 12, webCategoryId: "c1" };
 
@@ -65,4 +65,17 @@ test("canApprove: pending/error χωρίς MTRL, ή «creating» που κόλλ
   assert.equal(canApprove({ status: "creating", updatedAt: old, mtrl: null }, now), true);
   assert.equal(canApprove({ status: "created", updatedAt: old, mtrl: 5 }, now), false);
   assert.equal(canApprove({ status: "discarded", updatedAt: old, mtrl: null }, now), false);
+});
+
+test("I-4 pendingSpecs: ετικέτες του χρήστη → ονόματα της ΤΕΛΙΚΗΣ ομάδας· άγνωστες → προειδοποίηση", () => {
+  const raw = { "χρωμα": "Λευκό", "Ενεργειακή κλάση": "A", "Άγνωστο": "x", "Κενό": " " };
+  const r = pendingSpecs(raw, ["Χρώμα", "Ενεργειακή Κλάση *"]);
+  assert.deepEqual(r.specs, { "Χρώμα": "Λευκό", "Ενεργειακή Κλάση *": "A" });
+  assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0], /Άγνωστο/);
+  // μη αντικείμενο (παλιά/άκυρα δεδομένα) → τίποτα
+  assert.deepEqual(pendingSpecs(null, ["Χρώμα"]), { specs: {}, warnings: [] });
+  // και η γραμμή για τη μηχανή παίρνει τα ξανα-αντιστοιχισμένα
+  const row = pendingRow({ rowNo: 3, code: "A", fields: { name: "Χ" }, specs: r.specs }, "Νέα είδη", 12);
+  assert.deepEqual(row.specs, r.specs);
 });

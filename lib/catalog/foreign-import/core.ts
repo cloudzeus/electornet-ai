@@ -58,9 +58,17 @@ export function detectHeaderRow(matrix: string[][]): number {
   return best > 0 ? scores.findIndex((n) => n >= 0.8 * best) : 0;
 }
 
+/** Η προεπισκόπηση στέλνει στον browser κελιά έως τόσους χαρακτήρες (τα μεγαλύτερα κόβονται με «…»). */
+export const PREVIEW_CELL = 160;
+/**
+ * Κλειδί επικεφαλίδας: κανονικοποιημένο και ΜΟΝΟ από τους πρώτους PREVIEW_CELL−1 χαρακτήρες (χωρίς τελικό «…»), ώστε η
+ * κομμένη επικεφαλίδα της προεπισκόπησης και η πλήρης του αρχείου να δίνουν το ίδιο κλειδί/υπογραφή.
+ */
+const headKey = (h: string) => norm(txt(h).replace(/…$/, "").slice(0, PREVIEW_CELL - 1)).replace(/ /g, "");
+
 /** Υπογραφή συνόλου επικεφαλίδων — ίδια για διαφορετική σειρά, πεζά/κεφαλαία, τόνους και κενά (για να θυμόμαστε αντιστοιχίσεις). */
 export function headerSignature(headers: string[]): string {
-  return headers.map((h) => norm(txt(h)).replace(/ /g, "")).filter(Boolean).sort().join("|");
+  return headers.map(headKey).filter(Boolean).sort().join("|");
 }
 
 // ---------- Αποθηκευμένες αντιστοιχίσεις ----------
@@ -76,7 +84,7 @@ const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId
 function headerKeys(headers: string[]): (string | null)[] {
   const seen = new Map<string, number>();
   return headers.map((h) => {
-    const k = norm(txt(h)).replace(/ /g, "");
+    const k = headKey(h);
     if (!k) return null;
     const n = (seen.get(k) ?? 0) + 1;
     seen.set(k, n);
@@ -101,13 +109,16 @@ export function configForHeaders(saved: SavedConfig, headers: string[]): Mapping
 
 // ---------- CSV ----------
 
-/** Διαχωριστής CSV: το συχνότερο από ; , tab στην πρώτη μη κενή γραμμή (εκτός εισαγωγικών)· ισοπαλία/τίποτα → κόμμα. */
+/** Διαχωριστής CSV: το συχνότερο από ; , tab στις πρώτες 10 μη κενές γραμμές (εκτός εισαγωγικών — ένας τίτλος με κόμμα στην αρχή δεν μετρά)· ισοπαλία/τίποτα → κόμμα. */
 export function detectDelimiter(text: string): string {
   const t = text.replace(/^\uFEFF/, "");
-  const line = t.split(/\r?\n/).find((l) => l.trim()) ?? "";
   const n: Record<string, number> = { ";": 0, ",": 0, "\t": 0 };
-  let q = false;
-  for (const ch of line) { if (ch === '"') q = !q; else if (!q && ch in n) n[ch]++; }
+  let q = false, lines = 0, filled = false;
+  for (const ch of t) {
+    if (ch === '"') { q = !q; filled = true; }
+    else if (!q && (ch === "\n" || ch === "\r")) { if (filled && ++lines >= 10) break; filled = false; }
+    else { if (!q && ch in n) n[ch]++; if (ch.trim()) filled = true; }
+  }
   return n[";"] > n[","] && n[";"] >= n["\t"] ? ";" : n["\t"] > n[","] ? "\t" : ",";
 }
 
@@ -158,6 +169,8 @@ export function suggestTarget(header: string): Target {
   if (!h) return { kind: "ignore" };
   const words = h.split(/[^a-zα-ω0-9]+/).filter(Boolean);
   const has = (...ws: string[]) => ws.some((w) => words.includes(w));
+  // Προτεινόμενη λιανική ΠΡΙΝ από τον κανόνα του ΦΠΑ: «Λιανική με ΦΠΑ», «ΤΛΤ», «Retail price» είναι ΤΛΤ, όχι στήλη για αγνόηση
+  if (has("rrp", "msrp", "pvp", "retail", "τλτ") || h.includes("λιανικ")) return { kind: "rrp" };
   if (has("vat", "φπα")) return { kind: "ignore" }; // «Κατηγορία ΦΠΑ» δεν είναι κατηγορία προϊόντος
   if ((has("supplier", "vendor") || h.includes("προμηθευτ")) && (has("code", "sku", "κωδ", "κωδικος") || h.includes("κωδικ"))) return { kind: "ignore" }; // ο κωδικός του προμηθευτή δεν είναι δικός μας
   if (has("model") && has("name", "title")) return { kind: "field", key: "name" };
@@ -170,9 +183,19 @@ export function suggestTarget(header: string): Target {
 
 // ---------- EAN ----------
 
-const EAN_LEN = new Set([8, 12, 13, 14]);
+/** Ψηφίο ελέγχου GS1 (EAN-8/UPC-A/EAN-13/GTIN-14): ίδιος υπολογισμός για κάθε μήκος — τα αριστερά μηδενικά δεν τον αλλάζουν. */
+export function gs1Valid(d: string): boolean {
+  if (!/^\d{2,}$/.test(d)) return false;
+  let sum = 0;
+  for (let i = d.length - 2, w = 3; i >= 0; i--, w = 4 - w) sum += Number(d[i]) * w;
+  return (10 - (sum % 10)) % 10 === Number(d[d.length - 1]);
+}
 
-/** Έγκυρο EAN/UPC/GTIN ως ψηφία ή null. Η επιστημονική μορφή (Excel) δεχόμαστε μόνο όταν δεν έχουν χαθεί ψηφία. */
+/**
+ * Έγκυρο EAN/UPC/GTIN ως ψηφία ή null (λάθος ψηφίο ελέγχου = άκυρο). Η επιστημονική μορφή (Excel) δεχόμαστε μόνο όταν δεν
+ * έχουν χαθεί ψηφία. 9–11 ψηφία = EAN-13/UPC-A που το Excel έχασε τα αριστερά μηδενικά → συμπληρώνεται σε 13.
+ * Η μορφή που επιστρέφεται είναι αυτή που γράφεται· για σύγκριση/αναζήτηση χρησιμοποίησε το `gtin14`.
+ */
 export function normEan(v: string): string | null {
   const s = txt(v).replace(/\s+/g, "");
   let d: string | null = null;
@@ -183,7 +206,38 @@ export function normEan(v: string): string | null {
     if (frac.length !== Number(m[3])) return null; // θα χρειαζόταν συμπλήρωση με μηδενικά = χαμένα ψηφία
     d = m[1] + frac;
   }
-  return d && EAN_LEN.has(d.length) ? d : null;
+  if (!d || d.length < 8 || d.length > 14 || /^0+$/.test(d) || !gs1Valid(d)) return null;
+  return d.length >= 9 && d.length <= 11 ? d.padStart(13, "0") : d;
+}
+
+/** Κλειδί σύγκρισης EAN: GTIN-14 (αριστερά μηδενικά ως τα 14) — «012345678905», «0012345678905» και «12345678905» είναι το ίδιο. */
+export const gtin14 = (v: string | null | undefined): string | null => (v ? normEan(v)?.padStart(14, "0") ?? null : null);
+
+/** Οι μορφές με τις οποίες μπορεί να είναι γραμμένο το ίδιο EAN στο SoftOne (8/12/13/14 ψηφία) — για αναζήτηση με `in`. */
+export function eanVariants(v: string | null | undefined): string[] {
+  const g = gtin14(v);
+  if (!g) return [];
+  const s = g.replace(/^0+/, "");
+  return [8, 12, 13, 14].filter((n) => n >= s.length).map((n) => s.padStart(n, "0"));
+}
+
+/** Ίδιο barcode: ίδιο GTIN-14 όταν και τα δύο είναι έγκυρα EAN, αλλιώς ίδιο κείμενο (trim). */
+export const sameEan = (a: string | null | undefined, b: string | null | undefined) => {
+  const ga = gtin14(a), gb = gtin14(b);
+  return ga && gb ? ga === gb : !!a && (a ?? "").trim() === (b ?? "").trim();
+};
+
+/**
+ * Κελί xlsx που είναι αριθμός (ή τύπος με αριθμητικό αποτέλεσμα) → κείμενο που δεν διαβάζεται λάθος από το parseMoney:
+ * ο αριθμός 1.234 (ένα κόμμα διακόσια…) θα έβγαινε «1.234» = χίλια διακόσια τριάντα τέσσερα στον κανόνα χιλιάδων. Γι' αυτό
+ * μόνο όταν το String() μοιάζει με «χιλιάδες» (1–3 ψηφία, τελεία, ακριβώς 3 ψηφία) προστίθεται ένα «0» — ίδια αριθμητική τιμή.
+ * Ακέραιοι (π.χ. EAN) μένουν ως έχουν. Κείμενο → null (το χειρίζεται το cellText).
+ */
+export function numCell(v: unknown): string | null {
+  const n = typeof v === "number" ? v : v && typeof v === "object" && "result" in v && typeof (v as { result: unknown }).result === "number" ? (v as { result: number }).result : null;
+  if (n == null || !Number.isFinite(n)) return null;
+  const s = String(n);
+  return /^-?\d{1,3}\.\d{3}$/.test(s) ? `${s}0` : s;
 }
 
 // ---------- Γραμμές ----------
@@ -209,8 +263,9 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
         case "field": if (!row.fields[t.key]) row.fields[t.key] = c; break;
         case "spec": row.specs[t.label] = c; break;
         case "media": row.media[t.type].push(...urls(c)); break;
-        case "brand": row.brandId = config.brandMap[c] ?? null; break;
-        case "category": row.categoryId = config.categoryMap[c] ?? null; break;
+        // Object.hasOwn: τιμή «constructor» / «toString» δεν είναι ιδιότητα του prototype
+        case "brand": row.brandId = Object.hasOwn(config.brandMap, c) ? config.brandMap[c] ?? null : null; break;
+        case "category": row.categoryId = Object.hasOwn(config.categoryMap, c) ? config.categoryMap[c] ?? null : null; break;
         case "cost": row.cost = c; break;
         case "rrp": row.rrp = c; break;
       }
@@ -228,7 +283,7 @@ export type MatchIndex = {
   ambiguous?: { byCode: Map<string, number[]>; byEan: Map<string, number[]>; byFactory: Map<string, number[]> };
 };
 
-/** Ευρετήριο για το resolveMatches από είδη του SoftOne (brandId = η μάρκα του site του κατασκευαστή). Κλειδί σε 2+ είδη → μόνο στο `ambiguous`. */
+/** Ευρετήριο για το resolveMatches από είδη του SoftOne (brandId = η μάρκα του site του κατασκευαστή). EAN με κλειδί GTIN-14. Κλειδί σε 2+ είδη → μόνο στο `ambiguous`. */
 export function buildMatchIndex(items: { mtrl: number; code: string; barcode: string | null; factoryCode: string | null; brandId: string | null }[]): MatchIndex {
   const all = { byCode: new Map<string, number[]>(), byEan: new Map<string, number[]>(), byFactory: new Map<string, number[]>() };
   const add = (m: Map<string, number[]>, k: string, mtrl: number) => { const l = m.get(k) ?? []; if (!l.includes(mtrl)) l.push(mtrl); m.set(k, l); };
@@ -236,7 +291,7 @@ export function buildMatchIndex(items: { mtrl: number; code: string; barcode: st
   for (const it of items) {
     byMtrl.set(it.mtrl, it.mtrl);
     const code = txt(it.code).toLowerCase(); if (code) add(all.byCode, code, it.mtrl);
-    const e = it.barcode ? normEan(it.barcode) : null; if (e) add(all.byEan, e, it.mtrl);
+    const e = gtin14(it.barcode); if (e) add(all.byEan, e, it.mtrl);
     const fc = txt(it.factoryCode).toLowerCase(); if (fc && it.brandId) add(all.byFactory, `${it.brandId}|${fc}`, it.mtrl);
   }
   const split = (m: Map<string, number[]>) => {
@@ -251,38 +306,41 @@ export function buildMatchIndex(items: { mtrl: number; code: string; barcode: st
 /**
  * Βρίσκει το είδος του SoftOne για κάθε γραμμή (MTRL → κωδικός → EAN → κωδικός κατασκευαστή + μάρκα). Αν τα κλειδιά
  * δείχνουν σε διαφορετικά είδη, ή το ίδιο είδος βγαίνει από 2+ γραμμές, επιστρέφεται πρόβλημα. Κανένα κλειδί = νέο είδος.
- * Τα κλειδιά των χαρτών είναι ήδη κανονικοποιημένα από τον καλούντα (κωδικός: πεζά/trim, EAN: ψηφία, factory: `brandId|κωδικός`).
+ * Τα κλειδιά των χαρτών είναι ήδη κανονικοποιημένα από τον καλούντα (κωδικός: πεζά/trim, EAN: GTIN-14, factory: `brandId|κωδικός`).
+ * `matchedBy`: με ποιο κλειδί βρέθηκε το είδος (μόνο όταν βρέθηκε) — για να φαίνεται στην προεπισκόπηση.
  */
-export function resolveMatches(rows: ForeignRow[], index: MatchIndex): { rowNo: number; mtrl: number | null; problem: string | null }[] {
-  const res = rows.map((row) => {
-    const hits: { key: string; mtrl: number }[] = [];
+export type MatchKind = "mtrl" | "code" | "ean" | "factory";
+export type Match = { rowNo: number; mtrl: number | null; problem: string | null; matchedBy?: MatchKind };
+export function resolveMatches(rows: ForeignRow[], index: MatchIndex): Match[] {
+  const res = rows.map((row): Match => {
+    const hits: { key: string; mtrl: number; kind: MatchKind }[] = [];
     let problem: string | null = null;
     const rawMtrl = row.fields.mtrl?.trim();
     if (rawMtrl) {
       const n = Number(rawMtrl);
       const m = Number.isInteger(n) ? index.byMtrl.get(n) : undefined;
       if (m == null) problem = `Το MTRL ${rawMtrl} δεν υπάρχει στο SoftOne`;
-      else hits.push({ key: `MTRL ${rawMtrl}`, mtrl: m });
+      else hits.push({ key: `MTRL ${rawMtrl}`, mtrl: m, kind: "mtrl" });
     }
     const amb = (m: Map<string, number[]> | undefined, k: string, label: string) => {
       const l = m?.get(k); if (l) problem ??= `${label} ανήκει σε περισσότερα από ένα είδη (MTRL ${l.join(", ")})`;
       return !!l;
     };
     const code = row.fields.code?.trim();
-    if (code && !amb(index.ambiguous?.byCode, code.toLowerCase(), `Ο κωδικός ${code}`)) { const m = index.byCode.get(code.toLowerCase()); if (m != null) hits.push({ key: `κωδικός ${code}`, mtrl: m }); }
+    if (code && !amb(index.ambiguous?.byCode, code.toLowerCase(), `Ο κωδικός ${code}`)) { const m = index.byCode.get(code.toLowerCase()); if (m != null) hits.push({ key: `κωδικός ${code}`, mtrl: m, kind: "code" }); }
     const bc = row.fields.barcode?.trim();
     if (bc) {
       const e = normEan(bc);
       if (e == null) problem ??= "Μη έγκυρο EAN";
-      else if (!amb(index.ambiguous?.byEan, e, `Το EAN ${e}`)) { const m = index.byEan.get(e); if (m != null) hits.push({ key: `EAN ${e}`, mtrl: m }); }
+      else { const g = e.padStart(14, "0"); if (!amb(index.ambiguous?.byEan, g, `Το EAN ${e}`)) { const m = index.byEan.get(g); if (m != null) hits.push({ key: `EAN ${e}`, mtrl: m, kind: "ean" }); } }
     }
     const fc = row.fields.factoryCode?.trim();
-    if (fc && row.brandId && !amb(index.ambiguous?.byFactory, `${row.brandId}|${fc.toLowerCase()}`, `Ο κωδικός κατασκευαστή ${fc}`)) { const m = index.byFactory.get(`${row.brandId}|${fc.toLowerCase()}`); if (m != null) hits.push({ key: `κωδικός κατασκευαστή ${fc}`, mtrl: m }); }
+    if (fc && row.brandId && !amb(index.ambiguous?.byFactory, `${row.brandId}|${fc.toLowerCase()}`, `Ο κωδικός κατασκευαστή ${fc}`)) { const m = index.byFactory.get(`${row.brandId}|${fc.toLowerCase()}`); if (m != null) hits.push({ key: `κωδικός κατασκευαστή ${fc}`, mtrl: m, kind: "factory" }); }
     const distinct = new Set(hits.map((h) => h.mtrl));
     if (distinct.size > 1) {
       return { rowNo: row.rowNo, mtrl: null, problem: `Τα κλειδιά δείχνουν σε διαφορετικά είδη: ${hits.map((h) => `${h.key} → ${h.mtrl}`).join(", ")}` };
     }
-    return { rowNo: row.rowNo, mtrl: hits[0]?.mtrl ?? null, problem };
+    return hits.length ? { rowNo: row.rowNo, mtrl: hits[0].mtrl, problem, matchedBy: hits[0].kind } : { rowNo: row.rowNo, mtrl: null, problem };
   });
   const perMtrl = new Map<number, number[]>();
   for (const r of res) if (r.mtrl != null) perMtrl.set(r.mtrl, [...(perMtrl.get(r.mtrl) ?? []), r.rowNo]);

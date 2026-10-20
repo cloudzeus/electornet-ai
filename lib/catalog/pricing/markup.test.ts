@@ -86,3 +86,10 @@ test("priceFrom: περιθώριο = καθαρή τιμή − κόστος (μ
   assert.equal(capped.margin, 20.97); // 150/1.24 = 120.97
   assert.equal(priceFrom({ cost: 100, percent: 0, vat: 24, rounding: "none", rrp: 100 }).margin, -19.35);
 });
+
+test("I-5 parseMoney: «0.125» είναι δεκαδικό (ποτέ χιλιάδες με ακέραιο μέρος 0)· «1.234» κείμενο = χιλιάδες", () => {
+  assert.equal(parseMoney("0.125"), 0.125);
+  assert.equal(parseMoney("0.500"), 0.5);
+  assert.equal(parseMoney("1.234"), 1234);
+  assert.equal(parseMoney("12.345.678"), 12345678);
+});

@@ -3,7 +3,11 @@ export type Rounding = "none" | "int" | "90" | "99";
 
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
-/** Τιμή από κελί Excel → αριθμός > 0 ή null. Ο ΤΕΛΕΥΤΑΙΟΣ διαχωριστής είναι το δεκαδικό· μόνο τελείες τύπου «1.234» = χιλιάδες. */
+/**
+ * Τιμή από κελί Excel → αριθμός > 0 ή null. Ο ΤΕΛΕΥΤΑΙΟΣ διαχωριστής είναι το δεκαδικό· μόνο τελείες τύπου «1.234» = χιλιάδες
+ * (κείμενο ελληνικού φύλλου) — ποτέ με ακέραιο μέρος «0» («0.125» = 0,125). Τα αριθμητικά κελιά xlsx έρχονται από το `numCell`
+ * (core.ts) σε μορφή που δεν μοιάζει με χιλιάδες (1.234 → «1.2340»).
+ */
 export function parseMoney(v: string): number | null {
   let s = String(v ?? "").replace(/[^\d.,-]/g, "");
   if (!s) return null;
@@ -14,7 +18,7 @@ export function parseMoney(v: string): number | null {
     if (dec === ",") s = s.replace(",", ".");
   } else if (comma >= 0) {
     s = s.split(".").join("").replace(",", ".");
-  } else if (dot >= 0 && /^\d{1,3}(\.\d{3})+$/.test(s)) {
+  } else if (dot >= 0 && /^\d{1,3}(\.\d{3})+$/.test(s) && !/^0\./.test(s)) {
     s = s.split(".").join("");
   }
   const n = Number(s);

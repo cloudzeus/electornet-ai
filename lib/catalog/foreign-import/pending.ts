@@ -6,8 +6,9 @@ import { applyMedia } from "@/lib/catalog/supplier-media";
 import { loadGroups } from "@/lib/catalog/supplier-sheet";
 import { syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
-import { itemWriteEnabled, itemCodeTaken, writeWebPrice } from "@/lib/softone/item-write";
-import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, isStaleCreating, canApprove, staleBefore, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
+import { itemWriteEnabled, itemCodeTaken, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
+import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
+import { UserError } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Νέα είδη από ξένο Excel σε αναμονή έγκρισης (PendingItem). Η έγκριση περνά από την ΙΔΙΑ μηχανή με το template νέων ειδών
@@ -20,7 +21,12 @@ import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, isStaleC
 const SHEET = "Νέα είδη";
 const CLOSED = "Οι αλλαγές προς το SoftOne είναι κλειστές (Ρυθμίσεις).";
 export type ApproveResult = { id: string; ok: boolean; mtrl?: number; error?: string };
-const errMsg = (e: unknown) => (e as Error)?.message || "Άγνωστο σφάλμα.";
+/** Μόνο τα δικά μας ελληνικά μηνύματα (UserError) φτάνουν στον χρήστη· τα υπόλοιπα (βάση, δίκτυο, βιβλιοθήκες) μένουν στο log. */
+const errMsg = (e: unknown) => {
+  if (e instanceof UserError) return e.message;
+  console.error("[foreign-import/pending]", e);
+  return "Απρόσμενο σφάλμα — ξαναδοκίμασε· αν επιμένει, ενημέρωσε τον διαχειριστή.";
+};
 
 export async function approvePending(ids: string[], staffId: string): Promise<ApproveResult[]> {
   const out: ApproveResult[] = [];
@@ -80,11 +86,14 @@ async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
       if (stale) { mtrl = taken; return await finish(q, staffId, taken, null, [`Βρέθηκε ήδη στο SoftOne (MTRL ${taken}) από έγκριση που είχε διακοπεί — συνδέθηκε, δεν δημιουργήθηκε δεύτερο.`], false); }
       return await fail(`Ο κωδικός ${code} υπάρχει ήδη στο SoftOne (MTRL ${taken}).`);
     }
-    if (!(await loadGroups([groupS1Id])).has(groupS1Id)) return await fail("Η ομάδα χαρακτηριστικών δεν υπάρχει πια στο SoftOne — διάλεξε άλλη.");
+    const group = (await loadGroups([groupS1Id])).get(groupS1Id);
+    if (!group) return await fail("Η ομάδα χαρακτηριστικών δεν υπάρχει πια στο SoftOne — διάλεξε άλλη.");
+    // Χαρακτηριστικά: ετικέτες του αρχείου → ονόματα της ΤΕΛΙΚΗΣ ομάδας (μπορεί να ορίστηκε/άλλαξε μετά την προεπισκόπηση)
+    const sp = pendingSpecs(q.specs, group.specs.map((d) => d.name));
 
     // ---- δημιουργία: η μηχανή του template (έλεγχοι διπλών κωδικού/barcode, αδελφό είδος, createItem, συγχρονισμός, προβολή) ----
-    const [r] = await applyImport({ meta: null, rows: [pendingRow(q, SHEET, groupS1Id)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
-    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [], true); }
+    const [r] = await applyImport({ meta: null, rows: [pendingRow({ ...q, specs: sp.specs }, SHEET, groupS1Id)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
+    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings], true); }
     // Αποτυχία — αλλά το createItem μπορεί να έγραψε και να απέτυχε μετά (επαλήθευση/συγχρονισμός): ο κωδικός το ξέρει
     const msg = r?.message || "Η γραμμή δεν εκτελέστηκε.";
     const made = await itemCodeTaken(code).catch(() => null);
@@ -107,7 +116,9 @@ async function finish(p: PendingItem, staffId: string, mtrl: number, productId: 
   if (!productId) { await syncItem(mtrl, "manual"); productId = (await projectItem(mtrl)).productId ?? null; }
 
   // ---- τιμή web (μόνο αν λείπει) και φρέσκια τιμή στο κατάστημα ----
-  if (p.price != null && p.price > 0 && (productId || priceWithoutProduct)) {
+  // Με κλειστή εγγραφή τιμής web (S1_WEB_PRICE_WRITE) δεν επιχειρείται καθόλου — σημείωση, όχι σφάλμα
+  if (p.price != null && p.price > 0 && !webPriceWriteEnabled()) notes.push(`Η τιμή web (${p.price} €) δεν γράφτηκε — η εγγραφή τιμής δεν έχει ενεργοποιηθεί· βάλ' τη στο SoftOne.`);
+  else if (p.price != null && p.price > 0 && (productId || priceWithoutProduct)) {
     const w = await writeWebPrice(mtrl, p.price, { onlyIfBlank: true });
     if (!w.ok) notes.push(`Τιμή web: ${w.error ?? "δεν γράφτηκε."}`);
     else { await syncItem(mtrl, "manual"); productId = (await projectItem(mtrl)).productId ?? productId; }

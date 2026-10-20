@@ -7,7 +7,7 @@ import { syncItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
-import { blankOnly, newSpecs, fillBlankMemo } from "@/lib/catalog/foreign-import/core";
+import { blankOnly, newSpecs, fillBlankMemo, eanVariants, sameEan } from "@/lib/catalog/foreign-import/core";
 
 /**
  * Μαζική εισαγωγή από template προμηθευτή. Δύο βήματα, και τα δύο υπολογίζονται από το ίδιο το αρχείο (τίποτα δεν
@@ -54,7 +54,8 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
   const [items, products, barcodeRows, codeRows] = await Promise.all([
     db.s1Item.findMany({ where: { mtrl: { in: mtrls } } }),
     db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, brandId: true, title: true } }),
-    db.s1Item.findMany({ where: { barcode: { in: file.rows.map((r) => r.fields.barcode).filter((x): x is string => !!x) } }, select: { mtrl: true, barcode: true } }),
+    // Και οι άλλες μορφές του ίδιου EAN (με/χωρίς αριστερά μηδενικά: 8/12/13/14 ψηφία) — σύγκριση με sameEan (GTIN-14)
+    db.s1Item.findMany({ where: { barcode: { in: [...new Set(file.rows.flatMap((r) => (r.fields.barcode ? [r.fields.barcode, ...eanVariants(r.fields.barcode)] : [])))] } }, select: { mtrl: true, barcode: true } }),
     db.s1Item.findMany({ where: { code: { in: file.rows.flatMap((r) => [r.fields.code, r.fields.factoryCode]).filter((x): x is string => !!x) } }, select: { mtrl: true, code: true } }),
   ]);
   const itemOf = new Map(items.map((i) => [i.mtrl, i]));
@@ -89,7 +90,8 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
       if (brand && p && p.brandId !== brand.id) out.warnings.push("Το προϊόν ανήκει σε άλλη μάρκα από το αρχείο.");
       if (it.specGroupS1Id !== g.s1Id) out.warnings.push("Το είδος είναι σε άλλη κατηγορία στο SoftOne — η κατηγορία δεν αλλάζει από εδώ.");
       if (r.fields.code && r.fields.code !== it.code) out.warnings.push(`Ο κωδικός δεν αλλάζει από εδώ (μένει ${it.code}).`);
-      if (barcodeNew && barcodeRows.some((b) => b.barcode === r.fields.barcode && b.mtrl !== mtrl)) out.errors.push(`Το barcode ${r.fields.barcode} ανήκει σε άλλο είδος (MTRL ${barcodeRows.find((b) => b.barcode === r.fields.barcode && b.mtrl !== mtrl)!.mtrl}).`);
+      const other = barcodeNew ? barcodeRows.find((b) => sameEan(b.barcode, r.fields.barcode) && b.mtrl !== mtrl) : undefined;
+      if (other) out.errors.push(`Το barcode ${r.fields.barcode} ανήκει σε άλλο είδος (MTRL ${other.mtrl}).`);
       const cur = itemValues(it, g);
       // «Μόνο κενά»: πεδία μόνο αν είναι κενά στο είδος· χαρακτηριστικά μόνο αν η ετικέτα λείπει από την αναλυτική περιγραφή
       // (ίδια ανάγνωση γραμμών με το composeMemo, άρα αυτό μόνο προσθέτει γραμμές) και δεν έχουν ήδη τιμή
@@ -131,7 +133,7 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
       const dup = codeRows.find((c) => c.code.toLowerCase() === code.toLowerCase());
       if (dup) out.errors.push(`Ο κωδικός «${code}» υπάρχει ήδη στο SoftOne (MTRL ${dup.mtrl}).`);
     }
-    const dupB = r.fields.barcode ? barcodeRows.find((b) => b.barcode === r.fields.barcode) : undefined;
+    const dupB = r.fields.barcode ? barcodeRows.find((b) => sameEan(b.barcode, r.fields.barcode)) : undefined;
     if (dupB) out.errors.push(`Το barcode ${r.fields.barcode} υπάρχει ήδη (MTRL ${dupB.mtrl}) — για αλλαγές σε υπάρχον προϊόν χρησιμοποίησε το αρχείο «Υπάρχοντα».`);
     for (const k of EDITABLE) { const v = normField(k, r.fields[k]); if (v) { out.fieldTo[k] = v; out.changes.push({ label: LABEL[k], from: "—", to: short(v) }); } }
     for (const d of g.specs) { const v = (r.specs[d.name] ?? "").trim(); if (v) { out.specTo.push({ label: d.name, value: v }); out.changes.push({ label: d.name, from: "—", to: v }); } }

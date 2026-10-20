@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import iconv from "iconv-lite";
 import { db } from "@/lib/db";
 import { cellText } from "@/lib/catalog/supplier-sheet";
-import { configToSaved, headerSignature, parseCsv, UserError, type MappingConfig, type SavedConfig } from "@/lib/catalog/foreign-import/core";
+import { configToSaved, headerSignature, parseCsv, numCell, UserError, type MappingConfig, type SavedConfig } from "@/lib/catalog/foreign-import/core";
 
 export { UserError };
 
@@ -33,7 +33,8 @@ async function readXlsx(buf: ArrayBuffer): Promise<Sheet[]> {
     const matrix: string[][] = [];
     ws.eachRow({ includeEmpty: false }, (row, rowNo) => {
       const cells: string[] = [];
-      row.eachCell({ includeEmpty: false }, (cell, col) => { const t = cellText(cell.value); if (t) { while (cells.length < col - 1) cells.push(""); cells[col - 1] = t; } });
+      // Αριθμητικά κελιά μέσω numCell: ο αριθμός 1.234 δεν πρέπει να διαβαστεί ως «χίλια διακόσια…» από το parseMoney
+      row.eachCell({ includeEmpty: false }, (cell, col) => { const t = numCell(cell.value) ?? cellText(cell.value); if (t) { while (cells.length < col - 1) cells.push(""); cells[col - 1] = t; } });
       if (!cells.length) return;
       while (matrix.length < rowNo - 1) matrix.push([]); // κενές γραμμές ανάμεσα → [] ώστε index = γραμμή Excel − 1
       matrix[rowNo - 1] = cells;

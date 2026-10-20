@@ -3,7 +3,8 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
 import { findMapping } from "@/lib/catalog/foreign-import/read";
-import { applyForeign } from "@/lib/catalog/foreign-import/server";
+import { applyForeign, replanForeign, type ForeignPlanRow } from "@/lib/catalog/foreign-import/server";
+import { ensureFreshSpecGroups } from "@/lib/catalog/supplier-sheet";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 import { UserError, type SavedConfig } from "@/lib/catalog/foreign-import/core";
@@ -18,7 +19,27 @@ export async function lookupMapping(headers: string[]): Promise<SavedMappingRef 
   return m ? { id: m.id, name: m.name, config: m.config as SavedConfig } : null;
 }
 
-export type RunResult = { done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[] } | { error: string };
+export type RunResult = { done: number; waiting: number; pending: number; errors: { rowNo: number; error: string }[]; notes: { rowNo: number; note: string }[] } | { error: string };
+
+export type ReplanResult = { jobId: string; fileName: string; rows: ForeignPlanRow[]; writeOn: boolean } | { error: string };
+
+/**
+ * «Νέα προεπισκόπηση» μιας εισαγωγής από τις «Πρόσφατες εισαγωγές»: ξαναϋπολογίζει όλες τις γραμμές της με τον τωρινό
+ * διακόπτη του SoftOne (π.χ. όταν άνοιξε, για τις γραμμές «Σε αναμονή») και ανοίγει το βήμα της προεπισκόπησης. Καμία εγγραφή.
+ */
+export async function replanJob(jobId: string): Promise<ReplanResult> {
+  const user = await requirePermission("catalog.products.write");
+  try {
+    await ensureFreshSpecGroups();
+    const res = await replanForeign(String(jobId));
+    await audit(user.id, "catalog.foreign-import.replan", "ImportJob", res.jobId, null, { rows: res.rows.length, writeOn: res.writeOn });
+    return res;
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message };
+    console.error("[foreign-import/replan]", e);
+    return { error: "Κάτι πήγε στραβά στη νέα προεπισκόπηση." };
+  }
+}
 
 /**
  * Εκτέλεση μίας παρτίδας (έως 50 γραμμές) της προεπισκόπησης. Όπως στην εισαγωγή template: όταν η εγγραφή στο SoftOne

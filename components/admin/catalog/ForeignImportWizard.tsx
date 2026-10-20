@@ -2,16 +2,19 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookmarkCheck, Check, CircleAlert, Clock, FileSpreadsheet, Images, Loader2, Play, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookmarkCheck, Check, CircleAlert, Clock, FileSpreadsheet, History, Images, Loader2, Play, RefreshCw, Upload } from "lucide-react";
 import { suggestTarget, configForHeaders, type MappingConfig, type Target } from "@/lib/catalog/foreign-import/core";
-import { encodeTarget, decodeTarget, valuesAfter, autoMatch, PREVIEW_ROWS, type InspectSheet, type SavedMappingRef } from "@/lib/catalog/foreign-import/ui-core";
+import { encodeTarget, decodeTarget, valuesAfter, autoMatch, PREVIEW_ROWS, type InspectSheet, type SavedMappingRef, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 import type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
-import { lookupMapping, runForeignBatch } from "@/app/admin/(shell)/catalog/templates/import/actions";
+import type { MatchKind } from "@/lib/catalog/foreign-import/core";
+import { lookupMapping, runForeignBatch, replanJob } from "@/app/admin/(shell)/catalog/templates/import/actions";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
 
 type Brand = { id: string; name: string; s1: boolean };
 type Category = { id: string; name: string; path: string };
-type Plan = { jobId: string; rows: ForeignPlanRow[]; writeOn: boolean };
+/** reopened = όνομα αρχείου όταν η προεπισκόπηση άνοιξε από τις «Πρόσφατες εισαγωγές» (χωρίς αρχείο στον browser) */
+type Plan = { jobId: string; rows: ForeignPlanRow[]; writeOn: boolean; reopened?: string };
 type Step = 1 | 2 | 3 | 4;
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -70,12 +73,16 @@ const STATUS: Record<RowStatus, { label: string; cls: string }> = {
 const STATUS_ORDER: RowStatus[] = ["update", "new", "waiting", "unchanged", "problem"];
 // Τι σημαίνει μια γραμμή που εκτελέστηκε χωρίς σφάλμα, ανά κατάσταση (ίδια λογική με το applyForeign)
 const DONE_TEXT: Record<RowStatus, string> = {
-  update: "Έγινε.", new: "Μπήκε στη λίστα «Νέα είδη» για έγκριση.", waiting: "Σε αναμονή: τα στοιχεία θα γραφτούν όταν ανοίξουν οι αλλαγές προς το SoftOne (οι φωτογραφίες πέρασαν).",
+  update: "Έγινε.", new: "Μπήκε στη λίστα «Νέα είδη» για έγκριση.", waiting: "Σε αναμονή (οι φωτογραφίες πέρασαν): όταν ανοίξουν οι αλλαγές προς το SoftOne, πάτα «Νέα προεπισκόπηση» σε αυτή την εισαγωγή από τις «Πρόσφατες εισαγωγές» και εκτέλεσε ξανά.",
   unchanged: "Τίποτα να γίνει.", problem: "",
 };
+const MATCHED_BY: Record<MatchKind, string> = { mtrl: "MTRL", code: "κωδικό", ean: "EAN", factory: "κωδ. κατασκευαστή" };
+const JOB_STATUS: Record<string, string> = { draft: "Προεπισκόπηση", partial: "Μερικώς", applied: "Εκτελέστηκε" };
+const when = new Intl.DateTimeFormat("el-GR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Athens" }); // ίδια ώρα σε server και browser (hydration)
 
 /** Οδηγός εισαγωγής από ξένο Excel: 1 αρχείο · 2 στήλες · 3 τιμές μάρκας/κατηγορίας · 4 προεπισκόπηση & εκτέλεση. */
-export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { brands: Brand[]; categories: Category[]; writeOn: boolean; canSync: boolean }) {
+export function ForeignImportWizard({ brands, categories, writeOn, canSync, recent }: { brands: Brand[]; categories: Category[]; writeOn: boolean; canSync: boolean; recent: RecentJob[] }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<InspectSheet[] | null>(null);
@@ -90,7 +97,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
   const [saveAs, setSaveAs] = useState("");
   const [brandMap, setBrandMap] = useState<Record<string, string | null>>({});
   const [categoryMap, setCategoryMap] = useState<Record<string, string | null>>({});
-  const [busy, setBusy] = useState<"inspect" | "plan" | null>(null);
+  const [busy, setBusy] = useState<"inspect" | "plan" | `replan:${string}` | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const lookupSeq = useRef(0);
@@ -187,9 +194,22 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
     } catch (e) { setErr((e as Error).message); } finally { setBusy(null); }
   };
 
+  /** «Νέα προεπισκόπηση» μιας αποθηκευμένης εισαγωγής: ξαναϋπολογίζεται με τον τωρινό διακόπτη και ανοίγει το βήμα 4 (χωρίς αρχείο). */
+  const reopen = async (job: RecentJob) => {
+    setBusy(`replan:${job.id}`); setErr(null);
+    try {
+      const r = await replanJob(job.id);
+      if ("error" in r) throw new Error(r.error);
+      setFile(null); setSheets(null); setSaveAs("");
+      setPlan({ jobId: r.jobId, rows: r.rows, writeOn: r.writeOn, reopened: r.fileName });
+      setStep(4);
+      router.refresh(); // οι μετρητές της λίστας
+    } catch (e) { setErr((e as Error).message || "Η νέα προεπισκόπηση απέτυχε."); } finally { setBusy(null); }
+  };
+
   // Στο βήμα 3 μπαίνεις μόνο μέσω goValues (αυτόματη προεπιλογή) και μόνο με έγκυρες στήλες· το 4 θέλει προεπισκόπηση
   const colsOk = mapped > 0 && !specMissing;
-  const can = (s: Step) => s === 1 || (!!sheet && (s === 2 || (colsOk && (s === 3 || !!plan))));
+  const can = (s: Step) => s === 1 || (s === 4 && !!plan?.reopened) || (!!sheet && (s === 2 || (colsOk && (s === 3 || !!plan))));
   const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμές"], [4, "Προεπισκόπηση"]];
 
   return (
@@ -266,6 +286,32 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
           )}
 
           {sheet && <div className="flex flex-wrap justify-end gap-2"><button type="button" className={primary} onClick={() => setStep(2)}>Στήλες <ArrowRight className="size-4" aria-hidden /></button></div>}
+
+          {recent.length > 0 && (
+            <section data-help="foreign.recent" className={card} aria-labelledby="f-recent">
+              <div>
+                <h3 id="f-recent" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] inline-flex items-center gap-1.5"><History className="size-4 text-eu-blue" aria-hidden /> Πρόσφατες εισαγωγές</h3>
+                <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Οι τελευταίες 10. Η «Νέα προεπισκόπηση» ξαναελέγχει όλες τις γραμμές της εισαγωγής με τα τωρινά δεδομένα και τον τωρινό διακόπτη — π.χ. για τις γραμμές «Σε αναμονή» όταν ανοίξουν οι αλλαγές προς το SoftOne. Δεν χρειάζεται το αρχείο.</p>
+              </div>
+              <ul className="m-0 p-0 list-none grid gap-2">
+                {recent.map((j) => (
+                  <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-eu-line p-2 min-w-0">
+                    <span className="grid gap-0.5 min-w-0 flex-1">
+                      <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 break-all">{j.fileName}</span>
+                      <span className="flex flex-wrap items-center gap-1.5 text-eu-muted text-[length:var(--fs-12)]">
+                        <span className="tabular-nums">{when.format(new Date(j.createdAt))}</span>
+                        <span className={`${chip} bg-eu-surface text-eu-ink-2`}>{JOB_STATUS[j.status] ?? j.status}</span>
+                        {STATUS_ORDER.filter((k) => j.counts[k]).map((k) => <span key={k} className={`${chip} ${STATUS[k].cls}`}>{STATUS[k].label} {j.counts[k]}</span>)}
+                      </span>
+                    </span>
+                    <button type="button" className={secondary} disabled={!!busy} onClick={() => void reopen(j)}>
+                      {busy === `replan:${j.id}` ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέα προεπισκόπηση
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
 
@@ -365,16 +411,17 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync }: { 
         </>
       )}
 
-      {step === 4 && plan && <Preview key={plan.jobId} plan={plan} canSync={canSync} onBack={() => setStep(3)} />}
+      {step === 4 && plan && <Preview key={`${plan.jobId}:${plan.rows.length}:${plan.reopened ?? ""}`} plan={plan} canSync={canSync} backLabel={sheet ? "Τιμές" : "Αρχείο"} onBack={() => { if (sheet) setStep(3); else { setPlan(null); setStep(1); } }} />}
     </div>
   );
 }
 
 // ======================= 4. Προεπισκόπηση & εκτέλεση =======================
 
-type RowResult = { ok: boolean; text: string };
+/** note = εκτελέστηκε χωρίς σφάλμα αλλά με δικό της μήνυμα (π.χ. ήδη στη λίστα «Νέα είδη») */
+type RowResult = { ok: boolean; text: string; note?: boolean };
 
-function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBack: () => void }) {
+function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: boolean; onBack: () => void; backLabel: string }) {
   const writeOn = plan.writeOn;
   const counts = useMemo(() => {
     const c: Record<RowStatus, number> = { update: 0, unchanged: 0, new: 0, waiting: 0, problem: 0 };
@@ -383,7 +430,8 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
   }, [plan.rows]);
   const [filter, setFilter] = useState<RowStatus | "all">("all");
   const [page, setPage] = useState(0);
-  const [sel, setSel] = useState<Set<number>>(() => new Set(plan.rows.filter((r) => r.status === "update" || r.status === "new").map((r) => r.rowNo)));
+  // Προεπιλογή: ενημερώσεις, νέα ΚΑΙ «σε αναμονή» (οι φωτογραφίες τους περνούν και με κλειστό SoftOne)
+  const [sel, setSel] = useState<Set<number>>(() => new Set(plan.rows.filter((r) => r.status === "update" || r.status === "new" || r.status === "waiting").map((r) => r.rowNo)));
   const [results, setResults] = useState<Record<number, RowResult>>({});
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -396,7 +444,7 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
   const pageRows = shown.slice(cur * PAGE, cur * PAGE + PAGE);
   const statusOf = useMemo(() => new Map(plan.rows.map((r) => [r.rowNo, r.status])), [plan.rows]);
   const todo = plan.rows.filter((r) => sel.has(r.rowNo) && r.status !== "problem" && !results[r.rowNo]?.ok);
-  const pendingDone = Object.entries(results).filter(([n, r]) => r.ok && statusOf.get(Number(n)) === "new").length;
+  const pendingDone = Object.entries(results).filter(([n, r]) => r.ok && !r.note && statusOf.get(Number(n)) === "new").length;
 
   const toggle = (n: number) => setSel((s) => { const x = new Set(s); if (x.has(n)) x.delete(n); else x.add(n); return x; });
   const setMany = (rows: ForeignPlanRow[], on: boolean) => setSel((s) => { const x = new Set(s); for (const r of rows) if (r.status !== "problem") { if (on) x.add(r.rowNo); else x.delete(r.rowNo); } return x; });
@@ -415,9 +463,10 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
       try { res = await runForeignBatch(plan.jobId, part, plan.writeOn); } catch (e) { res = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
       if ("error" in res) { setErr(`${res.error} — όσα έγιναν μέχρι εδώ έμειναν· πάτα ξανά «Εκτέλεση» για τα υπόλοιπα.`); setRunning(false); return; }
       const errs = new Map(res.errors.map((e) => [e.rowNo, e.error]));
+      const notes = new Map((res.notes ?? []).map((x) => [x.rowNo, x.note]));
       setResults((prev) => {
         const next = { ...prev };
-        for (const n of part) next[n] = errs.has(n) ? { ok: false, text: errs.get(n)! } : { ok: true, text: DONE_TEXT[statusOf.get(n) ?? "unchanged"] };
+        for (const n of part) next[n] = errs.has(n) ? { ok: false, text: errs.get(n)! } : notes.has(n) ? { ok: true, text: notes.get(n)!, note: true } : { ok: true, text: DONE_TEXT[statusOf.get(n) ?? "unchanged"] };
         return next;
       });
       setProgress({ done: Math.min(i + BATCH, rows.length), total: rows.length });
@@ -429,7 +478,7 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
   return (
     <section data-help="foreign.preview" className={card} aria-labelledby="f-plan">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id="f-plan" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">4. Προεπισκόπηση</h3>
+        <h3 id="f-plan" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] min-w-0 [overflow-wrap:anywhere]">4. Προεπισκόπηση{plan.reopened ? ` · ${plan.reopened}` : ""}</h3>
         <span className="text-eu-muted text-[length:var(--fs-13)]">{plan.rows.length} γραμμές</span>
       </div>
       <p className={`m-0 flex gap-2 items-start rounded-lg px-3 py-2 text-eu-ink text-[length:var(--fs-13)] ${writeOn ? "bg-eu-chip/60" : "bg-eu-yellow/20"}`}>
@@ -473,7 +522,7 @@ function Preview({ plan, canSync, onBack }: { plan: Plan; canSync: boolean; onBa
 
       <div data-help="foreign.run" className="sticky bottom-2 z-10 grid gap-2 rounded-2xl bg-eu-navy text-white px-4 py-3 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button type="button" onClick={onBack} disabled={running} className={`${btn} border-2 border-white/60 text-white hover:bg-white/10`}><ArrowLeft className="size-4" aria-hidden /> Τιμές</button>
+          <button type="button" onClick={onBack} disabled={running} className={`${btn} border-2 border-white/60 text-white hover:bg-white/10`}><ArrowLeft className="size-4" aria-hidden /> {backLabel}</button>
           <span className="text-[length:var(--fs-14)] min-w-0" aria-live="polite">
             {progress ? `${progress.done}/${progress.total} · ${okCount} έγιναν${failCount ? ` · ${failCount} με σφάλμα` : ""}` : `${todo.length} προς εκτέλεση`}
           </span>
@@ -498,8 +547,9 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
             <span className={`${chip} ${st.cls}`}>{st.label}</span>
             <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{r.title || "—"}</span>
-            <span className="min-w-0 break-all text-eu-muted text-[length:var(--fs-12)]">γραμμή {r.rowNo}{r.mtrl ? ` · MTRL ${r.mtrl}` : ""}{r.code ? ` · ${r.code}` : ""}</span>
+            <span className="min-w-0 break-all text-eu-muted text-[length:var(--fs-12)]">γραμμή {r.rowNo}{r.mtrl ? ` · MTRL ${r.mtrl}` : ""}{r.code ? ` · ${r.code}` : ""}{r.matchedBy ? ` · ταίριαξε με: ${MATCHED_BY[r.matchedBy]}` : ""}</span>
           </div>
+          {r.fileName && r.fileName !== r.title && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">Στο αρχείο: <span className="text-eu-ink">{r.fileName}</span></p>}
           {r.problem && <p className="m-0 flex gap-1.5 items-start text-eu-red text-[length:var(--fs-13)] min-w-0 [overflow-wrap:anywhere]"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{r.problem}</span></p>}
           {r.changes.length > 0 && !problem && (
             <ul className="m-0 p-0 list-none grid gap-0.5 text-[length:var(--fs-13)]">
