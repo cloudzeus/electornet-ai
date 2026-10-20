@@ -678,6 +678,29 @@ export function renderWatchEmail(r: WatchReport, link: string | null): { subject
 export function publicChecks(checks: CheckResult[]): CheckResult[] {
   return checks.filter((c) => c.key !== "heartbeat");
 }
+/**
+ * Η γραμμή του stdout (log του Actions, δημόσιο): ΜΟΝΟ mode, status, seconds. Ποτέ email (στάλθηκε / απαιτήθηκε): θα έδειχνε
+ * αν ένα κρίσιμο του heartbeat προκάλεσε email στο light. Το ίδιο ισχύει για το artifact (publicArtifact).
+ */
+export function publicStdout(r: { mode: string; status: Severity; seconds: number }): { mode: string; status: Severity; seconds: number } {
+  return { mode: r.mode, status: r.status, seconds: r.seconds };
+}
+/** Το artifact χωρίς πεδία που προδίδουν εσωτερικές αποφάσεις (email). Παίρνει ό,τι στοιχεία δόθηκαν και αφαιρεί το `email`. */
+export function publicArtifact<T extends Record<string, unknown>>(out: T): Omit<T, "email"> {
+  const { email: _email, ...rest } = out;
+  void _email;
+  return rest;
+}
+
+/**
+ * Προαιρετική κεφαλίδα `x-watch-key` (μυστικό WATCH_HEADER_SECRET από τα GitHub Secrets) που ταιριάζει ο κανόνας WAF του
+ * Cloudflare αντί για το spoofable user agent. Στέλνεται ΜΟΝΟ στο δικό μας origin και μόνο αν το μυστικό είναι ορισμένο.
+ */
+export function watchKeyHeaders(secret: string | undefined, url: URL, siteOrigin: string): Record<string, string> {
+  const v = secret?.trim();
+  return v && siteOrigin && url.origin === siteOrigin ? { "x-watch-key": v } : {};
+}
+
 /** Η συνολική κατάσταση για stdout / artifact: η χειρότερη χωρίς το heartbeat (το email έχει την πλήρη). */
 export const publicStatus = (checks: CheckResult[]): Severity => worst(publicChecks(checks).map((c) => c.status));
 

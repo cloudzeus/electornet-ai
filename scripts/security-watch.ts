@@ -7,10 +7,10 @@
  *   npx tsx scripts/security-watch.ts --write-dns-baseline        (ξαναγράφει το security/dns-baseline.json από το τρέχον DNS)
  *
  * Env: SECURITY_WATCH_SECRET (heartbeat), MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_REGION (eu|us, προεπιλογή eu), MAILGUN_FROM,
- * SECURITY_REPORT_TO (λίστα με κόμματα). Full: email σύνοψης κάθε μέρα· light: email μόνο σε νέο κρίσιμο (23 ώρες dedupe,
+ * SECURITY_REPORT_TO (λίστα με κόμματα), WATCH_HEADER_SECRET (προαιρετικό: κεφαλίδα x-watch-key προς το δικό μας site για κανόνα WAF). Full: email σύνοψης κάθε μέρα· light: email μόνο σε νέο κρίσιμο (23 ώρες dedupe,
  * κατάσταση στο .security-watch-state.json που κρατά το cache του workflow). Έξοδος 0 και με ευρήματα· 2 αν ο φύλακας δεν
  * ολοκληρώθηκε, 1 αν το email που έπρεπε να φύγει δεν έφυγε. Το repo είναι δημόσιο (logs + artifacts δημόσια): στο stdout
- * μόνο {mode, status, seconds, email.sent} και στο artifact τα ευρήματα όσων βλέπει κάθε επισκέπτης — ΧΩΡΙΣ το heartbeat
+ * μόνο {mode, status, seconds} (ΟΧΙ email: θα έδειχνε αν ένα κρίσιμο του heartbeat έστειλε email) και στο artifact τα ευρήματα όσων βλέπει κάθε επισκέπτης — ΧΩΡΙΣ το heartbeat
  * (ούτε στη συνολική κατάσταση: publicStatus). Το heartbeat και όλες οι λεπτομέρειες μόνο στο email.
  *
  * User agents: ο φύλακας αυτοσυστήνεται (WATCH_UA, χωρίς προσωπικά στοιχεία) ΜΟΝΟ στο δικό μας site· ο light κατεβάζει τις
@@ -28,7 +28,7 @@ import { signHeartbeat } from "../lib/security/audit/heartbeat";
 import { ALLOWED_SCRIPT_HOSTS } from "../lib/security/audit/policy";
 import { worst, type CheckResult, type Finding, type Severity } from "../lib/security/audit/rules";
 import {
-  athensDay, capFinding, chunkIntegrity, emptyCheck, isChallenge, publicChecks, publicStatus, sampleFindings, variantChunks, type ChunkSeen, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts,
+  athensDay, capFinding, chunkIntegrity, emptyCheck, isChallenge, publicChecks, publicStatus, sampleFindings, variantChunks, type ChunkSeen, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts, publicArtifact, publicStdout, watchKeyHeaders,
   newCerts, OVERLAP_KEYS, parseCertSpotter, parseCrtSh, PICK, renderWatchEmail, robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict,
   updateSent, watchCheckOf, zarazProbe, zarazRefs, type ChunkFetch, type CtEntry, type Got, type Heartbeat, type WatchReport,
 } from "../lib/security/audit/watch-core";
@@ -79,7 +79,7 @@ async function get(url: URL, o: { ua?: string; referer?: string; accept?: string
   requests++;
   const res = await fetch(url, {
     redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(o.timeout ?? FETCH_MS),
-    headers: { "User-Agent": o.ua ?? (url.origin === siteOrigin ? WATCH_UA : NEUTRAL_UA), Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}), ...(o.extra ?? {}) },
+    headers: { "User-Agent": o.ua ?? (url.origin === siteOrigin ? WATCH_UA : NEUTRAL_UA), Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}), ...(o.extra ?? {}), ...watchKeyHeaders(process.env.WATCH_HEADER_SECRET, url, siteOrigin) },
   });
   return { status: res.status, headers: headersOf(res.headers), bytes: Buffer.from(await res.arrayBuffer()), url };
 }
@@ -447,14 +447,14 @@ async function main() {
   }
   if (!a.dry) await writeFile(a.state, `${JSON.stringify(state)}\n`).catch(() => undefined);
 
-  const out = {
-    watcher: VERSION, mode: a.mode, site: origin, status: pubStatus, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, email: { required: email.required, sent: email.sent }, notes,
+  const out = publicArtifact({
+    watcher: VERSION, mode: a.mode, site: origin, status: pubStatus, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, notes,
     checks: publicChecks(checks), pages: pageLog, chunks: chunkLog.map((c) => ({ path: c.path, status: c.status ?? null, sha256: c.sha256 ?? null, bytes: c.bytes ?? null, ...(c.error ? { error: c.error } : {}), ...(c.redirectTo ? { redirectTo: c.redirectTo } : {}) })),
     dns: dnsCurrent, ct: ctSource,
-  };
+  });
   await writeFile(a.out, `${JSON.stringify(out, null, 2)}\n`);
   // stdout = log του Actions, δημόσιο: μόνο η συνολική κατάσταση χωρίς το heartbeat (λεπτομέρειες στο email)
-  console.log(JSON.stringify({ mode: a.mode, status: pubStatus, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000), email: { sent: email.sent } }));
+  console.log(JSON.stringify(publicStdout({ mode: a.mode, status: pubStatus, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000) })));
   if (email.required && !email.sent && !a.dry) { console.error(`[security-watch] το email δεν στάλθηκε (${email.info})`); process.exitCode = 1; }
 }
 

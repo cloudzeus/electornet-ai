@@ -80,6 +80,8 @@ jobs:
         run: npx tsx scripts/security-watch.ts --mode=${{ steps.mode.outputs.mode }}
         env:
           SECURITY_WATCH_SECRET: ${{ secrets.SECURITY_WATCH_SECRET }}
+          # προαιρετικό: κεφαλίδα x-watch-key προς το δικό μας site, την οποία ταιριάζει ο κανόνας WAF του Cloudflare
+          WATCH_HEADER_SECRET: ${{ secrets.WATCH_HEADER_SECRET }}
           MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
           MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
           SECURITY_REPORT_TO: ${{ secrets.SECURITY_REPORT_TO }}

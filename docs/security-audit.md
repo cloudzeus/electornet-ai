@@ -95,6 +95,7 @@ Repo `cloudzeus/electornet-ai` → Settings → Secrets and variables → Action
 | `MAILGUN_API_KEY` | το API key του Mailgun (EU region) |
 | `MAILGUN_DOMAIN` | το domain αποστολής του Mailgun |
 | `SECURITY_WATCH_SECRET` | **ίδια τιμή** με το Coolify |
+| `WATCH_HEADER_SECRET` | προαιρετικά: μυστική κεφαλίδα `x-watch-key` για κανόνα WAF του Cloudflare (βλ. Cloudflare Bot Fight Mode παρακάτω) |
 | `SECURITY_REPORT_TO` | παραλήπτες, με κόμματα (π.χ. `gkozyris@i4ria.com`) |
 
 Προαιρετικά Secrets: `MAILGUN_FROM` (προεπιλογή `Euronics security watch <security-watch@<MAILGUN_DOMAIN>>`),
@@ -136,8 +137,17 @@ Repo `cloudzeus/electornet-ai` → Settings → Secrets and variables → Action
   στοιχεία) **μόνο** προς το δικό μας site (σελίδες του full, αρχεία JS, heartbeat)· crt.sh / certspotter παίρνουν ουδέτερο
   user agent.
 - **Cloudflare Bot Fight Mode** (ή άλλος έλεγχος bots) μπορεί να δίνει σελίδα challenge στις IP των GitHub runners: τότε
-  οι σχετικοί έλεγχοι του φύλακα βγαίνουν «Σφάλμα ελέγχου» (δεν ελέγχθηκε) — **όχι** κρίσιμο. Αν επιμένει, εξαίρεση του
-  user agent `euronics-security-watch/1.0` σε κανόνα WAF (Skip → Bot Fight Mode) ή τα αποτελέσματα του φύλακα θα είναι μερικά.
+  οι σχετικοί έλεγχοι του φύλακα βγαίνουν «Σφάλμα ελέγχου» (δεν ελέγχθηκε) — **όχι** κρίσιμο· το ίδιο ισχύει για HTTP 429 και
+  για σελίδες σφάλματος του Cloudflare (block page). Αν επιμένει, κανόνας WAF **Skip** (Bot Fight Mode / Super Bot Fight Mode),
+  με αυτούς τους κανόνες:
+  - **Όχι με βάση το user agent.** Το `euronics-security-watch/1.0` είναι δημόσιο (το repo είναι δημόσιο) και πλαστογραφείται
+    τετριμμένα· ένας κανόνας Skip πάνω του ανοίγει την πόρτα σε οποιονδήποτε.
+  - **Περιορισμός στις διαδρομές που χρειάζεται ο φύλακας:** `/_next/static/*` και `/api/security/heartbeat` (και μόνο
+    αυτές) στο ίδιο expression του κανόνα.
+  - **Μυστική κεφαλίδα:** βάλτε στα GitHub Secrets το `WATCH_HEADER_SECRET` (τυχαία τιμή, π.χ. `openssl rand -hex 32`)·
+    ο φύλακας το στέλνει ως κεφαλίδα `x-watch-key` **μόνο προς το δικό μας site** (ποτέ σε crt.sh / DNS / τρίτους). Ο
+    κανόνας WAF ταιριάζει `http.request.headers["x-watch-key"][0] eq "<η τιμή>"` **και** τις παραπάνω διαδρομές. Χωρίς το
+    Secret ο φύλακας δεν στέλνει τίποτα (η κεφαλίδα είναι προαιρετική). Αλλάξτε την τιμή σε Secret και WAF μαζί.
 
 Τοπικά (χωρίς email): `npx tsx scripts/security-watch.ts --mode=full --dry` (ή `--mode=light`, `--site=https://…`).
 **Τρέξτε το `--mode=full --dry` πριν δει ο ελεγκτής τις πρώτες αναφορές** και διαβάστε το `security-watch-report.json`.
@@ -173,14 +183,15 @@ git add security/dns-baseline.json && git commit -m "Ασφάλεια: νέα ε
 - Κατώφλια λογικής: κανένας ενεργός super-admin → κρίσιμο «λάθος βάση ή κλείδωμα»· 0 προϊόντα στον full → «Σφάλμα
   ελέγχου» (η εφαρμογή διαβάζει λάθος βάση).
 - Αλλαγή των παραληπτών στις Ρυθμίσεις → Ασφάλεια → κρίσιμο «Άλλαξαν οι παραλήπτες των ειδοποιήσεων ασφαλείας»· η
-  ειδοποίηση πηγαίνει **και** στους προηγούμενους παραλήπτες (από το ιστορικό ενεργειών).
+  ειδοποίηση πηγαίνει **και** στους προηγούμενους παραλήπτες (από το ιστορικό ενεργειών): όποιος αφαιρείται παίρνει ένα
+  τελευταίο email ειδοποίησης (εσκεμμένα — ώστε να μάθει ότι έπαψε να ενημερώνεται).
 - Εξωτερικός φύλακας: `npx tsx scripts/security-watch.ts --mode=full --dry` τοπικά, πριν από τα πρώτα schedules.
 
 ## 6. Συστάσεις
 
 - **Κάντε το repo private.** Τώρα είναι δημόσιο: όποιος το δει ξέρει ακριβώς τι ελέγχεται (και τι όχι), και **τα logs
   και τα artifacts των Actions ενός δημόσιου repo είναι επίσης δημόσια**. Γι' αυτό ο φύλακας γράφει στο log μόνο
-  `{mode, status, seconds, email.sent}` και το artifact κρατά μόνο όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης (χωρίς το
+  `{mode, status, seconds}` (όχι αν στάλθηκε email — θα έδειχνε αν ένα κρίσιμο του heartbeat προκάλεσε email) και το artifact κρατά μόνο όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης (χωρίς το
   heartbeat — ούτε στη συνολική κατάσταση)· οι λεπτομέρειες πάνε μόνο στο email. Στα private repos τα
   λεπτά του Actions μετρούν (ο light τρέχει 24 φορές τη μέρα, ~1′ η καθεμία) — το δωρεάν πακέτο αρκεί κατά κανόνα.
 - **Κλείστε το Cloudflare Email Obfuscation** (Scrape Shield → Email Address Obfuscation): προσθέτει δικό του script

@@ -4,7 +4,7 @@ import { sha256Hex } from "./rules";
 import {
   athensDay, chunkHashDiff, chunkIntegrity, chunkRefs, cloakingDiff, diffDns, heartbeatVerdict, newCerts, parseCertSpotter, parseCrtSh,
   robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict, watchCheckOf, zarazProbe, zarazRefs, renderWatchEmail, lightAlerts, dnsRecords,
-  variantChunks, capFinding, publicChecks, publicStatus, isChallenge, sampleFindings, emptyCheck, updateSent,
+  variantChunks, capFinding, publicChecks, publicStatus, isChallenge, sampleFindings, emptyCheck, updateSent, publicStdout, publicArtifact, watchKeyHeaders,
 } from "./watch-core";
 
 const ORIGIN = "https://euronics.dgsoft.gr";
@@ -455,4 +455,23 @@ test("scanChunk: traversal / κωδικοποίηση στη διαδρομή τ
 
 test("scanChunk: διεύθυνση μέσα σε JSON-escaped string (\\\" στο τέλος) δεν μετρά ως «\\» στη διαδρομή", () => {
   assert.deepEqual(scanChunk(`x="{\\"u\\":\\"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js\\"}"`), []);
+});
+
+test("publicStdout / publicArtifact: κανένα email (στάλθηκε / απαιτήθηκε) στο δημόσιο log και artifact", () => {
+  const line = publicStdout({ mode: "light", status: "warn", seconds: 21, ...({ email: { sent: true } } as object) } as { mode: string; status: "warn"; seconds: number });
+  assert.deepEqual(Object.keys(line).sort(), ["mode", "seconds", "status"]);
+  assert.equal(JSON.stringify(line).includes("email"), false);
+  const art = publicArtifact({ mode: "light", status: "ok", email: { required: true, sent: true }, checks: [] });
+  assert.equal("email" in art, false);
+  assert.deepEqual(Object.keys(art).sort(), ["checks", "mode", "status"]);
+});
+
+test("watchKeyHeaders: x-watch-key μόνο με ορισμένο μυστικό και μόνο προς το δικό μας origin", () => {
+  const O = "https://euronics.dgsoft.gr";
+  assert.deepEqual(watchKeyHeaders("s3cret", new URL("/_next/static/a.js", O), O), { "x-watch-key": "s3cret" });
+  assert.deepEqual(watchKeyHeaders("s3cret", new URL("https://crt.sh/?q=x"), O), {});
+  assert.deepEqual(watchKeyHeaders("s3cret", new URL("https://euronics.dgsoft.gr.evil.example/"), O), {});
+  assert.deepEqual(watchKeyHeaders(undefined, new URL("/", O), O), {});
+  assert.deepEqual(watchKeyHeaders("  ", new URL("/", O), O), {});
+  assert.deepEqual(watchKeyHeaders("s3cret", new URL("/", O), ""), {});
 });
