@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, type ForeignRow } from "./core";
+import { detectHeaderRow, suggestTarget, headerSignature, normEan, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, type ForeignRow, type Target } from "./core";
 
 test("detectHeaderRow: η επικεφαλίδα είναι η πρώτη γραμμή με ≥2 κελιά που έχει δεδομένα από κάτω", () => {
   const m = [[""], ["", ""], ["EAN", "Τιμή", "Όνομα"], ["5901234123457", "10", "Χ"]];
@@ -208,4 +208,49 @@ test("fillBlankMemo: αν ο memo έχει ήδη ελεύθερο κείμεν�
   const memo = "Ένα πλυντήριο για όλη την οικογένεια.\nΧρώμα : Μαύρο";
   assert.equal(fillBlankMemo(memo, [], "Άλλο κείμενο"), memo);
   assert.equal(fillBlankMemo(memo, [{ label: "Βάρος", value: "6" }], "Άλλο κείμενο"), `${memo}\nΒάρος : 6`);
+});
+
+// ---------- CSV ----------
+
+test("detectDelimiter: το συχνότερο από ; , tab στην πρώτη μη κενή γραμμή (εκτός εισαγωγικών)", () => {
+  assert.equal(detectDelimiter("\n\nΚωδικός;Όνομα;Τιμή\n1;Χ;2,5"), ";");
+  assert.equal(detectDelimiter("a,b,c\n1;2;3;4"), ",");
+  assert.equal(detectDelimiter("a\tb\tc"), "\t");
+  assert.equal(detectDelimiter('"a;b;c,d",e'), ","); // μέσα σε εισαγωγικά δεν μετράει
+  assert.equal(detectDelimiter("μοναδική στήλη"), ",");
+});
+
+test("parseCsv: εισαγωγικά, \"\" escape, αλλαγή γραμμής μέσα σε εισαγωγικά, BOM, CRLF", () => {
+  assert.deepEqual(parseCsv('a,b\n"x, y",2'), [["a", "b"], ["x, y", "2"]]);
+  assert.deepEqual(parseCsv('"he said ""hi""",z'), [['he said "hi"', "z"]]);
+  assert.deepEqual(parseCsv('"γραμμή1\nγραμμή2",ok\nnext,row'), [["γραμμή1\nγραμμή2", "ok"], ["next", "row"]]);
+  assert.deepEqual(parseCsv("\uFEFFΚωδικός;Όνομα\r\n1;Τηλεόραση\r\n"), [["Κωδικός", "Όνομα"], ["1", "Τηλεόραση"]]);
+  assert.deepEqual(parseCsv("a;b;;\n\n;x"), [["a", "b"], [], ["", "x"]]); // κενή γραμμή → [], ουρά κενών κομμένη, ευθυγράμμιση γραμμών
+  assert.deepEqual(parseCsv(" a ; b \n"), [["a", "b"]]);
+  assert.deepEqual(parseCsv(""), []);
+});
+
+// ---------- Αποθηκευμένες αντιστοιχίσεις ----------
+
+const T_EAN: Target = { kind: "field", key: "barcode" };
+const T_COST: Target = { kind: "cost" };
+const T_SPEC: Target = { kind: "spec", label: "Χρώμα" };
+
+test("configToSaved + configForHeaders: οι δείκτες ακολουθούν τις επικεφαλίδες όταν αλλάζει η σειρά", () => {
+  const h1 = ["EAN", "Τιμή", "Χρώμα", "Σημειώσεις"];
+  const saved = configToSaved({ columns: { 0: T_EAN, 1: T_COST, 2: T_SPEC }, brandMap: { Sony: "12" }, categoryMap: { TV: null } }, h1);
+  assert.deepEqual(Object.keys(saved.columns).sort(), ["ean", "τιμη", "χρωμα"].sort()); // κανονικοποιημένο κλειδί
+  const h2 = ["Χρώμα", "ΤΙΜΗ ", "Extra", "ean"]; // άλλη σειρά, πεζά/κεφαλαία, νέα στήλη, χωρίς «Σημειώσεις»
+  const cfg = configForHeaders(saved, h2);
+  assert.deepEqual(cfg.columns, { 0: T_SPEC, 1: T_COST, 3: T_EAN }); // «Extra» άγνωστη → δεν αντιστοιχίζεται
+  assert.deepEqual(cfg.brandMap, { Sony: "12" });
+  assert.deepEqual(cfg.categoryMap, { TV: null });
+});
+
+test("configToSaved: διπλές επικεφαλίδες ξεχωρίζουν με σειρά εμφάνισης, κενές αγνοούνται", () => {
+  const h = ["Image", "Image", "", "EAN"];
+  const saved = configToSaved({ columns: { 0: { kind: "media", type: "image" }, 1: { kind: "media", type: "banner" }, 2: T_COST, 3: T_EAN }, brandMap: {}, categoryMap: {} }, h);
+  assert.equal(Object.keys(saved.columns).length, 3);
+  const back = configForHeaders(saved, ["EAN", "Image", "Image"]);
+  assert.deepEqual(back.columns, { 0: T_EAN, 1: { kind: "media", type: "image" }, 2: { kind: "media", type: "banner" } });
 });

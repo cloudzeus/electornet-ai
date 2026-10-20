@@ -46,6 +46,73 @@ export function headerSignature(headers: string[]): string {
   return headers.map((h) => norm(txt(h)).replace(/ /g, "")).filter(Boolean).sort().join("|");
 }
 
+// ---------- Αποθηκευμένες αντιστοιχίσεις ----------
+
+export type MappingConfig = { columns: Record<number, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> };
+/** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
+export type SavedConfig = { columns: Record<string, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> };
+
+/** Κλειδί ανά στήλη: κανονικοποιημένη επικεφαλίδα (όπως στο headerSignature)· η 2η, 3η… ίδια επικεφαλίδα παίρνει «#2», «#3»· κενή → null. */
+function headerKeys(headers: string[]): (string | null)[] {
+  const seen = new Map<string, number>();
+  return headers.map((h) => {
+    const k = norm(txt(h)).replace(/ /g, "");
+    if (!k) return null;
+    const n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    return n === 1 ? k : `${k}#${n}`;
+  });
+}
+
+/** Στήλες με δείκτη → στήλες με κλειδί επικεφαλίδας (για αποθήκευση). */
+export function configToSaved(config: MappingConfig, headers: string[]): SavedConfig {
+  const keys = headerKeys(headers);
+  const columns: Record<string, Target> = {};
+  for (const [i, t] of Object.entries(config.columns)) { const k = keys[Number(i)]; if (k) columns[k] = t; }
+  return { columns, brandMap: config.brandMap, categoryMap: config.categoryMap };
+}
+
+/** Αποθηκευμένη αντιστοίχιση → δείκτες στηλών για τις επικεφαλίδες ΑΥΤΟΥ του αρχείου· άγνωστες επικεφαλίδες μένουν χωρίς στόχο. */
+export function configForHeaders(saved: SavedConfig, headers: string[]): MappingConfig {
+  const columns: Record<number, Target> = {};
+  headerKeys(headers).forEach((k, i) => { const t = k ? saved.columns[k] : undefined; if (t) columns[i] = t; });
+  return { columns, brandMap: saved.brandMap ?? {}, categoryMap: saved.categoryMap ?? {} };
+}
+
+// ---------- CSV ----------
+
+/** Διαχωριστής CSV: το συχνότερο από ; , tab στην πρώτη μη κενή γραμμή (εκτός εισαγωγικών)· ισοπαλία/τίποτα → κόμμα. */
+export function detectDelimiter(text: string): string {
+  const t = text.replace(/^\uFEFF/, "");
+  const line = t.split(/\r?\n/).find((l) => l.trim()) ?? "";
+  const n: Record<string, number> = { ";": 0, ",": 0, "\t": 0 };
+  let q = false;
+  for (const ch of line) { if (ch === '"') q = !q; else if (!q && ch in n) n[ch]++; }
+  return n[";"] > n[","] && n[";"] >= n["\t"] ? ";" : n["\t"] > n[","] ? "\t" : ",";
+}
+
+/** Μικρός parser RFC-4180: εισαγωγικά, "" ως ", αλλαγή γραμμής μέσα σε εισαγωγικά, BOM, CRLF. Κελιά trimmed, ουρά κενών κομμένη, κενή γραμμή → [] (ώστε index = γραμμή Excel − 1). */
+export function parseCsv(text: string, delimiter?: string): string[][] {
+  const src = text.replace(/^\uFEFF/, "");
+  const d = delimiter ?? detectDelimiter(src);
+  const rows: string[][] = [];
+  let row: string[] = [], cell = "", q = false, any = false;
+  const endCell = () => { row.push(cell.trim()); cell = ""; };
+  const endRow = () => { endCell(); while (row.length && !row[row.length - 1]) row.pop(); rows.push(row); row = []; any = false; };
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (q) {
+      if (ch === '"') { if (src[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"' && !cell.trim()) { q = true; cell = ""; any = true; }
+    else if (ch === d) { endCell(); any = true; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && src[i + 1] === "\n") i++; endRow(); }
+    else { cell += ch; any = true; }
+  }
+  if (any || cell || row.length) endRow(); // τελευταία γραμμή χωρίς newline
+  return rows;
+}
+
 /** Μοτίβα ανά στόχο, με σειρά: τα πιο ειδικά πρώτα. `w` = ολόκληρη λέξη (λατινικά/σύντομα), `s` = υπο-συμβολοσειρά. */
 const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
   { target: { kind: "field", key: "weightKg" }, w: ["weight"], s: ["βαρος"] }, // πριν το «net» (Net weight ≠ κόστος)
