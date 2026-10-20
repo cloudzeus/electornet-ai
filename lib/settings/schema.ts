@@ -66,8 +66,8 @@ export const DEFAULT_SECURITY_EMAILS = "gkozyris@i4ria.com";
 export const MAX_SECURITY_EMAILS = 10;
 const SEC_EMAIL = "[^\\s@,;]+@[^\\s@,;]+\\.[a-z]{2,}";
 const SECURITY_EMAILS_RULE = {
-  re: new RegExp(`^(?!(?:[^@]*@){${MAX_SECURITY_EMAILS + 1}})${SEC_EMAIL}(?:\\s*[,\\n]\\s*${SEC_EMAIL})*$`, "i"),
-  bad: `Ένα έγκυρο email ανά γραμμή ή με κόμμα, έως ${MAX_SECURITY_EMAILS}`,
+  re: new RegExp(`^(?!(?:[^@]*@){${MAX_SECURITY_EMAILS + 1}})${SEC_EMAIL}(?:\\s*[,;\\n]\\s*${SEC_EMAIL})*$`, "i"),
+  bad: `Ένα έγκυρο email ανά γραμμή ή χωρισμένα με κόμμα, έως ${MAX_SECURITY_EMAILS}`,
 };
 
 /**
@@ -458,7 +458,7 @@ export const SECTIONS: Section[] = [
       { key: "report", title: "Αναφορά ασφαλείας", help: "Ο έλεγχος τρέχει καθημερινά (μόνο αναγνώσεις) και στέλνει email με το αποτέλεσμα. Το ιστορικό φαίνεται στη σελίδα «Ασφάλεια»." },
     ],
     fields: [
-      { key: "securityReportEmails", label: "Παραλήπτες αναφοράς", type: "textarea", group: "report", placeholder: DEFAULT_SECURITY_EMAILS, rule: SECURITY_EMAILS_RULE, help: `Ένα email ανά γραμμή ή χωρισμένα με κόμμα (έως ${MAX_SECURITY_EMAILS}). Κενό = ${DEFAULT_SECURITY_EMAILS}.` },
+      { key: "securityReportEmails", label: "Παραλήπτες αναφοράς", type: "textarea", group: "report", placeholder: DEFAULT_SECURITY_EMAILS, rule: SECURITY_EMAILS_RULE, help: `Ένα email ανά γραμμή ή χωρισμένα με κόμμα ή ερωτηματικό (έως ${MAX_SECURITY_EMAILS}). Κενό = ${DEFAULT_SECURITY_EMAILS}.` },
     ],
   },
 ];

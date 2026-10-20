@@ -32,9 +32,10 @@ const SQL = [
 const cuidLike = () => "c" + randomBytes(12).toString("hex").slice(0, 24);
 
 (async () => {
-  const before = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_name IN ('SecurityReport','SecurityAlert')`);
+  const before = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('SecurityReport','SecurityAlert')`);
   for (const q of SQL) await db.$executeRawUnsafe(q);
   const changes: string[] = [];
+  if (!(await db.role.findUnique({ where: { key: "super-admin" } }))) console.warn("ΠΡΟΣΟΧΗ: δεν υπάρχει ρόλος super-admin — τα δικαιώματα δημιουργήθηκαν αλλά δεν ανατέθηκαν σε κανέναν.");
   for (const key of KEYS) {
     const def = PERMISSIONS.find((p) => p.key === key)!;
     const n = await db.$executeRawUnsafe(`INSERT INTO "Permission" ("id","key","group","description") VALUES ($1,$2,$3,$4) ON CONFLICT ("key") DO NOTHING`, cuidLike(), def.key, def.group, def.description);

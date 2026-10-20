@@ -163,13 +163,15 @@ export function SelectField({ name, label, help, value, onChange, options, requi
   );
 }
 
-export function TextAreaField({ name, label, help, value, onChange, placeholder, rows = 3 }: { name: string; label: string; help?: ReactNode; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
+export function TextAreaField({ name, label, help, value, onChange, placeholder, rule, rows = 3 }: { name: string; label: string; help?: ReactNode; value: string; onChange: (v: string) => void; placeholder?: string; rule?: Rule; rows?: number }) {
   const id = useId();
+  const c = checkValue(value, rule);
   return (
     <label className="grid gap-1 min-w-0" htmlFor={id}>
       <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{label}</span>
-      <textarea id={id} name={name} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} spellCheck={false} className={`${inputCls} py-2 font-mono text-[length:var(--fs-14)]`} />
+      <textarea id={id} name={name} rows={rows} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} spellCheck={false} aria-describedby={c ? `${id}-c` : undefined} aria-invalid={c ? !c.ok : undefined} className={`${inputCls} py-2 font-mono text-[length:var(--fs-14)]`} />
       {help && <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{help}</span>}
+      <Feedback c={c} id={`${id}-c`} />
     </label>
   );
 }

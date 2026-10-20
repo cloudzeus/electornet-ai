@@ -200,7 +200,7 @@ function FieldInput({ f, value, set, stored, ver, error, data, onSecret, onDirty
     case "select":
       return <SelectField name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} options={f.options ?? []} required={f.required} />;
     case "textarea":
-      return <TextAreaField name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} placeholder={f.placeholder} />;
+      return <TextAreaField name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} placeholder={f.placeholder} rule={f.rule} />;
     case "softone-objs":
       return (
         <div className="grid gap-1">
