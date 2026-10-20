@@ -59,8 +59,6 @@ export const PERMISSIONS: { key: string; group: PermissionGroup; description: st
   { key: "settings.read", group: "settings", description: "Προβολή ρυθμίσεων" },
   { key: "settings.write", group: "settings", description: "Ρυθμίσεις site, motion, stickers" },
   { key: "settings.integrations.write", group: "settings", description: "ERP, PSP, courier, email integrations" },
-  { key: "security.read", group: "settings", description: "Προβολή αναφορών ασφαλείας" },
-  { key: "security.run", group: "settings", description: "Εκτέλεση ελέγχου ασφαλείας" },
   { key: "staff.read", group: "staff", description: "Προβολή χρηστών" },
   { key: "staff.write", group: "staff", description: "Χρήστες: δημιουργία, ρόλοι, απενεργοποίηση" },
   { key: "staff.roles.write", group: "staff", description: "Ρόλοι και δικαιώματα" },

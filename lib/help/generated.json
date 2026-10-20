@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20T07:40:38.198Z",
+ "generatedAt": "2026-10-20T11:10:36.932Z",
  "routes": [
   {
    "route": "/admin",
@@ -250,6 +250,47 @@
     "desktop": "/api/help-shot/ar-d.jpg",
     "mobile": "/api/help-shot/ar-m.jpg"
    }
+  },
+  {
+   "route": "/admin/asfaleia",
+   "slug": "asfaleia",
+   "file": "app/admin/(shell)/asfaleia/page.tsx",
+   "title": "Ασφάλεια",
+   "doc": "Ασφάλεια (μόνο Super Admin): η κατάσταση του ημερήσιου ελέγχου ασφαλείας τώρα (τελευταίος πλήρης και ωριαίος, τελευταία επικοινωνία του εξωτερικού φύλακα), ιστορικό 90 ημερών, οι πρόσφατες αναφορές, «Τρέξε τώρα» / «Αποστολή report τώρα» και τι ελέγχεται και γιατί. Οι έλεγχοι κάνουν μόνο αναγνώσεις.",
+   "perm": "super-admin",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Ασφάλεια"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "security.today",
+    "security.watcher",
+    "security.actions",
+    "security.history",
+    "security.recent",
+    "security.explain"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/asfaleia/[id]",
+   "slug": "asfaleia.id",
+   "file": "app/admin/(shell)/asfaleia/[id]/page.tsx",
+   "title": "Αναφορά ασφαλείας",
+   "doc": "Μία αναφορά του ελέγχου ασφαλείας (μόνο Super Admin): πότε έτρεξε, κατάσταση, αν ήταν πλήρης ή μερικός, αν στάλθηκε η ειδοποίηση, και κάθε έλεγχος με τη σύνοψη, τα ευρήματα και τα τεκμήριά τους.",
+   "perm": "super-admin",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "security.report.meta",
+    "security.report.checks"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
   },
   {
    "route": "/admin/audit",
@@ -3635,6 +3676,108 @@
  ],
  "recent": [
   {
+   "hash": "a625701",
+   "date": "2026-10-20T13:54:01+03:00",
+   "text": "Ασφάλεια: φύλακας",
+   "routes": []
+  },
+  {
+   "hash": "dd70fb2",
+   "date": "2026-10-20T13:46:33+03:00",
+   "text": "Ασφάλεια: φύλακας",
+   "routes": []
+  },
+  {
+   "hash": "9ada925",
+   "date": "2026-10-20T13:33:42+03:00",
+   "text": "Ασφάλεια: εξωτερικός φύλακας (GitHub Actions)",
+   "routes": []
+  },
+  {
+   "hash": "c8e4383",
+   "date": "2026-10-20T13:09:19+03:00",
+   "text": "Ασφάλεια: ειδοποιήσεις",
+   "routes": []
+  },
+  {
+   "hash": "5b21ceb",
+   "date": "2026-10-20T13:02:54+03:00",
+   "text": "Ασφάλεια: ειδοποιήσεις",
+   "routes": []
+  },
+  {
+   "hash": "c480092",
+   "date": "2026-10-20T12:52:07+03:00",
+   "text": "Ασφάλεια: ειδοποιήσεις, cron και heartbeat του φύλακα",
+   "routes": []
+  },
+  {
+   "hash": "ff68a1d",
+   "date": "2026-10-20T12:43:06+03:00",
+   "text": "Ασφάλεια: έλεγχος site",
+   "routes": []
+  },
+  {
+   "hash": "b290609",
+   "date": "2026-10-20T12:39:02+03:00",
+   "text": "Ασφάλεια: έλεγχος site",
+   "routes": []
+  },
+  {
+   "hash": "f171f4c",
+   "date": "2026-10-20T12:35:45+03:00",
+   "text": "Ασφάλεια: έλεγχος site",
+   "routes": []
+  },
+  {
+   "hash": "01d2c8d",
+   "date": "2026-10-20T12:27:39+03:00",
+   "text": "Ασφάλεια: έλεγχοι site (όπως ο επισκέπτης), πιστοποιητικού και βιβλιοθηκών (OSV)",
+   "routes": []
+  },
+  {
+   "hash": "6bb2012",
+   "date": "2026-10-20T12:13:08+03:00",
+   "text": "Ασφάλεια: μπαλαντέρ/άγνωστα δικαιώματα critical, σύνδεσμοι data:image, κάλυψη light",
+   "routes": []
+  },
+  {
+   "hash": "e2ea10f",
+   "date": "2026-10-20T12:05:37+03:00",
+   "text": "Ασφάλεια: διορθώσεις αναθεώρησης των ελέγχων βάσης/Bunny",
+   "routes": []
+  },
+  {
+   "hash": "1c4f678",
+   "date": "2026-10-20T11:51:15+03:00",
+   "text": "Ασφάλεια: έλεγχοι βάσης και Bunny + runner του ημερήσιου ελέγχου",
+   "routes": []
+  },
+  {
+   "hash": "3782c01",
+   "date": "2026-10-20T11:23:25+03:00",
+   "text": "Ασφάλεια: /cdn-cgi/ μόνο από το δικό μας origin, αυστηρή αναγνώριση loader JSD",
+   "routes": []
+  },
+  {
+   "hash": "173a0fc",
+   "date": "2026-10-20T11:18:07+03:00",
+   "text": "Ασφάλεια: ακρίβεια κανόνων ελέγχου (διορθώσεις αναθεώρησης)",
+   "routes": []
+  },
+  {
+   "hash": "c43a21b",
+   "date": "2026-10-20T11:06:54+03:00",
+   "text": "Ασφάλεια: καθαροί κανόνες του ημερήσιου ελέγχου (policy + rules)",
+   "routes": []
+  },
+  {
+   "hash": "a60176e",
+   "date": "2026-10-20T10:40:40+03:00",
+   "text": "Βοήθεια: ανανέωση ιστορικού αλλαγών (help:gen)",
+   "routes": []
+  },
+  {
    "hash": "bfa6ed7",
    "date": "2026-10-20T10:40:33+03:00",
    "text": "Πακέτα: χωρίς @types/nodemailer (το nodemailer 10 έχει δικούς του τύπους), engines node >=22.13 για το Railpack",
@@ -3797,152 +3940,6 @@
    "date": "2026-10-20T05:24:56+03:00",
    "text": "Εισαγωγή: «μόνο κενά» για υπάρχοντα είδη και writeWebPrice",
    "routes": []
-  },
-  {
-   "hash": "43cb975",
-   "date": "2026-10-20T05:19:50+03:00",
-   "text": "Τιμές με markup: parseMoney, pickRule (μάρκα+κατηγορία > κατηγορία > μάρκα > γενικός), priceFrom με στρογγυλοποίηση (int/90/99), πλαφόν ΤΛΤ και περιθώριο",
-   "routes": []
-  },
-  {
-   "hash": "fd00600",
-   "date": "2026-10-20T05:17:46+03:00",
-   "text": "Εισαγωγή από ξένο Excel: newSpecs με την ίδια κανονικοποίηση ετικέτας με το composeMemo (ς/σ, αστερίσκος) και πιο ασφαλής suggestTarget (κωδικός μόνο από σκέτες επικεφαλίδες, προμηθευτής/ΦΠΑ -> ignore, βάρος -> weight…",
-   "routes": []
-  },
-  {
-   "hash": "86f5bb9",
-   "date": "2026-10-20T05:13:59+03:00",
-   "text": "Εισαγωγή από ξένο Excel: καθαρή λογική",
-   "routes": []
-  },
-  {
-   "hash": "b2a56bf",
-   "date": "2026-10-20T05:10:51+03:00",
-   "text": "Σχήμα: εισαγωγή προϊόντων από ξένο Excel",
-   "routes": []
-  },
-  {
-   "hash": "d479713",
-   "date": "2026-10-20T05:07:26+03:00",
-   "text": "Πλάνο: εισαγωγή προϊόντων από ξένο Excel",
-   "routes": []
-  },
-  {
-   "hash": "6eec1fd",
-   "date": "2026-10-20T05:04:00+03:00",
-   "text": "Tests: σταθερό test του swr (maxStale)",
-   "routes": []
-  },
-  {
-   "hash": "9944e25",
-   "date": "2026-10-20T05:01:41+03:00",
-   "text": "Προδιαγραφή: εισαγωγή προϊόντων από ξένο Excel",
-   "routes": []
-  },
-  {
-   "hash": "97a8fe0",
-   "date": "2026-10-19T19:26:53+03:00",
-   "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'",
-   "routes": [
-    "/admin",
-    "/admin/ar",
-    "/admin/catalog",
-    "/admin/catalog/banners",
-    "/admin/cms/slides",
-    "/admin/customers",
-    "/admin/customers/[id]",
-    "/admin/customers/[id]/consent-proof",
-    "/admin/emails",
-    "/admin/eprel",
-    "/admin/orders",
-    "/admin/orders/[number]",
-    "/admin/prosfores",
-    "/admin/prosfores/kampanies",
-    "/admin/radar"
-   ]
-  },
-  {
-   "hash": "49ddf30",
-   "date": "2026-10-19T19:12:03+03:00",
-   "text": "Αποστολές: ASAP Couriers μέσω LastMily",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/apostoles/vouchers"
-   ]
-  },
-  {
-   "hash": "3d85dfd",
-   "date": "2026-10-19T19:01:08+03:00",
-   "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily",
-   "routes": []
-  },
-  {
-   "hash": "f495de2",
-   "date": "2026-10-19T18:08:50+03:00",
-   "text": "Ασφάλεια: αυστηρότερο CSP",
-   "routes": [
-    "/admin",
-    "/admin/emails",
-    "/admin/emails/[key]",
-    "/admin/prosfores",
-    "/admin/prosfores/newsletter",
-    "/admin/prosfores/newsletter/[id]"
-   ]
-  },
-  {
-   "hash": "a88a39d",
-   "date": "2026-10-19T13:09:10+03:00",
-   "text": "Βοήθεια: screenshots της σελίδας «Newsletter προσφορών» (υπολογιστής + κινητό)",
-   "routes": []
-  },
-  {
-   "hash": "bf98a3e",
-   "date": "2026-10-19T13:09:02+03:00",
-   "text": "Email templates: η δοκιμαστική αποστολή δέχεται πολλά emails χωρισμένα με κόμμα (έως 5, έλεγχος ανά διεύθυνση)",
-   "routes": [
-    "/admin",
-    "/admin/emails"
-   ]
-  },
-  {
-   "hash": "6733f47",
-   "date": "2026-10-19T13:04:34+03:00",
-   "text": "Ασφάλεια: Content-Security-Policy με nonce σε κάθε σελίδα (proxy.ts, scripts μόνο με nonce + strict-dynamic, χωρίς unsafe-inline/unsafe-eval σε παραγωγή, πηγές μόνο https), robots.txt, X-Robots-Tag noindex στη διαχείρ…",
-   "routes": []
-  },
-  {
-   "hash": "39425fe",
-   "date": "2026-10-17T06:18:14+03:00",
-   "text": "Newsletter προσφοράς: διορθώσεις τελικής αναθεώρησης",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/newsletter",
-    "/admin/prosfores/newsletter/[id]"
-   ]
-  },
-  {
-   "hash": "9248139",
-   "date": "2026-10-17T05:55:12+03:00",
-   "text": "Newsletter προσφοράς (7/7) διόρθωση: στο κινητό η μπάρα ενεργειών του editor γίνεται μία γραμμή (κατάσταση + η επόμενη ενέργεια + «Περισσότερα» σε bottom sheet με όλες τις ενέργειες και τον λόγο κλειδώματος)",
-   "routes": []
-  },
-  {
-   "hash": "7d938f8",
-   "date": "2026-10-17T05:48:25+03:00",
-   "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια",
-   "routes": [
-    "/admin",
-    "/admin/newsletter",
-    "/admin/prosfores",
-    "/admin/prosfores/[id]",
-    "/admin/prosfores/kampanies",
-    "/admin/prosfores/kampanies/[id]",
-    "/admin/prosfores/newsletter",
-    "/admin/prosfores/newsletter/[id]"
-   ]
   }
  ],
  "helpKeys": {
@@ -3984,6 +3981,30 @@
   ],
   "vouchers.queue": [
    "app/admin/(shell)/apostoles/vouchers/page.tsx"
+  ],
+  "security.report.meta": [
+   "app/admin/(shell)/asfaleia/[id]/page.tsx"
+  ],
+  "security.report.checks": [
+   "app/admin/(shell)/asfaleia/[id]/page.tsx"
+  ],
+  "security.today": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.watcher": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.actions": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.history": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.recent": [
+   "app/admin/(shell)/asfaleia/page.tsx"
+  ],
+  "security.explain": [
+   "app/admin/(shell)/asfaleia/page.tsx"
   ],
   "product.actions": [
    "app/admin/(shell)/catalog/[id]/page.tsx"

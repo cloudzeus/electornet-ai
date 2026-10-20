@@ -147,6 +147,10 @@ const SUBJECT: Record<Severity, string> = { ok: "ΟΚ", warn: "Προειδοπ�
 const COLOR: Record<Severity, string> = { ok: "#15803d", warn: "#b45309", critical: "#b91c1c", error: "#6d28d9" };
 const MODE: Record<string, string> = { full: "πλήρης (τελευταίες 24 ώρες)", light: "ωριαίος (από τον προηγούμενο έλεγχο)" };
 const PARTIAL = "μερικός έλεγχος";
+/** Οι ίδιες ετικέτες στη σελίδα «Ασφάλεια» (ό,τι γράφει το email = ό,τι δείχνει η σελίδα). */
+export const SEVERITY_LABEL = LABEL;
+export const MODE_LABEL = MODE;
+export const PARTIAL_LABEL = PARTIAL;
 
 const badge = (s: Severity) => `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${COLOR[s]};color:#fff;font-weight:bold;font-size:12px">${LABEL[s]}</span>`;
 const partialBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:4px;border:1px solid #b45309;color:#b45309;font-size:12px">${PARTIAL}</span>`;

@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
-  RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap,
+  RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -110,6 +110,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/roles", label: "Ρόλοι & δικαιώματα", icon: ShieldCheck, perm: "staff.roles.write" },
       { href: "/admin/audit", label: "Audit log", icon: ScrollText, perm: "audit.read" },
       { href: "/admin/backups", label: "Backups βάσης", icon: DatabaseBackup, perm: "*", superOnly: true },
+      { href: "/admin/asfaleia", label: "Ασφάλεια", icon: ShieldHalf, perm: "*", superOnly: true },
     ],
   },
 ];
