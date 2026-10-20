@@ -30,6 +30,25 @@ export function coversChecks(checks: unknown, keys: string[]): boolean {
   const by = new Map(checks.filter((c) => c && typeof c === "object").map((c) => [(c as { key?: unknown }).key, c as { status?: unknown; complete?: unknown }]));
   return keys.every((k) => { const c = by.get(k); return !!c && typeof c.status === "string" && STATUSES.has(c.status) && c.complete !== false; });
 }
+/**
+ * Σημάδι «πλήρης έλεγχος του mode» μέσα στο SecurityReport.checks (στοιχείο χωρίς key/status — το αγνοούν storedChecks,
+ * coversChecks κ.λπ.). Το βάζει ο runner όταν έτρεξαν όλοι οι έλεγχοι του mode (όχι «Τρέξε τώρα» ενός ελέγχου). Έτσι το
+ * heartbeat μετρά ως πλήρες ένα report και όταν μετά το deploy προστεθεί νέος έλεγχος (χωρίς ψευδές «δεν έτρεξε σήμερα»).
+ */
+export const RUN_META = { meta: "run", allChecks: true } as const;
+export function withRunMeta<T>(results: T[], only?: string[]): (T | typeof RUN_META)[] {
+  return only ? results : [...results, RUN_META];
+}
+/**
+ * Πλήρες report: έχει το σημάδι RUN_META, ή (παλιά reports, πριν από το σημάδι) περιέχει όλους τους ελέγχους `keys`.
+ * Το ίδιο κριτήριο εφαρμόζει σε SQL το /api/security/heartbeat.
+ */
+export function isCompleteRun(checks: unknown, keys: string[]): boolean {
+  if (!Array.isArray(checks)) return false;
+  if (checks.some((c) => c && typeof c === "object" && (c as Record<string, unknown>).meta === "run" && (c as Record<string, unknown>).allChecks === true)) return true;
+  const have = new Set(checks.map((c) => (c && typeof c === "object" ? (c as { key?: unknown }).key : undefined)));
+  return keys.every((k) => have.has(k));
+}
 export const timeoutFor = (c: Pick<Check, "timeoutMs">, mode: AuditMode) => (typeof c.timeoutMs === "number" ? c.timeoutMs : c.timeoutMs[mode]);
 
 const ATHENS = new Intl.DateTimeFormat("el-GR", { timeZone: "Europe/Athens", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });

@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { worst, type CheckResult, type Severity } from "./rules";
-import { coversChecks, lightSince, runChecks, sinceFor } from "./execute";
+import { coversChecks, lightSince, runChecks, sinceFor, withRunMeta } from "./execute";
 import { CHECKS } from "./checks";
 import type { AuditMode } from "./types";
 
@@ -29,7 +29,7 @@ export async function runAudit(mode: AuditMode, opts: { only?: string[] } = {}):
   const since = mode === "full" ? sinceFor("full", now) : lightSince(await previousStart(CHECKS.filter((c) => c.modes.includes("light")).map((c) => c.key)), now);
   const results = await runChecks(checks, { mode, since, now });
   const status = worst(results.map((r) => r.status));
-  const report = await db.securityReport.create({ data: { mode, startedAt: now, finishedAt: new Date(), status, checks: results as unknown as Prisma.InputJsonValue } });
+  const report = await db.securityReport.create({ data: { mode, startedAt: now, finishedAt: new Date(), status, checks: withRunMeta(results, opts.only) as unknown as Prisma.InputJsonValue } });
   await db.securityReport.deleteMany({ where: { startedAt: { lt: new Date(now.getTime() - RETENTION_DAYS * 86_400_000) } } });
   return { reportId: report.id, status, results };
 }

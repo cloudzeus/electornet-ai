@@ -385,3 +385,23 @@ test("emptyCheck: τίποτα δεν ελέγχθηκε → error (ποτέ ok)
   assert.deepEqual(emptyCheck("αρχεία JS", 3), []);
   assert.deepEqual(sev(emptyCheck("αρχεία JS", 0)), ["error"]);
 });
+
+test("scanChunk: traversal / κωδικοποίηση στη διαδρομή του jsDelivr δεν περνά την εξαίρεση npm/three@ · npm/tesseract.js@ (μαζί με eval → critical)", () => {
+  for (const u of [
+    "https://cdn.jsdelivr.net/npm/three@x/../../gh/evil/r@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1/../threex@1/evil.js",
+    "https://cdn.jsdelivr.net/npm/tesseract.js@1/../evilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1/%2e%2e/evilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1/.%2E/evilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1/%2E%2E/evilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1\\..\\evilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1%5c..%5cevilpkg@1/a.js",
+    "https://cdn.jsdelivr.net/npm/three@1,gh/evil/r/a.js",
+  ]) assert.ok(has(scanChunk(LOADER(u)), "critical", /eval|Function/), u);
+  assert.deepEqual(scanChunk(`a="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";b="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js"`), []);
+  assert.deepEqual(scanChunk(LOADER("https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js")), []);
+});
+
+test("scanChunk: διεύθυνση μέσα σε JSON-escaped string (\\\" στο τέλος) δεν μετρά ως «\\» στη διαδρομή", () => {
+  assert.deepEqual(scanChunk(`x="{\\"u\\":\\"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js\\"}"`), []);
+});

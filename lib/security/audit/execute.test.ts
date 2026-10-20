@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runChecks, sinceFor, lightSince, coversChecks, timeoutFor, capFindings, athens, MAX_FINDINGS } from "./execute";
+import { runChecks, sinceFor, lightSince, coversChecks, timeoutFor, capFindings, athens, MAX_FINDINGS, withRunMeta, isCompleteRun, RUN_META } from "./execute";
 import type { Check, AuditCtx } from "./types";
 import type { Finding } from "./rules";
 
@@ -99,4 +99,19 @@ test("runChecks: το complete του ελέγχου αποθηκεύεται", 
   assert.equal(r.complete, false);
   const [o] = await runChecks([check("o", async () => ({ status: "ok", summary: "", findings: [] }))], ctx);
   assert.equal("complete" in o, false);
+});
+
+test("withRunMeta: ο πλήρης έλεγχος του mode σημειώνεται (meta)· χειροκίνητος ενός ελέγχου όχι", () => {
+  const results = [{ key: "staff", title: "S", status: "ok" as const, summary: "", findings: [], ms: 1 }];
+  assert.deepEqual(withRunMeta(results), [...results, RUN_META]);
+  assert.deepEqual(withRunMeta(results, ["staff"]), results);
+});
+
+test("isCompleteRun: σημειωμένο report μετρά ακόμη κι αν προστέθηκε μετά νέος έλεγχος· παλιά reports χωρίς meta με όλα τα κλειδιά", () => {
+  const rep = (keys: string[], meta = false) => [...keys.map((key) => ({ key, status: "ok" })), ...(meta ? [RUN_META] : [])];
+  assert.ok(isCompleteRun(rep(["staff", "logins"], true), ["staff", "logins", "watcher"]), "νέος έλεγχος μετά το deploy");
+  assert.ok(isCompleteRun(rep(["staff", "logins"]), ["staff", "logins"]), "παλιό report χωρίς meta");
+  assert.ok(!isCompleteRun(rep(["staff"]), ["staff", "logins"]), "χειροκίνητο ενός ελέγχου");
+  assert.ok(!isCompleteRun({ meta: "run", allChecks: true }, ["staff"]));
+  assert.ok(!isCompleteRun(null, ["staff"]));
 });

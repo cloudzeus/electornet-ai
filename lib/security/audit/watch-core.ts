@@ -205,19 +205,34 @@ const hostIn = (host: string, list: readonly string[]) => {
   const h = host.toLowerCase().replace(/\.$/, "");
   return list.some((x) => { const a = x.toLowerCase(); return h === a || h.endsWith(`.${a}`); });
 };
+/**
+ * Η διαδρομή όπως θα την ζητούσε ο browser: «\» → «/», μετά επίλυση των «.» / «..» (και των %2e) από τον parser URL.
+ * Χωρίς αυτό, «npm/three@1/../../gh/<επιτιθέμενος>/…» θα περνούσε ως «npm/three@».
+ */
+function normPath(host: string, raw: string): string {
+  const p = raw.replace(/\\/g, "/");
+  try { return new URL(`https://${host}${p}`).pathname; } catch { return p; }
+}
+/** Σημάδια παράκαμψης σε διαδρομή: «..», %2e, «\», %5c, «,» (combine του jsDelivr). */
+const SUSPECT_PATH = /\.\.|%2e|\\|%5c|,/i;
+
 /** Η διεύθυνση (host + διαδρομή) → null αν είναι γνωστή, αλλιώς το τεκμήριο: host, ή «host/τμήμα» για φιλοξενία χρηστών. */
-function unknownRef(host: string, pathPart: string): string | null {
+function unknownRef(host: string, rawPath0: string): string | null {
+  const rawPath = rawPath0.replace(/\\+$/, ""); // «\» στο τέλος = escape του εισαγωγικού (JSON μέσα σε string), όχι διαδρομή
+  const pathPart = rawPath ? normPath(host, rawPath) : "";
   const ref = `${host}${pathPart || "/"}`;
-  if (USER_CONTENT.some((re) => re.test(ref))) return `${host}/${pathPart.split("/")[1] ?? ""}`;
+  const seg = () => `${host}/${pathPart.split("/")[1] ?? ""}`;
+  if (USER_CONTENT.some((re) => re.test(ref))) return seg();
   const k = known();
-  if (RESERVED_TLD.test(host) || k.exact.has(host) || hostIn(host, k.suffix)) return null;
   const prefixed = k.prefixes.filter((p) => p.startsWith(`${host}/`));
-  if (prefixed.length) return prefixed.some((p) => ref.startsWith(p)) ? null : `${host}/${pathPart.split("/")[1] ?? ""}`;
+  // εξαίρεση με πρόθεμα διαδρομής: κάθε ύποπτη διαδρομή (ακόμη κι αν κανονικοποιείται σε επιτρεπτή) μετρά ως άγνωστη
+  if (prefixed.length) return !SUSPECT_PATH.test(rawPath) && prefixed.some((p) => ref.startsWith(p)) ? null : seg();
+  if (RESERVED_TLD.test(host) || k.exact.has(host) || hostIn(host, k.suffix)) return null;
   return host;
 }
 
-/** Απόλυτες διευθύνσεις (http/https/ws/wss) και πρωτόκολλο-σχετικές μέσα σε string («//host/…»): host + διαδρομή. */
-const URL_RE = /(?:\b(?:https?|wss?):|(?<=["'`]))\/\/((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59}))(?![a-z0-9-])(?::\d+)?(\/[^\s"'`\\)<>]*)?/gi;
+/** Απόλυτες διευθύνσεις (http/https/ws/wss) και πρωτόκολλο-σχετικές μέσα σε string («//host/…»): host + διαδρομή (και με «\», για την κανονικοποίηση). */
+const URL_RE = /(?:\b(?:https?|wss?):|(?<=["'`]))\/\/((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59}))(?![a-z0-9-])(?::\d+)?(\/[^\s"'`)<>]*)?/gi;
 const DYN_EVAL = /(?:(?<![\w$.])|\b(?:window|self|globalThis|top|parent)\s*\.\s*)eval\s*\(\s*(?![\s"'`)])|\(\s*0\s*,\s*eval\s*\)\s*\(/;
 const FN_CALL = /(?<![\w$.])(?:new\s+)?Function\s*\(([^)]{0,400})\)/g;
 const CONST_ARGS = /^\s*(?:(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\$]|\\.|\$(?!\{))*`)\s*(?:,\s*|$))*$/;

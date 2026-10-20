@@ -5,6 +5,7 @@ import { CHECKS } from "@/lib/security/audit/checks";
 import { parseTs, shouldRecordPing, verifyHeartbeat, type RunView } from "@/lib/security/audit/heartbeat";
 import { alertsUndelivered, PENDING_MS } from "@/lib/security/audit/notify-core";
 import type { AuditMode } from "@/lib/security/audit/types";
+import { RUN_META } from "@/lib/security/audit/execute";
 
 /**
  * Dead man's switch: `GET /api/security/heartbeat?ts=<unix δευτερόλεπτα>&sig=<hex HMAC-SHA256(SECURITY_WATCH_SECRET, ts)>`
@@ -17,17 +18,18 @@ const ACTION = "security.watch.ping";
 const noStore = { "Cache-Control": "no-store" };
 
 /**
- * Το νεότερο report του mode που περιέχει ΟΛΟΥΣ τους ελέγχους του (με οποιαδήποτε κατάσταση — και error, φαίνεται στο
- * status)· τα χειροκίνητα reports ενός ελέγχου δεν μετρούν. Ο έλεγχος κάλυψης γίνεται στη βάση (χωρίς φόρτωση των checks),
- * μόνο στις τελευταίες 7 ημέρες (παλαιότερο = null, «δεν έτρεξε»).
+ * Το νεότερο πλήρες report του mode (με οποιαδήποτε κατάσταση — και error, φαίνεται στο status): με το σημάδι RUN_META
+ * (όλοι οι έλεγχοι του mode — μετρά και όταν μετά το deploy προστέθηκε νέος έλεγχος) ή, για παλιά reports χωρίς σημάδι,
+ * με ΟΛΟΥΣ τους τρέχοντες ελέγχους (isCompleteRun στο execute.ts). Τα χειροκίνητα reports ενός ελέγχου δεν μετρούν. Ο
+ * έλεγχος γίνεται στη βάση (χωρίς φόρτωση των checks), μόνο στις τελευταίες 7 ημέρες (παλαιότερο = null, «δεν έτρεξε»).
  */
 async function lastRun(mode: AuditMode): Promise<RunView | null> {
   const keys = CHECKS.filter((c) => c.modes.includes(mode)).map((c) => c.key);
   const rows = await db.$queryRaw<{ id: string; startedAt: Date; status: string }[]>`
     SELECT "id", "startedAt", "status" FROM "SecurityReport"
     WHERE "mode" = ${mode} AND "startedAt" > now() - interval '7 days'
-      AND (SELECT count(DISTINCT e->>'key') FROM jsonb_array_elements(CASE WHEN jsonb_typeof("checks") = 'array' THEN "checks" ELSE '[]'::jsonb END) e
-           WHERE e->>'key' = ANY(${keys}::text[])) = ${keys.length}
+      AND ("checks" @> ${JSON.stringify([RUN_META])}::jsonb OR (SELECT count(DISTINCT e->>'key') FROM jsonb_array_elements(CASE WHEN jsonb_typeof("checks") = 'array' THEN "checks" ELSE '[]'::jsonb END) e
+           WHERE e->>'key' = ANY(${keys}::text[])) = ${keys.length})
     ORDER BY "startedAt" DESC LIMIT 1`;
   const r = rows[0];
   return r ? { id: r.id, startedAt: r.startedAt.toISOString(), status: r.status } : null;

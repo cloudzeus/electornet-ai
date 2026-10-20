@@ -53,6 +53,10 @@ heartbeat αποτυγχάνουν μετά το deploy. **Ποτέ** `prisma db
 
 (Αν η εφαρμογή ακούει σε άλλη θύρα από 3000, αλλάξτε τη.) Η απάντηση δεν περιέχει ευρήματα — μόνο `reportId` / `status`.
 
+Τα reports των scheduled full/light σημειώνονται ως «πλήρη» (όλοι οι έλεγχοι του mode) και έτσι τα μετρά το heartbeat —
+και όταν ένα deploy προσθέσει νέο έλεγχο. Προαιρετικά, μετά από deploy που προσθέτει έλεγχο, τρέξτε αμέσως έναν full
+(η ίδια εντολή `curl … mode=full`) ώστε η σελίδα «Ασφάλεια» και ο φύλακας να δουν από την πρώτη στιγμή και τον νέο έλεγχο.
+
 ## 3. GitHub (εξωτερικός φύλακας)
 
 Repo `cloudzeus/electornet-ai` → Settings → Secrets and variables → Actions → New repository secret:
