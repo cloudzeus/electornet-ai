@@ -10,8 +10,12 @@
  * SECURITY_REPORT_TO (λίστα με κόμματα). Full: email σύνοψης κάθε μέρα· light: email μόνο σε νέο κρίσιμο (23 ώρες dedupe,
  * κατάσταση στο .security-watch-state.json που κρατά το cache του workflow). Έξοδος 0 και με ευρήματα· 2 αν ο φύλακας δεν
  * ολοκληρώθηκε, 1 αν το email που έπρεπε να φύγει δεν έφυγε. Το repo είναι δημόσιο (logs + artifacts δημόσια): στο stdout
- * μόνο {mode, status, seconds, email.sent}· στο artifact τα ευρήματα όσων βλέπει κάθε επισκέπτης, το heartbeat μόνο ως
- * κατάσταση. Όλες οι λεπτομέρειες μόνο στο email.
+ * μόνο {mode, status, seconds, email.sent} και στο artifact τα ευρήματα όσων βλέπει κάθε επισκέπτης — ΧΩΡΙΣ το heartbeat
+ * (ούτε στη συνολική κατάσταση: publicStatus). Το heartbeat και όλες οι λεπτομέρειες μόνο στο email.
+ *
+ * User agents: ο φύλακας αυτοσυστήνεται (WATCH_UA, χωρίς προσωπικά στοιχεία) ΜΟΝΟ στο δικό μας site· ο light κατεβάζει τις
+ * σελίδες ως browser (ένας ενδιάμεσος που ξεχωρίζει τον φύλακα δεν τον βλέπει κάθε ώρα)· τρίτοι (crt.sh, certspotter)
+ * παίρνουν ουδέτερο user agent.
  */
 import { createHash } from "node:crypto";
 import { Resolver } from "node:dns/promises";
@@ -24,14 +28,16 @@ import { signHeartbeat } from "../lib/security/audit/heartbeat";
 import { ALLOWED_SCRIPT_HOSTS } from "../lib/security/audit/policy";
 import { worst, type CheckResult, type Finding, type Severity } from "../lib/security/audit/rules";
 import {
-  athensDay, capFinding, chunkIntegrity, emptyCheck, publicChecks, sampleFindings, variantChunks, type ChunkSeen, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts,
+  athensDay, capFinding, chunkIntegrity, emptyCheck, isChallenge, publicChecks, publicStatus, sampleFindings, variantChunks, type ChunkSeen, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts,
   newCerts, OVERLAP_KEYS, parseCertSpotter, parseCrtSh, PICK, renderWatchEmail, robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict,
   updateSent, watchCheckOf, zarazProbe, zarazRefs, type ChunkFetch, type CtEntry, type Got, type Heartbeat, type WatchReport,
 } from "../lib/security/audit/watch-core";
 import { buildCsp } from "../lib/security/csp";
 
 const VERSION = "1.0";
-const WATCH_UA = `euronics-security-watch/${VERSION} (+contact gkozyris@i4ria.com)`;
+const WATCH_UA = `euronics-security-watch/${VERSION}`;
+/** Για τρίτους (crt.sh, certspotter): χωρίς ταυτότητα του φύλακα. */
+const NEUTRAL_UA = "Mozilla/5.0 (compatible)";
 const WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1";
 const GOOGLE = "https://www.google.com/";
@@ -62,6 +68,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let nextSlot = 0;
 async function slot() { const now = Date.now(), at = Math.max(now, nextSlot); nextSlot = at + GAP_MS; if (at > now) await sleep(at - now); }
 let requests = 0;
+/** Το origin του site — μόνο εκεί πηγαίνει ο WATCH_UA. */
+let siteOrigin = "";
 const headersOf = (h: Headers) => { const o: Record<string, string> = {}; h.forEach((v, k) => { o[k.toLowerCase()] = v; }); return o; };
 const errText = (e: unknown) => (e instanceof Error ? (e.cause instanceof Error ? `${e.message} (${e.cause.message})` : e.message) : String(e)).slice(0, 200);
 
@@ -71,7 +79,7 @@ async function get(url: URL, o: { ua?: string; referer?: string; accept?: string
   requests++;
   const res = await fetch(url, {
     redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(o.timeout ?? FETCH_MS),
-    headers: { "User-Agent": o.ua ?? WATCH_UA, Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}), ...(o.extra ?? {}) },
+    headers: { "User-Agent": o.ua ?? (url.origin === siteOrigin ? WATCH_UA : NEUTRAL_UA), Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}), ...(o.extra ?? {}) },
   });
   return { status: res.status, headers: headersOf(res.headers), bytes: Buffer.from(await res.arrayBuffer()), url };
 }
@@ -127,7 +135,8 @@ async function fetchChunk(origin: string, p: string, o: { ua?: string; referer?:
   try {
     const r = await getFollow(origin, p, { ...o, accept: "*/*" });
     if (r.redirectTo) return { row: { path: p, status: r.status, redirectTo: r.redirectTo }, text: "" };
-    return { row: { path: p, status: r.status, contentType: r.headers["content-type"] ?? "", sha256: createHash("sha256").update(r.bytes).digest("hex"), bytes: r.bytes.length }, text: r.bytes.toString("utf8") };
+    const text = r.bytes.toString("utf8");
+    return { row: { path: p, status: r.status, contentType: r.headers["content-type"] ?? "", sha256: createHash("sha256").update(r.bytes).digest("hex"), bytes: r.bytes.length, ...(isChallenge(r.status, r.headers, text) ? { challenge: true } : {}) }, text };
   } catch (e) { return { row: { path: p, error: errText(e) }, text: "" }; }
 }
 const chunkOk = (r: ChunkRow) => r.error === undefined && !r.redirectTo && r.status === 200;
@@ -176,14 +185,14 @@ async function loadBaseline(): Promise<Baseline> {
 async function ctEntries(): Promise<{ entries: CtEntry[]; source: string; notes: string[] }> {
   const notes: string[] = [];
   try {
-    const r = await get(new URL("https://crt.sh/?q=%25.dgsoft.gr&output=json&exclude=expired"), { accept: "application/json", timeout: 45_000 });
+    const r = await get(new URL("https://crt.sh/?q=%25.dgsoft.gr&output=json&exclude=expired"), { ua: NEUTRAL_UA, accept: "application/json", timeout: 45_000 });
     if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
     return { entries: parseCrtSh(JSON.parse(r.bytes.toString("utf8"))), source: "crt.sh", notes };
   } catch (e) { notes.push(`crt.sh μη διαθέσιμο (${errText(e)}) — εφεδρεία certspotter`); }
   const entries: CtEntry[] = [];
   let after = "";
   for (let page = 0; page < 5; page++) {
-    const r = await get(new URL(`https://api.certspotter.com/v1/issuances?domain=dgsoft.gr&include_subdomains=true&expand=dns_names&expand=issuer${after ? `&after=${encodeURIComponent(after)}` : ""}`), { accept: "application/json" });
+    const r = await get(new URL(`https://api.certspotter.com/v1/issuances?domain=dgsoft.gr&include_subdomains=true&expand=dns_names&expand=issuer${after ? `&after=${encodeURIComponent(after)}` : ""}`), { ua: NEUTRAL_UA, accept: "application/json" });
     if (r.status !== 200) throw new Error(`certspotter HTTP ${r.status}`);
     const json = JSON.parse(r.bytes.toString("utf8")) as { id?: string }[];
     entries.push(...parseCertSpotter(json));
@@ -198,7 +207,7 @@ async function heartbeat(origin: string): Promise<Heartbeat> {
   if (!secret) return { kind: "nosecret" };
   const ts = Math.floor(Date.now() / 1000);
   try {
-    const r = await get(new URL(`/api/security/heartbeat?ts=${ts}&sig=${signHeartbeat(secret, ts)}`, origin), { accept: "application/json" });
+    const r = await get(new URL(`/api/security/heartbeat?ts=${ts}&sig=${signHeartbeat(secret, ts)}`, origin), { ua: WATCH_UA, accept: "application/json" });
     if ((r.status === 403 || r.status === 503) && r.headers["cf-mitigated"]) return { kind: "unreachable", error: `σελίδα ελέγχου του Cloudflare (HTTP ${r.status})` };
     if (r.status !== 200) return { kind: "http", status: r.status };
     try { return { kind: "ok", body: JSON.parse(r.bytes.toString("utf8")) }; } catch { return { kind: "ok", body: null }; }
@@ -243,6 +252,7 @@ async function main() {
   if (a.writeBaseline) return writeBaseline();
   const startedAt = new Date();
   const origin = a.site;
+  siteOrigin = origin;
   const seed = athensDay(startedAt);
   const allowedScriptHosts = [...new Set(Object.values(ALLOWED_SCRIPT_HOSTS).flat())].sort();
   const ctx = { origin, build: null, allowedScriptHosts, expectedConnectSrc: connectSrcOf(buildCsp({ nonce: "x", dev: false })) };
@@ -257,9 +267,11 @@ async function main() {
   const watchChunks: Record<string, ChunkSeen> = {};
   let dnsCurrent: Record<string, string[]> = {};
 
-  // σελίδες (UA του φύλακα)
+  // σελίδες: full με τον UA του φύλακα (+ παραλλαγές browser παρακάτω)· light ως browser (Windows Chrome)
   const tPages = Date.now();
-  const fixed = await Promise.all(["/", "/admin/login"].map((p) => fetchPage(origin, p)));
+  const pageUa = a.mode === "light" ? WIN_UA : undefined;
+  const pageUaLabel = a.mode === "light" ? "Windows Chrome" : "φύλακας";
+  const fixed = await Promise.all(["/", "/admin/login"].map((p) => fetchPage(origin, p, { ua: pageUa })));
   const pages: Fetched[] = [...fixed];
   let robotsF: Finding[] = [], sitemapNote = "";
   let picked = { categories: [] as string[], products: [] as string[] };
@@ -286,7 +298,7 @@ async function main() {
   const results: PageResult[] = pages.map((p) => evaluatePage(p, ctx));
   const fkey = (f: Finding) => `${f.severity}\n${f.title}\n${f.evidence ?? ""}`;
   const seen = new Set(results.flatMap((r) => r.findings.map(fkey)));
-  pages.forEach((p, i) => pageLog.push({ path: p.path, ua: "φύλακας", label: results[i].label }));
+  pages.forEach((p, i) => pageLog.push({ path: p.path, ua: pageUaLabel, label: results[i].label }));
 
   // cloaking: η ίδια σελίδα ως Windows Chrome και iPhone Safari, με Referer Google (full)
   const cloakF: Finding[] = [];
@@ -324,13 +336,13 @@ async function main() {
 
   // Zaraz: στην άκρη (GET s.js) + ό,τι αναφέρει η σελίδα (loader με το z όπως γράφεται)
   checks.push(await timed("zaraz", "Cloudflare Zaraz στην άκρη", async () => {
-    const probe = await fetchGot(origin, "/cdn-cgi/zaraz/s.js", { accept: "*/*" });
+    const probe = await fetchGot(origin, "/cdn-cgi/zaraz/s.js", { ua: pageUa, accept: "*/*" });
     const findings = zarazProbe(probe);
     if (!("error" in probe) && probe.status >= 200 && probe.status < 300) findings.push(...scanChunk(probe.body).map((f) => ({ ...f, detail: `${f.detail} (/cdn-cgi/zaraz/s.js)` })));
     const refs = [...new Set([...pages, ...cloakPages].flatMap((p) => zarazRefs(html(p), origin)))].sort();
     if (refs.length) findings.push({ severity: "critical", title: "Οι σελίδες αναφέρουν το Cloudflare Zaraz", detail: `Αναφορές σε /cdn-cgi/zaraz/ στο HTML: ${refs.slice(0, 5).join(", ")} — το Zaraz εκτελεί «Custom HTML» σε κάθε σελίδα (ο τρόπος της επίθεσης). Cloudflare → Zaraz → απενεργοποίηση.`, evidence: [...new Set(refs.map((r) => r.replace(/\?.*$/, "")))].join(", ") });
     for (const ref of refs.slice(0, 5)) {
-      const g = await fetchGot(origin, ref, { accept: "*/*" });
+      const g = await fetchGot(origin, ref, { ua: pageUa, accept: "*/*" });
       if (!("error" in g) && g.status === 200) findings.push(...scanChunk(g.body).map((f) => ({ ...f, detail: `${f.detail} (loader ${ref.replace(/\?.*$/, "")})` })));
     }
     const pst = "error" in probe ? probe.error : `HTTP ${probe.status}`;
@@ -351,7 +363,7 @@ async function main() {
       chunkLog.push(...got.map((g) => g.row));
       const scans = got.filter((g) => chunkOk(g.row) && /\b(?:java|ecma)script\b/i.test(g.row.contentType ?? "")).map((g) => ({ path: g.row.path, findings: scanChunk(g.text) }));
       const findings = [...chunkIntegrity(got.map((g) => g.row)), ...mergeFindings(scans), ...emptyCheck("αρχεία JS", scans.length)];
-      for (const g of got) watchChunks[g.row.path] = { status: g.row.status, sha256: g.row.sha256, error: g.row.error };
+      for (const g of got) watchChunks[g.row.path] = { status: g.row.status, sha256: g.row.sha256, error: g.row.error, ...(g.row.challenge ? { challenge: true } : {}) };
       const bytes = got.reduce((s, g) => s + (g.row.bytes ?? 0), 0);
       return { summary: `${refs.length} αρχεία /_next/static (scripts + RSC payload) από ${pages.length + cloakPages.length} λήψεις σελίδων: ${got.filter((g) => chunkOk(g.row)).length} απάντησαν 200, ${scans.length} σαρώθηκαν (${Math.round(bytes / 1024)} KB — άγνωστα domains, φιλοξενία περιεχομένου χρηστών, base64 > 20 KB, eval/new Function, συγκάλυψη, δείκτες της επίθεσης) · δυναμικά φορτωμένα αρχεία που δεν αναφέρονται στο HTML δεν ελέγχονται · σύγκριση με build: παραλείπεται`, findings };
     }));
@@ -366,7 +378,7 @@ async function main() {
       const todo = all.slice(0, VARIANT_CHUNK_CAP);
       const res = await pool(todo, 3, (j) => fetchChunk(origin, j.path, { ua: j.ua, referer: j.referer, extra: SCRIPT_FETCH }));
       const byUa = new Map<string, Record<string, ChunkSeen>>();
-      todo.forEach((j, i) => { const m = byUa.get(j.ua) ?? {}; m[j.path] = { status: res[i].row.status, sha256: res[i].row.sha256, error: res[i].row.error }; byUa.set(j.ua, m); });
+      todo.forEach((j, i) => { const m = byUa.get(j.ua) ?? {}; m[j.path] = { status: res[i].row.status, sha256: res[i].row.sha256, error: res[i].row.error, ...(res[i].row.challenge ? { challenge: true } : {}) }; byUa.set(j.ua, m); });
       const findings = [...cloakF];
       let compared = 0;
       for (const v of variantsSeen) {
@@ -416,6 +428,8 @@ async function main() {
 
   const finishedAt = new Date();
   const status: Severity = worst(checks.map((c) => c.status));
+  /** για stdout / artifact (δημόσια): χωρίς το heartbeat */
+  const pubStatus = publicStatus(checks);
   const report: WatchReport = { mode: a.mode, status, startedAt, finishedAt, site: origin, checks, notes };
   const run = process.env.GITHUB_RUN_ID && process.env.GITHUB_REPOSITORY ? `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
 
@@ -434,13 +448,13 @@ async function main() {
   if (!a.dry) await writeFile(a.state, `${JSON.stringify(state)}\n`).catch(() => undefined);
 
   const out = {
-    watcher: VERSION, mode: a.mode, site: origin, status, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, email: { required: email.required, sent: email.sent }, notes,
+    watcher: VERSION, mode: a.mode, site: origin, status: pubStatus, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, email: { required: email.required, sent: email.sent }, notes,
     checks: publicChecks(checks), pages: pageLog, chunks: chunkLog.map((c) => ({ path: c.path, status: c.status ?? null, sha256: c.sha256 ?? null, bytes: c.bytes ?? null, ...(c.error ? { error: c.error } : {}), ...(c.redirectTo ? { redirectTo: c.redirectTo } : {}) })),
     dns: dnsCurrent, ct: ctSource,
   };
   await writeFile(a.out, `${JSON.stringify(out, null, 2)}\n`);
-  // stdout = log του Actions, δημόσιο: μόνο η συνολική κατάσταση (λεπτομέρειες στο email· στο artifact χωρίς εσωτερικά στοιχεία)
-  console.log(JSON.stringify({ mode: a.mode, status, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000), email: { sent: email.sent } }));
+  // stdout = log του Actions, δημόσιο: μόνο η συνολική κατάσταση χωρίς το heartbeat (λεπτομέρειες στο email)
+  console.log(JSON.stringify({ mode: a.mode, status: pubStatus, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000), email: { sent: email.sent } }));
   if (email.required && !email.sent && !a.dry) { console.error(`[security-watch] το email δεν στάλθηκε (${email.info})`); process.exitCode = 1; }
 }
 

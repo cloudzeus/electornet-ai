@@ -7,10 +7,12 @@ name: security-watch
 
 on:
   schedule:
-    # full: 04:30 UTC = 07:30 Αθήνα με θερινή ώρα (EEST, UTC+3)· με χειμερινή (EET, UTC+2, από την τελευταία Κυριακή
-    # του Οκτωβρίου) = 06:30 — πριν από τον εσωτερικό full των 07:00, οπότε το heartbeat κρίνει τον χθεσινό full
-    # (πριν τις 08:00 αρκεί αυτός). Για 07:30 και τον χειμώνα: "30 5 * * *" (και αλλαγή του ελέγχου παρακάτω).
+    # full: 07:30 Αθήνα όλο τον χρόνο. Το cron του GitHub είναι σε UTC: 04:30 UTC = 07:30 με θερινή ώρα (EEST, UTC+3),
+    # 05:30 UTC = 07:30 με χειμερινή (EET, UTC+2). Τρέχουν και τα δύο· το βήμα «mode» κρατά ΜΟΝΟ εκείνο που αντιστοιχεί
+    # σε 07:xx ώρα Αθήνας (με την ονομαστική ώρα του schedule — όχι την ώρα που ξεκίνησε, το GitHub καθυστερεί) και το
+    # άλλο τελειώνει χωρίς έλεγχο.
     - cron: "30 4 * * *"
+    - cron: "30 5 * * *"
     # light: κάθε ώρα στο :15 (ο εσωτερικός light τρέχει στο :05)
     - cron: "15 * * * *"
   workflow_dispatch:
@@ -33,18 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
-        with:
-          node-version: 22
-          cache: npm
-
-      # χωρίς install scripts: ο φύλακας χρειάζεται μόνο το tsx (και τα καθαρά αρχεία του repo)
-      - run: npm ci --ignore-scripts --no-audit --no-fund
-
       - id: mode
         env:
           EVENT: ${{ github.event_name }}
@@ -52,19 +42,41 @@ jobs:
           INPUT: ${{ inputs.mode }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then m="$INPUT"
-          elif [ "$SCHED" = "30 4 * * *" ]; then m=full
+          elif [ "$SCHED" = "30 4 * * *" ] || [ "$SCHED" = "30 5 * * *" ]; then
+            # η ονομαστική ώρα του schedule (σήμερα, UTC) σε ώρα Αθήνας: full μόνο αν είναι 07
+            utc=$(echo "$SCHED" | awk '{printf "%02d:%02d", $2, $1}')
+            h=$(TZ=Europe/Athens date -d "$(date -u +%F) $utc UTC" +%H)
+            if [ "$h" = "07" ]; then m=full; else m=skip; fi
           else m=light; fi
-          case "$m" in full|light) ;; *) m=light ;; esac
+          case "$m" in full|light|skip) ;; *) m=light ;; esac
           echo "mode=$m" >> "$GITHUB_OUTPUT"
+          echo "mode=$m"
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
+        if: steps.mode.outputs.mode != 'skip'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
+        if: steps.mode.outputs.mode != 'skip'
+        with:
+          node-version: 22
+          cache: npm
+
+      # χωρίς install scripts: ο φύλακας χρειάζεται μόνο το tsx (και τα καθαρά αρχεία του repo)
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        if: steps.mode.outputs.mode != 'skip'
 
       # ποια κρίσιμα στάλθηκαν τις τελευταίες ώρες (μόνο fingerprints) — να μη στέλνει ο light το ίδιο κάθε ώρα
       - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (v4.3.0)
+        if: steps.mode.outputs.mode != 'skip'
         with:
           path: .security-watch-state.json
           key: security-watch-state-${{ github.run_id }}
           restore-keys: security-watch-state-
 
       - name: security-watch
+        if: steps.mode.outputs.mode != 'skip'
         run: npx tsx scripts/security-watch.ts --mode=${{ steps.mode.outputs.mode }}
         env:
           SECURITY_WATCH_SECRET: ${{ secrets.SECURITY_WATCH_SECRET }}
@@ -76,13 +88,13 @@ jobs:
           MAILGUN_REGION: ${{ secrets.MAILGUN_REGION }}
 
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (v4.3.0)
-        if: always()
+        if: always() && steps.mode.outputs.mode != 'skip'
         with:
           path: .security-watch-state.json
           key: security-watch-state-${{ github.run_id }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
-        if: always()
+        if: always() && steps.mode.outputs.mode != 'skip'
         with:
           name: security-watch-${{ steps.mode.outputs.mode }}-${{ github.run_id }}
           path: security-watch-report.json

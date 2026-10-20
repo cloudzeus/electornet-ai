@@ -4,7 +4,7 @@ import { sha256Hex } from "./rules";
 import {
   athensDay, chunkHashDiff, chunkIntegrity, chunkRefs, cloakingDiff, diffDns, heartbeatVerdict, newCerts, parseCertSpotter, parseCrtSh,
   robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict, watchCheckOf, zarazProbe, zarazRefs, renderWatchEmail, lightAlerts, dnsRecords,
-  variantChunks, capFinding, publicChecks, sampleFindings, emptyCheck, updateSent,
+  variantChunks, capFinding, publicChecks, publicStatus, isChallenge, sampleFindings, emptyCheck, updateSent,
 } from "./watch-core";
 
 const ORIGIN = "https://euronics.dgsoft.gr";
@@ -57,6 +57,10 @@ test("chunkIntegrity: 200 + JS → ok· ανακατεύθυνση σε ξένο
   assert.deepEqual(sev(f), ["critical", "error", "warn", "warn"]);
   const missing = f.find((x) => /δεν σερβίρεται/.test(x.title))!;
   assert.equal(missing.evidence, "/_next/static/chunks/b.js, /_next/static/chunks/c.js"); // ένα εύρημα, σταθερό τεκμήριο
+  // F-2: σελίδα ελέγχου του Cloudflare στη θέση του αρχείου → error «δεν ελέγχθηκε», όχι «δεν σερβίρεται»
+  const ch = chunkIntegrity([{ path: "/_next/static/chunks/f.js", status: 403, contentType: "text/html", challenge: true }]);
+  assert.deepEqual(sev(ch), ["error"]);
+  assert.match(ch[0].title, /Cloudflare/);
 });
 
 test("chunkHashDiff: ίδιο αρχείο με άλλο περιεχόμενο ανά user agent → critical· ίδια → τίποτα", () => {
@@ -340,31 +344,54 @@ test("scanChunk: ακριβείς γνωστοί hosts / διαδρομές το
   assert.deepEqual(scanChunk(`a="https://sub.euronics.b-cdn.net/x"`).map((f) => f.severity), ["warn"]);
 });
 
-test("variantChunks: άλλο sha256 → critical· αρχείο μόνο της παραλλαγής που ο φύλακας δεν παίρνει → critical· ίδια → τίποτα", () => {
+test("variantChunks: άλλο sha256 → critical· αρχείο μόνο της παραλλαγής που ο φύλακας δεν παίρνει (σαφές HTTP) → critical· ίδια → τίποτα", () => {
   const watch = { "/a.js": { status: 200, sha256: "11" }, "/m.js": { status: 404 } };
   assert.deepEqual(variantChunks(watch, { "/a.js": { status: 200, sha256: "11" } }, [], "iPhone"), []);
   assert.deepEqual(sev(variantChunks(watch, { "/a.js": { status: 200, sha256: "99" } }, [], "iPhone")), ["critical"]);
   const f = variantChunks(watch, { "/m.js": { status: 200, sha256: "77" } }, ["/m.js"], "iPhone");
   assert.deepEqual(sev(f), ["critical"]);
   assert.equal(f[0].evidence, "/m.js");
-  assert.deepEqual(sev(variantChunks({ "/n.js": { error: "timeout" } }, {}, ["/n.js"], "iPhone")), ["critical"]);
+  // F-2: σφάλμα δικτύου / χρονικό όριο του φύλακα → error (δεν ελέγχθηκε), ΟΧΙ cloaking
+  assert.deepEqual(sev(variantChunks({ "/n.js": { error: "timeout" } }, { "/n.js": { status: 200, sha256: "77" } }, ["/n.js"], "iPhone")), ["error"]);
   // η παραλλαγή δεν κατέβηκε ενώ ο φύλακας το πήρε → warn (δεν συγκρίθηκε)
   assert.deepEqual(sev(variantChunks(watch, { "/a.js": { status: 429 } }, [], "iPhone")), ["warn"]);
+});
+
+test("variantChunks (F-2): critical ΜΟΝΟ όταν η παραλλαγή πήρε 200 ΚΑΙ ο φύλακας πήρε σαφές μη-200 που δεν είναι έλεγχος του Cloudflare", () => {
+  const v = { "/m.js": { status: 200, sha256: "77" } };
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 404 } }, v, ["/m.js"], "iPhone")), ["critical"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 500 } }, v, ["/m.js"], "iPhone")), ["critical"]);
+  // έλεγχος Cloudflare (403/503 με cf-mitigated / σελίδα challenge) → error
+  const ch = variantChunks({ "/m.js": { status: 403, challenge: true } }, v, ["/m.js"], "iPhone");
+  assert.deepEqual(sev(ch), ["error"]);
+  assert.match(ch[0].detail, /Cloudflare/);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 503, challenge: true } }, v, ["/m.js"], "iPhone")), ["error"]);
+  // ο φύλακας δεν το ζήτησε / η παραλλαγή δεν το πήρε κι αυτή → error, όχι critical
+  assert.deepEqual(sev(variantChunks({}, v, ["/m.js"], "iPhone")), ["error"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 404 } }, { "/m.js": { status: 404 } }, ["/m.js"], "iPhone")), ["error"]);
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 404 } }, { "/m.js": { error: "timeout" } }, ["/m.js"], "iPhone")), ["error"]);
+  // ένα κρίσιμο και ένα μη ελεγμένο μαζί → ένα εύρημα από το καθένα
+  assert.deepEqual(sev(variantChunks({ "/m.js": { status: 404 }, "/n.js": { error: "ECONNRESET" } }, { ...v, "/n.js": { status: 200, sha256: "88" } }, ["/m.js", "/n.js"], "iPhone")), ["critical", "error"]);
+});
+
+test("isChallenge (F-2): 403/503 με cf-mitigated ή σελίδα ελέγχου του Cloudflare → true· σκέτο 403/404 → false", () => {
+  assert.equal(isChallenge(403, { "cf-mitigated": "challenge" }, ""), true);
+  assert.equal(isChallenge(503, {}, "<title>Just a moment...</title><script src=\"/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1\"></script>"), true);
+  assert.equal(isChallenge(403, {}, "Forbidden"), false);
+  assert.equal(isChallenge(404, { "cf-mitigated": "challenge" }, ""), false);
+  assert.equal(isChallenge(200, {}, "Just a moment..."), false);
+});
+
+test("publicStatus / publicChecks (F-8): το heartbeat δεν μετρά στη δημόσια κατάσταση και δεν υπάρχει στο artifact", () => {
+  const checks = [watchCheckOf("pages", "Σελίδες", "s", [{ severity: "warn", title: "x", detail: "d" }], 1), watchCheckOf("heartbeat", "HB", "s", [{ severity: "critical", title: "Δεν απαντά", detail: "d" }], 1)];
+  assert.equal(publicStatus(checks), "warn");
+  assert.deepEqual(publicChecks(checks).map((c) => c.key), ["pages"]);
+  assert.equal(publicStatus([watchCheckOf("heartbeat", "HB", "s", [], 1)]), "ok");
 });
 
 test("capFinding: όριο λήψεων → warn «μερικός έλεγχος»· χωρίς παράλειψη → τίποτα", () => {
   assert.deepEqual(capFinding(0, 150), []);
   assert.deepEqual(sev(capFinding(12, 150)), ["warn"]);
-});
-
-test("publicChecks: το heartbeat χωρίς εσωτερικές λεπτομέρειες (μόνο κατάσταση)· τα υπόλοιπα ίδια", () => {
-  const checks = [watchCheckOf("pages", "Σελίδες", "s", [{ severity: "warn", title: "x", detail: "d", evidence: "e" }], 1),
-    watchCheckOf("heartbeat", "HB", "τελευταίος full: 20/10 07:00 ok · ειδοποιήσεις που δεν παραδόθηκαν: ναι", [{ severity: "warn", title: "Ειδοποιήσεις του εσωτερικού ελέγχου δεν παραδόθηκαν", detail: "d" }], 1)];
-  const p = publicChecks(checks);
-  assert.deepEqual(p[0], checks[0]);
-  assert.equal(p[1].status, "warn");
-  assert.deepEqual(p[1].findings, []);
-  assert.ok(!/full|ειδοποιήσεις/.test(p[1].summary));
 });
 
 test("lightAlerts / updateSent: εγγραφή με ημερομηνία στο μέλλον αγνοείται", () => {

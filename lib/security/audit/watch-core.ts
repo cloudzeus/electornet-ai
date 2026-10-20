@@ -1,7 +1,7 @@
 import { buildCsp } from "../csp";
 import { alertsToSend, athensDateTime, escapeHtml } from "./notify-core";
 import { ALLOWED_FRAME_HOSTS, ALLOWED_SCRIPT_HOSTS } from "./policy";
-import { classifyPage, parseScripts, sha256Hex, statusOf, type CheckResult, type Finding, type Severity } from "./rules";
+import { classifyPage, parseScripts, sha256Hex, statusOf, worst, type CheckResult, type Finding, type Severity } from "./rules";
 
 /**
  * Εξωτερικός φύλακας — καθαρή λογική (ruling D). Το I/O είναι στο scripts/security-watch.ts, που τρέχει από GitHub Actions
@@ -69,12 +69,12 @@ export function chunkRefs(html: string, origin: string): string[] {
   return uniqSorted(out);
 }
 
-export type ChunkFetch = { path: string; status?: number; contentType?: string; /** ανακατεύθυνση σε άλλο origin */ redirectTo?: string; error?: string };
+export type ChunkFetch = { path: string; status?: number; contentType?: string; /** ανακατεύθυνση σε άλλο origin */ redirectTo?: string; error?: string; /** σελίδα ελέγχου του Cloudflare (isChallenge) */ challenge?: boolean };
 /**
  * Ακεραιότητα των αρχείων JS που αναφέρουν οι σελίδες (χωρίς build για σύγκριση): κάθε αρχείο πρέπει να απαντά 200, με
  * Content-Type JavaScript, από το ίδιο origin. Ένα εύρημα ανά είδος, με όλα τα αρχεία στο τεκμήριο (σταθερό).
  *   critical: ανακατεύθυνση εκτός site · warn: δεν σερβίρεται (π.χ. deploy ανάμεσα σε σελίδα και αρχείο) / λάθος τύπος ·
- *   error: δεν φορτώθηκε (δίκτυο) — δεν ελέγχθηκε.
+ *   error: δεν φορτώθηκε (δίκτυο) ή ήρθε σελίδα ελέγχου του Cloudflare — δεν ελέγχθηκε.
  */
 export function chunkIntegrity(rows: ChunkFetch[]): Finding[] {
   const groups = new Map<string, { f: Omit<Finding, "evidence">; paths: string[]; extra: string[] }>();
@@ -86,6 +86,7 @@ export function chunkIntegrity(rows: ChunkFetch[]): Finding[] {
   };
   for (const r of rows) {
     if (r.error !== undefined) put("err", { severity: "error", title: "Αρχείο JS δεν φορτώθηκε — δεν ελέγχθηκε", detail: "Αρχεία που αναφέρει η σελίδα και δεν κατέβηκαν (δίκτυο / χρονικό όριο) — δεν σαρώθηκαν." }, r.path, `${r.path}: ${r.error}`);
+    else if (r.challenge) put("chal", { severity: "error", title: "Αρχείο JS: σελίδα ελέγχου του Cloudflare — δεν ελέγχθηκε", detail: "Στη θέση του αρχείου το Cloudflare έδωσε σελίδα ελέγχου (Bot Fight Mode / challenge — συχνό για τις IP του GitHub) — δεν σαρώθηκε." }, r.path, `${r.path}: HTTP ${r.status}`);
     else if (r.redirectTo) put("redir", { severity: "critical", title: "Αρχείο JS ανακατευθύνει εκτός site", detail: "Αρχείο /_next/static του site στέλνει τον browser σε άλλο host — η εφαρμογή σερβίρει τα αρχεία της μόνη της. Κάποιος ενδιάμεσος (Cloudflare Rules / Worker) αντικαθιστά τον κώδικα." }, r.path, `${r.path} → ${r.redirectTo.slice(0, 120)}`);
     else if (r.status !== 200) put("status", { severity: "warn", title: "Αρχείο JS που αναφέρει η σελίδα δεν σερβίρεται", detail: "Η σελίδα φορτώνει αρχείο που ο server δεν δίνει (και μετά από δεύτερη προσπάθεια). Συνήθως deploy ανάμεσα στη λήψη της σελίδας και του αρχείου· αν επιμένει, η σελίδα σερβίρεται από άλλο αντίγραφο της εφαρμογής." }, r.path, `${r.path}: HTTP ${r.status}`);
     else if (!/\b(?:java|ecma)script\b/i.test(r.contentType ?? "")) put("ctype", { severity: "warn", title: "Αρχείο JS με λάθος Content-Type", detail: "Αρχείο /_next/static που απαντά 200 αλλά όχι ως JavaScript (π.χ. σελίδα HTML στη θέση του) — με nosniff ο browser δεν το εκτελεί, αλλά δεν είναι αυτό που σερβίρει η εφαρμογή." }, r.path, `${r.path}: ${r.contentType || "—"}`);
@@ -99,19 +100,36 @@ export function chunkHashDiff(base: Record<string, string>, other: Record<string
   return diff.length ? [{ severity: "critical", title: "Αρχείο JS με διαφορετικό περιεχόμενο ανά επισκέπτη (cloaking)", detail: `${diff.length} αρχεία /_next/static έδωσαν άλλο περιεχόμενο (sha256) στον φύλακα και στον ${label}. Τα ονόματα των αρχείων είναι hash του περιεχομένου τους — το ίδιο URL δίνει πάντα τα ίδια bytes. Κάποιος ενδιάμεσος σερβίρει άλλον κώδικα σε επισκέπτες.`, evidence: clipList(diff, 20) }] : [];
 }
 
-export type ChunkSeen = { status?: number; sha256?: string; error?: string };
+export type ChunkSeen = { status?: number; sha256?: string; error?: string; /** σελίδα ελέγχου του Cloudflare (isChallenge) */ challenge?: boolean };
 const got200 = (c: ChunkSeen | undefined) => !!c && c.error === undefined && c.status === 200 && !!c.sha256;
 /**
+ * Σελίδα ελέγχου του Cloudflare (Bot Fight Mode / challenge) αντί για το αρχείο: 403/503 με `cf-mitigated`, ή σώμα
+ * σελίδας challenge. Οι IP των GitHub runners δέχονται συχνά τέτοιο έλεγχο — δεν είναι απάντηση της εφαρμογής.
+ */
+export function isChallenge(status: number, headers: Record<string, string>, body: string): boolean {
+  if (status !== 403 && status !== 503) return false;
+  if (lowerKeys(headers)["cf-mitigated"]) return true;
+  return /\/cdn-cgi\/challenge-platform\/|<title>\s*Just a moment\.\.\.|cf-chl-|cf_chl_/i.test(body.slice(0, 50_000));
+}
+/**
  * Τα αρχεία JS μιας παραλλαγής (σελίδα × user agent, με Referer τη σελίδα) σε σύγκριση με το αντίγραφο του φύλακα:
- *   critical: ίδιο URL με άλλο sha256 · αρχείο που αναφέρει ΜΟΝΟ η παραλλαγή (π.χ. μόνο σε κινητό) και ο server δεν το
- *             δίνει στον φύλακα (μη-200 / σφάλμα) — κώδικας που σερβίρεται μόνο σε «θύματα»
+ *   critical: ίδιο URL με άλλο sha256 · αρχείο που αναφέρει ΜΟΝΟ η παραλλαγή (π.χ. μόνο σε κινητό), η παραλλαγή το πήρε
+ *             200 και ο server απάντησε στον φύλακα με σαφές μη-200 HTTP που ΔΕΝ είναι έλεγχος του Cloudflare — κώδικας
+ *             που σερβίρεται μόνο σε «θύματα»
+ *   error: το ίδιο, αλλά ο φύλακας δεν πήρε σαφή απάντηση (δίκτυο / χρονικό όριο / έλεγχος Cloudflare / δεν ζητήθηκε) ή η
+ *          παραλλαγή δεν το πήρε κι αυτή — δεν ελέγχθηκε (ποτέ ψευδές «cloaking»)
  *   warn: αρχεία που δεν κατέβηκαν ως παραλλαγή ενώ ο φύλακας τα πήρε — δεν συγκρίθηκαν
  */
 export function variantChunks(watch: Record<string, ChunkSeen>, variant: Record<string, ChunkSeen>, onlyInVariant: string[], label: string): Finding[] {
   const sha = (m: Record<string, ChunkSeen>) => Object.fromEntries(Object.entries(m).filter(([, c]) => got200(c)).map(([p, c]) => [p, c.sha256!]));
   const out = chunkHashDiff(sha(watch), sha(variant), label);
-  const hidden = uniqSorted(onlyInVariant.filter((p) => !got200(watch[p])));
-  if (hidden.length) out.push({ severity: "critical", title: "Αρχείο JS μόνο για ορισμένους επισκέπτες που ο server δεν δίνει στον φύλακα", detail: `Η σελίδα ως «${label}» φορτώνει ${hidden.length} αρχεία /_next/static που δεν αναφέρει στον φύλακα και που ο server δεν δίνει στον φύλακα (${hidden.map((p) => `${p}: ${watch[p]?.error ?? (watch[p]?.status !== undefined ? `HTTP ${watch[p]!.status}` : "δεν ζητήθηκε")}`).slice(0, 5).join(", ")}). Κώδικας που σερβίρεται μόνο σε συγκεκριμένους επισκέπτες — το μοτίβο του cloaking.`, evidence: clipList(hidden, 20) });
+  const definite = (c: ChunkSeen | undefined) => !!c && c.error === undefined && typeof c.status === "number" && c.status !== 200 && !c.challenge;
+  const seen = (p: string) => { const w = watch[p]; return !w ? "δεν ζητήθηκε" : w.error !== undefined ? w.error : w.challenge ? `έλεγχος Cloudflare (HTTP ${w.status})` : `HTTP ${w.status}`; };
+  const missing = uniqSorted(onlyInVariant.filter((p) => !got200(watch[p])));
+  const hidden = missing.filter((p) => got200(variant[p]) && definite(watch[p]));
+  const unknown = missing.filter((p) => !hidden.includes(p));
+  if (hidden.length) out.push({ severity: "critical", title: "Αρχείο JS μόνο για ορισμένους επισκέπτες που ο server δεν δίνει στον φύλακα", detail: `Η σελίδα ως «${label}» φορτώνει ${hidden.length} αρχεία /_next/static που δεν αναφέρει στον φύλακα· ως «${label}» δόθηκαν (200), στον φύλακα ο server απάντησε ${hidden.map((p) => `${p}: ${seen(p)}`).slice(0, 5).join(", ")}. Κώδικας που σερβίρεται μόνο σε συγκεκριμένους επισκέπτες — το μοτίβο του cloaking.`, evidence: clipList(hidden, 20) });
+  if (unknown.length) out.push({ severity: "error", title: "Αρχεία JS μόνο για άλλον επισκέπτη — δεν ελέγχθηκαν", detail: `${unknown.length} αρχεία που αναφέρει μόνο η σελίδα ως «${label}» δεν συγκρίθηκαν: ο φύλακας δεν πήρε σαφή απάντηση (δίκτυο / χρονικό όριο / σελίδα ελέγχου του Cloudflare) ή δεν τα πήρε ούτε η παραλλαγή (${unknown.slice(0, 5).map((p) => `${p}: φύλακας ${seen(p)}, παραλλαγή ${variant[p]?.error ?? (variant[p]?.status !== undefined ? `HTTP ${variant[p]!.status}` : "δεν ζητήθηκε")}`).join(", ")}). Δεν είναι εύρημα cloaking — δεν ελέγχθηκαν.`, evidence: clipList(unknown, 20) });
   const unchecked = uniqSorted(Object.keys(variant).filter((p) => got200(watch[p]) && !got200(variant[p])));
   if (unchecked.length) out.push({ severity: "warn", title: "Αρχεία JS που δεν κατέβηκαν ως άλλος επισκέπτης — δεν συγκρίθηκαν", detail: `${unchecked.length} αρχεία δεν δόθηκαν ως «${label}» (${unchecked.slice(0, 5).map((p) => `${p}: ${variant[p].error ?? `HTTP ${variant[p].status}`}`).join(", ")}) — η σύγκριση sha256 τους παραλείφθηκε.`, evidence: clipList(unchecked, 20) });
   return out;
@@ -641,13 +659,16 @@ export function renderWatchEmail(r: WatchReport, link: string | null): { subject
 }
 
 /**
- * Για το artifact του δημόσιου repo (logs/artifacts δημόσιων repos τα βλέπει οποιοσδήποτε): το heartbeat μόνο με την
- * κατάστασή του — χωρίς πότε έτρεξε ο εσωτερικός έλεγχος, με τι αποτέλεσμα, ή αν υπάρχουν αδιάβαστες ειδοποιήσεις.
- * Οι υπόλοιποι έλεγχοι είναι όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης.
+ * Για το stdout και το artifact του δημόσιου repo (logs/artifacts δημόσιων repos τα βλέπει οποιοσδήποτε): ΧΩΡΙΣ το
+ * heartbeat — ούτε πότε / πώς έτρεξε ο εσωτερικός έλεγχος, ούτε αν υπάρχουν αδιάβαστες ειδοποιήσεις, ούτε η κατάστασή
+ * του (θα έδειχνε σε όποιον κοιτάζει πότε ο εσωτερικός έλεγχος δεν τρέχει). Το heartbeat μόνο στο email. Οι υπόλοιποι
+ * έλεγχοι είναι όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης.
  */
 export function publicChecks(checks: CheckResult[]): CheckResult[] {
-  return checks.map((c) => (c.key === "heartbeat" ? { ...c, summary: "Heartbeat του εσωτερικού ελέγχου — οι λεπτομέρειες μόνο στο email.", findings: [] } : c));
+  return checks.filter((c) => c.key !== "heartbeat");
 }
+/** Η συνολική κατάσταση για stdout / artifact: η χειρότερη χωρίς το heartbeat (το email έχει την πλήρη). */
+export const publicStatus = (checks: CheckResult[]): Severity => worst(publicChecks(checks).map((c) => c.status));
 
 /**
  * Light: email μόνο για κρίσιμα που δεν στάλθηκαν τις τελευταίες 23 ώρες (`sent`: fingerprint → ISO, από την κατάσταση
