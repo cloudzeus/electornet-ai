@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-19T16:11:47.328Z",
+ "generatedAt": "2026-10-20T03:27:19.502Z",
  "routes": [
   {
    "route": "/admin",
@@ -21,6 +21,11 @@
     "dash.card"
    ],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "8f953ca",
      "date": "2026-10-13T18:54:42+03:00",
@@ -65,14 +70,9 @@
      "hash": "2e479cd",
      "date": "2026-09-13T12:18:45+03:00",
      "text": "AI pricing & cost report: per-model markup (super-admin) snapshotted per call with daily USD→EUR ECB rate, AiUsage billed columns, FX cache, admin report with SVG charts (daily line, per-feature stacked bars, per-mode…"
-    },
-    {
-     "hash": "d73bc06",
-     "date": "2026-09-13T12:11:50+03:00",
-     "text": "AI on one OpenRouter key: settings (auto routing via openrouter/auto, task models, fallbacks, provider sort, daily budget), OpenRouter client with usage ledger (AiUsage) and budget guard, LLM-composed advisor answers …"
     }
    ],
-   "updatedAt": "2026-10-13T18:54:42+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/dashboard-d.jpg",
     "mobile": "/api/help-shot/dashboard-m.jpg"
@@ -154,6 +154,11 @@
    ],
    "changes": [
     {
+     "hash": "49ddf30",
+     "date": "2026-10-19T19:12:03+03:00",
+     "text": "Αποστολές: ASAP Couriers μέσω LastMily"
+    },
+    {
      "hash": "06fa557",
      "date": "2026-10-13T10:29:46+03:00",
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
@@ -169,7 +174,7 @@
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-10-13T10:29:46+03:00",
+   "updatedAt": "2026-10-19T19:12:03+03:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
     "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
@@ -189,6 +194,11 @@
    "dynamic": false,
    "helpKeys": [],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "b0f496f",
      "date": "2026-10-10T09:29:44+03:00",
@@ -233,14 +243,9 @@
      "hash": "655290d",
      "date": "2026-10-03T20:00:07+03:00",
      "text": "AR διαχείριση: όλα τα προϊόντα του καταλόγου με τον λόγο όταν δεν έχουν AR, φίλτρα, κάρτες χωρίς οριζόντια κύλιση"
-    },
-    {
-     "hash": "9ad2f5b",
-     "date": "2026-10-03T12:42:14+03:00",
-     "text": "AR: προφίλ τοποθέτησης ανά κατηγορία + τηλεόραση ως πάνελ με/χωρίς βάση"
     }
    ],
-   "updatedAt": "2026-10-10T09:29:44+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/ar-d.jpg",
     "mobile": "/api/help-shot/ar-m.jpg"
@@ -335,6 +340,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "26c22b3",
      "date": "2026-10-16T18:04:40+03:00",
      "text": "Σετ (Φ1): διορθώσεις τελικού ελέγχου"
@@ -378,14 +388,9 @@
      "hash": "f5e1d3a",
      "date": "2026-10-11T11:54:13+03:00",
      "text": "Χαρακτηριστικά: σειρά φίλτρων στο e-shop με drag & drop"
-    },
-    {
-     "hash": "91d0809",
-     "date": "2026-10-11T11:37:59+03:00",
-     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
     }
    ],
-   "updatedAt": "2026-10-16T18:04:40+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -409,6 +414,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "629a3f9",
      "date": "2026-10-16T17:51:00+03:00",
@@ -453,14 +463,9 @@
      "hash": "87d1452",
      "date": "2026-10-10T09:44:26+03:00",
      "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό"
-    },
-    {
-     "hash": "53c720d",
-     "date": "2026-10-10T09:41:08+03:00",
-     "text": "EPREL: η ενεργειακή ετικέτα ως τελευταία φωτογραφία στα προϊόντα που βρέθηκαν (στο ταίριασμα + μαζικά), πάντα τελευταία, εκτός AR και μετρήσεων"
     }
    ],
-   "updatedAt": "2026-10-16T17:51:00+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -503,6 +508,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "5cbaff8",
      "date": "2026-10-10T09:11:55+03:00",
      "text": "Λίστες Διαστάσεις / AR / Απόδελτίωση: ο σύνδεσμος προϊόντος ανοίγει τη σωστή καρτέλα του χώρου εργασίας"
@@ -528,7 +538,7 @@
      "text": "Εργαλείο απόδελτίωσης banners: OCR + ανάλυση διάταξης → κείμενο και καθαρές φωτογραφίες στη σελίδα προϊόντος"
     }
    ],
-   "updatedAt": "2026-10-10T09:11:55+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.banners-d.jpg",
     "mobile": "/api/help-shot/catalog.banners-m.jpg"
@@ -620,6 +630,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "841902e",
      "date": "2026-10-16T17:36:24+03:00",
      "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα"
@@ -663,14 +678,9 @@
      "hash": "f608035",
      "date": "2026-10-02T21:11:51+03:00",
      "text": "Φάση 1"
-    },
-    {
-     "hash": "14513b1",
-     "date": "2026-09-21T13:55:15+03:00",
-     "text": "Τιμή eshop και διαθεσιμότητα από το SoftOne, επιβεβαιωμένες στο ζωντανό euronics.gr"
     }
    ],
-   "updatedAt": "2026-10-16T17:36:24+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.specs-d.jpg",
     "mobile": "/api/help-shot/catalog.specs-m.jpg"
@@ -688,7 +698,9 @@
     "label": "Templates & excel"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "templates.foreign"
+   ],
    "changes": [
     {
      "hash": "ef0394f",
@@ -711,6 +723,137 @@
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
    }
+  },
+  {
+   "route": "/admin/catalog/templates/import",
+   "slug": "catalog.templates.import",
+   "file": "app/admin/(shell)/catalog/templates/import/page.tsx",
+   "title": "Εισαγωγή από άλλο Excel",
+   "doc": "Εισαγωγή προϊόντων από οποιοδήποτε excel/csv (τιμοκατάλογος προμηθευτή): 4 βήματα — αρχείο, στήλες, τιμές μάρκας/κατηγορίας, προεπισκόπηση και εκτέλεση σε παρτίδες. Γράφει μόνο κενά πεδία· τα νέα είδη πάνε για έγκριση.",
+   "perm": "catalog.products.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "foreign.steps",
+    "foreign.upload",
+    "foreign.header-row",
+    "foreign.saved-mapping",
+    "foreign.columns",
+    "foreign.sheet-defaults",
+    "foreign.values",
+    "foreign.preview",
+    "foreign.run"
+   ],
+   "changes": [
+    {
+     "hash": "e3167b6",
+     "date": "2026-10-20T06:10:57+03:00",
+     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
+    },
+    {
+     "hash": "65f2ef9",
+     "date": "2026-10-20T06:04:47+03:00",
+     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
+    },
+    {
+     "hash": "36af274",
+     "date": "2026-10-20T05:58:07+03:00",
+     "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης σχεδίου/εκτέλεσης"
+    },
+    {
+     "hash": "e9d6f64",
+     "date": "2026-10-20T05:48:53+03:00",
+     "text": "Εισαγωγή από ξένο Excel: σχέδιο και εκτέλεση (planForeign / applyForeign)"
+    },
+    {
+     "hash": "e6973c0",
+     "date": "2026-10-20T05:39:53+03:00",
+     "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)"
+    },
+    {
+     "hash": "f0cb366",
+     "date": "2026-10-20T05:36:28+03:00",
+     "text": "Εισαγωγή από ξένο Excel: όριο 10.000 γραμμές, detectHeaderRow με τις περισσότερες διαφορετικές τιμές (Gedore, συγχωνευμένος τίτλος), τιμές μονάδος/χονδρικής → κόστος, unique headerSignature στο ImportMapping και upser…"
+    },
+    {
+     "hash": "2722eb6",
+     "date": "2026-10-20T05:34:08+03:00",
+     "text": "Εισαγωγή από ξένο Excel: ανάγνωση xlsx/csv (read.ts, όρια 15 MB / 5.000 γραμμές), parseCsv και αποθηκευμένες αντιστοιχίσεις στηλών ανά επικεφαλίδα (configToSaved / configForHeaders, saveMapping / findMapping)"
+    },
+    {
+     "hash": "1dbe169",
+     "date": "2026-10-20T05:29:15+03:00",
+     "text": "«Μόνο κενά»: ο memo μένει αυτούσιος και writeWebPrice με onlyIfBlank"
+    },
+    {
+     "hash": "fd00600",
+     "date": "2026-10-20T05:17:46+03:00",
+     "text": "Εισαγωγή από ξένο Excel: newSpecs με την ίδια κανονικοποίηση ετικέτας με το composeMemo (ς/σ, αστερίσκος) και πιο ασφαλής suggestTarget (κωδικός μόνο από σκέτες επικεφαλίδες, προμηθευτής/ΦΠΑ -> ignore, βάρος -> weight…"
+    },
+    {
+     "hash": "86f5bb9",
+     "date": "2026-10-20T05:13:59+03:00",
+     "text": "Εισαγωγή από ξένο Excel: καθαρή λογική"
+    }
+   ],
+   "updatedAt": "2026-10-20T06:10:57+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/templates/kanones-timon",
+   "slug": "catalog.templates.kanones-timon",
+   "file": "app/admin/(shell)/catalog/templates/kanones-timon/page.tsx",
+   "title": "Κανόνες τιμολόγησης",
+   "doc": "Κανόνες markup για την τιμή web των ειδών που έρχονται με κόστος από excel: γενικός κανόνας και εξαιρέσεις ανά μάρκα / κατηγορία, ποσοστό, στρογγύλεμα, με παράδειγμα υπολογισμού δίπλα σε κάθε κανόνα.",
+   "perm": "catalog.products.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "markup.list",
+    "markup.example",
+    "markup.form"
+   ],
+   "changes": [
+    {
+     "hash": "43cb975",
+     "date": "2026-10-20T05:19:50+03:00",
+     "text": "Τιμές με markup: parseMoney, pickRule (μάρκα+κατηγορία > κατηγορία > μάρκα > γενικός), priceFrom με στρογγυλοποίηση (int/90/99), πλαφόν ΤΛΤ και περιθώριο"
+    }
+   ],
+   "updatedAt": "2026-10-20T05:19:50+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/templates/nea-eidi",
+   "slug": "catalog.templates.nea-eidi",
+   "file": "app/admin/(shell)/catalog/templates/nea-eidi/page.tsx",
+   "title": "Νέα είδη προς δημιουργία",
+   "doc": "Νέα είδη από την «Εισαγωγή από άλλο Excel» που περιμένουν έγκριση πριν δημιουργηθούν στο SoftOne: τι λείπει, διόρθωση στοιχείων, έγκριση (δημιουργία ανενεργού είδους, τιμή, φωτογραφίες) ή απόρριψη.",
+   "perm": "catalog.products.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "pending.filters",
+    "pending.approve",
+    "pending.list",
+    "pending.missing",
+    "pending.discard",
+    "pending.edit"
+   ],
+   "changes": [
+    {
+     "hash": "e3167b6",
+     "date": "2026-10-20T06:10:57+03:00",
+     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
+    },
+    {
+     "hash": "65f2ef9",
+     "date": "2026-10-20T06:04:47+03:00",
+     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
+    }
+   ],
+   "updatedAt": "2026-10-20T06:10:57+03:00",
+   "shots": {}
   },
   {
    "route": "/admin/cms/brand-stores",
@@ -783,6 +926,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "c4063a2",
      "date": "2026-10-11T13:03:37+03:00",
      "text": "Ζώνες αρχικής & σελίδες μαρκών (ui-ux-pro-max): σε οθόνη laptop οι ρυθμίσεις δεν κρύβουν πια την προεπισκόπηση"
@@ -813,7 +961,7 @@
      "text": "Σελίδες μαρκών: δυναμικές από τη βάση + εργαλείο διαχείρισης, στυλ από το επίσημο site, 9 νέα components σε ζώνες"
     }
    ],
-   "updatedAt": "2026-10-11T13:03:37+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -901,6 +1049,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "417cbe2",
      "date": "2026-10-16T17:09:21+03:00",
      "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»"
@@ -944,14 +1097,9 @@
      "hash": "f564624",
      "date": "2026-10-10T19:54:40+03:00",
      "text": "Αρχική → Υπηρεσίες: όλες οι υπηρεσίες σε λίστα μέσα στην ενότητα, σύρσιμο ή βέλη για τη σειρά στην αρχική, μάτι για ορατή/κρυφή, μετρητής ορατών (προτείνονται 3/6/9), σύνδεσμος προς Εμπόριο → Υπηρεσίες"
-    },
-    {
-     "hash": "dba0ffb",
-     "date": "2026-10-10T19:17:48+03:00",
-     "text": "Κίτρινο ticker: κάθε μήνυμα σε δικό του μεγάλο πεδίο, σύρσιμο ή βέλη για σειρά, διακόπτης ενεργό/ανενεργό (μένει αποθηκευμένο), μετρητής χαρακτήρων με σύσταση έως 60, «Νέο μήνυμα»"
     }
    ],
-   "updatedAt": "2026-10-16T17:09:21+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -1007,6 +1155,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "26f418c",
      "date": "2026-10-11T13:27:55+03:00",
      "text": "Ζώνες σελίδων: μάτι σε κάθε ζώνη (και στα chips ζωνών)"
@@ -1037,7 +1190,7 @@
      "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-11T13:27:55+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -1064,6 +1217,11 @@
     "slides.form"
    ],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "9b7e9bf",
      "date": "2026-10-13T20:12:49+03:00",
@@ -1108,14 +1266,9 @@
      "hash": "2d38427",
      "date": "2026-10-09T18:27:38+03:00",
      "text": "Hero: προσφορά ημέρας από επιλογή ανά ημέρα ή από την πραγματική μεγαλύτερη έκπτωση"
-    },
-    {
-     "hash": "d8d149c",
-     "date": "2026-10-09T18:18:31+03:00",
-     "text": "Hero slides: απλούστερος επεξεργαστής"
     }
    ],
-   "updatedAt": "2026-10-13T20:12:49+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/cms.slides-d.jpg",
     "mobile": "/api/help-shot/cms.slides-m.jpg"
@@ -1145,6 +1298,11 @@
     "customers.location"
    ],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
@@ -1189,14 +1347,9 @@
      "hash": "ebc995f",
      "date": "2026-10-04T15:58:38+03:00",
      "text": "Πελάτες: ταξινόμηση από τις κεφαλίδες του πίνακα (όνομα, επικοινωνία, ΑΦΜ, αγορές, πόντοι, κατάστημα, κατάσταση)"
-    },
-    {
-     "hash": "f05f643",
-     "date": "2026-10-04T12:02:48+03:00",
-     "text": "Πελάτες: εισαγωγή από το nopCommerce (Excel / XML / newsletter CSV) με διασταύρωση"
     }
    ],
-   "updatedAt": "2026-10-16T13:29:14+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -1271,12 +1424,17 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "dd5e47e",
      "date": "2026-09-13T13:46:07+03:00",
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-09-13T13:46:07+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -1314,6 +1472,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "f495de2",
      "date": "2026-10-19T18:08:50+03:00",
      "text": "Ασφάλεια: αυστηρότερο CSP"
@@ -1329,7 +1492,7 @@
      "text": "Customer email system: brand email layout (table-based, navy/yellow, Manrope, ≥14px, text twin) with reusable blocks; 24 templates across account, newsletter, orders, service, cart, wishlist, loyalty and GDPR with typ…"
     }
    ],
-   "updatedAt": "2026-10-19T18:08:50+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/emails-d.jpg",
     "mobile": "/api/help-shot/emails-m.jpg"
@@ -1406,12 +1569,17 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "4fb66e4",
      "date": "2026-09-16T19:24:24+03:00",
      "text": "EPREL: μοντέλα και server-side ολοκλήρωση"
     }
    ],
-   "updatedAt": "2026-09-16T19:24:24+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/eprel-d.jpg",
     "mobile": "/api/help-shot/eprel-m.jpg"
@@ -1609,6 +1777,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
@@ -1629,7 +1802,7 @@
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-10-16T14:12:27+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -1658,6 +1831,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
@@ -1673,7 +1851,7 @@
      "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
     }
    ],
-   "updatedAt": "2026-10-16T14:12:27+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -1697,6 +1875,11 @@
     "promo.nav"
    ],
    "changes": [
+    {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
     {
      "hash": "7d938f8",
      "date": "2026-10-17T05:48:25+03:00",
@@ -1741,14 +1924,9 @@
      "hash": "c26f587",
      "date": "2026-10-03T07:30:09+03:00",
      "text": "Προσφορές"
-    },
-    {
-     "hash": "7494398",
-     "date": "2026-10-03T07:19:17+03:00",
-     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
     }
    ],
-   "updatedAt": "2026-10-17T05:48:25+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores-d.jpg",
     "mobile": "/api/help-shot/prosfores-m.jpg"
@@ -2035,6 +2213,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "1368c63",
      "date": "2026-10-11T04:42:52+03:00",
      "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
@@ -2055,7 +2238,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-11T04:42:52+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.imerologio-d.jpg",
     "mobile": "/api/help-shot/prosfores.imerologio-m.jpg"
@@ -2077,6 +2260,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "373b7ac",
      "date": "2026-10-16T17:25:30+03:00",
      "text": "Καμπάνιες (Φ1): διορθώσεις τελικού ελέγχου"
@@ -2087,7 +2275,7 @@
      "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-16T17:25:30+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -2161,6 +2349,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "1368c63",
      "date": "2026-10-11T04:42:52+03:00",
      "text": "Προσφορές: Ημερολόγιο, Κουπόνια, Κοινά, Ετικέτες, Προσομοιωτής ξανασχεδιασμένα"
@@ -2171,7 +2364,7 @@
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
     }
    ],
-   "updatedAt": "2026-10-11T04:42:52+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.koina-d.jpg",
     "mobile": "/api/help-shot/prosfores.koina-m.jpg"
@@ -2352,6 +2545,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "f495de2",
      "date": "2026-10-19T18:08:50+03:00",
      "text": "Ασφάλεια: αυστηρότερο CSP"
@@ -2387,7 +2585,7 @@
      "text": "Newsletter προσφοράς (5/7): αποστολή"
     }
    ],
-   "updatedAt": "2026-10-19T18:08:50+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {}
   },
   {
@@ -2538,6 +2736,11 @@
    ],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "4060650",
      "date": "2026-10-16T17:08:16+03:00",
      "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
@@ -2563,7 +2766,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-16T17:08:16+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
     "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
@@ -2607,6 +2810,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "97a8fe0",
+     "date": "2026-10-19T19:26:53+03:00",
+     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
      "hash": "b06f225",
      "date": "2026-09-13T15:22:47+03:00",
      "text": "Snap & Find: AI recognition of the old appliance from a photo"
@@ -2617,7 +2825,7 @@
      "text": "Back office foundation: Postgres + Prisma 6, Auth.js credentials login, RBAC (7 client roles × 40 permissions), admin shell with permission-filtered sidebar, dashboard, staff & roles matrix editors, audit log; radar m…"
     }
    ],
-   "updatedAt": "2026-09-13T15:22:47+03:00",
+   "updatedAt": "2026-10-19T19:26:53+03:00",
    "shots": {
     "desktop": "/api/help-shot/radar-d.jpg",
     "mobile": "/api/help-shot/radar-m.jpg"
@@ -3376,6 +3584,134 @@
  ],
  "recent": [
   {
+   "hash": "e3167b6",
+   "date": "2026-10-20T06:10:57+03:00",
+   "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή",
+   "routes": []
+  },
+  {
+   "hash": "65f2ef9",
+   "date": "2026-10-20T06:04:47+03:00",
+   "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή",
+   "routes": []
+  },
+  {
+   "hash": "36af274",
+   "date": "2026-10-20T05:58:07+03:00",
+   "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης σχεδίου/εκτέλεσης",
+   "routes": []
+  },
+  {
+   "hash": "e9d6f64",
+   "date": "2026-10-20T05:48:53+03:00",
+   "text": "Εισαγωγή από ξένο Excel: σχέδιο και εκτέλεση (planForeign / applyForeign)",
+   "routes": []
+  },
+  {
+   "hash": "e6973c0",
+   "date": "2026-10-20T05:39:53+03:00",
+   "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)",
+   "routes": []
+  },
+  {
+   "hash": "f0cb366",
+   "date": "2026-10-20T05:36:28+03:00",
+   "text": "Εισαγωγή από ξένο Excel: όριο 10.000 γραμμές, detectHeaderRow με τις περισσότερες διαφορετικές τιμές (Gedore, συγχωνευμένος τίτλος), τιμές μονάδος/χονδρικής → κόστος, unique headerSignature στο ImportMapping και upser…",
+   "routes": []
+  },
+  {
+   "hash": "2722eb6",
+   "date": "2026-10-20T05:34:08+03:00",
+   "text": "Εισαγωγή από ξένο Excel: ανάγνωση xlsx/csv (read.ts, όρια 15 MB / 5.000 γραμμές), parseCsv και αποθηκευμένες αντιστοιχίσεις στηλών ανά επικεφαλίδα (configToSaved / configForHeaders, saveMapping / findMapping)",
+   "routes": []
+  },
+  {
+   "hash": "1dbe169",
+   "date": "2026-10-20T05:29:15+03:00",
+   "text": "«Μόνο κενά»: ο memo μένει αυτούσιος και writeWebPrice με onlyIfBlank",
+   "routes": []
+  },
+  {
+   "hash": "a73882e",
+   "date": "2026-10-20T05:24:56+03:00",
+   "text": "Εισαγωγή: «μόνο κενά» για υπάρχοντα είδη και writeWebPrice",
+   "routes": []
+  },
+  {
+   "hash": "43cb975",
+   "date": "2026-10-20T05:19:50+03:00",
+   "text": "Τιμές με markup: parseMoney, pickRule (μάρκα+κατηγορία > κατηγορία > μάρκα > γενικός), priceFrom με στρογγυλοποίηση (int/90/99), πλαφόν ΤΛΤ και περιθώριο",
+   "routes": []
+  },
+  {
+   "hash": "fd00600",
+   "date": "2026-10-20T05:17:46+03:00",
+   "text": "Εισαγωγή από ξένο Excel: newSpecs με την ίδια κανονικοποίηση ετικέτας με το composeMemo (ς/σ, αστερίσκος) και πιο ασφαλής suggestTarget (κωδικός μόνο από σκέτες επικεφαλίδες, προμηθευτής/ΦΠΑ -> ignore, βάρος -> weight…",
+   "routes": []
+  },
+  {
+   "hash": "86f5bb9",
+   "date": "2026-10-20T05:13:59+03:00",
+   "text": "Εισαγωγή από ξένο Excel: καθαρή λογική",
+   "routes": []
+  },
+  {
+   "hash": "b2a56bf",
+   "date": "2026-10-20T05:10:51+03:00",
+   "text": "Σχήμα: εισαγωγή προϊόντων από ξένο Excel",
+   "routes": []
+  },
+  {
+   "hash": "d479713",
+   "date": "2026-10-20T05:07:26+03:00",
+   "text": "Πλάνο: εισαγωγή προϊόντων από ξένο Excel",
+   "routes": []
+  },
+  {
+   "hash": "6eec1fd",
+   "date": "2026-10-20T05:04:00+03:00",
+   "text": "Tests: σταθερό test του swr (maxStale)",
+   "routes": []
+  },
+  {
+   "hash": "9944e25",
+   "date": "2026-10-20T05:01:41+03:00",
+   "text": "Προδιαγραφή: εισαγωγή προϊόντων από ξένο Excel",
+   "routes": []
+  },
+  {
+   "hash": "97a8fe0",
+   "date": "2026-10-19T19:26:53+03:00",
+   "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'",
+   "routes": [
+    "/admin",
+    "/admin/ar",
+    "/admin/catalog",
+    "/admin/catalog/banners",
+    "/admin/cms/slides",
+    "/admin/customers",
+    "/admin/customers/[id]",
+    "/admin/customers/[id]/consent-proof",
+    "/admin/emails",
+    "/admin/eprel",
+    "/admin/orders",
+    "/admin/orders/[number]",
+    "/admin/prosfores",
+    "/admin/prosfores/kampanies",
+    "/admin/radar"
+   ]
+  },
+  {
+   "hash": "49ddf30",
+   "date": "2026-10-19T19:12:03+03:00",
+   "text": "Αποστολές: ASAP Couriers μέσω LastMily",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/apostoles/vouchers"
+   ]
+  },
+  {
    "hash": "3d85dfd",
    "date": "2026-10-19T19:01:08+03:00",
    "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily",
@@ -3535,134 +3871,6 @@
     "/admin/catalog/[id]",
     "/admin/catalog/sets"
    ]
-  },
-  {
-   "hash": "ba74864",
-   "date": "2026-10-16T17:43:45+03:00",
-   "text": "Σετ (Φ1): στο παραστατικό SoftOne η γραμμή σετ ανοίγει σε κύριο είδος με όλη την τιμή + μέλη με 0, όλα με SPCS",
-   "routes": []
-  },
-  {
-   "hash": "02f005b",
-   "date": "2026-10-16T17:41:07+03:00",
-   "text": "Σετ (Φ1): η γραμμή παραγγελίας σετ κρατά το σετ (SPCS) και στιγμιότυπο των μελών του τη στιγμή της αγοράς",
-   "routes": []
-  },
-  {
-   "hash": "8b14cd5",
-   "date": "2026-10-16T17:40:20+03:00",
-   "text": "Σετ (Φ1): στο site",
-   "routes": []
-  },
-  {
-   "hash": "e7384cd",
-   "date": "2026-10-16T17:37:28+03:00",
-   "text": "Σετ (Φ1): τιμή = τιμή κύριου είδους (όπως το SoftOne",
-   "routes": []
-  },
-  {
-   "hash": "841902e",
-   "date": "2026-10-16T17:36:24+03:00",
-   "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα",
-   "routes": []
-  },
-  {
-   "hash": "79043b7",
-   "date": "2026-10-16T17:30:06+03:00",
-   "text": "Σετ (Φ1): καθαρή λογική",
-   "routes": []
-  },
-  {
-   "hash": "987200c",
-   "date": "2026-10-16T17:29:31+03:00",
-   "text": "Σετ (Φ1): πεδία",
-   "routes": []
-  },
-  {
-   "hash": "a6e76c4",
-   "date": "2026-10-16T17:28:41+03:00",
-   "text": "Προδιαγραφή και πλάνο: σετ ειδών ως προϊόντα του καταλόγου (με «Πωλείται και μόνο του»)",
-   "routes": []
-  },
-  {
-   "hash": "373b7ac",
-   "date": "2026-10-16T17:25:30+03:00",
-   "text": "Καμπάνιες (Φ1): διορθώσεις τελικού ελέγχου",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/kampanies"
-   ]
-  },
-  {
-   "hash": "a763714",
-   "date": "2026-10-16T17:15:11+03:00",
-   "text": "Καμπάνιες (Φ1): βοήθεια",
-   "routes": []
-  },
-  {
-   "hash": "417cbe2",
-   "date": "2026-10-16T17:09:21+03:00",
-   "text": "Ορολογία: οι κάρτες κατασκευαστών του CMS γίνονται «Key visuals κατασκευαστών»",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/anafores"
-   ]
-  },
-  {
-   "hash": "4060650",
-   "date": "2026-10-16T17:08:16+03:00",
-   "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/[id]",
-    "/admin/prosfores/new",
-    "/admin/prosfores/selides",
-    "/admin/prosfores/theseis"
-   ]
-  },
-  {
-   "hash": "1e93fcd",
-   "date": "2026-10-16T17:04:47+03:00",
-   "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/kampanies",
-    "/admin/prosfores/kampanies/[id]"
-   ]
-  },
-  {
-   "hash": "76fad25",
-   "date": "2026-10-16T16:58:28+03:00",
-   "text": "Καμπάνιες (Φ1): λίστα, καρτέλα, αποθήκευση, περιεχόμενα (με μετακίνηση), δημοσίευση με τη λογική των προσφορών, παύση / λήξη / αρχείο, συγχρονισμός ημερομηνιών",
-   "routes": []
-  },
-  {
-   "hash": "2fd65f6",
-   "date": "2026-10-16T16:55:57+03:00",
-   "text": "Καμπάνιες (Φ1): καθαρή λογική",
-   "routes": []
-  },
-  {
-   "hash": "7234088",
-   "date": "2026-10-16T16:54:22+03:00",
-   "text": "Καμπάνιες (Φ1): σχήμα, δικαίωμα οικονομικής έγκρισης, ρόλοι Εμπορική / Οικονομική διεύθυνση",
-   "routes": []
-  },
-  {
-   "hash": "a09f78e",
-   "date": "2026-10-16T16:50:47+03:00",
-   "text": "Πλάνο Φάσης 1 (καμπάνιες) και μελέτη: SoftOne ως πηγή κόστους / περιθωρίου",
-   "routes": []
-  },
-  {
-   "hash": "fcbd5de",
-   "date": "2026-10-16T16:47:33+03:00",
-   "text": "Ασφάλεια: κεφαλίδες X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Strict-Transport-Security, Permissions-Policy, βασικό Content-Security-Policy",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -3719,6 +3927,12 @@
   ],
   "catalog.type": [
    "app/admin/(shell)/catalog/page.tsx"
+  ],
+  "pending.filters": [
+   "app/admin/(shell)/catalog/templates/nea-eidi/page.tsx"
+  ],
+  "templates.foreign": [
+   "app/admin/(shell)/catalog/templates/page.tsx"
   ],
   "zones.list": [
    "app/admin/(shell)/cms/pages/page.tsx"
@@ -3902,6 +4116,57 @@
   ],
   "settings.test": [
    "components/admin/SettingsForm.tsx"
+  ],
+  "foreign.steps": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.upload": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.header-row": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.saved-mapping": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.columns": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.sheet-defaults": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.values": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.preview": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.run": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "markup.list": [
+   "components/admin/catalog/MarkupRules.tsx"
+  ],
+  "markup.example": [
+   "components/admin/catalog/MarkupRules.tsx"
+  ],
+  "markup.form": [
+   "components/admin/catalog/MarkupRules.tsx"
+  ],
+  "pending.approve": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.list": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.missing": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.discard": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.edit": [
+   "components/admin/catalog/PendingItems.tsx"
   ],
   "product.dims-from-content": [
    "components/admin/catalog/ProductEditor.tsx"
