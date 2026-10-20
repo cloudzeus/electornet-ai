@@ -256,12 +256,11 @@ export type BlockOptions = Awaited<ReturnType<typeof blockOptionsAction>>;
  */
 export async function fetchLogoAction(url: string): Promise<{ ok: true; kind: "svg"; text: string } | { ok: true; kind: "raster"; dataUrl: string } | { ok: false; message: string }> {
   await requireCms();
-  let u: URL;
-  try { u = new URL(url); } catch { return { ok: false, message: "Μη έγκυρο URL." }; }
+  try { new URL(url); } catch { return { ok: false, message: "Μη έγκυρο URL." }; }
   const { getSetting } = await import("@/lib/settings/store");
-  const cdn = String((await getSetting("bunny")).data.cdnUrl ?? "");
-  const allowed = new Set(["euronics.b-cdn.net", ...(cdn ? [new URL(cdn).host] : [])]);
-  if (u.protocol !== "https:" || !allowed.has(u.host)) return { ok: false, message: "Η αυτόματη περικοπή γίνεται μόνο σε αρχεία της βιβλιοθήκης media (όχι σε λογότυπα τρίτων όπως το Brandfetch)." };
+  const { allowedCdnUrl, cdnHosts } = await import("@/lib/security/url-allow");
+  const u = allowedCdnUrl(url, cdnHosts("https://euronics.b-cdn.net", String((await getSetting("bunny")).data.cdnUrl ?? "")));
+  if (!u) return { ok: false, message: "Η αυτόματη περικοπή γίνεται μόνο σε αρχεία της βιβλιοθήκης media (όχι σε λογότυπα τρίτων όπως το Brandfetch)." };
   const r = await fetch(u, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
   if (!r?.ok) return { ok: false, message: "Δεν φορτώνει το αρχείο." };
   const buf = Buffer.from(await r.arrayBuffer());

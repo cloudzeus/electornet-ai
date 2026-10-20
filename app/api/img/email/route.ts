@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { emailThumbOf } from "@/lib/media/process";
 import { getBunny } from "@/lib/media/cdn";
+import { allowedCdnUrl, cdnHosts } from "@/lib/security/url-allow";
 
 /**
  * Email-safe image on demand: `/api/img/email?src=/img/cutouts/x.webp` →
@@ -19,10 +20,11 @@ export async function GET(req: Request) {
       const safe = path.normalize(src).replace(/^(\.\.[/\\])+/, "");
       bytes = await readFile(path.join(process.cwd(), "public", safe));
     } else {
+      // ακριβές host του CDN μετά από ανάλυση (όχι startsWith: «…b-cdn.net@άλλο-host», «…b-cdn.net.evil.com»)
       const b = await getBunny();
-      const u = new URL(src);
-      if (!b.cdnUrl || !src.startsWith(b.cdnUrl)) return new NextResponse("host not allowed", { status: 403 });
-      const r = await fetch(u, { signal: AbortSignal.timeout(10000) });
+      const u = allowedCdnUrl(src, cdnHosts(b.cdnUrl));
+      if (!u) return new NextResponse("host not allowed", { status: 403 });
+      const r = await fetch(u, { redirect: "error", signal: AbortSignal.timeout(10000) });
       if (!r.ok) return new NextResponse("upstream", { status: 502 });
       bytes = Buffer.from(await r.arrayBuffer());
     }
