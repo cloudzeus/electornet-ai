@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthForm } from "@/components/account/AuthForm";
+import { safeNext } from "@/lib/security/safe-next";
 import { SOCIAL_ERRORS } from "@/lib/account/social";
 
 export const metadata: Metadata = { title: "Σύνδεση" };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const sp = await searchParams;
-  const raw = sp.next ?? "";
   const error = sp.error && SOCIAL_ERRORS[sp.error as keyof typeof SOCIAL_ERRORS];
-  // μόνο εσωτερικές διαδρομές (όχι «//άλλο-site»)
-  const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/logariasmos";
+  // μόνο εσωτερικές διαδρομές (όχι «//άλλο-site», «/\άλλο-site», κωδικοποιημένες παραλλαγές)
+  const next = safeNext(sp.next, "/logariasmos");
   return (
     <div className="eu-container">
       <div className="eu-canvas eu-gutter py-10 grid grid-cols-1 @lg:grid-cols-2 gap-8 items-start max-w-[980px]">

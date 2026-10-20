@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { exchange, providerConfigs, PROVIDER_LABEL, PROVIDERS, type OAuthProvider } from "@/lib/account/oauth";
-import { publicOrigin, takeFlow } from "@/lib/account/oauth-flow";
+import { publicOrigin, safeNext, takeFlow } from "@/lib/account/oauth-flow";
 import { signInWithProfile } from "@/lib/account/social";
 
 /**
@@ -10,7 +10,9 @@ import { signInWithProfile } from "@/lib/account/social";
  */
 async function handle(req: Request, provider: string, q: { code?: string | null; state?: string | null; error?: string | null; user?: string | null }) {
   const origin = await publicOrigin(req);
-  const flow = await takeFlow();
+  const taken = await takeFlow();
+  // το cookie δεν είναι υπογεγραμμένο: ο προορισμός ξαναελέγχεται εδώ
+  const flow = taken && { ...taken, next: safeNext(taken.next) };
   const back = (path: string) => NextResponse.redirect(new URL(path, origin), 303);
   if (!PROVIDERS.includes(provider as OAuthProvider) || !flow || flow.p !== provider || !q.state || q.state !== flow.state) return back(`/syndesi?error=state`);
   const test = flow.mode === "test";

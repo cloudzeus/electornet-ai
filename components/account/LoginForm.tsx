@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
 import { SocialLogin } from "@/components/checkout/SocialLogin";
+import { safeNext } from "@/lib/security/safe-next";
 
 /** @dynamic Customer login (email + password). Social providers reuse the checkout component; every attempt is logged with evidence. */
 export function LoginForm({ initialEmail = "", next = "/logariasmos" }: { initialEmail?: string; next?: string }) {
@@ -19,7 +20,7 @@ export function LoginForm({ initialEmail = "", next = "/logariasmos" }: { initia
       const r = await fetch("/api/account/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: f.email, password: f.password }) });
       const j = (await r.json()) as { ok: boolean; error?: string };
       if (!j.ok) return setErr(j.error ?? "Λάθος email ή κωδικός.");
-      router.push(next); router.refresh();
+      router.push(safeNext(next, "/logariasmos")); router.refresh();
     } catch { setErr("Κάτι πήγε στραβά. Δοκίμασε ξανά."); } finally { setBusy(false); }
   };
   return (

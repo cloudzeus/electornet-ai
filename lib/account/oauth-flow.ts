@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
 import type { OAuthProvider } from "./oauth";
+import { safeNext as safePath } from "@/lib/security/safe-next";
 
 /** Η δημόσια διεύθυνση του site όπως τη βλέπει ο browser (πίσω από reverse proxy: x-forwarded-*). */
 export async function publicOrigin(req?: Request) {
@@ -11,8 +12,8 @@ export async function publicOrigin(req?: Request) {
   return `${proto}://${host}`;
 }
 
-/** Ασφαλής επιστροφή: μόνο σχετική διαδρομή του ίδιου site. */
-export const safeNext = (n: string | null | undefined) => (n && /^\/(?!\/)/.test(n) && !n.startsWith("/api/") ? n.slice(0, 500) : "/logariasmos");
+/** Ασφαλής επιστροφή: μόνο σχετική διαδρομή του ίδιου site (κοινός έλεγχος: lib/security/safe-next). */
+export const safeNext = (n: unknown) => safePath(n, "/logariasmos");
 
 const COOKIE = "eu_oauth";
 export interface FlowState { p: OAuthProvider; state: string; nonce: string; verifier: string; next: string; mode: "login" | "test"; at: number }

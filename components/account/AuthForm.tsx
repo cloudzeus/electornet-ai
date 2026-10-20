@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialLogin } from "@/components/checkout/SocialLogin";
 import { copyOf } from "@/lib/cms/copy";
+import { safeNext } from "@/lib/security/safe-next";
 
 const c = copyOf("auth");
 
@@ -21,7 +22,7 @@ export function AuthForm({ mode, next = "/logariasmos" }: { mode: "login" | "reg
   const [busy, setBusy] = useState(false);
   const [magic, setMagic] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const go = () => { router.push(next); router.refresh(); };
+  const go = () => { router.push(safeNext(next, "/logariasmos")); router.refresh(); };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (magic) return;
