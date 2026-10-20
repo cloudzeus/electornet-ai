@@ -284,7 +284,7 @@ test("detectHeaderRow: ισοπαλία → η πρώτη· η τελευταί�
   assert.equal(detectHeaderRow([["a", "b", "c"], ["d", "e", "f"], ["g"]]), 0);
   assert.equal(detectHeaderRow([["x", "y"], ["1", "2", "3", "4"]]), 0); // η πλουσιότερη είναι η τελευταία → δεν έχει δεδομένα από κάτω
   const long: string[][] = Array.from({ length: 40 }, () => [""]);
-  long[35] = ["a", "b", "c", "d"]; long[36] = ["1"]; long[3] = ["p", "q"]; long[4] = ["1"];
+  long[35] = ["a", "b", "c", "d"]; long[36] = ["1"]; long[3] = ["pp", "qq"]; long[4] = ["1"];
   assert.equal(detectHeaderRow(long), 3); // το [35] είναι εκτός των πρώτων 30
 });
 
@@ -293,4 +293,28 @@ test("suggestTarget: τιμές χονδρικής/μονάδος → cost, λι
   for (const h of ["Τιμή λιανικής", "RRP", "MSRP", "Λιανική"]) assert.deepEqual(suggestTarget(h), { kind: "rrp" }, h);
   assert.deepEqual(suggestTarget("Τιμή"), { kind: "ignore" });
   assert.deepEqual(suggestTarget("ΤΙΜΟΚΑΤΑΛΟΓΟΣ ΧΟΝΔΡΙΚΗΣ"), { kind: "ignore" }); // τίτλος, όχι στήλη
+});
+
+test("detectHeaderRow: οι γραμμές δεδομένων δεν επιλέγονται ως επικεφαλίδα (αριθμοί/URL δεν μετράνε, πολλά κελιά δεδομένων δεν νικούν)", () => {
+  // περισσότερα κελιά στα δεδομένα από την επικεφαλίδα
+  assert.equal(detectHeaderRow([
+    ["EAN", "Όνομα", "Τιμή", "Μάρκα"],
+    ["5901234123457", "Ψυγείο X", "499,00", "LG", "σημείωση"],
+    ["5901234123458", "Πλυντήριο Y", "399,00", "Bosch", "άλλη σημείωση"],
+  ]), 0);
+  // κενό πρώτο κελί επικεφαλίδας
+  assert.equal(detectHeaderRow([["", "EAN", "Όνομα", "Τιμή"], ["1", "5901234123457", "Ψυγείο", "499"], ["2", "5901234123458", "Φούρνος", "299"]]), 0);
+  // τρεις στήλες «Image» με URL στα δεδομένα
+  assert.equal(detectHeaderRow([
+    ["Image", "Image", "Image", "EAN"],
+    ["https://x.gr/a.jpg", "https://x.gr/b.jpg", "http://x.gr/c.jpg", "5901234123457"],
+    ["www.x.gr/d.jpg", "https://x.gr/e.jpg", "https://x.gr/f.jpg", "5901234123458"],
+  ]), 0);
+  // Gedore με δεύτερη, ποικίλη γραμμή δεδομένων (πολλές γλώσσες περιγραφής)
+  const hdr = ["links", "EAN Code", "Code", "Article-No.", "Description DE", "Description EN", "Description FR", "Description IT", "Brand"];
+  assert.equal(detectHeaderRow([
+    ["", "GEDORE Werkzeugfabrik"], ["", "", "Version:", "1.1"], [""], hdr,
+    ["6000240", "4010886600023", "6000240", "1 B 5", "Ring-Maulschlüssel", "Combination spanner", "Clé mixte hexagonale", "Chiave combinata", "GEDORE"],
+    ["6000241", "4010886600030", "6000241", "2 B 6", "Gabelschlüssel doppelt", "Double open ended spanner", "Clé à fourche double", "Chiave a forchetta doppia", "GEDORE"],
+  ]), 3);
 });

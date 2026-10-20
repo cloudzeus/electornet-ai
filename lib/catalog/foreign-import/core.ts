@@ -32,17 +32,25 @@ const txt = (v: unknown) => (v == null ? "" : String(v)).trim();
 
 // ---------- Επικεφαλίδες ----------
 
-/** Επικεφαλίδα = στις πρώτες 30 γραμμές, αυτή με τις περισσότερες ΔΙΑΦΟΡΕΤΙΚΕΣ τιμές (ο συγχωνευμένος τίτλος που επαναλαμβάνεται σε πολλές στήλες μετράει ως μία)
- * και με κάποια μη κενή γραμμή από κάτω· ισοπαλία → η πρώτη· αλλιώς 0. */
+/** «Ετικέτα» = κείμενο επικεφαλίδας: ≥ 2 γράμματα, γράμματα ≥ 50% των μη κενών χαρακτήρων, όχι URL (οι αριθμοί, EAN, τιμές και σύνδεσμοι είναι δεδομένα). */
+const isLabel = (c: string) => {
+  const t = txt(c).replace(/\s+/g, "");
+  if (!t || /^(https?:\/\/|www\.)/i.test(t)) return false;
+  const letters = (t.match(/\p{L}/gu) ?? []).length;
+  return letters >= 2 && letters * 2 >= t.length;
+};
+
+/** Επικεφαλίδα: στις πρώτες 30 γραμμές που έχουν μη κενή γραμμή από κάτω, score = πλήθος κελιών-ετικετών (συγχωνευμένος τίτλος με ίδιο κείμενο παντού → 1).
+ * Επιλέγεται η ΠΡΩΤΗ γραμμή με score ≥ 0,8 × το καλύτερο· αν κανένα κελί δεν μοιάζει με ετικέτα → 0. */
 export function detectHeaderRow(matrix: string[][]): number {
-  const distinct = (r: string[]) => new Set(r.map(txt).filter(Boolean)).size;
   const filled = (r: string[]) => r.some((c) => txt(c));
-  let best = 0, bestN = 0;
+  const scores: number[] = [];
   for (let i = 0; i < Math.min(matrix.length, 30); i++) {
-    const n = distinct(matrix[i]);
-    if (n > bestN && matrix.slice(i + 1).some(filled)) { best = i; bestN = n; }
+    const cells = matrix[i].map(txt).filter(Boolean);
+    scores.push(cells.length && matrix.slice(i + 1).some(filled) ? (new Set(cells).size === 1 ? Number(isLabel(cells[0])) : cells.filter(isLabel).length) : 0);
   }
-  return best;
+  const best = Math.max(0, ...scores);
+  return best > 0 ? scores.findIndex((n) => n >= 0.8 * best) : 0;
 }
 
 /** Υπογραφή συνόλου επικεφαλίδων — ίδια για διαφορετική σειρά, πεζά/κεφαλαία, τόνους και κενά (για να θυμόμαστε αντιστοιχίσεις). */
