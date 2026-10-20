@@ -1,0 +1,52 @@
+{
+  "note": "Εικόνα αναφοράς DNS για τον εξωτερικό φύλακα (scripts/security-watch.ts). Αλλάζει ΜΟΝΟ με commit: npx tsx scripts/security-watch.ts --write-dns-baseline (μετά από αλλαγή που κάναμε εμείς). knownCertNames: ονόματα με πιστοποιητικά στο Certificate Transparency.",
+  "generatedAt": "2026-10-20T10:28:12.518Z",
+  "records": {
+    "euronics.dgsoft.gr A": [
+      "104.21.35.244",
+      "172.67.181.125"
+    ],
+    "euronics.dgsoft.gr AAAA": [
+      "2606:4700:3032::6815:23f4",
+      "2606:4700:3032::ac43:b57d"
+    ],
+    "euronics.dgsoft.gr CNAME": [],
+    "euronics.dgsoft.gr MX": [],
+    "euronics.dgsoft.gr TXT": [],
+    "euronics.dgsoft.gr CAA": [],
+    "euronics.dgsoft.gr NS": [],
+    "dgsoft.gr A": [
+      "5.189.130.31"
+    ],
+    "dgsoft.gr AAAA": [],
+    "dgsoft.gr CNAME": [],
+    "dgsoft.gr MX": [
+      "0 dgsoft-gr.mail.protection.outlook.com"
+    ],
+    "dgsoft.gr TXT": [
+      "MS=ms15350674",
+      "v=spf1 include:spf.protection.outlook.com include:mailgun.org ~all"
+    ],
+    "dgsoft.gr CAA": [],
+    "dgsoft.gr NS": [
+      "art.ns.cloudflare.com",
+      "rose.ns.cloudflare.com"
+    ],
+    "_dmarc.dgsoft.gr TXT": []
+  },
+  "knownCertNames": [
+    "*.dgsoft.gr",
+    "ariadne.dgsoft.gr",
+    "cyclops.dgsoft.gr",
+    "dgsoft.gr",
+    "euronics.dgsoft.gr",
+    "fileshare.dgsoft.gr",
+    "gdpr.dgsoft.gr",
+    "iot.dgsoft.gr",
+    "kladi.dgsoft.gr",
+    "odyssey.dgsoft.gr",
+    "pms.dgsoft.gr",
+    "survey.dgsoft.gr",
+    "www.dgsoft.gr"
+  ]
+}

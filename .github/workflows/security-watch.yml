@@ -1,0 +1,87 @@
+# Εξωτερικός φύλακας ασφαλείας (docs/security-audit.md). Τρέχει ΕΞΩ από τις υποδομές μας: σαρώνει το δημόσιο site,
+# ελέγχει DNS / πιστοποιητικά / heartbeat του εσωτερικού ελέγχου και στέλνει email απευθείας μέσω Mailgun.
+# Μόνο αναγνώσεις. Τα μυστικά ΜΟΝΟ ως GitHub Secrets (το repo είναι δημόσιο).
+# Προσοχή: τα schedules τρέχουν μόνο από το αρχείο του default branch (master).
+name: security-watch
+
+on:
+  schedule:
+    # full: 04:30 UTC = 07:30 Αθήνα με θερινή ώρα (EEST, UTC+3)· με χειμερινή (EET, UTC+2, από την τελευταία Κυριακή
+    # του Οκτωβρίου) = 06:30 — πριν από τον εσωτερικό full των 07:00, οπότε το heartbeat κρίνει τον χθεσινό full
+    # (πριν τις 08:00 αρκεί αυτός). Για 07:30 και τον χειμώνα: "30 5 * * *" (και αλλαγή του ελέγχου παρακάτω).
+    - cron: "30 4 * * *"
+    # light: κάθε ώρα στο :15 (ο εσωτερικός light τρέχει στο :05)
+    - cron: "15 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full ή light"
+        type: choice
+        options: [full, light]
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # χωρίς install scripts: ο φύλακας χρειάζεται μόνο το tsx (και τα καθαρά αρχεία του repo)
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHED: ${{ github.event.schedule }}
+          INPUT: ${{ inputs.mode }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then m="$INPUT"
+          elif [ "$SCHED" = "30 4 * * *" ]; then m=full
+          else m=light; fi
+          case "$m" in full|light) ;; *) m=light ;; esac
+          echo "mode=$m" >> "$GITHUB_OUTPUT"
+
+      # ποια κρίσιμα στάλθηκαν τις τελευταίες ώρες (μόνο fingerprints) — να μη στέλνει ο light το ίδιο κάθε ώρα
+      - uses: actions/cache/restore@v4
+        with:
+          path: .security-watch-state.json
+          key: security-watch-state-${{ github.run_id }}
+          restore-keys: security-watch-state-
+
+      - name: security-watch
+        run: npx tsx scripts/security-watch.ts --mode=${{ steps.mode.outputs.mode }}
+        env:
+          SECURITY_WATCH_SECRET: ${{ secrets.SECURITY_WATCH_SECRET }}
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          SECURITY_REPORT_TO: ${{ secrets.SECURITY_REPORT_TO }}
+          MAILGUN_REGION: eu
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .security-watch-state.json
+          key: security-watch-state-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-watch-${{ steps.mode.outputs.mode }}-${{ github.run_id }}
+          path: security-watch-report.json
+          retention-days: 30
+          if-no-files-found: warn

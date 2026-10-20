@@ -53,3 +53,7 @@ public/uploads/
 
 # tesseract.js worker/πυρήνας (scripts/vendor-tesseract.mjs, πριν από dev/build)
 /public/vendor/tesseract/
+
+# εξωτερικός φύλακας ασφαλείας (artifact / κατάσταση του workflow)
+/security-watch-report.json
+/.security-watch-state.json
