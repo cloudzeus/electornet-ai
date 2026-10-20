@@ -39,7 +39,7 @@ export function athensDateTime(d: Date): string {
 
 // ── Ειδοποιήσεις ─────────────────────────────────────────────────────────────────────────────────────────────────────
 /**
- * Τα κρίσιμα ευρήματα που πρέπει να σταλούν: μόνο critical, όχι αν το ίδιο fingerprint στάλθηκε τις τελευταίες 24 ώρες
+ * Τα κρίσιμα ευρήματα που πρέπει να σταλούν: μόνο critical, όχι αν το ίδιο fingerprint στάλθηκε τις τελευταίες 23 ώρες
  * (`sent`: fingerprint → lastSentAt), και το ίδιο fingerprint μία φορά (η πρώτη εμφάνιση — οι λίστες έρχονται νεότερο πρώτο).
  */
 export function alertsToSend<T extends { checkKey: string; f: Finding }>(findings: T[], sent: Map<string, Date>, now: Date): (T & { fp: string })[] {
@@ -87,7 +87,7 @@ export function storedChecks(checks: unknown): StoredCheck[] {
 export type PendingAlert = { checkKey: string; checkTitle: string; f: Finding; fp: string; reportId: string; startedAt: Date };
 /**
  * Από reports με `alerted=false` (ειδοποίηση που δεν στάλθηκε ή δεν έχει γίνει ακόμη): τα κρίσιμα που δεν έχουν σταλεί
- * τις τελευταίες 24 ώρες. Νεότερο report πρώτο· το ίδιο εύρημα σε πολλά reports → μία φορά (από το νεότερο).
+ * τις τελευταίες 23 ώρες. Νεότερο report πρώτο· το ίδιο εύρημα σε πολλά reports → μία φορά (από το νεότερο).
  */
 export function pendingAlerts(reports: { id: string; startedAt: Date; checks: unknown }[], sent: Map<string, Date>, now: Date): PendingAlert[] {
   const items = [...reports].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime()).flatMap((r) =>
@@ -224,7 +224,7 @@ export function renderAlert(alerts: PendingAlert[], linkFor: (reportId: string) 
   }).join("");
   const html = wrap(
     `<h1 style="margin:0 0 4px;font-size:20px;color:${COLOR.critical}">Κρίσιμο εύρημα ασφαλείας</h1>` +
-    `<p style="margin:0 0 12px;color:#4b5563">Ο αυτόματος έλεγχος βρήκε ${n === 1 ? "κρίσιμο εύρημα" : `${n} κρίσιμα ευρήματα`}. Το ίδιο εύρημα δεν ξαναστέλνεται πριν περάσουν 24 ώρες.</p>` +
+    `<p style="margin:0 0 12px;color:#4b5563">Ο αυτόματος έλεγχος βρήκε ${n === 1 ? "κρίσιμο εύρημα" : `${n} κρίσιμα ευρήματα`}. Το ίδιο εύρημα δεν ξαναστέλνεται πριν περάσουν 23 ώρες.</p>` +
     `<table style="border-collapse:collapse;width:100%">${items}</table>`,
   );
   const text = [

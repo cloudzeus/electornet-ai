@@ -75,34 +75,42 @@ async function release(claims: Claim[], now: Date): Promise<void> {
 const retryJson = (r: AlertRetry | null) => (r ? (r as unknown as Prisma.InputJsonValue) : Prisma.DbNull);
 
 /**
- * Νέα προσπάθεια για τους παραλήπτες που δεν πήραν μια ειδοποίηση. Κλείδωμα με compare-and-swap στο alertRetry (μία
- * εκτέλεση τη φορά)· το email ξαναφτιάχνεται από τα reports της παρτίδας, μόνο με τα ίδια ευρήματα.
+ * Νέα προσπάθεια για τους παραλήπτες που δεν πήραν μια ειδοποίηση. Κάθε εγγραφή του alertRetry είναι compare-and-swap
+ * (where alertRetry = η τιμή που διαβάστηκε): μία εκτέλεση τη φορά, καμία δεν σβήνει την αλλαγή άλλης. Το email
+ * ξαναφτιάχνεται από τα reports της παρτίδας, μόνο με τα ίδια ευρήματα. Σφάλμα σε ένα report δεν σταματά τα άλλα.
  */
-async function retryRecipients(rows: { id: string; alertRetry: unknown }[], now: Date): Promise<void> {
+async function retryRecipients(rows: { id: string; alertRetry: unknown }[], now: Date, link: (id: string) => string): Promise<void> {
   for (const row of rows) {
     const retry = parseRetry(row.alertRetry);
     if (!retry || retry.gaveUp || !retry.to.length) continue;
     const inflight: AlertRetry = { ...retry, attempts: retry.attempts + 1, at: now.toISOString() };
-    const won = await db.securityReport.updateMany({ where: { id: row.id, alertRetry: { equals: row.alertRetry as Prisma.InputJsonValue } }, data: { alertRetry: retryJson(inflight) } });
-    if (won.count !== 1) continue;
-    const reports = await db.securityReport.findMany({ where: { id: { in: retry.reportIds } }, select: { id: true, startedAt: true, checks: true } });
-    const alerts = pendingAlerts(reports, new Map(), now).filter((a) => retry.fps.includes(a.fp));
-    let failed = retry.to;
-    if (alerts.length) failed = deliveryOutcome(await sendEach(retry.to, renderAlert(alerts, await linkFor()), "security-alert", { reportIds: retry.reportIds, alerts: alerts.length, retry: inflight.attempts })).failed;
-    const next = nextRetry(retry, failed, retry, now);
-    if (next?.gaveUp) console.error(`[security-audit] η ειδοποίηση δεν παραδόθηκε σε ${next.to.length} παραλήπτες μετά από ${next.attempts} προσπάθειες (report ${row.id})`);
-    await db.securityReport.updateMany({ where: { id: row.id }, data: { alertRetry: retryJson(next) } });
+    try {
+      const won = await db.securityReport.updateMany({ where: { id: row.id, alertRetry: { equals: row.alertRetry as Prisma.InputJsonValue } }, data: { alertRetry: retryJson(inflight) } });
+      if (won.count !== 1) continue;
+      const reports = await db.securityReport.findMany({ where: { id: { in: retry.reportIds } }, select: { id: true, startedAt: true, checks: true } });
+      const alerts = pendingAlerts(reports, new Map(), now).filter((a) => retry.fps.includes(a.fp));
+      let failed = retry.to;
+      if (alerts.length) failed = deliveryOutcome(await sendEach(retry.to, renderAlert(alerts, link), "security-alert", { reportIds: retry.reportIds, alerts: alerts.length, retry: inflight.attempts })).failed;
+      const next = nextRetry(retry, failed, retry, now);
+      if (next?.gaveUp) console.error(`[security-audit] η ειδοποίηση δεν παραδόθηκε σε ${next.to.length} παραλήπτες μετά από ${next.attempts} προσπάθειες (report ${row.id})`);
+      await db.securityReport.updateMany({ where: { id: row.id, alertRetry: { equals: retryJson(inflight) as Prisma.InputJsonValue } }, data: { alertRetry: retryJson(next) } });
+    } catch (e) {
+      // η προσπάθεια μετρήθηκε (inflight)· η επόμενη εκτέλεση ξαναδοκιμάζει από εκεί
+      console.error(`[security-audit] νέα προσπάθεια ειδοποίησης (report ${row.id})`, e);
+    }
   }
 }
 
 /**
  * Άμεσες ειδοποιήσεις: πρώτα οι νέες προσπάθειες σε παραλήπτες που απέτυχαν· μετά τα κρίσιμα ευρήματα των reports των
  * τελευταίων 48 ωρών με `alerted=false` (μαζί και το τρέχον) που δεν έχουν σταλεί τις τελευταίες 23 ώρες → ΕΝΑ email.
- * `alerted` στην απάντηση: false μόνο όταν υπήρχαν ειδοποιήσεις και δεν τις πήρε κανείς.
+ * Παραλήπτες και σύνδεσμος διαβάζονται ΠΡΙΝ το κλείδωμα· σφάλμα κατά την αποστολή → αναίρεση του κλειδώματος (αλλιώς η
+ * ειδοποίηση θα χανόταν για 23 ώρες). `alerted` στην απάντηση: false μόνο όταν υπήρχαν ειδοποιήσεις και δεν τις πήρε κανείς.
  */
 export async function sendPendingAlerts(now = new Date()): Promise<{ alerted: boolean; alerts: number }> {
+  const [recipients, link] = await Promise.all([securityRecipients(), linkFor()]);
   const recent = await db.securityReport.findMany({ where: { startedAt: { gte: new Date(now.getTime() - PENDING_MS) } }, orderBy: { startedAt: "desc" }, take: 100, select: { id: true, alerted: true, alertRetry: true } });
-  await retryRecipients(recent, now);
+  await retryRecipients(recent, now, link);
   const ids = recent.filter((r) => !r.alerted).map((r) => r.id);
   if (!ids.length) return { alerted: true, alerts: 0 };
   const reports = await db.securityReport.findMany({ where: { id: { in: ids } }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true, checks: true } });
@@ -118,14 +126,29 @@ export async function sendPendingAlerts(now = new Date()): Promise<{ alerted: bo
   const mine: PendingAlert[] = alerts.filter((a) => claims.some((c) => c.fp === a.fp));
   // τα υπόλοιπα τα στέλνει ταυτόχρονη εκτέλεση· τα reports μένουν alerted=false μέχρι να φανούν σταλμένα (επόμενο cron)
   if (!mine.length) return { alerted: true, alerts: 0 };
-  const { delivered, failed } = deliveryOutcome(await sendEach(await securityRecipients(), renderAlert(mine, await linkFor()), "security-alert", { reportIds: ids, alerts: mine.length }));
-  if (!delivered) { await release(claims, now); return { alerted: false, alerts: mine.length }; }
-  if (failed.length) {
-    const retry = nextRetry(null, failed, { fps: mine.map((a) => a.fp), reportIds: [...new Set(mine.map((a) => a.reportId))] }, now);
-    // στο νεότερο report της παρτίδας χωρίς άλλη εκκρεμή νέα προσπάθεια (μία ανά report)
-    const target = ids.find((id) => !parseRetry(recent.find((r) => r.id === id)?.alertRetry)) ?? ids[0];
-    await db.securityReport.updateMany({ where: { id: target }, data: { alertRetry: retryJson(retry) } });
+  let outcome: { delivered: boolean; failed: string[] };
+  try {
+    outcome = deliveryOutcome(await sendEach(recipients, renderAlert(mine, link), "security-alert", { reportIds: ids, alerts: mine.length }));
+  } catch (e) {
+    await release(claims, now);
+    throw e;
   }
+  if (!outcome.delivered) { await release(claims, now); return { alerted: false, alerts: mine.length }; }
+  if (outcome.failed.length) await storeRetry(nextRetry(null, outcome.failed, { fps: mine.map((a) => a.fp), reportIds: [...new Set(mine.map((a) => a.reportId))] }, now), ids, recent);
   if (mine.length === alerts.length) await markAlerted();
   return { alerted: true, alerts: mine.length };
+}
+
+/**
+ * Η νέα εκκρεμότητα γράφεται στο νεότερο report της παρτίδας που ΔΕΝ έχει ήδη alertRetry, με compare-and-swap
+ * (where alertRetry IS NULL) — ποτέ πάνω σε εκκρεμότητα άλλης παρτίδας. Χωρίς ελεύθερο report → καταγραφή σφάλματος.
+ */
+async function storeRetry(retry: AlertRetry | null, ids: string[], recent: { id: string; alertRetry: unknown }[]): Promise<void> {
+  if (!retry) return;
+  for (const id of ids) {
+    if (recent.find((r) => r.id === id)?.alertRetry != null) continue;
+    const n = await db.securityReport.updateMany({ where: { id, alertRetry: { equals: Prisma.DbNull } }, data: { alertRetry: retryJson(retry) } });
+    if (n.count === 1) return;
+  }
+  console.error(`[security-audit] δεν καταγράφηκε νέα προσπάθεια για ${retry.to.length} παραλήπτες (κανένα ελεύθερο report)`);
 }

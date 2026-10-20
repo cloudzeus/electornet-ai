@@ -18,13 +18,14 @@ const noStore = { "Cache-Control": "no-store" };
 
 /**
  * Το νεότερο report του mode που περιέχει ΟΛΟΥΣ τους ελέγχους του (με οποιαδήποτε κατάσταση — και error, φαίνεται στο
- * status)· τα χειροκίνητα reports ενός ελέγχου δεν μετρούν. Ο έλεγχος κάλυψης γίνεται στη βάση (χωρίς φόρτωση των checks).
+ * status)· τα χειροκίνητα reports ενός ελέγχου δεν μετρούν. Ο έλεγχος κάλυψης γίνεται στη βάση (χωρίς φόρτωση των checks),
+ * μόνο στις τελευταίες 7 ημέρες (παλαιότερο = null, «δεν έτρεξε»).
  */
 async function lastRun(mode: AuditMode): Promise<RunView | null> {
   const keys = CHECKS.filter((c) => c.modes.includes(mode)).map((c) => c.key);
   const rows = await db.$queryRaw<{ id: string; startedAt: Date; status: string }[]>`
     SELECT "id", "startedAt", "status" FROM "SecurityReport"
-    WHERE "mode" = ${mode}
+    WHERE "mode" = ${mode} AND "startedAt" > now() - interval '7 days'
       AND (SELECT count(DISTINCT e->>'key') FROM jsonb_array_elements(CASE WHEN jsonb_typeof("checks") = 'array' THEN "checks" ELSE '[]'::jsonb END) e
            WHERE e->>'key' = ANY(${keys}::text[])) = ${keys.length}
     ORDER BY "startedAt" DESC LIMIT 1`;

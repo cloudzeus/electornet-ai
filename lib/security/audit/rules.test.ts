@@ -178,6 +178,18 @@ test("scanPage: το τεκμήριο inline script με ξένο nonce δεν �
   assert.match(a ?? "", /window\.__cf/);
 });
 
+test("scanPage / scanContent: τα τεκμήρια με απόσπασμα (inline χωρίς nonce, <script> χωρίς κλείσιμο, on…=) σταθερά ανά αίτημα", () => {
+  const evs = (t: string) => scanPage(`${page(`<script>window.t=${t};var k="${t}abcdef"</script><img src=x onerror="go(${t})">`)}<script>var z=${t}`, ctx())
+    .filter((x) => x.severity === "critical").map((x) => `${x.title}|${x.evidence}`).sort();
+  const a = evs("1729411200123");
+  const b = evs("1729497600456");
+  assert.ok(a.some((x) => /Inline script χωρίς nonce/.test(x)));
+  assert.ok(a.some((x) => /χωρίς κλείσιμο/.test(x)));
+  assert.deepEqual(a, b);
+  const c = (t: string) => scanContent(t).map((x) => x.evidence);
+  assert.deepEqual(c(`<script>x=1729411200123</script>`), c(`<script>x=1729497600456</script>`));
+});
+
 test("scanPage: το «ξένο» nonce είναι αυτό που ΔΕΝ έχουν τα chunks του Next, ακόμη κι αν έχει περισσότερα scripts", () => {
   const html = `<script src="/_next/static/chunks/webpack-abc.js" nonce="N1"></script>
 <script nonce="CF">(function(){var s=document.createElement("script");s.src="/cdn-cgi/zaraz/s.js?z="+x;document.head.appendChild(s)})()</script>

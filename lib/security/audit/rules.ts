@@ -236,7 +236,7 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
       const zaraz = /\bzaraz\b/i.test(s.code) && !cdnOk("/cdn-cgi/zaraz/");
       const jsd = isJsdLoader(s.code, base);
       if (jsd) benign.add(s);
-      if (!s.nonce && !jsd) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", snip(s.code, 120));
+      if (!s.nonce && !jsd) crit("Inline script χωρίς nonce", "Η εφαρμογή βάζει nonce σε κάθε inline script· αυτό δεν το έβαλε η εφαρμογή (ένεση στο HTML ή από ενδιάμεσο).", stableSnip(s.code, 120));
       if (paths.length || zaraz) {
         // warn μόνο για τον γνήσιο loader του JSD· ό,τι άλλο αναφέρει /cdn-cgi/ (ακόμη και «challenge-platform») → critical
         const known = cdnFeature(zaraz ? "/cdn-cgi/zaraz/" : cleanPath(paths.find((p) => cdnFeature(cleanPath(p)).severity === "critical") ?? paths[0]));
@@ -248,8 +248,8 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
       continue;
     }
     let u: URL;
-    try { u = new URL(s.src!, base); } catch { crit("Script με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", snip(s.src!, 120)); continue; }
-    if (u.protocol !== "https:" && u.protocol !== "http:") { crit(`Script από ${u.protocol} (όχι αρχείο)`, "Κώδικας μέσα στη διεύθυνση του script — δεν το κάνει ποτέ η εφαρμογή.", snip(s.src!, 80)); continue; }
+    try { u = new URL(s.src!, base); } catch { crit("Script με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", stableSnip(s.src!, 120)); continue; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") { crit(`Script από ${u.protocol} (όχι αρχείο)`, "Κώδικας μέσα στη διεύθυνση του script — δεν το κάνει ποτέ η εφαρμογή.", stableSnip(s.src!, 80)); continue; }
     const same = u.origin === base.origin;
     const dp = cleanPath(u.pathname); // null = ύποπτη κωδικοποίηση (..%2f, %2e, \\, διπλή κωδικοποίηση)
     let loose = u.pathname;
@@ -300,8 +300,8 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
     if (src === "about:blank") continue;
     if (src === "about:srcdoc") { crit("iframe με srcdoc", "iframe με ενσωματωμένο HTML (srcdoc) — δεν το παράγει η εφαρμογή.", "srcdoc"); continue; }
     let u: URL;
-    try { u = new URL(src, base); } catch { crit("iframe με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", snip(src, 120)); continue; }
-    if (u.protocol !== "https:" && u.protocol !== "http:") crit(`iframe από ${u.protocol}`, "Κώδικας μέσα στη διεύθυνση του iframe.", snip(src, 80));
+    try { u = new URL(src, base); } catch { crit("iframe με άκυρη διεύθυνση", "Το src δεν είναι έγκυρο URL.", stableSnip(src, 120)); continue; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") crit(`iframe από ${u.protocol}`, "Κώδικας μέσα στη διεύθυνση του iframe.", stableSnip(src, 80));
     else if (u.origin !== base.origin && !hostIn(u.hostname, ALLOWED_FRAME_HOSTS)) crit("iframe από άγνωστο host", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", `${u.host}${u.pathname}`);
   }
 
@@ -336,7 +336,7 @@ export function scanPage(html: string, ctx: ScanPageCtx): Finding[] {
   // ετικέτες HTML εκτός scripts / σχολίων (το React δεν βγάζει ποτέ on…= attributes)
   const markup = html.replace(SCRIPT_RE, "").replace(/<!--[\s\S]*?-->/g, "");
   const open = /<script\b/i.exec(markup);
-  if (open) crit("<script> χωρίς κλείσιμο", "Ετικέτα <script> που δεν κλείνει — ο browser την εκτελεί ως το τέλος της σελίδας· δεν την παράγει η εφαρμογή.", snip(markup.slice(open.index, open.index + 120), 120));
+  if (open) crit("<script> χωρίς κλείσιμο", "Ετικέτα <script> που δεν κλείνει — ο browser την εκτελεί ως το τέλος της σελίδας· δεν την παράγει η εφαρμογή.", stableSnip(markup.slice(open.index, open.index + 120), 120));
   scanTags(markup, { page: base, own: [] }, crit);
   return out;
 }
@@ -429,7 +429,7 @@ function scanTags(text: string, o: { page?: URL; own: string[] }, crit: (title: 
   for (const m of text.matchAll(TAG_RE)) {
     const tag = m[1].toLowerCase();
     const a = attrs(m[2]);
-    const where = snip(m[0], 120);
+    const where = stableSnip(m[0], 120);
     for (const [k, v] of a) {
       if (/^on[a-z]+$/.test(k)) crit("Χειριστής συμβάντος (on…=) σε ετικέτα", "Π.χ. onerror= / onload=: εκτελεί κώδικα χωρίς <script>.", where);
       const flat = v.replace(/[\x00-\x20]+/g, "").toLowerCase();
@@ -466,11 +466,11 @@ export function scanContent(text: string, opts: { ownHosts?: string[] } = {}): F
   const dec = decodeEntities(text);
 
   const sc = /<\s*script\b/i.exec(text);
-  if (sc) crit("Ετικέτα <script> στο περιεχόμενο", "Κώδικας μέσα σε πεδίο που αποδίδεται ως HTML.", snip(text.slice(sc.index, sc.index + 120), 120));
+  if (sc) crit("Ετικέτα <script> στο περιεχόμενο", "Κώδικας μέσα σε πεδίο που αποδίδεται ως HTML.", stableSnip(text.slice(sc.index, sc.index + 120), 120));
 
   scanTags(text, { own }, crit);
   const di = /data:\s*text\/html/i.exec(dec);
-  if (di) crit("data:text/html στο περιεχόμενο", "Ολόκληρη σελίδα HTML κρυμμένη σε διεύθυνση.", snip(dec.slice(di.index, di.index + 80), 80));
+  if (di) crit("data:text/html στο περιεχόμενο", "Ολόκληρη σελίδα HTML κρυμμένη σε διεύθυνση.", stableSnip(dec.slice(di.index, di.index + 80), 80));
 
   for (const src of parseScripts(text).iframes) {
     if (src === "about:srcdoc") continue; // πιάστηκε παραπάνω
@@ -478,7 +478,7 @@ export function scanContent(text: string, opts: { ownHosts?: string[] } = {}): F
     if (src.startsWith("/") && !src.startsWith("//")) continue; // δική μας σελίδα
     let u: URL | null = null;
     try { u = new URL(src.startsWith("//") ? `https:${src}` : src); } catch { /* άκυρο */ }
-    if (!u || (u.protocol !== "https:" && u.protocol !== "http:")) crit("iframe με άκυρη / μη-http διεύθυνση", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", snip(src, 120));
+    if (!u || (u.protocol !== "https:" && u.protocol !== "http:")) crit("iframe με άκυρη / μη-http διεύθυνση", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", stableSnip(src, 120));
     else if (!hostIn(u.hostname, [...ALLOWED_FRAME_HOSTS, ...own])) crit("iframe από άγνωστο host", "Επιτρέπονται μόνο YouTube, Vimeo και Google Tag Manager.", `${u.host}${u.pathname}`);
   }
 
