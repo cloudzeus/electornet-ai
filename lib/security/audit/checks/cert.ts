@@ -9,6 +9,7 @@ import { siteOrigin } from "./site-origin";
  */
 function peerCert(host: string, signal?: AbortSignal): Promise<CertInfo> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error("ακύρωση (χρονικό όριο)"));
     const sock = tls.connect({ host, port: 443, servername: host, rejectUnauthorized: false, timeout: 15_000 });
     const done = (fn: () => void) => { signal?.removeEventListener("abort", onAbort); sock.destroy(); fn(); };
     const onAbort = () => done(() => reject(new Error("ακύρωση (χρονικό όριο)")));

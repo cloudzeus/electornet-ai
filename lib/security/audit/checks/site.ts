@@ -7,8 +7,9 @@ import { cleanAnalyticsIds } from "@/lib/security/analytics-ids";
 import { buildCsp } from "@/lib/security/csp";
 import { allowedScriptHosts } from "../policy";
 import type { Check } from "../types";
+import { timeoutFor } from "../execute";
 import { connectSrcOf, evaluatePage, pickLinks, pickOne, siteOutcome, type Build, type Fetched, type PickInfo } from "./site-core";
-import { siteOrigin } from "./site-origin";
+import { DB_MS, siteOrigin, withTimeout } from "./site-origin";
 
 /**
  * Το site όπως το βλέπει ο επισκέπτης: GET των σελίδων από το ΔΗΜΟΣΙΟ URL (μέσω Cloudflare — ό,τι προσθέτει η άκρη,
@@ -18,11 +19,9 @@ import { siteOrigin } from "./site-origin";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 const FETCH_MS = 15_000;
-const DB_MS = 8_000;
 const MAX_REDIRECTS = 5;
-
-const withTimeout = <T>(p: Promise<T>, ms: number, what: string) =>
-  Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error(`${what}: δεν απάντησε σε ${ms / 1000}″`)), ms).unref?.())]);
+/** Αναμονή πριν τον δεύτερο έλεγχο σελίδας με άλλο build και αρχεία που λείπουν (σύντομο παράθυρο deploy). */
+const RECHECK_MS = 20_000;
 
 /** Τα αρχεία του build (.next/static) ως διαδρομές όπως τις αναφέρει το HTML («/_next/static/chunks/x.js») + BUILD_ID. */
 async function loadBuild(): Promise<Build | null> {
@@ -106,7 +105,8 @@ export const siteCheck: Check = {
   modes: ["full", "light"],
   timeoutMs: { full: 150_000, light: 55_000 },
   async run({ mode, signal }) {
-    const [{ origin, source }, build, an] = await Promise.all([siteOrigin(), loadBuild(), analytics()]);
+    const t0 = Date.now();
+    const [{ origin, source, fallback }, build, an] = await Promise.all([siteOrigin(), loadBuild(), analytics()]);
     const ctx = { origin, build, allowedScriptHosts: an?.hosts ?? [], expectedConnectSrc: connectSrcOf(buildCsp({ nonce: "x", dev: false })) };
     const fixed = mode === "full" ? ["/", "/admin/login", "/kalathi"] : ["/", "/admin/login"];
     const dbPick = mode === "full" ? withTimeout(pickFromDb(), DB_MS, "Βάση").then((r) => ({ r, err: null as string | null }), (e: unknown) => ({ r: null, err: errText(e) as string | null })) : null;
@@ -135,7 +135,18 @@ export const siteCheck: Check = {
       if (!product) missing.push("προϊόντος");
       pages.push(...(await Promise.all([category, product].filter((x): x is string => !!x).map((p) => fetchPage(origin, p, signal)))));
     }
-    const results = pages.map((p) => evaluatePage(p, ctx));
-    return siteOutcome({ mode, origin, originSource: source, pages: results, build, analytics: an, pick, missing });
+    let results = pages.map((p) => evaluatePage(p, ctx));
+    // άλλο build με αρχεία που λείπουν: ένας δεύτερος έλεγχος μετά από 20″ (σύντομο παράθυρο deploy)· αν δεν χωρά στο
+    // χρονικό όριο του mode, κρίνεται χωρίς αυτόν (critical, με σημείωση)
+    if (results.some((r) => r.recheck)) {
+      const budget = timeoutFor(siteCheck, mode) - 5_000;
+      if (Date.now() - t0 + RECHECK_MS + FETCH_MS * 1.5 < budget && !signal?.aborted) {
+        await new Promise((r) => setTimeout(r, RECHECK_MS));
+        results = await Promise.all(results.map(async (r, i) => (r.recheck ? evaluatePage(await fetchPage(origin, pages[i].path, signal), ctx, { confirmed: true, note: "δεύτερη λήψη μετά από 20″" }) : r)));
+      } else {
+        results = results.map((r, i) => (r.recheck ? evaluatePage(pages[i], ctx, { confirmed: true, note: "χωρίς δεύτερη λήψη — δεν έμενε χρόνος" }) : r));
+      }
+    }
+    return siteOutcome({ mode, origin, originSource: source, originDefault: fallback, pages: results, build, analytics: an, pick, missing });
   },
 };

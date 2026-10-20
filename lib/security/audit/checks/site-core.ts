@@ -13,7 +13,7 @@ export type Fetched =
 
 export type Build = { id: string | null; files: Set<string> };
 export type PageCtx = { origin: string; build: Build | null; allowedScriptHosts: string[]; expectedConnectSrc: string[] };
-export type PageResult = { path: string; label: string; scanned: boolean; findings: Finding[]; scripts: { external: number; inline: number } };
+export type PageResult = { path: string; label: string; scanned: boolean; findings: Finding[]; scripts: { external: number; inline: number }; /** άλλο build με αρχεία που λείπουν: να ξαναελεγχθεί */ recheck?: true };
 
 /** Οι πηγές του connect-src ενός CSP (όπως τις παράγει το buildCsp) — αυτές περιμένει ο έλεγχος headers. */
 export function connectSrcOf(csp: string): string[] {
@@ -53,7 +53,11 @@ export const pickOne = <T>(xs: T[], rand: () => number = Math.random): T | null 
 const host = (u: string) => { try { return new URL(u).host; } catch { return u.slice(0, 80); } };
 
 /** Κατάταξη και έλεγχος μίας σελίδας. */
-export function evaluatePage(page: Fetched, ctx: PageCtx): PageResult {
+/**
+ * `confirmed`: δεύτερος έλεγχος της ίδιας σελίδας (το I/O την ξαναφέρνει μετά από ~20″ όταν `recheck`) — άλλο build με
+ * αρχεία που λείπουν γίνεται τότε critical· χωρίς χρόνο για δεύτερο έλεγχο το I/O καλεί με `confirmed` και `note`.
+ */
+export function evaluatePage(page: Fetched, ctx: PageCtx, opts: { confirmed?: boolean; note?: string } = {}): PageResult {
   const none = { external: 0, inline: 0 };
   const res = (label: string, findings: Finding[], scanned = false, scripts = none): PageResult => ({ path: page.path, label, scanned, findings, scripts });
   if ("error" in page) {
@@ -73,19 +77,62 @@ export function evaluatePage(page: Fetched, ctx: PageCtx): PageResult {
   if (kind === "error") {
     return res(`HTTP ${page.status}`, [{ severity: "error", title: `Η σελίδα απάντησε HTTP ${page.status} — δεν ελέγχθηκε`, detail: `${page.path}: HTTP ${page.status}. Η σελίδα δεν σαρώθηκε.`, evidence: page.path }]);
   }
+  // πρέπει να είναι σελίδα της εφαρμογής: 200, text/html, με scripts /_next/static ή δεδομένα του Next (__next_f) —
+  // αλλιώς κενή/204/3xx χωρίς Location/JSON (δεν ελέγχθηκε) ή στατική σελίδα στη θέση της (αντικατάσταση → critical)
+  const ctype = (Object.entries(page.headers).find(([k]) => k.toLowerCase() === "content-type")?.[1] ?? "").toLowerCase();
+  const { scripts } = parseScripts(page.html);
+  const counts = { external: scripts.filter((s) => !s.inline).length, inline: scripts.filter((s) => s.inline).length };
+  if (page.status !== 200 || !/^\s*text\/html\b/.test(ctype) || !page.html.trim()) {
+    return res(`HTTP ${page.status}${ctype ? ` ${ctype.split(";")[0].trim()}` : ""}`, [{ severity: "error", title: "Η απάντηση δεν είναι σελίδα της εφαρμογής — δεν ελέγχθηκε", detail: `${page.path}: HTTP ${page.status}, Content-Type «${ctype || "—"}», ${page.html.length} bytes. Η εφαρμογή απαντά με σελίδα HTML (200) — αυτή η απάντηση δεν σαρώθηκε.`, evidence: page.path }]);
+  }
+  const ours = scripts.some((s) => (s.src ? sameOriginStatic(s.src, ctx.origin) !== null : /__next_f\b/.test(s.code)));
+  if (!ours) {
+    return res(`${page.status} χωρίς σημάδια της εφαρμογής`, [
+      { severity: "critical", title: "Η σελίδα δεν είναι της εφαρμογής (πιθανή αντικατάσταση/defacement)", detail: `Η ${page.path} απάντησε με HTML χωρίς κανένα script /_next/static ή δεδομένα του Next — η εφαρμογή δεν παράγει ποτέ τέτοια σελίδα. Κάτι άλλο σερβίρει στη θέση της (αντικατάσταση, Cloudflare Worker / Page Rule, άλλος server). Αρχή: «${snip(page.html, 160)}».`, evidence: page.path },
+      ...scanPage(page.html, { origin: ctx.origin, buildChunks: ctx.build?.files ?? null, allowedScriptHosts: ctx.allowedScriptHosts }),
+    ], false, counts);
+  }
   const findings: Finding[] = [];
   let files: Set<string> | null = null;
+  let recheck: true | undefined;
   if (ctx.build) {
     const pageId = buildIdOf(page.html);
     if (ctx.build.id && pageId && pageId !== ctx.build.id) {
-      findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: `Τα αρχεία /_next/static αυτής της σελίδας ΔΕΝ συγκρίθηκαν με το build. Συνήθως: deploy σε εξέλιξη ή ο έλεγχος τρέχει σε άλλο αντίγραφο της εφαρμογής από αυτό που σερβίρει το site. Αν επιμένει, ελέγξτε ποιος server απαντά στο δημόσιο URL.`, evidence: `site ${pageId} · server ${ctx.build.id}` });
+      // άλλο build: τα αρχεία του δεν συγκρίνονται ένα-ένα (scanPage), αλλά ό,τι λείπει από το δικό μας build μετρά —
+      // ένας ενδιάμεσος που αλλάζει το buildId δεν «κρύβει» έτσι ένα ξένο chunk
+      const missing = missingStatic(scripts, ctx.origin, ctx.build.files);
+      const evidence = `site ${pageId} · server ${ctx.build.id}`;
+      if (missing.length && opts.confirmed) {
+        findings.push({ severity: "critical", title: "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server", detail: `Η σελίδα δηλώνει build ${pageId} (ο server: ${ctx.build.id}) και φορτώνει ${missing.length} αρχεία /_next/static που δεν υπάρχουν στο build του server — και μετά από νέο έλεγχο${opts.note ? ` (${opts.note})` : ""}: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? "…" : ""}. Είτε το δημόσιο URL σερβίρεται από άλλο αντίγραφο της εφαρμογής (μακρύ deploy, παλιός server) είτε ενδιάμεσος (Cloudflare Worker / ένεση) άλλαξε τη σελίδα. Επιβεβαιώστε ποιος server απαντά.`, evidence });
+      } else {
+        if (missing.length) recheck = true;
+        findings.push({ severity: "warn", title: "Το site σερβίρει άλλο build από τον server του ελέγχου", detail: `Η σελίδα δηλώνει άλλο build${missing.length ? ` και φορτώνει ${missing.length} αρχεία που δεν υπάρχουν στο build του server (θα ξαναελεγχθεί)` : " — όλα τα αρχεία /_next/static της υπάρχουν στο build του server"}. Συνήθως: deploy σε εξέλιξη. Αν επιμένει, ελέγξτε ποιος server απαντά στο δημόσιο URL.`, evidence });
+      }
     } else files = ctx.build.files;
   }
   findings.push(...scanPage(page.html, { origin: ctx.origin, buildChunks: files, allowedScriptHosts: ctx.allowedScriptHosts }));
   findings.push(...checkHeaders(page.headers, { expectedConnectSrc: ctx.expectedConnectSrc }));
-  const { scripts } = parseScripts(page.html);
   const moved = page.finalPath && page.finalPath !== page.path ? ` → ${page.finalPath}` : "";
-  return res(`${page.status}${moved}`, findings, true, { external: scripts.filter((s) => !s.inline).length, inline: scripts.filter((s) => s.inline).length });
+  return { ...res(`${page.status}${moved}`, findings, true, counts), ...(recheck ? { recheck } : {}) };
+}
+
+const snip = (s: string, n: number) => { const t = s.replace(/\s+/g, " ").trim(); return t.length > n ? `${t.slice(0, n)}…` : t; };
+/** Η διαδρομή /_next/static ενός src του ίδιου origin (αποκωδικοποιημένη) — null αν δεν είναι τέτοιο. */
+function sameOriginStatic(src: string, origin: string): string | null {
+  try {
+    const u = new URL(src, origin);
+    if (u.origin !== new URL(origin).origin || !u.pathname.startsWith("/_next/static/")) return null;
+    try { return decodeURIComponent(u.pathname); } catch { return u.pathname; }
+  } catch { return null; }
+}
+/** Τα scripts /_next/static της σελίδας που δεν υπάρχουν στα αρχεία του build (ταξινομημένα, μοναδικά). */
+export function missingStatic(scripts: { src: string | null }[], origin: string, files: Set<string>): string[] {
+  const out = new Set<string>();
+  for (const s of scripts) {
+    const p = s.src ? sameOriginStatic(s.src, origin) : null;
+    if (p && !files.has(p)) out.add(p);
+  }
+  return [...out].sort();
 }
 
 /** Το ίδιο εύρημα (σοβαρότητα + τίτλος + τεκμήριο) σε πολλές σελίδες → ένα, με τις σελίδες στη λεπτομέρεια (όχι στο τεκμήριο: fingerprint). */
@@ -104,9 +151,10 @@ const PICK: Record<PickInfo["source"], string> = { db: "από τη βάση (τ
 
 export function siteOutcome(input: {
   mode: "full" | "light"; origin: string; originSource: string; pages: PageResult[]; build: Build | null;
-  analytics: { keys: string[]; hosts: string[] } | null; pick?: PickInfo; missing?: string[];
+  analytics: { keys: string[]; hosts: string[] } | null; pick?: PickInfo; missing?: string[]; /** το URL είναι η ενσωματωμένη προεπιλογή */ originDefault?: boolean;
 }): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
   const findings = mergeFindings(input.pages);
+  if (input.originDefault) findings.push({ severity: "warn", title: `Δεν έχει οριστεί SECURITY_SITE_URL/AUTH_URL — ελέγχεται η προεπιλογή ${input.origin}`, detail: `Ο έλεγχος δεν ξέρει από τις ρυθμίσεις ποιο είναι το δημόσιο URL της εφαρμογής και ελέγχει την ενσωματωμένη προεπιλογή ${input.origin}. Αν το site έχει μετακομίσει, ο έλεγχος κοιτάζει λάθος site. Ορίστε SECURITY_SITE_URL (ή AUTH_URL) στο περιβάλλον του server.`, evidence: input.origin });
   if (!input.build) findings.push({ severity: "warn", title: "Δεν βρέθηκε το build — ο έλεγχος αρχείων παραλείπεται", detail: "Ο φάκελος .next/static δεν βρέθηκε στον server του ελέγχου: τα scripts /_next/static των σελίδων ΔΕΝ συγκρίθηκαν με τα αρχεία του build (ένα αρχείο που προστέθηκε/αντικαταστάθηκε δεν θα φαινόταν). Οι υπόλοιποι κανόνες εφαρμόστηκαν.", evidence: ".next/static" });
   for (const m of input.missing ?? []) findings.push({ severity: "error", title: `Δεν βρέθηκε σελίδα ${m} για έλεγχο`, detail: `Ούτε η βάση, ούτε το sitemap, ούτε η αρχική έδωσαν σελίδα ${m}${input.pick?.note ? ` (${input.pick.note})` : ""} — δεν ελέγχθηκε.`, evidence: m });
   const scanned = input.pages.filter((p) => p.scanned);

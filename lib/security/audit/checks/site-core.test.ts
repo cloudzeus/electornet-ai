@@ -6,7 +6,7 @@ import { buildIdOf, connectSrcOf, evaluatePage, mergeFindings, pickLinks, pickOn
 const ORIGIN = "https://euronics.dgsoft.gr";
 const N = "TjE=";
 const CSP = buildCsp({ nonce: N, dev: false });
-const HEADERS = { "content-security-policy": CSP, "strict-transport-security": "max-age=63072000", "x-content-type-options": "nosniff", server: "cloudflare" };
+const HEADERS = { "content-type": "text/html; charset=utf-8", "content-security-policy": CSP, "strict-transport-security": "max-age=63072000", "x-content-type-options": "nosniff", server: "cloudflare" };
 const page = (body: string, buildId = "BUILD_A") =>
   `<!DOCTYPE html><html><head><script src="/_next/static/chunks/main-1.js" async="" nonce="${N}"></script></head><body>${body}<script nonce="${N}">self.__next_f.push([1,"0:{\\"P\\":null,\\"b\\":\\"${buildId}\\",\\"c\\":[]}"])</script></body></html>`;
 const ctx = (over: Partial<PageCtx> = {}): PageCtx => ({ origin: ORIGIN, build: { id: "BUILD_A", files: new Set(["/_next/static/chunks/main-1.js"]) }, allowedScriptHosts: [], expectedConnectSrc: connectSrcOf(CSP), ...over });
@@ -35,9 +35,48 @@ test("evaluatePage: καθαρή σελίδα → καμία παρατήρησ�
   assert.ok(bad.findings.some((f) => f.severity === "critical" && /δεν υπάρχει στο build/.test(f.title)));
 });
 
-test("evaluatePage: άλλο build στο site → warn και ΧΩΡΙΣ σύγκριση αρχείων (όχι ψευδή critical)", () => {
-  const r = evaluatePage(ok("/", page(`<script src="/_next/static/chunks/other-2.js" nonce="${N}"></script>`, "BUILD_B")), ctx());
+test("evaluatePage: άλλο build στο site, όλα τα αρχεία υπάρχουν (παράθυρο deploy) → warn, χωρίς recheck", () => {
+  const r = evaluatePage(ok("/", page("", "BUILD_B")), ctx());
   assert.deepEqual(r.findings.map((f) => [f.severity, f.evidence]), [["warn", "site BUILD_B · server BUILD_A"]]);
+  assert.equal(r.recheck, undefined);
+});
+
+test("evaluatePage: άλλο build + αρχεία που λείπουν → recheck (warn)· επιβεβαιωμένο → critical με πλήθος και διαδρομές στη λεπτομέρεια", () => {
+  const html = page(`<script src="/_next/static/chunks/evil.js" nonce="${N}"></script>`, "FAKE_BUILD");
+  const first = evaluatePage(ok("/", html), ctx());
+  assert.equal(first.recheck, true);
+  assert.ok(!first.findings.some((f) => f.severity === "critical"));
+  const again = evaluatePage(ok("/", html), ctx(), { confirmed: true });
+  const c = again.findings.find((f) => f.severity === "critical");
+  assert.equal(c?.title, "Το site σερβίρει αρχεία που δεν υπάρχουν στο build του server");
+  assert.equal(c?.evidence, "site FAKE_BUILD · server BUILD_A");
+  assert.match(c!.detail, /1 αρχεία.*\/_next\/static\/chunks\/evil\.js/);
+  assert.equal(again.recheck, undefined);
+});
+
+test("evaluatePage: άλλο build + script από ξένο host → critical (οι υπόλοιποι κανόνες ισχύουν)", () => {
+  const r = evaluatePage(ok("/", page(`<script src="https://evil.example/x.js" nonce="${N}"></script>`, "FAKE_BUILD")), ctx());
+  assert.ok(r.findings.some((f) => f.severity === "critical" && f.title === "Script από άγνωστο host"));
+});
+
+test("evaluatePage: απάντηση που δεν είναι σελίδα της εφαρμογής (κενή, 204, 3xx χωρίς Location, JSON) → error, όχι ok", () => {
+  for (const [name, f] of [
+    ["κενή 200", ok("/", "")],
+    ["204", ok("/", "", HEADERS, 204)],
+    ["302 χωρίς Location", ok("/", "", HEADERS, 302)],
+    ["JSON", ok("/", '{"ok":true}', { ...HEADERS, "content-type": "application/json" })],
+    ["χωρίς content-type", ok("/", page(""), Object.fromEntries(Object.entries(HEADERS).filter(([k]) => k !== "content-type")))],
+  ] as [string, Fetched][]) {
+    const r = evaluatePage(f, ctx());
+    assert.equal(r.scanned, false, name);
+    assert.deepEqual(r.findings.map((x) => [x.severity, x.title]), [["error", "Η απάντηση δεν είναι σελίδα της εφαρμογής — δεν ελέγχθηκε"]], name);
+  }
+});
+
+test("evaluatePage: HTML 200 χωρίς σημάδια της εφαρμογής (στατική σελίδα) → critical defacement", () => {
+  const r = evaluatePage(ok("/", "<html><body><h1>Hacked</h1><a href='https://phish.example'>login</a></body></html>"), ctx());
+  assert.equal(r.scanned, false);
+  assert.ok(r.findings.some((f) => f.severity === "critical" && f.title === "Η σελίδα δεν είναι της εφαρμογής (πιθανή αντικατάσταση/defacement)"));
 });
 
 test("evaluatePage: build άγνωστο (null) → οι υπόλοιποι κανόνες ισχύουν (Zaraz → critical)", () => {
@@ -88,6 +127,7 @@ test("pickLinks / pickOne: κατηγορίες και προϊόντα του �
 test("siteOutcome: χωρίς build → warn «δεν βρέθηκε το build»· σελίδα που λείπει → error· σύνοψη λέει τι εξετάστηκε", () => {
   const pages = [evaluatePage(ok("/", page("")), ctx({ build: null })), evaluatePage({ path: "/admin/login", error: "timeout" }, ctx({ build: null }))];
   const r = siteOutcome({ mode: "full", origin: ORIGIN, originSource: "AUTH_URL", pages, build: null, analytics: null, pick: { source: "home", note: "η βάση δεν απάντησε" }, missing: ["προϊόντος"] });
+  assert.ok(!r.findings.some((f) => /SECURITY_SITE_URL/.test(f.title)));
   assert.equal(r.status, "error");
   assert.equal(r.complete, false);
   assert.ok(r.findings.some((f) => f.severity === "warn" && f.title === "Δεν βρέθηκε το build — ο έλεγχος αρχείων παραλείπεται"));
@@ -104,4 +144,11 @@ test("siteOutcome: όλα καθαρά → ok και complete", () => {
   assert.equal(r.status, "ok");
   assert.equal(r.complete, true);
   assert.match(r.summary, /build BUILD_A: 1 αρχεία/);
+});
+
+test("siteOutcome: προεπιλεγμένο URL (χωρίς SECURITY_SITE_URL/AUTH_URL) → warn εύρημα, όχι μόνο στη σύνοψη", () => {
+  const b = { id: "BUILD_A", files: new Set(["/_next/static/chunks/main-1.js"]) };
+  const r = siteOutcome({ mode: "light", origin: ORIGIN, originSource: "προεπιλογή", originDefault: true, pages: [evaluatePage(ok("/", page("")), ctx())], build: b, analytics: { keys: [], hosts: [] } });
+  assert.equal(r.status, "warn");
+  assert.deepEqual(r.findings.map((f) => f.title), ["Δεν έχει οριστεί SECURITY_SITE_URL/AUTH_URL — ελέγχεται η προεπιλογή https://euronics.dgsoft.gr"]);
 });
