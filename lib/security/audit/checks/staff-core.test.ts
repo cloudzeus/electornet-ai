@@ -81,12 +81,12 @@ test("νέος (μη super-admin) ρόλος σε χρήστη → warn", () => 
 });
 
 test("δικαίωμα staff.*/settings.* σε ρόλο → critical· άλλο δικαίωμα → warn· από ιστορικό ή στιγμιότυπο, ένα εύρημα ανά ρόλο", () => {
-  const r2 = roles.map((r) => (r.key === "marketing" ? { ...r, permissions: ["cms.zones.write", "settings.write", "catalog.read"] } : r));
-  const out = run({ roles: r2, audits: [audit({ action: "role.permissions.update", entityId: "r-mk", before: { key: "marketing", permissions: ["cms.zones.write"] }, after: { key: "marketing", permissions: ["catalog.read", "cms.zones.write", "settings.write"] } })] });
+  const r2 = roles.map((r) => (r.key === "marketing" ? { ...r, permissions: ["cms.zones.write", "settings.write", "catalog.products.read"] } : r));
+  const out = run({ roles: r2, audits: [audit({ action: "role.permissions.update", entityId: "r-mk", before: { key: "marketing", permissions: ["cms.zones.write"] }, after: { key: "marketing", permissions: ["catalog.products.read", "cms.zones.write", "settings.write"] } })] });
   assert.equal(out.length, 1);
   assert.equal(out[0].severity, "critical");
-  assert.equal(out[0].evidence, "marketing: +catalog.read, +settings.write");
-  const mild = run({ roles: roles.map((r) => (r.key === "marketing" ? { ...r, permissions: ["cms.zones.write", "catalog.read"] } : r)) });
+  assert.equal(out[0].evidence, "marketing: +catalog.products.read, +settings.write");
+  const mild = run({ roles: roles.map((r) => (r.key === "marketing" ? { ...r, permissions: ["cms.zones.write", "catalog.products.read"] } : r)) });
   assert.equal(mild.length, 1);
   assert.equal(mild[0].severity, "warn");
   assert.match(mild[0].detail, /χωρίς εγγραφή/i);
@@ -166,18 +166,18 @@ test("C-1: audits από το νωρίτερο του (since, στιγμιότυ
 });
 
 test("I-3: δικαιώματα στον super-admin → warn (έχει ήδη «*»)", () => {
-  const out = run({ roles: roles.map((r) => (r.key === "super-admin" ? { ...r, permissions: ["*", "settings.write", "security.audit"] } : r)) });
+  const out = run({ roles: roles.map((r) => (r.key === "super-admin" ? { ...r, permissions: ["*", "settings.write", "security.run"] } : r)) });
   assert.deepEqual(out.map((f) => f.severity), ["warn"]);
   assert.match(out[0].title, /super-admin/);
 });
 
 test("I-3: κλειδί που δεν είχε κανένας ρόλος (νέο δικαίωμα της εφαρμογής, από seed) → warn «ενημέρωση εφαρμογής»", () => {
-  const out = run({ roles: roles.map((r) => (r.key === "admin" ? { ...r, permissions: [...r.permissions, "settings.backup.write"] } : r)) });
+  const out = run({ roles: roles.map((r) => (r.key === "admin" ? { ...r, permissions: [...r.permissions, "settings.integrations.write"] } : r)) });
   assert.deepEqual(out.map((f) => [f.severity, f.title]), [["warn", "Νέο δικαίωμα από ενημέρωση εφαρμογής"]]);
 });
 
 test("I-3: υπάρχον ευαίσθητο κλειδί σε ρόλο (όχι super-admin) χωρίς εγγραφή → critical· μαζί με νέο κλειδί → ένα critical", () => {
-  const out = run({ roles: roles.map((r) => (r.key === "marketing" ? { ...r, permissions: [...r.permissions, "settings.write", "settings.backup.write"] } : r)) });
+  const out = run({ roles: roles.map((r) => (r.key === "marketing" ? { ...r, permissions: [...r.permissions, "settings.write", "settings.integrations.write"] } : r)) });
   assert.equal(out.length, 1);
   assert.equal(out[0].severity, "critical");
   assert.match(out[0].detail, /settings\.write/);
@@ -189,4 +189,33 @@ test("auditsFromFor: το νωρίτερο από since και στιγμιότ�
   assert.equal(auditsFromFor(since, snap).toISOString(), "2026-10-19T05:00:00.000Z");
   assert.equal(auditsFromFor(since, staffSnapshot([boss], roles, new Date("2026-10-19T07:00:00Z"))).toISOString(), since.toISOString());
   assert.equal(auditsFromFor(since, null).toISOString(), since.toISOString());
+});
+
+const grantTo = (role: string, perm: string) => roles.map((r) => (r.key === role ? { ...r, permissions: [...r.permissions, perm] } : r));
+
+test("μπαλαντέρ (*, staff.*, settings.*, cms.*) σε ρόλο εκτός super-admin → critical, ακόμη κι αν δεν τα είχε κανένας ρόλος", () => {
+  for (const p of ["*", "staff.*", "settings.*", "cms.*"]) {
+    const out = run({ roles: grantTo("marketing", p) });
+    assert.deepEqual(out.map((f) => f.severity), ["critical"], p);
+    assert.match(out[0].detail, /μπαλαντέρ/, p);
+  }
+  const audited = run({ roles: grantTo("marketing", "*"), audits: [audit({ action: "role.permissions.update", entityId: "r-mk", before: { key: "marketing", permissions: ["cms.zones.write"] }, after: { key: "marketing", permissions: ["*", "cms.zones.write"] } })] });
+  assert.deepEqual(audited.map((f) => f.severity), ["critical"]);
+});
+
+test("άγνωστο δικαίωμα (εκτός καταλόγου της εφαρμογής) σε ρόλο → critical «άγνωστο δικαίωμα»", () => {
+  const out = run({ roles: grantTo("marketing", "settings.backup.write") });
+  assert.deepEqual(out.map((f) => f.severity), ["critical"]);
+  assert.match(out[0].detail, /άγνωστο δικαίωμα/);
+});
+
+test("νέο κλειδί του καταλόγου της εφαρμογής (όχι μπαλαντέρ) χωρίς εγγραφή → warn", () => {
+  const out = run({ roles: grantTo("marketing", "audit.read") });
+  assert.deepEqual(out.map((f) => [f.severity, f.title]), [["warn", "Νέο δικαίωμα από ενημέρωση εφαρμογής"]]);
+});
+
+test("νέος ρόλος στη βάση με «*» και χρήστης σε αυτόν → critical", () => {
+  const out = run({ roles: [...roles, { id: "r-z", key: "ops", permissions: ["*"] }], staff: [boss, { ...mary, roles: ["marketing", "ops"] }] });
+  assert.ok(out.some((f) => f.severity === "critical" && f.evidence === "ops: +*"));
+  assert.ok(out.some((f) => f.evidence === "mary@x.gr → ops"));
 });

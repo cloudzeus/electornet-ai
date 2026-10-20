@@ -58,7 +58,7 @@ export function svgThreat(svg: string): string | null {
 export type Flagged = { path: string; kind: "warn" | "critical"; reason: string; group: string };
 const n = (x: number) => x.toLocaleString("el-GR");
 
-export function bunnyOutcome(input: { files: number; dirs: number; truncated: boolean; listIncomplete?: boolean; failedDirs?: string[]; svgTotal: number; svgChecked: number; svgFailed?: number; findings: Finding[]; flagged?: Flagged[] }): { status: Severity; summary: string; findings: Finding[] } {
+export function bunnyOutcome(input: { files: number; dirs: number; truncated: boolean; listIncomplete?: boolean; failedDirs?: string[]; svgTotal: number; svgChecked: number; svgFailed?: number; findings: Finding[]; flagged?: Flagged[] }): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
   const findings: Finding[] = [];
   const flagged = input.flagged ?? [];
   for (const f of flagged.filter((x) => x.kind === "critical")) findings.push({ severity: "critical", title: "Επικίνδυνο αρχείο στο Bunny Storage", detail: `${f.path}: ${f.reason}. Δεν πρέπει να υπάρχει στο CDN — ελέγξτε ποιος το ανέβασε και πότε.`, evidence: f.path });
@@ -78,5 +78,5 @@ export function bunnyOutcome(input: { files: number; dirs: number; truncated: bo
     findings.push({ severity: "warn", title: P, detail: `Ελέγχθηκε το περιεχόμενο ${n(input.svgChecked)} από ${n(input.svgTotal)} SVG${svgFailed ? ` · ${n(svgFailed)} SVG δεν διαβάστηκαν (σφάλμα)` : ""}${timedOut > 0 ? ` · ${n(timedOut)} δεν πρόλαβαν (τελείωσε ο χρόνος)` : ""}.` });
   }
   const summary = `${partial ? "μερική σάρωση — " : ""}${n(input.files)} αρχεία σε ${n(input.dirs)} φακέλους${input.listIncomplete ? " (η λίστα δεν ολοκληρώθηκε)" : input.truncated ? ` (όριο ${n(MAX_OBJECTS)} αντικειμένων)` : ""}${failedDirs.length ? ` (${failedDirs.length} φάκελοι δεν διαβάστηκαν)` : ""} · περιεχόμενο ${n(input.svgChecked)}/${n(input.svgTotal)} SVG ελέγχθηκε για script`;
-  return { status: worst(findings.map((f) => f.severity)), summary, findings };
+  return { status: worst(findings.map((f) => f.severity)), summary, findings, complete: !partial };
 }

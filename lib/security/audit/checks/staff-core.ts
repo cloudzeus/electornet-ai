@@ -1,5 +1,6 @@
 import type { Finding } from "../rules";
 import { athens } from "../execute";
+import { ALL_PERMISSION_KEYS } from "@/lib/rbac/permissions";
 
 /**
  * Λογαριασμοί διαχείρισης, ρόλοι, δικαιώματα — καθαρή λογική (τα δεδομένα τα φέρνει το staff.ts).
@@ -23,6 +24,9 @@ export const SUPER_ADMIN = "super-admin";
 
 /** Δικαιώματα που δίνουν έλεγχο λογαριασμών ή ρυθμίσεων (μυστικά, πληρωμές, pixels). */
 export const sensitivePermission = (key: string) => key === "*" || /^(?:staff|settings)\./.test(key);
+/** «*» ή «ομάδα.*» — το can() τα τιμά (lib/rbac/permissions.ts)· το seed τα αναπτύσσει, άρα στη βάση δεν υπάρχουν κανονικά. */
+export const wildcardPermission = (key: string) => key === "*" || key.endsWith(".*");
+const APP_KEYS = new Set(ALL_PERMISSION_KEYS);
 
 export function staffSnapshot(staff: StaffRow[], roles: RoleRow[], at: Date): StaffSnapshot {
   return {
@@ -138,23 +142,30 @@ export function classifyStaffChanges(input: StaffInput): Finding[] {
     const sa = g.role === SUPER_ADMIN;
     out.push({ severity: sa ? "critical" : "warn", title: sa ? "Νέος super-admin" : "Νέος ρόλος σε λογαριασμό", detail: `${email} απέκτησε τον ρόλο «${g.role}»${sa ? " (πλήρης πρόσβαση, και στα μυστικά των ρυθμίσεων)" : ""}. ${how(g)}`, evidence: `${email} → ${g.role}` });
   }
-  // Σοβαρότητα ανά δικαίωμα: ο super-admin έχει ήδη «*» → warn· κλειδί που δεν είχε ΚΑΝΕΝΑΣ ρόλος στο στιγμιότυπο, χωρίς
-  // εγγραφή στο ιστορικό = νέο δικαίωμα της εφαρμογής που μοίρασε seed/script → warn· αλλιώς ευαίσθητο → critical.
+  // Σοβαρότητα ανά δικαίωμα (εκτός super-admin, που έχει ήδη «*» → warn):
+  //   μπαλαντέρ (* / x.*) → critical · κλειδί εκτός καταλόγου της εφαρμογής → critical «άγνωστο δικαίωμα» ·
+  //   κλειδί του καταλόγου που δεν είχε ΚΑΝΕΝΑΣ ρόλος, χωρίς εγγραφή στο ιστορικό = νέο δικαίωμα από ενημέρωση → warn ·
+  //   αλλιώς ευαίσθητο → critical, τα υπόλοιπα warn.
   const baseKeys = new Set((baseline?.roles ?? []).flatMap((r) => r.permissions));
   for (const [k, g] of permGrants) {
     const fresh = newRoles.get(k);
     const perms = [...g.perms].sort();
     const sa = k === SUPER_ADMIN;
-    const introduced = perms.filter((p) => !g.auditedPerms.has(p) && !!baseline && !baseKeys.has(p));
-    const crit = sa ? [] : perms.filter((p) => sensitivePermission(p) && !introduced.includes(p));
+    const wild = sa ? [] : perms.filter(wildcardPermission);
+    const unknown = sa ? [] : perms.filter((p) => !wildcardPermission(p) && !APP_KEYS.has(p));
+    const introduced = sa ? [] : perms.filter((p) => !g.auditedPerms.has(p) && !!baseline && !baseKeys.has(p) && APP_KEYS.has(p) && !wildcardPermission(p));
+    const crit = sa ? [] : perms.filter((p) => wild.includes(p) || unknown.includes(p) || (sensitivePermission(p) && !introduced.includes(p)));
     const merged: Change = { audited: [...(fresh?.audited ?? []), ...g.audited], snapshot: g.snapshot || !!fresh?.snapshot };
     const title = crit.length ? (fresh ? "Νέος ρόλος με ευαίσθητα δικαιώματα" : "Ευαίσθητο δικαίωμα σε ρόλο")
       : sa ? "Νέα δικαιώματα στον super-admin"
       : introduced.length === perms.length && !fresh ? "Νέο δικαίωμα από ενημέρωση εφαρμογής"
       : fresh ? "Νέος ρόλος" : "Νέα δικαιώματα σε ρόλο";
     const what = fresh ? `Δημιουργήθηκε ο ρόλος «${k}» με: ${perms.join(", ")}` : `Ο ρόλος «${k}» πήρε: ${perms.join(", ")}`;
+    const sens = crit.filter((p) => !wild.includes(p) && !unknown.includes(p));
     const notes = [
-      crit.length ? `τα ${crit.join(", ")} δίνουν έλεγχο λογαριασμών ή ρυθμίσεων` : "",
+      wild.length ? `${wild.join(", ")}: μπαλαντέρ — δίνει ΟΛΑ τα δικαιώματα της ομάδας (ή όλα)` : "",
+      unknown.length ? `${unknown.join(", ")}: άγνωστο δικαίωμα — δεν υπάρχει στον κατάλογο της εφαρμογής` : "",
+      sens.length ? `τα ${sens.join(", ")} δίνουν έλεγχο λογαριασμών ή ρυθμίσεων` : "",
       sa ? "ο super-admin έχει ήδη πλήρη πρόσβαση («*»)" : "",
       introduced.length ? `${introduced.join(", ")}: νέο κλειδί που δεν είχε κανένας ρόλος — συνήθως νέο δικαίωμα από ενημέρωση της εφαρμογής (seed/script)` : "",
     ].filter(Boolean);

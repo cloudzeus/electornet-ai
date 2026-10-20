@@ -20,7 +20,11 @@ export type AuditCtx = {
  * Αποτέλεσμα ενός ελέγχου. `snapshot`: κατάσταση που κρατιέται στο report ώστε ο επόμενος έλεγχος να συγκρίνει με αυτήν
  * (π.χ. ποιοι είναι super-admin) — αλλαγές απευθείας στη βάση, χωρίς ίχνος στο ιστορικό ενεργειών, φαίνονται μόνο έτσι.
  */
-export type CheckOutput = Omit<CheckResult, "key" | "title" | "ms"> & { snapshot?: unknown };
+export type CheckOutput = Omit<CheckResult, "key" | "title" | "ms"> & {
+  snapshot?: unknown;
+  /** false = μερική σάρωση (χρόνος, όριο, σφάλματα ανάγνωσης): το παράθυρο ΔΕΝ καλύφθηκε — δεν μετρά ως βάση του επόμενου light */
+  complete?: boolean;
+};
 
 export type Check = {
   key: string;
@@ -32,4 +36,4 @@ export type Check = {
 };
 
 /** Όπως αποθηκεύεται στο SecurityReport.checks (το snapshot μόνο όταν υπάρχει). */
-export type StoredCheck = CheckResult & { snapshot?: unknown };
+export type StoredCheck = CheckResult & { snapshot?: unknown; complete?: boolean };

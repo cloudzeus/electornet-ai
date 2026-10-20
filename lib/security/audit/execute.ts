@@ -20,11 +20,15 @@ export function lightSince(prevStartedAt: Date | null, now: Date): Date {
   if (!prevStartedAt || prevStartedAt.getTime() > now.getTime()) return sinceFor("light", now);
   return new Date(Math.max(prevStartedAt.getTime() - LIGHT_OVERLAP_MS, now.getTime() - 24 * HOUR));
 }
-/** Αν τα checks ενός report περιέχουν όλους τους ελέγχους `keys`, χωρίς σφάλμα (αλλιώς το παράθυρό του δεν καλύφθηκε). */
+const STATUSES = new Set(["ok", "warn", "critical"]);
+/**
+ * Αν τα checks ενός report περιέχουν όλους τους ελέγχους `keys` ολοκληρωμένους: με status (όχι error) και όχι μερική
+ * σάρωση (`complete: false`) — αλλιώς το παράθυρό του δεν καλύφθηκε.
+ */
 export function coversChecks(checks: unknown, keys: string[]): boolean {
   if (!Array.isArray(checks)) return false;
-  const st = new Map(checks.filter((c) => c && typeof c === "object").map((c) => [(c as { key?: unknown }).key, (c as { status?: unknown }).status]));
-  return keys.every((k) => st.has(k) && st.get(k) !== "error");
+  const by = new Map(checks.filter((c) => c && typeof c === "object").map((c) => [(c as { key?: unknown }).key, c as { status?: unknown; complete?: unknown }]));
+  return keys.every((k) => { const c = by.get(k); return !!c && typeof c.status === "string" && STATUSES.has(c.status) && c.complete !== false; });
 }
 export const timeoutFor = (c: Pick<Check, "timeoutMs">, mode: AuditMode) => (typeof c.timeoutMs === "number" ? c.timeoutMs : c.timeoutMs[mode]);
 
@@ -70,7 +74,7 @@ async function runOne(check: Check, ctx: AuditCtx): Promise<StoredCheck> {
     }
     const findings = capFindings(out.findings);
     const status: Severity = worst([out.status, ...findings.map((f) => f.severity)]);
-    return { ...base, status, summary: out.summary, findings, ms: Date.now() - t0, ...(out.snapshot !== undefined ? { snapshot: out.snapshot } : {}) };
+    return { ...base, status, summary: out.summary, findings, ms: Date.now() - t0, ...(out.snapshot !== undefined ? { snapshot: out.snapshot } : {}), ...(out.complete !== undefined ? { complete: out.complete } : {}) };
   } catch (e) {
     ac.abort();
     return fail(`Σφάλμα: ${short(e instanceof Error ? e.message : String(e))}`);

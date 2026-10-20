@@ -46,6 +46,8 @@ test("bunnyOutcome: πλήρης σάρωση χωρίς ευρήματα → ok
   const cut = bunnyOutcome({ files: MAX_OBJECTS, dirs: 10, truncated: true, svgTotal: 5, svgChecked: 5, findings: [] });
   assert.equal(cut.status, "warn");
   assert.match(cut.summary, /μερική σάρωση/);
+  assert.equal(cut.complete, false);
+  assert.equal(full.complete, true);
   const svgs = bunnyOutcome({ files: 100, dirs: 1, truncated: false, svgTotal: 50, svgChecked: 20, findings: [] });
   assert.equal(svgs.status, "warn");
   assert.match(svgs.summary, /μερική σάρωση/);

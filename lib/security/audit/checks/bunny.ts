@@ -37,7 +37,7 @@ export const bunnyCheck: Check = {
   async run({ signal }) {
     const t0 = Date.now();
     const b = await getBunny();
-    if (!b.zone || !b.storagePassword) return { status: "warn", summary: "Το Bunny Storage δεν έχει ρυθμιστεί (ζώνη / κωδικός) — δεν ελέγχθηκε.", findings: [{ severity: "warn", title: "Το Bunny Storage δεν ελέγχθηκε", detail: "Λείπουν η ζώνη ή ο κωδικός αποθήκευσης στις Ρυθμίσεις → Bunny CDN." }] };
+    if (!b.zone || !b.storagePassword) return { status: "warn", complete: false, summary: "Το Bunny Storage δεν έχει ρυθμιστεί (ζώνη / κωδικός) — δεν ελέγχθηκε.", findings: [{ severity: "warn", title: "Το Bunny Storage δεν ελέγχθηκε", detail: "Λείπουν η ζώνη ή ο κωδικός αποθήκευσης στις Ρυθμίσεις → Bunny CDN." }] };
     const late = () => !!signal?.aborted || Date.now() - t0 > BUDGET_MS;
     const sig = () => (signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000));
     const url = (p: string) => `${b.storageHost}/${b.zone}/${p.split("/").map(encodeURIComponent).join("/")}`;

@@ -33,8 +33,11 @@ export const CONTENT_BUDGET_MS: Record<AuditMode, number> = { full: 180_000, lig
 
 /** Πεδία συνδέσμων (τελευταίο κομμάτι της διαδρομής): href, url, link, ctaHref, buttonUrl… */
 const LINK_FIELD = /(?:^|[a-z])(?:href|url|link)$/i;
-/** Σχήμα που εκτελεί κώδικα στο κλικ (ο browser αγνοεί κενά/ελέγχους πριν από το σχήμα). */
-const BAD_SCHEME = /^(?:javascript|vbscript|data):/i;
+/**
+ * Σχήμα που εκτελεί κώδικα στο κλικ / στη φόρτωση (ο browser αγνοεί κενά/ελέγχους πριν από το σχήμα). data: μόνο αν ΔΕΝ
+ * είναι raster εικόνα — το data:image/svg+xml μπορεί να έχει script, άρα μένει.
+ */
+const BAD_SCHEME = /^(?:javascript:|vbscript:|data:(?!image\/(?:png|jpe?g|gif|webp|avif)[;,]))/i;
 
 /** Όλες οι μη κενές συμβολοσειρές ενός JSON, με τη διαδρομή τους. */
 export function stringsOf(v: unknown, path = "", out: { path: string; text: string }[] = [], depth = 0): { path: string; text: string }[] {
@@ -54,14 +57,17 @@ export function scanRecord(source: SourceKey, rec: { id: string; label?: string 
   const out: Finding[] = [];
   for (const [field, value] of Object.entries(rec.fields)) {
     for (const { path, text } of stringsOf(value)) {
-      if (seen.has(text)) continue;
-      seen.add(text);
+      // ο έλεγχος συνδέσμου εξαρτάται από το πεδίο, άρα γίνεται πριν από το dedupe του κειμένου
       const where = !path ? field : path.startsWith("[") ? `${field}${path}` : `${field}.${path}`;
       const leaf = where.split(".").pop()!.replace(/\[\d+\]$/, "");
       const linkHit = LINK_FIELD.test(leaf) && BAD_SCHEME.test(text.replace(/[\x00-\x20]+/g, ""));
-      if (linkHit) {
+      const linkKey = `link|${path || field}|${text}`; // data και published με τον ίδιο σύνδεσμο → ένα εύρημα
+      if (linkHit && !seen.has(linkKey)) {
+        seen.add(linkKey);
         out.push({ severity: "critical", title: "Σύνδεσμος javascript: / data: σε πεδίο συνδέσμου", detail: `${src.label}: ${rec.label ? `«${rec.label}» ` : ""}(${rec.id}), πεδίο ${where}. Εκτελεί κώδικα ή ανοίγει σελίδα HTML με το κλικ.`, evidence: `${source}#${rec.id} ${where}: ${text.trim().slice(0, 60)}` });
       }
+      if (seen.has(text)) continue;
+      seen.add(text);
       for (const f of scanContent(text, { ownHosts: opts.ownHosts })) {
         if (linkHit && /^(?:data:text\/html|javascript:)/.test(f.title)) continue; // το ίδιο, ήδη ως σύνδεσμος
         const downgrade = !src.html && f.severity === "critical" && /^iframe/.test(f.title);
@@ -81,7 +87,7 @@ export type SourceTally = { key: SourceKey; scanned: number; total: number };
 const n = (x: number) => x.toLocaleString("el-GR");
 
 /** Κατάσταση, σύνοψη και ευρήματα του ελέγχου. Μερική σάρωση → ΠΟΤΕ ok. */
-export function contentOutcome(input: { mode: AuditMode; since: Date; tallies: SourceTally[]; findings: Finding[]; complete: boolean }): { status: Severity; summary: string; findings: Finding[] } {
+export function contentOutcome(input: { mode: AuditMode; since: Date; tallies: SourceTally[]; findings: Finding[]; complete: boolean }): { status: Severity; summary: string; findings: Finding[]; complete: boolean } {
   const scanned = input.tallies.reduce((s, t) => s + t.scanned, 0), total = input.tallies.reduce((s, t) => s + t.total, 0);
   const per = input.tallies.map((t) => `${SOURCES[t.key].label} ${n(t.scanned)}${t.scanned < t.total ? `/${n(t.total)}` : ""}`).join(" · ");
   const scope = input.mode === "full" ? "όλες οι εγγραφές" : `μόνο όσες άλλαξαν από ${athens(input.since)} — οι κατηγορίες, χωρίς ημερομηνία αλλαγής, όλες`;
@@ -91,5 +97,5 @@ export function contentOutcome(input: { mode: AuditMode; since: Date; tallies: S
     head = `Η σάρωση δεν ολοκληρώθηκε — σαρώθηκαν ${n(scanned)}/${n(total)} εγγραφές (${scope})`;
     findings.push({ severity: "warn", title: "Η σάρωση περιεχομένου δεν ολοκληρώθηκε", detail: `Τελείωσε ο διαθέσιμος χρόνος: σαρώθηκαν ${n(scanned)} από ${n(total)} εγγραφές. Οι υπόλοιπες δεν ελέγχθηκαν σε αυτή την εκτέλεση.` });
   }
-  return { status: worst(findings.map((f) => f.severity)), summary: `${head}: ${per}. Τα πρότυπα email είναι κώδικας της εφαρμογής (όχι βάση) και δεν σαρώνονται εδώ.`, findings };
+  return { status: worst(findings.map((f) => f.severity)), summary: `${head}: ${per}. Τα πρότυπα email είναι κώδικας της εφαρμογής (όχι βάση) και δεν σαρώνονται εδώ.`, findings, complete: input.complete };
 }

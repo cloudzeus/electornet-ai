@@ -86,3 +86,17 @@ test("coversChecks: το προηγούμενο report μετρά ως βάση 
   assert.ok(!coversChecks(rep([["staff", "ok"], ["logins", "error"]]), ["staff", "logins"]));
   assert.ok(!coversChecks(null, ["staff"]));
 });
+
+test("coversChecks: μερική σάρωση (complete: false) ή εγγραφή χωρίς status δεν καλύπτει το παράθυρο", () => {
+  const ok = { key: "staff", status: "ok", title: "", summary: "", findings: [], ms: 1 };
+  assert.ok(!coversChecks([ok, { ...ok, key: "content", status: "warn", complete: false }], ["staff", "content"]));
+  assert.ok(!coversChecks([ok, { key: "content" }], ["staff", "content"]));
+  assert.ok(coversChecks([ok, { ...ok, key: "content", status: "warn", complete: true }], ["staff", "content"]));
+});
+
+test("runChecks: το complete του ελέγχου αποθηκεύεται", async () => {
+  const [r] = await runChecks([check("c", async () => ({ status: "warn", summary: "", findings: [], complete: false }))], ctx);
+  assert.equal(r.complete, false);
+  const [o] = await runChecks([check("o", async () => ({ status: "ok", summary: "", findings: [] }))], ctx);
+  assert.equal("complete" in o, false);
+});

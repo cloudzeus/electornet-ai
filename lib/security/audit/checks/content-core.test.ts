@@ -57,6 +57,7 @@ test("contentOutcome: πλήρης σάρωση χωρίς ευρήματα → 
   assert.match(r.summary, /13 εγγραφές/);
   assert.match(r.summary, /Προϊόντα.*10/);
   assert.match(r.summary, /όλες οι εγγραφές/);
+  assert.equal(r.complete, true);
 });
 
 test("contentOutcome: μερική σάρωση → ΠΟΤΕ ok: warn «δεν ολοκληρώθηκε — σαρώθηκαν X/Y»", () => {
@@ -64,6 +65,7 @@ test("contentOutcome: μερική σάρωση → ΠΟΤΕ ok: warn «δεν �
   assert.equal(r.status, "warn");
   assert.match(r.summary, /δεν ολοκληρώθηκε — σαρώθηκαν 2\.?010\/40\.?010/);
   assert.ok(r.findings.some((f) => f.severity === "warn" && /δεν ολοκληρώθηκε/.test(f.title)));
+  assert.equal(r.complete, false);
 });
 
 test("contentOutcome: light → μόνο όσα άλλαξαν από την αρχή του παραθύρου· ευρήματα καθορίζουν την κατάσταση", () => {
@@ -92,4 +94,23 @@ test("σύνδεσμοι (href/url/link) με javascript:/vbscript:/data: → cr
 test("I-2: χρονικό όριο σάρωσης ανά mode (light χωράει στο 60″ του ωριαίου ελέγχου)", () => {
   assert.ok(CONTENT_BUDGET_MS.light <= 45_000);
   assert.ok(CONTENT_BUDGET_MS.full <= 180_000);
+});
+
+test("σύνδεσμοι data: εικόνας (png/jpeg/gif/webp/avif) σε imageUrl/logoUrl/image.url → τίποτα· data:image/svg+xml και data:text/html → critical", () => {
+  for (const u of ["data:image/png;base64,iVBORw0KGgo=", "data:image/jpeg;base64,/9j/4AAQ", "data:image/jpg,xyz", "data:image/gif;base64,R0lG", "data:image/webp;base64,UklG", "data:image/avif;base64,AAAA"]) {
+    assert.deepEqual(scanRecord("cms", { id: "c1", label: "x", fields: { data: { imageUrl: u, logoUrl: u, image: { url: u } } } }), [], u);
+  }
+  const svg = scanRecord("cms", { id: "c1", label: "x", fields: { data: { imageUrl: "data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+" } } });
+  assert.deepEqual(svg.map((f) => f.severity), ["critical"]);
+  assert.deepEqual(scanRecord("ad", { id: "a", label: "x", fields: { href: "vbscript:msgbox(1)" } }).map((f) => f.severity), ["critical"]);
+});
+
+test("ίδιο κείμενο σε τίτλο και σε σύνδεσμο: ο σύνδεσμος ελέγχεται ακόμη κι αν το κείμενο εμφανίστηκε πρώτα σε άλλο πεδίο", () => {
+  const out = scanRecord("ad", { id: "a1", label: "x", fields: { title: "javascript:alert(1)", href: "javascript:alert(1)" } });
+  assert.deepEqual(out.map((f) => [f.severity, f.evidence]), [["critical", "ad#a1 href: javascript:alert(1)"]]);
+});
+
+test("ίδιος κακός σύνδεσμος σε data και published → ένα εύρημα", () => {
+  const d = { slides: [{ href: "javascript:alert(1)" }] };
+  assert.equal(scanRecord("cms", { id: "c1", label: "hero", fields: { data: d, published: d } }).length, 1);
 });
