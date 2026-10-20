@@ -37,6 +37,9 @@ heartbeat αποτυγχάνουν μετά το deploy. **Ποτέ** `prisma db
 | `SECURITY_SITE_URL` | νέο: `https://euronics.dgsoft.gr` — το δημόσιο URL που ελέγχει ο εσωτερικός έλεγχος site. |
 | `CRON_SECRET` | υπάρχει ήδη (το χρησιμοποιούν και τα άλλα cron). |
 
+Ο εσωτερικός έλεγχος έχει και τον έλεγχο «Εξωτερικός φύλακας» (`watcher`, full και light): πότε κάλεσε τελευταία ο φύλακας
+το heartbeat (ιστορικό ενεργειών `security.watch.ping`)· κανένα σήμα ή πάνω από 26 ώρες → προειδοποίηση.
+
 ### Scheduled tasks
 Η ώρα των scheduled tasks του Coolify είναι η ζώνη ώρας του server (ρύθμιση Timezone του server στο Coolify): ορίστε
 `Europe/Athens`, αλλιώς μετατρέψτε σε UTC (07:00 Αθήνα = 04:00 UTC το καλοκαίρι, 05:00 UTC τον χειμώνα).
@@ -61,13 +64,17 @@ Repo `cloudzeus/electornet-ai` → Settings → Secrets and variables → Action
 | `SECURITY_WATCH_SECRET` | **ίδια τιμή** με το Coolify |
 | `SECURITY_REPORT_TO` | παραλήπτες, με κόμματα (π.χ. `gkozyris@i4ria.com`) |
 
-Προαιρετικά: `MAILGUN_FROM` (προεπιλογή `Euronics security watch <security-watch@<MAILGUN_DOMAIN>>`), `MAILGUN_REGION=us`
-για λογαριασμό US. Τα μυστικά μπαίνουν **μόνο** ως Secrets — ποτέ σε αρχεία του repo (είναι δημόσιο).
+Προαιρετικά Secrets: `MAILGUN_FROM` (προεπιλογή `Euronics security watch <security-watch@<MAILGUN_DOMAIN>>`),
+`MAILGUN_REGION` (`us` για λογαριασμό US· κενό = `eu`). Τα μυστικά μπαίνουν **μόνο** ως Secrets — ποτέ σε αρχεία του repo (είναι δημόσιο).
 
 - Τα schedules του GitHub τρέχουν μόνο από το workflow του **default branch** (`master`) — ενεργοποιούνται μετά το merge.
 - Χειροκίνητη εκτέλεση: Actions → security-watch → Run workflow → `full` ή `light`.
 - Ώρα: `30 4 * * *` UTC = 07:30 Αθήνα με θερινή ώρα· με χειμερινή ώρα 06:30 (πριν από τον εσωτερικό full των 07:00 —
   τότε το heartbeat κρίνει τον χθεσινό full, χωρίς ψευδές κρίσιμο). Το GitHub συχνά καθυστερεί τα schedules 5–30′.
+- **Τα schedules απενεργοποιούνται αυτόματα** από το GitHub σε δημόσια repos μετά από 60 ημέρες χωρίς δραστηριότητα
+  (commits) στο repo — τότε ο φύλακας σταματά σιωπηλά. Ξαναενεργοποίηση: Actions → security-watch → Enable workflow.
+  Δύο δίχτυα: (α) το καθημερινό email του φύλακα — αν δεν έρθει, κάτι σταμάτησε· (β) ο εσωτερικός έλεγχος «Εξωτερικός
+  φύλακας» (`watcher`) δίνει προειδοποίηση αν ο φύλακας δεν έχει καλέσει το heartbeat για πάνω από 26 ώρες.
 - Αποτυχία email (ή λείπουν Secrets) → το run βγαίνει κόκκινο (το GitHub ειδοποιεί όποιον άλλαξε τελευταίος το workflow).
 - Το light στέλνει email μόνο για κρίσιμο που δεν στάλθηκε τις τελευταίες 23 ώρες (κατάσταση στο Actions cache —
   μόνο fingerprints). **Βάλτε τα Secrets μετά το deploy της εφαρμογής**: πριν από αυτό το heartbeat απαντά 404 και ο
@@ -78,8 +85,11 @@ Repo `cloudzeus/electornet-ai` → Settings → Secrets and variables → Action
   10 κατηγορίες + 20 προϊόντα (από συνδέσμους της αρχικής/κατηγοριών, επιλογή με seed την ημερομηνία — ίδια μέσα στη μέρα,
   άλλα την επόμενη), όλα τα αρχεία `/_next/static/*.js` που αναφέρουν (scripts + RSC payload: 200, JavaScript, ίδιο
   origin, σάρωση για άγνωστα domains, base64 > 20 KB, `eval`/`new Function` με δυναμικό κώδικα, συγκάλυψη, δείκτες της
-  επίθεσης· sha256 στο artifact), cloaking (αρχική/κατηγορία/προϊόν ως Windows Chrome και iPhone Safari με Referer Google +
-  τα αρχεία JS της αρχικής ως Windows Chrome), headers (CSP όπως το `lib/security/csp.ts`, HSTS, nosniff, frame-ancestors),
+  επίθεσης, διευθύνσεις σε φιλοξενία περιεχομένου χρηστών — jsDelivr `/gh/`, unpkg, raw.githubusercontent, Apps Script,
+  pages.dev κ.λπ.· sha256 στο artifact), cloaking (αρχική/κατηγορία/προϊόν ως Windows Chrome και iPhone Safari με Referer
+  Google· κάθε παραλλαγή κατεβάζει και τα δικά της αρχεία JS με τον ίδιο user agent, Referer τη σελίδα και
+  `Sec-Fetch-Dest: script` — άλλο sha256 από το αντίγραφο του φύλακα ή αρχείο μόνο για κινητό που ο φύλακας δεν παίρνει
+  → κρίσιμο· έως 150 λήψεις, ό,τι μείνει → «μερικός έλεγχος»), headers (CSP όπως το `lib/security/csp.ts`, HSTS, nosniff, frame-ancestors),
   Cloudflare Zaraz στην άκρη (`/cdn-cgi/zaraz/s.js` → 404 = ανενεργό), πιστοποιητικό (< 7 ημέρες κρίσιμο, < 21 προειδοποίηση),
   DNS, νέα πιστοποιητικά `*.dgsoft.gr` (crt.sh, εφεδρεία certspotter), heartbeat.
 - **light**: αρχική + `/admin/login` (κανόνες σελίδας + headers), Zaraz, heartbeat.
@@ -106,7 +116,10 @@ git add security/dns-baseline.json && git commit -m "Ασφάλεια: νέα ε
 
 ## 5. Συστάσεις
 
-- **Κάντε το repo private.** Τώρα είναι δημόσιο: όποιος το δει ξέρει ακριβώς τι ελέγχεται (και τι όχι). Στα private repos τα
+- **Κάντε το repo private.** Τώρα είναι δημόσιο: όποιος το δει ξέρει ακριβώς τι ελέγχεται (και τι όχι), και **τα logs
+  και τα artifacts των Actions ενός δημόσιου repo είναι επίσης δημόσια**. Γι' αυτό ο φύλακας γράφει στο log μόνο
+  `{mode, status, seconds, email.sent}` και το artifact κρατά μόνο όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης (το heartbeat
+  μόνο ως κατάσταση — όχι πότε/πώς έτρεξε ο εσωτερικός έλεγχος)· οι λεπτομέρειες πάνε μόνο στο email. Στα private repos τα
   λεπτά του Actions μετρούν (ο light τρέχει 24 φορές τη μέρα, ~1′ η καθεμία) — το δωρεάν πακέτο αρκεί κατά κανόνα.
 - **Κλείστε το Cloudflare Email Obfuscation** (Scrape Shield → Email Address Obfuscation): προσθέτει δικό του script
   (`/cdn-cgi/scripts/…/email-decode.min.js`) σε κάθε σελίδα· οι έλεγχοι το δίνουν ως προειδοποίηση (όχι επίθεση), αλλά

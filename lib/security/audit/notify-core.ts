@@ -51,7 +51,9 @@ export function alertsToSend<T extends { checkKey: string; f: Finding }>(finding
     if (seen.has(fp)) continue;
     seen.add(fp);
     const last = sent.get(fp);
-    if (last && now.getTime() - last.getTime() < DEDUPE_MS) continue;
+    // lastSentAt στο μέλλον (λάθος ρολόι) δεν μετρά ως «στάλθηκε» — αλλιώς θα έκοβε την ειδοποίηση για πάντα
+    const age = last ? now.getTime() - last.getTime() : -1;
+    if (last && age >= 0 && age < DEDUPE_MS) continue;
     out.push({ ...x, fp });
   }
   return out;

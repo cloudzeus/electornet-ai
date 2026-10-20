@@ -99,47 +99,125 @@ export function chunkHashDiff(base: Record<string, string>, other: Record<string
   return diff.length ? [{ severity: "critical", title: "Αρχείο JS με διαφορετικό περιεχόμενο ανά επισκέπτη (cloaking)", detail: `${diff.length} αρχεία /_next/static έδωσαν άλλο περιεχόμενο (sha256) στον φύλακα και στον ${label}. Τα ονόματα των αρχείων είναι hash του περιεχομένου τους — το ίδιο URL δίνει πάντα τα ίδια bytes. Κάποιος ενδιάμεσος σερβίρει άλλον κώδικα σε επισκέπτες.`, evidence: clipList(diff, 20) }] : [];
 }
 
+export type ChunkSeen = { status?: number; sha256?: string; error?: string };
+const got200 = (c: ChunkSeen | undefined) => !!c && c.error === undefined && c.status === 200 && !!c.sha256;
+/**
+ * Τα αρχεία JS μιας παραλλαγής (σελίδα × user agent, με Referer τη σελίδα) σε σύγκριση με το αντίγραφο του φύλακα:
+ *   critical: ίδιο URL με άλλο sha256 · αρχείο που αναφέρει ΜΟΝΟ η παραλλαγή (π.χ. μόνο σε κινητό) και ο server δεν το
+ *             δίνει στον φύλακα (μη-200 / σφάλμα) — κώδικας που σερβίρεται μόνο σε «θύματα»
+ *   warn: αρχεία που δεν κατέβηκαν ως παραλλαγή ενώ ο φύλακας τα πήρε — δεν συγκρίθηκαν
+ */
+export function variantChunks(watch: Record<string, ChunkSeen>, variant: Record<string, ChunkSeen>, onlyInVariant: string[], label: string): Finding[] {
+  const sha = (m: Record<string, ChunkSeen>) => Object.fromEntries(Object.entries(m).filter(([, c]) => got200(c)).map(([p, c]) => [p, c.sha256!]));
+  const out = chunkHashDiff(sha(watch), sha(variant), label);
+  const hidden = uniqSorted(onlyInVariant.filter((p) => !got200(watch[p])));
+  if (hidden.length) out.push({ severity: "critical", title: "Αρχείο JS μόνο για ορισμένους επισκέπτες που ο server δεν δίνει στον φύλακα", detail: `Η σελίδα ως «${label}» φορτώνει ${hidden.length} αρχεία /_next/static που δεν αναφέρει στον φύλακα και που ο server δεν δίνει στον φύλακα (${hidden.map((p) => `${p}: ${watch[p]?.error ?? (watch[p]?.status !== undefined ? `HTTP ${watch[p]!.status}` : "δεν ζητήθηκε")}`).slice(0, 5).join(", ")}). Κώδικας που σερβίρεται μόνο σε συγκεκριμένους επισκέπτες — το μοτίβο του cloaking.`, evidence: clipList(hidden, 20) });
+  const unchecked = uniqSorted(Object.keys(variant).filter((p) => got200(watch[p]) && !got200(variant[p])));
+  if (unchecked.length) out.push({ severity: "warn", title: "Αρχεία JS που δεν κατέβηκαν ως άλλος επισκέπτης — δεν συγκρίθηκαν", detail: `${unchecked.length} αρχεία δεν δόθηκαν ως «${label}» (${unchecked.slice(0, 5).map((p) => `${p}: ${variant[p].error ?? `HTTP ${variant[p].status}`}`).join(", ")}) — η σύγκριση sha256 τους παραλείφθηκε.`, evidence: clipList(unchecked, 20) });
+  return out;
+}
+/** Όριο λήψεων αρχείων ανά εκτέλεση: ό,τι έμεινε εκτός → warn «μερικός έλεγχος» (ποτέ σιωπηλό ΟΚ). */
+export function capFinding(skipped: number, cap: number): Finding[] {
+  return skipped > 0 ? [{ severity: "warn", title: "Μερικός έλεγχος: όριο λήψεων αρχείων JS", detail: `Ο φύλακας κατεβάζει έως ${cap} αρχεία ανά εκτέλεση για τη σύγκριση ανά επισκέπτη· ${skipped} δεν ελέγχθηκαν σε αυτή την εκτέλεση.`, evidence: "chunk cap" }] : [];
+}
+/** Το δείγμα σελίδων: λιγότερες κατηγορίες/προϊόντα από τον στόχο → warn· καμία → error (δεν ελέγχθηκε). */
+export function sampleFindings(n: { categories: number; products: number }, want: { categories: number; products: number } = PICK): Finding[] {
+  const out: Finding[] = [];
+  for (const [k, label] of [["categories", "κατηγορίες"], ["products", "προϊόντα"]] as const) {
+    if (n[k] === 0) out.push({ severity: "error", title: `Δεν βρέθηκαν ${label} για έλεγχο`, detail: `Οι σύνδεσμοι της αρχικής/των κατηγοριών δεν έδωσαν ${label} — δεν ελέγχθηκαν.`, evidence: `sample ${k} 0` });
+    else if (n[k] < want[k]) out.push({ severity: "warn", title: `Μικρότερο δείγμα: ${label}`, detail: `Ελέγχθηκαν ${n[k]} από ${want[k]} ${label} — βρέθηκαν λιγότεροι σύνδεσμοι από τον στόχο.`, evidence: `sample ${k}` });
+  }
+  return out;
+}
+/** Έλεγχος που δεν εξέτασε τίποτα → error, ποτέ ok. */
+export function emptyCheck(what: string, n: number): Finding[] {
+  return n > 0 ? [] : [{ severity: "error", title: `Τίποτα δεν ελέγχθηκε: ${what}`, detail: `Ο φύλακας δεν βρήκε/δεν κατέβασε κανένα στοιχείο για «${what}» — ο έλεγχος δεν έγινε.`, evidence: `empty ${what}` }];
+}
+
 // ── σάρωση αρχείων JS ───────────────────────────────────────────────────────────────────────────────────────────────
 /**
- * Hosts που εμφανίζονται νόμιμα μέσα στα bundles της εφαρμογής (σύνδεσμοι τεκμηρίωσης βιβλιοθηκών, namespaces, embeds,
- * κοινωνικά δίκτυα του footer) — πέρα από όσους ορίζουν το policy και το CSP. Άγνωστος host σε bundle → warn (όχι
- * critical): ελέγξτε τον και, αν είναι νόμιμος, προσθέστε τον εδώ.
+ * Διευθύνσεις που εμφανίζονται νόμιμα μέσα στα bundles της εφαρμογής — ΑΚΡΙΒΕΙΣ hosts (ή «host/πρόθεμα διαδρομής»), όπως
+ * τις αναφέρει πράγματι το build (.next/static, 10/2026): σύνδεσμοι τεκμηρίωσης, namespaces, embeds, κοινωνικά δίκτυα,
+ * εργαλεία της διαχείρισης. ΠΟΤΕ υποτομείς ή ολόκληρα CDN: ένα «jsdelivr.net» θα άφηνε περάσει κάθε cdn.jsdelivr.net/gh/<επιτιθέμενος>.
+ * Άγνωστη διεύθυνση σε bundle → warn: ελέγξτε τη και, αν είναι νόμιμη, προσθέστε τη εδώ (ακριβώς).
  */
-export const KNOWN_BUNDLE_HOSTS: readonly string[] = [
-  "w3.org", "nextjs.org", "react.dev", "reactjs.org", "github.com", "githubusercontent.com", "base-ui.com", "gsap.com", "greensock.com", "mui.com", "radix-ui.com",
-  "google.com", "googleapis.com", "gstatic.com", "youtube.com", "youtube-nocookie.com", "ytimg.com", "vimeo.com", "vimeocdn.com",
-  "facebook.com", "instagram.com", "tiktok.com", "linkedin.com", "twitter.com", "x.com", "pinterest.com", "wa.me", "whatsapp.com", "viber.com",
-  "openstreetmap.org", "tile.openstreetmap.org", "leafletjs.com", "schema.org", "mozilla.org", "developer.mozilla.org", "whatwg.org", "unpkg.com", "jsdelivr.net",
-  "modelviewer.dev", "jcgt.org", "opencollective.com", "b-cdn.net", "euronics.gr", "dgsoft.gr",
-  // διαχείριση / ταμείο: SoftOne, Microsoft Entra / Azure, Apple, ΑΑΔΕ, VIES (wwa), EPREL, LastMily, BoxNow, κατασκευαστές
-  "oncloud.gr", "microsoft.com", "azure.com", "apple.com", "gsis.gr", "wwa.gr", "europa.eu", "lastmily.com", "boxnow.gr", "lg.com",
+export const KNOWN_BUNDLE_URLS: readonly string[] = [
+  "www.w3.org", "nextjs.org", "react.dev", "github.com", "schema.org", "leafletjs.com", "gsap.com", "base-ui.com", "jcgt.org", "opencollective.com",
+  "euronics.dgsoft.gr", "www.euronics.gr", "euronics.b-cdn.net", "www.google.com", "maps.google.com", "console.cloud.google.com", "www.gstatic.com",
+  "fonts.googleapis.com", "fonts.gstatic.com", "www.youtube.com", "www.youtube-nocookie.com", "i.ytimg.com", "vimeo.com", "player.vimeo.com",
+  "www.facebook.com", "developers.facebook.com", "www.instagram.com", "www.tiktok.com", "www.linkedin.com", "x.com", "www.openstreetmap.org", "developer.apple.com",
+  // διαχείριση / ταμείο: SoftOne (παράδειγμα serial), ΑΑΔΕ, VIES, EPREL, LastMily, BoxNow, κατασκευαστές, Microsoft Entra / Azure
+  "123456.oncloud.gr", "www1.gsis.gr", "vat.wwa.gr", "eprel.ec.europa.eu", "apps.lastmily.com", "widget-cdn.boxnow.gr", "www.lg.com", "entra.microsoft.com", "portal.azure.com",
+  // βιβλιοθήκες που φορτώνουν δικά τους αρχεία από CDN — μόνο το συγκεκριμένο πακέτο npm
+  "cdn.jsdelivr.net/npm/tesseract.js@", "cdn.jsdelivr.net/npm/three@",
+  // placeholders βιβλιοθηκών
+  "example.com", "example.org", "example.net", "foo.bar", "localhost",
 ];
-const EXAMPLE_HOSTS = ["example.com", "example.org", "example.net", "localhost", "invalid", "foo.bar"];
+/** Δεσμευμένα TLD (RFC 2606/6761) που δεν επιλύονται ποτέ — placeholders κώδικα. */
+const RESERVED_TLD = /\.(?:invalid|localhost)$/;
+/**
+ * Φιλοξενία περιεχομένου χρηστών (CDN αποθετηρίων, gists, Apps Script, static hosting, pastebins, buckets): οποιοσδήποτε
+ * ανεβάζει εκεί κώδικα — μετρά ΠΑΝΤΑ ως άγνωστη διεύθυνση (και για τον κανόνα eval/new Function), ακόμη κι αν ο host
+ * είναι γνωστός. Ταιριάζει σε «host/διαδρομή».
+ */
+export const USER_CONTENT: readonly RegExp[] = [
+  /^cdn\.jsdelivr\.net\/(?!npm\/(?:tesseract\.js|three)@)/, /^(?:[\w-]+\.)?unpkg\.com\//, /^esm\.sh\//, /^cdn\.skypack\.dev\//, /^(?:raw|rawcdn)\.githack\.com\//, /^cdn\.statically\.io\//,
+  /^(?:raw|gist|objects|media|camo)\.githubusercontent\.com\//, /^gist\.github\.com\//, /^github\.com\/[^/]+\/[^/]+\/(?:raw|releases\/download)\//, /^[^/]+\.github\.io\//, /^gitlab\.com\/[^/]+\/[^/]+\/-\/raw\//, /^bitbucket\.org\/[^/]+\/[^/]+\/raw\//,
+  /^(?:script|sites|docs|drive)\.google\.com\//, /^[^/]*\.googleusercontent\.com\//, /^(?:storage|firebasestorage)\.googleapis\.com\//,
+  /^[^/]+\.(?:web\.app|firebaseapp\.com|pages\.dev|workers\.dev|netlify\.app|vercel\.app|herokuapp\.com|glitch\.me|replit\.dev|repl\.co|ngrok\.io|ngrok-free\.app|onrender\.com|fly\.dev|surge\.sh|r2\.dev|trycloudflare\.com)\//,
+  /^(?:www\.)?(?:pastebin\.com|paste\.ee|hastebin\.com|rentry\.co|telegra\.ph|transfer\.sh|dpaste\.org|pastes\.io|0x0\.st)\//,
+  /^(?:[^/]+\.)?(?:dropbox\.com|dropboxusercontent\.com|discordapp\.com|discordapp\.net|discord\.com)\//,
+  /^[^/]+\.(?:blob\.core\.windows\.net|amazonaws\.com)\//, /^s3[.-][^/]*amazonaws\.com\//,
+  /^(?!euronics\.b-cdn\.net\/)[^/]+\.b-cdn\.net\//,
+];
 /**
  * sha256 γνωστών μεγάλων base64 μέσα σε βιβλιοθήκες: WebAssembly του αποσυμπιεστή ZSTD (three.js zstddec, μέσω
  * @google/model-viewer). Αλλαγή έκδοσης → warn ξανά· ελέγξτε το και προσθέστε το νέο hash.
  */
 export const KNOWN_BASE64_SHA256: readonly string[] = ["3f152d4cd75d123d2c7e495060782336bb8e956981300aa8a474f1eedfc15349"];
-/** Οι hosts του CSP (κάθε οδηγία) — ό,τι επιτρέπει ήδη η εφαρμογή. */
-function cspHosts(): string[] {
-  const out: string[] = [];
+/**
+ * Hosts του CSP: ακριβείς για τις κανονικές πηγές, ως υποτομείς για τα «https://*.x» — εκτός από το *.b-cdn.net (κάθε
+ * πελάτης της Bunny) που δεν είναι δικό μας.
+ */
+function cspHosts(): { exact: string[]; suffix: string[] } {
+  const exact: string[] = [], suffix: string[] = [];
   for (const t of buildCsp({ nonce: "x", dev: false }).split(/[\s;]+/)) {
-    const m = /^(?:https?|wss?):\/\/(?:\*\.)?([^/:]+)/i.exec(t);
-    if (m) out.push(m[1].toLowerCase());
+    const m = /^(?:https?|wss?):\/\/(\*\.)?([^/:]+)/i.exec(t);
+    if (!m) continue;
+    const h = m[2].toLowerCase();
+    if (!m[1]) exact.push(h); else if (h !== "b-cdn.net") suffix.push(h);
   }
-  return out;
+  return { exact, suffix };
 }
-let knownCache: string[] | null = null;
-/** Όλοι οι γνωστοί hosts: pixels του policy, iframes, CSP, KNOWN_BUNDLE_HOSTS. */
-export function knownHosts(): string[] {
-  return (knownCache ??= uniqSorted([...Object.values(ALLOWED_SCRIPT_HOSTS).flat(), ...ALLOWED_FRAME_HOSTS, ...cspHosts(), ...KNOWN_BUNDLE_HOSTS, ...EXAMPLE_HOSTS]));
+type Known = { exact: Set<string>; suffix: string[]; prefixes: string[] };
+let knownCache: Known | null = null;
+/** Γνωστές διευθύνσεις: ακριβείς (KNOWN_BUNDLE_URLS, CSP) + υποτομείς μόνο για τους παρόχους του policy (pixels, iframes) και τα *. του CSP. */
+function known(): Known {
+  if (knownCache) return knownCache;
+  const csp = cspHosts();
+  return (knownCache = {
+    exact: new Set([...KNOWN_BUNDLE_URLS.filter((x) => !x.includes("/")), ...csp.exact]),
+    suffix: uniqSorted([...Object.values(ALLOWED_SCRIPT_HOSTS).flat(), ...ALLOWED_FRAME_HOSTS, ...csp.suffix]),
+    prefixes: KNOWN_BUNDLE_URLS.filter((x) => x.includes("/")),
+  });
 }
 const hostIn = (host: string, list: readonly string[]) => {
   const h = host.toLowerCase().replace(/\.$/, "");
   return list.some((x) => { const a = x.toLowerCase(); return h === a || h.endsWith(`.${a}`); });
 };
+/** Η διεύθυνση (host + διαδρομή) → null αν είναι γνωστή, αλλιώς το τεκμήριο: host, ή «host/τμήμα» για φιλοξενία χρηστών. */
+function unknownRef(host: string, pathPart: string): string | null {
+  const ref = `${host}${pathPart || "/"}`;
+  if (USER_CONTENT.some((re) => re.test(ref))) return `${host}/${pathPart.split("/")[1] ?? ""}`;
+  const k = known();
+  if (RESERVED_TLD.test(host) || k.exact.has(host) || hostIn(host, k.suffix)) return null;
+  const prefixed = k.prefixes.filter((p) => p.startsWith(`${host}/`));
+  if (prefixed.length) return prefixed.some((p) => ref.startsWith(p)) ? null : `${host}/${pathPart.split("/")[1] ?? ""}`;
+  return host;
+}
 
-const HOST_RE = /\b(?:https?|wss?):\/\/((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59}))(?![a-z0-9-])/gi;
+/** Απόλυτες διευθύνσεις (http/https/ws/wss) και πρωτόκολλο-σχετικές μέσα σε string («//host/…»): host + διαδρομή. */
+const URL_RE = /(?:\b(?:https?|wss?):|(?<=["'`]))\/\/((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59}))(?![a-z0-9-])(?::\d+)?(\/[^\s"'`\\)<>]*)?/gi;
 const DYN_EVAL = /(?:(?<![\w$.])|\b(?:window|self|globalThis|top|parent)\s*\.\s*)eval\s*\(\s*(?![\s"'`)])|\(\s*0\s*,\s*eval\s*\)\s*\(/;
 const FN_CALL = /(?<![\w$.])(?:new\s+)?Function\s*\(([^)]{0,400})\)/g;
 const CONST_ARGS = /^\s*(?:(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\$]|\\.|\$(?!\{))*`)\s*(?:,\s*|$))*$/;
@@ -175,7 +253,7 @@ function charCodeChain(js: string): boolean {
  *             eval / new Function με δυναμικό όρισμα ΜΑΖΙ με άγνωστο domain ή συγκάλυψη
  *   warn: άγνωστο domain (ένα ανά host), base64 > 20 KB, συγκάλυψη μόνη της
  */
-export function scanChunk(js: string, opts: { knownHosts?: readonly string[]; knownBase64?: readonly string[] } = {}): Finding[] {
+export function scanChunk(js: string, opts: { knownBase64?: readonly string[] } = {}): Finding[] {
   const out: Finding[] = [];
   const crit = (title: string, detail: string, evidence: string) => out.push({ severity: "critical", title, detail, evidence });
   if (/\bCapEmbed\b/.test(js)) crit("CapEmbed (ψεύτικο CAPTCHA) σε αρχείο JS", "Το όνομα του ψεύτικου CAPTCHA της επίθεσης ClickFix μέσα σε κώδικα που σερβίρει το site.", "CapEmbed");
@@ -183,9 +261,12 @@ export function scanChunk(js: string, opts: { knownHosts?: readonly string[]; kn
   if (/localStorage\s*\.\s*(?:getItem|setItem)\s*\(\s*\\?["'`]verified\\?["'`]/.test(js) && /\bfetch\s*\(/.test(js)) crit("localStorage 'verified' + fetch σε αρχείο JS", "Το μοτίβο του δολώματος ClickFix (θυμάται ποιος «επαληθεύτηκε» και φέρνει την εντολή από διακομιστή).", "localStorage 'verified' + fetch");
   if (charCodeChain(js)) crit("Πίνακας char codes → String.fromCharCode σε αρχείο JS", "Κείμενο κρυμμένο ως ≥30 αριθμοί που μετατρέπονται σε χαρακτήρες — τεχνική συγκάλυψης, δεν την παράγει το build.", "char codes ≥30 → fromCharCode");
 
-  const known = opts.knownHosts ?? knownHosts();
-  const unknown = uniqSorted([...js.matchAll(HOST_RE)].map((m) => m[1].toLowerCase()).filter((h) => !hostIn(h, known)));
-  for (const h of unknown) out.push({ severity: "warn", title: "Άγνωστο domain σε αρχείο JS", detail: "Διεύθυνση σε host που δεν είναι στο policy, στο CSP ή στη λίστα γνωστών βιβλιοθηκών (KNOWN_BUNDLE_HOSTS στο lib/security/audit/watch-core.ts). Ελέγξτε τι είναι· αν είναι νόμιμη, προσθέστε τη στη λίστα.", evidence: h });
+  const unknown = uniqSorted([...js.matchAll(URL_RE)].flatMap((m) => { const r = unknownRef(m[1].toLowerCase(), m[2] ?? ""); return r ? [r] : []; }));
+  for (const h of unknown) {
+    out.push(h.includes("/")
+      ? { severity: "warn", title: "Διεύθυνση σε φιλοξενία περιεχομένου χρηστών σε αρχείο JS", detail: "CDN αποθετηρίων / gist / Apps Script / static hosting / bucket: εκεί ο καθένας ανεβάζει κώδικα — τέτοιες διευθύνσεις χρησιμοποιούν οι loaders κακόβουλου κώδικα. Ελέγξτε τι είναι.", evidence: h }
+      : { severity: "warn", title: "Άγνωστο domain σε αρχείο JS", detail: "Διεύθυνση σε host που δεν είναι στο policy, στο CSP ή στη λίστα γνωστών διευθύνσεων του build (KNOWN_BUNDLE_URLS στο lib/security/audit/watch-core.ts). Ελέγξτε τι είναι· αν είναι νόμιμη, προσθέστε τη στη λίστα (ακριβώς).", evidence: h });
+  }
 
   const big = [...js.matchAll(/[A-Za-z0-9+/]{20480,}={0,2}/g)].map((m) => m[0]).filter((b) => !(opts.knownBase64 ?? KNOWN_BASE64_SHA256).includes(sha256Hex(b)));
   if (big.length) out.push({ severity: "warn", title: "Μεγάλο base64 (> 20 KB) σε αρχείο JS", detail: `Συνεχές base64 ${big.map((b) => `${Math.round(b.length / 1024)} KB${b.startsWith("AGFzbQ") ? " (WebAssembly)" : ""} sha256 ${sha256Hex(b).slice(0, 16)}…`).join(", ")} — μπορεί να είναι ενσωματωμένη εικόνα/γραμματοσειρά/WebAssembly βιβλιοθήκης, αλλά και κρυμμένος κώδικας. Ελέγξτε το· αν είναι νόμιμο, προσθέστε το sha256 στο KNOWN_BASE64_SHA256 (lib/security/audit/watch-core.ts).`, evidence: "base64 > 20 KB" });
@@ -545,17 +626,27 @@ export function renderWatchEmail(r: WatchReport, link: string | null): { subject
 }
 
 /**
+ * Για το artifact του δημόσιου repo (logs/artifacts δημόσιων repos τα βλέπει οποιοσδήποτε): το heartbeat μόνο με την
+ * κατάστασή του — χωρίς πότε έτρεξε ο εσωτερικός έλεγχος, με τι αποτέλεσμα, ή αν υπάρχουν αδιάβαστες ειδοποιήσεις.
+ * Οι υπόλοιποι έλεγχοι είναι όσα βλέπει έτσι κι αλλιώς κάθε επισκέπτης.
+ */
+export function publicChecks(checks: CheckResult[]): CheckResult[] {
+  return checks.map((c) => (c.key === "heartbeat" ? { ...c, summary: "Heartbeat του εσωτερικού ελέγχου — οι λεπτομέρειες μόνο στο email.", findings: [] } : c));
+}
+
+/**
  * Light: email μόνο για κρίσιμα που δεν στάλθηκαν τις τελευταίες 23 ώρες (`sent`: fingerprint → ISO, από την κατάσταση
  * που κρατά το workflow στο cache) — χωρίς αυτό ένα κρίσιμο που επιμένει θα έστελνε email κάθε ώρα.
  */
 export function lightAlerts(checks: CheckResult[], sent: Record<string, string>, now: Date) {
-  const m = new Map(Object.entries(sent).flatMap(([k, v]) => { const d = new Date(v); return Number.isNaN(d.getTime()) ? [] : [[k, d] as [string, Date]]; }));
+  // ημερομηνία στο μέλλον (λάθος ρολόι / χειροκίνητη αλλαγή) δεν μετρά — αλλιώς θα έκοβε την ειδοποίηση για πάντα
+  const m = new Map(Object.entries(sent).flatMap(([k, v]) => { const d = new Date(v); return Number.isNaN(d.getTime()) || d.getTime() > now.getTime() ? [] : [[k, d] as [string, Date]]; }));
   return alertsToSend(checks.flatMap((c) => c.findings.map((f) => ({ checkKey: c.key, f }))), m, now);
 }
 /** Νέα κατάσταση αποστολών: προσθήκη των σταλμένων, διαγραφή όσων είναι παλιότερα από 48 ώρες. */
 export function updateSent(sent: Record<string, string>, fps: string[], now: Date): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(sent)) if (now.getTime() - Date.parse(v) < 2 * DAY) out[k] = v;
+  for (const [k, v] of Object.entries(sent)) { const age = now.getTime() - Date.parse(v); if (age >= 0 && age < 2 * DAY) out[k] = v; }
   for (const fp of fps) out[fp] = now.toISOString();
   return out;
 }

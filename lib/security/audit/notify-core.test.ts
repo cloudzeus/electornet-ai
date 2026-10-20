@@ -169,3 +169,11 @@ test("alertsUndelivered: report >2 ώρες (έως 48) χωρίς ειδοπο�
   assert.equal(alertsUndelivered([row(3, true, retry)], now), true);
   assert.equal(alertsUndelivered([row(3, true, null)], now), false);
 });
+
+test("alertsToSend: lastSentAt στο μέλλον (λάθος ρολόι) δεν μπλοκάρει την αποστολή για πάντα", () => {
+  const now = new Date("2026-10-20T10:00:00Z");
+  const f: Finding = { severity: "critical", title: "X", detail: "d", evidence: "e" };
+  const fp = fingerprint("site", f);
+  assert.equal(alertsToSend([{ checkKey: "site", f }], new Map([[fp, new Date("2026-10-21T10:00:00Z")]]), now).length, 1);
+  assert.equal(alertsToSend([{ checkKey: "site", f }], new Map([[fp, new Date("2026-10-20T09:00:00Z")]]), now).length, 0);
+});

@@ -1,6 +1,7 @@
 # Εξωτερικός φύλακας ασφαλείας (docs/security-audit.md). Τρέχει ΕΞΩ από τις υποδομές μας: σαρώνει το δημόσιο site,
 # ελέγχει DNS / πιστοποιητικά / heartbeat του εσωτερικού ελέγχου και στέλνει email απευθείας μέσω Mailgun.
-# Μόνο αναγνώσεις. Τα μυστικά ΜΟΝΟ ως GitHub Secrets (το repo είναι δημόσιο).
+# Μόνο αναγνώσεις. Τα μυστικά ΜΟΝΟ ως GitHub Secrets (το repo είναι δημόσιο — logs και artifacts επίσης).
+# Actions καρφωμένα σε commit SHA (η ετικέτα στο σχόλιο).
 # Προσοχή: τα schedules τρέχουν μόνο από το αρχείο του default branch (master).
 name: security-watch
 
@@ -32,11 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 (v4.4.0)
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (v4.4.0)
         with:
           node-version: 22
           cache: npm
@@ -57,7 +58,7 @@ jobs:
           echo "mode=$m" >> "$GITHUB_OUTPUT"
 
       # ποια κρίσιμα στάλθηκαν τις τελευταίες ώρες (μόνο fingerprints) — να μη στέλνει ο light το ίδιο κάθε ώρα
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (v4.3.0)
         with:
           path: .security-watch-state.json
           key: security-watch-state-${{ github.run_id }}
@@ -70,15 +71,17 @@ jobs:
           MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
           MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
           SECURITY_REPORT_TO: ${{ secrets.SECURITY_REPORT_TO }}
-          MAILGUN_REGION: eu
+          # προαιρετικά: κενά → αποστολέας security-watch@<MAILGUN_DOMAIN>, περιοχή eu
+          MAILGUN_FROM: ${{ secrets.MAILGUN_FROM }}
+          MAILGUN_REGION: ${{ secrets.MAILGUN_REGION }}
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (v4.3.0)
         if: always()
         with:
           path: .security-watch-state.json
           key: security-watch-state-${{ github.run_id }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 (v4.6.2)
         if: always()
         with:
           name: security-watch-${{ steps.mode.outputs.mode }}-${{ github.run_id }}
