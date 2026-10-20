@@ -54,13 +54,14 @@ export function classifyLogins(input: { since: Date; events: LoginRow[]; staffEm
   const knownIps = new Map<string, Set<string>>(), knownFam = new Map<string, Set<string>>();
   const put = (m: Map<string, Set<string>>, k: string, v: string | null) => { if (!v) return; if (!m.has(k)) m.set(k, new Set()); m.get(k)!.add(v); };
   for (const e of okBefore) { put(knownIps, acct(e), e.ip); put(knownFam, acct(e), uaFamily(e)); }
+  const hadBefore = new Set(okBefore.map(acct));
 
   // 1) νέα χώρα / νέα IP (μόνο επιτυχείς)
   const L = (e: LoginRow) => ({ staffId: acct(e), ip: e.ip, country: e.country, at: e.at });
   for (const o of newOrigins(okBefore.map(L), okRecent.map(L))) {
     const e = okRecent.find((r) => acct(r) === o.staffId && r.ip === o.ip && (r.country ?? null) === (o.country ?? null)) ?? okRecent.find((r) => acct(r) === o.staffId && r.ip === o.ip)!;
     const fam = uaFamily(e);
-    const first = !knownIps.has(o.staffId) && !okBefore.some((r) => acct(r) === o.staffId);
+    const first = !hadBefore.has(o.staffId);
     const where = `${o.staffId} · ${o.ip ?? "χωρίς IP"}`;
     const when = `στις ${athens(e.at)} από ${o.ip ?? "άγνωστη IP"}${o.country ? ` (${o.country})` : ""}, ${fam ?? "άγνωστη συσκευή"}`;
     const ctx = first ? " Πρώτη επιτυχής σύνδεση του λογαριασμού στις 90 ημέρες — δεν υπάρχει ιστορικό για σύγκριση." : "";
@@ -92,21 +93,29 @@ export function classifyLogins(input: { since: Date; events: LoginRow[]; staffEm
     out.push({ severity: "warn", title: "Πολλές αποτυχημένες συνδέσεις από μία IP", detail: `${b.n} αποτυχίες μέσα σε μία ώρα (έως ${athens(b.end!)}) από την ${ip}, σε ${accts.size} λογαριασμούς.`, evidence: ip });
   }
 
-  // 3) επιτυχία αμέσως μετά από αποτυχίες του ίδιου λογαριασμού
-  for (const s of okRecent) {
-    const k = acct(s);
-    const prevOk = ok.filter((r) => acct(r) === k && r.at < s.at).at(-1)?.at.getTime() ?? -Infinity;
-    const from = Math.max(prevOk, s.at.getTime() - HOUR);
-    const before = fails.filter((f) => acct(f) === k && f.at.getTime() > from && f.at <= s.at);
-    if (before.length < GUESS_FAILS) continue;
-    const known = !!s.ip && !!knownIps.get(k)?.has(s.ip);
-    const ips = [...new Set(before.map((f) => f.ip ?? "χωρίς IP"))];
-    out.push({
-      severity: "critical",
-      title: `Επιτυχής σύνδεση μετά από ${GUESS_FAILS}+ αποτυχίες`,
-      detail: `Ο ${k} συνδέθηκε στις ${athens(s.at)} από ${s.ip ?? "άγνωστη IP"} (${known ? "γνωστή IP του λογαριασμού" : "IP που δεν είχε χρησιμοποιήσει"}) μετά από ${before.length} αποτυχίες μέσα σε μία ώρα (IP: ${ips.slice(0, 5).join(", ")}). Πιθανό μάντεμα κωδικού — επιβεβαιώστε με τον κάτοχο ότι ήταν ο ίδιος.`,
-      evidence: `${k} · ${s.ip ?? "χωρίς IP"}`,
-    });
+  // 3) επιτυχία αμέσως μετά από αποτυχίες του ίδιου λογαριασμού — ευρετήριο ανά λογαριασμό (ταξινομημένα), όχι recent × all
+  const okBy = new Map<string, LoginRow[]>(), failBy = new Map<string, LoginRow[]>();
+  for (const e of events) { const m = e.success ? okBy : failBy; const k = acct(e); if (!m.has(k)) m.set(k, []); m.get(k)!.push(e); }
+  /** πρώτη θέση με at > t */
+  const upper = (rows: LoginRow[], t: number) => { let lo = 0, hi = rows.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (rows[mid].at.getTime() <= t) lo = mid + 1; else hi = mid; } return lo; };
+  for (const [k, oks] of okBy) {
+    const fl = failBy.get(k) ?? [];
+    for (let i = 0; i < oks.length; i++) {
+      const s = oks[i];
+      if (s.at < since) continue;
+      const prevOk = i > 0 ? oks[i - 1].at.getTime() : -Infinity;
+      const from = Math.max(prevOk, s.at.getTime() - HOUR);
+      const before = fl.slice(upper(fl, from), upper(fl, s.at.getTime()));
+      if (before.length < GUESS_FAILS) continue;
+      const known = !!s.ip && !!knownIps.get(k)?.has(s.ip);
+      const ips = [...new Set(before.map((f) => f.ip ?? "χωρίς IP"))];
+      out.push({
+        severity: "critical",
+        title: `Επιτυχής σύνδεση μετά από ${GUESS_FAILS}+ αποτυχίες`,
+        detail: `Ο ${k} συνδέθηκε στις ${athens(s.at)} από ${s.ip ?? "άγνωστη IP"} (${known ? "γνωστή IP του λογαριασμού" : "IP που δεν είχε χρησιμοποιήσει"}) μετά από ${before.length} αποτυχίες μέσα σε μία ώρα (IP: ${ips.slice(0, 5).join(", ")}). Πιθανό μάντεμα κωδικού — επιβεβαιώστε με τον κάτοχο ότι ήταν ο ίδιος.`,
+        evidence: `${k} · ${s.ip ?? "χωρίς IP"}`,
+      });
+    }
   }
 
   // 4) εκτός ωραρίου (ώρα Ελλάδας)

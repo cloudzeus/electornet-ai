@@ -7,8 +7,16 @@ test("objectPath: διαδρομή μέσα στη ζώνη από το Path + O
   assert.equal(objectPath("euronics", { Path: "/euronics/", ObjectName: "logo.svg" }), "logo.svg");
 });
 
-test("classifyObject: εκτελέσιμα / σελίδες / σενάρια / zip → critical (και με διπλή κατάληξη)", () => {
+test("classifyObject: εκτελέσιμα / σελίδες / σενάρια / zip → critical — αποφασίζει η ΤΕΛΕΥΤΑΙΑ κατάληξη", () => {
   for (const p of ["a/index.html", "x.htm", "lib/app.js", "shell.php", "setup.exe", "run.ps1", "pack.zip", "photo.jpg.php", "Upd.EXE", "x.hta", "y.bat", "z.vbs", "w.mjs"]) assert.equal(classifyObject(p, 100).kind, "critical", p);
+});
+
+test("classifyObject (I-1): «επικίνδυνη» λέξη πριν από την τελευταία κατάληξη δεν είναι critical", () => {
+  for (const p of ["manuals/LG-manual.pl.pdf", "img.samsung.com.webp", "x.sh.png", "brand/app.js.jpg"]) assert.equal(classifyObject(p, 100).kind, "ok", p);
+  const dbl = classifyObject("uploads/invoice.php.jpg", 100);
+  assert.equal(dbl.kind, "warn");
+  assert.match(dbl.reason, /διπλή κατάληξη/);
+  assert.equal(classifyObject("setup.exe.png", 100).kind, "warn");
 });
 
 test("classifyObject: εικόνες, βίντεο, 3D, PDF, γραμματοσειρές → ok· svg → έλεγχος περιεχομένου (ή warn αν > 1 MB)", () => {
@@ -48,9 +56,24 @@ test("bunnyOutcome: πλήρης σάρωση χωρίς ευρήματα → ok
 
 test("bunnyOutcome: warn ανά κατάληξη συγκεντρώνονται σε ένα εύρημα ανά κατάληξη· critical μένουν ανά αρχείο", () => {
   const r = bunnyOutcome({ files: 10, dirs: 1, truncated: false, svgTotal: 0, svgChecked: 0, findings: [], flagged: [
-    { path: "a.txt.bak", kind: "warn", reason: "x" }, { path: "b.txt.bak", kind: "warn", reason: "x" }, { path: "evil.php", kind: "critical", reason: "y" },
+    { path: "a.txt.bak", kind: "warn", reason: "x", group: ".bak" }, { path: "b.txt.bak", kind: "warn", reason: "x", group: ".bak" }, { path: "evil.php", kind: "critical", reason: "y", group: ".php" },
   ] });
   assert.deepEqual(r.findings.map((f) => [f.severity, f.evidence]), [["critical", "evil.php"], ["warn", ".bak"]]);
   assert.match(r.findings[1].detail, /2 αρχεία/);
   assert.equal(r.status, "critical");
+});
+
+test("classifyObject: ομάδα για τη σύνοψη των warn (κατάληξη ή διπλή κατάληξη)", () => {
+  assert.equal(classifyObject("a.rar", 1).group, ".rar");
+  assert.equal(classifyObject("README", 1).group, "(χωρίς κατάληξη)");
+  assert.equal(classifyObject("x.php.jpg", 1).group, "διπλή κατάληξη .php");
+  assert.equal(classifyObject("big.svg", SVG_MAX_BYTES + 1).group, "SVG > 1 MB");
+});
+
+test("bunnyOutcome (M-2): φάκελοι / SVG που απέτυχαν να διαβαστούν → μερική σάρωση (warn), όχι error", () => {
+  const r = bunnyOutcome({ files: 50, dirs: 5, truncated: false, failedDirs: ["a/b", "c"], svgTotal: 10, svgChecked: 8, svgFailed: 2, findings: [] });
+  assert.equal(r.status, "warn");
+  assert.match(r.summary, /μερική σάρωση/);
+  assert.ok(r.findings.some((f) => /2 φάκελοι/.test(f.detail) && /a\/b/.test(f.detail)));
+  assert.ok(r.findings.some((f) => /2 SVG.*σφάλμα/.test(f.detail)));
 });

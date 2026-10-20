@@ -6,7 +6,8 @@ import { bunnyOutcome, classifyObject, objectPath, svgThreat, MAX_OBJECTS, type 
 
 /**
  * Bunny Storage: λίστα ΟΛΗΣ της ζώνης (όχι μόνο του basePath) αναδρομικά, έως 20.000 αντικείμενα, και ανάγνωση των SVG
- * (< 1 MB) για script. Μόνο LIST / GET — καμία εγγραφή. Χρονικό όριο ~3′· ό,τι δεν πρόλαβε → «μερική σάρωση» (warn).
+ * (< 1 MB) για script. Μόνο LIST / GET — καμία εγγραφή. Χρονικό όριο ~3′· ό,τι δεν πρόλαβε ή δεν διαβάστηκε (υποφάκελος,
+ * SVG) → «μερική σάρωση» (warn). Μόνο αποτυχία στη ρίζα της ζώνης → error.
  */
 
 const BUDGET_MS = 170_000;
@@ -51,8 +52,12 @@ export const bunnyCheck: Check = {
     let files = 0, dirs = 0, truncated = false;
     const svgs: { path: string; changed?: string }[] = [];
     const flagged: Flagged[] = [];
+    const failedDirs: string[] = [];
     await pool(() => queue.shift(), LIST_CONCURRENCY, async (dir) => {
-      const list = (await (await get(dir ? `${dir}/` : "")).json()) as Entry[];
+      let list: Entry[];
+      // η ρίζα της ζώνης πρέπει να διαβαστεί (αλλιώς ο έλεγχος είναι error)· υποφάκελος που αποτυγχάνει = μη ελεγμένος
+      if (!dir) list = (await (await get("")).json()) as Entry[];
+      else try { list = (await (await get(`${dir}/`)).json()) as Entry[]; } catch { failedDirs.push(dir); return; }
       for (const o of list) {
         if (files + dirs >= MAX_OBJECTS) { truncated = true; break; }
         const p = objectPath(b.zone, o);
@@ -61,21 +66,22 @@ export const bunnyCheck: Check = {
         const c = classifyObject(p, o.Length);
         const when = o.LastChanged ? ` (τελευταία αλλαγή ${athens(new Date(`${o.LastChanged.replace(/Z?$/, "Z")}`))})` : "";
         if (c.kind === "svg") svgs.push({ path: p, changed: when });
-        else if (c.kind !== "ok") flagged.push({ path: p, kind: c.kind, reason: `${c.reason}${when}` });
+        else if (c.kind !== "ok") flagged.push({ path: p, kind: c.kind, reason: c.kind === "critical" ? `${c.reason}${when}` : c.reason, group: c.group });
       }
     }, () => truncated || late());
     const listIncomplete = !truncated && queue.length > 0; // σταμάτησε ο χρόνος με φακέλους που δεν διαβάστηκαν
 
     // 2) περιεχόμενο SVG
     const findings: Finding[] = [];
-    let svgChecked = 0;
+    let svgChecked = 0, svgFailed = 0;
     await pool(svgs, GET_CONCURRENCY, async (s) => {
-      const text = await (await get(s.path)).text();
+      let text: string;
+      try { text = await (await get(s.path)).text(); } catch { svgFailed++; return; }
       svgChecked++;
       const why = svgThreat(text);
       if (why) findings.push({ severity: "critical", title: "SVG με εκτελέσιμο κώδικα στο Bunny Storage", detail: `${s.path}: ${why}${s.changed ?? ""}. Ανοιγμένο απευθείας από το CDN εκτελεί κώδικα στο domain του CDN.`, evidence: s.path });
     }, late);
 
-    return bunnyOutcome({ files, dirs, truncated, listIncomplete, svgTotal: svgs.length, svgChecked, findings, flagged });
+    return bunnyOutcome({ files, dirs, truncated, listIncomplete, failedDirs, svgTotal: svgs.length, svgChecked, svgFailed, findings, flagged });
   },
 };

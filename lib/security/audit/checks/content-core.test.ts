@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { stringsOf, scanRecord, contentOutcome, SOURCES, type SourceTally } from "./content-core";
+import { stringsOf, scanRecord, contentOutcome, SOURCES, CONTENT_BUDGET_MS, type SourceTally } from "./content-core";
 
 const since = new Date("2026-10-19T06:00:00Z");
 
@@ -70,4 +70,26 @@ test("contentOutcome: light → μόνο όσα άλλαξαν από την α�
   const r = contentOutcome({ mode: "light", since, tallies: [tally({ scanned: 0, total: 0 })], findings: [{ severity: "critical", title: "x", detail: "y" }], complete: true });
   assert.equal(r.status, "critical");
   assert.match(r.summary, /άλλαξαν από/);
+});
+
+test("I-4: υπηρεσίες, όροι προσφορών, διαφημιστικές θέσεις είναι πηγές που αποδίδονται", () => {
+  for (const k of ["service", "promotion", "ad"] as const) assert.equal(SOURCES[k].html, true, k);
+  const out = scanRecord("service", { id: "sv1", label: "egkatastasi", fields: { faq: [{ q: "Πώς;", a: '<a href="#" onclick="x()">εδώ</a>' }] } });
+  assert.equal(out[0].severity, "critical");
+  assert.match(out[0].evidence!, /^service#sv1 faq\[0\]\.a: /);
+});
+
+test("σύνδεσμοι (href/url/link) με javascript:/vbscript:/data: → critical· κανονικοί και σχετικοί → τίποτα", () => {
+  const bad = scanRecord("ad", { id: "a1", label: "home-top", fields: { title: "Προσφορά", href: " JavaScript:alert(1)" } });
+  assert.deepEqual(bad.map((f) => f.severity), ["critical"]);
+  assert.match(bad[0].title, /σύνδεσμ/i);
+  assert.equal(scanRecord("cms", { id: "c1", label: "hero", fields: { data: { slides: [{ ctaHref: "data:text/html;base64,PHNjcmlwdD4=" }] } } }).length, 1);
+  assert.deepEqual(scanRecord("ad", { id: "a2", label: "x", fields: { href: "https://www.lg.com/gr/promo" } }), []);
+  assert.deepEqual(scanRecord("ad", { id: "a3", label: "x", fields: { href: "/k/tileoraseis?x=javascript:1" } }), []);
+  assert.deepEqual(scanRecord("product", { id: "p", label: "x", fields: { description: "javascript: οδηγός για προγραμματιστές" } }), [], "μόνο σε πεδία συνδέσμων");
+});
+
+test("I-2: χρονικό όριο σάρωσης ανά mode (light χωράει στο 60″ του ωριαίου ελέγχου)", () => {
+  assert.ok(CONTENT_BUDGET_MS.light <= 45_000);
+  assert.ok(CONTENT_BUDGET_MS.full <= 180_000);
 });

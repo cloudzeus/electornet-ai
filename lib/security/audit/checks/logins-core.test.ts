@@ -102,3 +102,12 @@ test("loginsSummary: πλήθη, παράθυρο, ιστορικό και ση�
   assert.match(s, /Δεν καταγράφεται χώρα — ο έλεγχος γίνεται ανά IP/);
   assert.doesNotMatch(loginsSummary({ since, events: [hist({ country: "GR" }), ev({ country: "GR" })] }), /Δεν καταγράφεται χώρα/);
 });
+
+test("M-1: γραμμικός (όχι recent × all) — 20.000 γεγονότα σε < 400 ms", () => {
+  const base = at("2026-10-19T06:00:00Z").getTime();
+  const events: LoginRow[] = [];
+  for (let i = 0; i < 20_000; i++) events.push(ev({ email: `u${i % 50}@x.gr`, success: i % 4 === 0, reason: i % 4 ? "bad-password" : null, ip: `10.0.${i % 7}.1`, at: new Date(base + i * 4_000) }));
+  const t0 = performance.now();
+  classifyLogins({ since, events, staffEmails: [] });
+  assert.ok(performance.now() - t0 < 400, `${Math.round(performance.now() - t0)} ms`);
+});

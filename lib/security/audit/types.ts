@@ -26,7 +26,8 @@ export type Check = {
   key: string;
   title: string;
   modes: AuditMode[];
-  timeoutMs: number;
+  /** χρονικό όριο· ανά mode όταν διαφέρει (το light τρέχει κάθε ώρα με όριο 60″ για όλο τον έλεγχο) */
+  timeoutMs: number | Record<AuditMode, number>;
   run(ctx: AuditCtx): Promise<CheckOutput>;
 };
 

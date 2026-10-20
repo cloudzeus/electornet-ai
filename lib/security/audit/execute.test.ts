@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runChecks, sinceFor, capFindings, athens, MAX_FINDINGS } from "./execute";
+import { runChecks, sinceFor, lightSince, coversChecks, timeoutFor, capFindings, athens, MAX_FINDINGS } from "./execute";
 import type { Check, AuditCtx } from "./types";
 import type { Finding } from "./rules";
 
@@ -55,4 +55,34 @@ test("capFindings: κρατά τα σοβαρότερα, τα υπόλοιπα �
   assert.equal(rest.severity, "warn");
   assert.match(rest.title, /11 ακόμη/);
   assert.deepEqual(capFindings([f("warn")]), [f("warn")]);
+});
+
+test("lightSince: από το προηγούμενο report μείον 2′ επικάλυψη· χωρίς report → −1 ώρα· έως 24 ώρες πίσω", () => {
+  assert.equal(lightSince(new Date("2026-10-20T05:00:30Z"), now).toISOString(), "2026-10-20T04:58:30.000Z");
+  assert.equal(lightSince(null, now).toISOString(), "2026-10-20T05:00:00.000Z");
+  assert.equal(lightSince(new Date("2026-10-10T00:00:00Z"), now).toISOString(), "2026-10-19T06:00:00.000Z");
+  assert.equal(lightSince(new Date("2026-10-20T07:00:00Z"), now).toISOString(), "2026-10-20T05:00:00.000Z", "report «από το μέλλον» → −1 ώρα");
+});
+
+test("timeoutFor: αριθμός ή ανά mode", () => {
+  assert.equal(timeoutFor({ timeoutMs: 5000 }, "light"), 5000);
+  assert.equal(timeoutFor({ timeoutMs: { full: 200_000, light: 55_000 } }, "light"), 55_000);
+  assert.equal(timeoutFor({ timeoutMs: { full: 200_000, light: 55_000 } }, "full"), 200_000);
+});
+
+test("runChecks: χρονικό όριο ανά mode", async () => {
+  const slow = check("s", () => new Promise((r) => setTimeout(() => r({ status: "ok", summary: "", findings: [] }), 120)));
+  slow.timeoutMs = { full: 1000, light: 30 };
+  const [l] = await runChecks([slow], { ...ctx, mode: "light" });
+  assert.equal(l.status, "error");
+  const [f] = await runChecks([slow], ctx);
+  assert.equal(f.status, "ok");
+});
+
+test("coversChecks: το προηγούμενο report μετρά ως βάση του light μόνο αν έτρεξαν όλοι οι έλεγχοι χωρίς σφάλμα", () => {
+  const rep = (xs: [string, string][]) => xs.map(([key, status]) => ({ key, status, title: "", summary: "", findings: [], ms: 1 }));
+  assert.ok(coversChecks(rep([["staff", "ok"], ["logins", "warn"], ["bunny", "ok"]]), ["staff", "logins"]));
+  assert.ok(!coversChecks(rep([["staff", "ok"]]), ["staff", "logins"]), "χειροκίνητο report ενός ελέγχου");
+  assert.ok(!coversChecks(rep([["staff", "ok"], ["logins", "error"]]), ["staff", "logins"]));
+  assert.ok(!coversChecks(null, ["staff"]));
 });

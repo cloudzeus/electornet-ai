@@ -1082,6 +1082,7 @@ model LoginEvent {
   @@index([customerId, at])
   @@index([staffId, at])
   @@index([email, at])
+  @@index([method, at])
 }
 
 /// Newsletter audience with double opt-in and proof of every status change (see Consent rows with subscriberId).

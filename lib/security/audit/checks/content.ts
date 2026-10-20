@@ -4,16 +4,16 @@ import { getSetting } from "@/lib/settings/store";
 import { SECTIONS } from "@/lib/settings/schema";
 import type { Finding } from "../rules";
 import type { Check } from "../types";
-import { contentOutcome, scanRecord, type SourceKey, type SourceTally } from "./content-core";
+import { CONTENT_BUDGET_MS, contentOutcome, scanRecord, type SourceKey, type SourceTally } from "./content-core";
 
 /**
  * Σάρωση των πεδίων που φτάνουν σε σελίδα/email (CMS, components, landing pages, newsletter, αυτοκόλλητα, κατηγορίες,
- * περιγραφές προϊόντων και ERP) με το scanContent. full: όλα, σε παρτίδες των 1.000 με cursor· light: όσα άλλαξαν από
- * την αρχή του παραθύρου. Χρονικό όριο ~3′: αν τελειώσει, status warn «δεν ολοκληρώθηκε — σαρώθηκαν X/Y», ποτέ ok.
+ * υπηρεσίες, όροι προσφορών, διαφημιστικές θέσεις, περιγραφές προϊόντων και ERP) με το scanContent. full: όλα, σε
+ * παρτίδες των 1.000 με cursor· light: όσα άλλαξαν από την αρχή του παραθύρου. Χρονικό όριο 3′ (full) / 45″ (light): αν
+ * τελειώσει, status warn «δεν ολοκληρώθηκε — σαρώθηκαν X/Y», ποτέ ok.
  */
 
 const BATCH = 1000;
-const BUDGET_MS = 180_000;
 
 type Row = { id: string; label?: string | null; fields: Record<string, unknown> };
 type Cursor = string | number | null;
@@ -56,6 +56,30 @@ function sources(since: Date): Src[] {
       async page(after, l) {
         const r = await db.landingPage.findMany({ where: { ...sid(after), ...upd(l) }, orderBy: { id: "asc" }, take: BATCH, select: { id: true, slug: true, title: true, seoTitle: true, seoDesc: true, blocks: true } });
         return { rows: r.map((x) => ({ id: x.id, label: x.slug, fields: { title: x.title, seoTitle: x.seoTitle, seoDesc: x.seoDesc, blocks: x.blocks } })), last: last(r) };
+      },
+    },
+    {
+      key: "service",
+      count: (l) => db.service.count({ where: upd(l) }),
+      async page(after, l) {
+        const r = await db.service.findMany({ where: { ...sid(after), ...upd(l) }, orderBy: { id: "asc" }, take: BATCH, select: { id: true, slug: true, title: true, blurb: true, body: true, faq: true, steps: true } });
+        return { rows: r.map((x) => ({ id: x.id, label: x.slug, fields: { title: x.title, blurb: x.blurb, body: x.body, faq: x.faq, steps: x.steps } })), last: last(r) };
+      },
+    },
+    {
+      key: "promotion",
+      count: (l) => db.promotion.count({ where: upd(l) }),
+      async page(after, l) {
+        const r = await db.promotion.findMany({ where: { ...sid(after), ...upd(l) }, orderBy: { id: "asc" }, take: BATCH, select: { id: true, code: true, termsText: true } });
+        return { rows: r.map((x) => ({ id: x.id, label: x.code, fields: { termsText: x.termsText } })), last: last(r) };
+      },
+    },
+    {
+      key: "ad",
+      count: (l) => db.adPlacement.count({ where: upd(l) }),
+      async page(after, l) {
+        const r = await db.adPlacement.findMany({ where: { ...sid(after), ...upd(l) }, orderBy: { id: "asc" }, take: BATCH, select: { id: true, slot: true, title: true, alt: true, href: true } });
+        return { rows: r.map((x) => ({ id: x.id, label: x.slot, fields: { title: x.title, alt: x.alt, href: x.href } })), last: last(r) };
       },
     },
     {
@@ -116,10 +140,11 @@ export const contentCheck: Check = {
   key: "content",
   title: "Περιεχόμενο (ένεση κώδικα, ClickFix, spam)",
   modes: ["full", "light"],
-  timeoutMs: 210_000,
+  timeoutMs: { full: 210_000, light: 55_000 },
   async run({ mode, since, signal }) {
     const t0 = Date.now();
     const light = mode === "light";
+    const budget = CONTENT_BUDGET_MS[mode];
     const [general, bunny] = await Promise.all([getSetting("general").catch(() => ({ data: {} as Record<string, unknown> })), getBunny().catch(() => null)]);
     const ownHosts = [hostOf(general.data.baseUrl), hostOf(bunny?.cdnUrl)].filter((h): h is string => !!h);
     const srcs = sources(since);
@@ -130,7 +155,7 @@ export const contentCheck: Check = {
     outer: for (const [i, s] of srcs.entries()) {
       let after: Cursor = null;
       for (;;) {
-        if (signal?.aborted || Date.now() - t0 > BUDGET_MS) { complete = false; break outer; }
+        if (signal?.aborted || Date.now() - t0 > budget) { complete = false; break outer; }
         const { rows, last: next } = await s.page(after, light);
         for (const r of rows) findings.push(...scanRecord(s.key, r, { ownHosts }));
         tallies[i].scanned += rows.length;

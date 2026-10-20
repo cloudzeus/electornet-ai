@@ -1,6 +1,7 @@
 /**
  * Καθημερινή αναφορά ασφαλείας: πίνακες SecurityReport / SecurityAlert + δικαιώματα security.read / security.run
- * (ανατίθενται μόνο στον super-admin). Μόνο προσθήκες, ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
+ * (ανατίθενται μόνο στον super-admin) + ευρετήριο LoginEvent(method, at) για τον έλεγχο συνδέσεων. Μόνο προσθήκες,
+ * ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
  *   npx tsx scripts/apply-security-audit.ts
  */
 import "dotenv/config";
@@ -29,11 +30,20 @@ const SQL = [
     CONSTRAINT "SecurityAlert_pkey" PRIMARY KEY ("fingerprint")
   )`,
 ];
+/**
+ * CONCURRENTLY: χωρίς κλείδωμα εγγραφών στον (ζωντανό) πίνακα. Δεν τρέχει μέσα σε συναλλαγή — γι' αυτό ξεχωριστή, μόνη της
+ * εντολή (το $executeRawUnsafe στέλνει μία εντολή σε autocommit). Αν μια προηγούμενη προσπάθεια διακόπηκε, μπορεί να έχει
+ * μείνει INVALID ευρετήριο που το IF NOT EXISTS προσπερνά: ελέγχεται παρακάτω και αναφέρεται.
+ */
+const INDEX_SQL = `CREATE INDEX CONCURRENTLY IF NOT EXISTS "LoginEvent_method_at_idx" ON "LoginEvent"("method","at")`;
 const cuidLike = () => "c" + randomBytes(12).toString("hex").slice(0, 24);
 
 (async () => {
   const before = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN ('SecurityReport','SecurityAlert')`);
   for (const q of SQL) await db.$executeRawUnsafe(q);
+  await db.$executeRawUnsafe(INDEX_SQL);
+  const invalid = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'LoginEvent_method_at_idx' AND NOT i.indisvalid`);
+  if (Number(invalid[0].n)) console.warn("ΠΡΟΣΟΧΗ: το LoginEvent_method_at_idx είναι INVALID (διακοπείσα δημιουργία) — DROP INDEX CONCURRENTLY και ξανατρέξτε.");
   const changes: string[] = [];
   if (!(await db.role.findUnique({ where: { key: "super-admin" } }))) console.warn("ΠΡΟΣΟΧΗ: δεν υπάρχει ρόλος super-admin — τα δικαιώματα δημιουργήθηκαν αλλά δεν ανατέθηκαν σε κανέναν.");
   for (const key of KEYS) {

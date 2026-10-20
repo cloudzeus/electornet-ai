@@ -8,8 +8,25 @@ import type { AuditCtx, AuditMode, Check, StoredCheck } from "./types";
  */
 
 const HOUR = 3_600_000;
-/** Αρχή του παραθύρου: full = τελευταίες 24 ώρες, light = τελευταία ώρα. */
+/** Αρχή του παραθύρου χωρίς ιστορικό: full = τελευταίες 24 ώρες, light = τελευταία ώρα. */
 export const sinceFor = (mode: AuditMode, now: Date) => new Date(now.getTime() - (mode === "full" ? 24 : 1) * HOUR);
+export const LIGHT_OVERLAP_MS = 2 * 60_000;
+/**
+ * Αρχή του παραθύρου του light: η έναρξη του προηγούμενου report μείον 2′ επικάλυψη, ώστε καθυστέρηση του cron να μην
+ * αφήνει κενό. Χωρίς προηγούμενο (ή με ημερομηνία στο μέλλον) → −1 ώρα· ποτέ πιο πίσω από 24 ώρες (τα παλαιότερα τα
+ * καλύπτει ο full).
+ */
+export function lightSince(prevStartedAt: Date | null, now: Date): Date {
+  if (!prevStartedAt || prevStartedAt.getTime() > now.getTime()) return sinceFor("light", now);
+  return new Date(Math.max(prevStartedAt.getTime() - LIGHT_OVERLAP_MS, now.getTime() - 24 * HOUR));
+}
+/** Αν τα checks ενός report περιέχουν όλους τους ελέγχους `keys`, χωρίς σφάλμα (αλλιώς το παράθυρό του δεν καλύφθηκε). */
+export function coversChecks(checks: unknown, keys: string[]): boolean {
+  if (!Array.isArray(checks)) return false;
+  const st = new Map(checks.filter((c) => c && typeof c === "object").map((c) => [(c as { key?: unknown }).key, (c as { status?: unknown }).status]));
+  return keys.every((k) => st.has(k) && st.get(k) !== "error");
+}
+export const timeoutFor = (c: Pick<Check, "timeoutMs">, mode: AuditMode) => (typeof c.timeoutMs === "number" ? c.timeoutMs : c.timeoutMs[mode]);
 
 const ATHENS = new Intl.DateTimeFormat("el-GR", { timeZone: "Europe/Athens", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 /** «20/10 09:00» σε ώρα Ελλάδας. */
@@ -42,13 +59,14 @@ async function runOne(check: Check, ctx: AuditCtx): Promise<StoredCheck> {
   const ac = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const base = { key: check.key, title: check.title };
+  const limit = timeoutFor(check, ctx.mode);
   const fail = (summary: string): StoredCheck => ({ ...base, status: "error", summary, findings: [{ severity: "error", title: "Ο έλεγχος δεν ολοκληρώθηκε", detail: summary }], ms: Date.now() - t0 });
   try {
-    const timeout = new Promise<"timeout">((r) => { timer = setTimeout(() => r("timeout"), check.timeoutMs); });
+    const timeout = new Promise<"timeout">((r) => { timer = setTimeout(() => r("timeout"), limit); });
     const out = await Promise.race([check.run({ ...ctx, signal: ac.signal }), timeout]);
     if (out === "timeout") {
       ac.abort();
-      return fail(`Ξεπεράστηκε το χρονικό όριο (${Math.round(check.timeoutMs / 1000)}″) — ο έλεγχος δεν ολοκληρώθηκε.`);
+      return fail(`Ξεπεράστηκε το χρονικό όριο (${Math.round(limit / 1000)}″) — ο έλεγχος δεν ολοκληρώθηκε.`);
     }
     const findings = capFindings(out.findings);
     const status: Severity = worst([out.status, ...findings.map((f) => f.severity)]);

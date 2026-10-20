@@ -50,9 +50,20 @@ const minus = (a: string[], b: string[]) => { const s = new Set(b); return [...n
 type Change = { audited: string[]; snapshot: boolean };
 const NO_AUDIT = "Χωρίς εγγραφή στο ιστορικό ενεργειών — η αλλαγή έγινε εκτός της διαχείρισης (απευθείας στη βάση ή από script).";
 
-export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; roles: RoleRow[]; audits: StaffAudit[]; baseline: StaffSnapshot | null }): Finding[] {
+export type StaffInput = {
+  since: Date;
+  /** από πότε μετρούν οι ενέργειες του ιστορικού: το νωρίτερο από since και την ώρα του στιγμιοτύπου (προεπιλογή since) */
+  auditsFrom?: Date;
+  staff: StaffRow[]; roles: RoleRow[]; audits: StaffAudit[]; baseline: StaffSnapshot | null;
+};
+
+/** Το κάτω όριο του ιστορικού που πρέπει να διαβαστεί: min(since, ώρα στιγμιοτύπου). */
+export const auditsFromFor = (since: Date, baseline: StaffSnapshot | null) => (baseline && new Date(baseline.at) < since ? new Date(baseline.at) : since);
+
+export function classifyStaffChanges(input: StaffInput): Finding[] {
   const { since, staff, roles, baseline } = input;
-  const audits = input.audits.filter((a) => a.createdAt >= since).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const from = input.auditsFrom ?? since;
+  const audits = input.audits.filter((a) => a.createdAt >= from).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   const emailOf = new Map(staff.map((s) => [s.id, s.email]));
   const roleKey = new Map(roles.map((r) => [r.id, r.key]));
   const who = (a: StaffAudit) => (a.staffId ? emailOf.get(a.staffId) ?? `άγνωστος λογαριασμός ${a.staffId}` : "άγνωστος");
@@ -63,7 +74,8 @@ export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; ro
 
   const newAccounts = new Map<string, Change>();
   const roleGrants = new Map<string, Change & { staffId: string; role: string }>();
-  const permGrants = new Map<string, Change & { perms: Set<string> }>();
+  const permGrants = new Map<string, Change & { perms: Set<string>; auditedPerms: Set<string> }>();
+  const grant = (k: string) => touch(permGrants, k, () => ({ ...ch(), perms: new Set<string>(), auditedPerms: new Set<string>() }));
   const newRoles = new Map<string, Change>();
   const reactivated = new Map<string, Change>();
   const other: Finding[] = [];
@@ -86,7 +98,7 @@ export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; ro
     } else if (a.action === "role.permissions.update") {
       const k = typeof after.key === "string" ? after.key : roleKey.get(a.entityId ?? "") ?? String(a.entityId);
       const added = minus(strs(after.permissions), strs(before.permissions));
-      if (added.length) { const g = touch(permGrants, k, () => ({ ...ch(), perms: new Set<string>() })); added.forEach((p) => g.perms.add(p)); g.audited.push(by(a)); }
+      if (added.length) { const g = grant(k); added.forEach((p) => { g.perms.add(p); g.auditedPerms.add(p); }); g.audited.push(by(a)); }
     } else if (a.action === "role.create") {
       const k = typeof after.key === "string" ? after.key : String(a.entityId);
       touch(newRoles, k, ch).audited.push(by(a));
@@ -109,7 +121,7 @@ export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; ro
       const b = baseRoles.get(r.key);
       if (!b) touch(newRoles, r.key, ch).snapshot = true;
       const added = minus(r.permissions, b?.permissions ?? []);
-      if (added.length) { const g = touch(permGrants, r.key, () => ({ ...ch(), perms: new Set<string>() })); added.forEach((p) => g.perms.add(p)); g.snapshot = true; }
+      if (added.length) { const g = grant(r.key); added.forEach((p) => g.perms.add(p)); g.snapshot = true; }
     }
   }
 
@@ -126,14 +138,27 @@ export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; ro
     const sa = g.role === SUPER_ADMIN;
     out.push({ severity: sa ? "critical" : "warn", title: sa ? "Νέος super-admin" : "Νέος ρόλος σε λογαριασμό", detail: `${email} απέκτησε τον ρόλο «${g.role}»${sa ? " (πλήρης πρόσβαση, και στα μυστικά των ρυθμίσεων)" : ""}. ${how(g)}`, evidence: `${email} → ${g.role}` });
   }
+  // Σοβαρότητα ανά δικαίωμα: ο super-admin έχει ήδη «*» → warn· κλειδί που δεν είχε ΚΑΝΕΝΑΣ ρόλος στο στιγμιότυπο, χωρίς
+  // εγγραφή στο ιστορικό = νέο δικαίωμα της εφαρμογής που μοίρασε seed/script → warn· αλλιώς ευαίσθητο → critical.
+  const baseKeys = new Set((baseline?.roles ?? []).flatMap((r) => r.permissions));
   for (const [k, g] of permGrants) {
     const fresh = newRoles.get(k);
     const perms = [...g.perms].sort();
-    const sens = perms.filter(sensitivePermission);
+    const sa = k === SUPER_ADMIN;
+    const introduced = perms.filter((p) => !g.auditedPerms.has(p) && !!baseline && !baseKeys.has(p));
+    const crit = sa ? [] : perms.filter((p) => sensitivePermission(p) && !introduced.includes(p));
     const merged: Change = { audited: [...(fresh?.audited ?? []), ...g.audited], snapshot: g.snapshot || !!fresh?.snapshot };
-    const title = fresh ? (sens.length ? "Νέος ρόλος με ευαίσθητα δικαιώματα" : "Νέος ρόλος") : sens.length ? "Ευαίσθητο δικαίωμα σε ρόλο" : "Νέα δικαιώματα σε ρόλο";
+    const title = crit.length ? (fresh ? "Νέος ρόλος με ευαίσθητα δικαιώματα" : "Ευαίσθητο δικαίωμα σε ρόλο")
+      : sa ? "Νέα δικαιώματα στον super-admin"
+      : introduced.length === perms.length && !fresh ? "Νέο δικαίωμα από ενημέρωση εφαρμογής"
+      : fresh ? "Νέος ρόλος" : "Νέα δικαιώματα σε ρόλο";
     const what = fresh ? `Δημιουργήθηκε ο ρόλος «${k}» με: ${perms.join(", ")}` : `Ο ρόλος «${k}» πήρε: ${perms.join(", ")}`;
-    out.push({ severity: sens.length ? "critical" : "warn", title, detail: `${what}${sens.length ? ` — τα ${sens.join(", ")} δίνουν έλεγχο λογαριασμών ή ρυθμίσεων` : ""}. ${how(merged)}`, evidence: `${k}: ${perms.map((p) => `+${p}`).join(", ")}` });
+    const notes = [
+      crit.length ? `τα ${crit.join(", ")} δίνουν έλεγχο λογαριασμών ή ρυθμίσεων` : "",
+      sa ? "ο super-admin έχει ήδη πλήρη πρόσβαση («*»)" : "",
+      introduced.length ? `${introduced.join(", ")}: νέο κλειδί που δεν είχε κανένας ρόλος — συνήθως νέο δικαίωμα από ενημέρωση της εφαρμογής (seed/script)` : "",
+    ].filter(Boolean);
+    out.push({ severity: crit.length ? "critical" : "warn", title, detail: `${what}${notes.length ? ` — ${notes.join("· ")}` : ""}. ${how(merged)}`, evidence: `${k}: ${perms.map((p) => `+${p}`).join(", ")}` });
   }
   for (const [k, c] of newRoles) {
     if (permGrants.has(k)) continue; // στο εύρημα παραπάνω, μαζί με τα δικαιώματά του
@@ -146,16 +171,17 @@ export function classifyStaffChanges(input: { since: Date; staff: StaffRow[]; ro
   return [...out, ...other];
 }
 
-export function staffSummary(input: { since: Date; staff: StaffRow[]; roles: RoleRow[]; audits: StaffAudit[]; baseline: StaffSnapshot | null }): string {
+export function staffSummary(input: StaffInput): string {
   const { since, staff, roles, baseline } = input;
   const active = staff.filter((s) => s.active);
   const sa = active.filter((s) => s.roles.includes(SUPER_ADMIN)).map((s) => s.email).sort();
-  const acts = input.audits.filter((a) => a.createdAt >= since).length;
+  const from = input.auditsFrom ?? since;
+  const acts = input.audits.filter((a) => a.createdAt >= from).length;
   return [
     `${staff.length} λογαριασμοί (${active.length} ενεργοί)`,
     `ενεργοί super-admin: ${sa.join(", ") || "κανένας"}`,
     `${roles.length} ρόλοι`,
-    `${acts} ενέργειες staff/ρόλων στο ιστορικό από ${athens(since)}`,
+    `${acts} ενέργειες staff/ρόλων στο ιστορικό από ${athens(from)}`,
     baseline
       ? `σύγκριση λογαριασμών/ρόλων/δικαιωμάτων με το στιγμιότυπο της ${athens(new Date(baseline.at))}`
       : "χωρίς προηγούμενο στιγμιότυπο — έλεγχος μόνο από το ιστορικό ενεργειών και την ημερομηνία δημιουργίας (η σύγκριση ξεκινά από αυτόν τον έλεγχο)",

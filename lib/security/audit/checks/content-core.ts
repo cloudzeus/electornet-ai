@@ -16,6 +16,9 @@ export const SOURCES = {
   cms: { label: "CMS (κείμενα, hero slides, αρχική, σελίδες μαρκών)", html: true },
   widget: { label: "Components σελίδων", html: true },
   landing: { label: "Landing pages", html: true },
+  service: { label: "Υπηρεσίες", html: true },
+  promotion: { label: "Όροι προσφορών", html: true },
+  ad: { label: "Διαφημιστικές θέσεις", html: true },
   newsletter: { label: "Newsletter", html: true },
   sticker: { label: "Αυτοκόλλητα (SVG)", html: true },
   category: { label: "Κατηγορίες", html: true },
@@ -24,6 +27,14 @@ export const SOURCES = {
   s1item: { label: "Είδη SoftOne (περιγραφές ERP)", html: false },
 } as const satisfies Record<string, { label: string; html: boolean }>;
 export type SourceKey = keyof typeof SOURCES;
+
+/** Χρόνος σάρωσης ανά mode: το light τρέχει κάθε ώρα και όλος ο έλεγχος έχει 60″. */
+export const CONTENT_BUDGET_MS: Record<AuditMode, number> = { full: 180_000, light: 45_000 };
+
+/** Πεδία συνδέσμων (τελευταίο κομμάτι της διαδρομής): href, url, link, ctaHref, buttonUrl… */
+const LINK_FIELD = /(?:^|[a-z])(?:href|url|link)$/i;
+/** Σχήμα που εκτελεί κώδικα στο κλικ (ο browser αγνοεί κενά/ελέγχους πριν από το σχήμα). */
+const BAD_SCHEME = /^(?:javascript|vbscript|data):/i;
 
 /** Όλες οι μη κενές συμβολοσειρές ενός JSON, με τη διαδρομή τους. */
 export function stringsOf(v: unknown, path = "", out: { path: string; text: string }[] = [], depth = 0): { path: string; text: string }[] {
@@ -45,8 +56,14 @@ export function scanRecord(source: SourceKey, rec: { id: string; label?: string 
     for (const { path, text } of stringsOf(value)) {
       if (seen.has(text)) continue;
       seen.add(text);
-      const where = path ? `${field}.${path}` : field;
+      const where = !path ? field : path.startsWith("[") ? `${field}${path}` : `${field}.${path}`;
+      const leaf = where.split(".").pop()!.replace(/\[\d+\]$/, "");
+      const linkHit = LINK_FIELD.test(leaf) && BAD_SCHEME.test(text.replace(/[\x00-\x20]+/g, ""));
+      if (linkHit) {
+        out.push({ severity: "critical", title: "Σύνδεσμος javascript: / data: σε πεδίο συνδέσμου", detail: `${src.label}: ${rec.label ? `«${rec.label}» ` : ""}(${rec.id}), πεδίο ${where}. Εκτελεί κώδικα ή ανοίγει σελίδα HTML με το κλικ.`, evidence: `${source}#${rec.id} ${where}: ${text.trim().slice(0, 60)}` });
+      }
       for (const f of scanContent(text, { ownHosts: opts.ownHosts })) {
+        if (linkHit && /^(?:data:text\/html|javascript:)/.test(f.title)) continue; // το ίδιο, ήδη ως σύνδεσμος
         const downgrade = !src.html && f.severity === "critical" && /^iframe/.test(f.title);
         out.push({
           severity: downgrade ? "warn" : f.severity,
