@@ -17,6 +17,8 @@ import { vivaConfig } from "@/lib/payments/viva";
 import { paymentPagePath, startVivaPayment } from "@/lib/payments/order-payment";
 import { klarnaConfig } from "@/lib/payments/klarna";
 import { startKlarnaPayment } from "@/lib/payments/klarna-order";
+import { bankTransfer } from "@/lib/payments/bank-transfer";
+import { payLabel } from "@/lib/account/labels";
 import { publicOrigin } from "@/lib/account/oauth-flow";
 
 /**
@@ -64,6 +66,8 @@ function validate(i: PlaceInput): string | null {
 export async function placeOrder(input: PlaceInput) {
   const bad = validate(input);
   if (bad) return { ok: false as const, error: bad };
+  // κατάθεση χωρίς λογαριασμούς (ή κλειστή στις Ρυθμίσεις) = παραγγελία χωρίς τρόπο πληρωμής
+  if (input.payment === "bank" && !(await bankTransfer()).enabled) return { ok: false as const, error: "Η κατάθεση σε τράπεζα δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
   const me = await getCustomerSession();
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);
@@ -190,7 +194,8 @@ export async function placeOrder(input: PlaceInput) {
         firstName: input.contact.firstName, number,
         lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
         subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
-        payment: input.payment, fulfilment: input.fulfilment,
+        payment: payLabel(input.payment), fulfilment: input.fulfilment,
+        ...(input.payment === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
         address: lockerAt ? `Θυρίδα BOX NOW: ${[lockerAt.name, lockerAt.address, lockerAt.zip].filter(Boolean).join(", ")}` : [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
         ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
       }).catch(() => null);

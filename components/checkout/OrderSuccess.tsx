@@ -12,6 +12,8 @@ import { Stepper } from "./Stepper";
 import { copyOf } from "@/lib/cms/copy";
 
 import { CopyCoupon } from "@/components/promo/CopyCoupon";
+import { BankDeposit } from "./BankDeposit";
+import type { BankAccount } from "@/lib/payments/bank-accounts";
 
 const c = copyOf("orderSuccess");
 
@@ -35,7 +37,7 @@ interface Saved {
 const PAY: Record<string, string> = { card: "Κάρτα", "no-card": "Δόσεις χωρίς κάρτα (Eurobank)", iris: "IRIS", tbi: "Δόσεις χωρίς κάρτα (TBI Bank)", klarna: "Klarna", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Πληρωμή στο κατάστημα" };
 
 /** Confirmation: number, what happens next, summary, tracking link, account prompt. */
-export function OrderSuccess({ number }: { number: string }) {
+export function OrderSuccess({ number, bankAccounts = [] }: { number: string; /** για πληρωμή «Κατάθεση σε τράπεζα» (Ρυθμίσεις → Πληρωμές) */ bankAccounts?: BankAccount[] }) {
   const { advisor } = useSettings();
   const [o, setO] = useState<Saved | null>(null);
   useEffect(() => {
@@ -72,6 +74,8 @@ export function OrderSuccess({ number }: { number: string }) {
               </span>
             </div>
           </section>
+
+          {o?.pay === "bank" && <BankDeposit accounts={bankAccounts} number={number || o.number} total={o.total ?? null} />}
 
           {o?.nextCoupon && (
             <section className="rounded-xl border-2 border-dashed border-eu-navy bg-eu-yellow/20 p-5 grid gap-2 justify-items-start" aria-label="Κουπόνι επόμενης αγοράς">

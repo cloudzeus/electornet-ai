@@ -4,7 +4,7 @@
  * driven by this file — add a field here and it appears in /admin/settings.
  * Only the super-admin can open these pages (integrations, keys, secrets).
  */
-export type FieldType = "text" | "url" | "email" | "number" | "secret" | "toggle" | "select" | "textarea" | "softone-objs";
+export type FieldType = "text" | "url" | "email" | "number" | "secret" | "toggle" | "select" | "textarea" | "softone-objs" | "bank-accounts";
 
 export type Values = Record<string, string | number | boolean>;
 
@@ -258,7 +258,7 @@ export const SECTIONS: Section[] = [
       { key: "wallets", title: "Wallets & άλλοι τρόποι (μέσω Viva)", help: "Ο πελάτης τα διαλέγει στο checkout και η σελίδα της Viva ανοίγει κατευθείαν σε αυτά. Ο πελάτης που έχει πληρώσει με Viva σε άλλο κατάστημα βλέπει εκεί τις αποθηκευμένες κάρτες του. Apple Pay / Google Pay εμφανίζονται μόνο σε συσκευές που τα υποστηρίζουν." },
       { key: "klarna", title: "Klarna — πληρωμή σε 3 άτοκες δόσεις", help: "Δύο τρόποι: μέσω Viva (χωρίς ξεχωριστή σύμβαση — ενεργοποιείται στον λογαριασμό της Viva) ή με απευθείας σύμβαση με την Klarna (δικά της στοιχεία API). Ο πελάτης εγκρίνεται στη σελίδα της Klarna· εμείς πληρωνόμαστε ολόκληρο το ποσό από την Klarna.", guide: "Απευθείας: Klarna Merchant Portal → Settings → Klarna API credentials → «Generate new credentials» (username τύπου K123456_… και password). Ξεκίνα σε «Test» (playground)." },
       { key: "cod", title: "Αντικαταβολή" },
-      { key: "bank", title: "Κατάθεση σε τράπεζα", help: "Ο πελάτης βλέπει το IBAN μετά την παραγγελία και στο email επιβεβαίωσης." },
+      { key: "bank", title: "Κατάθεση σε τράπεζα", help: "Ο πελάτης βλέπει τους λογαριασμούς μετά την παραγγελία και στο email επιβεβαίωσης, με αιτιολογία τον αριθμό παραγγελίας." },
     ],
     fields: ([
       { key: "provider", label: "Πάροχος καρτών", type: "select", public: true, options: [{ value: "viva", label: "Viva Wallet" }, { value: "everypay", label: "EveryPay" }, { value: "cardlink", label: "Cardlink" }, { value: "stripe", label: "Stripe" }], width: "half", group: "cards" },
@@ -287,7 +287,7 @@ export const SECTIONS: Section[] = [
       { key: "codFee", label: "Χρέωση αντικαταβολής", type: "number", public: true, width: "half", group: "cod", showIf: on("cod"), min: 0, max: 50, step: 0.01, unit: "€", placeholder: "2.00" },
       { key: "codMax", label: "Μέγιστο ποσό αντικαταβολής", type: "number", public: true, width: "half", group: "cod", showIf: on("cod"), min: 0, step: 1, unit: "€", placeholder: "500", help: "Πάνω από αυτό η αντικαταβολή δεν προσφέρεται. Νόμιμο όριο μετρητών: 500 €." },
       yesNo("bankTransfer", "Κατάθεση σε τράπεζα", undefined, true),
-      { key: "iban", label: "IBAN", type: "text", public: true, group: "bank", showIf: on("bankTransfer"), placeholder: "GR16 0110 1250 0000 0001 2300 695", rule: { re: /^GR(\s*\d){25}$/i, bad: "Ελληνικό IBAN: GR + 25 ψηφία" } },
+      { key: "bankAccounts", label: "Λογαριασμοί (τράπεζα · δικαιούχος · IBAN)", type: "bank-accounts", public: true, group: "bank", showIf: on("bankTransfer"), help: "Λογότυπο, όνομα τράπεζας, δικαιούχος και IBAN. Ο πελάτης τα βλέπει, με τη σειρά που ορίζεις εδώ, μετά την παραγγελία και στο email επιβεβαίωσης. Χωρίς κανέναν λογαριασμό η «Κατάθεση σε τράπεζα» δεν εμφανίζεται στο checkout." },
     ] as Field[]).map((f) => (f.key === "klarna" ? { ...f, group: "klarna" } : ["applePay", "googlePay", "paypal", "iris", "tbi", "revolutPay"].includes(f.key) ? { ...f, group: "wallets" } : f.key === "cod" ? { ...f, group: "cod" } : f.key === "bankTransfer" ? { ...f, group: "bank" } : f)),
   },
   {

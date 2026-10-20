@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20T11:44:54.851Z",
+ "generatedAt": "2026-10-20T14:23:05.908Z",
  "routes": [
   {
    "route": "/admin",
@@ -274,6 +274,11 @@
    ],
    "changes": [
     {
+     "hash": "51541e1",
+     "date": "2026-10-20T14:45:16+03:00",
+     "text": "Ασφάλεια: ιστορικό με 7 στήλες στο κινητό, οδηγίες πρώτης εκτέλεσης, βοήθεια"
+    },
+    {
      "hash": "0bbf691",
      "date": "2026-10-20T14:37:24+03:00",
      "text": "Ασφάλεια: ειδοποιήσεις χωρίς χαμένα κλειδώματα, σύνοψη που δεν στάλθηκε, παράθυρα ελέγχου"
@@ -284,7 +289,7 @@
      "text": "Ασφάλεια: σελίδα «Ασφάλεια» (μόνο super-admin)"
     }
    ],
-   "updatedAt": "2026-10-20T14:37:24+03:00",
+   "updatedAt": "2026-10-20T14:45:16+03:00",
    "shots": {}
   },
   {
@@ -3193,6 +3198,7 @@
     "settings.groups",
     "settings.advanced",
     "settings.test",
+    "settings.bank-accounts",
     "settings.rail"
    ],
    "changes": [
@@ -3694,6 +3700,48 @@
  ],
  "recent": [
   {
+   "hash": "ed3a9e5",
+   "date": "2026-10-20T15:14:26+03:00",
+   "text": "Ασφάλεια: Bunny",
+   "routes": []
+  },
+  {
+   "hash": "79bc8de",
+   "date": "2026-10-20T14:58:43+03:00",
+   "text": "Ασφάλεια: φύλακας",
+   "routes": []
+  },
+  {
+   "hash": "c0e0e8d",
+   "date": "2026-10-20T14:58:25+03:00",
+   "text": "Ασφάλεια: Bunny",
+   "routes": []
+  },
+  {
+   "hash": "d55c0fb",
+   "date": "2026-10-20T14:56:41+03:00",
+   "text": "Ασφάλεια: φύλακας",
+   "routes": []
+  },
+  {
+   "hash": "cc4675e",
+   "date": "2026-10-20T14:53:50+03:00",
+   "text": "Ασφάλεια: Bunny",
+   "routes": []
+  },
+  {
+   "hash": "fe248bb",
+   "date": "2026-10-20T14:53:50+03:00",
+   "text": "Ασφάλεια: σάρωση περιεχομένου δέχεται iframe από dam.groupeseb.com (βίντεο SEB), όχι το CSP/σελίδες",
+   "routes": []
+  },
+  {
+   "hash": "51541e1",
+   "date": "2026-10-20T14:45:16+03:00",
+   "text": "Ασφάλεια: ιστορικό με 7 στήλες στο κινητό, οδηγίες πρώτης εκτέλεσης, βοήθεια",
+   "routes": []
+  },
+  {
    "hash": "c9ebaa0",
    "date": "2026-10-20T14:43:40+03:00",
    "text": "Ασφάλεια: φύλακας",
@@ -3911,60 +3959,6 @@
     "/admin/catalog/templates",
     "/admin/catalog/templates/import"
    ]
-  },
-  {
-   "hash": "512288b",
-   "date": "2026-10-20T06:37:41+03:00",
-   "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης διαχείρισης (τίτλοι ενοτήτων → πρόβλημα, όριο μεγέθους πριν τη μνήμη, μόνο δικά μας μηνύματα σφάλματος, διακόπτης SoftOne κλειδωμένος στην προεπισκόπηση, βήματα, εστίαση…",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/import"
-   ]
-  },
-  {
-   "hash": "26c6504",
-   "date": "2026-10-20T06:30:05+03:00",
-   "text": "Εισαγωγή από ξένο Excel: διαχείριση και βοήθεια",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/import",
-    "/admin/catalog/templates/kanones-timon",
-    "/admin/catalog/templates/nea-eidi"
-   ]
-  },
-  {
-   "hash": "e3167b6",
-   "date": "2026-10-20T06:10:57+03:00",
-   "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή",
-   "routes": []
-  },
-  {
-   "hash": "65f2ef9",
-   "date": "2026-10-20T06:04:47+03:00",
-   "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή",
-   "routes": []
-  },
-  {
-   "hash": "36af274",
-   "date": "2026-10-20T05:58:07+03:00",
-   "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης σχεδίου/εκτέλεσης",
-   "routes": []
-  },
-  {
-   "hash": "e9d6f64",
-   "date": "2026-10-20T05:48:53+03:00",
-   "text": "Εισαγωγή από ξένο Excel: σχέδιο και εκτέλεση (planForeign / applyForeign)",
-   "routes": []
-  },
-  {
-   "hash": "e6973c0",
-   "date": "2026-10-20T05:39:53+03:00",
-   "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4568,6 +4562,9 @@
   ],
   "promo.sim.result": [
    "components/admin/promos/Simulator.tsx"
+  ],
+  "settings.bank-accounts": [
+   "components/admin/settings/BankAccountsField.tsx"
   ],
   "settings.search": [
    "components/admin/settings/SettingsIndex.tsx"

@@ -10,6 +10,7 @@ import { saveSetting, getSetting } from "@/lib/settings/store";
 import { testSoftone, s1Login, type S1Config } from "@/lib/softone";
 import { probe, providerConfigs, missing, PROVIDERS, type OAuthProvider } from "@/lib/account/oauth";
 import { publicOrigin } from "@/lib/account/oauth-flow";
+import { accountsForSave } from "@/lib/payments/bank-accounts";
 
 export type ActionResult = { ok: boolean; message: string; details?: Record<string, string | number | null> };
 
@@ -30,6 +31,12 @@ export async function saveSection(section: string, fd: FormData): Promise<Action
     }
     if (f.type === "softone-objs") {
       for (const k of ["company", "branch", "module", "refid"]) values[k] = String(fd.get(k) ?? "").trim();
+      continue;
+    }
+    if (f.type === "bank-accounts") {
+      const r = accountsForSave(String(raw ?? ""));
+      if (r.message) errors.push(r.message);
+      values[f.key] = r.value;
       continue;
     }
     if (f.type === "toggle") values[f.key] = raw === "on";

@@ -6,6 +6,8 @@ import { PlugZap, Loader2, X, ChevronDown, SlidersHorizontal, BookOpen } from "l
 import { SECTIONS, type Field, type Values } from "@/lib/settings/schema";
 import { saveSection, testSection, type ActionResult } from "@/app/admin/(shell)/settings/actions";
 import { SoftoneObjsPicker } from "./SoftoneObjsPicker";
+import { BankAccountsField } from "./settings/BankAccountsField";
+import { accountsForSave } from "@/lib/payments/bank-accounts";
 import { TextField, SecretField, ToggleField, SelectField, TextAreaField, FieldGroup, SaveBar, ResultBanner, Details } from "./settings/ui";
 
 /**
@@ -68,6 +70,7 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
     const fd = new FormData(e.currentTarget);
     const errs: Record<string, string> = {};
     for (const f of section.fields) {
+      if (f.type === "bank-accounts" && visible(f)) { const m = accountsForSave(String(vals[f.key] ?? "")).message; if (m) errs[f.key] = m; continue; }
       if (!f.required || !visible(f) || f.type === "softone-objs") continue;
       const empty = f.type === "secret" ? !stored[f.key] && !typed[f.key] : String(vals[f.key] ?? "").trim() === "";
       if (empty) errs[f.key] = "Υποχρεωτικό πεδίο";
@@ -75,7 +78,8 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
     setErrors(errs);
     const first = Object.keys(errs)[0];
     if (first) {
-      setResult({ ok: false, message: `Συμπλήρωσε τα υποχρεωτικά: ${Object.keys(errs).map((k) => section.fields.find((f) => f.key === k)?.label).join(", ")}.` });
+      const bank = section.fields.find((f) => f.type === "bank-accounts" && errs[f.key]);
+      setResult({ ok: false, message: bank ? `Διόρθωσε τους λογαριασμούς: ${errs[bank.key]}` : `Συμπλήρωσε τα υποχρεωτικά: ${Object.keys(errs).map((k) => section.fields.find((f) => f.key === k)?.label).join(", ")}.` });
       document.getElementById(`f-${first}`)?.querySelector<HTMLElement>("input,select,textarea")?.focus();
       return;
     }
@@ -201,6 +205,8 @@ function FieldInput({ f, value, set, stored, ver, error, data, onSecret, onDirty
       return <SelectField name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} options={f.options ?? []} required={f.required} />;
     case "textarea":
       return <TextAreaField name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} placeholder={f.placeholder} rule={f.rule} />;
+    case "bank-accounts":
+      return <BankAccountsField key={`${f.key}-${ver}`} name={f.key} label={f.label} help={f.help} value={String(value ?? "")} onChange={set} onDirty={onDirty} error={error} />;
     case "softone-objs":
       return (
         <div className="grid gap-1">

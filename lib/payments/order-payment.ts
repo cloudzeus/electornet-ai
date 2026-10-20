@@ -6,6 +6,8 @@ import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
 import { checkoutUrl, judgeTransaction, type VivaPay, type VivaVerdict } from "./viva-core";
 import { createVivaOrder, getVivaTransaction, vivaConfig } from "./viva";
+import { bankTransfer } from "./bank-transfer";
+import { payLabel } from "@/lib/account/labels";
 
 /**
  * Ο κύκλος ζωής μιας online πληρωμής (Viva):
@@ -92,7 +94,8 @@ export async function sendConfirmation(orderId: string) {
   const tpl = await renderTemplate("order-confirmation", {
     firstName: s.firstName ?? "", number: o.number,
     lines: o.lines.map((l) => ({ title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: Number(l.unitPrice), addons: [] })),
-    subtotal: Number(o.subtotal), shippingFee: Number(o.shippingFee), total: Number(o.total), payment: o.paymentMethod ?? "", fulfilment: o.fulfilment,
+    subtotal: Number(o.subtotal), shippingFee: Number(o.shippingFee), total: Number(o.total), payment: payLabel(o.paymentMethod), fulfilment: o.fulfilment,
+    ...(o.paymentMethod === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
     address: s.locker ? `Θυρίδα BOX NOW: ${[s.locker.name, s.locker.address, s.locker.zip].filter(Boolean).join(", ")}` : [s.street, s.number, s.zip, s.city].filter(Boolean).join(" "),
     eta: s.carrierName ? `${s.carrierName}` : "1–3 εργάσιμες",
   });

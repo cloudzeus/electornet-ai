@@ -47,7 +47,7 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
@@ -233,7 +233,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const payments: { v: Pay; icon: typeof Truck; t: string; sub: string; disabled?: boolean; mark?: React.ReactNode }[] = viva ? [
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
     ...(klarnaDirect ? [KLARNA_OPT] : []),
-    { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Θα δεις το IBAN μετά την παραγγελία" },
+    ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ] : [
@@ -244,7 +244,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     { v: "no-card", icon: Smartphone, t: "Δόσεις χωρίς κάρτα", sub: total >= 200 && total <= 2000 ? `Eurobank · έως 24 × ${priceLong(instalment(total, 24))}` : "Για αγορές 200–2.000 €", disabled: total < 200 || total > 2000 },
     { v: "iris", icon: Smartphone, t: "IRIS", sub: "Άμεσα από το mobile banking, χωρίς προμήθεια" },
     ...(klarnaDirect ? [KLARNA_OPT] : []),
-    { v: "bank", icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: "Εθνική · Πειραιώς · Eurobank · Alpha" },
+    ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ];

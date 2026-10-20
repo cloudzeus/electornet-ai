@@ -5,17 +5,19 @@ import { getPublicSettings } from "@/lib/settings/store";
 import { enabledVivaPays } from "@/lib/payments/viva-core";
 import { vivaConfig } from "@/lib/payments/viva";
 import { klarnaConfig } from "@/lib/payments/klarna";
+import { bankTransfer } from "@/lib/payments/bank-transfer";
+import { bankNames } from "@/lib/payments/bank-accounts";
 
 export const metadata: Metadata = { title: "Ολοκλήρωση αγοράς" };
 
 export default async function CheckoutPage() {
-  const [stores, pub, viva, klarna] = await Promise.all([getStores(), getPublicSettings(), vivaConfig(), klarnaConfig()]);
+  const [stores, pub, viva, klarna, bank] = await Promise.all([getStores(), getPublicSettings(), vivaConfig(), klarnaConfig(), bankTransfer()]);
   // οι τρόποι Viva μόνο όταν η Viva έχει ρυθμιστεί (Client ID / secret)· αλλιώς το checkout μένει όπως ήταν
   const vivaPays = viva ? enabledVivaPays(pub.payments ?? {}) : [];
   const partner = String(pub.shipping?.boxnowPartnerId ?? "").trim();
   return (
     <div className="eu-container">
-      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} klarnaDirect={!!klarna} />
+      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} klarnaDirect={!!klarna} bankSub={bank.enabled ? bankNames(bank.accounts) : null} />
     </div>
   );
 }
