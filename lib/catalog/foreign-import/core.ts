@@ -48,31 +48,37 @@ export function headerSignature(headers: string[]): string {
 
 /** Μοτίβα ανά στόχο, με σειρά: τα πιο ειδικά πρώτα. `w` = ολόκληρη λέξη (λατινικά/σύντομα), `s` = υπο-συμβολοσειρά. */
 const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
+  { target: { kind: "field", key: "weightKg" }, w: ["weight"], s: ["βαρος"] }, // πριν το «net» (Net weight ≠ κόστος)
   { target: { kind: "media", type: "banner" }, w: ["banner"], s: ["μπανερ"] },
   { target: { kind: "media", type: "video" }, w: ["video"], s: ["βιντεο"] },
   { target: { kind: "media", type: "image" }, w: ["image", "img", "photo", "picture", "pic"], s: ["φωτογραφι", "εικονα", "εικονες", "εικονας"] },
   { target: { kind: "field", key: "factoryCode" }, w: ["mpn", "model", "part"], s: ["κωδικος κατασκευαστη", "κωδ κατασκευαστη", "manufacturer code", "manufacturer part", "mfr", "μοντελο"] },
   { target: { kind: "field", key: "barcode" }, w: ["ean", "barcode", "gtin", "upc"], s: ["μπαρκοντ"] },
-  { target: { kind: "brand" }, w: ["brand", "manufacturer", "vendor"], s: ["μαρκα", "κατασκευαστη"] },
+  { target: { kind: "brand" }, w: ["brand", "manufacturer"], s: ["μαρκα", "κατασκευαστη"] },
   { target: { kind: "category" }, w: ["category"], s: ["κατηγορια"] },
   { target: { kind: "cost" }, w: ["cost", "net"], s: ["κοστος", "τιμη αγορας", "τιμη κτησης", "τιμη χονδρικης"] },
   { target: { kind: "rrp" }, w: ["rrp", "msrp", "pvp"], s: ["λιανικη", "τιμη πωλησης"] },
   { target: { kind: "field", key: "shortDesc" }, s: ["συντομη περιγραφη", "short description"] },
   { target: { kind: "field", key: "name" }, w: ["name", "title"], s: ["περιγραφη ειδους", "ονομα", "τιτλος", "ονομασια", "product description"] },
   { target: { kind: "field", key: "descText" }, w: ["description"], s: ["περιγραφη"] },
-  { target: { kind: "field", key: "code" }, w: ["sku", "code"], s: ["κωδικος", "κωδ"] },
 ];
+// Ο «κωδικός» είναι κλειδί αντιστοίχισης: μόνο ακριβώς αυτές οι επικεφαλίδες τον δίνουν — «Κωδικός χρώματος» ή του προμηθευτή ΟΧΙ.
+const CODE_HEADERS = new Set(["κωδικος", "κωδ", "code", "sku", "κωδικος ειδους", "κωδ ειδους", "item code", "product code", "κωδικος προιοντος"]);
 
 /** Πρόταση στόχου για μια επικεφαλίδα (ο χρήστης μπορεί πάντα να την αλλάξει). Τελικοί αριθμοί π.χ. «Φωτογραφία 2» αγνοούνται. */
 export function suggestTarget(header: string): Target {
-  const h = norm(txt(header)).replace(/[\s_\-.]*\d+$/, "").replace(/(?<=[a-zα-ω])\d+(?=\W|$)/g, "");
+  const h = norm(txt(header).replace(/[.,/\\\-_()]+/g, " ")).replace(/ ?\d+$/, "").replace(/(?<=[a-zα-ω])\d+(?=\W|$)/g, "");
   if (!h) return { kind: "ignore" };
   const words = h.split(/[^a-zα-ω0-9]+/).filter(Boolean);
+  const has = (...ws: string[]) => ws.some((w) => words.includes(w));
+  if (has("vat", "φπα")) return { kind: "ignore" }; // «Κατηγορία ΦΠΑ» δεν είναι κατηγορία προϊόντος
+  if ((has("supplier", "vendor") || h.includes("προμηθευτ")) && (has("code", "sku", "κωδ", "κωδικος") || h.includes("κωδικ"))) return { kind: "ignore" }; // ο κωδικός του προμηθευτή δεν είναι δικός μας
+  if (has("model") && has("name", "title")) return { kind: "field", key: "name" };
   for (const r of RULES) {
     if (r.w?.some((w) => words.includes(w))) return r.target;
     if (r.s?.some((s) => h.includes(norm(s)))) return r.target;
   }
-  return { kind: "ignore" };
+  return CODE_HEADERS.has(h) ? { kind: "field", key: "code" } : { kind: "ignore" };
 }
 
 // ---------- EAN ----------
@@ -185,14 +191,17 @@ export function blankOnly(current: Partial<Record<FieldKey, string | null>>, inc
   return out;
 }
 
+/** ΠΡΕΠΕΙ να μένει ίδια με το `plain` του supplier-sheet.ts (εκεί είναι server-only): ς→σ, χωρίς τελικό «*», ένα κενό. Αλλιώς το newSpecs θα θεωρεί «νέα» μια ετικέτα που το composeMemo θα αντικαταστήσει. */
+const labelKey = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/ς/g, "σ").replace(/\s*\*\s*$/, "").replace(/\s+/g, " ").trim();
+
 // Ίδια γραμμή «Ετικέτα : τιμή» με το composeMemo του supplier-sheet (εκεί ζουν τα χαρακτηριστικά ενός είδους).
 const SPEC_LINE = /^(?:[•\-–*·]\s*)?([^:\n]{2,60}?)\s*:\s*(\S.*)$/;
 
 /** Χαρακτηριστικά που ΔΕΝ υπάρχουν ήδη στην αναλυτική περιγραφή (σύγκριση ετικέτας χωρίς πεζά/τόνους). */
 export function newSpecs(currentMemo: string, incoming: Record<string, string>): Record<string, string> {
   const have = new Set<string>();
-  for (const l of currentMemo.replace(/\r\n?/g, "\n").split("\n")) { const m = SPEC_LINE.exec(l.trim()); if (m) have.add(norm(m[1])); }
+  for (const l of currentMemo.replace(/\r\n?/g, "\n").split("\n")) { const m = SPEC_LINE.exec(l.trim()); if (m) have.add(labelKey(m[1])); }
   const out: Record<string, string> = {};
-  for (const [label, value] of Object.entries(incoming)) if (value.trim() && !have.has(norm(label))) out[label] = value;
+  for (const [label, value] of Object.entries(incoming)) if (value.trim() && !have.has(labelKey(label))) out[label] = value;
   return out;
 }

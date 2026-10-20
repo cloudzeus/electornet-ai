@@ -166,3 +166,26 @@ test("newSpecs: αγνοεί ετικέτες που υπάρχουν (πεζά/
   assert.deepEqual(newSpecs(memo, { "Χωρητικότητα": "10kg", "Βάρος": "60", "Χρώμα": "μαύρο", "Κενό": " " }), { "Βάρος": "60" });
   assert.deepEqual(newSpecs("", { A1: "x" }), { A1: "x" });
 });
+
+test("newSpecs: ίδια κανονικοποίηση ετικέτας με το composeMemo (ς/σ, αστερίσκος, κενά)", () => {
+  assert.deepEqual(newSpecs("Ισχύς : 2000W", { "Ισχυσ": "1", "Ισχύς*": "2", "ΙΣΧΥΣ": "3", "Ισχύς  ": "4" }), {});
+  assert.deepEqual(newSpecs("Μέγιστη   ισχύς : 5", { "μεγιστη ισχυς *": "1" }), {});
+  assert.deepEqual(newSpecs("Ισχύς : 2000W", { "Ισχύς κινητήρα": "1" }), { "Ισχύς κινητήρα": "1" });
+});
+
+test("suggestTarget: επικεφαλίδες προμηθευτών που παλιότερα έβγαιναν λάθος", () => {
+  const F = (key: string) => ({ kind: "field", key });
+  assert.deepEqual(suggestTarget("Κωδ. κατασκευαστή"), F("factoryCode"));
+  assert.deepEqual(suggestTarget("Κωδ.Κατασκευαστή"), F("factoryCode"));
+  assert.deepEqual(suggestTarget("Manufacturer code"), F("factoryCode"));
+  assert.deepEqual(suggestTarget("Model name"), F("name"));
+  assert.deepEqual(suggestTarget("Model"), F("factoryCode"));
+  assert.deepEqual(suggestTarget("Net weight"), F("weightKg"));
+  assert.deepEqual(suggestTarget("Βάρος"), F("weightKg"));
+  assert.deepEqual(suggestTarget("Net"), { kind: "cost" });
+  for (const h of ["Vendor code", "Vendor", "Κωδικός προμηθευτή", "Supplier code", "Κωδικός χρώματος", "Color code", "Κατηγορία ΦΠΑ", "VAT category", "ΦΠΑ"]) {
+    assert.deepEqual(suggestTarget(h), { kind: "ignore" }, h);
+  }
+  for (const h of ["Κωδικός", "Κωδ.", "Code", "SKU", "Κωδικός είδους", "Item code"]) assert.deepEqual(suggestTarget(h), F("code"), h);
+  assert.deepEqual(suggestTarget("Κατηγορία"), { kind: "category" });
+});
