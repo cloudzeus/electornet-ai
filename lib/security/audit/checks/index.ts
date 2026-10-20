@@ -4,6 +4,9 @@ import { loginsCheck } from "./logins";
 import { settingsChangesCheck } from "./settings-changes";
 import { contentCheck } from "./content";
 import { bunnyCheck } from "./bunny";
+import { siteCheck } from "./site";
+import { certCheck } from "./cert";
+import { depsCheck } from "./deps";
 
 /** Μητρώο ελέγχων — με αυτή τη σειρά εμφανίζονται στην αναφορά. Νέος έλεγχος → μία γραμμή εδώ. */
-export const CHECKS: Check[] = [staffCheck, loginsCheck, settingsChangesCheck, contentCheck, bunnyCheck];
+export const CHECKS: Check[] = [siteCheck, staffCheck, loginsCheck, settingsChangesCheck, contentCheck, bunnyCheck, certCheck, depsCheck];
