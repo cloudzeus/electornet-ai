@@ -6,6 +6,7 @@ import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { runManualFull, withSendLock } from "@/lib/security/audit/manual";
 import { sendSummary } from "@/lib/security/audit/notify";
+import { FULL_RUN_WHERE } from "@/lib/security/audit/run";
 import { asSeverity, athensDateTime } from "@/lib/security/audit/notify-core";
 import type { Severity } from "@/lib/security/audit/rules";
 
@@ -30,10 +31,13 @@ export async function runSecurityAuditNow(): Promise<RunResult> {
   }
 }
 
-/** «Αποστολή report τώρα»: το email σύνοψης του τελευταίου πλήρους ελέγχου στους παραλήπτες των Ρυθμίσεων → Ασφάλεια. */
+/**
+ * «Αποστολή report τώρα»: το email σύνοψης του τελευταίου πλήρους ελέγχου (με το σημάδι run — όχι δοκιμή ενός ελέγχου)
+ * στους παραλήπτες των Ρυθμίσεων → Ασφάλεια.
+ */
 export async function sendSecurityReportNow(): Promise<RunResult> {
   const user = await requireSuperAdmin();
-  const last = await db.securityReport.findFirst({ where: { mode: "full" }, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
+  const last = await db.securityReport.findFirst({ where: FULL_RUN_WHERE, orderBy: { startedAt: "desc" }, select: { id: true, startedAt: true } });
   if (!last) return { ok: false, message: "Δεν υπάρχει ακόμη πλήρης έλεγχος για αποστολή — πατήστε πρώτα «Τρέξε τώρα»." };
   try {
     const r = await withSendLock(() => sendSummary(last.id));

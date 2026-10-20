@@ -7,6 +7,7 @@ import { asSeverity, storedChecks } from "@/lib/security/audit/notify-core";
 import { athens } from "@/lib/security/audit/execute";
 import { dayStrip, findingCounts, overview, watcherState, HISTORY_DAYS } from "@/lib/security/audit/view";
 import { manualRunState } from "@/lib/security/audit/manual";
+import { FULL_RUN_WHERE } from "@/lib/security/audit/run";
 import { PartialBadge, SEV_CARD, SeverityBadge } from "@/components/admin/security/Severity";
 import { DayStrip } from "@/components/admin/security/DayStrip";
 import { SecurityActions } from "@/components/admin/security/SecurityActions";
@@ -20,7 +21,7 @@ export const maxDuration = 300;
 const DAY = 86_400_000;
 const MODE: Record<string, string> = { full: "Πλήρης", light: "Ωριαίος" };
 const ago = (ms: number) => (ms < 60_000 ? "μόλις τώρα" : ms < 3_600_000 ? `πριν ${Math.round(ms / 60_000)}′` : ms < 48 * 3_600_000 ? `πριν ${Math.floor(ms / 3_600_000)} ώρ.` : `πριν ${Math.floor(ms / DAY)} ημ.`);
-type Row = { id: string; mode: string; startedAt: Date; finishedAt: Date | null; status: string; checks: unknown };
+type Row = { id: string; mode: string; startedAt: Date; finishedAt: Date | null; status: string; checks: unknown; summarySent: boolean | null };
 const brief = (r: Row | null) => (r ? { startedAt: r.startedAt, status: r.status, partial: storedChecks(r.checks).some((c) => c.complete === false) } : null);
 
 /**
@@ -34,11 +35,12 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   const onlyFull = m === "full";
   const now = new Date();
   const since = new Date(now.getTime() - (HISTORY_DAYS + 1) * DAY);
-  const select = { id: true, mode: true, startedAt: true, finishedAt: true, status: true, checks: true } as const;
+  const select = { id: true, mode: true, startedAt: true, finishedAt: true, status: true, checks: true, summarySent: true } as const;
   const [history, recent, lastFull, lastLight, ping, recipients] = await Promise.all([
     db.securityReport.findMany({ where: { startedAt: { gte: since } }, select: { id: true, startedAt: true, status: true } }),
     db.securityReport.findMany({ where: onlyFull ? { mode: "full" } : {}, orderBy: { startedAt: "desc" }, take: 15, select }),
-    db.securityReport.findFirst({ where: { mode: "full" }, orderBy: { startedAt: "desc" }, select }),
+    // ο τελευταίος ΠΛΗΡΗΣ full (σημάδι run) — όχι δοκιμή ενός ελέγχου
+    db.securityReport.findFirst({ where: FULL_RUN_WHERE, orderBy: { startedAt: "desc" }, select }),
     db.securityReport.findFirst({ where: { mode: "light" }, orderBy: { startedAt: "desc" }, select }),
     db.auditLog.findFirst({ where: { action: "security.watch.ping", createdAt: { gte: since } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     securityRecipients().catch(() => [] as string[]),
@@ -150,6 +152,7 @@ function ReportTile({ label, r, now }: { label: string; r: Row | null; now: Date
       <div className="text-eu-muted text-[length:var(--fs-13)]">{label}</div>
       <div className="flex flex-wrap items-center gap-1.5"><SeverityBadge status={asSeverity(r.status)} />{partial && <PartialBadge />}</div>
       <div className="text-eu-ink text-[length:var(--fs-14)]"><span className="font-bold tabular-nums">{athens(r.startedAt)}</span> <span className="text-eu-muted">· {ago(now.getTime() - r.startedAt.getTime())}</span></div>
+      {r.summarySent === false && <div data-help="security.summary-unsent" className="text-eu-red text-[length:var(--fs-13)] font-bold">το email σύνοψης δεν στάλθηκε</div>}
     </Link>
   );
 }

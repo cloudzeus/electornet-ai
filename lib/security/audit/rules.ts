@@ -7,11 +7,15 @@ import { ALLOWED_CDN_CGI, ALLOWED_FRAME_HOSTS, CLICKFIX_MARKERS, SPAM_MARKERS, R
  *
  * Αρχή: ακρίβεια. Κανένα ψευδές «όλα καλά» (ό,τι δεν αναγνωρίζεται → εύρημα) και κανένα ψευδές «κρίσιμο» (λέξεις που
  * μπορεί να είναι νόμιμο κείμενο προϊόντος → warn, όχι critical). Τα τεκμήρια (evidence) δεν περιέχουν ό,τι αλλάζει σε
- * κάθε αίτημα (nonce, query του Zaraz), ώστε το ίδιο εύρημα να έχει το ίδιο fingerprint (dedupe ειδοποιήσεων 24 ωρών).
+ * κάθε αίτημα (nonce, query του Zaraz), ώστε το ίδιο εύρημα να έχει το ίδιο fingerprint (dedupe ειδοποιήσεων 23 ωρών).
  */
 
 export type Severity = "ok" | "warn" | "critical" | "error";
-export type Finding = { severity: Exclude<Severity, "ok">; title: string; detail: string; evidence?: string };
+export type Finding = {
+  severity: Exclude<Severity, "ok">; title: string; detail: string; evidence?: string;
+  /** επιπλέον παραλήπτες της ειδοποίησης «ΚΡΙΣΙΜΟ» για αυτό το εύρημα (π.χ. οι προηγούμενοι παραλήπτες όταν άλλαξαν) */
+  notify?: string[];
+};
 export type CheckResult = { key: string; title: string; status: Severity; summary: string; findings: Finding[]; ms: number };
 export type ParsedScript = {
   src: string | null; host: string | null; inline: boolean; nonce: string | null;

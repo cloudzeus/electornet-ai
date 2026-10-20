@@ -1,5 +1,5 @@
 /**
- * Καθημερινή αναφορά ασφαλείας: πίνακες SecurityReport (+ στήλη alertRetry) / SecurityAlert + ευρετήριο LoginEvent(method, at)
+ * Καθημερινή αναφορά ασφαλείας: πίνακες SecurityReport (+ στήλες alertRetry, summarySent) / SecurityAlert + ευρετήριο LoginEvent(method, at)
  * για τον έλεγχο συνδέσεων. Ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
  * Η σελίδα «Ασφάλεια» είναι μόνο για super-admin (ruling G): τα δικαιώματα security.read / security.run που πρόσθετε μια
  * παλαιότερη έκδοση του script ΣΒΗΝΟΝΤΑΙ (μόνο αυτά τα δύο κλειδιά — δικά μας, χωρίς άλλη χρήση), idempotent.
@@ -31,6 +31,8 @@ const SQL = [
   )`,
   // παραλήπτες που δεν πήραν την ειδοποίηση (νέα προσπάθεια μόνο σε αυτούς) — ΠΡΙΝ το deploy του κώδικα που τη διαβάζει
   `ALTER TABLE "SecurityReport" ADD COLUMN IF NOT EXISTS "alertRetry" JSONB`,
+  // email σύνοψης: true / false (νέα προσπάθεια από τον light) / null (δεν αφορά) — ΠΡΙΝ το deploy του κώδικα που τη γράφει
+  `ALTER TABLE "SecurityReport" ADD COLUMN IF NOT EXISTS "summarySent" BOOLEAN`,
 ];
 /**
  * CONCURRENTLY: χωρίς κλείδωμα εγγραφών στον (ζωντανό) πίνακα. Δεν τρέχει μέσα σε συναλλαγή — γι' αυτό ξεχωριστή, μόνη της

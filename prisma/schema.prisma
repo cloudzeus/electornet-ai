@@ -2721,14 +2721,16 @@ model MarkupRule {
 /// Καθημερινή αναφορά ασφαλείας: ένας έλεγχος (προγραμματισμένος ή χειροκίνητος) με τα αποτελέσματά του.
 model SecurityReport {
   id         String    @id @default(cuid())
-  mode       String // scheduled | manual
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
-  status     String // running | ok | warning | critical | error
-  checks     Json
-  alerted    Boolean   @default(false)
+  mode        String // full | light
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  status      String // ok | warn | critical | error
+  checks      Json
+  alerted     Boolean   @default(false)
   /// παραλήπτες που δεν πήραν την ειδοποίηση «ΚΡΙΣΙΜΟ» (νέα προσπάθεια, έως 3) — βλ. lib/security/audit/notify-core.ts AlertRetry
-  alertRetry Json?
+  alertRetry  Json?
+  /// email σύνοψης: true = το πήρε τουλάχιστον ένας, false = κανείς (το ξαναστέλνει ο επόμενος light, εντός 24 ωρών), null = δεν αφορά
+  summarySent Boolean?
 
   @@index([startedAt])
 }

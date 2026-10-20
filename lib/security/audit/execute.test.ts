@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runChecks, sinceFor, lightSince, coversChecks, timeoutFor, capFindings, athens, MAX_FINDINGS, withRunMeta, isCompleteRun, RUN_META } from "./execute";
+import { runChecks, sinceFor, lightSince, coversChecks, timeoutFor, capFindings, athens, MAX_FINDINGS, withRunMeta, isCompleteRun, RUN_META, windowKeys, fullSince } from "./execute";
 import type { Check, AuditCtx } from "./types";
 import type { Finding } from "./rules";
 
@@ -114,4 +114,23 @@ test("isCompleteRun: σημειωμένο report μετρά ακόμη κι αν
   assert.ok(!isCompleteRun(rep(["staff"]), ["staff", "logins"]), "χειροκίνητο ενός ελέγχου");
   assert.ok(!isCompleteRun({ meta: "run", allChecks: true }, ["staff"]));
   assert.ok(!isCompleteRun(null, ["staff"]));
+});
+
+test("windowKeys (F-5): η κάλυψη του παραθύρου μετρά μόνο τους ελέγχους που χρησιμοποιούν το since (όχι site / watcher)", () => {
+  const c = (key: string, modes: Check["modes"]): Check => ({ key, title: key, modes, timeoutMs: 1, run: async () => ({ status: "ok", summary: "", findings: [] }) });
+  const reg = ["site", "staff", "logins", "settings-changes", "content", "cert", "deps", "watcher"].map((k) => c(k, ["full", "light"])).concat([c("bunny", ["full"])]);
+  assert.deepEqual(windowKeys(reg, "light"), ["staff", "logins", "settings-changes", "content"]);
+  assert.deepEqual(windowKeys(reg, "full"), ["staff", "logins", "settings-changes", "content", "bunny"]);
+  // report με site / watcher σε error καλύπτει ακόμη το παράθυρο του light· με staff σε error όχι
+  const rep = (staff: string) => [["site", "error"], ["staff", staff], ["logins", "warn"], ["settings-changes", "ok"], ["content", "ok"], ["watcher", "error"]].map(([key, status]) => ({ key, status }));
+  assert.ok(coversChecks(rep("ok"), windowKeys(reg, "light")));
+  assert.ok(!coversChecks(rep("error"), windowKeys(reg, "light")));
+});
+
+test("fullSince (F-6): min(−24 ώρες, προηγούμενος full − 2′), έως 72 ώρες πίσω· χωρίς προηγούμενο / στο μέλλον → −24 ώρες", () => {
+  assert.equal(fullSince(null, now).toISOString(), "2026-10-19T06:00:00.000Z");
+  assert.equal(fullSince(new Date("2026-10-19T04:00:00Z"), now).toISOString(), "2026-10-19T03:58:00.000Z", "ο cron άργησε: από τον προηγούμενο full");
+  assert.equal(fullSince(new Date("2026-10-19T08:00:00Z"), now).toISOString(), "2026-10-19T06:00:00.000Z", "πρόσφατος full (π.χ. Τρέξε τώρα): πάντα τουλάχιστον 24 ώρες");
+  assert.equal(fullSince(new Date("2026-10-10T00:00:00Z"), now).toISOString(), "2026-10-17T06:00:00.000Z", "έως 72 ώρες πίσω");
+  assert.equal(fullSince(new Date("2026-10-21T00:00:00Z"), now).toISOString(), "2026-10-19T06:00:00.000Z");
 });

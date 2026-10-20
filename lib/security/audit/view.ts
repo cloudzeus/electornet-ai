@@ -1,6 +1,6 @@
 import { worst, type Severity } from "./rules";
 import { asSeverity } from "./notify-core";
-import { athens, RUN_META } from "./execute";
+import { athens } from "./execute";
 import { WATCHER_STALE_MS } from "./checks/watcher-core";
 import type { StoredCheck } from "./types";
 
@@ -96,7 +96,5 @@ export function findingCounts(checks: StoredCheck[]): { critical: number; error:
   return out;
 }
 
-/** Το report έχει το σημάδι «έτρεξαν όλοι οι έλεγχοι του είδους» (RUN_META — εγγραφή χωρίς key, που αλλιώς αγνοείται). */
-export function hasRunMarker(checks: unknown): boolean {
-  return Array.isArray(checks) && checks.some((c) => !!c && typeof c === "object" && (c as Record<string, unknown>).meta === RUN_META.meta && (c as Record<string, unknown>).allChecks === true);
-}
+/** Το report έχει το σημάδι «έτρεξαν όλοι οι έλεγχοι του είδους» (στο execute.ts — κοινό με τον runner και τα emails). */
+export { hasRunMarker } from "./execute";

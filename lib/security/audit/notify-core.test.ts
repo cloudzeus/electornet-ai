@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fingerprint, type Finding } from "./rules";
 import type { StoredCheck } from "./types";
-import { alertsToSend, escapeHtml, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, athensDateTime, deliveryOutcome, nextRetry, parseRetry, alertsUndelivered, asSeverity, MAX_ALERT_ATTEMPTS } from "./notify-core";
+import { alertsToSend, escapeHtml, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, athensDateTime, deliveryOutcome, nextRetry, parseRetry, alertsUndelivered, asSeverity, MAX_ALERT_ATTEMPTS, claimAll, deliverClaimed, alertRecipients, summaryRetryDue } from "./notify-core";
 
 const now = new Date("2026-10-20T07:00:00Z");
 const ago = (h: number) => new Date(now.getTime() - h * 3_600_000);
@@ -176,4 +176,59 @@ test("alertsToSend: lastSentAt στο μέλλον (λάθος ρολόι) δε�
   const fp = fingerprint("site", f);
   assert.equal(alertsToSend([{ checkKey: "site", f }], new Map([[fp, new Date("2026-10-21T10:00:00Z")]]), now).length, 1);
   assert.equal(alertsToSend([{ checkKey: "site", f }], new Map([[fp, new Date("2026-10-20T09:00:00Z")]]), now).length, 0);
+});
+
+// ── τελική αναθεώρηση ────────────────────────────────────────────────────────────────────────────────────────────────
+test("claimAll (F-1): σφάλμα στο 2ο κλείδωμα → αναίρεση του 1ου (δικά του μερικά κλειδώματα) και το σφάλμα προωθείται", async () => {
+  const released: string[][] = [];
+  const tryOne = async (x: string) => { if (x === "b") throw new Error("db down"); return true; };
+  await assert.rejects(claimAll(["a", "b", "c"], tryOne, async (won) => { released.push(won); }), /db down/);
+  assert.deepEqual(released, [["a"]]);
+  // χωρίς σφάλμα: όσα κλειδώθηκαν (τα χαμένα από ταυτόχρονη εκτέλεση παραλείπονται), καμία αναίρεση
+  const r2: string[][] = [];
+  assert.deepEqual(await claimAll(["a", "b", "c"], async (x) => x !== "b", async (won) => { r2.push(won); }), ["a", "c"]);
+  assert.deepEqual(r2, []);
+  // αποτυχία και της αναίρεσης: προωθείται το αρχικό σφάλμα
+  await assert.rejects(claimAll(["a", "b"], tryOne, async () => { throw new Error("release failed"); }), /db down/);
+});
+
+test("deliverClaimed (F-1): σφάλμα πριν/κατά την αποστολή → αναίρεση· κανείς δεν το πήρε → αναίρεση· παραδόθηκε → όχι", async () => {
+  let rel = 0;
+  const release = async () => { rel++; };
+  await assert.rejects(deliverClaimed(async () => { throw new Error("render"); }, release), /render/);
+  assert.equal(rel, 1);
+  assert.deepEqual(await deliverClaimed(async () => ({ delivered: false, failed: ["a@x.gr"] }), release), { delivered: false, failed: ["a@x.gr"] });
+  assert.equal(rel, 2);
+  assert.deepEqual(await deliverClaimed(async () => ({ delivered: true, failed: ["b@x.gr"] }), release), { delivered: true, failed: ["b@x.gr"] });
+  assert.equal(rel, 2);
+});
+
+test("storedChecks (F-14): άγνωστη / χωρίς κατάσταση → κρατιέται ως «error» με «άγνωστη κατάσταση», ποτέ δεν χάνεται από το email", () => {
+  const out = storedChecks([{ key: "bunny", title: "Bunny", status: "running", summary: "x", findings: [], ms: 1 }, { key: "deps", title: "Deps", findings: [crit] }, { meta: "run", allChecks: true }]);
+  assert.deepEqual(out.map((c) => [c.key, c.status]), [["bunny", "error"], ["deps", "error"]]);
+  assert.match(out[0].summary, /άγνωστη κατάσταση/);
+  assert.deepEqual(out[1].findings, [crit]);
+  const mail = renderSummary({ status: "ok", results: out, startedAt: now, mode: "full" }, "https://x/r");
+  assert.match(mail.text, /\[Σφάλμα ελέγχου\] Bunny/);
+  assert.match(mail.text, /\[Σφάλμα ελέγχου\] Deps/);
+});
+
+test("storedChecks / alertRecipients (F-16): οι προηγούμενοι παραλήπτες του ευρήματος κρατιούνται (μόνο έγκυρα email) και προστίθενται στους τρέχοντες", () => {
+  const f: Finding = { severity: "critical", title: "Άλλαξαν οι παραλήπτες των ειδοποιήσεων ασφαλείας", detail: "d", evidence: "e", notify: ["old@x.gr", "NEW@x.gr", "junk"] };
+  const [c] = storedChecks([chk("settings-changes", "critical", [f])]);
+  assert.deepEqual(c.findings[0].notify, ["old@x.gr", "new@x.gr"]);
+  const alerts = pendingAlerts([{ id: "r1", startedAt: now, checks: [c] }], new Map(), now);
+  assert.deepEqual(alertRecipients(["new@x.gr", "boss@x.gr"], alerts), ["new@x.gr", "boss@x.gr", "old@x.gr"]);
+  assert.deepEqual(alertRecipients(["boss@x.gr"], []), ["boss@x.gr"]);
+  // χωρίς notify: το εύρημα δεν αλλάζει σχήμα
+  assert.equal("notify" in storedChecks([chk("site", "critical", [crit])])[0].findings[0], false);
+});
+
+test("summaryRetryDue (F-7): μόνο πλήρη reports (σημάδι run) με αποτυχημένη σύνοψη των τελευταίων 24 ωρών, νεότερο πρώτο", () => {
+  const marked = [{ key: "site", status: "ok" }, { meta: "run", allChecks: true }];
+  const row = (id: string, h: number, summarySent: boolean | null, o: Partial<{ mode: string; checks: unknown }> = {}) => ({ id, mode: "full", startedAt: ago(h), summarySent, checks: marked, ...o });
+  assert.deepEqual(summaryRetryDue([
+    row("old", 25, false), row("a", 2, false), row("b", 1, false), row("sent", 1, true), row("na", 1, null),
+    row("light", 1, false, { mode: "light" }), row("only", 1, false, { checks: [{ key: "site", status: "ok" }] }),
+  ], now), ["b", "a"]);
 });

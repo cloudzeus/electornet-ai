@@ -1,4 +1,5 @@
 import { fingerprint, type Finding, type Severity } from "./rules";
+import { hasRunMarker } from "./execute";
 import type { StoredCheck } from "./types";
 
 /**
@@ -63,9 +64,14 @@ const SEVERITIES = new Set(["ok", "warn", "critical", "error"]);
 /** Τιμή status από τη βάση → Severity· άγνωστη → "error" (ποτέ «undefined» ή ψευδές ΟΚ). */
 export const asSeverity = (v: unknown): Severity => (typeof v === "string" && SEVERITIES.has(v) ? (v as Severity) : "error");
 const str = (v: unknown) => (typeof v === "string" ? v : "");
+const EMAIL = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[a-z]{2,}$/i;
+/** Επιπλέον παραλήπτες ευρήματος: μόνο έγκυρα email, πεζά, χωρίς διπλά, έως 10. */
+const emails = (v: unknown): string[] => [...new Set((Array.isArray(v) ? v : []).filter((x): x is string => typeof x === "string").map((x) => x.trim().toLowerCase()).filter((x) => EMAIL.test(x)))].slice(0, 10);
+const UNKNOWN = "άγνωστη κατάσταση";
 /**
  * Τα checks ενός αποθηκευμένου report (Json) → μόνο τα γνωστά πεδία: key, title, status, summary, findings, ms, complete.
- * Ποτέ snapshot. Ό,τι δεν έχει σχήμα ελέγχου/ευρήματος παραλείπεται.
+ * Ποτέ snapshot. Ό,τι δεν έχει key (σκουπίδια, το σημάδι RUN_META) παραλείπεται· έλεγχος με άγνωστη ή χωρίς κατάσταση
+ * ΚΡΑΤΙΕΤΑΙ ως «error» («άγνωστη κατάσταση») — το email δεν παραλείπει ποτέ έλεγχο. Ευρήματα χωρίς σχήμα παραλείπονται.
  */
 export function storedChecks(checks: unknown): StoredCheck[] {
   if (!Array.isArray(checks)) return [];
@@ -73,15 +79,18 @@ export function storedChecks(checks: unknown): StoredCheck[] {
   for (const c of checks) {
     if (!c || typeof c !== "object") continue;
     const o = c as Record<string, unknown>;
-    if (typeof o.key !== "string" || typeof o.status !== "string" || !SEVERITIES.has(o.status)) continue;
+    if (typeof o.key !== "string") continue;
+    const known = typeof o.status === "string" && SEVERITIES.has(o.status);
     const findings: Finding[] = (Array.isArray(o.findings) ? o.findings : []).flatMap((f): Finding[] => {
       if (!f || typeof f !== "object") return [];
       const x = f as Record<string, unknown>;
       if (x.severity !== "warn" && x.severity !== "critical" && x.severity !== "error") return [];
       if (typeof x.title !== "string") return [];
-      return [{ severity: x.severity, title: x.title, detail: str(x.detail), ...(typeof x.evidence === "string" ? { evidence: x.evidence } : {}) }];
+      const notify = emails(x.notify);
+      return [{ severity: x.severity, title: x.title, detail: str(x.detail), ...(typeof x.evidence === "string" ? { evidence: x.evidence } : {}), ...(notify.length ? { notify } : {}) }];
     });
-    out.push({ key: o.key, title: str(o.title) || o.key, status: o.status as Severity, summary: str(o.summary), findings, ms: typeof o.ms === "number" ? o.ms : 0, ...(o.complete === false ? { complete: false } : {}) });
+    const summary = known ? str(o.summary) : [UNKNOWN, str(o.summary)].filter(Boolean).join(" · ");
+    out.push({ key: o.key, title: str(o.title) || o.key, status: known ? (o.status as Severity) : "error", summary, findings, ms: typeof o.ms === "number" ? o.ms : 0, ...(o.complete === false ? { complete: false } : {}) });
   }
   return out;
 }
@@ -95,6 +104,61 @@ export function pendingAlerts(reports: { id: string; startedAt: Date; checks: un
   const items = [...reports].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime()).flatMap((r) =>
     storedChecks(r.checks).flatMap((c) => c.findings.map((f) => ({ checkKey: c.key, checkTitle: c.title, f, reportId: r.id, startedAt: r.startedAt }))));
   return alertsToSend(items, sent, now);
+}
+
+/**
+ * Παραλήπτες της ειδοποίησης: οι τρέχοντες (Ρυθμίσεις → Ασφάλεια) + οι επιπλέον των ευρημάτων (`notify` — π.χ. οι
+ * προηγούμενοι παραλήπτες όταν κάποιος άλλαξε τη λίστα: ειδοποιούνται κι αυτοί, ώστε η αλλαγή να μη «σβήνει» μόνη της την
+ * ειδοποίηση). Χωρίς διπλά, οι τρέχοντες πρώτοι.
+ */
+export function alertRecipients(current: string[], alerts: Pick<PendingAlert, "f">[]): string[] {
+  const out = [...current];
+  for (const a of alerts) for (const e of a.f.notify ?? []) if (!out.includes(e)) out.push(e);
+  return out;
+}
+
+// ── Κλείδωμα fingerprint (καθαρή τήρηση — το I/O στο notify.ts) ────────────────────────────────────────────────────
+/**
+ * Κλειδώνει ένα-ένα τα στοιχεία (`tryOne` → true = το πήρε αυτή η εκτέλεση). Σφάλμα στη μέση → αναιρούνται ΟΣΑ ΗΔΗ
+ * κλειδώθηκαν από αυτή την κλήση (αλλιώς θα έμεναν «σταλμένα» χωρίς email και η ειδοποίηση θα χανόταν για 23 ώρες) και
+ * το αρχικό σφάλμα προωθείται (και όταν αποτύχει η ίδια η αναίρεση — καταγράφεται).
+ */
+export async function claimAll<T>(items: T[], tryOne: (x: T) => Promise<boolean>, release: (won: T[]) => Promise<void>): Promise<T[]> {
+  const won: T[] = [];
+  try {
+    for (const x of items) if (await tryOne(x)) won.push(x);
+  } catch (e) {
+    if (won.length) await release(won).catch((r) => console.error("[security-audit] αναίρεση κλειδώματος", r));
+    throw e;
+  }
+  return won;
+}
+/**
+ * Αποστολή όσων κλειδώθηκαν: οποιοδήποτε σφάλμα πριν από την παράδοση (απόδοση email, αποστολή) → αναίρεση και
+ * προώθηση· κανείς παραλήπτης δεν το πήρε → αναίρεση (νέα προσπάθεια στο επόμενο cron). Παραδόθηκε → κρατιέται.
+ */
+export async function deliverClaimed(send: () => Promise<{ delivered: boolean; failed: string[] }>, release: () => Promise<void>): Promise<{ delivered: boolean; failed: string[] }> {
+  let out: { delivered: boolean; failed: string[] };
+  try { out = await send(); } catch (e) {
+    await release().catch((r) => console.error("[security-audit] αναίρεση κλειδώματος", r));
+    throw e;
+  }
+  if (!out.delivered) await release();
+  return out;
+}
+
+// ── Σύνοψη που δεν στάλθηκε ─────────────────────────────────────────────────────────────────────────────────────────
+export const SUMMARY_RETRY_MS = 24 * 3_600_000;
+/**
+ * Πλήρη reports (με το σημάδι run — όχι δοκιμές ενός ελέγχου) των τελευταίων 24 ωρών των οποίων το email σύνοψης δεν το
+ * πήρε κανείς (`summarySent === false`· null = δεν αφορά / δεν επιχειρήθηκε): τα ξαναστέλνει ο επόμενος light, έως ότου
+ * παραδοθεί μία φορά. Νεότερο πρώτο.
+ */
+export function summaryRetryDue(rows: { id: string; mode: string; startedAt: Date; summarySent: boolean | null; checks: unknown }[], now: Date): string[] {
+  return rows
+    .filter((r) => r.mode === "full" && r.summarySent === false && now.getTime() - r.startedAt.getTime() <= SUMMARY_RETRY_MS && r.startedAt.getTime() <= now.getTime() && hasRunMarker(r.checks))
+    .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+    .map((r) => r.id);
 }
 
 // ── Παράδοση ανά παραλήπτη ──────────────────────────────────────────────────────────────────────────────────────────

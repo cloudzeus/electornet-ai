@@ -5,7 +5,7 @@ import { sendMail } from "@/lib/email/send";
 import { getSetting } from "@/lib/settings/store";
 import { parseSecurityEmails } from "@/lib/settings/security-emails";
 import { siteOrigin } from "./checks/site-origin";
-import { asSeverity, deliveryOutcome, nextRetry, parseRetry, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, PENDING_MS, type AlertRetry, type PendingAlert } from "./notify-core";
+import { alertRecipients, asSeverity, claimAll, deliverClaimed, deliveryOutcome, nextRetry, parseRetry, pendingAlerts, renderAlert, renderSummary, reportLink, storedChecks, summaryRetryDue, PENDING_MS, SUMMARY_RETRY_MS, type AlertRetry, type PendingAlert } from "./notify-core";
 
 /**
  * Αποστολή των emails του ελέγχου ασφαλείας (η μορφή στο notify-core.ts). Παραλήπτες: Ρυθμίσεις → Ασφάλεια →
@@ -15,7 +15,7 @@ import { asSeverity, deliveryOutcome, nextRetry, parseRetry, pendingAlerts, rend
  * light στέλνουν το καθένα μόνο όσα κλείδωσαν)· αν δεν το πήρε κανείς παραλήπτης → το κλείδωμα αναιρείται και τα reports
  * μένουν alerted=false (νέα προσπάθεια στο επόμενο cron). Αν το πήραν κάποιοι → παραδόθηκε· όσοι δεν το πήραν μπαίνουν στο
  * alertRetry του report και ξαναδοκιμάζονται μόνο αυτοί, έως 3 προσπάθειες συνολικά (μετά gaveUp, φαίνεται στη σελίδα και
- * στο heartbeat ως alertsUndelivered).
+ * στο heartbeat ως alertsUndelivered). Ευρήματα με `notify` (π.χ. άλλαξαν οι παραλήπτες) πηγαίνουν και σε αυτούς.
  */
 
 type Msg = { subject: string; html: string; text: string };
@@ -37,32 +37,51 @@ async function sendEach(to: string[], msg: Msg, template: string, meta: unknown)
 
 const linkFor = async () => { const { origin } = await siteOrigin(); return (id: string) => reportLink(origin, id); };
 
-/** Email σύνοψης ενός report (cron full και «Αποστολή report τώρα»). ok = το πήραν όλοι («uncertain» = στάλθηκε). */
+/**
+ * Email σύνοψης ενός report (cron full, «Αποστολή report τώρα», νέα προσπάθεια από τον light). ok = το πήραν όλοι
+ * («uncertain» = στάλθηκε). Καταγράφεται στο SecurityReport.summarySent: true = το πήρε τουλάχιστον ένας, false = κανείς
+ * (το ξαναστέλνει ο επόμενος light, εντός 24 ωρών — retryPendingSummaries).
+ */
 export async function sendSummary(reportId: string): Promise<{ ok: boolean; sent: number; failed: number }> {
   const r = await db.securityReport.findUnique({ where: { id: reportId }, select: { id: true, mode: true, status: true, startedAt: true, finishedAt: true, checks: true } });
   if (!r) throw new Error("Δεν βρέθηκε η αναφορά.");
-  const link = (await linkFor())(r.id);
-  const msg = renderSummary({ id: r.id, mode: r.mode, status: asSeverity(r.status), startedAt: r.startedAt, finishedAt: r.finishedAt, results: storedChecks(r.checks) }, link);
-  const res = await sendEach(await securityRecipients(), msg, "security-summary", { reportId: r.id });
+  let res: Sent[];
+  try {
+    const link = (await linkFor())(r.id);
+    const msg = renderSummary({ id: r.id, mode: r.mode, status: asSeverity(r.status), startedAt: r.startedAt, finishedAt: r.finishedAt, results: storedChecks(r.checks) }, link);
+    res = await sendEach(await securityRecipients(), msg, "security-summary", { reportId: r.id });
+  } catch (e) {
+    await recordSummary(r.id, false);
+    throw e;
+  }
   const { delivered, failed } = deliveryOutcome(res);
+  await recordSummary(r.id, delivered);
   return { ok: delivered && !failed.length, sent: res.length - failed.length, failed: failed.length };
+}
+const recordSummary = (id: string, sent: boolean) => db.securityReport.updateMany({ where: { id }, data: { summarySent: sent } }).catch((e) => console.error("[security-audit] summarySent", e));
+
+/** Light: ξαναστέλνει τις συνόψεις πλήρων ελέγχων (24 ωρών) που δεν τις πήρε κανείς. Επιστρέφει πόσες παραδόθηκαν τώρα. */
+export async function retryPendingSummaries(now = new Date()): Promise<number> {
+  const rows = await db.securityReport.findMany({ where: { mode: "full", summarySent: false, startedAt: { gte: new Date(now.getTime() - SUMMARY_RETRY_MS) } }, orderBy: { startedAt: "desc" }, take: 5, select: { id: true, mode: true, startedAt: true, summarySent: true, checks: true } });
+  let ok = 0;
+  for (const id of summaryRetryDue(rows, now)) {
+    const r = await sendSummary(id).catch((e) => { console.error(`[security-audit] νέα προσπάθεια σύνοψης (report ${id})`, e); return null; });
+    if (r && r.sent > 0) ok++;
+  }
+  return ok;
 }
 
 // ── Κλείδωμα fingerprint (SecurityAlert) ────────────────────────────────────────────────────────────────────────────
 type Claim = { fp: string; prev: Date | null };
 /**
  * Ατομικό κλείδωμα: νέο fingerprint → INSERT … ON CONFLICT DO NOTHING (κερδίζει όποιος γράψει τη γραμμή)· υπάρχον →
- * compare-and-swap στο lastSentAt που διαβάστηκε (κερδίζει όποιος το αλλάξει πρώτος). Επιστρέφει όσα κλειδώθηκαν.
+ * compare-and-swap στο lastSentAt που διαβάστηκε (κερδίζει όποιος το αλλάξει πρώτος). Επιστρέφει όσα κλειδώθηκαν· σφάλμα
+ * στη μέση → αναιρεί τα δικά του μερικά κλειδώματα και προωθεί το σφάλμα (claimAll).
  */
-async function claim(items: Claim[], now: Date): Promise<Claim[]> {
-  const won: Claim[] = [];
-  for (const x of items) {
-    const n = x.prev === null
-      ? (await db.securityAlert.createMany({ data: [{ fingerprint: x.fp, lastSentAt: now, count: 1 }], skipDuplicates: true })).count
-      : (await db.securityAlert.updateMany({ where: { fingerprint: x.fp, lastSentAt: x.prev }, data: { lastSentAt: now, count: { increment: 1 } } })).count;
-    if (n === 1) won.push(x);
-  }
-  return won;
+function claim(items: Claim[], now: Date): Promise<Claim[]> {
+  return claimAll(items, async (x) => (x.prev === null
+    ? (await db.securityAlert.createMany({ data: [{ fingerprint: x.fp, lastSentAt: now, count: 1 }], skipDuplicates: true })).count
+    : (await db.securityAlert.updateMany({ where: { fingerprint: x.fp, lastSentAt: x.prev }, data: { lastSentAt: now, count: { increment: 1 } } })).count) === 1, (won) => release(won, now));
 }
 /** Αποτυχία αποστολής → αναίρεση: νέα γραμμή σβήνεται, υπάρχουσα επιστρέφει στο προηγούμενο lastSentAt. */
 async function release(claims: Claim[], now: Date): Promise<void> {
@@ -122,18 +141,13 @@ export async function sendPendingAlerts(now = new Date()): Promise<{ alerted: bo
   const markAlerted = () => db.securityReport.updateMany({ where: { id: { in: ids } }, data: { alerted: true } });
   if (!alerts.length) { await markAlerted(); return { alerted: true, alerts: 0 }; }
 
+  // κλείδωμα + αποστολή: κάθε σφάλμα ΠΡΙΝ την παράδοση αναιρεί τα κλειδώματα (αλλιώς η ειδοποίηση θα χανόταν για 23 ώρες)
   const claims = await claim(alerts.map((a) => ({ fp: a.fp, prev: sent.get(a.fp) ?? null })), now);
   const mine: PendingAlert[] = alerts.filter((a) => claims.some((c) => c.fp === a.fp));
   // τα υπόλοιπα τα στέλνει ταυτόχρονη εκτέλεση· τα reports μένουν alerted=false μέχρι να φανούν σταλμένα (επόμενο cron)
   if (!mine.length) return { alerted: true, alerts: 0 };
-  let outcome: { delivered: boolean; failed: string[] };
-  try {
-    outcome = deliveryOutcome(await sendEach(recipients, renderAlert(mine, link), "security-alert", { reportIds: ids, alerts: mine.length }));
-  } catch (e) {
-    await release(claims, now);
-    throw e;
-  }
-  if (!outcome.delivered) { await release(claims, now); return { alerted: false, alerts: mine.length }; }
+  const outcome = await deliverClaimed(async () => deliveryOutcome(await sendEach(alertRecipients(recipients, mine), renderAlert(mine, link), "security-alert", { reportIds: ids, alerts: mine.length })), () => release(claims, now));
+  if (!outcome.delivered) return { alerted: false, alerts: mine.length };
   if (outcome.failed.length) await storeRetry(nextRetry(null, outcome.failed, { fps: mine.map((a) => a.fp), reportIds: [...new Set(mine.map((a) => a.reportId))] }, now), ids, recent);
   if (mine.length === alerts.length) await markAlerted();
   return { alerted: true, alerts: mine.length };

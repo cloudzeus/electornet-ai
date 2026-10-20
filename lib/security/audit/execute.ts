@@ -20,6 +20,25 @@ export function lightSince(prevStartedAt: Date | null, now: Date): Date {
   if (!prevStartedAt || prevStartedAt.getTime() > now.getTime()) return sinceFor("light", now);
   return new Date(Math.max(prevStartedAt.getTime() - LIGHT_OVERLAP_MS, now.getTime() - 24 * HOUR));
 }
+/**
+ * Αρχή του παραθύρου του full: η έναρξη του προηγούμενου full μείον 2′ — αν ο cron άργησε ή χάθηκε μία μέρα, ο επόμενος
+ * καλύπτει και το κενό — αλλά ΠΑΝΤΑ τουλάχιστον οι τελευταίες 24 ώρες (ένα «Τρέξε τώρα» λίγο πριν δεν στενεύει τον
+ * ημερήσιο έλεγχο) και ποτέ πιο πίσω από 72 ώρες. Χωρίς προηγούμενο (ή με ημερομηνία στο μέλλον) → −24 ώρες.
+ */
+export const FULL_MAX_BACK_MS = 72 * HOUR;
+export function fullSince(prevFullStart: Date | null, now: Date): Date {
+  const day = sinceFor("full", now).getTime();
+  if (!prevFullStart || prevFullStart.getTime() > now.getTime()) return new Date(day);
+  return new Date(Math.max(now.getTime() - FULL_MAX_BACK_MS, Math.min(day, prevFullStart.getTime() - LIGHT_OVERLAP_MS)));
+}
+/**
+ * Οι έλεγχοι που διαβάζουν «από το since» (ιστορικό ενεργειών, συνδέσεις, αλλαγές, περιεχόμενο / αρχεία που άλλαξαν). ΜΟΝΟ
+ * αυτοί κρίνουν αν το παράθυρο ενός report καλύφθηκε — ένα σφάλμα στο site ή στον φύλακα δεν αφήνει κενό στο ιστορικό.
+ */
+export const WINDOW_CHECKS: readonly string[] = ["staff", "logins", "settings-changes", "content", "bunny"];
+export function windowKeys(checks: Pick<Check, "key" | "modes">[], mode: AuditMode): string[] {
+  return checks.filter((c) => c.modes.includes(mode) && WINDOW_CHECKS.includes(c.key)).map((c) => c.key);
+}
 const STATUSES = new Set(["ok", "warn", "critical"]);
 /**
  * Αν τα checks ενός report περιέχουν όλους τους ελέγχους `keys` ολοκληρωμένους: με status (όχι error) και όχι μερική
@@ -43,9 +62,13 @@ export function withRunMeta<T>(results: T[], only?: string[]): (T | typeof RUN_M
  * Πλήρες report: έχει το σημάδι RUN_META, ή (παλιά reports, πριν από το σημάδι) περιέχει όλους τους ελέγχους `keys`.
  * Το ίδιο κριτήριο εφαρμόζει σε SQL το /api/security/heartbeat.
  */
+/** Το report έχει το σημάδι «έτρεξαν όλοι οι έλεγχοι του είδους» (RUN_META — εγγραφή χωρίς key, που αλλιώς αγνοείται). */
+export function hasRunMarker(checks: unknown): boolean {
+  return Array.isArray(checks) && checks.some((c) => !!c && typeof c === "object" && (c as Record<string, unknown>).meta === RUN_META.meta && (c as Record<string, unknown>).allChecks === true);
+}
 export function isCompleteRun(checks: unknown, keys: string[]): boolean {
   if (!Array.isArray(checks)) return false;
-  if (checks.some((c) => c && typeof c === "object" && (c as Record<string, unknown>).meta === "run" && (c as Record<string, unknown>).allChecks === true)) return true;
+  if (hasRunMarker(checks)) return true;
   const have = new Set(checks.map((c) => (c && typeof c === "object" ? (c as { key?: unknown }).key : undefined)));
   return keys.every((k) => have.has(k));
 }
