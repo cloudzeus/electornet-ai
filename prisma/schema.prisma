@@ -2652,3 +2652,66 @@ model NewsletterEvent {
 
   @@index([recipientId])
 }
+
+/// Εισαγωγή προϊόντων από ξένο Excel: αποθηκευμένη αντιστοίχιση στηλών/τιμών ανά προμηθευτή (headerSignature = υπογραφή επικεφαλίδων).
+model ImportMapping {
+  id              String   @id @default(cuid())
+  name            String
+  headerSignature String
+  config          Json
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Μία εκτέλεση εισαγωγής: αρχείο, γραμμές (σχέδιο), μετρητές, κατάσταση. Το mappingId χωρίς FK.
+model ImportJob {
+  id          String   @id @default(cuid())
+  fileName    String
+  mappingId   String?
+  rows        Json
+  counts      Json
+  status      String   @default("draft") // draft | applied | …
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Νέο είδος που περιμένει έγκριση πριν δημιουργηθεί στο SoftOne. Τα brandId/webCategoryId/jobId χωρίς FK.
+model PendingItem {
+  id            String   @id @default(cuid())
+  jobId         String
+  rowNo         Int
+  code          String
+  fields        Json
+  specs         Json
+  media         Json
+  brandId       String?
+  specGroupS1Id Int?
+  webCategoryId String?
+  cost          Float?
+  rrp           Float?
+  price         Float?
+  status        String   @default("pending") // pending | approved | rejected | …
+  mtrl          Int?
+  productId     String?
+  error         String?
+  approvedById  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([jobId])
+}
+
+/// Κανόνας markup για τιμές από ξένο Excel: ανά μάρκα και/ή κατηγορία.
+model MarkupRule {
+  id         String   @id @default(cuid())
+  brandId    String?
+  categoryId String?
+  percent    Float
+  rounding   String   @default("none")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
