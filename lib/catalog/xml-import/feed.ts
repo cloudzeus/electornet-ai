@@ -57,6 +57,12 @@ async function download(url: string): Promise<Buffer> {
  */
 export type FeedSource = (url: string) => Promise<Buffer>;
 
+/**
+ * Η προεπιλεγμένη πηγή, εκτεθειμένη: ο οδηγός κρατά τα bytes της μίας λήψης και τα μοιράζει στα τρία βήματα (έλεγχος →
+ * προτάσεις → φόρτωση), ώστε να μη χτυπά τρεις φορές τον server του προμηθευτή (429).
+ */
+export const fetchFeedBytes: FeedSource = download;
+
 /** Βήμα ②: τι περιέχει το feed, χωρίς να αποθηκευτεί τίποτα. */
 export async function inspectFeed(url: string, source: FeedSource = download): Promise<Inspection> {
   const bytes = await source(url);
