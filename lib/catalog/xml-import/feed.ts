@@ -1,0 +1,217 @@
+import "server-only";
+import { db } from "@/lib/db";
+import { fetchPublicBytes } from "@/lib/net/safe-fetch";
+import { UserError, configToSaved, configForHeaders, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
+import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
+import { applyTransform, type Transform, type PriceMode } from "@/lib/catalog/xml-import/transform-core";
+import { diffItems, type Diff } from "@/lib/catalog/xml-import/diff-core";
+
+/**
+ * Το feed ενός προμηθευτή: έλεγχος, αποθήκευση αντιστοίχισης, φόρτωση σε `SupplierFeedItem`, και λίστα με φίλτρα.
+ *
+ * Η αντιστοίχιση αποθηκεύεται με κλειδί **κανονικοποιημένη επικεφαλίδα** (υπάρχον `configToSaved`), ώστε να ισχύει
+ * ακόμη κι αν ο προμηθευτής αλλάξει τη σειρά των tags. Το ίδιο και οι μετατροπές μονάδων.
+ *
+ * Σε κάθε τρέξιμο το `payload` ξαναγράφεται, τα `edits` του χρήστη **δεν αγγίζονται ποτέ**, και προϊόν που δεν ήρθε
+ * σημαίνεται `gone` — χωρίς καμία επίπτωση στα δικά μας προϊόντα.
+ */
+
+/** Όριο λήψης feed. Το δείγμα της Estia είναι 6,8 MB· 40 MB καλύπτει πολύ μεγαλύτερους καταλόγους. */
+export const MAX_FEED_BYTES = 40 * 1024 * 1024;
+const FEED_TIMEOUT_MS = 120_000;
+const CHUNK = 500;
+
+export interface FeedConfig {
+  /** στήλες με κλειδί επικεφαλίδας (όπως το αποθηκεύει το `configToSaved`) */
+  saved: SavedConfig;
+  /** μετατροπή μονάδας ανά επικεφαλίδα */
+  transforms: Record<string, Transform>;
+  priceMode: PriceMode;
+  toSoftone: boolean;
+}
+
+export interface Inspection {
+  counts: ReturnType<typeof parseFeed>["counts"];
+  headers: string[];
+  /** το πρώτο προϊόν ακατέργαστο, μόνο τα μη κενά — ο χρήστης το βλέπει πριν δεσμευτεί */
+  sample: Record<string, string>;
+  bytes: number;
+}
+
+async function download(url: string): Promise<Buffer> {
+  const { bytes } = await fetchPublicBytes(url, { max: MAX_FEED_BYTES, accept: "application/xml,text/xml,*/*", timeoutMs: FEED_TIMEOUT_MS }).catch((e) => {
+    const msg = e instanceof Error ? e.message : "άγνωστο σφάλμα";
+    // Οι προμηθευτές βάζουν όριο στις λήψεις (δοκιμασμένο: δύο τρεξίματα στη σειρά → 429). Να το καταλαβαίνει ο
+    // χρήστης ως «περίμενε», όχι ως «χάλασε κάτι».
+    if (/\b429\b/.test(msg)) throw new UserError("Ο server του προμηθευτή απάντησε «πάρα πολλά αιτήματα» (429) — περίμενε λίγα λεπτά και ξαναδοκίμασε. Τα προϊόντα που έχουν ήδη φορτωθεί δεν χάθηκαν.");
+    throw new UserError(`Δεν κατέβηκε το feed: ${msg}`);
+  });
+  return bytes;
+}
+
+/**
+ * Από πού έρχονται τα bytes του feed. Εξ ορισμού από το δίκτυο· η παράμετρος υπάρχει για να μπορεί να ελεγχθεί η
+ * φόρτωση και το diff **χωρίς** να χτυπιέται ο server του προμηθευτή — που βάζει όριο (429) και δεν ξέρουμε πόσο κρατά.
+ */
+export type FeedSource = (url: string) => Promise<Buffer>;
+
+/** Βήμα ②: τι περιέχει το feed, χωρίς να αποθηκευτεί τίποτα. */
+export async function inspectFeed(url: string, source: FeedSource = download): Promise<Inspection> {
+  const bytes = await source(url);
+  const parsed = parseFeed(bytes);
+  if (!parsed.counts.products) throw new UserError("Το feed κατέβηκε αλλά δεν βρέθηκε κανένα προϊόν μέσα του.");
+  const sample: Record<string, string> = {};
+  parsed.headers.forEach((h, i) => { const v = parsed.matrix[1]?.[i]; if (v) sample[h] = v; });
+  return { counts: parsed.counts, headers: parsed.headers, sample, bytes: bytes.length };
+}
+
+/** Βήμα ③ → αποθήκευση: η αντιστοίχιση με δείκτες γίνεται αντιστοίχιση με επικεφαλίδες. Υπάρχον feed του προμηθευτή ενημερώνεται. */
+export async function saveFeed(
+  supplierId: string,
+  url: string,
+  input: { config: MappingConfig; headers: string[]; transforms: Record<string, Transform>; priceMode: PriceMode; toSoftone: boolean },
+  staffId: string | null,
+): Promise<string> {
+  const supplier = await db.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
+  if (!supplier) throw new UserError("Ο προμηθευτής δεν βρέθηκε — ξανακάνε αναζήτηση.");
+  const cfg: FeedConfig = {
+    saved: configToSaved(input.config, input.headers),
+    transforms: input.transforms,
+    priceMode: input.priceMode,
+    toSoftone: input.toSoftone,
+  };
+  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true } });
+  if (existing) {
+    await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone } });
+    return existing.id;
+  }
+  const feed = await db.supplierFeed.create({ data: { supplierId, url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, createdById: staffId }, select: { id: true } });
+  return feed.id;
+}
+
+export async function loadFeed(feedId: string) {
+  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, supplier: { select: { id: true, name: true, code: true } } } });
+  if (!feed) throw new UserError("Το feed δεν βρέθηκε.");
+  return { ...feed, cfg: feed.config as unknown as FeedConfig };
+}
+
+/** Ποια στήλη κρατά τι, για ΑΥΤΕΣ τις επικεφαλίδες. */
+function roles(cfg: FeedConfig, headers: string[]) {
+  const config = configForHeaders(cfg.saved, headers);
+  const is = (t: Target | undefined, kind: Target["kind"]) => t?.kind === kind;
+  const idx = (pred: (t: Target) => boolean) => Object.entries(config.columns).filter(([, t]) => pred(t)).map(([i]) => Number(i)).sort((a, b) => a - b);
+  return {
+    config,
+    sku: idx((t) => is(t, "field") && (t as { key: string }).key === "code")[0] ?? headers.indexOf("SKU"),
+    images: idx((t) => is(t, "media") && (t as { type: string }).type === "image"),
+    category: idx((t) => is(t, "category"))[0] ?? headers.indexOf(CATEGORY_PAIR),
+  };
+}
+
+export interface RunResult {
+  total: number;
+  counts: Record<Diff, number>;
+  problems: number;
+  /** πόσα προϊόντα του feed είχαν διορθώσεις που συγκρούονται με τη νέα τιμή */
+  conflicts: number;
+}
+
+/**
+ * Κατέβασμα → ανάγνωση → μετατροπές → diff → αποθήκευση. Καμία επαφή με SoftOne και κανένα κατέβασμα φωτογραφίας:
+ * αυτά γίνονται στην ουρά εισαγωγής, αφού ο χρήστης ελέγξει τη λίστα.
+ */
+export async function runFeed(feedId: string, source: FeedSource = download): Promise<RunResult> {
+  const feed = await loadFeed(feedId);
+  const parsed = parseFeed(await source(feed.url));
+  if (!parsed.counts.products) throw new UserError("Το feed δεν έχει προϊόντα.");
+  const { headers, matrix } = parsed;
+  const r = roles(feed.cfg, headers);
+
+  // Μετατροπές μονάδων ανά στήλη, πριν από οτιδήποτε άλλο — η υπάρχουσα μηχανή δεν τις μαθαίνει ποτέ.
+  const tr = headers.map((h) => feed.cfg.transforms[h] ?? "none");
+  const incoming = matrix.slice(1).map((row, n) => {
+    const payload: Record<string, string> = {};
+    headers.forEach((h, i) => { const v = tr[i] === "none" ? row[i] : applyTransform(row[i], tr[i]); if (v) payload[h] = v; });
+    return {
+      sku: (r.sku >= 0 ? row[r.sku] : "") ?? "",
+      payload,
+      pos: n + 1,
+      images: r.images.map((i) => row[i]).filter(Boolean),
+    };
+  });
+
+  const existing = await db.supplierFeedItem.findMany({ where: { feedId }, select: { id: true, sku: true, payload: true, edits: true } });
+  const rows = diffItems(incoming.map(({ sku, payload, pos }) => ({ sku, payload, pos })), existing.map((e) => ({ sku: e.sku, payload: (e.payload ?? {}) as Record<string, string> })));
+  const bySku = new Map(existing.map((e) => [e.sku, e]));
+  const incBySku = new Map<string, (typeof incoming)[number]>();
+  incoming.forEach((it, n) => { const k = it.sku.trim() || `#${n + 1}`; if (!incBySku.has(k)) incBySku.set(k, it); });
+
+  const counts: Record<Diff, number> = { new: 0, changed: 0, same: 0, gone: 0 };
+  let problems = 0, conflicts = 0;
+  const fresh: { feedId: string; sku: string; payload: object; images: object; diff: string; status: string; problem: string | null }[] = [];
+  // Η βάση είναι απομακρυσμένη: 2.580 ξεχωριστά update θα ήταν 2.580 γύροι. Ξεχωριστή εγγραφή γίνεται ΜΟΝΟ όπου
+  // άλλαξε πραγματικά το payload· τα «same» και τα «gone» πάνε με μαζικά updateMany.
+  const sameIds: string[] = [], goneIds: string[] = [];
+  const changed: { id: string; payload: Record<string, string>; problem: string | null }[] = [];
+
+  for (const row of rows) {
+    counts[row.diff]++;
+    if (row.problem) problems++;
+    const was = bySku.get(row.sku);
+    if (row.diff === "gone") {
+      // Μόνο ένδειξη: τα δικά μας προϊόντα δεν αγγίζονται.
+      if (was) goneIds.push(was.id);
+      continue;
+    }
+    const it = incBySku.get(row.sku);
+    if (!it) continue;
+    if (!was) {
+      fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: row.problem ? "error" : "review", problem: row.problem ?? null });
+      continue;
+    }
+    const edits = (was.edits ?? null) as Record<string, string> | null;
+    if (edits) for (const [k, mine] of Object.entries(edits)) if (it.payload[k] !== undefined && it.payload[k] !== mine) { conflicts++; break; }
+    // Το payload ξαναγράφεται· τα edits ΔΕΝ αγγίζονται.
+    if (row.diff === "same") sameIds.push(was.id);
+    else changed.push({ id: was.id, payload: it.payload, problem: row.problem ?? null });
+  }
+
+  for (let i = 0; i < fresh.length; i += CHUNK) await db.supplierFeedItem.createMany({ data: fresh.slice(i, i + CHUNK) });
+  for (let i = 0; i < sameIds.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: sameIds.slice(i, i + CHUNK) }, diff: { not: "same" } }, data: { diff: "same" } });
+  for (let i = 0; i < goneIds.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: goneIds.slice(i, i + CHUNK) }, diff: { not: "gone" } }, data: { diff: "gone" } });
+  for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: "review" } });
+
+  await db.supplierFeed.update({ where: { id: feedId }, data: { lastRunAt: new Date(), lastCount: incoming.length } });
+  return { total: rows.length, counts, problems, conflicts };
+}
+
+export const PAGE = 50;
+export interface ItemFilter { diff?: Diff; status?: string; problems?: boolean; q?: string; page?: number }
+
+/** Η λίστα ελέγχου: server-side σελίδες και φίλτρα, με τα πλήθη για τα chips. */
+export async function listItems(feedId: string, filter: ItemFilter = {}) {
+  const where = {
+    feedId,
+    ...(filter.diff ? { diff: filter.diff } : {}),
+    ...(filter.status ? { status: filter.status } : {}),
+    ...(filter.problems ? { problem: { not: null } } : {}),
+    ...(filter.q ? { sku: { contains: filter.q, mode: "insensitive" as const } } : {}),
+  };
+  const page = Math.max(1, filter.page ?? 1);
+  const [rows, total, byDiff, byStatus, problems] = await Promise.all([
+    db.supplierFeedItem.findMany({ where, orderBy: { sku: "asc" }, skip: (page - 1) * PAGE, take: PAGE,
+      select: { id: true, sku: true, payload: true, edits: true, images: true, assetIds: true, diff: true, status: true, softone: true, problem: true, mtrl: true, productId: true, error: true } }),
+    db.supplierFeedItem.count({ where }),
+    db.supplierFeedItem.groupBy({ by: ["diff"], where: { feedId }, _count: { _all: true } }),
+    db.supplierFeedItem.groupBy({ by: ["status"], where: { feedId }, _count: { _all: true } }),
+    db.supplierFeedItem.count({ where: { feedId, problem: { not: null } } }),
+  ]);
+  return {
+    rows, total, page, pages: Math.max(1, Math.ceil(total / PAGE)),
+    counts: {
+      diff: Object.fromEntries(byDiff.map((d) => [d.diff, d._count._all])) as Partial<Record<Diff, number>>,
+      status: Object.fromEntries(byStatus.map((s) => [s.status, s._count._all])) as Record<string, number>,
+      problems,
+    },
+  };
+}
