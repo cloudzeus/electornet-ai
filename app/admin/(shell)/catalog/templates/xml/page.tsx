@@ -3,7 +3,7 @@ import { ArrowLeft, FileCode2 } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
-import { brandOptions, categoryOptions } from "@/lib/catalog/foreign-import/options";
+import { brandOptions, categoryOptions, markOptions, unitOptions } from "@/lib/catalog/foreign-import/options";
 import { listSuppliers } from "@/lib/catalog/xml-import/suppliers";
 import { db } from "@/lib/db";
 import { XmlImportWizard } from "@/components/admin/catalog/xml/XmlImportWizard";
@@ -13,16 +13,18 @@ export const metadata = { title: "XML προμηθευτές" };
 export const dynamic = "force-dynamic";
 
 /**
- * Μαζική εισαγωγή προϊόντων από XML feed προμηθευτή, σε 4 βήματα: προμηθευτής → feed → αντιστοίχιση (με προτάσεις AI
- * μόνο για τα αβέβαια) → λίστα ελέγχου και εισαγωγή. Στα υπάρχοντα είδη συμπληρώνονται ΜΟΝΟ τα κενά· τα νέα είδη πάνε
+ * Μαζική εισαγωγή προϊόντων από XML feed προμηθευτή: προμηθευτής → feed → αντιστοίχιση σε χωριστά βήματα (στήλες,
+ * μάρκες, κατηγορίες, χαρακτηριστικά, τιμές & ERP — με προτάσεις AI μόνο για τα αβέβαια) → λίστα ελέγχου και εισαγωγή. Στα υπάρχοντα είδη συμπληρώνονται ΜΟΝΟ τα κενά· τα νέα είδη πάνε
  * για έγκριση. Οι φωτογραφίες κατεβαίνουν και ανεβαίνουν στη βιβλιοθήκη με τη σειρά που ορίζει ο χρήστης.
  */
 export default async function XmlImportPage() {
   const user = await requirePermission("catalog.products.write");
-  const [suppliers, brands, categories, writeOn] = await Promise.all([
+  const [suppliers, brands, categories, units, marks, writeOn] = await Promise.all([
     listSuppliers(""),
     brandOptions(),
     categoryOptions(),
+    unitOptions(),
+    markOptions(),
     itemWriteEnabled(),
   ]);
   const feedIds = suppliers.map((s) => s.feed?.id).filter((v): v is string => !!v);
@@ -51,6 +53,8 @@ export default async function XmlImportPage() {
         suppliers={cards}
         brands={brands.map(({ id, name, s1 }) => ({ id, name, s1 }))}
         categories={categories.map(({ id, path }) => ({ id, name: path }))}
+        units={units.map(({ id, name }) => ({ id, name }))}
+        marks={marks.map(({ id, name }) => ({ id, name }))}
         writeOn={writeOn}
         canErp={can(user.permissions, "catalog.sync.run")}
       />

@@ -7,18 +7,16 @@ import { db } from "@/lib/db";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 import { UserError, configForHeaders, type MappingConfig, type Target } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget, decodeTarget } from "@/lib/catalog/foreign-import/ui-core";
-import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
-import { suggestMapping } from "@/lib/catalog/xml-import/suggest";
+import { assertConfigIds } from "@/lib/catalog/foreign-import/server";
+import { parseFeed } from "@/lib/catalog/xml-import/parse-core";
 import { listSuppliers, syncSuppliers } from "@/lib/catalog/xml-import/suppliers";
 import { fetchFeedBytes, inspectFeed, loadFeed, runFeed, saveFeed, listItems, type FeedSource, type ItemFilter } from "@/lib/catalog/xml-import/feed";
 import { drain, enqueue, progress, type Selection } from "@/lib/catalog/xml-import/queue";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
-import {
-  MAX_VALUES, SAMPLES_SHOWN, toTransform,
-  type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type SuggestDTO, type SupplierCard,
-} from "@/lib/catalog/xml-import/ui-core";
+import { toTransform, type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { buildSuggestDTO } from "@/lib/catalog/xml-import/suggest-dto";
 
 /**
  * Server actions του οδηγού «XML προμηθευτές». Λεπτό στρώμα γύρω από τις έτοιμες συναρτήσεις του
@@ -95,55 +93,13 @@ export async function inspect(url: string): Promise<InspectDTO | Fail> {
 
 // ---------- Βήμα ③: αντιστοίχιση ----------
 
-/** Οι διακριτές τιμές μιας στήλης — `null` όταν είναι πάρα πολλές για αντιστοίχιση τιμή-προς-τιμή. */
-function valuesOf(matrix: string[][], i: number): string[] | null {
-  const set = new Set<string>();
-  for (let r = 1; r < matrix.length; r++) {
-    const v = matrix[r][i];
-    if (v) set.add(v);
-    if (set.size > MAX_VALUES) return null;
-  }
-  return [...set].sort((a, b) => a.localeCompare(b, "el"));
-}
-
 /**
- * Οι προτάσεις του βήματος ③ (κανόνες + AI μόνο για τα αβέβαια). Καλείται **μία φορά ανά feed**: το «Νέο τρέξιμο»
- * χρησιμοποιεί την αποθηκευμένη αντιστοίχιση και δεν περνά από εδώ.
+ * Οι προτάσεις του βήματος της αντιστοίχισης. Καλείται **μία φορά ανά feed**: το «Νέο τρέξιμο» χρησιμοποιεί την
+ * αποθηκευμένη αντιστοίχιση και δεν περνά από εδώ.
  */
 export async function suggest(url: string): Promise<SuggestDTO | Fail> {
   await requirePermission("catalog.products.write");
-  return guard("suggest", async () => {
-    const parsed = parseFeed(await cachedSource(String(url ?? "").trim()));
-    if (!parsed.counts.products) throw new UserError("Το feed δεν έχει προϊόντα.");
-    const { headers, matrix } = parsed;
-    const s = await suggestMapping({ headers, matrix });
-    const catIdx = headers.indexOf(CATEGORY_PAIR);
-    const catN = new Map<string, number>();
-    if (catIdx >= 0) for (let r = 1; r < matrix.length; r++) { const v = matrix[r][catIdx]; if (v) catN.set(v, (catN.get(v) ?? 0) + 1); }
-    return ok<SuggestDTO>({
-      cols: headers.map((header, i) => {
-        const c = s.columns[i];
-        const samples: string[] = [];
-        for (let r = 1; r < matrix.length && samples.length < SAMPLES_SHOWN; r++) { const v = matrix[r][i]; if (v && !samples.includes(v)) samples.push(v); }
-        return {
-          header,
-          target: encodeTarget(c.target),
-          label: c.target.kind === "spec" ? c.target.label : "",
-          transform: c.transform,
-          confidence: c.confidence,
-          ...(c.why ? { why: c.why } : {}),
-          samples,
-          values: valuesOf(matrix, i),
-        };
-      }),
-      cats: Object.entries(s.categories)
-        .map(([value, c]) => ({ value, n: catN.get(value) ?? 0, categoryId: c.categoryId, confidence: c.confidence }))
-        .sort((a, b) => b.n - a.n || a.value.localeCompare(b.value, "el")),
-      specs: Object.entries(s.specs).map(([label, v]) => ({ label, to: v.label, confidence: v.confidence })).sort((a, b) => a.label.localeCompare(b.label, "el")),
-      duplicates: s.duplicates,
-      aiUsed: s.aiUsed,
-    });
-  });
+  return guard("suggest", async () => ok(await buildSuggestDTO(await cachedSource(String(url ?? "").trim()))));
 }
 
 export interface SaveInput {
@@ -157,6 +113,14 @@ export interface SaveInput {
   transforms: Record<string, string>;
   brandMap: Record<string, string | null>;
   categoryMap: Record<string, string | null>;
+  /** τιμή στήλης → δική μας μονάδα μέτρησης (Unit) */
+  unitMap: Record<string, string | null>;
+  /** τιμή στήλης → δική μας εμπορική σήμανση (ItemMark / MTRMARK) */
+  markMap: Record<string, string | null>;
+  /** μονάδα για ΟΛΟ το feed, όταν δεν υπάρχει στήλη ή η τιμή δεν αντιστοιχίστηκε */
+  unitId: string | null;
+  /** εμπορική σήμανση για ΟΛΟ το feed */
+  markId: string | null;
   priceMode: PriceMode;
   toSoftone: boolean;
 }
@@ -182,7 +146,12 @@ export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { ru
     if (!Object.values(columns).some((t) => t.kind === "field" && t.key === "code")) {
       throw new UserError("Καμία στήλη δεν είναι το SKU. Χωρίς αυτό τα προϊόντα δεν έχουν κλειδί — διάλεξε τη στήλη «SKU / κωδικός είδους».");
     }
-    const config: MappingConfig = { columns, brandMap: input.brandMap ?? {}, categoryMap: input.categoryMap ?? {} };
+    const config: MappingConfig = {
+      columns,
+      brandMap: input.brandMap ?? {}, categoryMap: input.categoryMap ?? {}, unitMap: input.unitMap ?? {}, markMap: input.markMap ?? {},
+      sheetUnitId: input.unitId || null, sheetMarkId: input.markId || null,
+    };
+    await assertConfigIds(config);
     const mode: PriceMode = input.priceMode === "retail" ? "retail" : "cost";
     const feedId = await saveFeed(input.supplierId, url, { config, headers, transforms, priceMode: mode, toSoftone: !!input.toSoftone }, user.id);
     const run = await runFeed(feedId, cachedSource);

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, CircleAlert, FileCode2, Link2, List, Loader2, Play, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, FileCode2, Link2, List, Loader2, Play, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
 import type { PickOpt } from "@/components/admin/catalog/OptionPicker";
 import { mb, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 import { feedState, findSuppliers, inspect, refreshSuppliers, rerun, saveAndRun, suggest } from "@/app/admin/(shell)/catalog/templates/xml/actions";
-import { MappingSections, type MappingValue } from "./MappingSections";
+import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -15,25 +15,43 @@ const quiet = `${btn} text-eu-ink-3 hover:bg-eu-surface`;
 const card = "rounded-xl border border-eu-line bg-white p-3 md:p-4 grid gap-3 min-w-0";
 const input = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
 
-type Step = 1 | 2 | 3 | 4;
-const STEPS: [Step, string][] = [[1, "Προμηθευτής"], [2, "Feed"], [3, "Αντιστοίχιση"], [4, "Λίστα ελέγχου"]];
+/** Τα βήματα όλου του οδηγού. Όσα είναι της αντιστοίχισης (`MapStep`) εμφανίζονται μόνο όταν έχουν δουλειά. */
+type Step = "supplier" | "feed" | MapStep | "list";
+const TITLE: Record<Step, string> = {
+  supplier: "Προμηθευτής",
+  feed: "Feed",
+  cols: "Στήλες",
+  brands: "Μάρκες",
+  cats: "Κατηγορίες",
+  specs: "Χαρακτηριστικά",
+  finish: "Τιμές & ERP",
+  list: "Λίστα ελέγχου",
+};
 
 const date = (s: string | null) => (s ? new Date(s).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : null);
 
 /**
- * Ο οδηγός «XML προμηθευτές» σε τέσσερα βήματα: προμηθευτής → feed → αντιστοίχιση → λίστα ελέγχου.
+ * Ο οδηγός «XML προμηθευτές»: προμηθευτής → feed → **ένα πράγμα ανά βήμα** (στήλες, μάρκες, κατηγορίες,
+ * χαρακτηριστικά, τιμές & ERP) → λίστα ελέγχου.
  *
- * Η πρόοδος των βημάτων είναι ορατή παντού και γυρνάς πίσω όποτε θες. Ένας προμηθευτής που έχει ήδη τρέξει **δεν
- * περνά από το ③**: η αντιστοίχιση είναι αποθηκευμένη, άρα το «Νέο τρέξιμο» πηδά στη λίστα χωρίς καμία κλήση AI.
+ * Η αντιστοίχιση σπάει σε χωριστά βήματα γιατί είναι τέσσερις διαφορετικές δουλειές: «τι είναι αυτή η στήλη»,
+ * «ποια μάρκα μας», «ποια κατηγορία μας», «πώς λέγεται αυτό το χαρακτηριστικό». Σε μία οθόνη ο χρήστης δεν ξέρει
+ * από πού να πιάσει. Εμφανίζονται **μόνο τα βήματα που έχουν δουλειά** σε αυτό το feed, και η κατάσταση ζει έξω από
+ * αυτά (`useMapping`) — πας μπρος-πίσω χωρίς να χάνεις τίποτα.
+ *
+ * Ένας προμηθευτής που έχει ήδη τρέξει **δεν περνά από την αντιστοίχιση**: είναι αποθηκευμένη, άρα το «Νέο τρέξιμο»
+ * πηδά στη λίστα χωρίς καμία κλήση AI.
  */
-export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp }: {
+export function XmlImportWizard({ suppliers, brands, categories, units, marks, writeOn, canErp }: {
   suppliers: SupplierCard[];
   brands: PickOpt[];
   categories: PickOpt[];
+  units: PickOpt[];
+  marks: PickOpt[];
   writeOn: boolean;
   canErp: boolean;
 }) {
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<Step>("supplier");
   const [list, setList] = useState(suppliers);
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<SupplierCard | null>(null);
@@ -63,13 +81,13 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
     setPicked(s);
     setUrl(s.feed?.url ?? "");
     setSeen(null); setMapping(null); setFeed(null); setNote(null); setErr(null);
-    if (!s.feed) setStep(2);
+    if (!s.feed) setStep("feed");
   };
 
   /** «Άνοιξε τη λίστα»: καμία λήψη, καμία κλήση AI — μόνο ό,τι είναι ήδη στη βάση. */
   const openList = async (feedId: string) => {
     const r = await run("open", () => feedState(feedId));
-    if (r) { setFeed(r); setStep(4); }
+    if (r) { setFeed(r); setStep("list"); }
   };
 
   /** «Νέο τρέξιμο»: ξανακατεβάζει με την αποθηκευμένη αντιστοίχιση και πηδά στη λίστα. Χωρίς AI. */
@@ -79,7 +97,7 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
     const s = await run("rerun", () => feedState(feedId));
     if (!s) return;
     setNote(`Νέο τρέξιμο: ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
-    setFeed(s); setStep(4);
+    setFeed(s); setStep("list");
   };
 
   const check = async () => {
@@ -89,43 +107,87 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
 
   const toMapping = async () => {
     const r = await run("suggest", () => suggest(url.trim()));
-    if (r) { setMapping(r); setStep(3); }
+    if (r) { setMapping(r); setStep("cols"); }
   };
 
-  const save = async (v: MappingValue) => {
+  const save = async () => {
     if (!picked) return;
-    const r = await run("save", () => saveAndRun({ supplierId: picked.id, url: url.trim(), ...v }));
+    const r = await run("save", () => saveAndRun({ supplierId: picked.id, url: url.trim(), ...m.value() }));
     if (!r) return;
     setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}.`);
     setFeed({ ...r });
-    setStep(4);
+    setStep("list");
   };
 
-  const can = (s: Step) => s === 1 || (!!picked && (s === 2 || (s === 3 ? !!mapping : !!feed)));
+  // Η κατάσταση της αντιστοίχισης ζει εδώ, πάνω από τα βήματα (το hook καλείται πάντα — `mapping` κενό = άδεια βήματα).
+  const m = useMapping(mapping ?? { cols: [], cats: [], specs: [], duplicates: [], aiUsed: false }, brands);
+
+  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list"] as Step[]) : [])];
+  const at = Math.max(0, steps.indexOf(step));
   const working = !!busy;
+  const blockedHere = m.blockers.filter((b) => b.step === step).map((b) => b.text);
+  const prev = steps[at - 1];
+  const next = steps[at + 1];
+  const go = (s: Step) => { setErr(null); setStep(s); };
+
+  // Πίσω / Επόμενο κάτω από κάθε βήμα της αντιστοίχισης: μία κίνηση τη φορά, με φράγμα όπου υπάρχει.
+  // (Στο τελευταίο βήμα τα φράγματα τα δείχνει το ίδιο το βήμα, πάνω από το κουμπί της φόρτωσης.)
+  const nav = (
+    <div className="grid gap-2 min-w-0">
+      {step !== "finish" && <Blockers list={blockedHere} />}
+      <div className="flex flex-wrap items-center gap-2">
+        {prev && <button type="button" className={quiet} disabled={working} onClick={() => go(prev)}><ArrowLeft className="size-4" aria-hidden /> Πίσω: {TITLE[prev]}</button>}
+        {next && next !== "list" && (
+          <button type="button" className={primary} disabled={working || blockedHere.length > 0} onClick={() => go(next)}>
+            Επόμενο: {TITLE[next]} <ArrowRight className="size-4" aria-hidden />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="grid gap-4 min-w-0">
-      <ol data-help="xml.steps" aria-label="Βήματα" className="m-0 p-0 list-none grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {STEPS.map(([n, l]) => (
-          <li key={n}>
-            <button type="button" disabled={!can(n) || working} onClick={() => setStep(n)} aria-current={step === n ? "step" : undefined}
-              className={`w-full flex items-center gap-2 rounded-xl border-2 px-3 min-h-11 md:min-h-9 text-left font-bold text-[length:var(--fs-14)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue ${step === n ? "border-eu-navy bg-eu-navy text-white" : n < step ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
-              <span className={`grid place-items-center size-6 shrink-0 rounded-full text-[length:var(--fs-12)] ${step === n ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{n < step ? <Check className="size-3.5" aria-hidden /> : n}</span>
-              <span className="min-w-0 truncate">{l}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
+      <nav data-help="xml.steps" aria-label="Βήματα" className="grid gap-1.5 min-w-0">
+        {/* Υπολογιστής: όλα τα βήματα, με όνομα — γυρνάς όπου θέλεις με ένα κλικ */}
+        <ol className="m-0 p-0 list-none hidden md:grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
+          {steps.map((s, i) => {
+            const p = m.steps.includes(s as MapStep) ? m.progress(s as MapStep) : null;
+            return (
+              <li key={s}>
+                <button type="button" disabled={working} onClick={() => go(s)} aria-current={step === s ? "step" : undefined}
+                  className={`w-full flex items-center gap-2 rounded-xl border-2 px-2.5 min-h-9 text-left font-bold text-[length:var(--fs-13)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue ${step === s ? "border-eu-navy bg-eu-navy text-white" : i < at ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
+                  <span className={`grid place-items-center size-5 shrink-0 rounded-full text-[length:var(--fs-12)] tabular-nums ${step === s ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{i < at ? <Check className="size-3" aria-hidden /> : i + 1}</span>
+                  <span className="min-w-0 truncate">{TITLE[s]}</span>
+                  {p && p.total > 0 && <span className="ml-auto shrink-0 tabular-nums text-[length:var(--fs-12)] opacity-80">{p.done}/{p.total}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+
+        {/* Κινητό: μία γραμμή «Βήμα ν από Μ», λίστα για άλμα και πρόοδος — χωρίς οριζόντια κύλιση */}
+        <div className="md:hidden grid gap-1.5 min-w-0">
+          <label className="grid gap-1 min-w-0">
+            <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)] tabular-nums">Βήμα {at + 1} από {steps.length}</span>
+            <select value={step} disabled={working} onChange={(e) => go(e.target.value as Step)} className={input}>
+              {steps.map((s, i) => <option key={s} value={s}>{i + 1}. {TITLE[s]}</option>)}
+            </select>
+          </label>
+          <div className="flex gap-1" role="presentation">
+            {steps.map((s, i) => <span key={s} className={`h-1.5 flex-1 rounded-full ${i < at ? "bg-eu-blue" : i === at ? "bg-eu-navy" : "bg-eu-line"}`} />)}
+          </div>
+        </div>
+      </nav>
 
       {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
-      {note && step !== 4 && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
+      {note && step !== "list" && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
 
-      {/* ---------- ① Προμηθευτής ---------- */}
-      {step === 1 && (
+      {/* ---------- Προμηθευτής ---------- */}
+      {step === "supplier" && (
         <section data-help="xml.supplier" className={card} aria-labelledby="xs-1">
           <div className="grid gap-1">
-            <h3 id="xs-1" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Truck className="size-4 text-eu-blue" aria-hidden /> 1. Προμηθευτής</h3>
+            <h3 id="xs-1" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Truck className="size-4 text-eu-blue" aria-hidden /> Προμηθευτής</h3>
             <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Οι προμηθευτές έρχονται από το SoftOne (μόνο ανάγνωση). Ψάξε με κωδικό, όνομα ή ΑΦΜ — η αναζήτηση αγνοεί τόνους και κεφαλαία.</p>
           </div>
           <form onSubmit={search} className="flex flex-wrap gap-2 min-w-0">
@@ -170,11 +232,11 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
                             <button type="button" className={secondary} disabled={working} onClick={() => openList(s.feed!.id)}>
                               {busy === "open" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <List className="size-4" aria-hidden />} Άνοιξε τη λίστα
                             </button>
-                            <button type="button" className={quiet} disabled={working} onClick={() => setStep(2)}>Αλλαγή feed ή αντιστοίχισης</button>
+                            <button type="button" className={quiet} disabled={working} onClick={() => go("feed")}>Αλλαγή feed ή αντιστοίχισης</button>
                             <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα.</span>
                           </>
                         ) : (
-                          <button type="button" className={primary} disabled={working} onClick={() => setStep(2)}>Επόμενο: το feed <ArrowRight className="size-4" aria-hidden /></button>
+                          <button type="button" className={primary} disabled={working} onClick={() => go("feed")}>Επόμενο: το feed <ArrowRight className="size-4" aria-hidden /></button>
                         )}
                       </div>
                     )}
@@ -186,12 +248,12 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
         </section>
       )}
 
-      {/* ---------- ② Feed ---------- */}
-      {step === 2 && picked && (
+      {/* ---------- Feed ---------- */}
+      {step === "feed" && picked && (
         <>
           <section data-help="xml.feed" className={card} aria-labelledby="xs-2">
             <div className="grid gap-1">
-              <h3 id="xs-2" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Link2 className="size-4 text-eu-blue" aria-hidden /> 2. Το feed του {picked.name}</h3>
+              <h3 id="xs-2" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Link2 className="size-4 text-eu-blue" aria-hidden /> Το feed του {picked.name}</h3>
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Η διεύθυνση του XML, όπως τη δίνει ο προμηθευτής. Μόνο δημόσιες διευθύνσεις https. Ο «Έλεγχος» κατεβάζει το αρχείο και σου δείχνει τι έχει μέσα — <b>τίποτα δεν αποθηκεύεται και τίποτα δεν γράφεται</b>.</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-[1fr_auto] min-w-0">
@@ -251,20 +313,32 @@ export function XmlImportWizard({ suppliers, brands, categories, writeOn, canErp
         </>
       )}
 
-      {/* ---------- ③ Αντιστοίχιση ---------- */}
-      {step === 3 && mapping && (
-        <MappingSections suggestion={mapping} brands={brands} categories={categories} writeOn={writeOn} busy={busy === "save"} error={null} onSubmit={save} />
-      )}
-
-      {/* ---------- ④ Λίστα ελέγχου ---------- */}
-      {step === 4 && feed && (
+      {/* ---------- Αντιστοίχιση: ένα πράγμα ανά βήμα ---------- */}
+      {mapping && step !== "supplier" && step !== "feed" && step !== "list" && (
         <>
-          {note && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
-          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => { setMapping(null); setSeen(null); setStep(2); }} />
+          {mapping.aiUsed && step === "cols" && (
+            <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]">
+              <Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Ό,τι δεν έλυσαν οι κανόνες πήγε στο AI — αυτά έχουν σήμανση «AI» και θέλουν το μάτι σου. Τα υπόλοιπα βγήκαν από κανόνες και είναι σίγουρα.</span>
+            </p>
+          )}
+          {step === "cols" && <StepColumns m={m} busy={working} />}
+          {step === "brands" && <StepBrands m={m} brands={brands} busy={working} />}
+          {step === "cats" && <StepCategories m={m} categories={categories} busy={working} />}
+          {step === "specs" && <StepSpecs m={m} busy={working} />}
+          {step === "finish" && <StepFinish m={m} units={units} marks={marks} writeOn={writeOn} busy={busy === "save"} error={null} onSubmit={save} />}
+          {nav}
         </>
       )}
 
-      {step === 4 && !feed && (
+      {/* ---------- Λίστα ελέγχου ---------- */}
+      {step === "list" && feed && (
+        <>
+          {note && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
+          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => { setMapping(null); setSeen(null); setStep("feed"); }} />
+        </>
+      )}
+
+      {step === "list" && !feed && (
         <p className="m-0 flex gap-2 items-center rounded-xl bg-eu-surface px-3 py-3 text-eu-ink-3 text-[length:var(--fs-14)]"><Play className="size-4 shrink-0" aria-hidden /> Διάλεξε προμηθευτή και φόρτωσε το feed του για να δεις τη λίστα ελέγχου.</p>
       )}
     </div>

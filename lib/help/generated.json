@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-28T11:41:29.109Z",
+ "generatedAt": "2026-10-28T14:34:06.544Z",
  "routes": [
   {
    "route": "/admin",
@@ -767,6 +767,11 @@
    ],
    "changes": [
     {
+     "hash": "9aaa776",
+     "date": "2026-10-28T13:41:38+02:00",
+     "text": "XML προμηθευτές: σύνδεσμος από τα templates και οδηγός βοήθειας"
+    },
+    {
      "hash": "26c6504",
      "date": "2026-10-20T06:30:05+03:00",
      "text": "Εισαγωγή από ξένο Excel: διαχείριση και βοήθεια"
@@ -787,7 +792,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-10-20T06:30:05+03:00",
+   "updatedAt": "2026-10-28T13:41:38+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -960,17 +965,18 @@
    "slug": "catalog.templates.xml",
    "file": "app/admin/(shell)/catalog/templates/xml/page.tsx",
    "title": "XML προμηθευτές",
-   "doc": "Μαζική εισαγωγή προϊόντων από XML feed προμηθευτή, σε 4 βήματα: προμηθευτής → feed → αντιστοίχιση (με προτάσεις AI μόνο για τα αβέβαια) → λίστα ελέγχου και εισαγωγή. Στα υπάρχοντα είδη συμπληρώνονται ΜΟΝΟ τα κενά· τα νέα είδη πάνε για έγκριση. Οι φωτογραφίες κατεβαίνουν και ανεβαίνουν στη βιβλιοθήκη με τη σειρά που ορίζει ο χρήστης.",
+   "doc": "Μαζική εισαγωγή προϊόντων από XML feed προμηθευτή: προμηθευτής → feed → αντιστοίχιση σε χωριστά βήματα (στήλες, μάρκες, κατηγορίες, χαρακτηριστικά, τιμές & ERP — με προτάσεις AI μόνο για τα αβέβαια) → λίστα ελέγχου και εισαγωγή. Στα υπάρχοντα είδη συμπληρώνονται ΜΟΝΟ τα κενά· τα νέα είδη πάνε για έγκριση. Οι φωτογραφίες κατεβαίνουν και ανεβαίνουν στη βιβλιοθήκη με τη σειρά που ορίζει ο χρήστης.",
    "perm": "catalog.products.write",
    "nav": null,
    "dynamic": false,
    "helpKeys": [
+    "xml.map.cols",
     "xml.map.duplicates",
     "xml.map.brands",
-    "xml.map.fields",
     "xml.map.cats",
     "xml.map.specs",
     "xml.map.price",
+    "xml.map.erp",
     "xml.map.softone",
     "xml.modal.head",
     "xml.modal.conflicts",
@@ -3790,6 +3796,16 @@
  ],
  "recent": [
   {
+   "hash": "9aaa776",
+   "date": "2026-10-28T13:41:38+02:00",
+   "text": "XML προμηθευτές: σύνδεσμος από τα templates και οδηγός βοήθειας",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates"
+   ]
+  },
+  {
    "hash": "5a6e65b",
    "date": "2026-10-28T13:40:16+02:00",
    "text": "XML προμηθευτές: το παράθυρο προϊόντος δεν μένει «αλλαγμένο» μετά την αποθήκευση",
@@ -4041,12 +4057,6 @@
    "hash": "6bb2012",
    "date": "2026-10-20T12:13:08+03:00",
    "text": "Ασφάλεια: μπαλαντέρ/άγνωστα δικαιώματα critical, σύνδεσμοι data:image, κάλυψη light",
-   "routes": []
-  },
-  {
-   "hash": "e2ea10f",
-   "date": "2026-10-20T12:05:37+03:00",
-   "text": "Ασφάλεια: διορθώσεις αναθεώρησης των ελέγχων βάσης/Bunny",
    "routes": []
   }
  ],
@@ -4420,26 +4430,29 @@
   "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
   ],
+  "xml.map.cols": [
+   "components/admin/catalog/xml/MappingSteps.tsx"
+  ],
   "xml.map.duplicates": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.brands": [
-   "components/admin/catalog/xml/MappingSections.tsx"
-  ],
-  "xml.map.fields": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.cats": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.specs": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.price": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
+  ],
+  "xml.map.erp": [
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.softone": [
-   "components/admin/catalog/xml/MappingSections.tsx"
+   "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.modal.head": [
    "components/admin/catalog/xml/ProductModal.tsx"

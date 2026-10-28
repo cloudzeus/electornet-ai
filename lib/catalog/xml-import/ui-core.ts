@@ -56,13 +56,17 @@ export interface ColDTO {
   confidence: Confidence;
   why?: string;
   samples: string[];
-  /** διακριτές τιμές (για μάρκα / κατηγορία)· `null` = πάρα πολλές */
+  /** το προϊόν από το οποίο ήρθε κάθε δείγμα (ίδιος δείκτης με το `samples`) — «τιμή — προϊόν» αντί για γυμνή τιμή */
+  examples: string[];
+  /** διακριτές τιμές (για μάρκα / κατηγορία / μονάδα / σήμανση)· `null` = πάρα πολλές */
   values: string[] | null;
+  /** μόνο στις στήλες ταξινόμησης: ανά τιμή, πόσα προϊόντα την έχουν και έως τρία ονόματα προϊόντων */
+  valueInfo?: Record<string, { n: number; ex: string[] }>;
 }
 
 export interface SuggestDTO {
   cols: ColDTO[];
-  /** τα ζεύγη κατηγοριών του feed με πλήθος προϊόντων και την πρόταση */
+  /** τα ζεύγη κατηγοριών του feed με πλήθος προϊόντων και την πρόταση (τα παραδείγματα έρχονται από το `valueInfo` της στήλης) */
   cats: { value: string; n: number; categoryId: string | null; confidence: Confidence }[];
   /** οι ετικέτες χαρακτηριστικών του feed· `to` = δική μας ονομασία (null = μένει ως είναι) */
   specs: { label: string; to: string | null; confidence: Confidence }[];
@@ -191,6 +195,8 @@ export const TARGETS: { group: string; items: { value: string; label: string; he
   { group: "Ταξινόμηση", items: [
     { value: "brand", label: "Μάρκα", help: "Κάθε τιμή αντιστοιχίζεται σε δική μας μάρκα πιο κάτω. Μάρκες δεν δημιουργούνται από εδώ." },
     { value: "category", label: "Κατηγορία", help: "Κάθε τιμή αντιστοιχίζεται σε κατηγορία μας — δίνει ομάδα χαρακτηριστικών στα νέα είδη και κανόνα τιμής." },
+    { value: "unit", label: "Μονάδα μέτρησης", help: "Κάθε τιμή σε δική μας μονάδα (MTRUNIT). Μετράει μόνο στα ΝΕΑ είδη· των υπαρχόντων δεν αλλάζει." },
+    { value: "mark", label: "Εμπορική σήμανση", help: "MTRMARK (PREMIUM, QLED…) — όχι η μάρκα. Μετράει μόνο στα ΝΕΑ είδη· των υπαρχόντων δεν αλλάζει." },
   ] },
   { group: "Τιμές", items: [
     { value: "cost", label: "Κόστος (χωρίς ΦΠΑ)", help: "Με τον κανόνα τιμολόγησης βγάζει την τιμή web — μόνο όπου το είδος δεν έχει τιμή." },
