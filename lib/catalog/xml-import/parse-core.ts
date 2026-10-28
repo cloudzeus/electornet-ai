@@ -15,6 +15,14 @@ import iconv from "iconv-lite";
 /** Πρόθεμα των στηλών που βγήκαν από ετικέτα χαρακτηριστικού — το UI και ο suggest το αναγνωρίζουν. */
 export const SPEC_PREFIX = "spec:";
 
+/**
+ * Παράγωγη στήλη με το πλήρες ζεύγος κατηγοριών. Η υπάρχουσα μηχανή αντιστοιχίζει **μία** στήλη κατηγορίας, ενώ τα
+ * feeds δίνουν δύο επίπεδα — και το ίδιο φύλλο μπορεί να κάθεται σε δύο γονείς («Αξεσουάρ» σε Μπάνιο και σε Κουζίνα).
+ * Χωρίς το ζεύγος θα αντιστοιχίζαμε λάθος κατηγορία.
+ */
+export const CATEGORY_PAIR = "Κατηγορία (πλήρης)";
+const PAIR_SEP = " › ";
+
 /** Ετικέτα έως 80 χαρακτήρες πριν το ΠΡΩΤΟ «:», τιμή όλο το υπόλοιπο (μπορεί να έχει και άλλα «:», και αλλαγές γραμμής — εξ ου το `[\s\S]`). */
 const LABEL = /^([^:]{1,80}):\s*([\s\S]+)$/;
 /** Διεύθυνση, όχι ετικέτα: το «https» πριν το «:» δεν είναι χαρακτηριστικό. */
@@ -152,7 +160,7 @@ export function parseFeed(bytes: Buffer): ParsedFeed {
 
   // ---- επικεφαλίδες ----
   const headers: string[] = [];
-  const plan: { tag: string; kind: "scalar" | "nth" | "label"; n?: number; label?: string }[] = [];
+  const plan: { tag: string; kind: "scalar" | "nth" | "label" | "pair"; n?: number; label?: string }[] = [];
   for (const tag of order) {
     if (byLabel.has(tag)) {
       for (const label of labelsOf.get(tag) ?? []) { headers.push(`${SPEC_PREFIX}${label}`); plan.push({ tag, kind: "label", label }); }
@@ -162,6 +170,10 @@ export function parseFeed(bytes: Buffer): ParsedFeed {
       headers.push(tag); plan.push({ tag, kind: "scalar" });
     }
   }
+  // Το ζεύγος μπαίνει μόνο όταν υπάρχουν και τα δύο επίπεδα — αλλιώς η σκέτη «Category» είναι ήδη η κατηγορία.
+  if (order.includes("CategoryParent") && order.includes("Category")) {
+    headers.push(CATEGORY_PAIR); plan.push({ tag: "Category", kind: "pair" });
+  }
 
   // ---- γραμμές ----
   const matrix: string[][] = [headers];
@@ -170,12 +182,13 @@ export function parseFeed(bytes: Buffer): ParsedFeed {
   for (const p of products) {
     const specs = new Map<string, Record<string, string>>();
     for (const tag of byLabel) specs.set(tag, specColumns(arr(p[tag]).map(txt)));
+    const parent = txt(p.CategoryParent), cat = txt(p.Category);
     matrix.push(plan.map((c) => {
       if (c.kind === "label") return specs.get(c.tag)![c.label!] ?? "";
+      if (c.kind === "pair") return parent && cat ? `${parent}${PAIR_SEP}${cat}` : cat || parent;
       const values = arr(p[c.tag]).map(txt);
       return c.kind === "nth" ? values[c.n! - 1] ?? "" : values[0] ?? "";
     }));
-    const parent = txt(p.CategoryParent), cat = txt(p.Category);
     if (parent || cat) pairs.add(`${parent}\u0000${cat}`);
     for (const tag of order) if (!byLabel.has(tag) && IMAGE_TAG.test(tag)) images += arr(p[tag]).map(txt).filter(Boolean).length;
   }

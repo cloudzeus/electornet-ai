@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import iconv from "iconv-lite";
-import { parseFeed, specColumns, SPEC_PREFIX } from "./parse-core";
+import { parseFeed, specColumns, SPEC_PREFIX, CATEGORY_PAIR } from "./parse-core";
 
 /** Μικρό feed: τα `extra` μπαίνουν μέσα στο <Product>. */
 const feed = (products: string[], decl = `<?xml version="1.0" encoding="utf-8"?>`) =>
@@ -115,4 +115,18 @@ test("specColumns: ίδια ετικέτα δύο φορές ενώνεται μ
 
 test("specColumns: κενή ετικέτα ή κενή τιμή αγνοείται", () => {
   assert.deepEqual(specColumns(["", "   ", ": χωρίς ετικέτα", "Χρώμα:   "]), {});
+});
+
+test("parseFeed: CategoryParent + Category δίνουν και παράγωγη στήλη με το πλήρες ζεύγος", () => {
+  const r = parseFeed(utf8(feed([
+    `<SKU>A1</SKU><CategoryParent>Κουζίνα</CategoryParent><Category>Σκεύη</Category>`,
+    `<SKU>A2</SKU><CategoryParent>Μπάνιο</CategoryParent><Category>Σκεύη</Category>`,
+  ])));
+  assert.equal(cell(r, 0, CATEGORY_PAIR), "Κουζίνα › Σκεύη");
+  assert.equal(cell(r, 1, CATEGORY_PAIR), "Μπάνιο › Σκεύη", "ίδιο φύλλο σε άλλο γονέα είναι άλλη κατηγορία");
+});
+
+test("parseFeed: χωρίς γονική κατηγορία δεν φτιάχνεται παράγωγη στήλη", () => {
+  const r = parseFeed(utf8(feed([`<SKU>A1</SKU><Category>Σκεύη</Category>`])));
+  assert.ok(!r.headers.includes(CATEGORY_PAIR), `δεν χρειάζεται ζεύγος — ${r.headers.join(", ")}`);
 });
