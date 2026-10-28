@@ -50,9 +50,15 @@ export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone,
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => { panel.current?.focus(); }, [shown]);
 
+  // Η σύγκριση των διορθώσεων είναι ΑΝΕΞΑΡΤΗΤΗ ΣΕΙΡΑΣ: η Postgres (jsonb) δεν κρατά τη σειρά των κλειδιών, άρα ένα
+  // JSON.stringify θα έδειχνε «αλλαγμένο» για πάντα μετά την αποθήκευση δύο ή περισσότερων πεδίων.
+  const same = (a: Record<string, string>, b: Record<string, string>) => {
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => b[k] === a[k]);
+  };
   const dirty = images.join("\u0000") !== item.images.join("\u0000")
     || softone !== item.softone
-    || JSON.stringify(edits) !== JSON.stringify(item.edits ?? {});
+    || !same(edits, item.edits ?? {});
 
   const tryClose = () => (dirty ? setConfirming(true) : onClose());
   const go = (fn: () => void) => { if (dirty) { setConfirming(true); return; } fn(); };
