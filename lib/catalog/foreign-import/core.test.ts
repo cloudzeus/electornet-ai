@@ -110,7 +110,7 @@ test("toRows: ignore δεν μετράει για κενή γραμμή", () => 
   assert.equal(rows.length, 0);
 });
 
-const row = (rowNo: number, fields: ForeignRow["fields"], brandId: string | null = null): ForeignRow => ({ rowNo, fields, specs: {}, media: { image: [], banner: [], video: [] }, brandId, categoryId: null, cost: null, rrp: null });
+const row = (rowNo: number, fields: ForeignRow["fields"], brandId: string | null = null): ForeignRow => ({ rowNo, fields, specs: {}, media: { image: [], banner: [], video: [] }, brandId, categoryId: null, unitId: null, markId: null, cost: null, rrp: null });
 const idx = () => ({
   byMtrl: new Map([[1, 1], [2, 2], [3, 3]]),
   byCode: new Map([["abc", 1], ["xyz", 2]]),
@@ -339,6 +339,35 @@ test("configToSaved + configForHeaders: κρατούν μάρκα/κατηγορ
   assert.equal(back.sheetBrandId, "bS"); assert.equal(back.sheetCategoryId, "cS");
   const none = configForHeaders(configToSaved({ columns: { 0: T_EAN }, brandMap: {}, categoryMap: {} }, ["EAN"]), ["EAN"]);
   assert.equal(none.sheetBrandId ?? null, null); assert.equal(none.sheetCategoryId ?? null, null);
+});
+
+test("toRows: μονάδα/σήμανση — τιμή χωρίς αντιστοίχιση ΚΡΑΤΑ την επιλογή του φύλλου (είναι συμπλήρωμα, όχι κλειδί)", () => {
+  const m = [["EAN", "UOM", "Line"], ["5901234123457", "ΤΕΜ", "QLED"], ["4006381333931", "ΑΓΝΩΣΤΗ", ""], ["4006381333932", "", "ΑΛΛΗ"]];
+  const cfg = {
+    columns: { 0: { kind: "field", key: "barcode" } as Target, 1: { kind: "unit" } as Target, 2: { kind: "mark" } as Target },
+    brandMap: {}, categoryMap: {}, unitMap: { "ΤΕΜ": "u1", "ΑΓΝΩΣΤΗ": null }, markMap: { QLED: "m1" },
+    sheetUnitId: "uS", sheetMarkId: "mS",
+  };
+  const r = toRows(m, 0, cfg);
+  assert.deepEqual(r.map((x) => [x.unitId, x.markId]), [["u1", "m1"], ["uS", "mS"], ["uS", "mS"]]);
+  const noCols = toRows([["EAN"], ["5901234123457"]], 0, { columns: { 0: { kind: "field", key: "barcode" } }, brandMap: {}, categoryMap: {}, sheetUnitId: "uS" });
+  assert.deepEqual([noCols[0].unitId, noCols[0].markId], ["uS", null]);
+});
+
+test("configToSaved + configForHeaders: κρατούν μονάδα/σήμανση φύλλου και τους χάρτες τους", () => {
+  const saved = configToSaved({ columns: { 0: T_EAN }, brandMap: {}, categoryMap: {}, unitMap: { "ΤΕΜ": "u1" }, markMap: {}, sheetUnitId: "uS", sheetMarkId: "mS" }, ["EAN"]);
+  assert.deepEqual(saved.unitMap, { "ΤΕΜ": "u1" });
+  assert.equal(saved.markMap, undefined); // κενός χάρτης δεν αποθηκεύεται
+  assert.equal(saved.sheetUnitId, "uS"); assert.equal(saved.sheetMarkId, "mS");
+  const back = configForHeaders(saved, ["EAN"]);
+  assert.deepEqual(back.unitMap, { "ΤΕΜ": "u1" });
+  assert.equal(back.sheetUnitId, "uS"); assert.equal(back.sheetMarkId, "mS");
+});
+
+test("suggestTarget: «Μονάδα μέτρησης» → unit, «Unit price» → cost (η τιμή προηγείται)", () => {
+  for (const h of ["Μονάδα", "Μονάδα μέτρησης", "Unit of measure", "UOM"]) assert.deepEqual(suggestTarget(h), { kind: "unit" }, h);
+  assert.deepEqual(suggestTarget("Unit price"), { kind: "cost" });
+  assert.deepEqual(suggestTarget("Τιμή μονάδος"), { kind: "cost" });
 });
 
 test("buildMatchIndex: κανονικοποιημένα κλειδιά, και κλειδί σε 2+ είδη → διφορούμενο (όχι στους κανονικούς χάρτες)", () => {

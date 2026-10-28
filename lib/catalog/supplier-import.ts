@@ -227,7 +227,8 @@ async function updateEshopOnly(r: Decided) {
 }
 
 async function createInSoftone(r: Decided, brand: { id: string; s1Id: string | null }, g: { s1Id: number; cat1: number | null; cat2: number | null }, opts: ImportOptions) {
-  // ΦΠΑ, μονάδα, ομάδα, εμπορική κατηγορία από το πιο πρόσφατο είδος της ίδιας ομάδας (κατά προτίμηση της ίδιας μάρκας)
+  // ΦΠΑ, μονάδα, ομάδα, εμπορική κατηγορία από το πιο πρόσφατο είδος της ίδιας ομάδας (κατά προτίμηση της ίδιας μάρκας).
+  // Μονάδα και εμπορική σήμανση τις ΟΡΙΖΕΙ ο χρήστης όταν τις αντιστοίχισε (r.raw.refs) — το αδελφό είδος είναι η εφεδρεία.
   const manufacturer = Number(brand.s1Id);
   const sib = await db.s1Item.findFirst({ where: { specGroupS1Id: g.s1Id, manufacturerS1Id: manufacturer, missing: false }, orderBy: { mtrl: "desc" } })
     ?? await db.s1Item.findFirst({ where: { specGroupS1Id: g.s1Id, missing: false }, orderBy: { mtrl: "desc" } });
@@ -235,7 +236,8 @@ async function createInSoftone(r: Decided, brand: { id: string; s1Id: string | n
   const fields: Partial<Record<ItemField, string | number | boolean | null>> = { active: opts.activate };
   for (const [k, f] of Object.entries(FIELD_TO_ITEM) as [FieldKey, ItemField][]) if (r.fieldTo[k] != null) fields[f] = KIND[k] === "text" ? r.fieldTo[k]! : toNum(r.fieldTo[k]!);
   if (r.memo) fields.longDesc = r.memo;
-  const c = await createItem({ code: r.code!, fields, refs: { manufacturer, specGroup: g.s1Id, webCat1: g.cat1, webCat2: g.cat2, vat: sib.vatS1Id, unit: sib.unitS1Id, itemGroup: sib.itemGroup, commCategory: sib.commCategory, mark: sib.manufacturerS1Id === manufacturer ? sib.markS1Id : null } });
+  const own = r.raw.refs ?? {};
+  const c = await createItem({ code: r.code!, fields, refs: { manufacturer, specGroup: g.s1Id, webCat1: g.cat1, webCat2: g.cat2, vat: sib.vatS1Id, unit: own.unit ?? sib.unitS1Id, itemGroup: sib.itemGroup, commCategory: sib.commCategory, mark: own.mark ?? (sib.manufacturerS1Id === manufacturer ? sib.markS1Id : null) } });
   if (!c.ok) return { ok: false, mtrl: c.mtrl, message: c.error ?? "Δεν δημιουργήθηκε." };
   await syncItem(c.mtrl!, "manual");
   const p = await projectItem(c.mtrl!);

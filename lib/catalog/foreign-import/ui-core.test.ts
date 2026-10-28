@@ -43,8 +43,10 @@ test("parseConfig: δέχεται έγκυρη αντιστοίχιση, πετ�
   assert.throws(() => parseConfig(null), UserError);
 });
 
-test("configIds: μοναδικά ids μάρκας/κατηγορίας από χάρτες και φύλλο", () => {
-  assert.deepEqual(configIds({ columns: {}, brandMap: { a: "b1", b: "b1", c: null }, categoryMap: {}, sheetBrandId: "b2", sheetCategoryId: "c1" }), { brands: ["b1", "b2"], categories: ["c1"] });
+test("configIds: μοναδικά ids μάρκας/κατηγορίας/μονάδας/σήμανσης από χάρτες και φύλλο", () => {
+  assert.deepEqual(configIds({ columns: {}, brandMap: { a: "b1", b: "b1", c: null }, categoryMap: {}, sheetBrandId: "b2", sheetCategoryId: "c1" }), { brands: ["b1", "b2"], categories: ["c1"], units: [], marks: [] });
+  assert.deepEqual(configIds({ columns: {}, brandMap: {}, categoryMap: {}, unitMap: { ΤΕΜ: "u1", ΑΓΝΩΣΤΗ: null }, markMap: { QLED: "m1" }, sheetUnitId: "u2", sheetMarkId: null }),
+    { brands: [], categories: [], units: ["u1", "u2"], marks: ["m1"] });
 });
 
 test("autoMatch: ίδιο όνομα χωρίς τόνους/σύμβολα, μόνο μοναδικό", () => {

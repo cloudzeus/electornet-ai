@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac/permissions";
 import { UserError } from "@/lib/catalog/foreign-import/core";
-import { db } from "@/lib/db";
 import { ensureFreshSpecGroups } from "@/lib/catalog/supplier-sheet";
 import { readWorkbook, saveMapping } from "@/lib/catalog/foreign-import/read";
-import { planForeign } from "@/lib/catalog/foreign-import/server";
-import { parseConfig, configIds, PREVIEW_ROWS } from "@/lib/catalog/foreign-import/ui-core";
+import { planForeign, assertConfigIds } from "@/lib/catalog/foreign-import/server";
+import { parseConfig, PREVIEW_ROWS } from "@/lib/catalog/foreign-import/ui-core";
 
 export const runtime = "nodejs";
 const MAX_BODY = 16 * 1024 * 1024, MAX_FILE = 15 * 1024 * 1024;
@@ -36,12 +35,7 @@ export async function POST(req: Request) {
     const config = parseConfig(raw);
     if (!Object.keys(config.columns).length) throw new UserError("Δεν αντιστοιχίστηκε καμία στήλη.");
     // Μάρκες/κατηγορίες της αντιστοίχισης πρέπει να υπάρχουν (αλλιώς θα κατέληγαν σε PendingItem με άκυρο id)
-    const ids = configIds(config);
-    const [nb, nc] = await Promise.all([
-      ids.brands.length ? db.brand.count({ where: { id: { in: ids.brands } } }) : 0,
-      ids.categories.length ? db.category.count({ where: { id: { in: ids.categories } } }) : 0,
-    ]);
-    if (nb !== ids.brands.length || nc !== ids.categories.length) throw new UserError("Κάποια μάρκα ή κατηγορία της αντιστοίχισης δεν υπάρχει πια — ξαναδιάλεξέ τη.");
+    await assertConfigIds(config);
 
     const { sheets } = await readWorkbook(await file.arrayBuffer(), file.name);
     const sheet = sheets.find((s) => s.name === sheetName);

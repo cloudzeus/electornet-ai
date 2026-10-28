@@ -2046,6 +2046,21 @@ model Unit {
   updatedAt  DateTime  @updatedAt
 }
 
+/// MTRMARK — εμπορική σήμανση του είδους (PREMIUM, QLED, Sell Out…). Η «μάρκα» του site είναι ο κατασκευαστής (Brand → MTRMANFCTR).
+model ItemMark {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  active     Boolean   @default(true)
+  s1Id       String?   @unique
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
 model TaxOffice {
   id         String    @id @default(cuid())
   code       String    @unique
@@ -2690,6 +2705,10 @@ model PendingItem {
   brandId       String?
   specGroupS1Id Int?
   webCategoryId String?
+  /// Μονάδα μέτρησης (Unit) για το νέο είδος — κενό = από αδελφό είδος της ομάδας
+  unitId        String?
+  /// Εμπορική σήμανση (ItemMark / MTRMARK) — κενό = από αδελφό είδος της ίδιας μάρκας
+  markId        String?
   cost          Float?
   rrp           Float?
   price         Float?

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates } from "./plan-core";
 import type { ForeignRow } from "./core";
 
-const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, cost: null, rrp: null });
+const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, unitId: null, markId: null, cost: null, rrp: null });
 
 test("rowStatus: problem > new > waiting > update > unchanged", () => {
   const base = { problem: false, mtrl: 5 as number | null, changes: 0, price: false, photos: 0, writeOn: true };

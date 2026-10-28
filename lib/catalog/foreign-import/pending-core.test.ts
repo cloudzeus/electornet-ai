@@ -41,6 +41,14 @@ test("pendingRow: ο κωδικός του PendingItem υπερισχύει, χ�
   assert.deepEqual(r, { sheet: "Νέα είδη", rowNo: 7, groupS1Id: 12, fields: { name: "Ψυγείο", code: "NEW-1", factoryCode: "F1" }, specs: { "Χρώμα": "Λευκό" } });
 });
 
+test("pendingRow: μονάδα/σήμανση περνούν ως refs μόνο όταν υπάρχουν", () => {
+  const base = { rowNo: 1, code: "A", fields: { name: "Χ" }, specs: {} };
+  assert.deepEqual(pendingRow(base, "Νέα είδη", 12, { unit: 1, mark: 3 }).refs, { unit: 1, mark: 3 });
+  assert.deepEqual(pendingRow(base, "Νέα είδη", 12, { unit: 1, mark: null }).refs, { unit: 1 });
+  assert.equal(pendingRow(base, "Νέα είδη", 12, { unit: null, mark: null }).refs, undefined);
+  assert.equal(pendingRow(base, "Νέα είδη", 12).refs, undefined);
+});
+
 test("pendingMedia: λίστες URLs, ό,τι άλλο αγνοείται", () => {
   assert.deepEqual(pendingMedia({ image: ["a.jpg", "", 3], video: "x" }), { image: ["a.jpg"], banner: [], video: [] });
   assert.deepEqual(pendingMedia(null), { image: [], banner: [], video: [] });

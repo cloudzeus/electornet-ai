@@ -22,6 +22,18 @@ export async function categoryOptions(): Promise<(Opt & { path: string })[]> {
   return rows.map((c) => ({ id: c.id, name: c.name, path: path(c.id) })).sort((a, b) => a.path.localeCompare(b.path, "el"));
 }
 
+/** Μονάδες μέτρησης (MTRUNIT) που έχουν σύνδεση με το SoftOne — μόνο αυτές μπορούν να μπουν σε νέο είδος. */
+export async function unitOptions(): Promise<(Opt & { code: string })[]> {
+  const rows = await db.unit.findMany({ where: { s1Id: { not: null }, active: true }, select: { id: true, code: true, name: true }, orderBy: { code: "asc" } });
+  return rows.map((u) => ({ id: u.id, code: u.code, name: u.name === u.code ? u.code : `${u.name} (${u.code})` }));
+}
+
+/** Εμπορικές σημάνσεις (MTRMARK) με σύνδεση στο SoftOne. */
+export async function markOptions(): Promise<Opt[]> {
+  const rows = await db.itemMark.findMany({ where: { s1Id: { not: null }, active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+  return rows.map((m) => ({ id: m.id, name: m.name }));
+}
+
 /** Ομάδες χαρακτηριστικών που βγάζουν κατηγορία στο site (όπως στα templates). */
 export async function groupOptions(): Promise<{ id: number; name: string }[]> {
   const rows = await db.s1SpecGroup.findMany({ where: { missing: false, active: true, cat1: { not: null }, cat2: { not: null } }, select: { s1Id: true, name: true }, orderBy: { name: "asc" } });

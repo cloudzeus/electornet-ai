@@ -11,7 +11,7 @@ import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/marku
 import { toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
 import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
-import type { RecentJob } from "@/lib/catalog/foreign-import/ui-core";
+import { configIds, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 
 export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
@@ -25,6 +25,23 @@ export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/pla
 /** writeOn / priceOn = ο διακόπτης του SoftOne και η εγγραφή τιμής web (S1_WEB_PRICE_WRITE) τη στιγμή της προεπισκόπησης (ο χρήστης ενέκρινε αυτό που είδε) */
 type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; priceOn?: boolean; results?: Record<number, string> };
 type Ctx = { row: ForeignRow; plan: ForeignPlanRow; mtrl: number | null; groupS1Id: number | null; specs: Record<string, string>; parsed?: ParsedRow; media?: MediaRow };
+
+/**
+ * Τα id που αναφέρει η αντιστοίχιση πρέπει να υπάρχουν ακόμη — αλλιώς θα κατέληγαν σε PendingItem με άκυρο id και η
+ * έγκριση θα έσκαγε αργότερα, χωρίς να φταίει η γραμμή. Ελέγχεται πριν από οτιδήποτε άλλο, σε κάθε αποθήκευση.
+ */
+export async function assertConfigIds(config: MappingConfig): Promise<void> {
+  const ids = configIds(config);
+  const [nb, nc, nu, nm] = await Promise.all([
+    ids.brands.length ? db.brand.count({ where: { id: { in: ids.brands } } }) : 0,
+    ids.categories.length ? db.category.count({ where: { id: { in: ids.categories } } }) : 0,
+    ids.units.length ? db.unit.count({ where: { id: { in: ids.units } } }) : 0,
+    ids.marks.length ? db.itemMark.count({ where: { id: { in: ids.marks } } }) : 0,
+  ]);
+  if (nb !== ids.brands.length || nc !== ids.categories.length) throw new UserError("Κάποια μάρκα ή κατηγορία της αντιστοίχισης δεν υπάρχει πια — ξαναδιάλεξέ τη.");
+  if (nu !== ids.units.length) throw new UserError("Κάποια μονάδα μέτρησης της αντιστοίχισης δεν υπάρχει πια — ξαναδιάλεξέ τη.");
+  if (nm !== ids.marks.length) throw new UserError("Κάποια εμπορική σήμανση της αντιστοίχισης δεν υπάρχει πια — ξαναδιάλεξέ τη.");
+}
 
 const SHEET = "Εισαγωγή";
 const keyOf = (rowNo: number) => `${SHEET}#${rowNo}`;
@@ -328,7 +345,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
       return {
         // Χαρακτηριστικά με τις ετικέτες του χρήστη (όχι της ομάδας της προεπισκόπησης): στην έγκριση αντιστοιχίζονται στην ΤΕΛΙΚΗ ομάδα
         jobId, rowNo: r.rowNo, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: r.specs, media: r.media,
-        brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId,
+        brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId, unitId: r.unitId, markId: r.markId,
         cost: r.cost ? parseMoney(r.cost) : null, rrp: r.rrp ? parseMoney(r.rrp) : null, price: c.plan.price?.price ?? null,
       };
     });

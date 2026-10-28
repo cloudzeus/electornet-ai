@@ -71,7 +71,7 @@ export function decodeTarget(s: string, label = ""): Target {
   if (k === "field" && FIELD_KEYS.includes(sub as FieldKey)) return { kind: "field", key: sub as FieldKey };
   if (k === "media" && (sub === "image" || sub === "banner" || sub === "video")) return { kind: "media", type: sub };
   if (k === "spec") return { kind: "spec", label };
-  if (k === "brand" || k === "category" || k === "cost" || k === "rrp") return { kind: k };
+  if (k === "brand" || k === "category" || k === "unit" || k === "mark" || k === "cost" || k === "rrp") return { kind: k };
   return { kind: "ignore" };
 }
 
@@ -111,14 +111,18 @@ export function parseConfig(raw: unknown): MappingConfig {
     if (!t) throw new UserError(`Μη έγκυρος στόχος για τη στήλη ${i + 1}.`);
     if (t.kind !== "ignore") columns[i] = t;
   }
-  return { columns, brandMap: parseMap(raw.brandMap), categoryMap: parseMap(raw.categoryMap), sheetBrandId: idOrNull(raw.sheetBrandId), sheetCategoryId: idOrNull(raw.sheetCategoryId) };
+  return {
+    columns,
+    brandMap: parseMap(raw.brandMap), categoryMap: parseMap(raw.categoryMap), unitMap: parseMap(raw.unitMap), markMap: parseMap(raw.markMap),
+    sheetBrandId: idOrNull(raw.sheetBrandId), sheetCategoryId: idOrNull(raw.sheetCategoryId), sheetUnitId: idOrNull(raw.sheetUnitId), sheetMarkId: idOrNull(raw.sheetMarkId),
+  };
 }
 
-/** Όλα τα id μάρκας/κατηγορίας που αναφέρει η αντιστοίχιση (για έλεγχο ότι υπάρχουν). */
-export function configIds(c: MappingConfig): { brands: string[]; categories: string[] } {
-  const brands = new Set([...Object.values(c.brandMap), c.sheetBrandId].filter((x): x is string => !!x));
-  const categories = new Set([...Object.values(c.categoryMap), c.sheetCategoryId].filter((x): x is string => !!x));
-  return { brands: [...brands], categories: [...categories] };
+/** Όλα τα id μάρκας / κατηγορίας / μονάδας / σήμανσης που αναφέρει η αντιστοίχιση (για έλεγχο ότι υπάρχουν). */
+export function configIds(c: MappingConfig): { brands: string[]; categories: string[]; units: string[]; marks: string[] } {
+  const ids = (m: Record<string, string | null> | undefined, one: string | null | undefined) =>
+    [...new Set([...Object.values(m ?? {}), one ?? null].filter((x): x is string => !!x))];
+  return { brands: ids(c.brandMap, c.sheetBrandId), categories: ids(c.categoryMap, c.sheetCategoryId), units: ids(c.unitMap, c.sheetUnitId), marks: ids(c.markMap, c.sheetMarkId) };
 }
 
 // ---------- Αυτόματη αντιστοίχιση ονομάτων ----------

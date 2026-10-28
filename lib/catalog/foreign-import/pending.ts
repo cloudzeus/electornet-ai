@@ -9,6 +9,7 @@ import { projectItem } from "@/lib/softone/project";
 import { itemWriteEnabled, itemCodeTaken, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
 import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
+import type { RowRefs } from "@/lib/catalog/supplier-sheet";
 
 /**
  * Νέα είδη από ξένο Excel σε αναμονή έγκρισης (PendingItem). Η έγκριση περνά από την ΙΔΙΑ μηχανή με το template νέων ειδών
@@ -39,6 +40,22 @@ export async function approvePending(ids: string[], staffId: string): Promise<Ap
     } catch (e) { out.push({ id, ok: false, error: errMsg(e) }); }
   }
   return out;
+}
+
+/**
+ * Μονάδα μέτρησης και εμπορική σήμανση όπως τις όρισε η αντιστοίχιση: δικά μας id → αριθμοί SoftOne (`Unit.s1Id`,
+ * `ItemMark.s1Id`). Εγγραφή που διαγράφηκε ή δεν έχει σύνδεση με το ERP δεν ακυρώνει την έγκριση: πέφτει στο αδελφό
+ * είδος και ο χρήστης το βλέπει ως σημείωση στο είδος.
+ */
+async function rowRefs(p: Pick<PendingItem, "unitId" | "markId">, notes: string[]): Promise<RowRefs> {
+  const [u, m] = await Promise.all([
+    p.unitId ? db.unit.findUnique({ where: { id: p.unitId }, select: { name: true, s1Id: true } }) : null,
+    p.markId ? db.itemMark.findUnique({ where: { id: p.markId }, select: { name: true, s1Id: true } }) : null,
+  ]);
+  if (p.unitId && !u?.s1Id) notes.push("Η μονάδα μέτρησης της αντιστοίχισης δεν βρέθηκε στο SoftOne — μπήκε αυτή του αδελφού είδους.");
+  if (p.markId && !m?.s1Id) notes.push("Η εμπορική σήμανση της αντιστοίχισης δεν βρέθηκε στο SoftOne — έμεινε αυτή του αδελφού είδους.");
+  const num = (v: string | null | undefined) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
+  return { unit: num(u?.s1Id), mark: num(m?.s1Id) };
 }
 
 const brandS1 = async (brandId: string | null) => (brandId ? await db.brand.findUnique({ where: { id: brandId }, select: { id: true, s1Id: true } }) : null);
@@ -90,9 +107,12 @@ async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
     if (!group) return await fail("Η ομάδα χαρακτηριστικών δεν υπάρχει πια στο SoftOne — διάλεξε άλλη.");
     // Χαρακτηριστικά: ετικέτες του αρχείου → ονόματα της ΤΕΛΙΚΗΣ ομάδας (μπορεί να ορίστηκε/άλλαξε μετά την προεπισκόπηση)
     const sp = pendingSpecs(q.specs, group.specs.map((d) => d.name));
+    // Μονάδα / εμπορική σήμανση: δικά μας id → αριθμοί SoftOne. Εγγραφή που έχασε τη σύνδεσή της δεν μπλοκάρει την
+    // έγκριση — το createInSoftone πέφτει πίσω στο αδελφό είδος, με σημείωση ώστε να φαίνεται τι έγινε.
+    const refs = await rowRefs(q, sp.warnings);
 
     // ---- δημιουργία: η μηχανή του template (έλεγχοι διπλών κωδικού/barcode, αδελφό είδος, createItem, συγχρονισμός, προβολή) ----
-    const [r] = await applyImport({ meta: null, rows: [pendingRow({ ...q, specs: sp.specs }, SHEET, groupS1Id)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
+    const [r] = await applyImport({ meta: null, rows: [pendingRow({ ...q, specs: sp.specs }, SHEET, groupS1Id, refs)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
     if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings], true); }
     // Αποτυχία — αλλά το createItem μπορεί να έγραψε και να απέτυχε μετά (επαλήθευση/συγχρονισμός): ο κωδικός το ξέρει
     const msg = r?.message || "Η γραμμή δεν εκτελέστηκε.";

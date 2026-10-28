@@ -20,7 +20,7 @@ export default async function SoftonePage() {
         <div>
           <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><Database className="size-3.5" aria-hidden /> SoftOne ERP</div>
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Βασικοί πίνακες</h2>
-          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Φ.Π.Α., μονάδες, μάρκες, Δ.Ο.Υ., χώρες, νομοί και Τ.Κ., τρόποι πληρωμής και αποστολής, σειρές παραστατικών, αποθήκες. Διαβάζονται από το SoftOne (GetTable, μόνο ανάγνωση) στα δικά μας μοντέλα· εδώ ορίζεις τι σημαίνει το καθένα για το site.{cfg ? ` Σύνδεση: ${cfg.url.replace(/^https?:\/\//, "").split("/")[0]}, χρήστης ${cfg.username}.` : " Δεν έχουν οριστεί στοιχεία σύνδεσης (Ρυθμίσεις → SoftOne ERP)."}</p>
+          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Φ.Π.Α., μονάδες μέτρησης, μάρκες, εμπορικές σημάνσεις, Δ.Ο.Υ., χώρες, νομοί και Τ.Κ., τρόποι πληρωμής και αποστολής, σειρές παραστατικών, αποθήκες. Διαβάζονται από το SoftOne (GetTable, μόνο ανάγνωση) στα δικά μας μοντέλα· εδώ ορίζεις τι σημαίνει το καθένα για το site.{cfg ? ` Σύνδεση: ${cfg.url.replace(/^https?:\/\//, "").split("/")[0]}, χρήστης ${cfg.username}.` : " Δεν έχουν οριστεί στοιχεία σύνδεσης (Ρυθμίσεις → SoftOne ERP)."}</p>
         </div>
         <SyncButton label="Συγχρονισμός όλων" />
       </div>

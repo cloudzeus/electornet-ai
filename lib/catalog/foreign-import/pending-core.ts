@@ -1,5 +1,5 @@
 import type { PendingItem } from "@prisma/client";
-import type { FieldKey, ParsedRow } from "@/lib/catalog/supplier-sheet";
+import type { FieldKey, ParsedRow, RowRefs } from "@/lib/catalog/supplier-sheet";
 import { rekeySpecs } from "@/lib/catalog/foreign-import/plan-core";
 
 /**
@@ -37,12 +37,13 @@ export function pendingMissing(p: PendingCheck): string[] {
  * Η γραμμή για τη μηχανή του template (`applyImport`, νέο είδος): ο κωδικός του PendingItem υπερισχύει, χωρίς MTRL (αλλιώς
  * θα διαβαζόταν ως υπάρχον είδος). Τα χαρακτηριστικά πρέπει να έχουν ήδη τα ονόματα της ομάδας (`pendingSpecs`).
  */
-export function pendingRow(p: Pick<PendingItem, "rowNo" | "code" | "fields" | "specs">, sheet: string, groupS1Id: number): ParsedRow {
+export function pendingRow(p: Pick<PendingItem, "rowNo" | "code" | "fields" | "specs">, sheet: string, groupS1Id: number, refs?: RowRefs): ParsedRow {
   const fields: PendingFields = { ...pendingFields(p.fields), code: p.code.trim() };
   delete fields.mtrl;
   const specs = p.specs && typeof p.specs === "object" && !Array.isArray(p.specs)
     ? Object.fromEntries(Object.entries(p.specs).filter((e): e is [string, string] => typeof e[1] === "string" && !!e[1].trim())) : {};
-  return { sheet, rowNo: p.rowNo, groupS1Id, fields, specs };
+  const pick: RowRefs = { ...(refs?.unit != null ? { unit: refs.unit } : {}), ...(refs?.mark != null ? { mark: refs.mark } : {}) };
+  return { sheet, rowNo: p.rowNo, groupS1Id, fields, specs, ...(Object.keys(pick).length ? { refs: pick } : {}) };
 }
 
 /**

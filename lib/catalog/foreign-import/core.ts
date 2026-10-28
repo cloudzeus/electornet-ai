@@ -11,6 +11,8 @@ export type Target =
   | { kind: "media"; type: "image" | "banner" | "video" }
   | { kind: "brand" }
   | { kind: "category" }
+  | { kind: "unit" }
+  | { kind: "mark" }
   | { kind: "cost" }
   | { kind: "rrp" }
   | { kind: "ignore" };
@@ -27,6 +29,10 @@ export type ForeignRow = {
   media: { image: string[]; banner: string[]; video: string[] };
   brandId: string | null;
   categoryId: string | null;
+  /** Μονάδα μέτρησης (Unit) για νέα είδη· null = από αδελφό είδος της ομάδας */
+  unitId: string | null;
+  /** Εμπορική σήμανση (ItemMark / MTRMARK)· null = από αδελφό είδος της ίδιας μάρκας */
+  markId: string | null;
   cost: string | null; // ακατέργαστο κείμενο — η μετατροπή σε αριθμό γίνεται στο επόμενο στάδιο
   rrp: string | null;
 };
@@ -73,12 +79,16 @@ export function headerSignature(headers: string[]): string {
 
 // ---------- Αποθηκευμένες αντιστοιχίσεις ----------
 
-/** sheetBrandId / sheetCategoryId: μάρκα / κατηγορία όλου του φύλλου, όταν η γραμμή δεν έχει τιμή στη στήλη (ή δεν υπάρχει στήλη — π.χ. τιμοκατάλογος μίας μάρκας). */
-type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | null };
-export type MappingConfig = { columns: Record<number, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> } & SheetDefaults;
+/** sheetBrandId / sheetCategoryId / sheetUnitId / sheetMarkId: μάρκα, κατηγορία, μονάδα και εμπορική σήμανση για ΟΛΟ το φύλλο, όταν η γραμμή δεν έχει τιμή στη στήλη (ή δεν υπάρχει στήλη — π.χ. τιμοκατάλογος μίας μάρκας, feed όπου όλα είναι τεμάχια). */
+type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | null; sheetUnitId?: string | null; sheetMarkId?: string | null };
+/** Αντιστοιχίσεις τιμή-προς-τιμή: η τιμή του αρχείου → δικό μας id (null = ο χρήστης την άφησε χωρίς αντιστοίχιση). */
+type ValueMaps = { brandMap: Record<string, string | null>; categoryMap: Record<string, string | null>; unitMap?: Record<string, string | null>; markMap?: Record<string, string | null> };
+export type MappingConfig = { columns: Record<number, Target> } & ValueMaps & SheetDefaults;
 /** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
-export type SavedConfig = { columns: Record<string, Target>; brandMap: Record<string, string | null>; categoryMap: Record<string, string | null> } & SheetDefaults;
-const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}) });
+export type SavedConfig = { columns: Record<string, Target> } & ValueMaps & SheetDefaults;
+const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}), ...(c.sheetUnitId ? { sheetUnitId: c.sheetUnitId } : {}), ...(c.sheetMarkId ? { sheetMarkId: c.sheetMarkId } : {}) });
+/** Οι χάρτες τιμών όπως ταξιδεύουν μαζί (αποθήκευση ↔ χρήση)· μόνο όσοι έχουν περιεχόμενο αποθηκεύονται. */
+const valueMaps = (c: ValueMaps): ValueMaps => ({ brandMap: c.brandMap ?? {}, categoryMap: c.categoryMap ?? {}, ...(c.unitMap && Object.keys(c.unitMap).length ? { unitMap: c.unitMap } : {}), ...(c.markMap && Object.keys(c.markMap).length ? { markMap: c.markMap } : {}) });
 
 /** Κλειδί ανά στήλη: κανονικοποιημένη επικεφαλίδα (όπως στο headerSignature)· η 2η, 3η… ίδια επικεφαλίδα παίρνει «#2», «#3»· κενή → null. */
 function headerKeys(headers: string[]): (string | null)[] {
@@ -97,14 +107,14 @@ export function configToSaved(config: MappingConfig, headers: string[]): SavedCo
   const keys = headerKeys(headers);
   const columns: Record<string, Target> = {};
   for (const [i, t] of Object.entries(config.columns)) { const k = keys[Number(i)]; if (k) columns[k] = t; }
-  return { columns, brandMap: config.brandMap, categoryMap: config.categoryMap, ...sheetDefaults(config) };
+  return { columns, ...valueMaps(config), ...sheetDefaults(config) };
 }
 
 /** Αποθηκευμένη αντιστοίχιση → δείκτες στηλών για τις επικεφαλίδες ΑΥΤΟΥ του αρχείου· άγνωστες επικεφαλίδες μένουν χωρίς στόχο. */
 export function configForHeaders(saved: SavedConfig, headers: string[]): MappingConfig {
   const columns: Record<number, Target> = {};
   headerKeys(headers).forEach((k, i) => { const t = k ? saved.columns[k] : undefined; if (t) columns[i] = t; });
-  return { columns, brandMap: saved.brandMap ?? {}, categoryMap: saved.categoryMap ?? {}, ...sheetDefaults(saved) };
+  return { columns, ...valueMaps(saved), ...sheetDefaults(saved) };
 }
 
 // ---------- CSV ----------
@@ -156,6 +166,8 @@ const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
   { target: { kind: "category" }, w: ["category"], s: ["κατηγορια"] },
   { target: { kind: "cost" }, w: ["cost", "net", "dealer", "χονδρικη"], s: ["κοστος", "τιμη αγορας", "τιμη κτησης", "τιμη χονδρικης", "τιμη μοναδος", "unit price"] },
   { target: { kind: "rrp" }, w: ["rrp", "msrp", "pvp"], s: ["λιανικη", "τιμη πωλησης"] },
+  // ΜΕΤΑ τις τιμές: «Unit price» / «Τιμή μονάδος» είναι κόστος, όχι μονάδα μέτρησης
+  { target: { kind: "unit" }, w: ["uom", "μοναδα"], s: ["μοναδα μετρησης", "μον μετρησης", "unit of measure"] },
   { target: { kind: "field", key: "shortDesc" }, s: ["συντομη περιγραφη", "short description"] },
   { target: { kind: "field", key: "name" }, w: ["name", "title"], s: ["περιγραφη ειδους", "ονομα", "τιτλος", "ονομασια", "product description"] },
   { target: { kind: "field", key: "descText" }, w: ["description"], s: ["περιγραφη"] },
@@ -256,7 +268,7 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
     const line = matrix[r] ?? [];
     const cells = cols.map(([i, t]) => [t, txt(line[i])] as const);
     if (cells.every(([, c]) => !c)) continue;
-    const row: ForeignRow = { rowNo: r + 1, fields: {}, specs: {}, media: { image: [], banner: [], video: [] }, brandId: config.sheetBrandId ?? null, categoryId: config.sheetCategoryId ?? null, cost: null, rrp: null };
+    const row: ForeignRow = { rowNo: r + 1, fields: {}, specs: {}, media: { image: [], banner: [], video: [] }, brandId: config.sheetBrandId ?? null, categoryId: config.sheetCategoryId ?? null, unitId: config.sheetUnitId ?? null, markId: config.sheetMarkId ?? null, cost: null, rrp: null };
     for (const [t, c] of cells) {
       if (!c) continue;
       switch (t.kind) {
@@ -266,6 +278,9 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
         // Object.hasOwn: τιμή «constructor» / «toString» δεν είναι ιδιότητα του prototype
         case "brand": row.brandId = Object.hasOwn(config.brandMap, c) ? config.brandMap[c] ?? null : null; break;
         case "category": row.categoryId = Object.hasOwn(config.categoryMap, c) ? config.categoryMap[c] ?? null : null; break;
+        // Μονάδα / σήμανση: τιμή χωρίς αντιστοίχιση ΔΕΝ ακυρώνει την επιλογή του φύλλου — είναι συμπλήρωμα, όχι κλειδί
+        case "unit": row.unitId = (config.unitMap && Object.hasOwn(config.unitMap, c) ? config.unitMap[c] : null) ?? row.unitId; break;
+        case "mark": row.markId = (config.markMap && Object.hasOwn(config.markMap, c) ? config.markMap[c] : null) ?? row.markId; break;
         case "cost": row.cost = c; break;
         case "rrp": row.rrp = c; break;
       }
