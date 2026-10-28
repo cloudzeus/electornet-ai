@@ -24,6 +24,8 @@ const CHUNK = 500;
 export interface FeedConfig {
   /** στήλες με κλειδί επικεφαλίδας (όπως το αποθηκεύει το `configToSaved`) */
   saved: SavedConfig;
+  /** η σειρά των επικεφαλίδων όπως τη δούλεψε ο χρήστης — η ουρά ξαναχτίζει τον πίνακα από τα payload με αυτή */
+  headers: string[];
   /** μετατροπή μονάδας ανά επικεφαλίδα */
   transforms: Record<string, Transform>;
   priceMode: PriceMode;
@@ -76,6 +78,7 @@ export async function saveFeed(
   if (!supplier) throw new UserError("Ο προμηθευτής δεν βρέθηκε — ξανακάνε αναζήτηση.");
   const cfg: FeedConfig = {
     saved: configToSaved(input.config, input.headers),
+    headers: input.headers,
     transforms: input.transforms,
     priceMode: input.priceMode,
     toSoftone: input.toSoftone,
