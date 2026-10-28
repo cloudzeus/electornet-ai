@@ -70,7 +70,8 @@ export interface Progress {
 export async function progress(feedId: string): Promise<Progress> {
   const [by, rows, writeOn] = await Promise.all([
     db.supplierFeedItem.groupBy({ by: ["status"], where: { feedId }, _count: { _all: true } }),
-    db.supplierFeedItem.findMany({ where: { feedId, status: { in: ["queued", "importing", "done"] } }, select: { images: true, assetIds: true } }),
+    // Και τα «error»: οι φωτογραφίες τους έχουν ήδη περάσει στο Bunny και δεν πρέπει να εξαφανίζονται από τον μετρητή.
+    db.supplierFeedItem.findMany({ where: { feedId, status: { in: ["queued", "importing", "done", "error"] } }, select: { images: true, assetIds: true } }),
     itemWriteEnabled(),
   ]);
   const n = (s: string) => by.find((b) => b.status === s)?._count._all ?? 0;
@@ -148,10 +149,12 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   // ---- 2. Γραμμές → υπάρχουσα μηχανή ----
   const matrix: string[][] = [headers];
   const rowOf = new Map<number, (typeof batch)[number]>();
-  batch.forEach((it, n) => {
+  batch.forEach((it) => {
     const { merged } = mergeEdits((it.payload ?? {}) as Record<string, string>, (it.edits ?? null) as Record<string, string> | null);
-    matrix.push(headers.map((h) => merged[h] ?? ""));
-    rowOf.set(n + 1, it);
+    const at = matrix.push(headers.map((h) => merged[h] ?? "")) - 1;
+    // Το `toRows` αριθμεί τις γραμμές όπως το Excel: `rowNo = δείκτης πίνακα + 1`, άρα η πρώτη γραμμή δεδομένων
+    // (δείκτης 1, κάτω από τις επικεφαλίδες) είναι η γραμμή 2. Χωρίς αυτό το +1 το `applyForeign` δεν βρίσκει καμία.
+    rowOf.set(at + 1, it);
   });
   const config = configForHeaders(feed.cfg.saved, headers);
   let pending = 0, waiting = 0;
