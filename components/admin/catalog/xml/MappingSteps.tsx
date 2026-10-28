@@ -212,14 +212,18 @@ function Head({ id, title, help, done, total }: { id: string; title: string; hel
 export function ValueRows({ kind, m, options, label, empty, busy }: { kind: ValueKind; m: Mapping; options: PickOpt[]; label: string; empty: string; busy: boolean }) {
   const set = m.sets[kind];
   const missing = m.missing(kind);
+  // «Μόνο όσες λείπουν» = φωτογραφία της στιγμής που άναψε, ΟΧΙ ζωντανό φίλτρο: αλλιώς η κάρτα που μόλις
+  // αντιστοίχισες εξαφανίζεται και η επόμενη πηδά κάτω από τον κέρσορα — με 111 κατηγορίες αυτό είναι λάθος κλικ.
+  const todoNow = () => new Set(set.rows.filter((r) => !m.pickOf(kind, r.value)).map((r) => r.value));
   const [only, setOnly] = useState(missing > 0);
+  const [todo, setTodo] = useState(todoNow);
   const [q, setQ] = useState("");
 
   if (set.tooMany) return <p className="m-0 text-eu-ink text-[length:var(--fs-14)]">Η στήλη «{set.header}» έχει πάνω από {MAX_VALUES} διαφορετικές τιμές — δεν μπορεί να αντιστοιχιστεί τιμή-προς-τιμή. Γύρνα στις στήλες και βάλε την «Αγνόηση» ή «Χαρακτηριστικό».</p>;
   if (!set.rows.length) return <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Καμία τιμή σε αυτή τη στήλη.</p>;
 
   const t = plain(q.trim());
-  const shown = set.rows.filter((r) => (!only || !m.pickOf(kind, r.value)) && (!t || plain(r.value).includes(t)));
+  const shown = set.rows.filter((r) => (!only || todo.has(r.value)) && (!t || plain(r.value).includes(t)));
 
   return (
     <div className="grid gap-2 min-w-0">
@@ -233,7 +237,7 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
         )}
         {missing > 0 && (
           <label className="flex items-center gap-2 cursor-pointer min-h-11 md:min-h-9 text-[length:var(--fs-13)]">
-            <input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} className="size-4 accent-eu-navy" />
+            <input type="checkbox" checked={only} onChange={(e) => { if (e.target.checked) setTodo(todoNow()); setOnly(e.target.checked); }} className="size-4 accent-eu-navy" />
             <span className="font-bold text-eu-ink-2">Μόνο όσες λείπουν ({missing})</span>
           </label>
         )}
