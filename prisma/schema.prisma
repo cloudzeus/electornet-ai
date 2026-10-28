@@ -2720,7 +2720,7 @@ model MarkupRule {
 
 /// Καθημερινή αναφορά ασφαλείας: ένας έλεγχος (προγραμματισμένος ή χειροκίνητος) με τα αποτελέσματά του.
 model SecurityReport {
-  id         String    @id @default(cuid())
+  id          String    @id @default(cuid())
   mode        String // full | light
   startedAt   DateTime  @default(now())
   finishedAt  DateTime?
@@ -2740,4 +2740,79 @@ model SecurityAlert {
   fingerprint String   @id
   lastSentAt  DateTime
   count       Int      @default(1)
+}
+
+/// Προμηθευτής του SoftOne (TRDR), σε cache ώστε ο οδηγός «XML προμηθευτές» να ανοίγει χωρίς κλήση στο ERP.
+model Supplier {
+  id           String         @id @default(cuid())
+  s1Trdr       Int            @unique
+  code         String
+  name         String
+  afm          String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  feeds        SupplierFeed[]
+
+  @@index([name])
+}
+
+/// XML feed ενός προμηθευτή: η διεύθυνση και η αντιστοίχισή της, ώστε το επόμενο τρέξιμο να μη ζητά ξανά AI.
+model SupplierFeed {
+  id          String    @id @default(cuid())
+  supplierId  String
+  url         String
+  format      String    @default("xml")
+  /// SavedConfig (στήλες με κλειδί κανονικοποιημένη επικεφαλίδα) + transforms ανά στήλη — βλ. lib/catalog/xml-import
+  config      Json
+  /// cost = κόστος × markup · retail = η λιανική του feed
+  priceMode   String    @default("cost")
+  /// προεπιλογή «και στο SoftOne» για την παρτίδα· επιβεβαιώνεται σε κάθε τρέξιμο
+  toSoftone   Boolean   @default(false)
+  lastRunAt   DateTime?
+  lastCount   Int?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  supplier Supplier           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  items    SupplierFeedItem[]
+
+  @@index([supplierId])
+}
+
+/// Ένα προϊόν του feed. Το payload είναι ό,τι ήρθε· τα edits είναι οι διορθώσεις του χρήστη και ΔΕΝ χάνονται σε re-run.
+model SupplierFeedItem {
+  id       String   @id @default(cuid())
+  feedId   String
+  sku      String
+  /// όπως ήρθε από το feed (μετά τις μετατροπές μονάδων)
+  payload  Json
+  /// οι διορθώσεις του χρήστη· σε σύγκρουση με το payload υπερισχύουν αυτές
+  edits    Json?
+  /// επιλεγμένες διευθύνσεις φωτογραφιών, με τη σειρά που όρισε ο χρήστης
+  images   Json
+  /// MediaAsset ids μετά το Bunny, με την ίδια σειρά
+  assetIds Json?
+  /// new | changed | same | gone
+  diff     String   @default("new")
+  /// review | queued | importing | done | error | skipped
+  status   String   @default("review")
+  /// εξαίρεση από την καθολική επιλογή «και στο SoftOne» (null = ακολουθεί την παρτίδα)
+  softone  Boolean?
+  /// πρόβλημα που εμποδίζει την εισαγωγή (π.χ. χωρίς SKU, διπλό SKU)
+  problem  String?
+
+  mtrl          Int?
+  productId     String?
+  pendingItemId String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  feed SupplierFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, sku])
+  @@index([feedId, status])
+  @@index([feedId, diff])
 }
