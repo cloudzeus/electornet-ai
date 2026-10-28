@@ -180,7 +180,8 @@ SupplierFeedItem  id, feedId, sku, @@unique([feedId, sku])
 lib/catalog/xml-import/
   parse-core.ts        XML → εικονικός πίνακας (καθαρό: χωρίς βάση/δίκτυο). Επαναλαμβανόμενα tags,
                        «Ετικέτα: τιμή» → στήλες, πολλαπλές τιμές με «|».
-  transform-core.ts    Μετατροπές μονάδων ανά στήλη (καθαρό).
+  transform-core.ts    Μετατροπές μονάδων ανά στήλη και τιμή ανά τρόπο (cost+markup / λιανική feed) — καθαρό.
+  diff-core.ts         new/changed/same/gone και συγχώνευση edits × payload (καθαρό).
   suggest.ts           Κανόνες πρώτα (suggestTarget), AI για τα υπόλοιπα (3 κλήσεις, graceful).
   feed.ts              server: κατέβασμα feed, διάβασμα, upsert SupplierFeedItem, diff new/changed/same/gone.
   queue.ts             server: ουρά εισαγωγής σε παρτίδες — φωτογραφίες → Bunny, γραμμές → υπάρχον applyForeign.
