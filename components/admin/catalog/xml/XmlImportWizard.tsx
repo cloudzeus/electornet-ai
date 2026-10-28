@@ -123,9 +123,12 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const m = useMapping(mapping ?? { cols: [], cats: [], specs: [], duplicates: [], aiUsed: false }, brands);
 
   const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list"] as Step[]) : [])];
-  const at = Math.max(0, steps.indexOf(step));
+  // Το βήμα μπορεί να έπαψε να υπάρχει: ο χρήστης γύρισε στις στήλες και έβγαλε τη στήλη κατηγορίας ενώ ήταν στις
+  // κατηγορίες. Τότε δείχνουμε το πρώτο βήμα της αντιστοίχισης, όχι μια οθόνη χωρίς πλοήγηση.
+  const cur: Step = steps.includes(step) ? step : mapping ? "cols" : "supplier";
+  const at = Math.max(0, steps.indexOf(cur));
   const working = !!busy;
-  const blockedHere = m.blockers.filter((b) => b.step === step).map((b) => b.text);
+  const blockedHere = m.blockers.filter((b) => b.step === cur).map((b) => b.text);
   const prev = steps[at - 1];
   const next = steps[at + 1];
   const go = (s: Step) => { setErr(null); setStep(s); };
@@ -134,7 +137,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   // (Στο τελευταίο βήμα τα φράγματα τα δείχνει το ίδιο το βήμα, πάνω από το κουμπί της φόρτωσης.)
   const nav = (
     <div className="grid gap-2 min-w-0">
-      {step !== "finish" && <Blockers list={blockedHere} />}
+      {cur !== "finish" && <Blockers list={blockedHere} />}
       <div className="flex flex-wrap items-center gap-2">
         {prev && <button type="button" className={quiet} disabled={working} onClick={() => go(prev)}><ArrowLeft className="size-4" aria-hidden /> Πίσω: {TITLE[prev]}</button>}
         {next && next !== "list" && (
@@ -155,9 +158,9 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
             const p = m.steps.includes(s as MapStep) ? m.progress(s as MapStep) : null;
             return (
               <li key={s}>
-                <button type="button" disabled={working} onClick={() => go(s)} aria-current={step === s ? "step" : undefined}
-                  className={`w-full flex items-center gap-2 rounded-xl border-2 px-2.5 min-h-9 text-left font-bold text-[length:var(--fs-13)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue ${step === s ? "border-eu-navy bg-eu-navy text-white" : i < at ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
-                  <span className={`grid place-items-center size-5 shrink-0 rounded-full text-[length:var(--fs-12)] tabular-nums ${step === s ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{i < at ? <Check className="size-3" aria-hidden /> : i + 1}</span>
+                <button type="button" disabled={working} onClick={() => go(s)} aria-current={cur === s ? "step" : undefined}
+                  className={`w-full flex items-center gap-2 rounded-xl border-2 px-2.5 min-h-9 text-left font-bold text-[length:var(--fs-13)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue ${cur === s ? "border-eu-navy bg-eu-navy text-white" : i < at ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
+                  <span className={`grid place-items-center size-5 shrink-0 rounded-full text-[length:var(--fs-12)] tabular-nums ${cur === s ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{i < at ? <Check className="size-3" aria-hidden /> : i + 1}</span>
                   <span className="min-w-0 truncate">{TITLE[s]}</span>
                   {p && p.total > 0 && <span className="ml-auto shrink-0 tabular-nums text-[length:var(--fs-12)] opacity-80">{p.done}/{p.total}</span>}
                 </button>
@@ -170,7 +173,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
         <div className="md:hidden grid gap-1.5 min-w-0">
           <label className="grid gap-1 min-w-0">
             <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)] tabular-nums">Βήμα {at + 1} από {steps.length}</span>
-            <select value={step} disabled={working} onChange={(e) => go(e.target.value as Step)} className={input}>
+            <select value={cur} disabled={working} onChange={(e) => go(e.target.value as Step)} className={input}>
               {steps.map((s, i) => <option key={s} value={s}>{i + 1}. {TITLE[s]}</option>)}
             </select>
           </label>
@@ -181,10 +184,10 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       </nav>
 
       {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
-      {note && step !== "list" && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
+      {note && cur !== "list" && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
 
       {/* ---------- Προμηθευτής ---------- */}
-      {step === "supplier" && (
+      {cur === "supplier" && (
         <section data-help="xml.supplier" className={card} aria-labelledby="xs-1">
           <div className="grid gap-1">
             <h3 id="xs-1" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Truck className="size-4 text-eu-blue" aria-hidden /> Προμηθευτής</h3>
@@ -249,7 +252,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       )}
 
       {/* ---------- Feed ---------- */}
-      {step === "feed" && picked && (
+      {cur === "feed" && picked && (
         <>
           <section data-help="xml.feed" className={card} aria-labelledby="xs-2">
             <div className="grid gap-1">
@@ -314,31 +317,31 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       )}
 
       {/* ---------- Αντιστοίχιση: ένα πράγμα ανά βήμα ---------- */}
-      {mapping && step !== "supplier" && step !== "feed" && step !== "list" && (
+      {mapping && cur !== "supplier" && cur !== "feed" && cur !== "list" && (
         <>
-          {mapping.aiUsed && step === "cols" && (
+          {mapping.aiUsed && cur === "cols" && (
             <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]">
               <Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Ό,τι δεν έλυσαν οι κανόνες πήγε στο AI — αυτά έχουν σήμανση «AI» και θέλουν το μάτι σου. Τα υπόλοιπα βγήκαν από κανόνες και είναι σίγουρα.</span>
             </p>
           )}
-          {step === "cols" && <StepColumns m={m} busy={working} />}
-          {step === "brands" && <StepBrands m={m} brands={brands} busy={working} />}
-          {step === "cats" && <StepCategories m={m} categories={categories} busy={working} />}
-          {step === "specs" && <StepSpecs m={m} busy={working} />}
-          {step === "finish" && <StepFinish m={m} units={units} marks={marks} writeOn={writeOn} busy={busy === "save"} error={null} onSubmit={save} />}
+          {cur === "cols" && <StepColumns m={m} busy={working} />}
+          {cur === "brands" && <StepBrands m={m} brands={brands} busy={working} />}
+          {cur === "cats" && <StepCategories m={m} categories={categories} busy={working} />}
+          {cur === "specs" && <StepSpecs m={m} busy={working} />}
+          {cur === "finish" && <StepFinish m={m} units={units} marks={marks} writeOn={writeOn} busy={busy === "save"} error={null} onSubmit={save} />}
           {nav}
         </>
       )}
 
       {/* ---------- Λίστα ελέγχου ---------- */}
-      {step === "list" && feed && (
+      {cur === "list" && feed && (
         <>
           {note && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
           <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => { setMapping(null); setSeen(null); setStep("feed"); }} />
         </>
       )}
 
-      {step === "list" && !feed && (
+      {cur === "list" && !feed && (
         <p className="m-0 flex gap-2 items-center rounded-xl bg-eu-surface px-3 py-3 text-eu-ink-3 text-[length:var(--fs-14)]"><Play className="size-4 shrink-0" aria-hidden /> Διάλεξε προμηθευτή και φόρτωσε το feed του για να δεις τη λίστα ελέγχου.</p>
       )}
     </div>
