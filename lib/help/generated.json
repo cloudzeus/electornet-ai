@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-20T14:23:05.908Z",
+ "generatedAt": "2026-10-28T11:41:29.109Z",
  "routes": [
   {
    "route": "/admin",
@@ -953,6 +953,96 @@
     }
    ],
    "updatedAt": "2026-10-20T07:03:06+03:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/catalog/templates/xml",
+   "slug": "catalog.templates.xml",
+   "file": "app/admin/(shell)/catalog/templates/xml/page.tsx",
+   "title": "XML προμηθευτές",
+   "doc": "Μαζική εισαγωγή προϊόντων από XML feed προμηθευτή, σε 4 βήματα: προμηθευτής → feed → αντιστοίχιση (με προτάσεις AI μόνο για τα αβέβαια) → λίστα ελέγχου και εισαγωγή. Στα υπάρχοντα είδη συμπληρώνονται ΜΟΝΟ τα κενά· τα νέα είδη πάνε για έγκριση. Οι φωτογραφίες κατεβαίνουν και ανεβαίνουν στη βιβλιοθήκη με τη σειρά που ορίζει ο χρήστης.",
+   "perm": "catalog.products.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "xml.map.duplicates",
+    "xml.map.brands",
+    "xml.map.fields",
+    "xml.map.cats",
+    "xml.map.specs",
+    "xml.map.price",
+    "xml.map.softone",
+    "xml.modal.head",
+    "xml.modal.conflicts",
+    "xml.modal.fields",
+    "xml.modal.specs",
+    "xml.modal.price",
+    "xml.modal.images",
+    "xml.modal.softone",
+    "xml.list.feed",
+    "xml.list.chips",
+    "xml.list.selection",
+    "xml.list.progress",
+    "xml.list.rows",
+    "xml.steps",
+    "xml.supplier",
+    "xml.feed",
+    "xml.feed.counts",
+    "xml.feed.sample"
+   ],
+   "changes": [
+    {
+     "hash": "5a6e65b",
+     "date": "2026-10-28T13:40:16+02:00",
+     "text": "XML προμηθευτές: το παράθυρο προϊόντος δεν μένει «αλλαγμένο» μετά την αποθήκευση"
+    },
+    {
+     "hash": "56dcb4a",
+     "date": "2026-10-28T13:39:39+02:00",
+     "text": "XML προμηθευτές: λίστα ελέγχου, παράθυρο προϊόντος και σειρά φωτογραφιών"
+    },
+    {
+     "hash": "c62556f",
+     "date": "2026-10-28T13:39:25+02:00",
+     "text": "XML προμηθευτές: οδηγός 4 βημάτων"
+    },
+    {
+     "hash": "9b85ed8",
+     "date": "2026-10-28T13:39:14+02:00",
+     "text": "XML προμηθευτές: server actions του οδηγού"
+    },
+    {
+     "hash": "61e490f",
+     "date": "2026-10-28T13:39:06+02:00",
+     "text": "XML προμηθευτές: κοινοί τύποι και ετικέτες του οδηγού"
+    },
+    {
+     "hash": "034c67d",
+     "date": "2026-10-28T11:21:32+02:00",
+     "text": "XML προμηθευτές: διόρθωση αρίθμησης γραμμών στην ουρά"
+    },
+    {
+     "hash": "674f110",
+     "date": "2026-10-28T11:13:08+02:00",
+     "text": "XML προμηθευτές: ουρά εισαγωγής (κώδικας"
+    },
+    {
+     "hash": "a47ecce",
+     "date": "2026-10-28T11:09:43+02:00",
+     "text": "XML προμηθευτές: κατέβασμα feed, φόρτωση σε πίνακα, diff και λίστα με φίλτρα"
+    },
+    {
+     "hash": "8709ccd",
+     "date": "2026-10-28T11:01:01+02:00",
+     "text": "XML προμηθευτές: προτάσεις αντιστοίχισης"
+    },
+    {
+     "hash": "b456933",
+     "date": "2026-10-28T10:51:01+02:00",
+     "text": "XML προμηθευτές: cache προμηθευτών από το SoftOne (μόνο αναγνώσεις)"
+    }
+   ],
+   "updatedAt": "2026-10-28T13:40:16+02:00",
    "shots": {}
   },
   {
@@ -3129,6 +3219,11 @@
    ],
    "changes": [
     {
+     "hash": "3b1140d",
+     "date": "2026-10-20T17:25:09+03:00",
+     "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
+    },
+    {
      "hash": "ab7af2e",
      "date": "2026-10-20T10:16:55+03:00",
      "text": "Αναφορά ασφαλείας: ο κανόνας παραληπτών εμφανίζεται στα textarea των Ρυθμίσεων, parseSecurityEmails (έγκυρα, χωρίς διπλότυπα, έως 10, προεπιλογή), διορθώσεις script (current_schema, προειδοποίηση για super-admin)"
@@ -3172,14 +3267,9 @@
      "hash": "e304c31",
      "date": "2026-10-10T14:00:00+03:00",
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
-    },
-    {
-     "hash": "639d1fa",
-     "date": "2026-10-10T13:27:32+03:00",
-     "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…"
     }
    ],
-   "updatedAt": "2026-10-20T10:16:55+03:00",
+   "updatedAt": "2026-10-20T17:25:09+03:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3203,6 +3293,11 @@
    ],
    "changes": [
     {
+     "hash": "3b1140d",
+     "date": "2026-10-20T17:25:09+03:00",
+     "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
+    },
+    {
      "hash": "ab7af2e",
      "date": "2026-10-20T10:16:55+03:00",
      "text": "Αναφορά ασφαλείας: ο κανόνας παραληπτών εμφανίζεται στα textarea των Ρυθμίσεων, parseSecurityEmails (έγκυρα, χωρίς διπλότυπα, έως 10, προεπιλογή), διορθώσεις script (current_schema, προειδοποίηση για super-admin)"
@@ -3246,14 +3341,9 @@
      "hash": "e304c31",
      "date": "2026-10-10T14:00:00+03:00",
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
-    },
-    {
-     "hash": "639d1fa",
-     "date": "2026-10-10T13:27:32+03:00",
-     "text": "Υπενθύμιση λήξης εγγύησης και με SMS (Yuboto OMNI API): κεφαλαία ελληνικά GSM-7 σε ένα μήνυμα, προσωπικός σύνδεσμος συσκευής /eg/… που λειτουργεί χωρίς λογαριασμό (δωρεάν επέκταση, πληρωμή Viva, διακοπή υπενθυμίσεων ω…"
     }
    ],
-   "updatedAt": "2026-10-20T10:16:55+03:00",
+   "updatedAt": "2026-10-20T17:25:09+03:00",
    "shots": {}
   },
   {
@@ -3700,6 +3790,121 @@
  ],
  "recent": [
   {
+   "hash": "5a6e65b",
+   "date": "2026-10-28T13:40:16+02:00",
+   "text": "XML προμηθευτές: το παράθυρο προϊόντος δεν μένει «αλλαγμένο» μετά την αποθήκευση",
+   "routes": []
+  },
+  {
+   "hash": "56dcb4a",
+   "date": "2026-10-28T13:39:39+02:00",
+   "text": "XML προμηθευτές: λίστα ελέγχου, παράθυρο προϊόντος και σειρά φωτογραφιών",
+   "routes": []
+  },
+  {
+   "hash": "c62556f",
+   "date": "2026-10-28T13:39:25+02:00",
+   "text": "XML προμηθευτές: οδηγός 4 βημάτων",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
+   "hash": "9b85ed8",
+   "date": "2026-10-28T13:39:14+02:00",
+   "text": "XML προμηθευτές: server actions του οδηγού",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
+   "hash": "61e490f",
+   "date": "2026-10-28T13:39:06+02:00",
+   "text": "XML προμηθευτές: κοινοί τύποι και ετικέτες του οδηγού",
+   "routes": []
+  },
+  {
+   "hash": "034c67d",
+   "date": "2026-10-28T11:21:32+02:00",
+   "text": "XML προμηθευτές: διόρθωση αρίθμησης γραμμών στην ουρά",
+   "routes": []
+  },
+  {
+   "hash": "674f110",
+   "date": "2026-10-28T11:13:08+02:00",
+   "text": "XML προμηθευτές: ουρά εισαγωγής (κώδικας",
+   "routes": []
+  },
+  {
+   "hash": "a47ecce",
+   "date": "2026-10-28T11:09:43+02:00",
+   "text": "XML προμηθευτές: κατέβασμα feed, φόρτωση σε πίνακα, diff και λίστα με φίλτρα",
+   "routes": []
+  },
+  {
+   "hash": "8709ccd",
+   "date": "2026-10-28T11:01:01+02:00",
+   "text": "XML προμηθευτές: προτάσεις αντιστοίχισης",
+   "routes": []
+  },
+  {
+   "hash": "b456933",
+   "date": "2026-10-28T10:51:01+02:00",
+   "text": "XML προμηθευτές: cache προμηθευτών από το SoftOne (μόνο αναγνώσεις)",
+   "routes": []
+  },
+  {
+   "hash": "71df688",
+   "date": "2026-10-28T10:44:56+02:00",
+   "text": "XML προμηθευτές: diff του re-run και συγχώνευση διορθώσεων",
+   "routes": []
+  },
+  {
+   "hash": "f09ce35",
+   "date": "2026-10-28T10:43:01+02:00",
+   "text": "XML προμηθευτές: μετατροπές μονάδων και τιμή ανά τρόπο",
+   "routes": []
+  },
+  {
+   "hash": "413a84a",
+   "date": "2026-10-28T10:40:49+02:00",
+   "text": "XML προμηθευτές: μετατροπέας XML σε εικονικό πίνακα",
+   "routes": []
+  },
+  {
+   "hash": "76db807",
+   "date": "2026-10-28T10:34:03+02:00",
+   "text": "XML προμηθευτές: πίνακες Supplier / SupplierFeed / SupplierFeedItem",
+   "routes": []
+  },
+  {
+   "hash": "d58faa2",
+   "date": "2026-10-28T10:28:56+02:00",
+   "text": "Πλάνο: XML προμηθευτές",
+   "routes": []
+  },
+  {
+   "hash": "bfb0c24",
+   "date": "2026-10-28T10:22:38+02:00",
+   "text": "Σχέδιο: XML προμηθευτές",
+   "routes": []
+  },
+  {
+   "hash": "3b1140d",
+   "date": "2026-10-20T17:25:09+03:00",
+   "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)",
+   "routes": [
+    "/admin",
+    "/admin/settings"
+   ]
+  },
+  {
    "hash": "ed3a9e5",
    "date": "2026-10-20T15:14:26+03:00",
    "text": "Ασφάλεια: Bunny",
@@ -3843,122 +4048,6 @@
    "date": "2026-10-20T12:05:37+03:00",
    "text": "Ασφάλεια: διορθώσεις αναθεώρησης των ελέγχων βάσης/Bunny",
    "routes": []
-  },
-  {
-   "hash": "1c4f678",
-   "date": "2026-10-20T11:51:15+03:00",
-   "text": "Ασφάλεια: έλεγχοι βάσης και Bunny + runner του ημερήσιου ελέγχου",
-   "routes": []
-  },
-  {
-   "hash": "3782c01",
-   "date": "2026-10-20T11:23:25+03:00",
-   "text": "Ασφάλεια: /cdn-cgi/ μόνο από το δικό μας origin, αυστηρή αναγνώριση loader JSD",
-   "routes": []
-  },
-  {
-   "hash": "173a0fc",
-   "date": "2026-10-20T11:18:07+03:00",
-   "text": "Ασφάλεια: ακρίβεια κανόνων ελέγχου (διορθώσεις αναθεώρησης)",
-   "routes": []
-  },
-  {
-   "hash": "c43a21b",
-   "date": "2026-10-20T11:06:54+03:00",
-   "text": "Ασφάλεια: καθαροί κανόνες του ημερήσιου ελέγχου (policy + rules)",
-   "routes": []
-  },
-  {
-   "hash": "a60176e",
-   "date": "2026-10-20T10:40:40+03:00",
-   "text": "Βοήθεια: ανανέωση ιστορικού αλλαγών (help:gen)",
-   "routes": []
-  },
-  {
-   "hash": "bfa6ed7",
-   "date": "2026-10-20T10:40:33+03:00",
-   "text": "Πακέτα: χωρίς @types/nodemailer (το nodemailer 10 έχει δικούς του τύπους), engines node >=22.13 για το Railpack",
-   "routes": []
-  },
-  {
-   "hash": "7489938",
-   "date": "2026-10-20T10:40:33+03:00",
-   "text": "Ασφάλεια: διορθώσεις αναθεώρησης",
-   "routes": [
-    "/admin",
-    "/admin/media"
-   ]
-  },
-  {
-   "hash": "d555a95",
-   "date": "2026-10-20T10:29:38+03:00",
-   "text": "Βοήθεια: ανανέωση ιστορικού αλλαγών (help:gen) μετά τις διορθώσεις ασφαλείας",
-   "routes": []
-  },
-  {
-   "hash": "36e9117",
-   "date": "2026-10-20T10:29:30+03:00",
-   "text": "Ασφάλεια: αναβαθμίσεις βιβλιοθηκών με γνωστά κενά",
-   "routes": []
-  },
-  {
-   "hash": "2960907",
-   "date": "2026-10-20T10:24:43+03:00",
-   "text": "Ασφάλεια: SSRF στο /api/img/email και έλεγχος συνδέσμων διαφήμισης",
-   "routes": [
-    "/admin",
-    "/admin/cms/brand-stores"
-   ]
-  },
-  {
-   "hash": "f5fa409",
-   "date": "2026-10-20T10:24:43+03:00",
-   "text": "Ασφάλεια: JSON-LD και inline scripts χωρίς escaping",
-   "routes": [
-    "/admin",
-    "/admin/eprel"
-   ]
-  },
-  {
-   "hash": "5c441b6",
-   "date": "2026-10-20T10:24:31+03:00",
-   "text": "Ασφάλεια: open redirect στο ?next=",
-   "routes": []
-  },
-  {
-   "hash": "ab7af2e",
-   "date": "2026-10-20T10:16:55+03:00",
-   "text": "Αναφορά ασφαλείας: ο κανόνας παραληπτών εμφανίζεται στα textarea των Ρυθμίσεων, parseSecurityEmails (έγκυρα, χωρίς διπλότυπα, έως 10, προεπιλογή), διορθώσεις script (current_schema, προειδοποίηση για super-admin)",
-   "routes": []
-  },
-  {
-   "hash": "9cf72f9",
-   "date": "2026-10-20T10:13:33+03:00",
-   "text": "Αναφορά ασφαλείας: μοντέλα SecurityReport/SecurityAlert, δικαιώματα security.read/run (στον super-admin), ρύθμιση «Ασφάλεια» με παραλήπτες αναφοράς, idempotent script εφαρμογής",
-   "routes": []
-  },
-  {
-   "hash": "c3761c7",
-   "date": "2026-10-20T10:07:46+03:00",
-   "text": "Πλάνο: καθημερινό security audit report",
-   "routes": []
-  },
-  {
-   "hash": "400bec1",
-   "date": "2026-10-20T10:04:49+03:00",
-   "text": "Προδιαγραφή: καθημερινό security audit report",
-   "routes": []
-  },
-  {
-   "hash": "a1f595b",
-   "date": "2026-10-20T07:03:06+03:00",
-   "text": "Εισαγωγή από ξένο Excel: διορθώσεις τελικής αναθεώρησης",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/import"
-   ]
   }
  ],
  "helpKeys": {
@@ -4330,6 +4419,78 @@
   ],
   "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
+  ],
+  "xml.map.duplicates": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.brands": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.fields": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.cats": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.specs": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.price": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.map.softone": [
+   "components/admin/catalog/xml/MappingSections.tsx"
+  ],
+  "xml.modal.head": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.conflicts": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.fields": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.specs": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.price": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.images": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.modal.softone": [
+   "components/admin/catalog/xml/ProductModal.tsx"
+  ],
+  "xml.list.feed": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.chips": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.selection": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.progress": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.rows": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.steps": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.supplier": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.feed": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.feed.counts": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.feed.sample": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "editor.undo": [
    "components/admin/cms/BrandStoreEditor.tsx",

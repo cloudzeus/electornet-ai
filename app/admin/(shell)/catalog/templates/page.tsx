@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, FileSpreadsheet, FileUp, PackagePlus, Percent } from "lucide-react";
+import { ChevronRight, FileCode2, FileSpreadsheet, FileUp, PackagePlus, Percent } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -12,13 +12,14 @@ export const dynamic = "force-dynamic";
 /** Templates excel προς τους προμηθευτές (ανά μάρκα, ένα φύλλο ανά κατηγορία) και μαζική εισαγωγή προϊόντων από αυτά. */
 export default async function TemplatesPage() {
   const user = await requirePermission("catalog.products.read");
-  const [brands, counts, groups, writeOn, pending, rules] = await Promise.all([
+  const [brands, counts, groups, writeOn, pending, rules, feeds] = await Promise.all([
     db.brand.findMany({ select: { id: true, name: true, s1Id: true }, orderBy: { name: "asc" } }),
     db.product.groupBy({ by: ["brandId"], _count: { _all: true } }),
     db.s1SpecGroup.findMany({ where: { missing: false, active: true, cat1: { not: null }, cat2: { not: null } }, select: { s1Id: true, name: true }, orderBy: { name: "asc" } }),
     itemWriteEnabled(),
     db.pendingItem.count({ where: { status: { in: ["pending", "error"] } } }),
     db.markupRule.count({ where: { active: true } }),
+    db.supplierFeed.count(),
   ]);
   const count = new Map(counts.map((c) => [c.brandId, c._count._all]));
   const canWrite = can(user.permissions, "catalog.products.write");
@@ -33,6 +34,7 @@ export default async function TemplatesPage() {
       <nav data-help="templates.foreign" aria-label="Εισαγωγή από άλλο Excel" className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))]">
         {[
           { href: "/admin/catalog/templates/import", Icon: FileUp, title: "Εισαγωγή από άλλο Excel", text: "Τιμοκατάλογος ή λίστα προμηθευτή σε δική του μορφή: αντιστοιχίζεις τις στήλες, συμπληρώνονται μόνο τα κενά.", badge: null, show: canWrite },
+          { href: "/admin/catalog/templates/xml", Icon: FileCode2, title: "XML προμηθευτές", text: "XML feed προμηθευτή: φορτώνει όλα τα προϊόντα του σε λίστα ελέγχου, η αντιστοίχιση αποθηκεύεται και το επόμενο τρέξιμο είναι ένα πάτημα.", badge: feeds ? `${feeds} ${feeds === 1 ? "feed" : "feeds"}` : null, show: canWrite },
           { href: "/admin/catalog/templates/nea-eidi", Icon: PackagePlus, title: "Νέα είδη προς δημιουργία", text: "Είδη από τα excel που δεν υπάρχουν στο SoftOne — συμπλήρωση και έγκριση.", badge: pending ? `${pending} σε αναμονή` : null, show: true },
           { href: "/admin/catalog/templates/kanones-timon", Icon: Percent, title: "Κανόνες τιμολόγησης", text: "Markup από το κόστος στην τιμή web: γενικός κανόνας και εξαιρέσεις ανά μάρκα / κατηγορία.", badge: `${rules} ενεργοί`, show: true },
         ].filter((x) => x.show).map(({ href, Icon, title, text, badge }) => (
