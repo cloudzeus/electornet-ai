@@ -1,0 +1,68 @@
+import "server-only";
+import { db } from "@/lib/db";
+import { getBrowserRows } from "@/lib/softone/lookups";
+import { parseSupplierRow, matchesQuery, dedupeSuppliers, type SupplierRow } from "@/lib/catalog/xml-import/suppliers-core";
+
+/**
+ * Cache των προμηθευτών του SoftOne, ώστε ο οδηγός «XML προμηθευτές» να ανοίγει χωρίς να περιμένει το ERP.
+ * ΜΟΝΟ ΑΝΑΓΝΩΣΕΙΣ από το SoftOne — καμία εγγραφή.
+ *
+ * Η λίστα έρχεται από τον browser του αντικειμένου `SUPPLIER` (664 εγγραφές): το `SOSOURCE` δεν είναι πεδίο του TRDR
+ * εδώ, άρα `GetTable TRDR` με φίλτρο προμηθευτών δεν γίνεται. Τα πεδία τα καθαρίζει το `suppliers-core`.
+ */
+
+/** Στήλες του browser, με τη σειρά που τις περιμένει το `parseSupplierRow`. */
+const COLS = ["ZOOMINFO", "SUPPLIER.CODE", "SUPPLIER.NAME", "SUPPLIER.AFM"];
+
+export async function syncSuppliers(): Promise<{ added: number; updated: number; duplicates: number; unreadable: number }> {
+  const rows = await getBrowserRows("SUPPLIER", COLS, "");
+  const readable = rows.map(parseSupplierRow).filter((s): s is SupplierRow => !!s);
+  const parsed = dedupeSuppliers(readable);
+  // Δύο διαφορετικά πράγματα, και τα δύο αξίζει να φαίνονται: γραμμές που ο browser έδωσε δύο φορές (αναμενόμενο,
+  // ~οι μισές) και γραμμές που δεν διαβάστηκαν καθόλου (θα έπρεπε να είναι 0 — αν δεν είναι, άλλαξε κάτι στο ERP).
+  const unreadable = rows.length - readable.length;
+  const duplicates = readable.length - parsed.length;
+
+  const existing = await db.supplier.findMany({ select: { id: true, s1Trdr: true, code: true, name: true, afm: true } });
+  const byTrdr = new Map(existing.map((e) => [e.s1Trdr, e]));
+  const now = new Date();
+
+  const fresh = parsed.filter((s) => !byTrdr.has(s.s1Trdr));
+  if (fresh.length) await db.supplier.createMany({ data: fresh.map((s) => ({ ...s, lastSyncedAt: now })) });
+
+  // Ενημέρωση μόνο όπου κάτι άλλαξε πραγματικά — ο πίνακας είναι σε απομακρυσμένη βάση.
+  let updated = 0;
+  for (const s of parsed) {
+    const was = byTrdr.get(s.s1Trdr);
+    if (!was || (was.code === s.code && was.name === s.name && was.afm === s.afm)) continue;
+    await db.supplier.update({ where: { id: was.id }, data: { ...s, lastSyncedAt: now } });
+    updated++;
+  }
+  return { added: fresh.length, updated, duplicates, unreadable };
+}
+
+export interface SupplierListItem {
+  id: string;
+  s1Trdr: number;
+  code: string;
+  name: string;
+  afm: string | null;
+  feed: { id: string; url: string; lastRunAt: Date | null; lastCount: number | null } | null;
+}
+
+/**
+ * Οι προμηθευτές με το feed τους, για το βήμα ①. Η αναζήτηση γίνεται στη μνήμη (664 εγγραφές) και όχι σε SQL, ώστε το
+ * «βαγιωνης» να βρίσκει το «ΒΑΓΙΩΝΗΣ» — η Postgres δεν αγνοεί τόνους χωρίς επέκταση.
+ */
+export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
+  const all = await db.supplier.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true, s1Trdr: true, code: true, name: true, afm: true,
+      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true } },
+    },
+  });
+  return all
+    .filter((s) => matchesQuery(s, q))
+    .map(({ feeds, ...s }) => ({ ...s, feed: feeds[0] ?? null }));
+}
