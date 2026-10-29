@@ -7,6 +7,7 @@ import { UserError, configToSaved, configForHeaders, type MappingConfig, type Sa
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
 import { applyTransform, type Transform, type PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import { diffItems, type Diff } from "@/lib/catalog/xml-import/diff-core";
+import { statusFor } from "@/lib/catalog/xml-import/skip-core";
 
 /**
  * Το feed ενός προμηθευτή: έλεγχος, αποθήκευση αντιστοίχισης, φόρτωση σε `SupplierFeedItem`, και λίστα με φίλτρα.
@@ -34,6 +35,11 @@ export interface FeedConfig {
    * μάλιστα στο AI.
    */
   ignored?: string[];
+  /**
+   * Μάρκες του προμηθευτή που ο χρήστης αποφάσισε να ΜΗΝ εισάγει. Τα προϊόντα τους φορτώνονται (για να φαίνεται τι
+   * αφήνουμε απ' έξω) αλλά δεν μπαίνουν ποτέ στην ουρά.
+   */
+  skipBrands?: string[];
   priceMode: PriceMode;
   toSoftone: boolean;
 }
@@ -71,7 +77,7 @@ export async function inspectFeed(url: string, source: FeedSource = storedOrDown
 export async function saveFeed(
   supplierId: string,
   url: string,
-  input: { config: MappingConfig; headers: string[]; transforms: Record<string, Transform>; priceMode: PriceMode; toSoftone: boolean; minFetchMin?: number },
+  input: { config: MappingConfig; headers: string[]; transforms: Record<string, Transform>; priceMode: PriceMode; toSoftone: boolean; minFetchMin?: number; skipBrands?: string[] },
   staffId: string | null,
 ): Promise<string> {
   const supplier = await db.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
@@ -81,6 +87,7 @@ export async function saveFeed(
     headers: input.headers,
     transforms: input.transforms,
     ignored: input.headers.filter((_, i) => { const t = input.config.columns[i]; return !t || t.kind === "ignore"; }),
+    skipBrands: input.skipBrands ?? [],
     priceMode: input.priceMode,
     toSoftone: input.toSoftone,
   };
@@ -110,6 +117,7 @@ function roles(cfg: FeedConfig, headers: string[]) {
     sku: idx((t) => is(t, "field") && (t as { key: string }).key === "code")[0] ?? headers.indexOf("SKU"),
     images: idx((t) => is(t, "media") && (t as { type: string }).type === "image"),
     category: idx((t) => is(t, "category"))[0] ?? headers.indexOf(CATEGORY_PAIR),
+    brand: idx((t) => is(t, "brand"))[0] ?? -1,
   };
 }
 
@@ -119,6 +127,8 @@ export interface RunResult {
   problems: number;
   /** πόσα προϊόντα του feed είχαν διορθώσεις που συγκρούονται με τη νέα τιμή */
   conflicts: number;
+  /** πόσα προϊόντα παραλείπονται επειδή η μάρκα τους δεν εισάγεται */
+  skipped: number;
 }
 
 /**
@@ -143,22 +153,24 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
       payload,
       pos: n + 1,
       images: r.images.map((i) => row[i]).filter(Boolean),
+      brand: (r.brand >= 0 ? row[r.brand] : "")?.trim() ?? "",
     };
   });
 
-  const existing = await db.supplierFeedItem.findMany({ where: { feedId }, select: { id: true, sku: true, payload: true, edits: true } });
+  const existing = await db.supplierFeedItem.findMany({ where: { feedId }, select: { id: true, sku: true, payload: true, edits: true, status: true } });
+  const skipSet = new Set((feed.cfg.skipBrands ?? []).map((b) => b.trim()).filter(Boolean));
   const rows = diffItems(incoming.map(({ sku, payload, pos }) => ({ sku, payload, pos })), existing.map((e) => ({ sku: e.sku, payload: (e.payload ?? {}) as Record<string, string> })));
   const bySku = new Map(existing.map((e) => [e.sku, e]));
   const incBySku = new Map<string, (typeof incoming)[number]>();
   incoming.forEach((it, n) => { const k = it.sku.trim() || `#${n + 1}`; if (!incBySku.has(k)) incBySku.set(k, it); });
 
   const counts: Record<Diff, number> = { new: 0, changed: 0, same: 0, gone: 0 };
-  let problems = 0, conflicts = 0;
+  let problems = 0, conflicts = 0, skipped = 0;
   const fresh: { feedId: string; sku: string; payload: object; images: object; diff: string; status: string; problem: string | null }[] = [];
   // Η βάση είναι απομακρυσμένη: 2.580 ξεχωριστά update θα ήταν 2.580 γύροι. Ξεχωριστή εγγραφή γίνεται ΜΟΝΟ όπου
   // άλλαξε πραγματικά το payload· τα «same» και τα «gone» πάνε με μαζικά updateMany.
-  const sameIds: string[] = [], goneIds: string[] = [];
-  const changed: { id: string; payload: Record<string, string>; problem: string | null }[] = [];
+  const sameIds: string[] = [], goneIds: string[] = [], toSkip: string[] = [], toReview: string[] = [];
+  const changed: { id: string; payload: Record<string, string>; problem: string | null; status: string }[] = [];
 
   for (const row of rows) {
     counts[row.diff]++;
@@ -171,24 +183,35 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
     }
     const it = incBySku.get(row.sku);
     if (!it) continue;
+    const skip = !!it.brand && skipSet.has(it.brand);
+    if (skip) skipped++;
     if (!was) {
-      fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: row.problem ? "error" : "review", problem: row.problem ?? null });
+      fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: statusFor(null, { problem: !!row.problem, skip })!, problem: row.problem ?? null });
       continue;
     }
     const edits = (was.edits ?? null) as Record<string, string> | null;
     if (edits) for (const [k, mine] of Object.entries(edits)) if (it.payload[k] !== undefined && it.payload[k] !== mine) { conflicts++; break; }
     // Το payload ξαναγράφεται· τα edits ΔΕΝ αγγίζονται.
-    if (row.diff === "same") sameIds.push(was.id);
-    else changed.push({ id: was.id, payload: it.payload, problem: row.problem ?? null });
+    if (row.diff === "same") {
+      sameIds.push(was.id);
+      // Η παράλειψη ανάβει και σβήνει χωρίς νέο κατέβασμα: ο χρήστης αλλάζει γνώμη και ξαναπερνά το αποθηκευμένο XML.
+      const next = statusFor(was.status, { problem: !!row.problem, skip });
+      if (next === "skipped") toSkip.push(was.id);
+      else if (next === "review") toReview.push(was.id);
+    } else {
+      changed.push({ id: was.id, payload: it.payload, problem: row.problem ?? null, status: skip ? "skipped" : "review" });
+    }
   }
 
   for (let i = 0; i < fresh.length; i += CHUNK) await db.supplierFeedItem.createMany({ data: fresh.slice(i, i + CHUNK) });
   for (let i = 0; i < sameIds.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: sameIds.slice(i, i + CHUNK) }, diff: { not: "same" } }, data: { diff: "same" } });
   for (let i = 0; i < goneIds.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: goneIds.slice(i, i + CHUNK) }, diff: { not: "gone" } }, data: { diff: "gone" } });
-  for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: "review" } });
+  for (let i = 0; i < toSkip.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: toSkip.slice(i, i + CHUNK) } }, data: { status: "skipped" } });
+  for (let i = 0; i < toReview.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: toReview.slice(i, i + CHUNK) } }, data: { status: "review" } });
+  for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: c.status } });
 
   await db.supplierFeed.update({ where: { id: feedId }, data: { lastRunAt: new Date(), lastCount: incoming.length } });
-  return { total: rows.length, counts, problems, conflicts };
+  return { total: rows.length, counts, problems, conflicts, skipped };
 }
 
 export const PAGE = 50;

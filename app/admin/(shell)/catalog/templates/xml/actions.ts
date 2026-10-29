@@ -14,6 +14,7 @@ import { inspectFeed, loadFeed, runFeed, saveFeed, listItems, type FeedSource, t
 import { feedBytes, snapshotState } from "@/lib/catalog/xml-import/snapshot";
 import { clampMinFetch, type FetchIntent } from "@/lib/catalog/xml-import/cache-core";
 import { pendingValues } from "@/lib/catalog/xml-import/values";
+import { mergeBrandMap, splitBrandMap } from "@/lib/catalog/xml-import/skip-core";
 import { publishList, publishProducts, type PublishFilter } from "@/lib/catalog/xml-import/publish";
 import { drain, enqueue, progress, type Selection } from "@/lib/catalog/xml-import/queue";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
@@ -141,7 +142,7 @@ export async function remap(feedId: string): Promise<(SuggestDTO & { url: string
     const got = await bytesOf(feed.url, "reuse", feed.minFetchMin);
     const dto = await buildSuggestDTO(got.bytes, {
       saved: { targets, labels, transforms: feed.cfg.transforms ?? {}, categoryMap: saved.categoryMap ?? {} },
-      maps: { brand: saved.brandMap ?? {}, unit: saved.unitMap ?? {}, mark: saved.markMap ?? {} },
+      maps: { brand: mergeBrandMap(saved.brandMap ?? {}, feed.cfg.skipBrands ?? []), unit: saved.unitMap ?? {}, mark: saved.markMap ?? {} },
       settings: {
         priceMode: feed.priceMode === "retail" ? "retail" : "cost",
         toSoftone: feed.toSoftone,
@@ -183,7 +184,7 @@ export interface SaveInput {
  * Αποθήκευση αντιστοίχισης **και** πρώτη φόρτωση των προϊόντων. Ένα κουμπί: η αντιστοίχιση χωρίς φόρτωση δεν έχει
  * νόημα για τον χρήστη, και η λήψη είναι ήδη στη μνήμη.
  */
-export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { run: { total: number; counts: Record<Diff, number>; problems: number; conflicts: number } }) | Fail> {
+export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { run: RunDTO }) | Fail> {
   const user = await requirePermission("catalog.products.write");
   return guard("save", async () => {
     const url = String(input.url ?? "").trim();
@@ -202,14 +203,16 @@ export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { ru
     if (!Object.values(columns).some((t) => t.kind === "field" && t.key === "code")) {
       throw new UserError("Καμία στήλη δεν είναι το SKU. Χωρίς αυτό τα προϊόντα δεν έχουν κλειδί — διάλεξε τη στήλη «SKU / κωδικός είδους».");
     }
+    // «Παράλειψη» δεν είναι μάρκα: βγαίνει από τον χάρτη και γίνεται λίστα του feed, αλλιώς θα πήγαινε για έλεγχο ως id.
+    const { brandMap, skipBrands } = splitBrandMap(input.brandMap ?? {});
     const config: MappingConfig = {
       columns,
-      brandMap: input.brandMap ?? {}, categoryMap: input.categoryMap ?? {}, unitMap: input.unitMap ?? {}, markMap: input.markMap ?? {},
+      brandMap, categoryMap: input.categoryMap ?? {}, unitMap: input.unitMap ?? {}, markMap: input.markMap ?? {},
       sheetUnitId: input.unitId || null, sheetMarkId: input.markId || null,
     };
     await assertConfigIds(config);
     const mode: PriceMode = input.priceMode === "retail" ? "retail" : "cost";
-    const feedId = await saveFeed(input.supplierId, url, { config, headers, transforms, priceMode: mode, toSoftone: !!input.toSoftone, minFetchMin }, user.id);
+    const feedId = await saveFeed(input.supplierId, url, { config, headers, transforms, priceMode: mode, toSoftone: !!input.toSoftone, minFetchMin, skipBrands }, user.id);
     const run = await runFeed(feedId, got.asSource);
     await audit(user.id, "catalog.xml-import.run", "SupplierFeed", feedId, null, { url, ...run });
     return ok({ ...(await state(feedId)), run });
@@ -250,11 +253,16 @@ export async function feedState(feedId: string): Promise<FeedStateDTO | Fail> {
   return guard("state", async () => ok(await state(String(feedId))));
 }
 
-export interface RerunResult {
+export interface RunDTO {
   total: number;
   counts: Record<Diff, number>;
   problems: number;
   conflicts: number;
+  /** προϊόντα που δεν θα μπουν επειδή η μάρκα τους παραλείπεται */
+  skipped: number;
+}
+
+export interface RerunResult extends RunDTO {
   source: SourceDTO;
 }
 
@@ -313,11 +321,12 @@ export async function items(feedId: string, filter: Partial<ItemFilter>, except:
       ...(f.problems ? { problem: { not: null } } : {}),
       ...(f.q ? { sku: { contains: f.q, mode: "insensitive" as const } } : {}),
     };
-    const [exceptionsHere, problemsHere] = await Promise.all([
+    const [exceptionsHere, problemsHere, skippedHere] = await Promise.all([
       skus.length ? db.supplierFeedItem.count({ where: { ...where, sku: { in: skus } } }) : 0,
       db.supplierFeedItem.count({ where: { ...where, problem: { not: null } } }),
+      db.supplierFeedItem.count({ where: { ...where, status: "skipped" } }),
     ]);
-    return ok<ItemsDTO>({ rows: r.rows.map(toItem), total: r.total, page: r.page, pages: r.pages, counts: r.counts, exceptionsHere, problemsHere });
+    return ok<ItemsDTO>({ rows: r.rows.map(toItem), total: r.total, page: r.page, pages: r.pages, counts: r.counts, exceptionsHere, problemsHere, skippedHere });
   });
 }
 

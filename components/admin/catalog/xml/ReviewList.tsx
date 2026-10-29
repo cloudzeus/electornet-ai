@@ -41,7 +41,7 @@ const DIFF_CLS: Record<Diff, string> = {
 };
 
 type Chip = { key: string; label: string; n: number; help: string };
-const EMPTY: ItemsDTO = { rows: [], total: 0, page: 1, pages: 1, counts: { diff: {}, status: {}, problems: 0 }, exceptionsHere: 0, problemsHere: 0 };
+const EMPTY: ItemsDTO = { rows: [], total: 0, page: 1, pages: 1, counts: { diff: {}, status: {}, problems: 0 }, exceptionsHere: 0, problemsHere: 0, skippedHere: 0 };
 
 function Status({ s }: { s: string }) {
   return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${STATUS_CLS[s] ?? "bg-eu-surface text-eu-ink-3"}`}>{STATUS_ICON[s]}{STATUS[s] ?? s}</span>;
@@ -80,6 +80,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
     ...(DIFF_ORDER.includes(kind as Diff) ? { diff: kind as Diff } : {}),
     ...(kind === "problems" ? { problems: true } : {}),
     ...(kind === "error" ? { status: "error" } : {}),
+    ...(kind === "skipped" ? { status: "skipped" } : {}),
     ...(query ? { q: query } : {}),
   }), [kind, query]);
 
@@ -106,6 +107,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
     ...DIFF_ORDER.map((d) => ({ key: d, label: DIFF[d].label, n: counts.diff[d] ?? 0, help: DIFF[d].help })),
     { key: "problems", label: "Προβλήματα", n: counts.problems, help: "Χωρίς SKU ή διπλό SKU — δεν μπαίνουν στην ουρά μέχρι να διορθωθεί το feed." },
     { key: "error", label: "Σφάλματα", n: counts.status.error ?? 0, help: "Δοκίμασαν να μπουν και απέτυχαν. Διάβασε το σφάλμα και δοκίμασε ξανά." },
+    ...((counts.status.skipped ?? 0) > 0 ? [{ key: "skipped", label: "Παραλείπονται", n: counts.status.skipped ?? 0, help: "Η μάρκα τους δεν εισάγεται (το επέλεξες στο βήμα «Μάρκες»). Δεν μπαίνουν ποτέ στην ουρά — για να μπουν, άλλαξε τη μάρκα και ξανατρέξε." }] : []),
   ];
 
   /** Τα είδη τιμών που έχουν καινούργιες, άγνωστες τιμές — με τα πολλά προϊόντα πρώτα. */
@@ -117,8 +119,8 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
   const search = (e: React.FormEvent) => { e.preventDefault(); setQuery(q.trim()); setPage(1); };
   const toggleExcept = (sku: string) => setExcept((xs) => (xs.includes(sku) ? xs.filter((s) => s !== sku) : [...xs, sku]));
 
-  /** Πόσα θα μπουν πραγματικά: το φίλτρο, μείον οι εξαιρέσεις του φίλτρου, μείον οι γραμμές με πρόβλημα. */
-  const willImport = Math.max(0, data.total - data.exceptionsHere - data.problemsHere);
+  /** Πόσα θα μπουν πραγματικά: το φίλτρο, μείον οι εξαιρέσεις, μείον όσες έχουν πρόβλημα, μείον όσες παραλείπονται. */
+  const willImport = Math.max(0, data.total - data.exceptionsHere - data.problemsHere - data.skippedHere);
 
   const costHeader = Object.keys(state.targets).find((h) => state.targets[h] === "cost");
   const rrpHeader = Object.keys(state.targets).find((h) => state.targets[h] === "rrp");
@@ -161,7 +163,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
   /** «Νέο τρέξιμο»: με νέα λήψη (`fresh`) ή ξανά πάνω στο αποθηκευμένο XML. Το μήνυμα λέει πάντα από πού ήρθαν τα δεδομένα. */
   const again = (fresh: boolean) =>
     act(() => rerun(state.feedId, fresh), (r) => {
-      setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
+      setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.skipped ? ` · ${r.skipped} παραλείπονται (μάρκα που δεν εισάγεται)` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
       void load(1);
     });
 
@@ -262,6 +264,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
           <span>θα εισαχθούν — όλα όσα ταιριάζουν στο φίλτρο «{chips.find((c) => c.key === kind)?.label}»{query ? ` με «${query}»` : ""}</span>
           {data.exceptionsHere > 0 && <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{data.exceptionsHere} {data.exceptionsHere === 1 ? "εξαίρεση" : "εξαιρέσεις"}</span>}
           {data.problemsHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/30 px-2 py-0.5 font-bold text-eu-ink text-[length:var(--fs-12)] tabular-nums"><AlertTriangle className="size-3" aria-hidden />{data.problemsHere} με πρόβλημα δεν μπαίνουν</span>}
+          {data.skippedHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 font-bold text-eu-ink-2 text-[length:var(--fs-12)] tabular-nums"><X className="size-3" aria-hidden />{data.skippedHere} παραλειπόμενης μάρκας</span>}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-start gap-2 cursor-pointer min-h-11 md:min-h-9 min-w-0">

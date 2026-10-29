@@ -6,6 +6,7 @@ import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPic
 import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, type ColDTO, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
 import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
 import { initLabels, initPicks, initSettings, initTargets, initTransforms } from "@/lib/catalog/xml-import/map-init";
+import { SKIP } from "@/lib/catalog/xml-import/skip-core";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -144,7 +145,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
     dupNow.length ? { step: "cols" as MapStep, text: `Δύο ή περισσότερες στήλες δείχνουν στον ίδιο στόχο (${dupNow.map((d) => d.label).join(", ")}) — η μία θα έγραφε πάνω στην άλλη.` } : null,
     specNoLabel.length ? { step: "specs" as MapStep, text: `${specNoLabel.length} ${specNoLabel.length === 1 ? "χαρακτηριστικό" : "χαρακτηριστικά"} χωρίς ονομασία.` } : null,
     sets.brand.tooMany ? { step: "brands" as MapStep, text: `Η στήλη μάρκας «${sets.brand.header}» έχει πάνω από ${MAX_VALUES} διαφορετικές τιμές — δεν είναι μάρκα. Βάλ' την «Αγνόηση» ή «Χαρακτηριστικό».` } : null,
-    missing("brand") ? { step: "brands" as MapStep, text: `${missing("brand")} ${missing("brand") === 1 ? "μάρκα" : "μάρκες"} του feed δεν έχουν δική μας αντιστοίχιση.` } : null,
+    missing("brand") ? { step: "brands" as MapStep, text: `${missing("brand")} ${missing("brand") === 1 ? "μάρκα" : "μάρκες"} του feed δεν έχουν απάντηση — διάλεξε δική μας μάρκα ή «Παράλειψη».` } : null,
   ].filter((x): x is { step: MapStep; text: string } => !!x);
 
   // ---- ποια βήματα έχουν νόημα σε αυτό το feed ----
@@ -280,6 +281,7 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
                   </ul>
                 )}
                 <OptionPicker options={options} value={pick} onChange={(id) => m.setPick(kind, r.value, id)} label={`${label} για «${r.value}»`} empty={empty} disabled={busy} />
+                {pick === SKIP && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Τα {r.n > 0 ? `${r.n.toLocaleString("el-GR")} ` : ""}προϊόντα αυτής της μάρκας θα φορτωθούν στη λίστα αλλά <b>δεν θα εισαχθούν</b>.</p>}
               </li>
             );
           })}
@@ -359,9 +361,9 @@ export function StepBrands({ m, brands, busy }: { m: Mapping; brands: PickOpt[];
   const p = m.progress("brands")!;
   return (
     <section data-help="xml.map.brands" className={card} aria-labelledby="xm-brands">
-      <Head id="xm-brands" title="Οι μάρκες του feed" done={p.done} total={p.total} help="Κάθε μάρκα του προμηθευτή δείχνει σε δική μας μάρκα — όσες έχουν το ίδιο όνομα βρέθηκαν μόνες τους. Μάρκες δεν δημιουργούνται από εδώ: αν λείπει, φτιάξε την πρώτα στις Μάρκες και ξαναγύρνα. Χωρίς αντιστοίχιση δεν προχωράει η εισαγωγή." />
-      <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]"><Tags className="size-4 shrink-0 mt-0.5 text-eu-blue" aria-hidden /><span className="min-w-0">Η μάρκα ορίζει και τον κατασκευαστή (MTRMANFCTR) στο SoftOne για τα νέα είδη.</span></p>
-      <ValueRows kind="brand" m={m} options={brands} label="Μάρκα" empty="— χωρίς αντιστοίχιση" busy={busy} />
+      <Head id="xm-brands" title="Οι μάρκες του feed" done={p.done} total={p.total} help="Κάθε μάρκα του προμηθευτή δείχνει σε δική μας μάρκα — όσες έχουν το ίδιο όνομα βρέθηκαν μόνες τους. Μάρκες δεν δημιουργούνται από εδώ. Αν μια μάρκα δεν υπάρχει στο SoftOne και δεν τη θέλεις, διάλεξε «Παράλειψη»: τα προϊόντα της δεν θα σε απασχολήσουν ξανά." />
+      <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]"><Tags className="size-4 shrink-0 mt-0.5 text-eu-blue" aria-hidden /><span className="min-w-0">Η μάρκα ορίζει και τον κατασκευαστή (MTRMANFCTR) στο SoftOne για τα νέα είδη. Κάθε μάρκα θέλει απάντηση — δική μας μάρκα ή «Παράλειψη».</span></p>
+      <ValueRows kind="brand" m={m} options={[{ id: SKIP, name: "Παράλειψη — να μην μπουν τα προϊόντα της", hint: "όταν η μάρκα δεν υπάρχει στο SoftOne και δεν τη θέλουμε" }, ...brands]} label="Μάρκα" empty="— χωρίς αντιστοίχιση" busy={busy} />
     </section>
   );
 }

@@ -139,6 +139,8 @@ export interface ItemsDTO {
   exceptionsHere: number;
   /** γραμμές του φίλτρου που δεν μπαίνουν στην ουρά επειδή έχουν πρόβλημα */
   problemsHere: number;
+  /** γραμμές του φίλτρου που δεν μπαίνουν επειδή η μάρκα τους παραλείπεται */
+  skippedHere: number;
 }
 
 export interface FeedStateDTO {
@@ -230,7 +232,7 @@ export const STATUS: Record<string, string> = {
   importing: "Γίνεται τώρα",
   done: "Μπήκε",
   error: "Σφάλμα",
-  skipped: "Παραλείφθηκε",
+  skipped: "Παραλείπεται",
 };
 
 /** Οι μετατροπές μονάδας που προσφέρει το UI (το `{factor}` μένει για κώδικα, δεν ζητείται από τον χρήστη). */

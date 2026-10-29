@@ -104,7 +104,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (!r) return;
     const s = await run("rerun", () => feedState(feedId));
     if (!s) return;
-    setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
+    setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.skipped ? ` · ${r.skipped} παραλείπονται` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
     setFeed(s); setStep("list");
   };
 
@@ -137,7 +137,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (!picked) return;
     const r = await run("save", () => saveAndRun({ supplierId: picked.id, url: url.trim(), ...m.value() }));
     if (!r) return;
-    setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}.`);
+    setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}${r.run.skipped ? ` · ${r.run.skipped} παραλείπονται (μάρκα που δεν εισάγεται)` : ""}.`);
     setFeed({ ...r });
     setStep("list");
   };

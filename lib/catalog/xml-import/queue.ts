@@ -48,7 +48,9 @@ const whereOf = (feedId: string, f: ItemFilter) => ({
 /** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις. Γραμμές με `problem` δεν μπαίνουν. */
 export async function enqueue(feedId: string, sel: Selection): Promise<{ queued: number; skipped: number }> {
   const feed = await loadFeed(feedId);
-  const where = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}) };
+  // Η παράλειψη είναι απόφαση του χρήστη, όχι φίλτρο: γραμμή παραλειπόμενης μάρκας ΔΕΝ μπαίνει ποτέ στην ουρά, ό,τι
+  // κι αν λέει το φίλτρο. Ο τρόπος να μπει είναι να ξε-παραλειφθεί η μάρκα και να ξανατρέξει το feed.
+  const where = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}), status: { not: "skipped" } };
   const skipped = await db.supplierFeedItem.count({ where: { ...whereOf(feedId, sel.filter), problem: { not: null } } });
   const r = await db.supplierFeedItem.updateMany({ where, data: { status: "queued", error: null } });
   if (feed.toSoftone !== sel.toSoftone) await db.supplierFeed.update({ where: { id: feedId }, data: { toSoftone: sel.toSoftone } });
