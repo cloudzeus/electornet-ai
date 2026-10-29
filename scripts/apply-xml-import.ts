@@ -1,5 +1,5 @@
 /**
- * XML προμηθευτές: πίνακες Supplier / SupplierFeed / SupplierFeedItem. Μόνο προσθήκες, ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
+ * XML προμηθευτές: πίνακες Supplier / SupplierFeed / SupplierFeedItem / FeedSnapshot. Μόνο προσθήκες, ξανατρέχει χωρίς σφάλμα. Σύνδεση: DIRECT_URL.
  *   npx tsx scripts/apply-xml-import.ts
  */
 import "dotenv/config";
@@ -59,6 +59,23 @@ const SQL = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "SupplierFeedItem_feedId_sku_key" ON "SupplierFeedItem"("feedId", "sku")`,
   `CREATE INDEX IF NOT EXISTS "SupplierFeedItem_feedId_status_idx" ON "SupplierFeedItem"("feedId", "status")`,
   `CREATE INDEX IF NOT EXISTS "SupplierFeedItem_feedId_diff_idx" ON "SupplierFeedItem"("feedId", "diff")`,
+  // Νέα: όριο λήψεων ανά feed και ακατέργαστο XML της τελευταίας λήψης.
+  `ALTER TABLE "SupplierFeed" ADD COLUMN IF NOT EXISTS "minFetchMin" INTEGER NOT NULL DEFAULT 30`,
+  `CREATE TABLE IF NOT EXISTS "FeedSnapshot" (
+    "id" TEXT NOT NULL,
+    "urlKey" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "gz" BYTEA NOT NULL,
+    "bytes" INTEGER NOT NULL,
+    "sha256" TEXT NOT NULL,
+    "products" INTEGER,
+    "fetchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "FeedSnapshot_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "FeedSnapshot_urlKey_key" ON "FeedSnapshot"("urlKey")`,
+  `CREATE INDEX IF NOT EXISTS "FeedSnapshot_fetchedAt_idx" ON "FeedSnapshot"("fetchedAt")`,
   // Τα ξένα κλειδιά μπαίνουν χωριστά: ο πίνακας μπορεί να υπάρχει από προηγούμενη εκτέλεση χωρίς αυτά.
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierFeed_supplierId_fkey') THEN
@@ -73,7 +90,7 @@ const SQL = [
      END IF;
    END $$`,
 ];
-const TABLES = ["Supplier", "SupplierFeed", "SupplierFeedItem"];
+const TABLES = ["Supplier", "SupplierFeed", "SupplierFeedItem", "FeedSnapshot"];
 (async () => {
   const exist = () => db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM information_schema.tables WHERE table_schema = current_schema() AND table_name IN (${TABLES.map((t) => `'${t}'`).join(",")})`);
   const before = Number((await exist())[0].n);

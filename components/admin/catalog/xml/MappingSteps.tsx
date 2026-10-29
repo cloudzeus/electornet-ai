@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CircleAlert, Loader2, Play, Search, Sparkles, Tags } from "lucide-react";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
-import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, transformValue, type ColDTO, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
+import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, type ColDTO, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
+import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
+import { initLabels, initPicks, initSettings, initTargets, initTransforms } from "@/lib/catalog/xml-import/map-init";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -30,6 +32,8 @@ export interface MappingValue {
   markId: string | null;
   priceMode: PriceMode;
   toSoftone: boolean;
+  /** ελάχιστα λεπτά ανάμεσα σε δύο λήψεις του feed — το όριο του προμηθευτή */
+  minFetchMin: number;
 }
 
 interface ValueRow { value: string; n: number; ex: string[] }
@@ -47,20 +51,34 @@ const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` 
 export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   const { cols, cats, specs, duplicates } = suggestion;
 
-  const [targets, setTargets] = useState<Record<string, string>>(() => Object.fromEntries(cols.map((c) => [c.header, c.target])));
-  const [labels, setLabels] = useState<Record<string, string>>(() => Object.fromEntries(cols.map((c) => {
-    const s = specs.find((x) => x.label === c.label);
-    return [c.header, (s?.to ?? "") || c.label];
-  })));
-  const [transforms, setTransforms] = useState<Record<string, string>>(() => Object.fromEntries(cols.map((c) => [c.header, transformValue(c.transform)])));
-  const [picks, setPicks] = useState<Record<ValueKind, Record<string, string | null>>>(() => ({
-    brand: {}, unit: {}, mark: {},
-    category: Object.fromEntries(cats.map((c) => [c.value, c.categoryId])),
-  }));
-  const [unitId, setUnitId] = useState<string | null>(null);
-  const [markId, setMarkId] = useState<string | null>(null);
-  const [priceMode, setPriceMode] = useState<PriceMode>("cost");
-  const [toSoftone, setToSoftone] = useState(false);
+  const [targets, setTargets] = useState<Record<string, string>>(() => initTargets(suggestion));
+  const [labels, setLabels] = useState<Record<string, string>>(() => initLabels(suggestion));
+  const [transforms, setTransforms] = useState<Record<string, string>>(() => initTransforms(suggestion));
+  const [picks, setPicks] = useState<Record<ValueKind, Record<string, string | null>>>(() => initPicks(suggestion));
+  const [unitId, setUnitId] = useState<string | null>(() => initSettings(suggestion).unitId);
+  const [markId, setMarkId] = useState<string | null>(() => initSettings(suggestion).markId);
+  const [priceMode, setPriceMode] = useState<PriceMode>(() => initSettings(suggestion).priceMode);
+  const [toSoftone, setToSoftone] = useState(() => initSettings(suggestion).toSoftone);
+  const [minFetchMin, setMinFetchMin] = useState(() => initSettings(suggestion).minFetchMin);
+
+  /**
+   * Νέα πρόταση → νέες επιλογές.
+   *
+   * Ο οδηγός αποδίδεται πρώτα **χωρίς** πρόταση (ο χρήστης είναι ακόμη στον προμηθευτή), άρα οι αρχικές τιμές από πάνω
+   * είναι άδειες. Χωρίς αυτό το σημείο έμεναν άδειες για πάντα: κάθε στήλη φαινόταν «Αγνόηση» και ο οδηγός δεν
+   * μπορούσε να αποθηκεύσει καμία αντιστοίχιση. Η προσαρμογή κατάστασης μέσα στην απόδοση είναι ο τρόπος που ορίζει
+   * το React γι' αυτό (η απόδοση ξαναγίνεται αμέσως, πριν φανεί οτιδήποτε).
+   */
+  const [shown, setShown] = useState(suggestion);
+  if (shown !== suggestion) {
+    setShown(suggestion);
+    setTargets(initTargets(suggestion));
+    setLabels(initLabels(suggestion));
+    setTransforms(initTransforms(suggestion));
+    setPicks(initPicks(suggestion));
+    const st = initSettings(suggestion);
+    setUnitId(st.unitId); setMarkId(st.markId); setPriceMode(st.priceMode); setToSoftone(st.toSoftone); setMinFetchMin(st.minFetchMin);
+  }
 
   const byHeader = useMemo(() => new Map(cols.map((c) => [c.header, c])), [cols]);
   const of = (h: string) => targets[h] ?? "ignore";
@@ -77,7 +95,8 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   const catN = useMemo(() => new Map(cats.map((c) => [c.value, c.n])), [cats]);
 
   const pickOf = (k: ValueKind, v: string): string | null => {
-    if (v in picks[k]) return picks[k][v];
+    // Object.hasOwn: τιμή «constructor» / «toString» δεν είναι επιλογή του χρήστη
+    if (Object.hasOwn(picks[k], v)) return picks[k][v];
     return k === "brand" ? brandByName.get(plain(v)) ?? null : null;
   };
   const setPick = (k: ValueKind, v: string, id: string | null) => setPicks((p) => ({ ...p, [k]: { ...p[k], [v]: id } }));
@@ -149,14 +168,14 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
     categoryMap: Object.fromEntries(sets.category.rows.map((r) => [r.value, pickOf("category", r.value)])),
     unitMap: Object.fromEntries(sets.unit.rows.map((r) => [r.value, pickOf("unit", r.value)])),
     markMap: Object.fromEntries(sets.mark.rows.map((r) => [r.value, pickOf("mark", r.value)])),
-    unitId, markId, priceMode, toSoftone,
+    unitId, markId, priceMode, toSoftone, minFetchMin,
   });
 
   return {
     cols, specs, duplicates, dupNow, fieldCols, specCols, sets, steps, blockers, progress, value,
-    targets, labels, transforms, priceMode, toSoftone, unitId, markId,
+    targets, labels, transforms, priceMode, toSoftone, unitId, markId, minFetchMin,
     of, isSpec, unsure, pickOf, setPick, missing,
-    setTargets, setLabels, setTransforms, setPriceMode, setToSoftone, setUnitId, setMarkId,
+    setTargets, setLabels, setTransforms, setPriceMode, setToSoftone, setUnitId, setMarkId, setMinFetchMin,
   };
 }
 
@@ -447,6 +466,16 @@ export function StepFinish({ m, units, marks, writeOn, busy, error, onSubmit }: 
             <ValueRows kind="mark" m={m} options={marks} label="Σήμανση" empty="— η σήμανση του feed" busy={busy} />
           </div>
         )}
+      </section>
+
+      <section data-help="xml.map.limit" className={card} aria-labelledby="xm-limit">
+        <Head id="xm-limit" title="Πόσο συχνά κατεβαίνει το feed" help="Οι προμηθευτές βάζουν όριο στις λήψεις — ο ένας που δοκιμάσαμε δέχεται δύο την ώρα και μετά απαντά «πάρα πολλά αιτήματα». Το XML της τελευταίας λήψης μένει αποθηκευμένο, άρα αλλαγή αντιστοίχισης και νέα φόρτωση γίνονται χωρίς να τον ξαναενοχλήσουμε." />
+        <label className="grid gap-1 max-w-xs min-w-0">
+          <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Μία λήψη κάθε … λεπτά</span>
+          <input type="number" min={0} max={1440} step={5} value={m.minFetchMin} disabled={busy} inputMode="numeric"
+            onChange={(e) => m.setMinFetchMin(clampMinFetch(Number(e.target.value)))} className={input} />
+          <span className="text-eu-muted text-[length:var(--fs-12)]">{m.minFetchMin === 0 ? "Χωρίς όριο: κάθε «Νέο τρέξιμο» κατεβάζει το feed." : `Μέσα στα ${m.minFetchMin} λεπτά, το «Νέο τρέξιμο» ξαναδιαβάζει το αποθηκευμένο XML αντί να κατεβάσει.`}</span>
+        </label>
       </section>
 
       <section data-help="xml.map.softone" className={card} aria-labelledby="xm-s1">

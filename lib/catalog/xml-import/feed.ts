@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { fetchPublicBytes } from "@/lib/net/safe-fetch";
+import { MAX_FEED_BYTES } from "@/lib/catalog/xml-import/download";
+import { feedBytes, setSnapshotProducts } from "@/lib/catalog/xml-import/snapshot";
+import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
 import { UserError, configToSaved, configForHeaders, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
 import { applyTransform, type Transform, type PriceMode } from "@/lib/catalog/xml-import/transform-core";
@@ -16,9 +18,7 @@ import { diffItems, type Diff } from "@/lib/catalog/xml-import/diff-core";
  * σημαίνεται `gone` — χωρίς καμία επίπτωση στα δικά μας προϊόντα.
  */
 
-/** Όριο λήψης feed. Το δείγμα της Estia είναι 6,8 MB· 40 MB καλύπτει πολύ μεγαλύτερους καταλόγους. */
-export const MAX_FEED_BYTES = 40 * 1024 * 1024;
-const FEED_TIMEOUT_MS = 120_000;
+export { MAX_FEED_BYTES };
 const CHUNK = 500;
 
 export interface FeedConfig {
@@ -28,6 +28,12 @@ export interface FeedConfig {
   headers: string[];
   /** μετατροπή μονάδας ανά επικεφαλίδα */
   transforms: Record<string, Transform>;
+  /**
+   * Οι επικεφαλίδες που ο χρήστης άφησε ρητά «Αγνόηση». Το `configToSaved` κρατά μόνο τις στήλες που έχουν στόχο, άρα
+   * χωρίς αυτό η «αγνόηση» δεν θα ήταν απόφαση: στο επόμενο άνοιγμα της αντιστοίχισης η στήλη θα ξαναρωτιόταν — και
+   * μάλιστα στο AI.
+   */
+  ignored?: string[];
   priceMode: PriceMode;
   toSoftone: boolean;
 }
@@ -40,31 +46,19 @@ export interface Inspection {
   bytes: number;
 }
 
-async function download(url: string): Promise<Buffer> {
-  const { bytes } = await fetchPublicBytes(url, { max: MAX_FEED_BYTES, accept: "application/xml,text/xml,*/*", timeoutMs: FEED_TIMEOUT_MS }).catch((e) => {
-    const msg = e instanceof Error ? e.message : "άγνωστο σφάλμα";
-    // Οι προμηθευτές βάζουν όριο στις λήψεις (δοκιμασμένο: δύο τρεξίματα στη σειρά → 429). Να το καταλαβαίνει ο
-    // χρήστης ως «περίμενε», όχι ως «χάλασε κάτι».
-    if (/\b429\b/.test(msg)) throw new UserError("Ο server του προμηθευτή απάντησε «πάρα πολλά αιτήματα» (429) — περίμενε λίγα λεπτά και ξαναδοκίμασε. Τα προϊόντα που έχουν ήδη φορτωθεί δεν χάθηκαν.");
-    throw new UserError(`Δεν κατέβηκε το feed: ${msg}`);
-  });
-  return bytes;
-}
-
 /**
- * Από πού έρχονται τα bytes του feed. Εξ ορισμού από το δίκτυο· η παράμετρος υπάρχει για να μπορεί να ελεγχθεί η
- * φόρτωση και το diff **χωρίς** να χτυπιέται ο server του προμηθευτή — που βάζει όριο (429) και δεν ξέρουμε πόσο κρατά.
+ * Από πού έρχονται τα bytes του feed. Εξ ορισμού από το **αποθηκευμένο XML** της τελευταίας λήψης (`FeedSnapshot`),
+ * και μόνο αν δεν υπάρχει γίνεται λήψη: ο προμηθευτής βάζει όριο (ο δοκιμασμένος: 2 λήψεις την ώρα) και τα βήματα του
+ * οδηγού θέλουν πολλές φορές τα ίδια bytes. Η παράμετρος υπάρχει ώστε ο καλών να ζητήσει ρητά νέα λήψη — και για να
+ * ελέγχεται η φόρτωση χωρίς δίκτυο.
  */
 export type FeedSource = (url: string) => Promise<Buffer>;
 
-/**
- * Η προεπιλεγμένη πηγή, εκτεθειμένη: ο οδηγός κρατά τα bytes της μίας λήψης και τα μοιράζει στα τρία βήματα (έλεγχος →
- * προτάσεις → φόρτωση), ώστε να μη χτυπά τρεις φορές τον server του προμηθευτή (429).
- */
-export const fetchFeedBytes: FeedSource = download;
+/** Η προεπιλεγμένη πηγή: ό,τι έχουμε αποθηκευμένο, αλλιώς λήψη. */
+export const storedOrDownload: FeedSource = async (url) => (await feedBytes(url, { intent: "reuse" })).bytes;
 
 /** Βήμα ②: τι περιέχει το feed, χωρίς να αποθηκευτεί τίποτα. */
-export async function inspectFeed(url: string, source: FeedSource = download): Promise<Inspection> {
+export async function inspectFeed(url: string, source: FeedSource = storedOrDownload): Promise<Inspection> {
   const bytes = await source(url);
   const parsed = parseFeed(bytes);
   if (!parsed.counts.products) throw new UserError("Το feed κατέβηκε αλλά δεν βρέθηκε κανένα προϊόν μέσα του.");
@@ -77,7 +71,7 @@ export async function inspectFeed(url: string, source: FeedSource = download): P
 export async function saveFeed(
   supplierId: string,
   url: string,
-  input: { config: MappingConfig; headers: string[]; transforms: Record<string, Transform>; priceMode: PriceMode; toSoftone: boolean },
+  input: { config: MappingConfig; headers: string[]; transforms: Record<string, Transform>; priceMode: PriceMode; toSoftone: boolean; minFetchMin?: number },
   staffId: string | null,
 ): Promise<string> {
   const supplier = await db.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
@@ -86,20 +80,22 @@ export async function saveFeed(
     saved: configToSaved(input.config, input.headers),
     headers: input.headers,
     transforms: input.transforms,
+    ignored: input.headers.filter((_, i) => { const t = input.config.columns[i]; return !t || t.kind === "ignore"; }),
     priceMode: input.priceMode,
     toSoftone: input.toSoftone,
   };
+  const minFetchMin = clampMinFetch(input.minFetchMin ?? 30);
   const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true } });
   if (existing) {
-    await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone } });
+    await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin } });
     return existing.id;
   }
-  const feed = await db.supplierFeed.create({ data: { supplierId, url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, createdById: staffId }, select: { id: true } });
+  const feed = await db.supplierFeed.create({ data: { supplierId, url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin, createdById: staffId }, select: { id: true } });
   return feed.id;
 }
 
 export async function loadFeed(feedId: string) {
-  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, supplier: { select: { id: true, name: true, code: true } } } });
+  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, minFetchMin: true, supplier: { select: { id: true, name: true, code: true } } } });
   if (!feed) throw new UserError("Το feed δεν βρέθηκε.");
   return { ...feed, cfg: feed.config as unknown as FeedConfig };
 }
@@ -129,10 +125,11 @@ export interface RunResult {
  * Κατέβασμα → ανάγνωση → μετατροπές → diff → αποθήκευση. Καμία επαφή με SoftOne και κανένα κατέβασμα φωτογραφίας:
  * αυτά γίνονται στην ουρά εισαγωγής, αφού ο χρήστης ελέγξει τη λίστα.
  */
-export async function runFeed(feedId: string, source: FeedSource = download): Promise<RunResult> {
+export async function runFeed(feedId: string, source: FeedSource = storedOrDownload): Promise<RunResult> {
   const feed = await loadFeed(feedId);
   const parsed = parseFeed(await source(feed.url));
   if (!parsed.counts.products) throw new UserError("Το feed δεν έχει προϊόντα.");
+  await setSnapshotProducts(feed.url, parsed.counts.products);
   const { headers, matrix } = parsed;
   const r = roles(feed.cfg, headers);
 

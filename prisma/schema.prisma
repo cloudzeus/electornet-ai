@@ -2788,6 +2788,8 @@ model SupplierFeed {
   priceMode   String    @default("cost")
   /// προεπιλογή «και στο SoftOne» για την παρτίδα· επιβεβαιώνεται σε κάθε τρέξιμο
   toSoftone   Boolean   @default(false)
+  /// πόσα λεπτά τουλάχιστον ανάμεσα σε δύο λήψεις του feed — ο προμηθευτής βάζει όριο (Estia: 2 την ώρα → 30)
+  minFetchMin Int       @default(30)
   lastRunAt   DateTime?
   lastCount   Int?
   createdById String?
@@ -2801,6 +2803,28 @@ model SupplierFeed {
 }
 
 /// Ένα προϊόν του feed. Το payload είναι ό,τι ήρθε· τα edits είναι οι διορθώσεις του χρήστη και ΔΕΝ χάνονται σε re-run.
+/// Το ακατέργαστο XML της τελευταίας λήψης, ανά διεύθυνση feed. Υπάρχει για δύο λόγους: οι προμηθευτές βάζουν όριο
+/// στις λήψεις (ο δοκιμασμένος: 2 την ώρα), και τα βήματα του οδηγού θέλουν πολλές φορές τα ίδια bytes. Κλειδί είναι η
+/// διεύθυνση, όχι το feed: στο βήμα ② δεν υπάρχει ακόμη γραμμή `SupplierFeed`.
+model FeedSnapshot {
+  id String @id @default(cuid())
+  /// sha256 της διεύθυνσης: η διεύθυνση έχει μέσα apikey και είναι πολύ μεγάλη για μοναδικό ευρετήριο
+  urlKey String @unique
+  url    String
+  /// το XML συμπιεσμένο (gzip)
+  gz Bytes
+  /// μέγεθος του ασυμπίεστου XML
+  bytes Int
+  /// sha256 του ασυμπίεστου XML — ίδιο σημαίνει «ο προμηθευτής δεν άλλαξε τίποτα»
+  sha256    String
+  products  Int?
+  fetchedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fetchedAt])
+}
+
 model SupplierFeedItem {
   id       String   @id @default(cuid())
   feedId   String

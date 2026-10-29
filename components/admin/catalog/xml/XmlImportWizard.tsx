@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CircleAlert, FileCode2, Link2, List, Loader2, Play, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
 import type { PickOpt } from "@/components/admin/catalog/OptionPicker";
-import { mb, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
-import { feedState, findSuppliers, inspect, refreshSuppliers, rerun, saveAndRun, suggest } from "@/app/admin/(shell)/catalog/templates/xml/actions";
+import { mb, sourceNote, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { feedState, findSuppliers, inspect, refreshSuppliers, remap, rerun, saveAndRun, suggest } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
+import { PublishStep } from "./PublishStep";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -16,7 +17,7 @@ const card = "rounded-xl border border-eu-line bg-white p-3 md:p-4 grid gap-3 mi
 const input = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
 
 /** Τα βήματα όλου του οδηγού. Όσα είναι της αντιστοίχισης (`MapStep`) εμφανίζονται μόνο όταν έχουν δουλειά. */
-type Step = "supplier" | "feed" | MapStep | "list";
+type Step = "supplier" | "feed" | MapStep | "list" | "publish";
 const TITLE: Record<Step, string> = {
   supplier: "Προμηθευτής",
   feed: "Feed",
@@ -26,7 +27,14 @@ const TITLE: Record<Step, string> = {
   specs: "Χαρακτηριστικά",
   finish: "Τιμές & ERP",
   list: "Λίστα ελέγχου",
+  publish: "Δημοσίευση",
 };
+
+/**
+ * Σταθερή άδεια πρόταση. **Πρέπει** να είναι μία και η ίδια σε κάθε απόδοση: το `useMapping` ξαναχτίζει τις επιλογές
+ * όταν αλλάξει η ταυτότητα της πρότασης, και ένα νέο αντικείμενο κάθε φορά θα το έβαζε σε ατέρμονο κύκλο.
+ */
+const NO_MAPPING: SuggestDTO = { cols: [], cats: [], specs: [], duplicates: [], aiUsed: false };
 
 const date = (s: string | null) => (s ? new Date(s).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : null);
 
@@ -96,18 +104,33 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (!r) return;
     const s = await run("rerun", () => feedState(feedId));
     if (!s) return;
-    setNote(`Νέο τρέξιμο: ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
+    setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
     setFeed(s); setStep("list");
   };
 
-  const check = async () => {
-    const r = await run("inspect", () => inspect(url.trim()));
+  /** «Έλεγχος»: διαβάζει το αποθηκευμένο XML αν υπάρχει· `fresh` ζητά ρητά νέα λήψη (σέβεται το όριο του προμηθευτή). */
+  const check = async (fresh = false) => {
+    const r = await run("inspect", () => inspect(url.trim(), fresh));
     if (r) setSeen(r);
   };
 
   const toMapping = async () => {
     const r = await run("suggest", () => suggest(url.trim()));
     if (r) { setMapping(r); setStep("cols"); }
+  };
+
+  /**
+   * «Αλλαγή αντιστοίχισης» σε feed που έχει ήδη τρέξει: οι επιλογές έρχονται από το αποθηκευμένο πρότυπο και τα bytes
+   * από το αποθηκευμένο XML — καμία λήψη, κανένα ερώτημα στο AI για ό,τι είναι ήδη αποφασισμένο.
+   */
+  const toRemap = async (feedId: string) => {
+    const r = await run("remap", () => remap(feedId));
+    if (!r) return;
+    setUrl(r.url);
+    setSeen(null);
+    setMapping(r);
+    setNote(r.source ? sourceNote(r.source) : null);
+    setStep("cols");
   };
 
   const save = async () => {
@@ -120,9 +143,9 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   };
 
   // Η κατάσταση της αντιστοίχισης ζει εδώ, πάνω από τα βήματα (το hook καλείται πάντα — `mapping` κενό = άδεια βήματα).
-  const m = useMapping(mapping ?? { cols: [], cats: [], specs: [], duplicates: [], aiUsed: false }, brands);
+  const m = useMapping(mapping ?? NO_MAPPING, brands);
 
-  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list"] as Step[]) : [])];
+  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list", "publish"] as Step[]) : [])];
   // Το βήμα μπορεί να έπαψε να υπάρχει: ο χρήστης γύρισε στις στήλες και έβγαλε τη στήλη κατηγορίας ενώ ήταν στις
   // κατηγορίες. Τότε δείχνουμε το πρώτο βήμα της αντιστοίχισης, όχι μια οθόνη χωρίς πλοήγηση.
   const cur: Step = steps.includes(step) ? step : mapping ? "cols" : "supplier";
@@ -235,8 +258,11 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                             <button type="button" className={secondary} disabled={working} onClick={() => openList(s.feed!.id)}>
                               {busy === "open" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <List className="size-4" aria-hidden />} Άνοιξε τη λίστα
                             </button>
-                            <button type="button" className={quiet} disabled={working} onClick={() => go("feed")}>Αλλαγή feed ή αντιστοίχισης</button>
-                            <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα.</span>
+                            <button type="button" className={quiet} disabled={working} onClick={() => toRemap(s.feed!.id)}>
+                              {busy === "remap" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Αλλαγή αντιστοίχισης
+                            </button>
+                            <button type="button" className={quiet} disabled={working} onClick={() => go("feed")}>Αλλαγή διεύθυνσης feed</button>
+                            <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα. Η «Αλλαγή αντιστοίχισης» ανοίγει το αποθηκευμένο πρότυπο, χωρίς καμία λήψη.</span>
                           </>
                         ) : (
                           <button type="button" className={primary} disabled={working} onClick={() => go("feed")}>Επόμενο: το feed <ArrowRight className="size-4" aria-hidden /></button>
@@ -264,15 +290,27 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                 <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML</span>
                 <input value={url} onChange={(e) => { setUrl(e.target.value); setSeen(null); }} inputMode="url" placeholder="https://…/feed.xml" className={input} />
               </label>
-              <button type="button" className={`${secondary} sm:self-end`} disabled={working || !url.trim()} onClick={check}>
+              <button type="button" className={`${secondary} sm:self-end`} disabled={working || !url.trim()} onClick={() => check(false)}>
                 {busy === "inspect" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileCode2 className="size-4" aria-hidden />} Έλεγχος
               </button>
             </div>
-            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Οι προμηθευτές βάζουν όριο στις λήψεις: αν δεις «πάρα πολλά αιτήματα (429)», περίμενε λίγα λεπτά. Μία λήψη αρκεί για όλα τα βήματα.</p>
+            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Οι προμηθευτές βάζουν όριο στις λήψεις. Γι&apos; αυτό το XML κάθε λήψης <b>μένει αποθηκευμένο</b>: όλα τα επόμενα βήματα — και κάθε αλλαγή αντιστοίχισης — δουλεύουν πάνω σε αυτό, χωρίς να τον ξαναενοχλήσουν.</p>
           </section>
 
           {seen && (
             <>
+              <section data-help="xml.feed.source" className={`${card} gap-2`} aria-label="Από πού ήρθαν τα δεδομένα">
+                <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-ink-2 text-[length:var(--fs-13)]">
+                  {seen.source.from === "snapshot" ? <Database className="size-4 shrink-0 text-eu-blue" aria-hidden /> : <RefreshCw className="size-4 shrink-0 text-eu-blue" aria-hidden />}
+                  <span className="min-w-0">{sourceNote(seen.source)}</span>
+                </p>
+                {seen.source.from === "snapshot" && (
+                  <button type="button" className={`${secondary} justify-self-start`} disabled={working} onClick={() => check(true)}>
+                    {busy === "inspect" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Κατέβασέ το ξανά τώρα
+                  </button>
+                )}
+              </section>
+
               <section data-help="xml.feed.counts" className={card} aria-labelledby="xs-2b">
                 <h3 id="xs-2b" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τι βρήκαμε μέσα</h3>
                 <dl className="m-0 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,9rem),1fr))]">
@@ -337,9 +375,12 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       {cur === "list" && feed && (
         <>
           {note && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
-          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => { setMapping(null); setSeen(null); setStep("feed"); }} />
+          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => void toRemap(feed.feedId)} onPublish={() => go("publish")} />
         </>
       )}
+
+      {/* ---------- Δημοσίευση ---------- */}
+      {cur === "publish" && feed && <PublishStep state={feed} />}
 
       {cur === "list" && !feed && (
         <p className="m-0 flex gap-2 items-center rounded-xl bg-eu-surface px-3 py-3 text-eu-ink-3 text-[length:var(--fs-14)]"><Play className="size-4 shrink-0" aria-hidden /> Διάλεξε προμηθευτή και φόρτωσε το feed του για να δεις τη λίστα ελέγχου.</p>

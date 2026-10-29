@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-28T14:51:28.861Z",
+ "generatedAt": "2026-10-29T11:08:43.008Z",
  "routes": [
   {
    "route": "/admin",
@@ -987,6 +987,7 @@
     "xml.map.specs",
     "xml.map.price",
     "xml.map.erp",
+    "xml.map.limit",
     "xml.map.softone",
     "xml.modal.head",
     "xml.modal.conflicts",
@@ -995,7 +996,11 @@
     "xml.modal.price",
     "xml.modal.images",
     "xml.modal.softone",
+    "xml.publish.counts",
+    "xml.publish.actions",
     "xml.list.feed",
+    "xml.list.snapshot",
+    "xml.list.pending",
     "xml.list.chips",
     "xml.list.selection",
     "xml.list.progress",
@@ -1003,6 +1008,7 @@
     "xml.steps",
     "xml.supplier",
     "xml.feed",
+    "xml.feed.source",
     "xml.feed.counts",
     "xml.feed.sample"
    ],
@@ -3814,6 +3820,12 @@
  ],
  "recent": [
   {
+   "hash": "e803403",
+   "date": "2026-10-28T16:52:26+02:00",
+   "text": "XML προμηθευτές: screenshots βοήθειας (υπολογιστή και κινητού)",
+   "routes": []
+  },
+  {
    "hash": "a703e82",
    "date": "2026-10-28T16:44:21+02:00",
    "text": "XML προμηθευτές: η κάρτα που μόλις αντιστοίχισες δεν εξαφανίζεται από κάτω σου",
@@ -4077,12 +4089,6 @@
    "hash": "c480092",
    "date": "2026-10-20T12:52:07+03:00",
    "text": "Ασφάλεια: ειδοποιήσεις, cron και heartbeat του φύλακα",
-   "routes": []
-  },
-  {
-   "hash": "ff68a1d",
-   "date": "2026-10-20T12:43:06+03:00",
-   "text": "Ασφάλεια: έλεγχος site",
    "routes": []
   }
  ],
@@ -4477,6 +4483,9 @@
   "xml.map.erp": [
    "components/admin/catalog/xml/MappingSteps.tsx"
   ],
+  "xml.map.limit": [
+   "components/admin/catalog/xml/MappingSteps.tsx"
+  ],
   "xml.map.softone": [
    "components/admin/catalog/xml/MappingSteps.tsx"
   ],
@@ -4501,7 +4510,19 @@
   "xml.modal.softone": [
    "components/admin/catalog/xml/ProductModal.tsx"
   ],
+  "xml.publish.counts": [
+   "components/admin/catalog/xml/PublishStep.tsx"
+  ],
+  "xml.publish.actions": [
+   "components/admin/catalog/xml/PublishStep.tsx"
+  ],
   "xml.list.feed": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.snapshot": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.pending": [
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
   "xml.list.chips": [
@@ -4523,6 +4544,9 @@
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.feed": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.feed.source": [
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.feed.counts": [

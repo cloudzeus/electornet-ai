@@ -37,6 +37,7 @@ export interface InspectDTO {
   /** το πρώτο προϊόν ακατέργαστο, ως ζεύγη (η σειρά μετράει — είναι η σειρά των tags) */
   sample: [string, string][];
   bytes: number;
+  source: SourceDTO;
 }
 
 // ---------- Βήμα ③: αντιστοίχιση ----------
@@ -64,6 +65,34 @@ export interface ColDTO {
   valueInfo?: Record<string, { n: number; ex: string[] }>;
 }
 
+/** Από πού ήρθαν τα bytes του feed — ο χρήστης πρέπει να ξέρει αν βλέπει φρέσκο ή αποθηκευμένο XML. */
+export interface SourceDTO {
+  from: "snapshot" | "download";
+  /** πότε κατέβηκε αυτό το XML */
+  fetchedAt: string;
+  /** λεπτά μέχρι να επιτρέπεται νέα λήψη (0 = τώρα) */
+  waitMin: number;
+  /** το αποθηκευμένο XML δόθηκε επειδή ο προμηθευτής απάντησε «πάρα πολλά αιτήματα» */
+  rateLimited: boolean;
+  bytes: number;
+  products: number | null;
+}
+
+/** Οι αποθηκευμένες επιλογές τιμών του προμηθευτή (το «πρότυπο»), για πρόγεμισμα των βημάτων. */
+export interface TemplateMaps {
+  brand: Record<string, string | null>;
+  unit: Record<string, string | null>;
+  mark: Record<string, string | null>;
+}
+
+export interface TemplateSettings {
+  priceMode: PriceMode;
+  toSoftone: boolean;
+  minFetchMin: number;
+  unitId: string | null;
+  markId: string | null;
+}
+
 export interface SuggestDTO {
   cols: ColDTO[];
   /** τα ζεύγη κατηγοριών του feed με πλήθος προϊόντων και την πρόταση (τα παραδείγματα έρχονται από το `valueInfo` της στήλης) */
@@ -72,6 +101,12 @@ export interface SuggestDTO {
   specs: { label: string; to: string | null; confidence: Confidence }[];
   duplicates: { label: string; headers: string[] }[];
   aiUsed: boolean;
+  /** true = οι επιλογές ήρθαν από το αποθηκευμένο πρότυπο του προμηθευτή, όχι από κανόνες και AI */
+  fromTemplate?: boolean;
+  /** οι αποθηκευμένες αντιστοιχίσεις τιμών (μάρκες, μονάδες, σημάνσεις) — οι κατηγορίες είναι μέσα στο `cats` */
+  maps?: TemplateMaps;
+  settings?: TemplateSettings;
+  source?: SourceDTO;
 }
 
 // ---------- Βήμα ④: λίστα ελέγχου ----------
@@ -117,6 +152,50 @@ export interface FeedStateDTO {
   toSoftone: boolean;
   lastRunAt: string | null;
   lastCount: number | null;
+  /** ελάχιστα λεπτά ανάμεσα σε δύο λήψεις — το όριο του προμηθευτή */
+  minFetchMin: number;
+  /** το αποθηκευμένο XML της τελευταίας λήψης */
+  snapshot: { has: boolean; fetchedAt: string | null; bytes: number | null; products: number | null; waitMin: number };
+  /** τιμές του προμηθευτή που δεν έχει δει ποτέ ο χρήστης, ανά είδος (κατηγορίες, μάρκες, μονάδες, σημάνσεις) */
+  pending: Record<ValueKindDTO, { values: number; items: number }>;
+}
+
+/** Τα τέσσερα είδη τιμών που αντιστοιχίζονται τιμή-προς-τιμή. */
+export type ValueKindDTO = "category" | "brand" | "unit" | "mark";
+export const VALUE_KIND: Record<ValueKindDTO, { one: string; many: string }> = {
+  category: { one: "κατηγορία", many: "κατηγορίες" },
+  brand: { one: "μάρκα", many: "μάρκες" },
+  unit: { one: "μονάδα μέτρησης", many: "μονάδες μέτρησης" },
+  mark: { one: "εμπορική σήμανση", many: "εμπορικές σημάνσεις" },
+};
+
+/** Το τελευταίο βήμα: τι έγινε προϊόν και τι είναι ακόμη πρόχειρο. */
+export interface PublishRowDTO {
+  itemId: string;
+  sku: string;
+  productId: string;
+  name: string;
+  /** true = φαίνεται στο site */
+  active: boolean;
+  images: number;
+  mtrl: number | null;
+}
+
+export interface PublishDTO {
+  rows: PublishRowDTO[];
+  total: number;
+  page: number;
+  pages: number;
+  counts: {
+    /** γραμμές που έφτασαν σε προϊόν */
+    products: number;
+    /** προϊόντα που φαίνονται στο site */
+    live: number;
+    /** προϊόντα έτοιμα αλλά ανενεργά — αυτά δημοσιεύονται */
+    draft: number;
+    /** μπήκαν, αλλά δεν έχουν ακόμη προϊόν (νέα είδη σε αναμονή έγκρισης) */
+    waiting: number;
+  };
 }
 
 export interface QueueDTO {
@@ -225,5 +304,22 @@ export const PRICE_MODES: { value: PriceMode; label: string; help: string }[] = 
   { value: "retail", label: "Η λιανική του feed", help: "Η τιμή του προμηθευτή αυτούσια, χωρίς τον κανόνα markup. Μόνο όταν ο προμηθευτής ορίζει τη λιανική." },
 ];
 
-/** Μέγεθος σε MB με ένα δεκαδικό, για το βήμα ②. */
+/** Μέγεθος σε MB με ένα δεκαδικό. */
 export const mb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+/** Ώρα και ημέρα όπως τη διαβάζει άνθρωπος. */
+export const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short" }) : "—");
+
+/**
+ * Μία πρόταση για το από πού ήρθαν τα δεδομένα. Ο χρήστης πρέπει να ξέρει αν βλέπει φρέσκο ή αποθηκευμένο XML —
+ * αλλιώς θα νομίζει ότι ο προμηθευτής δεν άλλαξε τίποτα, ενώ απλώς δεν τον ρωτήσαμε.
+ */
+export function sourceNote(s: SourceDTO): string {
+  if (s.from === "download") return `Το feed κατέβηκε τώρα (${mb(s.bytes)}).`;
+  const kept = `το αποθηκευμένο XML της ${when(s.fetchedAt)}`;
+  if (s.rateLimited) return `Ο προμηθευτής απάντησε «πάρα πολλά αιτήματα» — δουλέψαμε με ${kept}. Νέα λήψη σε ${s.waitMin} ${s.waitMin === 1 ? "λεπτό" : "λεπτά"}.`;
+  if (s.waitMin > 0) return `Χρησιμοποιήθηκε ${kept} — νέα λήψη επιτρέπεται σε ${s.waitMin} ${s.waitMin === 1 ? "λεπτό" : "λεπτά"}.`;
+  return `Χρησιμοποιήθηκε ${kept} — νέα λήψη επιτρέπεται τώρα.`;
+}
+
+

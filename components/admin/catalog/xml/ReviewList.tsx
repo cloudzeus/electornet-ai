@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Hourglass, Images, Loader2, Pencil, Play, RefreshCw, RotateCcw, Search, Square, SquareCheck, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, Globe, Hourglass, Images, Loader2, Pencil, Play, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { priceWarning } from "@/lib/catalog/xml-import/transform-core";
-import { DIFF, DIFF_ORDER, STATUS, type FeedStateDTO, type ItemDTO, type ItemsDTO, type QueueDTO } from "@/lib/catalog/xml-import/ui-core";
+import { DIFF, DIFF_ORDER, STATUS, VALUE_KIND, mb, sourceNote, when, type FeedStateDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type ValueKindDTO } from "@/lib/catalog/xml-import/ui-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
 import { drainBatch, items as loadItems, queueItems, queueProgress, retryErrors, rerun, saveItem } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { ProductModal } from "./ProductModal";
@@ -59,7 +59,7 @@ function Status({ s }: { s: string }) {
  *
  * Τα σφάλματα δεν είναι toast που φεύγει: είναι chip-φίλτρο με «Δοκίμασε ξανά», ώστε να βρίσκονται και μετά από ώρες.
  */
-export function ReviewList({ state, writeOn, canErp, onRemap }: { state: FeedStateDTO; writeOn: boolean; canErp: boolean; onRemap: () => void }) {
+export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { state: FeedStateDTO; writeOn: boolean; canErp: boolean; onRemap: () => void; onPublish: () => void }) {
   const [kind, setKind] = useState<string>("all");
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
@@ -108,6 +108,11 @@ export function ReviewList({ state, writeOn, canErp, onRemap }: { state: FeedSta
     { key: "error", label: "Σφάλματα", n: counts.status.error ?? 0, help: "Δοκίμασαν να μπουν και απέτυχαν. Διάβασε το σφάλμα και δοκίμασε ξανά." },
   ];
 
+  /** Τα είδη τιμών που έχουν καινούργιες, άγνωστες τιμές — με τα πολλά προϊόντα πρώτα. */
+  const pendingKinds = (Object.entries(state.pending) as [ValueKindDTO, { values: number; items: number }][])
+    .filter(([, v]) => v.values > 0)
+    .sort((a, b) => b[1].items - a[1].items);
+
   const pick = (k: string) => { setKind(k); setPage(1); };
   const search = (e: React.FormEvent) => { e.preventDefault(); setQuery(q.trim()); setPage(1); };
   const toggleExcept = (sku: string) => setExcept((xs) => (xs.includes(sku) ? xs.filter((s) => s !== sku) : [...xs, sku]));
@@ -153,6 +158,13 @@ export function ReviewList({ state, writeOn, canErp, onRemap }: { state: FeedSta
     load();
   };
 
+  /** «Νέο τρέξιμο»: με νέα λήψη (`fresh`) ή ξανά πάνω στο αποθηκευμένο XML. Το μήνυμα λέει πάντα από πού ήρθαν τα δεδομένα. */
+  const again = (fresh: boolean) =>
+    act(() => rerun(state.feedId, fresh), (r) => {
+      setNote(`${sourceNote(r.source)} ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.problems ? ` · ${r.problems} με πρόβλημα` : ""}${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`);
+      void load(1);
+    });
+
   const startImport = async () => {
     const r = await act(() => queueItems(state.feedId, filter(), except, toSoftone));
     if (!r) return;
@@ -175,11 +187,50 @@ export function ReviewList({ state, writeOn, canErp, onRemap }: { state: FeedSta
             {state.lastCount ? ` · ${state.lastCount.toLocaleString("el-GR")} προϊόντα στο feed` : ""} · τιμή {state.priceMode === "cost" ? "από το κόστος + markup" : "η λιανική του feed"}
           </span>
         </div>
-        <button type="button" className={secondary} disabled={busy || running} onClick={() => act(() => rerun(state.feedId), (r) => { setNote(`Νέο τρέξιμο: ${r.counts.new} νέα, ${r.counts.changed} άλλαξαν, ${r.counts.same} ίδια, ${r.counts.gone} χάθηκαν${r.conflicts ? ` · ${r.conflicts} συγκρούσεις με διορθώσεις σου` : ""}.`); void load(1); })}>
-          {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέο τρέξιμο
-        </button>
-        <button type="button" className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running} onClick={onRemap}>Αλλαγή αντιστοίχισης</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={secondary} disabled={busy || running} onClick={() => again(true)}>
+            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέο τρέξιμο
+          </button>
+          {state.snapshot.has && (
+            <button type="button" className={`${btn} border-2 border-eu-line text-eu-ink-2 hover:bg-eu-surface`} disabled={busy || running} onClick={() => again(false)}
+              title="Ξαναπερνά την αντιστοίχιση στο XML που έχουμε αποθηκευμένο — χωρίς να ενοχλήσει τον προμηθευτή.">
+              <Database className="size-4" aria-hidden /> Ξανά από το αποθηκευμένο
+            </button>
+          )}
+          <button type="button" className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running} onClick={onRemap}>Αλλαγή αντιστοίχισης</button>
+        </div>
       </div>
+
+      {/* το αποθηκευμένο XML: γιατί δεν χρειάζεται νέα λήψη για κάθε δοκιμή */}
+      <p data-help="xml.list.snapshot" className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-muted text-[length:var(--fs-12)]">
+        <Database className="size-3.5 shrink-0" aria-hidden />
+        {state.snapshot.has ? (
+          <span className={num}>
+            Αποθηκευμένο XML από {when(state.snapshot.fetchedAt)}
+            {state.snapshot.bytes ? ` · ${mb(state.snapshot.bytes)}` : ""}
+            {state.snapshot.products ? ` · ${state.snapshot.products.toLocaleString("el-GR")} προϊόντα` : ""}
+            {` · νέα λήψη ${state.snapshot.waitMin > 0 ? `σε ${state.snapshot.waitMin} ${state.snapshot.waitMin === 1 ? "λεπτό" : "λεπτά"}` : "επιτρέπεται τώρα"}`}
+            {state.minFetchMin > 0 ? ` (όριο: μία κάθε ${state.minFetchMin}′)` : " (χωρίς όριο)"}
+          </span>
+        ) : <span>Δεν έχουμε αποθηκευμένο XML αυτού του feed — το πρώτο «Νέο τρέξιμο» θα το κατεβάσει.</span>}
+      </p>
+
+      {/* τιμές του προμηθευτή που δεν έχει δει ποτέ ο χρήστης */}
+      {pendingKinds.length > 0 && (
+        <div data-help="xml.list.pending" role="status" className={`${card} grid gap-2 p-3 border-eu-yellow bg-eu-yellow/5`}>
+          <p className="m-0 flex gap-2 items-start text-eu-ink text-[length:var(--fs-14)]">
+            <Tags className="size-4 shrink-0 mt-0.5 text-eu-ink-2" aria-hidden />
+            <span className="min-w-0">
+              <b>Καινούργιες τιμές από τον προμηθευτή.</b>{" "}
+              {pendingKinds.map(([k, v]) => `${v.values} ${v.values === 1 ? VALUE_KIND[k].one : VALUE_KIND[k].many} σε ${v.items.toLocaleString("el-GR")} ${v.items === 1 ? "προϊόν" : "προϊόντα"}`).join(" · ")}
+              {" — "}δεν έχουν αντιστοίχιση. Όσο μένουν έτσι, τα προϊόντα τους μπαίνουν <b>χωρίς</b> αυτό το στοιχείο.
+            </span>
+          </p>
+          <button type="button" className={`${secondary} justify-self-start`} disabled={busy || running} onClick={onRemap}>
+            <Tags className="size-4" aria-hidden /> Δες τις και αντιστοίχισέ τις
+          </button>
+        </div>
+      )}
 
       {/* chips: τα πλήθη είναι η πλοήγηση */}
       <div data-help="xml.list.chips" className="grid gap-2 min-w-0">
@@ -244,7 +295,14 @@ export function ReviewList({ state, writeOn, canErp, onRemap }: { state: FeedSta
             {prog.errors > 0 && <span className={`inline-flex items-center gap-1 text-eu-red ${num}`}><CircleAlert className="size-3.5" aria-hidden /> {prog.errors.toLocaleString("el-GR")} σφάλματα</span>}
           </p>
           <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{running ? "Μπορείς να κλείσεις τη σελίδα — η ουρά συνεχίζει από εκεί που έμεινε όταν ξαναμπείς και πατήσεις «Εισαγωγή»." : prog.queued ? "Η ουρά έχει γραμμές που περιμένουν: πάτα «Εισαγωγή» για να συνεχίσει." : "Η ουρά είναι άδεια."}{prog.writeOn ? "" : " Οι αλλαγές προς το SoftOne είναι κλειστές: τα νέα είδη περιμένουν έγκριση στα «Νέα είδη»."}</p>
-          {prog.done > 0 && <Link href="/admin/catalog/templates/nea-eidi" className="justify-self-start font-bold text-eu-blue text-[length:var(--fs-13)] min-h-11 md:min-h-9 inline-flex items-center hover:underline">Νέα είδη προς έγκριση →</Link>}
+          <div className="flex flex-wrap items-center gap-2">
+            {prog.done > 0 && <Link href="/admin/catalog/templates/nea-eidi" className="font-bold text-eu-blue text-[length:var(--fs-13)] min-h-11 md:min-h-9 inline-flex items-center hover:underline">Νέα είδη προς έγκριση →</Link>}
+            {prog.done > 0 && (
+              <button type="button" className={secondary} disabled={busy || running} onClick={onPublish}>
+                <Globe className="size-4" aria-hidden /> Προετοιμασία και δημοσίευση
+              </button>
+            )}
+          </div>
         </div>
       )}
 

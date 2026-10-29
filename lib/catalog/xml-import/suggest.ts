@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
 import { SPEC_PREFIX, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
+import { decodeTarget } from "@/lib/catalog/foreign-import/ui-core";
 import { suggestColumn, unresolvedColumns, duplicateTargets, type ColumnSuggestion, type Confidence } from "@/lib/catalog/xml-import/suggest-core";
 import type { Target } from "@/lib/catalog/foreign-import/core";
 import type { Transform } from "@/lib/catalog/xml-import/transform-core";
@@ -59,12 +60,32 @@ function categoryValues(headers: string[], matrix: string[][]): { value: string;
   return [...n].map(([value, count]) => ({ value, n: count })).sort((a, b) => b.n - a.n);
 }
 
-export async function suggestMapping(input: { headers: string[]; matrix: string[][] }): Promise<MappingSuggestion> {
+/**
+ * Το αποθηκευμένο πρότυπο του προμηθευτή, όπως μπαίνει στις προτάσεις: ό,τι έχει αποφασιστεί μία φορά δεν ξαναρωτιέται
+ * — ούτε τον χρήστη ούτε το AI. Ό,τι ΔΕΝ είναι μέσα εδώ είναι καινούργιο και παίρνει πρόταση κανονικά.
+ */
+export interface SavedMapping {
+  /** επικεφαλίδα → κωδικοποιημένος στόχος (`encodeTarget`) */
+  targets: Record<string, string>;
+  /** επικεφαλίδα → ετικέτα χαρακτηριστικού, με τη δική μας ονομασία */
+  labels: Record<string, string>;
+  transforms: Record<string, Transform>;
+  categoryMap: Record<string, string | null>;
+}
+
+const FROM_TEMPLATE = "Από το πρότυπο του προμηθευτή.";
+
+export async function suggestMapping(input: { headers: string[]; matrix: string[][] }, saved?: SavedMapping): Promise<MappingSuggestion> {
   const { headers, matrix } = input;
 
   // ---- 1. Κανόνες (καμία κλήση, πάντα διαθέσιμοι) ----
   const columns: Record<number, ColumnSuggestion> = {};
   headers.forEach((h, i) => { columns[i] = suggestColumn(h, samplesOf(matrix, i)); });
+  // Το πρότυπο υπερισχύει: η στήλη που ο χρήστης έχει ήδη αποφασίσει δεν ξαναπροτείνεται (και δεν πάει στο AI).
+  if (saved) headers.forEach((h, i) => {
+    if (!Object.hasOwn(saved.targets, h)) return;
+    columns[i] = { target: decodeTarget(saved.targets[h], (saved.labels[h] ?? "").trim()), transform: saved.transforms[h] ?? "none", confidence: "sure", why: FROM_TEMPLATE };
+  });
 
   const cats = categoryValues(headers, matrix);
   const specLabels = headers.filter((h) => h.startsWith(SPEC_PREFIX)).map((h) => h.slice(SPEC_PREFIX.length));
@@ -88,9 +109,23 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
       ? { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "sure" }
       : { categoryId: null, specGroupS1Id: null, confidence: "unsure" };
   }
+  if (saved) for (const value of Object.keys(categories)) {
+    if (!Object.hasOwn(saved.categoryMap, value)) continue;
+    const id = saved.categoryMap[value];
+    const hit = id ? ourCats.find((o) => o.id === id) : null;
+    // Αντιστοίχιση σε κατηγορία που διαγράφηκε στο μεταξύ: ξαναγίνεται ερώτημα, δεν σβήνει αμίλητα.
+    if (id && !hit) { categories[value] = { categoryId: null, specGroupS1Id: null, confidence: "unsure" }; continue; }
+    categories[value] = hit ? { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "sure" } : { categoryId: null, specGroupS1Id: null, confidence: "sure" };
+  }
   // Χαρακτηριστικά: ετικέτα που ταιριάζει με όνομα ομάδας/χαρακτηριστικού μας μένει ως είναι.
   const ourSpecNames = new Set((await db.s1SpecDef.findMany({ where: { missing: false, active: true }, select: { name: true }, distinct: ["name"] })).map((s) => norm(s.name)));
   for (const label of specLabels) specs[label] = ourSpecNames.has(norm(label)) ? { label: null, confidence: "sure" } : { label: null, confidence: "unsure" };
+  if (saved) for (const label of specLabels) {
+    const h = `${SPEC_PREFIX}${label}`;
+    if (!Object.hasOwn(saved.targets, h)) continue;
+    const to = (saved.labels[h] ?? "").trim();
+    specs[label] = { label: to && to !== label ? to : null, confidence: "sure" };
+  }
 
   const duplicates = duplicateTargets(columns, headers);
   const base: MappingSuggestion = { columns, categories, specs, duplicates, aiUsed: false };

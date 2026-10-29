@@ -2,8 +2,8 @@ import "server-only";
 import { UserError } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget } from "@/lib/catalog/foreign-import/ui-core";
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
-import { suggestMapping } from "@/lib/catalog/xml-import/suggest";
-import { MAX_VALUES, SAMPLES_SHOWN, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
+import { suggestMapping, type SavedMapping } from "@/lib/catalog/xml-import/suggest";
+import { MAX_VALUES, SAMPLES_SHOWN, type SuggestDTO, type TemplateMaps, type TemplateSettings } from "@/lib/catalog/xml-import/ui-core";
 
 /** Οι διακριτές τιμές μιας στήλης — `null` όταν είναι πάρα πολλές για αντιστοίχιση τιμή-προς-τιμή. */
 function valuesOf(matrix: string[][], i: number): string[] | null {
@@ -40,11 +40,18 @@ function valueInfo(matrix: string[][], i: number, values: string[], productAt: (
  * Ζει έξω από το server action ώστε να μπορεί να τρέξει και από script με τοπικό αντίγραφο του feed: ο server του
  * προμηθευτή απαντά 429 μετά από λίγες λήψεις.
  */
-export async function buildSuggestDTO(bytes: Buffer): Promise<SuggestDTO> {
+/** Το αποθηκευμένο πρότυπο του προμηθευτή, όταν ξανανοίγει η αντιστοίχιση ενός feed που έχει ήδη τρέξει. */
+export interface TemplateInput {
+  saved: SavedMapping;
+  maps: TemplateMaps;
+  settings: TemplateSettings;
+}
+
+export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promise<SuggestDTO> {
   const parsed = parseFeed(bytes);
   if (!parsed.counts.products) throw new UserError("Το feed δεν έχει προϊόντα.");
   const { headers, matrix } = parsed;
-  const s = await suggestMapping({ headers, matrix });
+  const s = await suggestMapping({ headers, matrix }, tpl?.saved);
   const catIdx = headers.indexOf(CATEGORY_PAIR);
   // Η στήλη με το όνομα (ή, αν δεν προτάθηκε, τον κωδικό): δίνει «από ποιο προϊόν» σε κάθε παράδειγμα.
   const isKind = (i: number, key: string) => { const t = s.columns[i]?.target; return t?.kind === "field" && t.key === key; };
@@ -81,6 +88,7 @@ export async function buildSuggestDTO(bytes: Buffer): Promise<SuggestDTO> {
     specs: Object.entries(s.specs).map(([label, v]) => ({ label, to: v.label, confidence: v.confidence })).sort((a, b) => a.label.localeCompare(b.label, "el")),
     duplicates: s.duplicates,
     aiUsed: s.aiUsed,
+    ...(tpl ? { fromTemplate: true, maps: tpl.maps, settings: tpl.settings } : {}),
   };
 }
 

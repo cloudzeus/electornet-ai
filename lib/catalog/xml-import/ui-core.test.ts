@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SPEC_PREFIX, CATEGORY_PAIR } from "./parse-core";
-import { DIFF, DIFF_ORDER, STATUS, TARGET_OF, TARGETS, headerLabel, isDecimal, sectionOf, toTransform, transformValue } from "./ui-core";
+import { DIFF, DIFF_ORDER, STATUS, TARGET_OF, TARGETS, headerLabel, isDecimal, sectionOf, toTransform, transformValue, sourceNote } from "./ui-core";
 
 /**
  * Το `ui-core` κρατά δικό του αντίγραφο των δύο προθεμάτων, ώστε το bundle του browser να μη φέρνει `fast-xml-parser`
@@ -66,4 +66,13 @@ test("ui-core: κάθε στόχος στηλών έχει ετικέτα και
   }
   // Το SKU είναι υποχρεωτικό για την εισαγωγή — πρέπει να προσφέρεται
   assert.ok(TARGET_OF.has("field:code"));
+});
+
+test("sourceNote: ο χρήστης μαθαίνει αν βλέπει φρέσκο ή αποθηκευμένο XML", () => {
+  const base = { fetchedAt: "2026-10-29T09:30:00.000Z", bytes: 7 * 1024 * 1024, products: 2580 };
+  assert.match(sourceNote({ ...base, from: "download", waitMin: 30, rateLimited: false }), /κατέβηκε τώρα/);
+  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 12, rateLimited: false }), /αποθηκευμένο XML[\s\S]*σε 12 λεπτά/);
+  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 1, rateLimited: false }), /σε 1 λεπτό/);
+  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 0, rateLimited: false }), /επιτρέπεται τώρα/);
+  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 5, rateLimited: true }), /πάρα πολλά αιτήματα/);
 });
