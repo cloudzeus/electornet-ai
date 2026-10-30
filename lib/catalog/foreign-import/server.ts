@@ -5,7 +5,7 @@ import { planImport, applyImport } from "@/lib/catalog/supplier-import";
 import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-media";
 import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } from "@/lib/catalog/supplier-sheet";
 import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
-import { syncItem } from "@/lib/softone/catalog";
+import { findOffWebItems, syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
 import { OPEN } from "@/lib/catalog/foreign-import/pending-core";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
@@ -93,7 +93,14 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
   const brandOfS1 = new Map(brands.filter((b) => b.s1Id).map((b) => [b.s1Id!, b.id]));
   const brandName = new Map(brands.map((b) => [b.id, b.name]));
   const vatOf = new Map(vats.map((v) => [v.s1Id!, Number(v.percent)]));
-  const items = [...new Map(found.flat().map((i) => [i.mtrl, i])).values()].sort((a, b) => a.mtrl - b.mtrl);
+  // Ό,τι δεν βρέθηκε στον καθρέφτη (κρατά μόνο τα είδη του web) ψάχνεται και στο ίδιο το SoftOne: είδος χωρίς web
+  // κατηγορία υπάρχει ήδη και δεν πρέπει να δημιουργηθεί ξανά ως «νέο»
+  const mirrored = found.flat();
+  const hasCode = new Set(mirrored.flatMap((i) => [i.code, i.factoryCode].filter((x): x is string => !!x).map((x) => x.toLowerCase())));
+  const hasEan = new Set(mirrored.flatMap((i) => (i.barcode ? eanVariants(i.barcode) : [])));
+  const offWeb = await findOffWebItems({ codes: codes.filter((c) => !hasCode.has(c.toLowerCase())), barcodes: eans.filter((e) => !hasEan.has(e)) });
+  const offWebIds = new Set(offWeb.map((i) => i.mtrl));
+  const items = [...new Map([...mirrored, ...offWeb.map((i) => ({ mtrl: i.mtrl, code: i.code, name: i.name, barcode: i.barcode, factoryCode: i.factoryCode, manufacturerS1Id: i.manufacturerS1Id, vatS1Id: i.vatS1Id, specGroupS1Id: null, eshopPrice: null }))].map((i) => [i.mtrl, i])).values()].sort((a, b) => a.mtrl - b.mtrl);
   // Κλειδί (κωδικός / EAN / κωδικός κατασκευαστή) σε 2+ είδη → διφορούμενο: η γραμμή που το χτυπά βγαίνει πρόβλημα
   const index = buildMatchIndex(items.map((i) => ({ ...i, brandId: i.manufacturerS1Id != null ? brandOfS1.get(String(i.manufacturerS1Id)) ?? null : null })));
   const matches = resolveMatches(foreign, index);
@@ -160,6 +167,12 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
       if (plan.fileName && namesDiffer(it.name, plan.fileName)) plan.warnings.push("Τα ονόματα δεν μοιάζουν — έλεγξε ότι είναι το σωστό είδος.");
     }
     let problem = m.problem ?? (m.mtrl == null ? dups.get(row.rowNo) : same.get(row.rowNo)) ?? null;
+    if (it && offWebIds.has(it.mtrl)) {
+      // υπάρχει στο SoftOne αλλά όχι στο web: δεν δημιουργείται ξανά· τα στοιχεία του δεν αλλάζουν από εδώ (δεν έχει ομάδα χαρακτηριστικών)
+      plan.warnings.unshift("Υπάρχει ήδη στο SoftOne, αλλά όχι στο web (χωρίς web κατηγορία / ομάδα χαρακτηριστικών) — δεν δημιουργείται ξανά. Για να φανεί στο site, δώσε του web κατηγορία στο SoftOne.");
+      if (problem) plan.problem = problem;
+      return { row, plan, mtrl: m.mtrl, groupS1Id: null, specs: {} };
+    }
     let groupS1Id: number | null;
     if (it) {
       groupS1Id = it.specGroupS1Id;

@@ -208,6 +208,21 @@ export function syncItems(mode: "delta" | "full" = "delta", trigger: Trigger = "
  * SoftOne» της καρτέλας προϊόντος και μετά από κάθε εγγραφή μας στο ERP. Μόνο αναγνώσεις (GetTable).
  * Είδος που δεν είναι πια είδος του site (ή διαγράφηκε) σημαδεύεται `missing` — όπως στον πλήρη συγχρονισμό.
  */
+/**
+ * Είδη του ERP **εκτός** καθρέφτη (χωρίς web κατηγορία / ομάδα) με κωδικό, κωδικό κατασκευαστή ή barcode από τη λίστα —
+ * για να μη δημιουργηθούν ξανά ως «νέα» από XML / Excel. Μόνο ανάγνωση (GetTable), σε μικρά κομμάτια.
+ */
+export async function findOffWebItems(keys: { codes: string[]; barcodes: string[] }) {
+  const lit = (v: string) => `'${v.replace(/'/g, "''")}'`;
+  const safe = (l: string[]) => [...new Set(l.map((v) => v.trim()).filter((v) => v && v.length <= 50))];
+  const codes = safe(keys.codes), barcodes = safe(keys.barcodes);
+  const out = new Map<number, NonNullable<ReturnType<typeof mapItem>>>();
+  const take = async (filter: string) => { for (const r of await getTable("MTRL", [...ITEM_FIELDS], `SODTYPE=51 AND ${filter}`)) { const m = mapItem(r); if (m) out.set(m.mtrl, m); } };
+  for (let i = 0; i < codes.length; i += 80) { const l = codes.slice(i, i + 80).map(lit).join(","); await take(`(CODE IN (${l}) OR CODE2 IN (${l}))`); }
+  for (let i = 0; i < barcodes.length; i += 80) await take(`CODE1 IN (${barcodes.slice(i, i + 80).map(lit).join(",")})`);
+  return [...out.values()];
+}
+
 export function syncItem(mtrl: number, trigger: Trigger = "manual") {
   return logged("cat-item", trigger, async () => {
     const rows = await getTable("MTRL", [...ITEM_FIELDS], `${WEB_FILTER} AND MTRL=${mtrl}`);
