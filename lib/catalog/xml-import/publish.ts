@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 import { UserError } from "@/lib/catalog/foreign-import/core";
-import { attachPendingImages } from "@/lib/catalog/xml-import/queue";
+import { attachPendingImages, catchUpProducts } from "@/lib/catalog/xml-import/queue";
 
 /**
  * Το τελευταίο βήμα: **προετοιμασία → διορθώσεις → δημοσίευση.**
@@ -47,6 +47,8 @@ async function counts(feedId: string): Promise<PublishCounts> {
 
 /** Μία σελίδα των προϊόντων που έβγαλε αυτό το feed, με το αν φαίνονται στο site. */
 export async function publishList(feedId: string, page = 1, only: PublishFilter = "all"): Promise<{ rows: PublishRow[]; total: number; page: number; pages: number; counts: PublishCounts }> {
+  // Νέα είδη που εγκρίθηκαν στο μεταξύ έχουν πια προϊόν: η λίστα πρέπει να τα δει, χωρίς να πατήσει κανείς τίποτα.
+  await catchUpProducts(feedId);
   const c = await counts(feedId);
   const items = await db.supplierFeedItem.findMany({ where: { feedId, productId: { not: null } }, orderBy: { sku: "asc" },
     select: { id: true, sku: true, productId: true, assetIds: true, mtrl: true } });

@@ -4,7 +4,8 @@ import { fetchPublicBytes } from "@/lib/net/safe-fetch";
 import { ingest } from "@/lib/media/repo";
 import { attachAssets, productFolderId } from "@/lib/catalog/product-images";
 import { configForHeaders, UserError } from "@/lib/catalog/foreign-import/core";
-import { planForeign, applyForeign } from "@/lib/catalog/foreign-import/server";
+import { planForeign, applyForeign, type ForeignPlanRow } from "@/lib/catalog/foreign-import/server";
+import { linkRows, mediaOff, type LinkRow } from "@/lib/catalog/xml-import/link-core";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { loadFeed, type ItemFilter } from "@/lib/catalog/xml-import/feed";
@@ -127,7 +128,7 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   if (!headers.length) throw new UserError("Το feed δεν έχει αποθηκευμένη αντιστοίχιση — ξανακάνε το βήμα της αντιστοίχισης.");
 
   const batch = await db.supplierFeedItem.findMany({ where: { feedId, status: "queued" }, orderBy: { sku: "asc" }, take: max,
-    select: { id: true, sku: true, payload: true, edits: true, images: true, assetIds: true, softone: true, productId: true } });
+    select: { id: true, sku: true, payload: true, edits: true, images: true, assetIds: true, softone: true, productId: true, pendingItemId: true, mtrl: true } });
   if (!batch.length) return { processed: 0, images: 0, errors: 0, left: 0, pending: 0, waiting: 0 };
   await db.supplierFeedItem.updateMany({ where: { id: { in: batch.map((b) => b.id) } }, data: { status: "importing" } });
 
@@ -159,13 +160,15 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
     // (δείκτης 1, κάτω από τις επικεφαλίδες) είναι η γραμμή 2. Χωρίς αυτό το +1 το `applyForeign` δεν βρίσκει καμία.
     rowOf.set(at + 1, it);
   });
-  const config = configForHeaders(feed.cfg.saved, headers);
+  // Οι φωτογραφίες βγαίνουν από την αντιστοίχιση που δίνουμε στη μηχανή: είναι ήδη στο Bunny (βήμα 1).
+  const config = mediaOff(configForHeaders(feed.cfg.saved, headers));
   let pending = 0, waiting = 0;
   try {
     const plan = await planForeign({ fileName: `${XML_JOB_PREFIX}${feed.supplier.name}`, sheet: matrix, headerRow: 0, config }, staffId);
     const res = await applyForeign(plan.jobId, [...rowOf.keys()], staffId);
     pending = res.pending; waiting = res.waiting;
     for (const e of res.errors) { const it = rowOf.get(e.rowNo); if (it) fail(it.id, e.error); }
+    await linkBatch(plan.jobId, plan.rows, rowOf);
   } catch (e) {
     // Αποτυχία του σχεδίου αφορά όλη την παρτίδα — κάθε γραμμή παίρνει το μήνυμα, καμία δεν μένει σε «importing».
     for (const it of batch) fail(it.id, e instanceof Error ? e.message : "Η εισαγωγή απέτυχε.");
@@ -184,6 +187,25 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   return { processed: batch.length, images, errors, left, pending, waiting };
 }
 
+/**
+ * Δένει τις γραμμές της παρτίδας με ό,τι έφτιαξαν: υπάρχον είδος → MTRL και προϊόν του καταλόγου, νέο είδος →
+ * εγγραφή αναμονής. Χωρίς αυτό η «Δημοσίευση» δεν βλέπει ποτέ προϊόντα και οι φωτογραφίες δεν δένονται πουθενά.
+ */
+async function linkBatch(jobId: string, rows: ForeignPlanRow[], rowOf: Map<number, { id: string; productId: string | null; pendingItemId: string | null; mtrl: number | null }>): Promise<void> {
+  const plan = new Map(rows.map((r) => [r.rowNo, { mtrl: r.mtrl ?? null }]));
+  const mtrls = [...new Set(rows.map((r) => r.mtrl).filter((n): n is number => typeof n === "number"))];
+  const [prods, pends] = await Promise.all([
+    mtrls.length ? db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true } }) : Promise.resolve([]),
+    db.pendingItem.findMany({ where: { jobId, rowNo: { in: [...rowOf.keys()] } }, select: { id: true, rowNo: true } }),
+  ]);
+  const productOfMtrl = new Map(prods.map((p) => [Number(p.erpCode), p.id]));
+  const pendingOfRow = new Map(pends.map((p) => [p.rowNo, p.id]));
+  const list: LinkRow[] = [...rowOf.entries()].map(([rowNo, it]) => ({ rowNo, itemId: it.id, productId: it.productId, pendingItemId: it.pendingItemId, mtrl: it.mtrl }));
+  for (const patch of linkRows(list, plan, productOfMtrl, pendingOfRow)) {
+    await db.supplierFeedItem.update({ where: { id: patch.itemId }, data: patch.data });
+  }
+}
+
 /** Πρόθεμα στο `ImportJob.fileName` ώστε τα jobs του XML να μη γεμίζουν τις «Πρόσφατες εισαγωγές» του Excel. */
 export const XML_JOB_PREFIX = "XML · ";
 
@@ -192,6 +214,7 @@ export const XML_JOB_PREFIX = "XML · ";
  * φορές θέλει: ό,τι είναι ήδη δεμένο το αγνοεί το `attachAssets`.
  */
 export async function attachPendingImages(feedId: string): Promise<{ attached: number }> {
+  await catchUpProducts(feedId);
   const rows = await db.supplierFeedItem.findMany({ where: { feedId, productId: { not: null } }, select: { id: true, productId: true, assetIds: true } });
   let attached = 0;
   for (const r of rows) {
@@ -201,6 +224,25 @@ export async function attachPendingImages(feedId: string): Promise<{ attached: n
     attached += added.length;
   }
   return { attached };
+}
+
+/**
+ * Νέο είδος που εγκρίθηκε στο μεταξύ: η εγγραφή αναμονής έχει πια προϊόν, η γραμμή του feed όχι. Το αντιγράφουμε, ώστε
+ * η «Δημοσίευση» να το μετρήσει και οι φωτογραφίες του να δεθούν. Τρέχει όσες φορές θέλει.
+ */
+export async function catchUpProducts(feedId: string): Promise<{ linked: number }> {
+  const rows = await db.supplierFeedItem.findMany({ where: { feedId, productId: null, pendingItemId: { not: null } }, select: { id: true, pendingItemId: true } });
+  if (!rows.length) return { linked: 0 };
+  const pends = await db.pendingItem.findMany({ where: { id: { in: rows.map((r) => r.pendingItemId as string) }, productId: { not: null } }, select: { id: true, productId: true, mtrl: true } });
+  const by = new Map(pends.map((p) => [p.id, p]));
+  let linked = 0;
+  for (const r of rows) {
+    const p = by.get(r.pendingItemId as string);
+    if (!p?.productId) continue;
+    await db.supplierFeedItem.update({ where: { id: r.id }, data: { productId: p.productId, ...(p.mtrl ? { mtrl: p.mtrl } : {}) } });
+    linked++;
+  }
+  return { linked };
 }
 
 export type { Diff };
