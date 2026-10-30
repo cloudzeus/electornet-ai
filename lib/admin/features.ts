@@ -6,7 +6,7 @@ import { getSetting } from "@/lib/settings/store";
  * Ποιες λειτουργίες είναι ενεργές στις Ρυθμίσεις — από αυτό εξαρτάται τι φαίνεται στο μενού και στο dashboard
  * (ό,τι δεν έχει ενεργοποιηθεί δεν εμφανίζεται, π.χ. vouchers ενός courier ή ο συγχρονισμός SoftOne).
  */
-export type Feature = "softone" | "advisor" | "courier" | "vouchers" | "geniki" | "acs" | "boxnow" | "elta" | "asap" | "clickCollect" | "appointment" | "sms" | "newsletterSync";
+export type Feature = "softone" | "advisor" | "courier" | "vouchers" | "geniki" | "acs" | "boxnow" | "elta" | "asap" | "clickCollect" | "appointment" | "freight" | "sms" | "newsletterSync";
 export type Features = Record<Feature, boolean>;
 
 export const getFeatures = cache(async (): Promise<Features> => {
@@ -20,6 +20,7 @@ export const getFeatures = cache(async (): Promise<Features> => {
     vouchers: carriers.geniki || carriers.elta || carriers.asap,
     clickCollect: on(ship.clickCollect),
     appointment: on(ship.appointmentDelivery),
+    freight: on(ship.freightOn),
     softone: on(s1.enabled),
     advisor: on(ai.advisorEnabled),
     sms: !!mail.smsProvider,

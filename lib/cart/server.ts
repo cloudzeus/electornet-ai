@@ -1,5 +1,5 @@
 import "server-only";
-import { carrierOffers, pickCarrier, type CarrierId, type CarrierOffer } from "@/lib/shipping/carriers";
+import { carrierOffers, freightOffer, pickCarrier, type CarrierId, type CarrierOffer, type FreightOffer } from "@/lib/shipping/carriers";
 import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { extEligibleMap } from "@/lib/warranty/server";
 import { EXTENSION_SLUG } from "@/lib/warranty/policy";
@@ -74,7 +74,7 @@ export async function syncCart(items: CartItemIn[]) {
   return { cartId: cart.id, kept: rows.length, skipped: clean.length - rows.length };
 }
 
-export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null; /** ο courier που διάλεξε ο πελάτης (βλ. lib/shipping/carriers) */ carrier?: string | null }
+export interface QuoteInput { coupon?: string | null; payment?: string | null; delivery?: "courier" | "freight" | "click-collect" | "appointment" | null; zip?: string | null; email?: string | null; storeId?: string | null; /** ο courier που διάλεξε ο πελάτης (βλ. lib/shipping/carriers) */ carrier?: string | null }
 /** Υπηρεσία στη γραμμή: price = τι πληρώνει (ανά τεμάχιο), value = η αξία της· free όταν τη χαρίζει προσφορά */
 export interface QuoteAddon { slug: string; title: string; price: number; value: number; free?: { promotionId: string; code: string; version: number; label: string } }
 export interface QuoteLine extends Omit<LineInfo, "categoryIds"> { listTotal: number; discPrice: number; discCoupon: number; discPayment: number; total: number; unitFinal: number; lowest30: number | null; labels: string[]; addons: QuoteAddon[] }
@@ -90,6 +90,8 @@ export interface Quote {
   carriers: CarrierOffer[]; carrier: CarrierId | null;
   /** μεγάλες συσκευές (lib/shipping/bulky): αν επιτρέπεται courier / θυρίδα για όλο το καλάθι και ποια προϊόντα το εμποδίζουν */
   bulky: { courier: boolean; locker: boolean; reason: string | null; titles: string[] };
+  /** μεταφορική (εσωτερική): null = κλειστή στις ρυθμίσεις · available = όλα τα προϊόντα φεύγουν με courier ή μεταφορική */
+  freight: (FreightOffer & { available: boolean; reason: string | null }) | null;
   /** για την παραγγελία: ποσά ανά προσφορά */
   engine: EngineResult;
 }
@@ -155,19 +157,25 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const limits = await shippingLimits(out.map((l) => l.productId));
   const blockers = out.filter((l) => limits.get(l.productId)?.courier === false);
   const bulky = { courier: !blockers.length, locker: !blockers.length && out.every((l) => limits.get(l.productId)?.locker), reason: blockers.length ? limits.get(blockers[0].productId)!.reason : null, titles: blockers.map((l) => l.title) };
+  // μεταφορική: όταν κάθε προϊόν φεύγει με courier ή μεταφορική (όχι τα «μόνο κατάστημα»)
+  const fo = freightOffer(rules.data, goods);
+  const noFreight = out.find((l) => limits.get(l.productId)?.freight === false);
+  const freight = fo && { ...fo, available: !noFreight, reason: noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
   const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom).map((o) =>
-    !bulky.courier ? { ...o, available: false, reason: "Το καλάθι έχει μεγάλη συσκευή: παράδοση με ραντεβού ή παραλαβή από κατάστημα" }
+    !bulky.courier ? { ...o, available: false, reason: freight?.available ? "Το καλάθι έχει ογκώδη συσκευή: αποστολή με μεταφορική ή παραλαβή από κατάστημα" : "Το καλάθι έχει μεγάλη συσκευή: παράδοση με ραντεβού ή παραλαβή από κατάστημα" }
     : o.kind === "locker" && !bulky.locker ? { ...o, available: false, reason: "Δεν χωράει σε θυρίδα (έως 20 κιλά, 36 × 45 × 60 εκ.)" } : o);
   const carrier = pickCarrier(carriers, input.carrier);
   const courierFee = carrier ? carrier.fee : goods >= rules.freeFrom ? 0 : rules.fee;
-  const baseShipping = !out.length || (input.delivery && input.delivery !== "courier") || !bulky.courier ? 0 : courierFee;
+  const baseShipping = !out.length ? 0
+    : input.delivery === "freight" ? (freight?.available ? freight.fee : 0)
+    : (input.delivery && input.delivery !== "courier") || !bulky.courier ? 0 : courierFee;
   const freeShipping = engine.freeShipping && baseShipping > 0 ? { ...engine.freeShipping, saved: baseShipping } : null;
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
   // «σου λείπουν Χ € για δωρεάν μεταφορικά» δεν έχει νόημα όταν τα μεταφορικά είναι ήδη δωρεάν
   const hints = baseShipping === 0 ? engine.hints.filter((h) => !h.includes("δωρεάν μεταφορικά")) : engine.hints;
-  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, carriers, carrier: carrier?.id ?? null, bulky, engine };
+  return { lines: out, missing, gifts, hints, freeShipping, goods: engine.listTotal, addons, discPrice: engine.discPrice, discCoupon: engine.discCoupon, discPayment: engine.discPayment, payment: engine.payment, shipping, codFee, total, vat: Math.round(total - total / 1.24), coupon: { applied: engine.couponApplied, message: engine.couponMessage }, trace: engine.trace, freeShippingFrom: rules.freeFrom, carriers, carrier: carrier?.id ?? null, bulky, freight, engine };
 }
 
 /** Για το JSON προς τον browser: χωρίς το εσωτερικό αποτέλεσμα της μηχανής. */

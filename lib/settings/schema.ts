@@ -308,7 +308,11 @@ export const SECTIONS: Section[] = [
       yesNo("clickCollect", "Click & Collect", "Παραλαβή από κατάστημα, χωρίς χρέωση.", true),
       { key: "clickCollectHours", label: "Έτοιμο για παραλαβή σε", type: "number", public: true, width: "half", group: "delivery", showIf: on("clickCollect"), min: 1, max: 240, step: 1, unit: "ώρες", placeholder: "2", help: "Η υπόσχεση που βλέπει ο πελάτης στο checkout." },
       yesNo("appointmentDelivery", "Παράδοση με ραντεβού (λευκές συσκευές)", "Ο πελάτης διαλέγει ημέρα και ώρα για ψυγεία, πλυντήρια, κουζίνες.", true),
-    ] as Field[]).map((f) => (["clickCollect", "appointmentDelivery"].includes(f.key) ? { ...f, group: "delivery" } : f)),
+      yesNo("freightOn", "Αποστολή με μεταφορική", "Εσωτερική διαδικασία, χωρίς voucher, για τις κατηγορίες «Με μεταφορική» της σελίδας Αποστολές (λευκές / ογκώδεις συσκευές).", true),
+      { key: "freightFee", label: "Κόστος μεταφορικής", type: "number", public: true, width: "half", group: "delivery", showIf: on("freightOn"), min: 0, step: 0.01, unit: "€", placeholder: "25.00" },
+      { key: "freightFreeFrom", label: "Μεταφορική δωρεάν από", type: "number", public: true, width: "half", group: "delivery", showIf: on("freightOn"), min: 0, step: 1, unit: "€", help: "Κενό = πάντα με χρέωση." },
+      { key: "freightEta", label: "Χρόνος παράδοσης μεταφορικής", type: "text", public: true, group: "delivery", showIf: on("freightOn"), placeholder: "3–7 εργάσιμες, με τηλεφωνική συνεννόηση", help: "Η υπόσχεση που βλέπει ο πελάτης στο checkout και στο email." },
+    ] as Field[]).map((f) => (["clickCollect", "appointmentDelivery", "freightOn"].includes(f.key) ? { ...f, group: "delivery" } : f)),
   },
   {
     key: "bunny",

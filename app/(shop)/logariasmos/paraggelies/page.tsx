@@ -34,7 +34,7 @@ export default async function OrdersPage() {
               </div>
               <div className="text-eu-ink-2 text-[length:var(--fs-15)]">{o.lines.map((l) => `${l.qty} × ${l.brand} ${l.title}`).join(" · ")}</div>
               <div className="text-eu-muted text-[length:var(--fs-14)] mt-0.5">
-                {o.channel === "store" || o.channel === "legacy" ? o.docLabel : `${o.fulfilment === "click-collect" ? "Παραλαβή από κατάστημα" : o.fulfilment === "appointment" ? "Παράδοση με ραντεβού" : "Courier"} · ${payLabel(o.payment.method)}`}
+                {o.channel === "store" || o.channel === "legacy" ? o.docLabel : `${o.fulfilment === "click-collect" ? "Παραλαβή από κατάστημα" : o.fulfilment === "appointment" ? "Παράδοση με ραντεβού" : o.fulfilment === "freight" ? "Μεταφορική" : "Courier"} · ${payLabel(o.payment.method)}`}
               </div>
             </div>
             <div className="flex items-center gap-3 @md:flex-col @md:items-end">

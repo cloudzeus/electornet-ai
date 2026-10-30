@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
+import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag } from "lucide-react";
 import { instalment, priceLong } from "@/lib/format";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
 import { Stepper } from "./Stepper";
@@ -81,7 +81,11 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: fulPick, storeId: fulPick === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick });
   // μεγάλες συσκευές: ο server αποφασίζει (κατηγορία, βάρος, μέγεθος) — χωρίς courier, με ραντεβού ή παραλαβή
   const courierBlocked = !!quote && !quote.bulky.courier;
-  const ful: Fulfilment = courierBlocked && fulPick === "courier" ? "appointment" : fulPick;
+  // μεταφορική (εσωτερική, για λευκές / ογκώδεις): μόνο αν είναι ανοιχτή στις ρυθμίσεις και φεύγουν όλα έτσι
+  const freight = quote?.freight ?? null;
+  const freightOk = !!freight?.available;
+  const ful: Fulfilment = fulPick === "courier" && courierBlocked ? (freightOk ? "freight" : "appointment")
+    : fulPick === "freight" && !freightOk ? (courierBlocked ? "appointment" : "courier") : fulPick;
   const offers = quote?.carriers ?? [];
   // η επιλογή φαίνεται αμέσως· το κόστος το επιβεβαιώνει ο server (quote.carrier)
   const offer = offers.find((o) => o.id === carrierPick && o.available) ?? offers.find((o) => o.id === quote?.carrier) ?? null;
@@ -110,7 +114,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const total = quote ? quote.total / 100 : Math.max(0, localGoods) + shipping + codFee;
   const maxInst = total >= 800 ? 24 : total >= 400 ? 12 : total >= 200 ? 6 : total >= 100 ? 3 : 1;
   const store = stores.find((s) => s.id === storeId);
-  const eta = ful === "click-collect" ? "Έτοιμη σε 2 ώρες" : ful === "appointment" ? "Ραντεβού εντός 24 ωρών" : offer ? `${offer.name} · ${offer.eta}` : "Παράδοση σε 1–3 εργάσιμες";
+  const eta = ful === "click-collect" ? "Έτοιμη σε 2 ώρες" : ful === "appointment" ? "Ραντεβού εντός 24 ωρών" : ful === "freight" ? `Μεταφορική · ${freight?.eta ?? ""}` : offer ? `${offer.name} · ${offer.eta}` : "Παράδοση σε 1–3 εργάσιμες";
 
   const set = (k: keyof typeof f, v: string | boolean) => setF((s) => ({ ...s, [k]: v }));
   const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
@@ -226,7 +230,9 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     offers.length
       ? (() => { const ok = offers.filter((o) => o.available); const min = Math.min(...ok.map((o) => o.fee)); return { v: "courier" as Fulfilment, icon: Truck, t: "Με courier", price: !ok.length ? "—" : min === 0 ? "Δωρεάν" : `από ${priceLong(min / 100)}`, sub: offers.some((o) => o.kind === "locker") ? "Στο σπίτι ή σε θυρίδα BOX NOW" : "Στη διεύθυνσή σου" }; })()
       : { v: "courier", icon: Truck, t: "Στη διεύθυνσή μου", price: goods >= freeShippingFrom ? "Δωρεάν" : "4,90 €", sub: "1–3 εργάσιμες" },
-  ] as DeliveryOpt[]).map((d) => (d.v === "courier" && courierBlocked ? { ...d, price: "—", sub: "Δεν αποστέλλεται με courier", disabled: true } : d)).concat([
+  ] as DeliveryOpt[]).map((d) => (d.v === "courier" && courierBlocked ? { ...d, price: "—", sub: "Δεν αποστέλλεται με courier", disabled: true } : d)).concat(freight ? [
+    { v: "freight", icon: Container, t: "Με μεταφορική", price: !freightOk ? "—" : freight.fee === 0 ? "Δωρεάν" : priceLong(freight.fee / 100), sub: freightOk ? `${freight.eta} · για ογκώδεις συσκευές` : freight.reason ?? "Δεν είναι διαθέσιμη για αυτό το καλάθι", disabled: !freightOk },
+  ] : []).concat([
     { v: "click-collect", icon: StoreIcon, t: "Παραλαβή από κατάστημα", price: "Δωρεάν", sub: "Σε 2 ώρες όπου υπάρχει απόθεμα · 350 καταστήματα" },
     { v: "appointment", icon: CalendarClock, t: "Με ραντεβού", price: heavy ? "Δωρεάν" : "Δωρεάν από 100 €", sub: heavy ? "Με εγκατάσταση από τεχνικό του καταστήματος" : "Επιλέγεις ημέρα και ώρα" },
   ]);
@@ -319,7 +325,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
               </Section>
 
               <Section n={2} title={c.paradosi} lead="Το κόστος και ο χρόνος φαίνονται πριν διαλέξεις.">
-                <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-2.5">
+                <div className={`grid grid-cols-1 gap-2.5 ${delivery.length > 3 ? "@xl:grid-cols-2 @4xl:grid-cols-4" : "@2xl:grid-cols-3"}`}>
                   {delivery.map((d) => (
                     <label key={d.v} className={`rounded-xl border-2 p-4 grid gap-1 ${d.disabled ? "border-eu-line opacity-60 cursor-not-allowed" : ful === d.v ? "border-eu-blue bg-eu-chip cursor-pointer" : "border-eu-line hover:border-eu-blue cursor-pointer"}`}>
                       <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-16)]">
@@ -334,7 +340,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
 
                 {courierBlocked && (
                   <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
-                    <b className="text-eu-ink">{quote!.bulky.titles.length === 1 ? quote!.bulky.titles[0] : `${quote!.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote!.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote!.bulky.reason?.split(":")[0].toLowerCase()}). {quote!.bulky.titles.length === 1 ? "Το παραδίδει το κατάστημα με ραντεβού, ή το παραλαμβάνεις" : "Τα παραδίδει το κατάστημα με ραντεβού, ή τα παραλαμβάνεις"} από κατάστημα.
+                    <b className="text-eu-ink">{quote!.bulky.titles.length === 1 ? quote!.bulky.titles[0] : `${quote!.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote!.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote!.bulky.reason?.split(":")[0].toLowerCase()}). {freightOk ? (quote!.bulky.titles.length === 1 ? "Φεύγει με μεταφορική (σε καλούμε για την παράδοση), ή το παραλαμβάνεις" : "Φεύγουν με μεταφορική (σε καλούμε για την παράδοση), ή τα παραλαμβάνεις") : quote!.bulky.titles.length === 1 ? "Το παραδίδει το κατάστημα με ραντεβού, ή το παραλαμβάνεις" : "Τα παραδίδει το κατάστημα με ραντεβού, ή τα παραλαμβάνεις"} από κατάστημα.
                   </p>
                 )}
                 {ful === "courier" && offers.length > 0 && (
@@ -653,7 +659,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
               {discCoupon > 0 && <Row k={`Κουπόνι ${quote?.coupon.applied ?? ""}`} v={`− ${priceLong(discCoupon)}`} cls="text-eu-green" />}
               {discPayment > 0 && <Row k={quote?.payment?.label ?? "Έκπτωση πληρωμής"} v={`− ${priceLong(discPayment)}`} cls="text-eu-green" />}
               {(quote?.gifts.length ?? 0) > 0 && <Row k={quote!.gifts.length === 1 ? "Δώρο" : `Δώρα (${quote!.gifts.length})`} v="0,00 €" cls="text-eu-green" />}
-              <Row k={ful === "courier" ? (offer ? `Μεταφορικά · ${offer.name}` : "Μεταφορικά") : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
+              <Row k={ful === "courier" ? (offer ? `Μεταφορικά · ${offer.name}` : "Μεταφορικά") : ful === "freight" ? "Μεταφορική" : ful === "click-collect" ? "Παραλαβή από κατάστημα" : "Παράδοση με ραντεβού"} v={shipping === 0 ? "Δωρεάν" : priceLong(shipping)} cls={shipping === 0 ? "text-eu-green" : ""} />
               {codFee > 0 && <Row k="Αντικαταβολή" v={priceLong(codFee)} />}
               <Row k="ΦΠΑ 24% (περιλαμβάνεται)" v={priceLong(total - total / 1.24)} cls="text-eu-muted-2 text-[length:var(--fs-14)]" />
               <div className="flex justify-between items-baseline border-t-2 border-eu-line pt-3 mt-1">

@@ -19,7 +19,7 @@ export async function saveBulkyRulesAction(raw: unknown) {
 export async function previewShippingAction(raw: unknown) {
   await requirePermission("catalog.products.read");
   const t = tallyShipping(await allShippingFacts(), normalizeBulkyRules(raw));
-  return { courier: t.courier, store: t.store, locker: t.locker, unknown: t.unknown, storeByCat: t.storeByCat };
+  return { courier: t.courier, freight: t.freight, store: t.store, locker: t.locker, unknown: t.unknown, storeByCat: t.storeByCat, freightByCat: t.freightByCat };
 }
 
 /** «Γιατί πάει έτσι;» — αναζήτηση προϊόντος (τίτλος, SKU, κωδικός ERP, barcode) και η απόφαση με αυτούς τους κανόνες. */
@@ -36,6 +36,6 @@ export async function checkShippingAction(q: string, raw: unknown) {
   return found.map((p) => {
     const f = facts.get(p.id);
     const v = f ? decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules) : null;
-    return { id: p.id, title: p.title, sku: p.sku, courier: v?.courier ?? true, locker: v?.locker ?? false, reason: v?.reason ?? null, weightKg: f?.weightKg ?? null, dimsCm: f?.dimsCm ?? null };
+    return { id: p.id, title: p.title, sku: p.sku, courier: v?.courier ?? true, freight: v?.freight ?? true, locker: v?.locker ?? false, reason: v?.reason ?? null, weightKg: f?.weightKg ?? null, dimsCm: f?.dimsCm ?? null };
   });
 }

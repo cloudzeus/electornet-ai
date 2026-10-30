@@ -14,7 +14,7 @@ export type PayKey = "card" | "apple" | "google" | "revolut" | "paypal" | "klarn
 /** Οι κωδικοί PAYMENT που βρέθηκαν στο SoftOne της Euronics. Όσα λείπουν συμπληρώνονται στις Ρυθμίσεις → SoftOne. */
 export const DEFAULT_PAYMENT: Partial<Record<PayKey, string>> = { card: "1001", apple: "1001", google: "1001", "no-card": "1004", cod: "1000", bank: "1003", paypal: "1002" };
 export const PAY_LABEL: Record<string, string> = { card: "Κάρτα", apple: "Apple Pay", google: "Google Pay", revolut: "Revolut Pay", paypal: "PayPal", klarna: "Klarna", tbi: "TBI Bank", iris: "IRIS", "no-card": "Δόσεις χωρίς κάρτα", bank: "Κατάθεση σε τράπεζα", cod: "Αντικαταβολή", store: "Στο κατάστημα" };
-const FUL_LABEL: Record<string, string> = { courier: "Courier", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
+const FUL_LABEL: Record<string, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
 
 export interface SaldocSettings {
   series: string | null;

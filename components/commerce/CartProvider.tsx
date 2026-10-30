@@ -17,7 +17,7 @@ export interface CartLine {
   variant?: string;
 }
 
-export type Fulfilment = "courier" | "click-collect" | "appointment";
+export type Fulfilment = "courier" | "freight" | "click-collect" | "appointment";
 
 interface CartState {
   lines: CartLine[];

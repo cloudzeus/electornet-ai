@@ -78,7 +78,7 @@ export interface SimInput {
   items: { productId: string; qty: number }[];
   coupon: string | null;
   customer: "guest" | "new" | "registered";
-  zip: string | null; payment: string | null; delivery: "courier" | "click-collect" | "appointment";
+  zip: string | null; payment: string | null; delivery: "courier" | "freight" | "click-collect" | "appointment";
   at: string | null;
   /** και μη δημοσιευμένες (πρόχειρες, σε αναμονή έγκρισης, σε παύση) */
   drafts: boolean;

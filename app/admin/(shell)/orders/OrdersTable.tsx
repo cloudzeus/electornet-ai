@@ -87,7 +87,7 @@ export function OrdersTable({ rows, canWrite, exportBase, empty }: { rows: Order
                 </span>
                 <span className="hidden @4xl:inline-flex items-center gap-1.5 min-w-0 text-[length:var(--fs-12)] text-eu-ink-3">
                   {r.fulfilment === "click-collect" ? <Store className="size-4 shrink-0 text-eu-blue" aria-hidden /> : <Truck className="size-4 shrink-0 text-eu-blue" aria-hidden />}
-                  <span className="truncate">{r.fulfilment === "click-collect" ? r.store ?? "Κατάστημα" : r.shipment?.voucher ? <span className="font-mono">{r.shipment.voucher}</span> : r.fulfilment === "appointment" ? "Ραντεβού" : ["pending", "paid", "processing"].includes(r.status) ? <span className="text-eu-amber font-bold">Χωρίς voucher</span> : "Courier"}</span>
+                  <span className="truncate">{r.fulfilment === "click-collect" ? r.store ?? "Κατάστημα" : r.shipment?.voucher ? <span className="font-mono">{r.shipment.voucher}</span> : r.fulfilment === "appointment" ? "Ραντεβού" : r.fulfilment === "freight" ? "Μεταφορική" : ["pending", "paid", "processing"].includes(r.status) ? <span className="text-eu-amber font-bold">Χωρίς voucher</span> : "Courier"}</span>
                 </span>
                 <span className={`col-start-2 col-span-2 @4xl:col-span-1 @4xl:col-start-auto flex-wrap items-center gap-1 ${alerts.length || r.returns || r.notes ? "flex" : "hidden @4xl:flex"}`}>
                   <span className="hidden @4xl:inline-flex"><OrderStatusBadge status={r.status} /></span>

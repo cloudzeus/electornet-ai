@@ -59,7 +59,7 @@ const has = (u: DashUser, ...keys: string[]) => keys.some((k) => can(u.permissio
 /** υπάλληλος καταστήματος: μόνο ό,τι αφορά το κατάστημά του */
 const scoped = (u: DashUser) => !!u.storeId && !has(u, "orders.write") ? u.storeId! : null;
 const LIVE = ["paid", "processing", "shipped", "ready-for-pickup", "delivered"];
-const FUL: Record<string, string> = { courier: "Courier", "click-collect": "Παραλαβή", appointment: "Ραντεβού" };
+const FUL: Record<string, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή", appointment: "Ραντεβού" };
 const STATUS: Record<string, string> = { pending: "Νέα", paid: "Πληρωμένη", processing: "Σε επεξεργασία", shipped: "Στάλθηκε", "ready-for-pickup": "Έτοιμη για παραλαβή", delivered: "Παραδόθηκε", cancelled: "Ακυρώθηκε", returned: "Επιστροφή" };
 const customerName = (o: { customer: { firstName: string; lastName: string } | null; guestEmail: string | null }) => (o.customer ? `${o.customer.firstName} ${o.customer.lastName}`.trim() : o.guestEmail ?? "Επισκέπτης");
 

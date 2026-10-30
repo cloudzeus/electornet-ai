@@ -85,12 +85,14 @@ export async function allShippingFacts(): Promise<ShipFactsRow[]> {
   return rows;
 }
 
-/** Πόσα πάνε με courier, πόσα μόνο από κατάστημα, πόσα σε θυρίδα, πόσα χωρίς στοιχεία — και «μόνο κατάστημα» ανά κατηγορία. */
+/** Πόσα πάνε με courier, με μεταφορική, μόνο από κατάστημα, σε θυρίδα, χωρίς στοιχεία — και ανά κατηγορία. */
 export function tallyShipping(rows: ShipFactsRow[], rules: BulkyRules) {
-  const t = { courier: 0, store: 0, locker: 0, unknown: 0, storeByCat: {} as Record<string, number> };
+  const t = { courier: 0, freight: 0, store: 0, locker: 0, unknown: 0, storeByCat: {} as Record<string, number>, freightByCat: {} as Record<string, number> };
   for (const f of rows) {
     const v = decideShipping({ categoryPath: f.path, weightKg: f.weightKg, dimsCm: f.dimsCm }, rules);
-    if (v.courier) t.courier++; else { t.store++; t.storeByCat[f.categoryId] = (t.storeByCat[f.categoryId] ?? 0) + 1; }
+    if (v.courier) t.courier++;
+    else if (v.freight) { t.freight++; t.freightByCat[f.categoryId] = (t.freightByCat[f.categoryId] ?? 0) + 1; }
+    else { t.store++; t.storeByCat[f.categoryId] = (t.storeByCat[f.categoryId] ?? 0) + 1; }
     if (v.locker) t.locker++;
     if (f.weightKg == null && !f.dimsCm) t.unknown++;
   }

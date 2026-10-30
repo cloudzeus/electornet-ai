@@ -301,7 +301,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   );
 }
 
-const DELIVERY = [["courier", "Αποστολή στο σπίτι"], ["click-collect", "Παραλαβή από κατάστημα"], ["appointment", "Παράδοση με ραντεβού"]] as const;
+const DELIVERY = [["courier", "Αποστολή στο σπίτι"], ["freight", "Μεταφορική"], ["click-collect", "Παραλαβή από κατάστημα"], ["appointment", "Παράδοση με ραντεβού"]] as const;
 const CUSTOMERS = { all: "Όλοι οι πελάτες", new: "Μόνο πρώτη αγορά", registered: "Μόνο μέλη" } as const;
 function customersText(d: PromoDraft, segments: { id: string; label: string }[]) {
   const segs = (d.rules.segments ?? []).map((id) => segments.find((s) => s.id === id)?.label.replace(/ \(\d+\)$/, "") ?? id);

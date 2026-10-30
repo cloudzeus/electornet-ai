@@ -98,6 +98,7 @@ export async function settingsOverview() {
         ...COURIERS.map((c) => chip(c.label, on(ship.data[`${c.id}On`]), href("shipping", `${c.id}On`))),
         chip("Click & Collect", on(ship.data.clickCollect), href("shipping", "clickCollect")),
         chip("Παράδοση με ραντεβού", on(ship.data.appointmentDelivery), href("shipping", "appointmentDelivery")),
+        chip("Μεταφορική", on(ship.data.freightOn), href("shipping", "freightOn")),
       ],
     },
     {

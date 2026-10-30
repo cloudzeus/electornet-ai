@@ -149,7 +149,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDeta
           </Card>
 
           {/* παράδοση */}
-          <Card title={o.fulfilment === "click-collect" ? "Παραλαβή από κατάστημα" : o.fulfilment === "appointment" ? "Παράδοση με ραντεβού" : "Αποστολή"} icon={o.fulfilment === "click-collect" ? Store : Truck} id="voucher" data-help="order.delivery">
+          <Card title={o.fulfilment === "click-collect" ? "Παραλαβή από κατάστημα" : o.fulfilment === "appointment" ? "Παράδοση με ραντεβού" : o.fulfilment === "freight" ? "Αποστολή με μεταφορική" : "Αποστολή"} icon={o.fulfilment === "click-collect" ? Store : Truck} id="voucher" data-help="order.delivery">
             {o.fulfilment === "click-collect" ? (
               o.pickupStore ? (
                 <dl className="m-0 grid gap-1">
@@ -166,7 +166,7 @@ export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDeta
                 <CreateVoucher orderId={o.id} weightKg={draft.weightKg} weightKnown={draft.weightKnown} pieces={draft.pieces} disabled={draft.blockers.length > 0} />
               </div>
             ) : (
-              <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{o.fulfilment === "appointment" ? "Η παράδοση γίνεται από το κατάστημα με ραντεβού." : `${s.carrierName ?? "Courier"} · χωρίς voucher ακόμη.`}</p>
+              <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{o.fulfilment === "appointment" ? "Η παράδοση γίνεται από το κατάστημα με ραντεβού." : o.fulfilment === "freight" ? "Εσωτερική διαδικασία, χωρίς voucher: κανόνισε τη μεταφορική, τηλεφώνησε στον πελάτη και άλλαξε την κατάσταση σε «Στάλθηκε» και μετά «Παραδόθηκε»." : `${s.carrierName ?? "Courier"} · χωρίς voucher ακόμη.`}</p>
             )}
             {o.shipments.filter((x) => x.status === "cancelled").length > 0 && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Ακυρωμένα vouchers: {o.shipments.filter((x) => x.status === "cancelled").map((x) => x.voucher).filter(Boolean).join(", ")}</p>}
           </Card>

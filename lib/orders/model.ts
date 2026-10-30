@@ -3,7 +3,7 @@
  * κατάστασης ανά τρόπο παράδοσης και η «επόμενη ενέργεια» που προτείνεται στο προσωπικό.
  */
 export type OrderStatus = "pending" | "paid" | "processing" | "shipped" | "ready-for-pickup" | "delivered" | "cancelled" | "returned";
-export type Fulfilment = "courier" | "click-collect" | "appointment";
+export type Fulfilment = "courier" | "freight" | "click-collect" | "appointment";
 export type Tone = "neutral" | "info" | "good" | "warn" | "bad";
 
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone; help: string }> = {
@@ -19,7 +19,7 @@ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone; help
 export const isOrderStatus = (v: unknown): v is OrderStatus => typeof v === "string" && v in ORDER_STATUS;
 export const statusLabel = (s: string) => (isOrderStatus(s) ? ORDER_STATUS[s].label : s);
 
-export const FULFILMENT: Record<Fulfilment, string> = { courier: "Courier", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
+export const FULFILMENT: Record<Fulfilment, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
 export const PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Εκκρεμεί", tone: "warn" }, processing: { label: "Σε εξέλιξη", tone: "info" }, review: { label: "Σε έλεγχο", tone: "warn" },
   paid: { label: "Πληρώθηκε", tone: "good" }, failed: { label: "Απέτυχε", tone: "bad" }, cancelled: { label: "Ακυρώθηκε", tone: "neutral" },
@@ -43,7 +43,8 @@ export const RETURN_NEXT: Record<string, string[]> = { requested: ["approved", "
 
 /**
  * Επιτρεπτές επόμενες καταστάσεις. Η αποστολή με courier γίνεται «Στάλθηκε» από τα vouchers (κλείσιμο ημέρας /
- * πρώτη κίνηση) — εδώ επιτρέπεται και χειροκίνητα για αποστολές εκτός συστήματος.
+ * πρώτη κίνηση) — εδώ επιτρέπεται και χειροκίνητα για αποστολές εκτός συστήματος. Η μεταφορική (εσωτερική διαδικασία)
+ * ακολουθεί την ίδια σειρά, πάντα χειροκίνητα.
  */
 export function nextStatuses(status: string, fulfilment: string): OrderStatus[] {
   const cc = fulfilment === "click-collect", appt = fulfilment === "appointment";
@@ -82,8 +83,9 @@ export function nextAction(o: { status: string; fulfilment: string; paymentMetho
     case "processing":
       if (cc) return { kind: "status", to: "ready-for-pickup", label: "Έτοιμη για παραλαβή", hint: "Ο πελάτης παίρνει email με τον κωδικό παραλαβής." };
       if (o.fulfilment === "appointment") return { kind: "status", to: "delivered", label: "Παραδόθηκε", hint: "Μετά την παράδοση / εγκατάσταση." };
+      if (o.fulfilment === "freight") return { kind: "status", to: "shipped", label: "Παραδόθηκε στη μεταφορική", hint: "Όταν η μεταφορική παραλάβει τη συσκευή· ο πελάτης ειδοποιείται τηλεφωνικά για την παράδοση." };
       return o.hasShipment ? { kind: "none", label: "Περιμένει τον courier", hint: "Voucher εκδόθηκε — η κατάσταση αλλάζει με το κλείσιμο ημέρας ή την πρώτη κίνηση." } : { kind: "voucher", label: "Έκδοση voucher", hint: "Βάρος και τεμάχια από τα προϊόντα." };
-    case "shipped": return { kind: "none", label: "Σε μεταφορά", hint: "Η παράδοση καταγράφεται αυτόματα από την παρακολούθηση του courier." };
+    case "shipped": return o.fulfilment === "freight" ? { kind: "status", to: "delivered", label: "Παραδόθηκε", hint: "Όταν η μεταφορική επιβεβαιώσει την παράδοση στον πελάτη." } : { kind: "none", label: "Σε μεταφορά", hint: "Η παράδοση καταγράφεται αυτόματα από την παρακολούθηση του courier." };
     case "ready-for-pickup": return { kind: "status", to: "delivered", label: "Παραλήφθηκε", hint: "Ο πελάτης πήρε την παραγγελία." };
     default: return { kind: "none", label: ORDER_STATUS[o.status as OrderStatus]?.label ?? o.status, hint: "" };
   }

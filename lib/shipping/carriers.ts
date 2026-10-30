@@ -58,3 +58,17 @@ export function pickCarrier(offers: CarrierOffer[], chosen: string | null | unde
   const cheapest = (l: CarrierOffer[]) => [...l].sort((a, b) => a.fee - b.fee)[0];
   return ok.find((o) => o.id === chosen) ?? cheapest(ok.filter((o) => o.kind === "address")) ?? cheapest(ok) ?? null;
 }
+
+/**
+ * Μεταφορική (εσωτερική διαδικασία, χωρίς voucher): για τις κατηγορίες «μεταφορική» της σελίδας Αποστολές (λευκές /
+ * ογκώδεις συσκευές). Ρυθμίσεις → Αποστολές & courier: διακόπτης, κόστος, «δωρεάν από», χρόνος. null = κλειστή.
+ */
+export interface FreightOffer { fee: number; baseFee: number; freeFrom: number | null; eta: string }
+export const FREIGHT_DEFAULT = { fee: 2500, eta: "3–7 εργάσιμες, με τηλεφωνική συνεννόηση" };
+export function freightOffer(data: Data, goods: number): FreightOffer | null {
+  if (data.freightOn !== true) return null;
+  const baseFee = num(data.freightFee) != null ? cents(num(data.freightFee)!) : FREIGHT_DEFAULT.fee;
+  const own = num(data.freightFreeFrom);
+  const freeFrom = own != null ? cents(own) : null;
+  return { baseFee, freeFrom, fee: freeFrom != null && goods >= freeFrom ? 0 : baseFee, eta: String(data.freightEta ?? "").trim() || FREIGHT_DEFAULT.eta };
+}

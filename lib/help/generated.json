@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-30T14:40:41.234Z",
+ "generatedAt": "2026-10-30T14:53:06.550Z",
  "routes": [
   {
    "route": "/admin",
@@ -83,7 +83,7 @@
    "slug": "apostoles",
    "file": "app/admin/(shell)/apostoles/page.tsx",
    "title": "Αποστολές",
-   "doc": "Αποστολές: ποια προϊόντα φεύγουν με courier, ποια μόνο από κατάστημα (μεγάλες συσκευές: ραντεβού ή παραλαβή) και ποια χωράνε σε θυρίδα. Ο ίδιος κανόνας ισχύει στο καλάθι, στο checkout και στην καταχώριση της παραγγελίας.",
+   "doc": "Αποστολές: ποια προϊόντα φεύγουν με courier, ποια με μεταφορική (εσωτερική διαδικασία), ποια μόνο από κατάστημα (μεγάλες συσκευές: ραντεβού ή παραλαβή) και ποια χωράνε σε θυρίδα. Ο ίδιος κανόνας ισχύει στο καλάθι, στο checkout και στην καταχώριση της παραγγελίας.",
    "perm": "catalog.products.read",
    "nav": {
     "group": "Αποστολές",
@@ -93,6 +93,7 @@
    "helpKeys": [
     "ship.status",
     "ship.store",
+    "ship.freight",
     "ship.limits",
     "ship.exceptions",
     "ship.impact",
@@ -629,8 +630,14 @@
     "cats.add",
     "cats.ops"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    }
+   ],
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.categories-d.jpg",
     "mobile": "/api/help-shot/catalog.categories-m.jpg"
@@ -722,6 +729,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "d767ceb",
      "date": "2026-10-30T16:03:47+02:00",
      "text": "Κατάλογος: στη βιτρίνα μόνο τα είδη χωρίς «Εξαίρεση Web»"
@@ -765,14 +777,9 @@
      "hash": "f2607d7",
      "date": "2026-10-04T11:14:32+03:00",
      "text": "Κατάστημα: εμφανίζονται και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel), με φίλτρα κατηγορίας από τα χαρακτηριστικά τους"
-    },
-    {
-     "hash": "1d4d3a7",
-     "date": "2026-10-04T09:05:45+03:00",
-     "text": "Καρτέλα προϊόντος: «Ενημέρωση από SoftOne»"
     }
    ],
-   "updatedAt": "2026-10-30T16:03:47+02:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.specs-d.jpg",
     "mobile": "/api/help-shot/catalog.specs-m.jpg"
@@ -854,6 +861,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "13a7f97",
      "date": "2026-10-28T16:35:58+02:00",
      "text": "Μονάδα μέτρησης και εμπορική σήμανση στα νέα είδη από εισαγωγή"
@@ -897,14 +909,9 @@
      "hash": "e6973c0",
      "date": "2026-10-20T05:39:53+03:00",
      "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)"
-    },
-    {
-     "hash": "f0cb366",
-     "date": "2026-10-20T05:36:28+03:00",
-     "text": "Εισαγωγή από ξένο Excel: όριο 10.000 γραμμές, detectHeaderRow με τις περισσότερες διαφορετικές τιμές (Gedore, συγχωνευμένος τίτλος), τιμές μονάδος/χονδρικής → κόστος, unique headerSignature στο ImportMapping και upser…"
     }
    ],
-   "updatedAt": "2026-10-28T16:35:58+02:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {}
   },
   {
@@ -1052,6 +1059,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "b4299dc",
      "date": "2026-10-30T11:50:51+02:00",
      "text": "XML προμηθευτές: η γραμμή δένεται με το είδος που έφτιαξε"
@@ -1095,14 +1107,9 @@
      "hash": "e24d739",
      "date": "2026-10-28T16:37:14+02:00",
      "text": "XML προμηθευτές: βήμα που έπαψε να υπάρχει δεν αφήνει τον οδηγό χωρίς πλοήγηση"
-    },
-    {
-     "hash": "4dba464",
-     "date": "2026-10-28T16:36:22+02:00",
-     "text": "XML προμηθευτές: η αντιστοίχιση σε χωριστά βήματα, με παραδείγματα προϊόντων"
     }
    ],
-   "updatedAt": "2026-10-30T11:50:51+02:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -3282,6 +3289,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "3b1140d",
      "date": "2026-10-20T17:25:09+03:00",
      "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
@@ -3325,14 +3337,9 @@
      "hash": "705ab72",
      "date": "2026-10-11T03:08:55+03:00",
      "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
-    },
-    {
-     "hash": "e304c31",
-     "date": "2026-10-10T14:00:00+03:00",
-     "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-10-20T17:25:09+03:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3356,6 +3363,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "3b1140d",
      "date": "2026-10-20T17:25:09+03:00",
      "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
@@ -3399,14 +3411,9 @@
      "hash": "705ab72",
      "date": "2026-10-11T03:08:55+03:00",
      "text": "Ρυθμίσεις πιο απλές: επισκόπηση με «Θέλουν προσοχή» (κενά υποχρεωτικά, συντήρηση, πληρωμές σε Test, courier/social login χωρίς στοιχεία, χωρίς αποστολή emails"
-    },
-    {
-     "hash": "e304c31",
-     "date": "2026-10-10T14:00:00+03:00",
-     "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-10-20T17:25:09+03:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {}
   },
   {
@@ -3423,6 +3430,11 @@
    "dynamic": false,
    "helpKeys": [],
    "changes": [
+    {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
     {
      "hash": "13a7f97",
      "date": "2026-10-28T16:35:58+02:00",
@@ -3449,7 +3461,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-10-28T16:35:58+02:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone-d.jpg",
     "mobile": "/api/help-shot/softone-m.jpg"
@@ -3633,6 +3645,11 @@
    ],
    "changes": [
     {
+     "hash": "97e50a4",
+     "date": "2026-10-30T16:42:53+02:00",
+     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
+    },
+    {
      "hash": "1af3105",
      "date": "2026-09-14T14:58:39+03:00",
      "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
@@ -3643,7 +3660,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-09-14T14:58:39+03:00",
+   "updatedAt": "2026-10-30T16:42:53+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -3865,6 +3882,20 @@
   }
  ],
  "recent": [
+  {
+   "hash": "97e50a4",
+   "date": "2026-10-30T16:42:53+02:00",
+   "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/categories",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml",
+    "/admin/softone",
+    "/admin/softone/sync"
+   ]
+  },
   {
    "hash": "d767ceb",
    "date": "2026-10-30T16:03:47+02:00",
@@ -4147,12 +4178,6 @@
    "date": "2026-10-20T14:43:40+03:00",
    "text": "Ασφάλεια: φύλακας",
    "routes": []
-  },
-  {
-   "hash": "ee514ea",
-   "date": "2026-10-20T14:40:31+03:00",
-   "text": "Ασφάλεια: Bunny μόνο τα νέα ως κρίσιμα, κατώφλια λογικής, αλλαγή παραληπτών → κρίσιμο",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4160,6 +4185,9 @@
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
   ],
   "ship.store": [
+   "app/admin/(shell)/apostoles/ShippingRules.tsx"
+  ],
+  "ship.freight": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
   ],
   "ship.limits": [

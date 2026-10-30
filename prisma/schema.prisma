@@ -1368,7 +1368,7 @@ model Order {
   customer      Customer?        @relation(fields: [customerId], references: [id])
   guestEmail    String?
   status        String           @default("pending") // pending | paid | processing | shipped | ready-for-pickup | delivered | cancelled | returned
-  fulfilment    String // courier | click-collect | appointment
+  fulfilment    String // courier | freight | click-collect | appointment
   pickupStoreId String?
   pickupStore   Store?           @relation(fields: [pickupStoreId], references: [id])
   shipping      Json // snapshot address

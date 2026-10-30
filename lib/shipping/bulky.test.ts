@@ -30,3 +30,12 @@ test("θυρίδα: μόνο αν ξέρουμε ότι χωράει και ≤ 
   assert.equal(decideShipping({ categoryPath: ["foyrnoi-mikrokymaton"], weightKg: 12, dimsCm: [44, 35, 26] }, r).locker, true);
   assert.equal(decideShipping({ categoryPath: ["afygrantires"], weightKg: 22, dimsCm: [30, 30, 50] }, r).locker, false);
 });
+
+test("μεταφορική: η κατηγορία κερδίζει προεπιλογή και όρια, ό,τι πάει με courier πάει και με μεταφορική", () => {
+  const r = { ...DEFAULT_RULES, categories: { psygeia: "freight" as const } };
+  const v = decideShipping({ categoryPath: ["psygeiokatapsyktes", "psygeia"], weightKg: 70, dimsCm: [185, 60, 65] }, r);
+  assert.deepEqual([v.courier, v.freight, v.locker], [false, true, false]);
+  assert.equal(decideShipping({ categoryPath: ["kinita-smartphones"], weightKg: 0.4, dimsCm: [16, 8, 1] }, r).freight, true);
+  assert.equal(decideShipping({ categoryPath: ["koyzines"], weightKg: 50, dimsCm: null }, r).freight, false);
+  assert.equal(decideShipping({ categoryPath: ["foyrnoi"], weightKg: 34, dimsCm: null }, r).freight, false);
+});

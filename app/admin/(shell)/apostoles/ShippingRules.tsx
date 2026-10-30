@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Box, Check, CircleAlert, Info, Loader2, PackageSearch, Plus, Save, Search, Store, Truck, Undo2, X } from "lucide-react";
+import { ArrowRight, Box, Check, CircleAlert, Container, Info, Loader2, PackageSearch, Plus, Save, Search, Store, Truck, Undo2, X } from "lucide-react";
 import { checkShippingAction, previewShippingAction, saveBulkyRulesAction } from "./actions";
 
-export interface ShipCat { id: string; slug: string; name: string; path: string; depth: number; count: number; parent: string | null; def: "courier" | "store" | null }
-type Rules = { categories: Record<string, "courier" | "store">; maxKg: number; maxSideCm: number; lockerMaxKg: number; lockerBox: [number, number, number] };
-type Tally = { courier: number; store: number; locker: number; unknown: number; storeByCat: Record<string, number> };
+type Choice = "courier" | "freight" | "store";
+export interface ShipCat { id: string; slug: string; name: string; path: string; depth: number; count: number; parent: string | null; def: Choice | null }
+type Rules = { categories: Record<string, Choice>; maxKg: number; maxSideCm: number; lockerMaxKg: number; lockerBox: [number, number, number] };
+type Tally = { courier: number; freight: number; store: number; locker: number; unknown: number; storeByCat: Record<string, number>; freightByCat: Record<string, number> };
 type Check = Awaited<ReturnType<typeof checkShippingAction>>[number];
 
 const COURIER: Record<string, string> = { geniki: "Γενική Ταχυδρομική", acs: "ACS", boxnow: "BOX NOW", elta: "ΕΛΤΑ Courier", asap: "ASAP" };
@@ -16,12 +17,12 @@ const norm = (s: string) => s.toLocaleLowerCase("el-GR").normalize("NFD").replac
 const num = (n: number) => n.toLocaleString("el-GR");
 
 /**
- * Αποστολές σε τρία βήματα αντί για εκατοντάδες γραμμές: 1) ποιες κατηγορίες πάνε μόνο από κατάστημα, 2) όρια βάρους /
- * μεγέθους για όλα τα υπόλοιπα, 3) εξαιρέσεις «πάντα με courier». Δίπλα: η επίπτωση σε όλο τον κατάλογο πριν την
- * αποθήκευση και «Γιατί πάει έτσι;» για ένα προϊόν.
+ * Αποστολές σε τέσσερα βήματα αντί για εκατοντάδες γραμμές: 1) ποιες κατηγορίες πάνε μόνο από κατάστημα, 2) ποιες με
+ * μεταφορική (εσωτερική διαδικασία), 3) όρια βάρους / μεγέθους για όλα τα υπόλοιπα, 4) εξαιρέσεις «πάντα με courier».
+ * Δίπλα: η επίπτωση σε όλο τον κατάλογο πριν την αποθήκευση και «Γιατί πάει έτσι;» για ένα προϊόν.
  */
-export function ShippingRules({ cats, initial, tally: initialTally, couriers, clickCollect, appointment, canWrite, canSettings }: {
-  cats: ShipCat[]; initial: Rules; tally: Tally; couriers: string[]; clickCollect: boolean; appointment: boolean; canWrite: boolean; canSettings: boolean;
+export function ShippingRules({ cats, initial, tally: initialTally, couriers, clickCollect, appointment, freight, canWrite, canSettings }: {
+  cats: ShipCat[]; initial: Rules; tally: Tally; couriers: string[]; clickCollect: boolean; appointment: boolean; freight: boolean; canWrite: boolean; canSettings: boolean;
 }) {
   const router = useRouter();
   const [map, setMap] = useState(initial.categories);
@@ -44,23 +45,26 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
   }, [rules]);
 
   const bySlug = useMemo(() => new Map(cats.map((c) => [c.slug, c])), [cats]);
-  // «μόνο κατάστημα» ανά κατηγορία μαζί με τις υποκατηγορίες της
-  const storeIn = useMemo(() => {
-    const kids = new Map<string, ShipCat[]>();
-    for (const c of cats) if (c.parent) kids.set(c.parent, [...(kids.get(c.parent) ?? []), c]);
+  // «μόνο κατάστημα» / «μεταφορική» ανά κατηγορία μαζί με τις υποκατηγορίες της
+  const kids = useMemo(() => { const m = new Map<string, ShipCat[]>(); for (const c of cats) if (c.parent) m.set(c.parent, [...(m.get(c.parent) ?? []), c]); return m; }, [cats]);
+  const inTree = useMemo(() => (byCat: Record<string, number>) => {
     const memo = new Map<string, number>();
-    const sum = (c: ShipCat): number => { if (memo.has(c.slug)) return memo.get(c.slug)!; const v = (tally.storeByCat[c.id] ?? 0) + (kids.get(c.slug) ?? []).reduce((a, k) => a + sum(k), 0); memo.set(c.slug, v); return v; };
+    const sum = (c: ShipCat): number => { if (memo.has(c.slug)) return memo.get(c.slug)!; const v = (byCat[c.id] ?? 0) + (kids.get(c.slug) ?? []).reduce((a, k) => a + sum(k), 0); memo.set(c.slug, v); return v; };
     return (slug: string) => { const c = bySlug.get(slug); return c ? sum(c) : 0; };
-  }, [cats, tally.storeByCat, bySlug]);
+  }, [kids, bySlug]);
+  const storeIn = useMemo(() => inTree(tally.storeByCat), [inTree, tally.storeByCat]);
+  const freightIn = useMemo(() => inTree(tally.freightByCat), [inTree, tally.freightByCat]);
 
-  // οι δύο λίστες: «μόνο από κατάστημα» (δικές σου + προεπιλογές) και «πάντα με courier» (εξαιρέσεις)
-  const storeList = cats.filter((c) => map[c.slug] === "store" || (c.def === "store" && map[c.slug] !== "courier"));
-  const courierList = cats.filter((c) => map[c.slug] === "courier" || (c.def === "courier" && map[c.slug] !== "store"));
+  // οι λίστες: «μόνο από κατάστημα» (δικές σου + προεπιλογές), «με μεταφορική» και «πάντα με courier» (εξαιρέσεις)
+  const choiceOf = (c: ShipCat) => map[c.slug] ?? c.def;
+  const storeList = cats.filter((c) => choiceOf(c) === "store");
+  const freightList = cats.filter((c) => choiceOf(c) === "freight");
+  const courierList = cats.filter((c) => choiceOf(c) === "courier");
   /** η κατηγορία καλύπτεται ήδη από γονική της στη λίστα → το όνομα της γονικής */
   const coveredBy = (c: ShipCat, list: ShipCat[]) => { const inList = new Set(list.map((x) => x.slug)); for (let p = c.parent; p; p = bySlug.get(p)?.parent ?? null) if (inList.has(p)) return bySlug.get(p)!.name; return null; };
-  const setChoice = (slug: string, v: "courier" | "store" | null) => setMap((m) => { const n = { ...m }; const def = bySlug.get(slug)?.def ?? null; if (v === null || v === def) delete n[slug]; else n[slug] = v; return n; });
-  /** αφαίρεση από λίστα: δική σου → καμία επιλογή· προεπιλογή → ρητά το αντίθετο */
-  const removeFrom = (slug: string, list: "store" | "courier") => { const c = bySlug.get(slug)!; if (map[slug] === list) setChoice(slug, null); else if (c.def === list) setMap((m) => ({ ...m, [slug]: list === "store" ? "courier" : "store" })); };
+  const setChoice = (slug: string, v: Choice | null) => setMap((m) => { const n = { ...m }; const def = bySlug.get(slug)?.def ?? null; if (v === null || v === def) delete n[slug]; else n[slug] = v; return n; });
+  /** αφαίρεση από λίστα: δική σου → καμία επιλογή (ή η προεπιλογή)· προεπιλογή → ρητά courier (ή κατάστημα) */
+  const removeFrom = (slug: string, list: Choice) => { const c = bySlug.get(slug)!; if (map[slug] === list && c.def !== list) setChoice(slug, null); else setMap((m) => ({ ...m, [slug]: list === "courier" ? "store" : "courier" })); };
 
   const save = () => startSave(async () => {
     const r = await saveBulkyRulesAction(rules);
@@ -68,7 +72,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
     router.refresh();
   });
   const undo = () => { setMap(initial.categories); setLim(initLim); setMsg(null); };
-  const d = (k: keyof Omit<Tally, "storeByCat">) => tally[k] - initialTally[k];
+  const d = (k: keyof Omit<Tally, "storeByCat" | "freightByCat">) => tally[k] - initialTally[k];
 
   return (
     <div className="grid gap-4 min-w-0 @container">
@@ -76,13 +80,14 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
       <header className="grid gap-2">
         <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
           <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">Αποστολές</h1>
-          <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τι φεύγει με courier, τι μόνο από κατάστημα και τι χωράει σε θυρίδα — ίδιος κανόνας σε καλάθι, checkout και παραγγελία.</p>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Τι φεύγει με courier, τι με μεταφορική, τι μόνο από κατάστημα και τι χωράει σε θυρίδα — ίδιος κανόνας σε καλάθι, checkout και παραγγελία.</p>
         </div>
         <div data-help="ship.status" className="flex flex-wrap items-center gap-1.5 text-[length:var(--fs-13)]">
           <span className="font-bold text-eu-ink-2">Ενεργά στο checkout:</span>
           {couriers.length ? couriers.map((c) => <span key={c} className="inline-flex items-center gap-1 rounded-full bg-eu-green/10 text-eu-green font-bold px-2.5 h-8"><Truck className="size-3.5" aria-hidden />{COURIER[c] ?? c}</span>) : <span className="inline-flex items-center gap-1 rounded-full bg-eu-amber/20 text-eu-ink font-bold px-2.5 h-8"><CircleAlert className="size-3.5" aria-hidden />Κανένας courier</span>}
           <span className={`inline-flex items-center gap-1 rounded-full font-bold px-2.5 h-8 ${clickCollect ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}><Store className="size-3.5" aria-hidden />Παραλαβή από κατάστημα{clickCollect ? "" : ": όχι"}</span>
           <span className={`inline-flex items-center gap-1 rounded-full font-bold px-2.5 h-8 ${appointment ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>Ραντεβού{appointment ? "" : ": όχι"}</span>
+          <span className={`inline-flex items-center gap-1 rounded-full font-bold px-2.5 h-8 ${freight ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}><Container className="size-3.5" aria-hidden />Μεταφορική{freight ? "" : ": όχι"}</span>
           {canSettings && <Link href="/admin/settings/shipping" className="inline-flex items-center gap-1 rounded-full px-2.5 h-8 font-bold text-eu-blue hover:bg-white">Αλλαγή στις Ρυθμίσεις <ArrowRight className="size-3.5" aria-hidden /></Link>}
           {couriers.includes("geniki") && <Link href="/admin/apostoles/vouchers" className="inline-flex items-center gap-1 rounded-full px-2.5 h-8 font-bold text-eu-blue hover:bg-white">Vouchers Γενικής <ArrowRight className="size-3.5" aria-hidden /></Link>}
         </div>
@@ -96,7 +101,13 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
             {canWrite && <CatSearch cats={cats} exclude={new Set(storeList.map((c) => c.slug))} covered={(c) => coveredBy(c, storeList)} placeholder="Πρόσθεσε κατηγορία, π.χ. «καταψύκτες»" onPick={(s) => setChoice(s, "store")} />}
           </Step>
 
-          <Step help-key="ship.limits" n={2} title="Όρια για όλα τα υπόλοιπα" help="Ό,τι ξεπερνά αυτά τα όρια πάει μόνο από κατάστημα. Βάρος συσκευασίας από τα χαρακτηριστικά ή το ERP· διαστάσεις από το ERP.">
+          <Step help-key="ship.freight" n={2} title="Με μεταφορική (εσωτερική διαδικασία)" help="Λευκές και ογκώδεις συσκευές που δεν πάνε με courier: ο πελάτης βλέπει «Με μεταφορική» (χωρίς voucher — την κανονίζει το προσωπικό) ή «Παραλαβή από κατάστημα». Κερδίζει την προεπιλογή «μόνο κατάστημα» και τα όρια βάρους." collapsedEmpty={!freightList.length} empty="Καμία κατηγορία με μεταφορική.">
+            <CatList items={freightList} kind="freight" map={map} count={freightIn} canWrite={canWrite} onRemove={(s) => removeFrom(s, "freight")} />
+            {canWrite && <CatSearch cats={cats} exclude={new Set(freightList.map((c) => c.slug))} covered={(c) => coveredBy(c, freightList)} placeholder="Πρόσθεσε κατηγορία, π.χ. «πλυντήρια»" onPick={(s) => setChoice(s, "freight")} />}
+            {!freight && freightList.length > 0 && <p className="m-0 inline-flex items-start gap-1.5 rounded-lg bg-eu-amber/15 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]"><CircleAlert className="size-4 mt-px shrink-0" aria-hidden />Η μεταφορική είναι κλειστή στις Ρυθμίσεις: αυτά τα προϊόντα προσφέρονται μόνο με παραλαβή ή ραντεβού μέχρι να την ενεργοποιήσεις.</p>}
+          </Step>
+
+          <Step help-key="ship.limits" n={3} title="Όρια για όλα τα υπόλοιπα" help="Ό,τι ξεπερνά αυτά τα όρια πάει μόνο από κατάστημα. Βάρος συσκευασίας από τα χαρακτηριστικά ή το ERP· διαστάσεις από το ERP.">
             <div className="grid grid-cols-1 @md:grid-cols-3 gap-2">
               <Num label="Μέγιστο βάρος για courier" unit="κιλά" value={lim.maxKg} disabled={!canWrite} onChange={(v) => setLim((x) => ({ ...x, maxKg: v }))} />
               <Num label="Μεγαλύτερη πλευρά για courier" unit="εκ." value={lim.maxSideCm} disabled={!canWrite} onChange={(v) => setLim((x) => ({ ...x, maxSideCm: v }))} />
@@ -104,7 +115,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
             </div>
           </Step>
 
-          <Step help-key="ship.exceptions" n={3} title="Εξαιρέσεις: πάντα με courier" help="Υποκατηγορίες που φεύγουν με courier ακόμη κι αν η γονική τους είναι «μόνο από κατάστημα» ή ξεπερνούν τα όρια (π.χ. mini bar μέσα στα ψυγεία)." collapsedEmpty={!courierList.length}>
+          <Step help-key="ship.exceptions" n={4} title="Εξαιρέσεις: πάντα με courier" help="Υποκατηγορίες που φεύγουν με courier ακόμη κι αν η γονική τους είναι «μόνο από κατάστημα» / «μεταφορική» ή ξεπερνούν τα όρια (π.χ. mini bar μέσα στα ψυγεία)." collapsedEmpty={!courierList.length}>
             <CatList items={courierList} kind="courier" map={map} count={storeIn} canWrite={canWrite} onRemove={(s) => removeFrom(s, "courier")} />
             {canWrite && <CatSearch cats={cats} exclude={new Set(courierList.map((c) => c.slug))} covered={(c) => coveredBy(c, courierList)} placeholder="Πρόσθεσε εξαίρεση, π.χ. «mini bar»" onPick={(s) => setChoice(s, "courier")} />}
           </Step>
@@ -119,11 +130,12 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
             </div>
             <dl className="m-0 grid grid-cols-2 gap-1.5" aria-live="polite">
               <Stat label="Με courier" value={tally.courier} delta={d("courier")} icon={<Truck className="size-4" aria-hidden />} />
+              <Stat label="Με μεταφορική" value={tally.freight} delta={d("freight")} icon={<Container className="size-4" aria-hidden />} />
               <Stat label="Μόνο από κατάστημα" value={tally.store} delta={d("store")} icon={<Store className="size-4" aria-hidden />} />
               <Stat label="Χωράνε σε θυρίδα" value={tally.locker} delta={d("locker")} icon={<Box className="size-4" aria-hidden />} />
               <Stat label="Χωρίς βάρος & διαστάσεις" value={tally.unknown} tone="warn" href="/admin/catalog/dimensions?f=none" icon={<CircleAlert className="size-4" aria-hidden />} />
             </dl>
-            {dirty && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Με τις αλλαγές σου (πριν την αποθήκευση) · σε σύνολο {num(tally.courier + tally.store)} ενεργών προϊόντων.</p>}
+            {dirty && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Με τις αλλαγές σου (πριν την αποθήκευση) · σε σύνολο {num(tally.courier + tally.freight + tally.store)} ενεργών προϊόντων.</p>}
             {tally.unknown > 0 && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Όσα δεν έχουν βάρος ή διαστάσεις κρίνονται μόνο από την κατηγορία τους και δεν μπαίνουν σε θυρίδα.</p>}
           </section>
           <ProductCheck rules={rules} />
@@ -141,7 +153,7 @@ export function ShippingRules({ cats, initial, tally: initialTally, couriers, cl
   );
 }
 
-function Step({ n, title, help, children, collapsedEmpty, "help-key": helpKey }: { "help-key": string; n: number; title: string; help: string; children: React.ReactNode; collapsedEmpty?: boolean }) {
+function Step({ n, title, help, children, collapsedEmpty, empty = "Καμία εξαίρεση.", "help-key": helpKey }: { "help-key": string; n: number; title: string; help: string; children: React.ReactNode; collapsedEmpty?: boolean; empty?: string }) {
   return (
     <section data-help={helpKey} aria-labelledby={`step-${n}`} className="rounded-xl border border-eu-line bg-white p-3 grid gap-2.5">
       <div className="flex items-start gap-2.5">
@@ -151,12 +163,12 @@ function Step({ n, title, help, children, collapsedEmpty, "help-key": helpKey }:
           <p className="m-0 text-eu-muted text-[length:var(--fs-13)] leading-snug">{help}</p>
         </div>
       </div>
-      {collapsedEmpty ? <div className="grid gap-2"><p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Καμία εξαίρεση.</p>{(children as React.ReactNode[])[1]}</div> : children}
+      {collapsedEmpty ? <div className="grid gap-2"><p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{empty}</p>{(children as React.ReactNode[]).slice(1)}</div> : children}
     </section>
   );
 }
 
-function CatList({ items, kind, map, count, canWrite, onRemove }: { items: ShipCat[]; kind: "store" | "courier"; map: Record<string, string>; count: (slug: string) => number; canWrite: boolean; onRemove: (slug: string) => void }) {
+function CatList({ items, kind, map, count, canWrite, onRemove }: { items: ShipCat[]; kind: Choice; map: Record<string, string>; count: (slug: string) => number; canWrite: boolean; onRemove: (slug: string) => void }) {
   if (!items.length) return kind === "store" ? <p className="m-0 rounded-lg bg-eu-amber/15 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]">Καμία κατηγορία — όλα κρίνονται μόνο από τα όρια βάρους/μεγέθους.</p> : null;
   return (
     <ul className="m-0 p-0 list-none grid gap-1">
@@ -165,10 +177,10 @@ function CatList({ items, kind, map, count, canWrite, onRemove }: { items: ShipC
         const trail = c.path.split(" › ").slice(0, -1).join(" › ");
         return (
           <li key={c.slug} className="flex items-center gap-2 rounded-lg border border-eu-line pl-2.5 pr-1 min-h-11">
-            {kind === "store" ? <Store className="size-4 shrink-0 text-eu-navy" aria-hidden /> : <Truck className="size-4 shrink-0 text-eu-green" aria-hidden />}
+            {kind === "store" ? <Store className="size-4 shrink-0 text-eu-navy" aria-hidden /> : kind === "freight" ? <Container className="size-4 shrink-0 text-eu-blue" aria-hidden /> : <Truck className="size-4 shrink-0 text-eu-green" aria-hidden />}
             <span className="grid min-w-0 flex-1 py-1">
               <span className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight truncate">{c.name}{!own && <span className="ml-1.5 rounded-full bg-eu-surface px-1.5 py-0.5 text-eu-muted font-semibold text-[length:var(--fs-12)] align-middle">προεπιλογή</span>}</span>
-              <span className="text-eu-muted text-[length:var(--fs-12)] leading-tight truncate" title={c.path}>{trail ? `${trail} · ` : ""}{num(c.count)} προϊόντα{kind === "store" ? ` · ${num(count(c.slug))} μόνο κατάστημα` : ""}</span>
+              <span className="text-eu-muted text-[length:var(--fs-12)] leading-tight truncate" title={c.path}>{trail ? `${trail} · ` : ""}{num(c.count)} προϊόντα{kind === "store" ? ` · ${num(count(c.slug))} μόνο κατάστημα` : kind === "freight" ? ` · ${num(count(c.slug))} με μεταφορική` : ""}</span>
             </span>
             {canWrite && <button type="button" onClick={() => onRemove(c.slug)} aria-label={`Αφαίρεση: ${c.name}`} title={own ? "Αφαίρεση" : "Αφαίρεση (αλλάζει την προεπιλογή)"} className="size-10 shrink-0 grid place-items-center rounded-lg text-eu-muted hover:bg-eu-red/10 hover:text-eu-red"><X className="size-4" aria-hidden /></button>}
           </li>
@@ -259,7 +271,7 @@ function ProductCheck({ rules }: { rules: unknown }) {
             <li key={p.id} className="grid gap-1 rounded-lg bg-eu-surface/70 px-2.5 py-2">
               <span className="font-bold text-eu-ink text-[length:var(--fs-13)] leading-snug line-clamp-2">{p.title}</span>
               <span className="flex flex-wrap gap-1">
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 h-6 font-bold text-[length:var(--fs-12)] ${p.courier ? "bg-eu-green/10 text-eu-green" : "bg-eu-navy text-white"}`}>{p.courier ? <><Truck className="size-3" aria-hidden /> Courier</> : <><Store className="size-3" aria-hidden /> Μόνο κατάστημα</>}</span>
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 h-6 font-bold text-[length:var(--fs-12)] ${p.courier ? "bg-eu-green/10 text-eu-green" : p.freight ? "bg-eu-blue text-white" : "bg-eu-navy text-white"}`}>{p.courier ? <><Truck className="size-3" aria-hidden /> Courier</> : p.freight ? <><Container className="size-3" aria-hidden /> Μεταφορική</> : <><Store className="size-3" aria-hidden /> Μόνο κατάστημα</>}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 h-6 font-bold text-[length:var(--fs-12)] ${p.locker ? "bg-eu-green/10 text-eu-green" : "bg-eu-surface text-eu-muted"}`}><Box className="size-3" aria-hidden />{p.locker ? "Θυρίδα" : "Όχι θυρίδα"}</span>
               </span>
               <span className="text-eu-muted text-[length:var(--fs-12)] leading-snug">{p.reason ?? (p.courier ? "Μέσα στα όρια." : "")}{` · ${p.weightKg != null ? `${num(p.weightKg)} κιλά` : "χωρίς βάρος"} · ${p.dimsCm ? `${p.dimsCm.map((x) => Math.round(x)).join("×")} εκ.` : "χωρίς διαστάσεις"}`}</span>

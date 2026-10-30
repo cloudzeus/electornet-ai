@@ -31,7 +31,7 @@ export function OrderFilters({ q, ful, pay, from, to, sort }: { q: string; ful: 
         {pending && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 animate-spin text-eu-muted" aria-hidden />}
       </label>
       <select aria-label="Τρόπος παράδοσης" value={ful} onChange={(e) => set({ ful: e.target.value })} className={sel}>
-        <option value="">Όλοι οι τρόποι παράδοσης</option><option value="courier">Courier</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option>
+        <option value="">Όλοι οι τρόποι παράδοσης</option><option value="courier">Courier</option><option value="freight">Μεταφορική</option><option value="click-collect">Παραλαβή από κατάστημα</option><option value="appointment">Ραντεβού</option>
       </select>
       <select aria-label="Τρόπος πληρωμής" value={pay} onChange={(e) => set({ pay: e.target.value })} className={sel}>
         <option value="">Όλες οι πληρωμές</option><option value="card">Κάρτα</option><option value="cod">Αντικαταβολή</option><option value="bank">Κατάθεση</option><option value="iris">IRIS</option><option value="klarna">Klarna</option><option value="tbi">TBI Bank</option><option value="no-card">Δόσεις χωρίς κάρτα</option><option value="store">Στο κατάστημα</option>

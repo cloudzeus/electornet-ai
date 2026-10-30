@@ -10,7 +10,7 @@ export const metadata = { title: "Αποστολές" };
 export const dynamic = "force-dynamic";
 
 /**
- * Αποστολές: ποια προϊόντα φεύγουν με courier, ποια μόνο από κατάστημα (μεγάλες συσκευές: ραντεβού ή παραλαβή) και ποια
+ * Αποστολές: ποια προϊόντα φεύγουν με courier, ποια με μεταφορική (εσωτερική διαδικασία), ποια μόνο από κατάστημα (μεγάλες συσκευές: ραντεβού ή παραλαβή) και ποια
  * χωράνε σε θυρίδα. Ο ίδιος κανόνας ισχύει στο καλάθι, στο checkout και στην καταχώριση της παραγγελίας.
  */
 export default async function ShippingPage() {
@@ -30,10 +30,11 @@ export default async function ShippingPage() {
     <ShippingRules
       cats={cats}
       initial={rules}
-      tally={{ courier: now.courier, store: now.store, locker: now.locker, unknown: now.unknown, storeByCat: now.storeByCat }}
+      tally={{ courier: now.courier, freight: now.freight, store: now.store, locker: now.locker, unknown: now.unknown, storeByCat: now.storeByCat, freightByCat: now.freightByCat }}
       couriers={couriers}
       clickCollect={!!features?.clickCollect}
       appointment={!!features?.appointment}
+      freight={!!features?.freight}
       canWrite={can(user.permissions, "settings.write")}
       canSettings={user.roles.includes("super-admin")}
     />

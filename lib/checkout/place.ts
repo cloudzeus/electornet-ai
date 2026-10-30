@@ -33,7 +33,7 @@ export interface PlaceInput {
   contact: { firstName: string; lastName: string; email: string; phone: string };
   address?: { street?: string; number?: string; floor?: string; city?: string; zip?: string; region?: string; notes?: string };
   invoice?: { vatNumber: string; company?: string; doy?: string; activity?: string } | null;
-  fulfilment: "courier" | "click-collect" | "appointment";
+  fulfilment: "courier" | "freight" | "click-collect" | "appointment";
   storeId?: string | null;
   /** ο courier (lib/shipping/carriers) και, για BOX NOW, η θυρίδα που διάλεξε ο πελάτης στον χάρτη */
   carrier?: string | null;
@@ -54,7 +54,7 @@ function validate(i: PlaceInput): string | null {
   if (!i.contact?.firstName?.trim() || !i.contact?.lastName?.trim()) return "Συμπλήρωσε όνομα και επώνυμο.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(i.contact.email ?? "")) return "Το email δεν φαίνεται σωστό.";
   if (!/^\d{10}$/.test((i.contact.phone ?? "").replace(/\s/g, ""))) return "Το τηλέφωνο θέλει 10 ψηφία.";
-  if (!["courier", "click-collect", "appointment"].includes(i.fulfilment)) return "Διάλεξε τρόπο παράδοσης.";
+  if (!["courier", "freight", "click-collect", "appointment"].includes(i.fulfilment)) return "Διάλεξε τρόπο παράδοσης.";
   const toLocker = i.fulfilment === "courier" && carrierDef(i.carrier)?.kind === "locker";
   if (toLocker && !i.locker?.id) return "Διάλεξε θυρίδα BOX NOW στον χάρτη.";
   if (i.fulfilment !== "click-collect" && !toLocker && !/^\d{5}$/.test(i.address?.zip ?? "")) return "Ο ΤΚ θέλει 5 ψηφία.";
@@ -77,8 +77,11 @@ export async function placeOrder(input: PlaceInput) {
   // ο courier που χρεώθηκε· αν ο πελάτης διάλεξε κάποιον που δεν ισχύει (π.χ. ASAP εκτός Αττικής), δεν αλλάζουμε σιωπηλά
   if (input.fulfilment === "courier" && !q.bulky.courier) return { ok: false as const, error: `${q.bulky.titles[0] ?? "Μια συσκευή"} δεν αποστέλλεται με courier. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
   if (input.fulfilment === "courier" && q.carriers.length && input.carrier && q.carrier !== input.carrier) return { ok: false as const, error: `Ο courier «${carrierDef(input.carrier)?.name ?? input.carrier}» δεν είναι διαθέσιμος για αυτή τη διεύθυνση. Διάλεξε άλλον.`, quote: publicQuote(q) };
+  if (input.fulfilment === "freight" && !q.freight) return { ok: false as const, error: "Η αποστολή με μεταφορική δεν είναι διαθέσιμη. Διάλεξε άλλον τρόπο παράδοσης.", quote: publicQuote(q) };
+  if (input.fulfilment === "freight" && !q.freight!.available) return { ok: false as const, error: `${q.freight!.reason ?? "Ένα προϊόν δεν φεύγει με μεταφορική"}. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
   const lockerAt = input.fulfilment === "courier" && carrierDef(q.carrier)?.kind === "locker" ? input.locker ?? null : null;
-  const carrier = input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) } : {};
+  const carrier = input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
+    : input.fulfilment === "freight" ? { carrierName: "Μεταφορική" } : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   if (input.expectedTotal != null && input.expectedTotal !== q.total) return { ok: false as const, changed: true, error: "Το σύνολο άλλαξε (τιμή ή προσφορά). Δες το νέο ποσό πριν συνεχίσεις.", quote: publicQuote(q) };
   if (input.coupon && !q.coupon.applied) return { ok: false as const, error: q.coupon.message ?? "Το κουπόνι δεν ισχύει.", quote: publicQuote(q) };
@@ -197,7 +200,7 @@ export async function placeOrder(input: PlaceInput) {
         payment: payLabel(input.payment), fulfilment: input.fulfilment,
         ...(input.payment === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
         address: lockerAt ? `Θυρίδα BOX NOW: ${[lockerAt.name, lockerAt.address, lockerAt.zip].filter(Boolean).join(", ")}` : [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
-        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
+        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : input.fulfilment === "freight" ? `Μεταφορική · ${q.freight?.eta ?? ""} — θα σας τηλεφωνήσουμε για την παράδοση` : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
       }).catch(() => null);
       if (tpl) await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: result.orderId } }).catch(() => null);
     })();

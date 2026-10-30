@@ -253,7 +253,7 @@ export interface Order {
   number: string;
   date: string;
   status: "pending" | "paid" | "processing" | "shipped" | "ready-for-pickup" | "delivered" | "cancelled" | "returned";
-  fulfilment: "courier" | "click-collect" | "appointment";
+  fulfilment: "courier" | "freight" | "click-collect" | "appointment";
   pickupStore?: string;
   address?: Address;
   lines: OrderLine[];
