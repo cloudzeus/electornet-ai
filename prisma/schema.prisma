@@ -2772,6 +2772,7 @@ model Supplier {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   feeds        SupplierFeed[]
+  drafts       FeedDraft[]
 
   @@index([name])
 }
@@ -2825,6 +2826,29 @@ model FeedSnapshot {
   updatedAt DateTime @updatedAt
 
   @@index([fetchedAt])
+}
+
+/// Πρόχειρη αντιστοίχιση: ό,τι έχει διαλέξει ο χρήστης στα ενδιάμεσα βήματα του οδηγού, πριν πατήσει «Φόρτωσε τα
+/// προϊόντα». Κλειδί ο προμηθευτής ΚΑΙ η διεύθυνση (στο βήμα ② δεν υπάρχει ακόμη γραμμή SupplierFeed), ένα πρόχειρο
+/// ανά ζεύγος. Σβήνεται μόλις η αντιστοίχιση αποθηκευτεί κανονικά.
+model FeedDraft {
+  id         String @id @default(cuid())
+  supplierId String
+  /// sha256 της διεύθυνσης, όπως στο FeedSnapshot
+  urlKey String
+  url    String
+  /// σε ποιο βήμα ήταν ο χρήστης, για να τον γυρίσουμε εκεί
+  step String @default("cols")
+  /// οι επιλογές του οδηγού (MappingValue), όπως ταξιδεύουν στον server
+  data      Json
+  staffId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, urlKey])
+  @@index([updatedAt])
 }
 
 model SupplierFeedItem {

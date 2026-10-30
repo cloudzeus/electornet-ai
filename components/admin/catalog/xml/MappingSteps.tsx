@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CircleAlert, Loader2, Play, Search, Sparkles, Tags } from "lucide-react";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
-import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, type ColDTO, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
+import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, type ColDTO, type MappingDraft, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
 import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
-import { initLabels, initPicks, initSettings, initTargets, initTransforms } from "@/lib/catalog/xml-import/map-init";
+import { initBrandsOn, initLabels, initPicks, initSettings, initTargets, initTransforms } from "@/lib/catalog/xml-import/map-init";
 import { SKIP, brandDecisions, brandOnByDefault } from "@/lib/catalog/xml-import/skip-core";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 
@@ -21,21 +21,8 @@ export type ValueKind = "brand" | "category" | "unit" | "mark";
 /** Τα βήματα της αντιστοίχισης. Εμφανίζονται **μόνο όσα έχουν δουλειά** σε αυτό το feed. */
 export type MapStep = "cols" | "brands" | "cats" | "specs" | "finish";
 
-export interface MappingValue {
-  targets: Record<string, string>;
-  labels: Record<string, string>;
-  transforms: Record<string, string>;
-  brandMap: Record<string, string | null>;
-  categoryMap: Record<string, string | null>;
-  unitMap: Record<string, string | null>;
-  markMap: Record<string, string | null>;
-  unitId: string | null;
-  markId: string | null;
-  priceMode: PriceMode;
-  toSoftone: boolean;
-  /** ελάχιστα λεπτά ανάμεσα σε δύο λήψεις του feed — το όριο του προμηθευτή */
-  minFetchMin: number;
-}
+/** Ό,τι διάλεξε ο χρήστης, όπως ταξιδεύει στον server — και ως πρόχειρο στα ενδιάμεσα βήματα. */
+export type MappingValue = MappingDraft;
 
 interface ValueRow { value: string; n: number; ex: string[] }
 interface ValueSet { header: string | null; tooMany: boolean; rows: ValueRow[] }
@@ -49,20 +36,20 @@ const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` 
  * Ζει **έξω** από τα βήματα: ο χρήστης πηγαίνει μπρος-πίσω όσο θέλει και τίποτα δεν χάνεται. Η σειρά των γραμμών
  * υπολογίζεται **μία φορά** (όχι σε κάθε επιλογή) — αλλιώς η γραμμή που μόλις αντιστοίχισε θα πηδούσε αλλού.
  */
-export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
+export function useMapping(suggestion: SuggestDTO, brands: PickOpt[], draft?: MappingDraft | null) {
   const { cols, cats, specs, duplicates } = suggestion;
 
-  const [targets, setTargets] = useState<Record<string, string>>(() => initTargets(suggestion));
-  const [labels, setLabels] = useState<Record<string, string>>(() => initLabels(suggestion));
-  const [transforms, setTransforms] = useState<Record<string, string>>(() => initTransforms(suggestion));
-  const [picks, setPicks] = useState<Record<ValueKind, Record<string, string | null>>>(() => initPicks(suggestion));
-  const [unitId, setUnitId] = useState<string | null>(() => initSettings(suggestion).unitId);
-  const [markId, setMarkId] = useState<string | null>(() => initSettings(suggestion).markId);
-  const [priceMode, setPriceMode] = useState<PriceMode>(() => initSettings(suggestion).priceMode);
-  const [toSoftone, setToSoftone] = useState(() => initSettings(suggestion).toSoftone);
-  const [minFetchMin, setMinFetchMin] = useState(() => initSettings(suggestion).minFetchMin);
+  const [targets, setTargets] = useState<Record<string, string>>(() => initTargets(suggestion, draft));
+  const [labels, setLabels] = useState<Record<string, string>>(() => initLabels(suggestion, draft));
+  const [transforms, setTransforms] = useState<Record<string, string>>(() => initTransforms(suggestion, draft));
+  const [picks, setPicks] = useState<Record<ValueKind, Record<string, string | null>>>(() => initPicks(suggestion, draft));
+  const [unitId, setUnitId] = useState<string | null>(() => initSettings(suggestion, draft).unitId);
+  const [markId, setMarkId] = useState<string | null>(() => initSettings(suggestion, draft).markId);
+  const [priceMode, setPriceMode] = useState<PriceMode>(() => initSettings(suggestion, draft).priceMode);
+  const [toSoftone, setToSoftone] = useState(() => initSettings(suggestion, draft).toSoftone);
+  const [minFetchMin, setMinFetchMin] = useState(() => initSettings(suggestion, draft).minFetchMin);
   /** Οι αλλαγές του χρήστη στη συμμετοχή των μαρκών — τι σημαίνει το κενό, το λέει το `brandOn` πιο κάτω. */
-  const [on, setOn] = useState<Record<string, boolean>>({});
+  const [on, setOn] = useState<Record<string, boolean>>(() => initBrandsOn(draft));
 
   /**
    * Νέα πρόταση → νέες επιλογές.
@@ -75,12 +62,12 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   const [shown, setShown] = useState(suggestion);
   if (shown !== suggestion) {
     setShown(suggestion);
-    setTargets(initTargets(suggestion));
-    setLabels(initLabels(suggestion));
-    setTransforms(initTransforms(suggestion));
-    setPicks(initPicks(suggestion));
-    setOn({});
-    const st = initSettings(suggestion);
+    setTargets(initTargets(suggestion, draft));
+    setLabels(initLabels(suggestion, draft));
+    setTransforms(initTransforms(suggestion, draft));
+    setPicks(initPicks(suggestion, draft));
+    setOn(initBrandsOn(draft));
+    const st = initSettings(suggestion, draft);
     setUnitId(st.unitId); setMarkId(st.markId); setPriceMode(st.priceMode); setToSoftone(st.toSoftone); setMinFetchMin(st.minFetchMin);
   }
 
@@ -192,6 +179,8 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   const value = (): MappingValue => ({
     targets, labels, transforms,
     brandMap: brandsNow.map,
+    // Ρητά, για το πρόχειρο: ο χάρτης δεν ξεχωρίζει το «μέσα χωρίς μάρκα» από το «έξω».
+    brandsOn: brandsIn.map((r) => r.value),
     categoryMap: Object.fromEntries(sets.category.rows.map((r) => [r.value, pickOf("category", r.value)])),
     unitMap: Object.fromEntries(sets.unit.rows.map((r) => [r.value, pickOf("unit", r.value)])),
     markMap: Object.fromEntries(sets.mark.rows.map((r) => [r.value, pickOf("mark", r.value)])),

@@ -99,6 +99,35 @@ export interface TemplateSettings {
   markId: string | null;
 }
 
+/**
+ * Το **πρόχειρο** του οδηγού: ό,τι έχει διαλέξει ο χρήστης στα ενδιάμεσα βήματα, όπως ταξιδεύει στον server και
+ * γυρίζει πίσω. Ίδιο σχήμα με την τιμή που αποθηκεύεται στο τέλος — ένα σχήμα, μία αλήθεια.
+ */
+export interface MappingDraft extends TemplateSettings {
+  /** επικεφαλίδα → κωδικοποιημένος στόχος */
+  targets: Record<string, string>;
+  /** επικεφαλίδα → ετικέτα χαρακτηριστικού */
+  labels: Record<string, string>;
+  /** επικεφαλίδα → μετατροπή μονάδας */
+  transforms: Record<string, string>;
+  brandMap: Record<string, string | null>;
+  categoryMap: Record<string, string | null>;
+  unitMap: Record<string, string | null>;
+  markMap: Record<string, string | null>;
+  /**
+   * Ποιες μάρκες του feed συμμετέχουν — ρητά, γιατί ο χάρτης δεν φτάνει: μάρκα που ο χρήστης έβαλε μέσα αλλά δεν της
+   * έδωσε ακόμη δική μας μάρκα είναι `null` στον χάρτη, ίδια με «την είδα και την αφήνω έξω».
+   */
+  brandsOn: string[];
+}
+
+/** Το πρόχειρο όπως το δείχνει ο οδηγός: πότε σώθηκε, σε ποιο βήμα ήταν, και οι επιλογές. */
+export interface DraftDTO {
+  at: string;
+  step: string;
+  value: MappingDraft;
+}
+
 export interface SuggestDTO {
   cols: ColDTO[];
   /** τα ζεύγη κατηγοριών του feed με πλήθος προϊόντων και την πρόταση (τα παραδείγματα έρχονται από το `valueInfo` της στήλης) */
@@ -113,6 +142,8 @@ export interface SuggestDTO {
   maps?: TemplateMaps;
   settings?: TemplateSettings;
   source?: SourceDTO;
+  /** το πρόχειρο της προηγούμενης φορας, αν ο χρήστης δεν πρόλαβε να φορτώσει τα προϊόντα */
+  draft?: DraftDTO | null;
 }
 
 // ---------- Βήμα ④: λίστα ελέγχου ----------

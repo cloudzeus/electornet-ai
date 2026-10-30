@@ -77,6 +77,27 @@ const SQL = [
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "FeedSnapshot_urlKey_key" ON "FeedSnapshot"("urlKey")`,
   `CREATE INDEX IF NOT EXISTS "FeedSnapshot_fetchedAt_idx" ON "FeedSnapshot"("fetchedAt")`,
+  // Νέο: πρόχειρη αντιστοίχιση των ενδιάμεσων βημάτων του οδηγού.
+  `CREATE TABLE IF NOT EXISTS "FeedDraft" (
+    "id" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "urlKey" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "step" TEXT NOT NULL DEFAULT 'cols',
+    "data" JSONB NOT NULL,
+    "staffId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "FeedDraft_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "FeedDraft_supplierId_urlKey_key" ON "FeedDraft"("supplierId", "urlKey")`,
+  `CREATE INDEX IF NOT EXISTS "FeedDraft_updatedAt_idx" ON "FeedDraft"("updatedAt")`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FeedDraft_supplierId_fkey') THEN
+       ALTER TABLE "FeedDraft" ADD CONSTRAINT "FeedDraft_supplierId_fkey"
+         FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+     END IF;
+   END $$`,
   // Τα ξένα κλειδιά μπαίνουν χωριστά: ο πίνακας μπορεί να υπάρχει από προηγούμενη εκτέλεση χωρίς αυτά.
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupplierFeed_supplierId_fkey') THEN

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, Power, RefreshCw, Save, Search, Settings2, Sparkles, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, Power, RefreshCw, Rewind, Save, Search, Settings2, Sparkles, Truck } from "lucide-react";
 import type { PickOpt } from "@/components/admin/catalog/OptionPicker";
-import { mb, sourceNote, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
-import { feedState, findSuppliers, inspect, refreshSuppliers, remap, rerun, saveAndRun, saveUrl, suggest, toggleFeed } from "@/app/admin/(shell)/catalog/templates/xml/actions";
-import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep } from "./MappingSteps";
+import { mb, sourceNote, type DraftDTO, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { feedState, findSuppliers, forgetDraft, inspect, refreshSuppliers, remap, rerun, saveAndRun, saveDraft, saveUrl, suggest, toggleFeed } from "@/app/admin/(shell)/catalog/templates/xml/actions";
+import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep, type MappingValue } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
 
@@ -66,6 +66,9 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const [url, setUrl] = useState("");
   const [seen, setSeen] = useState<InspectDTO | null>(null);
   const [mapping, setMapping] = useState<SuggestDTO | null>(null);
+  /** Το πρόχειρο: ό,τι είχε διαλέξει ο χρήστης σε προηγούμενη επίσκεψη, και πότε σώθηκε τελευταία. */
+  const [draft, setDraft] = useState<DraftDTO | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [feed, setFeed] = useState<FeedStateDTO | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -124,7 +127,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const choose = (s: SupplierCard) => {
     setPicked(s);
     setUrl(s.feed?.url ?? "");
-    setSeen(null); setMapping(null); setFeed(null); setNote(null); setErr(null);
+    setSeen(null); setMapping(null); setDraft(null); setSavedAt(null); setFeed(null); setNote(null); setErr(null);
   };
 
   /** «Άνοιξε τη λίστα»: καμία λήψη, καμία κλήση AI — μόνο ό,τι είναι ήδη στη βάση. */
@@ -150,8 +153,12 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   };
 
   const toMapping = async () => {
-    const r = await run("suggest", () => suggest(url.trim()));
-    if (r) { setMapping(r); setStep("cols"); }
+    const r = await run("suggest", () => suggest(url.trim(), picked?.id));
+    if (!r) return;
+    setDraft(r.draft ?? null);
+    setSavedAt(r.draft?.at ?? null);
+    setMapping(r);
+    setStep((r.draft?.step as Step) ?? "cols");
   };
 
   /**
@@ -163,9 +170,11 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (!r) return;
     setUrl(r.url);
     setSeen(null);
+    setDraft(r.draft ?? null);
+    setSavedAt(r.draft?.at ?? null);
     setMapping(r);
     setNote(r.source ? sourceNote(r.source) : null);
-    setStep("cols");
+    setStep((r.draft?.step as Step) ?? "cols");
   };
 
   const save = async () => {
@@ -174,11 +183,24 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (!r) return;
     setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}${r.run.skipped ? ` · ${r.run.skipped} παραλείπονται (μάρκα που δεν εισάγεται)` : ""}.`);
     setFeed({ ...r });
+    setDraft(null); setSavedAt(null);
     setStep("list");
   };
 
+  /** «Ξεκίνα από την αρχή»: πετά το πρόχειρο και ξαναχτίζει τις επιλογές από την πρόταση ή το αποθηκευμένο πρότυπο. */
+  const resetDraft = async () => {
+    if (!picked || !mapping) return;
+    const r = await run("forget", () => forgetDraft(picked.id, url.trim()));
+    if (!r) return;
+    setDraft(null); setSavedAt(null);
+    // Νέα ταυτότητα πρότασης = το `useMapping` ξαναχτίζει τις επιλογές, τώρα χωρίς πρόχειρο.
+    setMapping({ ...mapping });
+    setStep("cols");
+    setNote("Το πρόχειρο σβήστηκε — οι επιλογές γύρισαν στις προτάσεις.");
+  };
+
   // Η κατάσταση της αντιστοίχισης ζει εδώ, πάνω από τα βήματα (το hook καλείται πάντα — `mapping` κενό = άδεια βήματα).
-  const m = useMapping(mapping ?? NO_MAPPING, brands);
+  const m = useMapping(mapping ?? NO_MAPPING, brands, draft?.value);
 
   const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list", "publish"] as Step[]) : [])];
   // Το βήμα μπορεί να έπαψε να υπάρχει: ο χρήστης γύρισε στις στήλες και έβγαλε τη στήλη κατηγορίας ενώ ήταν στις
@@ -190,6 +212,30 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const prev = steps[at - 1];
   const next = steps[at + 1];
   const go = (s: Step) => { setErr(null); setStep(s); };
+
+  /**
+   * **Αυτόματη αποθήκευση του προχείρου.** Η δουλειά στα ενδιάμεσα βήματα (120 κατηγορίες, ονομασίες χαρακτηριστικών)
+   * δεν χάνεται επειδή έκλεισε μια καρτέλα: κάθε αλλαγή σώζεται στη βάση, κλειδωμένη στον προμηθευτή και τη διεύθυνση.
+   * Γράφουμε ΜΟΝΟ όταν κάτι άλλαξε πραγματικά, μισό δευτερόλεπτο αφού ο χρήστης σταματήσει — όχι σε κάθε πληκτρολόγηση.
+   */
+  const inMapping = !!mapping && cur !== "supplier" && cur !== "feed" && cur !== "list" && cur !== "publish";
+  // Μετράει μόνο η **αλλαγή επιλογής**, όχι η πλοήγηση: περπάτημα στα βήματα δεν φτιάχνει πρόχειρο από το πουθενά.
+  const snap = inMapping ? JSON.stringify(m.value()) : "";
+  const kept = useRef<{ of: SuggestDTO | null; snap: string }>({ of: null, snap: "" });
+  useEffect(() => {
+    if (!inMapping || !mapping || !picked || !url.trim() || working) return;
+    // Πρώτη απόδοση αυτής της πρότασης: αυτό που βλέπουμε ΕΙΝΑΙ ό,τι φορτώθηκε — δεν το ξαναγράφουμε.
+    if (kept.current.of !== mapping) { kept.current = { of: mapping, snap }; return; }
+    if (kept.current.snap === snap) return;
+    const t = setTimeout(() => {
+      // Στέλνουμε ΑΥΤΟ που συγκρίναμε, όχι μια νέα ανάγνωση: ό,τι σώθηκε είναι ό,τι είδε ο χρήστης.
+      const value = JSON.parse(snap) as MappingValue;
+      void saveDraft({ supplierId: picked.id, url: url.trim(), step: cur, value }).then((r) => {
+        if (r && !("error" in r)) { kept.current.snap = snap; setSavedAt(r.at); }
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [snap, inMapping, mapping, picked, url, cur, working]);
 
   // Πίσω / Επόμενο κάτω από κάθε βήμα της αντιστοίχισης: μία κίνηση τη φορά, με φράγμα όπου υπάρχει.
   // (Στο τελευταίο βήμα τα φράγματα τα δείχνει το ίδιο το βήμα, πάνω από το κουμπί της φόρτωσης.)
@@ -430,6 +476,21 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
               <Sparkles className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Ό,τι δεν έλυσαν οι κανόνες πήγε στο AI — αυτά έχουν σήμανση «AI» και θέλουν το μάτι σου. Τα υπόλοιπα βγήκαν από κανόνες και είναι σίγουρα.</span>
             </p>
           )}
+          <div data-help="xml.map.draft" className="flex flex-wrap items-center gap-2 min-w-0 text-[length:var(--fs-13)]">
+            <span className="flex gap-1.5 items-center text-eu-ink-3 min-w-0">
+              <Save className="size-4 shrink-0 text-eu-blue" aria-hidden />
+              <span className="min-w-0">
+                {savedAt
+                  ? <>Πρόχειρο αποθηκευμένο <b className="tabular-nums">{date(savedAt)}</b> — ό,τι διαλέγεις σώζεται μόνο του, άρα μπορείς να φύγεις και να συνεχίσεις αργότερα.</>
+                  : <>Ό,τι διαλέγεις σώζεται μόνο του ως πρόχειρο — μπορείς να φύγεις και να συνεχίσεις αργότερα.</>}
+              </span>
+            </span>
+            {savedAt && (
+              <button type="button" className={quiet} disabled={working} onClick={() => void resetDraft()}>
+                {busy === "forget" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Rewind className="size-4" aria-hidden />} Ξεκίνα από την αρχή
+              </button>
+            )}
+          </div>
           {cur === "cols" && <StepColumns m={m} busy={working} />}
           {cur === "brands" && <StepBrands m={m} brands={brands} busy={working} />}
           {cur === "cats" && <StepCategories m={m} categories={categories} busy={working} />}

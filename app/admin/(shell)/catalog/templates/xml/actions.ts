@@ -14,13 +14,14 @@ import { inspectFeed, loadFeed, runFeed, saveFeed, saveFeedUrl, setFeedActive, l
 import { feedBytes, snapshotState } from "@/lib/catalog/xml-import/snapshot";
 import { clampMinFetch, type FetchIntent } from "@/lib/catalog/xml-import/cache-core";
 import { pendingValues } from "@/lib/catalog/xml-import/values";
+import { dropDraft, getDraft, putDraft } from "@/lib/catalog/xml-import/draft";
 import { mergeBrandMap, splitBrandMap } from "@/lib/catalog/xml-import/skip-core";
 import { publishList, publishProducts, type PublishFilter } from "@/lib/catalog/xml-import/publish";
 import { drain, enqueue, progress, type Selection } from "@/lib/catalog/xml-import/queue";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
-import { toTransform, type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type PublishDTO, type QueueDTO, type SourceDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { toTransform, type DraftDTO, type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type MappingDraft, type PublishDTO, type QueueDTO, type SourceDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 import { buildSuggestDTO } from "@/lib/catalog/xml-import/suggest-dto";
 
 /**
@@ -122,11 +123,36 @@ export async function inspect(url: string, fresh = false, minFetchMin = 30): Pro
  * Οι προτάσεις του βήματος της αντιστοίχισης. Καλείται **μία φορά ανά feed**: το «Νέο τρέξιμο» χρησιμοποιεί την
  * αποθηκευμένη αντιστοίχιση και δεν περνά από εδώ.
  */
-export async function suggest(url: string): Promise<SuggestDTO | Fail> {
+export async function suggest(url: string, supplierId?: string): Promise<SuggestDTO | Fail> {
   await requirePermission("catalog.products.write");
   return guard("suggest", async () => {
-    const got = await bytesOf(String(url ?? "").trim(), "reuse", 30);
-    return ok<SuggestDTO>({ ...(await buildSuggestDTO(got.bytes)), source: got.source });
+    const u = String(url ?? "").trim();
+    const got = await bytesOf(u, "reuse", 30);
+    const draft = supplierId ? await getDraft(String(supplierId), u) : null;
+    return ok<SuggestDTO>({ ...(await buildSuggestDTO(got.bytes)), source: got.source, draft });
+  });
+}
+
+// ---------- Πρόχειρο: τα ενδιάμεσα βήματα δεν χάνονται ----------
+
+/**
+ * Αποθήκευση του προχείρου. Καλείται μόνη της όσο ο χρήστης δουλεύει στα βήματα της αντιστοίχισης — γι' αυτό δεν
+ * γράφει audit και δεν κάνει κανέναν έλεγχο ταυτοτήτων: είναι πρόχειρο, όχι αντιστοίχιση.
+ */
+export async function saveDraft(input: { supplierId: string; url: string; step: string; value: MappingDraft }): Promise<{ at: string } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("draft", async () => {
+    const at = await putDraft(String(input.supplierId), String(input.url ?? ""), String(input.step ?? "cols"), input.value, user.id);
+    return ok({ at: at.toISOString() });
+  });
+}
+
+/** «Ξεκίνα από την αρχή»: πετά το πρόχειρο και ο οδηγός γυρνά στις προτάσεις (ή στο αποθηκευμένο πρότυπο). */
+export async function forgetDraft(supplierId: string, url: string): Promise<{ ok: true } | Fail> {
+  await requirePermission("catalog.products.write");
+  return guard("draft", async () => {
+    await dropDraft(String(supplierId), String(url ?? ""));
+    return ok({ ok: true as const });
   });
 }
 
@@ -136,7 +162,7 @@ export async function suggest(url: string): Promise<SuggestDTO | Fail> {
  * δεν υπήρχε, μια στήλη που πρόσθεσε ο προμηθευτής) παίρνει κανονικά πρόταση από κανόνες και AI, και φαίνεται ως
  * «θέλει το μάτι σου».
  */
-export async function remap(feedId: string): Promise<(SuggestDTO & { url: string; supplierId: string }) | Fail> {
+export async function remap(feedId: string): Promise<(SuggestDTO & { url: string; supplierId: string; draft: DraftDTO | null }) | Fail> {
   await requirePermission("catalog.products.write");
   return guard("remap", async () => {
     const feed = await loadFeed(String(feedId));
@@ -166,7 +192,8 @@ export async function remap(feedId: string): Promise<(SuggestDTO & { url: string
         markId: saved.sheetMarkId ?? null,
       },
     });
-    return ok({ ...dto, source: got.source, url: feed.url, supplierId: feed.supplier.id });
+    const draft = await getDraft(feed.supplier.id, feed.url);
+    return ok({ ...dto, source: got.source, url: feed.url, supplierId: feed.supplier.id, draft });
   });
 }
 
@@ -229,6 +256,8 @@ export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { ru
     const mode: PriceMode = input.priceMode === "retail" ? "retail" : "cost";
     const feedId = await saveFeed(input.supplierId, url, { config, headers, transforms, priceMode: mode, toSoftone: !!input.toSoftone, minFetchMin, skipBrands }, user.id);
     const run = await runFeed(feedId, got.asSource);
+    // Το πρόχειρο έγινε πρότυπο: από εδώ και πέρα η αλήθεια είναι το feed, όχι η εκκρεμότητα.
+    await dropDraft(input.supplierId, url);
     await audit(user.id, "catalog.xml-import.run", "SupplierFeed", feedId, null, { url, ...run });
     return ok({ ...(await state(feedId)), run });
   });
