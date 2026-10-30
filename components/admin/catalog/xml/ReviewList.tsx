@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, Globe, Hourglass, Images, Loader2, Pencil, Play, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, Globe, Hourglass, Images, Loader2, Pencil, Play, Power, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { priceWarning } from "@/lib/catalog/xml-import/transform-core";
 import { DIFF, DIFF_ORDER, STATUS, VALUE_KIND, mb, sourceNote, when, type FeedStateDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type ValueKindDTO } from "@/lib/catalog/xml-import/ui-core";
@@ -190,11 +190,11 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={secondary} disabled={busy || running} onClick={() => again(true)}>
+          <button type="button" className={secondary} disabled={busy || running || !state.active} onClick={() => again(true)}>
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέο τρέξιμο
           </button>
           {state.snapshot.has && (
-            <button type="button" className={`${btn} border-2 border-eu-line text-eu-ink-2 hover:bg-eu-surface`} disabled={busy || running} onClick={() => again(false)}
+            <button type="button" className={`${btn} border-2 border-eu-line text-eu-ink-2 hover:bg-eu-surface`} disabled={busy || running || !state.active} onClick={() => again(false)}
               title="Ξαναπερνά την αντιστοίχιση στο XML που έχουμε αποθηκευμένο — χωρίς να ενοχλήσει τον προμηθευτή.">
               <Database className="size-4" aria-hidden /> Ξανά από το αποθηκευμένο
             </button>
@@ -202,6 +202,13 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
           <button type="button" className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running} onClick={onRemap}>Αλλαγή αντιστοίχισης</button>
         </div>
       </div>
+
+      {!state.active && (
+        <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-surface px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
+          <Power className="size-4 shrink-0 mt-0.5 text-eu-ink-2" aria-hidden />
+          <span className="min-w-0"><b>Ανενεργό feed.</b> Η λίστα διαβάζεται κανονικά, αλλά δεν τρέχει και δεν γίνεται εισαγωγή. Ενεργοποίησέ το από το πρώτο βήμα («Προμηθευτής»).</span>
+        </p>
+      )}
 
       {/* το αποθηκευμένο XML: γιατί δεν χρειάζεται νέα λήψη για κάθε δοκιμή */}
       <p data-help="xml.list.snapshot" className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-eu-muted text-[length:var(--fs-12)]">
@@ -275,7 +282,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
             </span>
           </label>
           {except.length > 0 && <button type="button" onClick={() => setExcept([])} className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running}>{except.length === 1 ? "Καθάρισε την εξαίρεση" : `Καθάρισε τις ${except.length} εξαιρέσεις`}</button>}
-          <button type="button" className={primary} disabled={busy || running || willImport === 0} onClick={startImport}>
+          <button type="button" className={primary} disabled={busy || running || willImport === 0 || !state.active} onClick={startImport}>
             {running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />} Εισαγωγή {willImport.toLocaleString("el-GR")}
           </button>
           {running && <button type="button" className={secondary} onClick={() => { stop.current = true; }}>Σταμάτα μετά την παρτίδα</button>}

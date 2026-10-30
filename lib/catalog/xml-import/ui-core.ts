@@ -25,8 +25,14 @@ export interface SupplierCard {
   code: string;
   name: string;
   afm: string | null;
-  /** το feed του προμηθευτή, αν έχει τρέξει έστω μία φορά η αντιστοίχιση */
-  feed: { id: string; url: string; lastRunAt: string | null; lastCount: number | null; items: number } | null;
+  /** το feed του προμηθευτή — υπάρχει από τη στιγμή που αποθηκεύεται η διεύθυνση, πριν από κάθε αντιστοίχιση */
+  feed: {
+    id: string; url: string; lastRunAt: string | null; lastCount: number | null; items: number;
+    /** ανενεργό = μένει αποθηκευμένο αλλά δεν τρέχει */
+    active: boolean;
+    /** true = έχει περάσει η αντιστοίχιση· false = έχει μόνο διεύθυνση */
+    mapped: boolean;
+  } | null;
 }
 
 // ---------- Βήμα ②: έλεγχος feed ----------
@@ -156,6 +162,8 @@ export interface FeedStateDTO {
   lastCount: number | null;
   /** ελάχιστα λεπτά ανάμεσα σε δύο λήψεις — το όριο του προμηθευτή */
   minFetchMin: number;
+  /** ανενεργό feed δεν τρέχει και δεν κάνει εισαγωγή — η λίστα του μένει αναγνώσιμη */
+  active: boolean;
   /** το αποθηκευμένο XML της τελευταίας λήψης */
   snapshot: { has: boolean; fetchedAt: string | null; bytes: number | null; products: number | null; waitMin: number };
   /** τιμές του προμηθευτή που δεν έχει δει ποτέ ο χρήστης, ανά είδος (κατηγορίες, μάρκες, μονάδες, σημάνσεις) */

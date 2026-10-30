@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, RefreshCw, Search, Sparkles, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, Power, RefreshCw, Save, Search, Settings2, Sparkles, Truck } from "lucide-react";
 import type { PickOpt } from "@/components/admin/catalog/OptionPicker";
 import { mb, sourceNote, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
-import { feedState, findSuppliers, inspect, refreshSuppliers, remap, rerun, saveAndRun, suggest } from "@/app/admin/(shell)/catalog/templates/xml/actions";
+import { feedState, findSuppliers, inspect, refreshSuppliers, remap, rerun, saveAndRun, saveUrl, suggest, toggleFeed } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
@@ -85,11 +85,37 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     if (r) setList(r);
   };
 
+  /** Ξαναδιαβάζει τη λίστα και κρατά επιλεγμένο τον ίδιο προμηθευτή — αλλιώς η κάρτα θα έδειχνε παλιά κατάσταση. */
+  const refresh = async (supplierId: string) => {
+    const fresh = await findSuppliers(q.trim());
+    setList(fresh);
+    const same = fresh.find((x) => x.id === supplierId);
+    if (same) setPicked(same);
+    return same ?? null;
+  };
+
+  /** Βήμα ①: κρατά τη διεύθυνση στον προμηθευτή, χωρίς να περάσει η αντιστοίχιση. */
+  const keepUrl = async (s: SupplierCard) => {
+    const r = await run("url", () => saveUrl(s.id, url.trim()));
+    if (!r) return;
+    await refresh(s.id);
+    setNote(r.cleared
+      ? `Η διεύθυνση αποθηκεύτηκε. Επειδή άλλαξε, τα ${r.cleared.toLocaleString("el-GR")} φορτωμένα προϊόντα της παλιάς διεύθυνσης καθαρίστηκαν.`
+      : "Η διεύθυνση αποθηκεύτηκε στον προμηθευτή. Μπορείς να ρυθμίσεις την αντιστοίχιση όποτε θέλεις.");
+  };
+
+  const flip = async (s: SupplierCard, active: boolean) => {
+    if (!s.feed) return;
+    const r = await run("toggle", () => toggleFeed(s.feed!.id, active));
+    if (!r) return;
+    await refresh(s.id);
+    setNote(active ? "Το feed ενεργοποιήθηκε." : "Το feed απενεργοποιήθηκε — μένει αποθηκευμένο, αλλά δεν τρέχει.");
+  };
+
   const choose = (s: SupplierCard) => {
     setPicked(s);
     setUrl(s.feed?.url ?? "");
     setSeen(null); setMapping(null); setFeed(null); setNote(null); setErr(null);
-    if (!s.feed) setStep("feed");
   };
 
   /** «Άνοιξε τη λίστα»: καμία λήψη, καμία κλήση AI — μόνο ό,τι είναι ήδη στη βάση. */
@@ -243,30 +269,63 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                         {s.afm && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">ΑΦΜ {s.afm}</span>}
                       </span>
                       {s.feed ? (
-                        <span className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">
-                          {s.feed.lastRunAt ? `Έτρεξε ${date(s.feed.lastRunAt)}` : "Έχει feed, δεν έχει τρέξει"}{s.feed.items ? ` · ${s.feed.items.toLocaleString("el-GR")} προϊόντα στη λίστα` : ""}
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                          <span className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">
+                            {s.feed.lastRunAt ? `Έτρεξε ${date(s.feed.lastRunAt)}` : s.feed.mapped ? "Ρυθμισμένο, δεν έχει τρέξει" : "Αποθηκευμένη διεύθυνση"}{s.feed.items ? ` · ${s.feed.items.toLocaleString("el-GR")} προϊόντα στη λίστα` : ""}
+                          </span>
+                          {!s.feed.active && <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 font-bold text-eu-ink-2 text-[length:var(--fs-12)]"><Power className="size-3" aria-hidden /> Ανενεργό</span>}
+                          {!s.feed.mapped && <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/30 px-2 py-0.5 font-bold text-eu-ink text-[length:var(--fs-12)]"><Settings2 className="size-3" aria-hidden /> Χωρίς αντιστοίχιση</span>}
                         </span>
-                      ) : <span className="text-eu-muted text-[length:var(--fs-13)]">Χωρίς feed — δώσε τη διεύθυνση στο επόμενο βήμα.</span>}
+                      ) : <span className="text-eu-muted text-[length:var(--fs-13)]">Χωρίς feed — δώσε τη διεύθυνση πιο κάτω.</span>}
                     </button>
                     {on && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {s.feed ? (
-                          <>
-                            <button type="button" className={primary} disabled={working} onClick={() => again(s.feed!.id)}>
-                              {busy === "rerun" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέο τρέξιμο
-                            </button>
-                            <button type="button" className={secondary} disabled={working} onClick={() => openList(s.feed!.id)}>
-                              {busy === "open" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <List className="size-4" aria-hidden />} Άνοιξε τη λίστα
-                            </button>
-                            <button type="button" className={quiet} disabled={working} onClick={() => toRemap(s.feed!.id)}>
-                              {busy === "remap" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Αλλαγή αντιστοίχισης
-                            </button>
-                            <button type="button" className={quiet} disabled={working} onClick={() => go("feed")}>Αλλαγή διεύθυνσης feed</button>
-                            <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα. Η «Αλλαγή αντιστοίχισης» ανοίγει το αποθηκευμένο πρότυπο, χωρίς καμία λήψη.</span>
-                          </>
-                        ) : (
-                          <button type="button" className={primary} disabled={working} onClick={() => go("feed")}>Επόμενο: το feed <ArrowRight className="size-4" aria-hidden /></button>
+                      <div data-help="xml.supplier.feed" className="grid gap-2 min-w-0 border-t border-eu-line pt-2">
+                        {/* Η διεύθυνση σώζεται ΕΔΩ, στο πρώτο βήμα: «αυτός ο προμηθευτής έχει αυτό το XML». Η
+                            αντιστοίχιση είναι χωριστή δουλειά και γίνεται όποτε βολεύει. */}
+                        <form onSubmit={(e) => { e.preventDefault(); void keepUrl(s); }} className="grid gap-2 sm:grid-cols-[1fr_auto] min-w-0">
+                          <label className="grid gap-1 min-w-0">
+                            <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML του προμηθευτή</span>
+                            <input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://…/feed.xml" className={input} />
+                          </label>
+                          <button type="submit" className={`${secondary} sm:self-end`} disabled={working || !url.trim() || url.trim() === s.feed?.url}>
+                            {busy === "url" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση
+                          </button>
+                        </form>
+
+                        {s.feed && (
+                          <label className="flex items-start gap-2 cursor-pointer min-h-11 md:min-h-9 min-w-0">
+                            <input type="checkbox" checked={s.feed.active} disabled={working} onChange={(e) => flip(s, e.target.checked)} className="size-4 mt-1 accent-eu-navy" />
+                            <span className="grid gap-0.5 min-w-0">
+                              <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Ενεργό</span>
+                              <span className="text-eu-muted text-[length:var(--fs-12)]">{s.feed.active ? "Το feed μπορεί να τρέξει." : "Μένει αποθηκευμένο (διεύθυνση και αντιστοίχιση) αλλά δεν τρέχει."}</span>
+                            </span>
+                          </label>
                         )}
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {s.feed?.mapped ? (
+                            <>
+                              <button type="button" className={primary} disabled={working || !s.feed.active} onClick={() => again(s.feed!.id)}>
+                                {busy === "rerun" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Νέο τρέξιμο
+                              </button>
+                              <button type="button" className={secondary} disabled={working} onClick={() => openList(s.feed!.id)}>
+                                {busy === "open" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <List className="size-4" aria-hidden />} Άνοιξε τη λίστα
+                              </button>
+                              <button type="button" className={quiet} disabled={working || !s.feed.active} onClick={() => toRemap(s.feed!.id)}>
+                                {busy === "remap" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Αλλαγή αντιστοίχισης
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" className={primary} disabled={working || !url.trim()} onClick={() => go("feed")}>
+                              <Settings2 className="size-4" aria-hidden /> Ρύθμισε την αντιστοίχιση <ArrowRight className="size-4" aria-hidden />
+                            </button>
+                          )}
+                        </div>
+                        <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">
+                          {s.feed?.mapped
+                            ? (s.feed.active ? "Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα. Η «Αλλαγή αντιστοίχισης» ανοίγει το αποθηκευμένο πρότυπο, χωρίς καμία λήψη." : "Όσο είναι ανενεργό δεν τρέχει. Η λίστα του παραμένει αναγνώσιμη.")
+                            : "Αποθήκευσε τη διεύθυνση τώρα και ρύθμισε την αντιστοίχιση όποτε θέλεις — ο προμηθευτής κρατά τη δική του ρύθμιση."}
+                        </span>
                       </div>
                     )}
                   </li>

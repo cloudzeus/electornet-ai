@@ -9,8 +9,8 @@ import { UserError, configForHeaders, type MappingConfig, type Target } from "@/
 import { encodeTarget, decodeTarget } from "@/lib/catalog/foreign-import/ui-core";
 import { assertConfigIds } from "@/lib/catalog/foreign-import/server";
 import { parseFeed } from "@/lib/catalog/xml-import/parse-core";
-import { listSuppliers, syncSuppliers } from "@/lib/catalog/xml-import/suppliers";
-import { inspectFeed, loadFeed, runFeed, saveFeed, listItems, type FeedSource, type ItemFilter } from "@/lib/catalog/xml-import/feed";
+import { supplierCards, syncSuppliers } from "@/lib/catalog/xml-import/suppliers";
+import { inspectFeed, loadFeed, runFeed, saveFeed, saveFeedUrl, setFeedActive, listItems, type FeedSource, type ItemFilter } from "@/lib/catalog/xml-import/feed";
 import { feedBytes, snapshotState } from "@/lib/catalog/xml-import/snapshot";
 import { clampMinFetch, type FetchIntent } from "@/lib/catalog/xml-import/cache-core";
 import { pendingValues } from "@/lib/catalog/xml-import/values";
@@ -63,16 +63,31 @@ async function guard<T>(where: string, fn: () => Promise<T>): Promise<T | Fail> 
 /** Οι προμηθευτές του SoftOne (cache) με το feed τους. Αναζήτηση σε κωδικό, όνομα ή ΑΦΜ. */
 export async function findSuppliers(q: string): Promise<SupplierCard[]> {
   await requirePermission("catalog.products.write");
-  const list = await listSuppliers(String(q ?? "").slice(0, 80));
-  const feedIds = list.map((s) => s.feed?.id).filter((v): v is string => !!v);
-  const items = feedIds.length
-    ? await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { feedId: { in: feedIds } }, _count: { _all: true } })
-    : [];
-  const byFeed = new Map(items.map((i) => [i.feedId, i._count._all]));
-  return list.slice(0, 60).map((s) => ({
-    id: s.id, s1Trdr: s.s1Trdr, code: s.code, name: s.name, afm: s.afm,
-    feed: s.feed ? { id: s.feed.id, url: s.feed.url, lastRunAt: s.feed.lastRunAt?.toISOString() ?? null, lastCount: s.feed.lastCount, items: byFeed.get(s.feed.id) ?? 0 } : null,
-  }));
+  return supplierCards(String(q ?? "").slice(0, 80));
+}
+
+/**
+ * Βήμα ①: αποθήκευση **μόνο της διεύθυνσης** στον προμηθευτή, χωρίς να περάσει ο χρήστης την αντιστοίχιση. Ο σκοπός
+ * είναι να καταγράφεις ότι «αυτός ο προμηθευτής έχει αυτό το XML» τη στιγμή που το μαθαίνεις, και να το ρυθμίσεις
+ * όποτε βολεύει.
+ */
+export async function saveUrl(supplierId: string, url: string): Promise<{ feedId: string; cleared: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("saveUrl", async () => {
+    const r = await saveFeedUrl(String(supplierId), String(url ?? ""), user.id);
+    await audit(user.id, "catalog.xml-import.url", "SupplierFeed", r.feedId, null, { cleared: r.cleared });
+    return ok(r);
+  });
+}
+
+/** Ο διακόπτης του feed: ανενεργό μένει αποθηκευμένο (διεύθυνση και αντιστοίχιση) αλλά δεν τρέχει. */
+export async function toggleFeed(feedId: string, active: boolean): Promise<{ active: boolean } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("toggleFeed", async () => {
+    await setFeedActive(String(feedId), !!active);
+    await audit(user.id, "catalog.xml-import.active", "SupplierFeed", String(feedId), null, { active: !!active });
+    return ok({ active: !!active });
+  });
 }
 
 /** Ανανέωση της λίστας προμηθευτών από το SoftOne. ΜΟΝΟ ανάγνωση — καμία εγγραφή στο ERP. */
@@ -242,6 +257,7 @@ async function state(feedId: string): Promise<FeedStateDTO> {
     lastRunAt: run?.lastRunAt?.toISOString() ?? null,
     lastCount: run?.lastCount ?? null,
     minFetchMin: feed.minFetchMin,
+    active: feed.active,
     snapshot: { has: snap.has, fetchedAt: snap.fetchedAt?.toISOString() ?? null, bytes: snap.bytes, products: snap.products, waitMin: snap.waitMin },
     pending,
   };

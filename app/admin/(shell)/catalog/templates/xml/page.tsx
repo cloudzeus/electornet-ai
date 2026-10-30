@@ -4,10 +4,8 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { brandOptions, categoryOptions, markOptions, unitOptions } from "@/lib/catalog/foreign-import/options";
-import { listSuppliers } from "@/lib/catalog/xml-import/suppliers";
-import { db } from "@/lib/db";
+import { supplierCards } from "@/lib/catalog/xml-import/suppliers";
 import { XmlImportWizard } from "@/components/admin/catalog/xml/XmlImportWizard";
-import type { SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 
 export const metadata = { title: "XML προμηθευτές" };
 export const dynamic = "force-dynamic";
@@ -19,28 +17,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function XmlImportPage() {
   const user = await requirePermission("catalog.products.write");
-  const [suppliers, brands, categories, units, marks, writeOn] = await Promise.all([
-    listSuppliers(""),
+  const [cards, brands, categories, units, marks, writeOn] = await Promise.all([
+    supplierCards(""),
     brandOptions(),
     categoryOptions(),
     unitOptions(),
     markOptions(),
     itemWriteEnabled(),
   ]);
-  const feedIds = suppliers.map((s) => s.feed?.id).filter((v): v is string => !!v);
-  const counts = feedIds.length
-    ? await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { feedId: { in: feedIds } }, _count: { _all: true } })
-    : [];
-  const byFeed = new Map(counts.map((c) => [c.feedId, c._count._all]));
-  // Πρώτα όσοι έχουν feed (είναι η συνηθισμένη επανάληψη), μετά αλφαβητικά· η αναζήτηση φέρνει τους υπόλοιπους.
-  const cards: SupplierCard[] = suppliers
-    .map((s) => ({
-      id: s.id, s1Trdr: s.s1Trdr, code: s.code, name: s.name, afm: s.afm,
-      feed: s.feed ? { id: s.feed.id, url: s.feed.url, lastRunAt: s.feed.lastRunAt?.toISOString() ?? null, lastCount: s.feed.lastCount, items: byFeed.get(s.feed.id) ?? 0 } : null,
-    }))
-    .sort((a, b) => Number(!a.feed) - Number(!b.feed) || a.name.localeCompare(b.name, "el"))
-    .slice(0, 60);
-
   return (
     <div className="grid gap-4 min-w-0">
       <div className="grid gap-1">

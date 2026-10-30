@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-29T11:23:49.217Z",
+ "generatedAt": "2026-10-30T06:54:32.897Z",
  "routes": [
   {
    "route": "/admin",
@@ -1007,12 +1007,18 @@
     "xml.list.rows",
     "xml.steps",
     "xml.supplier",
+    "xml.supplier.feed",
     "xml.feed",
     "xml.feed.source",
     "xml.feed.counts",
     "xml.feed.sample"
    ],
    "changes": [
+    {
+     "hash": "87a3e52",
+     "date": "2026-10-29T13:24:06+02:00",
+     "text": "XML προμηθευτές: μάρκα που δεν υπάρχει στο SoftOne μπορεί να παραλειφθεί"
+    },
     {
      "hash": "1989c79",
      "date": "2026-10-29T13:12:12+02:00",
@@ -1057,14 +1063,9 @@
      "hash": "61e490f",
      "date": "2026-10-28T13:39:06+02:00",
      "text": "XML προμηθευτές: κοινοί τύποι και ετικέτες του οδηγού"
-    },
-    {
-     "hash": "034c67d",
-     "date": "2026-10-28T11:21:32+02:00",
-     "text": "XML προμηθευτές: διόρθωση αρίθμησης γραμμών στην ουρά"
     }
    ],
-   "updatedAt": "2026-10-29T13:12:12+02:00",
+   "updatedAt": "2026-10-29T13:24:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -3820,6 +3821,17 @@
  ],
  "recent": [
   {
+   "hash": "87a3e52",
+   "date": "2026-10-29T13:24:06+02:00",
+   "text": "XML προμηθευτές: μάρκα που δεν υπάρχει στο SoftOne μπορεί να παραλειφθεί",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
    "hash": "1989c79",
    "date": "2026-10-29T13:12:12+02:00",
    "text": "XML προμηθευτές: αποθηκευμένο XML, πρότυπο ανά προμηθευτή, καινούργιες τιμές και δημοσίευση",
@@ -4087,12 +4099,6 @@
   {
    "hash": "c8e4383",
    "date": "2026-10-20T13:09:19+03:00",
-   "text": "Ασφάλεια: ειδοποιήσεις",
-   "routes": []
-  },
-  {
-   "hash": "5b21ceb",
-   "date": "2026-10-20T13:02:54+03:00",
    "text": "Ασφάλεια: ειδοποιήσεις",
    "routes": []
   }
@@ -4546,6 +4552,9 @@
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.supplier": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "xml.supplier.feed": [
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.feed": [

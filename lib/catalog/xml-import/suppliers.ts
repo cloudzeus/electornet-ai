@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getBrowserRows } from "@/lib/softone/lookups";
 import { parseSupplierRow, matchesQuery, dedupeSuppliers, type SupplierRow } from "@/lib/catalog/xml-import/suppliers-core";
+import type { SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 
 /**
  * Cache των προμηθευτών του SoftOne, ώστε ο οδηγός «XML προμηθευτές» να ανοίγει χωρίς να περιμένει το ERP.
@@ -47,7 +48,7 @@ export interface SupplierListItem {
   code: string;
   name: string;
   afm: string | null;
-  feed: { id: string; url: string; lastRunAt: Date | null; lastCount: number | null } | null;
+  feed: { id: string; url: string; lastRunAt: Date | null; lastCount: number | null; active: boolean; mapped: boolean } | null;
 }
 
 /**
@@ -59,10 +60,37 @@ export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
     orderBy: { name: "asc" },
     select: {
       id: true, s1Trdr: true, code: true, name: true, afm: true,
-      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true } },
+      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true, active: true, config: true } },
     },
   });
   return all
     .filter((s) => matchesQuery(s, q))
-    .map(({ feeds, ...s }) => ({ ...s, feed: feeds[0] ?? null }));
+    .map(({ feeds, ...s }) => {
+      const f = feeds[0];
+      // «mapped» = έχει περάσει η αντιστοίχιση· feed που σώθηκε από το βήμα ① έχει μόνο διεύθυνση.
+      const mapped = !!f && ((f.config as { headers?: string[] } | null)?.headers ?? []).length > 0;
+      return { ...s, feed: f ? { id: f.id, url: f.url, lastRunAt: f.lastRunAt, lastCount: f.lastCount, active: f.active, mapped } : null };
+    });
+}
+
+/**
+ * Οι κάρτες του βήματος ① όπως τις θέλει ο browser: πρώτα όσοι έχουν feed (είναι η συνηθισμένη επανάληψη), μετά
+ * αλφαβητικά. Ζει εδώ και όχι στη σελίδα, γιατί τη θέλουν και η σελίδα και η αναζήτηση.
+ */
+export async function supplierCards(q = "", limit = 60): Promise<SupplierCard[]> {
+  const list = await listSuppliers(q);
+  const feedIds = list.map((s) => s.feed?.id).filter((v): v is string => !!v);
+  const counts = feedIds.length
+    ? await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { feedId: { in: feedIds } }, _count: { _all: true } })
+    : [];
+  const byFeed = new Map(counts.map((c) => [c.feedId, c._count._all]));
+  return list
+    .map((s) => ({
+      id: s.id, s1Trdr: s.s1Trdr, code: s.code, name: s.name, afm: s.afm,
+      feed: s.feed
+        ? { id: s.feed.id, url: s.feed.url, lastRunAt: s.feed.lastRunAt?.toISOString() ?? null, lastCount: s.feed.lastCount, items: byFeed.get(s.feed.id) ?? 0, active: s.feed.active, mapped: s.feed.mapped }
+        : null,
+    }))
+    .sort((a, b) => Number(!a.feed) - Number(!b.feed) || a.name.localeCompare(b.name, "el"))
+    .slice(0, limit);
 }

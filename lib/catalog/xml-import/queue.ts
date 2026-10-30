@@ -48,6 +48,7 @@ const whereOf = (feedId: string, f: ItemFilter) => ({
 /** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις. Γραμμές με `problem` δεν μπαίνουν. */
 export async function enqueue(feedId: string, sel: Selection): Promise<{ queued: number; skipped: number }> {
   const feed = await loadFeed(feedId);
+  if (!feed.active) throw new UserError("Το feed αυτού του προμηθευτή είναι ανενεργό — ενεργοποίησέ το από το πρώτο βήμα για να γίνει εισαγωγή.");
   // Η παράλειψη είναι απόφαση του χρήστη, όχι φίλτρο: γραμμή παραλειπόμενης μάρκας ΔΕΝ μπαίνει ποτέ στην ουρά, ό,τι
   // κι αν λέει το φίλτρο. Ο τρόπος να μπει είναι να ξε-παραλειφθεί η μάρκα και να ξανατρέξει το feed.
   const where = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}), status: { not: "skipped" } };

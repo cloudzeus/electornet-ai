@@ -61,6 +61,7 @@ const SQL = [
   `CREATE INDEX IF NOT EXISTS "SupplierFeedItem_feedId_diff_idx" ON "SupplierFeedItem"("feedId", "diff")`,
   // Νέα: όριο λήψεων ανά feed και ακατέργαστο XML της τελευταίας λήψης.
   `ALTER TABLE "SupplierFeed" ADD COLUMN IF NOT EXISTS "minFetchMin" INTEGER NOT NULL DEFAULT 30`,
+  `ALTER TABLE "SupplierFeed" ADD COLUMN IF NOT EXISTS "active" BOOLEAN NOT NULL DEFAULT true`,
   `CREATE TABLE IF NOT EXISTS "FeedSnapshot" (
     "id" TEXT NOT NULL,
     "urlKey" TEXT NOT NULL,

@@ -101,10 +101,64 @@ export async function saveFeed(
   return feed.id;
 }
 
+/** Κενή αντιστοίχιση: feed που σώθηκε από το βήμα ① έχει μόνο διεύθυνση. */
+const EMPTY_CFG: FeedConfig = {
+  saved: { columns: {}, brandMap: {}, categoryMap: {} },
+  headers: [], transforms: {}, priceMode: "cost", toSoftone: false, ignored: [], skipBrands: [],
+};
+
+/** Η αντιστοίχιση όπως τη βρίσκει ο υπόλοιπος κώδικας: ποτέ `undefined` πεδία, ακόμη κι αν το feed δεν έχει ρυθμιστεί. */
+function cfgOf(raw: unknown): FeedConfig {
+  const c = (raw ?? {}) as Partial<FeedConfig>;
+  return {
+    ...EMPTY_CFG,
+    ...c,
+    saved: { ...EMPTY_CFG.saved, ...(c.saved ?? {}) },
+    headers: c.headers ?? [],
+    transforms: c.transforms ?? {},
+  };
+}
+
 export async function loadFeed(feedId: string) {
-  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, minFetchMin: true, supplier: { select: { id: true, name: true, code: true } } } });
+  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, minFetchMin: true, active: true, supplier: { select: { id: true, name: true, code: true } } } });
   if (!feed) throw new UserError("Το feed δεν βρέθηκε.");
-  return { ...feed, cfg: feed.config as unknown as FeedConfig };
+  return { ...feed, cfg: cfgOf(feed.config) };
+}
+
+/** Έχει περάσει ο χρήστης την αντιστοίχιση; (feed που σώθηκε μόνο ως διεύθυνση, όχι) */
+export const isMapped = (cfg: FeedConfig) => (cfg.headers ?? []).length > 0;
+
+/**
+ * Βήμα ①: αποθήκευση **μόνο της διεύθυνσης** ενός προμηθευτή, χωρίς να περάσει ο χρήστης την αντιστοίχιση. Η
+ * αντιστοίχιση, αν υπάρχει ήδη, δεν αγγίζεται — εκτός αν αλλάξει η διεύθυνση, οπότε οι φορτωμένες γραμμές αφορούν
+ * άλλο feed και σβήνουν (αλλιώς η λίστα θα έδειχνε προϊόντα που δεν ήρθαν ποτέ από αυτή τη διεύθυνση).
+ */
+export async function saveFeedUrl(supplierId: string, url: string, staffId: string | null): Promise<{ feedId: string; cleared: number }> {
+  const u = url.trim();
+  if (!/^https?:\/\//i.test(u)) throw new UserError("Η διεύθυνση πρέπει να ξεκινά με https:// — όπως τη δίνει ο προμηθευτής.");
+  const supplier = await db.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
+  if (!supplier) throw new UserError("Ο προμηθευτής δεν βρέθηκε — ξανακάνε αναζήτηση.");
+  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true, url: true } });
+  if (!existing) {
+    const feed = await db.supplierFeed.create({ data: { supplierId, url: u, config: {}, createdById: staffId }, select: { id: true } });
+    return { feedId: feed.id, cleared: 0 };
+  }
+  let cleared = 0;
+  if (existing.url !== u) {
+    const r = await db.supplierFeedItem.deleteMany({ where: { feedId: existing.id } });
+    cleared = r.count;
+    await db.supplierFeed.update({ where: { id: existing.id }, data: { url: u, lastRunAt: null, lastCount: null } });
+  } else {
+    await db.supplierFeed.update({ where: { id: existing.id }, data: { url: u } });
+  }
+  return { feedId: existing.id, cleared };
+}
+
+/** Ο διακόπτης του feed: ανενεργό σημαίνει «μένει εκεί, αλλά δεν τρέχει». */
+export async function setFeedActive(feedId: string, active: boolean): Promise<void> {
+  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true } });
+  if (!feed) throw new UserError("Το feed δεν βρέθηκε.");
+  await db.supplierFeed.update({ where: { id: feedId }, data: { active } });
 }
 
 /** Ποια στήλη κρατά τι, για ΑΥΤΕΣ τις επικεφαλίδες. */
@@ -137,6 +191,8 @@ export interface RunResult {
  */
 export async function runFeed(feedId: string, source: FeedSource = storedOrDownload): Promise<RunResult> {
   const feed = await loadFeed(feedId);
+  if (!feed.active) throw new UserError("Το feed αυτού του προμηθευτή είναι ανενεργό. Ενεργοποίησέ το από το πρώτο βήμα για να τρέξει.");
+  if (!isMapped(feed.cfg)) throw new UserError("Το feed έχει μόνο διεύθυνση — πέρασε πρώτα την αντιστοίχιση («Ρύθμισε την αντιστοίχιση»).");
   const parsed = parseFeed(await source(feed.url));
   if (!parsed.counts.products) throw new UserError("Το feed δεν έχει προϊόντα.");
   await setSnapshotProducts(feed.url, parsed.counts.products);

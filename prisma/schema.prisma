@@ -2790,6 +2790,8 @@ model SupplierFeed {
   toSoftone   Boolean   @default(false)
   /// πόσα λεπτά τουλάχιστον ανάμεσα σε δύο λήψεις του feed — ο προμηθευτής βάζει όριο (Estia: 2 την ώρα → 30)
   minFetchMin Int       @default(30)
+  /// ανενεργό feed δεν τρέχει: η διεύθυνση και η αντιστοίχιση μένουν, αλλά καμία λήψη και καμία εισαγωγή
+  active      Boolean   @default(true)
   lastRunAt   DateTime?
   lastCount   Int?
   createdById String?
