@@ -104,10 +104,19 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       : "Η διεύθυνση αποθηκεύτηκε στον προμηθευτή. Μπορείς να ρυθμίσεις την αντιστοίχιση όποτε θέλεις.");
   };
 
+  /**
+   * Ο διακόπτης απαντά **αμέσως** και διορθώνεται αν ο server πει όχι: χωρίς αυτό ο χρήστης πατάει και το τσεκ μένει
+   * όπως ήταν μέχρι να γυρίσει η απάντηση — δηλαδή μοιάζει χαλασμένο.
+   */
   const flip = async (s: SupplierCard, active: boolean) => {
     if (!s.feed) return;
+    const patch = (on: boolean) => {
+      setList((xs) => xs.map((x) => (x.id === s.id && x.feed ? { ...x, feed: { ...x.feed, active: on } } : x)));
+      setPicked((cur) => (cur && cur.id === s.id && cur.feed ? { ...cur, feed: { ...cur.feed, active: on } } : cur));
+    };
+    patch(active);
     const r = await run("toggle", () => toggleFeed(s.feed!.id, active));
-    if (!r) return;
+    if (!r) { patch(!active); return; }
     await refresh(s.id);
     setNote(active ? "Το feed ενεργοποιήθηκε." : "Το feed απενεργοποιήθηκε — μένει αποθηκευμένο, αλλά δεν τρέχει.");
   };
