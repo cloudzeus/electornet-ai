@@ -29,6 +29,8 @@ model Category {
   children     Category[] @relation("CategoryTree")
   depth        Int        @default(0)
   sortNo       Int        @default(0)
+  /// σειρά που όρισε ο διαχειριστής (drag & drop)· το SoftOne δεν έχει πεδίο σειράς, η προβολή την κρατά
+  sortManual   Int?
   metaTitle    String?
   metaDesc     String?    @db.Text
   /// Κρυφή όταν είναι ανενεργή στο ERP ή δεν έχει κανένα ενεργό προϊόν στο υποδέντρο της
@@ -2004,6 +2006,43 @@ model BackupRun {
 // Every own model carries the S1 link (s1Id/s1Name/s1Data) next to our editable fields. SoftOne is the
 // master for the S1 columns; our code/name/flags are initialised from S1 on first sync and then belong to us.
 
+/// Αυτόματες εργασίες του εσωτερικού scheduler (lib/scheduler). Μία γραμμή ανά εργασία + γραμμές «lock:<ομάδα>»
+/// ώστε δύο εργασίες της ίδιας ομάδας (π.χ. σύντομος και πλήρης κατάλογος) να μην τρέχουν μαζί, ούτε από δύο servers.
+model ScheduledJob {
+  key         String    @id
+  enabled     Boolean   @default(true)
+  lockedUntil DateTime?
+  lastStartAt DateTime?
+  lastEndAt   DateTime?
+  lastOk      Boolean?
+  lastMessage String?   @db.Text
+  runs        Int       @default(0)
+  fails       Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+}
+
+/// Μακριά αλλαγή στο δέντρο κατηγοριών του SoftOne (μετακίνηση = ενημέρωση κάθε είδους).
+/// Τρέχει σε κομμάτια και κρατά θέση (`cursor`): αν διακοπεί, ο scheduler ή το «Συνέχεια» την πιάνει από εκεί που έμεινε.
+model CategoryOp {
+  id          String    @id @default(cuid())
+  kind        String // move-l2 | move-l3
+  status      String    @default("queued") // queued | running | done | failed
+  title       String
+  payload     Json // από/προς, νέοι κωδικοί, ποια βήματα έγιναν
+  mtrls       Int[] // τα είδη που πρέπει να αλλάξουν
+  cursor      Int       @default(0)
+  okCount     Int       @default(0)
+  failures    Json      @default("[]") // [{ mtrl, error }]
+  log         Json      @default("[]") // [{ at, ok, text }] — τα μηνύματα που βλέπει ο χρήστης
+  error       String?   @db.Text
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  finishedAt  DateTime?
+
+  @@index([status, createdAt])
+}
+
 model S1SyncRun {
   id      String   @id @default(cuid())
   kind    String // vat | unit | brand | …
@@ -2785,25 +2824,33 @@ model Supplier {
 
 /// XML feed ενός προμηθευτή: η διεύθυνση και η αντιστοίχισή της, ώστε το επόμενο τρέξιμο να μη ζητά ξανά AI.
 model SupplierFeed {
-  id          String    @id @default(cuid())
-  supplierId  String
-  url         String
-  format      String    @default("xml")
+  id            String    @id @default(cuid())
+  supplierId    String
+  url           String
+  format        String    @default("xml")
   /// SavedConfig (στήλες με κλειδί κανονικοποιημένη επικεφαλίδα) + transforms ανά στήλη — βλ. lib/catalog/xml-import
-  config      Json
+  config        Json
   /// cost = κόστος × markup · retail = η λιανική του feed
-  priceMode   String    @default("cost")
+  priceMode     String    @default("cost")
   /// προεπιλογή «και στο SoftOne» για την παρτίδα· επιβεβαιώνεται σε κάθε τρέξιμο
-  toSoftone   Boolean   @default(false)
+  toSoftone     Boolean   @default(false)
   /// πόσα λεπτά τουλάχιστον ανάμεσα σε δύο λήψεις του feed — ο προμηθευτής βάζει όριο (Estia: 2 την ώρα → 30)
-  minFetchMin Int       @default(30)
+  minFetchMin   Int       @default(30)
   /// ανενεργό feed δεν τρέχει: η διεύθυνση και η αντιστοίχιση μένουν, αλλά καμία λήψη και καμία εισαγωγή
-  active      Boolean   @default(true)
-  lastRunAt   DateTime?
-  lastCount   Int?
-  createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  active        Boolean   @default(true)
+  /// UpdatePolicy (lib/catalog/xml-import/policy-core): τι αλλάζει το XML σε υπάρχοντα είδη και αν η τιμή του feed έχει ΦΠΑ
+  updatePolicy  Json?
+  /// «Έλεγχος με SoftOne»: πότε ξεκίνησε ο τρέχων (γραμμές με checkedAt πριν από αυτό περιμένουν), κατάσταση, μήνυμα
+  checkAt       DateTime?
+  checkStatus   String? // running | done | failed
+  checkMessage  String?   @db.Text
+  /// το τελευταίο μήνυμα της εισαγωγής (ολοκλήρωση ή σφάλμα), όπως το είδε ο χρήστης
+  importMessage String?   @db.Text
+  lastRunAt     DateTime?
+  lastCount     Int?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   supplier Supplier           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   items    SupplierFeedItem[]
@@ -2816,14 +2863,14 @@ model SupplierFeed {
 /// στις λήψεις (ο δοκιμασμένος: 2 την ώρα), και τα βήματα του οδηγού θέλουν πολλές φορές τα ίδια bytes. Κλειδί είναι η
 /// διεύθυνση, όχι το feed: στο βήμα ② δεν υπάρχει ακόμη γραμμή `SupplierFeed`.
 model FeedSnapshot {
-  id String @id @default(cuid())
+  id        String   @id @default(cuid())
   /// sha256 της διεύθυνσης: η διεύθυνση έχει μέσα apikey και είναι πολύ μεγάλη για μοναδικό ευρετήριο
-  urlKey String @unique
-  url    String
+  urlKey    String   @unique
+  url       String
   /// το XML συμπιεσμένο (gzip)
-  gz Bytes
+  gz        Bytes
   /// μέγεθος του ασυμπίεστου XML
-  bytes Int
+  bytes     Int
   /// sha256 του ασυμπίεστου XML — ίδιο σημαίνει «ο προμηθευτής δεν άλλαξε τίποτα»
   sha256    String
   products  Int?
@@ -2838,18 +2885,18 @@ model FeedSnapshot {
 /// προϊόντα». Κλειδί ο προμηθευτής ΚΑΙ η διεύθυνση (στο βήμα ② δεν υπάρχει ακόμη γραμμή SupplierFeed), ένα πρόχειρο
 /// ανά ζεύγος. Σβήνεται μόλις η αντιστοίχιση αποθηκευτεί κανονικά.
 model FeedDraft {
-  id         String @id @default(cuid())
+  id         String   @id @default(cuid())
   supplierId String
   /// sha256 της διεύθυνσης, όπως στο FeedSnapshot
-  urlKey String
-  url    String
+  urlKey     String
+  url        String
   /// σε ποιο βήμα ήταν ο χρήστης, για να τον γυρίσουμε εκεί
-  step String @default("cols")
+  step       String   @default("cols")
   /// οι επιλογές του οδηγού (MappingValue), όπως ταξιδεύουν στον server
-  data      Json
-  staffId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  data       Json
+  staffId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
@@ -2882,12 +2929,17 @@ model SupplierFeedItem {
   productId     String?
   pendingItemId String?
   error         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  /// «Έλεγχος με SoftOne»: update | unchanged | new | waiting | problem (RowStatus) και τι βρέθηκε (κλειδί, αλλαγές, τιμή)
+  s1Status      String?
+  s1Check       Json?
+  checkedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   feed SupplierFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
 
   @@unique([feedId, sku])
   @@index([feedId, status])
   @@index([feedId, diff])
+  @@index([feedId, s1Status])
 }

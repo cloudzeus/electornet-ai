@@ -1,4 +1,5 @@
 import "server-only";
+import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
 import { db } from "@/lib/db";
 import { MAX_FEED_BYTES } from "@/lib/catalog/xml-import/download";
 import { feedBytes, setSnapshotProducts } from "@/lib/catalog/xml-import/snapshot";
@@ -120,9 +121,9 @@ function cfgOf(raw: unknown): FeedConfig {
 }
 
 export async function loadFeed(feedId: string) {
-  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, minFetchMin: true, active: true, supplier: { select: { id: true, name: true, code: true } } } });
+  const feed = await db.supplierFeed.findUnique({ where: { id: feedId }, select: { id: true, url: true, config: true, priceMode: true, toSoftone: true, minFetchMin: true, active: true, updatePolicy: true, supplier: { select: { id: true, name: true, code: true } } } });
   if (!feed) throw new UserError("Το feed δεν βρέθηκε.");
-  return { ...feed, cfg: cfgOf(feed.config) };
+  return { ...feed, cfg: cfgOf(feed.config), policy: normPolicy(feed.updatePolicy) };
 }
 
 /** Έχει περάσει ο χρήστης την αντιστοίχιση; (feed που σώθηκε μόνο ως διεύθυνση, όχι) */

@@ -1,4 +1,5 @@
 import "server-only";
+import { DEFAULT_POLICY, policyPrice, splitByPolicy, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
 import { db } from "@/lib/db";
 import { planImport, applyImport } from "@/lib/catalog/supplier-import";
 import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-media";
@@ -23,8 +24,12 @@ export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/pla
  * στοιχεία του ERP μένουν «σε αναμονή» και δεν γράφεται τίποτα (ούτε στο κατάστημα)· οι φωτογραφίες περνούν κανονικά.
  */
 /** writeOn / priceOn = ο διακόπτης του SoftOne και η εγγραφή τιμής web (S1_WEB_PRICE_WRITE) τη στιγμή της προεπισκόπησης (ο χρήστης ενέκρινε αυτό που είδε) */
-type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; priceOn?: boolean; results?: Record<number, string> };
-type Ctx = { row: ForeignRow; plan: ForeignPlanRow; mtrl: number | null; groupS1Id: number | null; specs: Record<string, string>; parsed?: ParsedRow; media?: MediaRow };
+/** Τι επιτρέπεται να αλλάξει σε υπάρχοντα είδη και πώς βγαίνει η τιμή (XML προμηθευτές)· χωρίς αυτό = «μόνο κενά» και κόστος × markup, όπως στο Excel. */
+export type EngineOpts = { policy: UpdatePolicy; priceMode: "cost" | "retail" };
+const DEFAULT_OPTS: EngineOpts = { policy: DEFAULT_POLICY, priceMode: "cost" };
+type Stored = { foreign: ForeignRow[]; plan: ForeignPlanRow[]; headerRow: number; config: MappingConfig; writeOn?: boolean; priceOn?: boolean; results?: Record<number, string>; opts?: EngineOpts };
+/** `parsed` = πεδία «μόνο κενά», `parsedOver` = πεδία προς αντικατάσταση (ίδια γραμμή, δύο περάσματα της μηχανής) */
+type Ctx = { row: ForeignRow; plan: ForeignPlanRow; mtrl: number | null; groupS1Id: number | null; specs: Record<string, string>; parsed?: ParsedRow; parsedOver?: ParsedRow; media?: MediaRow };
 
 /**
  * Τα id που αναφέρει η αντιστοίχιση πρέπει να υπάρχουν ακόμη — αλλιώς θα κατέληγαν σε PendingItem με άκυρο id και η
@@ -62,7 +67,8 @@ async function inChunks<T, R>(values: T[], fn: (part: T[]) => Promise<R[]>): Pro
  * με αυτές, όχι με όλο το αρχείο)· οι έλεγχοι ανάμεσα σε γραμμές (ίδιο είδος, διπλά νέα) γίνονται σε ΟΛΟ το αρχείο, με το
  * αποθηκευμένο σχέδιο για τις γραμμές που δεν ξαναϋπολογίζονται.
  */
-async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, only?: { rowNos: Set<number>; stored: ForeignPlanRow[] }): Promise<Ctx[]> {
+async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, only?: { rowNos: Set<number>; stored: ForeignPlanRow[] }, opts: EngineOpts = DEFAULT_OPTS): Promise<Ctx[]> {
+  const { policy } = opts;
   const foreign = only ? all.filter((r) => only.rowNos.has(r.rowNo)) : all;
   // ---- αντιστοίχιση με το SoftOne ----
   const t = (s?: string) => (s ?? "").trim();
@@ -133,7 +139,8 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
   };
   const priceOf = (r: ForeignRow, brandId: string | null, categoryId: string | null, vat: number) => {
     const rule = pickRule(rules, brandId, categoryId);
-    return planPrice({
+    return policyPrice({
+      mode: opts.priceMode, vatIncluded: policy.vatIncluded,
       cost: r.cost, rrp: r.rrp, vat,
       rule: rule ? { percent: rule.percent, rounding: ROUNDING.has(rule.rounding as Rounding) ? (rule.rounding as Rounding) : "none" } : null,
       label: rule ? ruleLabel(rule, { brand: rule.brandId ? brandName.get(rule.brandId) : undefined, category: rule.categoryId ? catName.get(rule.categoryId) : undefined }) : "",
@@ -177,9 +184,12 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
       const e = fields.barcode ? normEan(fields.barcode) : null;
       if (e) fields.barcode = e;
       if (t(fields.code).toLowerCase() === it.code.trim().toLowerCase()) delete fields.code;
-      c.parsed = { sheet: SHEET, rowNo: row.rowNo, groupS1Id: groupS1Id!, fields, specs: rk.specs };
+      const part = splitByPolicy(fields, rk.specs, policy);
+      if (part.blank) c.parsed = { sheet: SHEET, rowNo: row.rowNo, groupS1Id: groupS1Id!, fields: part.blank.fields, specs: part.blank.specs };
+      if (part.over) c.parsedOver = { sheet: SHEET, rowNo: row.rowNo, groupS1Id: groupS1Id!, fields: part.over.fields, specs: part.over.specs };
       if (mediaCount(row)) c.media = { sheet: SHEET, rowNo: row.rowNo, groupS1Id, ids: { mtrl: String(it.mtrl) }, image: row.media.image, banner: row.media.banner, video: row.media.video };
-      if (!(it.eshopPrice != null && it.eshopPrice > 0)) {
+      const hasPrice = it.eshopPrice != null && it.eshopPrice > 0;
+      if (policy.price === "overwrite" || (policy.price === "blank" && !hasPrice)) {
         const p = productOf.get(String(it.mtrl));
         const pr = priceOf(row, row.brandId ?? p?.brandId ?? null, row.categoryId ?? p?.categoryId ?? null, (it.vatS1Id != null ? vatOf.get(String(it.vatS1Id)) : undefined) ?? 24);
         if (pr.price) plan.price = pr.price;
@@ -196,16 +206,18 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
     return c;
   });
 
-  // ---- υπάρχοντα: η μηχανή του template («μόνο κενά») και τα πολυμέσα ----
-  const parsed = ctx.filter((c) => c.parsed).map((c) => c.parsed!);
-  if (parsed.length) {
-    const plan = await planImport({ meta: null, rows: parsed, warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: true });
+  // ---- υπάρχοντα: η μηχανή του template — «μόνο κενά» και, όπου το επέτρεψε ο χρήστης, «αντικατάσταση» ----
+  for (const over of [false, true]) {
+    const pick = (c: Ctx) => (over ? c.parsedOver : c.parsed);
+    const parsed = ctx.filter((c) => pick(c)).map((c) => pick(c)!);
+    if (!parsed.length) continue;
+    const plan = await planImport({ meta: null, rows: parsed, warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: !over });
     const byRow = new Map(plan.rows.map((r) => [r.rowNo, r]));
     for (const c of ctx) {
-      const r = c.parsed ? byRow.get(c.row.rowNo) : undefined;
+      const r = pick(c) ? byRow.get(c.row.rowNo) : undefined;
       if (!r) continue;
-      c.plan.changes = r.changes; c.plan.warnings.push(...r.warnings);
-      if (r.action === "error") { c.plan.problem = r.errors.join(" ") || "Σφάλμα στη γραμμή."; c.parsed = undefined; c.media = undefined; c.plan.price = undefined; }
+      c.plan.changes = [...c.plan.changes, ...r.changes.map((x) => (over ? { ...x, label: `${x.label} (αντικατάσταση)` } : x))]; c.plan.warnings.push(...r.warnings);
+      if (r.action === "error") { c.plan.problem = r.errors.join(" ") || "Σφάλμα στη γραμμή."; c.parsed = undefined; c.parsedOver = undefined; c.media = undefined; c.plan.price = undefined; }
     }
   }
   const media = ctx.filter((c) => c.media).map((c) => c.media!);
@@ -234,15 +246,25 @@ const countStatus = (rows: ForeignPlanRow[]) => {
 
 /** Σχέδιο εισαγωγής: κατάσταση ανά γραμμή, χωρίς καμία εγγραφή εκτός από το ImportJob (πρόχειρο). */
 export async function planForeign(
-  input: { fileName: string; sheet: string[][]; headerRow: number; config: MappingConfig; mappingId?: string | null },
+  input: { fileName: string; sheet: string[][]; headerRow: number; config: MappingConfig; mappingId?: string | null; opts?: EngineOpts },
   staffId: string | null,
 ): Promise<{ jobId: string; rows: ForeignPlanRow[]; writeOn: boolean }> {
   const foreign = toRows(input.sheet, input.headerRow, input.config);
   const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
-  const rows = (await compute(foreign, writeOn, priceOn)).map((c) => c.plan);
-  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn, priceOn };
+  const rows = (await compute(foreign, writeOn, priceOn, undefined, input.opts)).map((c) => c.plan);
+  const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn, priceOn, ...(input.opts ? { opts: input.opts } : {}) };
   const job = await db.importJob.create({ data: { fileName: input.fileName, mappingId: input.mappingId ?? null, rows: stored as object, counts: countStatus(rows), status: "draft", createdById: staffId }, select: { id: true } });
   return { jobId: job.id, rows, writeOn };
+}
+
+/**
+ * Ο έλεγχος χωρίς καμία εγγραφή (ούτε ImportJob): τι υπάρχει ήδη στο SoftOne, με ποιο κλειδί βρέθηκε, τι θα άλλαζε.
+ * Για τον «Έλεγχο με SoftOne» των XML προμηθευτών, που τρέχει σε κομμάτια πάνω σε όλο το feed.
+ */
+export async function previewForeign(input: { sheet: string[][]; headerRow: number; config: MappingConfig; opts?: EngineOpts }): Promise<{ rows: ForeignPlanRow[]; writeOn: boolean; priceOn: boolean }> {
+  const foreign = toRows(input.sheet, input.headerRow, input.config);
+  const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
+  return { rows: (await compute(foreign, writeOn, priceOn, undefined, input.opts)).map((c) => c.plan), writeOn, priceOn };
 }
 
 /** Οι τελευταίες εισαγωγές (για «Πρόσφατες εισαγωγές» → «Νέα προεπισκόπηση»). */
@@ -271,7 +293,7 @@ export async function replanForeign(jobId: string): Promise<{ jobId: string; fil
   const [nb, nc] = await Promise.all([brands.length ? db.brand.count({ where: { id: { in: brands } } }) : 0, cats.length ? db.category.count({ where: { id: { in: cats } } }) : 0]);
   if (nb !== brands.length || nc !== cats.length) throw new UserError("Κάποια μάρκα ή κατηγορία της εισαγωγής δεν υπάρχει πια — ανέβασε ξανά το αρχείο.");
   const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
-  const rows = (await compute(stored.foreign, writeOn, priceOn)).map((c) => c.plan);
+  const rows = (await compute(stored.foreign, writeOn, priceOn, undefined, stored.opts)).map((c) => c.plan);
   const prev = (job.counts ?? {}) as { applied?: unknown };
   await db.importJob.update({ where: { id: jobId }, data: { rows: { ...stored, plan: rows, writeOn, priceOn } as object, counts: { ...countStatus(rows), ...(prev.applied ? { applied: prev.applied } : {}) } as object } });
   return { jobId, fileName: job.fileName, rows, writeOn };
@@ -295,7 +317,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   const priceOn = webPriceWriteEnabled();
   if (stored.priceOn !== undefined && stored.priceOn !== priceOn) throw new UserError("Η εγγραφή τιμής web άλλαξε από την προεπισκόπηση — ξανακάνε προεπισκόπηση.");
   const want = new Set(rowNos);
-  const ctx = await compute(stored.foreign, writeOn, priceOn, { rowNos: want, stored: stored.plan });
+  const ctx = await compute(stored.foreign, writeOn, priceOn, { rowNos: want, stored: stored.plan }, stored.opts);
   const errors: { rowNo: number; error: string }[] = [];
   for (const n of want) if (!ctx.some((c) => c.row.rowNo === n)) errors.push({ rowNo: n, error: "Η γραμμή δεν υπάρχει στην εισαγωγή." });
   const results: Record<number, string> = { ...(stored.results ?? {}) };
@@ -308,15 +330,17 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
 
   const existing = sel.filter((c) => c.mtrl != null && !c.plan.problem);
   if (writeOn) {
-    const withChanges = existing.filter((c) => c.parsed && c.plan.changes.length);
-    if (withChanges.length) {
-      const res = await applyImport({ meta: null, rows: withChanges.map((c) => c.parsed!), warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: true }, withChanges.map((c) => keyOf(c.row.rowNo)));
+    for (const over of [false, true]) {
+      const pick = (c: Ctx) => (over ? c.parsedOver : c.parsed);
+      const withChanges = existing.filter((c) => pick(c) && c.plan.changes.length && !rowErr.has(c.row.rowNo));
+      if (!withChanges.length) continue;
+      const res = await applyImport({ meta: null, rows: withChanges.map((c) => pick(c)!), warnings: [], sheets: [] }, { toSoftone: true, activate: false, onlyBlank: !over }, withChanges.map((c) => keyOf(c.row.rowNo)));
       for (const r of res) if (!r.ok) fail(Number(r.key.split("#")[1]), r.message);
     }
     // Τιμή μόνο αν τα στοιχεία της γραμμής πέρασαν — όχι μισοεκτελεσμένη γραμμή. Με κλειστή εγγραφή τιμής web: παραλείπεται
     // (η προεπισκόπηση το έδειξε με σημείωση), όχι σφάλμα.
     for (const c of priceOn ? existing.filter((x) => x.plan.price && !rowErr.has(x.row.rowNo)) : []) {
-      const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { onlyIfBlank: true });
+      const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { onlyIfBlank: stored.opts?.policy.price !== "overwrite" });
       if (!w.ok) { fail(c.row.rowNo, `Τιμή web: ${w.error ?? "δεν γράφτηκε."}`); continue; }
       // Όπως στην έγκριση νέων ειδών: το κατάστημα και ο καθρέφτης παίρνουν αμέσως την τιμή
       try { await syncItem(c.mtrl!, "manual"); await projectItem(c.mtrl!); }

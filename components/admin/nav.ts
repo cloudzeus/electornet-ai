@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
+  BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
@@ -50,6 +50,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Κατάλογος",
     items: [
       { href: "/admin/catalog", label: "Προϊόντα", icon: Package, perm: "catalog.products.read" },
+      { href: "/admin/catalog/categories", label: "Κατηγορίες", icon: FolderTree, perm: "catalog.products.read" },
       { href: "/admin/catalog/specs", label: "Χαρακτηριστικά", icon: ListChecks, perm: "catalog.products.read" },
       { href: "/admin/catalog?type=set", label: "Σετ ειδών", icon: Boxes, perm: "catalog.products.read" },
       { href: "/admin/catalog/templates", label: "Templates & excel", icon: FileSpreadsheet, perm: "catalog.products.read" },

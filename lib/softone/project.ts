@@ -58,7 +58,7 @@ async function projectCategories() {
   const [cats, groups, existing] = await Promise.all([
     db.s1WebCategory.findMany({ orderBy: [{ level: "asc" }, { parentS1Id: "asc" }, { s1Id: "asc" }] }),
     db.s1SpecGroup.findMany({ orderBy: { s1Id: "asc" } }),
-    db.category.findMany({ select: { id: true, erpCode: true, slug: true, name: true, parentId: true, depth: true, sortNo: true, source: true } }),
+    db.category.findMany({ select: { id: true, erpCode: true, slug: true, name: true, parentId: true, depth: true, sortNo: true, sortManual: true, source: true } }),
   ]);
   const nodes: CatNode[] = [
     ...cats.filter((c) => c.level === 1).map((c) => ({ erpCode: `s1:1:${c.s1Id}`, name: clean(c.name), parent: null, depth: 0, sortNo: c.s1Id, s1Active: c.active && !c.missing })),
@@ -82,8 +82,9 @@ async function projectCategories() {
         const slug = uniqueSlug(base, base === parentSlug ? "typos" : parentSlug, taken, `katigoria-${n.erpCode.replace(/[^0-9]+/g, "-").replace(/^-/, "")}`);
         const c = await db.category.create({ data: { erpCode: n.erpCode, slug, name: n.name, parentId, depth, sortNo: n.sortNo, source: SOURCE, s1SyncedAt: new Date() } });
         idOf.set(n.erpCode, c.id); slugOf.set(n.erpCode, slug); created++;
-      } else if (e.name !== n.name || e.parentId !== parentId || e.depth !== depth || e.sortNo !== n.sortNo || e.source !== SOURCE) {
-        await db.category.update({ where: { id: e.id }, data: { name: n.name, parentId, depth, sortNo: n.sortNo, source: SOURCE, s1SyncedAt: new Date() } }); // το slug μένει
+      } else if (e.name !== n.name || e.parentId !== parentId || e.depth !== depth || e.sortNo !== (e.sortManual ?? n.sortNo) || e.source !== SOURCE) {
+        // η σειρά του διαχειριστή (drag & drop) υπερισχύει του κωδικού του SoftOne
+        await db.category.update({ where: { id: e.id }, data: { name: n.name, parentId, depth, sortNo: e.sortManual ?? n.sortNo, source: SOURCE, s1SyncedAt: new Date() } }); // το slug μένει
         updated++;
       }
     }

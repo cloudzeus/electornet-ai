@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { LOOKUPS, lookupStats } from "@/lib/softone/lookups";
 import { StatTile } from "@/components/admin/charts/Charts";
 import { SyncButton, ClearRunsButtons } from "../SyncButtons";
+import { jobStatus, schedulerEnabled } from "@/lib/scheduler";
+import { describe as describeSchedule } from "@/lib/scheduler/due";
+import { ScheduledJobs } from "./ScheduledJobs";
 
 export const metadata = { title: "Συγχρονισμοί SoftOne" };
 export const dynamic = "force-dynamic";
@@ -16,12 +19,12 @@ const since = (hours: number) => Date.now() - hours * 3600000;
 /** Every sync run across all reference tables, newest first, plus what the nightly cron does. */
 export default async function SyncHistoryPage() {
   await requirePermission("settings.integrations.write");
-  const [runs, stats] = await Promise.all([db.s1SyncRun.findMany({ orderBy: { at: "desc" }, take: 120 }), lookupStats()]);
+  const [runs, stats, jobs] = await Promise.all([db.s1SyncRun.findMany({ orderBy: { at: "desc" }, take: 120 }), lookupStats(), jobStatus().catch(() => null)]);
   const cut = since(24);
   const last24 = runs.filter((r) => r.at.getTime() > cut);
   const rows = stats.reduce((a, s) => a + s.total, 0);
   const failing = stats.filter((s) => s.last && !s.last.ok);
-  const cron = !!process.env.CRON_SECRET;
+  const auto = schedulerEnabled();
   return (
     <div className="grid gap-5 min-w-0">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -36,8 +39,16 @@ export default async function SyncHistoryPage() {
         <StatTile label="Πίνακες" value={String(stats.length)} sub={`${rows.toLocaleString("el-GR")} εγγραφές συνολικά`} accent />
         <StatTile label="Συγχρονισμοί (24ω)" value={String(last24.length)} sub={last24.filter((r) => !r.ok).length ? `${last24.filter((r) => !r.ok).length} με σφάλμα` : "χωρίς σφάλματα"} />
         <StatTile label="Πίνακες με σφάλμα" value={String(failing.length)} sub={failing.length ? failing.map((f) => f.label).join(", ") : "κανένας"} />
-        <StatTile label="Αυτόματο (cron)" value={cron ? "έτοιμο" : "—"} sub={cron ? "GET /api/cron/softone-lookups" : "όρισε CRON_SECRET στο .env"} />
+        <StatTile label="Αυτόματο" value={auto ? "ενεργό" : "ανενεργό"} sub={auto ? "ο server τρέχει τις εργασίες μόνος του" : "μόνο στην παραγωγή (ή SCHEDULER=on)"} />
       </div>
+      <section data-help="sync.scheduler" className="rounded-2xl bg-white border border-eu-line p-5 grid gap-3 min-w-0">
+        <div>
+          <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Αυτόματες εργασίες</h3>
+          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[80ch]">Ο server διαβάζει μόνος του τον κατάλογο από το SoftOne και ενημερώνει το κατάστημα (μαζί με την «Εξαίρεση Web»). Κάθε εκτέλεση γράφει εδώ τι ολοκληρώθηκε ή γιατί απέτυχε.{!auto && " Σε αυτό το περιβάλλον ο scheduler είναι κλειστός· το «Τρέξε τώρα» δουλεύει κανονικά."}</p>
+        </div>
+        {jobs ? <ScheduledJobs active={auto} jobs={jobs.map((j) => ({ key: j.key, label: j.label, when: describeSchedule(j.schedule), enabled: j.enabled, running: j.running, lastOk: j.lastOk, lastAt: j.lastEndAt ? fmt(j.lastEndAt) : null, lastMessage: j.lastMessage, next: fmt(j.next), runs: j.runs, fails: j.fails }))} />
+          : <p role="alert" className="m-0 rounded-xl bg-eu-red/10 px-3 py-2 text-[length:var(--fs-14)] text-eu-ink">Ο πίνακας των αυτόματων εργασιών δεν υπάρχει ακόμη στη βάση. Χρειάζεται να εφαρμοστεί το prisma/sql/2026-10-30-scheduler-categories-xml.sql.</p>}
+      </section>
       <section className="rounded-2xl bg-white border border-eu-line p-5 min-w-0 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Ιστορικό</h3>

@@ -1,4 +1,5 @@
 "use server";
+import { after } from "next/server";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
@@ -17,10 +18,12 @@ import { pendingValues } from "@/lib/catalog/xml-import/values";
 import { dropDraft, getDraft, putDraft } from "@/lib/catalog/xml-import/draft";
 import { mergeBrandMap, splitBrandMap } from "@/lib/catalog/xml-import/skip-core";
 import { publishList, publishProducts, type PublishFilter } from "@/lib/catalog/xml-import/publish";
-import { drain, enqueue, progress, type Selection } from "@/lib/catalog/xml-import/queue";
+import { drain, enqueue, progress, recoverStale, type Selection } from "@/lib/catalog/xml-import/queue";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
+import { checkRows, checkSummary, chooseNew, resumeCheck, startCheck, type CheckSummary } from "@/lib/catalog/xml-import/check";
+import { normPolicy, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
 import { toTransform, type DraftDTO, type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type MappingDraft, type PublishDTO, type QueueDTO, type SourceDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 import { buildSuggestDTO } from "@/lib/catalog/xml-import/suggest-dto";
 
@@ -412,7 +415,7 @@ async function erpGuard(permissions: string[], toSoftone: boolean): Promise<stri
 }
 
 /** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις. Οι γραμμές με πρόβλημα δεν μπαίνουν. */
-export async function queueItems(feedId: string, filter: Partial<ItemFilter>, except: string[], toSoftone: boolean): Promise<{ queued: number; skipped: number } | Fail> {
+export async function queueItems(feedId: string, filter: Partial<ItemFilter>, except: string[], toSoftone: boolean): Promise<{ queued: number; skipped: number; notChosen: number } | Fail> {
   const user = await requirePermission("catalog.products.write");
   const stop = await erpGuard(user.permissions, !!toSoftone);
   if (stop) return { error: stop };
@@ -442,6 +445,7 @@ export async function retryErrors(feedId: string): Promise<{ queued: number } | 
 export async function drainBatch(feedId: string): Promise<{ processed: number; images: number; errors: number; left: number; pending: number; waiting: number } | Fail> {
   const user = await requirePermission("catalog.products.write");
   return guard("drain", async () => {
+    await recoverStale(String(feedId));
     const r = await drain(String(feedId), undefined, user.id);
     if (r.processed) resetCatalogCache();
     return ok(r);
@@ -476,6 +480,56 @@ export async function publish(feedId: string, which: string[] | "draft"): Promis
     const sel = which === "draft" ? "draft" : [...new Set((which ?? []).filter((v) => typeof v === "string"))];
     const r = await publishProducts(String(feedId), sel);
     await audit(user.id, "catalog.xml-import.publish", "SupplierFeed", String(feedId), null, { ...r, which: sel === "draft" ? "draft" : sel.length });
+    return ok(r);
+  });
+}
+
+// ---------- Έλεγχος με SoftOne ----------
+
+/** Ξεκινά (ή ξαναξεκινά) τον έλεγχο όλου του feed με την πολιτική του χρήστη. Τρέχει στον server· η σελίδα μόνο κοιτά. */
+export async function startCheckAction(feedId: string, policy: UpdatePolicy, priceMode: "cost" | "retail"): Promise<{ total: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("check", async () => {
+    const r = await startCheck(String(feedId), { policy: normPolicy(policy), priceMode: priceMode === "retail" ? "retail" : "cost" });
+    await audit(user.id, "catalog.xml-import.check", "SupplierFeed", String(feedId), null, { policy, priceMode, ...r });
+    after(async () => { const { runJob } = await import("@/lib/scheduler"); await runJob("xml-feeds", "manual"); });
+    return ok(r);
+  });
+}
+
+export async function resumeCheckAction(feedId: string): Promise<{ ok: true } | Fail> {
+  await requirePermission("catalog.products.write");
+  return guard("check-resume", async () => {
+    await resumeCheck(String(feedId));
+    after(async () => { const { runJob } = await import("@/lib/scheduler"); await runJob("xml-feeds", "manual"); });
+    return ok({ ok: true as const });
+  });
+}
+
+/** Για τη σελίδα όσο τρέχει ο έλεγχος ή η εισαγωγή: «ξυπνά» τον εκτελεστή (στο dev ο scheduler είναι κλειστός). */
+export async function kickXmlAction(): Promise<{ ok: true }> {
+  await requirePermission("catalog.products.write");
+  after(async () => { const { runJob } = await import("@/lib/scheduler"); await runJob("xml-feeds", "manual"); });
+  return { ok: true };
+}
+
+export async function checkSummaryAction(feedId: string): Promise<CheckSummary | Fail> {
+  await requirePermission("catalog.products.read");
+  return guard("check-summary", async () => ok(await checkSummary(String(feedId))));
+}
+
+export async function checkRowsAction(feedId: string, s1Status: string | null, page = 1, q = ""): Promise<Awaited<ReturnType<typeof checkRows>> | Fail> {
+  await requirePermission("catalog.products.read");
+  const st = s1Status && ["update", "unchanged", "new", "waiting", "problem"].includes(s1Status) ? s1Status : null;
+  return guard("check-rows", async () => ok(await checkRows(String(feedId), st, Number(page) || 1, String(q ?? "").slice(0, 80))));
+}
+
+export async function chooseNewAction(feedId: string, which: string[] | "all" | "none", value: boolean): Promise<{ changed: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("check-choose", async () => {
+    const list = Array.isArray(which) ? which.filter((x) => typeof x === "string").slice(0, 500) : which === "all" ? "all" : "none";
+    const r = await chooseNew(String(feedId), list, !!value);
+    await audit(user.id, "catalog.xml-import.choose-new", "SupplierFeed", String(feedId), null, { which: Array.isArray(list) ? list.length : list, value, ...r });
     return ok(r);
   });
 }

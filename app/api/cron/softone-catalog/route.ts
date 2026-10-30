@@ -1,27 +1,18 @@
 import { NextResponse } from "next/server";
-import { syncCatalog } from "@/lib/softone/catalog";
-import { projectCatalog } from "@/lib/softone/project";
-import { projectSetStock, syncSets } from "@/lib/softone/sets";
-import { refreshProductDocs, embedStale } from "@/lib/vector/index";
+import { runCatalogJob } from "@/lib/softone/catalog-job";
 
 export const maxDuration = 300;
 
 /**
  * Cron: `GET /api/cron/softone-catalog` με `Authorization: Bearer $CRON_SECRET`.
  * Φέρνει τις αλλαγές του καταλόγου από το SoftOne (μόνο ανάγνωση) και ενημερώνει
- * την προβολή στο κατάστημα και το ευρετήριο του Ερμή για ό,τι άλλαξε. `?mode=full` για πλήρη ανάγνωση ειδών
- * (π.χ. μία φορά την εβδομάδα, ώστε να εντοπίζονται όσα αφαιρέθηκαν από το site).
+ * την προβολή στο κατάστημα και το ευρετήριο του Ερμή για ό,τι άλλαξε. `?mode=full` για πλήρη ανάγνωση ειδών.
+ * Ο ίδιος κύκλος τρέχει και αυτόματα από τον εσωτερικό scheduler (lib/scheduler).
  */
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const mode = new URL(req.url).searchParams.get("mode") === "full" ? "full" : "delta";
-  const sync = await syncCatalog(mode, "cron");
-  const ok = sync.every((x) => x.ok);
-  // Χωρίς επιτυχή συγχρονισμό δεν αγγίζουμε ούτε το κατάστημα ούτε το ευρετήριο
-  const project = ok ? await projectCatalog("cron") : null;
-  const index = ok ? { docs: await refreshProductDocs(), emb: await embedStale(3000) } : null;
-  // «Set ειδών» (bundles): μέλη και απόθεμα → το απόθεμα του set στο προϊόν. Ανεξάρτητο — αποτυχία εδώ δεν σταματά τον κατάλογο.
-  const sets = ok ? await syncSets("cron").then(async (r) => ({ ...r, stockUpdated: r.ok ? await projectSetStock() : 0 })).catch((e) => ({ ok: false, error: String(e) })) : null;
-  return NextResponse.json({ ok: ok && project?.ok !== false && !index?.emb.error, mode, sync, project, index, sets }, { status: ok ? 200 : 500 });
+  const r = await runCatalogJob(mode, "cron");
+  return NextResponse.json(r, { status: r.ok ? 200 : 500 });
 }

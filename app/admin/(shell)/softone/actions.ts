@@ -104,3 +104,22 @@ export async function resetLogo(id: string) {
   revalidatePath("/admin/softone/brand/logos");
   return { ok: true as const };
 }
+
+/** Αυτόματες εργασίες (lib/scheduler): «Τρέξε τώρα» και ενεργοποίηση/παύση. */
+export async function runScheduledJob(key: string) {
+  const user = await requirePermission("settings.integrations.write");
+  const { runJob } = await import("@/lib/scheduler");
+  const r = await runJob(key, "manual");
+  await audit(user.id, "scheduler.run", "ScheduledJob", key, null, r);
+  revalidatePath("/admin/softone/sync");
+  return r;
+}
+
+export async function toggleScheduledJob(key: string, enabled: boolean) {
+  const user = await requirePermission("settings.integrations.write");
+  const { setJobEnabled } = await import("@/lib/scheduler");
+  await setJobEnabled(key, enabled);
+  await audit(user.id, enabled ? "scheduler.enable" : "scheduler.pause", "ScheduledJob", key, null, { enabled });
+  revalidatePath("/admin/softone/sync");
+  return { ok: true };
+}

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-30T14:03:12.558Z",
+ "generatedAt": "2026-10-30T14:40:41.234Z",
  "routes": [
   {
    "route": "/admin",
@@ -609,6 +609,34 @@
    }
   },
   {
+   "route": "/admin/catalog/categories",
+   "slug": "catalog.categories",
+   "file": "app/admin/(shell)/catalog/categories/page.tsx",
+   "title": "Κατηγορίες",
+   "doc": "Το δέντρο κατηγοριών web του SoftOne (κεντρική → κατηγορία → τύπος προϊόντος) με drag & drop, προσθήκη και μετονομασία.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Κατηγορίες"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "cats.write-switch",
+    "cats.search",
+    "cats.tree",
+    "cats.move-preview",
+    "cats.row-actions",
+    "cats.add",
+    "cats.ops"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {
+    "desktop": "/api/help-shot/catalog.categories-d.jpg",
+    "mobile": "/api/help-shot/catalog.categories-m.jpg"
+   }
+  },
+  {
    "route": "/admin/catalog/dimensions",
    "slug": "catalog.dimensions",
    "file": "app/admin/(shell)/catalog/dimensions/page.tsx",
@@ -694,6 +722,11 @@
    ],
    "changes": [
     {
+     "hash": "d767ceb",
+     "date": "2026-10-30T16:03:47+02:00",
+     "text": "Κατάλογος: στη βιτρίνα μόνο τα είδη χωρίς «Εξαίρεση Web»"
+    },
+    {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
@@ -737,14 +770,9 @@
      "hash": "1d4d3a7",
      "date": "2026-10-04T09:05:45+03:00",
      "text": "Καρτέλα προϊόντος: «Ενημέρωση από SoftOne»"
-    },
-    {
-     "hash": "f608035",
-     "date": "2026-10-02T21:11:51+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-10-30T16:03:47+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.specs-d.jpg",
     "mobile": "/api/help-shot/catalog.specs-m.jpg"
@@ -980,6 +1008,13 @@
    "nav": null,
    "dynamic": false,
    "helpKeys": [
+    "xml.check.policy",
+    "xml.check.price",
+    "xml.check.progress",
+    "xml.check.summary",
+    "xml.check.fields",
+    "xml.check.new",
+    "xml.check.rows",
     "xml.map.cols",
     "xml.map.duplicates",
     "xml.map.brands",
@@ -3506,6 +3541,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "d767ceb",
+     "date": "2026-10-30T16:03:47+02:00",
+     "text": "Κατάλογος: στη βιτρίνα μόνο τα είδη χωρίς «Εξαίρεση Web»"
+    },
+    {
      "hash": "14513b1",
      "date": "2026-09-21T13:55:15+03:00",
      "text": "Τιμή eshop και διαθεσιμότητα από το SoftOne, επιβεβαιωμένες στο ζωντανό euronics.gr"
@@ -3536,7 +3576,7 @@
      "text": "SoftOne: καθρέφτης καταλόγου με μηχανισμό συγχρονισμού, και διανυσματικό ευρετήριο για τον Ερμή"
     }
    ],
-   "updatedAt": "2026-09-21T13:55:15+03:00",
+   "updatedAt": "2026-10-30T16:03:47+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.catalog-d.jpg",
     "mobile": "/api/help-shot/softone.catalog-m.jpg"
@@ -3587,7 +3627,10 @@
     "label": "Συγχρονισμοί & ιστορικό"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "sync.job",
+    "sync.scheduler"
+   ],
    "changes": [
     {
      "hash": "1af3105",
@@ -3822,6 +3865,16 @@
   }
  ],
  "recent": [
+  {
+   "hash": "d767ceb",
+   "date": "2026-10-30T16:03:47+02:00",
+   "text": "Κατάλογος: στη βιτρίνα μόνο τα είδη χωρίς «Εξαίρεση Web»",
+   "routes": [
+    "/admin",
+    "/admin/softone",
+    "/admin/softone/catalog"
+   ]
+  },
   {
    "hash": "b4299dc",
    "date": "2026-10-30T11:50:51+02:00",
@@ -4100,15 +4153,6 @@
    "date": "2026-10-20T14:40:31+03:00",
    "text": "Ασφάλεια: Bunny μόνο τα νέα ως κρίσιμα, κατώφλια λογικής, αλλαγή παραληπτών → κρίσιμο",
    "routes": []
-  },
-  {
-   "hash": "0bbf691",
-   "date": "2026-10-20T14:37:24+03:00",
-   "text": "Ασφάλεια: ειδοποιήσεις χωρίς χαμένα κλειδώματα, σύνοψη που δεν στάλθηκε, παράθυρα ελέγχου",
-   "routes": [
-    "/admin",
-    "/admin/asfaleia"
-   ]
   }
  ],
  "helpKeys": {
@@ -4373,6 +4417,12 @@
   "ads.campaigns": [
    "app/admin/(shell)/prosfores/theseis/page.tsx"
   ],
+  "sync.job": [
+   "app/admin/(shell)/softone/sync/ScheduledJobs.tsx"
+  ],
+  "sync.scheduler": [
+   "app/admin/(shell)/softone/sync/page.tsx"
+  ],
   "settings.groups": [
    "components/admin/SettingsForm.tsx"
   ],
@@ -4381,6 +4431,27 @@
   ],
   "settings.test": [
    "components/admin/SettingsForm.tsx"
+  ],
+  "cats.write-switch": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.search": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.tree": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.move-preview": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.row-actions": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.add": [
+   "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "cats.ops": [
+   "components/admin/catalog/CategoryTree.tsx"
   ],
   "foreign.steps": [
    "components/admin/catalog/ForeignImportWizard.tsx"
@@ -4480,6 +4551,27 @@
   ],
   "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
+  ],
+  "xml.check.policy": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.price": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.progress": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.summary": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.fields": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.new": [
+   "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.check.rows": [
+   "components/admin/catalog/xml/CheckStep.tsx"
   ],
   "xml.map.cols": [
    "components/admin/catalog/xml/MappingSteps.tsx"

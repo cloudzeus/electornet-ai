@@ -47,16 +47,65 @@ const whereOf = (feedId: string, f: ItemFilter) => ({
 });
 
 /** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις. Γραμμές με `problem` δεν μπαίνουν. */
-export async function enqueue(feedId: string, sel: Selection): Promise<{ queued: number; skipped: number }> {
+export async function enqueue(feedId: string, sel: Selection): Promise<{ queued: number; skipped: number; notChosen: number }> {
   const feed = await loadFeed(feedId);
   if (!feed.active) throw new UserError("Το feed αυτού του προμηθευτή είναι ανενεργό — ενεργοποίησέ το από το πρώτο βήμα για να γίνει εισαγωγή.");
   // Η παράλειψη είναι απόφαση του χρήστη, όχι φίλτρο: γραμμή παραλειπόμενης μάρκας ΔΕΝ μπαίνει ποτέ στην ουρά, ό,τι
   // κι αν λέει το φίλτρο. Ο τρόπος να μπει είναι να ξε-παραλειφθεί η μάρκα και να ξανατρέξει το feed.
-  const where = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}), status: { not: "skipped" } };
-  const skipped = await db.supplierFeedItem.count({ where: { ...whereOf(feedId, sel.filter), problem: { not: null } } });
+  const base = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}), status: { not: "skipped" } };
+  // Νέο είδος (κατά τον «Έλεγχο με SoftOne») που ο χρήστης δεν διάλεξε για το SoftOne δεν μπαίνει στην ουρά.
+  // Ρητό `null` στο s1Status: το Prisma `not` αποκλείει σιωπηλά τα NULL (γραμμές που δεν ελέγχθηκαν ποτέ = όπως πριν).
+  const chosen = { OR: [{ s1Status: null }, { s1Status: { not: "new" } }, { softone: true }, ...(sel.toSoftone ? [{ softone: null }] : [])] };
+  const where = { AND: [base, chosen] };
+  const [skipped, notChosen] = await Promise.all([
+    db.supplierFeedItem.count({ where: { ...whereOf(feedId, sel.filter), problem: { not: null } } }),
+    db.supplierFeedItem.count({ where: { AND: [base, { NOT: chosen }] } }),
+  ]);
   const r = await db.supplierFeedItem.updateMany({ where, data: { status: "queued", error: null } });
   if (feed.toSoftone !== sel.toSoftone) await db.supplierFeed.update({ where: { id: feedId }, data: { toSoftone: sel.toSoftone } });
-  return { queued: r.count, skipped };
+  await db.supplierFeed.update({ where: { id: feedId }, data: { importMessage: `Στην ουρά: ${r.count.toLocaleString("el-GR")} προϊόντα${notChosen ? ` · ${notChosen.toLocaleString("el-GR")} νέα δεν επιλέχθηκαν για το SoftOne και δεν μπήκαν` : ""}${skipped ? ` · ${skipped} με πρόβλημα παραλείφθηκαν` : ""}. Η εισαγωγή τρέχει στον server· αν διακοπεί, συνεχίζει μόνη της.` } });
+  return { queued: r.count, skipped, notChosen };
+}
+
+/** Γραμμή που έμεινε σε «importing» (deploy ή πτώση στη μέση της παρτίδας) γυρνά στην ουρά — η εισαγωγή είναι ασφαλής σε επανάληψη. */
+export async function recoverStale(feedId?: string, olderMin = 10): Promise<number> {
+  const r = await db.supplierFeedItem.updateMany({ where: { ...(feedId ? { feedId } : {}), status: "importing", updatedAt: { lt: new Date(Date.now() - olderMin * 60_000) } }, data: { status: "queued" } });
+  return r.count;
+}
+
+/**
+ * Για τον scheduler: αδειάζει τις ουρές όλων των feeds για έως `budgetMs`, ώστε η εισαγωγή να μη χρειάζεται ανοιχτή
+ * καρτέλα. Όταν μια ουρά αδειάσει, γράφει στο feed ένα καθαρό μήνυμα ολοκλήρωσης (ή σφαλμάτων).
+ */
+export async function drainAll(budgetMs = 150_000): Promise<{ ok: boolean; message: string; idle?: boolean }> {
+  const revived = await recoverStale();
+  const feeds = await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { status: "queued" }, _count: { _all: true } });
+  if (!feeds.length) return { ok: true, message: "Καμία εισαγωγή σε αναμονή.", idle: !revived };
+  const t0 = Date.now(), out: string[] = [];
+  let ok = true;
+  for (const f of feeds) {
+    let processed = 0, errors = 0, pending = 0, left = f._count._all;
+    try {
+      while (left > 0 && Date.now() - t0 < budgetMs) {
+        const r = await drain(f.feedId, BATCH, null);
+        processed += r.processed; errors = r.errors; pending += r.pending; left = r.left;
+        if (!r.processed) break;
+      }
+    } catch (e) {
+      ok = false;
+      const msg = `Η εισαγωγή σταμάτησε: ${e instanceof Error ? e.message : String(e)}. Οι γραμμές που έμειναν είναι ακόμη στην ουρά.`;
+      await db.supplierFeed.update({ where: { id: f.feedId }, data: { importMessage: msg } });
+      out.push(msg);
+      continue;
+    }
+    if (left === 0) {
+      const msg = `Η εισαγωγή ολοκληρώθηκε${errors ? ` με ${errors.toLocaleString("el-GR")} σφάλματα (δες «Σφάλματα» στη λίστα)` : " χωρίς σφάλματα"}${pending ? ` · ${pending.toLocaleString("el-GR")} νέα είδη περιμένουν έγκριση στα «Νέα είδη»` : ""}.`;
+      await db.supplierFeed.update({ where: { id: f.feedId }, data: { importMessage: msg } });
+      out.push(msg);
+    } else out.push(`${processed.toLocaleString("el-GR")} προϊόντα έγιναν, ${left.toLocaleString("el-GR")} απομένουν — συνεχίζει.`);
+    if (errors) ok = false;
+  }
+  return { ok, message: out.join(" · ") };
 }
 
 export interface Progress {
@@ -127,10 +176,12 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   const headers = feed.cfg.headers ?? [];
   if (!headers.length) throw new UserError("Το feed δεν έχει αποθηκευμένη αντιστοίχιση — ξανακάνε το βήμα της αντιστοίχισης.");
 
-  const batch = await db.supplierFeedItem.findMany({ where: { feedId, status: "queued" }, orderBy: { sku: "asc" }, take: max,
+  const found = await db.supplierFeedItem.findMany({ where: { feedId, status: "queued" }, orderBy: { sku: "asc" }, take: max,
     select: { id: true, sku: true, payload: true, edits: true, images: true, assetIds: true, softone: true, productId: true, pendingItemId: true, mtrl: true } });
-  if (!batch.length) return { processed: 0, images: 0, errors: 0, left: 0, pending: 0, waiting: 0 };
-  await db.supplierFeedItem.updateMany({ where: { id: { in: batch.map((b) => b.id) } }, data: { status: "importing" } });
+  // Ατομική δέσμευση ανά γραμμή: ο browser και ο scheduler μπορεί να αδειάζουν μαζί — καθένας κρατά μόνο όσες πρόλαβε
+  const claimed = await Promise.all(found.map((b) => db.supplierFeedItem.updateMany({ where: { id: b.id, status: "queued" }, data: { status: "importing" } }).then((r) => r.count === 1)));
+  const batch = found.filter((_, i) => claimed[i]);
+  if (!batch.length) return { processed: 0, images: 0, errors: 0, left: await db.supplierFeedItem.count({ where: { feedId, status: "queued" } }), pending: 0, waiting: 0 };
 
   // ---- 1. Φωτογραφίες → βιβλιοθήκη / Bunny, με τη σειρά του χρήστη ----
   const folderId = await productFolderId();
@@ -164,7 +215,7 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   const config = mediaOff(configForHeaders(feed.cfg.saved, headers));
   let pending = 0, waiting = 0;
   try {
-    const plan = await planForeign({ fileName: `${XML_JOB_PREFIX}${feed.supplier.name}`, sheet: matrix, headerRow: 0, config }, staffId);
+    const plan = await planForeign({ fileName: `${XML_JOB_PREFIX}${feed.supplier.name}`, sheet: matrix, headerRow: 0, config, opts: { policy: feed.policy, priceMode: feed.priceMode === "retail" ? "retail" : "cost" } }, staffId);
     const res = await applyForeign(plan.jobId, [...rowOf.keys()], staffId);
     pending = res.pending; waiting = res.waiting;
     for (const e of res.errors) { const it = rowOf.get(e.rowNo); if (it) fail(it.id, e.error); }

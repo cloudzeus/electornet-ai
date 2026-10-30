@@ -8,6 +8,7 @@ import { feedState, findSuppliers, forgetDraft, inspect, refreshSuppliers, remap
 import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep, type MappingValue } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
+import { CheckStep } from "./CheckStep";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -17,7 +18,7 @@ const card = "rounded-xl border border-eu-line bg-white p-3 md:p-4 grid gap-3 mi
 const input = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
 
 /** Τα βήματα όλου του οδηγού. Όσα είναι της αντιστοίχισης (`MapStep`) εμφανίζονται μόνο όταν έχουν δουλειά. */
-type Step = "supplier" | "feed" | MapStep | "list" | "publish";
+type Step = "supplier" | "feed" | MapStep | "check" | "list" | "publish";
 const TITLE: Record<Step, string> = {
   supplier: "Προμηθευτής",
   feed: "Feed",
@@ -26,6 +27,7 @@ const TITLE: Record<Step, string> = {
   cats: "Κατηγορίες",
   specs: "Χαρακτηριστικά",
   finish: "Τιμές & ERP",
+  check: "Έλεγχος με SoftOne",
   list: "Λίστα ελέγχου",
   publish: "Δημοσίευση",
 };
@@ -184,7 +186,8 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}${r.run.skipped ? ` · ${r.run.skipped} παραλείπονται (μάρκα που δεν εισάγεται)` : ""}.`);
     setFeed({ ...r });
     setDraft(null); setSavedAt(null);
-    setStep("list");
+    // πρώτα ο έλεγχος με το SoftOne: τι υπάρχει, τι αλλάζει, ποια νέα θα μπουν
+    setStep("check");
   };
 
   /** «Ξεκίνα από την αρχή»: πετά το πρόχειρο και ξαναχτίζει τις επιλογές από την πρόταση ή το αποθηκευμένο πρότυπο. */
@@ -202,7 +205,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   // Η κατάσταση της αντιστοίχισης ζει εδώ, πάνω από τα βήματα (το hook καλείται πάντα — `mapping` κενό = άδεια βήματα).
   const m = useMapping(mapping ?? NO_MAPPING, brands, draft?.value);
 
-  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["list", "publish"] as Step[]) : [])];
+  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["check", "list", "publish"] as Step[]) : [])];
   // Το βήμα μπορεί να έπαψε να υπάρχει: ο χρήστης γύρισε στις στήλες και έβγαλε τη στήλη κατηγορίας ενώ ήταν στις
   // κατηγορίες. Τότε δείχνουμε το πρώτο βήμα της αντιστοίχισης, όχι μια οθόνη χωρίς πλοήγηση.
   const cur: Step = steps.includes(step) ? step : mapping ? "cols" : "supplier";
@@ -509,6 +512,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       )}
 
       {/* ---------- Δημοσίευση ---------- */}
+      {cur === "check" && feed && <CheckStep state={feed} onDone={() => go("list")} />}
       {cur === "publish" && feed && <PublishStep state={feed} />}
 
       {cur === "list" && !feed && (

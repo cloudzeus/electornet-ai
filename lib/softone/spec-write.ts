@@ -15,7 +15,7 @@ import { getSetting } from "@/lib/settings/store";
  */
 const OBJECT = "CCCWEBGRSPECS";
 type Row = Record<string, string>;
-type Group = { CCCWEBGRSPECS: Row[]; CCCWEBSPECS: Row[]; CCCWEBSPECSLNS?: Row[] };
+export type Group = { CCCWEBGRSPECS: Row[]; CCCWEBSPECS: Row[]; CCCWEBSPECSLNS?: Row[] };
 
 export async function specWriteEnabled() {
   const s = await getSetting("softone").catch(() => null);
@@ -26,7 +26,7 @@ export async function specWriteEnabled() {
 const clean = (r: Row): Row => Object.fromEntries(Object.entries(r).filter(([k]) => k !== "UPDDATE").map(([k, v]) => [k, typeof v === "string" && /^-?\d+\|/.test(v) ? v.split("|")[0] : String(v ?? "")]));
 const sig = (r: Row) => JSON.stringify(Object.entries(clean(r)).sort(([a], [b]) => a.localeCompare(b)));
 
-async function readGroup(groupS1Id: number): Promise<Group> {
+export async function readGroup(groupS1Id: number): Promise<Group> {
   const r = await s1("getData", { OBJECT, KEY: groupS1Id });
   if (!r?.success) throw new Error(`SoftOne getData: ${r?.error ?? "χωρίς απάντηση"}`);
   if (r.readOnly) throw new Error("Ο λογαριασμός web έχει μόνο ανάγνωση στις ομάδες χαρακτηριστικών.");

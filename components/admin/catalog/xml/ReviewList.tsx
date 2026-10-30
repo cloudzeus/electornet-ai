@@ -171,7 +171,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
     const r = await act(() => queueItems(state.feedId, filter(), except, toSoftone));
     if (!r) return;
     if (!r.queued) { setNote("Καμία γραμμή δεν μπήκε στην ουρά — δες τα φίλτρα και τις εξαιρέσεις."); return; }
-    setNote(`${r.queued} ${r.queued === 1 ? "προϊόν μπήκε" : "προϊόντα μπήκαν"} στην ουρά${r.skipped ? ` · ${r.skipped} με πρόβλημα δεν μπήκαν` : ""}. Μπορείς να κλείσεις τη σελίδα: η εισαγωγή συνεχίζει από εκεί που έμεινε όταν ξαναμπείς.`);
+    setNote(`${r.queued} ${r.queued === 1 ? "προϊόν μπήκε" : "προϊόντα μπήκαν"} στην ουρά${r.skipped ? ` · ${r.skipped} με πρόβλημα δεν μπήκαν` : ""}${r.notChosen ? ` · ${r.notChosen} νέα δεν τα διάλεξες για το SoftOne (βήμα «Έλεγχος με SoftOne») και δεν μπήκαν` : ""}. Μπορείς να κλείσεις τη σελίδα: η εισαγωγή τρέχει στον server και, αν διακοπεί, συνεχίζει από εκεί που έμεινε.`);
     await runQueue();
   };
 
