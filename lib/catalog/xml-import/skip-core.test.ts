@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SKIP, splitBrandMap, mergeBrandMap, statusFor } from "./skip-core";
+import { SKIP, brandDecisions, brandOnByDefault, splitBrandMap, mergeBrandMap, statusFor } from "./skip-core";
 
 test("splitBrandMap: η «παράλειψη» βγαίνει από τον χάρτη μαρκών και γίνεται δική της λίστα", () => {
   const r = splitBrandMap({ Terra: "b-1", Homely: SKIP, Άγνωστη: null });
@@ -42,4 +42,30 @@ test("statusFor: γραμμή που μπήκε ή τρέχει ΔΕΝ αγγί�
     assert.equal(statusFor(s, { problem: false, skip: true }), null, s);
     assert.equal(statusFor(s, { problem: false, skip: false }), null, s);
   }
+});
+
+test("brandOnByDefault: συμμετέχει όποια έχει δική μας μάρκα — η παράλειψη και το κενό όχι", () => {
+  assert.equal(brandOnByDefault("b-1"), true);
+  assert.equal(brandOnByDefault(null), false);
+  assert.equal(brandOnByDefault(SKIP), false);
+});
+
+test("brandDecisions: όποια δεν συμμετέχει γίνεται παράλειψη, όποια συμμετέχει κρατά τη μάρκα της", () => {
+  const picks: Record<string, string | null> = { Terra: "b-1", Homely: "b-2", Άγνωστη: null };
+  const on: Record<string, boolean> = { Terra: true, Homely: false, "Άγνωστη": false };
+  const r = brandDecisions(["Terra", "Homely", "Άγνωστη"], (v) => picks[v] ?? null, (v) => on[v]);
+  assert.deepEqual(r.map, { Terra: "b-1", Homely: SKIP, "Άγνωστη": SKIP });
+  assert.deepEqual(r.gaps, []);
+});
+
+test("brandDecisions: μάρκα που συμμετέχει χωρίς δική μας μάρκα είναι κενό — εκεί σταματά ο οδηγός", () => {
+  const r = brandDecisions(["Άγνωστη", "Terra"], (v) => (v === "Terra" ? "b-1" : null), () => true);
+  assert.deepEqual(r.gaps, ["Άγνωστη"]);
+  assert.deepEqual(r.map, { "Άγνωστη": null, Terra: "b-1" });
+});
+
+test("brandDecisions: χωρίς μάρκες δεν υπάρχει ούτε χάρτης ούτε κενό", () => {
+  const r = brandDecisions([], () => null, () => true);
+  assert.deepEqual(r.map, {});
+  assert.deepEqual(r.gaps, []);
 });

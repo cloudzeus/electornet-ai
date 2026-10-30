@@ -6,7 +6,7 @@ import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPic
 import { MAX_VALUES, PRICE_MODES, TARGETS, TARGET_OF, TRANSFORMS, headerLabel, type ColDTO, type SuggestDTO } from "@/lib/catalog/xml-import/ui-core";
 import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
 import { initLabels, initPicks, initSettings, initTargets, initTransforms } from "@/lib/catalog/xml-import/map-init";
-import { SKIP } from "@/lib/catalog/xml-import/skip-core";
+import { SKIP, brandDecisions, brandOnByDefault } from "@/lib/catalog/xml-import/skip-core";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -61,6 +61,8 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   const [priceMode, setPriceMode] = useState<PriceMode>(() => initSettings(suggestion).priceMode);
   const [toSoftone, setToSoftone] = useState(() => initSettings(suggestion).toSoftone);
   const [minFetchMin, setMinFetchMin] = useState(() => initSettings(suggestion).minFetchMin);
+  /** Οι αλλαγές του χρήστη στη συμμετοχή των μαρκών — τι σημαίνει το κενό, το λέει το `brandOn` πιο κάτω. */
+  const [on, setOn] = useState<Record<string, boolean>>({});
 
   /**
    * Νέα πρόταση → νέες επιλογές.
@@ -77,6 +79,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
     setLabels(initLabels(suggestion));
     setTransforms(initTransforms(suggestion));
     setPicks(initPicks(suggestion));
+    setOn({});
     const st = initSettings(suggestion);
     setUnitId(st.unitId); setMarkId(st.markId); setPriceMode(st.priceMode); setToSoftone(st.toSoftone); setMinFetchMin(st.minFetchMin);
   }
@@ -102,6 +105,24 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
   };
   const setPick = (k: ValueKind, v: string, id: string | null) => setPicks((p) => ({ ...p, [k]: { ...p[k], [v]: id } }));
 
+  /**
+   * Ποιες μάρκες συμμετέχουν. Εξ ορισμού όσες βρέθηκαν στα δικά μας· ο χρήστης βάζει μέσα ή βγάζει όποια θέλει.
+   * Το `on` κρατά **μόνο τις αλλαγές** του χρήστη — έτσι μια μάρκα που μόλις αντιστοιχίστηκε μπαίνει μόνη της.
+   */
+  const brandOn = (v: string) => (Object.hasOwn(on, v) ? on[v] : brandOnByDefault(pickOf("brand", v)));
+  /** Μάρκα που ξαναμπαίνει ξεχνά την παλιά παράλειψη, ώστε να ισχύσει πάλι η εύρεση με το όνομα. */
+  const unskip = (vs: string[]) => setPicks((p) => {
+    const brand = { ...p.brand };
+    let hit = false;
+    for (const v of vs) if (brand[v] === SKIP) { delete brand[v]; hit = true; }
+    return hit ? { ...p, brand } : p;
+  });
+  const setBrandOn = (v: string, yes: boolean) => { setOn((p) => ({ ...p, [v]: yes })); if (yes) unskip([v]); };
+  const setBrandsOn = (vs: string[], yes: boolean) => {
+    setOn((p) => ({ ...p, ...Object.fromEntries(vs.map((v) => [v, yes])) }));
+    if (yes) unskip(vs);
+  };
+
   const headerOf = (k: ValueKind) => cols.find((c) => of(c.header) === k)?.header ?? null;
 
   /**
@@ -126,6 +147,11 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
 
   const missing = (k: ValueKind) => sets[k].rows.filter((r) => !pickOf(k, r.value)).length;
 
+  /** Η απόφαση για κάθε μάρκα του feed, μαζί με όσες συμμετέχουν χωρίς δική μας μάρκα (`gaps`). */
+  const brandsNow = brandDecisions(sets.brand.rows.map((r) => r.value), (v) => pickOf("brand", v), brandOn);
+  const brandsIn = sets.brand.rows.filter((r) => brandOn(r.value));
+  const brandsOut = sets.brand.rows.filter((r) => !brandOn(r.value));
+
   // ---- φράγματα, το καθένα στο βήμα του ----
   const dupNow = (() => {
     const by = new Map<string, string[]>();
@@ -145,7 +171,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
     dupNow.length ? { step: "cols" as MapStep, text: `Δύο ή περισσότερες στήλες δείχνουν στον ίδιο στόχο (${dupNow.map((d) => d.label).join(", ")}) — η μία θα έγραφε πάνω στην άλλη.` } : null,
     specNoLabel.length ? { step: "specs" as MapStep, text: `${specNoLabel.length} ${specNoLabel.length === 1 ? "χαρακτηριστικό" : "χαρακτηριστικά"} χωρίς ονομασία.` } : null,
     sets.brand.tooMany ? { step: "brands" as MapStep, text: `Η στήλη μάρκας «${sets.brand.header}» έχει πάνω από ${MAX_VALUES} διαφορετικές τιμές — δεν είναι μάρκα. Βάλ' την «Αγνόηση» ή «Χαρακτηριστικό».` } : null,
-    missing("brand") ? { step: "brands" as MapStep, text: `${missing("brand")} ${missing("brand") === 1 ? "μάρκα" : "μάρκες"} του feed δεν έχουν απάντηση — διάλεξε δική μας μάρκα ή «Παράλειψη».` } : null,
+    brandsNow.gaps.length ? { step: "brands" as MapStep, text: `${brandsNow.gaps.length} ${brandsNow.gaps.length === 1 ? "μάρκα συμμετέχει" : "μάρκες συμμετέχουν"} χωρίς δική μας μάρκα (${brandsNow.gaps.slice(0, 3).join(", ")}${brandsNow.gaps.length > 3 ? "…" : ""}) — διάλεξε δική μας μάρκα ή ${brandsNow.gaps.length === 1 ? "βγάλ' την" : "βγάλ' τες"} από τη συμμετοχή.` } : null,
   ].filter((x): x is { step: MapStep; text: string } => !!x);
 
   // ---- ποια βήματα έχουν νόημα σε αυτό το feed ----
@@ -157,7 +183,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
 
   const progress = (s: MapStep): { done: number; total: number } | null => {
     if (s === "cols") return { done: fieldCols.filter((c) => of(c.header) !== "ignore").length, total: fieldCols.length };
-    if (s === "brands") return { done: sets.brand.rows.length - missing("brand"), total: sets.brand.rows.length };
+    if (s === "brands") return { done: brandsIn.length, total: sets.brand.rows.length };
     if (s === "cats") return { done: sets.category.rows.length - missing("category"), total: sets.category.rows.length };
     if (s === "specs") return { done: specCols.filter((c) => (labels[c.header] ?? "").trim()).length, total: specCols.length };
     return null;
@@ -165,7 +191,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
 
   const value = (): MappingValue => ({
     targets, labels, transforms,
-    brandMap: Object.fromEntries(sets.brand.rows.map((r) => [r.value, pickOf("brand", r.value)])),
+    brandMap: brandsNow.map,
     categoryMap: Object.fromEntries(sets.category.rows.map((r) => [r.value, pickOf("category", r.value)])),
     unitMap: Object.fromEntries(sets.unit.rows.map((r) => [r.value, pickOf("unit", r.value)])),
     markMap: Object.fromEntries(sets.mark.rows.map((r) => [r.value, pickOf("mark", r.value)])),
@@ -176,6 +202,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[]) {
     cols, specs, duplicates, dupNow, fieldCols, specCols, sets, steps, blockers, progress, value,
     targets, labels, transforms, priceMode, toSoftone, unitId, markId, minFetchMin,
     of, isSpec, unsure, pickOf, setPick, missing,
+    brandOn, setBrandOn, setBrandsOn, brandsIn, brandsOut, brandGaps: brandsNow.gaps,
     setTargets, setLabels, setTransforms, setPriceMode, setToSoftone, setUnitId, setMarkId, setMinFetchMin,
   };
 }
@@ -209,13 +236,13 @@ function Samples({ c }: { c: ColDTO }) {
 }
 
 /** Κεφαλίδα βήματος: τίτλος, μία πρόταση εξήγηση και — όπου έχει νόημα — πόσα έγιναν από πόσα. */
-function Head({ id, title, help, done, total }: { id: string; title: string; help: string; done?: number; total?: number }) {
+function Head({ id, title, help, done, total, note }: { id: string; title: string; help: string; done?: number; total?: number; note?: string }) {
   return (
     <div className="grid gap-1">
       <div className="flex flex-wrap items-center gap-2">
         <h3 id={id} className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">{title}</h3>
         {total != null && total > 0 && (
-          <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{done} από {total}</span>
+          <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{note ? `${note} ` : ""}{done} από {total}</span>
         )}
       </div>
       <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] max-w-[80ch]">{help}</p>
@@ -231,10 +258,13 @@ function Head({ id, title, help, done, total }: { id: string; title: string; hel
  */
 export function ValueRows({ kind, m, options, label, empty, busy }: { kind: ValueKind; m: Mapping; options: PickOpt[]; label: string; empty: string; busy: boolean }) {
   const set = m.sets[kind];
-  const missing = m.missing(kind);
+  // Στις μάρκες «λείπει» μόνο όποια **συμμετέχει** χωρίς δική μας μάρκα: όποια δεν συμμετέχει είναι απόφαση, όχι κενό.
+  const isBrand = kind === "brand";
+  const needs = (v: string) => (isBrand ? m.brandOn(v) && !m.pickOf("brand", v) : !m.pickOf(kind, v));
+  const missing = set.rows.filter((r) => needs(r.value)).length;
   // «Μόνο όσες λείπουν» = φωτογραφία της στιγμής που άναψε, ΟΧΙ ζωντανό φίλτρο: αλλιώς η κάρτα που μόλις
   // αντιστοίχισες εξαφανίζεται και η επόμενη πηδά κάτω από τον κέρσορα — με 111 κατηγορίες αυτό είναι λάθος κλικ.
-  const todoNow = () => new Set(set.rows.filter((r) => !m.pickOf(kind, r.value)).map((r) => r.value));
+  const todoNow = () => new Set(set.rows.filter((r) => needs(r.value)).map((r) => r.value));
   const [only, setOnly] = useState(missing > 0);
   const [todo, setTodo] = useState(todoNow);
   const [q, setQ] = useState("");
@@ -269,10 +299,18 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
         <ul className="m-0 p-0 list-none grid gap-2 lg:grid-cols-2 min-w-0">
           {shown.map((r) => {
             const pick = m.pickOf(kind, r.value);
+            const on = !isBrand || m.brandOn(r.value);
             return (
-              <li key={r.value} className={row(!pick)}>
+              <li key={r.value} className={row(needs(r.value))}>
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
-                  <span className="font-bold text-eu-ink text-[length:var(--fs-14)] [overflow-wrap:anywhere]">{r.value}</span>
+                  {isBrand ? (
+                    <label className="flex items-center gap-2 cursor-pointer min-w-0 min-h-11 md:min-h-9">
+                      <input type="checkbox" checked={on} disabled={busy} onChange={(e) => m.setBrandOn(r.value, e.target.checked)} className="size-4 accent-eu-navy shrink-0" />
+                      <span className="font-bold text-eu-ink text-[length:var(--fs-14)] [overflow-wrap:anywhere]">{r.value}</span>
+                    </label>
+                  ) : (
+                    <span className="font-bold text-eu-ink text-[length:var(--fs-14)] [overflow-wrap:anywhere]">{r.value}</span>
+                  )}
                   {r.n > 0 && <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{r.n.toLocaleString("el-GR")} προϊόντα</span>}
                 </div>
                 {r.ex.length > 0 && (
@@ -280,8 +318,11 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
                     {r.ex.map((p) => <li key={p} className="text-eu-muted text-[length:var(--fs-12)] [overflow-wrap:anywhere]">π.χ. {cut(p, 60)}</li>)}
                   </ul>
                 )}
-                <OptionPicker options={options} value={pick} onChange={(id) => m.setPick(kind, r.value, id)} label={`${label} για «${r.value}»`} empty={empty} disabled={busy} />
-                {pick === SKIP && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Τα {r.n > 0 ? `${r.n.toLocaleString("el-GR")} ` : ""}προϊόντα αυτής της μάρκας θα φορτωθούν στη λίστα αλλά <b>δεν θα εισαχθούν</b>.</p>}
+                {on ? (
+                  <OptionPicker options={options} value={pick === SKIP ? null : pick} onChange={(id) => m.setPick(kind, r.value, id)} label={`${label} για «${r.value}»`} empty={empty} disabled={busy} />
+                ) : (
+                  <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Δεν συμμετέχει: τα {r.n > 0 ? `${r.n.toLocaleString("el-GR")} ` : ""}προϊόντα αυτής της μάρκας θα φορτωθούν στη λίστα αλλά <b>δεν θα εισαχθούν</b>.</p>
+                )}
               </li>
             );
           })}
@@ -356,14 +397,29 @@ export function StepColumns({ m, busy }: { m: Mapping; busy: boolean }) {
   );
 }
 
-/** Μάρκες: φράγμα, όχι σύσταση — μάρκα χωρίς αντιστοίχιση σταματά την εισαγωγή, γιατί δεν δημιουργούμε μάρκες από εδώ. */
+/**
+ * Μάρκες: **ο χρήστης διαλέγει ποιες συμμετέχουν**.
+ *
+ * Το φράγμα «κάθε μάρκα θέλει απάντηση» έβαζε δουλειά για μάρκες που δεν πουλάμε: με τρεις άγνωστες μάρκες ο οδηγός
+ * σταματούσε μέχρι να απαντηθεί η καθεμιά. Τώρα η ερώτηση είναι μία: ποιες μπαίνουν. Όσες βρέθηκαν στα δικά μας
+ * ξεκινούν μέσα, οι υπόλοιπες έξω, και φράγμα μένει μόνο η μάρκα που συμμετέχει χωρίς δική μας μάρκα.
+ */
 export function StepBrands({ m, brands, busy }: { m: Mapping; brands: PickOpt[]; busy: boolean }) {
   const p = m.progress("brands")!;
+  const all = m.sets.brand.rows.map((r) => r.value);
+  const outN = m.brandsOut.reduce((s, r) => s + r.n, 0);
+  const bulk = "inline-flex items-center justify-center rounded-full border-2 border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy focus-visible:outline-2 focus-visible:outline-eu-blue disabled:opacity-50";
   return (
     <section data-help="xml.map.brands" className={card} aria-labelledby="xm-brands">
-      <Head id="xm-brands" title="Οι μάρκες του feed" done={p.done} total={p.total} help="Κάθε μάρκα του προμηθευτή δείχνει σε δική μας μάρκα — όσες έχουν το ίδιο όνομα βρέθηκαν μόνες τους. Μάρκες δεν δημιουργούνται από εδώ. Αν μια μάρκα δεν υπάρχει στο SoftOne και δεν τη θέλεις, διάλεξε «Παράλειψη»: τα προϊόντα της δεν θα σε απασχολήσουν ξανά." />
-      <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]"><Tags className="size-4 shrink-0 mt-0.5 text-eu-blue" aria-hidden /><span className="min-w-0">Η μάρκα ορίζει και τον κατασκευαστή (MTRMANFCTR) στο SoftOne για τα νέα είδη. Κάθε μάρκα θέλει απάντηση — δική μας μάρκα ή «Παράλειψη».</span></p>
-      <ValueRows kind="brand" m={m} options={[{ id: SKIP, name: "Παράλειψη — να μην μπουν τα προϊόντα της", hint: "όταν η μάρκα δεν υπάρχει στο SoftOne και δεν τη θέλουμε" }, ...brands]} label="Μάρκα" empty="— χωρίς αντιστοίχιση" busy={busy} />
+      <Head id="xm-brands" title="Ποιες μάρκες συμμετέχουν" note="συμμετέχουν" done={p.done} total={p.total} help="Βάλε την τσεκ δίπλα στη μάρκα για να μπουν τα προϊόντα της. Όσες μάρκες του προμηθευτή βρέθηκαν στα δικά μας συμμετέχουν από την αρχή· όσες δεν υπάρχουν στο SoftOne μένουν έξω και δεν θα σε απασχολήσουν ξανά. Μάρκες δεν δημιουργούνται από εδώ: αν θέλεις μια καινούργια, φτιάξ' τη πρώτα στις μάρκες." />
+      <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]"><Tags className="size-4 shrink-0 mt-0.5 text-eu-blue" aria-hidden /><span className="min-w-0">Η μάρκα ορίζει και τον κατασκευαστή (MTRMANFCTR) στο SoftOne για τα νέα είδη. {m.brandsOut.length > 0 ? <>Οι {m.brandsOut.length} μάρκες που δεν συμμετέχουν{outN > 0 ? ` (${outN.toLocaleString("el-GR")} προϊόντα)` : ""} φορτώνονται στη λίστα αλλά <b>δεν εισάγονται</b>.</> : "Όλες οι μάρκες του feed συμμετέχουν."}</span></p>
+      <div data-help="xml.map.brands.pick" className="flex flex-wrap items-center gap-2 min-w-0">
+        <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Συμμετοχή:</span>
+        <button type="button" className={bulk} disabled={busy} onClick={() => m.setBrandsOn(all, true)}>Όλες</button>
+        <button type="button" className={bulk} disabled={busy} onClick={() => m.setBrandsOn(all, false)}>Καμία</button>
+        <button type="button" className={bulk} disabled={busy} onClick={() => { m.setBrandsOn(all, false); m.setBrandsOn(all.filter((v) => !!m.pickOf("brand", v) && m.pickOf("brand", v) !== SKIP), true); }}>Μόνο όσες βρέθηκαν στα δικά μας</button>
+      </div>
+      <ValueRows kind="brand" m={m} options={brands} label="Μάρκα" empty="— διάλεξε δική μας μάρκα" busy={busy} />
     </section>
   );
 }

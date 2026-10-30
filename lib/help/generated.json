@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-30T06:56:46.477Z",
+ "generatedAt": "2026-10-30T08:28:35.226Z",
  "routes": [
   {
    "route": "/admin",
@@ -983,6 +983,7 @@
     "xml.map.cols",
     "xml.map.duplicates",
     "xml.map.brands",
+    "xml.map.brands.pick",
     "xml.map.cats",
     "xml.map.specs",
     "xml.map.price",
@@ -1014,6 +1015,11 @@
     "xml.feed.sample"
    ],
    "changes": [
+    {
+     "hash": "1eb4da1",
+     "date": "2026-10-30T08:58:57+02:00",
+     "text": "XML προμηθευτές: ο διακόπτης του feed απαντά αμέσως"
+    },
     {
      "hash": "b474880",
      "date": "2026-10-30T08:55:50+02:00",
@@ -1058,14 +1064,9 @@
      "hash": "c62556f",
      "date": "2026-10-28T13:39:25+02:00",
      "text": "XML προμηθευτές: οδηγός 4 βημάτων"
-    },
-    {
-     "hash": "9b85ed8",
-     "date": "2026-10-28T13:39:14+02:00",
-     "text": "XML προμηθευτές: server actions του οδηγού"
     }
    ],
-   "updatedAt": "2026-10-30T08:55:50+02:00",
+   "updatedAt": "2026-10-30T08:58:57+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -3821,6 +3822,12 @@
  ],
  "recent": [
   {
+   "hash": "1eb4da1",
+   "date": "2026-10-30T08:58:57+02:00",
+   "text": "XML προμηθευτές: ο διακόπτης του feed απαντά αμέσως",
+   "routes": []
+  },
+  {
    "hash": "b474880",
    "date": "2026-10-30T08:55:50+02:00",
    "text": "XML προμηθευτές: η διεύθυνση σώζεται από το πρώτο βήμα και το feed ανοιγοκλείνει",
@@ -4099,12 +4106,6 @@
    "hash": "dd70fb2",
    "date": "2026-10-20T13:46:33+03:00",
    "text": "Ασφάλεια: φύλακας",
-   "routes": []
-  },
-  {
-   "hash": "9ada925",
-   "date": "2026-10-20T13:33:42+03:00",
-   "text": "Ασφάλεια: εξωτερικός φύλακας (GitHub Actions)",
    "routes": []
   }
  ],
@@ -4485,6 +4486,9 @@
    "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.brands": [
+   "components/admin/catalog/xml/MappingSteps.tsx"
+  ],
+  "xml.map.brands.pick": [
    "components/admin/catalog/xml/MappingSteps.tsx"
   ],
   "xml.map.cats": [

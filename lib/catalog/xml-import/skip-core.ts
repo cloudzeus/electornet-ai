@@ -45,3 +45,33 @@ export function statusFor(current: string | null, opts: { problem: boolean; skip
   if (opts.skip) return current === "skipped" ? null : "skipped";
   return current === "skipped" ? "review" : null;
 }
+
+/**
+ * Ποιες μάρκες συμμετέχουν εξ ορισμού: **όσες έχουν δική μας μάρκα**.
+ *
+ * Η ερώτηση στον χρήστη άλλαξε. Δεν είναι πια «απάντησε για κάθε μάρκα του προμηθευτή» (με τρεις άγνωστες μάρκες ο
+ * οδηγός σταματούσε και ο χρήστης έπρεπε να απαντήσει για κάτι που δεν πουλάμε) αλλά «διάλεξε ποιες μάρκες
+ * συμμετέχουν». Όποια δεν βρέθηκε στα δικά μας ξεκινά **έξω**: ο χρήστης τη βάζει μέσα αν τη θέλει.
+ */
+export const brandOnByDefault = (pick: string | null): boolean => !!pick && pick !== SKIP;
+
+/**
+ * Η τελική απόφαση για κάθε μάρκα του feed: όποια δεν συμμετέχει γίνεται παράλειψη, όποια συμμετέχει κρατά τη δική
+ * μας μάρκα. Τα `gaps` είναι όσες συμμετέχουν **χωρίς** δική μας μάρκα — μόνο αυτές σταματούν τον οδηγό, γιατί χωρίς
+ * μάρκα δεν γεννιέται είδος.
+ */
+export function brandDecisions(
+  values: string[],
+  pick: (value: string) => string | null,
+  on: (value: string) => boolean,
+): { map: Record<string, string | null>; gaps: string[] } {
+  const map: Record<string, string | null> = {};
+  const gaps: string[] = [];
+  for (const value of values) {
+    if (!on(value)) { map[value] = SKIP; continue; }
+    const id = pick(value);
+    map[value] = id && id !== SKIP ? id : null;
+    if (!map[value]) gaps.push(value);
+  }
+  return { map, gaps };
+}
