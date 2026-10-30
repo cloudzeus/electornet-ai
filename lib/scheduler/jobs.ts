@@ -16,6 +16,13 @@ export interface JobDef {
 /** Οι αυτόματες εργασίες. Νέα εργασία = μία γραμμή εδώ· ο scheduler και η σελίδα συγχρονισμών τη βλέπουν μόνες τους. */
 export const JOBS: JobDef[] = [
   {
+    key: "db-backup", label: "Αντίγραφο ασφαλείας βάσης → Bunny Storage (κρυπτογραφημένο)", schedule: { dailyAt: [2, 30] }, group: "backup", maxMin: 10,
+    run: async () => {
+      const r = await (await import("@/lib/backup/run")).runBackup("cron");
+      return { ok: r.ok, message: r.ok ? `${((r.bytes ?? 0) / 1024).toFixed(0)} KB${r.encrypted ? " · AES-256" : " · ΧΩΡΙΣ κρυπτογράφηση"} σε ${(r.ms / 1000).toFixed(0)}″${r.pruned ? ` · ${r.pruned} παλιά διαγράφηκαν` : ""}` : r.error ?? "Απέτυχε" };
+    },
+  },
+  {
     key: "softone-catalog-delta", label: "Κατάλογος SoftOne → κατάστημα (αλλαγές)", schedule: { everyMin: 30 }, group: "softone-catalog", maxMin: 20,
     run: async () => (await import("@/lib/softone/catalog-job")).runCatalogJob("delta", "cron"),
   },

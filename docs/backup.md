@@ -19,8 +19,9 @@ DATABASE_URL=               # ήδη υπάρχει
 ```
 Φύλαξε το `BACKUP_PASSPHRASE` και εκτός server (password manager). Χωρίς αυτό **δεν γίνεται επαναφορά**.
 
-## Τρεις τρόποι να τρέξει
-1. **Coolify / εξωτερικός scheduler** (προτείνεται σε παραγωγή, το app container έχει `pg_dump` 16):
+## Πώς τρέχει
+0. **Αυτόματα, από τον scheduler της εφαρμογής** (`lib/scheduler/jobs.ts`, εργασία `db-backup`, καθημερινά 02:30 ώρα Αθήνας): δεν χρειάζεται εξωτερικό cron. Φαίνεται και ξεκινά χειροκίνητα στη σελίδα των αυτόματων εργασιών.
+1. **Coolify / εξωτερικός scheduler** (εναλλακτικά, το app container έχει `pg_dump` 16):
    ```
    0 3 * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://www.euronics.gr/api/cron/backup
    ```
