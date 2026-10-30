@@ -25,7 +25,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const page = Math.max(1, Number(p) || 1);
   const where = {
     ...(q ? { OR: [{ code: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }, { factoryCode: { contains: q, mode: "insensitive" as const } }, { barcode: { contains: q } }] } : {}),
-    ...(f === "nodesc" ? { shortDesc: null, longDesc: null } : f === "nodims" ? { OR: [{ widthCm: null }, { heightCm: null }, { lengthCm: null }] } : f === "nogroup" ? { specGroupS1Id: null } : f === "nobrand" ? { manufacturerS1Id: null } : f === "missing" ? { missing: true } : f === "inactive" ? { active: false } : {}),
+    ...(f === "nodesc" ? { shortDesc: null, longDesc: null } : f === "nodims" ? { OR: [{ widthCm: null }, { heightCm: null }, { lengthCm: null }] } : f === "nogroup" ? { specGroupS1Id: null } : f === "nobrand" ? { manufacturerS1Id: null } : f === "missing" ? { missing: true } : f === "inactive" ? { active: false } : f === "excluded" ? { webExcluded: true } : {}),
   };
   const [stats, vec, shop, tree, coverage, facetTotals, rows, total] = await Promise.all([
     catalogStats(), vectorStats(), projectionStats(),
@@ -58,7 +58,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         {[
           { t: "Κατηγορίες site", v: `${stats.cat1} + ${stats.cat2}`, s: `Master + Main · τελευταίος ${fmt(state("webcat")?.lastFullAt)}` },
           { t: "Τύποι προϊόντος", v: stats.groups.toLocaleString("el-GR"), s: `${stats.specs.toLocaleString("el-GR")} χαρακτηριστικά · ${stats.filters.toLocaleString("el-GR")} φίλτρα · ${stats.options.toLocaleString("el-GR")} τιμές` },
-          { t: "Είδη στον καθρέφτη", v: stats.items.toLocaleString("el-GR"), s: `${stats.active.toLocaleString("el-GR")} ενεργά · ${stats.missing.toLocaleString("el-GR")} λείπουν πια · πλήρης ${fmt(state("item")?.lastFullAt)} · αλλαγές ${fmt(state("item")?.lastDeltaAt)}` },
+          { t: "Είδη στον καθρέφτη", v: stats.items.toLocaleString("el-GR"), s: `${stats.active.toLocaleString("el-GR")} στη βιτρίνα · ${stats.excluded.toLocaleString("el-GR")} «Εξαίρεση Web» · ${stats.missing.toLocaleString("el-GR")} λείπουν πια · πλήρης ${fmt(state("item")?.lastFullAt)} · αλλαγές ${fmt(state("item")?.lastDeltaAt)}` },
           { t: "Ευρετήριο για τον Ερμή", v: `${vec.embedded.toLocaleString("el-GR")} / ${vec.total.toLocaleString("el-GR")}`, s: `${vec.stale.toLocaleString("el-GR")} περιμένουν embedding · ${vec.model} · ${fmt(vec.lastAt)}` },
         ].map((c) => (
           <div key={c.t} className="rounded-2xl bg-white border border-eu-line p-4 min-w-0">
@@ -139,7 +139,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Είδη</h3>
           <form className="flex flex-wrap gap-2">
             <select name="f" defaultValue={f} aria-label="Φίλτρο" className="rounded-full border border-eu-line px-3 min-h-10 text-[length:var(--fs-14)] bg-white">
-              <option value="">Όλα</option><option value="nodesc">Χωρίς περιγραφή</option><option value="nodims">Χωρίς διαστάσεις</option><option value="nogroup">Χωρίς τύπο προϊόντος</option><option value="nobrand">Χωρίς κατασκευαστή</option><option value="inactive">Ανενεργά</option><option value="missing">Λείπουν πια από το SoftOne</option>
+              <option value="">Όλα</option><option value="nodesc">Χωρίς περιγραφή</option><option value="nodims">Χωρίς διαστάσεις</option><option value="nogroup">Χωρίς τύπο προϊόντος</option><option value="nobrand">Χωρίς κατασκευαστή</option><option value="inactive">Ανενεργά</option><option value="excluded">Εξαίρεση Web (εκτός site)</option><option value="missing">Λείπουν πια από το SoftOne</option>
             </select>
             <input name="q" defaultValue={q} placeholder="Κωδικός, όνομα, μοντέλο, barcode…" aria-label="Αναζήτηση" className="rounded-full border border-eu-line px-4 min-h-10 text-[length:var(--fs-14)] min-w-[260px]" />
             <button className="rounded-full bg-eu-navy text-white px-4 min-h-10 font-bold text-[length:var(--fs-14)]">Φίλτρο</button>
@@ -150,9 +150,9 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             <thead className="text-left text-eu-muted text-[length:var(--fs-13)]"><tr><th className="py-2 px-3">Κωδικός</th><th className="py-2 px-3">Είδος</th><th className="py-2 px-3">Τύπος προϊόντος</th><th className="py-2 px-3 text-right">Λιανική</th><th className="py-2 px-3">Διαστάσεις</th><th className="py-2 px-3">Διαθεσιμότητα</th><th className="py-2 px-3">Αλλαγή στο S1</th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.mtrl} className={`border-t border-eu-line align-top ${r.missing || !r.active ? "opacity-60" : ""}`}>
+                <tr key={r.mtrl} className={`border-t border-eu-line align-top ${r.missing || !r.active || r.webExcluded ? "opacity-60" : ""}`}>
                   <td className="py-2 px-3 font-mono whitespace-nowrap">{r.code}<div className="text-eu-muted text-[length:var(--fs-13)]">MTRL {r.mtrl}</div></td>
-                  <td className="py-2 px-3"><div className="font-bold text-eu-ink">{r.name}</div><div className="text-eu-muted text-[length:var(--fs-13)]">{[r.factoryCode, r.barcode].filter(Boolean).join(" · ") || "—"}{!r.active ? " · ανενεργό" : ""}{r.missing ? " · λείπει πια" : ""}</div></td>
+                  <td className="py-2 px-3"><div className="font-bold text-eu-ink">{r.name}</div><div className="text-eu-muted text-[length:var(--fs-13)]">{[r.factoryCode, r.barcode].filter(Boolean).join(" · ") || "—"}{!r.active ? " · ανενεργό" : ""}{r.webExcluded ? " · εκτός site (Εξαίρεση Web)" : ""}{r.missing ? " · λείπει πια" : ""}</div></td>
                   <td className="py-2 px-3 text-eu-ink-3">{r.specGroup?.name ?? "—"}</td>
                   <td className="py-2 px-3 text-right tabular-nums whitespace-nowrap">{r.priceRetail != null ? `${r.priceRetail.toLocaleString("el-GR", { minimumFractionDigits: 2 })} €` : "—"}</td>
                   <td className="py-2 px-3 tabular-nums whitespace-nowrap">{r.widthCm && r.heightCm && r.lengthCm ? `${r.widthCm} × ${r.heightCm} × ${r.lengthCm}` : "—"}</td>

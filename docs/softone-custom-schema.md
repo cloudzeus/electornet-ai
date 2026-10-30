@@ -14,7 +14,34 @@
 
 **Λοιπά.** `CUSTOMER` / `SUPPLIER`: `CCCGLN` (και σε υποκαταστήματα), `CCCNAMETWO`, εκτυπωτές/φόρμες κιβωτίου και παλέτας — logistics B2B, όχι καταναλωτής. `SOCARRIER`: `CCCGROUP`, `CCCORDER` (ομάδα και σειρά παράδοσης μεταφορέα). `VAT.CCCVAT`: κωδικός integration. `CCCPAYMENTS`: αναφορά πληρωμών ανά πελάτη/είδος προμηθευτή. `CCCCREDITCONTROL`: λίστα κατηγοριών πιστωτικού ελέγχου. Το `INST` (εγκαταστάσεις/εγγυήσεις) δεν διαβάζεται: ο web λογαριασμός δεν έχει δικαίωμα.
 
-**Advanced JavaScript στην εγκατάσταση (15):** `ConvertDlgJS`, `CrtSaldocJs`, `iDealers`, `iSite`, `ITEDOCjs`, `ITEMJS`, `JSMain`, `jsRetailDoc`, `PurdocJs`, `RetaildocJSCode`, `S1_CccImpSalCsv`, `S1_Custom`, `S1_E-INV`, `SOCALLCode`, `UpdateWebItems`. Ζουν στον `CSTINFO` (τύπος 16, κώδικας στη δυαδική στήλη `SODATA`) και δεν διαβάζονται με τις επίσημες υπηρεσίες· χρειάζεται εξαγωγή από τον SoftOne client.
+**Advanced JavaScript στην εγκατάσταση (15):** ζουν στον `CSTINFO` με `CSTTYPE=16` (επιβεβαιωμένο: `GetTable CSTINFO` με `CSTINFO,CSTTYPE,CSTNAME,NAME,UPDUSERNAME,SOUPDDATE`). Ο **κώδικας** είναι στη δυαδική `SODATA` και **δεν διαβάζεται**: `SODATA` → «Access violation in XDll.dll», `CSTDATA` → «Ole exception». Χρειάζεται εξαγωγή από τον SoftOne client.
+
+| Object | Τελευταία αλλαγή | Χρήστης | Αφορά |
+|---|---|---|---|
+| `iSite` | 2026-06-24 | Service | **περιεχόμενο προϊόντων για το site** (κατηγορίες, χαρακτηριστικά, φωτογραφίες) |
+| `UpdateWebItems` | 2026-03-17 | Service | **ενημέρωση των ειδών του web** (τιμή, διαθεσιμότητα, σήμανση) |
+| `ITEMJS` | 2023-11-15 | Service | η φόρμα του είδους στο ERP |
+| `JSMain` | 2026-07-02 | Service | γενικό |
+| `S1_Custom` | 2024-02-29 | Service | γενικό |
+| `SOCALLCode` | 2026-07-02 | Service | τηλεφωνικό κέντρο |
+| `S1_E-INV` | 2026-02-02 | Service | ηλεκτρονική τιμολόγηση |
+| `S1_CccImpSalCsv` | 2025-11-27 | Service | εισαγωγή πωλήσεων από CSV |
+| `PurdocJs` · `ITEDOCjs` · `ConvertDlgJS` · `CrtSaldocJs` · `jsRetailDoc` · `RetaildocJSCode` · `iDealers` | 2020–2026 | — | παραστατικά / λιανική / dealers |
+
+Στο ίδιο σενάριο ανήκουν και λίστες/φόρμες του ERP με το ίδιο όνομα: `VITEM` «iSite» (#753), «iSite NEW» (#964), «iSite(Fast Report)» (#1014/#1015), «iSite (Panos)» (#1147) και η φόρμα `ITEM` «Προβολή iSite» (#707) — `getBrowserInfo` σε αυτές κάνει timeout, δεν τις τρέχουμε. Υπάρχει και εγγραφή `CSTTYPE=97` «Sem Web Item».
+
+### Πρόσθετα πεδία είδους (`ITEEXTRA` / `MTREXTRA`) — δεν είναι CCC, αλλά εδώ ζει η λογική του e-shop
+
+| Πεδίο | Λεζάντα | Τι κρατά |
+|---|---|---|
+| `BOOL04` | Εξαίρεση Web | **1 = έξω από το site** (η σημαία της βιτρίνας· βλ. softone-catalog-sync.md §7) |
+| `SOESHOP` | Ενεργό σε e-Shop | επιλογή `$soeshop` (τιμές 0/3/4), δευτερεύουσα |
+| `NUM04` / `NUM03` | Τιμή Web / Αρχική Τιμή Web | τιμή βιτρίνας· η «αρχική» σε 6 μόνο είδη |
+| `BOOL01` / `BOOL02` / `BOOL03` | Λίστα / B2B / Αποκλεισ/τα | εσωτερικές σημάνσεις |
+| `VARCHAR01`…`05` | Παλαιός Κωδικός, Θέση, Παρατηρήσεις, Κείμενο 4/5 | — |
+| `NUM01` / `NUM02` | Κολώνες / Συσκευασία | — |
+| `UTBL05` | Κατ.Φόρου Ανακ. | — |
+| `DATE01`…`05` | Ημερομηνία 1…5 | χωρίς νόημα στο ERP |
 
 ## 1. Custom αντικείμενα και πίνακες
 

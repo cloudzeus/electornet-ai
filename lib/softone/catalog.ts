@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { s1 } from "@/lib/softone";
 import { getTable, friendlyError } from "@/lib/softone/lookups";
+import { EXTRA_OFFER_COLS, EXTRA_OFFER_FILTER, offersFromExtra } from "@/lib/softone/offers-core";
 
 /**
  * Συγχρονισμός καταλόγου SoftOne → καθρέφτης (S1WebCategory, S1SpecGroup,
@@ -220,14 +221,14 @@ export function syncItem(mtrl: number, trigger: Trigger = "manual") {
     const data = { ...m, specGroupS1Id: groupOk ? m.specGroupS1Id : null, missing: false, syncedAt: new Date() };
     const year = new Date().getFullYear();
     const [extra, bal] = await Promise.all([
-      getTable("MTREXTRA", ["MTRL", "NUM04", "DATE01", "BOOL01", "BOOL02"], `MTRL=${mtrl}`),
+      getTable("MTREXTRA", [...EXTRA_OFFER_COLS], `MTRL=${mtrl}`),
       getTable("MTRBALSHEET", ["MTRL", "WHOUSE", "IMPQTY1", "EXPQTY1"], `FISCPRD=${year} AND MTRL=${mtrl}`),
     ]);
     const e = extra.find((r) => int(r[0]) === mtrl);
     const w: Record<string, number> = {};
     for (const r of bal) if (int(r[0]) === mtrl) w[r[1]] = (w[r[1]] ?? 0) + (num(r[2]) ?? 0) - (num(r[3]) ?? 0);
     const offers = {
-      eshopPrice: e ? posNum(e[1]) : null, eshopDate01: e ? date(e[2]) : null, eshopFlag1: e ? yes(e[3]) : false, eshopFlag2: e ? yes(e[4]) : false,
+      ...offersFromExtra(e),
       stockCentral: CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0),
       stockByWh: Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100])),
       offersAt: new Date(),
@@ -256,9 +257,9 @@ export function syncOffers(trigger: Trigger = "manual") {
     const ids = (await db.s1Item.findMany({ where: { missing: false }, orderBy: { mtrl: "asc" }, select: { mtrl: true } })).map((i) => i.mtrl);
     if (!ids.length) return { fetched: 0, created: 0, updated: 0, missing: 0, skipped: 0 };
     const site = new Set(ids);
-    const extra = await getTable("MTREXTRA", ["MTRL", "NUM04", "DATE01", "BOOL01", "BOOL02"], "NUM04>0 OR BOOL01=1 OR BOOL02=1");
-    const price = new Map<number, { p: number | null; d: Date | null; f1: boolean; f2: boolean }>();
-    for (const r of extra) { const m = int(r[0]); if (m != null && site.has(m)) price.set(m, { p: posNum(r[1]), d: date(r[2]), f1: yes(r[3]), f2: yes(r[4]) }); }
+    const extra = await getTable("MTREXTRA", [...EXTRA_OFFER_COLS], EXTRA_OFFER_FILTER);
+    const marks = new Map<number, ReturnType<typeof offersFromExtra>>();
+    for (const r of extra) { const m = int(r[0]); if (m != null && site.has(m)) marks.set(m, offersFromExtra(r)); }
 
     const year = new Date().getFullYear();
     const bal = new Map<number, Record<string, number>>();
@@ -275,18 +276,18 @@ export function syncOffers(trigger: Trigger = "manual") {
     let updated = 0;
     for (let i = 0; i < ids.length; i += 1000) {
       const part = ids.slice(i, i + 1000);
-      const values = part.map((_, k) => `($${k * 7 + 1}::int, $${k * 7 + 2}::float8, $${k * 7 + 3}::timestamp, $${k * 7 + 4}::boolean, $${k * 7 + 5}::boolean, $${k * 7 + 6}::float8, $${k * 7 + 7}::jsonb)`).join(", ");
+      const values = part.map((_, k) => `($${k * 8 + 1}::int, $${k * 8 + 2}::float8, $${k * 8 + 3}::timestamp, $${k * 8 + 4}::boolean, $${k * 8 + 5}::boolean, $${k * 8 + 6}::boolean, $${k * 8 + 7}::float8, $${k * 8 + 8}::jsonb)`).join(", ");
       const params = part.flatMap((m) => {
-        const e = price.get(m), w = bal.get(m) ?? {};
+        const o = marks.get(m) ?? offersFromExtra(null), w = bal.get(m) ?? {};
         const positive = Object.fromEntries(Object.entries(w).filter(([, v]) => v > 0).map(([k, v]) => [k, Math.round(v * 100) / 100]));
         const central = CENTRAL_WAREHOUSES.reduce((a, k) => a + Math.max(0, w[k] ?? 0), 0);
-        return [m, e?.p ?? null, e?.d ?? null, e?.f1 ?? false, e?.f2 ?? false, central, JSON.stringify(positive)];
+        return [m, o.eshopPrice, o.eshopDate01, o.eshopFlag1, o.eshopFlag2, o.webExcluded, central, JSON.stringify(positive)];
       });
       updated += await db.$executeRawUnsafe(
-        `UPDATE "S1Item" s SET "eshopPrice" = v.p, "eshopDate01" = v.d, "eshopFlag1" = v.f1, "eshopFlag2" = v.f2, "stockCentral" = v.c, "stockByWh" = v.w, "offersAt" = $${part.length * 7 + 1}::timestamp
-         FROM (VALUES ${values}) AS v(m, p, d, f1, f2, c, w) WHERE s.mtrl = v.m`, ...params, now);
+        `UPDATE "S1Item" s SET "eshopPrice" = v.p, "eshopDate01" = v.d, "eshopFlag1" = v.f1, "eshopFlag2" = v.f2, "webExcluded" = v.x, "stockCentral" = v.c, "stockByWh" = v.w, "offersAt" = $${part.length * 8 + 1}::timestamp
+         FROM (VALUES ${values}) AS v(m, p, d, f1, f2, x, c, w) WHERE s.mtrl = v.m`, ...params, now);
     }
-    return { fetched, created: 0, updated, missing: ids.length - price.size, skipped: 0 };
+    return { fetched, created: 0, updated, missing: ids.length - marks.size, skipped: 0 };
   });
 }
 
@@ -307,13 +308,15 @@ export async function s1Alive(): Promise<{ ok: boolean; error?: string }> {
 }
 
 export async function catalogStats() {
-  const [cat1, cat2, groups, specs, filters, options, items, active, missing, withDesc, withDims, withAvail, withGroup, withBrand, states, runs] = await Promise.all([
+  const [cat1, cat2, groups, specs, filters, options, items, active, missing, excluded, withDesc, withDims, withAvail, withGroup, withBrand, states, runs] = await Promise.all([
     db.s1WebCategory.count({ where: { level: 1, missing: false } }), db.s1WebCategory.count({ where: { level: 2, missing: false } }),
     db.s1SpecGroup.count({ where: { missing: false } }), db.s1SpecDef.count({ where: { missing: false } }), db.s1SpecDef.count({ where: { missing: false, isFilter: true } }), db.s1SpecOption.count({ where: { missing: false } }),
-    db.s1Item.count(), db.s1Item.count({ where: { active: true, missing: false } }), db.s1Item.count({ where: { missing: true } }),
+    db.s1Item.count(), db.s1Item.count({ where: { active: true, missing: false, webExcluded: false } }), db.s1Item.count({ where: { missing: true } }),
+    // «Εξαίρεση Web» (MTREXTRA.BOOL04): είδη του ομίλου που δεν πουλιούνται online — μένουν στον καθρέφτη, έξω από τη βιτρίνα
+    db.s1Item.count({ where: { missing: false, webExcluded: true } }),
     db.s1Item.count({ where: { OR: [{ shortDesc: { not: null } }, { longDesc: { not: null } }] } }), db.s1Item.count({ where: { widthCm: { not: null }, heightCm: { not: null }, lengthCm: { not: null } } }),
     db.s1Item.count({ where: { availText: { not: null } } }), db.s1Item.count({ where: { specGroupS1Id: { not: null } } }), db.s1Item.count({ where: { manufacturerS1Id: { not: null } } }),
     db.s1SyncState.findMany(), db.s1SyncRun.findMany({ where: { kind: { startsWith: "cat-" } }, orderBy: { at: "desc" }, take: 8 }),
   ]);
-  return { cat1, cat2, groups, specs, filters, options, items, active, missing, withDesc, withDims, withAvail, withGroup, withBrand, states, runs };
+  return { cat1, cat2, groups, specs, filters, options, items, active, missing, excluded, withDesc, withDims, withAvail, withGroup, withBrand, states, runs };
 }

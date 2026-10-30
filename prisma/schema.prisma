@@ -459,9 +459,14 @@ model S1Item {
   heightCm         Float? // CCCHEIGHT
   /// Τιμή eshop ΜΕ ΦΠΑ — MTREXTRA.NUM04. Επιβεβαιωμένη στο ζωντανό euronics.gr (549 / 229 / 119 / 1.799,99 € σε 4 είδη). Όχι το PRICER, που είναι 0 παντού.
   eshopPrice       Float?
-  eshopDate01      DateTime? // MTREXTRA.DATE01 — σημασία προς επιβεβαίωση (ημερομηνία τιμής / προσφοράς;)
-  eshopFlag1       Boolean      @default(false) // MTREXTRA.BOOL01 — σημασία προς επιβεβαίωση
-  eshopFlag2       Boolean      @default(false) // MTREXTRA.BOOL02
+  eshopDate01      DateTime? // MTREXTRA.DATE01 — λεζάντα «Ημερομηνία 1», χωρίς νόημα στο ERP
+  /// MTREXTRA.BOOL01 «Λίστα» — εσωτερική λίστα του ομίλου, όχι σήμανση web
+  eshopFlag1       Boolean      @default(false)
+  /// MTREXTRA.BOOL02 «B2B»
+  eshopFlag2       Boolean      @default(false)
+  /// MTREXTRA.BOOL04 «Εξαίρεση Web»: true = το είδος ΔΕΝ ανεβαίνει στο site. Η σημαία της βιτρίνας —
+  /// το προϊόν γίνεται `active=false` στην προβολή (onSite). Βλ. docs/softone-catalog-sync.md §7.
+  webExcluded      Boolean      @default(false)
   /// Υπόλοιπο κεντρικής αποθήκης (WHOUSE 1 «Κεντρικός» + 10 «Κεντρική 2») από MTRBALSHEET της τρέχουσας χρήσης: Σ(IMPQTY1 − EXPQTY1).
   /// > 0 → το site γράφει «Άμεσα Διαθέσιμο», αλλιώς «Διαθέσιμο κατόπιν παραγγελίας» (επιβεβαιωμένο σε 3 είδη).
   stockCentral     Float?
@@ -476,6 +481,7 @@ model S1Item {
   @@index([specGroupS1Id])
   @@index([webCat1, webCat2])
   @@index([active, missing])
+  @@index([webExcluded])
   @@index([s1UpdatedAt])
   @@index([code])
 }

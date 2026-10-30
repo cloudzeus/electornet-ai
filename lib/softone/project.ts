@@ -7,6 +7,7 @@ import { slugify } from "@/lib/slug";
 import { logged, type Trigger } from "@/lib/softone/catalog";
 import { parseDescription, energyFromSpecs } from "@/lib/softone/describe";
 import { resolveFacets, type FacetValue } from "@/lib/softone/facet-values";
+import { onSite } from "@/lib/softone/offers-core";
 import { associateImages, type AssociateResult } from "@/lib/catalog/image-import";
 import { projectDimensions } from "@/lib/catalog/product-dimensions";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
@@ -206,7 +207,7 @@ async function projectProducts(idOf: Map<string, string>, only?: number) {
         title, ean: it.barcode?.trim() || null, brandId: brand.id, categoryId,
         summary: it.shortDesc ? clean(it.shortDesc) : null, description: parsed.text || null,
         highlights: parsed.highlights.length ? parsed.highlights : undefined,
-        vatRate: vatOf.get(String(it.vatS1Id ?? "")) ?? 24, active: it.active && !it.missing,
+        vatRate: vatOf.get(String(it.vatS1Id ?? "")) ?? 24, active: onSite(it),
       };
       const s1Hash = sha([PROJECT_VERSION, data, parsed.specs]);
       const e = byErp.get(erpCode);
