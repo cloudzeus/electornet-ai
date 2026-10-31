@@ -95,7 +95,7 @@ export async function fetchLiveStores(): Promise<ImportedStore[]> {
   return parseMarkers(await res.text());
 }
 
-const DEFAULT_HOURS = [1, 2, 3, 4, 5].map((day) => ({ day, open: "09:00", close: "21:00" })).concat([{ day: 6, open: "09:00", close: "18:00" }]);
+export const DEFAULT_HOURS = [1, 2, 3, 4, 5].map((day) => ({ day, open: "09:00", close: "21:00" })).concat([{ day: 6, open: "09:00", close: "18:00" }]);
 
 /** Upsert by siteId. Never overwrites manual coordinates / hours / services / photo; fills coordinates when missing. */
 export async function upsertStores(list: ImportedStore[], opts: { overwriteContact?: boolean } = {}) {

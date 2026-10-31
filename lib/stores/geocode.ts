@@ -26,7 +26,11 @@ export const distanceKm = (a: { lat: number; lng: number }, b: { lat: number; ln
   return 2 * R * Math.asin(Math.sqrt(h));
 };
 
-/** Geocode one store: tries street+zip+city, then zip+city, then city. Fills lat/lng when missing (or `force`), always records the QA fields. */
+/**
+ * Geocode one store: tries street+zip+city, then zip+city, then city. Fills lat/lng when missing (or `force`), always records the QA fields.
+ * Ενεργοποιεί μόνο καταστήματα που δεν είχαν ποτέ σημείο (εισαγωγή euronics.gr)· όσα φτιάχνονται από υποκατάστημα SoftOne
+ * (`geocoded: "softone"`) μένουν όπως τα όρισε η διαχείριση (εμφάνιση/απόκρυψη).
+ */
 export async function geocodeStore(id: string, force = false) {
   const s = await db.store.findUniqueOrThrow({ where: { id } });
   const tries = [`${s.address}, ${s.zip} ${s.city}, Ελλάδα`, `${s.zip} ${s.city}, Ελλάδα`, `${s.city}, ${s.region}, Ελλάδα`];
@@ -40,6 +44,6 @@ export async function geocodeStore(id: string, force = false) {
   const hasCoords = s.lat !== 0 || s.lng !== 0;
   const delta = hasCoords ? distanceKm({ lat: s.lat, lng: s.lng }, r) : null;
   const useIt = force || !hasCoords || s.geocoded !== "manual" && s.geocoded !== "site";
-  await db.store.update({ where: { id }, data: { geoLat: r.lat, geoLng: r.lng, geoLabel: r.label, geoDeltaKm: delta, ...(useIt ? { lat: r.lat, lng: r.lng, geocoded: "nominatim", active: true } : {}) } });
+  await db.store.update({ where: { id }, data: { geoLat: r.lat, geoLng: r.lng, geoLabel: r.label, geoDeltaKm: delta, ...(useIt ? { lat: r.lat, lng: r.lng, geocoded: "nominatim", ...(s.geocoded === null ? { active: true } : {}) } : {}) } });
   return { ok: true as const, lat: r.lat, lng: r.lng, label: r.label, deltaKm: delta, applied: useIt };
 }

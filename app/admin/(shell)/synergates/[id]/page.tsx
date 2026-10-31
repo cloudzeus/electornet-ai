@@ -6,11 +6,12 @@ import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { cityKey } from "@/lib/b2b/partners-core";
 import { BranchStoreLink } from "@/components/admin/partners/BranchStoreLink";
+import { CreateBranchStore, StoreVisibility } from "@/components/admin/partners/PartnerStoreTools";
 
 export const metadata = { title: "Συνεργάτης" };
 export const dynamic = "force-dynamic";
 
-const MATCHED: Record<string, string> = { "email-branch": "αυτόματα, email υποκαταστήματος", "email-partner": "αυτόματα, email μέλους", manual: "με το χέρι" };
+const MATCHED: Record<string, string> = { "email-branch": "αυτόματα, email υποκαταστήματος", "email-partner": "αυτόματα, email μέλους", manual: "με το χέρι", created: "νέο κατάστημα από το υποκατάστημα" };
 
 /** Ένα μέλος: στοιχεία από το SoftOne (μόνο ανάγνωση) και τα υποκαταστήματά του με τη σύνδεση στα καταστήματα του eshop. */
 export default async function PartnerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +19,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
   const canWrite = can(user.permissions, "stores.partners.write");
   const { id } = await params;
   const [p, stores] = await Promise.all([
-    db.partner.findUnique({ where: { id }, include: { branches: { orderBy: [{ s1Missing: "asc" }, { isCenter: "desc" }, { name: "asc" }], include: { store: { select: { id: true, name: true, city: true, slug: true } } } } } }),
+    db.partner.findUnique({ where: { id }, include: { branches: { orderBy: [{ s1Missing: "asc" }, { isCenter: "desc" }, { name: "asc" }], include: { store: { select: { id: true, name: true, city: true, slug: true, active: true, lat: true, lng: true } } } } } }),
     db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true, zip: true, branch: { select: { id: true } } } }),
   ]);
   if (!p) notFound();
@@ -46,7 +47,7 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
 
       <section data-help="partner.branches" className="grid gap-2">
         <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Υποκαταστήματα · {p.branches.filter((b) => !b.s1Missing).length}</h3>
-        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Η διαθεσιμότητα αναφέρεται σε υποκατάστημα: κάθε υποκατάστημα πρέπει να δείχνει στο κατάστημα του eshop που του αντιστοιχεί.</p>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Η διαθεσιμότητα αναφέρεται σε υποκατάστημα: κάθε υποκατάστημα πρέπει να δείχνει στο κατάστημα του eshop που του αντιστοιχεί. Αν δεν υπάρχει, φτιάξε νέο (κρυφό)· ο διακόπτης ορίζει αν φαίνεται στο eshop (χάρτης, σελίδες καταστημάτων, παραλαβή).</p>
         <ul className="m-0 p-0 list-none grid gap-2">
           {p.branches.map((b) => {
             const options = stores.map((s) => ({ id: s.id, label: `${s.city} · ${s.name}`, taken: !!s.branch && s.branch.id !== b.id, near: (!!b.zip && s.zip.replace(/\D/g, "") === b.zip.replace(/\D/g, "")) || (!!b.city && cityKey(s.city) === cityKey(b.city)) }));
@@ -60,7 +61,13 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                   {b.s1Missing && <span className="block text-eu-red text-[length:var(--fs-12)] font-bold">Δεν υπάρχει πια στο SoftOne</span>}
                   {b.store && <span className="block text-[length:var(--fs-12)] text-eu-ink-3">Σύνδεση: {MATCHED[b.matchedBy ?? ""] ?? "—"} · <Link className="text-eu-blue hover:underline" href={`/admin/stores/${b.store.id}`}>άνοιγμα καταστήματος</Link></span>}
                 </div>
-                {canWrite ? <BranchStoreLink branchId={b.id} storeId={b.storeId} options={options} /> : <span className="text-[length:var(--fs-14)]">{b.store ? `${b.store.city} · ${b.store.name}` : "Χωρίς κατάστημα"}</span>}
+                <div data-help="partner.store" className="grid gap-2 min-w-0">
+                  {canWrite ? <BranchStoreLink key={b.storeId ?? "none"} branchId={b.id} storeId={b.storeId} options={options} /> : <span className="text-[length:var(--fs-14)]">{b.store ? `${b.store.city} · ${b.store.name}` : "Χωρίς κατάστημα"}</span>}
+                  {b.store && (canWrite
+                    ? <StoreVisibility key={b.store.id} storeId={b.store.id} active={b.store.active} hasPoint={b.store.lat !== 0 || b.store.lng !== 0} />
+                    : <span className="text-[length:var(--fs-13)]">{b.store.active ? "Εμφανίζεται στο eshop" : "Κρυφό στο eshop"}</span>)}
+                  {!b.store && !b.s1Missing && canWrite && <CreateBranchStore branchId={b.id} />}
+                </div>
               </li>
             );
           })}

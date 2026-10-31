@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T11:36:18.880Z",
+ "generatedAt": "2026-10-31T11:50:54.941Z",
  "routes": [
   {
    "route": "/admin",
@@ -4034,13 +4034,25 @@
    "dynamic": false,
    "helpKeys": [
     "partners.import",
+    "partners.create",
     "partners.kpis",
     "partners.filters",
     "partners.stores",
     "partners.list"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "bd03173",
+     "date": "2026-10-31T13:45:00+02:00",
+     "text": "Συνεργάτες: key στα φίλτρα κατηγορίας"
+    },
+    {
+     "hash": "8886734",
+     "date": "2026-10-31T13:36:48+02:00",
+     "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
+    }
+   ],
+   "updatedAt": "2026-10-31T13:45:00+02:00",
    "shots": {}
   },
   {
@@ -4054,10 +4066,17 @@
    "dynamic": true,
    "helpKeys": [
     "partner.identity",
-    "partner.branches"
+    "partner.branches",
+    "partner.store"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "8886734",
+     "date": "2026-10-31T13:36:48+02:00",
+     "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
+    }
+   ],
+   "updatedAt": "2026-10-31T13:36:48+02:00",
    "shots": {}
   },
   {
@@ -4088,6 +4107,25 @@
   }
  ],
  "recent": [
+  {
+   "hash": "bd03173",
+   "date": "2026-10-31T13:45:00+02:00",
+   "text": "Συνεργάτες: key στα φίλτρα κατηγορίας",
+   "routes": [
+    "/admin",
+    "/admin/synergates"
+   ]
+  },
+  {
+   "hash": "8886734",
+   "date": "2026-10-31T13:36:48+02:00",
+   "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων",
+   "routes": [
+    "/admin",
+    "/admin/synergates",
+    "/admin/synergates/[id]"
+   ]
+  },
   {
    "hash": "547ec9d",
    "date": "2026-10-31T10:41:54+02:00",
@@ -4410,18 +4448,6 @@
    "hash": "b456933",
    "date": "2026-10-28T10:51:01+02:00",
    "text": "XML προμηθευτές: cache προμηθευτών από το SoftOne (μόνο αναγνώσεις)",
-   "routes": []
-  },
-  {
-   "hash": "71df688",
-   "date": "2026-10-28T10:44:56+02:00",
-   "text": "XML προμηθευτές: diff του re-run και συγχώνευση διορθώσεων",
-   "routes": []
-  },
-  {
-   "hash": "f09ce35",
-   "date": "2026-10-28T10:43:01+02:00",
-   "text": "XML προμηθευτές: μετατροπές μονάδων και τιμή ανά τρόπο",
    "routes": []
   }
  ],
@@ -4747,7 +4773,13 @@
   "partner.branches": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
+  "partner.store": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
   "partners.import": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.create": [
    "app/admin/(shell)/synergates/page.tsx"
   ],
   "partners.kpis": [

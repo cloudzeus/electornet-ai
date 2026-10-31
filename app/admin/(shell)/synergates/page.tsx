@@ -4,6 +4,8 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { PartnerImport } from "@/components/admin/partners/PartnerImport";
+import { MissingStoresTools } from "@/components/admin/partners/PartnerStoreTools";
+import { creatableBranches } from "@/lib/b2b/branch-stores";
 
 export const metadata = { title: "Συνεργάτες (B2B)" };
 export const dynamic = "force-dynamic";
@@ -21,18 +23,19 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
   if (cat) where.s1Business = Number(cat);
   if (view === "unlinked") where.branches = { some: { storeId: null, s1Missing: false } };
   if (view === "missing") where.s1Missing = true;
+  if (view === "hidden") where.stores = { some: { active: false } };
 
   const [partners, cats, totals, lastSync, unlinkedStores] = await Promise.all([
     db.partner.findMany({
       where, orderBy: [{ name: "asc" }], take: 400,
-      select: { id: true, code: true, name: true, city: true, category: true, groupName: true, status: true, s1Missing: true, branches: { where: { s1Missing: false }, select: { storeId: true } } },
+      select: { id: true, code: true, name: true, city: true, category: true, groupName: true, status: true, s1Missing: true, branches: { where: { s1Missing: false }, select: { storeId: true, store: { select: { active: true } } } } },
     }),
     db.partner.groupBy({ by: ["s1Business", "category"], _count: { _all: true }, orderBy: { s1Business: "asc" } }),
-    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } })]),
+    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } }), db.partnerBranch.count({ where: creatableBranches }), db.store.count({ where: { partnerId: { not: null }, lat: 0, lng: 0, geoLat: null } }), db.store.count({ where: { partnerId: { not: null }, active: false } })]),
     db.partner.aggregate({ _max: { s1SyncedAt: true } }),
     view === "stores" ? db.store.findMany({ where: { partnerId: null }, orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true, zip: true, member: true } }) : Promise.resolve([]),
   ]);
-  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree] = totals;
+  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree, nCreatable, nUngeocoded, nHidden] = totals;
 
   const chip = (href: string, label: string, active: boolean) => (
     <Link key={href} href={href} className={`inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border ${active ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}>{label}</Link>
@@ -48,6 +51,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
         </div>
         {canWrite && <div data-help="partners.import"><PartnerImport /></div>}
       </div>
+      {canWrite && <div data-help="partners.create"><MissingStoresTools creatable={nCreatable} ungeocoded={nUngeocoded} /></div>}
 
       <div data-help="partners.kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
@@ -71,6 +75,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
         <div className="flex flex-wrap gap-2 basis-full">
           {chip(qs({ cat: "" }), "Όλες οι κατηγορίες", !cat)}
           {cats.filter((c) => c.s1Business !== null).map((c) => chip(qs({ cat: String(c.s1Business) }), `${c.category ?? c.s1Business} · ${c._count._all}`, cat === String(c.s1Business)))}
+          {chip(qs({ view: view === "hidden" ? "" : "hidden" }), `Με κρυφά καταστήματα · ${nHidden}`, view === "hidden")}
           {chip(qs({ view: view === "missing" ? "" : "missing" }), "Δεν υπάρχουν πια στο SoftOne", view === "missing")}
         </div>
       </form>
@@ -92,6 +97,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
         <ul data-help="partners.list" className="m-0 p-0 list-none grid gap-1.5">
           {partners.map((p) => {
             const linked = p.branches.filter((b) => b.storeId).length;
+            const hidden = p.branches.filter((b) => b.store && !b.store.active).length;
             return (
               <li key={p.id}>
                 <Link href={`/admin/synergates/${p.id}`} className="rounded-xl border border-eu-line bg-white p-3 grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center hover:border-eu-navy min-w-0">
@@ -101,6 +107,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
                   </span>
                   <span className="flex flex-wrap gap-1.5 text-[length:var(--fs-12)]">
                     {p.s1Missing && <span className="rounded-full bg-eu-red/10 text-eu-red px-2 py-0.5 font-bold">όχι στο SoftOne</span>}
+                    {hidden > 0 && <span className="rounded-full bg-eu-surface-2 text-eu-ink-2 px-2 py-0.5 font-bold">{hidden} κρυφ{hidden === 1 ? "ό" : "ά"}</span>}
                     <span className={`rounded-full px-2 py-0.5 font-bold ${linked === p.branches.length ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{linked}/{p.branches.length} καταστήματα</span>
                   </span>
                 </Link>
