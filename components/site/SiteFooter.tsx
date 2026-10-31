@@ -61,6 +61,10 @@ export async function SiteFooter() {
                 <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="hover:text-eu-yellow">{l.label}</a>
               ))}
             </div>
+            {/* είσοδος των καταστημάτων-μελών στην πύλη συνεργατών (app/synergaton) */}
+            <Link href="/synergaton" className="mt-4 inline-flex items-center gap-2 min-h-11 rounded-full border border-eu-yellow/60 px-4 font-bold text-eu-yellow leading-none hover:bg-eu-yellow hover:text-eu-navy">
+              Πύλη συνεργατών <span aria-hidden>→</span>
+            </Link>
           </div>
         </div>
         <div className="border-t border-eu-navy-line pt-4 flex flex-wrap justify-between items-center gap-4 text-[length:var(--fs-13-5)] leading-relaxed">
