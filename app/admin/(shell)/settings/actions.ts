@@ -84,6 +84,24 @@ export async function testSection(section: string, fd: FormData): Promise<Action
         const r = await chat({ feature: "test", messages: [{ role: "user", content: "Απάντησε μόνο: OK" }], maxTokens: 5, override: { apiKey: key, model } }).catch((e: Error) => ({ error: e.message }));
         details[`Μοντέλο ${model}`] = "error" in r ? `σφάλμα: ${r.error.slice(0, 120)}` : `${r.text.trim().slice(0, 20)} · ${r.ms} ms · $${r.costUsd.toFixed(5)}`;
       }
+      // Claude API: κλειδί (λίστα μοντέλων) και μια μικρή κλήση στο κύριο μοντέλο Claude
+      if (val("provider") === "anthropic") {
+        const ak = sec("anthropicApiKey");
+        if (!ak) details["Claude API"] = "λείπει το κλειδί";
+        else {
+          const { claudeKeyCheck, claudeChat, claudeError } = await import("@/lib/ai/anthropic");
+          const { CLAUDE_DEFAULT } = await import("@/lib/ai/anthropic-models");
+          const cm = val("claudeModel") || CLAUDE_DEFAULT;
+          const t1 = Date.now();
+          const ids = await claudeKeyCheck(ak).catch((e: unknown) => ({ error: claudeError(e) }));
+          if ("error" in ids) details["Claude API"] = ids.error;
+          else {
+            details["Claude API"] = `OK · ${ids.length} μοντέλα · ${Date.now() - t1} ms`;
+            const r = await claudeChat({ apiKey: ak, model: cm, messages: [{ role: "user", content: "Απάντησε μόνο: OK" }], maxTokens: 50, reasoning: "low", timeoutMs: 30000 }).catch((e: unknown) => ({ error: claudeError(e) }));
+            details[`Claude ${cm}`] = "error" in r ? `σφάλμα: ${r.error.slice(0, 120)}` : `${r.text.trim().slice(0, 20)} · $${r.costUsd.toFixed(5)}`;
+          }
+        }
+      }
       // ElevenLabs (κλειδί από το περιβάλλον): έλεγχος και οι φωνές του λογαριασμού, για να διαλέξει ο διαχειριστής Voice ID
       const xi = process.env.ELEVENLABS_API_KEY;
       if (xi) {

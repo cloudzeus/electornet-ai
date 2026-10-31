@@ -4,6 +4,8 @@
  * driven by this file — add a field here and it appears in /admin/settings.
  * Only the super-admin can open these pages (integrations, keys, secrets).
  */
+import { CLAUDE_MODELS } from "@/lib/ai/anthropic-models";
+
 export type FieldType = "text" | "url" | "email" | "number" | "secret" | "toggle" | "select" | "textarea" | "softone-objs" | "bank-accounts";
 
 export type Values = Record<string, string | number | boolean>;
@@ -404,9 +406,9 @@ export const SECTIONS: Section[] = [
     description: "Ο Ερμής (σύμβουλος), γεωεντοπισμός, χάρτες, αναζήτηση.",
     group: "systems",
     test: "openrouter",
-    testHelp: "Ελέγχει το κλειδί OpenRouter, κάνει μια μικρή κλήση στο κύριο μοντέλο και δείχνει τις φωνές του ElevenLabs. Κόστος: κλάσματα του cent.",
+    testHelp: "Ελέγχει το κλειδί OpenRouter (και του Claude API, αν είναι ο πάροχος), κάνει μια μικρή κλήση στο κύριο μοντέλο και δείχνει τις φωνές του ElevenLabs. Κόστος: κλάσματα του cent.",
     groups: [
-      { key: "advisor", title: "Ο Ερμής & μοντέλα", help: "Ένα κλειδί OpenRouter για όλες τις AI λειτουργίες. Τα μοντέλα γράφονται ως id του OpenRouter (εταιρεία/μοντέλο)." },
+      { key: "advisor", title: "Ο Ερμής & μοντέλα", help: "Πάροχος: OpenRouter (όλα τα μοντέλα με ένα κλειδί) ή Claude API απευθείας. Τα μοντέλα του OpenRouter γράφονται ως εταιρεία/μοντέλο." },
       { key: "voice", title: "Φωνή", help: "Μικρόφωνο και εκφώνηση απαντήσεων. Οι ρυθμίσεις εμφανίζονται όταν ενεργοποιήσεις τη φωνή." },
       { key: "media", title: "Εικόνες & 3D" },
       { key: "services", title: "Χάρτες, γεωεντοπισμός, αναζήτηση" },
@@ -414,6 +416,12 @@ export const SECTIONS: Section[] = [
     fields: [
       { ...yesNo("advisorEnabled", "Ο Ερμής ενεργός", "Απαντήσεις με LLM· χωρίς κλειδί πέφτει στους κανόνες demo.", true), group: "advisor" },
       { key: "openrouterApiKey", label: "OpenRouter API key", type: "secret", required: true, help: "Ένα κλειδί για όλα τα μοντέλα και όλες τις AI λειτουργίες (openrouter.ai/keys).", width: "half", group: "advisor", rule: { re: /^sk-or-v1-[a-f0-9]{40,}$/, bad: "Τα κλειδιά OpenRouter ξεκινούν με sk-or-v1-" } },
+      { key: "provider", label: "Πάροχος AI", type: "select", options: [{ value: "openrouter", label: "OpenRouter (όλα τα μοντέλα)" }, { value: "anthropic", label: "Claude API (Anthropic)" }], help: "Με Claude API ο Ερμής, τα κείμενα, οι προτάσεις και η ανάγνωση εικόνων πάνε απευθείας στο Anthropic. Το OpenRouter μένει για embeddings, φωνή, αναζήτηση στο web και ως εφεδρεία.", width: "half", group: "advisor" },
+      { key: "anthropicApiKey", label: "Claude API key (Anthropic)", type: "secret", help: "Από το console.anthropic.com → API keys.", width: "half", group: "advisor", showIf: (v: Values) => v.provider === "anthropic", rule: { re: /^sk-ant-[\w-]{20,}$/, bad: "Τα κλειδιά του Claude API ξεκινούν με sk-ant-" } },
+      { key: "claudeModel", label: "Claude · κύριο μοντέλο", type: "select", options: [...CLAUDE_MODELS], width: "half", group: "advisor", showIf: (v: Values) => v.provider === "anthropic", help: "Ερμής, κείμενα, προτάσεις χαρακτηριστικών." },
+      { key: "claudeModelFast", label: "Claude · γρήγορο μοντέλο", type: "select", options: [{ value: "", label: "Ίδιο με το κύριο" }, ...CLAUDE_MODELS], width: "half", group: "advisor", showIf: (v: Values) => v.provider === "anthropic", help: "Alt text, ταξινόμηση, βήματα agent." },
+      { key: "claudeModelVision", label: "Claude · μοντέλο εικόνας", type: "select", options: [{ value: "", label: "Ίδιο με το κύριο" }, ...CLAUDE_MODELS], width: "half", group: "advisor", showIf: (v: Values) => v.provider === "anthropic", help: "Snap & Find, ανάγνωση banners χωρίς ρητό μοντέλο." },
+      { ...yesNo("claudeFallback", "Εφεδρεία στο OpenRouter", "Αν το Claude αποτύχει (σφάλμα, όριο, άρνηση), το ίδιο αίτημα πάει στο OpenRouter με τα μοντέλα παρακάτω."), group: "advisor", showIf: (v: Values) => v.provider === "anthropic" },
       { key: "routing", label: "Δρομολόγηση μοντέλου", type: "select", options: [{ value: "auto", label: "Αυτόματη (openrouter/auto)" }, { value: "task", label: "Ανά εργασία (τα μοντέλα παρακάτω)" }], help: "Στην αυτόματη, το OpenRouter διαλέγει το κατάλληλο μοντέλο για κάθε ερώτηση· τα παρακάτω μένουν ως fallback.", width: "half", group: "advisor" },
       { key: "providerSort", label: "Προτίμηση παρόχου", type: "select", options: [{ value: "", label: "Προεπιλογή OpenRouter" }, { value: "price", label: "Φθηνότερος" }, { value: "throughput", label: "Ταχύτερος (throughput)" }, { value: "latency", label: "Μικρότερη καθυστέρηση" }], width: "half", group: "advisor", help: "Όταν ένα μοντέλο προσφέρεται από πολλούς παρόχους, ποιον προτιμάμε." },
       { key: "model", label: "Κύριο μοντέλο (Ερμής, κείμενα)", type: "text", placeholder: "openrouter/auto", help: "π.χ. anthropic/claude-sonnet-4.5, openai/gpt-5, google/gemini-2.5-pro. Κενό = openrouter/auto.", width: "half", group: "advisor", rule: { re: /^[\w.-]+\/[\w.:-]+$/, bad: "Μορφή εταιρεία/μοντέλο, π.χ. openai/gpt-5" } },

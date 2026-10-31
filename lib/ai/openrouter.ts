@@ -3,11 +3,15 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
 import { markupFor, billed } from "./pricing";
 import { usdEurRate } from "@/lib/fx";
+import { CLAUDE_DEFAULT } from "./anthropic-models";
 
 /**
  * One OpenRouter key for every AI feature (Ερμής advisor, alt text, copy,
  * agent steps). OpenAI-compatible chat completions with usage accounting
  * (cost from OpenRouter) and a daily budget guard from Settings → AI.
+ * With «Πάροχος AI = Claude API» the task models (main / fast / vision) go to
+ * Anthropic instead (lib/ai/anthropic.ts); explicit OpenRouter models from a
+ * caller (web search, audio) stay on OpenRouter, which is also the fallback.
  */
 export interface AiConfig {
   apiKey: string;
@@ -23,13 +27,23 @@ export interface AiConfig {
   routing: "auto" | "task";
   providerSort: "" | "price" | "throughput" | "latency";
   fallbackModels: string[];
+  provider: "openrouter" | "anthropic";
+  anthropicKey: string;
+  claudeModel: string;
+  claudeModelFast: string;
+  claudeModelVision: string;
+  /** σε αποτυχία του Claude δοκιμάζει το OpenRouter (αν υπάρχει κλειδί) */
+  claudeFallback: boolean;
 }
 export const AUTO = "openrouter/auto";
 
 export async function getAi(): Promise<AiConfig | null> {
   const { data, secrets } = await getSetting("ai");
   const apiKey = secrets.openrouterApiKey ?? process.env.OPENROUTER_API_KEY ?? "";
-  if (!apiKey) return null;
+  const anthropicKey = secrets.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? "";
+  const provider = data.provider === "anthropic" && anthropicKey ? "anthropic" : "openrouter";
+  if (!apiKey && provider !== "anthropic") return null;
+  const claudeModel = String(data.claudeModel || CLAUDE_DEFAULT);
   const model = String(data.model || process.env.OPENROUTER_MODEL || AUTO);
   const modelFast = String(data.modelFast || "google/gemini-2.5-flash");
   return {
@@ -45,6 +59,10 @@ export async function getAi(): Promise<AiConfig | null> {
     routing: data.routing === "task" ? "task" : "auto",
     providerSort: (["price", "throughput", "latency"].includes(String(data.providerSort)) ? String(data.providerSort) : "") as AiConfig["providerSort"],
     fallbackModels: String(data.fallbackModels ?? "").split(",").map((m) => m.trim()).filter(Boolean),
+    provider, anthropicKey, claudeModel,
+    claudeModelFast: String(data.claudeModelFast || claudeModel),
+    claudeModelVision: String(data.claudeModelVision || claudeModel),
+    claudeFallback: data.claudeFallback !== false,
   };
 }
 
@@ -87,9 +105,27 @@ export async function chat(opts: {
   accounting?: "background";
 }): Promise<ChatResult> {
   const cfg = opts.override ? null : await getAi();
+  if (cfg && (await overBudget(cfg))) throw new Error("AI: εξαντλήθηκε το ημερήσιο όριο κόστους");
+  const claude = cfg ? claudeModelFor(cfg, opts.model, opts.messages) : opts.override?.model.startsWith("claude-") ? opts.override.model : null;
+  if (claude) {
+    const t0 = Date.now();
+    try {
+      const { claudeChat } = await import("./anthropic");
+      const r = await claudeChat({ apiKey: opts.override?.apiKey ?? cfg!.anthropicKey, model: claude, messages: opts.messages, maxTokens: opts.maxTokens ?? cfg?.maxTokens ?? 600, json: opts.json, reasoning: opts.reasoning, timeoutMs: opts.timeoutMs ?? 30000 });
+      const out: ChatResult = { ...r, ms: Date.now() - t0 };
+      const account = () => record(opts.feature, out);
+      if (opts.accounting === "background") void account().catch(() => null); else await account();
+      return out;
+    } catch (e) {
+      const { claudeError } = await import("./anthropic");
+      const msg = claudeError(e);
+      await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: claude, ms: Date.now() - t0, ok: false, error: msg.slice(0, 300) } }).catch(() => null);
+      // εφεδρεία: το ίδιο αίτημα στο OpenRouter, αν υπάρχει κλειδί και δεν το απενεργοποίησε ο διαχειριστής
+      if (!cfg?.apiKey || !cfg.claudeFallback || opts.override) throw new Error(msg);
+    }
+  }
   const apiKey = opts.override?.apiKey ?? cfg?.apiKey;
   if (!apiKey) throw new Error("OpenRouter: δεν έχει οριστεί κλειδί (Ρυθμίσεις → AI & υπηρεσίες)");
-  if (cfg && (await overBudget(cfg))) throw new Error("AI: εξαντλήθηκε το ημερήσιο όριο κόστους");
   const { model, fallbacks } = resolveModel(cfg, opts.model, opts.override?.model, opts.messages);
   const t0 = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -115,14 +151,29 @@ export async function chat(opts: {
     throw new Error(`OpenRouter ${res.status}: ${j.error?.message ?? res.statusText}`);
   }
   const out: ChatResult = { text: j.choices?.[0]?.message?.content ?? "", model: j.model ?? model, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0, costUsd: j.usage?.cost ?? 0, ms };
-  // pricing snapshot at call time: markup of the model actually used + FX of the day
-  const account = async () => {
-    const [markupPct, fxRate] = await Promise.all([markupFor(out.model), usdEurRate()]);
-    const billedUsd = billed(out.costUsd, markupPct);
-    await db.aiUsage.create({ data: { day: today(), feature: opts.feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, markupPct, billedUsd, fxRate, billedEur: billedUsd * fxRate, ms } }).catch(() => null);
-  };
+  const account = () => record(opts.feature, out);
   if (opts.accounting === "background") void account().catch(() => null); else await account();
   return out;
+}
+
+/** pricing snapshot at call time: markup of the model actually used + FX of the day */
+async function record(feature: string, out: ChatResult) {
+  const [markupPct, fxRate] = await Promise.all([markupFor(out.model), usdEurRate()]);
+  const billedUsd = billed(out.costUsd, markupPct);
+  await db.aiUsage.create({ data: { day: today(), feature, model: out.model, tokensIn: out.tokensIn, tokensOut: out.tokensOut, costUsd: out.costUsd, markupPct, billedUsd, fxRate, billedEur: billedUsd * fxRate, ms: out.ms } }).catch(() => null);
+}
+
+/**
+ * Με πάροχο Claude: ποιο μοντέλο Claude παίρνει την κλήση. Οι εργασίες (κύριο / γρήγορο / εικόνα) και τα ρητά
+ * «anthropic/claude-…» πάνε στο Claude· άλλα ρητά μοντέλα του OpenRouter (αναζήτηση στο web, ήχος) μένουν εκεί.
+ */
+export function claudeModelFor(cfg: AiConfig, task: string | undefined, messages: ChatMessage[]): string | null {
+  if (cfg.provider !== "anthropic" || !cfg.anthropicKey) return null;
+  if (task?.includes("/") && !/^anthropic\/claude/.test(task)) return null;
+  const hasImage = messages.some((m) => Array.isArray(m.content) && m.content.some((c) => c.type === "image_url"));
+  if (task === "vision" || hasImage) return cfg.claudeModelVision;
+  if (task === "fast") return cfg.claudeModelFast;
+  return cfg.claudeModel;
 }
 
 /** Parse a JSON object out of a model reply (tolerates code fences). */
