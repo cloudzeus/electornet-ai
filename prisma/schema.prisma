@@ -74,69 +74,69 @@ model Brand {
 }
 
 model Product {
-  id             String              @id @default(cuid())
-  erpCode        String              @unique // MTRL / item code
-  slug           String              @unique
-  sku            String              @unique
-  ean            String?
-  title          String
-  brandId        String
-  brand          Brand               @relation(fields: [brandId], references: [id])
-  categoryId     String
-  category       Category            @relation(fields: [categoryId], references: [id])
-  summary        String?             @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
-  description    String?             @db.Text
-  highlights     Json?
-  vatRate        Decimal             @default(24) @db.Decimal(5, 2)
-  isRenew        Boolean             @default(false)
-  renewGrade     String? // A | B
-  active         Boolean             @default(true)
-  source         String? // softone = προβολή του καθρέφτη
-  s1Hash         String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
-  availLabel     String? // επιλυμένη φράση διαθεσιμότητας (lib/catalog/availability-core.ts)· null = η προεπιλογή της βιτρίνας
-  availState     String? // in-stock | low | order | unavailable
-  supplierAvail  String? // κατάσταση από το XML του προμηθευτή (μετά την αντιστοίχιση) — συνθήκη στους κανόνες, δεν πάει στο SoftOne
-  publishReady   Boolean             @default(true) // περνά τον έλεγχο πληρότητας (lib/catalog/publish-ready.ts)· true όσο ο έλεγχος είναι κλειστός
-  publishMissing String[]            @default([]) // τι λείπει (όλα τα κριτήρια, ενεργά ή όχι) — για τη διαχείριση
-  facetHash      String? // αποτύπωμα των τιμών φίλτρων
+  id                String              @id @default(cuid())
+  erpCode           String              @unique // MTRL / item code
+  slug              String              @unique
+  sku               String              @unique
+  ean               String?
+  title             String
+  brandId           String
+  brand             Brand               @relation(fields: [brandId], references: [id])
+  categoryId        String
+  category          Category            @relation(fields: [categoryId], references: [id])
+  summary           String?             @db.Text // σύντομη περιγραφή (CCCWREMARKS1)
+  description       String?             @db.Text
+  highlights        Json?
+  vatRate           Decimal             @default(24) @db.Decimal(5, 2)
+  isRenew           Boolean             @default(false)
+  renewGrade        String? // A | B
+  active            Boolean             @default(true)
+  source            String? // softone = προβολή του καθρέφτη
+  s1Hash            String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
+  availLabel        String? // επιλυμένη φράση διαθεσιμότητας (lib/catalog/availability-core.ts)· null = η προεπιλογή της βιτρίνας
+  availState        String? // in-stock | low | order | unavailable
+  supplierAvail     String? // κατάσταση από το XML του προμηθευτή (μετά την αντιστοίχιση) — συνθήκη στους κανόνες, δεν πάει στο SoftOne
+  publishReady      Boolean             @default(true) // περνά τον έλεγχο πληρότητας (lib/catalog/publish-ready.ts)· true όσο ο έλεγχος είναι κλειστός
+  publishMissing    String[]            @default([]) // τι λείπει (όλα τα κριτήρια, ενεργά ή όχι) — για τη διαχείριση
+  facetHash         String? // αποτύπωμα των τιμών φίλτρων
   /// Αντίγραφα για λίστες (ταξινόμηση / φίλτρο τιμής και αποθέματος)· η «αλήθεια» είναι στο Variant
-  price          Float? // τιμή eshop με ΦΠΑ
-  stock          Int                 @default(0) // τεμάχια στην κεντρική αποθήκη
+  price             Float? // τιμή eshop με ΦΠΑ
+  stock             Int                 @default(0) // τεμάχια στην κεντρική αποθήκη
   /// Μοντέλο κατασκευαστή όπως το αναγνωρίσαμε (από κωδικό είδους / τίτλο) — το κλειδί για το EPREL
-  modelCode      String?
+  modelCode         String?
   /// Αντιστοίχιση με το EPREL: matched | ambiguous | none | skipped (ο τύπος δεν έχει ενεργειακή ετικέτα)
-  eprelStatus    String?
-  eprelCheckedAt DateTime?
+  eprelStatus       String?
+  eprelCheckedAt    DateTime?
   /// Σύγκριση διαστάσεων ERP ↔ EPREL: match | minor | swapped | conflict | erp-only | eprel-only
-  dimStatus      String?
-  dimDeltaPct    Float? // μεγαλύτερη απόκλιση σε άξονα, %
-  dimNote        String?
-  dimensions     ProductDimension[]
-  facetValues    ProductFacetValue[]
-  s1SyncedAt     DateTime?
-  variants       Variant[]
-  offer          ProductOffer?
-  media          Media[]
-  specs          Spec[]
-  enrichments    ProductEnrichment[]
+  dimStatus         String?
+  dimDeltaPct       Float? // μεγαλύτερη απόκλιση σε άξονα, %
+  dimNote           String?
+  dimensions        ProductDimension[]
+  facetValues       ProductFacetValue[]
+  s1SyncedAt        DateTime?
+  variants          Variant[]
+  offer             ProductOffer?
+  media             Media[]
+  specs             Spec[]
+  enrichments       ProductEnrichment[]
   enrichSuggestions EnrichSuggestion[]
-  sections       ProductSection[]
-  extractions    BannerExtraction[]
-  stickers       ProductSticker[]
-  energy         EnergyLabel?
-  reviews        Review[]
-  questions      Question[]
-  tags           ProductTag[]
+  sections          ProductSection[]
+  extractions       BannerExtraction[]
+  stickers          ProductSticker[]
+  energy            EnergyLabel?
+  reviews           Review[]
+  questions         Question[]
+  tags              ProductTag[]
   /// item | set — το «Set ειδών» του SoftOne ως προϊόν (docs/superpowers/specs/2026-10-16-item-sets-design.md)
-  kind           String              @default("item")
+  kind              String              @default("item")
   /// το σετ (SPCS) που είναι αυτό το προϊόν (μόνο kind = set)
-  setSpcs        Int?                @unique
+  setSpcs           Int?                @unique
   /// auto | yes | no — «Πωλείται και μόνο του» για κύριο είδος σετ (auto: όχι αν είναι κύριο σε σετ εξαρτημάτων)
-  soldAloneMode  String              @default("auto")
+  soldAloneMode     String              @default("auto")
   /// υπολογισμένο από την προβολή σετ: false = εκτός λιστών, η σελίδα οδηγεί στο σετ
-  soldAlone      Boolean             @default(true)
-  updatedAt      DateTime            @updatedAt
-  createdAt      DateTime            @default(now())
+  soldAlone         Boolean             @default(true)
+  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime            @default(now())
 
   @@index([kind])
   @@index([categoryId, active])
@@ -835,10 +835,10 @@ model Question {
 // ---------- Network & services ----------
 
 model Store {
-  id         String       @id @default(cuid())
-  siteId     Int?         @unique // euronics.gr store-locator id (source of the import)
-  erpBranch  String?      @unique
-  slug       String       @unique
+  id         String         @id @default(cuid())
+  siteId     Int?           @unique // euronics.gr store-locator id (source of the import)
+  erpBranch  String?        @unique
+  slug       String         @unique
   name       String
   member     String? // cooperative member company
   kind       String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
@@ -861,17 +861,97 @@ model Store {
   hours      Json // [{ day: 1, open: "09:00", close: "21:00" }]
   services   Json // ["click-collect", "installation", "service-point", …]
   photo      String? // media asset URL
-  notes      String?      @db.Text
-  active     Boolean      @default(true)
-  sort       Int          @default(0)
+  notes      String?        @db.Text
+  active     Boolean        @default(true)
+  sort       Int            @default(0)
   stock      StoreStock[]
   orders     Order[]
   customers  Customer[]
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  /// Μέλος (B2B) στο οποίο ανήκει· συνδέεται με την εισαγωγή από το SoftOne ή με το χέρι
+  partnerId  String?
+  partner    Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  /// Το υποκατάστημα SoftOne (TRDBRANCH) που αντιστοιχεί σε αυτό το κατάστημα
+  branch     PartnerBranch?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([region])
   @@index([active])
+  @@index([partnerId])
+}
+
+/// Μέλος / συνεργάτης Euronics (B2B). Πηγή: SoftOne CUSTOMER (TRDR, SODTYPE 13) με εμπορική κατηγορία (TRDBUSINESS).
+/// Το SoftOne είναι master για τα εμπορικά/φορολογικά· εμείς για επαφές, πρόσβαση, προφίλ. Βλ. docs/b2b-architecture.md.
+model Partner {
+  id          String          @id @default(cuid())
+  s1Trdr      Int?            @unique
+  code        String?
+  name        String
+  afm         String?
+  taxOffice   String?
+  /// TRDBUSINESS: 1 ΜΕΛΟΣ Α · 2 ΜΕΛΟΣ Β · 3 ΜΕΛΟΣ Γ · 50 ΠΡΟΜΗΘΕΥΤΗΣ
+  s1Business  Int?
+  category    String?
+  /// TRDPGROUP: 100 Φυσικό Κατάστημα · 200 E-shop
+  s1Group     Int?
+  groupName   String?
+  address     String?
+  city        String?
+  zip         String?
+  district    String?
+  phone       String?
+  phone2      String?
+  email       String?
+  website     String?
+  /// lead | onboarding | connecting | live | suspended
+  status      String          @default("onboarding")
+  active      Boolean         @default(true)
+  notes       String?         @db.Text
+  s1Data      Json?
+  s1UpdatedAt DateTime?
+  s1SyncedAt  DateTime?
+  /// δεν βρέθηκε στην τελευταία εισαγωγή (σβήστηκε ή άλλαξε κατηγορία στο SoftOne)
+  s1Missing   Boolean         @default(false)
+  branches    PartnerBranch[]
+  stores      Store[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([afm])
+  @@index([status])
+  @@index([s1Business])
+}
+
+/// Υποκατάστημα μέλους όπως είναι στο SoftOne (CUSBRANCH → TRDBRANCH)· η διαθεσιμότητα αναφέρεται σε υποκατάστημα.
+/// Μέλος χωρίς υποκατάστημα → μία γραμμή με `s1BranchId` null από τη διεύθυνση του πελάτη. `storeId` = το κατάστημα στο eshop.
+model PartnerBranch {
+  id         String    @id @default(cuid())
+  partnerId  String
+  partner    Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  s1BranchId Int?      @unique
+  code       String?
+  name       String
+  isCenter   Boolean   @default(false)
+  address    String?
+  city       String?
+  zip        String?
+  district   String?
+  phone      String?
+  phone2     String?
+  email      String?
+  taxOffice  String?
+  active     Boolean   @default(true)
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  storeId    String?   @unique
+  store      Store?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  /// πώς βρέθηκε το κατάστημα: email-branch | email-partner | manual
+  matchedBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([partnerId])
 }
 
 /// Υπηρεσίες Euronics (Εμπόριο → Υπηρεσίες): σελίδες /ypiresies, πρόσθετες υπηρεσίες σε προϊόν/checkout, αρχική, hero,

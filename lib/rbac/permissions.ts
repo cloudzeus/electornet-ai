@@ -49,6 +49,8 @@ export const PERMISSIONS: { key: string; group: PermissionGroup; description: st
   { key: "stores.write", group: "stores", description: "Στοιχεία, ωράρια, υπηρεσίες καταστήματος" },
   { key: "stores.stock.read", group: "stores", description: "Απόθεμα ανά κατάστημα" },
   { key: "stores.pick.write", group: "stores", description: "«Επιλογή καταστήματος» σε προϊόντα" },
+  { key: "stores.partners.read", group: "stores", description: "Συνεργάτες (μέλη B2B): προβολή" },
+  { key: "stores.partners.write", group: "stores", description: "Συνεργάτες: σύνδεση υποκαταστημάτων με καταστήματα, εισαγωγή από SoftOne" },
   { key: "marketing.newsletter.write", group: "marketing", description: "Newsletter, segments" },
   { key: "marketing.emails.write", group: "marketing", description: "Emails επικοινωνίας: προεπισκόπηση, δοκιμαστική αποστολή" },
   { key: "marketing.advisor.write", group: "marketing", description: "Ο Ερμής: κείμενα, ερωτήσεις, exit-intent, cart tips" },

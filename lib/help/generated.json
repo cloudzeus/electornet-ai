@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T08:41:41.445Z",
+ "generatedAt": "2026-10-31T11:36:18.880Z",
  "routes": [
   {
    "route": "/admin",
@@ -410,6 +410,11 @@
    ],
    "changes": [
     {
+     "hash": "547ec9d",
+     "date": "2026-10-31T10:41:54+02:00",
+     "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)"
+    },
+    {
      "hash": "51c838c",
      "date": "2026-10-31T10:05:34+02:00",
      "text": "Κατάλογος: περιγραφή με AI, σελίδα του μοντέλου στον κατασκευαστή, ενεργειακή κλάση από τις πηγές"
@@ -453,14 +458,9 @@
      "hash": "8b14cd5",
      "date": "2026-10-16T17:40:20+03:00",
      "text": "Σετ (Φ1): στο site"
-    },
-    {
-     "hash": "e7384cd",
-     "date": "2026-10-16T17:37:28+03:00",
-     "text": "Σετ (Φ1): τιμή = τιμή κύριου είδους (όπως το SoftOne"
     }
    ],
-   "updatedAt": "2026-10-31T10:05:34+02:00",
+   "updatedAt": "2026-10-31T10:41:54+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -493,6 +493,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "547ec9d",
+     "date": "2026-10-31T10:41:54+02:00",
+     "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)"
+    },
     {
      "hash": "51c838c",
      "date": "2026-10-31T10:05:34+02:00",
@@ -537,14 +542,9 @@
      "hash": "77eccbf",
      "date": "2026-10-13T19:24:29+03:00",
      "text": "Διαχείριση: Πελάτες"
-    },
-    {
-     "hash": "a5eea75",
-     "date": "2026-10-11T11:19:28+03:00",
-     "text": "Διαχείριση προϊόντων: πυκνή μορφή (ui-ux-pro-max, data-dense: κενά 8–12px, πεδία 36px στον υπολογιστή / 44px στο κινητό, κλίμακα 12/13/14/15/20)"
     }
    ],
-   "updatedAt": "2026-10-31T10:05:34+02:00",
+   "updatedAt": "2026-10-31T10:41:54+02:00",
    "shots": {}
   },
   {
@@ -720,6 +720,11 @@
    ],
    "changes": [
     {
+     "hash": "547ec9d",
+     "date": "2026-10-31T10:41:54+02:00",
+     "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)"
+    },
+    {
      "hash": "51c838c",
      "date": "2026-10-31T10:05:34+02:00",
      "text": "Κατάλογος: περιγραφή με AI, σελίδα του μοντέλου στον κατασκευαστή, ενεργειακή κλάση από τις πηγές"
@@ -763,14 +768,9 @@
      "hash": "88ae417",
      "date": "2026-09-23T10:14:29+03:00",
      "text": "Ερμής expert σε κλιματιστικά και τηλεοράσεις: ενιαία ονόματα χαρακτηριστικών, βαθύτερη τεχνογνωσία, φίλτρα πάνω στα εμπλουτισμένα χαρακτηριστικά, ερωτήσεις συμβουλής, κόστος ρεύματος"
-    },
-    {
-     "hash": "2fa2fe6",
-     "date": "2026-09-22T14:28:31+03:00",
-     "text": "Εμπλουτισμός: retry των σφαλμάτων αμέσως, όριο 40 χαρακτηριστικών, μεγαλύτερο όριο tokens"
     }
    ],
-   "updatedAt": "2026-10-31T10:05:34+02:00",
+   "updatedAt": "2026-10-31T10:41:54+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -4021,6 +4021,46 @@
    "shots": {}
   },
   {
+   "route": "/admin/synergates",
+   "slug": "synergates",
+   "file": "app/admin/(shell)/synergates/page.tsx",
+   "title": "Συνεργάτες (B2B)",
+   "doc": "Μέλη Euronics από το SoftOne (πελάτες με εμπορική κατηγορία ΜΕΛΟΣ), τα υποκαταστήματά τους και η σύνδεση με τα καταστήματα του eshop.",
+   "perm": "stores.partners.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Συνεργάτες (B2B)"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "partners.import",
+    "partners.kpis",
+    "partners.filters",
+    "partners.stores",
+    "partners.list"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/synergates/[id]",
+   "slug": "synergates.id",
+   "file": "app/admin/(shell)/synergates/[id]/page.tsx",
+   "title": "Συνεργάτης",
+   "doc": "Ένα μέλος: στοιχεία από το SoftOne (μόνο ανάγνωση) και τα υποκαταστήματά του με τη σύνδεση στα καταστήματα του eshop.",
+   "perm": "stores.partners.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "partner.identity",
+    "partner.branches"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/ypiresies",
    "slug": "ypiresies",
    "file": "app/admin/(shell)/ypiresies/page.tsx",
@@ -4048,6 +4088,16 @@
   }
  ],
  "recent": [
+  {
+   "hash": "547ec9d",
+   "date": "2026-10-31T10:41:54+02:00",
+   "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/completeness"
+   ]
+  },
   {
    "hash": "51c838c",
    "date": "2026-10-31T10:05:34+02:00",
@@ -4373,12 +4423,6 @@
    "date": "2026-10-28T10:43:01+02:00",
    "text": "XML προμηθευτές: μετατροπές μονάδων και τιμή ανά τρόπο",
    "routes": []
-  },
-  {
-   "hash": "413a84a",
-   "date": "2026-10-28T10:40:49+02:00",
-   "text": "XML προμηθευτές: μετατροπέας XML σε εικονικό πίνακα",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4696,6 +4740,27 @@
   ],
   "sync.scheduler": [
    "app/admin/(shell)/softone/sync/page.tsx"
+  ],
+  "partner.identity": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.branches": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partners.import": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.kpis": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.filters": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.stores": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.list": [
+   "app/admin/(shell)/synergates/page.tsx"
   ],
   "settings.groups": [
    "components/admin/SettingsForm.tsx"
