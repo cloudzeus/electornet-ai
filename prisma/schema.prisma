@@ -835,45 +835,47 @@ model Question {
 // ---------- Network & services ----------
 
 model Store {
-  id         String         @id @default(cuid())
-  siteId     Int?           @unique // euronics.gr store-locator id (source of the import)
-  erpBranch  String?        @unique
-  slug       String         @unique
-  name       String
-  member     String? // cooperative member company
-  kind       String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
-  address    String
-  city       String
-  region     String
-  regionRaw  String? // as published (genitive)
-  zip        String
-  phone      String?
-  mobile     String?
-  fax        String?
-  email      String?
-  lat        Float
-  lng        Float
-  geocoded   String? // "site" | "manual" | "nominatim"
-  geoLat     Float? // independent geocode (Nominatim) for QA
-  geoLng     Float?
-  geoDeltaKm Float? // distance between published and geocoded point
-  geoLabel   String? // display name returned by the geocoder
-  hours      Json // [{ day: 1, open: "09:00", close: "21:00" }]
-  services   Json // ["click-collect", "installation", "service-point", …]
-  photo      String? // media asset URL
-  notes      String?        @db.Text
-  active     Boolean        @default(true)
-  sort       Int            @default(0)
-  stock      StoreStock[]
-  orders     Order[]
-  customers  Customer[]
+  id             String           @id @default(cuid())
+  siteId         Int?             @unique // euronics.gr store-locator id (source of the import)
+  erpBranch      String?          @unique
+  slug           String           @unique
+  name           String
+  member         String? // cooperative member company
+  kind           String? // "ΚΑΤΑΣΤΗΜΑ ΗΛΕΚΤΡΙΚΩΝ & ΗΛΕΚΤΡΟΝΙΚΩΝ ΕΙΔΩΝ" as published
+  address        String
+  city           String
+  region         String
+  regionRaw      String? // as published (genitive)
+  zip            String
+  phone          String?
+  mobile         String?
+  fax            String?
+  email          String?
+  lat            Float
+  lng            Float
+  geocoded       String? // "site" | "manual" | "nominatim"
+  geoLat         Float? // independent geocode (Nominatim) for QA
+  geoLng         Float?
+  geoDeltaKm     Float? // distance between published and geocoded point
+  geoLabel       String? // display name returned by the geocoder
+  hours          Json // [{ day: 1, open: "09:00", close: "21:00" }]
+  services       Json // ["click-collect", "installation", "service-point", …]
+  photo          String? // media asset URL
+  notes          String?          @db.Text
+  active         Boolean          @default(true)
+  sort           Int              @default(0)
+  stock          StoreStock[]
+  orders         Order[]
+  restocks       PartnerRestock[] @relation("RestockStore")
+  restockPickups PartnerRestock[] @relation("RestockPickupStore")
+  customers      Customer[]
   /// Μέλος (B2B) στο οποίο ανήκει· συνδέεται με την εισαγωγή από το SoftOne ή με το χέρι
-  partnerId  String?
-  partner    Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerId      String?
+  partner        Partner?         @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   /// Το υποκατάστημα SoftOne (TRDBRANCH) που αντιστοιχεί σε αυτό το κατάστημα
-  branch     PartnerBranch?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  branch         PartnerBranch?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([region])
   @@index([active])
@@ -918,6 +920,7 @@ model Partner {
   connections PartnerConnection[]
   changes     PartnerChange[]
   logs        PartnerLog[]
+  restocks    PartnerRestock[]
   /// ερωτηματολόγιο αρχικοποίησης + πρόοδος των wizards της πύλης: { answers, steps: { profile, connection, mapping, … }, completedAt }
   onboarding  Json?
   createdAt   DateTime            @default(now())
@@ -1086,6 +1089,47 @@ model PartnerLog {
 
   @@index([partnerId, createdAt])
   @@index([connectionId, createdAt])
+}
+
+/// Αίτημα αναπλήρωσης αποθέματος από τη μαμά εταιρία, που κάνει το μέλος από μια παραγγελία του eshop στην πύλη.
+/// Με την έγκριση γίνεται παραγγελία αναπλήρωσης (ίδια εγγραφή, status approved)· το SoftOne αργότερα.
+model PartnerRestock {
+  id            String    @id @default(cuid())
+  /// ΑΝ-YYYYMMDD-NNN
+  number        String    @unique
+  partnerId     String
+  partner       Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  storeId       String?
+  store         Store?    @relation("RestockStore", fields: [storeId], references: [id], onDelete: SetNull)
+  /// shipMode pickup: κατάστημα από όπου το παραλαμβάνει το μέλος (το ορίζει η Euronics στην έγκριση)
+  pickupStoreId String?
+  pickupStore   Store?    @relation("RestockPickupStore", fields: [pickupStoreId], references: [id], onDelete: SetNull)
+  orderId       String?
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  accountId     String?
+  /// [{ variantId, erpCode, title, qty }]
+  lines         Json
+  /// bulk = στην επόμενη μαζική αποστολή · express = άμεσα · pickup = παραλαβή από το πλησιέστερο κατάστημα (ό,τι ζήτησε το μέλος)
+  shipMode      String    @default("bulk")
+  /// ο τρόπος που εγκρίθηκε (μπορεί να αλλάξει στην έγκριση)
+  approvedMode  String?
+  note          String?   @db.Text
+  /// requested | approved | ready (pickup: έτοιμο για παραλαβή) | shipped (pickup: παραλήφθηκε) | rejected | cancelled
+  status        String    @default("requested")
+  /// απάντηση της Euronics προς το μέλος (λόγος απόρριψης, ημερομηνία αποστολής…)
+  reply         String?   @db.Text
+  decidedBy     String?
+  decidedAt     DateTime?
+  readyAt       DateTime?
+  shippedAt     DateTime?
+  /// το μέλος είδε την απόφαση στην πύλη
+  seenAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([partnerId, createdAt])
+  @@index([status, createdAt])
+  @@index([orderId])
 }
 
 /// Υπηρεσίες Euronics (Εμπόριο → Υπηρεσίες): σελίδες /ypiresies, πρόσθετες υπηρεσίες σε προϊόν/checkout, αρχική, hero,
@@ -1636,6 +1680,7 @@ model Order {
   returns       Return[]
   shipments     Shipment[]
   notes         OrderNote[]
+  restocks      PartnerRestock[]
   tracking      String?
   courier       String?
   createdAt     DateTime         @default(now())

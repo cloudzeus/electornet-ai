@@ -7,6 +7,8 @@ import { audit } from "@/lib/rbac/audit";
 import { importPartners, type ImportSummary } from "@/lib/b2b/partners-import";
 import { createMissingStores, createStoreFromBranch, setStoreVisible } from "@/lib/b2b/branch-stores";
 import { geocodeStore } from "@/lib/stores/geocode";
+import { advanceRestock, decideRestock, pickupOptions, staffCancelRestock } from "@/lib/partner-portal/restock";
+import { isShipMode } from "@/lib/partner-portal/restock-model";
 
 /** Εισαγωγή μελών/υποκαταστημάτων από το SoftOne (μόνο ανάγνωση από το ERP). `dryRun` = μόνο προεπισκόπηση. */
 export async function runPartnerImport(dryRun: boolean): Promise<{ ok: true; summary: ImportSummary } | { ok: false; error: string }> {
@@ -161,4 +163,38 @@ export async function setPortalAccountActive(accountId: string, active: boolean)
   await audit(user.id, active ? "b2b.portal.enable" : "b2b.portal.disable", "PartnerAccount", accountId, { active: !active }, { active });
   revalidatePath(`/admin/synergates/${a.contact.partnerId}`);
   return { ok: true as const };
+}
+
+/** Αίτημα αναπλήρωσης μέλους: έγκριση (τρόπος αποστολής / κατάστημα παραλαβής) ή απόρριψη με απάντηση· email στο μέλος. */
+export async function decidePartnerRestock(id: string, approve: boolean, mode: string, pickupStoreId: string | null, reply: string) {
+  const user = await requirePermission("stores.partners.write");
+  const r = await decideRestock(id, user.id, { approve, mode: isShipMode(mode) ? mode : undefined, pickupStoreId, reply });
+  if (r.ok) { await audit(user.id, approve ? "b2b.restock.approve" : "b2b.restock.reject", "PartnerRestock", id, null, { mode, pickupStoreId, reply }); revalidateRestocks(); }
+  return r;
+}
+
+/** Επόμενο βήμα: «έτοιμο για παραλαβή» ή «στάλθηκε / παραλήφθηκε». */
+export async function advancePartnerRestock(id: string, to: "ready" | "shipped") {
+  const user = await requirePermission("stores.partners.write");
+  const r = await advanceRestock(id, user.id, to);
+  if (r.ok) { await audit(user.id, `b2b.restock.${to}`, "PartnerRestock", id); revalidateRestocks(); }
+  return r;
+}
+
+export async function cancelPartnerRestock(id: string, reply: string) {
+  const user = await requirePermission("stores.partners.write");
+  const r = await staffCancelRestock(id, user.id, reply);
+  if (r.ok) { await audit(user.id, "b2b.restock.cancel", "PartnerRestock", id, null, { reply }); revalidateRestocks(); }
+  return r;
+}
+
+/** Καταστήματα παραλαβής για το αίτημα (απόθεμα + απόσταση). */
+export async function restockPickupOptions(id: string) {
+  await requirePermission("stores.partners.read");
+  return pickupOptions(id);
+}
+
+function revalidateRestocks() {
+  revalidatePath("/admin/synergates", "layout");
+  revalidatePath("/admin/orders", "layout");
 }

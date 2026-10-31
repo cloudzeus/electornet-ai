@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { engine, engineConfigured, type BatchPage } from "@/lib/b2b-engine/client";
-import { nameOf, type ShipTo } from "@/lib/orders/model";
+import { addressOf, nameOf, type ShipTo } from "@/lib/orders/model";
 
 /** Ερωτήματα της πύλης συνεργατών — πάντα περιορισμένα στο μέλος του συνδεδεμένου λογαριασμού. */
 
@@ -90,7 +90,7 @@ export async function partnerOrders(partnerId: string, f: { q?: string; status?:
   if (f.q) where.OR = [{ number: { contains: f.q, mode: "insensitive" } }, { shipping: { path: ["lastName"], string_contains: f.q } }, { lines: { some: { title: { contains: f.q, mode: "insensitive" } } } }];
   const page = Math.max(1, f.page ?? 1), size = 20;
   const [rows, total, byStatus] = await Promise.all([
-    db.order.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * size, take: size, select: { id: true, number: true, createdAt: true, updatedAt: true, status: true, total: true, paymentMethod: true, shipping: true, pickupStore: { select: { id: true, name: true, city: true } }, lines: { select: { title: true, qty: true, erpCode: true, unitPrice: true } } } }),
+    db.order.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * size, take: size, select: { id: true, number: true, createdAt: true, updatedAt: true, status: true, total: true, paymentMethod: true, fulfilment: true, shipping: true, invoice: true, guestEmail: true, customer: { select: { email: true, phone: true, mobile: true } }, pickupStore: { select: { id: true, name: true, city: true } }, lines: { select: { variantId: true, title: true, qty: true, erpCode: true, unitPrice: true } }, restocks: { orderBy: { createdAt: "desc" }, select: { id: true, number: true, status: true, shipMode: true, approvedMode: true, reply: true, lines: true, note: true, createdAt: true, decidedAt: true, readyAt: true, shippedAt: true, seenAt: true, pickupStore: { select: { name: true, address: true, city: true, phone: true } } } } } }),
     db.order.count({ where }),
     db.order.groupBy({ by: ["status"], where: { pickupStore: { partnerId } }, _count: { _all: true } }),
   ]);
@@ -99,9 +99,10 @@ export async function partnerOrders(partnerId: string, f: { q?: string; status?:
     byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count._all])) as Record<string, number>,
     rows: rows.map((o) => {
       const s = (o.shipping ?? {}) as ShipTo;
-      const open = (ORDER_FILTERS.open as readonly string[]).includes(o.status);
-      // στοιχεία επικοινωνίας μόνο όσο η παραλαβή εκκρεμεί (ελαχιστοποίηση δεδομένων)
-      return { ...o, total: Number(o.total), shipping: undefined, customer: nameOf(s) || "—", phone: open ? s.phone ?? null : null, lines: o.lines.map((l) => ({ ...l, unitPrice: Number(l.unitPrice) })) };
+      const inv = (o.invoice ?? null) as { vatNumber?: string; doy?: string; company?: string } | null;
+      // Το κατάστημα υποχρεούται να παραδώσει την παραγγελία στον πελάτη → παίρνει όλα τα στοιχεία του από το eshop.
+      const buyer = { name: nameOf(s) || "—", phone: s.phone || o.customer?.mobile || o.customer?.phone || null, email: s.email || o.guestEmail || o.customer?.email || null, address: addressOf(s) || null, notes: s.notes || null, invoice: inv?.vatNumber ? { company: inv.company ?? null, vatNumber: inv.vatNumber, doy: inv.doy ?? null } : null };
+      return { ...o, total: Number(o.total), shipping: undefined, invoice: undefined, guestEmail: undefined, customer: buyer.name, buyer, lines: o.lines.map((l) => ({ ...l, unitPrice: Number(l.unitPrice) })) };
     }),
   };
 }

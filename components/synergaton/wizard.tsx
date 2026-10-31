@@ -135,7 +135,7 @@ export function ProgressModal({ open, title, steps, running, startedAt, result, 
               {!running && <D.Close className={`grid place-items-center size-11 -mr-2 -mt-2 rounded-full hover:bg-white/10 ${focusRing}`} aria-label="Κλείσιμο"><X className="size-5" aria-hidden /></D.Close>}
             </div>
             <D.Description className="m-0 mt-1 text-eu-on-dark text-[length:var(--fs-13)]" aria-live="polite">
-              {running ? `Σε εξέλιξη · ${secs.toFixed(0)}″ — μην κλείσετε τη σελίδα` : `Ολοκληρώθηκε σε ${secs.toFixed(1)}″ · ${okN}/${steps.filter((s) => s.state !== "skip").length} βήματα επιτυχή`}
+              {running ? `Σε εξέλιξη · ${secs.toFixed(0)}″ — μην κλείσετε τη σελίδα` : `Ολοκληρώθηκε σε ${secs.toLocaleString("el-GR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}″ · ${okN}/${steps.filter((s) => s.state !== "skip").length} βήματα επιτυχή`}
             </D.Description>
             <div className="mt-3"><ProgressLine pct={running ? Math.min(92, (okN / Math.max(1, steps.length)) * 100 + 8) : 100} /></div>
           </div>
@@ -146,7 +146,7 @@ export function ProgressModal({ open, title, steps, running, startedAt, result, 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className={`font-bold text-[length:var(--fs-14)] ${s.state === "todo" || s.state === "skip" ? "text-eu-muted" : "text-eu-ink"}`}>{s.label}</span>
-                    {s.ms !== undefined && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{s.ms < 1000 ? `${s.ms} ms` : `${(s.ms / 1000).toFixed(1)}″`}</span>}
+                    {s.ms !== undefined && <span className="text-eu-muted text-[length:var(--fs-12)] tabular-nums">{s.ms < 1000 ? `${s.ms} ms` : `${(s.ms / 1000).toLocaleString("el-GR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}″`}</span>}
                   </div>
                   {s.detail && <p className={`m-0 text-[length:var(--fs-13)] leading-snug break-words ${s.state === "fail" ? "text-[#b3261e]" : "text-eu-ink-3"}`}>{s.detail}</p>}
                 </div>

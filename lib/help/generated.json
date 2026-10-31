@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T13:48:58.456Z",
+ "generatedAt": "2026-10-31T15:15:35.343Z",
  "routes": [
   {
    "route": "/admin",
@@ -2187,6 +2187,7 @@
     "order.notes",
     "order.history",
     "order.promos",
+    "orders.restock",
     "orders.header",
     "orders.kpi",
     "orders.views"
@@ -2248,7 +2249,8 @@
     "order.erp",
     "order.notes",
     "order.history",
-    "order.promos"
+    "order.promos",
+    "orders.restock"
    ],
    "changes": [
     {
@@ -3445,6 +3447,11 @@
    ],
    "changes": [
     {
+     "hash": "bee0db4",
+     "date": "2026-10-31T15:48:58+02:00",
+     "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
+    },
+    {
      "hash": "ecc5593",
      "date": "2026-10-31T09:38:22+02:00",
      "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
@@ -3488,14 +3495,9 @@
      "hash": "d1316c3",
      "date": "2026-10-17T04:47:09+03:00",
      "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
-    },
-    {
-     "hash": "ffac74e",
-     "date": "2026-10-16T14:12:27+03:00",
-     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
     }
    ],
-   "updatedAt": "2026-10-31T09:38:22+02:00",
+   "updatedAt": "2026-10-31T15:48:58+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3519,6 +3521,11 @@
    ],
    "changes": [
     {
+     "hash": "bee0db4",
+     "date": "2026-10-31T15:48:58+02:00",
+     "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
+    },
+    {
      "hash": "ecc5593",
      "date": "2026-10-31T09:38:22+02:00",
      "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
@@ -3562,14 +3569,9 @@
      "hash": "d1316c3",
      "date": "2026-10-17T04:47:09+03:00",
      "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
-    },
-    {
-     "hash": "ffac74e",
-     "date": "2026-10-16T14:12:27+03:00",
-     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
     }
    ],
-   "updatedAt": "2026-10-31T09:38:22+02:00",
+   "updatedAt": "2026-10-31T15:48:58+02:00",
    "shots": {}
   },
   {
@@ -4043,6 +4045,11 @@
    ],
    "changes": [
     {
+     "hash": "bee0db4",
+     "date": "2026-10-31T15:48:58+02:00",
+     "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
+    },
+    {
      "hash": "e3ccf4b",
      "date": "2026-10-31T15:13:04+02:00",
      "text": "Πύλη συνεργατών synergaton: είσοδος με OTP, αρχική, οδηγοί σύνδεσης με αντιστοίχιση στηλών/καταστημάτων, παραγγελίες, ιστορικό, οδηγός, προφίλ"
@@ -4063,7 +4070,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T15:13:04+02:00",
+   "updatedAt": "2026-10-31T15:48:58+02:00",
    "shots": {}
   },
   {
@@ -4079,10 +4086,17 @@
     "partner.identity",
     "partner.portal-answers",
     "partner.contacts",
+    "partner.restocks",
     "partner.branches",
-    "partner.store"
+    "partner.store",
+    "restock.list"
    ],
    "changes": [
+    {
+     "hash": "bee0db4",
+     "date": "2026-10-31T15:48:58+02:00",
+     "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
+    },
     {
      "hash": "e3ccf4b",
      "date": "2026-10-31T15:13:04+02:00",
@@ -4099,7 +4113,30 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T15:13:04+02:00",
+   "updatedAt": "2026-10-31T15:48:58+02:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/synergates/anaplirosis",
+   "slug": "synergates.anaplirosis",
+   "file": "app/admin/(shell)/synergates/anaplirosis/page.tsx",
+   "title": "Αναπληρώσεις συνεργατών",
+   "doc": "Αιτήματα αναπλήρωσης αποθέματος που κάνουν τα μέλη από παραγγελίες του eshop στην πύλη συνεργατών.",
+   "perm": "stores.partners.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Αναπληρώσεις (B2B)"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "restock.views",
+    "restock.advance",
+    "restock.decide",
+    "restock.pickup",
+    "restock.list"
+   ],
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -4130,6 +4167,22 @@
   }
  ],
  "recent": [
+  {
+   "hash": "67b4ee0",
+   "date": "2026-10-31T16:23:29+02:00",
+   "text": "Οδηγός πύλης συνεργατών: videos για τα 8 άρθρα",
+   "routes": []
+  },
+  {
+   "hash": "bee0db4",
+   "date": "2026-10-31T15:48:58+02:00",
+   "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva",
+   "routes": [
+    "/admin",
+    "/admin/synergates",
+    "/admin/synergates/[id]"
+   ]
+  },
   {
    "hash": "d71e846",
    "date": "2026-10-31T15:21:54+02:00",
@@ -4463,23 +4516,6 @@
     "/admin/catalog/templates",
     "/admin/catalog/templates/xml"
    ]
-  },
-  {
-   "hash": "9b85ed8",
-   "date": "2026-10-28T13:39:14+02:00",
-   "text": "XML προμηθευτές: server actions του οδηγού",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
-  },
-  {
-   "hash": "61e490f",
-   "date": "2026-10-28T13:39:06+02:00",
-   "text": "XML προμηθευτές: κοινοί τύποι και ετικέτες του οδηγού",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4708,6 +4744,9 @@
   "order.promos": [
    "app/admin/(shell)/orders/[number]/OrderView.tsx"
   ],
+  "orders.restock": [
+   "app/admin/(shell)/orders/[number]/page.tsx"
+  ],
   "orders.header": [
    "app/admin/(shell)/orders/page.tsx"
   ],
@@ -4807,11 +4846,17 @@
   "partner.contacts": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
+  "partner.restocks": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
   "partner.branches": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
   "partner.store": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "restock.views": [
+   "app/admin/(shell)/synergates/anaplirosis/page.tsx"
   ],
   "partners.import": [
    "app/admin/(shell)/synergates/page.tsx"
@@ -5212,6 +5257,18 @@
   ],
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "restock.advance": [
+   "components/admin/partners/RestockDecision.tsx"
+  ],
+  "restock.decide": [
+   "components/admin/partners/RestockDecision.tsx"
+  ],
+  "restock.pickup": [
+   "components/admin/partners/RestockDecision.tsx"
+  ],
+  "restock.list": [
+   "components/admin/partners/RestockList.tsx"
   ],
   "campaign.steps": [
    "components/admin/promos/CampaignWizard.tsx"

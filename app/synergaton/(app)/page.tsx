@@ -3,6 +3,8 @@ import { ArrowRight, Check, ClipboardList, History, MapPin, PlugZap, Sparkles, S
 import { requirePortalUser, portalBase } from "@/lib/partner-portal/session";
 import { dashboardData, onboardingOf } from "@/lib/partner-portal/data";
 import { connTypeInfo } from "@/lib/partner-portal/connection-types";
+import { unseenRestocks } from "@/lib/partner-portal/restock";
+import { modeOf, restockStatusOf, SHIP_MODE } from "@/lib/partner-portal/restock-model";
 import { statusLabel } from "@/lib/orders/model";
 import { BarChart, KpiTile, LineChart } from "@/components/admin/charts/Charts";
 import { ago, Badge, ButtonLink, Callout, Card, CardHead, Empty, fmtDate, fmtEur, Meter, Ring } from "@/components/synergaton/ui";
@@ -14,7 +16,7 @@ export const metadata = { title: "Αρχική" };
 export default async function Dashboard() {
   const u = await requirePortalUser();
   const base = await portalBase();
-  const d = await dashboardData(u.partner.id, onboardingOf(u.partner.onboarding));
+  const [d, restocks] = await Promise.all([dashboardData(u.partner.id, onboardingOf(u.partner.onboarding)), unseenRestocks(u.partner.id)]);
   const j = d.journey;
   const visible = d.stores.filter((s) => s.active).length;
   const noPoint = d.stores.filter((s) => s.lat === 0 && s.lng === 0).length;
@@ -55,6 +57,21 @@ export default async function Dashboard() {
           ))}
         </ol>
       </section>
+
+      {restocks.length > 0 && (
+        <div data-help="portal.restock-news" className="grid gap-2">
+          {restocks.map((r) => {
+            const mode = modeOf(r);
+            const st = restockStatusOf(r.status, mode);
+            const where = r.pickupStore ? `${r.pickupStore.name}, ${r.pickupStore.city}` : "";
+            return (
+              <Callout key={r.id} tone={r.status === "rejected" || r.status === "cancelled" ? "bad" : "good"} title={`Αναπλήρωση ${r.number}${r.order ? ` (παραγγελία ${r.order.number})` : ""}: ${st.label.toLowerCase()}`} action={<ButtonLink href={`${base}/paraggelies${r.order ? `?q=${encodeURIComponent(r.order.number)}` : ""}`} variant="secondary" size="sm">Προβολή</ButtonLink>}>
+                {r.status === "approved" ? (mode === "pickup" ? `Θα το παραλάβετε από ${where} — σας ενημερώνουμε όταν είναι έτοιμο.` : `Η Euronics έκανε παραγγελία· θα αποσταλεί ${SHIP_MODE[mode].label.toLowerCase()}.`) : r.status === "ready" ? `Σας περιμένει στο ${where}.` : r.status === "shipped" ? (mode === "pickup" ? "Καταγράφηκε η παραλαβή." : "Τα προϊόντα στάλθηκαν στο κατάστημα.") : r.reply ?? "Δεν μπορεί να καλυφθεί."}
+              </Callout>
+            );
+          })}
+        </div>
+      )}
 
       {d.sync.error && <Callout tone="warn" title="Η μηχανή διαθεσιμότητας δεν απαντά αυτή τη στιγμή">Τα δεδομένα συγχρονισμών θα εμφανιστούν μόλις αποκατασταθεί η επικοινωνία. Οι υπόλοιπες λειτουργίες δουλεύουν κανονικά.</Callout>}
 

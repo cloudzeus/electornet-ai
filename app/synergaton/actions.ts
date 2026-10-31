@@ -21,6 +21,7 @@ import { askErmis, type ErmisReply, type ErmisTurn } from "@/lib/partner-portal/
 import { distanceKm, geocodeAddress } from "@/lib/stores/geocode";
 import { lookupAfm } from "@/lib/aade/vat";
 import { foldGreek } from "@/lib/geo/regions";
+import { cancelRestock, createRestock } from "@/lib/partner-portal/restock";
 
 type Fail = { ok: false; error: string; fields?: Record<string, string> };
 
@@ -373,4 +374,20 @@ export async function checkMemberAade(): Promise<{ ok: true; rows: AadeRow[]; ac
   const diffs = rows.filter((x) => x.same === false).map((x) => x.label);
   await portalLog(u.partner.id, "profile", diffs.length === 0 && c.isActive, `ΑΑΔΕ: ${!c.isActive ? "ο ΑΦΜ εμφανίζεται ανενεργός" : diffs.length ? `διαφορές σε ${diffs.join(", ")}` : "τα στοιχεία συμφωνούν"}`, { accountId: u.accountId, detail: { diffs, source: c.source } });
   return { ok: true, rows, active: c.isActive, activity: c.activities.find((a) => a.kind === "PRIMARY")?.descr ?? null, checkedAt: new Date().toISOString() };
+}
+
+// ---------- Αναπλήρωση αποθέματος από παραγγελία ----------
+
+export async function requestRestock(orderId: string, lines: { variantId: string; qty: number }[], shipMode: string, note: string) {
+  const u = await me();
+  const r = await createRestock({ partnerId: u.partner.id, accountId: u.accountId, orderId, lines, shipMode, note });
+  if (r.ok) refresh();
+  return r;
+}
+
+export async function withdrawRestock(id: string) {
+  const u = await me();
+  const r = await cancelRestock(u.partner.id, u.accountId, id);
+  if (r.ok) refresh();
+  return r;
 }

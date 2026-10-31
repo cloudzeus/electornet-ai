@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ChevronDown, ClipboardList, Phone, Search, Store } from "lucide-react";
+import { ChevronDown, ClipboardList, FileText, Mail, MapPin, Phone, Search, Store, StickyNote, User } from "lucide-react";
 import { db } from "@/lib/db";
 import { requirePortalUser, portalBase } from "@/lib/partner-portal/session";
 import { lastDays, ORDER_FILTERS, partnerOrders } from "@/lib/partner-portal/data";
-import { ORDER_STATUS, statusLabel } from "@/lib/orders/model";
+import { FULFILMENT, ORDER_STATUS, statusLabel } from "@/lib/orders/model";
+import { markRestocksSeen } from "@/lib/partner-portal/restock";
+import { RestockPanel } from "@/components/synergaton/RestockPanel";
 import { BarChart } from "@/components/admin/charts/Charts";
 import { toneOfOrder } from "@/components/synergaton/log-kinds";
 import { Badge, Card, CardHead, Empty, fmtDateTime, fmtEur, PageHead } from "@/components/synergaton/ui";
@@ -22,6 +24,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     db.store.findMany({ where: { partnerId: u.partner.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.order.findMany({ where: { pickupStore: { partnerId: u.partner.id }, createdAt: { gte: new Date(days[0]) } }, select: { createdAt: true, status: true } }),
   ]);
+  // οι αποφάσεις της Euronics που φαίνονται εδώ θεωρούνται πλέον γνωστές (σβήνει η ειδοποίηση της αρχικής)
+  await markRestocksSeen(u.partner.id, d.rows.flatMap((o) => o.restocks.filter((r) => !r.seenAt && r.status !== "requested").map((r) => r.id)));
   const key = (dt: Date) => dt.toLocaleDateString("sv-SE", { timeZone: "Europe/Athens" });
   const per = (pred: (s: string) => boolean) => days.map((day) => recent.filter((o) => key(o.createdAt) === day && pred(o.status)).length);
   const isCancel = (s: string) => (ORDER_FILTERS.cancelled as readonly string[]).includes(s);
@@ -31,7 +35,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="grid gap-5 min-w-0">
-      <PageHead eyebrow="Πωλήσεις" title="Παραγγελίες παραλαβής" sub="Παραγγελίες του euronics.gr όπου ο πελάτης διάλεξε κατάστημά σας για παραλαβή. Το τηλέφωνο του πελάτη φαίνεται μόνο όσο εκκρεμεί η παραλαβή." />
+      <PageHead eyebrow="Πωλήσεις" title="Παραγγελίες παραλαβής" sub="Παραγγελίες του euronics.gr όπου ο πελάτης διάλεξε κατάστημά σας. Δεν χρειάζεται έγκριση: κάθε παραγγελία παραδίδεται στον πελάτη. Αν λείπει απόθεμα, ζητήστε αναπλήρωση από την Euronics μέσα από την παραγγελία." />
 
       <Card data-help="portal.orders-chart">
         <CardHead icon={ClipboardList} title="Τελευταίες 30 ημέρες" sub={`${recent.filter((o) => !isCancel(o.status)).length} παραγγελίες · ${recent.filter((o) => isCancel(o.status)).length} ακυρώσεις`} />
@@ -70,10 +74,17 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                   <ul className="m-0 p-0 list-none grid gap-1.5">
                     {o.lines.map((l, i) => <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg bg-eu-surface px-3 py-2 text-[length:var(--fs-14)]"><span className="min-w-0"><b className="block break-words">{l.title}</b>{l.erpCode && <span className="text-eu-ink-3 text-[length:var(--fs-12)]">Κωδ. {l.erpCode}</span>}</span><span className="tabular-nums text-right">{l.qty} × {fmtEur(l.unitPrice)}</span></li>)}
                   </ul>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[length:var(--fs-13)] text-eu-ink-3">
-                    <span>{isOrderHelp(o.status)}</span>
-                    {o.phone && <a href={`tel:${o.phone}`} className="inline-flex items-center gap-1 text-eu-blue font-bold min-h-11"><Phone className="size-4" aria-hidden /> {o.phone}</a>}
-                  </div>
+                  <p className="m-0 text-[length:var(--fs-13)] text-eu-ink-3">{isOrderHelp(o.status)}</p>
+                  <section data-help="portal.orders-customer" aria-label="Στοιχεία πελάτη" className="grid gap-x-4 gap-y-1 sm:grid-cols-2 rounded-xl bg-eu-surface p-3 text-[length:var(--fs-14)]">
+                    <span className="flex items-center gap-2 min-w-0"><User className="size-4 shrink-0 text-eu-muted" aria-hidden /><b className="break-words">{o.buyer.name}</b></span>
+                    {o.buyer.phone && <a href={`tel:${o.buyer.phone}`} className="flex items-center gap-2 min-h-11 text-eu-blue font-bold"><Phone className="size-4 shrink-0" aria-hidden /> {o.buyer.phone}</a>}
+                    {o.buyer.email && <a href={`mailto:${o.buyer.email}`} className="flex items-center gap-2 min-h-11 min-w-0 text-eu-blue font-bold"><Mail className="size-4 shrink-0" aria-hidden /><span className="break-all">{o.buyer.email}</span></a>}
+                    {o.buyer.address && <span className="flex items-start gap-2 min-w-0"><MapPin className="size-4 shrink-0 mt-0.5 text-eu-muted" aria-hidden /><span className="break-words">{o.buyer.address}</span></span>}
+                    <span className="flex items-center gap-2 text-eu-ink-2"><Store className="size-4 shrink-0 text-eu-muted" aria-hidden />{FULFILMENT[o.fulfilment as keyof typeof FULFILMENT] ?? o.fulfilment}{o.paymentMethod ? ` · ${payLabel(o.paymentMethod)}` : ""}</span>
+                    {o.buyer.invoice && <span className="flex items-start gap-2 min-w-0 text-eu-ink-2"><FileText className="size-4 shrink-0 mt-0.5 text-eu-muted" aria-hidden /><span className="break-words">Τιμολόγιο: {[o.buyer.invoice.company, `ΑΦΜ ${o.buyer.invoice.vatNumber}`, o.buyer.invoice.doy].filter(Boolean).join(" · ")}</span></span>}
+                    {o.buyer.notes && <span className="sm:col-span-2 flex items-start gap-2 min-w-0 text-eu-ink-2"><StickyNote className="size-4 shrink-0 mt-0.5 text-eu-muted" aria-hidden /><span className="break-words">{o.buyer.notes}</span></span>}
+                  </section>
+                  <RestockPanel orderId={o.id} lines={o.lines} restocks={o.restocks} closed={(ORDER_FILTERS.cancelled as readonly string[]).includes(o.status)} />
                 </div>
               </details>
             </li>
@@ -93,6 +104,9 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     </div>
   );
 }
+
+const PAY: Record<string, string> = { cod: "Αντικαταβολή", bank: "Τραπεζική μεταφορά", "bank-transfer": "Τραπεζική μεταφορά", store: "Πληρωμή στο κατάστημα" };
+const payLabel = (m: string) => PAY[m] ?? "Πληρωμή online";
 
 function isOrderHelp(s: string) {
   return s in ORDER_STATUS ? ORDER_STATUS[s as keyof typeof ORDER_STATUS].help : "";

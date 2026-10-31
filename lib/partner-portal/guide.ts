@@ -72,18 +72,20 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "paraggelies", group: "daily", minutes: 2, title: "Παραγγελίες παραλαβής",
-    video: { src: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-c224cccbb7.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-c46ab59a0a.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-poster-3d8fb0854d.jpg", duration: "0:38" },
-    summary: "Πού τις βλέπετε, τι σημαίνει κάθε κατάσταση και πότε φαίνεται το τηλέφωνο του πελάτη.",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-455880102d.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-b104e99f55.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-poster-cd74f19950.jpg", duration: "0:55" },
+    summary: "Πού τις βλέπετε, τι σημαίνει κάθε κατάσταση, τα στοιχεία του πελάτη και πώς ζητάτε αναπλήρωση αποθέματος από την Euronics.",
     sections: [
-      { title: "Καταστάσεις", body: ["«Προς παραλαβή» είναι όσες περιμένουν ετοιμασία ή τον πελάτη. Το τηλέφωνο του πελάτη φαίνεται μόνο τότε — μετά την παράδοση κρύβεται."] },
+      { title: "Καμία έγκριση — πάντα παράδοση", body: ["Οι παραγγελίες του euronics.gr που ήρθαν στο κατάστημά σας δεν εγκρίνονται ούτε απορρίπτονται: παραδίδονται στον πελάτη. «Προς παραλαβή» είναι όσες περιμένουν ετοιμασία ή τον πελάτη."] },
+      { title: "Στοιχεία του πελάτη", body: ["Ανοίξτε μια παραγγελία: ονοματεπώνυμο, τηλέφωνο, email, διεύθυνση, τρόπος παραλαβής και πληρωμής, στοιχεία τιμολογίου και σημειώσεις του πελάτη, όπως τα έδωσε στο eshop."] },
+      { title: "Αναπλήρωση αποθέματος από την Euronics", steps: ["Ανοίξτε την παραγγελία και πατήστε «Αίτημα αναπλήρωσης».", "Βάλτε ποσότητα σε όσα προϊόντα χρειάζεστε (0 σε όσα όχι).", "Διαλέξτε πώς να έρθει: στην επόμενη μαζική αποστολή, άμεσα, ή παραλαβή από το πλησιέστερο κατάστημα που έχει απόθεμα.", "Πατήστε «Αποστολή αιτήματος». Όσο αναμένει έγκριση μπορείτε να το ακυρώσετε."], tips: ["Όταν η Euronics το εγκρίνει γίνεται παραγγελία αναπλήρωσης και ενημερώνεστε στην αρχική της πύλης και με email. Στην παραλαβή βλέπετε από ποιο κατάστημα, και σας ειδοποιούμε ξανά όταν είναι έτοιμο.", "Ένα ανοιχτό αίτημα ανά παραγγελία."] },
     ],
   },
   {
     slug: "istoriko", group: "daily", minutes: 2, title: "Ιστορικό και συγχρονισμοί",
-    video: { src: "https://euronics.b-cdn.net/videos/synergaton/istoriko-c763134462.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/istoriko-edb1d333a3.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/istoriko-poster-7999e86dbd.jpg", duration: "0:38" },
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/istoriko-b59e5198d8.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/istoriko-0bd55624f1.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/istoriko-poster-7999e86dbd.jpg", duration: "0:38" },
     summary: "Κάθε ενημέρωση αποθέματος με δεκτές και απορριφθείσες γραμμές, και κάθε ενέργεια στην πύλη.",
     sections: [
-      { title: "Γιατί απορρίπτονται γραμμές", body: ["Χωρίς κωδικό/EAN, χωρίς αριθμό στην ποσότητα, ή σε αποθήκη που δεν αντιστοιχίσατε σε κατάστημα."] },
+      { title: "Γιατί απορρίπτονται γραμμές", body: ["Χωρίς κωδικό/EAN, με ποσότητα που δεν είναι αριθμός ή «ναι/όχι» (π.χ. «κατόπιν παραγγελίας» ή κενό κελί), ή σε αποθήκη που δεν αντιστοιχίσατε σε κατάστημα. Το «ναι» μετρά ως 1 τεμάχιο, το «όχι» ως 0."] },
     ],
   },
 ];

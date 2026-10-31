@@ -1,4 +1,4 @@
-import { Bot, FileUp, KeyRound, LogIn, Network, PlugZap, Route, ServerCog, Store, TestTube2, type LucideIcon } from "lucide-react";
+import { Bot, FileUp, KeyRound, LogIn, Network, PackagePlus, PlugZap, Route, ServerCog, Store, TestTube2, type LucideIcon } from "lucide-react";
 
 export const LOG_KIND: Record<string, { label: string; icon: LucideIcon }> = {
   "engine.event": { label: "Μηχανή", icon: ServerCog },
@@ -11,6 +11,7 @@ export const LOG_KIND: Record<string, { label: string; icon: LucideIcon }> = {
   import: { label: "Εισαγωγή", icon: Network },
   ai: { label: "Βοηθός", icon: Bot },
   connection: { label: "Σύνδεση", icon: PlugZap },
+  restock: { label: "Αναπλήρωση", icon: PackagePlus },
 };
 
 import { ORDER_STATUS, isOrderStatus } from "@/lib/orders/model";

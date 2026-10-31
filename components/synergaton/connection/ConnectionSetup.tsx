@@ -6,7 +6,7 @@ import { BookOpen, Bot, Check, Eye, EyeOff, FileSpreadsheet, Pause, PlayCircle, 
 import type { TestResult } from "@/lib/b2b-engine/contracts";
 import type { UploadPreview } from "@/lib/b2b-engine/client";
 import { deleteDraftConnection, runConnectionTest, saveConnectionSettings, saveFieldMap, saveLocationMap, setConnectionActive, uploadStock, type TestOut } from "@/app/synergaton/actions";
-import { checkMapping, connTypeInfo, validateFields, type ConnType, type FieldMapping, type MapField } from "@/lib/partner-portal/connection-types";
+import { checkMapping, connTypeInfo, MAP_FIELDS, validateFields, type ConnType, type FieldMapping, type MapField } from "@/lib/partner-portal/connection-types";
 import { Badge, btn, ButtonLink, Callout, focusRing } from "../ui";
 import { ConfirmModal, Field, inputCls, ProgressModal, useProgress, Wizard, WizardNav, type ProgressStep, type WizardStep } from "../wizard";
 import { ColumnMapper, type MapSource } from "./ColumnMapper";
@@ -23,6 +23,8 @@ const PLAN: Record<ConnType, [string, string][]> = {
   manual: [["send", "Αποστολή αρχείου"], ["read-sample", "Ανάγνωση γραμμών"], ["detect", "Αναγνώριση στηλών και καταστημάτων"]],
 };
 const STEP_LABEL: Record<string, string> = Object.fromEntries(Object.values(PLAN).flat());
+const fmtSize = (b: number) => (b < 1024 ? `${b} bytes` : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024)).toLocaleString("el-GR")} KB` : `${(b / 1024 / 1024).toLocaleString("el-GR", { maximumFractionDigits: 1 })} MB`);
+const secs = (ms: number) => `${(ms / 1000).toLocaleString("el-GR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}″`;
 const toB64 = (f: File) => new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] ?? ""); r.onerror = () => rej(r.error); r.readAsDataURL(f); });
 
 /** Βήματα του πραγματικού αποτελέσματος πάνω στο πλάνο: ό,τι δεν έτρεξε μετά από αποτυχία = παραλείφθηκε. */
@@ -70,6 +72,7 @@ export function ConnectionSetup({ conn, stores, base }: { conn: ConnView; stores
   const [mode, setMode] = useState<"full" | "delta">("full");
   const [dry, setDry] = useState<UploadPreview | null>(null);
   const [uploaded, setUploaded] = useState<{ accepted: number; rejected: number; lines: number } | null>(null);
+  const [colsOk, setColsOk] = useState(false);
   const [confirm, setConfirm] = useState<null | "activate" | "pause" | "delete">(null);
   const [okAt, setOkAt] = useState(conn.lastOkAt);
   const [pending, start] = useTransition();
@@ -90,11 +93,12 @@ export function ConnectionSetup({ conn, stores, base }: { conn: ConnView; stores
     if (testOk) d.add("test");
     if ((savedMap && !mapDirty) || (info.columns && testOk && test?.outcome === "ok" && !mapDirty)) d.add("columns");
     if (manual && (dry || savedMap)) d.add("file");
+    if (manual && colsOk && !mapDirty) d.add("columns");
     if (locSaved) d.add("stores");
     if (manual && (uploaded || okAt)) d.add("upload");
     if (conn.active) d.add("activate");
     return d;
-  }, [manual, conn, testOk, savedMap, mapDirty, info.columns, test, dry, locSaved, uploaded, okAt]);
+  }, [manual, conn, testOk, savedMap, mapDirty, info.columns, test, dry, locSaved, uploaded, okAt, colsOk]);
 
   const go = (key: string) => setCur(Math.max(0, steps.findIndex((s) => s.key === key)));
   const next = () => setCur((c) => Math.min(steps.length - 1, c + 1));
@@ -183,13 +187,14 @@ export function ConnectionSetup({ conn, stores, base }: { conn: ConnView; stores
     }
     adoptLocations(d.locations.map((l) => ({ ref: l, name: l === "default" ? "Ενιαίο απόθεμα" : l })));
     prog.setSteps([
-      { key: "send", label: "Αποστολή αρχείου", state: "ok", detail: `${f.name} · ${(f.size / 1024).toFixed(0)} KB` },
+      { key: "send", label: "Αποστολή αρχείου", state: "ok", detail: `${f.name} · ${fmtSize(f.size)}` },
       { key: "read-sample", label: "Ανάγνωση γραμμών", state: d.lines ? "ok" : "fail", detail: `${d.lines.toLocaleString("el-GR")} γραμμές ${d.format.toUpperCase()}` },
       { key: "detect", label: "Αναγνώριση στηλών και καταστημάτων", state: d.accepted ? "ok" : "fail", detail: `${d.accepted.toLocaleString("el-GR")} δεκτές · ${d.rejected.toLocaleString("el-GR")} θα απορριφθούν · ${d.locations.length} ${d.locations.length === 1 ? "κατάστημα" : "καταστήματα"}` },
     ]);
     setProgResult(d.accepted ? <Callout tone="good" title={m ? "Η αντιστοίχιση δουλεύει" : "Το αρχείο διαβάστηκε"}>{m ? "Επόμενο: καταστήματα." : "Επόμενο: επιβεβαίωση στηλών."}</Callout> : <Callout tone="warn" title="Καμία γραμμή δεν θα γινόταν δεκτή">Ελέγξτε στο επόμενο βήμα ποια στήλη είναι ο κωδικός και ποια η ποσότητα.</Callout>);
     go(m ? "stores" : "columns");
     if (m) setMapDirty(false);
+    setColsOk(!!m && d.accepted > 0);
   }
 
   async function pickFile(f: File | undefined) {
@@ -310,7 +315,7 @@ export function ConnectionSetup({ conn, stores, base }: { conn: ConnView; stores
               className={`grid place-items-center gap-2 text-center rounded-3xl border-2 border-dashed p-8 sm:p-10 cursor-pointer transition-colors duration-150 has-[:focus-visible]:ring-[3px] ${file ? "border-eu-green bg-[#f1faf5]" : "border-eu-muted-3 bg-eu-surface hover:border-eu-blue hover:bg-eu-chip"}`}>
               <span className={`grid place-items-center size-14 rounded-2xl ${file ? "bg-eu-green text-white" : "bg-white text-eu-navy shadow-sm"}`}>{file ? <FileSpreadsheet className="size-7" aria-hidden /> : <UploadCloud className="size-7" aria-hidden />}</span>
               <span className="font-heading font-extrabold text-[length:var(--fs-18)] break-all">{file ? file.name : "Σύρετε εδώ το αρχείο ή πατήστε για επιλογή"}</span>
-              <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{file ? `${(file.size / 1024).toFixed(0)} KB · πατήστε για άλλο αρχείο` : "Excel (.xlsx), CSV, XML ή JSON · έως 3 MB"}</span>
+              <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{file ? `${fmtSize(file.size)} · πατήστε για άλλο αρχείο` : "Excel (.xlsx), CSV, XML ή JSON · έως 3 MB"}</span>
             </label>
             <fieldset className="m-0 p-0 border-0 grid gap-2 sm:grid-cols-2">
               <legend className="mb-2 font-bold text-[length:var(--fs-14)]">Τι περιέχει το αρχείο;</legend>
@@ -340,7 +345,7 @@ export function ConnectionSetup({ conn, stores, base }: { conn: ConnView; stores
         {key === "upload" && (
           <div className="grid gap-3 max-w-[40rem]">
             {uploaded ? <Callout tone={uploaded.accepted ? "good" : "bad"} title={`Ανέβηκαν ${uploaded.accepted.toLocaleString("el-GR")} γραμμές`}>{uploaded.rejected ? `${uploaded.rejected} απορρίφθηκαν.` : "Χωρίς απορρίψεις."} Η σύνδεση με τα προϊόντα του καταλόγου ολοκληρώνεται σε λίγα λεπτά.</Callout>
-              : file ? <div className="rounded-2xl bg-eu-surface p-4 grid gap-1 text-[length:var(--fs-14)]"><b className="break-all">{file.name}</b><span>{mode === "full" ? "Όλο το απόθεμα — ό,τι λείπει γίνεται μηδέν" : "Μόνο αλλαγές"}</span>{dry && <span>{dry.accepted.toLocaleString("el-GR")} γραμμές θα γίνουν δεκτές</span>}<span>Στήλες: {Object.entries(map).map(([k, v]) => `${k} → ${v}`).join(", ")}</span></div>
+              : file ? <div className="rounded-2xl bg-eu-surface p-4 grid gap-1 text-[length:var(--fs-14)]"><b className="break-all">{file.name}</b><span>{mode === "full" ? "Όλο το απόθεμα — ό,τι λείπει γίνεται μηδέν" : "Μόνο αλλαγές"}</span>{dry && <span>{dry.accepted.toLocaleString("el-GR")} γραμμές θα γίνουν δεκτές</span>}<span>Στήλες: {Object.entries(map).map(([k, v]) => `${MAP_FIELDS.find((f) => f.key === k)?.label ?? k} ← «${v}»`).join(", ")}</span></div>
                 : <Callout tone="info">Διαλέξτε ξανά το αρχείο στο βήμα «Αρχείο».</Callout>}
           </div>
         )}
@@ -410,7 +415,7 @@ function TestView({ test, explain, base, guide, onRun, busy }: { test: (TestResu
       <div className="grid gap-3 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={tone}>{test.outcome === "ok" ? "Επιτυχής" : test.outcome === "review" ? "Για έλεγχο από εμάς" : "Απέτυχε"}</Badge>
-          <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{new Date(test.startedAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Athens" })} · {(test.durationMs / 1000).toFixed(1)}″</span>
+          <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{new Date(test.startedAt).toLocaleString("el-GR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Athens" })} · {secs(test.durationMs)}</span>
         </div>
         <ol className="m-0 p-0 list-none grid gap-1.5">
           {test.steps.map((s) => (

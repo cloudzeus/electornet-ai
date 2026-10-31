@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
+import { RESTOCK_INCLUDE, RestockList } from "@/components/admin/partners/RestockList";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { cityKey } from "@/lib/b2b/partners-core";
@@ -34,10 +35,11 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
   });
 
   const ob = onboardingOf(p.onboarding);
-  const [aadeLog, answeredAt, portalChanges] = await Promise.all([
+  const [aadeLog, answeredAt, portalChanges, restocks] = await Promise.all([
     db.partnerLog.findFirst({ where: { partnerId: p.id, kind: "profile", message: { startsWith: "ΑΑΔΕ:" } }, orderBy: { createdAt: "desc" }, select: { ok: true, message: true, createdAt: true } }),
     db.partnerChange.findFirst({ where: { partnerId: p.id, field: "onboarding.answers" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     db.partnerChange.count({ where: { partnerId: p.id, entity: "Store" } }),
+    db.partnerRestock.findMany({ where: { partnerId: p.id }, orderBy: { createdAt: "desc" }, take: 10, include: RESTOCK_INCLUDE }),
   ]);
   const advice = ob.advice as { type?: string; why?: string } | null | undefined;
 
@@ -89,6 +91,16 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Τις επαφές τις δημιουργούμε εμείς. Για πρόσβαση: email με πρόσκληση ή link ορισμού κωδικού για αντιγραφή (72 ώρες, μία χρήση). Κάθε ενέργεια καταγράφεται.</p>
         <PartnerContacts partnerId={p.id} canWrite={canWrite} contacts={contacts.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, role: c.role, isPrimary: c.isPrimary, account: c.account ? { id: c.account.id, active: c.account.active, hasPassword: !!c.account.passwordHash, lastLoginAt: c.account.lastLoginAt?.toISOString() ?? null, lockedUntil: c.account.lockedUntil?.toISOString() ?? null, pendingLink: c.account.tokens[0]?.expiresAt.toISOString() ?? null } : null }))} />
       </section>
+
+      {restocks.length > 0 && (
+        <section data-help="partner.restocks" className="grid gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Αναπληρώσεις</h3>
+            <Link href="/admin/synergates/anaplirosis?view=all" className="text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline">Όλες οι αναπληρώσεις</Link>
+          </div>
+          <RestockList rows={restocks} canWrite={canWrite} hide={{ partner: true }} />
+        </section>
+      )}
 
       <section data-help="partner.branches" className="grid gap-2">
         <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Υποκαταστήματα · {p.branches.filter((b) => !b.s1Missing).length}</h3>
