@@ -2,14 +2,17 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, Check, X, ExternalLink, AlertTriangle, Database } from "lucide-react";
+import { Channel3Logo, Channel3Mark } from "./Channel3Logo";
+import { SourceBadge } from "./sources";
 import { enrichNowAction, enrichStateAction, decideSuggestionsAction, pushSpecsToErpAction, type EnrichState } from "@/app/admin/(shell)/catalog/enrich-actions";
 
 const SOURCES = [
   { key: "icecat", label: "Icecat", hint: "δωρεάν κατάλογος κατασκευαστών" },
+  { key: "channel3", label: "Channel3", hint: "κατάλογος καταστημάτων · 1 credit ανά αναζήτηση" },
   { key: "web", label: "Site κατασκευαστή", hint: "επίσημη σελίδα ή κατάλογος PDF" },
   { key: "shop", label: "Άλλα καταστήματα", hint: "μόνο αν δεν βρεθεί επίσημη πηγή" },
 ] as const;
-const SRC_LABEL: Record<string, string> = { icecat: "Icecat", web: "Κατασκευαστής", shop: "Κατάστημα" };
+const SRC_LABEL: Record<string, string> = { icecat: "Icecat", channel3: "Channel3", web: "Κατασκευαστής", shop: "Κατάστημα" };
 const STATUS: Record<string, { text: string; cls: string }> = {
   found: { text: "βρέθηκε", cls: "bg-eu-green/12 text-eu-green" },
   none: { text: "δεν βρέθηκε", cls: "bg-eu-surface text-eu-ink-3" },
@@ -19,7 +22,7 @@ const date = (s: string) => new Date(s).toLocaleDateString("el-GR", { day: "nume
 const host = (u: string | null) => { try { return u ? new URL(u).hostname.replace(/^www\./, "") : ""; } catch { return ""; } };
 
 /**
- * Εξωτερικές πηγές ενός προϊόντος: κατάσταση ανά πηγή, «Αναζήτηση τώρα» (Icecat → κατασκευαστής → καταστήματα) και οι
+ * Εξωτερικές πηγές ενός προϊόντος: κατάσταση ανά πηγή, «Αναζήτηση τώρα» (Icecat → Channel3 → κατασκευαστής → καταστήματα) και οι
  * προτάσεις που περιμένουν έγκριση — φωτογραφίες και χαρακτηριστικά καταστημάτων. Τίποτα δεν πάει στη βιτρίνα χωρίς «Έγκριση».
  * Τα χαρακτηριστικά που εγκρίνονται γράφονται στο SoftOne (αναλυτική περιγραφή)· τα επίσημα (Icecat / κατασκευαστής) που
  * είναι ήδη στο e-shop περνούν στο SoftOne με «Εισαγωγή στο SoftOne».
@@ -78,19 +81,20 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
 
   return (
     <div className="@container grid gap-3 min-w-0">
-      <ul className="m-0 p-0 list-none grid gap-2 @md:grid-cols-3" data-help="enrich.sources">
+      <ul className="m-0 p-0 list-none grid gap-2 @md:grid-cols-2 @4xl:grid-cols-4" data-help="enrich.sources">
         {SOURCES.map((s) => {
           const r = bySource.get(s.key);
           const st = r ? STATUS[r.status] : null;
           return (
             <li key={s.key} className="rounded-xl border border-eu-line bg-white p-2.5 grid gap-1 min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
-                <b className="text-eu-ink text-[length:var(--fs-14)]">{s.label}</b>
+                {s.key === "channel3" ? <b className="text-eu-ink inline-flex" title="Channel3"><Channel3Logo className="h-4 w-auto" /></b> : <b className="text-eu-ink text-[length:var(--fs-14)]">{s.label}</b>}
                 <span className={`rounded-full px-2 font-bold text-[length:var(--fs-12)] ${st?.cls ?? "bg-eu-surface text-eu-muted"}`}>{st?.text ?? "δεν ελέγχθηκε"}</span>
               </div>
               <span className="text-eu-muted text-[length:var(--fs-12)]">{r ? `${date(r.checkedAt)}${r.specCount ? ` · ${r.specCount} χαρακτηριστικά` : ""}` : s.hint}</span>
               {r?.url && r.status === "found" && <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline break-all min-w-0"><ExternalLink className="size-3.5 shrink-0" aria-hidden />{r.sourceName || host(r.url)}</a>}
               {r?.error && r.status !== "found" && <span className="text-eu-ink-3 text-[length:var(--fs-12)] break-words">{r.error}</span>}
+              {s.key === "channel3" && state?.channel3 && <span data-help="enrich.channel3" className={`text-[length:var(--fs-12)] font-bold ${!state.channel3.configured ? "text-eu-muted" : state.channel3.left ? "text-eu-ink-2" : "text-eu-red"}`}>{state.channel3.configured ? `Αυτόν τον μήνα: ${state.channel3.used.toLocaleString("el-GR")} / ${state.channel3.limit.toLocaleString("el-GR")} αναζητήσεις${state.channel3.left ? "" : " — όριο"}` : "Χωρίς κλειδί: Ρυθμίσεις → AI & υπηρεσίες"}</span>}
             </li>
           );
         })}
@@ -102,7 +106,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
             {running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}
             {running ? "Αναζήτηση… (έως 2 λεπτά)" : "Αναζήτηση τώρα"}
           </button>
-          <span className="text-eu-muted text-[length:var(--fs-13)]">Icecat → site κατασκευαστή → άλλα καταστήματα (όχι Skroutz / Bestprice / marketplaces).</span>
+          <span className="text-eu-muted text-[length:var(--fs-13)]">Icecat → Channel3 → site κατασκευαστή → άλλα καταστήματα (όχι Skroutz / Bestprice / marketplaces).</span>
         </div>
       )}
       {msg && <p role="status" className={`m-0 rounded-xl px-3 py-2 text-[length:var(--fs-14)] ${msg.ok ? "bg-eu-green/10 text-eu-ink" : "bg-eu-red/10 text-eu-red"}`}>{msg.text}</p>}
@@ -125,7 +129,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
                         <img src={s.url ?? ""} alt="" loading="lazy" referrerPolicy="no-referrer" className="size-full object-contain" />
                         {canWrite && <input type="checkbox" checked={on.has(s.id)} onChange={() => toggle(s.id)} className="absolute top-1.5 left-1.5 size-5 accent-eu-navy" aria-label={`Επιλογή φωτογραφίας από ${SRC_LABEL[s.source] ?? s.source}`} />}
                       </span>
-                      <span className="text-eu-ink-3 text-[length:var(--fs-12)] truncate">{SRC_LABEL[s.source] ?? s.source} · {host(s.pageUrl ?? s.url)}</span>
+                      <span className="flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)] min-w-0">{s.source === "channel3" && <Channel3Mark className="size-3 shrink-0 text-eu-ink" />}<span className="truncate">{SRC_LABEL[s.source] ?? s.source} · {host(s.pageUrl ?? s.url)}</span></span>
                     </label>
                   </li>
                 ))}
@@ -171,13 +175,13 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
             <h4 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]">Στο e-shop αλλά όχι στο SoftOne ({external.length})</h4>
             {canWrite && <button type="button" onClick={() => setErpOn((s) => (external.every((x) => s.has(x.id)) ? new Set() : new Set(external.map((x) => x.id))))} className="rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-eu-navy text-[length:var(--fs-13)] cursor-pointer hover:border-eu-navy">Επιλογή όλων</button>}
           </div>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Χαρακτηριστικά από Icecat, κατασκευαστή ή εγκεκριμένο κατάστημα. Με «Εισαγωγή στο SoftOne» μπαίνουν στο τέλος της αναλυτικής περιγραφής (τα υπάρχοντα δεν αλλάζουν).</p>
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Χαρακτηριστικά από Icecat, Channel3, κατασκευαστή ή εγκεκριμένο κατάστημα. Με «Εισαγωγή στο SoftOne» μπαίνουν στο τέλος της αναλυτικής περιγραφής (τα υπάρχοντα δεν αλλάζουν).</p>
           <ul className="m-0 p-0 list-none rounded-xl border border-eu-line bg-white divide-y divide-eu-line-2 max-h-[22rem] overflow-y-auto">
             {external.map((s) => (
               <li key={s.id}>
                 <label className="flex items-start gap-2.5 px-3 py-2 min-h-11 cursor-pointer">
                   {canWrite && <input type="checkbox" checked={erpOn.has(s.id)} onChange={() => setErpOn((x) => { const n = new Set(x); if (n.has(s.id)) n.delete(s.id); else n.add(s.id); return n; })} className="mt-1 size-5 shrink-0 accent-eu-navy" />}
-                  <span className="grid min-w-0 text-[length:var(--fs-14)]"><span className="text-eu-muted text-[length:var(--fs-12)]">{SRC_LABEL[s.source] ?? s.source} · {s.group}</span><span className="break-words"><b className="text-eu-ink">{s.key}:</b> {s.value}</span></span>
+                  <span className="grid gap-0.5 min-w-0 text-[length:var(--fs-14)]"><span className="flex flex-wrap items-center gap-1.5 text-eu-muted text-[length:var(--fs-12)]"><SourceBadge source={s.source} size="xs" />{s.group}</span><span className="break-words"><b className="text-eu-ink">{s.key}:</b> {s.value}</span></span>
                 </label>
               </li>
             ))}

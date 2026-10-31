@@ -4,18 +4,19 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 
 /**
- * Εξωτερικές πηγές ανά προϊόν (Πληρότητα + σελίδα προϊόντος): Icecat → site κατασκευαστή → άλλα καταστήματα, με
+ * Εξωτερικές πηγές ανά προϊόν (Πληρότητα + σελίδα προϊόντος): Icecat → Channel3 → site κατασκευαστή → άλλα καταστήματα, με
  * φωτογραφίες και χαρακτηριστικά καταστημάτων ως προτάσεις προς έγκριση (lib/catalog/enrich-run.ts, enrich-suggestions.ts).
  */
 export async function enrichStateAction(productId: string) {
   await requirePermission("catalog.products.read");
   const [{ db }, { listSuggestions, externalSpecsNotInErp }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/enrich-suggestions")]);
-  const [rows, suggestions, external] = await Promise.all([
+  const [rows, suggestions, external, channel3] = await Promise.all([
     db.productEnrichment.findMany({ where: { productId }, select: { source: true, status: true, url: true, sourceName: true, specCount: true, error: true, checkedAt: true } }),
     listSuggestions(productId),
     externalSpecsNotInErp(productId),
+    import("@/lib/catalog/channel3").then((m) => m.channel3Usage()).catch(() => null),
   ]);
-  return { sources: rows.map((r) => ({ ...r, checkedAt: r.checkedAt.toISOString() })), suggestions, external };
+  return { sources: rows.map((r) => ({ ...r, checkedAt: r.checkedAt.toISOString() })), suggestions, external, channel3 };
 }
 export type EnrichState = Awaited<ReturnType<typeof enrichStateAction>>;
 
@@ -69,11 +70,12 @@ export async function decideSuggestionsAction(productId: string, ids: string[], 
   return { result: out, state: await enrichStateAction(productId) };
 }
 
-/** «Εισαγωγή στο SoftOne»: επιλεγμένα χαρακτηριστικά Icecat / κατασκευαστή / καταστήματος που λείπουν από το ERP. */
+/** «Εισαγωγή στο SoftOne»: επιλεγμένα χαρακτηριστικά Icecat / Channel3 / κατασκευαστή / καταστήματος που λείπουν από το ERP. */
 export async function pushSpecsToErpAction(productId: string, specIds: string[]) {
   const user = await requirePermission("catalog.products.write");
   const { db } = await import("@/lib/db");
-  const rows = await db.spec.findMany({ where: { productId, id: { in: specIds.slice(0, 80) }, source: { in: ["icecat", "web", "shop"] } }, select: { key: true, value: true } });
+  const { EXTERNAL } = await import("@/lib/catalog/enrich-suggestions");
+  const rows = await db.spec.findMany({ where: { productId, id: { in: specIds.slice(0, 80) }, source: { in: EXTERNAL } }, select: { key: true, value: true } });
   if (!rows.length) return { ok: false as const, message: "Δεν επιλέχθηκε χαρακτηριστικό.", state: await enrichStateAction(productId) };
   const w = await writeSpecsToErp(productId, rows);
   await audit(user.id, "catalog.product.enrich-to-erp", "Product", productId, null, { specs: rows.length, ok: w.ok });

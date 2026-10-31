@@ -188,7 +188,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
           {tab === "overview" && <ProductSources d={sources} />}
           {tab === "overview" && (
-            <Section title="Στοιχεία από το internet" hint="Icecat → site κατασκευαστή → άλλα καταστήματα. Φωτογραφίες και χαρακτηριστικά καταστημάτων μπαίνουν μόνο με έγκριση.">
+            <Section title="Στοιχεία από το internet" hint="Icecat → Channel3 → site κατασκευαστή → άλλα καταστήματα. Φωτογραφίες και χαρακτηριστικά καταστημάτων μπαίνουν μόνο με έγκριση.">
               <div data-help="product.enrich"><EnrichPanel productId={p.id} canWrite={canWrite} /></div>
             </Section>
           )}

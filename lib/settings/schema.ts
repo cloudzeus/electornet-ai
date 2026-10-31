@@ -412,6 +412,7 @@ export const SECTIONS: Section[] = [
       { key: "voice", title: "Φωνή", help: "Μικρόφωνο και εκφώνηση απαντήσεων. Οι ρυθμίσεις εμφανίζονται όταν ενεργοποιήσεις τη φωνή." },
       { key: "media", title: "Εικόνες & 3D" },
       { key: "services", title: "Χάρτες, γεωεντοπισμός, αναζήτηση" },
+      { key: "catalogData", title: "Στοιχεία προϊόντων (Channel3)", help: "Κατάλογος προϊόντων καταστημάτων (channel3.ai): χαρακτηριστικά, διαστάσεις και φωτογραφίες, ως πηγή στα «Στοιχεία από το internet». Κάθε αναζήτηση = 1 credit· 1.000 δωρεάν τον μήνα, μετά $0,007 το καθένα." },
     ],
     fields: [
       { ...yesNo("advisorEnabled", "Ο Ερμής ενεργός", "Απαντήσεις με LLM· χωρίς κλειδί πέφτει στους κανόνες demo.", true), group: "advisor" },
@@ -460,6 +461,8 @@ export const SECTIONS: Section[] = [
       { key: "searchProvider", label: "Αναζήτηση", type: "select", options: [{ value: "local", label: "Ενσωματωμένη" }, { value: "algolia", label: "Algolia" }, { value: "meilisearch", label: "Meilisearch" }], width: "half", group: "services" },
       { key: "searchApiKey", label: "Search API key", type: "secret", width: "half", group: "services", showIf: not("searchProvider", "local", "") },
       { key: "searchHost", label: "Search host / app ID", type: "text", width: "half", group: "services", showIf: not("searchProvider", "local", ""), help: "Algolia: Application ID. Meilisearch: URL του server." },
+      { key: "channel3ApiKey", label: "Channel3 API key", type: "secret", width: "half", group: "catalogData", help: "Από το channel3.ai → Dashboard → API keys. Κενό = η πηγή Channel3 δεν χρησιμοποιείται." },
+      { key: "channel3MonthlyLimit", label: "Όριο αναζητήσεων τον μήνα", type: "number", placeholder: "1000", width: "half", group: "catalogData", min: 0, max: 100000, step: 50, unit: "credits", help: "Όταν φτάσει το όριο, η Channel3 παραλείπεται μέχρι την 1η του επόμενου μήνα. 1000 = μόνο τα δωρεάν· πάνω από αυτό χρεώνεται." },
     ],
   },
   {

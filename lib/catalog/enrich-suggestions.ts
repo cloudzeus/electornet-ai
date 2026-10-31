@@ -16,7 +16,9 @@ import type { EnrichResult } from "./enrich";
  * Τα κείμενα και οι εικόνες τρίτων έχουν δικαιώματα: η έγκριση σημαίνει ότι ο διαχειριστής έλεγξε ότι μπορούν να χρησιμοποιηθούν.
  */
 export const SHOP_GROUP = "Χαρακτηριστικά (άλλα καταστήματα)";
-export const SUGGEST_SOURCE_LABEL: Record<string, string> = { icecat: "Icecat", web: "Site κατασκευαστή", shop: "Άλλο κατάστημα" };
+export const SUGGEST_SOURCE_LABEL: Record<string, string> = { icecat: "Icecat", channel3: "Channel3", web: "Site κατασκευαστή", shop: "Άλλο κατάστημα" };
+/** πηγές εκτός ERP που γράφουν χαρακτηριστικά στο e-shop και μπορούν να περάσουν στο SoftOne */
+export const EXTERNAL = ["icecat", "channel3", "web", "shop"];
 const MAX_IMAGE = 25 * 1024 * 1024;
 const EXT_MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif" };
 
@@ -44,7 +46,7 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   let images = [...(r.images ?? [])];
   let pageNote: string | undefined;
   // η σελίδα της πηγής: οι φωτογραφίες που δηλώνει η ίδια είναι πιο αξιόπιστες από όσες «θυμάται» το AI
-  if (r.source !== "icecat" && r.url) {
+  if (r.source !== "icecat" && r.source !== "channel3" && r.url) {
     const page = await readProductPage(r.url);
     if (page.ok) images = [...page.images, ...images]; else pageNote = page.reason;
   }
@@ -114,18 +116,18 @@ export async function approveSpecsEshopOnly(productId: string, rows: Row[], staf
 export async function dropExternalDuplicates(productId: string) {
   const erp = await db.spec.findMany({ where: { productId, source: "s1-desc" }, select: { key: true } });
   const keys = new Set(erp.map((s) => s.key.toLowerCase().trim()));
-  const ext = await db.spec.findMany({ where: { productId, source: { in: ["icecat", "web", "shop"] } }, select: { id: true, key: true } });
+  const ext = await db.spec.findMany({ where: { productId, source: { in: EXTERNAL } }, select: { id: true, key: true } });
   const ids = ext.filter((s) => keys.has(s.key.toLowerCase().trim())).map((s) => s.id);
   if (ids.length) await db.spec.deleteMany({ where: { id: { in: ids } } });
   return ids.length;
 }
 
 export type OfficialSpecDTO = { id: string; source: string; group: string; key: string; value: string };
-const GROUP_PREFIX = /^(Επίσημα χαρακτηριστικά \((Icecat|κατασκευαστής)\)|Χαρακτηριστικά \(άλλα καταστήματα\)) · /;
+const GROUP_PREFIX = /^(Επίσημα χαρακτηριστικά \((Icecat|κατασκευαστής)\)|Χαρακτηριστικά \((άλλα καταστήματα|Channel3)\)) · /;
 
 /** Επίσημα χαρακτηριστικά (Icecat / κατασκευαστής / εγκεκριμένα καταστημάτων) που δεν υπάρχουν ακόμη στο SoftOne. */
 export async function externalSpecsNotInErp(productId: string): Promise<OfficialSpecDTO[]> {
-  const rows = await db.spec.findMany({ where: { productId, source: { in: ["icecat", "web", "shop", "s1-desc"] } }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, source: true, groupName: true, key: true, value: true } });
+  const rows = await db.spec.findMany({ where: { productId, source: { in: [...EXTERNAL, "s1-desc"] } }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { id: true, source: true, groupName: true, key: true, value: true } });
   const erp = new Set(rows.filter((s) => s.source === "s1-desc").map((s) => s.key.toLowerCase().trim()));
   return rows.filter((s) => s.source !== "s1-desc" && !erp.has(s.key.toLowerCase().trim())).map((s) => ({ id: s.id, source: s.source!, group: s.groupName.replace(GROUP_PREFIX, ""), key: s.key, value: s.value }));
 }

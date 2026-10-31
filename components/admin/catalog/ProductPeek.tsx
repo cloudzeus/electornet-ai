@@ -7,6 +7,7 @@ import { BarChart } from "@/components/admin/charts/Charts";
 import type { ProductPeek as Peek } from "@/lib/catalog/product-peek";
 import { productPeekAction } from "@/app/admin/(shell)/catalog/actions";
 import { SOURCES, SourceBadge, sourceOf, type SourceKey } from "./sources";
+import { Channel3Mark } from "./Channel3Logo";
 
 const eur = (v: number) => `${v.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 const eur2 = (v: number | null | undefined) => (v != null ? `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—");
@@ -153,7 +154,7 @@ function Specs({ p }: { p: Peek }) {
               {rows.map((s, i) => (
                 <li key={i} className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto] gap-x-2 items-start px-2 py-1 text-[length:var(--fs-13)]">
                   <span className="text-eu-ink-3 break-words">{s.key}</span><span className="text-eu-ink font-semibold break-words">{s.value}</span>
-                  <span title={sourceOf(s.source).where} className={`mt-1 size-2.5 rounded-full ${sourceOf(s.source).dot}`} aria-label={sourceOf(s.source).label} />
+                  {s.source === "channel3" ? <span title={sourceOf(s.source).where} className="mt-0.5 inline-flex text-eu-ink"><Channel3Mark className="size-3.5" /></span> : <span title={sourceOf(s.source).where} className={`mt-1 size-2.5 rounded-full ${sourceOf(s.source).dot}`} aria-label={sourceOf(s.source).label} />}
                 </li>
               ))}
             </ul>

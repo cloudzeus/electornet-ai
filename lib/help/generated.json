@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T07:19:37.236Z",
+ "generatedAt": "2026-10-31T07:38:22.455Z",
  "routes": [
   {
    "route": "/admin",
@@ -481,6 +481,7 @@
     "product.enrich",
     "product.set",
     "enrich.sources",
+    "enrich.channel3",
     "enrich.run",
     "enrich.suggestions",
     "enrich.to-erp",
@@ -490,6 +491,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "059d27c",
+     "date": "2026-10-31T09:22:23+02:00",
+     "text": "Στοιχεία από το internet: ενικός/πληθυντικός στο μήνυμα έγκρισης"
+    },
     {
      "hash": "0be6e31",
      "date": "2026-10-31T09:12:08+02:00",
@@ -534,14 +540,9 @@
      "hash": "bbf6ae4",
      "date": "2026-10-11T10:49:29+03:00",
      "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση"
-    },
-    {
-     "hash": "6b98982",
-     "date": "2026-10-10T10:59:05+03:00",
-     "text": "Bundles: αυτόματη πρόταση «Εσωτερική / Εξωτερική μονάδα» για τα κλιματιστικά (κωδικοί ERP και κατασκευαστών, 771/786 μέλη), στο «Περιλαμβάνει» όταν δεν έχει οριστεί όνομα"
     }
    ],
-   "updatedAt": "2026-10-31T09:12:08+02:00",
+   "updatedAt": "2026-10-31T09:22:23+02:00",
    "shots": {}
   },
   {
@@ -708,11 +709,22 @@
     "completeness.suggest",
     "completeness.list",
     "enrich.sources",
+    "enrich.channel3",
     "enrich.run",
     "enrich.suggestions",
     "enrich.to-erp"
    ],
    "changes": [
+    {
+     "hash": "059d27c",
+     "date": "2026-10-31T09:22:23+02:00",
+     "text": "Στοιχεία από το internet: ενικός/πληθυντικός στο μήνυμα έγκρισης"
+    },
+    {
+     "hash": "9d36e3c",
+     "date": "2026-10-31T09:19:40+02:00",
+     "text": "Στοιχεία από το internet: έλεγχος ότι κάθε προτεινόμενη φωτογραφία υπάρχει"
+    },
     {
      "hash": "0be6e31",
      "date": "2026-10-31T09:12:08+02:00",
@@ -734,7 +746,7 @@
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
     }
    ],
-   "updatedAt": "2026-10-31T09:12:08+02:00",
+   "updatedAt": "2026-10-31T09:22:23+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -4013,6 +4025,18 @@
  ],
  "recent": [
   {
+   "hash": "059d27c",
+   "date": "2026-10-31T09:22:23+02:00",
+   "text": "Στοιχεία από το internet: ενικός/πληθυντικός στο μήνυμα έγκρισης",
+   "routes": []
+  },
+  {
+   "hash": "9d36e3c",
+   "date": "2026-10-31T09:19:40+02:00",
+   "text": "Στοιχεία από το internet: έλεγχος ότι κάθε προτεινόμενη φωτογραφία υπάρχει",
+   "routes": []
+  },
+  {
    "hash": "0be6e31",
    "date": "2026-10-31T09:12:08+02:00",
    "text": "Κατάλογος: στοιχεία από το internet (Icecat → κατασκευαστής → καταστήματα) με έγκριση και εισαγωγή στο SoftOne",
@@ -4323,21 +4347,6 @@
    "date": "2026-10-28T10:28:56+02:00",
    "text": "Πλάνο: XML προμηθευτές",
    "routes": []
-  },
-  {
-   "hash": "bfb0c24",
-   "date": "2026-10-28T10:22:38+02:00",
-   "text": "Σχέδιο: XML προμηθευτές",
-   "routes": []
-  },
-  {
-   "hash": "3b1140d",
-   "date": "2026-10-20T17:25:09+03:00",
-   "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)",
-   "routes": [
-    "/admin",
-    "/admin/settings"
-   ]
   }
  ],
  "helpKeys": {
@@ -4687,6 +4696,9 @@
    "components/admin/catalog/CategoryTree.tsx"
   ],
   "enrich.sources": [
+   "components/admin/catalog/EnrichPanel.tsx"
+  ],
+  "enrich.channel3": [
    "components/admin/catalog/EnrichPanel.tsx"
   ],
   "enrich.run": [

@@ -7,7 +7,7 @@ import { EnrichPanel } from "@/components/admin/catalog/EnrichPanel";
 import { recheckProductAction } from "./actions";
 
 /**
- * «Στοιχεία από το internet» στη λίστα πληρότητας: Icecat → site κατασκευαστή → άλλα καταστήματα για ένα προϊόν, με
+ * «Στοιχεία από το internet» στη λίστα πληρότητας: Icecat → Channel3 → site κατασκευαστή → άλλα καταστήματα για ένα προϊόν, με
  * φωτογραφίες και χαρακτηριστικά καταστημάτων ως προτάσεις προς έγκριση. Στο κλείσιμο το προϊόν ξαναμετριέται.
  */
 export function EnrichButton({ productId, title, canWrite }: { productId: string; title: string; canWrite: boolean }) {

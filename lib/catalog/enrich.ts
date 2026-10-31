@@ -13,6 +13,8 @@ import { suggestFromResult } from "./enrich-suggestions";
  *     όχι τα ελληνικά εισαγωγής (Toyotomi, Inventor, Crystal Audio) ούτε τα κινητά (Full Icecat, επί πληρωμή).
  *  2. Web (LLM με αναζήτηση, perplexity/sonar-pro): τα επίσημα χαρακτηριστικά από τον ιστότοπο του κατασκευαστή ή του
  *     εισαγωγέα (toyotomi.gr, inventor.gr, κατάλογοι PDF). ~$0,015 ανά προϊόν, μόνο για όσα δεν έδωσε το Icecat.
+ *  1β. Channel3 (channel3.ai, κατάλογος προϊόντων καταστημάτων): μετά το Icecat, πριν από το web. Ταίριασμα μόνο με τον
+ *     κωδικό κατασκευαστή στον τίτλο· 1 credit ανά αναζήτηση με μηνιαίο όριο (lib/catalog/channel3.ts).
  *  3. Shop (ίδιο μοντέλο): άλλα ηλεκτρονικά καταστήματα, μόνο όταν δεν βρέθηκε επίσημη πηγή. Ποτέ συγκριτικά τιμών ή
  *     marketplaces (blockedHost). Τα χαρακτηριστικά τους ΔΕΝ γράφονται απευθείας: μένουν προτάσεις προς έγκριση.
  *
@@ -23,7 +25,7 @@ import { suggestFromResult } from "./enrich-suggestions";
  * ήρθαν από το ERP (s1-desc) ή την ενεργειακή ετικέτα (eprel). Η πηγή, το URL και το κόστος μένουν στο `ProductEnrichment`,
  * ώστε ο διαχειριστής να βλέπει από πού προήλθε κάθε στοιχείο και η διαδικασία να συνεχίζει από εκεί που σταμάτησε.
  */
-export type EnrichSource = "icecat" | "web" | "shop";
+export type EnrichSource = "icecat" | "channel3" | "web" | "shop";
 export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; images?: string[]; confidence?: number; costUsd: number; error?: string }
 
 const ICECAT = () => ({ shop: process.env.ICECAT_SHOPNAME || "openIcecat-live", key: process.env.ICECAT_APP_KEY || "" });
@@ -135,23 +137,25 @@ export async function enrichFromShops(p: { brand: string; title: string; modelCo
 
 // ---------- Αποθήκευση ----------
 
-const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)", shop: "Χαρακτηριστικά (άλλα καταστήματα)" };
+const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", channel3: "Χαρακτηριστικά (Channel3)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)", shop: "Χαρακτηριστικά (άλλα καταστήματα)" };
 export const sourceGroup = (s: EnrichSource) => SOURCE_GROUP[s];
 
 /**
- * Γράφει το αποτέλεσμα: αντικαθιστά τα specs της ίδιας πηγής (icecat / web), ενημερώνει το μητρώο. Δεν αγγίζει άλλες
+ * Γράφει το αποτέλεσμα: αντικαθιστά τα specs της ίδιας πηγής (icecat / channel3 / web), ενημερώνει το μητρώο. Δεν αγγίζει άλλες
  * πηγές. Τα χαρακτηριστικά καταστημάτων και ΟΛΕΣ οι φωτογραφίες γίνονται προτάσεις προς έγκριση.
  */
 export async function storeEnrichment(productId: string, r: EnrichResult) {
   const direct = r.source !== "shop";
   // ό,τι έχει ήδη περάσει στο SoftOne (s1-desc) δεν ξαναγράφεται από την εξωτερική πηγή — αλλιώς θα φαινόταν διπλό
   if (direct && r.specs.length) {
-    const erp = new Set((await db.spec.findMany({ where: { productId, source: "s1-desc" }, select: { key: true } })).map((s) => s.key.toLowerCase().trim()));
+    // η Channel3 (στοιχεία καταστημάτων) δεν επαναλαμβάνει ό,τι έδωσε ήδη άλλη πηγή (ERP, ετικέτα, Icecat, κατασκευαστής)
+    const others = r.source === "channel3" ? { source: { in: ["s1-desc", "eprel", "icecat", "web", "shop", "manual"] } } : { source: "s1-desc" };
+    const erp = new Set((await db.spec.findMany({ where: { productId, ...others }, select: { key: true } })).map((s) => s.key.toLowerCase().trim()));
     r = { ...r, specs: r.specs.filter((s) => !erp.has(s.key.toLowerCase().trim())) };
   }
   await db.$transaction([
     ...(direct ? [db.spec.deleteMany({ where: { productId, source: r.source } })] : []),
-    ...(direct && r.status === "found" && r.specs.length ? [db.spec.createMany({ data: r.specs.map((s, i) => ({ productId, groupName: `${SOURCE_GROUP[r.source]} · ${s.group}`.slice(0, 120), key: s.key.slice(0, 120), value: s.value, sortNo: 1000 + i, source: r.source })) })] : []),
+    ...(direct && r.status === "found" && r.specs.length ? [db.spec.createMany({ data: r.specs.map((s, i) => ({ productId, groupName: `${SOURCE_GROUP[r.source]} · ${s.group}`.slice(0, 120), key: s.key.slice(0, 120), value: s.value, sortNo: (r.source === "channel3" ? 1500 : 1000) + i, source: r.source })) })] : []),
     db.productEnrichment.upsert({ where: { productId_source: { productId, source: r.source } }, create: { productId, source: r.source, status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error }, update: { status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error, checkedAt: new Date() } }),
   ]);
   if (r.status === "found") await suggestFromResult(productId, r);
@@ -164,6 +168,7 @@ export interface EnrichBatch { checked: number; found: number; none: number; fai
  * `retryDays` ημέρες). `web` μόνο για όσα ΔΕΝ έδωσε το Icecat — το δωρεάν πρώτα. `types`: περιορισμός σε ονόματα τύπων.
  */
 export async function enrichBatch(opts: { source: EnrichSource; limit?: number; concurrency?: number; types?: string[]; retry?: boolean; retryDays?: number; minSpecsFromIcecat?: number } = { source: "icecat" }): Promise<EnrichBatch> {
+  if (opts.source !== "icecat" && opts.source !== "web") throw new Error(`μαζικά μόνο icecat / web — η πηγή ${opts.source} τρέχει ανά προϊόν (enrichProduct)`);
   const limit = Math.min(500, opts.limit ?? 100), conc = Math.max(1, Math.min(8, opts.concurrency ?? (opts.source === "icecat" ? 4 : 2)));
   const since = new Date(Date.now() - (opts.retryDays ?? 30) * 86400000);
   // retry: τα «σφάλμα» ξανά αμέσως, τα «δεν βρέθηκε» μόνο αν πέρασαν retryDays

@@ -1,10 +1,13 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { channel3Usage, enrichFromChannel3 } from "./channel3";
+import { matchCodes } from "./channel3-core";
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
 
 /**
- * Ροή εμπλουτισμού ΕΝΟΣ προϊόντος, με τη σειρά: Icecat (δωρεάν) → site κατασκευαστή (αν το Icecat έδωσε < 8
- * χαρακτηριστικά) → άλλα καταστήματα (μόνο αν δεν βρέθηκε επίσημη πηγή). Χωρίς `force` (μαζική εκτέλεση) δεν ξαναπληρώνει:
+ * Ροή εμπλουτισμού ΕΝΟΣ προϊόντος, με τη σειρά: Icecat (δωρεάν) → Channel3 (αν το Icecat έδωσε < 8 χαρακτηριστικά, με
+ * κλειδί και υπόλοιπο στο μηνιαίο όριο) → site κατασκευαστή (αν Icecat + Channel3 < 8) → άλλα καταστήματα (μόνο αν δεν
+ * βρέθηκε καμία από τις προηγούμενες). Χωρίς `force` (μαζική εκτέλεση) δεν ξαναπληρώνει:
  * κρατά ό,τι βρέθηκε ήδη στο web / στα καταστήματα και ξαναψάχνει τα «δεν βρέθηκε» μόνο μετά από 30 ημέρες. Το Icecat
  * (δωρεάν) ξανατρέχει όταν είχε βρεθεί, για τις φωτογραφίες.
  */
@@ -37,14 +40,32 @@ export async function enrichProduct(productId: string, opts: { force?: boolean }
     icecatSpecs = r.status === "found" ? r.specs.length : 0;
   } else skip("icecat", "δεν βρέθηκε πρόσφατα");
 
-  // 2. Site κατασκευαστή: μόνο αν το Icecat δεν έδωσε αρκετά
+  // 1β. Channel3: 1 credit ανά αναζήτηση, μέσα στο μηνιαίο όριο· μόνο με κωδικό κατασκευαστή για ασφαλές ταίριασμα
+  let c3Specs = prev.get("channel3")?.status === "found" ? prev.get("channel3")!.specCount : 0;
+  let c3Found = prev.get("channel3")?.status === "found";
+  if (icecatSpecs >= MIN_ICECAT) skip("channel3", `το Icecat έδωσε ${icecatSpecs} χαρακτηριστικά`);
+  else if (!opts.force && settled("channel3")) skip("channel3", c3Found ? "βρέθηκε ήδη" : "δεν βρέθηκε πρόσφατα");
+  else if (!matchCodes(p).length) skip("channel3", "χωρίς κωδικό κατασκευαστή για ταίριασμα");
+  else {
+    const q = await channel3Usage();
+    if (!q.configured) skip("channel3", "χωρίς κλειδί (Ρυθμίσεις → AI & υπηρεσίες)");
+    else if (q.left <= 0) skip("channel3", `όριο μήνα: ${q.used.toLocaleString("el-GR")}/${q.limit.toLocaleString("el-GR")} αναζητήσεις`);
+    else {
+      const r = await run("channel3", () => enrichFromChannel3({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku }));
+      c3Found = r.status === "found"; c3Specs = c3Found ? r.specs.length : 0;
+    }
+  }
+
+  // 2. Site κατασκευαστή: μόνο αν Icecat + Channel3 δεν έδωσαν αρκετά
   let webFound = prev.get("web")?.status === "found";
   if (icecatSpecs >= MIN_ICECAT) skip("web", `το Icecat έδωσε ${icecatSpecs} χαρακτηριστικά`);
+  else if (icecatSpecs + c3Specs >= MIN_ICECAT) skip("web", `Icecat + Channel3 έδωσαν ${icecatSpecs + c3Specs} χαρακτηριστικά`);
   else if (opts.force || !settled("web")) webFound = (await run("web", () => enrichFromWeb({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name }))).status === "found";
   else skip("web", webFound ? "βρέθηκε ήδη" : "δεν βρέθηκε πρόσφατα");
 
-  // 3. Άλλα καταστήματα: μόνο όταν δεν υπάρχει επίσημη πηγή
+  // 3. Άλλα καταστήματα: μόνο όταν δεν υπάρχει επίσημη πηγή ούτε Channel3
   if (icecatSpecs >= MIN_ICECAT || webFound) skip("shop", "υπάρχει επίσημη πηγή");
+  else if (c3Found) skip("shop", "βρέθηκε στη Channel3");
   else if (opts.force || !settled("shop")) await run("shop", () => enrichFromShops({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name, ean: p.ean }));
   else skip("shop", prev.get("shop")?.status === "found" ? "βρέθηκε ήδη" : "ελέγχθηκε πρόσφατα");
 
