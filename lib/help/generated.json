@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T07:38:22.455Z",
+ "generatedAt": "2026-10-31T08:03:58.284Z",
  "routes": [
   {
    "route": "/admin",
@@ -410,6 +410,11 @@
    ],
    "changes": [
     {
+     "hash": "ecc5593",
+     "date": "2026-10-31T09:38:22+02:00",
+     "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
+    },
+    {
      "hash": "0be6e31",
      "date": "2026-10-31T09:12:08+02:00",
      "text": "Κατάλογος: στοιχεία από το internet (Icecat → κατασκευαστής → καταστήματα) με έγκριση και εισαγωγή στο SoftOne"
@@ -453,14 +458,9 @@
      "hash": "841902e",
      "date": "2026-10-16T17:36:24+03:00",
      "text": "Σετ (Φ1): προβολή των «Set ειδών» ως προϊόντα"
-    },
-    {
-     "hash": "79043b7",
-     "date": "2026-10-16T17:30:06+03:00",
-     "text": "Σετ (Φ1): καθαρή λογική"
     }
    ],
-   "updatedAt": "2026-10-31T09:12:08+02:00",
+   "updatedAt": "2026-10-31T09:38:22+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -480,6 +480,7 @@
     "product.actions",
     "product.enrich",
     "product.set",
+    "enrich.copy",
     "enrich.sources",
     "enrich.channel3",
     "enrich.run",
@@ -491,6 +492,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "ecc5593",
+     "date": "2026-10-31T09:38:22+02:00",
+     "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
+    },
     {
      "hash": "059d27c",
      "date": "2026-10-31T09:22:23+02:00",
@@ -535,14 +541,9 @@
      "hash": "2250762",
      "date": "2026-10-11T10:56:48+03:00",
      "text": "Καρτέλα προϊόντος: μενού Ενέργειες με διορθώσεις σε παράθυρο (κείμενα & χαρακτηριστικά, διαστάσεις & βάρος, εγγύηση, ενεργειακή ετικέτα EPREL, stickers), ενημέρωση από SoftOne, νέα προσφορά, στο site, αντιγραφή κωδικών"
-    },
-    {
-     "hash": "bbf6ae4",
-     "date": "2026-10-11T10:49:29+03:00",
-     "text": "Καρτέλα προϊόντος: ξεκινά με Επισκόπηση"
     }
    ],
-   "updatedAt": "2026-10-31T09:22:23+02:00",
+   "updatedAt": "2026-10-31T09:38:22+02:00",
    "shots": {}
   },
   {
@@ -708,6 +709,7 @@
     "completeness.quickfix",
     "completeness.suggest",
     "completeness.list",
+    "enrich.copy",
     "enrich.sources",
     "enrich.channel3",
     "enrich.run",
@@ -715,6 +717,11 @@
     "enrich.to-erp"
    ],
    "changes": [
+    {
+     "hash": "ecc5593",
+     "date": "2026-10-31T09:38:22+02:00",
+     "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
+    },
     {
      "hash": "059d27c",
      "date": "2026-10-31T09:22:23+02:00",
@@ -744,9 +751,24 @@
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
+     "hash": "88ae417",
+     "date": "2026-09-23T10:14:29+03:00",
+     "text": "Ερμής expert σε κλιματιστικά και τηλεοράσεις: ενιαία ονόματα χαρακτηριστικών, βαθύτερη τεχνογνωσία, φίλτρα πάνω στα εμπλουτισμένα χαρακτηριστικά, ερωτήσεις συμβουλής, κόστος ρεύματος"
+    },
+    {
+     "hash": "2fa2fe6",
+     "date": "2026-09-22T14:28:31+03:00",
+     "text": "Εμπλουτισμός: retry των σφαλμάτων αμέσως, όριο 40 χαρακτηριστικών, μεγαλύτερο όριο tokens"
+    },
+    {
+     "hash": "6723b61",
+     "date": "2026-09-22T14:02:56+03:00",
+     "text": "Ερμής v2: συζήτηση με μνήμη και έρευνα δύο σταδίων"
     }
    ],
-   "updatedAt": "2026-10-31T09:22:23+02:00",
+   "updatedAt": "2026-10-31T09:38:22+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -3421,6 +3443,11 @@
    ],
    "changes": [
     {
+     "hash": "ecc5593",
+     "date": "2026-10-31T09:38:22+02:00",
+     "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
+    },
+    {
      "hash": "cdf5cfd",
      "date": "2026-10-31T08:24:47+02:00",
      "text": "AI: Claude API (Anthropic) ως πάροχος στις ρυθμίσεις"
@@ -3464,14 +3491,9 @@
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
-    },
-    {
-     "hash": "bd7141e",
-     "date": "2026-10-13T10:12:23+03:00",
-     "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
     }
    ],
-   "updatedAt": "2026-10-31T08:24:47+02:00",
+   "updatedAt": "2026-10-31T09:38:22+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3495,6 +3517,11 @@
    ],
    "changes": [
     {
+     "hash": "ecc5593",
+     "date": "2026-10-31T09:38:22+02:00",
+     "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
+    },
+    {
      "hash": "cdf5cfd",
      "date": "2026-10-31T08:24:47+02:00",
      "text": "AI: Claude API (Anthropic) ως πάροχος στις ρυθμίσεις"
@@ -3538,14 +3565,9 @@
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
-    },
-    {
-     "hash": "bd7141e",
-     "date": "2026-10-13T10:12:23+03:00",
-     "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
     }
    ],
-   "updatedAt": "2026-10-31T08:24:47+02:00",
+   "updatedAt": "2026-10-31T09:38:22+02:00",
    "shots": {}
   },
   {
@@ -4025,6 +4047,17 @@
  ],
  "recent": [
   {
+   "hash": "ecc5593",
+   "date": "2026-10-31T09:38:22+02:00",
+   "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/catalog/completeness"
+   ]
+  },
+  {
    "hash": "059d27c",
    "date": "2026-10-31T09:22:23+02:00",
    "text": "Στοιχεία από το internet: ενικός/πληθυντικός στο μήνυμα έγκρισης",
@@ -4340,12 +4373,6 @@
    "hash": "76db807",
    "date": "2026-10-28T10:34:03+02:00",
    "text": "XML προμηθευτές: πίνακες Supplier / SupplierFeed / SupplierFeedItem",
-   "routes": []
-  },
-  {
-   "hash": "d58faa2",
-   "date": "2026-10-28T10:28:56+02:00",
-   "text": "Πλάνο: XML προμηθευτές",
    "routes": []
   }
  ],
@@ -4694,6 +4721,9 @@
   ],
   "cats.ops": [
    "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "enrich.copy": [
+   "components/admin/catalog/CopyPanel.tsx"
   ],
   "enrich.sources": [
    "components/admin/catalog/EnrichPanel.tsx"

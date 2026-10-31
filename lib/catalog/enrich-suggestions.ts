@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { assertPublicUrl, fetchPublicBytes } from "@/lib/net/safe-fetch";
-import { specFingerprint, isProductImageUrl, blockedHost } from "./enrich-core";
+import { specFingerprint, isProductImageUrl, blockedHost, modelsFromSpecs } from "./enrich-core";
 import { readProductPage } from "./enrich-page";
 import { uploadProductImage } from "./product-images";
 import type { EnrichResult } from "./enrich";
@@ -46,8 +46,11 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   let images = [...(r.images ?? [])];
   let pageNote: string | undefined;
   // η σελίδα της πηγής: οι φωτογραφίες που δηλώνει η ίδια είναι πιο αξιόπιστες από όσες «θυμάται» το AI
-  if (r.source !== "icecat" && r.source !== "channel3" && r.url) {
-    const page = await readProductPage(r.url);
+  // από PDF δεν βγαίνουν φωτογραφίες: τότε η HTML σελίδα του προϊόντος που έδωσε η αναζήτηση
+  const pageUrl = r.pageUrl ?? (r.url && !/\.pdf(\?|#|$)/i.test(r.url) ? r.url : undefined);
+  if (r.source !== "icecat" && r.source !== "channel3" && pageUrl) {
+    const prod = await db.product.findUnique({ where: { id: productId }, select: { modelCode: true } });
+    const page = await readProductPage(pageUrl, [...modelsFromSpecs(r.specs), prod?.modelCode ?? ""].filter(Boolean));
     if (page.ok) images = [...page.images, ...images]; else pageNote = page.reason;
   }
   images = await reachable([...new Set(images)].filter((u) => isProductImageUrl(u) && !blockedHost(u)).slice(0, 16));
@@ -55,7 +58,7 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   const have = await db.media.findMany({ where: { productId }, select: { url: true, importFile: true } });
   const known = new Set(have.flatMap((m) => [m.url, m.importFile]).filter(Boolean) as string[]);
   const data: { productId: string; source: string; kind: string; fingerprint: string; url?: string; group?: string; key?: string; value?: string; pageUrl?: string; sourceName?: string }[] = [];
-  for (const u of images) if (!known.has(u)) data.push({ productId, source: r.source, kind: "image", fingerprint: u.slice(0, 1000), url: u, pageUrl: r.url, sourceName: r.sourceName });
+  for (const u of images) if (!known.has(u)) data.push({ productId, source: r.source, kind: "image", fingerprint: u.slice(0, 1000), url: u, pageUrl: pageUrl ?? r.url, sourceName: r.sourceName });
   if (r.source === "shop") {
     const specs = await db.spec.findMany({ where: { productId }, select: { key: true } });
     const keys = new Set(specs.map((s) => s.key.toLowerCase().trim()));

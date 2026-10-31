@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { channel3Usage, enrichFromChannel3 } from "./channel3";
 import { matchCodes } from "./channel3-core";
+import { energyClassFromSpecs, modelsFromSpecs } from "./enrich-core";
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
 
 /**
@@ -15,7 +16,7 @@ const RECENT = 30 * 86_400_000;
 const MIN_ICECAT = 8;
 
 export interface EnrichStep { source: EnrichSource; status: EnrichResult["status"] | "skipped"; specs: number; images: number; sourceName?: string; url?: string; note?: string; costUsd: number }
-export interface EnrichRun { productId: string; steps: EnrichStep[]; costUsd: number; suggestions: number }
+export interface EnrichRun { productId: string; steps: EnrichStep[]; costUsd: number; suggestions: number; energy?: EnergyOutcome }
 
 export async function enrichProduct(productId: string, opts: { force?: boolean } = {}): Promise<EnrichRun | null> {
   const p = await db.product.findUnique({ where: { id: productId }, select: { id: true, sku: true, ean: true, title: true, modelCode: true, brand: { select: { name: true } }, category: { select: { name: true } }, enrichments: { select: { source: true, status: true, specCount: true, checkedAt: true } } } });
@@ -57,10 +58,13 @@ export async function enrichProduct(productId: string, opts: { force?: boolean }
   }
 
   // 2. Site κατασκευαστή: μόνο αν Icecat + Channel3 δεν έδωσαν αρκετά
-  let webFound = prev.get("web")?.status === "found";
+  let webFound = prev.get("web")?.status === "found", labelUrl: string | undefined;
   if (icecatSpecs >= MIN_ICECAT) skip("web", `το Icecat έδωσε ${icecatSpecs} χαρακτηριστικά`);
   else if (icecatSpecs + c3Specs >= MIN_ICECAT) skip("web", `Icecat + Channel3 έδωσαν ${icecatSpecs + c3Specs} χαρακτηριστικά`);
-  else if (opts.force || !settled("web")) webFound = (await run("web", () => enrichFromWeb({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name }))).status === "found";
+  else if (opts.force || !settled("web")) {
+    const r = await run("web", () => enrichFromWeb({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name }));
+    webFound = r.status === "found"; labelUrl = r.labelUrl;
+  }
   else skip("web", webFound ? "βρέθηκε ήδη" : "δεν βρέθηκε πρόσφατα");
 
   // 3. Άλλα καταστήματα: μόνο όταν δεν υπάρχει επίσημη πηγή ούτε Channel3
@@ -69,8 +73,39 @@ export async function enrichProduct(productId: string, opts: { force?: boolean }
   else if (opts.force || !settled("shop")) await run("shop", () => enrichFromShops({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name, ean: p.ean }));
   else skip("shop", prev.get("shop")?.status === "found" ? "βρέθηκε ήδη" : "ελέγχθηκε πρόσφατα");
 
+  const energy = steps.some((s) => s.status === "found") ? await energyFromSources(productId, { labelUrl }).catch(() => undefined) : undefined;
   const after = await db.enrichSuggestion.count({ where: { productId, status: "pending" } });
-  return { productId, steps, costUsd: steps.reduce((a, s) => a + s.costUsd, 0), suggestions: Math.max(0, after - before) };
+  return { productId, steps, costUsd: steps.reduce((a, s) => a + s.costUsd, 0), suggestions: Math.max(0, after - before), energy };
+}
+
+const EXTERNAL_DIRECT = ["icecat", "channel3", "web"];
+export type EnergyOutcome = { source: string; cls: string; registrationNumber?: string; model?: string };
+
+/**
+ * Ενεργειακή σήμανση από ό,τι βρήκαν οι πηγές, για προϊόν χωρίς ετικέτα από EPREL ή διαχειριστή:
+ *  1. EPREL με το «Μοντέλο» της πηγής (και στη γραφή ζεύγους «HTN-717R32/HTG-717R32») — αν ταιριάξει, δένεται η επίσημη
+ *     καταχώριση με όλα της (ετικέτα, δελτίο, χαρακτηριστικά, διαστάσεις), όπως η μαζική αντιστοίχιση.
+ *  2. αλλιώς η κλάση από τα χαρακτηριστικά της πηγής («Ενεργειακή κλάση», «Κατηγορία ψύξης»), με πηγή icecat/channel3/web —
+ *     μόνο αν δεν υπάρχει ήδη κλάση από την περιγραφή του SoftOne· με την ετικέτα που δημοσιεύει η σελίδα του μοντέλου
+ *     (`labelUrl`), όταν υπάρχει — μοντέλα πριν από το 2019 (κανονισμός 626/2011) συχνά δεν είναι καν στο EPREL.
+ */
+export async function energyFromSources(productId: string, opts: { labelUrl?: string } = {}): Promise<EnergyOutcome | undefined> {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { sku: true, title: true, brand: { select: { name: true } }, category: { select: { name: true } }, energy: { select: { source: true, class: true } }, specs: { where: { source: { in: EXTERNAL_DIRECT } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } } } });
+  if (!p || ["eprel", "manual"].includes(p.energy?.source ?? "") || !p.specs.length) return undefined;
+  const { eprelGroupsFor, findInEprel, storeEprelMatch } = await import("./eprel-match");
+  const { hasEprelKey } = await import("@/lib/eprel/client");
+  const groups = eprelGroupsFor(p.category.name);
+  if (groups && hasEprelKey()) for (const model of modelsFromSpecs(p.specs)) {
+    const m = await findInEprel({ sku: p.sku, title: p.title }, model, p.brand.name, groups).catch(() => null);
+    if (m?.status === "matched") { const s = await storeEprelMatch(productId, m.raw); return { source: "eprel", cls: String(m.raw.energyClass ?? ""), registrationNumber: s.registrationNumber, model }; }
+  }
+  if (p.energy && p.energy.source && !EXTERNAL_DIRECT.includes(p.energy.source)) return undefined; // κλάση από το SoftOne: μένει
+  const en = energyClassFromSpecs(p.specs);
+  if (!en) return undefined;
+  const source = p.specs.find((s) => s.key === en.key)?.source ?? "web";
+  const label = opts.labelUrl ? { labelUrl: opts.labelUrl } : {};
+  await db.energyLabel.upsert({ where: { productId }, create: { productId, class: en.cls, scale: en.scale, source, ...label }, update: { class: en.cls, scale: en.scale, source, ...label } });
+  return { source, cls: en.cls };
 }
 
 /**

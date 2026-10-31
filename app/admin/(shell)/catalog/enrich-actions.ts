@@ -10,13 +10,14 @@ import { audit } from "@/lib/rbac/audit";
 export async function enrichStateAction(productId: string) {
   await requirePermission("catalog.products.read");
   const [{ db }, { listSuggestions, externalSpecsNotInErp }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/enrich-suggestions")]);
-  const [rows, suggestions, external, channel3] = await Promise.all([
+  const [rows, suggestions, external, channel3, copy] = await Promise.all([
     db.productEnrichment.findMany({ where: { productId }, select: { source: true, status: true, url: true, sourceName: true, specCount: true, error: true, checkedAt: true } }),
     listSuggestions(productId),
     externalSpecsNotInErp(productId),
     import("@/lib/catalog/channel3").then((m) => m.channel3Usage()).catch(() => null),
+    db.product.findUnique({ where: { id: productId }, select: { summary: true, description: true } }),
   ]);
-  return { sources: rows.map((r) => ({ ...r, checkedAt: r.checkedAt.toISOString() })), suggestions, external, channel3 };
+  return { sources: rows.map((r) => ({ ...r, checkedAt: r.checkedAt.toISOString() })), suggestions, external, channel3, copy: { short: copy?.summary ?? null, long: copy?.description ?? null } };
 }
 export type EnrichState = Awaited<ReturnType<typeof enrichStateAction>>;
 
@@ -26,7 +27,7 @@ export async function enrichNowAction(productId: string) {
   const { enrichProduct } = await import("@/lib/catalog/enrich-run");
   const run = await enrichProduct(productId, { force: true });
   if (!run) return null;
-  await audit(user.id, "catalog.product.enrich", "Product", productId, null, { steps: run.steps.map((s) => `${s.source}:${s.status}`), costUsd: run.costUsd, suggestions: run.suggestions });
+  await audit(user.id, "catalog.product.enrich", "Product", productId, null, { steps: run.steps.map((s) => `${s.source}:${s.status}`), costUsd: run.costUsd, suggestions: run.suggestions, energy: run.energy });
   revalidatePath(`/admin/catalog/${productId}`);
   return { run, state: await enrichStateAction(productId) };
 }
@@ -81,4 +82,39 @@ export async function pushSpecsToErpAction(productId: string, specIds: string[])
   await audit(user.id, "catalog.product.enrich-to-erp", "Product", productId, null, { specs: rows.length, ok: w.ok });
   revalidatePath(`/admin/catalog/${productId}`);
   return { ok: w.ok, message: w.message, state: await enrichStateAction(productId) };
+}
+
+/** «Περιγραφή με AI»: πρόχειρο σύντομης + αναλυτικής περιγραφής (marketing) — δεν αποθηκεύει τίποτα. Κόστος ~$0,01. */
+export async function draftCopyAction(productId: string) {
+  const user = await requirePermission("catalog.products.write");
+  const { draftMarketingCopy } = await import("@/lib/catalog/marketing-copy");
+  const r = await draftMarketingCopy(productId);
+  if (!("error" in r)) await audit(user.id, "catalog.product.copy-draft", "Product", productId, null, { model: r.model, costUsd: r.costUsd, examples: r.examples.length, specs: r.specCount });
+  return r;
+}
+
+/**
+ * Έγκριση περιγραφής: σύντομη → CCCWREMARKS1· αναλυτική → το κείμενο της CCCWREMARKS (οι γραμμές χαρακτηριστικών μένουν
+ * από κάτω όπως ήταν). Γράφεται στο SoftOne και από εκεί στο e-shop, όπως κάθε αλλαγή κειμένων.
+ */
+export async function saveCopyAction(productId: string, pick: { short?: string; long?: string }) {
+  await requirePermission("catalog.products.write");
+  const [{ db }, { replaceMemoText, cleanCopy }, { saveProductFields }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/marketing-copy-core"), import("./actions")]);
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
+  const mtrl = Number(p?.erpCode);
+  const item = p?.source === "softone" && Number.isInteger(mtrl) ? await db.s1Item.findUnique({ where: { mtrl }, select: { shortDesc: true, longDesc: true } }) : null;
+  if (!item) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };
+  const changes: import("@/lib/softone/item-write").ItemChanges = {};
+  const short = cleanCopy(pick.short ?? "").replace(/\n+/g, " ");
+  if (short && short !== (item.shortDesc ?? "").trim()) changes.shortDesc = { from: item.shortDesc, to: short.slice(0, 4000) };
+  if (pick.long?.trim()) {
+    const memo = replaceMemoText(item.longDesc, pick.long);
+    if (memo !== (item.longDesc ?? "").replace(/\r\n?/g, "\n")) changes.longDesc = { from: item.longDesc, to: memo };
+  }
+  if (!Object.keys(changes).length) return { ok: true as const, message: "Καμία αλλαγή για αποθήκευση." };
+  const r = await saveProductFields(productId, changes);
+  if (r.written?.length) { const { projectPublishReady } = await import("@/lib/catalog/publish-ready-server"); await projectPublishReady([productId]); }
+  revalidatePath(`/admin/catalog/${productId}`);
+  revalidatePath("/admin/catalog/completeness");
+  return { ok: r.ok, message: r.message };
 }

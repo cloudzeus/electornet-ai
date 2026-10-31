@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Search, Loader2, Check, X, ExternalLink, AlertTriangle, Database } from "lucide-react";
 import { Channel3Logo, Channel3Mark } from "./Channel3Logo";
 import { SourceBadge } from "./sources";
+import { CopyPanel } from "./CopyPanel";
 import { enrichNowAction, enrichStateAction, decideSuggestionsAction, pushSpecsToErpAction, type EnrichState } from "@/app/admin/(shell)/catalog/enrich-actions";
 
 const SOURCES = [
@@ -45,7 +46,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
     if (!r) { setMsg({ ok: false, text: "Η αναζήτηση απέτυχε — δοκίμασε ξανά." }); return; }
     setState(r.state);
     const found = r.run.steps.filter((s) => s.status === "found").map((s) => SRC_LABEL[s.source]);
-    setMsg({ ok: true, text: `${found.length ? `Βρέθηκαν στοιχεία: ${found.join(", ")}.` : "Δεν βρέθηκε τίποτα νέο."} ${r.run.suggestions ? `${r.run.suggestions} νέες προτάσεις για έγκριση.` : ""}${r.run.costUsd ? ` Κόστος $${r.run.costUsd.toFixed(3)}.` : ""}` });
+    setMsg({ ok: true, text: `${found.length ? `Βρέθηκαν στοιχεία: ${found.join(", ")}.` : "Δεν βρέθηκε τίποτα νέο."} ${r.run.suggestions ? `${r.run.suggestions} νέες προτάσεις για έγκριση.` : ""}${r.run.energy ? (r.run.energy.source === "eprel" ? ` Ενεργειακή ετικέτα από EPREL (${r.run.energy.registrationNumber}, κλάση ${r.run.energy.cls}).` : ` Ενεργειακή κλάση ${r.run.energy.cls} από τα χαρακτηριστικά (${SRC_LABEL[r.run.energy.source] ?? r.run.energy.source}) — δεν βρέθηκε στο EPREL.`) : ""}${r.run.costUsd ? ` Κόστος $${r.run.costUsd.toFixed(3)}.` : ""}` });
     router.refresh();
   });
   const decide = (decision: "approve" | "reject") => startDecide(async () => {
@@ -193,6 +194,8 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
           )}
         </div>
       )}
+
+      {state && <CopyPanel key={`${state.copy.short ?? ""}|${state.copy.long?.length ?? 0}`} productId={productId} canWrite={canWrite} current={state.copy} />}
     </div>
   );
 }

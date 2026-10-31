@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
-import { blockedHost, icecatImages, looksLikeImageFile } from "./enrich-core";
+import { blockedHost, icecatImages, isHomePage, looksLikeImageFile, modelKeys, modelsFromSpecs, seriesWords } from "./enrich-core";
+import { readProductPage, searchSiteForModel } from "./enrich-page";
 import { suggestFromResult } from "./enrich-suggestions";
 
 /**
@@ -26,7 +27,7 @@ import { suggestFromResult } from "./enrich-suggestions";
  * ώστε ο διαχειριστής να βλέπει από πού προήλθε κάθε στοιχείο και η διαδικασία να συνεχίζει από εκεί που σταμάτησε.
  */
 export type EnrichSource = "icecat" | "channel3" | "web" | "shop";
-export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; images?: string[]; confidence?: number; costUsd: number; error?: string }
+export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; images?: string[]; /** HTML σελίδα του προϊόντος για φωτογραφίες, όταν η πηγή είναι PDF */ pageUrl?: string; /** ενεργειακή ετικέτα που δημοσιεύει η σελίδα του προϊόντος */ labelUrl?: string; confidence?: number; costUsd: number; error?: string }
 
 const ICECAT = () => ({ shop: process.env.ICECAT_SHOPNAME || "openIcecat-live", key: process.env.ICECAT_APP_KEY || "" });
 const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -83,25 +84,105 @@ export async function enrichFromWeb(p: { brand: string; title: string; modelCode
   const r = await chat({
     feature: "enrich-web", model: WEB_MODEL, maxTokens: 4000, temperature: 0, timeoutMs: 70000,
     messages: [
-      { role: "system", content: `Είσαι ερευνητής προδιαγραφών προϊόντων για ελληνικό e-shop ηλεκτρικών. Βρίσκεις τα ΕΠΙΣΗΜΑ τεχνικά χαρακτηριστικά ενός προϊόντος από τον ιστότοπο του κατασκευαστή ή του επίσημου εισαγωγέα για την Ελλάδα (π.χ. samsung.com/gr, lg.com/gr, toyotomi.gr, inventor.gr, bosch-home.gr, κατάλογοι/δελτία PDF του κατασκευαστή). ΟΧΙ από e-shops τρίτων, marketplaces ή συγκριτικά sites.
-Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"specs":[{"group":string,"key":string,"value":string}],"images":[string],"confidence":number 0-1}.
+      { role: "system", content: `Είσαι ερευνητής προδιαγραφών προϊόντων για ελληνικό e-shop ηλεκτρικών. Βρίσκεις τα ΕΠΙΣΗΜΑ τεχνικά χαρακτηριστικά ενός προϊόντος από τον ιστότοπο του κατασκευαστή ή του επίσημου εισαγωγέα για την Ελλάδα (π.χ. samsung.com/gr, lg.com/gr, toyotomi.gr, inventor.gr, bosch-home.gr, κατάλογοι/δελτία PDF του κατασκευαστή). ΟΧΙ από e-shops τρίτων, marketplaces ή συγκριτικά sites. Προτίμησε τη σελίδα του ελληνικού εισαγωγέα (.gr) πριν από ξένα sites ή καταλόγους PDF.
+Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"productPageUrl":string|null,"specs":[{"group":string,"key":string,"value":string}],"images":[string],"confidence":number 0-1}.
+- productPageUrl: η HTML σελίδα του ΙΔΙΟΥ προϊόντος (ή της σειράς του) στο site του κατασκευαστή / εισαγωγέα — ιδίως όταν το sourceUrl είναι PDF· null αν δεν υπάρχει.
+- Βάλε πάντα το χαρακτηριστικό «Μοντέλο» ακριβώς όπως το γράφει ο κατασκευαστής (π.χ. «HTN/HTG-717R32»), και την ενεργειακή κλάση ως «Ενεργειακή κλάση» (ή «Ενεργειακή κλάση ψύξης» / «θέρμανσης»).
 - images: έως 8 ΑΜΕΣΕΣ διευθύνσεις αρχείων εικόνας (.jpg/.png/.webp) του ΙΔΙΟΥ προϊόντος από την ίδια επίσημη πηγή· κενό αν δεν είσαι σίγουρος.
 - Έως 40 χαρακτηριστικά, τα πιο χρήσιμα για αγοραστή πρώτα (απόδοση, κατανάλωση, θόρυβος, χωρητικότητα, διαστάσεις, βάρος, συνδεσιμότητα, λειτουργίες, περιεχόμενα συσκευασίας, εγγύηση).
+- Κατάλογοι και πίνακες ΣΕΙΡΑΣ έχουν μία στήλη ανά μέγεθος (π.χ. 9.000 / 12.000 / 18.000 BTU, 7 / 9 kg): πάρε ΜΟΝΟ τη στήλη του ακριβούς μοντέλου. Αν δεν φαίνεται καθαρά ποια στήλη είναι, ΜΗΝ δώσεις τιμές που αλλάζουν με το μέγεθος (απόδοση, κατανάλωση, κλάση, θόρυβος, διαστάσεις, βάρος).
 - Κλειδιά και ομάδες στα ελληνικά, τιμές με μονάδες όπως τις δίνει η πηγή. Μόνο όσα βρήκες ΠΡΑΓΜΑΤΙΚΑ για ΑΥΤΟ το μοντέλο — ποτέ εικασίες, ποτέ στοιχεία παρόμοιου μοντέλου.
 - Αν δεν υπάρχει αξιόπιστη επίσημη πηγή: found=false, specs=[].` },
       { role: "user", content: `Προϊόν: ${p.brand} ${model} — ${p.title} (${p.typeName}). Βρες τα επίσημα τεχνικά χαρακτηριστικά.` },
     ],
   }).catch((e) => ({ text: "", costUsd: 0, error: e instanceof Error ? e.message : String(e) }) as { text: string; costUsd: number; error?: string });
   if ("error" in r && r.error) return { source: "web", status: "failed", specs: [], costUsd: 0, error: r.error.slice(0, 200) };
-  const j = parseJson<{ found?: boolean; sourceUrl?: string | null; sourceName?: string | null; specs?: { group?: string; key?: string; value?: string }[]; images?: unknown[]; confidence?: number }>(r.text);
+  const j = parseJson<{ found?: boolean; sourceUrl?: string | null; sourceName?: string | null; productPageUrl?: string | null; specs?: { group?: string; key?: string; value?: string }[]; images?: unknown[]; confidence?: number }>(r.text);
   if (!j) return { source: "web", status: "failed", specs: [], costUsd: r.costUsd, error: "μη έγκυρο JSON" };
   if (j.sourceUrl && blockedHost(j.sourceUrl)) return { source: "web", status: "none", specs: [], costUsd: r.costUsd, error: "η πηγή ήταν συγκριτικό / marketplace" };
   const specs = (j.specs ?? []).map((s) => ({ group: clean(s.group) || "Τεχνικά χαρακτηριστικά", key: clean(s.key), value: clean(s.value) })).filter((s) => s.key && s.value && !USELESS.test(s.value) && s.value.length <= 200);
   const conf = typeof j.confidence === "number" ? j.confidence : 0;
+  const ok = !!j.found && specs.length > 0 && !!j.sourceUrl && conf >= 0.6;
+  let costUsd = r.costUsd;
+  // η HTML σελίδα του ίδιου του μοντέλου: φωτογραφίες, ενεργειακή ετικέτα και — κυρίως — τα χαρακτηριστικά ΑΥΤΟΥ του
+  // μεγέθους (οι κατάλογοι PDF και οι σελίδες σειράς έχουν όλα τα μεγέθη μαζί)
+  const page = ok || j.productPageUrl || j.sourceUrl ? await modelPage(p, specs, [j.productPageUrl, j.sourceUrl]) : { costUsd: 0 };
+  costUsd += page.costUsd;
+  if (page.specs) return { source: "web", status: "found", url: page.url, sourceName: `${new URL(page.url!).hostname.replace(/^www\./, "")} · σελίδα του μοντέλου`, specs: page.specs, images: aiImages(j.images), pageUrl: page.url, labelUrl: page.labelUrl, confidence: Math.max(conf, 0.9), costUsd };
   // πηγή χωρίς URL ή με χαμηλή βεβαιότητα δεν γράφεται: καλύτερα «δεν ξέρουμε» παρά λάθος στοιχείο
-  if (!j.found || !specs.length || !j.sourceUrl || conf < 0.6) return { source: "web", status: "none", specs: [], confidence: conf, costUsd: r.costUsd, error: !j.found ? "δεν βρέθηκε επίσημη πηγή" : conf < 0.6 ? `χαμηλή βεβαιότητα ${conf}` : "χωρίς URL πηγής" };
-  return { source: "web", status: "found", url: j.sourceUrl.slice(0, 500), sourceName: clean(j.sourceName).slice(0, 120) || new URL(j.sourceUrl).hostname, specs: specs.slice(0, 80), images: aiImages(j.images), confidence: conf, costUsd: r.costUsd };
+  if (!ok) return { source: "web", status: "none", specs: [], confidence: conf, costUsd, error: !j.found ? "δεν βρέθηκε επίσημη πηγή" : conf < 0.6 ? `χαμηλή βεβαιότητα ${conf}` : "χωρίς URL πηγής" };
+  return { source: "web", status: "found", url: j.sourceUrl!.slice(0, 500), sourceName: clean(j.sourceName).slice(0, 120) || new URL(j.sourceUrl!).hostname, specs: specs.slice(0, 80), images: aiImages(j.images), pageUrl: page.url, labelUrl: page.labelUrl, confidence: conf, costUsd };
 }
+
+type WebProduct = { brand: string; title: string; modelCode: string | null; sku: string };
+
+/**
+ * Η σελίδα του μοντέλου στο site του κατασκευαστή / εισαγωγέα: όποια έδωσε το AI, αλλιώς σύντομη αναζήτηση μόνο για τη
+ * διεύθυνση, αλλιώς η αναζήτηση του ίδιου του site («?s=717R32»). Αν η σελίδα αναφέρει το μοντέλο, διαβάζονται από αυτή
+ * τα χαρακτηριστικά του ακριβούς μοντέλου.
+ */
+async function modelPage(p: WebProduct, specs: { key: string; value: string }[], urls: (string | null | undefined)[]): Promise<{ url?: string; specs?: EnrichResult["specs"]; labelUrl?: string; costUsd: number }> {
+  const model = modelsFromSpecs(specs)[0] ?? p.modelCode ?? p.sku;
+  const hints = [model];
+  let costUsd = 0;
+  let url = urls.map(htmlPage).find((u) => u && !isHomePage(u));
+  const origins = new Set(urls.map(htmlOrPdf).filter((u): u is string => !!u).map((u) => new URL(u).origin));
+  if (!url) {
+    const f = await findProductPage(p, model);
+    costUsd += f.costUsd;
+    if (f.url && !isHomePage(f.url)) url = f.url;
+    else if (f.url) origins.add(new URL(f.url).origin);
+  }
+  // η αρχική σελίδα δεν είναι σελίδα προϊόντος: αναζήτηση στο ίδιο το site (μέχρι 2 sites)
+  if (!url) for (const o of [...origins].reverse().slice(0, 2)) { const u = await searchSiteForModel(o, hints, seriesWords(p.title, p.brand)).catch(() => null); if (u) { url = u; break; } }
+  if (!url) return { costUsd };
+  const pg = await readProductPage(url, hints).catch(() => null);
+  if (!pg?.ok) return { url, costUsd };
+  const plain = pg.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  // η σελίδα πρέπει να γράφει το μοντέλο — αλλιώς δεν ξέρουμε ότι είναι το ίδιο προϊόν
+  if (!modelKeys(hints).some((k) => k.length >= 5 && plain.includes(k))) return { url: pg.url, costUsd };
+  const x = await specsFromPage(p, model, pg.text);
+  costUsd += x.costUsd;
+  return { url: pg.url, specs: x.specs.length >= 5 ? x.specs : undefined, labelUrl: pg.labelUrl ?? undefined, costUsd };
+}
+
+/** Χαρακτηριστικά από το κείμενο της σελίδας του μοντέλου — μόνο του ακριβούς μοντέλου, χωρίς αναζήτηση στο web. */
+async function specsFromPage(p: WebProduct, model: string, text: string): Promise<{ specs: EnrichResult["specs"]; costUsd: number }> {
+  const r = await chat({
+    feature: "enrich-web-page-specs", model: "main", maxTokens: 3000, temperature: 0, timeoutMs: 60000, json: true,
+    messages: [
+      { role: "system", content: `Διαβάζεις το κείμενο της επίσημης σελίδας ενός προϊόντος και γράφεις τα τεχνικά χαρακτηριστικά του ΣΥΓΚΕΚΡΙΜΕΝΟΥ μοντέλου.
+Απαντάς ΜΟΝΟ με JSON: {"specs":[{"group":string,"key":string,"value":string}]}.
+- Μόνο ό,τι γράφει η σελίδα. Αν ο πίνακας έχει στήλες για πολλά μεγέθη / μοντέλα, πάρε ΜΟΝΟ τη στήλη του μοντέλου που σου δίνεται· αν δεν φαίνεται ποια είναι, άφησε έξω τις τιμές που αλλάζουν με το μέγεθος.
+- Βάλε «Μοντέλο» όπως το γράφει η σελίδα, και τις ενεργειακές κλάσεις ως «Ενεργειακή κλάση ψύξης» / «Ενεργειακή κλάση θέρμανσης» (ή «Ενεργειακή κλάση»).
+- Έως 40 χαρακτηριστικά, τα πιο χρήσιμα για αγοραστή πρώτα. Κλειδιά και ομάδες στα ελληνικά, τιμές με τις μονάδες της σελίδας. Όχι κενές τιμές, όχι μάρκετινγκ.` },
+      { role: "user", content: JSON.stringify({ product: `${p.brand} ${model} — ${p.title}`, model, page: text.slice(0, 15000) }) },
+    ],
+  }).catch(() => null);
+  if (!r) return { specs: [], costUsd: 0 };
+  const j = parseJson<{ specs?: { group?: string; key?: string; value?: string }[] }>(r.text);
+  const specs = (j?.specs ?? []).map((s) => ({ group: clean(s.group) || "Τεχνικά χαρακτηριστικά", key: clean(s.key), value: clean(s.value) })).filter((s) => s.key && s.value && !USELESS.test(s.value) && s.value.length <= 200).slice(0, 80);
+  return { specs, costUsd: r.costUsd };
+}
+
+/** Η HTML σελίδα ενός προϊόντος στο site του κατασκευαστή / εισαγωγέα — μόνο η διεύθυνση (~$0,005). */
+async function findProductPage(p: WebProduct, model: string): Promise<{ url?: string; costUsd: number }> {
+  const r = await chat({
+    feature: "enrich-web-page", model: WEB_MODEL, maxTokens: 300, temperature: 0, timeoutMs: 40000,
+    messages: [
+      { role: "system", content: 'Βρίσκεις την ΕΠΙΣΗΜΗ HTML σελίδα ενός προϊόντος (όχι PDF) στο site του ελληνικού εισαγωγέα ή του κατασκευαστή — όχι e-shop, marketplace ή συγκριτικό. Απάντηση ΜΟΝΟ JSON: {"url": string|null}. Αν βρίσκεις μόνο το site και όχι τη σελίδα, δώσε την αρχική του σελίδα. null αν δεν είσαι σίγουρος.' },
+      { role: "user", content: `${p.brand} ${model} — ${p.title}. Αγορά: Ελλάδα.` },
+    ],
+  }).catch(() => null);
+  if (!r) return { costUsd: 0 };
+  return { url: htmlPage(parseJson<{ url?: string | null }>(r.text)?.url), costUsd: r.costUsd };
+}
+
+/** Site κατασκευαστή από οποιαδήποτε διεύθυνση (και PDF), για αναζήτηση στο ίδιο το site. */
+const htmlOrPdf = (u: string | null | undefined) => (u && /^https?:\/\//.test(u) && !blockedHost(u) ? u : undefined);
+
+/** Σελίδα προϊόντος για φωτογραφίες: μόνο http(s), όχι PDF, όχι συγκριτικά. */
+const htmlPage = (u: string | null | undefined) => (u && /^https?:\/\//.test(u) && !/\.pdf(\?|#|$)/i.test(u) && !blockedHost(u) ? u.slice(0, 500) : undefined);
 
 /** Διευθύνσεις εικόνων που έδωσε το AI: μόνο αρχεία εικόνας, όχι από συγκριτικά. Ελέγχονται ξανά στην έγκριση. */
 const aiImages = (xs: unknown[] | undefined) => [...new Set((xs ?? []).filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x)).filter((x) => looksLikeImageFile(x) && !blockedHost(x)))].slice(0, 8);
