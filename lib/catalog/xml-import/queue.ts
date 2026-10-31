@@ -67,6 +67,26 @@ export async function enqueue(feedId: string, sel: Selection): Promise<{ queued:
   return { queued: r.count, skipped, notChosen };
 }
 
+/**
+ * Γραμμές με αλλαγές που δεν έχουν περάσει (νέο payload από το feed, διόρθωση του χρήστη, ή «Σε αναμονή» όσο το SoftOne
+ * ήταν κλειστό) — μόνο **υπάρχοντα** είδη (ο έλεγχος τα βρήκε στο SoftOne). Τα νέα είδη δεν μπαίνουν ποτέ από εδώ:
+ * περνούν από την επιλογή «Νέα είδη» και την έγκριση.
+ */
+export const pendingApplyWhere = (feedId: string) => ({ feedId, pendingApply: true, problem: null, status: { notIn: ["skipped", "queued", "importing"] }, s1Status: { in: ["update", "waiting"] } });
+
+export async function countPendingApply(feedId: string): Promise<number> {
+  return db.supplierFeedItem.count({ where: pendingApplyWhere(feedId) });
+}
+
+/** «Εφαρμογή αλλαγών (N)»: οι εκκρεμείς γραμμές στην ουρά — ο server τις περνά σε SoftOne και eshop με την πολιτική του feed. */
+export async function enqueuePending(feedId: string): Promise<number> {
+  const feed = await loadFeed(feedId);
+  if (!feed.active) throw new UserError("Το feed αυτού του προμηθευτή είναι ανενεργό — ενεργοποίησέ το από το πρώτο βήμα.");
+  const r = await db.supplierFeedItem.updateMany({ where: pendingApplyWhere(feedId), data: { status: "queued", error: null } });
+  if (r.count) await db.supplierFeed.update({ where: { id: feedId }, data: { importMessage: `Εφαρμογή αλλαγών: ${r.count.toLocaleString("el-GR")} προϊόντα στην ουρά. Τρέχει στον server.` } });
+  return r.count;
+}
+
 /** Γραμμή που έμεινε σε «importing» (deploy ή πτώση στη μέση της παρτίδας) γυρνά στην ουρά — η εισαγωγή είναι ασφαλής σε επανάληψη. */
 export async function recoverStale(feedId?: string, olderMin = 10): Promise<number> {
   const r = await db.supplierFeedItem.updateMany({ where: { ...(feedId ? { feedId } : {}), status: "importing", updatedAt: { lt: new Date(Date.now() - olderMin * 60_000) } }, data: { status: "queued" } });
@@ -214,10 +234,12 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   // Οι φωτογραφίες βγαίνουν από την αντιστοίχιση που δίνουμε στη μηχανή: είναι ήδη στο Bunny (βήμα 1).
   const config = mediaOff(configForHeaders(feed.cfg.saved, headers));
   let pending = 0, waiting = 0;
+  const waitingIds = new Set<string>();
   try {
     const plan = await planForeign({ fileName: `${XML_JOB_PREFIX}${feed.supplier.name}`, sheet: matrix, headerRow: 0, config, opts: { policy: feed.policy, priceMode: feed.priceMode === "retail" ? "retail" : "cost" } }, staffId);
     const res = await applyForeign(plan.jobId, [...rowOf.keys()], staffId);
     pending = res.pending; waiting = res.waiting;
+    for (const n of res.waitingRows) { const it = rowOf.get(n); if (it) waitingIds.add(it.id); }
     for (const e of res.errors) { const it = rowOf.get(e.rowNo); if (it) fail(it.id, e.error); }
     await linkBatch(plan.jobId, plan.rows, rowOf);
   } catch (e) {
@@ -228,7 +250,10 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
   // ---- 3. Αποτελέσματα ανά γραμμή ----
   for (const it of batch) {
     const errs = rowErrors.get(it.id);
-    await db.supplierFeedItem.update({ where: { id: it.id }, data: errs?.length ? { status: "error", error: errs.join(" · ") } : { status: "done", error: null } });
+    // «Σε αναμονή» (SoftOne κλειστό) ΔΕΝ είναι «Μπήκε»: μένει εκκρεμές και ξαναμπαίνει με «Εφαρμογή αλλαγών»
+    await db.supplierFeedItem.update({ where: { id: it.id }, data: errs?.length ? { status: "error", error: errs.join(" · ") }
+      : waitingIds.has(it.id) ? { status: "waiting", error: null, pendingApply: true }
+      : { status: "done", error: null, pendingApply: false, appliedAt: new Date() } });
   }
 
   const [left, errors] = await Promise.all([

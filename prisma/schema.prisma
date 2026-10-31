@@ -93,6 +93,11 @@ model Product {
   active         Boolean             @default(true)
   source         String? // softone = προβολή του καθρέφτη
   s1Hash         String? // αποτύπωμα όσων προβλήθηκαν· ίδιο hash = καμία εγγραφή
+  availLabel     String? // επιλυμένη φράση διαθεσιμότητας (lib/catalog/availability-core.ts)· null = η προεπιλογή της βιτρίνας
+  availState     String? // in-stock | low | order | unavailable
+  supplierAvail  String? // κατάσταση από το XML του προμηθευτή (μετά την αντιστοίχιση) — συνθήκη στους κανόνες, δεν πάει στο SoftOne
+  publishReady   Boolean             @default(true) // περνά τον έλεγχο πληρότητας (lib/catalog/publish-ready.ts)· true όσο ο έλεγχος είναι κλειστός
+  publishMissing String[]            @default([]) // τι λείπει (όλα τα κριτήρια, ενεργά ή όχι) — για τη διαχείριση
   facetHash      String? // αποτύπωμα των τιμών φίλτρων
   /// Αντίγραφα για λίστες (ταξινόμηση / φίλτρο τιμής και αποθέματος)· η «αλήθεια» είναι στο Variant
   price          Float? // τιμή eshop με ΦΠΑ
@@ -2848,6 +2853,11 @@ model SupplierFeed {
   importMessage String?   @db.Text
   lastRunAt     DateTime?
   lastCount     Int?
+  /// FeedSchedule (lib/catalog/xml-import/schedule-core): χειροκίνητα | κάθε N′ | καθημερινά ΩΩ:ΛΛ — λήψη → έλεγχος → εφαρμογή στα υπάρχοντα
+  schedule      Json?
+  lastAutoAt    DateTime?
+  /// η αυτόματη ενημέρωση περιμένει να τελειώσει ο έλεγχος για να εφαρμόσει τις αλλαγές
+  autoPending   Boolean   @default(false)
   createdById   String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2918,7 +2928,7 @@ model SupplierFeedItem {
   assetIds Json?
   /// new | changed | same | gone
   diff     String   @default("new")
-  /// review | queued | importing | done | error | skipped
+  /// review | queued | importing | done | waiting (SoftOne κλειστό: ξαναμπαίνει με «Εφαρμογή αλλαγών») | error | skipped
   status   String   @default("review")
   /// εξαίρεση από την καθολική επιλογή «και στο SoftOne» (null = ακολουθεί την παρτίδα)
   softone  Boolean?
@@ -2933,6 +2943,9 @@ model SupplierFeedItem {
   s1Status      String?
   s1Check       Json?
   checkedAt     DateTime?
+  /// αλλαγή (νέο payload από το feed ή διόρθωση του χρήστη) που δεν έχει περάσει ακόμη σε SoftOne / eshop — «Εφαρμογή αλλαγών»
+  pendingApply  Boolean   @default(false)
+  appliedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -2942,4 +2955,22 @@ model SupplierFeedItem {
   @@index([feedId, status])
   @@index([feedId, diff])
   @@index([feedId, s1Status])
+}
+
+/**
+ * Κανόνες διαθεσιμότητας (/admin/diathesimotita): ο πρώτος ενεργός που ταιριάζει δίνει φράση και κατάσταση.
+ */
+model AvailabilityRule {
+  id         String   @id @default(cuid())
+  position   Int      @default(0)
+  active     Boolean  @default(true)
+  name       String?
+  conditions Json     @default("[]") // AvailCond[] — όλες μαζί
+  label      String
+  state      String   @default("order") // in-stock | low | order | unavailable
+  publish    Boolean  @default(true) // false = δεν δημοσιεύεται (κριτήριο πληρότητας)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([position])
 }

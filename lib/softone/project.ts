@@ -338,7 +338,7 @@ export interface OffersResult { priced: number; inStock: number; productsUpdated
  * «χαμηλότερη τιμή 30 ημερών» (Omnibus) όταν αρχίσουν οι εκπτώσεις. Όλα σε σύνολα με SQL: 9.000 προϊόντα σε ~1 s.
  * Προϊόν που έχασε την τιμή του κρατά το Variant (το δείχνουν παραγγελίες) αλλά γυρίζει σε «Τιμή στο κατάστημα».
  */
-export async function projectOffers(): Promise<OffersResult> {
+export async function projectOffers(opts?: { availFor?: string[] }): Promise<OffersResult> {
   const productsUpdated = await db.$executeRawUnsafe(
     `UPDATE "Product" p SET price = s."eshopPrice", stock = GREATEST(0, floor(coalesce(s."stockCentral", 0)))::int
      FROM "S1Item" s WHERE p.source = $1 AND p."erpCode" = s.mtrl::text
@@ -357,6 +357,10 @@ export async function projectOffers(): Promise<OffersResult> {
   const [priced, inStock] = await Promise.all([db.product.count({ where: { source: SOURCE, active: true, price: { gt: 0 } } }), db.product.count({ where: { source: SOURCE, active: true, stock: { gt: 0 } } })]);
   // νέες τιμές ERP → οι έτοιμες τιμές προσφορών και η χαμηλότερη τιμή 30 ημερών ξαναϋπολογίζονται
   if (priceChanges || variantsCreated) { const { recomputeOffers } = await import("@/lib/promo/offers"); await recomputeOffers().catch(() => null); }
+  // διαθεσιμότητα (κανόνες της διαχείρισης) — εξαρτάται από απόθεμα και τιμή, άρα πάντα μετά από αυτά
+  await import("@/lib/catalog/availability").then((m) => m.projectAvailability(opts?.availFor)).catch((e) => console.error("[project/availability]", e));
+  // πληρότητα (φωτογραφίες, χαρακτηριστικά, διαστάσεις, διαθεσιμότητα…) — μετά τη διαθεσιμότητα, που είναι κριτήριό της
+  await import("@/lib/catalog/publish-ready-server").then((m) => m.projectPublishReady(opts?.availFor)).catch((e) => console.error("[project/publish-ready]", e));
   return { priced, inStock, productsUpdated, variantsCreated, priceChanges };
 }
 
@@ -393,7 +397,7 @@ export async function projectItem(mtrl: number): Promise<{ ok: boolean; productI
   const p = await projectProducts(idOf, mtrl);
   const product = await db.product.findUnique({ where: { erpCode: String(mtrl) }, select: { id: true, categoryId: true } });
   if (!product) return { ok: false, created: false, updated: false, reason: p.skipped.noBrand ? "Το είδος δεν έχει μάρκα (κατασκευαστή) που να υπάρχει στο κατάστημα." : p.skipped.noCategory ? "Ο τύπος του είδους δεν υπάρχει ακόμη στο κατάστημα — τρέξε τον πλήρη συγχρονισμό." : "Το είδος δεν είναι είδος του site." };
-  await projectOffers(); // σύνολα SQL, ~1 s — η τιμή/απόθεμα αλλάζει χωρίς να αλλάξει το ίδιο το είδος
+  await projectOffers({ availFor: [product.id] }); // σύνολα SQL, ~1 s — η τιμή/απόθεμα αλλάζει χωρίς να αλλάξει το ίδιο το είδος
   const wrote = p.created > 0 || p.updated > 0 || p.deactivated > 0;
   // Διαστάσεις και φίλτρα βγαίνουν από τα χαρακτηριστικά: μόνο αν γράφτηκε το προϊόν (αλλιώς θα ξαναδιαβαζόταν όλος ο κατάλογος)
   if (wrote) { await projectDimensions(); await projectFacetValues(product.categoryId); }

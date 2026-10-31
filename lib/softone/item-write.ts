@@ -12,7 +12,10 @@ import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/soft
  * 2. **Μόνο ό,τι άλλαξε** — κανένα άλλο πεδίο δεν στέλνεται.
  * 3. **Επαλήθευση:** νέα ανάγνωση μετά την εγγραφή. Το «success» του SoftOne δεν σημαίνει πάντα ότι η τιμή γράφτηκε.
  */
-export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm";
+export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2";
+/** Τα πεδία της καρτέλας προϊόντος — η web ομάδα / κατηγορίες αλλάζουν μόνο από την εισαγωγή (με έγκριση στο σχέδιο) */
+export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2"] as const;
+export type EditorField = Exclude<ItemField, (typeof WEB_FIELDS)[number]>;
 type Kind = "text" | "memo" | "bool" | "int" | "num";
 export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: Kind; max?: number }> = {
   name: { s1: "NAME", label: "Όνομα", kind: "text", max: 128 },
@@ -28,6 +31,10 @@ export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: K
   lengthCm: { s1: "CCCLENGTH", label: "Μήκος / βάθος (εκ.)", kind: "num" },
   widthCm: { s1: "CCCWIDTH", label: "Πλάτος (εκ.)", kind: "num" },
   heightCm: { s1: "CCCHEIGHT", label: "Ύψος (εκ.)", kind: "num" },
+  // web ομάδα χαρακτηριστικών και web κατηγορίες: με αυτά το είδος περνά στο web (WEB_FILTER του καταλόγου)
+  webGroup: { s1: "CCCWEBGRSPECS", label: "Web ομάδα χαρακτηριστικών", kind: "int" },
+  webCat1: { s1: "CCCWEBCATEGORY1", label: "Web κατηγορία 1", kind: "int" },
+  webCat2: { s1: "CCCWEBCATEGORY2", label: "Web κατηγορία 2", kind: "int" },
 };
 export type ItemValue = string | number | boolean | null;
 export type ItemChanges = Partial<Record<ItemField, { from: ItemValue; to: ItemValue }>>;

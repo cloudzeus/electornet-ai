@@ -7,7 +7,7 @@ import { AccordionItem } from "@/components/admin/ui/Accordion";
 import { SourceBadge } from "./sources";
 import { parseDescription } from "@/lib/softone/describe";
 import { saveProductFields } from "@/app/admin/(shell)/catalog/actions";
-import type { ItemField, ItemValue } from "@/lib/softone/item-write";
+import type { EditorField as ItemField, ItemValue } from "@/lib/softone/item-write";
 
 export type EditorValues = Record<ItemField, ItemValue>;
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { swr } from "@/lib/cache/swr";
-import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText, Search } from "lucide-react";
+import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText, Search, CalendarCheck, ListChecks } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
@@ -59,7 +59,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(cat ? { category: { parent: { parentId: cat } } } : {}),
     ...(type === "item" ? { kind: "item" } : type === "set" ? { kind: "set" } : type === "parts" || type === "gift" ? { kind: "set", setSpcs: { in: spcsWhere((x) => x.kind === type) } } : {}),
     ...(f === "alone-no" ? { kind: "item", soldAlone: false } : f === "set-out" ? { kind: "set", active: true, stock: { lte: 0 } } : f === "set-nomain" ? { kind: "set", setSpcs: { in: spcsWhere((x) => !x.mainOnSite) } } : f === "main" ? { kind: "item", erpCode: { in: [...(ix?.mainSets.keys() ?? [])] } } : {}),
-    ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : {}),
+    ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : f === "incomplete" ? { active: true, publishMissing: { isEmpty: false } } : f === "unpublished" ? { active: true, publishReady: false } : {}),
   };
   const [rows, total, masters, [all, withImg, lowRes]] = await Promise.all([
     db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
@@ -104,6 +104,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <nav aria-label="Εργαλεία καταλόγου" className="flex flex-wrap items-center gap-1.5">
           {type && type !== "item" && can(user.permissions, "catalog.sync.run") && <span data-help="catalog.sets-sync"><SetsSyncButton /></span>}
           <Link href="/admin/catalog/dimensions" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 hover:border-eu-navy"><Ruler className="size-4" aria-hidden /> Διαστάσεις & EPREL</Link>
+          <Link href="/admin/catalog/availability" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 hover:border-eu-navy"><CalendarCheck className="size-4" aria-hidden /> Διαθεσιμότητα</Link>
+          <Link href="/admin/catalog/completeness" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 hover:border-eu-navy"><ListChecks className="size-4" aria-hidden /> Πληρότητα</Link>
           <Link href="/admin/catalog/banners" className="inline-flex items-center gap-1.5 rounded-full border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 hover:border-eu-navy"><ScanText className="size-4" aria-hidden /> Απόδελτίωση banners</Link>
         </nav>
       </header>
@@ -131,7 +133,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           <label className="sr-only" htmlFor="cat-t">Τύπος</label>
           <select id="cat-t" name="type" defaultValue={type} data-help="catalog.type" className="flex-1 @md:flex-none min-w-[9rem] rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)]">{TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}</select>
           <label className="sr-only" htmlFor="cat-f">Φίλτρο</label>
-          <select id="cat-f" name="f" defaultValue={f} className="flex-1 @md:flex-none min-w-[9rem] rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)]"><option value="">Όλα</option><option value="noimg">Χωρίς φωτογραφία</option><option value="one">Με μία μόνο φωτογραφία</option><option value="lowres">Με μικρή φωτογραφία</option><option value="inactive">Ανενεργά</option><optgroup label="Σετ"><option value="main">Κύρια είδη σετ</option><option value="alone-no">Μόνο σε σετ (κρυφά από τις λίστες)</option><option value="set-out">Σετ χωρίς απόθεμα μέλους</option><option value="set-nomain">Σετ με κύριο είδος εκτός site</option></optgroup></select>
+          <select id="cat-f" name="f" defaultValue={f} className="flex-1 @md:flex-none min-w-[9rem] rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)]"><option value="">Όλα</option><option value="noimg">Χωρίς φωτογραφία</option><option value="one">Με μία μόνο φωτογραφία</option><option value="lowres">Με μικρή φωτογραφία</option><option value="inactive">Ανενεργά</option><optgroup label="Πληρότητα"><option value="incomplete">Ημιτελή</option><option value="unpublished">Δεν δημοσιεύονται</option></optgroup><optgroup label="Σετ"><option value="main">Κύρια είδη σετ</option><option value="alone-no">Μόνο σε σετ (κρυφά από τις λίστες)</option><option value="set-out">Σετ χωρίς απόθεμα μέλους</option><option value="set-nomain">Σετ με κύριο είδος εκτός site</option></optgroup></select>
           <button className="rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] cursor-pointer hover:bg-eu-blue">Φίλτρο</button>
         </form>
         {promoWrite && (

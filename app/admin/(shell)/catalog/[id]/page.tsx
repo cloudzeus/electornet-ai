@@ -25,6 +25,9 @@ import { ProductVideosAdmin } from "@/components/admin/catalog/ProductVideosAdmi
 import { productVideos, productStickers } from "../actions";
 import { ProductStickersAdmin } from "@/components/admin/catalog/ProductStickersAdmin";
 import { productReadiness } from "@/lib/catalog/readiness";
+import { PUBLISH_CRITERIA } from "@/lib/catalog/publish-ready";
+
+const PUBLISH_MISSING = Object.fromEntries(PUBLISH_CRITERIA.map((c) => [c.key, c.missing])) as Record<string, string>;
 import { ReadinessBar, WorkspaceTabs, WorkspaceSection as Section, isTab, type WorkspaceTab } from "@/components/admin/catalog/ProductWorkspace";
 import { setsForMain, setOfSetProduct, setIndex, PROBLEM_LABEL, type SetRow } from "@/lib/catalog/sets";
 import { SoldAloneSwitch } from "@/components/admin/catalog/SoldAloneSwitch";
@@ -55,7 +58,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const { id } = await params;
   const t = (await searchParams).tab;
   const tab: WorkspaceTab = isTab(t) ? t : "overview";
-  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
+  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, publishReady: true, publishMissing: true, availLabel: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
@@ -151,6 +154,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
             <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-tight text-balance">{p.title}</h2>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[length:var(--fs-12)]">
               <span className={`rounded-full px-2 py-0.5 font-bold ${p.active ? "bg-eu-green/12 text-eu-green" : "bg-eu-surface text-eu-muted"}`}>{p.active ? "Ενεργό στο site" : "Ανενεργό"}</span>
+              {p.active && !p.publishReady && <Link href="/admin/catalog/completeness" className="rounded-full px-2 py-0.5 font-bold bg-eu-red/10 text-eu-red hover:underline" data-help="product.publish">Δεν δημοσιεύεται: {p.publishMissing.map((k) => PUBLISH_MISSING[k] ?? k).join(" · ")}</Link>}
+              {p.active && p.publishReady && p.publishMissing.length > 0 && <Link href="/admin/catalog/completeness" className="rounded-full px-2 py-0.5 font-bold bg-eu-amber/15 text-eu-ink hover:underline" data-help="product.publish">Ημιτελές: {p.publishMissing.map((k) => PUBLISH_MISSING[k] ?? k).join(" · ")}</Link>}
+              {p.availLabel && <Link href="/admin/catalog/availability" className="rounded-full px-2 py-0.5 font-bold bg-eu-surface text-eu-ink-3 hover:underline">{p.availLabel}</Link>}
               {isSetProduct && sets[0] && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-navy text-white hover:bg-eu-blue">{KIND_LABEL[sets[0].kind]} · {((n) => `${n} ${n === 1 ? "μέλος" : "μέλη"}`)(new Set(sets[0].members.map((m) => m.mtrl)).size)}</Link>}
               {!isSetProduct && sets.length > 0 && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-chip text-eu-navy hover:bg-eu-navy hover:text-white">Κύριο σε {sets.length === 1 ? "σετ" : `${sets.length} σετ`}</Link>}
               {!isSetProduct && !p.soldAlone && <Link href={href("set")} className="rounded-full px-2 py-0.5 font-bold bg-eu-amber/15 text-eu-ink hover:bg-eu-amber/25">Μόνο σε σετ</Link>}

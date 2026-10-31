@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CircleAlert, Database, FileCode2, Link2, List, Loader2, Play, Power, RefreshCw, Rewind, Save, Search, Settings2, Sparkles, Truck } from "lucide-react";
 import type { PickOpt } from "@/components/admin/catalog/OptionPicker";
 import { mb, sourceNote, type DraftDTO, type FeedStateDTO, type InspectDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { FeedSchedulePanel } from "@/components/admin/catalog/xml/FeedSchedule";
+import { AvailMapPanel } from "@/components/admin/catalog/xml/AvailMap";
 import { feedState, findSuppliers, forgetDraft, inspect, refreshSuppliers, remap, rerun, saveAndRun, saveDraft, saveUrl, suggest, toggleFeed } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep, type MappingValue } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
@@ -359,6 +361,9 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                             </span>
                           </label>
                         )}
+
+                        {s.feed?.mapped && <FeedSchedulePanel key={`${s.feed.id}-${JSON.stringify(s.feed.schedule)}`} feed={s.feed} disabled={working} onChanged={(n) => { setNote(n); void refresh(s.id); }} />}
+                        {s.feed?.mapped && <AvailMapPanel feedId={s.feed.id} disabled={working} onSaved={setNote} />}
 
                         <div className="flex flex-wrap items-center gap-2">
                           {s.feed?.mapped ? (

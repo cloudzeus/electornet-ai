@@ -1,9 +1,10 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import type { S1Item } from "@prisma/client";
 import { slugify } from "@/lib/slug";
 import { parseDescription } from "@/lib/softone/describe";
-import { syncItem } from "@/lib/softone/catalog";
+import { syncItem, type mapItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
@@ -21,7 +22,11 @@ export interface ImportOptions {
   brandId?: string; toSoftone: boolean; activate: boolean;
   /** «Μόνο κενά» (υπάρχοντα είδη): συμπληρώνονται μόνο κενά πεδία και χαρακτηριστικά που λείπουν — τίποτα υπάρχον δεν αλλάζει */
   onlyBlank?: boolean;
+  /** Είδη του SoftOne εκτός καθρέφτη (χωρίς web κατηγορία), όπως τα βρήκε ο έλεγχος — αλλιώς «Δεν βρέθηκε είδος με MTRL» */
+  extraItems?: ExtraItem[];
 }
+export type ExtraItem = NonNullable<ReturnType<typeof mapItem>>;
+type Item = Pick<S1Item, "mtrl" | "code" | "name" | "barcode" | "factoryCode" | "missing" | "specGroupS1Id" | "webCat1" | "webCat2" | "shortDesc" | "longDesc" | "guaranteeMonths" | "widthCm" | "heightCm" | "lengthCm" | "weightKg">;
 export interface Change { label: string; from: string; to: string }
 export interface PlanRow {
   key: string; sheet: string; rowNo: number; groupS1Id: number; group: string;
@@ -41,6 +46,7 @@ const normField = (k: FieldKey, s: string | undefined | null) => {
   if (KIND[k] === "text") return v.replace(/[ \t]+$/gm, "");
   const n = toNum(v); return Number.isFinite(n) && n !== 0 ? String(Math.round(n * 1000) / 1000) : v;
 };
+export const WEB_GROUP_LABEL = "Web κατηγορία";
 const short = (s: string) => (s.length > 70 ? `${s.slice(0, 67)}…` : s);
 
 /** Ό,τι χρειάζεται και ο έλεγχος και η εκτέλεση: γραμμές με όλες τις αποφάσεις τους. */
@@ -51,20 +57,23 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
   if (!brand) warnings.push("Δεν ξέρουμε σε ποια μάρκα ανήκει το αρχείο — διάλεξε μάρκα.");
   const groups = await loadGroups([...new Set(file.rows.map((r) => r.groupS1Id))]);
   const mtrls = file.rows.map((r) => Number(r.fields.mtrl)).filter((n) => Number.isInteger(n) && n > 0);
-  const [items, products, barcodeRows, codeRows] = await Promise.all([
+  const [mirror, products, barcodeRows, codeRows] = await Promise.all([
     db.s1Item.findMany({ where: { mtrl: { in: mtrls } } }),
     db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, brandId: true, title: true } }),
     // Και οι άλλες μορφές του ίδιου EAN (με/χωρίς αριστερά μηδενικά: 8/12/13/14 ψηφία) — σύγκριση με sameEan (GTIN-14)
     db.s1Item.findMany({ where: { barcode: { in: [...new Set(file.rows.flatMap((r) => (r.fields.barcode ? [r.fields.barcode, ...eanVariants(r.fields.barcode)] : [])))] } }, select: { mtrl: true, barcode: true } }),
     db.s1Item.findMany({ where: { code: { in: file.rows.flatMap((r) => [r.fields.code, r.fields.factoryCode]).filter((x): x is string => !!x) } }, select: { mtrl: true, code: true } }),
   ]);
+  // Ζωντανό είδος εκτός καθρέφτη (ή «χαμένο» από αυτόν, γιατί βγήκε από το web) υπερισχύει της γραμμής του καθρέφτη
+  const extra = new Map((opts.extraItems ?? []).map((x) => [x.mtrl, { ...x, missing: false }]));
+  const items: Item[] = [...mirror.filter((m) => !(m.missing && extra.has(m.mtrl))), ...[...extra.values()].filter((x) => !mirror.some((m) => m.mtrl === x.mtrl && !m.missing))];
   const itemOf = new Map(items.map((i) => [i.mtrl, i]));
   const productOf = new Map(products.map((p) => [p.erpCode, p]));
   const seenBarcode = new Map<string, string>(), seenCode = new Map<string, string>();
 
   const rows = file.rows.map((r) => {
     const g = groups.get(r.groupS1Id)!;
-    const out: PlanRow & { raw: ParsedRow; item?: (typeof items)[number]; memo?: string; fieldTo: Partial<Record<FieldKey, string>>; specTo: { label: string; value: string }[] } =
+    const out: PlanRow & { raw: ParsedRow; item?: Item; memo?: string; webGroup?: boolean; fieldTo: Partial<Record<FieldKey, string>>; specTo: { label: string; value: string }[] } =
       { key: `${r.sheet}#${r.rowNo}`, sheet: r.sheet, rowNo: r.rowNo, groupS1Id: r.groupS1Id, group: g.name, action: "unchanged", title: r.fields.name ?? "", changes: [], errors: [], warnings: [], raw: r, fieldTo: {}, specTo: [] };
     for (const k of ["guaranteeMonths", "widthCm", "heightCm", "lengthCm", "weightKg"] as FieldKey[]) {
       const v = r.fields[k]; if (v && (!Number.isFinite(toNum(v)) || toNum(v) < 0)) out.errors.push(`«${LABEL[k]}»: «${v}» δεν είναι αριθμός.`);
@@ -88,7 +97,10 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
       if (!Number.isInteger(mtrl) || !it || it.missing) { out.action = "error"; out.errors.push(`Δεν βρέθηκε είδος με MTRL ${r.fields.mtrl} στο SoftOne.`); return out; }
       out.item = it; out.productId = p?.id; out.code = it.code; out.title = it.name;
       if (brand && p && p.brandId !== brand.id) out.warnings.push("Το προϊόν ανήκει σε άλλη μάρκα από το αρχείο.");
-      if (it.specGroupS1Id !== g.s1Id) out.warnings.push("Το είδος είναι σε άλλη κατηγορία στο SoftOne — η κατηγορία δεν αλλάζει από εδώ.");
+      if (it.specGroupS1Id == null && r.assignWebGroup) {
+        // είδος χωρίς web ομάδα: παίρνει την ομάδα της γραμμής (από την κατηγορία του feed) — έτσι περνά και στο web
+        out.webGroup = true; out.changes.push({ label: WEB_GROUP_LABEL, from: "—", to: g.name });
+      } else if (it.specGroupS1Id !== g.s1Id) out.warnings.push("Το είδος είναι σε άλλη κατηγορία στο SoftOne — η κατηγορία δεν αλλάζει από εδώ.");
       if (r.fields.code && r.fields.code !== it.code) out.warnings.push(`Ο κωδικός δεν αλλάζει από εδώ (μένει ${it.code}).`);
       const other = barcodeNew ? barcodeRows.find((b) => sameEan(b.barcode, r.fields.barcode) && b.mtrl !== mtrl) : undefined;
       if (other) out.errors.push(`Το barcode ${r.fields.barcode} ανήκει σε άλλο είδος (MTRL ${other.mtrl}).`);
@@ -146,7 +158,7 @@ async function decide(file: ParsedFile, opts: ImportOptions) {
 
 export async function planImport(file: ParsedFile, opts: ImportOptions): Promise<Plan> {
   const d = await decide(file, opts);
-  const rows: PlanRow[] = d.rows.map(({ raw, item, memo, fieldTo, specTo, ...r }) => (void raw, void item, void memo, void fieldTo, void specTo, r));
+  const rows: PlanRow[] = d.rows.map(({ raw, item, memo, webGroup, fieldTo, specTo, ...r }) => (void raw, void item, void memo, void webGroup, void fieldTo, void specTo, r));
   const counts = { create: 0, update: 0, unchanged: 0, error: 0 };
   for (const r of rows) counts[r.action]++;
   return { brand: d.brand, kind: file.meta?.kind ?? null, rows, warnings: d.warnings, counts };
@@ -168,7 +180,7 @@ export async function applyImport(file: ParsedFile, opts: ImportOptions, keys: s
     if (r.action === "error") { out.push({ key: r.key, ok: false, message: r.errors.join(" ") }); continue; }
     if (r.action === "unchanged") { out.push({ key: r.key, ok: true, message: "Καμία αλλαγή." }); continue; }
     try {
-      if (r.action === "update") out.push({ key: r.key, ...(opts.toSoftone ? await updateInSoftone(r) : await updateEshopOnly(r)) });
+      if (r.action === "update") out.push({ key: r.key, ...(opts.toSoftone ? await updateInSoftone(r, groups.get(r.groupS1Id)!) : await updateEshopOnly(r)) });
       else out.push({ key: r.key, ...(opts.toSoftone ? await createInSoftone(r, d.brand!, groups.get(r.groupS1Id)!, opts) : await createEshopOnly(r, d.brand!, opts)) });
     } catch (e) { out.push({ key: r.key, ok: false, message: (e as Error).message }); }
     if (opts.toSoftone) await sleep(150);
@@ -184,13 +196,20 @@ export async function applyImport(file: ParsedFile, opts: ImportOptions, keys: s
 
 type Decided = Awaited<ReturnType<typeof decide>>["rows"][number];
 
-async function updateInSoftone(r: Decided) {
+async function updateInSoftone(r: Decided, g: { s1Id: number; cat1: number | null; cat2: number | null }) {
   const it = r.item!;
   const changes: ItemChanges = {};
+  if (r.webGroup) {
+    changes.webGroup = { from: null, to: g.s1Id };
+    // web κατηγορίες της ομάδας μόνο όπου το είδος δεν έχει ήδη
+    if (g.cat1 != null && it.webCat1 == null) changes.webCat1 = { from: null, to: g.cat1 };
+    if (g.cat2 != null && it.webCat2 == null) changes.webCat2 = { from: null, to: g.cat2 };
+  }
   for (const [k, f] of Object.entries(FIELD_TO_ITEM) as [FieldKey, ItemField][]) if (r.fieldTo[k] != null) changes[f] = { from: (it as unknown as Record<string, string | number | null>)[f] ?? null, to: KIND[k] === "text" ? r.fieldTo[k]! : toNum(r.fieldTo[k]!) };
   if (r.memo != null) changes.longDesc = { from: it.longDesc, to: r.memo };
   const w = await writeItem(it.mtrl, changes);
   if (!w.ok) return { ok: false, mtrl: it.mtrl, message: w.error ?? "Δεν γράφτηκε." };
+  // με νέα web ομάδα το είδος μπαίνει τώρα στο WEB_FILTER: το syncItem το προσθέτει στον καθρέφτη και η προβολή φτιάχνει προϊόν
   await syncItem(it.mtrl, "manual");
   const p = await projectItem(it.mtrl);
   return { ok: true, mtrl: it.mtrl, productId: p.productId, message: `Γράφτηκαν στο SoftOne και στο κατάστημα: ${r.changes.map((c) => c.label).join(", ")}.` };

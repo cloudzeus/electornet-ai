@@ -57,7 +57,7 @@ async function checkChunk(feedId: string): Promise<boolean> {
     for (const r of rows) {
       const it = rowOf.get(r.rowNo);
       if (!it) continue;
-      const data: CheckData = { title: r.title, code: r.code, mtrl: r.mtrl, matchedBy: r.matchedBy, fileName: r.fileName, changes: r.changes.slice(0, 40), price: r.price, warnings: r.warnings.slice(0, 8), problem: r.problem };
+      const data: CheckData = { title: r.title, code: r.code, mtrl: r.mtrl, matchedBy: r.matchedBy, fileName: r.fileName, changes: [...r.changes, ...(r.shop ?? [])].slice(0, 40), price: r.price, warnings: r.warnings.slice(0, 8), problem: r.problem };
       ops.push(db.supplierFeedItem.update({ where: { id: it.id }, data: { s1Status: r.status, s1Check: JSON.parse(JSON.stringify(data)), checkedAt: now } }));
     }
     // γραμμή που η μηχανή δεν επέστρεψε (δεν θα έπρεπε): σημαδεύεται, για να μη μείνει για πάντα «σε αναμονή»

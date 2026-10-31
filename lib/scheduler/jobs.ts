@@ -43,12 +43,16 @@ export const JOBS: JobDef[] = [
     run: async () => (await import("@/lib/catalog/category-ops")).runPendingOps(),
   },
   {
-    key: "xml-feeds", label: "XML προμηθευτές: έλεγχος με SoftOne και εισαγωγή (συνέχεια μετά από διακοπή)", schedule: { everyMin: 1 }, group: "xml-feeds", maxMin: 6,
+    key: "xml-feeds", label: "XML προμηθευτές: αυτόματη ενημέρωση, έλεγχος με SoftOne και εισαγωγή", schedule: { everyMin: 1 }, group: "xml-feeds", maxMin: 6,
     run: async () => {
-      const [{ runChecks }, { drainAll }] = await Promise.all([import("@/lib/catalog/xml-import/check"), import("@/lib/catalog/xml-import/queue")]);
+      const [{ runChecks }, { drainAll }, { runAutoFeeds }] = await Promise.all([import("@/lib/catalog/xml-import/check"), import("@/lib/catalog/xml-import/queue"), import("@/lib/catalog/xml-import/auto")]);
+      // αυτόματη ενημέρωση με το πρόγραμμα κάθε feed: λήψη → έλεγχος → (στο επόμενο πέρασμα) εφαρμογή στα υπάρχοντα
+      const a = await runAutoFeeds();
       const c = await runChecks(120_000);
       const d = await drainAll(150_000);
-      return { ok: c.ok && d.ok, idle: !!c.idle && !!d.idle, message: [c.idle ? null : c.message, d.idle ? null : d.message].filter(Boolean).join(" · ") };
+      const auto = [a.started.length ? `Αυτόματη λήψη: ${a.started.join(", ")}` : null, a.applied.length ? `Εφαρμογή: ${a.applied.join(", ")}` : null, ...a.errors];
+      const autoIdle = !a.started.length && !a.applied.length && !a.errors.length;
+      return { ok: c.ok && d.ok && !a.errors.length, idle: autoIdle && !!c.idle && !!d.idle, message: [...auto, c.idle ? null : c.message, d.idle ? null : d.message].filter(Boolean).join(" · ") };
     },
   },
 ];

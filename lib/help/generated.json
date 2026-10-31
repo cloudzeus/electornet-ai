@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-30T15:17:44.282Z",
+ "generatedAt": "2026-10-30T16:27:33.728Z",
  "routes": [
   {
    "route": "/admin",
@@ -476,6 +476,7 @@
    "nav": null,
    "dynamic": true,
    "helpKeys": [
+    "product.publish",
     "product.actions",
     "product.set",
     "product.overview",
@@ -564,6 +565,33 @@
    "shots": {}
   },
   {
+   "route": "/admin/catalog/availability",
+   "slug": "catalog.availability",
+   "file": "app/admin/(shell)/catalog/availability/page.tsx",
+   "title": "Διαθεσιμότητα",
+   "doc": "Διαθεσιμότητα της βιτρίνας: η φράση του είδους στο SoftOne υπερισχύει, μετά οι κανόνες με τη σειρά τους, αλλιώς η προεπιλογή (απόθεμα → «Άμεσα διαθέσιμο»). Η σελίδα δείχνει την επίπτωση πριν την αποθήκευση.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Διαθεσιμότητα"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "availability.rules",
+    "availability.conditions",
+    "availability.phrase",
+    "availability.save",
+    "availability.tally",
+    "availability.test"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {
+    "desktop": "/api/help-shot/catalog.availability-d.jpg",
+    "mobile": "/api/help-shot/catalog.availability-m.jpg"
+   }
+  },
+  {
    "route": "/admin/catalog/banners",
    "slug": "catalog.banners",
    "file": "app/admin/(shell)/catalog/banners/page.tsx",
@@ -646,6 +674,31 @@
    "shots": {
     "desktop": "/api/help-shot/catalog.categories-d.jpg",
     "mobile": "/api/help-shot/catalog.categories-m.jpg"
+   }
+  },
+  {
+   "route": "/admin/catalog/completeness",
+   "slug": "catalog.completeness",
+   "file": "app/admin/(shell)/catalog/completeness/page.tsx",
+   "title": "Πληρότητα προϊόντων",
+   "doc": "Πληρότητα: ποια ενεργά προϊόντα δεν περνούν τα κριτήρια δημοσίευσης (φωτογραφία, χαρακτηριστικά, διαστάσεις & βάρος, web κατηγορία, διαθεσιμότητα), ο διακόπτης που τα κρύβει από τη βιτρίνα και η λίστα για διόρθωση.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Πληρότητα"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "completeness.gate",
+    "completeness.save",
+    "completeness.recompute",
+    "completeness.list"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {
+    "desktop": "/api/help-shot/catalog.completeness-d.jpg",
+    "mobile": "/api/help-shot/catalog.completeness-m.jpg"
    }
   },
   {
@@ -866,6 +919,11 @@
    ],
    "changes": [
     {
+     "hash": "29b6ce3",
+     "date": "2026-10-30T17:17:44+02:00",
+     "text": "XML / Excel εισαγωγή: βρίσκει και τα είδη του SoftOne που δεν είναι στο web"
+    },
+    {
      "hash": "97e50a4",
      "date": "2026-10-30T16:42:53+02:00",
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
@@ -909,14 +967,9 @@
      "hash": "e9d6f64",
      "date": "2026-10-20T05:48:53+03:00",
      "text": "Εισαγωγή από ξένο Excel: σχέδιο και εκτέλεση (planForeign / applyForeign)"
-    },
-    {
-     "hash": "e6973c0",
-     "date": "2026-10-20T05:39:53+03:00",
-     "text": "Εισαγωγή από ξένο Excel: detectHeaderRow με score κελιών-ετικετών (αριθμοί, EAN, URL δεν μετράνε)"
     }
    ],
-   "updatedAt": "2026-10-30T16:42:53+02:00",
+   "updatedAt": "2026-10-30T17:17:44+02:00",
    "shots": {}
   },
   {
@@ -1020,6 +1073,7 @@
    "nav": null,
    "dynamic": false,
    "helpKeys": [
+    "xml.supplier.avail",
     "xml.check.policy",
     "xml.check.price",
     "xml.check.progress",
@@ -1027,6 +1081,8 @@
     "xml.check.fields",
     "xml.check.new",
     "xml.check.rows",
+    "xml.supplier.schedule",
+    "xml.supplier.apply",
     "xml.map.cols",
     "xml.map.duplicates",
     "xml.map.brands",
@@ -3908,6 +3964,12 @@
  ],
  "recent": [
   {
+   "hash": "29b6ce3",
+   "date": "2026-10-30T17:17:44+02:00",
+   "text": "XML / Excel εισαγωγή: βρίσκει και τα είδη του SoftOne που δεν είναι στο web",
+   "routes": []
+  },
+  {
    "hash": "c94d321",
    "date": "2026-10-30T16:56:30+02:00",
    "text": "Backup βάσης: καθημερινά 02:30 από τον scheduler της εφαρμογής",
@@ -4203,12 +4265,6 @@
    "date": "2026-10-20T14:53:50+03:00",
    "text": "Ασφάλεια: Bunny",
    "routes": []
-  },
-  {
-   "hash": "fe248bb",
-   "date": "2026-10-20T14:53:50+03:00",
-   "text": "Ασφάλεια: σάρωση περιεχομένου δέχεται iframe από dam.groupeseb.com (βίντεο SEB), όχι το CSP/σελίδες",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4281,11 +4337,44 @@
   "security.summary-unsent": [
    "app/admin/(shell)/asfaleia/page.tsx"
   ],
+  "product.publish": [
+   "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
   "product.actions": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
   "product.set": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
+  "availability.rules": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "availability.conditions": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "availability.phrase": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "availability.save": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "availability.tally": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "availability.test": [
+   "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "completeness.gate": [
+   "app/admin/(shell)/catalog/completeness/GateForm.tsx"
+  ],
+  "completeness.save": [
+   "app/admin/(shell)/catalog/completeness/GateForm.tsx"
+  ],
+  "completeness.recompute": [
+   "app/admin/(shell)/catalog/completeness/GateForm.tsx"
+  ],
+  "completeness.list": [
+   "app/admin/(shell)/catalog/completeness/page.tsx"
   ],
   "catalog.sets-sync": [
    "app/admin/(shell)/catalog/page.tsx"
@@ -4611,6 +4700,9 @@
   "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
   ],
+  "xml.supplier.avail": [
+   "components/admin/catalog/xml/AvailMap.tsx"
+  ],
   "xml.check.policy": [
    "components/admin/catalog/xml/CheckStep.tsx"
   ],
@@ -4631,6 +4723,12 @@
   ],
   "xml.check.rows": [
    "components/admin/catalog/xml/CheckStep.tsx"
+  ],
+  "xml.supplier.schedule": [
+   "components/admin/catalog/xml/FeedSchedule.tsx"
+  ],
+  "xml.supplier.apply": [
+   "components/admin/catalog/xml/FeedSchedule.tsx"
   ],
   "xml.map.cols": [
    "components/admin/catalog/xml/MappingSteps.tsx"

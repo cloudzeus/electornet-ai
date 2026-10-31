@@ -15,6 +15,8 @@ export type Target =
   | { kind: "mark" }
   | { kind: "cost" }
   | { kind: "rrp" }
+  /** διαθεσιμότητα του προμηθευτή — οι τιμές του αρχείου αντιστοιχίζονται σε κατάσταση (`availMap`) */
+  | { kind: "availability" }
   | { kind: "ignore" };
 
 /** Σφάλμα με μήνυμα για τον χρήστη (ελληνικά, ασφαλές να φανεί)· κάθε άλλο σφάλμα δείχνεται ως γενικό μήνυμα. */
@@ -35,6 +37,8 @@ export type ForeignRow = {
   markId: string | null;
   cost: string | null; // ακατέργαστο κείμενο — η μετατροπή σε αριθμό γίνεται στο επόμενο στάδιο
   rrp: string | null;
+  /** κατάσταση διαθεσιμότητας του προμηθευτή (in-stock | low | order | unavailable) μετά την αντιστοίχιση */
+  supplierAvail?: string | null;
 };
 
 /** Κανονικοποίηση για σύγκριση κειμένου: κενά στις άκρες, πεζά, χωρίς τόνους, ένα κενό ανάμεσα. */
@@ -82,13 +86,13 @@ export function headerSignature(headers: string[]): string {
 /** sheetBrandId / sheetCategoryId / sheetUnitId / sheetMarkId: μάρκα, κατηγορία, μονάδα και εμπορική σήμανση για ΟΛΟ το φύλλο, όταν η γραμμή δεν έχει τιμή στη στήλη (ή δεν υπάρχει στήλη — π.χ. τιμοκατάλογος μίας μάρκας, feed όπου όλα είναι τεμάχια). */
 type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | null; sheetUnitId?: string | null; sheetMarkId?: string | null };
 /** Αντιστοιχίσεις τιμή-προς-τιμή: η τιμή του αρχείου → δικό μας id (null = ο χρήστης την άφησε χωρίς αντιστοίχιση). */
-type ValueMaps = { brandMap: Record<string, string | null>; categoryMap: Record<string, string | null>; unitMap?: Record<string, string | null>; markMap?: Record<string, string | null> };
+type ValueMaps = { brandMap: Record<string, string | null>; categoryMap: Record<string, string | null>; unitMap?: Record<string, string | null>; markMap?: Record<string, string | null>; availMap?: Record<string, string | null> };
 export type MappingConfig = { columns: Record<number, Target> } & ValueMaps & SheetDefaults;
 /** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
 export type SavedConfig = { columns: Record<string, Target> } & ValueMaps & SheetDefaults;
 const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}), ...(c.sheetUnitId ? { sheetUnitId: c.sheetUnitId } : {}), ...(c.sheetMarkId ? { sheetMarkId: c.sheetMarkId } : {}) });
 /** Οι χάρτες τιμών όπως ταξιδεύουν μαζί (αποθήκευση ↔ χρήση)· μόνο όσοι έχουν περιεχόμενο αποθηκεύονται. */
-const valueMaps = (c: ValueMaps): ValueMaps => ({ brandMap: c.brandMap ?? {}, categoryMap: c.categoryMap ?? {}, ...(c.unitMap && Object.keys(c.unitMap).length ? { unitMap: c.unitMap } : {}), ...(c.markMap && Object.keys(c.markMap).length ? { markMap: c.markMap } : {}) });
+const valueMaps = (c: ValueMaps): ValueMaps => ({ brandMap: c.brandMap ?? {}, categoryMap: c.categoryMap ?? {}, ...(c.unitMap && Object.keys(c.unitMap).length ? { unitMap: c.unitMap } : {}), ...(c.markMap && Object.keys(c.markMap).length ? { markMap: c.markMap } : {}), ...(c.availMap && Object.keys(c.availMap).length ? { availMap: c.availMap } : {}) });
 
 /** Κλειδί ανά στήλη: κανονικοποιημένη επικεφαλίδα (όπως στο headerSignature)· η 2η, 3η… ίδια επικεφαλίδα παίρνει «#2», «#3»· κενή → null. */
 function headerKeys(headers: string[]): (string | null)[] {
@@ -168,6 +172,7 @@ const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
   { target: { kind: "rrp" }, w: ["rrp", "msrp", "pvp"], s: ["λιανικη", "τιμη πωλησης"] },
   // ΜΕΤΑ τις τιμές: «Unit price» / «Τιμή μονάδος» είναι κόστος, όχι μονάδα μέτρησης
   { target: { kind: "unit" }, w: ["uom", "μοναδα"], s: ["μοναδα μετρησης", "μον μετρησης", "unit of measure"] },
+  { target: { kind: "availability" }, w: ["availability", "stockstatus"], s: ["διαθεσιμοτητα", "stock status", "κατασταση αποθεματος"] },
   { target: { kind: "field", key: "shortDesc" }, s: ["συντομη περιγραφη", "short description"] },
   { target: { kind: "field", key: "name" }, w: ["name", "title"], s: ["περιγραφη ειδους", "ονομα", "τιτλος", "ονομασια", "product description"] },
   { target: { kind: "field", key: "descText" }, w: ["description"], s: ["περιγραφη"] },
@@ -252,6 +257,22 @@ export function numCell(v: unknown): string | null {
   return /^-?\d{1,3}\.\d{3}$/.test(s) ? `${s}0` : s;
 }
 
+// ---------- Διαθεσιμότητα προμηθευτή ----------
+
+/**
+ * Πρόταση κατάστασης για μια τιμή διαθεσιμότητας του feed («Διαθέσιμο», «Μη Διαθέσιμο», «Μικρό Απόθεμα», «Κατόπιν
+ * παραγγελίας», «In stock»…). null = δεν αναγνωρίζεται — ο χρήστης τη διαλέγει στο βήμα «Διαθεσιμότητα».
+ */
+export function guessAvail(v: string): "in-stock" | "low" | "order" | "unavailable" | null {
+  const t = norm(v);
+  if (!t) return null;
+  if (/(^| )(μη|δεν|χωρις|out)( |$)|εξαντλ|unavailable|not available|sold ?out|discontinu/.test(t)) return "unavailable";
+  if (/μικρο|χαμηλ|περιορισμεν|λιγα|low|limited|few/.test(t)) return "low";
+  if (/παραγγελ|αναμεν|ερχεται|order|backorder|preorder|ημερ|days|εβδομαδ/.test(t)) return "order";
+  if (/διαθεσιμ|αμεσα|σε αποθεμα|in stock|available|yes|ναι/.test(t)) return "in-stock";
+  return null;
+}
+
 // ---------- Γραμμές ----------
 
 const URL_SPLIT = /[\s,;|]+/;
@@ -283,6 +304,8 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
         case "mark": row.markId = (config.markMap && Object.hasOwn(config.markMap, c) ? config.markMap[c] : null) ?? row.markId; break;
         case "cost": row.cost = c; break;
         case "rrp": row.rrp = c; break;
+        // τιμή χωρίς αντιστοίχιση: η αυτόματη πρόταση (Διαθέσιμο / Μικρό απόθεμα / …), αλλιώς τίποτα
+        case "availability": row.supplierAvail = (config.availMap && Object.hasOwn(config.availMap, c) ? config.availMap[c] : guessAvail(c)) ?? null; break;
       }
     }
     out.push(row);

@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getBrowserRows } from "@/lib/softone/lookups";
 import { parseSupplierRow, matchesQuery, dedupeSuppliers, type SupplierRow } from "@/lib/catalog/xml-import/suppliers-core";
 import type { SupplierCard } from "@/lib/catalog/xml-import/ui-core";
+import { countPendingApply } from "@/lib/catalog/xml-import/queue";
+import { feedNext, normSchedule } from "@/lib/catalog/xml-import/schedule-core";
 
 /**
  * Cache των προμηθευτών του SoftOne, ώστε ο οδηγός «XML προμηθευτές» να ανοίγει χωρίς να περιμένει το ERP.
@@ -48,7 +50,7 @@ export interface SupplierListItem {
   code: string;
   name: string;
   afm: string | null;
-  feed: { id: string; url: string; lastRunAt: Date | null; lastCount: number | null; active: boolean; mapped: boolean } | null;
+  feed: { id: string; url: string; lastRunAt: Date | null; lastCount: number | null; active: boolean; mapped: boolean; schedule: unknown; minFetchMin: number; lastAutoAt: Date | null } | null;
 }
 
 /**
@@ -60,7 +62,7 @@ export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
     orderBy: { name: "asc" },
     select: {
       id: true, s1Trdr: true, code: true, name: true, afm: true,
-      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true, active: true, config: true } },
+      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true, active: true, config: true, schedule: true, minFetchMin: true, lastAutoAt: true } },
     },
   });
   return all
@@ -69,7 +71,7 @@ export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
       const f = feeds[0];
       // «mapped» = έχει περάσει η αντιστοίχιση· feed που σώθηκε από το βήμα ① έχει μόνο διεύθυνση.
       const mapped = !!f && ((f.config as { headers?: string[] } | null)?.headers ?? []).length > 0;
-      return { ...s, feed: f ? { id: f.id, url: f.url, lastRunAt: f.lastRunAt, lastCount: f.lastCount, active: f.active, mapped } : null };
+      return { ...s, feed: f ? { id: f.id, url: f.url, lastRunAt: f.lastRunAt, lastCount: f.lastCount, active: f.active, mapped, schedule: f.schedule, minFetchMin: f.minFetchMin, lastAutoAt: f.lastAutoAt } : null };
     });
 }
 
@@ -84,11 +86,21 @@ export async function supplierCards(q = "", limit = 60): Promise<SupplierCard[]>
     ? await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { feedId: { in: feedIds } }, _count: { _all: true } })
     : [];
   const byFeed = new Map(counts.map((c) => [c.feedId, c._count._all]));
+  const pend = new Map(await Promise.all(feedIds.map(async (id) => [id, await countPendingApply(id)] as const)));
+  const now = new Date();
   return list
     .map((s) => ({
       id: s.id, s1Trdr: s.s1Trdr, code: s.code, name: s.name, afm: s.afm,
       feed: s.feed
-        ? { id: s.feed.id, url: s.feed.url, lastRunAt: s.feed.lastRunAt?.toISOString() ?? null, lastCount: s.feed.lastCount, items: byFeed.get(s.feed.id) ?? 0, active: s.feed.active, mapped: s.feed.mapped }
+        ? (() => {
+          const schedule = normSchedule(s.feed.schedule, s.feed.minFetchMin);
+          return {
+            id: s.feed.id, url: s.feed.url, lastRunAt: s.feed.lastRunAt?.toISOString() ?? null, lastCount: s.feed.lastCount, items: byFeed.get(s.feed.id) ?? 0, active: s.feed.active, mapped: s.feed.mapped,
+            schedule, minFetchMin: s.feed.minFetchMin, lastAutoAt: s.feed.lastAutoAt?.toISOString() ?? null,
+            nextAt: s.feed.active && s.feed.mapped ? feedNext(schedule, s.feed.lastAutoAt, now)?.toISOString() ?? null : null,
+            pending: pend.get(s.feed.id) ?? 0,
+          };
+        })()
         : null,
     }))
     .sort((a, b) => Number(!a.feed) - Number(!b.feed) || a.name.localeCompare(b.name, "el"))

@@ -144,7 +144,7 @@ export function useMapping(suggestion: SuggestDTO, brands: PickOpt[], draft?: Ma
     const by = new Map<string, string[]>();
     for (const c of cols) {
       const t = of(c.header);
-      const key = t === "spec" ? `spec:${(labels[c.header] ?? "").trim().toLocaleLowerCase("el-GR")}` : ["field", "brand", "category", "unit", "mark", "cost", "rrp"].some((k) => t === k || t.startsWith(`${k}:`)) ? t : null;
+      const key = t === "spec" ? `spec:${(labels[c.header] ?? "").trim().toLocaleLowerCase("el-GR")}` : ["field", "brand", "category", "unit", "mark", "cost", "rrp", "availability"].some((k) => t === k || t.startsWith(`${k}:`)) ? t : null;
       if (!key || (t === "spec" && !(labels[c.header] ?? "").trim())) continue;
       by.set(key, [...(by.get(key) ?? []), c.header]);
     }

@@ -28,9 +28,9 @@ export interface QA {
 
 const availText = (p: Product) => {
   const a = p.availability;
-  if (a.kind === "in-stock") return `άμεσα διαθέσιμο, με παράδοση ${weekday(new Date(a.deliveryDate))}`;
+  if (a.kind === "in-stock") return `${a.label ? a.label.toLocaleLowerCase("el-GR") : "άμεσα διαθέσιμο"}, με παράδοση ${weekday(new Date(a.deliveryDate))}`;
   if (a.kind === "days") return `διαθέσιμο σε ${a.min}–${a.max} εργάσιμες (${weekday(new Date(a.deliveryDate))})`;
-  return "διαθέσιμο κατόπιν παραγγελίας σε 5–10 εργάσιμες";
+  return a.label ? a.label.toLocaleLowerCase("el-GR") : "διαθέσιμο κατόπιν παραγγελίας σε 5–10 εργάσιμες";
 };
 const topAttrs = (p: Product, n = 4) => attributesOf(p).filter((a) => !["Μάρκα", "Χρώμα", "Κατάσταση"].includes(a.key)).slice(0, n);
 const name = (p: Product) => `${p.brand} ${p.title}`;

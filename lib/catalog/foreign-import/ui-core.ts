@@ -71,7 +71,7 @@ export function decodeTarget(s: string, label = ""): Target {
   if (k === "field" && FIELD_KEYS.includes(sub as FieldKey)) return { kind: "field", key: sub as FieldKey };
   if (k === "media" && (sub === "image" || sub === "banner" || sub === "video")) return { kind: "media", type: sub };
   if (k === "spec") return { kind: "spec", label };
-  if (k === "brand" || k === "category" || k === "unit" || k === "mark" || k === "cost" || k === "rrp") return { kind: k };
+  if (k === "brand" || k === "category" || k === "unit" || k === "mark" || k === "cost" || k === "rrp" || k === "availability") return { kind: k };
   return { kind: "ignore" };
 }
 

@@ -12,6 +12,7 @@ import type { ListFilter, ListResult, SuggestResult } from "./repo";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
 import { specAttrs } from "@/lib/catalog/compare-specs";
+import { toShopAvailability } from "@/lib/catalog/availability-core";
 
 /**
  * Ο κατάλογος της βιτρίνας από τη βάση (προβολή του SoftOne): δέντρο κατηγοριών,
@@ -31,7 +32,8 @@ const SHOWN: Prisma.MediaWhereInput = { kind: "image", hidden: false };
 /** softone-set = τα «Set ειδών» του SoftOne ως προϊόντα (lib/softone/sets.ts → projectSetProducts) */
 export const SHOP_SOURCES = ["softone", "import", "softone-set"];
 /** Στις λίστες / αναζήτηση: όχι τα κύρια είδη που πωλούνται μόνο σε σετ (soldAlone = false) */
-export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, soldAlone: true, media: { some: SHOWN } };
+/** publishReady: ο έλεγχος πληρότητας (lib/catalog/publish-ready-server.ts) — true παντού όσο ο έλεγχος είναι κλειστός */
+export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, publishReady: true, soldAlone: true, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
 // ---------- Δέντρο ----------
@@ -112,7 +114,7 @@ export async function findCategoryPath(segments: string[]): Promise<CatNode[] | 
 // ---------- Προϊόν ----------
 
 const PRODUCT_SELECT = {
-  id: true, brandId: true, categoryId: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true, price: true, stock: true,
+  id: true, brandId: true, categoryId: true, sku: true, ean: true, slug: true, title: true, summary: true, description: true, highlights: true, updatedAt: true, price: true, stock: true, availLabel: true, availState: true,
   brand: { select: { name: true, slug: true } },
   category: { select: { slug: true, name: true, parent: { select: { slug: true, name: true, parent: { select: { slug: true, name: true } } } } } },
   media: { where: SHOWN, orderBy: { sortNo: "asc" as const }, select: { url: true } },
@@ -185,7 +187,9 @@ export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["ba
     // ενεργειακή πληροφόρηση μόνο σε τύπους που έχουν ευρωπαϊκή ετικέτα — αλλού, μια «κλάση Α» στην περιγραφή είναι θόρυβος
     energy: r.energy && ENERGY.has(r.energy.class) && hasEnergyLabel(r.category.name) ? { cls: r.energy.class as EnergyClass, fiche: r.energy.ficheUrl ?? r.energy.labelUrl ?? "", kwh: r.energy.eprel?.annualKwh ?? undefined, eprel: r.energy.eprelRegistrationNumber ?? undefined } : undefined,
     // Όπως το ζωντανό site: απόθεμα στην κεντρική αποθήκη → «Άμεσα διαθέσιμο», αλλιώς «κατόπιν παραγγελίας»
-    availability: r.stock > 0 ? { kind: "in-stock", deliveryDate: deliveryDate(2) } : { kind: "order", label: r.price && r.price > 0 ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα" },
+    // Η φράση από τους κανόνες διαθεσιμότητας (lib/catalog/availability.ts)· πριν την πρώτη προβολή, όπως το ζωντανό site
+    availability: r.availLabel && r.availState ? toShopAvailability({ label: r.availLabel, state: r.availState }, deliveryDate(2))
+      : r.stock > 0 ? { kind: "in-stock", deliveryDate: deliveryDate(2) } : { kind: "order", label: r.price && r.price > 0 ? "Διαθέσιμο κατόπιν παραγγελίας" : "Διαθεσιμότητα στο κατάστημα" },
     stockLeft: r.stock > 0 && r.stock <= 3 ? r.stock : undefined,
     description: [r.summary, r.description].filter(Boolean).join("\n\n") || undefined,
     highlights: (() => { const real = (Array.isArray(r.highlights) ? (r.highlights as string[]) : []).filter(isReason); const all = real.length >= 2 ? real : [...real, ...(extra.facts ?? [])]; return all.length ? all.slice(0, 4) : undefined; })(),
@@ -212,7 +216,7 @@ export const dbListProducts = (f: ListFilter & { l3?: string }): Promise<ListRes
 async function productBySlugFresh(slug: string): Promise<Product | null> {
   await loadStickerCatalog();
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
-  const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true }, select: {
+  const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true, publishReady: true }, select: {
     ...PRODUCT_SELECT, specs: { orderBy: [{ sortNo: "asc" }], select: { groupName: true, key: true, value: true } },
     facetValues: { where: { source: { in: ["spec", "title"] } }, orderBy: { facet: { sortNo: "asc" } }, take: 8, select: { value: true, facet: { select: { label: true } } } },
   } });

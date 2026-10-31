@@ -117,7 +117,8 @@ export async function saveProductFields(productId: string, changes: import("@/li
   const user = await requirePermission("catalog.products.write");
   const { can } = await import("@/lib/rbac/permissions");
   if (!can(user.permissions, "catalog.sync.run")) return { ok: false as const, message: "Χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP» για αλλαγές στο SoftOne." };
-  const { writeItem, itemWriteEnabled, ITEM_FIELDS } = await import("@/lib/softone/item-write");
+  const { writeItem, itemWriteEnabled, ITEM_FIELDS, WEB_FIELDS } = await import("@/lib/softone/item-write");
+  for (const k of WEB_FIELDS) delete changes[k];
   if (!(await itemWriteEnabled())) return { ok: false as const, message: "Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne)." };
   const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
   const mtrl = Number(p?.erpCode);

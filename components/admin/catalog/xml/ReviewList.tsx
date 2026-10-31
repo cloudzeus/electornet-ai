@@ -22,6 +22,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   queued: <Clock className="size-3.5" aria-hidden />,
   importing: <Loader2 className="size-3.5 animate-spin" aria-hidden />,
   done: <Check className="size-3.5" aria-hidden />,
+  waiting: <Clock className="size-3.5" aria-hidden />,
   error: <CircleAlert className="size-3.5" aria-hidden />,
   skipped: <X className="size-3.5" aria-hidden />,
 };
@@ -30,6 +31,7 @@ const STATUS_CLS: Record<string, string> = {
   queued: "bg-eu-chip text-eu-navy",
   importing: "bg-eu-chip text-eu-navy",
   done: "bg-eu-green/12 text-eu-ink",
+  waiting: "bg-eu-yellow/30 text-eu-ink",
   error: "bg-eu-red/10 text-eu-red",
   skipped: "bg-eu-surface text-eu-ink-3",
 };

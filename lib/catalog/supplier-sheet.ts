@@ -215,7 +215,8 @@ export async function buildTemplate(brandId: string, groupIds: number[], kind: S
 
 /** Αριθμοί SoftOne που ορίζει ρητά ο χρήστης για ΝΕΟ είδος· ό,τι λείπει αντιγράφεται από αδελφό είδος της ομάδας. */
 export interface RowRefs { unit?: number | null; mark?: number | null }
-export interface ParsedRow { sheet: string; rowNo: number; groupS1Id: number; fields: Partial<Record<FieldKey, string>>; specs: Record<string, string>; refs?: RowRefs }
+/** `assignWebGroup`: υπάρχον είδος χωρίς web ομάδα παίρνει την `groupS1Id` της γραμμής (και τις web κατηγορίες της) στο SoftOne */
+export interface ParsedRow { sheet: string; rowNo: number; groupS1Id: number; fields: Partial<Record<FieldKey, string>>; specs: Record<string, string>; refs?: RowRefs; assignWebGroup?: boolean }
 export interface ParsedFile { meta: SheetMeta | null; rows: ParsedRow[]; warnings: string[]; sheets: { name: string; groupS1Id: number | null; group: string | null; rows: number; ignoredColumns: string[] }[] }
 
 export const cellText = (v: ExcelJS.CellValue): string => {

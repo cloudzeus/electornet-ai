@@ -45,7 +45,7 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
   const storeQty = store ? Math.max(0, ((p.storeStock ?? 0) + Number(store.id.replace(/\D/g, ""))) % 7) : 0;
   const a = p.availability;
   const date = a.kind === "order" ? null : weekday(new Date(a.deliveryDate));
-  const avail = a.kind === "in-stock" ? { c: "text-eu-green", dot: "bg-eu-green", t: "Άμεσα διαθέσιμο" } : a.kind === "days" ? { c: "text-eu-amber", dot: "bg-eu-amber", t: `Διαθέσιμο σε ${a.min}–${a.max} εργάσιμες` } : { c: "text-eu-muted", dot: "bg-eu-muted", t: a.label ?? "Κατόπιν παραγγελίας" };
+  const avail = a.kind === "in-stock" ? { c: "text-eu-green", dot: "bg-eu-green", t: a.label ?? "Άμεσα διαθέσιμο" } : a.kind === "days" ? { c: "text-eu-amber", dot: "bg-eu-amber", t: `Διαθέσιμο σε ${a.min}–${a.max} εργάσιμες` } : { c: "text-eu-muted", dot: "bg-eu-muted", t: a.label ?? "Κατόπιν παραγγελίας" };
 
   const toggleAddon = (s: Service) => {
     const x: CartAddon = { slug: s.slug, title: s.title, price: s.priceFrom ?? 0 };

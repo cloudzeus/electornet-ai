@@ -63,11 +63,16 @@ test("suggestColumn: κατηγορία — το πλήρες ζεύγος κε�
 });
 
 test("suggestColumn: ό,τι δεν ξέρουμε μένει «unsure» για το AI", () => {
-  const a = t("Availability");
+  const a = t("WarehouseZone");
   assert.equal(a.target.kind, "ignore");
   assert.equal(a.confidence, "unsure");
   assert.equal(t("NextShipmentDate").confidence, "unsure");
   assert.equal(t("ΚάτιΠρωτόγνωρο").confidence, "unsure");
+});
+
+test("suggestColumn: η διαθεσιμότητα του προμηθευτή αναγνωρίζεται", () => {
+  assert.equal(kindOf("Availability"), "availability");
+  assert.equal(kindOf("Διαθεσιμότητα"), "availability");
 });
 
 test("suggestColumn: η μονάδα μαντεύεται από τα δείγματα", () => {
@@ -78,7 +83,7 @@ test("suggestColumn: η μονάδα μαντεύεται από τα δείγμ
 });
 
 test("unresolvedColumns: επιστρέφει τους δείκτες που θα πάνε στο AI, με τη σειρά", () => {
-  const sug = { 0: t("Name"), 1: t("Availability"), 2: t("BoxWidth"), 3: t("NextShipmentDate") };
+  const sug = { 0: t("Name"), 1: t("WarehouseZone"), 2: t("BoxWidth"), 3: t("NextShipmentDate") };
   assert.deepEqual(unresolvedColumns(sug), [1, 3]);
 });
 

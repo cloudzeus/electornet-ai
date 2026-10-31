@@ -2,6 +2,7 @@ import type { FeedCounts } from "@/lib/catalog/xml-import/parse-core";
 import type { Transform, PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
 import type { Confidence } from "@/lib/catalog/xml-import/suggest-core";
+import type { FeedSchedule } from "@/lib/catalog/xml-import/schedule-core";
 
 /**
  * Ό,τι μοιράζονται ο server (actions) και ο browser (οδηγός) — **καθαρή λογική**: χωρίς βάση, δίκτυο ή server-only,
@@ -32,6 +33,10 @@ export interface SupplierCard {
     active: boolean;
     /** true = έχει περάσει η αντιστοίχιση· false = έχει μόνο διεύθυνση */
     mapped: boolean;
+    /** πρόγραμμα αυτόματης ενημέρωσης (FeedSchedule) και πότε τρέχει ξανά */
+    schedule: FeedSchedule; minFetchMin: number; lastAutoAt: string | null; nextAt: string | null;
+    /** υπάρχοντα είδη με αλλαγές που δεν έχουν περάσει σε SoftOne / eshop */
+    pending: number;
   } | null;
 }
 
@@ -270,6 +275,7 @@ export const STATUS: Record<string, string> = {
   queued: "Στην ουρά",
   importing: "Γίνεται τώρα",
   done: "Μπήκε",
+  waiting: "Σε αναμονή SoftOne",
   error: "Σφάλμα",
   skipped: "Παραλείπεται",
 };
@@ -317,6 +323,7 @@ export const TARGETS: { group: string; items: { value: string; label: string; he
     { value: "category", label: "Κατηγορία", help: "Κάθε τιμή αντιστοιχίζεται σε κατηγορία μας — δίνει ομάδα χαρακτηριστικών στα νέα είδη και κανόνα τιμής." },
     { value: "unit", label: "Μονάδα μέτρησης", help: "Κάθε τιμή σε δική μας μονάδα (MTRUNIT). Μετράει μόνο στα ΝΕΑ είδη· των υπαρχόντων δεν αλλάζει." },
     { value: "mark", label: "Εμπορική σήμανση", help: "MTRMARK (PREMIUM, QLED…) — όχι η μάρκα. Μετράει μόνο στα ΝΕΑ είδη· των υπαρχόντων δεν αλλάζει." },
+    { value: "availability", label: "Διαθεσιμότητα προμηθευτή", help: "«Διαθέσιμο / Μη Διαθέσιμο / Μικρό Απόθεμα…»: κάθε τιμή αντιστοιχίζεται σε κατάσταση στο πρώτο βήμα. Μένει στο eshop (όχι στο SoftOne) και μετράει στους κανόνες διαθεσιμότητας." },
   ] },
   { group: "Τιμές", items: [
     { value: "cost", label: "Κόστος (χωρίς ΦΠΑ)", help: "Με τον κανόνα τιμολόγησης βγάζει την τιμή web — μόνο όπου το είδος δεν έχει τιμή." },

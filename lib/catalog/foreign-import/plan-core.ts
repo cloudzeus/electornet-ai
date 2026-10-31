@@ -13,6 +13,8 @@ export type ForeignPlanRow = {
   fileName?: string; matchedBy?: MatchKind;
   /** αλλαγές στο SoftOne («μόνο κενά») — στα νέα είδη τα πεδία που θα μπουν */
   changes: { label: string; from: string; to: string }[];
+  /** αλλαγές μόνο στο κατάστημα (π.χ. διαθεσιμότητα προμηθευτή) — γράφονται και με το SoftOne σε αναμονή */
+  shop?: { label: string; from: string; to: string }[];
   /** νέα πολυμέσα (υπάρχοντα: όσα δεν έχει ήδη το προϊόν· νέα: όλες οι διευθύνσεις) */
   media: number;
   price?: ForeignPrice;
@@ -21,11 +23,11 @@ export type ForeignPlanRow = {
 };
 
 /** Προτεραιότητα: πρόβλημα > νέο > αναμονή (SoftOne κλειστό και υπάρχουν στοιχεία ή τιμή) > ενημέρωση > καμία αλλαγή. Οι φωτογραφίες μόνες είναι «ενημέρωση» ακόμη και με κλειστό SoftOne. */
-export function rowStatus(r: { problem: boolean; mtrl: number | null; changes: number; price: boolean; photos: number; writeOn: boolean }): RowStatus {
+export function rowStatus(r: { problem: boolean; mtrl: number | null; changes: number; price: boolean; photos: number; writeOn: boolean; shop?: number }): RowStatus {
   if (r.problem) return "problem";
   if (r.mtrl == null) return "new";
   if (!r.writeOn && (r.changes > 0 || r.price)) return "waiting";
-  return r.changes > 0 || r.price || r.photos > 0 ? "update" : "unchanged";
+  return r.changes > 0 || r.price || r.photos > 0 || (r.shop ?? 0) > 0 ? "update" : "unchanged";
 }
 
 /** Νέα είδη (χωρίς MTRL) με ίδιο EAN ή ίδιο κωδικό / κωδικό κατασκευαστή σε 2+ γραμμές → μήνυμα προβλήματος για ΚΑΘΕ τέτοια γραμμή. */

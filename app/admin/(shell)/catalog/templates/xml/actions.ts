@@ -18,7 +18,9 @@ import { pendingValues } from "@/lib/catalog/xml-import/values";
 import { dropDraft, getDraft, putDraft } from "@/lib/catalog/xml-import/draft";
 import { mergeBrandMap, splitBrandMap } from "@/lib/catalog/xml-import/skip-core";
 import { publishList, publishProducts, type PublishFilter } from "@/lib/catalog/xml-import/publish";
-import { drain, enqueue, progress, recoverStale, type Selection } from "@/lib/catalog/xml-import/queue";
+import { drain, enqueue, enqueuePending, progress, recoverStale, type Selection } from "@/lib/catalog/xml-import/queue";
+import { normSchedule, type FeedSchedule } from "@/lib/catalog/xml-import/schedule-core";
+import { availValues, saveAvailMap, type AvailValue } from "@/lib/catalog/xml-import/avail-map";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import type { PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
@@ -91,6 +93,49 @@ export async function toggleFeed(feedId: string, active: boolean): Promise<{ act
     await setFeedActive(String(feedId), !!active);
     await audit(user.id, "catalog.xml-import.active", "SupplierFeed", String(feedId), null, { active: !!active });
     return ok({ active: !!active });
+  });
+}
+
+/** Πρόγραμμα αυτόματης ενημέρωσης (upsert) από το XML: χειροκίνητα, κάθε N λεπτά ή καθημερινά — ποτέ κάτω από το όριο λήψης. */
+export async function saveSchedule(feedId: string, raw: unknown): Promise<{ schedule: FeedSchedule } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("saveSchedule", async () => {
+    const feed = await loadFeed(String(feedId));
+    const schedule = normSchedule(raw, feed.minFetchMin);
+    const before = await db.supplierFeed.findUnique({ where: { id: feed.id }, select: { schedule: true } });
+    await db.supplierFeed.update({ where: { id: feed.id }, data: { schedule: schedule as object } });
+    await audit(user.id, "catalog.xml-import.schedule", "SupplierFeed", feed.id, before?.schedule ?? null, schedule);
+    return ok({ schedule });
+  });
+}
+
+/** «Εφαρμογή αλλαγών (N)»: τα υπάρχοντα είδη με αλλαγές του XML (ή διορθώσεις) περνούν σε SoftOne και eshop. */
+export async function applyPending(feedId: string): Promise<{ queued: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("applyPending", async () => {
+    const feed = await loadFeed(String(feedId));
+    const deny = await erpGuard(user.permissions, feed.toSoftone);
+    if (deny) throw new UserError(deny);
+    const queued = await enqueuePending(feed.id);
+    await audit(user.id, "catalog.xml-import.apply-pending", "SupplierFeed", feed.id, null, { queued });
+    return ok({ queued });
+  });
+}
+
+/** Οι τιμές διαθεσιμότητας του feed (με πλήθη) και η κατάσταση που αντιστοιχεί η καθεμία. */
+export async function availMapValues(feedId: string): Promise<{ header: string | null; values: AvailValue[] } | Fail> {
+  await requirePermission("catalog.products.read");
+  return guard("availMapValues", async () => ok(await availValues(String(feedId))));
+}
+
+/** Αποθήκευση «τιμή του XML → κατάσταση»· ενημερώνει αμέσως τη διαθεσιμότητα των προϊόντων του feed στο eshop. */
+export async function saveAvailMapAction(feedId: string, map: Record<string, unknown>): Promise<{ products: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("saveAvailMap", async () => {
+    const r = await saveAvailMap(String(feedId), map);
+    await audit(user.id, "catalog.xml-import.avail-map", "SupplierFeed", String(feedId), null, { values: Object.keys(map ?? {}).length, ...r });
+    resetCatalogCache();
+    return ok(r);
   });
 }
 
@@ -397,7 +442,8 @@ export async function saveItem(itemId: string, input: { edits: Record<string, st
     const softone = input.softone === true || input.softone === false ? input.softone : null;
     const updated = await db.supplierFeedItem.update({
       where: { id: row.id },
-      data: { edits: Object.keys(edits).length ? edits : Prisma.DbNull, images, softone },
+      // διόρθωση του χρήστη → εκκρεμεί εφαρμογή στο SoftOne / eshop
+      data: { edits: Object.keys(edits).length ? edits : Prisma.DbNull, images, softone, pendingApply: true },
       select: { id: true, sku: true, payload: true, edits: true, images: true, assetIds: true, diff: true, status: true, softone: true, problem: true, mtrl: true, productId: true, error: true },
     });
     await audit(user.id, "catalog.xml-import.edit", "SupplierFeedItem", row.id, null, { fields: Object.keys(edits), images: images.length, softone });

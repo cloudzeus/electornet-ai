@@ -93,7 +93,10 @@ export async function saveFeed(
     toSoftone: input.toSoftone,
   };
   const minFetchMin = clampMinFetch(input.minFetchMin ?? 30);
-  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true } });
+  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true, config: true } });
+  // ο χάρτης διαθεσιμότητας ρυθμίζεται χωριστά (βήμα ①) — μια νέα αντιστοίχιση στηλών δεν τον σβήνει
+  const keptAvail = existing ? cfgOf(existing.config).saved.availMap : undefined;
+  if (!cfg.saved.availMap && keptAvail && Object.keys(keptAvail).length) cfg.saved.availMap = keptAvail;
   if (existing) {
     await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin } });
     return existing.id;
@@ -223,7 +226,7 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
 
   const counts: Record<Diff, number> = { new: 0, changed: 0, same: 0, gone: 0 };
   let problems = 0, conflicts = 0, skipped = 0;
-  const fresh: { feedId: string; sku: string; payload: object; images: object; diff: string; status: string; problem: string | null }[] = [];
+  const fresh: { feedId: string; sku: string; payload: object; images: object; diff: string; status: string; problem: string | null; pendingApply: boolean }[] = [];
   // Η βάση είναι απομακρυσμένη: 2.580 ξεχωριστά update θα ήταν 2.580 γύροι. Ξεχωριστή εγγραφή γίνεται ΜΟΝΟ όπου
   // άλλαξε πραγματικά το payload· τα «same» και τα «gone» πάνε με μαζικά updateMany.
   const sameIds: string[] = [], goneIds: string[] = [], toSkip: string[] = [], toReview: string[] = [];
@@ -243,7 +246,7 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
     const skip = !!it.brand && skipSet.has(it.brand);
     if (skip) skipped++;
     if (!was) {
-      fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: statusFor(null, { problem: !!row.problem, skip })!, problem: row.problem ?? null });
+      fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: statusFor(null, { problem: !!row.problem, skip })!, problem: row.problem ?? null, pendingApply: true });
       continue;
     }
     const edits = (was.edits ?? null) as Record<string, string> | null;
@@ -265,7 +268,8 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
   for (let i = 0; i < goneIds.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: goneIds.slice(i, i + CHUNK) }, diff: { not: "gone" } }, data: { diff: "gone" } });
   for (let i = 0; i < toSkip.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: toSkip.slice(i, i + CHUNK) } }, data: { status: "skipped" } });
   for (let i = 0; i < toReview.length; i += CHUNK) await db.supplierFeedItem.updateMany({ where: { id: { in: toReview.slice(i, i + CHUNK) } }, data: { status: "review" } });
-  for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: c.status } });
+  // άλλαξε το payload → εκκρεμεί εφαρμογή (το «Εφαρμογή αλλαγών» / η αυτόματη ενημέρωση το περνούν σε SoftOne και eshop)
+  for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: c.status, pendingApply: true } });
 
   await db.supplierFeed.update({ where: { id: feedId }, data: { lastRunAt: new Date(), lastCount: incoming.length } });
   return { total: rows.length, counts, problems, conflicts, skipped };
