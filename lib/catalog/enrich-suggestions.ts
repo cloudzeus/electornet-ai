@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { fetchPublicBytes } from "@/lib/net/safe-fetch";
+import { assertPublicUrl, fetchPublicBytes } from "@/lib/net/safe-fetch";
 import { specFingerprint, isProductImageUrl, blockedHost } from "./enrich-core";
 import { readProductPage } from "./enrich-page";
 import { uploadProductImage } from "./product-images";
@@ -20,6 +20,25 @@ export const SUGGEST_SOURCE_LABEL: Record<string, string> = { icecat: "Icecat", 
 const MAX_IMAGE = 25 * 1024 * 1024;
 const EXT_MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", avif: "image/avif" };
 
+/**
+ * Υπάρχει η εικόνα; Οι διευθύνσεις που δίνει η αναζήτηση AI είναι συχνά επινοημένες (404) — ελέγχονται πριν γίνουν
+ * προτάσεις. Μικρό GET (Range) αντί για HEAD, που πολλοί servers δεν δέχονται. Μόνο δημόσιες διευθύνσεις.
+ */
+export async function imageReachable(url: string): Promise<boolean> {
+  try {
+    const u = await assertPublicUrl(url);
+    const r = await fetch(u, { headers: { range: "bytes=0-2047", accept: "image/*", "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 EuronicsMediaImport/1.0" }, signal: AbortSignal.timeout(8000) });
+    await r.body?.cancel().catch(() => {});
+    const type = (r.headers.get("content-type") ?? "").toLowerCase();
+    return r.ok && type.startsWith("image/") && !type.includes("svg") && !type.includes("gif");
+  } catch { return false; }
+}
+
+async function reachable(urls: string[]): Promise<string[]> {
+  const ok = await Promise.all(urls.map((u) => imageReachable(u)));
+  return urls.filter((_, i) => ok[i]);
+}
+
 /** Από ένα αποτέλεσμα πηγής → προτάσεις (χωρίς διπλά και χωρίς όσα έχει ήδη το προϊόν). */
 export async function suggestFromResult(productId: string, r: EnrichResult) {
   let images = [...(r.images ?? [])];
@@ -29,7 +48,8 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
     const page = await readProductPage(r.url);
     if (page.ok) images = [...page.images, ...images]; else pageNote = page.reason;
   }
-  images = [...new Set(images)].filter((u) => isProductImageUrl(u) && !blockedHost(u)).slice(0, 12);
+  images = await reachable([...new Set(images)].filter((u) => isProductImageUrl(u) && !blockedHost(u)).slice(0, 16));
+  images = images.slice(0, 12);
   const have = await db.media.findMany({ where: { productId }, select: { url: true, importFile: true } });
   const known = new Set(have.flatMap((m) => [m.url, m.importFile]).filter(Boolean) as string[]);
   const data: { productId: string; source: string; kind: string; fingerprint: string; url?: string; group?: string; key?: string; value?: string; pageUrl?: string; sourceName?: string }[] = [];
