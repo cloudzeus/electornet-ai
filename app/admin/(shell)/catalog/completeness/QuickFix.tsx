@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { ProductEditor, type EditorSection } from "@/components/admin/catalog/ProductEditor";
 import { ProductImages } from "@/components/admin/catalog/ProductImages";
 import { PUBLISH_CRITERIA } from "@/lib/catalog/publish-ready";
+import { SuggestPanel } from "./SuggestPanel";
 import { quickFixAction, recheckProductAction, type QuickFixData } from "./actions";
 
 const LABEL = Object.fromEntries(PUBLISH_CRITERIA.map((c) => [c.key, c.missing])) as Record<string, string>;
@@ -25,6 +26,8 @@ export function QuickFix({ productId, title }: { productId: string; title: strin
   const [err, setErr] = useState<string | null>(null);
   const [loading, startLoad] = useTransition();
   const [checking, startCheck] = useTransition();
+  // μετά από «Εισαγωγή» της πρότασης η φόρμα ξαναστήνεται με τις νέες τιμές
+  const [ver, setVer] = useState(0);
   const router = useRouter();
 
   const load = () => startLoad(async () => {
@@ -32,6 +35,7 @@ export function QuickFix({ productId, title }: { productId: string; title: strin
     const d = await quickFixAction(productId).catch(() => null);
     if (!d) setErr("Δεν βρέθηκε το προϊόν.");
     setData(d);
+    setVer((n) => n + 1);
   });
   const recheck = () => startCheck(async () => {
     const r = await recheckProductAction(productId);
@@ -78,6 +82,10 @@ export function QuickFix({ productId, title }: { productId: string; title: strin
                   </button>
                 </div>
 
+                {data.editor && (missing.includes("specs") || missing.includes("dims") || missing.includes("avail")) && (
+                  <SuggestPanel productId={data.id} readonly={!!data.editor.readonlyReason} onApplied={() => { load(); recheck(); }} />
+                )}
+
                 {missing.includes("photo") && (
                   <section className="grid gap-2 min-w-0" aria-label="Φωτογραφίες">
                     <h3 className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)]">Φωτογραφίες</h3>
@@ -86,7 +94,7 @@ export function QuickFix({ productId, title }: { productId: string; title: strin
                 )}
 
                 {sections.length > 0 && (data.editor
-                  ? <ProductEditor productId={data.id} only={sections} initial={data.editor.initial} readonly={!!data.editor.readonlyReason} readonlyReason={data.editor.readonlyReason} meta={data.editor.meta} dimCandidates={data.editor.dimCandidates} />
+                  ? <ProductEditor key={ver} productId={data.id} only={sections} initial={data.editor.initial} readonly={!!data.editor.readonlyReason} readonlyReason={data.editor.readonlyReason} meta={data.editor.meta} dimCandidates={data.editor.dimCandidates} />
                   : <p className="m-0 rounded-lg bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]">Το προϊόν δεν προέρχεται από το SoftOne — τα στοιχεία του αλλάζουν από την καρτέλα προϊόντος.</p>)}
 
                 {erpOnly.map((k) => (

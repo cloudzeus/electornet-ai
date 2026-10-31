@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T06:03:06.182Z",
+ "generatedAt": "2026-10-31T06:13:48.716Z",
  "routes": [
   {
    "route": "/admin",
@@ -699,16 +699,22 @@
     "completeness.save",
     "completeness.recompute",
     "completeness.quickfix",
+    "completeness.suggest",
     "completeness.list"
    ],
    "changes": [
+    {
+     "hash": "9d333f1",
+     "date": "2026-10-31T08:05:59+02:00",
+     "text": "Πληρότητα: «Γρήγορη διόρθωση» σε παράθυρο για τα ημιτελή προϊόντα"
+    },
     {
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
     }
    ],
-   "updatedAt": "2026-10-31T07:29:29+02:00",
+   "updatedAt": "2026-10-31T08:05:59+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -3987,6 +3993,16 @@
  ],
  "recent": [
   {
+   "hash": "9d333f1",
+   "date": "2026-10-31T08:05:59+02:00",
+   "text": "Πληρότητα: «Γρήγορη διόρθωση» σε παράθυρο για τα ημιτελή προϊόντα",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/completeness"
+   ]
+  },
+  {
    "hash": "f6e14b2",
    "date": "2026-10-31T07:29:29+02:00",
    "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»",
@@ -4290,12 +4306,6 @@
    "date": "2026-10-20T14:58:25+03:00",
    "text": "Ασφάλεια: Bunny",
    "routes": []
-  },
-  {
-   "hash": "d55c0fb",
-   "date": "2026-10-20T14:56:41+03:00",
-   "text": "Ασφάλεια: φύλακας",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4406,6 +4416,9 @@
   ],
   "completeness.quickfix": [
    "app/admin/(shell)/catalog/completeness/QuickFix.tsx"
+  ],
+  "completeness.suggest": [
+   "app/admin/(shell)/catalog/completeness/SuggestPanel.tsx"
   ],
   "completeness.list": [
    "app/admin/(shell)/catalog/completeness/page.tsx"

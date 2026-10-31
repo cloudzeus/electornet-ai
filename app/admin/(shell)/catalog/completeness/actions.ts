@@ -78,3 +78,42 @@ export async function recheckProductAction(productId: string) {
   const p = await db.product.findUnique({ where: { id: productId }, select: { publishReady: true, publishMissing: true } });
   return { publishReady: p?.publishReady ?? false, missing: p?.publishMissing ?? [] };
 }
+
+/** «Πρόταση από την απόδελτίωση»: χαρακτηριστικά της κατηγορίας, διαστάσεις και βάρος (μία κλήση AI, χωρίς εγγραφή). */
+export async function suggestSpecsAction(productId: string) {
+  await requirePermission("catalog.products.write");
+  const { suggestSpecs } = await import("@/lib/catalog/spec-suggest");
+  return suggestSpecs(productId);
+}
+
+/**
+ * Εισαγωγή των επιλεγμένων προτάσεων: τα χαρακτηριστικά που λείπουν μπαίνουν στο τέλος της αναλυτικής περιγραφής
+ * («Ετικέτα : τιμή», τα υπάρχοντα δεν αλλάζουν) και διαστάσεις / βάρος στα πεδία τους — με την ίδια εγγραφή
+ * (SoftOne → έλεγχος → e-shop) όπως η καρτέλα προϊόντος.
+ */
+export async function applySuggestionAction(productId: string, pick: { specs: { label: string; value: string }[]; dims?: { w: number; h: number; d: number } | null; weightKg?: number | null }) {
+  const user = await requirePermission("catalog.products.write");
+  const [{ db }, { fillBlankMemo }, { saveProductFields }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/foreign-import/core"), import("../actions")]);
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
+  const mtrl = Number(p?.erpCode);
+  const item = p?.source === "softone" && Number.isInteger(mtrl) ? await db.s1Item.findUnique({ where: { mtrl }, select: { longDesc: true, widthCm: true, heightCm: true, lengthCm: true, weightKg: true } }) : null;
+  if (!item) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };
+  const changes: import("@/lib/softone/item-write").ItemChanges = {};
+  const specs = pick.specs.filter((s) => s.label.trim() && s.value.trim()).slice(0, 80);
+  if (specs.length) {
+    const memo = fillBlankMemo(item.longDesc ?? "", specs);
+    if (memo !== (item.longDesc ?? "")) changes.longDesc = { from: item.longDesc, to: memo };
+  }
+  const ok = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n > 0;
+  if (pick.dims && ok(pick.dims.w) && ok(pick.dims.h) && ok(pick.dims.d)) {
+    changes.widthCm = { from: item.widthCm, to: pick.dims.w };
+    changes.heightCm = { from: item.heightCm, to: pick.dims.h };
+    changes.lengthCm = { from: item.lengthCm, to: pick.dims.d };
+  }
+  if (ok(pick.weightKg)) changes.weightKg = { from: item.weightKg, to: pick.weightKg! };
+  if (!Object.keys(changes).length) return { ok: true as const, message: "Καμία αλλαγή για εισαγωγή." };
+  await audit(user.id, "catalog.product.spec-suggest-apply", "Product", productId, null, { specs: specs.length, dims: !!changes.widthCm, weight: !!changes.weightKg });
+  const r = await saveProductFields(productId, changes);
+  if (r.written?.length) await projectPublishReady([productId]);
+  return { ok: r.ok, message: r.message };
+}
