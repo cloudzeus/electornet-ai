@@ -52,7 +52,8 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
     if (!r) { setMsg({ ok: false, text: "Η αποθήκευση απέτυχε." }); return; }
     setState(r.state); setOn(new Set());
     const res = r.result;
-    const parts = [res.images ? `${res.images} φωτογραφίες στη γκαλερί` : "", res.specsErp ? `${res.specsErp} χαρακτηριστικά στο SoftOne και στο e-shop` : "", res.specsEshop ? `${res.specsEshop} χαρακτηριστικά μόνο στο e-shop (${res.erpMessage ?? "το SoftOne δεν δέχτηκε την εγγραφή"})` : ""].filter(Boolean);
+    const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+    const parts = [res.images ? `${n(res.images, "φωτογραφία", "φωτογραφίες")} στη γκαλερί` : "", res.specsErp ? `${n(res.specsErp, "χαρακτηριστικό", "χαρακτηριστικά")} στο SoftOne και στο e-shop` : "", res.specsEshop ? `${n(res.specsEshop, "χαρακτηριστικό", "χαρακτηριστικά")} μόνο στο e-shop (${res.erpMessage ?? "το SoftOne δεν δέχτηκε την εγγραφή"})` : ""].filter(Boolean);
     setMsg(decision === "approve"
       ? { ok: !res.failed.length && !res.specsEshop, text: `${parts.length ? `Εγκρίθηκαν: ${parts.join(" · ")}.` : "Δεν εγκρίθηκε τίποτα."}${res.failed.length ? ` Δεν κατέβηκαν ${res.failed.length}: ${res.failed[0].message}` : ""}` }
       : { ok: true, text: `Απορρίφθηκαν ${res.rejected}.` });
