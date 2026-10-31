@@ -8,6 +8,7 @@ import { Pagination } from "@/components/admin/Pagination";
 import { PUBLISH_CRITERIA, isPublishKey } from "@/lib/catalog/publish-ready";
 import { getPublishGate, tallyPublish } from "@/lib/catalog/publish-ready-server";
 import { GateForm } from "./GateForm";
+import { QuickFix } from "./QuickFix";
 
 export const metadata = { title: "Πληρότητα προϊόντων" };
 export const dynamic = "force-dynamic";
@@ -74,10 +75,11 @@ export default async function CompletenessPage({ searchParams }: { searchParams:
                 <span className="text-eu-muted text-[length:var(--fs-13)]">{r.brand.name} · {r.category.name} · {r.sku}</span>
                 {!r.publishReady && <span className="rounded-full bg-eu-red/10 text-eu-red font-bold px-2 text-[length:var(--fs-13)]">δεν δημοσιεύεται</span>}
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {r.publishMissing.map((k) => (
                   <Link key={k} href={`/admin/catalog/${r.id}?tab=${TAB[k] ?? "content"}`} className="rounded-full bg-eu-chip text-eu-ink font-bold px-2.5 min-h-9 inline-flex items-center text-[length:var(--fs-13)] hover:bg-eu-yellow/30">{LABEL[k] ?? k}</Link>
                 ))}
+                <span className="ml-auto"><QuickFix productId={r.id} title={r.title} /></span>
               </div>
             </li>
           ))}

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-30T16:27:33.728Z",
+ "generatedAt": "2026-10-31T06:03:06.182Z",
  "routes": [
   {
    "route": "/admin",
@@ -410,6 +410,11 @@
    ],
    "changes": [
     {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
@@ -453,14 +458,9 @@
      "hash": "8f953ca",
      "date": "2026-10-13T18:54:42+03:00",
      "text": "Ταχύτητα: το mega menu (9 λίστες προϊόντων σε ΚΑΘΕ σελίδα του shop"
-    },
-    {
-     "hash": "f5e1d3a",
-     "date": "2026-10-11T11:54:13+03:00",
-     "text": "Χαρακτηριστικά: σειρά φίλτρων στο e-shop με drag & drop"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -485,6 +485,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
     {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
@@ -529,14 +534,9 @@
      "hash": "a234171",
      "date": "2026-10-10T10:43:51+03:00",
      "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
-    },
-    {
-     "hash": "87d1452",
-     "date": "2026-10-10T09:44:26+03:00",
-     "text": "Προϊόν: «Χαρακτηριστικά στο site» με την πηγή κάθε γραμμής (EPREL / ERP / Icecat / web) + βήματα απόδελτίωσης χωρίς οριζόντια κύλιση στο κινητό"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {}
   },
   {
@@ -584,8 +584,14 @@
     "availability.tally",
     "availability.test"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    }
+   ],
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.availability-d.jpg",
     "mobile": "/api/help-shot/catalog.availability-m.jpg"
@@ -692,10 +698,17 @@
     "completeness.gate",
     "completeness.save",
     "completeness.recompute",
+    "completeness.quickfix",
     "completeness.list"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    }
+   ],
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -787,6 +800,11 @@
    ],
    "changes": [
     {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
      "hash": "97e50a4",
      "date": "2026-10-30T16:42:53+02:00",
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
@@ -830,14 +848,9 @@
      "hash": "a234171",
      "date": "2026-10-10T10:43:51+03:00",
      "text": "Bundles: «Set ειδών» του SoftOne (καθρέφτης S1Set/S1SetLine, μόνο ανάγνωση)"
-    },
-    {
-     "hash": "f2607d7",
-     "date": "2026-10-04T11:14:32+03:00",
-     "text": "Κατάστημα: εμφανίζονται και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel), με φίλτρα κατηγορίας από τα χαρακτηριστικά τους"
     }
    ],
-   "updatedAt": "2026-10-30T16:42:53+02:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.specs-d.jpg",
     "mobile": "/api/help-shot/catalog.specs-m.jpg"
@@ -859,6 +872,11 @@
     "templates.foreign"
    ],
    "changes": [
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
     {
      "hash": "13a7f97",
      "date": "2026-10-28T16:35:58+02:00",
@@ -890,7 +908,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-10-28T16:35:58+02:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -918,6 +936,11 @@
     "foreign.run"
    ],
    "changes": [
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
     {
      "hash": "29b6ce3",
      "date": "2026-10-30T17:17:44+02:00",
@@ -962,14 +985,9 @@
      "hash": "36af274",
      "date": "2026-10-20T05:58:07+03:00",
      "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης σχεδίου/εκτέλεσης"
-    },
-    {
-     "hash": "e9d6f64",
-     "date": "2026-10-20T05:48:53+03:00",
-     "text": "Εισαγωγή από ξένο Excel: σχέδιο και εκτέλεση (planForeign / applyForeign)"
     }
    ],
-   "updatedAt": "2026-10-30T17:17:44+02:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {}
   },
   {
@@ -1120,6 +1138,11 @@
    ],
    "changes": [
     {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
      "hash": "97e50a4",
      "date": "2026-10-30T16:42:53+02:00",
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
@@ -1163,14 +1186,9 @@
      "hash": "a703e82",
      "date": "2026-10-28T16:44:21+02:00",
      "text": "XML προμηθευτές: η κάρτα που μόλις αντιστοίχισες δεν εξαφανίζεται από κάτω σου"
-    },
-    {
-     "hash": "e24d739",
-     "date": "2026-10-28T16:37:14+02:00",
-     "text": "XML προμηθευτές: βήμα που έπαψε να υπάρχει δεν αφήνει τον οδηγό χωρίς πλοήγηση"
     }
    ],
-   "updatedAt": "2026-10-30T16:42:53+02:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -3721,6 +3739,11 @@
    ],
    "changes": [
     {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
      "hash": "c94d321",
      "date": "2026-10-30T16:56:30+02:00",
      "text": "Backup βάσης: καθημερινά 02:30 από τον scheduler της εφαρμογής"
@@ -3741,7 +3764,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-10-30T16:56:30+02:00",
+   "updatedAt": "2026-10-31T07:29:29+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -3963,6 +3986,20 @@
   }
  ],
  "recent": [
+  {
+   "hash": "f6e14b2",
+   "date": "2026-10-31T07:29:29+02:00",
+   "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/catalog/availability",
+    "/admin/catalog/completeness",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml"
+   ]
+  },
   {
    "hash": "29b6ce3",
    "date": "2026-10-30T17:17:44+02:00",
@@ -4259,12 +4296,6 @@
    "date": "2026-10-20T14:56:41+03:00",
    "text": "Ασφάλεια: φύλακας",
    "routes": []
-  },
-  {
-   "hash": "cc4675e",
-   "date": "2026-10-20T14:53:50+03:00",
-   "text": "Ασφάλεια: Bunny",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4372,6 +4403,9 @@
   ],
   "completeness.recompute": [
    "app/admin/(shell)/catalog/completeness/GateForm.tsx"
+  ],
+  "completeness.quickfix": [
+   "app/admin/(shell)/catalog/completeness/QuickFix.tsx"
   ],
   "completeness.list": [
    "app/admin/(shell)/catalog/completeness/page.tsx"
