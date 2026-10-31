@@ -15,7 +15,7 @@ export function blockedHost(url: string): boolean {
 }
 
 const IMG_EXT = /\.(jpe?g|png|webp|avif)(\?|#|$)/i;
-const NOT_PRODUCT = /(logo|icon|sprite|favicon|placeholder|banner-?top|badge|flag|payment|social|avatar|1x1|pixel)/i;
+const NOT_PRODUCT = /(logo|icon|sprite|favicon|placeholder|banner-?top|badge|flag|payment|social|avatar|1x1|pixel|(^|[\/_-])ogp?([._-]|$)|og-?image|share-?image|default-?share)/i;
 
 function absolute(u: string, base: string): string | null {
   try { const x = new URL(u.trim(), base); return x.protocol === "https:" || x.protocol === "http:" ? x.toString() : null; } catch { return null; }

@@ -90,6 +90,8 @@ const oneAxis = (value: string): number | null => {
   const m = /(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?/.exec(value); if (!m) return null;
   const n = Math.max(parseFloat(m[1].replace(",", ".")), m[2] ? parseFloat(m[2].replace(",", ".")) : 0);
   const low = lower(value);
+  // «24 bit» (βάθος χρώματος), «16 GB» κ.λπ.: μόνο αριθμός με μονάδα μήκους ή σκέτος αριθμός
+  if (/[a-zα-ω]/.test(low.replace(/\b(mm|cm|m)\b|χιλ\S*|εκ\S*|μετρ\S*|inch|in\b|"|ιντσ\S*/g, ""))) return null;
   const cm = n * (unitScale(low, n) ?? (n > 250 ? 0.1 : 1));
   return cm >= 0.3 && cm <= 400 ? round1(cm) : null;
 };
@@ -103,7 +105,8 @@ export function extractDims(specs: { key: string; value: string }[], typeName = 
   const found: ExtractedDims[] = [];
   for (const s of specs) {
     const k = lower(s.key);
-    if (!/^διαστασ|^dimension|^μεγεθοσ συσκευησ/.test(k) || REJECT.test(k)) continue;
+    // «Διαστάσεις…», «Πλάτος x Ύψος x Βάθος», «Εσωτερική μονάδα διαστάσεις (Π*Υ*Β)» (κλιματιστικά)
+    if (!/^διαστασ|^dimension|^μεγεθοσ συσκευησ|^πλατοσ\s*[x×*]\s*υψοσ|^εσωτερικη μοναδα .*διαστασ/.test(k) || (REJECT.test(k) && !/^εσωτερικη μοναδα/.test(k))) continue;
     const d = parseDims(s.key, s.value, typeName);
     if (d) found.push({ ...d, kind: kindOf(k), key: s.key, value: s.value });
   }
@@ -239,4 +242,22 @@ export function unifyDims(d: Dims3, ref: DimRef | null, fromMm = false): { dims:
   if (b.f[0] === b.f[1] && b.f[1] === b.f[2]) { if (b.f[0] !== 1) parts.push(`όλες οι πλευρές: ${UNIT_NAME[b.f[0]]}`); }
   else b.perm.forEach((a, i) => { if (b.f[i] !== 1) parts.push(`${AXIS_NAME[a]} ${src[i]} → ${b.dims[a]} εκ. (${UNIT_NAME[b.f[i]]})`); });
   return { dims: b.dims, fix: `Διορθώθηκε αυτόματα: ${parts.join(" · ")}` };
+}
+
+// ---------- Ποια πηγή διαστάσεων χρησιμοποιείται ----------
+
+/**
+ * Σειρά προτίμησης των γραμμών `ProductDimension`: διαχειριστής → περιγραφή ERP → EPREL → εξωτερικές πηγές (Icecat,
+ * σελίδα κατασκευαστή, Channel3), που μπαίνουν μόνο όταν δεν υπάρχει τίποτα από τις τρεις πρώτες.
+ */
+export const DIM_SOURCES = ["manual", "s1-desc", "eprel", "icecat", "web", "channel3"] as const;
+export function pickDims<T extends { source: string }>(rows: T[]): T | undefined {
+  for (const src of DIM_SOURCES) { const d = rows.find((x) => x.source === src); if (d) return d; }
+  return undefined;
+}
+
+/** Ίδιο αντικείμενο με άλλη σειρά αξόνων ή στρογγύλευση: οι τρεις αριθμοί ταξινομημένοι διαφέρουν ≤ 1,5 εκ. ή ≤ 5 % ο καθένας. */
+export function sameBox(a: Dims3, b: Dims3): boolean {
+  const x = [a.w, a.h, a.d].sort((p, q) => p - q), y = [b.w, b.h, b.d].sort((p, q) => p - q);
+  return x.every((v, i) => Math.abs(v - y[i]) <= Math.max(1.5, 0.05 * Math.max(v, y[i])));
 }

@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { assertPublicUrl, fetchPublicBytes } from "@/lib/net/safe-fetch";
-import { specFingerprint, isProductImageUrl, blockedHost, modelsFromSpecs } from "./enrich-core";
+import { specFingerprint, isProductImageUrl, blockedHost, modelsFromSpecs, modelKeys } from "./enrich-core";
+import { compareDims, sameBox } from "./dimensions";
 import { readProductPage } from "./enrich-page";
 import { uploadProductImage } from "./product-images";
 import type { EnrichResult } from "./enrich";
@@ -49,9 +50,13 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   // από PDF δεν βγαίνουν φωτογραφίες: τότε η HTML σελίδα του προϊόντος που έδωσε η αναζήτηση
   const pageUrl = r.pageUrl ?? (r.url && !/\.pdf(\?|#|$)/i.test(r.url) ? r.url : undefined);
   if (r.source !== "icecat" && r.source !== "channel3" && pageUrl) {
-    const prod = await db.product.findUnique({ where: { id: productId }, select: { modelCode: true } });
-    const page = await readProductPage(pageUrl, [...modelsFromSpecs(r.specs), prod?.modelCode ?? ""].filter(Boolean));
-    if (page.ok) images = [...page.images, ...images]; else pageNote = page.reason;
+    const prod = await db.product.findUnique({ where: { id: productId }, select: { modelCode: true, title: true } });
+    const hints = [...modelsFromSpecs(r.specs), prod?.modelCode ?? "", ...(prod?.title.split(/\s+/).filter((t) => /\d/.test(t)) ?? [])].filter(Boolean);
+    const page = await readProductPage(pageUrl, hints);
+    // φωτογραφίες μόνο από σελίδα που γράφει το μοντέλο — όχι από αρχική / κατάλογο / σελίδα σειράς (εικόνες κοινοποίησης κ.λπ.)
+    const plain = page.ok ? page.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "") : "";
+    if (page.ok && modelKeys(hints).some((k) => k.length >= 5 && plain.includes(k))) images = [...page.images, ...images];
+    else pageNote = page.ok ? "η σελίδα δεν αναφέρει το μοντέλο" : page.reason;
   }
   images = await reachable([...new Set(images)].filter((u) => isProductImageUrl(u) && !blockedHost(u)).slice(0, 16));
   images = images.slice(0, 12);
@@ -68,11 +73,42 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   return { added: res.count, pageNote };
 }
 
-export type SuggestionDTO = { id: string; source: string; kind: "image" | "spec"; url: string | null; group: string | null; key: string | null; value: string | null; pageUrl: string | null; sourceName: string | null; createdAt: string };
+const KIND_LABEL: Record<string, string> = { "indoor-unit": " εσωτερικής μονάδας", "no-stand": " χωρίς βάση", "with-stand": " με βάση" };
+const cm = (d: { w: number; h: number; d: number }) => `${[d.w, d.h, d.d].map((n) => n.toLocaleString("el-GR")).join(" × ")} εκ.`;
+
+/**
+ * Διαστάσεις: πρώτα το SoftOne (περιγραφή ή πεδία διαστάσεων). Όταν διαφέρουν από αυτές του κατασκευαστή (σελίδα
+ * κατασκευαστή, Icecat, Channel3), γίνεται ΠΡΟΤΑΣΗ αλλαγής — με έγκριση γράφεται στο SoftOne. Χωρίς διαστάσεις στο SoftOne
+ * δεν χρειάζεται πρόταση: χρησιμοποιούνται αυτόματα του κατασκευαστή (pickDims).
+ */
+export async function suggestDims(productId: string) {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true, dimensions: true, enrichments: { select: { source: true, url: true, sourceName: true } } } });
+  if (!p) return 0;
+  const ext = ["web", "icecat", "channel3"].map((x) => p.dimensions.find((d) => d.source === x)).find(Boolean);
+  if (!ext) return 0;
+  const desc = p.dimensions.find((d) => d.source === "s1-desc");
+  const mtrl = Number(p.erpCode);
+  const item = !desc && p.source === "softone" && Number.isInteger(mtrl) ? await db.s1Item.findUnique({ where: { mtrl }, select: { widthCm: true, heightCm: true, lengthCm: true } }) : null;
+  const erp = desc ?? (item?.widthCm && item.heightCm && item.lengthCm ? { w: item.widthCm, h: item.heightCm, d: item.lengthCm } : null);
+  // όχι για ίδιο κουτί με άλλη σειρά αξόνων, ούτε για μικρές διαφορές (πόρτα, λαβές, στρογγύλευση)
+  if (!erp || p.dimensions.some((d) => d.source === "manual") || sameBox(erp, ext) || ["match", "minor"].includes(compareDims(erp, ext).verdict)) return 0;
+  const e = p.enrichments.find((x) => x.source === ext.source);
+  const r = await db.enrichSuggestion.createMany({ skipDuplicates: true, data: [{
+    productId, source: ext.source, kind: "dims", fingerprint: `dims|${ext.w}|${ext.h}|${ext.d}`,
+    group: `Τώρα στο SoftOne: ${cm(erp)}`, key: `Διαστάσεις${KIND_LABEL[ext.kind] ?? ""} (Π × Υ × Β)`, value: cm(ext),
+    pageUrl: e?.url ?? null, sourceName: e?.sourceName ?? null,
+  }] });
+  return r.count;
+}
+
+/** Οι διαστάσεις μιας πρότασης «dims» (από το fingerprint). */
+export const dimsOf = (fingerprint: string) => { const [, w, h, d] = fingerprint.split("|").map(Number); return w > 0 && h > 0 && d > 0 ? { w, h, d } : null; };
+
+export type SuggestionDTO = { id: string; source: string; kind: "image" | "spec" | "dims"; url: string | null; group: string | null; key: string | null; value: string | null; pageUrl: string | null; sourceName: string | null; createdAt: string };
 
 export async function listSuggestions(productId: string): Promise<SuggestionDTO[]> {
   const rows = await db.enrichSuggestion.findMany({ where: { productId, status: "pending" }, orderBy: [{ kind: "asc" }, { source: "asc" }, { createdAt: "asc" }] });
-  return rows.map((s) => ({ id: s.id, source: s.source, kind: s.kind as "image" | "spec", url: s.url, group: s.group, key: s.key, value: s.value, pageUrl: s.pageUrl, sourceName: s.sourceName, createdAt: s.createdAt.toISOString() }));
+  return rows.map((s) => ({ id: s.id, source: s.source, kind: s.kind as SuggestionDTO["kind"], url: s.url, group: s.group, key: s.key, value: s.value, pageUrl: s.pageUrl, sourceName: s.sourceName, createdAt: s.createdAt.toISOString() }));
 }
 
 export const pendingRows = (productId: string, ids: string[]) => db.enrichSuggestion.findMany({ where: { productId, id: { in: ids }, status: "pending" } });

@@ -1,4 +1,5 @@
 import "server-only";
+import { pickDims } from "@/lib/catalog/dimensions";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
@@ -256,7 +257,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
 
   // όρια χώρου: πάνω στις ομογενοποιημένες διαστάσεις· όσα δεν έχουν διαστάσεις δεν μπορούμε να τα υποσχεθούμε
   if (u.maxWidth || u.maxHeight || u.maxDepth) {
-    const fits = rows.filter((r) => { const d = r.dimensions.find((x) => x.source === "manual") ?? r.dimensions.find((x) => x.source === "s1-desc") ?? r.dimensions.find((x) => x.source === "eprel"); return d && (!u.maxWidth || d.w <= u.maxWidth) && (!u.maxHeight || d.h <= u.maxHeight) && (!u.maxDepth || d.d <= u.maxDepth); });
+    const fits = rows.filter((r) => { const d = pickDims(r.dimensions); return d && (!u.maxWidth || d.w <= u.maxWidth) && (!u.maxHeight || d.h <= u.maxHeight) && (!u.maxDepth || d.d <= u.maxDepth); });
     if (fits.length) rows = fits; else relaxed.push("κανένα με δηλωμένες διαστάσεις μέσα στον χώρο που έδωσες");
   }
 

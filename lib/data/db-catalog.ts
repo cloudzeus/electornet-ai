@@ -1,3 +1,4 @@
+import { pickDims } from "@/lib/catalog/dimensions";
 import { maybeTickPromos } from "@/lib/promo/offers";
 import { swrMap } from "@/lib/cache/swr";
 import { productSections } from "@/lib/catalog/banner-extract";
@@ -171,7 +172,7 @@ function infoTagFields(r: Row): Partial<Product> {
 export function toProduct(r: Row, extra: { specs?: Spec[]; banners?: Product["banners"]; facts?: string[] } = {}): Product {
   const main = r.category.parent, master = main?.parent;
   // ίδια προτεραιότητα με το resolveDims: διαχειριστής → ERP → EPREL
-  const d = r.dimensions.find((x) => x.source === "manual") ?? r.dimensions.find((x) => x.source === "s1-desc") ?? r.dimensions.find((x) => x.source === "eprel");
+  const d = pickDims(r.dimensions);
   const images = r.media.map((m) => m.url);
   return {
     id: r.id, sku: r.sku, ean: r.ean ?? undefined, slug: r.slug, brand: r.brand.name, brandSlug: r.brand.slug,

@@ -26,12 +26,12 @@ test("isProductImageUrl: όχι λογότυπα, svg, gif", () => {
 
 test("pageImages: JSON-LD Product (και @graph) πριν από og:image, απόλυτες διευθύνσεις", () => {
   const html = `<html><head>
-    <meta property="og:image" content="/img/og.jpg?v=1&amp;w=800">
+    <meta property="og:image" content="/img/ac-front.jpg?v=1&amp;w=800">
     <meta name="twitter:image" content="https://cdn.x.gr/logo.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","logo":"https://x.gr/logo.png"},{"@type":"Product","name":"AC","image":["https://cdn.x.gr/p/1.jpg",{"@type":"ImageObject","url":"https://cdn.x.gr/p/2.webp"}]}]}</script>
     <script type="application/ld+json">{ broken</script>
   </head></html>`;
-  assert.deepEqual(pageImages(html, "https://www.x.gr/klimatistika/ac.html"), ["https://cdn.x.gr/p/1.jpg", "https://cdn.x.gr/p/2.webp", "https://www.x.gr/img/og.jpg?v=1&w=800"]);
+  assert.deepEqual(pageImages(html, "https://www.x.gr/klimatistika/ac.html"), ["https://cdn.x.gr/p/1.jpg", "https://cdn.x.gr/p/2.webp", "https://www.x.gr/img/ac-front.jpg?v=1&w=800"]);
   assert.deepEqual(pageImages("<p>τίποτα</p>", "https://x.gr/"), []);
 });
 
@@ -94,4 +94,11 @@ test("seriesWords / sitemapLocs", () => {
   assert.deepEqual(seriesWords("HTN-717R32 (R32) TOYOTOMI HIRO INV.IN DELTA DOMESTIC", "TOYOTOMI"), ["HIRO", "INVIN"]);
   assert.deepEqual(sitemapLocs(`<sitemapindex><sitemap><loc>https://a.gr/page-sitemap.xml</loc></sitemap></sitemapindex>`), { pages: [], sitemaps: ["https://a.gr/page-sitemap.xml"] });
   assert.deepEqual(sitemapLocs(`<urlset><url><loc><![CDATA[https://a.gr/x-717r32/]]></loc></url></urlset>`).pages, ["https://a.gr/x-717r32/"]);
+});
+
+test("isProductImageUrl: όχι εικόνες κοινοποίησης (ogp.jpg, og-image)", () => {
+  assert.equal(isProductImageUrl("https://en.toyotomi.jp/en/wp-content/uploads/2022/08/ogp.jpg"), false);
+  assert.equal(isProductImageUrl("https://a.gr/img/og-image.png"), false);
+  assert.equal(isProductImageUrl("https://www.toyotomi.gr/wp-content/uploads/2023/05/hiro.png"), true);
+  assert.equal(isProductImageUrl("https://a.gr/p/blogger-x.jpg"), true);
 });

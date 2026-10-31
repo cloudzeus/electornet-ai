@@ -4,6 +4,8 @@ import { channel3Usage, enrichFromChannel3 } from "./channel3";
 import { matchCodes } from "./channel3-core";
 import { energyClassFromSpecs, modelsFromSpecs } from "./enrich-core";
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
+import { projectSourceDimensions } from "./product-dimensions";
+import { suggestDims } from "./enrich-suggestions";
 
 /**
  * Ροή εμπλουτισμού ΕΝΟΣ προϊόντος, με τη σειρά: Icecat (δωρεάν) → Channel3 (αν το Icecat έδωσε < 8 χαρακτηριστικά, με
@@ -73,7 +75,10 @@ export async function enrichProduct(productId: string, opts: { force?: boolean }
   else if (opts.force || !settled("shop")) await run("shop", () => enrichFromShops({ brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku, typeName: p.category.name, ean: p.ean }));
   else skip("shop", prev.get("shop")?.status === "found" ? "βρέθηκε ήδη" : "ελέγχθηκε πρόσφατα");
 
-  const energy = steps.some((s) => s.status === "found") ? await energyFromSources(productId, { labelUrl }).catch(() => undefined) : undefined;
+  const anyFound = steps.some((s) => s.status === "found");
+  const energy = anyFound ? await energyFromSources(productId, { labelUrl }).catch(() => undefined) : undefined;
+  // διαστάσεις από τις πηγές: χρησιμοποιούνται όταν το SoftOne δεν έχει· όταν έχει και διαφέρουν → πρόταση αλλαγής
+  if (anyFound) { await projectSourceDimensions([productId]).catch(() => undefined); await suggestDims(productId).catch(() => 0); }
   const after = await db.enrichSuggestion.count({ where: { productId, status: "pending" } });
   return { productId, steps, costUsd: steps.reduce((a, s) => a + s.costUsd, 0), suggestions: Math.max(0, after - before), energy };
 }

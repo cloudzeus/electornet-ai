@@ -57,9 +57,10 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
     setState(r.state); setOn(new Set());
     const res = r.result;
     const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
-    const parts = [res.images ? `${n(res.images, "φωτογραφία", "φωτογραφίες")} στη γκαλερί` : "", res.specsErp ? `${n(res.specsErp, "χαρακτηριστικό", "χαρακτηριστικά")} στο SoftOne και στο e-shop` : "", res.specsEshop ? `${n(res.specsEshop, "χαρακτηριστικό", "χαρακτηριστικά")} μόνο στο e-shop (${res.erpMessage ?? "το SoftOne δεν δέχτηκε την εγγραφή"})` : ""].filter(Boolean);
+    const parts = [res.images ? `${n(res.images, "φωτογραφία", "φωτογραφίες")} στη γκαλερί` : "", res.specsErp ? `${n(res.specsErp, "χαρακτηριστικό", "χαρακτηριστικά")} στο SoftOne και στο e-shop` : "", res.specsEshop ? `${n(res.specsEshop, "χαρακτηριστικό", "χαρακτηριστικά")} μόνο στο e-shop (${res.erpMessage ?? "το SoftOne δεν δέχτηκε την εγγραφή"})` : "", res.dims ? "διαστάσεις στο SoftOne και στο e-shop" : ""].filter(Boolean);
+    const dimsFailed = ids.some((id) => state?.suggestions.find((s) => s.id === id)?.kind === "dims") && !res.dims && decision === "approve";
     setMsg(decision === "approve"
-      ? { ok: !res.failed.length && !res.specsEshop, text: `${parts.length ? `Εγκρίθηκαν: ${parts.join(" · ")}.` : "Δεν εγκρίθηκε τίποτα."}${res.failed.length ? ` Δεν κατέβηκαν ${res.failed.length}: ${res.failed[0].message}` : ""}` }
+      ? { ok: !res.failed.length && !res.specsEshop && !dimsFailed, text: `${parts.length ? `Εγκρίθηκαν: ${parts.join(" · ")}.` : "Δεν εγκρίθηκε τίποτα."}${res.failed.length ? ` Δεν κατέβηκαν ${res.failed.length}: ${res.failed[0].message}` : ""}${dimsFailed ? ` Οι διαστάσεις δεν γράφτηκαν: ${res.erpMessage ?? "το SoftOne δεν δέχτηκε την εγγραφή"}` : ""}` }
       : { ok: true, text: `Απορρίφθηκαν ${res.rejected}.` });
     router.refresh();
   });
@@ -76,6 +77,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
   const toggle = (id: string) => setOn((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const images = state?.suggestions.filter((s) => s.kind === "image") ?? [];
   const specs = state?.suggestions.filter((s) => s.kind === "spec") ?? [];
+  const dims = state?.suggestions.filter((s) => s.kind === "dims") ?? [];
   const external = state?.external ?? [];
   const bySource = new Map(state?.sources.map((s) => [s.source, s]) ?? []);
   const all = (xs: { id: string }[]) => setOn((s) => { const n = new Set(s); const every = xs.every((x) => n.has(x.id)); for (const x of xs) if (every) n.delete(x.id); else n.add(x.id); return n; });
@@ -112,7 +114,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
       )}
       {msg && <p role="status" className={`m-0 rounded-xl px-3 py-2 text-[length:var(--fs-14)] ${msg.ok ? "bg-eu-green/10 text-eu-ink" : "bg-eu-red/10 text-eu-red"}`}>{msg.text}</p>}
 
-      {(images.length > 0 || specs.length > 0) && (
+      {(images.length > 0 || specs.length > 0 || dims.length > 0) && (
         <div className="grid gap-3 rounded-2xl border border-eu-line bg-eu-surface/40 p-3 min-w-0" data-help="enrich.suggestions">
           <p className="m-0 flex gap-2 text-eu-ink-2 text-[length:var(--fs-13)]"><AlertTriangle className="size-4 shrink-0 text-eu-amber mt-0.5" aria-hidden />Φωτογραφίες και κείμενα τρίτων έχουν πνευματικά δικαιώματα. Έγκρινε μόνο όσα επιτρέπεται να χρησιμοποιήσουμε (π.χ. υλικό κατασκευαστή για μεταπωλητές). Οι εγκεκριμένες φωτογραφίες μπαίνουν στο τέλος της γκαλερί· τα χαρακτηριστικά γράφονται στο SoftOne (αναλυτική περιγραφή) και στο e-shop.</p>
           {images.length > 0 && (
@@ -135,6 +137,25 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          {dims.length > 0 && (
+            <div className="grid gap-2" data-help="enrich.dims">
+              <h4 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]">Διαστάσεις: διαφέρουν από τον κατασκευαστή</h4>
+              <ul className="m-0 p-0 list-none rounded-xl border border-eu-line bg-white divide-y divide-eu-line-2">
+                {dims.map((s) => (
+                  <li key={s.id}>
+                    <label className="flex items-start gap-2.5 px-3 py-2 min-h-11 cursor-pointer">
+                      {canWrite && <input type="checkbox" checked={on.has(s.id)} onChange={() => toggle(s.id)} className="mt-1 size-5 shrink-0 accent-eu-navy" />}
+                      <span className="grid gap-0.5 min-w-0 text-[length:var(--fs-14)]">
+                        <span className="break-words"><b className="text-eu-ink">{s.key}:</b> <span className="tabular-nums">{s.value}</span></span>
+                        <span className="text-eu-muted text-[length:var(--fs-13)] break-words">{s.group} · πρόταση από {s.pageUrl ? <a href={s.pageUrl} target="_blank" rel="noopener noreferrer" className="text-eu-blue font-bold hover:underline">{s.sourceName || host(s.pageUrl)}</a> : (SRC_LABEL[s.source] ?? s.source)}</span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Ισχύει το SoftOne. Με έγκριση, οι διαστάσεις του κατασκευαστή γράφονται στα πεδία διαστάσεων του SoftOne και χρησιμοποιούνται στο site.</p>
             </div>
           )}
           {specs.length > 0 && (
@@ -168,7 +189,7 @@ export function EnrichPanel({ productId, canWrite, initial }: { productId: strin
           )}
         </div>
       )}
-      {state && !images.length && !specs.length && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Καμία πρόταση σε αναμονή.</p>}
+      {state && !images.length && !specs.length && !dims.length && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Καμία πρόταση σε αναμονή.</p>}
 
       {external.length > 0 && (
         <div className="grid gap-2 rounded-2xl border border-eu-line p-3 min-w-0" data-help="enrich.to-erp">

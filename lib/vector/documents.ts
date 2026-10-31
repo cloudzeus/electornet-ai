@@ -1,4 +1,5 @@
 import "server-only";
+import { pickDims } from "@/lib/catalog/dimensions";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { normalizeModel, specLines } from "@/lib/eprel/normalize";
@@ -50,7 +51,7 @@ export async function loadDocContext(): Promise<DocContext> {
     if (!p.erpCode) continue;
     const byFacet = new Map<string, string[]>();
     for (const v of p.facetValues) { const k = v.facet.label.replace(/\s*\([^)]*\)/, "").trim(); if (v.value !== "Όχι") byFacet.set(k, [...(byFacet.get(k) ?? []), v.value]); }
-    const d = p.dimensions.find((x) => x.source === "manual") ?? p.dimensions.find((x) => x.source === "s1-desc") ?? p.dimensions.find((x) => x.source === "eprel");
+    const d = pickDims(p.dimensions);
     shop.set(p.erpCode, {
       facets: [...byFacet.entries()].map(([k, v]) => (v.length === 1 && v[0] === "Ναι" ? k : `${k}: ${v.join(", ")}`)),
       dims: d ? `πλάτος ${d.w} εκ., ύψος ${d.h} εκ., βάθος ${d.d} εκ.` : null,

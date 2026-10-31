@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
 import { blockedHost, icecatImages, isHomePage, looksLikeImageFile, modelKeys, modelsFromSpecs, seriesWords } from "./enrich-core";
 import { readProductPage, searchSiteForModel } from "./enrich-page";
+import { CATALOG_TEXT_MODEL, WEB_SEARCH_MODEL } from "./ai-models";
 import { suggestFromResult } from "./enrich-suggestions";
 
 /**
@@ -76,7 +77,7 @@ export async function enrichFromIcecat(p: { ean: string | null; sku: string; mod
 
 // ---------- Web (επίσημος ιστότοπος) ----------
 
-const WEB_MODEL = process.env.ENRICH_WEB_MODEL || "perplexity/sonar-pro";
+const WEB_MODEL = WEB_SEARCH_MODEL;
 
 export async function enrichFromWeb(p: { brand: string; title: string; modelCode: string | null; sku: string; typeName: string }): Promise<EnrichResult> {
   if (!(await getAi())) return { source: "web", status: "failed", specs: [], costUsd: 0, error: "χωρίς κλειδί OpenRouter" };
@@ -123,18 +124,25 @@ type WebProduct = { brand: string; title: string; modelCode: string | null; sku:
  */
 async function modelPage(p: WebProduct, specs: { key: string; value: string }[], urls: (string | null | undefined)[]): Promise<{ url?: string; specs?: EnrichResult["specs"]; labelUrl?: string; costUsd: number }> {
   const model = modelsFromSpecs(specs)[0] ?? p.modelCode ?? p.sku;
-  const hints = [model];
+  // και ο κωδικός από τον δικό μας τίτλο («HTN-717R32 (R32) TOYOTOMI HIRO…» → «HTN-717R32»)
+  const hints = [model, ...p.title.split(/\s+/).filter((t) => /\d/.test(t) && t.replace(/[^\p{L}\p{N}]/gu, "").length >= 5)];
   let costUsd = 0;
   let url = urls.map(htmlPage).find((u) => u && !isHomePage(u));
   const origins = new Set(urls.map(htmlOrPdf).filter((u): u is string => !!u).map((u) => new URL(u).origin));
+  const words = seriesWords(p.title, p.brand), tried = new Set<string>();
+  const search = async (os: string[]) => { for (const o of os) { if (tried.has(o) || tried.size >= 5) continue; tried.add(o); const u = await searchSiteForModel(o, hints, words).catch(() => null); if (u) return u; } return undefined; };
+  // πρώτα δωρεάν: sitemap / αναζήτηση στα sites που ήδη ξέρουμε (της πηγής) — έως 5 sites
+  if (!url) url = await search([...origins].reverse());
+  // και το site της μάρκας στην Ελλάδα (www.toyotomi.gr), αν υπάρχει
+  const slug = p.brand.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!url && slug.length >= 3) url = await search([`https://www.${slug}.gr`, `https://www.${slug}.com`]);
+  // μετά μία σύντομη αναζήτηση στο web μόνο για τη διεύθυνση· αν δώσει την αρχική σελίδα, ψάχνουμε σε εκείνο το site
   if (!url) {
     const f = await findProductPage(p, model);
     costUsd += f.costUsd;
     if (f.url && !isHomePage(f.url)) url = f.url;
-    else if (f.url) origins.add(new URL(f.url).origin);
+    else if (f.url) url = await search([new URL(f.url).origin]);
   }
-  // η αρχική σελίδα δεν είναι σελίδα προϊόντος: αναζήτηση στο ίδιο το site (μέχρι 2 sites)
-  if (!url) for (const o of [...origins].reverse().slice(0, 2)) { const u = await searchSiteForModel(o, hints, seriesWords(p.title, p.brand)).catch(() => null); if (u) { url = u; break; } }
   if (!url) return { costUsd };
   const pg = await readProductPage(url, hints).catch(() => null);
   if (!pg?.ok) return { url, costUsd };
@@ -149,7 +157,7 @@ async function modelPage(p: WebProduct, specs: { key: string; value: string }[],
 /** Χαρακτηριστικά από το κείμενο της σελίδας του μοντέλου — μόνο του ακριβούς μοντέλου, χωρίς αναζήτηση στο web. */
 async function specsFromPage(p: WebProduct, model: string, text: string): Promise<{ specs: EnrichResult["specs"]; costUsd: number }> {
   const r = await chat({
-    feature: "enrich-web-page-specs", model: "main", maxTokens: 3000, temperature: 0, timeoutMs: 60000, json: true,
+    feature: "enrich-web-page-specs", model: CATALOG_TEXT_MODEL, reasoning: "off", maxTokens: 3000, temperature: 0, timeoutMs: 60000, json: true,
     messages: [
       { role: "system", content: `Διαβάζεις το κείμενο της επίσημης σελίδας ενός προϊόντος και γράφεις τα τεχνικά χαρακτηριστικά του ΣΥΓΚΕΚΡΙΜΕΝΟΥ μοντέλου.
 Απαντάς ΜΟΝΟ με JSON: {"specs":[{"group":string,"key":string,"value":string}]}.

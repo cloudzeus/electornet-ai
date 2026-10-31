@@ -40,7 +40,7 @@ async function writeSpecsToErp(productId: string, specs: { key: string; value: s
   return r;
 }
 
-export interface DecideResult { images: number; specsErp: number; specsEshop: number; rejected: number; failed: { message: string }[]; erpMessage?: string }
+export interface DecideResult { images: number; specsErp: number; specsEshop: number; dims: number; rejected: number; failed: { message: string }[]; erpMessage?: string }
 
 /**
  * Έγκριση / απόρριψη προτάσεων. Φωτογραφίες → γκαλερί. Χαρακτηριστικά καταστημάτων → SoftOne (και από εκεί e-shop)·
@@ -50,7 +50,7 @@ export async function decideSuggestionsAction(productId: string, ids: string[], 
   const user = await requirePermission("catalog.products.write");
   const m = await import("@/lib/catalog/enrich-suggestions");
   const pick = ids.slice(0, 60);
-  const out: DecideResult = { images: 0, specsErp: 0, specsEshop: 0, rejected: 0, failed: [] };
+  const out: DecideResult = { images: 0, specsErp: 0, specsEshop: 0, dims: 0, rejected: 0, failed: [] };
   if (decision === "reject") out.rejected = (await m.rejectSuggestions(productId, pick, user.id)).rejected;
   else {
     const rows = await m.pendingRows(productId, pick);
@@ -61,6 +61,20 @@ export async function decideSuggestionsAction(productId: string, ids: string[], 
       const w = await writeSpecsToErp(productId, specs.map((s) => ({ key: s.key!, value: s.value! })));
       if (w.ok) { await m.markApproved(specs.map((s) => s.id), user.id); out.specsErp = specs.length; }
       else { out.specsEshop = await m.approveSpecsEshopOnly(productId, specs, user.id); out.erpMessage = w.message; }
+    }
+    // διαστάσεις κατασκευαστή → πεδία διαστάσεων του SoftOne, και στο site ως επιλογή διαχειριστή (πάνω από την περιγραφή)
+    const dim = rows.find((r) => r.kind === "dims");
+    const d = dim && m.dimsOf(dim.fingerprint);
+    if (dim && d) {
+      const { applySuggestionAction } = await import("./completeness/actions");
+      const w = await applySuggestionAction(productId, { specs: [], dims: d });
+      if (w.ok) {
+        const { db } = await import("@/lib/db");
+        const data = { w: d.w, h: d.h, d: d.d, kind: "product", rawKey: "Έγκριση πρότασης", rawValue: `${dim.value ?? ""} · ${dim.sourceName ?? dim.source}`.slice(0, 190), warning: null };
+        await db.productDimension.upsert({ where: { productId_source: { productId, source: "manual" } }, create: { productId, source: "manual", ...data }, update: data });
+        await m.markApproved(rows.filter((r) => r.kind === "dims").map((r) => r.id), user.id);
+        out.dims = 1;
+      } else out.erpMessage = w.message;
     }
     const { projectPublishReady } = await import("@/lib/catalog/publish-ready-server");
     await projectPublishReady([productId]);

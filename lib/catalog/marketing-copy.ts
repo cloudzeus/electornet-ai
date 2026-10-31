@@ -1,10 +1,11 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
+import { CATALOG_TEXT_MODEL } from "./ai-models";
 import { cleanCopy, pickExamples, type CategoryExample } from "./marketing-copy-core";
 
 /**
- * Σύντομη και αναλυτική περιγραφή με AI (OpenRouter / Claude, όπως στις Ρυθμίσεις → AI), σε γλώσσα marketing: από το
+ * Σύντομη και αναλυτική περιγραφή με AI (DeepSeek V4 μέσω OpenRouter, βλ. ai-models), σε γλώσσα marketing: από το
  * όνομα, τη μάρκα, την κατηγορία και τα χαρακτηριστικά του προϊόντος (ERP, EPREL, Icecat, Channel3, κατασκευαστής), με
  * παραδείγματα ύφους από περιγραφές της ίδιας κατηγορίας. Δεν αποθηκεύει τίποτα: ο διαχειριστής διορθώνει και εγκρίνει
  * (enrich-actions → saveCopyAction, που γράφει στο SoftOne).
@@ -41,7 +42,7 @@ export async function draftMarketingCopy(productId: string): Promise<CopyDraft |
     specs: specs.map((s) => `${s.key}: ${s.value}`),
     categoryExamples: examples.map((e) => ({ name: e.title, short: e.summary ?? undefined, long: e.description })),
   };
-  const r = await chat({ feature: "copy-marketing", model: "main", messages: [{ role: "system", content: SYSTEM }, { role: "user", content: JSON.stringify(input) }], json: true, maxTokens: 1400, temperature: 0.7, timeoutMs: 60_000 })
+  const r = await chat({ feature: "copy-marketing", model: CATALOG_TEXT_MODEL, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: JSON.stringify(input) }], json: true, reasoning: "off", maxTokens: 1400, temperature: 0.7, timeoutMs: 60_000 })
     .catch((e: Error) => ({ error: e.message }));
   if ("error" in r) return { error: `Το AI δεν απάντησε: ${r.error}`.slice(0, 200) };
   const j = parseJson<{ short?: string; long?: string }>(r.text);

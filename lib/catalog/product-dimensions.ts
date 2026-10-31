@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { extractDims, compareDims, plausible, unifyDims, boundsRef, spreadRef, type Dims3, type DimRef, type ExtractedDims } from "./dimensions";
 
+const EXTERNAL = ["icecat", "web", "channel3"];
+
 /**
  * Διαστάσεις προϊόντων στη βάση: μία γραμμή ανά πηγή (`ProductDimension`) και η
  * ετυμηγορία της σύγκρισης πάνω στο προϊόν (`dimStatus`, `dimDeltaPct`, `dimNote`).
@@ -54,6 +56,32 @@ export async function projectDimensions() {
   return { products, withDims: seen.size, created: fresh.length, updated: ops.length, removed: gone.length, fixed, eprelFixed: eprel.fixed, outOfBounds: warned, status };
 }
 
+/**
+ * Διαστάσεις από τα χαρακτηριστικά των εξωτερικών πηγών (Icecat, σελίδα κατασκευαστή, Channel3): μία γραμμή ανά πηγή,
+ * με την ίδια ανάγνωση και διόρθωση μονάδας με το ERP. Χρησιμοποιούνται μόνο όταν δεν υπάρχουν από διαχειριστή, ERP ή
+ * EPREL (`pickDims`). Χωρίς `productIds`: όλα τα προϊόντα με χαρακτηριστικά από αυτές τις πηγές.
+ */
+export async function projectSourceDimensions(productIds?: string[]) {
+  const rows = await db.product.findMany({
+    where: productIds ? { id: { in: productIds } } : { specs: { some: { source: { in: EXTERNAL } } } },
+    select: { id: true, category: { select: { name: true } }, dimensions: { where: { source: { in: EXTERNAL } } }, specs: { where: { source: { in: EXTERNAL } }, select: { key: true, value: true, source: true } } },
+  });
+  let written = 0, removed = 0;
+  for (const p of rows) {
+    for (const source of EXTERNAL) {
+      const raw = extractDims(p.specs.filter((x) => x.source === source), p.category.name);
+      const cur = p.dimensions.find((d) => d.source === source);
+      if (!raw) { if (cur) { await db.productDimension.delete({ where: { id: cur.id } }); removed++; } continue; }
+      const u = unifyDims(raw, boundsRef(p.category.name), raw.fromMm), d = u.dims;
+      const data = { kind: raw.kind, w: d.w, h: d.h, d: d.d, rawKey: raw.key.slice(0, 190), rawValue: raw.value.slice(0, 190), warning: u.fix ?? plausible(d, p.category.name) };
+      if (cur && cur.w === d.w && cur.h === d.h && cur.d === d.d && cur.kind === data.kind && cur.warning === data.warning) continue;
+      await db.productDimension.upsert({ where: { productId_source: { productId: p.id, source } }, create: { productId: p.id, source, ...data }, update: data });
+      written++;
+    }
+  }
+  return { products: rows.length, written, removed };
+}
+
 /** Εύρος αναφοράς ανά τύπο: ρητά όρια όπου υπάρχουν, αλλιώς από την κατανομή των προϊόντων του τύπου, αν είναι ομοιογενής. */
 function typeRefs(all: { type: string; dims: Dims3 }[]): Map<string, DimRef> {
   const by = new Map<string, Dims3[]>();
@@ -94,7 +122,7 @@ export async function refreshDimStatus(productIds?: string[]) {
   return tally;
 }
 
-export interface ResolvedDims extends Dims3 { source: "manual" | "s1-desc" | "eprel"; kind: string; note: string | null }
+export interface ResolvedDims extends Dims3 { source: "manual" | "s1-desc" | "eprel" | "icecat" | "web" | "channel3"; kind: string; note: string | null }
 
 /** Οι διαστάσεις που πρέπει να χρησιμοποιήσει το AR για ένα προϊόν της βάσης, ή null. */
 export async function resolveDims(productId: string): Promise<ResolvedDims | null> {
@@ -107,5 +135,6 @@ export async function resolveDims(productId: string): Promise<ResolvedDims | nul
   if (erp && eprel && (p.dimStatus === "conflict" || p.dimStatus === "swapped") && plausible(erp, p.category.name) && !plausible(eprel, p.category.name)) return pick(eprel, "eprel", `Το ERP είναι εκτός τυπικών ορίων — χρησιμοποιείται το EPREL. ${p.dimNote ?? ""}`.trim());
   if (erp) return pick(erp, "s1-desc", p.dimStatus === "conflict" || p.dimStatus === "swapped" ? p.dimNote : null);
   if (eprel) return pick(eprel, "eprel", "Δήλωση κατασκευαστή στο EPREL — συνήθως χωρίς προεξοχές (πόρτα, λαβές).");
+  for (const src of EXTERNAL) { const x = get(src); if (x) return pick(x, src as ResolvedDims["source"], "Από τα χαρακτηριστικά της πηγής (όχι ERP / EPREL)."); }
   return null;
 }

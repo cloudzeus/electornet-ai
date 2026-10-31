@@ -98,8 +98,8 @@ export async function chat(opts: {
   temperature?: number;
   json?: boolean;
   timeoutMs?: number;
-  /** Reasoning budget for thinking models ("low" keeps short JSON answers from being eaten by hidden reasoning tokens). */
-  reasoning?: "low" | "medium" | "high";
+  /** Reasoning budget for thinking models ("low" keeps short JSON answers from being eaten by hidden reasoning tokens; "off" disables it — DeepSeek V4 otherwise spends the whole budget thinking). */
+  reasoning?: "off" | "low" | "medium" | "high";
   override?: { apiKey: string; model: string };
   /** Η καταγραφή χρήσης (3 ερωτήματα στη βάση) γίνεται μετά την επιστροφή — για ό,τι περιμένει ο πελάτης στην οθόνη (Ερμής). */
   accounting?: "background";
@@ -111,7 +111,7 @@ export async function chat(opts: {
     const t0 = Date.now();
     try {
       const { claudeChat } = await import("./anthropic");
-      const r = await claudeChat({ apiKey: opts.override?.apiKey ?? cfg!.anthropicKey, model: claude, messages: opts.messages, maxTokens: opts.maxTokens ?? cfg?.maxTokens ?? 600, json: opts.json, reasoning: opts.reasoning, timeoutMs: opts.timeoutMs ?? 30000 });
+      const r = await claudeChat({ apiKey: opts.override?.apiKey ?? cfg!.anthropicKey, model: claude, messages: opts.messages, maxTokens: opts.maxTokens ?? cfg?.maxTokens ?? 600, json: opts.json, reasoning: opts.reasoning === "off" ? undefined : opts.reasoning, timeoutMs: opts.timeoutMs ?? 30000 });
       const out: ChatResult = { ...r, ms: Date.now() - t0 };
       const account = () => record(opts.feature, out);
       if (opts.accounting === "background") void account().catch(() => null); else await account();
@@ -139,7 +139,7 @@ export async function chat(opts: {
       max_tokens: opts.maxTokens ?? cfg?.maxTokens ?? 600,
       temperature: opts.temperature ?? cfg?.temperature ?? 0.4,
       ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-      ...(opts.reasoning ? { reasoning: { effort: opts.reasoning } } : {}),
+      ...(opts.reasoning === "off" ? { reasoning: { enabled: false } } : opts.reasoning ? { reasoning: { effort: opts.reasoning } } : {}),
       usage: { include: true },
     }),
     signal: AbortSignal.timeout(opts.timeoutMs ?? 30000),

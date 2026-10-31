@@ -57,7 +57,7 @@ export function SuggestPanel({ productId, readonly, onApplied }: { productId: st
           <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">
             {res.group ? <>Ομάδα: <b className="text-eu-ink-2">{res.group}</b> · </> : null}
             {res.sources.eprel ? <>EPREL <b className="text-eu-ink-2">{res.sources.eprel}</b> · </> : "Χωρίς EPREL · "}
-            {res.sources.extractions} απόδελτιώσεις · {res.sources.sections} ενότητες · {res.sources.banners} banners
+            {res.sources.external} από το internet · {res.sources.extractions} απόδελτιώσεις · {res.sources.sections} ενότητες · {res.sources.banners} banners
           </p>
           {res.note && (
             <p className="m-0 inline-flex items-start gap-1.5 rounded-lg bg-eu-surface px-2.5 py-1.5 text-eu-ink-2 text-[length:var(--fs-13)]">
