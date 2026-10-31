@@ -94,3 +94,71 @@ export async function setPartnerStoreVisible(storeId: string, visible: boolean) 
   revalidatePath("/admin/stores");
   return { ok: true as const };
 }
+
+// ---------- Επαφές και πρόσβαση στην πύλη συνεργατών ----------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** Νέα επαφή μέλους (τις δημιουργεί μόνο το προσωπικό). */
+export async function addPartnerContact(partnerId: string, c: { name: string; email: string; phone: string; role: string; isPrimary: boolean }) {
+  const user = await requirePermission("stores.partners.write");
+  const { CONTACT_ROLES } = await import("@/lib/partner-portal/contact-roles");
+  const name = c.name.trim(), email = c.email.trim().toLowerCase(), phone = c.phone.replace(/[^\d+]/g, "");
+  const fields: Record<string, string> = {};
+  if (name.length < 2) fields.name = "Γράψε ονοματεπώνυμο";
+  if (email && !EMAIL_RE.test(email)) fields.email = "Το email δεν είναι έγκυρο";
+  if (phone && !/^\+?\d{10,14}$/.test(phone)) fields.phone = "10 ψηφία (ή με +30)";
+  if (!(c.role in CONTACT_ROLES)) fields.role = "Διάλεξε ρόλο";
+  if (Object.keys(fields).length) return { ok: false as const, error: "Διόρθωσε τα σημειωμένα πεδία", fields };
+  const created = await db.$transaction(async (tx) => {
+    if (c.isPrimary) await tx.partnerContact.updateMany({ where: { partnerId }, data: { isPrimary: false } });
+    return tx.partnerContact.create({ data: { partnerId, name, email: email || null, phone: phone || null, role: c.role, isPrimary: c.isPrimary } });
+  });
+  await audit(user.id, "b2b.contact.create", "PartnerContact", created.id, null, { partnerId, name, role: c.role, isPrimary: c.isPrimary });
+  revalidatePath(`/admin/synergates/${partnerId}`);
+  return { ok: true as const, id: created.id };
+}
+
+/**
+ * Πρόσβαση στην πύλη για μια επαφή: λογαριασμός με το email της + link ορισμού κωδικού (72 ώρες).
+ * `send`: με email στην επαφή· αλλιώς επιστρέφεται το link για να το δώσει ο υπάλληλος (καταγράφεται).
+ */
+export async function grantPortalAccess(contactId: string, send: boolean) {
+  const user = await requirePermission("stores.partners.write");
+  const c = await db.partnerContact.findUnique({ where: { id: contactId }, include: { account: true } });
+  if (!c) return { ok: false as const, error: "Η επαφή δεν βρέθηκε" };
+  if (!c.email) return { ok: false as const, error: "Η επαφή δεν έχει email — πρόσθεσέ το πρώτα" };
+  if (c.account) return { ok: false as const, error: "Η επαφή έχει ήδη πρόσβαση — στείλε νέο link" };
+  const taken = await db.partnerAccount.findUnique({ where: { email: c.email }, select: { id: true } });
+  if (taken) return { ok: false as const, error: "Υπάρχει ήδη λογαριασμός πύλης με αυτό το email" };
+  const acc = await db.partnerAccount.create({ data: { contactId: c.id, email: c.email } });
+  const { issuePasswordLink, sendPasswordLink } = await import("@/lib/partner-portal/auth");
+  const r = send ? await sendPasswordLink(acc.id, "set", user.id) : await issuePasswordLink(acc.id, "set", user.id);
+  await audit(user.id, send ? "b2b.portal.invite-email" : "b2b.portal.invite-link", "PartnerAccount", acc.id, null, { contactId, email: c.email });
+  revalidatePath(`/admin/synergates/${c.partnerId}`);
+  return { ok: true as const, url: send ? null : r.url, hours: r.hours, email: c.email };
+}
+
+/** Νέο link κωδικού (ορισμού αν δεν όρισε ποτέ, αλλιώς αλλαγής) — ακυρώνει τα προηγούμενα. */
+export async function newPasswordLink(accountId: string, send: boolean) {
+  const user = await requirePermission("stores.partners.write");
+  const a = await db.partnerAccount.findUnique({ where: { id: accountId }, include: { contact: { select: { partnerId: true } } } });
+  if (!a) return { ok: false as const, error: "Ο λογαριασμός δεν βρέθηκε" };
+  if (!a.active) return { ok: false as const, error: "Ο λογαριασμός είναι ανενεργός — ενεργοποίησέ τον πρώτα" };
+  const purpose = a.passwordHash ? "reset" : "set";
+  const { issuePasswordLink, sendPasswordLink } = await import("@/lib/partner-portal/auth");
+  const r = send ? await sendPasswordLink(a.id, purpose, user.id) : await issuePasswordLink(a.id, purpose, user.id);
+  await audit(user.id, send ? "b2b.portal.link-email" : "b2b.portal.link-copy", "PartnerAccount", a.id, null, { purpose });
+  revalidatePath(`/admin/synergates/${a.contact.partnerId}`);
+  return { ok: true as const, url: send ? null : r.url, hours: r.hours, email: a.email };
+}
+
+/** Ενεργοποίηση/απενεργοποίηση πρόσβασης· η απενεργοποίηση ακυρώνει αμέσως τις συνεδρίες (passwordAt). */
+export async function setPortalAccountActive(accountId: string, active: boolean) {
+  const user = await requirePermission("stores.partners.write");
+  const a = await db.partnerAccount.update({ where: { id: accountId }, data: { active, ...(active ? { failedCount: 0, lockedUntil: null } : { passwordAt: new Date() }) }, include: { contact: { select: { partnerId: true } } } });
+  if (!active) await db.partnerToken.updateMany({ where: { accountId, usedAt: null }, data: { usedAt: new Date() } });
+  await audit(user.id, active ? "b2b.portal.enable" : "b2b.portal.disable", "PartnerAccount", accountId, { active: !active }, { active });
+  revalidatePath(`/admin/synergates/${a.contact.partnerId}`);
+  return { ok: true as const };
+}

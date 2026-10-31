@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { cityKey } from "@/lib/b2b/partners-core";
 import { BranchStoreLink } from "@/components/admin/partners/BranchStoreLink";
 import { CreateBranchStore, StoreVisibility } from "@/components/admin/partners/PartnerStoreTools";
+import { PartnerContacts } from "@/components/admin/partners/PartnerContacts";
 
 export const metadata = { title: "Συνεργάτης" };
 export const dynamic = "force-dynamic";
@@ -23,6 +24,10 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true, zip: true, branch: { select: { id: true } } } }),
   ]);
   if (!p) notFound();
+  const contacts = await db.partnerContact.findMany({
+    where: { partnerId: p.id }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
+    include: { account: { select: { id: true, active: true, passwordHash: true, lastLoginAt: true, lockedUntil: true, tokens: { where: { purpose: "set", usedAt: null, expiresAt: { gt: new Date() } }, select: { expiresAt: true }, take: 1 } } } },
+  });
 
   const field = (label: string, v: string | null | undefined) => (
     <div className="min-w-0"><dt className="text-eu-ink-3 text-[length:var(--fs-12)]">{label}</dt><dd className="m-0 break-words text-[length:var(--fs-14)]">{v || "—"}</dd></div>
@@ -43,6 +48,12 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
           {field("ΑΦΜ", p.afm)}{field("ΔΟΥ", p.taxOffice)}{field("Διεύθυνση", [p.address, p.zip, p.city].filter(Boolean).join(", "))}
           {field("Τηλέφωνο", [p.phone, p.phone2].filter(Boolean).join(" · "))}{field("Email", p.email)}{field("Website", p.website)}
         </dl>
+      </section>
+
+      <section data-help="partner.contacts" className="rounded-xl border border-eu-line bg-white p-3 grid gap-2">
+        <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Επαφές & πρόσβαση στην πύλη συνεργατών</h3>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Τις επαφές τις δημιουργούμε εμείς. Για πρόσβαση: email με πρόσκληση ή link ορισμού κωδικού για αντιγραφή (72 ώρες, μία χρήση). Κάθε ενέργεια καταγράφεται.</p>
+        <PartnerContacts partnerId={p.id} canWrite={canWrite} contacts={contacts.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, role: c.role, isPrimary: c.isPrimary, account: c.account ? { id: c.account.id, active: c.account.active, hasPassword: !!c.account.passwordHash, lastLoginAt: c.account.lastLoginAt?.toISOString() ?? null, lockedUntil: c.account.lockedUntil?.toISOString() ?? null, pendingLink: c.account.tokens[0]?.expiresAt.toISOString() ?? null } : null }))} />
       </section>
 
       <section data-help="partner.branches" className="grid gap-2">

@@ -883,8 +883,8 @@ model Store {
 /// Μέλος / συνεργάτης Euronics (B2B). Πηγή: SoftOne CUSTOMER (TRDR, SODTYPE 13) με εμπορική κατηγορία (TRDBUSINESS).
 /// Το SoftOne είναι master για τα εμπορικά/φορολογικά· εμείς για επαφές, πρόσβαση, προφίλ. Βλ. docs/b2b-architecture.md.
 model Partner {
-  id          String          @id @default(cuid())
-  s1Trdr      Int?            @unique
+  id          String              @id @default(cuid())
+  s1Trdr      Int?                @unique
   code        String?
   name        String
   afm         String?
@@ -904,18 +904,24 @@ model Partner {
   email       String?
   website     String?
   /// lead | onboarding | connecting | live | suspended
-  status      String          @default("onboarding")
-  active      Boolean         @default(true)
-  notes       String?         @db.Text
+  status      String              @default("onboarding")
+  active      Boolean             @default(true)
+  notes       String?             @db.Text
   s1Data      Json?
   s1UpdatedAt DateTime?
   s1SyncedAt  DateTime?
   /// δεν βρέθηκε στην τελευταία εισαγωγή (σβήστηκε ή άλλαξε κατηγορία στο SoftOne)
-  s1Missing   Boolean         @default(false)
+  s1Missing   Boolean             @default(false)
   branches    PartnerBranch[]
   stores      Store[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  contacts    PartnerContact[]
+  connections PartnerConnection[]
+  changes     PartnerChange[]
+  logs        PartnerLog[]
+  /// ερωτηματολόγιο αρχικοποίησης + πρόοδος των wizards της πύλης: { answers, steps: { profile, connection, mapping, … }, completedAt }
+  onboarding  Json?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@index([afm])
   @@index([status])
@@ -952,6 +958,133 @@ model PartnerBranch {
   updatedAt  DateTime  @updatedAt
 
   @@index([partnerId])
+}
+
+/// Επαφή μέλους (τη δημιουργούμε εμείς, όχι το μέλος). Μια επαφή μπορεί να έχει λογαριασμό στην πύλη συνεργατών.
+model PartnerContact {
+  id        String          @id @default(cuid())
+  partnerId String
+  partner   Partner         @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  /// owner | it | sales | accounting | other
+  role      String          @default("other")
+  isPrimary Boolean         @default(false)
+  notes     String?         @db.Text
+  account   PartnerAccount?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([partnerId])
+}
+
+/// Λογαριασμός στην πύλη συνεργατών (synergaton.*). Κωδικός μόνο ως bcrypt· ορίζεται από link (PartnerToken).
+model PartnerAccount {
+  id           String         @id @default(cuid())
+  contactId    String         @unique
+  contact      PartnerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  /// πάντα πεζά
+  email        String         @unique
+  passwordHash String?
+  active       Boolean        @default(true)
+  failedCount  Int            @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  passwordAt   DateTime?
+  tokens       PartnerToken[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+/// Link ορισμού/αλλαγής κωδικού (set | reset) και κωδικοί σύνδεσης μιας χρήσης (otp). Μόνο hash.
+model PartnerToken {
+  id        String         @id @default(cuid())
+  accountId String
+  account   PartnerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// set | reset | otp
+  purpose   String
+  tokenHash String         @unique
+  codeHash  String?
+  attempts  Int            @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  /// staffId όταν το έστειλε το προσωπικό
+  createdBy String?
+  ip        String?
+  createdAt DateTime       @default(now())
+
+  @@index([accountId, purpose, createdAt])
+}
+
+/// Ιστορικό αλλαγών προφίλ (χωρίς έγκριση — ισχύουν αμέσως, κρατάμε τι άλλαξε, ποιος, πότε).
+model PartnerChange {
+  id        String   @id @default(cuid())
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  accountId String?
+  staffId   String?
+  /// Store | Partner | PartnerContact | PartnerConnection
+  entity    String
+  entityId  String
+  field     String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([partnerId, createdAt])
+}
+
+/// Τρόπος διασύνδεσης μέλους (master εδώ· αντίγραφο στη μηχανή με το ίδιο id, χωρίς secrets εδώ).
+model PartnerConnection {
+  id          String       @id @default(cuid())
+  partnerId   String
+  partner     Partner      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  /// ConnectionType της μηχανής (feed-url | manual | softone-ws | woocommerce | …)
+  type        String
+  label       String?
+  /// μη ευαίσθητα (URL, μορφή, serial, map στηλών)
+  config      Json
+  /// ονόματα των secrets που έχουν δοθεί (οι τιμές μόνο στη μηχανή)
+  secretKeys  String[]     @default([])
+  storeIds    String[]     @default([])
+  /// draft | testing | ok | failed | review | active | paused
+  status      String       @default("draft")
+  active      Boolean      @default(true)
+  /// τελευταίος έλεγχος όπως τον έδωσε η μηχανή (χωρίς προεπισκόπηση)
+  lastTest    Json?
+  lastTestAt  DateTime?
+  lastOkAt    DateTime?
+  /// αντιστοίχιση τοποθεσιών: [{ externalRef, name, storeId | null }]
+  locationMap Json?
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  logs        PartnerLog[]
+
+  @@index([partnerId])
+}
+
+/// Logs πύλης/συγχρονισμών από την πλευρά του eshop: γεγονότα προς τη μηχανή, έλεγχοι, ανεβάσματα, αντιστοιχίσεις,
+/// συνδέσεις λογαριασμών. Τα batches της μηχανής έρχονται ζωντανά από το API της.
+model PartnerLog {
+  id           String             @id @default(cuid())
+  partnerId    String
+  partner      Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  connectionId String?
+  connection   PartnerConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  /// engine.event | test | upload | mapping | login | password | profile | import | ai
+  kind         String
+  ok           Boolean            @default(true)
+  message      String
+  detail       Json?
+  accountId    String?
+  staffId      String?
+  ms           Int?
+  createdAt    DateTime           @default(now())
+
+  @@index([partnerId, createdAt])
+  @@index([connectionId, createdAt])
 }
 
 /// Υπηρεσίες Euronics (Εμπόριο → Υπηρεσίες): σελίδες /ypiresies, πρόσθετες υπηρεσίες σε προϊόν/checkout, αρχική, hero,

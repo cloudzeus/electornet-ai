@@ -27,9 +27,10 @@ const pages = walk(join(ROOT, SHELL)).filter((f) => f.endsWith("/page.tsx")).map
 const routeOf = (file: string) => `/admin${file.slice(SHELL.length).replace(/\/page\.tsx$/, "")}` || "/admin";
 const navItems = ADMIN_NAV.flatMap((g) => g.items.map((i) => ({ group: g.label, label: i.label, href: i.href })));
 
-// 2) σημεία βοήθειας σε όλο τον κώδικα
+// 2) σημεία βοήθειας σε όλο τον κώδικα — εκτός της πύλης συνεργατών (synergaton), που έχει δικό της οδηγό (lib/partner-portal/guide.ts)
 const helpKeys: Record<string, string[]> = {};
-for (const f of [...walk(join(ROOT, "app")), ...walk(join(ROOT, "components"))].filter((x) => /\.tsx?$/.test(x))) {
+const PORTAL = /[\\/]synergaton[\\/]/;
+for (const f of [...walk(join(ROOT, "app")), ...walk(join(ROOT, "components"))].filter((x) => /\.tsx?$/.test(x) && !PORTAL.test(x))) {
   const src = readFileSync(f, "utf8");
   for (const m of src.matchAll(/(?:data-help|help-key)="([a-z0-9.-]+)"/g)) (helpKeys[m[1]] ??= []).includes(relative(ROOT, f)) || helpKeys[m[1]].push(relative(ROOT, f));
 }
