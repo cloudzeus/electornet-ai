@@ -26,7 +26,7 @@ export default async function GuideArticlePage({ params }: { params: Promise<{ s
       <PageHead eyebrow={<span className="inline-flex items-center gap-1"><Clock className="size-3.5" aria-hidden /> {a.minutes}′ ανάγνωση</span>} title={a.title} sub={a.summary} />
       {a.video ? (
         <video controls preload="metadata" poster={a.video.poster} className="w-full aspect-video rounded-3xl bg-eu-navy shadow-lg" data-help="portal.guide-video">
-          <source src={a.video.src.replace(/\.mp4$/, ".webm")} type="video/webm" />
+          {a.video.webm && <source src={a.video.webm} type="video/webm" />}
           <source src={a.video.src} type="video/mp4" />
         </video>
       ) : null}

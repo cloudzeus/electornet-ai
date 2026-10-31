@@ -1,16 +1,18 @@
 /**
  * Ο οδηγός (wiki) της πύλης συνεργατών. Κάθε άρθρο: σύνοψη, βίντεο (Remotion, όταν υπάρχει), ενότητες με βήματα
  * και συνηθισμένα προβλήματα. Τα slugs χρησιμοποιούνται από τους τρόπους σύνδεσης (`ConnTypeInfo.guide`).
- * Βίντεο: `/videos/synergaton/<slug>.mp4` + `.webm` + `-poster.jpg` όταν οριστεί `video: true`.
+ * Βίντεο: Remotion (motion-studio, compositions Euronics-Guide-<slug>-16x9), 1280×720 χωρίς ήχο, στο Bunny CDN
+ * `videos/synergaton/<slug>-<hash>.{mp4,webm}` + `-poster-<hash>.jpg` — το hash αλλάζει σε κάθε νέο render.
  */
 export type GuideSection = { title: string; body?: string[]; steps?: string[]; tips?: string[] };
-export type GuideArticle = { slug: string; title: string; summary: string; minutes: number; group: "start" | "connect" | "daily"; video?: { src: string; poster: string; duration: string } | null; sections: GuideSection[]; faq?: { q: string; a: string }[] };
+export type GuideArticle = { slug: string; title: string; summary: string; minutes: number; group: "start" | "connect" | "daily"; video?: { src: string; webm?: string; poster: string; duration: string } | null; sections: GuideSection[]; faq?: { q: string; a: string }[] };
 
 export const GUIDE_GROUPS = { start: "Πρώτα βήματα", connect: "Σύνδεση αποθέματος", daily: "Καθημερινά" } as const;
 
 export const GUIDE: GuideArticle[] = [
   {
     slug: "ksekinima", group: "start", minutes: 3, title: "Πώς λειτουργεί η πύλη συνεργατών",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/ksekinima-10797f1f65.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/ksekinima-6462aab2db.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/ksekinima-poster-cab48eab9a.jpg", duration: "0:50" },
     summary: "Από τον πρώτο κωδικό μέχρι τη διαθεσιμότητα στο euronics.gr: τα 7 βήματα της αρχικοποίησης.",
     sections: [
       { title: "Τι κερδίζετε", body: ["Οι πελάτες του euronics.gr βλέπουν αν ένα προϊόν υπάρχει στο κατάστημά σας και μπορούν να το παραλάβουν από εσάς. Η παραγγελία έρχεται σε εσάς, με email και εδώ στην πύλη."] },
@@ -21,6 +23,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "katastimata", group: "start", minutes: 2, title: "Το προφίλ των καταστημάτων σας",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/katastimata-f4708897fa.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/katastimata-cdf7b29ecb.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/katastimata-poster-c337d3780b.jpg", duration: "0:53" },
     summary: "Τηλέφωνα, email, ωράριο και υπηρεσίες: τι φαίνεται στο eshop και πώς το αλλάζετε.",
     sections: [
       { title: "Τι αλλάζετε εσείς", body: ["Σταθερό, κινητό, email, ωράριο (και διακεκομμένο), υπηρεσίες και σημείωμα για πελάτες. Οι αλλαγές ισχύουν αμέσως, χωρίς έγκριση, και καταγράφονται στο ιστορικό.", "Σταθερό, κινητό και email γράφονται αυτόματα και στο υποκατάστημά σας στο SoftOne της Euronics, όταν η Euronics έχει ανοίξει αυτή τη δυνατότητα· ωράριο, υπηρεσίες και σημείωμα μένουν μόνο στο eshop."] },
@@ -30,6 +33,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "softone", group: "connect", minutes: 4, title: "Σύνδεση με SoftOne",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/softone-9c44d7c160.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/softone-72228228be.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/softone-poster-d5e73a707e.jpg", duration: "0:49" },
     summary: "Διαβάζουμε το απόθεμα ανά υποκατάστημα από τα web services του SoftOne σας, μόνο ανάγνωση.",
     sections: [
       { title: "Τι να ζητήσετε από τον τεχνικό σας", steps: ["Ένα web account μόνο με δικαίωμα ανάγνωσης ειδών και υπολοίπων.", "Το AppID (SoftOne → Web & Mobile → Web Services).", "Εταιρεία, υποκατάστημα σύνδεσης, MODULE και REFID του χρήστη.", "Το serial (όνομα πριν το .oncloud.gr) ή τη διεύθυνση των web services."] },
@@ -39,6 +43,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "woocommerce", group: "connect", minutes: 3, title: "Σύνδεση με WooCommerce",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/woocommerce-c4958352ee.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/woocommerce-9368fc10aa.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/woocommerce-poster-7280b7ade9.jpg", duration: "0:49" },
     summary: "Διαβάζουμε το απόθεμα από το eshop σας με κλειδί REST API μόνο για ανάγνωση.",
     sections: [
       { title: "Δημιουργία κλειδιού", steps: ["WordPress → WooCommerce → Ρυθμίσεις → Για προχωρημένους → REST API.", "«Προσθήκη κλειδιού», δικαίωμα: Ανάγνωση.", "Αντιγράψτε Consumer key (ck_…) και Consumer secret (cs_…) — το secret φαίνεται μία φορά."] },
@@ -48,6 +53,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "feed", group: "connect", minutes: 3, title: "Σύνδεση με feed (XML, Excel, CSV)",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/feed-58a12a7783.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/feed-dcf36d0d95.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/feed-poster-3f698fa0b9.jpg", duration: "0:40" },
     summary: "Ένα αρχείο σε σταθερή διεύθυνση που ενημερώνει το σύστημά σας — το διαβάζουμε αυτόματα.",
     sections: [
       { title: "Τι χρειάζεται το αρχείο", body: ["Στήλη κωδικού ή EAN, στήλη ποσότητας και — αν έχετε πολλά καταστήματα — στήλη καταστήματος/αποθήκης. Τα feed για Skroutz/BestPrice συνήθως κάνουν."] },
@@ -57,6 +63,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "upload", group: "connect", minutes: 2, title: "Ανέβασμα αρχείου Excel ή CSV",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/upload-a90ddb062e.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/upload-5b6d85813b.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/upload-poster-14bb912f7f.jpg", duration: "0:45" },
     summary: "Ο πιο γρήγορος τρόπος να ξεκινήσετε: ανεβάζετε εσείς το απόθεμα όποτε θέλετε.",
     sections: [
       { title: "Πώς να είναι το αρχείο", body: ["Πρώτη γραμμή με ονόματα στηλών. Μία γραμμή ανά προϊόν και κατάστημα. Έως 3 MB — κρατήστε μόνο κωδικό/EAN, ποσότητα και κατάστημα."], tips: ["Το παλιό .xls δεν υποστηρίζεται: «Αποθήκευση ως» .xlsx.", "«Όλο το απόθεμα»: ό,τι λείπει θεωρείται μηδέν. «Μόνο αλλαγές»: τα υπόλοιπα μένουν ως είχαν."] },
@@ -65,6 +72,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "paraggelies", group: "daily", minutes: 2, title: "Παραγγελίες παραλαβής",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-c224cccbb7.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-c46ab59a0a.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/paraggelies-poster-3d8fb0854d.jpg", duration: "0:38" },
     summary: "Πού τις βλέπετε, τι σημαίνει κάθε κατάσταση και πότε φαίνεται το τηλέφωνο του πελάτη.",
     sections: [
       { title: "Καταστάσεις", body: ["«Προς παραλαβή» είναι όσες περιμένουν ετοιμασία ή τον πελάτη. Το τηλέφωνο του πελάτη φαίνεται μόνο τότε — μετά την παράδοση κρύβεται."] },
@@ -72,6 +80,7 @@ export const GUIDE: GuideArticle[] = [
   },
   {
     slug: "istoriko", group: "daily", minutes: 2, title: "Ιστορικό και συγχρονισμοί",
+    video: { src: "https://euronics.b-cdn.net/videos/synergaton/istoriko-c763134462.mp4", webm: "https://euronics.b-cdn.net/videos/synergaton/istoriko-edb1d333a3.webm", poster: "https://euronics.b-cdn.net/videos/synergaton/istoriko-poster-7999e86dbd.jpg", duration: "0:38" },
     summary: "Κάθε ενημέρωση αποθέματος με δεκτές και απορριφθείσες γραμμές, και κάθε ενέργεια στην πύλη.",
     sections: [
       { title: "Γιατί απορρίπτονται γραμμές", body: ["Χωρίς κωδικό/EAN, χωρίς αριθμό στην ποσότητα, ή σε αποθήκη που δεν αντιστοιχίσατε σε κατάστημα."] },
