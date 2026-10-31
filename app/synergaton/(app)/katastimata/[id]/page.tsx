@@ -5,10 +5,11 @@ import { db } from "@/lib/db";
 import { requirePortalUser, portalBase } from "@/lib/partner-portal/session";
 import { hoursOf, servicesOf } from "@/lib/partner-portal/store-profile";
 import { StoreWizard } from "@/components/synergaton/StoreWizard";
+import { StoreLocation } from "@/components/synergaton/StoreLocation";
 import { ago, Badge, Card, CardHead, PageHead } from "@/components/synergaton/ui";
 
 export const metadata = { title: "Κατάστημα" };
-const FIELD: Record<string, string> = { phone: "Σταθερό", mobile: "Κινητό", email: "Email", hours: "Ωράριο", services: "Υπηρεσίες", notes: "Σημείωμα" };
+const FIELD: Record<string, string> = { location: "Σημείο στον χάρτη", phone: "Σταθερό", mobile: "Κινητό", email: "Email", hours: "Ωράριο", services: "Υπηρεσίες", notes: "Σημείωμα" };
 
 export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
   const u = await requirePortalUser();
@@ -25,6 +26,7 @@ export default async function StorePage({ params }: { params: Promise<{ id: stri
       <PageHead eyebrow={[s.city, s.branch?.s1BranchId ? `Υποκατάστημα ${s.branch.s1BranchId}` : null].filter(Boolean).join(" · ")} title={s.name} sub={[s.address, s.zip, s.city].filter(Boolean).join(", ")}
         action={<>{s.active ? <Badge tone="good">Ορατό στο eshop</Badge> : <Badge tone="neutral">Κρυφό στο eshop</Badge>}{s.active && <Link href={`/katastimata/${s.slug}`} target="_blank" className="inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-14)] hover:underline min-h-11">Σελίδα στο eshop <ExternalLink className="size-4" aria-hidden /></Link>}</>} />
       <div data-help="portal.store-wizard"><StoreWizard storeId={s.id} storeName={s.name} initial={{ phone: s.phone ?? "", mobile: s.mobile ?? "", email: s.email ?? "", hours: hoursOf(s.hours), services: servicesOf(s.services), notes: s.notes ?? "" }} /></div>
+      <StoreLocation storeId={s.id} address={[s.address, s.zip, s.city].filter(Boolean).join(", ")} saved={s.lat === 0 && s.lng === 0 ? null : { lat: s.lat, lng: s.lng }} />
       <Card data-help="portal.store-history">
         <CardHead icon={History} title="Ιστορικό αλλαγών" sub="Οι αλλαγές ισχύουν χωρίς έγκριση· εδώ φαίνεται ποιος άλλαξε τι." />
         <ol className="m-0 p-0 list-none px-4 sm:px-5 py-4 grid gap-2.5">

@@ -6,7 +6,7 @@ import { nameOf, type ShipTo } from "@/lib/orders/model";
 
 /** Ερωτήματα της πύλης συνεργατών — πάντα περιορισμένα στο μέλος του συνδεδεμένου λογαριασμού. */
 
-export type Onboarding = { answers?: Record<string, unknown>; advice?: unknown; steps?: Record<string, string>; completedAt?: string };
+export type Onboarding = { answers?: Record<string, unknown>; advice?: unknown; steps?: Record<string, string>; completedAt?: string; vivaAt?: string | null };
 export const onboardingOf = (v: unknown): Onboarding => (v && typeof v === "object" ? (v as Onboarding) : {});
 
 export const partnerStores = (partnerId: string) =>

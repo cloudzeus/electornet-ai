@@ -21,6 +21,14 @@ export const QUESTION_STEPS: QStep[] = [
     ],
   },
   {
+    key: "payments", title: "Πληρωμές & τράπεζες", hint: "Για να μοιράζονται αυτόματα οι πληρωμές του eshop σε κάθε κατάστημα.",
+    questions: [
+      { key: "banks", multi: true, label: "Με ποιες τράπεζες ή παρόχους πληρωμών συνεργάζεστε (POS, e-commerce);", help: "Διαλέξτε όσα ισχύουν.", options: [{ value: "viva", label: "Viva" }, { value: "nbg", label: "Εθνική" }, { value: "piraeus", label: "Πειραιώς" }, { value: "alpha", label: "Alpha Bank" }, { value: "eurobank", label: "Eurobank" }, { value: "other-bank", label: "Άλλη τράπεζα / πάροχος" }, { value: "no-pos", label: "Κανένα POS" }] },
+      { key: "vivaUse", label: "Χρησιμοποιείτε ήδη Viva;", options: [{ value: "pos", label: "Ναι, για POS" }, { value: "ecommerce", label: "Ναι, για e-commerce" }, { value: "both", label: "Ναι, και για τα δύο" }, { value: "no", label: "Όχι" }] },
+      { key: "vivaOffer", label: "Θέλετε να συνεργαστείτε με τη Viva μέσω Euronics;", help: "Με λογαριασμό Viva, το ποσό κάθε παραγγελίας eshop που παραλαμβάνεται ή εξυπηρετείται από το κατάστημά σας θα πιστώνεται αυτόματα σε εσάς (διαμοιρασμός πληρωμής), χωρίς χειροκίνητους συμψηφισμούς. Αν δεχτείτε, θα σας καλέσει ο υπεύθυνος της Viva για την Euronics, χωρίς δέσμευση.", options: [{ value: "yes", label: "Ναι, να επικοινωνήσει μαζί μας", hint: "θα μπείτε στη λίστα για τη Viva" }, { value: "already", label: "Έχουμε Viva· θέλουμε αυτόματο διαμοιρασμό", hint: "θα μπείτε στη λίστα για τη Viva" }, { value: "later", label: "Ίσως αργότερα" }, { value: "no", label: "Όχι, ευχαριστώ" }] },
+    ],
+  },
+  {
     key: "help", title: "Τεχνική υποστήριξη", hint: "Για να ξέρουμε ποιος θα κάνει τις ρυθμίσεις.",
     questions: [
       { key: "it", label: "Έχετε τεχνικό ή εταιρεία πληροφορικής;", options: [{ value: "inhouse", label: "Ναι, δικό μας" }, { value: "vendor", label: "Ναι, εξωτερική" }, { value: "none", label: "Όχι" }] },
@@ -28,6 +36,17 @@ export const QUESTION_STEPS: QStep[] = [
     ],
   },
 ];
+
+/** Τιμές που βάζουν το μέλος στη λίστα ενδιαφέροντος για Viva (προς τον account manager). */
+export const VIVA_YES = ["yes", "already"] as const;
+export const isVivaLead = (a: Record<string, unknown> | undefined) => VIVA_YES.includes(String(a?.vivaOffer ?? "") as (typeof VIVA_YES)[number]);
+
+/** Ετικέτα απάντησης (οι πολλαπλές αποθηκεύονται χωρισμένες με κόμμα). */
+export function answerLabel(key: string, value: unknown): string {
+  const q = QUESTION_STEPS.flatMap((s) => s.questions).find((x) => x.key === key);
+  const vals = String(value ?? "").split(",").filter(Boolean);
+  return vals.map((v) => q?.options.find((o) => o.value === v)?.label ?? v).join(", ") || "—";
+}
 
 /** Πρόταση με απλούς κανόνες — ίδια λογική που δίνουμε και στον βοηθό ως πλαίσιο. */
 export function ruleAdvice(a: Record<string, string>): { type: ConnType; why: string } {

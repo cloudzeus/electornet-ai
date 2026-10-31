@@ -7,6 +7,7 @@ import { portalBase, requirePortalUser } from "@/lib/partner-portal/session";
 import { logout } from "@/app/synergaton/actions";
 import { BottomNav, SideNav } from "@/components/synergaton/PortalNav";
 import { focusRing } from "@/components/synergaton/ui";
+import { PortalErmis } from "@/components/synergaton/PortalErmis";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function PortalShell({ children }: { children: ReactNode })
             <Link href={base || "/"} className={`lg:hidden flex items-center gap-2 rounded-lg ${focusRing}`}><Image src="/design/logo.svg" alt="euronics" width={96} height={24} className="h-6 w-auto" /></Link>
             <p className="hidden lg:block m-0 min-w-0 truncate text-eu-ink-3 text-[length:var(--fs-14)]">Καλώς ήρθες, <b className="text-eu-ink">{u.name.split(" ")[0]}</b></p>
             <div className="ml-auto flex items-center gap-1">
+              <div data-help="portal.ermis" className="contents"><PortalErmis base={base} firstName={u.name.split(" ")[0]} /></div>
               <Link href={`${base}/odigos`} className={`inline-flex items-center gap-2 rounded-full px-3 min-h-11 text-eu-blue font-bold text-[length:var(--fs-14)] hover:bg-eu-chip ${focusRing}`}><BookOpen className="size-5" aria-hidden /><span className="hidden sm:inline">Οδηγός</span></Link>
               <Link href={`${base}/profil`} className={`flex items-center gap-2 rounded-full pl-1 pr-3 min-h-11 hover:bg-eu-surface-2 ${focusRing}`} aria-label={`Προφίλ: ${u.name}`}>
                 <span className="grid place-items-center size-9 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)]">{initials}</span>

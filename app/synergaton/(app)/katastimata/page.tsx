@@ -4,6 +4,8 @@ import { requirePortalUser, portalBase } from "@/lib/partner-portal/session";
 import { partnerStores } from "@/lib/partner-portal/data";
 import { hoursOf, servicesOf, STORE_SERVICES } from "@/lib/partner-portal/store-profile";
 import { db } from "@/lib/db";
+import { branchesWriteEnabled } from "@/lib/softone/branch-write";
+import { MemberAadeCheck } from "@/components/synergaton/MemberAadeCheck";
 import { ago, Badge, Callout, Card, Empty, PageHead } from "@/components/synergaton/ui";
 
 export const metadata = { title: "Καταστήματα" };
@@ -11,15 +13,17 @@ export const metadata = { title: "Καταστήματα" };
 export default async function StoresPage() {
   const u = await requirePortalUser();
   const base = await portalBase();
-  const [stores, changes] = await Promise.all([
+  const [stores, changes, toErp] = await Promise.all([
     partnerStores(u.partner.id),
     db.partnerChange.groupBy({ by: ["entityId"], where: { partnerId: u.partner.id, entity: "Store" }, _max: { createdAt: true } }),
+    branchesWriteEnabled(),
   ]);
   const lastChange = new Map(changes.map((c) => [c.entityId, c._max.createdAt]));
   return (
     <div className="grid gap-5 min-w-0">
       <PageHead eyebrow="Προφίλ" title="Τα καταστήματά σας" sub="Ό,τι αλλάζετε εδώ φαίνεται αμέσως στο euronics.gr (σελίδα καταστήματος, χάρτης, επιλογή παραλαβής). Κάθε αλλαγή κρατιέται στο ιστορικό." />
-      <Callout tone="info" title="Επωνυμία, διεύθυνση και ΑΦΜ έρχονται από το SoftOne της Euronics">Για αλλαγή σε αυτά, μιλήστε με τον υπεύθυνο συνεργατών. Εδώ ορίζετε τηλέφωνα, email, ωράριο και υπηρεσίες.</Callout>
+      <Callout tone="info" title="Επωνυμία, διεύθυνση και ΑΦΜ έρχονται από το SoftOne της Euronics">Για αλλαγή σε αυτά, μιλήστε με τον υπεύθυνο συνεργατών. Εδώ ορίζετε τηλέφωνα, email, ωράριο και υπηρεσίες.{toErp ? " Τηλέφωνα και email γράφονται αυτόματα και στο υποκατάστημά σας στο SoftOne." : ""}</Callout>
+      <MemberAadeCheck />
       {stores.length ? (
         <ul data-help="portal.stores-list" className="m-0 p-0 list-none grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
           {stores.map((s) => {

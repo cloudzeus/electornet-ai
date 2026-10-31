@@ -25,6 +25,7 @@ export function StoreWizard({ storeId, initial, storeName }: { storeId: string; 
   const [blurred, setBlurred] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState(false);
   const [saved, setSaved] = useState<string[] | null>(null);
+  const [erp, setErp] = useState<{ ok: boolean; skipped?: boolean; written?: string[] } | null>(null);
   const [serverErr, setServerErr] = useState<{ error: string; fields?: Record<string, string> } | null>(null);
   const [pending, start] = useTransition();
   const errors = { ...checkProfile(p), ...(serverErr?.fields ?? {}) };
@@ -43,7 +44,7 @@ export function StoreWizard({ storeId, initial, storeName }: { storeId: string; 
     const r = await saveStoreProfile(storeId, p);
     setConfirm(false);
     if (!r.ok) { setServerErr({ error: r.error, fields: r.fields }); return; }
-    setSaved(r.changed); router.refresh();
+    setSaved(r.changed); setErp(r.erp ? { ok: r.erp.ok, skipped: "skipped" in r.erp ? r.erp.skipped : false, written: r.erp.ok ? r.erp.written : [] } : null); router.refresh();
   });
 
   return (
@@ -56,6 +57,7 @@ export function StoreWizard({ storeId, initial, storeName }: { storeId: string; 
           note={stepErr(cur).length ? `${stepErr(cur).length} ${stepErr(cur).length === 1 ? "πεδίο θέλει" : "πεδία θέλουν"} διόρθωση` : changed.length ? `${changed.length} ${changed.length === 1 ? "αλλαγή" : "αλλαγές"} σε εκκρεμότητα` : "Χωρίς αλλαγές"} />}>
         {serverErr && <div className="mb-4"><Callout tone="bad">{serverErr.error}</Callout></div>}
         {saved && cur === 3 && <div className="mb-4"><Callout tone="good" title={saved.length ? "Αποθηκεύτηκε — ισχύει ήδη στο eshop" : "Δεν υπήρχαν αλλαγές"}>{saved.length ? `Άλλαξαν: ${saved.map((k) => LABEL[k as keyof StoreProfile]).join(", ")}.` : null}</Callout></div>}
+        {saved && cur === 3 && erp && !erp.skipped && <div className="mb-4">{erp.ok ? <Callout tone="good" title="Ενημερώθηκε και το SoftOne της Euronics">Τηλέφωνα και email γράφτηκαν στο υποκατάστημά σας και επαληθεύτηκαν.</Callout> : <Callout tone="warn" title="Στο eshop ισχύει· στο SoftOne δεν πέρασε ακόμη">Η ενημέρωση του υποκαταστήματος στο SoftOne απέτυχε και καταγράφηκε στο ιστορικό. Θα το δει η ομάδα της Euronics· δεν χρειάζεται να το ξανακάνετε.</Callout>}</div>}
 
         {cur === 0 && (
           <div className="grid gap-4 md:grid-cols-2 max-w-[48rem]">

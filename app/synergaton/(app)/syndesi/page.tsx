@@ -54,7 +54,7 @@ export default async function ConnectionsPage() {
       ) : (
         <Card>
           <Empty icon={PlugZap} title="Δεν έχετε ακόμη σύνδεση" action={<ButtonLink href={`${base}/syndesi/nea`} variant="brand" size="lg"><Plus className="size-4" aria-hidden /> Νέα σύνδεση</ButtonLink>}>
-            {advice ? <span className="inline-flex items-center gap-1.5"><Sparkles className="size-4 text-[#8a6500]" aria-hidden /> Ο βοηθός πρότεινε: <b>{connTypeInfo(advice.type)?.title}</b></span> : <>Δεν ξέρετε ποιον τρόπο να διαλέξετε; <Link className="text-eu-blue font-bold hover:underline" href={`${base}/ksekinima`}>Απαντήστε σε 6 ερωτήσεις</Link>.</>}
+            {advice ? <span className="inline-flex items-center gap-1.5"><Sparkles className="size-4 text-[#8a6500]" aria-hidden /> Ο βοηθός πρότεινε: <b>{connTypeInfo(advice.type)?.title}</b></span> : <>Δεν ξέρετε ποιον τρόπο να διαλέξετε; <Link className="text-eu-blue font-bold hover:underline" href={`${base}/ksekinima`}>Απαντήστε σε 10 σύντομες ερωτήσεις</Link>.</>}
           </Empty>
         </Card>
       )}

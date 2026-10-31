@@ -16,7 +16,7 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
   const answers = Object.fromEntries(Object.entries(ob.answers ?? {}).map(([k, v]) => [k, String(v)]));
   return (
     <div className="grid gap-5 min-w-0" data-help="portal.start">
-      <PageHead eyebrow="Αρχικοποίηση" title="Ξεκίνημα σε 2 λεπτά" sub="Απαντήστε σε 7 σύντομες ερωτήσεις. Ο βοηθός προτείνει τον πιο εύκολο τρόπο να μας στέλνετε τη διαθεσιμότητα και σας οδηγεί βήμα-βήμα." />
+      <PageHead eyebrow="Αρχικοποίηση" title="Ξεκίνημα σε 2 λεπτά" sub="Απαντήστε σε 10 σύντομες ερωτήσεις. Ο βοηθός προτείνει τον πιο εύκολο τρόπο να μας στέλνετε τη διαθεσιμότητα και σας οδηγεί βήμα-βήμα." />
       {welcome && <Callout tone="good" title="Ο κωδικός σας ορίστηκε — καλώς ήρθατε!">Ξεκινήστε από το ερωτηματολόγιο· μπορείτε να το αλλάξετε όποτε θέλετε.</Callout>}
       <Questionnaire base={base} initial={answers} storeIds={stores.map((s) => s.id)} savedAdvice={(ob.advice as SetupAdvice | null) ?? null} />
     </div>

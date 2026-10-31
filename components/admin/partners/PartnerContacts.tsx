@@ -37,13 +37,13 @@ function ContactItem({ c, canWrite }: { c: ContactRow; canWrite: boolean }) {
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
     if (r.url) setLink({ url: r.url, hours: r.hours }); else setMsg({ ok: true, text: `Στάλθηκε email στο ${r.email} (ισχύει ${r.hours} ώρες).` });
   });
-  const status = !a ? "Χωρίς πρόσβαση" : !a.active ? "Ανενεργός" : a.lockedUntil && new Date(a.lockedUntil) > new Date() ? `Κλειδωμένος έως ${fmt(a.lockedUntil)}` : !a.hasPassword ? (a.pendingLink ? `Περιμένει ορισμό κωδικού (link έως ${fmt(a.pendingLink)})` : "Δεν έχει ορίσει κωδικό") : a.lastLoginAt ? `Τελευταία είσοδος ${fmt(a.lastLoginAt)}` : "Δεν έχει μπει ακόμη";
+  const status = !a ? "Χωρίς πρόσβαση" : !a.active ? "Ανενεργός" : a.lockedUntil && new Date(a.lockedUntil) > new Date() ? `Κλειδωμένος έως ${fmt(a.lockedUntil)}` : !a.hasPassword ? (a.pendingLink ? `Περιμένει να ορίσει κωδικό πύλης (link έως ${fmt(a.pendingLink)})` : "Δεν έχει ορίσει ακόμη κωδικό εισόδου στην πύλη") : a.lastLoginAt ? `Τελευταία είσοδος ${fmt(a.lastLoginAt)}` : "Δεν έχει μπει ακόμη";
   return (
     <li className="rounded-xl border border-eu-line bg-white p-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start min-w-0">
       <div className="min-w-0">
         <b className="break-words">{c.name}</b>{c.isPrimary && <span className="ml-2 rounded-full bg-eu-chip px-2 py-0.5 text-[length:var(--fs-12)] font-bold">κύρια</span>}
         <span className="block text-eu-ink-3 text-[length:var(--fs-13)] break-words">{[CONTACT_ROLES[c.role as keyof typeof CONTACT_ROLES] ?? c.role, c.email, c.phone].filter(Boolean).join(" · ")}</span>
-        <span className={`block text-[length:var(--fs-13)] font-bold ${a?.active ? "text-emerald-800" : "text-eu-ink-3"}`}>Πύλη: {status}</span>
+        <span className={`block text-[length:var(--fs-13)] font-bold ${a?.active ? "text-emerald-800" : "text-eu-ink-3"}`}>Πύλη συνεργατών: {status}</span>
       </div>
       {canWrite && (
         <div className="flex flex-wrap gap-2 md:justify-end">
@@ -64,7 +64,7 @@ function ContactItem({ c, canWrite }: { c: ContactRow; canWrite: boolean }) {
       )}
       {link && (
         <div className="md:col-span-2 grid gap-1 rounded-lg bg-amber-50 p-2.5">
-          <span className="text-[length:var(--fs-12)] text-amber-900 font-bold">Link ορισμού κωδικού — ισχύει {link.hours} ώρες, μία χρήση. Δώσ&apos; το μόνο στον ίδιο (καταγράφεται).</span>
+          <span className="text-[length:var(--fs-12)] text-amber-900 font-bold">Link ορισμού κωδικού για την πύλη συνεργατών (όχι για τη διαχείριση) — ισχύει {link.hours} ώρες, μία χρήση. Δώσ&apos; το μόνο στον ίδιο (καταγράφεται).</span>
           <div className="flex gap-2 min-w-0">
             <input readOnly value={link.url} className={`${input} font-mono text-[length:var(--fs-12)]`} aria-label="Link κωδικού" onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className={btn} onClick={async () => { await navigator.clipboard.writeText(link.url); setCopied(true); }}>{copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}{copied ? "Αντιγράφηκε" : "Αντιγραφή"}</button>

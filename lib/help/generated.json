@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T13:10:02.650Z",
+ "generatedAt": "2026-10-31T13:48:58.456Z",
  "routes": [
   {
    "route": "/admin",
@@ -4037,10 +4037,16 @@
     "partners.create",
     "partners.kpis",
     "partners.filters",
+    "partners.viva",
     "partners.stores",
     "partners.list"
    ],
    "changes": [
+    {
+     "hash": "e3ccf4b",
+     "date": "2026-10-31T15:13:04+02:00",
+     "text": "Πύλη συνεργατών synergaton: είσοδος με OTP, αρχική, οδηγοί σύνδεσης με αντιστοίχιση στηλών/καταστημάτων, παραγγελίες, ιστορικό, οδηγός, προφίλ"
+    },
     {
      "hash": "4805c62",
      "date": "2026-10-31T13:50:59+02:00",
@@ -4057,7 +4063,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T13:50:59+02:00",
+   "updatedAt": "2026-10-31T15:13:04+02:00",
    "shots": {}
   },
   {
@@ -4071,11 +4077,17 @@
    "dynamic": true,
    "helpKeys": [
     "partner.identity",
+    "partner.portal-answers",
     "partner.contacts",
     "partner.branches",
     "partner.store"
    ],
    "changes": [
+    {
+     "hash": "e3ccf4b",
+     "date": "2026-10-31T15:13:04+02:00",
+     "text": "Πύλη συνεργατών synergaton: είσοδος με OTP, αρχική, οδηγοί σύνδεσης με αντιστοίχιση στηλών/καταστημάτων, παραγγελίες, ιστορικό, οδηγός, προφίλ"
+    },
     {
      "hash": "4805c62",
      "date": "2026-10-31T13:50:59+02:00",
@@ -4087,7 +4099,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T13:50:59+02:00",
+   "updatedAt": "2026-10-31T15:13:04+02:00",
    "shots": {}
   },
   {
@@ -4118,6 +4130,22 @@
   }
  ],
  "recent": [
+  {
+   "hash": "d71e846",
+   "date": "2026-10-31T15:21:54+02:00",
+   "text": "Πύλη συνεργατών: διορθώσεις από δοκιμή με λογαριασμό",
+   "routes": []
+  },
+  {
+   "hash": "e3ccf4b",
+   "date": "2026-10-31T15:13:04+02:00",
+   "text": "Πύλη συνεργατών synergaton: είσοδος με OTP, αρχική, οδηγοί σύνδεσης με αντιστοίχιση στηλών/καταστημάτων, παραγγελίες, ιστορικό, οδηγός, προφίλ",
+   "routes": [
+    "/admin",
+    "/admin/synergates",
+    "/admin/synergates/[id]"
+   ]
+  },
   {
    "hash": "7f08c49",
    "date": "2026-10-31T14:23:20+02:00",
@@ -4452,18 +4480,6 @@
    "date": "2026-10-28T13:39:06+02:00",
    "text": "XML προμηθευτές: κοινοί τύποι και ετικέτες του οδηγού",
    "routes": []
-  },
-  {
-   "hash": "034c67d",
-   "date": "2026-10-28T11:21:32+02:00",
-   "text": "XML προμηθευτές: διόρθωση αρίθμησης γραμμών στην ουρά",
-   "routes": []
-  },
-  {
-   "hash": "674f110",
-   "date": "2026-10-28T11:13:08+02:00",
-   "text": "XML προμηθευτές: ουρά εισαγωγής (κώδικας",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4785,6 +4801,9 @@
   "partner.identity": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
+  "partner.portal-answers": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
   "partner.contacts": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
@@ -4804,6 +4823,9 @@
    "app/admin/(shell)/synergates/page.tsx"
   ],
   "partners.filters": [
+   "app/admin/(shell)/synergates/page.tsx"
+  ],
+  "partners.viva": [
    "app/admin/(shell)/synergates/page.tsx"
   ],
   "partners.stores": [

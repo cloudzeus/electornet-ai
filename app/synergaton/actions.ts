@@ -14,7 +14,13 @@ import type { TestResult } from "@/lib/b2b-engine/contracts";
 import { CONN_TYPES, connTypeInfo, validateFields, type ConnType, type FieldMapping } from "@/lib/partner-portal/connection-types";
 import { checkProfile, hoursOf, servicesOf, STORE_SERVICES, type StoreProfile } from "@/lib/partner-portal/store-profile";
 import { onboardingOf } from "@/lib/partner-portal/data";
+import { isVivaLead } from "@/lib/partner-portal/questions";
 import { resetStoresCache } from "@/lib/stores/repo";
+import { pushBranchContact, type BranchWriteOutcome } from "@/lib/softone/branch-write";
+import { askErmis, type ErmisReply, type ErmisTurn } from "@/lib/partner-portal/assistant";
+import { distanceKm, geocodeAddress } from "@/lib/stores/geocode";
+import { lookupAfm } from "@/lib/aade/vat";
+import { foldGreek } from "@/lib/geo/regions";
 
 type Fail = { ok: false; error: string; fields?: Record<string, string> };
 
@@ -58,7 +64,9 @@ export async function saveQuestionnaire(answers: Record<string, unknown>, withAi
   const clean = Object.fromEntries(Object.entries(answers).filter(([k]) => /^[a-z][a-zA-Z0-9]{0,30}$/.test(k)).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 500) : Array.isArray(v) ? v.slice(0, 20).map((x) => String(x).slice(0, 80)) : v]));
   const advice = withAi ? await adviseSetup(u.partner.id, clean) : null;
   const ob = onboardingOf(u.partner.onboarding);
-  await db.partner.update({ where: { id: u.partner.id }, data: { onboarding: { ...ob, answers: clean, advice: advice ?? ob.advice ?? null, steps: { ...ob.steps, questions: "done" } } as Prisma.InputJsonValue } });
+  const viva = isVivaLead(clean), wasViva = isVivaLead(ob.answers);
+  await db.partner.update({ where: { id: u.partner.id }, data: { onboarding: { ...ob, answers: clean, advice: advice ?? ob.advice ?? null, steps: { ...ob.steps, questions: "done" }, vivaAt: viva ? (ob.vivaAt ?? new Date().toISOString()) : null } as Prisma.InputJsonValue } });
+  if (viva !== wasViva) await portalLog(u.partner.id, "profile", true, viva ? "Ενδιαφέρον για συνεργασία με Viva" : "Αποσύρθηκε το ενδιαφέρον για Viva", { accountId: u.accountId });
   await db.partnerChange.create({ data: { partnerId: u.partner.id, accountId: u.accountId, entity: "Partner", entityId: u.partner.id, field: "onboarding.answers", before: (ob.answers ?? null) as Prisma.InputJsonValue, after: clean as Prisma.InputJsonValue } });
   await portalLog(u.partner.id, "profile", true, "Συμπληρώθηκε το ερωτηματολόγιο", { accountId: u.accountId });
   refresh();
@@ -68,7 +76,7 @@ export async function saveQuestionnaire(answers: Record<string, unknown>, withAi
 // ---------- Καταστήματα ----------
 
 /** Αποθήκευση προφίλ καταστήματος: ισχύει αμέσως, κάθε πεδίο που άλλαξε γράφεται στο ιστορικό. */
-export async function saveStoreProfile(storeId: string, p: StoreProfile): Promise<{ ok: true; changed: string[] } | Fail> {
+export async function saveStoreProfile(storeId: string, p: StoreProfile): Promise<{ ok: true; changed: string[]; erp?: BranchWriteOutcome } | Fail> {
   const u = await me();
   const s = await db.store.findFirst({ where: { id: storeId, partnerId: u.partner.id } });
   if (!s) return { ok: false, error: "Το κατάστημα δεν ανήκει στον λογαριασμό σας." };
@@ -85,10 +93,15 @@ export async function saveStoreProfile(storeId: string, p: StoreProfile): Promis
     resetStoresCache();
     await portalLog(u.partner.id, "profile", true, `Ενημέρωση καταστήματος «${s.name}»: ${changed.join(", ")}`, { accountId: u.accountId });
   }
+  let erp: BranchWriteOutcome | undefined;
+  if (changed.some((k) => k === "phone" || k === "mobile" || k === "email")) {
+    erp = await pushBranchContact(s.id, { phone: next.phone, mobile: next.mobile, email: next.email });
+    if (!("skipped" in erp && erp.skipped)) await portalLog(u.partner.id, "profile", erp.ok, erp.ok ? `SoftOne: ενημερώθηκε το υποκατάστημα ${erp.branch} (${erp.written.join(", ") || "ίδια στοιχεία"})` : `SoftOne: ${erp.error}`, { accountId: u.accountId, ...(erp.ok ? {} : { detail: erp.details }) });
+  }
   const ob = onboardingOf(u.partner.onboarding);
   if (ob.steps?.profile !== "done") await db.partner.update({ where: { id: u.partner.id }, data: { onboarding: { ...ob, steps: { ...ob.steps, profile: "done" } } as Prisma.InputJsonValue } });
   refresh();
-  return { ok: true, changed };
+  return { ok: true, changed, erp };
 }
 
 // ---------- Συνδέσεις ----------
@@ -282,4 +295,82 @@ export async function connectionBatches(id: string, before?: string) {
   const c = await myConnection(u, id);
   if (!c) return { ok: false as const, error: "Η σύνδεση δεν βρέθηκε." };
   return engine.batches(id, 50, before);
+}
+
+// ---------- Ερμής (βοηθός της πύλης) ----------
+
+export async function askPortalErmis(history: ErmisTurn[], question: string, path: string): Promise<{ ok: true; reply: ErmisReply } | Fail> {
+  const u = await me();
+  const q = question.trim();
+  if (!q) return { ok: false, error: "Γράψε την ερώτησή σου." };
+  const reply = await askErmis(u, history, q, path.slice(0, 120));
+  return reply ? { ok: true, reply } : { ok: false, error: "Ο Ερμής δεν είναι διαθέσιμος αυτή τη στιγμή. Δοκίμασε ξανά ή δες τον Οδηγό." };
+}
+
+// ---------- Σημείο στον χάρτη ----------
+
+const locateHits = new Map<string, number[]>();
+
+/** Βρίσκει το σημείο από τη διεύθυνση (Nominatim) χωρίς να αποθηκεύσει — ο χρήστης το βλέπει, το διορθώνει και το επιβεβαιώνει. */
+export async function locateStore(storeId: string): Promise<{ ok: true; lat: number; lng: number; label: string; deltaKm: number | null; query: string } | Fail> {
+  const u = await me();
+  const s = await db.store.findFirst({ where: { id: storeId, partnerId: u.partner.id } });
+  if (!s) return { ok: false, error: "Το κατάστημα δεν ανήκει στον λογαριασμό σας." };
+  const now = Date.now(), hits = (locateHits.get(u.partner.id) ?? []).filter((t) => now - t < 3_600_000);
+  if (hits.length >= 20) return { ok: false, error: "Πολλές αναζητήσεις μέσα σε μία ώρα. Δοκίμασε αργότερα." };
+  locateHits.set(u.partner.id, [...hits, now]);
+  const tries = [`${s.address}, ${s.zip} ${s.city}, Ελλάδα`, `${s.address}, ${s.city}, Ελλάδα`, `${s.zip} ${s.city}, Ελλάδα`];
+  for (const [i, q] of tries.entries()) {
+    const r = await geocodeAddress(q, { timeoutMs: 8000 });
+    if (r) return { ok: true, lat: r.lat, lng: r.lng, label: r.label.split(",").map((x) => x.trim()).filter((x) => !/^(Δήμος|Περιφέρεια|Αποκεντρωμένη|Μητροπολιτική|Περιφερειακή|Ελλάδα)/.test(x)).slice(0, 4).join(", "), query: i === 0 ? "διεύθυνση και Τ.Κ." : i === 1 ? "διεύθυνση" : "μόνο Τ.Κ. και πόλη (κατά προσέγγιση)", deltaKm: s.lat === 0 && s.lng === 0 ? null : Math.round(distanceKm({ lat: s.lat, lng: s.lng }, r) * 100) / 100 };
+    if (i < tries.length - 1) await new Promise((res) => setTimeout(res, 1100));
+  }
+  return { ok: false, error: "Δεν βρέθηκε η διεύθυνση στον χάρτη. Σύρε την καρφίτσα στο σωστό σημείο." };
+}
+
+export async function saveStoreLocation(storeId: string, lat: number, lng: number): Promise<{ ok: true } | Fail> {
+  const u = await me();
+  const s = await db.store.findFirst({ where: { id: storeId, partnerId: u.partner.id } });
+  if (!s) return { ok: false, error: "Το κατάστημα δεν ανήκει στον λογαριασμό σας." };
+  // πλαίσιο Ελλάδας (με νησιά)
+  if (!(Number.isFinite(lat) && Number.isFinite(lng) && lat > 34.5 && lat < 42 && lng > 19 && lng < 30)) return { ok: false, error: "Το σημείο είναι εκτός Ελλάδας." };
+  const next = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+  await db.$transaction([
+    db.store.update({ where: { id: s.id }, data: { ...next, geocoded: "manual" } }),
+    db.partnerChange.create({ data: { partnerId: u.partner.id, accountId: u.accountId, entity: "Store", entityId: s.id, field: "location", before: { lat: s.lat, lng: s.lng }, after: next } }),
+  ]);
+  resetStoresCache();
+  await portalLog(u.partner.id, "profile", true, `Σημείο στον χάρτη: «${s.name}»`, { accountId: u.accountId });
+  refresh();
+  return { ok: true };
+}
+
+// ---------- Έλεγχος στοιχείων μέλους στο ΑΑΔΕ ----------
+
+export type AadeRow = { label: string; aade: string | null; ours: string | null; same: boolean | null };
+
+export async function checkMemberAade(): Promise<{ ok: true; rows: AadeRow[]; active: boolean; activity: string | null; checkedAt: string } | Fail> {
+  const u = await me();
+  const p = await db.partner.findUnique({ where: { id: u.partner.id }, select: { afm: true, name: true, address: true, zip: true, city: true, taxOffice: true } });
+  if (!p?.afm) return { ok: false, error: "Δεν υπάρχει ΑΦΜ στην καρτέλα σας στο SoftOne. Μιλήστε με τον υπεύθυνο συνεργατών." };
+  const r = await lookupAfm(p.afm);
+  if (!r.ok) {
+    await portalLog(u.partner.id, "profile", false, `ΑΑΔΕ: ${r.message}`, { accountId: u.accountId });
+    return { ok: false, error: r.code === "DISABLED" ? "Ο έλεγχος στο ΑΑΔΕ δεν είναι διαθέσιμος αυτή τη στιγμή." : r.message };
+  }
+  const c = r.company, f = (s: string | null | undefined) => (s ? foldGreek(s) : "");
+  // «ΚΕΦΟΔΕ ΘΕΣΣΑΛΟΝΙΚΗΣ» = «ΘΕΣΣΑΛΟΝΙΚΗΣ», αλλά «Α΄ ΘΕΣΣΑΛΟΝΙΚΗΣ» ≠ «ΘΕΣΣΑΛΟΝΙΚΗΣ»
+  const doy = (s: string) => f(s.replace(/^\s*(ΚΕΦΟΔΕ|Δ\.?\s*Ο\.?\s*Υ\.?)\s+/i, ""));
+  const cmp = (label: string, aade: string | null, ours: string | null, eq = (a: string, b: string) => f(a) === f(b)): AadeRow => ({ label, aade, ours, same: aade && ours ? eq(aade, ours) : null });
+  const rows: AadeRow[] = [
+    { label: "ΑΦΜ", aade: c.afm, ours: p.afm, same: c.afm === p.afm.replace(/\D/g, "") },
+    { label: "Επωνυμία / διακριτικός τίτλος", aade: [c.name, c.shortName].filter(Boolean).join(" · ") || null, ours: p.name, same: [c.name, c.shortName].some((x) => x && f(x) === f(p.name)) },
+    cmp("Διεύθυνση έδρας", c.address, p.address),
+    cmp("Τ.Κ.", c.zip, p.zip, (a, b) => a.replace(/\D/g, "") === b.replace(/\D/g, "")),
+    cmp("Πόλη / περιοχή", c.city, p.city),
+    cmp("Δ.Ο.Υ.", c.doyDescr, p.taxOffice, (a, b) => doy(a) === doy(b)),
+  ];
+  const diffs = rows.filter((x) => x.same === false).map((x) => x.label);
+  await portalLog(u.partner.id, "profile", diffs.length === 0 && c.isActive, `ΑΑΔΕ: ${!c.isActive ? "ο ΑΦΜ εμφανίζεται ανενεργός" : diffs.length ? `διαφορές σε ${diffs.join(", ")}` : "τα στοιχεία συμφωνούν"}`, { accountId: u.accountId, detail: { diffs, source: c.source } });
+  return { ok: true, rows, active: c.isActive, activity: c.activities.find((a) => a.kind === "PRIMARY")?.descr ?? null, checkedAt: new Date().toISOString() };
 }

@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Bot, CheckCircle2, Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Bot, Check, CheckCircle2, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { createConnection, saveQuestionnaire } from "@/app/synergaton/actions";
-import { QUESTION_STEPS, ruleAdvice } from "@/lib/partner-portal/questions";
+import { isVivaLead, QUESTION_STEPS, ruleAdvice } from "@/lib/partner-portal/questions";
 import { connTypeInfo, CONN_TYPES, type ConnType } from "@/lib/partner-portal/connection-types";
 import type { SetupAdvice } from "@/lib/partner-portal/ai";
 import { Badge, btn, Callout, focusRing } from "./ui";
@@ -51,13 +51,21 @@ export function Questionnaire({ base, initial, storeIds, savedAdvice }: { base: 
           {QUESTION_STEPS[cur].questions.map((q) => (
             <fieldset key={q.key} className="m-0 p-0 border-0 grid gap-2.5 min-w-0">
               <legend className="font-bold text-eu-ink text-[length:var(--fs-16)] mb-2.5">{q.label}</legend>
+              {q.help && <p className="m-0 -mt-1 text-eu-ink-3 text-[length:var(--fs-13)] max-w-[70ch]">{q.help}</p>}
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {q.options.map((o) => {
-                  const on = answers[q.key] === o.value;
+                  const picked = (answers[q.key] ?? "").split(",").filter(Boolean);
+                  const on = q.multi ? picked.includes(o.value) : answers[q.key] === o.value;
+                  // πολλαπλή: το «Κανένα» αποκλείει τα υπόλοιπα και αντίστροφα
+                  const toggle = () => setAnswers((a) => { const solo = o.value.startsWith("no-"); const next = on ? picked.filter((v) => v !== o.value) : solo ? [o.value] : [...picked.filter((v) => !v.startsWith("no-")), o.value]; return { ...a, [q.key]: next.join(",") }; });
                   return (
                     <label key={o.value} className={`relative flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 min-h-14 cursor-pointer transition-colors duration-150 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-eu-blue/40 ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line bg-white hover:border-eu-muted-3"}`}>
-                      <input type="radio" name={q.key} value={o.value} checked={on} onChange={() => setAnswers((a) => ({ ...a, [q.key]: o.value }))} className="sr-only" />
-                      <span className={`grid place-items-center size-5 rounded-full border-2 shrink-0 ${on ? "border-eu-navy" : "border-eu-muted-3"}`} aria-hidden>{on && <span className="size-2.5 rounded-full bg-eu-navy" />}</span>
+                      {q.multi
+                        ? <input type="checkbox" name={q.key} value={o.value} checked={on} onChange={toggle} className="sr-only" />
+                        : <input type="radio" name={q.key} value={o.value} checked={on} onChange={() => setAnswers((a) => ({ ...a, [q.key]: o.value }))} className="sr-only" />}
+                      {q.multi
+                        ? <span className={`grid place-items-center size-5 rounded-md border-2 shrink-0 ${on ? "border-eu-navy bg-eu-navy text-white" : "border-eu-muted-3"}`} aria-hidden>{on && <Check className="size-3.5" />}</span>
+                        : <span className={`grid place-items-center size-5 rounded-full border-2 shrink-0 ${on ? "border-eu-navy" : "border-eu-muted-3"}`} aria-hidden>{on && <span className="size-2.5 rounded-full bg-eu-navy" />}</span>}
                       <span className="min-w-0"><span className="block font-bold text-[length:var(--fs-14)] text-eu-ink">{o.label}</span>{o.hint && <span className="block text-eu-ink-3 text-[length:var(--fs-12)]">{o.hint}</span>}</span>
                     </label>
                   );
@@ -68,6 +76,7 @@ export function Questionnaire({ base, initial, storeIds, savedAdvice }: { base: 
         </div>
       ) : (
         <div className="grid gap-5">
+          {isVivaLead(answers) && <Callout tone="good" title="Μπήκατε στη λίστα για τη Viva">Θα σας καλέσει ο υπεύθυνος της Viva για την Euronics για τον αυτόματο διαμοιρασμό των πληρωμών. Αλλάζει όποτε θέλετε από αυτό το ερωτηματολόγιο.</Callout>}
           {advice ? (
             <div className="rounded-2xl border-2 border-eu-yellow bg-[#fffbea] p-4 sm:p-5 grid gap-3">
               <div className="flex flex-wrap items-center gap-2"><span className="grid place-items-center size-9 rounded-xl bg-eu-navy text-eu-yellow"><Bot className="size-5" aria-hidden /></span><b className="font-heading text-[length:var(--fs-17)]">Πρόταση βοηθού: {connTypeInfo(advice.type)?.title}</b><Badge tone={advice.confidence === "high" ? "good" : advice.confidence === "medium" ? "info" : "warn"}>{advice.confidence === "high" ? "Μεγάλη βεβαιότητα" : advice.confidence === "medium" ? "Μέτρια βεβαιότητα" : "Μικρή βεβαιότητα"}</Badge></div>

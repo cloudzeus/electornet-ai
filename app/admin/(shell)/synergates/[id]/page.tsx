@@ -8,10 +8,14 @@ import { cityKey } from "@/lib/b2b/partners-core";
 import { BranchStoreLink } from "@/components/admin/partners/BranchStoreLink";
 import { CreateBranchStore, StoreVisibility } from "@/components/admin/partners/PartnerStoreTools";
 import { PartnerContacts } from "@/components/admin/partners/PartnerContacts";
+import { onboardingOf } from "@/lib/partner-portal/data";
+import { answerLabel, isVivaLead, QUESTION_STEPS } from "@/lib/partner-portal/questions";
+import { connTypeInfo } from "@/lib/partner-portal/connection-types";
 
 export const metadata = { title: "Συνεργάτης" };
 export const dynamic = "force-dynamic";
 
+const fmtD = (d: Date | string) => new Date(d).toLocaleDateString("el-GR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Athens" });
 const MATCHED: Record<string, string> = { "email-branch": "αυτόματα, email υποκαταστήματος", "email-partner": "αυτόματα, email μέλους", manual: "με το χέρι", created: "νέο κατάστημα από το υποκατάστημα" };
 
 /** Ένα μέλος: στοιχεία από το SoftOne (μόνο ανάγνωση) και τα υποκαταστήματά του με τη σύνδεση στα καταστήματα του eshop. */
@@ -28,6 +32,14 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
     where: { partnerId: p.id }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }],
     include: { account: { select: { id: true, active: true, passwordHash: true, lastLoginAt: true, lockedUntil: true, tokens: { where: { purpose: "set", usedAt: null, expiresAt: { gt: new Date() } }, select: { expiresAt: true }, take: 1 } } } },
   });
+
+  const ob = onboardingOf(p.onboarding);
+  const [aadeLog, answeredAt, portalChanges] = await Promise.all([
+    db.partnerLog.findFirst({ where: { partnerId: p.id, kind: "profile", message: { startsWith: "ΑΑΔΕ:" } }, orderBy: { createdAt: "desc" }, select: { ok: true, message: true, createdAt: true } }),
+    db.partnerChange.findFirst({ where: { partnerId: p.id, field: "onboarding.answers" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    db.partnerChange.count({ where: { partnerId: p.id, entity: "Store" } }),
+  ]);
+  const advice = ob.advice as { type?: string; why?: string } | null | undefined;
 
   const field = (label: string, v: string | null | undefined) => (
     <div className="min-w-0"><dt className="text-eu-ink-3 text-[length:var(--fs-12)]">{label}</dt><dd className="m-0 break-words text-[length:var(--fs-14)]">{v || "—"}</dd></div>
@@ -47,6 +59,28 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
         <dl className="m-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
           {field("ΑΦΜ", p.afm)}{field("ΔΟΥ", p.taxOffice)}{field("Διεύθυνση", [p.address, p.zip, p.city].filter(Boolean).join(", "))}
           {field("Τηλέφωνο", [p.phone, p.phone2].filter(Boolean).join(" · "))}{field("Email", p.email)}{field("Website", p.website)}
+        </dl>
+      </section>
+
+      <section data-help="partner.portal-answers" className="rounded-xl border border-eu-line bg-white p-3 grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="m-0 font-heading font-bold text-[length:var(--fs-16)]">Από την πύλη συνεργατών</h3>
+          {isVivaLead(ob.answers) && <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 font-bold px-3 min-h-8 text-[length:var(--fs-13)]">Θέλει Viva{ob.vivaAt ? ` · από ${fmtD(ob.vivaAt)}` : ""}</span>}
+        </div>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Ό,τι δήλωσε ο ίδιος ο συνεργάτης στην πύλη: ερωτηματολόγιο, έλεγχος ΑΑΔΕ και αλλαγές καταστημάτων ({portalChanges}).{answeredAt ? ` Τελευταία ενημέρωση ερωτηματολογίου: ${fmtD(answeredAt.createdAt)}.` : ""}</p>
+        {ob.answers ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {QUESTION_STEPS.map((st) => (
+              <dl key={st.key} className="m-0 grid gap-1.5 content-start rounded-lg bg-eu-surface-2 p-2.5 min-w-0">
+                <dt className="font-bold text-eu-ink text-[length:var(--fs-13)]">{st.title}</dt>
+                {st.questions.map((q) => <dd key={q.key} className="m-0 text-[length:var(--fs-13)] min-w-0"><span className="block text-eu-ink-3 text-[length:var(--fs-12)]">{q.label}</span><span className="break-words">{answerLabel(q.key, ob.answers?.[q.key])}</span></dd>)}
+              </dl>
+            ))}
+          </div>
+        ) : <p className="m-0 text-[length:var(--fs-14)] text-eu-ink-3">Δεν έχει συμπληρώσει ακόμη το ερωτηματολόγιο.</p>}
+        <dl className="m-0 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+          {field("Πρόταση σύνδεσης", advice?.type ? `${connTypeInfo(advice.type)?.title ?? advice.type}${advice.why ? ` · ${advice.why}` : ""}` : null)}
+          {field("Έλεγχος ΑΑΔΕ (από τον συνεργάτη)", aadeLog ? `${aadeLog.message.replace(/^ΑΑΔΕ:\s*/, "")} · ${fmtD(aadeLog.createdAt)}` : "Δεν έχει γίνει")}
         </dl>
       </section>
 
@@ -73,9 +107,9 @@ export default async function PartnerPage({ params }: { params: Promise<{ id: st
                   {b.store && <span className="block text-[length:var(--fs-12)] text-eu-ink-3">Σύνδεση: {MATCHED[b.matchedBy ?? ""] ?? "—"} · <Link className="text-eu-blue hover:underline" href={`/admin/stores/${b.store.id}`}>άνοιγμα καταστήματος</Link></span>}
                 </div>
                 <div data-help="partner.store" className="grid gap-2 min-w-0">
-                  {canWrite ? <BranchStoreLink key={b.storeId ?? "none"} branchId={b.id} storeId={b.storeId} options={options} /> : <span className="text-[length:var(--fs-14)]">{b.store ? `${b.store.city} · ${b.store.name}` : "Χωρίς κατάστημα"}</span>}
+                  {canWrite ? <BranchStoreLink key={`link-${b.storeId ?? "none"}`} branchId={b.id} storeId={b.storeId} options={options} /> : <span className="text-[length:var(--fs-14)]">{b.store ? `${b.store.city} · ${b.store.name}` : "Χωρίς κατάστημα"}</span>}
                   {b.store && (canWrite
-                    ? <StoreVisibility key={b.store.id} storeId={b.store.id} active={b.store.active} hasPoint={b.store.lat !== 0 || b.store.lng !== 0} />
+                    ? <StoreVisibility key={`vis-${b.store.id}`} storeId={b.store.id} active={b.store.active} hasPoint={b.store.lat !== 0 || b.store.lng !== 0} />
                     : <span className="text-[length:var(--fs-13)]">{b.store.active ? "Εμφανίζεται στο eshop" : "Κρυφό στο eshop"}</span>)}
                   {!b.store && !b.s1Missing && canWrite && <CreateBranchStore branchId={b.id} />}
                 </div>
