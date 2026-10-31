@@ -1,16 +1,17 @@
-import { Database, Globe, Package, Pencil, Zap, type LucideIcon } from "lucide-react";
+import { Database, Globe, Package, Pencil, Store, Zap, type LucideIcon } from "lucide-react";
 
 /**
  * Από πού έρχεται μια πληροφορία προϊόντος — ίδιο χρώμα παντού (χαρακτηριστικά, ενεργειακή ετικέτα, διαστάσεις):
  *  EPREL (πράσινο, επίσημη δήλωση κατασκευαστή) · SoftOne/ERP (μπλε σκούρο) · Icecat (μπλε) · Web (πορτοκαλί) ·
- *  Χειροκίνητα (μωβ) · Άλλη (γκρι). Το χρώμα συνοδεύεται πάντα από εικονίδιο και κείμενο.
+ *  Κατάστημα (πορτοκαλί, εγκεκριμένη πρόταση από άλλο e-shop) · Χειροκίνητα (μωβ) · Άλλη (γκρι). Το χρώμα συνοδεύεται πάντα από εικονίδιο και κείμενο.
  */
-export type SourceKey = "eprel" | "s1-desc" | "icecat" | "web" | "manual" | "other";
+export type SourceKey = "eprel" | "s1-desc" | "icecat" | "web" | "shop" | "manual" | "other";
 export const SOURCES: Record<SourceKey, { label: string; cls: string; dot: string; Icon: LucideIcon; where: string }> = {
   eprel: { label: "EPREL", cls: "bg-eu-green/12 text-eu-green", dot: "bg-eu-green", Icon: Zap, where: "Επίσημη δήλωση κατασκευαστή στο ευρωπαϊκό μητρώο ενεργειακής σήμανσης — ενημερώνεται με νέα αναζήτηση στο EPREL." },
   "s1-desc": { label: "SoftOne", cls: "bg-eu-navy/10 text-eu-navy", dot: "bg-eu-navy", Icon: Database, where: "Από την αναλυτική περιγραφή του είδους στο SoftOne — αλλάζει στη «Διόρθωση κειμένων & χαρακτηριστικών»." },
   icecat: { label: "Icecat", cls: "bg-eu-blue/10 text-eu-blue", dot: "bg-eu-blue", Icon: Package, where: "Από τον κατάλογο Icecat του κατασκευαστή." },
   web: { label: "Web", cls: "bg-eu-amber/15 text-eu-ink-2", dot: "bg-eu-amber", Icon: Globe, where: "Από το site του κατασκευαστή / το παλιό site." },
+  shop: { label: "Κατάστημα", cls: "bg-eu-amber/15 text-eu-ink-2", dot: "bg-eu-amber", Icon: Store, where: "Από σελίδα άλλου ηλεκτρονικού καταστήματος — μπήκε με έγκριση από τα «Στοιχεία από το internet»." },
   manual: { label: "Χειροκίνητα", cls: "bg-eu-purple/12 text-eu-purple", dot: "bg-eu-purple", Icon: Pencil, where: "Καταχωρήθηκε από τη διαχείριση." },
   other: { label: "Άλλη πηγή", cls: "bg-eu-surface text-eu-ink-3", dot: "bg-eu-muted-3", Icon: Package, where: "Χωρίς καταγεγραμμένη πηγή." },
 };

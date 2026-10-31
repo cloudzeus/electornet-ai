@@ -119,6 +119,7 @@ model Product {
   media          Media[]
   specs          Spec[]
   enrichments    ProductEnrichment[]
+  enrichSuggestions EnrichSuggestion[]
   sections       ProductSection[]
   extractions    BannerExtraction[]
   stickers       ProductSticker[]
@@ -343,6 +344,32 @@ model ProductEnrichment {
 
   @@unique([productId, source])
   @@index([source, status])
+}
+
+/// Προτάσεις εξωτερικών πηγών που περιμένουν έγκριση (lib/catalog/enrich-suggestions.ts): φωτογραφίες από Icecat,
+/// site κατασκευαστή ή άλλο κατάστημα, και χαρακτηριστικά από άλλα καταστήματα. Τίποτα δεν πάει στη βιτρίνα χωρίς «Έγκριση».
+model EnrichSuggestion {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source      String // icecat | web | shop
+  kind        String // image | spec
+  /// image: η διεύθυνση της εικόνας · spec: «ομάδα|κλειδί» (πεζά) — για να μη διπλοεγγράφεται
+  fingerprint String
+  url         String? // εικόνα
+  group       String?
+  key         String?
+  value       String?
+  pageUrl     String? // η σελίδα από την οποία ήρθε
+  sourceName  String?
+  status      String    @default("pending") // pending | approved | rejected
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([productId, kind, fingerprint])
+  @@index([productId, status])
+  @@index([status, kind])
 }
 
 model EnergyLabel {

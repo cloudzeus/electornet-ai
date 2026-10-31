@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-10-31T06:23:13.476Z",
+ "generatedAt": "2026-10-31T07:11:28.988Z",
  "routes": [
   {
    "route": "/admin",
@@ -478,7 +478,12 @@
    "helpKeys": [
     "product.publish",
     "product.actions",
+    "product.enrich",
     "product.set",
+    "enrich.sources",
+    "enrich.run",
+    "enrich.suggestions",
+    "enrich.to-erp",
     "product.overview",
     "product.sources",
     "product.tabs",
@@ -695,12 +700,17 @@
    },
    "dynamic": false,
    "helpKeys": [
+    "completeness.enrich",
     "completeness.gate",
     "completeness.save",
     "completeness.recompute",
     "completeness.quickfix",
     "completeness.suggest",
-    "completeness.list"
+    "completeness.list",
+    "enrich.sources",
+    "enrich.run",
+    "enrich.suggestions",
+    "enrich.to-erp"
    ],
    "changes": [
     {
@@ -3394,6 +3404,11 @@
    ],
    "changes": [
     {
+     "hash": "cdf5cfd",
+     "date": "2026-10-31T08:24:47+02:00",
+     "text": "AI: Claude API (Anthropic) ως πάροχος στις ρυθμίσεις"
+    },
+    {
      "hash": "df24c5d",
      "date": "2026-10-30T16:53:46+02:00",
      "text": "Αποστολές: μεταφορική (εσωτερική διαδικασία) για επιλεγμένες κατηγορίες"
@@ -3437,14 +3452,9 @@
      "hash": "bd7141e",
      "date": "2026-10-13T10:12:23+03:00",
      "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
-    },
-    {
-     "hash": "91d0809",
-     "date": "2026-10-11T11:37:59+03:00",
-     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
     }
    ],
-   "updatedAt": "2026-10-30T16:53:46+02:00",
+   "updatedAt": "2026-10-31T08:24:47+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3468,6 +3478,11 @@
    ],
    "changes": [
     {
+     "hash": "cdf5cfd",
+     "date": "2026-10-31T08:24:47+02:00",
+     "text": "AI: Claude API (Anthropic) ως πάροχος στις ρυθμίσεις"
+    },
+    {
      "hash": "df24c5d",
      "date": "2026-10-30T16:53:46+02:00",
      "text": "Αποστολές: μεταφορική (εσωτερική διαδικασία) για επιλεγμένες κατηγορίες"
@@ -3511,14 +3526,9 @@
      "hash": "bd7141e",
      "date": "2026-10-13T10:12:23+03:00",
      "text": "ΕΛΤΑ Courier (Customer API v3): έκδοση voucher, ετικέτες A6 (ένα PDF ανά τεμάχιο, ένωση με pdf-lib), ακύρωση πριν την παραλαβή, παρακολούθηση με τους κωδικούς του StatusInfo (η πρώτη πραγματική κίνηση = στάλθηκε + ema…"
-    },
-    {
-     "hash": "91d0809",
-     "date": "2026-10-11T11:37:59+03:00",
-     "text": "Χαρακτηριστικά: νέα σελίδα για τις ομάδες χαρακτηριστικών του SoftOne ανά τύπο προϊόντος (CCCWEBGRSPECS → CCCWEBSPECS → CCCWEBSPECSLNS)"
     }
    ],
-   "updatedAt": "2026-10-30T16:53:46+02:00",
+   "updatedAt": "2026-10-31T08:24:47+02:00",
    "shots": {}
   },
   {
@@ -3998,6 +4008,15 @@
  ],
  "recent": [
   {
+   "hash": "cdf5cfd",
+   "date": "2026-10-31T08:24:47+02:00",
+   "text": "AI: Claude API (Anthropic) ως πάροχος στις ρυθμίσεις",
+   "routes": [
+    "/admin",
+    "/admin/settings"
+   ]
+  },
+  {
    "hash": "ed33aa3",
    "date": "2026-10-31T08:17:35+02:00",
    "text": "Πληρότητα: πρόταση χαρακτηριστικών, διαστάσεων και βάρους από EPREL και απόδελτίωση",
@@ -4309,12 +4328,6 @@
    "date": "2026-10-20T15:14:26+03:00",
    "text": "Ασφάλεια: Bunny",
    "routes": []
-  },
-  {
-   "hash": "79bc8de",
-   "date": "2026-10-20T14:58:43+03:00",
-   "text": "Ασφάλεια: φύλακας",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4393,6 +4406,9 @@
   "product.actions": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
+  "product.enrich": [
+   "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
   "product.set": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
@@ -4413,6 +4429,9 @@
   ],
   "availability.test": [
    "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "completeness.enrich": [
+   "app/admin/(shell)/catalog/completeness/EnrichButton.tsx"
   ],
   "completeness.gate": [
    "app/admin/(shell)/catalog/completeness/GateForm.tsx"
@@ -4656,6 +4675,18 @@
   ],
   "cats.ops": [
    "components/admin/catalog/CategoryTree.tsx"
+  ],
+  "enrich.sources": [
+   "components/admin/catalog/EnrichPanel.tsx"
+  ],
+  "enrich.run": [
+   "components/admin/catalog/EnrichPanel.tsx"
+  ],
+  "enrich.suggestions": [
+   "components/admin/catalog/EnrichPanel.tsx"
+  ],
+  "enrich.to-erp": [
+   "components/admin/catalog/EnrichPanel.tsx"
   ],
   "foreign.steps": [
    "components/admin/catalog/ForeignImportWizard.tsx"

@@ -9,6 +9,7 @@ import { PUBLISH_CRITERIA, isPublishKey } from "@/lib/catalog/publish-ready";
 import { getPublishGate, tallyPublish } from "@/lib/catalog/publish-ready-server";
 import { GateForm } from "./GateForm";
 import { QuickFix } from "./QuickFix";
+import { EnrichButton } from "./EnrichButton";
 
 export const metadata = { title: "Πληρότητα προϊόντων" };
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export default async function CompletenessPage({ searchParams }: { searchParams:
     db.product.count({ where }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));
+  const canEnrich = can(user.permissions, "catalog.products.write");
   const href = (n: number) => `?${new URLSearchParams({ m, q, page: String(n) })}`;
   const num = (n: number) => n.toLocaleString("el-GR");
   const chip = (active: boolean) => `inline-flex items-center gap-1.5 rounded-full border px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] ${active ? "bg-eu-navy text-white border-eu-navy" : "bg-white text-eu-navy border-eu-line hover:border-eu-navy"}`;
@@ -79,7 +81,7 @@ export default async function CompletenessPage({ searchParams }: { searchParams:
                 {r.publishMissing.map((k) => (
                   <Link key={k} href={`/admin/catalog/${r.id}?tab=${TAB[k] ?? "content"}`} className="rounded-full bg-eu-chip text-eu-ink font-bold px-2.5 min-h-9 inline-flex items-center text-[length:var(--fs-13)] hover:bg-eu-yellow/30">{LABEL[k] ?? k}</Link>
                 ))}
-                <span className="ml-auto"><QuickFix productId={r.id} title={r.title} /></span>
+                <span className="ml-auto flex flex-wrap gap-1.5"><EnrichButton productId={r.id} title={r.title} canWrite={canEnrich} /><QuickFix productId={r.id} title={r.title} /></span>
               </div>
             </li>
           ))}

@@ -34,6 +34,7 @@ import { SoldAloneSwitch } from "@/components/admin/catalog/SoldAloneSwitch";
 import { SetMemberLabel } from "@/components/admin/catalog/SetMemberLabel";
 import { SiteCardPreview } from "@/components/admin/catalog/SiteCardPreview";
 import { SpecSources } from "@/components/admin/catalog/SpecSources";
+import { EnrichPanel } from "@/components/admin/catalog/EnrichPanel";
 import { EnergyLabelPanel } from "@/components/admin/catalog/EnergyLabelPanel";
 import { ArRow } from "@/app/admin/(shell)/ar/ArRow";
 import { arRowDataFor } from "@/lib/ar/admin-row";
@@ -186,6 +187,11 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
           {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
           {tab === "overview" && <ProductSources d={sources} />}
+          {tab === "overview" && (
+            <Section title="Στοιχεία από το internet" hint="Icecat → site κατασκευαστή → άλλα καταστήματα. Φωτογραφίες και χαρακτηριστικά καταστημάτων μπαίνουν μόνο με έγκριση.">
+              <div data-help="product.enrich"><EnrichPanel productId={p.id} canWrite={canWrite} /></div>
+            </Section>
+          )}
 
           {tab === "media" && (<>
             <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px.">

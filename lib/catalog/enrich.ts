@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
+import { blockedHost, icecatImages, looksLikeImageFile } from "./enrich-core";
+import { suggestFromResult } from "./enrich-suggestions";
 
 /**
  * Εμπλουτισμός χαρακτηριστικών από ΕΞΩΤΕΡΙΚΕΣ πηγές — για να ξέρει ο Ερμής (και η σελίδα προϊόντος) τα πάντα, ακόμη κι όταν
@@ -11,13 +13,18 @@ import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
  *     όχι τα ελληνικά εισαγωγής (Toyotomi, Inventor, Crystal Audio) ούτε τα κινητά (Full Icecat, επί πληρωμή).
  *  2. Web (LLM με αναζήτηση, perplexity/sonar-pro): τα επίσημα χαρακτηριστικά από τον ιστότοπο του κατασκευαστή ή του
  *     εισαγωγέα (toyotomi.gr, inventor.gr, κατάλογοι PDF). ~$0,015 ανά προϊόν, μόνο για όσα δεν έδωσε το Icecat.
+ *  3. Shop (ίδιο μοντέλο): άλλα ηλεκτρονικά καταστήματα, μόνο όταν δεν βρέθηκε επίσημη πηγή. Ποτέ συγκριτικά τιμών ή
+ *     marketplaces (blockedHost). Τα χαρακτηριστικά τους ΔΕΝ γράφονται απευθείας: μένουν προτάσεις προς έγκριση.
+ *
+ * Οι φωτογραφίες (γκαλερί Icecat, εικόνες που δηλώνει η σελίδα της πηγής) δεν μπαίνουν ποτέ αυτόματα στη βιτρίνα: γίνονται
+ * προτάσεις (`EnrichSuggestion`) και κατεβαίνουν μόνο με «Έγκριση» (lib/catalog/enrich-suggestions.ts).
  *
  * Τα χαρακτηριστικά γράφονται στον πίνακα `Spec` με `source` icecat | web, στις δικές τους ομάδες, ΧΩΡΙΣ να αγγίζουν όσα
  * ήρθαν από το ERP (s1-desc) ή την ενεργειακή ετικέτα (eprel). Η πηγή, το URL και το κόστος μένουν στο `ProductEnrichment`,
  * ώστε ο διαχειριστής να βλέπει από πού προήλθε κάθε στοιχείο και η διαδικασία να συνεχίζει από εκεί που σταμάτησε.
  */
-export type EnrichSource = "icecat" | "web";
-export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; confidence?: number; costUsd: number; error?: string }
+export type EnrichSource = "icecat" | "web" | "shop";
+export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; images?: string[]; confidence?: number; costUsd: number; error?: string }
 
 const ICECAT = () => ({ shop: process.env.ICECAT_SHOPNAME || "openIcecat-live", key: process.env.ICECAT_APP_KEY || "" });
 const clean = (s: unknown) => String(s ?? "").replace(/\s+/g, " ").trim();
@@ -26,7 +33,7 @@ const USELESS = /^(ναι|yes|y|-|—|n\/a|na|null|0|όχι|no)$/i;
 
 // ---------- Icecat ----------
 
-interface IcecatData { GeneralInfo?: { Title?: string; Brand?: string; ProductName?: string; Description?: { LongDesc?: string }; SummaryDescription?: { ShortSummaryDescription?: string } }; FeaturesGroups?: { FeatureGroup?: { Name?: { Value?: string } }; Features?: { Feature?: { Name?: { Value?: string } }; PresentationValue?: string; Value?: string }[] }[]; Gallery?: { Pic?: string; Pic500x500?: string }[] }
+interface IcecatData { GeneralInfo?: { Title?: string; Brand?: string; ProductName?: string; IcecatId?: number; Description?: { LongDesc?: string }; SummaryDescription?: { ShortSummaryDescription?: string } }; FeaturesGroups?: { FeatureGroup?: { Name?: { Value?: string } }; Features?: { Feature?: { Name?: { Value?: string } }; PresentationValue?: string; Value?: string }[] }[]; Gallery?: { Pic?: string; Pic500x500?: string }[] }
 
 async function icecatFetch(params: Record<string, string>): Promise<{ status: number; data: IcecatData | null; msg?: string }> {
   const { shop, key } = ICECAT();
@@ -59,7 +66,9 @@ export async function enrichFromIcecat(p: { ean: string | null; sku: string; mod
     const group = clean(g.FeatureGroup?.Name?.Value) || "Τεχνικά χαρακτηριστικά";
     for (const f of g.Features ?? []) { const key = clean(f.Feature?.Name?.Value), value = clean(f.PresentationValue ?? f.Value); if (key && value && !USELESS.test(value) && value.length <= 200) specs.push({ group, key, value }); }
   }
-  return { source: "icecat", status: specs.length ? "found" : "none", url: `https://icecat.biz/`, sourceName: `Icecat · ${clean(d.GeneralInfo?.Brand) || p.brand}`, specs, confidence: 1, costUsd: 0 };
+  const images = icecatImages(d.Gallery);
+  const id = d.GeneralInfo?.IcecatId;
+  return { source: "icecat", status: specs.length || images.length ? "found" : "none", url: id ? `https://icecat.biz/p/${id}.html` : `https://icecat.biz/`, sourceName: `Icecat · ${clean(d.GeneralInfo?.Brand) || p.brand}`, specs, images, confidence: 1, costUsd: 0 };
 }
 
 // ---------- Web (επίσημος ιστότοπος) ----------
@@ -73,7 +82,8 @@ export async function enrichFromWeb(p: { brand: string; title: string; modelCode
     feature: "enrich-web", model: WEB_MODEL, maxTokens: 4000, temperature: 0, timeoutMs: 70000,
     messages: [
       { role: "system", content: `Είσαι ερευνητής προδιαγραφών προϊόντων για ελληνικό e-shop ηλεκτρικών. Βρίσκεις τα ΕΠΙΣΗΜΑ τεχνικά χαρακτηριστικά ενός προϊόντος από τον ιστότοπο του κατασκευαστή ή του επίσημου εισαγωγέα για την Ελλάδα (π.χ. samsung.com/gr, lg.com/gr, toyotomi.gr, inventor.gr, bosch-home.gr, κατάλογοι/δελτία PDF του κατασκευαστή). ΟΧΙ από e-shops τρίτων, marketplaces ή συγκριτικά sites.
-Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"specs":[{"group":string,"key":string,"value":string}],"confidence":number 0-1}.
+Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"specs":[{"group":string,"key":string,"value":string}],"images":[string],"confidence":number 0-1}.
+- images: έως 8 ΑΜΕΣΕΣ διευθύνσεις αρχείων εικόνας (.jpg/.png/.webp) του ΙΔΙΟΥ προϊόντος από την ίδια επίσημη πηγή· κενό αν δεν είσαι σίγουρος.
 - Έως 40 χαρακτηριστικά, τα πιο χρήσιμα για αγοραστή πρώτα (απόδοση, κατανάλωση, θόρυβος, χωρητικότητα, διαστάσεις, βάρος, συνδεσιμότητα, λειτουργίες, περιεχόμενα συσκευασίας, εγγύηση).
 - Κλειδιά και ομάδες στα ελληνικά, τιμές με μονάδες όπως τις δίνει η πηγή. Μόνο όσα βρήκες ΠΡΑΓΜΑΤΙΚΑ για ΑΥΤΟ το μοντέλο — ποτέ εικασίες, ποτέ στοιχεία παρόμοιου μοντέλου.
 - Αν δεν υπάρχει αξιόπιστη επίσημη πηγή: found=false, specs=[].` },
@@ -81,26 +91,70 @@ export async function enrichFromWeb(p: { brand: string; title: string; modelCode
     ],
   }).catch((e) => ({ text: "", costUsd: 0, error: e instanceof Error ? e.message : String(e) }) as { text: string; costUsd: number; error?: string });
   if ("error" in r && r.error) return { source: "web", status: "failed", specs: [], costUsd: 0, error: r.error.slice(0, 200) };
-  const j = parseJson<{ found?: boolean; sourceUrl?: string | null; sourceName?: string | null; specs?: { group?: string; key?: string; value?: string }[]; confidence?: number }>(r.text);
+  const j = parseJson<{ found?: boolean; sourceUrl?: string | null; sourceName?: string | null; specs?: { group?: string; key?: string; value?: string }[]; images?: unknown[]; confidence?: number }>(r.text);
   if (!j) return { source: "web", status: "failed", specs: [], costUsd: r.costUsd, error: "μη έγκυρο JSON" };
+  if (j.sourceUrl && blockedHost(j.sourceUrl)) return { source: "web", status: "none", specs: [], costUsd: r.costUsd, error: "η πηγή ήταν συγκριτικό / marketplace" };
   const specs = (j.specs ?? []).map((s) => ({ group: clean(s.group) || "Τεχνικά χαρακτηριστικά", key: clean(s.key), value: clean(s.value) })).filter((s) => s.key && s.value && !USELESS.test(s.value) && s.value.length <= 200);
   const conf = typeof j.confidence === "number" ? j.confidence : 0;
   // πηγή χωρίς URL ή με χαμηλή βεβαιότητα δεν γράφεται: καλύτερα «δεν ξέρουμε» παρά λάθος στοιχείο
   if (!j.found || !specs.length || !j.sourceUrl || conf < 0.6) return { source: "web", status: "none", specs: [], confidence: conf, costUsd: r.costUsd, error: !j.found ? "δεν βρέθηκε επίσημη πηγή" : conf < 0.6 ? `χαμηλή βεβαιότητα ${conf}` : "χωρίς URL πηγής" };
-  return { source: "web", status: "found", url: j.sourceUrl.slice(0, 500), sourceName: clean(j.sourceName).slice(0, 120) || new URL(j.sourceUrl).hostname, specs: specs.slice(0, 80), confidence: conf, costUsd: r.costUsd };
+  return { source: "web", status: "found", url: j.sourceUrl.slice(0, 500), sourceName: clean(j.sourceName).slice(0, 120) || new URL(j.sourceUrl).hostname, specs: specs.slice(0, 80), images: aiImages(j.images), confidence: conf, costUsd: r.costUsd };
 }
+
+/** Διευθύνσεις εικόνων που έδωσε το AI: μόνο αρχεία εικόνας, όχι από συγκριτικά. Ελέγχονται ξανά στην έγκριση. */
+const aiImages = (xs: unknown[] | undefined) => [...new Set((xs ?? []).filter((x): x is string => typeof x === "string" && /^https?:\/\//.test(x)).filter((x) => looksLikeImageFile(x) && !blockedHost(x)))].slice(0, 8);
+
+// ---------- Άλλα καταστήματα (τελευταία λύση) ----------
+
+export async function enrichFromShops(p: { brand: string; title: string; modelCode: string | null; sku: string; typeName: string; ean: string | null }): Promise<EnrichResult> {
+  if (!(await getAi())) return { source: "shop", status: "failed", specs: [], costUsd: 0, error: "χωρίς κλειδί OpenRouter" };
+  const model = p.modelCode || p.sku;
+  const r = await chat({
+    feature: "enrich-shop", model: WEB_MODEL, maxTokens: 4000, temperature: 0, timeoutMs: 70000,
+    messages: [
+      { role: "system", content: `Είσαι ερευνητής προδιαγραφών προϊόντων για ελληνικό e-shop ηλεκτρικών. Το προϊόν ΔΕΝ βρέθηκε στο site του κατασκευαστή, οπότε ψάχνεις σε σελίδες ΑΛΛΩΝ ηλεκτρονικών καταστημάτων (ελληνικών ή ευρωπαϊκών) που πουλούν ΑΚΡΙΒΩΣ αυτό το μοντέλο.
+ΠΟΤΕ συγκριτικά τιμών ή marketplaces (skroutz, bestprice, glami, google shopping, amazon, ebay, aliexpress, temu, shopflix).
+Απαντάς ΜΟΝΟ με JSON: {"found":boolean,"sourceUrl":string|null,"sourceName":string|null,"specs":[{"group":string,"key":string,"value":string}],"images":[string],"confidence":number 0-1}.
+- sourceUrl: η σελίδα του καταστήματος με τα πιο πλήρη στοιχεία για ΑΥΤΟ το μοντέλο.
+- Έως 40 χαρακτηριστικά, μόνο όσα αναγράφονται για ΑΥΤΟ το μοντέλο (ίδιος κωδικός), κατά προτίμηση όσα συμφωνούν σε δύο σελίδες. Κλειδιά και ομάδες στα ελληνικά.
+- images: έως 8 ΑΜΕΣΕΣ διευθύνσεις εικόνων (.jpg/.png/.webp) του προϊόντος από αυτή τη σελίδα· κενό αν δεν είσαι σίγουρος.
+- Αν δεν βρεις σελίδα με τον ίδιο κωδικό μοντέλου: found=false, specs=[].` },
+      { role: "user", content: `Προϊόν: ${p.brand} ${model}${p.ean ? ` (EAN ${p.ean})` : ""} — ${p.title} (${p.typeName}).` },
+    ],
+  }).catch((e) => ({ text: "", costUsd: 0, error: e instanceof Error ? e.message : String(e) }) as { text: string; costUsd: number; error?: string });
+  if ("error" in r && r.error) return { source: "shop", status: "failed", specs: [], costUsd: 0, error: r.error.slice(0, 200) };
+  const j = parseJson<{ found?: boolean; sourceUrl?: string | null; sourceName?: string | null; specs?: { group?: string; key?: string; value?: string }[]; images?: unknown[]; confidence?: number }>(r.text);
+  if (!j) return { source: "shop", status: "failed", specs: [], costUsd: r.costUsd, error: "μη έγκυρο JSON" };
+  const specs = (j.specs ?? []).map((s) => ({ group: clean(s.group) || "Τεχνικά χαρακτηριστικά", key: clean(s.key), value: clean(s.value) })).filter((s) => s.key && s.value && !USELESS.test(s.value) && s.value.length <= 200);
+  const conf = typeof j.confidence === "number" ? j.confidence : 0;
+  const bad = !!j.sourceUrl && blockedHost(j.sourceUrl);
+  if (!j.found || !j.sourceUrl || bad || conf < 0.6 || (!specs.length && !j.images?.length)) return { source: "shop", status: "none", specs: [], confidence: conf, costUsd: r.costUsd, error: !j.found ? "δεν βρέθηκε σε κατάστημα" : bad ? "η πηγή ήταν συγκριτικό / marketplace" : conf < 0.6 ? `χαμηλή βεβαιότητα ${conf}` : "χωρίς URL πηγής" };
+  return { source: "shop", status: "found", url: j.sourceUrl.slice(0, 500), sourceName: clean(j.sourceName).slice(0, 120) || new URL(j.sourceUrl).hostname, specs: specs.slice(0, 80), images: aiImages(j.images), confidence: conf, costUsd: r.costUsd };
+}
+
 
 // ---------- Αποθήκευση ----------
 
-const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)" };
+const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)", shop: "Χαρακτηριστικά (άλλα καταστήματα)" };
+export const sourceGroup = (s: EnrichSource) => SOURCE_GROUP[s];
 
-/** Γράφει το αποτέλεσμα: αντικαθιστά τα specs της ίδιας πηγής, ενημερώνει το μητρώο. Δεν αγγίζει άλλες πηγές. */
+/**
+ * Γράφει το αποτέλεσμα: αντικαθιστά τα specs της ίδιας πηγής (icecat / web), ενημερώνει το μητρώο. Δεν αγγίζει άλλες
+ * πηγές. Τα χαρακτηριστικά καταστημάτων και ΟΛΕΣ οι φωτογραφίες γίνονται προτάσεις προς έγκριση.
+ */
 export async function storeEnrichment(productId: string, r: EnrichResult) {
+  const direct = r.source !== "shop";
+  // ό,τι έχει ήδη περάσει στο SoftOne (s1-desc) δεν ξαναγράφεται από την εξωτερική πηγή — αλλιώς θα φαινόταν διπλό
+  if (direct && r.specs.length) {
+    const erp = new Set((await db.spec.findMany({ where: { productId, source: "s1-desc" }, select: { key: true } })).map((s) => s.key.toLowerCase().trim()));
+    r = { ...r, specs: r.specs.filter((s) => !erp.has(s.key.toLowerCase().trim())) };
+  }
   await db.$transaction([
-    db.spec.deleteMany({ where: { productId, source: r.source } }),
-    ...(r.status === "found" ? [db.spec.createMany({ data: r.specs.map((s, i) => ({ productId, groupName: `${SOURCE_GROUP[r.source]} · ${s.group}`.slice(0, 120), key: s.key.slice(0, 120), value: s.value, sortNo: 1000 + i, source: r.source })) })] : []),
+    ...(direct ? [db.spec.deleteMany({ where: { productId, source: r.source } })] : []),
+    ...(direct && r.status === "found" && r.specs.length ? [db.spec.createMany({ data: r.specs.map((s, i) => ({ productId, groupName: `${SOURCE_GROUP[r.source]} · ${s.group}`.slice(0, 120), key: s.key.slice(0, 120), value: s.value, sortNo: 1000 + i, source: r.source })) })] : []),
     db.productEnrichment.upsert({ where: { productId_source: { productId, source: r.source } }, create: { productId, source: r.source, status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error }, update: { status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error, checkedAt: new Date() } }),
   ]);
+  if (r.status === "found") await suggestFromResult(productId, r);
 }
 
 export interface EnrichBatch { checked: number; found: number; none: number; failed: number; specs: number; costUsd: number; remaining: number; samples: string[] }
