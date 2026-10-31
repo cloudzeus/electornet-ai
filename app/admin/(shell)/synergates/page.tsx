@@ -35,7 +35,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
   const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree] = totals;
 
   const chip = (href: string, label: string, active: boolean) => (
-    <Link href={href} className={`inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border ${active ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}>{label}</Link>
+    <Link key={href} href={href} className={`inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border ${active ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}>{label}</Link>
   );
   const qs = (o: Record<string, string>) => { const p = new URLSearchParams({ ...(q ? { q } : {}), ...(cat ? { cat } : {}), ...(view ? { view } : {}), ...o }); for (const [k, v] of [...p]) if (!v) p.delete(k); const s = p.toString(); return s ? `?${s}` : ""; };
 
