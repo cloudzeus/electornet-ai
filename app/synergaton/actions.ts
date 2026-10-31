@@ -103,7 +103,7 @@ export async function createConnection(type: ConnType, storeIds: string[]): Prom
   const own = await db.store.findMany({ where: { partnerId: u.partner.id }, select: { id: true } });
   const ids = storeIds.filter((id) => own.some((s) => s.id === id));
   if (!ids.length) return { ok: false, error: "Διάλεξε τουλάχιστον ένα κατάστημα." };
-  const c = await db.partnerConnection.create({ data: { partnerId: u.partner.id, type, label: connTypeInfo(type)!.title, config: {}, storeIds: ids, createdBy: u.accountId } });
+  const c = await db.partnerConnection.create({ data: { partnerId: u.partner.id, type, label: connTypeInfo(type)!.title, config: {}, storeIds: ids, createdBy: u.accountId, active: false } });
   await portalLog(u.partner.id, "connection", true, `Νέα σύνδεση: ${connTypeInfo(type)!.title}`, { accountId: u.accountId, connectionId: c.id });
   await db.partner.update({ where: { id: u.partner.id }, data: { status: u.partner.status === "onboarding" ? "connecting" : u.partner.status } });
   refresh();

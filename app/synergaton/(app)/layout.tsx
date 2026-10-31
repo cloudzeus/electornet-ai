@@ -25,7 +25,7 @@ export default async function PortalShell({ children }: { children: ReactNode })
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg">Μετάβαση στο περιεχόμενο</a>
       <aside className="hidden lg:flex flex-col gap-6 sticky top-0 h-dvh bg-eu-navy px-3 py-5">
         <Link href={base || "/"} className={`flex items-center gap-2.5 px-2 rounded-lg ${focusRing}`}>
-          <Image src="/design/logo-on-blue.svg" alt="euronics" width={110} height={28} className="h-7 w-auto" />
+          <Image src="/design/logo-on-blue.svg" alt="euronics" width={96} height={24} className="h-6 w-auto shrink-0" />
           <span className="font-bold text-eu-on-dark text-[length:var(--fs-12)] leading-tight">Πύλη<br />συνεργατών</span>
         </Link>
         <SideNav base={base} badges={badges} />

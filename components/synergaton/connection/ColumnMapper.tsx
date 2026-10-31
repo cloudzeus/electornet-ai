@@ -135,7 +135,7 @@ export function ColumnMapper({ columns, preview, map, src, onChange }: {
         </div>
 
         {/* έλεγχοι + αποτέλεσμα */}
-        <aside className="grid gap-3 min-w-0 xl:sticky xl:top-4" aria-label="Έλεγχοι αντιστοίχισης" data-help="portal.mapping-checks">
+        <aside className="grid gap-3 min-w-0 order-first xl:order-none xl:sticky xl:top-4" aria-label="Έλεγχοι αντιστοίχισης" data-help="portal.mapping-checks">
           <div className={`rounded-2xl p-4 grid gap-2 ${errors ? "bg-[#fdecea]" : warns ? "bg-[#fff7e0]" : "bg-[#e6f6ef]"}`} aria-live="polite">
             <p className="m-0 font-heading font-extrabold text-[length:var(--fs-16)]">{errors ? `${errors} θέματα πριν συνεχίσετε` : warns ? `Έτοιμο, με ${warns} παρατηρήσεις` : "Όλα σωστά"}</p>
             <ul className="m-0 p-0 list-none grid gap-1.5">
@@ -175,7 +175,7 @@ export function ColumnMapper({ columns, preview, map, src, onChange }: {
                   <code className="font-bold text-[length:var(--fs-13)] text-eu-ink break-all">{c}</code>
                   {f && <span className={`shrink-0 rounded-md border px-1.5 py-0.5 font-bold text-[length:var(--fs-11)] ${HUE[f]}`}>{label(f)}</span>}
                 </div>
-                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] break-all min-h-4">{ex.length ? ex.join(" · ") : "κενή στο δείγμα"}</p>
+                <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] [overflow-wrap:anywhere] min-h-4">{ex.length ? ex.join(" · ") : "κενή στο δείγμα"}</p>
                 <label className="sr-only" htmlFor={`col-${c}`}>Τι περιέχει η στήλη {c}</label>
                 <select id={`col-${c}`} value={f ?? ""} onChange={(e) => assignColumn(c, e.target.value as MapField | "")} className={`${inputCls()} !min-h-11 !text-[length:var(--fs-14)]`}>
                   <option value="">Δεν χρειάζεται</option>

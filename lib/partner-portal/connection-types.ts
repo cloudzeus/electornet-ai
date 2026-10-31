@@ -71,8 +71,8 @@ export const CONN_TYPES: ConnTypeInfo[] = [
       { key: "url", label: "Διεύθυνση αρχείου", help: "Η διεύθυνση που ανοίγει το αρχείο, π.χ. https://shop.gr/feeds/stock.xml.", kind: "config", input: "url", required: true, placeholder: "https://…/stock.xml", pattern: { re: "^https?://\\S+$", message: "Γράψε πλήρη διεύθυνση που ξεκινά με https://" } },
       { key: "format", label: "Μορφή", help: "Αν το αφήσεις «Αυτόματα», την αναγνωρίζουμε από το περιεχόμενο.", kind: "config", input: "select", defaultValue: "auto", options: [{ value: "auto", label: "Αυτόματα" }, { value: "xml", label: "XML" }, { value: "xlsx", label: "Excel (.xlsx)" }, { value: "csv", label: "CSV" }, { value: "json", label: "JSON" }] },
       { key: "encoding", label: "Κωδικοποίηση", help: "Για παλιά ελληνικά αρχεία μπορεί να χρειαστεί Windows-1253.", kind: "config", input: "select", defaultValue: "auto", options: [{ value: "auto", label: "Αυτόματα" }, { value: "utf8", label: "UTF-8" }, { value: "win1253", label: "Windows-1253" }, { value: "iso-8859-7", label: "ISO-8859-7" }] },
-      { key: "username", label: "Χρήστης (προαιρετικό)", help: "Μόνο αν το αρχείο ζητά όνομα χρήστη και κωδικό.", kind: "secret", input: "text", autoComplete: "off" },
-      { key: "password", label: "Κωδικός (προαιρετικό)", help: "Φυλάσσεται κρυπτογραφημένος.", kind: "secret", input: "password", autoComplete: "new-password" },
+      { key: "username", label: "Χρήστης", help: "Μόνο αν το αρχείο ζητά όνομα χρήστη και κωδικό.", kind: "secret", input: "text", autoComplete: "off" },
+      { key: "password", label: "Κωδικός", help: "Φυλάσσεται κρυπτογραφημένος.", kind: "secret", input: "password", autoComplete: "new-password" },
     ],
   },
   {
@@ -135,7 +135,7 @@ export function checkMapping(map: FieldMapping, columns: string[], rows: Record<
   out.push({ key: "dup", ok: !dup.length, level: "warn", message: dup.length ? `Η στήλη «${dup[0][1]}» χρησιμοποιείται για δύο πεδία` : "Κάθε στήλη σε ένα πεδίο" });
   if (has("qty") && rows.length) {
     const bad = rows.filter((r) => toQty(r[map.qty!]) === null).length;
-    out.push({ key: "qty-num", ok: bad === 0, level: bad === rows.length ? "error" : "warn", message: bad ? `${bad} από ${rows.length} γραμμές του δείγματος δεν έχουν αριθμό στην ποσότητα` : "Οι ποσότητες του δείγματος είναι αριθμοί" });
+    out.push({ key: "qty-num", ok: bad === 0, level: bad === rows.length ? "error" : "warn", message: bad ? `${bad} από ${rows.length} γραμμές του δείγματος δεν ${bad === 1 ? "έχει" : "έχουν"} αριθμό στην ποσότητα` : "Οι ποσότητες του δείγματος είναι αριθμοί" });
   }
   if (has("ean") && rows.length) {
     const bad = rows.filter((r) => r[map.ean!] && !/^\d{8}$|^\d{12,14}$/.test(r[map.ean!].trim())).length;
@@ -144,7 +144,7 @@ export function checkMapping(map: FieldMapping, columns: string[], rows: Record<
   if ((has("sku") || has("ean")) && rows.length) {
     const ids = rows.map((r) => (map.sku && r[map.sku]) || (map.ean && r[map.ean]) || "");
     const empty = ids.filter((x) => !x).length;
-    if (empty) out.push({ key: "id-empty", ok: false, level: "warn", message: `${empty} γραμμές χωρίς κωδικό — θα αγνοηθούν` });
+    if (empty) out.push({ key: "id-empty", ok: false, level: "warn", message: `${empty} ${empty === 1 ? "γραμμή" : "γραμμές"} χωρίς κωδικό — θα ${empty === 1 ? "αγνοηθεί" : "αγνοηθούν"}` });
   }
   out.push({ key: "location", ok: true, level: "info", message: has("location") ? "Απόθεμα ανά κατάστημα από τη στήλη «" + map.location + "»" : "Χωρίς στήλη καταστήματος: το απόθεμα θα θεωρηθεί ενιαίο" });
   return out;

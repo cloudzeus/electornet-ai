@@ -1050,6 +1050,7 @@ model PartnerConnection {
   storeIds    String[]     @default([])
   /// draft | testing | ok | failed | review | active | paused
   status      String       @default("draft")
+  /// ενεργή μόνο μετά την «Ενεργοποίηση» (οι νέες γράφονται ρητά false)
   active      Boolean      @default(true)
   /// τελευταίος έλεγχος όπως τον έδωσε η μηχανή (χωρίς προεπισκόπηση)
   lastTest    Json?
@@ -2391,6 +2392,7 @@ model District {
   region      String? // όνομα περιφέρειας για ζώνες αποστολής (denormalised για γρήγορα φίλτρα)
   regionCode  String? // Region.code, level 3
   regionRef   Region?      @relation(fields: [regionCode], references: [code], onDelete: SetNull)
+  /// ενεργή μόνο μετά την «Ενεργοποίηση» (οι νέες γράφονται ρητά false)
   active      Boolean      @default(true)
   s1Id        String?      @unique
   s1Name      String?

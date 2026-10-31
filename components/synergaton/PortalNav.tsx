@@ -8,9 +8,9 @@ import { focusRing } from "./ui";
 export const NAV = [
   { href: "", label: "Αρχική", icon: LayoutDashboard, mobile: true },
   { href: "/ksekinima", label: "Ξεκίνημα", icon: Rocket },
-  { href: "/katastimata", label: "Καταστήματα", icon: Store, mobile: true },
+  { href: "/katastimata", label: "Καταστήματα", short: "Σημεία", icon: Store, mobile: true },
   { href: "/syndesi", label: "Σύνδεση", icon: PlugZap, mobile: true },
-  { href: "/paraggelies", label: "Παραγγελίες", icon: ClipboardList, mobile: true },
+  { href: "/paraggelies", label: "Παραγγελίες", short: "Παραλαβή", icon: ClipboardList, mobile: true },
   { href: "/istoriko", label: "Ιστορικό & logs", short: "Ιστορικό", icon: History, mobile: true },
   { href: "/odigos", label: "Οδηγός & videos", icon: BookOpen },
   { href: "/profil", label: "Προφίλ & ασφάλεια", icon: UserRound },

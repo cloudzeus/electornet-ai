@@ -22,7 +22,7 @@ export function journey(o: { onboarding: Onboarding; stores: { active: boolean; 
   const mapped = c.some((x) => Array.isArray(x.locationMap) && (x.locationMap as { storeId: string | null }[]).some((m) => m.storeId));
   const steps = [
     { key: "account", title: "Λογαριασμός", desc: "Κωδικός και διπλή επαλήθευση", done: true, href: "/profil" },
-    { key: "questions", title: "Ερωτηματολόγιο", desc: "Πώς κρατάτε το απόθεμα — ο βοηθός προτείνει σύνδεση", done: !!o.onboarding.answers, href: "/ksekinima" },
+    { key: "questions", title: "Ερωτήσεις", desc: "Πώς κρατάτε το απόθεμα — ο βοηθός προτείνει σύνδεση", done: !!o.onboarding.answers, href: "/ksekinima" },
     { key: "profile", title: "Καταστήματα", desc: "Ωράριο, τηλέφωνα, υπηρεσίες", done: o.storesReviewed, href: "/katastimata" },
     { key: "connection", title: "Σύνδεση", desc: "Τρόπος και στοιχεία πρόσβασης", done: c.length > 0, href: "/syndesi" },
     { key: "test", title: "Έλεγχος", desc: "Διαβάζουμε δείγμα αποθέματος", done: c.some((x) => !!x.lastOkAt), href: "/syndesi" },

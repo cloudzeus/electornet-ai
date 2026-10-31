@@ -28,8 +28,8 @@ export function locationChecks(rows: LocRow[], stores: PortalStore[]) {
   const uncovered = stores.filter((s) => !byStore.has(s.id));
   const undecided = rows.filter((r) => !r.storeId && !r.touched);
   return [
-    { key: "one", ok: mapped.length > 0, level: "error" as const, message: mapped.length ? `${mapped.length} από ${rows.length} αποθήκες συνδέθηκαν με κατάστημα` : "Συνδέστε τουλάχιστον μία αποθήκη με κατάστημα" },
-    { key: "undecided", ok: !undecided.length, level: "warn" as const, message: undecided.length ? `${undecided.length} αποθήκες χωρίς απόφαση — διαλέξτε κατάστημα ή «Δεν πουλάμε από εδώ»` : "Όλες οι αποθήκες έχουν απόφαση" },
+    { key: "one", ok: mapped.length > 0, level: "error" as const, message: mapped.length ? `${mapped.length} από ${rows.length} ${rows.length === 1 ? "αποθήκη συνδέθηκε" : "αποθήκες συνδέθηκαν"} με κατάστημα` : "Συνδέστε τουλάχιστον μία αποθήκη με κατάστημα" },
+    { key: "undecided", ok: !undecided.length, level: "warn" as const, message: undecided.length ? `${undecided.length} ${undecided.length === 1 ? "αποθήκη" : "αποθήκες"} χωρίς απόφαση — διαλέξτε κατάστημα ή «Δεν πουλάμε από εδώ»` : "Όλες οι αποθήκες έχουν απόφαση" },
     { key: "dup", ok: !dup.length, level: "warn" as const, message: dup.length ? `Στο «${stores.find((s) => s.id === dup[0][0])?.name}» δείχνουν ${dup[0][1].length} αποθήκες — οι ποσότητες θα αθροιστούν` : "Κάθε κατάστημα από μία αποθήκη" },
     { key: "uncovered", ok: !uncovered.length, level: "info" as const, message: uncovered.length ? `Χωρίς απόθεμα από αυτή τη σύνδεση: ${uncovered.map((s) => s.name).join(", ")}` : "Όλα τα καταστήματα παίρνουν απόθεμα" },
   ];

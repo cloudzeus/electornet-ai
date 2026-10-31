@@ -51,9 +51,9 @@ export function StoreWizard({ storeId, initial, storeName }: { storeId: string; 
       <Wizard title={`Προφίλ καταστήματος ${storeName}`} steps={STEPS} current={cur} done={done} onStep={setCur}
         footer={<WizardNav onBack={cur ? () => setCur(cur - 1) : undefined} busy={pending}
           onNext={cur < 3 ? () => { stepErr(cur).forEach(touch); if (!stepErr(cur).length) setCur(cur + 1); } : () => setConfirm(true)}
-          nextLabel={cur < 3 ? "Συνέχεια" : changed.length ? `Αποθήκευση ${changed.length} αλλαγών` : "Καμία αλλαγή"}
+          nextLabel={cur < 3 ? "Συνέχεια" : changed.length ? `Αποθήκευση ${changed.length === 1 ? "1 αλλαγής" : `${changed.length} αλλαγών`}` : "Καμία αλλαγή"}
           nextDisabled={cur === 3 && (!changed.length || Object.keys(errors).length > 0)}
-          note={stepErr(cur).length ? `${stepErr(cur).length} πεδία θέλουν διόρθωση` : changed.length ? `${changed.length} αλλαγές σε εκκρεμότητα` : "Χωρίς αλλαγές"} />}>
+          note={stepErr(cur).length ? `${stepErr(cur).length} ${stepErr(cur).length === 1 ? "πεδίο θέλει" : "πεδία θέλουν"} διόρθωση` : changed.length ? `${changed.length} ${changed.length === 1 ? "αλλαγή" : "αλλαγές"} σε εκκρεμότητα` : "Χωρίς αλλαγές"} />}>
         {serverErr && <div className="mb-4"><Callout tone="bad">{serverErr.error}</Callout></div>}
         {saved && cur === 3 && <div className="mb-4"><Callout tone="good" title={saved.length ? "Αποθηκεύτηκε — ισχύει ήδη στο eshop" : "Δεν υπήρχαν αλλαγές"}>{saved.length ? `Άλλαξαν: ${saved.map((k) => LABEL[k as keyof StoreProfile]).join(", ")}.` : null}</Callout></div>}
 

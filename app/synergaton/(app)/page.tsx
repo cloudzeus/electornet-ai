@@ -44,7 +44,7 @@ export default async function Dashboard() {
             <Ring value={j.done} max={j.total} size={112} label={`${j.done} από ${j.total} βήματα`}><span><span className="block font-heading font-extrabold text-[length:var(--fs-28)] leading-none tabular-nums">{j.done}/{j.total}</span><span className="block text-eu-on-dark text-[length:var(--fs-12)]">βήματα</span></span></Ring>
           </div>
         </div>
-        <ol className="relative m-0 mt-6 p-0 list-none grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-2" aria-label="Βήματα αρχικοποίησης">
+        <ol className="relative m-0 mt-6 p-0 list-none grid grid-cols-2 sm:grid-cols-4 2xl:grid-cols-7 gap-2" aria-label="Βήματα αρχικοποίησης">
           {j.steps.map((s, i) => (
             <li key={s.key}>
               <Link href={`${base}${s.href}`} className={`h-full flex items-start gap-2 rounded-xl p-2.5 min-h-11 transition-colors ${s.done ? "bg-white/10 hover:bg-white/15" : s.key === j.next?.key ? "bg-eu-yellow text-eu-navy" : "bg-white/5 hover:bg-white/10"} outline-none focus-visible:ring-[3px] focus-visible:ring-eu-yellow/60`}>
