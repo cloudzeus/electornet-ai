@@ -27,7 +27,9 @@ const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
 let player: HTMLAudioElement | null = null;
 const getPlayer = () => (player ??= new Audio());
 
-interface CallView { status: "dialing" | "talking" | "done" | "error"; id: string | null; error?: string; transcript: { who: "hermes" | "store"; text: string }[] }
+/** Στο πακέτο Starter το ElevenLabs δίνει την απομαγνητοφώνηση μόνο όταν κλείσει η κλήση (η ζωντανή είναι Enterprise):
+ * σε κλήση δείχνουμε κυματομορφή, και στο τέλος τις φράσεις της συνομιλίας. */
+interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error"; id: string | null; error?: string; transcript: { who: "hermes" | "store"; text: string }[] }
 
 export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean }) {
   const beats = useMemo(() => buildBeats(snap), [snap]);
@@ -91,8 +93,8 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
       const tick = async () => {
         const c = await fetch(`/api/skets/call?id=${r.id}`, { headers: { "x-skets-key": k } }).then((x) => x.json()).catch(() => null);
         if (stop) return;
-        if (c && !c.error) setCall({ status: c.done ? "done" : c.transcript.length ? "talking" : "dialing", id: r.id, transcript: c.transcript });
-        if (c?.done) { timer.current = setTimeout(next, 2500); return; }
+        if (c && !c.error) setCall({ status: c.done ? "done" : c.status === "processing" ? "ended" : c.status === "in-progress" ? "talking" : "dialing", id: r.id, transcript: c.transcript });
+        if (c?.done) { timer.current = setTimeout(next, 9000); return; }
         poll = setTimeout(tick, 1500);
       };
       tick();
@@ -365,12 +367,12 @@ function StoreList({ snap, selected, onSelect, dim }: { snap: Snapshot; selected
 }
 
 function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: CallView }) {
-  const label = { dialing: "Καλώ…", talking: "Σε κλήση", done: "Η κλήση ολοκληρώθηκε", error: "Η κλήση δεν έγινε" }[call.status];
+  const label = { dialing: "Καλώ…", talking: "Σε κλήση", ended: "Η κλήση έκλεισε · καταγράφεται…", done: "Η κλήση ολοκληρώθηκε", error: "Η κλήση δεν έγινε" }[call.status];
   return (
     <motion.div initial={{ x: "110%" }} animate={{ x: 0 }} exit={{ x: "110%" }} transition={spring} className="absolute right-[1.2vw] top-[2vh] bottom-[2vh] z-[600] w-[34vw] rounded-[1.4rem] bg-eu-navy/95 backdrop-blur ring-1 ring-white/20 shadow-2xl flex flex-col overflow-hidden">
       <div className="p-[2vh_1.4vw] flex items-center gap-[1vw] border-b border-white/10">
         <div className="relative size-[8vh] shrink-0 rounded-full bg-eu-yellow grid place-items-center text-[length:var(--fs-36)]">
-          {call.status !== "done" && call.status !== "error" && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /></>}
+          {(call.status === "dialing" || call.status === "talking") && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /></>}
           📞
         </div>
         <div className="min-w-0">

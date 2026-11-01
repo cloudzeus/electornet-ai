@@ -4,6 +4,7 @@ import { startCall, callState } from "@/lib/skets/eleven";
 import { getSetting } from "@/lib/settings/store";
 import snapshot from "@/lib/skets/snapshot.json";
 import type { Snapshot } from "@/lib/skets/types";
+import { callItems } from "@/lib/skets/script";
 
 export const maxDuration = 30;
 const snap = snapshot as Snapshot;
@@ -18,10 +19,9 @@ export async function POST(req: Request) {
   const store = snap.stores[b.store ?? -1];
   const to = (b.rehearsal ? process.env.SKETS_TEST_TO : process.env.SKETS_CALL_TO) || process.env.SKETS_TEST_TO;
   if (!store || !to) return NextResponse.json({ error: !store ? "άγνωστο κατάστημα" : "λείπει SKETS_CALL_TO / SKETS_TEST_TO" }, { status: 400 });
-  const items = snap.cats.map((c) => { const p = c.candidates.find((x) => x.id === c.pick)!; return `${c.label.toLowerCase()} ${p.brand} (${p.key})`; });
   const { data } = await getSetting("ai");
   try {
-    const r = await startCall(to, { store: store.spoken, customer: snap.presenter.full, items: `${items.slice(0, -1).join(", ")} και ${items.at(-1)}` }, String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb"));
+    const r = await startCall(to, { store: store.spoken, customer: snap.presenter.genitive, items: callItems(snap) }, String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb"));
     return NextResponse.json({ id: r.conversationId });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });

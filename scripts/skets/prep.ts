@@ -15,14 +15,14 @@ import { SKETS } from "../../lib/skets/config";
 import { allPhrases } from "../../lib/skets/script";
 import type { CatKey, Room, SkCategory, SkProduct, SkReject, SkStore, Snapshot } from "../../lib/skets/types";
 
-interface Row { id: string; title: string; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
+interface Row { id: string; title: string; model: string | null; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
 
 async function pool(catSlug: string): Promise<Row[]> {
   const rows = await db.product.findMany({
     where: { category: { slug: catSlug }, active: true, publishReady: true, soldAlone: true, price: { gt: 0 }, source: { in: ["softone", "import", "softone-set"] }, NOT: { title: { contains: "ΔΩΡΟ", mode: "insensitive" } }, media: { some: { kind: "image", hidden: false } } },
-    select: { id: true, title: true, summary: true, slug: true, price: true, brand: { select: { name: true } }, energy: { select: { class: true } }, _count: { select: { media: { where: { kind: "image", hidden: false } } } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } }, facetValues: { select: { value: true, num: true, facet: { select: { param: true } } } } },
+    select: { id: true, title: true, summary: true, slug: true, price: true, modelCode: true, brand: { select: { name: true } }, energy: { select: { class: true } }, _count: { select: { media: { where: { kind: "image", hidden: false } } } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } }, facetValues: { select: { value: true, num: true, facet: { select: { param: true } } } } },
   });
-  return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug, price: r.price!, brand: r.brand.name, image: r.media[0]!.url, photos: r._count.media, energy: r.energy?.class ?? null, text: `${r.title} ${r.summary ?? ""}`, facets: Object.fromEntries(r.facetValues.map((f) => [f.facet.param, { value: f.value, num: f.num }])) }));
+  return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug, price: r.price!, brand: r.brand.name, model: r.modelCode ?? r.title.match(/\b(?=[A-Z0-9./-]*\d)(?=[A-Z0-9./-]*[A-Z])[A-Z0-9][A-Z0-9./-]{5,}\b/)?.[0] ?? null, image: r.media[0]!.url, photos: r._count.media, energy: r.energy?.class ?? null, text: `${r.title} ${r.summary ?? ""}`, facets: Object.fromEntries(r.facetValues.map((f) => [f.facet.param, { value: f.value, num: f.num }])) }));
 }
 
 /** Ενεργειακή κλάση → βαθμός (μικρότερο = καλύτερο): A+++ < A++ < A < B … */
@@ -50,7 +50,7 @@ function spread(groups: Row[][]): Row[] {
 
 const card = (r: Row, key: string): SkProduct => {
   const e = energyOf(r);
-  return { id: r.id, title: r.title, brand: r.brand, price: r.price, image: r.image, slug: r.slug, key, chips: [...new Set([key, ...(e ? [`Κλάση ${e}`] : []), eur(r.price)])] };
+  return { id: r.id, title: r.title, brand: r.brand, model: r.model, price: r.price, image: r.image, slug: r.slug, key, chips: [...new Set([key, ...(e ? [`Κλάση ${e}`] : []), eur(r.price)])] };
 };
 const cat = (key: CatKey, room: Room, label: string, rows: Row[], keyOf: (r: Row) => string, reject: SkReject[], reject2: SkReject[], pick: string, lines: SkCategory["lines"]): SkCategory =>
   ({ key, room, label, candidates: rows.map((r) => card(r, keyOf(r))), reject, reject2, pick, lines });

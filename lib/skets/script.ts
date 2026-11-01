@@ -77,13 +77,19 @@ export function sceneAt(beats: Beat[], i: number): Scene {
 export function fallbackCall(s: Snapshot, store: number): { who: "hermes" | "store"; text: string }[] {
   const st = s.stores[store];
   return [
-    { who: "hermes", text: "Καλησπέρα σας! Είμαι ο Ερμής, ο ψηφιακός σύμβουλος της Euronics. Σας καλώ για λογαριασμό ενός πελάτη μας — έχετε ένα λεπτό;" },
+    { who: "hermes", text: "Καλησπέρα σας! Είμαι ο Ερμής, ο ψηφιακός σύμβουλος της Euronics, και σας καλώ για έναν πελάτη μας που θέλει να παραλάβει σήμερα από το κατάστημά σας." },
     { who: "store", text: `Ναι, γεια σας, Euronics ${st.street}, πείτε μου.` },
     { who: "hermes", text: `Ο κύριος ${s.presenter.full} μόλις ήρθε στη Λάρισα και εξοπλίζει το σπίτι του. Θα ήθελε να παραλάβει σήμερα πέντε συσκευές — σας τις έστειλα. Μπορείτε να του τις κρατήσετε;` },
     { who: "store", text: "Ναι, τις βλέπω. Μπορώ να τις ετοιμάσω για σήμερα το απόγευμα." },
-    { who: "hermes", text: `Τέλεια! Στο όνομα ${s.presenter.full}. Σας ευχαριστώ πολύ — καλή συνέχεια!` },
+    { who: "hermes", text: `Τέλεια! Στο όνομα του κυρίου ${s.presenter.genitive}. Σας ευχαριστώ πολύ — καλή συνέχεια!` },
     { who: "store", text: "Ευχαριστούμε κι εμείς, τον περιμένουμε!" },
   ];
+}
+
+/** Τα προϊόντα του σπιτιού όπως τα λέει ο Ερμής στο κατάστημα: μάρκα, μέγεθος και κωδικός (για όταν τον ζητήσουν). */
+export function callItems(s: Snapshot): string {
+  const items = s.cats.map((c) => { const p = c.candidates.find((x) => x.id === c.pick)!; return `${c.label.toLowerCase()} ${p.brand} ${p.key}${p.model ? ` (κωδικός ${p.model})` : ""}`; });
+  return `${items.slice(0, -1).join(", ")} και ${items.at(-1)}`;
 }
 
 export const fillStore = (say: string, spoken: string) => say.replace("{store}", spoken).replace("{Store}", spoken.charAt(0).toUpperCase() + spoken.slice(1));

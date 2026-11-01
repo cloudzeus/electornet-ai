@@ -6,7 +6,7 @@
 export type CatKey = "washer" | "fridge" | "tv" | "ac" | "cooker";
 export type Room = "bath" | "kitchen" | "living";
 
-export interface SkProduct { id: string; title: string; brand: string; price: number; image: string; slug: string; /** το κύριο μέγεθος της ερώτησης: «9 kg», «55″», «12.000 BTU» */ key: string; chips: string[] }
+export interface SkProduct { id: string; title: string; brand: string; /** κωδικός μοντέλου κατασκευαστή, για το τηλέφωνο με το κατάστημα */ model: string | null; price: number; image: string; slug: string; /** το κύριο μέγεθος της ερώτησης: «9 kg», «55″», «12.000 BTU» */ key: string; chips: string[] }
 export interface SkReject { id: string; reason: string }
 export interface SkCategory {
   key: CatKey; room: Room; label: string;
@@ -21,7 +21,7 @@ export interface SkCategory {
 export interface SkStore { id: string; name: string; street: string; address: string; city: string; phone: string | null; km: number; lat: number; lng: number; /** «το κατάστημα της Αεροδρομίου» */ spoken: string }
 export interface Snapshot {
   at: string;
-  presenter: { name: string; vocative: string; full: string };
+  presenter: { name: string; vocative: string; full: string; /** «για λογαριασμό του …», «στο όνομα του …» */ genitive: string };
   home: { lat: number; lng: number; label: string };
   cats: SkCategory[];
   total: number;
