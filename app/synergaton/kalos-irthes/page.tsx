@@ -9,5 +9,5 @@ export const dynamic = "force-dynamic";
 export default async function IntroPage() {
   const base = await portalBase();
   const href = (await getPortalUser()) ? base || "/" : `${base}/eisodos`;
-  return <IntroVideo landscape={INTRO_VIDEO.landscape} portrait={INTRO_VIDEO.portrait} href={href} />;
+  return <IntroVideo landscape={INTRO_VIDEO.landscape} portrait={INTRO_VIDEO.portrait} hq={INTRO_VIDEO.hq} download={INTRO_VIDEO.uhd} href={href} />;
 }

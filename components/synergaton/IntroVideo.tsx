@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, Download, Maximize, Minimize, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { btn, focusRing } from "@/components/synergaton/ui";
 import { InterestButton } from "@/components/synergaton/InterestModal";
 
@@ -12,8 +12,13 @@ export type IntroSources = { mp4: string; webm: string; poster: string };
  * Εισαγωγικό video της πύλης σε όλη την οθόνη: 16:9 σε οριζόντια οθόνη, 9:16 σε κάθετη (κινητό).
  * Ξεκινά μόνο του σε σίγαση (οι browsers δεν επιτρέπουν αυτόματο ήχο)· το κουμπί ηχείου ανοίγει τη μουσική. Στο τέλος το κουμπί «Είσοδος» μπαίνει ακριβώς πάνω στο ζωγραφισμένο του τελικού καρέ.
  * «Παράλειψη» πάντα διαθέσιμη. Με «λιγότερη κίνηση» δεν ξεκινά μόνο του.
+ * Οθόνες από 1024px (υπολογιστής, προβολικό) παίρνουν την έκδοση 1080p υψηλής ποιότητας· τα κινητά την ελαφριά 720p.
+ * Πλήρης οθόνη για προβολή και λήψη του 4K για παρουσίαση εκτός σύνδεσης.
  */
-export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSources; portrait: IntroSources; href: string }) {
+export function IntroVideo({ landscape, portrait, hq, download, href }: { landscape: IntroSources; portrait: IntroSources; hq?: { landscape: IntroSources; portrait: IntroSources }; download?: string; href: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [big, setBig] = useState(false);
+  const [full, setFull] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
   const [tall, setTall] = useState<boolean | null>(null);
   const [ended, setEnded] = useState(false);
@@ -22,7 +27,7 @@ export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSour
 
   useEffect(() => {
     const mq = window.matchMedia("(orientation: portrait)");
-    const on = () => setTall(mq.matches);
+    const on = () => { setTall(mq.matches); setBig(window.innerWidth >= 1024); };
     on();
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
@@ -35,7 +40,14 @@ export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSour
     v.play().catch(() => setPlaying(false));
   }, [tall]);
 
-  const src = tall ? portrait : landscape;
+  useEffect(() => {
+    const on = () => setFull(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+  const fullscreen = () => { if (document.fullscreenElement) void document.exitFullscreen(); else void box.current?.requestFullscreen?.().catch(() => {}); };
+
+  const src = big && hq ? (tall ? hq.portrait : hq.landscape) : tall ? portrait : landscape;
   // θέση του ζωγραφισμένου κουμπιού στο τελικό καρέ (κέντρο, % του ύψους)
   const ctaTop = tall ? "66.2%" : "73.2%";
   const toggle = () => {
@@ -53,7 +65,7 @@ export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSour
   };
 
   return (
-    <div className="fixed inset-0 bg-eu-navy grid place-items-center overflow-hidden">
+    <div ref={box} className="fixed inset-0 bg-eu-navy grid place-items-center overflow-hidden">
       <div className="relative" style={{ width: tall ? "min(100vw, calc(100dvh * 9 / 16))" : "min(100vw, calc(100dvh * 16 / 9))", aspectRatio: tall ? "9 / 16" : "16 / 9" }}>
         {tall !== null && (
           <video key={src.mp4} ref={ref} className="absolute inset-0 size-full object-cover" muted={muted} playsInline preload="auto" poster={src.poster}
@@ -85,6 +97,16 @@ export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSour
           aria-label={ended ? "Ξανά από την αρχή" : playing ? "Παύση" : "Αναπαραγωγή"}>
           {ended ? <RotateCcw className="size-5" aria-hidden /> : playing ? <Pause className="size-5" aria-hidden /> : <Play className="size-5" aria-hidden />}
         </button>
+        {big && (
+          <button type="button" onClick={fullscreen} className={`inline-flex items-center justify-center size-11 rounded-full bg-white/15 text-white backdrop-blur hover:bg-white/25 ${focusRing}`} aria-label={full ? "Έξοδος από πλήρη οθόνη" : "Πλήρης οθόνη"} title={full ? "Έξοδος από πλήρη οθόνη" : "Πλήρης οθόνη (για προβολή)"}>
+            {full ? <Minimize className="size-5" aria-hidden /> : <Maximize className="size-5" aria-hidden />}
+          </button>
+        )}
+        {big && download && !full && (
+          <a href={download} download target="_blank" rel="noopener" className={`inline-flex items-center gap-1.5 min-h-11 rounded-full bg-white/15 text-white font-bold px-4 backdrop-blur hover:bg-white/25 text-[length:var(--fs-14)] ${focusRing}`} title="Λήψη σε 4K για προβολή χωρίς σύνδεση">
+            <Download className="size-4" aria-hidden /> 4K
+          </a>
+        )}
         {!ended && (
           <Link href={href} className={`inline-flex items-center gap-1.5 min-h-11 rounded-full bg-white/15 text-white font-bold px-4 backdrop-blur hover:bg-white/25 text-[length:var(--fs-14)] ${focusRing}`}>
             Παράλειψη <ArrowRight className="size-4" aria-hidden />
