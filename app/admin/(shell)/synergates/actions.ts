@@ -198,3 +198,16 @@ function revalidateRestocks() {
   revalidatePath("/admin/synergates", "layout");
   revalidatePath("/admin/orders", "layout");
 }
+
+/** Εκδήλωση ενδιαφέροντος από τη δημόσια σελίδα της πύλης: κατάσταση χειρισμού + σημείωση προσωπικού. */
+export async function updateInterest(id: string, status: string, adminNote: string) {
+  const user = await requirePermission("stores.partners.write");
+  if (!["new", "contacted", "done", "rejected"].includes(status)) return { ok: false as const, error: "Άγνωστη κατάσταση" };
+  const before = await db.partnerInterest.findUnique({ where: { id }, select: { status: true, adminNote: true } });
+  if (!before) return { ok: false as const, error: "Η αίτηση δεν βρέθηκε" };
+  const note = adminNote.trim().slice(0, 2000) || null;
+  await db.partnerInterest.update({ where: { id }, data: { status, adminNote: note, handledBy: user.id, handledAt: new Date() } });
+  await audit(user.id, "b2b.interest.update", "PartnerInterest", id, before, { status, adminNote: note });
+  revalidatePath("/admin/synergates/endiaferon");
+  return { ok: true as const };
+}

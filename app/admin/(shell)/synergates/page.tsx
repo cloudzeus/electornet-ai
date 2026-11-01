@@ -33,11 +33,11 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
       select: { id: true, code: true, name: true, city: true, category: true, groupName: true, status: true, s1Missing: true, branches: { where: { s1Missing: false }, select: { storeId: true, store: { select: { active: true } } } } },
     }),
     db.partner.groupBy({ by: ["s1Business", "category"], _count: { _all: true }, orderBy: { s1Business: "asc" } }),
-    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } }), db.partnerBranch.count({ where: creatableBranches }), db.store.count({ where: { partnerId: { not: null }, lat: 0, lng: 0, geoLat: null } }), db.store.count({ where: { partnerId: { not: null }, active: false } }), db.partner.count({ where: { OR: VIVA_WHERE } })]),
+    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } }), db.partnerBranch.count({ where: creatableBranches }), db.store.count({ where: { partnerId: { not: null }, lat: 0, lng: 0, geoLat: null } }), db.store.count({ where: { partnerId: { not: null }, active: false } }), db.partner.count({ where: { OR: VIVA_WHERE } }), db.partnerInterest.count({ where: { status: "new" } })]),
     db.partner.aggregate({ _max: { s1SyncedAt: true } }),
     view === "stores" ? db.store.findMany({ where: { partnerId: null }, orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true, zip: true, member: true } }) : Promise.resolve([]),
   ]);
-  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree, nCreatable, nUngeocoded, nHidden, nViva] = totals;
+  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree, nCreatable, nUngeocoded, nHidden, nViva, nInterest] = totals;
 
   const chip = (href: string, label: string, active: boolean) => (
     <Link key={href} href={href} className={`inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border ${active ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}>{label}</Link>
@@ -50,6 +50,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
         <div className="min-w-0">
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)] leading-tight">Συνεργάτες (B2B) <span className="text-eu-muted font-normal text-[length:var(--fs-16)] tabular-nums">· {nPartners}</span></h2>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] max-w-[80ch]">Τα μέλη Euronics όπως είναι στο SoftOne (πελάτες με εμπορική κατηγορία «ΜΕΛΟΣ») και τα υποκαταστήματά τους. Κάθε υποκατάστημα συνδέεται με ένα κατάστημα του eshop· εκεί θα φαίνεται η διαθεσιμότητά του. Τελευταία εισαγωγή: {fmt(lastSync._max.s1SyncedAt)}.</p>
+          <Link data-help="partners.interest" href="/admin/synergates/endiaferon" className="mt-2 inline-flex items-center gap-2 rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border border-eu-line text-eu-ink hover:border-eu-navy">Ενδιαφέρον συνεργατών<span className={`rounded-full px-2 tabular-nums ${nInterest ? "bg-eu-yellow text-eu-navy" : "bg-eu-surface-2"}`}>{nInterest} νέες</span></Link>
         </div>
         {canWrite && <div data-help="partners.import"><PartnerImport /></div>}
       </div>

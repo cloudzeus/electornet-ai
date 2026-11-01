@@ -882,6 +882,40 @@ model Store {
   @@index([partnerId])
 }
 
+/// Εκδήλωση ενδιαφέροντος από τη δημόσια σελίδα της πύλης (πριν από λογαριασμό): ΑΦΜ → επαφή → τι θέλει να συνδέσει,
+/// τράπεζες, ERP, eshop, τρόπος διασύνδεσης. Τη βλέπει η διαχείριση στο /admin/synergates/endiaferon.
+model PartnerInterest {
+  id           String    @id @default(cuid())
+  afm          String
+  /// το μέλος με αυτόν τον ΑΦΜ τη στιγμή της αποστολής (null = δεν είναι μέλος)
+  partnerId    String?
+  partner      Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  businessName String?
+  contactName  String
+  email        String
+  phone        String
+  /// stock | pickup | orders | payments | restock
+  kinds        String[]  @default([])
+  banks        String[]  @default([])
+  erp          String?
+  eshop        String?
+  /// feed-url | manual | softone-ws | woocommerce | unsure
+  method       String?
+  notes        String?   @db.Text
+  /// new | contacted | done | rejected
+  status       String    @default("new")
+  adminNote    String?   @db.Text
+  handledBy    String?
+  handledAt    DateTime?
+  ip           String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([afm])
+  @@index([partnerId])
+}
+
 /// Μέλος / συνεργάτης Euronics (B2B). Πηγή: SoftOne CUSTOMER (TRDR, SODTYPE 13) με εμπορική κατηγορία (TRDBUSINESS).
 /// Το SoftOne είναι master για τα εμπορικά/φορολογικά· εμείς για επαφές, πρόσβαση, προφίλ. Βλ. docs/b2b-architecture.md.
 model Partner {
@@ -921,6 +955,7 @@ model Partner {
   changes     PartnerChange[]
   logs        PartnerLog[]
   restocks    PartnerRestock[]
+  interests   PartnerInterest[]
   /// ερωτηματολόγιο αρχικοποίησης + πρόοδος των wizards της πύλης: { answers, steps: { profile, connection, mapping, … }, completedAt }
   onboarding  Json?
   createdAt   DateTime            @default(now())

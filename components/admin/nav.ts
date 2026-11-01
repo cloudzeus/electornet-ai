@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap, CalendarCheck,
-  Handshake, PackagePlus,
+  Handshake, PackagePlus, Sparkles,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -38,6 +38,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },
       { href: "/admin/synergates", label: "Συνεργάτες (B2B)", icon: Handshake, perm: "stores.partners.read" },
       { href: "/admin/synergates/anaplirosis", label: "Αναπληρώσεις (B2B)", icon: PackagePlus, perm: "stores.partners.read" },
+      { href: "/admin/synergates/endiaferon", label: "Ενδιαφέρον συνεργατών", icon: Sparkles, perm: "stores.partners.read" },
       { href: "/admin/gdpr", label: "GDPR", icon: ShieldCheck, perm: "customers.read" },
       { href: "/admin/service", label: "Service & εγγυήσεις", icon: Wrench, perm: "service.tickets.read", soon: true },
     ],

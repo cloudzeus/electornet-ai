@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { focusRing } from "@/components/synergaton/ui";
+import { btn, focusRing } from "@/components/synergaton/ui";
+import { InterestButton } from "@/components/synergaton/InterestModal";
 
 export type IntroSources = { mp4: string; webm: string; poster: string };
 
@@ -67,6 +68,11 @@ export function IntroVideo({ landscape, portrait, href }: { landscape: IntroSour
             style={{ top: ctaTop }} autoFocus>
             Είσοδος <ArrowRight className="size-[1.1em]" aria-hidden />
           </Link>
+        )}
+        {ended && (
+          <div className="absolute left-1/2 -translate-x-1/2 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 motion-reduce:animate-none" style={{ top: tall ? "74%" : "84%" }}>
+            <InterestButton className={`${btn("secondary")} bg-white/95 backdrop-blur whitespace-nowrap`} />
+          </div>
         )}
       </div>
 

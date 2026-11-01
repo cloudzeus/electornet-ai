@@ -391,3 +391,14 @@ export async function withdrawRestock(id: string) {
   if (r.ok) refresh();
   return r;
 }
+
+// ---------- Εκδήλωση ενδιαφέροντος (δημόσια, χωρίς σύνδεση) ----------
+
+export async function interestLookup(afm: string) {
+  const { lookupInterestAfm } = await import("@/lib/partner-portal/interest");
+  return lookupInterestAfm(afm);
+}
+export async function interestSubmit(data: import("@/lib/partner-portal/interest").InterestInput) {
+  const { submitInterest } = await import("@/lib/partner-portal/interest");
+  return submitInterest(data);
+}

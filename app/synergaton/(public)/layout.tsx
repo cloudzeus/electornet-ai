@@ -3,6 +3,7 @@ import Image from "@/components/ui/Image";
 import Link from "next/link";
 import { CheckCircle2, PlayCircle, ShieldCheck, Store, Zap } from "lucide-react";
 import { portalBase } from "@/lib/partner-portal/session";
+import { InterestButton } from "@/components/synergaton/InterestModal";
 
 /** Είσοδος / κωδικός: δύο στήλες στον υπολογιστή (μπλε πλευρά με το τι κερδίζει το μέλος), μία στο κινητό. */
 export default async function PublicLayout({ children }: { children: ReactNode }) {
@@ -33,7 +34,14 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         <p className="relative hidden lg:block m-0 text-eu-on-dark-2 text-[length:var(--fs-13)]">Euronics Ελλάς · Για βοήθεια μίλησε με τον υπεύθυνο συνεργατών της Euronics</p>
       </aside>
       <main id="main" className="flex items-start lg:items-center justify-center px-4 py-8 sm:px-8 sm:py-12">
-        <div className="w-full max-w-[28rem]">{children}</div>
+        <div className="w-full max-w-[28rem]">
+          {children}
+          <div data-help="portal.interest" className="mt-8 rounded-2xl border-2 border-dashed border-eu-line p-4 grid gap-2.5 justify-items-start">
+            <p className="m-0 font-bold text-eu-ink text-[length:var(--fs-15)]">Δεν έχετε ακόμη λογαριασμό;</p>
+            <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Πείτε μας για την επιχείρησή σας και τα συστήματά σας· θα σας καλέσουμε για τη σύνδεση με το euronics.gr.</p>
+            <InterestButton />
+          </div>
+        </div>
       </main>
     </div>
   );
