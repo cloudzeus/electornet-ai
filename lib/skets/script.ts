@@ -86,9 +86,19 @@ export function fallbackCall(s: Snapshot, store: number): { who: "hermes" | "sto
   ];
 }
 
+/** Μονάδες όπως λέγονται στο τηλέφωνο — η φωνή διαβάζει άσχημα «BTU», «kg», «″» και το λατινικό «A». */
+const THOUSANDS: Record<number, string> = { 7: "επτά", 9: "εννιά", 12: "δώδεκα", 18: "δεκαοχτώ", 24: "είκοσι τεσσάρων" };
+export function spokenKey(key: string): string {
+  const btu = key.match(/^([\d.]+)\s*BTU$/i);
+  if (btu) { const k = Math.round(Number(btu[1].replace(/\./g, "")) / 1000); return `${THOUSANDS[k] ?? k} χιλιάδων μπι-τι-γιου`; }
+  if (/εστίες$/.test(key)) return `με ${key.toLowerCase()}`;
+  return key.replace(/^(\d+(?:[.,]\d+)?)\s*kg$/i, "$1 κιλών").replace(/^(\d+)″$/, "$1 ιντσών").replace(/^Κλάση\s+([A-G])(\+*)$/, (_, l: string, p: string) => `ενεργειακής κλάσης ${["άλφα", "βήτα", "γάμα", "δέλτα", "έψιλον", "ζήτα", "ήτα"]["ABCDEFG".indexOf(l)]}${p.length ? ` ${p.length} συν` : ""}`);
+}
+const brandSpoken = (b: string) => (b.length <= 3 ? b : b.charAt(0) + b.slice(1).toLowerCase());
+
 /** Τα προϊόντα του σπιτιού όπως τα λέει ο Ερμής στο κατάστημα: μάρκα, μέγεθος και κωδικός (για όταν τον ζητήσουν). */
 export function callItems(s: Snapshot): string {
-  const items = s.cats.map((c) => { const p = c.candidates.find((x) => x.id === c.pick)!; return `${c.label.toLowerCase()} ${p.brand} ${p.key}${p.model ? ` (κωδικός ${p.model})` : ""}`; });
+  const items = s.cats.map((c) => { const p = c.candidates.find((x) => x.id === c.pick)!; return `${c.label.toLowerCase()} ${brandSpoken(p.brand)} ${spokenKey(p.key)}${p.model ? ` (κωδικός ${p.model})` : ""}`; });
   return `${items.slice(0, -1).join(", ")} και ${items.at(-1)}`;
 }
 

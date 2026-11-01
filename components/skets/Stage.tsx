@@ -77,7 +77,7 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
   useEffect(() => {
     if (beat.act?.t !== "call" || store === null || callStarted.current) return;
     callStarted.current = true;
-    let stop = false, poll: ReturnType<typeof setTimeout> | undefined;
+    let stop = false, poll: ReturnType<typeof setTimeout> | undefined, closeAudio = () => {};
     const sim: ReturnType<typeof setTimeout>[] = [];
     // εφεδρεία: η γνωστή συνομιλία, μία φράση κάθε 2,6 s (στεγνή πρόβα ή αποτυχία της πραγματικής κλήσης)
     const simulate = () => {
@@ -90,16 +90,20 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
       const r = await fetch("/api/skets/call", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ store, rehearsal }) }).then((x) => x.json()).catch((e) => ({ error: String(e) }));
       if (stop) return;
       if (!r.id) { console.warn("skets call:", r.error); simulate(); return; }
+      let audio = false;
       const tick = async () => {
         const c = await fetch(`/api/skets/call?id=${r.id}`, { headers: { "x-skets-key": k } }).then((x) => x.json()).catch(() => null);
         if (stop) return;
+        // ο ήχος ανοίγει μόλις σηκωθεί το τηλέφωνο (νωρίτερα το Vapi απορρίπτει τη σύνδεση)
+        if (r.listenUrl && !audio && c?.status === "in-progress") { audio = true; closeAudio = listen(r.listenUrl); }
         if (c && !c.error) setCall({ status: c.done ? "done" : c.status === "processing" ? "ended" : c.status === "in-progress" ? "talking" : "dialing", id: r.id, transcript: c.transcript });
-        if (c?.done) { timer.current = setTimeout(next, 9000); return; }
+        // Vapi: οι υπότιτλοι είναι ήδη ζωντανοί, μικρή παύση· ElevenLabs: έρχονται μόλις κλείσει, χρόνος να διαβαστούν
+        if (c?.done) { closeAudio(); timer.current = setTimeout(next, r.provider === "vapi" ? 4000 : 9000); return; }
         poll = setTimeout(tick, 1500);
       };
       tick();
     })();
-    return () => { stop = true; clearTimeout(poll); sim.forEach(clearTimeout); };
+    return () => { stop = true; clearTimeout(poll); sim.forEach(clearTimeout); closeAudio(); };
   }, [beat.act?.t, store, k, rehearsal, dry, next, snap]);
 
   const command = useCallback((c: Cmd) => {
@@ -364,6 +368,52 @@ function StoreList({ snap, selected, onSelect, dim }: { snap: Snapshot; selected
       ))}
     </motion.ul>
   );
+}
+
+/**
+ * Ο ήχος της κλήσης στα ηχεία της αίθουσας, από το monitor.listenUrl του Vapi: PCM 16 bit, 16 kHz, δύο κανάλια
+ * (το ένα ο Ερμής, το άλλο το κινητό). ?audio=hermes (προεπιλογή) παίζει μόνο τον Ερμή — ο θεατής-κατάστημα ακούγεται
+ * ήδη στην αίθουσα και έτσι το κινητό δεν ξαναπιάνει τη φωνή του από τα ηχεία· ?audio=both και τα δύο, ?audio=off τίποτα.
+ * ?hermes=L|R ορίζει σε ποιο κανάλι είναι ο Ερμής (προεπιλογή R — μετρημένο σε πρόβα 2026-11-01).
+ */
+function listen(url: string): () => void {
+  const q = new URLSearchParams(location.search);
+  const mode = q.get("audio") ?? "hermes";
+  if (mode === "off") return () => {};
+  const right = (q.get("hermes") ?? "R").toUpperCase() !== "L";
+  const ctx = new AudioContext({ sampleRate: 16000 });
+  ctx.resume().catch(() => {});
+  let at = 0, closed = false, tries = 0, ws: WebSocket;
+  // για την πρόβα: πόση ενέργεια έχει κάθε κανάλι (στην κονσόλα: __sketsAudio) — δείχνει σε ποιο είναι ο Ερμής
+  const lv = ((window as unknown as { __sketsAudio?: { frames: number; L: number; R: number } }).__sketsAudio = { frames: 0, L: 0, R: 0 });
+  const onAudio = (m: MessageEvent) => {
+    if (typeof m.data === "string") return;
+    const pcm = new Int16Array(m.data as ArrayBuffer), n = pcm.length >> 1;
+    if (!n) return;
+    const buf = ctx.createBuffer(1, n, 16000), out = buf.getChannelData(0);
+    for (let j = 0; j < n; j++) {
+      const l = pcm[2 * j] / 32768, r = pcm[2 * j + 1] / 32768;
+      out[j] = mode === "both" ? Math.max(-1, Math.min(1, l + r)) : right ? r : l;
+      lv.L += Math.abs(l); lv.R += Math.abs(r);
+    }
+    lv.frames++;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    // μικρό buffer 120 ms για ομαλή ροή· αν μείνουμε πίσω, ξαναπιάνουμε το «τώρα»
+    at = Math.max(at, ctx.currentTime + 0.12);
+    src.start(at);
+    at += buf.duration;
+  };
+  const open = () => {
+    ws = new WebSocket(url);
+    ws.binaryType = "arraybuffer";
+    ws.onmessage = onAudio;
+    // ξαναδοκιμάζει λίγες φορές αν κοπεί ενώ η κλήση τρέχει
+    ws.onclose = () => { if (!closed && tries++ < 5) setTimeout(open, 1500); else if (!closed) console.warn("skets: ο ήχος της κλήσης δεν συνδέθηκε"); };
+  };
+  open();
+  return () => { closed = true; ws.close(); ctx.close().catch(() => {}); };
 }
 
 function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: CallView }) {
