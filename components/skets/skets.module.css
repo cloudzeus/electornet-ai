@@ -1,0 +1,35 @@
+/* Σκετς Ερμή — animations που δεν γίνονται με motion (markers του Leaflet, δακτύλιοι, γραμμές). */
+.stage {
+  background:
+    radial-gradient(60rem 40rem at 18% 30%, rgb(29 66 138 / 0.55), transparent 70%),
+    radial-gradient(50rem 36rem at 90% 100%, rgb(241 196 0 / 0.10), transparent 70%),
+    #07142f;
+}
+.grain { background-image: radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px); background-size: 3px 3px; }
+
+/* δακτύλιοι γύρω από το orb όταν μιλά */
+.ring { position: absolute; inset: 0; border-radius: 9999px; border: 2px solid rgb(241 196 0 / 0.55); animation: ring 1.6s ease-out infinite; }
+.ring2 { animation-delay: 0.53s; }
+.ring3 { animation-delay: 1.06s; }
+@keyframes ring { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.75); opacity: 0; } }
+
+/* Leaflet: πινέζες καταστημάτων που «πέφτουν» διαδοχικά */
+.pin { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9999px; background: #122a58; color: #fff; font-weight: 800; font-size: var(--fs-20); border: 4px solid #fff; box-shadow: 0 10px 24px rgb(7 20 47 / 0.45); animation: drop 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both; transition: background 0.3s, color 0.3s, transform 0.3s; }
+.pinSel { background: #f1c400; color: #122a58; transform: scale(1.25); }
+.still { animation: none; }
+.d0 { animation-delay: 0.1s; } .d1 { animation-delay: 0.45s; } .d2 { animation-delay: 0.8s; } .d3 { animation-delay: 1.15s; } .d4 { animation-delay: 1.5s; } .d5 { animation-delay: 1.85s; }
+@keyframes drop { 0% { transform: translateY(-120px) scale(0.6); opacity: 0; } 70% { opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+
+.home { position: relative; display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9999px; background: #f1c400; border: 4px solid #fff; box-shadow: 0 10px 24px rgb(7 20 47 / 0.45); }
+.home::before, .home::after { content: ""; position: absolute; inset: -4px; border-radius: 9999px; border: 3px solid #f1c400; animation: ring 2s ease-out infinite; }
+.home::after { animation-delay: 1s; }
+
+/* γραμμές σπίτι → κατάστημα που «σχεδιάζονται» */
+.route { stroke-dasharray: 8 10; animation: dash 1.2s linear infinite; }
+.routeSel { stroke-dasharray: none; animation: none; }
+@keyframes dash { to { stroke-dashoffset: -36; } }
+
+/* κυματομορφή κλήσης */
+.bar { width: 0.4rem; border-radius: 9999px; background: #f1c400; animation: bar 0.9s ease-in-out infinite; }
+@keyframes bar { 0%, 100% { height: 0.6rem; } 50% { height: 2.4rem; } }
+.b1 { animation-delay: 0.1s; } .b2 { animation-delay: 0.25s; } .b3 { animation-delay: 0.4s; } .b4 { animation-delay: 0.55s; } .b5 { animation-delay: 0.7s; }

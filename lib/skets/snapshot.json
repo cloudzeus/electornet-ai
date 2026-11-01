@@ -1,0 +1,438 @@
+{
+ "at": "2026-11-01T11:29:59.095Z",
+ "presenter": {
+  "name": "Γιάννης",
+  "vocative": "Γιάννη",
+  "full": "Γιάννης Κοζύρης"
+ },
+ "home": {
+  "lat": 39.629,
+  "lng": 22.433,
+  "label": "Το νέο σου σπίτι"
+ },
+ "cats": [
+  {
+   "key": "washer",
+   "room": "bath",
+   "label": "Πλυντήριο ρούχων",
+   "candidates": [
+    {
+     "id": "cmuawu2vl0wm0d4r2q81sx9qt",
+     "title": "AEG LTR7E373G ΠΛΥΝΤΗΡΙΑ ΡΟΥΧΩΝ ΣΤΕΝΑ ΕΛΕΚΤΡΟΛΟΥΞ",
+     "brand": "AEG",
+     "price": 585,
+     "image": "https://euronics.b-cdn.net/products/7333394048659/ltr7e373g-01.webp",
+     "slug": "aeg-ltr7e373g-plyntiria-roychon-stena-elektroloyx",
+     "key": "7 kg",
+     "chips": [
+      "7 kg",
+      "Κλάση A",
+      "585 €"
+     ]
+    },
+    {
+     "id": "cmuawtr4c0q20d4r2bxp42dkf",
+     "title": "BOSCH ΗΠ ΡΟΥΧΩΝ WUU28T08GR",
+     "brand": "BOSCH",
+     "price": 619,
+     "image": "https://euronics.b-cdn.net/products/4242005348954/wuu28t08gr-01.webp",
+     "slug": "bosch-ip-roychon-wuu28t08gr",
+     "key": "8 kg",
+     "chips": [
+      "8 kg",
+      "Κλάση A",
+      "619 €"
+     ]
+    },
+    {
+     "id": "cmuawuep418jfd4r2vncgjy4i",
+     "title": "Πλυντήριο ρούχων 8000 PowerCare 9 kg με UniversalDose LFR83944OE AEG",
+     "brand": "AEG",
+     "price": 939,
+     "image": "https://euronics.b-cdn.net/products/7333394120379/lfr83944oe-01.webp",
+     "slug": "plyntirio-roychon-8000-powercare-9-kg-me-universaldose-lfr83944oe-aeg",
+     "key": "9 kg",
+     "chips": [
+      "9 kg",
+      "Κλάση A",
+      "939 €"
+     ]
+    },
+    {
+     "id": "cmuawu6oz10jzd4r28ptyltkr",
+     "title": "WGG254ZHGR Πλυντήριο ρούχων εμπρόσθιας φόρτωσης, 10 kg, Λευκό BOSCH",
+     "brand": "BOSCH",
+     "price": 549,
+     "image": "https://euronics.b-cdn.net/products/4242005504121/wgg254zhgr-01.webp",
+     "slug": "wgg254zhgr-plyntirio-roychon-emprosthias-fortosis-10-kg-leyko-bosch",
+     "key": "10 kg",
+     "chips": [
+      "10 kg",
+      "Κλάση A",
+      "549 €"
+     ]
+    }
+   ],
+   "reject": [
+    {
+     "id": "cmuawu2vl0wm0d4r2q81sx9qt",
+     "reason": "7 kg — μικρό για διπλό πάπλωμα"
+    },
+    {
+     "id": "cmuawtr4c0q20d4r2bxp42dkf",
+     "reason": "8 kg — μικρό για διπλό πάπλωμα"
+    }
+   ],
+   "reject2": [
+    {
+     "id": "cmuawuep418jfd4r2vncgjy4i",
+     "reason": "390 € ακριβότερο, χωρίς λόγο"
+    }
+   ],
+   "pick": "cmuawu6oz10jzd4r28ptyltkr",
+   "lines": {
+    "ask": "Πρώτα πρώτα, πλυντήριο. Σου διάλεξα τέσσερα. Πες μου — θα πλένεις και παπλώματα στο σπίτι;",
+    "answer": "Ναι, φυσικά!",
+    "verdict": "Τότε θέλουμε τουλάχιστον εννιά κιλά. Αυτά φεύγουν.",
+    "verdict2": "Από τα δύο, το BOSCH κάνει την ίδια δουλειά και κοστίζει λιγότερο. Αυτό σου προτείνω.",
+    "pick": "Αυτό είναι. Πάει στο μπάνιο."
+   }
+  },
+  {
+   "key": "fridge",
+   "room": "kitchen",
+   "label": "Ψυγειοκαταψύκτης",
+   "candidates": [
+    {
+     "id": "cmuawtlja0n2zd4r2llix8wms",
+     "title": "BOSCH ΨΥΓ/ΚΤΗΣ KGN 39LBCF",
+     "brand": "BOSCH",
+     "price": 1099,
+     "image": "https://euronics.b-cdn.net/products/4242005274161/kgn39lbcf-01.webp",
+     "slug": "bosch-psyg-ktis-kgn-39lbcf",
+     "key": "Κλάση C",
+     "chips": [
+      "Κλάση C",
+      "1.099 €"
+     ]
+    },
+    {
+     "id": "cmuawu2vj0wiyd4r2vut31r4n",
+     "title": "SAMSUNG RB38C7B6AS9/EF Ψυγ/κτης 203χ60,BESPOKE,MC,A,Wine Self,I",
+     "brand": "SAMSUNG",
+     "price": 1369,
+     "image": "https://euronics.b-cdn.net/products/8806094768503/rb38c7b6as9-01.webp",
+     "slug": "samsung-rb38c7b6as9-ef-psyg-ktis-203ch60-bespoke-mc-a-wine-self-i",
+     "key": "Κλάση A",
+     "chips": [
+      "Κλάση A",
+      "1.369 €"
+     ]
+    },
+    {
+     "id": "cmuawu6ov109zd4r2zstpls3k",
+     "title": "AEG ORC6M481EX ΨΥΓΕΙΟΚΑΤΑΨΥΚΤΗΣ FROST FF",
+     "brand": "AEG",
+     "price": 1209,
+     "image": "https://euronics.b-cdn.net/products/7333394035857/orc6m481ex-01.webp",
+     "slug": "aeg-orc6m481ex-psygeiokatapsyktis-frost-ff",
+     "key": "Κλάση E",
+     "chips": [
+      "Κλάση E",
+      "1.209 €"
+     ]
+    }
+   ],
+   "reject": [
+    {
+     "id": "cmuawtlja0n2zd4r2llix8wms",
+     "reason": "Κλάση C — καίει περισσότερο"
+    },
+    {
+     "id": "cmuawu6ov109zd4r2zstpls3k",
+     "reason": "Κλάση E — καίει περισσότερο"
+    }
+   ],
+   "reject2": [],
+   "pick": "cmuawu2vj0wiyd4r2vut31r4n",
+   "lines": {
+    "ask": "Πάμε κουζίνα. Ψυγείο — θα δουλεύει μέρα νύχτα, δώδεκα μήνες τον χρόνο. Θέλεις να καίει όσο γίνεται λιγότερο ρεύμα;",
+    "answer": "Ναι, σίγουρα.",
+    "verdict": "Τότε κρατάμε μόνο την καλύτερη ενεργειακή κλάση.",
+    "verdict2": null,
+    "pick": "Αυτό. Μπαίνει στην κουζίνα."
+   }
+  },
+  {
+   "key": "tv",
+   "room": "living",
+   "label": "Τηλεόραση",
+   "candidates": [
+    {
+     "id": "cmuawuep618nvd4r2as3kh7ir",
+     "title": "UE43M70HAUXXH Mini LED M70H 4K Samsung Vision AI Smart TV 2026",
+     "brand": "SAMSUNG",
+     "price": 449,
+     "image": "https://euronics.b-cdn.net/products/8806097966722/ue43m70hauxxh-01.webp",
+     "slug": "ue43m70hauxxh-mini-led-m70h-4k-samsung-vision-ai-smart-tv-2026",
+     "key": "43″",
+     "chips": [
+      "43″",
+      "449 €"
+     ]
+    },
+    {
+     "id": "cmuawui651c6id4r2lzzxwqiz",
+     "title": "OLED55C64LA.API OLED TV 55 (UD) LG",
+     "brand": "LG",
+     "price": 1499,
+     "image": "https://euronics.b-cdn.net/products/8806096762172/oled55c64la-01.webp",
+     "slug": "oled55c64la-api-oled-tv-55-ud-lg",
+     "key": "55″",
+     "chips": [
+      "55″",
+      "Κλάση F",
+      "1.499 €"
+     ]
+    },
+    {
+     "id": "cmuawuep518n1d4r2kpde2b9n",
+     "title": "RGB MiniLED Smart TV 4K 180 Hz 75UR8S 75\" HISENSE",
+     "brand": "HISENSE",
+     "price": 1999,
+     "image": "https://euronics.b-cdn.net/products/6942351436760/75ur8s-01.webp",
+     "slug": "rgb-miniled-smart-tv-4k-180-hz-75ur8s-75-hisense",
+     "key": "75″",
+     "chips": [
+      "75″",
+      "Κλάση C",
+      "1.999 €"
+     ]
+    }
+   ],
+   "reject": [
+    {
+     "id": "cmuawuep618nvd4r2as3kh7ir",
+     "reason": "43″ — μικρή για 2,5 m"
+    },
+    {
+     "id": "cmuawuep518n1d4r2kpde2b9n",
+     "reason": "75″ — πολύ μεγάλη για 2,5 m"
+    }
+   ],
+   "reject2": [],
+   "pick": "cmuawui651c6id4r2lzzxwqiz",
+   "lines": {
+    "ask": "Σαλόνι. Τηλεόραση. Πόσο μακριά θα κάθεσαι — γύρω στα δυόμισι μέτρα;",
+    "answer": "Ναι, κάπου εκεί.",
+    "verdict": "Για δυόμισι μέτρα, οι πενήντα πέντε ίντσες είναι ό,τι πρέπει.",
+    "verdict2": null,
+    "pick": "Στο σαλόνι."
+   }
+  },
+  {
+   "key": "ac",
+   "room": "living",
+   "label": "Κλιματιστικό",
+   "candidates": [
+    {
+     "id": "cmvb2ghfk00utd4c4kiz5tz6t",
+     "title": "Κλιματιστικό GTN/GTG-09CMB GOSAI BLACK Inverter TOYOTOMI",
+     "brand": "TOYOTOMI",
+     "price": 679,
+     "image": "https://euronics.b-cdn.net/products/5205022022954/gtn-gtg-09cmb-01.webp",
+     "slug": "klimatistiko-gtn-gtg-09cmb-gosai-black-inverter-toyotomi-set",
+     "key": "9.000 BTU",
+     "chips": [
+      "9.000 BTU",
+      "Κλάση A+++",
+      "679 €"
+     ]
+    },
+    {
+     "id": "cmvb2gfs100srd4c4npbxz4o2",
+     "title": "Κλιματιστικό ASYG12KETF/AOYG12KETA Inverter Fujitsu",
+     "brand": "FUJITSU",
+     "price": 949,
+     "image": "https://euronics.b-cdn.net/products/4974437546812/asyg12ketf-01.webp",
+     "slug": "klimatistiko-asyg12ketf-aoyg12keta-inverter-fujitsu-set",
+     "key": "12.000 BTU",
+     "chips": [
+      "12.000 BTU",
+      "Κλάση A++",
+      "949 €"
+     ]
+    },
+    {
+     "id": "cmvb2gmwu011dd4c4ftofyf98",
+     "title": "INVENTOR INVI/INVO-18WFI INTELLIA",
+     "brand": "INVENTOR",
+     "price": 1149,
+     "image": "https://euronics.b-cdn.net/products/6430030842679/invi-invio-18wfi-01.webp",
+     "slug": "inventor-invi-invo-18wfi-intellia-set",
+     "key": "18.000 BTU",
+     "chips": [
+      "18.000 BTU",
+      "Κλάση A+++",
+      "1.149 €"
+     ]
+    }
+   ],
+   "reject": [
+    {
+     "id": "cmvb2ghfk00utd4c4kiz5tz6t",
+     "reason": "9.000 BTU — λίγα για 25 m²"
+    },
+    {
+     "id": "cmvb2gmwu011dd4c4ftofyf98",
+     "reason": "18.000 BTU — υπερβολικό, θα καίει άσκοπα"
+    }
+   ],
+   "reject2": [],
+   "pick": "cmvb2gfs100srd4c4npbxz4o2",
+   "lines": {
+    "ask": "Και τώρα, το πιο σημαντικό για τη Λάρισα: κλιματιστικό. Τον Ιούλιο εκεί το θερμόμετρο περνάει τους σαράντα. Το σαλόνι είναι γύρω στα είκοσι πέντε τετραγωνικά;",
+    "answer": "Ναι, περίπου.",
+    "verdict": "Τότε θέλουμε δώδεκα χιλιάδες μονάδες. Ούτε λιγότερο, ούτε περισσότερο.",
+    "verdict2": null,
+    "pick": "Δροσιά εξασφαλισμένη."
+   }
+  },
+  {
+   "key": "cooker",
+   "room": "kitchen",
+   "label": "Κουζίνα",
+   "candidates": [
+    {
+     "id": "cmuawu6ou106zd4r2j6g0l7h7",
+     "title": "AEG CIB6443BBM 5000 SurroundCook Επαγωγική Κουζίνα ελεύθερη",
+     "brand": "AEG",
+     "price": 1009,
+     "image": "https://euronics.b-cdn.net/products/7333394063348/cib6443bbm-01.webp",
+     "slug": "aeg-cib6443bbm-5000-surroundcook-epagogiki-koyzina-eleytheri",
+     "key": "Επαγωγικές",
+     "chips": [
+      "Επαγωγικές",
+      "Κλάση A",
+      "1.009 €"
+     ]
+    },
+    {
+     "id": "cmuawt7n40gfdd4r2fu4trb3n",
+     "title": "HM BOSCH HKR390020",
+     "brand": "BOSCH",
+     "price": 649,
+     "image": "https://euronics.b-cdn.net/products/4242005041916/hkr390020-01.webp",
+     "slug": "hm-bosch-hkr390020",
+     "key": "Κεραμικές εστίες",
+     "chips": [
+      "Κεραμικές εστίες",
+      "Κλάση A",
+      "649 €"
+     ]
+    },
+    {
+     "id": "cmvb2gndx011xd4c4o8dst9uz",
+     "title": "AEG ELECTROLUX LKI66021AX Κουζίνα Ελεύθερη + Δώρο E3SS",
+     "brand": "AEG",
+     "price": 985,
+     "image": "https://euronics.b-cdn.net/products/7333394063362/lki66021ax-01.webp",
+     "slug": "aeg-electrolux-lki66021ax-koyzina-eleytheri-doro-e3ss-set",
+     "key": "Επαγωγικές",
+     "chips": [
+      "Επαγωγικές",
+      "985 €"
+     ]
+    }
+   ],
+   "reject": [
+    {
+     "id": "cmuawu6ou106zd4r2j6g0l7h7",
+     "reason": "Επαγωγικές — θέλουν ειδικά σκεύη"
+    },
+    {
+     "id": "cmvb2gndx011xd4c4o8dst9uz",
+     "reason": "Επαγωγικές — θέλουν ειδικά σκεύη"
+    }
+   ],
+   "reject2": [],
+   "pick": "cmuawt7n40gfdd4r2fu4trb3n",
+   "lines": {
+    "ask": "Τελευταία, κουζίνα. Κεραμικές εστίες — μαγειρεύεις με τα σκεύη που ήδη έχεις και καθαρίζονται με ένα πανί. Σε βολεύει;",
+    "answer": "Ναι, κεραμική.",
+    "verdict": "Ωραία — κρατάμε μόνο κεραμική.",
+    "verdict2": null,
+    "pick": "Και η κουζίνα, έτοιμη."
+   }
+  }
+ ],
+ "total": 5015,
+ "instalments": null,
+ "stores": [
+  {
+   "id": "cmtzn2njt0069d4dnm2bynz6x",
+   "name": "ΤΡΑΜΠΑΚΟΥΛΟΣ ΝΙΚΟΛΑΟΣ",
+   "street": "Ηπείρου",
+   "address": "Ηπείρου 60",
+   "city": "Λάρισα",
+   "phone": "2410621896",
+   "km": 1.5,
+   "lat": 39.634181,
+   "lng": 22.416573,
+   "spoken": "το κατάστημα της Ηπείρου"
+  },
+  {
+   "id": "cmtzn2amu0049d4dngv86byyk",
+   "name": "ΠΑΠΑΘΑΝΑΣΙΟΥ ΑΝΑΣΤΑΣΙΟΣ",
+   "street": "Ίωνος Δραγούμη",
+   "address": "Ίωνος Δραγούμη 10",
+   "city": "Λάρισα",
+   "phone": "2410256708",
+   "km": 1.9,
+   "lat": 39.638138,
+   "lng": 22.414294,
+   "spoken": "το κατάστημα της Ίωνος Δραγούμη"
+  },
+  {
+   "id": "cmtzn1ngm000pd4dnuwf8kxc8",
+   "name": "ΒΑΒΙΖΟΣ ΚΩΝ/ΝΟΣ & ΣΙΑ Ε.Ε.",
+   "street": "Αεροδρομίου",
+   "address": "Αεροδρομίου 78-80",
+   "city": "Λάρισα",
+   "phone": "2410232060",
+   "km": 2,
+   "lat": 39.6466749,
+   "lng": 22.4287168,
+   "spoken": "το κατάστημα της Αεροδρομίου"
+  }
+ ],
+ "voice": {
+  "Σοβαρά; Τι υπέροχα νέα, Γιάννη! Συγχαρητήρια — τόσο καιρό το περίμενες, και το άξιζες. Και τώρα… σπίτι από το μηδέν, ε;": "https://euronics.b-cdn.net/voice/1d/1d939a15838aad73a56bc00c.wav",
+  "Έλα, θα το στήσουμε μαζί. Ξεκινάμε από τα βασικά.": "https://euronics.b-cdn.net/voice/69/69397c3730036f07775c6299.wav",
+  "Πρώτα πρώτα, πλυντήριο. Σου διάλεξα τέσσερα. Πες μου — θα πλένεις και παπλώματα στο σπίτι;": "https://euronics.b-cdn.net/voice/a8/a8eb6d99b6b0e63ea2bd752b.wav",
+  "Τότε θέλουμε τουλάχιστον εννιά κιλά. Αυτά φεύγουν.": "https://euronics.b-cdn.net/voice/2d/2d982702d856101b0e9f1fd1.wav",
+  "Από τα δύο, το BOSCH κάνει την ίδια δουλειά και κοστίζει λιγότερο. Αυτό σου προτείνω.": "https://euronics.b-cdn.net/voice/9d/9db691c546224c5f0f10882a.wav",
+  "Αυτό είναι. Πάει στο μπάνιο.": "https://euronics.b-cdn.net/voice/f6/f68305db629842df009a8bdc.wav",
+  "Πάμε κουζίνα. Ψυγείο — θα δουλεύει μέρα νύχτα, δώδεκα μήνες τον χρόνο. Θέλεις να καίει όσο γίνεται λιγότερο ρεύμα;": "https://euronics.b-cdn.net/voice/bb/bb488a69339ebd9abf95cb06.wav",
+  "Τότε κρατάμε μόνο την καλύτερη ενεργειακή κλάση.": "https://euronics.b-cdn.net/voice/ea/ea89ec66bd9772ed71f44bb2.wav",
+  "Αυτό. Μπαίνει στην κουζίνα.": "https://euronics.b-cdn.net/voice/b2/b264b769e3ca55a2fa5dd095.wav",
+  "Σαλόνι. Τηλεόραση. Πόσο μακριά θα κάθεσαι — γύρω στα δυόμισι μέτρα;": "https://euronics.b-cdn.net/voice/87/8758c5ee14095ed3160db3c2.wav",
+  "Για δυόμισι μέτρα, οι πενήντα πέντε ίντσες είναι ό,τι πρέπει.": "https://euronics.b-cdn.net/voice/f4/f4c04099352e5d9129018497.wav",
+  "Στο σαλόνι.": "https://euronics.b-cdn.net/voice/62/6265e7232a2c94b99ac6e29e.wav",
+  "Και τώρα, το πιο σημαντικό για τη Λάρισα: κλιματιστικό. Τον Ιούλιο εκεί το θερμόμετρο περνάει τους σαράντα. Το σαλόνι είναι γύρω στα είκοσι πέντε τετραγωνικά;": "https://euronics.b-cdn.net/voice/53/53bcc262c63458f0897e2678.wav",
+  "Τότε θέλουμε δώδεκα χιλιάδες μονάδες. Ούτε λιγότερο, ούτε περισσότερο.": "https://euronics.b-cdn.net/voice/ec/ec375885f5f8883b415b33c4.wav",
+  "Δροσιά εξασφαλισμένη.": "https://euronics.b-cdn.net/voice/32/32c5569dfa9069e0cbf452cd.wav",
+  "Τελευταία, κουζίνα. Κεραμικές εστίες — μαγειρεύεις με τα σκεύη που ήδη έχεις και καθαρίζονται με ένα πανί. Σε βολεύει;": "https://euronics.b-cdn.net/voice/ff/ff6ba78fefd0a637eb3067c4.wav",
+  "Ωραία — κρατάμε μόνο κεραμική.": "https://euronics.b-cdn.net/voice/be/be51f669cf253209faca1766.wav",
+  "Και η κουζίνα, έτοιμη.": "https://euronics.b-cdn.net/voice/c9/c9256ede056d8bd701c8303e.wav",
+  "Έτοιμο το σπίτι! Πέντε συσκευές, σύνολο 5.015 ευρώ.": "https://euronics.b-cdn.net/voice/65/65df91d3bd15f6c002665d6e.wav",
+  "Θέλεις να βρω το πλησιέστερο κατάστημα, να τα παραλάβεις σήμερα κιόλας;": "https://euronics.b-cdn.net/voice/89/89e9244aec420858c4e35a11.wav",
+  "Βρήκα 3 καταστήματα κοντά στο νέο σου σπίτι. Ποιο σε βολεύει;": "https://euronics.b-cdn.net/voice/c9/c915dd1ca85d895b19c968d9.wav",
+  "Μισό λεπτό — παίρνω τηλέφωνο το κατάστημα της Ηπείρου, να σου τα κρατήσουν.": "https://euronics.b-cdn.net/voice/d5/d538aa175d98034abc2da9db.wav",
+  "Μισό λεπτό — παίρνω τηλέφωνο το κατάστημα της Ίωνος Δραγούμη, να σου τα κρατήσουν.": "https://euronics.b-cdn.net/voice/7b/7b1a8105b4f87ebb1d7b321b.wav",
+  "Μισό λεπτό — παίρνω τηλέφωνο το κατάστημα της Αεροδρομίου, να σου τα κρατήσουν.": "https://euronics.b-cdn.net/voice/fe/fed96e52c92804b2fcd1f43a.wav",
+  "Κανονίστηκε! Το κατάστημα της Ηπείρου σου τα κρατάει για σήμερα. Καλή αρχή στη Λάρισα, Γιάννη!": "https://euronics.b-cdn.net/voice/e7/e793f7b8e46317327d58ca8a.wav",
+  "Κανονίστηκε! Το κατάστημα της Ίωνος Δραγούμη σου τα κρατάει για σήμερα. Καλή αρχή στη Λάρισα, Γιάννη!": "https://euronics.b-cdn.net/voice/50/50b723b8a3953b6e879f8aa9.wav",
+  "Κανονίστηκε! Το κατάστημα της Αεροδρομίου σου τα κρατάει για σήμερα. Καλή αρχή στη Λάρισα, Γιάννη!": "https://euronics.b-cdn.net/voice/f3/f318e4787f6c91f365e85211.wav"
+ }
+}
