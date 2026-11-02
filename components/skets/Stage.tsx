@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { buildBeats, fallbackCall, fillStore, sceneAt, LIVE_BACK, LIVE_FILLERS, type Beat } from "@/lib/skets/script";
+import { buildBeats, fallbackCall, fillStore, sceneAt, LIVE_BACK, LIVE_FILLERS, TURN_FILLERS, type Beat } from "@/lib/skets/script";
 import type { CatKey, LiveEv, LiveProduct, Room, SkCategory, SkProduct, Snapshot } from "@/lib/skets/types";
 import type { Cmd } from "@/lib/skets/bus";
 import { askLive, startPtt, type Ptt } from "./ptt";
@@ -77,6 +77,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   useEffect(() => { iRef.current = i; }, [i]);
   /** η τρέχουσα ζωντανή απάντηση είναι προς τον παρουσιαστή (quiet): κλείνει μόνη της, χωρίς «πάμε πίσω» */
   const quiet = useRef(false);
+  const turnFill = useRef(0);
   const quietClose = () => { setLive(null); setListening(false); setLiveSp({ p: 0, speaking: false }); clearTimeout(lq.current.wait); lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined }; liveN.current = 0; quiet.current = false; };
   useEffect(() => { spRef.current = sp; }, [sp]);
   useEffect(() => { fetch("/api/skets/ask", { headers: { "x-skets-key": k } }).then((r) => r.json()).then((m) => { clips.current = m ?? {}; }).catch(() => {}); }, [k]);
@@ -111,9 +112,15 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
       stopAll(); clearTimeout(Q.wait);
       lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined };
       setLiveSp({ p: 0, speaking: false });
-      filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]);
-      // αν η αναζήτηση αργεί, δεύτερη φράση αναμονής — όχι σιωπή στη σκηνή
-      lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) filler(LIVE_FILLERS[(ev.n + 1) % LIVE_FILLERS.length]); }, 8000);
+      if (ev.quiet) {
+        // ο παρουσιαστής είπε κάτι εκτός σεναρίου (ίσως απλώς «καλημέρα»): όχι «ψάχνω στον κατάλογο» — ένα σύντομο «Μάλιστα…»
+        // μόνο αν αργήσει, κάθε φορά άλλο (ποτέ το ίδιο δύο φορές στη σειρά)
+        lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) { turnFill.current = (turnFill.current + 1 + Math.floor(Math.random() * (TURN_FILLERS.length - 1))) % TURN_FILLERS.length; filler(TURN_FILLERS[turnFill.current]); } }, 3000);
+      } else {
+        filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]);
+        // αν η αναζήτηση αργεί, δεύτερη φράση αναμονής — όχι σιωπή στη σκηνή
+        lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) filler(LIVE_FILLERS[(ev.n + 1) % LIVE_FILLERS.length]); }, 8000);
+      }
     }
     if (ev.n !== liveN.current && ev.phase !== "error") return;
     if (ev.products) ev.products.forEach((p) => liveProducts.current.set(p.id, p));
@@ -215,7 +222,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   const hearing = auto && !!mic && beat.wait === "presenter" && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
-    if (!audio || beat.id === "idle" || !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
+    if (!audio || !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
     const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id);
@@ -289,7 +296,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
           {/* αριστερά: ο Ερμής και τι λέει */}
           <motion.aside layout transition={spring} className={`relative z-10 flex flex-col items-center justify-center gap-[3vh] px-[2.5vw] ${scene.mode === "idle" ? "w-full" : "w-[27vw]"}`}>
             <Orb onStart={i === 0 && !live && !listening ? () => command({ t: "next" }) : undefined} speaking={live ? liveSp.speaking : speaking} listening={listening || (!live && !speaking && (beat.wait === "presenter" || beat.wait === "store"))} big={scene.mode === "idle" && !live && !listening} />
-            {scene.mode === "idle" && !live && !listening ? <IdleTitle cue={beat.cue ?? null} onStart={() => command({ t: "next" })} auto={auto} mic={!!mic} micErr={micErr} onArm={armMic} /> : <Caption text={live ? live.text ?? null : listening ? null : say} progress={live ? liveSp.p : progress} />}
+            {scene.mode === "idle" && !live && !listening ? <IdleTitle cue={beat.cue ?? null} onStart={() => command({ t: "next" })} auto={auto} mic={!!mic} micErr={micErr} onArm={armMic} meter={meter} /> : <Caption text={live ? live.text ?? null : listening ? null : say} progress={live ? liveSp.p : progress} />}
           </motion.aside>
 
           {scene.mode !== "idle" && (
@@ -324,7 +331,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
             </main>
           )}
         </div>
-        <AnimatePresence>{(live || listening) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
+        <AnimatePresence>{(listening || (live && !(live.quiet && !live.products?.length))) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
       </LayoutGroup>
       <Dock auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />
       <div className="absolute bottom-[1.2vh] right-[1.5vw] text-white/25 text-[length:var(--fs-12)] tabular-nums">{i + 1}/{beats.length} · {beat.id}</div>
@@ -353,7 +360,7 @@ function TopBar({ rehearsal, place }: { rehearsal: boolean; place: boolean }) {
  * Αρχική οθόνη. Αυτόματο: ο χειριστής πατά «Ενεργοποίηση μικροφώνου» πριν μπει ο κόσμος· μετά μένει μόνο ο Ερμής, και η
  * σκηνή ξεκινά μόλις ο παρουσιαστής πει την πρώτη του ατάκα. Χειροκίνητο: «▶ Ξεκίνα» (ή Space, ή το τηλεχειριστήριο).
  */
-function IdleTitle({ cue, onStart, auto, mic, micErr, onArm }: { cue: string | null; onStart: () => void; auto: boolean; mic: boolean; micErr: boolean; onArm: () => void }) {
+function IdleTitle({ cue, onStart, auto, mic, micErr, onArm, meter }: { cue: string | null; onStart: () => void; auto: boolean; mic: boolean; micErr: boolean; onArm: () => void; meter: React.RefObject<HTMLSpanElement | null> }) {
   const big = "mt-[4vh] min-h-16 rounded-full bg-eu-yellow px-10 font-black text-eu-navy text-[length:var(--fs-28)] shadow-[0_0_60px_rgb(241_196_0/0.35)] hover:scale-[1.03] active:scale-[0.97] transition";
   const blur = (f: () => void) => (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.blur(); f(); };
   return (
@@ -361,7 +368,11 @@ function IdleTitle({ cue, onStart, auto, mic, micErr, onArm }: { cue: string | n
       <h1 className="font-black tracking-tight text-[length:var(--fs-96)] leading-none">Ερμής</h1>
       <p className="mt-4 text-white/70 text-[length:var(--fs-30)]">ο ψηφιακός σύμβουλος της Euronics</p>
       {auto && mic ? (
-        <p className="mt-[4vh] text-white/35 text-[length:var(--fs-15)]">🎙 ακούω — ξεκινάμε μόλις ακουστεί {cue ?? "ο παρουσιαστής"}</p>
+        <>
+          {/* στάθμη μικροφώνου: γεμίζει όταν μιλά κάποιος, πράσινη όταν το μετρά για ατάκα */}
+          <span className="mt-[4vh] relative block h-2 w-48 overflow-hidden rounded-full bg-white/10"><span ref={meter} className="absolute inset-y-0 left-0 w-0 rounded-full bg-white/70 transition-[width] duration-75" /></span>
+          <p className="mt-3 text-white/35 text-[length:var(--fs-15)]">🎙 ακούω — ξεκινάμε μόλις ακουστεί {cue ?? "ο παρουσιαστής"}</p>
+        </>
       ) : auto ? (
         <>
           <button type="button" onClick={blur(onArm)} className={big}>🎙 Ενεργοποίηση μικροφώνου</button>

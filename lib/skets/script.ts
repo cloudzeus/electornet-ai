@@ -114,12 +114,16 @@ export function allPhrases(s: Snapshot): string[] {
     if (hasStore(x.say)) for (const st of s.stores) out.add(fillStore(x.say, st.spoken));
     else out.add(x.say);
   }
+  for (const x of s.qa ?? []) out.add(x.a);
   return [...out];
 }
 
 /** Ζωντανή ερώτηση: ο Ερμής «κερδίζει χρόνο» όσο ψάχνει (ηχογραφούνται μία φορά, στο άνοιγμα της σκηνής). */
 /** Ο Ερμής του σκετς μιλά λίγο πιο γρήγορα από του eshop (×, πάνω στο tempo των ρυθμίσεων φωνής). */
 export const SKETS_VOICE = { key: "skets", tempo: 1.05 } as const;
+
+/** σύντομη αναμονή όταν ο παρουσιαστής είπε κάτι εκτός σεναρίου και η απάντηση αργεί (όχι «κατάλογος»: μπορεί να είναι χαιρετισμός) */
+export const TURN_FILLERS = ["Μάλιστα…", "Χμ…", "Για να δούμε…", "Ναι…", "Ωραία…", "Ένα λεπτό…"];
 
 export const LIVE_FILLERS = ["Καλή ερώτηση! Μισό λεπτό να κοιτάξω στον κατάλογο.", "Για να δω τι έχουμε διαθέσιμο…", "Μισό λεπτό, το ψάχνω αμέσως."];
 export const LIVE_BACK = "Λοιπόν, πάμε πίσω εκεί που μείναμε.";

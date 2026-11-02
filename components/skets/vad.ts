@@ -16,8 +16,9 @@ export const VAD = {
   /** αφού σταματήσει να μιλά ο Ερμής, τόσο αγνοούμε (ουρά ήχου, αντήχηση) */
   guardMs: 600,
   /** ομιλία = πάνω από floor × ratio και πάνω από minRms */
-  ratio: 3,
-  minRms: 0.015,
+  ratio: 2.5,
+  /** μικρόφωνο laptop από 1–2 μέτρα: ομιλία ~0.01–0.05 */
+  minRms: 0.006,
   /** σκόρπιοι θόρυβοι που δεν έγιναν ατάκα ξεχνιούνται μετά από τόση σιωπή */
   resetMs: 1500,
   tickMs: 40,
@@ -28,10 +29,12 @@ export interface Mic { stream: MediaStream; ctx: AudioContext; analyser: Analyse
 /** Ανοίγει το μικρόφωνο — καλείται από κλικ (οι browsers θέλουν κίνηση του χρήστη για ήχο/μικρόφωνο). */
 export async function openMic(): Promise<Mic | null> {
   if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) return null;
-  // χωρίς autoGain: αλλιώς η σιωπή «φουσκώνει» και μοιάζει με ομιλία
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } }).catch(() => null);
-  if (!stream) return null;
+  // το AudioContext φτιάχνεται ΜΕΣΑ στο κλικ, πριν από κάθε await — αλλιώς ο Safari το αφήνει «παγωμένο» (σιωπή)
   const ctx = new AudioContext();
+  void ctx.resume().catch(() => {});
+  // autoGain: ο παρουσιαστής μιλά από απόσταση· η σιωπή που «φουσκώνει» την καλύπτει το προσαρμοζόμενο κατώφλι (floor)
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).catch(() => null);
+  if (!stream) { void ctx.close().catch(() => {}); return null; }
   await ctx.resume().catch(() => {});
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 1024;

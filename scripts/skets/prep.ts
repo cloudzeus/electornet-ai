@@ -14,7 +14,7 @@ import { db } from "../../lib/db";
 import { speak } from "../../lib/voice/tts";
 import { getSetting } from "../../lib/settings/store";
 import { SKETS } from "../../lib/skets/config";
-import { allPhrases, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE } from "../../lib/skets/script";
+import { allPhrases, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE, TURN_FILLERS } from "../../lib/skets/script";
 import type { CatKey, Room, SkCategory, SkProduct, SkReject, SkStore, Snapshot } from "../../lib/skets/types";
 
 interface Row { id: string; title: string; model: string | null; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
@@ -175,7 +175,7 @@ async function record(snap: Snapshot, skipVoice = false) {
     snap.voice = {};
     const force = process.argv.includes("--force");
     // και οι φράσεις αναμονής των ζωντανών ερωτήσεων (/api/skets/ask), να είναι έτοιμες στην cache
-    for (const text of [...LIVE_FILLERS, LIVE_BACK]) await speak(text, { ...SKETS_VOICE, force });
+    for (const text of [...LIVE_FILLERS, LIVE_BACK, ...TURN_FILLERS]) await speak(text, { ...SKETS_VOICE, force });
     for (const text of allPhrases(snap)) {
       const r = await speak(text, { ...SKETS_VOICE, force });
       if (r) snap.voice[text] = r.url; else console.warn("✗ χωρίς ηχογράφηση:", text);

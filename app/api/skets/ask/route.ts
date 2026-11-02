@@ -82,9 +82,9 @@ export async function GET(req: Request) {
   if (!sketsReq(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const aid = new URL(req.url).searchParams.get("audio");
   if (aid) { const a = liveAudio(aid); return a ? new Response(new Uint8Array(a.bytes), { headers: { "Content-Type": a.mime, "Cache-Control": "no-store" } }) : new Response("gone", { status: 404 }); }
-  const { LIVE_FILLERS, LIVE_BACK } = await import("@/lib/skets/script");
+  const { LIVE_FILLERS, LIVE_BACK, TURN_FILLERS } = await import("@/lib/skets/script");
   const { speak } = await import("@/lib/voice/tts");
   const out: Record<string, string> = {};
-  await Promise.all([...LIVE_FILLERS, LIVE_BACK].map(async (t) => { const r = await speak(t, SKETS_VOICE).catch(() => null); if (r) out[t] = r.url; }));
+  await Promise.all([...LIVE_FILLERS, LIVE_BACK, ...TURN_FILLERS].map(async (t) => { const r = await speak(t, SKETS_VOICE).catch(() => null); if (r) out[t] = r.url; }));
   return NextResponse.json(out);
 }

@@ -19,6 +19,8 @@ export interface SkCategory {
   lines: { ask: string; answer: string; /** διευκρίνιση πριν την απάντηση: ο Ερμής ρωτά πιο συγκεκριμένα, ο παρουσιαστής απαντά */ follow?: { ask: string; answer: string } | null; verdict: string; verdict2: string | null; pick: string };
 }
 export interface SkStore { id: string; name: string; street: string; address: string; city: string; phone: string | null; km: number; lat: number; lng: number; /** «το κατάστημα της Αεροδρομίου» */ spoken: string }
+/** cat: σε ποια ομάδα ισχύει (null = οπουδήποτε) · q: πώς μπορεί να το πει ο παρουσιαστής · a: τι απαντά ο Ερμής · ids: προϊόντα στην οθόνη */
+export interface SkQA { cat: CatKey | null; q: string[]; a: string; ids: string[]; /** μόνο στην έναρξη (πριν μάθει ο Ερμής τα νέα) */ start?: boolean }
 export interface Snapshot {
   at: string;
   presenter: { name: string; vocative: string; full: string; /** «για λογαριασμό του …», «στο όνομα του …» */ genitive: string };
@@ -29,6 +31,8 @@ export interface Snapshot {
   stores: SkStore[];
   /** κείμενο φράσης → URL ηχογράφησης (φωνή του Ερμή) */
   voice: Record<string, string>;
+  /** έτοιμες απαντήσεις σε πιθανές ερωτήσεις/σχόλια του παρουσιαστή (scripts/skets/qa.ts), ηχογραφημένες όπως όλες οι φράσεις */
+  qa?: SkQA[];
 }
 
 /** Ζωντανή ερώτηση εκτός σεναρίου: προϊόν που πρότεινε ο Ερμής του eshop (από τη βάση, τη στιγμή της ερώτησης). */
