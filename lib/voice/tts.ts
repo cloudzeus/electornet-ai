@@ -186,13 +186,16 @@ async function cacheLookup(hash: string): Promise<SpeakResult | null> {
   return { url: hit.url, mime: hit.mime, durationMs: hit.durationMs, cached: true, costUsd: 0, id: hit.id };
 }
 
+/** Πολλαπλασιαστής ταχύτητας μόνο για έναν καταναλωτή (π.χ. το σκετς), πάνω στο tempo των ρυθμίσεων· μπαίνει στο κλειδί της cache. */
+const withTempo = (cfg: VoiceConfig, tempo?: number): VoiceConfig => (tempo && tempo !== 1 ? { ...cfg, tempo: Math.round(Math.min(2, Math.max(0.5, cfg.tempo * tempo)) * 100) / 100 } : cfg);
+
 /**
  * Text → audio URL. Cache first (hash of model+voice+style+tempo+text): a hit
  * costs nothing and bumps `hits`. A miss synthesises, encodes, stores in the
  * media storage (Bunny CDN when enabled) and logs the cost to AiUsage.
  */
-export async function speak(rawText: string, opts: { key?: string; force?: boolean } = {}): Promise<SpeakResult | null> {
-  const cfg = await getVoiceConfig(), apiKey = await voiceKey(cfg);
+export async function speak(rawText: string, opts: { key?: string; force?: boolean; tempo?: number } = {}): Promise<SpeakResult | null> {
+  const cfg = withTempo(await getVoiceConfig(), opts.tempo), apiKey = await voiceKey(cfg);
   if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
@@ -208,8 +211,8 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
  * to the caller at once (inline) and storage + cache row are written by the
  * `persist` callback the route schedules after the response.
  */
-export async function speakInline(rawText: string, opts: { key?: string } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
-  const cfg = await getVoiceConfig(), apiKey = await voiceKey(cfg);
+export async function speakInline(rawText: string, opts: { key?: string; tempo?: number } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
+  const cfg = withTempo(await getVoiceConfig(), opts.tempo), apiKey = await voiceKey(cfg);
   if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;
@@ -232,7 +235,8 @@ export async function prewarmPresets(force = false) {
   }
   // Rows of another voice/model/style, or presets whose wording changed, can never be hit again: drop them and their files.
   const current = new Set(PRESET_PHRASES.map((p) => phraseHash(cfg.ttsModel, cfg.voice, styleKey(cfg), normaliseText(p.text))));
-  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: styleKey(cfg) } }, { key: { not: null }, hash: { notIn: [...current] } }] } });
+  // οι φράσεις του σκετς (key «skets», δική τους ταχύτητα) μένουν: τις δείχνει το lib/skets/snapshot.json
+  const stale = await db.voicePhrase.findMany({ where: { OR: [{ voice: { not: cfg.voice } }, { model: { not: cfg.ttsModel } }, { style: { not: styleKey(cfg) } }, { key: { not: null }, hash: { notIn: [...current] } }], AND: [{ OR: [{ key: null }, { key: { not: "skets" } }] }] } });
   for (const row of stale) { await removeBytes(row.storage as Storage, row.path, row.url); await db.voicePhrase.delete({ where: { id: row.id } }).catch(() => null); }
   return out;
 }

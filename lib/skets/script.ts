@@ -16,13 +16,13 @@ export type Act =
 export interface Beat { id: string; act?: Act; say?: string; wait: "presenter" | "auto" | "store" | "call"; delay?: number; cue?: string }
 
 export const lines = (s: Snapshot) => ({
-  hello: `Σοβαρά; Τι υπέροχα νέα, ${s.presenter.vocative}! Συγχαρητήρια — τόσο καιρό το περίμενες, και το άξιζες. Και τώρα… σπίτι από το μηδέν, ε;`,
-  start: "Έλα, θα το στήσουμε μαζί. Ξεκινάμε από τα βασικά.",
-  summary: `Έτοιμο το σπίτι! Πέντε συσκευές, σύνολο ${eurSpoken(s.total)}${s.instalments ? `, ή ${s.instalments.months} άτοκες δόσεις των ${eurSpoken(s.instalments.amount)}` : ""}.`,
-  ask: "Θέλεις να βρω το πλησιέστερο κατάστημα, να τα παραλάβεις σήμερα κιόλας;",
-  map: `Βρήκα ${s.stores.length} καταστήματα κοντά στο νέο σου σπίτι. Ποιο σε βολεύει;`,
-  call: "Μισό λεπτό — παίρνω τηλέφωνο {store}, να σου τα κρατήσουν.",
-  done: `Κανονίστηκε! {Store} σου τα κρατάει για σήμερα. Καλή αρχή στη Λάρισα, ${s.presenter.vocative}!`,
+  hello: `Συγχαρητήρια, ${s.presenter.vocative}! Πώς μπορώ να βοηθήσω;`,
+  start: "Ευχαρίστως. Ας ξεκινήσουμε από τα βασικά.",
+  summary: `Το σπίτι είναι έτοιμο. Πέντε συσκευές, σύνολο ${eurSpoken(s.total)}${s.instalments ? `, ή ${s.instalments.months} άτοκες δόσεις των ${eurSpoken(s.instalments.amount)}` : ""}.`,
+  ask: "Θέλετε να βρω το πλησιέστερο κατάστημα, για να τα παραλάβετε σήμερα κιόλας;",
+  map: `Βρήκα ${s.stores.length} καταστήματα κοντά στο νέο σας σπίτι. Ποιο σας βολεύει;`,
+  call: "Ένα λεπτό — καλώ {store}, να σας τα κρατήσουν.",
+  done: `Κανονίστηκε. {Store} σας τα κρατάει για σήμερα. Καλή αρχή στη Λάρισα, ${s.presenter.vocative}!`,
 });
 
 /** «1.847,50 €» → «1.847 ευρώ και 50 λεπτά» — ο αριθμός διαβάζεται σωστά από τη φωνή. */
@@ -35,11 +35,12 @@ export function buildBeats(s: Snapshot): Beat[] {
   const L = lines(s);
   const b: Beat[] = [
     { id: "idle", act: { t: "idle" }, wait: "presenter", cue: "«Ερμή, έχω νέα! Πήρα επιτέλους τη θέση στη Λάρισα!»" },
-    { id: "hello", act: { t: "intro" }, say: L.hello, wait: "presenter", cue: "«Ναι, από το μηδέν! Βοήθησέ με.»" },
+    { id: "hello", act: { t: "intro" }, say: L.hello, wait: "presenter", cue: "«Να με βοηθήσεις να εξοπλίσουμε το νέο μου σπίτι από το μηδέν.»" },
     { id: "start", say: L.start, wait: "auto", delay: 300 },
   ];
   for (const c of s.cats) {
     b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.ask, wait: "presenter", cue: `«${c.lines.answer}»` });
+    if (c.lines.follow) b.push({ id: `${c.key}-ask2`, say: c.lines.follow.ask, wait: "presenter", cue: `«${c.lines.follow.answer}»` });
     b.push({ id: `${c.key}-verdict`, say: c.lines.verdict, wait: "auto", delay: 200 });
     c.reject.forEach((r, i) => b.push({ id: `${c.key}-x${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
     if (c.lines.verdict2) {
@@ -115,3 +116,21 @@ export function allPhrases(s: Snapshot): string[] {
   }
   return [...out];
 }
+
+/** Ζωντανή ερώτηση: ο Ερμής «κερδίζει χρόνο» όσο ψάχνει (ηχογραφούνται μία φορά, στο άνοιγμα της σκηνής). */
+/** Ο Ερμής του σκετς μιλά λίγο πιο γρήγορα από του eshop (×, πάνω στο tempo των ρυθμίσεων φωνής). */
+export const SKETS_VOICE = { key: "skets", tempo: 1.05 } as const;
+
+export const LIVE_FILLERS = ["Καλή ερώτηση! Μισό λεπτό να κοιτάξω στον κατάλογο.", "Για να δω τι έχουμε διαθέσιμο…", "Μισό λεπτό, το ψάχνω αμέσως."];
+export const LIVE_BACK = "Λοιπόν, πάμε πίσω εκεί που μείναμε.";
+
+/** Η απάντηση του Ερμή του eshop είναι γραμμένη για chat: στη σκηνή λέγονται οι πρώτες 2–3 προτάσεις (γρήγορη εκφώνηση). */
+export function liveSpoken(text: string, max = 320): string {
+  const clean = text.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim();
+  const parts = liveSentences(clean);
+  let out = "", n = 0;
+  for (const p of parts) { if (out && (out + " " + p).length > max) break; out = out ? `${out} ${p}` : p; if (++n >= 3) break; }
+  return out || clean.slice(0, max);
+}
+/** Προτάσεις: τελεία/ερωτηματικό ακολουθούμενο από κενό — όχι η τελεία μέσα σε αριθμό («5.200 mAh», «0,19 €»). */
+export const liveSentences = (t: string) => t.split(/(?<=[.!?;»])\s+/).map((x) => x.trim()).filter(Boolean);

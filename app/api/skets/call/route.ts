@@ -35,17 +35,19 @@ function bubbles(lines: LiveLine[]) {
 
 /**
  * POST { store } → ο Ερμής καλεί το SKETS_CALL_TO (ή το SKETS_TEST_TO σε πρόβα) για το κατάστημα που διάλεξε ο
- * παρουσιαστής, με τα προϊόντα που μπήκαν στο σπίτι. GET ?id= → κατάσταση και απομαγνητοφώνηση για τους υπότιτλους.
+ * παρουσιαστής, με τα προϊόντα που μπήκαν στο σπίτι (και τα `extras` που πρόσθεσε ζωντανά το κοινό). GET ?id= → κατάσταση και απομαγνητοφώνηση για τους υπότιτλους.
  */
 export async function POST(req: Request) {
   if (!sketsReq(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const b = (await req.json().catch(() => ({}))) as { store?: number; rehearsal?: boolean };
+  const b = (await req.json().catch(() => ({}))) as { store?: number; rehearsal?: boolean; extras?: string[] };
   const store = snap.stores[b.store ?? -1];
   const to = (b.rehearsal ? process.env.SKETS_TEST_TO : process.env.SKETS_CALL_TO) || process.env.SKETS_TEST_TO;
   if (!store || !to) return NextResponse.json({ error: !store ? "άγνωστο κατάστημα" : "λείπει SKETS_CALL_TO / SKETS_TEST_TO" }, { status: 400 });
   const { data } = await getSetting("ai");
   const voice = String(data.elevenVoiceId || "JBFqnCBsd6RMkjVDRZzb");
-  const vars = { store: store.spoken, customer: snap.presenter.genitive, items: callItems(snap) };
+  // ό,τι πρόσθεσε ζωντανά το κοινό (ερώτηση εκτός σεναρίου) μπαίνει στη λίστα της κλήσης
+  const extras = (Array.isArray(b.extras) ? b.extras : []).filter((x) => typeof x === "string").map((x) => x.slice(0, 120)).slice(0, 4);
+  const vars = { store: store.spoken, customer: snap.presenter.genitive, items: callItems(snap) + (extras.length ? `, και επιπλέον ${extras.join(", ")}` : "") };
   // Vapi πρώτα (ζωντανοί υπότιτλοι + ήχος), αν υπάρχει κλειδί και δημόσια διεύθυνση για το webhook· αλλιώς ElevenLabs
   const base = process.env.VAPI_API_KEY ? await webhookBase(req) : null;
   if (base) {

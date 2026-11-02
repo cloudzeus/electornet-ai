@@ -3,15 +3,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { buildBeats, fallbackCall, fillStore, sceneAt, type Beat } from "@/lib/skets/script";
-import type { CatKey, Room, SkCategory, SkProduct, Snapshot } from "@/lib/skets/types";
+import { buildBeats, fallbackCall, fillStore, sceneAt, LIVE_BACK, LIVE_FILLERS, type Beat } from "@/lib/skets/script";
+import type { CatKey, LiveEv, LiveProduct, Room, SkCategory, SkProduct, Snapshot } from "@/lib/skets/types";
 import type { Cmd } from "@/lib/skets/bus";
+import { askLive, startPtt, type Ptt } from "./ptt";
+import { openMic, useVad, type Mic } from "./vad";
 import css from "./skets.module.css";
 
 /**
  * @dynamic Η σκηνή του σκετς (προβολέας 16:9). Προχωρά βήμα-βήμα (lib/skets/script.ts): Space / → / Enter = επόμενο,
  * ← = πίσω, 1–9 = κατάστημα, C = τέλος κλήσης, F = πλήρης οθόνη, Shift+R = από την αρχή. Τις ίδιες εντολές στέλνει
  * το τηλεχειριστήριο (/ermis-live/remote) μέσω SSE. Αποδίδεται μόνο στον browser (CSP: κανένα style attribute στο HTML).
+ * Ερώτηση εκτός σεναρίου: κρατάς πατημένο το M (μικρόφωνο του laptop) ή το «Μίλα στον Ερμή» στο τηλεχειριστήριο → απαντά
+ * ζωντανά ο Ερμής του eshop (/api/skets/ask). Esc ή Επόμενο = πίσω στο σενάριο, από εκεί που έμεινε.
+ * Αυτόματη συνέχεια (προεπιλογή· &auto=0 για χειροκίνητο): με το «Ενεργοποίηση μικροφώνου» ο Ερμής ακούει το μικρόφωνο του
+ * laptop και, όταν περιμένει τον παρουσιαστή, απαντά μόλις εκείνος πει την ατάκα του και σωπάσει (components/skets/vad.ts).
+ * A = αυτόματο ναι/όχι· το «Επόμενο» (Space / τηλεχειριστήριο) δουλεύει πάντα ως εφεδρεία.
  */
 const StoreMap = dynamic(() => import("./StoreMap"), { ssr: false });
 
@@ -31,7 +38,7 @@ const getPlayer = () => (player ??= new Audio());
  * σε κλήση δείχνουμε κυματομορφή, και στο τέλος τις φράσεις της συνομιλίας. */
 interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error"; id: string | null; error?: string; transcript: { who: "hermes" | "store"; text: string }[] }
 
-export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean }) {
+export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean }) {
   const beats = useMemo(() => buildBeats(snap), [snap]);
   const [i, setI] = useState(0);
   const [store, setStore] = useState<number | null>(null);
@@ -52,6 +59,80 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
   const go = useCallback((n: number) => { stopAll(); setI(Math.max(0, Math.min(beats.length - 1, n))); }, [beats.length]);
   const next = useCallback(() => { stopAll(); setI((x) => Math.min(beats.length - 1, x + 1)); }, [beats.length]);
 
+  // ζωντανή ερώτηση του κοινού: το σενάριο παγώνει, απαντά ο Ερμής του eshop, και μετά συνεχίζουμε από το ίδιο βήμα
+  const [live, setLive] = useState<LiveEv | null>(null);
+  const [listening, setListening] = useState(false);
+  const [auto, setAuto] = useState(autoDefault);
+  const [liveSp, setLiveSp] = useState({ p: 0, speaking: false });
+  const [extras, setExtras] = useState<LiveProduct[]>([]);
+  /** αυξάνεται για να ξαναπαιχτεί η φράση του τρέχοντος βήματος (επιστροφή από ζωντανή ερώτηση) */
+  const [replay, setReplay] = useState(0);
+  const clips = useRef<Record<string, string>>({});
+  const liveProducts = useRef(new Map<string, LiveProduct>());
+  const liveN = useRef(0);
+  /** ουρά της ζωντανής απάντησης: ένα κλιπ ανά πρόταση (part), παίζουν με τη σειρά μόλις ελευθερωθεί ο player */
+  const lq = useRef({ busy: false, parts: new Map<number, string>(), next: 0, total: 0, wait: undefined as ReturnType<typeof setTimeout> | undefined });
+  const spRef = useRef(sp);
+  const iRef = useRef(i);
+  useEffect(() => { iRef.current = i; }, [i]);
+  /** η τρέχουσα ζωντανή απάντηση είναι προς τον παρουσιαστή (quiet): κλείνει μόνη της, χωρίς «πάμε πίσω» */
+  const quiet = useRef(false);
+  const quietClose = () => { setLive(null); setListening(false); setLiveSp({ p: 0, speaking: false }); clearTimeout(lq.current.wait); lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined }; liveN.current = 0; quiet.current = false; };
+  useEffect(() => { spRef.current = sp; }, [sp]);
+  useEffect(() => { fetch("/api/skets/ask", { headers: { "x-skets-key": k } }).then((r) => r.json()).then((m) => { clips.current = m ?? {}; }).catch(() => {}); }, [k]);
+
+  /** ένα κλιπ στον player της σκηνής (αντικαθιστά τους handlers του βήματος — το σενάριο έχει ήδη παγώσει) */
+  const playClip = (url: string | undefined, onEnd: () => void, onProgress?: (p: number) => void) => {
+    if (!url) { onEnd(); return; }
+    const a = getPlayer();
+    a.src = url;
+    a.ontimeupdate = onProgress ? () => onProgress(a.duration ? a.currentTime / a.duration : 0) : null;
+    a.onended = onEnd;
+    a.play().catch(onEnd);
+  };
+  const pump = () => {
+    const Q = lq.current, url = Q.parts.get(Q.next);
+    if (Q.busy || !url) return;
+    Q.busy = true; clearTimeout(Q.wait);
+    const n = Q.next, total = Math.max(1, Q.total);
+    playClip(url, () => {
+      Q.busy = false; Q.next = n + 1;
+      if (Q.next >= total) { setLiveSp({ p: 1, speaking: false }); if (quiet.current) { timer.current = setTimeout(quietClose, 600); return; } }
+      pump();
+    }, (p) => setLiveSp({ p: (n + p) / total, speaking: true }));
+  };
+  const filler = (text: string) => { const Q = lq.current; Q.busy = true; playClip(clips.current[text], () => { Q.busy = false; pump(); }); };
+  const onLive = useCallback((ev: LiveEv) => {
+    if (beat.wait === "call") return; // η κλήση στο κατάστημα δεν διακόπτεται
+    const Q = lq.current;
+    if (ev.phase === "resume") { if (ev.n === liveN.current) { player?.pause(); quietClose(); } return; }
+    if (ev.phase === "thinking" && liveN.current !== ev.n) {
+      liveN.current = ev.n; quiet.current = !!ev.quiet;
+      stopAll(); clearTimeout(Q.wait);
+      lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined };
+      setLiveSp({ p: 0, speaking: false });
+      filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]);
+      // αν η αναζήτηση αργεί, δεύτερη φράση αναμονής — όχι σιωπή στη σκηνή
+      lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) filler(LIVE_FILLERS[(ev.n + 1) % LIVE_FILLERS.length]); }, 8000);
+    }
+    if (ev.n !== liveN.current && ev.phase !== "error") return;
+    if (ev.products) ev.products.forEach((p) => liveProducts.current.set(p.id, p));
+    setListening(false);
+    setLive((cur) => ({ ...cur, ...ev, products: ev.products ?? cur?.products, text: ev.text ?? cur?.text }));
+    if (ev.phase === "error") { clearTimeout(lq.current.wait); if (quiet.current) timer.current = setTimeout(quietClose, 2500); }
+    if (ev.phase === "audio" && ev.audio) { lq.current.parts.set(ev.part ?? 0, ev.audio); lq.current.total = ev.parts ?? 1; pump(); }
+  }, [beat.wait]); // eslint-disable-line react-hooks/exhaustive-deps
+  const closeLive = useCallback(() => {
+    setLive(null); setListening(false); setLiveSp({ p: 0, speaking: false }); clearTimeout(lq.current.wait); lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined }; liveN.current = 0;
+    stopAll();
+    // συνέχεια: αν η φράση του βήματος είχε ακουστεί, το βήμα προχωρά όπως θα προχωρούσε· αλλιώς ξαναλέγεται
+    playClip(clips.current[LIVE_BACK], () => {
+      const s = spRef.current;
+      if (s.i === i && s.done) { if (beat.wait === "auto") timer.current = setTimeout(next, beat.delay ?? 400); }
+      else setReplay((x) => x + 1);
+    });
+  }, [i, beat.wait, beat.delay, next]);
+
   // κάθε βήμα: φράση του Ερμή (ηχογραφημένη), και μετά — αν είναι αυτόματο — το επόμενο
   useEffect(() => {
     const cur = i;
@@ -70,8 +151,10 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
     a.onended = () => { setSp({ i: cur, p: 1, done: true }); advance(); };
     a.play().catch(() => { setSp({ i: cur, p: 1, done: true }); advance(); });
     return () => { a.onended = null; a.ontimeupdate = null; };
-  }, [i]); // eslint-disable-line react-hooks/exhaustive-deps -- μία φορά ανά βήμα
+  }, [i, replay]); // eslint-disable-line react-hooks/exhaustive-deps -- μία φορά ανά βήμα (και στην επιστροφή από ζωντανή ερώτηση)
 
+  const extrasRef = useRef(extras);
+  useEffect(() => { extrasRef.current = extras; }, [extras]);
   // η κλήση: ξεκινά στο βήμα call, υπότιτλοι από την απομαγνητοφώνηση, και όταν κλείσει πάμε στο τέλος
   const callStarted = useRef(false);
   useEffect(() => {
@@ -87,7 +170,7 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
     (async () => {
       setCall({ status: "dialing", id: null, transcript: [] });
       if (dry) { simulate(); return; }
-      const r = await fetch("/api/skets/call", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ store, rehearsal }) }).then((x) => x.json()).catch((e) => ({ error: String(e) }));
+      const r = await fetch("/api/skets/call", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ store, rehearsal, extras: extrasRef.current.map((p) => `${p.brand} ${p.title.split(" ").slice(0, 6).join(" ")}`) }) }).then((x) => x.json()).catch((e) => ({ error: String(e) }));
       if (stop) return;
       if (!r.id) { console.warn("skets call:", r.error); simulate(); return; }
       let audio = false;
@@ -107,22 +190,73 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
   }, [beat.act?.t, store, k, rehearsal, dry, next, snap]);
 
   const command = useCallback((c: Cmd) => {
+    if (c.t === "liveListen") { if (beat.wait === "call") return; setListening(c.on); if (c.on) { stopAll(); lq.current.busy = false; } return; }
+    if (c.t === "liveClose") { if (live || listening) closeLive(); return; }
+    if (c.t === "auto") { setAuto(c.on); return; }
+    if (c.t === "addExtra") { const p = liveProducts.current.get(c.id); if (p) setExtras((x) => (x.some((y) => y.id === p.id) ? x : [...x, p].slice(-4))); return; }
+    // ενώ είναι ανοιχτή ζωντανή ερώτηση, το «Επόμενο» γυρίζει στο σενάριο (δεν προσπερνά βήμα)
+    if (c.t === "next" && (live || listening)) { closeLive(); return; }
     if (c.t === "next") { if (beat.wait === "store" && store === null) return; next(); }
     else if (c.t === "back") go(i - 1);
     else if (c.t === "goto") go(c.i);
-    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); go(0); }
+    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
     else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && snap.stores[c.i]) { setStore(c.i); timer.current = setTimeout(next, 1600); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
-  }, [beat.wait, store, next, go, i, scene.mode, snap.stores]);
+  }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k]);
+
+  // αυτόματη συνέχεια: ο Ερμής ακούει το μικρόφωνο της σκηνής όσο περιμένει τον παρουσιαστή και δεν μιλά ο ίδιος
+  const [mic, setMic] = useState<Mic | null>(null);
+  const [micErr, setMicErr] = useState(false);
+  const meter = useRef<HTMLSpanElement>(null);
+  const armMic = async () => { setMicErr(false); const m = await openMic(); if (m) setMic(m); else setMicErr(true); };
+  useEffect(() => () => { mic?.stream.getTracks().forEach((t) => t.stop()); mic?.ctx.close().catch(() => {}); }, [mic]);
+  /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
+  const [turnBusy, setTurnBusy] = useState(false);
+  const hearing = auto && !!mic && beat.wait === "presenter" && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
+  const onTurn = (audio: Blob | null) => {
+    // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
+    if (!audio || beat.id === "idle" || !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
+    const at = i;
+    setTurnBusy(true);
+    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id);
+    fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
+      .then((r: { route?: string }) => { setTurnBusy(false); if (r.route !== "free" && iRef.current === at) { quietClose(); next(); } });
+  };
+  useVad(mic, hearing, () => !!player && !player.paused && !player.ended, onTurn, (level, voiced) => {
+    // στάθμη χωρίς re-render της σκηνής (CSSOM, όχι style attribute)
+    const el = meter.current; if (!el) return;
+    el.style.width = `${Math.min(100, Math.round(level * 50))}%`;
+    el.classList.toggle("bg-eu-green", voiced); el.classList.toggle("bg-white/70", !voiced);
+  });
+
+  // M (κρατημένο) ή το 🎤 της μπάρας = ερώτηση από το μικρόφωνο του laptop
+  const ptt = useRef<Promise<Ptt | null> | null>(null);
+  const pttDown = useCallback(() => { if (ptt.current || beat.wait === "call") return; command({ t: "liveListen", on: true }); ptt.current = startPtt(); }, [command, beat.wait]);
+  const pttUp = useCallback(async () => {
+    if (!ptt.current) return;
+    const rec = await ptt.current; ptt.current = null;
+    const blob = rec ? await rec.stop() : null;
+    if (blob) askLive(k, blob);
+    else { setListening(false); setLive({ n: Date.now(), phase: "error", q: "", error: rec ? "Δεν ακούστηκε τίποτα — κράτα πατημένο όσο μιλάς." : "Το μικρόφωνο δεν άνοιξε — επίτρεψέ το στον browser (εικονίδιο στη γραμμή διεύθυνσης)." }); }
+  }, [k]);
+  useEffect(() => {
+    // e.code: το φυσικό πλήκτρο, ώστε να δουλεύει και με ελληνικό πληκτρολόγιο («μ»)
+    const down = (e: KeyboardEvent) => { if (e.code === "KeyM" && !e.repeat) pttDown(); };
+    const up = (e: KeyboardEvent) => { if (e.code === "KeyM") pttUp(); };
+    window.addEventListener("keydown", down); window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, [pttDown, pttUp]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { command({ t: "liveClose" }); return; }
       if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); command({ t: "next" }); }
       else if (e.key === "ArrowLeft") command({ t: "back" });
-      else if (e.key === "R" && e.shiftKey) command({ t: "reset" });
+      else if (e.code === "KeyR" && e.shiftKey) command({ t: "reset" });
       else if (/^[1-9]$/.test(e.key)) command({ t: "store", i: Number(e.key) - 1 });
-      else if (e.key === "c" || e.key === "C") command({ t: "skipCall" });
-      else if (e.key === "f" || e.key === "F") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
+      else if (e.code === "KeyC") command({ t: "skipCall" });
+      else if (e.code === "KeyA") setAuto((x) => !x);
+      else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -131,14 +265,16 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
   // τηλεχειριστήριο: εντολές μέσα, κατάσταση έξω
   const cmdRef = useRef(command);
   useEffect(() => { cmdRef.current = command; }, [command]);
+  const liveRef = useRef(onLive);
+  useEffect(() => { liveRef.current = onLive; }, [onLive]);
   useEffect(() => {
     const es = new EventSource(`/api/skets/events?role=stage&k=${encodeURIComponent(k)}`);
-    es.onmessage = (m) => { const ev = JSON.parse(m.data); if (ev.kind === "cmd") cmdRef.current(ev.cmd); };
+    es.onmessage = (m) => { const ev = JSON.parse(m.data); if (ev.kind === "cmd") cmdRef.current(ev.cmd); else if (ev.kind === "live") liveRef.current(ev.live); };
     return () => es.close();
   }, [k]);
   useEffect(() => {
-    fetch("/api/skets/cmd", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ state: { i, id: beat.id, wait: beat.wait, cue: beat.cue ?? null, say, total: beats.length, stores: snap.stores.map((s) => s.street), storeIdx: store, call: call?.status ?? null, at: 0 } }) }).catch(() => {});
-  }, [i, store, call?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetch("/api/skets/cmd", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ state: { i, id: beat.id, wait: beat.wait, cue: beat.cue ?? null, say, total: beats.length, stores: snap.stores.map((s) => s.street), storeIdx: store, call: call?.status ?? null, live: !!(live || listening), extras: extras.map((p) => p.id), auto, mic: !!mic, hearing, at: 0 } }) }).catch(() => {});
+  }, [i, store, call?.status, !!(live || listening), extras.length, auto, !!mic, hearing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cat = scene.cat ? snap.cats.find((c) => c.key === scene.cat)! : null;
   const showMap = scene.mode === "map" || scene.mode === "call" || scene.mode === "done";
@@ -146,14 +282,14 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
   return (
     <div className={`fixed inset-0 overflow-hidden text-white select-none ${css.stage}`}>
       <div className={`absolute inset-0 pointer-events-none ${css.grain}`} />
-      <TopBar rehearsal={rehearsal} />
+      <TopBar rehearsal={rehearsal} place={i > 0} />
 
       <LayoutGroup>
         <div className="absolute inset-x-0 top-[9vh] bottom-0 flex">
           {/* αριστερά: ο Ερμής και τι λέει */}
           <motion.aside layout transition={spring} className={`relative z-10 flex flex-col items-center justify-center gap-[3vh] px-[2.5vw] ${scene.mode === "idle" ? "w-full" : "w-[27vw]"}`}>
-            <Orb speaking={speaking} listening={!speaking && (beat.wait === "presenter" || beat.wait === "store")} big={scene.mode === "idle"} />
-            {scene.mode === "idle" ? <IdleTitle /> : <Caption text={say} progress={progress} />}
+            <Orb onStart={i === 0 && !live && !listening ? () => command({ t: "next" }) : undefined} speaking={live ? liveSp.speaking : speaking} listening={listening || (!live && !speaking && (beat.wait === "presenter" || beat.wait === "store"))} big={scene.mode === "idle" && !live && !listening} />
+            {scene.mode === "idle" && !live && !listening ? <IdleTitle cue={beat.cue ?? null} onStart={() => command({ t: "next" })} auto={auto} mic={!!mic} micErr={micErr} onArm={armMic} /> : <Caption text={live ? live.text ?? null : listening ? null : say} progress={live ? liveSp.p : progress} />}
           </motion.aside>
 
           {scene.mode !== "idle" && (
@@ -164,7 +300,7 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
                     <StoreMap snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} />
                     <StoreList snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} dim={scene.mode !== "map"} />
                     <AnimatePresence>{scene.mode === "call" && call && store !== null && <CallPanel key="call" store={snap.stores[store]} call={call} />}</AnimatePresence>
-                    <AnimatePresence>{scene.mode === "done" && store !== null && <DoneCard key="done" snap={snap} store={store} />}</AnimatePresence>
+                    <AnimatePresence>{scene.mode === "done" && store !== null && <DoneCard key="done" snap={snap} store={store} extras={extras} />}</AnimatePresence>
                   </motion.section>
                 ) : (
                   <motion.section key="shop" className="flex-1 flex flex-col min-h-0" exit={{ opacity: 0, y: -30 }}>
@@ -181,20 +317,23 @@ export default function Stage({ snap, k, rehearsal, dry }: { snap: Snapshot; k: 
                         )}
                       </AnimatePresence>
                     </div>
-                    <House snap={snap} picked={scene.picked} current={scene.mode === "cat" ? scene.cat : null} big={scene.mode === "summary"} />
+                    <House snap={snap} picked={scene.picked} current={scene.mode === "cat" ? scene.cat : null} big={scene.mode === "summary"} extras={extras} />
                   </motion.section>
                 )}
               </AnimatePresence>
             </main>
           )}
         </div>
+        <AnimatePresence>{(live || listening) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
       </LayoutGroup>
+      <Dock auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />
       <div className="absolute bottom-[1.2vh] right-[1.5vw] text-white/25 text-[length:var(--fs-12)] tabular-nums">{i + 1}/{beats.length} · {beat.id}</div>
     </div>
   );
 }
 
-function TopBar({ rehearsal }: { rehearsal: boolean }) {
+/** ΠΡΟΒΑ: μόνο με ?prova=1 / ?dry=1 (στην παράσταση δεν φαίνεται)· η Λάρισα μόλις ξεκινήσει η ιστορία. */
+function TopBar({ rehearsal, place }: { rehearsal: boolean; place: boolean }) {
   return (
     <header className="absolute top-0 inset-x-0 h-[9vh] flex items-center justify-between px-[2.5vw] z-20">
       <div className="flex items-center gap-3">
@@ -204,24 +343,44 @@ function TopBar({ rehearsal }: { rehearsal: boolean }) {
       </div>
       <div className="flex items-center gap-3">
         {rehearsal && <span className="rounded-full bg-eu-red px-3 py-1 font-bold text-[length:var(--fs-14)]">ΠΡΟΒΑ</span>}
-        <span className="rounded-full bg-white/10 ring-1 ring-white/20 px-4 py-1.5 font-semibold text-[length:var(--fs-18)]">📍 Λάρισα</span>
+        {place && <span className="rounded-full bg-white/10 ring-1 ring-white/20 px-4 py-1.5 font-semibold text-[length:var(--fs-18)]">📍 Λάρισα</span>}
       </div>
     </header>
   );
 }
 
-function IdleTitle() {
+/**
+ * Αρχική οθόνη. Αυτόματο: ο χειριστής πατά «Ενεργοποίηση μικροφώνου» πριν μπει ο κόσμος· μετά μένει μόνο ο Ερμής, και η
+ * σκηνή ξεκινά μόλις ο παρουσιαστής πει την πρώτη του ατάκα. Χειροκίνητο: «▶ Ξεκίνα» (ή Space, ή το τηλεχειριστήριο).
+ */
+function IdleTitle({ cue, onStart, auto, mic, micErr, onArm }: { cue: string | null; onStart: () => void; auto: boolean; mic: boolean; micErr: boolean; onArm: () => void }) {
+  const big = "mt-[4vh] min-h-16 rounded-full bg-eu-yellow px-10 font-black text-eu-navy text-[length:var(--fs-28)] shadow-[0_0_60px_rgb(241_196_0/0.35)] hover:scale-[1.03] active:scale-[0.97] transition";
+  const blur = (f: () => void) => (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.blur(); f(); };
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }} className="text-center">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }} className="text-center flex flex-col items-center">
       <h1 className="font-black tracking-tight text-[length:var(--fs-96)] leading-none">Ερμής</h1>
       <p className="mt-4 text-white/70 text-[length:var(--fs-30)]">ο ψηφιακός σύμβουλος της Euronics</p>
+      {auto && mic ? (
+        <p className="mt-[4vh] text-white/35 text-[length:var(--fs-15)]">🎙 ακούω — ξεκινάμε μόλις ακουστεί {cue ?? "ο παρουσιαστής"}</p>
+      ) : auto ? (
+        <>
+          <button type="button" onClick={blur(onArm)} className={big}>🎙 Ενεργοποίηση μικροφώνου</button>
+          {micErr && <p className="mt-3 font-bold text-eu-red text-[length:var(--fs-16)]">Το μικρόφωνο δεν άνοιξε — επίτρεψέ το στον browser (εικονίδιο στη γραμμή διεύθυνσης) και ξαναπάτα.</p>}
+          <button type="button" onClick={blur(onStart)} className="mt-3 text-white/45 underline underline-offset-4 text-[length:var(--fs-15)]">ή ξεκίνα χειροκίνητα (Space)</button>
+        </>
+      ) : (
+        <>
+          <button type="button" onClick={blur(onStart)} className={big}>▶ Ξεκίνα</button>
+          {cue && <p className="mt-3 max-w-[60vw] text-white/40 text-[length:var(--fs-15)]">πάτα το όταν ο παρουσιαστής πει {cue} · ή Space</p>}
+        </>
+      )}
     </motion.div>
   );
 }
 
-function Orb({ speaking, listening, big }: { speaking: boolean; listening: boolean; big: boolean }) {
+function Orb({ speaking, listening, big, onStart }: { speaking: boolean; listening: boolean; big: boolean; onStart?: () => void }) {
   return (
-    <motion.div layout transition={spring} className={`relative shrink-0 ${big ? "size-[34vh]" : "size-[22vh]"}`}>
+    <motion.div layout transition={spring} onClick={onStart} title={onStart ? "Ξεκίνα" : undefined} className={`relative shrink-0 ${big ? "size-[34vh]" : "size-[22vh]"} ${onStart ? "cursor-pointer" : ""}`}>
       {speaking && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /><span className={`${css.ring} ${css.ring3}`} /></>}
       <motion.div
         className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff6c9_0%,#f1c400_28%,#1d428a_70%,#0b1f45_100%)] shadow-[0_0_80px_rgb(241_196_0/0.35)]"
@@ -301,9 +460,9 @@ function Card({ p, n, reason, chosen }: { p: SkProduct; n: number; reason: strin
 }
 
 /** Το σπίτι: τρία δωμάτια, κάθε επιλεγμένη συσκευή «πετά» στη θέση της (κοινό layoutId με την κάρτα). */
-function House({ snap, picked, current, big }: { snap: Snapshot; picked: Partial<Record<CatKey, string>>; current: CatKey | null; big: boolean }) {
-  // στο σύνολο μετρά ό,τι έχει ήδη μπει στο σπίτι (όχι η κάρτα που ακόμη αναβοσβήνει στη μέση)
-  const total = Object.entries(picked).reduce((t, [c, id]) => t + (c === current ? 0 : snap.cats.find((x) => x.key === c)!.candidates.find((p) => p.id === id)?.price ?? 0), 0);
+function House({ snap, picked, current, big, extras }: { snap: Snapshot; picked: Partial<Record<CatKey, string>>; current: CatKey | null; big: boolean; extras: LiveProduct[] }) {
+  // στο σύνολο μετρά ό,τι έχει ήδη μπει στο σπίτι (όχι η κάρτα που ακόμη αναβοσβήνει στη μέση), και ό,τι πρόσθεσε το κοινό
+  const total = Object.entries(picked).reduce((t, [c, id]) => t + (c === current ? 0 : snap.cats.find((x) => x.key === c)!.candidates.find((p) => p.id === id)?.price ?? 0), 0) + extras.reduce((t, p) => t + p.price, 0);
   return (
     <motion.div layout transition={spring} className={`mt-[2vh] rounded-[1.6rem] bg-white/[0.06] ring-1 ring-white/15 flex items-stretch gap-[1vw] ${big ? "p-[2vh_1.4vw]" : "p-[1.4vh_1vw]"}`}>
       {ROOMS.map((r) => (
@@ -335,6 +494,18 @@ function House({ snap, picked, current, big }: { snap: Snapshot; picked: Partial
           </div>
         </div>
       ))}
+      {extras.length > 0 && (
+        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="min-w-0 flex-1">
+          <div className="font-bold text-eu-yellow uppercase tracking-wider mb-[0.8vh] text-[length:var(--fs-14)]">+ Από το κοινό</div>
+          <div className={`flex gap-[0.4vw] ${big ? "h-[17vh]" : "h-[11vh]"}`}>
+            {extras.map((p) => (
+              <motion.div key={p.id} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={spring} className="h-full aspect-square shrink-0 grid place-items-center bg-white rounded-[0.7rem] p-1">
+                {p.image ? <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-black text-eu-blue text-[length:var(--fs-14)]">{p.brand}</span>}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
       <div className="w-[9vw] shrink-0 flex flex-col justify-end items-end">
         <span className="text-white/60 font-semibold text-[length:var(--fs-14)]">Σύνολο</span>
         <motion.span key={total} initial={{ scale: 1.3, color: "#f1c400" }} animate={{ scale: 1, color: "#ffffff" }} className="font-black tabular-nums text-[length:var(--fs-36)]">{eur(total)}</motion.span>
@@ -446,7 +617,7 @@ function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: C
   );
 }
 
-function DoneCard({ snap, store }: { snap: Snapshot; store: number }) {
+function DoneCard({ snap, store, extras }: { snap: Snapshot; store: number; extras: LiveProduct[] }) {
   const s = snap.stores[store];
   return (
     <motion.div initial={{ opacity: 0, scale: 0.85, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={spring} className="absolute inset-0 z-[700] grid place-items-center bg-eu-navy/55 backdrop-blur-sm">
@@ -460,6 +631,11 @@ function DoneCard({ snap, store }: { snap: Snapshot; store: number }) {
               <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" />
             </motion.div>
           ); })}
+          {extras.map((p, n) => p.image && (
+            <motion.div key={p.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + (snap.cats.length + n) * 0.12 }} className="size-[11vh] rounded-[1rem] bg-eu-surface ring-4 ring-eu-yellow grid place-items-center p-2">
+              <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" />
+            </motion.div>
+          ))}
         </div>
         <p className="mt-[2.4vh] font-black text-[length:var(--fs-30)]">Καλή αρχή στη Λάρισα, {snap.presenter.vocative}!</p>
       </div>
@@ -467,4 +643,111 @@ function DoneCard({ snap, store }: { snap: Snapshot; store: number }) {
   );
 }
 
+/**
+ * Η ζωντανή ερώτηση του κοινού πάνω από τη σκηνή: η ερώτηση όπως ακούστηκε, «ψάχνω στον κατάλογο», και τα προϊόντα που
+ * πρότεινε ο Ερμής του eshop (πραγματικά, από τη βάση). Ό,τι μπει στο σπίτι από το τηλεχειριστήριο σημαδεύεται.
+ */
+function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null; listening: boolean; extras: LiveProduct[]; presenter: string }) {
+  const q = listening ? null : live?.q && live.q !== "…" ? live.q : null;
+  const searching = !listening && (!live || live.phase === "thinking");
+  return (
+    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={spring} className="absolute right-[2.5vw] top-[11vh] bottom-[4vh] w-[64vw] z-[800] rounded-[1.8rem] bg-eu-navy/95 backdrop-blur ring-1 ring-white/20 shadow-2xl p-[3vh_2.4vw] flex flex-col gap-[3vh]">
+      <div>
+        <div className="font-black uppercase tracking-wider text-eu-yellow text-[length:var(--fs-16)]">{live?.quiet ? presenter : "Ερώτηση από το κοινό"}</div>
+        <AnimatePresence mode="wait">
+          <motion.p key={q ?? (listening ? "listen" : "wait")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-[1vh] font-black leading-tight text-[length:var(--fs-44)]">
+            {listening ? <span className="text-white/60">σε ακούω…</span> : q ? `«${q}»` : <span className="text-white/60">…</span>}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="flex-1 min-h-0 flex items-center">
+        {live?.phase === "error" ? (
+          <p className="font-bold text-eu-yellow text-[length:var(--fs-28)]">{live.error}</p>
+        ) : searching ? (
+          <div className="flex items-center gap-[1vw] text-white/70 font-semibold text-[length:var(--fs-28)]">
+            {!listening && <div className="flex items-center gap-1 h-[2.6rem]">{[0, 1, 2, 3, 4].map((n) => <span key={n} className={`${css.bar} ${css[`b${n + 1}`]}`} />)}</div>}
+            {listening ? "" : "Ψάχνω στον κατάλογο της Euronics…"}
+          </div>
+        ) : (
+          <div className="flex gap-[1.4vw]">
+            <AnimatePresence>
+              {(live?.products ?? []).map((p, n) => {
+                const added = extras.some((x) => x.id === p.id);
+                return (
+                  <motion.article key={p.id} initial={{ opacity: 0, y: 60, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: added ? 1.05 : 1 }} transition={{ ...spring, delay: n * 0.18 }} className={`relative w-[17vw] rounded-[1.4rem] bg-white text-eu-ink overflow-hidden shadow-2xl ${added ? "ring-[6px] ring-eu-yellow" : ""}`}>
+                    <div className="aspect-[4/3] bg-eu-surface grid place-items-center p-[1.4vh]">
+                      {p.image && <img src={p.image} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />}
+                    </div>
+                    <div className="p-[1.2vh_1vw_1.6vh] flex flex-col gap-[0.6vh]">
+                      <span className="font-black uppercase tracking-wide text-eu-blue text-[length:var(--fs-16)]">{p.brand}</span>
+                      <span className="line-clamp-2 font-semibold leading-tight text-[length:var(--fs-15)] min-h-[2.5em]">{p.title}</span>
+                      {p.why && <span className="line-clamp-2 text-eu-muted font-semibold leading-tight text-[length:var(--fs-14)]">{p.why}</span>}
+                      <span className="font-black text-[length:var(--fs-28)]">{eur(p.price)}</span>
+                    </div>
+                    {added && <span className="absolute top-3 inset-x-3 rounded-full bg-eu-yellow text-eu-navy text-center font-black py-1.5 text-[length:var(--fs-16)]">+ Στο σπίτι</span>}
+                  </motion.article>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export type { Beat };
+
+/**
+ * Μπάρα χειρισμού στο κάτω μέρος της σκηνής (για όποιον οδηγεί από το laptop): στην αρχή ένα μεγάλο «Ξεκίνα», μετά
+ * Πίσω / Επόμενο / 🎤 ερώτηση κοινού / πλήρης οθόνη. Κρύβεται όταν το ποντίκι μείνει ακίνητο, για να μη φαίνεται στο κοινό.
+ */
+function Dock({ auto, mic, hearing, meter, onAuto, onArm, idle, live, listening, wait, cue, needStore, command, onTalkDown, onTalkUp }: {
+  auto: boolean; mic: boolean; hearing: boolean; meter: React.RefObject<HTMLSpanElement | null>; onAuto: () => void; onArm: () => void;
+  idle: boolean; live: boolean; listening: boolean; wait: Beat["wait"]; cue: string | null; needStore: boolean;
+  command: (c: Cmd) => void; onTalkDown: () => void; onTalkUp: () => void;
+}) {
+  const [shown, setShown] = useState(true);
+  const hold = useRef(false);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const wake = () => { setShown(true); clearTimeout(t); t = setTimeout(() => { if (!hold.current) setShown(false); }, 3500); };
+    wake();
+    window.addEventListener("mousemove", wake); window.addEventListener("pointerdown", wake);
+    return () => { clearTimeout(t); window.removeEventListener("mousemove", wake); window.removeEventListener("pointerdown", wake); };
+  }, []);
+  // το κουμπί δεν κρατά το focus, αλλιώς το Space θα το ξαναπατούσε πέρα από το «Επόμενο» του πληκτρολογίου
+  const tap = (c: Cmd) => (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.blur(); command(c); };
+  const base = "min-h-14 rounded-2xl px-6 font-bold whitespace-nowrap text-[length:var(--fs-20)] active:scale-[0.97] transition";
+  const btn = `${base} ring-1 ring-white/20 bg-white/10 hover:bg-white/20`;
+  const main = `${base} bg-eu-yellow text-eu-navy font-black`;
+
+  if (idle && !live) return null;
+  const inCall = wait === "call";
+  return (
+    <div onMouseEnter={() => { hold.current = true; setShown(true); }} data-hearing={hearing || undefined} onMouseLeave={() => { hold.current = false; }} className={`absolute bottom-[2.5vh] left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-3xl bg-eu-navy/85 backdrop-blur ring-1 ring-white/15 p-2 shadow-2xl transition-opacity duration-500 ${shown || listening ? "opacity-100" : "opacity-0"}`}>
+      <button type="button" onClick={tap({ t: "back" })} className={btn} title="Πίσω (←)">◀</button>
+      {live ? (
+        <button type="button" onClick={tap({ t: "liveClose" })} className={main} title="Esc">↩ Πίσω στο σενάριο</button>
+      ) : inCall ? (
+        <button type="button" onClick={tap({ t: "skipCall" })} className={btn} title="C">Τέλος κλήσης ▶</button>
+      ) : (
+        <button type="button" disabled={needStore} onClick={tap({ t: "next" })} className={`${main} min-w-[14rem] disabled:opacity-40`} title="Space / →">
+          {needStore ? "Διάλεξε κατάστημα" : "Επόμενο ▶"}
+        </button>
+      )}
+      {!inCall && (
+        <button type="button" onPointerDown={(e) => { e.preventDefault(); onTalkDown(); }} onPointerUp={onTalkUp} onPointerLeave={() => { if (listening) onTalkUp(); }} onContextMenu={(e) => e.preventDefault()} className={`${listening ? `${base} bg-eu-red` : btn} touch-none`} title="ή κράτα πατημένο το M">
+          {listening ? "● Ακούω — άφησε" : "🎤 Ερώτηση"}
+        </button>
+      )}
+      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (auto && !mic) onArm(); else onAuto(); }} className={`${btn} flex items-center gap-2`} title="Αυτόματη συνέχεια: ο Ερμής απαντά μόλις σωπάσει ο παρουσιαστής (A)">
+        <span className={`size-3 rounded-full ${auto && mic ? (hearing ? "bg-eu-green animate-pulse" : "bg-eu-green") : "bg-white/30"}`} />
+        {auto ? (mic ? (hearing ? "Ακούω" : "Αυτόματο") : "🎙 Μικρόφωνο") : "Χειροκίνητο"}
+        {auto && mic && <span className="relative h-2 w-16 overflow-hidden rounded-full bg-white/15"><span ref={meter} className="absolute inset-y-0 left-0 w-0 rounded-full bg-white/70 transition-[width] duration-75" /></span>}
+      </button>
+      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }} className={btn} title="Πλήρης οθόνη (F)">⛶</button>
+      {cue && !live && <span className="max-w-[24rem] px-3 text-white/60 text-[length:var(--fs-14)] leading-tight">Περιμένει: <b className="text-white/85">{cue}</b></span>}
+    </div>
+  );
+}

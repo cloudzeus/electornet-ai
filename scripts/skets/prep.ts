@@ -5,14 +5,16 @@
  *   3. ηχογραφεί όλες τις φράσεις του Ερμή με τη φωνή του (lib/voice/tts.ts, cache + Bunny)
  * και γράφει το lib/skets/snapshot.json. Η σκηνή δεν κάνει κανένα ερώτημα στη βάση.
  *   npx tsx --conditions=react-server scripts/skets/prep.ts [--no-voice]
+ *   … --voice-only → κρατά προϊόντα/καταστήματα του υπάρχοντος snapshot, ξαναηχογραφεί μόνο τις φράσεις (π.χ. αλλαγή κειμένου ή ταχύτητας)
+ *   … --force → ξαναηχογραφεί και όσες είναι ήδη στην cache (θέλει ffmpeg που δουλεύει: αλλιώς βγαίνει WAV χωρίς επιτάχυνση)
  */
 import "dotenv/config";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { db } from "../../lib/db";
 import { speak } from "../../lib/voice/tts";
 import { getSetting } from "../../lib/settings/store";
 import { SKETS } from "../../lib/skets/config";
-import { allPhrases } from "../../lib/skets/script";
+import { allPhrases, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE } from "../../lib/skets/script";
 import type { CatKey, Room, SkCategory, SkProduct, SkReject, SkStore, Snapshot } from "../../lib/skets/types";
 
 interface Row { id: string; title: string; model: string | null; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
@@ -62,14 +64,14 @@ async function washer(): Promise<SkCategory> {
   const small = spread([by(6, 8), by(8, 9)]), big = spread([by(9, 10), by(10, 13)]);
   const [keep, other] = [...big].sort((a, b) => energyRank(energyOf(a)) - energyRank(energyOf(b)) || quality(b) - quality(a));
   const why2 = energyRank(energyOf(keep)) < energyRank(energyOf(other))
-    ? { reason: `Κλάση ${energyOf(other)} — καίει περισσότερο`, say: `Από τα δύο, το ${keep.brand} είναι κλάσης ${energyOf(keep)} — θα το νιώσεις στον λογαριασμό. Αυτό σου προτείνω.` }
+    ? { reason: `Κλάση ${energyOf(other)} — καίει περισσότερο`, say: `Από τα δύο, το ${keep.brand} είναι κλάσης ${energyOf(keep)} — θα το νιώσετε στον λογαριασμό. Αυτό θα σας πρότεινα.` }
     : keep.price < other.price
-      ? { reason: `${eur(other.price - keep.price)} ακριβότερο, χωρίς λόγο`, say: `Από τα δύο, το ${keep.brand} κάνει την ίδια δουλειά και κοστίζει λιγότερο. Αυτό σου προτείνω.` }
-      : { reason: `${kg(other)} kg, αλλά λιγότερο αθόρυβο και αξιόπιστο`, say: `Από τα δύο, το ${keep.brand} είναι το πιο αξιόπιστο — θα σε κρατήσει χρόνια. Αυτό σου προτείνω.` };
+      ? { reason: `${eur(other.price - keep.price)} ακριβότερο, χωρίς λόγο`, say: `Από τα δύο, το ${keep.brand} κάνει την ίδια δουλειά και κοστίζει λιγότερο. Αυτό θα σας πρότεινα.` }
+      : { reason: `${kg(other)} kg, αλλά λιγότερο αθόρυβο και αξιόπιστο`, say: `Από τα δύο, το ${keep.brand} είναι το πιο αξιόπιστο — θα σας κρατήσει χρόνια. Αυτό θα σας πρότεινα.` };
   return cat("washer", "bath", "Πλυντήριο ρούχων", [...small, ...big].sort((a, b) => kg(a) - kg(b)), (r) => `${kg(r)} kg`,
     small.map((r) => ({ id: r.id, reason: `${kg(r)} kg — μικρό για διπλό πάπλωμα` })),
     [{ id: other.id, reason: why2.reason }], keep.id,
-    { ask: "Πρώτα πρώτα, πλυντήριο. Σου διάλεξα τέσσερα. Πες μου — θα πλένεις και παπλώματα στο σπίτι;", answer: "Ναι, φυσικά!", verdict: "Τότε θέλουμε τουλάχιστον εννιά κιλά. Αυτά φεύγουν.", verdict2: why2.say, pick: "Αυτό είναι. Πάει στο μπάνιο." });
+    { ask: "Ξεκινάμε με το πλυντήριο. Σας ξεχώρισα τέσσερα. Θα χρειαστείτε μεγάλο κάδο;", answer: "Τι εννοείς;", follow: { ask: "Θα πλένετε, για παράδειγμα, και τα παπλώματά σας στο σπίτι;", answer: "Ναι, φυσικά." }, verdict: "Τότε χρειάζεστε τουλάχιστον εννιά κιλά. Τα μικρότερα φεύγουν.", verdict2: why2.say, pick: "Αυτό λοιπόν. Πάει στο μπάνιο." });
 }
 
 async function fridge(): Promise<SkCategory> {
@@ -84,7 +86,7 @@ async function fridge(): Promise<SkCategory> {
   const rows = [worse[0], keep, ...(w2 ? [w2] : [])];
   return cat("fridge", "kitchen", "Ψυγειοκαταψύκτης", rows, (r) => `Κλάση ${energyOf(r)}`,
     rows.filter((r) => r !== keep).map((r) => ({ id: r.id, reason: `Κλάση ${energyOf(r)} — καίει περισσότερο` })), [], keep.id,
-    { ask: "Πάμε κουζίνα. Ψυγείο — θα δουλεύει μέρα νύχτα, δώδεκα μήνες τον χρόνο. Θέλεις να καίει όσο γίνεται λιγότερο ρεύμα;", answer: "Ναι, σίγουρα.", verdict: "Τότε κρατάμε μόνο την καλύτερη ενεργειακή κλάση.", verdict2: null, pick: "Αυτό. Μπαίνει στην κουζίνα." });
+    { ask: "Πάμε στην κουζίνα. Το ψυγείο δουλεύει μέρα νύχτα, όλο τον χρόνο. Σας ενδιαφέρει να καίει όσο γίνεται λιγότερο ρεύμα;", answer: "Ναι, σίγουρα.", verdict: "Τότε κρατάμε μόνο την καλύτερη ενεργειακή κλάση.", verdict2: null, pick: "Αυτό. Μπαίνει στην κουζίνα." });
 }
 
 async function tv(): Promise<SkCategory> {
@@ -94,7 +96,7 @@ async function tv(): Promise<SkCategory> {
   const rows = [small, keep, huge];
   return cat("tv", "living", "Τηλεόραση", rows, (r) => `${inch(r)}″`,
     [{ id: rows[0].id, reason: `${inch(rows[0])}″ — μικρή για 2,5 m` }, { id: rows[2].id, reason: `${inch(rows[2])}″ — πολύ μεγάλη για 2,5 m` }], [], keep.id,
-    { ask: "Σαλόνι. Τηλεόραση. Πόσο μακριά θα κάθεσαι — γύρω στα δυόμισι μέτρα;", answer: "Ναι, κάπου εκεί.", verdict: "Για δυόμισι μέτρα, οι πενήντα πέντε ίντσες είναι ό,τι πρέπει.", verdict2: null, pick: "Στο σαλόνι." });
+    { ask: "Στο σαλόνι, η τηλεόραση. Από πόση απόσταση θα βλέπετε; Γύρω στα δυόμισι μέτρα;", answer: "Ναι, κάπου εκεί.", verdict: "Για δυόμισι μέτρα, οι πενήντα πέντε ίντσες είναι ό,τι πρέπει.", verdict2: null, pick: "Στο σαλόνι." });
 }
 
 async function ac(): Promise<SkCategory> {
@@ -106,7 +108,7 @@ async function ac(): Promise<SkCategory> {
   const fmt = (r: Row) => `${btu(r).toLocaleString("el-GR")} BTU`;
   return cat("ac", "living", "Κλιματιστικό", rows, fmt,
     [{ id: rows[0].id, reason: `${fmt(rows[0])} — λίγα για 25 m²` }, { id: rows[2].id, reason: `${fmt(rows[2])} — υπερβολικό, θα καίει άσκοπα` }], [], rows[1].id,
-    { ask: "Και τώρα, το πιο σημαντικό για τη Λάρισα: κλιματιστικό. Τον Ιούλιο εκεί το θερμόμετρο περνάει τους σαράντα. Το σαλόνι είναι γύρω στα είκοσι πέντε τετραγωνικά;", answer: "Ναι, περίπου.", verdict: "Τότε θέλουμε δώδεκα χιλιάδες μονάδες. Ούτε λιγότερο, ούτε περισσότερο.", verdict2: null, pick: "Δροσιά εξασφαλισμένη." });
+    { ask: "Και το πιο σημαντικό για τη Λάρισα: κλιματιστικό. Τον Ιούλιο το θερμόμετρο εκεί περνάει τους σαράντα. Το σαλόνι σας είναι γύρω στα είκοσι πέντε τετραγωνικά;", answer: "Ναι, περίπου.", verdict: "Τότε χρειάζεστε δώδεκα χιλιάδες μονάδες. Ούτε λιγότερο, ούτε περισσότερο.", verdict2: null, pick: "Δροσιά εξασφαλισμένη." });
 }
 
 async function cooker(): Promise<SkCategory> {
@@ -124,7 +126,7 @@ async function cooker(): Promise<SkCategory> {
     const rows = [rest[0], keep, ...rest.slice(1)];
     return cat("cooker", "kitchen", "Κουζίνα", rows, kind,
       rest.map((r) => ({ id: r.id, reason: `${kind(r)} — ${kindOf(r)!.why}` })), [], keep.id,
-      { ask: "Τελευταία, κουζίνα. Κεραμικές εστίες — μαγειρεύεις με τα σκεύη που ήδη έχεις και καθαρίζονται με ένα πανί. Σε βολεύει;", answer: "Ναι, κεραμική.", verdict: "Ωραία — κρατάμε μόνο κεραμική.", verdict2: null, pick: "Και η κουζίνα, έτοιμη." });
+      { ask: "Τελευταία, η κουζίνα. Με κεραμικές εστίες μαγειρεύετε με τα σκεύη που ήδη έχετε, και καθαρίζονται με ένα πανί. Σας βολεύει;", answer: "Ναι, κεραμική.", verdict: "Ωραία. Κρατάμε μόνο κεραμικές.", verdict2: null, pick: "Και η κουζίνα είναι έτοιμη." });
   }
   // όλες κεραμικές: η ερώτηση γίνεται προϋπολογισμός
   const LIMIT = 600;
@@ -134,7 +136,7 @@ async function cooker(): Promise<SkCategory> {
   const rows = [rest[0], keep, ...rest.slice(1)];
   return cat("cooker", "kitchen", "Κουζίνα κεραμική", rows, (r) => eur(r.price),
     rest.map((r) => ({ id: r.id, reason: `${eur(r.price)} — πάνω από τον προϋπολογισμό` })), [], keep.id,
-    { ask: "Τελευταία, κουζίνα. Σου έφερα κεραμικές, καθαρίζονται με ένα πανί. Να κρατήσουμε τον προϋπολογισμό κάτω από εξακόσια ευρώ;", answer: "Ναι, ας μην το παρακάνουμε.", verdict: "Σύμφωνοι. Ό,τι περνάει το όριο, φεύγει.", verdict2: null, pick: "Και η κουζίνα, έτοιμη." });
+    { ask: "Τελευταία, η κουζίνα. Σας έφερα κεραμικές, που καθαρίζονται με ένα πανί. Να κρατήσουμε τον προϋπολογισμό κάτω από εξακόσια ευρώ;", answer: "Ναι, ας μην το παρακάνουμε.", verdict: "Σύμφωνοι. Ό,τι περνάει το όριο, φεύγει.", verdict2: null, pick: "Και η κουζίνα είναι έτοιμη." });
 }
 
 async function stores(): Promise<SkStore[]> {
@@ -150,6 +152,12 @@ async function stores(): Promise<SkStore[]> {
 }
 
 (async () => {
+  if (process.argv.includes("--voice-only")) {
+    const snap = JSON.parse(readFileSync("lib/skets/snapshot.json", "utf8")) as Snapshot;
+    snap.presenter = SKETS.presenter;
+    await record(snap);
+    return;
+  }
   const cats = [await washer(), await fridge(), await tv(), await ac(), await cooker()];
   const total = Math.round(cats.reduce((t, c) => t + c.candidates.find((p) => p.id === c.pick)!.price, 0) * 100) / 100;
   const pay = await getSetting("payments").catch(() => null);
@@ -158,9 +166,18 @@ async function stores(): Promise<SkStore[]> {
   for (const c of cats) console.log(`${c.label}: ${c.candidates.map((p) => `${p.brand} ${p.key} ${eur(p.price)}${p.id === c.pick ? " ✓" : ""}`).join(" · ")}`);
   console.log("Σύνολο", eur(total), snap.instalments ? `· ${snap.instalments.months} δόσεις × ${snap.instalments.amount}` : "");
   console.log("Καταστήματα:", snap.stores.map((s) => `${s.street} (${s.km} km)`).join(" · "));
-  if (!process.argv.includes("--no-voice")) {
+  await record(snap, process.argv.includes("--no-voice"));
+})().catch((e) => { console.error(e); process.exit(1); });
+
+/** Ηχογραφεί τις φράσεις του Ερμή (φωνή του σκετς) και γράφει το snapshot. */
+async function record(snap: Snapshot, skipVoice = false) {
+  if (!skipVoice) {
+    snap.voice = {};
+    const force = process.argv.includes("--force");
+    // και οι φράσεις αναμονής των ζωντανών ερωτήσεων (/api/skets/ask), να είναι έτοιμες στην cache
+    for (const text of [...LIVE_FILLERS, LIVE_BACK]) await speak(text, { ...SKETS_VOICE, force });
     for (const text of allPhrases(snap)) {
-      const r = await speak(text);
+      const r = await speak(text, { ...SKETS_VOICE, force });
       if (r) snap.voice[text] = r.url; else console.warn("✗ χωρίς ηχογράφηση:", text);
       process.stdout.write(r ? (r.cached ? "·" : "♪") : "✗");
     }
@@ -169,4 +186,4 @@ async function stores(): Promise<SkStore[]> {
   writeFileSync("lib/skets/snapshot.json", JSON.stringify(snap, null, 1));
   console.log("→ lib/skets/snapshot.json", Object.keys(snap.voice).length, "φράσεις");
   await db.$disconnect();
-})().catch((e) => { console.error(e); process.exit(1); });
+}
