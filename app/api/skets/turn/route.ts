@@ -52,6 +52,9 @@ export async function POST(req: Request) {
   // οι «βαριές» λέξεις της ατάκας (νέα, Λάρισα, θέση…): αν ακούστηκαν οι μισές, είπε την ατάκα με δικά του λόγια
   const words = norm(cue).split(" ").filter((w) => w.length > 3), heard = new Set(n.split(" "));
   const content = words.length ? words.filter((w) => heard.has(w)).length / words.length : 0;
+  // ο Ερμής περιμένει διευκρινιστική ερώτηση («Τι εννοείς;»): ό,τι σύντομο πει ο παρουσιαστής («δηλαδή;», «μεγάλο κάδο;», «πόσο μεγάλο;»)
+  // οδηγεί στην εξήγηση του σεναρίου — όχι σε έτοιμη απάντηση για τα κιλά, που δεν έχουν ειπωθεί ακόμα
+  if (beat.wait === "presenter" && /εννοει/.test(norm(cue)) && n.split(" ").length <= 7) return NextResponse.json({ route: "script", said, ms: msStt });
   if (beat.wait === "presenter" && (fidelity(cue, said) >= 0.5 || content >= 0.5 || (YES.test(n) && !QUESTION.test(n.replace(/^(ναι|οκ)\s*/, ""))))) return NextResponse.json({ route: "script", said, ms: msStt });
 
   const ev0: LiveEv = { n: Date.now(), phase: "thinking", q: said, quiet: true };

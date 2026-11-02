@@ -41,6 +41,7 @@ export default function Remote({ k }: { k: string }) {
   const ask = () => { const q = typed.trim(); if (!q) return; setTyped(""); askLive(k, q); };
   const inCall = st?.wait === "call";
   const needStore = st?.wait === "store" && st.storeIdx === null;
+  const calling = inCall && (st?.call === "dialing" || st?.call === "talking");
 
   return (
     <div className="min-h-dvh bg-eu-navy text-white p-4 flex flex-col gap-4">
@@ -82,8 +83,8 @@ export default function Remote({ k }: { k: string }) {
           <button type="button" onClick={() => send({ t: "liveClose" })} className="min-h-16 rounded-2xl bg-eu-yellow text-eu-navy font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-20)]"><CornerUpLeft className="size-5" strokeWidth={2} aria-hidden />Πίσω στο σενάριο</button>
         </section>
       ) : (
-        <button type="button" disabled={needStore} onClick={() => send({ t: "next" })} className="min-h-[7rem] rounded-3xl bg-eu-yellow text-eu-navy font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-36)] active:scale-[0.98] transition-transform disabled:opacity-40">
-          {needStore ? "Διάλεξε κατάστημα" : <>Επόμενο<ChevronRight className="size-[1em]" strokeWidth={2} aria-hidden /></>}
+        <button type="button" disabled={needStore || calling} onClick={() => send({ t: "next" })} className="min-h-[7rem] rounded-3xl bg-eu-yellow text-eu-navy font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-36)] active:scale-[0.98] transition-transform disabled:opacity-40">
+          {calling ? "Κλήση σε εξέλιξη" : needStore ? "Διάλεξε κατάστημα" : <>Επόμενο<ChevronRight className="size-[1em]" strokeWidth={2} aria-hidden /></>}
         </button>
       )}
 
@@ -105,7 +106,7 @@ export default function Remote({ k }: { k: string }) {
 
       {st && st.wait === "store" && (
         <div className="grid gap-2">
-          {st.stores.map((s, n) => <button key={s} type="button" onClick={() => send({ t: "store", i: n })} className={`min-h-14 rounded-2xl font-medium text-[length:var(--fs-18)] transition-colors ${st.storeIdx === n ? "bg-eu-yellow text-eu-navy" : "bg-white text-eu-ink"}`}>{n + 1}. {s}</button>)}
+          {st.stores.map((s, n) => <button key={s} type="button" disabled={st.storeIdx !== null} onClick={() => send({ t: "store", i: n })} className={`min-h-14 rounded-2xl font-medium text-[length:var(--fs-18)] transition-colors disabled:cursor-default ${st.storeIdx !== null && st.storeIdx !== n ? "opacity-40 " : ""}${st.storeIdx === n ? "bg-eu-yellow text-eu-navy" : "bg-white text-eu-ink"}`}>{n + 1}. {s}</button>)}
         </div>
       )}
       {st?.wait === "call" && <button type="button" onClick={() => send({ t: "skipCall" })} className="min-h-14 rounded-2xl bg-white/15 font-medium flex items-center justify-center gap-1 text-[length:var(--fs-18)]">Τέλος κλήσης<ChevronRight className="size-5" strokeWidth={2} aria-hidden /></button>}

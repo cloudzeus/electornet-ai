@@ -222,13 +222,15 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     if (c.t === "addExtra") { const p = liveProducts.current.get(c.id); if (p) setExtras((x) => (x.some((y) => y.id === p.id) ? x : [...x, p].slice(-4))); return; }
     // ενώ είναι ανοιχτή ζωντανή ερώτηση, το «Επόμενο» γυρίζει στο σενάριο (δεν προσπερνά βήμα)
     if (c.t === "next" && (live || listening)) { closeLive(); return; }
-    if (c.t === "next") { if (beat.wait === "store" && store === null) return; next(); }
+    // κλήση σε εξέλιξη: μόνο το «Τέλος κλήσης» την κόβει· το «Επόμενο» από συνήθεια δεν τη σταματά
+    if (c.t === "next") { if (beat.wait === "store" && store === null) return; if (beat.wait === "call" && (call?.status === "dialing" || call?.status === "talking")) return; next(); }
     else if (c.t === "back") go(i - 1);
     else if (c.t === "goto") go(c.i);
     else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); setAlts({}); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
-    else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && snap.stores[c.i]) { setStore(c.i); timer.current = setTimeout(next, 1600); } }
+    else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && store === null && snap.stores[c.i]) { // μία επιλογή: φωνή ή κλικ, όποιο έρθει πρώτο
+      setStore(c.i); timer.current = setTimeout(next, 1600); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
-  }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k]);
+  }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k, call?.status]);
 
   // αυτόματη συνέχεια: ο Ερμής ακούει το μικρόφωνο της σκηνής όσο περιμένει τον παρουσιαστή και δεν μιλά ο ίδιος
   const [mic, setMic] = useState<Mic | null>(null);
