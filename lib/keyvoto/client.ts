@@ -1,6 +1,6 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
-import { apiUrl, publisherOptions, sharedContentQuery, tokenExpiry, tokenForm, type KeyvotoCatalogue, type KeyvotoPublisher, type SharedContentQuery } from "@/lib/keyvoto/core";
+import { apiUrl, galleryFileUrl, KEYVOTO_GALLERY, publisherOptions, sharedContentQuery, tokenExpiry, tokenForm, type KeyvotoCatalogue, type KeyvotoPublisher, type SharedContentQuery } from "@/lib/keyvoto/core";
 
 /**
  * **Keyvoto PIM — η σύνδεση.** Μόνο αναγνώσεις: ζητάμε token (OAuth 2.0 client credentials) και διαβάζουμε το
@@ -28,7 +28,7 @@ const DEFAULTS = {
   scope: "keyvoto-core-services",
   tokenUrl: "https://noah.keyvoto.com/pauth/connect/token",
   apiBase: "https://core-api.keyvoto.com",
-  galleryBase: "https://gallery-api.keyvoto.com",
+  galleryBase: KEYVOTO_GALLERY,
   categoriesBase: "https://categories-api.keyvoto.com",
   pageSize: 100,
 };
@@ -152,7 +152,7 @@ export const categorySchema = (c: KeyvotoConfig, categoryId: string) =>
   kvFetch<unknown>(c, c.categoriesBase, `/v1/${CATEGORIES_ACCOUNT}/schemas/categories/${encodeURIComponent(categoryId)}`);
 
 /** Η διεύθυνση ενός αρχείου της gallery από το `path` μιας εικόνας του προϊόντος. */
-export const fileUrl = (c: KeyvotoConfig, path: string) => apiUrl(c.galleryBase, `/v2/files/${path.split("/").map(encodeURIComponent).join("/")}`);
+export const fileUrl = (c: KeyvotoConfig, path: string, width?: number) => galleryFileUrl(c.galleryBase, path, width);
 
 export interface KeyvotoTest { ok: boolean; ms: number; message: string; publishers?: string[]; expiresAt?: string }
 

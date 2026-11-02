@@ -107,6 +107,10 @@ export function KeyvotoExplorer({ configured, enabled, account }: { configured: 
               <ul className="m-0 p-0 list-none grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),1fr))]">
                 {data.products.map((p) => (
                   <li key={p.id} className="rounded-lg border border-eu-line p-2.5 grid gap-1 min-w-0">
+                    {p.image && (
+                      // eslint-disable-next-line @next/next/no-img-element -- εξωτερική διεύθυνση δείγματος, χωρίς βελτιστοποίηση
+                      <img src={p.image} alt="" className="w-full max-w-28 aspect-square object-contain rounded bg-white" loading="lazy" />
+                    )}
                     <span className="font-bold text-eu-ink text-[length:var(--fs-14)] break-words">{p.name || "—"}</span>
                     <span className="text-eu-muted text-[length:var(--fs-13)] break-words">{[p.code, p.category].filter(Boolean).join(" · ") || "—"}</span>
                     <span className="text-eu-muted text-[length:var(--fs-12)]">{p.status || "—"}{p.updated ? ` · ενημερώθηκε ${new Date(p.updated).toLocaleDateString("el-GR")}` : ""}</span>

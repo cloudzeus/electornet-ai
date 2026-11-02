@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-02T14:15:13.164Z",
+ "generatedAt": "2026-11-02T14:29:06.657Z",
  "routes": [
   {
    "route": "/admin",
@@ -1115,6 +1115,11 @@
    ],
    "changes": [
     {
+     "hash": "6692fba",
+     "date": "2026-11-02T16:15:31+02:00",
+     "text": "Keyvoto PIM: διαλέγονται εκδότης και κατάλογος, και η πηγή σώζεται"
+    },
+    {
      "hash": "9379df9",
      "date": "2026-11-02T14:43:03+02:00",
      "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
@@ -1125,7 +1130,7 @@
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
     }
    ],
-   "updatedAt": "2026-11-02T14:43:03+02:00",
+   "updatedAt": "2026-11-02T16:15:31+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
@@ -1240,6 +1245,11 @@
    ],
    "changes": [
     {
+     "hash": "6692fba",
+     "date": "2026-11-02T16:15:31+02:00",
+     "text": "Keyvoto PIM: διαλέγονται εκδότης και κατάλογος, και η πηγή σώζεται"
+    },
+    {
      "hash": "9379df9",
      "date": "2026-11-02T14:43:03+02:00",
      "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
@@ -1283,14 +1293,9 @@
      "hash": "87a3e52",
      "date": "2026-10-29T13:24:06+02:00",
      "text": "XML προμηθευτές: μάρκα που δεν υπάρχει στο SoftOne μπορεί να παραλειφθεί"
-    },
-    {
-     "hash": "1989c79",
-     "date": "2026-10-29T13:12:12+02:00",
-     "text": "XML προμηθευτές: αποθηκευμένο XML, πρότυπο ανά προμηθευτή, καινούργιες τιμές και δημοσίευση"
     }
    ],
-   "updatedAt": "2026-11-02T14:43:03+02:00",
+   "updatedAt": "2026-11-02T16:15:31+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -4364,6 +4369,17 @@
  ],
  "recent": [
   {
+   "hash": "6692fba",
+   "date": "2026-11-02T16:15:31+02:00",
+   "text": "Keyvoto PIM: διαλέγονται εκδότης και κατάλογος, και η πηγή σώζεται",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/keyvoto"
+   ]
+  },
+  {
    "hash": "9379df9",
    "date": "2026-11-02T14:43:03+02:00",
    "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds",
@@ -4698,12 +4714,6 @@
     "/admin/softone",
     "/admin/softone/catalog"
    ]
-  },
-  {
-   "hash": "b4299dc",
-   "date": "2026-10-30T11:50:51+02:00",
-   "text": "XML προμηθευτές: η γραμμή δένεται με το είδος που έφτιαξε",
-   "routes": []
   }
  ],
  "helpKeys": {

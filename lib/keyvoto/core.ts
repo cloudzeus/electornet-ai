@@ -143,3 +143,41 @@ export const catalogueOptions = (rows: KeyvotoCatalogue[] | null | undefined): {
     .map((x) => ({ id: String(x.id ?? "").trim(), name: String(x.name ?? "").trim(), publisher: String(x.publisher ?? "").trim(), products: Number(x.products ?? 0) || 0 }))
     .filter((x) => x.id)
     .map((x) => ({ ...x, name: x.name || x.id }));
+
+/** Η gallery του Keyvoto, όταν οι ρυθμίσεις δεν λένε άλλη. */
+export const KEYVOTO_GALLERY = "https://gallery-api.keyvoto.com";
+
+/**
+ * Η πραγματική διεύθυνση ενός αρχείου της gallery από το `path` του.
+ *
+ * Το έγγραφο δεν δίνει διευθύνσεις: δίνει διαδρομές σαν `BusinessAccount-4b69…/01_Sera_white-6a97….png`. Δύο
+ * λεπτομέρειες, και οι δύο δοκιμασμένες ζωντανά, αλλιώς γυρίζει 404:
+ * 1. το endpoint είναι **`/v1/files/`** (όχι v2, όπως δείχνει ο κατάλογος του core API),
+ * 2. ΟΛΗ η διαδρομή είναι **ένα** τμήμα — η κάθετος πρέπει να γίνει `%2F`.
+ * Δεν θέλει token: το αρχείο σερβίρεται δημόσια, οπότε η διεύθυνση δουλεύει και σε `<img>` και στο κατέβασμα.
+ */
+export function galleryFileUrl(base: string, path: string, width?: number): string {
+  const p = (path ?? "").trim();
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) return p;
+  const q = width && width > 0 ? `?width=${Math.round(width)}` : "";
+  return `${apiUrl(base || KEYVOTO_GALLERY, `/v1/files/${encodeURIComponent(p)}`)}${q}`;
+}
+
+/**
+ * Η κύρια φωτογραφία ενός προϊόντος: αυτή που ο εκδότης έχει σημάνει «Hero Image», αλλιώς η πρώτη εικόνα του.
+ * (Το `image` της σύνοψης ΔΕΝ είναι φωτογραφία προϊόντος — είναι το λογότυπο του εκδότη.)
+ */
+export function heroImagePath(doc: unknown): string {
+  const pairs = flattenDocument(doc as Json);
+  const idx = (p: string) => Number(p.match(/images\[(\d+)\]/)?.[1] ?? -1);
+  const paths = pairs.filter(([k]) => /(^|\.)images\[\d+\]\.path$/.test(k));
+  if (!paths.length) return "";
+  const hero = pairs.find(([k, v]) => /(^|\.)images\[\d+\]\.viewAttributes\[\d+\]$/.test(k) && /hero/i.test(v));
+  if (hero) {
+    const at = idx(hero[0]);
+    const match = paths.find(([k]) => idx(k) === at);
+    if (match) return match[1];
+  }
+  return paths[0][1];
+}

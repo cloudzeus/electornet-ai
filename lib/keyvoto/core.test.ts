@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { apiUrl, catalogueOptions, documentFields, publisherOptions, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
+import { apiUrl, catalogueOptions, galleryFileUrl, heroImagePath, documentFields, publisherOptions, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
 
 test("tokenForm: το σώμα του OAuth client credentials", () => {
   const body = tokenForm({ grantType: "client_credentials", clientId: "company-1", clientSecret: "s3cr3t", scope: "keyvoto-core-services" });
@@ -83,4 +83,42 @@ test("catalogueOptions: κωδικός, όνομα και ο εκδότης το
 test("catalogueOptions: διαγραμμένος κατάλογος ή χωρίς id δεν εμφανίζεται", () => {
   const out = catalogueOptions([{ id: "C-1", name: "Παλιός", publisher: "BA-1", isDeleted: true }, { name: "Χωρίς κωδικό", publisher: "BA-1" }]);
   assert.deepEqual(out, []);
+});
+
+test("galleryFileUrl: ΟΛΗ η διαδρομή είναι ΕΝΑ τμήμα — η κάθετος κωδικοποιείται", () => {
+  // Δοκιμασμένο ζωντανά: με σκέτη κάθετο το Keyvoto γυρίζει 404· με %2F γυρίζει την εικόνα.
+  assert.equal(
+    galleryFileUrl("https://gallery-api.keyvoto.com", "BusinessAccount-4b69/01_Sera_white-6a97.png"),
+    "https://gallery-api.keyvoto.com/v1/files/BusinessAccount-4b69%2F01_Sera_white-6a97.png",
+  );
+});
+
+test("galleryFileUrl: το πλάτος μπαίνει ως παράμετρος", () => {
+  assert.equal(galleryFileUrl("https://g.keyvoto.com/", "a/b.png", 1600), "https://g.keyvoto.com/v1/files/a%2Fb.png?width=1600");
+});
+
+test("galleryFileUrl: κενή διαδρομή δεν δίνει διεύθυνση", () => {
+  assert.equal(galleryFileUrl("https://g.keyvoto.com", "   "), "");
+});
+
+test("galleryFileUrl: ό,τι είναι ήδη διεύθυνση μένει ως έχει", () => {
+  assert.equal(galleryFileUrl("https://g.keyvoto.com", "https://cdn.inventor.gr/a.png"), "https://cdn.inventor.gr/a.png");
+});
+
+test("heroImagePath: η κύρια φωτογραφία είναι η σημασμένη «Hero Image»", () => {
+  const doc = { media: { images: [
+    { path: "BA/02_plain.png", mimeType: "image/png" },
+    { path: "BA/01_hero.png", mimeType: "image/png", viewAttributes: ["Hero Image"] },
+  ] } };
+  assert.equal(heroImagePath(doc), "BA/01_hero.png");
+});
+
+test("heroImagePath: χωρίς σήμανση παίρνει την πρώτη εικόνα — όχι το pdf", () => {
+  const doc = { media: { documents: [{ path: "BA/manual.pdf" }], images: [{ path: "BA/a.png" }, { path: "BA/b.png" }] } };
+  assert.equal(heroImagePath(doc), "BA/a.png");
+});
+
+test("heroImagePath: έγγραφο χωρίς εικόνες δίνει κενό", () => {
+  assert.equal(heroImagePath({ main: { Χρώμα: "Λευκό" } }), "");
+  assert.equal(heroImagePath(null), "");
 });

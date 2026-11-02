@@ -18,11 +18,11 @@ test("keyvotoEnvelope: τα προϊόντα γίνονται bytes που αν�
 test("parseKeyvotoRows: οι διαδρομές του εγγράφου γίνονται στήλες", () => {
   const r = parseKeyvotoRows(keyvotoEnvelope([pub()]));
   assert.deepEqual(r.headers, [
-    "Keyvoto: κωδικός", "Keyvoto: όνομα", "Keyvoto: κατηγορία", "Keyvoto: εκδότης", "Keyvoto: κατάσταση",
+    "Keyvoto: κωδικός", "Keyvoto: κατάλογος", "Keyvoto: κατηγορία (κωδικός)", "Keyvoto: εκδότης", "Keyvoto: κατάσταση",
     "gtin", "main.Χρώμα", "main.Ενέργεια", "images[].path 1", "images[].path 2",
   ]);
   assert.equal(r.matrix.length, 2);
-  assert.deepEqual(r.matrix[1], ["ABC-1", "Ψυγείο Χ", "Ψυγεία", "ACME", "Active", "5201234567890", "Λευκό", "A", "a/1.png", "a/2.png"]);
+  assert.deepEqual(r.matrix[1], ["ABC-1", "Ψυγείο Χ", "Ψυγεία", "ACME", "Active", "5201234567890", "Λευκό", "A", "https://gallery-api.keyvoto.com/v1/files/a%2F1.png", "https://gallery-api.keyvoto.com/v1/files/a%2F2.png"]);
 });
 
 test("parseKeyvotoRows: πεδίο που λείπει από ένα προϊόν αφήνει κενό κελί, όχι μετατόπιση", () => {
@@ -37,7 +37,7 @@ test("parseKeyvotoRows: οι φωτογραφίες αριθμούνται με 
   const r = parseKeyvotoRows(keyvotoEnvelope([pub(), many]));
   assert.deepEqual(r.headers.filter((h) => h.startsWith("images")), ["images[].path 1", "images[].path 2", "images[].path 3"]);
   assert.equal(r.matrix[1][r.headers.indexOf("images[].path 3")], "");
-  assert.equal(r.matrix[2][r.headers.indexOf("images[].path 3")], "3.png");
+  assert.equal(r.matrix[2][r.headers.indexOf("images[].path 3")], "https://gallery-api.keyvoto.com/v1/files/3.png");
 });
 
 test("parseKeyvotoRows: μετρήσεις για το βήμα ελέγχου", () => {
@@ -61,4 +61,40 @@ test("keyvotoUrl / parseKeyvotoUrl: η πηγή γίνεται διεύθυνσ�
   assert.deepEqual(parseKeyvotoUrl("keyvoto:acme/cat-7"), { publisher: "acme", catalogue: "cat-7" });
   assert.deepEqual(parseKeyvotoUrl("keyvoto:acme"), { publisher: "acme", catalogue: "" });
   assert.equal(parseKeyvotoUrl("https://x/feed.xml"), null);
+});
+
+test("parseKeyvotoRows: οι διαδρομές αρχείων γίνονται ΠΡΑΓΜΑΤΙΚΕΣ διευθύνσεις", () => {
+  // Το έγγραφο δίνει path, όχι URL· χωρίς μετατροπή η εισαγωγή φωτογραφιών θα ζητούσε ανύπαρκτη διεύθυνση.
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({
+    document: { media: { images: [{ path: "BA-1/01_Sera.png", mimeType: "image/png" }], documents: [{ path: "BA-1/manual.pdf" }] } },
+  })]));
+  const at = (h: string) => r.matrix[1][r.headers.indexOf(h)];
+  assert.equal(at("media.images[].path"), "https://gallery-api.keyvoto.com/v1/files/BA-1%2F01_Sera.png");
+  assert.equal(at("media.documents[].path"), "https://gallery-api.keyvoto.com/v1/files/BA-1%2Fmanual.pdf");
+  assert.equal(at("media.images[].mimeType"), "image/png", "τα άλλα πεδία μένουν ως έχουν");
+});
+
+test("parseKeyvotoRows: η gallery του πακέτου υπερισχύει της προεπιλογής", () => {
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { images: [{ path: "a/1.png" }] } })], new Date(), "https://g.test"));
+  assert.equal(r.matrix[1][r.headers.indexOf("images[].path")], "https://g.test/v1/files/a%2F1.png");
+});
+
+test("parseKeyvotoRows: πεδίο που δεν είναι διαδρομή αρχείου δεν γίνεται διεύθυνση", () => {
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { main: { Σειρά: "Sera/Pro" }, pathNotes: "a/b" } })]));
+  assert.equal(r.matrix[1][r.headers.indexOf("main.Σειρά")], "Sera/Pro");
+  assert.equal(r.matrix[1][r.headers.indexOf("pathNotes")], "a/b");
+});
+
+test("parseKeyvotoRows: διαδρομή που είναι ήδη διεύθυνση μένει ως έχει", () => {
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { images: [{ path: "https://cdn.inventor.gr/a.png" }] } })]));
+  assert.equal(r.matrix[1][r.headers.indexOf("images[].path")], "https://cdn.inventor.gr/a.png");
+});
+
+test("parseKeyvotoRows: το «name» της δημοσίευσης είναι ο ΚΑΤΑΛΟΓΟΣ — δεν λέγεται «όνομα»", () => {
+  // Επαληθευμένο ζωντανά: στη σύνοψη το name είναι «Catalogue Inventor x Euronics» για ΚΑΘΕ προϊόν, και η
+  // category είναι κωδικός (b2a17c…). Το πραγματικό όνομα είναι στήλη του εγγράφου.
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ name: "Catalogue Inventor x Euronics", category: "b2a17c2ad4235ea8" })]));
+  assert.ok(r.headers.includes("Keyvoto: κατάλογος"), `είχε: ${r.headers.slice(0, 5).join(", ")}`);
+  assert.ok(r.headers.includes("Keyvoto: κατηγορία (κωδικός)"));
+  assert.ok(!r.headers.includes("Keyvoto: όνομα"), "δεν πρέπει να μοιάζει με όνομα προϊόντος");
 });

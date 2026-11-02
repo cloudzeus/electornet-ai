@@ -169,7 +169,8 @@ async function ingestImage(url: string, folderId: string, staffId: string | null
   try {
     const { bytes, mime, url: final } = await fetchPublicBytes(url, { max: MAX_IMAGE_BYTES, accept: "image/*", timeoutMs: IMAGE_TIMEOUT_MS });
     if (!mime.startsWith("image/")) return { error: `Η διεύθυνση δεν είναι εικόνα (${mime || "χωρίς τύπο"}): ${url}` };
-    const name = decodeURIComponent(new URL(final).pathname.split("/").pop() || "image.jpg");
+    // μετά την αποκωδικοποίηση μπορεί να ξαναφανεί κάθετος (π.χ. gallery του Keyvoto: …/files/BA-1%2Fa.png)
+    const name = (decodeURIComponent(new URL(final).pathname.split("/").pop() || "").split("/").pop() || "image.jpg");
     const asset = await ingest({ bytes, filename: name, mime, folderId, createdBy: staffId });
     return { id: asset.id };
   } catch (e) {

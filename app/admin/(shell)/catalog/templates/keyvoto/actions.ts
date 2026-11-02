@@ -1,8 +1,8 @@
 "use server";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
-import { catalogueOptions, documentFields, publisherOptions, type DocField } from "@/lib/keyvoto/core";
-import { catalogues, getKeyvotoConfig, publishers, sharedContent, testKeyvoto, tokenHeldUntil, type Publication } from "@/lib/keyvoto/client";
+import { catalogueOptions, documentFields, heroImagePath, publisherOptions, type DocField } from "@/lib/keyvoto/core";
+import { catalogues, fileUrl, getKeyvotoConfig, publishers, sharedContent, testKeyvoto, tokenHeldUntil, type Publication } from "@/lib/keyvoto/client";
 
 /**
  * Server actions της σελίδας «Keyvoto PIM». Μόνο αναγνώσεις: δοκιμή σύνδεσης και ένα **δείγμα** προϊόντων για να δούμε
@@ -28,6 +28,7 @@ export interface KvProduct {
   publisher: string;
   status: string;
   updated: string | null;
+  /** έτοιμη διεύθυνση της κύριας φωτογραφίας (κενό αν ο εκδότης δεν στέλνει εικόνα) */
   image: string;
 }
 
@@ -111,7 +112,9 @@ export async function sample(input: SampleInput): Promise<KvSample> {
       products: rows.map((x) => ({
         id: text(x.id), name: text(x.name), code: text(x.code), contentId: text(x.contentId), contentType: text(x.contentType),
         category: text(x.category), publisher: text(x.publisher), status: text(x.productStatus),
-        updated: x.documentUpdated ? new Date(x.documentUpdated).toISOString() : null, image: text(x.image),
+        updated: x.documentUpdated ? new Date(x.documentUpdated).toISOString() : null,
+        // πραγματική διεύθυνση της κύριας φωτογραφίας — το έγγραφο δίνει μόνο path
+        image: fileUrl(c, heroImagePath(x.document), 320),
       })),
       fields: documentFields(docs),
       raw: docs.length ? JSON.stringify(docs[0], null, 1).slice(0, 60_000) : "",
