@@ -41,7 +41,7 @@ export interface Section {
   description: string;
   group: "store" | "checkout" | "customers" | "marketing" | "systems";
   /** server action name for a «Δοκιμή σύνδεσης» button */
-  test?: "softone" | "smtp" | "openrouter" | "bunny" | "klarna";
+  test?: "softone" | "smtp" | "openrouter" | "bunny" | "klarna" | "keyvoto";
   /** τι κάνει η δοκιμή, κάτω από το κουμπί */
   testHelp?: string;
   /** κάρτες της φόρμας, με τη σειρά· πεδία χωρίς group πάνε στην πρώτη */
@@ -249,6 +249,32 @@ export const SECTIONS: Section[] = [
         ["card", "Κάρτα (και Apple / Google Pay)", "1001"], ["no-card", "Δόσεις χωρίς κάρτα", "1004"], ["cod", "Αντικαταβολή", "1000"], ["bank", "Κατάθεση σε τράπεζα", "1003"],
         ["paypal", "PayPal", "1002"], ["iris", "IRIS", ""], ["klarna", "Klarna", ""], ["tbi", "TBI Bank (δόσεις χωρίς κάρτα)", ""], ["store", "Πληρωμή στο κατάστημα", ""], ["revolut", "Revolut Pay", ""],
       ] as const).map(([k, l, d]): Field => ({ key: `orderPay_${k}`, label: `Κωδικός πληρωμής: ${l}`, type: "text", placeholder: d || "π.χ. 1005", help: d ? `Κενό = ${d} (ο κωδικός που χρησιμοποιεί σήμερα το eshop).` : "Δεν υπάρχει ακόμη στο SoftOne — τον ορίζει το λογιστήριο (πίνακας «Τρόποι πληρωμής»).", width: "half", group: "orders", rule: R.int, advanced: true })),
+    ],
+  },
+  {
+    key: "keyvoto",
+    title: "Keyvoto PIM (περιεχόμενο προμηθευτών)",
+    description: "Το περιεχόμενο των προϊόντων από τους καταλόγους των προμηθευτών (sharedContent): περιγραφές, χαρακτηριστικά και εικόνες, με σύνδεση μηχανής-προς-μηχανή (OAuth 2.0 client credentials).",
+    group: "systems",
+    test: "keyvoto",
+    testHelp: "Ζητά token με τα στοιχεία της φόρμας (ακόμη κι αν δεν τα έχεις αποθηκεύσει) και διαβάζει τους εκδότες του λογαριασμού. Μόνο ανάγνωση — δεν γράφει και δεν κατεβάζει προϊόντα.",
+    groups: [
+      { key: "conn", title: "Σύνδεση", help: "Τα στοιχεία που δίνει η Keyvoto για τη δική μας εφαρμογή. Το μυστικό δεν φαίνεται ποτέ ξανά μετά την αποθήκευση· αν χαθεί, ζητάς νέο από την Keyvoto." },
+      { key: "api", title: "Διευθύνσεις", help: "Οι προεπιλογές είναι οι παραγωγικές διευθύνσεις της Keyvoto. Αλλάζουν μόνο αν σας δώσουν δοκιμαστικό περιβάλλον." },
+    ],
+    fields: [
+      { ...yesNo("enabled", "Ενεργή διασύνδεση", "Κλειστό = καμία κλήση προς το Keyvoto (ούτε ανάγνωση)."), group: "conn" },
+      { key: "businessAccountId", label: "Business Account Id (δικός μας)", type: "text", required: true, width: "half", group: "conn", placeholder: "π.χ. a433d8c2-5965-4e75-96ee-c50bd6dfa469", help: "Ο λογαριασμός μας ως retailer — μπαίνει σε κάθε διεύθυνση του API. Τον δίνει η Keyvoto." },
+      { key: "grantType", label: "grant_type", type: "text", width: "half", group: "conn", placeholder: "client_credentials", help: "Κενό = client_credentials (μηχανή προς μηχανή). Δεν υπάρχει refresh token: όταν λήξει, ζητάμε νέο." },
+      { key: "clientId", label: "client_id", type: "text", required: true, width: "half", group: "conn", placeholder: "π.χ. company-1" },
+      { key: "clientSecret", label: "client_secret", type: "secret", required: true, width: "half", group: "conn" },
+      { key: "scope", label: "scope", type: "text", width: "half", group: "conn", placeholder: "keyvoto-core-services", help: "Κενό = keyvoto-core-services." },
+      { key: "tokenUrl", label: "Διεύθυνση token", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://noah.keyvoto.com/pauth/connect/token" },
+      { key: "apiBase", label: "Core API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://core-api.keyvoto.com", help: "Από εδώ έρχονται τα προϊόντα και οι κατάλογοι (sharedContent)." },
+      { key: "galleryBase", label: "Gallery API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://gallery-api.keyvoto.com", help: "Τα αρχεία (φωτογραφίες) ενός προϊόντος, από το πεδίο path των εικόνων του." },
+      { key: "categoriesBase", label: "Categories API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://categories-api.keyvoto.com", help: "Τι σημαίνει κάθε χαρακτηριστικό μιας κατηγορίας. Ο λογαριασμός εδώ είναι πάντα «keyvoto», όχι ο δικός μας." },
+      { key: "languages", label: "Γλώσσες", type: "text", width: "half", group: "api", placeholder: "el,en", help: "Ποιες μεταφράσεις ζητάμε. Κενό = ό,τι δίνει ο εκδότης· * = όλες." },
+      { key: "pageSize", label: "Προϊόντα ανά σελίδα", type: "number", width: "half", group: "api", min: 1, max: 500, step: 1, placeholder: "100", help: "Πόσα προϊόντα ζητάμε σε κάθε κλήση όταν κατεβαίνει ο κατάλογος." },
     ],
   },
   {
@@ -495,6 +521,7 @@ export const SECTION_GROUPS: { key: Section["group"]; label: string; help: strin
  */
 const ADVANCED: Record<string, string[]> = {
   softone: ["syncMinutes", "customerCodePrefix", "customerCountry", "customerCurrency", "customerVatSts", "customerTrdCategory", "customerPayment", "webFilter"],
+  keyvoto: ["galleryBase", "categoriesBase", "languages", "pageSize"],
   payments: ["sourceCode", "webhookSecret"],
   shipping: ["genikiSubCode", "asapApiUrl"],
   bunny: ["pullZoneId", "accountApiKey", "storageRegion", "basePath", "tokenAuthKey", "imageQuality", "backupRetentionDays"],

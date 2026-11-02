@@ -69,6 +69,16 @@ export async function testSection(section: string, fd: FormData): Promise<Action
       await audit(user.id, "settings.test", "Setting", section, null, { ok: true, ms: r.ms });
       return { ok: true, message: `Συνδέθηκε στο SoftOne σε ${r.ms} ms.`, details: { Εταιρεία: r.company, Υποκατάστημα: r.branch, Χρήστης: r.user, Έκδοση: r.version, Serial: r.serial } };
     }
+    if (def.test === "keyvoto") {
+      const { testKeyvoto } = await import("@/lib/keyvoto/client");
+      const r = await testKeyvoto({
+        businessAccountId: val("businessAccountId"), grantType: val("grantType"), clientId: val("clientId"), clientSecret: sec("clientSecret"),
+        scope: val("scope"), tokenUrl: val("tokenUrl"), apiBase: val("apiBase"), galleryBase: val("galleryBase"), categoriesBase: val("categoriesBase"),
+      });
+      await audit(user.id, "settings.test", "Setting", section, null, { ok: r.ok, provider: "keyvoto" });
+      if (!r.ok) return { ok: false, message: r.message };
+      return { ok: true, message: `${r.message} (${r.ms} ms)`, details: { Εκδότες: (r.publishers ?? []).slice(0, 8).join(", ") || "—", "Το token λήγει": r.expiresAt ? new Date(r.expiresAt).toLocaleString("el-GR") : "—" } };
+    }
     if (def.test === "openrouter") {
       const key = sec("openrouterApiKey");
       if (!key) return { ok: false, message: "Δώσε OpenRouter API key." };

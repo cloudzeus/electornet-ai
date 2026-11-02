@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-02T08:10:28.867Z",
+ "generatedAt": "2026-11-02T12:20:02.880Z",
  "routes": [
   {
    "route": "/admin",
@@ -21,6 +21,11 @@
     "dash.card"
    ],
    "changes": [
+    {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    },
     {
      "hash": "df24c5d",
      "date": "2026-10-30T16:53:46+02:00",
@@ -65,14 +70,9 @@
      "hash": "8d80655",
      "date": "2026-10-04T08:55:35+03:00",
      "text": "Διαχείριση: συμπαγές dashboard, μικρές φωτογραφίες προϊόντος, grid με δικές του στήλες ξανά σε στήλες"
-    },
-    {
-     "hash": "5ee1b5d",
-     "date": "2026-09-13T18:55:06+03:00",
-     "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
     }
    ],
-   "updatedAt": "2026-10-30T16:53:46+02:00",
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {
     "desktop": "/api/help-shot/dashboard-d.jpg",
     "mobile": "/api/help-shot/dashboard-m.jpg"
@@ -1092,6 +1092,23 @@
    "shots": {}
   },
   {
+   "route": "/admin/catalog/templates/keyvoto",
+   "slug": "catalog.templates.keyvoto",
+   "file": "app/admin/(shell)/catalog/templates/keyvoto/page.tsx",
+   "title": "Keyvoto PIM",
+   "doc": "Περιεχόμενο προϊόντων από το Keyvoto (PIM των προμηθευτών): δοκιμή της σύνδεσης και δείγμα προϊόντων με όλα τους τα πεδία. Είναι το πρώτο βήμα της ίδιας διαδρομής που έχουν τα XML feeds — αντιστοίχιση, λίστα ελέγχου, εισαγωγή.",
+   "perm": "catalog.products.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {
+    "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
+    "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
+   }
+  },
+  {
    "route": "/admin/catalog/templates/nea-eidi",
    "slug": "catalog.templates.nea-eidi",
    "file": "app/admin/(shell)/catalog/templates/nea-eidi/page.tsx",
@@ -1705,6 +1722,11 @@
    ],
    "changes": [
     {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    },
+    {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
@@ -1748,14 +1770,9 @@
      "hash": "d6e4c0c",
      "date": "2026-10-11T09:57:09+03:00",
      "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις"
-    },
-    {
-     "hash": "ebc995f",
-     "date": "2026-10-04T15:58:38+03:00",
-     "text": "Πελάτες: ταξινόμηση από τις κεφαλίδες του πίνακα (όνομα, επικοινωνία, ΑΦΜ, αγορές, πόντοι, κατάστημα, κατάσταση)"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {}
   },
   {
@@ -1774,6 +1791,11 @@
     "customer.tabs"
    ],
    "changes": [
+    {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    },
     {
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
@@ -1815,7 +1837,7 @@
      "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-10-16T13:29:14+03:00",
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {}
   },
   {
@@ -1885,8 +1907,14 @@
     "eggyiseis.filters",
     "eggyiseis.table"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    }
+   ],
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {}
   },
   {
@@ -3481,8 +3509,14 @@
     "filters",
     "list"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    }
+   ],
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {}
   },
   {
@@ -3502,8 +3536,14 @@
     "customer",
     "device"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "aaed998",
+     "date": "2026-11-02T10:17:01+02:00",
+     "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
+    }
+   ],
+   "updatedAt": "2026-11-02T10:17:01+02:00",
    "shots": {}
   },
   {
@@ -4301,6 +4341,30 @@
  ],
  "recent": [
   {
+   "hash": "ae72485",
+   "date": "2026-11-02T11:54:23+02:00",
+   "text": "Σκετς Ερμή: η κλήση δεν κόβεται με «Επόμενο», μία επιλογή καταστήματος (φωνή ή κλικ), διευκρίνιση στον κάδο, ffmpeg στο build",
+   "routes": []
+  },
+  {
+   "hash": "d9c4f44",
+   "date": "2026-11-02T10:42:06+02:00",
+   "text": "Σκετς Ερμή: διακλαδώσεις (40 τ.μ., απόσταση TV), κατάστημα με φωνή, ερωτήσεις με τόνο ερώτησης, καθαρότερη σκηνή",
+   "routes": []
+  },
+  {
+   "hash": "aaed998",
+   "date": "2026-11-02T10:17:01+02:00",
+   "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email",
+   "routes": [
+    "/admin",
+    "/admin/customers",
+    "/admin/eggyiseis",
+    "/admin/service",
+    "/admin/service/[id]"
+   ]
+  },
+  {
    "hash": "f212bf9",
    "date": "2026-11-02T09:37:22+02:00",
    "text": "Σκετς Ερμή: έτοιμες απαντήσεις για ζωντανό διάλογο χωρίς καθυστέρηση, «κύριε Δριβάκο», πιο ευαίσθητη ακρόαση",
@@ -4610,34 +4674,6 @@
    "date": "2026-10-30T10:29:16+02:00",
    "text": "XML προμηθευτές: ο χρήστης διαλέγει ποιες μάρκες συμμετέχουν",
    "routes": []
-  },
-  {
-   "hash": "1eb4da1",
-   "date": "2026-10-30T08:58:57+02:00",
-   "text": "XML προμηθευτές: ο διακόπτης του feed απαντά αμέσως",
-   "routes": []
-  },
-  {
-   "hash": "b474880",
-   "date": "2026-10-30T08:55:50+02:00",
-   "text": "XML προμηθευτές: η διεύθυνση σώζεται από το πρώτο βήμα και το feed ανοιγοκλείνει",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
-  },
-  {
-   "hash": "87a3e52",
-   "date": "2026-10-29T13:24:06+02:00",
-   "text": "XML προμηθευτές: μάρκα που δεν υπάρχει στο SoftOne μπορεί να παραλειφθεί",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
   }
  ],
  "helpKeys": {
@@ -5216,6 +5252,18 @@
   ],
   "specs.layers": [
    "components/admin/catalog/SpecManager.tsx"
+  ],
+  "keyvoto.setup": [
+   "components/admin/catalog/keyvoto/KeyvotoExplorer.tsx"
+  ],
+  "keyvoto.connect": [
+   "components/admin/catalog/keyvoto/KeyvotoExplorer.tsx"
+  ],
+  "keyvoto.sample": [
+   "components/admin/catalog/keyvoto/KeyvotoExplorer.tsx"
+  ],
+  "keyvoto.fields": [
+   "components/admin/catalog/keyvoto/KeyvotoExplorer.tsx"
   ],
   "xml.supplier.avail": [
    "components/admin/catalog/xml/AvailMap.tsx"
