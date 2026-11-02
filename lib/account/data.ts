@@ -7,6 +7,7 @@ import { consents as CONSENT_TOPICS } from "@/lib/data/fixtures/account";
 import { shipmentTimeline } from "@/lib/couriers/timeline";
 import { carrierDef } from "@/lib/shipping/carriers";
 import { contactMatches } from "@/lib/orders/contact";
+import { customerStep, customerTimeline, isOpen, KIND_LABEL, MODE_LABEL, openRescheduleRequest, parseAttachments, parseTimeline, STATUS_LABEL, type TicketAttachment } from "@/lib/service/core";
 
 /**
  * Τα δεδομένα του λογαριασμού για τον συνδεδεμένο πελάτη, στους τύπους που περιμένουν ήδη οι σελίδες:
@@ -24,9 +25,14 @@ const n = (d: unknown) => (d == null ? 0 : Number(d));
 const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
 
 export async function accountCustomer(id: string): Promise<Customer | null> {
-  const c = await db.customer.findUnique({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true, mobile: true, phone: true, birthday: true, vatNumber: true, createdAt: true, loyaltyPoints: true, number: true } });
+  const c = await db.customer.findUnique({ where: { id }, select: { id: true, firstName: true, lastName: true, email: true, mobile: true, phone: true, birthday: true, vatNumber: true, createdAt: true, loyaltyPoints: true, number: true, type: true, company: true, doy: true, profession: true, passwordHash: true } });
   if (!c) return null;
-  return { id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email ?? "", phone: c.mobile ?? c.phone ?? "", birthday: day(c.birthday) || undefined, vat: c.vatNumber ?? undefined, memberSince: day(c.createdAt), loyaltyPoints: c.loyaltyPoints };
+  // Η Δ.Ο.Υ. μπορεί να είναι κωδικός (από ΑΑΔΕ/SoftOne στη διαχείριση) ή όνομα (από τον πελάτη) — ο πελάτης βλέπει πάντα όνομα
+  const doy = c.doy ? (await db.taxOffice.findFirst({ where: { OR: [{ code: c.doy }, { s1Id: c.doy }] }, select: { name: true } }).catch(() => null))?.name ?? c.doy : undefined;
+  return {
+    id: c.id, firstName: c.firstName, lastName: c.lastName, email: c.email ?? "", phone: c.mobile ?? c.phone ?? "", birthday: day(c.birthday) || undefined, vat: c.vatNumber ?? undefined, memberSince: day(c.createdAt), loyaltyPoints: c.loyaltyPoints,
+    type: c.type === "business" ? "business" : "individual", company: c.company ?? undefined, doy, profession: c.profession ?? undefined, hasPassword: !!c.passwordHash,
+  };
 }
 
 const PRODUCT = { select: { slug: true, brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" as const }, take: 1, select: { url: true } } } } as const;
@@ -124,23 +130,45 @@ export async function accountInstalments(customerId: string, now = new Date()): 
 }
 
 const KIND: Record<string, Appointment["kind"]> = { installation: "installation", delivery: "delivery", pickup: "pickup", repair: "service", "warranty-claim": "service", appointment: "service" };
-const KIND_TITLE: Record<string, string> = { installation: "Εγκατάσταση", delivery: "Παράδοση με ραντεβού", pickup: "Παραλαβή", repair: "Επισκευή", "warranty-claim": "Βλάβη σε εγγύηση", appointment: "Ραντεβού service" };
 
-/** Ραντεβού & service: τα αιτήματα service του πελάτη (ServiceTicket). */
-export async function accountAppointments(customerId: string): Promise<(Appointment & { number: string; canCancel: boolean })[]> {
+export interface AccountTicket extends Appointment {
+  number: string;
+  canCancel: boolean;
+  /** ανοιχτό (μπορεί να ζητήσει αλλαγή ώρας / να στείλει μήνυμα) */
+  open: boolean;
+  /** 0–3 στα βήματα του πελάτη, −1 ακυρώθηκε */
+  step: number;
+  statusLabel: string;
+  modeLabel?: string;
+  inWarranty: boolean;
+  history: { at: string; text: string; by: "customer" | "euronics" }[];
+  attachments: TicketAttachment[];
+  /** εκκρεμές αίτημα αλλαγής ώρας */
+  request?: { at: string; date?: string; slot?: string };
+}
+
+/** Ραντεβού & service: τα αιτήματα service του πελάτη (ServiceTicket) με πορεία, συνημμένα και εκκρεμή αιτήματα. */
+export async function accountAppointments(customerId: string): Promise<AccountTicket[]> {
   const [rows, stores] = await Promise.all([
     db.serviceTicket.findMany({ where: { customerId }, orderBy: { createdAt: "desc" }, take: 50, include: { device: { select: { title: true, brand: true } } } }),
     db.store.findMany({ select: { id: true, name: true, city: true } }),
   ]);
   const sn = new Map(stores.map((s) => [s.id, `${s.name}, ${s.city}`]));
-  return rows.map((t) => ({
-    id: t.id, number: t.number, kind: KIND[t.kind] ?? "service", title: KIND_TITLE[t.kind] ?? "Service",
-    productTitle: t.device ? `${t.device.brand} ${t.device.title}`.trim() : undefined,
-    store: t.storeId ? sn.get(t.storeId) ?? "Κατάστημα" : t.mode === "visit" ? "Στον χώρο σου" : t.mode === "pickup" ? "Παραλαβή από τον χώρο σου" : "Service Euronics",
-    technician: t.technician ?? undefined, date: day(t.scheduledAt ?? t.createdAt), slot: t.slot ?? (t.scheduledAt ? "" : "Θα σε καλέσουμε για ημέρα και ώρα"),
-    status: t.status === "done" ? "done" : t.status === "cancelled" ? "cancelled" : t.scheduledAt ? "confirmed" : "scheduled",
-    notes: t.description, canCancel: ["new", "scheduled"].includes(t.status),
-  }));
+  return rows.map((t) => {
+    const tl = parseTimeline(t.timeline);
+    const req = isOpen(t.status) ? openRescheduleRequest(tl) : null;
+    return {
+      id: t.id, number: t.number, kind: KIND[t.kind] ?? "service", title: KIND_LABEL[t.kind] ?? "Service",
+      productTitle: t.device ? `${t.device.brand} ${t.device.title}`.trim() : undefined,
+      store: t.storeId ? sn.get(t.storeId) ?? "Κατάστημα" : t.mode === "visit" ? "Στον χώρο σου" : t.mode === "pickup" ? "Παραλαβή από τον χώρο σου" : "Service Euronics",
+      technician: t.technician ?? undefined, date: (t.scheduledAt ?? t.createdAt).toISOString(), slot: t.slot ?? (t.scheduledAt ? "" : "Θα σε καλέσουμε για ημέρα και ώρα"),
+      status: t.status === "done" ? "done" : t.status === "cancelled" ? "cancelled" : t.scheduledAt ? "confirmed" : "scheduled",
+      notes: t.description, canCancel: ["new", "scheduled"].includes(t.status), open: isOpen(t.status),
+      step: customerStep(t.status, !!t.scheduledAt), statusLabel: STATUS_LABEL[t.status as keyof typeof STATUS_LABEL] ?? t.status, modeLabel: t.mode ? MODE_LABEL[t.mode] : undefined, inWarranty: t.inWarranty,
+      history: customerTimeline(tl), attachments: parseAttachments(t.attachments),
+      request: req ? { at: req.at, date: req.request?.date, slot: req.request?.slot } : undefined,
+    };
+  });
 }
 
 const CHANNELS = ["email", "sms", "push", "viber"] as const;

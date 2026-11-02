@@ -170,11 +170,12 @@ const L: Record<string, Loader> = {
       db.serviceTicket.count({ where: { ...open, status: "new" } }),
       db.serviceTicket.count({ where: { ...open, scheduledAt: { gte: t0, lt: t1 } } }),
       db.serviceTicket.count({ where: { ...open, status: "waiting-parts" } }),
-      db.serviceTicket.findMany({ where: open, orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }], take: 7, select: { number: true, kind: true, status: true, scheduledAt: true, createdAt: true, customerId: true, customer: { select: { firstName: true, lastName: true } } } }),
+      db.serviceTicket.findMany({ where: open, orderBy: [{ scheduledAt: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }], take: 7, select: { id: true, number: true, kind: true, status: true, scheduledAt: true, createdAt: true, customerId: true, customer: { select: { firstName: true, lastName: true } } } }),
     ]);
     return {
-      stats: [{ label: "Νέα", value: num(fresh), tone: fresh ? "warn" : "ok" }, { label: "Ραντεβού σήμερα", value: num(today), tone: "info" }, { label: "Αναμονή ανταλλακτικών", value: num(parts), tone: parts ? "warn" : "ok" }],
-      rows: list.map((t) => ({ title: `${K[t.kind] ?? t.kind} · ${t.customer.firstName} ${t.customer.lastName}`, sub: `#${t.number} · ${S[t.status] ?? t.status}`, meta: t.scheduledAt ? when(t.scheduledAt) : ago(t.createdAt), tone: t.status === "new" ? "warn" : "muted", href: `/admin/customers/${t.customerId}` })),
+      stats: [{ label: "Νέα", value: num(fresh), tone: fresh ? "warn" : "ok", href: "/admin/service?view=new" }, { label: "Ραντεβού σήμερα", value: num(today), tone: "info", href: "/admin/service?view=today" }, { label: "Αναμονή ανταλλακτικών", value: num(parts), tone: parts ? "warn" : "ok", href: "/admin/service?view=waiting-parts" }],
+      rows: list.map((t) => ({ title: `${K[t.kind] ?? t.kind} · ${t.customer.firstName} ${t.customer.lastName}`, sub: `#${t.number} · ${S[t.status] ?? t.status}`, meta: t.scheduledAt ? when(t.scheduledAt) : ago(t.createdAt), tone: t.status === "new" ? "warn" : "muted", href: `/admin/service/${t.id}` })),
+      href: "/admin/service", hrefLabel: "Ουρά service",
       empty: "Κανένα ανοιχτό αίτημα service.", badge: fresh ? { n: fresh, tone: "warn" } : undefined,
     };
   },

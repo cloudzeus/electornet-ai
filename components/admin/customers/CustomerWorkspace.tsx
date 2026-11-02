@@ -298,7 +298,10 @@ function DevicesTab({ c, canWrite, run, pending }: { c: Any; canWrite: boolean; 
 
 function ServiceTab({ c, stores, canWrite, run, pending }: { c: Any; stores: { id: string; name: string; city: string }[]; canWrite: boolean; run: Any; pending: boolean }) {
   const [nt, setNt] = useState<{ kind: string; description: string; deviceId: string; mode: string; scheduledAt: string; slot: string; storeId: string } | null>(null);
-  const [upd, setUpd] = useState<Record<string, { status: string; note: string; scheduledAt: string; technician: string; erpJob: string }>>({});
+  const [upd, setUpd] = useState<Record<string, { status: string; note: string; scheduledAt: string; technician: string; erpJob: string; notify: boolean }>>({});
+  // datetime-local: τοπική ώρα του browser ↔ ISO (ο server δεν ξέρει τη ζώνη ώρας)
+  const toLocal = (iso: string | null) => { if (!iso) return ""; const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+  const toIso = (v: string) => (v ? new Date(v).toISOString() : "");
   const STATUS = [["new", "Νέο"], ["scheduled", "Προγραμματισμένο"], ["in-progress", "Σε εξέλιξη"], ["waiting-parts", "Αναμονή ανταλλακτικών"], ["done", "Ολοκληρώθηκε"], ["cancelled", "Ακυρώθηκε"]];
   return (
     <Card title="Service & ραντεβού" right={canWrite && <button type="button" onClick={() => setNt({ kind: "repair", description: "", deviceId: "", mode: "visit", scheduledAt: "", slot: "", storeId: c.preferredStoreId ?? "" })} className={btn}><Plus className="size-4" aria-hidden /> Νέο αίτημα</button>}>
@@ -313,13 +316,13 @@ function ServiceTab({ c, stores, canWrite, run, pending }: { c: Any; stores: { i
             <label className={label}>Κατάστημα<select value={nt.storeId} onChange={(e) => setNt({ ...nt, storeId: e.target.value })} className={field}><option value="">—</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.city} — {s.name}</option>)}</select></label>
           </div>
           <label className={label}>Περιγραφή<textarea rows={2} value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} className={`${field} py-2`} /></label>
-          <div className="flex gap-2"><button type="button" disabled={pending} onClick={() => run(async () => { const r = await createTicket(c.id, nt); if (r.ok) setNt(null); return r; }, "Το αίτημα καταχωρήθηκε.")} className={btn}><Check className="size-4" aria-hidden /> Καταχώρηση</button><button type="button" onClick={() => setNt(null)} className={btn2}>Άκυρο</button></div>
+          <div className="flex gap-2"><button type="button" disabled={pending} onClick={() => run(async () => { const r = await createTicket(c.id, { ...nt, scheduledAt: toIso(nt.scheduledAt) }); if (r.ok) setNt(null); return r; }, "Το αίτημα καταχωρήθηκε.")} className={btn}><Check className="size-4" aria-hidden /> Καταχώρηση</button><button type="button" onClick={() => setNt(null)} className={btn2}>Άκυρο</button></div>
         </div>
       )}
       <ul className="m-0 p-0 list-none grid gap-3">
-        {c.tickets.map((t: Any) => { const u = upd[t.id] ?? { status: t.status, note: "", scheduledAt: t.scheduledAt?.slice(0, 16) ?? "", technician: t.technician ?? "", erpJob: t.erpJob ?? "" }; return (
+        {c.tickets.map((t: Any) => { const u = upd[t.id] ?? { status: t.status, note: "", scheduledAt: toLocal(t.scheduledAt), technician: t.technician ?? "", erpJob: t.erpJob ?? "", notify: true }; return (
           <li key={t.id} className="rounded-xl border border-eu-line p-3 text-[length:var(--fs-14)] grid gap-2">
-            <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-eu-ink">{t.number}</span><span className="rounded-full bg-eu-surface px-2 text-[length:var(--fs-13)] font-bold">{t.kind}</span><span className={`rounded-full px-2 text-[length:var(--fs-13)] font-bold ${t.status === "done" ? "bg-eu-green/10 text-eu-green" : t.status === "cancelled" ? "bg-eu-surface text-eu-muted" : "bg-eu-yellow/40 text-eu-navy"}`}>{STATUS.find((s) => s[0] === t.status)?.[1] ?? t.status}</span>{t.inWarranty && <span className="text-eu-green text-[length:var(--fs-13)] font-bold">εντός εγγύησης</span>}<span className="ml-auto text-eu-muted text-[length:var(--fs-13)]">{dt(t.createdAt)}</span></div>
+            <div className="flex flex-wrap items-center gap-2"><a href={`/admin/service/${t.id}`} className="font-bold text-eu-blue underline">{t.number}</a><span className="rounded-full bg-eu-surface px-2 text-[length:var(--fs-13)] font-bold">{t.kind}</span><span className={`rounded-full px-2 text-[length:var(--fs-13)] font-bold ${t.status === "done" ? "bg-eu-green/10 text-eu-green" : t.status === "cancelled" ? "bg-eu-surface text-eu-muted" : "bg-eu-yellow/40 text-eu-navy"}`}>{STATUS.find((s) => s[0] === t.status)?.[1] ?? t.status}</span>{t.inWarranty && <span className="text-eu-green text-[length:var(--fs-13)] font-bold">εντός εγγύησης</span>}<span className="ml-auto text-eu-muted text-[length:var(--fs-13)]">{dt(t.createdAt)}</span></div>
             <div className="text-eu-ink-2">{t.description}</div>
             <div className="text-eu-muted text-[length:var(--fs-13)]">{t.device ? `${t.device.brand} ${t.device.title} · ` : ""}{t.mode ?? ""}{t.scheduledAt ? ` · ${dt(t.scheduledAt)}${t.slot ? ` (${t.slot})` : ""}` : ""}{t.technician ? ` · τεχνικός ${t.technician}` : ""}{t.erpJob ? ` · SoftOne ${t.erpJob}` : ""}</div>
             {Array.isArray(t.timeline) && t.timeline.length > 0 && <ul className="m-0 p-0 list-none text-[length:var(--fs-13)] text-eu-muted">{t.timeline.map((x: Any, i: number) => <li key={i}>{dt(x.at)} · {x.status}{x.note ? ` — ${x.note}` : ""}{x.by ? ` (${x.by})` : ""}</li>)}</ul>}
@@ -330,7 +333,8 @@ function ServiceTab({ c, stores, canWrite, run, pending }: { c: Any; stores: { i
                 <label className={label}>Σημείωση<input value={u.note} onChange={(e) => setUpd({ ...upd, [t.id]: { ...u, note: e.target.value } })} className={field} /></label>
                 <label className={label}>Τεχνικός<input value={u.technician} onChange={(e) => setUpd({ ...upd, [t.id]: { ...u, technician: e.target.value } })} className={field} /></label>
                 <label className={label}>SoftOne job<input value={u.erpJob} onChange={(e) => setUpd({ ...upd, [t.id]: { ...u, erpJob: e.target.value } })} className={`${field} font-mono`} /></label>
-                <button type="button" disabled={pending} onClick={() => run(() => updateTicket(c.id, t.id, u), "Ενημερώθηκε.")} className={btn}><Check className="size-4" aria-hidden /> Ενημέρωση</button>
+                <button type="button" disabled={pending} onClick={() => run(() => updateTicket(c.id, t.id, { ...u, scheduledAt: toIso(u.scheduledAt) }), "Ενημερώθηκε.")} className={btn}><Check className="size-4" aria-hidden /> Ενημέρωση</button>
+                <label className="@2xl:col-span-6 inline-flex items-center gap-2 text-[length:var(--fs-13)] font-semibold text-eu-ink-2"><input type="checkbox" checked={u.notify} onChange={(e) => setUpd({ ...upd, [t.id]: { ...u, notify: e.target.checked } })} className="size-4" /> Email στον πελάτη σε νέο ραντεβού, ολοκλήρωση ή ακύρωση · <a href={`/admin/service/${t.id}`} className="text-eu-blue underline">πλήρης καρτέλα αιτήματος</a></label>
               </div>
             )}
           </li>

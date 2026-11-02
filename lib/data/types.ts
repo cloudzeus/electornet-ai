@@ -313,6 +313,13 @@ export interface Customer {
   memberSince: string;
   loyaltyPoints?: number;
   twoFactor?: boolean;
+  /** Στοιχεία τιμολόγησης (πελάτης-επιχείρηση) */
+  type?: "individual" | "business";
+  company?: string;
+  doy?: string;
+  profession?: string;
+  /** Έχει κωδικό (όχι μόνο κοινωνική σύνδεση) — η αλλαγή email τότε ζητά τον τρέχοντα κωδικό */
+  hasPassword?: boolean;
 }
 
 /** @dynamic Αποθηκευμένος τρόπος πληρωμής — source: PSP token vault (ποτέ αριθμοί καρτών στη Euronics). */

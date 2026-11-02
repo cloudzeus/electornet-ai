@@ -40,7 +40,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/synergates/anaplirosis", label: "Αναπληρώσεις (B2B)", icon: PackagePlus, perm: "stores.partners.read" },
       { href: "/admin/synergates/endiaferon", label: "Ενδιαφέρον συνεργατών", icon: Sparkles, perm: "stores.partners.read" },
       { href: "/admin/gdpr", label: "GDPR", icon: ShieldCheck, perm: "customers.read" },
-      { href: "/admin/service", label: "Service & εγγυήσεις", icon: Wrench, perm: "service.tickets.read", soon: true },
+      { href: "/admin/service", label: "Service & ραντεβού", icon: Wrench, perm: "service.tickets.read" },
+      { href: "/admin/eggyiseis", label: "Εγγυήσεις συσκευών", icon: ShieldHalf, perm: "service.tickets.read" },
     ],
   },
   {

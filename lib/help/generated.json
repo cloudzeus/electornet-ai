@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-01T09:16:49.268Z",
+ "generatedAt": "2026-11-02T08:10:28.867Z",
  "routes": [
   {
    "route": "/admin",
@@ -1864,6 +1864,32 @@
    "shots": {}
   },
   {
+   "route": "/admin/eggyiseis",
+   "slug": "eggyiseis",
+   "file": "app/admin/(shell)/eggyiseis/page.tsx",
+   "title": "Εγγυήσεις συσκευών",
+   "doc": "Εγγυήσεις συσκευών: όλες οι συσκευές πελατών (CustomerDevice) σε μία λίστα — KPIs, φίλτρα στο URL (μοιράζονται), πίνακας σε υπολογιστή / κάρτες σε κινητό, διόρθωση στοιχείων, νέα καταχώριση και εξαγωγή CSV με τα ίδια φίλτρα.",
+   "perm": "service.tickets.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Εγγυήσεις συσκευών"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "eggyiseis.dialog",
+    "eggyiseis.edit",
+    "eggyiseis.new",
+    "eggyiseis.header",
+    "eggyiseis.export",
+    "eggyiseis.kpis",
+    "eggyiseis.filters",
+    "eggyiseis.table"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/emails",
    "slug": "emails",
    "file": "app/admin/(shell)/emails/page.tsx",
@@ -3438,6 +3464,49 @@
    }
   },
   {
+   "route": "/admin/service",
+   "slug": "service",
+   "file": "app/admin/(shell)/service/page.tsx",
+   "title": "Service & ραντεβού",
+   "doc": "Ουρά service: όλα τα αιτήματα (επισκευές, εγκαταστάσεις, παραδόσεις με ραντεβού) σε ένα σημείο — προβολές με πλήθη, αναζήτηση και φίλτρα στη διεύθυνση, και κάθε αίτημα ανοίγει στην καρτέλα του για ραντεβού, ανάθεση και email.",
+   "perm": "service.tickets.read",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Service & ραντεβού"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "kpis",
+    "views",
+    "filters",
+    "list"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/service/[id]",
+   "slug": "service.id",
+   "file": "app/admin/(shell)/service/[id]/page.tsx",
+   "title": "Αίτημα service",
+   "doc": "Καρτέλα αιτήματος service: πελάτης, συσκευή και εγγύηση, περιγραφή και συνημμένα, πλήρης πορεία (και εσωτερικές σημειώσεις), εκκρεμές αίτημα αλλαγής ώρας και η φόρμα ενημέρωσης με email στον πελάτη.",
+   "perm": "service.tickets.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "request",
+    "description",
+    "attachments",
+    "timeline",
+    "customer",
+    "device"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/settings",
    "slug": "settings",
    "file": "app/admin/(shell)/settings/page.tsx",
@@ -4056,6 +4125,11 @@
    ],
    "changes": [
     {
+     "hash": "ab0dc06",
+     "date": "2026-11-01T11:17:16+02:00",
+     "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση"
+    },
+    {
      "hash": "7885965",
      "date": "2026-10-31T17:16:51+02:00",
      "text": "Πύλη συνεργατών: αναπλήρωση αποθέματος, πλήρη στοιχεία πελάτη, παραλαβή από κατάστημα"
@@ -4086,7 +4160,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T17:16:51+02:00",
+   "updatedAt": "2026-11-01T11:17:16+02:00",
    "shots": {}
   },
   {
@@ -4108,6 +4182,11 @@
     "restock.list"
    ],
    "changes": [
+    {
+     "hash": "ab0dc06",
+     "date": "2026-11-01T11:17:16+02:00",
+     "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση"
+    },
     {
      "hash": "7885965",
      "date": "2026-10-31T17:16:51+02:00",
@@ -4134,7 +4213,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-10-31T17:16:51+02:00",
+   "updatedAt": "2026-11-01T11:17:16+02:00",
    "shots": {}
   },
   {
@@ -4183,8 +4262,14 @@
     "interest.list",
     "interest.status"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "ab0dc06",
+     "date": "2026-11-01T11:17:16+02:00",
+     "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση"
+    }
+   ],
+   "updatedAt": "2026-11-01T11:17:16+02:00",
    "shots": {}
   },
   {
@@ -4215,6 +4300,52 @@
   }
  ],
  "recent": [
+  {
+   "hash": "f212bf9",
+   "date": "2026-11-02T09:37:22+02:00",
+   "text": "Σκετς Ερμή: έτοιμες απαντήσεις για ζωντανό διάλογο χωρίς καθυστέρηση, «κύριε Δριβάκο», πιο ευαίσθητη ακρόαση",
+   "routes": []
+  },
+  {
+   "hash": "b4560c0",
+   "date": "2026-11-02T08:33:08+02:00",
+   "text": "Σκετς Ερμή: αυτόματη συνέχεια με ακρόαση του παρουσιαστή, ελεύθερος διάλογος και ερωτήσεις κοινού",
+   "routes": []
+  },
+  {
+   "hash": "18f1e8f",
+   "date": "2026-11-01T14:21:54+02:00",
+   "text": "Σκετς Ερμή: κλήση μέσω Vapi με ζωντανούς υπότιτλους και ήχο αίθουσας, εφεδρεία ElevenLabs",
+   "routes": []
+  },
+  {
+   "hash": "26fdff6",
+   "date": "2026-11-01T13:54:00+02:00",
+   "text": "Σκετς Ερμή: παρουσιαστής Δ. Δριβάκος, ο agent λέει τα μοντέλα, εφεδρική κλήση",
+   "routes": []
+  },
+  {
+   "hash": "6505c63",
+   "date": "2026-11-01T13:39:49+02:00",
+   "text": "Σκετς Ερμή: σκηνή παρουσίασης «σπίτι στη Λάρισα» με κλήση σε κατάστημα",
+   "routes": []
+  },
+  {
+   "hash": "d975268",
+   "date": "2026-11-01T11:33:34+02:00",
+   "text": "Πύλη συνεργατών: video 1080p υψηλής ποιότητας σε υπολογιστή/προβολικό, πλήρης οθόνη και λήψη 4K",
+   "routes": []
+  },
+  {
+   "hash": "ab0dc06",
+   "date": "2026-11-01T11:17:16+02:00",
+   "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση",
+   "routes": [
+    "/admin",
+    "/admin/synergates",
+    "/admin/synergates/endiaferon"
+   ]
+  },
   {
    "hash": "0679950",
    "date": "2026-10-31T22:55:14+02:00",
@@ -4507,65 +4638,6 @@
     "/admin/catalog/templates",
     "/admin/catalog/templates/xml"
    ]
-  },
-  {
-   "hash": "1989c79",
-   "date": "2026-10-29T13:12:12+02:00",
-   "text": "XML προμηθευτές: αποθηκευμένο XML, πρότυπο ανά προμηθευτή, καινούργιες τιμές και δημοσίευση",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
-  },
-  {
-   "hash": "e803403",
-   "date": "2026-10-28T16:52:26+02:00",
-   "text": "XML προμηθευτές: screenshots βοήθειας (υπολογιστή και κινητού)",
-   "routes": []
-  },
-  {
-   "hash": "a703e82",
-   "date": "2026-10-28T16:44:21+02:00",
-   "text": "XML προμηθευτές: η κάρτα που μόλις αντιστοίχισες δεν εξαφανίζεται από κάτω σου",
-   "routes": []
-  },
-  {
-   "hash": "e24d739",
-   "date": "2026-10-28T16:37:14+02:00",
-   "text": "XML προμηθευτές: βήμα που έπαψε να υπάρχει δεν αφήνει τον οδηγό χωρίς πλοήγηση",
-   "routes": []
-  },
-  {
-   "hash": "4dba464",
-   "date": "2026-10-28T16:36:22+02:00",
-   "text": "XML προμηθευτές: η αντιστοίχιση σε χωριστά βήματα, με παραδείγματα προϊόντων",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
-  },
-  {
-   "hash": "13a7f97",
-   "date": "2026-10-28T16:35:58+02:00",
-   "text": "Μονάδα μέτρησης και εμπορική σήμανση στα νέα είδη από εισαγωγή",
-   "routes": [
-    "/admin",
-    "/admin/softone"
-   ]
-  },
-  {
-   "hash": "9aaa776",
-   "date": "2026-10-28T13:41:38+02:00",
-   "text": "XML προμηθευτές: σύνδεσμος από τα templates και οδηγός βοήθειας",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates"
-   ]
   }
  ],
  "helpKeys": {
@@ -4743,6 +4815,30 @@
   "customers.filters": [
    "app/admin/(shell)/customers/page.tsx"
   ],
+  "eggyiseis.dialog": [
+   "app/admin/(shell)/eggyiseis/DeviceDialogs.tsx"
+  ],
+  "eggyiseis.edit": [
+   "app/admin/(shell)/eggyiseis/DeviceDialogs.tsx"
+  ],
+  "eggyiseis.new": [
+   "app/admin/(shell)/eggyiseis/DeviceDialogs.tsx"
+  ],
+  "eggyiseis.header": [
+   "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
+  "eggyiseis.export": [
+   "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
+  "eggyiseis.kpis": [
+   "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
+  "eggyiseis.filters": [
+   "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
+  "eggyiseis.table": [
+   "app/admin/(shell)/eggyiseis/page.tsx"
+  ],
   "subscribers.campaigns": [
    "app/admin/(shell)/newsletter/page.tsx"
   ],
@@ -4880,6 +4976,36 @@
   ],
   "ads.campaigns": [
    "app/admin/(shell)/prosfores/theseis/page.tsx"
+  ],
+  "request": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "description": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "attachments": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "timeline": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "customer": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "device": [
+   "app/admin/(shell)/service/[id]/page.tsx"
+  ],
+  "kpis": [
+   "app/admin/(shell)/service/page.tsx"
+  ],
+  "views": [
+   "app/admin/(shell)/service/page.tsx"
+  ],
+  "filters": [
+   "app/admin/(shell)/service/page.tsx"
+  ],
+  "list": [
+   "app/admin/(shell)/service/page.tsx"
   ],
   "sync.job": [
    "app/admin/(shell)/softone/sync/ScheduledJobs.tsx"
@@ -5466,6 +5592,9 @@
   ],
   "promo.sim.result": [
    "components/admin/promos/Simulator.tsx"
+  ],
+  "editor": [
+   "components/admin/service-tickets/TicketEditor.tsx"
   ],
   "settings.bank-accounts": [
    "components/admin/settings/BankAccountsField.tsx"

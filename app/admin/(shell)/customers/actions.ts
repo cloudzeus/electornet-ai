@@ -7,6 +7,7 @@ import { audit } from "@/lib/rbac/audit";
 import { pushCustomerToErp, pullCustomerFromErp, searchErpCustomers, linkCustomerToErp } from "@/lib/softone/customers";
 import { requestPasswordReset } from "@/lib/account/password-reset";
 import { geocodeCustomerAddress } from "@/lib/customers/geocode-address";
+import { createServiceTicket, updateServiceTicket } from "@/lib/service/tickets";
 
 export interface CustomerInput {
   type: "individual" | "business"; email: string; firstName: string; lastName: string; company: string; vatNumber: string; doy: string; profession: string;
@@ -100,22 +101,19 @@ export async function saveDevice(customerId: string, deviceId: string | null, d:
   return { ok: true as const, id: row.id };
 }
 
-export async function updateTicket(customerId: string, ticketId: string, patch: { status?: string; scheduledAt?: string; slot?: string; technician?: string; note?: string; erpJob?: string }) {
+export async function updateTicket(customerId: string, ticketId: string, patch: { status?: string; scheduledAt?: string; slot?: string; technician?: string; note?: string; erpJob?: string; notify?: boolean }) {
   const user = await requirePermission("service.tickets.write");
-  const t = await db.serviceTicket.findUniqueOrThrow({ where: { id: ticketId } });
-  const timeline = [...((t.timeline as { at: string; status: string; note?: string; by?: string }[] | null) ?? []), { at: new Date().toISOString(), status: patch.status ?? t.status, note: patch.note ?? "", by: user.name ?? "staff" }];
-  await db.serviceTicket.update({ where: { id: ticketId }, data: { status: patch.status ?? t.status, scheduledAt: patch.scheduledAt ? new Date(patch.scheduledAt) : t.scheduledAt, slot: patch.slot ?? t.slot, technician: patch.technician ?? t.technician, erpJob: patch.erpJob ?? t.erpJob, timeline } });
-  await ev(customerId, "ticket", { by: user.name, number: t.number, status: patch.status ?? t.status }, user.id);
+  // ίδια λογική με την ουρά service: έλεγχος μετάβασης, πορεία, email στον πελάτη
+  const r = await updateServiceTicket(ticketId, { ...patch, scheduledAt: patch.scheduledAt === undefined ? undefined : patch.scheduledAt || null }, { name: user.name ?? "staff", staffId: user.id });
   paths(customerId);
-  return { ok: true as const };
+  return r.ok ? { ok: true as const } : r;
 }
 
 export async function createTicket(customerId: string, t: { kind: string; description: string; deviceId: string; mode: string; scheduledAt: string; slot: string; storeId: string }) {
   const user = await requirePermission("service.tickets.write");
   if (!t.description.trim()) return { ok: false as const, error: "Περιέγραψε το αίτημα." };
-  const n = await db.serviceTicket.count();
-  const row = await db.serviceTicket.create({ data: { number: `SRV-${10001 + n}`, customerId, kind: t.kind || "repair", description: t.description.trim(), deviceId: t.deviceId || null, mode: t.mode || null, scheduledAt: t.scheduledAt ? new Date(t.scheduledAt) : null, slot: t.slot || null, storeId: t.storeId || null, status: t.scheduledAt ? "scheduled" : "new", timeline: [{ at: new Date().toISOString(), status: t.scheduledAt ? "scheduled" : "new", note: "Καταχώρηση από διαχείριση", by: user.name ?? "staff" }] } });
-  await ev(customerId, "ticket", { by: user.name, number: row.number, kind: row.kind }, user.id);
+  const scheduledAt = t.scheduledAt ? new Date(t.scheduledAt) : null;
+  const row = await createServiceTicket({ customerId, kind: t.kind || "repair", description: t.description, deviceId: t.deviceId || null, mode: t.mode || null, scheduledAt: scheduledAt && !isNaN(+scheduledAt) ? scheduledAt : null, slot: t.slot || null, storeId: t.storeId || null, note: "Καταχώρηση από διαχείριση", by: { name: user.name ?? "staff", staffId: user.id } });
   paths(customerId);
   return { ok: true as const, id: row.id };
 }
