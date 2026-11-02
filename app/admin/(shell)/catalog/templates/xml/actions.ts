@@ -28,6 +28,7 @@ import { checkRows, checkSummary, chooseNew, resumeCheck, startCheck, type Check
 import { normPolicy, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
 import { toTransform, type DraftDTO, type FeedStateDTO, type InspectDTO, type ItemDTO, type ItemsDTO, type MappingDraft, type PublishDTO, type QueueDTO, type SourceDTO, type SuggestDTO, type SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 import { buildSuggestDTO } from "@/lib/catalog/xml-import/suggest-dto";
+import type { FeedFormat } from "@/lib/catalog/xml-import/source-core";
 
 /**
  * Server actions του οδηγού «XML προμηθευτές». Λεπτό στρώμα γύρω από τις έτοιμες συναρτήσεις του
@@ -67,9 +68,9 @@ async function guard<T>(where: string, fn: () => Promise<T>): Promise<T | Fail> 
 // ---------- Βήμα ①: προμηθευτής ----------
 
 /** Οι προμηθευτές του SoftOne (cache) με το feed τους. Αναζήτηση σε κωδικό, όνομα ή ΑΦΜ. */
-export async function findSuppliers(q: string): Promise<SupplierCard[]> {
+export async function findSuppliers(q: string, format: FeedFormat = "xml"): Promise<SupplierCard[]> {
   await requirePermission("catalog.products.write");
-  return supplierCards(String(q ?? "").slice(0, 80));
+  return supplierCards(String(q ?? "").slice(0, 80), 60, format === "keyvoto" ? "keyvoto" : "xml");
 }
 
 /**

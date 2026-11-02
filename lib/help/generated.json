@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-02T12:20:02.880Z",
+ "generatedAt": "2026-11-02T12:42:38.465Z",
  "routes": [
   {
    "route": "/admin",
@@ -935,6 +935,11 @@
    ],
    "changes": [
     {
+     "hash": "154a019",
+     "date": "2026-11-02T14:21:25+02:00",
+     "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
+    },
+    {
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
@@ -970,7 +975,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-10-31T07:29:29+02:00",
+   "updatedAt": "2026-11-02T14:21:25+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -1096,13 +1101,21 @@
    "slug": "catalog.templates.keyvoto",
    "file": "app/admin/(shell)/catalog/templates/keyvoto/page.tsx",
    "title": "Keyvoto PIM",
-   "doc": "Περιεχόμενο προϊόντων από το Keyvoto (PIM των προμηθευτών): δοκιμή της σύνδεσης και δείγμα προϊόντων με όλα τους τα πεδία. Είναι το πρώτο βήμα της ίδιας διαδρομής που έχουν τα XML feeds — αντιστοίχιση, λίστα ελέγχου, εισαγωγή.",
+   "doc": "Μαζική εισαγωγή προϊόντων από το Keyvoto (PIM των προμηθευτών). Ο οδηγός είναι **ο ίδιος** με των XML feeds — προμηθευτής → πηγή → αντιστοίχιση ανά βήμα → έλεγχος με SoftOne → λίστα ελέγχου → δημοσίευση. Αλλάζει μόνο το «από πού»: αντί για διεύθυνση XML, διαλέγεις εκδότη και κατάλογο του Keyvoto.",
    "perm": "catalog.products.write",
    "nav": null,
    "dynamic": false,
-   "helpKeys": [],
-   "changes": [],
-   "updatedAt": null,
+   "helpKeys": [
+    "keyvoto.explore"
+   ],
+   "changes": [
+    {
+     "hash": "154a019",
+     "date": "2026-11-02T14:21:25+02:00",
+     "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
+    }
+   ],
+   "updatedAt": "2026-11-02T14:21:25+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
@@ -3566,6 +3579,11 @@
    ],
    "changes": [
     {
+     "hash": "154a019",
+     "date": "2026-11-02T14:21:25+02:00",
+     "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
+    },
+    {
      "hash": "bee0db4",
      "date": "2026-10-31T15:48:58+02:00",
      "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
@@ -3609,14 +3627,9 @@
      "hash": "3d85dfd",
      "date": "2026-10-19T19:01:08+03:00",
      "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
-    },
-    {
-     "hash": "d1316c3",
-     "date": "2026-10-17T04:47:09+03:00",
-     "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
     }
    ],
-   "updatedAt": "2026-10-31T15:48:58+02:00",
+   "updatedAt": "2026-11-02T14:21:25+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3640,6 +3653,11 @@
    ],
    "changes": [
     {
+     "hash": "154a019",
+     "date": "2026-11-02T14:21:25+02:00",
+     "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
+    },
+    {
      "hash": "bee0db4",
      "date": "2026-10-31T15:48:58+02:00",
      "text": "Πύλη συνεργατών: εγγραφή επικοινωνίας στο SoftOne, Ερμής, χάρτης, ΑΑΔΕ, τράπεζες και Viva"
@@ -3683,14 +3701,9 @@
      "hash": "3d85dfd",
      "date": "2026-10-19T19:01:08+03:00",
      "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
-    },
-    {
-     "hash": "d1316c3",
-     "date": "2026-10-17T04:47:09+03:00",
-     "text": "Newsletter προσφοράς (1/7): πίνακες Newsletter / NewsletterRecipient / NewsletterEvent μέσω scripts/apply-newsletter.ts και ρύθμιση mailgunWebhookKey"
     }
    ],
-   "updatedAt": "2026-10-31T15:48:58+02:00",
+   "updatedAt": "2026-11-02T14:21:25+02:00",
    "shots": {}
   },
   {
@@ -4341,6 +4354,18 @@
  ],
  "recent": [
   {
+   "hash": "154a019",
+   "date": "2026-11-02T14:21:25+02:00",
+   "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/keyvoto",
+    "/admin/settings"
+   ]
+  },
+  {
    "hash": "ae72485",
    "date": "2026-11-02T11:54:23+02:00",
    "text": "Σκετς Ερμή: η κλήση δεν κόβεται με «Επόμενο», μία επιλογή καταστήματος (φωνή ή κλικ), διευκρίνιση στον κάδο, ffmpeg στο build",
@@ -4668,12 +4693,6 @@
     "/admin/catalog/templates",
     "/admin/catalog/templates/xml"
    ]
-  },
-  {
-   "hash": "d93a17d",
-   "date": "2026-10-30T10:29:16+02:00",
-   "text": "XML προμηθευτές: ο χρήστης διαλέγει ποιες μάρκες συμμετέχουν",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4805,6 +4824,9 @@
   ],
   "catalog.type": [
    "app/admin/(shell)/catalog/page.tsx"
+  ],
+  "keyvoto.explore": [
+   "app/admin/(shell)/catalog/templates/keyvoto/page.tsx"
   ],
   "pending.filters": [
    "app/admin/(shell)/catalog/templates/nea-eidi/page.tsx"

@@ -6,6 +6,7 @@ import { feedBytes, setSnapshotProducts } from "@/lib/catalog/xml-import/snapsho
 import { clampMinFetch } from "@/lib/catalog/xml-import/cache-core";
 import { UserError, configToSaved, configForHeaders, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
+import { feedFormat } from "@/lib/catalog/xml-import/source-core";
 import { applyTransform, type Transform, type PriceMode } from "@/lib/catalog/xml-import/transform-core";
 import { diffItems, type Diff } from "@/lib/catalog/xml-import/diff-core";
 import { statusFor } from "@/lib/catalog/xml-import/skip-core";
@@ -93,7 +94,9 @@ export async function saveFeed(
     toSoftone: input.toSoftone,
   };
   const minFetchMin = clampMinFetch(input.minFetchMin ?? 30);
-  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true, config: true } });
+  const format = feedFormat(url);
+  // Ένα feed ανά προμηθευτή ΚΑΙ ανά πηγή: ο ίδιος προμηθευτής μπορεί να έχει XML και Keyvoto χωρίς να πατά το ένα το άλλο.
+  const existing = await db.supplierFeed.findFirst({ where: { supplierId, format }, orderBy: { createdAt: "desc" }, select: { id: true, config: true } });
   // ο χάρτης διαθεσιμότητας ρυθμίζεται χωριστά (βήμα ①) — μια νέα αντιστοίχιση στηλών δεν τον σβήνει
   const keptAvail = existing ? cfgOf(existing.config).saved.availMap : undefined;
   if (!cfg.saved.availMap && keptAvail && Object.keys(keptAvail).length) cfg.saved.availMap = keptAvail;
@@ -101,7 +104,7 @@ export async function saveFeed(
     await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin } });
     return existing.id;
   }
-  const feed = await db.supplierFeed.create({ data: { supplierId, url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin, createdById: staffId }, select: { id: true } });
+  const feed = await db.supplierFeed.create({ data: { supplierId, url, format, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin, createdById: staffId }, select: { id: true } });
   return feed.id;
 }
 
@@ -139,12 +142,13 @@ export const isMapped = (cfg: FeedConfig) => (cfg.headers ?? []).length > 0;
  */
 export async function saveFeedUrl(supplierId: string, url: string, staffId: string | null): Promise<{ feedId: string; cleared: number }> {
   const u = url.trim();
-  if (!/^https?:\/\//i.test(u)) throw new UserError("Η διεύθυνση πρέπει να ξεκινά με https:// — όπως τη δίνει ο προμηθευτής.");
+  const format = feedFormat(u);
+  if (format === "xml" && !/^https?:\/\//i.test(u)) throw new UserError("Η διεύθυνση πρέπει να ξεκινά με https:// — όπως τη δίνει ο προμηθευτής.");
   const supplier = await db.supplier.findUnique({ where: { id: supplierId }, select: { id: true } });
   if (!supplier) throw new UserError("Ο προμηθευτής δεν βρέθηκε — ξανακάνε αναζήτηση.");
-  const existing = await db.supplierFeed.findFirst({ where: { supplierId }, orderBy: { createdAt: "desc" }, select: { id: true, url: true } });
+  const existing = await db.supplierFeed.findFirst({ where: { supplierId, format }, orderBy: { createdAt: "desc" }, select: { id: true, url: true } });
   if (!existing) {
-    const feed = await db.supplierFeed.create({ data: { supplierId, url: u, config: {}, createdById: staffId }, select: { id: true } });
+    const feed = await db.supplierFeed.create({ data: { supplierId, url: u, format, config: {}, createdById: staffId }, select: { id: true } });
     return { feedId: feed.id, cleared: 0 };
   }
   let cleared = 0;

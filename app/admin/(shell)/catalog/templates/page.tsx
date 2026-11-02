@@ -35,7 +35,7 @@ export default async function TemplatesPage() {
         {[
           { href: "/admin/catalog/templates/import", Icon: FileUp, title: "Εισαγωγή από άλλο Excel", text: "Τιμοκατάλογος ή λίστα προμηθευτή σε δική του μορφή: αντιστοιχίζεις τις στήλες, συμπληρώνονται μόνο τα κενά.", badge: null, show: canWrite },
           { href: "/admin/catalog/templates/xml", Icon: FileCode2, title: "XML προμηθευτές", text: "XML feed προμηθευτή: φορτώνει όλα τα προϊόντα του σε λίστα ελέγχου, η αντιστοίχιση αποθηκεύεται και το επόμενο τρέξιμο είναι ένα πάτημα.", badge: feeds ? `${feeds} ${feeds === 1 ? "feed" : "feeds"}` : null, show: canWrite },
-          { href: "/admin/catalog/templates/keyvoto", Icon: Boxes, title: "Keyvoto PIM", text: "Περιεχόμενο προϊόντων από το PIM των προμηθευτών: δοκιμή σύνδεσης και δείγμα, με τα πεδία που θα αντιστοιχιστούν.", badge: null, show: canWrite },
+          { href: "/admin/catalog/templates/keyvoto", Icon: Boxes, title: "Keyvoto PIM", text: "Περιεχόμενο προϊόντων από το PIM των προμηθευτών: διαλέγεις εκδότη και τα προϊόντα περνούν από τον ίδιο οδηγό με τα XML — αντιστοίχιση, λίστα ελέγχου, δημοσίευση.", badge: null, show: canWrite },
           { href: "/admin/catalog/templates/nea-eidi", Icon: PackagePlus, title: "Νέα είδη προς δημιουργία", text: "Είδη από τα excel που δεν υπάρχουν στο SoftOne — συμπλήρωση και έγκριση.", badge: pending ? `${pending} σε αναμονή` : null, show: true },
           { href: "/admin/catalog/templates/kanones-timon", Icon: Percent, title: "Κανόνες τιμολόγησης", text: "Markup από το κόστος στην τιμή web: γενικός κανόνας και εξαιρέσεις ανά μάρκα / κατηγορία.", badge: `${rules} ενεργοί`, show: true },
         ].filter((x) => x.show).map(({ href, Icon, title, text, badge }) => (

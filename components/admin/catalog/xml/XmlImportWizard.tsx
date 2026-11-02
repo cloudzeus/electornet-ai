@@ -11,6 +11,8 @@ import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpec
 import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
 import { CheckStep } from "./CheckStep";
+import { KeyvotoSource } from "@/components/admin/catalog/keyvoto/KeyvotoSource";
+import type { FeedFormat } from "@/lib/catalog/xml-import/source-core";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -54,7 +56,7 @@ const date = (s: string | null) => (s ? new Date(s).toLocaleString("el-GR", { da
  * Ένας προμηθευτής που έχει ήδη τρέξει **δεν περνά από την αντιστοίχιση**: είναι αποθηκευμένη, άρα το «Νέο τρέξιμο»
  * πηδά στη λίστα χωρίς καμία κλήση AI.
  */
-export function XmlImportWizard({ suppliers, brands, categories, units, marks, writeOn, canErp }: {
+export function XmlImportWizard({ suppliers, brands, categories, units, marks, writeOn, canErp, source = "xml" }: {
   suppliers: SupplierCard[];
   brands: PickOpt[];
   categories: PickOpt[];
@@ -62,7 +64,10 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   marks: PickOpt[];
   writeOn: boolean;
   canErp: boolean;
+  /** Η πηγή των προϊόντων: XML feed προμηθευτή ή Keyvoto PIM. Αλλάζει μόνο το βήμα «από πού» — τα υπόλοιπα είναι ίδια. */
+  source?: FeedFormat;
 }) {
+  const kv = source === "keyvoto";
   const [step, setStep] = useState<Step>("supplier");
   const [list, setList] = useState(suppliers);
   const [q, setQ] = useState("");
@@ -331,22 +336,26 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                       {s.feed ? (
                         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
                           <span className="text-eu-ink-3 text-[length:var(--fs-13)] tabular-nums">
-                            {s.feed.lastRunAt ? `Έτρεξε ${date(s.feed.lastRunAt)}` : s.feed.mapped ? "Ρυθμισμένο, δεν έχει τρέξει" : "Αποθηκευμένη διεύθυνση"}{s.feed.items ? ` · ${s.feed.items.toLocaleString("el-GR")} προϊόντα στη λίστα` : ""}
+                            {s.feed.lastRunAt ? `Έτρεξε ${date(s.feed.lastRunAt)}` : s.feed.mapped ? "Ρυθμισμένο, δεν έχει τρέξει" : kv ? "Αποθηκευμένη πηγή" : "Αποθηκευμένη διεύθυνση"}{s.feed.items ? ` · ${s.feed.items.toLocaleString("el-GR")} προϊόντα στη λίστα` : ""}
                           </span>
                           {!s.feed.active && <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 font-bold text-eu-ink-2 text-[length:var(--fs-12)]"><Power className="size-3" aria-hidden /> Ανενεργό</span>}
                           {!s.feed.mapped && <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/30 px-2 py-0.5 font-bold text-eu-ink text-[length:var(--fs-12)]"><Settings2 className="size-3" aria-hidden /> Χωρίς αντιστοίχιση</span>}
                         </span>
-                      ) : <span className="text-eu-muted text-[length:var(--fs-13)]">Χωρίς feed — δώσε τη διεύθυνση πιο κάτω.</span>}
+                      ) : <span className="text-eu-muted text-[length:var(--fs-13)]">{kv ? "Χωρίς πηγή — διάλεξε εκδότη πιο κάτω." : "Χωρίς feed — δώσε τη διεύθυνση πιο κάτω."}</span>}
                     </button>
                     {on && (
                       <div data-help="xml.supplier.feed" className="grid gap-2 min-w-0 border-t border-eu-line pt-2">
                         {/* Η διεύθυνση σώζεται ΕΔΩ, στο πρώτο βήμα: «αυτός ο προμηθευτής έχει αυτό το XML». Η
                             αντιστοίχιση είναι χωριστή δουλειά και γίνεται όποτε βολεύει. */}
                         <form onSubmit={(e) => { e.preventDefault(); void keepUrl(s); }} className="grid gap-2 sm:grid-cols-[1fr_auto] min-w-0">
-                          <label className="grid gap-1 min-w-0">
-                            <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML του προμηθευτή</span>
-                            <input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://…/feed.xml" className={input} />
-                          </label>
+                          {kv ? (
+                            <KeyvotoSource value={url} onChange={setUrl} disabled={working} label="Το περιεχόμενο αυτού του προμηθευτή" />
+                          ) : (
+                            <label className="grid gap-1 min-w-0">
+                              <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML του προμηθευτή</span>
+                              <input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://…/feed.xml" className={input} />
+                            </label>
+                          )}
                           <button type="submit" className={`${secondary} sm:self-end`} disabled={working || !url.trim() || url.trim() === s.feed?.url}>
                             {busy === "url" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση
                           </button>
@@ -387,7 +396,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                         <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]">
                           {s.feed?.mapped
                             ? (s.feed.active ? "Το «Νέο τρέξιμο» κατεβάζει το feed με την αποθηκευμένη αντιστοίχιση — χωρίς να ξαναρωτήσει τίποτα. Η «Αλλαγή αντιστοίχισης» ανοίγει το αποθηκευμένο πρότυπο, χωρίς καμία λήψη." : "Όσο είναι ανενεργό δεν τρέχει. Η λίστα του παραμένει αναγνώσιμη.")
-                            : "Αποθήκευσε τη διεύθυνση τώρα και ρύθμισε την αντιστοίχιση όποτε θέλεις — ο προμηθευτής κρατά τη δική του ρύθμιση."}
+                            : kv ? "Αποθήκευσε την πηγή τώρα και ρύθμισε την αντιστοίχιση όποτε θέλεις — ο προμηθευτής κρατά τη δική του ρύθμιση." : "Αποθήκευσε τη διεύθυνση τώρα και ρύθμισε την αντιστοίχιση όποτε θέλεις — ο προμηθευτής κρατά τη δική του ρύθμιση."}
                         </span>
                       </div>
                     )}
@@ -405,18 +414,26 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
           <section data-help="xml.feed" className={card} aria-labelledby="xs-2">
             <div className="grid gap-1">
               <h3 id="xs-2" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Link2 className="size-4 text-eu-blue" aria-hidden /> Το feed του {picked.name}</h3>
-              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Η διεύθυνση του XML, όπως τη δίνει ο προμηθευτής. Μόνο δημόσιες διευθύνσεις https. Ο «Έλεγχος» κατεβάζει το αρχείο και σου δείχνει τι έχει μέσα — <b>τίποτα δεν αποθηκεύεται και τίποτα δεν γράφεται</b>.</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{kv
+                ? <>Ο εκδότης του Keyvoto που μοιράζεται μαζί μας το περιεχόμενό του — και, αν έχει πολλούς, ποιος κατάλογός του. Ο «Έλεγχος» κατεβάζει τα προϊόντα και σου δείχνει τι έχουν μέσα — <b>τίποτα δεν αποθηκεύεται και τίποτα δεν γράφεται</b>.</>
+                : <>Η διεύθυνση του XML, όπως τη δίνει ο προμηθευτής. Μόνο δημόσιες διευθύνσεις https. Ο «Έλεγχος» κατεβάζει το αρχείο και σου δείχνει τι έχει μέσα — <b>τίποτα δεν αποθηκεύεται και τίποτα δεν γράφεται</b>.</>}</p>
             </div>
             <div className="grid gap-2 sm:grid-cols-[1fr_auto] min-w-0">
-              <label className="grid gap-1 min-w-0">
-                <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML</span>
-                <input value={url} onChange={(e) => { setUrl(e.target.value); setSeen(null); }} inputMode="url" placeholder="https://…/feed.xml" className={input} />
-              </label>
+              {kv ? (
+                <KeyvotoSource value={url} onChange={(u) => { setUrl(u); setSeen(null); }} disabled={working} />
+              ) : (
+                <label className="grid gap-1 min-w-0">
+                  <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Διεύθυνση XML</span>
+                  <input value={url} onChange={(e) => { setUrl(e.target.value); setSeen(null); }} inputMode="url" placeholder="https://…/feed.xml" className={input} />
+                </label>
+              )}
               <button type="button" className={`${secondary} sm:self-end`} disabled={working || !url.trim()} onClick={() => check(false)}>
                 {busy === "inspect" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <FileCode2 className="size-4" aria-hidden />} Έλεγχος
               </button>
             </div>
-            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Οι προμηθευτές βάζουν όριο στις λήψεις. Γι&apos; αυτό το XML κάθε λήψης <b>μένει αποθηκευμένο</b>: όλα τα επόμενα βήματα — και κάθε αλλαγή αντιστοίχισης — δουλεύουν πάνω σε αυτό, χωρίς να τον ξαναενοχλήσουν.</p>
+            <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{kv
+              ? <>Η λήψη διαβάζει όλες τις σελίδες του καταλόγου και <b>μένει αποθηκευμένη</b>: τα επόμενα βήματα — και κάθε αλλαγή αντιστοίχισης — δουλεύουν πάνω σε αυτή, χωρίς νέα κλήση στο Keyvoto.</>
+              : <>Οι προμηθευτές βάζουν όριο στις λήψεις. Γι&apos; αυτό το XML κάθε λήψης <b>μένει αποθηκευμένο</b>: όλα τα επόμενα βήματα — και κάθε αλλαγή αντιστοίχισης — δουλεύουν πάνω σε αυτό, χωρίς να τον ξαναενοχλήσουν.</>}</p>
           </section>
 
           {seen && (

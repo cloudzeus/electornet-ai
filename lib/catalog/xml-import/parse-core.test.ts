@@ -130,3 +130,11 @@ test("parseFeed: χωρίς γονική κατηγορία δεν φτιάχν�
   const r = parseFeed(utf8(feed([`<SKU>A1</SKU><Category>Σκεύη</Category>`])));
   assert.ok(!r.headers.includes(CATEGORY_PAIR), `δεν χρειάζεται ζεύγος — ${r.headers.join(", ")}`);
 });
+
+test("parseFeed: πακέτο Keyvoto διαβάζεται σαν feed, με τις ίδιες επικεφαλίδες και γραμμές", () => {
+  const pack = Buffer.from(JSON.stringify({ keyvoto: 1, fetchedAt: "2026-11-02T00:00:00Z", items: [{ code: "A-1", name: "Ψυγείο", document: { gtin: "5201", main: { Χρώμα: "Λευκό" } } }] }), "utf8");
+  const r = parseFeed(pack);
+  assert.equal(r.counts.products, 1);
+  assert.ok(r.headers.includes("main.Χρώμα"));
+  assert.equal(cell(r, 0, "gtin"), "5201");
+});

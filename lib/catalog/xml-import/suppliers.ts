@@ -5,6 +5,7 @@ import { parseSupplierRow, matchesQuery, dedupeSuppliers, type SupplierRow } fro
 import type { SupplierCard } from "@/lib/catalog/xml-import/ui-core";
 import { countPendingApply } from "@/lib/catalog/xml-import/queue";
 import { feedNext, normSchedule } from "@/lib/catalog/xml-import/schedule-core";
+import type { FeedFormat } from "@/lib/catalog/xml-import/source-core";
 
 /**
  * Cache των προμηθευτών του SoftOne, ώστε ο οδηγός «XML προμηθευτές» να ανοίγει χωρίς να περιμένει το ERP.
@@ -57,12 +58,13 @@ export interface SupplierListItem {
  * Οι προμηθευτές με το feed τους, για το βήμα ①. Η αναζήτηση γίνεται στη μνήμη (664 εγγραφές) και όχι σε SQL, ώστε το
  * «βαγιωνης» να βρίσκει το «ΒΑΓΙΩΝΗΣ» — η Postgres δεν αγνοεί τόνους χωρίς επέκταση.
  */
-export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
+export async function listSuppliers(q = "", format: FeedFormat = "xml"): Promise<SupplierListItem[]> {
   const all = await db.supplier.findMany({
     orderBy: { name: "asc" },
     select: {
       id: true, s1Trdr: true, code: true, name: true, afm: true,
-      feeds: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true, active: true, config: true, schedule: true, minFetchMin: true, lastAutoAt: true } },
+      // μόνο το feed ΑΥΤΗΣ της πηγής: ο προμηθευτής μπορεί να έχει και XML και Keyvoto
+      feeds: { where: { format }, orderBy: { createdAt: "desc" }, take: 1, select: { id: true, url: true, lastRunAt: true, lastCount: true, active: true, config: true, schedule: true, minFetchMin: true, lastAutoAt: true } },
     },
   });
   return all
@@ -79,8 +81,8 @@ export async function listSuppliers(q = ""): Promise<SupplierListItem[]> {
  * Οι κάρτες του βήματος ① όπως τις θέλει ο browser: πρώτα όσοι έχουν feed (είναι η συνηθισμένη επανάληψη), μετά
  * αλφαβητικά. Ζει εδώ και όχι στη σελίδα, γιατί τη θέλουν και η σελίδα και η αναζήτηση.
  */
-export async function supplierCards(q = "", limit = 60): Promise<SupplierCard[]> {
-  const list = await listSuppliers(q);
+export async function supplierCards(q = "", limit = 60, format: FeedFormat = "xml"): Promise<SupplierCard[]> {
+  const list = await listSuppliers(q, format);
   const feedIds = list.map((s) => s.feed?.id).filter((v): v is string => !!v);
   const counts = feedIds.length
     ? await db.supplierFeedItem.groupBy({ by: ["feedId"], where: { feedId: { in: feedIds } }, _count: { _all: true } })

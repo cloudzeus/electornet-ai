@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import iconv from "iconv-lite";
+import { isKeyvotoBytes, parseKeyvotoRows } from "@/lib/keyvoto/rows";
 
 /**
  * XML feed προμηθευτή → εικονικός πίνακας. Καθαρή λογική (χωρίς βάση, δίκτυο ή server-only): ό,τι βγαίνει από εδώ περνά
@@ -107,6 +108,8 @@ function findProducts(node: unknown): Record<string, unknown>[] {
 }
 
 export function parseFeed(bytes: Buffer): ParsedFeed {
+  // Η ίδια διαδρομή εξυπηρετεί και το Keyvoto PIM: το πακέτο του είναι JSON και γίνεται ο ίδιος εικονικός πίνακας.
+  if (isKeyvotoBytes(bytes)) return parseKeyvotoRows(bytes);
   const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, trimValues: true, processEntities: true });
   const products = findProducts(parser.parse(decode(bytes)));
 
