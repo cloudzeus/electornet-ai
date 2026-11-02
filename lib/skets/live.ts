@@ -1,6 +1,6 @@
 import "server-only";
 import type { AdvisorState, Turn } from "@/lib/advisor/engine";
-import type { LiveProduct } from "./types";
+import type { Alts, LiveProduct } from "./types";
 
 /**
  * Ζωντανή απομαγνητοφώνηση της κλήσης όπως τη στέλνει το Vapi (webhook /api/skets/vapi), στη μνήμη της διεργασίας ανά κλήση.
@@ -23,8 +23,9 @@ export function setStatus(id: string, status: string, endedReason?: string | nul
 export const liveCall = (id: string) => calls.get(id) ?? null;
 
 /** Η ζωντανή συζήτηση με τον Ερμή του eshop κατά τη σκηνή (ερωτήσεις του κοινού) — μηδενίζεται στο «Από την αρχή». */
-interface LiveMemory { thread: Turn[]; state: AdvisorState | null; shown: string[]; products: Map<string, LiveProduct> }
+/** alts: οι διακλαδώσεις της σκηνής (π.χ. 18.000 BTU), για να ξέρει ο Ερμής του eshop τι μπήκε τελικά στο σπίτι */
+interface LiveMemory { thread: Turn[]; state: AdvisorState | null; shown: string[]; products: Map<string, LiveProduct>; alts: Alts }
 const gm = globalThis as unknown as { __sketsMem?: LiveMemory };
-const fresh = (): LiveMemory => ({ thread: [], state: null, shown: [], products: new Map() });
+const fresh = (): LiveMemory => ({ thread: [], state: null, shown: [], products: new Map(), alts: {} });
 export const liveMemory = () => (gm.__sketsMem ??= fresh());
 export const resetLiveMemory = () => { gm.__sketsMem = fresh(); };

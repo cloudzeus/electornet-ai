@@ -1,4 +1,4 @@
-import type { CatKey, Snapshot } from "./types";
+import type { Alts, CatKey, SkCategory, Snapshot } from "./types";
 
 /**
  * Το σενάριο του σκετς ως αλυσίδα βημάτων. Κάθε βήμα: τι κάνει η σκηνή (act), τι λέει ο Ερμής (say) και πότε προχωρά:
@@ -15,10 +15,23 @@ export type Act =
   | { t: "summary" } | { t: "map" } | { t: "call" } | { t: "done" };
 export interface Beat { id: string; act?: Act; say?: string; wait: "presenter" | "auto" | "store" | "call"; delay?: number; cue?: string }
 
-export const lines = (s: Snapshot) => ({
+/** Η διακλάδωση που ισχύει για την ομάδα (null = βασικό σενάριο) και ό,τι εξαρτάται από αυτήν: επιλογή, σύνολο. */
+export const variant = (c: SkCategory, alts: Alts = {}) => c.alts?.find((a) => a.key === alts[c.key]) ?? null;
+export const pickOf = (c: SkCategory, alts: Alts = {}) => { const id = variant(c, alts)?.pick ?? c.pick; return c.candidates.find((p) => p.id === id)!; };
+export const totalOf = (s: Snapshot, alts: Alts = {}) => Math.round(s.cats.reduce((t, c) => t + pickOf(c, alts).price, 0) * 100) / 100;
+export const instalmentsOf = (s: Snapshot, alts: Alts = {}) => (s.instalments ? { months: s.instalments.months, amount: Math.round((totalOf(s, alts) / s.instalments.months) * 100) / 100 } : null);
+
+/** Όλοι οι συνδυασμοί διακλαδώσεων (για να ηχογραφηθεί το σύνολο του καθενός). */
+export function altCombos(s: Snapshot): Alts[] {
+  let out: Alts[] = [{}];
+  for (const c of s.cats) if (c.alts?.length) out = out.flatMap((a) => [a, ...c.alts!.map((x) => ({ ...a, [c.key]: x.key }))]);
+  return out;
+}
+
+export const lines = (s: Snapshot, alts: Alts = {}) => ({
   hello: `Συγχαρητήρια, ${s.presenter.vocative}! Πώς μπορώ να βοηθήσω;`,
   start: "Ευχαρίστως. Ας ξεκινήσουμε από τα βασικά.",
-  summary: `Το σπίτι είναι έτοιμο. Πέντε συσκευές, σύνολο ${eurSpoken(s.total)}${s.instalments ? `, ή ${s.instalments.months} άτοκες δόσεις των ${eurSpoken(s.instalments.amount)}` : ""}.`,
+  summary: ((inst) => `Το σπίτι είναι έτοιμο. Πέντε συσκευές, σύνολο ${eurSpoken(totalOf(s, alts))}${inst ? `, ή ${inst.months} άτοκες δόσεις των ${eurSpoken(inst.amount)}` : ""}.`)(instalmentsOf(s, alts)),
   ask: "Θέλετε να βρω το πλησιέστερο κατάστημα, για να τα παραλάβετε σήμερα κιόλας;",
   map: `Βρήκα ${s.stores.length} καταστήματα κοντά στο νέο σας σπίτι. Ποιο σας βολεύει;`,
   call: "Ένα λεπτό — καλώ {store}, να σας τα κρατήσουν.",
@@ -31,8 +44,8 @@ export function eurSpoken(n: number) {
   return `${e.toLocaleString("el-GR")} ευρώ${c ? ` και ${c} λεπτά` : ""}`;
 }
 
-export function buildBeats(s: Snapshot): Beat[] {
-  const L = lines(s);
+export function buildBeats(s: Snapshot, alts: Alts = {}): Beat[] {
+  const L = lines(s, alts);
   const b: Beat[] = [
     { id: "idle", act: { t: "idle" }, wait: "presenter", cue: "«Ερμή, έχω νέα! Πήρα επιτέλους τη θέση στη Λάρισα!»" },
     { id: "hello", act: { t: "intro" }, say: L.hello, wait: "presenter", cue: "«Να με βοηθήσεις να εξοπλίσουμε το νέο μου σπίτι από το μηδέν.»" },
@@ -41,18 +54,19 @@ export function buildBeats(s: Snapshot): Beat[] {
   for (const c of s.cats) {
     b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.ask, wait: "presenter", cue: `«${c.lines.answer}»` });
     if (c.lines.follow) b.push({ id: `${c.key}-ask2`, say: c.lines.follow.ask, wait: "presenter", cue: `«${c.lines.follow.answer}»` });
-    b.push({ id: `${c.key}-verdict`, say: c.lines.verdict, wait: "auto", delay: 200 });
-    c.reject.forEach((r, i) => b.push({ id: `${c.key}-x${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
-    if (c.lines.verdict2) {
+    const v = variant(c, alts);
+    b.push({ id: `${c.key}-verdict`, say: v?.verdict ?? c.lines.verdict, wait: "auto", delay: 200 });
+    (v?.reject ?? c.reject).forEach((r, i) => b.push({ id: `${c.key}-x${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
+    if (!v && c.lines.verdict2) {
       b.push({ id: `${c.key}-verdict2`, say: c.lines.verdict2, wait: "auto", delay: 200 });
       c.reject2.forEach((r, i) => b.push({ id: `${c.key}-y${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
     }
-    b.push({ id: `${c.key}-pick`, act: { t: "pick", cat: c.key, id: c.pick }, say: c.lines.pick, wait: "auto", delay: 900 });
+    b.push({ id: `${c.key}-pick`, act: { t: "pick", cat: c.key, id: pickOf(c, alts).id }, say: v?.pickLine ?? c.lines.pick, wait: "auto", delay: 900 });
   }
   b.push(
     { id: "summary", act: { t: "summary" }, say: L.summary, wait: "auto", delay: 600 },
     { id: "ask", say: L.ask, wait: "presenter", cue: "«Ναι!»" },
-    { id: "map", act: { t: "map" }, say: L.map, wait: "store", cue: "Διαλέγει κατάστημα στον χάρτη (ή ο χειριστής: κουμπί καταστήματος)" },
+    { id: "map", act: { t: "map" }, say: L.map, wait: "store", cue: "Λέει ποιο κατάστημα θέλει («της Ηπείρου», «το πρώτο») — ή κλικ στον χάρτη" },
     { id: "call", act: { t: "call" }, say: L.call, wait: "call", cue: "Η κλήση τρέχει — απαντά ο θεατής-κατάστημα" },
     { id: "done", act: { t: "done" }, say: L.done, wait: "presenter", cue: "Τέλος σκετς" },
   );
@@ -82,7 +96,7 @@ export function fallbackCall(s: Snapshot, store: number): { who: "hermes" | "sto
     { who: "store", text: `Ναι, γεια σας, Euronics ${st.street}, πείτε μου.` },
     { who: "hermes", text: `Ο κύριος ${s.presenter.full} μόλις ήρθε στη Λάρισα και εξοπλίζει το σπίτι του. Θα ήθελε να παραλάβει σήμερα πέντε συσκευές — σας τις έστειλα. Μπορείτε να του τις κρατήσετε;` },
     { who: "store", text: "Ναι, τις βλέπω. Μπορώ να τις ετοιμάσω για σήμερα το απόγευμα." },
-    { who: "hermes", text: `Τέλεια! Στο όνομα του κυρίου ${s.presenter.genitive}. Σας ευχαριστώ πολύ — καλή συνέχεια!` },
+    { who: "hermes", text: `Τέλεια! Στο όνομα του ${s.presenter.genitive}. Σας ευχαριστώ πολύ — καλή συνέχεια!` },
     { who: "store", text: "Ευχαριστούμε κι εμείς, τον περιμένουμε!" },
   ];
 }
@@ -98,10 +112,21 @@ export function spokenKey(key: string): string {
 const brandSpoken = (b: string) => (b.length <= 3 ? b : b.charAt(0) + b.slice(1).toLowerCase());
 
 /** Τα προϊόντα του σπιτιού όπως τα λέει ο Ερμής στο κατάστημα: μάρκα, μέγεθος και κωδικός (για όταν τον ζητήσουν). */
-export function callItems(s: Snapshot): string {
-  const items = s.cats.map((c) => { const p = c.candidates.find((x) => x.id === c.pick)!; return `${c.label.toLowerCase()} ${brandSpoken(p.brand)} ${spokenKey(p.key)}${p.model ? ` (κωδικός ${p.model})` : ""}`; });
+/** Κωδικός μοντέλου όπως διαβάζεται στο τηλέφωνο: γράμμα-γράμμα με την αγγλική του προφορά, ψηφία ελληνικά, κόμμα = μικρή παύση.
+ * «WGG254ZHGR» → «ντάμπλιου, τζι, τζι, δύο, πέντε, τέσσερα, ζεντ, έιτς, τζι, αρ». Η φωνή αλλιώς τον διαβάζει σαν λέξη. */
+const LETTERS: Record<string, string> = { A: "έι", B: "μπι", C: "σι", D: "ντι", E: "ι", F: "εφ", G: "τζι", H: "έιτς", I: "άι", J: "τζέι", K: "κέι", L: "ελ", M: "εμ", N: "εν", O: "όου", P: "πι", Q: "κιου", R: "αρ", S: "ες", T: "τι", U: "γιου", V: "βι", W: "ντάμπλιου", X: "εξ", Y: "γουάι", Z: "ζεντ" };
+const DIGITS = ["μηδέν", "ένα", "δύο", "τρία", "τέσσερα", "πέντε", "έξι", "επτά", "οκτώ", "εννιά"];
+// η κατάληξη μετά την τελεία (π.χ. «.API», έκδοση αγοράς) δεν χρειάζεται στο τηλέφωνο
+export const spellCode = (code: string) => [...code.toUpperCase().replace(/\.[A-Z]+$/, "")].map((ch) => LETTERS[ch] ?? (/\d/.test(ch) ? DIGITS[+ch] : ch === "/" ? "κάθετος" : ch === "-" ? "παύλα" : ch === "." ? "τελεία" : "")).filter(Boolean).join(", ");
+
+export function callItems(s: Snapshot, alts: Alts = {}): string {
+  const items = s.cats.map((c) => { const p = pickOf(c, alts); return `${c.label.toLowerCase()} ${brandSpoken(p.brand)} ${spokenKey(p.key)}${p.model ? ` (κωδικός μοντέλου, αν σου τον ζητήσουν: «${spellCode(p.model)}»)` : ""}`; });
   return `${items.slice(0, -1).join(", ")} και ${items.at(-1)}`;
 }
+
+/** Για τη φωνή: το ελληνικό «;» η εκφώνηση το διαβάζει σαν ανακοίνωση, και ούτε το «?» αρκεί πάντα (μετρημένο με STT: χωρίς ερωτηματικό).
+ * Κάθε πρόταση-ερώτηση παίρνει «?» και μπροστά την ένδειξη τόνου «[curious]» του eleven_v3 (δεν εκφωνείται) — έτσι ανεβαίνει ο τόνος. */
+export const forVoice = (t: string) => liveSentences(t).map((x) => (/[;\u037e?]»?$/.test(x) ? `[curious] ${x.replace(/[;\u037e](?=»?$)/, "?")}` : x)).join(" ");
 
 export const fillStore = (say: string, spoken: string) => say.replace("{store}", spoken).replace("{Store}", spoken.charAt(0).toUpperCase() + spoken.slice(1));
 const hasStore = (say: string) => /\{[sS]tore\}/.test(say);
@@ -109,7 +134,7 @@ const hasStore = (say: string) => /\{[sS]tore\}/.test(say);
 /** Όλες οι φράσεις που πρέπει να ηχογραφηθούν (και οι παραλλαγές ανά κατάστημα). */
 export function allPhrases(s: Snapshot): string[] {
   const out = new Set<string>();
-  for (const x of buildBeats(s)) {
+  for (const alts of altCombos(s)) for (const x of buildBeats(s, alts)) {
     if (!x.say) continue;
     if (hasStore(x.say)) for (const st of s.stores) out.add(fillStore(x.say, st.spoken));
     else out.add(x.say);
@@ -138,3 +163,51 @@ export function liveSpoken(text: string, max = 320): string {
 }
 /** Προτάσεις: τελεία/ερωτηματικό ακολουθούμενο από κενό — όχι η τελεία μέσα σε αριθμό («5.200 mAh», «0,19 €»). */
 export const liveSentences = (t: string) => t.split(/(?<=[.!?;»])\s+/).map((x) => x.trim()).filter(Boolean);
+
+/** Αριθμός μέσα στην απάντηση του παρουσιαστή: «40», «2,5», «σαράντα», «δυόμισι», «τρία και μισό» (το STT γράφει και τα δύο). */
+const UNITS: Record<string, number> = { ενα: 1, ενας: 1, μια: 1, δυο: 2, τρια: 3, τρεις: 3, τεσσερα: 4, τεσσερις: 4, πεντε: 5, εξι: 6, επτα: 7, εφτα: 7, οκτω: 8, οχτω: 8, εννια: 9, εννεα: 9 };
+const TENS: Record<string, number> = { δεκα: 10, εντεκα: 11, δωδεκα: 12, δεκαπεντε: 15, δεκαεξι: 16, δεκαεπτα: 17, δεκαεφτα: 17, δεκαοκτω: 18, δεκαοχτω: 18, εικοσι: 20, τριαντα: 30, σαραντα: 40, πενηντα: 50, εξηντα: 60, εβδομηντα: 70, ογδοντα: 80 };
+const HALF: Record<string, number> = { εναμιση: 1.5, εναμισι: 1.5, μιαμιση: 1.5, μιαμισι: 1.5, δυομιση: 2.5, δυομισι: 2.5, τρισημιση: 3.5, τρισημισι: 3.5, τρεισημιση: 3.5, τρεισημισι: 3.5, τεσσερισημιση: 4.5, τεσσερισημισι: 4.5 };
+export const plain = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+export function spokenNumber(text: string): number | null {
+  const t = plain(text);
+  const d = t.match(/\d+(?:[.,]\d+)?/);
+  if (d) return parseFloat(d[0].replace(",", "."));
+  const w = t.split(/[^\p{L}]+/u).filter(Boolean);
+  for (let i = 0; i < w.length; i++) {
+    if (HALF[w[i]]) return HALF[w[i]];
+    const base = TENS[w[i]] ?? UNITS[w[i]];
+    if (base === undefined) continue;
+    let n = base;
+    if (TENS[w[i]] && w[i + 1] && UNITS[w[i + 1]]) n += UNITS[w[i + 1]];
+    if (/^μισ/.test(w.slice(i + 1, i + 4).join(" ").replace(/^και /, ""))) n += 0.5;
+    return n;
+  }
+  return null;
+}
+
+/** Ποια διακλάδωση ταιριάζει σε ό,τι είπε ο παρουσιαστής: key, "" = το βασικό σενάριο (αριθμός μέσα στο αναμενόμενο), null = δεν είπε κάτι μετρήσιμο. */
+export function altFor(c: SkCategory, said: string): string | null {
+  if (!c.alts?.length) return null;
+  let n = spokenNumber(said);
+  if (n !== null && c.unit === "m" && /εκατοστ/.test(plain(said))) n /= 100;
+  const ok = n !== null && (c.unit === "m2" ? n >= 8 && n <= 300 : n >= 0.5 && n <= 10);
+  if (ok) return c.alts.find((a) => (a.min === undefined || n! >= a.min) && (a.max === undefined || n! <= a.max))?.key ?? "";
+  return c.alts.find((a) => a.words && new RegExp(a.words).test(plain(said)))?.key ?? null;
+}
+
+// το \b της JS δεν βλέπει ελληνικά γράμματα ως λέξη: όρια με \p{L}
+const word = (x: string) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${x})(?![\\p{L}\\p{N}])`, "u");
+const ORD: [RegExp, number][] = [[word("πρωτο|πρωτη|1"), 0], [word("δευτερο|δευτερη|2"), 1], [word("τριτο|τριτη|3"), 2], [word("τεταρτο|τεταρτη|4"), 3]];
+/** Επιλογή καταστήματος με φωνή: οδός («της Ηπείρου»), σειρά («το πρώτο») ή «το πιο κοντινό». */
+export function storeFor(s: Snapshot, said: string): number | null {
+  const t = plain(said), heard = t.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3);
+  const stem = (w: string) => w.slice(0, Math.max(4, w.length - 2));
+  for (const [n, st] of s.stores.entries()) {
+    const words = plain(`${st.street} ${st.name}`).split(/[^\p{L}]+/u).filter((w) => w.length > 4);
+    if (words.some((w) => heard.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h))))) return n;
+  }
+  if (/κοντινοτερ|πλησιεστερ|πιο κοντ/.test(t)) return s.stores.reduce((b, st, n) => (st.km < s.stores[b].km ? n : b), 0);
+  for (const [re, n] of ORD) if (re.test(t) && s.stores[n]) return n;
+  return null;
+}

@@ -14,7 +14,7 @@ import { db } from "../../lib/db";
 import { speak } from "../../lib/voice/tts";
 import { getSetting } from "../../lib/settings/store";
 import { SKETS } from "../../lib/skets/config";
-import { allPhrases, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE, TURN_FILLERS } from "../../lib/skets/script";
+import { allPhrases, forVoice, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE, TURN_FILLERS } from "../../lib/skets/script";
 import type { CatKey, Room, SkCategory, SkProduct, SkReject, SkStore, Snapshot } from "../../lib/skets/types";
 
 interface Row { id: string; title: string; model: string | null; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
@@ -94,9 +94,14 @@ async function tv(): Promise<SkCategory> {
   const inch = (r: Row) => r.facets["eyros-othonis"]!.num!;
   const [keep, small, huge] = spread([all.filter((r) => inch(r) === 55), all.filter((r) => inch(r) >= 40 && inch(r) <= 43), all.filter((r) => inch(r) >= 65 && inch(r) <= 75)]);
   const rows = [small, keep, huge];
-  return cat("tv", "living", "Τηλεόραση", rows, (r) => `${inch(r)}″`,
+  const c = cat("tv", "living", "Τηλεόραση", rows, (r) => `${inch(r)}″`,
     [{ id: rows[0].id, reason: `${inch(rows[0])}″ — μικρή για 2,5 m` }, { id: rows[2].id, reason: `${inch(rows[2])}″ — πολύ μεγάλη για 2,5 m` }], [], keep.id,
     { ask: "Στο σαλόνι, η τηλεόραση. Από πόση απόσταση θα βλέπετε; Γύρω στα δυόμισι μέτρα;", answer: "Ναι, κάπου εκεί.", verdict: "Για δυόμισι μέτρα, οι πενήντα πέντε ίντσες είναι ό,τι πρέπει.", verdict2: null, pick: "Στο σαλόνι." });
+  // αν ο παρουσιαστής πει άλλη απόσταση, ο Ερμής αλλάζει μέγεθος (το ποσό στο τέλος ακολουθεί)
+  return { ...c, unit: "m", alts: [
+    { key: "far", min: 3.2, words: "μακρια|μακρυτερα|μεγαλυτερη αποσταση|μεγαλη αποσταση", verdict: "Από τόσο μακριά, οι πενήντα πέντε ίντσες θα φαίνονται μικρές. Πάμε στις εβδομήντα πέντε.", reject: [{ id: rows[0].id, reason: `${inch(rows[0])}″ — πολύ μικρή από μακριά` }, { id: keep.id, reason: `${inch(keep)}″ — μικρή για πάνω από 3 m` }], pick: rows[2].id, pickLine: "Στο σαλόνι. Σαν σινεμά." },
+    { key: "near", max: 1.8, words: "πιο κοντα|κοντυτερα|πολυ κοντα|μικρη αποσταση", verdict: "Αφού θα κάθεστε πιο κοντά, οι σαράντα τρεις ίντσες είναι ό,τι πρέπει. Οι μεγαλύτερες κουράζουν τα μάτια.", reject: [{ id: keep.id, reason: `${inch(keep)}″ — μεγάλη για τόσο κοντά` }, { id: rows[2].id, reason: `${inch(rows[2])}″ — πολύ μεγάλη για τόσο κοντά` }], pick: rows[0].id, pickLine: "Στο σαλόνι." },
+  ] };
 }
 
 async function ac(): Promise<SkCategory> {
@@ -106,9 +111,14 @@ async function ac(): Promise<SkCategory> {
   const [mid, small, large] = spread([all.filter((r) => btu(r) >= 11500 && btu(r) <= 13000), all.filter((r) => btu(r) <= 9500), big.length ? big : all.filter((r) => btu(r) >= 17000)]);
   const rows = [small, mid, large];
   const fmt = (r: Row) => `${btu(r).toLocaleString("el-GR")} BTU`;
-  return cat("ac", "living", "Κλιματιστικό", rows, fmt,
+  const c = cat("ac", "living", "Κλιματιστικό", rows, fmt,
     [{ id: rows[0].id, reason: `${fmt(rows[0])} — λίγα για 25 m²` }, { id: rows[2].id, reason: `${fmt(rows[2])} — υπερβολικό, θα καίει άσκοπα` }], [], rows[1].id,
     { ask: "Και το πιο σημαντικό για τη Λάρισα: κλιματιστικό. Τον Ιούλιο το θερμόμετρο εκεί περνάει τους σαράντα. Το σαλόνι σας είναι γύρω στα είκοσι πέντε τετραγωνικά;", answer: "Ναι, περίπου.", verdict: "Τότε χρειάζεστε δώδεκα χιλιάδες μονάδες. Ούτε λιγότερο, ούτε περισσότερο.", verdict2: null, pick: "Δροσιά εξασφαλισμένη." });
+  // άλλο εμβαδόν → άλλη απόδοση (π.χ. «σαράντα τετραγωνικά» → 18.000 BTU)
+  return { ...c, unit: "m2", alts: [
+    { key: "big", min: 33, words: "μεγαλυτερ|πιο μεγαλ|ειναι μεγαλ|πολυ μεγαλ|τεραστι|ενιαι", verdict: "Αφού ο χώρος είναι μεγαλύτερος, οι δώδεκα χιλιάδες δεν φτάνουν. Χρειάζεστε δεκαοχτώ χιλιάδες μονάδες.", reject: [{ id: rows[0].id, reason: `${fmt(rows[0])} — πολύ λίγα για τέτοιο χώρο` }, { id: rows[1].id, reason: `${fmt(rows[1])} — δεν φτάνει για πάνω από 30 m²` }], pick: rows[2].id, pickLine: "Δροσιά εξασφαλισμένη, ακόμα και στους σαράντα βαθμούς." },
+    { key: "small", max: 18, words: "μικροτερ|πιο μικρ|ειναι μικρ", verdict: "Για μικρότερο χώρο, οι εννιά χιλιάδες μονάδες φτάνουν, και καίει λιγότερο ρεύμα.", reject: [{ id: rows[1].id, reason: `${fmt(rows[1])} — περισσότερα απ' όσα χρειάζεται` }, { id: rows[2].id, reason: `${fmt(rows[2])} — υπερβολικό, θα καίει άσκοπα` }], pick: rows[0].id, pickLine: "Δροσιά εξασφαλισμένη." },
+  ] };
 }
 
 async function cooker(): Promise<SkCategory> {
@@ -177,7 +187,7 @@ async function record(snap: Snapshot, skipVoice = false) {
     // και οι φράσεις αναμονής των ζωντανών ερωτήσεων (/api/skets/ask), να είναι έτοιμες στην cache
     for (const text of [...LIVE_FILLERS, LIVE_BACK, ...TURN_FILLERS]) await speak(text, { ...SKETS_VOICE, force });
     for (const text of allPhrases(snap)) {
-      const r = await speak(text, { ...SKETS_VOICE, force });
+      const r = await speak(forVoice(text), { ...SKETS_VOICE, force });
       if (r) snap.voice[text] = r.url; else console.warn("✗ χωρίς ηχογράφηση:", text);
       process.stdout.write(r ? (r.cached ? "·" : "♪") : "✗");
     }

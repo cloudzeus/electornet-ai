@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { sketsKeyOk } from "@/lib/skets/auth";
-import { buildBeats, fillStore, type Beat } from "@/lib/skets/script";
+import { buildBeats, fillStore, pickOf, totalOf, type Beat } from "@/lib/skets/script";
 import snapshot from "@/lib/skets/snapshot.json";
 import type { Snapshot } from "@/lib/skets/types";
 
@@ -37,7 +37,7 @@ function rows(beats: Beat[]): { title: string; rows: Row[] }[] {
     if (b.say) r.push({ who: "hermes", text: fillStore(b.say, store) });
     if (b.wait === "presenter" && b.cue && isLine(b.cue)) {
       r.push({ who: "presenter", text: b.cue, n: ++n });
-      r.push({ who: "stage", text: "Χειριστής: «Επόμενο» μόλις τελειώσει η φράση" });
+      r.push({ who: "stage", text: "Ο Ερμής απαντά μόλις σωπάσεις (αν δεν ακούει: ο χειριστής πατά «Επόμενο»)" });
     } else if (b.cue) r.push({ who: "stage", text: b.cue });
     if (b.wait === "call") r.push({ who: "stage", text: "Ο Ερμής λέει στον θεατή-κατάστημα ποιες συσκευές θέλει ο πελάτης και ρωτά αν μπορούν να τις κρατήσουν για σήμερα. Ο θεατής απαντά ελεύθερα (π.χ. «Ναι, σας τα κρατάμε»)· ο Ερμής ευχαριστεί, λέει «Καλή συνέχεια!» και κλείνει." });
   }
@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
         <header className="border-b-2 border-eu-navy pb-4">
           <p className="font-bold uppercase tracking-wide text-eu-blue text-[length:var(--fs-13)]">Σκετς · Euronics</p>
           <h1 className="mt-1 font-black text-[length:var(--fs-36)] leading-tight">Ο Ερμής εξοπλίζει ένα σπίτι στη Λάρισα</h1>
-          <p className="mt-2 text-eu-muted text-[length:var(--fs-15)]">Παρουσιαστής: <b className="text-eu-ink">{snap.presenter.full}</b> · Ο Ερμής ΔΕΝ ακούει τον παρουσιαστή: οι φράσεις του είναι ηχογραφημένες και προχωρούν όταν ο χειριστής πατήσει «Επόμενο». Οι ατάκες σου δεν χρειάζεται να είναι λέξη-λέξη, αλλά να λένε το ίδιο — ο Ερμής θα απαντήσει πάντα με το ίδιο κείμενο.</p>
+          <p className="mt-2 text-eu-muted text-[length:var(--fs-15)]">Παρουσιαστής: <b className="text-eu-ink">{snap.presenter.full}</b> · Ο Ερμής σε ακούει από το μικρόφωνο της σκηνής και απαντά μόλις σωπάσεις. Οι ατάκες σου δεν χρειάζεται να είναι λέξη-λέξη· αν πεις κάτι άλλο ή ρωτήσεις, απαντά ελεύθερα και ξαναπιάνει το σενάριο. Αν πεις άλλο μέγεθος (τετραγωνικά, απόσταση), αλλάζει επιλογή — δες «Αν απαντήσεις αλλιώς». Το κατάστημα το λες με τη φωνή («της Ηπείρου», «το πρώτο»).</p>
           <p className="mt-2 text-eu-muted text-[length:var(--fs-13)] print:hidden">Για χαρτί: Cmd+P (ή Ctrl+P).</p>
         </header>
 
@@ -95,6 +95,23 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
         ))}
 
         <section className="mt-10 rounded-2xl ring-1 ring-eu-line p-4 sm:p-5 break-inside-avoid">
+          <h2 className="font-black text-[length:var(--fs-20)]">Αν απαντήσεις αλλιώς</h2>
+          <div className="mt-3 grid gap-4">
+            {snap.cats.filter((c) => c.alts?.length).flatMap((c) => c.alts!.map((a) => {
+              const p = pickOf(c, { [c.key]: a.key });
+              const said = c.unit === "m2" ? (a.min ? `${a.min}+ τετραγωνικά (π.χ. «Είναι σαράντα»)` : `έως ${a.max} τετραγωνικά (π.χ. «Πιο μικρό, δεκαπέντε»)`) : a.min ? `πάνω από ${a.min.toLocaleString("el-GR")} m (π.χ. «Γύρω στα τέσσερα μέτρα»)` : `έως ${a.max!.toLocaleString("el-GR")} m (π.χ. «Ενάμισι μέτρο»)`;
+              return (
+                <div key={`${c.key}-${a.key}`} className="text-[length:var(--fs-15)] leading-snug">
+                  <p className="font-bold">{c.label}: {said}</p>
+                  <p className="mt-0.5"><b className="text-eu-blue">Ερμής:</b> {a.verdict} {a.pickLine}</p>
+                  <p className="mt-0.5 italic text-eu-muted">(Επιλέγεται: {name(p)} · {eur(p.price)} · σύνολο {eur(totalOf(snap, { [c.key]: a.key }))})</p>
+                </div>
+              );
+            }))}
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl ring-1 ring-eu-line p-4 sm:p-5 break-inside-avoid">
           <h2 className="font-black text-[length:var(--fs-20)]">Αν ρωτήσει κάτι το κοινό</h2>
           <ul className="mt-2 grid gap-1.5 list-disc pl-5 text-[length:var(--fs-15)] leading-snug">
             <li>Ο χειριστής κρατά πατημένο το 🎤 (ή το M στο laptop) όσο ακούγεται η ερώτηση — ή την πληκτρολογεί στο τηλεχειριστήριο.</li>

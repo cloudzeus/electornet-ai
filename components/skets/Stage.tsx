@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { buildBeats, fallbackCall, fillStore, sceneAt, LIVE_BACK, LIVE_FILLERS, TURN_FILLERS, type Beat } from "@/lib/skets/script";
-import type { CatKey, LiveEv, LiveProduct, Room, SkCategory, SkProduct, Snapshot } from "@/lib/skets/types";
+import { Check, ChevronLeft, ChevronRight, CornerUpLeft, House as HouseIcon, MapPin, Maximize, Mic as MicIcon, Phone, Play, X } from "lucide-react";
+import { buildBeats, fallbackCall, fillStore, instalmentsOf, pickOf, sceneAt, totalOf, LIVE_BACK, LIVE_FILLERS, TURN_FILLERS, type Beat } from "@/lib/skets/script";
+import type { Alts, CatKey, LiveEv, LiveProduct, Room, SkCategory, SkProduct, Snapshot } from "@/lib/skets/types";
 import type { Cmd } from "@/lib/skets/bus";
 import { askLive, startPtt, type Ptt } from "./ptt";
 import { openMic, useVad, type Mic } from "./vad";
@@ -29,6 +30,22 @@ const ROOMS: { room: Room; label: string; cats: CatKey[] }[] = [
 ];
 const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
+/** «AEG» + «AEG LTR7E373G ΠΛΥΝΤΗΡΙΑ…» → χωρίς διπλή μάρκα στην κάρτα */
+const titleOf = (p: { brand: string; title: string }) => (p.title.toUpperCase().startsWith(p.brand.toUpperCase()) ? p.title.slice(p.brand.length).trim() : p.title);
+
+/** Ό,τι είναι για τον χειριστή (μπάρα, οδηγίες) φαίνεται μόνο όσο κινείται το ποντίκι — το κοινό βλέπει μόνο τη σκηνή. */
+function useWake(ms = 3500) {
+  const [shown, setShown] = useState(true);
+  const holdRef = useRef(false);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const wake = () => { setShown(true); clearTimeout(t); t = setTimeout(() => { if (!holdRef.current) setShown(false); }, ms); };
+    wake();
+    window.addEventListener("mousemove", wake); window.addEventListener("pointerdown", wake);
+    return () => { clearTimeout(t); window.removeEventListener("mousemove", wake); window.removeEventListener("pointerdown", wake); };
+  }, [ms]);
+  return { shown, setShown, holdRef };
+}
 
 /** Ένας player για όλη τη σκηνή (οι browsers ξεκλειδώνουν τον ήχο μετά την πρώτη κίνηση του χρήστη). */
 let player: HTMLAudioElement | null = null;
@@ -39,7 +56,9 @@ const getPlayer = () => (player ??= new Audio());
 interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error"; id: string | null; error?: string; transcript: { who: "hermes" | "store"; text: string }[] }
 
 export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean }) {
-  const beats = useMemo(() => buildBeats(snap), [snap]);
+  /** διακλαδώσεις που διάλεξε η απάντηση του παρουσιαστή (π.χ. 40 τ.μ. → 18.000 BTU): αλλάζουν τα επόμενα βήματα, το σύνολο και την κλήση */
+  const [alts, setAlts] = useState<Alts>({});
+  const beats = useMemo(() => buildBeats(snap, alts), [snap, alts]);
   const [i, setI] = useState(0);
   const [store, setStore] = useState<number | null>(null);
   /** πρόοδος της φράσης του βήματος sp.i (0–1) — για άλλο βήμα ισχύει «δεν ξεκίνησε» */
@@ -177,7 +196,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     (async () => {
       setCall({ status: "dialing", id: null, transcript: [] });
       if (dry) { simulate(); return; }
-      const r = await fetch("/api/skets/call", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ store, rehearsal, extras: extrasRef.current.map((p) => `${p.brand} ${p.title.split(" ").slice(0, 6).join(" ")}`) }) }).then((x) => x.json()).catch((e) => ({ error: String(e) }));
+      const r = await fetch("/api/skets/call", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ store, rehearsal, alts, extras: extrasRef.current.map((p) => `${p.brand} ${p.title.split(" ").slice(0, 6).join(" ")}`) }) }).then((x) => x.json()).catch((e) => ({ error: String(e) }));
       if (stop) return;
       if (!r.id) { console.warn("skets call:", r.error); simulate(); return; }
       let audio = false;
@@ -194,7 +213,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
       tick();
     })();
     return () => { stop = true; clearTimeout(poll); sim.forEach(clearTimeout); closeAudio(); };
-  }, [beat.act?.t, store, k, rehearsal, dry, next, snap]);
+  }, [beat.act?.t, store, k, rehearsal, dry, next, snap]); // eslint-disable-line react-hooks/exhaustive-deps -- alts: όπως ήταν όταν ξεκίνησε η κλήση
 
   const command = useCallback((c: Cmd) => {
     if (c.t === "liveListen") { if (beat.wait === "call") return; setListening(c.on); if (c.on) { stopAll(); lq.current.busy = false; } return; }
@@ -206,7 +225,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     if (c.t === "next") { if (beat.wait === "store" && store === null) return; next(); }
     else if (c.t === "back") go(i - 1);
     else if (c.t === "goto") go(c.i);
-    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
+    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); setAlts({}); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
     else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && snap.stores[c.i]) { setStore(c.i); timer.current = setTimeout(next, 1600); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
   }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k]);
@@ -219,15 +238,23 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   useEffect(() => () => { mic?.stream.getTracks().forEach((t) => t.stop()); mic?.ctx.close().catch(() => {}); }, [mic]);
   /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
   const [turnBusy, setTurnBusy] = useState(false);
-  const hearing = auto && !!mic && beat.wait === "presenter" && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
+  const hearing = auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
-    if (!audio || !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
+    if (!audio || (beat.wait !== "store" && !/^«/.test(beat.cue ?? ""))) { if (beat.wait !== "store") command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
-    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id);
+    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts));
     fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
-      .then((r: { route?: string }) => { setTurnBusy(false); if (r.route !== "free" && iRef.current === at) { quietClose(); next(); } });
+      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number }) => {
+        setTurnBusy(false);
+        if (iRef.current !== at) return;
+        // «της Ηπείρου» / «το πρώτο»: όπως το κλικ στον χάρτη
+        if (r.route === "store") { if (typeof r.i === "number") command({ t: "store", i: r.i }); return; }
+        if (r.route === "free" || r.route === "none") return;
+        if (r.route === "alt" && r.cat) { const cat = r.cat; setAlts((a) => ({ ...a, [cat]: r.alt || undefined })); }
+        quietClose(); next();
+      });
   };
   useVad(mic, hearing, () => !!player && !player.paused && !player.ended, onTurn, (level, voiced) => {
     // στάθμη χωρίς re-render της σκηνής (CSSOM, όχι style attribute)
@@ -236,7 +263,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     el.classList.toggle("bg-eu-green", voiced); el.classList.toggle("bg-white/70", !voiced);
   });
 
-  // M (κρατημένο) ή το 🎤 της μπάρας = ερώτηση από το μικρόφωνο του laptop
+  // M (κρατημένο) ή το «Ερώτηση» της μπάρας = ερώτηση από το μικρόφωνο του laptop
   const ptt = useRef<Promise<Ptt | null> | null>(null);
   const pttDown = useCallback(() => { if (ptt.current || beat.wait === "call") return; command({ t: "liveListen", on: true }); ptt.current = startPtt(); }, [command, beat.wait]);
   const pttUp = useCallback(async () => {
@@ -288,7 +315,6 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
 
   return (
     <div className={`fixed inset-0 overflow-hidden text-white select-none ${css.stage}`}>
-      <div className={`absolute inset-0 pointer-events-none ${css.grain}`} />
       <TopBar rehearsal={rehearsal} place={i > 0} />
 
       <LayoutGroup>
@@ -307,19 +333,19 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
                     <StoreMap snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} />
                     <StoreList snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} dim={scene.mode !== "map"} />
                     <AnimatePresence>{scene.mode === "call" && call && store !== null && <CallPanel key="call" store={snap.stores[store]} call={call} />}</AnimatePresence>
-                    <AnimatePresence>{scene.mode === "done" && store !== null && <DoneCard key="done" snap={snap} store={store} extras={extras} />}</AnimatePresence>
+                    <AnimatePresence>{scene.mode === "done" && store !== null && <DoneCard key="done" snap={snap} alts={alts} store={store} extras={extras} />}</AnimatePresence>
                   </motion.section>
                 ) : (
                   <motion.section key="shop" className="flex-1 flex flex-col min-h-0" exit={{ opacity: 0, y: -30 }}>
                     <div className="flex-1 min-h-0 flex flex-col justify-center">
                       <AnimatePresence mode="wait">
                         {scene.mode === "cat" && cat && <Candidates key={cat.key} cat={cat} rejected={scene.rejected} gone={gone} picked={scene.picked[cat.key] ?? null} />}
-                        {scene.mode === "summary" && <Summary key="sum" snap={snap} />}
+                        {scene.mode === "summary" && <Summary key="sum" snap={snap} alts={alts} />}
                         {scene.mode === "intro" && (
                           <motion.div key="intro" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -30 }} transition={{ delay: 0.4, ...spring }} className="text-center">
-                            <div className="text-[length:var(--fs-120)] leading-none">🏠</div>
-                            <div className="mt-[2vh] font-black tracking-tight text-[length:var(--fs-66)]">Νέο σπίτι · <span className="text-eu-yellow">Λάρισα</span></div>
-                            <div className="mt-[1vh] text-white/65 font-semibold text-[length:var(--fs-28)]">5 βασικές συσκευές, από το μηδέν</div>
+                            <HouseIcon className="mx-auto size-[14vh] text-eu-yellow" strokeWidth={1.25} aria-hidden />
+                            <div className="mt-[3vh] font-semibold tracking-tight text-[length:var(--fs-66)]">Νέο σπίτι · <span className="text-eu-yellow">Λάρισα</span></div>
+                            <div className="mt-[1vh] text-white/65 text-[length:var(--fs-28)]">5 βασικές συσκευές, από το μηδέν</div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -333,8 +359,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         </div>
         <AnimatePresence>{(listening || (live && !(live.quiet && !live.products?.length))) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
       </LayoutGroup>
-      <Dock auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />
-      <div className="absolute bottom-[1.2vh] right-[1.5vw] text-white/25 text-[length:var(--fs-12)] tabular-nums">{i + 1}/{beats.length} · {beat.id}</div>
+      <Dock step={`${i + 1}/${beats.length} · ${beat.id}`} auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />
     </div>
   );
 }
@@ -349,8 +374,8 @@ function TopBar({ rehearsal, place }: { rehearsal: boolean; place: boolean }) {
         <span className="font-bold text-eu-yellow text-[length:var(--fs-24)]">Ερμής</span>
       </div>
       <div className="flex items-center gap-3">
-        {rehearsal && <span className="rounded-full bg-eu-red px-3 py-1 font-bold text-[length:var(--fs-14)]">ΠΡΟΒΑ</span>}
-        {place && <span className="rounded-full bg-white/10 ring-1 ring-white/20 px-4 py-1.5 font-semibold text-[length:var(--fs-18)]">📍 Λάρισα</span>}
+        {rehearsal && <span className="rounded-full bg-eu-red px-3 py-1 font-semibold text-[length:var(--fs-14)]">Πρόβα</span>}
+        {place && <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 font-medium text-[length:var(--fs-18)]"><MapPin className="size-[1.1em] text-eu-yellow" strokeWidth={2} aria-hidden />Λάρισα</span>}
       </div>
     </header>
   );
@@ -358,31 +383,34 @@ function TopBar({ rehearsal, place }: { rehearsal: boolean; place: boolean }) {
 
 /**
  * Αρχική οθόνη. Αυτόματο: ο χειριστής πατά «Ενεργοποίηση μικροφώνου» πριν μπει ο κόσμος· μετά μένει μόνο ο Ερμής, και η
- * σκηνή ξεκινά μόλις ο παρουσιαστής πει την πρώτη του ατάκα. Χειροκίνητο: «▶ Ξεκίνα» (ή Space, ή το τηλεχειριστήριο).
+ * σκηνή ξεκινά μόλις ο παρουσιαστής πει την πρώτη του ατάκα. Χειροκίνητο: «Ξεκίνα» (ή Space, ή το τηλεχειριστήριο).
  */
 function IdleTitle({ cue, onStart, auto, mic, micErr, onArm, meter }: { cue: string | null; onStart: () => void; auto: boolean; mic: boolean; micErr: boolean; onArm: () => void; meter: React.RefObject<HTMLSpanElement | null> }) {
-  const big = "mt-[4vh] min-h-16 rounded-full bg-eu-yellow px-10 font-black text-eu-navy text-[length:var(--fs-28)] shadow-[0_0_60px_rgb(241_196_0/0.35)] hover:scale-[1.03] active:scale-[0.97] transition";
+  const big = "mt-[4vh] min-h-16 flex items-center gap-3 rounded-full bg-eu-yellow px-10 font-semibold text-eu-navy text-[length:var(--fs-28)] hover:bg-white active:scale-[0.98] transition-[background-color,transform] duration-150";
+  // οι οδηγίες είναι για τον χειριστή: σβήνουν όταν σταματήσει το ποντίκι, ώστε το κοινό να μη διαβάσει την ατάκα πριν ειπωθεί
+  const { shown } = useWake();
+  const hint = `transition-opacity duration-500 ${shown ? "opacity-100" : "opacity-0"}`;
   const blur = (f: () => void) => (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.blur(); f(); };
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }} className="text-center flex flex-col items-center">
-      <h1 className="font-black tracking-tight text-[length:var(--fs-96)] leading-none">Ερμής</h1>
-      <p className="mt-4 text-white/70 text-[length:var(--fs-30)]">ο ψηφιακός σύμβουλος της Euronics</p>
+      <h1 className="font-semibold tracking-tight text-[length:var(--fs-96)] leading-none">Ερμής</h1>
+      <p className="mt-4 text-white/70 text-[length:var(--fs-30)]">Ο ψηφιακός σύμβουλος της Euronics</p>
       {auto && mic ? (
         <>
           {/* στάθμη μικροφώνου: γεμίζει όταν μιλά κάποιος, πράσινη όταν το μετρά για ατάκα */}
-          <span className="mt-[4vh] relative block h-2 w-48 overflow-hidden rounded-full bg-white/10"><span ref={meter} className="absolute inset-y-0 left-0 w-0 rounded-full bg-white/70 transition-[width] duration-75" /></span>
-          <p className="mt-3 text-white/35 text-[length:var(--fs-15)]">🎙 ακούω — ξεκινάμε μόλις ακουστεί {cue ?? "ο παρουσιαστής"}</p>
+          <span className={`mt-[4vh] relative block h-2 w-48 overflow-hidden rounded-full bg-white/10 ${hint}`}><span ref={meter} className="absolute inset-y-0 left-0 w-0 rounded-full bg-white/70 transition-[width] duration-75" /></span>
+          <p className={`mt-3 flex items-center gap-2 text-white/45 text-[length:var(--fs-15)] ${hint}`}><MicIcon className="size-4" strokeWidth={1.5} aria-hidden />Ακούω· ξεκινάμε μόλις ακουστεί {cue ?? "ο παρουσιαστής"}</p>
         </>
       ) : auto ? (
         <>
-          <button type="button" onClick={blur(onArm)} className={big}>🎙 Ενεργοποίηση μικροφώνου</button>
-          {micErr && <p className="mt-3 font-bold text-eu-red text-[length:var(--fs-16)]">Το μικρόφωνο δεν άνοιξε — επίτρεψέ το στον browser (εικονίδιο στη γραμμή διεύθυνσης) και ξαναπάτα.</p>}
-          <button type="button" onClick={blur(onStart)} className="mt-3 text-white/45 underline underline-offset-4 text-[length:var(--fs-15)]">ή ξεκίνα χειροκίνητα (Space)</button>
+          <button type="button" onClick={blur(onArm)} className={big}><MicIcon className="size-[1em]" strokeWidth={2} aria-hidden />Ενεργοποίηση μικροφώνου</button>
+          {micErr && <p className="mt-3 font-medium text-eu-red text-[length:var(--fs-16)]">Το μικρόφωνο δεν άνοιξε. Επίτρεψέ το στον browser (εικονίδιο στη γραμμή διεύθυνσης) και ξαναπάτα</p>}
+          <button type="button" onClick={blur(onStart)} className="mt-3 text-white/55 underline underline-offset-4 hover:text-white transition-colors text-[length:var(--fs-15)]">ή ξεκίνα χειροκίνητα (Space)</button>
         </>
       ) : (
         <>
-          <button type="button" onClick={blur(onStart)} className={big}>▶ Ξεκίνα</button>
-          {cue && <p className="mt-3 max-w-[60vw] text-white/40 text-[length:var(--fs-15)]">πάτα το όταν ο παρουσιαστής πει {cue} · ή Space</p>}
+          <button type="button" onClick={blur(onStart)} className={`${big} ${hint}`}><Play className="size-[0.9em] fill-current" strokeWidth={0} aria-hidden />Ξεκίνα</button>
+          {cue && <p className={`mt-3 max-w-[60vw] text-white/45 text-[length:var(--fs-15)] ${hint}`}>Πάτα το όταν ο παρουσιαστής πει {cue} · ή Space</p>}
         </>
       )}
     </motion.div>
@@ -394,13 +422,12 @@ function Orb({ speaking, listening, big, onStart }: { speaking: boolean; listeni
     <motion.div layout transition={spring} onClick={onStart} title={onStart ? "Ξεκίνα" : undefined} className={`relative shrink-0 ${big ? "size-[34vh]" : "size-[22vh]"} ${onStart ? "cursor-pointer" : ""}`}>
       {speaking && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /><span className={`${css.ring} ${css.ring3}`} /></>}
       <motion.div
-        className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff6c9_0%,#f1c400_28%,#1d428a_70%,#0b1f45_100%)] shadow-[0_0_80px_rgb(241_196_0/0.35)]"
+        className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_40%_35%,#f7d23a_0%,#f1c400_55%,#d9b000_100%)]"
         animate={speaking ? { scale: [1, 1.07, 0.98, 1.05, 1] } : listening ? { scale: [1, 1.025, 1] } : { scale: 1 }}
         transition={speaking ? { duration: 0.9, repeat: Infinity } : { duration: 2.4, repeat: Infinity }}
       />
-      <div className="absolute inset-[18%] rounded-full bg-[radial-gradient(circle_at_50%_40%,rgb(255_255_255/0.35),transparent_60%)]" />
       <AnimatePresence>
-        {listening && !big && <motion.span initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute -bottom-[5vh] inset-x-0 text-center text-white/60 text-[length:var(--fs-18)] whitespace-nowrap">σε ακούω…</motion.span>}
+        {listening && !big && <motion.span initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute -top-[5vh] inset-x-0 text-center text-white/60 text-[length:var(--fs-18)] whitespace-nowrap">Ακούω…</motion.span>}
       </AnimatePresence>
     </motion.div>
   );
@@ -412,8 +439,8 @@ function Caption({ text, progress }: { text: string | null; progress: number }) 
   const words = text.split(" ");
   const shown = Math.max(1, Math.ceil(words.length * Math.min(1, progress * 1.08)));
   return (
-    <div className="min-h-[20vh] w-full rounded-[1.4rem] bg-white/[0.07] ring-1 ring-white/15 backdrop-blur px-[1.4vw] py-[2vh]">
-      <p className="font-semibold leading-snug text-[length:var(--fs-26)]">
+    <div className="min-h-[20vh] w-full rounded-[1.4rem] bg-white/[0.06] ring-1 ring-white/10 px-[1.4vw] py-[2vh]">
+      <p className="font-medium leading-snug text-[length:var(--fs-26)]">
         {words.map((w, n) => <motion.span key={`${text}-${n}`} initial={false} animate={{ opacity: n < shown ? 1 : 0.18 }} transition={{ duration: 0.2 }}>{w} </motion.span>)}
       </p>
     </div>
@@ -424,8 +451,8 @@ function Candidates({ cat, rejected, gone, picked }: { cat: SkCategory; rejected
   const visible = cat.candidates.filter((p) => !gone.has(p.id));
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.3 } }} className="flex flex-col gap-[2.5vh]">
-      <motion.h2 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="font-black tracking-tight text-[length:var(--fs-50)]">{cat.label}</motion.h2>
-      <motion.div layout className="flex gap-[1.4vw] justify-start">
+      <motion.h2 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="font-semibold tracking-tight text-[length:var(--fs-50)]">{cat.label}</motion.h2>
+      <motion.div layout className="flex items-stretch gap-[1.4vw] justify-start">
         <AnimatePresence mode="popLayout">
           {visible.map((p, n) => <Card key={p.id} p={p} n={n} reason={rejected[p.id] ?? null} chosen={picked === p.id} />)}
         </AnimatePresence>
@@ -442,28 +469,29 @@ function Card({ p, n, reason, chosen }: { p: SkProduct; n: number; reason: strin
       animate={{ opacity: 1, y: 0, scale: chosen ? 1.06 : 1 }}
       exit={{ opacity: 0, scale: 0.7, y: 80, rotate: -6, filter: "blur(6px)", transition: { duration: 0.55 } }}
       transition={{ ...spring, delay: reason || chosen ? 0 : n * 0.18 }}
-      className={`relative w-[15vw] min-w-[13rem] rounded-[1.4rem] bg-white text-eu-ink overflow-hidden shadow-2xl ${chosen ? "ring-[6px] ring-eu-yellow" : ""}`}
+      className={`relative w-[15vw] min-w-[13rem] flex flex-col rounded-[1.4rem] bg-white text-eu-ink overflow-hidden shadow-[0_12px_32px_rgb(0_0_0/0.25)] ${chosen ? "ring-[6px] ring-eu-yellow" : ""}`}
     >
-      <motion.div layoutId={`img-${p.id}`} className="aspect-square bg-eu-surface grid place-items-center p-[1.4vh]">
-        <img src={p.image} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+      {/* το κουτί της φωτογραφίας έχει σταθερό ύψος: η εικόνα δεν το τεντώνει, ώστε όλες οι κάρτες να είναι ίδιες */}
+      <motion.div layoutId={`img-${p.id}`} className="relative aspect-square shrink-0 bg-eu-surface">
+        <img src={p.image} alt="" className="absolute inset-0 m-auto max-h-[88%] max-w-[88%] object-contain mix-blend-multiply" />
       </motion.div>
-      <div className="p-[1.2vh_1vw_1.6vh] flex flex-col gap-[0.8vh]">
-        <span className="font-black uppercase tracking-wide text-eu-blue text-[length:var(--fs-16)]">{p.brand}</span>
-        <span className="line-clamp-2 font-semibold leading-tight text-[length:var(--fs-15)] min-h-[2.5em]">{p.title}</span>
+      <div className="flex-1 p-[1.2vh_1vw_1.6vh] flex flex-col gap-[0.8vh]">
+        <span className="font-semibold text-eu-blue text-[length:var(--fs-16)]">{p.brand}</span>
+        <span className="line-clamp-2 font-medium leading-tight text-eu-ink/80 text-[length:var(--fs-15)] min-h-[2.5em]">{titleOf(p)}</span>
         <div className="flex flex-wrap gap-1.5">
-          {p.chips.filter((c) => !c.endsWith("€")).map((c) => <span key={c} className="rounded-full bg-eu-chip px-2.5 py-0.5 font-bold text-[length:var(--fs-14)]">{c}</span>)}
+          {p.chips.filter((c) => !c.endsWith("€")).map((c) => <span key={c} className="rounded-full bg-eu-chip px-2.5 py-0.5 font-medium text-[length:var(--fs-14)]">{c}</span>)}
         </div>
-        <span className="font-black text-[length:var(--fs-28)]">{eur(p.price)}</span>
+        <span className="mt-auto font-semibold tabular-nums text-[length:var(--fs-28)]">{eur(p.price)}</span>
       </div>
       <AnimatePresence>
         {reason && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-eu-red/80 flex flex-col items-center justify-center gap-[2vh] p-[1vw] text-white text-center">
-            <motion.span initial={{ scale: 3, rotate: -20, opacity: 0 }} animate={{ scale: 1, rotate: -8, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 18 }} className="font-black leading-none text-[length:var(--fs-120)]">✕</motion.span>
-            <span className="font-bold leading-tight text-[length:var(--fs-20)]">{reason}</span>
+            <motion.span initial={{ scale: 1.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 400, damping: 24 }} className="grid place-items-center size-[10vh] rounded-full ring-4 ring-white"><X className="size-[60%]" strokeWidth={3} aria-hidden /></motion.span>
+            <span className="font-semibold leading-tight text-[length:var(--fs-20)]">{reason}</span>
           </motion.div>
         )}
         {chosen && (
-          <motion.span initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute top-3 inset-x-3 rounded-full bg-eu-yellow text-eu-navy text-center font-black py-1.5 text-[length:var(--fs-16)]">★ Η επιλογή του Ερμή</motion.span>
+          <motion.span initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="absolute top-3 inset-x-3 flex items-center justify-center gap-1.5 rounded-full bg-eu-yellow text-eu-navy font-semibold py-1.5 text-[length:var(--fs-16)]"><Check className="size-[1.1em]" strokeWidth={2.5} aria-hidden />Η επιλογή του Ερμή</motion.span>
         )}
       </AnimatePresence>
     </motion.article>
@@ -476,60 +504,58 @@ function House({ snap, picked, current, big, extras }: { snap: Snapshot; picked:
   const total = Object.entries(picked).reduce((t, [c, id]) => t + (c === current ? 0 : snap.cats.find((x) => x.key === c)!.candidates.find((p) => p.id === id)?.price ?? 0), 0) + extras.reduce((t, p) => t + p.price, 0);
   return (
     <motion.div layout transition={spring} className={`mt-[2vh] rounded-[1.6rem] bg-white/[0.06] ring-1 ring-white/15 flex items-stretch gap-[1vw] ${big ? "p-[2vh_1.4vw]" : "p-[1.4vh_1vw]"}`}>
-      {ROOMS.map((r) => (
-        <div key={r.room} className={`min-w-0 ${r.cats.length > 1 ? "flex-[2]" : "flex-1"}`}>
-          <div className="font-bold text-white/60 uppercase tracking-wider mb-[0.8vh] text-[length:var(--fs-14)]">{r.label}</div>
-          <div className="flex gap-[0.6vw]">
-            {r.cats.map((c) => {
-              const id = picked[c], cat = snap.cats.find((x) => x.key === c)!;
-              const p = id && current !== c ? cat.candidates.find((x) => x.id === id) : null;
-              return (
-                <div key={c} className={`flex-1 rounded-[1rem] flex items-center gap-[0.6vw] ${big ? "h-[17vh]" : "h-[11vh]"} ${p ? "bg-white text-eu-ink p-[0.8vh]" : `border-2 border-dashed ${current === c ? "border-eu-yellow bg-eu-yellow/10" : "border-white/25"} justify-center`}`}>
-                  {p ? (
-                    <>
-                      <motion.div layoutId={`img-${p.id}`} transition={{ type: "spring", stiffness: 120, damping: 20 }} className="h-full aspect-square shrink-0 grid place-items-center bg-eu-surface rounded-[0.7rem] p-1">
-                        <img src={p.image} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />
-                      </motion.div>
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="min-w-0">
-                        <div className="font-black text-eu-blue text-[length:var(--fs-14)] truncate">{p.brand}</div>
-                        <div className="font-bold text-[length:var(--fs-14)] truncate">{p.key}</div>
-                        <div className="font-black text-[length:var(--fs-17)] whitespace-nowrap">{eur(p.price)}</div>
-                      </motion.div>
-                    </>
-                  ) : (
-                    <span className={`font-semibold text-center px-2 text-[length:var(--fs-14)] ${current === c ? "text-eu-yellow" : "text-white/40"}`}>{cat.label}</span>
-                  )}
-                </div>
-              );
-            })}
+      {/* με τη σειρά του διαλόγου (όχι ανά δωμάτιο), ώστε η μπάρα να γεμίζει από αριστερά προς τα δεξιά */}
+      {snap.cats.map((cat) => {
+        const c = cat.key, id = picked[c];
+        const p = id && current !== c ? cat.candidates.find((x) => x.id === id) : null;
+        return (
+          <div key={c} className="min-w-0 flex-1">
+            <div className="font-medium text-white/60 mb-[0.8vh] text-[length:var(--fs-14)] truncate">{ROOMS.find((r) => r.cats.includes(c))?.label}</div>
+            <div className={`min-w-0 overflow-hidden rounded-[1rem] flex items-center gap-[0.5vw] ${big ? "h-[17vh]" : "h-[11vh]"} ${p ? "bg-white text-eu-ink p-[0.8vh]" : `border-2 border-dashed ${current === c ? "border-eu-yellow bg-eu-yellow/10" : "border-white/25"} justify-center`}`}>
+              {p ? (
+                <>
+                  <motion.div layoutId={`img-${p.id}`} transition={{ type: "spring", stiffness: 120, damping: 20 }} className="h-full max-w-[45%] aspect-square shrink-0 grid place-items-center bg-eu-surface rounded-[0.7rem] p-1">
+                    <img src={p.image} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                  </motion.div>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="min-w-0 flex-1">
+                    <div className="font-semibold text-eu-blue text-[length:var(--fs-14)] truncate">{p.brand}</div>
+                    <div className="font-medium text-eu-ink/75 text-[length:var(--fs-14)] truncate">{p.key}</div>
+                    <div className="font-semibold tabular-nums text-[length:var(--fs-17)] truncate">{eur(p.price)}</div>
+                  </motion.div>
+                </>
+              ) : (
+                <span className={`font-medium text-center px-2 text-[length:var(--fs-14)] ${current === c ? "text-eu-yellow" : "text-white/45"}`}>{cat.label}</span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
       {extras.length > 0 && (
         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="min-w-0 flex-1">
-          <div className="font-bold text-eu-yellow uppercase tracking-wider mb-[0.8vh] text-[length:var(--fs-14)]">+ Από το κοινό</div>
+          <div className="font-medium text-eu-yellow mb-[0.8vh] text-[length:var(--fs-14)]">Από το κοινό</div>
           <div className={`flex gap-[0.4vw] ${big ? "h-[17vh]" : "h-[11vh]"}`}>
             {extras.map((p) => (
               <motion.div key={p.id} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={spring} className="h-full aspect-square shrink-0 grid place-items-center bg-white rounded-[0.7rem] p-1">
-                {p.image ? <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-black text-eu-blue text-[length:var(--fs-14)]">{p.brand}</span>}
+                {p.image ? <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-semibold text-eu-blue text-[length:var(--fs-14)]">{p.brand}</span>}
               </motion.div>
             ))}
           </div>
         </motion.div>
       )}
       <div className="w-[9vw] shrink-0 flex flex-col justify-end items-end">
-        <span className="text-white/60 font-semibold text-[length:var(--fs-14)]">Σύνολο</span>
-        <motion.span key={total} initial={{ scale: 1.3, color: "#f1c400" }} animate={{ scale: 1, color: "#ffffff" }} className="font-black tabular-nums text-[length:var(--fs-36)]">{eur(total)}</motion.span>
+        <span className="text-white/60 font-medium text-[length:var(--fs-14)]">Σύνολο</span>
+        <motion.span key={total} initial={{ color: "#f1c400" }} animate={{ color: "#ffffff" }} transition={{ duration: 1.2 }} className="font-semibold tabular-nums text-[length:var(--fs-36)]">{eur(total)}</motion.span>
       </div>
     </motion.div>
   );
 }
 
-function Summary({ snap }: { snap: Snapshot }) {
+function Summary({ snap, alts }: { snap: Snapshot; alts: Alts }) {
+  const inst = instalmentsOf(snap, alts);
   return (
     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={spring} className="text-center">
-      <div className="text-eu-yellow font-black text-[length:var(--fs-80)] leading-none">Έτοιμο το σπίτι!</div>
-      <div className="mt-[2vh] text-white/80 font-semibold text-[length:var(--fs-30)]">5 συσκευές · {eur(snap.total)}{snap.instalments ? ` · ${snap.instalments.months} άτοκες δόσεις των ${snap.instalments.amount.toLocaleString("el-GR")} €` : ""}</div>
+      <div className="text-eu-yellow font-semibold tracking-tight text-[length:var(--fs-80)] leading-none">Το σπίτι είναι έτοιμο</div>
+      <div className="mt-[2vh] text-white/80 tabular-nums text-[length:var(--fs-30)]">5 συσκευές · {eur(totalOf(snap, alts))}{inst ? ` · ${inst.months} άτοκες δόσεις των ${inst.amount.toLocaleString("el-GR")} €` : ""}</div>
     </motion.div>
   );
 }
@@ -539,11 +565,11 @@ function StoreList({ snap, selected, onSelect, dim }: { snap: Snapshot; selected
     <motion.ul initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: dim ? 0 : 1 }} transition={{ delay: dim ? 0 : 4.2, ...spring }} className="absolute right-[1.2vw] top-[2vh] z-[500] w-[24vw] flex flex-col gap-[1.2vh]">
       {snap.stores.map((s, n) => (
         <motion.li key={s.id} initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 4.3 + n * 0.15 }}>
-          <button type="button" onClick={() => onSelect(n)} className={`w-full text-left rounded-[1.1rem] p-[1.4vh_1vw] flex items-center gap-[0.8vw] shadow-xl transition-colors ${selected === n ? "bg-eu-yellow text-eu-navy" : "bg-white/95 text-eu-ink"}`}>
-            <span className={`size-[5vh] shrink-0 rounded-full grid place-items-center font-black text-[length:var(--fs-20)] ${selected === n ? "bg-eu-navy text-eu-yellow" : "bg-eu-navy text-white"}`}>{n + 1}</span>
+          <button type="button" onClick={() => onSelect(n)} className={`w-full text-left rounded-[1.1rem] p-[1.4vh_1vw] flex items-center gap-[0.8vw] shadow-[0_8px_24px_rgb(0_0_0/0.25)] transition-colors ${selected === n ? "bg-eu-yellow text-eu-navy" : "bg-white text-eu-ink"}`}>
+            <span className={`size-[5vh] shrink-0 rounded-full grid place-items-center font-semibold tabular-nums text-[length:var(--fs-20)] ${selected === n ? "bg-eu-navy text-eu-yellow" : "bg-eu-navy text-white"}`}>{n + 1}</span>
             <span className="min-w-0">
-              <span className="block font-black text-[length:var(--fs-18)] truncate">Euronics {s.street}</span>
-              <span className="block font-semibold opacity-75 text-[length:var(--fs-15)]">{s.address} · {s.km.toLocaleString("el-GR")} km</span>
+              <span className="block font-semibold text-[length:var(--fs-18)] truncate">Euronics {s.street}</span>
+              <span className="block opacity-75 tabular-nums text-[length:var(--fs-15)]">{s.address} · {s.km.toLocaleString("el-GR")} km</span>
             </span>
           </button>
         </motion.li>
@@ -601,15 +627,15 @@ function listen(url: string): () => void {
 function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: CallView }) {
   const label = { dialing: "Καλώ…", talking: "Σε κλήση", ended: "Η κλήση έκλεισε · καταγράφεται…", done: "Η κλήση ολοκληρώθηκε", error: "Η κλήση δεν έγινε" }[call.status];
   return (
-    <motion.div initial={{ x: "110%" }} animate={{ x: 0 }} exit={{ x: "110%" }} transition={spring} className="absolute right-[1.2vw] top-[2vh] bottom-[2vh] z-[600] w-[34vw] rounded-[1.4rem] bg-eu-navy/95 backdrop-blur ring-1 ring-white/20 shadow-2xl flex flex-col overflow-hidden">
+    <motion.div initial={{ x: "110%" }} animate={{ x: 0 }} exit={{ x: "110%" }} transition={spring} className="absolute right-[1.2vw] top-[2vh] bottom-[2vh] z-[600] w-[34vw] rounded-[1.4rem] bg-eu-navy ring-1 ring-white/10 shadow-[0_16px_48px_rgb(0_0_0/0.35)] flex flex-col overflow-hidden">
       <div className="p-[2vh_1.4vw] flex items-center gap-[1vw] border-b border-white/10">
-        <div className="relative size-[8vh] shrink-0 rounded-full bg-eu-yellow grid place-items-center text-[length:var(--fs-36)]">
+        <div className="relative size-[8vh] shrink-0 rounded-full bg-eu-yellow text-eu-navy grid place-items-center">
           {(call.status === "dialing" || call.status === "talking") && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /></>}
-          📞
+          <Phone className="size-[45%]" strokeWidth={2} aria-hidden />
         </div>
         <div className="min-w-0">
-          <div className="font-black text-[length:var(--fs-22)] truncate">Euronics {store.street}</div>
-          <div className="text-white/70 font-semibold text-[length:var(--fs-16)]">{label}</div>
+          <div className="font-semibold text-[length:var(--fs-22)] truncate">Euronics {store.street}</div>
+          <div className="text-white/70 text-[length:var(--fs-16)]">{label}</div>
         </div>
         {call.status === "talking" && <div className="ml-auto flex items-center gap-1 h-[2.6rem]">{[0, 1, 2, 3, 4].map((n) => <span key={n} className={`${css.bar} ${css[`b${n + 1}`]}`} />)}</div>}
       </div>
@@ -617,8 +643,8 @@ function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: C
         {call.error && <p className="text-eu-yellow font-semibold text-[length:var(--fs-18)]">{call.error}</p>}
         <AnimatePresence initial={false}>
           {call.transcript.slice(-6).map((t, n) => (
-            <motion.div key={`${call.transcript.length - 6 + n}-${t.text.slice(0, 12)}`} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`max-w-[88%] rounded-[1rem] px-[1vw] py-[1vh] font-semibold leading-snug text-[length:var(--fs-18)] ${t.who === "hermes" ? "self-start bg-eu-yellow text-eu-navy" : "self-end bg-white text-eu-ink"}`}>
-              <span className="block font-black opacity-60 text-[length:var(--fs-12)] uppercase">{t.who === "hermes" ? "Ερμής" : "Κατάστημα"}</span>
+            <motion.div key={`${call.transcript.length - 6 + n}-${t.text.slice(0, 12)}`} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`max-w-[88%] rounded-[1rem] px-[1vw] py-[1vh] font-medium leading-snug text-[length:var(--fs-18)] ${t.who === "hermes" ? "self-start bg-eu-yellow text-eu-navy" : "self-end bg-white text-eu-ink"}`}>
+              <span className="block font-semibold opacity-60 text-[length:var(--fs-13)]">{t.who === "hermes" ? "Ερμής" : "Κατάστημα"}</span>
               {t.text}
             </motion.div>
           ))}
@@ -628,16 +654,16 @@ function CallPanel({ store, call }: { store: Snapshot["stores"][number]; call: C
   );
 }
 
-function DoneCard({ snap, store, extras }: { snap: Snapshot; store: number; extras: LiveProduct[] }) {
+function DoneCard({ snap, alts, store, extras }: { snap: Snapshot; alts: Alts; store: number; extras: LiveProduct[] }) {
   const s = snap.stores[store];
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.85, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={spring} className="absolute inset-0 z-[700] grid place-items-center bg-eu-navy/55 backdrop-blur-sm">
+    <motion.div initial={{ opacity: 0, scale: 0.85, y: 40 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={spring} className="absolute inset-0 z-[700] grid place-items-center bg-eu-navy/60">
       <div className="w-[52vw] rounded-[1.8rem] bg-white text-eu-ink p-[4vh_3vw] shadow-2xl text-center">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.2 }} className="mx-auto size-[12vh] rounded-full bg-eu-green text-white grid place-items-center text-[length:var(--fs-66)] font-black">✓</motion.div>
-        <h3 className="mt-[2vh] font-black text-[length:var(--fs-44)]">Σε περιμένουν σήμερα</h3>
-        <p className="mt-[1vh] font-semibold text-eu-muted text-[length:var(--fs-24)]">Euronics {s.street} · {s.address}, {s.city}</p>
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.2 }} className="mx-auto size-[12vh] rounded-full bg-eu-green text-white grid place-items-center"><Check className="size-[55%]" strokeWidth={2.5} aria-hidden /></motion.div>
+        <h3 className="mt-[2vh] font-semibold tracking-tight text-[length:var(--fs-44)]">Σας περιμένουν σήμερα</h3>
+        <p className="mt-[1vh] text-eu-muted text-[length:var(--fs-24)]">Euronics {s.street} · {s.address}, {s.city}</p>
         <div className="mt-[3vh] flex justify-center gap-[1vw]">
-          {snap.cats.map((c, n) => { const p = c.candidates.find((x) => x.id === c.pick)!; return (
+          {snap.cats.map((c, n) => { const p = pickOf(c, alts); return (
             <motion.div key={c.key} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + n * 0.12 }} className="size-[11vh] rounded-[1rem] bg-eu-surface grid place-items-center p-2">
               <img src={p.image} alt={p.title} className="max-h-full max-w-full object-contain mix-blend-multiply" />
             </motion.div>
@@ -648,7 +674,7 @@ function DoneCard({ snap, store, extras }: { snap: Snapshot; store: number; extr
             </motion.div>
           ))}
         </div>
-        <p className="mt-[2.4vh] font-black text-[length:var(--fs-30)]">Καλή αρχή στη Λάρισα, {snap.presenter.vocative}!</p>
+        <p className="mt-[2.4vh] font-medium text-[length:var(--fs-30)]">Καλή αρχή στη Λάρισα, {snap.presenter.vocative}</p>
       </div>
     </motion.div>
   );
@@ -662,20 +688,20 @@ function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null
   const q = listening ? null : live?.q && live.q !== "…" ? live.q : null;
   const searching = !listening && (!live || live.phase === "thinking");
   return (
-    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={spring} className="absolute right-[2.5vw] top-[11vh] bottom-[4vh] w-[64vw] z-[800] rounded-[1.8rem] bg-eu-navy/95 backdrop-blur ring-1 ring-white/20 shadow-2xl p-[3vh_2.4vw] flex flex-col gap-[3vh]">
+    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={spring} className="absolute right-[2.5vw] top-[11vh] bottom-[4vh] w-[64vw] z-[800] rounded-[1.8rem] bg-[#0b1d42] ring-1 ring-white/10 shadow-[0_16px_48px_rgb(0_0_0/0.35)] p-[3vh_2.4vw] flex flex-col gap-[3vh]">
       <div>
-        <div className="font-black uppercase tracking-wider text-eu-yellow text-[length:var(--fs-16)]">{live?.quiet ? presenter : "Ερώτηση από το κοινό"}</div>
+        <div className="font-medium text-eu-yellow text-[length:var(--fs-16)]">{live?.quiet ? presenter : "Ερώτηση από το κοινό"}</div>
         <AnimatePresence mode="wait">
-          <motion.p key={q ?? (listening ? "listen" : "wait")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-[1vh] font-black leading-tight text-[length:var(--fs-44)]">
-            {listening ? <span className="text-white/60">σε ακούω…</span> : q ? `«${q}»` : <span className="text-white/60">…</span>}
+          <motion.p key={q ?? (listening ? "listen" : "wait")} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-[1vh] font-semibold tracking-tight leading-tight text-[length:var(--fs-44)]">
+            {listening ? <span className="text-white/60">Ακούω…</span> : q ? `«${q}»` : <span className="text-white/60">…</span>}
           </motion.p>
         </AnimatePresence>
       </div>
       <div className="flex-1 min-h-0 flex items-center">
         {live?.phase === "error" ? (
-          <p className="font-bold text-eu-yellow text-[length:var(--fs-28)]">{live.error}</p>
+          <p className="font-medium text-eu-yellow text-[length:var(--fs-28)]">{live.error}</p>
         ) : searching ? (
-          <div className="flex items-center gap-[1vw] text-white/70 font-semibold text-[length:var(--fs-28)]">
+          <div className="flex items-center gap-[1vw] text-white/70 text-[length:var(--fs-28)]">
             {!listening && <div className="flex items-center gap-1 h-[2.6rem]">{[0, 1, 2, 3, 4].map((n) => <span key={n} className={`${css.bar} ${css[`b${n + 1}`]}`} />)}</div>}
             {listening ? "" : "Ψάχνω στον κατάλογο της Euronics…"}
           </div>
@@ -685,17 +711,17 @@ function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null
               {(live?.products ?? []).map((p, n) => {
                 const added = extras.some((x) => x.id === p.id);
                 return (
-                  <motion.article key={p.id} initial={{ opacity: 0, y: 60, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: added ? 1.05 : 1 }} transition={{ ...spring, delay: n * 0.18 }} className={`relative w-[17vw] rounded-[1.4rem] bg-white text-eu-ink overflow-hidden shadow-2xl ${added ? "ring-[6px] ring-eu-yellow" : ""}`}>
-                    <div className="aspect-[4/3] bg-eu-surface grid place-items-center p-[1.4vh]">
-                      {p.image && <img src={p.image} alt="" className="max-h-full max-w-full object-contain mix-blend-multiply" />}
+                  <motion.article key={p.id} initial={{ opacity: 0, y: 60, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: added ? 1.05 : 1 }} transition={{ ...spring, delay: n * 0.18 }} className={`relative w-[17vw] flex flex-col rounded-[1.4rem] bg-white text-eu-ink overflow-hidden ${added ? "ring-[6px] ring-eu-yellow" : ""}`}>
+                    <div className="relative aspect-[4/3] shrink-0 bg-eu-surface">
+                      {p.image && <img src={p.image} alt="" className="absolute inset-0 m-auto max-h-[88%] max-w-[88%] object-contain mix-blend-multiply" />}
                     </div>
-                    <div className="p-[1.2vh_1vw_1.6vh] flex flex-col gap-[0.6vh]">
-                      <span className="font-black uppercase tracking-wide text-eu-blue text-[length:var(--fs-16)]">{p.brand}</span>
-                      <span className="line-clamp-2 font-semibold leading-tight text-[length:var(--fs-15)] min-h-[2.5em]">{p.title}</span>
-                      {p.why && <span className="line-clamp-2 text-eu-muted font-semibold leading-tight text-[length:var(--fs-14)]">{p.why}</span>}
-                      <span className="font-black text-[length:var(--fs-28)]">{eur(p.price)}</span>
+                    <div className="flex-1 p-[1.2vh_1vw_1.6vh] flex flex-col gap-[0.6vh]">
+                      <span className="font-semibold text-eu-blue text-[length:var(--fs-16)]">{p.brand}</span>
+                      <span className="line-clamp-2 font-medium leading-tight text-eu-ink/80 text-[length:var(--fs-15)] min-h-[2.5em]">{titleOf(p)}</span>
+                      {p.why && <span className="line-clamp-2 text-eu-muted leading-tight text-[length:var(--fs-14)]">{p.why}</span>}
+                      <span className="mt-auto font-semibold tabular-nums text-[length:var(--fs-28)]">{eur(p.price)}</span>
                     </div>
-                    {added && <span className="absolute top-3 inset-x-3 rounded-full bg-eu-yellow text-eu-navy text-center font-black py-1.5 text-[length:var(--fs-16)]">+ Στο σπίτι</span>}
+                    {added && <span className="absolute top-3 inset-x-3 flex items-center justify-center gap-1.5 rounded-full bg-eu-yellow text-eu-navy font-semibold py-1.5 text-[length:var(--fs-16)]"><Check className="size-[1.1em]" strokeWidth={2.5} aria-hidden />Στο σπίτι</span>}
                   </motion.article>
                 );
               })}
@@ -711,54 +737,50 @@ export type { Beat };
 
 /**
  * Μπάρα χειρισμού στο κάτω μέρος της σκηνής (για όποιον οδηγεί από το laptop): στην αρχή ένα μεγάλο «Ξεκίνα», μετά
- * Πίσω / Επόμενο / 🎤 ερώτηση κοινού / πλήρης οθόνη. Κρύβεται όταν το ποντίκι μείνει ακίνητο, για να μη φαίνεται στο κοινό.
+ * Πίσω / Επόμενο / ερώτηση κοινού / πλήρης οθόνη. Κρύβεται όταν το ποντίκι μείνει ακίνητο, για να μη φαίνεται στο κοινό.
  */
-function Dock({ auto, mic, hearing, meter, onAuto, onArm, idle, live, listening, wait, cue, needStore, command, onTalkDown, onTalkUp }: {
-  auto: boolean; mic: boolean; hearing: boolean; meter: React.RefObject<HTMLSpanElement | null>; onAuto: () => void; onArm: () => void;
+function Dock({ step, auto, mic, hearing, meter, onAuto, onArm, idle, live, listening, wait, cue, needStore, command, onTalkDown, onTalkUp }: {
+  step: string; auto: boolean; mic: boolean; hearing: boolean; meter: React.RefObject<HTMLSpanElement | null>; onAuto: () => void; onArm: () => void;
   idle: boolean; live: boolean; listening: boolean; wait: Beat["wait"]; cue: string | null; needStore: boolean;
   command: (c: Cmd) => void; onTalkDown: () => void; onTalkUp: () => void;
 }) {
-  const [shown, setShown] = useState(true);
-  const hold = useRef(false);
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout> | undefined;
-    const wake = () => { setShown(true); clearTimeout(t); t = setTimeout(() => { if (!hold.current) setShown(false); }, 3500); };
-    wake();
-    window.addEventListener("mousemove", wake); window.addEventListener("pointerdown", wake);
-    return () => { clearTimeout(t); window.removeEventListener("mousemove", wake); window.removeEventListener("pointerdown", wake); };
-  }, []);
+  const { shown, setShown, holdRef } = useWake();
   // το κουμπί δεν κρατά το focus, αλλιώς το Space θα το ξαναπατούσε πέρα από το «Επόμενο» του πληκτρολογίου
   const tap = (c: Cmd) => (e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.blur(); command(c); };
-  const base = "min-h-14 rounded-2xl px-6 font-bold whitespace-nowrap text-[length:var(--fs-20)] active:scale-[0.97] transition";
-  const btn = `${base} ring-1 ring-white/20 bg-white/10 hover:bg-white/20`;
-  const main = `${base} bg-eu-yellow text-eu-navy font-black`;
+  const base = "min-h-14 rounded-2xl px-5 flex items-center justify-center gap-2 font-medium whitespace-nowrap text-[length:var(--fs-20)] active:scale-[0.98] transition-[background-color,transform] duration-150";
+  const btn = `${base} bg-white/10 hover:bg-white/20`;
+  const main = `${base} bg-eu-yellow text-eu-navy font-semibold hover:bg-white`;
+  const ic = "size-[1.1em] shrink-0";
 
   if (idle && !live) return null;
   const inCall = wait === "call";
   return (
-    <div onMouseEnter={() => { hold.current = true; setShown(true); }} data-hearing={hearing || undefined} onMouseLeave={() => { hold.current = false; }} className={`absolute bottom-[2.5vh] left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-3xl bg-eu-navy/85 backdrop-blur ring-1 ring-white/15 p-2 shadow-2xl transition-opacity duration-500 ${shown || listening ? "opacity-100" : "opacity-0"}`}>
-      <button type="button" onClick={tap({ t: "back" })} className={btn} title="Πίσω (←)">◀</button>
+    <div onMouseEnter={() => { holdRef.current = true; setShown(true); }} data-hearing={hearing || undefined} onMouseLeave={() => { holdRef.current = false; }} className={`absolute bottom-[2.5vh] left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-3xl bg-[#0b1d42] ring-1 ring-white/10 p-2 shadow-[0_12px_32px_rgb(0_0_0/0.35)] transition-opacity duration-500 ${shown || listening ? "opacity-100" : "opacity-0"}`}>
+      <button type="button" onClick={tap({ t: "back" })} className={btn} title="Πίσω (←)" aria-label="Πίσω"><ChevronLeft className={ic} strokeWidth={2} aria-hidden /></button>
       {live ? (
-        <button type="button" onClick={tap({ t: "liveClose" })} className={main} title="Esc">↩ Πίσω στο σενάριο</button>
+        <button type="button" onClick={tap({ t: "liveClose" })} className={main} title="Esc"><CornerUpLeft className={ic} strokeWidth={2} aria-hidden />Πίσω στο σενάριο</button>
       ) : inCall ? (
-        <button type="button" onClick={tap({ t: "skipCall" })} className={btn} title="C">Τέλος κλήσης ▶</button>
+        <button type="button" onClick={tap({ t: "skipCall" })} className={btn} title="C">Τέλος κλήσης<ChevronRight className={ic} strokeWidth={2} aria-hidden /></button>
       ) : (
         <button type="button" disabled={needStore} onClick={tap({ t: "next" })} className={`${main} min-w-[14rem] disabled:opacity-40`} title="Space / →">
-          {needStore ? "Διάλεξε κατάστημα" : "Επόμενο ▶"}
+          {needStore ? "Διάλεξε κατάστημα" : <>Επόμενο<ChevronRight className={ic} strokeWidth={2} aria-hidden /></>}
         </button>
       )}
       {!inCall && (
         <button type="button" onPointerDown={(e) => { e.preventDefault(); onTalkDown(); }} onPointerUp={onTalkUp} onPointerLeave={() => { if (listening) onTalkUp(); }} onContextMenu={(e) => e.preventDefault()} className={`${listening ? `${base} bg-eu-red` : btn} touch-none`} title="ή κράτα πατημένο το M">
-          {listening ? "● Ακούω — άφησε" : "🎤 Ερώτηση"}
+          {listening ? "Ακούω· άφησε για αποστολή" : <><MicIcon className={ic} strokeWidth={1.75} aria-hidden />Ερώτηση</>}
         </button>
       )}
-      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (auto && !mic) onArm(); else onAuto(); }} className={`${btn} flex items-center gap-2`} title="Αυτόματη συνέχεια: ο Ερμής απαντά μόλις σωπάσει ο παρουσιαστής (A)">
+      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (auto && !mic) onArm(); else onAuto(); }} className={btn} title="Αυτόματη συνέχεια: ο Ερμής απαντά μόλις σωπάσει ο παρουσιαστής (A)">
         <span className={`size-3 rounded-full ${auto && mic ? (hearing ? "bg-eu-green animate-pulse" : "bg-eu-green") : "bg-white/30"}`} />
-        {auto ? (mic ? (hearing ? "Ακούω" : "Αυτόματο") : "🎙 Μικρόφωνο") : "Χειροκίνητο"}
+        {auto ? (mic ? (hearing ? "Ακούω" : "Αυτόματο") : "Μικρόφωνο") : "Χειροκίνητο"}
         {auto && mic && <span className="relative h-2 w-16 overflow-hidden rounded-full bg-white/15"><span ref={meter} className="absolute inset-y-0 left-0 w-0 rounded-full bg-white/70 transition-[width] duration-75" /></span>}
       </button>
-      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }} className={btn} title="Πλήρης οθόνη (F)">⛶</button>
-      {cue && !live && <span className="max-w-[24rem] px-3 text-white/60 text-[length:var(--fs-14)] leading-tight">Περιμένει: <b className="text-white/85">{cue}</b></span>}
+      <button type="button" onClick={(e) => { e.currentTarget.blur(); if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }} className={btn} title="Πλήρης οθόνη (F)" aria-label="Πλήρης οθόνη"><Maximize className={ic} strokeWidth={1.75} aria-hidden /></button>
+      <span className="max-w-[24rem] px-3 flex flex-col text-white/60 text-[length:var(--fs-14)] leading-tight">
+        {cue && !live && <span>Περιμένει: <span className="font-medium text-white/90">{cue}</span></span>}
+        <span className="text-white/40 tabular-nums text-[length:var(--fs-13)]">{step}</span>
+      </span>
     </div>
   );
 }

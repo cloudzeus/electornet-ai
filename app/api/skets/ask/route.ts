@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sketsReq } from "@/lib/skets/auth";
 import { sendLive } from "@/lib/skets/bus";
-import { liveSpoken, SKETS_VOICE } from "@/lib/skets/script";
+import { liveSpoken, pickOf, SKETS_VOICE } from "@/lib/skets/script";
 import { liveAudio, speakParts } from "@/lib/skets/speak-live";
 import { liveMemory, resetLiveMemory } from "@/lib/skets/live";
 import { smartAdvisor, type Turn } from "@/lib/advisor/engine";
@@ -16,7 +16,8 @@ const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits:
 
 /** Ο Ερμής του eshop ξέρει από την αρχή τι έγινε στη σκηνή: ποιος, πού, τι διαλέξατε. */
 function seed(): Turn[] {
-  const picks = snap.cats.map((c) => c.candidates.find((p) => p.id === c.pick)!);
+  const alts = liveMemory().alts;
+  const picks = snap.cats.map((c) => pickOf(c, alts));
   return [
     { role: "user", text: `Είμαι ο ${snap.presenter.full}. Μόλις πήρα μετάθεση στη Λάρισα και εξοπλίζω το σπίτι μου από το μηδέν.` },
     { role: "advisor", text: `Διαλέξαμε μαζί: ${picks.map((p) => `${p.brand} ${p.title} (${eur(p.price)})`).join(", ")}.`, products: picks.map((p) => p.id).slice(0, 4) },

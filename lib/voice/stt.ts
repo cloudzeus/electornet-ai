@@ -45,10 +45,13 @@ async function transcribeEleven(bytes: Buffer, mime: string, filename: string): 
   const j = res ? ((await res.json().catch(() => null)) as { text?: string; detail?: { message?: string } } | null) : null;
   const ms = Date.now() - t0, ok = !!(res?.ok && typeof j?.text === "string");
   const seconds = Math.round(bytes.length / 4000), costUsd = (seconds / 3600) * 0.4; // ~$0,40 / ώρα
-  const [markupPct, fxRate] = await Promise.all([markupFor("elevenlabs/scribe_v1"), usdEurRate().catch(() => null)]);
-  const billedUsd = billed(costUsd, markupPct);
   const error = ok ? undefined : `${res?.status ?? "network"}: ${j?.detail?.message ?? "χωρίς κείμενο"}`.slice(0, 300);
-  await db.aiUsage.create({ data: { day: today(), feature: "stt", model: "elevenlabs/scribe_v1", tokensIn: seconds, costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok, error } }).catch(() => null);
+  // καταγραφή κόστους στο παρασκήνιο: όποιος περιμένει την απάντηση (Ερμής, σκετς) δεν πληρώνει τρία ερωτήματα στη βάση
+  void (async () => {
+    const [markupPct, fxRate] = await Promise.all([markupFor("elevenlabs/scribe_v1"), usdEurRate().catch(() => null)]);
+    const billedUsd = billed(costUsd, markupPct);
+    await db.aiUsage.create({ data: { day: today(), feature: "stt", model: "elevenlabs/scribe_v1", tokensIn: seconds, costUsd, markupPct, billedUsd, fxRate, billedEur: fxRate ? billedUsd * fxRate : null, ms, ok, error } });
+  })().catch(() => null);
   if (!ok || !j) return { ok: false, status: res?.status ?? 0, error: error ?? "" };
   return { ok: true, text: (j.text ?? "").trim(), seconds, costUsd };
 }

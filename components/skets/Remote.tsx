@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Cmd, StageState } from "@/lib/skets/bus";
 import type { LiveEv } from "@/lib/skets/types";
+import { Check, ChevronLeft, ChevronRight, CornerUpLeft, Mic, Plus } from "lucide-react";
 import { askLive, micAvailable, startPtt, type Ptt } from "./ptt";
 
 /**
@@ -39,76 +40,79 @@ export default function Remote({ k }: { k: string }) {
   };
   const ask = () => { const q = typed.trim(); if (!q) return; setTyped(""); askLive(k, q); };
   const inCall = st?.wait === "call";
+  const needStore = st?.wait === "store" && st.storeIdx === null;
 
   return (
     <div className="min-h-dvh bg-eu-navy text-white p-4 flex flex-col gap-4">
       <header className="flex items-center justify-between">
-        <span className="font-black text-[length:var(--fs-20)]">Ερμής · χειριστής</span>
-        <span className={`rounded-full px-3 py-1 font-bold text-[length:var(--fs-13)] ${online && st ? "bg-eu-green" : "bg-eu-red"}`}>{online ? (st ? `βήμα ${st.i + 1}/${st.total}` : "χωρίς σκηνή") : "εκτός σύνδεσης"}</span>
+        <span className="font-semibold text-[length:var(--fs-20)]">Ερμής · χειριστής</span>
+        <span className={`rounded-full px-3 py-1 font-medium tabular-nums text-[length:var(--fs-13)] ${online && st ? "bg-eu-green" : "bg-eu-red"}`}>{online ? (st ? `βήμα ${st.i + 1}/${st.total}` : "χωρίς σκηνή") : "εκτός σύνδεσης"}</span>
       </header>
 
       <section className="rounded-2xl bg-white/10 p-4">
-        <div className="text-white/60 font-bold uppercase text-[length:var(--fs-12)]">Περιμένει</div>
-        <p className="mt-1 font-bold text-eu-yellow text-[length:var(--fs-20)]">{st?.cue ?? (st?.wait === "auto" ? "— προχωρά μόνο του —" : "—")}</p>
-        {st?.say && <><div className="mt-3 text-white/60 font-bold uppercase text-[length:var(--fs-12)]">Ο Ερμής λέει</div><p className="mt-1 text-white/85 text-[length:var(--fs-16)] leading-snug">{st.say}</p></>}
-        {st?.call && <p className="mt-3 font-bold text-[length:var(--fs-16)]">Κλήση: {st.call}</p>}
+        <div className="text-white/60 font-medium text-[length:var(--fs-13)]">Περιμένει</div>
+        <p className="mt-1 font-semibold text-eu-yellow text-[length:var(--fs-20)]">{st?.cue ?? (st?.wait === "auto" ? "Προχωρά μόνο του" : "—")}</p>
+        {st?.say && <><div className="mt-3 text-white/60 font-medium text-[length:var(--fs-13)]">Ο Ερμής λέει</div><p className="mt-1 text-white/85 text-[length:var(--fs-16)] leading-snug">{st.say}</p></>}
+        {st?.call && <p className="mt-3 font-medium text-[length:var(--fs-16)]">Κλήση: {({ dialing: "καλεί", talking: "σε εξέλιξη", ended: "έκλεισε", done: "ολοκληρώθηκε", error: "απέτυχε" } as Record<string, string>)[st.call] ?? st.call}</p>}
       </section>
 
       {st && (
-        <button type="button" onClick={() => send({ t: "auto", on: !st.auto })} className={`min-h-14 rounded-2xl px-4 flex items-center justify-between gap-3 font-bold text-[length:var(--fs-16)] ${st.auto && st.mic ? "bg-eu-green/20 ring-1 ring-eu-green" : "bg-white/10"}`}>
+        <button type="button" onClick={() => send({ t: "auto", on: !st.auto })} className={`min-h-14 rounded-2xl px-4 flex items-center justify-between gap-3 font-medium text-[length:var(--fs-16)] transition-colors ${st.auto && st.mic ? "bg-eu-green/20 ring-1 ring-eu-green" : "bg-white/10"}`}>
           <span className="flex items-center gap-2 text-left">
             <span className={`size-3 shrink-0 rounded-full ${st.auto && st.mic ? (st.hearing ? "bg-eu-green animate-pulse" : "bg-eu-green") : "bg-white/30"}`} />
-            {!st.auto ? "Χειροκίνητο: προχωράς με «Επόμενο»" : !st.mic ? "Αυτόματο — άνοιξε το μικρόφωνο στη σκηνή" : st.hearing ? "Ακούει τον παρουσιαστή…" : "Αυτόματο (ο Ερμής μιλά / περιμένει)"}
+            {!st.auto ? "Χειροκίνητο: προχωράς με «Επόμενο»" : !st.mic ? "Αυτόματο· άνοιξε το μικρόφωνο στη σκηνή" : st.hearing ? "Ακούει τον παρουσιαστή…" : "Αυτόματο (ο Ερμής μιλά ή περιμένει)"}
           </span>
-          <span className="shrink-0 text-white/60 text-[length:var(--fs-13)]">{st.auto ? "→ χειροκίνητο" : "→ αυτόματο"}</span>
+          <span className="shrink-0 text-white/60 text-[length:var(--fs-13)]">{st.auto ? "Σε χειροκίνητο" : "Σε αυτόματο"}</span>
         </button>
       )}
 
       {st?.live ? (
         <section className="rounded-2xl bg-white text-eu-ink p-4 flex flex-col gap-3">
-          <div className="font-black uppercase text-eu-blue text-[length:var(--fs-12)]">Ζωντανή ερώτηση</div>
-          <p className="font-bold text-[length:var(--fs-18)]">{rec ? "Ηχογραφώ…" : live?.q && live.q !== "…" ? `«${live.q}»` : "…"}</p>
-          {live?.phase === "error" && <p className="font-bold text-eu-red text-[length:var(--fs-16)]">{live.error}</p>}
+          <div className="font-medium text-eu-blue text-[length:var(--fs-13)]">Ζωντανή ερώτηση</div>
+          <p className="font-semibold text-[length:var(--fs-18)]">{rec ? "Ηχογραφώ…" : live?.q && live.q !== "…" ? `«${live.q}»` : "…"}</p>
+          {live?.phase === "error" && <p className="font-medium text-eu-red text-[length:var(--fs-16)]">{live.error}</p>}
           {live?.text && <p className="text-eu-muted text-[length:var(--fs-15)] leading-snug">{live.text}</p>}
-          {live?.phase === "thinking" && <p className="text-eu-muted font-semibold text-[length:var(--fs-15)]">Ο Ερμής ψάχνει…</p>}
+          {live?.phase === "thinking" && <p className="text-eu-muted text-[length:var(--fs-15)]">Ο Ερμής ψάχνει…</p>}
           {(live?.products ?? []).map((p) => (
-            <button key={p.id} type="button" onClick={() => send({ t: "addExtra", id: p.id })} className="min-h-14 rounded-xl bg-eu-surface px-3 py-2 flex items-center gap-3 text-left active:scale-[0.98]">
-              <span className="min-w-0 flex-1"><span className="block font-black text-eu-blue text-[length:var(--fs-13)]">{p.brand}</span><span className="block font-semibold truncate text-[length:var(--fs-14)]">{p.title}</span></span>
-              <span className="font-black text-[length:var(--fs-14)] whitespace-nowrap">{Array.isArray(st?.extras) && st.extras.includes(p.id) ? "✓ στο σπίτι" : "+ στο σπίτι"}</span>
+            <button key={p.id} type="button" onClick={() => send({ t: "addExtra", id: p.id })} className="min-h-14 rounded-xl bg-eu-surface px-3 py-2 flex items-center gap-3 text-left active:scale-[0.98] transition-transform">
+              <span className="min-w-0 flex-1"><span className="block font-semibold text-eu-blue text-[length:var(--fs-13)]">{p.brand}</span><span className="block truncate text-[length:var(--fs-14)]">{p.title}</span></span>
+              <span className="flex items-center gap-1 font-semibold text-[length:var(--fs-14)] whitespace-nowrap">{Array.isArray(st?.extras) && st.extras.includes(p.id) ? <><Check className="size-4" strokeWidth={2.5} aria-hidden />Στο σπίτι</> : <><Plus className="size-4" strokeWidth={2.5} aria-hidden />Στο σπίτι</>}</span>
             </button>
           ))}
-          <button type="button" onClick={() => send({ t: "liveClose" })} className="min-h-16 rounded-2xl bg-eu-yellow text-eu-navy font-black text-[length:var(--fs-20)]">↩ Πίσω στο σενάριο</button>
+          <button type="button" onClick={() => send({ t: "liveClose" })} className="min-h-16 rounded-2xl bg-eu-yellow text-eu-navy font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-20)]"><CornerUpLeft className="size-5" strokeWidth={2} aria-hidden />Πίσω στο σενάριο</button>
         </section>
       ) : (
-        <button type="button" onClick={() => send({ t: "next" })} className="min-h-[7rem] rounded-3xl bg-eu-yellow text-eu-navy font-black text-[length:var(--fs-36)] active:scale-[0.98]">Επόμενο ▶</button>
+        <button type="button" disabled={needStore} onClick={() => send({ t: "next" })} className="min-h-[7rem] rounded-3xl bg-eu-yellow text-eu-navy font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-36)] active:scale-[0.98] transition-transform disabled:opacity-40">
+          {needStore ? "Διάλεξε κατάστημα" : <>Επόμενο<ChevronRight className="size-[1em]" strokeWidth={2} aria-hidden /></>}
+        </button>
       )}
 
       {!inCall && (
         <section className="grid gap-2">
           {mic ? (
-            <button type="button" onPointerDown={talkDown} onPointerUp={talkUp} onPointerCancel={talkUp} onPointerLeave={() => { if (rec) talkUp(); }} onContextMenu={(e) => e.preventDefault()} className={`min-h-20 rounded-2xl font-black text-[length:var(--fs-20)] touch-none select-none ${rec ? "bg-eu-red text-white scale-[0.98]" : "bg-white/15 text-white"}`}>
-              {rec ? "● Ακούει — άφησε για αποστολή" : "🎤 Κράτα πατημένο: ερώτηση κοινού"}
+            <button type="button" onPointerDown={talkDown} onPointerUp={talkUp} onPointerCancel={talkUp} onPointerLeave={() => { if (rec) talkUp(); }} onContextMenu={(e) => e.preventDefault()} className={`min-h-20 rounded-2xl font-semibold flex items-center justify-center gap-2 text-[length:var(--fs-20)] touch-none select-none transition-[background-color,transform] ${rec ? "bg-eu-red text-white scale-[0.98]" : "bg-white/15 text-white"}`}>
+              {rec ? "Ακούει· άφησε για αποστολή" : <><Mic className="size-5" strokeWidth={1.75} aria-hidden />Κράτα πατημένο: ερώτηση κοινού</>}
             </button>
           ) : (
-            <p className="text-white/60 text-[length:var(--fs-13)]">Μικρόφωνο: μόνο μέσω https (το link του ngrok) — ή κράτα M στο laptop της σκηνής.</p>
+            <p className="text-white/60 text-[length:var(--fs-13)]">Μικρόφωνο μόνο μέσω https (το link του ngrok), ή κράτα M στο laptop της σκηνής</p>
           )}
           <form onSubmit={(e) => { e.preventDefault(); ask(); }} className="flex gap-2">
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="ή γράψε την ερώτηση…" className="min-h-12 min-w-0 flex-1 rounded-xl bg-white text-eu-ink px-3" />
-            <button type="submit" className="min-h-12 rounded-xl bg-white/15 px-4 font-bold">Ρώτα</button>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} aria-label="Γραπτή ερώτηση κοινού" placeholder="Ή γράψε την ερώτηση" className="min-h-12 min-w-0 flex-1 rounded-xl bg-white text-eu-ink px-3" />
+            <button type="submit" className="min-h-12 rounded-xl bg-white/15 px-4 font-medium">Ρώτα</button>
           </form>
         </section>
       )}
 
       {st && st.wait === "store" && (
         <div className="grid gap-2">
-          {st.stores.map((s, n) => <button key={s} type="button" onClick={() => send({ t: "store", i: n })} className={`min-h-14 rounded-2xl font-bold text-[length:var(--fs-18)] ${st.storeIdx === n ? "bg-eu-yellow text-eu-navy" : "bg-white text-eu-ink"}`}>{n + 1}. {s}</button>)}
+          {st.stores.map((s, n) => <button key={s} type="button" onClick={() => send({ t: "store", i: n })} className={`min-h-14 rounded-2xl font-medium text-[length:var(--fs-18)] transition-colors ${st.storeIdx === n ? "bg-eu-yellow text-eu-navy" : "bg-white text-eu-ink"}`}>{n + 1}. {s}</button>)}
         </div>
       )}
-      {st?.wait === "call" && <button type="button" onClick={() => send({ t: "skipCall" })} className="min-h-14 rounded-2xl bg-white/15 font-bold text-[length:var(--fs-18)]">Τέλος κλήσης → επόμενο</button>}
+      {st?.wait === "call" && <button type="button" onClick={() => send({ t: "skipCall" })} className="min-h-14 rounded-2xl bg-white/15 font-medium flex items-center justify-center gap-1 text-[length:var(--fs-18)]">Τέλος κλήσης<ChevronRight className="size-5" strokeWidth={2} aria-hidden /></button>}
 
       <div className="mt-auto grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => send({ t: "back" })} className="min-h-14 rounded-2xl bg-white/15 font-bold text-[length:var(--fs-18)]">◀ Πίσω</button>
-        <button type="button" onClick={() => { if (confirm("Από την αρχή;")) send({ t: "reset" }); }} className="min-h-14 rounded-2xl bg-eu-red/80 font-bold text-[length:var(--fs-18)]">Από την αρχή</button>
+        <button type="button" onClick={() => send({ t: "back" })} className="min-h-14 rounded-2xl bg-white/15 font-medium flex items-center justify-center gap-1 text-[length:var(--fs-18)]"><ChevronLeft className="size-5" strokeWidth={2} aria-hidden />Πίσω</button>
+        <button type="button" onClick={() => { if (confirm("Από την αρχή;")) send({ t: "reset" }); }} className="min-h-14 rounded-2xl ring-1 ring-eu-red text-white font-medium text-[length:var(--fs-18)]">Από την αρχή</button>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { db } from "../../lib/db";
 import { chat } from "../../lib/ai/openrouter";
 import { speak } from "../../lib/voice/tts";
-import { SKETS_VOICE } from "../../lib/skets/script";
+import { forVoice, SKETS_VOICE } from "../../lib/skets/script";
 import type { CatKey, SkQA, Snapshot } from "../../lib/skets/types";
 
 const snap = JSON.parse(readFileSync("lib/skets/snapshot.json", "utf8")) as Snapshot;
@@ -42,7 +42,7 @@ async function gen(cat: CatKey | null, brief: string, n: number, start = false):
   }
   snap.qa = qa;
   let rec = 0;
-  for (const x of qa) { const v = await speak(x.a, SKETS_VOICE); if (v) { snap.voice[x.a] = v.url; rec++; } }
+  for (const x of qa) { const v = await speak(forVoice(x.a), SKETS_VOICE); if (v) { snap.voice[x.a] = v.url; rec++; } }
   writeFileSync("lib/skets/snapshot.json", JSON.stringify(snap, null, 1));
   console.log(`\n→ ${qa.length} έτοιμες απαντήσεις, ${rec} ηχογραφημένες`);
   await db.$disconnect();

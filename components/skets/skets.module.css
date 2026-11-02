@@ -1,11 +1,6 @@
 /* Σκετς Ερμή — animations που δεν γίνονται με motion (markers του Leaflet, δακτύλιοι, γραμμές). */
-.stage {
-  background:
-    radial-gradient(60rem 40rem at 18% 30%, rgb(29 66 138 / 0.55), transparent 70%),
-    radial-gradient(50rem 36rem at 90% 100%, rgb(241 196 0 / 0.10), transparent 70%),
-    #07142f;
-}
-.grain { background-image: radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px); background-size: 3px 3px; }
+/* φόντο: το navy της Euronics με μικρή τονική μετάβαση (χωρίς χρωματιστές κηλίδες), ώστε οι κάρτες και ο Ερμής να είναι τα μόνα φωτεινά */
+.stage { background: linear-gradient(180deg, #0b1d42 0%, #07142f 100%); }
 
 /* δακτύλιοι γύρω από το orb όταν μιλά */
 .ring { position: absolute; inset: 0; border-radius: 9999px; border: 2px solid rgb(241 196 0 / 0.55); animation: ring 1.6s ease-out infinite; }

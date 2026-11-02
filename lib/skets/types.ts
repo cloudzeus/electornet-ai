@@ -8,6 +8,11 @@ export type Room = "bath" | "kitchen" | "living";
 
 export interface SkProduct { id: string; title: string; brand: string; /** κωδικός μοντέλου κατασκευαστή, για το τηλέφωνο με το κατάστημα */ model: string | null; price: number; image: string; slug: string; /** το κύριο μέγεθος της ερώτησης: «9 kg», «55″», «12.000 BTU» */ key: string; chips: string[] }
 export interface SkReject { id: string; reason: string }
+/** Άλλη απάντηση του παρουσιαστή (π.χ. «σαράντα τετραγωνικά» αντί για «είκοσι πέντε») → άλλη ετυμηγορία και άλλο προϊόν.
+ * min/max: εύρος του αριθμού που είπε (στη μονάδα `unit` της ομάδας) · words: regex (χωρίς τόνους) όταν δεν είπε αριθμό («πιο μεγάλο»). */
+export interface SkAlt { key: string; min?: number; max?: number; words?: string; verdict: string; reject: SkReject[]; pick: string; pickLine: string }
+/** διακλαδώσεις που έχουν διαλεχτεί στη σκηνή: ομάδα → SkAlt.key (λείπει = το βασικό σενάριο) */
+export type Alts = Partial<Record<CatKey, string>>;
 export interface SkCategory {
   key: CatKey; room: Room; label: string;
   candidates: SkProduct[];
@@ -16,6 +21,9 @@ export interface SkCategory {
   /** δεύτερος γύρος: από όσα έμειναν, ο Ερμής προτείνει ένα */
   reject2: SkReject[];
   pick: string;
+  /** μονάδα του αριθμού στην απάντηση του παρουσιαστή, για τις διακλαδώσεις */
+  unit?: "m2" | "m";
+  alts?: SkAlt[];
   lines: { ask: string; answer: string; /** διευκρίνιση πριν την απάντηση: ο Ερμής ρωτά πιο συγκεκριμένα, ο παρουσιαστής απαντά */ follow?: { ask: string; answer: string } | null; verdict: string; verdict2: string | null; pick: string };
 }
 export interface SkStore { id: string; name: string; street: string; address: string; city: string; phone: string | null; km: number; lat: number; lng: number; /** «το κατάστημα της Αεροδρομίου» */ spoken: string }
