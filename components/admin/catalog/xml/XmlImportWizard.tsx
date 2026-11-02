@@ -7,7 +7,7 @@ import { mb, sourceNote, type DraftDTO, type FeedStateDTO, type InspectDTO, type
 import { FeedSchedulePanel } from "@/components/admin/catalog/xml/FeedSchedule";
 import { AvailMapPanel } from "@/components/admin/catalog/xml/AvailMap";
 import { feedState, findSuppliers, forgetDraft, inspect, refreshSuppliers, remap, rerun, saveAndRun, saveDraft, saveUrl, suggest, toggleFeed } from "@/app/admin/(shell)/catalog/templates/xml/actions";
-import { Blockers, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep, type MappingValue } from "./MappingSteps";
+import { Blockers, Notices, StepBrands, StepCategories, StepColumns, StepFinish, StepSpecs, useMapping, type MapStep, type MappingValue } from "./MappingSteps";
 import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
 import { CheckStep } from "./CheckStep";
@@ -220,6 +220,14 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const at = Math.max(0, steps.indexOf(cur));
   const working = !!busy;
   const blockedHere = m.blockers.filter((b) => b.step === cur).map((b) => b.text);
+  /**
+   * Διαφορετικά προϊόντα με το ίδιο όνομα: υπαρκτή περίπτωση (η εσωτερική και η εξωτερική μονάδα ενός κλιματιστικού
+   * έχουν το ίδιο εμπορικό όνομα). Δεν είναι λάθος — απλώς δεν πρέπει να εκπλαγεί ο χρήστης με δύο ίδιους τίτλους.
+   */
+  const sn = mapping?.sameName;
+  const noticesHere = cur === "cols" && sn
+    ? [`${sn.total === 1 ? "Ένα ζεύγος προϊόντων έχει" : `${sn.total.toLocaleString("el-GR")} ζεύγη προϊόντων έχουν`} το ίδιο όνομα με διαφορετικό κωδικό — π.χ. «${sn.name}» (${sn.keys.slice(0, 3).join(", ")}${sn.keys.length > 3 ? "…" : ""}). Συνήθως είναι παραλλαγές του ίδιου μοντέλου, όπως η εσωτερική και η εξωτερική μονάδα ενός κλιματιστικού: θα μπουν ως χωριστά προϊόντα με ίδιο τίτλο. Αν δεν το θες, διάλεξε άλλη στήλη για το όνομα ή συμπλήρωσε τον τίτλο στη λίστα ελέγχου.`]
+    : [];
   const prev = steps[at - 1];
   const next = steps[at + 1];
   const go = (s: Step) => { setErr(null); setStep(s); };
@@ -252,6 +260,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   // (Στο τελευταίο βήμα τα φράγματα τα δείχνει το ίδιο το βήμα, πάνω από το κουμπί της φόρτωσης.)
   const nav = (
     <div className="grid gap-2 min-w-0">
+      {cur !== "finish" && <Notices list={noticesHere} />}
       {cur !== "finish" && <Blockers list={blockedHere} />}
       <div className="flex flex-wrap items-center gap-2">
         {prev && <button type="button" className={quiet} disabled={working} onClick={() => go(prev)}><ArrowLeft className="size-4" aria-hidden /> Πίσω: {TITLE[prev]}</button>}

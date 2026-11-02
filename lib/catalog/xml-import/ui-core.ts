@@ -140,6 +140,8 @@ export interface SuggestDTO {
   /** οι ετικέτες χαρακτηριστικών του feed· `to` = δική μας ονομασία (null = μένει ως είναι) */
   specs: { label: string; to: string | null; confidence: Confidence }[];
   duplicates: { label: string; headers: string[] }[];
+  /** διαφορετικά προϊόντα του feed με ΤΟ ΙΔΙΟ όνομα (π.χ. εσωτερική/εξωτερική μονάδα split) — ειδοποίηση, όχι φράγμα */
+  sameName?: { name: string; keys: string[]; column: string; total: number };
   aiUsed: boolean;
   /** true = οι επιλογές ήρθαν από το αποθηκευμένο πρότυπο του προμηθευτή, όχι από κανόνες και AI */
   fromTemplate?: boolean;

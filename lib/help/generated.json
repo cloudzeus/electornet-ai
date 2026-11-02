@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-02T15:24:00.335Z",
+ "generatedAt": "2026-11-02T15:45:53.298Z",
  "routes": [
   {
    "route": "/admin",
@@ -3599,6 +3599,11 @@
    ],
    "changes": [
     {
+     "hash": "5ce055d",
+     "date": "2026-11-02T17:24:18+02:00",
+     "text": "Keyvoto PIM: ονομασίες κατηγοριών, και τα κείμενα σταματούν να χάνονται"
+    },
+    {
      "hash": "154a019",
      "date": "2026-11-02T14:21:25+02:00",
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
@@ -3642,14 +3647,9 @@
      "hash": "9cf72f9",
      "date": "2026-10-20T10:13:33+03:00",
      "text": "Αναφορά ασφαλείας: μοντέλα SecurityReport/SecurityAlert, δικαιώματα security.read/run (στον super-admin), ρύθμιση «Ασφάλεια» με παραλήπτες αναφοράς, idempotent script εφαρμογής"
-    },
-    {
-     "hash": "3d85dfd",
-     "date": "2026-10-19T19:01:08+03:00",
-     "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
     }
    ],
-   "updatedAt": "2026-11-02T14:21:25+02:00",
+   "updatedAt": "2026-11-02T17:24:18+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3673,6 +3673,11 @@
    ],
    "changes": [
     {
+     "hash": "5ce055d",
+     "date": "2026-11-02T17:24:18+02:00",
+     "text": "Keyvoto PIM: ονομασίες κατηγοριών, και τα κείμενα σταματούν να χάνονται"
+    },
+    {
      "hash": "154a019",
      "date": "2026-11-02T14:21:25+02:00",
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
@@ -3716,14 +3721,9 @@
      "hash": "9cf72f9",
      "date": "2026-10-20T10:13:33+03:00",
      "text": "Αναφορά ασφαλείας: μοντέλα SecurityReport/SecurityAlert, δικαιώματα security.read/run (στον super-admin), ρύθμιση «Ασφάλεια» με παραλήπτες αναφοράς, idempotent script εφαρμογής"
-    },
-    {
-     "hash": "3d85dfd",
-     "date": "2026-10-19T19:01:08+03:00",
-     "text": "Ρυθμίσεις → Αποστολές: ASAP μέσω LastMily"
     }
    ],
-   "updatedAt": "2026-11-02T14:21:25+02:00",
+   "updatedAt": "2026-11-02T17:24:18+02:00",
    "shots": {}
   },
   {
@@ -4374,6 +4374,12 @@
  ],
  "recent": [
   {
+   "hash": "5ce055d",
+   "date": "2026-11-02T17:24:18+02:00",
+   "text": "Keyvoto PIM: ονομασίες κατηγοριών, και τα κείμενα σταματούν να χάνονται",
+   "routes": []
+  },
+  {
    "hash": "8cca5cc",
    "date": "2026-11-02T16:29:21+02:00",
    "text": "Keyvoto PIM: οι φωτογραφίες γίνονται πραγματικές διευθύνσεις",
@@ -4705,20 +4711,6 @@
     "/admin/orders",
     "/admin/orders/[number]",
     "/admin/prosfores"
-   ]
-  },
-  {
-   "hash": "97e50a4",
-   "date": "2026-10-30T16:42:53+02:00",
-   "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/categories",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml",
-    "/admin/softone",
-    "/admin/softone/sync"
    ]
   }
  ],

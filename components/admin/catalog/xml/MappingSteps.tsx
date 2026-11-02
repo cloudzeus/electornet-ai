@@ -322,6 +322,17 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
 }
 
 /** Τα φράγματα του τρέχοντος βήματος, πάνω από τα κουμπιά: τι εμποδίζει και τι να κάνει ο χρήστης. */
+/** Ειδοποίηση που ΔΕΝ εμποδίζει: κάτι αξίζει να το ξέρει ο χρήστης, αλλά δεν είναι λάθος. */
+export function Notices({ list }: { list: string[] }) {
+  if (!list.length) return null;
+  return (
+    <div className="grid gap-1 rounded-xl border-2 border-eu-yellow/60 bg-eu-yellow/10 p-3 min-w-0">
+      <p className="m-0 font-bold text-eu-ink text-[length:var(--fs-14)]">Καλό είναι να ξέρεις:</p>
+      <ul className="m-0 pl-5 grid gap-0.5 text-eu-ink text-[length:var(--fs-13)]">{list.map((b) => <li key={b}>{b}</li>)}</ul>
+    </div>
+  );
+}
+
 export function Blockers({ list }: { list: string[] }) {
   if (!list.length) return null;
   return (

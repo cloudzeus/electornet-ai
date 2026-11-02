@@ -2,6 +2,7 @@ import "server-only";
 import { UserError } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget } from "@/lib/catalog/foreign-import/ui-core";
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
+import { sameNameGroups } from "@/lib/catalog/xml-import/twins-core";
 import { suggestMapping, type SavedMapping } from "@/lib/catalog/xml-import/suggest";
 import { MAX_VALUES, SAMPLES_SHOWN, type SuggestDTO, type TemplateMaps, type TemplateSettings } from "@/lib/catalog/xml-import/ui-core";
 
@@ -58,6 +59,15 @@ export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promi
   let nameIdx = headers.findIndex((_, i) => isKind(i, "name"));
   if (nameIdx < 0) nameIdx = headers.findIndex((_, i) => isKind(i, "code"));
   const productAt = (r: number) => (nameIdx >= 0 ? matrix[r][nameIdx] ?? "" : "");
+  // Ίδιο όνομα σε δύο γραμμές με άλλο κλειδί: υπαρκτή περίπτωση (εσωτερική/εξωτερική μονάδα κλιματιστικού). Το
+  // υπολογίζουμε εδώ, που υπάρχει όλος ο πίνακας — ο οδηγός παίρνει μόνο το αποτέλεσμα.
+  const keyIdx = (() => {
+    const c = headers.findIndex((_, i) => isKind(i, "code"));
+    return c >= 0 ? c : headers.findIndex((_, i) => isKind(i, "barcode"));
+  })();
+  const twins = nameIdx >= 0 && keyIdx >= 0
+    ? sameNameGroups(matrix.slice(1).map((r) => ({ name: r[nameIdx] ?? "", key: r[keyIdx] ?? "" })), Number.MAX_SAFE_INTEGER)
+    : [];
   const catN = new Map<string, number>();
   if (catIdx >= 0) for (let r = 1; r < matrix.length; r++) { const v = matrix[r][catIdx]; if (v) catN.set(v, (catN.get(v) ?? 0) + 1); }
   return {
@@ -87,6 +97,7 @@ export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promi
       .sort((a, b) => b.n - a.n || a.value.localeCompare(b.value, "el")),
     specs: Object.entries(s.specs).map(([label, v]) => ({ label, to: v.label, confidence: v.confidence })).sort((a, b) => a.label.localeCompare(b.label, "el")),
     duplicates: s.duplicates,
+    ...(twins.length ? { sameName: { name: twins[0].name, keys: twins[0].keys, column: headers[nameIdx], total: twins.length } } : {}),
     aiUsed: s.aiUsed,
     ...(tpl ? { fromTemplate: true, maps: tpl.maps, settings: tpl.settings } : {}),
   };
