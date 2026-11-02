@@ -35,6 +35,12 @@ import { resetCatalogCache } from "@/lib/data/db-catalog";
 export const PROJECT_VERSION = 1;
 const SOURCE = "softone";
 const DESC_SOURCE = "s1-desc";
+/**
+ * Από ποια χαρακτηριστικά παίρνουν τιμή τα φίλτρα. Η **σειρά είναι προτεραιότητα**: πρώτα η περιγραφή του ERP και η
+ * εισαγωγή excel, μετά όσα ενέκρινε ο διαχειριστής από εξωτερικές πηγές. Χωρίς τις τελευταίες, χαρακτηριστικό που
+ * βρέθηκε στο internet και εγκρίθηκε (π.χ. «Χρώμα: Μαύρο») δεν έφτανε ποτέ στο φίλτρο «Χρώμα» της βιτρίνας.
+ */
+const FACET_SPEC_SOURCES = [DESC_SOURCE, "import", "web", "shop", "icecat", "channel3"];
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 const sha = (v: unknown) => createHash("sha1").update(JSON.stringify(v)).digest("hex");
@@ -271,10 +277,12 @@ export async function projectFacetValues(onlyCategoryId?: string): Promise<Facet
   for (const c of cats) {
     if (!c.facets.length) continue;
     // και τα προϊόντα που μπήκαν μόνο στο eshop (εισαγωγή excel): τα χαρακτηριστικά τους είναι γραμμές «import»
-    const rows = await db.product.findMany({ where: { categoryId: c.id, source: { in: [SOURCE, "import"] } }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: { in: [DESC_SOURCE, "import"] } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true } } } });
+    const rows = await db.product.findMany({ where: { categoryId: c.id, source: { in: [SOURCE, "import"] } }, select: { id: true, title: true, summary: true, description: true, facetHash: true, specs: { where: { source: { in: FACET_SPEC_SOURCES } }, orderBy: { sortNo: "asc" }, select: { key: true, value: true, source: true } } } });
     if (!rows.length) continue;
     products += rows.length;
-    const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: p.title, summary: p.summary, description: p.description, specs: p.specs, typeName: c.name })]));
+    // Η αλφαβητική σειρά της βάσης δεν είναι η προτεραιότητα που θέλουμε: ταξινομούμε με τη σειρά του FACET_SPEC_SOURCES.
+    const rank = (src: string | null) => { const i = FACET_SPEC_SOURCES.indexOf(src ?? ""); return i < 0 ? FACET_SPEC_SOURCES.length : i; };
+    const resolved = new Map<string, FacetValue[]>(rows.map((p) => [p.id, resolveFacets(c.facets, { title: p.title, summary: p.summary, description: p.description, specs: [...p.specs].sort((a, b) => rank(a.source) - rank(b.source)), typeName: c.name })]));
 
     // Εναρμόνιση ανά φίλτρο
     const perFacet = new Map<string, FacetValue[]>();

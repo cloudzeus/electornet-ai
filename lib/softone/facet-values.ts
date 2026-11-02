@@ -88,6 +88,12 @@ const CONCEPTS: Concept[] = [
   { facet: /^ρυθμοσ ανανεωσησ/, spec: /^ρυθμοσ ανανεωσησ/, norm: unit("Hz", 24, 600), title: fromTitle(/\d{2,3}\s?hz/i, unit("Hz", 24, 600)) },
   { facet: /^smart( tv)?$/, spec: /^smart( tv)?$/, norm: (v, p) => yesNo(v, p) ?? (plain(v).length > 1 ? { value: "Ναι" } : null), title: (p) => (/smart|google tv|android tv|web\s?os|tizen|vidaa|fire tv|roku/i.test(p.title) ? { value: "Ναι" } : null) },
   { facet: /^χρωμα/, spec: /^χρωμα/, norm: colour, title: (p) => colour(p.title, p) },
+  // Το ERP λέει «Εταιρία» το φίλτρο της μάρκας, η περιγραφή «Κατασκευαστής» και οι εξωτερικές πηγές «Μάρκα».
+  { facet: /^εταιρ/, spec: /^(κατασκευαστησ|μαρκα|brand|εταιρ)/, norm: (v, q) => generic(v, q) },
+  // «Τύπος Σύνδεσης στον Η/Υ»: στην περιγραφή γράφεται «USB», στις πηγές «Θύρες».
+  { facet: /^τυποσ συνδεσησ/, spec: /^(θυρεσ|υποδοχεσ|usb|interface|διασυνδεση|συνδεση με η υ)/, norm: (v, q) => generic(v, q) },
+  // «Φορμά εγγραφής» ↔ «Μορφή βίντεο» / «Format».
+  { facet: /^(φορμα|μορφη) (εγγραφησ|βιντεο|αρχειου)/, spec: /^(μορφη (βιντεο|εγγραφησ|αρχειου)|φορμα|format)/, norm: (v, q) => generic(v, q) },
   { facet: /^(μνημη ram|μεγεθοσ μνημησ( ram)?|ram)$/, spec: /^((μνημη )?ram|μνημη)\b/, norm: (v, p) => { const r = bytes(v, p) as Val | null; return r && RAM_SIZES.has(r.num ?? 0) ? r : null; }, title: (p) => { const m = /(?:^|[^0-9])(\d{1,3})\s?(?:GB)?\s?\/\s?(\d{2,4})\s?(?:GB|TB)/i.exec(p.title) ?? /(?:^|[^0-9])(\d{1,3})\s?GB\s?RAM/i.exec(p.title); return m && RAM_SIZES.has(Number(m[1])) ? bytes(`${m[1]} GB`, p) : null; } },
   { facet: /σερβιτσι/, spec: /σερβιτσι|χωρητικοτητα/, norm: unit("σερβίτσια", 4, 20) },
   { facet: /^(προγραμματα|αριθμοσ προγραμματων)/, spec: /^(προγραμματα|αριθμοσ προγραμματων)/, norm: (v) => { const n = numOf(v); return n && n >= 1 && n <= 40 ? { value: String(Math.round(n)), num: Math.round(n) } : null; } },
