@@ -28,6 +28,8 @@ export interface KeyvotoPack {
   fetchedAt: string;
   /** η gallery της στιγμής της λήψης — ώστε το στιγμιότυπο να δίνει τις ίδιες διευθύνσεις αργότερα */
   gallery?: string;
+  /** κωδικός κατηγορίας → πλήρης ονομασία («Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες»), λυμένη στη λήψη */
+  categories?: Record<string, string>;
   items: KeyvotoItem[];
 }
 
@@ -35,24 +37,28 @@ export interface KeyvotoPack {
  * Οι στήλες που δεν έρχονται από το έγγραφο αλλά από τη σύνοψη της δημοσίευσης.
  *
  * Προσοχή στα ονόματα: επαληθευμένο ζωντανά ότι το `name` της σύνοψης είναι το όνομα του **καταλόγου** (ίδιο σε κάθε
- * προϊόν) και η `category` είναι **κωδικός** κατηγορίας, όχι ονομασία. Το πραγματικό όνομα του προϊόντος είναι στήλη
- * του εγγράφου (`general-information.name.el-GR`) — γι' αυτό οι επικεφαλίδες εδώ λένε τι είναι στ' αλήθεια, ώστε να
- * μην αντιστοιχιστεί κατά λάθος ο κατάλογος ως «Όνομα».
+ * προϊόν) και η `category` είναι **κωδικός** κατηγορίας. Το πραγματικό όνομα του προϊόντος είναι στήλη του εγγράφου
+ * (`general-information.name.el-GR`), και ο κωδικός κατηγορίας λύνεται σε ονομασία στη λήψη — γι' αυτό υπάρχουν και
+ * οι δύο στήλες: η ονομασία για την αντιστοίχιση, ο κωδικός για έλεγχο.
  */
-const SUMMARY: [string, keyof KeyvotoItem][] = [
-  ["Keyvoto: κωδικός", "code"],
-  ["Keyvoto: κατάλογος", "name"],
-  ["Keyvoto: κατηγορία (κωδικός)", "category"],
-  ["Keyvoto: εκδότης", "publisher"],
-  ["Keyvoto: κατάσταση", "productStatus"],
+const SUMMARY: [string, (it: KeyvotoItem, cats: Record<string, string>) => string][] = [
+  ["Keyvoto: κωδικός", (it) => it.code ?? ""],
+  ["Keyvoto: κατηγορία", (it, cats) => cats[(it.category ?? "").trim()] ?? ""],
+  ["Keyvoto: κατηγορία (κωδικός)", (it) => it.category ?? ""],
+  ["Keyvoto: κατάλογος", (it) => it.name ?? ""],
+  ["Keyvoto: εκδότης", (it) => it.publisher ?? ""],
+  ["Keyvoto: κατάσταση", (it) => it.productStatus ?? ""],
 ];
 
 const IMAGE = /image|img|photo|picture|φωτογραφ/i;
 /** Τα χαρακτηριστικά του προϊόντος κάθονται στο `main` του εγγράφου (οδηγός Keyvoto για retailers). */
 const SPEC_SECTION = "main.";
 
-export const keyvotoEnvelope = (items: KeyvotoItem[], fetchedAt = new Date(), gallery = ""): Buffer =>
-  Buffer.from(JSON.stringify({ keyvoto: 1, fetchedAt: fetchedAt.toISOString(), gallery: gallery || undefined, items } satisfies KeyvotoPack), "utf8");
+export const keyvotoEnvelope = (items: KeyvotoItem[], fetchedAt = new Date(), gallery = "", categories: Record<string, string> = {}): Buffer =>
+  Buffer.from(JSON.stringify({
+    keyvoto: 1, fetchedAt: fetchedAt.toISOString(), gallery: gallery || undefined,
+    categories: Object.keys(categories).length ? categories : undefined, items,
+  } satisfies KeyvotoPack), "utf8");
 
 /** Είναι αυτά τα bytes πακέτο Keyvoto (και όχι XML); Κοιτάζει μόνο την αρχή — το πακέτο μπορεί να είναι δεκάδες MB. */
 export function isKeyvotoBytes(bytes: Buffer): boolean {
@@ -69,6 +75,7 @@ export function parseKeyvotoRows(bytes: Buffer): ParsedFeed {
   const pack = JSON.parse(bytes.toString("utf8")) as KeyvotoPack;
   const items = pack.items ?? [];
   const gallery = (pack.gallery ?? "").trim() || KEYVOTO_GALLERY;
+  const cats = pack.categories ?? {};
 
   // ---- 1ο πέρασμα: ποιες διαδρομές υπάρχουν και πόσες φορές το πολύ ----
   const order: string[] = [];
@@ -99,7 +106,7 @@ export function parseKeyvotoRows(bytes: Buffer): ParsedFeed {
   const matrix: string[][] = [headers];
   for (const [i, it] of items.entries()) {
     const byPath = flat[i];
-    matrix.push([...SUMMARY.map(([, k]) => String(it[k] ?? "").trim()), ...cols.map((c) => byPath.get(c.path)?.[c.at] ?? "")]);
+    matrix.push([...SUMMARY.map(([, read]) => read(it, cats).trim()), ...cols.map((c) => byPath.get(c.path)?.[c.at] ?? "")]);
   }
 
   const specLabels = order.filter((p) => p.startsWith(SPEC_SECTION)).length;
@@ -109,7 +116,8 @@ export function parseKeyvotoRows(bytes: Buffer): ParsedFeed {
     counts: {
       products: items.length,
       tags: headers.length,
-      categories: new Set(items.map((x) => (x.category ?? "").trim()).filter(Boolean)).size,
+      // μετράμε ΟΝΟΜΑΣΙΕΣ: δύο κωδικοί που δείχνουν στην ίδια κατηγορία είναι μία κατηγορία
+      categories: new Set(items.map((x) => cats[(x.category ?? "").trim()] || (x.category ?? "").trim()).filter(Boolean)).size,
       specLabels,
       images: headers.filter((h) => IMAGE.test(h)).length,
     },

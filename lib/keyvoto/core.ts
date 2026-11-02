@@ -70,6 +70,14 @@ export function sharedContentQuery(q: SharedContentQuery = {}): string {
 
 type Json = unknown;
 
+/**
+ * Το `languages` ενός πολύγλωσσου πεδίου: `{languages:["el-GR","en-GB"], "el-GR":"κείμενο"}`. Το αναγνωρίζουμε από το
+ * ότι **κάποια** τιμή του είναι και κλειδί του ίδιου αντικειμένου — «κάποια» και όχι «κάθε», γιατί συχνά δηλώνονται
+ * γλώσσες που δεν έχουν ακόμη μετάφραση. Αλλιώς είναι κανονικό πεδίο του προμηθευτή και μένει.
+ */
+const isLanguageList = (o: Record<string, Json>, v: Json): boolean =>
+  Array.isArray(v) && v.some((x) => typeof x === "string" && x in o);
+
 /** Το έγγραφο σε ζεύγη `διαδρομή → κείμενο`. Κενά (null, undefined, άδειο αντικείμενο/πίνακας) παραλείπονται. */
 export function flattenDocument(doc: Json, prefix = ""): [string, string][] {
   const out: [string, string][] = [];
@@ -79,7 +87,11 @@ export function flattenDocument(doc: Json, prefix = ""): [string, string][] {
     return out;
   }
   if (typeof doc === "object") {
-    for (const [k, v] of Object.entries(doc as Record<string, Json>)) out.push(...flattenDocument(v, prefix ? `${prefix}.${k}` : k));
+    const o = doc as Record<string, Json>;
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "languages" && isLanguageList(o, v)) continue; // μεταδεδομένο μετάφρασης, όχι περιεχόμενο
+      out.push(...flattenDocument(v, prefix ? `${prefix}.${k}` : k));
+    }
     return out;
   }
   const s = String(doc);
@@ -181,3 +193,57 @@ export function heroImagePath(doc: unknown): string {
   }
   return paths[0][1];
 }
+
+/** Ο διαχωριστής της ιεραρχίας — ο ίδιος που χρησιμοποιεί ο οδηγός για τις κατηγορίες ενός XML. */
+export const CATEGORY_SEP = " › ";
+
+/**
+ * Μια κατηγορία του Keyvoto, όπως τη γυρίζει το API κατηγοριών. Το `path` είναι οι **γονείς** της, κωδικοί χωρισμένοι
+ * με κόμμα (`,root,mid,`), και οι ονομασίες είναι πολύγλωσσες.
+ */
+export interface KeyvotoCategory {
+  id?: string;
+  path?: string;
+  translations?: Record<string, { name?: string } | undefined>;
+}
+
+/** Η ονομασία σε όποια γλώσσα ζητήθηκε: ακριβές ταίριασμα, μετά «el» ≈ «el-GR», μετά ό,τι υπάρχει. */
+export function categoryName(row: KeyvotoCategory, lang = "el"): string {
+  const t = row.translations ?? {};
+  const base = (s: string) => s.toLowerCase().split("-")[0];
+  const keys = Object.keys(t);
+  const pick = keys.find((k) => k.toLowerCase() === lang.toLowerCase())
+    ?? keys.find((k) => base(k) === base(lang))
+    ?? keys.find((k) => base(k) === "el")
+    ?? keys[0];
+  return (pick ? t[pick]?.name ?? "" : "").trim();
+}
+
+/**
+ * Κωδικός κατηγορίας → πλήρης διαδρομή με ονομασίες («Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες»).
+ *
+ * Γιατί διαδρομή και όχι σκέτη ονομασία: το ίδιο φύλλο («Καταψύκτες») μπορεί να κρέμεται αλλού, και ο οδηγός
+ * αντιστοιχίζει ήδη κατηγορίες με αυτή τη μορφή. Γονέας που λείπει απλώς παραλείπεται — ποτέ κωδικός στην οθόνη.
+ */
+export function categoryPaths(rows: KeyvotoCategory[] | null | undefined, lang = "el"): Record<string, string> {
+  const byId = new Map<string, KeyvotoCategory>();
+  for (const r of rows ?? []) if (r?.id) byId.set(String(r.id), r);
+  const out: Record<string, string> = {};
+  for (const [id, row] of byId) {
+    const chain = [...String(row.path ?? "").split(",").filter(Boolean), id];
+    const names = chain.map((x) => (byId.has(x) ? categoryName(byId.get(x)!, lang) : "")).filter(Boolean);
+    if (names.length) out[id] = names.join(CATEGORY_SEP);
+  }
+  return out;
+}
+
+/**
+ * Οι γλώσσες που ζητάμε από το `sharedContent`, από τη ρύθμιση.
+ *
+ * **Προσοχή — παγίδα που κόστισε όλα τα ονόματα:** το Keyvoto θέλει πλήρη ετικέτα (`el-GR`). Με σκέτο `el` απαντά
+ * κανονικά, αλλά κάθε πολύγλωσσο πεδίο γυρίζει **άδειο** (`{"languages":["el-GR"]}` χωρίς κείμενο) — δηλαδή χάνονται
+ * σιωπηλά ονόματα και περιγραφές. Γι' αυτό κρατάμε μόνο σωστές ετικέτες· ό,τι άλλο το αγνοούμε, που σημαίνει
+ * «φέρε ό,τι έχει ο εκδότης» — πάντα ασφαλέστερο από το να γυρίσουμε με άδεια χέρια.
+ */
+export const languageTags = (setting: string): string[] =>
+  (setting ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z]{2,3}-[A-Za-z0-9]{2,8}$/.test(x));

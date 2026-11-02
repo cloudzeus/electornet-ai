@@ -1,6 +1,6 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
-import { apiUrl, galleryFileUrl, KEYVOTO_GALLERY, publisherOptions, sharedContentQuery, tokenExpiry, tokenForm, type KeyvotoCatalogue, type KeyvotoPublisher, type SharedContentQuery } from "@/lib/keyvoto/core";
+import { apiUrl, categoryPaths, galleryFileUrl, languageTags, KEYVOTO_GALLERY, publisherOptions, sharedContentQuery, tokenExpiry, tokenForm, type KeyvotoCatalogue, type KeyvotoCategory, type KeyvotoPublisher, type SharedContentQuery } from "@/lib/keyvoto/core";
 
 /**
  * **Keyvoto PIM — η σύνδεση.** Μόνο αναγνώσεις: ζητάμε token (OAuth 2.0 client credentials) και διαβάζουμε το
@@ -36,6 +36,8 @@ const DEFAULTS = {
 const TIMEOUT_MS = 30_000;
 /** Ο λογαριασμός των κοινών ορισμών κατηγοριών στο Categories API είναι πάντα αυτός, όχι ο δικός μας. */
 export const CATEGORIES_ACCOUNT = "keyvoto";
+/** Πόσους κωδικούς κατηγορίας ζητάμε μαζί — η διεύθυνση δεν πρέπει να γίνει τεράστια. */
+const CATEGORY_CHUNK = 50;
 
 export async function getKeyvotoConfig(): Promise<KeyvotoConfig | null> {
   const { data, secrets } = await getSetting("keyvoto");
@@ -146,7 +148,34 @@ export const catalogues = (c: KeyvotoConfig, pageSize = 50) =>
   kvFetch<Paged<KeyvotoCatalogue>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent/catalogues`, `page=1&pageSize=${pageSize}`);
 
 export const sharedContent = (c: KeyvotoConfig, q: SharedContentQuery = {}) =>
-  kvFetch<Paged<Publication>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent`, sharedContentQuery({ pageSize: c.pageSize, languages: c.languages ? c.languages.split(",") : undefined, ...q }));
+  kvFetch<Paged<Publication>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent`, sharedContentQuery({ pageSize: c.pageSize, languages: languageTags(c.languages).length ? languageTags(c.languages) : undefined, ...q }));
+
+/**
+ * Οι κατηγορίες της κοινής ταξινομίας του Keyvoto, σε μία κλήση για πολλούς κωδικούς. Γυρίζει **σκέτο πίνακα** (όχι
+ * σελιδοποίηση) και κάθε γραμμή φέρνει το `path` της, δηλαδή τους γονείς της.
+ */
+export const categoriesByIds = (c: KeyvotoConfig, ids: string[]) =>
+  kvFetch<KeyvotoCategory[]>(c, c.categoriesBase, `/v1/${CATEGORIES_ACCOUNT}/categories`,
+    `categoryIds=${ids.map(encodeURIComponent).join(",")}&pageSize=${Math.max(ids.length, 1)}`);
+
+/**
+ * Κωδικοί κατηγοριών → ονομασίες με τη διαδρομή τους. Οι γονείς δεν έρχονται μαζί: τους ζητάμε σε δεύτερο γύρο, όσους
+ * χρειάζονται, μέχρι να κλείσει η αλυσίδα. Αποτυχία εδώ **δεν ρίχνει τη λήψη** — απλώς μένουν οι κωδικοί.
+ */
+export async function categoryNamesFor(c: KeyvotoConfig, ids: string[]): Promise<Record<string, string>> {
+  const want = [...new Set(ids.map((x) => (x ?? "").trim()).filter(Boolean))];
+  if (!want.length) return {};
+  const seen = new Map<string, KeyvotoCategory>();
+  let ask = want;
+  for (let round = 0; round < 6 && ask.length; round++) {
+    const rows: KeyvotoCategory[] = [];
+    for (let i = 0; i < ask.length; i += CATEGORY_CHUNK) rows.push(...await categoriesByIds(c, ask.slice(i, i + CATEGORY_CHUNK)));
+    if (!rows.length) break;
+    for (const r of rows) if (r?.id) seen.set(String(r.id), r);
+    ask = [...new Set(rows.flatMap((r) => String(r.path ?? "").split(",").filter(Boolean)))].filter((id) => !seen.has(id));
+  }
+  return categoryPaths([...seen.values()], languageTags(c.languages)[0] || "el");
+}
 
 export const categorySchema = (c: KeyvotoConfig, categoryId: string) =>
   kvFetch<unknown>(c, c.categoriesBase, `/v1/${CATEGORIES_ACCOUNT}/schemas/categories/${encodeURIComponent(categoryId)}`);

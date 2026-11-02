@@ -273,7 +273,7 @@ export const SECTIONS: Section[] = [
       { key: "apiBase", label: "Core API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://core-api.keyvoto.com", help: "Από εδώ έρχονται τα προϊόντα και οι κατάλογοι (sharedContent)." },
       { key: "galleryBase", label: "Gallery API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://gallery-api.keyvoto.com", help: "Τα αρχεία (φωτογραφίες) ενός προϊόντος, από το πεδίο path των εικόνων του." },
       { key: "categoriesBase", label: "Categories API", type: "url", width: "half", group: "api", rule: R.https, placeholder: "https://categories-api.keyvoto.com", help: "Τι σημαίνει κάθε χαρακτηριστικό μιας κατηγορίας. Ο λογαριασμός εδώ είναι πάντα «keyvoto», όχι ο δικός μας." },
-      { key: "languages", label: "Γλώσσες", type: "text", width: "half", group: "api", placeholder: "el,en", help: "Ποιες μεταφράσεις ζητάμε. Κενό = ό,τι δίνει ο εκδότης· * = όλες." },
+      { key: "languages", label: "Γλώσσες", type: "text", width: "half", group: "api", placeholder: "el-GR,en-GB", help: "Ποιες μεταφράσεις ζητάμε, με ΠΛΗΡΗ κωδικό (el-GR, όχι el) — με μισό κωδικό το Keyvoto γυρίζει τα κείμενα άδεια. Κενό = ό,τι δίνει ο εκδότης, που είναι και το ασφαλές." },
       { key: "pageSize", label: "Προϊόντα ανά σελίδα", type: "number", width: "half", group: "api", min: 1, max: 500, step: 1, placeholder: "100", help: "Πόσα προϊόντα ζητάμε σε κάθε κλήση όταν κατεβαίνει ο κατάλογος." },
     ],
   },

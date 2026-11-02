@@ -1,6 +1,6 @@
 import "server-only";
 import { UserError } from "@/lib/catalog/foreign-import/core";
-import { getKeyvotoConfig, sharedContent, type Publication } from "@/lib/keyvoto/client";
+import { categoryNamesFor, getKeyvotoConfig, sharedContent, type Publication } from "@/lib/keyvoto/client";
 import { keyvotoEnvelope, parseKeyvotoUrl, type KeyvotoItem } from "@/lib/keyvoto/rows";
 
 /**
@@ -42,6 +42,9 @@ export async function downloadKeyvoto(url: string): Promise<Buffer> {
   }
   if (!items.length) throw new UserError("Ο εκδότης δεν μοιράζεται κανένα προϊόν με αυτά τα κριτήρια.");
   if (items.length >= MAX_ITEMS) throw new UserError(`Ο κατάλογος ξεπερνά τα ${MAX_ITEMS.toLocaleString("el-GR")} προϊόντα (${pages} σελίδες) — διάλεξε συγκεκριμένο κατάλογο του εκδότη.`);
+  // Οι κατηγορίες έρχονται ως κωδικοί· τις λύνουμε ΜΙΑ φορά εδώ και ταξιδεύουν μέσα στο πακέτο, ώστε η αντιστοίχιση
+  // και κάθε ξαναδιάβασμα του στιγμιότυπου να δείχνουν ονομασίες χωρίς νέα κλήση. Αποτυχία εδώ δεν ρίχνει τη λήψη.
+  const categories = await categoryNamesFor(c, items.map((x) => x.category ?? "")).catch(() => ({}));
   // η gallery ταξιδεύει μαζί: το στιγμιότυπο πρέπει να δίνει τις ίδιες διευθύνσεις και μήνες μετά
-  return keyvotoEnvelope(items, new Date(), c.galleryBase);
+  return keyvotoEnvelope(items, new Date(), c.galleryBase, categories);
 }

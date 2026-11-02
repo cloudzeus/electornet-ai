@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { apiUrl, catalogueOptions, galleryFileUrl, heroImagePath, documentFields, publisherOptions, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
+import { apiUrl, catalogueOptions, categoryPaths, galleryFileUrl, heroImagePath, languageTags, documentFields, publisherOptions, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
 
 test("tokenForm: το σώμα του OAuth client credentials", () => {
   const body = tokenForm({ grantType: "client_credentials", clientId: "company-1", clientSecret: "s3cr3t", scope: "keyvoto-core-services" });
@@ -121,4 +121,61 @@ test("heroImagePath: χωρίς σήμανση παίρνει την πρώτη 
 test("heroImagePath: έγγραφο χωρίς εικόνες δίνει κενό", () => {
   assert.equal(heroImagePath({ main: { Χρώμα: "Λευκό" } }), "");
   assert.equal(heroImagePath(null), "");
+});
+
+// Πραγματικές γραμμές του API κατηγοριών (keyvoto): path = οι γονείς, χωρισμένοι με κόμμα.
+const cat = (id: string, name: string, path = "") => ({ id, path, translations: { "el-GR": { name }, "en-GB": { name: `${name} EN` } } });
+
+test("categoryPaths: ο κωδικός γίνεται πλήρης διαδρομή με τους γονείς του", () => {
+  const rows = [cat("leaf", "Πλυντήρια Πιάτων", ",root,mid,"), cat("root", "Ηλεκτρικά Είδη"), cat("mid", "Πλυντήρια & Στεγνωτήρια")];
+  assert.equal(categoryPaths(rows, "el")["leaf"], "Ηλεκτρικά Είδη › Πλυντήρια & Στεγνωτήρια › Πλυντήρια Πιάτων");
+});
+
+test("categoryPaths: «el» ταιριάζει με «el-GR»· χωρίς ελληνικά πέφτει στα αγγλικά", () => {
+  const rows = [cat("a", "Ψυγεία"), { id: "b", path: "", translations: { "en-GB": { name: "Freezers" } } }];
+  const out = categoryPaths(rows, "el");
+  assert.equal(out["a"], "Ψυγεία");
+  assert.equal(out["b"], "Freezers");
+});
+
+test("categoryPaths: γονέας που λείπει δεν αφήνει κωδικό στη διαδρομή", () => {
+  assert.equal(categoryPaths([cat("leaf", "Ανεμιστήρες", ",αγνωστος,")], "el")["leaf"], "Ανεμιστήρες");
+});
+
+test("categoryPaths: κατηγορία χωρίς καμία ονομασία δεν μπαίνει", () => {
+  assert.deepEqual(categoryPaths([{ id: "x", path: "", translations: {} }], "el"), {});
+});
+
+test("flattenDocument: ο κατάλογος γλωσσών μιας μετάφρασης δεν γίνεται πεδίο", () => {
+  // Το Keyvoto γράφει τα πολύγλωσσα πεδία ως {languages:[...], "el-GR": "κείμενο"}. Το «languages» είναι
+  // μεταδεδομένο: αν γινόταν στήλη, η πρόταση για «Όνομα» κατέληγε να δείχνει «el-GR» αντί για το όνομα.
+  const doc = { "general-information": { name: { languages: ["el-GR"], "el-GR": "Αφυγραντήρας Sera" } } };
+  assert.deepEqual(flattenDocument(doc), [["general-information.name.el-GR", "Αφυγραντήρας Sera"]]);
+});
+
+test("flattenDocument: πραγματικό πεδίο «languages» μένει", () => {
+  // Εδώ δεν υπάρχει αδελφό κλειδί με αυτή την τιμή: είναι περιεχόμενο, όχι μεταδεδομένο.
+  assert.deepEqual(flattenDocument({ main: { languages: ["Ελληνικά", "Αγγλικά"] } }), [
+    ["main.languages[0]", "Ελληνικά"], ["main.languages[1]", "Αγγλικά"],
+  ]);
+});
+
+test("flattenDocument: ο κατάλογος γλωσσών φεύγει ακόμη κι αν μεταφράστηκε μόνο η μία", () => {
+  // Πραγματικό: languages ["el-GR","en-GB"] αλλά κείμενο μόνο στα ελληνικά.
+  const doc = { main: { additionalfeatures: { languages: ["el-GR", "en-GB"], "el-GR": "Ιονιστής, Wi-Fi" } } };
+  assert.deepEqual(flattenDocument(doc), [["main.additionalfeatures.el-GR", "Ιονιστής, Wi-Fi"]]);
+});
+
+test("languageTags: ο σκέτος κωδικός «el» αγνοείται — αλλιώς το Keyvoto κόβει ΟΛΕΣ τις μεταφράσεις", () => {
+  // Δοκιμασμένο ζωντανά: languages=el γυρίζει {"languages":["el-GR"]} χωρίς κείμενο· languages=el-GR το γυρίζει.
+  assert.deepEqual(languageTags("el"), []);
+  assert.deepEqual(languageTags("el-GR"), ["el-GR"]);
+  assert.deepEqual(languageTags("el-GR, en-GB"), ["el-GR", "en-GB"]);
+  assert.deepEqual(languageTags("el-GR,el"), ["el-GR"], "ο μισός κωδικός πετιέται, ο σωστός μένει");
+});
+
+test("languageTags: κενό ή «*» σημαίνει «ό,τι δίνει ο εκδότης»", () => {
+  assert.deepEqual(languageTags(""), []);
+  assert.deepEqual(languageTags("   "), []);
+  assert.deepEqual(languageTags("*"), []);
 });

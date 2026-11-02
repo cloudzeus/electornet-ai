@@ -18,11 +18,11 @@ test("keyvotoEnvelope: τα προϊόντα γίνονται bytes που αν�
 test("parseKeyvotoRows: οι διαδρομές του εγγράφου γίνονται στήλες", () => {
   const r = parseKeyvotoRows(keyvotoEnvelope([pub()]));
   assert.deepEqual(r.headers, [
-    "Keyvoto: κωδικός", "Keyvoto: κατάλογος", "Keyvoto: κατηγορία (κωδικός)", "Keyvoto: εκδότης", "Keyvoto: κατάσταση",
+    "Keyvoto: κωδικός", "Keyvoto: κατηγορία", "Keyvoto: κατηγορία (κωδικός)", "Keyvoto: κατάλογος", "Keyvoto: εκδότης", "Keyvoto: κατάσταση",
     "gtin", "main.Χρώμα", "main.Ενέργεια", "images[].path 1", "images[].path 2",
   ]);
   assert.equal(r.matrix.length, 2);
-  assert.deepEqual(r.matrix[1], ["ABC-1", "Ψυγείο Χ", "Ψυγεία", "ACME", "Active", "5201234567890", "Λευκό", "A", "https://gallery-api.keyvoto.com/v1/files/a%2F1.png", "https://gallery-api.keyvoto.com/v1/files/a%2F2.png"]);
+  assert.deepEqual(r.matrix[1], ["ABC-1", "", "Ψυγεία", "Ψυγείο Χ", "ACME", "Active", "5201234567890", "Λευκό", "A", "https://gallery-api.keyvoto.com/v1/files/a%2F1.png", "https://gallery-api.keyvoto.com/v1/files/a%2F2.png"]);
 });
 
 test("parseKeyvotoRows: πεδίο που λείπει από ένα προϊόν αφήνει κενό κελί, όχι μετατόπιση", () => {
@@ -97,4 +97,24 @@ test("parseKeyvotoRows: το «name» της δημοσίευσης είναι �
   assert.ok(r.headers.includes("Keyvoto: κατάλογος"), `είχε: ${r.headers.slice(0, 5).join(", ")}`);
   assert.ok(r.headers.includes("Keyvoto: κατηγορία (κωδικός)"));
   assert.ok(!r.headers.includes("Keyvoto: όνομα"), "δεν πρέπει να μοιάζει με όνομα προϊόντος");
+});
+
+test("parseKeyvotoRows: ο κωδικός κατηγορίας γίνεται ονομασία με τη διαδρομή της", () => {
+  const bytes = keyvotoEnvelope([pub({ category: "c1" })], new Date(), "", { c1: "Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες" });
+  const r = parseKeyvotoRows(bytes);
+  const at = (h: string) => r.matrix[1][r.headers.indexOf(h)];
+  assert.equal(at("Keyvoto: κατηγορία"), "Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες");
+  assert.equal(at("Keyvoto: κατηγορία (κωδικός)"), "c1", "ο κωδικός μένει διαθέσιμος");
+});
+
+test("parseKeyvotoRows: κατηγορία που δεν λύθηκε δεν δείχνει κωδικό ως ονομασία", () => {
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ category: "αγνωστη" })]));
+  assert.equal(r.matrix[1][r.headers.indexOf("Keyvoto: κατηγορία")], "");
+  assert.equal(r.matrix[1][r.headers.indexOf("Keyvoto: κατηγορία (κωδικός)")], "αγνωστη");
+});
+
+test("parseKeyvotoRows: οι ΟΝΟΜΑΣΙΕΣ μετριούνται ως κατηγορίες, όχι οι κωδικοί", () => {
+  const cats = { a: "Ηλεκτρικά › Ψυγεία", b: "Ηλεκτρικά › Ψυγεία" };
+  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ category: "a" }), pub({ category: "b" })], new Date(), "", cats));
+  assert.equal(r.counts.categories, 1, "δύο κωδικοί που δείχνουν στην ίδια κατηγορία είναι μία");
 });
