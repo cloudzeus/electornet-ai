@@ -93,13 +93,13 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
-    const r = await run("search", () => findSuppliers(q.trim()).then((x) => x));
+    const r = await run("search", () => findSuppliers(q.trim(), source).then((x) => x));
     if (r) setList(r);
   };
 
   /** Ξαναδιαβάζει τη λίστα και κρατά επιλεγμένο τον ίδιο προμηθευτή — αλλιώς η κάρτα θα έδειχνε παλιά κατάσταση. */
   const refresh = async (supplierId: string) => {
-    const fresh = await findSuppliers(q.trim());
+    const fresh = await findSuppliers(q.trim(), source);
     setList(fresh);
     const same = fresh.find((x) => x.id === supplierId);
     if (same) setPicked(same);
@@ -111,9 +111,10 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     const r = await run("url", () => saveUrl(s.id, url.trim()));
     if (!r) return;
     await refresh(s.id);
+    const what = kv ? "Η πηγή" : "Η διεύθυνση";
     setNote(r.cleared
-      ? `Η διεύθυνση αποθηκεύτηκε. Επειδή άλλαξε, τα ${r.cleared.toLocaleString("el-GR")} φορτωμένα προϊόντα της παλιάς διεύθυνσης καθαρίστηκαν.`
-      : "Η διεύθυνση αποθηκεύτηκε στον προμηθευτή. Μπορείς να ρυθμίσεις την αντιστοίχιση όποτε θέλεις.");
+      ? `${what} αποθηκεύτηκε. Επειδή άλλαξε, τα ${r.cleared.toLocaleString("el-GR")} φορτωμένα προϊόντα της προηγούμενης καθαρίστηκαν.`
+      : `${what} αποθηκεύτηκε στον προμηθευτή. Μπορείς να ρυθμίσεις την αντιστοίχιση όποτε θέλεις.`);
   };
 
   /**
@@ -315,7 +316,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
             </label>
             <button type="submit" className={secondary} disabled={working}>{busy === "search" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />} Αναζήτηση</button>
             <button type="button" className={quiet} disabled={working}
-              onClick={() => run("sync", () => refreshSuppliers()).then((r) => { if (r) { setNote(`Από το SoftOne: ${r.added} νέοι, ${r.updated} ενημερώθηκαν.`); void findSuppliers(q.trim()).then(setList); } })}>
+              onClick={() => run("sync", () => refreshSuppliers()).then((r) => { if (r) { setNote(`Από το SoftOne: ${r.added} νέοι, ${r.updated} ενημερώθηκαν.`); void findSuppliers(q.trim(), source).then(setList); } })}>
               {busy === "sync" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />} Ανανέωση από το SoftOne
             </button>
           </form>

@@ -1,6 +1,6 @@
 import "server-only";
 import { getSetting } from "@/lib/settings/store";
-import { apiUrl, sharedContentQuery, tokenExpiry, tokenForm, type SharedContentQuery } from "@/lib/keyvoto/core";
+import { apiUrl, publisherOptions, sharedContentQuery, tokenExpiry, tokenForm, type KeyvotoCatalogue, type KeyvotoPublisher, type SharedContentQuery } from "@/lib/keyvoto/core";
 
 /**
  * **Keyvoto PIM — η σύνδεση.** Μόνο αναγνώσεις: ζητάμε token (OAuth 2.0 client credentials) και διαβάζουμε το
@@ -140,10 +140,10 @@ export interface Publication {
 const account = (c: KeyvotoConfig) => encodeURIComponent(c.businessAccountId);
 
 export const publishers = (c: KeyvotoConfig, pageSize = 50) =>
-  kvFetch<Paged<{ businessAccountId?: string; title?: string }>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent/publishers`, `page=1&pageSize=${pageSize}`);
+  kvFetch<Paged<KeyvotoPublisher>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent/publishers`, `page=1&pageSize=${pageSize}`);
 
 export const catalogues = (c: KeyvotoConfig, pageSize = 50) =>
-  kvFetch<Paged<{ catalogueId?: string; name?: string; publisher?: string; version?: number }>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent/catalogues`, `page=1&pageSize=${pageSize}`);
+  kvFetch<Paged<KeyvotoCatalogue>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent/catalogues`, `page=1&pageSize=${pageSize}`);
 
 export const sharedContent = (c: KeyvotoConfig, q: SharedContentQuery = {}) =>
   kvFetch<Paged<Publication>>(c, c.apiBase, `/v1.1-alpha/${account(c)}/sharedContent`, sharedContentQuery({ pageSize: c.pageSize, languages: c.languages ? c.languages.split(",") : undefined, ...q }));
@@ -165,7 +165,7 @@ export async function testKeyvoto(input: Partial<KeyvotoConfig>): Promise<Keyvot
   try {
     await getToken(c, true);
     const p = await publishers(c, 20);
-    const names = (p.results ?? []).map((x) => x.title || x.businessAccountId || "—");
+    const names = publisherOptions(p.results).map((x) => x.title);
     return {
       ok: true, ms: Date.now() - t0, publishers: names, expiresAt: tokenHeldUntil(c)?.toISOString(),
       message: names.length ? `Σύνδεση OK — ${p.totalResults ?? names.length} εκδότες μοιράζονται περιεχόμενο μαζί μας.` : "Σύνδεση OK — ο λογαριασμός δεν έχει ακόμη εκδότες με κοινό περιεχόμενο.",

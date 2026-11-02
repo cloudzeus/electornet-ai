@@ -1,7 +1,7 @@
 "use server";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
-import { documentFields, type DocField } from "@/lib/keyvoto/core";
+import { catalogueOptions, documentFields, publisherOptions, type DocField } from "@/lib/keyvoto/core";
 import { catalogues, getKeyvotoConfig, publishers, sharedContent, testKeyvoto, tokenHeldUntil, type Publication } from "@/lib/keyvoto/client";
 
 /**
@@ -14,7 +14,7 @@ export interface KvConnection {
   message: string;
   ms: number;
   publishers: { id: string; title: string }[];
-  catalogues: { id: string; name: string; publisher: string }[];
+  catalogues: { id: string; name: string; publisher: string; products: number }[];
   expiresAt: string | null;
 }
 
@@ -66,8 +66,8 @@ export async function connect(): Promise<KvConnection> {
       ok: true,
       message: `Σύνδεση OK — ${p.totalResults ?? (p.results ?? []).length} εκδότες, ${cat.totalResults ?? (cat.results ?? []).length} κατάλογοι.`,
       ms: Date.now() - t0,
-      publishers: (p.results ?? []).map((x) => ({ id: String(x.businessAccountId ?? ""), title: String(x.title ?? x.businessAccountId ?? "—") })),
-      catalogues: (cat.results ?? []).map((x) => ({ id: String(x.catalogueId ?? ""), name: String(x.name ?? "—"), publisher: String(x.publisher ?? "") })),
+      publishers: publisherOptions(p.results),
+      catalogues: catalogueOptions(cat.results),
       expiresAt: tokenHeldUntil(c)?.toISOString() ?? null,
     };
   } catch (e) {

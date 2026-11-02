@@ -119,3 +119,27 @@ export function documentFields(docs: Json[]): DocField[] {
 
 /** Ένωση βάσης και διαδρομής χωρίς διπλές καθέτους. */
 export const apiUrl = (base: string, path: string) => `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+
+/**
+ * Οι εκδότες και οι κατάλογοί τους, όπως τους γυρίζει το Keyvoto, σε επιλογές για τα μενού του οδηγού.
+ *
+ * Το κλειδί και στα δύο είναι το **`id`** (π.χ. `BusinessAccount-4b69…`, `CatalogueV2-9bc8…`) — επαληθευμένο με
+ * πραγματική απάντηση. Ό,τι δεν έχει `id` το πετάμε: μια επιλογή με κενή τιμή δείχνει να «μη διαλέγεται» και η πηγή
+ * δεν σώζεται ποτέ.
+ */
+/** Το Keyvoto στέλνει και άλλα πεδία (image, email, version, publishedAt…) — κρατάμε μόνο όσα χρησιμοποιούμε. */
+export interface KeyvotoPublisher { id?: string; title?: string; [k: string]: unknown }
+export interface KeyvotoCatalogue { id?: string; name?: string; publisher?: string; products?: number; isDeleted?: boolean; [k: string]: unknown }
+
+export const publisherOptions = (rows: KeyvotoPublisher[] | null | undefined): { id: string; title: string }[] =>
+  (rows ?? [])
+    .map((x) => ({ id: String(x.id ?? "").trim(), title: String(x.title ?? "").trim() }))
+    .filter((x) => x.id)
+    .map((x) => ({ id: x.id, title: x.title || x.id }));
+
+export const catalogueOptions = (rows: KeyvotoCatalogue[] | null | undefined): { id: string; name: string; publisher: string; products: number }[] =>
+  (rows ?? [])
+    .filter((x) => !x.isDeleted)
+    .map((x) => ({ id: String(x.id ?? "").trim(), name: String(x.name ?? "").trim(), publisher: String(x.publisher ?? "").trim(), products: Number(x.products ?? 0) || 0 }))
+    .filter((x) => x.id)
+    .map((x) => ({ ...x, name: x.name || x.id }));

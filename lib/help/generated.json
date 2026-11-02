@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-02T12:42:38.465Z",
+ "generatedAt": "2026-11-02T14:15:13.164Z",
  "routes": [
   {
    "route": "/admin",
@@ -935,6 +935,11 @@
    ],
    "changes": [
     {
+     "hash": "9379df9",
+     "date": "2026-11-02T14:43:03+02:00",
+     "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
+    },
+    {
      "hash": "154a019",
      "date": "2026-11-02T14:21:25+02:00",
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
@@ -975,7 +980,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-11-02T14:21:25+02:00",
+   "updatedAt": "2026-11-02T14:43:03+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -1110,12 +1115,17 @@
    ],
    "changes": [
     {
+     "hash": "9379df9",
+     "date": "2026-11-02T14:43:03+02:00",
+     "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
+    },
+    {
      "hash": "154a019",
      "date": "2026-11-02T14:21:25+02:00",
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
     }
    ],
-   "updatedAt": "2026-11-02T14:21:25+02:00",
+   "updatedAt": "2026-11-02T14:43:03+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
@@ -1230,6 +1240,11 @@
    ],
    "changes": [
     {
+     "hash": "9379df9",
+     "date": "2026-11-02T14:43:03+02:00",
+     "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
+    },
+    {
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
@@ -1273,14 +1288,9 @@
      "hash": "1989c79",
      "date": "2026-10-29T13:12:12+02:00",
      "text": "XML προμηθευτές: αποθηκευμένο XML, πρότυπο ανά προμηθευτή, καινούργιες τιμές και δημοσίευση"
-    },
-    {
-     "hash": "a703e82",
-     "date": "2026-10-28T16:44:21+02:00",
-     "text": "XML προμηθευτές: η κάρτα που μόλις αντιστοίχισες δεν εξαφανίζεται από κάτω σου"
     }
    ],
-   "updatedAt": "2026-10-31T07:29:29+02:00",
+   "updatedAt": "2026-11-02T14:43:03+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -4354,6 +4364,18 @@
  ],
  "recent": [
   {
+   "hash": "9379df9",
+   "date": "2026-11-02T14:43:03+02:00",
+   "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/keyvoto",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
    "hash": "154a019",
    "date": "2026-11-02T14:21:25+02:00",
    "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου",
@@ -4682,17 +4704,6 @@
    "date": "2026-10-30T11:50:51+02:00",
    "text": "XML προμηθευτές: η γραμμή δένεται με το είδος που έφτιαξε",
    "routes": []
-  },
-  {
-   "hash": "8a0b4af",
-   "date": "2026-10-30T11:02:45+02:00",
-   "text": "XML προμηθευτές: τα ενδιάμεσα βήματα δεν χάνονται πια",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
   }
  ],
  "helpKeys": {

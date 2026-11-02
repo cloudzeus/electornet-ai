@@ -15,7 +15,7 @@ export function KeyvotoSource({ value, onChange, disabled, label = "Πηγή Key
   disabled?: boolean;
   label?: string;
 }) {
-  const [lists, setLists] = useState<{ publishers: { id: string; title: string }[]; catalogues: { id: string; name: string; publisher: string }[] } | null>(null);
+  const [lists, setLists] = useState<{ publishers: { id: string; title: string }[]; catalogues: { id: string; name: string; publisher: string; products: number }[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   /** ξεκινά φορτώνοντας: οι εκδότες έρχονται με την πρώτη απόδοση */
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export function KeyvotoSource({ value, onChange, disabled, label = "Πηγή Key
           <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">Κατάλογος <span className="font-normal text-eu-muted">· προαιρετικά</span></span>
           <select value={cur.catalogue} disabled={disabled || !cur.publisher || !cats.length} onChange={(e) => onChange(keyvotoUrl(cur.publisher, e.target.value))} className={sel}>
             <option value="">Όλοι οι κατάλογοί του</option>
-            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.products ? `${c.name} · ${c.products.toLocaleString("el-GR")} προϊόντα` : c.name}</option>)}
           </select>
         </label>
       </div>

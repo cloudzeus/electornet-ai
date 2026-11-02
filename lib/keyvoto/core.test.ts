@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { apiUrl, documentFields, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
+import { apiUrl, catalogueOptions, documentFields, publisherOptions, flattenDocument, sharedContentQuery, tokenExpiry, tokenForm } from "./core";
 
 test("tokenForm: το σώμα του OAuth client credentials", () => {
   const body = tokenForm({ grantType: "client_credentials", clientId: "company-1", clientSecret: "s3cr3t", scope: "keyvoto-core-services" });
@@ -59,4 +59,28 @@ test("documentFields: οι δείκτες των πινάκων ενώνοντα
 test("apiUrl: ενώνει χωρίς διπλές καθέτους", () => {
   assert.equal(apiUrl("https://core-api.keyvoto.com/", "/v1.1-alpha/x/sharedContent"), "https://core-api.keyvoto.com/v1.1-alpha/x/sharedContent");
   assert.equal(apiUrl("https://core-api.keyvoto.com", "v1.1-alpha/x"), "https://core-api.keyvoto.com/v1.1-alpha/x");
+});
+
+test("publisherOptions: ο κωδικός του εκδότη είναι το «id» — όχι κενός", () => {
+  // Πραγματική απάντηση του Keyvoto (/sharedContent/publishers)
+  const out = publisherOptions([{ id: "BusinessAccount-4b69f48f", title: "Inventor", image: "x.webp", email: "a@b.gr" }]);
+  assert.deepEqual(out, [{ id: "BusinessAccount-4b69f48f", title: "Inventor" }]);
+});
+
+test("publisherOptions: εκδότης χωρίς id παραλείπεται — δεν γίνεται επιλογή που δεν σώζεται", () => {
+  assert.deepEqual(publisherOptions([{ title: "Χωρίς κωδικό" }, { id: "  ", title: "Κενό" }]), []);
+});
+
+test("publisherOptions: χωρίς τίτλο δείχνει τον κωδικό", () => {
+  assert.deepEqual(publisherOptions([{ id: "BA-1" }]), [{ id: "BA-1", title: "BA-1" }]);
+});
+
+test("catalogueOptions: κωδικός, όνομα και ο εκδότης του", () => {
+  const out = catalogueOptions([{ id: "CatalogueV2-9bc8", name: "Catalogue Inventor x Euronics", publisher: "BusinessAccount-4b69f48f", products: 124 }]);
+  assert.deepEqual(out, [{ id: "CatalogueV2-9bc8", name: "Catalogue Inventor x Euronics", publisher: "BusinessAccount-4b69f48f", products: 124 }]);
+});
+
+test("catalogueOptions: διαγραμμένος κατάλογος ή χωρίς id δεν εμφανίζεται", () => {
+  const out = catalogueOptions([{ id: "C-1", name: "Παλιός", publisher: "BA-1", isDeleted: true }, { name: "Χωρίς κωδικό", publisher: "BA-1" }]);
+  assert.deepEqual(out, []);
 });
