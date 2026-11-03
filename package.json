@@ -14,6 +14,7 @@
     "lint": "eslint",
     "test": "tsx --test \"lib/**/*.test.ts\"",
     "dims:fill": "tsx --conditions=react-server scripts/fill-dims.ts",
+    "photos:fill": "tsx --conditions=react-server scripts/fill-photos.ts",
     "help:gen": "tsx scripts/help-gen.ts",
     "help:shots": "tsx scripts/help-shots.ts"
   },
