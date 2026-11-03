@@ -6,6 +6,7 @@
  *   npm run dims:fill -- --only 30491              # ένα προϊόν (κωδικός ERP / MTRL ή id προϊόντος)
  *   npm run dims:fill -- --web 20                  # ώς 20 προϊόντα ψάχνουν και στο internet (~$0,01 το καθένα)
  *   npm run dims:fill -- --sellable --web 50       # μόνο όσα πουλιούνται τώρα (τιμή και απόθεμα)
+ *   npm run dims:fill -- --skip 827919,68801001025 # εξαιρούνται (κωδικός ERP / SKU / id, χωρισμένα με κόμμα)
  *   npm run dims:fill -- --limit 50 --web 10 --apply   # ΕΓΓΡΑΦΗ στο SoftOne και στο e-shop
  *
  * Δύο πηγές, φθηνότερη πρώτα (βλ. lib/catalog/dim-fill-core.ts):
@@ -31,6 +32,7 @@ const apply = flag("apply");
 const limit = num("limit", Infinity);
 const webLimit = num("web", 0);
 const only = value("only");
+const skip = new Set((value("skip") ?? "").split(",").map((s) => s.trim()).filter(Boolean));
 const PAUSE_MS = 150;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const blank = (v: number | null) => !v || v <= 0;
@@ -50,7 +52,7 @@ async function candidates() {
   const products = await db.product.findMany({ where, orderBy: { sku: "asc" }, select: { id: true, sku: true, erpCode: true, title: true, kind: true, category: { select: { name: true } } } });
   return products
     .map((p) => ({ ...p, item: itemOf.get(p.erpCode) ?? null }))
-    .filter((p) => only || p.item);
+    .filter((p) => (only || p.item) && ![p.id, p.sku, p.erpCode].some((k) => k && skip.has(k)));
 }
 
 type Candidate = Awaited<ReturnType<typeof candidates>>[number];
