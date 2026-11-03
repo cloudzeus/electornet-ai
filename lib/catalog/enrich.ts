@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
 import { blockedHost, icecatImages, isHomePage, looksLikeImageFile, modelKeys, modelsFromSpecs, seriesWords } from "./enrich-core";
 import { readProductPage, searchSiteForModel } from "./enrich-page";
+import { brandSites } from "./brand-sites";
 import { CATALOG_TEXT_MODEL, WEB_SEARCH_MODEL } from "./ai-models";
 import { suggestFromResult } from "./enrich-suggestions";
 
@@ -133,7 +134,9 @@ async function modelPage(p: WebProduct, specs: { key: string; value: string }[],
   const search = async (os: string[]) => { for (const o of os) { if (tried.has(o) || tried.size >= 5) continue; tried.add(o); const u = await searchSiteForModel(o, hints, words).catch(() => null); if (u) return u; } return undefined; };
   // πρώτα δωρεάν: sitemap / αναζήτηση στα sites που ήδη ξέρουμε (της πηγής) — έως 5 sites
   if (!url) url = await search([...origins].reverse());
-  // και το site της μάρκας στην Ελλάδα (www.toyotomi.gr), αν υπάρχει
+  // ο ΓΝΩΣΤΟΣ ιστότοπος της μάρκας (μετρημένος από πραγματικά τρεξίματα) — πριν από κάθε μάντεμα
+  if (!url) url = await search(brandSites(p.brand));
+  // και, για μάρκες εκτός πίνακα, το μάντεμα www.<μάρκα>.gr / .com
   const slug = p.brand.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!url && slug.length >= 3) url = await search([`https://www.${slug}.gr`, `https://www.${slug}.com`]);
   // μετά μία σύντομη αναζήτηση στο web μόνο για τη διεύθυνση· αν δώσει την αρχική σελίδα, ψάχνουμε σε εκείνο το site
