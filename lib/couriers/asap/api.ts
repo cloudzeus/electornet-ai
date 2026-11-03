@@ -9,7 +9,7 @@ import { createHmac } from "node:crypto";
  *   POST /shipper/shipment       → shipment_id, shipment_barcode, parcels_barcodes, calculated_total_price
  *   POST /shipper/voucher-print  → ετικέτες (PDF)
  *   GET  /fulfillment-events     → γεγονότα (reason) ανά barcode
- *   GET  /external/v1/address-lookup → συντεταγμένες (υποχρεωτικές για τον παραλήπτη)
+ *   GET  /address-lookup             → συντεταγμένες (υποχρεωτικές για τον παραλήπτη)
  * Ακύρωση αποστολής δεν υπάρχει στο API — γίνεται από την ASAP.
  */
 export const ASAP_API = "https://apps.lastmily.com/api/external/v1";

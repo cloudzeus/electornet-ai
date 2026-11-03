@@ -45,7 +45,7 @@ export async function asapPing(c: AsapConfig) { await call(c, "GET", "/depots");
 
 /** Συντεταγμένες μιας διεύθυνσης (υποχρεωτικές για τον παραλήπτη) από την υπηρεσία του LastMily. */
 export async function asapGeocode(c: AsapConfig, a: AsapAddress): Promise<{ lat: number; lon: number } | null> {
-  const j = await call<{ items?: { position?: [number, number] | { lat: number; lng: number } }[] }>(c, "GET", "/external/v1/address-lookup", { query: { searchAddress: geoQuery(a), countryCode: "GRC" } });
+  const j = await call<{ items?: { position?: [number, number] | { lat: number; lng: number } }[] }>(c, "GET", "/address-lookup", { query: { searchAddress: geoQuery(a), countryCode: "GRC" } });
   const p = j.items?.[0]?.position;
   if (!p) return null;
   return Array.isArray(p) ? { lat: Number(p[0]), lon: Number(p[1]) } : { lat: Number(p.lat), lon: Number(p.lng) };
