@@ -11,6 +11,9 @@ import { carrierDef } from "@/lib/shipping/carriers";
 import { renderTemplate } from "@/lib/email/templates";
 import { emailCtx } from "@/lib/email/layout";
 import { sendMail } from "@/lib/email/send";
+import { sendSms, smsReady } from "@/lib/sms/send";
+import { greekMobile } from "@/lib/sms/gsm";
+import { etaPhrase, outForDeliverySms } from "./asap/notify-text";
 
 /**
  * Αποστολές με courier (Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP μέσω LastMily): προσχέδιο από την παραγγελία, έκδοση voucher, ετικέτες,
@@ -237,6 +240,7 @@ export async function asapWebhook(items: AsapWebhookItem[]) {
     for (const s of rows) {
       if (it.kind === "route") {
         await db.shipment.update({ where: { id: s.id }, data: { liveUrl: it.liveUrl, ...(it.eta && s.status !== "delivered" ? { eta: it.eta } : {}) } });
+        if (it.liveUrl && s.env === "live" && !["delivered", "returned", "returning"].includes(s.status)) await notifyOutForDelivery(s.id, it.liveUrl, it.eta).catch(() => null);
         continue;
       }
       if (!s.voucher || refreshed.has(s.id)) continue;
@@ -276,6 +280,29 @@ export async function trackVoucher(carrier: VoucherCarrier, voucher: string): Pr
   return { state: state === "created" ? null : state, deliveredAt: t.deliveredAt, checkpoints, last };
 }
 const trackOne = trackVoucher;
+
+/**
+ * «Έρχεται»: SMS + email με τον σύνδεσμο του οδηγού, την πρώτη φορά που η ASAP στέλνει σύνδεσμο για την αποστολή (ο
+ * λογαριασμός ASAP δεν ειδοποιεί μόνος του τον πελάτη). Μία φορά ανά αποστολή: το liveNotifiedAt «κλειδώνεται» πριν
+ * σταλεί οτιδήποτε, ώστε δύο ταυτόχρονα webhooks να μη στείλουν δύο φορές.
+ */
+async function notifyOutForDelivery(shipmentId: string, liveUrl: string, eta: Date | null) {
+  const claimed = await db.shipment.updateMany({ where: { id: shipmentId, liveNotifiedAt: null }, data: { liveNotifiedAt: new Date() } });
+  if (!claimed.count) return;
+  const sh = await db.shipment.findUnique({ where: { id: shipmentId }, select: { carrier: true, order: { select: { id: true, number: true, shipping: true, guestEmail: true, customer: { select: { email: true, firstName: true, phone: true } } } } } });
+  if (!sh) return;
+  const o = sh.order;
+  const s = (o.shipping ?? {}) as ShipTo;
+  const when = etaPhrase(eta);
+  const phone = s.phone ?? o.customer?.phone ?? null;
+  if (phone && greekMobile(phone) && (await smsReady())) await sendSms({ to: phone, text: outForDeliverySms(o.number, eta, liveUrl), template: "order-out-for-delivery", meta: { orderId: o.id, shipmentId } }).catch(() => null);
+  const to = s.email ?? o.customer?.email ?? o.guestEmail;
+  if (to) {
+    const { baseUrl } = await emailCtx();
+    const m = await renderTemplate("order-out-for-delivery", { firstName: s.firstName ?? o.customer?.firstName ?? "", number: o.number, courier: COURIER_NAME.asap, when, liveUrl, trackUrl: `${baseUrl}/entopismos?no=${encodeURIComponent(o.number)}` });
+    await sendMail({ to, template: "order-out-for-delivery", meta: { orderId: o.id, shipmentId }, ...m });
+  }
+}
 
 /** Email «Η παραγγελία στάλθηκε» (μόνο σε vouchers παραγωγής), με σύνδεσμο στην παρακολούθηση του site. */
 async function notifyShipped(orderIds: string[]) {

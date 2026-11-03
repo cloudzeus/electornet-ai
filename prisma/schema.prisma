@@ -1817,6 +1817,8 @@ model Shipment {
   liveUrl        String?
   /// Εκτιμώμενη ώρα άφιξης από τον courier (ASAP: estimated_arrival_time)
   eta            DateTime?
+  /// Πότε στείλαμε στον πελάτη SMS/email «έρχεται σήμερα» με τον σύνδεσμο (μία φορά ανά αποστολή)
+  liveNotifiedAt DateTime?
   error          String?   @db.Text
   createdById    String?
   createdAt      DateTime  @default(now())
