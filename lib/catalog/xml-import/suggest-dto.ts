@@ -3,6 +3,7 @@ import { UserError } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget } from "@/lib/catalog/foreign-import/ui-core";
 import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
 import { sameNameGroups } from "@/lib/catalog/xml-import/twins-core";
+import { acPairs } from "@/lib/catalog/xml-import/split-core";
 import { suggestMapping, type SavedMapping } from "@/lib/catalog/xml-import/suggest";
 import { MAX_VALUES, SAMPLES_SHOWN, type SuggestDTO, type TemplateMaps, type TemplateSettings } from "@/lib/catalog/xml-import/ui-core";
 
@@ -68,6 +69,10 @@ export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promi
   const twins = nameIdx >= 0 && keyIdx >= 0
     ? sameNameGroups(matrix.slice(1).map((r) => ({ name: r[nameIdx] ?? "", key: r[keyIdx] ?? "" })), Number.MAX_SAFE_INTEGER)
     : [];
+  // Κλιματιστικά σε δύο μονάδες: το feed στέλνει και τις δύο ως προϊόντα, το SoftOne τις θέλει ως ένα σετ.
+  const pairs = nameIdx >= 0 && keyIdx >= 0
+    ? acPairs(matrix.slice(1).map((r) => ({ name: r[nameIdx] ?? "", key: r[keyIdx] ?? "" })), Number.MAX_SAFE_INTEGER)
+    : [];
   const catN = new Map<string, number>();
   if (catIdx >= 0) for (let r = 1; r < matrix.length; r++) { const v = matrix[r][catIdx]; if (v) catN.set(v, (catN.get(v) ?? 0) + 1); }
   return {
@@ -97,6 +102,7 @@ export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promi
       .sort((a, b) => b.n - a.n || a.value.localeCompare(b.value, "el")),
     specs: Object.entries(s.specs).map(([label, v]) => ({ label, to: v.label, confidence: v.confidence })).sort((a, b) => a.label.localeCompare(b.label, "el")),
     duplicates: s.duplicates,
+    ...(pairs.length ? { acSplit: { total: pairs.length, inner: pairs[0].inner.name, outer: pairs[0].outer.name } } : {}),
     ...(twins.length ? { sameName: { name: twins[0].name, keys: twins[0].keys, column: headers[nameIdx], total: twins.length } } : {}),
     aiUsed: s.aiUsed,
     ...(tpl ? { fromTemplate: true, maps: tpl.maps, settings: tpl.settings } : {}),

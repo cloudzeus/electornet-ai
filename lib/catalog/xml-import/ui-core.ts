@@ -142,6 +142,8 @@ export interface SuggestDTO {
   duplicates: { label: string; headers: string[] }[];
   /** διαφορετικά προϊόντα του feed με ΤΟ ΙΔΙΟ όνομα (π.χ. εσωτερική/εξωτερική μονάδα split) — ειδοποίηση, όχι φράγμα */
   sameName?: { name: string; keys: string[]; column: string; total: number };
+  /** ζεύγη εσωτερικής / εξωτερικής μονάδας κλιματιστικού μέσα στο feed — ειδοποίηση, όχι φράγμα */
+  acSplit?: { total: number; inner: string; outer: string };
   aiUsed: boolean;
   /** true = οι επιλογές ήρθαν από το αποθηκευμένο πρότυπο του προμηθευτή, όχι από κανόνες και AI */
   fromTemplate?: boolean;
