@@ -102,3 +102,34 @@ export const uid = (p = "x") => `${p}${Date.now().toString(36)}${(seq++).toStrin
 export const sectionHasContent = (s: StudioSection) => !!(s.title?.text.trim() || s.subtitle?.text.trim() || s.paragraphs.some((p) => p.text.trim()) || s.features.some((f) => f.include && f.label.trim()) || s.images.some((i) => i.include));
 
 export const emptySection = (): StudioSection => ({ id: uid("s"), include: true, title: { id: uid("t"), text: "", box: null }, subtitle: null, paragraphs: [], features: [], footnote: null, images: [] });
+
+// ---------- τίτλοι από banners: ΚΕΦΑΛΑΙΑ → κανονική γραφή ----------
+
+const unaccent = (w: string) => w.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("el-GR");
+/** Μικρές λέξεις χωρίς τόνο — δεν χρειάζονται «μάρτυρα» στο κείμενο. */
+const PLAIN = new Set(["και", "για", "τα", "το", "του", "της", "των", "τη", "την", "τις", "τους", "σας", "μας", "με", "σε", "στο", "στη", "στην", "στα", "στις", "στους", "ο", "η", "οι", "ως", "χωρις", "ενα", "μια"].map(unaccent));
+const isCaps = (t: string) => /\p{Lu}{3}/u.test(t) && t === t.toLocaleUpperCase("el-GR");
+
+/**
+ * Τα banners γράφουν τους τίτλους με ΚΕΦΑΛΑΙΑ χωρίς τόνους. Χωρίς τόνους τα πεζά είναι λάθος ελληνικά, οπότε κάθε
+ * λέξη παίρνει τη γραφή της από το κείμενο του ίδιου προϊόντος («ΡΟΥΧΑ» → «ρούχα»). Αν έστω μία λέξη δεν βρεθεί, ο
+ * τίτλος μένει όπως είναι — καλύτερα κεφαλαία παρά ανορθόγραφος.
+ */
+export function calmTitle(title: string, corpus: string): string {
+  if (!isCaps(title)) return title;
+  const known = new Map<string, string>();
+  for (const w of corpus.match(/[\p{L}\p{N}]+/gu) ?? []) if (w !== w.toLocaleUpperCase("el-GR")) { const k = unaccent(w); if (!known.has(k)) known.set(k, w); }
+  let bad = false;
+  let start = true;
+  const out = title.replace(/[\p{L}\p{N}]+|[.!?:]/gu, (tok) => {
+    if (/^[.!?:]$/.test(tok)) { start = true; return tok; }
+    const k = unaccent(tok);
+    let w = known.get(k) ?? (PLAIN.has(k) ? tok.toLocaleLowerCase("el-GR") : /\p{N}/u.test(tok) || tok.length <= 2 ? tok : null);
+    if (w == null) { bad = true; return tok; }
+    // ονόματα με κεφαλαίο στη μέση (ProSense, AutoDose) μένουν όπως τα γράφει ο κατασκευαστής
+    if (start && w === w.toLocaleLowerCase("el-GR")) w = w[0].toLocaleUpperCase("el-GR") + w.slice(1);
+    start = false;
+    return w;
+  });
+  return bad ? title : out.replace(/σ(?=$|[^\p{L}])/gu, "ς");
+}

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { analyseBanner } from "./banner-ocr";
 import { fetchSource, publishExtractions, saveDraft, toStudioDoc, unpublishExtraction } from "./banner-extract";
-import { designPage } from "./banner-design";
+import { designPage, sentenceCaseTitles } from "./banner-design";
 import { coverage, docBoxes, MIN_BANNER_W, MIN_COVERAGE } from "./banner-quality";
 import { sectionHasContent, type StudioDoc } from "./banner-doc";
 import { TODO, ORDER } from "./banner-worklist";
@@ -193,4 +193,29 @@ export async function unpublishAuto() {
   const rows = await db.bannerExtraction.findMany({ where: { origin: "auto", status: "published" }, select: { id: true, productId: true } });
   for (const r of rows) await unpublishExtraction(r.productId, r.id);
   return { extractions: rows.length, products: new Set(rows.map((r) => r.productId)).size };
+}
+
+/** Δημοσιευμένες ενότητες με τίτλο, υπότιτλο ή ετικέτες λειτουργιών σε ΚΕΦΑΛΑΙΑ → κανονική γραφή (ανά 40, ~$0,001 η κλήση). */
+export async function fixCapsTitles(opts: { dryRun?: boolean } = {}) {
+  const caps = (t: string | null | undefined): t is string => !!t && /\p{Lu}{3}/u.test(t) && t === t.toLocaleUpperCase("el-GR");
+  const rows = await db.productSection.findMany({ select: { id: true, title: true, subtitle: true, features: true } });
+  const feats = (r: (typeof rows)[number]) => (Array.isArray(r.features) ? (r.features as { label?: string }[]) : []);
+  const want = [...new Set(rows.flatMap((r) => [r.title, r.subtitle, ...feats(r).map((f) => f.label)]).filter(caps))];
+  const fixed = new Map<string, string>();
+  let costUsd = 0;
+  for (let i = 0; i < want.length; i += 40) {
+    const r = await sentenceCaseTitles(want.slice(i, i + 40));
+    r.fixed.forEach((v, k) => fixed.set(k, v));
+    costUsd += r.costUsd;
+  }
+  let updated = 0;
+  for (const r of rows) {
+    const title = r.title && fixed.get(r.title), subtitle = r.subtitle && fixed.get(r.subtitle);
+    const fs = feats(r), changed = fs.some((f) => f.label && fixed.has(f.label));
+    if (!title && !subtitle && !changed) continue;
+    updated++;
+    const features = changed ? (fs.map((f) => (f.label && fixed.has(f.label) ? { ...f, label: fixed.get(f.label) } : f)) as Prisma.InputJsonValue) : undefined;
+    if (!opts.dryRun) await db.productSection.update({ where: { id: r.id }, data: { ...(title ? { title } : {}), ...(subtitle ? { subtitle } : {}), ...(features ? { features } : {}) } });
+  }
+  return { titles: want.length, fixed: fixed.size, sections: updated, costUsd, sample: [...fixed].slice(0, 12) };
 }

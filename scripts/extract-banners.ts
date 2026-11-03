@@ -6,13 +6,14 @@
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --all --publish                  # ενότητες στη σελίδα αντί για banners
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --publish-drafts                 # δημοσίευση έτοιμων πρόχειρων (χωρίς ανάλυση)
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --undo --type "Τηλεοράσεις"      # αναίρεση
+ *   npx tsx --conditions=react-server scripts/extract-banners.ts --fix-titles [--dry-run]         # ΚΕΦΑΛΑΙΑ τίτλοι → κανονική γραφή
  *   npx tsx --conditions=react-server scripts/extract-banners.ts --unpublish                      # αυτόματες → πρόχειρα για έγκριση
  * Με --publish κρύβονται ΜΟΝΟ τα banners που πέρασαν τον έλεγχο ποιότητας (κάλυψη ≥ 80 %, πλάτος ≥ 700px)· τα υπόλοιπα
  * μένουν εικόνα, «για έλεγχο». Χωρίς --publish όλα μένουν πρόχειρα. Όλα αναιρούνται με --undo / --unpublish.
  */
 import "dotenv/config";
 import { db } from "../lib/db";
-import { autoExtractBatch, autoTodoEstimate, publishAutoDrafts, undoAuto, unpublishAuto } from "../lib/catalog/banner-batch";
+import { autoExtractBatch, fixCapsTitles, autoTodoEstimate, publishAutoDrafts, undoAuto, unpublishAuto } from "../lib/catalog/banner-batch";
 
 const has = (n: string) => process.argv.includes(`--${n}`);
 const vals = (n: string) => process.argv.flatMap((a, i) => (a === `--${n}` && process.argv[i + 1] ? [process.argv[i + 1]] : []));
@@ -20,6 +21,7 @@ const vals = (n: string) => process.argv.flatMap((a, i) => (a === `--${n}` && pr
 async function main() {
   const types = vals("type");
   const scope = types.length ? types : undefined;
+  if (has("fix-titles")) { console.log(await fixCapsTitles({ dryRun: has("dry-run") })); return; }
   if (has("unpublish")) { console.log("Πίσω σε πρόχειρο:", await unpublishAuto()); return; }
   if (has("undo")) { console.log("Αναίρεση:", await undoAuto(scope)); return; }
   if (has("estimate")) {

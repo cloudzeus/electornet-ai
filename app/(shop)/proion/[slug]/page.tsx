@@ -35,6 +35,7 @@ import { getArCategories } from "@/lib/ar/categories";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { AdvisorContext } from "@/components/advisor/AdvisorContext";
 import { StoreBox } from "@/components/pdp/StoreBox";
+import { CollapsibleDescription } from "@/components/pdp/CollapsibleDescription";
 import { RichDescription } from "@/components/pdp/RichDescription";
 import { ProductVideos } from "@/components/pdp/ProductVideos";
 import { StickerRow } from "@/components/commerce/CardStickers";
@@ -184,7 +185,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               <h2 id="desc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
                 Περιγραφή
               </h2>
-              {p.fromDb ? <RichDescription text={p.description ?? ""} banners={p.banners} sections={p.sections} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
+              {p.fromDb ? (
+                (p.sections?.length ?? 0) + (p.banners?.length ?? 0) > 0 || (p.description ?? "").length > 900 ? (
+                  <CollapsibleDescription count={(p.sections?.length ?? 0) + (p.banners?.length ?? 0)}>
+                    <RichDescription text={p.description ?? ""} banners={p.banners} sections={p.sections} />
+                  </CollapsibleDescription>
+                ) : (
+                  <RichDescription text={p.description ?? ""} banners={p.banners} sections={p.sections} />
+                )
+              ) : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
               {p.sourceUrl && (
                 <p className="m-0 mt-3 text-eu-muted text-[length:var(--fs-15)]">
                   Στοιχεία προϊόντος από το euronics.gr ·{" "}

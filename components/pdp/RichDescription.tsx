@@ -9,7 +9,7 @@ import type { PublishedSection } from "@/lib/catalog/banner-doc";
  */
 export interface Banner { url: string; width: number | null; height: number | null; alt: string | null; blur?: string | null }
 
-type Block = { kind: "p"; text: string } | { kind: "list"; title: string; items: string[] };
+type Block = { kind: "p"; text: string } | { kind: "list"; title: string | null; items: string[] };
 const tidy = (s: string) => { const t = s.trim().replace(/[.;]+$/, ""); return t ? t[0].toLocaleUpperCase("el-GR") + t.slice(1) : t; };
 /** Το ERP γράφει τις επικεφαλίδες με κεφαλαία χωρίς τόνους· οι συχνές παίρνουν τη σωστή γραφή, οι υπόλοιπες απλώς πεζά. */
 const HEADINGS: Record<string, string> = { "ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ": "Χαρακτηριστικά", "ΑΛΛΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ": "Άλλα χαρακτηριστικά", "ΓΕΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ": "Γενικά χαρακτηριστικά", "ΤΕΧΝΙΚΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ": "Τεχνικά χαρακτηριστικά", "ΠΡΟΓΡΑΜΜΑΤΑ": "Προγράμματα", "ΛΕΙΤΟΥΡΓΙΕΣ": "Λειτουργίες", "ΑΣΦΑΛΕΙΑ": "Ασφάλεια", "ΣΥΝΔΕΣΙΜΟΤΗΤΑ": "Συνδεσιμότητα", "ΓΕΝΙΚΑ": "Γενικά", "ΕΞΟΠΛΙΣΜΟΣ": "Εξοπλισμός", "ΑΞΕΣΟΥΑΡ": "Αξεσουάρ", "ΠΕΡΙΛΑΜΒΑΝΕΙ": "Περιλαμβάνει", "ΣΥΝΤΗΡΗΣΗ": "Συντήρηση", "ΚΑΤΑΨΥΞΗ": "Κατάψυξη", "ΑΠΟΔΟΣΗ": "Απόδοση", "ΑΝΕΣΗ": "Άνεση" };
@@ -25,7 +25,16 @@ export function parseBlocks(text: string): Block[] {
     if (m && items.length >= 3 && m[1].split(/\s+/).length <= 4) out.push({ kind: "list", title: titleCase(m[1].trim()), items });
     else out.push({ kind: "p", text: line });
   }
-  return out;
+  // σειρές από σύντομες γραμμές («18000BTU», «Wi-Fi Installed», «Ιονισμός»…) ήταν μία παράγραφος η καθεμία — γίνονται λίστα
+  const short = (b: Block) => b.kind === "p" && b.text.length <= 60 && !/[.!;]$/.test(b.text);
+  const grouped: Block[] = [];
+  for (let i = 0; i < out.length; ) {
+    let j = i;
+    while (j < out.length && short(out[j])) j++;
+    if (j - i >= 3) { grouped.push({ kind: "list", title: null, items: out.slice(i, j).map((b) => tidy((b as { text: string }).text)) }); i = j; }
+    else grouped.push(out[i++]);
+  }
+  return grouped;
 }
 
 export function RichDescription({ text, banners = [], sections = [] }: { text: string; banners?: Banner[]; sections?: PublishedSection[] }) {
@@ -36,8 +45,8 @@ export function RichDescription({ text, banners = [], sections = [] }: { text: s
         <p key={i} className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[78ch]">{b.text}</p>
       ) : (
         <div key={i}>
-          <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-17)]">{b.title}</h3>
-          <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-1.5 [grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))]">
+          {b.title && <h3 className="m-0 mb-2 font-bold text-eu-ink text-[length:var(--fs-17)]">{b.title}</h3>}
+          <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-1.5 grid-cols-2 @2xl:[grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))]">
             {b.items.map((it) => <li key={it} className="flex gap-2 text-eu-ink-2 text-[length:var(--fs-15)] leading-snug"><span className="mt-[0.55em] size-1.5 rounded-full bg-eu-yellow shrink-0" aria-hidden />{it}</li>)}
           </ul>
         </div>

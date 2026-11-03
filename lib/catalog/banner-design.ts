@@ -153,13 +153,14 @@ LAYOUTS: ${LAYOUTS.map((l) => `"${l.key}" = ${l.hint}`).join(" · ")}.
 STORY ORDER (rank 1 = top): 1) the most striking hero/lifestyle opener; 2) the key benefits (stats, features); 3) detailed feature sections (split), grouping related topics together (picture quality with picture quality, sound with sound, energy with energy); 4) galleries/details; 5) certifications/badges; 6) text-heavy or legal-heavy sections last.
 SINGLE FEATURES: sections marked "single_feature" explain one function each (title + 1–3 sentences). Rank related single features CONSECUTIVELY — consecutive ones are shown together as one grid of cards.
 HEADING: for every section with title null, and for every single_feature section, return "heading" = the best fitting group name from this closed list (exact string): ${HEADINGS.map((h) => `"${h}"`).join(", ")}. Otherwise omit it.
+TITLE CASE: for every section whose title is ALL CAPS, return "title_fix" = the very same words in normal Greek sentence case with correct accents (e.g. "ΠΡΟΣΤΑΣΙΑ ΓΙΑ ΤΑ ΡΟΥΧΑ" → "Προστασία για τα ρούχα"); keep brand/technology names as the manufacturer writes them. Never change, add or drop a word.
 DROP a section only if it repeats another section's message (keep the richer one), or carries no product information (only a logo, only the product name, generic "product details" filler). Never drop more than a third of the sections.
-"why" ≤ 8 words. Return ONLY JSON: {"sections":[{"id":string,"layout":string,"rank":number,"drop":boolean,"why":string,"heading"?:string,"stats":[{"value":string,"label":string}]}]}` },
+"why" ≤ 8 words. Return ONLY JSON: {"sections":[{"id":string,"layout":string,"rank":number,"drop":boolean,"why":string,"heading"?:string,"title_fix"?:string,"stats":[{"value":string,"label":string}]}]}` },
       { role: "user", content: JSON.stringify({ product: `${product.brand} ${product.title}`, type: product.typeName, sections: listing }) },
     ],
   }).catch((e) => { if (process.env.DEBUG_DESIGN) console.error("design:", e); return null; });
   if (process.env.DEBUG_DESIGN) console.error("design raw:", r?.text?.length, r?.text?.slice(-300));
-  const j = r ? parseJson<{ sections?: { id?: string; layout?: string; rank?: number; drop?: boolean; why?: string; heading?: string; stats?: unknown }[] }>(r.text) : null;
+  const j = r ? parseJson<{ sections?: { id?: string; layout?: string; rank?: number; drop?: boolean; why?: string; heading?: string; title_fix?: string; stats?: unknown }[] }>(r.text) : null;
   if (!j?.sections?.length) { byRules(refs, docs); mergeAndDedupe(refs, docs); return { docs, by: "rules", costUsd: r?.costUsd ?? 0, dropped: 0 }; }
 
   const out = new Map(j.sections.filter((x) => typeof x.id === "string").map((x) => [x.id!, x]));
@@ -175,10 +176,34 @@ DROP a section only if it repeats another section's message (keep the richer one
     ref.s.rank = typeof d?.rank === "number" && Number.isFinite(d.rank) ? d.rank : 100 + i;
     ref.s.designedBy = "ai";
     if (typeof d?.heading === "string" && (HEADINGS as readonly string[]).includes(d.heading) && (!ref.s.title?.text.trim() || isMini(ref.s))) ref.s.heading = d.heading;
+    // ίδια γράμματα, μόνο πεζά/τόνοι — ο σχεδιαστής δεν γράφει δικό του κείμενο
+    const letters = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("el-GR").replace(/[^\p{L}\p{N}]+/gu, "");
+    if (ref.s.title && typeof d?.title_fix === "string" && d.title_fix.trim() && letters(d.title_fix) === letters(ref.s.title.text)) ref.s.title.text = d.title_fix.trim();
     if (allowDrops && d?.drop) { ref.s.include = false; ref.s.dropReason = String(d.why ?? "διπλή ή χωρίς πληροφορία").slice(0, 160); dropped++; }
   });
   // σταθερή αρίθμηση 1…n με τη σειρά του σχεδιαστή
   [...refs].sort((a, b) => (a.s.rank ?? 0) - (b.s.rank ?? 0)).forEach((x, i) => { x.s.rank = i + 1; });
   mergeAndDedupe(refs, docs);
   return { docs, by: "ai", costUsd: r?.costUsd ?? 0, dropped };
+}
+
+const sameLetters = (a: string, b: string) => { const l = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("el-GR").replace(/[^\p{L}\p{N}]+/gu, ""); return l(a) === l(b); };
+
+/**
+ * Τίτλοι με ΚΕΦΑΛΑΙΑ (από τα banners) → κανονική γραφή με τόνους, για ενότητες που δημοσιεύτηκαν πριν ο σχεδιαστής
+ * επιστρέφει «title_fix». Δεκτό μόνο ό,τι έχει ακριβώς τα ίδια γράμματα — ποτέ νέες λέξεις.
+ */
+export async function sentenceCaseTitles(titles: string[]): Promise<{ fixed: Map<string, string>; costUsd: number }> {
+  const fixed = new Map<string, string>();
+  if (!titles.length) return { fixed, costUsd: 0 };
+  const r = await chat({
+    feature: "banner-design", model: DESIGN_MODEL, json: true, maxTokens: 4000, temperature: 0, timeoutMs: 45000, reasoning: "low",
+    messages: [
+      { role: "system", content: `Rewrite each ALL CAPS Greek product-page title in normal Greek sentence case with correct accents (e.g. "ΠΡΟΣΤΑΣΙΑ ΓΙΑ ΤΑ ΡΟΥΧΑ ΣΑΣ" → "Προστασία για τα ρούχα σας"). Capitalise the first word of each sentence. Keep brand and technology names as manufacturers write them (ProSense, AutoDose, OLED, Wi-Fi). Never change, add or drop a word or punctuation. Return ONLY JSON: {"titles":[string]} in the same order.` },
+      { role: "user", content: JSON.stringify({ titles }) },
+    ],
+  }).catch(() => null);
+  const j = r ? parseJson<{ titles?: unknown[] }>(r.text) : null;
+  titles.forEach((t, i) => { const f = j?.titles?.[i]; if (typeof f === "string" && f.trim() && f !== t && sameLetters(f, t)) fixed.set(t, f.trim()); });
+  return { fixed, costUsd: r?.costUsd ?? 0 };
 }
