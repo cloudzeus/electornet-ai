@@ -68,17 +68,18 @@ export function syncSets(trigger: Trigger = "manual") {
  * Γράφει μόνο ό,τι άλλαξε. Ασφαλές για επανάληψη.
  */
 export async function projectSetProducts(): Promise<{ sets: number; created: number; updated: number; deactivated: number; mainsHidden: number }> {
-  const { setErp, setPrice, setStock, setTitle, validSet, setKind, setLive } = await import("@/lib/catalog/set-core");
+  const { setErp, setPrice, setStock, setTitle, validSet, setKind, setLive, mainBlocksSet } = await import("@/lib/catalog/set-core");
   const { slugify } = await import("@/lib/slug");
   const now = new Date();
   const sets = await db.s1Set.findMany({ include: { lines: { orderBy: { lineNum: "asc" } } } });
   const mtrls = [...new Set(sets.flatMap((x) => [x.mtrl, ...x.lines.map((l) => l.mtrl)]))];
   const [items, prods, existing] = await Promise.all([
-    db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, eshopPrice: true } }),
+    db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, eshopPrice: true, active: true, missing: true } }),
     db.product.findMany({ where: { erpCode: { in: mtrls.map(String) } }, select: { id: true, erpCode: true, active: true, brandId: true, categoryId: true, vatRate: true, brand: { select: { name: true } } } }),
     db.product.findMany({ where: { OR: [{ kind: "set" }, { erpCode: { startsWith: "SET-" } }] }, select: { id: true, setSpcs: true, erpCode: true, price: true, stock: true, active: true, brandId: true, categoryId: true, _count: { select: { media: true } } } }),
   ]);
   const priceOf = new Map(items.map((i) => [i.mtrl, i.eshopPrice]));
+  const itemOf = new Map(items.map((i) => [i.mtrl, i]));
   const prodOf = new Map(prods.map((p) => [Number(p.erpCode), p]));
   const bySpcs = new Map(existing.filter((e) => e.setSpcs != null).map((e) => [e.setSpcs!, e]));
   const taken = { slug: new Set((await db.product.findMany({ select: { slug: true } })).map((x) => x.slug)), sku: new Set((await db.product.findMany({ select: { sku: true } })).map((x) => x.sku)) };
@@ -89,7 +90,9 @@ export async function projectSetProducts(): Promise<{ sets: number; created: num
   for (const set of sets) {
     const main = prodOf.get(set.mtrl);
     const kind = setKind(set.name, set.lines, set.mtrl, (m) => !!prodOf.get(m)?.active);
-    const live = setLive(set, now) && !!main?.active;
+    // Το σετ ζει με βάση το ΕΙΔΟΣ στο ERP, όχι το αν το προϊόν του κύριου είναι ορατό στο site: η «Εξαίρεση Web»
+    // του κύριου σημαίνει «όχι μόνο του» και την αναλαμβάνει το «Πωλείται και μόνο του».
+    const live = setLive(set, now) && !mainBlocksSet(itemOf.get(set.mtrl));
     if (live && kind === "parts" && validSet(set.lines, set.mtrl)) mainOfParts.add(set.mtrl);
     const price = setPrice(set.lines.map((l) => ({ price: priceOf.get(l.mtrl) ?? null, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);
     const stock = setStock(set.lines.map((l) => ({ stock: l.stockCentral, qty: l.qty, isMain: l.mtrl === set.mtrl })), kind);

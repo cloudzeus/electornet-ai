@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot, setKind, soldAloneChange, setLive, setShipFacts } from "./set-core";
+import { setErp, spcsOf, setPrice, setStock, soldAloneFor, setTitle, validSet, setPartsSnapshot, setKind, soldAloneChange, setLive, setShipFacts, mainBlocksSet } from "./set-core";
 
 test("κωδικοί προϊόντος-σετ", () => {
   assert.equal(setErp(594), "SET-594");
@@ -94,4 +94,18 @@ test("αποστολή σετ: βάρος = άθροισμα μελών × πο�
   assert.deepEqual(setShipFacts([{ weightKg: 2, dims: null, qty: 2 }]), { weightKg: 4, dimsCm: null });
   // άγνωστο βάρος μέλους → άγνωστο βάρος σετ (όχι υποεκτίμηση)
   assert.deepEqual(setShipFacts([{ weightKg: 9, dims: null, qty: 1 }, { weightKg: null, dims: null, qty: 1 }]), { weightKg: null, dimsCm: null });
+});
+
+test("mainBlocksSet: η «Εξαίρεση Web» του κύριου είδους ΔΕΝ ρίχνει το σετ", () => {
+  // Επαληθευμένο στο ζωντανό site: το «TOYOTOMI TRN/TRG-871ZR» πωλείται ως σετ, ενώ η εσωτερική
+  // του μονάδα είναι εξαιρεμένη από το web — η εξαίρεση σημαίνει «όχι μόνη της», όχι «όχι σε σετ».
+  assert.equal(mainBlocksSet({ active: true, missing: false, webExcluded: true }), false);
+  assert.equal(mainBlocksSet({ active: true, missing: false, webExcluded: false }), false);
+});
+
+test("mainBlocksSet: ανενεργό, χαμένο ή ανύπαρκτο κύριο είδος ρίχνει το σετ", () => {
+  assert.equal(mainBlocksSet({ active: false, missing: false, webExcluded: false }), true);
+  assert.equal(mainBlocksSet({ active: true, missing: true, webExcluded: false }), true);
+  assert.equal(mainBlocksSet(null), true);
+  assert.equal(mainBlocksSet(undefined), true);
 });

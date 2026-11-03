@@ -73,6 +73,17 @@ export function soldAloneChange(rows: { mode: string; soldAlone: boolean; mainOf
 }
 
 /** Ζωντανό σετ: ενεργό στο SoftOne, έχει ξεκινήσει (FROMDATE) και δεν έχει λήξει — η FINALDATE ισχύει όλη την ημέρα. */
+/**
+ * Εμποδίζει το κύριο είδος το σετ;
+ *
+ * **Μόνο** όταν δεν υπάρχει, χάθηκε από το ERP ή είναι ανενεργό εκεί. Η «Εξαίρεση Web» (MTREXTRA.BOOL04) **δεν**
+ * εμποδίζει: επαληθευμένο στο ζωντανό site, η εσωτερική μονάδα ενός κλιματιστικού είναι εξαιρεμένη από το web ενώ το
+ * σετ «TRN/TRG» πωλείται κανονικά. Η εξαίρεση σημαίνει «μην το πουλάς ΜΟΝΟ του» — αυτό το αναλαμβάνει το
+ * «Πωλείται και μόνο του» του κύριου είδους, όχι το σβήσιμο ολόκληρου του σετ.
+ */
+export const mainBlocksSet = (main: { active: boolean; missing: boolean; webExcluded?: boolean } | null | undefined): boolean =>
+  !main || main.missing || !main.active;
+
 export function setLive(s: { active: boolean; fromDate: Date | null; finalDate: Date | null }, now: Date): boolean {
   if (!s.active) return false;
   if (s.fromDate && s.fromDate.getTime() > now.getTime()) return false;
