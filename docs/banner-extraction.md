@@ -58,8 +58,11 @@ npx tsx --conditions=react-server scripts/redesign-banners.ts --product <id> | -
 στο `images[].size` της ενότητας.
 
 ## Κανόνες ποιότητας (μη διαπραγματεύσιμοι)
-- **Τίποτα δεν δημοσιεύεται χωρίς άνθρωπο.** Η μαζική απόδελτίωση ετοιμάζει και σχεδιάζει πρόχειρα· λίστα εργασίας →
-  «Για έγκριση» → προεπισκόπηση → «Δημοσίευση». `--unpublish` γυρίζει ό,τι δημοσιεύτηκε αυτόματα σε πρόχειρο.
+- **Αυτόματη δημοσίευση μόνο ρητά και μόνο ό,τι περνά τον έλεγχο** (αλλαγή 3/11/26, με απόφαση του ιδιοκτήτη· ως τότε
+  «τίποτα χωρίς άνθρωπο»): τα banners βαραίνουν τη σελίδα και το κείμενό τους χάνεται για το SEO. Χωρίς `--publish` η μαζική
+  απόδελτίωση ετοιμάζει πρόχειρα (λίστα εργασίας → «Για έγκριση» → «Δημοσίευση»). Με `--publish` δημοσιεύει και κρύβει ΜΟΝΟ
+  τα banners που πέρασαν τον έλεγχο (κάλυψη, ανάλυση)· τα υπόλοιπα μένουν εικόνα «για έλεγχο». Προϊόν χωρίς καμία ενότητα δεν
+  δημοσιεύεται (δεν κρύβονται banners χωρίς αντικατάσταση). `--unpublish` γυρίζει ό,τι δημοσιεύτηκε αυτόματα σε πρόχειρο.
 - **Ανάλυση:** banner κάτω από 700px πλάτος (`MIN_BANNER_W`) πάει «για έλεγχο» — χρειάζεται το πρωτότυπο. Η σελίδα δεν
   μεγεθύνει ποτέ φωτογραφία πέρα από το πραγματικό της πλάτος, και «hero» μόνο με φωτογραφία ≥ 640px.
 - **Εικονίδια:** έξυπνη περικοπή από τα pixels (`cropIcon`): φόντο γύρω του, ακολουθεί τα σχήματα ώστε να μην κόβεται,
@@ -70,9 +73,13 @@ npx tsx --conditions=react-server scripts/redesign-banners.ts --product <id> | -
 ## Μαζική αυτόματη απόδελτίωση — `lib/catalog/banner-batch.ts` · `scripts/extract-banners.ts`
 ```
 npx tsx --conditions=react-server scripts/extract-banners.ts --type "Τηλεοράσεις" --type "Κλιματιστικά Inverter" --concurrency 4 > /tmp/x.log
+npx tsx --conditions=react-server scripts/extract-banners.ts --estimate --all          # πόσα μένουν και πόσα πληρώνονται
 npx tsx --conditions=react-server scripts/extract-banners.ts --all
+npx tsx --conditions=react-server scripts/extract-banners.ts --all --publish           # ενότητες στη σελίδα αντί για banners
+npx tsx --conditions=react-server scripts/extract-banners.ts --publish-drafts          # έτοιμα αυτόματα πρόχειρα → σελίδα, χωρίς κόστος
 npx tsx --conditions=react-server scripts/extract-banners.ts --undo [--type …]
 ```
+- Κόστος (3/11/26, Πλυντήρια): ~$0,014 ανά προϊόν (ανάλυση + σχεδιασμός), ~8 s ανά προϊόν με `--concurrency 3`.
 - Ίδιο banner σε άλλο προϊόν (ίδιο phash) → επαναχρησιμοποίηση της ανάλυσης (38.023 banners, 23.170 μοναδικά)· ίδιες
   περικοπές → ίδιο αρχείο (`banner-sections/<hash>.webp`).
 - Έλεγχος κάλυψης (`banner-quality.ts`): τα πλαίσια πρέπει να καλύπτουν ≥ 80 % του «μελανιού» του banner· αλλιώς το banner
