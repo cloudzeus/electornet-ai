@@ -7,6 +7,7 @@
  *   npm run photos:fill -- --only 158512            # ένα προϊόν (κωδικός / MTRL / id)
  *   npm run photos:fill -- --web 10                 # ώς 10 προϊόντα ψάχνουν στο internet (~$0,01 το καθένα)
  *   npm run photos:fill -- --limit 20 --web 10 --apply   # ΑΠΟΘΗΚΕΥΣΗ (Bunny + προϊόν)
+ *   npm run photos:fill -- --hidden --web 10        # είδη με «Εξαίρεση Web» που έχουν τιμή ΚΑΙ απόθεμα (έτοιμα αν ανοίξουν)
  *
  * Η αλυσίδα υπάρχει ολόκληρη και δεν ξαναγράφεται εδώ:
  *  - `enrichProduct` (lib/catalog/enrich-run.ts) ψάχνει και αφήνει προτάσεις εικόνων στο `EnrichSuggestion`·
@@ -33,6 +34,8 @@ const apply = flag("apply");
 const limit = num("limit", Infinity);
 const webLimit = num("web", 0);
 const only = value("only");
+/** «Εξαίρεση Web» στο SoftOne (active=false) αλλά με τιμή και απόθεμα: φωτογραφίες από πριν, για όταν ανοίξουν */
+const hidden = flag("hidden");
 const MAX_IMAGE = 25 * 1024 * 1024;
 /** πόσες προτάσεις κατεβάζουμε για έλεγχο ανά προϊόν (οι πρώτες φτάνουν — θέλουμε 6) */
 const PROBE_PER_PRODUCT = 10;
@@ -41,11 +44,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const label = (s: string) => SUGGEST_SOURCE_LABEL[s] ?? s;
 
-/** Ενεργά προϊόντα του SoftOne χωρίς καμία ορατή φωτογραφία (τα σετ παίρνουν εικόνες από το κύριο είδος). */
+/** Ενεργά προϊόντα του SoftOne (ή με --hidden τα κρυφά με τιμή και απόθεμα) χωρίς καμία ορατή φωτογραφία (τα σετ παίρνουν εικόνες από το κύριο είδος). */
 async function candidates() {
   const where = only
     ? { OR: [{ id: only }, { erpCode: only }, { sku: only }] }
-    : { source: "softone", active: true, kind: "item", media: { none: { kind: "image", hidden: false } } };
+    : hidden
+      ? { source: "softone", active: false, kind: "item", price: { gt: 0 }, stock: { gt: 0 }, media: { none: { kind: "image", hidden: false } } }
+      : { source: "softone", active: true, kind: "item", media: { none: { kind: "image", hidden: false } } };
   const rows = await db.product.findMany({
     where, orderBy: { sku: "asc" },
     select: { id: true, sku: true, erpCode: true, title: true, kind: true, publishReady: true, publishMissing: true, category: { select: { name: true } } },
@@ -97,7 +102,7 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
   const onlyPhotoMissing = list.filter((p) => !p.publishReady && p.publishMissing.length === 1 && p.publishMissing[0] === "photo").length;
   const pool = list.slice(0, Number.isFinite(limit) ? limit : list.length);
   console.log([
-    `${apply ? "ΑΠΟΘΗΚΕΥΣΗ" : "ΔΟΚΙΜΗ (χωρίς κανένα ανέβασμα)"} — ${list.length} ενεργά προϊόντα του SoftOne χωρίς καμία φωτογραφία.`,
+    `${apply ? "ΑΠΟΘΗΚΕΥΣΗ" : "ΔΟΚΙΜΗ (χωρίς κανένα ανέβασμα)"} — ${list.length} ${hidden ? "κρυφά (Εξαίρεση Web) με τιμή και απόθεμα" : "ενεργά"} προϊόντα του SoftOne χωρίς καμία φωτογραφία.`,
     `  Από αυτά, ${onlyPhotoMissing} μένουν έξω από τη βιτρίνα ΜΟΝΟ γι' αυτόν τον λόγο.`,
     `  Εξετάζονται ${pool.length}· αναζήτηση στο internet σε ώς ${webLimit} (όριο --web).`,
   ].join("\n"));

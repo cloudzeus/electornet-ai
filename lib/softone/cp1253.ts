@@ -1,0 +1,32 @@
+import iconv from "iconv-lite";
+
+/**
+ * Το SoftOne αποθηκεύει κείμενο σε Windows-1253. Ό,τι δεν υπάρχει εκεί αλλάζει σιωπηλά στην εγγραφή — π.χ. το «‑»
+ * (non-breaking hyphen, U+2011) του «USB‑C» γίνεται «-» — και η επαλήθευση μετά την εγγραφή έβλεπε διαφορά, ενώ το
+ * κείμενο είχε γραφτεί. Εδώ οι γνωστοί «τυπογραφικοί» χαρακτήρες παίρνουν από πριν την ισοδύναμη μορφή τους.
+ */
+const MAP: [RegExp, string][] = [
+  [/[‐‑‒−⁃]/g, "-"], // παύλες / μείον → ενωτικό (τα – — υπάρχουν στο 1253)
+  [/―/g, "—"],
+  [/[ -    　]/g, " "], // στενά / σταθερά κενά (το NBSP U+00A0 υπάρχει)
+  [/[​-‍⁠﻿­]/g, ""], // αόρατοι χαρακτήρες, soft hyphen
+  [/[′ʹ]/g, "'"],
+  [/[″ʺ]/g, '"'],
+  [/‛/g, "‘"],
+  [/[‟⹂]/g, "“"],
+  [/⁄/g, "/"],
+];
+
+/** Το κείμενο όπως θα το αποθηκεύσει το SoftOne (για ό,τι γνωρίζουμε). */
+export function toCp1253(s: string): string {
+  let t = s.normalize("NFC");
+  for (const [re, to] of MAP) t = t.replace(re, to);
+  return t;
+}
+
+/** Χαρακτήρες που ΔΕΝ γράφονται στο SoftOne ούτε μετά το `toCp1253` (π.χ. emoji, κινέζικα) — μοναδικοί, με τη σειρά τους. */
+export function unsupportedCp1253(s: string): string[] {
+  const out = new Set<string>();
+  for (const ch of toCp1253(s)) if (iconv.decode(iconv.encode(ch, "win1253"), "win1253") !== ch) out.add(ch);
+  return [...out];
+}

@@ -126,8 +126,9 @@ export async function saveProductFields(productId: string, changes: import("@/li
   const w = await writeItem(mtrl, changes);
   const labels = (keys: string[]) => keys.map((k) => ITEM_FIELDS[k as keyof typeof ITEM_FIELDS]?.label ?? k).join(", ");
   await audit(user.id, w.ok ? "catalog.product.s1-write" : "catalog.product.s1-write-failed", "Product", productId, Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v?.from])), { mtrl, to: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v?.to])), written: w.written, conflicts: w.conflicts, mismatches: w.mismatches, error: w.error });
-  // Ό,τι γράφτηκε (έστω και μέρος) περνά αμέσως στο e-shop
-  if (w.written.length) {
+  // Ό,τι γράφτηκε (έστω και μέρος, ή με διαφορά στην επαλήθευση) περνά αμέσως στο e-shop — αλλιώς η καρτέλα θα
+  // κρατούσε την παλιά τιμή ως «αυτό που είδες» και η επόμενη αποθήκευση θα έβγαινε ψεύτικη σύγκρουση
+  if (w.written.length || w.stored) {
     const { syncItem } = await import("@/lib/softone/catalog");
     const { projectItem } = await import("@/lib/softone/project");
     await syncItem(mtrl, "manual");

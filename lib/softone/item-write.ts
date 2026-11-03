@@ -3,6 +3,7 @@ import { s1, getS1Config } from "@/lib/softone";
 import { getTable } from "@/lib/softone/lookups";
 import { getSetting } from "@/lib/settings/store";
 import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/softone/web-price-core";
+import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
 
 /**
  * Εγγραφή στοιχείων ενός είδους στο SoftOne από την καρτέλα προϊόντος — με την επίσημη υπηρεσία setData (ITEM, EditMaster:
@@ -39,12 +40,13 @@ export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: K
 export type ItemValue = string | number | boolean | null;
 export type ItemChanges = Partial<Record<ItemField, { from: ItemValue; to: ItemValue }>>;
 
-/** Σύγκριση «ίδιας τιμής»: CRLF ↔ LF, κενά στις άκρες, 0 ↔ κενό για αριθμούς, 1/0 ↔ ναι/όχι. */
+/** Σύγκριση «ίδιας τιμής»: CRLF ↔ LF, κενά στις άκρες, 0 ↔ κενό για αριθμούς, 1/0 ↔ ναι/όχι, και το κείμενο όπως το
+ *  αποθηκεύει το SoftOne (Windows-1253: «USB‑C» με U+2011 = «USB-C»). */
 export function norm(kind: Kind, v: unknown): string {
   if (v == null || v === "") return kind === "bool" ? "0" : "";
   if (kind === "bool") return v === true || v === 1 || v === "1" || /^true$/i.test(String(v)) ? "1" : "0";
   if (kind === "int" || kind === "num") { const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n !== 0 ? String(Math.round(n * 1000) / 1000) : ""; }
-  return String(v).replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trim();
+  return toCp1253(String(v)).replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").trim();
 }
 
 /** Η τιμή όπως τη θέλει το SoftOne: οι γραμμές του memo με CRLF, όπως είναι γραμμένα τα υπόλοιπα είδη. */
@@ -77,6 +79,8 @@ export interface WriteResult {
   conflicts: { field: ItemField; saw: string; now: string }[];
   /** το SoftOne είπε «success» αλλά η τιμή που διαβάστηκε μετά δεν είναι αυτή που στείλαμε */
   mismatches: { field: ItemField; sent: string; got: string }[];
+  /** το setData πέρασε: κάτι άλλαξε στο SoftOne, ακόμη κι αν η επαλήθευση βρήκε διαφορά */
+  stored?: boolean;
   error?: string;
 }
 
@@ -89,6 +93,9 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
     if (f.max && v.length > f.max) return { ...empty, ok: false, error: `«${f.label}»: έως ${f.max} χαρακτήρες (τώρα ${v.length}).` };
     if ((f.kind === "int" || f.kind === "num") && v && !Number.isFinite(Number(v))) return { ...empty, ok: false, error: `«${f.label}»: δεν είναι αριθμός.` };
     if (k === "name" && !v) return { ...empty, ok: false, error: "Το όνομα δεν μπορεί να είναι κενό." };
+    // emoji κ.λπ. δεν χωρούν στο Windows-1253 του SoftOne: θα γράφονταν αλλοιωμένα — σταματάμε πριν την εγγραφή
+    const bad = f.kind === "text" || f.kind === "memo" ? unsupportedCp1253(v) : [];
+    if (bad.length) return { ...empty, ok: false, error: `«${f.label}»: το SoftOne δεν αποθηκεύει τους χαρακτήρες ${bad.slice(0, 6).map((c) => `«${c}»`).join(" ")} — αφαίρεσέ τους και ξαναδοκίμασε.` };
   }
 
   // 1. σύγκρουση
@@ -107,7 +114,7 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
   const after = await readFields(mtrl, keys);
   const mismatches = keys.filter((k) => !after || norm(ITEM_FIELDS[k].kind, after[k]) !== norm(ITEM_FIELDS[k].kind, changes[k]!.to))
     .map((k) => ({ field: k, sent: norm(ITEM_FIELDS[k].kind, changes[k]!.to), got: after ? norm(ITEM_FIELDS[k].kind, after[k]) : "—" }));
-  return { ok: !mismatches.length, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
+  return { ok: !mismatches.length, stored: true, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
 
 /** Ξεχωριστός διακόπτης για την τιμή web: η εγγραφή ITEEXTRA δεν έχει δοκιμαστεί σε πραγματικό είδος — ανοίγει μόνο με S1_WEB_PRICE_WRITE=1. */

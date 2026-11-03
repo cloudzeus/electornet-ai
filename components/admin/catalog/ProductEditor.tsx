@@ -87,9 +87,11 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
     ];
     setResult({ ok: r.ok, text: r.message, details });
     setConfirm(false);
-    if (r.written?.length) {
-      const written = new Set(r.written);
-      setBase((b) => Object.fromEntries((Object.keys(b) as ItemField[]).map((k) => [k, written.has(k) ? v[k] : b[k]])) as EditorValues);
+    // βάση = ό,τι έχει πλέον το SoftOne: τα γραμμένα πεδία, και όσα γράφτηκαν διαφορετικά από ό,τι στάλθηκε
+    const got = new Map("mismatches" in r && r.mismatches ? r.mismatches.map((m) => [m.field, m.got] as const) : []);
+    if (r.written?.length || got.size) {
+      const written = new Set(r.written ?? []);
+      setBase((b) => Object.fromEntries((Object.keys(b) as ItemField[]).map((k) => [k, written.has(k) ? v[k] : got.has(k) ? got.get(k)! : b[k]])) as EditorValues);
       router.refresh();
     }
   });
