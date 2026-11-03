@@ -5,6 +5,7 @@
  *   npm run dims:fill -- --limit 50                # μόνο τα 50 πρώτα
  *   npm run dims:fill -- --only 30491              # ένα προϊόν (κωδικός ERP / MTRL ή id προϊόντος)
  *   npm run dims:fill -- --web 20                  # ώς 20 προϊόντα ψάχνουν και στο internet (~$0,01 το καθένα)
+ *   npm run dims:fill -- --sellable --web 50       # μόνο όσα πουλιούνται τώρα (τιμή και απόθεμα)
  *   npm run dims:fill -- --limit 50 --web 10 --apply   # ΕΓΓΡΑΦΗ στο SoftOne και στο e-shop
  *
  * Δύο πηγές, φθηνότερη πρώτα (βλ. lib/catalog/dim-fill-core.ts):
@@ -45,7 +46,7 @@ async function candidates() {
   const itemOf = new Map(items.map((i) => [String(i.mtrl), i]));
   const where = only
     ? { OR: [{ id: only }, { erpCode: only }, { sku: only }] }
-    : { source: "softone", active: true, kind: "item", erpCode: { in: [...itemOf.keys()] } };
+    : { source: "softone", active: true, kind: "item", erpCode: { in: [...itemOf.keys()] }, ...(flag("sellable") ? { price: { gt: 0 }, stock: { gt: 0 } } : {}) };
   const products = await db.product.findMany({ where, orderBy: { sku: "asc" }, select: { id: true, sku: true, erpCode: true, title: true, kind: true, category: { select: { name: true } } } });
   return products
     .map((p) => ({ ...p, item: itemOf.get(p.erpCode) ?? null }))
