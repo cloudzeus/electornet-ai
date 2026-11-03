@@ -28,10 +28,19 @@ test("μισές διαστάσεις: σημαίνεται ως μερικές 
 
 // ---------- όρια ----------
 
-test("διαστάσεις μέσα στα όρια 1–400 εκ.", () => {
+test("διαστάσεις μέσα στα όρια 0,3–400 εκ.", () => {
   assert.equal(checkDims({ w: 60, h: 85, d: 55 }, "Πλυντήρια ρούχων"), null);
-  assert.match(checkDims({ w: 0.4, h: 85, d: 55 }, "")!, /εκτός ορίων/);
+  assert.match(checkDims({ w: 0.2, h: 85, d: 55 }, "")!, /εκτός ορίων/);
+  assert.match(checkDims({ w: 0, h: 85, d: 55 }, "")!, /εκτός ορίων/);
+  assert.match(checkDims({ w: -5, h: 85, d: 55 }, "")!, /εκτός ορίων/);
   assert.match(checkDims({ w: 600, h: 85, d: 55 }, "")!, /εκτός ορίων/);
+});
+
+test("κινητό: πάχος 0,72 εκ. είναι σωστή τιμή, γράφεται", () => {
+  assert.equal(checkDims({ w: 7.1, h: 14.7, d: 0.72 }, "Κινητά τηλέφωνα"), null);
+  assert.equal(checkDims({ w: 7.8, h: 16.4, d: 0.75 }, "Κινητά τηλέφωνα"), null);
+  // tablet, πληκτρολόγιο, καλώδιο: λεπτά αντικείμενα περνούν κι αυτά
+  assert.equal(checkDims({ w: 17.8, h: 24.7, d: 0.61 }, "Tablets"), null);
 });
 
 test("διαστάσεις εκτός τυπικών ορίων του τύπου: θέλει μάτι", () => {
@@ -39,11 +48,23 @@ test("διαστάσεις εκτός τυπικών ορίων του τύπο�
   assert.match(checkDims({ w: 8, h: 6, d: 5 }, "Πλυντήρια ρούχων")!, /τυπικών ορίων/);
 });
 
-test("βάρος 0,01–300 κιλά", () => {
+test("αναλογίες που δεν βγάζουν νόημα: θέλει μάτι", () => {
+  assert.match(checkDims({ w: 200, h: 1, d: 1 }, "")!, /αναλογ/);
+  assert.equal(checkDims({ w: 100, h: 2, d: 2 }, ""), null, "50× είναι ακόμη λογικό (καλώδιο, ράγα)");
+});
+
+test("βάρος 0,002–300 κιλά", () => {
   assert.equal(checkWeight(68.5), null);
   assert.match(checkWeight(0)!, /εκτός ορίων/);
-  assert.match(checkWeight(0.005)!, /εκτός ορίων/);
+  assert.match(checkWeight(0.001)!, /εκτός ορίων/);
   assert.match(checkWeight(450)!, /εκτός ορίων/);
+});
+
+test("μικροαντικείμενο 2 γρ.: περνά μόνο αν ξέρουμε ότι είναι όντως μικρό", () => {
+  assert.equal(checkWeight(0.002, { w: 2.4, h: 3.2, d: 0.2 }), null, "κάρτα μνήμης 2 γρ.: λογικό");
+  // ποντίκι 11,3 εκ. που δηλώνει 2 γρ.: λάθος μονάδα στην περιγραφή
+  assert.match(checkWeight(0.002, { w: 6.2, h: 11.3, d: 3.8 })!, /απίθαν/);
+  assert.match(checkWeight(0.002)!, /απίθαν/, "χωρίς διαστάσεις δεν το στέλνουμε στο ERP αβασάνιστα");
 });
 
 // ---------- βάρος από τα χαρακτηριστικά ----------
@@ -53,6 +74,17 @@ test("βάρος: κιλά και γραμμάρια", () => {
   assert.equal(weightFromSpecs([{ key: "Καθαρό Βάρος (kg)", value: "29" }]), 29);
   assert.equal(weightFromSpecs([{ key: "Βάρος", value: "850 g" }]), 0.85);
   assert.equal(weightFromSpecs([{ key: "Βάρος προϊόντος", value: "1,5 κιλά" }]), 1.5);
+});
+
+test("βάρος: η γραμμή με διευκρίνιση σε παρένθεση μετράει κι αυτή — κρατάμε το μεγαλύτερο", () => {
+  // ποντίκι: «Βάρος: 1,8 g» είναι του δέκτη USB, το πραγματικό είναι το «με τις μπαταρίες»
+  assert.equal(weightFromSpecs([{ key: "Βάρος (με τις μπαταρίες)", value: "69,3 γρ" }, { key: "Βάρος", value: "1,8 g" }]), 0.069);
+  assert.equal(weightFromSpecs([{ key: "Βάρος χωρίς βάση", value: "12,4 kg" }]), 12.4);
+});
+
+test("βάρος: γραμμές που μιλούν για άλλο πράγμα δεν μετρούν", () => {
+  assert.equal(weightFromSpecs([{ key: "Βάρος μέσων δίσκου χαρτιού", value: "80 g" }]), null);
+  assert.equal(weightFromSpecs([{ key: "Μέγιστο βάρος φορτίου", value: "25 kg" }]), null);
 });
 
 test("βάρος: πρώτα η συσκευασία", () => {
@@ -141,6 +173,18 @@ test("παράλογες τιμές: δεν γράφονται, πάνε στη 
   assert.deepEqual(p.write, {});
   assert.equal(p.review.length, 2);
   assert.equal(p.needWeb, true);
+});
+
+test("κινητό: το λεπτό πάχος της περιγραφής φτάνει στο ERP", () => {
+  const p = planFill(row({ typeName: "Κινητά τηλέφωνα", title: "SAMSUNG GALAXY S25", dims: [d("s1-desc", 7.1, 14.7, 0.72)], specs: [{ key: "Βάρος", value: "162 g" }] }));
+  assert.deepEqual(p.write, { widthCm: 7.1, heightCm: 14.7, lengthCm: 0.72, weightKg: 0.162 });
+  assert.deepEqual(p.review, []);
+});
+
+test("ποντίκι 2 γρ.: οι διαστάσεις γράφονται, το ύποπτο βάρος όχι", () => {
+  const p = planFill(row({ typeName: "Ποντίκια", dims: [d("s1-desc", 6.2, 11.3, 3.8)], specs: [{ key: "Βάρος", value: "2 g" }] }));
+  assert.deepEqual(p.write, { widthCm: 6.2, heightCm: 11.3, lengthCm: 3.8 });
+  assert.match(p.review.join(" "), /απίθαν/);
 });
 
 test("σετ: ποτέ", () => {

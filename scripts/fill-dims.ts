@@ -33,6 +33,7 @@ const only = value("only");
 const PAUSE_MS = 150;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const blank = (v: number | null) => !v || v <= 0;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const cm = (p: FillPlan) => `${p.write.widthCm} × ${p.write.heightCm} × ${p.write.lengthCm} εκ.`;
 
 /** Τα προϊόντα που τους λείπει έστω ένα από βάρος / πλάτος / ύψος / μήκος — ενεργά, από το SoftOne, χωρίς τα σετ. */
@@ -100,12 +101,14 @@ async function write(p: FillPlan): Promise<{ ok: boolean; message: string }> {
 
 (async () => {
   const list = await candidates();
-  const first = await rows(list.slice(0, Number.isFinite(limit) ? limit * 3 : list.length), DESC_SOURCES);
+  // το --limit είναι όριο ΕΞΕΤΑΣΗΣ: ό,τι αναφέρεται (και προς εγγραφή και προς έλεγχο) αφορά αυτά τα προϊόντα
+  const pool = list.slice(0, Number.isFinite(limit) ? limit : list.length);
+  const first = await rows(pool, DESC_SOURCES);
   const plans = new Map<string, FillPlan>();
   for (const r of first) plans.set(r.productId, planFill(r));
   const usable = [...plans.values()].filter((p) => !p.skip);
-  const todo = usable.filter((p) => Object.keys(p.write).length).slice(0, limit);
-  console.log(`${apply ? "ΕΓΓΡΑΦΗ" : "ΔΟΚΙΜΗ (χωρίς εγγραφή)"} — ${list.length} προϊόντα με κενή διάσταση ή βάρος· ${todo.length} συμπληρώνονται από όσα έχουμε ήδη.`);
+  const todo = usable.filter((p) => Object.keys(p.write).length);
+  console.log(`${apply ? "ΕΓΓΡΑΦΗ" : "ΔΟΚΙΜΗ (χωρίς εγγραφή)"} — ${list.length} προϊόντα με κενή διάσταση ή βάρος· εξετάζονται ${pool.length}· ${todo.length} έχουν τιμή από όσα έχουμε ήδη.`);
 
   // internet μόνο για όσα μένουν κενά, μέχρι το όριο
   const web = webTargets(usable, webLimit);
@@ -119,21 +122,25 @@ async function write(p: FillPlan): Promise<{ ok: boolean; message: string }> {
       const [after] = await rows(list.filter((x) => x.id === p.productId), WEB_SOURCES);
       if (!after) continue;
       const next = planFill(after, { web: true });
-      if (Object.keys(next.write).length) { plans.set(p.productId, next); fromWeb++; if (!todo.some((t) => t.productId === p.productId)) todo.push(next); }
-      else plans.set(p.productId, next);
+      plans.set(p.productId, next);
+      if (next.source === "web") fromWeb++;
       await sleep(PAUSE_MS);
     }
   }
 
-  const final = todo.map((p) => plans.get(p.productId) ?? p).filter((p) => Object.keys(p.write).length);
+  const final = [...plans.values()].filter((p) => !p.skip && Object.keys(p.write).length);
+  if (final.length) console.log(`\nΤιμές για ${apply ? "εγγραφή" : "εγγραφή (δεν γράφονται τώρα)"} — ${final.length}:`);
   for (const p of final.slice(0, apply ? 0 : 40)) {
     const bits = [p.write.widthCm != null ? cm(p) : null, p.write.weightKg != null ? `${p.write.weightKg.toLocaleString("el-GR")} κιλά` : null].filter(Boolean);
     console.log(`  ${p.source === "web" ? "internet" : "περιγραφή"} · ${p.title}: ${bits.join(" · ")}`);
   }
   const review = [...plans.values()].filter((p) => p.review.length);
+  // ένα προϊόν μπορεί να είναι και στις δύο λίστες: π.χ. διαστάσεις εντάξει, βάρος ύποπτο
+  const onlyReview = review.filter((p) => !Object.keys(p.write).length);
   if (review.length) {
-    console.log(`\nΘέλει μάτι (δεν γράφεται τίποτα) — ${review.length}:`);
+    console.log(`\nΘέλει μάτι — τιμές που ΔΕΝ γράφονται, σε ${plural(review.length, "προϊόν", "προϊόντα")} (${onlyReview.length === 1 ? "1 από αυτά μένει" : `${onlyReview.length} από αυτά μένουν`} χωρίς καμία τιμή):`);
     for (const p of review.slice(0, 20)) console.log(`  ${p.title}: ${p.review.join(" · ")}`);
+    if (review.length > 20) console.log(`  … και άλλα ${review.length - 20}`);
   }
 
   let written = 0, failed = 0;
@@ -151,11 +158,13 @@ async function write(p: FillPlan): Promise<{ ok: boolean; message: string }> {
   }
 
   const desc = final.filter((p) => p.source !== "web").length;
+  const dimsN = final.filter((p) => p.write.widthCm != null).length, kgN = final.filter((p) => p.write.weightKg != null).length;
   console.log([
     "",
-    `Σύνοψη: ${final.length} προϊόντα με τιμές για συμπλήρωση — ${desc} από την περιγραφή, ${fromWeb} από το internet${webCost ? ` (κόστος $${webCost.toFixed(3)})` : ""}.`,
-    `Θέλει μάτι: ${review.length}.`,
-    apply ? `Γράφτηκαν: ${written}, απέτυχαν: ${failed}.` : "Δοκιμή — δεν γράφτηκε τίποτα. Με --apply γίνεται η εγγραφή.",
+    `Σύνοψη — εξετάστηκαν ${pool.length} από τα ${list.length} προϊόντα με κενό:`,
+    `  ${apply ? "Γράφτηκαν" : "Θα γράφονταν"}: ${plural(final.length, "προϊόν", "προϊόντα")} (διαστάσεις σε ${dimsN}, βάρος σε ${kgN}) — ${desc} από την περιγραφή, ${fromWeb} από το internet${webCost ? ` (κόστος $${webCost.toFixed(3)})` : ""}.`,
+    `  Θέλει μάτι: ${plural(review.length, "προϊόν", "προϊόντα")} με τιμή που κόπηκε στους ελέγχους, από τα οποία ${onlyReview.length === 1 ? "1 μένει" : `${onlyReview.length} μένουν`} χωρίς καμία τιμή.`,
+    apply ? `  Αποτέλεσμα εγγραφής: ${written} πέτυχαν, ${failed} απέτυχαν.` : "  Δοκιμή — δεν γράφτηκε τίποτα. Με --apply γίνεται η εγγραφή.",
   ].join("\n"));
   await db.$disconnect();
 })();
