@@ -6,14 +6,17 @@ export interface TimelineCheckpoint { code: string; text: string; at: string | n
 export interface TimelineStep { key: "created" | "picked" | "out" | "done"; label: string; state: "done" | "current" | "todo" | "problem" }
 export interface ShipmentTimeline {
   carrier: string; courier: string; voucher: string; status: string;
-  steps: TimelineStep[]; url: string;
+  /** σελίδα του courier για το voucher· null = ο courier δεν έχει δημόσια σελίδα (ASAP) */
+  steps: TimelineStep[]; url: string | null;
+  /** ζωντανή παρακολούθηση του οδηγού και εκτιμώμενη άφιξη (ASAP, από το webhook διαδρομής) */
+  liveUrl: string | null; eta: string | null;
   /** νεότερο πρώτο */
   checkpoints: TimelineCheckpoint[];
   createdAt: string; deliveredAt: string | null; checkedAt: string | null; error: string | null;
 }
 
-export const trackUrl = (carrier: string, voucher: string) =>
-  carrier === "elta" ? `https://www.elta-courier.gr/search?br=${encodeURIComponent(voucher)}` : `https://www.taxydromiki.com/track/${encodeURIComponent(voucher)}`;
+export const trackUrl = (carrier: string, voucher: string): string | null =>
+  carrier === "elta" ? `https://www.elta-courier.gr/search?br=${encodeURIComponent(voucher)}` : carrier === "asap" ? null : `https://www.taxydromiki.com/track/${encodeURIComponent(voucher)}`;
 
 export const STATUS_LABEL: Record<string, string> = {
   created: "Εκδόθηκε · περιμένει παραλαβή",

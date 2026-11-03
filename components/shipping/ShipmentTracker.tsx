@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, ExternalLink, FileCheck2, Home, PackageCheck, Truck } from "lucide-react";
+import { AlertTriangle, Check, Clock, ExternalLink, FileCheck2, Home, MapPin, PackageCheck, Truck } from "lucide-react";
 import { STATUS_LABEL, STATUS_TONE, type ShipmentTimeline, type TimelineStep, type Tone } from "@/lib/couriers/timeline-model";
 
 /**
@@ -19,6 +19,10 @@ export function fmtAt(at: string | null | undefined): string {
   return `${Number(m[3])}/${Number(m[2])}${m[4] ? ` ${m[4]}:${m[5]}` : ""}`;
 }
 
+const ETA_FMT = new Intl.DateTimeFormat("el-GR", { timeZone: "Europe/Athens", weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+/** Εκτιμώμενη άφιξη (ISO με ζώνη) σε ώρα Ελλάδας: «Τετ 4/11, 14:30» */
+export const fmtEta = (iso: string) => ETA_FMT.format(new Date(iso));
+
 export function StatusBadge({ status, className = "" }: { status: string; className?: string }) {
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] whitespace-nowrap ${TONE_CLS[STATUS_TONE[status] ?? "neutral"]} ${className}`}>{STATUS_LABEL[status] ?? status}</span>;
 }
@@ -32,8 +36,15 @@ export function ShipmentTracker({ t, audience = "customer", historyOpen = false 
         <span className="inline-flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-14)]"><Truck className="size-4 text-eu-blue" aria-hidden />{t.courier}</span>
         <span className="font-mono tabular-nums text-eu-ink-2 text-[length:var(--fs-13)] select-all">{t.voucher}</span>
         <StatusBadge status={t.status} />
-        <a href={t.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline min-h-11 md:min-h-0">Στο site του courier <ExternalLink className="size-3.5" aria-hidden /></a>
+        {t.url && <a href={t.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline min-h-11 md:min-h-0">Στο site του courier <ExternalLink className="size-3.5" aria-hidden /></a>}
       </div>
+
+      {(t.liveUrl || t.eta) && (
+        <div data-help="live-tracking" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-eu-chip px-3 py-2">
+          {t.eta && <span className="inline-flex items-center gap-1.5 text-eu-ink text-[length:var(--fs-14)]"><Clock className="size-4 text-eu-blue shrink-0" aria-hidden />Εκτιμώμενη άφιξη <b className="tabular-nums">{fmtEta(t.eta)}</b></span>}
+          {t.liveUrl && <a href={t.liveUrl} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-eu-navy px-3 min-h-11 text-white font-bold text-[length:var(--fs-14)] hover:bg-eu-blue max-sm:w-full"><MapPin className="size-4" aria-hidden />{audience === "customer" ? "Δες πού είναι ο οδηγός" : "Ζωντανή παρακολούθηση"}<ExternalLink className="size-3.5" aria-hidden /></a>}
+        </div>
+      )}
 
       {!cancelled && (
         <ol className="m-0 p-0 list-none grid grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.12fr)] gap-x-1" aria-label="Στάδια">

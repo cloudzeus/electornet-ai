@@ -1813,6 +1813,10 @@ model Shipment {
   /// Τελευταίο σημείο της διαδρομής (κωδικός, περιγραφή, ημερομηνία, κατάστημα)
   lastCheckpoint Json?
   trackedAt      DateTime?
+  /// Σύνδεσμος ζωντανής παρακολούθησης για τον πελάτη (ASAP: client_portal_url από το webhook διαδρομής)
+  liveUrl        String?
+  /// Εκτιμώμενη ώρα άφιξης από τον courier (ASAP: estimated_arrival_time)
+  eta            DateTime?
   error          String?   @db.Text
   createdById    String?
   createdAt      DateTime  @default(now())

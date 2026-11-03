@@ -62,6 +62,6 @@ export async function pingCourierAction(carrier: "geniki" | "elta" | "asap") {
 /** Η διαδρομή ενός voucher για το widget παρακολούθησης (ζωντανά από τον courier· fresh = χωρίς κρυφή μνήμη). */
 export async function voucherTimelineAction(id: string, fresh = false) {
   await requirePermission("orders.read");
-  const sh = await db.shipment.findUnique({ where: { id }, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true } });
+  const sh = await db.shipment.findUnique({ where: { id }, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true, liveUrl: true, eta: true } });
   return sh ? shipmentTimeline(sh, { fresh }) : null;
 }

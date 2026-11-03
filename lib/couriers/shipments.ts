@@ -6,6 +6,7 @@ import { genikiCancel, genikiClose, genikiConfig, genikiCreateVoucher, genikiLab
 import { e164, stateFromCheckpoint, zip5 } from "./geniki/soap";
 import { appendLabel, eltaCancel, eltaConfig, eltaCreateVoucher, eltaLabels, eltaTrack, EltaError } from "./elta/client";
 import { asapConfig, asapCreateShipment, asapLabels, asapTrack, AsapError } from "./asap/client";
+import type { AsapWebhookItem } from "./asap/webhook";
 import { carrierDef } from "@/lib/shipping/carriers";
 import { renderTemplate } from "@/lib/email/templates";
 import { emailCtx } from "@/lib/email/layout";
@@ -196,13 +197,9 @@ export async function trackShipments(limit = 100) {
     for (const s of due) {
       if (!s.voucher) continue;
       try {
-        const t = await trackOne(carrier, s.voucher);
-        const state = t.state ?? s.status;
-        await db.shipment.update({ where: { id: s.id }, data: { status: state, trackedAt: new Date(), lastCheckpoint: t.last ?? undefined, error: null, ...(s.status === "created" && state !== "created" ? { closedAt: new Date() } : {}), ...(state === "delivered" ? { deliveredAt: t.deliveredAt ? new Date(t.deliveredAt) : new Date() } : {}) } });
-        if (s.status === "created" && state !== "created") { shipped.push(s.orderId); await db.order.updateMany({ where: { id: s.orderId, status: { in: ["paid", "processing", "pending"] } }, data: { status: "shipped" } }); }
-        if (state === "delivered") await db.order.updateMany({ where: { id: s.orderId, status: { not: "delivered" } }, data: { status: "delivered" } });
-        if (state === "returned") await db.order.updateMany({ where: { id: s.orderId }, data: { status: "returned" } });
-        if (state !== s.status) updated++;
+        const r = await applyTrack(s, await trackOne(carrier, s.voucher));
+        if (r.shipped) shipped.push(s.orderId);
+        if (r.changed) updated++;
       } catch (e) {
         await db.shipment.update({ where: { id: s.id }, data: { trackedAt: new Date(), error: e instanceof Error ? e.message.slice(0, 300) : "tracking failed" } });
       }
@@ -210,6 +207,48 @@ export async function trackShipments(limit = 100) {
     if (shipped.length && env === "live") await notifyShipped(shipped).catch(() => null);
   }
   return { checked, updated };
+}
+
+/**
+ * Νέα κατάσταση από τον courier → αποστολή και παραγγελία. Πρώτη κίνηση μετά το «created» = έφυγε («shipped», το email
+ * το στέλνει ο καλών)· παράδοση → «delivered»· επιστροφή → «returned». Κοινό για cron και webhook.
+ */
+async function applyTrack(s: { id: string; orderId: string; status: string }, t: VoucherTrack) {
+  const state = t.state ?? s.status;
+  const shipped = s.status === "created" && state !== "created";
+  await db.shipment.update({ where: { id: s.id }, data: { status: state, trackedAt: new Date(), lastCheckpoint: t.last ?? undefined, error: null, ...(shipped ? { closedAt: new Date() } : {}), ...(state === "delivered" ? { deliveredAt: t.deliveredAt ? new Date(t.deliveredAt) : new Date(), eta: null } : {}) } });
+  if (shipped) await db.order.updateMany({ where: { id: s.orderId, status: { in: ["paid", "processing", "pending"] } }, data: { status: "shipped" } });
+  if (state === "delivered") await db.order.updateMany({ where: { id: s.orderId, status: { not: "delivered" } }, data: { status: "delivered" } });
+  if (state === "returned") await db.order.updateMany({ where: { id: s.orderId }, data: { status: "returned" } });
+  return { shipped, changed: state !== s.status };
+}
+
+/**
+ * Webhook ASAP (LastMily). Διαδρομή → σύνδεσμος ζωντανής παρακολούθησης + εκτιμώμενη άφιξη στην αποστολή. Αλλαγή
+ * κατάστασης → το περιεχόμενο ΔΕΝ το εμπιστευόμαστε: ξαναρωτάμε το API για το voucher (όπως στο cron), απλώς αμέσως.
+ */
+export async function asapWebhook(items: AsapWebhookItem[]) {
+  let matched = 0;
+  const shipped: string[] = [];
+  const refreshed = new Set<string>();
+  for (const it of items) {
+    const rows = await db.shipment.findMany({ where: { carrier: "asap", status: { not: "cancelled" }, OR: [{ voucher: { in: it.barcodes } }, { subVouchers: { hasSome: it.barcodes } }] }, select: { id: true, orderId: true, status: true, voucher: true, env: true } });
+    matched += rows.length;
+    for (const s of rows) {
+      if (it.kind === "route") {
+        await db.shipment.update({ where: { id: s.id }, data: { liveUrl: it.liveUrl, ...(it.eta && s.status !== "delivered" ? { eta: it.eta } : {}) } });
+        continue;
+      }
+      if (!s.voucher || refreshed.has(s.id)) continue;
+      refreshed.add(s.id);
+      try {
+        const r = await applyTrack(s, await trackOne("asap", s.voucher));
+        if (r.shipped && s.env === "live") shipped.push(s.orderId);
+      } catch { /* το cron θα το ξαναδοκιμάσει */ }
+    }
+  }
+  if (shipped.length) await notifyShipped(shipped).catch(() => null);
+  return { items: items.length, matched };
 }
 
 export type Checkpoint = { code: string; text: string; at: string | null; shop: string | null };

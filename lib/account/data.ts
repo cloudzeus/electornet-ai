@@ -40,7 +40,7 @@ const PRODUCT = { select: { slug: true, brand: { select: { name: true } }, media
 const SHOP_ORDER = {
   payment: { select: { method: true, instalments: true, status: true } },
   lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { price: true, service: { select: { slug: true, title: true } } } }, variant: { select: { product: PRODUCT } } } },
-  shipments: { where: { status: { not: "cancelled" } }, orderBy: { createdAt: "desc" as const }, take: 1, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true } },
+  shipments: { where: { status: { not: "cancelled" } }, orderBy: { createdAt: "desc" as const }, take: 1, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true, liveUrl: true, eta: true } },
 } as const;
 type ShopOrderRow = NonNullable<Awaited<ReturnType<typeof db.order.findFirst<{ include: typeof SHOP_ORDER }>>>>;
 

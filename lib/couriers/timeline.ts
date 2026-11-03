@@ -12,7 +12,7 @@ export type { ShipmentTimeline } from "./timeline-model";
 const TTL = 10 * 60_000;
 const cache = new Map<string, { at: number; checkpoints: Checkpoint[]; state: string | null }>();
 
-export interface ShipmentRow { carrier: string; voucher: string | null; status: string; createdAt: Date; deliveredAt?: Date | null; lastCheckpoint?: unknown }
+export interface ShipmentRow { carrier: string; voucher: string | null; status: string; createdAt: Date; deliveredAt?: Date | null; lastCheckpoint?: unknown; liveUrl?: string | null; eta?: Date | null }
 
 export async function shipmentTimeline(sh: ShipmentRow, opts: { live?: boolean; fresh?: boolean } = {}): Promise<ShipmentTimeline | null> {
   if (!sh.voucher || !isVoucherCarrier(sh.carrier)) return null;
@@ -34,6 +34,8 @@ export async function shipmentTimeline(sh: ShipmentRow, opts: { live?: boolean; 
   return {
     carrier: sh.carrier, courier: COURIER_NAME[sh.carrier], voucher: sh.voucher, status,
     steps: stepsOf(status), url: trackUrl(sh.carrier, sh.voucher),
+    // ζωντανά μόνο όσο η αποστολή είναι καθ' οδόν
+    ...(["delivered", "returned", "cancelled"].includes(status) ? { liveUrl: null, eta: null } : { liveUrl: sh.liveUrl ?? null, eta: sh.eta?.toISOString() ?? null }),
     checkpoints: [...checkpoints].reverse(), createdAt: sh.createdAt.toISOString(), deliveredAt: sh.deliveredAt?.toISOString() ?? null,
     checkedAt: hit ? new Date(hit.at).toISOString() : null, error,
   };
