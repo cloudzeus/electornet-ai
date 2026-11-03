@@ -11,6 +11,21 @@ export const LEGAL_WARRANTY_MONTHS = 24;
 export const EXTENSION_MONTHS = 24;
 export const EXTENSION_SLUG = "epektasi-eggyisis";
 
+/** Η εγγύηση ενός προϊόντος όπως τη δείχνει η σελίδα: κατασκευαστή + δωρεάν επέκταση (0 = δεν ισχύει). */
+export interface WarrantyInfo { months: number; extMonths: number }
+
+const span = (m: number) => (m % 12 ? `${m} μήνες` : m === 12 ? "1 έτος" : `${m / 12} έτη`);
+
+/** «Εγγύηση 4 έτη» — μία διατύπωση για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις. */
+export function warrantyLabel(w: WarrantyInfo | undefined) {
+  return `Εγγύηση ${span((w?.months ?? LEGAL_WARRANTY_MONTHS) + (w?.extMonths ?? 0))}`;
+}
+/** «2 έτη κατασκευαστή + 2 έτη επέκταση από Euronics, χωρίς χρέωση» ή «2 έτη από τον κατασκευαστή». */
+export function warrantyDetail(w: WarrantyInfo | undefined) {
+  const m = w?.months ?? LEGAL_WARRANTY_MONTHS;
+  return w?.extMonths ? `${span(m)} κατασκευαστή + ${span(w.extMonths)} επέκταση από Euronics, χωρίς χρέωση` : `${span(m)} από τον κατασκευαστή, με την απόδειξη αγοράς`;
+}
+
 const WORD_YEARS: [RegExp, number][] = [[/διετ|δυο ετ|δύο ετ|2ετ/i, 2], [/τριετ|3ετ/i, 3], [/τετραετ|4ετ/i, 4], [/πενταετ|5ετ/i, 5]];
 
 /** Μήνες εγγύησης από ελεύθερο κείμενο («2 χρόνια», «24 μήνες», «5 Χρόνια Kenwood», «2 years», «Διετής»). */

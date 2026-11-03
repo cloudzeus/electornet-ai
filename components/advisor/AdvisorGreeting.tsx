@@ -29,14 +29,26 @@ export function AdvisorGreeting() {
       const raw = localStorage.getItem("euronics.session");
       if (raw) setTimeout(() => setName((JSON.parse(raw).name as string).split(" ")[0]), 0);
     } catch {}
-    const t = setTimeout(() => {
-      setShow(true);
-      try {
-        sessionStorage.setItem(KEY, "1");
-      } catch {}
-    }, advisor.greeting.delayMs);
-    const off = setTimeout(() => setShow(false), advisor.greeting.hideAfterMs);
+    // Όσο είναι ανοιχτό το banner των cookies, ο χαιρετισμός περιμένει: μαζί έκρυβαν την τιμή και τα κουμπιά αγοράς
+    let t: ReturnType<typeof setTimeout> | undefined;
+    let off: ReturnType<typeof setTimeout> | undefined;
+    const start = () => {
+      t = setTimeout(() => {
+        setShow(true);
+        try {
+          sessionStorage.setItem(KEY, "1");
+        } catch {}
+      }, advisor.greeting.delayMs);
+      off = setTimeout(() => setShow(false), advisor.greeting.hideAfterMs);
+    };
+    let consented = true;
+    try {
+      consented = !!localStorage.getItem("euronics.consent.v1");
+    } catch {}
+    if (consented) start();
+    else window.addEventListener("eu:consent", start, { once: true });
     return () => {
+      window.removeEventListener("eu:consent", start);
       clearTimeout(t);
       clearTimeout(off);
     };

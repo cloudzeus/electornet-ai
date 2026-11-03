@@ -7,7 +7,7 @@ import { ProductHeader } from "@/components/pdp/ProductHeader";
 import { SectionNav } from "@/components/pdp/SectionNav";
 import { Gallery } from "@/components/pdp/Gallery";
 import { BuyBox } from "@/components/pdp/BuyBox";
-import { EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS } from "@/lib/warranty/policy";
+import { EXTENSION_MONTHS, EXTENSION_SLUG, LEGAL_WARRANTY_MONTHS, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
 import { AdSlot } from "@/components/promo/AdSlot";
 import { SpecsTable } from "@/components/pdp/SpecsTable";
 import { CompareSimilar } from "@/components/pdp/CompareSimilar";
@@ -57,7 +57,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
  * choice, store stock and «Ολοκληρωμένη λύση» · sticky section nav ·
  * highlights · description · specs as a grouped grid · in-page comparison
  * with similar products · services & delivery with prices · reviews ·
- * Q&A · accessories · related · recently viewed. Text sizes ≥ 13px.
+ * questions (known answers + customers' Q&A, one section) · accessories ·
+ * related · recently viewed. Text sizes ≥ 13px.
+ * Phones: photo → buy box → AR / fit / energy tools, so the price is on the
+ * first screen. Warranty wording comes from one place (lib/warranty/policy).
  */
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -80,10 +83,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // η επέκταση εγγύησης δεν είναι επιλογή με χρέωση: δωρεάν και αυτόματα στα είδη με CCCWARRANTY (lib/warranty)
   const addons = services.filter((s) => s.addonAt?.includes("pdp") && s.slug !== "paradosi-egkatastasi" && s.slug !== EXTENSION_SLUG);
   const similar = related.filter((x) => x.subcategory === p.subcategory).slice(0, 3);
-  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), "answers", ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
+  const sections = ["overview", ...(p.description || p.sections?.length ? ["description"] : []), ...(p.videos?.length ? ["videos"] : []), ...(p.specs?.length ? ["specs"] : []), ...(similar.length ? ["compare"] : []), ...(p.noPrice ? [] : ["services"]), "reviews", "qa"];
   // Προϊόν της βάσης: οι διαστάσεις έχουν ήδη λυθεί (ERP → EPREL)· ο παλιός αναλυτής των specs είναι μόνο για τα demo προϊόντα
   const dims = p.fromDb ? p.dims ?? null : dimsFor(p);
-  const warranty = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
+  const warranty: WarrantyInfo = { months: maker?.months ?? LEGAL_WARRANTY_MONTHS, extMonths: extOk ? EXTENSION_MONTHS : 0 };
   // «Δες το στον χώρο σου»: μία απόφαση (arPlan) για το αν, με ποιες ελεγμένες διαστάσεις και σε ποια επιφάνεια —
   // ίδια με του server των μοντέλων. Με ρύθμιση από τη διαχείριση (/admin/ar) ισχύει εκείνη.
   const arP = arPlan(p, ar, arCats);
@@ -100,27 +103,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     <div className="eu-container">
       <AdvisorContext product={{ id: p.id, brand: p.brand, title: p.title, price: p.price, energy: p.energy?.cls, dims, fit: fitMattersFor(p), category: p.subcategory }} />
       <ProductHeader product={p} crumbs={crumbs} />
-      <article className="eu-canvas eu-gutter py-6 @lg:py-8">
-        <div className="grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_420px] @xl:grid-cols-[minmax(0,1fr)_460px] gap-6 @lg:gap-10 items-stretch">
-          <div className="min-w-0 grid gap-6 content-start">
-            <Gallery
-              productId={p.id}
-              images={p.images?.length ? p.images : p.image ? [p.image] : []}
-              title={p.title}
-              badge={p.badge}
-              energy={p.energy}
-              actions={
-                <>
-                  {arInput && <ArButton id={p.id} title={arInput.title} dims={arP.dims} tv={arP.tv} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arP.surface} alt={arP.alt} hint={arP.hint} buy={p.noPrice || !p.price ? undefined : { product: p, price: p.price }} />}
-                  <FitBadge product={p} size="lg" prompt />
-                  {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
-                </>
-              }
-            />
-            {p.stickers?.length ? <StickerRow stickers={p.stickers} idPrefix={`pdp-${p.id}`} /> : null}
-            <EnergyCost product={p} co2={co2} />
+      <article className="eu-canvas eu-gutter pt-4 pb-6 @md:py-6 @lg:py-8">
+        <div className="grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_420px] @xl:grid-cols-[minmax(0,1fr)_460px] gap-4 @md:gap-6 @lg:gap-10 items-stretch">
+          {/* Κινητό: η αριστερή στήλη «λύνεται» (contents) ώστε το buy box να μπει αμέσως μετά τη φωτογραφία */}
+          <div className="min-w-0 contents @lg:grid gap-6 content-start">
+            <div className="order-1 min-w-0">
+              <Gallery productId={p.id} images={p.images?.length ? p.images : p.image ? [p.image] : []} title={p.title} badge={p.badge} energy={p.energy} />
+            </div>
+            <div className="order-3 min-w-0 flex flex-wrap items-center gap-2 empty:hidden">
+              {arInput && <ArButton id={p.id} title={arInput.title} dims={arP.dims} tv={arP.tv} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arP.surface} alt={arP.alt} hint={arP.hint} buy={p.noPrice || !p.price ? undefined : { product: p, price: p.price }} />}
+              <FitBadge product={p} size="lg" prompt />
+              {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
+            </div>
+            {p.stickers?.length ? <div className="order-3 min-w-0"><StickerRow stickers={p.stickers} idPrefix={`pdp-${p.id}`} /></div> : null}
+            <div className="order-3 min-w-0 empty:hidden"><EnergyCost product={p} co2={co2} /></div>
             {p.tradeIn && (
-              <div className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">
+              <div className="order-3 rounded-xl bg-eu-surface p-4 flex items-center gap-3">
                 <Recycle className="size-8 text-eu-green shrink-0" aria-hidden />
                 <div className="text-[length:var(--fs-16)] text-eu-ink-2">
                   <strong className="text-eu-ink">Έχεις παλιά συσκευή;</strong> Την παραλαμβάνουμε δωρεάν για ανακύκλωση κατά την παράδοση — επίλεξέ το στο checkout.{" "}
@@ -131,7 +129,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
           </div>
-          <StickySidebar className="min-w-0">
+          <StickySidebar className="order-2 min-w-0">
             {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} warranty={warranty} />}
             <AdSlot slot="pdp-below-buybox" category={p.category} className="mt-4" />
           </StickySidebar>
@@ -142,16 +140,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <div className="eu-canvas eu-gutter py-8 @lg:py-10 grid grid-cols-1 gap-12 @lg:gap-16 [&>*]:min-w-0">
         <section id="overview" className="scroll-mt-24" aria-labelledby="ov-title">
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Με μια ματιά</div>
           <h2 id="ov-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
-            Γιατί να το επιλέξεις
+            Με μια ματιά
           </h2>
           {/* Οι κάρτες μοιράζονται όλο το διαθέσιμο πλάτος ανάλογα με το πλήθος τους: 1 → όλο, 2 → μισό-μισό, 3 → τρίτα, 4 → τέταρτα */}
           <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
-            {(p.highlights ?? (p.specs ?? []).slice(0, 4).map((s) => `${s.key}: ${s.value}`)).map((h, i) => (
-              <li key={h} className="rounded-xl border border-eu-line p-4 flex gap-3">
-                <span className="size-8 shrink-0 rounded-full bg-eu-yellow text-eu-navy font-extrabold inline-flex items-center justify-center text-[length:var(--fs-15)]">{i + 1}</span>
-                <span className="text-eu-ink text-[length:var(--fs-17)] leading-snug font-semibold">{h}</span>
+            {/* χωρίς αρίθμηση: είναι χαρακτηριστικά, όχι βήματα ή κατάταξη */}
+            {(p.highlights ?? (p.specs ?? []).slice(0, 4).map((s) => `${s.key}: ${s.value}`)).map((h) => (
+              <li key={h} className="rounded-xl bg-eu-surface p-4 text-eu-ink text-[length:var(--fs-17)] leading-snug font-semibold">
+                {h}
               </li>
             ))}
           </ul>
@@ -184,9 +181,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         {!!(p.description || p.sections?.length) && (
           <section id="description" className="scroll-mt-24 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_320px] gap-8" aria-labelledby="desc-title">
             <div>
-              <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Περιγραφή</div>
               <h2 id="desc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
-                {p.brand} {p.title}
+                Περιγραφή
               </h2>
               {p.fromDb ? <RichDescription text={p.description ?? ""} banners={p.banners} sections={p.sections} /> : <p className="m-0 text-eu-ink-2 text-[length:var(--fs-16)] leading-[1.75] max-w-[68ch]">{p.description}</p>}
               {p.sourceUrl && (
@@ -200,10 +196,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
             {/* Ακολουθεί την κύλιση: με τα banners η περιγραφή γίνεται ψηλή και η στήλη θα έμενε άδεια. Κάτω από το κολλητό μενού ενοτήτων. */}
             <aside className="rounded-xl bg-eu-navy text-white p-5 grid gap-3 self-start @lg:sticky @lg:top-[calc(var(--eu-header-h,0px)+4.5rem)]">
-              <div className="font-extrabold text-eu-yellow text-[length:var(--fs-14)] tracking-wide">Γιατί από Euronics</div>
-              {["Επίσημη εγγύηση αντιπροσωπείας 2 έτη", "Service με γνήσια ανταλλακτικά", "Παραλαβή σε 2 ώρες από 350 καταστήματα", "Δόσεις με ή χωρίς κάρτα έως 24 μήνες", "Επιστροφή μέσα σε 14 ημέρες"].map((t) => (
+              <div className="font-bold text-eu-yellow text-[length:var(--fs-16)]">Γιατί από Euronics</div>
+              {/* ίδια διατύπωση με το buy box και τις υπηρεσίες: η εγγύηση είναι αυτού του προϊόντος, όχι σταθερό κείμενο */}
+              {[warrantyLabel(warranty), "Service με γνήσια ανταλλακτικά", ...(p.noPrice ? [] : ["Δωρεάν παραλαβή από κατάστημα", "Δόσεις με ή χωρίς κάρτα έως 24 μήνες"]), "Επιστροφή μέσα σε 14 ημέρες"].map((t) => (
                 <div key={t} className="flex gap-2 text-[length:var(--fs-16)]">
-                  <span className="text-eu-yellow font-extrabold">✓</span> {t}
+                  <Check className="size-5 shrink-0 mt-0.5 text-eu-yellow" aria-hidden /> {t}
                 </div>
               ))}
             </aside>
@@ -211,19 +208,20 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         )}
 
         {p.videos?.length ? <ProductVideos title={`${p.brand} ${p.title}`} videos={p.videos} /> : null}
-        <Answers product={p} />
         {p.specs && p.specs.length > 0 && <SpecsTable specs={p.specs} energy={p.energy} />}
         <CompareSimilar product={p} similar={similar} />
-        {!p.noPrice && <ServicesDelivery product={p} services={services} />}
+        {!p.noPrice && <ServicesDelivery product={p} services={services} warranty={warranty} />}
         <Reviews product={p} />
-        <Questions product={p} />
+        <Answers product={p} warranty={warranty}>
+          <Questions product={p} />
+        </Answers>
 
         <CompactRail title="Ταιριάζει με αυτό το προϊόν" products={accessories} />
         {related.length > 0 && <ProductRail title="Σχετικά προϊόντα" products={related} />}
         <RecentlyViewed current={{ id: p.id, slug: p.slug, title: p.title, brand: p.brand, image: p.image, price: p.price }} />
       </div>
       <StickyBar product={p} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(p, crumbs)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(p, crumbs, warranty)) }} />
     </div>
   );
 }

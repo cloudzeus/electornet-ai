@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { Product } from "@/lib/data/types";
 import { attributesOf } from "@/lib/data/attributes";
 import { instalment, priceLong, weekday } from "@/lib/format";
+import { warrantyDetail, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
 
 /**
  * SEO · AEO · GEO per product.
@@ -24,6 +25,8 @@ export interface Crumb {
 export interface QA {
   q: string;
   a: string;
+  /** Η ερώτηση χωρίς το όνομα του προϊόντος, για τη σελίδα (ο τίτλος είναι ήδη από πάνω)· το `q` μένει για το FAQPage. */
+  label: string;
 }
 
 const availText = (p: Product) => {
@@ -38,36 +41,41 @@ const name = (p: Product) => `${p.brand} ${p.title}`;
 const lc = (k: string) => k.charAt(0).toLowerCase() + k.slice(1);
 
 /** GEO: one citable sentence with the entities a generative engine needs. */
-export function geoSummary(p: Product) {
+export function geoSummary(p: Product, w?: WarrantyInfo) {
   const attrs = topAttrs(p, 3).map((a) => `${lc(a.key)} ${a.value}`);
-  if (p.noPrice) return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}. Τιμή και διαθεσιμότητα στο κατάστημα Euronics της περιοχής σου, με επίσημη εγγύηση και παραλαβή από 350 καταστήματα.`;
-  return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}, ${priceLong(p.price)}${p.wasPrice ? ` (από ${priceLong(p.wasPrice)})` : ""}, ${availText(p)} από τη Euronics, με εγγύηση 2 ετών και παραλαβή από 350 καταστήματα.`;
+  if (p.noPrice) return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}. Τιμή και διαθεσιμότητα στο κατάστημα Euronics της περιοχής σου, με επίσημη εγγύηση και εξυπηρέτηση από 350 καταστήματα.`;
+  return `${name(p)}${attrs.length ? ` με ${attrs.join(", ")}` : ""}, ${priceLong(p.price)}${p.wasPrice ? ` (από ${priceLong(p.wasPrice)})` : ""}, ${availText(p)} από τη Euronics, ${warrantyLabel(w).toLocaleLowerCase("el-GR")}.`;
 }
 
 /** AEO: the questions people (and answer engines) actually ask about a product. */
-export function answersFor(p: Product): QA[] {
+export function answersFor(p: Product, w?: WarrantyInfo): QA[] {
   const attrs = topAttrs(p, 6);
   const hl = (p.highlights ?? []).slice(0, 3);
   const n = name(p);
   return [
     {
       q: `Για ποιον είναι το ${n};`,
+      label: "Για ποιον είναι;",
       a: hl.length ? `Το ${n} ταιριάζει σε όσους ζητούν ${hl.map((h) => h.replace(/\.$/, "").toLowerCase()).join(", ")}. ${attrs.length ? `Ξεχωρίζει για ${attrs.slice(0, 3).map((a) => `${lc(a.key)} ${a.value}`).join(", ")}.` : ""}` : `Το ${n} απευθύνεται σε όσους θέλουν ${attrs.slice(0, 3).map((a) => `${lc(a.key)} ${a.value}`).join(", ")}${p.rating ? `, με αξιολόγηση ${p.rating.value.toLocaleString("el-GR")}/5 από ${p.rating.count} αγοραστές` : ""}.`,
     },
     {
       q: `Πόσο κοστίζει το ${p.title} και με ποιες δόσεις;`,
+      label: "Πόσο κοστίζει και με ποιες δόσεις;",
       a: p.noPrice ? `Η τιμή του ${p.title} δίνεται από το κατάστημα Euronics της περιοχής σου, όπου θα βρεις και τις τρέχουσες προσφορές. Πληρώνεται σε δόσεις χωρίς κάρτα ή έως 24 άτοκες δόσεις με κάρτα.` : `Κοστίζει ${priceLong(p.price)} με ΦΠΑ 24%${p.wasPrice ? ` (προηγούμενη τιμή ${priceLong(p.wasPrice)})` : ""}${p.lowest30 ? `, χαμηλότερη τιμή 30 ημερών ${priceLong(p.lowest30)}` : ""}. Πληρώνεται σε 12 δόσεις των ${priceLong(instalment(p.price))} χωρίς κάρτα (Eurobank) ή έως 24 άτοκες δόσεις με κάρτα, ${priceLong(instalment(p.price, 24))} τον μήνα.`,
     },
     {
       q: `Πότε και πώς παραδίδεται το ${p.title};`,
+      label: "Πότε και πώς παραδίδεται;",
       a: p.noPrice ? `Η διαθεσιμότητα επιβεβαιώνεται από το κατάστημα Euronics της περιοχής σου, που αναλαμβάνει παράδοση στη διεύθυνσή σου, εγκατάσταση όπου χρειάζεται και παραλαβή της παλιάς συσκευής για ανακύκλωση.` : `Είναι ${availText(p)}. Παράδοση στη διεύθυνσή σου ${p.price >= 100 ? "δωρεάν" : "με 4,90 €"} σε 1–3 εργάσιμες, ή δωρεάν παραλαβή από κατάστημα Euronics σε 2 ώρες όπου υπάρχει απόθεμα${p.storeStock ? ` (${p.storeStock} καταστήματα σήμερα)` : ""}.${p.installation ? " Διατίθεται παράδοση με ραντεβού και εγκατάσταση από τεχνικό του καταστήματος, από 60 €." : ""}`,
     },
     {
       q: `Ποια εγγύηση και ποια πολιτική επιστροφής έχει;`,
-      a: `Επίσημη εγγύηση αντιπροσωπείας 2 ετών, με δυνατότητα επέκτασης έως 5 έτη από 19 €. Μπορείς να το επιστρέψεις μέσα σε 14 ημέρες χωρίς αιτιολογία, δωρεάν, σε οποιοδήποτε από τα 350 καταστήματα Euronics. Service με γνήσια ανταλλακτικά${p.isRenew ? ". Ως προϊόν Renew, είναι ελεγμένο και ανακατασκευασμένο με εγγύηση Euronics" : ""}.`,
+      label: "Ποια εγγύηση και επιστροφή έχει;",
+      a: `${warrantyLabel(w)}: ${warrantyDetail(w)}. Μπορείς να το επιστρέψεις μέσα σε 14 ημέρες χωρίς αιτιολογία, δωρεάν, σε οποιοδήποτε από τα 350 καταστήματα Euronics. Service με γνήσια ανταλλακτικά${p.isRenew ? ". Ως προϊόν Renew, είναι ελεγμένο και ανακατασκευασμένο με εγγύηση Euronics" : ""}.`,
     },
     {
       q: `Ποια είναι τα βασικά τεχνικά χαρακτηριστικά;`,
+      label: "Ποια είναι τα βασικά χαρακτηριστικά;",
       a: attrs.length ? `${attrs.map((a) => `${a.key}: ${a.value}`).join(" · ")}${p.energy ? ` · Ενεργειακή ετικέτα ΕΕ κλάσης ${p.energy.cls}` : ""}. Κωδικός ${p.sku}${p.ean ? `, EAN ${p.ean}` : ""}.` : `Κωδικός ${p.sku}${p.ean ? `, EAN ${p.ean}` : ""}. Τα πλήρη χαρακτηριστικά βρίσκονται στην ενότητα «Χαρακτηριστικά».`,
     },
   ];
@@ -90,7 +98,7 @@ export function productMetadata(p: Product, crumbs: Crumb[]): Metadata {
   };
 }
 
-export function productJsonLd(p: Product, crumbs: Crumb[]) {
+export function productJsonLd(p: Product, crumbs: Crumb[], w?: WarrantyInfo) {
   const url = `${SITE}/proion/${p.slug}`;
   const images = (p.images?.length ? p.images : p.image ? [p.image] : []).map((i) => (i.startsWith("http") ? i : `${SITE}${i}`));
   const a = p.availability;
@@ -109,7 +117,7 @@ export function productJsonLd(p: Product, crumbs: Crumb[]) {
         mpn: p.title.split(" ")[0],
         brand: { "@type": "Brand", name: p.brand },
         image: images,
-        description: geoSummary(p),
+        description: geoSummary(p, w),
         category: crumbs.filter((c) => c.href).map((c) => c.label).join(" > "),
         url,
         ...(p.rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: p.rating.value, reviewCount: p.rating.count, bestRating: 5 } } : {}),
@@ -142,7 +150,7 @@ export function productJsonLd(p: Product, crumbs: Crumb[]) {
       {
         "@type": "FAQPage",
         "@id": `${url}#faq`,
-        mainEntity: answersFor(p).map((x) => ({ "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } })),
+        mainEntity: answersFor(p, w).map((x) => ({ "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } })),
       },
       {
         "@type": "WebPage",
@@ -152,7 +160,7 @@ export function productJsonLd(p: Product, crumbs: Crumb[]) {
         inLanguage: "el-GR",
         isPartOf: { "@type": "WebSite", url: SITE, name: "Euronics" },
         primaryImageOfPage: images[0],
-        speakable: { "@type": "SpeakableSpecification", cssSelector: ["#geo-summary", "#answers"] },
+        speakable: { "@type": "SpeakableSpecification", cssSelector: ["#geo-summary", "#qa"] },
         mainEntity: { "@id": `${url}#product` },
       },
     ],
@@ -171,7 +179,7 @@ export function seoAudit(p: Product, crumbs: Crumb[]) {
     types: (ld["@graph"] as { "@type": string }[]).map((x) => x["@type"]),
     properties: attributesOf(p).length,
     answers: answersFor(p).length,
-    speakable: ["#geo-summary", "#answers"],
+    speakable: ["#geo-summary", "#qa"],
     omnibus: !!p.lowest30,
     energy: p.energy?.cls ?? null,
   };

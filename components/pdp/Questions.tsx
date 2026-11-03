@@ -6,14 +6,15 @@ import { copyOf } from "@/lib/cms/copy";
 
 const c = copyOf("questions");
 
+/** Οι ερωτήσεις των πελατών και η φόρμα, μέσα στην ενότητα «Ερωτήσεις» (`Answers`). */
 export function Questions({ product: p }: { product: Product }) {
   const [list, setList] = useState(p.questions ?? []);
   const [sent, setSent] = useState(false);
   return (
-    <section id="qa" className="scroll-mt-24" aria-labelledby="qa-title">
-      <h2 id="qa-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
-        {c.erotiseis_apantiseis}
-      </h2>
+    <div className="mt-6">
+      <h3 className="m-0 font-bold text-eu-ink text-[length:var(--fs-18)] mb-3">
+        {list.length ? "Ερωτήσεις πελατών" : "Δεν βρήκες την απάντηση;"}
+      </h3>
       {list.length > 0 && (
         <ul className="m-0 p-0 list-none grid gap-2 mb-4">
           {list.map((q) => (
@@ -46,6 +47,6 @@ export function Questions({ product: p }: { product: Product }) {
           </button>
         </form>
       )}
-    </section>
+    </div>
   );
 }

@@ -19,19 +19,22 @@ const c = copyOf("compareSimilar");
 export function CompareSimilar({ product: p, similar }: { product: Product; similar: Product[] }) {
   const all = [p, ...similar.slice(0, 3)];
   const tableW = sx({ minWidth: `${160 + all.length * 170}px` });
-  const attrs = new Map(all.map((x) => [x.id, attributesOf(x).filter((a) => !["Μάρκα", "Ενεργειακή κλάση"].includes(a.key))]));
+  // η ενεργειακή κλάση έχει δική της γραμμή· το «Κατηγορία ενεργειακής απόδοσης (Κανονισμός…)» του EPREL είναι το ίδιο ξανά.
+  // Κενές τιμές της πηγής («None», «-») γίνονται «—», για να μη φαίνονται ως διαφορά.
+  const blank = (v: string) => /^(none|null|n\/a|-+|—)$/i.test(v.trim());
+  const attrs = new Map(all.map((x) => [x.id, attributesOf(x).filter((a) => !["Μάρκα", "Ενεργειακή κλάση"].includes(a.key) && !/^κατηγορία ενεργειακής απόδοσης/i.test(a.key) && !blank(a.value))]));
   const shared = [...new Set(all.flatMap((x) => attrs.get(x.id)!.map((a) => a.key)))].filter((k) => all.filter((x) => attrs.get(x.id)!.some((a) => a.key === k)).length >= 2);
   // Πρώτα όσα έχει ΑΥΤΟ το προϊόν· γραμμές όπου το ίδιο δείχνει «—» μπαίνουν μόνο για να μη μείνει ο πίνακας σχεδόν άδειος
   const mine = shared.filter((k) => attrs.get(p.id)!.some((a) => a.key === k));
   const keys = [...mine, ...shared.filter((k) => !mine.includes(k)).slice(0, Math.max(0, 5 - mine.length))].slice(0, 10);
   const val = (x: Product, k: string) => attrs.get(x.id)!.find((a) => a.key === k)?.value ?? "—";
-  const differs = (k: string) => new Set(all.map((x) => val(x, k))).size > 1;
+  // «Ίδιο σε όλα» μόνο όταν όλα έχουν τιμή και είναι ίδια· οι γραμμές που διαφέρουν μένουν κανονικές, οι ίδιες σβήνουν
+  const same = (k: string) => all.every((x) => val(x, k) !== "—") && new Set(all.map((x) => val(x, k))).size === 1;
   if (similar.length === 0) return null;
   return (
     <section id="compare" className="scroll-mt-24" aria-labelledby="compare-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.sygkrisi}</div>
           <h2 id="compare-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight">
             {c.sygkrine_me_paromoia_proionta}
           </h2>
@@ -79,13 +82,13 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
               ))}
             </tr>}
             {keys.map((k) => (
-              <tr key={k} className={differs(k) ? "bg-eu-yellow/10" : ""}>
+              <tr key={k} className="border-t border-eu-line-2">
                 <th className="text-left p-3 font-bold text-eu-ink bg-eu-surface">
                   {k}
-                  {differs(k) && <span className="block text-eu-amber font-semibold text-[length:var(--fs-13-5)]">{c.diaferei}</span>}
+                  {same(k) && <span className="block text-eu-muted font-normal text-[length:var(--fs-13-5)]">ίδιο σε όλα</span>}
                 </th>
-                {all.map((x) => (
-                  <td key={x.id} className="p-3 text-eu-ink-2">
+                {all.map((x, i) => (
+                  <td key={x.id} className={`p-3 ${same(k) ? "text-eu-muted" : i === 0 ? "text-eu-ink font-semibold bg-eu-chip/40" : "text-eu-ink-2"}`}>
                     {val(x, k)}
                   </td>
                 ))}

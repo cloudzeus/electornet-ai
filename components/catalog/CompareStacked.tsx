@@ -2,20 +2,19 @@ import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
-import { copyOf } from "@/lib/cms/copy";
 
-const c = copyOf("compareStacked");
 
 const TONES = ["bg-eu-navy", "bg-eu-blue", "bg-eu-green", "bg-eu-amber"];
 
 /**
  * Comparison for narrow containers (phones, small tablets): no
  * horizontal scrolling. Products get a number and a colour; every
- * characteristic becomes a row with one cell per product. Differences
- * are tinted exactly like in the table.
+ * characteristic becomes a row with one cell per product. Like the
+ * table: rows where every product has the same value fade with «ίδιο σε
+ * όλα», so the eye lands on what actually differs.
  */
 export function CompareStacked({ products, rows, val, current }: { products: Product[]; rows: { group: string; keys: string[] }[]; val: (p: Product, k: string) => string; current?: string }) {
-  const differs = (k: string) => new Set(products.map((p) => val(p, k))).size > 1;
+  const sameBy = (get: (p: Product) => string) => products.every((p) => get(p) !== "—") && new Set(products.map(get)).size === 1;
   const cols = products.length <= 2 ? "grid-cols-2" : "grid-cols-2";
   const extra: { key: string; get: (p: Product) => string }[] = [
     { key: "Διαθεσιμότητα", get: (p) => (p.availability.kind === "in-stock" ? "Άμεσα διαθέσιμο" : p.availability.kind === "days" ? `Σε ${p.availability.min}–${p.availability.max} εργάσιμες` : "Κατόπιν παραγγελίας") },
@@ -43,23 +42,23 @@ export function CompareStacked({ products, rows, val, current }: { products: Pro
       </ul>
       {[{ group: "Γενικά", keys: extra.map((e) => e.key) }, ...rows].map((g, gi) => (
         <div key={`${g.group}-${gi}`} className="rounded-xl border border-eu-line overflow-hidden">
-          <div className="bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] tracking-wide px-3 py-2">{g.group}</div>
+          <div className="bg-eu-navy text-white font-bold text-[length:var(--fs-14)] px-3 py-2">{g.group}</div>
           <dl className="m-0 divide-y divide-eu-line-2">
             {g.keys.map((k) => {
               const ex = extra.find((e) => e.key === k);
               const get = ex ? ex.get : (p: Product) => val(p, k);
-              const d = ex ? new Set(products.map(get)).size > 1 : differs(k);
+              const same = sameBy(get);
               return (
-                <div key={k} className={`p-3 ${d ? "bg-eu-yellow/10" : ""}`}>
+                <div key={k} className={`p-3 ${same ? "text-eu-muted" : ""}`}>
                   <dt className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1.5">
                     {k}
-                    {d && <span className="ml-2 text-eu-amber font-semibold text-[length:var(--fs-13)]">{c.diaferei}</span>}
+                    {same && <span className="ml-2 text-eu-muted font-normal text-[length:var(--fs-13)]">ίδιο σε όλα</span>}
                   </dt>
                   <dd className={`m-0 grid ${cols} gap-x-3 gap-y-1`}>
                     {products.map((p, i) => (
                       <span key={p.id} className="flex items-start gap-1.5 text-[length:var(--fs-14)] text-eu-ink-2 min-w-0">
                         <span className={`size-4 mt-0.5 shrink-0 rounded-full text-white font-extrabold text-[10px] inline-flex items-center justify-center ${TONES[i % 4]}`}>{i + 1}</span>
-                        <span className="min-w-0 break-words">{get(p)}</span>
+                        <span className={`min-w-0 break-words ${same ? "text-eu-muted" : ""}`}>{get(p)}</span>
                       </span>
                     ))}
                   </dd>

@@ -44,7 +44,7 @@ export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFa
       <div className="relative">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div className="font-extrabold text-eu-yellow text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5">
+            <div className="font-bold text-eu-yellow text-[length:var(--fs-14)] inline-flex items-center gap-1.5">
               <Zap className="size-3.5" aria-hidden /> {c.reyma_se_eyro}
             </div>
             <h3

@@ -127,15 +127,16 @@ export function CompareTable({ initial }: { initial: Product[] }) {
               return (
                 <GroupRows key={`${g}-${gi}`} title={g} cols={initial.length + 1}>
                   {rows.map((k) => {
-                    const d = differs(k);
+                    // όπως στο CompareStacked: σβήνει ό,τι είναι ίδιο σε όλα, ώστε να ξεχωρίζουν οι διαφορές (όχι κίτρινο σε κάθε γραμμή)
+                    const same = !differs(k) && val(initial[0], k) !== "—";
                     return (
-                      <tr key={k} className={`border-b border-eu-line-2 ${d ? "bg-eu-yellow/10" : ""}`}>
+                      <tr key={k} className="border-b border-eu-line-2">
                         <th className={th}>
                           {k}
-                          {d && <span className="block text-eu-amber font-semibold text-[length:var(--fs-13)]">{c.diaferei}</span>}
+                          {same && <span className="block text-eu-muted font-normal text-[length:var(--fs-13)]">ίδιο σε όλα</span>}
                         </th>
                         {initial.map((p) => (
-                          <td key={p.id} className={`p-3 @md:p-4 ${val(p, k) === "—" ? "text-eu-muted-2" : "text-eu-ink-2"}`}>
+                          <td key={p.id} className={`p-3 @md:p-4 ${same || val(p, k) === "—" ? "text-eu-muted-2" : "text-eu-ink-2"}`}>
                             {val(p, k)}
                           </td>
                         ))}

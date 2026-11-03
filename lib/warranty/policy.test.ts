@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canExtend, canExtendAtAll, extensionPrice, normalizePricing, parseWarrantyMonths, warrantyFromSpecs } from "./policy";
+import { canExtend, canExtendAtAll, extensionPrice, normalizePricing, parseWarrantyMonths, warrantyDetail, warrantyFromSpecs, warrantyLabel } from "./policy";
 
 test("εγγύηση από ελεύθερο κείμενο του ERP", () => {
   assert.equal(parseWarrantyMonths("2 χρόνια"), 24);
@@ -54,4 +54,14 @@ test("τιμή επέκτασης: η πιο ειδική κατηγορία, μ
   assert.equal(extensionPrice(p, ["tileoraseis"], 900)?.price, 39);
   assert.equal(extensionPrice(p, ["tileoraseis"], null), null);
   assert.equal(extensionPrice({ ...p, enabled: false }, ["psygeia"], 180), null);
+});
+
+test("σελίδα προϊόντος: μία διατύπωση εγγύησης για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις", () => {
+  assert.equal(warrantyLabel({ months: 24, extMonths: 24 }), "Εγγύηση 4 έτη");
+  assert.equal(warrantyLabel({ months: 24, extMonths: 0 }), "Εγγύηση 2 έτη");
+  assert.equal(warrantyLabel({ months: 12, extMonths: 0 }), "Εγγύηση 1 έτος");
+  assert.equal(warrantyLabel({ months: 18, extMonths: 0 }), "Εγγύηση 18 μήνες");
+  assert.equal(warrantyLabel(undefined), "Εγγύηση 2 έτη");
+  assert.equal(warrantyDetail({ months: 24, extMonths: 24 }), "2 έτη κατασκευαστή + 2 έτη επέκταση από Euronics, χωρίς χρέωση");
+  assert.equal(warrantyDetail({ months: 60, extMonths: 0 }), "5 έτη από τον κατασκευαστή, με την απόδειξη αγοράς");
 });

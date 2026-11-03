@@ -3,6 +3,7 @@ import { Truck, Store as StoreIcon, CalendarClock, Recycle, ShieldCheck, Wrench,
 import type { Product, Service } from "@/lib/data/types";
 import { priceLong, weekday } from "@/lib/format";
 import { copyOf } from "@/lib/cms/copy";
+import { EXTENSION_SLUG, warrantyDetail, type WarrantyInfo } from "@/lib/warranty/policy";
 
 const c = copyOf("servicesDelivery");
 
@@ -11,20 +12,24 @@ const c = copyOf("servicesDelivery");
  * time (what Kotsovolos does well) plus the Euronics services that apply
  * to this product, each with a price and a page.
  */
-export function ServicesDelivery({ product: p, services }: { product: Product; services: Service[] }) {
+export function ServicesDelivery({ product: p, services, warranty }: { product: Product; services: Service[]; warranty?: WarrantyInfo }) {
   const a = p.availability;
   const date = a.kind === "order" ? null : weekday(new Date(a.deliveryDate));
   const delivery = [
     { icon: Truck, t: "Παράδοση στη διεύθυνσή σου", s: p.price >= 100 ? "Δωρεάν" : "4,90 €", d: date ? `${a.kind === "in-stock" ? "1–3 εργάσιμες" : "2–4 εργάσιμες"} · ${date}` : "Κατόπιν παραγγελίας · 5–10 εργάσιμες" },
-    { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν", d: `Σε 2 ώρες όπου υπάρχει απόθεμα · ${p.storeStock ?? 0} καταστήματα` },
+    { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν", d: p.storeStock ? `Σε 2 ώρες · απόθεμα σε ${p.storeStock} ${p.storeStock === 1 ? "κατάστημα" : "καταστήματα"}` : "Το φέρνουμε στο κατάστημα που θα διαλέξεις" },
     ...(p.installation ? [{ icon: CalendarClock, t: "Παράδοση με ραντεβού & εγκατάσταση", s: "από 60 €", d: "Τεχνικός του καταστήματος της περιοχής σου · ραντεβού εντός 24 ωρών" }] : []),
     ...(p.tradeIn ? [{ icon: Recycle, t: "Παραλαβή παλιάς συσκευής", s: "Δωρεάν", d: "Ανακύκλωση ΑΗΗΕ κατά την παράδοση (Οδηγία 2012/19/ΕΕ)" }] : []),
   ];
   const icons: Record<string, typeof Truck> = { "epektasi-eggyisis": ShieldCheck, "paradosi-egkatastasi": Wrench, "e-support": Headset, "eggyisi-allagis": RefreshCw, "syntirisi-episkeyi": Wrench };
-  const svc = services.filter((s) => ["epektasi-eggyisis", "e-support", "eggyisi-allagis", "syntirisi-episkeyi", "eggyisi-xamiloteris-timis", "dorean-fylaxi"].includes(s.slug)).slice(0, 6);
+  // Η δωρεάν επέκταση εγγύησης ισχύει μόνο για συγκεκριμένα είδη: όπου δεν ισχύει, δεν την υπόσχεται η σελίδα
+  const svc = services
+    .filter((s) => [EXTENSION_SLUG, "e-support", "eggyisi-allagis", "syntirisi-episkeyi", "eggyisi-xamiloteris-timis", "dorean-fylaxi"].includes(s.slug))
+    .filter((s) => s.slug !== EXTENSION_SLUG || !!warranty?.extMonths)
+    .map((s) => (s.slug === EXTENSION_SLUG ? { ...s, blurb: `${warrantyDetail(warranty)}.` } : s))
+    .slice(0, 6);
   return (
     <section id="services" className="scroll-mt-24" aria-labelledby="svc-title">
-      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.ypiresies_paradosi}</div>
       <h2 id="svc-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">
         {c.pos_to_pairneis_kai}
       </h2>

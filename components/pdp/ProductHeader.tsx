@@ -1,7 +1,7 @@
 import { copyOf } from "@/lib/cms/copy";
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
-import { EnergyChip } from "@/components/commerce/EnergyChip";
+import { ChevronLeft } from "lucide-react";
 
 const c = copyOf("productHeader");
 
@@ -18,32 +18,37 @@ export function keyFacts(p: Product): { k: string; v: string }[] {
 }
 
 /**
- * Product header band: brand chip, H1, rating, codes, badges, energy
- * label, and four key facts as large tiles — the answer to «13 specs in
- * a 7px wall of text» on the current site.
+ * Product header band: breadcrumb, brand, H1, rating, codes, badges and
+ * up to four key facts as tiles. The energy label lives on the photo only;
+ * the breadcrumb stops at the category (the H1 is the product) and on
+ * phones it is one «‹ Κατηγορία» link instead of three wrapped lines.
  */
 export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs: { label: string; href?: string }[] }) {
+  // ένα μόνο χαρακτηριστικό δίπλα στον τίτλο έμοιαζε ξεχασμένο· από 2 και πάνω είναι σύνοψη
   const facts = keyFacts(p);
+  const links = crumbs.filter((x) => x.href);
+  const parent = links[links.length - 1];
   return (
     <header className="bg-eu-blue text-white eu-container">
-      <div className="eu-canvas eu-gutter pt-4 pb-6 @lg:pb-8">
-        <nav aria-label={c.diadromi} className="text-[length:var(--fs-15)] text-eu-on-dark-3 mb-4">
-          <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 m-0 p-0 list-none">
+      <div className="eu-canvas eu-gutter pt-3 @md:pt-4 pb-4 @md:pb-6 @lg:pb-8">
+        <nav aria-label={c.diadromi} className="text-[length:var(--fs-15)] text-eu-on-dark-3 mb-2 @md:mb-4">
+          {parent?.href && (
+            <Link href={parent.href} className="@md:hidden inline-flex items-center gap-1 min-h-11 -my-2 hover:text-white">
+              <ChevronLeft className="size-4" aria-hidden /> {parent.label}
+            </Link>
+          )}
+          <ol className="hidden @md:flex flex-wrap items-center gap-x-1.5 gap-y-0.5 m-0 p-0 list-none">
             <li>
               <Link href="/" className="hover:text-white">
                 {c.archiki}
               </Link>
             </li>
-            {crumbs.map((c, i) => (
+            {links.map((c, i) => (
               <li key={i} className="flex items-center gap-1.5">
                 <span aria-hidden>›</span>
-                {c.href ? (
-                  <Link href={c.href} className="hover:text-white">
-                    {c.label}
-                  </Link>
-                ) : (
-                  <span className="text-white font-semibold">{c.label}</span>
-                )}
+                <Link href={c.href!} className="hover:text-white">
+                  {c.label}
+                </Link>
               </li>
             ))}
           </ol>
@@ -51,20 +56,15 @@ export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs
         <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_minmax(320px,42%)] gap-5 items-end">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Link href={`/brands/${p.brandSlug}`} className="rounded-full bg-white/15 hover:bg-white/25 text-white font-extrabold text-[length:var(--fs-15)] px-3 py-1.5 tracking-wide">
+              <Link href={`/brands/${p.brandSlug}`} className="rounded-full bg-white/15 hover:bg-white/25 text-white inline-flex items-center min-h-8 font-bold text-[length:var(--fs-15)] px-3 transition-colors">
                 {p.brand}
               </Link>
               {p.badge?.kind === "discount" && <span className="rounded-full bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">{c.prosfora}</span>}
               {p.badge?.kind === "new" && <span className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">{c.neo}</span>}
               {p.badge?.kind === "renew" && <span className="rounded-full bg-eu-green text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5">Renew · Grade {p.badge.grade}</span>}
-              {p.energy && (
-                <span className="inline-flex items-center gap-1.5">
-                  <EnergyChip cls={p.energy.cls} fiche={p.energy.fiche} />
-                </span>
-              )}
             </div>
             <h1 className="m-0 font-heading font-bold text-[length:var(--fs-34)] leading-[1.1] tracking-[-0.02em]">{p.title}</h1>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[length:var(--fs-16)] text-eu-on-dark">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 @md:mt-3 text-[length:var(--fs-14)] text-eu-on-dark-3 tabular-nums">
               {p.rating && (
                 <a href="#reviews" className="inline-flex items-center gap-1.5 text-white font-semibold hover:text-eu-yellow">
                   <span className="text-eu-yellow">{"★".repeat(Math.round(p.rating.value))}</span> {p.rating.value.toLocaleString("el-GR")} · {p.rating.count} αξιολογήσεις
@@ -72,17 +72,14 @@ export function ProductHeader({ product: p, crumbs }: { product: Product; crumbs
               )}
               <span>Κωδικός {p.sku}</span>
               {p.ean && <span>EAN {p.ean}</span>}
-              <a href="#compare" className="text-eu-yellow font-semibold hover:underline">
-                {c.sygkrine_me_paromoia}
-              </a>
             </div>
           </div>
-          {facts.length > 0 && (
+          {facts.length > 1 && (
             <dl className={`m-0 grid gap-2 min-w-0 ${facts.length >= 4 ? "grid-cols-2 @xl:grid-cols-4" : facts.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
               {facts.map((f) => (
                 <div key={f.k} className="rounded-lg bg-white/10 px-3.5 py-3 min-w-0">
                   <dt className="text-eu-on-dark-3 text-[length:var(--fs-14)] truncate">{f.k}</dt>
-                  <dd className="m-0 font-extrabold text-white text-[length:var(--fs-17)] leading-tight truncate">{f.v}</dd>
+                  <dd className="m-0 font-bold text-white text-[length:var(--fs-17)] leading-tight truncate">{f.v}</dd>
                 </div>
               ))}
             </dl>

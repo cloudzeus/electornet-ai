@@ -15,7 +15,6 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
     <section id="specs" className="scroll-mt-24" aria-labelledby="specs-title">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
-          <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">{c.technikos_fakelos}</div>
           <h2 id="specs-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight">
             {c.charaktiristika}
           </h2>
@@ -28,7 +27,7 @@ export function SpecsTable({ specs, energy }: { specs: Spec[]; energy?: Product[
       </div>
       {[...sections.entries()].map(([sec, cards]) => (
       <div key={sec || "_"} className="mb-6 last:mb-0">
-        {sec && <h3 className="m-0 mb-3 font-extrabold text-eu-navy text-[length:var(--fs-15)] tracking-wide">{sec}</h3>}
+        {sec && <h3 className="m-0 mb-3 font-bold text-eu-navy text-[length:var(--fs-16)]">{sec}</h3>}
       <div className="grid grid-cols-1 @md:grid-cols-2 gap-4">
         {cards.map(([g, rows]) => (
           <div key={g} className="rounded-xl border border-eu-line overflow-hidden">

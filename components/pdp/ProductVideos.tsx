@@ -15,7 +15,6 @@ export function ProductVideos({ title, videos }: { title: string; videos: Video[
   const one = videos.length === 1;
   return (
     <section id="videos" className="scroll-mt-24" aria-labelledby="vid-title">
-      <div className="font-extrabold text-eu-blue text-[length:var(--fs-14)] tracking-wide mb-1">Βίντεο</div>
       <h2 id="vid-title" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-26)] leading-tight mb-4">Δες το σε κίνηση</h2>
       <ul className={`m-0 p-0 list-none grid gap-4 ${one ? "max-w-[56rem]" : "[grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]"}`}>
         {videos.map((v, i) => {

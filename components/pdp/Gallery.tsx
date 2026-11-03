@@ -39,28 +39,34 @@ export function Gallery({
   const src = images[i];
   const cutout = i === 0 ? cutoutFor(src) : null;
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2 @md:gap-3">
       <div
-        className={`grid grid-cols-1 gap-3 ${images.length > 1 ? "@md:grid-cols-[72px_minmax(0,1fr)]" : ""}`}
+        className={`grid grid-cols-1 gap-2 @md:gap-3 ${images.length > 1 ? "@md:grid-cols-[72px_minmax(0,1fr)]" : ""}`}
       >
         {images.length > 1 && (
-          <ul className="m-0 p-0 list-none flex flex-wrap @md:flex-col gap-2 order-2 @md:order-1">
+          // Κινητό: μία σειρά έως 6 μικρογραφίες (η 6η δείχνει «+N»· όλες είναι στη «Μεγέθυνση») — πριν έπιαναν δύο σειρές πάνω από την τιμή
+          <ul className="m-0 p-0 list-none grid grid-cols-6 @md:flex @md:flex-col gap-2 order-2 @md:order-1">
             {images.map((im, k) => (
-              <li key={im} className="shrink-0">
+              <li key={im} className={`min-w-0 ${k >= 6 ? "hidden @md:block" : ""}`}>
                 <button
                   type="button"
                   aria-label={`Εικόνα ${k + 1}`}
                   aria-pressed={k === i}
                   onClick={() => setI(k)}
-                  className={`block rounded-lg border-2 transition-colors ${k === i ? "border-eu-blue" : "border-transparent hover:border-eu-line"}`}
+                  className={`relative block w-full rounded-lg border-2 transition-colors ${k === i ? "border-eu-blue" : "border-transparent hover:border-eu-line"}`}
                 >
                   <ProductImage
                     src={im}
                     sizes="64px"
-                    className="size-16"
+                    className="aspect-square w-full @md:size-16"
                     rounded="rounded-md"
                     frame={false}
                   />
+                  {k === 5 && images.length > 6 && (
+                    <span className="@md:hidden absolute inset-0 rounded-md bg-eu-navy/70 text-white font-bold text-[length:var(--fs-14)] inline-flex items-center justify-center tabular-nums" aria-hidden>
+                      +{images.length - 6}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -68,7 +74,7 @@ export function Gallery({
         )}
         <Tilt max={3} scale={1} className="order-1 @md:order-2 min-w-0">
           <div
-            className={`relative aspect-square rounded-2xl border border-eu-line-2 overflow-hidden ${cutout ? "eu-cutout-field" : "bg-white"}`}
+            className={`relative aspect-[3/2] @md:aspect-square rounded-2xl border border-eu-line-2 overflow-hidden ${cutout ? "eu-cutout-field" : "bg-white"}`}
           >
             <span
               className={`eu-rays w-[120%] left-[-10%] top-[-10%] ${cutout ? "opacity-50" : "opacity-0"}`}

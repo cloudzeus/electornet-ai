@@ -11,6 +11,7 @@ import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistB
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { sx } from "@/components/ui/sx";
+import { warrantyDetail, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
 
 const c = copyOf("buybox");
 
@@ -19,10 +20,11 @@ const c = copyOf("buybox");
  * without card, variants with price per option, availability with date,
  * store selector with real-time stock, delivery choice, and the
  * «Ολοκληρωμένη λύση» bundle: warranty extension, e-support and an
- * accessory with a running total. Quick buy is the primary action.
+ * accessory with a running total. «Προσθήκη στο καλάθι» is the one primary
+ * action; quick buy sits next to the wishlist as the secondary one.
  */
 /** warranty: εγγύηση κατασκευαστή (μήνες) και δωρεάν επέκταση (μήνες, 0 = δεν ισχύει για αυτό το είδος) */
-export function BuyBox({ product: p, addons, stores, accessory, warranty }: { product: Product; addons: Service[]; stores: Store[]; accessory?: Product | null; warranty?: { months: number; extMonths: number } }) {
+export function BuyBox({ product: p, addons, stores, accessory, warranty }: { product: Product; addons: Service[]; stores: Store[]; accessory?: Product | null; warranty?: WarrantyInfo }) {
   const { add, openQuickBuy } = useCart();
   const [qty, setQty] = useState(1);
   const [sel, setSel] = useState<Record<string, string>>(() => Object.fromEntries((p.variants ?? []).map((v) => [v.name, v.options[0].label])));
@@ -178,11 +180,11 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
           <ShieldCheck className={`size-5 shrink-0 mt-0.5 ${warranty.extMonths ? "text-eu-green" : "text-eu-blue"}`} aria-hidden />
           <span className="flex-1 min-w-0">
             <span className="flex justify-between gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-              {warranty.extMonths ? `Εγγύηση ${(warranty.months + warranty.extMonths) / 12} έτη` : `Εγγύηση ${warranty.months % 12 ? `${warranty.months} μήνες` : `${warranty.months / 12} ${warranty.months === 12 ? "έτος" : "έτη"}`}`}
+              {warrantyLabel(warranty)}
               {warranty.extMonths > 0 && <span className="text-eu-green shrink-0">Δωρεάν</span>}
             </span>
             <span className="block text-eu-muted text-[length:var(--fs-13-5)]">
-              {warranty.extMonths ? `${warranty.months / 12} ${warranty.months === 12 ? "έτος" : "έτη"} κατασκευαστή + ${warranty.extMonths / 12} έτη επέκταση από Euronics, χωρίς χρέωση· τη βλέπεις στις συσκευές του λογαριασμού σου.` : "Εγγύηση κατασκευαστή, με την απόδειξη αγοράς."}
+              {warrantyDetail(warranty)}{warranty.extMonths ? "· τη βλέπεις στις συσκευές του λογαριασμού σου" : ""}
             </span>
           </span>
         </div>
@@ -240,18 +242,18 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
       </div>
 
       <div className="grid gap-2">
-        <button type="button" onClick={() => openQuickBuy({ ...p, price })} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-[56px] hover:bg-eu-yellow-dark">
-          {c.agora_me_1_klik}
+        <button type="button" onClick={addAll} className="rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-[56px] hover:bg-eu-yellow-dark transition-colors">
+          {hasSolution ? "Προσθήκη όλων στο καλάθι" : "Προσθήκη στο καλάθι"}
         </button>
         <div className="flex gap-2">
-          <button type="button" onClick={addAll} className="flex-1 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-16)] py-3.5 min-h-[56px] hover:bg-eu-blue">
-            {hasSolution ? "Προσθήκη όλων στο καλάθι" : "Προσθήκη στο καλάθι"}
+          <button type="button" onClick={() => openQuickBuy({ ...p, price })} className="flex-1 rounded-full border-2 border-eu-navy text-eu-navy font-bold text-[length:var(--fs-16)] min-h-12 hover:bg-eu-surface transition-colors">
+            {c.agora_me_1_klik}
           </button>
-          <WishlistButton id={p.id} className="size-[56px]" />
+          <WishlistButton id={p.id} className="size-12" />
         </div>
-        <div className="flex justify-between items-center text-[length:var(--fs-14)]">
+        <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 text-[length:var(--fs-14)]">
           <CompareCheckbox id={p.id} />
-          <span className="text-eu-muted">{c.eggyisi_2_eti_epistrofi}</span>
+          <span className="text-eu-muted">{warrantyLabel(warranty)} · Επιστροφή σε 14 ημέρες</span>
         </div>
       </div>
     </aside>
