@@ -133,3 +133,19 @@ export function calmTitle(title: string, corpus: string): string {
   });
   return bad ? title : out.replace(/σ(?=$|[^\p{L}])/gu, "ς");
 }
+
+/**
+ * Το μοντέλο, γράφοντας «κανονικά» έναν τίτλο σε ΚΕΦΑΛΑΙΑ, χαμηλώνει και λατινικά ακρωνύμια («80 DMPIS» → «80 dmpis»,
+ * «ΗΧΟΣ DTS» → «Ήχος dts»). Εδώ γυρίζουν στη γραφή του κατασκευαστή. Μόνο αυτούσιες λατινικές λέξεις, όχι μέσα σε URL.
+ */
+const ACRONYMS: Record<string, string> = {
+  tv: "TV", led: "LED", oled: "OLED", qled: "QLED", lcd: "LCD", hdr: "HDR", uhd: "UHD", fhd: "FHD", qhd: "QHD", hdmi: "HDMI",
+  btu: "BTU", dts: "DTS", dmips: "DMIPS", dmpis: "DMPIS", usb: "USB", ac: "AC", dc: "DC", qr: "QR", db: "dB", rpm: "RPM",
+  cpu: "CPU", gpu: "GPU", ssd: "SSD", hdd: "HDD", ram: "RAM", nfc: "NFC", gps: "GPS", ai: "AI", hepa: "HEPA", uv: "UV",
+  ir: "IR", fps: "FPS",
+};
+export function restoreAcronyms(s: string): string {
+  return s
+    .replace(/(?<![\p{L}\p{N}./@-])wi[ -]?fi(?![\p{L}./])/gu, "Wi-Fi")
+    .replace(/(?<![\p{L}\p{N}./@-])[a-z]{2,5}(?![\p{L}./])/gu, (w) => ACRONYMS[w] ?? w);
+}

@@ -1,6 +1,6 @@
 import "server-only";
 import { chat, getAi, parseJson } from "@/lib/ai/openrouter";
-import { autoLayout, HEADINGS, layoutFits, LAYOUTS, sectionHasContent, sectionText, uid, type SectionLayout, type Stat, type StudioDoc, type StudioFeature, type StudioSection } from "./banner-doc";
+import { autoLayout, HEADINGS, layoutFits, LAYOUTS, restoreAcronyms, sectionHasContent, sectionText, uid, type SectionLayout, type Stat, type StudioDoc, type StudioFeature, type StudioSection } from "./banner-doc";
 
 /**
  * Σχεδιαστής σελίδας: από τις ενότητες ΟΛΩΝ των banners ενός προϊόντος φτιάχνει μια σελίδα που διαβάζεται σαν ιστορία.
@@ -204,6 +204,6 @@ export async function sentenceCaseTitles(titles: string[]): Promise<{ fixed: Map
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ titles?: unknown[] }>(r.text) : null;
-  titles.forEach((t, i) => { const f = j?.titles?.[i]; if (typeof f === "string" && f.trim() && f !== t && sameLetters(f, t)) fixed.set(t, f.trim()); });
+  titles.forEach((t, i) => { const f = j?.titles?.[i]; if (typeof f === "string" && f.trim() && f !== t && sameLetters(f, t)) fixed.set(t, restoreAcronyms(f.trim())); });
   return { fixed, costUsd: r?.costUsd ?? 0 };
 }
