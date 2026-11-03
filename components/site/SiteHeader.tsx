@@ -31,7 +31,7 @@ export async function SiteHeader() {
           </Link>
         </div>
 
-        <div className="hidden @md:block min-w-0">
+        <div className="hidden @4xl:block min-w-0">
           <SearchBox categories={navCategories} />
         </div>
 
@@ -64,7 +64,7 @@ export async function SiteHeader() {
           <CartButton />
         </div>
 
-        <div className="col-span-3 @md:hidden pt-0.5">
+        <div className="col-span-3 @4xl:hidden pt-0.5">
           <SearchBox compact categories={navCategories} />
         </div>
       </div>

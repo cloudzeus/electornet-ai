@@ -189,13 +189,13 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
   const nothing = res && q && res.total === 0 && res.categories.length === 0 && res.brands.length === 0 && res.guides.length === 0;
 
   return (
-    <div ref={box} className="relative min-w-0">
+    <div ref={box} className="relative min-w-0 @container">
       <form action="/anazitisi" role="search" onSubmit={() => q && remember(q)} className={`flex bg-white rounded-full overflow-hidden min-w-0 shadow-[var(--shadow-card)] ${open ? "ring-2 ring-eu-yellow" : ""}`}>
         <label htmlFor={`${id}-scope`} className="sr-only">
           {c.katigoria_anazitisis}
         </label>
-        <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "hidden @6xl:flex"} items-center`}>
-          <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 outline-none cursor-pointer text-[length:var(--fs-15)]">
+        <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "hidden @2xl:flex"} items-center`}>
+          <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 max-w-40 @4xl:max-w-52 truncate outline-none cursor-pointer text-[length:var(--fs-15)]">
             <option value="all">{c.katigoria}</option>
             {navCategories.map((c) => (
               <option key={c.slug} value={c.slug}>
@@ -232,15 +232,15 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
             <X className="size-4" aria-hidden />
           </button>
         )}
-        <button type="button" onClick={listen} aria-label={listening ? "Ακούω…" : "Φωνητική αναζήτηση"} aria-pressed={listening} className={`shrink-0 w-10 items-center justify-center transition-colors ${compact ? "flex" : "hidden @6xl:flex"} ${listening ? "text-eu-red animate-pulse" : "text-eu-muted hover:text-eu-navy"}`}>
+        <button type="button" onClick={listen} aria-label={listening ? "Ακούω…" : "Φωνητική αναζήτηση"} aria-pressed={listening} className={`shrink-0 w-10 items-center justify-center transition-colors ${compact ? "flex" : "hidden @md:flex"} ${listening ? "text-eu-red animate-pulse" : "text-eu-muted hover:text-eu-navy"}`}>
           <Mic className="size-[18px]" aria-hidden />
         </button>
-        <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("eu:snap")); }} aria-label={c.snap_find_fotografise_tin} className={`shrink-0 w-10 items-center justify-center text-eu-muted hover:text-eu-navy transition-colors ${compact ? "flex" : "hidden @6xl:flex"}`}>
+        <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new CustomEvent("eu:snap")); }} aria-label={c.snap_find_fotografise_tin} className={`shrink-0 w-10 items-center justify-center text-eu-muted hover:text-eu-navy transition-colors ${compact ? "flex" : "hidden @md:flex"}`}>
           <Camera className="size-[18px]" aria-hidden />
         </button>
-        <button type="submit" className="shrink-0 bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 @md:px-[22px] flex items-center gap-2 hover:bg-eu-yellow-dark transition-colors min-h-11">
+        <button type="submit" className="shrink-0 bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-4 @xl:px-[22px] flex items-center gap-2 hover:bg-eu-yellow-dark transition-colors min-h-11">
           <Search className="size-4" aria-hidden />
-          <span className={compact ? "sr-only" : "hidden @7xl:inline whitespace-nowrap"}>{c.anazitisi}</span>
+          <span className={compact ? "sr-only" : "sr-only @xl:not-sr-only @xl:whitespace-nowrap"}>{c.anazitisi}</span>
         </button>
       </form>
 
