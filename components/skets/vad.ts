@@ -15,6 +15,8 @@ export const VAD = {
   endSilenceMs: 600,
   /** αφού σταματήσει να μιλά ο Ερμής, τόσο αγνοούμε (ουρά ήχου, αντήχηση) */
   guardMs: 600,
+  /** μετά το guard, τόση συνεχής ησυχία πριν αρχίσει να μετρά ομιλία */
+  primeMs: 320,
   /** ομιλία = πάνω από floor × ratio και πάνω από minRms */
   ratio: 2.5,
   /** μικρόφωνο laptop από 1–2 μέτρα: ομιλία ~0.01–0.05 */
@@ -69,7 +71,8 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
   useEffect(() => {
     if (!mic || !armed) { cb.current.onLevel?.(0, false); return; }
     const buf = new Float32Array(mic.analyser.fftSize);
-    let quietSince = Date.now(), voiced = 0, lastVoice = 0, fired = false;
+    // primed: πρώτα λίγη ησυχία — αν ο παρουσιαστής μιλά ήδη όταν ανοίγει η ακρόαση (συνεχίζει προηγούμενη κουβέντα), η ουρά της δεν μετράει ως ατάκα
+    let quietSince = Date.now(), voiced = 0, lastVoice = 0, fired = false, hush = 0, primed = false;
     let rec = recorder(mic.stream);
     const iv = setInterval(() => {
       if (fired) return;
@@ -85,6 +88,7 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
       if (!loud) floor.current = floor.current * 0.97 + rms * 0.03;
       cb.current.onLevel?.(rms / thr, voiced >= VAD.minVoicedMs);
       if (now - quietSince < VAD.guardMs) return;
+      if (!primed) { hush = loud ? 0 : hush + VAD.tickMs; primed = hush >= VAD.primeMs; return; }
       if (loud) { voiced += VAD.tickMs; lastVoice = now; return; }
       if (voiced >= VAD.minVoicedMs && now - lastVoice >= VAD.endSilenceMs) { fired = true; const r = rec; rec = null; (r ? r.stop() : Promise.resolve(null)).then((b) => cb.current.onTurn(b)); return; }
       if (voiced && now - lastVoice >= VAD.resetMs) voiced = 0;

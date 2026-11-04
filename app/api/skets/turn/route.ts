@@ -15,7 +15,8 @@ const snap = snapshot as Snapshot;
 const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 const YES = /^(ναι|ναι ναι|σιγουρα|φυσικα|βεβαιως|ακριβως|ε ναι|ναι φυσικα|ναι σιγουρα|ναι περιπου|περιπου|καπου εκει|μαλλον|οκ|οκει|εντα[ξκ]ει|ναι εντα[ξκ]ει|ναι βεβαια|βεβαια|σωστα|ετσι|ετσι ακριβως)( .{0,24})?$/;
-const QUESTION = /\b(τι|πως|γιατι|ποσο|ποσα|ποσες|ποιο|ποια|ποιος|ποτε|που|εχετε|εχεις|μπορεις|μπορειτε|μηπως|αν|ομως|αλλα|οχι)\b/;
+// το \b της JS δεν βλέπει ελληνικά γράμματα: όρια λέξης με \p{L}
+const QUESTION = /(?<!\p{L})(τι|πως|γιατι|ποσο|ποσα|ποσες|ποιο|ποια|ποιος|ποτε|εχετε|εχεις|μπορεις|μπορειτε|μηπως|ομως|αλλα|οχι)(?!\p{L})/u;
 
 /**
  * Ο παρουσιαστής μίλησε ενώ η σκηνή περίμενε την ατάκα του (αυτόματη συνέχεια, components/skets/vad.ts): POST multipart
@@ -59,6 +60,10 @@ export async function POST(req: Request) {
   if (beat.wait === "presenter" && /εννοει/.test(norm(cue)) && n.split(" ").length <= 7) return NextResponse.json({ route: "script", said, ms: msStt });
   if (beat.wait === "presenter" && (fidelity(cue, said) >= 0.5 || content >= 0.5 || (YES.test(n) && !QUESTION.test(n.replace(/^(ναι|οκ)\s*/, ""))))) return NextResponse.json({ route: "script", said, ms: msStt });
 
+  // σχόλιο, όχι ερώτηση («εντάξει, ωραία», μισή φράση): ποτέ ελεύθερη απάντηση που διακόπτει τη ροή — μόνο «είπε την ατάκα με άλλα λόγια;»
+  const asked = QUESTION.test(n) || /[;;?]\s*$/.test(said) || beat.id === "idle";
+  // χωρίς μοντέλο (3–5 s κωφή σκηνή): η ακρόαση συνεχίζει αμέσως· αν ήταν η ατάκα με άλλα λόγια, το κινητό το δείχνει και ο χειριστής πατά «Επόμενο»
+  if (!asked) return NextResponse.json({ route: "none", said, ms: msStt });
   const ev0: LiveEv = { n: Date.now(), phase: "thinking", q: said, quiet: true };
   const scene = sceneAt(beats, bi), cat = scene.cat ? snap.cats.find((c) => c.key === scene.cat) ?? null : null;
   const all = snap.cats.flatMap((c) => c.candidates);

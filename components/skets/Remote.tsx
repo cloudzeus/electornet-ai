@@ -54,6 +54,7 @@ export default function Remote({ k }: { k: string }) {
         <div className="text-white/60 font-medium text-[length:var(--fs-13)]">Περιμένει</div>
         <p className="mt-1 font-semibold text-eu-yellow text-[length:var(--fs-20)]">{st?.cue ?? (st?.wait === "auto" ? "Προχωρά μόνο του" : "—")}</p>
         {st?.say && <><div className="mt-3 text-white/60 font-medium text-[length:var(--fs-13)]">Ο Ερμής λέει</div><p className="mt-1 text-white/85 text-[length:var(--fs-16)] leading-snug">{st.say}</p></>}
+        {st?.heard && <p className="mt-3 text-white/70 text-[length:var(--fs-14)] leading-snug">Άκουσε: «{st.heard.said}» · <span className="font-medium text-white">{({ script: "συνέχισε", alt: "συνέχισε (άλλο μέγεθος)", store: "κατάστημα", free: "απαντά", none: "το αγνόησε" } as Record<string, string>)[st.heard.route] ?? st.heard.route}</span>{st.heard.route === "none" && " — αν ήταν η ατάκα, πάτα «Επόμενο»"}</p>}
         {st?.call && <p className="mt-3 font-medium text-[length:var(--fs-16)]">Κλήση: {({ dialing: "καλεί", talking: "σε εξέλιξη", ended: "έκλεισε", done: "ολοκληρώθηκε", error: "απέτυχε" } as Record<string, string>)[st.call] ?? st.call}</p>}
       </section>
 

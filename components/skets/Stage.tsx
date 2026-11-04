@@ -240,6 +240,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   useEffect(() => () => { mic?.stream.getTracks().forEach((t) => t.stop()); mic?.ctx.close().catch(() => {}); }, [mic]);
   /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
   const [turnBusy, setTurnBusy] = useState(false);
+  const [heard, setHeard] = useState<{ said: string; route: string; i: number } | null>(null);
   const hearing = auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
@@ -248,8 +249,9 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     setTurnBusy(true);
     const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts));
     fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
-      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number }) => {
+      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string }) => {
         setTurnBusy(false);
+        if (r.said) setHeard({ said: r.said, route: r.route ?? "script", i: at });
         if (iRef.current !== at) return;
         // «της Ηπείρου» / «το πρώτο»: όπως το κλικ στον χάρτη
         if (r.route === "store") { if (typeof r.i === "number") command({ t: "store", i: r.i }); return; }
@@ -309,8 +311,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     return () => es.close();
   }, [k]);
   useEffect(() => {
-    fetch("/api/skets/cmd", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ state: { i, id: beat.id, wait: beat.wait, cue: beat.cue ?? null, say, total: beats.length, stores: snap.stores.map((s) => s.street), storeIdx: store, call: call?.status ?? null, live: !!(live || listening), extras: extras.map((p) => p.id), auto, mic: !!mic, hearing, at: 0 } }) }).catch(() => {});
-  }, [i, store, call?.status, !!(live || listening), extras.length, auto, !!mic, hearing]); // eslint-disable-line react-hooks/exhaustive-deps
+    fetch("/api/skets/cmd", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ state: { i, id: beat.id, wait: beat.wait, cue: beat.cue ?? null, say, total: beats.length, stores: snap.stores.map((s) => s.street), storeIdx: store, call: call?.status ?? null, live: !!(live || listening), extras: extras.map((p) => p.id), auto, mic: !!mic, hearing, heard: heard && heard.i === i ? { said: heard.said, route: heard.route } : null, at: 0 } }) }).catch(() => {});
+  }, [i, store, call?.status, !!(live || listening), extras.length, auto, !!mic, hearing, heard]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cat = scene.cat ? snap.cats.find((c) => c.key === scene.cat)! : null;
   const showMap = scene.mode === "map" || scene.mode === "call" || scene.mode === "done";

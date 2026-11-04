@@ -11,7 +11,7 @@ export type Cmd = { t: "next" } | { t: "back" } | { t: "reset" } | { t: "goto"; 
   | { t: "liveListen"; on: boolean } | { t: "liveClose" } | { t: "addExtra"; id: string }
   /** αυτόματη συνέχεια: ο Ερμής ακούει πότε τελείωσε ο παρουσιαστής (μικρόφωνο της σκηνής) */
   | { t: "auto"; on: boolean };
-export interface StageState { i: number; id: string; wait: string; cue: string | null; say: string | null; total: number; stores: string[]; storeIdx: number | null; call: string | null; /** ανοιχτή ζωντανή ερώτηση */ live?: boolean; /** προϊόντα που πρόσθεσε το κοινό */ extras?: string[]; /** αυτόματη συνέχεια ενεργή · μικρόφωνο ανοιχτό · ακούει τώρα τον παρουσιαστή */ auto?: boolean; mic?: boolean; hearing?: boolean; at: number }
+export interface StageState { i: number; id: string; wait: string; cue: string | null; say: string | null; total: number; stores: string[]; storeIdx: number | null; call: string | null; /** ανοιχτή ζωντανή ερώτηση */ live?: boolean; /** προϊόντα που πρόσθεσε το κοινό */ extras?: string[]; /** αυτόματη συνέχεια ενεργή · μικρόφωνο ανοιχτό · ακούει τώρα τον παρουσιαστή */ auto?: boolean; mic?: boolean; hearing?: boolean; /** τι άκουσε τελευταίο ο Ερμής από τον παρουσιαστή και τι έκανε (για να διορθώσει ο χειριστής) */ heard?: { said: string; route: string } | null; at: number }
 type Listener = (ev: { kind: "cmd"; cmd: Cmd } | { kind: "state"; state: StageState } | { kind: "live"; live: LiveEv }) => void;
 
 const g = globalThis as unknown as { __skets?: { listeners: Set<Listener>; state: StageState | null; live?: LiveEv | null } };
