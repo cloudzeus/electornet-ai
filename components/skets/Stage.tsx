@@ -58,7 +58,9 @@ interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error";
 export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean }) {
   /** διακλαδώσεις που διάλεξε η απάντηση του παρουσιαστή (π.χ. 40 τ.μ. → 18.000 BTU): αλλάζουν τα επόμενα βήματα, το σύνολο και την κλήση */
   const [alts, setAlts] = useState<Alts>({});
-  const beats = useMemo(() => buildBeats(snap, alts), [snap, alts]);
+  /** ομάδες που ο παρουσιαστής απάντησε ήδη νωρίτερα (όλα μαζί σε μία φράση): ο Ερμής δεν τις ξαναρωτά */
+  const [ahead, setAhead] = useState<CatKey[]>([]);
+  const beats = useMemo(() => buildBeats(snap, alts, ahead), [snap, alts, ahead]);
   const [i, setI] = useState(0);
   const [store, setStore] = useState<number | null>(null);
   /** πρόοδος της φράσης του βήματος sp.i (0–1) — για άλλο βήμα ισχύει «δεν ξεκίνησε» */
@@ -134,7 +136,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
       if (ev.quiet) {
         // ο παρουσιαστής είπε κάτι εκτός σεναρίου (ίσως απλώς «καλημέρα»): όχι «ψάχνω στον κατάλογο» — ένα σύντομο «Μάλιστα…»
         // μόνο αν αργήσει, κάθε φορά άλλο (ποτέ το ίδιο δύο φορές στη σειρά)
-        lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) { turnFill.current = (turnFill.current + 1 + Math.floor(Math.random() * (TURN_FILLERS.length - 1))) % TURN_FILLERS.length; filler(TURN_FILLERS[turnFill.current]); } }, 3000);
+        lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) { turnFill.current = (turnFill.current + 1 + Math.floor(Math.random() * (TURN_FILLERS.length - 1))) % TURN_FILLERS.length; filler(TURN_FILLERS[turnFill.current]); } }, 1100);
       } else {
         filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]);
         // αν η αναζήτηση αργεί, δεύτερη φράση αναμονής — όχι σιωπή στη σκηνή
@@ -226,7 +228,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     if (c.t === "next") { if (beat.wait === "store" && store === null) return; if (beat.wait === "call" && (call?.status === "dialing" || call?.status === "talking")) return; next(); }
     else if (c.t === "back") go(i - 1);
     else if (c.t === "goto") go(c.i);
-    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); setAlts({}); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
+    else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); setAlts({}); setAhead([]); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
     else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && store === null && snap.stores[c.i]) { // μία επιλογή: φωνή ή κλικ, όποιο έρθει πρώτο
       setStore(c.i); timer.current = setTimeout(next, 900); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
@@ -247,14 +249,19 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     if (!audio || (beat.wait !== "store" && !/^«/.test(beat.cue ?? ""))) { if (beat.wait !== "store") command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
-    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts));
+    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead));
     fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
-      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string }) => {
+      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string; to?: string; learned?: { ahead: CatKey[]; alts: Alts } }) => {
         setTurnBusy(false);
+        if (iRef.current === at && r.learned) { const l = r.learned; setAhead((x) => [...new Set([...x, ...l.ahead])]); setAlts((a) => ({ ...a, ...l.alts })); }
         if (r.said) setHeard({ said: r.said, route: r.route ?? "script", i: at });
         if (iRef.current !== at) return;
         // «της Ηπείρου» / «το πρώτο»: όπως το κλικ στον χάρτη
         if (r.route === "store") { if (typeof r.i === "number") command({ t: "store", i: r.i }); return; }
+        if (r.route === "jump" && r.to) {
+          if (r.cat && r.alt) { const cat = r.cat; setAlts((a) => ({ ...a, [cat]: r.alt })); }
+          const to = beats.findIndex((b) => b.id === r.to); if (to > 0) { quietClose(); go(to); } return;
+        }
         if (r.route === "free" || r.route === "none") return;
         if (r.route === "alt" && r.cat) { const cat = r.cat; setAlts((a) => ({ ...a, [cat]: r.alt || undefined })); }
         quietClose(); next();
@@ -325,7 +332,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         <div className="absolute inset-x-0 top-[9vh] bottom-0 flex">
           {/* αριστερά: ο Ερμής και τι λέει */}
           <motion.aside layout transition={spring} className={`relative z-10 flex flex-col items-center justify-center gap-[3vh] px-[2.5vw] ${scene.mode === "idle" ? "w-full" : "w-[27vw]"}`}>
-            <Orb onStart={i === 0 && !live && !listening ? () => command({ t: "next" }) : undefined} speaking={live ? liveSp.speaking : speaking} listening={listening || (!live && !speaking && (beat.wait === "presenter" || beat.wait === "store"))} big={scene.mode === "idle" && !live && !listening} />
+            <Orb onStart={i === 0 && !live && !listening ? () => command({ t: "next" }) : undefined} speaking={live ? liveSp.speaking : speaking} listening={listening || hearing || turnBusy} big={scene.mode === "idle" && !live && !listening} label={listening ? "Ακούω…" : turnBusy ? "Σκέφτομαι…" : hearing ? "Σας ακούω" : null} />
             {scene.mode === "idle" && !live && !listening ? <IdleTitle cue={beat.cue ?? null} onStart={() => command({ t: "next" })} auto={auto} mic={!!mic} micErr={micErr} onArm={armMic} meter={meter} /> : <Caption text={live ? live.text ?? null : listening ? null : say} progress={live ? liveSp.p : progress} />}
           </motion.aside>
 
@@ -421,7 +428,7 @@ function IdleTitle({ cue, onStart, auto, mic, micErr, onArm, meter }: { cue: str
   );
 }
 
-function Orb({ speaking, listening, big, onStart }: { speaking: boolean; listening: boolean; big: boolean; onStart?: () => void }) {
+function Orb({ speaking, listening, big, onStart, label }: { speaking: boolean; listening: boolean; big: boolean; onStart?: () => void; label?: string | null }) {
   return (
     <motion.div layout transition={spring} onClick={onStart} title={onStart ? "Ξεκίνα" : undefined} className={`relative shrink-0 ${big ? "size-[34vh]" : "size-[22vh]"} ${onStart ? "cursor-pointer" : ""}`}>
       {speaking && <><span className={css.ring} /><span className={`${css.ring} ${css.ring2}`} /><span className={`${css.ring} ${css.ring3}`} /></>}
@@ -431,7 +438,7 @@ function Orb({ speaking, listening, big, onStart }: { speaking: boolean; listeni
         transition={speaking ? { duration: 0.9, repeat: Infinity } : { duration: 2.4, repeat: Infinity }}
       />
       <AnimatePresence>
-        {listening && !big && <motion.span initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute -top-[5vh] inset-x-0 text-center text-white/60 text-[length:var(--fs-18)] whitespace-nowrap">Ακούω…</motion.span>}
+        {label && !big && <motion.span key={label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute -top-[5vh] inset-x-0 text-center text-white/70 text-[length:var(--fs-18)] whitespace-nowrap">{label}</motion.span>}
       </AnimatePresence>
     </motion.div>
   );

@@ -44,7 +44,8 @@ export function eurSpoken(n: number) {
   return `${e.toLocaleString("el-GR")} ευρώ${c ? ` και ${c} λεπτά` : ""}`;
 }
 
-export function buildBeats(s: Snapshot, alts: Alts = {}): Beat[] {
+/** ahead: ομάδες που ο παρουσιαστής απάντησε ήδη νωρίτερα — η ερώτησή τους γίνεται «μου το είπατε ήδη» και προχωρά μόνη της */
+export function buildBeats(s: Snapshot, alts: Alts = {}, ahead: CatKey[] = []): Beat[] {
   const L = lines(s, alts);
   const b: Beat[] = [
     { id: "idle", act: { t: "idle" }, wait: "presenter", cue: "«Ερμή, έχω νέα! Πήρα επιτέλους τη θέση στη Λάρισα!»" },
@@ -52,8 +53,10 @@ export function buildBeats(s: Snapshot, alts: Alts = {}): Beat[] {
     { id: "start", say: L.start, wait: "auto", delay: 300 },
   ];
   for (const c of s.cats) {
-    b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.ask, wait: "presenter", cue: `«${c.lines.answer}»` });
-    if (c.lines.follow) b.push({ id: `${c.key}-ask2`, say: c.lines.follow.ask, wait: "presenter", cue: `«${c.lines.follow.answer}»` });
+    const known = ahead.includes(c.key) && !!c.lines.known;
+    if (known) b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.known, wait: "auto", delay: 300 });
+    else b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.ask, wait: "presenter", cue: `«${c.lines.answer}»` });
+    if (c.lines.follow && !known) b.push({ id: `${c.key}-ask2`, say: c.lines.follow.ask, wait: "presenter", cue: `«${c.lines.follow.answer}»` });
     const v = variant(c, alts);
     b.push({ id: `${c.key}-verdict`, say: v?.verdict ?? c.lines.verdict, wait: "auto", delay: 200 });
     (v?.reject ?? c.reject).forEach((r, i) => b.push({ id: `${c.key}-x${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
@@ -139,6 +142,7 @@ export function allPhrases(s: Snapshot): string[] {
     if (hasStore(x.say)) for (const st of s.stores) out.add(fillStore(x.say, st.spoken));
     else out.add(x.say);
   }
+  for (const c of s.cats) if (c.lines.known) out.add(c.lines.known);
   for (const x of s.qa ?? []) out.add(x.a);
   return [...out];
 }
@@ -204,6 +208,24 @@ function lev(a: string, b: string): number {
     row = cur;
   }
   return row[b.length];
+}
+
+/**
+ * Τι είπε ο παρουσιαστής για ΚΑΘΕ ομάδα, όχι μόνο για την τρέχουσα: «μεγάλος κάδος, 30 τετραγωνικά, με την καλύτερη ενεργειακή κλάση»
+ * → πλυντήριο ναι, κλιματιστικό (30 → βασικό σενάριο), ψυγείο ναι. Ανά φράση (κόμμα, «και»), ώστε κάθε αριθμός να πάει με τη μονάδα του.
+ */
+export function slotsIn(s: Snapshot, said: string): { cat: CatKey; alt: string }[] {
+  const out = new Map<CatKey, string>();
+  const has = (k: CatKey) => s.cats.some((c) => c.key === k);
+  for (const cl of plain(said).replace(/τ\.\s?μ\.?/g, "τμ").replace(/(\d)[.,](\d)/g, "$1·$2").split(/[,.;;!?]|\s(?:και(?!\s+μισ)|επισης|ενω|μετα|αλλα)\s/u).map((x) => x.replace(/·/g, ".")).map((x) => x.trim()).filter(Boolean)) {
+    if (/καδ|παπλωμ|κιλ/.test(cl) && !/μικρ/.test(cl) && has("washer")) out.set("washer", "");
+    if (/ενεργειακ|ρευμα|οικονομικ|κλαση/.test(cl) && has("fridge")) out.set("fridge", "");
+    if (/κεραμικ/.test(cl) && has("cooker")) out.set("cooker", "");
+    const ac = s.cats.find((c) => c.key === "ac"), tv = s.cats.find((c) => c.key === "tv");
+    if (ac && /τετραγων|(?<!\p{L})τ ?μ(?!\p{L})/u.test(cl)) { const a = altFor(ac, cl); if (a !== null) out.set("ac", a); }
+    else if (tv && /μετρ|εκατοστ/.test(cl)) { const a = altFor(tv, cl); if (a !== null) out.set("tv", a); }
+  }
+  return [...out].map(([cat, alt]) => ({ cat, alt }));
 }
 
 // το \b της JS δεν βλέπει ελληνικά γράμματα ως λέξη: όρια με \p{L}

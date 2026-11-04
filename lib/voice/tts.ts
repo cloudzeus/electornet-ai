@@ -211,8 +211,9 @@ export async function speak(rawText: string, opts: { key?: string; force?: boole
  * to the caller at once (inline) and storage + cache row are written by the
  * `persist` callback the route schedules after the response.
  */
-export async function speakInline(rawText: string, opts: { key?: string; tempo?: number } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
-  const cfg = withTempo(await getVoiceConfig(), opts.tempo), apiKey = await voiceKey(cfg);
+export async function speakInline(rawText: string, opts: { key?: string; tempo?: number; /** ElevenLabs: άλλο μοντέλο για ταχύτητα (π.χ. eleven_flash_v2_5 στις ζωντανές απαντήσεις) */ model?: string } = {}): Promise<{ result: SpeakResult & { audio?: string }; persist?: () => Promise<void> } | null> {
+  const base = withTempo(await getVoiceConfig(), opts.tempo), apiKey = await voiceKey(base);
+  const cfg = opts.model && base.provider === "elevenlabs" ? { ...base, ttsModel: `elevenlabs/${opts.model}`, eleven: { ...base.eleven, model: opts.model, stability: 0.5 } } : base;
   if (!cfg.enabled || !apiKey) return null;
   const text = normaliseText(rawText).slice(0, 1500);
   if (!text) return null;

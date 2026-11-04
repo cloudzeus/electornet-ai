@@ -82,16 +82,22 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
       const rms = Math.sqrt(sum / buf.length);
       const thr = Math.max(floor.current * VAD.ratio, VAD.minRms);
       const loud = rms > thr;
-      if (cb.current.busy()) { quietSince = now; voiced = 0; cb.current.onLevel?.(rms / thr, false); return; }
+      if (cb.current.busy()) { quietSince = now; voiced = 0; hush = 0; primed = false; cb.current.onLevel?.(rms / thr, false); return; }
       // μακριά σιωπή: νέα ηχογράφηση, να μη στέλνουμε λεπτά ησυχίας
       if (!voiced && rec && rec.age() > 20000) { rec.drop(); rec = recorder(mic.stream); }
       if (!loud) floor.current = floor.current * 0.97 + rms * 0.03;
       cb.current.onLevel?.(rms / thr, voiced >= VAD.minVoicedMs);
       if (now - quietSince < VAD.guardMs) return;
-      if (!primed) { hush = loud ? 0 : hush + VAD.tickMs; primed = hush >= VAD.primeMs; return; }
+      if (!primed) {
+        hush = loud ? 0 : hush + VAD.tickMs; primed = hush >= VAD.primeMs;
+        // η ηχογράφηση ξεκινά ΤΩΡΑ: ό,τι γράφτηκε ως εδώ (η ουρά της φωνής του Ερμή από τα ηχεία) δεν πάει στο STT
+        if (primed) { rec?.drop(); rec = recorder(mic.stream); }
+        return;
+      }
       if (loud) { voiced += VAD.tickMs; lastVoice = now; return; }
       if (voiced >= VAD.minVoicedMs && now - lastVoice >= VAD.endSilenceMs) { fired = true; const r = rec; rec = null; (r ? r.stop() : Promise.resolve(null)).then((b) => cb.current.onTurn(b)); return; }
-      if (voiced && now - lastVoice >= VAD.resetMs) voiced = 0;
+      // σκόρπιος θόρυβος που δεν έγινε ατάκα: νέα ηχογράφηση, να μην κολλήσει μπροστά στην επόμενη ατάκα
+      if (voiced && now - lastVoice >= VAD.resetMs) { voiced = 0; rec?.drop(); rec = recorder(mic.stream); }
     }, VAD.tickMs);
     return () => { clearInterval(iv); rec?.drop(); };
   }, [mic, armed]);

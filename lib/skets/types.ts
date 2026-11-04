@@ -24,7 +24,7 @@ export interface SkCategory {
   /** μονάδα του αριθμού στην απάντηση του παρουσιαστή, για τις διακλαδώσεις */
   unit?: "m2" | "m";
   alts?: SkAlt[];
-  lines: { ask: string; answer: string; /** διευκρίνιση πριν την απάντηση: ο Ερμής ρωτά πιο συγκεκριμένα, ο παρουσιαστής απαντά */ follow?: { ask: string; answer: string } | null; verdict: string; verdict2: string | null; pick: string };
+  lines: { ask: string; answer: string; /** διευκρίνιση πριν την απάντηση: ο Ερμής ρωτά πιο συγκεκριμένα, ο παρουσιαστής απαντά */ follow?: { ask: string; answer: string } | null; verdict: string; verdict2: string | null; pick: string; /** όταν ο παρουσιαστής το είπε ήδη νωρίτερα («…και μεγάλο κάδο»): η ερώτηση αντικαθίσταται από αυτό, χωρίς αναμονή */ known?: string };
 }
 export interface SkStore { id: string; name: string; street: string; address: string; city: string; phone: string | null; km: number; lat: number; lng: number; /** «το κατάστημα της Αεροδρομίου» */ spoken: string }
 /** cat: σε ποια ομάδα ισχύει (null = οπουδήποτε) · q: πώς μπορεί να το πει ο παρουσιαστής · a: τι απαντά ο Ερμής · ids: προϊόντα στην οθόνη */
