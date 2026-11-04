@@ -228,7 +228,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     else if (c.t === "goto") go(c.i);
     else if (c.t === "reset") { callStarted.current = false; setCall(null); setStore(null); setLive(null); setListening(false); setExtras([]); setAlts({}); liveN.current = 0; fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); go(0); }
     else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && store === null && snap.stores[c.i]) { // μία επιλογή: φωνή ή κλικ, όποιο έρθει πρώτο
-      setStore(c.i); timer.current = setTimeout(next, 1600); } }
+      setStore(c.i); timer.current = setTimeout(next, 900); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
   }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k, call?.status]);
 

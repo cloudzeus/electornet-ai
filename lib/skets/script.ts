@@ -196,16 +196,29 @@ export function altFor(c: SkCategory, said: string): string | null {
   return c.alts.find((a) => a.words && new RegExp(a.words).test(plain(said)))?.key ?? null;
 }
 
+function lev(a: string, b: string): number {
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(row[j] + 1, cur[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    row = cur;
+  }
+  return row[b.length];
+}
+
 // το \b της JS δεν βλέπει ελληνικά γράμματα ως λέξη: όρια με \p{L}
 const word = (x: string) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${x})(?![\\p{L}\\p{N}])`, "u");
 const ORD: [RegExp, number][] = [[word("πρωτο|πρωτη|1"), 0], [word("δευτερο|δευτερη|2"), 1], [word("τριτο|τριτη|3"), 2], [word("τεταρτο|τεταρτη|4"), 3]];
 /** Επιλογή καταστήματος με φωνή: οδός («της Ηπείρου»), σειρά («το πρώτο») ή «το πιο κοντινό». */
 export function storeFor(s: Snapshot, said: string): number | null {
-  const t = plain(said), heard = t.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3);
+  // το STT γράφει όπως ακούει («Ιπείρου», «Δραγούμι»): σύγκριση με ήχο (ι/η/υ/ει/οι, ο/ω, ε/αι) και ανοχή ενός-δύο γραμμάτων
+  const ph = (w: string) => w.replace(/ει|οι|η|υ/g, "ι").replace(/ω/g, "ο").replace(/αι/g, "ε");
+  const t = plain(said), heard = t.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 3).map(ph);
   const stem = (w: string) => w.slice(0, Math.max(4, w.length - 2));
+  const near = (a: string, b: string) => Math.min(a.length, b.length) >= 6 && lev(a, b) <= (Math.min(a.length, b.length) >= 8 ? 2 : 1);
   for (const [n, st] of s.stores.entries()) {
-    const words = plain(`${st.street} ${st.name}`).split(/[^\p{L}]+/u).filter((w) => w.length > 4);
-    if (words.some((w) => heard.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h))))) return n;
+    const words = plain(`${st.street} ${st.name}`).split(/[^\p{L}]+/u).filter((w) => w.length > 4).map(ph);
+    if (words.some((w) => heard.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h)) || near(h, w)))) return n;
   }
   if (/κοντινοτερ|πλησιεστερ|πιο κοντ/.test(t)) return s.stores.reduce((b, st, n) => (st.km < s.stores[b].km ? n : b), 0);
   for (const [re, n] of ORD) if (re.test(t) && s.stores[n]) return n;

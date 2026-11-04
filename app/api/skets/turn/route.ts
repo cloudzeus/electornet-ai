@@ -44,6 +44,8 @@ export async function POST(req: Request) {
   if (beat.wait === "store") {
     const i = storeFor(snap, said);
     if (i !== null) return NextResponse.json({ route: "store", i, said, ms: msStt });
+    // ό,τι δεν είναι ερώτηση («ναι, αυτό», σχόλιο) δεν περνά από το μοντέλο (3–10 s): η σκηνή συνεχίζει να ακούει αμέσως
+    if (!QUESTION.test(n) && !/[;;?]\s*$/.test(said)) return NextResponse.json({ route: "none", said, ms: msStt });
   }
   // η απάντηση ορίζει μέγεθος (τ.μ., μέτρα): ο αριθμός που ακούστηκε διαλέγει διακλάδωση — πριν από το «ναι», γιατί «ναι, σαράντα» ≠ «ναι»
   const vc = snap.cats.find((c) => beats[bi + 1]?.id === `${c.key}-verdict`);
