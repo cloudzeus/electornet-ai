@@ -4,16 +4,19 @@
  *   npx tsx --conditions=react-server scripts/redesign-banners.ts --product <id>
  *   npx tsx --conditions=react-server scripts/redesign-banners.ts --type "Κλιματιστικά Inverter" --type "Τηλεοράσεις"
  *   npx tsx --conditions=react-server scripts/redesign-banners.ts --all
+ *   npx tsx --conditions=react-server scripts/redesign-banners.ts --accept-lowres [--product <id>]   # «για έλεγχο» μόνο
+ *     λόγω χαμηλής ανάλυσης → εγκρίνονται και δημοσιεύονται μαζί με τα υπόλοιπα banners του προϊόντος
  */
 import "dotenv/config";
 import { db } from "../lib/db";
-import { redesignProduct } from "../lib/catalog/banner-batch";
+import { acceptLowRes, redesignProduct } from "../lib/catalog/banner-batch";
 
 const has = (n: string) => process.argv.includes(`--${n}`);
 const vals = (n: string) => process.argv.flatMap((a, i) => (a === `--${n}` && process.argv[i + 1] ? [process.argv[i + 1]] : []));
 
 async function main() {
-  const ids = vals("product"), types = vals("type");
+  let ids = vals("product"); const types = vals("type"), lowres = has("accept-lowres");
+  if (lowres) { const a = await acceptLowRes(ids.length ? ids : undefined); console.log(`Χαμηλή ανάλυση: ${a.extractions} banners εγκρίθηκαν σε ${a.products.length} προϊόντα.`); ids = a.products; if (!ids.length) return; }
   if (!ids.length && !types.length && !has("all")) throw new Error("Δώσε --product <id>, --type \"…\" ή --all.");
   const list = ids.length ? ids : (await db.product.findMany({ where: { extractions: { some: { status: "published" } }, ...(types.length ? { category: { name: { in: types } } } : {}) }, select: { id: true }, orderBy: { title: "asc" } })).map((p) => p.id);
   const conc = Number(vals("concurrency")[0]) || 4;
@@ -22,7 +25,7 @@ async function main() {
     for (;;) {
       const id = list[next++]; if (!id) return;
       try {
-        const r = await redesignProduct(id);
+        const r = await redesignProduct(id, { publish: lowres });
         done++; cost += r.costUsd; before += r.before; after += r.sections;
         console.log(`  ✓ ${r.title.slice(0, 52).padEnd(52)} ${r.before} → ${r.sections} ενότητες${r.dropped ? ` (−${r.dropped})` : ""} · ${r.design} · $${r.costUsd.toFixed(4)}`);
       } catch (e) { console.log(`  ✗ ${id} · ${e instanceof Error ? e.message.slice(0, 120) : e}`); }

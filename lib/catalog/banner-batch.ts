@@ -66,7 +66,9 @@ export async function autoExtractProduct(productId: string, opts: { concurrency?
         const a = await analyseOrReuse(m, phash);
         const content = a.doc.sections.some(sectionHasContent);
         const sharp = a.doc.width >= MIN_BANNER_W;
-        const ok = content && a.coverage >= MIN_COVERAGE && sharp;
+        // η χαμηλή ανάλυση μένει σημείωση, δεν κρατά το banner: το κείμενο βγαίνει σωστά και η σελίδα δείχνει τις
+        // φωτογραφίες ως το πραγματικό τους πλάτος (ProductSections) — καλύτερα από το banner απλωμένο θολό
+        const ok = content && a.coverage >= MIN_COVERAGE;
         const flags = [...(!content ? ["κενό"] : []), ...(a.coverage < MIN_COVERAGE ? [`κάλυψη ${Math.round(a.coverage * 100)}%`] : []), ...(!sharp ? [`χαμηλή ανάλυση ${a.doc.width}px — χρειάζεται το πρωτότυπο`] : [])];
         const row = await db.bannerExtraction.create({ data: { productId, mediaId: m.id, sourceUrl: m.url, sourceName: m.importFile, width: a.doc.width, height: a.doc.height, lang: a.doc.lang, doc: a.doc as unknown as Prisma.InputJsonValue, origin: "auto", phash, quality: { coverage: +a.coverage.toFixed(3), reused: a.reusedFrom, flags } as Prisma.InputJsonValue, needsReview: !ok, model: a.model, costUsd: a.costUsd, ms: a.ms } });
         if (a.reusedFrom) res.reused++; else res.analysed++;
@@ -165,7 +167,7 @@ export async function undoAuto(types?: string[]) {
  * αναιρεί ό,τι είχε πετάξει ο ΠΡΟΗΓΟΥΜΕΝΟΣ σχεδιαστής (όχι ό,τι απέκλεισε άνθρωπος), ξανατρέχει τον σχεδιαστή και
  * ξαναδημοσιεύει. Κόστος: μία κλήση σχεδιασμού ανά προϊόν.
  */
-export async function redesignProduct(productId: string) {
+export async function redesignProduct(productId: string, opts: { publish?: boolean } = {}) {
   const p = await db.product.findUnique({ where: { id: productId }, select: { title: true, brand: { select: { name: true } }, category: { select: { name: true } } } });
   if (!p) throw new Error("Το προϊόν δεν βρέθηκε.");
   const rows = await db.bannerExtraction.findMany({ where: { productId, status: { in: ["published", "draft"] }, needsReview: false }, select: { id: true, doc: true, mediaId: true, createdAt: true, status: true } });
@@ -176,13 +178,25 @@ export async function redesignProduct(productId: string) {
   const before = await db.productSection.count({ where: { productId, extractionId: { in: rows.map((r) => r.id) } } });
   const docs = rows.map((r) => r.doc as unknown as StudioDoc); // ο σχεδιαστής ξεκινά από καθαρό χαρτί (resetDesign)
   const design = await designPage(docs, { brand: p.brand.name, title: p.title, typeName: p.category.name });
-  // ξαναδημοσιεύεται ΜΟΝΟ ό,τι είχε ήδη εγκριθεί (published)· τα πρόχειρα μένουν πρόχειρα
-  if (rows.every((r) => r.status === "published")) {
+  // ξαναδημοσιεύεται ΜΟΝΟ ό,τι είχε ήδη εγκριθεί (published)· τα πρόχειρα μένουν πρόχειρα — εκτός αν ζητηθεί ρητά
+  if (opts.publish || rows.every((r) => r.status === "published")) {
     const pub = await publishExtractions(productId, rows.map((r, k) => ({ id: r.id, doc: design.docs[k] })), { hideSources: true, hideMediaIds: rows.map((r) => r.mediaId).filter((x): x is string => !!x) });
     return { title: p.title, sections: pub.sections, before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
   }
   for (const [k, r] of rows.entries()) await saveDraft(r.id, design.docs[k]);
   return { title: p.title, sections: design.docs.reduce((n, d) => n + d.sections.filter((x) => x.include && sectionHasContent(x)).length, 0), before, dropped: design.dropped, costUsd: design.costUsd, design: design.by };
+}
+
+/**
+ * Banners που κρατήθηκαν «για έλεγχο» ΜΟΝΟ λόγω χαμηλής ανάλυσης (στενότερα από MIN_BANNER_W, συνήθως τα κάθετα
+ * banners των 400–600px): το κείμενο βγήκε κανονικά και η σελίδα δείχνει τις φωτογραφίες ως το πραγματικό τους πλάτος —
+ * καλύτερα από το banner απλωμένο θολό σε όλη τη στήλη. Επιστρέφει τα προϊόντα που άλλαξαν.
+ */
+export async function acceptLowRes(productIds?: string[]) {
+  const rows = await db.bannerExtraction.findMany({ where: { origin: "auto", status: "draft", needsReview: true, ...(productIds?.length ? { productId: { in: productIds } } : {}) }, select: { id: true, productId: true, quality: true } });
+  const only = rows.filter((r) => { const f = ((r.quality as { flags?: string[] } | null)?.flags ?? []); return f.length > 0 && f.every((x) => x.startsWith("χαμηλή ανάλυση")); });
+  if (only.length) await db.bannerExtraction.updateMany({ where: { id: { in: only.map((r) => r.id) } }, data: { needsReview: false } });
+  return { extractions: only.length, products: [...new Set(only.map((r) => r.productId))] };
 }
 
 /**

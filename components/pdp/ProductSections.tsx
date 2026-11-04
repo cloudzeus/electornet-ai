@@ -1,6 +1,6 @@
 import Image from "@/components/ui/Image";
 import { Fragment, type ReactNode } from "react";
-import { autoLayout, calmTitle, type ImageSize, type PublishedSection, type SectionImage, type SectionFeature, type SectionLayout } from "@/lib/catalog/banner-doc";
+import { autoLayout, calmTitle, dropNoteRefs, type ImageSize, type PublishedSection, type SectionImage, type SectionFeature, type SectionLayout } from "@/lib/catalog/banner-doc";
 import { sx } from "@/components/ui/sx";
 
 /**
@@ -105,8 +105,11 @@ function Framed({ im, sizes, r, variant = "main" }: { im: SectionImage; sizes: s
   // κομμένες φωτογραφίες (κύκλοι, προϊόν σε λευκό) και διαγράμματα χωρούν ολόκληρα· οι υπόλοιπες γεμίζουν το πλαίσιο
   const contain = variant === "more" || ratio < 0.7 || ratio > 2.2;
   const fit = contain ? "[&_img]:object-contain [&_img]:object-top" : "[&_img]:object-cover bg-eu-surface";
+  // ως το πραγματικό πλάτος της περικοπής: από στενό banner (400px) η φωτογραφία είναι ~300px — απλωμένη θολώνει
+  const maxW = sx({ maxWidth: im.width });
   return (
-    <div {...mark(r, `img:${im.url}`)} className={`relative w-full aspect-video max-h-44 @2xl:aspect-[4/3] @2xl:max-h-80 rounded-xl overflow-hidden [&_img]:size-full [&_img]:rounded-none ${fit}`}>
+    <div {...mark(r, `img:${im.url}`)} className={`relative w-full ${maxW.className} aspect-video max-h-44 @2xl:aspect-[4/3] @2xl:max-h-80 rounded-xl overflow-hidden [&_img]:size-full [&_img]:rounded-none ${fit}`}>
+      {maxW.node}
       {r.renderImage ? r.renderImage(im, variant) : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes={sizes} />}
     </div>
   );
@@ -137,6 +140,40 @@ function Split({ im, sizes, r, children }: { im: SectionImage; sizes: string; r:
     <div className="grid grid-cols-1 @2xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4 @2xl:gap-8 items-start">
       <Framed im={im} sizes={sizes} r={r} />
       <div className="grid gap-3 content-start min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Σύντομη ενότητα (μία φωτογραφία, λίγες γραμμές, χωρίς λίστα) — τρεις-τέσσερις τέτοιες στη σειρά ήταν μια μακριά
+ * σκάλα από ίδιες γραμμές «φωτογραφία + κείμενο»· μαζί γίνονται μία σειρά καρτών, όπως ήταν στο banner.
+ */
+const cardable = (s: PublishedSection, layout: SectionLayout) =>
+  (layout === "split" || layout === "text") && s.images.length <= 1 && !s.features.length && !s.stats?.length
+  && (s.body ?? "").length <= 360 && (s.title ?? "").length <= 80 && !!(s.title || s.body);
+
+function CardRow({ items, r }: { items: PublishedSection[]; r: Render }) {
+  const cols = items.length % 3 === 0 || items.length > 4 ? "@2xl:grid-cols-2 @4xl:grid-cols-3" : "@2xl:grid-cols-2";
+  return (
+    <div className={`grid grid-cols-1 ${cols} gap-x-6 gap-y-8`}>
+      {items.map((s) => {
+        const im = s.images[0];
+        return (
+          <section key={s.id} {...mark(r, `sec:${s.id}`)} className="grid gap-3 content-start min-w-0">
+            {im && (
+              <div {...mark(r, `img:${im.url}`)} className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-eu-surface [&_img]:size-full [&_img]:object-cover [&_img]:rounded-none">
+                {r.renderImage ? r.renderImage(im, "main") : <Image src={im.url} alt={im.alt} width={im.width} height={im.height} sizes="(min-width: 1024px) 250px, (min-width: 640px) 45vw, 100vw" />}
+              </div>
+            )}
+            <div className="grid gap-1.5">
+              {s.title && <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] leading-snug text-pretty">{s.title}</h3>}
+              {s.subtitle && <p className="m-0 font-semibold text-eu-ink-2 text-[length:var(--fs-15)] leading-snug">{s.subtitle}</p>}
+              {s.body?.split(/\n{2,}/).map((p, k) => <p key={k} className="m-0 text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed text-pretty">{p}</p>)}
+              {s.footnote && <p className="m-0 text-eu-muted text-[length:var(--fs-14)] leading-snug">{s.footnote}</p>}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -246,23 +283,46 @@ function Section({ s, layout, sizes, r }: { s: PublishedSection; layout: Section
 }
 
 const MIN_HERO_W = 640;
+/** Περικοπές κάτω από 160px (μικρογραφίες από στενά banners) δεν λένε τίποτα — καλύτερα καθόλου φωτογραφία. */
+const MIN_IMG_W = 160;
 
 export function ProductSections({ sections, sizes = "(min-width: 1024px) 380px, 100vw", renderImage, renderIcon, editable, sel }: { sections: PublishedSection[]; sizes?: string } & Render) {
   if (!sections.length) return null;
   const r: Render = { renderImage, renderIcon, editable, sel };
   // λέξεις με τόνους από όλο το κείμενο του προϊόντος, για τους τίτλους που ήρθαν με ΚΕΦΑΛΑΙΑ
   const corpus = sections.flatMap((x) => [x.body, x.footnote, ...x.features.flatMap((f) => [f.label, f.text])]).filter(Boolean).join(" ");
+  const prepared = sections.map((s0) => {
+    const seen = new Set<string>(); // το ίδιο εικονίδιο από δύο banners («Λειτουργία ύπνου» δύο φορές)
+    const features = s0.features.map(splitFeature).filter((f) => { const k = flat(f.label); if (!k) return true; if (seen.has(k)) return false; seen.add(k); return true; })
+      .map((f) => ({ ...f, label: dropNoteRefs(f.label), ...(f.text ? { text: dropNoteRefs(f.text) } : {}) }));
+    const title = s0.title && dropNoteRefs(calmTitle(s0.title, corpus));
+    const s: PublishedSection = {
+      ...s0, title, subtitle: s0.subtitle && dropNoteRefs(calmTitle(s0.subtitle, corpus)), features,
+      body: s0.body && s0.body.split(/\n{2,}/).map((p) => dropNoteRefs(p)).filter(Boolean).join("\n\n"),
+      // στο εργαλείο φαίνονται όλες (ο διαχειριστής αποφασίζει)· στη σελίδα οι μικρογραφίες φεύγουν
+      images: editable ? s0.images : s0.images.filter((im) => im.width >= MIN_IMG_W),
+    };
+    const layout0 = s.layout ?? autoLayout({ images: s.images.map((i) => ({ kind: "product", ratio: i.width / Math.max(1, i.height), overlayText: false })), features: s.features.length, stats: s.stats?.length ?? 0, textChars: (s.body ?? "").length });
+    // «hero» μόνο με φωτογραφία που αντέχει το πλάτος — αλλιώς δίπλα στο κείμενο, στο πραγματικό της μέγεθος
+    const layout: SectionLayout = layout0 === "hero" && (s.images[0]?.width ?? 0) < MIN_HERO_W ? "split" : layout0;
+    return { s, layout };
+  });
+  // διαδοχικές σύντομες ενότητες → μία σειρά καρτών (2+), οι υπόλοιπες μόνες τους
+  const blocks: ({ kind: "one"; s: PublishedSection; layout: SectionLayout } | { kind: "cards"; items: PublishedSection[] })[] = [];
+  for (let i = 0; i < prepared.length; ) {
+    let j = i;
+    // ίδιο είδος κάρτας σε μια σειρά: όλες με φωτογραφία ή όλες χωρίς
+    const pic = !!prepared[i].s.images.length;
+    while (j < prepared.length && cardable(prepared[j].s, prepared[j].layout) && !!prepared[j].s.images.length === pic) j++;
+    if (j - i >= 2) { blocks.push({ kind: "cards", items: prepared.slice(i, j).map((x) => x.s) }); i = j; }
+    else { blocks.push({ kind: "one", ...prepared[i] }); i++; }
+  }
   return (
-    <div className="@container grid gap-8 @2xl:gap-12">
-      {sections.map((s0) => {
-        const seen = new Set<string>(); // το ίδιο εικονίδιο από δύο banners («Λειτουργία ύπνου» δύο φορές)
-        const features = s0.features.map(splitFeature).filter((f) => { const k = flat(f.label); if (!k) return true; if (seen.has(k)) return false; seen.add(k); return true; });
-        const s = { ...s0, title: s0.title && calmTitle(s0.title, corpus), subtitle: s0.subtitle && calmTitle(s0.subtitle, corpus), features };
-        const layout0 = s.layout ?? autoLayout({ images: s.images.map((i) => ({ kind: "product", ratio: i.width / Math.max(1, i.height), overlayText: false })), features: s.features.length, stats: s.stats?.length ?? 0, textChars: (s.body ?? "").length });
-        // «hero» μόνο με φωτογραφία που αντέχει το πλάτος — αλλιώς δίπλα στο κείμενο, στο πραγματικό της μέγεθος
-        const layout = layout0 === "hero" && (s.images[0]?.width ?? 0) < MIN_HERO_W ? "split" : layout0;
-        const el = <Section s={s} layout={layout} sizes={sizes} r={r} />;
-        return editable ? <div key={s.id} {...mark(r, `sec:${s.id}`)}>{el}</div> : <Fragment key={s.id}>{el}</Fragment>;
+    <div className="@container grid gap-10 @2xl:gap-14">
+      {blocks.map((b) => {
+        if (b.kind === "cards") return <CardRow key={b.items[0].id} items={b.items} r={r} />;
+        const el = <Section s={b.s} layout={b.layout} sizes={sizes} r={r} />;
+        return editable ? <div key={b.s.id} {...mark(r, `sec:${b.s.id}`)}>{el}</div> : <Fragment key={b.s.id}>{el}</Fragment>;
       })}
     </div>
   );
