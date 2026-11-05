@@ -2,7 +2,9 @@
  * Σκετς Ερμή — έτοιμες απαντήσεις: για κάθε ομάδα προϊόντων (και για τη γενική κουβέντα) γράφει τι μπορεί να πει ή να ρωτήσει
  * ο παρουσιαστής και τι απαντά ο Ερμής, από τα στοιχεία του snapshot, και τις ηχογραφεί. Στη σκηνή (/api/skets/turn) ό,τι
  * μοιάζει με έτοιμη ερώτηση απαντιέται αμέσως με ηχογραφημένη φράση — ο ζωντανός διάλογος χωρίς καθυστέρηση.
- *   npx tsx --conditions=react-server scripts/skets/qa.ts
+ *   npx tsx --conditions=react-server scripts/skets/qa.ts            (όλα από την αρχή, με ηχογράφηση)
+ *   … qa.ts --more    νέες απαντήσεις (πριν την επιλογή κάθε ομάδας + γενικές) στο lib/skets/qa-draft.json, χωρίς ηχογράφηση
+ *   … qa.ts --apply   το draft (όπως το διόρθωσε ο άνθρωπος) μπαίνει στο snapshot και ηχογραφούνται μόνο όσες λείπουν
  */
 import "dotenv/config";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -16,7 +18,7 @@ const snap = JSON.parse(readFileSync("lib/skets/snapshot.json", "utf8")) as Snap
 const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 const STYLE = `Ο Ερμής είναι ο ψηφιακός σύμβουλος της Euronics σε ζωντανή παρουσίαση. Σενάριο: ο παρουσιαστής ξεκινά νέα δουλειά στη Λάρισα και εξοπλίζει από την αρχή ένα σπίτι (πλυντήριο, ψυγείο, τηλεόραση, κλιματιστικό, κουζίνα). Μιλά στον παρουσιαστή (${snap.presenter.full}) ανθρώπινα αλλά με επαγγελματική απόσταση: πληθυντικός ευγενείας, τον λέει πάντα «${snap.presenter.vocative}». Απαντήσεις 1–3 σύντομες προτάσεις, μόνο από τα στοιχεία που δίνονται (ποτέ τιμές ή χαρακτηριστικά που δεν δίνονται — αν δεν ξέρει, το λέει ειλικρινά). Αριθμούς και μονάδες ολογράφως όπως λέγονται («εννιά κιλά», «πενήντα πέντε ίντσες», «δώδεκα χιλιάδες μονάδες»), μάρκες με λατινικά, ενεργειακή κλάση «κλάσης άλφα».`;
 
-async function gen(cat: CatKey | null, brief: string, n: number, start = false): Promise<SkQA[]> {
+async function gen(cat: CatKey | null, brief: string, n: number, start = false, pre = false): Promise<SkQA[]> {
   const r = await chat({
     feature: "skets-qa", model: "main", json: true, maxTokens: 2500, temperature: 0.5, reasoning: "low", timeoutMs: 90000,
     messages: [
@@ -27,10 +29,39 @@ async function gen(cat: CatKey | null, brief: string, n: number, start = false):
   // το μοντέλο μπορεί να τυλίξει το JSON σε ```json … ``` ή να βάλει κείμενο γύρω του
   const raw = r.text.slice(r.text.indexOf("{"), r.text.lastIndexOf("}") + 1);
   const j = JSON.parse(raw) as { items?: { q?: string[]; a?: string; ids?: string[] }[] };
-  return (j.items ?? []).filter((x) => x.a && x.q?.length).map((x) => ({ cat, q: x.q!.slice(0, 5), a: x.a!.trim(), ids: (x.ids ?? []).slice(0, 2), ...(start ? { start } : {}) }));
+  return (j.items ?? []).filter((x) => x.a && x.q?.length).map((x) => ({ cat, q: x.q!.slice(0, 5), a: x.a!.trim(), ids: (x.ids ?? []).slice(0, 2), ...(start ? { start } : {}), ...(pre ? { pre } : {}) }));
 }
 
-(async () => {
+const DRAFT = "lib/skets/qa-draft.json";
+const save = () => writeFileSync("lib/skets/snapshot.json", JSON.stringify(snap, null, 1));
+
+async function more() {
+  const qa: SkQA[] = [];
+  const known = (snap.qa ?? []).flatMap((x) => x.q).join(" | ");
+  for (const c of snap.cats) {
+    qa.push(...await gen(c.key, `Ομάδα: ${c.label}. Ο Ερμής μόλις ρώτησε: «${c.lines.ask}»${c.lines.follow ? ` (και μετά: «${c.lines.follow.ask}»)` : ""}. ΔΕΝ έχει διαλέξει ακόμα προϊόν — μην πεις ποιο θα πάρουμε και μην προτείνεις συγκεκριμένο μοντέλο.
+Ο παρουσιαστής, αντί να απαντήσει, ρωτά κάτι (διαφορές τύπων/μεγεθών, κατανάλωση, θόρυβος, μάρκες, τιμές, «τι μου προτείνεις;», «έχει σημασία;», «τι θα έπαιρνες εσύ;»). Ο Ερμής απαντά τίμια από τα στοιχεία, γενικά (χωρίς κωδικούς), και τελειώνει ξαναρωτώντας με άλλα λόγια την ερώτηση του σεναρίου. Ids: κενό.
+Υποψήφια:\n${c.candidates.map((p) => `${p.brand} ${p.key} · ${eur(p.price)} · ${p.chips.join(", ")}`).join("\n")}`, 10, false, true));
+    process.stdout.write(`${c.label} ✓ `);
+  }
+  qa.push(...await gen(null, `Γενική κουβέντα μέσα στην παρουσίαση, που δεν καλύπτουν ήδη αυτές: ${known.slice(0, 1500)}\nΠ.χ. «πόση ώρα θα πάρει;», «με εμπιστεύεσαι;», «ξέρεις τη Λάρισα;», «σε πληρώνει η Euronics;», «κάνεις λάθη;», «θα με ξεχάσεις;», «ακούς το κοινό;», «πες ένα αστείο». Ο παρουσιαστής μόλις πήρε μετάθεση στη Λάρισα και εξοπλίζει σπίτι από το μηδέν.`, 10));
+  writeFileSync(DRAFT, JSON.stringify(qa, null, 1));
+  console.log(`\n→ ${qa.length} νέες στο ${DRAFT} (χωρίς ηχογράφηση)`);
+}
+
+async function apply() {
+  const add = JSON.parse(readFileSync(DRAFT, "utf8")) as SkQA[];
+  const have = new Set((snap.qa ?? []).map((x) => x.a));
+  snap.qa = [...(snap.qa ?? []), ...add.filter((x) => !have.has(x.a))];
+  let rec = 0;
+  for (const x of snap.qa) if (!snap.voice[x.a]) { const v = await speak(forVoice(x.a), SKETS_VOICE); if (v) { snap.voice[x.a] = v.url; rec++; } }
+  save();
+  console.log(`→ ${snap.qa.length} έτοιμες απαντήσεις, ${rec} νέες ηχογραφήσεις`);
+}
+
+if (process.argv.includes("--more") || process.argv.includes("--apply")) {
+  (process.argv.includes("--more") ? more() : apply()).then(() => db.$disconnect()).catch((e) => { console.error(e); process.exit(1); });
+} else (async () => {
   const picks = snap.cats.map((c) => c.candidates.find((p) => p.id === c.pick)!);
   const qa: SkQA[] = [];
   qa.push(...await gen(null, `ΕΝΑΡΞΗ της παρουσίασης: ο παρουσιαστής μόλις ήρθε στη σκηνή και μιλά πρώτος στον Ερμή (χαιρετισμοί, «πώς είσαι», «ποιος είσαι», «με ακούς;», «είσαι έτοιμος;», αστεία). Ο Ερμής ΔΕΝ ξέρει ακόμα τίποτα: ούτε για Λάρισα, ούτε για δουλειά, ούτε για σπίτι — ΜΗΝ τα αναφέρεις και ΜΗΝ δίνεις συγχαρητήρια. Κάθε απάντηση τελειώνει ρωτώντας φυσικά τι νέα έχει / πώς μπορεί να βοηθήσει, ώστε ο παρουσιαστής να πει τα νέα του.`, 8, true));
@@ -43,7 +74,7 @@ async function gen(cat: CatKey | null, brief: string, n: number, start = false):
   snap.qa = qa;
   let rec = 0;
   for (const x of qa) { const v = await speak(forVoice(x.a), SKETS_VOICE); if (v) { snap.voice[x.a] = v.url; rec++; } }
-  writeFileSync("lib/skets/snapshot.json", JSON.stringify(snap, null, 1));
+  save();
   console.log(`\n→ ${qa.length} έτοιμες απαντήσεις, ${rec} ηχογραφημένες`);
   await db.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

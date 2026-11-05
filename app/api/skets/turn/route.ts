@@ -84,27 +84,23 @@ export async function POST(req: Request) {
   // απάντησε κατευθείαν στο «πόσο μεγάλο κάδο;» («ναι», «μεγάλο», «ναι, μεγάλο») → χωρίς τη διευκρίνιση, στην απόφαση
   const fc = snap.cats.find((c) => c.lines.follow && beat.id === `${c.key}-ask`);
   if (fc && !asked && !/[;;?]\s*$/.test(said) && !/μικρ/.test(n) && (YES.test(n) || /μεγαλ|παπλωμ|κιλ|οικογεν|πολλ/.test(n))) return reply({ route: "jump", to: `${fc.key}-verdict`, cat: fc.key, alt: "", said, ms: msStt });
-  if (beat.wait === "presenter" && /εννοει/.test(norm(cue)) && n.split(" ").length <= 12) return reply({ route: "script", said, ms: msStt });
-  if (beat.wait === "presenter" && (fidelity(cue, said) >= 0.5 || content >= 0.5 || (YES.test(n) && !QUESTION.test(n.replace(/^(ναι|οκ)\s*/, ""))))) return reply({ route: "script", said, ms: msStt });
-
-  // οι συσκευές και τα βήματα είναι σταθερά: ό,τι δεν είναι ερώτηση είναι η ατάκα του παρουσιαστή με δικά του λόγια → συνέχεια, αμέσως, χωρίς μοντέλο
-  if (!asked) return reply({ route: "script", said, ms: msStt });
   const ev0: LiveEv = { n: Date.now(), phase: "thinking", q: said, quiet: true };
   const scene = sceneAt(beats, bi), cat = scene.cat ? snap.cats.find((c) => c.key === scene.cat) ?? null : null;
   const all = snap.cats.flatMap((c) => c.candidates);
   const toLive = (ids: string[]): LiveProduct[] => ids.flatMap((pid) => all.filter((p) => p.id === pid)).slice(0, 2).map((p) => ({ id: p.id, brand: p.brand, title: p.title, price: p.price, image: p.image, why: p.key }));
   const mem = liveMemory();
-
-  // έτοιμη απάντηση (scripts/skets/qa.ts): ό,τι μοιάζει με πιθανή ερώτηση αυτού του σημείου παίζει αμέσως, ηχογραφημένο
-  let best: { a: string; ids: string[]; score: number } | null = null;
-  for (const x of snap.qa ?? []) {
-    if (x.cat && (x.cat !== scene.cat || !scene.picked[x.cat])) continue; // οι έτοιμες απαντήσεις μιλούν για το προϊόν που ήδη διαλέξαμε
-    if (!!x.start !== (beat.id === "idle")) continue; // στην αρχή ο Ερμής δεν ξέρει ακόμα για το σπίτι
-    if (!snap.voice[x.a]) continue;
-    const score = Math.max(...x.q.map((v) => fidelity(v, said)));
-    if (!best || score > best.score) best = { a: x.a, ids: x.ids, score };
-  }
-  if (best && best.score >= 0.55) {
+  const ready = () => {
+    // έτοιμη απάντηση (scripts/skets/qa.ts): ό,τι μοιάζει με πιθανή ερώτηση αυτού του σημείου παίζει αμέσως, ηχογραφημένο
+    let best: { a: string; ids: string[]; score: number } | null = null;
+    for (const x of snap.qa ?? []) {
+      // της ομάδας: είτε πριν την επιλογή (pre: εξηγούν και ξαναρωτούν) είτε για το προϊόν που ήδη διαλέξαμε
+      if (x.cat && (x.cat !== scene.cat || !!x.pre === !!scene.picked[x.cat])) continue;
+      if (!!x.start !== (beat.id === "idle")) continue; // στην αρχή ο Ερμής δεν ξέρει ακόμα για το σπίτι
+      if (!snap.voice[x.a]) continue;
+      const score = Math.max(...x.q.map((v) => fidelity(v, said)));
+      if (!best || score > best.score) best = { a: x.a, ids: x.ids, score };
+    }
+    if (!best || best.score < 0.55) return null;
     const products = toLive(best.ids);
     products.forEach((p) => mem.products.set(p.id, p));
     mem.thread.push({ role: "user", text: said }, { role: "advisor", text: best.a });
@@ -113,8 +109,14 @@ export async function POST(req: Request) {
     sendLive(ev);
     sendLive({ ...ev, phase: "audio", audio: snap.voice[best.a], part: 0, parts: 1 });
     return reply({ route: "free", ready: true, said, say: best.a, score: Math.round(best.score * 100) / 100, ms: Date.now() - t0 });
-  }
+  };
+  const qa = asked ? ready() : null;
+  if (qa) return qa;
+  if (beat.wait === "presenter" && /εννοει/.test(norm(cue)) && n.split(" ").length <= 12) return reply({ route: "script", said, ms: msStt });
+  if (beat.wait === "presenter" && (fidelity(cue, said) >= 0.5 || content >= 0.5 || (YES.test(n) && !QUESTION.test(n.replace(/^(ναι|οκ)\s*/, ""))))) return reply({ route: "script", said, ms: msStt });
 
+  // οι συσκευές και τα βήματα είναι σταθερά: ό,τι δεν είναι ερώτηση είναι η ατάκα του παρουσιαστή με δικά του λόγια → συνέχεια, αμέσως, χωρίς μοντέλο
+  if (!asked) return reply({ route: "script", said, ms: msStt });
   // κάτι απρόβλεπτο: ο Ερμής απαντά ζωντανά από ό,τι ξέρουμε ήδη (σύντομη φράση αναμονής μόνο αν αργήσει)
   sendLive(ev0);
   const picks = snap.cats.flatMap((c) => (scene.picked[c.key] ? [pickOf(c, alts)] : []));

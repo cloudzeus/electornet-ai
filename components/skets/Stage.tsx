@@ -58,6 +58,9 @@ interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error";
 export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean }) {
   /** διακλαδώσεις που διάλεξε η απάντηση του παρουσιαστή (π.χ. 40 τ.μ. → 18.000 BTU): αλλάζουν τα επόμενα βήματα, το σύνολο και την κλήση */
   const [alts, setAlts] = useState<Alts>({});
+  /** η μπάρα χειρισμού δεν φαίνεται στο κοινό· μόνο με ?ops στη διεύθυνση (χειρισμός από το κινητό ή με το πληκτρολόγιο) */
+  const [ops, setOps] = useState(false);
+  useEffect(() => setOps(new URLSearchParams(location.search).has("ops")), []);
   /** ομάδες που ο παρουσιαστής απάντησε ήδη νωρίτερα (όλα μαζί σε μία φράση): ο Ερμής δεν τις ξαναρωτά */
   const [ahead, setAhead] = useState<CatKey[]>([]);
   const beats = useMemo(() => buildBeats(snap, alts, ahead), [snap, alts, ahead]);
@@ -370,7 +373,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         </div>
         <AnimatePresence>{(listening || (live && !(live.quiet && !live.products?.length))) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
       </LayoutGroup>
-      <Dock step={`${i + 1}/${beats.length} · ${beat.id}`} auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />
+      {ops && <Dock step={`${i + 1}/${beats.length} · ${beat.id}`} auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />}
     </div>
   );
 }

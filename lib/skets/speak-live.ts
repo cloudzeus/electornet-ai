@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { sendLive } from "./bus";
 import { liveSentences, SKETS_VOICE } from "./script";
 
-const LIVE_TTS = process.env.SKETS_LIVE_TTS || "eleven_flash_v2_5";
+const LIVE_TTS = process.env.SKETS_LIVE_TTS || "eleven_turbo_v2_5";
 import { speakInline } from "@/lib/voice/tts";
 import type { LiveEv } from "./types";
 
@@ -30,7 +30,7 @@ export async function speakParts(ev: LiveEv, key: string): Promise<number> {
   const parts = liveSentences(ev.text ?? "");
   let first = 0;
   await Promise.all(parts.map(async (part, i) => {
-    // ζωντανή απάντηση: το flash αρχίζει σε ~0,4 s (το v3 θέλει 2–4 s)· χωρίς ετικέτες ύφους, που το flash θα τις διάβαζε
+    // ζωντανή απάντηση: το turbo δίνει τρεις προτάσεις σε ~0,8 s (flash ~2 s, v3 ~4 s)· χωρίς ετικέτες ύφους, που θα τις διάβαζε
     const v = await speakInline(spokenLive(part).replace(/[;\u037e](?=»?\s*$)/, "?"), { ...SKETS_VOICE, model: LIVE_TTS }).catch(() => null);
     if (!v) return;
     if (v.persist) after(v.persist);
