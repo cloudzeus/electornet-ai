@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight, Database, Loader2, Pla
 import type { FeedStateDTO } from "@/lib/catalog/xml-import/ui-core";
 import type { CheckSummary } from "@/lib/catalog/xml-import/check";
 import { GROUPS, type GroupMode, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
+import { PriceOptions } from "@/components/admin/catalog/PriceOptions";
 import { checkRowsAction, checkSummaryAction, chooseNewAction, kickXmlAction, resumeCheckAction, startCheckAction } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -110,17 +111,10 @@ export function CheckStep({ state, onDone }: { state: FeedStateDTO; onDone: () =
           </div>
         )}
         {policy && (
-          <fieldset data-help="xml.check.price" className="rounded-lg border border-eu-line-2 p-3 grid gap-2">
-            <legend className="px-1 font-bold text-eu-ink text-[length:var(--fs-14)]">Πώς βγαίνει η τιμή</legend>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-[length:var(--fs-14)]">
-              <label className="inline-flex items-center gap-2 min-h-11"><input type="radio" name="xc-pm" checked={priceMode === "cost"} onChange={() => setPriceMode("cost")} className="size-5" /> Κόστος × κανόνας τιμολόγησης (markup)</label>
-              <label className="inline-flex items-center gap-2 min-h-11"><input type="radio" name="xc-pm" checked={priceMode === "retail"} onChange={() => setPriceMode("retail")} className="size-5" /> Η λιανική του feed ως έχει</label>
-            </div>
-            <label className="inline-flex items-start gap-2 min-h-11 text-[length:var(--fs-14)]">
-              <input type="checkbox" checked={policy.vatIncluded} onChange={(e) => setPolicy({ ...policy, vatIncluded: e.target.checked })} className="size-5 mt-0.5" />
-              <span>Η τιμή του feed <b>περιλαμβάνει ΦΠΑ</b><span className="block text-eu-muted text-[length:var(--fs-12)]">{priceMode === "cost" ? "Αν ναι, ο ΦΠΑ αφαιρείται από το κόστος πριν από το markup." : "Αν όχι, προστίθεται ο ΦΠΑ του είδους στη λιανική."}</span></span>
-            </label>
-          </fieldset>
+          <div data-help="xml.check.price" className="grid">
+          <PriceOptions value={{ priceMode, vatIncluded: policy.vatIncluded, markupPercent: policy.markupPercent }}
+            onChange={(v) => { setPriceMode(v.priceMode); setPolicy({ ...policy, vatIncluded: v.vatIncluded, markupPercent: v.markupPercent }); }} />
+          </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={run} disabled={busy || running || !policy} className={primary}>{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Database className="size-4" aria-hidden />} {s?.status ? "Νέος έλεγχος με αυτές τις επιλογές" : "Έλεγχος με SoftOne"}</button>

@@ -17,7 +17,7 @@ test("ανά ομάδα: αντικατάσταση, μόνο κενά, καθό
 });
 
 test("όλα off → τίποτα", () => {
-  const r = splitByPolicy({ mtrl: "5", barcode: "1" }, { a: "b" }, { price: "off", content: "off", tech: "off", vatIncluded: false });
+  const r = splitByPolicy({ mtrl: "5", barcode: "1" }, { a: "b" }, { price: "off", content: "off", tech: "off", vatIncluded: false, markupPercent: null });
   assert.deepEqual(r, { blank: null, over: null });
 });
 
@@ -47,4 +47,28 @@ test("λιανική του feed: με ή χωρίς ΦΠΑ", () => {
 
 test("χωρίς κανόνα στο κόστος: προειδοποίηση, όχι τιμή", () => {
   assert.match(policyPrice({ mode: "cost", cost: "10", rrp: null, rule: null, label: "", vat: 24, vatIncluded: false }).warning!, /κανόνας/);
+});
+
+test("markup του χρήστη: αντικαθιστά τον κανόνα και στέκει και χωρίς κανόνα", () => {
+  // ο κανόνας λέει 25%, ο χρήστης 50% → κερδίζει ο χρήστης
+  assert.equal(policyPrice({ mode: "cost", cost: "100", rrp: null, rule, label: "κανόνας", vat: 24, vatIncluded: false, markupPercent: 50 }).price?.price, 186);
+  // χωρίς κανόνα τιμολόγησης, με markup → τιμή, όχι προειδοποίηση
+  const r = policyPrice({ mode: "cost", cost: "100", rrp: null, rule: null, label: "", vat: 24, vatIncluded: false, markupPercent: 50 });
+  assert.equal(r.price?.price, 186);
+  assert.match(r.price!.rule, /50/);
+});
+
+test("markup πάνω στη λιανική του feed: πρώτα καθαρή, μετά markup, μετά ΦΠΑ", () => {
+  assert.equal(policyPrice({ mode: "retail", cost: null, rrp: "124", rule: null, label: "", vat: 24, vatIncluded: true, markupPercent: 10 }).price?.price, 136.4);
+  assert.equal(policyPrice({ mode: "retail", cost: null, rrp: "100", rule: null, label: "", vat: 24, vatIncluded: false, markupPercent: 10 }).price?.price, 136.4);
+  // markup 0 = καμία αλλαγή
+  assert.equal(policyPrice({ mode: "retail", cost: null, rrp: "100", rule: null, label: "", vat: 24, vatIncluded: false, markupPercent: 0 }).price?.price, 124);
+});
+
+test("normPolicy: markup μόνο αν είναι ποσοστό 0–1000", () => {
+  assert.equal(normPolicy({ markupPercent: 35 }).markupPercent, 35);
+  assert.equal(normPolicy({ markupPercent: "35" }).markupPercent, null);
+  assert.equal(normPolicy({ markupPercent: -5 }).markupPercent, null);
+  assert.equal(normPolicy({ markupPercent: 5000 }).markupPercent, null);
+  assert.equal(normPolicy({}).markupPercent, null);
 });

@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowLeft, ArrowRight, BookmarkCheck, Check, CircleAlert
 import { suggestTarget, configForHeaders, type MappingConfig, type Target } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget, decodeTarget, valuesAfter, autoMatch, PREVIEW_ROWS, type InspectSheet, type SavedMappingRef, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 import type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { PriceOptions, type PriceOpts } from "@/components/admin/catalog/PriceOptions";
 import type { MatchKind } from "@/lib/catalog/foreign-import/core";
 import { lookupMapping, runForeignBatch, replanJob } from "@/app/admin/(shell)/catalog/templates/import/actions";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
@@ -100,6 +101,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   const [busy, setBusy] = useState<"inspect" | "plan" | `replan:${string}` | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [priceOpts, setPriceOpts] = useState<PriceOpts>({ priceMode: "cost", vatIncluded: false, markupPercent: null });
   const lookupSeq = useRef(0);
 
   const sheet = sheets?.[sheetIdx] ?? null;
@@ -181,7 +183,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
     setBusy("plan"); setErr(null); setPlan(null);
     try {
       const body = new FormData();
-      body.set("file", file); body.set("sheet", sheet.name); body.set("headerRow", String(headerRow)); body.set("config", JSON.stringify(config()));
+      body.set("file", file); body.set("sheet", sheet.name); body.set("headerRow", String(headerRow)); body.set("config", JSON.stringify(config())); body.set("opts", JSON.stringify(priceOpts));
       if (saveAs.trim()) body.set("saveAs", saveAs.trim());
       if (usedMapping) body.set("mappingId", usedMapping.id);
       const r = await fetch("/api/admin/catalog/foreign-import/plan", { method: "POST", body });
@@ -210,7 +212,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   // Στο βήμα 3 μπαίνεις μόνο μέσω goValues (αυτόματη προεπιλογή) και μόνο με έγκυρες στήλες· το 4 θέλει προεπισκόπηση
   const colsOk = mapped > 0 && !specMissing;
   const can = (s: Step) => s === 1 || (s === 4 && !!plan?.reopened) || (!!sheet && (s === 2 || (colsOk && (s === 3 || !!plan))));
-  const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμές"], [4, "Προεπισκόπηση"]];
+  const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμή & τιμές"], [4, "Προεπισκόπηση"]];
 
   return (
     <div className="grid gap-4 min-w-0">
@@ -381,9 +383,16 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
 
       {step === 3 && sheet && (
         <>
+          <section data-help="foreign.price" className={card} aria-labelledby="f-price">
+            <div>
+              <h3 id="f-price" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">3. Τιμή πώλησης</h3>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Από ποια στήλη ξεκινά η τιμή, αν το ποσό του αρχείου έχει ΦΠΑ και αν μπαίνει markup. Η τελική τιμή είναι πάντα με ΦΠΑ.</p>
+            </div>
+            <PriceOptions value={priceOpts} onChange={(v) => { setPriceOpts(v); touch(); }} />
+          </section>
           <section data-help="foreign.values" className={card} aria-labelledby="f-vals">
             <div>
-              <h3 id="f-vals" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">3. Τιμές μάρκας και κατηγορίας</h3>
+              <h3 id="f-vals" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τιμές μάρκας και κατηγορίας</h3>
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κάθε τιμή του αρχείου με δική μας μάρκα / κατηγορία. Όσα έχουν ίδιο όνομα προεπιλέγονται· ό,τι μείνει χωρίς επιλογή παίρνει την τιμή «για όλο το φύλλο» (αν έχεις ορίσει) ή μένει κενό.</p>
             </div>
             {!colsOf("brand").length && !colsOf("category").length && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Δεν αντιστοιχίστηκε στήλη μάρκας ή κατηγορίας — δεν χρειάζεται κάτι εδώ.</p>}
@@ -411,7 +420,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
         </>
       )}
 
-      {step === 4 && plan && <Preview key={`${plan.jobId}:${plan.rows.length}:${plan.reopened ?? ""}`} plan={plan} canSync={canSync} backLabel={sheet ? "Τιμές" : "Αρχείο"} onBack={() => { if (sheet) setStep(3); else { setPlan(null); setStep(1); } }} />}
+      {step === 4 && plan && <Preview key={`${plan.jobId}:${plan.rows.length}:${plan.reopened ?? ""}`} plan={plan} canSync={canSync} backLabel={sheet ? "Τιμή & τιμές" : "Αρχείο"} onBack={() => { if (sheet) setStep(3); else { setPlan(null); setStep(1); } }} />}
     </div>
   );
 }

@@ -152,7 +152,7 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
   const priceOf = (r: ForeignRow, brandId: string | null, categoryId: string | null, vat: number) => {
     const rule = pickRule(rules, brandId, categoryId);
     return policyPrice({
-      mode: opts.priceMode, vatIncluded: policy.vatIncluded,
+      mode: opts.priceMode, vatIncluded: policy.vatIncluded, markupPercent: policy.markupPercent,
       cost: r.cost, rrp: r.rrp, vat,
       rule: rule ? { percent: rule.percent, rounding: ROUNDING.has(rule.rounding as Rounding) ? (rule.rounding as Rounding) : "none" } : null,
       label: rule ? ruleLabel(rule, { brand: rule.brandId ? brandName.get(rule.brandId) : undefined, category: rule.categoryId ? catName.get(rule.categoryId) : undefined }) : "",

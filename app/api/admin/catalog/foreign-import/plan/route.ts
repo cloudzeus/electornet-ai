@@ -6,6 +6,7 @@ import { ensureFreshSpecGroups } from "@/lib/catalog/supplier-sheet";
 import { readWorkbook, saveMapping } from "@/lib/catalog/foreign-import/read";
 import { planForeign, assertConfigIds } from "@/lib/catalog/foreign-import/server";
 import { parseConfig, PREVIEW_ROWS } from "@/lib/catalog/foreign-import/ui-core";
+import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
 
 export const runtime = "nodejs";
 const MAX_BODY = 16 * 1024 * 1024, MAX_FILE = 15 * 1024 * 1024;
@@ -48,7 +49,12 @@ export async function POST(req: Request) {
       mappingId = (await saveMapping(saveAs, headers, config, session.user.id)).id;
     }
     await ensureFreshSpecGroups();
-    const plan = await planForeign({ fileName: file.name, sheet: sheet.matrix, headerRow, config, mappingId }, session.user.id);
+    // Πώς βγαίνει η τιμή (βήμα 3): λάθος ή απουσία → οι προεπιλογές, όπως πριν (κόστος × κανόνας, χωρίς ΦΠΑ στο αρχείο)
+    let price: unknown = null;
+    try { price = JSON.parse(String(form.get("opts") ?? "null")); } catch { price = null; }
+    const pm = (price as { priceMode?: unknown } | null)?.priceMode;
+    const opts = { policy: normPolicy(price), priceMode: pm === "retail" ? ("retail" as const) : ("cost" as const) };
+    const plan = await planForeign({ fileName: file.name, sheet: sheet.matrix, headerRow, config, mappingId, opts }, session.user.id);
     return NextResponse.json({ ...plan, mappingId });
   } catch (e) {
     // Μόνο τα δικά μας ελληνικά μηνύματα φτάνουν στον χρήστη· τα υπόλοιπα (βάση, βιβλιοθήκες) μένουν στο log

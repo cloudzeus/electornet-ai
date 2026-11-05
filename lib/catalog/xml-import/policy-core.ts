@@ -20,9 +20,11 @@ export interface UpdatePolicy {
   tech: GroupMode;
   /** η τιμή του feed (κόστος ή λιανική) περιλαμβάνει ήδη ΦΠΑ */
   vatIncluded: boolean;
+  /** ποσοστό markup που όρισε ο χρήστης για αυτή την εισαγωγή· `null` = ό,τι λέει ο κανόνας τιμολόγησης */
+  markupPercent: number | null;
 }
 
-export const DEFAULT_POLICY: UpdatePolicy = { price: "blank", content: "blank", tech: "blank", vatIncluded: false };
+export const DEFAULT_POLICY: UpdatePolicy = { price: "blank", content: "blank", tech: "blank", vatIncluded: false, markupPercent: null };
 
 export const GROUPS: { key: FieldGroup; label: string; help: string }[] = [
   { key: "price", label: "Τιμή", help: "Τιμή web από το κόστος × κανόνα τιμολόγησης ή από τη λιανική του feed." },
@@ -45,6 +47,7 @@ export function normPolicy(x: unknown): UpdatePolicy {
     content: isMode(o.content) ? o.content : DEFAULT_POLICY.content,
     tech: isMode(o.tech) ? o.tech : DEFAULT_POLICY.tech,
     vatIncluded: o.vatIncluded === true,
+    markupPercent: typeof o.markupPercent === "number" && Number.isFinite(o.markupPercent) && o.markupPercent >= 0 && o.markupPercent <= 1000 ? o.markupPercent : null,
   };
 }
 
@@ -75,28 +78,35 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Η τιμή web από το feed, όπως όρισε ο χρήστης στο τελευταίο βήμα:
- * - `cost`: κόστος (χωρίς ΦΠΑ — αν το feed το δίνει με ΦΠΑ, αφαιρείται πρώτα) × κανόνας markup + ΦΠΑ,
- * - `retail`: η λιανική του feed (αν είναι χωρίς ΦΠΑ, προστίθεται).
+ * - `cost`: κόστος (χωρίς ΦΠΑ — αν το feed το δίνει με ΦΠΑ, αφαιρείται πρώτα) × markup + ΦΠΑ,
+ * - `retail`: η λιανική του feed, καθαρή × markup + ΦΠΑ (χωρίς markup: αυτούσια).
+ * Το `markupPercent` του χρήστη υπερισχύει του κανόνα τιμολόγησης και κάνει τον κανόνα προαιρετικό.
  * Ίδιο σχήμα αποτελέσματος με το `planPrice`, ώστε η προεπισκόπηση να μην αλλάζει.
  */
-export function policyPrice(i: { mode: "cost" | "retail"; cost: string | null; rrp: string | null; rule: { percent: number; rounding: Rounding } | null; label: string; vat: number; vatIncluded: boolean }): { price?: ForeignPrice; warning?: string } {
+export function policyPrice(i: { mode: "cost" | "retail"; cost: string | null; rrp: string | null; rule: { percent: number; rounding: Rounding } | null; label: string; vat: number; vatIncluded: boolean; markupPercent?: number | null }): { price?: ForeignPrice; warning?: string } {
   const k = 1 + i.vat / 100;
+  const m = typeof i.markupPercent === "number" ? i.markupPercent : null;
+  const pct = (n: number) => `${String(Math.round(n * 100) / 100).replace(".", ",")}%`;
   if (i.mode === "retail") {
     if (!i.rrp?.trim()) return {};
     const r = parseMoney(i.rrp);
     if (r == null) return { warning: `Η λιανική «${i.rrp.trim()}» δεν είναι ποσό.` };
-    const price = round2(i.vatIncluded ? r : r * k);
+    const base = i.vatIncluded ? r / k : r;
+    const price = round2(base * (1 + (m ?? 0) / 100) * k);
     const cost = i.cost ? parseMoney(i.cost) : null;
     const net = cost == null ? 0 : i.vatIncluded ? cost / k : cost;
-    return { price: { cost: round2(net), price, rule: i.vatIncluded ? "λιανική του feed (με ΦΠΑ)" : `λιανική του feed + ΦΠΑ ${i.vat}%`, capped: false, margin: round2(price / k - net) } };
+    const how = m == null ? (i.vatIncluded ? "λιανική του feed (με ΦΠΑ)" : `λιανική του feed + ΦΠΑ ${i.vat}%`) : `λιανική του feed + markup ${pct(m)} + ΦΠΑ ${i.vat}%`;
+    return { price: { cost: round2(net), price, rule: how, capped: false, margin: round2(price / k - net) } };
   }
   if (!i.cost?.trim()) return {};
   const c = parseMoney(i.cost);
   if (c == null) return { warning: `Το κόστος «${i.cost.trim()}» δεν είναι ποσό.` };
-  if (!i.rule) return { warning: "Δεν υπάρχει κανόνας τιμολόγησης." };
+  const percent = m ?? i.rule?.percent;
+  if (percent == null) return { warning: "Δεν υπάρχει κανόνας τιμολόγησης." };
   const net = i.vatIncluded ? round2(c / k) : c;
   const rrp = i.rrp ? parseMoney(i.rrp) : null;
   // η προτεινόμενη λιανική (όριο) είναι πάντα τελική τιμή με ΦΠΑ, όπως στο Excel
-  const p = priceFrom({ cost: net, percent: i.rule.percent, vat: i.vat, rounding: i.rule.rounding, rrp });
-  return { price: { cost: net, price: p.price, rule: i.vatIncluded ? `${i.label} (κόστος με ΦΠΑ → χωρίς)` : i.label, capped: p.capped, margin: p.margin } };
+  const p = priceFrom({ cost: net, percent, vat: i.vat, rounding: i.rule?.rounding ?? "none", rrp });
+  const label = m == null ? i.label : `markup ${pct(m)}`;
+  return { price: { cost: net, price: p.price, rule: i.vatIncluded ? `${label} (κόστος με ΦΠΑ → χωρίς)` : label, capped: p.capped, margin: p.margin } };
 }
