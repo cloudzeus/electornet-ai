@@ -64,10 +64,10 @@ function recorder(stream: MediaStream) {
  * Όσο `armed`, καλεί `onTurn` (με την ηχογράφηση της ατάκας) μία φορά μόλις ο παρουσιαστής πει κάτι και σωπάσει. `busy()` = παίζει ήχος στη σκηνή
  * (τότε δεν ακούμε, και η αναμονή ξεκινά από την αρχή). `onLevel` (0–1+, σε σχέση με το κατώφλι) για ένδειξη στάθμης.
  */
-export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onTurn: (audio: Blob | null) => void, onLevel?: (level: number, voiced: boolean) => void) {
+export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onTurn: (audio: Blob | null) => void, onLevel?: (level: number, voiced: boolean) => void, endMs = VAD.endSilenceMs) {
   const floor = useRef(0.004);
-  const cb = useRef({ busy, onTurn, onLevel });
-  useEffect(() => { cb.current = { busy, onTurn, onLevel }; });
+  const cb = useRef({ busy, onTurn, onLevel, endMs });
+  useEffect(() => { cb.current = { busy, onTurn, onLevel, endMs }; });
   useEffect(() => {
     if (!mic || !armed) { cb.current.onLevel?.(0, false); return; }
     const buf = new Float32Array(mic.analyser.fftSize);
@@ -95,7 +95,7 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
         return;
       }
       if (loud) { voiced += VAD.tickMs; lastVoice = now; return; }
-      if (voiced >= VAD.minVoicedMs && now - lastVoice >= VAD.endSilenceMs) { fired = true; const r = rec; rec = null; (r ? r.stop() : Promise.resolve(null)).then((b) => cb.current.onTurn(b)); return; }
+      if (voiced >= VAD.minVoicedMs && now - lastVoice >= cb.current.endMs) { fired = true; const r = rec; rec = null; (r ? r.stop() : Promise.resolve(null)).then((b) => cb.current.onTurn(b)); return; }
       // σκόρπιος θόρυβος που δεν έγινε ατάκα: νέα ηχογράφηση, να μην κολλήσει μπροστά στην επόμενη ατάκα
       if (voiced && now - lastVoice >= VAD.resetMs) { voiced = 0; rec?.drop(); rec = recorder(mic.stream); }
     }, VAD.tickMs);

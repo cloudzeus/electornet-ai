@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   const cur = slots.find((x) => beat.id === `${x.cat}-ask` || beat.id === `${x.cat}-ask2`);
   if (cur && !asked) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
   // στην αρχή ο παρουσιαστής μπορεί να πει μαζί τα νέα ΚΑΙ το «εξόπλισέ μου το σπίτι» → κατευθείαν στο «Ευχαρίστως, ας ξεκινήσουμε»
-  if (beat.id === "idle" && /σπιτι|εξοπλ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", said, ms: msStt });
+  if (beat.id === "idle" && /σπιτι|εξοπλ|βοηθ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", both: true, said, ms: msStt });
   // η απάντηση ορίζει μέγεθος (τ.μ., μέτρα): ο αριθμός που ακούστηκε διαλέγει διακλάδωση — πριν από το «ναι», γιατί «ναι, σαράντα» ≠ «ναι»
   const vc = snap.cats.find((c) => beats[bi + 1]?.id === `${c.key}-verdict`);
   // προτίμηση («θέλω επαγωγική», «όχι, επαγωγική», «έχετε τη Hisense;») = επιλογή → η διακλάδωση· μόνο η ερώτηση πληροφορίας

@@ -10,9 +10,11 @@ import type { Cmd } from "@/lib/skets/bus";
 import { askLive, startPtt, type Ptt } from "./ptt";
 import { openMic, useVad, type Mic } from "./vad";
 import css from "./skets.module.css";
+import { REELS } from "@/lib/skets/reels";
 
 /**
- * @dynamic Η σκηνή του σκετς (προβολέας 16:9). Προχωρά βήμα-βήμα (lib/skets/script.ts): Space / → / Enter = επόμενο,
+ * @dynamic Η σκηνή του σκετς (προβολέας 16:9). Ανοίγει με το βίντεο της συνεργασίας και κλείνει με το βίντεο των συνεργατών (lib/skets/reels.ts, Enter).
+ * Προχωρά βήμα-βήμα (lib/skets/script.ts): Space / → / Enter = επόμενο,
  * ← = πίσω, 1–9 = κατάστημα, C = τέλος κλήσης, F = πλήρης οθόνη, Shift+R = από την αρχή. Τις ίδιες εντολές στέλνει
  * το τηλεχειριστήριο (/ermis-live/remote) μέσω SSE. Αποδίδεται μόνο στον browser (CSP: κανένα style attribute στο HTML).
  * Ερώτηση εκτός σεναρίου: κρατάς πατημένο το M (μικρόφωνο του laptop) ή το «Μίλα στον Ερμή» στο τηλεχειριστήριο → απαντά
@@ -63,8 +65,15 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   useEffect(() => setOps(new URLSearchParams(location.search).has("ops")), []);
   /** ομάδες που ο παρουσιαστής απάντησε ήδη νωρίτερα (όλα μαζί σε μία φράση): ο Ερμής δεν τις ξαναρωτά */
   const [ahead, setAhead] = useState<CatKey[]>([]);
-  const beats = useMemo(() => buildBeats(snap, alts, ahead), [snap, alts, ahead]);
+  /** στην αρχή είπε μαζί τα νέα και το «βοήθησέ με»: ο Ερμής απαντά «Συγχαρητήρια… ας ξεκινήσουμε» */
+  const [both, setBoth] = useState(false);
+  const beats = useMemo(() => buildBeats(snap, alts, ahead, both), [snap, alts, ahead, both]);
   const [i, setI] = useState(0);
+  /** βίντεο σε πλήρη οθόνη πριν (intro) και μετά (outro) το σκετς — ο χειριστής προχωρά με Enter */
+  const [reel, setReel] = useState<"intro" | "outro" | null>(REELS.intro.src ? "intro" : null);
+  const reelRef = useRef<HTMLVideoElement>(null);
+  const introDone = useRef(false);
+  useEffect(() => { if (i === 0) setBoth(false); }, [i]); // νέα πρόβα από την αρχή
   const [store, setStore] = useState<number | null>(null);
   /** πρόοδος της φράσης του βήματος sp.i (0–1) — για άλλο βήμα ισχύει «δεν ξεκίνησε» */
   const [sp, setSp] = useState({ i: -1, p: 0, done: false });
@@ -222,8 +231,17 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
 
   const command = useCallback((c: Cmd) => {
     if (c.t === "liveListen") { if (beat.wait === "call") return; setListening(c.on); if (c.on) { stopAll(); lq.current.busy = false; } return; }
-    if (c.t === "liveClose") { if (live || listening) closeLive(); return; }
+    if (c.t === "liveClose") { if (reel) setReel(null); else if (live || listening) closeLive(); return; } // Esc κλείνει και το βίντεο
     if (c.t === "auto") { setAuto(c.on); return; }
+    // βίντεο: το πρώτο «Επόμενο» το ξεκινά (και ξεκλειδώνει τον ήχο), το δεύτερο πάει στον Ερμή· στο βίντεο του τέλους παύση/συνέχεια
+    if (reel && c.t === "next") {
+      const v = reelRef.current;
+      if (reel === "intro" && v && v.paused && !v.ended && v.currentTime < 0.2) { v.play().catch(() => {}); return; }
+      if (reel === "intro") { setReel(null); introDone.current = true; return; }
+      if (v) { if (v.paused) v.play().catch(() => {}); else v.pause(); }
+      return;
+    }
+    if (c.t === "next" && scene.mode === "done" && REELS.outro.src) { setReel("outro"); return; }
     if (c.t === "addExtra") { const p = liveProducts.current.get(c.id); if (p) setExtras((x) => (x.some((y) => y.id === p.id) ? x : [...x, p].slice(-4))); return; }
     // ενώ είναι ανοιχτή ζωντανή ερώτηση, το «Επόμενο» γυρίζει στο σενάριο (δεν προσπερνά βήμα)
     if (c.t === "next" && (live || listening)) { closeLive(); return; }
@@ -235,18 +253,20 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     else if (c.t === "store") { if (scene.mode === "map" && beat.wait === "store" && store === null && snap.stores[c.i]) { // μία επιλογή: φωνή ή κλικ, όποιο έρθει πρώτο
       setStore(c.i); timer.current = setTimeout(next, 900); } }
     else if (c.t === "skipCall") { if (beat.wait === "call") next(); }
-  }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k, call?.status]);
+  }, [beat.wait, store, next, go, i, scene.mode, snap.stores, live, listening, closeLive, k, call?.status, reel]);
 
   // αυτόματη συνέχεια: ο Ερμής ακούει το μικρόφωνο της σκηνής όσο περιμένει τον παρουσιαστή και δεν μιλά ο ίδιος
   const [mic, setMic] = useState<Mic | null>(null);
   const [micErr, setMicErr] = useState(false);
   const meter = useRef<HTMLSpanElement>(null);
   const armMic = async () => { setMicErr(false); const m = await openMic(); if (m) setMic(m); else setMicErr(true); };
+  // μετά το εισαγωγικό βίντεο το μικρόφωνο ανοίγει μόνο του (το Enter μετρά ως κίνηση του χρήστη)
+  useEffect(() => { if (!reel && introDone.current && auto && !mic) armMic(); }, [reel]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { mic?.stream.getTracks().forEach((t) => t.stop()); mic?.ctx.close().catch(() => {}); }, [mic]);
   /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
   const [turnBusy, setTurnBusy] = useState(false);
   const [heard, setHeard] = useState<{ said: string; route: string; i: number } | null>(null);
-  const hearing = auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
+  const hearing = !reel && auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
     if (!audio || (beat.wait !== "store" && !/^«/.test(beat.cue ?? ""))) { if (beat.wait !== "store") command({ t: "next" }); return; }
@@ -254,7 +274,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     setTurnBusy(true);
     const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead));
     fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
-      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string; to?: string; learned?: { ahead: CatKey[]; alts: Alts } }) => {
+      .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string; to?: string; both?: boolean; learned?: { ahead: CatKey[]; alts: Alts } }) => {
         setTurnBusy(false);
         if (iRef.current === at && r.learned) { const l = r.learned; setAhead((x) => [...new Set([...x, ...l.ahead])]); setAlts((a) => ({ ...a, ...l.alts })); }
         if (r.said) setHeard({ said: r.said, route: r.route ?? "script", i: at });
@@ -263,6 +283,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         if (r.route === "store") { if (typeof r.i === "number") command({ t: "store", i: r.i }); return; }
         if (r.route === "jump" && r.to) {
           if (r.cat && r.alt) { const cat = r.cat; setAlts((a) => ({ ...a, [cat]: r.alt })); }
+          if (r.both) setBoth(true);
           const to = beats.findIndex((b) => b.id === r.to); if (to > 0) { quietClose(); go(to); } return;
         }
         if (r.route === "free" || r.route === "none") return;
@@ -275,7 +296,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     const el = meter.current; if (!el) return;
     el.style.width = `${Math.min(100, Math.round(level * 50))}%`;
     el.classList.toggle("bg-eu-green", voiced); el.classList.toggle("bg-white/70", !voiced);
-  });
+  }, beat.id === "idle" ? 1300 : undefined); // στην αρχή λέει δύο φράσεις («έχω νέα… να με βοηθήσεις…»): η παύση ανάμεσα δεν κόβει την ατάκα
 
   // M (κρατημένο) ή το «Ερώτηση» της μπάρας = ερώτηση από το μικρόφωνο του laptop
   const ptt = useRef<Promise<Ptt | null> | null>(null);
@@ -330,6 +351,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   return (
     <div className={`fixed inset-0 overflow-hidden text-white select-none ${css.stage}`}>
       <TopBar rehearsal={rehearsal} place={i > 0} />
+      {reel && <Reel key={reel} ref={reelRef} {...REELS[reel]} autoPlay={reel === "outro"} />}
 
       <LayoutGroup>
         <div className="absolute inset-x-0 top-[9vh] bottom-0 flex">
@@ -743,6 +765,15 @@ function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null
           </div>
         )}
       </div>
+    </motion.div>
+  );
+}
+
+/** Βίντεο σε πλήρη οθόνη πάνω από τη σκηνή· τελειώνει στο τελευταίο καρέ (χωρίς controls — χειρισμός με Enter). */
+function Reel({ ref, src, poster, autoPlay }: { ref: React.Ref<HTMLVideoElement>; src: string; poster: string; autoPlay: boolean }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }} className="absolute inset-0 z-[3000] bg-black">
+      <video ref={ref} src={src} poster={poster} autoPlay={autoPlay} playsInline preload="auto" className="size-full object-contain" />
     </motion.div>
   );
 }

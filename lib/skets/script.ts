@@ -31,6 +31,8 @@ export function altCombos(s: Snapshot): Alts[] {
 export const lines = (s: Snapshot, alts: Alts = {}) => ({
   hello: `Συγχαρητήρια, ${s.presenter.vocative}! Πώς μπορώ να βοηθήσω;`,
   start: "Ευχαρίστως. Ας ξεκινήσουμε από τα βασικά.",
+  /** ο παρουσιαστής είπε μαζί τα νέα ΚΑΙ το «βοήθησέ με με το σπίτι» */
+  both: `Συγχαρητήρια, ${s.presenter.vocative}! Ευχαρίστως, ας ξεκινήσουμε από τα βασικά.`,
   summary: ((inst) => `Το σπίτι είναι έτοιμο. Πέντε συσκευές, σύνολο ${eurSpoken(totalOf(s, alts))}${inst ? `, ή ${inst.months} άτοκες δόσεις των ${eurSpoken(inst.amount)}` : ""}.`)(instalmentsOf(s, alts)),
   ask: "Θέλετε να βρω το πλησιέστερο κατάστημα, για να τα παραλάβετε σήμερα κιόλας;",
   map: `Βρήκα ${s.stores.length} καταστήματα κοντά στο νέο σας σπίτι. Ποιο σας βολεύει;`,
@@ -45,12 +47,12 @@ export function eurSpoken(n: number) {
 }
 
 /** ahead: ομάδες που ο παρουσιαστής απάντησε ήδη νωρίτερα — η ερώτησή τους γίνεται «μου το είπατε ήδη» και προχωρά μόνη της */
-export function buildBeats(s: Snapshot, alts: Alts = {}, ahead: CatKey[] = []): Beat[] {
+export function buildBeats(s: Snapshot, alts: Alts = {}, ahead: CatKey[] = [], both = false): Beat[] {
   const L = lines(s, alts);
   const b: Beat[] = [
     { id: "idle", act: { t: "idle" }, wait: "presenter", cue: "«Ερμή, έχω νέα! Πήρα επιτέλους τη θέση στη Λάρισα!»" },
     { id: "hello", act: { t: "intro" }, say: L.hello, wait: "presenter", cue: "«Να με βοηθήσεις να εξοπλίσουμε το νέο μου σπίτι από το μηδέν.»" },
-    { id: "start", say: L.start, wait: "auto", delay: 300 },
+    { id: "start", say: both ? L.both : L.start, wait: "auto", delay: 300 },
   ];
   for (const c of s.cats) {
     const v = variant(c, alts), knownLine = v?.known ?? c.lines.known;
@@ -112,7 +114,9 @@ export function spokenKey(key: string): string {
   if (/εστίες$/.test(key)) return `με ${key.toLowerCase()}`;
   return key.replace(/^(\d+(?:[.,]\d+)?)\s*kg$/i, "$1 κιλών").replace(/^(\d+)″$/, "$1 ιντσών").replace(/^Κλάση\s+([A-G])(\+*)$/, (_, l: string, p: string) => `ενεργειακής κλάσης ${["άλφα", "βήτα", "γάμα", "δέλτα", "έψιλον", "ζήτα", "ήτα"]["ABCDEFG".indexOf(l)]}${p.length ? ` ${p.length} συν` : ""}`);
 }
-const brandSpoken = (b: string) => (b.length <= 3 ? b : b.charAt(0) + b.slice(1).toLowerCase());
+// μάρκες που η φωνή διαβάζει λάθος ως αρχικά: η AEG λέγεται γερμανικά «Α-Ε-Γκε»
+const SAY_BRAND: Record<string, string> = { AEG: "Α-Ε-Γκε" };
+const brandSpoken = (b: string) => SAY_BRAND[b.toUpperCase()] ?? (b.length <= 3 ? b : b.charAt(0) + b.slice(1).toLowerCase());
 
 /** Τα προϊόντα του σπιτιού όπως τα λέει ο Ερμής στο κατάστημα: μάρκα, μέγεθος και κωδικός (για όταν τον ζητήσουν). */
 /** Κωδικός μοντέλου όπως διαβάζεται στο τηλέφωνο: γράμμα-γράμμα με την αγγλική του προφορά, ψηφία ελληνικά, κόμμα = μικρή παύση.
@@ -144,6 +148,7 @@ export function allPhrases(s: Snapshot): string[] {
   }
   for (const c of s.cats) for (const k of [c.lines.known, ...(c.alts ?? []).map((a) => a.known)]) if (k) out.add(k);
   for (const x of s.qa ?? []) out.add(x.a);
+  out.add(lines(s, {}).both);
   return [...out];
 }
 
