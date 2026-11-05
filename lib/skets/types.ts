@@ -10,7 +10,7 @@ export interface SkProduct { id: string; title: string; brand: string; /** κω�
 export interface SkReject { id: string; reason: string }
 /** Άλλη απάντηση του παρουσιαστή (π.χ. «σαράντα τετραγωνικά» αντί για «είκοσι πέντε») → άλλη ετυμηγορία και άλλο προϊόν.
  * min/max: εύρος του αριθμού που είπε (στη μονάδα `unit` της ομάδας) · words: regex (χωρίς τόνους) όταν δεν είπε αριθμό («πιο μεγάλο»). */
-export interface SkAlt { key: string; min?: number; max?: number; words?: string; verdict: string; reject: SkReject[]; pick: string; pickLine: string }
+export interface SkAlt { key: string; min?: number; max?: number; words?: string; verdict: string; reject: SkReject[]; pick: string; pickLine: string; /** «μου το είπατε ήδη» για αυτή τη διακλάδωση («…προτιμάτε επαγωγική») */ known?: string }
 /** διακλαδώσεις που έχουν διαλεχτεί στη σκηνή: ομάδα → SkAlt.key (λείπει = το βασικό σενάριο) */
 export type Alts = Partial<Record<CatKey, string>>;
 export interface SkCategory {

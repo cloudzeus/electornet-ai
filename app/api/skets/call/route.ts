@@ -66,7 +66,10 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   if (!sketsReq(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const id = new URL(req.url).searchParams.get("id");
+  const q = new URL(req.url).searchParams;
+  // το τηλεχειριστήριο ελέγχει πριν την παράσταση: χωρίς Vapi η κλήση γίνεται από το ElevenLabs και οι υπότιτλοι έρχονται μόνο στο τέλος
+  if (q.has("check")) return NextResponse.json({ live: !!process.env.VAPI_API_KEY && !!process.env.SIP_USER && !!process.env.SIP_HOST });
+  const id = q.get("id");
   if (!id || !/^(conv_[a-z0-9]+|[0-9a-f-]{36})$/i.test(id)) return NextResponse.json({ error: "id" }, { status: 400 });
   // Vapi: ζωντανή απομαγνητοφώνηση από το webhook
   if (!id.startsWith("conv_")) {

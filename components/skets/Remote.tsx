@@ -30,6 +30,8 @@ export default function Remote({ k }: { k: string }) {
     es.onmessage = (m) => { const ev = JSON.parse(m.data); if (ev.kind === "state") { setSt(ev.state); if (!ev.state.live) setLive(null); } else if (ev.kind === "live") setLive((cur) => (cur && cur.n === ev.live.n ? { ...cur, ...ev.live, products: ev.live.products ?? cur.products } : ev.live)); };
     return () => es.close();
   }, [k]);
+  const [liveCall, setLiveCall] = useState<boolean | null>(null);
+  useEffect(() => { fetch("/api/skets/call?check=1", { headers: { "x-skets-key": k } }).then((r) => r.json()).then((r) => setLiveCall(!!r.live)).catch(() => {}); }, [k]);
   const send = (cmd: Cmd) => { navigator.vibrate?.(20); fetch("/api/skets/cmd", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ cmd }) }).catch(() => {}); };
   const talkDown = () => { if (ptt.current) return; navigator.vibrate?.(30); setRec(true); send({ t: "liveListen", on: true }); ptt.current = startPtt(); };
   const talkUp = async () => {
@@ -50,6 +52,7 @@ export default function Remote({ k }: { k: string }) {
         <span className={`rounded-full px-3 py-1 font-medium tabular-nums text-[length:var(--fs-13)] ${online && st ? "bg-eu-green" : "bg-eu-red"}`}>{online ? (st ? `βήμα ${st.i + 1}/${st.total}` : "χωρίς σκηνή") : "εκτός σύνδεσης"}</span>
       </header>
 
+      {liveCall === false && <p className="rounded-2xl bg-eu-red p-4 font-medium leading-snug text-[length:var(--fs-15)]">Η κλήση δεν θα έχει ζωντανούς υπότιτλους: στον server λείπουν VAPI_API_KEY / SIP_*. Η συνομιλία θα φανεί μόνο όταν κλείσει.</p>}
       <section className="rounded-2xl bg-white/10 p-4">
         <div className="text-white/60 font-medium text-[length:var(--fs-13)]">Περιμένει</div>
         <p className="mt-1 font-semibold text-eu-yellow text-[length:var(--fs-20)]">{st?.cue ?? (st?.wait === "auto" ? "Προχωρά μόνο του" : "—")}</p>

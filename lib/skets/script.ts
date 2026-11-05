@@ -53,11 +53,11 @@ export function buildBeats(s: Snapshot, alts: Alts = {}, ahead: CatKey[] = []): 
     { id: "start", say: L.start, wait: "auto", delay: 300 },
   ];
   for (const c of s.cats) {
-    const known = ahead.includes(c.key) && !!c.lines.known;
-    if (known) b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.known, wait: "auto", delay: 300 });
+    const v = variant(c, alts), knownLine = v?.known ?? c.lines.known;
+    const known = ahead.includes(c.key) && !!knownLine;
+    if (known) b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: knownLine, wait: "auto", delay: 300 });
     else b.push({ id: `${c.key}-ask`, act: { t: "cat", cat: c.key }, say: c.lines.ask, wait: "presenter", cue: `«${c.lines.answer}»` });
     if (c.lines.follow && !known) b.push({ id: `${c.key}-ask2`, say: c.lines.follow.ask, wait: "presenter", cue: `«${c.lines.follow.answer}»` });
-    const v = variant(c, alts);
     b.push({ id: `${c.key}-verdict`, say: v?.verdict ?? c.lines.verdict, wait: "auto", delay: 200 });
     (v?.reject ?? c.reject).forEach((r, i) => b.push({ id: `${c.key}-x${i}`, act: { t: "reject", cat: c.key, id: r.id, reason: r.reason }, wait: "auto", delay: 1300 }));
     if (!v && c.lines.verdict2) {
@@ -142,7 +142,7 @@ export function allPhrases(s: Snapshot): string[] {
     if (hasStore(x.say)) for (const st of s.stores) out.add(fillStore(x.say, st.spoken));
     else out.add(x.say);
   }
-  for (const c of s.cats) if (c.lines.known) out.add(c.lines.known);
+  for (const c of s.cats) for (const k of [c.lines.known, ...(c.alts ?? []).map((a) => a.known)]) if (k) out.add(k);
   for (const x of s.qa ?? []) out.add(x.a);
   return [...out];
 }
@@ -193,11 +193,31 @@ export function spokenNumber(text: string): number | null {
 /** Ποια διακλάδωση ταιριάζει σε ό,τι είπε ο παρουσιαστής: key, "" = το βασικό σενάριο (αριθμός μέσα στο αναμενόμενο), null = δεν είπε κάτι μετρήσιμο. */
 export function altFor(c: SkCategory, said: string): string | null {
   if (!c.alts?.length) return null;
+  // διάλεξε ο ίδιος συσκευή από την οθόνη («τη Hisense», «το δεκαοχτάρι», «εβδομήντα πέντε ίντσες») → η διακλάδωση που καταλήγει σε αυτήν
+  const id = chosenProduct(c, said);
+  if (id) { if (id === c.pick) return ""; const a = c.alts.find((x) => x.pick === id); if (a) return a.key; }
+  const words = c.alts.find((a) => a.words && new RegExp(a.words).test(plain(said)))?.key;
+  // κουζίνα κ.λπ.: χωρίς μονάδα, μόνο λέξεις · BTU/ίντσες δεν είναι τετραγωνικά ή μέτρα
+  if (!c.unit || /χιλιαδ|btu|μπι ?τι|ιντσ/.test(plain(said))) return words ?? null;
   let n = spokenNumber(said);
   if (n !== null && c.unit === "m" && /εκατοστ/.test(plain(said))) n /= 100;
   const ok = n !== null && (c.unit === "m2" ? n >= 8 && n <= 300 : n >= 0.5 && n <= 10);
   if (ok) return c.alts.find((a) => (a.min === undefined || n! >= a.min) && (a.max === undefined || n! <= a.max))?.key ?? "";
-  return c.alts.find((a) => a.words && new RegExp(a.words).test(plain(said)))?.key ?? null;
+  return words ?? null;
+}
+
+/** μάρκες όπως τις γράφει η αναγνώριση ομιλίας με ελληνικά */
+const BRAND_EL: Record<string, string> = { TOYOTOMI: "τογιοτομ|τοιοτομ", FUJITSU: "φουτζιτσ|φουτζιτς", INVENTOR: "ινβεντορ|ινβεντερ", SAMSUNG: "σαμσουνγκ|σαμσουνκ|σαμσονγκ", LG: "ελ τζι", HISENSE: "χαισενς|χαιζενς|χισενς|χαισενσ", AEG: "α ε γκ|αεγ", BOSCH: "μποσ" };
+/** Ποιο από τα υποψήφια ονόμασε ο παρουσιαστής: μοναδική μάρκα ή το μέγεθός του (BTU, ίντσες) — αλλιώς null. */
+export function chosenProduct(c: SkCategory, said: string): string | null {
+  const t = plain(said);
+  const byBrand = [...new Set(c.candidates.filter((p) => new RegExp(`(?<![\\p{L}])(?:${plain(p.brand)}${BRAND_EL[p.brand.toUpperCase()] ? `|${BRAND_EL[p.brand.toUpperCase()]}` : ""})`, "u").test(t)).map((p) => p.brand))];
+  if (byBrand.length === 1) { const ps = c.candidates.filter((p) => p.brand === byBrand[0]); if (ps.length === 1) return ps[0].id; }
+  const n = spokenNumber(said);
+  if (n === null) return null;
+  if (/χιλιαδ|btu|μπι ?τι/.test(t)) { const k = n >= 1000 ? n / 1000 : n; return c.candidates.find((p) => { const m = p.key.match(/^([\d.]+)\s*BTU$/i); return m && Number(m[1].replace(/\./g, "")) / 1000 === k; })?.id ?? null; }
+  if (/ιντσ/.test(t)) return c.candidates.find((p) => parseInt(p.key) === n && /″$/.test(p.key))?.id ?? null;
+  return null;
 }
 
 function lev(a: string, b: string): number {
@@ -220,7 +240,8 @@ export function slotsIn(s: Snapshot, said: string): { cat: CatKey; alt: string }
   for (const cl of plain(said).replace(/τ\.\s?μ\.?/g, "τμ").replace(/(\d)[.,](\d)/g, "$1·$2").split(/[,.;;!?]|\s(?:και(?!\s+μισ)|επισης|ενω|μετα|αλλα)\s/u).map((x) => x.replace(/·/g, ".")).map((x) => x.trim()).filter(Boolean)) {
     if (/καδ|παπλωμ|κιλ/.test(cl) && !/μικρ/.test(cl) && has("washer")) out.set("washer", "");
     if (/ενεργειακ|ρευμα|οικονομικ|κλαση/.test(cl) && has("fridge")) out.set("fridge", "");
-    if (/κεραμικ/.test(cl) && has("cooker")) out.set("cooker", "");
+    const ck = s.cats.find((c) => c.key === "cooker");
+    if (ck) { const a = altFor(ck, cl); if (a) out.set("cooker", a); else if (/κεραμικ/.test(cl)) out.set("cooker", ""); }
     const ac = s.cats.find((c) => c.key === "ac"), tv = s.cats.find((c) => c.key === "tv");
     if (ac && /τετραγων|(?<!\p{L})τ ?μ(?!\p{L})/u.test(cl)) { const a = altFor(ac, cl); if (a !== null) out.set("ac", a); }
     else if (tv && /μετρ|εκατοστ/.test(cl)) { const a = altFor(tv, cl); if (a !== null) out.set("tv", a); }
