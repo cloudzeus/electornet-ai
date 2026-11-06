@@ -24,7 +24,7 @@ export const liveCall = (id: string) => calls.get(id) ?? null;
 
 /** Η ζωντανή συζήτηση με τον Ερμή του eshop κατά τη σκηνή (ερωτήσεις του κοινού) — μηδενίζεται στο «Από την αρχή». */
 /** alts: οι διακλαδώσεις της σκηνής (π.χ. 18.000 BTU), για να ξέρει ο Ερμής του eshop τι μπήκε τελικά στο σπίτι */
-interface LiveMemory { thread: Turn[]; state: AdvisorState | null; shown: string[]; products: Map<string, LiveProduct>; alts: Alts }
+interface LiveMemory { thread: Turn[]; state: AdvisorState | null; shown: string[]; products: Map<string, LiveProduct>; alts: Alts; /** σε ποιο βήμα ρώτησε ήδη «δεν σας άκουσα καλά» (μία φορά ανά βήμα) */ clarified?: string }
 const gm = globalThis as unknown as { __sketsMem?: LiveMemory };
 const fresh = (): LiveMemory => ({ thread: [], state: null, shown: [], products: new Map(), alts: {} });
 export const liveMemory = () => (gm.__sketsMem ??= fresh());

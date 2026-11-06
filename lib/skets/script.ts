@@ -138,6 +138,24 @@ export const forVoice = (t: string) => liveSentences(t).map((x) => (/[;\u037e?]�
 export const fillStore = (say: string, spoken: string) => say.replace("{store}", spoken).replace("{Store}", spoken.charAt(0).toUpperCase() + spoken.slice(1));
 const hasStore = (say: string) => /\{[sS]tore\}/.test(say);
 
+/** «Δεν σας άκουσα καλά» ανά βήμα: μία σύντομη, έτοιμη ερώτηση που βοηθά τον παρουσιαστή να απαντήσει (μία φορά ανά βήμα — μετά η σκηνή συνεχίζει). */
+export function clarifyLines(s: Snapshot): Record<string, string> {
+  const near = [...s.stores].sort((a, b) => a.km - b.km)[0];
+  const p = "Συγγνώμη, δεν σας άκουσα καλά.";
+  return {
+    idle: `Συγγνώμη, ${s.presenter.vocative}, δεν σας άκουσα καλά. Πώς μπορώ να σας βοηθήσω;`,
+    hello: `${p} Θέλετε να σας βοηθήσω να εξοπλίσετε το νέο σας σπίτι;`,
+    "washer-ask": `${p} Σας αρκεί ένα μικρό πλυντήριο ή χρειάζεστε μεγάλο κάδο;`,
+    "washer-ask2": `${p} Θα πλένετε και παπλώματα στο σπίτι;`,
+    "fridge-ask": `${p} Σας ενδιαφέρει ένα ψυγείο που καίει λίγο ρεύμα;`,
+    "tv-ask": `${p} Πόσα μέτρα περίπου θα κάθεστε από την τηλεόραση;`,
+    "ac-ask": `${p} Πόσα τετραγωνικά περίπου είναι το σαλόνι σας;`,
+    "cooker-ask": `${p} Προτιμάτε κεραμικές εστίες ή επαγωγικές;`,
+    ask: `${p} Να βρω το πλησιέστερο κατάστημα;`,
+    map: near ? `${p} Ποιο κατάστημα προτιμάτε; Το πιο κοντινό είναι ${near.spoken.replace(/^το κατάστημα /, "")}.` : `${p} Ποιο κατάστημα προτιμάτε;`,
+  };
+}
+
 /** Όλες οι φράσεις που πρέπει να ηχογραφηθούν (και οι παραλλαγές ανά κατάστημα). */
 export function allPhrases(s: Snapshot): string[] {
   const out = new Set<string>();
@@ -149,6 +167,7 @@ export function allPhrases(s: Snapshot): string[] {
   for (const c of s.cats) for (const k of [c.lines.known, ...(c.alts ?? []).map((a) => a.known)]) if (k) out.add(k);
   for (const x of s.qa ?? []) out.add(x.a);
   out.add(lines(s, {}).both);
+  for (const x of Object.values(clarifyLines(s))) out.add(x);
   return [...out];
 }
 
@@ -157,7 +176,7 @@ export function allPhrases(s: Snapshot): string[] {
 export const SKETS_VOICE = { key: "skets", tempo: 1.05 } as const;
 
 /** σύντομη αναμονή όταν ο παρουσιαστής είπε κάτι εκτός σεναρίου και η απάντηση αργεί (όχι «κατάλογος»: μπορεί να είναι χαιρετισμός) */
-export const TURN_FILLERS = ["Μάλιστα…", "Χμ…", "Για να δούμε…", "Ναι…", "Ωραία…", "Ένα λεπτό…"];
+export const TURN_FILLERS = ["Μάλιστα…", "Για να δούμε…", "Ωραία…", "Ένα λεπτό…"]; // όχι «Ναι…»/«Χμ…»: ακούγονται αγενή
 
 export const LIVE_FILLERS = ["Καλή ερώτηση! Μισό λεπτό να κοιτάξω στον κατάλογο.", "Για να δω τι έχουμε διαθέσιμο…", "Μισό λεπτό, το ψάχνω αμέσως."];
 export const LIVE_BACK = "Λοιπόν, πάμε πίσω εκεί που μείναμε.";
