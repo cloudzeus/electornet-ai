@@ -6,6 +6,7 @@ import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { catalogTree, dbProductsByIds, hrefOf, LISTED, SHOP_SOURCES, type CatNode } from "@/lib/data/db-catalog";
 import { rankCandidates } from "./rank";
+import { indexSpecs, productPasses, type SpecCriterion, type SpecKeyInfo } from "./spec-criteria";
 import { searchVector } from "@/lib/vector/index";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { fitVerdict, type MySpace } from "@/lib/space/fit";
@@ -217,6 +218,46 @@ async function mapNeeds(needs: string[], facets: FacetInfo[]): Promise<{ filters
   return { filters, unmapped: (j.unmapped ?? []).filter((x) => typeof x === "string") };
 }
 
+// ---------- 2β. Ανάγκες → αριθμητικά κριτήρια στα χαρακτηριστικά ----------
+
+const specCache = new Map<string, { at: number; v: SpecKeyInfo[] }>();
+/** Όλα τα χαρακτηριστικά των τύπων με αρκετά προϊόντα (≥ 15 %, τουλάχιστον 5), με δείγματα τιμών και αριθμητικό εύρος. */
+async function specIndex(typeIds: string[]): Promise<SpecKeyInfo[]> {
+  const key = `${scope.getStore() ? "w" : "l"}:${[...typeIds].sort().join(",")}`, hit = specCache.get(key);
+  if (hit && Date.now() - hit.at < 30 * 60_000) return hit.v;
+  const where: Prisma.ProductWhereInput = { AND: [listed(), { categoryId: { in: typeIds } }] };
+  const [rows, n] = await Promise.all([db.spec.findMany({ where: { product: where }, select: { key: true, value: true, productId: true } }), db.product.count({ where })]);
+  const v = indexSpecs(rows, Math.max(5, Math.round(n * 0.15))).slice(0, 80);
+  specCache.set(key, { at: Date.now(), v });
+  return v;
+}
+
+/** Οι ανάγκες που δεν έγιναν φίλτρα → κριτήρια πάνω στα πραγματικά χαρακτηριστικά του καταλόγου («SCOP ≥ 5», «Θόρυβος ≤ 40 dB»). */
+async function mapSpecs(needs: string[], index: SpecKeyInfo[]): Promise<{ criteria: SpecCriterion[]; rest: string[] }> {
+  if (!needs.length || !index.length) return { criteria: [], rest: needs };
+  const r = await chat({
+    feature: "advisor-specs", accounting: "background", model: ROUTER, json: true, maxTokens: 700, temperature: 0, timeoutMs: 9000, reasoning: "low",
+    messages: [
+      { role: "system", content: `Είσαι τεχνικός ηλεκτρικών συσκευών. Μετατρέπεις απαιτήσεις πελάτη σε κριτήρια πάνω στα ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ του καταλόγου. Απαντάς ΜΟΝΟ με JSON {"criteria":[{"keys":string[],"op":"gte"|"lte"|"eq"|"has","value":number|string,"need":string}],"rest":string[]}.
+- "keys": ΑΚΡΙΒΩΣ όπως στη λίστα· βάλε ΟΛΑ τα κλειδιά που σημαίνουν το ίδιο (π.χ. «Ψυκτικό Υγρό» και «Ψυκτικό υγρό», «Θόρυβος» και «Επίπεδο θορύβου»).
+- Αριθμητικά: "gte"/"lte" με αριθμό στη μονάδα των δειγμάτων (dB, kWh, W, kg, rpm, Hz, ίντσες, λίτρα). Μέσα στο εύρος [min–max] της λίστας — αλλιώς δεν μπαίνει. Ένας αριθμός που ζητά ο πελάτης είναι ΕΛΑΧΙΣΤΟ για ό,τι «καλύτερο = περισσότερο» («120 Hz», «4 HDMI», «1.400 στροφές», «SCOP 5» → gte) και ΜΕΓΙΣΤΟ για ό,τι «καλύτερο = λιγότερο» (θόρυβος, κατανάλωση → lte)· "eq" μόνο όταν λέει «ακριβώς». Μέγεθος (ίντσες, κιλά, BTU) δεν είναι εδώ — είναι στα φίλτρα.
+- Τεχνογνωσία: «αθόρυβο» → θόρυβος lte στο χαμηλό τρίτο του εύρους· «οικονομικό στο ρεύμα» → κατανάλωση lte στο χαμηλό τρίτο ή SCOP/SEER gte στο υψηλό· «για gaming» → ρυθμός ανανέωσης gte 100· «μεγάλη οικογένεια» → χωρητικότητα gte στο υψηλό τρίτο.
+- Κείμενο: "has" με τη λέξη που εμφανίζεται στα δείγματα («R32», «Inverter», «OLED»).
+- Ό,τι δεν αντιστοιχεί σε χαρακτηριστικό της λίστας πάει στο "rest". Ποτέ κλειδί που δεν υπάρχει.` },
+      { role: "user", content: `ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ (κλειδί | προϊόντα | εύρος | δείγματα):\n${index.map((k) => `${k.key} | ${k.count} | ${k.min !== null ? `${k.min}–${k.max}` : "—"} | ${k.samples.join(" · ")}`).join("\n")}\n\nΑΠΑΙΤΗΣΕΙΣ: ${JSON.stringify(needs)}` },
+    ],
+  }).catch(() => null);
+  const j = r ? parseJson<{ criteria?: Partial<SpecCriterion>[]; rest?: string[] }>(r.text) : null;
+  if (!j) return { criteria: [], rest: needs };
+  const known = new Set(index.map((k) => k.key));
+  const criteria = (j.criteria ?? []).flatMap((c): SpecCriterion[] => {
+    const keys = (c.keys ?? []).filter((k) => known.has(k));
+    if (!keys.length || !c.op || !["gte", "lte", "eq", "has"].includes(c.op) || c.value === undefined || c.value === null || c.value === "") return [];
+    return [{ keys, op: c.op, value: typeof c.value === "number" ? c.value : String(c.value), need: c.need || `${keys[0]} ${c.op} ${c.value}` }];
+  });
+  return { criteria, rest: (j.rest ?? []).filter((x): x is string => typeof x === "string") };
+}
+
 // ---------- 3. Ανάκτηση από τη βάση ----------
 
 
@@ -237,7 +278,7 @@ function specTerms(need: string): string[] {
   return words.length && t.length <= 40 ? [t] : [];
 }
 
-async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[], search: string, specNeeds: string[] = [], take = 30) {
+async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[], search: string, specNeeds: string[] = [], take = 30, criteria: SpecCriterion[] = []) {
   const relaxed: string[] = [];
   const brandWhere: Prisma.ProductWhereInput[] = u.brands.length ? [{ OR: u.brands.map((b) => ({ brand: { name: { contains: b, mode: "insensitive" as const } } })) }] : [];
   const build = (fs: FacetFilter[], maxPrice: number | null, brands = true): Prisma.ProductWhereInput => ({ AND: [
@@ -253,6 +294,17 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   let maxPrice = u.maxPrice, rows = await fetch(build(active, maxPrice));
   // Ανάγκες που δεν είναι φίλτρα του ERP («120 Hz», «HDMI 2.1», «Dolby Vision», «SCOP», «R32») φιλτράρονται πάνω στα ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ
   // (Icecat / ιστότοποι κατασκευαστών / περιγραφή) και στους τίτλους — μόνο όταν αφήνουν ≥ 3 προϊόντα, αλλιώς μένουν για τη σημασιολογική κατάταξη
+  // αριθμητικά κριτήρια στα χαρακτηριστικά: κρατάμε όσα τα ΠΕΡΝΟΥΝ (όσα δεν το αναφέρουν δεν τα υποσχόμαστε) — μόνο αν μένουν ≥ 3
+  const checked: FacetFilter[] = []; // αριθμητικά κριτήρια που εφαρμόστηκαν — η χαλάρωση παρακάτω δεν τα αγγίζει
+  for (const c of criteria) {
+    const specs = await db.spec.findMany({ where: { productId: { in: rows.map((r) => r.id) }, key: { in: c.keys } }, select: { productId: true, key: true, value: true } });
+    const by = new Map<string, { key: string; value: string }[]>();
+    for (const s of specs) by.set(s.productId, [...(by.get(s.productId) ?? []), s]);
+    const ok = rows.filter((r) => productPasses(by.get(r.id) ?? [], c) === true);
+    // ο πελάτης έδωσε αριθμό: δείχνουμε ΜΟΝΟ όσα τον πληρούν, ακόμα κι αν είναι ένα-δύο (ο Ερμής λέει ότι είναι λίγα)
+    if (ok.length) { rows = ok; checked.push({ label: c.need, raw: [], values: [`${c.op} ${c.value}`], need: c.need }); if (ok.length < 3) relaxed.push(`μόνο ${ok.length} στον κατάλογο με «${c.need}»`); }
+    else relaxed.push(`κανένα με «${c.need}» στα χαρακτηριστικά`);
+  }
   for (const need of specNeeds) {
     const terms = specTerms(need); if (!terms.length) continue;
     const hit = await db.product.findMany({ where: { AND: [listed(), ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { id: { in: rows.map((r) => r.id) } }, { OR: terms.flatMap((t) => [{ title: { contains: t, mode: "insensitive" as const } }, { specs: { some: { OR: [{ value: { contains: t, mode: "insensitive" as const } }, { key: { contains: t, mode: "insensitive" as const } }] } } }]) }] }, select: { id: true } });
@@ -267,7 +319,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
     if (titled.length) { const titles = new Map(titled.map((t) => [t.id, t.title])); const inRows = byName(rows, titles); rows = inRows.length ? inRows : titled; if (!inRows.length) { active.length = 0; relaxed.push(`κράτησα τα «${names.join(", ")}» και χαλάρωσα τα υπόλοιπα κριτήρια`); } }
   }
   // Χαλάρωση, από το λιγότερο δεσμευτικό: τελευταία απαίτηση → … → προϋπολογισμός +15 % → μάρκα. Ο Ερμής το λέει στον πελάτη.
-  while (rows.length < 3 && active.length) { const dropped = active.pop()!; relaxed.push(`δεν υπάρχει με «${dropped.need}»`); rows = await fetch(build(active, maxPrice)); }
+  while (rows.length < 3 && active.length && !checked.length) { const dropped = active.pop()!; relaxed.push(`δεν υπάρχει με «${dropped.need}»`); rows = await fetch(build(active, maxPrice)); }
   if (rows.length < 3 && maxPrice) { maxPrice = Math.round(maxPrice * 1.15); const more = await fetch(build(active, maxPrice)); if (more.length > rows.length) { rows = more; relaxed.push(`λίγα έως ${eur(u.maxPrice!)} — κοίταξα έως ${eur(maxPrice)}`); } }
   if (!rows.length && brandWhere.length) { rows = await fetch(build(active, maxPrice, false)); if (rows.length) relaxed.push(`όχι από ${u.brands.join(", ")} — άλλες μάρκες`); }
 
@@ -284,7 +336,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   const generic = !u.needs.length && !specNeeds.length && !active.length && !u.priority && !u.maxPrice && !u.minPrice && !u.brands.length && !names.length;
   const ids = rankCandidates(rows.map((r) => ({ id: r.id, brandId: r.brandId, price: r.price, stock: r.stock, sim: sims.get(r.erpCode ?? "") ?? 0, offer: onOffer(r.offer), energy: !!r.energy, noise: r.energy?.eprel?.noise ?? null, kwh: r.energy?.eprel?.annualKwh ?? null, cls: r.energy?.class ?? null })),
     { take, priority: u.priority, generic, brandLock: u.brands.length > 0 });
-  return { ids, total: rows.length, relaxed, applied: active };
+  return { ids, total: rows.length, relaxed, applied: [...active, ...checked] };
 }
 
 async function byModelCode(codes: string[]): Promise<string[]> {
@@ -358,7 +410,7 @@ const policy = (c: AdvisorContext["commerce"]) => [
   "Εγκατάσταση και σύνδεση από τον τεχνικό του καταστήματος της περιοχής· απόσυρση της παλιάς συσκευής.",
 ];
 
-async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, items: Dossier[], viewing: Dossier | null, notes: { relaxed: string[]; total: number; typeNames: string[]; focusShown: boolean }, near: NearResult | null) {
+async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, items: Dossier[], viewing: Dossier | null, notes: { relaxed: string[]; total: number; typeNames: string[]; focusShown: boolean; verified?: string[] }, near: NearResult | null) {
   const thread = (input.thread ?? []).slice(-8).map((t) => `${t.role === "user" ? "ΠΕΛΑΤΗΣ" : "ΕΡΜΗΣ"}: ${t.text.slice(0, 500)}`).join("\n");
   const r = await chat({
     feature: "advisor", accounting: "background", model: WRITER, json: true, maxTokens: 1200, timeoutMs: 18000, reasoning: "low", temperature: 0.5,
@@ -375,9 +427,9 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Κλείνεις με ΜΙΑ ερώτηση μόνο όταν χρειάζεται όντως κάτι για να αποφασίσεις· αν ο πελάτης έχει δώσει αρκετά, δίνεις τη σύστασή σου και τελειώνεις. Ποτέ ερώτηση που έχει ήδη απαντηθεί στο νήμα.
 - ΚΑΤΑΣΤΗΜΑΤΑ: αν δίνεται nearestStores με found=true, λες ποιο είναι το κοντινότερο κατάστημα στη διεύθυνσή του — όνομα, διεύθυνση και πόλη, απόσταση σε χιλιόμετρα (στρογγυλά), τηλέφωνο και το σημερινό ωράριο — και, αν είναι κοντά (έως ~2 km διαφορά), ένα δεύτερο ως εναλλακτική. Αν found=false, λες ότι δεν εντόπισες τη διεύθυνση και ζητάς Τ.Κ. ή περιοχή. Αν nearestStores.needPlace=true, ζητάς διεύθυνση, περιοχή ή Τ.Κ. για να του πεις το κοντινότερο. ΔΕΝ έχουμε καταγεγραμμένο τι έχει κάθε κατάστημα στην έκθεση ή στο απόθεμα: ποτέ μη λες ότι ένα κατάστημα έχει συγκεκριμένο μοντέλο — προτείνεις να τηλεφωνήσει πριν πάει. Ποτέ διεύθυνση ή τηλέφωνο καταστήματος εκτός nearestStores.
 - Δεν αναφέρεις ότι είσαι AI.
-Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}.${(ctx.picks ?? 3) > 3 ? ` Δώσε έως ${ctx.picks} picks (όσα δελτία ταιριάζουν), με εύρος μαρκών, μεγεθών και τιμών, ώστε ο πελάτης να έχει πραγματική επιλογή.` : ""} Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
+Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}.${(ctx.picks ?? 3) > 3 ? ` Δώσε έως ${ctx.picks} picks (όσα δελτία ταιριάζουν), με εύρος μαρκών, μεγεθών και τιμών, ώστε ο πελάτης να έχει πραγματική επιλογή.` : ""} ΑΚΡΙΒΕΙΑ: μόνο ό,τι είναι στο notes.verifiedOnAll ισχύει για ΟΛΑ τα δελτία· για κάθε άλλη απαίτηση (και ό,τι λέει το notes.relaxed) ΜΗ γράφεις «όλα»/«και τα τρία» — πες ποιο την πληροί, με τον αριθμό από το δελτίο του, και ποιο όχι. Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
 ${EXPERTISE}` },
-      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), nearestStores: near ? { searchedFor: near.searched, found: near.found, locatedAs: near.located, stores: near.stores.map((x) => ({ name: x.name, address: x.address, city: x.city, zip: x.zip, phone: x.phone, km: x.km, today: x.today, openNow: x.openNow, services: x.services })) } : u.aboutStores ? { needPlace: true } : undefined, kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
+      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, verifiedOnAll: notes.verified ?? [], answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), nearestStores: near ? { searchedFor: near.searched, found: near.found, locatedAs: near.located, stores: near.stores.map((x) => ({ name: x.name, address: x.address, city: x.city, zip: x.zip, phone: x.phone, km: x.km, today: x.today, openNow: x.openNow, services: x.services })) } : u.aboutStores ? { needPlace: true } : undefined, kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ text?: string; picks?: { i?: number; why?: string }[] }>(r.text) : null;
@@ -412,7 +464,7 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
   let chosen = u.types.map((i) => types[i]);
   if (!chosen.length && viewing?.typeSlug && (u.kind === "products" || u.kind === "advice") && u.focus === "new") { const t = types.find((x) => x.node.slug === viewing.typeSlug); if (t) { chosen = [t]; u.types = [t.i]; u.typeNames = [t.node.name]; } }
 
-  let candidates: Product[] = [], total = 0, relaxed: string[] = [];
+  let candidates: Product[] = [], total = 0, relaxed: string[] = [], verified: string[] = [];
   const wantsProducts = u.kind === "products" || u.kind === "advice";
   if (wantsProducts && u.focus === "shown") {
     // η ερώτηση αφορά όσα έχει ήδη δει: μένουμε ΣΕ ΑΥΤΑ — καμία νέα έρευνα, καμία εναλλαγή προτάσεων
@@ -424,9 +476,11 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
     const typeIds = chosen.map((t) => t.node.id);
     const { filters, unmapped } = ai && chosen.length ? await mapNeeds(u.needs, await facetsOf(typeIds)) : { filters: [], unmapped: u.needs };
     mark("facets");
+    const { criteria, rest } = ai && chosen.length && unmapped.length ? await mapSpecs(unmapped, await specIndex(typeIds)) : { criteria: [], rest: unmapped };
+    mark("specs");
     const search = [u.search, ...unmapped].join(" · ");
-    const [exact, found] = await Promise.all([byModelCode(u.modelCodes), chosen.length || u.brands.length || u.maxPrice ? retrieve(u, typeIds, filters, search, unmapped) : Promise.resolve({ ids: [] as string[], total: 0, relaxed: [] as string[], applied: [] as FacetFilter[] })]);
-    total = found.total; relaxed = found.relaxed;
+    const [exact, found] = await Promise.all([byModelCode(u.modelCodes), chosen.length || u.brands.length || u.maxPrice ? retrieve(u, typeIds, filters, search, rest, 30, criteria) : Promise.resolve({ ids: [] as string[], total: 0, relaxed: [] as string[], applied: [] as FacetFilter[] })]);
+    total = found.total; relaxed = found.relaxed; verified = found.applied.map((a) => a.need);
     for (const f of found.applied) if (!u.understood.some((x) => norm(x).includes(norm(f.need)))) u.understood.push(f.need);
     const ids = [...new Set([...exact, ...found.ids])].filter((id) => id !== viewing?.id || u.modelCodes.length > 0);
     const loaded = ids.length ? await dbProductsByIds(ids) : [];
@@ -443,7 +497,7 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
 
   const near = await near$;
   mark("stores");
-  const written = ai ? await compose({ ...input, thread }, ctx, u, items, viewingDossier, { relaxed, total, typeNames: u.typeNames, focusShown: u.focus === "shown" }, near) : null;
+  const written = ai ? await compose({ ...input, thread }, ctx, u, items, viewingDossier, { relaxed, total, typeNames: u.typeNames, focusShown: u.focus === "shown", verified }, near) : null;
   mark("compose"); if (process.env.ADVISOR_DEBUG) console.log("      [advisor]", lap.join(" · "));
   const picks = written?.picks.length ? written.picks : items.slice(0, ctx.picks ?? 3).map((s, i) => ({ i, why: [s.energyClass ? `κλάση ${s.energyClass}` : null, ...s.specs.slice(0, 2), s.availability].filter(Boolean).join(" · ") }));
   const s0 = near?.found ? near.stores[0] : null;
