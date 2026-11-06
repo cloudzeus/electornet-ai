@@ -39,6 +39,7 @@ export async function POST(req: Request) {
   // δοκιμή από τη σελίδα εκπαίδευσης (/ermis-live/train): κείμενο αντί για ήχο, η σκηνή δεν ακούει/μιλά, η μνήμη της παράστασης μένει ανέγγιχτη
   const tryMode = fd?.get("mode") === "try", textIn = String(fd?.get("text") ?? "").trim().slice(0, 500);
   const src = tryMode ? "try" : String(fd?.get("src") ?? "stage").slice(0, 20); // «test» = συνθετικές δοκιμές, δεν μετράνε ως πρόβα
+  const clipN = Number(fd?.get("clip") ?? 0) || 0, micName = String(fd?.get("mic") ?? "").slice(0, 80);
   const sendLive = (e: LiveEv) => { if (!tryMode) busLive(e); };
   const M = tryMode ? structuredClone(liveMemory()) : liveMemory();
   const alts = (() => { try { return JSON.parse(String(fd?.get("alts") ?? "{}")) as Alts; } catch { return {}; } })();
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
   if (!beat || (!textIn && (!(f instanceof File) || size < 2000))) return NextResponse.json({ route: "none", why: "no audio" });
   // κάθε ατάκα από πρόβες/παράσταση κρατιέται (AuditLog «skets.turn»): τι ειπώθηκε σε ποιο βήμα και πού πήγε — υλικό για λέξεις-κλειδιά και έτοιμες απαντήσεις (scripts/skets/turns.ts)
   const done = (o: Record<string, unknown>) => {
-    after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify({ ...o, src })) } }).then(() => {}, () => {}));
+    after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify({ ...o, src, ...(clipN ? { clipped: clipN } : {}), ...(micName ? { mic: micName } : {}) })) } }).then(() => {}, () => {}));
     return NextResponse.json(o);
   };
   const a = textIn ? null : (f as File), buf = a ? Buffer.from(await a.arrayBuffer()) : null;

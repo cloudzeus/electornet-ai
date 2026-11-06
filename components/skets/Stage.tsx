@@ -259,6 +259,10 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   const [mic, setMic] = useState<Mic | null>(null);
   const [micErr, setMicErr] = useState(false);
   const meter = useRef<HTMLSpanElement>(null);
+  // παραμόρφωση μικροφώνου (το σήμα «χτυπά» στο μέγιστο): η STT ακούει θόρυβο — κόκκινη τελεία για τον χειριστή, και καταγραφή με το όνομα του μικροφώνου
+  const clipN = useRef(0);
+  const [overload, setOverload] = useState(0);
+  useEffect(() => { if (!overload) return; const t = setTimeout(() => setOverload(0), 5000); return () => clearTimeout(t); }, [overload]);
   const armMic = async () => { setMicErr(false); const m = await openMic(); if (m) setMic(m); else setMicErr(true); };
   // μετά το εισαγωγικό βίντεο το μικρόφωνο ανοίγει μόνο του (το Enter μετρά ως κίνηση του χρήστη)
   useEffect(() => { if (!reel && introDone.current && auto && !mic) armMic(); }, [reel]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -273,7 +277,9 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     if (beat.wait !== "store" && !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
-    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead));
+    const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead)); fd.append("clip", String(clipN.current)); fd.append("mic", mic?.stream.getAudioTracks()[0]?.label ?? "");
+    if (clipN.current >= 3) setOverload(Date.now());
+    clipN.current = 0;
     fetch("/api/skets/turn", { method: "POST", headers: { "x-skets-key": k }, body: fd }).then((r) => r.json()).catch(() => ({ route: "script" }))
       .then((r: { route?: string; cat?: CatKey; alt?: string; i?: number; said?: string; to?: string; both?: boolean; learned?: { ahead: CatKey[]; alts: Alts } }) => {
         setTurnBusy(false);
@@ -292,7 +298,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         quietClose(); next();
       });
   };
-  useVad(mic, hearing, () => !!player && !player.paused && !player.ended, onTurn, (level, voiced) => {
+  useVad(mic, hearing, () => !!player && !player.paused && !player.ended, onTurn, (level, voiced, peak) => {
+    if ((peak ?? 0) >= 0.98) clipN.current++;
     // στάθμη χωρίς re-render της σκηνής (CSSOM, όχι style attribute)
     const el = meter.current; if (!el) return;
     el.style.width = `${Math.min(100, Math.round(level * 50))}%`;
@@ -354,7 +361,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
       <TopBar rehearsal={rehearsal} place={i > 0} />
       {reel && <Reel key={reel} ref={reelRef} {...REELS[reel]} autoPlay={reel === "outro"} />}
       {/* για τον παρουσιαστή, ακατανόητο για το κοινό: πράσινη = σε ακούω, μίλα · κίτρινη = το σκέφτομαι · τίποτα = μιλά ο Ερμής ή περιμένει τον χειριστή */}
-      {!reel && (hearing || turnBusy) && <span aria-hidden className={`absolute bottom-[1.2vh] right-[1vw] z-[3100] size-[0.7vh] rounded-full ${turnBusy ? "bg-eu-yellow/70" : "bg-eu-green/70"}`} />}
+      {/* κόκκινη (5 s) = το μικρόφωνο παραμορφώνει: χαμηλώστε την είσοδο ή απομακρύνετε το μικρόφωνο */}
+      {!reel && (hearing || turnBusy || !!overload) && <span aria-hidden className={`absolute bottom-[1.2vh] right-[1vw] z-[3100] size-[0.7vh] rounded-full ${overload ? "bg-red-500/80" : turnBusy ? "bg-eu-yellow/70" : "bg-eu-green/70"}`} />}
 
       <LayoutGroup>
         <div className="absolute inset-x-0 top-[9vh] bottom-0 flex">

@@ -64,7 +64,7 @@ function recorder(stream: MediaStream) {
  * Όσο `armed`, καλεί `onTurn` (με την ηχογράφηση της ατάκας) μία φορά μόλις ο παρουσιαστής πει κάτι και σωπάσει. `busy()` = παίζει ήχος στη σκηνή
  * (τότε δεν ακούμε, και η αναμονή ξεκινά από την αρχή). `onLevel` (0–1+, σε σχέση με το κατώφλι) για ένδειξη στάθμης.
  */
-export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onTurn: (audio: Blob | null) => void, onLevel?: (level: number, voiced: boolean) => void, endMs = VAD.endSilenceMs) {
+export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onTurn: (audio: Blob | null) => void, onLevel?: (level: number, voiced: boolean, peak?: number) => void, endMs = VAD.endSilenceMs) {
   const floor = useRef(0.004);
   const cb = useRef({ busy, onTurn, onLevel, endMs });
   useEffect(() => { cb.current = { busy, onTurn, onLevel, endMs }; });
@@ -78,7 +78,7 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
       if (fired) return;
       const now = Date.now();
       mic.analyser.getFloatTimeDomainData(buf);
-      let sum = 0; for (const x of buf) sum += x * x;
+      let sum = 0, peak = 0; for (const x of buf) { sum += x * x; const ax = x < 0 ? -x : x; if (ax > peak) peak = ax; }
       const rms = Math.sqrt(sum / buf.length);
       const thr = Math.max(floor.current * VAD.ratio, VAD.minRms);
       const loud = rms > thr;
@@ -86,7 +86,7 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
       // μακριά σιωπή: νέα ηχογράφηση, να μη στέλνουμε λεπτά ησυχίας
       if (!voiced && rec && rec.age() > 20000) { rec.drop(); rec = recorder(mic.stream); }
       if (!loud) floor.current = floor.current * 0.97 + rms * 0.03;
-      cb.current.onLevel?.(rms / thr, voiced >= VAD.minVoicedMs);
+      cb.current.onLevel?.(rms / thr, voiced >= VAD.minVoicedMs, peak); // peak ≈ 1 = το σήμα κόβεται (παραμόρφωση)
       if (now - quietSince < VAD.guardMs) return;
       if (!primed) {
         // άμεση απάντηση: ο παρουσιαστής μιλά ήδη μόλις τελειώσει το guard — μετράει αμέσως (κρατάμε την ηχογράφηση από το άνοιγμα, να μη χαθεί η πρώτη λέξη)
