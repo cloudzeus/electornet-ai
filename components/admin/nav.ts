@@ -34,6 +34,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Πωλήσεις & πελάτες",
     items: [
       { href: "/admin/orders", label: "Παραγγελίες", icon: ShoppingBag, perm: "orders.read" },
+      { href: "/admin/orders/enimerosi", label: "Ρυθμίσεις ενημέρωσης", icon: Mail, perm: "orders.write" },
       { href: "/admin/customers", label: "Πελάτες", icon: Users, perm: "customers.read" },
       { href: "/admin/stores", label: "Καταστήματα", icon: Store, perm: "stores.read" },
       { href: "/admin/synergates", label: "Συνεργάτες (B2B)", icon: Handshake, perm: "stores.partners.read" },

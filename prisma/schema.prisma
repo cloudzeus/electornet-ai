@@ -1716,6 +1716,7 @@ model Order {
   shipments     Shipment[]
   notes         OrderNote[]
   restocks      PartnerRestock[]
+  erpStages     OrderErpStage[]
   tracking      String?
   courier       String?
   createdAt     DateTime         @default(now())
@@ -2595,8 +2596,32 @@ model DocType {
   s1Data     Json?
   s1SyncedAt DateTime?
   s1Missing  Boolean   @default(false)
+  /// Παραγγελίες → Ρυθμίσεις ενημέρωσης: όταν εμφανιστεί παραστατικό αυτού του τύπου στην πορεία μιας παραγγελίας, email στον πελάτη
+  notifyCustomer  Boolean @default(false)
+  /// Ο τίτλος του σταδίου όπως τον βλέπει ο πελάτης (π.χ. «Η παραγγελία σου ετοιμάζεται»)
+  customerTitle   String?
+  /// Το κείμενο του email· {όνομα}, {παραγγελία}, {παραστατικό}, {ημερομηνία}
+  customerMessage String? @db.Text
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+}
+
+/// Τα παραστατικά του SoftOne που είδε ο έλεγχος σταδίων σε κάθε παραγγελία — για να μη σταλεί ποτέ το ίδιο email δύο φορές.
+model OrderErpStage {
+  id         String    @id @default(cuid())
+  orderId    String
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  findoc     Int
+  fprms      String?
+  docNo      String?
+  docDate    String?
+  seenAt     DateTime  @default(now())
+  /// πότε στάλθηκε email γι' αυτό το στάδιο (κενό = δεν ήταν επιλεγμένο ή ήταν παλιό)
+  notifiedAt DateTime?
+  mailError  String?
+
+  @@unique([orderId, findoc])
+  @@index([orderId])
 }
 
 model Warehouse {

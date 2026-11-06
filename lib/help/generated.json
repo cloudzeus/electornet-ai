@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-06T09:11:35.528Z",
+ "generatedAt": "2026-11-06T13:59:55.459Z",
  "routes": [
   {
    "route": "/admin",
@@ -1789,6 +1789,11 @@
    ],
    "changes": [
     {
+     "hash": "f56c727",
+     "date": "2026-11-06T11:12:42+02:00",
+     "text": "Πελάτης → Αγορές: «Πορεία στο SoftOne» και στις παλιές αγορές του eshop (ίδιο διάγραμμα με την παραγγελία, FINDOC από τη βάση, μόνο ανάγνωση)"
+    },
+    {
      "hash": "aaed998",
      "date": "2026-11-02T10:17:01+02:00",
      "text": "Service & εγγυήσεις: ουρά service στη διαχείριση, καρτέλα αιτήματος, εγγυήσεις συσκευών, αιτήματα πελάτη με πορεία, προφίλ με επαγγελματικά στοιχεία και αλλαγή email"
@@ -1832,14 +1837,9 @@
      "hash": "ec0fca5",
      "date": "2026-10-11T09:59:14+03:00",
      "text": "Πελάτες: το άνοιγμα γραμμής παίρνει πάντα το ορατό πλάτος του πίνακα (και μένει στη θέση του όταν ο πίνακας κυλά οριζόντια), ώστε το περιεχόμενο να αναδιπλώνεται αντί να κόβεται όταν οι στήλες είναι φαρδιές"
-    },
-    {
-     "hash": "d6e4c0c",
-     "date": "2026-10-11T09:57:09+03:00",
-     "text": "Πελάτες: πυκνός πίνακας που ρυθμίζεις"
     }
    ],
-   "updatedAt": "2026-11-02T10:17:01+02:00",
+   "updatedAt": "2026-11-06T11:12:42+02:00",
    "shots": {}
   },
   {
@@ -1865,6 +1865,11 @@
     "orders.softone.details"
    ],
    "changes": [
+    {
+     "hash": "f56c727",
+     "date": "2026-11-06T11:12:42+02:00",
+     "text": "Πελάτης → Αγορές: «Πορεία στο SoftOne» και στις παλιές αγορές του eshop (ίδιο διάγραμμα με την παραγγελία, FINDOC από τη βάση, μόνο ανάγνωση)"
+    },
     {
      "hash": "9fcea86",
      "date": "2026-11-06T10:21:17+02:00",
@@ -1909,14 +1914,9 @@
      "hash": "b5e568f",
      "date": "2026-09-13T14:02:50+03:00",
      "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
-    },
-    {
-     "hash": "746f971",
-     "date": "2026-09-13T13:55:32+03:00",
-     "text": "Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer …"
     }
    ],
-   "updatedAt": "2026-11-06T10:21:17+02:00",
+   "updatedAt": "2026-11-06T11:12:42+02:00",
    "shots": {}
   },
   {
@@ -2321,6 +2321,8 @@
     "order.history",
     "order.promos",
     "orders.restock",
+    "orders.stages.header",
+    "orders.stages.how",
     "orders.header",
     "orders.kpi",
     "orders.views"
@@ -2459,6 +2461,29 @@
     }
    ],
    "updatedAt": "2026-11-06T10:33:12+02:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/orders/enimerosi",
+   "slug": "orders.enimerosi",
+   "file": "app/admin/(shell)/orders/enimerosi/page.tsx",
+   "title": "Ρυθμίσεις ενημέρωσης",
+   "doc": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ποια στάδια στο SoftOne στέλνουν email στον πελάτη και με ποιο κείμενο.",
+   "perm": "orders.write",
+   "nav": {
+    "group": "Πωλήσεις & πελάτες",
+    "label": "Ρυθμίσεις ενημέρωσης"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "orders.stages.header",
+    "orders.stages.how",
+    "orders.stages.toggle",
+    "orders.stages.text",
+    "orders.stages.list"
+   ],
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -4480,6 +4505,63 @@
  ],
  "recent": [
   {
+   "hash": "8ca597e",
+   "date": "2026-11-06T15:59:26+02:00",
+   "text": "Ερμής: μόνιμος οδηγός αγοράς ανά κατηγορία (107, lib/advisor/guides.json",
+   "routes": []
+  },
+  {
+   "hash": "bd4f837",
+   "date": "2026-11-06T15:31:53+02:00",
+   "text": "Ερμής: RAM/αποθήκευση από τον τίτλο όταν λείπουν τα χαρακτηριστικά (MacBook, κινητά), ευρετήριο χαρακτηριστικών και στις μικρές κατηγορίες (68→93 από 107), σετ έως 5 τύπων με τουλάχιστον ένα προϊόν ανά τύπο (η κουζίνα…",
+   "routes": []
+  },
+  {
+   "hash": "893a978",
+   "date": "2026-11-06T13:11:53+02:00",
+   "text": "Ερμής του site: ειδικός στα χαρακτηριστικά",
+   "routes": []
+  },
+  {
+   "hash": "f76ebfe",
+   "date": "2026-11-06T13:01:23+02:00",
+   "text": "Ερμής: η σκηνή χωρίς σενάριο είναι η προεπιλογή (&script=1 για το παλιό) με έως 6 επιλογές σε όλο το πλάτος",
+   "routes": []
+  },
+  {
+   "hash": "ade29ec",
+   "date": "2026-11-06T12:42:59+02:00",
+   "text": "Σκετς Ερμή: κατάλογος σκηνής = ενεργά είδη του SoftOne με φωτογραφία (με ή χωρίς απόθεμα), όχι τα ανενεργά",
+   "routes": []
+  },
+  {
+   "hash": "2b2f1a5",
+   "date": "2026-11-06T12:39:19+02:00",
+   "text": "Σκετς Ερμή (χωρίς σενάριο): βλέπει όλα τα είδη του καταλόγου (ενεργά ή όχι, με ή χωρίς απόθεμα) ζωντανά από τη βάση",
+   "routes": []
+  },
+  {
+   "hash": "9e80f51",
+   "date": "2026-11-06T12:23:13+02:00",
+   "text": "Σκετς Ερμή: σκηνή χωρίς σενάριο (&free=1) με τον ίδιο Ερμή του site και ζωντανά δεδομένα",
+   "routes": []
+  },
+  {
+   "hash": "9d0e957",
+   "date": "2026-11-06T11:16:52+02:00",
+   "text": "Σκετς Ερμή: το μικρόφωνο της σκηνής προτιμά το headset αντί της κάμερας (?mic= για συγκεκριμένο)",
+   "routes": []
+  },
+  {
+   "hash": "f56c727",
+   "date": "2026-11-06T11:12:42+02:00",
+   "text": "Πελάτης → Αγορές: «Πορεία στο SoftOne» και στις παλιές αγορές του eshop (ίδιο διάγραμμα με την παραγγελία, FINDOC από τη βάση, μόνο ανάγνωση)",
+   "routes": [
+    "/admin",
+    "/admin/customers"
+   ]
+  },
+  {
    "hash": "0e3c3a3",
    "date": "2026-11-06T11:10:03+02:00",
    "text": "Ασφάλεια: Next.js 16.3.8 → 16.4.3 (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r)",
@@ -4676,63 +4758,6 @@
    "hash": "eb26f7a",
    "date": "2026-11-03T16:41:45+02:00",
    "text": "ASAP: σωστή διαδρομή αναζήτησης διεύθυνσης (/address-lookup)",
-   "routes": []
-  },
-  {
-   "hash": "814e32d",
-   "date": "2026-11-03T16:34:10+02:00",
-   "text": "Διαστάσεις & βάρος: --skip για εξαίρεση προϊόντων (κωδικός ERP / SKU / id)",
-   "routes": []
-  },
-  {
-   "hash": "66a2206",
-   "date": "2026-11-03T11:37:09+02:00",
-   "text": "Απόδελτίωση: τα λατινικά ακρωνύμια μένουν κεφαλαία μετά τη διόρθωση τίτλων",
-   "routes": []
-  },
-  {
-   "hash": "97e26cd",
-   "date": "2026-11-03T11:08:37+02:00",
-   "text": "Διαστάσεις & βάρος: --sellable για όσα πουλιούνται τώρα",
-   "routes": []
-  },
-  {
-   "hash": "0262f72",
-   "date": "2026-11-03T10:50:05+02:00",
-   "text": "Κουμπί καλαθιού: μία γραμμή 44px, πλήθος ως σήμα παντού, σύνολο μόνο με προϊόντα",
-   "routes": []
-  },
-  {
-   "hash": "eaa7095",
-   "date": "2026-11-03T10:02:05+02:00",
-   "text": "Αναζήτηση κεφαλίδας: στοιχεία ανάλογα με το δικό της πλάτος, όχι της κεφαλίδας",
-   "routes": []
-  },
-  {
-   "hash": "fa1b608",
-   "date": "2026-11-03T08:53:33+02:00",
-   "text": "SoftOne εγγραφή: χαρακτήρες Windows-1253 πριν την αποστολή, ανανέωση καρτέλας μετά την αποθήκευση",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "5ed8bdd",
-   "date": "2026-11-03T08:25:23+02:00",
-   "text": "Περιγραφή προϊόντος: κλειστή με «Δείξε όλη», στοιχισμένες ενότητες, τίτλοι χωρίς ΚΕΦΑΛΑΙΑ",
-   "routes": []
-  },
-  {
-   "hash": "5f03305",
-   "date": "2026-11-03T08:02:22+02:00",
-   "text": "Απόδελτίωση banners: αυτόματη δημοσίευση με δικλείδες (--publish, --publish-drafts, --estimate)",
-   "routes": []
-  },
-  {
-   "hash": "5f38ef7",
-   "date": "2026-11-03T07:51:27+02:00",
-   "text": "Σελίδα προϊόντος: λιγότερη σύγχυση",
    "routes": []
   }
  ],
@@ -5012,6 +5037,12 @@
   ],
   "orders.restock": [
    "app/admin/(shell)/orders/[number]/page.tsx"
+  ],
+  "orders.stages.header": [
+   "app/admin/(shell)/orders/enimerosi/page.tsx"
+  ],
+  "orders.stages.how": [
+   "app/admin/(shell)/orders/enimerosi/page.tsx"
   ],
   "orders.header": [
    "app/admin/(shell)/orders/page.tsx"
@@ -5583,6 +5614,15 @@
   ],
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "orders.stages.toggle": [
+   "components/admin/orders/StageSettings.tsx"
+  ],
+  "orders.stages.text": [
+   "components/admin/orders/StageSettings.tsx"
+  ],
+  "orders.stages.list": [
+   "components/admin/orders/StageSettings.tsx"
   ],
   "orders.tabs": [
    "components/admin/orders/chain/OrderTabs.tsx"

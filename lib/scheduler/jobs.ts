@@ -39,6 +39,10 @@ export const JOBS: JobDef[] = [
     },
   },
   {
+    key: "order-erp-stages", label: "Πορεία παραγγελιών στο SoftOne → ενημέρωση πελάτη (Παραγγελίες → Ρυθμίσεις ενημέρωσης)", schedule: { everyMin: 15 }, group: "order-erp-stages", maxMin: 12,
+    run: async () => (await import("@/lib/orders/erp-stages")).runErpStages(),
+  },
+  {
     key: "category-ops", label: "Μετακινήσεις κατηγοριών προς SoftOne (συνέχεια μετά από διακοπή)", schedule: { everyMin: 1 }, group: "category-ops", maxMin: 6,
     run: async () => (await import("@/lib/catalog/category-ops")).runPendingOps(),
   },

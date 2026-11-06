@@ -16,7 +16,7 @@ const ACTION: Record<string, string> = {
   "order.status": "Αλλαγή κατάστασης", "order.note": "Σημείωση", "order.note.delete": "Διαγραφή σημείωσης", "order.email": "Email στον πελάτη", "order.refund": "Επιστροφή χρημάτων",
   "shipment.create": "Έκδοση voucher", "shipment.cancel": "Ακύρωση voucher", "return.status": "Επιστροφή προϊόντων",
 };
-const EMAIL: Record<string, string> = { "order-confirmation": "Επιβεβαίωση παραγγελίας", "order-shipped": "Στάλθηκε", "order-ready-for-pickup": "Έτοιμη για παραλαβή", "order-delivered": "Παραδόθηκε", "order-cancelled": "Ακύρωση", "order-return": "Επιστροφή" };
+const EMAIL: Record<string, string> = { "order-confirmation": "Επιβεβαίωση παραγγελίας", "order-shipped": "Στάλθηκε", "order-ready-for-pickup": "Έτοιμη για παραλαβή", "order-delivered": "Παραδόθηκε", "order-cancelled": "Ακύρωση", "order-return": "Επιστροφή", "order-erp-stage": "Στάδιο SoftOne" };
 
 function Card({ title, icon: Icon, right, children, id, "data-help": help }: { title: string; icon: typeof Package; right?: React.ReactNode; children: React.ReactNode; id?: string; "data-help"?: string }) {
   return (

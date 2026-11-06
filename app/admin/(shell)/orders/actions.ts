@@ -81,3 +81,19 @@ export async function orderChainAction(orderId: string) {
   const { orderChain } = await import("@/lib/softone/order-chain");
   return orderChain(orderId);
 }
+
+/** Παραγγελίες → Ρυθμίσεις ενημέρωσης: ποιο στάδιο (τύπος παραστατικού SoftOne) στέλνει email και με ποιο κείμενο. */
+export async function saveStageSettingAction(docTypeId: string, input: { notify: boolean; title: string; message: string }) {
+  const u = await requirePermission("orders.write");
+  const title = input.title.trim().slice(0, 140), message = input.message.trim().slice(0, 4000);
+  if (input.notify && !message) return { ok: false as const, error: "Γράψε το κείμενο του email πριν ενεργοποιήσεις την ενημέρωση." };
+  const { db } = await import("@/lib/db");
+  const { audit } = await import("@/lib/rbac/audit");
+  const before = await db.docType.findUnique({ where: { id: docTypeId }, select: { eshop: true, notifyCustomer: true, customerTitle: true, customerMessage: true } });
+  if (!before?.eshop) return { ok: false as const, error: "Ο τύπος παραστατικού δεν βρέθηκε." };
+  const data = { notifyCustomer: input.notify, customerTitle: title || null, customerMessage: message || null };
+  await db.docType.update({ where: { id: docTypeId }, data });
+  await audit(u.id, "orders.stage-setting", "DocType", docTypeId, before, data);
+  revalidatePath("/admin/orders/enimerosi");
+  return { ok: true as const };
+}
