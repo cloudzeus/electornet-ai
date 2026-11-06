@@ -89,7 +89,9 @@ export function useVad(mic: Mic | null, armed: boolean, busy: () => boolean, onT
       cb.current.onLevel?.(rms / thr, voiced >= VAD.minVoicedMs);
       if (now - quietSince < VAD.guardMs) return;
       if (!primed) {
-        hush = loud ? 0 : hush + VAD.tickMs; primed = hush >= VAD.primeMs;
+        // άμεση απάντηση: ο παρουσιαστής μιλά ήδη μόλις τελειώσει το guard — μετράει αμέσως (κρατάμε την ηχογράφηση από το άνοιγμα, να μη χαθεί η πρώτη λέξη)
+        if (loud) { primed = true; voiced += VAD.tickMs; lastVoice = now; return; }
+        hush += VAD.tickMs; primed = hush >= VAD.primeMs;
         // η ηχογράφηση ξεκινά ΤΩΡΑ: ό,τι γράφτηκε ως εδώ (η ουρά της φωνής του Ερμή από τα ηχεία) δεν πάει στο STT
         if (primed) { rec?.drop(); rec = recorder(mic.stream); }
         return;

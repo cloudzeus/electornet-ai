@@ -271,7 +271,7 @@ export function storeFor(s: Snapshot, said: string): number | null {
     const words = plain(`${st.street} ${st.name}`).split(/[^\p{L}]+/u).filter((w) => w.length > 4).map(ph);
     if (words.some((w) => heard.some((h) => h.startsWith(stem(w)) || w.startsWith(stem(h)) || near(h, w)))) return n;
   }
-  if (/κοντινοτερ|πλησιεστερ|πιο κοντ/.test(t)) return s.stores.reduce((b, st, n) => (st.km < s.stores[b].km ? n : b), 0);
+  if (/κοντιν|πλησιεστερ|κοντα/.test(t)) return s.stores.reduce((b, st, n) => (st.km < s.stores[b].km ? n : b), 0);
   for (const [re, n] of ORD) if (re.test(t) && s.stores[n]) return n;
   return null;
 }

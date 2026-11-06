@@ -52,7 +52,7 @@ function assistantConfig(voiceId: string) {
     firstMessageMode: "assistant-speaks-first",
     // Vapi: μεταβλητές με {{…}} (Liquid) — ίδιες με του ElevenLabs agent
     model: { provider: "openai", model: "gpt-4.1", temperature: 0.4, messages: [{ role: "system", content: AGENT_PROMPT }] },
-    voice: { provider: "11labs", voiceId, model: "eleven_flash_v2_5", stability: 0.5, similarityBoost: 0.8 },
+    voice: { provider: "11labs", voiceId, model: "eleven_turbo_v2_5", stability: 0.5, similarityBoost: 0.8 },
     transcriber: { provider: "deepgram", model: "nova-3", language: "el" },
     // ο θεατής-κατάστημα θα είναι σε αίθουσα με κόσμο: όχι διακοπή από κάθε θόρυβο
     stopSpeakingPlan: { numWords: 3, voiceSeconds: 0.5, backoffSeconds: 1 },

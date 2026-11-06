@@ -60,7 +60,8 @@ export async function POST(req: Request) {
     const i = storeFor(snap, said);
     if (i !== null) return done({ route: "store", i, said, ms: msStt });
     // ό,τι δεν είναι ερώτηση («ναι, αυτό», σχόλιο) δεν περνά από το μοντέλο (3–10 s): η σκηνή συνεχίζει να ακούει αμέσως
-    if (!QUESTION.test(n) && !/[;;?]\s*$/.test(said)) return done({ route: "none", said, ms: msStt });
+    // ό,τι δεν είναι ερώτηση («ναι», «εκεί», «όποιο είναι κοντά») = το πιο κοντινό· η σκηνή δεν μένει να περιμένει σιωπηλή
+    if (!QUESTION.test(n) && !/[;;?]\s*$/.test(said)) return done({ route: "store", i: snap.stores.reduce((b, st, j) => (st.km < snap.stores[b].km ? j : b), 0), said, why: "nearest", ms: msStt });
   }
   // αντίρρηση («προτιμώ επαγωγική», «δεν θέλω τόσο μεγάλο») θέλει απάντηση, όχι να προχωρήσει το σενάριο σαν να είπε «ναι»
   const asked = QUESTION.test(n) || /[;;?]\s*$/.test(said) || beat.id === "idle" || /(?<!\p{L})(προτιμ|δεν θελ|δεν μου αρεσ|καλυτερα|δεν χρειαζ|οχι)/u.test(n);
@@ -74,7 +75,8 @@ export async function POST(req: Request) {
   const cur = slots.find((x) => beat.id === `${x.cat}-ask` || beat.id === `${x.cat}-ask2`);
   if (cur && (!asked || (cur.alt && !QUESTION.test(n.replace(/^οχι\s*/, "")) && !/[;;?]\s*$/.test(said)))) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
   // στην αρχή ο παρουσιαστής μπορεί να πει μαζί τα νέα ΚΑΙ το «εξόπλισέ μου το σπίτι» → κατευθείαν στο «Ευχαρίστως, ας ξεκινήσουμε»
-  if (beat.id === "idle" && /σπιτι|εξοπλ|βοηθ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", both: true, said, ms: msStt });
+  // «συγχαρητήρια» μόνο αν είπε και τα νέα (Λάρισα/μετάθεση/θέση)· σκέτο «βοήθησέ με να εξοπλίσω» → «Ευχαρίστως, ας ξεκινήσουμε»
+  if (beat.id === "idle" && /σπιτι|εξοπλ|βοηθ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", both: /λαρισ|μεταθεσ|μετατεθ|θεση|νεα|μετακομ/.test(n), said, ms: msStt });
   // η απάντηση ορίζει μέγεθος (τ.μ., μέτρα): ο αριθμός που ακούστηκε διαλέγει διακλάδωση — πριν από το «ναι», γιατί «ναι, σαράντα» ≠ «ναι»
   const vc = snap.cats.find((c) => beats[bi + 1]?.id === `${c.key}-verdict`);
   // προτίμηση («θέλω επαγωγική», «όχι, επαγωγική», «έχετε τη Hisense;») = επιλογή → η διακλάδωση· μόνο η ερώτηση πληροφορίας
