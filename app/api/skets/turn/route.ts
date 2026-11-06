@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sketsReq } from "@/lib/skets/auth";
-import { sendLive } from "@/lib/skets/bus";
+import { sendLive as busLive } from "@/lib/skets/bus";
 import { altFor, buildBeats, clarifyLines, pickOf, sceneAt, slotsIn, storeFor, type Beat } from "@/lib/skets/script";
 import { liveMemory } from "@/lib/skets/live";
 import { speakParts } from "@/lib/skets/speak-live";
@@ -36,25 +36,30 @@ export async function POST(req: Request) {
   const t0 = Date.now();
   const fd = await req.formData().catch(() => null);
   const f = fd?.get("audio"), id = String(fd?.get("beat") ?? "");
+  // δοκιμή από τη σελίδα εκπαίδευσης (/ermis-live/train): κείμενο αντί για ήχο, η σκηνή δεν ακούει/μιλά, η μνήμη της παράστασης μένει ανέγγιχτη
+  const tryMode = fd?.get("mode") === "try", textIn = String(fd?.get("text") ?? "").trim().slice(0, 500);
+  const src = tryMode ? "try" : String(fd?.get("src") ?? "stage").slice(0, 20); // «test» = συνθετικές δοκιμές, δεν μετράνε ως πρόβα
+  const sendLive = (e: LiveEv) => { if (!tryMode) busLive(e); };
+  const M = tryMode ? structuredClone(liveMemory()) : liveMemory();
   const alts = (() => { try { return JSON.parse(String(fd?.get("alts") ?? "{}")) as Alts; } catch { return {}; } })();
   const ahead = (() => { try { return (JSON.parse(String(fd?.get("ahead") ?? "[]")) as CatKey[]).filter((k) => snap.cats.some((c) => c.key === k)); } catch { return []; } })();
-  liveMemory().alts = alts;
+  M.alts = alts;
   const beats = buildBeats(snap, alts, ahead);
   const bi = beats.findIndex((b) => b.id === id), beat = beats[bi];
   // σιωπή, θόρυβος ή βήχας ΔΕΝ είναι απάντηση: η σκηνή μένει στο βήμα και ξανακούει (ο χειριστής προχωρά με Enter αν χρειαστεί)
-  if (!beat || !(f instanceof File) || f.size < 2000) return NextResponse.json({ route: "none", why: "no audio" });
+  const size = f instanceof File ? f.size : 0;
+  if (!beat || (!textIn && (!(f instanceof File) || size < 2000))) return NextResponse.json({ route: "none", why: "no audio" });
   // κάθε ατάκα από πρόβες/παράσταση κρατιέται (AuditLog «skets.turn»): τι ειπώθηκε σε ποιο βήμα και πού πήγε — υλικό για λέξεις-κλειδιά και έτοιμες απαντήσεις (scripts/skets/turns.ts)
   const done = (o: Record<string, unknown>) => {
-    after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify(o)) } }).then(() => {}, () => {}));
+    after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify({ ...o, src })) } }).then(() => {}, () => {}));
     return NextResponse.json(o);
   };
-  const ext = f.type.includes("mp4") ? "m4a" : f.type.includes("ogg") ? "ogg" : "webm";
-  const t = await transcribe(Buffer.from(await f.arrayBuffer()), f.type || "audio/webm", `turn.${ext}`);
+  const t = textIn ? { ok: true as const, text: textIn } : await (async (a: File) => transcribe(Buffer.from(await a.arrayBuffer()), a.type || "audio/webm", `turn.${a.type.includes("mp4") ? "m4a" : a.type.includes("ogg") ? "ogg" : "webm"}`))(f as File);
   // ήχοι σε παρενθέσεις («(μουσική)», «[γέλια]») και οι γνωστές «φαντασιώσεις» της αναγνώρισης πάνω σε θόρυβο δεν είναι λόγια
   const heardText = (t.ok ? t.text : "").replace(/[([][^)\]]*[)\]]/g, " ").trim();
   // δεν καταλάβαμε: μία φορά ανά βήμα ο Ερμής ρωτά κάτι έτοιμο που βοηθά τον παρουσιαστή (ποτέ σιωπή που τον κάνει να το ξαναπεί)
   const clarify = (why: string) => {
-    const a = clarifyLines(snap)[beat.id], m = liveMemory();
+    const a = clarifyLines(snap)[beat.id], m = M;
     if (!a || !snap.voice[a] || m.clarified === beat.id) return null;
     m.clarified = beat.id;
     const ev = { n: Date.now(), phase: "thinking", q: heardText, quiet: true } as LiveEv;
@@ -63,7 +68,7 @@ export async function POST(req: Request) {
     return done({ route: "free", ready: true, say: a, why, heard: heardText, ms: Date.now() - t0 });
   };
   // μιλούσε αρκετά (>3 s) αλλά δεν βγήκε λέξη: δεν τον ακούσαμε καλά
-  if (!/\p{L}{2,}/u.test(heardText) && f.size > 12000) { const c = clarify("unheard"); if (c) return c; }
+  if (!/\p{L}{2,}/u.test(heardText) && size > 12000) { const c = clarify("unheard"); if (c) return c; }
   if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) return done({ route: "none", why: "noise", heard: heardText, ms: Date.now() - t0 });
   const said = heardText, cue = (beat.cue ?? "").replace(/[«»]/g, ""), n = norm(said);
   const msStt = Date.now() - t0;
@@ -81,11 +86,11 @@ export async function POST(req: Request) {
   const askAt = (k: CatKey) => beats.findIndex((b) => b.id === `${k}-ask`);
   const slots = beat.wait === "presenter" ? slotsIn(snap, said) : [];
   const learned = { ahead: slots.filter((x) => askAt(x.cat) > bi).map((x) => x.cat), alts: Object.fromEntries(slots.filter((x) => askAt(x.cat) > bi && x.alt).map((x) => [x.cat, x.alt])) as Alts };
-  if (learned.ahead.length) liveMemory().alts = { ...alts, ...learned.alts };
+  if (learned.ahead.length) M.alts = { ...alts, ...learned.alts };
   const reply = (o: Record<string, unknown>) => done({ ...o, ...(learned.ahead.length ? { learned } : {}) });
   // απάντησε ήδη και στο «γιατί ρωτάω» της τρέχουσας ομάδας (π.χ. «μεγάλος κάδος, για παπλώματα» πριν τη διευκρίνιση) → κατευθείαν στην απόφαση
   const cur = slots.find((x) => beat.id === `${x.cat}-ask` || beat.id === `${x.cat}-ask2`);
-  if (cur && (!asked || (cur.alt && !QUESTION.test(n.replace(/^οχι\s*/, "")) && !/[;;?]\s*$/.test(said)))) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
+  if (cur && (!asked || (cur.alt && !QUESTION.test(n.replace(/^οχι\s*/, "")) && !/[;;?]\s*$/.test(said)))) { if (cur.alt) M.alts = { ...M.alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
   // στην αρχή ο παρουσιαστής μπορεί να πει μαζί τα νέα ΚΑΙ το «εξόπλισέ μου το σπίτι» → κατευθείαν στο «Ευχαρίστως, ας ξεκινήσουμε»
   // «συγχαρητήρια» μόνο αν είπε και τα νέα (Λάρισα/μετάθεση/θέση)· σκέτο «βοήθησέ με να εξοπλίσω» → «Ευχαρίστως, ας ξεκινήσουμε»
   if (beat.id === "idle" && /σπιτι|εξοπλ|βοηθ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", both: /λαρισ|μεταθεσ|μετατεθ|θεση|νεα|μετακομ/.test(n), said, ms: msStt });
@@ -95,7 +100,7 @@ export async function POST(req: Request) {
   // («γιατί όχι επαγωγική;», «τι διαφορά έχει;») πάει στην απάντηση, εκτός αν λέει μέγεθος με μονάδα
   const info = /^(?:(?:και|αλλα|ομως|ε|ναι|ερμη|δηλαδη)\s+)*(τι|πως|γιατι|ποσο|ποσα|ποσες|ποια ειναι|ποιο ειναι|ποτε)(?!\p{L})/u.test(n);
   const alt = vc && !(info && !/μετρ|τετραγων|τ μ|εκατοστ|ιντσ|χιλιαδ/.test(n)) ? altFor(vc, said) : null;
-  if (vc && alt !== null) { liveMemory().alts = { ...liveMemory().alts, [vc.key]: alt || undefined }; return reply({ route: "alt", cat: vc.key, alt, said, ms: msStt }); }
+  if (vc && alt !== null) { M.alts = { ...M.alts, [vc.key]: alt || undefined }; return reply({ route: "alt", cat: vc.key, alt, said, ms: msStt }); }
   // οι «βαριές» λέξεις της ατάκας (νέα, Λάρισα, θέση…): αν ακούστηκαν οι μισές, είπε την ατάκα με δικά του λόγια
   const words = norm(cue).split(" ").filter((w) => w.length > 3), heard = new Set(n.split(" "));
   const content = words.length ? words.filter((w) => heard.has(w)).length / words.length : 0;
@@ -110,7 +115,7 @@ export async function POST(req: Request) {
   const scene = sceneAt(beats, bi), cat = scene.cat ? snap.cats.find((c) => c.key === scene.cat) ?? null : null;
   const all = snap.cats.flatMap((c) => c.candidates);
   const toLive = (ids: string[]): LiveProduct[] => ids.flatMap((pid) => all.filter((p) => p.id === pid)).slice(0, 2).map((p) => ({ id: p.id, brand: p.brand, title: p.title, price: p.price, image: p.image, why: p.key }));
-  const mem = liveMemory();
+  const mem = M;
   // έτοιμες απαντήσεις (scripts/skets/qa.ts) που ταιριάζουν σε αυτό το σημείο: της ομάδας είτε πριν την επιλογή (pre) είτε για το προϊόν που ήδη διαλέξαμε
   const here = (snap.qa ?? []).filter((x) => !(x.cat && (x.cat !== scene.cat || !!x.pre === !!scene.picked[x.cat])) && !!x.start === (beat.id === "idle") && !!snap.voice[x.a]);
   const play = (best: { a: string; ids: string[]; score: number }, why?: string) => {
@@ -185,7 +190,7 @@ ${ctx}` },
   if (pick) return play({ a: pick.a, ids: pick.ids, score: 0 }, "model");
   if (out?.route === "alt" && vcM && (out.alt === "" || vcM.alts?.some((a) => a.key === out.alt))) {
     sendLive({ ...ev0, phase: "resume" });
-    liveMemory().alts = { ...liveMemory().alts, [vcM.key]: out.alt || undefined };
+    M.alts = { ...M.alts, [vcM.key]: out.alt || undefined };
     // κατευθείαν στην απόφαση (και από το «Τι εννοείτε;» της ερώτησης): δεν ξαναρωτάμε ό,τι ήδη απάντησε
     return reply({ route: "jump", to: `${vcM.key}-verdict`, cat: vcM.key, alt: out.alt ?? "", said, why: "model", ms: Date.now() - t0 });
   }
@@ -206,6 +211,6 @@ ${ctx}` },
   const ev: LiveEv = { ...ev0, phase: "answer", text: out.say.trim(), products };
   sendLive(ev);
   const msLlm = Date.now() - t0;
-  const first = await speakParts(ev, req.headers.get("x-skets-key") ?? "");
+  const first = tryMode ? 0 : await speakParts(ev, req.headers.get("x-skets-key") ?? "");
   return reply({ route: "free", said, say: ev.text, ms: { stt: msStt, llm: msLlm - msStt, firstAudio: first } });
 }
