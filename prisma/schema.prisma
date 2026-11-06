@@ -2582,6 +2582,23 @@ model DocSeries {
   updatedAt  DateTime  @updatedAt
 }
 
+/// Τύποι παραστατικών πώλησης (FPRMS, SOSOURCE 1351) — μόνο για εμφάνιση (π.χ. πορεία μετασχηματισμών).
+model DocType {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  name       String
+  category   String? // TFPRMS: 201 παραγγελία, 101/103/104 δελτίο, 102 τιμολόγιο, 131 απόδειξη, 151/154/181 πιστωτικό-επιστροφή, 500 προτιμολόγιο
+  eshop      Boolean   @default(false) // αφορά το eshop
+  active     Boolean   @default(true)
+  s1Id       String?   @unique // FPRMS
+  s1Name     String?
+  s1Data     Json?
+  s1SyncedAt DateTime?
+  s1Missing  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
 model Warehouse {
   id         String    @id @default(cuid())
   code       String    @unique

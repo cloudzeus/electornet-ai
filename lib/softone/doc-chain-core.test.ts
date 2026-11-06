@@ -11,7 +11,7 @@ const fake: GetTable = async (table, fields, filter) => {
   const ids = inIds(filter);
   if (table === "MTRLINES") return lines.filter(([, p]) => ids.includes(p)).map(([c, p]) => [String(c), String(p)]);
   if (filter.startsWith("CCCFINDOCS")) return ccc.filter(([, p]) => ids.includes(p)).map(([c, p]) => [String(c), String(p)]);
-  return ids.filter((i) => head[i]).map((i) => [String(i), ...head[i], "1"]);
+  return ids.filter((i) => head[i]).map((i) => [String(i), ...head[i], "1", "389.5"]);
 };
 
 test("βρίσκει όλη την αλυσίδα, με τον ακριβή γονιό από τις γραμμές και χωρίς ατέρμονο κύκλο", async () => {
@@ -20,6 +20,8 @@ test("βρίσκει όλη την αλυσίδα, με τον ακριβή γο
   const p = Object.fromEntries(r.docs.map((d) => [d.findoc, d.parents.sort()]));
   assert.deepEqual(p, { 1: [5], 2: [1], 3: [1], 4: [2], 5: [4] });
   assert.equal(r.truncated, false);
+  assert.equal(r.docs[0].total, 389.5);
+  assert.deepEqual(r.docs.filter((d) => d.viaRoot).map((d) => d.findoc), [3]);
 });
 
 test("όριο βάθους → truncated", async () => {

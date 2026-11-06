@@ -11,8 +11,12 @@ export interface ChainDoc {
   findoc: number; series: number; fincode: string; date: string;
   /** FINDOC.FULLYTRANSF ($TransState): 0 = όχι, 1 = πλήρως, 2 = μερικώς */
   fullyTransf: number | null;
+  /** FINDOC.SUMAMNT (σύνολο με ΦΠΑ) */
+  total: number | null;
   /** από πού προήλθε (MTRLINES.FINDOCS ή, αν λείπει, CCCFINDOCS) */
   parents: number[];
+  /** ο γονιός ήρθε μόνο από CCCFINDOCS (καμία γραμμή δεν δείχνει προέλευση) */
+  viaRoot: boolean;
 }
 
 const BATCH = 500;
@@ -52,9 +56,9 @@ export async function walkChain(start: number, getTable: GetTable, opts: { maxDe
   }
   const docs: ChainDoc[] = [];
   for (const part of chunk([...parents.keys()], BATCH)) {
-    for (const r of await getTable("FINDOC", ["FINDOC", "SERIES", "FINCODE", "TRNDATE", "FULLYTRANSF"], `FINDOC IN (${part.join(",")})`)) {
+    for (const r of await getTable("FINDOC", ["FINDOC", "SERIES", "FINCODE", "TRNDATE", "FULLYTRANSF", "SUMAMNT"], `FINDOC IN (${part.join(",")})`)) {
       const f = int(r[0])!;
-      docs.push({ findoc: f, series: int(r[1]) ?? 0, fincode: r[2] ?? "", date: (r[3] ?? "").slice(0, 10), fullyTransf: int(r[4]), parents: [...(parents.get(f) ?? [])] });
+      docs.push({ findoc: f, series: int(r[1]) ?? 0, fincode: r[2] ?? "", date: (r[3] ?? "").slice(0, 10), fullyTransf: int(r[4]), total: Number.isFinite(parseFloat(r[5])) ? parseFloat(r[5]) : null, parents: [...(parents.get(f) ?? [])], viaRoot: fromRoot.has(f) });
     }
   }
   docs.sort((a, b) => a.date.localeCompare(b.date) || a.findoc - b.findoc);

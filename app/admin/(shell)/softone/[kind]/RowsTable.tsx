@@ -6,7 +6,7 @@ import type { LookupField } from "@/lib/softone/lookups";
 import { saveRow, addRow, decideSuggestion } from "../actions";
 
 /** Ετικέτες για στήλες που δείχνουμε αλλά δεν επεξεργάζεται ο χρήστης. */
-const COLUMN_LABELS: Record<string, string> = { district: "Νομός", logoCdn: "Λογότυπο", domainSuggest: "Πρόταση", s1Fprms: "Τύπος S1", storeId: "Κατάστημα", isDefault: "Προεπιλογή" };
+const COLUMN_LABELS: Record<string, string> = { district: "Νομός", logoCdn: "Λογότυπο", domainSuggest: "Πρόταση", s1Fprms: "Τύπος S1", docType: "Τύπος παραστατικού", storeId: "Κατάστημα", isDefault: "Προεπιλογή" };
 
 /** Πρόταση domain από το Brandfetch που περιμένει έγκριση. */
 function Suggestion({ id, domain, onDone }: { id: string; domain: string; onDone: (accepted: boolean) => void }) {

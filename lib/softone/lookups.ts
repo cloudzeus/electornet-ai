@@ -31,6 +31,8 @@ export interface LookupDef {
   editable: LookupField[];
   /** columns of our model shown in the list */
   columns?: string[];
+  /** μόνο με το κουμπί — έξω από τον νυχτερινό συγχρονισμό (cron) */
+  manualOnly?: boolean;
 }
 
 const yes = (v: string) => v === "1" || v === "true";
@@ -41,6 +43,9 @@ export const PROVIDERS = [{ value: "", label: "—" }, { value: "viva", label: "
 export const CARRIERS = [{ value: "", label: "—" }, { value: "acs", label: "ACS" }, { value: "geniki", label: "Γενική Ταχυδρομική" }, { value: "elta", label: "ΕΛΤΑ Courier" }, { value: "speedex", label: "Speedex" }, { value: "boxnow", label: "BOX NOW" }, { value: "store", label: "Μεταφορική καταστήματος" }, { value: "pickup", label: "Παραλαβή από κατάστημα" }];
 export const PURPOSES = [{ value: "", label: "—" }, { value: "order", label: "Παραγγελία e-shop" }, { value: "order-paid", label: "Παραγγελία πληρωμένη" }, { value: "order-phone", label: "Τηλεφωνική παραγγελία" }, { value: "invoice", label: "Τιμολόγιο" }, { value: "receipt", label: "Απόδειξη λιανικής" }, { value: "credit", label: "Πιστωτικό" }, { value: "proforma", label: "Προ-τιμολόγιο" }, { value: "quote", label: "Προσφορά" }, { value: "other", label: "Άλλο" }];
 const REGIONS = ["Αττική", "Κεντρική Μακεδονία", "Θεσσαλία", "Δυτική Ελλάδα", "Πελοπόννησος", "Στερεά Ελλάδα", "Ήπειρος", "Ανατολική Μακεδονία & Θράκη", "Δυτική Μακεδονία", "Κρήτη", "Νότιο Αιγαίο", "Βόρειο Αιγαίο", "Ιόνια Νησιά"].map((r) => ({ value: r, label: r }));
+
+/** FPRMS.TFPRMS → κατηγορία παραστατικού (για χρώμα/εικονίδιο στην πορεία μετασχηματισμών). */
+export const DOC_CATEGORIES = [{ value: "", label: "—" }, { value: "201", label: "Παραγγελία" }, { value: "202", label: "Προσφορά" }, { value: "101", label: "Δελτίο αποστολής" }, { value: "103", label: "Τιμολόγιο-δελτίο αποστολής" }, { value: "104", label: "Δελτίο παραλαβής" }, { value: "102", label: "Τιμολόγιο" }, { value: "131", label: "Απόδειξη λιανικής" }, { value: "151", label: "Πιστωτικό" }, { value: "154", label: "Δελτίο (λοιπά)" }, { value: "181", label: "Επιστροφή / πιστωτικό λιανικής" }, { value: "500", label: "Προτιμολόγιο" }];
 
 export const LOOKUPS: LookupDef[] = [
   { kind: "vat", label: "Φ.Π.Α.", plural: "Συντελεστές Φ.Π.Α.", description: "Συντελεστές από τον πίνακα VAT· ο προεπιλεγμένος χρησιμοποιείται όταν το είδος δεν ορίζει.", model: "vatRate", table: "VAT", fields: ["VAT", "NAME", "PERCNT", "ISACTIVE", "CCCVAT", "MYDATACODE"],
@@ -78,7 +83,10 @@ export const LOOKUPS: LookupDef[] = [
   { kind: "series", label: "Σειρά παραστατικού", plural: "Σειρές παραστατικών πώλησης", description: "SERIES με SOSOURCE 1351 (πωλήσεις), μέσω του browser του SoftOne. Ο «σκοπός» λέει στο module παραγγελιών σε ποια σειρά καταχωρεί (π.χ. PES = Παραγγελία e-Shop).", model: "docSeries", table: "SERIES", fields: ["SERIES", "CODE", "NAME", "FPRMS", "ISACTIVE"],
     browser: { object: "SERIES", filters: "SERIES.SOSOURCE=1351", cols: ["SERIES.SERIES", "SERIES.CODE", "SERIES.NAME", "SERIES.FPRMS", "SERIES.ISACTIVE"] },
     map: (r) => ({ s1Id: r[0], code: r[1] || r[0], name: r[2], active: r[4] === "1", extra: { s1Fprms: r[3] || null, purpose: /e-?shop/i.test(r[2]) && /πληρωμ/i.test(r[2]) ? "order-paid" : /τηλεφων/i.test(r[2]) && /παραγγελ/i.test(r[2]) ? "order-phone" : /e-?shop/i.test(r[2]) && /παραγγελ/i.test(r[2]) ? "order" : /πιστωτικ/i.test(r[2]) ? "credit" : /προ-?τιμολ/i.test(r[2]) ? "proforma" : /προσφορ/i.test(r[2]) ? "quote" : /απόδειξη λιαν/i.test(r[2]) ? "receipt" : /τιμολόγιο πώλησης/i.test(r[2]) ? "invoice" : null } }),
-    editable: [{ key: "purpose", label: "Σκοπός στο site", type: "select", options: PURPOSES, width: "half" }, { key: "isDefault", label: "Προεπιλογή για τον σκοπό", type: "boolean", width: "half" }], columns: ["purpose", "isDefault", "s1Fprms"] },
+    editable: [{ key: "purpose", label: "Σκοπός στο site", type: "select", options: PURPOSES, width: "half" }, { key: "isDefault", label: "Προεπιλογή για τον σκοπό", type: "boolean", width: "half" }], columns: ["purpose", "isDefault", "docType"] },
+  { kind: "docType", label: "Τύπος παραστατικού", plural: "Τύποι παραστατικών πώλησης", description: "FPRMS με SOSOURCE 1351 (πωλήσεις): κάθε σειρά ανήκει σε έναν τύπο. Η κατηγορία (TFPRMS) δίνει χρώμα και εικονίδιο στην «Πορεία στο SoftOne» της παραγγελίας. Συγχρονίζεται μόνο με το κουμπί.", model: "docType", table: "FPRMS", fields: ["FPRMS", "NAME", "TFPRMS", "ISACTIVE"], filter: "SOSOURCE=1351 AND COMPANY=1", manualOnly: true,
+    map: (r) => ({ s1Id: r[0], code: r[0], name: r[1], active: r[3] !== "0", extra: { category: r[2] || null, eshop: /e-?shop|\bweb\b/i.test(r[1]) || ["7061", "7315", "7319", "7415"].includes(r[0]) } }),
+    editable: [{ key: "category", label: "Κατηγορία", type: "select", options: DOC_CATEGORIES, width: "half" }, { key: "eshop", label: "Αφορά το eshop", type: "boolean", width: "half" }], columns: ["category", "eshop"] },
   { kind: "warehouse", label: "Αποθηκευτικός χώρος", plural: "Αποθηκευτικοί χώροι", description: "WHOUSE — ποιοι χώροι μετράνε στη διαθεσιμότητα του site και σε ποιο κατάστημα-μέλος ανήκουν.", model: "warehouse", table: "WHOUSE", fields: ["WHOUSE", "CODE", "NAME", "BRANCH", "ISACTIVE", "COMPANY"], filter: "COMPANY=1",
     map: (r) => ({ s1Id: r[0], code: r[1] || r[0], name: r[2], active: yes(r[4]), extra: { branchS1: r[3] || null } }),
     editable: [{ key: "sellable", label: "Μετρά στη διαθεσιμότητα", type: "boolean", width: "half" }, { key: "storeId", label: "Κατάστημα (id)", type: "text", width: "half" }], columns: ["sellable", "storeId"] },
@@ -215,7 +223,7 @@ async function syncLookupRun(kind: string, trigger: "manual" | "cron" | "script"
 
 export async function syncAllLookups(trigger: "manual" | "cron" | "script" = "cron") {
   const out = [];
-  for (const def of LOOKUPS) out.push(await syncLookup(def.kind, trigger));
+  for (const def of LOOKUPS) if (!(trigger === "cron" && def.manualOnly)) out.push(await syncLookup(def.kind, trigger));
   return out;
 }
 
@@ -250,6 +258,11 @@ export async function lookupRows(kind: string, opts: { q?: string; page?: number
     d.count({ where }),
     d.findMany({ where, orderBy: [{ active: "desc" }, { name: "asc" }], skip: (page - 1) * PAGE, take: PAGE, ...(def.kind === "postalCode" ? { include: { district: { select: { name: true } } } } : {}) }),
   ]);
+  if (def.kind === "series") { // όνομα του τύπου (FPRMS) δίπλα στη σειρά
+    const ids = [...new Set(rows.map((r) => r.s1Fprms).filter(Boolean) as string[])];
+    const types = new Map((ids.length ? await db.docType.findMany({ where: { s1Id: { in: ids } }, select: { s1Id: true, name: true } }) : []).map((t) => [t.s1Id, t.name]));
+    for (const r of rows) r.docType = types.get(r.s1Fprms as string) ?? null;
+  }
   return { rows, total, page, pages: Math.max(1, Math.ceil(total / PAGE)) };
 }
 

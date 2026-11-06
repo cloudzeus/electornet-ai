@@ -45,7 +45,7 @@ export default async function SoftonePage() {
           </Link>
         ))}
       </div>
-      <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Αυτόματος συγχρονισμός: <code>GET /api/cron/softone-lookups</code> με <code>Authorization: Bearer $CRON_SECRET</code> (π.χ. κάθε νύχτα). Το SoftOne παραμένει «κύριος» για τα δικά του πεδία· ό,τι αλλάζεις εδώ (ονόματα για το site, αντιστοιχίσεις, ενεργό/ανενεργό) δεν ξαναγράφεται από τον συγχρονισμό.</p>
+      <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Αυτόματος συγχρονισμός: <code>GET /api/cron/softone-lookups</code> με <code>Authorization: Bearer $CRON_SECRET</code> (π.χ. κάθε νύχτα) — εκτός από τους τύπους παραστατικών, που συγχρονίζονται μόνο με το κουμπί. Το SoftOne παραμένει «κύριος» για τα δικά του πεδία· ό,τι αλλάζεις εδώ (ονόματα για το site, αντιστοιχίσεις, ενεργό/ανενεργό) δεν ξαναγράφεται από τον συγχρονισμό.</p>
     </div>
   );
 }

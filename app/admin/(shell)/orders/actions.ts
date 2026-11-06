@@ -74,3 +74,10 @@ export async function erpCheckAction(orderId: string) {
   const { checkSaldocInSoftone } = await import("@/lib/softone/order-doc");
   return checkSaldocInSoftone(orderId).catch((e) => ({ ok: false, message: e instanceof Error ? e.message : "Σφάλμα σύνδεσης με το SoftOne." }));
 }
+
+/** Πορεία της παραγγελίας στο SoftOne (μόνο αναγνώσεις) — φορτώνει όταν ανοίξει η καρτέλα. */
+export async function orderChainAction(orderId: string) {
+  await requirePermission("orders.read");
+  const { orderChain } = await import("@/lib/softone/order-chain");
+  return orderChain(orderId);
+}

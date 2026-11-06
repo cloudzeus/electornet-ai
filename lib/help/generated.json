@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-06T07:41:41.755Z",
+ "generatedAt": "2026-11-06T08:12:11.220Z",
  "routes": [
   {
    "route": "/admin",
@@ -108,6 +108,11 @@
    ],
    "changes": [
     {
+     "hash": "6f5227c",
+     "date": "2026-11-06T09:52:22+02:00",
+     "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
+    },
+    {
      "hash": "df24c5d",
      "date": "2026-10-30T16:53:46+02:00",
      "text": "Αποστολές: μεταφορική (εσωτερική διαδικασία) για επιλεγμένες κατηγορίες"
@@ -138,7 +143,7 @@
      "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
     }
    ],
-   "updatedAt": "2026-10-30T16:53:46+02:00",
+   "updatedAt": "2026-11-06T09:52:22+02:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles-d.jpg",
     "mobile": "/api/help-shot/apostoles-m.jpg"
@@ -167,6 +172,11 @@
     "live-tracking"
    ],
    "changes": [
+    {
+     "hash": "6f5227c",
+     "date": "2026-11-06T09:52:22+02:00",
+     "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
+    },
     {
      "hash": "ffa36d8",
      "date": "2026-11-03T16:59:43+02:00",
@@ -203,7 +213,7 @@
      "text": "Γενική Ταχυδρομική (JobServicesV2, SOAP): σύνδεση με ανανέωση κλειδιού, έκδοση voucher από την παραγγελία (βάρος από τα προϊόντα, αντικαταβολή, τεμάχια), ετικέτες PDF, ακύρωση πριν το κλείσιμο, κλείσιμο ημέρας (CloseP…"
     }
    ],
-   "updatedAt": "2026-11-03T16:59:43+02:00",
+   "updatedAt": "2026-11-06T09:52:22+02:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
     "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
@@ -2305,6 +2315,11 @@
    ],
    "changes": [
     {
+     "hash": "6f5227c",
+     "date": "2026-11-06T09:52:22+02:00",
+     "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
+    },
+    {
      "hash": "7885965",
      "date": "2026-10-31T17:16:51+02:00",
      "text": "Πύλη συνεργατών: αναπλήρωση αποθέματος, πλήρη στοιχεία πελάτη, παραλαβή από κατάστημα"
@@ -2340,7 +2355,7 @@
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-10-31T17:16:51+02:00",
+   "updatedAt": "2026-11-06T09:52:22+02:00",
    "shots": {}
   },
   {
@@ -2366,9 +2381,25 @@
     "order.notes",
     "order.history",
     "order.promos",
-    "orders.restock"
+    "orders.restock",
+    "orders.tabs",
+    "orders.softone",
+    "orders.softone.flow",
+    "orders.softone.list",
+    "orders.softone.stages",
+    "orders.softone.details"
    ],
    "changes": [
+    {
+     "hash": "6f5227c",
+     "date": "2026-11-06T09:52:22+02:00",
+     "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
+    },
+    {
+     "hash": "2a44c1a",
+     "date": "2026-11-06T09:32:10+02:00",
+     "text": "SoftOne: αλυσίδα μετασχηματισμών παραστατικού (docChain)"
+    },
     {
      "hash": "7885965",
      "date": "2026-10-31T17:16:51+02:00",
@@ -2400,7 +2431,7 @@
      "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
     }
    ],
-   "updatedAt": "2026-10-31T17:16:51+02:00",
+   "updatedAt": "2026-11-06T09:52:22+02:00",
    "shots": {}
   },
   {
@@ -4398,6 +4429,21 @@
  ],
  "recent": [
   {
+   "hash": "6f5227c",
+   "date": "2026-11-06T09:52:22+02:00",
+   "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή",
+   "routes": [
+    "/admin",
+    "/admin/apostoles"
+   ]
+  },
+  {
+   "hash": "e3d7eb7",
+   "date": "2026-11-06T09:52:05+02:00",
+   "text": "Σκετς Ερμή: τεχνικά χαρακτηριστικά από τη βάση στα προϊόντα του snapshot και στο μοντέλο (νερό, ρεύμα, θόρυβος, διαστάσεις, Hz), 16 έτοιμες απαντήσεις «δεν έχω στοιχεία» ξαναγραμμένες με πραγματικά νούμερα, αυστηρότερ…",
+   "routes": []
+  },
+  {
    "hash": "2a44c1a",
    "date": "2026-11-06T09:32:10+02:00",
    "text": "SoftOne: αλυσίδα μετασχηματισμών παραστατικού (docChain)",
@@ -4630,18 +4676,6 @@
    "hash": "4516186",
    "date": "2026-11-02T18:24:46+02:00",
    "text": "Φίλτρα βιτρίνας: γεμίζουν και από τα εγκεκριμένα χαρακτηριστικά",
-   "routes": []
-  },
-  {
-   "hash": "a195b5c",
-   "date": "2026-11-02T17:45:53+02:00",
-   "text": "Οδηγός εισαγωγής: ειδοποίηση για προϊόντα με το ίδιο όνομα",
-   "routes": []
-  },
-  {
-   "hash": "5ce055d",
-   "date": "2026-11-02T17:24:18+02:00",
-   "text": "Keyvoto PIM: ονομασίες κατηγοριών, και τα κείμενα σταματούν να χάνονται",
    "routes": []
   }
  ],
@@ -5489,6 +5523,24 @@
   ],
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
+  ],
+  "orders.tabs": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone.flow": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone.list": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone.stages": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone.details": [
+   "components/admin/orders/chain/OrderTabs.tsx"
   ],
   "restock.advance": [
    "components/admin/partners/RestockDecision.tsx"

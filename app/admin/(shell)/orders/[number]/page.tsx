@@ -7,6 +7,8 @@ import { saldocForOrder } from "@/lib/softone/order-doc";
 import type { SaldocDoc } from "@/lib/softone/order-doc-core";
 import { db } from "@/lib/db";
 import { RESTOCK_INCLUDE, RestockList } from "@/components/admin/partners/RestockList";
+import { OrderTabs } from "@/components/admin/orders/chain/OrderTabs";
+import { orderChainAction } from "../actions";
 import { OrderView } from "./OrderView";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ number: s
   return { title: `Παραγγελία ${decodeURIComponent((await params).number)}` };
 }
 
-export default async function OrderPage({ params }: { params: Promise<{ number: string }> }) {
+export default async function OrderPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ tab?: string }> }) {
   const user = await requirePermission("orders.read");
   const o = await orderDetail(decodeURIComponent((await params).number));
   if (!o) notFound();
@@ -27,7 +29,7 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
   // αναπληρώσεις που ζήτησε το κατάστημα-συνεργάτης για αυτή την παραγγελία (πύλη συνεργατών)
   const restocks = can(user.permissions, "stores.partners.read") ? await db.partnerRestock.findMany({ where: { orderId: o.id }, orderBy: { createdAt: "desc" }, include: RESTOCK_INCLUDE }) : [];
   return (
-    <>
+    <OrderTabs load={orderChainAction.bind(null, o.id)} number={o.number} initial={(await searchParams).tab === "softone" ? "softone" : "order"}>
       <OrderView o={o} draft={draft} erp={erp} canWrite={canWrite} canRefund={canRefund} />
       {restocks.length > 0 && (
         <section data-help="orders.restock" className="mt-4 grid gap-2">
@@ -36,6 +38,6 @@ export default async function OrderPage({ params }: { params: Promise<{ number: 
           <RestockList rows={restocks} canWrite={can(user.permissions, "stores.partners.write")} hide={{ order: true }} />
         </section>
       )}
-    </>
+    </OrderTabs>
   );
 }
