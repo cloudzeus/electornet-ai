@@ -17,7 +17,21 @@ const isLine = (cue: string) => /^«[\s\S]*»$/.test(cue.trim());
 /** διακλαδώσεις χωρίς μονάδα: τι λέει ο παρουσιαστής */
 const EXAMPLE: Record<string, string> = { induction: "επαγωγική (π.χ. «Προτιμώ επαγωγική»)", small: "μικρός κάδος (π.χ. «Μικρό κάδο, μένω μόνος μου» ή «Όχι» στα παπλώματα)" };
 
-type Row = { who: "hermes" | "presenter" | "stage"; text: string; n?: number };
+type Row = { who: "hermes" | "presenter" | "stage" | "howto"; text: string; n?: number; tips?: string[] };
+
+/** σε κάθε ατάκα του παρουσιαστή: τι ακριβώς κάνει, ποιες λέξεις πιάνει ο Ερμής, τι γίνεται αν απαντήσει αλλιώς */
+const HOWTO: Record<string, string[]> = {
+  idle: ["Μπες στη σκηνή, κοίτα την οθόνη και περίμενε την πράσινη τελεία κάτω δεξιά.", "Πιάνει: «νέα», «Λάρισα», «θέση».", "Μπορείς να πεις στην ίδια ανάσα και «…και θέλω να με βοηθήσεις με το σπίτι» — τότε ο Ερμής λέει «Συγχαρητήρια… ας ξεκινήσουμε» και προσπερνά την ατάκα 2."],
+  hello: ["Πιάνει: «σπίτι», «εξοπλίσουμε», «βοήθησέ με», «συσκευές»."],
+  "washer-ask": ["Πες «Τι εννοείς;» και ο Ερμής εξηγεί με τα παπλώματα (ατάκα 4).", "Ή απάντησε κατευθείαν: «μεγάλο», «για παπλώματα», «είμαστε τέσσερις» → μεγάλος κάδος, προσπερνά την ατάκα 4.", "«Μικρό», «μένω μόνος μου» → ο Ερμής λέει ότι το μεγάλο κοστίζει λιγότερο και το κρατά."],
+  "washer-ask2": ["«Ναι» → μεγάλος κάδος.", "«Όχι», «τα πάω στο καθαριστήριο» → μικρός (ο Ερμής κρατά πάλι το μεγάλο, επειδή είναι φθηνότερο)."],
+  "fridge-ask": ["Πιάνει: «ναι», «ρεύμα», «οικονομικό», «ενεργειακή κλάση».", "Ερώτηση («Πόσο ρεύμα καίει;») → απαντά και ξαναρωτά."],
+  "tv-ask": ["«Ναι» → 55″.", "Πες άλλη απόσταση σε μέτρα: από 3,2 μέτρα και πάνω («τέσσερα μέτρα») → 75″ · έως 1,8 μέτρα («ενάμισι μέτρο») → 43″.", "Ή κατευθείαν ίντσες: «θέλω τις εβδομήντα πέντε ίντσες»."],
+  "ac-ask": ["«Ναι» → 12.000 BTU.", "Άλλα τετραγωνικά: από 33 και πάνω («σαράντα τετραγωνικά») → 18.000 BTU · έως 18 («δεκαπέντε τετραγωνικά») → 9.000 BTU.", "Ή κατευθείαν: «θέλω το δεκαοχτώ χιλιάδες» ή τη μάρκα από την οθόνη."],
+  "cooker-ask": ["«Ναι», «κεραμική» → κεραμική.", "«Προτιμώ επαγωγική», «όχι κεραμική» → επαγωγική (αλλάζει και το σύνολο).", "«Τι διαφορά έχει η επαγωγική;» → εξηγεί και ξαναρωτά."],
+  ask: ["Πιάνει: «ναι», «πάμε», «φυσικά»."],
+  map: ["Πες την οδό («της Ηπείρου»), «το πρώτο» / «το δεύτερο» ή «το πιο κοντινό». Ή ο χειριστής πατά 1, 2, 3."],
+};
 
 /** Το σενάριο ως θεατρικό κείμενο: Ερμής (ηχογραφημένος), παρουσιαστής (ατάκα που πρέπει να πει), οδηγίες σκηνής/χειριστή. */
 function rows(beats: Beat[]): { title: string; rows: Row[] }[] {
@@ -40,8 +54,9 @@ function rows(beats: Beat[]): { title: string; rows: Row[] }[] {
     if (b.say) r.push({ who: "hermes", text: fillStore(b.say, store) });
     if (b.wait === "presenter" && b.cue && isLine(b.cue)) {
       r.push({ who: "presenter", text: b.cue, n: ++n });
-      r.push({ who: "stage", text: "Ο Ερμής απαντά μόλις σωπάσεις (αν δεν ακούει: ο χειριστής πατά «Επόμενο»)" });
-    } else if (b.cue) r.push({ who: "stage", text: b.cue });
+      r.push({ who: "howto", text: "Πότε: όταν ανάψει η πράσινη τελεία. Μετά περίμενε — κίτρινη = σε άκουσε.", tips: HOWTO[b.id] });
+    } else if (b.wait === "store") r.push({ who: "howto", text: "Πότε: όταν ανάψει η πράσινη τελεία.", tips: HOWTO.map });
+    else if (b.cue) r.push({ who: "stage", text: b.cue });
     if (b.wait === "call") r.push({ who: "stage", text: "Ο Ερμής λέει στον θεατή-κατάστημα ποιες συσκευές θέλει ο πελάτης και ρωτά αν μπορούν να τις κρατήσουν για σήμερα. Ο θεατής απαντά ελεύθερα (π.χ. «Ναι, σας τα κρατάμε»)· ο Ερμής ευχαριστεί, λέει «Καλή συνέχεια!» και κλείνει." });
   }
   return out;
@@ -142,7 +157,12 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
             <h2 className="border-b border-eu-line pb-1 font-black uppercase tracking-wide text-eu-navy text-[length:var(--fs-15)]">{p.title}</h2>
             <div className="mt-3 grid gap-3">
               {p.rows.map((r, n) =>
-                r.who === "stage" ? (
+                r.who === "howto" ? (
+                  <div key={n} className="sm:ml-24 rounded-xl ring-1 ring-eu-blue/30 bg-eu-blue/5 p-3 text-[length:var(--fs-14)] leading-snug break-inside-avoid">
+                    <p className="font-semibold text-eu-blue">{r.text}</p>
+                    {r.tips && <ul className="mt-1 grid gap-1 list-disc pl-5">{r.tips.map((t) => <li key={t}>{t}</li>)}</ul>}
+                  </div>
+                ) : r.who === "stage" ? (
                   <p key={n} className="pl-4 sm:pl-24 italic text-eu-muted text-[length:var(--fs-14)] leading-snug">({r.text})</p>
                 ) : (
                   <div key={n} className={`grid gap-1 sm:grid-cols-[5.5rem_1fr] sm:gap-4 break-inside-avoid ${r.who === "presenter" ? "rounded-xl bg-eu-yellow/25 p-3 -mx-1" : ""}`}>

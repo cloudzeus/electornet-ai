@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { sketsReq } from "@/lib/skets/auth";
 import { sendLive } from "@/lib/skets/bus";
 import { altFor, buildBeats, pickOf, sceneAt, slotsIn, storeFor, type Beat } from "@/lib/skets/script";
@@ -42,19 +43,24 @@ export async function POST(req: Request) {
   const bi = beats.findIndex((b) => b.id === id), beat = beats[bi];
   // σιωπή, θόρυβος ή βήχας ΔΕΝ είναι απάντηση: η σκηνή μένει στο βήμα και ξανακούει (ο χειριστής προχωρά με Enter αν χρειαστεί)
   if (!beat || !(f instanceof File) || f.size < 2000) return NextResponse.json({ route: "none", why: "no audio" });
+  // κάθε ατάκα από πρόβες/παράσταση κρατιέται (AuditLog «skets.turn»): τι ειπώθηκε σε ποιο βήμα και πού πήγε — υλικό για λέξεις-κλειδιά και έτοιμες απαντήσεις (scripts/skets/turns.ts)
+  const done = (o: Record<string, unknown>) => {
+    after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify(o)) } }).then(() => {}, () => {}));
+    return NextResponse.json(o);
+  };
   const ext = f.type.includes("mp4") ? "m4a" : f.type.includes("ogg") ? "ogg" : "webm";
   const t = await transcribe(Buffer.from(await f.arrayBuffer()), f.type || "audio/webm", `turn.${ext}`);
   // ήχοι σε παρενθέσεις («(μουσική)», «[γέλια]») και οι γνωστές «φαντασιώσεις» της αναγνώρισης πάνω σε θόρυβο δεν είναι λόγια
   const heardText = (t.ok ? t.text : "").replace(/[([][^)\]]*[)\]]/g, " ").trim();
-  if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) return NextResponse.json({ route: "none", why: "noise", ms: Date.now() - t0 });
+  if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) return done({ route: "none", why: "noise", heard: heardText, ms: Date.now() - t0 });
   const said = heardText, cue = (beat.cue ?? "").replace(/[«»]/g, ""), n = norm(said);
   const msStt = Date.now() - t0;
   console.info("[skets turn]", beat.id, `${msStt}ms`, JSON.stringify(said)); // στα logs του server: τι άκουσε σε κάθε βήμα
   if (beat.wait === "store") {
     const i = storeFor(snap, said);
-    if (i !== null) return NextResponse.json({ route: "store", i, said, ms: msStt });
+    if (i !== null) return done({ route: "store", i, said, ms: msStt });
     // ό,τι δεν είναι ερώτηση («ναι, αυτό», σχόλιο) δεν περνά από το μοντέλο (3–10 s): η σκηνή συνεχίζει να ακούει αμέσως
-    if (!QUESTION.test(n) && !/[;;?]\s*$/.test(said)) return NextResponse.json({ route: "none", said, ms: msStt });
+    if (!QUESTION.test(n) && !/[;;?]\s*$/.test(said)) return done({ route: "none", said, ms: msStt });
   }
   // αντίρρηση («προτιμώ επαγωγική», «δεν θέλω τόσο μεγάλο») θέλει απάντηση, όχι να προχωρήσει το σενάριο σαν να είπε «ναι»
   const asked = QUESTION.test(n) || /[;;?]\s*$/.test(said) || beat.id === "idle" || /(?<!\p{L})(προτιμ|δεν θελ|δεν μου αρεσ|καλυτερα|δεν χρειαζ|οχι)/u.test(n);
@@ -63,7 +69,7 @@ export async function POST(req: Request) {
   const slots = beat.wait === "presenter" ? slotsIn(snap, said) : [];
   const learned = { ahead: slots.filter((x) => askAt(x.cat) > bi).map((x) => x.cat), alts: Object.fromEntries(slots.filter((x) => askAt(x.cat) > bi && x.alt).map((x) => [x.cat, x.alt])) as Alts };
   if (learned.ahead.length) liveMemory().alts = { ...alts, ...learned.alts };
-  const reply = (o: Record<string, unknown>) => NextResponse.json({ ...o, ...(learned.ahead.length ? { learned } : {}) });
+  const reply = (o: Record<string, unknown>) => done({ ...o, ...(learned.ahead.length ? { learned } : {}) });
   // απάντησε ήδη και στο «γιατί ρωτάω» της τρέχουσας ομάδας (π.χ. «μεγάλος κάδος, για παπλώματα» πριν τη διευκρίνιση) → κατευθείαν στην απόφαση
   const cur = slots.find((x) => beat.id === `${x.cat}-ask` || beat.id === `${x.cat}-ask2`);
   if (cur && (!asked || (cur.alt && !QUESTION.test(n.replace(/^οχι\s*/, "")) && !/[;;?]\s*$/.test(said)))) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
