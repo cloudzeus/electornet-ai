@@ -28,3 +28,5 @@
 .bar { width: 0.4rem; border-radius: 9999px; background: #f1c400; animation: bar 0.9s ease-in-out infinite; }
 @keyframes bar { 0%, 100% { height: 0.6rem; } 50% { height: 2.4rem; } }
 .b1 { animation-delay: 0.1s; } .b2 { animation-delay: 0.25s; } .b3 { animation-delay: 0.4s; } .b4 { animation-delay: 0.55s; } .b5 { animation-delay: 0.7s; }
+/* «Σας περιμένουν σήμερα»: ο χάρτης από πίσω σταματά (δακτύλιοι, διακεκομμένες διαδρομές) */
+.frozen *, .frozen *::before, .frozen *::after { animation: none !important; }

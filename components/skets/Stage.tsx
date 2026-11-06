@@ -368,7 +368,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
             <main className="relative flex-1 flex flex-col pr-[2.5vw] pb-[3vh] min-w-0">
               <AnimatePresence mode="popLayout">
                 {showMap ? (
-                  <motion.section key="map" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7 }} className="relative flex-1 rounded-[1.6rem] overflow-hidden ring-1 ring-white/15 shadow-2xl">
+                  <motion.section key="map" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7 }} className={`relative flex-1 rounded-[1.6rem] overflow-hidden ring-1 ring-white/15 shadow-2xl ${scene.mode === "done" ? css.frozen : ""}`}>
                     <StoreMap snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} />
                     <StoreList snap={snap} selected={store} onSelect={(n) => command({ t: "store", i: n })} dim={scene.mode !== "map"} />
                     <AnimatePresence>{scene.mode === "call" && call && store !== null && <CallPanel key="call" store={snap.stores[store]} call={call} />}</AnimatePresence>
