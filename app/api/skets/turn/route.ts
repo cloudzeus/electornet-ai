@@ -117,7 +117,8 @@ export async function POST(req: Request) {
   const toLive = (ids: string[]): LiveProduct[] => ids.flatMap((pid) => all.filter((p) => p.id === pid)).slice(0, 2).map((p) => ({ id: p.id, brand: p.brand, title: p.title, price: p.price, image: p.image, why: p.key }));
   const mem = M;
   // έτοιμες απαντήσεις (scripts/skets/qa.ts) που ταιριάζουν σε αυτό το σημείο: της ομάδας είτε πριν την επιλογή (pre) είτε για το προϊόν που ήδη διαλέξαμε
-  const here = (snap.qa ?? []).filter((x) => !(x.cat && (x.cat !== scene.cat || !!x.pre === !!scene.picked[x.cat])) && !!x.start === (beat.id === "idle") && !!snap.voice[x.a]);
+  // noready (μόνο σε δοκιμή): χωρίς έτοιμες απαντήσεις — για να γράψουμε νέες από το ζωντανό μοντέλο
+  const here = tryMode && fd?.get("noready") === "1" ? [] : (snap.qa ?? []).filter((x) => !(x.cat && (x.cat !== scene.cat || !!x.pre === !!scene.picked[x.cat])) && !!x.start === (beat.id === "idle") && !!snap.voice[x.a]);
   const play = (best: { a: string; ids: string[]; score: number }, why?: string) => {
     const products = toLive(best.ids);
     products.forEach((p) => mem.products.set(p.id, p));
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
     // σχεδόν ίδια διατύπωση → παίζει αμέσως, χωρίς μοντέλο· αλλιώς το μοντέλο διαλέγει από το νόημα (παρακάτω)
     let best: { a: string; ids: string[]; score: number } | null = null;
     for (const x of here) { const score = Math.max(...x.q.map((v) => fidelity(v, said))); if (!best || score > best.score) best = { a: x.a, ids: x.ids, score }; }
-    return best && best.score >= 0.55 ? play(best) : null;
+    return best && best.score >= 0.7 ? play(best) : null; // κάτω από 0.7 η ομοιότητα λέξεων μπερδεύει («τι διαστάσεις έχει» ≈ «τι διαφορά έχει») — αποφασίζει το μοντέλο από το νόημα
   };
   const qa = asked ? ready() : null;
   if (qa) return qa;
@@ -146,11 +147,13 @@ export async function POST(req: Request) {
   // κάτι απρόβλεπτο: ο Ερμής απαντά ζωντανά από ό,τι ξέρουμε ήδη (σύντομη φράση αναμονής μόνο αν αργήσει)
   sendLive(ev0);
   const picks = snap.cats.flatMap((c) => (scene.picked[c.key] ? [pickOf(c, alts)] : []));
-  const line = (p: SkProduct) => `[${p.id}] ${p.brand} ${p.title} · ${p.key} · ${eur(p.price)} · ${p.chips.join(", ")}`;
+  // με τα τεχνικά χαρακτηριστικά: «πόσο νερό;», «πόσο θορυβεί;», «πόσες στροφές;» απαντιούνται από τα στοιχεία, όχι «δεν έχω στοιχεία»
+  const line = (p: SkProduct) => `[${p.id}] ${p.brand} ${p.title} · ${p.key} · ${eur(p.price)} · ${p.chips.join(", ")}${p.summary ? `\n    ${p.summary}` : ""}${p.specs?.length ? `\n    ${p.specs.join(" · ")}` : ""}`;
   const ctx = [
     `Παρουσιαστής: ${snap.presenter.full}· εξοπλίζει σπίτι από το μηδέν.`,
-    picks.length ? `Ήδη στο σπίτι: ${picks.map((p) => `${p.brand} ${p.key} (${eur(p.price)})`).join(", ")}.` : "",
+    picks.length ? `Ήδη στο σπίτι:\n${picks.map(line).join("\n")}` : "",
     cat ? `Τώρα διαλέγουμε: ${cat.label}. Υποψήφια:\n${cat.candidates.map(line).join("\n")}` : "",
+    "Τεχνικά (νερό, ρεύμα, θόρυβος, στροφές, διαστάσεις, Hz κ.λπ.): απάντα από τα χαρακτηριστικά κάθε προϊόντος, με αριθμούς ολογράφως· αν κάτι δεν υπάρχει εκεί, πες ότι δεν το έχεις μπροστά σου.",
     "Δόσεις, τρόποι πληρωμής, παράδοση, εγκατάσταση, εγγύηση: ΔΕΝ έχεις στοιχεία — πες ειλικρινά ότι θα τα επιβεβαιώσει στο κατάστημα, χωρίς να υπόσχεσαι τίποτα.",
     beat.wait === "store" ? `Στον χάρτη: ${snap.stores.map((x, n) => `${n + 1}. ${x.street} (${x.km.toLocaleString("el-GR", { maximumFractionDigits: 1 })} km)`).join(", ")}. Ο παρουσιαστής πρέπει να διαλέξει ένα (με το όνομα της οδού ή «το πρώτο»).` : "",
     cat && cat.candidates.some((p) => scene.rejected[p.id]) ? `Έχουν ήδη απορριφθεί: ${cat.candidates.filter((p) => scene.rejected[p.id]).map((p) => `${p.id} (${scene.rejected[p.id]})`).join(", ")}.` : "",

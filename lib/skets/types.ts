@@ -6,7 +6,7 @@
 export type CatKey = "washer" | "fridge" | "tv" | "ac" | "cooker";
 export type Room = "bath" | "kitchen" | "living";
 
-export interface SkProduct { id: string; title: string; brand: string; /** κωδικός μοντέλου κατασκευαστή, για το τηλέφωνο με το κατάστημα */ model: string | null; price: number; image: string; slug: string; /** το κύριο μέγεθος της ερώτησης: «9 kg», «55″», «12.000 BTU» */ key: string; chips: string[] }
+export interface SkProduct { id: string; title: string; brand: string; /** κωδικός μοντέλου κατασκευαστή, για το τηλέφωνο με το κατάστημα */ model: string | null; price: number; image: string; slug: string; /** το κύριο μέγεθος της ερώτησης: «9 kg», «55″», «12.000 BTU» */ key: string; chips: string[]; /** τεχνικά χαρακτηριστικά «κλειδί: τιμή» (scripts/skets/specs.ts) */ specs?: string[]; summary?: string }
 export interface SkReject { id: string; reason: string }
 /** Άλλη απάντηση του παρουσιαστή (π.χ. «σαράντα τετραγωνικά» αντί για «είκοσι πέντε») → άλλη ετυμηγορία και άλλο προϊόν.
  * min/max: εύρος του αριθμού που είπε (στη μονάδα `unit` της ομάδας) · words: regex (χωρίς τόνους) όταν δεν είπε αριθμό («πιο μεγάλο»). */

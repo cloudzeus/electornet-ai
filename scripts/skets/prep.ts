@@ -15,6 +15,7 @@ import { speak } from "../../lib/voice/tts";
 import { getSetting } from "../../lib/settings/store";
 import { SKETS } from "../../lib/skets/config";
 import { allPhrases, forVoice, LIVE_BACK, LIVE_FILLERS, SKETS_VOICE, TURN_FILLERS } from "../../lib/skets/script";
+import { attachSpecs } from "./specs";
 import type { CatKey, Room, SkCategory, SkProduct, SkReject, SkStore, Snapshot } from "../../lib/skets/types";
 
 interface Row { id: string; title: string; model: string | null; slug: string; price: number; brand: string; image: string; photos: number; energy: string | null; text: string; facets: Record<string, { value: string; num: number | null }> }
@@ -212,6 +213,7 @@ async function record(snap: Snapshot, skipVoice = false) {
     }
     console.log();
   }
+  await attachSpecs(snap);
   writeFileSync("lib/skets/snapshot.json", JSON.stringify(snap, null, 1));
   console.log("→ lib/skets/snapshot.json", Object.keys(snap.voice).length, "φράσεις");
   await db.$disconnect();
