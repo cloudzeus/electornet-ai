@@ -10,8 +10,9 @@ import "dotenv/config";
 import { db } from "../lib/db";
 import { smartAdvisor, type Turn, type AdvisorState } from "../lib/advisor/engine";
 import { defaultSettings } from "../lib/cms/settings";
+import { productPasses, titlePasses } from "../lib/advisor/spec-criteria";
 
-interface Case { q: string; prev?: string; /** η απάντηση μπορεί να μην έχει προϊόντα (ερώτηση για όσα ήδη είδε ή για πολιτική) */ optional?: boolean; /** συζήτηση πολλών γύρων: οι προηγούμενες ερωτήσεις τρέχουν πρώτα και το νήμα περνά στην τελευταία */ turns?: string[]; sameAsShown?: boolean; type?: RegExp; maxPrice?: number; brand?: RegExp; title?: RegExp; maxW?: number; none?: boolean; text?: RegExp }
+interface Case { q: string; prev?: string; /** η απάντηση μπορεί να μην έχει προϊόντα (ερώτηση για όσα ήδη είδε ή για πολιτική) */ optional?: boolean; /** συζήτηση πολλών γύρων: οι προηγούμενες ερωτήσεις τρέχουν πρώτα και το νήμα περνά στην τελευταία */ turns?: string[]; sameAsShown?: boolean; type?: RegExp; maxPrice?: number; brand?: RegExp; title?: RegExp; maxW?: number; none?: boolean; text?: RegExp; /** αριθμητικό κριτήριο: ΚΑΘΕ προτεινόμενο το πληροί (χαρακτηριστικό ή, για μνήμη, τίτλος) */ spec?: { key: RegExp; op: "gte" | "lte"; value: number } }
 const CASES: Case[] = [
   { q: "θέλω ένα πλυντήριο ρούχων 9 κιλών μέχρι 500 ευρώ", type: /Πλυντήρια Ρούχων/, maxPrice: 500 },
   { q: "κάτι για να στεγνώνω τα ρούχα τον χειμώνα", type: /Στεγνωτήρια|αφυγραντ/i, title: /στεγνωτ/i }, // ο αφυγραντήρας είναι θεμιτή φθηνή εναλλακτική
@@ -50,6 +51,23 @@ const CASES: Case[] = [
   { q: "τηλεόραση 65 ιντσών για playstation 5", type: /Τηλεοράσεις/, text: /120|HDMI 2\.1|VRR/i },
   { q: "oled ή qled για φωτεινό σαλόνι;", type: /Τηλεοράσεις/, text: /φωτειν|QLED|Mini LED/i },
   { turns: ["τηλεόραση 55 ιντσών μέχρι 600 ευρώ"], q: "χωράει σε έπιπλο 110 εκατοστών;", type: /Τηλεοράσεις/, text: /εκ|cm|πλάτος/i },
+  // αριθμητικά κριτήρια στα χαρακτηριστικά, σε όλες τις μεγάλες κατηγορίες
+  { q: "κλιματιστικό με SCOP πάνω από 5", type: /Κλιματιστικά/, spec: { key: /^SCOP/i, op: "gte", value: 5 } },
+  { q: "αθόρυβο κλιματιστικό κάτω από 20 dB", type: /Κλιματιστικά/, spec: { key: /θ[οό]ρ[υύ]β|ηχητικ|dB/i, op: "lte", value: 20 } },
+  { q: "τηλεόραση 55 ιντσών με 120 Hz για gaming", type: /Τηλεοράσεις/, spec: { key: /ανανέωσ|Hz/i, op: "gte", value: 120 } },
+  { q: "τηλεόραση με τουλάχιστον 4 HDMI", type: /Τηλεοράσεις/, spec: { key: /HDMI/i, op: "gte", value: 4 } },
+  { q: "πλυντήριο ρούχων με 1400 στροφές", type: /Πλυντήρια Ρούχων/, spec: { key: /στροφ|rpm|στύψ/i, op: "gte", value: 1400 } },
+  { q: "ψυγείο που καίει κάτω από 200 kWh τον χρόνο", type: /Ψυγ|Side by Side/, spec: { key: /kWh|κατανάλωσ/i, op: "lte", value: 200 } },
+  { q: "πλυντήριο πιάτων κάτω από 44 dB", type: /Πλυντήρια Πιάτων/, spec: { key: /θ[οό]ρ[υύ]β|ηχητικ|dB/i, op: "lte", value: 44 } },
+  { q: "απορροφητήρας με απορρόφηση πάνω από 600 κυβικά", type: /απορροφητ/i, spec: { key: /απορρ[οό]φησ|εξαγωγ|m3|m³|παροχ/i, op: "gte", value: 600 } },
+  { q: "κινητό με μπαταρία πάνω από 5000 mAh", type: /Smartphones|Κινητά/, spec: { key: /μπαταρ/i, op: "gte", value: 5000 } },
+  { q: "κινητό με 8GB RAM μέχρι 300€", type: /Smartphones|Κινητά/, maxPrice: 300, spec: { key: /ram|μνήμη/i, op: "gte", value: 8 } },
+  { q: "laptop με 16GB RAM", type: /Laptop/, spec: { key: /ram|μνήμη/i, op: "gte", value: 16 } },
+  { q: "σκούπα stick με αυτονομία πάνω από 40 λεπτά", type: /Σκούπες/, spec: { key: /αυτονομ|λειτουργ/i, op: "gte", value: 40 } },
+  // γενική γνώση + κατάλογος
+  { q: "ποια είναι η πιο οικονομική θέρμανση;", text: /αντλία|inverter|SCOP/i, optional: true },
+  { q: "mac ή windows για μοντάζ βίντεο;", type: /Laptop|PC/, text: /Mac/i },
+  { q: "android ή iphone για τη μητέρα μου που είναι 75;", type: /Smartphones|Κινητά/ },
   { turns: ["τηλεόραση 50 ιντσών για την κουζίνα"], q: "έχει κεραία ψηφιακή ή θέλω αποκωδικοποιητή;", text: /DVB|ψηφιακ|δέκτ/i, optional: true },
 ];
 
@@ -78,6 +96,14 @@ async function main() {
         if (c.maxPrice && p.price > c.maxPrice * 1.15) fails.push(`πάνω από προϋπολογισμό: ${p.price}`);
         if (c.brand && !c.brand.test(r.brand.name)) fails.push(`λάθος μάρκα: ${r.brand.name}`);
         if (c.maxW && r.dimensions.length && Math.min(...r.dimensions.map((d) => d.w)) > c.maxW) fails.push(`πλάτος > ${c.maxW}`);
+      }
+      if (c.spec) {
+        const specs = await db.spec.findMany({ where: { productId: { in: a.products.map((p) => p.id) } }, select: { productId: true, key: true, value: true } });
+        for (const r of rows) {
+          const vals = specs.filter((x) => x.productId === r.id && c.spec!.key.test(x.key)), crit = { keys: [...new Set(vals.map((v) => v.key)), "Μνήμη"], op: c.spec.op, value: c.spec.value, need: "" };
+          const ok = productPasses(vals, crit) ?? (/ram|μνήμη/i.test(c.spec.key.source) ? titlePasses(r.title, crit) : null);
+          if (ok !== true) fails.push(`${r.title.slice(0, 30)}: ${ok === false ? "δεν πληροί" : "ανεπιβεβαίωτο"} ${c.spec.op} ${c.spec.value}`);
+        }
       }
       if (c.sameAsShown && a.products.some((p) => !shownBefore.includes(p.id))) fails.push("έφερε άλλα προϊόντα αντί για τα ήδη δειγμένα");
       if (c.title && !a.products.some((p) => c.title!.test(`${p.brand} ${p.title}`))) fails.push(`κανένα με «${c.title.source}»`);

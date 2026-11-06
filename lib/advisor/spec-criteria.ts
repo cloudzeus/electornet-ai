@@ -64,3 +64,29 @@ export function indexSpecs(rows: { key: string; value: string; productId: string
     return { key, count: e.products.size, samples: [...e.values.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([v]) => v.slice(0, 40)), min: numeric ? Math.min(...e.nums) : null, max: numeric ? Math.max(...e.nums) : null };
   }).sort((a, b) => b.count - a.count);
 }
+
+const MEMORY_KEY = /ram|μνήμη|μνημη|memory|αποθηκ|storage|ssd|δίσκ|δισκ|capacity|χωρητικότητα$/i;
+
+/**
+ * RAM και αποθήκευση από τον τίτλο, όταν το προϊόν δεν έχει χαρακτηριστικά («8/256GB», «R7/16/512/11H», «2*8GB», «16GB/512GB», «1TB»).
+ * Σε GB· RAM = έως 32, αποθήκευση = από 64 (καμία καταναλωτική συσκευή δεν μπερδεύει τα δύο).
+ */
+export function titleMemory(title: string): { ram: number | null; storage: number | null } {
+  const nums: number[] = [];
+  for (const m of title.matchAll(/(?<![\w.])(\d+)\s*\*\s*(\d+)\s*GB\b/gi)) nums.push(Number(m[1]) * Number(m[2]));
+  const t = title.replace(/(?<![\w.])\d+\s*\*\s*\d+\s*GB\b/gi, " ");
+  // με μονάδα (GB/TB) πάντα· «G» ή σκέτος αριθμός μόνο μέσα σε ομάδα με «/» (αλλιώς «5G», «iPhone 17» θα μετρούσαν)
+  for (const m of t.matchAll(/(?<![\w.])(\d+)\s*(GB|TB|G)?(?=\s*(\/)|[\s,+)]|$)/gi)) {
+    const unit = m[2]?.toUpperCase(), slash = !!m[3] || /\/\s*$/.test(t.slice(0, m.index));
+    if ((!unit || unit === "G") && !slash) continue;
+    nums.push(Number(m[1]) * (unit === "TB" ? 1024 : 1));
+  }
+  return { ram: nums.find((n) => n >= 2 && n <= 32) ?? null, storage: nums.find((n) => n >= 64) ?? null };
+}
+
+/** Κριτήριο μνήμης/αποθήκευσης πάνω στον τίτλο (null = δεν κρίνεται: άλλο κριτήριο ή ο τίτλος δεν το γράφει). */
+export function titlePasses(title: string, c: SpecCriterion): boolean | null {
+  if (typeof c.value !== "number" || c.op === "has" || !c.keys.some((k) => MEMORY_KEY.test(k))) return null;
+  const mem = titleMemory(title), n = c.value <= 32 ? mem.ram : c.value >= 64 ? mem.storage : null;
+  return n === null ? null : passes(String(n), c);
+}

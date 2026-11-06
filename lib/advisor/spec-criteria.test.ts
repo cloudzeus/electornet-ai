@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { firstNumber, indexSpecs, numberOf, passes, productPasses } from "./spec-criteria";
+import { firstNumber, indexSpecs, numberOf, passes, productPasses, titleMemory, titlePasses } from "./spec-criteria";
 
 test("αριθμοί όπως γράφονται στα χαρακτηριστικά", () => {
   assert.equal(firstNumber("9.000 Btu/h"), 9000);
@@ -33,4 +33,20 @@ test("ευρετήριο κατηγορίας", () => {
   assert.deepEqual(idx.find((k) => k.key === "SCOP")?.max, 5.1);
   assert.equal(idx.find((k) => k.key === "Χρώμα")?.min, null);
   assert.equal(idx.some((k) => k.key === "Σπάνιο"), false);
+});
+
+test("μνήμη από τον τίτλο", () => {
+  assert.deepEqual(titleMemory("S/P Redmi Note 15 Pro 5G Titanium 8/256G INFO QUEST"), { ram: 8, storage: 256 });
+  assert.deepEqual(titleMemory("NB HP 15-fc0000nv R7/16/512/11H D0DH9EA WESTNET"), { ram: 16, storage: 512 });
+  assert.deepEqual(titleMemory("NB MSI Cyborg A13VE I7RL/15.6/2*8GB/512GB WESTNET"), { ram: 16, storage: 512 });
+  assert.deepEqual(titleMemory("APPLE MacBook Air M5 13-inch 8CG/16GB/512GB Silver MDH74GR/A"), { ram: 16, storage: 512 });
+  assert.deepEqual(titleMemory("13-inch MacBook Neo: Apple A18 Pro chip with 6 core CPU and 5 core GPU, 8GB, 256GB SSD - Silver"), { ram: 8, storage: 256 });
+  assert.deepEqual(titleMemory("iPhone 17 256GB Mist Blue"), { ram: null, storage: 256 });
+  assert.deepEqual(titleMemory("MOBILE SAMSUNG SM-A175 GALAXY A17 LTE 4GB / 128GB BLUE"), { ram: 4, storage: 128 });
+  assert.deepEqual(titleMemory("HP Laptop 15-fd0001nvx 15.6''HD/Intel N150/4GB RAM/128GB/W11Home"), { ram: 4, storage: 128 });
+  assert.equal(titlePasses("APPLE MacBook Air M5 13-inch 8CG/16GB/512GB", { keys: ["Μνήμη RAM"], op: "gte", value: 16, need: "" }), true);
+  assert.equal(titlePasses("13-inch MacBook Neo 8GB, 256GB SSD", { keys: ["Μνήμη RAM"], op: "gte", value: 16, need: "" }), false);
+  assert.equal(titlePasses("iPhone 17 256GB", { keys: ["Μνήμη Ram"], op: "gte", value: 8, need: "" }), null);
+  assert.equal(titlePasses("iPhone 17 256GB", { keys: ["Αποθηκευτικός Χώρος"], op: "gte", value: 256, need: "" }), true);
+  assert.equal(titlePasses("TV 55 120Hz", { keys: ["Ρυθμός ανανέωσης"], op: "gte", value: 100, need: "" }), null);
 });
