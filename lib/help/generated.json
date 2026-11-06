@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-06T08:29:00.608Z",
+ "generatedAt": "2026-11-06T09:11:35.528Z",
  "routes": [
   {
    "route": "/admin",
@@ -1855,9 +1855,26 @@
     "customer.overview",
     "customer.header",
     "customer.actions",
-    "customer.tabs"
+    "customer.tabs",
+    "customers.orders.chain",
+    "orders.tabs",
+    "orders.softone",
+    "orders.softone.flow",
+    "orders.softone.list",
+    "orders.softone.stages",
+    "orders.softone.details"
    ],
    "changes": [
+    {
+     "hash": "9fcea86",
+     "date": "2026-11-06T10:21:17+02:00",
+     "text": "Πορεία στο SoftOne: μόνο οι γραμμές της παραγγελίας"
+    },
+    {
+     "hash": "59b755b",
+     "date": "2026-11-06T10:12:55+02:00",
+     "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης"
+    },
     {
      "hash": "aaed998",
      "date": "2026-11-02T10:17:01+02:00",
@@ -1897,14 +1914,9 @@
      "hash": "746f971",
      "date": "2026-09-13T13:55:32+03:00",
      "text": "Lost password with email OTP: PasswordReset model (hashed 6-digit code, 10-min expiry, attempt and rate limits, request evidence), forgot/verify/reset APIs, 3-step storefront flow, change notification email, customer …"
-    },
-    {
-     "hash": "dd5e47e",
-     "date": "2026-09-13T13:46:07+03:00",
-     "text": "Customers & GDPR: full retail customer domain (profile, social accounts, addresses ↔ CUSBRANCH, devices/warranties, service tickets, loyalty ledger, notes, events), SoftOne CUSTOMER/TRDR push/pull/search/link with set…"
     }
    ],
-   "updatedAt": "2026-11-02T10:17:01+02:00",
+   "updatedAt": "2026-11-06T10:21:17+02:00",
    "shots": {}
   },
   {
@@ -2396,6 +2408,11 @@
    ],
    "changes": [
     {
+     "hash": "aa4015a",
+     "date": "2026-11-06T10:33:12+02:00",
+     "text": "Πορεία στο SoftOne: μακριές αλυσίδες χωράνε ολόκληρες στην αρχική προβολή"
+    },
+    {
      "hash": "9fcea86",
      "date": "2026-11-06T10:21:17+02:00",
      "text": "Πορεία στο SoftOne: μόνο οι γραμμές της παραγγελίας"
@@ -2439,14 +2456,9 @@
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
      "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών"
-    },
-    {
-     "hash": "ff6db32",
-     "date": "2026-10-16T13:04:03+03:00",
-     "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
     }
    ],
-   "updatedAt": "2026-11-06T10:21:17+02:00",
+   "updatedAt": "2026-11-06T10:33:12+02:00",
    "shots": {}
   },
   {
@@ -4426,6 +4438,20 @@
    "shots": {}
   },
   {
+   "route": "/admin/tmp-chain",
+   "slug": "tmp-chain",
+   "file": "app/admin/(shell)/tmp-chain/page.tsx",
+   "title": "tmp-chain",
+   "doc": "",
+   "perm": "orders.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/ypiresies",
    "slug": "ypiresies",
    "file": "app/admin/(shell)/ypiresies/page.tsx",
@@ -4453,6 +4479,36 @@
   }
  ],
  "recent": [
+  {
+   "hash": "0e3c3a3",
+   "date": "2026-11-06T11:10:03+02:00",
+   "text": "Ασφάλεια: Next.js 16.3.8 → 16.4.3 (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r)",
+   "routes": []
+  },
+  {
+   "hash": "221bd8c",
+   "date": "2026-11-06T10:45:26+02:00",
+   "text": "Σκετς Ερμή: χωρίς αυτόματη ένταση μικροφώνου (με το Teams ανέβαζαν μαζί την είσοδο στο τέρμα → παραμόρφωση μετά την πρώτη πρόβα)",
+   "routes": []
+  },
+  {
+   "hash": "e3354fd",
+   "date": "2026-11-06T10:37:53+02:00",
+   "text": "Σκετς Ερμή: ανίχνευση παραμόρφωσης μικροφώνου",
+   "routes": []
+  },
+  {
+   "hash": "aa4015a",
+   "date": "2026-11-06T10:33:12+02:00",
+   "text": "Πορεία στο SoftOne: μακριές αλυσίδες χωράνε ολόκληρες στην αρχική προβολή",
+   "routes": []
+  },
+  {
+   "hash": "c32addb",
+   "date": "2026-11-06T10:29:29+02:00",
+   "text": "Βοήθεια: screenshots SoftOne",
+   "routes": []
+  },
   {
    "hash": "7cf667a",
    "date": "2026-11-06T10:22:37+02:00",
@@ -4677,36 +4733,6 @@
    "hash": "5f38ef7",
    "date": "2026-11-03T07:51:27+02:00",
    "text": "Σελίδα προϊόντος: λιγότερη σύγχυση",
-   "routes": []
-  },
-  {
-   "hash": "93d615d",
-   "date": "2026-11-03T07:25:50+02:00",
-   "text": "Εμπλουτισμός: πίνακας μάρκα → site, για να δοκιμάζεται η δωρεάν διαδρομή",
-   "routes": []
-  },
-  {
-   "hash": "9498a17",
-   "date": "2026-11-03T07:10:49+02:00",
-   "text": "Φωτογραφίες: γιατί ο πήχης είναι αυστηρότερος από τον έλεγχο πληρότητας",
-   "routes": []
-  },
-  {
-   "hash": "c56dca9",
-   "date": "2026-11-03T07:07:42+02:00",
-   "text": "Φωτογραφίες: μαζική συμπλήρωση σε προϊόντα χωρίς καμία",
-   "routes": []
-  },
-  {
-   "hash": "92f2633",
-   "date": "2026-11-03T06:44:06+02:00",
-   "text": "Διαστάσεις & βάρος: όρια που δεν κόβουν σωστές τιμές",
-   "routes": []
-  },
-  {
-   "hash": "c1b0e53",
-   "date": "2026-11-03T06:35:44+02:00",
-   "text": "Διαστάσεις & βάρος: μαζική συμπλήρωση από περιγραφή και internet",
    "routes": []
   }
  ],
@@ -5535,6 +5561,9 @@
    "components/admin/customers/CustomerWorkspace.tsx"
   ],
   "customer.tabs": [
+   "components/admin/customers/CustomerWorkspace.tsx"
+  ],
+  "customers.orders.chain": [
    "components/admin/customers/CustomerWorkspace.tsx"
   ],
   "customers.location": [

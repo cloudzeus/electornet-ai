@@ -3,12 +3,13 @@
 import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin, Building2 } from "lucide-react";
+import { ArrowLeft, Check, Plus, Trash2, Download, ShieldAlert, RefreshCw, Link2, Search, Printer, Pin, Building2, GitBranch } from "lucide-react";
 import { CustomerActions, ToastBar, type Toast } from "./CustomerActions";
 import { CustomerOverviewTab } from "./CustomerOverview";
 import { OrderStatusBadge } from "@/components/admin/orders/ui";
 import { FULFILMENT, type Fulfilment } from "@/lib/orders/model";
-import { regeocodeAddress, sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
+import { SoftonePanel } from "@/components/admin/orders/chain/OrderTabs";
+import { regeocodeAddress, sendPasswordReset, saveCustomer, saveAddress, deleteAddress, setConsent, addNote, addLoyalty, saveDevice, updateTicket, createTicket, erpPush, erpPull, erpSearch, erpLink, gdprExport, gdprAnonymise, purchaseChainAction, type CustomerInput, type AddressInput } from "@/app/admin/(shell)/customers/actions";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Any = any;
@@ -142,9 +143,22 @@ function OrdersTab({ c }: { c: Any }) {
             {p.lines.length > 0 && <ul className="m-0 p-0 list-none grid gap-0.5 text-[length:var(--fs-13)]">{p.lines.map((l: Any) => <li key={l.id} className="flex gap-2 min-w-0"><span className="tabular-nums text-eu-muted shrink-0">{Number(l.qty)}×</span><span className="min-w-0 break-words flex-1">{l.productId ? <a href={`/admin/catalog/${l.productId}`} className="text-eu-blue hover:underline">{l.title}</a> : l.title}</span><span className="tabular-nums shrink-0">{eur(l.lineTotal)}</span></li>)}</ul>}
             {(r.name || r.address) && <p className="m-0 text-eu-muted text-[length:var(--fs-12)] break-words">Παραλήπτης: {[r.name, r.phone, r.address].filter(Boolean).join(" · ")}</p>}
             {p.docs?.length > 0 && <p className="m-0 text-[length:var(--fs-12)] text-eu-ink-3">Παραστατικά: {p.docs.map((x: Any) => `${KIND[x.kind] ?? x.kind} ${x.docNo ?? ""} (${d(x.date)}, ${eur(x.total)})`).join(" · ")}</p>}
+            {p.s1Findoc && <PurchaseChain id={p.id} number={p.docNo ?? String(p.s1Findoc)} />}
           </li>
         ); })}</ul> : <p className="m-0 text-eu-muted">Καμία αγορά από το SoftOne. Συμπληρώνονται από τον συγχρονισμό (SoftOne → Πελάτες ERP).</p>}
       </Card>
+    </div>
+  );
+}
+
+/** «Πορεία στο SoftOne» μιας παλιάς αγοράς: ανοίγει το ίδιο διάγραμμα με τη σελίδα της παραγγελίας. */
+function PurchaseChain({ id, number }: { id: string; number: string }) {
+  const [open, setOpen] = useState(false);
+  const load = useCallback(() => purchaseChainAction(id), [id]);
+  return (
+    <div className="grid gap-2 min-w-0">
+      <button type="button" data-help="customers.orders.chain" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={`${btn2} justify-self-start`}><GitBranch className="size-4" aria-hidden /> {open ? "Κλείσιμο πορείας" : "Πορεία στο SoftOne"}</button>
+      {open && <SoftonePanel load={load} number={number} />}
     </div>
   );
 }

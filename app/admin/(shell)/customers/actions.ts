@@ -258,3 +258,12 @@ export async function erpPreflightAction(customerId: string) {
   ]);
   return { ...p, labels: { IRSDATA: tax?.name ?? null, DISTRICT: dist?.name ?? null } };
 }
+
+/** Πορεία στο SoftOne μιας παλιάς αγοράς (Purchase). Το FINDOC από τη βάση μας, όχι από τον browser. Μόνο αναγνώσεις. */
+export async function purchaseChainAction(purchaseId: string) {
+  await requirePermission("customers.read");
+  const p = await db.purchase.findUnique({ where: { id: purchaseId }, select: { s1Findoc: true } });
+  if (!p?.s1Findoc) return { ok: false as const, reason: "not-sent" as const };
+  const { chainFor } = await import("@/lib/softone/order-chain");
+  return chainFor(p.s1Findoc);
+}
