@@ -54,7 +54,7 @@ export default function ChainFlow({ nodes: docs, root, selected, onSelect }: { n
     return { nodes, edges };
   }, [docs, root, selected]);
   return (
-    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodeClick={(_, n) => onSelect(Number(n.id))} fitView fitViewOptions={{ padding: 0.16, minZoom: 0.85, maxZoom: 1 }}
+    <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodeClick={(_, n) => onSelect(Number(n.id))} fitView fitViewOptions={{ padding: 0.12, minZoom: 0.5, maxZoom: 1 }}
       minZoom={0.3} maxZoom={1.6} nodesConnectable={false} nodesDraggable={false} elementsSelectable proOptions={{ hideAttribution: true }} aria-label="Διάγραμμα μετασχηματισμών παραστατικών">
       <Background variant={BackgroundVariant.Dots} gap={18} size={1.2} color="#c9ced6" />
       <Controls showInteractive={false} position="bottom-right" />
