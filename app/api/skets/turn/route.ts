@@ -54,7 +54,10 @@ export async function POST(req: Request) {
     after(() => db.auditLog.create({ data: { action: "skets.turn", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify({ ...o, src })) } }).then(() => {}, () => {}));
     return NextResponse.json(o);
   };
-  const t = textIn ? { ok: true as const, text: textIn } : await (async (a: File) => transcribe(Buffer.from(await a.arrayBuffer()), a.type || "audio/webm", `turn.${a.type.includes("mp4") ? "m4a" : a.type.includes("ogg") ? "ogg" : "webm"}`))(f as File);
+  const a = textIn ? null : (f as File), buf = a ? Buffer.from(await a.arrayBuffer()) : null;
+  const t = !a || !buf ? { ok: true as const, text: textIn } : await transcribe(buf, a.type || "audio/webm", `turn.${a.type.includes("mp4") ? "m4a" : a.type.includes("ogg") ? "ogg" : "webm"}`);
+  // ήχος χωρίς λέξεις: κρατάμε την ηχογράφηση στο log (μικρή, base64) για να ακουστεί τι έπιασε το μικρόφωνο της σκηνής
+  const clip = buf && size < 80000 ? { size, mime: a?.type, clip: buf.toString("base64") } : { size };
   // ήχοι σε παρενθέσεις («(μουσική)», «[γέλια]») και οι γνωστές «φαντασιώσεις» της αναγνώρισης πάνω σε θόρυβο δεν είναι λόγια
   const heardText = (t.ok ? t.text : "").replace(/[([][^)\]]*[)\]]/g, " ").trim();
   // δεν καταλάβαμε: μία φορά ανά βήμα ο Ερμής ρωτά κάτι έτοιμο που βοηθά τον παρουσιαστή (ποτέ σιωπή που τον κάνει να το ξαναπεί)
@@ -68,8 +71,9 @@ export async function POST(req: Request) {
     return done({ route: "free", ready: true, say: a, why, heard: heardText, ms: Date.now() - t0 });
   };
   // μιλούσε αρκετά (>3 s) αλλά δεν βγήκε λέξη: δεν τον ακούσαμε καλά
-  if (!/\p{L}{2,}/u.test(heardText) && size > 12000) { const c = clarify("unheard"); if (c) return c; }
-  if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) return done({ route: "none", why: "noise", heard: heardText, ms: Date.now() - t0 });
+  // ~1,5 s ήχου χωρίς λέξεις: δεν τον ακούσαμε καλά — ο Ερμής το λέει (μία φορά ανά βήμα) αντί να μένει σιωπηλός
+  if (!/\p{L}{2,}/u.test(heardText) && size > 6000) { const c = clarify("unheard"); if (c) { after(() => db.auditLog.create({ data: { action: "skets.clip", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify(clip)) } }).then(() => {}, () => {})); return c; } }
+  if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) { after(() => db.auditLog.create({ data: { action: "skets.clip", entity: "SketsTurn", entityId: beat.id, after: JSON.parse(JSON.stringify(clip)) } }).then(() => {}, () => {})); return done({ route: "none", why: "noise", heard: heardText, size, ms: Date.now() - t0 }); }
   const said = heardText, cue = (beat.cue ?? "").replace(/[«»]/g, ""), n = norm(said);
   const msStt = Date.now() - t0;
   console.info("[skets turn]", beat.id, `${msStt}ms`, JSON.stringify(said)); // στα logs του server: τι άκουσε σε κάθε βήμα
