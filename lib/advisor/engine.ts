@@ -7,6 +7,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { catalogTree, dbProductsByIds, hrefOf, LISTED, SHOP_SOURCES, type CatNode } from "@/lib/data/db-catalog";
 import { rankCandidates } from "./rank";
 import { indexSpecs, productPasses, titlePasses, type SpecCriterion, type SpecKeyInfo } from "./spec-criteria";
+import { saveToList, shippingFor, type SaveAnswer, type ShippingAnswer } from "./actions";
+import { guideRules, guidesText, type GuideRule } from "./guides";
 import { searchVector } from "@/lib/vector/index";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { fitVerdict, type MySpace } from "@/lib/space/fit";
@@ -39,8 +41,8 @@ import { nearestStores, type NearResult } from "./stores";
 export interface Turn { role: "user" | "advisor"; text: string; products?: string[] }
 export interface AdvisorState { types: number[]; typeNames: string[]; brands: string[]; minPrice: number | null; maxPrice: number | null; maxWidth: number | null; maxHeight: number | null; maxDepth: number | null; inStockOnly: boolean; needs: string[]; priority: "price" | "quality" | "energy" | "quiet" | null; sizing: string | null; /** διεύθυνση / περιοχή / Τ.Κ. που έδωσε ο πελάτης — για το κοντινότερο κατάστημα */ place?: string | null }
 export interface AdvisorInput { q: string; thread?: Turn[]; shown?: string[]; state?: AdvisorState | null; prev?: string; space?: MySpace | null; pid?: string }
-export interface AdvisorContext { name: string; /** και τα ανενεργά με απόθεμα (μόνο η σκηνή του Ερμή — το site δείχνει ό,τι δημοσιεύεται) */ wider?: boolean; /** πόσες προτάσεις (3 στο site, 6 στη σκηνή) */ picks?: number; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
-export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[] };
+export interface AdvisorContext { name: string; /** και τα ανενεργά με απόθεμα (μόνο η σκηνή του Ερμή — το site δείχνει ό,τι δημοσιεύεται) */ wider?: boolean; /** πόσες προτάσεις (3 στο site, 6 στη σκηνή) */ picks?: number; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; /** μπορεί να αποθηκεύει σε λίστες του πελάτη (μόνο το site — όχι η σκηνή) */ lists?: boolean; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
+export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[]; /** ό,τι έβαλε ο Ερμής στις λίστες (ο browser το περνά και στα αγαπημένα της συσκευής) */ saved?: { ids: string[]; signedIn: boolean; list: string | null } };
 
 /** Τα βήματα κατανόησης και έρευνας θέλουν ταχύτητα, όχι ευγλωττία: μικρό γρήγορο μοντέλο (αλλάζει με ADVISOR_ROUTER_MODEL). Η απάντηση γράφεται από το κύριο. */
 const ROUTER = process.env.ADVISOR_ROUTER_MODEL || "google/gemini-3.5-flash-lite";
@@ -113,7 +115,7 @@ async function typeList(): Promise<TypeRow[]> {
   return [...t.byId.values()].filter((n) => n.depth === 2 && (n.count > 0 || !!wideCats?.has(n.id))).map((node, i) => { const path = up(node); return { i, node, path, label: path.map((p) => p.name).join(" › "), hint: hints.get(node.id) ?? "" }; });
 }
 
-interface Understood extends AdvisorState { aboutStores: boolean; kind: "products" | "advice" | "info" | "other"; focus: "new" | "shown"; shownRefs: number[]; modelCodes: string[]; search: string; understood: string[] }
+interface Understood extends AdvisorState { aboutStores: boolean; aboutShipping: boolean; save: { refs: number[]; list: string | null } | null; kind: "products" | "advice" | "info" | "other"; focus: "new" | "shown"; shownRefs: number[]; modelCodes: string[]; search: string; understood: string[] }
 
 interface ShownRow { i: number; id: string; brand: string; title: string; price: number; typeName: string }
 
@@ -123,7 +125,7 @@ async function understand(input: AdvisorInput, types: TypeRow[], shown: ShownRow
     feature: "advisor-understand", accounting: "background", model: ROUTER, json: true, maxTokens: 600, temperature: 0, timeoutMs: 9000, reasoning: "low",
     messages: [
       { role: "system", content: `Παρακολουθείς μια συζήτηση πελάτη με τον σύμβουλο πωλήσεων ελληνικού e-shop ηλεκτρικών. Σου δίνεται η ΚΑΤΑΣΤΑΣΗ (οι απαιτήσεις μέχρι τώρα), τα ΔΕΙΓΜΕΝΑ προϊόντα, το ΝΗΜΑ και η ΝΕΑ ΕΡΩΤΗΣΗ. Απαντάς ΜΟΝΟ με JSON:
-{"kind":"products"|"advice"|"info"|"other","focus":"new"|"shown","shownRefs":number[],"types":number[],"brands":string[],"minPrice":number|null,"maxPrice":number|null,"maxWidth":number|null,"maxHeight":number|null,"maxDepth":number|null,"inStockOnly":boolean,"needs":string[],"priority":"price"|"quality"|"energy"|"quiet"|null,"sizing":string|null,"modelCodes":string[],"search":string,"understood":string[],"place":string|null,"aboutStores":boolean}
+{"kind":"products"|"advice"|"info"|"other","focus":"new"|"shown","shownRefs":number[],"types":number[],"brands":string[],"minPrice":number|null,"maxPrice":number|null,"maxWidth":number|null,"maxHeight":number|null,"maxDepth":number|null,"inStockOnly":boolean,"needs":string[],"priority":"price"|"quality"|"energy"|"quiet"|null,"sizing":string|null,"modelCodes":string[],"search":string,"understood":string[],"place":string|null,"aboutStores":boolean,"aboutShipping":boolean,"save":{"refs":number[],"list":string|null}|null}
 - Η ΚΑΤΑΣΤΑΣΗ ΣΥΣΣΩΡΕΥΕΤΑΙ: ό,τι ίσχυε κρατιέται εκτός αν ο πελάτης το αλλάξει ρητά («τελικά μέχρι 400», «όχι Samsung»). Επιστρέφεις τη ΣΥΝΟΛΙΚΗ κατάσταση, όχι μόνο τη διαφορά. Μια νέα, άσχετη ανάγκη («και μια τηλεόραση;») μηδενίζει τύπους / ανάγκες / προϋπολογισμό.
 - focus "shown": η ερώτηση αφορά τα ΔΕΙΓΜΕΝΑ («από αυτά ποιο…», «το πρώτο», «το Toyotomi που είδα», «αυτό χωράει;», «γιατί το δεύτερο;», «διαφορά τους;») → shownRefs = οι δείκτες τους (όλα τα σχετικά αν λέει «αυτά»). Αλλιώς "new" και shownRefs=[].
 - Ο κατάλογος είναι πιο πρόσφατος από τη γνώση σου: ένα μοντέλο που δεν ξέρεις (iPhone 17, Galaxy S26) είναι απλώς νεότερο — το ψάχνεις κανονικά.
@@ -134,6 +136,8 @@ async function understand(input: AdvisorInput, types: TypeRow[], shown: ShownRow
 - maxWidth/maxHeight/maxDepth σε εκ. μόνο αν δίνει χώρο. priority: "price" φθηνό, "energy" κατανάλωση, "quiet" αθόρυβο, "quality" το καλύτερο.
 - place: η διεύθυνση, περιοχή, πόλη ή Τ.Κ. του πελάτη ΟΠΩΣ την έδωσε («Ιερέως Καζίκα, Καλαμαριά», «Ηράκλειο Κρήτης», «55131»), τώρα ή νωρίτερα στο νήμα· κρατιέται από την ΚΑΤΑΣΤΑΣΗ μέχρι να δώσει άλλη. Αλλιώς null. Ποτέ μάρκα ή προϊόν.
 - aboutStores: true όταν θέλει κατάστημα — το κοντινότερο, πού να δει/αγγίξει/παραλάβει από κοντά, διεύθυνση, ωράριο, τηλέφωνο καταστήματος — ή όταν μόλις έδωσε διεύθυνση/περιοχή. Αλλιώς false.
+- aboutShipping: true όταν ρωτά πόσο κοστίζουν ή πόσο αργούν τα μεταφορικά / η αποστολή / η παράδοση (για συγκεκριμένο προϊόν ή γενικά)· τότε shownRefs = τα δειγμένα που αφορά (focus "shown"). Αλλιώς false.
+- save: όταν θέλει να κρατήσει προϊόντα για αργότερα («βάλ' το στη λίστα μου», «κράτα τα», «αποθήκευσέ το», «φτιάξε λίστα Κουζίνα με αυτά») → refs = οι δείκτες των ΔΕΙΓΜΕΝΩΝ που εννοεί (όλα αν λέει «αυτά», το τελευταίο αν λέει «αυτό» χωρίς άλλο), list = το όνομα λίστας αν το λέει, αλλιώς null. Αλλιώς save=null.
 - search: η ουσία της συνολικής ανάγκης σε μία φυσική φράση. understood: 2–6 σύντομες φράσεις με ΟΛΑ όσα ισχύουν τώρα.
 ${EXPERTISE}
 
@@ -155,6 +159,7 @@ ${types.map((t) => `${t.i}|${t.path.slice(-2).map((p) => p.name).join(" › ")}|
     inStockOnly: j.inStockOnly === true, needs: list(j.needs), priority: (["price", "quality", "energy", "quiet"] as const).find((p) => p === j.priority) ?? null, sizing: typeof j.sizing === "string" && j.sizing.trim() ? j.sizing.trim() : null,
     modelCodes: list(j.modelCodes, 3), search: typeof j.search === "string" && j.search.trim() ? j.search.trim() : input.q, understood: list(j.understood, 6),
     place: typeof j.place === "string" && j.place.trim().length >= 3 ? j.place.trim().slice(0, 160) : input.state?.place ?? null, aboutStores: j.aboutStores === true,
+    aboutShipping: j.aboutShipping === true, save: j.save && typeof j.save === "object" ? { refs: idx(j.save.refs, shown.length), list: typeof j.save.list === "string" && j.save.list.trim() ? j.save.list.trim().slice(0, 60) : null } : null,
   };
 }
 
@@ -165,7 +170,7 @@ function understandByRules(input: AdvisorInput, types: TypeRow[]): Understood {
   const budget = n.match(/(?:κατω|μεχρι|εωσ|under|<)\s*(?:απο\s*)?(\d{2,5})/)?.[1] ?? n.match(/(\d{3,5})\s*(?:€|ευρω)/)?.[1];
   const prev = input.state ?? EMPTY_STATE;
   const typesOut = scored.length ? scored.slice(0, 2).map((x) => x.t.i) : prev.types.filter((i) => i < types.length);
-  return { ...prev, kind: "products", focus: "new", shownRefs: [], types: typesOut, typeNames: typesOut.map((i) => types[i].node.name), maxPrice: budget ? Number(budget) : prev.maxPrice, priority: /φθην|οικονομικ/.test(n) ? "price" : /αθορυβ|ησυχ/.test(n) ? "quiet" : /ρευμα|καταναλωσ/.test(n) ? "energy" : prev.priority, modelCodes: [], search: input.q, aboutStores: /καταστημ|κοντινοτερ|ωραρι/.test(n), place: prev.place ?? null, understood: [...typesOut.slice(0, 1).map((i) => types[i].node.name), ...(budget ? [`έως ${budget} €`] : [])] };
+  return { ...prev, kind: "products", focus: "new", shownRefs: [], types: typesOut, typeNames: typesOut.map((i) => types[i].node.name), maxPrice: budget ? Number(budget) : prev.maxPrice, priority: /φθην|οικονομικ/.test(n) ? "price" : /αθορυβ|ησυχ/.test(n) ? "quiet" : /ρευμα|καταναλωσ/.test(n) ? "energy" : prev.priority, modelCodes: [], search: input.q, aboutStores: /καταστημ|κοντινοτερ|ωραρι/.test(n), aboutShipping: /μεταφορικ|αποστολ|παραδοσ/.test(n), save: null, place: prev.place ?? null, understood: [...typesOut.slice(0, 1).map((i) => types[i].node.name), ...(budget ? [`έως ${budget} €`] : [])] };
 }
 
 // ---------- 2. Ανάγκες → τιμές φίλτρων ----------
@@ -234,7 +239,7 @@ async function specIndex(typeIds: string[]): Promise<SpecKeyInfo[]> {
 }
 
 /** Οι ανάγκες που δεν έγιναν φίλτρα → κριτήρια πάνω στα πραγματικά χαρακτηριστικά του καταλόγου («SCOP ≥ 5», «Θόρυβος ≤ 40 dB»). */
-async function mapSpecs(needs: string[], index: SpecKeyInfo[]): Promise<{ criteria: SpecCriterion[]; rest: string[] }> {
+async function mapSpecs(needs: string[], index: SpecKeyInfo[], rules: GuideRule[] = []): Promise<{ criteria: SpecCriterion[]; rest: string[] }> {
   if (!needs.length || !index.length) return { criteria: [], rest: needs };
   const r = await chat({
     feature: "advisor-specs", accounting: "background", model: ROUTER, json: true, maxTokens: 700, temperature: 0, timeoutMs: 9000, reasoning: "low",
@@ -244,8 +249,9 @@ async function mapSpecs(needs: string[], index: SpecKeyInfo[]): Promise<{ criter
 - Αριθμητικά: "gte"/"lte" με αριθμό στη μονάδα των δειγμάτων (dB, kWh, W, kg, rpm, Hz, ίντσες, λίτρα). Μέσα στο εύρος [min–max] της λίστας — αλλιώς δεν μπαίνει. Ένας αριθμός που ζητά ο πελάτης είναι ΕΛΑΧΙΣΤΟ για ό,τι «καλύτερο = περισσότερο» («120 Hz», «4 HDMI», «1.400 στροφές», «SCOP 5» → gte) και ΜΕΓΙΣΤΟ για ό,τι «καλύτερο = λιγότερο» (θόρυβος, κατανάλωση → lte)· "eq" μόνο όταν λέει «ακριβώς». Μέγεθος (ίντσες, κιλά, BTU) δεν είναι εδώ — είναι στα φίλτρα.
 - Τεχνογνωσία: «αθόρυβο» → θόρυβος lte στο χαμηλό τρίτο του εύρους· «οικονομικό στο ρεύμα» → κατανάλωση lte στο χαμηλό τρίτο ή SCOP/SEER gte στο υψηλό· «για gaming» → ρυθμός ανανέωσης gte 100· «μεγάλη οικογένεια» → χωρητικότητα gte στο υψηλό τρίτο.
 - Κείμενο: "has" με τη λέξη που εμφανίζεται στα δείγματα («R32», «Inverter», «OLED»).
+- ΟΔΗΓΟΣ ΚΑΤΗΓΟΡΙΑΣ: αν μια απαίτηση είναι μία από τις καταστάσεις του οδηγού («πολύ φωτεινό δωμάτιο», «για μοντάζ»), βάζεις το κριτήριο του οδηγού — εκτός αν ο πελάτης έδωσε δικό του αριθμό.
 - Ό,τι δεν αντιστοιχεί σε χαρακτηριστικό της λίστας πάει στο "rest". Ποτέ κλειδί που δεν υπάρχει.` },
-      { role: "user", content: `ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ (κλειδί | προϊόντα | εύρος | δείγματα):\n${index.map((k) => `${k.key} | ${k.count} | ${k.min !== null ? `${k.min}–${k.max}` : "—"} | ${k.samples.join(" · ")}`).join("\n")}\n\nΑΠΑΙΤΗΣΕΙΣ: ${JSON.stringify(needs)}` },
+      { role: "user", content: `ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ (κλειδί | προϊόντα | εύρος | δείγματα):\n${index.map((k) => `${k.key} | ${k.count} | ${k.min !== null ? `${k.min}–${k.max}` : "—"} | ${k.samples.join(" · ")}`).join("\n")}${rules.length ? `\n\nΟΔΗΓΟΣ (κατάσταση → κριτήριο):\n${rules.filter((x) => x.keys.some((k) => index.some((i) => i.key === k))).map((x) => `${x.when} → ${x.keys.join(" / ")} ${x.op} ${x.value}`).join("\n")}` : ""}\n\nΑΠΑΙΤΗΣΕΙΣ: ${JSON.stringify(needs)}` },
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ criteria?: Partial<SpecCriterion>[]; rest?: string[] }>(r.text) : null;
@@ -412,14 +418,14 @@ const policy = (c: AdvisorContext["commerce"]) => [
   "Εγκατάσταση και σύνδεση από τον τεχνικό του καταστήματος της περιοχής· απόσυρση της παλιάς συσκευής.",
 ];
 
-async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, items: Dossier[], viewing: Dossier | null, notes: { relaxed: string[]; total: number; typeNames: string[]; focusShown: boolean; verified?: string[] }, near: NearResult | null) {
+async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, items: Dossier[], viewing: Dossier | null, notes: { relaxed: string[]; total: number; typeNames: string[]; focusShown: boolean; verified?: string[]; guide?: string; shipping?: ShippingAnswer | null; saved?: SaveAnswer | { unavailable: true } | { nothing: true } | null }, near: NearResult | null) {
   const thread = (input.thread ?? []).slice(-8).map((t) => `${t.role === "user" ? "ΠΕΛΑΤΗΣ" : "ΕΡΜΗΣ"}: ${t.text.slice(0, 500)}`).join("\n");
   const r = await chat({
     feature: "advisor", accounting: "background", model: WRITER, json: true, maxTokens: 1200, timeoutMs: 18000, reasoning: "low", temperature: 0.5,
     messages: [
       { role: "system", content: `Είσαι ο ${ctx.name}, ο έμπειρος πωλητής του euronics.gr — ο άνθρωπος του καταστήματος που ξέρει κάθε προϊόν του και χαίρεται να βοηθά. Μιλάς ελληνικά στον ενικό, ΖΩΝΤΑΝΑ και ΑΠΛΑ, όπως θα μιλούσες σε πελάτη μπροστά σου: μικρές προτάσεις, καθημερινές λέξεις, ζεστός τόνος. Ακρίβεια στα νούμερα, αλλά κάθε νούμερο ΜΕΤΑΦΡΑΖΕΤΑΙ σε κάτι που καταλαβαίνει ο καθένας («53 dB — όσο ένα ήσυχο ψυγείο», «κλάση A+++ — γύρω στα 30 % λιγότερο ρεύμα από ένα A+», «9 κιλά — για τετραμελή οικογένεια»). Καμία ορολογία χωρίς εξήγηση, καμία ξύλινη φράση («σύμφωνα με», «διαθέτει τεχνολογία», «ιδανική επιλογή», «προσφέρει λύση»), κανένα θαυμαστικό, καμία υπερβολή τηλεπωλήσεων. Λέγε τα πράγματα με το όνομά τους: «το φθηνότερο», «το πιο ήσυχο», «αξίζει τα 100 € παραπάνω γιατί…».
 ΑΠΑΡΑΒΑΤΟΙ ΚΑΝΟΝΕΣ
-- Προτείνεις ΜΟΝΟ προϊόντα από τα ΔΕΛΤΙΑ και αναφέρεις ΜΟΝΟ στοιχεία που υπάρχουν εκεί ή στην ΠΟΛΙΤΙΚΗ ΚΑΤΑΣΤΗΜΑΤΟΣ. Αν κάτι λείπει, το λες απλά («δεν το έχω καταγεγραμμένο, θα το δω στο κατάστημα»). Η ΤΕΧΝΟΓΝΩΣΙΑ επιτρέπεται μόνο για διαστασιολόγηση και για την εξήγηση των νούμερων.
+- Προτείνεις ΜΟΝΟ προϊόντα από τα ΔΕΛΤΙΑ και αναφέρεις ΜΟΝΟ στοιχεία που υπάρχουν εκεί ή στην ΠΟΛΙΤΙΚΗ ΚΑΤΑΣΤΗΜΑΤΟΣ. Αν κάτι λείπει, το λες απλά («δεν το έχω καταγεγραμμένο, θα το δω στο κατάστημα»). Η ΤΕΧΝΟΓΝΩΣΙΑ και ο ΟΔΗΓΟΣ ΚΑΤΗΓΟΡΙΑΣ επιτρέπονται για διαστασιολόγηση, για να ΚΡΙΝΕΙΣ τα χαρακτηριστικά των δελτίων (τι είναι χαμηλό, καλό, κορυφαίο) και για να εξηγείς τα νούμερα — ποτέ για στοιχεία προϊόντος.
 - ΣΥΝΕΧΕΙΑ: είναι ένα ΝΗΜΑ. Αν ο πελάτης ρωτά για όσα του έδειξες («από αυτά», «το πρώτο», «το Toyotomi»), απαντάς για ΑΥΤΑ — δεν φέρνεις άλλα. Δεν αλλάζεις πρόταση από γύρο σε γύρο χωρίς λόγο· αν αλλάξει, λες γιατί («τώρα που ξέρω ότι το θες αθόρυβο…»).
 - Ποτέ προϊόν, τιμή, διαθεσιμότητα ή χαρακτηριστικό εκτός δεδομένων. Ποτέ ανταγωνιστές.
 - Ο ΚΑΤΑΛΟΓΟΣ ΕΙΝΑΙ ΠΙΟ ΠΡΟΣΦΑΤΟΣ ΑΠΟ ΤΗ ΓΝΩΣΗ ΣΟΥ: ποτέ δεν λες ότι ένα προϊόν «δεν υπάρχει ακόμα» ή «δεν κυκλοφορεί» — αν είναι στα δελτία, υπάρχει και πωλείται.
@@ -428,10 +434,12 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Αν δίνεται «fit», το λαμβάνεις υπόψη. Όταν ρωτά για κόστος ρεύματος, το υπολογίζεις από τα kWh του δελτίου × kwhPriceEur και δίνεις € τον χρόνο (στρογγυλά).
 - Κλείνεις με ΜΙΑ ερώτηση μόνο όταν χρειάζεται όντως κάτι για να αποφασίσεις· αν ο πελάτης έχει δώσει αρκετά, δίνεις τη σύστασή σου και τελειώνεις. Ποτέ ερώτηση που έχει ήδη απαντηθεί στο νήμα.
 - ΚΑΤΑΣΤΗΜΑΤΑ: αν δίνεται nearestStores με found=true, λες ποιο είναι το κοντινότερο κατάστημα στη διεύθυνσή του — όνομα, διεύθυνση και πόλη, απόσταση σε χιλιόμετρα (στρογγυλά), τηλέφωνο και το σημερινό ωράριο — και, αν είναι κοντά (έως ~2 km διαφορά), ένα δεύτερο ως εναλλακτική. Αν found=false, λες ότι δεν εντόπισες τη διεύθυνση και ζητάς Τ.Κ. ή περιοχή. Αν nearestStores.needPlace=true, ζητάς διεύθυνση, περιοχή ή Τ.Κ. για να του πεις το κοντινότερο. ΔΕΝ έχουμε καταγεγραμμένο τι έχει κάθε κατάστημα στην έκθεση ή στο απόθεμα: ποτέ μη λες ότι ένα κατάστημα έχει συγκεκριμένο μοντέλο — προτείνεις να τηλεφωνήσει πριν πάει. Ποτέ διεύθυνση ή τηλέφωνο καταστήματος εκτός nearestStores.
+- ΜΕΤΑΦΟΡΙΚΑ: αν δίνεται shipping, λες το κόστος και τον χρόνο κάθε διαθέσιμου τρόπου ΜΟΝΟ από εκεί (0 € = δωρεάν), για ποια προϊόντα ισχύει, και αν λείπουν χρήματα για δωρεάν μεταφορικά (freeShippingFromEur − goodsEur). Αν ένας τρόπος δεν είναι διαθέσιμος, λες τον λόγο (reason / bulky). Αν το shipping.note λέει να ζητήσεις Τ.Κ., τον ζητάς. Αν ρωτά για μεταφορικά χωρίς shipping, ρωτάς για ποιο προϊόν και τον Τ.Κ. του — ΔΕΝ λες «δωρεάν» από τη γενική πολιτική (οι μεγάλες συσκευές έχουν άλλους κανόνες). Ποτέ ποσό μεταφορικών εκτός shipping.
+- ΛΙΣΤΕΣ: αν saved.signedIn=true, επιβεβαιώνεις απλά ότι τα έβαλες στη λίστα «saved.list» (θα τα βρει στο «Η λίστα μου» και θα ειδοποιηθεί αν πέσει η τιμή)· αν saved.signedIn=false, λες ότι τα κράτησες στα αγαπημένα αυτής της συσκευής και ότι αν συνδεθεί μένουν στον λογαριασμό του (με ονόματα λιστών)· αν saved.unavailable, λες ότι τις λίστες τις φτιάχνει στο euronics.gr· αν saved.nothing, ρωτάς ποιο προϊόν να κρατήσεις.
 - Δεν αναφέρεις ότι είσαι AI.
 ${notes.typeNames.length > 1 ? `ΣΕΤ: ο πελάτης θέλει ΠΟΛΛΟΥΣ τύπους (${notes.typeNames.join(", ")}) — δίνεις τουλάχιστον ένα pick από ΚΑΘΕ τύπο (έχεις δελτία για όλους· ποτέ «δεν υπάρχει» για τύπο που έχει δελτίο)· αν δίνει συνολικό ποσό, διαλέγεις ώστε το ΑΘΡΟΙΣΜΑ να το τηρεί και λες το σύνολο σε €. Έως 120 λέξεις.\n` : ""}Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}.${(ctx.picks ?? 3) > 3 ? ` Δώσε έως ${ctx.picks} picks (όσα δελτία ταιριάζουν), με εύρος μαρκών, μεγεθών και τιμών, ώστε ο πελάτης να έχει πραγματική επιλογή.` : ""} ΑΚΡΙΒΕΙΑ: μόνο ό,τι είναι στο notes.verifiedOnAll ισχύει για ΟΛΑ τα δελτία· για κάθε άλλη απαίτηση (και ό,τι λέει το notes.relaxed) ΜΗ γράφεις «όλα»/«και τα τρία» — πες ποιο την πληροί, με τον αριθμό από το δελτίο του, και ποιο όχι. Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
-${EXPERTISE}` },
-      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, verifiedOnAll: notes.verified ?? [], answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), nearestStores: near ? { searchedFor: near.searched, found: near.found, locatedAs: near.located, stores: near.stores.map((x) => ({ name: x.name, address: x.address, city: x.city, zip: x.zip, phone: x.phone, km: x.km, today: x.today, openNow: x.openNow, services: x.services })) } : u.aboutStores ? { needPlace: true } : undefined, kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
+${EXPERTISE}${notes.guide ? `\nΟΔΗΓΟΣ ΚΑΤΗΓΟΡΙΑΣ (γενική γνώση — με αυτόν κρίνεις τα νούμερα των δελτίων)\n${notes.guide}` : ""}` },
+      { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, verifiedOnAll: notes.verified ?? [], answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), shipping: notes.shipping ?? undefined, saved: notes.saved ?? undefined, nearestStores: near ? { searchedFor: near.searched, found: near.found, locatedAs: near.located, stores: near.stores.map((x) => ({ name: x.name, address: x.address, city: x.city, zip: x.zip, phone: x.phone, km: x.km, today: x.today, openNow: x.openNow, services: x.services })) } : u.aboutStores ? { needPlace: true } : undefined, kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ text?: string; picks?: { i?: number; why?: string }[] }>(r.text) : null;
@@ -466,6 +474,8 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
   let chosen = u.types.map((i) => types[i]);
   if (!chosen.length && viewing?.typeSlug && (u.kind === "products" || u.kind === "advice") && u.focus === "new") { const t = types.find((x) => x.node.slug === viewing.typeSlug); if (t) { chosen = [t]; u.types = [t.i]; u.typeNames = [t.node.name]; } }
 
+  // «πόσα μεταφορικά έχει ένα ψυγείο;» χωρίς δειγμένο: πρώτα βρίσκουμε τα προϊόντα — τα μεταφορικά εξαρτώνται από αυτά (ογκώδη, βάρος)
+  if (u.aboutShipping && u.kind === "info" && u.focus === "new" && chosen.length && !viewing) u.kind = "products";
   let candidates: Product[] = [], total = 0, relaxed: string[] = [], verified: string[] = [];
   const wantsProducts = u.kind === "products" || u.kind === "advice";
   if (wantsProducts && u.focus === "shown") {
@@ -478,7 +488,7 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
     const typeIds = chosen.map((t) => t.node.id);
     const { filters, unmapped } = ai && chosen.length ? await mapNeeds(u.needs, await facetsOf(typeIds)) : { filters: [], unmapped: u.needs };
     mark("facets");
-    const { criteria, rest } = ai && chosen.length && unmapped.length ? await mapSpecs(unmapped, await specIndex(typeIds)) : { criteria: [], rest: unmapped };
+    const { criteria, rest } = ai && chosen.length && unmapped.length ? await mapSpecs(unmapped, await specIndex(typeIds), guideRules(typeIds)) : { criteria: [], rest: unmapped };
     mark("specs");
     const search = [u.search, ...unmapped].join(" · ");
     const [exact, found] = await Promise.all([byModelCode(u.modelCodes), chosen.length || u.brands.length || u.maxPrice ? retrieve(u, typeIds, filters, search, rest, 30, criteria) : Promise.resolve({ ids: [] as string[], total: 0, relaxed: [] as string[], applied: [] as FacetFilter[] })]);
@@ -504,9 +514,18 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
   }
   const [items, viewingDossier] = await Promise.all([candidates.length ? dossiers(candidates, input.space) : Promise.resolve([] as Dossier[]), viewing ? dossiers([viewing], input.space).then((d) => d[0] ?? null) : Promise.resolve(null)]);
 
+  // πράξεις: μεταφορικά (ίδια μηχανή με το καλάθι) και αποθήκευση σε λίστα — πάνω στα προϊόντα που εννοεί
+  const refIds = (refs: number[]) => refs.map((i) => shown[i]?.id).filter((x): x is string => !!x);
+  const lastShown = [...thread].reverse().find((t) => t.role === "advisor" && t.products?.length)?.products ?? [];
+  const shipIds = u.aboutShipping ? (u.shownRefs.length ? refIds(u.shownRefs) : viewing ? [viewing.id] : candidates.length ? candidates.slice(0, 1).map((p) => p.id) : lastShown.slice(0, 1)) : [];
+  const saveIds = u.save ? (u.save.refs.length ? refIds(u.save.refs) : viewing ? [viewing.id] : lastShown.slice(0, 1)) : [];
+  const [shipping, saved] = await Promise.all([
+    shipIds.length ? shippingFor(shipIds, u.place ?? null, ctx.commerce.clickCollectHours).catch(() => null) : null,
+    !u.save ? null : !saveIds.length ? { nothing: true as const } : !ctx.lists ? { unavailable: true as const } : saveToList(saveIds, u.save.list).catch(() => null),
+  ]);
   const near = await near$;
   mark("stores");
-  const written = ai ? await compose({ ...input, thread }, ctx, u, items, viewingDossier, { relaxed, total, typeNames: u.typeNames, focusShown: u.focus === "shown", verified }, near) : null;
+  const written = ai ? await compose({ ...input, thread }, ctx, u, items, viewingDossier, { relaxed, total, typeNames: u.typeNames, focusShown: u.focus === "shown", verified, guide: guidesText(chosen.map((t) => t.node.id)), shipping, saved }, near) : null;
   mark("compose"); if (process.env.ADVISOR_DEBUG) console.log("      [advisor]", lap.join(" · "));
   const picks = written?.picks.length ? written.picks : items.slice(0, Math.max(ctx.picks ?? 3, chosen.length)).map((s, i) => ({ i, why: [s.energyClass ? `κλάση ${s.energyClass}` : null, ...s.specs.slice(0, 2), s.availability].filter(Boolean).join(" · ") }));
   const s0 = near?.found ? near.stores[0] : null;
@@ -522,7 +541,8 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
     q: input.q, understood: u.understood, text, products,
     href: chosen.length ? { label: `Όλα: ${chosen[0].node.name}`, href: `${hrefOf(chosen[0].path)}${u.maxPrice ? `?max=${u.maxPrice}` : ""}` } : undefined,
     map: near?.found && near.origin ? { home: { ...near.origin, label: near.searched }, stores: near.stores.slice(0, 2).map(({ name, address, city, phone, km, today, slug, lat, lng }) => ({ name, address, city, phone, km, today, slug, lat, lng })) } : undefined,
-    links: near?.found ? near.stores.slice(0, 2).map((st) => ({ label: `${st.city}: ${st.name} · ${st.km.toLocaleString("el-GR")} km`, href: `/katastimata/${st.slug}` })) : undefined,
+    links: [...(near?.found ? near.stores.slice(0, 2).map((st) => ({ label: `${st.city}: ${st.name} · ${st.km.toLocaleString("el-GR")} km`, href: `/katastimata/${st.slug}` })) : []), ...(saved && "signedIn" in saved ? [{ label: saved.signedIn ? `Η λίστα: ${saved.list}` : "Τα αγαπημένα μου", href: "/lista" }] : [])],
     state, shown: [...new Set([...shownIds, ...products.map((p) => p.id)])].slice(-12),
+    saved: saved && "signedIn" in saved && (!saved.signedIn || saved.ok) ? { ids: saveIds, signedIn: saved.signedIn, list: saved.signedIn ? saved.list : null } : undefined,
   };
 }

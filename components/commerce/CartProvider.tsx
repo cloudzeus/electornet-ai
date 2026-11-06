@@ -46,6 +46,8 @@ interface CartState {
   /** Wishlist & compare (ids), persisted */
   wishlist: string[];
   toggleWishlist: (id: string) => void;
+  /** ό,τι έχει ήδη αποθηκευτεί αλλού (π.χ. από τον Ερμή στον λογαριασμό): μόνο στην κατάσταση της συσκευής, χωρίς νέο αίτημα */
+  mergeWishlist: (ids: string[]) => void;
   compare: string[];
   /** `scope`: η διαδρομή κατηγορίας του προϊόντος (lib/data/compare-scope). Προϊόν άλλης κατηγορίας ξεκινά νέα σύγκριση αντί να ανακατευτεί. */
   toggleCompare: (id: string, scope?: string) => void;
@@ -170,6 +172,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return on ? w.filter((x) => x !== id) : [...w, id];
     });
   }, [signedIn]);
+  const mergeWishlist = useCallback((ids: string[]) => setWishlist((w) => [...new Set([...w, ...ids])]), []);
   const toggleCompare = useCallback((id: string, scope?: string) => {
     setCompare((c) => {
       if (c.includes(id)) return c.filter((x) => x !== id);
@@ -207,13 +210,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       lastAdded,
       wishlist,
       toggleWishlist,
+      mergeWishlist,
       compare,
       toggleCompare,
       compareScope,
       clearCompare,
       hydrated,
     };
-  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, remove, setQty, toggleAddon, clear, toggleWishlist, toggleCompare, clearCompare]);
+  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, remove, setQty, toggleAddon, clear, toggleWishlist, mergeWishlist, toggleCompare, clearCompare]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -16,7 +16,8 @@
     "dims:fill": "tsx --conditions=react-server scripts/fill-dims.ts",
     "photos:fill": "tsx --conditions=react-server scripts/fill-photos.ts",
     "help:gen": "tsx scripts/help-gen.ts",
-    "help:shots": "tsx scripts/help-shots.ts"
+    "help:shots": "tsx scripts/help-shots.ts",
+    "advisor:guides": "tsx --conditions=react-server scripts/advisor-guides.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

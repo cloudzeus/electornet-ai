@@ -5,6 +5,7 @@ import { isEnergyQuestion } from "@/lib/catalog/energy-types";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { tpl } from "@/lib/cms/settings";
 import { useEffect, useRef, useState } from "react";
+import { useCart } from "@/components/commerce/CartProvider";
 import Link from "next/link";
 import Image from "@/components/ui/Image";
 import { X, Send, Sparkles, Store, Ruler, Zap, Scale, Mic, Square, Volume2, VolumeX, Loader2 } from "lucide-react";
@@ -57,6 +58,7 @@ export function AdvisorOrb() {
   /** οι απαιτήσεις που έχει καταλάβει ο Ερμής ως τώρα (τύπος, προϋπολογισμός, ανάγκες) — ξαναστέλνονται σε κάθε γύρο */
   const advisorState = useRef<unknown>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const { mergeWishlist } = useCart();
   const [typing, setTyping] = useState(false);
   // Όσο ο Ερμής ερευνά (κατανόηση → φίλτρα → 30 υποψήφια → 6 δελτία → απάντηση, 6–10 s) ο πελάτης βλέπει ΤΙ κάνει, όχι τελείες
   const STEPS = ["Καταλαβαίνω τι ψάχνεις…", "Κοιτάζω τον κατάλογο…", "Ξεχωρίζω τα πιο κατάλληλα…", "Συγκρίνω τα δελτία τους…", "Γράφω την απάντηση…"];
@@ -267,7 +269,7 @@ export function AdvisorOrb() {
     const shown = [...new Set(msgs.flatMap((m) => m.products ?? []))].slice(-12);
     fetch("/api/advisor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q, thread, shown, state: advisorState.current, ...(product ? { pid: product.id } : {}), ...(space ? { door: space.door, ...(space.niche ? { niche: [space.niche.w, space.niche.h, space.niche.d] } : {}) } : {}) }) })
       .then((r) => (r.ok ? r.json() : null))
-      .then((ans: (AnswerLike & { state?: unknown }) | null) => {
+      .then((ans: (AnswerLike & { state?: unknown; saved?: { ids: string[] } }) | null) => {
         setTyping(false);
         if (!ans) {
           setMsgs((m) => [...m, { role: "advisor", text: "Κάτι πήγε στραβά. Δοκίμασε ξανά ή ζήτα άνθρωπο από το κατάστημα.", chips: [{ label: "Να με πάρουν", href: "#handoff" }] }]);
@@ -275,6 +277,8 @@ export function AdvisorOrb() {
           return;
         }
         if (ans.state) advisorState.current = ans.state;
+        // ο Ερμής αποθήκευσε (στον λογαριασμό ή, για επισκέπτη, μόνο εδώ): οι καρδιές της σελίδας το δείχνουν αμέσως
+        if (ans.saved?.ids.length) mergeWishlist(ans.saved.ids);
         setMsgs((m) => [...m, { role: "advisor", text: ans.text, chips: chipsOf(ans), map: ans.map, products: ans.products.map((p) => p.id).filter((x): x is string => !!x) }]);
         say(ans.text);
       })
