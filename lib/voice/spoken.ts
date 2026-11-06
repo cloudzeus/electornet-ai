@@ -1,4 +1,4 @@
-import { greekSpeech } from "./greek-speech";
+import { greekNumber, greekSpeech } from "./greek-speech";
 
 /**
  * Written → spoken Greek. Latin-script terms (brands, model codes, RAM, SSD,
@@ -87,8 +87,19 @@ const SYMBOLS: [RegExp, string][] = [
   [/[«»"“”]/gu, ""],
 ];
 
+/** Ελληνικό τηλέφωνο (10 ψηφία, 2… σταθερό ή 69… κινητό, με ή χωρίς +30/κενά/παύλες) → ανά δύο ψηφία, όπως το υπαγορεύει κανείς: «21 07 70 92 47». */
+const PHONE = /(?<![\p{L}\p{N}+])(?:\+?30[\s-]?)?(?:2|69)[\d\s-]{7,14}\d(?![\p{N}])/gu;
+const pair = (d: string) => (d[0] === "0" ? `μηδέν ${greekNumber(Number(d[1]))}` : greekNumber(Number(d)));
+export function spokenPhone(m: string): string {
+  const d = m.replace(/\D/g, "").replace(/^30(?=\d{10}$)/, "");
+  if (d.length !== 10 || !/^(2|69)/.test(d)) return m;
+  return (d.match(/\d\d/g) ?? []).map(pair).join(", ");
+}
+
 export function spokenForm(input: string): string {
   let t = input.replace(/\s+/g, " ").trim();
+  // τηλέφωνα πριν από κάθε άλλον κανόνα αριθμών (αλλιώς «δύο δισεκατομμύρια…» ή «2410 έως 123456»)
+  t = t.replace(PHONE, spokenPhone);
   // thousand separators: 1.899 → 1899 (but keep decimals like 29,08)
   t = t.replace(/(\d)\.(\d{3})(?=\D|$)/gu, "$1$2");
   // An abbreviation that closes a sentence («…61 εκ. Έλα…») keeps its full stop.

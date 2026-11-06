@@ -12,5 +12,5 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live">) {
   const sp = await searchParams;
   const k = typeof sp.k === "string" ? sp.k : "";
   if (!sketsKeyOk(k)) notFound();
-  return <Stage snap={snapshot as Snapshot} k={k} rehearsal={sp.prova === "1" || sp.dry === "1"} dry={sp.dry === "1"} auto={sp.auto !== "0"} />;
+  return <Stage snap={snapshot as Snapshot} k={k} rehearsal={sp.prova === "1" || sp.dry === "1"} dry={sp.dry === "1"} auto={sp.auto !== "0"} free={sp.free === "1"} />;
 }

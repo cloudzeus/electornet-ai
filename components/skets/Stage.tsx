@@ -57,7 +57,7 @@ const getPlayer = () => (player ??= new Audio());
  * σε κλήση δείχνουμε κυματομορφή, και στο τέλος τις φράσεις της συνομιλίας. */
 interface CallView { status: "dialing" | "talking" | "ended" | "done" | "error"; id: string | null; error?: string; transcript: { who: "hermes" | "store"; text: string }[] }
 
-export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean }) {
+export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = true, free = false }: { snap: Snapshot; k: string; rehearsal: boolean; dry: boolean; auto?: boolean; free?: boolean }) {
   /** διακλαδώσεις που διάλεξε η απάντηση του παρουσιαστή (π.χ. 40 τ.μ. → 18.000 BTU): αλλάζουν τα επόμενα βήματα, το σύνολο και την κλήση */
   const [alts, setAlts] = useState<Alts>({});
   /** η μπάρα χειρισμού δεν φαίνεται στο κοινό· μόνο με ?ops στη διεύθυνση (χειρισμός από το κινητό ή με το πληκτρολόγιο) */
@@ -133,7 +133,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     const n = Q.next, total = Math.max(1, Q.total);
     playClip(url, () => {
       Q.busy = false; Q.next = n + 1;
-      if (Q.next >= total) { setLiveSp({ p: 1, speaking: false }); if (quiet.current) { timer.current = setTimeout(quietClose, 600); return; } }
+      if (Q.next >= total) { setLiveSp({ p: 1, speaking: false }); if (quiet.current && !free) { timer.current = setTimeout(quietClose, 600); return; } }
       pump();
     }, (p) => setLiveSp({ p: (n + p) / total, speaking: true }));
   };
@@ -151,6 +151,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
         // ο παρουσιαστής είπε κάτι εκτός σεναρίου (ίσως απλώς «καλημέρα»): όχι «ψάχνω στον κατάλογο» — ένα σύντομο «Μάλιστα…»
         // μόνο αν αργήσει, κάθε φορά άλλο (ποτέ το ίδιο δύο φορές στη σειρά)
         lq.current.wait = setTimeout(() => { if (!lq.current.busy && !lq.current.parts.size) { turnFill.current = (turnFill.current + 1 + Math.floor(Math.random() * (TURN_FILLERS.length - 1))) % TURN_FILLERS.length; filler(TURN_FILLERS[turnFill.current]); } }, 1100);
+        // χωρίς σενάριο ο κατάλογος μπορεί να αργήσει (όπως στο site): δεύτερη φράση αναμονής, όχι σιωπή
+        if (free) setTimeout(() => { if (liveN.current === ev.n && !lq.current.busy && !lq.current.parts.size) filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]); }, 6000);
       } else {
         filler(LIVE_FILLERS[ev.n % LIVE_FILLERS.length]);
         // αν η αναζήτηση αργεί, δεύτερη φράση αναμονής — όχι σιωπή στη σκηνή
@@ -272,13 +274,21 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
   const [turnBusy, setTurnBusy] = useState(false);
   const [heard, setHeard] = useState<{ said: string; route: string; i: number } | null>(null);
-  const hearing = !reel && auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
+  // χωρίς σενάριο (?free=1): ακούει πάντα, εκτός όσο μιλά ο Ερμής ή εξετάζεται η προηγούμενη ατάκα — η απάντηση μένει στην οθόνη
+  const hearing = free ? !reel && auto && !!mic && !liveSp.speaking && !listening && !turnBusy && beat.wait !== "call" : !reel && auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
     if (!audio) return; // τίποτα δεν ηχογραφήθηκε: συνεχίζει να ακούει
     if (beat.wait !== "store" && !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
+    if (free) {
+      // ο ίδιος Ερμής με το site (smartAdvisor, ζωντανά δεδομένα), χωρίς σενάριο
+      const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("free", "1"); fd.append("mic", mic?.stream.getAudioTracks()[0]?.label ?? "");
+      clipN.current = 0;
+      fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k }, body: fd }).catch(() => null).finally(() => setTurnBusy(false));
+      return;
+    }
     const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead)); fd.append("clip", String(clipN.current)); fd.append("mic", mic?.stream.getAudioTracks()[0]?.label ?? "");
     if (clipN.current >= 3) setOverload(Date.now());
     clipN.current = 0;
