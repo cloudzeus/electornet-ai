@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Background, BackgroundVariant, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { OrderChainNode } from "@/lib/softone/order-chain";
-import { TONE, depths, dmy, metaOf, money, stateOf, titleOf } from "./meta";
+import { TONE, amountOf, depths, dmy, metaOf, stateOf, titleOf } from "./meta";
 
 type Data = { n: OrderChainNode; selected: boolean; hasKids: boolean; i: number };
 const W = 208, H = 104, GX = 52, GY = 24;
@@ -21,9 +21,9 @@ function DocNode({ data }: NodeProps<Node<Data>>) {
           <span className={`size-7 shrink-0 rounded-lg inline-flex items-center justify-center ${t.icon}`}><Icon className="size-4" aria-hidden /></span>
           <span className="font-bold text-eu-ink text-[length:var(--fs-13)] leading-tight line-clamp-2">{titleOf(n)}</span>
         </div>
-        <div className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums truncate">{n.fincode || n.findoc} · {money(n.total)}</div>
-        <div className="flex items-center justify-between gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold ${t.chip}`}>{stateOf(n, hasKids)}</span>
+        <div className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums truncate">{n.fincode || n.findoc} · {amountOf(n)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="inline-flex gap-1 min-w-0"><span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold ${t.chip}`}>{stateOf(n, hasKids)}</span>{n.shared && <span title="Το παραστατικό έχει και γραμμές άλλων παραγγελιών" className="rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold bg-eu-amber/10 text-eu-amber">κοινό</span>}</span>
           <span className="text-eu-muted text-[length:var(--fs-11)] tabular-nums">{dmy(n.date)}</span>
         </div>
       </div>

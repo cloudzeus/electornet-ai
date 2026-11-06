@@ -5,7 +5,7 @@ import { docChain } from "./doc-chain";
 
 export interface OrderChainNode {
   findoc: number; parents: number[]; fincode: string; date: string; total: number | null; fullyTransf: number | null;
-  series: number; seriesName: string | null; typeName: string | null; category: string | null; viaRoot: boolean;
+  series: number; seriesName: string | null; typeName: string | null; category: string | null; viaRoot: boolean; shared: boolean; ownNet: number | null;
 }
 export type OrderChain = { ok: true; root: number; truncated: boolean; nodes: OrderChainNode[]; at: string } | { ok: false; reason: "not-sent" | "error" };
 

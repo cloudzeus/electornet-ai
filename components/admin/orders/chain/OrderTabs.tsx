@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AlertTriangle, Check, CloudOff, GitBranch, Package, RefreshCw } from "lucide-react";
 import type { OrderChain, OrderChainNode } from "@/lib/softone/order-chain";
-import { TONE, depths, dmy, metaOf, money, stateOf, titleOf, type Tone } from "./meta";
+import { TONE, amountOf, depths, dmy, metaOf, money, stateOf, titleOf, type Tone } from "./meta";
 
 const ChainFlow = dynamic(() => import("./ChainFlow"), { ssr: false, loading: () => <div className="h-full rounded-xl bg-eu-surface animate-pulse" /> });
 
@@ -84,7 +84,7 @@ export function SoftonePanel({ load: fetchChain, number }: { load: () => Promise
               <li key={n.findoc} style={{ paddingLeft: `${Math.min(depth.get(n.findoc)!, 4) * 0.9}rem` }}>
                 <button type="button" onClick={() => setSel(n.findoc)} aria-pressed={on} className={`w-full text-left flex items-center gap-2.5 rounded-xl border px-3 min-h-14 py-2 transition-colors ${on ? "border-eu-blue bg-eu-blue/5" : "border-eu-line hover:border-eu-navy"}`}>
                   <span className={`size-8 shrink-0 rounded-lg inline-flex items-center justify-center ${TONE[tone].icon}`}><Icon className="size-4" aria-hidden /></span>
-                  <span className="min-w-0 grow grid gap-0.5"><span className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight line-clamp-2">{titleOf(n)}</span><span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums break-words">{n.fincode || n.findoc} · {dmy(n.date)} · {money(n.total)}</span><span className={`justify-self-start rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold ${TONE[tone].chip}`}>{stateOf(n, !!kids.get(n.findoc)?.length)}</span></span>
+                  <span className="min-w-0 grow grid gap-0.5"><span className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight line-clamp-2">{titleOf(n)}</span><span className="text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums break-words">{n.fincode || n.findoc} · {dmy(n.date)} · {amountOf(n)}</span><span className="flex gap-1"><span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold ${TONE[tone].chip}`}>{stateOf(n, !!kids.get(n.findoc)?.length)}</span>{n.shared && <span className="rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold bg-eu-amber/10 text-eu-amber">κοινό</span>}</span></span>
                 </button>
               </li>
             );
@@ -127,7 +127,7 @@ function Details({ n, nodes, hasKids, onSelect }: { n: OrderChainNode; nodes: Or
   const { tone, Icon } = metaOf(n);
   const from = nodes.filter((x) => n.parents.includes(x.findoc));
   const to = nodes.filter((x) => x.parents.includes(n.findoc));
-  const rows: [string, React.ReactNode][] = [["Αριθμός", n.fincode || "—"], ["Ημερομηνία", dmy(n.date)], ["Σύνολο", money(n.total)], ["Σειρά", `${n.series}${n.seriesName ? ` · ${n.seriesName}` : ""}`], ["Κατάσταση", stateOf(n, hasKids)], ["FINDOC", n.findoc]];
+  const rows: [string, React.ReactNode][] = [["Αριθμός", n.fincode || "—"], ["Ημερομηνία", dmy(n.date)], ...(n.shared ? [["Αυτή η παραγγελία", `${money(n.ownNet)} χωρίς ΦΠΑ`], ["Σύνολο εγγράφου", `${money(n.total)} (κοινό με άλλες παραγγελίες)`]] as [string, string][] : [["Σύνολο", money(n.total)]] as [string, string][]), ["Σειρά", `${n.series}${n.seriesName ? ` · ${n.seriesName}` : ""}`], ["Κατάσταση", stateOf(n, hasKids)], ["FINDOC", n.findoc]];
   const link = (x: OrderChainNode) => <button key={x.findoc} type="button" onClick={() => onSelect(x.findoc)} className="text-eu-blue font-bold hover:underline text-left">{titleOf(x)}</button>;
   return (
     <aside data-help="orders.softone.details" aria-live="polite" className="rounded-xl border border-eu-line p-3 grid gap-2 content-start text-[length:var(--fs-13)] min-w-0">

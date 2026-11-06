@@ -27,6 +27,8 @@ export const stateOf = (n: OrderChainNode, hasChildren: boolean) =>
   metaOf(n).tone === "cancel" && !hasChildren ? "ακύρωση" : n.fullyTransf === 1 ? "μετασχηματίστηκε" : n.fullyTransf === 2 ? "μερικώς" : hasChildren ? "μετασχηματίστηκε" : metaOf(n).tone === "order" ? "σε εκκρεμότητα" : "εκδόθηκε";
 export const dmy = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
 export const money = (v: number | null) => (v == null ? "—" : v.toLocaleString("el-GR", { style: "currency", currency: "EUR" }));
+/** Κοινό παραστατικό (πολλές παραγγελίες): μόνο η αξία των δικών μας γραμμών, όχι το σύνολο του εγγράφου. */
+export const amountOf = (n: OrderChainNode) => (n.shared ? `${money(n.ownNet)} χ. ΦΠΑ` : money(n.total));
 
 /** Βάθος κάθε κόμβου από τη ρίζα (για στήλες στο διάγραμμα και εσοχές στη λίστα). */
 export function depths(nodes: OrderChainNode[], root: number) {

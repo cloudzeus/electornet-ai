@@ -17,6 +17,10 @@ export interface ChainDoc {
   parents: number[];
   /** ο γονιός ήρθε μόνο από CCCFINDOCS (καμία γραμμή δεν δείχνει προέλευση) */
   viaRoot: boolean;
+  /** έχει και γραμμές άλλων παραγγελιών (π.χ. PES-APL) */
+  shared: boolean;
+  /** αξία μόνο των δικών μας γραμμών (LINEVAL, χωρίς ΦΠΑ) — για τα κοινά */
+  ownNet: number | null;
 }
 
 const BATCH = 500;
@@ -32,33 +36,49 @@ export async function walkChain(start: number, getTable: GetTable, opts: { maxDe
     if (fromRoot.delete(child)) parents.get(child)!.clear();
     (parents.get(child) ?? parents.set(child, new Set()).get(child)!).add(parent);
   };
-  let frontier = [start], depth = 0, truncated = false;
+  // Ανά γραμμή: ακολουθούμε μόνο γραμμές που προέρχονται από γραμμές ΑΥΤΗΣ της παραγγελίας. Ένα κοινό παραστατικό
+  // (π.χ. PES-APL με πολλές παραγγελίες) δεν μας φέρνει όσα έγιναν από τις γραμμές των άλλων.
+  const ours = new Set<string>(); // "FINDOC:MTRLINES"
+  /** all: όλες οι γραμμές (ρίζα) · αλλιώς μόνο όσες δεν έχουν προέλευση — όσες έχουν, τις κρίνει το περπάτημα ανά γραμμή */
+  const addLines = async (docs: number[], all: boolean) => {
+    for (const part of chunk(docs, BATCH)) for (const [f, l, src] of await getTable("MTRLINES", ["FINDOC", "MTRLINES", "FINDOCS"], `FINDOC IN (${part.join(",")})`)) if (all || !int(src)) ours.add(`${f}:${l}`);
+  };
+  await addLines([start], true);
+  // CCCFINDOCS δείχνει τη ρίζα: όλα αυτά τα παραστατικά είναι της παραγγελίας (μαζί με όλες τους τις γραμμές)
+  const own: number[] = [];
+  for (const [c] of await getTable("FINDOC", ["FINDOC", "CCCFINDOCS"], `CCCFINDOCS IN (${start})`)) {
+    const child = int(c);
+    if (!child || child === start || parents.has(child)) continue;
+    parents.set(child, new Set([start])); fromRoot.add(child); own.push(child);
+  }
+  await addLines(own, false);
+  let frontier = [start, ...own], depth = 0, truncated = false;
   while (frontier.length) {
     if (depth >= maxDepth || parents.size >= maxDocs) { truncated = true; break; }
     const next = new Set<number>();
     for (const part of chunk(frontier, BATCH)) {
-      const ids = part.join(",");
-      for (const [c, p] of await getTable("MTRLINES", ["FINDOC", "FINDOCS"], `FINDOCS IN (${ids})`)) {
+      for (const [c, cl, p, pl] of await getTable("MTRLINES", ["FINDOC", "MTRLINES", "FINDOCS", "MTRLINESS"], `FINDOCS IN (${part.join(",")})`)) {
         const child = int(c), parent = int(p);
-        if (!child || !parent) continue;
-        if (!parents.has(child)) next.add(child);
+        if (!child || !parent || !ours.has(`${parent}:${pl}`)) continue;
+        if (!ours.has(`${child}:${cl}`)) { ours.add(`${child}:${cl}`); next.add(child); }
         link(child, parent);
-      }
-      for (const [c, p] of await getTable("FINDOC", ["FINDOC", "CCCFINDOCS"], `CCCFINDOCS IN (${ids})`)) {
-        const child = int(c), parent = int(p);
-        if (!child || !parent || child === parent) continue;
-        if (!parents.has(child)) { next.add(child); parents.set(child, new Set()); }
-        // CCCFINDOCS δείχνει τη ρίζα· κράτα το μόνο αν δεν έχουμε πιο ακριβή γονιό από τις γραμμές
-        if (!parents.get(child)!.size) { parents.get(child)!.add(parent); fromRoot.add(child); }
       }
     }
     frontier = [...next]; depth++;
+  }
+  // κοινά παραστατικά: γραμμές που δεν είναι δικές μας + η αξία των δικών μας
+  const foreign = new Set<number>(), net = new Map<number, number>();
+  for (const part of chunk([...parents.keys()], BATCH)) {
+    for (const [f, l, v] of await getTable("MTRLINES", ["FINDOC", "MTRLINES", "LINEVAL"], `FINDOC IN (${part.join(",")})`)) {
+      const d = int(f)!;
+      if (ours.has(`${f}:${l}`)) net.set(d, (net.get(d) ?? 0) + (parseFloat(v) || 0)); else foreign.add(d);
+    }
   }
   const docs: ChainDoc[] = [];
   for (const part of chunk([...parents.keys()], BATCH)) {
     for (const r of await getTable("FINDOC", ["FINDOC", "SERIES", "FINCODE", "TRNDATE", "FULLYTRANSF", "SUMAMNT"], `FINDOC IN (${part.join(",")})`)) {
       const f = int(r[0])!;
-      docs.push({ findoc: f, series: int(r[1]) ?? 0, fincode: r[2] ?? "", date: (r[3] ?? "").slice(0, 10), fullyTransf: int(r[4]), total: Number.isFinite(parseFloat(r[5])) ? parseFloat(r[5]) : null, parents: [...(parents.get(f) ?? [])], viaRoot: fromRoot.has(f) });
+      docs.push({ findoc: f, series: int(r[1]) ?? 0, fincode: r[2] ?? "", date: (r[3] ?? "").slice(0, 10), fullyTransf: int(r[4]), total: Number.isFinite(parseFloat(r[5])) ? parseFloat(r[5]) : null, parents: [...(parents.get(f) ?? [])], viaRoot: fromRoot.has(f), shared: foreign.has(f), ownNet: foreign.has(f) ? Math.round((net.get(f) ?? 0) * 100) / 100 : null });
     }
   }
   docs.sort((a, b) => a.date.localeCompare(b.date) || a.findoc - b.findoc);
