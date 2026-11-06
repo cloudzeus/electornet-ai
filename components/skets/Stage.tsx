@@ -269,7 +269,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   const hearing = !reel && auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
-    if (!audio || (beat.wait !== "store" && !/^«/.test(beat.cue ?? ""))) { if (beat.wait !== "store") command({ t: "next" }); return; }
+    if (!audio) return; // τίποτα δεν ηχογραφήθηκε: συνεχίζει να ακούει
+    if (beat.wait !== "store" && !/^«/.test(beat.cue ?? "")) { command({ t: "next" }); return; }
     const at = i;
     setTurnBusy(true);
     const fd = new FormData(); fd.append("audio", audio, audio.type.includes("mp4") ? "turn.m4a" : "turn.webm"); fd.append("beat", beat.id); fd.append("alts", JSON.stringify(alts)); fd.append("ahead", JSON.stringify(ahead));
@@ -352,6 +353,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
     <div className={`fixed inset-0 overflow-hidden text-white select-none ${css.stage}`}>
       <TopBar rehearsal={rehearsal} place={i > 0} />
       {reel && <Reel key={reel} ref={reelRef} {...REELS[reel]} autoPlay={reel === "outro"} />}
+      {/* για τον παρουσιαστή, ακατανόητο για το κοινό: πράσινη = σε ακούω, μίλα · κίτρινη = το σκέφτομαι · τίποτα = μιλά ο Ερμής ή περιμένει τον χειριστή */}
+      {!reel && (hearing || turnBusy) && <span aria-hidden className={`absolute bottom-[1.2vh] right-[1vw] z-[3100] size-[0.7vh] rounded-full ${turnBusy ? "bg-eu-yellow/70" : "bg-eu-green/70"}`} />}
 
       <LayoutGroup>
         <div className="absolute inset-x-0 top-[9vh] bottom-0 flex">

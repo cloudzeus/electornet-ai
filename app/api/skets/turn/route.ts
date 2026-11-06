@@ -40,12 +40,14 @@ export async function POST(req: Request) {
   liveMemory().alts = alts;
   const beats = buildBeats(snap, alts, ahead);
   const bi = beats.findIndex((b) => b.id === id), beat = beats[bi];
-  if (!beat || !(f instanceof File) || f.size < 2000) return NextResponse.json({ route: "script", why: "no audio" });
+  // σιωπή, θόρυβος ή βήχας ΔΕΝ είναι απάντηση: η σκηνή μένει στο βήμα και ξανακούει (ο χειριστής προχωρά με Enter αν χρειαστεί)
+  if (!beat || !(f instanceof File) || f.size < 2000) return NextResponse.json({ route: "none", why: "no audio" });
   const ext = f.type.includes("mp4") ? "m4a" : f.type.includes("ogg") ? "ogg" : "webm";
   const t = await transcribe(Buffer.from(await f.arrayBuffer()), f.type || "audio/webm", `turn.${ext}`);
-  // αν δεν ακούστηκε καθαρά, το σενάριο συνεχίζει — ποτέ κόλλημα στη σκηνή
-  if (!t.ok || !t.text.trim()) return NextResponse.json({ route: "script", why: "stt", ms: Date.now() - t0 });
-  const said = t.text.trim(), cue = (beat.cue ?? "").replace(/[«»]/g, ""), n = norm(said);
+  // ήχοι σε παρενθέσεις («(μουσική)», «[γέλια]») και οι γνωστές «φαντασιώσεις» της αναγνώρισης πάνω σε θόρυβο δεν είναι λόγια
+  const heardText = (t.ok ? t.text : "").replace(/[([][^)\]]*[)\]]/g, " ").trim();
+  if (!/\p{L}{2,}/u.test(heardText) || /amara|υποτιτλ|subtitle|ευχαριστω πολυ που (μας )?(παρακολουθ|ακου)/.test(norm(heardText))) return NextResponse.json({ route: "none", why: "noise", ms: Date.now() - t0 });
+  const said = heardText, cue = (beat.cue ?? "").replace(/[«»]/g, ""), n = norm(said);
   const msStt = Date.now() - t0;
   console.info("[skets turn]", beat.id, `${msStt}ms`, JSON.stringify(said)); // στα logs του server: τι άκουσε σε κάθε βήμα
   if (beat.wait === "store") {
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
   const reply = (o: Record<string, unknown>) => NextResponse.json({ ...o, ...(learned.ahead.length ? { learned } : {}) });
   // απάντησε ήδη και στο «γιατί ρωτάω» της τρέχουσας ομάδας (π.χ. «μεγάλος κάδος, για παπλώματα» πριν τη διευκρίνιση) → κατευθείαν στην απόφαση
   const cur = slots.find((x) => beat.id === `${x.cat}-ask` || beat.id === `${x.cat}-ask2`);
-  if (cur && !asked) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
+  if (cur && (!asked || (cur.alt && !QUESTION.test(n.replace(/^οχι\s*/, "")) && !/[;;?]\s*$/.test(said)))) { if (cur.alt) liveMemory().alts = { ...liveMemory().alts, [cur.cat]: cur.alt }; return reply({ route: "jump", to: `${cur.cat}-verdict`, cat: cur.cat, alt: cur.alt, said, ms: msStt }); }
   // στην αρχή ο παρουσιαστής μπορεί να πει μαζί τα νέα ΚΑΙ το «εξόπλισέ μου το σπίτι» → κατευθείαν στο «Ευχαρίστως, ας ξεκινήσουμε»
   if (beat.id === "idle" && /σπιτι|εξοπλ|βοηθ/.test(n) && beats.some((b) => b.id === "start")) return reply({ route: "jump", to: "start", both: true, said, ms: msStt });
   // η απάντηση ορίζει μέγεθος (τ.μ., μέτρα): ο αριθμός που ακούστηκε διαλέγει διακλάδωση — πριν από το «ναι», γιατί «ναι, σαράντα» ≠ «ναι»

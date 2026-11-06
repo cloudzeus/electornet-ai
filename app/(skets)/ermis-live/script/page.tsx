@@ -14,6 +14,9 @@ const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits:
 const name = (p: { brand: string; title: string }) => (p.title.toUpperCase().startsWith(p.brand.toUpperCase()) ? p.title : `${p.brand} ${p.title}`);
 const isLine = (cue: string) => /^«[\s\S]*»$/.test(cue.trim());
 
+/** διακλαδώσεις χωρίς μονάδα: τι λέει ο παρουσιαστής */
+const EXAMPLE: Record<string, string> = { induction: "επαγωγική (π.χ. «Προτιμώ επαγωγική»)", small: "μικρός κάδος (π.χ. «Μικρό κάδο, μένω μόνος μου» ή «Όχι» στα παπλώματα)" };
+
 type Row = { who: "hermes" | "presenter" | "stage"; text: string; n?: number };
 
 /** Το σενάριο ως θεατρικό κείμενο: Ερμής (ηχογραφημένος), παρουσιαστής (ατάκα που πρέπει να πει), οδηγίες σκηνής/χειριστή. */
@@ -62,6 +65,42 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
           <p className="mt-2 text-eu-muted text-[length:var(--fs-13)] print:hidden">Για χαρτί: Cmd+P (ή Ctrl+P).</p>
         </header>
 
+        <section className="mt-6 rounded-2xl bg-eu-navy text-white p-4 sm:p-5 break-inside-avoid">
+          <h2 className="font-black text-[length:var(--fs-20)]">Η ροή της παρουσίασης (χειριστής στον υπολογιστή)</h2>
+          <ol className="mt-2 grid gap-1.5 list-decimal pl-5 text-[length:var(--fs-15)] leading-snug">
+            <li>Άνοιξε τη σκηνή λίγο πριν (να φορτώσει το βίντεο) και πάτα <b>F</b> για πλήρη οθόνη. Φαίνεται το πρώτο καρέ του βίντεο Euronics &amp; DGSOFT.</li>
+            <li><b>Enter</b> → παίζει το βίντεο με ήχο (περίπου 2 λεπτά).</li>
+            <li><b>Enter</b> → πάει στον Ερμή και ανοίγει το μικρόφωνο. Ο παρουσιαστής ξεκινά με την πρώτη του ατάκα.</li>
+            <li>Το σκετς προχωρά μόνο του με τη φωνή. Αν κάτι κολλήσει: <b>Enter</b> = επόμενο βήμα, <b>←</b> = πίσω.</li>
+            <li>Στο τέλος («Καλή συνέχεια!» και η κάρτα του σπιτιού): <b>Enter</b> → το βίντεο της πύλης συνεργατών. <b>Enter</b> = παύση/συνέχεια, <b>Esc</b> = κλείσιμο.</li>
+          </ol>
+          <p className="mt-2 text-white/75 text-[length:var(--fs-14)]">Όσο παίζει βίντεο ο Ερμής δεν ακούει. Τα ίδια κάνει και το «Επόμενο» στο κινητό.</p>
+        </section>
+
+        <section className="mt-6 rounded-2xl ring-1 ring-eu-line p-4 sm:p-5 break-inside-avoid">
+          <h2 className="font-black text-[length:var(--fs-20)]">Η τελεία κάτω δεξιά: πότε μιλάς</h2>
+          <p className="mt-1 text-eu-muted text-[length:var(--fs-14)]">Μια μικρή τελεία στην κάτω δεξιά γωνία της οθόνης. Το κοινό δεν την προσέχει· εσύ ξέρεις πού να κοιτάξεις.</p>
+          <ul className="mt-2 grid gap-1.5 text-[length:var(--fs-15)] leading-snug">
+            <li className="flex items-center gap-2"><span aria-hidden className="size-3 shrink-0 rounded-full bg-eu-green" /><span><b>Πράσινη:</b> σε ακούει — μίλα τώρα.</span></li>
+            <li className="flex items-center gap-2"><span aria-hidden className="size-3 shrink-0 rounded-full bg-eu-yellow" /><span><b>Κίτρινη:</b> σε άκουσε και το σκέφτεται — περίμενε, μην ξαναμιλήσεις.</span></li>
+            <li className="flex items-center gap-2"><span aria-hidden className="size-3 shrink-0 rounded-full ring-1 ring-eu-line" /><span><b>Καμία:</b> μιλά ο Ερμής ή δείχνει κάτι στην οθόνη — άφησέ τον να τελειώσει.</span></li>
+          </ul>
+        </section>
+
+        <section className="mt-6 rounded-2xl ring-1 ring-eu-line p-4 sm:p-5 break-inside-avoid">
+          <h2 className="font-black text-[length:var(--fs-20)]">Λέξεις-κλειδιά σε κάθε βήμα</h2>
+          <p className="mt-1 text-eu-muted text-[length:var(--fs-14)]">Ο Ερμής ψάχνει αυτές τις λέξεις μέσα σε ό,τι πεις. Πες τες καθαρά, μέσα σε μια φυσική φράση.</p>
+          <dl className="mt-2 grid gap-2 text-[length:var(--fs-15)] leading-snug">
+            <div><dt className="font-bold">Αρχή</dt><dd>«νέα», «Λάρισα» → συγχαρητήρια · «σπίτι», «εξοπλίσουμε», «βοήθησέ με» → ξεκινάμε. Και τα δύο μαζί → «Συγχαρητήρια… ας ξεκινήσουμε».</dd></div>
+            <div><dt className="font-bold">Πλυντήριο</dt><dd>«μεγάλο», «παπλώματα», «κιλά», «ναι» → μεγάλος κάδος · «μικρό», «μόνος μου», «όχι» στα παπλώματα, «καθαριστήριο» → μικρός κάδος (ο Ερμής εξηγεί ότι το μεγάλο κοστίζει λιγότερο και το κρατά) · «τι εννοείς;» → εξηγεί.</dd></div>
+            <div><dt className="font-bold">Ψυγείο</dt><dd>«ρεύμα», «ενεργειακή», «κλάση», «οικονομικό», «ναι» → το πιο οικονομικό στο ρεύμα.</dd></div>
+            <div><dt className="font-bold">Τηλεόραση</dt><dd>απόσταση σε «μέτρα» (π.χ. «τρία μέτρα») ή «ίντσες» (π.χ. «εβδομήντα πέντε ίντσες»), «πιο μεγάλη», «πιο μικρή».</dd></div>
+            <div><dt className="font-bold">Κλιματιστικό</dt><dd>«τετραγωνικά» (π.χ. «σαράντα τετραγωνικά»), ή «χιλιάδες» BTU (π.χ. «δεκαοχτώ χιλιάδες»), ή η μάρκα από την οθόνη, «πιο δυνατό», «πιο φθηνό».</dd></div>
+            <div><dt className="font-bold">Κουζίνα</dt><dd>«κεραμική», «ναι» → κεραμική · «επαγωγική», «όχι κεραμική» → επαγωγική.</dd></div>
+            <div><dt className="font-bold">Κατάστημα</dt><dd>το όνομα της οδού («της Ηπείρου»), «το πρώτο», «το δεύτερο», «το πιο κοντινό».</dd></div>
+          </dl>
+        </section>
+
         <section className="mt-6 rounded-2xl ring-1 ring-eu-line p-4 sm:p-5 break-inside-avoid">
           <h2 className="font-black text-[length:var(--fs-20)]">Πώς παίζεις ελεύθερα χωρίς να σπάσει η ροή</h2>
           <p className="mt-1 text-eu-muted text-[length:var(--fs-14)]">Τα βήματα και οι συσκευές είναι σταθερά. Μέσα σε αυτά λες ό,τι θέλεις· ο Ερμής καταλαβαίνει τι από όλα είναι απάντηση, ερώτηση ή αντίρρηση.</p>
@@ -76,8 +115,10 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
           </ul>
           <h3 className="mt-3 font-bold text-[length:var(--fs-16)]">Πρόσεξε</h3>
           <ul className="mt-1 grid gap-1.5 list-disc pl-5 text-[length:var(--fs-15)] leading-snug">
-            <li><b>Πάνω από τον Ερμή:</b> «Σας ακούω» = μίλα τώρα · «Σκέφτομαι…» = περίμενε. Όσο μιλά ο Ερμής δεν ακούει· άφησέ τον να τελειώσει και μίλα μετά από μισό δευτερόλεπτο.</li>
-            <li><b>Μία ανάσα ανά ατάκα.</b> Παύση πάνω από μισό δευτερόλεπτο στη μέση = τέλος της ατάκας σου.</li>
+            <li><b>Περίμενε την πράσινη τελεία.</b> Όσο μιλά ο Ερμής δεν ακούει· άφησέ τον να τελειώσει και μετά μίλα.</li>
+            <li><b>Ολοκλήρωσε τη σκέψη σου.</b> Μικρές παύσεις ανάμεσα σε φράσεις επιτρέπονται· σιωπή πάνω από ένα δευτερόλεπτο = τέλος της ατάκας σου.</li>
+            <li><b>Αν δεν πεις τίποτα, περιμένει.</b> Σιωπή, βήχας ή θόρυβος δεν προχωρούν το σκετς.</li>
+            <li><b>Ερώτηση = ερωτηματικός τόνος ή λέξη</b> (τι, πώς, γιατί, πόσο). Ό,τι άλλο το παίρνει ως απάντηση και προχωρά.</li>
             <li><b>«Όχι» σημαίνει αντίρρηση.</b> Αν το πεις για αστείο, θα σου απαντήσει σαν να διαφωνείς.</li>
             <li><b>Δόσεις, παράδοση, εγγύηση:</b> δεν έχει στοιχεία — θα πει ειλικρινά να το δείτε στο κατάστημα.</li>
             <li><b>Αν κολλήσει:</b> ο χειριστής πατά «Επόμενο». Στο κινητό φαίνεται τι άκουσε ο Ερμής και τι έκανε («συνέχισε», «απαντά»).</li>
@@ -121,7 +162,7 @@ export default async function Page({ searchParams }: PageProps<"/ermis-live/scri
           <div className="mt-3 grid gap-4">
             {snap.cats.filter((c) => c.alts?.length).flatMap((c) => c.alts!.map((a) => {
               const p = pickOf(c, { [c.key]: a.key });
-              const said = c.unit === "m2" ? (a.min ? `${a.min}+ τετραγωνικά (π.χ. «Είναι σαράντα»)` : `έως ${a.max} τετραγωνικά (π.χ. «Πιο μικρό, δεκαπέντε»)`) : a.min ? `πάνω από ${a.min.toLocaleString("el-GR")} m (π.χ. «Γύρω στα τέσσερα μέτρα»)` : `έως ${a.max!.toLocaleString("el-GR")} m (π.χ. «Ενάμισι μέτρο»)`;
+              const said = !c.unit ? (EXAMPLE[a.key] ?? a.key) : c.unit === "m2" ? (a.min ? `${a.min}+ τετραγωνικά (π.χ. «Είναι σαράντα»)` : `έως ${a.max} τετραγωνικά (π.χ. «Πιο μικρό, δεκαπέντε»)`) : a.min ? `πάνω από ${a.min.toLocaleString("el-GR")} m (π.χ. «Γύρω στα τέσσερα μέτρα»)` : `έως ${a.max!.toLocaleString("el-GR")} m (π.χ. «Ενάμισι μέτρο»)`;
               return (
                 <div key={`${c.key}-${a.key}`} className="text-[length:var(--fs-15)] leading-snug">
                   <p className="font-bold">{c.label}: {said}</p>

@@ -57,6 +57,8 @@ const card = (r: Row, key: string): SkProduct => {
 const cat = (key: CatKey, room: Room, label: string, rows: Row[], keyOf: (r: Row) => string, reject: SkReject[], reject2: SkReject[], pick: string, lines: SkCategory["lines"]): SkCategory =>
   ({ key, room, label, candidates: rows.map((r) => card(r, keyOf(r))), reject, reject2, pick, lines });
 
+/** «μικρό κάδο» με όσους τρόπους το λέει κανείς (και το «όχι» στα παπλώματα) */
+export const SMALL_DRUM = "μικρ|για εναν|μονος μου|μονη μου|λιγα ρουχα|δεν χρειαζομαι μεγαλ|οχι τοσο μεγαλ|δεν θα πλενω|δεν πλενω|οχι παπλωμ|επτα κιλ|εφτα κιλ|οκτω κιλ|οχτω κιλ|7 κιλ|8 κιλ|καθαριστηρ|^οχι(?!.*μεγαλ)";
 async function washer(): Promise<SkCategory> {
   const all = (await pool("plyntiria-roychon")).filter((r) => r.facets["choritikotita-plysis-kg"]?.num);
   const kg = (r: Row) => r.facets["choritikotita-plysis-kg"]!.num!;
@@ -68,10 +70,20 @@ async function washer(): Promise<SkCategory> {
     : keep.price < other.price
       ? { reason: `${eur(other.price - keep.price)} ακριβότερο, χωρίς λόγο`, say: `Από τα δύο, το ${keep.brand} κάνει την ίδια δουλειά και κοστίζει λιγότερο. Αυτό θα σας πρότεινα.` }
       : { reason: `${kg(other)} kg, αλλά λιγότερο αθόρυβο και αξιόπιστο`, say: `Από τα δύο, το ${keep.brand} είναι το πιο αξιόπιστο — θα σας κρατήσει χρόνια. Αυτό θα σας πρότεινα.` };
-  return cat("washer", "bath", "Πλυντήριο ρούχων", [...small, ...big].sort((a, b) => kg(a) - kg(b)), (r) => `${kg(r)} kg`,
+  // «μικρό κάδο» / «όχι, δεν πλένω παπλώματα»: ο Ερμής ακολουθεί — αλλά αν το μεγάλο κοστίζει λιγότερο από τα μικρά, το λέει και το κρατά
+  const KG = ["", "ένα", "δύο", "τριών", "τεσσάρων", "πέντε", "έξι", "επτά", "οκτώ", "εννιά", "δέκα", "έντεκα", "δώδεκα"];
+  const [cheapSmall] = [...small].sort((a, b) => a.price - b.price);
+  const smallAlt = { key: "small", words: SMALL_DRUM, known: "Ξεκινάμε με το πλυντήριο. Σας ξεχώρισα τέσσερα. Μου είπατε ήδη ότι σας αρκεί μικρός κάδος.",
+    ...(keep.price <= cheapSmall.price
+      ? { verdict: `Ακόμα κι αν σας αρκεί μικρότερος κάδος, το ${keep.brand} των ${KG[kg(keep)] ?? kg(keep)} κιλών κοστίζει λιγότερο από τα μικρότερα. Δεν έχει νόημα να πάρετε μικρότερο.`,
+          reject: [...small.map((r) => ({ id: r.id, reason: `${kg(r)} kg — μικρότερο και ακριβότερο` })), { id: other.id, reason: why2.reason }], pick: keep.id, pickLine: "Το μεγάλο, στην τιμή του μικρού. Πάει στο μπάνιο." }
+      : { verdict: "Αφού σας αρκεί μικρότερος κάδος, κρατάμε τα μικρά: κοστίζουν λιγότερο.",
+          reject: [...big, ...small.filter((r) => r !== cheapSmall)].map((r) => ({ id: r.id, reason: `${kg(r)} kg — ${big.includes(r) ? "μεγαλύτερο απ' όσο χρειάζεστε" : "ακριβότερο"}` })), pick: cheapSmall.id, pickLine: "Αυτό λοιπόν. Πάει στο μπάνιο." }) };
+  const c = cat("washer", "bath", "Πλυντήριο ρούχων", [...small, ...big].sort((a, b) => kg(a) - kg(b)), (r) => `${kg(r)} kg`,
     small.map((r) => ({ id: r.id, reason: `${kg(r)} kg — μικρό για διπλό πάπλωμα` })),
     [{ id: other.id, reason: why2.reason }], keep.id,
     { known: "Ξεκινάμε με το πλυντήριο. Σας ξεχώρισα τέσσερα. Μου είπατε ήδη ότι θέλετε μεγάλο κάδο.", ask: "Ξεκινάμε με το πλυντήριο. Σας ξεχώρισα τέσσερα. Πόσο μεγάλο κάδο θα χρειαστείτε;", answer: "Τι εννοείς;", follow: { ask: "Θα πλένετε, για παράδειγμα, και τα παπλώματά σας στο σπίτι;", answer: "Ναι, φυσικά." }, verdict: "Τότε χρειάζεστε τουλάχιστον εννιά κιλά. Τα μικρότερα φεύγουν.", verdict2: why2.say, pick: "Αυτό λοιπόν. Πάει στο μπάνιο." });
+  return { ...c, alts: [smallAlt] };
 }
 
 async function fridge(): Promise<SkCategory> {

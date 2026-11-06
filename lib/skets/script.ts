@@ -242,8 +242,11 @@ function lev(a: string, b: string): number {
 export function slotsIn(s: Snapshot, said: string): { cat: CatKey; alt: string }[] {
   const out = new Map<CatKey, string>();
   const has = (k: CatKey) => s.cats.some((c) => c.key === k);
+  // μικρός κάδος: σε όλη τη φράση («Όχι, μεγάλο θέλω» ≠ «Όχι» + «μεγάλο»)
+  const wa = s.cats.find((c) => c.key === "washer"), small = wa ? altFor(wa, said) : null;
+  if (small) out.set("washer", small);
   for (const cl of plain(said).replace(/τ\.\s?μ\.?/g, "τμ").replace(/(\d)[.,](\d)/g, "$1·$2").split(/[,.;;!?]|\s(?:και(?!\s+μισ)|επισης|ενω|μετα|αλλα)\s/u).map((x) => x.replace(/·/g, ".")).map((x) => x.trim()).filter(Boolean)) {
-    if (/καδ|παπλωμ|κιλ/.test(cl) && !/μικρ/.test(cl) && has("washer")) out.set("washer", "");
+    if (/καδ|παπλωμ|κιλ/.test(cl) && !/μικρ/.test(cl) && has("washer") && !out.has("washer")) out.set("washer", "");
     if (/ενεργειακ|ρευμα|οικονομικ|κλαση/.test(cl) && has("fridge")) out.set("fridge", "");
     const ck = s.cats.find((c) => c.key === "cooker");
     if (ck) { const a = altFor(ck, cl); if (a) out.set("cooker", a); else if (/κεραμικ/.test(cl)) out.set("cooker", ""); }
