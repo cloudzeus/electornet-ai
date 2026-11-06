@@ -113,6 +113,8 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   const turnFill = useRef(0);
   const quietClose = () => { setLive(null); setListening(false); setLiveSp({ p: 0, speaking: false }); clearTimeout(lq.current.wait); lq.current = { busy: false, parts: new Map(), next: 0, total: 0, wait: undefined }; liveN.current = 0; quiet.current = false; };
   useEffect(() => { spRef.current = sp; }, [sp]);
+  // νέα σελίδα = νέα πρόβα: η μνήμη του server (κουβέντα, «ρώτησα ήδη», επιλογές) από την προηγούμενη δεν μεταφέρεται
+  useEffect(() => { fetch("/api/skets/ask", { method: "POST", headers: { "x-skets-key": k, "Content-Type": "application/json" }, body: JSON.stringify({ reset: true }) }).catch(() => {}); }, [k]);
   useEffect(() => { fetch("/api/skets/ask", { headers: { "x-skets-key": k } }).then((r) => r.json()).then((m) => { clips.current = m ?? {}; }).catch(() => {}); }, [k]);
 
   /** ένα κλιπ στον player της σκηνής (αντικαθιστά τους handlers του βήματος — το σενάριο έχει ήδη παγώσει) */

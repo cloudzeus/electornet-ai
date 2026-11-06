@@ -34,8 +34,8 @@ export async function openMic(): Promise<Mic | null> {
   // το AudioContext φτιάχνεται ΜΕΣΑ στο κλικ, πριν από κάθε await — αλλιώς ο Safari το αφήνει «παγωμένο» (σιωπή)
   const ctx = new AudioContext();
   void ctx.resume().catch(() => {});
-  // autoGain: ο παρουσιαστής μιλά από απόσταση· η σιωπή που «φουσκώνει» την καλύπτει το προσαρμοζόμενο κατώφλι (floor)
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).catch(() => null);
+  // χωρίς autoGain: ο Chrome (όπως και το Teams) ανεβάζει μόνος του την ένταση εισόδου του Mac — δύο τέτοια μαζί τη φτάνουν στο τέρμα και το σήμα κόβεται (παραμόρφωση)· το κατώφλι (floor) προσαρμόζεται ήδη
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } }).catch(() => null);
   if (!stream) { void ctx.close().catch(() => {}); return null; }
   await ctx.resume().catch(() => {});
   const analyser = ctx.createAnalyser();
