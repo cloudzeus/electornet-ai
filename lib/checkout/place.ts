@@ -73,14 +73,21 @@ export async function placeOrder(input: PlaceInput) {
   const cart = await currentCart(false);
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
-  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip, email, carrier: input.carrier ?? null }, cart);
+  const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: input.fulfilment === "courier" && input.carrier === "asap" }, cart);
+  // Αττική: «Κανονική παράδοση euronics» (fulfilment appointment) ή ASAP Express με τιμή που ξαναϋπολογίστηκε εδώ
+  const expressPicked = input.fulfilment === "courier" && input.carrier === "asap";
+  if (q.attica.attica && expressPicked && q.carrier !== "asap") return { ok: false as const, error: "Το ASAP Express δεν είναι διαθέσιμο για αυτή τη διεύθυνση ή το καλάθι. Διάλεξε «Κανονική παράδοση euronics».", quote: publicQuote(q) };
+  if (q.attica.attica && (input.fulfilment === "freight" || (input.fulfilment === "courier" && !expressPicked))) return { ok: false as const, error: "Στην Αττική διάλεξε «Κανονική παράδοση euronics» ή «ASAP Express».", quote: publicQuote(q) };
+  const isExpress = q.attica.attica && q.carrier === "asap";
   // ο courier που χρεώθηκε· αν ο πελάτης διάλεξε κάποιον που δεν ισχύει (π.χ. ASAP εκτός Αττικής), δεν αλλάζουμε σιωπηλά
-  if (input.fulfilment === "courier" && !q.bulky.courier) return { ok: false as const, error: `${q.bulky.titles[0] ?? "Μια συσκευή"} δεν αποστέλλεται με courier. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
-  if (input.fulfilment === "courier" && q.carriers.length && input.carrier && q.carrier !== input.carrier) return { ok: false as const, error: `Ο courier «${carrierDef(input.carrier)?.name ?? input.carrier}» δεν είναι διαθέσιμος για αυτή τη διεύθυνση. Διάλεξε άλλον.`, quote: publicQuote(q) };
+  if (input.fulfilment === "courier" && !isExpress && !q.bulky.courier) return { ok: false as const, error: `${q.bulky.titles[0] ?? "Μια συσκευή"} δεν αποστέλλεται με courier. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
+  if (input.fulfilment === "courier" && !isExpress && q.carriers.length && input.carrier && q.carrier !== input.carrier) return { ok: false as const, error: `Ο courier «${carrierDef(input.carrier)?.name ?? input.carrier}» δεν είναι διαθέσιμος για αυτή τη διεύθυνση. Διάλεξε άλλον.`, quote: publicQuote(q) };
   if (input.fulfilment === "freight" && !q.freight) return { ok: false as const, error: "Η αποστολή με μεταφορική δεν είναι διαθέσιμη. Διάλεξε άλλον τρόπο παράδοσης.", quote: publicQuote(q) };
   if (input.fulfilment === "freight" && !q.freight!.available) return { ok: false as const, error: `${q.freight!.reason ?? "Ένα προϊόν δεν φεύγει με μεταφορική"}. Διάλεξε «Με ραντεβού» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
   const lockerAt = input.fulfilment === "courier" && carrierDef(q.carrier)?.kind === "locker" ? input.locker ?? null : null;
-  const carrier = input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
+  const carrier = isExpress ? { carrier: "asap", carrierName: "ASAP Express", service: "asap-express", expressFee: q.shipping / 100, expressZone: q.attica.express?.state === "ok" ? q.attica.express.zone : null }
+    : q.attica.attica && input.fulfilment === "appointment" ? { carrierName: "Κανονική παράδοση euronics", service: "euronics-standard" }
+    : input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
     : input.fulfilment === "freight" ? { carrierName: "Μεταφορική" } : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   if (input.expectedTotal != null && input.expectedTotal !== q.total) return { ok: false as const, changed: true, error: "Το σύνολο άλλαξε (τιμή ή προσφορά). Δες το νέο ποσό πριν συνεχίσεις.", quote: publicQuote(q) };
@@ -197,10 +204,10 @@ export async function placeOrder(input: PlaceInput) {
         firstName: input.contact.firstName, number,
         lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
         subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
-        payment: payLabel(input.payment), fulfilment: input.fulfilment,
+        payment: payLabel(input.payment), fulfilment: input.fulfilment, method: "carrierName" in carrier && typeof carrier.carrierName === "string" ? carrier.carrierName : undefined,
         ...(input.payment === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
         address: lockerAt ? `Θυρίδα BOX NOW: ${[lockerAt.name, lockerAt.address, lockerAt.zip].filter(Boolean).join(", ")}` : [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
-        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "σε 2 ώρες" : input.fulfilment === "freight" ? `Μεταφορική · ${q.freight?.eta ?? ""} — θα σας τηλεφωνήσουμε για την παράδοση` : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
+        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "θα λάβετε SMS όταν είναι έτοιμη για παραλαβή" : isExpress ? "ASAP Express · 1–2 ημέρες" : q.attica.attica && input.fulfilment === "appointment" ? q.attica.standard.eta : input.fulfilment === "freight" ? `Μεταφορική · ${q.freight?.eta ?? ""} — θα σας τηλεφωνήσουμε για την παράδοση` : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
       }).catch(() => null);
       if (tpl) await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: result.orderId } }).catch(() => null);
     })();
@@ -219,7 +226,7 @@ export async function placeOrder(input: PlaceInput) {
     return { ok: true as const, number, total: q.total, nextCoupon };
   } catch (e) {
     if (e instanceof Abort && e.reason === "dry-run") return { ok: true as const, dryRun: true, ...(e as Abort & { preview: object }).preview };
-    if (e instanceof Abort) { invalidatePromos(); return { ok: false as const, error: e.reason, quote: publicQuote(await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip: input.address?.zip ?? null, email })) }; }
+    if (e instanceof Abort) { invalidatePromos(); return { ok: false as const, error: e.reason, quote: publicQuote(await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, zip: input.address?.zip ?? null, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null })) }; }
     throw e;
   }
 }

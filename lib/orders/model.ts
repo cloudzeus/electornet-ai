@@ -19,7 +19,7 @@ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone; help
 export const isOrderStatus = (v: unknown): v is OrderStatus => typeof v === "string" && v in ORDER_STATUS;
 export const statusLabel = (s: string) => (isOrderStatus(s) ? ORDER_STATUS[s].label : s);
 
-export const FULFILMENT: Record<Fulfilment, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση με ραντεβού" };
+export const FULFILMENT: Record<Fulfilment, string> = { courier: "Courier", freight: "Μεταφορική", "click-collect": "Παραλαβή από κατάστημα", appointment: "Παράδοση euronics" };
 export const PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Εκκρεμεί", tone: "warn" }, processing: { label: "Σε εξέλιξη", tone: "info" }, review: { label: "Σε έλεγχο", tone: "warn" },
   paid: { label: "Πληρώθηκε", tone: "good" }, failed: { label: "Απέτυχε", tone: "bad" }, cancelled: { label: "Ακυρώθηκε", tone: "neutral" },

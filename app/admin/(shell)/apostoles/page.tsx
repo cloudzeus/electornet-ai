@@ -5,6 +5,9 @@ import { allShippingFacts, getBulkyRules, tallyShipping } from "@/lib/shipping/b
 import { DEFAULT_STORE_ONLY } from "@/lib/shipping/bulky";
 import { getFeatures } from "@/lib/admin/features";
 import { ShippingRules, type ShipCat } from "./ShippingRules";
+import { AsapExpress } from "./AsapExpress";
+import { getAsapRules } from "@/lib/shipping/asap-express-server";
+import { asapConfig } from "@/lib/couriers/asap/client";
 
 export const metadata = { title: "Αποστολές" };
 export const dynamic = "force-dynamic";
@@ -15,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ShippingPage() {
   const user = await requirePermission("catalog.products.read");
-  const [rules, tree, facts, features] = await Promise.all([getBulkyRules(), catalogTree(), allShippingFacts(), getFeatures().catch(() => null)]);
+  const [rules, tree, facts, features, asap, asapCfg] = await Promise.all([getBulkyRules(), catalogTree(), allShippingFacts(), getFeatures().catch(() => null), getAsapRules(), asapConfig().catch(() => null)]);
   const now = tallyShipping(facts, rules);
   // όλες οι κατηγορίες με τη διαδρομή τους (για αναζήτηση), πλήθος προϊόντων και τη γονική
   const cats: ShipCat[] = [];
@@ -27,6 +30,7 @@ export default async function ShippingPage() {
   tree.roots.forEach((r) => walk(r, [], null));
   const couriers = features ? (["geniki", "acs", "boxnow", "elta", "asap"] as const).filter((c) => features[c]) : [];
   return (
+    <div className="grid gap-4 min-w-0 @container">
     <ShippingRules
       cats={cats}
       initial={rules}
@@ -38,5 +42,7 @@ export default async function ShippingPage() {
       canWrite={can(user.permissions, "settings.write")}
       canSettings={user.roles.includes("super-admin")}
     />
+    <AsapExpress cats={cats} initial={asap} asapReady={!!asapCfg} canWrite={can(user.permissions, "settings.write")} />
+    </div>
   );
 }

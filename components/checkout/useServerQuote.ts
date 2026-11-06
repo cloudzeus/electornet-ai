@@ -7,7 +7,7 @@ import type { CartLine } from "@/components/commerce/CartProvider";
 /** Ό,τι στέλνει ο server στον browser (/api/checkout/quote) — ποσά σε λεπτά. */
 export type ServerQuote = Omit<Quote, "engine" | "trace"> & { trace: { name: string; applied: boolean; amount: number; reason: string }[] };
 
-export interface QuoteParams { coupon?: string | null; payment?: string | null; delivery?: string | null; zip?: string | null; email?: string | null; storeId?: string | null; carrier?: string | null }
+export interface QuoteParams { coupon?: string | null; payment?: string | null; delivery?: string | null; zip?: string | null; email?: string | null; storeId?: string | null; carrier?: string | null; street?: string | null; number?: string | null; city?: string | null }
 
 /**
  * Ο υπολογισμός είναι πάντα του server (τιμές, προσφορές, κουπόνι, μεταφορικά): ο browser καθρεφτίζει το καλάθι του
@@ -17,7 +17,9 @@ export function useServerQuote(lines: CartLine[], hydrated: boolean, params: Quo
   const [quote, setQuote] = useState<ServerQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
-  const { coupon = null, payment = null, delivery = null, zip = null, email = null, storeId = null, carrier = null } = params;
+  // η τιμή ASAP Express αργεί (~5″): όσο είναι «pending» ξαναρωτάμε
+  const [tick, setTick] = useState(0);
+  const { coupon = null, payment = null, delivery = null, zip = null, email = null, storeId = null, carrier = null, street = null, number = null, city = null } = params;
   useEffect(() => {
     if (!hydrated) return;
     if (!lines.length) return;
@@ -26,15 +28,15 @@ export function useServerQuote(lines: CartLine[], hydrated: boolean, params: Quo
       setLoading(true);
       try {
         await fetch("/api/cart", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ lines: lines.filter((l) => l.product.fromDb).map((l) => ({ productId: l.product.id, qty: l.qty, addons: l.addons.map((a) => ({ slug: a.slug })) })) }) });
-        const r = await fetch("/api/checkout/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ coupon, payment, delivery, zip, email, storeId, carrier }) });
+        const r = await fetch("/api/checkout/quote", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ coupon, payment, delivery, zip, email, storeId, carrier, street, number, city }) });
         const q = (await r.json()) as ServerQuote;
-        if (my === seq.current) setQuote(q);
+        if (my === seq.current) { setQuote(q); if (q.attica?.express?.state === "pending") setTimeout(() => setTick((n) => n + 1), 1500); }
       } catch { /* μένει ο προηγούμενος υπολογισμός */ } finally {
         if (my === seq.current) setLoading(false);
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [hydrated, lines, coupon, payment, delivery, zip, email, storeId, carrier]);
+  }, [hydrated, lines, coupon, payment, delivery, zip, email, storeId, carrier, street, number, city, tick]);
   return { quote: lines.length ? quote : null, setQuote, loading };
 }
 

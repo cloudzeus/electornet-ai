@@ -27,6 +27,9 @@ interface Saved {
   ful: string;
   store: string | null;
   slot: string;
+  /** Αττική: «standard» = κανονική παράδοση euronics, «express» = ASAP Express */
+  attica?: "standard" | "express" | null;
+  eta?: string;
   lines: { id: string; title: string; brand: string; qty: number; unitPrice: number; addons: { title: string; price: number }[] }[];
   address: { firstName: string; lastName: string; email: string; phone: string; street: string; number: string; city: string; zip: string; invoice: boolean; company: string; vat: string };
   recycle: boolean;
@@ -92,8 +95,18 @@ export function OrderSuccess({ number, bankAccounts = [] }: { number: string; /*
               {o?.pay === "no-card" && <li>{c.oloklirose_tin_aitisi_sto}</li>}
               {o?.ful === "click-collect" ? (
                 <>
-                  <li>Το κατάστημα {o.store} ετοιμάζει την παραγγελία. Θα λάβεις SMS όταν είναι έτοιμη (σε 2 ώρες αν υπάρχει απόθεμα).</li>
+                  <li>Το κατάστημα {o.store} ετοιμάζει την παραγγελία. Θα λάβεις SMS όταν είναι έτοιμη για παραλαβή.</li>
                   <li>{c.paralamvaneis_me_ton_arithmo}</li>
+                </>
+              ) : o?.attica === "standard" ? (
+                <>
+                  <li>Η παραγγελία σου παραδίδεται από το δίκτυο καταστημάτων euronics ({o.eta}). Θα σε καλέσουμε πριν την παράδοση.</li>
+                  <li>Την ημέρα της παράδοσης έλεγξε τη συσκευασία πριν υπογράψεις.{o.recycle ? " Ζήτησες και παραλαβή της παλιάς συσκευής για ανακύκλωση." : ""}</li>
+                </>
+              ) : o?.attica === "express" ? (
+                <>
+                  <li>Η παραγγελία φεύγει με ASAP Express και παραδίδεται σε 1–2 ημέρες.</li>
+                  <li>Όταν ο οδηγός ξεκινήσει, θα λάβεις SMS με την ώρα άφιξης και σύνδεσμο για να τον δεις στον χάρτη.</li>
                 </>
               ) : o?.ful === "appointment" ? (
                 <>

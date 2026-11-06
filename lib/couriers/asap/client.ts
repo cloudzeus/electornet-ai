@@ -23,12 +23,12 @@ export async function asapConfig(): Promise<AsapConfig | null> {
 }
 
 /** Υπογεγραμμένο αίτημα· το σώμα στέλνεται ακριβώς όπως υπογράφηκε. Σφάλμα → AsapError με το μήνυμα του API. */
-async function call<T>(c: AsapConfig, method: "GET" | "POST", path: string, opts: { query?: Record<string, string>; body?: unknown; raw?: boolean } = {}): Promise<T> {
+async function call<T>(c: AsapConfig, method: "GET" | "POST", path: string, opts: { query?: Record<string, string>; body?: unknown; raw?: boolean; timeoutMs?: number } = {}): Promise<T> {
   const body = opts.body === undefined ? null : JSON.stringify(opts.body);
   const time = String(Math.floor(Date.now() / 1000));
   const url = `${c.base}${path}${opts.query ? `?${new URLSearchParams(opts.query)}` : ""}`;
   const r = await fetch(url, {
-    method, cache: "no-store", signal: AbortSignal.timeout(45000),
+    method, cache: "no-store", signal: AbortSignal.timeout(opts.timeoutMs ?? 45000),
     headers: { "content-type": "application/json", accept: opts.raw ? "application/pdf, application/json" : "application/json", authorization: `Bearer ${c.clientId}`, "x-time": time, "x-sign": asapSign({ clientId: c.clientId, secret: c.secret, time, body }), "accept-language": "el-GR" },
     ...(body ? { body } : {}),
   });
@@ -43,9 +43,25 @@ async function call<T>(c: AsapConfig, method: "GET" | "POST", path: string, opts
 /** Δοκιμή σύνδεσης: λίστα αποθηκών του λογαριασμού. */
 export async function asapPing(c: AsapConfig) { await call(c, "GET", "/depots"); return true; }
 
+/** Η αποθήκη παραλαβής του λογαριασμού (σημείο «από» για την τιμή). */
+export async function asapDepot(c: AsapConfig, timeoutMs?: number): Promise<{ lat: number; lon: number } | null> {
+  const j = await call<{ items?: { companyDepot?: { address?: { lat?: number; lon?: number } } }[] }>(c, "GET", "/depots", { timeoutMs });
+  const a = j.items?.find((d) => d.companyDepot?.address?.lat)?.companyDepot?.address;
+  return a?.lat && a.lon ? { lat: Number(a.lat), lon: Number(a.lon) } : null;
+}
+
+/** Τιμή αποστολής από τον συμβολαιακό τιμοκατάλογο (service_types 3 = Next Day, paid_by 1 = ο αποστολέας). */
+export async function asapPriceQuote(c: AsapConfig, from: { lat: number; lon: number }, to: { lat: number; lon: number }, pkg: { weightKg: number; dims: [number, number, number] }, timeoutMs?: number): Promise<unknown> {
+  return call(c, "POST", "/voucher-price-calculator", { timeoutMs, body: {
+    pickup_stop_point_location: from, delivery_stop_point_location: to,
+    mass_and_dimensions: [{ mass: pkg.weightKg, length: pkg.dims[0], width: pkg.dims[1], height: pkg.dims[2], count: 1 }],
+    courier_company_ids: [c.courierId], service_types: 3, shipment_type: 1, paid_by: 1, payment_method: 0,
+  } });
+}
+
 /** Συντεταγμένες μιας διεύθυνσης (υποχρεωτικές για τον παραλήπτη) από την υπηρεσία του LastMily. */
-export async function asapGeocode(c: AsapConfig, a: AsapAddress): Promise<{ lat: number; lon: number } | null> {
-  const j = await call<{ items?: { position?: [number, number] | { lat: number; lng: number } }[] }>(c, "GET", "/address-lookup", { query: { searchAddress: geoQuery(a), countryCode: "GRC" } });
+export async function asapGeocode(c: AsapConfig, a: AsapAddress, timeoutMs?: number): Promise<{ lat: number; lon: number } | null> {
+  const j = await call<{ items?: { position?: [number, number] | { lat: number; lng: number } }[] }>(c, "GET", "/address-lookup", { timeoutMs, query: { searchAddress: geoQuery(a), countryCode: "GRC" } });
   const p = j.items?.[0]?.position;
   if (!p) return null;
   return Array.isArray(p) ? { lat: Number(p[0]), lon: Number(p[1]) } : { lat: Number(p.lat), lon: Number(p.lng) };

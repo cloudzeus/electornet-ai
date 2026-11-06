@@ -217,7 +217,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
           <div className="grid grid-cols-1 @xl:grid-cols-3 gap-3">
             {[
               { icon: Truck, t: "Στη διεύθυνσή σου", s: shipping === 0 ? "Δωρεάν · 1–3 εργάσιμες" : `${priceLong(shipping)} · 1–3 εργάσιμες` },
-              { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν · έτοιμη σε 2 ώρες" },
+              { icon: StoreIcon, t: "Παραλαβή από κατάστημα", s: "Δωρεάν · SMS όταν είναι έτοιμη" },
               { icon: RotateCcw, t: "Άλλαξες γνώμη;", s: "14 ημέρες δωρεάν επιστροφή" },
             ].map((x) => (
               <div key={x.t} className="rounded-xl bg-eu-surface p-4 flex items-center gap-3">
