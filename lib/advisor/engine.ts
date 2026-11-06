@@ -12,8 +12,8 @@ import { fitVerdict, type MySpace } from "@/lib/space/fit";
 import type { Product } from "@/lib/data/types";
 import type { AdvisorAnswer } from "./answer";
 
-/** όλα τα είδη του καταλόγου (ενεργά ή όχι, με ή χωρίς απόθεμα/φωτογραφία) */
-const WIDE: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES } };
+/** όλα τα ενεργά είδη του SoftOne με φωτογραφία, με ή χωρίς απόθεμα (και όσα δεν πωλούνται μόνα τους ή δεν πέρασαν τον έλεγχο πληρότητας) */
+const WIDE: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, media: { some: { kind: "image", hidden: false } } };
 const scope = new AsyncLocalStorage<Prisma.ProductWhereInput>();
 /** ο κατάλογος που βλέπει αυτή η ερώτηση */
 const listed = () => scope.getStore() ?? LISTED;
