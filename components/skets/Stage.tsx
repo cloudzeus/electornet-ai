@@ -274,7 +274,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
   /** η ατάκα του παρουσιαστή εξετάζεται (σενάριο ή ελεύθερη ερώτηση) */
   const [turnBusy, setTurnBusy] = useState(false);
   const [heard, setHeard] = useState<{ said: string; route: string; i: number } | null>(null);
-  // χωρίς σενάριο (?free=1): ακούει πάντα, εκτός όσο μιλά ο Ερμής ή εξετάζεται η προηγούμενη ατάκα — η απάντηση μένει στην οθόνη
+  // χωρίς σενάριο (προεπιλογή· &script=1 για το σενάριο): ακούει πάντα, εκτός όσο μιλά ο Ερμής ή εξετάζεται η προηγούμενη ατάκα — η απάντηση μένει στην οθόνη
   const hearing = free ? !reel && auto && !!mic && !liveSp.speaking && !listening && !turnBusy && beat.wait !== "call" : !reel && auto && !!mic && (beat.wait === "presenter" || (beat.wait === "store" && store === null)) && !speaking && !live && !listening && !turnBusy && i < beats.length - 1;
   const onTurn = (audio: Blob | null) => {
     // η πρώτη ατάκα (έναρξη) και ό,τι δεν είναι ατάκα με «» προχωρούν αμέσως· οι άλλες: σενάριο ή ελεύθερη απάντηση
@@ -416,7 +416,7 @@ export default function Stage({ snap, k, rehearsal, dry, auto: autoDefault = tru
             </main>
           )}
         </div>
-        <AnimatePresence>{(listening || (live && !(live.quiet && !live.products?.length))) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} />}</AnimatePresence>
+        <AnimatePresence>{(listening || (live && !(live.quiet && !live.products?.length))) && <LivePanel key="live" live={live} listening={listening} extras={extras} presenter={snap.presenter.name} wide={free} />}</AnimatePresence>
       </LayoutGroup>
       {ops && <Dock step={`${i + 1}/${beats.length} · ${beat.id}`} auto={auto} mic={!!mic} hearing={hearing} meter={meter} onAuto={() => setAuto((x) => !x)} onArm={armMic} idle={i === 0} live={!!(live || listening)} listening={listening} wait={beat.wait} cue={beat.cue ?? null} needStore={beat.wait === "store" && store === null} command={command} onTalkDown={pttDown} onTalkUp={pttUp} />}
     </div>
@@ -743,11 +743,12 @@ function DoneCard({ snap, alts, store, extras }: { snap: Snapshot; alts: Alts; s
  * Η ζωντανή ερώτηση του κοινού πάνω από τη σκηνή: η ερώτηση όπως ακούστηκε, «ψάχνω στον κατάλογο», και τα προϊόντα που
  * πρότεινε ο Ερμής του eshop (πραγματικά, από τη βάση). Ό,τι μπει στο σπίτι από το τηλεχειριστήριο σημαδεύεται.
  */
-function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null; listening: boolean; extras: LiveProduct[]; presenter: string }) {
+/** wide: σκηνή χωρίς σενάριο — όλο το πλάτος, έως 6 προϊόντα σε μία σειρά */
+function LivePanel({ live, listening, extras, presenter, wide = false }: { live: LiveEv | null; listening: boolean; extras: LiveProduct[]; presenter: string; wide?: boolean }) {
   const q = listening ? null : live?.q && live.q !== "…" ? live.q : null;
   const searching = !listening && (!live || live.phase === "thinking");
   return (
-    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={spring} className="absolute right-[2.5vw] top-[11vh] bottom-[4vh] w-[64vw] z-[800] rounded-[1.8rem] bg-[#0b1d42] ring-1 ring-white/10 shadow-[0_16px_48px_rgb(0_0_0/0.35)] p-[3vh_2.4vw] flex flex-col gap-[3vh]">
+    <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} transition={spring} className={`absolute right-[2.5vw] top-[11vh] bottom-[4vh] ${wide ? "left-[2.5vw]" : "w-[64vw]"} z-[800] rounded-[1.8rem] bg-[#0b1d42] ring-1 ring-white/10 shadow-[0_16px_48px_rgb(0_0_0/0.35)] p-[3vh_2.4vw] flex flex-col gap-[3vh]`}>
       <div>
         <div className="font-medium text-eu-yellow text-[length:var(--fs-16)]">{live?.quiet ? presenter : "Ερώτηση από το κοινό"}</div>
         <AnimatePresence mode="wait">
@@ -770,7 +771,7 @@ function LivePanel({ live, listening, extras, presenter }: { live: LiveEv | null
               {(live?.products ?? []).map((p, n) => {
                 const added = extras.some((x) => x.id === p.id);
                 return (
-                  <motion.article key={p.id} initial={{ opacity: 0, y: 60, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: added ? 1.05 : 1 }} transition={{ ...spring, delay: n * 0.18 }} className={`relative w-[17vw] flex flex-col rounded-[1.4rem] bg-white text-eu-ink overflow-hidden ${added ? "ring-[6px] ring-eu-yellow" : ""}`}>
+                  <motion.article key={p.id} initial={{ opacity: 0, y: 60, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: added ? 1.05 : 1 }} transition={{ ...spring, delay: n * 0.18 }} className={`relative ${wide ? "w-[14.2vw]" : "w-[17vw]"} flex flex-col rounded-[1.4rem] bg-white text-eu-ink overflow-hidden ${added ? "ring-[6px] ring-eu-yellow" : ""}`}>
                     <div className="relative aspect-[4/3] shrink-0 bg-eu-surface">
                       {p.image && <img src={p.image} alt="" className="absolute inset-0 m-auto max-h-[88%] max-w-[88%] object-contain mix-blend-multiply" />}
                     </div>

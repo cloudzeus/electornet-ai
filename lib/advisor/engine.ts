@@ -38,7 +38,7 @@ import { nearestStores, type NearResult } from "./stores";
 export interface Turn { role: "user" | "advisor"; text: string; products?: string[] }
 export interface AdvisorState { types: number[]; typeNames: string[]; brands: string[]; minPrice: number | null; maxPrice: number | null; maxWidth: number | null; maxHeight: number | null; maxDepth: number | null; inStockOnly: boolean; needs: string[]; priority: "price" | "quality" | "energy" | "quiet" | null; sizing: string | null; /** διεύθυνση / περιοχή / Τ.Κ. που έδωσε ο πελάτης — για το κοντινότερο κατάστημα */ place?: string | null }
 export interface AdvisorInput { q: string; thread?: Turn[]; shown?: string[]; state?: AdvisorState | null; prev?: string; space?: MySpace | null; pid?: string }
-export interface AdvisorContext { name: string; /** και τα ανενεργά με απόθεμα (μόνο η σκηνή του Ερμή — το site δείχνει ό,τι δημοσιεύεται) */ wider?: boolean; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
+export interface AdvisorContext { name: string; /** και τα ανενεργά με απόθεμα (μόνο η σκηνή του Ερμή — το site δείχνει ό,τι δημοσιεύεται) */ wider?: boolean; /** πόσες προτάσεις (3 στο site, 6 στη σκηνή) */ picks?: number; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
 export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[] };
 
 /** Τα βήματα κατανόησης και έρευνας θέλουν ταχύτητα, όχι ευγλωττία: μικρό γρήγορο μοντέλο (αλλάζει με ADVISOR_ROUTER_MODEL). Η απάντηση γράφεται από το κύριο. */
@@ -375,14 +375,14 @@ async function compose(input: AdvisorInput, ctx: AdvisorContext, u: Understood, 
 - Κλείνεις με ΜΙΑ ερώτηση μόνο όταν χρειάζεται όντως κάτι για να αποφασίσεις· αν ο πελάτης έχει δώσει αρκετά, δίνεις τη σύστασή σου και τελειώνεις. Ποτέ ερώτηση που έχει ήδη απαντηθεί στο νήμα.
 - ΚΑΤΑΣΤΗΜΑΤΑ: αν δίνεται nearestStores με found=true, λες ποιο είναι το κοντινότερο κατάστημα στη διεύθυνσή του — όνομα, διεύθυνση και πόλη, απόσταση σε χιλιόμετρα (στρογγυλά), τηλέφωνο και το σημερινό ωράριο — και, αν είναι κοντά (έως ~2 km διαφορά), ένα δεύτερο ως εναλλακτική. Αν found=false, λες ότι δεν εντόπισες τη διεύθυνση και ζητάς Τ.Κ. ή περιοχή. Αν nearestStores.needPlace=true, ζητάς διεύθυνση, περιοχή ή Τ.Κ. για να του πεις το κοντινότερο. ΔΕΝ έχουμε καταγεγραμμένο τι έχει κάθε κατάστημα στην έκθεση ή στο απόθεμα: ποτέ μη λες ότι ένα κατάστημα έχει συγκεκριμένο μοντέλο — προτείνεις να τηλεφωνήσει πριν πάει. Ποτέ διεύθυνση ή τηλέφωνο καταστήματος εκτός nearestStores.
 - Δεν αναφέρεις ότι είσαι AI.
-Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}. Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
+Απαντάς ΜΟΝΟ με JSON: {"text": string (έως 90 λέξεις· για kind=advice έως 120), "picks": [{"i": number, "why": string (έως 16 λέξεις, το όφελος με απλά λόγια και το νούμερο που το στηρίζει)}]}.${(ctx.picks ?? 3) > 3 ? ` Δώσε έως ${ctx.picks} picks (όσα δελτία ταιριάζουν), με εύρος μαρκών, μεγεθών και τιμών, ώστε ο πελάτης να έχει πραγματική επιλογή.` : ""} Για kind=advice: πρώτα απαντάς στην απορία με την ΤΕΧΝΟΓΝΩΣΙΑ, απλά και καθαρά, και μετά (αν υπάρχουν δελτία) δείχνεις 1–2 παραδείγματα από τον κατάλογο που την επιβεβαιώνουν. Για ερώτηση πολιτικής (kind=info) ή χωρίς δελτία: picks=[].
 ${EXPERTISE}` },
       { role: "user", content: JSON.stringify({ thread, question: input.q, kind: u.kind, understood: u.understood, sizing: u.sizing, priority: u.priority, customerSpace: input.space ?? null, viewingNow: viewing, notes: { productTypes: notes.typeNames, matchingInCatalogue: notes.total, relaxed: notes.relaxed, answeringAboutAlreadyShown: notes.focusShown }, storePolicy: policy(ctx.commerce), nearestStores: near ? { searchedFor: near.searched, found: near.found, locatedAs: near.located, stores: near.stores.map((x) => ({ name: x.name, address: x.address, city: x.city, zip: x.zip, phone: x.phone, km: x.km, today: x.today, openNow: x.openNow, services: x.services })) } : u.aboutStores ? { needPlace: true } : undefined, kwhPriceEur: ctx.kwhPrice ?? 0.19, dossiers: items.map((s, i) => ({ i, ...s, fitKind: undefined })) }) },
     ],
   }).catch(() => null);
   const j = r ? parseJson<{ text?: string; picks?: { i?: number; why?: string }[] }>(r.text) : null;
   if (!j?.text || j.text.trim().length < 20) return null;
-  const picks = (j.picks ?? []).filter((p): p is { i: number; why: string } => Number.isInteger(p.i) && p.i! >= 0 && p.i! < items.length && typeof p.why === "string").filter((p, k, a) => a.findIndex((x) => x.i === p.i) === k).slice(0, 3);
+  const picks = (j.picks ?? []).filter((p): p is { i: number; why: string } => Number.isInteger(p.i) && p.i! >= 0 && p.i! < items.length && typeof p.why === "string").filter((p, k, a) => a.findIndex((x) => x.i === p.i) === k).slice(0, ctx.picks ?? 3);
   return { text: j.text.trim(), picks };
 }
 
@@ -445,7 +445,7 @@ async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<Advisor
   mark("stores");
   const written = ai ? await compose({ ...input, thread }, ctx, u, items, viewingDossier, { relaxed, total, typeNames: u.typeNames, focusShown: u.focus === "shown" }, near) : null;
   mark("compose"); if (process.env.ADVISOR_DEBUG) console.log("      [advisor]", lap.join(" · "));
-  const picks = written?.picks.length ? written.picks : items.slice(0, 3).map((s, i) => ({ i, why: [s.energyClass ? `κλάση ${s.energyClass}` : null, ...s.specs.slice(0, 2), s.availability].filter(Boolean).join(" · ") }));
+  const picks = written?.picks.length ? written.picks : items.slice(0, ctx.picks ?? 3).map((s, i) => ({ i, why: [s.energyClass ? `κλάση ${s.energyClass}` : null, ...s.specs.slice(0, 2), s.availability].filter(Boolean).join(" · ") }));
   const s0 = near?.found ? near.stores[0] : null;
   const storeLine = s0 ? `Το κοντινότερο κατάστημα είναι το ${s0.name}, ${s0.address}, ${s0.city} (${s0.km.toLocaleString("el-GR")} km)${s0.phone ? `, τηλ. ${s0.phone}` : ""}, ${s0.today}.` : near && !near.found ? "Δεν εντόπισα τη διεύθυνση. Πες μου τον Τ.Κ. ή την περιοχή σου." : null;
   const text = written?.text ?? (storeLine && !candidates.length ? storeLine : candidates.length

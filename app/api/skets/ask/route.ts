@@ -86,11 +86,11 @@ export async function POST(req: Request) {
   const settings = await getSettings();
   const r = await smartAdvisor(
     { q, thread: [...seed(free), ...mem.thread].slice(-12), shown: mem.shown, state: mem.state },
-    { name: settings.advisor.name, kwhPrice: settings.site.commerce.kwhPrice, commerce: settings.site.commerce, wider: free },
+    { name: settings.advisor.name, kwhPrice: settings.site.commerce.kwhPrice, commerce: settings.site.commerce, wider: free, picks: free ? 6 : 3 },
   ).catch((e) => { console.error("[skets ask]", e instanceof Error ? e.message : e); return null; });
   if (!r) { if (free) log({ said: q, route: "error", mic }); return fail(n, q, free ? "Ο κατάλογος δεν απάντησε. Ξαναρωτήστε με, παρακαλώ." : "Ο κατάλογος δεν απάντησε. Πάμε πίσω στο σενάριο."); }
 
-  const products: LiveProduct[] = r.products.slice(0, 3).map((p) => ({ id: p.id, brand: p.brand, title: p.title, price: p.price, image: p.image, why: p.why }));
+  const products: LiveProduct[] = r.products.slice(0, free ? 6 : 3).map((p) => ({ id: p.id, brand: p.brand, title: p.title, price: p.price, image: p.image, why: p.why }));
   const text = liveSpoken(r.text);
   mem.thread.push({ role: "user", text: q }, { role: "advisor", text: r.text, products: products.map((p) => p.id) });
   mem.state = r.state; mem.shown = r.shown;

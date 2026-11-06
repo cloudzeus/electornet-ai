@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { advisorAnswer } from "@/lib/advisor/answer";
 import { smartAdvisor, type AdvisorState, type Turn } from "@/lib/advisor/engine";
 import { advisorCompose } from "@/lib/ai/tasks";
@@ -23,12 +24,18 @@ async function answer(b: Body) {
   const n = Array.isArray(b.niche) ? b.niche.map(Number) : [];
   const space: MySpace | null = door > 0 ? { door, lift: true, ...(n.length === 3 && n.every((x) => x > 0) ? { niche: { w: n[0], h: n[1], d: n[2] } } : {}) } : null;
   const thread = (Array.isArray(b.thread) ? b.thread : []).filter((t) => (t.role === "user" || t.role === "advisor") && typeof t.text === "string").slice(-12).map((t) => ({ role: t.role, text: t.text.slice(0, 600), products: Array.isArray(t.products) ? t.products.filter((x) => typeof x === "string").slice(0, 4) : undefined }));
-  const settings = await getSettings();
+  const settings = await getSettings(), t0 = Date.now();
   const smart = await smartAdvisor({ q, thread, shown: Array.isArray(b.shown) ? b.shown.filter((x) => typeof x === "string").slice(-12) : [], state: b.state && typeof b.state === "object" ? b.state : null, prev: typeof b.prev === "string" ? b.prev.slice(0, 300) : undefined, pid: typeof b.pid === "string" ? b.pid : undefined, space }, { name: settings.advisor.name, kwhPrice: settings.site.commerce.kwhPrice, commerce: settings.site.commerce }).catch((e) => { console.error("[advisor]", e instanceof Error ? e.message : e); return null; });
-  if (smart) return NextResponse.json(smart, { headers: { "cache-control": "no-store" } });
+  if (smart) { keep(q, thread.length, b.pid, smart.text, smart.products.map((p) => `${p.brand} ${p.title}`), Date.now() - t0); return NextResponse.json(smart, { headers: { "cache-control": "no-store" } }); }
   const base = advisorAnswer(q, space);
   const out = await advisorCompose(base, { name: settings.advisor.name, context: door ? `πόρτα ${door} εκ.` : undefined }).catch(() => base);
   return NextResponse.json(out, { headers: { "cache-control": "no-store" } });
+}
+
+/** κάθε ερώτηση και απάντηση κρατιέται για την εκπαίδευση του Ερμή (χωρίς emails/τηλέφωνα πελατών) */
+const redact = (t: string) => t.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[email]").replace(/(?:\+?30[\s-]?)?(?:2\d|69)(?:[\s-]?\d){8}/g, "[τηλέφωνο]");
+function keep(q: string, turn: number, pid: string | undefined, text: string, products: string[], ms: number) {
+  after(() => db.auditLog.create({ data: { action: "advisor.turn", entity: "Advisor", entityId: typeof pid === "string" ? pid.slice(0, 64) : null, after: { q: redact(q), turn, text: redact(text), products: products.slice(0, 6), ms } } }).then(() => {}, () => {}));
 }
 
 export async function POST(req: Request) {
