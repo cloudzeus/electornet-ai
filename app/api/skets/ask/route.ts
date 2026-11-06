@@ -7,6 +7,7 @@ import { liveAudio, speakParts } from "@/lib/skets/speak-live";
 import { liveMemory, resetLiveMemory } from "@/lib/skets/live";
 import { smartAdvisor, type Turn } from "@/lib/advisor/engine";
 import { getSettings } from "@/lib/cms/settings-server";
+import { emailCart } from "@/lib/cart/email";
 import { transcribe } from "@/lib/voice/stt";
 import snapshot from "@/lib/skets/snapshot.json";
 import type { LiveEv, LiveProduct, Snapshot } from "@/lib/skets/types";
@@ -17,6 +18,7 @@ const GREETING = `Καλησπέρα σας, ${snap.presenter.vocative}! Πώς 
 const plain = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 /** όλη η ατάκα είναι χαιρετισμός (με ή χωρίς το όνομα του Ερμή, και με τα συνηθισμένα λάθη της αναγνώρισης) */
 const GREET = /^[\s,.!;]*((γεια( σου| σας)?|καλησπερα( σας)?|καλημερα( σας)?|χαιρετε|χαιρετω|γεια χαρα|ωραια|ερμη|ερμης|ερμι|ρεμπε|ρι|εμνη)[\s,.!;]*)+$/u;
+const SEND = /στειλ|στελν|προωθ/u, MAILISH = /mail|ιμει?λ|μει?λ|ηλεκτρονικ|προσφορ/u;
 const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 
 /** Ο Ερμής του eshop ξέρει από την αρχή τι έγινε στη σκηνή: ποιος, πού, τι διαλέξατε. */
@@ -59,13 +61,17 @@ export async function POST(req: Request) {
     if (!t.ok || !heard) return fail(n, "", "Δεν άκουσα καλά. Ξαναπές το πιο κοντά στο μικρόφωνο.");
     q = heard;
   } else {
-    const b = (await req.json().catch(() => ({}))) as { q?: string; reset?: boolean };
+    const b = (await req.json().catch(() => ({}))) as { q?: string; reset?: boolean; free?: boolean };
+    free = b.free === true;
     if (b.reset) { resetLiveMemory(); return NextResponse.json({ ok: true }); }
     q = (b.q ?? "").trim().slice(0, 300);
     if (!q) return NextResponse.json({ error: "q required" }, { status: 400 });
   }
   sendLive({ n, phase: "thinking", q, quiet: free || undefined });
   const tAsk = Date.now();
+
+  // «στείλτε μου την προσφορά στο email»: οι συσκευές που φάνηκαν στη σκηνή, στο σταθερό email του παρουσιαστή (SKETS_EMAIL)
+  if (free && SEND.test(plain(q)) && MAILISH.test(plain(q))) return sendOffer(n, q, mic, req.headers.get("x-skets-key") ?? "");
 
   // σκέτος χαιρετισμός («Γεια σου Ερμή», «Καλησπέρα»): αμέσως η ηχογραφημένη απάντηση, χωρίς τον κατάλογο
   if (free && GREET.test(plain(q)) && q.split(/\s+/).length <= 6 && snap.voice[GREETING]) {
@@ -80,7 +86,7 @@ export async function POST(req: Request) {
   const settings = await getSettings();
   const r = await smartAdvisor(
     { q, thread: [...seed(free), ...mem.thread].slice(-12), shown: mem.shown, state: mem.state },
-    { name: settings.advisor.name, kwhPrice: settings.site.commerce.kwhPrice, commerce: settings.site.commerce },
+    { name: settings.advisor.name, kwhPrice: settings.site.commerce.kwhPrice, commerce: settings.site.commerce, wider: free },
   ).catch((e) => { console.error("[skets ask]", e instanceof Error ? e.message : e); return null; });
   if (!r) { if (free) log({ said: q, route: "error", mic }); return fail(n, q, free ? "Ο κατάλογος δεν απάντησε. Ξαναρωτήστε με, παρακαλώ." : "Ο κατάλογος δεν απάντησε. Πάμε πίσω στο σενάριο."); }
 
@@ -97,6 +103,22 @@ export async function POST(req: Request) {
   if (free) log({ said: q, route: "free", say: text, mic, ms: { stt: tAsk - n, advisor: tSpeak - tAsk, firstAudio: first } });
   // για την πρόβα: πού πάει ο χρόνος (ms)
   return NextResponse.json({ ...ev, ms: { stt: tAsk - n, advisor: tSpeak - tAsk, firstAudio: first, tts: Date.now() - tSpeak } });
+}
+
+async function sendOffer(n: number, q: string, mic: string, key: string) {
+  const mem = liveMemory(), to = process.env.SKETS_EMAIL?.trim();
+  const shown = [...mem.products.values()].slice(-8);
+  const r = !to || !shown.length ? null : await emailCart({ email: to, lines: shown.map((p) => ({ productId: p.id, qty: 1 })), guest: true, template: "advisor-offer", firstName: snap.presenter.vocative, source: "skets", maxPerHour: 30 }).catch((e) => { console.error("[skets offer]", e instanceof Error ? e.message : e); return null; });
+  const text = !to ? "Δεν έχω ορισμένο email για να σας τη στείλω, κύριε Δριβάκο. Θα σας την ετοιμάσει το κατάστημα."
+    : !shown.length ? "Δεν έχουμε δει ακόμα συσκευές μαζί, κύριε Δριβάκο. Πείτε μου τι χρειάζεστε και θα σας στείλω την προσφορά."
+    : r?.ok && r.sent ? `Μόλις σας έστειλα την προσφορά στο email σας: ${r.count === 1 ? "ένα προϊόν" : `${r.count} προϊόντα`}, σύνολο ${eur(r.total)}.`
+    : "Δεν μπόρεσα να στείλω το email αυτή τη στιγμή, κύριε Δριβάκο. Θα το ξαναδοκιμάσουμε σε λίγο.";
+  const ev: LiveEv = { n, phase: "answer", q, text, products: shown.slice(-3), quiet: true };
+  mem.thread.push({ role: "user", text: q }, { role: "advisor", text });
+  sendLive(ev);
+  const first = await speakParts(ev, key);
+  log({ said: q, route: "email", say: text, sent: !!r?.sent, count: r?.ok ? r.count : 0, error: r && !r.ok ? r.error : undefined, mic, ms: { firstAudio: first } });
+  return NextResponse.json(ev);
 }
 
 /** ατάκες της σκηνής χωρίς σενάριο: στο ίδιο log με τις υπόλοιπες (σελίδα εκπαίδευσης, διάγνωση μικροφώνου) */

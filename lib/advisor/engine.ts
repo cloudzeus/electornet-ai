@@ -3,13 +3,20 @@ import { pickDims } from "@/lib/catalog/dimensions";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { chat, getAi, overBudget, parseJson } from "@/lib/ai/openrouter";
-import { catalogTree, dbProductsByIds, hrefOf, LISTED, type CatNode } from "@/lib/data/db-catalog";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { catalogTree, dbProductsByIds, hrefOf, LISTED, SHOP_SOURCES, type CatNode } from "@/lib/data/db-catalog";
 import { rankCandidates } from "./rank";
 import { searchVector } from "@/lib/vector/index";
 import { dimsFor, fitMattersFor } from "@/lib/data/dims";
 import { fitVerdict, type MySpace } from "@/lib/space/fit";
 import type { Product } from "@/lib/data/types";
 import type { AdvisorAnswer } from "./answer";
+
+/** όλα τα είδη του καταλόγου (ενεργά ή όχι, με ή χωρίς απόθεμα/φωτογραφία) */
+const WIDE: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES } };
+const scope = new AsyncLocalStorage<Prisma.ProductWhereInput>();
+/** ο κατάλογος που βλέπει αυτή η ερώτηση */
+const listed = () => scope.getStore() ?? LISTED;
 import { nearestStores, type NearResult } from "./stores";
 
 /**
@@ -31,7 +38,7 @@ import { nearestStores, type NearResult } from "./stores";
 export interface Turn { role: "user" | "advisor"; text: string; products?: string[] }
 export interface AdvisorState { types: number[]; typeNames: string[]; brands: string[]; minPrice: number | null; maxPrice: number | null; maxWidth: number | null; maxHeight: number | null; maxDepth: number | null; inStockOnly: boolean; needs: string[]; priority: "price" | "quality" | "energy" | "quiet" | null; sizing: string | null; /** διεύθυνση / περιοχή / Τ.Κ. που έδωσε ο πελάτης — για το κοντινότερο κατάστημα */ place?: string | null }
 export interface AdvisorInput { q: string; thread?: Turn[]; shown?: string[]; state?: AdvisorState | null; prev?: string; space?: MySpace | null; pid?: string }
-export interface AdvisorContext { name: string; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
+export interface AdvisorContext { name: string; /** και τα ανενεργά με απόθεμα (μόνο η σκηνή του Ερμή — το site δείχνει ό,τι δημοσιεύεται) */ wider?: boolean; /** τιμή kWh για εκτίμηση κόστους λειτουργίας */ kwhPrice?: number; commerce: { freeShippingFrom: number; returnDays: number; warrantyYears: number; maxInstalments: number; noCardInstalments: { min: number; max: number; months: number }; codMax: number; codFee: number; clickCollectHours: number } }
 export type AdvisorReply = AdvisorAnswer & { state: AdvisorState; shown: string[] };
 
 /** Τα βήματα κατανόησης και έρευνας θέλουν ταχύτητα, όχι ευγλωττία: μικρό γρήγορο μοντέλο (αλλάζει με ADVISOR_ROUTER_MODEL). Η απάντηση γράφεται από το κύριο. */
@@ -74,11 +81,12 @@ const EXPERTISE = `ΤΕΧΝΟΓΝΩΣΙΑ ΠΩΛΗΤΗ (Ελλάδα) — για
 // ---------- 1. Κατανόηση ----------
 
 interface TypeRow { i: number; node: CatNode; path: CatNode[]; label: string; hint: string }
-let hintCache: { at: number; v: Map<string, string> } | null = null;
+const hintCache = new Map<boolean, { at: number; v: Map<string, string> }>();
 /** Τι ΠΩΛΕΙΤΑΙ κάτω από κάθε τύπο, από τους τίτλους των προϊόντων του: οι «Φριτέζες» είναι air fryers, τα «Handsfree Bluetooth» earbuds. */
 async function typeHints(): Promise<Map<string, string>> {
-  if (hintCache && Date.now() - hintCache.at < 30 * 60_000) return hintCache.v;
-  const rows = await db.product.findMany({ where: LISTED, select: { categoryId: true, title: true, brand: { select: { name: true } } } });
+  const wide = !!scope.getStore(), hc = hintCache.get(wide);
+  if (hc && Date.now() - hc.at < 30 * 60_000) return hc.v;
+  const rows = await db.product.findMany({ where: listed(), select: { categoryId: true, title: true, brand: { select: { name: true } } } });
   const by = new Map<string, { n: number; words: Map<string, number> }>();
   for (const r of rows) {
     const e = by.get(r.categoryId) ?? { n: 0, words: new Map<string, number>() }; e.n++;
@@ -87,13 +95,21 @@ async function typeHints(): Promise<Map<string, string>> {
     by.set(r.categoryId, e);
   }
   const v = new Map([...by.entries()].map(([id, e]) => [id, [...e.words.entries()].filter(([, c]) => c >= Math.max(3, e.n * 0.12)).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([w]) => w).join(", ")]));
-  hintCache = { at: Date.now(), v };
+  hintCache.set(wide, { at: Date.now(), v });
   return v;
 }
+let wideCache: { at: number; v: Set<string> } | null = null;
+/** κατηγορίες με είδη στον πλήρη κατάλογο (και όσες δεν έχουν κανένα δημοσιευμένο) */
+async function wideCategories(): Promise<Set<string>> {
+  if (wideCache && Date.now() - wideCache.at < 30 * 60_000) return wideCache.v;
+  const rows = await db.product.groupBy({ by: ["categoryId"], where: WIDE });
+  wideCache = { at: Date.now(), v: new Set(rows.map((r) => r.categoryId)) };
+  return wideCache.v;
+}
 async function typeList(): Promise<TypeRow[]> {
-  const [t, hints] = await Promise.all([catalogTree(), typeHints()]);
+  const [t, hints, wideCats] = await Promise.all([catalogTree(), typeHints(), scope.getStore() ? wideCategories() : null]);
   const up = (n: CatNode): CatNode[] => (n.parentId && t.byId.get(n.parentId) ? [...up(t.byId.get(n.parentId)!), n] : [n]);
-  return [...t.byId.values()].filter((n) => n.depth === 2 && n.count > 0).map((node, i) => { const path = up(node); return { i, node, path, label: path.map((p) => p.name).join(" › "), hint: hints.get(node.id) ?? "" }; });
+  return [...t.byId.values()].filter((n) => n.depth === 2 && (n.count > 0 || !!wideCats?.has(n.id))).map((node, i) => { const path = up(node); return { i, node, path, label: path.map((p) => p.name).join(" › "), hint: hints.get(node.id) ?? "" }; });
 }
 
 interface Understood extends AdvisorState { aboutStores: boolean; kind: "products" | "advice" | "info" | "other"; focus: "new" | "shown"; shownRefs: number[]; modelCodes: string[]; search: string; understood: string[] }
@@ -164,7 +180,7 @@ async function facetsOf(typeIds: string[]): Promise<FacetInfo[]> {
 async function loadFacets(typeIds: string[]): Promise<FacetInfo[]> {
   const facets = await db.facet.findMany({ where: { categoryId: { in: typeIds }, productCount: { gt: 0 } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true } });
   if (!facets.length) return [];
-  const counts = await db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: facets.map((f) => f.id) }, product: LISTED }, _count: { _all: true } });
+  const counts = await db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: facets.map((f) => f.id) }, product: listed() }, _count: { _all: true } });
   const out = new Map<string, FacetInfo>();
   for (const f of facets) {
     const k = clean(f.label), e = out.get(k) ?? { label: k, raw: [], values: [] };
@@ -225,7 +241,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   const relaxed: string[] = [];
   const brandWhere: Prisma.ProductWhereInput[] = u.brands.length ? [{ OR: u.brands.map((b) => ({ brand: { name: { contains: b, mode: "insensitive" as const } } })) }] : [];
   const build = (fs: FacetFilter[], maxPrice: number | null, brands = true): Prisma.ProductWhereInput => ({ AND: [
-    LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), ...(brands ? brandWhere : []),
+    listed(), ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), ...(brands ? brandWhere : []),
     ...(maxPrice ? [{ price: { gt: 0, lte: maxPrice } }] : []), ...(u.minPrice ? [{ price: { gte: u.minPrice } }] : []), ...(u.inStockOnly ? [{ stock: { gt: 0 } }] : []),
     ...fs.map((f) => ({ facetValues: { some: { facet: { label: { in: f.raw } }, value: { in: f.values } } } })),
   ] });
@@ -239,7 +255,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   // (Icecat / ιστότοποι κατασκευαστών / περιγραφή) και στους τίτλους — μόνο όταν αφήνουν ≥ 3 προϊόντα, αλλιώς μένουν για τη σημασιολογική κατάταξη
   for (const need of specNeeds) {
     const terms = specTerms(need); if (!terms.length) continue;
-    const hit = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { id: { in: rows.map((r) => r.id) } }, { OR: terms.flatMap((t) => [{ title: { contains: t, mode: "insensitive" as const } }, { specs: { some: { OR: [{ value: { contains: t, mode: "insensitive" as const } }, { key: { contains: t, mode: "insensitive" as const } }] } } }]) }] }, select: { id: true } });
+    const hit = await db.product.findMany({ where: { AND: [listed(), ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { id: { in: rows.map((r) => r.id) } }, { OR: terms.flatMap((t) => [{ title: { contains: t, mode: "insensitive" as const } }, { specs: { some: { OR: [{ value: { contains: t, mode: "insensitive" as const } }, { key: { contains: t, mode: "insensitive" as const } }] } } }]) }] }, select: { id: true } });
     if (hit.length >= 3) { const ids = new Set(hit.map((h) => h.id)); rows = rows.filter((r) => ids.has(r.id)); active.push({ label: need, raw: [], values: terms, need }); }
     else relaxed.push(`λίγα ή κανένα με «${need}» στα καταγεγραμμένα χαρακτηριστικά`);
   }
@@ -247,7 +263,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
   const names = nameTerms(u.search + " " + (u.understood.join(" ") ?? ""));
   if (names.length) {
     const byName = (rs: typeof rows, titles: Map<string, string>) => rs.filter((r) => { const t = norm(titles.get(r.id) ?? ""); return names.some((n) => t.includes(n) || t.includes(n.replace(" ", ""))); });
-    const titled = await db.product.findMany({ where: { AND: [LISTED, ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { OR: names.flatMap((n) => [{ title: { contains: n, mode: "insensitive" as const } }, { title: { contains: n.replace(" ", ""), mode: "insensitive" as const } }]) }] }, take: 2000, orderBy: [{ stock: "desc" }, { price: "asc" }], select: { ...select, title: true } });
+    const titled = await db.product.findMany({ where: { AND: [listed(), ...(typeIds.length ? [{ categoryId: { in: typeIds } }] : []), { OR: names.flatMap((n) => [{ title: { contains: n, mode: "insensitive" as const } }, { title: { contains: n.replace(" ", ""), mode: "insensitive" as const } }]) }] }, take: 2000, orderBy: [{ stock: "desc" }, { price: "asc" }], select: { ...select, title: true } });
     if (titled.length) { const titles = new Map(titled.map((t) => [t.id, t.title])); const inRows = byName(rows, titles); rows = inRows.length ? inRows : titled; if (!inRows.length) { active.length = 0; relaxed.push(`κράτησα τα «${names.join(", ")}» και χαλάρωσα τα υπόλοιπα κριτήρια`); } }
   }
   // Χαλάρωση, από το λιγότερο δεσμευτικό: τελευταία απαίτηση → … → προϋπολογισμός +15 % → μάρκα. Ο Ερμής το λέει στον πελάτη.
@@ -273,7 +289,7 @@ async function retrieve(u: Understood, typeIds: string[], filters: FacetFilter[]
 
 async function byModelCode(codes: string[]): Promise<string[]> {
   if (!codes.length) return [];
-  const rows = await db.product.findMany({ where: { AND: [LISTED, { OR: codes.flatMap((c) => [{ sku: { contains: c, mode: "insensitive" as const } }, { title: { contains: c, mode: "insensitive" as const } }, { modelCode: { contains: c, mode: "insensitive" as const } }, { ean: c }]) }] }, take: 3, select: { id: true } });
+  const rows = await db.product.findMany({ where: { AND: [listed(), { OR: codes.flatMap((c) => [{ sku: { contains: c, mode: "insensitive" as const } }, { title: { contains: c, mode: "insensitive" as const } }, { modelCode: { contains: c, mode: "insensitive" as const } }, { ean: c }]) }] }, take: 3, select: { id: true } });
   return rows.map((r) => r.id);
 }
 
@@ -373,6 +389,9 @@ ${EXPERTISE}` },
 // ---------- Ενορχήστρωση ----------
 
 export async function smartAdvisor(input: AdvisorInput, ctx: AdvisorContext): Promise<AdvisorReply | null> {
+  return ctx.wider ? scope.run(WIDE, () => advise(input, ctx)) : advise(input, ctx);
+}
+async function advise(input: AdvisorInput, ctx: AdvisorContext): Promise<AdvisorReply | null> {
   const t0 = Date.now(), lap: string[] = [], mark = (k: string) => { if (process.env.ADVISOR_DEBUG) lap.push(`${k} ${Date.now() - t0}ms`); };
   const types = await typeList();
   if (!types.length) return null;

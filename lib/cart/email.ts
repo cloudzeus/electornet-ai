@@ -16,14 +16,15 @@ const base = () => (process.env.AUTH_URL ?? "http://localhost:3111").replace(/\/
  * stored with a token so the link restores it on any device for 30 days.
  * Rate limit: 3 per email per hour.
  */
-export async function emailCart(input: { email?: string | null; lines: CartLineInput[]; reason?: string | null; source?: string }) {
-  const me = await getCustomerSession();
+/** guest: αγνοεί τον συνδεδεμένο πελάτη (η σκηνή του Ερμή στέλνει πάντα στο δικό της email) · template/maxPerHour: για την προσφορά του Ερμή */
+export async function emailCart(input: { email?: string | null; lines: CartLineInput[]; reason?: string | null; source?: string; guest?: boolean; template?: "cart-emailed" | "advisor-offer"; firstName?: string; maxPerHour?: number }) {
+  const me = input.guest ? null : await getCustomerSession();
   const email = (me?.email ?? input.email ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false as const, error: "Μη έγκυρο email." };
   const clean = input.lines.filter((l) => l.productId && l.qty > 0).slice(0, 50);
   if (!clean.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
   const recent = await db.savedCart.count({ where: { email, sentAt: { gte: new Date(Date.now() - 3600000) } } });
-  if (recent >= 3) return { ok: false as const, error: "Έστειλες ήδη το καλάθι σου 3 φορές την τελευταία ώρα. Έλεγξε τα εισερχόμενα." };
+  if (recent >= (input.maxPerHour ?? 3)) return { ok: false as const, error: "Έστειλες ήδη το καλάθι σου 3 φορές την τελευταία ώρα. Έλεγξε τα εισερχόμενα." };
   const products = await getProductsByIds(clean.map((l) => l.productId));
   const lines = clean.flatMap((l) => { const p = products.find((x) => x.id === l.productId); return p ? [{ ...l, product: p }] : []; });
   if (!lines.length) return { ok: false as const, error: "Τα προϊόντα δεν βρέθηκαν." };
@@ -31,10 +32,11 @@ export async function emailCart(input: { email?: string | null; lines: CartLineI
   const ev = await captureEvidence();
   const saved = await db.savedCart.create({ data: { customerId: me?.id ?? null, email, lines: clean as object[], total, reason: input.reason ?? null, source: input.source ?? "exit-intent", expiresAt: new Date(Date.now() + 30 * 86400000), ip: ev.ip, userAgent: ev.userAgent } });
   const cartUrl = `${base()}/kalathi?restore=${saved.token}`;
-  const m = await renderTemplate("cart-emailed", { firstName: me?.firstName ?? "", lines: lines.map((l) => ({ title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons ?? [] })), total, cartUrl, reason: input.reason ?? "" });
-  const r = await sendMail({ to: email, template: "cart-emailed", meta: { savedCartId: saved.id }, ...m });
+  const template = input.template ?? "cart-emailed";
+  const m = await renderTemplate(template, { firstName: input.firstName ?? me?.firstName ?? "", lines: lines.map((l) => ({ title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons ?? [] })), total, cartUrl, reason: input.reason ?? "" });
+  const r = await sendMail({ to: email, template, meta: { savedCartId: saved.id }, ...m });
   if (me) await db.customerEvent.create({ data: { customerId: me.id, kind: "cart-emailed", meta: { savedCartId: saved.id, total, reason: input.reason ?? null, lines: clean.length } } }).catch(() => null);
-  return { ok: true as const, email, sent: r.ok, skipped: "skipped" in r ? !!r.skipped : false, token: saved.token };
+  return { ok: true as const, email, total, count: lines.length, sent: r.ok, skipped: "skipped" in r ? !!r.skipped : false, token: saved.token };
 }
 
 /** Lines of a saved cart for restoring (marks openedAt on first open). */
