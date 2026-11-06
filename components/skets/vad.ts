@@ -35,13 +35,30 @@ export async function openMic(): Promise<Mic | null> {
   const ctx = new AudioContext();
   void ctx.resume().catch(() => {});
   // χωρίς autoGain: ο Chrome (όπως και το Teams) ανεβάζει μόνος του την ένταση εισόδου του Mac — δύο τέτοια μαζί τη φτάνουν στο τέρμα και το σήμα κόβεται (παραμόρφωση)· το κατώφλι (floor) προσαρμόζεται ήδη
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } }).catch(() => null);
+  const opts = { echoCancellation: true, noiseSuppression: true, autoGainControl: false };
+  let stream = await navigator.mediaDevices.getUserMedia({ audio: opts }).catch(() => null);
   if (!stream) { void ctx.close().catch(() => {}); return null; }
+  // το προεπιλεγμένο μικρόφωνο του Mac είναι συχνά της κάμερας (μακριά, πιάνει την αίθουσα) ενώ ο παρουσιαστής φορά headset: διαλέγουμε το headset
+  const want = await pickMic(stream);
+  if (want) { const s2 = await navigator.mediaDevices.getUserMedia({ audio: { ...opts, deviceId: { exact: want } } }).catch(() => null); if (s2) { stream.getTracks().forEach((t) => t.stop()); stream = s2; } }
   await ctx.resume().catch(() => {});
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 1024;
   ctx.createMediaStreamSource(stream).connect(analyser);
   return { stream, ctx, analyser };
+}
+
+const CAMERA = /camera|webcam|cam\b|facetime|continuity|iphone/i;
+const HEADSET = /headset|headphone|airpods|jabra|plantronics|poly|bose|sony|sennheiser|logitech|hyperx|steelseries|razer|corsair|buds|bluetooth/i;
+/** ?mic=<μέρος ονόματος> στη διεύθυνση = αυτό· αλλιώς headset· αλλιώς οτιδήποτε εκτός κάμερας, αν το τρέχον είναι της κάμερας. null = μένει το τρέχον. */
+async function pickMic(stream: MediaStream): Promise<string | null> {
+  const cur = stream.getAudioTracks()[0], curId = cur?.getSettings().deviceId, curLabel = cur?.label ?? "";
+  const ins = (await navigator.mediaDevices.enumerateDevices().catch(() => [])).filter((d) => d.kind === "audioinput" && d.deviceId !== "default" && d.deviceId !== "communications");
+  const q = new URLSearchParams(location.search).get("mic")?.toLowerCase();
+  const pick = (q ? ins.find((d) => d.label.toLowerCase().includes(q)) : undefined)
+    ?? (HEADSET.test(curLabel) ? undefined : ins.find((d) => HEADSET.test(d.label) && !CAMERA.test(d.label)))
+    ?? (CAMERA.test(curLabel) ? ins.find((d) => !CAMERA.test(d.label)) : undefined);
+  return pick && pick.deviceId !== curId ? pick.deviceId : null;
 }
 
 /** Ηχογράφηση όσο ακούμε — η ατάκα πάει στο /api/skets/turn για να δούμε αν ήταν η αναμενόμενη ή κάτι άλλο. */
