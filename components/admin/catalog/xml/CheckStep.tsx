@@ -14,11 +14,13 @@ const secondary = `${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`
 const card = "rounded-xl border border-eu-line bg-white min-w-0";
 
 type Rows = Extract<Awaited<ReturnType<typeof checkRowsAction>>, { rows: unknown }>;
+/** Η μεσαία, «έξυπνη» επιλογή κάθε ομάδας: συμπληρώνει τα κενά και βελτιώνει μόνο όπου το καινούργιο είναι καλύτερο. */
+const SMART: Record<string, string> = { price: "Κενή ή μεγαλύτερη", content: "Κενά ή πληρέστερα", tech: "Κενά ή έγκυρο EAN" };
 const MODES: { v: GroupMode; label: string }[] = [{ v: "off", label: "Όχι" }, { v: "blank", label: "Μόνο κενά" }, { v: "overwrite", label: "Αντικατάσταση" }];
 const STATUS: Record<string, { label: string; help: string; cls: string }> = {
-  update: { label: "Ενημερώνονται", help: "Υπάρχουν στο SoftOne και το XML έχει στοιχεία που θα μπουν.", cls: "text-eu-blue" },
+  update: { label: "Ενημερώνονται", help: "Υπάρχουν στο SoftOne και η λήψη έχει στοιχεία που θα μπουν.", cls: "text-eu-blue" },
   waiting: { label: "Σε αναμονή", help: "Υπάρχουν και έχουν αλλαγές, αλλά η εγγραφή στο SoftOne είναι κλειστή — θα γραφτούν όταν ανοίξει.", cls: "text-eu-amber" },
-  unchanged: { label: "Χωρίς αλλαγή", help: "Υπάρχουν στο SoftOne και δεν έχουν τίποτα να πάρουν από το XML.", cls: "text-eu-ink-3" },
+  unchanged: { label: "Χωρίς αλλαγή", help: "Υπάρχουν στο SoftOne και δεν έχουν τίποτα να πάρουν από τη λήψη.", cls: "text-eu-ink-3" },
   new: { label: "Νέα", help: "Δεν υπάρχουν στο SoftOne. Διάλεξε ποια θα εισαχθούν.", cls: "text-eu-green" },
   problem: { label: "Με πρόβλημα", help: "Δεν μπορούν να εισαχθούν μέχρι να διορθωθούν (δες τον λόγο σε κάθε γραμμή).", cls: "text-eu-red" },
 };
@@ -91,8 +93,8 @@ export function CheckStep({ state, onDone }: { state: FeedStateDTO; onDone: () =
     <div className="grid gap-3 min-w-0">
       <section data-help="xml.check.policy" className={`${card} p-4 grid gap-3`} aria-labelledby="xc-policy">
         <div>
-          <h3 id="xc-policy" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τι επιτρέπεται να αλλάξει το XML σε είδη που υπάρχουν ήδη</h3>
-          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-13)]">«Μόνο κενά» συμπληρώνει ό,τι λείπει στο SoftOne· «Αντικατάσταση» αλλάζει και ό,τι διαφέρει. Το όνομα του είδους δεν αντικαθίσταται ποτέ. Τα νέα είδη παίρνουν ό,τι έχει το XML.</p>
+          <h3 id="xc-policy" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τι επιτρέπεται να αλλάξει η εισαγωγή σε είδη που υπάρχουν ήδη</h3>
+          <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-13)]">Η μεσαία επιλογή συμπληρώνει ό,τι λείπει στο SoftOne και βελτιώνει μόνο όπου το καινούργιο είναι καλύτερο· η «Αντικατάσταση» αλλάζει και ό,τι απλώς διαφέρει. Το όνομα του είδους δεν αντικαθίσταται ποτέ. Τα νέα είδη παίρνουν ό,τι έχει το XML.</p>
         </div>
         {policy && (
           <div className="grid gap-2 lg:grid-cols-3">
@@ -103,7 +105,7 @@ export function CheckStep({ state, onDone }: { state: FeedStateDTO; onDone: () =
                 <div role="radiogroup" aria-label={g.label} className="flex flex-wrap gap-1">
                   {MODES.map((m) => (
                     <button key={m.v} type="button" role="radio" aria-checked={policy[g.key] === m.v} onClick={() => setPolicy({ ...policy, [g.key]: m.v })}
-                      className={`min-h-11 rounded-full px-3 text-[length:var(--fs-13)] font-bold border ${policy[g.key] === m.v ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink-3 hover:border-eu-navy"}`}>{m.label}</button>
+                      className={`min-h-11 rounded-full px-3 text-[length:var(--fs-13)] font-bold border ${policy[g.key] === m.v ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink-3 hover:border-eu-navy"}`}>{m.v === "blank" ? SMART[g.key] : m.label}</button>
                   ))}
                 </div>
               </fieldset>
@@ -199,7 +201,7 @@ export function CheckStep({ state, onDone }: { state: FeedStateDTO; onDone: () =
                         <div className="text-eu-muted text-[length:var(--fs-12)] inline-flex flex-wrap gap-x-2">
                           <span className="font-mono">SKU {r.sku}</span>
                           {r.check.mtrl && <span>είδος {r.check.code ?? r.check.mtrl}{r.check.matchedBy ? ` · βρέθηκε με ${KEY_LABEL[r.check.matchedBy] ?? r.check.matchedBy}` : ""}</span>}
-                          {r.check.fileName && r.check.fileName !== r.check.title && <span>στο XML: «{r.check.fileName}»</span>}
+                          {r.check.fileName && r.check.fileName !== r.check.title && <span>στην πηγή: «{r.check.fileName}»</span>}
                           {r.check.price && <span>τιμή {eur(r.check.price.price)}</span>}
                         </div>
                       </div>

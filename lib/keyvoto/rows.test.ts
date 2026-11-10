@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isKeyvotoBytes, keyvotoEnvelope, keyvotoUrl, parseKeyvotoUrl, parseKeyvotoRows } from "./rows";
+import { isKeyvotoBytes, keyvotoEnvelope, keyvotoUrl, parseKeyvotoUrl, parseKeyvotoRows, pairUnits, CATEGORY_COL } from "./rows";
+import { CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
+import { suggestColumn, unresolvedColumns, duplicateTargets } from "@/lib/catalog/xml-import/suggest-core";
 
 const pub = (over: Record<string, unknown> = {}) => ({
   id: "p1", code: "ABC-1", name: "Ψυγείο Χ", category: "Ψυγεία", publisher: "ACME", productStatus: "Active",
@@ -15,38 +17,44 @@ test("keyvotoEnvelope: τα προϊόντα γίνονται bytes που αν�
   assert.equal(isKeyvotoBytes(Buffer.from('{"other":1}')), false);
 });
 
-test("parseKeyvotoRows: οι διαδρομές του εγγράφου γίνονται στήλες", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub()]));
-  assert.deepEqual(r.headers, [
-    "Keyvoto: κωδικός", "Keyvoto: κατηγορία", "Keyvoto: κατηγορία (κωδικός)", "Keyvoto: κατάλογος", "Keyvoto: εκδότης", "Keyvoto: κατάσταση",
-    "gtin", "main.Χρώμα", "main.Ενέργεια", "images[].path 1", "images[].path 2",
-  ]);
-  assert.equal(r.matrix.length, 2);
-  assert.deepEqual(r.matrix[1], ["ABC-1", "", "Ψυγεία", "Ψυγείο Χ", "ACME", "Active", "5201234567890", "Λευκό", "A", "https://gallery-api.keyvoto.com/v1/files/a%2F1.png", "https://gallery-api.keyvoto.com/v1/files/a%2F2.png"]);
+const real = (over: Record<string, unknown> = {}) => ({
+  id: "p9", code: "2600018", category: "c1", productStatus: "Active",
+  document: {
+    "identity-codes": { billingProductName: "PSD18155IN", manufacturer: "Inventor" },
+    "gs1-and-barcode": { gtin: "5213013886799" },
+    "general-information": { name: { languages: ["el-GR", "en-GB"], "el-GR": "Ψυγειοκαταψύκτης Inox", "en-GB": "Fridge" }, recRetailPriceObj: { value: 479, unit: "Euro" } },
+    "unit-dimensions": { widthObj: { value: 545, unit: "Millimeters" }, heightObj: { value: 181, unit: "Centimeters" }, netWeightObj: { value: 12.85, unit: "Milligrams" } },
+    main: { noiselevel: 39, reversibledoor: true, color: ["Inox", "Silver"], spacecoverage: { value: 80, unit: "Square Meters" }, warranty: { languages: ["el-GR"], "el-GR": "5 χρόνια" }, "power ": 240 },
+    media: { images: [{ path: "a/2.png" }, { path: "a/hero.png", viewAttributes: ["Hero Image"] }], documents: [{ path: "a/manual.pdf" }] },
+  },
+  ...over,
 });
 
-test("parseKeyvotoRows: πεδίο που λείπει από ένα προϊόν αφήνει κενό κελί, όχι μετατόπιση", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub(), pub({ code: "B-2", document: { gtin: "999" } })]));
-  assert.equal(r.matrix[2][r.headers.indexOf("main.Χρώμα")], "");
-  assert.equal(r.matrix[2][r.headers.indexOf("gtin")], "999");
-  assert.equal(r.matrix[2][0], "B-2");
-});
-
-test("parseKeyvotoRows: οι φωτογραφίες αριθμούνται με τη σειρά τους, όσες έχει το προϊόν με τις περισσότερες", () => {
-  const many = pub({ document: { images: [{ path: "1.png" }, { path: "2.png" }, { path: "3.png" }] } });
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub(), many]));
-  assert.deepEqual(r.headers.filter((h) => h.startsWith("images")), ["images[].path 1", "images[].path 2", "images[].path 3"]);
-  assert.equal(r.matrix[1][r.headers.indexOf("images[].path 3")], "");
-  assert.equal(r.matrix[2][r.headers.indexOf("images[].path 3")], "https://gallery-api.keyvoto.com/v1/files/3.png");
-});
-
-test("parseKeyvotoRows: μετρήσεις για το βήμα ελέγχου", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub(), pub({ category: "Κουζίνες" })]));
-  assert.equal(r.counts.products, 2);
-  assert.equal(r.counts.categories, 2);
-  assert.equal(r.counts.specLabels, 2); // main.Χρώμα, main.Ενέργεια
-  assert.equal(r.counts.images, 2);
-  assert.equal(r.counts.tags, r.headers.length);
+test("parseKeyvotoRows: έτοιμες στήλες που ο οδηγός αναγνωρίζει μόνος του", () => {
+  const r = parseKeyvotoRows(keyvotoEnvelope([real()], new Date(), "", { c1: "Ψυγεία › Ψυγειοκαταψύκτες" }, { noiselevel: "Στάθμη Θορύβου [dB(A)]" }));
+  const at = (h: string) => r.matrix[1][r.headers.indexOf(h)];
+  assert.equal(at("SKU"), "2600018"); assert.equal(at("MPN"), "PSD18155IN"); assert.equal(at("EAN"), "5213013886799");
+  assert.equal(at("Name"), "Ψυγειοκαταψύκτης Inox"); assert.equal(at("Brand"), "Inventor"); assert.equal(at("PriceRetail"), "479");
+  assert.equal(at(CATEGORY_COL), "Ψυγεία › Ψυγειοκαταψύκτες"); assert.equal(CATEGORY_COL, CATEGORY_PAIR);
+  assert.equal(at("Width"), "54.5"); assert.equal(at("Height"), "181"); // χιλιοστά → εκατοστά
+  assert.equal(r.headers.includes("NetWeight"), false, "βάρος σε «Milligrams» δεν στέκει: κενό, όχι λάθος νούμερο");
+  assert.equal(at("Image 1"), "https://gallery-api.keyvoto.com/v1/files/a%2Fhero.png", "η κύρια φωτογραφία πρώτη");
+  assert.equal(at("Image 2"), "https://gallery-api.keyvoto.com/v1/files/a%2F2.png");
+  assert.equal(at("spec:Στάθμη Θορύβου [dB(A)]"), "39"); assert.equal(at("spec:reversibledoor"), "Ναι");
+  assert.equal(at("spec:color"), "Inox, Silver"); assert.equal(at("spec:spacecoverage"), "80 τ.μ."); assert.equal(at("spec:warranty"), "5 χρόνια"); assert.equal(at("spec:power"), "240");
+  assert.equal(at("raw:media.documents[].path"), "https://gallery-api.keyvoto.com/v1/files/a%2Fmanual.pdf");
+  assert.equal(at("raw:general-information.name.en-GB"), "Fridge");
+  assert.equal(r.headers.some((h) => h.startsWith("raw:main.")), false);
+  // ο οδηγός τα λύνει όλα με κανόνες: κανένα «αβέβαιο» (ούτε ερώτημα στο AI), κανένας διπλός στόχος
+  const sug = Object.fromEntries(r.headers.map((h, i) => [i, suggestColumn(h, [r.matrix[1][i]])]));
+  assert.deepEqual(unresolvedColumns(sug), []);
+  assert.deepEqual(duplicateTargets(sug, r.headers), []);
+  const target = (h: string) => sug[r.headers.indexOf(h)].target;
+  assert.deepEqual(target("SKU"), { kind: "field", key: "code" }); assert.deepEqual(target("Image 1"), { kind: "media", type: "image" });
+  assert.deepEqual(target(CATEGORY_COL), { kind: "category" }); assert.deepEqual(target("Brand"), { kind: "brand" }); assert.deepEqual(target("PriceRetail"), { kind: "rrp" });
+  assert.deepEqual(target("Width"), { kind: "field", key: "widthCm" }); assert.equal(sug[r.headers.indexOf("Width")].transform, "none");
+  assert.deepEqual(target("raw:general-information.name.en-GB"), { kind: "ignore" });
+  assert.deepEqual(r.counts, { products: 1, tags: r.headers.length, categories: 1, specLabels: 6, images: 2 });
 });
 
 test("parseKeyvotoRows: άδειο πακέτο δεν σκάει", () => {
@@ -63,58 +71,29 @@ test("keyvotoUrl / parseKeyvotoUrl: η πηγή γίνεται διεύθυνσ�
   assert.equal(parseKeyvotoUrl("https://x/feed.xml"), null);
 });
 
-test("parseKeyvotoRows: οι διαδρομές αρχείων γίνονται ΠΡΑΓΜΑΤΙΚΕΣ διευθύνσεις", () => {
-  // Το έγγραφο δίνει path, όχι URL· χωρίς μετατροπή η εισαγωγή φωτογραφιών θα ζητούσε ανύπαρκτη διεύθυνση.
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({
-    document: { media: { images: [{ path: "BA-1/01_Sera.png", mimeType: "image/png" }], documents: [{ path: "BA-1/manual.pdf" }] } },
-  })]));
-  const at = (h: string) => r.matrix[1][r.headers.indexOf(h)];
-  assert.equal(at("media.images[].path"), "https://gallery-api.keyvoto.com/v1/files/BA-1%2F01_Sera.png");
-  assert.equal(at("media.documents[].path"), "https://gallery-api.keyvoto.com/v1/files/BA-1%2Fmanual.pdf");
-  assert.equal(at("media.images[].mimeType"), "image/png", "τα άλλα πεδία μένουν ως έχουν");
-});
-
-test("parseKeyvotoRows: η gallery του πακέτου υπερισχύει της προεπιλογής", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { images: [{ path: "a/1.png" }] } })], new Date(), "https://g.test"));
-  assert.equal(r.matrix[1][r.headers.indexOf("images[].path")], "https://g.test/v1/files/a%2F1.png");
-});
-
-test("parseKeyvotoRows: πεδίο που δεν είναι διαδρομή αρχείου δεν γίνεται διεύθυνση", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { main: { Σειρά: "Sera/Pro" }, pathNotes: "a/b" } })]));
-  assert.equal(r.matrix[1][r.headers.indexOf("main.Σειρά")], "Sera/Pro");
-  assert.equal(r.matrix[1][r.headers.indexOf("pathNotes")], "a/b");
-});
-
-test("parseKeyvotoRows: διαδρομή που είναι ήδη διεύθυνση μένει ως έχει", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ document: { images: [{ path: "https://cdn.inventor.gr/a.png" }] } })]));
-  assert.equal(r.matrix[1][r.headers.indexOf("images[].path")], "https://cdn.inventor.gr/a.png");
-});
-
-test("parseKeyvotoRows: το «name» της δημοσίευσης είναι ο ΚΑΤΑΛΟΓΟΣ — δεν λέγεται «όνομα»", () => {
-  // Επαληθευμένο ζωντανά: στη σύνοψη το name είναι «Catalogue Inventor x Euronics» για ΚΑΘΕ προϊόν, και η
-  // category είναι κωδικός (b2a17c…). Το πραγματικό όνομα είναι στήλη του εγγράφου.
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ name: "Catalogue Inventor x Euronics", category: "b2a17c2ad4235ea8" })]));
-  assert.ok(r.headers.includes("Keyvoto: κατάλογος"), `είχε: ${r.headers.slice(0, 5).join(", ")}`);
-  assert.ok(r.headers.includes("Keyvoto: κατηγορία (κωδικός)"));
-  assert.ok(!r.headers.includes("Keyvoto: όνομα"), "δεν πρέπει να μοιάζει με όνομα προϊόντος");
-});
-
-test("parseKeyvotoRows: ο κωδικός κατηγορίας γίνεται ονομασία με τη διαδρομή της", () => {
-  const bytes = keyvotoEnvelope([pub({ category: "c1" })], new Date(), "", { c1: "Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες" });
-  const r = parseKeyvotoRows(bytes);
-  const at = (h: string) => r.matrix[1][r.headers.indexOf(h)];
-  assert.equal(at("Keyvoto: κατηγορία"), "Ηλεκτρικά Είδη › Ψυγεία › Καταψύκτες");
-  assert.equal(at("Keyvoto: κατηγορία (κωδικός)"), "c1", "ο κωδικός μένει διαθέσιμος");
-});
-
-test("parseKeyvotoRows: κατηγορία που δεν λύθηκε δεν δείχνει κωδικό ως ονομασία", () => {
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ category: "αγνωστη" })]));
-  assert.equal(r.matrix[1][r.headers.indexOf("Keyvoto: κατηγορία")], "");
-  assert.equal(r.matrix[1][r.headers.indexOf("Keyvoto: κατηγορία (κωδικός)")], "αγνωστη");
-});
-
-test("parseKeyvotoRows: οι ΟΝΟΜΑΣΙΕΣ μετριούνται ως κατηγορίες, όχι οι κωδικοί", () => {
-  const cats = { a: "Ηλεκτρικά › Ψυγεία", b: "Ηλεκτρικά › Ψυγεία" };
-  const r = parseKeyvotoRows(keyvotoEnvelope([pub({ category: "a" }), pub({ category: "b" })], new Date(), "", cats));
-  assert.equal(r.counts.categories, 1, "δύο κωδικοί που δείχνουν στην ίδια κατηγορία είναι μία");
+test("pairUnits: εσωτερική + εξωτερική μονάδα που δείχνουν η μία στην άλλη γίνονται μία γραμμή (η εσωτερική)", () => {
+  const unit = (contentId: string, code: string, name: string, kg: number, relatives: string[]) =>
+    ({ contentId, code, relatives, document: { "general-information": { name: { "el-GR": name } }, gtin: `g-${code}`, main: { btu: "12000" }, "unit-dimensions": { netWeightObj: { value: kg, unit: "Kilograms" } }, media: { images: [{ path: `${code}.png` }] } } });
+  const items = [
+    unit("o1", "NRO-12", "NRO-12 NURA ΜΙΝΙ SPLIT ΕΞΩΤ.", 21, ["i1"]),
+    unit("i1", "NRI-12", "NRI-12 NURA ΜΙΝΙ SPLIT ΕΣΩTEΡIKO", 8, ["o1"]),
+    unit("a", "EMPVO-12", "Emperor 12.000 BTU", 30, ["b"]),      // ίδιο όνομα: η ελαφρύτερη είναι η εσωτερική
+    unit("b", "EMPVI-12", "Emperor 12.000 BTU", 9.5, ["a"]),
+    unit("x", "FAN-1", "Ανεμιστήρας", 3, ["y"]),                   // σχετικά προϊόντα, όχι σετ: μένουν δύο
+    unit("y", "FAN-2", "Ανεμιστήρας Tower", 4, ["x"]),
+    unit("z", "SOLO", "Ψυγείο", 50, []),
+  ];
+  const r = pairUnits(items);
+  assert.equal(r.pairs, 2);
+  assert.deepEqual(r.items.map((x) => x.code), ["NRI-12", "EMPVI-12", "FAN-1", "FAN-2", "SOLO"]);
+  assert.equal(r.items[0].pairedWith, "NRO-12");
+  const rows = parseKeyvotoRows(keyvotoEnvelope(items));
+  assert.equal(rows.counts.products, 5);
+  const at = (h: string) => rows.matrix[1][rows.headers.indexOf(h)];
+  assert.equal(at("Keyvoto: σετ"), "Εσωτερική + εξωτερική μονάδα (NRO-12) · βάρος σετ 29 = 8 + 21");
+  assert.equal(at("NetWeight"), "29"); // το βάρος του προϊόντος είναι του σετ
+  assert.equal(at("raw:εξωτερική μονάδα.gtin"), "g-NRO-12");
+  assert.equal(at("spec:Εξωτερική μονάδα: βάρος (kg)"), "21");
+  assert.equal(at("spec:Εξωτερική μονάδα: μοντέλο"), "NRO-12");
+  assert.equal(rows.headers.some((h) => h.startsWith("raw:εξωτερική μονάδα.main") || h.startsWith("raw:εξωτερική μονάδα.media")), false); // ίδια χαρακτηριστικά και οι φωτογραφίες της δεν ξαναμπαίνουν
 });

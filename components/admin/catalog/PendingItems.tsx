@@ -2,14 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CircleAlert, Images, Loader2, Lock, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
-import { approveItems, discardItems, editItem } from "@/app/admin/(shell)/catalog/templates/nea-eidi/actions";
+import { AlertTriangle, Check, CircleAlert, EyeOff, Globe, Images, Loader2, Lock, Pencil, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { approveItems, applyPendingCategories, discardItems, editItem, suggestPendingCategories } from "@/app/admin/(shell)/catalog/templates/nea-eidi/actions";
+import { CategoryProposals } from "@/components/admin/catalog/CategoryProposals";
+import type { CatGuess } from "@/lib/catalog/category-ai-core";
+import { CardPeek } from "@/components/admin/catalog/CardPeek";
+import type { Settings } from "@/lib/cms/settings";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
 
 export type PendingView = {
   id: string; status: string; code: string; name: string; rowNo: number; file: string | null;
   brandId: string | null; brandName: string | null; groupId: number | null; groupName: string | null; category: string | null;
   cost: number | null; rrp: number | null; price: number | null; photos: number; missing: string[];
+  /** οι διευθύνσεις των φωτογραφιών του (για την κάρτα του eshop) */
+  images?: string[];
   mtrl: number | null; error: string | null; updatedAt: string;
 };
 
@@ -26,13 +32,22 @@ const APPROVE_BATCH = 5;
 type Result = { ok: boolean; text: string; code: string };
 
 /** Λίστα νέων ειδών σε αναμονή: επιλογή, επεξεργασία, έγκριση (κλειδωμένη με εξήγηση) και απόρριψη. */
-export function PendingItems({ items, status, writeOn, canWrite, canApprove, brands, groups }: { items: PendingView[]; status: string; writeOn: boolean; canWrite: boolean; canApprove: boolean; brands: PickOpt[]; groups: PickOpt[] }) {
-  const router = useRouter();
+/** `onChanged`: ο οδηγός εισαγωγής κρατά τη λίστα στον browser και την ξαναφορτώνει μόνος του (η σελίδα «Νέα είδη» αρκείται στο refresh). */
+export function PendingItems({ items, status, writeOn, canWrite, canApprove, brands, groups, onChanged, flagOn = false, settings }: { items: PendingView[]; status: string; writeOn: boolean; canWrite: boolean; canApprove: boolean; brands: PickOpt[]; groups: PickOpt[]; onChanged?: () => void; /** η εγγραφή της «Εξαίρεσης Web» στο SoftOne είναι ενεργή */ flagOn?: boolean; /** με αυτό κάθε είδος δείχνει την κάρτα του όπως στο site */ settings?: Settings }) {
+  const nav = useRouter();
+  const router = { refresh: () => { nav.refresh(); onChanged?.(); } };
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, Result>>({});
   const [busy, setBusy] = useState<{ done: number; total: number; what: "approve" | "discard" } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  /** πώς θα δημιουργηθούν τα είδη που εγκρίνονται τώρα: για το web (προεπιλογή) ή με «Εξαίρεση Web» */
+  const [excluded, setExcluded] = useState(false);
+  /** ποιανού είδους η κάρτα eshop είναι ανοιχτή (μία τη φορά) */
+  const [peek, setPeek] = useState<string | null>(null);
+  /** προτάσεις κατηγορίας του AI που περιμένουν αποδοχή */
+  const [ai, setAi] = useState<{ guesses: CatGuess[]; asked: number; left: number; options: { id: string; name: string }[] } | null>(null);
+  const [aiBusy, setAiBusy] = useState<"ask" | "apply" | null>(null);
 
   const open = (p: PendingView) => OPEN.has(p.status) && p.mtrl == null;
   const selectable = items.filter(open);
@@ -40,17 +55,39 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
   const chosen = items.filter((p) => sel.has(p.id) && open(p));
   const ready = chosen.filter((p) => !p.missing.length);
 
+  // Πρόταση κατηγορίας: για τα επιλεγμένα, αλλιώς για όσα ανοιχτά δεν έχουν ομάδα χαρακτηριστικών (αυτό τα κρατά πίσω)
+  const aiTargets = (chosen.length ? chosen : selectable.filter((p) => p.groupId == null)).map((p) => p.id);
+  const askAi = async () => {
+    if (!aiTargets.length) return;
+    setErr(null); setAi(null); setAiBusy("ask");
+    let r;
+    try { r = await suggestPendingCategories(aiTargets); } catch { r = { error: "Η σύνδεση διακόπηκε." }; }
+    setAiBusy(null);
+    if ("error" in r) { setErr(r.error); return; }
+    setAi(r);
+  };
+  const applyAi = async (picks: { key: string; categoryId: string }[]) => {
+    if (!ai) return;
+    setAiBusy("apply"); setErr(null);
+    let r;
+    try { r = await applyPendingCategories(picks.map((p) => ({ id: p.key, categoryId: p.categoryId }))); } catch { r = { error: "Η σύνδεση διακόπηκε." }; }
+    setAiBusy(null);
+    if ("error" in r) { setErr(r.error); return; }
+    if (r.errors.length) setErr(r.errors.join(" · "));
+    setAi(null); setSel(new Set()); router.refresh();
+  };
+
   const toggle = (id: string) => setSel((s) => { const x = new Set(s); if (x.has(id)) x.delete(id); else x.add(id); return x; });
   const codeOf = (id: string) => items.find((p) => p.id === id)?.code || "—";
 
   const approve = async (list: PendingView[]) => {
     if (lock || !list.length) return;
-    if (!confirm(`Δημιουργία ${list.length} ${list.length === 1 ? "είδους" : "ειδών"} στο SoftOne (ανενεργά), με τιμή web και φωτογραφίες. Συνέχεια;`)) return;
+    if (!confirm(`Δημιουργία ${list.length} ${list.length === 1 ? "είδους" : "ειδών"} στο SoftOne (ανενεργά), με τιμή web και φωτογραφίες — ${excluded ? "με «Εξαίρεση Web»: ΔΕΝ θα ανεβαίνουν στο site" : "για το web: θα φαίνονται στο site όταν τα δημοσιεύσεις"}. Συνέχεια;`)) return;
     setErr(null); setBusy({ done: 0, total: list.length, what: "approve" });
     for (let i = 0; i < list.length; i += APPROVE_BATCH) {
       const part = list.slice(i, i + APPROVE_BATCH).map((p) => p.id);
       let res;
-      try { res = await approveItems(part); } catch (e) { res = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
+      try { res = await approveItems(part, excluded); } catch (e) { res = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
       if ("error" in res) { setErr(`${res.error}${i ? " — όσα εγκρίθηκαν μέχρι εδώ έμειναν." : ""}`); break; }
       setResults((prev) => ({ ...prev, ...Object.fromEntries(res.map((r) => [r.id, { ok: r.ok, code: codeOf(r.id), text: r.ok ? `Δημιουργήθηκε στο SoftOne (MTRL ${r.mtrl}).${r.error ? ` Σημείωση: ${r.error}` : ""}` : r.error ?? "Απέτυχε." }])) }));
       setBusy({ done: Math.min(i + APPROVE_BATCH, list.length), total: list.length, what: "approve" });
@@ -96,9 +133,24 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
           <button type="button" className={danger} disabled={!chosen.length || !!busy} onClick={() => discard(chosen)}>
             {busy?.what === "discard" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Απόρριψη {chosen.length || ""}
           </button>
+          <fieldset data-help="pending.web" className="m-0 p-0 border-0 basis-full flex flex-wrap items-center gap-x-4 gap-y-1 px-2 min-w-0 text-[length:var(--fs-14)]">
+            <legend className="float-left mr-3 font-bold text-eu-ink-2">Τα είδη που εγκρίνεις:</legend>
+            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={!excluded} disabled={!!busy} onChange={() => setExcluded(false)} className="size-5 accent-eu-navy" /><Globe className="size-4 text-eu-blue" aria-hidden />Για το web</label>
+            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={excluded} disabled={!!busy} onChange={() => setExcluded(true)} className="size-5 accent-eu-navy" /><EyeOff className="size-4 text-eu-ink-3" aria-hidden />Εξαίρεση Web (δεν ανεβαίνουν στο site)</label>
+            {excluded && !flagOn && <span className="basis-full flex gap-1.5 items-start text-eu-ink text-[length:var(--fs-12)]"><AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-eu-navy" aria-hidden />Η εγγραφή της «Εξαίρεσης Web» στο SoftOne δεν έχει ενεργοποιηθεί ακόμη: τα είδη θα δημιουργηθούν και θα πρέπει να την τσεκάρεις εσύ στο SoftOne. Θα το γράφει η σημείωση κάθε είδους.</span>}
+          </fieldset>
+          <button type="button" data-help="pending.category-ai" className={secondary} disabled={!aiTargets.length || !!busy || !!aiBusy} onClick={askAi}
+            title={chosen.length ? "Προτάσεις για τα επιλεγμένα είδη" : "Προτάσεις για όσα είδη δεν έχουν ομάδα χαρακτηριστικών"}>
+            {aiBusy === "ask" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />} {aiBusy === "ask" ? "Ρωτάω το AI…" : `Πρότεινε κατηγορία ${aiTargets.length || ""}`}
+          </button>
           {chosen.length > ready.length && <span className="text-eu-ink-3 text-[length:var(--fs-12)]">{chosen.length - ready.length} επιλεγμένα δεν εγκρίνονται ακόμη — τους λείπουν στοιχεία.</span>}
           {busy && <progress value={busy.done} max={busy.total || 1} aria-label="Πρόοδος" className="basis-full w-full h-2 appearance-none rounded-full overflow-hidden bg-eu-line [&::-webkit-progress-bar]:bg-eu-line [&::-webkit-progress-value]:bg-eu-navy [&::-moz-progress-bar]:bg-eu-navy" />}
         </div>
+      )}
+
+      {ai && (
+        <CategoryProposals key={ai.guesses.map((g) => g.key).join()} asked={ai.asked} left={ai.left} busy={aiBusy === "apply"} onClose={() => setAi(null)} onApply={applyAi} options={ai.options}
+          rows={ai.guesses.map((g) => { const p = items.find((x) => x.id === g.key); return { key: g.key, label: p?.name || p?.code || "—", sub: [p?.code, p?.brandName].filter(Boolean).join(" · "), categoryId: g.categoryId, sure: g.sure }; })} />
       )}
 
       <ul data-help="pending.list" className="m-0 p-0 list-none grid gap-2">
@@ -137,6 +189,8 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
                   <button type="button" data-help="pending.discard" className={danger} disabled={!!busy} onClick={() => discard([p])}><Trash2 className="size-4" aria-hidden /> Απόρριψη</button>
                 </div>
               )}
+              {settings && <CardPeek open={peek === p.id} onToggle={() => setPeek(peek === p.id ? null : p.id)} settings={settings}
+                data={{ key: p.id, title: p.name || p.code, sku: p.code, brand: p.brandName ?? "", images: p.images ?? [], price: p.price }} notes={["Οι φωτογραφίες ανεβαίνουν μόλις δημιουργηθεί το είδος."]} />}
               {editing === p.id && <EditForm p={p} brands={brands} groups={groups} onDone={() => { setEditing(null); router.refresh(); }} onCancel={() => setEditing(null)} />}
             </li>
           );

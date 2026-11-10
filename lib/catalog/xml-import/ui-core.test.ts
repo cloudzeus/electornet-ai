@@ -70,8 +70,8 @@ test("ui-core: κάθε στόχος στηλών έχει ετικέτα και
 
 test("sourceNote: ο χρήστης μαθαίνει αν βλέπει φρέσκο ή αποθηκευμένο XML", () => {
   const base = { fetchedAt: "2026-10-29T09:30:00.000Z", bytes: 7 * 1024 * 1024, products: 2580 };
-  assert.match(sourceNote({ ...base, from: "download", waitMin: 30, rateLimited: false }), /κατέβηκε τώρα/);
-  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 12, rateLimited: false }), /αποθηκευμένο XML[\s\S]*σε 12 λεπτά/);
+  assert.match(sourceNote({ ...base, from: "download", waitMin: 30, rateLimited: false }), /λήψη έγινε τώρα/);
+  assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 12, rateLimited: false }), /αποθηκευμένη λήψη[\s\S]*σε 12 λεπτά/);
   assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 1, rateLimited: false }), /σε 1 λεπτό/);
   assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 0, rateLimited: false }), /επιτρέπεται τώρα/);
   assert.match(sourceNote({ ...base, from: "snapshot", waitMin: 5, rateLimited: true }), /πάρα πολλά αιτήματα/);

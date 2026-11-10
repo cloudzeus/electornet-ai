@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_POLICY, normPolicy, policyPrice, splitByPolicy } from "./policy-core";
+import { DEFAULT_POLICY, improves, normPolicy, policyPrice, richer, splitByPolicy } from "./policy-core";
 
 test("προεπιλογή: όλα «μόνο κενά» (όπως πριν)", () => {
   const r = splitByPolicy({ mtrl: "5", barcode: "520", shortDesc: "x" }, { Χρώμα: "Μαύρο" }, DEFAULT_POLICY);
@@ -71,4 +71,22 @@ test("normPolicy: markup μόνο αν είναι ποσοστό 0–1000", () =
   assert.equal(normPolicy({ markupPercent: -5 }).markupPercent, null);
   assert.equal(normPolicy({ markupPercent: 5000 }).markupPercent, null);
   assert.equal(normPolicy({}).markupPercent, null);
+});
+
+test("έξυπνη λειτουργία: περιγραφή μόνο όταν γίνεται αισθητά πληρέστερη, barcode μόνο όταν γίνεται έγκυρο EAN", () => {
+  const short = "Ψυγειοκαταψύκτης Inox 293L.", long = "Ψυγειοκαταψύκτης Inox 293L με Total No Frost, ομοιόμορφη κατανομή ψύξης 360° και inverter συμπιεστή.";
+  assert.equal(richer(short, long), true);
+  assert.equal(richer(long, short), false);                       // ποτέ προς το φτωχότερο
+  assert.equal(richer(short, `${short} Νέο.`), false);            // λίγες λέξεις παραπάνω δεν αρκούν
+  assert.equal(richer("", long), false);                          // το κενό το καλύπτει το «μόνο κενά»
+  assert.equal(richer("<p>abc</p>", "<div><p>abc</p></div>"), false); // το HTML δεν μετρά ως περιεχόμενο
+  assert.equal(improves("barcode", "BC-12/2.1", "5901234123457"), true);        // δικό μας όχι EAN → έγκυρο EAN
+  assert.equal(improves("barcode", "", "5901234123457"), false);                 // το κενό το καλύπτει το «μόνο κενά»
+  assert.equal(improves("barcode", "5901234123457", "4006381333931"), false);  // έγκυρο δεν αλλάζει
+  assert.equal(improves("weightKg", "8", "29.1"), false);
+  assert.equal(improves("name", "Α", "Α πολύ πολύ πολύ πολύ πολύ πολύ πολύ μεγαλύτερο όνομα"), false);
+  // μόνο το πεδίο που βελτιώνεται πάει για αντικατάσταση· τα υπόλοιπα μένουν «μόνο κενά»
+  const r = splitByPolicy({ mtrl: "5", shortDesc: long, weightKg: "3" }, { Χρώμα: "Μαύρο" }, DEFAULT_POLICY, (k, v) => improves(k, k === "shortDesc" ? short : "9", v));
+  assert.deepEqual(r.over, { fields: { mtrl: "5", shortDesc: long }, specs: {} });
+  assert.deepEqual(r.blank, { fields: { mtrl: "5", weightKg: "3" }, specs: { Χρώμα: "Μαύρο" } });
 });

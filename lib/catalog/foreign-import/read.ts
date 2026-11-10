@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import iconv from "iconv-lite";
 import { db } from "@/lib/db";
 import { cellText } from "@/lib/catalog/supplier-sheet";
-import { configToSaved, headerSignature, parseCsv, numCell, UserError, type MappingConfig, type SavedConfig } from "@/lib/catalog/foreign-import/core";
+import { configToSaved, headerSignature, parseCsv, numCell, UserError, type MappingConfig, type SavedConfig, type SavedPrice } from "@/lib/catalog/foreign-import/core";
 
 export { UserError };
 
@@ -68,10 +68,10 @@ export async function readWorkbook(buf: ArrayBuffer, fileName: string): Promise<
 export type StoredMapping = { id: string; name: string; headerSignature: string; config: SavedConfig; createdById: string | null; createdAt: Date; updatedAt: Date };
 
 /** Αποθηκεύει την αντιστοίχιση στηλών (με κλειδί επικεφαλίδας). Ίδια υπογραφή επικεφαλίδων (unique) → ενημέρωση ονόματος/ρυθμίσεων της υπάρχουσας. */
-export async function saveMapping(name: string, headers: string[], config: MappingConfig, staffId: string | null): Promise<StoredMapping> {
+export async function saveMapping(name: string, headers: string[], config: MappingConfig, staffId: string | null, price?: SavedPrice): Promise<StoredMapping> {
   const signature = headerSignature(headers);
   if (!signature) throw new UserError("Δεν υπάρχουν επικεφαλίδες για να αποθηκευτεί η αντιστοίχιση.");
-  const data = { name, config: configToSaved(config, headers) as object };
+  const data = { name, config: { ...configToSaved(config, headers), ...(price ? { price } : {}) } as object };
   const row = await db.importMapping.upsert({ where: { headerSignature: signature }, update: data, create: { ...data, headerSignature: signature, createdById: staffId } });
   return row as unknown as StoredMapping;
 }
@@ -82,4 +82,15 @@ export async function findMapping(headers: string[]): Promise<StoredMapping | nu
   if (!signature) return null;
   const row = await db.importMapping.findUnique({ where: { headerSignature: signature } });
   return row as unknown as StoredMapping | null;
+}
+
+/**
+ * Αυτόματη αποθήκευση από τον οδηγό (σε κάθε αλλαγή και στην προεπισκόπηση): όνομα = αυτό που έγραψε ο χρήστης, αλλιώς
+ * της υπάρχουσας, αλλιώς του αρχείου. Οι αντιστοιχίσεις μάρκας/κατηγορίας για τιμές που ΔΕΝ έχει αυτό το αρχείο μένουν.
+ */
+export async function autosaveMapping(saveAs: string, fileName: string, headers: string[], config: MappingConfig, staffId: string | null, price: SavedPrice): Promise<StoredMapping> {
+  const old = await findMapping(headers);
+  const name = saveAs || old?.name || fileName.replace(/\.[^./\\]+$/, "").trim().slice(0, 80) || "Αντιστοίχιση";
+  const merged = { ...config, brandMap: { ...old?.config.brandMap, ...config.brandMap }, categoryMap: { ...old?.config.categoryMap, ...config.categoryMap } };
+  return saveMapping(name, headers, merged, staffId, price);
 }

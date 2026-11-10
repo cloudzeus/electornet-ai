@@ -90,6 +90,10 @@ export function suggestColumn(header: string, samples: string[]): ColumnSuggesti
     return sure({ kind: "spec", label }, "Ετικέτα χαρακτηριστικού του feed.");
   }
 
+  // Keyvoto: οι ακατέργαστες διαδρομές του εγγράφου και οι ενημερωτικές στήλες. Ό,τι χρειάζεται έρχεται ήδη ως έτοιμη
+  // στήλη (SKU, Name, Image…) — αυτές αγνοούνται με βεβαιότητα, ώστε να μη γίνουν διπλοί στόχοι ούτε ερώτημα στο AI.
+  if (header.startsWith("raw:") || header.startsWith("Keyvoto: ")) return sure({ kind: "ignore" }, "Πρόσθετο πεδίο του Keyvoto — τα βασικά έχουν ήδη αντιστοιχιστεί.");
+
   const k = key(header);
   if (IMAGE_COL.test(k)) return sure({ kind: "media", type: "image" }, "Διεύθυνση φωτογραφίας — η σειρά της στήλης είναι η αρχική σειρά.");
   if (IGNORE_EXACT.has(k) || IGNORE.test(k)) return sure({ kind: "ignore" });

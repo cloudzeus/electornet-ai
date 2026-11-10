@@ -135,6 +135,7 @@ test("parseFeed: πακέτο Keyvoto διαβάζεται σαν feed, με τ�
   const pack = Buffer.from(JSON.stringify({ keyvoto: 1, fetchedAt: "2026-11-02T00:00:00Z", items: [{ code: "A-1", name: "Ψυγείο", document: { gtin: "5201", main: { Χρώμα: "Λευκό" } } }] }), "utf8");
   const r = parseFeed(pack);
   assert.equal(r.counts.products, 1);
-  assert.ok(r.headers.includes("main.Χρώμα"));
-  assert.equal(cell(r, 0, "gtin"), "5201");
+  assert.ok(r.headers.includes("spec:Χρώμα"));
+  assert.equal(cell(r, 0, "EAN"), "5201");
+  assert.equal(cell(r, 0, "SKU"), "A-1");
 });

@@ -5,6 +5,7 @@ import { can } from "@/lib/rbac/permissions";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { brandOptions, categoryOptions, markOptions, unitOptions } from "@/lib/catalog/foreign-import/options";
 import { supplierCards } from "@/lib/catalog/xml-import/suppliers";
+import { getSettings } from "@/lib/cms/settings-server";
 import { XmlImportWizard } from "@/components/admin/catalog/xml/XmlImportWizard";
 
 export const metadata = { title: "XML προμηθευτές" };
@@ -17,13 +18,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function XmlImportPage() {
   const user = await requirePermission("catalog.products.write");
-  const [cards, brands, categories, units, marks, writeOn] = await Promise.all([
+  const [cards, brands, categories, units, marks, writeOn, settings] = await Promise.all([
     supplierCards(""),
     brandOptions(),
     categoryOptions(),
     unitOptions(),
     markOptions(),
     itemWriteEnabled(),
+    getSettings(),
   ]);
   return (
     <div className="grid gap-4 min-w-0">
@@ -40,6 +42,7 @@ export default async function XmlImportPage() {
         units={units.map(({ id, name }) => ({ id, name }))}
         marks={marks.map(({ id, name }) => ({ id, name }))}
         writeOn={writeOn}
+        settings={settings}
         canErp={can(user.permissions, "catalog.sync.run")}
       />
     </div>

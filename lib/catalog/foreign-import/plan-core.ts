@@ -1,4 +1,4 @@
-import { labelKey, normEan, gtin14, type ForeignRow, type MatchKind } from "@/lib/catalog/foreign-import/core";
+import { labelKey, normEan, barcodeKey, type ForeignRow, type MatchKind } from "@/lib/catalog/foreign-import/core";
 import { parseMoney, priceFrom, type Rounding } from "@/lib/catalog/pricing/markup";
 
 /**
@@ -6,11 +6,27 @@ import { parseMoney, priceFrom, type Rounding } from "@/lib/catalog/pricing/mark
  * τα ονόματα της ομάδας, τιμή από κανόνα markup. Ο server.ts τις τροφοδοτεί με δεδομένα και εκτελεί.
  */
 export type RowStatus = "update" | "unchanged" | "new" | "waiting" | "problem";
-export type ForeignPrice = { cost: number; price: number; rule: string; capped: boolean; margin: number };
+/** `was`: η τιμή web που έχει ήδη το είδος, όταν η εισαγωγή τη διορθώνει (αλλιώς το είδος δεν είχε τιμή) */
+export type ForeignPrice = { cost: number; price: number; rule: string; capped: boolean; margin: number; was?: number };
+
+/**
+ * Γράφεται η τιμή; `blank` (προεπιλογή): όταν το είδος δεν έχει τιμή **ή η νέα είναι μεγαλύτερη** — η εισαγωγή διορθώνει
+ * προς τα πάνω (ακρίβυνε ο προμηθευτής), ποτέ δεν ρίχνει τιμή μόνη της. `overwrite`: όποτε διαφέρει, και προς τα κάτω.
+ */
+export function priceApplies(mode: "off" | "blank" | "overwrite", current: number | null | undefined, next: number): boolean {
+  if (mode === "off" || !(next > 0)) return false;
+  const cur = current != null && current > 0 ? current : null;
+  if (cur == null) return true;
+  return mode === "overwrite" ? Math.abs(next - cur) >= 0.005 : next - cur >= 0.005;
+}
 export type ForeignPlanRow = {
   rowNo: number; title: string; status: RowStatus; mtrl?: number; code?: string;
   /** υπάρχον είδος: το όνομα της γραμμής στο αρχείο (δίπλα στο δικό μας) και με ποιο κλειδί βρέθηκε — για να φαίνεται λάθος ταίριασμα */
   fileName?: string; matchedBy?: MatchKind;
+  /** υπάρχον είδος με «Εξαίρεση Web» στο SoftOne (MTREXTRA.BOOL04): δεν ανεβαίνει στο site — μένει εκτός εισαγωγής εκτός αν το ζητήσει ο χρήστης */
+  webExcluded?: boolean;
+  /** ό,τι χρειάζεται η προεπισκόπηση της κάρτας (νέο είδος: από το αρχείο· υπάρχον: η κύρια φωτογραφία του και μετά οι νέες) — του eshop πέρα από τίτλο/τιμή (μάρκα, οι φωτογραφίες του αρχείου με τη σειρά τους — η πρώτη είναι η κύρια) */
+  card?: { brand: string; images: string[]; category: string | null; /** υπάρχον είδος: η τιμή web που έχει σήμερα (η κάρτα δείχνει αυτήν όταν η εισαγωγή δεν την αλλάζει) */ current?: number | null };
   /** αλλαγές στο SoftOne («μόνο κενά») — στα νέα είδη τα πεδία που θα μπουν */
   changes: { label: string; from: string; to: string }[];
   /** αλλαγές μόνο στο κατάστημα (π.χ. διαθεσιμότητα προμηθευτή) — γράφονται και με το SoftOne σε αναμονή */
@@ -36,8 +52,8 @@ export function newDuplicates(rows: ForeignRow[], mtrlOf: Map<number, number | n
   for (const r of rows) {
     if (mtrlOf.get(r.rowNo) != null) continue;
     const keys = new Map<string, string>();
-    const e = gtin14(r.fields.barcode); // GTIN-14: «012345678905» = «0012345678905»
-    if (e) keys.set(`e:${e}`, `Το EAN ${normEan(r.fields.barcode!)}`);
+    const e = barcodeKey(r.fields.barcode); // GTIN-14: «012345678905» = «0012345678905»· όχι EAN → το ίδιο το κείμενο
+    if (e) keys.set(`e:${e}`, normEan(r.fields.barcode!) ? `Το EAN ${normEan(r.fields.barcode!)}` : `Το barcode ${e}`);
     for (const c of [r.fields.code, r.fields.factoryCode]) { const k = (c ?? "").trim().toLowerCase(); if (k && !keys.has(`c:${k}`)) keys.set(`c:${k}`, `Ο κωδικός «${c!.trim()}»`); }
     for (const [k, label] of keys) { const g = groups.get(k) ?? { label, rows: [] }; g.rows.push(r.rowNo); groups.set(k, g); }
   }
@@ -154,13 +170,13 @@ export function openDuplicates(jobId: string, rows: { rowNo: number; code?: stri
   for (const p of open) {
     const c = (p.code ?? "").trim().toLowerCase(); if (c && !byCode.has(c)) byCode.set(c, p);
     const f = p.fields && typeof p.fields === "object" && !Array.isArray(p.fields) ? (p.fields as Record<string, unknown>) : {};
-    const e = typeof f.barcode === "string" ? gtin14(f.barcode) : null; if (e && !byEan.has(e)) byEan.set(e, p);
+    const e = typeof f.barcode === "string" ? barcodeKey(f.barcode) : null; if (e && !byEan.has(e)) byEan.set(e, p);
   }
   const out = new Map<number, string>();
   for (const r of rows) {
-    const c = (r.code ?? "").trim().toLowerCase(), e = gtin14(r.barcode);
+    const c = (r.code ?? "").trim().toLowerCase(), e = barcodeKey(r.barcode);
     const hit = [c ? byCode.get(c) : undefined, e ? byEan.get(e) : undefined].find((h) => h && !(h.jobId === jobId && h.rowNo === r.rowNo));
-    if (hit) out.set(r.rowNo, `${ALREADY_PENDING} (${c && byCode.get(c) === hit ? `κωδικός ${r.code!.trim()}` : `EAN ${normEan(r.barcode!)}`}) — δεν μπήκε δεύτερη φορά.`);
+    if (hit) out.set(r.rowNo, `${ALREADY_PENDING} (${c && byCode.get(c) === hit ? `κωδικός ${r.code!.trim()}` : normEan(r.barcode!) ? `EAN ${normEan(r.barcode!)}` : `barcode ${e}`}) — δεν μπήκε δεύτερη φορά.`);
   }
   return out;
 }

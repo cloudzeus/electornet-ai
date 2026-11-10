@@ -1,16 +1,17 @@
 import "server-only";
-import { DEFAULT_POLICY, policyPrice, splitByPolicy, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
+import { DEFAULT_POLICY, improves, policyPrice, splitByPolicy, type UpdatePolicy } from "@/lib/catalog/xml-import/policy-core";
+import { parseDescription, toPlainText } from "@/lib/softone/describe";
 import { db } from "@/lib/db";
 import { planImport, applyImport, WEB_GROUP_LABEL, type ExtraItem } from "@/lib/catalog/supplier-import";
 import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-media";
 import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } from "@/lib/catalog/supplier-sheet";
-import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
+import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled, writeItem } from "@/lib/softone/item-write";
 import { findOffWebItems, syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
-import { OPEN } from "@/lib/catalog/foreign-import/pending-core";
+import { OPEN, pendingFields, pendingMedia } from "@/lib/catalog/foreign-import/pending-core";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
-import { toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, barcodeKey, mergeMedia, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
+import { priceApplies, rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
 import { configIds, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 
@@ -54,6 +55,8 @@ export async function assertConfigIds(config: MappingConfig): Promise<void> {
 const SHEET = "Εισαγωγή";
 const keyOf = (rowNo: number) => `${SHEET}#${rowNo}`;
 const LABEL = Object.fromEntries(FIELDS.map((f) => [f.key, f.header])) as Record<FieldKey, string>;
+export const WEB_EXCLUDED_NOTE = "Έχει «Εξαίρεση Web» στο SoftOne: δεν ανεβαίνει στο site, γι' αυτό μένει εκτός εισαγωγής εκτός αν το διαλέξεις.";
+const NUMERIC: FieldKey[] = ["guaranteeMonths", "widthCm", "heightCm", "lengthCm", "weightKg"];
 const ROUNDING = new Set<Rounding>(["none", "int", "90", "99"]);
 const short = (s: string) => (s.length > 70 ? `${s.slice(0, 67)}…` : s);
 const mediaCount = (r: ForeignRow) => r.media.image.length + r.media.banner.length + r.media.video.length;
@@ -78,9 +81,11 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
   const mtrls = foreign.map((r) => Number(t(r.fields.mtrl))).filter((n) => Number.isInteger(n) && n > 0);
   const codes = [...new Set(foreign.flatMap((r) => [t(r.fields.code), t(r.fields.factoryCode)]).filter(Boolean))];
   // Όλες οι μορφές που μπορεί να έχει το ίδιο EAN στο SoftOne (8/12/13/14 ψηφία) — το ευρετήριο τα ενώνει σε GTIN-14
-  const eans = [...new Set(foreign.flatMap((r) => eanVariants(r.fields.barcode)))];
+  // Barcode που δεν είναι έγκυρο EAN ψάχνεται όπως είναι γραμμένο
+  const bcForms = (b?: string | null) => { const v = eanVariants(b); return v.length ? v : t(b ?? "") ? [t(b ?? "")] : []; };
+  const eans = [...new Set(foreign.flatMap((r) => bcForms(r.fields.barcode)))];
   const factory = [...new Set(foreign.map((r) => t(r.fields.factoryCode)).filter(Boolean))];
-  const select = { mtrl: true, code: true, name: true, barcode: true, factoryCode: true, manufacturerS1Id: true, vatS1Id: true, specGroupS1Id: true, eshopPrice: true } as const;
+  const select = { mtrl: true, code: true, name: true, barcode: true, factoryCode: true, manufacturerS1Id: true, vatS1Id: true, specGroupS1Id: true, eshopPrice: true, webExcluded: true, shortDesc: true, longDesc: true } as const;
   const find = (where: object) => db.s1Item.findMany({ where: { missing: false, ...where }, select, orderBy: { mtrl: "asc" } });
   const [found, brands, rules, vats] = await Promise.all([
     Promise.all([
@@ -100,10 +105,10 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
   // κατηγορία υπάρχει ήδη και δεν πρέπει να δημιουργηθεί ξανά ως «νέο»
   const mirrored = found.flat();
   const hasCode = new Set(mirrored.flatMap((i) => [i.code, i.factoryCode].filter((x): x is string => !!x).map((x) => x.toLowerCase())));
-  const hasEan = new Set(mirrored.flatMap((i) => (i.barcode ? eanVariants(i.barcode) : [])));
+  const hasEan = new Set(mirrored.flatMap((i) => bcForms(i.barcode)));
   const offWeb = await findOffWebItems({ codes: codes.filter((c) => !hasCode.has(c.toLowerCase())), barcodes: eans.filter((e) => !hasEan.has(e)) });
   const offWebOf = new Map(offWeb.map((i) => [i.mtrl, i]));
-  const items = [...new Map([...mirrored, ...offWeb.map((i) => ({ mtrl: i.mtrl, code: i.code, name: i.name, barcode: i.barcode, factoryCode: i.factoryCode, manufacturerS1Id: i.manufacturerS1Id, vatS1Id: i.vatS1Id, specGroupS1Id: i.specGroupS1Id, eshopPrice: null }))].map((i) => [i.mtrl, i])).values()].sort((a, b) => a.mtrl - b.mtrl);
+  const items = [...new Map([...mirrored, ...offWeb.map((i) => ({ mtrl: i.mtrl, code: i.code, name: i.name, barcode: i.barcode, factoryCode: i.factoryCode, manufacturerS1Id: i.manufacturerS1Id, vatS1Id: i.vatS1Id, specGroupS1Id: i.specGroupS1Id, eshopPrice: null, webExcluded: false, shortDesc: null as string | null, longDesc: null as string | null }))].map((i) => [i.mtrl, i])).values()].sort((a, b) => a.mtrl - b.mtrl);
   // Κλειδί (κωδικός / EAN / κωδικός κατασκευαστή) σε 2+ είδη → διφορούμενο: η γραμμή που το χτυπά βγαίνει πρόβλημα
   const index = buildMatchIndex(items.map((i) => ({ ...i, brandId: i.manufacturerS1Id != null ? brandOfS1.get(String(i.manufacturerS1Id)) ?? null : null })));
   const matches = resolveMatches(foreign, index);
@@ -126,6 +131,10 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
     db.category.findMany({ where: { id: { in: [...new Set([...newCats, ...ruleCats])] } }, select: { id: true, name: true, erpCode: true } }),
   ]);
   const productOf = new Map(products.map((p) => [p.erpCode, p]));
+  // Η κύρια φωτογραφία κάθε υπάρχοντος προϊόντος, για την προεπισκόπηση της κάρτας του (μόνο ανάγνωση)
+  const mainImage = new Map<string, string>();
+  for (const m of await inChunks(products.map((p) => p.id), (p) => db.media.findMany({ where: { productId: { in: p }, kind: "image", hidden: false }, select: { productId: true, url: true }, orderBy: [{ productId: "asc" }, { sortNo: "asc" }] })))
+    if (m.productId && !mainImage.has(m.productId)) mainImage.set(m.productId, m.url);
   const catName = new Map(cats.map((c) => [c.id, c.name]));
   // Ομάδα για νέο είδος: από την κατηγορία του site (s1:g:…), αλλιώς η συχνότερη ομάδα των ειδών που είναι ήδη στην κατηγορία
   const groupOfCat = new Map<string, number | null>();
@@ -170,7 +179,15 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
       if (t(row.fields.name)) plan.fileName = t(row.fields.name);
       if (m.matchedBy) plan.matchedBy = m.matchedBy;
       if (plan.fileName && namesDiffer(it.name, plan.fileName)) plan.warnings.push("Τα ονόματα δεν μοιάζουν — έλεγξε ότι είναι το σωστό είδος.");
+      if (it.webExcluded) { plan.webExcluded = true; plan.warnings.unshift(WEB_EXCLUDED_NOTE); }
+      const prod = productOf.get(String(it.mtrl));
+      const bId = row.brandId ?? prod?.brandId ?? (it.manufacturerS1Id != null ? brandOfS1.get(String(it.manufacturerS1Id)) : undefined) ?? null;
+      const have = prod ? mainImage.get(prod.id) : undefined;
+      plan.card = { brand: (bId && brandName.get(bId)) || "", images: [...(have ? [have] : []), ...row.media.image.filter((u) => u !== have)].slice(0, 12), category: null, current: it.eshopPrice };
     }
+    if (t(row.fields.barcode) && !normEan(row.fields.barcode!)) plan.warnings.push("Το barcode δεν είναι έγκυρο EAN — περνά όπως το έδωσε ο προμηθευτής.");
+    // Αριθμητικά πεδία με κείμενο (π.χ. εγγύηση «60-120»): η μηχανή θα απέρριπτε όλη τη γραμμή — φεύγει μόνο το πεδίο, με σημείωση
+    for (const k of NUMERIC) { const v = t(row.fields[k]); if (v && !/^\d+([.,]\d+)?$/.test(v)) { delete row.fields[k]; plan.warnings.push(`«${LABEL[k]}»: «${short(v)}» δεν είναι αριθμός — το πεδίο δεν θα περάσει.`); } }
     let problem = m.problem ?? (m.mtrl == null ? dups.get(row.rowNo) : same.get(row.rowNo)) ?? null;
     const extra = it ? offWebOf.get(it.mtrl) : undefined;
     let groupS1Id: number | null, assignWebGroup = false;
@@ -204,7 +221,9 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
       const e = fields.barcode ? normEan(fields.barcode) : null;
       if (e) fields.barcode = e;
       if (t(fields.code).toLowerCase() === it.code.trim().toLowerCase()) delete fields.code;
-      const part = splitByPolicy(fields, rk.specs, policy);
+      // «Έξυπνη» λειτουργία: ό,τι έχει ήδη τιμή αντικαθίσταται μόνο όταν το καινούργιο είναι αποδεδειγμένα καλύτερο
+      const have: Partial<Record<FieldKey, string>> = { shortDesc: it.shortDesc ? toPlainText(it.shortDesc) : "", descText: parseDescription(it.longDesc).text, barcode: it.barcode ?? "" };
+      const part = splitByPolicy(fields, rk.specs, policy, (k, v) => improves(k, have[k] ?? "", v));
       if (part.blank) c.parsed = { sheet: SHEET, rowNo: row.rowNo, groupS1Id: groupS1Id!, fields: part.blank.fields, specs: part.blank.specs };
       if (part.over) c.parsedOver = { sheet: SHEET, rowNo: row.rowNo, groupS1Id: groupS1Id!, fields: part.over.fields, specs: part.over.specs };
       // Η web ομάδα μπαίνει σε ΕΝΑ από τα δύο περάσματα (αλλιώς θα φαινόταν δύο φορές)· χωρίς άλλα πεδία, πέρασμα μόνο γι' αυτήν
@@ -222,17 +241,20 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
           plan.shop = [{ label: "Διαθεσιμότητα προμηθευτή", from: cur ? AVAIL_LABEL[cur] ?? cur : "—", to: c.supplierAvail ? AVAIL_LABEL[c.supplierAvail] ?? c.supplierAvail : "—" }];
         }
       }
-      const hasPrice = it.eshopPrice != null && it.eshopPrice > 0;
-      if (policy.price === "overwrite" || (policy.price === "blank" && !hasPrice)) {
+      if (policy.price !== "off") {
         const p = productOf.get(String(it.mtrl));
         const pr = priceOf(row, row.brandId ?? p?.brandId ?? null, row.categoryId ?? p?.categoryId ?? null, (it.vatS1Id != null ? vatOf.get(String(it.vatS1Id)) : undefined) ?? 24);
-        if (pr.price) plan.price = pr.price;
-        if (pr.warning) plan.warnings.push(pr.warning);
+        // κενή τιμή → μπαίνει· υπάρχουσα → διορθώνεται μόνο προς τα πάνω (ή όποτε διαφέρει, με «Αντικατάσταση»)
+        if (pr.price && priceApplies(policy.price, it.eshopPrice, pr.price.price)) {
+          plan.price = it.eshopPrice != null && it.eshopPrice > 0 ? { ...pr.price, was: it.eshopPrice } : pr.price;
+          if (pr.warning) plan.warnings.push(pr.warning);
+        } else if (!pr.price && pr.warning && !(it.eshopPrice != null && it.eshopPrice > 0)) plan.warnings.push(pr.warning);
       }
     } else {
       for (const k of Object.keys(row.fields) as FieldKey[]) { const v = t(row.fields[k]); if (v && k !== "mtrl") plan.changes.push({ label: LABEL[k], from: "—", to: short(v) }); }
       for (const [label, v] of Object.entries(rk.specs)) plan.changes.push({ label, from: "—", to: short(v) });
       plan.media = mediaCount(row);
+      plan.card = { brand: (row.brandId && brandName.get(row.brandId)) || "", images: row.media.image.slice(0, 12), category: (row.categoryId && catName.get(row.categoryId)) || null };
       const pr = priceOf(row, row.brandId, row.categoryId, vatOfGroup(groupS1Id));
       if (pr.price) plan.price = pr.price;
       if (pr.warning) plan.warnings.push(pr.warning);
@@ -284,15 +306,17 @@ const countStatus = (rows: ForeignPlanRow[]) => {
 
 /** Σχέδιο εισαγωγής: κατάσταση ανά γραμμή, χωρίς καμία εγγραφή εκτός από το ImportJob (πρόχειρο). */
 export async function planForeign(
-  input: { fileName: string; sheet: string[][]; headerRow: number; config: MappingConfig; mappingId?: string | null; opts?: EngineOpts },
+  input: { fileName: string; sheet: string[][]; headerRow: number; config: MappingConfig; mappingId?: string | null; opts?: EngineOpts; /** γραμμές δεύτερου αρχείου μόνο με πολυμέσα (`mediaRows`) */ extraMedia?: ForeignRow[] },
   staffId: string | null,
-): Promise<{ jobId: string; rows: ForeignPlanRow[]; writeOn: boolean }> {
+): Promise<{ jobId: string; rows: ForeignPlanRow[]; writeOn: boolean; mediaMatch?: { matched: number; total: number } }> {
   const foreign = toRows(input.sheet, input.headerRow, input.config);
+  // Πριν από το σχέδιο: έτσι οι φωτογραφίες του δεύτερου αρχείου αποθηκεύονται με τις γραμμές και ακολουθούν ό,τι και οι δικές τους
+  const mediaMatch = input.extraMedia ? mergeMedia(foreign, input.extraMedia) : undefined;
   const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
   const rows = (await compute(foreign, writeOn, priceOn, undefined, input.opts)).map((c) => c.plan);
   const stored: Stored = { foreign, plan: rows, headerRow: input.headerRow, config: input.config, writeOn, priceOn, ...(input.opts ? { opts: input.opts } : {}) };
   const job = await db.importJob.create({ data: { fileName: input.fileName, mappingId: input.mappingId ?? null, rows: stored as object, counts: countStatus(rows), status: "draft", createdById: staffId }, select: { id: true } });
-  return { jobId: job.id, rows, writeOn };
+  return { jobId: job.id, rows, writeOn, ...(mediaMatch ? { mediaMatch } : {}) };
 }
 
 /**
@@ -384,7 +408,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     // Τιμή μόνο αν τα στοιχεία της γραμμής πέρασαν — όχι μισοεκτελεσμένη γραμμή. Με κλειστή εγγραφή τιμής web: παραλείπεται
     // (η προεπισκόπηση το έδειξε με σημείωση), όχι σφάλμα.
     for (const c of priceOn ? existing.filter((x) => x.plan.price && !rowErr.has(x.row.rowNo)) : []) {
-      const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { onlyIfBlank: stored.opts?.policy.price !== "overwrite" });
+      const w = await writeWebPrice(c.mtrl!, c.plan.price!.price, { mode: stored.opts?.policy.price === "overwrite" ? "any" : "higher" });
       if (!w.ok) { fail(c.row.rowNo, `Τιμή web: ${w.error ?? "δεν γράφτηκε."}`); continue; }
       // Όπως στην έγκριση νέων ειδών: το κατάστημα και ο καθρέφτης παίρνουν αμέσως την τιμή
       try { await syncItem(c.mtrl!, "manual"); await projectItem(c.mtrl!); }
@@ -420,8 +444,20 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   let already = new Map<number, string>();
   if (fresh.length) {
     const have = new Set((await db.pendingItem.findMany({ where: { jobId, rowNo: { in: fresh.map((c) => c.row.rowNo) } }, select: { rowNo: true } })).map((p) => p.rowNo));
-    const open = await db.pendingItem.findMany({ where: { status: { in: [...OPEN, "creating"] } }, select: { jobId: true, rowNo: true, code: true, fields: true } });
+    const open = await db.pendingItem.findMany({ where: { status: { in: [...OPEN, "creating"] } }, select: { id: true, status: true, media: true, jobId: true, rowNo: true, code: true, fields: true } });
     already = openDuplicates(jobId, fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => ({ rowNo: c.row.rowNo, code: (c.row.fields.code || c.row.fields.factoryCode || "").trim(), barcode: c.row.fields.barcode })), open);
+    // Το ίδιο είδος περιμένει ήδη δημιουργία (ήρθε πρώτα το αρχείο προϊόντων, τώρα αυτό με τις φωτογραφίες): τα πολυμέσα
+    // της γραμμής προστίθενται σε εκείνο, αλλιώς θα χάνονταν μαζί με τη γραμμή που δεν μπαίνει δεύτερη φορά
+    for (const c of fresh.filter((x) => already.has(x.row.rowNo) && mediaCount(x.row))) {
+      const code = (c.row.fields.code || c.row.fields.factoryCode || "").trim().toLowerCase(), bk = barcodeKey(c.row.fields.barcode);
+      const p = open.find((o) => OPEN.includes(o.status) && ((code && o.code.trim().toLowerCase() === code) || (bk && barcodeKey(pendingFields(o.fields).barcode) === bk)));
+      if (!p) continue;
+      const cur = pendingMedia(p.media), add = c.row.media;
+      const media = { image: [...new Set([...cur.image, ...add.image])], banner: [...new Set([...cur.banner, ...add.banner])], video: [...new Set([...cur.video, ...add.video])] };
+      const n = media.image.length + media.banner.length + media.video.length - cur.image.length - cur.banner.length - cur.video.length;
+      if (n) await db.pendingItem.update({ where: { id: p.id }, data: { media } });
+      already.set(c.row.rowNo, `${already.get(c.row.rowNo)} ${n ? `Προστέθηκαν σε αυτό ${n} ${n === 1 ? "πολυμέσο" : "πολυμέσα"} της γραμμής.` : "Τα πολυμέσα της γραμμής τα έχει ήδη."}`);
+    }
     const data = fresh.filter((c) => !have.has(c.row.rowNo) && !already.has(c.row.rowNo)).map((c) => {
       const r = c.row, fields = { ...r.fields };
       const e = fields.barcode ? normEan(fields.barcode) : null;
@@ -466,4 +502,72 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
     rows: { ...stored, plan, results } as object,
   } });
   return { done, waiting, pending, errors, notes, waitingRows };
+}
+
+export type MissingProduct = { id: string; mtrl: number; title: string; sku: string; brand: string };
+
+/**
+ * Ενεργά προϊόντα των μαρκών του αρχείου που ΔΕΝ βρέθηκαν σε καμία γραμμή του: υποψήφια για απενεργοποίηση. Μόνο λίστα —
+ * ο χρήστης διαλέγει (ένα αρχείο μπορεί να είναι μέρος του καταλόγου της μάρκας, π.χ. ένα φύλλο από τα δύο).
+ */
+export async function missingFromJob(jobId: string): Promise<MissingProduct[]> {
+  const job = await db.importJob.findUnique({ where: { id: jobId }, select: { rows: true } });
+  const stored = job?.rows as unknown as Stored | undefined;
+  if (!stored || !Array.isArray(stored.foreign) || !Array.isArray(stored.plan)) return [];
+  const brands = [...new Set(stored.foreign.map((r) => r.brandId).filter((x): x is string => !!x))];
+  if (!brands.length) return [];
+  const inFile = new Set(stored.plan.map((p) => p.mtrl).filter((m): m is number => m != null).map(String));
+  const ps = await db.product.findMany({ where: { brandId: { in: brands }, active: true }, select: { id: true, erpCode: true, title: true, sku: true, brand: { select: { name: true } } }, orderBy: { title: "asc" } });
+  return ps.filter((p) => /^\d+$/.test(p.erpCode) && !inFile.has(p.erpCode)).map((p) => ({ id: p.id, mtrl: Number(p.erpCode), title: p.title, sku: p.sku ?? "", brand: p.brand?.name ?? "" }));
+}
+
+/**
+ * Απενεργοποίηση όσων διάλεξε ο χρήστης από τη λίστα «λείπουν από το αρχείο»: το είδος γίνεται ανενεργό στο SoftOne (εκεί
+ * ορίζεται το «ενεργό» — το κατάστημα το παίρνει με τον συγχρονισμό, που τρέχει εδώ αμέσως). Η λίστα ξαναϋπολογίζεται:
+ * προϊόν που δεν λείπει πια (ή ήταν άλλης μάρκας) δεν αγγίζεται.
+ */
+export async function deactivateMissing(jobId: string, ids: string[]): Promise<{ id: string; ok: boolean; error?: string }[]> {
+  if (!(await itemWriteEnabled())) throw new UserError("Οι αλλαγές προς το SoftOne είναι κλειστές (Ρυθμίσεις → SoftOne) — η απενεργοποίηση γίνεται εκεί.");
+  const allowed = new Map((await missingFromJob(jobId)).map((p) => [p.id, p]));
+  const out: { id: string; ok: boolean; error?: string }[] = [];
+  for (const id of [...new Set(ids)]) {
+    const p = allowed.get(id);
+    if (!p) { out.push({ id, ok: false, error: "Δεν είναι πια στη λίστα όσων λείπουν — ανανέωσε." }); continue; }
+    try {
+      const w = await writeItem(p.mtrl, { active: { from: true, to: false } });
+      if (!w.ok) { out.push({ id, ok: false, error: w.error ?? "Το SoftOne δεν δέχτηκε την αλλαγή." }); continue; }
+      await syncItem(p.mtrl, "manual"); await projectItem(p.mtrl);
+      out.push({ id, ok: true });
+    } catch (e) { console.error("[foreign-import/deactivate]", p.mtrl, e); out.push({ id, ok: false, error: "Απρόσμενο σφάλμα — ξαναδοκίμασε." }); }
+  }
+  return out;
+}
+
+/** Οι γραμμές μιας εισαγωγής που είναι νέα είδη ΧΩΡΙΣ κατηγορία site — αυτές έχει νόημα να ρωτηθεί το AI. Μόνο ανάγνωση. */
+export async function rowsWithoutCategory(jobId: string): Promise<{ rowNo: number; name: string; brand?: string; extra: string }[]> {
+  const job = await db.importJob.findUnique({ where: { id: jobId }, select: { rows: true } });
+  const stored = job?.rows as unknown as Stored | undefined;
+  if (!stored || !Array.isArray(stored.foreign) || !Array.isArray(stored.plan)) throw new UserError("Η εισαγωγή δεν βρέθηκε — ξανακάνε προεπισκόπηση.");
+  const isNew = new Set(stored.plan.filter((p) => p.status === "new").map((p) => p.rowNo));
+  const rows = stored.foreign.filter((r) => isNew.has(r.rowNo) && !r.categoryId);
+  const brands = new Map((await db.brand.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.brandId).filter((x): x is string => !!x))] } }, select: { id: true, name: true } })).map((b) => [b.id, b.name]));
+  return rows.map((r) => ({
+    rowNo: r.rowNo, name: (r.fields.name || r.fields.code || r.fields.factoryCode || "").trim(), ...(r.brandId && brands.get(r.brandId) ? { brand: brands.get(r.brandId)! } : {}),
+    extra: [r.fields.shortDesc, r.fields.descText?.slice(0, 120), Object.entries(r.specs).slice(0, 6).map(([k, v]) => `${k}: ${v}`).join(" · ")].filter(Boolean).join(" · "),
+  }));
+}
+
+/**
+ * Κατηγορία site ανά γραμμή (όσες δέχτηκε ο χρήστης από τις προτάσεις): γράφεται στις γραμμές της εισαγωγής και το σχέδιο
+ * ξαναϋπολογίζεται, ώστε να βγουν ομάδα χαρακτηριστικών, ΦΠΑ και κανόνας τιμής. Αγγίζει μόνο το ImportJob.
+ */
+export async function setRowCategories(jobId: string, picks: Record<number, string>): Promise<{ jobId: string; fileName: string; rows: ForeignPlanRow[]; writeOn: boolean }> {
+  const job = await db.importJob.findUnique({ where: { id: jobId } });
+  const stored = job?.rows as unknown as Stored | undefined;
+  if (!job || !stored || !Array.isArray(stored.foreign)) throw new UserError("Η εισαγωγή δεν βρέθηκε — ξανακάνε προεπισκόπηση.");
+  const ids = [...new Set(Object.values(picks))];
+  const valid = new Set((await db.category.findMany({ where: { id: { in: ids } }, select: { id: true } })).map((c) => c.id));
+  const foreign = stored.foreign.map((r) => (picks[r.rowNo] && valid.has(picks[r.rowNo]) && !r.categoryId ? { ...r, categoryId: picks[r.rowNo] } : r));
+  await db.importJob.update({ where: { id: jobId }, data: { rows: { ...stored, foreign } as object } });
+  return replanForeign(jobId);
 }

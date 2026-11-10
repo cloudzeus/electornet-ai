@@ -191,6 +191,13 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
     }
   }
 
+  // Δύο ετικέτες του προμηθευτή που το AI έστειλε στην ΙΔΙΑ δική μας ονομασία (ή πάνω σε ετικέτα που υπάρχει ήδη) θα
+  // γίνονταν διπλός στόχος και θα μπλόκαραν τον οδηγό χωρίς να φταίει ο χρήστης: αυτές κρατούν το δικό τους όνομα.
+  const finalName = (l: string) => norm(specs[l].label ?? l);
+  const seen = new Map<string, number>();
+  for (const l of Object.keys(specs)) seen.set(finalName(l), (seen.get(finalName(l)) ?? 0) + 1);
+  for (const l of Object.keys(specs)) if (specs[l].label && specs[l].confidence === "unsure" && (seen.get(finalName(l)) ?? 0) > 1) specs[l] = { label: null, confidence: "unsure" };
+
   return { columns, categories, specs, duplicates: duplicateTargets(columns, headers), aiUsed };
 }
 

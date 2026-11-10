@@ -1,13 +1,18 @@
 import type { FieldKey } from "@/lib/catalog/supplier-sheet";
 import { parseMoney, priceFrom, type Rounding } from "@/lib/catalog/pricing/markup";
 import type { ForeignPrice } from "@/lib/catalog/foreign-import/plan-core";
+import { normEan } from "@/lib/catalog/foreign-import/core";
 
 /**
  * **Τι επιτρέπεται να αλλάξει το XML σε είδη που υπάρχουν ήδη στο SoftOne** — καθαρή λογική, χωρίς βάση.
  *
  * Τρεις ομάδες πεδίων, η καθεμία με δικό της τρόπο:
  * - `off`: το XML δεν αγγίζει την ομάδα,
- * - `blank`: συμπληρώνει μόνο ό,τι είναι κενό στο SoftOne (η προηγούμενη και προεπιλεγμένη συμπεριφορά),
+ * - `blank`: η προεπιλεγμένη, «έξυπνη» συμπεριφορά — συμπληρώνει ό,τι είναι κενό στο SoftOne **και βελτιώνει μόνο όπου
+ *   το καινούργιο είναι αποδεδειγμένα καλύτερο**, ποτέ το αντίστροφο:
+ *   · τιμή: μπαίνει όπου λείπει, ανεβαίνει όπου η νέα είναι μεγαλύτερη (`priceApplies`),
+ *   · περιγραφές: αντικαθίστανται όταν του προμηθευτή είναι αισθητά πληρέστερη (`richer`),
+ *   · barcode: αντικαθίσταται όταν το δικό μας δεν είναι έγκυρο EAN και του προμηθευτή είναι (`improves`),
  * - `overwrite`: αντικαθιστά και ό,τι διαφέρει.
  * Το όνομα του είδους δεν αντικαθίσταται ποτέ (είναι η ταυτότητά του στο ERP): μόνο συμπληρώνεται αν λείπει.
  * Οι κωδικοί (MTRL, κωδικός) είναι κλειδιά ταιριάσματος και δεν είναι πεδία προς ενημέρωση.
@@ -27,9 +32,9 @@ export interface UpdatePolicy {
 export const DEFAULT_POLICY: UpdatePolicy = { price: "blank", content: "blank", tech: "blank", vatIncluded: false, markupPercent: null };
 
 export const GROUPS: { key: FieldGroup; label: string; help: string }[] = [
-  { key: "price", label: "Τιμή", help: "Τιμή web από το κόστος × κανόνα τιμολόγησης ή από τη λιανική του feed." },
-  { key: "content", label: "Περιγραφές & χαρακτηριστικά", help: "Σύντομη και αναλυτική περιγραφή, εγγύηση, χαρακτηριστικά της ομάδας." },
-  { key: "tech", label: "EAN, βάρος, διαστάσεις", help: "Barcode, κωδικός κατασκευαστή, βάρος, πλάτος, ύψος, βάθος." },
+  { key: "price", label: "Τιμή", help: "Τιμή web από το κόστος × κανόνα τιμολόγησης ή από τη λιανική του προμηθευτή. «Κενή ή μεγαλύτερη»: μπαίνει όπου λείπει και ανεβαίνει όπου η νέα είναι μεγαλύτερη· «Αντικατάσταση»: αλλάζει και προς τα κάτω." },
+  { key: "content", label: "Περιγραφές & χαρακτηριστικά", help: "Σύντομη και αναλυτική περιγραφή, εγγύηση, χαρακτηριστικά της ομάδας. «Κενά ή πληρέστερα»: μπαίνουν όπου το είδος δεν έχει τίποτα, και μια περιγραφή αντικαθίσταται μόνο όταν του προμηθευτή είναι αισθητά πληρέστερη (τουλάχιστον 20 % μακρύτερη)· τα χαρακτηριστικά που έχουν ήδη τιμή μένουν. «Αντικατάσταση»: αλλάζει και ό,τι απλώς διαφέρει — χάνονται δικές σας διορθώσεις στο SoftOne." },
+  { key: "tech", label: "EAN, βάρος, διαστάσεις", help: "Barcode, κωδικός κατασκευαστή, βάρος, πλάτος, ύψος, βάθος. «Κενά ή έγκυρο EAN»: συμπληρώνονται όπου λείπουν, και το barcode διορθώνεται μόνο όταν το δικό μας δεν είναι έγκυρο EAN και του προμηθευτή είναι· βάρος, διαστάσεις και κωδικός κατασκευαστή που υπάρχουν μένουν. «Αντικατάσταση»: αλλάζουν και όσα διαφέρουν από του προμηθευτή." },
 ];
 
 const KEYS = new Set<FieldKey>(["mtrl", "code"]);
@@ -51,10 +56,28 @@ export function normPolicy(x: unknown): UpdatePolicy {
   };
 }
 
+const plainLen = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim().length;
+/**
+ * «Πληρέστερη» περιγραφή: τουλάχιστον 20 % ΚΑΙ 30 χαρακτήρες μακρύτερη (χωρίς HTML). Τα δύο όρια μαζί αποκλείουν τις
+ * διαφορές στίξης/διατύπωσης — μια περιγραφή που κάποιος έγραψε με το χέρι δεν χάνεται για λίγες λέξεις παραπάνω.
+ */
+export const richer = (current: string, incoming: string): boolean => { const c = plainLen(current), n = plainLen(incoming); return c > 0 && n >= c * 1.2 && n - c >= 30; };
+
+/**
+ * Στην «έξυπνη» λειτουργία: αξίζει να αντικατασταθεί αυτό το πεδίο που ΕΧΕΙ ήδη τιμή; Μόνο περιγραφές που γίνονται
+ * πληρέστερες και barcode που γίνεται έγκυρο EAN. Όνομα, κωδικοί, εγγύηση, βάρος και διαστάσεις δεν έχουν «καλύτερο» που
+ * να κρίνεται μηχανικά — μένουν όπως είναι, εκτός αν ο χρήστης διαλέξει «Αντικατάσταση».
+ */
+export function improves(k: FieldKey, current: string, incoming: string): boolean {
+  if (k === "shortDesc" || k === "descText") return richer(current, incoming);
+  if (k === "barcode") return !!current.trim() && !normEan(current) && !!normEan(incoming);
+  return false;
+}
+
 type Part = { fields: Partial<Record<FieldKey, string>>; specs: Record<string, string> };
 
 /** Χωρίζει τα πεδία μιας γραμμής σε «μόνο κενά» και «αντικατάσταση». Τα κλειδιά πάνε και στα δύο, ώστε κάθε μέρος να βρίσκει το είδος. */
-export function splitByPolicy(fields: Partial<Record<FieldKey, string>>, specs: Record<string, string>, p: UpdatePolicy): { blank: Part | null; over: Part | null } {
+export function splitByPolicy(fields: Partial<Record<FieldKey, string>>, specs: Record<string, string>, p: UpdatePolicy, /** «έξυπνη» λειτουργία: το πεδίο έχει ήδη τιμή αλλά η καινούργια είναι καλύτερη → αντικατάσταση μόνο αυτού */ better?: (k: FieldKey, v: string) => boolean): { blank: Part | null; over: Part | null } {
   const keys: Partial<Record<FieldKey, string>> = {};
   const blank: Part = { fields: {}, specs: {} }, over: Part = { fields: {}, specs: {} };
   for (const [k, v] of Object.entries(fields) as [FieldKey, string][]) {
@@ -64,7 +87,7 @@ export function splitByPolicy(fields: Partial<Record<FieldKey, string>>, specs: 
     const mode = g ? p[g] : "off";
     if (mode === "off") continue;
     // το όνομα: ποτέ αντικατάσταση
-    if (mode === "overwrite" && k !== "name") over.fields[k] = v; else blank.fields[k] = v;
+    if (k !== "name" && (mode === "overwrite" || (mode === "blank" && better?.(k, v)))) over.fields[k] = v; else blank.fields[k] = v;
   }
   if (p.content !== "off") Object.assign(p.content === "overwrite" ? over.specs : blank.specs, specs);
   const has = (x: Part) => Object.keys(x.fields).length > 0 || Object.keys(x.specs).length > 0;

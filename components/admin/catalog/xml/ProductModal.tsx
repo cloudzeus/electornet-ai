@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, CircleAlert, Images, Loader2, Plus, Save, Tags, Tag, X } from "lucide-react";
+import { CardPeek } from "@/components/admin/catalog/CardPeek";
+import type { Settings } from "@/lib/cms/settings";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { priceWarning } from "@/lib/catalog/xml-import/transform-core";
 import { DIFF, STATUS, headerLabel, isDecimal, sectionOf, type ItemDTO, type Section } from "@/lib/catalog/xml-import/ui-core";
@@ -26,7 +28,9 @@ export interface ModalNav { hasPrev: boolean; hasNext: boolean; onPrev: () => vo
  *
  * Το κλείσιμο με αλλαγές ζητά επιβεβαίωση — η διόρθωση 20 πεδίων δεν χάνεται με ένα λάθος Esc.
  */
-export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone, saving, nav, onSave, onClose }: {
+export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone, saving, nav, onSave, onClose, settings }: {
+  /** οι ρυθμίσεις του site, για την κάρτα «πώς θα φαίνεται στο eshop» */
+  settings: Settings;
   item: ItemDTO;
   targets: Record<string, string>;
   priceMode: PriceMode;
@@ -43,6 +47,7 @@ export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone,
   const [softone, setSoftone] = useState<boolean | null>(item.softone);
   const [showEmpty, setShowEmpty] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [peek, setPeek] = useState(false);
   // Άλλο προϊόν (‹ › ή ανανέωση της λίστας): η φόρμα ακολουθεί — ίδιο πρότυπο με το ProductImages
   const [shown, setShown] = useState(item.id);
   if (item.id !== shown) { setShown(item.id); setEdits(item.edits ?? {}); setImages(item.images); setSoftone(item.softone); setConfirming(false); }
@@ -159,6 +164,15 @@ export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone,
             </div>
           )}
 
+          {/* Η κάρτα του site με ό,τι ισχύει ΤΩΡΑ στη φόρμα: αλλάζεις όνομα ή σειρά φωτογραφιών και το βλέπεις αμέσως */}
+          {(() => {
+            const of = (t: string) => { const h = Object.keys(targets).find((x) => targets[x] === t); return h ? valueOf(h).trim() : ""; };
+            const rrp = Number(of("rrp").replace(",", "."));
+            return <CardPeek open={peek} onToggle={() => setPeek((v) => !v)} settings={settings}
+              data={{ key: item.id, title: of("field:name") || item.sku, sku: item.sku, brand: of("brand"), images, price: priceMode === "retail" && rrp > 0 ? rrp : null }}
+              notes={[priceMode === "retail" ? "Η τιμή είναι η λιανική του προμηθευτή· η τελική βγαίνει στον έλεγχο με το SoftOne." : "Η τελική τιμή (κόστος + markup) βγαίνει στον έλεγχο με το SoftOne."]} />;
+          })()}
+
           {/* Οι τρεις ενότητες γράφονται ξεχωριστά, ώστε το `data-help` να είναι κυριολεκτικό: το `npm run help:gen`
               σαρώνει τον κώδικα για `data-help="…"` και δεν βλέπει template literal. */}
           <section data-help="xml.modal.fields" className="grid gap-2 min-w-0" aria-labelledby="xm-fields">
@@ -174,7 +188,7 @@ export function ProductModal({ item, targets, priceMode, writeOn, feedToSoftone,
           <section data-help="xml.modal.price" className="grid gap-2 min-w-0" aria-labelledby="xm-price">
             <h3 id="xm-price" className="m-0 flex items-center gap-1.5 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]"><Tag className="size-4 text-eu-blue" aria-hidden /> Τιμή</h3>
             <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">
-              {priceMode === "cost" ? "Τιμή από το κόστος + κανόνα markup, με πλαφόν τη λιανική του feed." : "Τιμή η λιανική του feed, χωρίς κανόνα markup."} Η τελική τιμή web υπολογίζεται στην εισαγωγή και μπαίνει μόνο όπου το είδος δεν έχει τιμή.
+              {priceMode === "cost" ? "Τιμή από το κόστος + κανόνα markup, με πλαφόν τη λιανική του feed." : "Τιμή η λιανική του feed, χωρίς κανόνα markup."} Η τελική τιμή web υπολογίζεται στην εισαγωγή και μπαίνει όπου το είδος δεν έχει τιμή και διορθώνει προς τα πάνω όπου η νέα είναι μεγαλύτερη.
             </p>
             {warn && <p role="status" className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-2.5 py-1.5 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{warn}</span></p>}
             {rows("price", "Το feed δεν έδωσε τιμές.")}

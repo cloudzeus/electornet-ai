@@ -89,7 +89,9 @@ type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | 
 type ValueMaps = { brandMap: Record<string, string | null>; categoryMap: Record<string, string | null>; unitMap?: Record<string, string | null>; markMap?: Record<string, string | null>; availMap?: Record<string, string | null> };
 export type MappingConfig = { columns: Record<number, Target> } & ValueMaps & SheetDefaults;
 /** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
-export type SavedConfig = { columns: Record<string, Target> } & ValueMaps & SheetDefaults;
+/** Οι επιλογές τιμής του βήματος 3 (από ποια στήλη, αν έχει ΦΠΑ, markup) — αποθηκεύονται μαζί με την αντιστοίχιση. */
+export type SavedPrice = { priceMode: "cost" | "retail"; vatIncluded: boolean; markupPercent: number | null };
+export type SavedConfig = { columns: Record<string, Target> } & ValueMaps & SheetDefaults & { price?: SavedPrice };
 const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}), ...(c.sheetUnitId ? { sheetUnitId: c.sheetUnitId } : {}), ...(c.sheetMarkId ? { sheetMarkId: c.sheetMarkId } : {}) });
 /** Οι χάρτες τιμών όπως ταξιδεύουν μαζί (αποθήκευση ↔ χρήση)· μόνο όσοι έχουν περιεχόμενο αποθηκεύονται. */
 const valueMaps = (c: ValueMaps): ValueMaps => ({ brandMap: c.brandMap ?? {}, categoryMap: c.categoryMap ?? {}, ...(c.unitMap && Object.keys(c.unitMap).length ? { unitMap: c.unitMap } : {}), ...(c.markMap && Object.keys(c.markMap).length ? { markMap: c.markMap } : {}), ...(c.availMap && Object.keys(c.availMap).length ? { availMap: c.availMap } : {}) });
@@ -166,12 +168,13 @@ const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
   { target: { kind: "media", type: "image" }, w: ["image", "img", "photo", "picture", "pic"], s: ["φωτογραφι", "εικονα", "εικονες", "εικονας"] },
   { target: { kind: "field", key: "factoryCode" }, w: ["mpn", "model", "part"], s: ["κωδικος κατασκευαστη", "κωδ κατασκευαστη", "manufacturer code", "manufacturer part", "mfr", "μοντελο"] },
   { target: { kind: "field", key: "barcode" }, w: ["ean", "barcode", "gtin", "upc"], s: ["μπαρκοντ"] },
-  { target: { kind: "brand" }, w: ["brand", "manufacturer"], s: ["μαρκα", "κατασκευαστη"] },
+  { target: { kind: "brand" }, w: ["brand", "manufacturer"], s: ["μαρκα", "κατασκευαστη", "εταιρεια", "εταιρια"] },
   { target: { kind: "category" }, w: ["category"], s: ["κατηγορια"] },
   { target: { kind: "cost" }, w: ["cost", "net", "dealer", "χονδρικη"], s: ["κοστος", "τιμη αγορας", "τιμη κτησης", "τιμη χονδρικης", "τιμη μοναδος", "unit price"] },
   { target: { kind: "rrp" }, w: ["rrp", "msrp", "pvp"], s: ["λιανικη", "τιμη πωλησης"] },
   // ΜΕΤΑ τις τιμές: «Unit price» / «Τιμή μονάδος» είναι κόστος, όχι μονάδα μέτρησης
   { target: { kind: "unit" }, w: ["uom", "μοναδα"], s: ["μοναδα μετρησης", "μον μετρησης", "unit of measure"] },
+  { target: { kind: "field", key: "guaranteeMonths" }, w: ["warranty", "guarantee"], s: ["εγγυηση"] },
   { target: { kind: "availability" }, w: ["availability", "stockstatus"], s: ["διαθεσιμοτητα", "stock status", "κατασταση αποθεματος"] },
   { target: { kind: "field", key: "shortDesc" }, s: ["συντομη περιγραφη", "short description"] },
   { target: { kind: "field", key: "name" }, w: ["name", "title"], s: ["περιγραφη ειδους", "ονομα", "τιτλος", "ονομασια", "product description"] },
@@ -181,7 +184,11 @@ const RULES: { target: Target; w?: string[]; s?: string[] }[] = [
 const CODE_HEADERS = new Set(["κωδικος", "κωδ", "code", "sku", "κωδικος ειδους", "κωδ ειδους", "item code", "product code", "κωδικος προιοντος"]);
 
 /** Πρόταση στόχου για μια επικεφαλίδα (ο χρήστης μπορεί πάντα να την αλλάξει). Τελικοί αριθμοί π.χ. «Φωτογραφία 2» αγνοούνται. */
-export function suggestTarget(header: string): Target {
+export const suggestTarget = (header: string): Target => suggest(header) ?? { kind: "ignore" };
+/** Επικεφαλίδα που δεν αναγνωρίστηκε καθόλου (όχι όσες αγνοούνται εν γνώσει μας, π.χ. ΦΠΑ) — ο οδηγός ρωτά τον χρήστη τι είναι. */
+export const unknownHeader = (header: string): boolean => suggest(header) === null;
+
+function suggest(header: string): Target | null {
   const h = norm(txt(header).replace(/[.,/\\\-_()]+/g, " ")).replace(/ ?\d+$/, "").replace(/(?<=[a-zα-ω])\d+(?=\W|$)/g, "");
   if (!h) return { kind: "ignore" };
   const words = h.split(/[^a-zα-ω0-9]+/).filter(Boolean);
@@ -191,11 +198,16 @@ export function suggestTarget(header: string): Target {
   if (has("vat", "φπα")) return { kind: "ignore" }; // «Κατηγορία ΦΠΑ» δεν είναι κατηγορία προϊόντος
   if ((has("supplier", "vendor") || h.includes("προμηθευτ")) && (has("code", "sku", "κωδ", "κωδικος") || h.includes("κωδικ"))) return { kind: "ignore" }; // ο κωδικός του προμηθευτή δεν είναι δικός μας
   if (has("model") && has("name", "title")) return { kind: "field", key: "name" };
+  if (h === "mtrl") return { kind: "field", key: "mtrl" }; // τα δικά μας templates (και το αρχείο πολυμέσων) το έχουν πρώτη στήλη
+  if (h === "εχει ηδη") return { kind: "ignore" }; // ενημερωτική στήλη του δικού μας αρχείου πολυμέσων
+  // Διαστάσεις: τα πεδία μας είναι σε εκατοστά — επικεφαλίδα με άλλη μονάδα (mm, m, ίντσες) δεν μαντεύεται, ρωτιέται
+  const dim = h.includes("πλατος") || has("width") ? "widthCm" : h.includes("υψος") || has("height") ? "heightCm" : h.includes("βαθος") || h.includes("μηκος") || has("depth", "length") ? "lengthCm" : null;
+  if (dim) return has("mm", "m", "χιλ", "χιλιοστα", "inch", "in", "ιντσες") ? null : { kind: "field", key: dim };
   for (const r of RULES) {
     if (r.w?.some((w) => words.includes(w))) return r.target;
     if (r.s?.some((s) => h.includes(norm(s)))) return r.target;
   }
-  return CODE_HEADERS.has(h) ? { kind: "field", key: "code" } : { kind: "ignore" };
+  return CODE_HEADERS.has(h) ? { kind: "field", key: "code" } : null;
 }
 
 // ---------- EAN ----------
@@ -239,6 +251,9 @@ export function eanVariants(v: string | null | undefined): string[] {
 }
 
 /** Ίδιο barcode: ίδιο GTIN-14 όταν και τα δύο είναι έγκυρα EAN, αλλιώς ίδιο κείμενο (trim). */
+/** Κλειδί σύγκρισης barcode: GTIN-14 όταν είναι έγκυρο EAN, αλλιώς το ίδιο το κείμενο (προμηθευτές με δικούς τους κωδικούς στη στήλη barcode). */
+export const barcodeKey = (v: string | null | undefined): string | null => gtin14(v) ?? (txt(v) || null);
+
 export const sameEan = (a: string | null | undefined, b: string | null | undefined) => {
   const ga = gtin14(a), gb = gtin14(b);
   return ga && gb ? ga === gb : !!a && (a ?? "").trim() === (b ?? "").trim();
@@ -313,6 +328,39 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
   return out;
 }
 
+/**
+ * Δεύτερο αρχείο μόνο με πολυμέσα (φωτογραφίες / banners / βίντεο): από κάθε φύλλο που έχει στήλη-κλειδί ΚΑΙ στήλη πολυμέσων
+ * (όπως τις αναγνωρίζει το `suggestTarget`) βγαίνουν γραμμές με τα κλειδιά και τα URL τους. Φύλλα οδηγιών κ.λπ. παραλείπονται.
+ */
+export function mediaRows(sheets: string[][][]): ForeignRow[] {
+  const KEYS = new Set<FieldKey>(["mtrl", "code", "factoryCode", "barcode"]);
+  return sheets.flatMap((matrix) => {
+    const headerRow = detectHeaderRow(matrix), columns: Record<number, Target> = {};
+    (matrix[headerRow] ?? []).forEach((h, i) => { const t = suggestTarget(h); if (t.kind === "media" || (t.kind === "field" && KEYS.has(t.key))) columns[i] = t; });
+    const kinds = Object.values(columns).map((t) => t.kind);
+    if (!kinds.includes("media") || !kinds.includes("field")) return [];
+    return toRows(matrix, headerRow, { columns, brandMap: {}, categoryMap: {} }).filter((r) => r.media.image.length + r.media.banner.length + r.media.video.length > 0);
+  });
+}
+
+/**
+ * Τα πολυμέσα του δεύτερου αρχείου περνούν στη γραμμή του κύριου με το ίδιο κλειδί (MTRL → κωδικός / κωδικός κατασκευαστή →
+ * barcode)· ίδιο URL δεν μπαίνει δύο φορές. `matched` από `total` γραμμές πολυμέσων βρήκαν γραμμή — οι υπόλοιπες δεν χρησιμοποιούνται.
+ */
+export function mergeMedia(rows: ForeignRow[], extra: ForeignRow[]): { matched: number; total: number } {
+  const keys = (r: ForeignRow) => [txt(r.fields.mtrl) && `m:${txt(r.fields.mtrl)}`, ...[r.fields.code, r.fields.factoryCode].map((c) => txt(c) && `c:${txt(c).toLowerCase()}`), barcodeKey(r.fields.barcode) && `b:${barcodeKey(r.fields.barcode)}`].filter((k): k is string => !!k);
+  const index = new Map<string, ForeignRow>();
+  for (const r of rows) for (const k of keys(r)) if (!index.has(k)) index.set(k, r);
+  let matched = 0;
+  for (const e of extra) {
+    const hit = keys(e).map((k) => index.get(k)).find(Boolean);
+    if (!hit) continue;
+    matched++;
+    for (const kind of ["image", "banner", "video"] as const) for (const u of e.media[kind]) if (!hit.media[kind].includes(u)) hit.media[kind].push(u);
+  }
+  return { matched, total: extra.length };
+}
+
 // ---------- Αντιστοίχιση με το SoftOne ----------
 
 export type MatchIndex = {
@@ -329,7 +377,7 @@ export function buildMatchIndex(items: { mtrl: number; code: string; barcode: st
   for (const it of items) {
     byMtrl.set(it.mtrl, it.mtrl);
     const code = txt(it.code).toLowerCase(); if (code) add(all.byCode, code, it.mtrl);
-    const e = gtin14(it.barcode); if (e) add(all.byEan, e, it.mtrl);
+    const e = barcodeKey(it.barcode); if (e) add(all.byEan, e, it.mtrl);
     const fc = txt(it.factoryCode).toLowerCase(); if (fc && it.brandId) add(all.byFactory, `${it.brandId}|${fc}`, it.mtrl);
   }
   const split = (m: Map<string, number[]>) => {
@@ -368,9 +416,9 @@ export function resolveMatches(rows: ForeignRow[], index: MatchIndex): Match[] {
     if (code && !amb(index.ambiguous?.byCode, code.toLowerCase(), `Ο κωδικός ${code}`)) { const m = index.byCode.get(code.toLowerCase()); if (m != null) hits.push({ key: `κωδικός ${code}`, mtrl: m, kind: "code" }); }
     const bc = row.fields.barcode?.trim();
     if (bc) {
-      const e = normEan(bc);
-      if (e == null) problem ??= "Μη έγκυρο EAN";
-      else { const g = e.padStart(14, "0"); if (!amb(index.ambiguous?.byEan, g, `Το EAN ${e}`)) { const m = index.byEan.get(g); if (m != null) hits.push({ key: `EAN ${e}`, mtrl: m, kind: "ean" }); } }
+      // Όχι έγκυρο EAN (δικός του κωδικός του προμηθευτή): δεν κόβει τη γραμμή — ταιριάζει ως κείμενο με το barcode του SoftOne
+      const e = normEan(bc), what = e ? `EAN ${e}` : `barcode ${bc}`;
+      if (!amb(index.ambiguous?.byEan, barcodeKey(bc)!, `Το ${what}`)) { const m = index.byEan.get(barcodeKey(bc)!); if (m != null) hits.push({ key: what, mtrl: m, kind: "ean" }); }
     }
     const fc = row.fields.factoryCode?.trim();
     if (fc && row.brandId && !amb(index.ambiguous?.byFactory, `${row.brandId}|${fc.toLowerCase()}`, `Ο κωδικός κατασκευαστή ${fc}`)) { const m = index.byFactory.get(`${row.brandId}|${fc.toLowerCase()}`); if (m != null) hits.push({ key: `κωδικός κατασκευαστή ${fc}`, mtrl: m, kind: "factory" }); }

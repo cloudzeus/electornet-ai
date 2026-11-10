@@ -12,7 +12,9 @@ import { ReviewList } from "./ReviewList";
 import { PublishStep } from "./PublishStep";
 import { CheckStep } from "./CheckStep";
 import { KeyvotoSource } from "@/components/admin/catalog/keyvoto/KeyvotoSource";
+import { KeyvotoSummary, type SummaryQuestion } from "@/components/admin/catalog/keyvoto/KeyvotoSummary";
 import type { FeedFormat } from "@/lib/catalog/xml-import/source-core";
+import type { Settings } from "@/lib/cms/settings";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -22,10 +24,11 @@ const card = "rounded-xl border border-eu-line bg-white p-3 md:p-4 grid gap-3 mi
 const input = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
 
 /** Τα βήματα όλου του οδηγού. Όσα είναι της αντιστοίχισης (`MapStep`) εμφανίζονται μόνο όταν έχουν δουλειά. */
-type Step = "supplier" | "feed" | MapStep | "check" | "list" | "publish";
+type Step = "supplier" | "feed" | "summary" | MapStep | "check" | "list" | "publish";
 const TITLE: Record<Step, string> = {
   supplier: "Προμηθευτής",
   feed: "Feed",
+  summary: "Τι ήρθε",
   cols: "Στήλες",
   brands: "Μάρκες",
   cats: "Κατηγορίες",
@@ -35,6 +38,9 @@ const TITLE: Record<Step, string> = {
   list: "Λίστα ελέγχου",
   publish: "Δημοσίευση",
 };
+
+/** Keyvoto: λιγότερα βήματα με άλλα ονόματα — η πηγή διαλέγεται μία φορά και ο έλεγχος με το SoftOne ζει μαζί με τη λίστα. */
+const KV_TITLE: Partial<Record<Step, string>> = { supplier: "Πηγή", list: "Έλεγχος και εισαγωγή", finish: "Τιμή & SoftOne" };
 
 /**
  * Σταθερή άδεια πρόταση. **Πρέπει** να είναι μία και η ίδια σε κάθε απόδοση: το `useMapping` ξαναχτίζει τις επιλογές
@@ -56,7 +62,9 @@ const date = (s: string | null) => (s ? new Date(s).toLocaleString("el-GR", { da
  * Ένας προμηθευτής που έχει ήδη τρέξει **δεν περνά από την αντιστοίχιση**: είναι αποθηκευμένη, άρα το «Νέο τρέξιμο»
  * πηδά στη λίστα χωρίς καμία κλήση AI.
  */
-export function XmlImportWizard({ suppliers, brands, categories, units, marks, writeOn, canErp, source = "xml" }: {
+export function XmlImportWizard({ suppliers, brands, categories, units, marks, writeOn, canErp, source = "xml", settings }: {
+  /** οι ρυθμίσεις του site, για την προεπισκόπηση της κάρτας προϊόντος */
+  settings: Settings;
   suppliers: SupplierCard[];
   brands: PickOpt[];
   categories: PickOpt[];
@@ -68,6 +76,9 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   source?: FeedFormat;
 }) {
   const kv = source === "keyvoto";
+  const title = (s: Step) => (kv && KV_TITLE[s]) || TITLE[s];
+  /** Keyvoto: τα βήματα της αναλυτικής αντιστοίχισης φαίνονται μόνο αφού ο χρήστης τα ζητήσει από τη σύνοψη */
+  const [detail, setDetail] = useState(false);
   const [step, setStep] = useState<Step>("supplier");
   const [list, setList] = useState(suppliers);
   const [q, setQ] = useState("");
@@ -168,7 +179,25 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     setDraft(r.draft ?? null);
     setSavedAt(r.draft?.at ?? null);
     setMapping(r);
-    setStep((r.draft?.step as Step) ?? "cols");
+    setStep(kv ? "summary" : (r.draft?.step as Step) ?? "cols");
+  };
+
+  /**
+   * Keyvoto, «Φέρε τα προϊόντα»: κρατά την πηγή στον προμηθευτή (αν άλλαξε), κατεβάζει τον κατάλογο και ανοίγει τη
+   * σύνοψη. Πάντα νέα λήψη (το Keyvoto δεν βάζει όριο όπως οι προμηθευτές με XML): ο χρήστης βλέπει ό,τι ισχύει τώρα.
+   * Ένα κουμπί αντί για «Αποθήκευση» → «Ρύθμισε την αντιστοίχιση» → δεύτερη επιλογή πηγής → «Έλεγχος» → «Συνέχεια».
+   */
+  const fetchKv = async (s: SupplierCard, fresh = false) => {
+    const u = url.trim();
+    if (!u) return;
+    if (u !== s.feed?.url) { const k = await run("kv", () => saveUrl(s.id, u)); if (!k) return; await refresh(s.id); }
+    const seenNow = await run("kv", () => inspect(u, fresh, 1)); // το Keyvoto δεν έχει όριο λήψεων όπως οι προμηθευτές με XML
+    if (!seenNow) return;
+    setSeen(seenNow);
+    const r = await run("kv", () => suggest(u, s.id));
+    if (!r) return;
+    setDraft(r.draft ?? null); setSavedAt(r.draft?.at ?? null); setMapping(r); setDetail(false); setNote(null);
+    setStep("summary");
   };
 
   /**
@@ -184,18 +213,19 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
     setSavedAt(r.draft?.at ?? null);
     setMapping(r);
     setNote(r.source ? sourceNote(r.source) : null);
-    setStep((r.draft?.step as Step) ?? "cols");
+    setDetail(false);
+    setStep(kv ? "summary" : (r.draft?.step as Step) ?? "cols");
   };
 
   const save = async () => {
     if (!picked) return;
     const r = await run("save", () => saveAndRun({ supplierId: picked.id, url: url.trim(), ...m.value() }));
     if (!r) return;
-    setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}${r.run.skipped ? ` · ${r.run.skipped} παραλείπονται (μάρκα που δεν εισάγεται)` : ""}.`);
+    setNote(`Φορτώθηκαν ${r.run.total.toLocaleString("el-GR")} προϊόντα: ${r.run.counts.new} νέα, ${r.run.counts.changed} άλλαξαν, ${r.run.counts.same} ίδια, ${r.run.counts.gone} χάθηκαν${r.run.problems ? ` · ${r.run.problems} με πρόβλημα` : ""}${r.run.skipped ? ` · ${r.run.skipped} παραλείπονται (${r.run.webExcluded ? `${r.run.webExcluded} με «Εξαίρεση Web»${r.run.skipped > r.run.webExcluded ? ", τα υπόλοιπα από μάρκα που δεν εισάγεται" : ""}` : "μάρκα που δεν εισάγεται"})` : ""}.`);
     setFeed({ ...r });
     setDraft(null); setSavedAt(null);
-    // πρώτα ο έλεγχος με το SoftOne: τι υπάρχει, τι αλλάζει, ποια νέα θα μπουν
-    setStep("check");
+    // πρώτα ο έλεγχος με το SoftOne: τι υπάρχει, τι αλλάζει, ποια νέα θα μπουν (στο Keyvoto είναι στην ίδια οθόνη με τη λίστα)
+    setStep(kv ? "list" : "check");
   };
 
   /** «Ξεκίνα από την αρχή»: πετά το πρόχειρο και ξαναχτίζει τις επιλογές από την πρόταση ή το αποθηκευμένο πρότυπο. */
@@ -213,10 +243,12 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   // Η κατάσταση της αντιστοίχισης ζει εδώ, πάνω από τα βήματα (το hook καλείται πάντα — `mapping` κενό = άδεια βήματα).
   const m = useMapping(mapping ?? NO_MAPPING, brands, draft?.value);
 
-  const steps: Step[] = ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["check", "list", "publish"] as Step[]) : [])];
+  const steps: Step[] = kv
+    ? ["supplier", ...(mapping ? (["summary", ...(detail ? m.steps : [])] as Step[]) : []), ...(feed ? (["list", "publish"] as Step[]) : [])]
+    : ["supplier", "feed", ...(mapping ? m.steps : []), ...(feed ? (["check", "list", "publish"] as Step[]) : [])];
   // Το βήμα μπορεί να έπαψε να υπάρχει: ο χρήστης γύρισε στις στήλες και έβγαλε τη στήλη κατηγορίας ενώ ήταν στις
   // κατηγορίες. Τότε δείχνουμε το πρώτο βήμα της αντιστοίχισης, όχι μια οθόνη χωρίς πλοήγηση.
-  const cur: Step = steps.includes(step) ? step : mapping ? "cols" : "supplier";
+  const cur: Step = steps.includes(step) ? step : mapping ? (kv ? "summary" : "cols") : "supplier";
   const at = Math.max(0, steps.indexOf(cur));
   const working = !!busy;
   const blockedHere = m.blockers.filter((b) => b.step === cur).map((b) => b.text);
@@ -240,6 +272,35 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
   const prev = steps[at - 1];
   const next = steps[at + 1];
   const go = (s: Step) => { setErr(null); setStep(s); };
+  /** Keyvoto: άνοιγμα ενός βήματος της αναλυτικής αντιστοίχισης από τη σύνοψη (τότε εμφανίζονται και στη μπάρα). */
+  const openDetail = (s: MapStep) => { setDetail(true); go(m.steps.includes(s) ? s : "cols"); };
+
+  // ---- Keyvoto: η σύνοψη — τι αναγνωρίστηκε και ποιες ερωτήσεις μένουν ----
+  const kvView = (() => {
+    if (!kv || !mapping?.kv) return null;
+    const st = mapping.kv, n = (x: number) => x.toLocaleString("el-GR");
+    const has = (t: string) => mapping.cols.some((c) => (m.targets[c.header] ?? "ignore") === t);
+    const count = (t: string) => mapping.cols.filter((c) => (m.targets[c.header] ?? "ignore") === t).length;
+    const ids = [has("field:code") && "κωδικός", has("field:barcode") && "barcode", has("field:factoryCode") && "μοντέλο", has("field:name") && "όνομα", has("brand") && "μάρκα"].filter(Boolean);
+    const dims = ["field:widthCm", "field:heightCm", "field:lengthCm", "field:weightKg"].filter(has).length;
+    const understood = [
+      ids.length ? `Ταυτότητα προϊόντος: ${ids.join(", ")}` : "",
+      st.withPhotos ? `Φωτογραφίες σε ${n(st.withPhotos)} από ${n(st.products)} προϊόντα (έως ${count("media:image")} το καθένα), με πρώτη την κύρια του εκδότη` : "",
+      st.withDescription ? `Περιγραφή σε ${n(st.withDescription)} από ${n(st.products)} προϊόντα` : "",
+      dims ? "Διαστάσεις και βάρος, γυρισμένα σε εκατοστά και κιλά" : "",
+      count("spec") ? `${n(count("spec"))} χαρακτηριστικά με τα ελληνικά τους ονόματα` : "",
+      st.withPrice ? `Προτεινόμενη λιανική σε ${n(st.withPrice)} από ${n(st.products)} προϊόντα` : "",
+      st.sets ? `${n(st.sets)} κλιματιστικά ήρθαν ως εσωτερική + εξωτερική μονάδα: έγιναν ένα προϊόν το καθένα, με το βάρος όλου του σετ` : "",
+    ].filter(Boolean);
+    const left = (s: MapStep) => { const p = m.steps.includes(s) ? m.progress(s) : null; return p ? p.total - p.done : 0; };
+    const total = (s: MapStep) => (m.steps.includes(s) ? m.progress(s)?.total ?? 0 : 0);
+    const questions: SummaryQuestion[] = [
+      ...(left("cats") ? [{ step: "cats" as MapStep, text: `${n(total("cats"))} κατηγορίες του Keyvoto: ταίριαξα τις ${n(total("cats") - left("cats"))}, ${left("cats") === 1 ? "μένει 1" : `μένουν ${n(left("cats"))}`}. Τα προϊόντα τους δεν θα έχουν κατηγορία στο eshop.`, action: `Αντιστοίχισε ${n(left("cats"))}` }] : []),
+      ...(left("brands") ? [{ step: "brands" as MapStep, text: `${left("brands") === 1 ? "Μία μάρκα δεν βρέθηκε" : `${n(left("brands"))} μάρκες δεν βρέθηκαν`} στις δικές μας. Τα προϊόντα της δεν μπαίνουν στην εισαγωγή.`, action: "Δες τις μάρκες" }] : []),
+      ...(st.products - st.withPrice ? [{ step: "finish" as MapStep, text: `${n(st.products - st.withPrice)} προϊόντα δεν έχουν προτεινόμενη λιανική στο Keyvoto. Θα μπουν χωρίς τιμή, εκτός αν ορίσεις άλλον τρόπο.`, action: "Όρισε τιμή" }] : []),
+    ];
+    return { st, understood, questions };
+  })();
 
   /**
    * **Αυτόματη αποθήκευση του προχείρου.** Η δουλειά στα ενδιάμεσα βήματα (120 κατηγορίες, ονομασίες χαρακτηριστικών)
@@ -272,10 +333,11 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       {cur !== "finish" && <Notices list={noticesHere} />}
       {cur !== "finish" && <Blockers list={blockedHere} />}
       <div className="flex flex-wrap items-center gap-2">
-        {prev && <button type="button" className={quiet} disabled={working} onClick={() => go(prev)}><ArrowLeft className="size-4" aria-hidden /> Πίσω: {TITLE[prev]}</button>}
+        {kv && prev !== "summary" && <button type="button" className={quiet} disabled={working} onClick={() => go("summary")}><ArrowLeft className="size-4" aria-hidden /> Στη σύνοψη</button>}
+        {prev && <button type="button" className={quiet} disabled={working} onClick={() => go(prev)}><ArrowLeft className="size-4" aria-hidden /> Πίσω: {title(prev)}</button>}
         {next && next !== "list" && (
           <button type="button" className={primary} disabled={working || blockedHere.length > 0} onClick={() => go(next)}>
-            Επόμενο: {TITLE[next]} <ArrowRight className="size-4" aria-hidden />
+            Επόμενο: {title(next)} <ArrowRight className="size-4" aria-hidden />
           </button>
         )}
       </div>
@@ -294,7 +356,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                 <button type="button" disabled={working} onClick={() => go(s)} aria-current={cur === s ? "step" : undefined}
                   className={`w-full flex items-center gap-2 rounded-xl border-2 px-2.5 min-h-9 text-left font-bold text-[length:var(--fs-13)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eu-blue ${cur === s ? "border-eu-navy bg-eu-navy text-white" : i < at ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
                   <span className={`grid place-items-center size-5 shrink-0 rounded-full text-[length:var(--fs-12)] tabular-nums ${cur === s ? "bg-white text-eu-navy" : "bg-eu-surface text-eu-ink-2"}`}>{i < at ? <Check className="size-3" aria-hidden /> : i + 1}</span>
-                  <span className="min-w-0 truncate">{TITLE[s]}</span>
+                  <span className="min-w-0 truncate">{title(s)}</span>
                   {p && p.total > 0 && <span className="ml-auto shrink-0 tabular-nums text-[length:var(--fs-12)] opacity-80">{p.done}/{p.total}</span>}
                 </button>
               </li>
@@ -307,7 +369,7 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
           <label className="grid gap-1 min-w-0">
             <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)] tabular-nums">Βήμα {at + 1} από {steps.length}</span>
             <select value={cur} disabled={working} onChange={(e) => go(e.target.value as Step)} className={input}>
-              {steps.map((s, i) => <option key={s} value={s}>{i + 1}. {TITLE[s]}</option>)}
+              {steps.map((s, i) => <option key={s} value={s}>{i + 1}. {title(s)}</option>)}
             </select>
           </label>
           <div className="flex gap-1" role="presentation">
@@ -406,6 +468,10 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
                                 {busy === "remap" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null} Αλλαγή αντιστοίχισης
                               </button>
                             </>
+                          ) : kv ? (
+                            <button type="button" data-help="keyvoto.fetch" className={primary} disabled={working || !url.trim()} onClick={() => void fetchKv(s, true)}>
+                              {busy === "kv" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Database className="size-4" aria-hidden />} {busy === "kv" ? "Κατεβάζω τον κατάλογο…" : "Φέρε τα προϊόντα"} <ArrowRight className="size-4" aria-hidden />
+                            </button>
                           ) : (
                             <button type="button" className={primary} disabled={working || !url.trim()} onClick={() => go("feed")}>
                               <Settings2 className="size-4" aria-hidden /> Ρύθμισε την αντιστοίχιση <ArrowRight className="size-4" aria-hidden />
@@ -513,7 +579,13 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       )}
 
       {/* ---------- Αντιστοίχιση: ένα πράγμα ανά βήμα ---------- */}
-      {mapping && cur !== "supplier" && cur !== "feed" && cur !== "list" && (
+      {cur === "summary" && kvView && picked && (
+        <KeyvotoSummary title={picked.name} sourceNote={seen ? sourceNote(seen.source) : mapping?.source ? sourceNote(mapping.source) : null} stats={kvView.st}
+          understood={kvView.understood} questions={kvView.questions} blockers={m.blockers} busy={working} onOpen={openDetail} onRun={() => void save()} />
+      )}
+      {cur === "summary" && picked && mapping && !kvView && <p className="m-0 rounded-xl bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">Η αποθηκευμένη λήψη είναι παλιάς μορφής. Γύρνα στην «Πηγή» και πάτα «Φέρε τα προϊόντα» για νέα λήψη.</p>}
+
+      {mapping && (kv ? m.steps.includes(cur as MapStep) : cur !== "supplier" && cur !== "feed" && cur !== "list") && (
         <>
           {mapping.aiUsed && cur === "cols" && (
             <p className="m-0 flex gap-2 items-start text-eu-ink-3 text-[length:var(--fs-13)]">
@@ -548,7 +620,8 @@ export function XmlImportWizard({ suppliers, brands, categories, units, marks, w
       {cur === "list" && feed && (
         <>
           {note && <p role="status" className="m-0 flex gap-2 items-start rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]"><Check className="size-4 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{note}</span></p>}
-          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} onRemap={() => void toRemap(feed.feedId)} onPublish={() => go("publish")} />
+          {kv && <CheckStep state={feed} onDone={() => undefined} />}
+          <ReviewList state={feed} writeOn={writeOn} canErp={canErp} settings={settings} onRemap={() => void toRemap(feed.feedId)} onPublish={() => go("publish")} onChanged={() => void feedState(feed.feedId).then((r) => { if (r && !("error" in r)) setFeed(r); })} />
         </>
       )}
 

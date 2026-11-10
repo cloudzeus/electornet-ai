@@ -117,7 +117,7 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
   return { ok: !mismatches.length, stored: true, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
 
-/** Ξεχωριστός διακόπτης για την τιμή web: η εγγραφή ITEEXTRA δεν έχει δοκιμαστεί σε πραγματικό είδος — ανοίγει μόνο με S1_WEB_PRICE_WRITE=1. */
+/** Ξεχωριστός διακόπτης για την τιμή web — ανοίγει μόνο με S1_WEB_PRICE_WRITE=1. Η εγγραφή ITEEXTRA δοκιμάστηκε σε πραγματικό είδος στις 10/11/2026 (MTRL 111750, με υπάρχουσα γραμμή MTREXTRA: γράφτηκε, διαβάστηκε πίσω, κανένα άλλο πεδίο δεν άλλαξε)· είδος ΧΩΡΙΣ γραμμή MTREXTRA δεν έχει δοκιμαστεί. */
 export const webPriceWriteEnabled = () => process.env.S1_WEB_PRICE_WRITE === "1";
 export const WEB_PRICE_OFF = "Η εγγραφή τιμής web στο SoftOne δεν έχει ενεργοποιηθεί ακόμη.";
 
@@ -137,7 +137,7 @@ const num04 = (row: ExtraRow | null) => { if (!row) return null; const n = Numbe
  * γραμμή), αποτυχία με τη διαφορά. Με `onlyIfBlank` γράφει μόνο αν η τρέχουσα τιμή στο SoftOne (ζωντανή ανάγνωση) είναι κενή/0.
  * Το `written` μένει πάντα [] (το NUM04 δεν είναι ItemField) — το αποτέλεσμα το λένε τα `ok` / `error`.
  */
-export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean }): Promise<WriteResult> {
+export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean; /** `higher`: γράφει όταν δεν υπάρχει τιμή ή η νέα είναι μεγαλύτερη (ζωντανή ανάγνωση)· `any`: όποτε διαφέρει */ mode?: "higher" | "any" }): Promise<WriteResult> {
   const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
   if (!webPriceWriteEnabled()) return fail(WEB_PRICE_OFF);
   if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
@@ -154,6 +154,8 @@ export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIf
   if (before.error) return fail(before.error);
   const cur = num04(before.row);
   if (opts?.onlyIfBlank && cur != null && cur > 0) return fail(`Το είδος έχει ήδη τιμή web (${cur} €) — δεν αλλάζει.`);
+  // Η προεπισκόπηση έκρινε με τον καθρέφτη· εδώ κρίνει η ζωντανή τιμή: αν στο μεταξύ έγινε ίση ή μεγαλύτερη, δεν τη ρίχνουμε
+  if (opts?.mode === "higher" && cur != null && cur > 0 && value <= cur) return fail(`Το είδος έχει ήδη τιμή web ${cur} €, ίση ή μεγαλύτερη από τη νέα (${value} €) — δεν αλλάζει.`);
   if (same(cur)) return { ok: true, written: [], conflicts: [], mismatches: [] };
 
   const r = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEEXTRA: [{ NUM04: value }] } }).catch((e: Error) => ({ success: false, error: e.message }));
@@ -167,6 +169,44 @@ export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIf
     return fail(`ΠΡΟΣΟΧΗ: η εγγραφή της τιμής web άλλαξε και άλλα πεδία του είδους στο SoftOne (MTREXTRA): ${diff.map((d) => `${d.col} «${d.from || "—"}» → «${d.to || "—"}»`).join(", ")}. Έλεγξε και διόρθωσε άμεσα στο ERP.`);
   }
   if (!same(num04(after.row))) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η τιμή web δεν γράφτηκε (στάλθηκε ${value}, διαβάστηκε ${num04(after.row) ?? "—"}).`);
+  return { ok: true, written: [], conflicts: [], mismatches: [] };
+}
+
+/**
+ * Ξεχωριστός διακόπτης για την «Εξαίρεση Web» (MTREXTRA.BOOL04) — ανοίγει μόνο με S1_WEB_FLAG_WRITE=1. Ίδια εγγραφή
+ * ITEEXTRA με την τιμή web· δοκιμάστηκε μαζί της στις 10/11/2026 (MTRL 111750: 1 → 0 → 1, κανένα άλλο πεδίο δεν άλλαξε).
+ */
+export const webFlagWriteEnabled = () => process.env.S1_WEB_FLAG_WRITE === "1";
+export const WEB_FLAG_OFF = "Η εγγραφή της «Εξαίρεσης Web» στο SoftOne δεν έχει ενεργοποιηθεί ακόμη.";
+
+/**
+ * «Εξαίρεση Web» ενός είδους (το πεδίο που ορίζει αν ανεβαίνει στο site): setData ITEM / ITEEXTRA με μόνο το BOOL04.
+ * Ίδιοι φραγμοί με την τιμή web — δύο διακόπτες, ανάγνωση ΟΛΗΣ της γραμμής MTREXTRA πριν και μετά, αποτυχία αν άλλαξε
+ * οποιοδήποτε άλλο πεδίο ή αν η τιμή δεν διαβάζεται πίσω όπως στάλθηκε.
+ */
+export async function writeWebExcluded(mtrl: number, excluded: boolean): Promise<WriteResult> {
+  const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
+  if (!webFlagWriteEnabled()) return fail(WEB_FLAG_OFF);
+  if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
+  if (!Number.isInteger(mtrl) || mtrl <= 0) return fail("Μη έγκυρο είδος.");
+  const on = (row: ExtraRow | null) => /^(1|true)$/i.test(String(row?.BOOL04 ?? "").trim());
+  let before: Awaited<ReturnType<typeof readExtra>>;
+  try { before = await readExtra(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της «Εξαίρεσης Web» από το SoftOne."); }
+  if (before.error) return fail(before.error);
+  if (on(before.row) === excluded) return { ok: true, written: [], conflicts: [], mismatches: [] };
+
+  const r = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEEXTRA: [{ BOOL04: excluded ? 1 : 0 }] } }).catch((e: Error) => ({ success: false, error: e.message }));
+  if (!r?.success) return fail(`Το SoftOne αρνήθηκε την εγγραφή της «Εξαίρεσης Web»: ${r?.error ?? "άγνωστο σφάλμα"}`);
+
+  const after = await readExtra(mtrl).catch(() => null);
+  if (!after || after.error || !after.row) return fail(`Το SoftOne απάντησε «επιτυχία» αλλά η γραμμή MTREXTRA δεν διαβάζεται μετά την εγγραφή (${after?.error ?? "καμία γραμμή"}) — έλεγξε το είδος στο SoftOne.`);
+  // το extraDiff αγνοεί το NUM04 (τιμή web)· εδώ το πεδίο που αλλάζουμε εμείς είναι το BOOL04, άρα το NUM04 ελέγχεται ρητά
+  const diff = [...extraDiff(before.row, after.row).filter((d) => d.col !== "BOOL04"), ...((before.row?.NUM04 ?? "") !== (after.row.NUM04 ?? "") && Number(before.row?.NUM04 ?? 0) !== Number(after.row.NUM04 ?? 0) ? [{ col: "NUM04", from: before.row?.NUM04 ?? "", to: after.row.NUM04 ?? "" }] : [])];
+  if (diff.length) {
+    console.error("[writeWebExcluded] άλλαξαν και άλλα πεδία του MTREXTRA", mtrl, diff);
+    return fail(`ΠΡΟΣΟΧΗ: η εγγραφή της «Εξαίρεσης Web» άλλαξε και άλλα πεδία του είδους στο SoftOne (MTREXTRA): ${diff.map((d) => `${d.col} «${d.from || "—"}» → «${d.to || "—"}»`).join(", ")}. Έλεγξε το είδος στο SoftOne.`);
+  }
+  if (on(after.row) !== excluded) return fail("Το SoftOne απάντησε «επιτυχία» αλλά η «Εξαίρεση Web» δεν γράφτηκε.");
   return { ok: true, written: [], conflicts: [], mismatches: [] };
 }
 

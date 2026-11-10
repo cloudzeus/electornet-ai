@@ -1,5 +1,12 @@
 import type { FieldKey } from "@/lib/catalog/supplier-sheet";
-import { detectHeaderRow, UserError, PREVIEW_CELL, type MappingConfig, type SavedConfig, type Target } from "@/lib/catalog/foreign-import/core";
+import { detectHeaderRow, UserError, PREVIEW_CELL, type MappingConfig, type SavedConfig, type SavedPrice, type Target } from "@/lib/catalog/foreign-import/core";
+import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
+
+/** Οι επιλογές τιμής του βήματος 3 όπως έρχονται από τον browser → έγκυρες (λάθος ή απουσία = προεπιλογές). */
+export function parsePrice(raw: unknown): SavedPrice {
+  const p = normPolicy(raw);
+  return { priceMode: (raw as { priceMode?: unknown } | null)?.priceMode === "retail" ? "retail" : "cost", vatIncluded: p.vatIncluded, markupPercent: p.markupPercent };
+}
 
 /**
  * Εισαγωγή από ξένο Excel — καθαρά κομμάτια της οθόνης (χωρίς βάση, server-only ή React): τι στέλνει ο έλεγχος αρχείου

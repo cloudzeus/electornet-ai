@@ -11,7 +11,7 @@ import { encodeTarget, decodeTarget } from "@/lib/catalog/foreign-import/ui-core
 import { assertConfigIds } from "@/lib/catalog/foreign-import/server";
 import { parseFeed } from "@/lib/catalog/xml-import/parse-core";
 import { supplierCards, syncSuppliers } from "@/lib/catalog/xml-import/suppliers";
-import { inspectFeed, loadFeed, runFeed, saveFeed, saveFeedUrl, setFeedActive, listItems, type FeedSource, type ItemFilter } from "@/lib/catalog/xml-import/feed";
+import { inspectFeed, loadFeed, runFeed, saveFeed, saveFeedUrl, setFeedActive, setWithWebExcluded, listItems, type FeedSource, type ItemFilter } from "@/lib/catalog/xml-import/feed";
 import { feedBytes, snapshotState } from "@/lib/catalog/xml-import/snapshot";
 import { clampMinFetch, type FetchIntent } from "@/lib/catalog/xml-import/cache-core";
 import { pendingValues } from "@/lib/catalog/xml-import/values";
@@ -336,6 +336,7 @@ async function state(feedId: string): Promise<FeedStateDTO> {
     lastCount: run?.lastCount ?? null,
     minFetchMin: feed.minFetchMin,
     active: feed.active,
+    withWebExcluded: !!feed.cfg.withWebExcluded,
     snapshot: { has: snap.has, fetchedAt: snap.fetchedAt?.toISOString() ?? null, bytes: snap.bytes, products: snap.products, waitMin: snap.waitMin },
     pending,
   };
@@ -347,13 +348,30 @@ export async function feedState(feedId: string): Promise<FeedStateDTO | Fail> {
   return guard("state", async () => ok(await state(String(feedId))));
 }
 
+/**
+ * «Να μπουν και τα είδη με Εξαίρεση Web» (ή όχι): κρατά την απόφαση και ξαναπερνά την ΑΠΟΘΗΚΕΥΜΕΝΗ λήψη, ώστε η λίστα να
+ * δείξει αμέσως ποια παραλείπονται. Καμία νέα λήψη, καμία εγγραφή σε SoftOne ή προϊόντα.
+ */
+export async function includeWebExcluded(feedId: string, on: boolean): Promise<RerunResult | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("web-excluded", async () => {
+    const feed = await loadFeed(String(feedId));
+    await setWithWebExcluded(feed.id, on === true);
+    const got = await bytesOf(feed.url, "reuse", feed.minFetchMin);
+    const r = await runFeed(feed.id, got.asSource);
+    await audit(user.id, "catalog.xml-import.web-excluded", "SupplierFeed", feed.id, null, { on: on === true, skipped: r.skipped });
+    return ok<RerunResult>({ ...r, source: got.source });
+  });
+}
+
 export interface RunDTO {
   total: number;
   counts: Record<Diff, number>;
   problems: number;
   conflicts: number;
-  /** προϊόντα που δεν θα μπουν επειδή η μάρκα τους παραλείπεται */
+  /** προϊόντα που δεν θα μπουν επειδή η μάρκα τους παραλείπεται ή το είδος τους έχει «Εξαίρεση Web» */
   skipped: number;
+  webExcluded?: number;
 }
 
 export interface RerunResult extends RunDTO {

@@ -5,6 +5,9 @@ import { parseFeed, CATEGORY_PAIR } from "@/lib/catalog/xml-import/parse-core";
 import { sameNameGroups } from "@/lib/catalog/xml-import/twins-core";
 import { acPairs } from "@/lib/catalog/xml-import/split-core";
 import { suggestMapping, type SavedMapping } from "@/lib/catalog/xml-import/suggest";
+import { db } from "@/lib/db";
+import { isKeyvotoBytes } from "@/lib/keyvoto/rows";
+import type { KvStats } from "@/lib/catalog/xml-import/ui-core";
 import { MAX_VALUES, SAMPLES_SHOWN, type SuggestDTO, type TemplateMaps, type TemplateSettings } from "@/lib/catalog/xml-import/ui-core";
 
 /** Οι διακριτές τιμές μιας στήλης — `null` όταν είναι πάρα πολλές για αντιστοίχιση τιμή-προς-τιμή. */
@@ -47,6 +50,25 @@ export interface TemplateInput {
   saved: SavedMapping;
   maps: TemplateMaps;
   settings: TemplateSettings;
+}
+
+/**
+ * Η σύνοψη μιας λήψης Keyvoto: πόσα προϊόντα, πόσα σετ, πόσα υπάρχουν ήδη στο SoftOne (ίδιος κωδικός ή barcode στον
+ * καθρέφτη — μόνο ανάγνωση) και πόσα έχουν τιμή / φωτογραφία / περιγραφή. Οι έτοιμες στήλες έχουν σταθερά ονόματα.
+ */
+async function kvStats(headers: string[], matrix: string[][], sets: number): Promise<KvStats> {
+  const col = (h: string) => headers.indexOf(h);
+  const rows = matrix.slice(1);
+  const val = (r: string[], h: string) => (col(h) >= 0 ? (r[col(h)] ?? "").trim() : "");
+  const skus = [...new Set(rows.map((r) => val(r, "SKU")).filter(Boolean))], eans = [...new Set(rows.map((r) => val(r, "EAN")).filter(Boolean))];
+  const found = skus.length || eans.length
+    ? await db.s1Item.findMany({ where: { missing: false, OR: [{ code: { in: skus } }, { barcode: { in: eans } }] }, select: { code: true, barcode: true, webExcluded: true } })
+    : [];
+  const codes = new Set(found.map((x) => x.code.trim())), barcodes = new Set(found.map((x) => (x.barcode ?? "").trim()).filter(Boolean));
+  const n = (h: string) => rows.filter((r) => val(r, h)).length;
+  const hidden = new Set(found.filter((x) => x.webExcluded).flatMap((x) => [x.code.trim(), (x.barcode ?? "").trim()]).filter(Boolean));
+  return { products: rows.length, sets, existing: rows.filter((r) => codes.has(val(r, "SKU")) || barcodes.has(val(r, "EAN"))).length,
+    excluded: rows.filter((r) => hidden.has(val(r, "SKU")) || hidden.has(val(r, "EAN"))).length, withPrice: n("PriceRetail"), withPhotos: n("Image 1"), withDescription: n("Description") };
 }
 
 export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promise<SuggestDTO> {
@@ -105,6 +127,7 @@ export async function buildSuggestDTO(bytes: Buffer, tpl?: TemplateInput): Promi
     ...(pairs.length ? { acSplit: { total: pairs.length, inner: pairs[0].inner.name, outer: pairs[0].outer.name } } : {}),
     ...(twins.length ? { sameName: { name: twins[0].name, keys: twins[0].keys, column: headers[nameIdx], total: twins.length } } : {}),
     aiUsed: s.aiUsed,
+    ...(isKeyvotoBytes(bytes) ? { kv: await kvStats(headers, matrix, parsed.counts.sets ?? 0) } : {}),
     ...(tpl ? { fromTemplate: true, maps: tpl.maps, settings: tpl.settings } : {}),
   };
 }

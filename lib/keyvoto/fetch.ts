@@ -1,6 +1,7 @@
 import "server-only";
 import { UserError } from "@/lib/catalog/foreign-import/core";
-import { categoryNamesFor, getKeyvotoConfig, sharedContent, type Publication } from "@/lib/keyvoto/client";
+import { categoryNamesFor, categorySchema, getKeyvotoConfig, sharedContent, type KeyvotoConfig, type Publication } from "@/lib/keyvoto/client";
+import { languageTags } from "@/lib/keyvoto/core";
 import { keyvotoEnvelope, parseKeyvotoUrl, type KeyvotoItem } from "@/lib/keyvoto/rows";
 
 /**
@@ -18,7 +19,26 @@ const text = (v: unknown) => (v == null ? "" : String(v).trim());
 const toItem = (p: Publication): KeyvotoItem => ({
   id: text(p.id), code: text(p.code), name: text(p.name), category: text(p.category),
   publisher: text(p.publisher), productStatus: text(p.productStatus), document: p.document ?? {},
+  // για το ζευγάρωμα εσωτερικής / εξωτερικής μονάδας (`pairUnits`)
+  contentId: text(p.contentId), relatives: (p.relatives ?? []).map((r) => text(r?.contentId)).filter(Boolean),
 });
+
+/**
+ * Κλειδί χαρακτηριστικού → η ονομασία του, από το σχήμα κάθε κατηγορίας της λήψης (`noiselevel` → «Στάθμη Θορύβου [dB(A)]»).
+ * Χωρίς αυτό ο χρήστης θα έβλεπε τα εσωτερικά κλειδιά του Keyvoto. Κατηγορία που δεν απαντά απλώς παραλείπεται.
+ */
+async function specLabels(c: KeyvotoConfig, categoryIds: string[], lang: string): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const id of [...new Set(categoryIds.map((x) => x.trim()).filter(Boolean))].slice(0, 200)) {
+    const schema = await categorySchema(c, id).catch(() => null) as { properties?: Record<string, { m_title?: Record<string, unknown> }> } | null;
+    for (const [key, p] of Object.entries(schema?.properties ?? {})) {
+      const t = p?.m_title ?? {};
+      const title = String(t[lang] ?? t["el-GR"] ?? t["en-GB"] ?? "").trim();
+      if (title && !out[key.trim()]) out[key.trim()] = title;
+    }
+  }
+  return out;
+}
 
 export async function downloadKeyvoto(url: string): Promise<Buffer> {
   const src = parseKeyvotoUrl(url);
@@ -46,5 +66,7 @@ export async function downloadKeyvoto(url: string): Promise<Buffer> {
   // και κάθε ξαναδιάβασμα του στιγμιότυπου να δείχνουν ονομασίες χωρίς νέα κλήση. Αποτυχία εδώ δεν ρίχνει τη λήψη.
   const categories = await categoryNamesFor(c, items.map((x) => x.category ?? "")).catch(() => ({}));
   // η gallery ταξιδεύει μαζί: το στιγμιότυπο πρέπει να δίνει τις ίδιες διευθύνσεις και μήνες μετά
-  return keyvotoEnvelope(items, new Date(), c.galleryBase, categories);
+  const lang = languageTags(c.languages)[0] || "el-GR";
+  const labels = await specLabels(c, items.map((x) => x.category ?? ""), lang).catch(() => ({}));
+  return keyvotoEnvelope(items, new Date(), c.galleryBase, categories, labels, lang);
 }

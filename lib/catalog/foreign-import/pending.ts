@@ -6,10 +6,38 @@ import { applyMedia } from "@/lib/catalog/supplier-media";
 import { loadGroups } from "@/lib/catalog/supplier-sheet";
 import { syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
-import { itemWriteEnabled, itemCodeTaken, writeWebPrice, webPriceWriteEnabled } from "@/lib/softone/item-write";
+import { itemWriteEnabled, itemCodeTaken, writeWebPrice, webPriceWriteEnabled, writeWebExcluded, webFlagWriteEnabled } from "@/lib/softone/item-write";
 import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
 import type { RowRefs } from "@/lib/catalog/supplier-sheet";
+import type { PendingView } from "@/components/admin/catalog/PendingItems";
+
+/** Οι γραμμές όπως τις δείχνει η λίστα «Νέα είδη» και το τελευταίο βήμα του οδηγού: ονόματα μάρκας / ομάδας / κατηγορίας / αρχείου και τι λείπει. */
+export async function pendingViews(rows: PendingItem[]): Promise<PendingView[]> {
+  const uniq = <T,>(l: (T | null)[]) => [...new Set(l.filter((x): x is T => x != null))];
+  const [brands, groups, cats, jobs] = await Promise.all([
+    db.brand.findMany({ where: { id: { in: uniq(rows.map((r) => r.brandId)) } }, select: { id: true, name: true, s1Id: true } }),
+    db.s1SpecGroup.findMany({ where: { s1Id: { in: uniq(rows.map((r) => r.specGroupS1Id)) } }, select: { s1Id: true, name: true } }),
+    db.category.findMany({ where: { id: { in: uniq(rows.map((r) => r.webCategoryId)) } }, select: { id: true, name: true } }),
+    db.importJob.findMany({ where: { id: { in: uniq(rows.map((r) => r.jobId)) } }, select: { id: true, fileName: true, createdAt: true } }),
+  ]);
+  const brandOf = new Map(brands.map((b) => [b.id, b])), groupName = new Map(groups.map((g) => [g.s1Id, g.name]));
+  const catName = new Map(cats.map((c) => [c.id, c.name])), jobOf = new Map(jobs.map((j) => [j.id, j]));
+  return rows.map((p) => {
+    const b = p.brandId ? brandOf.get(p.brandId) : undefined;
+    const m = pendingMedia(p.media);
+    const job = jobOf.get(p.jobId);
+    return {
+      id: p.id, status: p.status, code: p.code, name: pendingFields(p.fields).name ?? "", rowNo: p.rowNo,
+      file: job ? `${job.fileName} · ${job.createdAt.toLocaleDateString("el-GR")}` : null,
+      brandId: b?.id ?? null, brandName: b?.name ?? null, groupId: p.specGroupS1Id, groupName: p.specGroupS1Id != null ? groupName.get(p.specGroupS1Id) ?? `Ομάδα ${p.specGroupS1Id}` : null,
+      category: p.webCategoryId ? catName.get(p.webCategoryId) ?? null : null,
+      cost: p.cost, rrp: p.rrp, price: p.price, photos: m.image.length + m.banner.length + m.video.length, images: m.image.slice(0, 12),
+      missing: pendingMissing({ ...p, brandId: b?.id ?? null, brandS1Id: b?.s1Id ?? null }),
+      mtrl: p.mtrl, error: p.error, updatedAt: p.updatedAt.toISOString(),
+    };
+  });
+}
 
 /**
  * Νέα είδη από ξένο Excel σε αναμονή έγκρισης (PendingItem). Η έγκριση περνά από την ΙΔΙΑ μηχανή με το template νέων ειδών
@@ -29,14 +57,17 @@ const errMsg = (e: unknown) => {
   return "Απρόσμενο σφάλμα — ξαναδοκίμασε· αν επιμένει, ενημέρωσε τον διαχειριστή.";
 };
 
-export async function approvePending(ids: string[], staffId: string): Promise<ApproveResult[]> {
+/** `webExcluded`: τα είδη δημιουργούνται με τσεκαρισμένη την «Εξαίρεση Web» του SoftOne (δεν θα ανεβαίνουν στο site). */
+export interface ApproveOpts { webExcluded?: boolean }
+
+export async function approvePending(ids: string[], staffId: string, opts: ApproveOpts = {}): Promise<ApproveResult[]> {
   const out: ApproveResult[] = [];
   // Μία-μία (το SoftOne δεν θέλει παράλληλες εγγραφές)· ο διακόπτης ξαναδιαβάζεται πριν από κάθε είδος — αν κλείσει στη
   // μέση, τα υπόλοιπα δεν κλειδώνονται καν
   for (const id of [...new Set(ids)]) {
     try {
       if (!(await itemWriteEnabled())) { out.push({ id, ok: false, error: CLOSED }); continue; }
-      out.push(await approveOne(id, staffId));
+      out.push(await approveOne(id, staffId, opts));
     } catch (e) { out.push({ id, ok: false, error: errMsg(e) }); }
   }
   return out;
@@ -61,7 +92,7 @@ async function rowRefs(p: Pick<PendingItem, "unitId" | "markId">, notes: string[
 const brandS1 = async (brandId: string | null) => (brandId ? await db.brand.findUnique({ where: { id: brandId }, select: { id: true, s1Id: true } }) : null);
 const missingOf = async (p: PendingItem) => { const b = await brandS1(p.brandId); return pendingMissing({ ...p, brandId: b?.id ?? null, brandS1Id: b?.s1Id ?? null }); };
 
-async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
+async function approveOne(id: string, staffId: string, opts: ApproveOpts): Promise<ApproveResult> {
   const now = new Date();
   const p = await db.pendingItem.findUnique({ where: { id } });
   if (!p) return { id, ok: false, error: "Το είδος δεν βρέθηκε στην αναμονή." };
@@ -100,7 +131,7 @@ async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
     const taken = await itemCodeTaken(code);
     if (taken) {
       // Έγκριση που διακόπηκε: το είδος φτιάχτηκε πριν πεθάνει η διεργασία — σύνδεση, όχι δεύτερη δημιουργία
-      if (stale) { mtrl = taken; return await finish(q, staffId, taken, null, [`Βρέθηκε ήδη στο SoftOne (MTRL ${taken}) από έγκριση που είχε διακοπεί — συνδέθηκε, δεν δημιουργήθηκε δεύτερο.`], false); }
+      if (stale) { mtrl = taken; return await finish(q, staffId, taken, null, [`Βρέθηκε ήδη στο SoftOne (MTRL ${taken}) από έγκριση που είχε διακοπεί — συνδέθηκε, δεν δημιουργήθηκε δεύτερο.`], false, opts); }
       return await fail(`Ο κωδικός ${code} υπάρχει ήδη στο SoftOne (MTRL ${taken}).`);
     }
     const group = (await loadGroups([groupS1Id])).get(groupS1Id);
@@ -113,11 +144,11 @@ async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
 
     // ---- δημιουργία: η μηχανή του template (έλεγχοι διπλών κωδικού/barcode, αδελφό είδος, createItem, συγχρονισμός, προβολή) ----
     const [r] = await applyImport({ meta: null, rows: [pendingRow({ ...q, specs: sp.specs }, SHEET, groupS1Id, refs)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
-    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings], true); }
+    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings], true, opts); }
     // Αποτυχία — αλλά το createItem μπορεί να έγραψε και να απέτυχε μετά (επαλήθευση/συγχρονισμός): ο κωδικός το ξέρει
     const msg = r?.message || "Η γραμμή δεν εκτελέστηκε.";
     const made = await itemCodeTaken(code).catch(() => null);
-    if (made) { mtrl = made; return await finish(q, staffId, made, null, [`Δημιουργήθηκε στο SoftOne αλλά: ${msg}`], false); }
+    if (made) { mtrl = made; return await finish(q, staffId, made, null, [`Δημιουργήθηκε στο SoftOne αλλά: ${msg}`], false, opts); }
     return await fail(r?.mtrl ? `${msg} (το SoftOne ανέφερε MTRL ${r.mtrl}, αλλά ο κωδικός δεν βρέθηκε εκεί)` : msg);
   } catch (e) {
     // Μετά τη δημιουργία το είδος μένει «created» — το σφάλμα γράφεται ως σημείωση
@@ -131,8 +162,13 @@ async function approveOne(id: string, staffId: string): Promise<ApproveResult> {
  * ανενεργό προϊόν, σημείωση κατηγορίας, φωτογραφίες. Χωρίς productId (σύνδεση / ανάκτηση) γίνεται πρώτα συγχρονισμός και
  * προβολή· `priceWithoutProduct`: μόνο η κανονική δημιουργία γράφει τιμή χωρίς προϊόν στο κατάστημα.
  */
-async function finish(p: PendingItem, staffId: string, mtrl: number, productId: string | null, notes: string[], priceWithoutProduct: boolean): Promise<ApproveResult> {
+async function finish(p: PendingItem, staffId: string, mtrl: number, productId: string | null, notes: string[], priceWithoutProduct: boolean, opts: ApproveOpts = {}): Promise<ApproveResult> {
   await db.pendingItem.update({ where: { id: p.id }, data: { status: "created", mtrl, productId, approvedById: staffId, error: notes.join(" · ") || null } });
+  // ---- «Εξαίρεση Web»: πριν από τιμή και συγχρονισμό, ώστε ο καθρέφτης να τη διαβάσει στο ίδιο πέρασμα ----
+  if (opts.webExcluded) {
+    if (!webFlagWriteEnabled()) notes.push("Ζήτησες «Εξαίρεση Web» αλλά η εγγραφή της δεν έχει ενεργοποιηθεί — τσέκαρέ τη στο είδος στο SoftOne πριν το ενεργοποιήσεις.");
+    else { const w = await writeWebExcluded(mtrl, true); if (!w.ok) notes.push(`«Εξαίρεση Web»: ${w.error ?? "δεν γράφτηκε."} Τσέκαρέ τη στο SoftOne πριν ενεργοποιήσεις το είδος.`); }
+  }
   if (!productId) { await syncItem(mtrl, "manual"); productId = (await projectItem(mtrl)).productId ?? null; }
 
   // ---- τιμή web (μόνο αν λείπει) και φρέσκια τιμή στο κατάστημα ----

@@ -45,7 +45,7 @@ export function FeedSchedulePanel({ feed, disabled, onChanged }: { feed: Feed; d
 
   return (
     <div data-help="xml.supplier.schedule" className="grid gap-2 rounded-lg bg-eu-surface p-2.5 min-w-0">
-      <span className="flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-14)]"><CalendarClock className="size-4 text-eu-blue" aria-hidden /> Ενημέρωση από το XML</span>
+      <span className="flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-14)]"><CalendarClock className="size-4 text-eu-blue" aria-hidden /> Αυτόματη ενημέρωση από την πηγή</span>
       <div className="flex flex-wrap items-end gap-2 min-w-0">
         <label className="grid gap-1 min-w-0">
           <span className="sr-only">Πρόγραμμα</span>
@@ -78,14 +78,14 @@ export function FeedSchedulePanel({ feed, disabled, onChanged }: { feed: Feed; d
       <span className="text-eu-muted text-[length:var(--fs-12)] [overflow-wrap:anywhere]">
         {feed.schedule.mode === "manual"
           ? "Χειροκίνητα: το σύστημα ενημερώνεται μόνο όταν πατάς «Νέο τρέξιμο»."
-          : <>Κάθε φορά: λήψη του XML → έλεγχος με SoftOne → εφαρμογή των αλλαγών στα <b>υπάρχοντα</b> είδη (SoftOne και eshop). Τα νέα είδη μένουν για έγκριση στα «Νέα είδη». Τελευταία: {when(feed.lastAutoAt)} · Επόμενη: {feed.active ? when(feed.nextAt) : "— (ανενεργό)"}</>}
+          : <>Κάθε φορά: νέα λήψη → έλεγχος με SoftOne → εφαρμογή των αλλαγών στα <b>υπάρχοντα</b> είδη (SoftOne και eshop). Τα νέα είδη μένουν για έγκριση στα «Νέα είδη». Τελευταία: {when(feed.lastAutoAt)} · Επόμενη: {feed.active ? when(feed.nextAt) : "— (ανενεργό)"}</>}
         {feed.minFetchMin > 15 ? ` Ποτέ πιο συχνά από ${label(feed.minFetchMin)} (όριο του προμηθευτή).` : ""}
       </span>
       <div className="flex flex-wrap items-center gap-2" data-help="xml.supplier.apply">
         <button type="button" onClick={apply} disabled={disabled || !!busy || !feed.pending || !feed.active} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}>
           {busy === "apply" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />} Εφαρμογή αλλαγών ({feed.pending.toLocaleString("el-GR")})
         </button>
-        <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0">Υπάρχοντα είδη με αλλαγές από το XML ή διορθώσεις σου που δεν έχουν περάσει ακόμη — μετά τον «Έλεγχο με SoftOne».</span>
+        <span className="text-eu-muted text-[length:var(--fs-12)] min-w-0">Υπάρχοντα είδη με αλλαγές από τη λήψη ή διορθώσεις σου που δεν έχουν περάσει ακόμη — μετά τον «Έλεγχο με SoftOne».</span>
       </div>
       {err && <span role="alert" className="text-eu-red font-bold text-[length:var(--fs-13)]">{err}</span>}
     </div>

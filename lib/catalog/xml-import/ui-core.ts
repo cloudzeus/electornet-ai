@@ -133,6 +133,20 @@ export interface DraftDTO {
   value: MappingDraft;
 }
 
+/** Τι έφερε μια λήψη Keyvoto, σε αριθμούς που λένε στον χρήστη τι θα γίνει — όχι σε στήλες. */
+export interface KvStats {
+  products: number;
+  /** κλιματιστικά που ήρθαν ως εσωτερική + εξωτερική μονάδα και ενώθηκαν σε ένα προϊόν */
+  sets: number;
+  /** βρέθηκαν στο SoftOne με τον κωδικό ή το barcode τους (τα υπόλοιπα είναι νέα) */
+  existing: number;
+  /** από τα υπάρχοντα: όσα έχουν «Εξαίρεση Web» στο SoftOne (δεν ανεβαίνουν στο site — μένουν εκτός εισαγωγής) */
+  excluded: number;
+  withPrice: number;
+  withPhotos: number;
+  withDescription: number;
+}
+
 export interface SuggestDTO {
   cols: ColDTO[];
   /** τα ζεύγη κατηγοριών του feed με πλήθος προϊόντων και την πρόταση (τα παραδείγματα έρχονται από το `valueInfo` της στήλης) */
@@ -145,6 +159,8 @@ export interface SuggestDTO {
   /** ζεύγη εσωτερικής / εξωτερικής μονάδας κλιματιστικού μέσα στο feed — ειδοποίηση, όχι φράγμα */
   acSplit?: { total: number; inner: string; outer: string };
   aiUsed: boolean;
+  /** Keyvoto: η σύνοψη της λήψης για το βήμα «Τι ήρθε» (τα XML feeds δεν την έχουν) */
+  kv?: KvStats;
   /** true = οι επιλογές ήρθαν από το αποθηκευμένο πρότυπο του προμηθευτή, όχι από κανόνες και AI */
   fromTemplate?: boolean;
   /** οι αποθηκευμένες αντιστοιχίσεις τιμών (μάρκες, μονάδες, σημάνσεις) — οι κατηγορίες είναι μέσα στο `cats` */
@@ -204,6 +220,8 @@ export interface FeedStateDTO {
   minFetchMin: number;
   /** ανενεργό feed δεν τρέχει και δεν κάνει εισαγωγή — η λίστα του μένει αναγνώσιμη */
   active: boolean;
+  /** true = ο χρήστης ζήτησε να μπαίνουν και τα υπάρχοντα είδη με «Εξαίρεση Web» στο SoftOne (αλλιώς παραλείπονται) */
+  withWebExcluded: boolean;
   /** το αποθηκευμένο XML της τελευταίας λήψης */
   snapshot: { has: boolean; fetchedAt: string | null; bytes: number | null; products: number | null; waitMin: number };
   /** τιμές του προμηθευτή που δεν έχει δει ποτέ ο χρήστης, ανά είδος (κατηγορίες, μάρκες, μονάδες, σημάνσεις) */
@@ -367,9 +385,9 @@ export const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(
  * αλλιώς θα νομίζει ότι ο προμηθευτής δεν άλλαξε τίποτα, ενώ απλώς δεν τον ρωτήσαμε.
  */
 export function sourceNote(s: SourceDTO): string {
-  if (s.from === "download") return `Το feed κατέβηκε τώρα (${mb(s.bytes)}).`;
-  const kept = `το αποθηκευμένο XML της ${when(s.fetchedAt)}`;
-  if (s.rateLimited) return `Ο προμηθευτής απάντησε «πάρα πολλά αιτήματα» — δουλέψαμε με ${kept}. Νέα λήψη σε ${s.waitMin} ${s.waitMin === 1 ? "λεπτό" : "λεπτά"}.`;
+  if (s.from === "download") return `Η λήψη έγινε τώρα (${mb(s.bytes)}).`;
+  const kept = `η αποθηκευμένη λήψη της ${when(s.fetchedAt)}`;
+  if (s.rateLimited) return `Ο προμηθευτής απάντησε «πάρα πολλά αιτήματα» — χρησιμοποιήθηκε ${kept}. Νέα λήψη σε ${s.waitMin} ${s.waitMin === 1 ? "λεπτό" : "λεπτά"}.`;
   if (s.waitMin > 0) return `Χρησιμοποιήθηκε ${kept} — νέα λήψη επιτρέπεται σε ${s.waitMin} ${s.waitMin === 1 ? "λεπτό" : "λεπτά"}.`;
   return `Χρησιμοποιήθηκε ${kept} — νέα λήψη επιτρέπεται τώρα.`;
 }

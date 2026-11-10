@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-06T13:59:55.459Z",
+ "generatedAt": "2026-11-10T11:37:22.569Z",
  "routes": [
   {
    "route": "/admin",
@@ -1024,22 +1024,29 @@
    "slug": "catalog.templates.import",
    "file": "app/admin/(shell)/catalog/templates/import/page.tsx",
    "title": "Εισαγωγή από άλλο Excel",
-   "doc": "Εισαγωγή προϊόντων από οποιοδήποτε excel/csv (τιμοκατάλογος προμηθευτή): 4 βήματα — αρχείο, στήλες, τιμές μάρκας/κατηγορίας, προεπισκόπηση και εκτέλεση σε παρτίδες. Γράφει μόνο κενά πεδία· τα νέα είδη πάνε για έγκριση.",
+   "doc": "Εισαγωγή προϊόντων από οποιοδήποτε excel/csv (τιμοκατάλογος προμηθευτή): 5 βήματα — αρχείο, στήλες (με ερωτήσεις για όσες δεν αναγνωρίστηκαν), τιμή & τιμές μάρκας/κατηγορίας, προεπισκόπηση και εκτέλεση σε παρτίδες, δημιουργία νέων ειδών & όσα λείπουν από το αρχείο. Γράφει μόνο κενά πεδία.",
    "perm": "catalog.products.write",
    "nav": null,
    "dynamic": false,
    "helpKeys": [
     "foreign.steps",
     "foreign.upload",
+    "foreign.media-file",
     "foreign.header-row",
     "foreign.saved-mapping",
     "foreign.recent",
     "foreign.columns",
+    "foreign.questions",
     "foreign.sheet-defaults",
     "foreign.price",
+    "foreign.category",
     "foreign.values",
     "foreign.preview",
-    "foreign.run"
+    "foreign.category-ai",
+    "foreign.web-excluded",
+    "foreign.run",
+    "foreign.create",
+    "foreign.missing"
    ],
    "changes": [
     {
@@ -1140,7 +1147,7 @@
    "slug": "catalog.templates.keyvoto",
    "file": "app/admin/(shell)/catalog/templates/keyvoto/page.tsx",
    "title": "Keyvoto PIM",
-   "doc": "Μαζική εισαγωγή προϊόντων από το Keyvoto (PIM των προμηθευτών). Ο οδηγός είναι **ο ίδιος** με των XML feeds — προμηθευτής → πηγή → αντιστοίχιση ανά βήμα → έλεγχος με SoftOne → λίστα ελέγχου → δημοσίευση. Αλλάζει μόνο το «από πού»: αντί για διεύθυνση XML, διαλέγεις εκδότη και κατάλογο του Keyvoto.",
+   "doc": "Μαζική εισαγωγή προϊόντων από το Keyvoto (PIM των προμηθευτών), σε τέσσερα βήματα: πηγή (προμηθευτής + εκδότης) → τι ήρθε (σύνοψη και ερωτήσεις) → έλεγχος και εισαγωγή → δημοσίευση. Μοιράζεται τη μηχανή των XML feeds, αλλά η αντιστοίχιση πεδίων είναι έτοιμη (το έγγραφο του Keyvoto έχει σταθερή δομή) και μένει πίσω από το «Δες και άλλαξε όλα τα πεδία».",
    "perm": "catalog.products.write",
    "nav": null,
    "dynamic": false,
@@ -1187,6 +1194,8 @@
    "helpKeys": [
     "pending.filters",
     "pending.approve",
+    "pending.web",
+    "pending.category-ai",
     "pending.list",
     "pending.missing",
     "pending.discard",
@@ -1268,6 +1277,7 @@
     "xml.publish.actions",
     "xml.list.feed",
     "xml.list.snapshot",
+    "xml.list.web-excluded",
     "xml.list.pending",
     "xml.list.chips",
     "xml.list.selection",
@@ -1276,6 +1286,7 @@
     "xml.steps",
     "xml.supplier",
     "xml.supplier.feed",
+    "keyvoto.fetch",
     "xml.feed",
     "xml.feed.source",
     "xml.feed.counts",
@@ -2329,6 +2340,11 @@
    ],
    "changes": [
     {
+     "hash": "7df8653",
+     "date": "2026-11-06T15:59:55+02:00",
+     "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
+    },
+    {
      "hash": "59b755b",
      "date": "2026-11-06T10:12:55+02:00",
      "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης"
@@ -2374,7 +2390,7 @@
      "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-11-06T10:12:55+02:00",
+   "updatedAt": "2026-11-06T15:59:55+02:00",
    "shots": {}
   },
   {
@@ -2409,6 +2425,11 @@
     "orders.softone.details"
    ],
    "changes": [
+    {
+     "hash": "7df8653",
+     "date": "2026-11-06T15:59:55+02:00",
+     "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
+    },
     {
      "hash": "aa4015a",
      "date": "2026-11-06T10:33:12+02:00",
@@ -2453,14 +2474,9 @@
      "hash": "ffac74e",
      "date": "2026-10-16T14:12:27+03:00",
      "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
-    },
-    {
-     "hash": "8dc0c8a",
-     "date": "2026-10-16T13:29:14+03:00",
-     "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών"
     }
    ],
-   "updatedAt": "2026-11-06T10:33:12+02:00",
+   "updatedAt": "2026-11-06T15:59:55+02:00",
    "shots": {}
   },
   {
@@ -2482,8 +2498,14 @@
     "orders.stages.text",
     "orders.stages.list"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "7df8653",
+     "date": "2026-11-06T15:59:55+02:00",
+     "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
+    }
+   ],
+   "updatedAt": "2026-11-06T15:59:55+02:00",
    "shots": {}
   },
   {
@@ -4072,6 +4094,11 @@
    ],
    "changes": [
     {
+     "hash": "7df8653",
+     "date": "2026-11-06T15:59:55+02:00",
+     "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
+    },
+    {
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
@@ -4097,7 +4124,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-10-31T07:29:29+02:00",
+   "updatedAt": "2026-11-06T15:59:55+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -4505,6 +4532,17 @@
  ],
  "recent": [
   {
+   "hash": "7df8653",
+   "date": "2026-11-06T15:59:55+02:00",
+   "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές",
+   "routes": [
+    "/admin",
+    "/admin/orders",
+    "/admin/orders/[number]",
+    "/admin/orders/enimerosi"
+   ]
+  },
+  {
    "hash": "8ca597e",
    "date": "2026-11-06T15:59:26+02:00",
    "text": "Ερμής: μόνιμος οδηγός αγοράς ανά κατηγορία (107, lib/advisor/guides.json",
@@ -4753,12 +4791,6 @@
     "/admin/apostoles",
     "/admin/apostoles/vouchers"
    ]
-  },
-  {
-   "hash": "eb26f7a",
-   "date": "2026-11-03T16:41:45+02:00",
-   "text": "ASAP: σωστή διαδρομή αναζήτησης διεύθυνσης (/address-lookup)",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -5227,6 +5259,12 @@
   "settings.test": [
    "components/admin/SettingsForm.tsx"
   ],
+  "card.peek": [
+   "components/admin/catalog/CardPeek.tsx"
+  ],
+  "category.ai": [
+   "components/admin/catalog/CategoryProposals.tsx"
+  ],
   "cats.write-switch": [
    "components/admin/catalog/CategoryTree.tsx"
   ],
@@ -5275,6 +5313,9 @@
   "foreign.upload": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
+  "foreign.media-file": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
   "foreign.header-row": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
@@ -5287,10 +5328,16 @@
   "foreign.columns": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
+  "foreign.questions": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
   "foreign.sheet-defaults": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
   "foreign.price": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.category": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
   "foreign.values": [
@@ -5299,7 +5346,19 @@
   "foreign.preview": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
+  "foreign.category-ai": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.web-excluded": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
   "foreign.run": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.create": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.missing": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
   "markup.list": [
@@ -5312,6 +5371,12 @@
    "components/admin/catalog/MarkupRules.tsx"
   ],
   "pending.approve": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.web": [
+   "components/admin/catalog/PendingItems.tsx"
+  ],
+  "pending.category-ai": [
    "components/admin/catalog/PendingItems.tsx"
   ],
   "pending.list": [
@@ -5382,6 +5447,12 @@
   ],
   "keyvoto.fields": [
    "components/admin/catalog/keyvoto/KeyvotoExplorer.tsx"
+  ],
+  "keyvoto.summary": [
+   "components/admin/catalog/keyvoto/KeyvotoSummary.tsx"
+  ],
+  "keyvoto.web-excluded": [
+   "components/admin/catalog/keyvoto/KeyvotoSummary.tsx"
   ],
   "xml.supplier.avail": [
    "components/admin/catalog/xml/AvailMap.tsx"
@@ -5476,6 +5547,9 @@
   "xml.list.snapshot": [
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
+  "xml.list.web-excluded": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
   "xml.list.pending": [
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
@@ -5498,6 +5572,9 @@
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.supplier.feed": [
+   "components/admin/catalog/xml/XmlImportWizard.tsx"
+  ],
+  "keyvoto.fetch": [
    "components/admin/catalog/xml/XmlImportWizard.tsx"
   ],
   "xml.feed": [

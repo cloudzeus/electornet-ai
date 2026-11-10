@@ -1,22 +1,25 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ArrowRight, BookmarkCheck, Check, CircleAlert, Clock, FileSpreadsheet, History, Images, Loader2, Play, RefreshCw, Upload } from "lucide-react";
-import { suggestTarget, configForHeaders, type MappingConfig, type Target } from "@/lib/catalog/foreign-import/core";
+import { AlertTriangle, ArrowLeft, ArrowRight, BookmarkCheck, Check, CircleAlert, Clock, EyeOff, FileSpreadsheet, FolderTree, HelpCircle, History, Images, Loader2, PackagePlus, Play, Sparkles, PowerOff, RefreshCw, Upload } from "lucide-react";
+import { suggestTarget, unknownHeader, configForHeaders, type MappingConfig, type Target } from "@/lib/catalog/foreign-import/core";
 import { encodeTarget, decodeTarget, valuesAfter, autoMatch, PREVIEW_ROWS, type InspectSheet, type SavedMappingRef, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
 import type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 import { PriceOptions, type PriceOpts } from "@/components/admin/catalog/PriceOptions";
 import type { MatchKind } from "@/lib/catalog/foreign-import/core";
-import { lookupMapping, runForeignBatch, replanJob } from "@/app/admin/(shell)/catalog/templates/import/actions";
+import { lookupMapping, runForeignBatch, replanJob, saveDraftMapping, finishData, deactivateMissingProducts, suggestJobCategories, applyJobCategories, type FinishData, type JobCategoryAi } from "@/app/admin/(shell)/catalog/templates/import/actions";
 import { OptionPicker, type PickOpt } from "@/components/admin/catalog/OptionPicker";
+import { PendingItems } from "@/components/admin/catalog/PendingItems";
+import { CategoryProposals } from "@/components/admin/catalog/CategoryProposals";
+import type { Settings } from "@/lib/cms/settings";
+import { CardPeek } from "@/components/admin/catalog/CardPeek";
 
 type Brand = { id: string; name: string; s1: boolean };
 type Category = { id: string; name: string; path: string };
 /** reopened = όνομα αρχείου όταν η προεπισκόπηση άνοιξε από τις «Πρόσφατες εισαγωγές» (χωρίς αρχείο στον browser) */
-type Plan = { jobId: string; rows: ForeignPlanRow[]; writeOn: boolean; reopened?: string };
-type Step = 1 | 2 | 3 | 4;
+type Plan = { jobId: string; rows: ForeignPlanRow[]; writeOn: boolean; reopened?: string; /** δεύτερο αρχείο φωτογραφιών: πόσες γραμμές του βρήκαν προϊόν */ mediaMatch?: { matched: number; total: number; file: string } };
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -56,7 +59,7 @@ const TARGETS: { group: string; items: { value: string; label: string; help: str
     { value: "category", label: "Κατηγορία", help: "Κάθε τιμή αντιστοιχίζεται σε κατηγορία μας στο βήμα 3 — δίνει ομάδα χαρακτηριστικών στα νέα και κανόνα τιμής." },
   ] },
   { group: "Τιμές", items: [
-    { value: "cost", label: "Κόστος (χωρίς ΦΠΑ)", help: "Με τον κανόνα τιμολόγησης βγάζει την τιμή web — μόνο όπου το είδος δεν έχει τιμή." },
+    { value: "cost", label: "Κόστος (χωρίς ΦΠΑ)", help: "Με τον κανόνα τιμολόγησης βγάζει την τιμή web. Γράφεται όπου το είδος δεν έχει τιμή, και διορθώνεται όπου η νέα είναι μεγαλύτερη από αυτήν που έχει." },
     { value: "rrp", label: "Προτεινόμενη λιανική", help: "Πλαφόν: η τιμή από τον κανόνα δεν την ξεπερνά." },
   ] },
   { group: "Άλλο", items: [{ value: "ignore", label: "Αγνόηση", help: "Η στήλη δεν χρησιμοποιείται." }] },
@@ -74,18 +77,20 @@ const STATUS: Record<RowStatus, { label: string; cls: string }> = {
 const STATUS_ORDER: RowStatus[] = ["update", "new", "waiting", "unchanged", "problem"];
 // Τι σημαίνει μια γραμμή που εκτελέστηκε χωρίς σφάλμα, ανά κατάσταση (ίδια λογική με το applyForeign)
 const DONE_TEXT: Record<RowStatus, string> = {
-  update: "Έγινε.", new: "Μπήκε στη λίστα «Νέα είδη» για έγκριση.", waiting: "Σε αναμονή (οι φωτογραφίες πέρασαν): όταν ανοίξουν οι αλλαγές προς το SoftOne, πάτα «Νέα προεπισκόπηση» σε αυτή την εισαγωγή από τις «Πρόσφατες εισαγωγές» και εκτέλεσε ξανά.",
+  update: "Έγινε.", new: "Έτοιμο για δημιουργία — συνέχισε στο βήμα 5.", waiting: "Σε αναμονή (οι φωτογραφίες πέρασαν): όταν ανοίξουν οι αλλαγές προς το SoftOne, πάτα «Νέα προεπισκόπηση» σε αυτή την εισαγωγή από τις «Πρόσφατες εισαγωγές» και εκτέλεσε ξανά.",
   unchanged: "Τίποτα να γίνει.", problem: "",
 };
 const MATCHED_BY: Record<MatchKind, string> = { mtrl: "MTRL", code: "κωδικό", ean: "EAN", factory: "κωδ. κατασκευαστή" };
 const JOB_STATUS: Record<string, string> = { draft: "Προεπισκόπηση", partial: "Μερικώς", applied: "Εκτελέστηκε" };
 const when = new Intl.DateTimeFormat("el-GR", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Athens" }); // ίδια ώρα σε server και browser (hydration)
 
-/** Οδηγός εισαγωγής από ξένο Excel: 1 αρχείο · 2 στήλες · 3 τιμές μάρκας/κατηγορίας · 4 προεπισκόπηση & εκτέλεση. */
-export function ForeignImportWizard({ brands, categories, writeOn, canSync, recent }: { brands: Brand[]; categories: Category[]; writeOn: boolean; canSync: boolean; recent: RecentJob[] }) {
+/** Οδηγός εισαγωγής από ξένο Excel: 1 αρχείο · 2 στήλες (με ερωτήσεις για ό,τι δεν αναγνωρίστηκε) · 3 τιμή & τιμές μάρκας/κατηγορίας · 4 προεπισκόπηση & εκτέλεση · 5 δημιουργία νέων ειδών & όσα λείπουν από το αρχείο. */
+export function ForeignImportWizard({ brands, categories, writeOn, canSync, recent, settings }: { brands: Brand[]; categories: Category[]; writeOn: boolean; canSync: boolean; recent: RecentJob[]; settings: Settings }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<File | null>(null);
+  /** προαιρετικό δεύτερο αρχείο μόνο με φωτογραφίες / βίντεο — δένει με τις γραμμές στην προεπισκόπηση */
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<InspectSheet[] | null>(null);
   const [sheetIdx, setSheetIdx] = useState(0);
   const [headerRow, setHeaderRow] = useState(0);
@@ -93,6 +98,8 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   const [usedMapping, setUsedMapping] = useState<SavedMappingRef | null>(null);
   const [cols, setCols] = useState<Record<number, string>>({});
   const [labels, setLabels] = useState<Record<number, string>>({});
+  /** στήλες με δεδομένα που ο τίτλος τους δεν αναγνωρίστηκε: ο χρήστης πρέπει να πει τι είναι πριν προχωρήσει */
+  const [unsure, setUnsure] = useState<Set<number>>(new Set());
   const [sheetBrandId, setSheetBrandId] = useState<string | null>(null);
   const [sheetCategoryId, setSheetCategoryId] = useState<string | null>(null);
   const [saveAs, setSaveAs] = useState("");
@@ -116,13 +123,16 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   const initColumns = (sh: InspectSheet, hr: number, m: SavedMappingRef | null) => {
     const hs = sh.preview[hr] ?? [];
     const cfg = m ? configForHeaders(m.config, hs) : null;
-    const next: Record<number, string> = {}, lbl: Record<number, string> = {};
+    const next: Record<number, string> = {}, lbl: Record<number, string> = {}, ask = new Set<number>();
     for (let i = 0; i < sh.cols.length; i++) {
       const t: Target = cfg ? cfg.columns[i] ?? { kind: "ignore" } : suggestTarget(hs[i] ?? "");
       next[i] = encodeTarget(t);
       lbl[i] = t.kind === "spec" ? t.label : (hs[i] ?? "").trim();
+      // Χωρίς αποθηκευμένη αντιστοίχιση: άγνωστος τίτλος + στήλη με δεδομένα = ερώτηση (όχι σιωπηλή αγνόηση)
+      if (!cfg && unknownHeader(hs[i] ?? "") && valuesAfter(sh.cols[i], hr)?.length !== 0) ask.add(i);
     }
-    setCols(next); setLabels(lbl);
+    setCols(next); setLabels(lbl); setUnsure(ask);
+    if (m?.config.price) setPriceOpts(m.config.price);
     setBrandMap(cfg?.brandMap ?? {}); setCategoryMap(cfg?.categoryMap ?? {});
     setSheetBrandId(cfg?.sheetBrandId ?? null); setSheetCategoryId(cfg?.sheetCategoryId ?? null);
     setUsedMapping(m);
@@ -137,7 +147,7 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   };
 
   const inspect = async (f: File) => {
-    setFile(f); setSheets(null); setPlan(null); setErr(null); setBusy("inspect"); setStep(1); setSaveAs("");
+    setFile(f); setMediaFile(null); setSheets(null); setPlan(null); setErr(null); setBusy("inspect"); setStep(1); setSaveAs("");
     try {
       const body = new FormData(); body.set("file", f);
       const r = await fetch("/api/admin/catalog/foreign-import/inspect", { method: "POST", body });
@@ -159,15 +169,30 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
     return { values: [...set].sort((a, b) => a.localeCompare(b, "el")), many };
   };
   const brandVals = valuesOf("brand"), catVals = valuesOf("category");
+  // Ο τίτλος της στήλης που δίνει κόστος / λιανική (null = το αρχείο δεν έχει) — για να φαίνεται από πού βγαίνει η τιμή
+  const colTitle = (v: string) => { const i = colsOf(v)[0]; return i == null ? null : (headers[i] ?? "").trim() || `Στήλη ${colName(i)}`; };
+  const costCol = colTitle("cost"), retailCol = colTitle("rrp"), catCol = colTitle("category");
   const goValues = () => {
     // Αυτόματη αντιστοίχιση μόνο για τιμές που δεν έχουν ήδη επιλογή (π.χ. από αποθηκευμένη αντιστοίχιση)
     const bm = autoMatch(brandVals.values.filter((v) => !(v in brandMap)), brands);
     const cm = autoMatch(catVals.values.filter((v) => !(v in categoryMap)), categories);
     if (Object.keys(bm).length) setBrandMap((m) => ({ ...bm, ...m }));
     if (Object.keys(cm).length) setCategoryMap((m) => ({ ...cm, ...m }));
+    // Η τιμή ξεκινά από τη στήλη που υπάρχει: επιλογή χωρίς στήλη πίσω της δεν θα έβγαζε τίποτα
+    if (priceOpts.priceMode === "cost" ? !costCol && retailCol : !retailCol && costCol) setPriceOpts((o) => ({ ...o, priceMode: costCol ? "cost" : "retail" }));
+    // Οι στήλες κρατιούνται από τώρα (όχι μόνο στην προεπισκόπηση): ίδιο αρχείο άλλη μέρα → συνεχίζεις από εδώ. Αποτυχία = απλώς δεν κρατήθηκε.
+    void saveDraftMapping(headers, config(), priceOpts, file?.name ?? "", saveAs.trim()).catch(() => {});
     setStep(3);
   };
 
+  /** Απάντηση σε στήλη-ερώτηση (ή οποιαδήποτε αλλαγή στόχου): η στήλη παύει να είναι ερώτηση. */
+  const setTarget = (i: number, nv: string) => {
+    setCols((c) => ({ ...c, [i]: nv }));
+    if (nv === "spec" && !(labels[i] ?? "").trim()) setLabels((l) => ({ ...l, [i]: (headers[i] ?? "").trim() }));
+    setUnsure((u) => { if (!u.has(i)) return u; const x = new Set(u); x.delete(i); return x; });
+    touch();
+  };
+  const answerAll = (nv: string) => { for (const i of unsure) setTarget(i, nv); };
   const specMissing = Object.entries(cols).some(([i, t]) => t === "spec" && !(labels[Number(i)] ?? "").trim());
   const mapped = Object.values(cols).filter((t) => t !== "ignore").length;
   const hasKey = Object.values(cols).some((t) => KEY_TARGETS.has(t));
@@ -186,10 +211,11 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
       body.set("file", file); body.set("sheet", sheet.name); body.set("headerRow", String(headerRow)); body.set("config", JSON.stringify(config())); body.set("opts", JSON.stringify(priceOpts));
       if (saveAs.trim()) body.set("saveAs", saveAs.trim());
       if (usedMapping) body.set("mappingId", usedMapping.id);
+      if (mediaFile) body.set("mediaFile", mediaFile);
       const r = await fetch("/api/admin/catalog/foreign-import/plan", { method: "POST", body });
       const j = await r.json().catch(() => ({ error: "Η προεπισκόπηση απέτυχε." }));
       if (!r.ok) throw new Error(j.error ?? "Η προεπισκόπηση απέτυχε.");
-      setPlan({ jobId: j.jobId, rows: j.rows, writeOn: j.writeOn });
+      setPlan({ jobId: j.jobId, rows: j.rows, writeOn: j.writeOn, ...(j.mediaMatch && mediaFile ? { mediaMatch: { ...j.mediaMatch, file: mediaFile.name } } : {}) });
       // Μόλις αποθηκεύτηκε: ξαναδιαβάζεται, ώστε να φαίνεται ως η αντιστοίχιση σε χρήση
       if (saveAs.trim()) { setSaveAs(""); lookupMapping(headers).then((m) => { if (m) { setSaved(m); setUsedMapping(m); } }).catch(() => {}); }
       setStep(4);
@@ -210,13 +236,13 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
   };
 
   // Στο βήμα 3 μπαίνεις μόνο μέσω goValues (αυτόματη προεπιλογή) και μόνο με έγκυρες στήλες· το 4 θέλει προεπισκόπηση
-  const colsOk = mapped > 0 && !specMissing;
-  const can = (s: Step) => s === 1 || (s === 4 && !!plan?.reopened) || (!!sheet && (s === 2 || (colsOk && (s === 3 || !!plan))));
-  const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμή & τιμές"], [4, "Προεπισκόπηση"]];
+  const colsOk = mapped > 0 && !specMissing && !unsure.size;
+  const can = (s: Step) => s === 1 || (s >= 4 && !!plan) || (!!sheet && (s === 2 || (colsOk && s === 3)));
+  const STEPS: [Step, string][] = [[1, "Αρχείο"], [2, "Στήλες"], [3, "Τιμή & κατηγορία"], [4, "Προεπισκόπηση"], [5, "Δημιουργία"]];
 
   return (
     <div className="grid gap-4 min-w-0">
-      <ol data-help="foreign.steps" aria-label="Βήματα" className="m-0 p-0 list-none grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <ol data-help="foreign.steps" aria-label="Βήματα" className="m-0 p-0 list-none grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {STEPS.map(([n, l]) => (
           <li key={n}><button type="button" disabled={!can(n) || !!busy} onClick={() => (n === 3 ? goValues() : setStep(n))} aria-current={step === n ? "step" : undefined}
             className={`w-full flex items-center gap-2 rounded-xl border-2 px-3 min-h-11 md:min-h-9 text-left font-bold text-[length:var(--fs-14)] disabled:opacity-50 disabled:cursor-not-allowed ${step === n ? "border-eu-navy bg-eu-navy text-white" : n < step ? "border-eu-blue/40 bg-eu-chip/40 text-eu-navy" : "border-eu-line bg-white text-eu-ink-3"}`}>
@@ -244,6 +270,18 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
               <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" disabled={!!busy}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void inspect(f); e.target.value = ""; }} />
             </label>
+            {sheet && (
+              <div data-help="foreign.media-file" className="grid gap-1.5 rounded-xl border border-eu-line p-3 min-w-0">
+                <span className="font-bold text-eu-ink text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><Images className="size-4 text-eu-blue" aria-hidden /> Οι φωτογραφίες είναι σε άλλο αρχείο; <span className="font-normal text-eu-muted">(προαιρετικό)</span></span>
+                <span className="text-eu-ink-3 text-[length:var(--fs-13)]">Δώσε και το Excel με τις διευθύνσεις φωτογραφιών / βίντεο. Τα ταιριάζω με τα προϊόντα από τον κωδικό, το barcode ή το MTRL — από όλα τα φύλλα του — και τα βλέπεις στην προεπισκόπηση.</span>
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <label className={`${secondary} cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-eu-blue`}><Upload className="size-4" aria-hidden />{mediaFile ? "Άλλο αρχείο" : "Διάλεξε αρχείο φωτογραφιών"}
+                    <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" disabled={!!busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMediaFile(f); touch(); } e.target.value = ""; }} />
+                  </label>
+                  {mediaFile && <><span className="min-w-0 break-all font-bold text-eu-ink text-[length:var(--fs-13)]">{mediaFile.name}</span><button type="button" className="min-h-11 md:min-h-9 font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline" onClick={() => { setMediaFile(null); touch(); }}>Αφαίρεση</button></>}
+                </div>
+              </div>
+            )}
             {sheets && sheets.length > 1 && (
               <label className="grid gap-1 max-w-md">
                 <span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Φύλλο</span>
@@ -324,6 +362,15 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
               <h3 id="f-cols" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">2. Τι είναι κάθε στήλη</h3>
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Η πρόταση βγαίνει από τον τίτλο της στήλης — άλλαξέ τη όπου χρειάζεται. Τα παραδείγματα είναι από τις πρώτες γραμμές κάτω από την επικεφαλίδα. Στα υπάρχοντα είδη γράφονται <strong>μόνο τα κενά</strong> πεδία.</p>
             </div>
+            {unsure.size > 0 && (
+              <div data-help="foreign.questions" role="status" className="grid gap-2 rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
+                <p className="m-0 flex gap-2 items-start"><HelpCircle className="size-5 text-eu-navy shrink-0" aria-hidden /><span className="min-w-0"><strong>Δεν κατάλαβα {unsure.size === 1 ? "1 στήλη" : `${unsure.size} στήλες`}.</strong> Είναι σημειωμένες με «Τι είναι;» πιο κάτω — πες μου για καθεμία, ή απάντησε για όλες μαζί. Δεν προχωράμε πριν απαντηθούν, για να μη χαθεί κάτι χωρίς να το ξέρεις.</span></p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={secondary} onClick={() => answerAll("spec")}>Όλες είναι χαρακτηριστικά</button>
+                  <button type="button" className={secondary} onClick={() => answerAll("ignore")}>Αγνόησέ τες όλες</button>
+                </div>
+              </div>
+            )}
             {!hasKey && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />Καμία στήλη-κλειδί (κωδικός, EAN, κωδικός κατασκευαστή ή MTRL): κανένα είδος δεν θα αναγνωριστεί — όλες οι γραμμές θα βγουν «νέα είδη».</p>}
             <ul className="m-0 p-0 list-none grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))]">
               {sheet.cols.map((_, i) => {
@@ -333,13 +380,15 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
                 const v = cols[i] ?? "ignore";
                 const t = TARGET_OF.get(v);
                 return (
-                  <li key={i} className={`rounded-xl border-2 p-3 grid gap-2 content-start min-w-0 ${v === "ignore" ? "border-eu-line bg-eu-surface/40" : "border-eu-blue/40 bg-white"}`}>
+                  <li key={i} className={`rounded-xl border-2 p-3 grid gap-2 content-start min-w-0 ${unsure.has(i) ? "border-eu-yellow bg-eu-yellow/10" : v === "ignore" ? "border-eu-line bg-eu-surface/40" : "border-eu-blue/40 bg-white"}`}>
                     <div className="flex items-baseline gap-2 min-w-0">
                       <span className={`${chip} bg-eu-surface text-eu-ink-3 shrink-0`}>{colName(i)}</span>
+                      {unsure.has(i) && <span className={`${chip} bg-eu-yellow text-eu-navy shrink-0 inline-flex items-center gap-1`}><HelpCircle className="size-3.5" aria-hidden />Τι είναι;</span>}
                       <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{h || <span className="text-eu-muted font-normal">(χωρίς τίτλο)</span>}</span>
                     </div>
                     <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere] line-clamp-3">{ex.length ? ex.join(" · ") : "— κενή στις πρώτες γραμμές —"}</p>
-                    <select aria-label={`Στόχος της στήλης ${colName(i)} ${h}`} value={v} onChange={(e) => { const nv = e.target.value; setCols((c) => ({ ...c, [i]: nv })); if (nv === "spec" && !(labels[i] ?? "").trim()) setLabels((l) => ({ ...l, [i]: h })); touch(); }} className={input}>
+                    <select aria-label={`Στόχος της στήλης ${colName(i)} ${h}`} value={unsure.has(i) ? "" : v} onChange={(e) => setTarget(i, e.target.value)} className={input}>
+                      {unsure.has(i) && <option value="" disabled>Διάλεξε τι είναι…</option>}
                       {TARGETS.map((g) => <optgroup key={g.group} label={g.group}>{g.items.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>)}
                     </select>
                     {v === "spec" && (
@@ -348,7 +397,9 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
                         <input value={labels[i] ?? ""} onChange={(e) => { const nv = e.target.value; setLabels((l) => ({ ...l, [i]: nv })); touch(); }} maxLength={80} placeholder="π.χ. Χρώμα" className={`${input} ${(labels[i] ?? "").trim() ? "" : "border-eu-red"}`} />
                       </label>
                     )}
-                    {t && <p className="m-0 text-eu-muted text-[length:var(--fs-12)] leading-snug">{t.help}</p>}
+                    {unsure.has(i)
+                      ? <div className="flex flex-wrap gap-2"><button type="button" className={secondary} onClick={() => setTarget(i, "spec")}>Χαρακτηριστικό</button><button type="button" className={secondary} onClick={() => setTarget(i, "ignore")}>Αγνόηση</button></div>
+                      : t && <p className="m-0 text-eu-muted text-[length:var(--fs-12)] leading-snug">{t.help}</p>}
                   </li>
                 );
               })}
@@ -358,12 +409,10 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
           <section data-help="foreign.sheet-defaults" className={card} aria-labelledby="f-def">
             <div>
               <h3 id="f-def" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Για όλο το φύλλο</h3>
-              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Όταν το αρχείο δεν έχει στήλη μάρκας/κατηγορίας (π.χ. τιμοκατάλογος μίας μάρκας) ή το κελί είναι κενό. Η μάρκα βοηθά να βρεθεί το είδος από τον κωδικό κατασκευαστή και ορίζει τη μάρκα των νέων ειδών.</p>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Όταν το αρχείο δεν έχει στήλη μάρκας (π.χ. τιμοκατάλογος μίας μάρκας) ή το κελί είναι κενό. Η μάρκα βοηθά να βρεθεί το είδος από τον κωδικό κατασκευαστή και ορίζει τη μάρκα των νέων ειδών. Η κατηγορία ορίζεται στο επόμενο βήμα.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Μάρκα για όλο το φύλλο</span><OptionPicker label="Μάρκα για όλο το φύλλο" options={brandOpts} value={sheetBrandId} onChange={(v) => { setSheetBrandId(v); touch(); }} empty="Καμία (από τη στήλη)" /></div>
-              <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Κατηγορία για όλο το φύλλο</span><OptionPicker label="Κατηγορία για όλο το φύλλο" options={catOpts} value={sheetCategoryId} onChange={(v) => { setSheetCategoryId(v); touch(); }} empty="Καμία (από τη στήλη)" /></div>
-            </div>
+            {!colsOf("brand").length && !sheetBrandId && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><HelpCircle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Το αρχείο δεν έχει στήλη μάρκας. Διάλεξε εδώ τη μάρκα όλων των προϊόντων του φύλλου — χωρίς αυτήν τα <strong>νέα είδη</strong> δεν δημιουργούνται. Για ενημέρωση υπαρχόντων δεν χρειάζεται.</span></p>}
+            <div className="grid gap-1 content-start min-w-0 max-w-md"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Μάρκα για όλο το φύλλο</span><OptionPicker label="Μάρκα για όλο το φύλλο" options={brandOpts} value={sheetBrandId} onChange={(v) => { setSheetBrandId(v); touch(); }} empty="Καμία (από τη στήλη)" /></div>
             <label className="grid gap-1 max-w-md">
               <span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Αποθήκευση αντιστοίχισης ως… (προαιρετικό)</span>
               <input value={saveAs} onChange={(e) => setSaveAs(e.target.value)} maxLength={80} placeholder={usedMapping ? usedMapping.name : "π.χ. Τιμοκατάλογος Allwan"} className={input} />
@@ -374,8 +423,8 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
           <div className="flex flex-wrap justify-between gap-2">
             <button type="button" className={secondary} onClick={() => setStep(1)}><ArrowLeft className="size-4" aria-hidden /> Αρχείο</button>
             <span className="flex flex-wrap items-center gap-2">
-              {specMissing && <span className="text-eu-red text-[length:var(--fs-13)]">Συμπλήρωσε τις ετικέτες χαρακτηριστικών.</span>}
-              <button type="button" className={primary} disabled={!mapped || specMissing} onClick={goValues}>Τιμές <ArrowRight className="size-4" aria-hidden /></button>
+              {unsure.size > 0 ? <span className="text-eu-ink text-[length:var(--fs-13)]">Απάντησε πρώτα για {unsure.size === 1 ? "τη στήλη" : `τις ${unsure.size} στήλες`} με «Τι είναι;».</span> : specMissing && <span className="text-eu-red text-[length:var(--fs-13)]">Συμπλήρωσε τις ετικέτες χαρακτηριστικών.</span>}
+              <button type="button" className={primary} disabled={!colsOk} onClick={goValues}>Τιμή &amp; κατηγορία <ArrowRight className="size-4" aria-hidden /></button>
             </span>
           </div>
         </>
@@ -386,13 +435,36 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
           <section data-help="foreign.price" className={card} aria-labelledby="f-price">
             <div>
               <h3 id="f-price" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">3. Τιμή πώλησης</h3>
-              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Από ποια στήλη ξεκινά η τιμή, αν το ποσό του αρχείου έχει ΦΠΑ και αν μπαίνει markup. Η τελική τιμή είναι πάντα με ΦΠΑ.</p>
+              {(costCol || retailCol) && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Από ποια στήλη ξεκινά η τιμή, αν το ποσό του αρχείου έχει ΦΠΑ και αν μπαίνει markup. Η τελική τιμή είναι πάντα με ΦΠΑ.</p>}
             </div>
-            <PriceOptions value={priceOpts} onChange={(v) => { setPriceOpts(v); touch(); }} />
+            {!costCol && !retailCol ? (
+              <div className="grid gap-2 rounded-lg bg-eu-yellow/20 px-3 py-3 text-eu-ink">
+                <p className="m-0 flex gap-2 items-start font-bold text-[length:var(--fs-15)]"><AlertTriangle className="size-5 text-eu-navy shrink-0" aria-hidden />Αυτό το αρχείο δεν έχει τιμές</p>
+                <ul className="m-0 pl-5 grid gap-1 text-[length:var(--fs-14)]">
+                  <li>Δεν βρήκα στήλη με κόστος ή λιανική, άρα δεν έχω από πού να βγάλω τιμή πώλησης.</li>
+                  <li>Μπορείς να συνεχίσεις: τα προϊόντα θα εισαχθούν <strong>χωρίς τιμή</strong> και στο eshop θα γράφουν «Τιμή στο κατάστημα» μέχρι να τη βάλεις στο SoftOne.</li>
+                  <li>Αν το αρχείο έχει στήλη τιμής που δεν αναγνώρισα, δείξε μου ποια είναι.</li>
+                </ul>
+                <div><button type="button" className={secondary} onClick={() => setStep(2)}><ArrowLeft className="size-4" aria-hidden /> Να ορίσω στήλη τιμής</button></div>
+              </div>
+            ) : <PriceOptions value={priceOpts} onChange={(v) => { setPriceOpts(v); touch(); }} costCol={costCol} retailCol={retailCol} />}
+          </section>
+          <section data-help="foreign.category" className={card} aria-labelledby="f-cat">
+            <div>
+              <h3 id="f-cat" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] inline-flex items-center gap-1.5"><FolderTree className="size-4 text-eu-blue" aria-hidden /> Κατηγορία στο eshop</h3>
+              <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Σε ποια κατηγορία του site μπαίνουν τα νέα προϊόντα. Η κατηγορία ορίζει και την ομάδα χαρακτηριστικών τους και τον κανόνα τιμής. Τα υπάρχοντα είδη κρατούν την κατηγορία που έχουν.</p>
+            </div>
+            {catCol
+              ? <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-chip/60 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><Check className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Η κατηγορία κάθε προϊόντος βγαίνει από τη στήλη «<strong>{catCol}</strong>»: αντιστοίχισε πιο κάτω κάθε τιμή της με δική μας κατηγορία ({catVals.values.filter((v) => categoryMap[v]).length} από {catVals.values.length} έτοιμες). Η επιλογή εδώ ισχύει για όσα μείνουν χωρίς αντιστοίχιση.</span></p>
+              : <p className="m-0 text-eu-ink text-[length:var(--fs-14)]">Το αρχείο δεν έχει στήλη κατηγορίας, οπότε διαλέγεις <strong>μία κατηγορία για όλα τα προϊόντα του φύλλου</strong>.</p>}
+            <div className="grid gap-1 content-start min-w-0 max-w-xl"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">{catCol ? "Κατηγορία για όσα μείνουν χωρίς αντιστοίχιση" : "Κατηγορία για όλο το φύλλο"}</span><OptionPicker label="Κατηγορία για όλο το φύλλο" options={catOpts} value={sheetCategoryId} onChange={(v) => { setSheetCategoryId(v); touch(); }} empty="Καμία" /></div>
+            {sheetCategoryId
+              ? <p className="m-0 flex gap-2 items-start text-eu-ink text-[length:var(--fs-13)]"><Check className="size-4 text-eu-green shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{catCol ? "Όσα δεν έχουν αντιστοίχιση" : "Όλα τα νέα προϊόντα"} θα μπουν στην «{catOpts.find((c) => c.id === sheetCategoryId)?.name ?? "—"}».</span></p>
+              : !catCol && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">Χωρίς κατηγορία τα νέα προϊόντα δεν δημιουργούνται αμέσως: στο βήμα 5 θα χρειαστεί να ορίσεις ομάδα χαρακτηριστικών σε καθένα ξεχωριστά.</span></p>}
           </section>
           <section data-help="foreign.values" className={card} aria-labelledby="f-vals">
             <div>
-              <h3 id="f-vals" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Τιμές μάρκας και κατηγορίας</h3>
+              <h3 id="f-vals" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]">Μάρκες και κατηγορίες του αρχείου</h3>
               <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κάθε τιμή του αρχείου με δική μας μάρκα / κατηγορία. Όσα έχουν ίδιο όνομα προεπιλέγονται· ό,τι μείνει χωρίς επιλογή παίρνει την τιμή «για όλο το φύλλο» (αν έχεις ορίσει) ή μένει κενό.</p>
             </div>
             {!colsOf("brand").length && !colsOf("category").length && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Δεν αντιστοιχίστηκε στήλη μάρκας ή κατηγορίας — δεν χρειάζεται κάτι εδώ.</p>}
@@ -420,7 +492,9 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
         </>
       )}
 
-      {step === 4 && plan && <Preview key={`${plan.jobId}:${plan.rows.length}:${plan.reopened ?? ""}`} plan={plan} canSync={canSync} backLabel={sheet ? "Τιμή & τιμές" : "Αρχείο"} onBack={() => { if (sheet) setStep(3); else { setPlan(null); setStep(1); } }} />}
+      {step === 4 && plan && <Preview key={`${plan.jobId}:${plan.rows.length}:${plan.reopened ?? ""}`} plan={plan} canSync={canSync} settings={settings} backLabel={sheet ? "Τιμή & κατηγορία" : "Αρχείο"} onBack={() => { if (sheet) setStep(3); else { setPlan(null); setStep(1); } }} onNext={() => setStep(5)}
+        onReplanned={(r) => setPlan((p) => (p ? { ...p, rows: r.rows, writeOn: r.writeOn } : p))} />}
+      {step === 5 && plan && <Finish jobId={plan.jobId} brands={brandOpts} settings={settings} onBack={() => setStep(4)} />}
     </div>
   );
 }
@@ -430,7 +504,30 @@ export function ForeignImportWizard({ brands, categories, writeOn, canSync, rece
 /** note = εκτελέστηκε χωρίς σφάλμα αλλά με δικό της μήνυμα (π.χ. ήδη στη λίστα «Νέα είδη») */
 type RowResult = { ok: boolean; text: string; note?: boolean };
 
-function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: boolean; onBack: () => void; backLabel: string }) {
+function Preview({ plan, canSync, settings, onBack, onNext, onReplanned, backLabel }: { plan: Plan; canSync: boolean; settings: Settings; onBack: () => void; onNext: () => void; /** οι κατηγορίες που δέχτηκε ο χρήστης μπήκαν στις γραμμές — νέο σχέδιο */ onReplanned: (r: { rows: ForeignPlanRow[]; writeOn: boolean }) => void; backLabel: string }) {
+  /** νέα είδη χωρίς κατηγορία eshop: γι' αυτά προτείνει το AI, όταν το ζητήσει ο χρήστης */
+  const noCategory = plan.rows.filter((r) => r.status === "new" && r.card && !r.card.category).length;
+  const [ai, setAi] = useState<Exclude<JobCategoryAi, { error: string }> | null>(null);
+  const [aiBusy, setAiBusy] = useState<"ask" | "apply" | null>(null);
+  const [aiErr, setAiErr] = useState<string | null>(null);
+  const askAi = async () => {
+    setAiErr(null); setAi(null); setAiBusy("ask");
+    let r: JobCategoryAi;
+    try { r = await suggestJobCategories(plan.jobId); } catch { r = { error: "Η σύνδεση διακόπηκε." }; }
+    setAiBusy(null);
+    if ("error" in r) setAiErr(r.error); else setAi(r);
+  };
+  const applyAi = async (picks: { key: string; categoryId: string }[]) => {
+    if (!ai) return;
+    setAiBusy("apply"); setAiErr(null);
+    let r;
+    try { r = await applyJobCategories(plan.jobId, picks.map((p) => ({ rowNo: Number(p.key), categoryId: p.categoryId }))); } catch { r = { error: "Η σύνδεση διακόπηκε." }; }
+    setAiBusy(null);
+    if ("error" in r) { setAiErr(r.error); return; }
+    setAi(null); onReplanned(r);
+  };
+  /** μία κάρτα ανοιχτή τη φορά (η κάρτα του site θέλει μοναδικό όνομα μετάβασης στη σελίδα) */
+  const [cardRow, setCardRow] = useState<number | null>(null);
   const writeOn = plan.writeOn;
   const counts = useMemo(() => {
     const c: Record<RowStatus, number> = { update: 0, unchanged: 0, new: 0, waiting: 0, problem: 0 };
@@ -440,7 +537,8 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
   const [filter, setFilter] = useState<RowStatus | "all">("all");
   const [page, setPage] = useState(0);
   // Προεπιλογή: ενημερώσεις, νέα ΚΑΙ «σε αναμονή» (οι φωτογραφίες τους περνούν και με κλειστό SoftOne)
-  const [sel, setSel] = useState<Set<number>>(() => new Set(plan.rows.filter((r) => r.status === "update" || r.status === "new" || r.status === "waiting").map((r) => r.rowNo)));
+  const [sel, setSel] = useState<Set<number>>(() => new Set(plan.rows.filter((r) => (r.status === "update" || r.status === "new" || r.status === "waiting") && !r.webExcluded).map((r) => r.rowNo)));
+  const excludedCount = plan.rows.filter((r) => r.webExcluded && r.status !== "problem" && r.status !== "unchanged").length;
   const [results, setResults] = useState<Record<number, RowResult>>({});
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -461,7 +559,7 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
   const run = async () => {
     if (!todo.length || blocked) return;
     const ex = todo.filter((r) => r.status !== "new").length, nw = todo.length - ex;
-    const what = [ex ? `${ex} υπάρχοντα είδη ${writeOn ? "θα πάρουν τα κενά τους στοιχεία στο SoftOne και τις νέες φωτογραφίες" : "θα πάρουν τις νέες φωτογραφίες (τα στοιχεία μένουν σε αναμονή)"}` : "", nw ? `${nw} νέα είδη θα μπουν στη λίστα «Νέα είδη» για έγκριση` : ""].filter(Boolean).join(" και ");
+    const what = [ex ? `${ex} υπάρχοντα είδη ${writeOn ? "θα πάρουν τα κενά τους στοιχεία στο SoftOne και τις νέες φωτογραφίες" : "θα πάρουν τις νέες φωτογραφίες (τα στοιχεία μένουν σε αναμονή)"}` : "", nw ? `${nw} νέα είδη θα ετοιμαστούν για δημιουργία (τα δημιουργείς στο επόμενο βήμα)` : ""].filter(Boolean).join(" και ");
     if (!confirm(`Εκτέλεση ${todo.length} ${todo.length === 1 ? "γραμμής" : "γραμμών"}: ${what}. Συνέχεια;`)) return;
     setErr(null);
     const rows = todo.map((r) => r.rowNo);
@@ -494,6 +592,27 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
         {writeOn ? <Check className="size-4 text-eu-blue shrink-0 mt-0.5" aria-hidden /> : <Clock className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />}
         {writeOn ? "Οι αλλαγές θα γραφτούν στο SoftOne — μόνο κενά πεδία." : "Οι αλλαγές προς το SoftOne είναι κλειστές — τα στοιχεία θα μείνουν σε αναμονή, οι φωτογραφίες θα ανέβουν."}
       </p>
+      {plan.mediaMatch && (
+        <p className={`m-0 flex gap-2 items-start rounded-lg px-3 py-2 text-eu-ink text-[length:var(--fs-13)] ${plan.mediaMatch.matched === plan.mediaMatch.total ? "bg-eu-green/12" : "bg-eu-yellow/20"}`}>
+          <Images className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />
+          <span className="min-w-0 [overflow-wrap:anywhere]">Φωτογραφίες από «{plan.mediaMatch.file}»: <strong>{plan.mediaMatch.matched} από {plan.mediaMatch.total}</strong> γραμμές του βρήκαν προϊόν σε αυτό το φύλλο.{plan.mediaMatch.matched < plan.mediaMatch.total ? " Οι υπόλοιπες είναι για προϊόντα άλλου φύλλου ή έχουν κωδικό που δεν υπάρχει εδώ — δεν χρησιμοποιούνται." : ""}</span>
+        </p>
+      )}
+      {noCategory > 0 && (
+        <div data-help="foreign.category-ai" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-eu-yellow/20 px-3 py-2 min-w-0">
+          <span className="flex gap-2 items-start text-eu-ink text-[length:var(--fs-13)] min-w-0"><FolderTree className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden /><span className="min-w-0"><strong>{noCategory} νέα {noCategory === 1 ? "είδος δεν έχει" : "είδη δεν έχουν"} κατηγορία eshop.</strong> Μπορώ να προτείνω κατηγορία για το καθένα από το όνομα και την περιγραφή του· εσύ βλέπεις τις προτάσεις και δέχεσαι όσες θέλεις.</span></span>
+          <button type="button" className={secondary} disabled={!!aiBusy || running} onClick={askAi}>{aiBusy === "ask" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4" aria-hidden />} {aiBusy === "ask" ? "Ρωτάω το AI…" : "Πρότεινε κατηγορία"}</button>
+        </div>
+      )}
+      {aiErr && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{aiErr}</span></p>}
+      {ai && <CategoryProposals key={ai.guesses.map((g) => g.key).join()} asked={ai.asked} left={ai.left} busy={aiBusy === "apply"} onClose={() => setAi(null)} onApply={applyAi} options={ai.options}
+        rows={ai.guesses.map((g) => ({ key: g.key, label: g.label || `γραμμή ${g.key}`, sub: `γραμμή ${g.key}`, categoryId: g.categoryId, sure: g.sure }))} />}
+      {excludedCount > 0 && (
+        <p data-help="foreign.web-excluded" className="m-0 flex gap-2 items-start rounded-lg bg-eu-surface px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">
+          <EyeOff className="size-4 text-eu-ink-2 shrink-0 mt-0.5" aria-hidden />
+          <span className="min-w-0"><strong>{excludedCount} {excludedCount === 1 ? "είδος έχει" : "είδη έχουν"} «Εξαίρεση Web» στο SoftOne</strong> και δεν {excludedCount === 1 ? "ανεβαίνει" : "ανεβαίνουν"} στο site. Δεν {excludedCount === 1 ? "είναι προεπιλεγμένο" : "είναι προεπιλεγμένα"}: τσέκαρε όσα θέλεις να ενημερωθούν παρ&apos; όλα αυτά.</span>
+        </p>
+      )}
       <div role="tablist" aria-label="Φίλτρο γραμμών" className="flex flex-wrap gap-2">
         {(["all", ...STATUS_ORDER] as const).map((k) => (
           <button key={k} type="button" role="tab" aria-selected={filter === k} onClick={() => { setFilter(k); setPage(0); }} disabled={k !== "all" && !counts[k]}
@@ -509,7 +628,8 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
       </div>
 
       <ul className="m-0 p-0 list-none grid gap-2">
-        {pageRows.map((r) => <PlanItem key={r.rowNo} r={r} checked={sel.has(r.rowNo)} onToggle={() => toggle(r.rowNo)} res={results[r.rowNo]} disabled={running} />)}
+        {pageRows.map((r) => <PlanItem key={r.rowNo} r={r} checked={sel.has(r.rowNo)} onToggle={() => toggle(r.rowNo)} res={results[r.rowNo]} disabled={running}
+          cardOpen={cardRow === r.rowNo} onCard={() => setCardRow(cardRow === r.rowNo ? null : r.rowNo)} settings={settings} />)}
         {!pageRows.length && <li className="text-eu-muted text-[length:var(--fs-14)]">Καμία γραμμή σε αυτό το φίλτρο.</li>}
       </ul>
       {pages > 1 && (
@@ -520,10 +640,10 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
         </nav>
       )}
 
-      {pendingDone > 0 && !running && (
-        <p className="m-0 flex flex-wrap gap-2 items-center rounded-lg bg-eu-green/12 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
-          <Check className="size-4 text-eu-green shrink-0" aria-hidden /> {pendingDone} νέα είδη περιμένουν έγκριση.
-          <Link href="/admin/catalog/templates/nea-eidi" className="font-bold text-eu-blue hover:underline min-h-11 md:min-h-9 inline-flex items-center">Άνοιγμα «Νέα είδη»</Link>
+      {okCount > 0 && !running && (
+        <p role="status" className="m-0 flex flex-wrap gap-x-3 gap-y-2 items-center justify-between rounded-lg bg-eu-green/12 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
+          <span className="flex gap-2 items-start min-w-0"><Check className="size-4 text-eu-green shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{pendingDone > 0 ? `${pendingDone} νέα είδη είναι έτοιμα για δημιουργία στο SoftOne και στο eshop.` : "Η εκτέλεση ολοκληρώθηκε."} Στο τελευταίο βήμα βλέπεις και ποια προϊόντα της μάρκας λείπουν από το αρχείο.</span></span>
+          <button type="button" className={primary} onClick={onNext}>Δημιουργία <ArrowRight className="size-4" aria-hidden /></button>
         </p>
       )}
       {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{err}</span></p>}
@@ -545,7 +665,7 @@ function Preview({ plan, canSync, onBack, backLabel }: { plan: Plan; canSync: bo
   );
 }
 
-function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; checked: boolean; onToggle: () => void; res?: RowResult; disabled: boolean }) {
+function PlanItem({ r, checked, onToggle, res, disabled, cardOpen, onCard, settings }: { r: ForeignPlanRow; checked: boolean; onToggle: () => void; res?: RowResult; disabled: boolean; cardOpen: boolean; onCard: () => void; settings: Settings }) {
   const st = STATUS[r.status];
   const problem = r.status === "problem";
   return (
@@ -555,6 +675,7 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
         <div className="grid gap-1 min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
             <span className={`${chip} ${st.cls}`}>{st.label}</span>
+            {r.webExcluded && <span className={`${chip} bg-eu-surface text-eu-ink-2 inline-flex items-center gap-1`}><EyeOff className="size-3" aria-hidden />Εξαίρεση Web</span>}
             <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{r.title || "—"}</span>
             <span className="min-w-0 break-all text-eu-muted text-[length:var(--fs-12)]">γραμμή {r.rowNo}{r.mtrl ? ` · MTRL ${r.mtrl}` : ""}{r.code ? ` · ${r.code}` : ""}{r.matchedBy ? ` · ταίριαξε με: ${MATCHED_BY[r.matchedBy]}` : ""}</span>
           </div>
@@ -571,12 +692,20 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
               {r.media > 0 && <span className="inline-flex items-center gap-1 text-eu-ink-2"><Images className="size-3.5" aria-hidden /> {r.media} {r.media === 1 ? "νέο πολυμέσο" : "νέα πολυμέσα"}</span>}
               {r.price && (
                 <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-eu-ink-2">
-                  Τιμή web: <span className="tabular-nums">{eur.format(r.price.cost)}</span> → <strong className="text-eu-ink tabular-nums">{eur.format(r.price.price)}</strong>
+                  Τιμή web: {r.price.was != null && <><s className="text-eu-muted tabular-nums">{eur.format(r.price.was)}</s> → </>}<strong className="text-eu-ink tabular-nums">{eur.format(r.price.price)}</strong>
+                  {r.price.was != null && <span className={`${chip} bg-eu-yellow/30 text-eu-ink`}>αύξηση {eur.format(r.price.price - r.price.was)}</span>}
+                  <span className="text-eu-muted">από κόστος <span className="tabular-nums">{eur.format(r.price.cost)}</span></span>
                   {r.price.capped && <span className={`${chip} bg-eu-yellow/30 text-eu-ink`}>πλαφόν</span>}
                   <span className="text-eu-muted">· {r.price.rule} · περιθώριο <span className="tabular-nums">{eur.format(r.price.margin)}</span></span>
                 </span>
               )}
             </div>
+          )}
+          {r.status === "new" && r.card && <p className="m-0 flex gap-1.5 items-start text-[length:var(--fs-13)] min-w-0 [overflow-wrap:anywhere]"><FolderTree className={`size-3.5 shrink-0 mt-0.5 ${r.card.category ? "text-eu-blue" : "text-eu-ink-3"}`} aria-hidden /><span className="min-w-0"><span className="text-eu-ink-3">Κατηγορία eshop:</span> {r.card.category ? <strong className="text-eu-ink">{r.card.category}</strong> : <span className="text-eu-ink-3">καμία — όρισέ τη στο βήμα «Τιμή & κατηγορία»</span>}</span></p>}
+          {r.card && !problem && (
+            <CardPeek open={cardOpen} onToggle={onCard} settings={settings}
+              data={{ key: String(r.rowNo), title: r.title, sku: r.code, brand: r.card.brand, images: r.card.images, price: r.price?.price ?? r.card.current ?? null }}
+              notes={[r.status === "new" ? "Ενεργειακή κλάση, απόθεμα και προσφορές μπαίνουν μετά τη δημιουργία." : r.price ? "Η τιμή είναι αυτή που θα γράψει η εισαγωγή." : "Η τιμή είναι αυτή που έχει ήδη το είδος."]} />
           )}
           {r.warnings.slice(0, 4).map((w, i) => <p key={i} className="m-0 flex gap-1.5 items-start text-eu-ink-3 text-[length:var(--fs-12)] min-w-0 [overflow-wrap:anywhere]"><AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0">{w}</span></p>)}
           {r.warnings.length > 4 && <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">+{r.warnings.length - 4} ακόμη προειδοποιήσεις</p>}
@@ -584,5 +713,100 @@ function PlanItem({ r, checked, onToggle, res, disabled }: { r: ForeignPlanRow; 
         </div>
       </div>
     </li>
+  );
+}
+
+// ======================= 5. Δημιουργία νέων ειδών & όσα λείπουν από το αρχείο =======================
+
+function Finish({ jobId, brands, settings, onBack }: { jobId: string; brands: PickOpt[]; settings: Settings; onBack: () => void }) {
+  const [data, setData] = useState<Exclude<FinishData, { error: string }> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [off, setOff] = useState<Record<string, { ok: boolean; error?: string }>>({});
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
+    finishData(jobId).then((r) => { if ("error" in r) setErr(r.error); else { setErr(null); setData(r); } }).catch(() => setErr("Η σύνδεση διακόπηκε — ξαναδοκίμασε."));
+  }, [jobId]);
+  useEffect(load, [load]);
+
+  if (!data) return (
+    <section className={card}>
+      {err ? <p role="alert" className="m-0 flex gap-2 items-start text-eu-red text-[length:var(--fs-14)]"><CircleAlert className="size-4 shrink-0 mt-0.5" aria-hidden />{err}</p>
+        : <p role="status" className="m-0 flex gap-2 items-center text-eu-ink-3 text-[length:var(--fs-14)]"><Loader2 className="size-4 animate-spin" aria-hidden />Φορτώνω τα νέα είδη της εισαγωγής…</p>}
+      <div><button type="button" className={secondary} onClick={onBack}><ArrowLeft className="size-4" aria-hidden /> Προεπισκόπηση</button></div>
+    </section>
+  );
+  const open = data.pending.filter((p) => p.mtrl == null && (p.status === "pending" || p.status === "error"));
+  const created = data.pending.length - open.length, ready = open.filter((p) => !p.missing.length).length;
+  const left = data.missing.filter((p) => !off[p.id]?.ok);
+  const lock = !data.writeOn ? "Οι αλλαγές προς το SoftOne είναι κλειστές (Ρυθμίσεις → SoftOne) — η απενεργοποίηση γίνεται εκεί." : !data.canApprove ? "Για απενεργοποίηση χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP»." : null;
+  const deactivate = async () => {
+    const ids = left.filter((p) => sel.has(p.id)).map((p) => p.id);
+    if (!ids.length || lock) return;
+    if (!confirm(`${ids.length} ${ids.length === 1 ? "προϊόν θα γίνει ανενεργό" : "προϊόντα θα γίνουν ανενεργά"} στο SoftOne και θα φύγουν από το eshop. Τα ξαναενεργοποιείς από το SoftOne. Συνέχεια;`)) return;
+    setBusy(true); setErr(null);
+    for (let i = 0; i < ids.length; i += 20) {
+      let res;
+      try { res = await deactivateMissingProducts(jobId, ids.slice(i, i + 20)); } catch { res = { error: "Η σύνδεση διακόπηκε." }; }
+      if ("error" in res) { setErr(`${res.error}${i ? " — όσα έγιναν μέχρι εδώ έμειναν." : ""}`); break; }
+      setOff((o) => ({ ...o, ...Object.fromEntries(res.map((r) => [r.id, r])) }));
+    }
+    setBusy(false); setSel(new Set());
+  };
+
+  return (
+    <>
+      <section data-help="foreign.create" className={card} aria-labelledby="f-create">
+        <div>
+          <h3 id="f-create" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] inline-flex items-center gap-1.5"><PackagePlus className="size-4 text-eu-blue" aria-hidden /> 5. Δημιουργία νέων ειδών</h3>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Τα νέα είδη αυτής της εισαγωγής. Με την έγκριση δημιουργούνται στο SoftOne και στο eshop <strong>ανενεργά</strong>, παίρνουν τιμή και φωτογραφίες, και τα δημοσιεύεις όταν είναι έτοιμα. Όπου λείπει κάτι, πάτα «Επεξεργασία» και συμπλήρωσέ το.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[length:var(--fs-13)]">
+          <span className={`${chip} bg-eu-green/12 text-eu-ink`}>Έτοιμα για δημιουργία {ready}</span>
+          <span className={`${chip} ${open.length - ready ? "bg-eu-yellow/30 text-eu-ink" : "bg-eu-surface text-eu-ink-3"}`}>Τους λείπει κάτι {open.length - ready}</span>
+          <span className={`${chip} bg-eu-chip text-eu-navy`}>Δημιουργήθηκαν {created}</span>
+        </div>
+        {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden />{err}</p>}
+        <PendingItems items={data.pending} status="pending" writeOn={data.writeOn} canWrite canApprove={data.canApprove} brands={brands} groups={data.groups} onChanged={load} flagOn={data.flagOn} settings={settings} />
+      </section>
+
+      <section data-help="foreign.missing" className={card} aria-labelledby="f-missing">
+        <div>
+          <h3 id="f-missing" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-16)] inline-flex items-center gap-1.5"><PowerOff className="size-4 text-eu-blue" aria-hidden /> Λείπουν από το αρχείο</h3>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Ενεργά προϊόντα της ίδιας μάρκας που δεν υπάρχουν σε αυτό το φύλλο — ίσως ο προμηθευτής τα κατάργησε. Τίποτα δεν απενεργοποιείται μόνο του: τσέκαρε όσα θέλεις. Αν το αρχείο έχει κι άλλα φύλλα ή είναι μέρος του καταλόγου, κάποια από αυτά απλώς βρίσκονται αλλού.</p>
+        </div>
+        {!data.missing.length ? <p className="m-0 flex gap-2 items-center text-eu-ink text-[length:var(--fs-14)]"><Check className="size-4 text-eu-green shrink-0" aria-hidden />Κανένα ενεργό προϊόν της μάρκας δεν λείπει από το αρχείο.</p> : (
+          <>
+            {lock && <p className="m-0 flex gap-2 items-start rounded-lg bg-eu-yellow/20 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-4 text-eu-navy shrink-0 mt-0.5" aria-hidden />{lock}</p>}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[length:var(--fs-13)]">
+              <span className="text-eu-ink-3">Λείπουν: <strong className="text-eu-ink tabular-nums">{left.length}</strong> · επιλεγμένα: <strong className="text-eu-ink tabular-nums">{sel.size}</strong></span>
+              <button type="button" className="min-h-11 md:min-h-9 font-bold text-eu-blue hover:underline" onClick={() => setSel(new Set(left.map((p) => p.id)))}>Όλα</button>
+              <button type="button" className="min-h-11 md:min-h-9 font-bold text-eu-blue hover:underline" onClick={() => setSel(new Set())}>Κανένα</button>
+            </div>
+            <ul className="m-0 p-0 list-none grid gap-1.5">
+              {data.missing.map((p) => {
+                const r = off[p.id];
+                return (
+                  <li key={p.id} className={`rounded-lg border p-2 min-w-0 ${r ? (r.ok ? "border-eu-green/50" : "border-eu-red/50") : "border-eu-line"}`}>
+                    <label className="flex items-start gap-2 min-w-0 cursor-pointer min-h-11 md:min-h-9">
+                      <input type="checkbox" checked={sel.has(p.id)} disabled={busy || !!lock || !!r?.ok} onChange={() => setSel((x) => { const n = new Set(x); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })} className="size-5 mt-0.5 accent-eu-navy shrink-0 disabled:opacity-40" />
+                      <span className="grid gap-0.5 min-w-0">
+                        <span className="font-bold text-eu-ink text-[length:var(--fs-14)] min-w-0 [overflow-wrap:anywhere]">{p.title}</span>
+                        <span className="text-eu-muted text-[length:var(--fs-12)] break-all">{p.brand} · {p.sku} · MTRL {p.mtrl}</span>
+                        {r && <span className={`flex gap-1.5 items-start text-[length:var(--fs-13)] ${r.ok ? "text-eu-ink" : "text-eu-red"}`}>{r.ok ? <Check className="size-3.5 text-eu-green shrink-0 mt-0.5" aria-hidden /> : <CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />}{r.ok ? "Έγινε ανενεργό στο SoftOne και στο eshop." : r.error}</span>}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={deactivate} disabled={busy || !!lock || !sel.size} className={`${btn} border-2 border-eu-red/60 text-eu-red hover:bg-eu-red/10`}>{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <PowerOff className="size-4" aria-hidden />} Απενεργοποίηση {sel.size || ""}</button>
+            </div>
+          </>
+        )}
+      </section>
+      <div><button type="button" className={secondary} onClick={onBack}><ArrowLeft className="size-4" aria-hidden /> Προεπισκόπηση</button></div>
+    </>
   );
 }

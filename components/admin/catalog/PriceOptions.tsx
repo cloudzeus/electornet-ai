@@ -17,15 +17,17 @@ export interface PriceOpts {
 /** Το προτεινόμενο ποσοστό όταν ο χρήστης ανοίγει το markup χωρίς να έχει γράψει νούμερο. */
 const DEFAULT_PERCENT = 30;
 
-export function PriceOptions({ value, onChange }: { value: PriceOpts; onChange: (v: PriceOpts) => void }) {
+/** `costCol` / `retailCol`: ο τίτλος της στήλης του αρχείου που δίνει το ποσό (null = το αρχείο δεν έχει — η επιλογή κλειδώνει)· χωρίς αυτά (XML) δεν δείχνεται στήλη. */
+export function PriceOptions({ value, onChange, costCol, retailCol }: { value: PriceOpts; onChange: (v: PriceOpts) => void; costCol?: string | null; retailCol?: string | null }) {
+  const from = (col: string | null | undefined) => (col === undefined ? null : <span className="block text-eu-muted text-[length:var(--fs-12)]">{col === null ? "Το αρχείο δεν έχει τέτοια στήλη" : `Στήλη «${col}»`}</span>);
   const { priceMode, vatIncluded, markupPercent } = value;
   const on = markupPercent != null;
   return (
     <fieldset className="rounded-lg border border-eu-line-2 p-3 grid gap-2">
       <legend className="px-1 font-bold text-eu-ink text-[length:var(--fs-14)]">Πώς βγαίνει η τιμή</legend>
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-[length:var(--fs-14)]">
-        <label className="inline-flex items-center gap-2 min-h-11"><input type="radio" name="price-mode" checked={priceMode === "cost"} onChange={() => onChange({ ...value, priceMode: "cost" })} className="size-5" /> Από το κόστος του αρχείου</label>
-        <label className="inline-flex items-center gap-2 min-h-11"><input type="radio" name="price-mode" checked={priceMode === "retail"} onChange={() => onChange({ ...value, priceMode: "retail" })} className="size-5" /> Από τη λιανική του αρχείου</label>
+        <label className={`inline-flex items-center gap-2 min-h-11 ${costCol === null ? "opacity-60" : ""}`}><input type="radio" name="price-mode" disabled={costCol === null} checked={priceMode === "cost"} onChange={() => onChange({ ...value, priceMode: "cost" })} className="size-5" /><span>Από το κόστος του αρχείου{from(costCol)}</span></label>
+        <label className={`inline-flex items-center gap-2 min-h-11 ${retailCol === null ? "opacity-60" : ""}`}><input type="radio" name="price-mode" disabled={retailCol === null} checked={priceMode === "retail"} onChange={() => onChange({ ...value, priceMode: "retail" })} className="size-5" /><span>Από τη λιανική του αρχείου{from(retailCol)}</span></label>
       </div>
       <label className="inline-flex items-start gap-2 min-h-11 text-[length:var(--fs-14)]">
         <input type="checkbox" checked={vatIncluded} onChange={(e) => onChange({ ...value, vatIncluded: e.target.checked })} className="size-5 mt-0.5" />

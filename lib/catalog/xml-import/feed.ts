@@ -42,6 +42,11 @@ export interface FeedConfig {
    * αφήνουμε απ' έξω) αλλά δεν μπαίνουν ποτέ στην ουρά.
    */
   skipBrands?: string[];
+  /**
+   * `true` = μπαίνουν στην εισαγωγή ΚΑΙ τα υπάρχοντα είδη που έχουν «Εξαίρεση Web» στο SoftOne. Εξ ορισμού μένουν έξω
+   * (παραλείπονται): δεν ανεβαίνουν στο site, άρα φωτογραφίες και περιεχόμενο γι' αυτά είναι δουλειά χωρίς αποτέλεσμα.
+   */
+  withWebExcluded?: boolean;
   priceMode: PriceMode;
   toSoftone: boolean;
 }
@@ -100,6 +105,8 @@ export async function saveFeed(
   // ο χάρτης διαθεσιμότητας ρυθμίζεται χωριστά (βήμα ①) — μια νέα αντιστοίχιση στηλών δεν τον σβήνει
   const keptAvail = existing ? cfgOf(existing.config).saved.availMap : undefined;
   if (!cfg.saved.availMap && keptAvail && Object.keys(keptAvail).length) cfg.saved.availMap = keptAvail;
+  // το ίδιο και η απόφαση για τα είδη με «Εξαίρεση Web» (ορίζεται στη λίστα)
+  if (existing && cfgOf(existing.config).withWebExcluded) cfg.withWebExcluded = true;
   if (existing) {
     await db.supplierFeed.update({ where: { id: existing.id }, data: { url, config: cfg as object, priceMode: cfg.priceMode, toSoftone: cfg.toSoftone, minFetchMin } });
     return existing.id;
@@ -184,6 +191,8 @@ function roles(cfg: FeedConfig, headers: string[]) {
 }
 
 export interface RunResult {
+  /** από τα `skipped`: όσα παραλείπονται επειδή το είδος τους έχει «Εξαίρεση Web» στο SoftOne */
+  webExcluded?: number;
   total: number;
   counts: Record<Diff, number>;
   problems: number;
@@ -223,6 +232,12 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
 
   const existing = await db.supplierFeedItem.findMany({ where: { feedId }, select: { id: true, sku: true, payload: true, edits: true, status: true } });
   const skipSet = new Set((feed.cfg.skipBrands ?? []).map((b) => b.trim()).filter(Boolean));
+  // Υπάρχοντα είδη με «Εξαίρεση Web» στο SoftOne (καθρέφτης, μόνο ανάγνωση): παραλείπονται, εκτός αν ο χρήστης τα ζήτησε
+  const webExcluded = new Set<string>();
+  if (!feed.cfg.withWebExcluded) {
+    const skus = [...new Set(incoming.map((x) => x.sku.trim()).filter(Boolean))];
+    for (let i = 0; i < skus.length; i += 5000) for (const x of await db.s1Item.findMany({ where: { code: { in: skus.slice(i, i + 5000) }, missing: false, webExcluded: true }, select: { code: true } })) webExcluded.add(x.code.trim());
+  }
   const rows = diffItems(incoming.map(({ sku, payload, pos }) => ({ sku, payload, pos })), existing.map((e) => ({ sku: e.sku, payload: (e.payload ?? {}) as Record<string, string> })));
   const bySku = new Map(existing.map((e) => [e.sku, e]));
   const incBySku = new Map<string, (typeof incoming)[number]>();
@@ -247,7 +262,7 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
     }
     const it = incBySku.get(row.sku);
     if (!it) continue;
-    const skip = !!it.brand && skipSet.has(it.brand);
+    const skip = (!!it.brand && skipSet.has(it.brand)) || webExcluded.has(it.sku.trim());
     if (skip) skipped++;
     if (!was) {
       fresh.push({ feedId, sku: row.sku, payload: it.payload, images: it.images, diff: row.diff, status: statusFor(null, { problem: !!row.problem, skip })!, problem: row.problem ?? null, pendingApply: true });
@@ -276,7 +291,7 @@ export async function runFeed(feedId: string, source: FeedSource = storedOrDownl
   for (const c of changed) await db.supplierFeedItem.update({ where: { id: c.id }, data: { payload: c.payload, diff: "changed", problem: c.problem, status: c.status, pendingApply: true } });
 
   await db.supplierFeed.update({ where: { id: feedId }, data: { lastRunAt: new Date(), lastCount: incoming.length } });
-  return { total: rows.length, counts, problems, conflicts, skipped };
+  return { total: rows.length, counts, problems, conflicts, skipped, webExcluded: webExcluded.size ? rows.filter((r) => r.diff !== "gone" && webExcluded.has(r.sku.trim())).length : 0 };
 }
 
 export const PAGE = 50;
@@ -308,4 +323,10 @@ export async function listItems(feedId: string, filter: ItemFilter = {}) {
       problems,
     },
   };
+}
+
+/** «Να μπουν και τα είδη με Εξαίρεση Web»: κρατά την απόφαση στο feed. Η λίστα αλλάζει στο επόμενο πέρασμα (`runFeed`). */
+export async function setWithWebExcluded(feedId: string, on: boolean): Promise<void> {
+  const feed = await loadFeed(feedId);
+  await db.supplierFeed.update({ where: { id: feedId }, data: { config: { ...feed.cfg, withWebExcluded: on } as object } });
 }

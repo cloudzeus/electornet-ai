@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac/permissions";
-import { UserError } from "@/lib/catalog/foreign-import/core";
+import { UserError, mediaRows } from "@/lib/catalog/foreign-import/core";
 import { ensureFreshSpecGroups } from "@/lib/catalog/supplier-sheet";
-import { readWorkbook, saveMapping } from "@/lib/catalog/foreign-import/read";
+import { readWorkbook, autosaveMapping } from "@/lib/catalog/foreign-import/read";
 import { planForeign, assertConfigIds } from "@/lib/catalog/foreign-import/server";
-import { parseConfig, PREVIEW_ROWS } from "@/lib/catalog/foreign-import/ui-core";
+import { parseConfig, parsePrice, PREVIEW_ROWS } from "@/lib/catalog/foreign-import/ui-core";
 import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export const maxDuration = 300;
 
 /**
  * Εισαγωγή από ξένο Excel — βήμα 4, προεπισκόπηση (multipart: `file`, `sheet`, `headerRow`, `config` JSON, προαιρετικά
- * `saveAs` / `mappingId`). Ξαναδιαβάζει το αρχείο (ο browser το κρατά), αποθηκεύει την αντιστοίχιση αν ζητήθηκε και
+ * `saveAs` / `mappingId`). Ξαναδιαβάζει το αρχείο (ο browser το κρατά), αποθηκεύει την αντιστοίχιση μαζί με τις επιλογές τιμής και
  * φτιάχνει το σχέδιο (ImportJob «draft»). Καμία εγγραφή σε SoftOne ή κατάστημα — η εκτέλεση είναι Server Action σε παρτίδες.
  */
 export async function POST(req: Request) {
@@ -44,17 +44,24 @@ export async function POST(req: Request) {
     const headers = sheet.matrix[headerRow] ?? [];
     let mappingId = String(form.get("mappingId") ?? "") || null;
     const saveAs = String(form.get("saveAs") ?? "").trim();
-    if (saveAs) {
-      if (saveAs.length > 80) throw new UserError("Το όνομα της αντιστοίχισης έχει έως 80 χαρακτήρες.");
-      mappingId = (await saveMapping(saveAs, headers, config, session.user.id)).id;
-    }
-    await ensureFreshSpecGroups();
+    if (saveAs.length > 80) throw new UserError("Το όνομα της αντιστοίχισης έχει έως 80 χαρακτήρες.");
     // Πώς βγαίνει η τιμή (βήμα 3): λάθος ή απουσία → οι προεπιλογές, όπως πριν (κόστος × κανόνας, χωρίς ΦΠΑ στο αρχείο)
     let price: unknown = null;
     try { price = JSON.parse(String(form.get("opts") ?? "null")); } catch { price = null; }
+    // Η αντιστοίχιση και οι επιλογές τιμής αποθηκεύονται πάντα· αρχείο χωρίς κείμενα επικεφαλίδας δεν μπλοκάρει την προεπισκόπηση
+    try { mappingId = (await autosaveMapping(saveAs, file.name, headers, config, session.user.id, parsePrice(price))).id; }
+    catch (e) { if (saveAs || !(e instanceof UserError)) throw e; }
+    await ensureFreshSpecGroups();
     const pm = (price as { priceMode?: unknown } | null)?.priceMode;
     const opts = { policy: normPolicy(price), priceMode: pm === "retail" ? ("retail" as const) : ("cost" as const) };
-    const plan = await planForeign({ fileName: file.name, sheet: sheet.matrix, headerRow, config, mappingId, opts }, session.user.id);
+    // Προαιρετικό δεύτερο αρχείο μόνο με φωτογραφίες / βίντεο: δένει με τις γραμμές από τον κωδικό, το barcode ή το MTRL
+    const mediaFile = form.get("mediaFile");
+    let extraMedia: ReturnType<typeof mediaRows> | undefined;
+    if (mediaFile instanceof File) {
+      extraMedia = mediaRows((await readWorkbook(await mediaFile.arrayBuffer(), mediaFile.name)).sheets.map((s) => s.matrix));
+      if (!extraMedia.length) throw new UserError(`Στο «${mediaFile.name}» δεν βρήκα φωτογραφίες: χρειάζεται στήλη-κλειδί (κωδικός, barcode ή MTRL) και στήλες με διευθύνσεις φωτογραφιών / βίντεο (π.χ. «Φωτογραφία 1»).`);
+    }
+    const plan = await planForeign({ fileName: file.name, sheet: sheet.matrix, headerRow, config, mappingId, opts, extraMedia }, session.user.id);
     return NextResponse.json({ ...plan, mappingId });
   } catch (e) {
     // Μόνο τα δικά μας ελληνικά μηνύματα φτάνουν στον χρήστη· τα υπόλοιπα (βάση, βιβλιοθήκες) μένουν στο log

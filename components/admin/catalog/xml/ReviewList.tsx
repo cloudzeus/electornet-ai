@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, Globe, Hourglass, Images, Loader2, Pencil, Play, Power, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, EyeOff, Globe, Hourglass, Images, Loader2, Pencil, Play, Power, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { priceWarning } from "@/lib/catalog/xml-import/transform-core";
 import { DIFF, DIFF_ORDER, STATUS, VALUE_KIND, mb, sourceNote, when, type FeedStateDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type ValueKindDTO } from "@/lib/catalog/xml-import/ui-core";
+import type { Settings } from "@/lib/cms/settings";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
-import { drainBatch, items as loadItems, queueItems, queueProgress, retryErrors, rerun, saveItem } from "@/app/admin/(shell)/catalog/templates/xml/actions";
+import { drainBatch, includeWebExcluded, items as loadItems, queueItems, queueProgress, retryErrors, rerun, saveItem } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { ProductModal } from "./ProductModal";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -61,7 +62,7 @@ function Status({ s }: { s: string }) {
  *
  * Τα σφάλματα δεν είναι toast που φεύγει: είναι chip-φίλτρο με «Δοκίμασε ξανά», ώστε να βρίσκονται και μετά από ώρες.
  */
-export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { state: FeedStateDTO; writeOn: boolean; canErp: boolean; onRemap: () => void; onPublish: () => void }) {
+export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChanged, settings }: { state: FeedStateDTO; writeOn: boolean; canErp: boolean; settings: Settings; onRemap: () => void; onPublish: () => void; /** άλλαξε ρύθμιση του feed (π.χ. «Εξαίρεση Web») — ο οδηγός ξαναδιαβάζει την κατάστασή του */ onChanged?: () => void }) {
   const [kind, setKind] = useState<string>("all");
   const [q, setQ] = useState("");
   const [query, setQuery] = useState("");
@@ -109,7 +110,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
     ...DIFF_ORDER.map((d) => ({ key: d, label: DIFF[d].label, n: counts.diff[d] ?? 0, help: DIFF[d].help })),
     { key: "problems", label: "Προβλήματα", n: counts.problems, help: "Χωρίς SKU ή διπλό SKU — δεν μπαίνουν στην ουρά μέχρι να διορθωθεί το feed." },
     { key: "error", label: "Σφάλματα", n: counts.status.error ?? 0, help: "Δοκίμασαν να μπουν και απέτυχαν. Διάβασε το σφάλμα και δοκίμασε ξανά." },
-    ...((counts.status.skipped ?? 0) > 0 ? [{ key: "skipped", label: "Παραλείπονται", n: counts.status.skipped ?? 0, help: "Η μάρκα τους δεν εισάγεται (το επέλεξες στο βήμα «Μάρκες»). Δεν μπαίνουν ποτέ στην ουρά — για να μπουν, άλλαξε τη μάρκα και ξανατρέξε." }] : []),
+    ...((counts.status.skipped ?? 0) > 0 ? [{ key: "skipped", label: "Παραλείπονται", n: counts.status.skipped ?? 0, help: "Η μάρκα τους δεν εισάγεται (το επέλεξες στο βήμα «Μάρκες») ή το είδος τους έχει «Εξαίρεση Web» στο SoftOne. Δεν μπαίνουν ποτέ στην ουρά — για να μπουν, άλλαξε τη μάρκα και ξανατρέξε." }] : []),
   ];
 
   /** Τα είδη τιμών που έχουν καινούργιες, άγνωστες τιμές — με τα πολλά προϊόντα πρώτα. */
@@ -197,7 +198,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
           </button>
           {state.snapshot.has && (
             <button type="button" className={`${btn} border-2 border-eu-line text-eu-ink-2 hover:bg-eu-surface`} disabled={busy || running || !state.active} onClick={() => again(false)}
-              title="Ξαναπερνά την αντιστοίχιση στο XML που έχουμε αποθηκευμένο — χωρίς να ενοχλήσει τον προμηθευτή.">
+              title="Ξαναπερνά την αντιστοίχιση στη λήψη που έχουμε αποθηκευμένη — χωρίς να ενοχλήσει τον προμηθευτή.">
               <Database className="size-4" aria-hidden /> Ξανά από το αποθηκευμένο
             </button>
           )}
@@ -217,14 +218,25 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
         <Database className="size-3.5 shrink-0" aria-hidden />
         {state.snapshot.has ? (
           <span className={num}>
-            Αποθηκευμένο XML από {when(state.snapshot.fetchedAt)}
+            Αποθηκευμένη λήψη από {when(state.snapshot.fetchedAt)}
             {state.snapshot.bytes ? ` · ${mb(state.snapshot.bytes)}` : ""}
             {state.snapshot.products ? ` · ${state.snapshot.products.toLocaleString("el-GR")} προϊόντα` : ""}
             {` · νέα λήψη ${state.snapshot.waitMin > 0 ? `σε ${state.snapshot.waitMin} ${state.snapshot.waitMin === 1 ? "λεπτό" : "λεπτά"}` : "επιτρέπεται τώρα"}`}
             {state.minFetchMin > 0 ? ` (όριο: μία κάθε ${state.minFetchMin}′)` : " (χωρίς όριο)"}
           </span>
-        ) : <span>Δεν έχουμε αποθηκευμένο XML αυτού του feed — το πρώτο «Νέο τρέξιμο» θα το κατεβάσει.</span>}
+        ) : <span>Δεν έχουμε αποθηκευμένη λήψη αυτής της πηγής — το πρώτο «Νέο τρέξιμο» θα το κατεβάσει.</span>}
       </p>
+
+      {/* υπάρχοντα είδη με «Εξαίρεση Web» στο SoftOne: εκτός εισαγωγής, εκτός αν το ζητήσει ο χρήστης */}
+      <label data-help="xml.list.web-excluded" className="flex items-start gap-2 cursor-pointer min-h-11 md:min-h-9 min-w-0 rounded-xl bg-eu-surface px-3 py-2">
+        <input type="checkbox" checked={state.withWebExcluded} disabled={busy || !state.active}
+          onChange={(e) => { const on = e.target.checked; void act(() => includeWebExcluded(state.feedId, on), (r) => { setNote(on ? "Τα είδη με «Εξαίρεση Web» μπήκαν στη λίστα." : `${(r.webExcluded ?? 0).toLocaleString("el-GR")} ${r.webExcluded === 1 ? "είδος με «Εξαίρεση Web» παραλείπεται" : "είδη με «Εξαίρεση Web» παραλείπονται"}.`); void load(1); onChanged?.(); }); }}
+          className="size-5 mt-0.5 accent-eu-navy shrink-0" />
+        <span className="grid gap-0.5 min-w-0">
+          <span className="flex items-center gap-1.5 font-bold text-eu-ink text-[length:var(--fs-14)]"><EyeOff className="size-4 text-eu-ink-2" aria-hidden />Να μπουν και τα είδη με «Εξαίρεση Web»</span>
+          <span className="text-eu-muted text-[length:var(--fs-12)]">{state.withWebExcluded ? "Ενημερώνονται και όσα είδη το SoftOne δεν ανεβάζει στο site (θα είναι έτοιμα αν κάποτε ανοίξουν)." : "Όσα υπάρχοντα είδη έχουν «Εξαίρεση Web» στο SoftOne δεν ανεβαίνουν στο site, γι' αυτό παραλείπονται: τα βλέπεις στο «Παραλείπονται»."}</span>
+        </span>
+      </label>
 
       {/* τιμές του προμηθευτή που δεν έχει δει ποτέ ο χρήστης */}
       {pendingKinds.length > 0 && (
@@ -419,7 +431,7 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish }: { sta
 
       {open && (
         <ProductModal
-          item={open} targets={state.targets} priceMode={state.priceMode} writeOn={writeOn} feedToSoftone={toSoftone} saving={saving}
+          item={open} targets={state.targets} priceMode={state.priceMode} settings={settings} writeOn={writeOn} feedToSoftone={toSoftone} saving={saving}
           nav={{ hasPrev: at! > 0, hasNext: at! < rows.length - 1, onPrev: () => setAt((n) => (n ?? 0) - 1), onNext: () => setAt((n) => (n ?? 0) + 1) }}
           onClose={() => setAt(null)}
           onSave={async (v) => {

@@ -77,6 +77,8 @@ function decode(bytes: Buffer): string {
 
 export interface FeedCounts {
   products: number;
+  /** Keyvoto: πόσα προϊόντα είναι σετ δύο μονάδων (εσωτερική + εξωτερική) που ενώθηκαν σε ένα */
+  sets?: number;
   /** διακριτά ονόματα tag, όπως στο XML (το `imageurl` μετριέται μία φορά όσες φορές κι αν επαναλαμβάνεται) */
   tags: number;
   /** διακριτά ζεύγη CategoryParent → Category */

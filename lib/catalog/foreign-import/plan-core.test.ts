@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates } from "./plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, priceApplies } from "./plan-core";
 import type { ForeignRow } from "./core";
 
 const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, unitId: null, markId: null, cost: null, rrp: null });
@@ -142,4 +142,16 @@ test("I-8 openDuplicates: κωδικός (πεζά/κεφαλαία) ή EAN (GTI
   ], open);
   assert.deepEqual([...d.keys()], [2, 3]);
   assert.match(d.get(2)!, /ήδη στη λίστα «Νέα είδη»/);
+});
+
+test("priceApplies: η τιμή μπαίνει όπου λείπει και διορθώνεται μόνο προς τα πάνω· «Αντικατάσταση» και προς τα κάτω", () => {
+  assert.equal(priceApplies("blank", null, 299), true);
+  assert.equal(priceApplies("blank", 0, 299), true);
+  assert.equal(priceApplies("blank", 279, 299), true);   // ακρίβυνε → διορθώνεται
+  assert.equal(priceApplies("blank", 299, 299), false);  // ίδια → καμία αλλαγή
+  assert.equal(priceApplies("blank", 319, 299), false);  // η εισαγωγή δεν ρίχνει τιμή μόνη της
+  assert.equal(priceApplies("overwrite", 319, 299), true);
+  assert.equal(priceApplies("overwrite", 299, 299), false);
+  assert.equal(priceApplies("off", null, 299), false);
+  assert.equal(priceApplies("blank", 100, 0), false);
 });

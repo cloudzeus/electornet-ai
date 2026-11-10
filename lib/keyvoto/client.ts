@@ -137,6 +137,8 @@ export interface Publication {
   id?: string; publisher?: string; catalogueId?: string; name?: string; image?: string;
   contentId?: string; contentType?: string; code?: string; productStatus?: string; category?: string;
   document?: unknown; documentUpdated?: string; publishedAt?: string;
+  /** άλλες δημοσιεύσεις που ο εκδότης έχει δέσει με αυτήν (π.χ. η εξωτερική μονάδα ενός split) */
+  relatives?: { contentId?: string }[] | null;
 }
 
 const account = (c: KeyvotoConfig) => encodeURIComponent(c.businessAccountId);

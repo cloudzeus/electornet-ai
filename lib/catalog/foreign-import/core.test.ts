@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import ExcelJS from "exceljs";
 import { parseMoney } from "@/lib/catalog/pricing/markup";
-import { detectHeaderRow, suggestTarget, headerSignature, normEan, gtin14, gs1Valid, eanVariants, sameEan, numCell, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, buildMatchIndex, type ForeignRow, type Target } from "./core";
+import { detectHeaderRow, suggestTarget, unknownHeader, mediaRows, mergeMedia, headerSignature, normEan, gtin14, gs1Valid, eanVariants, sameEan, numCell, toRows, resolveMatches, blankOnly, newSpecs, fillBlankMemo, parseCsv, detectDelimiter, configForHeaders, configToSaved, buildMatchIndex, type ForeignRow, type Target } from "./core";
 
 test("detectHeaderRow: η επικεφαλίδα είναι η πρώτη γραμμή με ≥2 κελιά που έχει δεδομένα από κάτω", () => {
   const m = [[""], ["", ""], ["EAN", "Τιμή", "Όνομα"], ["5901234123457", "10", "Χ"]];
@@ -141,7 +141,22 @@ test("resolveMatches: EAN και κωδικός σε διαφορετικά εί
 test("resolveMatches: mtrl που δεν υπάρχει, άκυρο EAN", () => {
   const [a, b] = resolveMatches([row(2, { mtrl: "99" }), row(3, { barcode: "123" })], idx());
   assert.ok(a.problem);
-  assert.equal(b.problem, "Μη έγκυρο EAN");
+  assert.equal(b.problem, null); // όχι έγκυρο EAN: δεν κόβει τη γραμμή
+});
+
+test("barcode που δεν είναι EAN ταιριάζει ως κείμενο· άγνωστη επικεφαλίδα ≠ αγνοημένη", () => {
+  const index = buildMatchIndex([{ mtrl: 7, code: "X", barcode: "0051202101002", factoryCode: null, brandId: null }]);
+  const [a, b] = resolveMatches([row(2, { barcode: "0051202101002" }), row(3, { barcode: "01100200" })], index);
+  assert.equal(a.mtrl, 7); assert.equal(a.matchedBy, "ean"); assert.equal(a.problem, null);
+  assert.equal(b.mtrl, null); assert.equal(b.problem, null);
+  assert.equal(unknownHeader("Τύπος Συλλέκτη"), true);
+  assert.equal(unknownHeader("Κατηγορία ΦΠΑ"), false); // αγνοείται εν γνώσει μας
+  assert.equal(unknownHeader(""), false);
+  assert.deepEqual(suggestTarget("Εγγύηση (μήνες)"), { kind: "field", key: "guaranteeMonths" });
+  assert.deepEqual(suggestTarget("Πλάτος (εκ.)"), { kind: "field", key: "widthCm" });
+  assert.deepEqual(suggestTarget("Βάθος (εκ.)"), { kind: "field", key: "lengthCm" });
+  assert.equal(unknownHeader("Ύψος (mm)"), true); // άλλη μονάδα → ρωτιέται
+  assert.deepEqual(suggestTarget("ΕΤΑΙΡΕΙΑ"), { kind: "brand" });
 });
 
 test("resolveMatches: ίδιο είδος σε 2 γραμμές → πρόβλημα και στις δύο", () => {
@@ -380,7 +395,7 @@ test("buildMatchIndex: κανονικοποιημένα κλειδιά, και �
   ]);
   assert.deepEqual([...ix.byMtrl.keys()], [1, 2, 3, 4, 5]);
   assert.deepEqual([...ix.byCode.entries()], [["abc", 1], ["xyz", 2], ["solo", 5]]);
-  assert.deepEqual([...ix.byEan.entries()], [["04006381333931", 3]]); // GTIN-14
+  assert.deepEqual([...ix.byEan.entries()], [["04006381333931", 3], ["123", 5]]); // GTIN-14
   assert.deepEqual([...ix.byFactory.entries()], [["b2|wm100", 3]]);
   assert.deepEqual([...ix.ambiguous!.byCode.entries()], [["q1", [3, 4]]]);
   assert.deepEqual([...ix.ambiguous!.byEan.entries()], [["05901234123457", [1, 2]]]);
@@ -426,7 +441,7 @@ test("I-1 resolveMatches: «012345678905» στο αρχείο βρίσκει τ
   const index = buildMatchIndex([{ mtrl: 1, code: "X", barcode: "0012345678905", factoryCode: null, brandId: null }]);
   const [a, b, c] = resolveMatches([row(2, { barcode: "012345678905" }), row(3, { barcode: "5901234123458" }), row(4, { barcode: "12345678905" })], index);
   assert.equal(a.mtrl, 1); assert.equal(a.matchedBy, "ean");
-  assert.equal(b.mtrl, null); assert.equal(b.problem, "Μη έγκυρο EAN");
+  assert.equal(b.mtrl, null); assert.equal(b.problem, null);
   assert.equal(c.mtrl, 1); // ίδιο είδος από 2 γραμμές → και πρόβλημα
   assert.ok(c.problem);
   // διπλό στο SoftOne σε άλλη μορφή → διφορούμενο
@@ -470,4 +485,19 @@ test("I-5 numCell: αριθμητικό κελί 1.234 (xlsx) → parseMoney 1.2
   assert.equal(parseMoney(String(c("A2"))), 1234);
   assert.equal(numCell(c("A3")), "5901234123457");
   assert.equal(parseMoney(numCell(c("A4"))!), 12.345);
+});
+
+test("δεύτερο αρχείο πολυμέσων: διαβάζεται μόνο φύλλο με κλειδί + φωτογραφίες και δένει με τον κωδικό", () => {
+  const photos = mediaRows([
+    [["Οδηγίες"], ["κείμενο"]],
+    [["MTRL", "Κωδικός είδους", "Έχει ήδη", "Φωτογραφία 1 (κύρια)", "Φωτογραφία 2"], ["", "bc 12", "", "https://x.gr/a.jpg", "https://x.gr/b.jpg"], ["", "ZZ 9", "", "https://x.gr/z.jpg", ""], ["", "B 10", "", "", ""]],
+  ]);
+  assert.equal(photos.length, 2); // η γραμμή χωρίς φωτογραφία δεν μετρά
+  const main = [row(2, { code: "BC 12" }), row(3, { code: "B 10" })];
+  main[0].media.image.push("https://x.gr/a.jpg");
+  assert.deepEqual(mergeMedia(main, photos), { matched: 1, total: 2 });
+  assert.deepEqual(main[0].media.image, ["https://x.gr/a.jpg", "https://x.gr/b.jpg"]); // χωρίς διπλό
+  assert.deepEqual(main[1].media.image, []);
+  assert.deepEqual(suggestTarget("MTRL"), { kind: "field", key: "mtrl" });
+  assert.equal(unknownHeader("Έχει ήδη"), false);
 });
