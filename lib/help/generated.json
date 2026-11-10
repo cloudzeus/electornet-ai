@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-10T12:05:16.730Z",
+ "generatedAt": "2026-11-10T12:59:58.774Z",
  "routes": [
   {
    "route": "/admin",
@@ -968,6 +968,11 @@
    ],
    "changes": [
     {
+     "hash": "1549cde",
+     "date": "2026-11-10T14:12:03+02:00",
+     "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση"
+    },
+    {
      "hash": "9379df9",
      "date": "2026-11-02T14:43:03+02:00",
      "text": "Keyvoto PIM: ο ίδιος οδηγός αντιστοίχισης με τα XML feeds"
@@ -1013,7 +1018,7 @@
      "text": "Templates προμηθευτών: excel ανά μάρκα με ένα φύλλο ανά κατηγορία (χαρακτηριστικά από τις τρέχουσες ομάδες του SoftOne) και μαζική εισαγωγή με έλεγχο πριν την εφαρμογή"
     }
    ],
-   "updatedAt": "2026-11-02T14:43:03+02:00",
+   "updatedAt": "2026-11-10T14:12:03+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates-d.jpg",
     "mobile": "/api/help-shot/catalog.templates-m.jpg"
@@ -1036,8 +1041,14 @@
     "deactivate.rows",
     "deactivate.run"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "1549cde",
+     "date": "2026-11-10T14:12:03+02:00",
+     "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση"
+    }
+   ],
+   "updatedAt": "2026-11-10T14:12:03+02:00",
    "shots": {}
   },
   {
@@ -1070,6 +1081,11 @@
     "foreign.missing"
    ],
    "changes": [
+    {
+     "hash": "1549cde",
+     "date": "2026-11-10T14:12:03+02:00",
+     "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση"
+    },
     {
      "hash": "fe876ee",
      "date": "2026-11-10T13:43:45+02:00",
@@ -1114,14 +1130,9 @@
      "hash": "26c6504",
      "date": "2026-10-20T06:30:05+03:00",
      "text": "Εισαγωγή από ξένο Excel: διαχείριση και βοήθεια"
-    },
-    {
-     "hash": "e3167b6",
-     "date": "2026-10-20T06:10:57+03:00",
-     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
     }
    ],
-   "updatedAt": "2026-11-10T13:43:45+02:00",
+   "updatedAt": "2026-11-10T14:12:03+02:00",
    "shots": {}
   },
   {
@@ -2365,6 +2376,10 @@
     "orders.restock",
     "orders.stages.header",
     "orders.stages.how",
+    "orders.legacy.header",
+    "orders.legacy.lines",
+    "orders.legacy.customer",
+    "orders.legacy.docs",
     "orders.header",
     "orders.kpi",
     "orders.views"
@@ -2537,6 +2552,25 @@
     }
    ],
    "updatedAt": "2026-11-06T15:59:55+02:00",
+   "shots": {}
+  },
+  {
+   "route": "/admin/orders/legacy/[id]",
+   "slug": "orders.legacy.id",
+   "file": "app/admin/(shell)/orders/legacy/[id]/page.tsx",
+   "title": "Παραγγελία παλιού eshop",
+   "doc": "Παραγγελία του παλιού eshop (από το SoftOne): στοιχεία μόνο για ανάγνωση και η πορεία της σε διάγραμμα.",
+   "perm": "orders.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "orders.legacy.header",
+    "orders.legacy.lines",
+    "orders.legacy.customer",
+    "orders.legacy.docs"
+   ],
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -4563,6 +4597,17 @@
  ],
  "recent": [
   {
+   "hash": "1549cde",
+   "date": "2026-11-10T14:12:03+02:00",
+   "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/apenergopoiisi"
+   ]
+  },
+  {
    "hash": "04b97f7",
    "date": "2026-11-10T13:55:00+02:00",
    "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη",
@@ -4824,12 +4869,6 @@
    "hash": "aba3d27",
    "date": "2026-11-04T08:21:20+02:00",
    "text": "Σκετς Ερμή: τα σχόλια του παρουσιαστή δεν διακόπτουν τη ροή (απάντηση μόνο σε ερωτήσεις), η ακρόαση αγνοεί ουρά προηγούμενης κουβέντας, το κινητό δείχνει τι άκουσε ο Ερμής",
-   "routes": []
-  },
-  {
-   "hash": "a4f6a8a",
-   "date": "2026-11-04T08:15:56+02:00",
-   "text": "Σκετς Ερμή: γρήγορη επιλογή καταστήματος με φωνή (ανοχή στη γραφή του STT, χωρίς μοντέλο όταν δεν είναι ερώτηση)",
    "routes": []
   }
  ],
@@ -5115,6 +5154,18 @@
   ],
   "orders.stages.how": [
    "app/admin/(shell)/orders/enimerosi/page.tsx"
+  ],
+  "orders.legacy.header": [
+   "app/admin/(shell)/orders/legacy/[id]/page.tsx"
+  ],
+  "orders.legacy.lines": [
+   "app/admin/(shell)/orders/legacy/[id]/page.tsx"
+  ],
+  "orders.legacy.customer": [
+   "app/admin/(shell)/orders/legacy/[id]/page.tsx"
+  ],
+  "orders.legacy.docs": [
+   "app/admin/(shell)/orders/legacy/[id]/page.tsx"
   ],
   "orders.header": [
    "app/admin/(shell)/orders/page.tsx"

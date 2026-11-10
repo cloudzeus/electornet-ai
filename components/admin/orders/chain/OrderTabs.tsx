@@ -34,7 +34,7 @@ export function SoftonePanel({ load: fetchChain, number }: { load: () => Promise
   const [data, setData] = useState<OrderChain | null>(null);
   const [sel, setSel] = useState<number | null>(null);
   const [pending, start] = useTransition();
-  const load = useCallback(() => start(async () => { const r = await fetchChain(); setData(r); if (r.ok) setSel((s) => s ?? r.root); }), [fetchChain]);
+  const load = useCallback(() => start(async () => { const r = await fetchChain(); setData(r); if (r.ok) setSel((s) => s ?? r.focus); }), [fetchChain]);
   const once = useRef(false);
   useEffect(() => { if (!once.current) { once.current = true; load(); } }, [load]);
 

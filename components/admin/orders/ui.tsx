@@ -1,4 +1,5 @@
-import { ERP_STATUS, ORDER_STATUS, PAYMENT_STATUS, RETURN_STATUS, type Tone } from "@/lib/orders/model";
+import { History } from "lucide-react";
+import { ERP_STATUS, LEGACY_STATUS, ORDER_STATUS, PAYMENT_STATUS, RETURN_STATUS, type Tone } from "@/lib/orders/model";
 
 /** Κοινά μικρά στοιχεία των σελίδων παραγγελιών (λίστα, καρτέλα). */
 export const TONE: Record<Tone, string> = {
@@ -11,6 +12,14 @@ export function Badge({ tone, children, title, className = "" }: { tone: Tone; c
 export const OrderStatusBadge = ({ status }: { status: string }) => {
   const s = ORDER_STATUS[status as keyof typeof ORDER_STATUS];
   return <Badge tone={s?.tone ?? "neutral"} title={s?.help}>{s?.label ?? status}</Badge>;
+};
+/** Παραγγελία του παλιού eshop (πριν από το νέο site): μόνο ανάγνωση, τα στοιχεία της έρχονται από το SoftOne. */
+export const LegacyBadge = ({ className = "" }: { className?: string }) => (
+  <span title="Παραγγελία από το παλιό eshop — τα στοιχεία της έρχονται από το SoftOne" className={`inline-flex items-center gap-1 rounded-full bg-eu-amber px-2 py-0.5 font-bold text-white text-[length:var(--fs-11)] whitespace-nowrap ${className}`}><History className="size-3" aria-hidden />Παλιό eshop</span>
+);
+export const LegacyStatusBadge = ({ status }: { status: string }) => {
+  const s = LEGACY_STATUS[status];
+  return <Badge tone={s?.tone ?? "neutral"}>{s?.label ?? status}</Badge>;
 };
 export const PaymentBadge = ({ status }: { status: string | null }) => {
   if (!status) return null;

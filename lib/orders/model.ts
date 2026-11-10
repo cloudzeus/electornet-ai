@@ -114,3 +114,9 @@ export function searchKind(q: string): "number" | "email" | "phone" | "text" {
   if (/^[+\d\s()-]{6,}$/.test(t) && t.replace(/\D/g, "").length >= 6) return "phone";
   return "text";
 }
+
+/** Κατάσταση παλιάς παραγγελίας (Purchase.status από τη σειρά του SoftOne). */
+export const LEGACY_STATUS: Record<string, { label: string; tone: Tone }> = {
+  paid: { label: "Πληρωμένη", tone: "good" }, unpaid: { label: "Απλήρωτη", tone: "warn" }, cancelled: { label: "Ακυρωμένη", tone: "bad" },
+  pending: { label: "Καταχωρημένη", tone: "neutral" }, phone: { label: "Τηλεφωνική", tone: "info" }, issued: { label: "Εκδόθηκε", tone: "neutral" },
+};

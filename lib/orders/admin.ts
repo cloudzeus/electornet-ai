@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { shipmentTimeline } from "@/lib/couriers/timeline";
 import { searchKind, type ShipTo } from "./model";
+import { legacyRows, legacyWhere } from "./legacy";
 
 /**
  * Παραγγελίες για τη διαχείριση: λίστα (προβολές με πλήθη, φίλτρα, αναζήτηση), σύνοψη ημέρας και η πλήρης καρτέλα μιας
@@ -18,6 +19,7 @@ export const VIEWS = [
   { id: "done", label: "Ολοκληρωμένες" },
   { id: "closed", label: "Ακυρωμένες / επιστροφές" },
   { id: "problems", label: "Θέλουν προσοχή" },
+  { id: "legacy", label: "Παλιό eshop" },
 ] as const;
 export type ViewId = (typeof VIEWS)[number]["id"];
 export const isView = (v: unknown): v is ViewId => VIEWS.some((x) => x.id === v);
@@ -41,6 +43,7 @@ export function viewWhere(v: ViewId): Prisma.OrderWhereInput {
     case "done": return { status: "delivered" };
     case "closed": return { status: { in: ["cancelled", "returned"] } };
     case "problems": return PROBLEMS;
+    case "legacy": return { id: "" }; // οι παλιές είναι Purchase, όχι Order (lib/orders/legacy.ts)
     default: return {};
   }
 }
@@ -74,14 +77,38 @@ function baseWhere(f: Omit<ListFilter, "view">): Prisma.OrderWhereInput {
   return and.length ? { AND: and } : {};
 }
 
+/**
+ * «Όλες» = νέες + παλιές (eshop πριν από το νέο site, από το SoftOne), με κοινή ταξινόμηση· «Παλιό eshop» = μόνο οι παλιές.
+ * Τρόπος παράδοσης/πληρωμής δεν υπάρχουν στις παλιές: με αυτά τα φίλτρα μένουν εκτός.
+ */
 export async function listOrders(f: ListFilter) {
   const base = baseWhere(f);
   const where: Prisma.OrderWhereInput = { AND: [base, viewWhere(f.view)] };
   const page = Math.max(1, f.page ?? 1);
   const orderBy: Prisma.OrderOrderByWithRelationInput[] = f.sort === "old" ? [{ createdAt: "asc" }] : f.sort === "total" ? [{ total: "desc" }, { createdAt: "desc" }] : [{ createdAt: "desc" }];
-  const [rows, total, counts] = await Promise.all([
+  const lWhere = legacyWhere(f);
+  const withLegacy = (f.view === "all" || f.view === "legacy") && !f.fulfilment && !f.pay;
+  const [legacyCount, counts] = await Promise.all([
+    !f.fulfilment && !f.pay ? db.purchase.count({ where: lWhere }) : 0,
+    Promise.all(VIEWS.map((v) => (v.id === "legacy" ? 0 : db.order.count({ where: { AND: [base, viewWhere(v.id)] } })))),
+  ]);
+  counts[VIEWS.findIndex((v) => v.id === "legacy")] = legacyCount;
+  counts[0] += legacyCount;
+  // ποιες γραμμές πέφτουν σε αυτή τη σελίδα: τα πρώτα page×50 κλειδιά από κάθε πηγή, ενωμένα με την ίδια ταξινόμηση
+  // shortcut: φέρνει έως page×50 ελαφριά κλειδιά ανά πηγή (~10.000 στην τελευταία σελίδα)· αν μεγαλώσει πολύ, UNION σε SQL
+  const need = page * PAGE_SIZE;
+  const lOrder: Prisma.PurchaseOrderByWithRelationInput[] = f.sort === "old" ? [{ date: "asc" }] : f.sort === "total" ? [{ total: "desc" }, { date: "desc" }] : [{ date: "desc" }];
+  const [oKeys, lKeys] = await Promise.all([
+    f.view === "legacy" ? [] : db.order.findMany({ where, orderBy, take: withLegacy ? need : PAGE_SIZE, skip: withLegacy ? 0 : (page - 1) * PAGE_SIZE, select: { id: true, createdAt: true, total: true } }),
+    withLegacy ? db.purchase.findMany({ where: lWhere, orderBy: lOrder, take: need, select: { id: true, date: true, total: true } }) : [],
+  ]);
+  const keys = [...oKeys.map((o) => ({ id: o.id, legacy: false, at: +o.createdAt, total: Number(o.total) })), ...lKeys.map((p) => ({ id: p.id, legacy: true, at: +p.date, total: Number(p.total ?? 0) }))];
+  keys.sort((a, b) => (f.sort === "old" ? a.at - b.at : f.sort === "total" ? b.total - a.total || b.at - a.at : b.at - a.at));
+  const pageKeys = withLegacy ? keys.slice((page - 1) * PAGE_SIZE, need) : keys;
+  const total = withLegacy ? (f.view === "legacy" ? 0 : await db.order.count({ where })) + legacyCount : await db.order.count({ where });
+  const [rows, old] = await Promise.all([
     db.order.findMany({
-      where, orderBy, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE,
+      where: { id: { in: pageKeys.filter((k) => !k.legacy).map((k) => k.id) } },
       select: {
         id: true, number: true, createdAt: true, status: true, fulfilment: true, paymentMethod: true, total: true, discountTotal: true, couponCode: true, shipping: true, invoice: true, guestEmail: true, tracking: true,
         customer: { select: { id: true, firstName: true, lastName: true, email: true, company: true } },
@@ -93,11 +120,9 @@ export async function listOrders(f: ListFilter) {
         _count: { select: { returns: true, notes: true } },
       },
     }),
-    db.order.count({ where }),
-    Promise.all(VIEWS.map((v) => db.order.count({ where: { AND: [base, viewWhere(v.id)] } }))),
+    legacyRows(pageKeys.filter((k) => k.legacy).map((k) => k.id)),
   ]);
-  return {
-    rows: rows.map((o) => {
+  const fresh = rows.map((o) => {
       const s = (o.shipping ?? {}) as ShipTo;
       const lines = o.lines.filter((l) => !l.isGift);
       const m = lines[0]?.variant.product.media[0];
@@ -110,9 +135,12 @@ export async function listOrders(f: ListFilter) {
         customerId: o.customer?.id ?? null, invoice: !!o.invoice,
         items: lines.reduce((a, l) => a + l.qty, 0), firstItem: lines[0]?.title ?? null, more: Math.max(0, lines.length - 1), thumb: m ? m.thumbUrl ?? m.url : null,
         erp: o.erpSync?.status ?? null, shipment: (o.shipments[0] as (typeof o.shipments)[number] | undefined) ?? null, store: o.pickupStore ? `${o.pickupStore.name}` : null,
-        returns: o._count.returns, notes: o._count.notes,
+        returns: o._count.returns, notes: o._count.notes, legacy: false as const, seriesName: null as string | null, docs: 0,
       };
-    }),
+    });
+  const byId = new Map<string, (typeof fresh)[number] | (typeof old)[number]>([...fresh, ...old].map((r) => [r.id, r]));
+  return {
+    rows: pageKeys.map((k) => byId.get(k.id)).filter((r) => !!r),
     total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     counts: Object.fromEntries(VIEWS.map((v, i) => [v.id, counts[i]])) as Record<ViewId, number>,
   };

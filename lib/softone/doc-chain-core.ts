@@ -27,6 +27,25 @@ const BATCH = 500;
 const chunk = <T,>(a: T[], n: number) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, (i + 1) * n));
 const int = (v: string | undefined) => { const n = parseInt(v ?? "", 10); return Number.isFinite(n) ? n : null; };
 
+/**
+ * Η αρχική παραγγελία ενός παραστατικού (π.χ. απόδειξη → 7005), ώστε η πορεία να δείχνει και ό,τι έγινε ΠΡΙΝ από αυτό.
+ * Πρώτα `CCCFINDOCS` (δείχνει κατευθείαν τη ρίζα)· αν λείπει (παλιά παραστατικά), ανεβαίνει από τις γραμμές όσο η
+ * προέλευση είναι μία. Σε συγχώνευση (γραμμές από πολλά παραστατικά) σταματά εκεί.
+ */
+export async function findRoot(f: number, getTable: GetTable, maxUp = 20) {
+  let cur = f;
+  const seen = new Set([f]);
+  for (let i = 0; i < maxUp; i++) {
+    const c = int((await getTable("FINDOC", ["FINDOC", "CCCFINDOCS"], `FINDOC IN (${cur})`))[0]?.[1]);
+    if (c === cur) break; // η ρίζα δείχνει τον εαυτό της
+    if (c && !seen.has(c)) { seen.add(c); cur = c; continue; }
+    const src = [...new Set((await getTable("MTRLINES", ["FINDOC", "MTRLINES", "FINDOCS"], `FINDOC IN (${cur})`)).map((r) => int(r[2])).filter((x): x is number => !!x))];
+    if (src.length !== 1 || seen.has(src[0])) break;
+    seen.add(src[0]); cur = src[0];
+  }
+  return cur;
+}
+
 export async function walkChain(start: number, getTable: GetTable, opts: { maxDepth?: number; maxDocs?: number } = {}) {
   const maxDepth = opts.maxDepth ?? 20, maxDocs = opts.maxDocs ?? 5000;
   const parents = new Map<number, Set<number>>([[start, new Set()]]);

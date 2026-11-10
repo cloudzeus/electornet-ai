@@ -82,6 +82,16 @@ export async function orderChainAction(orderId: string) {
   return orderChain(orderId);
 }
 
+/** Πορεία στο SoftOne μιας παραγγελίας του παλιού eshop. Το FINDOC από τη βάση μας, όχι από τον browser. Μόνο αναγνώσεις. */
+export async function legacyChainAction(purchaseId: string) {
+  await requirePermission("orders.read");
+  const { db } = await import("@/lib/db");
+  const p = await db.purchase.findFirst({ where: { id: purchaseId, source: "softone", kind: "order" }, select: { s1Findoc: true } });
+  if (!p?.s1Findoc) return { ok: false as const, reason: "not-sent" as const };
+  const { chainFor } = await import("@/lib/softone/order-chain");
+  return chainFor(p.s1Findoc);
+}
+
 /** Παραγγελίες → Ρυθμίσεις ενημέρωσης: ποιο στάδιο (τύπος παραστατικού SoftOne) στέλνει email και με ποιο κείμενο. */
 export async function saveStageSettingAction(docTypeId: string, input: { notify: boolean; title: string; message: string }) {
   const u = await requirePermission("orders.write");
