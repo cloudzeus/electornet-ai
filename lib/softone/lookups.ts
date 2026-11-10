@@ -136,6 +136,20 @@ export async function getTable(TABLE: string, FIELDS: string[], FILTER = ""): Pr
   return rows.map((row) => (Array.isArray(row) ? row.map((v) => (v == null ? "" : String(v))) : FIELDS.map((f) => String(row[f] ?? ""))));
 }
 
+/**
+ * Γραμμές ενός πίνακα με βάση ένα κλειδί, μέσω της επίσημης υπηρεσίας `selectorFields`.
+ *
+ * Γιατί υπάρχει δίπλα στο `getTable`: επαληθευμένο ζωντανά (10/11/2026) ότι το **GetTable στον MTRL δεν επιστρέφει ποτέ
+ * ανενεργά είδη** (ISACTIVE=0) — ούτε με ρητό φίλτρο. Ένα είδος που μόλις δημιουργήσαμε ανενεργό «δεν υπάρχει» για το
+ * GetTable, ενώ υπάρχει κανονικά στο ERP. Το `selectorFields` το βλέπει. Χρησιμοποίησέ το όπου η απάντηση «δεν βρέθηκε»
+ * του GetTable θα οδηγούσε σε λάθος συμπέρασμα (δεύτερη δημιουργία, ψεύτικη αποτυχία).
+ */
+export async function selectorRows(TABLENAME: string, KEYNAME: string, KEYVALUE: string | number, FIELDS: string[]): Promise<Record<string, string>[]> {
+  const r = await s1("selectorFields", { TABLENAME, KEYNAME, KEYVALUE: String(KEYVALUE), RESULTFIELDS: FIELDS.join(",") });
+  if (!r.success) throw new Error(`selectorFields ${TABLENAME}: ${r.error ?? r.errorcode ?? "failed"}`);
+  return ((r.rows ?? []) as Record<string, unknown>[]).map((row) => Object.fromEntries(FIELDS.map((f) => [f, row[f] == null ? "" : String(row[f])])));
+}
+
 /** Browser values come back display-formatted («1|Ναι», «7005|ΠΑΡΑΓΓΕΛΙΑ…»): keep the id half. */
 const idOf = (v: string) => (v.includes("|") ? v.slice(0, v.indexOf("|")) : v);
 

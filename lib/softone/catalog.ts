@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { s1 } from "@/lib/softone";
-import { getTable, friendlyError } from "@/lib/softone/lookups";
+import { getTable, selectorRows, friendlyError } from "@/lib/softone/lookups";
 import { EXTRA_OFFER_COLS, EXTRA_OFFER_FILTER, offersFromExtra } from "@/lib/softone/offers-core";
 
 /**
@@ -226,7 +226,13 @@ export async function findOffWebItems(keys: { codes: string[]; barcodes: string[
 export function syncItem(mtrl: number, trigger: Trigger = "manual") {
   return logged("cat-item", trigger, async () => {
     const rows = await getTable("MTRL", [...ITEM_FIELDS], `${WEB_FILTER} AND MTRL=${mtrl}`);
-    const m = rows.map(mapItem).find((x) => x?.mtrl === mtrl) ?? null;
+    let m = rows.map(mapItem).find((x) => x?.mtrl === mtrl) ?? null;
+    if (!m) {
+      // Το GetTable δεν επιστρέφει ανενεργά είδη. Ένα είδος που μόλις δημιουργήσαμε (ανενεργό) ή απενεργοποιήσαμε υπάρχει
+      // στο ERP: το διαβάζουμε με selectorFields και, αν είναι είδος του web, μπαίνει στον καθρέφτη ως ανενεργό.
+      const alt = (await selectorRows("MTRL", "MTRL", mtrl, [...ITEM_FIELDS]).catch(() => [])).find((r) => int(r.MTRL) === mtrl);
+      if (alt && (int(alt.CCCWEBGRSPECS) || int(alt.CCCWEBCATEGORY1))) m = mapItem(ITEM_FIELDS.map((f) => alt[f] ?? ""));
+    }
     const before = await db.s1Item.findUnique({ where: { mtrl }, select: { mtrl: true } });
     if (!m) {
       if (before) await db.s1Item.update({ where: { mtrl }, data: { missing: true, syncedAt: new Date() } });

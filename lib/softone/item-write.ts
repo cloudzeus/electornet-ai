@@ -1,6 +1,6 @@
 import "server-only";
 import { s1, getS1Config } from "@/lib/softone";
-import { getTable } from "@/lib/softone/lookups";
+import { getTable, selectorRows } from "@/lib/softone/lookups";
 import { getSetting } from "@/lib/settings/store";
 import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/softone/web-price-core";
 import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
@@ -57,12 +57,22 @@ function toS1(kind: Kind, v: ItemValue): string | number {
   return kind === "memo" ? s.replace(/\n/g, "\r\n") : s;
 }
 
-async function readFields(mtrl: number, keys: ItemField[]) {
-  const s1Fields = keys.map((k) => ITEM_FIELDS[k].s1);
-  const rows = await getTable("MTRL", ["MTRL", ...s1Fields], `MTRL=${mtrl}`);
+/**
+ * Ένα είδος με τον αριθμό του, **και όταν είναι ανενεργό**: πρώτα GetTable (γρήγορο, αλλά τυφλό στα ανενεργά), μετά
+ * `selectorFields`. Χωρίς το δεύτερο, κάθε ανάγνωση μετά από «ανενεργό» (νέο είδος, απενεργοποίηση) έβγαινε «δεν βρέθηκε».
+ */
+async function itemRow(mtrl: number, fields: string[]): Promise<Record<string, string> | null> {
+  const rows = await getTable("MTRL", ["MTRL", ...fields], `MTRL=${mtrl}`);
   const row = rows.find((r) => Number(r[0]) === mtrl);
+  if (row) return Object.fromEntries(fields.map((f, i) => [f, row[i + 1] ?? ""]));
+  const alt = (await selectorRows("MTRL", "MTRL", mtrl, ["MTRL", ...fields])).find((r) => Number(r.MTRL) === mtrl);
+  return alt ?? null;
+}
+
+async function readFields(mtrl: number, keys: ItemField[]) {
+  const row = await itemRow(mtrl, keys.map((k) => ITEM_FIELDS[k].s1));
   if (!row) return null;
-  return Object.fromEntries(keys.map((k, i) => [k, row[i + 1] ?? ""])) as Record<ItemField, string>;
+  return Object.fromEntries(keys.map((k) => [k, row[ITEM_FIELDS[k].s1] ?? ""])) as Record<ItemField, string>;
 }
 
 export async function itemWriteEnabled() {
@@ -146,9 +156,10 @@ export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIf
   const value = Math.round(price * 100) / 100;
   const same = (n: number | null) => n != null && Math.abs(n - value) < 0.005;
 
-  const exists = await getTable("MTRL", ["MTRL"], `MTRL=${mtrl}`).catch(() => null);
-  if (!exists) return fail("Δεν ήταν δυνατή η ανάγνωση του είδους από το SoftOne.");
-  if (!exists.some((r) => Number(r[0]) === mtrl)) return fail("Το είδος δεν βρέθηκε στο SoftOne.");
+  // (και ανενεργό: ένα νέο είδος παίρνει τιμή πριν ενεργοποιηθεί)
+  const exists = await itemRow(mtrl, ["CODE"]).then((r) => (r ? 1 : 0)).catch(() => null);
+  if (exists == null) return fail("Δεν ήταν δυνατή η ανάγνωση του είδους από το SoftOne.");
+  if (!exists) return fail("Το είδος δεν βρέθηκε στο SoftOne.");
   let before: Awaited<ReturnType<typeof readExtra>>;
   try { before = await readExtra(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της τιμής web από το SoftOne."); }
   if (before.error) return fail(before.error);
@@ -212,9 +223,13 @@ export async function writeWebExcluded(mtrl: number, excluded: boolean): Promise
 
 /** Υπάρχει ήδη είδος με αυτόν τον κωδικό στο SoftOne; (ο κωδικός είναι μοναδικός ανά εταιρεία — η συνεδρία είναι ήδη σε αυτήν) */
 export async function itemCodeTaken(code: string): Promise<number | null> {
+  const same = (c: string | undefined) => c?.trim().toLowerCase() === code.trim().toLowerCase();
   const rows = await getTable("MTRL", ["MTRL", "CODE"], `SODTYPE=51 AND CODE='${code.replace(/'/g, "''")}'`);
-  const r = rows.find((x) => x[1]?.trim().toLowerCase() === code.trim().toLowerCase());
-  return r ? Number(r[0]) : null;
+  const r = rows.find((x) => same(x[1]));
+  if (r) return Number(r[0]);
+  // Ανενεργό είδος με αυτόν τον κωδικό: το GetTable δεν το βλέπει — χωρίς αυτόν τον έλεγχο θα δημιουργούσαμε ΔΕΥΤΕΡΟ είδος
+  const hidden = (await selectorRows("MTRL", "CODE", code.trim(), ["MTRL", "CODE", "SODTYPE"])).find((x) => same(x.CODE) && (!x.SODTYPE || Number(x.SODTYPE) === 51));
+  return hidden ? Number(hidden.MTRL) : null;
 }
 
 export interface NewItem {
@@ -250,8 +265,8 @@ export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: n
   if (!r?.success) return { ok: false, error: `Το SoftOne αρνήθηκε τη δημιουργία: ${r?.error ?? "άγνωστο σφάλμα"}` };
   const mtrl = Number(r.id);
   if (!Number.isInteger(mtrl) || mtrl <= 0) return { ok: false, error: "Το SoftOne απάντησε «επιτυχία» χωρίς αριθμό είδους — έλεγξε στο ERP." };
-  const back = await getTable("MTRL", ["MTRL", "CODE", "NAME"], `MTRL=${mtrl}`);
-  const b = back.find((x) => Number(x[0]) === mtrl);
-  if (!b || b[1]?.trim() !== code || norm("text", b[2]) !== name) return { ok: false, mtrl, error: `Το είδος MTRL ${mtrl} δημιουργήθηκε αλλά η ανάγνωση δεν ταιριάζει (${b ? `${b[1]} · ${b[2]}` : "δεν βρέθηκε"}) — έλεγξε στο ERP.` };
+  // το είδος δημιουργείται συνήθως ΑΝΕΝΕΡΓΟ, άρα η ανάγνωση πρέπει να βλέπει και ανενεργά (`itemRow`)
+  const b = await itemRow(mtrl, ["CODE", "NAME"]);
+  if (!b || b.CODE?.trim() !== code || norm("text", b.NAME) !== name) return { ok: false, mtrl, error: `Το είδος MTRL ${mtrl} δημιουργήθηκε αλλά η ανάγνωση δεν ταιριάζει (${b ? `${b.CODE} · ${b.NAME}` : "δεν βρέθηκε"}) — έλεγξε στο ERP.` };
   return { ok: true, mtrl };
 }

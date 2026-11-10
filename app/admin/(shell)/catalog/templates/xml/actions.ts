@@ -1,5 +1,7 @@
 "use server";
 import { after } from "next/server";
+import { isKeyvotoBytes } from "@/lib/keyvoto/rows";
+import { DEFAULT_POLICY } from "@/lib/catalog/xml-import/policy-core";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
@@ -302,8 +304,15 @@ export async function saveAndRun(input: SaveInput): Promise<(FeedStateDTO & { ru
       sheetUnitId: input.unitId || null, sheetMarkId: input.markId || null,
     };
     await assertConfigIds(config);
-    const mode: PriceMode = input.priceMode === "retail" ? "retail" : "cost";
+    // Keyvoto: ο εκδότης δίνει μόνο ΠΡΟΤΕΙΝΟΜΕΝΗ ΛΙΑΝΙΚΗ (τιμή καταναλωτή, με ΦΠΑ) και ποτέ κόστος. Με τις γενικές
+    // προεπιλογές («από το κόστος», «χωρίς ΦΠΑ») δεν θα έβγαινε τιμή — ή θα έμπαινε ΦΠΑ δεύτερη φορά (479 → 593,96).
+    const kinds = new Set(Object.values(columns).map((t) => t.kind));
+    const kvRetail = isKeyvotoBytes(got.bytes) && kinds.has("rrp") && !kinds.has("cost");
+    const mode: PriceMode = input.priceMode === "retail" || kvRetail ? "retail" : "cost";
     const feedId = await saveFeed(input.supplierId, url, { config, headers, transforms, priceMode: mode, toSoftone: !!input.toSoftone, minFetchMin, skipBrands }, user.id);
+    if (kvRetail && !(await db.supplierFeed.findUnique({ where: { id: feedId }, select: { updatePolicy: true } }))?.updatePolicy) {
+      await db.supplierFeed.update({ where: { id: feedId }, data: { updatePolicy: { ...DEFAULT_POLICY, vatIncluded: true } as object } });
+    }
     const run = await runFeed(feedId, got.asSource);
     // Το πρόχειρο έγινε πρότυπο: από εδώ και πέρα η αλήθεια είναι το feed, όχι η εκκρεμότητα.
     await dropDraft(input.supplierId, url);
