@@ -757,9 +757,9 @@ export const HELP_PAGES: HelpPage[] = [
       "Κενό κελί στο excel = καμία αλλαγή· δεν σβήνει τιμές που υπάρχουν.",
     ],
     parts: [
-      { key: "templates.foreign", title: "Άλλο Excel, XML, νέα είδη, κανόνες", text: "Τέσσερις σύνδεσμοι πάνω από τις καρτέλες: «Εισαγωγή από άλλο Excel» (τιμοκατάλογος προμηθευτή σε δική του μορφή), «XML προμηθευτές» (XML feed προμηθευτή, με το πλήθος των feeds που έχουν ρυθμιστεί), «Νέα είδη προς δημιουργία» (με το πλήθος όσων περιμένουν έγκριση) και «Κανόνες τιμολόγησης» (με το πλήθος των ενεργών κανόνων markup)." },
+      { key: "templates.foreign", title: "Άλλο Excel, XML, νέα είδη, κανόνες", text: "Πέντε σύνδεσμοι πάνω από τις καρτέλες: «Απενεργοποίηση από Excel» (λίστα με προϊόντα που φεύγουν από το eshop ή και από το SoftOne), «Εισαγωγή από άλλο Excel» (τιμοκατάλογος προμηθευτή σε δική του μορφή), «XML προμηθευτές» (XML feed προμηθευτή, με το πλήθος των feeds που έχουν ρυθμιστεί), «Νέα είδη προς δημιουργία» (με το πλήθος όσων περιμένουν έγκριση) και «Κανόνες τιμολόγησης» (με το πλήθος των ενεργών κανόνων markup)." },
     ],
-    related: [{ label: "Εισαγωγή από άλλο Excel", href: "/admin/catalog/templates/import" }, { label: "XML προμηθευτές", href: "/admin/catalog/templates/xml" }, { label: "Νέα είδη", href: "/admin/catalog/templates/nea-eidi" }, { label: "Κανόνες τιμολόγησης", href: "/admin/catalog/templates/kanones-timon" }, { label: "Χαρακτηριστικά", href: "/admin/catalog/specs" }, { label: "Προϊόντα", href: "/admin/catalog" }],
+    related: [{ label: "Εισαγωγή από άλλο Excel", href: "/admin/catalog/templates/import" }, { label: "XML προμηθευτές", href: "/admin/catalog/templates/xml" }, { label: "Νέα είδη", href: "/admin/catalog/templates/nea-eidi" }, { label: "Απενεργοποίηση από Excel", href: "/admin/catalog/templates/apenergopoiisi" }, { label: "Κανόνες τιμολόγησης", href: "/admin/catalog/templates/kanones-timon" }, { label: "Χαρακτηριστικά", href: "/admin/catalog/specs" }, { label: "Προϊόντα", href: "/admin/catalog" }],
     files: ["components/admin/catalog/SupplierSheets.tsx", "lib/catalog/supplier-sheet.ts", "lib/catalog/supplier-media.ts", "lib/catalog/supplier-guide.ts", "app/api/admin/catalog/templates/route.ts"],
     keywords: ["excel", "template", "προμηθευτής", "word", "οδηγίες", "εισαγωγή", "τιμοκατάλογος"],
   },
@@ -1019,6 +1019,40 @@ export const HELP_PAGES: HelpPage[] = [
     related: [{ label: "Νέα είδη", href: "/admin/catalog/templates/nea-eidi" }, { label: "Κανόνες τιμολόγησης", href: "/admin/catalog/templates/kanones-timon" }, { label: "Εισαγωγή από άλλο Excel", href: "/admin/catalog/templates/import" }, { label: "Μάρκες", href: "/admin/catalog/brands" }, { label: "Templates & excel", href: "/admin/catalog/templates" }],
     files: ["components/admin/catalog/xml/XmlImportWizard.tsx", "components/admin/catalog/xml/MappingSteps.tsx", "components/admin/catalog/xml/ReviewList.tsx", "components/admin/catalog/xml/ProductModal.tsx", "components/admin/catalog/xml/ImageOrder.tsx", "components/admin/catalog/xml/PublishStep.tsx", "components/admin/catalog/xml/CheckStep.tsx", "components/admin/catalog/xml/FeedSchedule.tsx", "components/admin/catalog/xml/AvailMap.tsx", "app/admin/(shell)/catalog/templates/xml/actions.ts", "lib/catalog/xml-import"],
     keywords: ["xml", "feed", "προμηθευτής", "μαζική εισαγωγή", "αντιστοίχιση", "φωτογραφίες", "ουρά", "AI", "estia", "μονάδα μέτρησης", "MTRUNIT1", "εμπορική σήμανση", "MTRMARK", "πρότυπο", "429", "όριο λήψεων", "αποθηκευμένο XML", "δημοσίευση", "πρόχειρο", "παράλειψη", "μάρκα που λείπει", "ενεργό", "ανενεργό", "διακόπτης feed"],
+  },
+  {
+    route: "/admin/catalog/templates/apenergopoiisi",
+    title: "Απενεργοποίηση από Excel",
+    summary: "Βγάζεις προϊόντα από το eshop — ή και από το SoftOne — ανεβάζοντας μια λίστα (.xlsx/.csv) με κωδικούς, barcodes ή MTRL. Πρώτα βλέπεις ποιο είδος είναι κάθε γραμμή και τι είναι σήμερα· τίποτα δεν αλλάζει πριν πατήσεις το κουμπί της εκτέλεσης.",
+    tasks: [
+      { title: "Βγάζω από το eshop τα προϊόντα που κατάργησε ένας προμηθευτής", steps: [
+        "Βήμα 1: διάλεξε ή σύρε το αρχείο. Αρκεί μία στήλη με κωδικό είδους, barcode ή MTRL.",
+        "Βήμα 2: δες τους μετρητές — «Στο eshop τώρα» είναι όσα θα φύγουν, «Δεν βρέθηκαν» θέλουν έλεγχο του κωδικού.",
+        "Άφησε το «Μόνο από το eshop». Ξετσέκαρε όποιο είδος δεν θες να φύγει (π.χ. όσα έχουν ακόμη απόθεμα).",
+        "Πάτα «Βγάλε από το eshop» και επιβεβαίωσε. Στο βήμα 3 βλέπεις ανά είδος αν έγινε.",
+      ] },
+      { title: "Απενεργοποιώ είδη και στο SoftOne", steps: [
+        "Στο βήμα 2 διάλεξε «Και από το SoftOne».",
+        "Έλεγξε τη λίστα: τώρα επιλέγονται και όσα ήταν ήδη εκτός eshop αλλά ενεργά στο ERP.",
+        "Πάτα «Απενεργοποίηση». Το είδος γίνεται ανενεργό για όλα τα καταστήματα — ξανανοίγει μόνο από το SoftOne.",
+      ] },
+    ],
+    parts: [
+      { key: "deactivate.steps", title: "Βήματα", text: "Αρχείο → Τι βρήκα → Αποτέλεσμα. Γυρνάς στο αρχείο όποτε θες· νέο αρχείο ξεκινά από την αρχή." },
+      { key: "deactivate.upload", title: "Αρχείο", text: "Δεκτά .xlsx και .csv έως 15 MB και 5.000 είδη. Διαβάζονται όλα τα φύλλα. Από κάθε γραμμή κρατιέται μόνο το κλειδί (MTRL, κωδικός είδους, κωδικός κατασκευαστή ή barcode) και το όνομα· οι υπόλοιπες στήλες αγνοούνται. Το ανέβασμα δεν γράφει πουθενά." },
+      { key: "deactivate.found", title: "Τι βρήκα", text: "Μετρητές ανά κατάσταση: «Στο eshop τώρα» (θα φύγουν), «Εκτός eshop ήδη» (έχουν Εξαίρεση Web αλλά είναι ενεργά στο SoftOne), «Ήδη ανενεργά» (τίποτα να γίνει), «Δεν βρέθηκαν» (κανένα είδος με αυτό το κλειδί) και «Πρόβλημα» (π.χ. το ίδιο κλειδί ταιριάζει σε πολλά είδη ή το είδος υπάρχει δύο φορές στο αρχείο)." },
+      { key: "deactivate.mode", title: "Από πού να φύγουν", text: "«Μόνο από το eshop»: τσεκάρεται η «Εξαίρεση Web» του είδους στο SoftOne — το είδος μένει ενεργό και τα καταστήματα συνεχίζουν να το πουλούν. «Και από το SoftOne»: το είδος γίνεται ανενεργό στο ERP και φεύγει από eshop, παραγγελίες και παραστατικά. Κάτω από κάθε επιλογή γράφει πόσα είδη αφορά." },
+      { key: "deactivate.rows", title: "Λίστα ειδών", text: "Μία γραμμή ανά είδος του αρχείου με κατάσταση, όνομα, κωδικό, MTRL και τη θέση του στο αρχείο (φύλλο, γραμμή). Προεπιλεγμένα είναι όσα αφορά η επιλογή σου· ξετσεκάρεις ό,τι θες να μείνει. Είδη με απόθεμα ή τιμή web έχουν προειδοποίηση, για να μη φύγει κάτι που πουλιέται. Τα φίλτρα από πάνω δείχνουν μία κατάσταση τη φορά." },
+      { key: "deactivate.run", title: "Εκτέλεση", text: "Το κουμπί γράφει πόσα είδη θα αλλάξουν και ζητά επιβεβαίωση. Εκτελεί σε παρτίδες των 10 με μπάρα προόδου· κάθε είδος διαβάζεται ξανά από το SoftOne μετά την εγγραφή και η γραμμή του γράφει αν έγινε ή γιατί όχι. Αν διακοπεί, όσα έγιναν μένουν και ξαναπατάς για τα υπόλοιπα. Θέλει ανοιχτές τις αλλαγές προς το SoftOne και το δικαίωμα «Εκτέλεση συγχρονισμού ERP»." },
+    ],
+    tips: [
+      "Αν δεν είσαι σίγουρος, ξεκίνα με «Μόνο από το eshop»: αναιρείται ξετσεκάροντας την «Εξαίρεση Web» στο είδος, χωρίς να επηρεάζονται τα καταστήματα.",
+      "Η επαναφορά γίνεται από το SoftOne (Εξαίρεση Web ή «Ενεργό» στο είδος)· ο επόμενος συγχρονισμός το ξαναφέρνει στο eshop.",
+      "Για προϊόντα μιας μάρκας που απλώς λείπουν από τον νέο τιμοκατάλογο, δες το «Λείπουν από το αρχείο» στην Εισαγωγή από άλλο Excel.",
+    ],
+    related: [{ label: "Εισαγωγή από άλλο Excel", href: "/admin/catalog/templates/import" }, { label: "Templates & excel", href: "/admin/catalog/templates" }, { label: "Προϊόντα", href: "/admin/catalog" }],
+    files: ["components/admin/catalog/DeactivateWizard.tsx", "lib/catalog/deactivate.ts", "lib/catalog/deactivate-core.ts", "app/api/admin/catalog/deactivate/plan/route.ts"],
+    keywords: ["απενεργοποίηση", "excel", "κατάργηση", "εξαίρεση web", "ανενεργό", "softone", "διαγραφή"],
   },
   {
     route: "/admin/catalog/templates/nea-eidi",

@@ -344,6 +344,27 @@ export function mediaRows(sheets: string[][][]): ForeignRow[] {
 }
 
 /**
+ * Αρχείο που απλώς ΑΠΑΡΙΘΜΕΙ είδη (π.χ. «αυτά να απενεργοποιηθούν»): από κάθε φύλλο με στήλη-κλειδί βγαίνουν γραμμές με τα
+ * κλειδιά (MTRL, κωδικός, κωδικός κατασκευαστή, barcode) και το όνομα, αν υπάρχει — τίποτα άλλο δεν διαβάζεται. Φύλλα
+ * χωρίς στήλη-κλειδί (οδηγίες κ.λπ.) παραλείπονται. Το `rowNo` είναι μοναδικό σε όλο το αρχείο (φύλλο × 100.000 + γραμμή).
+ */
+export function keyRows(sheets: { name: string; matrix: string[][] }[]): { rows: ForeignRow[]; sheetOf: Map<number, { sheet: string; line: number }> } {
+  const KEYS = new Set<FieldKey>(["mtrl", "code", "factoryCode", "barcode"]);
+  const rows: ForeignRow[] = [], sheetOf = new Map<number, { sheet: string; line: number }>();
+  sheets.forEach((sh, si) => {
+    const headerRow = detectHeaderRow(sh.matrix), columns: Record<number, Target> = {};
+    (sh.matrix[headerRow] ?? []).forEach((h, i) => { const t = suggestTarget(h); if (t.kind === "field" && (KEYS.has(t.key) || t.key === "name")) columns[i] = t; });
+    if (!Object.values(columns).some((t) => t.kind === "field" && KEYS.has(t.key))) return;
+    for (const r of toRows(sh.matrix, headerRow, { columns, brandMap: {}, categoryMap: {} })) {
+      if (!r.fields.mtrl && !r.fields.code && !r.fields.factoryCode && !r.fields.barcode) continue; // γραμμή μόνο με όνομα δεν δείχνει είδος
+      const rowNo = (si + 1) * 100_000 + r.rowNo;
+      rows.push({ ...r, rowNo }); sheetOf.set(rowNo, { sheet: sh.name, line: r.rowNo });
+    }
+  });
+  return { rows, sheetOf };
+}
+
+/**
  * Τα πολυμέσα του δεύτερου αρχείου περνούν στη γραμμή του κύριου με το ίδιο κλειδί (MTRL → κωδικός / κωδικός κατασκευαστή →
  * barcode)· ίδιο URL δεν μπαίνει δύο φορές. `matched` από `total` γραμμές πολυμέσων βρήκαν γραμμή — οι υπόλοιπες δεν χρησιμοποιούνται.
  */

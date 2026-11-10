@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-10T11:37:22.569Z",
+ "generatedAt": "2026-11-10T12:05:16.730Z",
  "routes": [
   {
    "route": "/admin",
@@ -1020,6 +1020,27 @@
    }
   },
   {
+   "route": "/admin/catalog/templates/apenergopoiisi",
+   "slug": "catalog.templates.apenergopoiisi",
+   "file": "app/admin/(shell)/catalog/templates/apenergopoiisi/page.tsx",
+   "title": "Απενεργοποίηση από Excel",
+   "doc": "Απενεργοποίηση προϊόντων από excel/csv που απαριθμεί είδη: αρχείο → τι βρέθηκε και τι είναι σήμερα κάθε είδος → εκτέλεση («μόνο από το eshop» με Εξαίρεση Web, ή «και από το SoftOne» ως ανενεργό είδος).",
+   "perm": "catalog.products.write",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [
+    "deactivate.steps",
+    "deactivate.upload",
+    "deactivate.found",
+    "deactivate.mode",
+    "deactivate.rows",
+    "deactivate.run"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/catalog/templates/import",
    "slug": "catalog.templates.import",
    "file": "app/admin/(shell)/catalog/templates/import/page.tsx",
@@ -1049,6 +1070,11 @@
     "foreign.missing"
    ],
    "changes": [
+    {
+     "hash": "fe876ee",
+     "date": "2026-11-10T13:43:45+02:00",
+     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
+    },
     {
      "hash": "29bf68b",
      "date": "2026-11-05T16:38:25+02:00",
@@ -1093,14 +1119,9 @@
      "hash": "e3167b6",
      "date": "2026-10-20T06:10:57+03:00",
      "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
-    },
-    {
-     "hash": "65f2ef9",
-     "date": "2026-10-20T06:04:47+03:00",
-     "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
     }
    ],
-   "updatedAt": "2026-11-05T16:38:25+02:00",
+   "updatedAt": "2026-11-10T13:43:45+02:00",
    "shots": {}
   },
   {
@@ -1156,6 +1177,11 @@
    ],
    "changes": [
     {
+     "hash": "fe876ee",
+     "date": "2026-11-10T13:43:45+02:00",
+     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
+    },
+    {
      "hash": "8cca5cc",
      "date": "2026-11-02T16:29:21+02:00",
      "text": "Keyvoto PIM: οι φωτογραφίες γίνονται πραγματικές διευθύνσεις"
@@ -1176,7 +1202,7 @@
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
     }
    ],
-   "updatedAt": "2026-11-02T16:29:21+02:00",
+   "updatedAt": "2026-11-10T13:43:45+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
@@ -1202,6 +1228,11 @@
     "pending.edit"
    ],
    "changes": [
+    {
+     "hash": "fe876ee",
+     "date": "2026-11-10T13:43:45+02:00",
+     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
+    },
     {
      "hash": "13a7f97",
      "date": "2026-10-28T16:35:58+02:00",
@@ -1233,7 +1264,7 @@
      "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
     }
    ],
-   "updatedAt": "2026-10-28T16:35:58+02:00",
+   "updatedAt": "2026-11-10T13:43:45+02:00",
    "shots": {}
   },
   {
@@ -1295,6 +1326,16 @@
    ],
    "changes": [
     {
+     "hash": "04b97f7",
+     "date": "2026-11-10T13:55:00+02:00",
+     "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη"
+    },
+    {
+     "hash": "fe876ee",
+     "date": "2026-11-10T13:43:45+02:00",
+     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
+    },
+    {
      "hash": "29bf68b",
      "date": "2026-11-05T16:38:25+02:00",
      "text": "Εισαγωγή προϊόντων: ο χρήστης ορίζει αν η τιμή του αρχείου έχει ΦΠΑ και αν μπαίνει markup, σε κάθε δρόμο εισαγωγής"
@@ -1333,19 +1374,9 @@
      "hash": "97e50a4",
      "date": "2026-10-30T16:42:53+02:00",
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
-    },
-    {
-     "hash": "b4299dc",
-     "date": "2026-10-30T11:50:51+02:00",
-     "text": "XML προμηθευτές: η γραμμή δένεται με το είδος που έφτιαξε"
-    },
-    {
-     "hash": "8a0b4af",
-     "date": "2026-10-30T11:02:45+02:00",
-     "text": "XML προμηθευτές: τα ενδιάμεσα βήματα δεν χάνονται πια"
     }
    ],
-   "updatedAt": "2026-11-05T16:38:25+02:00",
+   "updatedAt": "2026-11-10T13:55:00+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -4532,6 +4563,31 @@
  ],
  "recent": [
   {
+   "hash": "04b97f7",
+   "date": "2026-11-10T13:55:00+02:00",
+   "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
+   "hash": "fe876ee",
+   "date": "2026-11-10T13:43:45+02:00",
+   "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/import",
+    "/admin/catalog/templates/keyvoto",
+    "/admin/catalog/templates/nea-eidi",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
    "hash": "7df8653",
    "date": "2026-11-06T15:59:55+02:00",
    "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές",
@@ -4775,22 +4831,6 @@
    "date": "2026-11-04T08:15:56+02:00",
    "text": "Σκετς Ερμή: γρήγορη επιλογή καταστήματος με φωνή (ανοχή στη γραφή του STT, χωρίς μοντέλο όταν δεν είναι ερώτηση)",
    "routes": []
-  },
-  {
-   "hash": "ffa36d8",
-   "date": "2026-11-03T16:59:43+02:00",
-   "text": "ASAP: SMS + email «Έρχεται» με τον σύνδεσμο του οδηγού, μία φορά ανά αποστολή",
-   "routes": []
-  },
-  {
-   "hash": "8316948",
-   "date": "2026-11-03T16:51:38+02:00",
-   "text": "ASAP: ζωντανή παρακολούθηση και εκτιμώμενη άφιξη μέσω webhook",
-   "routes": [
-    "/admin",
-    "/admin/apostoles",
-    "/admin/apostoles/vouchers"
-   ]
   }
  ],
  "helpKeys": {
@@ -5288,6 +5328,24 @@
   ],
   "enrich.copy": [
    "components/admin/catalog/CopyPanel.tsx"
+  ],
+  "deactivate.steps": [
+   "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "deactivate.upload": [
+   "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "deactivate.found": [
+   "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "deactivate.mode": [
+   "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "deactivate.rows": [
+   "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "deactivate.run": [
+   "components/admin/catalog/DeactivateWizard.tsx"
   ],
   "enrich.sources": [
    "components/admin/catalog/EnrichPanel.tsx"

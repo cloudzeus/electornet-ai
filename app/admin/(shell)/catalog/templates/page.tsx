@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes, ChevronRight, FileCode2, FileSpreadsheet, FileUp, PackagePlus, Percent } from "lucide-react";
+import { Boxes, ChevronRight, FileCode2, FileSpreadsheet, FileUp, PackagePlus, Percent, PowerOff } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -37,6 +37,7 @@ export default async function TemplatesPage() {
           { href: "/admin/catalog/templates/xml", Icon: FileCode2, title: "XML προμηθευτές", text: "XML feed προμηθευτή: φορτώνει όλα τα προϊόντα του σε λίστα ελέγχου, η αντιστοίχιση αποθηκεύεται και το επόμενο τρέξιμο είναι ένα πάτημα.", badge: feeds ? `${feeds} ${feeds === 1 ? "feed" : "feeds"}` : null, show: canWrite },
           { href: "/admin/catalog/templates/keyvoto", Icon: Boxes, title: "Keyvoto PIM", text: "Περιεχόμενο προϊόντων από το PIM των προμηθευτών: διαλέγεις εκδότη και τα προϊόντα περνούν από τον ίδιο οδηγό με τα XML — αντιστοίχιση, λίστα ελέγχου, δημοσίευση.", badge: null, show: canWrite },
           { href: "/admin/catalog/templates/nea-eidi", Icon: PackagePlus, title: "Νέα είδη προς δημιουργία", text: "Είδη από τα excel που δεν υπάρχουν στο SoftOne — συμπλήρωση και έγκριση.", badge: pending ? `${pending} σε αναμονή` : null, show: true },
+          { href: "/admin/catalog/templates/apenergopoiisi", Icon: PowerOff, title: "Απενεργοποίηση από Excel", text: "Λίστα με προϊόντα που φεύγουν (π.χ. καταργημένα): βλέπεις τι βρέθηκε και τα βγάζεις από το eshop ή και από το SoftOne.", badge: null, show: canWrite },
           { href: "/admin/catalog/templates/kanones-timon", Icon: Percent, title: "Κανόνες τιμολόγησης", text: "Markup από το κόστος στην τιμή web: γενικός κανόνας και εξαιρέσεις ανά μάρκα / κατηγορία.", badge: `${rules} ενεργοί`, show: true },
         ].filter((x) => x.show).map(({ href, Icon, title, text, badge }) => (
           <Link key={href} href={href} className="group flex gap-3 items-start rounded-xl border border-eu-line bg-white p-3 min-h-11 hover:border-eu-blue min-w-0">
