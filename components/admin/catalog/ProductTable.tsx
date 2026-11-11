@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, ImageOff } from "lucide-react";
 import { ProductPeek, loadProductPeek } from "./ProductPeek";
 import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
@@ -9,13 +10,13 @@ import { sourceOf } from "./sources";
 import { sx } from "@/components/ui/sx";
 
 export type ProductRow = {
-  id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; sku: string; ean: string | null; erpCode: string; active: boolean;
+  id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; /** όλη η διαδρομή, από τη γενική προς την ειδική */ categoryPath: string[]; sku: string; ean: string | null; erpCode: string; active: boolean;
   /** προϊόν-σετ: είδος σετ και πλήθος μελών */ set: { kind: "parts" | "gift"; members: number } | null;
   /** είδος: σε πόσα σετ είναι κύριο */ mainOf: number; soldAlone: boolean; soldAloneMode: string;
   thumb: string | null; photos: number; lowMain: boolean; specs: number;
   price: number | null; offer: number | null; stock: number; sold: number;
   energy: { cls: string; source: string | null } | null; energyNeeded: boolean; dims: number; dimStatus: string | null;
-  updated: string; synced: string | null;
+  updated: string; created: string; synced: string | null;
 };
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (r: ProductRow) => ReactNode; title?: (r: ProductRow) => string };
 const eur = (v: number | null) => (v != null ? `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—");
@@ -43,21 +44,23 @@ const Price = ({ r }: { r: ProductRow }) => r.offer != null && r.price != null &
 /** Όλες οι διαθέσιμες στήλες· `def` = ορατή αρχικά. Το `sort` είναι το κλειδί ταξινόμησης του server (?s=). */
 const COLS: Col[] = [
   { id: "title", label: "Προϊόν", w: 320, sort: "title", def: true, title: (r) => r.title, cell: (r) => <span className="flex items-center gap-2 min-w-0"><Thumb r={r} size="size-9" /><span className="grid min-w-0"><Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink hover:text-eu-blue hover:underline truncate">{r.title}</Link><span className="flex items-center gap-1 min-w-0 text-eu-muted text-[length:var(--fs-12)]"><span className="truncate">{r.brand}{r.active ? "" : " · ανενεργό"}</span><SetChips r={r} /></span></span></span> },
-  { id: "category", label: "Κατηγορία", w: 170, sort: "category", def: true, title: (r) => r.category, cell: (r) => <span className="truncate text-eu-ink-3">{r.category}</span> },
+  { id: "category", label: "Κατηγορία", w: 170, sort: "category", def: true, cell: (r) => <CategoryCell r={r} /> },
   { id: "brand", label: "Μάρκα", w: 110, sort: "brand", cell: (r) => <span className="truncate">{r.brand}</span> },
   { id: "sku", label: "Κωδικός", w: 120, sort: "sku", def: true, cell: (r) => <span className="font-mono truncate">{r.sku}</span> },
-  { id: "ean", label: "Barcode", w: 125, cell: (r) => <span className="font-mono truncate">{r.ean ?? "—"}</span> },
-  { id: "mtrl", label: "MTRL", w: 80, right: true, cell: (r) => r.set ? <span title="Σετ του SoftOne: δεν έχει δικό του MTRL — ο αριθμός είναι του «Set ειδών» (SPCS)" className="font-mono tabular-nums text-eu-muted">set {r.erpCode?.replace(/^SET-/, "")}</span> : <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
+  { id: "ean", label: "Barcode", w: 125, sort: "ean", cell: (r) => <span className="font-mono truncate">{r.ean ?? "—"}</span> },
+  { id: "mtrl", label: "MTRL", w: 80, sort: "mtrl", right: true, cell: (r) => r.set ? <span title="Σετ του SoftOne: δεν έχει δικό του MTRL — ο αριθμός είναι του «Set ειδών» (SPCS)" className="font-mono tabular-nums text-eu-muted">set {r.erpCode?.replace(/^SET-/, "")}</span> : <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
   { id: "price", label: "Τιμή", w: 130, sort: "price", def: true, right: true, cell: (r) => <Price r={r} /> },
   { id: "stock", label: "Απόθεμα", w: 80, sort: "stock", def: true, right: true, cell: (r) => <span className={`tabular-nums ${r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}`}>{r.stock}</span> },
   { id: "sold", label: "Πωλήσεις", w: 85, def: true, right: true, title: () => "Τεμάχια e-shop + SoftOne (χωρίς ακυρωμένα)", cell: (r) => <span className="tabular-nums">{r.sold || muted("0")}</span> },
   { id: "photos", label: "Φωτογρ.", w: 80, sort: "photos", def: true, right: true, cell: (r) => r.photos ? <span className={`tabular-nums ${r.lowMain ? "text-eu-red font-bold" : ""}`} title={r.lowMain ? "μικρή κύρια φωτογραφία" : undefined}>{r.photos}{r.lowMain ? " ⚠" : ""}</span> : <span className="text-eu-red font-bold">καμία</span> },
   { id: "specs", label: "Χαρακτ.", w: 75, sort: "specs", def: true, right: true, cell: (r) => <span className={`tabular-nums ${r.specs < 5 ? "text-eu-amber font-bold" : ""}`}>{r.specs}</span> },
-  { id: "energy", label: "Ενεργ.", w: 75, def: true, cell: (r) => <Energy r={r} /> },
-  { id: "dims", label: "Διαστάσεις", w: 105, cell: (r) => r.dimStatus && DIM[r.dimStatus] ? <span className={DIM[r.dimStatus][1]}>{DIM[r.dimStatus][0]}</span> : r.dims ? `${r.dims} πηγές` : muted("—") },
+  { id: "energy", label: "Ενεργ.", w: 75, sort: "energy", def: true, cell: (r) => <Energy r={r} /> },
+  { id: "dims", label: "Διαστάσεις", w: 105, sort: "dims", cell: (r) => r.dimStatus && DIM[r.dimStatus] ? <span className={DIM[r.dimStatus][1]}>{DIM[r.dimStatus][0]}</span> : r.dims ? `${r.dims} πηγές` : muted("—") },
   { id: "active", label: "Κατάσταση", w: 90, sort: "active", cell: (r) => r.active ? <span className="text-eu-green font-bold">ενεργό</span> : muted("ανενεργό") },
   { id: "updated", label: "Αλλαγή", w: 85, sort: "updated", def: true, cell: (r) => <span className="tabular-nums">{day(r.updated)}</span> },
-  { id: "synced", label: "SoftOne", w: 85, cell: (r) => <span className="tabular-nums">{day(r.synced)}</span> },
+  { id: "synced", label: "SoftOne", w: 85, sort: "synced", cell: (r) => <span className="tabular-nums">{day(r.synced)}</span> },
+  { id: "created", label: "Δημιουργία", w: 90, sort: "created", cell: (r) => <span className="tabular-nums">{day(r.created)}</span> },
+  { id: "offer", label: "Προσφορά", w: 110, sort: "offer", right: true, title: () => "Τελική τιμή με την καλύτερη προσφορά", cell: (r) => r.offer != null && r.price != null && r.offer < r.price ? <span className="tabular-nums font-bold text-eu-red">{eur(r.offer)} <span className="font-normal text-eu-ink-3">−{Math.round((1 - r.offer / r.price) * 100)}%</span></span> : muted("—") },
 ];
 const DEFAULT = COLS.filter((c) => c.def).map((c) => c.id);
 const KEY_COLS = "eu.products.cols", KEY_W = "eu.products.widths";
@@ -240,5 +243,29 @@ export function ProductCards({ rows, canPromo, canSelect = canPromo, can }: { ro
       {!rows.length && <li className="p-8 text-center text-eu-muted">Κανένα προϊόν με αυτά τα κριτήρια.</li>}
       {bar}
     </ul>
+  );
+}
+
+/** Κατηγορία στη λίστα: κομμένη στο κελί, ολόκληρη η διαδρομή σε tooltip με το ποντίκι ή την εστίαση (πληκτρολόγιο). */
+function CategoryCell({ r }: { r: ProductRow }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  const path = r.categoryPath.length ? r.categoryPath : [r.category];
+  const show = () => { const b = ref.current?.getBoundingClientRect(); if (b) setAt({ left: Math.min(b.left, window.innerWidth - 300), top: b.bottom + 6 }); };
+  const hide = () => setAt(null);
+  useEffect(() => { if (!at) return; window.addEventListener("scroll", hide, true); return () => window.removeEventListener("scroll", hide, true); }, [at]);
+  return (
+    <>
+      <span ref={ref} tabIndex={0} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} aria-label={`Κατηγορία: ${path.join(" › ")}`} className="truncate text-eu-ink-3 cursor-default rounded outline-none focus-visible:ring-2 focus-visible:ring-eu-blue">{r.category}</span>
+      {at && createPortal(
+        <div role="tooltip" style={{ left: at.left, top: at.top }} className="fixed z-[80] max-w-[18rem] rounded-lg bg-eu-ink text-white shadow-lg px-3 py-2 pointer-events-none">
+          <div className="text-white/70 text-[length:var(--fs-11)] font-bold mb-0.5">Διαδρομή κατηγορίας</div>
+          <ol className="m-0 p-0 list-none grid gap-0.5 text-[length:var(--fs-13)]">
+            {path.map((c, i) => <li key={i} style={{ paddingLeft: `${i * 0.75}rem` }} className={i === path.length - 1 ? "font-bold" : "text-white/85"}>{i ? "› " : ""}{c}</li>)}
+          </ol>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

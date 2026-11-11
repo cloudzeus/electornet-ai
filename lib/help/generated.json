@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T06:37:42.752Z",
+ "generatedAt": "2026-11-11T06:50:12.493Z",
  "routes": [
   {
    "route": "/admin",
@@ -643,6 +643,8 @@
    "helpKeys": [
     "catalog.sets-sync",
     "catalog.filters",
+    "catalog.sort",
+    "catalog.more-filters",
     "catalog.type",
     "catalog.photo-picker",
     "catalog.photo-picker.grid",
@@ -656,6 +658,11 @@
     "catalog.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "0bff82b",
+     "date": "2026-11-11T08:37:48+02:00",
+     "text": "Σετ προϊόντων: μέλη και δώρο στη γρήγορη προβολή, κείμενα σετ αποθηκεύονται στο eshop (όχι στο SoftOne), SPCS αντί για ψεύτικο MTRL, χαρακτηριστικά σε στήλες χωρίς κενά"
+    },
     {
      "hash": "eeb2eed",
      "date": "2026-11-11T05:00:59+02:00",
@@ -700,14 +707,9 @@
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
-    },
-    {
-     "hash": "26c22b3",
-     "date": "2026-10-16T18:04:40+03:00",
-     "text": "Σετ (Φ1): διορθώσεις τελικού ελέγχου"
     }
    ],
-   "updatedAt": "2026-11-11T05:00:59+02:00",
+   "updatedAt": "2026-11-11T08:37:48+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -741,6 +743,11 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "0bff82b",
+     "date": "2026-11-11T08:37:48+02:00",
+     "text": "Σετ προϊόντων: μέλη και δώρο στη γρήγορη προβολή, κείμενα σετ αποθηκεύονται στο eshop (όχι στο SoftOne), SPCS αντί για ψεύτικο MTRL, χαρακτηριστικά σε στήλες χωρίς κενά"
+    },
     {
      "hash": "d589f07",
      "date": "2026-11-11T05:01:06+02:00",
@@ -785,14 +792,9 @@
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
-    },
-    {
-     "hash": "629a3f9",
-     "date": "2026-10-16T17:51:00+03:00",
-     "text": "Σετ (Φ1): διαχείριση"
     }
    ],
-   "updatedAt": "2026-11-11T05:01:06+02:00",
+   "updatedAt": "2026-11-11T08:37:48+02:00",
    "shots": {}
   },
   {
@@ -973,6 +975,11 @@
    ],
    "changes": [
     {
+     "hash": "0bff82b",
+     "date": "2026-11-11T08:37:48+02:00",
+     "text": "Σετ προϊόντων: μέλη και δώρο στη γρήγορη προβολή, κείμενα σετ αποθηκεύονται στο eshop (όχι στο SoftOne), SPCS αντί για ψεύτικο MTRL, χαρακτηριστικά σε στήλες χωρίς κενά"
+    },
+    {
      "hash": "d589f07",
      "date": "2026-11-11T05:01:06+02:00",
      "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
@@ -1016,14 +1023,9 @@
      "hash": "0be6e31",
      "date": "2026-10-31T09:12:08+02:00",
      "text": "Κατάλογος: στοιχεία από το internet (Icecat → κατασκευαστής → καταστήματα) με έγκριση και εισαγωγή στο SoftOne"
-    },
-    {
-     "hash": "ed33aa3",
-     "date": "2026-10-31T08:17:35+02:00",
-     "text": "Πληρότητα: πρόταση χαρακτηριστικών, διαστάσεων και βάρους από EPREL και απόδελτίωση"
     }
    ],
-   "updatedAt": "2026-11-11T05:01:06+02:00",
+   "updatedAt": "2026-11-11T08:37:48+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -4941,6 +4943,17 @@
  ],
  "recent": [
   {
+   "hash": "0bff82b",
+   "date": "2026-11-11T08:37:48+02:00",
+   "text": "Σετ προϊόντων: μέλη και δώρο στη γρήγορη προβολή, κείμενα σετ αποθηκεύονται στο eshop (όχι στο SoftOne), SPCS αντί για ψεύτικο MTRL, χαρακτηριστικά σε στήλες χωρίς κενά",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]",
+    "/admin/catalog/completeness"
+   ]
+  },
+  {
    "hash": "1991ba4",
    "date": "2026-11-11T08:17:14+02:00",
    "text": "Πορεία SoftOne: «Όλα τα στοιχεία» παραστατικού σε παράθυρο (πελάτης, παράδοση, γραμμές, σχόλια), μόνο ανάγνωση",
@@ -5242,12 +5255,6 @@
    "date": "2026-11-05T16:38:25+02:00",
    "text": "Εισαγωγή προϊόντων: ο χρήστης ορίζει αν η τιμή του αρχείου έχει ΦΠΑ και αν μπαίνει markup, σε κάθε δρόμο εισαγωγής",
    "routes": []
-  },
-  {
-   "hash": "c6cc049",
-   "date": "2026-11-05T16:30:58+02:00",
-   "text": "Σκετς Ερμή: γρηγορότερες απαντήσεις",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -5480,6 +5487,12 @@
    "app/admin/(shell)/catalog/page.tsx"
   ],
   "catalog.filters": [
+   "app/admin/(shell)/catalog/page.tsx"
+  ],
+  "catalog.sort": [
+   "app/admin/(shell)/catalog/page.tsx"
+  ],
+  "catalog.more-filters": [
    "app/admin/(shell)/catalog/page.tsx"
   ],
   "catalog.type": [
@@ -5832,6 +5845,9 @@
   ],
   "card.peek": [
    "components/admin/catalog/CardPeek.tsx"
+  ],
+  "catalog.bulk": [
+   "components/admin/catalog/CatalogBulk.tsx"
   ],
   "category.ai": [
    "components/admin/catalog/CategoryProposals.tsx"

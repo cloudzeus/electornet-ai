@@ -370,3 +370,18 @@ export async function saveSetTextsAction(productId: string, t: { title: string; 
   revalidatePath(path(productId));
   return { ok: r.ok, message: r.message };
 }
+
+/** Μαζικά από τη λίστα: ένα sticker μπαίνει ή φεύγει από τα επιλεγμένα προϊόντα (μόνο στο eshop, όχι στο SoftOne). */
+export async function bulkStickerAction(ids: string[], stickerId: string, remove: boolean) {
+  const user = await requirePermission("catalog.products.write");
+  const list = [...new Set(ids)].slice(0, 500);
+  if (!list.length || !(await db.sticker.findUnique({ where: { id: stickerId }, select: { id: true } }))) return { ok: false as const, error: "Διάλεξε sticker και προϊόντα." };
+  const r = remove
+    ? await db.productSticker.deleteMany({ where: { stickerId, productId: { in: list } } })
+    // shortcut: μπαίνει στο τέλος (sort 99) αντί για την ακριβή επόμενη θέση κάθε προϊόντος
+    : await db.productSticker.createMany({ data: list.map((productId) => ({ productId, stickerId, sort: 99, createdBy: user.id })), skipDuplicates: true });
+  await audit(user.id, remove ? "catalog.product.sticker.bulk-remove" : "catalog.product.sticker.bulk-add", "Product", null, null, { stickerId, ids: list.length, changed: r.count });
+  const { resetStickerCatalog } = await import("@/lib/stickers/server");
+  resetStickerCatalog(); resetCatalogCache(); revalidatePath("/admin/catalog");
+  return { ok: true as const, changed: r.count, total: list.length };
+}
