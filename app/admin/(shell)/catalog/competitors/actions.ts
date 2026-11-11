@@ -21,7 +21,7 @@ async function tree() {
   const kids = new Map<string, string[]>();
   for (const c of cats) if (c.parentId) kids.set(c.parentId, [...(kids.get(c.parentId) ?? []), c.id]);
   const grand = (id: string) => { const p = byId.get(id)?.parentId; return p ? byId.get(p)?.parentId ?? null : null; };
-  const node = (id: string) => { const c = byId.get(id), p = c?.parentId ? byId.get(c.parentId) : null; return { id, parentId: c?.parentId ?? null, grandId: grand(id), name: c?.name ?? "", parentName: p?.name ?? null }; };
+  const node = (id: string) => { const c = byId.get(id), p = c?.parentId ? byId.get(c.parentId) : null; let r = c; while (r?.parentId && byId.get(r.parentId)) r = byId.get(r.parentId); return { id, parentId: c?.parentId ?? null, grandId: grand(id), name: c?.name ?? "", parentName: p?.name ?? null, rootName: r?.name ?? null }; };
   /** Οι τελικές κατηγορίες (εκεί κάθονται τα προϊόντα) κάτω από μια κατηγορία, μόνο ενεργές με προϊόντα. */
   const leaves = (id: string): string[] => { const k = kids.get(id); if (k?.length) return k.flatMap(leaves); const c = byId.get(id); return c?.active && c.productCount > 0 ? [id] : []; };
   const rows = new Map((await db.competitorCategoryMap.findMany({ where: { competitor: COMP } })).map((r) => [r.categoryId, r]));
