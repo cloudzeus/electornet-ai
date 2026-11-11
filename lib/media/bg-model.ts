@@ -28,7 +28,7 @@ function stop() {
 
 function start(): Promise<ChildProcess> {
   return ensureBgModel().then((model) => new Promise<ChildProcess>((resolve, reject) => {
-    const p = fork(WORKER, [model], { serialization: "advanced", stdio: ["ignore", "ignore", "inherit", "ipc"] });
+    const p = fork(/*turbopackIgnore: true*/ WORKER, [model], { serialization: "advanced", stdio: ["ignore", "ignore", "inherit", "ipc"] });
     const fail = (e: Error) => { child = null; reject(e); };
     p.once("error", fail);
     p.once("exit", (code) => fail(new Error(`η διεργασία αφαίρεσης φόντου έκλεισε (${code})`)));

@@ -17,7 +17,7 @@ export const bgModelPath = () => process.env.BG_MODEL_PATH || path.join(process.
 let pending: Promise<string> | null = null;
 export function ensureBgModel(file = bgModelPath()): Promise<string> {
   pending ??= (async () => {
-    const s = await stat(file).catch(() => null);
+    const s = await stat(/*turbopackIgnore: true*/ file).catch(() => null);
     if (s?.size === BG_MODEL.bytes) return file;
     const res = await fetch(BG_MODEL.url, { signal: AbortSignal.timeout(10 * 60_000) });
     if (!res.ok) throw new Error(`Λήψη μοντέλου αφαίρεσης φόντου: HTTP ${res.status}`);
