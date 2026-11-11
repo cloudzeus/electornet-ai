@@ -64,12 +64,12 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
           <CompetitorChart history={history} now={Date.now()} />
         </div>
 
-        <div className={`${card} flex-[1_1_20rem]`}>
+        <div data-help="kotsovolos-pair" className={`${card} flex-[1_1_20rem]`}>
           <h3 className={h3}>Το ζευγάρι στον Κωτσόβολο</h3>
           {paired ? (
             <div className="grid gap-1">
               {v.extUrl
-                ? <a href={`https://www.kotsovolos.gr/${v.extUrl}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-1.5 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}<ExternalLink className="mt-0.5 size-4 shrink-0" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
+                ? <a href={`https://www.kotsovolos.gr/${v.extUrl}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 md:min-h-8 items-center gap-1.5 py-1 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}<ExternalLink className="size-4 shrink-0" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
                 : <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}</span>}
               <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{HOW[v.match] ?? v.match} · είδος <span className="font-mono">{v.extId}</span></span>
             </div>

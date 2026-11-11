@@ -114,7 +114,7 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
 }
 
 function Matched({ row }: { row: CatRow }) {
-  if (row.status !== "mapped") return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">—</span>;
+  if (row.status !== "mapped") return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">Δεν συγκρίνεται ακόμη: διάλεξε κατηγορία Κωτσόβολου</span>;
   if (!row.seen) return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">μετά το 1ο τρέξιμο</span>;
   const pct = row.products ? Math.round((row.pairs / row.products) * 100) : 0;
   return (

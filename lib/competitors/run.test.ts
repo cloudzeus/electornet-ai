@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decideGone, decidePrice, ourPrice, runWindow, isOddResponse, type Prev } from "./run-core";
+import { decideGone, decidePrice, ourPrice, runWindow, isOddResponse, searchPrev, type Prev } from "./run-core";
 
 const prev = (o: Partial<Prev> = {}): Prev => ({ match: "auto", extUrl: "tv/123-x", missCount: 0, their: 100, ourPrice: 110, ...o });
 const ok = (o: object = {}) => ({ title: "t", list: 120, offer: 100, buyable: true, ean: "5901234123457", ...o });
@@ -72,4 +72,14 @@ test("ourPrice: προσφορά έναντι τιμής", () => {
   assert.equal(ourPrice({ price: 120, offer: { price: "99.9" } }), 99.9);
   assert.equal(ourPrice({ price: 120, offer: null }), 120);
   assert.equal(ourPrice({ price: null, offer: null }), null);
+});
+
+test("searchPrev: μετά από «Λάθος ζευγάρι» το νέο ψάξιμο ξεκινά καθαρό και δεν κουβαλά rejected", () => {
+  assert.equal(searchPrev("rejected"), null);
+  assert.equal(searchPrev("lost"), null);
+  assert.equal(searchPrev(undefined), null);
+  assert.equal(searchPrev("suggested"), "suggested");
+  // νέο ταίριασμα μετά την απόρριψη: auto με ίδιο EAN, όχι rejected
+  assert.equal(run({ match: searchPrev("rejected"), their: null }, ok()).match, "auto");
+  assert.equal(run({ match: searchPrev("rejected"), their: null }, ok(), null, "suggested").match, "suggested");
 });

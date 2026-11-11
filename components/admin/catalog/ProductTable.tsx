@@ -232,6 +232,7 @@ export function ProductCards({ rows, canPromo, canSelect = canPromo, can }: { ro
                 <Link href={`/admin/catalog/${r.id}`} className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-snug line-clamp-2 hover:text-eu-blue">{r.title}</Link>
                 <span className="text-eu-muted text-[length:var(--fs-12)] truncate">{r.brand} · <span className="font-mono">{r.sku}</span>{r.active ? "" : " · ανενεργό"}</span>
                 {(r.set || r.mainOf > 0 || !r.soldAlone) && <span className="flex flex-wrap gap-1 text-[length:var(--fs-12)]"><SetChips r={r} /></span>}
+                {r.kot && <span className="flex min-w-0"><CompetitorBadge price={r.kot} size="sm" /></span>}
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[length:var(--fs-13)]"><Price r={r} /><span className={r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}>{r.stock > 0 ? `${r.stock} τεμ.` : "κατόπιν παρ."}</span><Energy r={r} />{!r.photos && <span className="text-eu-red font-bold">χωρίς φωτο</span>}</span>
               </span>
               <span className="grid justify-items-end gap-1">

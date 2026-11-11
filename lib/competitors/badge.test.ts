@@ -48,14 +48,23 @@ test("gapText και kotView", () => {
   assert.equal(kotView(null), null);
 });
 
-test("chartData: <2 σημεία = κενή κατάσταση, η παλιά τιμή κρατά την αρχή του παραθύρου", async () => {
+test("chartData: κενό, ένα παλιό, ένα μέσα στο παράθυρο, πολλά", async () => {
   const { chartData } = await import("./badge");
   const now = Date.UTC(2026, 10, 11);
   const d = 86_400_000;
-  assert.equal(chartData([{ t: now - d, ours: 829, theirs: 649.99 }], now), null);
-  const c = chartData([{ t: now - 40 * d, ours: 829, theirs: 749.99 }, { t: now - 10 * d, ours: 829, theirs: 649.99 }], now)!;
-  assert.equal(c.points.length, 2);
-  assert.equal(c.points[0].t, now - 30 * d);
-  assert.equal(c.points[0].theirs, 749.99);
-  assert.ok(c.min < 649.99 && c.max > 829);
+  assert.equal(chartData([], now), null);
+  assert.equal(chartData([{ t: now - d, ours: null, theirs: null }], now), null);
+  // ένα παλιό σημείο: κρατά την αρχή του παραθύρου, επίπεδες γραμμές
+  const old = chartData([{ t: now - 40 * d, ours: 829, theirs: 649.99 }], now)!;
+  assert.equal(old.points.length, 1);
+  assert.equal(old.points[0].t, now - 30 * d);
+  assert.equal(old.from, now - 30 * d);
+  // ένα σημείο μέσα στο παράθυρο: σχεδιάζεται από εκεί έως σήμερα
+  const one = chartData([{ t: now - 5 * d, ours: 829, theirs: 649.99 }], now)!;
+  assert.deepEqual(one.points.map((p) => p.t), [now - 5 * d]);
+  assert.equal(one.to, now);
+  // πολλά, σε φθίνουσα σειρά όπως έρχονται από τη βάση
+  const many = chartData([{ t: now - 2 * d, ours: 829, theirs: 649.99 }, { t: now - 10 * d, ours: 829, theirs: 699.99 }, { t: now - 40 * d, ours: 829, theirs: 749.99 }], now)!;
+  assert.deepEqual(many.points.map((p) => p.theirs), [749.99, 699.99, 649.99]);
+  assert.ok(many.min < 649.99 && many.max > 829);
 });

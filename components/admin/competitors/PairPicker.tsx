@@ -42,7 +42,7 @@ export function PairPicker({ productId, view, canWrite }: { productId: string; v
 
   if (!canWrite) return null;
   return (
-    <div data-help="kotsovolos-pair" className="grid gap-2">
+    <div className="grid gap-2">
       {view?.match === "suggested" && view.extId && (
         <button type="button" className={primary} disabled={pending} onClick={() => run(() => setPair(productId, view.extId!))}>
           <Check className="size-4" aria-hidden />Ναι, είναι το ίδιο · επιβεβαίωσε

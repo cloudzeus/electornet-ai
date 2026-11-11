@@ -188,8 +188,8 @@ export async function setPair(productId: string, art: string): Promise<Out> {
   const pacer = createPacer({ budget: 1, until: new Date(Date.now() + 60_000), sleep: async () => {} });
   const r = await fetchProduct(art, pacer).catch((e: Error) => ({ error: e.message }));
   if ("error" in r) return { ok: false, error: r.error === "δεν βρέθηκε (404)" ? `Ο Κωτσόβολος δεν έχει είδος ${art}.` : `Ο Κωτσόβολος δεν απάντησε σωστά (${r.error}) — δοκίμασε σε λίγο.` };
-  const kot = (await cachedSitemap().catch(() => null))?.find((i) => i.art === art) ?? null;
   const same = row?.extId === art;
+  const kot = same && row?.extUrl ? null : (await cachedSitemap().catch(() => null))?.find((i) => i.art === art) ?? null;
   const ours = ourPrice({ price: p.price, offer: p.offer });
   const their = (x: typeof row) => (x?.offerPrice != null ? Number(x.offerPrice) : x?.listPrice != null ? Number(x.listPrice) : null);
   const d = decidePrice({

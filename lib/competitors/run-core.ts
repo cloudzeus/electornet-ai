@@ -32,6 +32,9 @@ export type Decision = {
   history?: boolean;
 };
 
+/** Η κατάσταση που κουβαλά ένα νέο ψάξιμο: lost/rejected ξεκινούν από την αρχή (το απορριφθέν extId το βγάζει ήδη η λίστα υποψηφίων). */
+export const searchPrev = (m: string | null | undefined): Match | null => (!m || m === "lost" || m === "rejected" ? null : (m as Match));
+
 /** Το extId λείπει από το sitemap ή το API δεν έχει πια προϊόν. */
 export function decideGone(prev: Prev): Decision {
   const missCount = prev.missCount + 1;

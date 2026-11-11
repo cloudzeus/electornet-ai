@@ -51,17 +51,19 @@ export function gapText(v: KotView | null): string | null {
 // ---- Γράφημα 30 ημερών (βηματικές γραμμές: κάθε τιμή ισχύει ώσπου να αλλάξει) ----
 export type HistPoint = { t: number; ours: number | null; theirs: number | null };
 const DAY = 86_400_000;
-/** Σημεία μέσα στις 30 ημέρες· η τελευταία τιμή πριν από το παράθυρο μπαίνει στην αρχή του. null = λιγότερα από 2 σημεία (κενή κατάσταση). */
+/**
+ * Σημεία μέσα στις 30 ημέρες· η τελευταία τιμή πριν από το παράθυρο μπαίνει στην αρχή του. Ακόμη και με ένα σημείο
+ * σχεδιάζονται επίπεδες γραμμές έως σήμερα (σταθερές τιμές = η συνηθισμένη περίπτωση). null = καμία μέτρηση με τιμή.
+ */
 export function chartData(h: HistPoint[], now: number, days = 30): { points: HistPoint[]; from: number; to: number; min: number; max: number } | null {
   const from = now - days * DAY;
   const sorted = [...h].sort((a, b) => a.t - b.t);
   const before = sorted.filter((p) => p.t < from).at(-1);
   const points = [...(before ? [{ ...before, t: from }] : []), ...sorted.filter((p) => p.t >= from && p.t <= now)];
-  if (points.length < 2) return null;
   const vals = points.flatMap((p) => [p.ours, p.theirs]).filter((x): x is number => x != null);
   if (!vals.length) return null;
   let min = Math.min(...vals), max = Math.max(...vals);
   const pad = Math.max((max - min) * 0.15, max * 0.02, 1);
   min = Math.max(0, min - pad); max += pad;
-  return { points, from: points[0].t, to: now, min, max };
+  return { points, from, to: now, min, max };
 }

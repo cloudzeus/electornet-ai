@@ -6,7 +6,7 @@ import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
 import { isBundle, matchByModel, matchPhone, sameEan, type KotItem } from "./kotsovolos/core";
 import { readCosts } from "./cost";
-import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, type Decision, type Prev } from "./run-core";
+import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, searchPrev, type Decision, type Prev } from "./run-core";
 
 export { ourPrice };
 const COMP = "kotsovolos";
@@ -61,7 +61,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   type Item = { p: (typeof products)[number]; row: (typeof products)[number]["competitorPrices"][number] | undefined };
   let work: Item[] = products
     .map((p) => ({ p, row: p.competitorPrices[0] }))
-    .filter(({ p, row }) => !brandMaps.get(p.brandId)?.notCarried && !isBundle(p.title, "item") && row?.match !== "rejected"
+    .filter(({ p, row }) => !brandMaps.get(p.brandId)?.notCarried && !isBundle(p.title, "item")
       && !(row?.checkedAt && now.getTime() - row.checkedAt.getTime() < FRESH_MS));
   work.sort((a, b) => (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
   if (opts.limit) work = work.slice(0, opts.limit);
@@ -141,7 +141,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
       if (!best || ("error" in best.r && !("error" in r))) best = { kot, r }; // reserve: το πρώτο χωρίς σφάλμα
     }
     const { kot, r } = best!;
-    const cur = row?.match === "lost" || !row ? null : (row.match as Prev["match"]);
+    const cur = searchPrev(row?.match);
     const base = s?.base ?? "suggested";
     const eanHit = !("error" in r) && sameEan(r.ean, p.ean) === true;
     if ("error" in r) { if (row) await save(it, null, null, null, { match: row.match as any, lastError: r.error, missCount: row.missCount }); return; }

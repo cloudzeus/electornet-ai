@@ -12,15 +12,12 @@ export function CompetitorChart({ history, now }: { history: HistPoint[]; now: n
   const c = chartData(history, now);
   const [hover, setHover] = useState<number | null>(null);
   const tableId = useId();
-  if (!c) {
-    const only = history.at(-1);
-    return (
-      <div data-help="kotsovolos-chart" className="grid place-items-center gap-1 rounded-xl border border-dashed border-eu-line bg-eu-surface px-4 py-8 text-center text-[length:var(--fs-14)] text-eu-ink-3">
-        <p className="m-0 font-bold text-eu-ink">Δεν υπάρχει ακόμη ιστορικό για γράφημα</p>
-        <p className="m-0">{only ? `Μία μέτρηση στις ${day(only.t)}: εμείς ${only.ours != null ? eur(only.ours) : "—"}, Κωτσόβολος ${only.theirs != null ? eur(only.theirs) : "—"}. ` : ""}Γεμίζει από τον νυχτερινό έλεγχο, κάθε φορά που αλλάζει μια από τις δύο τιμές.</p>
-      </div>
-    );
-  }
+  if (!c) return (
+    <div data-help="kotsovolos-chart" className="grid place-items-center gap-1 rounded-xl border border-dashed border-eu-line bg-eu-surface px-4 py-8 text-center text-[length:var(--fs-14)] text-eu-ink-3">
+      <p className="m-0 font-bold text-eu-ink">Δεν υπάρχει ακόμη μέτρηση</p>
+      <p className="m-0">Γεμίζει από τον νυχτερινό έλεγχο μόλις βρεθεί τιμή στον Κωτσόβολο.</p>
+    </div>
+  );
   const x = (t: number) => ((t - c.from) / Math.max(1, c.to - c.from)) * W;
   const y = (v: number) => H - ((v - c.min) / (c.max - c.min)) * H;
   const step = (k: "ours" | "theirs") => {
@@ -37,9 +34,9 @@ export function CompetitorChart({ history, now }: { history: HistPoint[]; now: n
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const t = c.from + ((e.clientX - r.left) / r.width) * (c.to - c.from);
-    let i = 0;
+    let i = -1;
     c.points.forEach((p, j) => { if (p.t <= t) i = j; });
-    setHover(i);
+    setHover(i < 0 ? null : i);
   };
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "ArrowRight") setHover((h) => Math.min(c.points.length - 1, (h ?? -1) + 1));
