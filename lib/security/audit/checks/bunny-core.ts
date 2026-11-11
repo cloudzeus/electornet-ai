@@ -55,6 +55,8 @@ export function classifyObject(path: string, size: number): ObjectClass {
   if (dbl) return { kind: "warn", reason: `διπλή κατάληξη .${dbl}.${ext} — σερβίρεται ως .${ext}, αλλά είναι κόλπο ανεβάσματος· ελέγξτε την προέλευση`, group: `διπλή κατάληξη .${dbl}` };
   if (ext === "svg") return size > SVG_MAX_BYTES ? { kind: "warn", reason: "SVG μεγαλύτερο από 1 MB — δεν ελέγχθηκε το περιεχόμενό του", group: "SVG > 1 MB" } : { kind: "svg", reason: "", group: g };
   if (OK_EXT.has(ext)) return { kind: "ok", reason: "", group: g };
+  // δικά μας κρυπτογραφημένα backups (lib/backup/run.ts: _backups/<βάση>-<ώρα>-<τυχαίο>.dump.enc)
+  if (/(^|\/)_backups\/[\w-]+\.dump\.enc$/.test(path)) return { kind: "ok", reason: "", group: g };
   return { kind: "warn", reason: ext ? `άγνωστος τύπος αρχείου .${ext}` : "αρχείο χωρίς κατάληξη", group: g };
 }
 

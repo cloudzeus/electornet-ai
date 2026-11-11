@@ -74,6 +74,12 @@
     "typescript": "^5"
   },
   "overrides": {
-    "nodemailer": "$nodemailer"
+    "nodemailer": "$nodemailer",
+    "body-parser": "^2.4.0",
+    "systeminformation": "^5.33.16",
+    "undici": "^7.30.1",
+    "@anthropic-ai/sdk": {
+      "zod": "^4.6.6"
+    }
   }
 }

@@ -215,3 +215,10 @@ test("bunnyOutcome: γρήγορη λίστα (68″ / 210″) ή λίστα π�
   const late = bunnyOutcome({ files: 50_000, dirs: 9_000, truncated: false, listIncomplete: true, svgTotal: 0, svgChecked: 0, findings: [], listMs: 210_500, listBudgetMs: 210_000 });
   assert.equal(late.findings.some((f) => SLOW.test(f.title)), false);
 });
+
+test("classifyObject: τα δικά μας κρυπτογραφημένα backups στο _backups/ είναι ok, αλλού .enc → warn", () => {
+  assert.equal(classifyObject("_backups/euronics-2026-11-11-12-22-b530c72b20f7.dump.enc", 100).kind, "ok");
+  assert.equal(classifyObject("media/_backups/euronics-2026-10-30-14-56-4a7bc125ac04.dump.enc", 100).kind, "ok");
+  assert.equal(classifyObject("uploads/x.dump.enc", 100).kind, "warn");
+  assert.equal(classifyObject("_backups/evil.php", 100).kind, "critical");
+});
