@@ -9,6 +9,8 @@ import { BulkPrices } from "@/components/admin/competitors/BulkPrices";
 
 export const metadata = { title: "Μαζική αλλαγή τιμών" };
 export const dynamic = "force-dynamic";
+// οι εγγραφές τρέχουν στο after() των server actions της σελίδας (έως 50 είδη)
+export const maxDuration = 300;
 
 /** Μαζική αλλαγή τιμής web με βάση τον Κωτσόβολο: φίλτρα, κανόνας, δικλείδες, προεπισκόπηση, εφαρμογή, αναίρεση. */
 export default async function BulkPricesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {

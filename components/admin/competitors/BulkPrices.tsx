@@ -2,7 +2,7 @@
 // Μαζική αλλαγή τιμής web: φίλτρα + κανόνας + δικλείδες → προεπισκόπηση (planRow στον server) → εφαρμογή/αναίρεση.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, Lock, RotateCcw, TrendingDown, X } from "lucide-react";
-import { applyAction, previewAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
+import { applyAction, batchesAction, previewAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
 import { DEFAULT_RULE, SKIP, type Rule, type Skip } from "@/lib/competitors/bulk-core";
 import type { BatchView, Filter, PreviewRow } from "@/lib/competitors/bulk";
 import { eur, pct } from "@/lib/competitors/badge";
@@ -14,7 +14,7 @@ type Props = {
 };
 
 const SOURCE: Record<string, string> = { "supplier-last": "τελ. τιμή προμηθευτή", purl: "τελ. τιμή αγοράς είδους" };
-const ORDER: Skip[] = ["max-drop", "below-cost", "no-cost", "promo", "stale", "gone", "cheaper", "same"];
+const ORDER: Skip[] = ["max-drop", "max-rise", "below-cost", "no-cost", "promo", "stale", "gone", "cheaper", "same"];
 const when = (iso: string) => new Date(iso).toLocaleString("el-GR", { timeZone: "Europe/Athens", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 const signedEur = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${eur(Math.abs(v))}`;
 const parse = (s: string) => { const t = s.trim().replace(",", "."); return t === "" ? NaN : Number(t); };
@@ -28,6 +28,8 @@ const field = "min-h-11 w-full rounded-lg border border-eu-line-2 bg-white px-3 
 const num = "min-h-11 rounded-lg border border-eu-line-2 bg-white px-3 text-center font-bold tabular-nums text-eu-ink text-[length:var(--fs-16)]";
 const chk = "flex flex-wrap items-center gap-x-2.5 gap-y-1 min-h-11 text-eu-ink text-[length:var(--fs-14)]";
 const box = "size-5 shrink-0 accent-eu-navy";
+/** checkbox γραμμής μέσα σε στόχο αφής 44px */
+const hit = "inline-flex size-11 shrink-0 cursor-pointer items-center justify-center";
 const btn = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 font-bold text-[length:var(--fs-14)] disabled:cursor-not-allowed disabled:opacity-50";
 
 export function BulkPrices({ initialRows, initialFilter, product, options, batches: initialBatches, blockedReason, canRun, maxBatch }: Props) {
@@ -36,7 +38,8 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const [mode, setMode] = useState<Rule["mode"]>(DEFAULT_RULE.mode);
   const [dropOn, setDropOn] = useState(true), [drop, setDrop] = useState(show(DEFAULT_RULE.maxDropPct!));
   const [marginOn, setMarginOn] = useState(true), [margin, setMargin] = useState(show(DEFAULT_RULE.minMarginPct!));
-  const [skipPromo, setSkipPromo] = useState(DEFAULT_RULE.skipPromo), [raiseCheaper, setRaiseCheaper] = useState(DEFAULT_RULE.raiseCheaper);
+  const [raiseCheaper, setRaiseCheaper] = useState(DEFAULT_RULE.raiseCheaper);
+  const [riseOn, setRiseOn] = useState(true), [rise, setRise] = useState(show(DEFAULT_RULE.maxRisePct!));
   const [rows, setRows] = useState(initialRows);
   const [off, setOff] = useState<Set<string>>(new Set());
   const [batches, setBatches] = useState(initialBatches);
@@ -46,10 +49,10 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const [busy, startWrite] = useTransition();
 
   const rule = useMemo((): Rule | null => {
-    const a = parse(amount), d = parse(drop), m = parse(margin);
-    if (!(a >= 0) || (mode === "pct" && a > 50) || (dropOn && !(d >= 0 && d <= 90)) || (marginOn && !(m >= 0 && m <= 500))) return null;
-    return { mode, amount: a, maxDropPct: dropOn ? d : null, minMarginPct: marginOn ? m : null, skipPromo, maxAgeH: DEFAULT_RULE.maxAgeH, raiseCheaper };
-  }, [amount, mode, drop, dropOn, margin, marginOn, skipPromo, raiseCheaper]);
+    const a = parse(amount), d = parse(drop), m = parse(margin), u = parse(rise);
+    if (!(a >= 0) || (mode === "pct" && a > 50) || (dropOn && !(d >= 0 && d <= 90)) || (marginOn && !(m >= 0 && m <= 500)) || (riseOn && !(u >= 0 && u <= 100))) return null;
+    return { mode, amount: a, maxDropPct: dropOn ? d : null, minMarginPct: marginOn ? m : null, maxAgeH: DEFAULT_RULE.maxAgeH, raiseCheaper, maxRisePct: riseOn ? u : null };
+  }, [amount, mode, drop, dropOn, margin, marginOn, raiseCheaper, rise, riseOn]);
 
   // ξαναϋπολογισμός σε κάθε αλλαγή (με μικρή αναμονή όσο γράφει)· όχι στην πρώτη φόρτωση
   const first = useRef(true);
@@ -76,27 +79,48 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const allOn = picked.length === changing.length && changing.length > 0;
   const toggleAll = () => setOff(allOn ? new Set(changing.map((r) => r.productId)) : new Set());
 
+  const running = batches.some((b) => b.phase !== "idle");
+  // όσο τρέχει μια εφαρμογή/αναίρεση: πρόοδος κάθε 2″· όταν τελειώσει, μήνυμα και νέα προεπισκόπηση
+  const watch = useRef<{ id: string; kind: "apply" | "undo" } | null>(null);
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(async () => {
+      const next = await batchesAction().catch(() => null);
+      if (!next) return;
+      setBatches(next);
+      const w = watch.current, b = w && next.find((x) => x.id === w.id);
+      if (!w || !b || b.phase !== "idle") return;
+      watch.current = null;
+      setDone(w.kind === "apply"
+        ? { tone: b.failed ? "warn" : "ok", text: `Άλλαξαν ${b.ok}${b.failed ? `, δεν άλλαξαν ${b.failed} (δες γιατί στο ιστορικό)` : ""}. Το eshop παίρνει τη νέα τιμή αμέσως· αν ο συγχρονισμός του είδους αποτύχει, στον επόμενο (έως 30′).` }
+        : { tone: b.undoFailed ? "warn" : "ok", text: `Αναιρέθηκαν ${b.undone} από ${b.ok}${b.undoFailed ? ` — ${b.undoFailed} έμειναν (άλλαξαν από άλλον ή απέτυχαν· «Ξαναδοκίμασε αναίρεση»)` : ""}.` });
+      if (rule) { const p = await previewAction(filter, rule); if (p.ok) setRows(p.rows); }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [running, filter, rule]);
+
   function apply() {
-    if (why || !rule) return;
+    if (why || !rule || running) return;
     if (!window.confirm(`Να γραφτούν ${picked.length} νέες τιμές web στο SoftOne; Συνολική αλλαγή ${signedEur(total)}. Αναιρούνται από το ιστορικό.`)) return;
     startWrite(async () => {
       const r = await applyAction(picked.map((p) => p.productId), rule);
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
+      watch.current = { id: r.batchId, kind: "apply" };
       setBatches(r.batches);
-      setDone({ tone: r.failed ? "warn" : "ok", text: `Άλλαξαν ${r.changed}${r.failed ? `, δεν άλλαξαν ${r.failed} (δες το ιστορικό)` : ""}. Θα φανεί στο eshop στον επόμενο συγχρονισμό (έως 30′).` });
-      const p = await previewAction(filter, rule);
-      if (p.ok) setRows(p.rows);
+      setDone(null);
     });
   }
-  function undo(id: string) {
-    if (!window.confirm("Να γυρίσουν οι τιμές αυτής της παρτίδας στις προηγούμενες; Όσες άλλαξε στο μεταξύ κάποιος άλλος μένουν όπως είναι.")) return;
+  function undo(id: string, retry: boolean) {
+    if (!window.confirm(retry ? "Να ξαναδοκιμαστεί η αναίρεση όσων δεν γύρισαν; Όσα άλλαξε στο μεταξύ κάποιος άλλος μένουν όπως είναι." : "Να γυρίσουν οι τιμές αυτής της παρτίδας στις προηγούμενες; Όσες άλλαξε στο μεταξύ κάποιος άλλος μένουν όπως είναι.")) return;
     startWrite(async () => {
       const r = await undoAction(id);
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
+      watch.current = { id, kind: "undo" };
       setBatches(r.batches);
-      setDone({ tone: r.failed ? "warn" : "ok", text: `Αναιρέθηκαν ${r.undone}${r.failed ? `, έμειναν ${r.failed} (άλλαξαν από άλλον ή απέτυχαν)` : ""}. Θα φανεί στο eshop στον επόμενο συγχρονισμό (έως 30′).` });
+      setDone(null);
     });
   }
+  const live = batches.find((b) => b.phase !== "idle");
 
   const note = (r: PreviewRow) => "skip" in r.plan
     ? <span className="inline-flex items-center gap-1.5 rounded-full bg-eu-amber/10 px-2.5 py-1 font-bold text-eu-ink text-[length:var(--fs-12)]"><AlertTriangle className="size-3.5 shrink-0 text-eu-amber" aria-hidden />{SKIP[r.plan.skip].label}</span>
@@ -145,7 +169,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
             </select>
           </div>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Η τιμή προσφοράς του Κωτσόβολου, αν έχει. Στρογγυλοποίηση στο λεπτό. Γράφεται ως τιμή web στο SoftOne.</p>
-          {!rule && <p role="alert" className="m-0 flex items-center gap-2 font-bold text-eu-red text-[length:var(--fs-13)]"><AlertTriangle className="size-4" aria-hidden />Έλεγξε τα ποσά: αριθμοί από 0 και πάνω (ποσοστό έως 50%, μείωση έως 90%).</p>}
+          {!rule && <p role="alert" className="m-0 flex items-center gap-2 font-bold text-eu-red text-[length:var(--fs-13)]"><AlertTriangle className="size-4" aria-hidden />Έλεγξε τα ποσά: αριθμοί από 0 και πάνω (ποσοστό έως 50%, μείωση έως 90%, αύξηση έως 100%).</p>}
         </section>
 
         {/* Δικλείδες */}
@@ -162,8 +186,15 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
             <input className={`${num} w-20`} inputMode="decimal" value={margin} onChange={(e) => setMargin(e.target.value)} disabled={!marginOn} aria-label="Ελάχιστο περιθώριο πάνω από το κόστος %" />%
           </div>
           <p className="m-0 pl-7.5 text-eu-muted text-[length:var(--fs-12)]">Κόστος αγοράς από τον νυχτερινό έλεγχο (τελ. τιμή προμηθευτή ή τελ. τιμή αγοράς είδους), με ΦΠΑ. Χωρίς κόστος 36 ωρών, το προϊόν δεν αλλάζει.</p>
-          <label className={chk}><input type="checkbox" className={box} checked={skipPromo} onChange={(e) => setSkipPromo(e.target.checked)} />Παράλειψε όσα έχουν ενεργή προσφορά</label>
+          <p className="m-0 flex min-h-11 items-center gap-2.5 text-eu-ink text-[length:var(--fs-14)]"><Lock className="size-4 shrink-0 text-eu-ink-3" aria-hidden />Όσα έχουν ενεργή προσφορά δεν αλλάζουν ποτέ από εδώ — άλλαξέ τα από τις προσφορές</p>
           <label className={chk}><input type="checkbox" className={box} checked={raiseCheaper} onChange={(e) => setRaiseCheaper(e.target.checked)} />Ανέβασε και όσα είμαστε φθηνότεροι</label>
+          {raiseCheaper && (
+            <div className={`${chk} pl-7.5`}>
+              <input id="g-rise" type="checkbox" className={box} checked={riseOn} onChange={(e) => setRiseOn(e.target.checked)} />
+              <label htmlFor="g-rise">Όχι αύξηση πάνω από</label>
+              <input className={`${num} w-20`} inputMode="decimal" value={rise} onChange={(e) => setRise(e.target.value)} disabled={!riseOn} aria-label="Μέγιστη αύξηση %" />%
+            </div>
+          )}
           <p className="m-0 pl-7.5 text-eu-muted text-[length:var(--fs-12)]">Τιμή Κωτσόβολου παλαιότερη από 36 ώρες δεν χρησιμοποιείται.</p>
         </section>
       </div>
@@ -219,12 +250,18 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
         )}
 
         <div className="grid gap-2 justify-items-start sm:justify-items-end">
-          <button type="button" onClick={apply} disabled={!!why || busy || loading} className={`${btn} bg-eu-yellow text-eu-navy`}>
+          <button type="button" onClick={apply} disabled={!!why || busy || loading || running} className={`${btn} bg-eu-yellow text-eu-navy`}>
             {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : blockedReason ? <Lock className="size-4" aria-hidden /> : <TrendingDown className="size-4" aria-hidden />}
             Εφάρμοσε σε {picked.length} {picked.length === 1 ? "προϊόν" : "προϊόντα"}
           </button>
           {why && <span className="flex items-start gap-1.5 text-eu-on-dark text-[length:var(--fs-13)]"><Info className="mt-0.5 size-4 shrink-0" aria-hidden />{why}</span>}
         </div>
+        {live && (
+          <div role="status" className="grid gap-1.5 rounded-lg bg-white px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
+            <span className="flex items-center gap-2 font-bold"><Loader2 className="size-4 shrink-0 animate-spin text-eu-navy" aria-hidden />{live.phase === "applying" ? "Γράφτηκαν" : "Αναιρέθηκαν"} {live.done} από {live.total} — μπορείς να μείνεις ή να φύγεις από τη σελίδα</span>
+            <span className="h-1.5 rounded-full bg-eu-line"><span className="block h-full rounded-full bg-eu-navy" style={{ width: `${live.total ? Math.round((live.done / live.total) * 100) : 0}%` }} /></span>
+          </div>
+        )}
         {done && (
           <p role="status" className="m-0 flex items-start gap-2 rounded-lg bg-white px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">
             {done.tone === "ok" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-eu-green" aria-hidden /> : <AlertTriangle className="mt-0.5 size-4 shrink-0 text-eu-amber" aria-hidden />}{done.text}
@@ -254,7 +291,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                   const can = "newPrice" in r.plan;
                   return (
                     <tr key={r.productId} className="border-t border-eu-line align-middle">
-                      <td className="px-3 py-2">{can && <input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} />}</td>
+                      <td className="px-1 py-0.5">{can && <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label>}</td>
                       <td className="px-3 py-2 font-bold text-eu-ink">{r.title}</td>
                       <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{eur(r.now)}</td>
                       <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{eur(r.theirs)}</td>
@@ -271,16 +308,16 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                 const can = "newPrice" in r.plan;
                 return (
                   <li key={r.productId} className="grid gap-2 border-t border-eu-line px-4 py-3 first:border-t-0">
-                    <div className="flex items-start gap-3">
-                      {can ? <input type="checkbox" className={`${box} mt-0.5`} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /> : <span className="size-5 shrink-0" aria-hidden />}
+                    <div className="-ml-3 flex items-center gap-1">
+                      {can ? <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label> : <span className="size-11 shrink-0" aria-hidden />}
                       <span className="min-w-0 break-words font-bold text-eu-ink text-[length:var(--fs-14)]">{r.title}</span>
                     </div>
-                    <dl className="m-0 grid grid-cols-3 gap-2 pl-8 text-[length:var(--fs-13)]">
+                    <dl className="m-0 grid grid-cols-3 gap-2 pl-9 text-[length:var(--fs-13)]">
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Τώρα</dt><dd className="m-0 tabular-nums">{eur(r.now)}</dd></div>
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Κωτσόβολος</dt><dd className="m-0 tabular-nums">{eur(r.theirs)}</dd></div>
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Νέα</dt><dd className={`m-0 tabular-nums ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</dd></div>
                     </dl>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-8">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-9">
                       <span className={`tabular-nums text-[length:var(--fs-13)] ${changeTone(r)}`}>{change(r)}</span>{note(r)}
                     </div>
                   </li>
@@ -306,13 +343,15 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                     <span className="font-bold text-eu-green">Άλλαξαν {b.ok}</span>
                     {b.failed > 0 && <span className="font-bold text-eu-amber"> · δεν άλλαξαν {b.failed}</span>}
                     {` · ${signedEur(b.totalEur)}`}
-                    {b.undoneAt && ` · αναιρέθηκε ${when(b.undoneAt)}${b.undoFailed ? ` (${b.undoFailed} έμειναν: άλλαξαν από άλλον ή απέτυχαν)` : ""}`}
+                    {b.phase === "idle" && b.undone > 0 && ` · αναιρέθηκαν ${b.undone}${b.undoneAt ? ` (${when(b.undoneAt)})` : ""}`}
+                    {b.phase === "idle" && b.undoFailed > 0 && <span className="font-bold text-eu-amber"> · {b.undoFailed} δεν γύρισαν (άλλαξαν από άλλον ή απέτυχαν)</span>}
                   </span>
+                  {b.phase !== "idle" && <span className="inline-flex items-center gap-1.5 font-bold text-eu-navy text-[length:var(--fs-13)]"><Loader2 className="size-3.5 animate-spin" aria-hidden />{b.phase === "applying" ? "Γράφτηκαν" : "Αναιρέθηκαν"} {b.done} από {b.total}</span>}
                   {b.errors.length > 0 && <details className="text-eu-ink-3 text-[length:var(--fs-12)]"><summary className="cursor-pointer py-1">Γιατί δεν άλλαξαν κάποια</summary><ul className="m-0 grid gap-0.5 pl-4">{b.errors.map((e, i) => <li key={i} className="break-words">{e}</li>)}</ul></details>}
                 </div>
-                {canRun && !b.undoneAt && b.ok > 0 && (
-                  <button type="button" onClick={() => undo(b.id)} disabled={busy || !!blockedReason} title={blockedReason ?? undefined} className={`${btn} border border-eu-line-2 bg-white text-eu-navy`}>
-                    <RotateCcw className="size-4" aria-hidden />Αναίρεση
+                {canRun && b.undoable > 0 && (
+                  <button type="button" onClick={() => undo(b.id, b.undoFailed > 0)} disabled={busy || running || !!blockedReason} title={blockedReason ?? undefined} className={`${btn} border border-eu-line-2 bg-white text-eu-navy`}>
+                    <RotateCcw className="size-4" aria-hidden />{b.undoFailed > 0 ? `Ξαναδοκίμασε αναίρεση (${b.undoable})` : "Αναίρεση"}
                   </button>
                 )}
               </li>
@@ -321,7 +360,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
         )}
         <p className="m-0 flex items-start gap-2 rounded-lg border border-eu-amber/40 bg-eu-amber/10 px-3 py-2 text-eu-ink text-[length:var(--fs-13)]">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-eu-amber" aria-hidden />
-          Η νέα τιμή γράφεται στο SoftOne ως τιμή web και φτάνει στο eshop με τον επόμενο συγχρονισμό (έως 30′). Η αναίρεση γυρίζει μόνο όσες τιμές δεν άλλαξε στο μεταξύ κάποιος άλλος.
+          Η νέα τιμή γράφεται στο SoftOne ως τιμή web και το είδος συγχρονίζεται αμέσως με το eshop· αν ο συγχρονισμός αποτύχει, η τιμή φτάνει με τον επόμενο (έως 30′). Η αναίρεση γυρίζει μόνο όσες τιμές δεν άλλαξε στο μεταξύ κάποιος άλλος.
         </p>
       </section>
     </div>

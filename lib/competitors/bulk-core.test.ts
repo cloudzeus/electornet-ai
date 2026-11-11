@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanRule, DEFAULT_RULE, planRow, type Row, type Rule } from "./bulk-core";
+import { batchProgress, cleanRule, DEFAULT_RULE, planRow, type Row, type Rule } from "./bulk-core";
 
 const at = new Date("2026-11-11T10:00:00Z");
 const ago = (h: number) => new Date(at.getTime() - h * 3600_000);
@@ -35,13 +35,17 @@ test("planRow: κόστος + περιθώριο", () => {
 test("planRow: παλιά τιμή, δεν διατίθεται, προσφορά", () => {
   assert.deepEqual(planRow(row({ checkedAt: ago(37) }), rule(), at), { skip: "stale" });
   assert.deepEqual(planRow(row({ available: false }), rule(), at), { skip: "gone" });
+  // ενεργή προσφορά: πάντα έξω, ακόμη και όταν ανεβάζουμε φθηνότερα
   assert.deepEqual(planRow(row({ promo: true }), rule(), at), { skip: "promo" });
-  assert.equal("newPrice" in planRow(row({ promo: true }), rule({ skipPromo: false }), at), true);
+  assert.deepEqual(planRow(row({ promo: true, now: 3000 }), rule({ raiseCheaper: true }), at), { skip: "promo" });
 });
 
 test("planRow: φθηνότεροι και ίδια τιμή", () => {
   assert.deepEqual(planRow(row({ now: 3000 }), rule(), at), { skip: "cheaper" });
   assert.deepEqual(planRow(row({ now: 3000 }), rule({ raiseCheaper: true }), at), { newPrice: 3299.89, changeEur: 299.89, changePct: 10 });
+  // όριο αύξησης 15%: +20% μένει έξω, χωρίς όριο περνά
+  assert.deepEqual(planRow(row({ now: 2750 }), rule({ raiseCheaper: true, maxRisePct: 15 }), at), { skip: "max-rise" });
+  assert.equal("newPrice" in planRow(row({ now: 2750 }), rule({ raiseCheaper: true, maxRisePct: null }), at), true);
   assert.deepEqual(planRow(row({ now: 3299.89 }), rule(), at), { skip: "same" });
 });
 
@@ -58,4 +62,22 @@ test("cleanRule: δέχεται τον προεπιλεγμένο, απορρί�
   assert.equal(cleanRule({ ...DEFAULT_RULE, mode: "pct", amount: 80 }), null);
   assert.equal(cleanRule({ ...DEFAULT_RULE, maxDropPct: "15" }), null);
   assert.deepEqual(cleanRule({ ...DEFAULT_RULE, minMarginPct: null }), { ...DEFAULT_RULE, minMarginPct: null });
+  // παλαιότερη από 36 ώρες τιμή Κωτσόβολου δεν επιτρέπεται· ένα παλιό «skipPromo:false» αγνοείται
+  assert.equal(cleanRule({ ...DEFAULT_RULE, maxAgeH: 48 }), null);
+  assert.deepEqual(cleanRule({ ...DEFAULT_RULE, skipPromo: false }), DEFAULT_RULE);
+});
+
+test("batchProgress: εφαρμογή, αναίρεση, ξαναδοκιμή", () => {
+  const L = (ok: boolean, error: string | null, undoOk: boolean | null = null) => ({ ok, error, undoOk });
+  const lock = new Date(at.getTime() + 60_000);
+  // τρέχει η εφαρμογή: 2 γραμμένες από 3
+  assert.deepEqual(batchProgress([L(true, null), L(false, "x"), L(false, null)], lock, at), { phase: "applying", total: 3, done: 2, ok: 1, failed: 1, undone: 0, undoFailed: 0, undoable: 0 });
+  // τελείωσε: 2 αναιρέσιμες
+  assert.equal(batchProgress([L(true, null), L(true, null), L(false, "x")], null, at).undoable, 2);
+  // τρέχει η αναίρεση: 1 από 2
+  assert.deepEqual(batchProgress([L(true, null, true), L(true, null), L(false, "x")], lock, at).phase, "undoing");
+  assert.equal(batchProgress([L(true, null, true), L(true, null), L(false, "x")], lock, at).done, 1);
+  // μία απέτυχε (άλλαξε από άλλον) → μένει 1 για ξαναδοκιμή· το ληγμένο κλείδωμα δεν μετρά
+  const p = batchProgress([L(true, null, true), L(true, "άλλαξε από άλλον", false)], new Date(at.getTime() - 1), at);
+  assert.equal(p.phase, "idle"); assert.equal(p.undoable, 1); assert.equal(p.undoFailed, 1);
 });

@@ -1,6 +1,6 @@
 // Καρτέλα προϊόντος (διαχείριση): σύγκριση με τον Κωτσόβολο — badge, γράφημα 30 ημερών, το ζευγάρι και η αλλαγή του.
 import Link from "next/link";
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { db } from "@/lib/db";
 import { ourPrice } from "@/lib/competitors/run-core";
 import { eur, gapText, kotView, theirPrice, wasPrice } from "@/lib/competitors/badge";
@@ -91,7 +91,7 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
               <dd className={`m-0 font-bold ${v.available ? "text-eu-green" : "text-eu-ink-3"}`}>{v.available ? "Ναι" : "Όχι — δεν μετρά στη μαζική αλλαγή"}</dd>
             </dl>
           )}
-          {firm && v.available && their != null && their > 0.1 && (
+          {firm && v.available && their != null && their > 0.1 && (ours != null && ours > Math.round((their - 0.1) * 100) / 100 + 0.005 ? (
             <div className="grid gap-1">
               <Link href={`/admin/catalog/competitors/prices?product=${encodeURIComponent(productId)}`}
                 className="inline-flex min-h-11 items-center justify-center rounded-lg border border-eu-navy bg-eu-navy px-4 font-bold text-white text-[length:var(--fs-14)] tabular-nums hover:bg-eu-navy-2">
@@ -99,7 +99,9 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
               </Link>
               <span className="text-center text-eu-muted text-[length:var(--fs-12)]">ανοίγει τη μαζική αλλαγή με προεπισκόπηση και δικλείδες</span>
             </div>
-          )}
+          ) : (
+            <p className="m-0 flex items-center gap-2 text-eu-green font-bold text-[length:var(--fs-14)]"><CheckCircle2 className="size-4 shrink-0" aria-hidden />Είμαστε ήδη στην τιμή τους − 0,10 € ή φθηνότεροι</p>
+          ))}
           <PairPicker productId={productId} view={v} canWrite={canWrite} />
         </div>
       </div>
