@@ -13,8 +13,8 @@ const COMP = "kotsovolos";
 const SECTION = "competitors.kotsovolos"; // { paused, brakedNights } — γράφεται απευθείας, όπως οι άλλες ενότητες εκτός φόρμας
 const FRESH_MS = 20 * 3600_000;
 
-const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number };
-async function writeState(patch: { paused?: boolean; brakedNights: number }) {
+export const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number };
+export async function writeState(patch: { paused?: boolean; brakedNights: number }) {
   const data = { ...(await readState()), ...patch };
   await db.setting.upsert({ where: { section: SECTION }, update: { data }, create: { section: SECTION, data } });
   resetSettingsCache();

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T10:56:03.960Z",
+ "generatedAt": "2026-11-11T14:54:12.750Z",
  "routes": [
   {
    "route": "/admin",
@@ -659,6 +659,11 @@
    ],
    "changes": [
     {
+     "hash": "fcb9c98",
+     "date": "2026-11-11T12:57:14+02:00",
+     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
+    },
+    {
      "hash": "3e278a0",
      "date": "2026-11-11T09:58:20+02:00",
      "text": "Νέα είδη SoftOne: μονάδα μέτρησης, προμηθευτής, business unit, λογιστική κατηγορία και φόρος ανακύκλωσης"
@@ -702,14 +707,9 @@
      "hash": "ecc5593",
      "date": "2026-10-31T09:38:22+02:00",
      "text": "Στοιχεία από το internet: Channel3 ως πηγή, με μηνιαίο όριο και λογότυπο"
-    },
-    {
-     "hash": "0be6e31",
-     "date": "2026-10-31T09:12:08+02:00",
-     "text": "Κατάλογος: στοιχεία από το internet (Icecat → κατασκευαστής → καταστήματα) με έγκριση και εισαγωγή στο SoftOne"
     }
    ],
-   "updatedAt": "2026-11-11T09:58:20+02:00",
+   "updatedAt": "2026-11-11T12:57:14+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -929,6 +929,11 @@
    ],
    "changes": [
     {
+     "hash": "fcb9c98",
+     "date": "2026-11-11T12:57:14+02:00",
+     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
+    },
+    {
      "hash": "d589f07",
      "date": "2026-11-11T05:01:06+02:00",
      "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
@@ -939,11 +944,51 @@
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-11T05:01:06+02:00",
+   "updatedAt": "2026-11-11T12:57:14+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.categories-d.jpg",
     "mobile": "/api/help-shot/catalog.categories-m.jpg"
    }
+  },
+  {
+   "route": "/admin/catalog/competitors",
+   "slug": "catalog.competitors",
+   "file": "app/admin/(shell)/catalog/competitors/page.tsx",
+   "title": "Σύγκριση τιμών",
+   "doc": "Οθόνη αντιστοίχισης με τον Κωτσόβολο: κατηγορίες, μάρκες και κατάσταση της νυχτερινής εργασίας.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Σύγκριση τιμών"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "competitors-status",
+    "competitors-tabs",
+    "competitors-categories",
+    "competitors-add",
+    "competitors-suggest-all",
+    "competitors-brands"
+   ],
+   "changes": [
+    {
+     "hash": "be5fe7b",
+     "date": "2026-11-11T16:35:32+02:00",
+     "text": "Κωτσόβολος εργασία: ώρα Αθήνας στο παράθυρο, manual με άλλο EAN ενημερώνει τιμές, available από buyable, σωστά πλήθη και κόστος, μετρητής Ruling 9, merge στο setting"
+    },
+    {
+     "hash": "c3f34a7",
+     "date": "2026-11-11T16:30:58+02:00",
+     "text": "Σύγκριση τιμών: νυχτερινή εργασία Κωτσόβολου (ταίριασμα, τιμές, ιστορικό, κόστος, φρένο) και δρομολόγηση 01:00"
+    },
+    {
+     "hash": "b895199",
+     "date": "2026-11-11T16:21:16+02:00",
+     "text": "Κωτσόβολος: HTTP client και pacer (παύσεις, διαλείμματα, όριο, παράθυρο, φρένο) με tests"
+    }
+   ],
+   "updatedAt": "2026-11-11T16:35:32+02:00",
+   "shots": {}
   },
   {
    "route": "/admin/catalog/completeness",
@@ -4494,6 +4539,11 @@
    ],
    "changes": [
     {
+     "hash": "c3f34a7",
+     "date": "2026-11-11T16:30:58+02:00",
+     "text": "Σύγκριση τιμών: νυχτερινή εργασία Κωτσόβολου (ταίριασμα, τιμές, ιστορικό, κόστος, φρένο) και δρομολόγηση 01:00"
+    },
+    {
      "hash": "7df8653",
      "date": "2026-11-06T15:59:55+02:00",
      "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
@@ -4524,7 +4574,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-11-06T15:59:55+02:00",
+   "updatedAt": "2026-11-11T16:30:58+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -4914,20 +4964,6 @@
    "shots": {}
   },
   {
-   "route": "/admin/tmp-chain",
-   "slug": "tmp-chain",
-   "file": "app/admin/(shell)/tmp-chain/page.tsx",
-   "title": "tmp-chain",
-   "doc": "",
-   "perm": "orders.read",
-   "nav": null,
-   "dynamic": false,
-   "helpKeys": [],
-   "changes": [],
-   "updatedAt": null,
-   "shots": {}
-  },
-  {
    "route": "/admin/ypiresies",
    "slug": "ypiresies",
    "file": "app/admin/(shell)/ypiresies/page.tsx",
@@ -4955,6 +4991,111 @@
   }
  ],
  "recent": [
+  {
+   "hash": "be5fe7b",
+   "date": "2026-11-11T16:35:32+02:00",
+   "text": "Κωτσόβολος εργασία: ώρα Αθήνας στο παράθυρο, manual με άλλο EAN ενημερώνει τιμές, available από buyable, σωστά πλήθη και κόστος, μετρητής Ruling 9, merge στο setting",
+   "routes": []
+  },
+  {
+   "hash": "c3f34a7",
+   "date": "2026-11-11T16:30:58+02:00",
+   "text": "Σύγκριση τιμών: νυχτερινή εργασία Κωτσόβολου (ταίριασμα, τιμές, ιστορικό, κόστος, φρένο) και δρομολόγηση 01:00",
+   "routes": []
+  },
+  {
+   "hash": "a0f0431",
+   "date": "2026-11-11T16:24:24+02:00",
+   "text": "Σύγκριση τιμών: διαφορετικό EAN δίνει πρόταση προς έλεγχο, όχι απόρριψη",
+   "routes": []
+  },
+  {
+   "hash": "b895199",
+   "date": "2026-11-11T16:21:16+02:00",
+   "text": "Κωτσόβολος: HTTP client και pacer (παύσεις, διαλείμματα, όριο, παράθυρο, φρένο) με tests",
+   "routes": []
+  },
+  {
+   "hash": "b230142",
+   "date": "2026-11-11T16:19:24+02:00",
+   "text": "Κωτσόβολος: EAN από το BarCode στο parseProduct και σύγκριση sameEan",
+   "routes": []
+  },
+  {
+   "hash": "754f2be",
+   "date": "2026-11-11T16:19:21+02:00",
+   "text": "Σύγκριση τιμών: έλεγχος EAN από το API του Κωτσόβολου και κανόνας matched/suggested στη νυχτερινή εργασία",
+   "routes": []
+  },
+  {
+   "hash": "6b279ff",
+   "date": "2026-11-11T16:16:07+02:00",
+   "text": "Κωτσόβολος ταίριασμα: μάρκα ως ολόκληρο κομμάτι, ελληνικό όριο λέξης στο δώρο, matched/suggested ανά κατάληξη, αξεσουάρ και σειρές 16e/s25+",
+   "routes": []
+  },
+  {
+   "hash": "a563ccf",
+   "date": "2026-11-11T16:12:40+02:00",
+   "text": "Κωτσόβολος: πυρήνας ταιριάσματος (sitemap, μοντέλο, κινητά, απάντηση API, badge) με tests",
+   "routes": []
+  },
+  {
+   "hash": "1735084",
+   "date": "2026-11-11T16:07:50+02:00",
+   "text": "Σχήμα: αφαίρεση αλλαγών στοίχισης από το prisma format, μένουν μόνο οι νέες σχέσεις και τα νέα models",
+   "routes": []
+  },
+  {
+   "hash": "5941a3b",
+   "date": "2026-11-11T16:06:23+02:00",
+   "text": "Σύγκριση τιμών: πίνακες αντιστοιχίσεων, τιμών ανταγωνιστή, ιστορικού και παρτίδων αλλαγής τιμής (Prisma + idempotent SQL)",
+   "routes": []
+  },
+  {
+   "hash": "a57873d",
+   "date": "2026-11-11T16:05:14+02:00",
+   "text": "Σύγκριση τιμών: κοινά προϊόντα πρώτα, ζευγάρι δεν ξαναψάχνεται, κόστος αγοράς αποθηκεύεται στο CompetitorPrice",
+   "routes": []
+  },
+  {
+   "hash": "13ff661",
+   "date": "2026-11-11T16:03:22+02:00",
+   "text": "Κόστος αγοράς: τελευταία τιμή προμηθευτή μόνο όταν επαληθεύεται από το PURLPRICE",
+   "routes": []
+  },
+  {
+   "hash": "bcce752",
+   "date": "2026-11-11T15:59:10+02:00",
+   "text": "Κόστος αγοράς από το SoftOne (MTRCPRICES.PURLPRICE): readCosts μόνο ανάγνωση και εύρημα στο spec",
+   "routes": []
+  },
+  {
+   "hash": "6b01fec",
+   "date": "2026-11-11T15:56:00+02:00",
+   "text": "Σύγκριση τιμών Κωτσόβολου: σχέδιο και πλάνο υλοποίησης",
+   "routes": []
+  },
+  {
+   "hash": "4296d34",
+   "date": "2026-11-11T15:23:43+02:00",
+   "text": "Ασφάλεια: τα δικά μας κρυπτογραφημένα backups στο _backups/ δεν είναι εύρημα του Bunny",
+   "routes": []
+  },
+  {
+   "hash": "3f5edef",
+   "date": "2026-11-11T13:25:01+02:00",
+   "text": "Παραλαβή από κατάστημα: πρόταση κοντινότερου καταστήματος με τη θέση του επισκέπτη, η επιλογή περνά στο ταμείο, πραγματικό απόθεμα ανά κατάστημα αντί για ψεύτικο",
+   "routes": []
+  },
+  {
+   "hash": "fcb9c98",
+   "date": "2026-11-11T12:57:14+02:00",
+   "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite",
+   "routes": [
+    "/admin",
+    "/admin/catalog"
+   ]
+  },
   {
    "hash": "da36b32",
    "date": "2026-11-11T11:39:02+02:00",
@@ -5165,120 +5306,6 @@
    "date": "2026-11-06T11:16:52+02:00",
    "text": "Σκετς Ερμή: το μικρόφωνο της σκηνής προτιμά το headset αντί της κάμερας (?mic= για συγκεκριμένο)",
    "routes": []
-  },
-  {
-   "hash": "f56c727",
-   "date": "2026-11-06T11:12:42+02:00",
-   "text": "Πελάτης → Αγορές: «Πορεία στο SoftOne» και στις παλιές αγορές του eshop (ίδιο διάγραμμα με την παραγγελία, FINDOC από τη βάση, μόνο ανάγνωση)",
-   "routes": [
-    "/admin",
-    "/admin/customers"
-   ]
-  },
-  {
-   "hash": "0e3c3a3",
-   "date": "2026-11-06T11:10:03+02:00",
-   "text": "Ασφάλεια: Next.js 16.3.8 → 16.4.3 (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr, GHSA-p3m5-59mp-jv5r)",
-   "routes": []
-  },
-  {
-   "hash": "221bd8c",
-   "date": "2026-11-06T10:45:26+02:00",
-   "text": "Σκετς Ερμή: χωρίς αυτόματη ένταση μικροφώνου (με το Teams ανέβαζαν μαζί την είσοδο στο τέρμα → παραμόρφωση μετά την πρώτη πρόβα)",
-   "routes": []
-  },
-  {
-   "hash": "e3354fd",
-   "date": "2026-11-06T10:37:53+02:00",
-   "text": "Σκετς Ερμή: ανίχνευση παραμόρφωσης μικροφώνου",
-   "routes": []
-  },
-  {
-   "hash": "aa4015a",
-   "date": "2026-11-06T10:33:12+02:00",
-   "text": "Πορεία στο SoftOne: μακριές αλυσίδες χωράνε ολόκληρες στην αρχική προβολή",
-   "routes": []
-  },
-  {
-   "hash": "c32addb",
-   "date": "2026-11-06T10:29:29+02:00",
-   "text": "Βοήθεια: screenshots SoftOne",
-   "routes": []
-  },
-  {
-   "hash": "7cf667a",
-   "date": "2026-11-06T10:22:37+02:00",
-   "text": "Σκετς Ερμή: ήχος χωρίς λέξεις (≥1,5 s) → «δεν σας άκουσα καλά» μία φορά ανά βήμα αντί για σιωπή",
-   "routes": []
-  },
-  {
-   "hash": "9fcea86",
-   "date": "2026-11-06T10:21:17+02:00",
-   "text": "Πορεία στο SoftOne: μόνο οι γραμμές της παραγγελίας",
-   "routes": []
-  },
-  {
-   "hash": "59b755b",
-   "date": "2026-11-06T10:12:55+02:00",
-   "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης",
-   "routes": [
-    "/admin",
-    "/admin/orders",
-    "/admin/orders/[number]",
-    "/admin/softone",
-    "/admin/softone/[kind]"
-   ]
-  },
-  {
-   "hash": "6f5227c",
-   "date": "2026-11-06T09:52:22+02:00",
-   "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή",
-   "routes": [
-    "/admin",
-    "/admin/apostoles"
-   ]
-  },
-  {
-   "hash": "e3d7eb7",
-   "date": "2026-11-06T09:52:05+02:00",
-   "text": "Σκετς Ερμή: τεχνικά χαρακτηριστικά από τη βάση στα προϊόντα του snapshot και στο μοντέλο (νερό, ρεύμα, θόρυβος, διαστάσεις, Hz), 16 έτοιμες απαντήσεις «δεν έχω στοιχεία» ξαναγραμμένες με πραγματικά νούμερα, αυστηρότερ…",
-   "routes": []
-  },
-  {
-   "hash": "2a44c1a",
-   "date": "2026-11-06T09:32:10+02:00",
-   "text": "SoftOne: αλυσίδα μετασχηματισμών παραστατικού (docChain)",
-   "routes": []
-  },
-  {
-   "hash": "cc5a53c",
-   "date": "2026-11-06T09:20:03+02:00",
-   "text": "Σκετς Ερμή: σελίδα εκπαίδευσης /ermis-live/train",
-   "routes": []
-  },
-  {
-   "hash": "6fe5407",
-   "date": "2026-11-06T08:56:07+02:00",
-   "text": "Σκετς Ερμή: πίσω από το «Σας περιμένουν σήμερα» ο χάρτης σταματά (δακτύλιοι, διαδρομές)",
-   "routes": []
-  },
-  {
-   "hash": "a52c756",
-   "date": "2026-11-06T08:54:58+02:00",
-   "text": "Σκετς Ερμή, κλήση: χωρίς διακοπές από θόρυβο (κόβονταν λέξεις), οι συσκευές λέγονται μόνο αν τις ζητήσει το κατάστημα",
-   "routes": []
-  },
-  {
-   "hash": "4e7fd66",
-   "date": "2026-11-06T08:40:40+02:00",
-   "text": "Σκετς Ερμή: το μοντέλο καταλαβαίνει το νόημα",
-   "routes": []
-  },
-  {
-   "hash": "3d08cfc",
-   "date": "2026-11-06T08:27:36+02:00",
-   "text": "Σκετς Ερμή: άμεση απάντηση δεν χάνεται (VAD), χάρτης χωρίς οδό = πιο κοντινό κατάστημα, «Συγχαρητήρια» μόνο με τα νέα, κλήση: χωρίς δεύτερο χαιρετισμό, σύντομες προτάσεις, turbo φωνή, τέλος κλήσης στο processing",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -5485,6 +5512,9 @@
   ],
   "availability.test": [
    "app/admin/(shell)/catalog/availability/AvailabilityRules.tsx"
+  ],
+  "competitors-status": [
+   "app/admin/(shell)/catalog/competitors/page.tsx"
   ],
   "completeness.enrich": [
    "app/admin/(shell)/catalog/completeness/EnrichButton.tsx"
@@ -6329,6 +6359,21 @@
   ],
   "zones.preview": [
    "components/admin/cms/ZonePageEditor.tsx"
+  ],
+  "competitors-tabs": [
+   "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "competitors-categories": [
+   "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "competitors-add": [
+   "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "competitors-suggest-all": [
+   "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "competitors-brands": [
+   "components/admin/competitors/MappingTabs.tsx"
   ],
   "customers.list": [
    "components/admin/customers/CustomerList.tsx"

@@ -1,5 +1,6 @@
 import { parseSitemap, parseCategories, parseProduct, type KotItem } from "./core";
 import { type Pacer } from "./pacer";
+import { swr } from "@/lib/cache/swr";
 
 const UA = "Mozilla/5.0 (compatible; price-compare/1.0)";
 const SITEMAP = "https://assets.kotsovolos.gr/feeds/productSiteMap.xml";
@@ -30,6 +31,8 @@ async function feed(url: string, pacer?: Pacer) {
 
 export const fetchSitemap = async (pacer?: Pacer): Promise<KotItem[]> => parseSitemap(await feed(SITEMAP, pacer));
 export const fetchCategories = async (pacer?: Pacer) => parseCategories(await feed(CATEGORIES, pacer));
+/** Για την οθόνη αντιστοίχισης: μία κλήση το 24ωρο (και όχι μία ανά άνοιγμα της σελίδας). */
+export const cachedCategories = swr(() => fetchCategories(), 24 * 3600_000);
 
 export async function fetchProduct(art: string, pacer?: Pacer): Promise<ReturnType<typeof parseProduct>> {
   const { status, text } = await get(PRODUCT + encodeURIComponent(art), pacer);
