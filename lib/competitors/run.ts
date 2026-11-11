@@ -10,11 +10,11 @@ import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPric
 
 export { ourPrice };
 const COMP = "kotsovolos";
-const SECTION = "competitors.kotsovolos"; // { paused, brakedNights } — γράφεται απευθείας, όπως οι άλλες ενότητες εκτός φόρμας
+const SECTION = "competitors.kotsovolos"; // { paused, brakedNights, firstScanDone } — γράφεται απευθείας, όπως οι άλλες ενότητες εκτός φόρμας
 const FRESH_MS = 20 * 3600_000;
 
-export const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number };
-export async function writeState(patch: { paused?: boolean; brakedNights: number }) {
+export const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number; firstScanDone?: boolean };
+export async function writeState(patch: { paused?: boolean; brakedNights: number; firstScanDone?: boolean }) {
   const data = { ...(await readState()), ...patch };
   await db.setting.upsert({ where: { section: SECTION }, update: { data }, create: { section: SECTION, data } });
   resetSettingsCache();
@@ -34,7 +34,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   const state = await readState();
   if (state.paused) return { ok: true, idle: true, message: "Σε παύση (ο Κωτσόβολος μάς είχε κόψει)· ενεργοποίησε την ξανά για να τρέξει" };
   const now = new Date();
-  const win = runWindow(trigger, now);
+  const win = runWindow(trigger, now, state.firstScanDone !== true);
   if (win.idle) return { ok: true, idle: true, message: win.idle };
 
   const maps = await db.competitorCategoryMap.findMany({ where: { competitor: COMP, extPath: { not: null }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}) } });
@@ -47,7 +47,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   let sitemap: KotItem[];
   try { sitemap = await fetchSitemap(pacer); }
   catch (e) {
-    if (e instanceof KotStopError) return brake(e, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 });
+    if (e instanceof KotStopError) return brake(e, trigger, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 });
     return { ok: false, message: `Το sitemap του Κωτσόβολου δεν κατεβαίνει (${(e as Error).message}) — οι παλιές τιμές μένουν` };
   }
   const byArt = new Map(sitemap.map((i) => [i.art, i]));
@@ -158,10 +158,10 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
     if (!(e instanceof KotStopError)) throw e;
     c.left = work.length - done;
     await costs(touched);
-    return brake(e, state, c);
+    return brake(e, trigger, state, c);
   }
   await costs(touched);
-  await writeState({ brakedNights: 0 });
+  await writeState({ brakedNights: 0, ...(trigger === "cron" ? { firstScanDone: true } : {}) });
   return { ok: true, message: msg(c) };
 }
 
@@ -176,9 +176,10 @@ async function costs(touched: { productId: string; erp: number }[]) {
   for (const t of touched) { const x = m.get(t.erp); if (x) await db.competitorPrice.update({ where: { productId_competitor: { productId: t.productId, competitor: COMP } }, data: { cost: x.cost, costSource: x.source, costAt: at } }); }
 }
 
-async function brake(e: KotStopError, state: { brakedNights?: number }, c: Counts & { left: number }): Promise<JobResult> {
+async function brake(e: KotStopError, trigger: "cron" | "manual", state: { brakedNights?: number }, c: Counts & { left: number }): Promise<JobResult> {
   if (e.reason === "budget" || e.reason === "window") {
-    await writeState({ brakedNights: 0 });
+    await writeState({ brakedNights: 0, ...(trigger === "cron" ? { firstScanDone: true } : {}) }); // το πρώτο scanning ολοκληρώθηκε όσο επέτρεπε ο προϋπολογισμός· τα υπόλοιπα στο κανονικό παράθυρο
+
     return { ok: true, message: `${msg(c)} · συνεχίζει αύριο: ${c.left} έμειναν` };
   }
   const nights = (state.brakedNights ?? 0) + 1;

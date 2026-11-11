@@ -10,9 +10,11 @@ export function ourPrice(p: { price: number | null; offer: { price: { toString()
   return p.offer ? Number(p.offer.price.toString()) : p.price;
 }
 
-/** Παράθυρο εργασίας σε ώρα Αθήνας (ο server τρέχει UTC). idle = λόγος που δεν ξεκινά· until = τέλος (06:00 Αθήνας). */
-export function runWindow(trigger: "cron" | "manual", now: Date): { idle: string | null; until: Date } {
+/** Παράθυρο εργασίας σε ώρα Αθήνας (ο server τρέχει UTC). idle = λόγος που δεν ξεκινά· until = τέλος (06:00 Αθήνας).
+ *  first = δεν έχει γίνει ακόμα το πρώτο πλήρες scanning (Ruling 10): τρέχει αμέσως μετά το deploy, για έως 6 ώρες. */
+export function runWindow(trigger: "cron" | "manual", now: Date, first = false): { idle: string | null; until: Date } {
   const six = athensAt(now, 6, 0), one = athensAt(now, 1, 0);
+  if (trigger === "cron" && first) return { idle: null, until: new Date(now.getTime() + 6 * 3600_000) };
   if (trigger === "manual") return { idle: null, until: new Date(Math.max(six.getTime(), now.getTime() + 2 * 3600_000)) };
   if (now < one) return { idle: "Πριν από τις 01:00", until: six };
   if (now >= six) return { idle: "Εκτός παραθύρου 01:00–06:00", until: six };

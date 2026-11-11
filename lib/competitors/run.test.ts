@@ -83,3 +83,12 @@ test("searchPrev: μετά από «Λάθος ζευγάρι» το νέο ψά
   assert.equal(run({ match: searchPrev("rejected"), their: null }, ok()).match, "auto");
   assert.equal(run({ match: searchPrev("rejected"), their: null }, ok(), null, "suggested").match, "suggested");
 });
+
+test("runWindow: πρώτο scanning μετά το deploy τρέχει αμέσως, έως 6 ώρες (Ruling 10)", () => {
+  const now = new Date("2026-11-12T10:00:00Z"); // 12:00 Αθήνα, εκτός παραθύρου
+  assert.ok(runWindow("cron", now).idle);
+  const f = runWindow("cron", now, true);
+  assert.equal(f.idle, null);
+  assert.equal(f.until.getTime(), now.getTime() + 6 * 3600_000);
+  assert.equal(runWindow("manual", now, true).until.getTime(), runWindow("manual", now).until.getTime());
+});
