@@ -9,7 +9,7 @@
  * τελευταία: οι φωτογραφίες τους έχουν συχνά υδατογραφήματα και δικαιώματα τρίτων.
  *
  * Φραγμοί πριν αποθηκευτεί εικόνα:
- *  - **και οι δύο** πλευρές ≥ 600 px — ΣΚΟΠΙΜΑ αυστηρότερο από το `LOW_RES_PX` του ελέγχου πληρότητας, που κοιτάζει
+ *  - (ΠΑΛΙΟ — από 10/11/2026 μετράει μόνο η μεγάλη πλευρά ≥ 600, βλ. checkImage) και οι δύο πλευρές ≥ 600 px — αυστηρότερο από το `LOW_RES_PX`, που κοιτάζει
  *    μόνο τη μεγάλη πλευρά. Δεν είναι ασυνέπεια και δεν «διορθώνεται»: ο έλεγχος πληρότητας κρίνει φωτογραφίες που
  *    ΗΔΗ μπήκαν (εκεί μια μέτρια εικόνα είναι καλύτερη από καμία), εδώ κρίνουμε τι ΑΞΙΖΕΙ να μπει αυτόματα, χωρίς να
  *    το δει άνθρωπος. Μια εικόνα 662 × 200 περνά το 600 στη μεγάλη πλευρά και θα καθόταν ως κύρια φωτογραφία
@@ -32,7 +32,11 @@ export const PHOTO_SOURCES = ["icecat", "web", "channel3", "shop"] as const;
 export const sourceRank = (source: string) => { const i = (PHOTO_SOURCES as readonly string[]).indexOf(source); return i < 0 ? PHOTO_SOURCES.length : i; };
 
 /** Ό,τι μάθαμε για μια εικόνα κατεβάζοντάς την (null = δεν κατέβηκε, βλ. `error`). */
-export interface PhotoProbe { bytes: number; width: number | null; height: number | null; mime: string }
+export interface PhotoProbe { bytes: number; width: number | null; height: number | null; mime: string; /** μερίδιο (0–1) των pixel της περιμέτρου που είναι λευκά / ανοιχτό γκρι / διάφανα — null αν δεν μετρήθηκε */ plainEdge?: number | null }
+/** κάτω από αυτό το μερίδιο «καθαρής» περιμέτρου η εικόνα έχει χρωματιστό φόντο ή σκηνικό: banner / lifestyle, όχι φωτογραφία καταλόγου */
+export const MIN_PLAIN_EDGE = 0.6;
+/** Το pixel (RGBA) είναι «καθαρό φόντο»: διάφανο, ή ανοιχτό (≥ 200) και άχρωμο (διαφορά καναλιών ≤ 24). */
+export const plainPixel = (r: number, g: number, b: number, a = 255) => a < 32 || (Math.min(r, g, b) >= 200 && Math.max(r, g, b) - Math.min(r, g, b) <= 24);
 export interface PhotoCandidate {
   /** η γραμμή `EnrichSuggestion` */
   id: string;
@@ -53,9 +57,25 @@ export function checkImage(p: PhotoProbe): string | null {
   if (p.bytes < MIN_BYTES) return `${Math.round(p.bytes / 1024)} KB — κάτω από ${MIN_BYTES / 1024} KB είναι λογότυπο ή placeholder`;
   if (p.width == null || p.height == null) return "δεν διαβάστηκαν οι διαστάσεις της εικόνας";
   const small = Math.min(p.width, p.height), big = Math.max(p.width, p.height);
-  if (small < MIN_SIDE_PX) return `${p.width} × ${p.height} px — και οι δύο πλευρές θέλουν ${MIN_SIDE_PX} px`;
+  // μόνο η μεγάλη πλευρά, όπως ο έλεγχος πληρότητας (απόφαση χρήστη 10/11/2026: οι φωτογραφίες κατασκευαστών 952×535 είναι
+  // μια χαρά, ενώ ο αυστηρός πήχης άφηνε να περάσουν μόνο τα banners 1920×1080)· τις λωρίδες τις κόβει η αναλογία
+  if (big < MIN_SIDE_PX) return `${p.width} × ${p.height} px — η μεγάλη πλευρά θέλει ${MIN_SIDE_PX} px`;
+  if (p.plainEdge != null && p.plainEdge < MIN_PLAIN_EDGE) return `χρωματιστό φόντο (${Math.round(p.plainEdge * 100)}% λευκή περίμετρος) — μάλλον banner ή σκηνικό, όχι φωτογραφία καταλόγου`;
   if (big / small > MAX_ASPECT) return `${p.width} × ${p.height} px — αναλογία ${(big / small).toFixed(1)}:1, είναι λωρίδα και όχι φωτογραφία προϊόντος`;
   return null;
+}
+
+/**
+ * Το όνομα του αρχείου λέει ότι ΔΕΝ είναι φωτογραφία προϊόντος (σχέδιο διαστάσεων, ενεργειακή ετικέτα, λογότυπο…).
+ * Οι σελίδες κατασκευαστών τα δίνουν σε υψηλή ανάλυση, άρα περνούν όλους τους άλλους ελέγχους — και ένα σχέδιο
+ * διαστάσεων έγινε κύρια φωτογραφία (TEKA TBC 64010, 10/11/2026). Επιστρέφει τον λόγο, ή null.
+ */
+const NON_PHOTO = /(?:^|[^a-z])(drawings?|dimensions?|dims?|technical|tech|schemas?|schematics?|sketch|line-?art|outline|cut-?out-?size|installation|energy|eprel|label|fiche|logos?|icons?|badge)(?:[^a-z]|$)/i;
+export function nonPhotoName(url: string): string | null {
+  let name: string;
+  try { name = decodeURIComponent(new URL(url).pathname.split("/").pop() ?? ""); } catch { return null; }
+  const m = NON_PHOTO.exec(name.replace(/\.\w{3,4}$/, ""));
+  return m ? `το όνομα «${name.slice(0, 60)}» δείχνει ${m[1].toLowerCase()}, όχι φωτογραφία προϊόντος` : null;
 }
 
 /** Ποιες φωτογραφίες παίρνει ένα προϊόν, με τη σειρά που θα μπουν στη γκαλερί. */
@@ -68,7 +88,7 @@ export function pickPhotos(cands: PhotoCandidate[]): PhotoPick {
     const key = c.url.trim().toLowerCase();
     if (seen.has(key)) { duplicates++; continue; }
     seen.add(key);
-    const reason = c.probe ? checkImage(c.probe) : c.error ?? "δεν κατέβηκε";
+    const reason = nonPhotoName(c.url) ?? (c.probe ? checkImage(c.probe) : c.error ?? "δεν κατέβηκε");
     if (reason) { review.push({ url: c.url, source: c.source, reason, probe: c.probe }); continue; }
     if (take.length >= MAX_PER_PRODUCT) { over++; continue; }
     take.push(c);

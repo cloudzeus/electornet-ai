@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical, FileText, Ruler, ShieldCheck, Zap, Tag, RefreshCw, ExternalLink, BadgePercent, Copy, X, Loader2, ChevronDown } from "lucide-react";
+import { MoreVertical, FileText, Ruler, ShieldCheck, Zap, Tag, RefreshCw, ExternalLink, BadgePercent, Copy, X, Loader2, ChevronDown, ImagePlus } from "lucide-react";
 import { pullFromSoftone } from "@/app/admin/(shell)/catalog/actions";
 
-export type ProductModal = "promo" | "texts" | "dims" | "warranty" | "energy" | "stickers";
+export type ProductModal = "promo" | "texts" | "dims" | "warranty" | "energy" | "stickers" | "photos";
 const MODALS: Record<ProductModal, { label: string; hint: string; Icon: typeof FileText; wide?: boolean }> = {
   promo: { label: "Προσθήκη σε προσφορά", hint: "σε ζωντανή ή προγραμματισμένη, ή αφαίρεση", Icon: BadgePercent, wide: true },
   texts: { label: "Κείμενα & χαρακτηριστικά", hint: "όνομα, περιγραφές, χαρακτηριστικά (SoftOne + eshop)", Icon: FileText, wide: true },
   dims: { label: "Διαστάσεις & βάρος", hint: "για AR, αποστολή και «χωράει;»", Icon: Ruler },
   warranty: { label: "Εγγύηση & βασικά στοιχεία", hint: "μήνες εγγύησης, επέκταση, barcode, διαθεσιμότητα", Icon: ShieldCheck },
   energy: { label: "Ενεργειακή ετικέτα (EPREL)", hint: "αναζήτηση στο EPREL, ετικέτα, δελτίο", Icon: Zap },
+  photos: { label: "Φωτογραφίες από το web", hint: "αναζήτηση στο site του κατασκευαστή, διαλέγεις ποιες μπαίνουν", Icon: ImagePlus, wide: true },
   stickers: { label: "Stickers στην κάρτα", hint: "χειροκίνητα stickers με ημερομηνίες", Icon: Tag, wide: true },
 };
 const EVENT = "eu-product-action";
@@ -27,7 +28,7 @@ export function FixButton({ modal, children = "Διόρθωση" }: { modal: Pro
 
 /**
  * Μενού «Ενέργειες» της καρτέλας προϊόντος: διορθώσεις σε παράθυρα (κείμενα & χαρακτηριστικά, διαστάσεις, εγγύηση,
- * ενεργειακή ετικέτα, stickers — το περιεχόμενό τους έρχεται έτοιμο από τη σελίδα), ενημέρωση από SoftOne, νέα
+ * ενεργειακή ετικέτα, φωτογραφίες από το web, stickers — το περιεχόμενό τους έρχεται έτοιμο από τη σελίδα), ενημέρωση από SoftOne, νέα
  * προσφορά, στο site και αντιγραφή κωδικών. Ανοίγει πάνω από τη σελίδα· λειτουργεί με ↑ ↓ Esc.
  */
 export function ProductActions({ productId, title, modals, siteHref, canPromo, canSoftone, codes }: { productId: string; title: string; modals: Partial<Record<ProductModal, ReactNode>>; siteHref: string | null; canPromo: boolean; canSoftone: boolean; codes: { label: string; value: string }[] }) {

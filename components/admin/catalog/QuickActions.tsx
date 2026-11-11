@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { BadgePercent, Check, Copy, Database, ExternalLink, FileText, Images, Loader2, MoreHorizontal, Plus, Ruler, Search, Tag, X, Zap, Minus } from "lucide-react";
+import { BadgePercent, Check, Copy, Database, ExternalLink, FileText, ImagePlus, Images, Loader2, MoreHorizontal, Plus, Ruler, Search, Tag, X, Zap, Minus } from "lucide-react";
 import { matchEprelAction, productPromoChoicesAction, pullFromSoftone, saveProductFields, setProductPromoAction } from "@/app/admin/(shell)/catalog/actions";
 import type { PromoChoice } from "@/lib/promo/quick-add";
 import { ToastBar, type Toast } from "@/components/admin/customers/CustomerActions";
 import { SourceBadge } from "./sources";
 import { invalidateProductPeek, loadProductPeek } from "./ProductPeek";
+import { PhotoPicker } from "./PhotoPicker";
 
 const day = (s: string | null) => (s ? new Date(s).toLocaleDateString("el-GR", { day: "numeric", month: "short" }) : null);
 const input = "w-full rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] focus-visible:outline-2 focus-visible:outline-eu-blue";
@@ -192,7 +193,7 @@ export function ProductRowActions({ r, can, onToast }: { r: RowCtx; can: RowCan;
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
-  const [dlg, setDlg] = useState<"promo" | "dims" | null>(null);
+  const [dlg, setDlg] = useState<"promo" | "dims" | "photos" | null>(null);
   const [busy, start] = useTransition();
   const setToast = onToast;
   const close = () => setPos(null);
@@ -225,6 +226,7 @@ export function ProductRowActions({ r, can, onToast }: { r: RowCtx; can: RowCan;
         <div ref={menu} role="menu" aria-label={`Ενέργειες: ${r.title}`} onKeyDown={keyNav} className="fixed z-[70] w-64 max-w-[calc(100vw-1rem)] max-h-[min(70dvh,30rem)] overflow-y-auto rounded-lg border border-eu-line bg-white p-1 shadow-[var(--shadow-raised)] grid" style={{ ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }), right: Math.max(8, pos.right) }}>
           <span className={head}>Γρήγορα</span>
           {can.promo && <button type="button" role="menuitem" onClick={() => { close(); setDlg("promo"); }} className={item}><BadgePercent className="size-4 text-eu-blue" aria-hidden />Προσθήκη σε προσφορά…</button>}
+          {can.write && <button type="button" role="menuitem" onClick={() => { close(); setDlg("photos"); }} className={item}><ImagePlus className="size-4 text-eu-blue" aria-hidden />Φωτογραφίες από το web…</button>}
           {r.fromS1 && <button type="button" role="menuitem" onClick={() => { close(); setDlg("dims"); }} className={item}><Ruler className="size-4 text-eu-blue" aria-hidden />Διαστάσεις & βάρος…</button>}
           {can.write && r.energyNeeded && <button type="button" role="menuitem" onClick={() => run(async () => { const x = await matchEprelAction(r.id); return x.ok ? { ok: x.status === "matched", text: x.status === "matched" ? `Βρέθηκε στο EPREL (${x.registrationNumber}). Ετικέτα, χαρακτηριστικά και διαστάσεις ενημερώθηκαν.` : x.status === "ambiguous" ? "Πολλά πιθανά μοντέλα στο EPREL: διάλεξε από τη σελίδα EPREL." : "Δεν βρέθηκε στο EPREL." } : { ok: false, text: x.error }; })} className={item}><Zap className="size-4 text-eu-green" aria-hidden />Αναζήτηση στο EPREL</button>}
           {can.write && r.fromS1 && <button type="button" role="menuitem" onClick={() => run(async () => { const x = await pullFromSoftone(r.id); return { ok: x.ok, text: x.message }; })} className={item}><Database className="size-4 text-eu-navy" aria-hidden />Ενημέρωση από SoftOne</button>}
@@ -244,6 +246,9 @@ export function ProductRowActions({ r, can, onToast }: { r: RowCtx; can: RowCan;
       )}
       <Dialog open={dlg === "promo"} onClose={() => setDlg(null)} title="Προσθήκη σε προσφορά" sub={r.title} icon={<BadgePercent className="size-4 text-eu-blue" aria-hidden />} wide>
         <div className="@container"><PromoPicker productId={r.id} onDone={setToast} /></div>
+      </Dialog>
+      <Dialog open={dlg === "photos"} onClose={() => setDlg(null)} title="Φωτογραφίες από το web" sub={r.title} icon={<ImagePlus className="size-4 text-eu-blue" aria-hidden />} wide>
+        {dlg === "photos" && <div className="@container"><PhotoPicker productId={r.id} canWrite={can.write} onDone={(t) => { setToast(t); if (t?.ok) setDlg(null); }} /></div>}
       </Dialog>
       <Dialog open={dlg === "dims"} onClose={() => setDlg(null)} title="Διαστάσεις & βάρος" sub={r.title} icon={<Ruler className="size-4 text-eu-blue" aria-hidden />}>
         <div className="@container"><DimsQuick productId={r.id} canSave={can.erpSave} onDone={setToast} /></div>

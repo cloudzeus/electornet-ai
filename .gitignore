@@ -57,3 +57,6 @@ public/uploads/
 # εξωτερικός φύλακας ασφαλείας (artifact / κατάσταση του workflow)
 /security-watch-report.json
 /.security-watch-state.json
+
+# μοντέλα AI που κατεβαίνουν στο build (scripts/fetch-bg-model.ts)
+.models/

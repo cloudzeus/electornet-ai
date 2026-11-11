@@ -46,7 +46,7 @@ export interface DecideResult { images: number; specsErp: number; specsEshop: nu
  * Έγκριση / απόρριψη προτάσεων. Φωτογραφίες → γκαλερί. Χαρακτηριστικά καταστημάτων → SoftOne (και από εκεί e-shop)·
  * αν η εγγραφή στο SoftOne δεν γίνεται (κλειστή, δικαιώματα, είδος εκτός SoftOne) → μόνο e-shop, με τον λόγο.
  */
-export async function decideSuggestionsAction(productId: string, ids: string[], decision: "approve" | "reject") {
+export async function decideSuggestionsAction(productId: string, ids: string[], decision: "approve" | "reject", cutout: string[] = []) {
   const user = await requirePermission("catalog.products.write");
   const m = await import("@/lib/catalog/enrich-suggestions");
   const pick = ids.slice(0, 60);
@@ -54,7 +54,7 @@ export async function decideSuggestionsAction(productId: string, ids: string[], 
   if (decision === "reject") out.rejected = (await m.rejectSuggestions(productId, pick, user.id)).rejected;
   else {
     const rows = await m.pendingRows(productId, pick);
-    const img = await m.approveImages(productId, rows, user.id);
+    const img = await m.approveImages(productId, rows, user.id, { cutout: new Set(cutout) });
     out.images = img.images; out.failed = img.failed;
     const specs = rows.filter((r) => r.kind === "spec" && r.key && r.value);
     if (specs.length) {
@@ -131,4 +131,58 @@ export async function saveCopyAction(productId: string, pick: { short?: string; 
   revalidatePath(`/admin/catalog/${productId}`);
   revalidatePath("/admin/catalog/completeness");
   return { ok: r.ok, message: r.message };
+}
+
+/**
+ * Παράθυρο «Φωτογραφίες από το web» της λίστας προϊόντων. Χωρίς `search`: δωρεάν — οι προτάσεις σε αναμονή και ό,τι
+ * δίνουν ξανά οι σελίδες που βρέθηκαν ήδη. Με `search`: νέα αναζήτηση (Icecat → κατασκευαστής → καταστήματα, ~$0,01–0,03).
+ */
+export async function photoCandidatesAction(productId: string, search = false) {
+  const user = await requirePermission(search ? "catalog.products.write" : "catalog.products.read");
+  const m = await import("@/lib/catalog/photo-candidates");
+  const { db } = await import("@/lib/db");
+  let costUsd = 0, searched = false;
+  await m.revisitFoundPages(productId);
+  if (search) {
+    const { enrichProduct } = await import("@/lib/catalog/enrich-run");
+    const run = await enrichProduct(productId, { force: true });
+    costUsd = run?.costUsd ?? 0; searched = true;
+    if (run) await audit(user.id, "catalog.product.enrich", "Product", productId, null, { steps: run.steps.map((s) => `${s.source}:${s.status}`), costUsd: run.costUsd, suggestions: run.suggestions, from: "photo-picker" });
+  }
+  const [candidates, current] = await Promise.all([
+    m.photoCandidates(productId),
+    db.media.findMany({ where: { productId, kind: "image", hidden: false }, select: { width: true, height: true } }),
+  ]);
+  const { LOW_RES_PX } = await import("@/lib/catalog/product-images");
+  const small = current.filter((x) => x.width != null && x.height != null && Math.max(x.width, x.height) < LOW_RES_PX).length;
+  return { candidates, current: current.length, small, searched, costUsd };
+}
+export type PhotoCandidatesResult = Awaited<ReturnType<typeof photoCandidatesAction>>;
+
+/** Οι φωτογραφίες που διάλεξε ο χρήστης μπαίνουν στη γκαλερί· προαιρετικά κρύβονται (δεν σβήνονται) οι μικρές που υπήρχαν. */
+export async function addPhotosAction(productId: string, ids: string[], hideSmall: boolean, cutout: string[] = []) {
+  const { result: r } = await decideSuggestionsAction(productId, ids.slice(0, 24), "approve", cutout);
+  const hidden = hideSmall && r.images ? await (await import("@/lib/catalog/photo-candidates")).hideSmallPhotos(productId) : 0;
+  if (hidden) {
+    const { projectPublishReady } = await import("@/lib/catalog/publish-ready-server");
+    await projectPublishReady([productId]);
+    (await import("@/lib/data/db-catalog")).resetCatalogCache();
+  }
+  return { images: r.images, failed: r.failed.length, firstError: r.failed[0]?.message ?? null, hidden };
+}
+
+/** Προεπισκόπηση «Αφαίρεση φόντου» μιας φωτογραφίας από το web (πριν την προσθήκη). Τίποτα δεν αποθηκεύεται. */
+export async function cutoutPreviewAction(productId: string, suggestionId: string): Promise<{ ok: true; src: string; method: "ai" | "colour" } | { ok: false; error: string }> {
+  await requirePermission("catalog.products.write");
+  const { db } = await import("@/lib/db");
+  const s = await db.enrichSuggestion.findFirst({ where: { id: suggestionId, productId, kind: "image", status: "pending" }, select: { id: true, url: true } });
+  if (!s?.url) return { ok: false, error: "Η φωτογραφία δεν είναι πια διαθέσιμη." };
+  try {
+    const { fetchPublicBytes } = await import("@/lib/net/safe-fetch");
+    const { cutoutForSuggestion } = await import("@/lib/catalog/photo-cutout");
+    const r = await cutoutForSuggestion(s.id, async () => (await fetchPublicBytes(s.url!, { max: 25 * 1024 * 1024, accept: "image/*" })).bytes);
+    const sharp = (await import("sharp")).default;
+    const small = await sharp(r.bytes).resize(480, 480).webp({ quality: 80 }).toBuffer();
+    return { ok: true, src: `data:image/webp;base64,${small.toString("base64")}`, method: r.method };
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Η αφαίρεση φόντου απέτυχε." }; }
 }

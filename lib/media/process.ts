@@ -115,11 +115,15 @@ export async function probeVideo(bytes: Buffer, at = 1): Promise<{ width: number
   }
 }
 
-/** Background removal: local rembg CLI (birefnet-general, same as the catalogue cutouts) or remove.bg API. Returns PNG with alpha. */
+/**
+ * Background removal → PNG with alpha. «local» (default): isnet μέσα στην εφαρμογή (lib/media/bg-model.ts), «rembg»: εξωτερικό
+ * CLI (birefnet-general), «removebg»: remove.bg API.
+ */
 export async function removeBackground(bytes: Buffer): Promise<Buffer> {
   const { data, secrets } = await getSetting("ai");
-  const provider = String(data.bgRemoval ?? "rembg");
+  const provider = String(data.bgRemoval || "local");
   if (provider === "off") throw new Error("Η αφαίρεση φόντου είναι ανενεργή (Ρυθμίσεις → AI & υπηρεσίες).");
+  if (provider === "local") return (await import("./bg-model")).removeBackgroundLocal(bytes);
   if (provider === "removebg") {
     const key = secrets.removeBgApiKey;
     if (!key) throw new Error("Λείπει το remove.bg API key.");

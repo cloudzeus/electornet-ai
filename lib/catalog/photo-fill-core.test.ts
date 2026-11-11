@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkImage, sourceRank, pickPhotos, MAX_PER_PRODUCT, MIN_SIDE_PX, MIN_BYTES, type PhotoCandidate } from "./photo-fill-core";
+import { checkImage, nonPhotoName, plainPixel, sourceRank, pickPhotos, MAX_PER_PRODUCT, MIN_SIDE_PX, MIN_BYTES, type PhotoCandidate } from "./photo-fill-core";
 
 const img = (over: Partial<PhotoCandidate> = {}): PhotoCandidate => ({
   id: "s1", source: "icecat", url: "https://example.com/photo.jpg", sourceName: "Icecat",
@@ -11,25 +11,16 @@ const img = (over: Partial<PhotoCandidate> = {}): PhotoCandidate => ({
 
 test("καθαρή φωτογραφία προϊόντος περνά", () => assert.equal(checkImage(img().probe!), null));
 
-test("μικρή ανάλυση κόβεται — μετράει η ΜΙΚΡΗ πλευρά", () => {
+test("μικρή ανάλυση κόβεται — μετράει η ΜΕΓΑΛΗ πλευρά, όπως ο έλεγχος πληρότητας", () => {
   assert.match(checkImage({ bytes: 90_000, width: 500, height: 500, mime: "image/jpeg" })!, /600/);
-  assert.match(checkImage({ bytes: 90_000, width: 1200, height: 480, mime: "image/jpeg" })!, /600/, "δεν αρκεί η μεγάλη πλευρά");
-  assert.equal(checkImage({ bytes: 90_000, width: 600, height: 600, mime: "image/jpeg" }), null);
-  assert.equal(checkImage({ bytes: 90_000, width: 1000, height: 700, mime: "image/jpeg" }), null);
-});
-
-test("ο πήχης είναι ΣΚΟΠΙΜΑ αυστηρότερος από το LOW_RES_PX του ελέγχου πληρότητας", () => {
-  // Ο έλεγχος πληρότητας κρίνει ό,τι ήδη μπήκε (μεγάλη πλευρά ≥ 600)· εδώ κρίνουμε τι αξίζει να μπει αυτόματα.
-  // Αν κάποιος «ευθυγραμμίσει» τα δύο όρια, αυτό το test πέφτει — η διαφορά είναι απόφαση, όχι αβλεψία.
-  // (το LOW_RES_PX του lib/catalog/product-images.ts είναι επίσης 600, αλλά στη ΜΕΓΑΛΗ πλευρά· δεν το εισάγουμε εδώ,
-  //  το module είναι server-only)
+  assert.equal(checkImage({ bytes: 90_000, width: 952, height: 535, mime: "image/jpeg" }), null, "φωτογραφία κατασκευαστή 952×535 περνά");
+  assert.equal(checkImage({ bytes: 90_000, width: 900, height: 900, mime: "image/jpeg" }), null);
   assert.equal(MIN_SIDE_PX, 600);
-  assert.match(checkImage({ bytes: 90_000, width: 900, height: 420, mime: "image/jpeg" })!, /600/);
 });
 
 test("λωρίδες και κολλάζ κόβονται από την αναλογία", () => {
   // 662 × 200 του Icecat: περνά το 600 στη μεγάλη πλευρά, δεν είναι φωτογραφία προϊόντος
-  assert.match(checkImage({ bytes: 90_000, width: 662, height: 200, mime: "image/jpeg" })!, /600/);
+  assert.match(checkImage({ bytes: 90_000, width: 662, height: 200, mime: "image/jpeg" })!, /αναλογία/);
   assert.match(checkImage({ bytes: 90_000, width: 2400, height: 600, mime: "image/jpeg" })!, /αναλογία/);
   assert.equal(checkImage({ bytes: 90_000, width: 1800, height: 600, mime: "image/jpeg" }), null, "3:1 ακριβώς: δεκτό");
 });
@@ -111,4 +102,23 @@ test("χωρίς προτάσεις: τίποτα, χωρίς παράπονο",
 test("ελάχιστη πλευρά και όγκος αρχείου είναι τα ίδια που ζητά ο έλεγχος πληρότητας", () => {
   assert.equal(MIN_SIDE_PX, 600);
   assert.equal(MIN_BYTES, 10_240);
+});
+
+test("σχέδια, ετικέτες και λογότυπα κόβονται από το όνομα, όσο μεγάλα κι αν είναι", () => {
+  for (const u of ["https://x.com/tbc64010ttc-tdy64nxbk-drawing.jpg", "https://x.com/WM_dimensions_01.png", "https://x.com/energy-label.jpg", "https://x.com/a/logo.png", "https://x.com/dim.jpg"])
+    assert.ok(nonPhotoName(u), u);
+  for (const u of ["https://x.com/dm-1.jpg", "https://x.com/32gn600-b-01.jpg", "https://x.com/dimmer-switch.jpg", "https://x.com/Labelle_front.jpg"])
+    assert.equal(nonPhotoName(u), null, u);
+  const pick = pickPhotos([img({ id: "d", source: "web", url: "https://x.com/hob-drawing.jpg" }), img({ id: "p", url: "https://x.com/hob-front.jpg" })]);
+  assert.deepEqual(pick.take.map((t) => t.id), ["p"]);
+  assert.match(pick.review[0].reason, /drawing/);
+});
+
+test("χρωματιστό φόντο (banner) κόβεται· λευκό / γκρι / διάφανο περνά", () => {
+  const base = { bytes: 90_000, width: 1920, height: 1080, mime: "image/jpeg" };
+  assert.match(checkImage({ ...base, plainEdge: 0.05 })!, /φόντο/);
+  assert.equal(checkImage({ ...base, plainEdge: 0.95 }), null);
+  assert.equal(checkImage({ ...base, plainEdge: null }), null, "αν δεν μετρήθηκε, δεν κόβεται");
+  assert.ok(plainPixel(255, 255, 255) && plainPixel(236, 236, 238) && plainPixel(10, 200, 30, 0));
+  assert.ok(!plainPixel(220, 30, 40) && !plainPixel(120, 120, 120) && !plainPixel(250, 220, 190));
 });

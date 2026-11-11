@@ -8,6 +8,11 @@
  *   npm run photos:fill -- --web 10                 # ώς 10 προϊόντα ψάχνουν στο internet (~$0,01 το καθένα)
  *   npm run photos:fill -- --limit 20 --web 10 --apply   # ΑΠΟΘΗΚΕΥΣΗ (Bunny + προϊόν)
  *   npm run photos:fill -- --hidden --web 10        # είδη με «Εξαίρεση Web» που έχουν τιμή ΚΑΙ απόθεμα (έτοιμα αν ανοίξουν)
+ *   npm run photos:fill -- --json picks.json ...   # γράφει ποιες εικόνες διαλέχτηκαν ανά προϊόν (για έλεγχο με το μάτι)
+ *   npm run photos:fill -- --all ...               # όλα τα είδη του SoftOne, και όσα έχουν «Εξαίρεση Web»
+ *   npm run photos:fill -- --official ...          # μόνο Icecat + site κατασκευαστή (όχι άλλα καταστήματα)
+ *   npm run photos:fill -- --small --web 10         # προϊόντα που έχουν ΜΟΝΟ μικρές φωτογραφίες (< 600 px): μπαίνουν
+ *                                                   # καλύτερες και οι μικρές κρύβονται (δεν σβήνονται, ξαναφαίνονται από την καρτέλα)
  *
  * Η αλυσίδα υπάρχει ολόκληρη και δεν ξαναγράφεται εδώ:
  *  - `enrichProduct` (lib/catalog/enrich-run.ts) ψάχνει και αφήνει προτάσεις εικόνων στο `EnrichSuggestion`·
@@ -18,12 +23,12 @@
  * Προτάσεις που περιμένουν από προηγούμενο εμπλουτισμό χρησιμοποιούνται χωρίς νέα χρέωση· το `--web` αφορά μόνο
  * προϊόντα που δεν έχουν καθόλου προτάσεις.
  */
-import sharp from "sharp";
 import { db } from "../lib/db";
-import { fetchPublicBytes } from "../lib/net/safe-fetch";
+import { probeImage as probe, revisitFoundPages, hideSmallPhotos } from "../lib/catalog/photo-candidates";
 import { isProductImageUrl, blockedHost } from "../lib/catalog/enrich-core";
-import { pickPhotos, MAX_PER_PRODUCT, MIN_SIDE_PX, type PhotoCandidate, type PhotoPick } from "../lib/catalog/photo-fill-core";
+import { pickPhotos, MAX_PER_PRODUCT, type PhotoCandidate, type PhotoPick } from "../lib/catalog/photo-fill-core";
 import { SUGGEST_SOURCE_LABEL } from "../lib/catalog/enrich-suggestions";
+import { LOW_RES_PX } from "../lib/catalog/product-images";
 
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.includes(`--${name}`);
@@ -36,7 +41,16 @@ const webLimit = num("web", 0);
 const only = value("only");
 /** «Εξαίρεση Web» στο SoftOne (active=false) αλλά με τιμή και απόθεμα: φωτογραφίες από πριν, για όταν ανοίξουν */
 const hidden = flag("hidden");
-const MAX_IMAGE = 25 * 1024 * 1024;
+/** προϊόντα με ορατές φωτογραφίες, όλες μικρές (μεγάλη πλευρά < LOW_RES_PX — ίδιο κριτήριο με το «χαμηλή ανάλυση» της καρτέλας) */
+const small = flag("small");
+/** και τα προϊόντα με «Εξαίρεση Web» (ανενεργά στο eshop), με ή χωρίς τιμή / απόθεμα */
+const all = flag("all");
+/** μόνο επίσημες πηγές: Icecat (γκαλερί κατασκευαστή) και η σελίδα του κατασκευαστή — όχι άλλα καταστήματα / Channel3 */
+const official = flag("official");
+const OFFICIAL = new Set(["icecat", "web"]);
+const IMG = { kind: "image", hidden: false } as const;
+/** μικρή = γνωστές διαστάσεις και μεγάλη πλευρά < 600· άγνωστες διαστάσεις δεν μετράνε για μικρές */
+const BIG_OR_UNKNOWN = { ...IMG, OR: [{ width: null }, { height: null }, { width: { gte: LOW_RES_PX } }, { height: { gte: LOW_RES_PX } }] };
 /** πόσες προτάσεις κατεβάζουμε για έλεγχο ανά προϊόν (οι πρώτες φτάνουν — θέλουμε 6) */
 const PROBE_PER_PRODUCT = 10;
 const PAUSE_MS = 150;
@@ -46,11 +60,14 @@ const label = (s: string) => SUGGEST_SOURCE_LABEL[s] ?? s;
 
 /** Ενεργά προϊόντα του SoftOne (ή με --hidden τα κρυφά με τιμή και απόθεμα) χωρίς καμία ορατή φωτογραφία (τα σετ παίρνουν εικόνες από το κύριο είδος). */
 async function candidates() {
+  const media = small ? { AND: [{ media: { some: IMG } }, { media: { none: BIG_OR_UNKNOWN } }] } : { media: { none: IMG } };
   const where = only
     ? { OR: [{ id: only }, { erpCode: only }, { sku: only }] }
-    : hidden
-      ? { source: "softone", active: false, kind: "item", price: { gt: 0 }, stock: { gt: 0 }, media: { none: { kind: "image", hidden: false } } }
-      : { source: "softone", active: true, kind: "item", media: { none: { kind: "image", hidden: false } } };
+    : all
+      ? { source: "softone", kind: "item", ...media }
+      : hidden
+      ? { source: "softone", active: false, kind: "item", price: { gt: 0 }, stock: { gt: 0 }, ...media }
+      : { source: "softone", active: true, kind: "item", ...media };
   const rows = await db.product.findMany({
     where, orderBy: { sku: "asc" },
     select: { id: true, sku: true, erpCode: true, title: true, kind: true, publishReady: true, publishMissing: true, category: { select: { name: true } } },
@@ -66,21 +83,15 @@ const pendingImages = (productId: string) =>
     select: { id: true, source: true, url: true, sourceName: true },
   });
 
-/** Κατέβασμα για έλεγχο: μέγεθος αρχείου, τύπος και πραγματικές διαστάσεις της εικόνας. Καμία αποθήκευση. */
-async function probe(url: string): Promise<Pick<PhotoCandidate, "probe" | "error">> {
-  try {
-    const f = await fetchPublicBytes(url, { max: MAX_IMAGE, accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8" });
-    const meta = await sharp(f.bytes).metadata().catch(() => null);
-    return { probe: { bytes: f.bytes.length, width: meta?.width ?? null, height: meta?.height ?? null, mime: f.mime } };
-  } catch (e) { return { probe: null, error: (e as Error).message.slice(0, 160) }; }
-}
-
 type Candidate = Awaited<ReturnType<typeof candidates>>[number];
 interface Plan { product: Candidate; pick: PhotoPick; searched: boolean; costUsd: number }
 
 async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
   let rows = await pendingImages(p.id);
   let searched = false, costUsd = 0;
+  // η σελίδα κατασκευαστή / καταστήματος βρέθηκε ήδη αλλά δεν έδωσε εικόνα (π.χ. πριν διαβάζονται τα <img> με το μοντέλο):
+  // ξαναδιαβάζεται δωρεάν, χωρίς νέα αναζήτηση
+  if (!rows.length && await revisitFoundPages(p.id, official ? ["web"] : ["web", "shop"])) rows = await pendingImages(p.id);
   if (!rows.length && maySearch) {
     const { enrichProduct } = await import("../lib/catalog/enrich-run");
     const run = await enrichProduct(p.id).catch((e: Error) => { console.log(`  ✗ ${p.sku}: ${e.message}`); return null; });
@@ -88,7 +99,7 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
     rows = await pendingImages(p.id);
   }
   // οι ίδιοι έλεγχοι διεύθυνσης που κάνει και η καρτέλα προϊόντος, πριν ξοδέψουμε κατέβασμα
-  const usable = rows.filter((r) => isProductImageUrl(r.url!) && !blockedHost(r.url!)).slice(0, PROBE_PER_PRODUCT);
+  const usable = rows.filter((r) => (!official || OFFICIAL.has(r.source)) && isProductImageUrl(r.url!) && !blockedHost(r.url!)).slice(0, PROBE_PER_PRODUCT);
   const cands: PhotoCandidate[] = [];
   for (const r of usable) {
     const pr = await probe(r.url!);
@@ -102,8 +113,8 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
   const onlyPhotoMissing = list.filter((p) => !p.publishReady && p.publishMissing.length === 1 && p.publishMissing[0] === "photo").length;
   const pool = list.slice(0, Number.isFinite(limit) ? limit : list.length);
   console.log([
-    `${apply ? "ΑΠΟΘΗΚΕΥΣΗ" : "ΔΟΚΙΜΗ (χωρίς κανένα ανέβασμα)"} — ${list.length} ${hidden ? "κρυφά (Εξαίρεση Web) με τιμή και απόθεμα" : "ενεργά"} προϊόντα του SoftOne χωρίς καμία φωτογραφία.`,
-    `  Από αυτά, ${onlyPhotoMissing} μένουν έξω από τη βιτρίνα ΜΟΝΟ γι' αυτόν τον λόγο.`,
+    `${apply ? "ΑΠΟΘΗΚΕΥΣΗ" : "ΔΟΚΙΜΗ (χωρίς κανένα ανέβασμα)"} — ${list.length} ${all ? "(ενεργά και με Εξαίρεση Web)" : hidden ? "κρυφά (Εξαίρεση Web) με τιμή και απόθεμα" : "ενεργά"} προϊόντα του SoftOne ${small ? `με μόνο μικρές φωτογραφίες (< ${LOW_RES_PX} px)` : "χωρίς καμία φωτογραφία"}.`,
+    ...(small ? [] : [`  Από αυτά, ${onlyPhotoMissing} μένουν έξω από τη βιτρίνα ΜΟΝΟ γι' αυτόν τον λόγο.`]),
     `  Εξετάζονται ${pool.length}· αναζήτηση στο internet σε ώς ${webLimit} (όριο --web).`,
   ].join("\n"));
 
@@ -117,6 +128,8 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
   }
 
   const withPhotos = plans.filter((x) => x.pick.take.length);
+  const jsonOut = value("json");
+  if (jsonOut) (await import("node:fs")).writeFileSync(jsonOut, JSON.stringify(withPhotos.map((x) => ({ sku: x.product.sku, title: x.product.title, photos: x.pick.take.map((t) => ({ url: t.url, source: t.source, w: t.probe?.width, h: t.probe?.height })) })), null, 1));
   const bySource = new Map<string, number>();
   for (const x of withPhotos) for (const t of x.pick.take) bySource.set(t.source, (bySource.get(t.source) ?? 0) + 1);
   const photos = [...bySource.values()].reduce((a, b) => a + b, 0);
@@ -135,10 +148,6 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
     const empty = review.filter((x) => !x.pick.take.length).length;
     console.log(`\nΘέλει μάτι — ${cut} εικόνες που ΔΕΝ αποθηκεύονται, σε ${plural(review.length, "προϊόν", "προϊόντα")} (${empty === 1 ? "1 από αυτά μένει" : `${empty} από αυτά μένουν`} χωρίς καμία):`);
     for (const x of review.slice(0, 15)) for (const r of x.pick.review.slice(0, 3)) console.log(`  ${x.product.sku} · ${label(r.source)}: ${r.reason} — ${r.url.slice(0, 90)}`);
-    // πόσα θα περνούσαν με τον πήχη του ελέγχου πληρότητας (μεγάλη πλευρά ≥ 600) αντί με τον δικό μας (και οι δύο)
-    const looser = review.flatMap((x) => x.pick.review).filter((r) => r.probe?.width && r.probe.height && Math.max(r.probe.width, r.probe.height) >= MIN_SIDE_PX && Math.min(r.probe.width, r.probe.height) < MIN_SIDE_PX);
-    const unlocks = review.filter((x) => !x.pick.take.length && x.pick.review.some((r) => r.probe?.width && r.probe.height && Math.max(r.probe.width, r.probe.height) >= MIN_SIDE_PX && Math.min(r.probe.width, r.probe.height) < MIN_SIDE_PX)).length;
-    if (looser.length) console.log(`  (${looser.length} από αυτές περνούν τον πήχη του ελέγχου πληρότητας — μεγάλη πλευρά ≥ ${MIN_SIDE_PX} px· θα ξεκλείδωναν ${plural(unlocks, "προϊόν", "προϊόντα")} που τώρα ${unlocks === 1 ? "μένει" : "μένουν"} χωρίς καμία)`);
   }
 
   let saved = 0, failed = 0;
@@ -148,7 +157,9 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
       const rows = (await pendingRows(x.product.id, x.pick.take.map((t) => t.id))).filter((r) => r.kind === "image");
       const r = await approveImages(x.product.id, rows, null);
       saved += r.images; failed += r.failed.length;
-      console.log(`  ${r.images ? "✓" : "✗"} ${x.product.sku}: ${plural(r.images, "φωτογραφία", "φωτογραφίες")}${r.failed.length ? ` · ${r.failed.length} απέτυχαν: ${r.failed[0].message}` : ""}`);
+      // οι νέες έχουν μεγάλη πλευρά ≥ 600 (checkImage) και το φίλτρο κρύβει μόνο όσες έχουν ΚΑΙ τις δύο < 600: πιάνει μόνο τις παλιές
+      const hid = small && r.images ? await hideSmallPhotos(x.product.id) : 0;
+      console.log(`  ${r.images ? "✓" : "✗"} ${x.product.sku}: ${plural(r.images, "φωτογραφία", "φωτογραφίες")}${hid ? ` · κρύφτηκαν ${hid} μικρές` : ""}${r.failed.length ? ` · ${r.failed.length} απέτυχαν: ${r.failed[0].message}` : ""}`);
       await sleep(PAUSE_MS);
     }
     const { projectPublishReady } = await import("../lib/catalog/publish-ready-server");
@@ -160,7 +171,7 @@ async function planFor(p: Candidate, maySearch: boolean): Promise<Plan> {
   const nothing = plans.filter((x) => !x.pick.take.length && !x.pick.review.length).length;
   console.log([
     "",
-    `Σύνοψη — εξετάστηκαν ${pool.length} από τα ${list.length} προϊόντα χωρίς φωτογραφία:`,
+    `Σύνοψη — εξετάστηκαν ${pool.length} από τα ${list.length} προϊόντα ${small ? "με μικρές φωτογραφίες" : "χωρίς φωτογραφία"}:`,
     `  ${apply ? "Αποθηκεύτηκαν" : "Θα αποθηκεύονταν"}: ${plural(photos, "φωτογραφία", "φωτογραφίες")} σε ${plural(withPhotos.length, "προϊόν", "προϊόντα")} (ώς ${MAX_PER_PRODUCT} ανά προϊόν).`,
     `  Πηγές: ${[...bySource.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${label(s)} ${n}`).join(", ") || "—"}.`,
     `  Χωρίς καμία υποψήφια εικόνα: ${plural(nothing, "προϊόν", "προϊόντα")}. Αναζητήσεις internet: ${searches}${cost ? ` (κόστος $${cost.toFixed(3)})` : ""}.`,

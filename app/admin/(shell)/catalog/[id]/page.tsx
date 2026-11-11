@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { ProductActions } from "@/components/admin/catalog/ProductActions";
+import { ProductActions, FixButton } from "@/components/admin/catalog/ProductActions";
+import { PhotoPicker } from "@/components/admin/catalog/PhotoPicker";
 import { PromoPicker } from "@/components/admin/catalog/QuickActions";
 import { ProductSources, type SourcesData } from "@/components/admin/catalog/ProductSources";
 import { warrantyFromSpecs } from "@/lib/warranty/policy";
@@ -174,6 +175,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
                 dims: editor(["dims"]),
                 warranty: editor(["basics", "warranty"]),
                 energy: <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />,
+                ...(canWrite ? { photos: <div className="@container"><PhotoPicker productId={p.id} canWrite /></div> } : {}),
                 stickers: <ProductStickersAdmin productId={p.id} initial={manualStickers} auto={(shop?.stickers ?? []).filter((s) => s.source !== "manual")} canWrite={canWrite} />,
               }} />
           </div>
@@ -194,7 +196,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           )}
 
           {tab === "media" && (<>
-            <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px.">
+            <Section title={`Φωτογραφίες (${shown.length})`} hint="Προτείνονται 4+ φωτογραφίες, τουλάχιστον 600 px." right={canWrite ? <span data-help="product.photos-web"><FixButton modal="photos">Αναζήτηση στο web</FixButton></span> : undefined}>
               <ProductImages productId={p.id} initial={images} canWrite={canWrite} canUploadToLibrary={canMedia} ar={arFront} embedded />
             </Section>
             <Section title={`Βίντεο (${videos.filter((v) => !v.hidden).length})`}>
