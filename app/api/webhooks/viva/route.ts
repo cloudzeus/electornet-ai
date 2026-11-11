@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { vivaConfig, vivaWebhookKey } from "@/lib/payments/viva";
+import { vivaWebhookConfig, vivaWebhookKey } from "@/lib/payments/viva";
 import { settleViva } from "@/lib/payments/order-payment";
 
 /**
@@ -8,7 +8,7 @@ import { settleViva } from "@/lib/payments/order-payment";
  * παίρνουμε μόνο το TransactionId και επιβεβαιώνουμε από το API της Viva (κωδικός παραγγελίας + ποσό).
  */
 export async function GET() {
-  const c = await vivaConfig();
+  const c = await vivaWebhookConfig();
   if (!c) return NextResponse.json({ error: "not configured" }, { status: 404 });
   try { return NextResponse.json({ Key: await vivaWebhookKey(c) }); } catch { return NextResponse.json({ error: "key" }, { status: 502 }); }
 }

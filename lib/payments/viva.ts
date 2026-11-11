@@ -10,15 +10,25 @@ import { vivaHosts, type VivaMode, type VivaTransaction } from "./viva-core";
 export interface VivaConfig { mode: VivaMode; clientId: string; clientSecret: string; sourceCode: string; merchantId: string; apiKey: string; maxInstalments: number }
 
 export async function vivaConfig(): Promise<VivaConfig | null> {
+  const c = await vivaSettings();
+  return c?.clientId && c.clientSecret ? c : null;
+}
+
+/** Για το Verify του webhook αρκούν Merchant ID + API key — δεν χρειάζονται τα Smart Checkout credentials. */
+export async function vivaWebhookConfig(): Promise<VivaConfig | null> {
+  const c = await vivaSettings();
+  return c?.merchantId && c.apiKey ? c : null;
+}
+
+async function vivaSettings(): Promise<VivaConfig | null> {
   const s = await getSetting("payments").catch(() => null);
   if (!s || s.data.provider !== "viva") return null;
-  const c = {
+  return {
     mode: (s.data.mode === "live" ? "live" : "test") as VivaMode,
     clientId: String(s.data.clientId ?? "").trim(), clientSecret: String(s.secrets.clientSecret ?? "").trim(),
     sourceCode: String(s.data.sourceCode ?? "").trim(), merchantId: String(s.data.merchantId ?? "").trim(), apiKey: String(s.secrets.apiKey ?? "").trim(),
     maxInstalments: Math.max(0, Math.min(36, Number(s.data.maxInstalments) || 0)),
   };
-  return c.clientId && c.clientSecret ? c : null;
 }
 
 let token: { key: string; value: string; until: number } | null = null;
