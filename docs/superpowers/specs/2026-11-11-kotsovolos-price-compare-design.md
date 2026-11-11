@@ -42,7 +42,7 @@
 
 - `CompetitorCategoryMap`: `competitor` («kotsovolos»), `categoryId`, `extPath` (π.χ. `household-appliances/fridges`, null = δεν συγκρίνεται), `suggested` (πρόταση που δεν έχει ελεγχθεί). Μοναδικό (`competitor`, `categoryId`).
 - `CompetitorBrandMap`: `competitor`, `brandId`, `alias` (πώς γράφεται σε εκείνους), `notCarried`. Μοναδικό (`competitor`, `brandId`).
-- `CompetitorPrice`: το τρέχον ζευγάρι ανά προϊόν. `productId`, `competitor`, `extId` (αρ. είδους), `extUrl`, `extTitle`, `match` (`auto | suggested | manual | rejected`), `listPrice`, `offerPrice`, `available`, `ourPrice` (στη στιγμή του ελέγχου), `diffPct`, `checkedAt`, `lastError`. Μοναδικό (`productId`, `competitor`).
+- `CompetitorPrice`: το τρέχον ζευγάρι ανά προϊόν. `productId`, `competitor`, `extId` (αρ. είδους), `extUrl`, `extTitle`, `match` (`auto | suggested | manual | rejected | lost`), `listPrice`, `offerPrice`, `available`, `ourPrice` (στη στιγμή του ελέγχου), `diffPct`, `checkedAt`, `lastError`, `missCount`, και το κόστος αγοράς `cost`, `costSource` (`supplier-last | purl`), `costAt`. Μοναδικό (`productId`, `competitor`).
 - `CompetitorPriceHistory`: `competitorPriceId`, `price`, `ourPrice`, `at`. Νέα γραμμή **μόνο όταν αλλάξει** κάποια από τις δύο τιμές, όχι κάθε βράδυ. Ευρετήριο (`competitorPriceId`, `at`).
 - `PriceChangeBatch`: `id`, `userId`, `rule` (JSON: κανόνας + δικλείδες), `createdAt`, `undoneAt`. Και `PriceChangeLine`: `batchId`, `productId`, `mtrl`, `oldPrice`, `newPrice`, `ok`, `error`, `undoOk`.
 
@@ -68,6 +68,8 @@
 Όλα τα δεδομένα διαβάζονται σε server components. Οι αλλαγές γίνονται με server actions.
 
 ## Νυχτερινή εργασία (01:00–06:00, βλ. «Φυσιολογική ροή»)
+
+**Σειρά:** πρώτα τα κοινά προϊόντα, μετά η τιμή Κωτσόβολου για αυτά, μετά το κόστος αγοράς από το SoftOne μόνο για αυτά (αποθηκεύεται στο `CompetitorPrice`· η μαζική αλλαγή το διαβάζει από εκεί). **Ζευγάρι που βρέθηκε δεν ξαναψάχνεται:** κρατιούνται κωδικός, link, τίτλος και τα επόμενα βράδια ζητείται μόνο η τιμή του. Νέο ψάξιμο μόνο για προϊόντα χωρίς ζευγάρι ή για ζευγάρι που χάθηκε 2 βράδια στη σειρά (`lost`).
 
 1. Κατεβάζει το sitemap μία φορά και κρατά μόνο τις διαδρομές των αντιστοιχισμένων κατηγοριών.
 2. Για κάθε ενεργό προϊόν των αντιστοιχισμένων κατηγοριών μας (εκτός από σετ και μάρκες `notCarried`): ταίριασμα, εκτός αν το ζευγάρι είναι `manual` ή `rejected`.

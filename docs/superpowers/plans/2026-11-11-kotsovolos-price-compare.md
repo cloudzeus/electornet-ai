@@ -70,7 +70,7 @@
 - Create: `prisma/sql/2026-11-12-competitor-prices.sql`
 
 **Interfaces:**
-- Produces: models `CompetitorCategoryMap`, `CompetitorBrandMap`, `CompetitorPrice`, `CompetitorPriceHistory`, `PriceChangeBatch`, `PriceChangeLine` με τα πεδία και τα μοναδικά κλειδιά του spec (ενότητα «Δεδομένα»). Τύποι: τιμές `Decimal(10,2)`, `diffPct Float?`, `match String` (`auto|suggested|manual|rejected`), `rule Json`, χρόνοι `DateTime`.
+- Produces: models `CompetitorCategoryMap`, `CompetitorBrandMap`, `CompetitorPrice`, `CompetitorPriceHistory`, `PriceChangeBatch`, `PriceChangeLine` με τα πεδία και τα μοναδικά κλειδιά του spec (ενότητα «Δεδομένα»). Τύποι: τιμές `Decimal(10,2)`, `diffPct Float?`, `match String` (`auto|suggested|manual|rejected|lost`), `rule Json`, χρόνοι `DateTime`. Επιπλέον στο `CompetitorPrice` (οδηγία χρήστη): `cost Decimal(10,2)?`, `costSource String?` (`supplier-last|purl`), `costAt DateTime?`, `missCount Int @default(0)` (συνεχόμενες νύχτες που το `extId` δεν βρέθηκε).
 
 - [ ] **Step 1:** Πρόσθεσε τα models. `CompetitorPrice` και `CompetitorPriceHistory` με `onDelete: Cascade`. Ευρετήρια: `CompetitorPrice(competitor, diffPct)`, `CompetitorPriceHistory(competitorPriceId, at)`, `PriceChangeLine(batchId)`.
 - [ ] **Step 2:** Γράψε το SQL idempotent (`CREATE TABLE IF NOT EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`), με σχόλιο κεφαλίδας όπως στο `2026-11-11-product-weight.sql`.
@@ -174,9 +174,10 @@
   - `ourPrice(p: { price: number | null; offer: { price: Decimal } | null }): number | null`
 
 - [ ] **Step 1: Υλοποίησε τα βήματα 1–5 της ενότητας «Νυχτερινή εργασία» του spec.**
-  - Ζευγάρια `manual`/`rejected` δεν ξαναψάχνονται.
+  - **Σειρά (οδηγία χρήστη):** (α) βρες τα κοινά προϊόντα, (β) πάρε τιμή Κωτσόβολου για τα κοινά, (γ) διάβασε κόστος (`readCosts`, Task 1) μόνο για τα κοινά και σώσε `cost/costSource/costAt`· αν το `readCosts` γυρνά `null`, κράτα το παλιό κόστος.
+  - **Ένα ζευγάρι που βρέθηκε (`auto` ή `manual`) δεν ξαναψάχνεται:** σώζεται `extId`, `extUrl`, `extTitle` και τα επόμενα βράδια ζητείται μόνο η τιμή με το `extId`. Ταίριασμα τρέχει μόνο για προϊόντα χωρίς ζευγάρι, `suggested` και `lost`. Τα `rejected` δεν ξαναπροτείνονται (κράτα το απορριφθέν `extId` ώστε να εξαιρείται).
   - Τα `ambiguous` γράφονται ως `suggested` με το πρώτο υποψήφιο και `lastError = "πολλά υποψήφια (N)"`.
-  - Ζευγάρι που δεν υπάρχει πια στο sitemap → `available=false` χωρίς κλήση API.
+  - `extId` που λείπει από το sitemap ή API με 3xx/404/«χωρίς προϊόν» → `available=false`, `missCount+1`, χωρίς νέα κλήση· με `missCount ≥ 2` → `match="lost"`, `lastError="χάθηκε: <παλιό extUrl>"`, και ξαναψάχνεται την ίδια νύχτα. Επιτυχής τιμή → `missCount=0`.
   - Ιστορικό μόνο όταν άλλαξε η `offer ?? list` ή η `ourPrice`.
   - Στο `KotStopError` σταματά και επιστρέφει `ok:false` με όσα πρόλαβε.
   - Κλήσεις με σειρά παλαιότερου `checkedAt`, παράλειψη όσων ελέγχθηκαν τις τελευταίες 20 ώρες, pacer με `budget` 1.800 (cron) ή 300 (manual) και `until` = 06:00 της ημέρας.
@@ -240,11 +241,11 @@
 - Modify: `lib/softone/item-write.ts` (`writeWebPrice` opts: `expect?: number`), `lib/softone/item-write` tests αν υπάρχουν, `CompetitorPanel.tsx` (κουμπί −0,10 €), `lib/help/content/index.ts`
 
 **Interfaces:**
-- Consumes: `readCosts` (Task 1), `CompetitorPrice` (Task 5), `writeWebPrice`.
+- Consumes: `CompetitorPrice` με `cost/costSource/costAt` (Task 5· **όχι** ζωντανό `readCosts`), `writeWebPrice`.
 - Produces:
   - `type Rule = { mode: "eur" | "pct"; amount: number; maxDropPct: number | null; minMarginPct: number | null; skipPromo: boolean; maxAgeH: number; raiseCheaper: boolean }`
-  - `type Row = { productId: string; mtrl: number; now: number; theirs: number; checkedAt: Date; available: boolean; promo: boolean; cost: number | null }`
-  - `planRow(r: Row, rule: Rule, at: Date): { newPrice: number; changeEur: number; changePct: number } | { skip: "stale" | "gone" | "promo" | "max-drop" | "below-cost" | "cheaper" | "same" }`
+  - `type Row = { productId: string; mtrl: number; now: number; web: number; theirs: number; checkedAt: Date; available: boolean; promo: boolean; cost: number | null; costAt: Date | null }`
+  - `planRow(r: Row, rule: Rule, at: Date): { newPrice: number; changeEur: number; changePct: number } | { skip: "stale" | "gone" | "promo" | "max-drop" | "below-cost" | "no-cost" | "cheaper" | "same" }`
   - `previewBulk(filter: { categoryId?: string; brandId?: string; onlyExpensive: boolean }, rule: Rule)` (server)
   - `applyBulk(productIds: string[], rule: Rule, userId: string): Promise<{ batchId: string; ok: number; failed: number }>`
   - `undoBatch(batchId: string, userId: string)`
@@ -265,12 +266,12 @@
 - [ ] **Step 3:** Υλοποίησε το `planRow`. Πρόσθεσε το `expect` στη `writeWebPrice`, πριν από το `setData`: μετά το `readExtra`, `if (opts?.expect != null && !(cur != null && Math.abs(cur - opts.expect) < 0.005)) return fail(\`Η τιμή web άλλαξε στο μεταξύ (${cur ?? "—"} €) — δεν γράφτηκε.\`)`.
 - [ ] **Step 4:** `npm test`. Αναμενόμενο: PASS όλα, και τα παλιά.
 - [ ] **Step 5: `bulk.ts`.**
-  - `previewBulk` διαβάζει κόστος μόνο για τις γραμμές που περνούν τις άλλες δικλείδες.
+  - `previewBulk` παίρνει το κόστος από το `CompetitorPrice.cost`· `cost` null ή `costAt` > 36 ώρες με ενεργή δικλείδα κόστους → `skip:"no-cost"`. Το `Row` έχει και `web` (= `Product.price`, η τιμή web NUM04): βάση για `expect` και `oldPrice`, ενώ `now` (τιμή επισκέπτη) μένει για σύγκριση/εμφάνιση.
   - `applyBulk`: έλεγχος `catalog.sync.run`, `writeWebPrice(mtrl, newPrice, { mode: "any", expect: now })` μία τη φορά, γραμμές `PriceChangeLine`.
   - `undoBatch`: `writeWebPrice(mtrl, oldPrice, { mode: "any", expect: newPrice })` μόνο για `ok`. Αποτυχία expect → `undoOk=false`, `error="άλλαξε από άλλον"`.
   - Το `mtrl` προέρχεται από `Product.erpCode`.
 - [ ] **Step 6: Σελίδα όπως το mockup 3.**
-  - Φίλτρα, κανόνας, δικλείδες (η δικλείδα κόστους κρύβεται αν το `readCosts` γυρνά `null`), σύνοψη, πίνακας με checkbox και λόγο αποκλεισμού, ιστορικό παρτίδων με «Αναίρεση».
+  - Φίλτρα, κανόνας, δικλείδες (δίπλα στο κόστος η πηγή του: «τελ. τιμή προμηθευτή» ή «τελ. τιμή αγοράς είδους»), σύνοψη, πίνακας με checkbox και λόγο αποκλεισμού, ιστορικό παρτίδων με «Αναίρεση».
   - Με κλειστό `webPriceWriteEnabled()` ή `itemWriteEnabled()`, το κουμπί είναι ανενεργό και λέει γιατί (`WEB_PRICE_OFF`).
   - Μετά την εφαρμογή: «Θα φανεί στο eshop στον επόμενο συγχρονισμό (έως 30′)».
   - Το «−0,10 €» του panel ανοίγει αυτή τη σελίδα φιλτραρισμένη στο προϊόν.
