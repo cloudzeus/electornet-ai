@@ -53,10 +53,10 @@ export function brandPool(ix: Map<string, KotItem[]>, ...names: (string | null |
   return [...out];
 }
 
-const UNIT = /^\d+([.,]\d+)?(gb|tb|w|kw|kg|cm|mm|hz|mah|btu|lt|l|v)$/i;
-/** Κωδικοί μοντέλου μέσα στον τίτλο: κομμάτια ≥5 χαρακτήρων με γράμμα και ψηφίο, όχι μονάδες (2000W, 256GB). */
+const NUM_UNIT = /^\d+([.,]\d+)?(gb|tb|w|kw|kwh|kg|cm|mm|hz|mah|ah|btu|lt|l|v|rpm|ml|mp|pa|bar|db|inch)?$/i;
+/** Κωδικοί μοντέλου μέσα στον τίτλο: κομμάτια ≥5 χαρακτήρων με γράμμα και ψηφίο, όχι μονάδες (2000W, 8GB/256GB, 2x50W, 1400rpm). */
 export const modelTokens = (title: string) => [...new Set(title.split(/[\s,()\[\]]+/).map((x) => x.replace(/^["“”'«]+|["“”'».]+$/g, ""))
-  .filter((x) => x.length >= 5 && /\d/.test(x) && /[a-z]/i.test(x) && !UNIT.test(x)))];
+  .filter((x) => x.length >= 5 && /\d/.test(x) && /[a-z]/i.test(x) && !x.split(/[\/x]/i).every((part) => NUM_UNIT.test(part))))];
 
 const words = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zα-ω0-9]+/).filter((w) => w.length >= 2);
 /** Υποψήφια για το AI: επικάλυψη λέξεων τίτλου/κωδικού με το slug (κοινό πρόθεμα ≥ 4), τα καλύτερα n. */

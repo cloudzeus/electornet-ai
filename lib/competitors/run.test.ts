@@ -99,3 +99,14 @@ test("επιλογή AI: ίδιο EAN → auto, χωρίς/διαφορετικ�
   const none = ai(null); assert.equal(none.match, "suggested"); assert.equal(none.lastError, "AI: ίδιο μοντέλο");
   const diff = ai("5909999999999"); assert.equal(diff.match, "suggested"); assert.match(diff.lastError!, /διαφορετικό EAN/);
 });
+
+test("search: ταίριασμα από κωδικό τίτλου = πρόταση, από modelCode = auto", async () => {
+  const { search } = await import("./run-core");
+  const { parseSitemap } = await import("./kotsovolos/core");
+  const pool = parseSitemap("<loc>https://www.kotsovolos.gr/a/1-smartphone-samsung-a17-256gb-blue</loc><loc>https://www.kotsovolos.gr/a/2-lg-oled55c46la</loc>");
+  const t = search("Samsung", null, null, "SAMSUNG GALAXY A17 8GB/256GB BLUE", false, [pool]);
+  assert.equal(t, null); // 8GB/256GB δεν είναι κωδικός
+  const fromTitle = search("LG", null, null, "LG OLED55C46LA 55\"", false, [pool]);
+  assert.equal(fromTitle?.base, "suggested"); assert.match(fromTitle!.note!, /τίτλο/);
+  assert.equal(search("LG", null, "OLED55C46LA", "LG τηλεόραση", false, [pool])?.base, "auto");
+});

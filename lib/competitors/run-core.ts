@@ -1,6 +1,6 @@
 // Καθαρές αποφάσεις της νυχτερινής εργασίας: τι γίνεται με ένα ζευγάρι δεδομένου του αποτελέσματος του API. Χωρίς DB/δίκτυο.
 import { athensAt } from "@/lib/scheduler/due";
-import { diffPct, sameEan, type parseProduct } from "./kotsovolos/core";
+import { diffPct, matchByModel, matchPhone, modelTokens, sameEan, type KotItem, type parseProduct } from "./kotsovolos/core";
 
 type Parsed = ReturnType<typeof parseProduct>;
 export type Match = "auto" | "suggested" | "manual" | "rejected" | "lost";
@@ -61,4 +61,20 @@ export function decidePrice(a: { prev: Prev; base: "auto" | "suggested"; note: s
   const diff = a.ourPrice != null ? diffPct(a.ourPrice, their) : null;
   const history = prev.their == null || prev.their !== their || prev.ourPrice !== a.ourPrice;
   return { match, lastError, missCount: 0, available: parsed.buyable, history, prices: { list: parsed.list, offer: parsed.offer, their, ourPrice: a.ourPrice, diff } };
+}
+
+type Search = { items: KotItem[]; base: "auto" | "suggested"; note: string | null };
+/** Κωδικός μοντέλου (modelCode, μετά κωδικοί από τον τίτλο) σε κάθε δεξαμενή με τη σειρά: πρώτα η αντιστοιχισμένη κατηγορία, μετά όλη η μάρκα.
+ *  Ταίριασμα από κωδικό του τίτλου είναι πάντα πρόταση (auto μόνο με ίδιο EAN, μέσα στο decidePrice), όπως του AI. */
+export function search(brand: string, alias: string | null, model: string | null, title: string, phone: boolean, pools: KotItem[][]): Search | null {
+  const models = [...new Set([model, ...modelTokens(title)].filter((m): m is string => !!m))];
+  for (const pool of pools) for (const mc of models) {
+    const m = matchByModel({ brand, alias, model: mc }, pool);
+    const fromTitle = mc !== model;
+    if (m.kind === "matched") return fromTitle ? { items: [m.item], base: "suggested", note: `κωδικός από τον τίτλο (${mc}) — έλεγξε` } : { items: [m.item], base: "auto", note: null };
+    if (m.kind === "suggested") return { items: [m.item], base: "suggested", note: m.reason };
+    if (m.kind === "ambiguous") return { items: m.items.slice(0, 3), base: "suggested", note: `πολλά υποψήφια (${m.items.length})` };
+  }
+  if (phone) for (const pool of pools) { const p = matchPhone({ brand, alias, title }, pool); if (p) return { items: [p], base: "suggested", note: null }; }
+  return null;
 }

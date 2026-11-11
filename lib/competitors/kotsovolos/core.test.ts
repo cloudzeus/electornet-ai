@@ -186,6 +186,8 @@ test("modelTokens: κωδικοί από τον τίτλο, χωρίς μονά�
   assert.deepEqual(modelTokens("ROWENTA ΕΠΑΝ.ΦΟΡΤ ΣΚ RH98A9"), ["RH98A9"]);
   assert.deepEqual(modelTokens("SAMSUNG 256GB 5000mAh 12000BTU 55cm 120Hz 1500W 2.5kg"), []);
   assert.deepEqual(modelTokens("LG (OLED55C46LA) 55\""), ["OLED55C46LA"]);
+  for (const t of ["8GB/256GB", "2x50W", "2000W/230V", "1400rpm", "500ml", "64MP", "1200kWh", "30x30cm", "65inch", "15bar"]) assert.deepEqual(modelTokens(`X ${t}`), [], t);
+  assert.deepEqual(modelTokens("SONY XR55A80L 2x50W"), ["XR55A80L"]);
 });
 test("slugIndex/brandPool: ολόκληρο κομμάτι (ngs ≠ settings), «de longhi», alias", () => {
   const items = [it("a/1-ngs-speaker-roller"), it("a/2-tv-settings-remote"), it("b/3-de-longhi-ecam-22110"), it("b/4-delonghi-dedica-ec685"), it("c/5-lg-oled55c46la")];

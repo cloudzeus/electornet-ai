@@ -22,7 +22,8 @@ export async function aiPick(o: { title: string; brand: string; model: string | 
   try {
     if (!cfg.anthropicKey) throw new Error("χωρίς κλειδί Claude");
     r = await chat({ ...base, override: { apiKey: cfg.anthropicKey, model: "claude-sonnet-5-5" } });
-  } catch {
+  } catch (e) {
+    if (cfg.anthropicKey) console.warn("[competitor] Claude απέτυχε, συνεχίζει με DeepSeek:", (e as Error).message);
     try { r = await chat({ ...base, model: "deepseek/deepseek-v4-flash" }); }
     catch (e) { if (/ημερήσιο όριο/.test((e as Error).message)) throw new AiStop((e as Error).message); throw e; }
   }

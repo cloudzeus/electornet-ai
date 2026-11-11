@@ -4,10 +4,10 @@ import { resetSettingsCache } from "@/lib/settings/store";
 import type { JobResult } from "@/lib/scheduler/jobs";
 import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
-import { brandPool, isBundle, matchByModel, matchPhone, modelTokens, rankCandidates, sameEan, slugIndex, type KotItem } from "./kotsovolos/core";
+import { brandPool, isBundle, rankCandidates, sameEan, slugIndex, type KotItem } from "./kotsovolos/core";
 import { aiPick, AiStop } from "./llm-match";
 import { readCosts } from "./cost";
-import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, searchPrev, type Decision, type Prev } from "./run-core";
+import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, search, searchPrev, type Decision, type Prev } from "./run-core";
 
 export { ourPrice };
 const COMP = "kotsovolos";
@@ -23,20 +23,6 @@ export async function writeState(patch: { paused?: boolean; brakedNights: number
   const data = { ...(await readState()), ...patch };
   await db.setting.upsert({ where: { section: SECTION }, update: { data }, create: { section: SECTION, data } });
   resetSettingsCache();
-}
-
-type Search = { items: KotItem[]; base: "auto" | "suggested"; note: string | null };
-/** Κωδικός μοντέλου (modelCode, μετά κωδικοί από τον τίτλο) σε κάθε δεξαμενή με τη σειρά: πρώτα η αντιστοιχισμένη κατηγορία, μετά όλη η μάρκα. */
-function search(brand: string, alias: string | null, model: string | null, title: string, phone: boolean, pools: KotItem[][]): Search | null {
-  const models = [...new Set([model, ...modelTokens(title)].filter((m): m is string => !!m))];
-  for (const pool of pools) for (const mc of models) {
-    const m = matchByModel({ brand, alias, model: mc }, pool);
-    if (m.kind === "matched") return { items: [m.item], base: "auto", note: null };
-    if (m.kind === "suggested") return { items: [m.item], base: "suggested", note: m.reason };
-    if (m.kind === "ambiguous") return { items: m.items.slice(0, 3), base: "suggested", note: `πολλά υποψήφια (${m.items.length})` };
-  }
-  if (phone) for (const pool of pools) { const p = matchPhone({ brand, alias, title }, pool); if (p) return { items: [p], base: "suggested", note: null }; }
-  return null;
 }
 
 export type JobOpts = {
@@ -160,7 +146,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     if (!s && !known) {
       // 3. AI: μόνο πρόταση· auto μόνο αν το EAN που διαβάζουμε είναι ίδιο
       if (aiOff || c.ai >= aiMax) return; // χωρίς πλήρες ψάξιμο: δεν σημειώνεται «δεν βρέθηκε»
-      const cands = rankCandidates({ title: p.title, model: p.modelCode }, inCat.length ? [...new Set([...inCat, ...all])] : all);
+      const cands = rankCandidates({ title: p.title, model: p.modelCode }, all); // ίσοι βαθμοί: η σειρά του sitemap
       let pick = null;
       if (cands.length) {
         c.ai++;
