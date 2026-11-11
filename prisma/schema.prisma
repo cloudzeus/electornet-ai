@@ -20,59 +20,59 @@ datasource db {
 // ---------- Catalogue (mirrored from the ERP) ----------
 
 model Category {
-  id             String                  @id @default(cuid())
-  erpCode        String?                 @unique
-  slug           String                  @unique
-  name           String
-  parentId       String?
-  parent         Category?               @relation("CategoryTree", fields: [parentId], references: [id])
-  children       Category[]              @relation("CategoryTree")
-  depth          Int                     @default(0)
-  sortNo         Int                     @default(0)
+  id           String     @id @default(cuid())
+  erpCode      String?    @unique
+  slug         String     @unique
+  name         String
+  parentId     String?
+  parent       Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children     Category[] @relation("CategoryTree")
+  depth        Int        @default(0)
+  sortNo       Int        @default(0)
   /// σειρά που όρισε ο διαχειριστής (drag & drop)· το SoftOne δεν έχει πεδίο σειράς, η προβολή την κρατά
-  sortManual     Int?
-  metaTitle      String?
-  metaDesc       String?                 @db.Text
+  sortManual   Int?
+  metaTitle    String?
+  metaDesc     String?    @db.Text
   /// Κρυφή όταν είναι ανενεργή στο ERP ή δεν έχει κανένα ενεργό προϊόν στο υποδέντρο της
-  active         Boolean                 @default(true)
-  productCount   Int                     @default(0) // ενεργά προϊόντα στο υποδέντρο
-  source         String? // softone = προβολή του καθρέφτη (lib/softone/project.ts)
-  s1SyncedAt     DateTime?
-  products       Product[]
-  facets         Facet[]
-  competitorMaps CompetitorCategoryMap[]
+  active       Boolean    @default(true)
+  productCount Int        @default(0) // ενεργά προϊόντα στο υποδέντρο
+  source       String? // softone = προβολή του καθρέφτη (lib/softone/project.ts)
+  s1SyncedAt   DateTime?
+  products     Product[]
+  facets       Facet[]
 
   @@index([parentId])
   @@index([active, depth, sortNo])
+  competitorMaps CompetitorCategoryMap[]
 }
 
 model Brand {
-  id             String               @id @default(cuid())
-  slug           String               @unique
-  code           String?              @unique
-  name           String
-  logo           String? // δικό μας αρχείο (Media library → Bunny) — έχει προτεραιότητα
-  logoCdn        String? // hotlink Brandfetch· οι όροι τους ΑΠΑΓΟΡΕΥΟΥΝ λήψη/re-hosting
-  domain         String? // «samsung.com» — το κλειδί του Brandfetch
-  logoSource     String? // upload | brandfetch | manual-domain
-  domainSuggest  String? // πρόταση Brandfetch που θέλει έγκριση διαχειριστή
-  logoScore      Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
-  logoStatus     String? // pending | approved | rejected — κάθε λογότυπο από το API περνά από έγκριση διαχειριστή
-  logoAt         DateTime?
-  featured       Boolean              @default(false)
-  sort           Int                  @default(0)
-  active         Boolean              @default(true)
-  s1Id           String?              @unique // MTRMANFCTR (κατασκευαστής = μάρκα για το site)
-  s1Name         String?
-  s1Data         Json?
-  s1SyncedAt     DateTime?
-  s1Missing      Boolean              @default(false)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  products       Product[]
-  competitorMaps CompetitorBrandMap[]
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  code          String?   @unique
+  name          String
+  logo          String? // δικό μας αρχείο (Media library → Bunny) — έχει προτεραιότητα
+  logoCdn       String? // hotlink Brandfetch· οι όροι τους ΑΠΑΓΟΡΕΥΟΥΝ λήψη/re-hosting
+  domain        String? // «samsung.com» — το κλειδί του Brandfetch
+  logoSource    String? // upload | brandfetch | manual-domain
+  domainSuggest String? // πρόταση Brandfetch που θέλει έγκριση διαχειριστή
+  logoScore     Float? // βεβαιότητα αντιστοίχισης ονόματος → domain (0..1)
+  logoStatus    String? // pending | approved | rejected — κάθε λογότυπο από το API περνά από έγκριση διαχειριστή
+  logoAt        DateTime?
+  featured      Boolean   @default(false)
+  sort          Int       @default(0)
+  active        Boolean   @default(true)
+  s1Id          String?   @unique // MTRMANFCTR (κατασκευαστής = μάρκα για το site)
+  s1Name        String?
+  s1Data        Json?
+  s1SyncedAt    DateTime?
+  s1Missing     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
 
   @@index([active, sort])
+  competitorMaps CompetitorBrandMap[]
 }
 
 model Product {
@@ -139,8 +139,6 @@ model Product {
   soldAlone         Boolean             @default(true)
   updatedAt         DateTime            @updatedAt
   createdAt         DateTime            @default(now())
-  competitorPrices  CompetitorPrice[]
-  priceChangeLines  PriceChangeLine[]
 
   @@index([kind])
   @@index([categoryId, active])
@@ -148,6 +146,8 @@ model Product {
   @@index([eprelStatus])
   @@index([dimStatus])
   @@index([categoryId, active, price])
+  competitorPrices CompetitorPrice[]
+  priceChangeLines PriceChangeLine[]
 }
 
 model Variant {
@@ -1982,18 +1982,18 @@ model Redirect {
 // (e.g. "cms.zones.write", "orders.read", "settings.write").
 
 model Staff {
-  id                 String                @id @default(cuid())
-  email              String                @unique
-  name               String
-  passwordHash       String? // credentials login (Auth.js); null when SSO-only
-  active             Boolean               @default(true)
-  storeId            String? // store-scoped roles (member store staff)
-  roles              StaffRole[]
-  audits             AuditLog[]
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  lastLoginAt        DateTime?
-  loginChallenges    StaffLoginChallenge[]
+  id              String                @id @default(cuid())
+  email           String                @unique
+  name            String
+  passwordHash    String? // credentials login (Auth.js); null when SSO-only
+  active          Boolean               @default(true)
+  storeId         String? // store-scoped roles (member store staff)
+  roles           StaffRole[]
+  audits          AuditLog[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  lastLoginAt     DateTime?
+  loginChallenges StaffLoginChallenge[]
   priceChangeBatches PriceChangeBatch[]
 }
 
