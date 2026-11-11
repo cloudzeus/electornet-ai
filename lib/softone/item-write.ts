@@ -238,15 +238,21 @@ export interface NewItem {
   code: string;
   fields: Partial<Record<ItemField, ItemValue>>;
   /** MTRMANFCTR, CCCWEBGRSPECS, CCCWEBCATEGORY1/2 και ό,τι αντιγράφεται από ένα είδος της ίδιας ομάδας (ΦΠΑ, μονάδα, ομάδα, κατηγορία, μάρκα) */
-  refs: { manufacturer: number; specGroup: number; webCat1: number | null; webCat2: number | null; vat: number | null; unit: number | null; itemGroup: number | null; commCategory: number | null; mark: number | null };
+  refs: { manufacturer: number; specGroup: number; webCat1: number | null; webCat2: number | null; vat: number | null; unit: number | null; itemGroup: number | null; commCategory: number | null; mark: number | null;
+    /** Συνήθης προμηθευτής, business unit, λογιστική κατηγορία (+ λογαριασμοί) και φόρος ανακύκλωσης (Έξοδο 1 + ποσό) */
+    erp?: ItemErpRefs };
 }
+/** Πεδία του ERP που έχουν σχεδόν όλα τα είδη (μέτρηση 11/11/2026: MTRSUP/BUSUNITS/MTRACN 100%, EXPVAL1 81%). */
+export interface ItemErpRefs { supplier?: number | null; busUnit?: number | null; acn?: number | null; acnMsk?: string | null; acnMsk1?: string | null; expn1?: number | null; expval1?: number | null }
+const ERP_COLS = { supplier: "MTRSUP", busUnit: "BUSUNITS", acn: "MTRACN", acnMsk: "ACNMSK", acnMsk1: "ACNMSK1", expn1: "EXPN1", expval1: "EXPVAL1" } as const;
+const ERP_LABEL: Record<keyof ItemErpRefs, string> = { supplier: "συνήθης προμηθευτής", busUnit: "business unit", acn: "λογιστική κατηγορία", acnMsk: "λογαριασμός αγορών", acnMsk1: "λογαριασμός πωλήσεων", expn1: "είδος εξόδου 1", expval1: "φόρος ανακύκλωσης" };
 
 /**
  * Νέο είδος στο SoftOne με setData ITEM χωρίς KEY (εισαγωγή). Ο κωδικός ελέγχεται πρώτα ότι είναι ελεύθερος· μετά την
  * εγγραφή το είδος ξαναδιαβάζεται και επαληθεύονται κωδικός και όνομα. Το ERP είναι σε παραγωγή: τίποτα «έξυπνο» εδώ —
  * μόνο τα πεδία που ξέρουμε, με τιμές αντιγραμμένες από υπάρχον είδος της ίδιας ομάδας.
  */
-export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: number; error?: string }> {
+export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: number; error?: string; warnings?: string[] }> {
   const code = item.code.trim();
   if (!code || code.length > 25) return { ok: false, error: "Ο κωδικός είδους χρειάζεται 1–25 χαρακτήρες." };
   const name = norm("text", item.fields.name);
@@ -261,6 +267,8 @@ export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: n
   const row: Record<string, string | number> = { CODE: code, MTRMANFCTR: item.refs.manufacturer, CCCWEBGRSPECS: item.refs.specGroup };
   const refs: [string, number | null][] = [["CCCWEBCATEGORY1", item.refs.webCat1], ["CCCWEBCATEGORY2", item.refs.webCat2], ["VAT", item.refs.vat], ["MTRUNIT1", item.refs.unit], ["MTRGROUP", item.refs.itemGroup], ["MTRCATEGORY", item.refs.commCategory], ["MTRMARK", item.refs.mark]];
   for (const [k, v] of refs) if (v != null) row[k] = v;
+  const erp = Object.entries(item.refs.erp ?? {}).filter(([, v]) => v != null && v !== "") as [keyof ItemErpRefs, string | number][];
+  for (const [k, v] of erp) row[ERP_COLS[k]] = v;
   for (const [k, v] of Object.entries(item.fields) as [ItemField, ItemValue][]) { const f = ITEM_FIELDS[k]; if (norm(f.kind, v) !== "" || f.kind === "bool") row[f.s1] = toS1(f.kind, v); }
 
   const r = await s1("setData", { OBJECT: "ITEM", data: { ITEM: [row] } }).catch((e: Error) => ({ success: false, error: e.message }));
@@ -268,7 +276,9 @@ export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: n
   const mtrl = Number(r.id);
   if (!Number.isInteger(mtrl) || mtrl <= 0) return { ok: false, error: "Το SoftOne απάντησε «επιτυχία» χωρίς αριθμό είδους — έλεγξε στο ERP." };
   // το είδος δημιουργείται συνήθως ΑΝΕΝΕΡΓΟ, άρα η ανάγνωση πρέπει να βλέπει και ανενεργά (`itemRow`)
-  const b = await itemRow(mtrl, ["CODE", "NAME"]);
+  const b = await itemRow(mtrl, ["CODE", "NAME", ...erp.map(([k]) => ERP_COLS[k])]);
   if (!b || b.CODE?.trim() !== code || norm("text", b.NAME) !== name) return { ok: false, mtrl, error: `Το είδος MTRL ${mtrl} δημιουργήθηκε αλλά η ανάγνωση δεν ταιριάζει (${b ? `${b.CODE} · ${b.NAME}` : "δεν βρέθηκε"}) — έλεγξε στο ERP.` };
-  return { ok: true, mtrl };
+  // Το είδος υπάρχει· ό,τι από τα πεδία ERP δεν κράτησε το SoftOne γίνεται σημείωση (συμπληρώνεται στο ERP), όχι αποτυχία
+  const lost = erp.filter(([k, v]) => Number(b[ERP_COLS[k]] || 0) !== Number(v) && String(b[ERP_COLS[k]] ?? "").trim() !== String(v)).map(([k]) => ERP_LABEL[k]);
+  return { ok: true, mtrl, ...(lost.length ? { warnings: [`Το SoftOne δεν κράτησε: ${lost.join(", ")} — συμπλήρωσέ τα στο είδος MTRL ${mtrl} στο ERP.`] } : {}) };
 }

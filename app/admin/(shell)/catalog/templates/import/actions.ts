@@ -6,7 +6,7 @@ import { findMapping, autosaveMapping } from "@/lib/catalog/foreign-import/read"
 import { applyForeign, replanForeign, assertConfigIds, missingFromJob, deactivateMissing, rowsWithoutCategory, setRowCategories, liveCard, categorySpecs, type LiveCard, type CategorySpecs, type ForeignPlanRow, type MissingProduct } from "@/lib/catalog/foreign-import/server";
 import { suggestProductCategories, type CatGuess } from "@/lib/catalog/category-ai";
 import { pendingViews } from "@/lib/catalog/foreign-import/pending";
-import { groupOptions } from "@/lib/catalog/foreign-import/options";
+import { groupOptions, unitOptions, erpOptions, type ErpOpt } from "@/lib/catalog/foreign-import/options";
 import { db } from "@/lib/db";
 import type { PendingView } from "@/components/admin/catalog/PendingItems";
 import { ensureFreshSpecGroups } from "@/lib/catalog/supplier-sheet";
@@ -90,7 +90,7 @@ export async function runForeignBatch(jobId: string, rowNos: number[], previewWr
   }
 }
 
-export type FinishData = { pending: PendingView[]; groups: { id: string; name: string }[]; missing: MissingProduct[]; writeOn: boolean; canApprove: boolean; flagOn: boolean } | { error: string };
+export type FinishData = { pending: PendingView[]; units: { id: string; name: string }[]; erpOpts: { suppliers: ErpOpt[]; busUnits: ErpOpt[]; acns: ErpOpt[] }; groups: { id: string; name: string }[]; missing: MissingProduct[]; writeOn: boolean; canApprove: boolean; flagOn: boolean } | { error: string };
 
 /** Βήμα 5 του οδηγού: τα νέα είδη ΑΥΤΗΣ της εισαγωγής (ό,τι δεν έχει απορριφθεί) και τα ενεργά προϊόντα της μάρκας που λείπουν από το αρχείο. Καμία εγγραφή. */
 export async function finishData(jobId: string): Promise<FinishData> {
@@ -100,7 +100,7 @@ export async function finishData(jobId: string): Promise<FinishData> {
       db.pendingItem.findMany({ where: { jobId: String(jobId), status: { not: "discarded" } }, orderBy: { rowNo: "asc" } }),
       groupOptions(), missingFromJob(String(jobId)), itemWriteEnabled(),
     ]);
-    return { pending: await pendingViews(rows), groups: groups.map((g) => ({ id: String(g.id), name: g.name })), missing, writeOn, canApprove: can(user.permissions, "catalog.sync.run"), flagOn: webFlagWriteEnabled() };
+    return { pending: await pendingViews(rows), units: await unitOptions(), erpOpts: await erpOptions(), groups: groups.map((g) => ({ id: String(g.id), name: g.name })), missing, writeOn, canApprove: can(user.permissions, "catalog.sync.run"), flagOn: webFlagWriteEnabled() };
   } catch (e) { console.error("[foreign-import/finish]", e); return { error: "Δεν φορτώθηκαν τα νέα είδη της εισαγωγής — ξαναδοκίμασε." }; }
 }
 

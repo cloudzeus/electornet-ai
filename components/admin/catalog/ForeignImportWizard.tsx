@@ -979,7 +979,7 @@ function Finish({ jobId, brands, settings, onBack }: { jobId: string; brands: Pi
           <span className={`${chip} bg-eu-chip text-eu-navy`}>Δημιουργήθηκαν {created}</span>
         </div>
         {err && <p role="alert" className="m-0 flex gap-2 items-start rounded-xl bg-eu-red/10 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 text-eu-red shrink-0 mt-0.5" aria-hidden />{err}</p>}
-        <PendingItems items={data.pending} status="pending" writeOn={data.writeOn} canWrite canApprove={data.canApprove} brands={brands} groups={data.groups} onChanged={load} flagOn={data.flagOn} settings={settings} />
+        <PendingItems items={data.pending} status="pending" writeOn={data.writeOn} canWrite canApprove={data.canApprove} brands={brands} groups={data.groups} units={data.units} erpOpts={data.erpOpts} onChanged={load} flagOn={data.flagOn} settings={settings} />
       </section>
 
       <section data-help="foreign.missing" className={card} aria-labelledby="f-missing">

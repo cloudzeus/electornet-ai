@@ -1,31 +1,57 @@
 import "server-only";
 import type { PendingItem } from "@prisma/client";
 import { db } from "@/lib/db";
-import { applyImport } from "@/lib/catalog/supplier-import";
+import { applyImport, siblingErpMany } from "@/lib/catalog/supplier-import";
 import { applyMedia } from "@/lib/catalog/supplier-media";
 import { loadGroups } from "@/lib/catalog/supplier-sheet";
 import { syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
 import { itemWriteEnabled, itemCodeTaken, writeItem, writeWebPrice, webPriceWriteEnabled, writeWebExcluded, webFlagWriteEnabled } from "@/lib/softone/item-write";
-import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, missingSpecs, renameSpec, type MissingSpec, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
+import type { ItemErpRefs } from "@/lib/softone/item-write";
+import { acnOptions } from "@/lib/catalog/foreign-import/options";
+import { OPEN, pendingErp, erpValueOk, ERP_KEYS, type PendingErp, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, missingSpecs, renameSpec, type MissingSpec, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
 import { UserError, labelKey } from "@/lib/catalog/foreign-import/core";
 import { changeSpecGroup } from "@/lib/softone/spec-write";
 import type { RowRefs } from "@/lib/catalog/supplier-sheet";
-import type { PendingView } from "@/components/admin/catalog/PendingItems";
+import type { PendingView, ErpRef } from "@/components/admin/catalog/PendingItems";
+import type { Prisma } from "@prisma/client";
 
 /** Οι γραμμές όπως τις δείχνει η λίστα «Νέα είδη» και το τελευταίο βήμα του οδηγού: ονόματα μάρκας / ομάδας / κατηγορίας / αρχείου και τι λείπει. */
 export async function pendingViews(rows: PendingItem[]): Promise<PendingView[]> {
   const uniq = <T,>(l: (T | null)[]) => [...new Set(l.filter((x): x is T => x != null))];
-  const [brands, groups, cats, jobs] = await Promise.all([
+  const [brands, groups, cats, jobs, units] = await Promise.all([
     db.brand.findMany({ where: { id: { in: uniq(rows.map((r) => r.brandId)) } }, select: { id: true, name: true, s1Id: true } }),
     db.s1SpecGroup.findMany({ where: { s1Id: { in: uniq(rows.map((r) => r.specGroupS1Id)) } }, select: { s1Id: true, name: true } }),
     db.category.findMany({ where: { id: { in: uniq(rows.map((r) => r.webCategoryId)) } }, select: { id: true, name: true } }),
     db.importJob.findMany({ where: { id: { in: uniq(rows.map((r) => r.jobId)) } }, select: { id: true, fileName: true, createdAt: true } }),
+    db.unit.findMany({ select: { id: true, code: true, name: true, s1Id: true } }),
   ]);
+  // Μονάδα που θα μπει στο SoftOne: της αντιστοίχισης/φόρμας, αλλιώς του αδελφού είδους (ίδια λογική με το createInSoftone)
+  const unitLabel = (u: { code: string; name: string }) => (u.name && u.name !== u.code ? `${u.code} · ${u.name}` : u.code);
+  const unitById = new Map(units.map((u) => [u.id, u])), unitByS1 = new Map(units.map((u) => [u.s1Id, u]));
+  const sibKeys = uniq(rows.filter((r) => r.specGroupS1Id != null).map((r) => `${r.specGroupS1Id}:${(r.brandId && brands.find((b) => b.id === r.brandId)?.s1Id) || ""}`));
+  const sibOf = new Map(await Promise.all(sibKeys.map(async (k) => {
+    const [g, man] = k.split(":"), base = { specGroupS1Id: Number(g), missing: false };
+    const sel = { unitS1Id: true } as const;
+    const sib = (man ? await db.s1Item.findFirst({ where: { ...base, manufacturerS1Id: Number(man) }, orderBy: { mtrl: "desc" }, select: sel }) : null)
+      ?? await db.s1Item.findFirst({ where: base, orderBy: { mtrl: "desc" }, select: sel });
+    return [k, sib] as const;
+  })));
+  // Πεδία ERP από αδελφό είδος — ίδια συνάρτηση με τη δημιουργία· μία ανάγνωση για όλη τη σελίδα. Αν το ERP δεν απαντά: «όπως παρόμοιο είδος» χωρίς τιμή
+  const sibErp = await siblingErpMany(sibKeys).catch(() => new Map<string, ItemErpRefs & { mtrl: number }>());
+  const own = rows.map((r) => pendingErp(r.fields));
+  const [sups, bus, acns] = await Promise.all([
+    db.supplier.findMany({ where: { s1Trdr: { in: uniq([...own.map((e) => e.supplier ?? null), ...[...sibErp.values()].map((e) => e.supplier ?? null)]) } }, select: { s1Trdr: true, name: true } }),
+    db.businessUnit.findMany({ where: { s1Id: { not: null } }, select: { s1Id: true, name: true } }),
+    acnOptions(),
+  ]);
+  const supName = new Map(sups.map((s) => [s.s1Trdr, s.name])), buName = new Map(bus.map((b) => [Number(b.s1Id), b.name])), acnName = new Map(acns.map((a) => [Number(a.id), a.name]));
+  const fee = (n: number) => `${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €`;
   const brandOf = new Map(brands.map((b) => [b.id, b])), groupName = new Map(groups.map((g) => [g.s1Id, g.name]));
   const catName = new Map(cats.map((c) => [c.id, c.name])), jobOf = new Map(jobs.map((j) => [j.id, j]));
-  return rows.map((p) => {
+  return rows.map((p, i) => {
     const b = p.brandId ? brandOf.get(p.brandId) : undefined;
+    const sib = p.specGroupS1Id != null ? sibOf.get(`${p.specGroupS1Id}:${b?.s1Id ?? ""}`) ?? null : null;
     const m = pendingMedia(p.media);
     const job = jobOf.get(p.jobId);
     return {
@@ -36,6 +62,24 @@ export async function pendingViews(rows: PendingItem[]): Promise<PendingView[]> 
       cost: p.cost, rrp: p.rrp, price: p.price, photos: m.image.length + m.banner.length + m.video.length, images: m.image.slice(0, 12),
       missing: pendingMissing({ ...p, brandId: b?.id ?? null, brandS1Id: b?.s1Id ?? null }),
       mtrl: p.mtrl, error: p.error, updatedAt: p.updatedAt.toISOString(),
+      unit: (() => {
+        const own = p.unitId ? unitById.get(p.unitId) : undefined;
+        if (own) return { id: own.id, label: unitLabel(own), from: "own" as const };
+        const su = sib?.unitS1Id != null ? unitByS1.get(String(sib.unitS1Id)) ?? null : null;
+        return { id: null, label: su ? unitLabel(su) : null, from: su ? ("sibling" as const) : null };
+      })(),
+      erp: (() => {
+        const o = own[i], se = p.specGroupS1Id != null ? sibErp.get(`${p.specGroupS1Id}:${b?.s1Id ?? ""}`) : undefined;
+        const ref = (mine: number | undefined, theirs: number | null | undefined, name: (n: number) => string | undefined): ErpRef =>
+          mine != null ? { id: String(mine), label: name(mine) ?? `κωδ. ${mine}`, from: "own" } : theirs != null ? { id: null, label: name(theirs) ?? `κωδ. ${theirs}`, from: "sibling" } : { id: null, label: null, from: sib ? "sibling" : null };
+        return {
+          // προμηθευτής μόνο από είδος της ίδιας μάρκας — ίδια λογική με το createInSoftone
+          supplier: ref(o.supplier, se?.supplier, (n) => supName.get(n)),
+          busUnit: ref(o.busUnit, se?.busUnit, (n) => buName.get(n)),
+          acn: ref(o.acn, se?.acn, (n) => acnName.get(n)),
+          fee: ref(o.expval1, se?.expval1, (n) => (n > 0 ? fee(n) : "χωρίς φόρο")),
+        };
+      })(),
     };
   });
 }
@@ -145,7 +189,7 @@ async function approveOne(id: string, staffId: string, opts: ApproveOpts): Promi
 
     // ---- δημιουργία: η μηχανή του template (έλεγχοι διπλών κωδικού/barcode, αδελφό είδος, createItem, συγχρονισμός, προβολή) ----
     const [r] = await applyImport({ meta: null, rows: [pendingRow({ ...q, specs: sp.specs }, SHEET, groupS1Id, refs)], warnings: [], sheets: [] }, { brandId: q.brandId!, toSoftone: true, activate: false }, [`${SHEET}#${q.rowNo}`]);
-    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings], true, opts); }
+    if (r?.ok && r.mtrl) { mtrl = r.mtrl; return await finish(q, staffId, r.mtrl, r.productId ?? null, [...sp.warnings, ...(r.warnings ?? [])], true, opts); }
     // Αποτυχία — αλλά το createItem μπορεί να έγραψε και να απέτυχε μετά (επαλήθευση/συγχρονισμός): ο κωδικός το ξέρει
     const msg = r?.message || "Η γραμμή δεν εκτελέστηκε.";
     const made = await itemCodeTaken(code).catch(() => null);
@@ -217,7 +261,7 @@ export async function discardPending(ids: string[]): Promise<number> {
   return (await db.pendingItem.updateMany({ where: { id: { in: ids }, status: { in: OPEN }, mtrl: null }, data: { status: "discarded" } })).count;
 }
 
-export interface PendingPatch { code?: string; fields?: PendingFields; brandId?: string | null; specGroupS1Id?: number | null; webCategoryId?: string | null; price?: number | null }
+export interface PendingPatch { code?: string; fields?: PendingFields; brandId?: string | null; specGroupS1Id?: number | null; webCategoryId?: string | null; price?: number | null; /** null = όπως το αδελφό είδος */ unitId?: string | null; /** ανά πεδίο: αριθμός SoftOne, null = όπως το αδελφό είδος */ erp?: Partial<Record<keyof PendingErp, number | null>> }
 
 /**
  * Διόρθωση πριν από την έγκριση (φόρμα της λίστας): μόνο σε pending/error χωρίς MTRL. Τα πεδία συγχωνεύονται με τα υπάρχοντα (κενή
@@ -228,21 +272,35 @@ export async function updatePending(id: string, patch: PendingPatch): Promise<{ 
   if (!p) return { ok: false, error: "Το είδος δεν βρέθηκε στην αναμονή." };
   if (p.mtrl != null) return { ok: false, error: `Το είδος έχει ήδη MTRL ${p.mtrl} στο SoftOne — δεν αλλάζει από εδώ.` };
   if (!OPEN.includes(p.status)) return { ok: false, error: "Το είδος δεν αλλάζει πια (έχει δημιουργηθεί ή απορριφθεί)." };
-  const data: { code?: string; fields?: PendingFields; brandId?: string | null; specGroupS1Id?: number | null; webCategoryId?: string | null; price?: number | null } = {};
+  const data: { code?: string; fields?: Prisma.InputJsonObject; brandId?: string | null; specGroupS1Id?: number | null; webCategoryId?: string | null; price?: number | null; unitId?: string | null } = {};
   if (patch.code !== undefined) {
     const code = patch.code.trim();
     if (code.length > 25) return { ok: false, error: "Ο κωδικός έχει έως 25 χαρακτήρες." };
     data.code = code;
   }
+  const merged: PendingFields = { ...pendingFields(p.fields) };
   if (patch.fields) {
-    const merged: PendingFields = { ...pendingFields(p.fields) };
     for (const [k, v] of Object.entries(patch.fields) as [keyof PendingFields, string | undefined][]) {
       if (k === "mtrl") continue; // νέο είδος: ποτέ MTRL
       const t = (v ?? "").trim();
       if (t) merged[k] = t; else delete merged[k];
     }
-    data.fields = merged;
   }
+  const erp: PendingErp = pendingErp(p.fields);
+  if (patch.erp) {
+    for (const k of ERP_KEYS) {
+      if (!(k in patch.erp)) continue;
+      const v = patch.erp[k];
+      if (v == null) { delete erp[k]; continue; }
+      if (!erpValueOk(k, v)) return { ok: false, error: k === "expval1" ? "Ο φόρος ανακύκλωσης είναι ποσό από 0 έως 1.000 €." : "Μη έγκυρη τιμή πεδίου ERP." };
+      erp[k] = k === "expval1" ? Math.round(v * 10000) / 10000 : v;
+    }
+    if (erp.supplier != null && !(await db.supplier.findUnique({ where: { s1Trdr: erp.supplier }, select: { id: true } }))) return { ok: false, error: "Ο προμηθευτής δεν βρέθηκε." };
+    if (erp.busUnit != null && !(await db.businessUnit.findFirst({ where: { s1Id: String(erp.busUnit) }, select: { id: true } }))) return { ok: false, error: "Το business unit δεν βρέθηκε." };
+    if (erp.acn != null && !(await acnOptions()).some((a) => Number(a.id) === erp.acn)) return { ok: false, error: "Η λογιστική κατηγορία δεν βρέθηκε στο SoftOne." };
+  }
+  // Τα πεδία ERP ζουν στο fields._erp: κάθε εγγραφή του fields τα ξαναγράφει, αλλιώς θα χάνονταν
+  if (patch.fields || patch.erp) data.fields = { ...merged, ...(Object.keys(erp).length ? { _erp: erp } : {}) };
   if (patch.brandId !== undefined) {
     if (patch.brandId && !(await db.brand.findUnique({ where: { id: patch.brandId }, select: { id: true } }))) return { ok: false, error: "Η μάρκα δεν βρέθηκε." };
     data.brandId = patch.brandId || null;
@@ -258,6 +316,11 @@ export async function updatePending(id: string, patch: PendingPatch): Promise<{ 
   if (patch.price !== undefined) {
     if (patch.price != null && !(Number.isFinite(patch.price) && patch.price > 0)) return { ok: false, error: "Η τιμή πρέπει να είναι αριθμός μεγαλύτερος από 0." };
     data.price = patch.price == null ? null : Math.round(patch.price * 100) / 100;
+  }
+  if (patch.unitId !== undefined) {
+    // μόνο μονάδα με σύνδεση στο SoftOne μπορεί να μπει σε νέο είδος
+    if (patch.unitId && !(await db.unit.findFirst({ where: { id: patch.unitId, s1Id: { not: null }, active: true }, select: { id: true } }))) return { ok: false, error: "Η μονάδα μέτρησης δεν υπάρχει στο SoftOne." };
+    data.unitId = patch.unitId || null;
   }
   // Ξανά ο έλεγχος κατάστασης στην ίδια την εγγραφή: αν στο μεταξύ ξεκίνησε έγκριση, δεν αλλάζει τίποτα
   const n = await db.pendingItem.updateMany({ where: { id, status: { in: OPEN }, mtrl: null }, data });

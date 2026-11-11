@@ -22,6 +22,22 @@ export const canApprove = (p: Pick<PendingItem, "status" | "updatedAt" | "mtrl">
 export const pendingFields = (v: PendingItem["fields"]): PendingFields =>
   v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([, x]) => typeof x === "string")) as PendingFields : {};
 
+/**
+ * Πεδία ERP που όρισε ο χρήστης για το νέο είδος (αριθμοί SoftOne): συνήθης προμηθευτής (TRDR), business unit, λογιστική
+ * κατηγορία (MTRACN), φόρος ανακύκλωσης σε € (EXPVAL1). Ζουν στο `fields._erp` — το `pendingFields` κρατά μόνο κείμενα, άρα
+ * δεν μπερδεύονται με τα πεδία του αρχείου. Όσα λείπουν έρχονται από το αδελφό είδος στη δημιουργία.
+ */
+export type PendingErp = { supplier?: number; busUnit?: number; acn?: number; expval1?: number };
+export const ERP_KEYS = ["supplier", "busUnit", "acn", "expval1"] as const;
+export const erpValueOk = (k: keyof PendingErp, n: number) => Number.isFinite(n) && (k === "expval1" ? n >= 0 && n <= 1000 : Number.isInteger(n) && n > 0);
+export function pendingErp(v: PendingItem["fields"]): PendingErp {
+  const e = v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>)._erp : null;
+  if (!e || typeof e !== "object" || Array.isArray(e)) return {};
+  const out: PendingErp = {};
+  for (const k of ERP_KEYS) { const x = (e as Record<string, unknown>)[k]; const n = Number(x); if (x != null && x !== "" && erpValueOk(k, n)) out[k] = n; }
+  return out;
+}
+
 /** Τι λείπει για να δημιουργηθεί το είδος στο SoftOne (ετικέτες για τον χρήστη, με σταθερή σειρά). */
 export function pendingMissing(p: PendingCheck): string[] {
   const out: string[] = [];
@@ -42,7 +58,8 @@ export function pendingRow(p: Pick<PendingItem, "rowNo" | "code" | "fields" | "s
   delete fields.mtrl;
   const specs = p.specs && typeof p.specs === "object" && !Array.isArray(p.specs)
     ? Object.fromEntries(Object.entries(p.specs).filter((e): e is [string, string] => typeof e[1] === "string" && !!e[1].trim())) : {};
-  const pick: RowRefs = { ...(refs?.unit != null ? { unit: refs.unit } : {}), ...(refs?.mark != null ? { mark: refs.mark } : {}) };
+  const erp = pendingErp(p.fields);
+  const pick: RowRefs = { ...(refs?.unit != null ? { unit: refs.unit } : {}), ...(refs?.mark != null ? { mark: refs.mark } : {}), ...(Object.keys(erp).length ? { erp } : {}) };
   return { sheet, rowNo: p.rowNo, groupS1Id, fields, specs, ...(Object.keys(pick).length ? { refs: pick } : {}) };
 }
 

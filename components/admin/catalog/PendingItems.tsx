@@ -19,7 +19,15 @@ export type PendingView = {
   /** οι διευθύνσεις των φωτογραφιών του (για την κάρτα του eshop) */
   images?: string[];
   mtrl: number | null; error: string | null; updatedAt: string;
+  /** μονάδα μέτρησης που θα μπει στο SoftOne: δική του (αρχείο ή φόρμα) ή του αδελφού είδους της ομάδας */
+  unit: { id: string | null; label: string | null; from: "own" | "sibling" | null };
+  /** πεδία ERP που θα μπουν στο SoftOne: δική του επιλογή (id) ή του αδελφού είδους */
+  erp: { supplier: ErpRef; busUnit: ErpRef; acn: ErpRef; fee: ErpRef };
 };
+/** `id` = δική του επιλογή (αριθμός SoftOne ή ποσό)· null = όπως το παρόμοιο είδος, με `label` την τιμή εκείνου αν διαβάστηκε */
+export type ErpRef = { id: string | null; label: string | null; from: "own" | "sibling" | null };
+export type ErpOpts = { suppliers: PickOpt[]; busUnits: PickOpt[]; acns: PickOpt[] };
+const ERP_ROWS = [["supplier", "Προμηθευτής"], ["busUnit", "Business unit"], ["acn", "Λογ. κατηγορία"], ["fee", "Φόρος ανακύκλωσης"]] as const;
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
@@ -35,7 +43,7 @@ type Result = { ok: boolean; text: string; code: string };
 
 /** Λίστα νέων ειδών σε αναμονή: επιλογή, επεξεργασία, έγκριση (κλειδωμένη με εξήγηση) και απόρριψη. */
 /** `onChanged`: ο οδηγός εισαγωγής κρατά τη λίστα στον browser και την ξαναφορτώνει μόνος του (η σελίδα «Νέα είδη» αρκείται στο refresh). */
-export function PendingItems({ items, status, writeOn, canWrite, canApprove, brands, groups, onChanged, flagOn = false, settings }: { items: PendingView[]; status: string; writeOn: boolean; canWrite: boolean; canApprove: boolean; brands: PickOpt[]; groups: PickOpt[]; onChanged?: () => void; /** η εγγραφή της «Εξαίρεσης Web» στο SoftOne είναι ενεργή */ flagOn?: boolean; /** με αυτό κάθε είδος δείχνει την κάρτα του όπως στο site */ settings?: Settings }) {
+export function PendingItems({ items, status, writeOn, canWrite, canApprove, brands, groups, units = [], erpOpts, onChanged, flagOn = false, settings }: { items: PendingView[]; status: string; writeOn: boolean; canWrite: boolean; canApprove: boolean; brands: PickOpt[]; groups: PickOpt[]; /** μονάδες μέτρησης με σύνδεση στο SoftOne */ units?: PickOpt[]; /** προμηθευτές, business units, λογιστικές κατηγορίες */ erpOpts?: ErpOpts; onChanged?: () => void; /** η εγγραφή της «Εξαίρεσης Web» στο SoftOne είναι ενεργή */ flagOn?: boolean; /** με αυτό κάθε είδος δείχνει την κάρτα του όπως στο site */ settings?: Settings }) {
   const nav = useRouter();
   const router = { refresh: () => { nav.refresh(); onChanged?.(); } };
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -198,6 +206,10 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
                   <dl className="m-0 grid gap-x-4 gap-y-0.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,13rem),1fr))] text-[length:var(--fs-13)]">
                     <div className="min-w-0"><dt className="inline text-eu-muted">Μάρκα: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.brandName ?? "—"}</dd></div>
                     <div className="min-w-0"><dt className="inline text-eu-muted">Ομάδα: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.groupName ?? "—"}</dd></div>
+                    <div data-help="pending.unit" className="min-w-0"><dt className="inline text-eu-muted">Μονάδα: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.unit.label ? <><b>{p.unit.label}</b> <span className="text-eu-muted">{p.unit.from === "own" ? "· επιλογή" : "· όπως παρόμοιο είδος"}</span></> : <span className="text-eu-amber font-semibold">ορίζεται μόλις μπει ομάδα</span>}</dd></div>
+                    <div data-help="pending.erp" className="min-w-0 col-span-full flex flex-wrap gap-x-3 gap-y-0.5">{ERP_ROWS.map(([k, l]) => { const r = p.erp[k]; return (
+                      <span key={k} className="min-w-0 [overflow-wrap:anywhere]"><span className="text-eu-muted">{l}: </span>{r.label ? <><b className="text-eu-ink">{r.label}</b>{r.from === "own" && <span className="text-eu-muted"> · επιλογή</span>}</> : r.from === "sibling" ? <span className="text-eu-ink-2">όπως παρόμοιο είδος</span> : <span className="text-eu-amber font-semibold">ορίζεται μόλις μπει ομάδα</span>}</span>); })}
+                      {(["supplier", "busUnit", "acn", "fee"] as const).some((k) => p.erp[k].from === "sibling" && p.erp[k].label) && <span className="text-eu-muted">(χωρίς «επιλογή» = από το πιο πρόσφατο είδος της ίδιας ομάδας)</span>}</div>
                     <div className="min-w-0"><dt className="inline text-eu-muted">Τιμή web: </dt><dd className="inline m-0 text-eu-ink tabular-nums">{eur(p.price)}</dd>{p.cost != null && <span className="text-eu-muted tabular-nums"> · κόστος {eur(p.cost)}</span>}{p.rrp != null && <span className="text-eu-muted tabular-nums"> · ΤΛΤ {eur(p.rrp)}</span>}</div>
                     <div className="min-w-0 inline-flex items-center gap-1 text-eu-ink-2"><Images className="size-3.5" aria-hidden /> {p.photos} πολυμέσα</div>
                     {p.category && <div className="min-w-0"><dt className="inline text-eu-muted">Κατηγορία αρχείου: </dt><dd className="inline m-0 text-eu-ink [overflow-wrap:anywhere]">{p.category}</dd></div>}
@@ -219,7 +231,7 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
               )}
               {settings && <CardPeek open={peek === p.id} onToggle={() => setPeek(peek === p.id ? null : p.id)} settings={settings}
                 data={{ key: p.id, title: p.name || p.code, sku: p.code, brand: p.brandName ?? "", images: p.images ?? [], price: p.price }} notes={["Οι φωτογραφίες ανεβαίνουν μόλις δημιουργηθεί το είδος."]} />}
-              {editing === p.id && <EditForm p={p} brands={brands} groups={groups} onDone={() => { setEditing(null); router.refresh(); }} onCancel={() => setEditing(null)} />}
+              {editing === p.id && <EditForm p={p} brands={brands} groups={groups} units={units} erpOpts={erpOpts} onDone={() => { setEditing(null); router.refresh(); }} onCancel={() => setEditing(null)} />}
             </li>
           );
         })}
@@ -229,18 +241,24 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
   );
 }
 
-function EditForm({ p, brands, groups, onDone, onCancel }: { p: PendingView; brands: PickOpt[]; groups: PickOpt[]; onDone: () => void; onCancel: () => void }) {
+function EditForm({ p, brands, groups, units, erpOpts, onDone, onCancel }: { p: PendingView; brands: PickOpt[]; groups: PickOpt[]; units: PickOpt[]; erpOpts?: ErpOpts; onDone: () => void; onCancel: () => void }) {
   const [code, setCode] = useState(p.code);
   const [name, setName] = useState(p.name);
   const [brandId, setBrandId] = useState<string | null>(p.brandId);
   const [groupId, setGroupId] = useState<string | null>(p.groupId != null ? String(p.groupId) : null);
   const [price, setPrice] = useState(p.price != null ? String(p.price).replace(".", ",") : "");
+  const [unitId, setUnitId] = useState<string | null>(p.unit.id);
+  const [supplier, setSupplier] = useState<string | null>(p.erp.supplier.id);
+  const [busUnit, setBusUnit] = useState<string | null>(p.erp.busUnit.id);
+  const [acn, setAcn] = useState<string | null>(p.erp.acn.id);
+  const [fee, setFee] = useState(p.erp.fee.id != null ? p.erp.fee.id.replace(".", ",") : "");
+  const like = (r: ErpRef, what: string) => (r.from === "sibling" && r.label ? `Όπως παρόμοιο είδος (${r.label})` : `Όπως παρόμοιο είδος — ${what}`);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const save = async () => {
     setSaving(true); setErr(null);
     try {
-      const r = await editItem(p.id, { code, name, brandId, specGroupS1Id: groupId != null ? Number(groupId) : null, price });
+      const r = await editItem(p.id, { code, name, brandId, specGroupS1Id: groupId != null ? Number(groupId) : null, price, unitId, erp: erpOpts ? { supplier, busUnit, acn, fee } : undefined });
       if (r.ok) onDone(); else setErr(r.error ?? "Δεν αποθηκεύτηκε.");
     } catch (e) { setErr((e as Error).message || "Δεν αποθηκεύτηκε."); } finally { setSaving(false); }
   };
@@ -257,7 +275,20 @@ function EditForm({ p, brands, groups, onDone, onCancel }: { p: PendingView; bra
           <OptionPicker label="Μάρκα" options={brands} value={brandId} onChange={setBrandId} empty="Χωρίς μάρκα" /><span className="text-eu-muted text-[length:var(--fs-12)]">Πρέπει να είναι συνδεδεμένη με κατασκευαστή του SoftOne.</span></div>
         <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Ομάδα χαρακτηριστικών</span>
           <OptionPicker label="Ομάδα χαρακτηριστικών" options={groups} value={groupId} onChange={setGroupId} empty="Χωρίς ομάδα" /><span className="text-eu-muted text-[length:var(--fs-12)]">Ορίζει την κατηγορία στο site και ποια χαρακτηριστικά κρατιούνται.</span></div>
+        {units.length > 0 && <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Μονάδα μέτρησης</span>
+          <OptionPicker label="Μονάδα μέτρησης" options={units} value={unitId} onChange={setUnitId} empty={p.unit.from === "sibling" && p.unit.label ? `Όπως παρόμοιο είδος (${p.unit.label})` : "Όπως παρόμοιο είδος της ομάδας"} /><span className="text-eu-muted text-[length:var(--fs-12)]">Πώς πωλείται και μετριέται στο SoftOne (τεμάχιο, σετ, κιλά…). Μετά τη δημιουργία αλλάζει μόνο μέσα στο SoftOne.</span></div>}
       </div>
+      {erpOpts && <fieldset data-help="pending.erp-edit" className="m-0 grid gap-3 sm:grid-cols-2 border-0 border-t border-eu-line p-0 pt-3 min-w-0">
+        <legend className="p-0 text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Στοιχεία SoftOne · κενό = όπως το παρόμοιο είδος</legend>
+        <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Συνήθης προμηθευτής</span>
+          <OptionPicker label="Συνήθης προμηθευτής" options={erpOpts.suppliers} value={supplier} onChange={setSupplier} empty={like(p.erp.supplier, "μόνο αν είναι ίδιας μάρκας")} /><span className="text-eu-muted text-[length:var(--fs-12)]">Από ποιον αγοράζεται συνήθως (π.χ. Samsung → SAMSUNG ELECTRONICS ΕΛΛΑΣ).</span></div>
+        <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Business unit</span>
+          <OptionPicker label="Business unit" options={erpOpts.busUnits} value={busUnit} onChange={setBusUnit} empty={like(p.erp.busUnit, "Λευκά, Μαύρα, Μικροσυσκευές…")} /><span className="text-eu-muted text-[length:var(--fs-12)]">Η εμπορική μονάδα στις αναφορές πωλήσεων του ERP.</span></div>
+        <div className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Λογιστική κατηγορία</span>
+          <OptionPicker label="Λογιστική κατηγορία" options={erpOpts.acns} value={acn} onChange={setAcn} empty={like(p.erp.acn, "συνήθως Εμπορεύματα")} /><span className="text-eu-muted text-[length:var(--fs-12)]">Σε ποιους λογαριασμούς πάνε αγορές και πωλήσεις. Σχεδόν όλα τα είδη: Εμπορεύματα.</span></div>
+        <label className="grid gap-1 content-start min-w-0"><span className="text-eu-ink-2 font-bold text-[length:var(--fs-13)]">Φόρος ανακύκλωσης (€ ανά τεμάχιο)</span>
+          <input value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" placeholder={p.erp.fee.from === "sibling" && p.erp.fee.label ? `όπως παρόμοιο: ${p.erp.fee.label}` : "π.χ. 0,50"} className={input} /><span className="text-eu-muted text-[length:var(--fs-12)]">Μπαίνει σε κάθε παραστατικό του είδους. Κενό = όπως το παρόμοιο είδος· 0 = χωρίς φόρο.</span></label>
+      </fieldset>}
       {err && <p role="alert" className="m-0 flex gap-1.5 items-start text-eu-red text-[length:var(--fs-13)]"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden />{err}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="submit" className={primary} disabled={saving}>{saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Αποθήκευση</button>

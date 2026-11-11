@@ -1,3 +1,4 @@
+import { unitLabel } from "@/lib/catalog/foreign-import/options";
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { notFound } from "next/navigation";
@@ -139,8 +140,9 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const setProductOf = new Map(setProducts.map((x) => [x.setSpcs, x]));
   const KIND_LABEL = { parts: "Σετ εξαρτημάτων", gift: "Σετ με δώρο" } as const;
 
+  const unitText = await unitLabel(item?.unitS1Id);
   const editor = (only: Parameters<typeof ProductEditor>[0]["only"]) => fromS1 && initial ? (
-    <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} dimCandidates={descDim.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning }))} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
+    <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} dimCandidates={descDim.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning }))} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path, unit: unitText }} />
   ) : (
     isSetProduct && only?.includes("texts") ? (
       <SetTextsEditor productId={p.id} canWrite={canWrite} initial={{ title: p.title, summary: p.summary ?? "", description: p.description ?? "" }} mainHref={sets[0]?.main.productId ? `/admin/catalog/${sets[0].main.productId}` : null} />

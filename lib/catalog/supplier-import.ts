@@ -6,7 +6,8 @@ import { slugify } from "@/lib/slug";
 import { parseDescription } from "@/lib/softone/describe";
 import { syncItem, type mapItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
-import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
+import { writeItem, createItem, type ItemChanges, type ItemField, type ItemErpRefs } from "@/lib/softone/item-write";
+import { getTable } from "@/lib/softone/lookups";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
 import { webNameOf, leadSentence } from "@/lib/catalog/foreign-import/pending-core";
 import { draftShortDesc } from "@/lib/catalog/marketing-copy";
@@ -168,7 +169,7 @@ export async function planImport(file: ParsedFile, opts: ImportOptions): Promise
 
 // ---------- Εκτέλεση ----------
 
-export interface ApplyResult { key: string; ok: boolean; message: string; mtrl?: number; productId?: string }
+export interface ApplyResult { key: string; ok: boolean; message: string; mtrl?: number; productId?: string; warnings?: string[] }
 
 const FIELD_TO_ITEM: Partial<Record<FieldKey, ItemField>> = { name: "name", barcode: "barcode", factoryCode: "factoryCode", shortDesc: "shortDesc", guaranteeMonths: "guaranteeMonths", widthCm: "widthCm", heightCm: "heightCm", lengthCm: "lengthCm", weightKg: "weightKg" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -261,11 +262,55 @@ async function createInSoftone(r: Decided, brand: { id: string; s1Id: string | n
   if (typeof fields.name === "string") fields.webName = webNameOf(fields.name, 64, { brand: (await db.brand.findUnique({ where: { id: brand.id }, select: { name: true } }))?.name, model: r.code });
   if (!fields.shortDesc && r.fieldTo.descText) { const short = (await draftShortDesc(String(fields.name ?? ""), r.fieldTo.descText)) ?? leadSentence(r.fieldTo.descText); if (short) fields.shortDesc = short; }
   const own = r.raw.refs ?? {};
-  const c = await createItem({ code: r.code!, fields, refs: { manufacturer, specGroup: g.s1Id, webCat1: g.cat1, webCat2: g.cat2, vat: sib.vatS1Id, unit: own.unit ?? sib.unitS1Id, itemGroup: sib.itemGroup, commCategory: sib.commCategory, mark: own.mark ?? (sib.manufacturerS1Id === manufacturer ? sib.markS1Id : null) } });
+  const sibKey = `${g.s1Id}:${manufacturer || ""}`;
+  const sibErp: ItemErpRefs & { mtrl?: number } = { ...(await siblingErpMany([sibKey])).get(sibKey) };
+  delete sibErp.mtrl;
+  const erp: ItemErpRefs = { ...sibErp, ...definedOnly(own.erp ?? {}) };
+  // Άλλη λογιστική κατηγορία από του αδελφού: οι λογαριασμοί του δεν ισχύουν — τους βάζει το ERP
+  if (own.erp?.acn != null) { delete erp.acnMsk; delete erp.acnMsk1; }
+  // ποσό χωρίς είδος εξόδου (αδελφό χωρίς φόρο): «Φόρος ανακύκλωσης» (EXPN 1), όπως στα 100% των ειδών web
+  if (erp.expval1 != null && erp.expn1 == null) erp.expn1 = 1;
+  const c = await createItem({ code: r.code!, fields, refs: { manufacturer, specGroup: g.s1Id, webCat1: g.cat1, webCat2: g.cat2, vat: sib.vatS1Id, unit: own.unit ?? sib.unitS1Id, itemGroup: sib.itemGroup, commCategory: sib.commCategory, mark: own.mark ?? (sib.manufacturerS1Id === manufacturer ? sib.markS1Id : null), erp } });
   if (!c.ok) return { ok: false, mtrl: c.mtrl, message: c.error ?? "Δεν δημιουργήθηκε." };
   await syncItem(c.mtrl!, "manual");
   const p = await projectItem(c.mtrl!);
-  return { ok: true, mtrl: c.mtrl, productId: p.productId, message: `Νέο είδος στο SoftOne (MTRL ${c.mtrl}, κωδικός ${r.code})${p.productId ? " και στο κατάστημα" : " — το κατάστημα θα το πάρει στον επόμενο συγχρονισμό"}${opts.activate ? "" : " · ανενεργό μέχρι να το ενεργοποιήσεις"}.` };
+  return { ok: true, mtrl: c.mtrl, productId: p.productId, warnings: c.warnings, message: `Νέο είδος στο SoftOne (MTRL ${c.mtrl}, κωδικός ${r.code})${p.productId ? " και στο κατάστημα" : " — το κατάστημα θα το πάρει στον επόμενο συγχρονισμό"}${opts.activate ? "" : " · ανενεργό μέχρι να το ενεργοποιήσεις"}.${c.warnings?.length ? ` ${c.warnings.join(" ")}` : ""}` };
+}
+
+const definedOnly = <T extends object>(o: T): Partial<T> => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null)) as Partial<T>;
+
+/**
+ * Συνήθης προμηθευτής, business unit, λογιστική κατηγορία (+ λογαριασμοί) και φόρος ανακύκλωσης από αδελφό είδος της ομάδας.
+ * Ο καθρέφτης δεν τα κρατά: ΜΙΑ ανάγνωση (GetTable) για όλα τα κλειδιά. Υποψήφια τα 6 πιο πρόσφατα της ίδιας μάρκας και τα 6 της
+ * ομάδας· κερδίζει το πρώτο που ΕΧΕΙ business unit ή λογιστική κατηγορία — όχι ένα δικό μας νέο είδος με κενά (όπως τα πρώτα
+ * 158980/158995–7). Το GetTable δεν βλέπει ανενεργά, άρα ούτε τα ανενεργά νέα μας. Ο προμηθευτής μόνο από είδος της ίδιας μάρκας.
+ * Κλειδί: `${ομάδα}:${κατασκευαστής ή ""}`.
+ */
+export async function siblingErpMany(keys: string[]): Promise<Map<string, ItemErpRefs & { mtrl: number }>> {
+  const out = new Map<string, ItemErpRefs & { mtrl: number }>();
+  const cands = new Map(await Promise.all([...new Set(keys)].map(async (k) => {
+    const [g, man] = k.split(":"), base = { specGroupS1Id: Number(g), missing: false };
+    const sel = { mtrl: true, manufacturerS1Id: true } as const;
+    const [same, any] = await Promise.all([
+      man ? db.s1Item.findMany({ where: { ...base, manufacturerS1Id: Number(man) }, orderBy: { mtrl: "desc" }, take: 6, select: sel }) : [],
+      db.s1Item.findMany({ where: base, orderBy: { mtrl: "desc" }, take: 6, select: sel }),
+    ]);
+    return [k, [...same, ...any.filter((x) => !same.some((y) => y.mtrl === x.mtrl))].map((x) => ({ mtrl: x.mtrl, sameBrand: !!man && x.manufacturerS1Id === Number(man) }))] as const;
+  })));
+  const ids = [...new Set([...cands.values()].flat().map((c) => c.mtrl))];
+  if (!ids.length) return out;
+  const rows = await getTable("MTRL", ["MTRL", "MTRSUP", "BUSUNITS", "MTRACN", "ACNMSK", "ACNMSK1", "EXPN1", "EXPVAL1"], `MTRL IN (${ids.join(",")})`).catch(() => [] as string[][]);
+  const n = (v: string) => { const x = Number(v); return Number.isFinite(x) && x > 0 ? x : null; };
+  const t = (v: string) => (v ?? "").trim() || null;
+  const byId = new Map(rows.map((r) => [Number(r[0]), { supplier: n(r[1]), busUnit: n(r[2]), acn: n(r[3]), acnMsk: t(r[4]), acnMsk1: t(r[5]), expn1: n(r[6]), expval1: r[7] === "" ? null : Number(r[7]) || 0 }]));
+  for (const [k, list] of cands) {
+    const full = list.map((c) => ({ c, e: byId.get(c.mtrl) })).filter((x) => x.e && (x.e.busUnit || x.e.acn));
+    const pick = full[0];
+    if (!pick) continue;
+    const sup = full.find((x) => x.c.sameBrand && x.e!.supplier)?.e!.supplier ?? null;
+    out.set(k, { ...pick.e!, supplier: sup, mtrl: pick.c.mtrl });
+  }
+  return out;
 }
 
 async function createEshopOnly(r: Decided, brand: { id: string; name: string }, opts: ImportOptions) {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pendingMissing, pendingRow, pendingMedia, pendingSpecs, isStaleCreating, canApprove, STALE_MIN } from "./pending-core";
+import { pendingMissing, pendingRow, pendingMedia, pendingSpecs, isStaleCreating, canApprove, STALE_MIN, pendingErp } from "./pending-core";
 
 const ok = { code: "ABC-1", fields: { name: "Ψυγείο" }, brandId: "b1", brandS1Id: "77", specGroupS1Id: 12, webCategoryId: "c1" };
 
@@ -112,4 +112,14 @@ test("newItemCode / missingSpecs / renameSpec", async () => {
   assert.deepEqual(gaps.map((g) => [g.label, g.items, g.similar]), [["Πλάτος (cm)", 1, "Πλάτος"], ["Τύπος Οθόνης", 2, null]]);
   assert.equal(similarSpec("Στάθμη Θορύβου [dB(A)]", ["Χρώμα"]), null);
   assert.deepEqual(renameSpec({ "Πλάτος (cm)": "55", "Χρώμα": "Silver" }, "Πλάτος (cm)", "Πλάτος", key), { "Χρώμα": "Silver", "Πλάτος": "55" });
+});
+
+test("pendingErp: μόνο έγκυροι αριθμοί από το fields._erp· το pendingRow τα περνά ως refs.erp", () => {
+  assert.deepEqual(pendingErp({ name: "Χ", _erp: { supplier: 819, busUnit: "2", acn: 0, expval1: 0 } }), { supplier: 819, busUnit: 2, expval1: 0 });
+  assert.deepEqual(pendingErp({ _erp: { supplier: -1, expval1: 5000, acn: 1.5 } }), {});
+  assert.deepEqual(pendingErp({ name: "Χ" }), {});
+  assert.deepEqual(pendingErp(null), {});
+  const r = pendingRow({ rowNo: 1, code: "A", fields: { name: "Χ", _erp: { supplier: 819, expval1: 0.5 } }, specs: {} }, "Νέα είδη", 12, { unit: 1 });
+  assert.deepEqual(r.fields, { name: "Χ", code: "A" });
+  assert.deepEqual(r.refs, { unit: 1, erp: { supplier: 819, expval1: 0.5 } });
 });

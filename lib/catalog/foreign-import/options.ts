@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { getTable } from "@/lib/softone/lookups";
 
 /** Επιλογές για τα <select> της εισαγωγής / των νέων ειδών / των κανόνων: μάρκες, κατηγορίες (με διαδρομή), ομάδες χαρακτηριστικών. */
 export type Opt = { id: string; name: string };
@@ -38,4 +39,32 @@ export async function markOptions(): Promise<Opt[]> {
 export async function groupOptions(): Promise<{ id: number; name: string }[]> {
   const rows = await db.s1SpecGroup.findMany({ where: { missing: false, active: true, cat1: { not: null }, cat2: { not: null } }, select: { s1Id: true, name: true }, orderBy: { name: "asc" } });
   return rows.map((g) => ({ id: g.s1Id, name: g.name }));
+}
+
+/** Μονάδα μέτρησης ενός είδους του SoftOne ως κείμενο («ΤΕΜ · Τεμάχιο») — για καρτέλα και φόρμα προϊόντος. */
+export async function unitLabel(unitS1Id: number | null | undefined): Promise<string | null> {
+  if (unitS1Id == null) return null;
+  const u = await db.unit.findUnique({ where: { s1Id: String(unitS1Id) }, select: { code: true, name: true } });
+  return u ? (u.name && u.name !== u.code ? `${u.code} · ${u.name}` : u.code) : `κωδ. ${unitS1Id}`;
+}
+
+/** Λογιστικές κατηγορίες ειδών (ITEMGL: Εμπορεύματα, Υπηρεσίες, Λοιπά Υλικά) — 3 γραμμές, ανάγνωση από το SoftOne κάθε 6 ώρες. */
+let acnMemo: { at: number; rows: Opt[] } | null = null;
+export async function acnOptions(): Promise<Opt[]> {
+  if (acnMemo && Date.now() - acnMemo.at < 6 * 3600_000) return acnMemo.rows;
+  const rows = await getTable("ITEMGL", ["MTRACN", "NAME"], "SODTYPE=51").catch(() => null);
+  if (!rows) return acnMemo?.rows ?? [];
+  acnMemo = { at: Date.now(), rows: rows.filter((r) => Number(r[0]) > 0 && r[1]).map((r) => ({ id: r[0], name: r[1] })) };
+  return acnMemo.rows;
+}
+
+export type ErpOpt = { id: string; name: string; hint?: string };
+/** Επιλογές της φόρμας νέου είδους για τα πεδία ERP: προμηθευτές (TRDR), business units, λογιστικές κατηγορίες. */
+export async function erpOptions(): Promise<{ suppliers: ErpOpt[]; busUnits: ErpOpt[]; acns: ErpOpt[] }> {
+  const [sup, bu, acns] = await Promise.all([
+    db.supplier.findMany({ select: { s1Trdr: true, code: true, name: true }, orderBy: { name: "asc" } }),
+    db.businessUnit.findMany({ where: { s1Id: { not: null }, active: true }, select: { s1Id: true, name: true }, orderBy: { name: "asc" } }),
+    acnOptions(),
+  ]);
+  return { suppliers: sup.map((s) => ({ id: String(s.s1Trdr), name: s.name, hint: s.code })), busUnits: bu.map((b) => ({ id: b.s1Id!, name: b.name })), acns };
 }

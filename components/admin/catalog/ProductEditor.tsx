@@ -54,7 +54,8 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
   descDims?: { w: number; h: number; d: number; line: string; note: string | null } | null;
   /** διαστάσεις που βρέθηκαν στο περιεχόμενο (EPREL, περιγραφή SoftOne) — «Χρήση αυτών» γεμίζει τα πεδία */
   dimCandidates?: DimCandidate[];
-  meta: { code: string; mtrl: string; brand: string; category: string };
+  /** `unit`: μονάδα μέτρησης του SoftOne (μόνο ανάγνωση — με κινήσεις αλλάζει μόνο στο ERP) */
+  meta: { code: string; mtrl: string; brand: string; category: string; unit?: string | null };
   /** μόνο αυτές οι ενότητες (καρτέλες της σελίδας προϊόντος)· χωρίς = όλες */
   only?: EditorSection[];
 }) {
@@ -126,7 +127,7 @@ export function ProductEditor({ productId, initial, readonly, readonlyReason, me
             Ενεργό στο SoftOne <span className="font-normal text-eu-muted text-[length:var(--fs-12)]">(ανενεργό είδος κρύβεται από το e-shop)</span>
           </label>
           <dl className="m-0 @2xl:col-span-2 grid gap-x-4 gap-y-0.5 [grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))] rounded-lg bg-eu-surface px-2.5 py-1.5 text-[length:var(--fs-12)]">
-            {([["Κωδικός είδους", meta.code], ["SoftOne MTRL", meta.mtrl], ["Μάρκα", meta.brand], ["Κατηγορία", meta.category]] as const).map(([k, val]) => <div key={k} className="min-w-0"><dt className="text-eu-muted">{k}</dt><dd className="m-0 font-bold text-eu-ink break-words">{val}</dd></div>)}
+            {([["Κωδικός είδους", meta.code], ["SoftOne MTRL", meta.mtrl], ["Μάρκα", meta.brand], ["Κατηγορία", meta.category], ["Μονάδα μέτρησης", meta.unit ?? "κενή στο SoftOne"]] as const).map(([k, val]) => <div key={k} className="min-w-0"><dt className="text-eu-muted">{k}</dt><dd className="m-0 font-bold text-eu-ink break-words">{val}</dd></div>)}
           </dl>
         </div>
       </AccordionItem>

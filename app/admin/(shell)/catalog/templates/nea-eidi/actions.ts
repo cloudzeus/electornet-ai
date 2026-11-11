@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
-import { approvePending, discardPending, updatePending, pendingSpecGaps, resolvePendingSpecs, type ApproveResult, type SpecGap, type SpecDecision } from "@/lib/catalog/foreign-import/pending";
+import { approvePending, discardPending, updatePending, pendingSpecGaps, resolvePendingSpecs, type ApproveResult, type SpecGap, type SpecDecision, type PendingPatch } from "@/lib/catalog/foreign-import/pending";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 import { parseMoney } from "@/lib/catalog/pricing/markup";
 import { db } from "@/lib/db";
@@ -54,7 +54,7 @@ export async function discardItems(list: string[]): Promise<{ count: number }> {
   return { count };
 }
 
-export type PendingEdit = { code: string; name: string; brandId: string | null; specGroupS1Id: number | null; price: string };
+export type PendingEdit = { code: string; name: string; brandId: string | null; specGroupS1Id: number | null; price: string; unitId?: string | null; /** id ή κενό (= όπως το παρόμοιο είδος)· fee σε € με κόμμα ή τελεία */ erp?: { supplier: string | null; busUnit: string | null; acn: string | null; fee: string } };
 
 /** Διόρθωση στοιχείων πριν την έγκριση (κωδικός, όνομα, μάρκα, ομάδα χαρακτηριστικών, τιμή web με ΦΠΑ). */
 export async function editItem(id: string, e: PendingEdit): Promise<{ ok: boolean; error?: string }> {
@@ -64,7 +64,15 @@ export async function editItem(id: string, e: PendingEdit): Promise<{ ok: boolea
   if (raw && price == null) return { ok: false, error: "Η τιμή πρέπει να είναι ποσό μεγαλύτερο από 0 (ή κενή)." };
   const name = String(e.name ?? "").trim();
   if (name.length > 128) return { ok: false, error: "Το όνομα έχει έως 128 χαρακτήρες." };
-  const r = await updatePending(String(id), { code: String(e.code ?? ""), fields: { name }, brandId: e.brandId || null, specGroupS1Id: e.specGroupS1Id == null ? null : Number(e.specGroupS1Id), price });
+  let erp: PendingPatch["erp"];
+  if (e.erp) {
+    const n = (v: string | null) => (v ? Number(v) : null);
+    const feeRaw = String(e.erp.fee ?? "").trim().replace(/\s|€/g, "").replace(",", ".");
+    const fee = feeRaw === "" ? null : Number(feeRaw);
+    if (fee != null && !Number.isFinite(fee)) return { ok: false, error: "Ο φόρος ανακύκλωσης πρέπει να είναι ποσό (π.χ. 0,50) ή κενός." };
+    erp = { supplier: n(e.erp.supplier), busUnit: n(e.erp.busUnit), acn: n(e.erp.acn), expval1: fee };
+  }
+  const r = await updatePending(String(id), { code: String(e.code ?? ""), fields: { name }, brandId: e.brandId || null, specGroupS1Id: e.specGroupS1Id == null ? null : Number(e.specGroupS1Id), price, ...(e.unitId !== undefined ? { unitId: e.unitId || null } : {}), ...(erp ? { erp } : {}) });
   if (r.ok) revalidatePath(PATH);
   return r;
 }

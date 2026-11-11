@@ -1,4 +1,5 @@
 "use server";
+import { unitLabel } from "@/lib/catalog/foreign-import/options";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
@@ -61,7 +62,7 @@ export async function quickFixAction(productId: string) {
         availText: item.availText, extWarranty: item.extWarranty ? 1 : 0, guaranteeMonths: item.guaranteeMonths, weightKg: item.weightKg, lengthCm: item.lengthCm, widthCm: item.widthCm, heightCm: item.heightCm,
       },
       readonlyReason,
-      meta: { code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: p.category.name },
+      meta: { code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: p.category.name, unit: await unitLabel(item.unitS1Id) },
       dimCandidates: dims.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning })),
     } : null,
   };

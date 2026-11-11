@@ -282,6 +282,7 @@ function Erp({ p }: { p: Peek }) {
           ["Ενεργό", e.active ? <span key="a" className="text-eu-green font-bold">ναι</span> : <span key="a" className="text-eu-red font-bold">όχι</span>],
           ["Διαθεσιμότητα", e.availText ?? "—"],
           ["Εγγύηση", `${e.guaranteeMonths ? `${e.guaranteeMonths} μήνες` : "κενό GUARTIME"}${e.extWarranty ? " · με επέκταση" : ""}`],
+          ["Μονάδα μέτρησης", e.unit ? <span key="u"><b>{e.unit.code}</b>{e.unit.name && e.unit.name !== e.unit.code ? <span className="text-eu-muted"> · {e.unit.name}</span> : null}</span> : <span key="u" className="text-eu-amber font-semibold">κενή στο SoftOne</span>],
           ["Τελ. αλλαγή ERP", day(e.s1UpdatedAt)],
         ]} />
       </section>
