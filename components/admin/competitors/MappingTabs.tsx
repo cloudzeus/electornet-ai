@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Check, ListPlus, Loader2, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from "lucide-react";
+import { pathLabel, rootSegment, segLabel } from "@/lib/competitors/mapping-core";
 import { addCategory, removeCategory, removeUnconfirmed, resumeJob, runNow, setBrandMap, setCategoryMap, suggestAll } from "@/app/admin/(shell)/catalog/competitors/actions";
 
 export type CatRow = {
@@ -15,11 +16,14 @@ export type BrandCard = { id: string; name: string; products: number; pairs: num
 type Opt = { path: string; label: string };
 
 const num = (n: number) => n.toLocaleString("el-GR");
-const btn = "inline-flex items-center justify-center gap-1.5 rounded-xl border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] px-3 min-h-11 hover:border-eu-navy transition-colors disabled:opacity-50";
+// χωρίς χρώματα στη βάση: δύο κλάσεις ίδιας ιδιότητας στο ίδιο στοιχείο δεν «νικά» η τελευταία στο Tailwind
+const base = "inline-flex items-center justify-center gap-1.5 rounded-xl border font-bold text-[length:var(--fs-13)] px-3 min-h-11 transition-colors disabled:opacity-50";
+const btn = `${base} border-eu-line bg-white text-eu-navy hover:border-eu-navy`;
 const pill = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-12)] whitespace-nowrap";
 const STATUS: Record<CatRow["status"], { text: string; cls: string }> = {
   mapped: { text: "Αντιστοιχίστηκε", cls: "bg-eu-green/10 text-eu-green" },
-  suggested: { text: "Πρόταση · έλεγξέ τη", cls: "bg-eu-blue-light text-eu-blue" },
+  // ήπια απόχρωση + σκούρο κείμενο· αντίθεση (υπολογισμένη WCAG): πράσινο 4,6:1, πρόταση 11,9:1, επιλογή 14,7:1
+  suggested: { text: "Πρόταση · έλεγξέ τη", cls: "bg-eu-blue/10 text-eu-navy" },
   needed: { text: "Χρειάζεται επιλογή", cls: "bg-eu-amber/15 text-eu-ink" },
 };
 /** Ερώτηση επιβεβαίωσης μέσα στη σελίδα (όχι παράθυρο του browser) πριν από μαζική ή μη αναστρέψιμη ενέργεια. */
@@ -28,15 +32,13 @@ function Confirm({ text, yes, onYes, onNo, busy }: { text: string; yes: string; 
     <div role="alertdialog" aria-label={text} className="rounded-xl border border-eu-amber bg-eu-amber/5 p-3 grid gap-2 min-w-0">
       <p className="m-0 text-eu-ink text-[length:var(--fs-14)]">{text}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onYes} disabled={busy} className={`${btn} bg-eu-navy text-white border-eu-navy hover:bg-eu-navy-2`}>{busy && <Loader2 className="size-4 animate-spin" aria-hidden />}{yes}</button>
+        <button type="button" onClick={onYes} disabled={busy} className={`${base} bg-eu-navy text-white border-eu-navy hover:bg-eu-navy-2`}>{busy && <Loader2 className="size-4 animate-spin" aria-hidden />}{yes}</button>
         <button type="button" onClick={onNo} disabled={busy} className={btn}>Άκυρο</button>
       </div>
     </div>
   );
 }
 
-/** household-appliances/fridges/fridge-freezers → fridges › fridge-freezers */
-const pretty = (p: string) => p.split("/").slice(1).join(" › ") || p;
 
 /** «Τρέξε τώρα» ή «Ξαναενεργοποίηση»· όσο τρέχει η εργασία, η σελίδα ανανεώνεται κάθε 20″ για να φαίνεται η πρόοδος. */
 export function StatusActions({ mode, running, disabled }: { mode: "run" | "resume"; running: boolean; disabled: boolean }) {
@@ -55,7 +57,7 @@ export function StatusActions({ mode, running, disabled }: { mode: "run" | "resu
   });
   return (
     <div className="grid gap-1 justify-items-start">
-      <button type="button" onClick={go} disabled={busy || disabled || (mode === "run" && running)} className={mode === "resume" ? `${btn} border-eu-red text-eu-red hover:border-eu-red` : btn}>
+      <button type="button" onClick={go} disabled={busy || disabled || (mode === "run" && running)} className={mode === "resume" ? `${base} bg-white border-eu-red text-eu-red` : btn}>
         {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : mode === "resume" ? <RotateCcw className="size-4" aria-hidden /> : <RefreshCw className="size-4" aria-hidden />}
         {mode === "resume" ? "Ξαναενεργοποίηση" : running ? "Τρέχει…" : "Τρέξε τώρα"}
       </button>
@@ -79,8 +81,10 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
   const doRemove = () => start(async () => { await removeCategory(row.id); setAskRemove(false); router.refresh(); });
   // Μια επιβεβαιωμένη αντιστοίχιση σβήνεται μόνο μετά από ερώτηση· μια πρόταση φεύγει αμέσως
   const remove = () => (row.extPath ? setAskRemove(true) : doRemove());
-  if (!options) return <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{row.extPath ? pretty(row.extPath) : "—"} · οι κατηγορίες του Κωτσόβολου δεν φορτώνουν τώρα</p>;
+  if (!options) return <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{row.extPath ? pathLabel(row.extPath) : "—"} · οι κατηγορίες του Κωτσόβολου δεν φορτώνουν τώρα</p>;
   const extra = [row.extPath, row.suggestion].filter((p): p is string => !!p && !options.some((o) => o.path === p));
+  // ευρύτερη ενότητα: η εργασία ψάχνει με πρόθεμα, άρα πιάνει και όλες τις υποκατηγορίες της
+  const broad = !!current && options.some((o) => o.path.startsWith(current + "/"));
   const groups = new Map<string, Opt[]>();
   for (const o of [...options, ...extra.map((p) => ({ path: p, label: p }))]) { const g = o.path.split("/")[0]; groups.set(g, [...(groups.get(g) ?? []), o]); }
   return (
@@ -91,15 +95,16 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
           className={`min-h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-[length:var(--fs-14)] text-eu-ink disabled:opacity-60 ${row.status === "needed" ? "border-eu-amber" : "border-eu-line"}`}>
           <option value="" disabled>Επίλεξε κατηγορία…</option>
           {[...groups].sort(([a], [b]) => a.localeCompare(b)).map(([g, os]) => (
-            <optgroup key={g} label={g}>{os.sort((a, b) => a.path.localeCompare(b.path)).map((o) => <option key={o.path} value={o.path}>{o.path === g ? `${g} (όλη)` : pretty(o.path)}</option>)}</optgroup>
+            <optgroup key={g} label={segLabel(g)}>{os.sort((a, b) => a.path.localeCompare(b.path)).map((o) => <option key={o.path} value={o.path}>{o.path === g ? `${segLabel(g)} (όλη)` : pathLabel(o.path)}</option>)}</optgroup>
           ))}
         </select>
         {busy && <Loader2 className="size-4 animate-spin text-eu-blue shrink-0" aria-label="Αποθήκευση" />}
       </div>
+      {broad && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Ευρύτερη ενότητα · καλύπτει όλες τις υποκατηγορίες της</p>}
       {canWrite && (
         <div className="flex flex-wrap gap-2">
           {row.status === "suggested" && <button type="button" onClick={() => save(row.suggestion)} disabled={busy} className={btn}><Check className="size-4" aria-hidden /> Σωστή, κράτα την</button>}
-          <button type="button" onClick={remove} disabled={busy} className={`${btn} text-eu-ink-3`} aria-label={`Αφαίρεση της κατηγορίας ${row.name} από τη σύγκριση`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση</button>
+          <button type="button" onClick={remove} disabled={busy} className={`${base} border-eu-line bg-white text-eu-ink-3 hover:border-eu-navy`} aria-label={`Αφαίρεση της κατηγορίας ${row.name} από τη σύγκριση`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση</button>
         </div>
       )}
       {askRemove && <Confirm text={`Να σταματήσει η σύγκριση στην κατηγορία «${row.name}»; Οι τιμές που βρέθηκαν μένουν.`} yes="Ναι, αφαίρεση" onYes={doRemove} onNo={() => setAskRemove(false)} busy={busy} />}
@@ -109,7 +114,7 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
 }
 
 function Matched({ row }: { row: CatRow }) {
-  if (row.status !== "mapped") return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{row.status === "suggested" ? "μετά την επιβεβαίωση" : "—"}</span>;
+  if (row.status !== "mapped") return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">—</span>;
   if (!row.seen) return <span className="text-eu-ink-3 text-[length:var(--fs-13)]">μετά το 1ο τρέξιμο</span>;
   const pct = row.products ? Math.round((row.pairs / row.products) * 100) : 0;
   return (
@@ -134,6 +139,8 @@ export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; 
   const tab = tabs.find((t) => t.key === on) ?? tabs[0];
   const unconfirmed = tab?.rows.filter((r) => !r.extPath) ?? [];
   const clear = () => start(async () => { await removeUnconfirmed(unconfirmed.map((r) => r.id)); setAsk(false); router.refresh(); });
+  const known = options?.map((o) => o.path) ?? [];
+  const seg = tab ? rootSegment(tab.label, tab.rows.map((r) => r.extPath ?? r.suggestion).filter((p): p is string => !!p), known) : null;
   const cols = "md:grid-cols-[minmax(0,1.3fr)_5rem_minmax(0,2fr)_minmax(0,9rem)_10rem]";
   return (
     <section className="rounded-2xl border border-eu-line bg-white min-w-0" aria-label="Κατηγορίες">
@@ -152,8 +159,9 @@ export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; 
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Κατηγορίες</h3>
-            {canWrite && unconfirmed.length > 0 && !ask && <button type="button" onClick={() => setAsk(true)} disabled={busy} className={`${btn} text-eu-ink-3`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση όλων των ανεπιβεβαίωτων ({num(unconfirmed.length)})</button>}
+            {canWrite && unconfirmed.length > 0 && !ask && <button type="button" onClick={() => setAsk(true)} disabled={busy} className={`${base} border-eu-line bg-white text-eu-ink-3 hover:border-eu-navy`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση όλων των ανεπιβεβαίωτων ({num(unconfirmed.length)})</button>}
           </div>
+          {seg && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-14)]">Αντιστοιχεί σε: <b>{segLabel(seg)}</b> <span className="text-eu-ink-3">({seg})</span></p>}
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Αριστερά οι δικές μας (υποκατηγορίες SoftOne), δεξιά η αντίστοιχη ενότητα του kotsovolos.gr. Ψάχνουμε τιμές μόνο στις πράσινες· οι προτάσεις θέλουν πρώτα επιβεβαίωση.</p>
         </div>
         {ask && <Confirm text={`Θα βγουν από τη σύγκριση ${num(unconfirmed.length)} κατηγορίες χωρίς επιβεβαίωση${tabs.length > 1 ? ` της ομάδας «${tab?.label}»` : ""}. Οι επιβεβαιωμένες μένουν.`} yes="Ναι, αφαίρεση" onYes={clear} onNo={() => setAsk(false)} busy={busy} />}
@@ -171,12 +179,13 @@ export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; 
                     <b className="text-eu-ink text-[length:var(--fs-14)] break-words">{r.name}</b>
                     {r.path && <span className="text-eu-ink-3 text-[length:var(--fs-12)] break-words">{r.path}</span>}
                   </span>
-                  <span className={`${pill} md:hidden ${STATUS[r.status].cls}`}>{STATUS[r.status].text}</span>
+                  <span className="md:hidden shrink-0"><span className={`${pill} ${STATUS[r.status].cls}`}>{STATUS[r.status].text}</span></span>
                 </div>
                 <span className="tabular-nums text-eu-ink-2 text-[length:var(--fs-14)]"><span className="md:hidden text-eu-ink-3">Προϊόντα: </span>{num(r.products)}</span>
                 <CategorySelect row={r} options={options} canWrite={canWrite} />
                 <Matched row={r} />
-                <span className={`${pill} hidden md:inline-flex justify-self-start ${STATUS[r.status].cls}`}>{STATUS[r.status].text}</span>
+                {/* ένα ορατό σήμα ανά γραμμή: το display το ορίζει μόνο ο περιέκτης, όχι το pill */}
+                <span className="hidden md:block justify-self-start"><span className={`${pill} ${STATUS[r.status].cls}`}>{STATUS[r.status].text}</span></span>
               </li>
             ))}
           </ul>

@@ -214,7 +214,7 @@ export default async function CompetitorsPage() {
 
       <BrandCards brands={brands} canWrite={canWrite} />
 
-      <aside className="rounded-2xl border border-eu-blue/25 bg-eu-blue-light p-4 flex gap-3 items-start text-[length:var(--fs-14)] text-eu-ink-2">
+      <aside className="rounded-2xl border border-eu-blue/25 bg-eu-blue/5 p-4 flex gap-3 items-start text-[length:var(--fs-14)] text-eu-ink-2">
         <Info className="size-5 shrink-0 mt-0.5 text-eu-blue" aria-hidden />
         <div className="grid gap-1">
           <b className="text-eu-ink">Πώς ταιριάζουμε τα προϊόντα</b>
