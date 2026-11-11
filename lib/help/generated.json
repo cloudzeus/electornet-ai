@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T04:40:44.378Z",
+ "generatedAt": "2026-11-11T06:15:29.860Z",
  "routes": [
   {
    "route": "/admin",
@@ -108,6 +108,11 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "6f5227c",
      "date": "2026-11-06T09:52:22+02:00",
      "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
@@ -143,7 +148,7 @@
      "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
     }
    ],
-   "updatedAt": "2026-11-06T09:52:22+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {
     "desktop": "/api/help-shot/apostoles-d.jpg",
     "mobile": "/api/help-shot/apostoles-m.jpg"
@@ -168,8 +173,14 @@
     "kentro.step",
     "kentro.picker"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    }
+   ],
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -200,8 +211,14 @@
     "carrier.partners",
     "carrier.suggested"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    }
+   ],
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -226,8 +243,14 @@
     "carrier.partners",
     "carrier.suggested"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    }
+   ],
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -249,6 +272,11 @@
     "rates.test"
    ],
    "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
     {
      "hash": "6f5227c",
      "date": "2026-11-06T09:52:22+02:00",
@@ -293,14 +321,9 @@
      "hash": "7494398",
      "date": "2026-10-03T07:19:17+03:00",
      "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
-    },
-    {
-     "hash": "55da1e3",
-     "date": "2026-10-02T21:23:40+03:00",
-     "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-11-06T09:52:22+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -391,8 +414,14 @@
     "network.locate",
     "network.map"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    }
+   ],
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -2120,9 +2149,15 @@
     "orders.softone.flow",
     "orders.softone.list",
     "orders.softone.stages",
-    "orders.softone.details"
+    "orders.softone.details",
+    "orders.softone.all-details"
    ],
    "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
     {
      "hash": "e029767",
      "date": "2026-11-10T15:03:47+02:00",
@@ -2167,14 +2202,9 @@
      "hash": "55460cd",
      "date": "2026-10-04T11:35:35+03:00",
      "text": "Πελάτες eshop από το SoftOne: αγορές (παραγγελίες + παραστατικά), συσκευές με εγγύηση και geodata"
-    },
-    {
-     "hash": "ea5bca6",
-     "date": "2026-09-13T14:22:27+03:00",
-     "text": "Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin …"
     }
    ],
-   "updatedAt": "2026-11-10T15:03:47+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -2591,6 +2621,11 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "e029767",
      "date": "2026-11-10T15:03:47+02:00",
      "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
@@ -2634,14 +2669,9 @@
      "hash": "8dc0c8a",
      "date": "2026-10-16T13:29:14+03:00",
      "text": "Πελάτες (ui-ux-pro-max): ίδια γλώσσα με τις Παραγγελίες και σύνδεση πελάτη ↔ παραγγελιών"
-    },
-    {
-     "hash": "ff6db32",
-     "date": "2026-10-16T13:04:03+03:00",
-     "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
     }
    ],
-   "updatedAt": "2026-11-10T15:03:47+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -2668,14 +2698,21 @@
     "order.history",
     "order.promos",
     "orders.restock",
+    "orders.softone.detail-modal",
     "orders.tabs",
     "orders.softone",
     "orders.softone.flow",
     "orders.softone.list",
     "orders.softone.stages",
-    "orders.softone.details"
+    "orders.softone.details",
+    "orders.softone.all-details"
    ],
    "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
     {
      "hash": "e029767",
      "date": "2026-11-10T15:03:47+02:00",
@@ -2720,14 +2757,9 @@
      "hash": "df24c5d",
      "date": "2026-10-30T16:53:46+02:00",
      "text": "Αποστολές: μεταφορική (εσωτερική διαδικασία) για επιλεγμένες κατηγορίες"
-    },
-    {
-     "hash": "97a8fe0",
-     "date": "2026-10-19T19:26:53+03:00",
-     "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
     }
    ],
-   "updatedAt": "2026-11-10T15:03:47+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -2751,12 +2783,17 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "7df8653",
      "date": "2026-11-06T15:59:55+02:00",
      "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
     }
    ],
-   "updatedAt": "2026-11-06T15:59:55+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -4148,6 +4185,11 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "59b755b",
      "date": "2026-11-06T10:12:55+02:00",
      "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης"
@@ -4183,7 +4225,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-11-06T10:12:55+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone-d.jpg",
     "mobile": "/api/help-shot/softone-m.jpg"
@@ -4336,14 +4378,21 @@
    "helpKeys": [
     "softone.chain.search",
     "softone.chain.matches",
+    "orders.softone.detail-modal",
     "orders.tabs",
     "orders.softone",
     "orders.softone.flow",
     "orders.softone.list",
     "orders.softone.stages",
-    "orders.softone.details"
+    "orders.softone.details",
+    "orders.softone.all-details"
    ],
    "changes": [
+    {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
     {
      "hash": "e029767",
      "date": "2026-11-10T15:03:47+02:00",
@@ -4365,7 +4414,7 @@
      "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης"
     }
    ],
-   "updatedAt": "2026-11-10T15:03:47+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -4667,6 +4716,11 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "ab0dc06",
      "date": "2026-11-01T11:17:16+02:00",
      "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση"
@@ -4702,7 +4756,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-11-01T11:17:16+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -4739,6 +4793,11 @@
    ],
    "changes": [
     {
+     "hash": "021cd63",
+     "date": "2026-11-11T06:56:13+02:00",
+     "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία"
+    },
+    {
      "hash": "ab0dc06",
      "date": "2026-11-01T11:17:16+02:00",
      "text": "Πύλη συνεργατών: εκδήλωση ενδιαφέροντος (ΑΦΜ, επαφή, διασύνδεση, συστήματα, τρόπος) και λίστα στη διαχείριση"
@@ -4769,7 +4828,7 @@
      "text": "B2B: μέλη και υποκαταστήματα από το SoftOne (μόνο ανάγνωση), σελίδα Συνεργάτες με σύνδεση καταστημάτων"
     }
    ],
-   "updatedAt": "2026-11-01T11:17:16+02:00",
+   "updatedAt": "2026-11-11T06:56:13+02:00",
    "shots": {}
   },
   {
@@ -4870,6 +4929,26 @@
   }
  ],
  "recent": [
+  {
+   "hash": "021cd63",
+   "date": "2026-11-11T06:56:13+02:00",
+   "text": "Αποστολές και συνεργάτες: δρομολόγηση eshop μέσω συνεργατών/πρακτορείων, πλήρης καρτέλα συνεργάτη με παραστατικά SoftOne, geodata και πρόσθετα πεδία",
+   "routes": [
+    "/admin",
+    "/admin/apostoles",
+    "/admin/apostoles/kentro",
+    "/admin/apostoles/praktoreia",
+    "/admin/apostoles/praktoreia/[id]",
+    "/admin/apostoles/timokatalogoi",
+    "/admin/apostoles/xartis",
+    "/admin/orders",
+    "/admin/orders/[number]",
+    "/admin/softone",
+    "/admin/softone/chain",
+    "/admin/synergates",
+    "/admin/synergates/[id]"
+   ]
+  },
   {
    "hash": "788752b",
    "date": "2026-11-11T05:40:08+02:00",
@@ -5154,12 +5233,6 @@
    "hash": "5e30726",
    "date": "2026-11-05T08:03:18+02:00",
    "text": "Σκετς Ερμή: ζωντανοί υπότιτλοι κλήσης και στο production",
-   "routes": []
-  },
-  {
-   "hash": "32f8da9",
-   "date": "2026-11-05T07:58:38+02:00",
-   "text": "Σκετς Ερμή: ο παρουσιαστής διαλέγει από την οθόνη (επαγωγική κουζίνα, κλιματιστικό ανά BTU/μάρκα, τηλεόραση ανά ίντσες), «ναι» στον κάδο χωρίς διευκρίνιση, προειδοποίηση στο κινητό όταν η κλήση δεν θα έχει ζωντανούς υ…",
    "routes": []
   }
  ],
@@ -6248,6 +6321,9 @@
   "orders.stages.list": [
    "components/admin/orders/StageSettings.tsx"
   ],
+  "orders.softone.detail-modal": [
+   "components/admin/orders/chain/DocDetailModal.tsx"
+  ],
   "orders.tabs": [
    "components/admin/orders/chain/OrderTabs.tsx"
   ],
@@ -6264,6 +6340,9 @@
    "components/admin/orders/chain/OrderTabs.tsx"
   ],
   "orders.softone.details": [
+   "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.softone.all-details": [
    "components/admin/orders/chain/OrderTabs.tsx"
   ],
   "orders.flow": [

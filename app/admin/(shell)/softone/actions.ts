@@ -131,3 +131,17 @@ export async function docChainAction(findoc: number) {
   const { chainFor } = await import("@/lib/softone/order-chain");
   return chainFor(findoc);
 }
+
+/** Όλα τα στοιχεία ενός παραστατικού (κεφαλίδα, παράδοση, γραμμές) για το παράθυρο «Όλα τα στοιχεία». Μόνο ανάγνωση. */
+export async function docDetailAction(findoc: number) {
+  await requirePermission("orders.read");
+  if (!Number.isInteger(findoc) || findoc <= 0) return { ok: false as const, error: "Άκυρο παραστατικό." };
+  try {
+    const { docDetail } = await import("@/lib/softone/doc-detail");
+    const d = await docDetail(findoc);
+    return d ? { ok: true as const, data: d } : { ok: false as const, error: "Το παραστατικό δεν βρέθηκε στο SoftOne." };
+  } catch (e) {
+    console.error("[docDetail]", e); // λεπτομέρειες μόνο στα logs
+    return { ok: false as const, error: "Το SoftOne δεν απάντησε. Δοκίμασε ξανά σε λίγο." };
+  }
+}

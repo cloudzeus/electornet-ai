@@ -1,10 +1,11 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, CloudOff, GitBranch, Package, RefreshCw, Workflow } from "lucide-react";
+import { AlertTriangle, Check, CloudOff, FileText, GitBranch, Package, RefreshCw, Workflow } from "lucide-react";
 import type { FlowBase } from "@/lib/orders/flow";
 import { OrderFlow } from "../flow/OrderFlow";
 import type { OrderChain, OrderChainNode } from "@/lib/softone/order-chain";
+import { DocDetailModal } from "./DocDetailModal";
 import { TONE, amountOf, depths, dmy, metaOf, money, stateOf, titleOf, type Tone } from "./meta";
 
 const ChainFlow = dynamic(() => import("./ChainFlow"), { ssr: false, loading: () => <div className="h-full rounded-xl bg-eu-surface animate-pulse" /> });
@@ -132,12 +133,15 @@ function Details({ n, nodes, hasKids, onSelect }: { n: OrderChainNode; nodes: Or
   const to = nodes.filter((x) => x.parents.includes(n.findoc));
   const rows: [string, React.ReactNode][] = [["Αριθμός", n.fincode || "—"], ["Ημερομηνία", dmy(n.date)], ...(n.shared ? [["Αυτή η παραγγελία", `${money(n.ownNet)} χωρίς ΦΠΑ`], ["Σύνολο εγγράφου", `${money(n.total)} (κοινό με άλλες παραγγελίες)`]] as [string, string][] : [["Σύνολο", money(n.total)]] as [string, string][]), ["Σειρά", `${n.series}${n.seriesName ? ` · ${n.seriesName}` : ""}`], ["Κατάσταση", stateOf(n, hasKids)], ["FINDOC", n.findoc]];
   const link = (x: OrderChainNode) => <button key={x.findoc} type="button" onClick={() => onSelect(x.findoc)} className="text-eu-blue font-bold hover:underline text-left">{titleOf(x)}</button>;
+  const [open, setOpen] = useState(false);
   return (
     <aside data-help="orders.softone.details" aria-live="polite" className="rounded-xl border border-eu-line p-3 grid gap-2 content-start text-[length:var(--fs-13)] min-w-0">
       <div className="flex items-center gap-2 min-w-0"><span className={`size-8 shrink-0 rounded-lg inline-flex items-center justify-center ${TONE[tone].icon}`}><Icon className="size-4" aria-hidden /></span><span className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight">{titleOf(n)}</span></div>
       <dl className="m-0 grid">{rows.map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-1.5 border-t border-eu-line"><dt className="text-eu-muted">{k}</dt><dd className="m-0 text-right text-eu-ink-2 tabular-nums min-w-0 break-words">{v}</dd></div>)}</dl>
       {from.length > 0 && <div className="grid gap-0.5 border-t border-eu-line pt-1.5"><span className="text-eu-muted">Προήλθε από</span>{from.map(link)}{n.viaRoot && <span className="text-eu-muted text-[length:var(--fs-12)]">μόνο μέσω CCCFINDOCS (χωρίς σύνδεση γραμμών)</span>}</div>}
       {to.length > 0 && <div className="grid gap-0.5 border-t border-eu-line pt-1.5"><span className="text-eu-muted">Έγινε</span>{to.map(link)}</div>}
+      <button type="button" data-help="orders.softone.all-details" onClick={() => setOpen(true)} className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-13)] px-3 min-h-11 hover:bg-eu-chip"><FileText className="size-4" aria-hidden /> Όλα τα στοιχεία</button>
+      {open && <DocDetailModal findoc={n.findoc} title={titleOf(n)} nodes={nodes} onClose={() => setOpen(false)} onSelect={onSelect} />}
     </aside>
   );
 }
