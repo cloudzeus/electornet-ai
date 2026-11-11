@@ -59,6 +59,10 @@ export const JOBS: JobDef[] = [
       return { ok: c.ok && d.ok && !a.errors.length, idle: autoIdle && !!c.idle && !!d.idle, message: [...auto, c.idle ? null : c.message, d.idle ? null : d.message].filter(Boolean).join(" · ") };
     },
   },
+  {
+    key: "competitor-kotsovolos", label: "Τιμές Κωτσόβολου (σύγκριση)", schedule: { dailyAt: [1, 0] }, group: "competitors", maxMin: 320,
+    run: async () => (await import("@/lib/competitors/run")).runCompetitorJob("cron"),
+  },
 ];
 
 export const jobByKey = (key: string) => JOBS.find((j) => j.key === key);
