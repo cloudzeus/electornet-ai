@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState,
+  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState, modelTokens, slugIndex, brandPool, rankCandidates, pickFrom,
   type KotItem,
 } from "./core";
 
@@ -179,4 +179,31 @@ test("diffPct, badgeState", () => {
   assert.equal(badgeState(5, false), "gone");
   assert.equal(badgeState(null, false), "gone");
   assert.equal(badgeState(null, true), "none");
+});
+
+test("modelTokens: κωδικοί από τον τίτλο, χωρίς μονάδες", () => {
+  assert.deepEqual(modelTokens("PHILIPS DST2010/40 ATMOSIDERO 2000W"), ["DST2010/40"]);
+  assert.deepEqual(modelTokens("ROWENTA ΕΠΑΝ.ΦΟΡΤ ΣΚ RH98A9"), ["RH98A9"]);
+  assert.deepEqual(modelTokens("SAMSUNG 256GB 5000mAh 12000BTU 55cm 120Hz 1500W 2.5kg"), []);
+  assert.deepEqual(modelTokens("LG (OLED55C46LA) 55\""), ["OLED55C46LA"]);
+});
+test("slugIndex/brandPool: ολόκληρο κομμάτι (ngs ≠ settings), «de longhi», alias", () => {
+  const items = [it("a/1-ngs-speaker-roller"), it("a/2-tv-settings-remote"), it("b/3-de-longhi-ecam-22110"), it("b/4-delonghi-dedica-ec685"), it("c/5-lg-oled55c46la")];
+  const ix = slugIndex(items);
+  assert.deepEqual(brandPool(ix, "NGS").map((x) => x.art), ["1"]);
+  assert.deepEqual(brandPool(ix, "De Longhi").map((x) => x.art).sort(), ["3", "4"]);
+  assert.deepEqual(brandPool(ix, "Λι Τζι", "LG").map((x) => x.art), ["5"]);
+  assert.deepEqual(brandPool(ix, "Samsung"), []);
+});
+test("rankCandidates: επικάλυψη λέξεων, χωρίς μηδενικά, έως n", () => {
+  const c = [it("a/1-bosch-plyntirio-serie-4"), it("a/2-bosch-psygeio-kgn39"), it("a/3-bosch-plyntirio-wgg244")];
+  assert.deepEqual(rankCandidates({ title: "BOSCH ΠΛΥΝΤΗΡΙΟ plyntirio WGG24400", model: "WGG244" }, c, 2).map((x) => x.art), ["3", "1"]);
+  assert.deepEqual(rankCandidates({ title: "xyz", model: null }, [it("a/9-foo-bar")]), []);
+});
+test("pickFrom: έγκυρη επιλογή, null, εκτός λίστας, όχι JSON", () => {
+  const c = [it("a/1-x-aaa11"), it("a/2-x-bbb22")];
+  assert.equal(pickFrom('```json\n{"pick": 2, "why": "ίδιο"}\n```', c)?.item.art, "2");
+  assert.equal(pickFrom('{"pick": null, "why": "-"}', c), null);
+  assert.equal(pickFrom('{"pick": 3}', c), null);
+  assert.equal(pickFrom("δεν ξέρω", c), null);
 });

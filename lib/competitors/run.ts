@@ -4,7 +4,8 @@ import { resetSettingsCache } from "@/lib/settings/store";
 import type { JobResult } from "@/lib/scheduler/jobs";
 import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
-import { isBundle, matchByModel, matchPhone, sameEan, type KotItem } from "./kotsovolos/core";
+import { brandPool, isBundle, matchByModel, matchPhone, modelTokens, rankCandidates, sameEan, slugIndex, type KotItem } from "./kotsovolos/core";
+import { aiPick, AiStop } from "./llm-match";
 import { readCosts } from "./cost";
 import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, searchPrev, type Decision, type Prev } from "./run-core";
 
@@ -12,6 +13,10 @@ export { ourPrice };
 const COMP = "kotsovolos";
 const SECTION = "competitors.kotsovolos"; // { paused, brakedNights, firstScanDone } — γράφεται απευθείας, όπως οι άλλες ενότητες εκτός φόρμας
 const FRESH_MS = 20 * 3600_000;
+/** Χωρίς ζευγάρι μετά από πλήρες ψάξιμο (μοντέλο + AI): γραμμή με extId=null και αυτό το lastError, ξαναψάχνεται μετά από 7 ημέρες. */
+export const NOT_FOUND = "δεν βρέθηκε στον Κωτσόβολο";
+const RETRY_MS = 7 * 86400_000;
+const AI_MAX = 150;
 
 export const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number; firstScanDone?: boolean };
 export async function writeState(patch: { paused?: boolean; brakedNights: number; firstScanDone?: boolean }) {
@@ -21,56 +26,72 @@ export async function writeState(patch: { paused?: boolean; brakedNights: number
 }
 
 type Search = { items: KotItem[]; base: "auto" | "suggested"; note: string | null };
-function search(brand: string, alias: string | null, model: string | null, title: string, extPath: string, pool: KotItem[]): Search | null {
-  const m = matchByModel({ brand, alias, model }, pool);
-  if (m.kind === "matched") return { items: [m.item], base: "auto", note: null };
-  if (m.kind === "suggested") return { items: [m.item], base: "suggested", note: m.reason };
-  if (m.kind === "ambiguous") return { items: m.items.slice(0, 3), base: "suggested", note: `πολλά υποψήφια (${m.items.length})` };
-  if (/phone|mobile|kinit/i.test(extPath)) { const p = matchPhone({ brand, alias, title }, pool); if (p) return { items: [p], base: "suggested", note: null }; }
+/** Κωδικός μοντέλου (modelCode, μετά κωδικοί από τον τίτλο) σε κάθε δεξαμενή με τη σειρά: πρώτα η αντιστοιχισμένη κατηγορία, μετά όλη η μάρκα. */
+function search(brand: string, alias: string | null, model: string | null, title: string, phone: boolean, pools: KotItem[][]): Search | null {
+  const models = [...new Set([model, ...modelTokens(title)].filter((m): m is string => !!m))];
+  for (const pool of pools) for (const mc of models) {
+    const m = matchByModel({ brand, alias, model: mc }, pool);
+    if (m.kind === "matched") return { items: [m.item], base: "auto", note: null };
+    if (m.kind === "suggested") return { items: [m.item], base: "suggested", note: m.reason };
+    if (m.kind === "ambiguous") return { items: m.items.slice(0, 3), base: "suggested", note: `πολλά υποψήφια (${m.items.length})` };
+  }
+  if (phone) for (const pool of pools) { const p = matchPhone({ brand, alias, title }, pool); if (p) return { items: [p], base: "suggested", note: null }; }
   return null;
 }
 
-export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categoryIds?: string[]; limit?: number } = {}): Promise<JobResult> {
+export type JobOpts = {
+  categoryIds?: string[]; limit?: number;
+  /** Μόνο χειροκίνητα (σάρωση από script): κλήσεις, ώρες παραθύρου, κλήσεις AI. */
+  budget?: number; hours?: number; aiMax?: number;
+  onProgress?: (done: number, total: number, msg: string) => void;
+};
+export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts = {}): Promise<JobResult> {
   const state = await readState();
   if (state.paused) return { ok: true, idle: true, message: "Σε παύση (ο Κωτσόβολος μάς είχε κόψει)· ενεργοποίησε την ξανά για να τρέξει" };
   const now = new Date();
   const win = runWindow(trigger, now, state.firstScanDone !== true);
   if (win.idle) return { ok: true, idle: true, message: win.idle };
+  const manual = trigger === "manual";
+  if (manual && opts.hours) win.until = new Date(now.getTime() + opts.hours * 3600_000);
 
-  const maps = await db.competitorCategoryMap.findMany({ where: { competitor: COMP, extPath: { not: null }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}) } });
-  if (!maps.length) return { ok: true, idle: true, message: "Καμία κατηγορία δεν συγκρίνεται" };
+  // Η αντιστοίχιση κατηγοριών είναι προαιρετική: σειρά προτεραιότητας και πρώτη δεξαμενή ψαξίματος
+  const maps = await db.competitorCategoryMap.findMany({ where: { competitor: COMP, extPath: { not: null } } });
   const pathOf = new Map(maps.map((m) => [m.categoryId, m.extPath as string]));
   const brandMaps = new Map((await db.competitorBrandMap.findMany({ where: { competitor: COMP } })).map((b) => [b.brandId, b]));
 
-  const pacer = createPacer({ budget: trigger === "cron" ? 1800 : 300, until: win.until });
+  const pacer = createPacer({ budget: manual && opts.budget ? opts.budget : trigger === "cron" ? 1800 : 300, until: win.until });
+  const aiMax = manual && opts.aiMax != null ? opts.aiMax : AI_MAX;
 
   let sitemap: KotItem[];
   try { sitemap = await fetchSitemap(pacer); }
   catch (e) {
-    if (e instanceof KotStopError) return brake(e, trigger, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 });
+    if (e instanceof KotStopError) return brake(e, trigger, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0 });
     return { ok: false, message: `Το sitemap του Κωτσόβολου δεν κατεβαίνει (${(e as Error).message}) — οι παλιές τιμές μένουν` };
   }
   const byArt = new Map(sitemap.map((i) => [i.art, i]));
-  const poolOf = (p: string) => sitemap.filter((i) => i.path === p || i.path.startsWith(p + "/"));
+  const ix = slugIndex(sitemap);
 
   const products = await db.product.findMany({
-    where: { active: true, kind: { not: "set" }, categoryId: { in: [...pathOf.keys()] } },
-    select: { id: true, erpCode: true, title: true, price: true, ean: true, modelCode: true, categoryId: true, brandId: true, brand: { select: { name: true } }, offer: { select: { price: true } },
+    where: { active: true, kind: { not: "set" }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}) },
+    select: { id: true, erpCode: true, title: true, price: true, ean: true, modelCode: true, categoryId: true, brandId: true, brand: { select: { name: true } }, category: { select: { name: true } }, offer: { select: { price: true } },
       competitorPrices: { where: { competitor: COMP } } },
   });
   type Item = { p: (typeof products)[number]; row: (typeof products)[number]["competitorPrices"][number] | undefined };
   let work: Item[] = products
     .map((p) => ({ p, row: p.competitorPrices[0] }))
     .filter(({ p, row }) => !brandMaps.get(p.brandId)?.notCarried && !isBundle(p.title, "item")
-      && !(row?.checkedAt && now.getTime() - row.checkedAt.getTime() < FRESH_MS));
-  work.sort((a, b) => (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
+      && !(row?.checkedAt && now.getTime() - row.checkedAt.getTime() < (!row.extId && row.lastError === NOT_FOUND ? RETRY_MS : FRESH_MS)));
+  // πρώτα οι επιβεβαιωμένες κατηγορίες, μετά ο παλαιότερος έλεγχος
+  work.sort((a, b) => Number(pathOf.has(b.p.categoryId)) - Number(pathOf.has(a.p.categoryId)) || (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
   if (opts.limit) work = work.slice(0, opts.limit);
 
-  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 };
+  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0 };
+  let aiOff: string | null = null;
   const touched: { productId: string; erp: number }[] = [];
   let bad = 0;
   // Ruling 9: 5 συνεχόμενες μη-404 αποτυχίες (non-JSON, redirect, χωρίς προϊόν) = ύποπτο φρένο
   const get = async (art: string) => {
+    c.reads++;
     const r = await fetchProduct(art, pacer);
     if ("error" in r) { if (isOddResponse(r.error) && ++bad >= 5) throw new KotStopError("blocked", "5 συνεχόμενες μη έγκυρες απαντήσεις"); }
     else bad = 0;
@@ -99,7 +120,6 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   const process = async (it: Item) => {
     const { p } = it;
     const ours = ourPrice({ price: p.price, offer: p.offer });
-    const path = pathOf.get(p.categoryId)!;
     const mkPrev = (r: Item["row"], match: Prev["match"]): Prev => ({ match, extUrl: r?.extUrl ?? null, missCount: r?.missCount ?? 0, their: r?.offerPrice != null ? Number(r.offerPrice) : r?.listPrice != null ? Number(r.listPrice) : null, ourPrice: r?.ourPrice != null ? Number(r.ourPrice) : null });
     let row = it.row;
 
@@ -126,13 +146,35 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
       }
     }
 
-    // 2. ψάξιμο (χωρίς ζευγάρι, suggested, lost)
+    // 2. ψάξιμο (χωρίς ζευγάρι, suggested, lost): όλη η μάρκα στο sitemap, πρώτα η αντιστοιχισμένη κατηγορία
     const rejected = it.row?.rejectedExtIds ?? [];
-    const pool = poolOf(path).filter((k) => !rejected.includes(k.art));
     const bm = brandMaps.get(p.brandId);
-    const s = search(p.brand.name, bm?.alias ?? null, p.modelCode, p.title, path, pool);
+    const all = brandPool(ix, p.brand.name, bm?.alias).filter((k) => !rejected.includes(k.art));
     const known = row?.match === "suggested" && row.extId && byArt.has(row.extId) ? row.extId : null;
-    if (!s && !known) return;
+    if (!all.length && !known) return; // η μάρκα δεν υπάρχει στον Κωτσόβολο: σιωπηλά, χωρίς AI
+    const path = pathOf.get(p.categoryId);
+    const inCat = path ? all.filter((i) => i.path === path || i.path.startsWith(path + "/")) : [];
+    const phone = /phone|mobile|kinit/i.test(path ?? "") || /κινητ|smartphone/i.test(p.category?.name ?? "");
+    let s = search(p.brand.name, bm?.alias ?? null, p.modelCode, p.title, phone, inCat.length ? [inCat, all] : [all]);
+    let note = s?.note ?? (known && row?.lastError?.startsWith("AI:") ? row.lastError : null);
+    if (!s && !known) {
+      // 3. AI: μόνο πρόταση· auto μόνο αν το EAN που διαβάζουμε είναι ίδιο
+      if (aiOff || c.ai >= aiMax) return; // χωρίς πλήρες ψάξιμο: δεν σημειώνεται «δεν βρέθηκε»
+      const cands = rankCandidates({ title: p.title, model: p.modelCode }, inCat.length ? [...new Set([...inCat, ...all])] : all);
+      let pick = null;
+      if (cands.length) {
+        c.ai++;
+        try { const a = await aiPick({ title: p.title, brand: p.brand.name, model: p.modelCode, category: p.category?.name ?? null }, cands); c.aiUsd += a.costUsd; pick = a.pick; }
+        catch (e) { if (e instanceof AiStop) aiOff = e.message; else console.error("[competitor] AI", p.erpCode, (e as Error).message); return; }
+      }
+      if (!pick) {
+        c.notFound++;
+        await save(it, null, null, null, { match: row?.match === "rejected" ? "rejected" : "lost", lastError: NOT_FOUND, missCount: 0, clearPair: true });
+        return;
+      }
+      s = { items: [pick.item], base: "suggested", note: null };
+      note = `AI: ${pick.why || "ίδιο μοντέλο"}`;
+    }
     const items = s ? s.items : [byArt.get(known!)!];
     let best: { kot: KotItem; r: Awaited<ReturnType<typeof get>> } | null = null;
     for (const kot of items) {
@@ -145,7 +187,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
     const base = s?.base ?? "suggested";
     const eanHit = !("error" in r) && sameEan(r.ean, p.ean) === true;
     if ("error" in r) { if (row) await save(it, null, null, null, { match: row.match as any, lastError: r.error, missCount: row.missCount }); return; }
-    await save(it, kot.art, kot, r.title, decidePrice({ prev: mkPrev(row, cur), base: eanHit ? "auto" : base, note: eanHit ? null : s?.note ?? null, parsed: r, ourEan: p.ean, ourPrice: ours }));
+    await save(it, kot.art, kot, r.title, decidePrice({ prev: mkPrev(row, cur), base: eanHit ? "auto" : base, note: eanHit ? null : note, parsed: r, ourEan: p.ean, ourPrice: ours }));
   };
 
   let done = 0;
@@ -153,6 +195,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
     for (const it of work) {
       try { await process(it); } catch (e) { if (e instanceof KotStopError) throw e; c.errors++; console.error("[competitor]", it.p.erpCode, (e as Error).message); }
       done++;
+      if (opts.onProgress && done % 50 === 0) opts.onProgress(done, work.length, msg(c));
     }
   } catch (e) {
     if (!(e instanceof KotStopError)) throw e;
@@ -162,11 +205,11 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   }
   await costs(touched);
   await writeState({ brakedNights: 0, ...(trigger === "cron" ? { firstScanDone: true } : {}) });
-  return { ok: true, message: msg(c) };
+  return { ok: true, message: `${msg(c)}${aiOff ? ` · AI σταμάτησε: ${aiOff}` : ""}` };
 }
 
-type Counts = { pairs: number; prices: number; expensive: number; errors: number; sugg: number; readErr: number };
-const msg = (c: Counts) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.sugg} προτάσεις προς έλεγχο · ${c.readErr} χωρίς τιμή · ${c.errors} σφάλματα`;
+type Counts = { pairs: number; prices: number; expensive: number; errors: number; sugg: number; readErr: number; ai: number; aiUsd: number; notFound: number; reads: number };
+const msg = (c: Counts) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.sugg} προτάσεις προς έλεγχο · ${c.readErr} χωρίς τιμή · ${c.notFound} δεν βρέθηκαν · ${c.errors} σφάλματα · ${c.reads} αναγνώσεις Κωτσόβολου${c.ai ? ` · AI ${c.ai} κλήσεις ($${c.aiUsd.toFixed(3)})` : ""}`;
 
 async function costs(touched: { productId: string; erp: number }[]) {
   if (!touched.length) return;

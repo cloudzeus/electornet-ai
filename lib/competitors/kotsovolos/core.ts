@@ -35,10 +35,45 @@ const slugRuns = (last: string) => {
   return out;
 };
 // Η μάρκα (ή το alias) ως ολόκληρο κομμάτι ή σειρά διαδοχικών κομματιών (De Longhi = de + longhi), όχι υπο-συμβολοσειρά.
-const hasBrand = (last: string, ...names: (string | null | undefined)[]) => {
+export const hasBrand = (last: string, ...names: (string | null | undefined)[]) => {
   const runs = new Set(slugRuns(last));
   return names.some((n) => { const b = norm(n ?? ""); return b !== "" && runs.has(b); });
 };
+
+/** Ευρετήριο μάρκας: κάθε κομμάτι/σειρά κομματιών του slug → είδη. Χτίζεται μία φορά ανά εκτέλεση (24k είδη). */
+export function slugIndex(items: KotItem[]): Map<string, KotItem[]> {
+  const ix = new Map<string, KotItem[]>();
+  for (const it of items) for (const r of new Set(slugRuns(it.last))) { const a = ix.get(r); if (a) a.push(it); else ix.set(r, [it]); }
+  return ix;
+}
+/** Όλα τα είδη της μάρκας (ή του alias) στο sitemap, με ταίριασμα ολόκληρου κομματιού όπως το hasBrand. */
+export function brandPool(ix: Map<string, KotItem[]>, ...names: (string | null | undefined)[]): KotItem[] {
+  const out = new Set<KotItem>();
+  for (const n of names) { const b = norm(n ?? ""); if (b) for (const it of ix.get(b) ?? []) out.add(it); }
+  return [...out];
+}
+
+const UNIT = /^\d+([.,]\d+)?(gb|tb|w|kw|kg|cm|mm|hz|mah|btu|lt|l|v)$/i;
+/** Κωδικοί μοντέλου μέσα στον τίτλο: κομμάτια ≥5 χαρακτήρων με γράμμα και ψηφίο, όχι μονάδες (2000W, 256GB). */
+export const modelTokens = (title: string) => [...new Set(title.split(/[\s,()\[\]]+/).map((x) => x.replace(/^["“”'«]+|["“”'».]+$/g, ""))
+  .filter((x) => x.length >= 5 && /\d/.test(x) && /[a-z]/i.test(x) && !UNIT.test(x)))];
+
+const words = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zα-ω0-9]+/).filter((w) => w.length >= 2);
+/** Υποψήφια για το AI: επικάλυψη λέξεων τίτλου/κωδικού με το slug (κοινό πρόθεμα ≥ 4), τα καλύτερα n. */
+export function rankCandidates(o: { title: string; model: string | null }, cands: KotItem[], n = 12): KotItem[] {
+  const q = [...new Set(words(o.title + " " + (o.model ?? "")))];
+  return cands.map((c, i) => ({ c, i, s: words(c.last).filter((w) => q.some((x) => x === w || (x.length >= 4 && (w.startsWith(x) || x.startsWith(w))))).length }))
+    .filter((x) => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, n).map((x) => x.c);
+}
+
+/** Η απάντηση του AI ({"pick": n, "why"}) → υποψήφιο ή null (εκτός λίστας, μη αριθμός, null, όχι JSON). */
+export function pickFrom(text: string, cands: KotItem[]): { item: KotItem; why: string } | null {
+  let j: { pick?: unknown; why?: unknown } | null = null;
+  try { j = JSON.parse(/\{[\s\S]*\}/.exec(text)?.[0] ?? "null"); } catch { return null; }
+  const n = typeof j?.pick === "number" ? j.pick : typeof j?.pick === "string" ? Number(j.pick) : NaN;
+  if (!Number.isInteger(n) || n < 1 || n > cands.length) return null;
+  return { item: cands[n - 1], why: typeof j?.why === "string" ? j.why.slice(0, 200) : "" };
+}
 
 type Rel = { strong: boolean; reason: string } | null;
 const relation = (theirs: string, model: string): Rel => {

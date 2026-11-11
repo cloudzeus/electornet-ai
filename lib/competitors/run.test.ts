@@ -92,3 +92,10 @@ test("runWindow: πρώτο scanning μετά το deploy τρέχει αμέσ�
   assert.equal(f.until.getTime(), now.getTime() + 6 * 3600_000);
   assert.equal(runWindow("manual", now, true).until.getTime(), runWindow("manual", now).until.getTime());
 });
+
+test("επιλογή AI: ίδιο EAN → auto, χωρίς/διαφορετικό EAN → πάντα suggested", () => {
+  const ai = (ean: string | null) => decidePrice({ prev: prev({ match: null }), base: "suggested", note: "AI: ίδιο μοντέλο", parsed: ok({ ean }) as any, ourEan: "5901234123457", ourPrice: 110 });
+  assert.equal(ai("5901234123457").match, "auto");
+  const none = ai(null); assert.equal(none.match, "suggested"); assert.equal(none.lastError, "AI: ίδιο μοντέλο");
+  const diff = ai("5909999999999"); assert.equal(diff.match, "suggested"); assert.match(diff.lastError!, /διαφορετικό EAN/);
+});

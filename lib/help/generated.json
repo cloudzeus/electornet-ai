@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T16:56:07.022Z",
+ "generatedAt": "2026-11-11T17:02:57.004Z",
  "routes": [
   {
    "route": "/admin",
@@ -5123,6 +5123,12 @@
  ],
  "recent": [
   {
+   "hash": "ebc09dd",
+   "date": "2026-11-11T18:57:04+02:00",
+   "text": "Βοήθεια: screenshots σύγκρισης τιμών και μαζικής αλλαγής (υπολογιστής + κινητό)",
+   "routes": []
+  },
+  {
    "hash": "2f9631b",
    "date": "2026-11-11T17:58:53+02:00",
    "text": "Βοήθεια: ενημέρωση generated.json για τη σύγκριση τιμών",
@@ -5449,17 +5455,6 @@
     "/admin/catalog",
     "/admin/catalog/templates",
     "/admin/catalog/templates/apenergopoiisi"
-   ]
-  },
-  {
-   "hash": "04b97f7",
-   "date": "2026-11-10T13:55:00+02:00",
-   "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
    ]
   }
  ],

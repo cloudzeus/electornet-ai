@@ -21,20 +21,11 @@ const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
 export async function CompetitorPanel({ productId, canWrite }: { productId: string; canWrite: boolean }) {
   const p = await db.product.findUnique({
     where: { id: productId },
-    select: { price: true, categoryId: true, offer: { select: { price: true } },
+    select: { price: true, offer: { select: { price: true } },
       competitorPrices: { where: { competitor: COMP }, include: { history: { orderBy: { at: "desc" }, take: 90 } } } },
   });
   if (!p) return null;
   const row = p.competitorPrices[0];
-  const mapped = !!(await db.competitorCategoryMap.findUnique({ where: { competitor_categoryId: { competitor: COMP, categoryId: p.categoryId } }, select: { extPath: true } }))?.extPath;
-
-  if (!row && !mapped) return (
-    <section className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-eu-line bg-white px-4 py-3 text-[length:var(--fs-14)]">
-      <span className="text-eu-ink-3"><b className="text-eu-ink">Κωτσόβολος:</b> η κατηγορία του προϊόντος δεν συγκρίνεται ακόμη.</span>
-      <Link href="/admin/catalog/competitors" className="inline-flex min-h-11 items-center font-bold text-eu-blue hover:underline">Αντιστοίχιση κατηγοριών →</Link>
-    </section>
-  );
-
   const v = kotView(row);
   const paired = !!v?.extId && v.match !== "rejected" && v.match !== "lost";
   const firm = paired && (v.match === "auto" || v.match === "manual");

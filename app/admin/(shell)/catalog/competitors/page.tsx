@@ -29,13 +29,14 @@ export default async function CompetitorsPage() {
   const canWrite = can(user.permissions, "catalog.products.write");
   const canRun = can(user.permissions, "catalog.sync.run");
 
-  const [cats, maps, prices, jobs, state, kot] = await Promise.all([
+  const [cats, maps, prices, jobs, state, kot, activeCount] = await Promise.all([
     db.category.findMany({ select: { id: true, name: true, parentId: true, productCount: true, active: true } }),
     db.competitorCategoryMap.findMany({ where: { competitor: COMP } }),
     db.competitorPrice.findMany({ where: { competitor: COMP }, select: { match: true, diffPct: true, checkedAt: true, product: { select: { categoryId: true, brandId: true } } } }),
     jobStatus().catch(() => []),
     readState(),
     cachedCategories().catch(() => null),
+    db.product.count({ where: { active: true, kind: { not: "set" } } }),
   ]);
   const job = jobs.find((j) => j.key === JOB);
 
@@ -72,9 +73,8 @@ export default async function CompetitorsPage() {
   const tabs = [...groups.values()].map((g) => ({ ...g, rows: g.rows.sort((a, b) => a.path.localeCompare(b.path, "el") || b.products - a.products) })).sort((a, b) => a.label.localeCompare(b.label, "el"));
   const allRows = tabs.flatMap((t) => t.rows);
   const comparedIds = allRows.filter((r) => r.status === "mapped").map((r) => r.id);
-  const compared = allRows.filter((r) => r.status === "mapped").reduce((s, r) => s + r.products, 0);
-  // Μόνο οι κατηγορίες που συγκρίνονται τώρα (όχι όσες αφαιρέθηκαν, που κρατούν τις παλιές τιμές)
-  const comparedSet = new Set(comparedIds), firmIn = firm.filter((p) => comparedSet.has(p.product.categoryId)), pairsIn = firmIn.length;
+  // Συγκρίνονται όλα τα ενεργά προϊόντα· η αντιστοίχιση κατηγοριών δίνει μόνο σειρά και πρώτη δεξαμενή ψαξίματος
+  const compared = activeCount, firmIn = firm, pairsIn = firmIn.length;
   const scannedSet = new Set(maps.filter(scanned).map((m) => m.categoryId));
   const needChoice = allRows.filter((r) => r.status === "needed").length, needCheck = allRows.filter((r) => r.status === "suggested").length;
 
@@ -109,7 +109,7 @@ export default async function CompetitorsPage() {
   const pricier = firmIn.filter((p) => (p.diffPct ?? 0) > 0.5).length;
   const withPrice = firmIn.filter((p) => p.diffPct != null).length;
   const tonight = job?.lastMessage?.startsWith("Χειροκίνητα") ? "στην τελευταία εκτέλεση" : "απόψε"; // runJob γράφει «Χειροκίνητα · …» στις χειροκίνητες
-  const totalSugg = prices.filter((p) => p.match === "suggested" && comparedSet.has(p.product.categoryId)).length;
+  const totalSugg = prices.filter((p) => p.match === "suggested").length;
   const card = "rounded-2xl border bg-white p-4 grid content-start gap-1.5 min-w-0";
   const label = "m-0 text-eu-ink-3 text-[length:var(--fs-13)]";
   const figure = "m-0 font-heading font-bold tabular-nums text-[length:var(--fs-22)]";
@@ -120,7 +120,7 @@ export default async function CompetitorsPage() {
         <div className="grid gap-1 min-w-0">
           <Link href="/admin/catalog" className="inline-flex items-center gap-1.5 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline"><ArrowLeft className="size-4" aria-hidden /> Προϊόντα</Link>
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Σύγκριση με Κωτσόβολο</h2>
-          <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)] max-w-[70ch]">Διάλεξε ποιες κατηγορίες μας συγκρίνονται και πες σε ποια δική τους αντιστοιχεί η καθεμία. Κάθε βράδυ από τις 01:00 βρίσκουμε τα ίδια προϊόντα με μάρκα και μοντέλο και κρατάμε την τιμή τους.</p>
+          <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)] max-w-[70ch]">Κάθε βράδυ από τις 01:00 ψάχνουμε όλα τα ενεργά μας προϊόντα στον Κωτσόβολο με μάρκα και μοντέλο και κρατάμε την τιμή τους. Η αντιστοίχιση κατηγοριών παρακάτω δεν είναι προϋπόθεση: οι επιβεβαιωμένες κατηγορίες ελέγχονται πρώτες και το ψάξιμο ξεκινά από τη δική τους κατηγορία.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canRun && <StatusActions mode="run" running={!!job?.running} disabled={!!state.paused} />}
@@ -172,7 +172,7 @@ export default async function CompetitorsPage() {
           ) : (
             <>
               <p className={`${figure} text-eu-ink-3`}>—</p>
-              <p className={label}>Πρόσθεσε και επιβεβαίωσε πρώτα κατηγορίες παρακάτω</p>
+              <p className={label}>Δεν υπάρχουν ενεργά προϊόντα</p>
             </>
           )}
         </div>
@@ -218,7 +218,7 @@ export default async function CompetitorsPage() {
         <Info className="size-5 shrink-0 mt-0.5 text-eu-blue" aria-hidden />
         <div className="grid gap-1">
           <b className="text-eu-ink">Πώς ταιριάζουμε τα προϊόντα</b>
-          <span>Ίδια μάρκα και ίδιο μοντέλο. Ο Κωτσόβολος κόβει το τέλος του κωδικού (QE65QN90DATXXH → qe65qn90da), οπότε αρκεί ο ένας κωδικός να είναι η αρχή του άλλου. Στα κινητά ταιριάζουμε όνομα, μνήμη και χρώμα, γιατί δεν δείχνουν κωδικό. Ένα λάθος ζευγάρι το διορθώνεις από τη σελίδα του προϊόντος.</span>
+          <span>Ίδια μάρκα και ίδιο μοντέλο. Ο Κωτσόβολος κόβει το τέλος του κωδικού (QE65QN90DATXXH → qe65qn90da), οπότε αρκεί ο ένας κωδικός να είναι η αρχή του άλλου. Στα κινητά ταιριάζουμε όνομα, μνήμη και χρώμα, γιατί δεν δείχνουν κωδικό. Ό,τι δεν βρεθεί έτσι το κοιτά το AI, αλλά η επιλογή του μένει πρόταση προς επιβεβαίωση, εκτός αν έχει ίδιο EAN. Προϊόν που δεν βρέθηκε ξαναψάχνεται μετά από 7 ημέρες. Ένα λάθος ζευγάρι το διορθώνεις από τη σελίδα του προϊόντος.</span>
         </div>
       </aside>
     </div>
