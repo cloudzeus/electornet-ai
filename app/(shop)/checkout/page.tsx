@@ -17,7 +17,7 @@ export default async function CheckoutPage() {
   const partner = String(pub.shipping?.boxnowPartnerId ?? "").trim();
   return (
     <div className="eu-container">
-      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} klarnaDirect={!!klarna} bankSub={bank.enabled ? bankNames(bank.accounts) : null} />
+      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil, member: s.member, lat: s.lat, lng: s.lng }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} klarnaDirect={!!klarna} bankSub={bank.enabled ? bankNames(bank.accounts) : null} />
     </div>
   );
 }

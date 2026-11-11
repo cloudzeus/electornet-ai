@@ -77,3 +77,10 @@ export async function nearestStores(p: { lat: number; lng: number }, limit = 5):
   const list = (await dbStores(p)) ?? fixtureStores.map((s) => ({ ...s, distanceKm: Math.round(distanceKm(p, s) * 10) / 10 }));
   return list.sort((a, b) => a.distanceKm - b.distanceKm).slice(0, limit);
 }
+
+/** Πραγματικό απόθεμα του προϊόντος ανά κατάστημα (πίνακας StoreStock) → { storeId: τεμάχια }· κενό όταν δεν υπάρχουν στοιχεία. */
+export async function storeStockFor(productId: string, fromDb: boolean): Promise<Record<string, number>> {
+  if (!fromDb) return {};
+  const rows = await db.storeStock.groupBy({ by: ["storeId"], where: { variant: { productId }, qty: { gt: 0 }, store: { active: true } }, _sum: { qty: true } });
+  return Object.fromEntries(rows.map((r) => [r.storeId, r._sum.qty ?? 0]));
+}

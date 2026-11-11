@@ -17,6 +17,7 @@ import { Questions } from "@/components/pdp/Questions";
 import { ProductRail } from "@/components/pdp/ProductRail";
 import { StickyBar } from "@/components/pdp/StickyBar";
 import { RecentlyViewed } from "@/components/pdp/RecentlyViewed";
+import { storeStockFor } from "@/lib/stores/repo";
 import { getAccessoriesFor, getL1, getProductBySlug, getRelated, getServicesFull, getStores } from "@/lib/data/repo";
 import { Answers } from "@/components/pdp/Answers";
 import { StickySidebar } from "@/components/fluid/StickySidebar";
@@ -68,7 +69,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = await getProductBySlug(slug);
   if (!p) notFound();
   // όλα ανεξάρτητα μεταξύ τους → ένας γύρος (πριν ήταν 5 διαδοχικοί: ~1″ με τη βάση σε άλλο μηχάνημα)
-  const [l1, related, accessories, services, stores, co2, { setParts, setLinks, soldAlone, maker, extOk, ar }, arCats] = await Promise.all([
+  const [l1, related, accessories, services, stores, co2, { setParts, setLinks, soldAlone, maker, extOk, ar }, arCats, stockByStore] = await Promise.all([
     getL1(p.category), getRelated(p, 5), getAccessoriesFor(p), getServicesFull(), getStores(),
     // Ένταση CO₂ του δικτύου από cache 30 ημερών — καμία κλήση API ανά προϊόν
     getGridFactor().catch(() => null),
@@ -76,6 +77,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     pdpExtras(p.id, !!p.fromDb),
     // «Δες το στον χώρο σου»: κατηγορίες με AR
     getArCategories(),
+    // απόθεμα ανά κατάστημα (StoreStock) — μόνο πραγματικά στοιχεία, κενό αν δεν υπάρχουν
+    storeStockFor(p.id, !!p.fromDb).catch(() => ({}) as Record<string, number>),
   ]);
   // κύριο είδος που πωλείται μόνο σε σετ: η σελίδα του οδηγεί στο (φθηνότερο ενεργό) σετ· χωρίς ενεργό σετ δεν πωλείται
   // προσωρινή (307): ο στόχος αλλάζει (φθηνότερο σετ) και ο διαχειριστής μπορεί να το κάνει «Ναι»
@@ -131,7 +134,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             )}
           </div>
           <StickySidebar className="order-2 min-w-0">
-            {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.slice(0, 8)} accessory={null} warranty={warranty} />}
+            {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, member: s.member, address: s.address, city: s.city, openUntil: s.openUntil, lat: s.lat, lng: s.lng }))} accessory={null} warranty={warranty} stockByStore={stockByStore} />}
             <AdSlot slot="pdp-below-buybox" category={p.category} className="mt-4" />
           </StickySidebar>
         </div>

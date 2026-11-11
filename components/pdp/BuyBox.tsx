@@ -1,10 +1,11 @@
 "use client";
 
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package, ShieldCheck } from "lucide-react";
-import type { Product, Service, Store } from "@/lib/data/types";
+import type { Product, Service } from "@/lib/data/types";
+import { PickupStorePicker, type PickupStore } from "@/components/pdp/PickupStorePicker";
+import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
 import { discountPct, instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
 import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistButton";
@@ -24,7 +25,7 @@ const c = copyOf("buybox");
  * action; quick buy sits next to the wishlist as the secondary one.
  */
 /** warranty: εγγύηση κατασκευαστή (μήνες) και δωρεάν επέκταση (μήνες, 0 = δεν ισχύει για αυτό το είδος) */
-export function BuyBox({ product: p, addons, stores, accessory, warranty }: { product: Product; addons: Service[]; stores: Store[]; accessory?: Product | null; warranty?: WarrantyInfo }) {
+export function BuyBox({ product: p, addons, stores, accessory, warranty, stockByStore = {} }: { product: Product; addons: Service[]; stores: PickupStore[]; accessory?: Product | null; warranty?: WarrantyInfo; /** πραγματικό απόθεμα ανά κατάστημα (StoreStock) */ stockByStore?: Record<string, number> }) {
   const { add, openQuickBuy } = useCart();
   const [qty, setQty] = useState(1);
   const [sel, setSel] = useState<Record<string, string>>(() => Object.fromEntries((p.variants ?? []).map((v) => [v.name, v.options[0].label])));
@@ -32,6 +33,17 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
   const [withAcc, setWithAcc] = useState(false);
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [ful, setFul] = useState<"courier" | "store" | "appointment">(p.installation ? "appointment" : "courier");
+  // προηγούμενη επιλογή του επισκέπτη (εδώ ή στο ταμείο) — ίδια και στις δύο σελίδες
+  const [kept, setKept] = useState(false);
+  useEffect(() => {
+    const pr = readPickup();
+    if (pr?.where !== "store") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- αρχικοποίηση από localStorage μία φορά
+    if (pr.storeId && stores.some((s) => s.id === pr.storeId)) { setStoreId(pr.storeId); setKept(true); }
+    setFul("store");
+  }, [stores]);
+  const chooseFul = (v: typeof ful) => { setFul(v); savePickup({ where: v === "store" ? "store" : "home", storeId }); };
+  const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
 
   const price = useMemo(() => {
     let pr = p.price;
@@ -43,8 +55,6 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
   }, [p, sel]);
   const pct = discountPct(price, p.wasPrice);
   const variantLabel = Object.values(sel).join(" · ") || undefined;
-  const store = stores.find((s) => s.id === storeId);
-  const storeQty = store ? Math.max(0, ((p.storeStock ?? 0) + Number(store.id.replace(/\D/g, ""))) % 7) : 0;
   const a = p.availability;
   const date = a.kind === "order" ? null : weekday(new Date(a.deliveryDate));
   const avail = a.kind === "in-stock" ? { c: "text-eu-green", dot: "bg-eu-green", t: a.label ?? "Άμεσα διαθέσιμο" } : a.kind === "days" ? { c: "text-eu-amber", dot: "bg-eu-amber", t: `Διαθέσιμο σε ${a.min}–${a.max} εργάσιμες` } : { c: "text-eu-muted", dot: "bg-eu-muted", t: a.label ?? "Κατόπιν παραγγελίας" };
@@ -132,41 +142,33 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty }: { pr
         <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.pos_to_theleis}</legend>
         <label className={`${box} ${ful === "courier" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
           <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-            <input type="radio" name="ful" checked={ful === "courier"} onChange={() => setFul("courier")} className="accent-eu-blue size-4" />
+            <input type="radio" name="ful" checked={ful === "courier"} onChange={() => chooseFul("courier")} className="accent-eu-blue size-4" />
             <Truck className="size-5 text-eu-blue" aria-hidden /> {c.sti_dieythynsi_moy}
             <span className="ml-auto text-eu-green">{price >= 100 ? "Δωρεάν" : "4,90 €"}</span>
           </span>
         </label>
-        <label className={`${box} ${ful === "store" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
-          <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-            <input type="radio" name="ful" checked={ful === "store"} onChange={() => setFul("store")} className="accent-eu-blue size-4" />
+        <div className={`${box} ${ful === "store" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
+          <label className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)] cursor-pointer">
+            <input type="radio" name="ful" checked={ful === "store"} onChange={() => chooseFul("store")} className="accent-eu-blue size-4" />
             <StoreIcon className="size-5 text-eu-blue" aria-hidden /> {c.paralavi_apo_katastima}
             <span className="ml-auto text-eu-green">{c.dorean}</span>
-          </span>
+          </label>
           {ful === "store" && (
-            <div className="mt-2 grid gap-1.5 pl-6">
-              <select value={storeId} onChange={(e) => setStoreId(e.target.value)} aria-label={c.katastima} className="w-full min-w-0 rounded-md border border-eu-line px-3 py-2 text-[length:var(--fs-14)] min-h-11 bg-white">
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.city} — {s.name}
-                  </option>
-                ))}
-              </select>
-              {store && (
-                <div className="text-[length:var(--fs-14)] text-eu-ink-2">
-                  {storeQty > 0 ? <span className="text-eu-green font-bold">{storeQty} τεμ. · έτοιμο σε 2 ώρες</span> : <span className="text-eu-amber font-bold">{c.metafora_sto_katastima_1}</span>} · {store.distanceKm} km ·{" "}
-                  <Link href={`/katastimata/${store.slug}`} className="text-eu-blue underline">
-                    {c.orario}
-                  </Link>
-                </div>
-              )}
-            </div>
+            <PickupStorePicker stores={stores} value={storeId} onChange={chooseStore} keep={kept} hoursLabel="ωράριο & χάρτης"
+              stockLine={(s) => {
+                // μόνο πραγματικό απόθεμα του καταστήματος· αλλιώς ο χρόνος από τη διαθεσιμότητα του προϊόντος
+                const n = stockByStore[s.id] ?? 0;
+                if (n > 0) return <span className="text-eu-green font-bold">{n} τεμ. στο κατάστημα · έτοιμο σε 2 ώρες</span>;
+                if (a.kind === "in-stock") return <span className="text-eu-ink font-bold">{c.metafora_sto_katastima_1}</span>;
+                if (a.kind === "days") return <span className="text-eu-amber font-bold">Μεταφορά στο κατάστημα · {a.min}–{a.max} εργάσιμες</span>;
+                return <span className="text-eu-amber font-bold">Κατόπιν παραγγελίας · θα λάβεις SMS όταν φτάσει στο κατάστημα</span>;
+              }} />
           )}
-        </label>
+        </div>
         {p.installation && (
           <label className={`${box} ${ful === "appointment" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
             <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-              <input type="radio" name="ful" checked={ful === "appointment"} onChange={() => setFul("appointment")} className="accent-eu-blue size-4" />
+              <input type="radio" name="ful" checked={ful === "appointment"} onChange={() => chooseFul("appointment")} className="accent-eu-blue size-4" />
               <CalendarClock className="size-5 text-eu-blue" aria-hidden /> {c.me_rantevoy_egkatastasi}
               <span className="ml-auto text-eu-blue">{c.apo_60}</span>
             </span>

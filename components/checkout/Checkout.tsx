@@ -2,9 +2,11 @@
 
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { PickupStorePicker } from "@/components/pdp/PickupStorePicker";
+import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag, Home, Zap, Loader2, MapPin } from "lucide-react";
+import { CreditCard, Landmark, Banknote, Smartphone, Wallet as Wallet2, ExternalLink, Store as StoreIcon, Truck, Container, CalendarClock, ShieldCheck, Lock, RotateCcw, Pencil, Recycle, Check, Tag, Home, Zap, Loader2 } from "lucide-react";
 import { instalment, priceLong } from "@/lib/format";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
 import { Stepper } from "./Stepper";
@@ -20,7 +22,7 @@ import { carrierDef } from "@/lib/shipping/carriers";
 
 const c = copyOf("checkout");
 
-type StoreLite = { id: string; slug: string; name: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string };
+type StoreLite = { id: string; slug: string; name: string; member?: string; city: string; address: string; zip: string; region: string; distanceKm: number; openUntil: string; lat: number; lng: number };
 type Pay = "card" | "no-card" | "iris" | "bank" | "cod" | "store" | "apple" | "google" | "revolut" | "paypal" | "klarna" | "tbi";
 
 /** Τρόποι μέσω Viva — ο πελάτης μεταφέρεται στη σελίδα της Viva, ανοιχτή στον τρόπο που διάλεξε. */
@@ -64,6 +66,16 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const [locker, setLocker] = useState<Locker | null>(null);
   const pickLocker = useCallback((l: Locker) => setLocker(l), []);
   const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
+  // η επιλογή από τη σελίδα προϊόντος (ή από προηγούμενη επίσκεψη) — το ταμείο δεν ξαναρωτά
+  const [keptStore, setKeptStore] = useState(false);
+  useEffect(() => {
+    const pr = readPickup();
+    if (pr?.where !== "store") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- αρχικοποίηση από localStorage μία φορά
+    if (pr.storeId && stores.some((s) => s.id === pr.storeId)) { setStoreId(pr.storeId); setKeptStore(true); }
+    setFul("click-collect");
+  }, [stores]);
+  const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
   const [slot, setSlot] = useState("morning");
   const [pay, setPay] = useState<Pay>("card");
   const [inst, setInst] = useState(1);
@@ -340,7 +352,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                     return (
                       <label key={v} className={`rounded-xl border-2 p-3 @sm:p-4 grid gap-1 cursor-pointer transition-colors ${on ? "border-eu-blue bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
                         <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-16)] leading-tight">
-                          <input type="radio" name="where" checked={on} onChange={() => setFul(v === "store" ? "click-collect" : "courier")} className="accent-eu-blue size-[18px] shrink-0" />
+                          <input type="radio" name="where" checked={on} onChange={() => { setFul(v === "store" ? "click-collect" : "courier"); savePickup({ where: v === "store" ? "store" : "home", storeId }); }} className="accent-eu-blue size-[18px] shrink-0" />
                           <Icon className="size-5 text-eu-blue shrink-0 hidden @sm:block" aria-hidden /> {t}
                         </span>
                         <span className="@sm:pl-7 text-eu-muted text-[length:var(--fs-14)] leading-snug">{sub}</span>
@@ -351,21 +363,9 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
 
                 {ful === "click-collect" ? (
                   <div className="grid gap-3 rounded-xl bg-eu-surface p-4">
-                    <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                      {c.katastima_paralavis}
-                      <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={inputCls()}>
-                        {stores.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.city} — {s.name} ({s.distanceKm} km)
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {store && (
-                      <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">
-                        <MapPin className="inline size-4 text-eu-blue -mt-0.5" aria-hidden /> {store.address}, {store.zip} {store.city} · ανοιχτό έως {store.openUntil}. Δωρεάν παραλαβή· θα λάβεις SMS όταν η παραγγελία είναι έτοιμη.
-                      </p>
-                    )}
+                    <span className="text-[length:var(--fs-15)] font-bold text-eu-ink">{c.katastima_paralavis}</span>
+                    <PickupStorePicker stores={stores} value={storeId} onChange={chooseStore} keep={keptStore} hoursLabel="ωράριο & χάρτης"
+                      stockLine={() => <span>Δωρεάν παραλαβή· θα λάβεις SMS όταν η παραγγελία είναι έτοιμη</span>} />
                   </div>
                 ) : (
                   <>
