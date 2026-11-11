@@ -115,6 +115,15 @@ export async function pullFromSoftone(productId: string) {
  */
 export async function saveProductFields(productId: string, changes: import("@/lib/softone/item-write").ItemChanges) {
   const user = await requirePermission("catalog.products.write");
+  // σετ: χωρίς είδος στο SoftOne — όνομα και περιγραφές γράφονται στο eshop, τα υπόλοιπα δεν ισχύουν
+  const st = await import("@/lib/catalog/set-texts");
+  if (await st.isSetProduct(productId)) {
+    const other = Object.keys(changes).filter((k) => !["name", "shortDesc", "longDesc"].includes(k));
+    if (other.length && other.length === Object.keys(changes).length) return { ok: false as const, message: "Σετ του SoftOne: αυτά τα στοιχεία ανήκουν στα είδη-μέλη του, αλλάζουν στην καρτέλα του κύριου είδους." };
+    const r = await st.saveSetTexts(productId, user.id, { title: changes.name?.to as string | undefined, summary: changes.shortDesc?.to as string | undefined, description: changes.longDesc?.to as string | undefined });
+    revalidatePath(path(productId));
+    return { ok: r.ok, message: r.message, written: r.written };
+  }
   const { can } = await import("@/lib/rbac/permissions");
   if (!can(user.permissions, "catalog.sync.run")) return { ok: false as const, message: "Χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP» για αλλαγές στο SoftOne." };
   const { writeItem, itemWriteEnabled, ITEM_FIELDS, WEB_FIELDS } = await import("@/lib/softone/item-write");
@@ -350,4 +359,14 @@ export async function soldAloneAction(ids: string[], mode: SoldAloneMode) {
   revalidatePath("/admin/catalog");
   if (items.length === 1) revalidatePath(path(items[0].id));
   return { ok: true as const, ...r };
+}
+
+
+/** Κείμενα προϊόντος-σετ (όνομα, σύντομη και αναλυτική περιγραφή): μόνο στο eshop, αφού το σετ δεν έχει είδος στο SoftOne. */
+export async function saveSetTextsAction(productId: string, t: { title: string; summary: string; description: string }) {
+  const user = await requirePermission("catalog.products.write");
+  const { saveSetTexts } = await import("@/lib/catalog/set-texts");
+  const r = await saveSetTexts(productId, user.id, t);
+  revalidatePath(path(productId));
+  return { ok: r.ok, message: r.message };
 }

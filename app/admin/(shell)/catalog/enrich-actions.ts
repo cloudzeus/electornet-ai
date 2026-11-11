@@ -114,7 +114,16 @@ export async function draftCopyAction(productId: string) {
 export async function saveCopyAction(productId: string, pick: { short?: string; long?: string }) {
   await requirePermission("catalog.products.write");
   const [{ db }, { replaceMemoText, cleanCopy }, { saveProductFields }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/marketing-copy-core"), import("./actions")]);
-  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true, kind: true } });
+  if (p?.kind === "set") {
+    // σετ: δεν έχει είδος στο SoftOne, τα κείμενα μένουν στο eshop
+    const user = await requirePermission("catalog.products.write");
+    const { saveSetTexts } = await import("@/lib/catalog/set-texts");
+    const short = cleanCopy(pick.short ?? "").replace(/\n+/g, " ");
+    const r = await saveSetTexts(productId, user.id, { ...(short ? { summary: short } : {}), ...(pick.long?.trim() ? { description: cleanCopy(pick.long) } : {}) });
+    revalidatePath(`/admin/catalog/${productId}`);
+    return { ok: r.ok, message: r.message };
+  }
   const mtrl = Number(p?.erpCode);
   const item = p?.source === "softone" && Number.isInteger(mtrl) ? await db.s1Item.findUnique({ where: { mtrl }, select: { shortDesc: true, longDesc: true } }) : null;
   if (!item) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };

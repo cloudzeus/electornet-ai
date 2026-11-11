@@ -94,7 +94,8 @@ export async function suggestSpecsAction(productId: string) {
 export async function applySuggestionAction(productId: string, pick: { specs: { label: string; value: string }[]; dims?: { w: number; h: number; d: number } | null; weightKg?: number | null }) {
   const user = await requirePermission("catalog.products.write");
   const [{ db }, { fillBlankMemo }, { saveProductFields }] = await Promise.all([import("@/lib/db"), import("@/lib/catalog/foreign-import/core"), import("../actions")]);
-  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true } });
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true, source: true, kind: true } });
+  if (p?.kind === "set") return { ok: false as const, message: "Σετ του SoftOne: χαρακτηριστικά και διαστάσεις ανήκουν στο κύριο είδος· συμπλήρωσέ τα στην καρτέλα του." };
   const mtrl = Number(p?.erpCode);
   const item = p?.source === "softone" && Number.isInteger(mtrl) ? await db.s1Item.findUnique({ where: { mtrl }, select: { longDesc: true, widthCm: true, heightCm: true, lengthCm: true, weightKg: true } }) : null;
   if (!item) return { ok: false as const, message: "Το προϊόν δεν προέρχεται από το SoftOne." };

@@ -3,6 +3,7 @@ import type { Product } from "@/lib/data/types";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ProductActions, FixButton } from "@/components/admin/catalog/ProductActions";
+import { SetTextsEditor } from "@/components/admin/catalog/SetTextsEditor";
 import { PhotoPicker } from "@/components/admin/catalog/PhotoPicker";
 import { PromoPicker } from "@/components/admin/catalog/QuickActions";
 import { ProductSources, type SourcesData } from "@/components/admin/catalog/ProductSources";
@@ -60,7 +61,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const { id } = await params;
   const t = (await searchParams).tab;
   const tab: WorkspaceTab = isTab(t) ? t : "overview";
-  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, publishReady: true, publishMissing: true, availLabel: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, summary: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
+  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, slug: true, active: true, publishReady: true, publishMissing: true, availLabel: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, summary: true, description: true, source: true, s1SyncedAt: true, price: true, stock: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, labelUrl: true, ficheUrl: true, source: true, eprelRegistrationNumber: true } }, _count: { select: { specs: true, facetValues: true } } } });
   if (!p) notFound();
   const mtrl = Number(p.erpCode);
   const fromS1 = p.source === "softone" && Number.isInteger(mtrl);
@@ -141,7 +142,16 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
   const editor = (only: Parameters<typeof ProductEditor>[0]["only"]) => fromS1 && initial ? (
     <ProductEditor key={item?.syncedAt?.toISOString()} only={only} productId={p.id} initial={initial} readonly={!!readonlyReason} readonlyReason={readonlyReason} dimCandidates={descDim.map((x) => ({ source: x.source, w: x.w, h: x.h, d: x.d, kind: x.kind, line: `${x.rawKey ?? "Διαστάσεις"}: ${x.rawValue ?? ""}`.slice(0, 120), note: x.warning }))} meta={{ code: p.sku, mtrl: p.erpCode, brand: p.brand.name, category: path }} />
   ) : (
-    <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Το προϊόν δεν προέρχεται από το SoftOne — τα στοιχεία του δεν επεξεργάζονται από εδώ.</p>
+    isSetProduct && only?.includes("texts") ? (
+      <SetTextsEditor productId={p.id} canWrite={canWrite} initial={{ title: p.title, summary: p.summary ?? "", description: p.description ?? "" }} mainHref={sets[0]?.main.productId ? `/admin/catalog/${sets[0].main.productId}` : null} />
+    ) : isSetProduct ? (
+      <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]">
+        Σετ του SoftOne («Set ειδών»{p.setSpcs ? ` ${p.setSpcs}` : ""}): δεν έχει δική του καρτέλα είδους στο SoftOne, γι’ αυτό τα στοιχεία του δεν γράφονται εκεί από εδώ.
+        {" "}Μέλη και ποσότητες αλλάζουν στο SoftOne· το κύριο είδος έχει τη δική του καρτέλα
+        {sets[0]?.main.productId ? <>: <Link href={`/admin/catalog/${sets[0].main.productId}`} className="font-bold text-eu-blue hover:underline">{sets[0].main.title ?? "κύριο είδος"}</Link></> : ""}.
+        {" "}<Link href={href("set")} className="font-bold text-eu-blue hover:underline">Μέλη και δώρο →</Link>
+      </p>
+    ) : <p className="m-0 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-3 text-[length:var(--fs-14)]">Το προϊόν δεν προέρχεται από το SoftOne — τα στοιχεία του δεν επεξεργάζονται από εδώ.</p>
   );
 
   return (
@@ -168,7 +178,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           </div>
           <div data-help="product.actions" className="shrink-0">
             <ProductActions productId={p.id} title={p.title} siteHref={p.active ? `/proion/${p.slug}` : null} canPromo={can(user.permissions, "catalog.promos.write")} canSoftone={fromS1 && canWrite}
-              codes={[{ label: "κωδικού", value: p.sku }, ...(p.ean ? [{ label: "EAN", value: p.ean }] : []), ...(p.erpCode ? [{ label: "MTRL", value: p.erpCode }] : [])]}
+              codes={[{ label: "κωδικού", value: p.sku }, ...(p.ean ? [{ label: "EAN", value: p.ean }] : []), ...(isSetProduct ? [...(p.setSpcs ? [{ label: "Set ειδών (SPCS)", value: String(p.setSpcs) }] : []), ...(sets[0]?.main.mtrl ? [{ label: "MTRL κύριου", value: String(sets[0].main.mtrl) }] : [])] : p.erpCode ? [{ label: "MTRL", value: p.erpCode }] : [])]}
               modals={{
                 ...(can(user.permissions, "catalog.promos.write") ? { promo: <div className="@container"><PromoPicker productId={p.id} /></div> } : {}),
                 texts: editor(["texts", "specs"]),

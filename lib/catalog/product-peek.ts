@@ -6,6 +6,7 @@ import { LOW_RES_PX } from "@/lib/catalog/product-images";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { fitMatters } from "@/lib/catalog/fit-types";
 import { warrantyFromSpecs } from "@/lib/warranty/policy";
+import { PROBLEM_LABEL, setOfSetProduct } from "@/lib/catalog/sets";
 
 /**
  * Η γρήγορη εικόνα ενός προϊόντος για το άνοιγμα γραμμής στη λίστα του καταλόγου: πωλήσεις (ίδια με την Επισκόπηση
@@ -15,15 +16,16 @@ import { warrantyFromSpecs } from "@/lib/warranty/policy";
 export type ProductPeek = NonNullable<Awaited<ReturnType<typeof productPeek>>>;
 
 export async function productPeek(id: string) {
-  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, slug: true, sku: true, ean: true, erpCode: true, modelCode: true, active: true, price: true, stock: true, summary: true, source: true, s1SyncedAt: true, dimStatus: true, dimNote: true, eprelStatus: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, source: true, labelUrl: true, ficheUrl: true, eprelRegistrationNumber: true } } } });
+  const p = await db.product.findUnique({ where: { id }, select: { id: true, title: true, slug: true, sku: true, ean: true, erpCode: true, modelCode: true, active: true, price: true, stock: true, summary: true, source: true, s1SyncedAt: true, dimStatus: true, dimNote: true, eprelStatus: true, kind: true, setSpcs: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, scale: true, source: true, labelUrl: true, ficheUrl: true, eprelRegistrationNumber: true } } } });
   if (!p) return null;
   const mtrl = Number(p.erpCode);
-  const [overview, media, specs, dims, item] = await Promise.all([
+  const [overview, media, specs, dims, item, set] = await Promise.all([
     productOverview(id),
     db.media.findMany({ where: { productId: id, kind: "image" }, orderBy: { sortNo: "asc" }, select: { id: true, url: true, thumbUrl: true, width: true, height: true, hidden: true, source: true } }),
     db.spec.findMany({ where: { productId: id }, orderBy: [{ sortNo: "asc" }, { id: "asc" }], select: { groupName: true, key: true, value: true, source: true } }),
     db.productDimension.findMany({ where: { productId: id }, orderBy: { source: "asc" }, select: { source: true, kind: true, w: true, h: true, d: true, warning: true, rawKey: true, rawValue: true } }),
     p.source === "softone" && Number.isInteger(mtrl) ? db.s1Item.findUnique({ where: { mtrl }, select: { code: true, name: true, barcode: true, factoryCode: true, active: true, priceRetail: true, eshopPrice: true, stockCentral: true, stockByWh: true, availText: true, extWarranty: true, guaranteeMonths: true, weightKg: true, widthCm: true, heightCm: true, lengthCm: true, shortDesc: true, longDesc: true, onOrder: true, missing: true, s1UpdatedAt: true, syncedAt: true } }) : null,
+    p.kind === "set" ? setOfSetProduct(p.setSpcs).catch(() => null) : null,
   ]);
   const pathNames = [p.category.parent?.parent?.name, p.category.parent?.name, p.category.name].filter((x): x is string => !!x);
   const photos = media.filter((m) => !m.hidden && m.source !== "eprel-label");
@@ -54,6 +56,11 @@ export async function productPeek(id: string) {
     energyNeeded, eprelStatus: p.eprelStatus,
     dims, dimStatus: p.dimStatus, dimNote: p.dimNote,
     warranty: item?.guaranteeMonths ? { months: item.guaranteeMonths, from: "softone" as const, text: null } : ws ? { months: ws.months, from: "specs" as const, text: ws.text } : { months: 24, from: "default" as const, text: null },
+    // μέλη του σετ (SoftOne SPCS): ποιο είναι το κύριο, ποια δώρο, πώς τα βλέπει ο πελάτης, απόθεμα
+    set: set ? { spcs: set.spcs, kind: set.kind, name: set.name, problems: set.problems.map((x) => PROBLEM_LABEL[x]), members: [...new Map(set.members.map((m) => [m.mtrl, m])).values()].map((m) => ({
+      mtrl: m.mtrl, code: m.code, name: m.name, shown: m.label?.trim() || m.suggested || m.name, labelSet: !!m.label?.trim(), qty: m.qty, stock: m.stock,
+      isMain: m.isMain, gift: set.kind === "gift" && !m.isMain, productId: m.productId, productActive: m.productActive,
+    })) } : null,
     erp: item ? { ...item, stockByWh: (item.stockByWh ?? null) as Record<string, number> | null, shortDesc: item.shortDesc?.slice(0, 400) ?? null, longDesc: item.longDesc ? item.longDesc.length : 0, s1UpdatedAt: item.s1UpdatedAt?.toISOString() ?? null, syncedAt: item.syncedAt.toISOString() } : null,
   };
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { LayoutGrid, Images, ListChecks, Zap, ShoppingBag, Database, ExternalLink, Loader2, BadgePercent, AlertTriangle, CircleCheck } from "lucide-react";
+import { LayoutGrid, Images, ListChecks, Zap, ShoppingBag, Database, ExternalLink, Loader2, BadgePercent, AlertTriangle, CircleCheck, Gift, Package } from "lucide-react";
 import { BarChart } from "@/components/admin/charts/Charts";
 import type { ProductPeek as Peek } from "@/lib/catalog/product-peek";
 import { productPeekAction } from "@/app/admin/(shell)/catalog/actions";
@@ -90,6 +90,7 @@ function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
   return (
     <div className="grid gap-3 @4xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <div className="grid gap-2 content-start min-w-0">
+        {p.set && <SetBlock p={p} />}
         <div className="grid grid-cols-2 @2xl:grid-cols-4 gap-1.5">
           <Tile label="Τεμάχια" value={num(s.units)} sub={`${num(s.last12)} σε 12 μήνες`} />
           <Tile label="Έσοδα" value={eur(s.revenue)} sub={s.units ? `μέση ${eur(s.avg)}` : "καμία πώληση"} />
@@ -116,6 +117,37 @@ function Overview({ p, go }: { p: Peek; go: (t: TabKey) => void }) {
         <button type="button" onClick={() => go("label")} className="justify-self-start text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline">Πηγές ετικέτας & διαστάσεων →</button>
       </div>
     </div>
+  );
+}
+
+/** Τα μέλη ενός προϊόντος-σετ: κύριο είδος και δώρο/εξαρτήματα, όπως τα βλέπει ο πελάτης στο «Περιλαμβάνει». */
+function SetBlock({ p }: { p: Peek }) {
+  const set = p.set!;
+  return (
+    <section data-help="catalog.peek.set" className="rounded-xl border border-eu-line p-2.5 grid gap-2 min-w-0">
+      <H right={<Link href={`/admin/catalog/${p.id}?tab=set`} className="text-eu-blue font-bold text-[length:var(--fs-13)] hover:underline">Ονόματα στο «Περιλαμβάνει» →</Link>}>{set.kind === "gift" ? "Σετ με δώρο" : "Σετ εξαρτημάτων"} · τι περιλαμβάνει</H>
+      <ul className="m-0 p-0 list-none grid gap-1.5">
+        {set.members.map((m) => (
+          <li key={m.mtrl} className="flex items-start gap-2.5 rounded-lg bg-eu-surface px-2.5 py-2 min-w-0">
+            <span className={`size-8 shrink-0 rounded-lg inline-flex items-center justify-center ${m.gift ? "bg-eu-red/10 text-eu-red" : "bg-eu-navy/10 text-eu-navy"}`}>{m.gift ? <Gift className="size-4" aria-hidden /> : <Package className="size-4" aria-hidden />}</span>
+            <span className="min-w-0 grow grid gap-0.5 text-[length:var(--fs-13)]">
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className={`rounded-full px-2 py-0.5 text-[length:var(--fs-11)] font-bold ${m.gift ? "bg-eu-red text-white" : m.isMain ? "bg-eu-navy text-white" : "bg-eu-chip text-eu-navy"}`}>{m.gift ? "Δώρο" : m.isMain ? "Κύριο είδος" : "Εξάρτημα"}</span>
+                <b className="text-eu-ink">{m.qty !== 1 ? `${num(m.qty)} × ` : ""}{m.shown}</b>
+              </span>
+              <span className="text-eu-ink-3 break-words">SoftOne: {[m.name !== m.shown ? m.name : null, m.code ? `κωδ. ${m.code}` : null].filter(Boolean).join(" · ")}</span>
+              <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[length:var(--fs-12)]">
+                <span className={`font-bold ${m.stock > 0 ? "text-eu-green" : "text-eu-red"}`}>{m.stock > 0 ? `${num(m.stock)} σε απόθεμα` : "χωρίς απόθεμα"}</span>
+                {m.productId ? <Link href={`/admin/catalog/${m.productId}`} className="text-eu-blue font-semibold hover:underline">{m.productActive ? "πωλείται και μόνο του" : "στο site μόνο μέσα στο σετ"}</Link> : <span className="text-eu-muted">δεν υπάρχει ως προϊόν στο site</span>}
+                {!m.isMain && !m.labelSet && <span className="text-eu-amber font-semibold">ο πελάτης βλέπει το όνομα του SoftOne</span>}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {set.problems.length > 0 && <ul className="m-0 p-0 list-none flex flex-wrap gap-1">{set.problems.map((x) => <li key={x} className="inline-flex items-center gap-1 rounded-full bg-eu-amber/12 px-2 py-0.5 text-[length:var(--fs-12)] font-semibold text-eu-ink-2"><AlertTriangle className="size-3.5 text-eu-amber" aria-hidden />{x}</li>)}</ul>}
+      <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Μέλη και ποσότητες ορίζονται στο SoftOne («Set ειδών» {set.spcs}).</p>
+    </section>
   );
 }
 
@@ -146,9 +178,10 @@ function Specs({ p }: { p: Peek }) {
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-1.5">{p.specSources.map((s) => <SourceBadge key={s.source} source={s.source} count={s.n} size="xs" />)}<span className="text-eu-muted text-[length:var(--fs-12)]">· το χρώμα δείχνει από πού ήρθε κάθε γραμμή</span></div>
-      <div className="grid gap-2 @3xl:grid-cols-2">
+      {/* στήλες αντί για πλέγμα: οι ομάδες στοιβάζονται χωρίς κενά όταν μία είναι πολύ μακρύτερη από τη διπλανή της */}
+      <div className="@3xl:columns-2 gap-3">
         {[...groups].map(([g, rows]) => (
-          <section key={g} className="min-w-0">
+          <section key={g} className="min-w-0 break-inside-avoid mb-2">
             <H>{g}</H>
             <ul className="m-0 mt-1 p-0 list-none rounded-lg border border-eu-line divide-y divide-eu-line-2">
               {rows.map((s, i) => (
@@ -234,7 +267,7 @@ function Sales({ p }: { p: Peek }) {
 
 function Erp({ p }: { p: Peek }) {
   const e = p.erp;
-  if (!e) return <Empty>Το προϊόν δεν προέρχεται από το SoftOne.</Empty>;
+  if (!e) return <Empty>{p.set ? `Σετ του SoftOne («Set ειδών» ${p.set.spcs}): δεν έχει δική του καρτέλα είδους. Τα μέλη και το δώρο είναι στην Επισκόπηση.` : "Το προϊόν δεν προέρχεται από το SoftOne."}</Empty>;
   const wh = e.stockByWh ? Object.entries(e.stockByWh) : [];
   return (
     <div className="grid gap-3 @3xl:grid-cols-2">

@@ -47,7 +47,7 @@ const COLS: Col[] = [
   { id: "brand", label: "Μάρκα", w: 110, sort: "brand", cell: (r) => <span className="truncate">{r.brand}</span> },
   { id: "sku", label: "Κωδικός", w: 120, sort: "sku", def: true, cell: (r) => <span className="font-mono truncate">{r.sku}</span> },
   { id: "ean", label: "Barcode", w: 125, cell: (r) => <span className="font-mono truncate">{r.ean ?? "—"}</span> },
-  { id: "mtrl", label: "MTRL", w: 80, right: true, cell: (r) => <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
+  { id: "mtrl", label: "MTRL", w: 80, right: true, cell: (r) => r.set ? <span title="Σετ του SoftOne: δεν έχει δικό του MTRL — ο αριθμός είναι του «Set ειδών» (SPCS)" className="font-mono tabular-nums text-eu-muted">set {r.erpCode?.replace(/^SET-/, "")}</span> : <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
   { id: "price", label: "Τιμή", w: 130, sort: "price", def: true, right: true, cell: (r) => <Price r={r} /> },
   { id: "stock", label: "Απόθεμα", w: 80, sort: "stock", def: true, right: true, cell: (r) => <span className={`tabular-nums ${r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}`}>{r.stock}</span> },
   { id: "sold", label: "Πωλήσεις", w: 85, def: true, right: true, title: () => "Τεμάχια e-shop + SoftOne (χωρίς ακυρωμένα)", cell: (r) => <span className="tabular-nums">{r.sold || muted("0")}</span> },
