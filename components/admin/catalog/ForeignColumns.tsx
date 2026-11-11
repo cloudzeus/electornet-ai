@@ -142,8 +142,8 @@ export function LivePreview({ rows, idx, onIdx, brandOf, settings, total, info, 
   const r = rows[idx];
   if (!r) return <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Καμία γραμμή με δεδομένα στις αντιστοιχισμένες στήλες.</p>;
   const title = r.fields.name ?? "";
-  const web = title ? webNameOf(title) : "";
   const brand = brandOf(r);
+  const web = title ? webNameOf(title, 64, { brand, model: r.fields.factoryCode ?? r.fields.code }) : "";
   const live = info && info !== "loading" && !("error" in info) ? info : null;
   const keys = [["Κωδικός", r.fields.code], ["Κωδ. κατασκευαστή", r.fields.factoryCode], ["EAN", r.fields.barcode]].filter((x): x is [string, string] => !!x[1]);
   const fileSpecs = Object.entries(r.specs);

@@ -93,6 +93,10 @@ test("webNameOf: έως 64 χαρακτήρες, κόψιμο σε ολόκλη�
   assert.equal(webNameOf("Inventor CLP-TT88S Πλυντήριο Πιάτων"), "Inventor CLP-TT88S Πλυντήριο Πιάτων");
   const long = webNameOf("ΗΛ. ΘΕΡΜ. 120lt ΜΟΝΟΥ ΣΥΛΛΕΚΤΗ ΔΙΠΛΗΣ ΕΝΕΡΓΕΙΑΣ OPTIMA MAX GLASS BC 12/2.1 GAUZER");
   assert.ok(long.length <= 64 && long.endsWith("GLASS"), long);
+  // δεν χωρά → μάρκα και μοντέλο μπροστά, ώστε να μη χάνονται στο κόψιμο
+  const led = webNameOf("ΗΛ. ΘΕΡΜ. 120lt ΜΟΝΟΥ ΣΥΛΛΕΚΤΗ ΔΙΠΛΗΣ ΕΝΕΡΓΕΙΑΣ ΚΕΡΑΜΟΣΚΕΠΗΣ OPTIMA MAX GLASS BCK 12/2.1 GAUZER", 64, { brand: "GAUZER", model: "BCK 12/2.1" });
+  assert.ok(led.length <= 64 && led.startsWith("GAUZER BCK 12/2.1 ΗΛ. ΘΕΡΜ. 120lt") && !led.slice(6).includes("GAUZER"), led);
+  assert.equal(webNameOf("Inventor CLP-TT88S Πλυντήριο Πιάτων", 64, { brand: "Inventor", model: "CLP-TT88S" }), "Inventor CLP-TT88S Πλυντήριο Πιάτων");
   assert.equal(leadSentence("Ο&nbsp;νέος&nbsp;ψυγειοκαταψύκτης <b>No frost</b> της Inventor. Δεύτερη πρόταση."), "Ο νέος ψυγειοκαταψύκτης No frost της Inventor.");
   assert.equal(leadSentence(""), "");
 });

@@ -63,10 +63,19 @@ export function pendingMedia(v: PendingItem["media"]): { image: string[]; banner
   return { image: list(o.image), banner: list(o.banner), video: list(o.video) };
 }
 
-/** «Περιγραφή για Web» του SoftOne (WEBNAME, έως 64 χαρακτήρες): το όνομα, κομμένο σε ολόκληρη λέξη όταν δεν χωρά. */
-export function webNameOf(name: string, max = 64): string {
-  const s = name.replace(/\s+/g, " ").trim();
+/**
+ * «Περιγραφή για Web» του SoftOne (WEBNAME, έως 64 χαρακτήρες): το όνομα όταν χωρά. Όταν δεν χωρά, ξεκινά από μάρκα και
+ * μοντέλο (όπως τα παλιά είδη του ERP, π.χ. «GAUZER BSLP 12/21 …») και ακολουθεί η υπόλοιπη περιγραφή, κομμένη σε ολόκληρη λέξη.
+ */
+export function webNameOf(name: string, max = 64, ids?: { brand?: string | null; model?: string | null }): string {
+  let s = name.replace(/\s+/g, " ").trim();
   if (s.length <= max) return s;
+  const lead = [ids?.brand, ids?.model].map((x) => x?.trim()).filter((x): x is string => !!x);
+  if (lead.length) {
+    const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const rest = lead.reduce((t, x) => t.replace(new RegExp(`(^|\\s)${esc(x)}(?=\\s|$)`, "i"), " "), s).replace(/\s+/g, " ").trim();
+    s = `${lead.join(" ")} ${rest}`.trim();
+  }
   const cut = s.slice(0, max + 1), at = cut.lastIndexOf(" ");
   return (at > max / 2 ? cut.slice(0, at) : s.slice(0, max)).trim();
 }
