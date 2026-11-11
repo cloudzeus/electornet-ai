@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, diffPct, badgeState,
+  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState,
   type KotItem,
 } from "./core";
 
@@ -132,17 +132,35 @@ test("isBundle", () => {
 
 test("parseProduct: τιμές", () => {
   const p = (price: unknown, extra = {}) => parseProduct({ catalogEntryView: [{ name: "X", buyable: true, price, ...extra }] });
-  assert.deepEqual(p([{ usage: "Display", value: "749.99" }, { usage: "Offer", value: "649.99" }]), { title: "X", list: 749.99, offer: 649.99, buyable: true });
-  assert.deepEqual(p([{ usage: "Display", value: "749.99" }]), { title: "X", list: 749.99, offer: null, buyable: true });
-  assert.deepEqual(p([]), { title: "X", list: null, offer: null, buyable: true });
-  assert.deepEqual(p([{ usage: "Display", value: "1299.9" }, { usage: "Offer", value: "1.199,90" }]), { title: "X", list: 1299.9, offer: null, buyable: true });
-  assert.deepEqual(p([{ usage: "Offer", value: 99 }, { usage: "Display", value: "" }]), { title: "X", list: null, offer: 99, buyable: true });
+  assert.deepEqual(p([{ usage: "Display", value: "749.99" }, { usage: "Offer", value: "649.99" }]), { title: "X", list: 749.99, offer: 649.99, buyable: true, ean: null });
+  assert.deepEqual(p([{ usage: "Display", value: "749.99" }]), { title: "X", list: 749.99, offer: null, buyable: true, ean: null });
+  assert.deepEqual(p([]), { title: "X", list: null, offer: null, buyable: true, ean: null });
+  assert.deepEqual(p([{ usage: "Display", value: "1299.9" }, { usage: "Offer", value: "1.199,90" }]), { title: "X", list: 1299.9, offer: null, buyable: true, ean: null });
+  assert.deepEqual(p([{ usage: "Offer", value: 99 }, { usage: "Display", value: "" }]), { title: "X", list: null, offer: 99, buyable: true, ean: null });
   assert.equal((p(undefined) as any).offer, null);
   assert.equal((p("zzz") as any).list, null);
   assert.equal((p([null, 3, { usage: "Offer" }]) as any).offer, null);
   assert.equal((p([], { buyable: "true" }) as any).buyable, true);
   assert.equal((p([], { buyable: "false" }) as any).buyable, false);
   assert.equal((p([], { buyable: undefined }) as any).buyable, false);
+});
+
+test("parseProduct: EAN από BarCode", () => {
+  const p = (attributes: unknown) => parseProduct({ catalogEntryView: [{ name: "X", buyable: true, price: [], attributes }] }) as any;
+  const bc = (value: unknown) => [{ identifier: "Color", values: [{ value: "x" }] }, { identifier: "BarCode", displayable: false, values: [{ value }] }];
+  assert.equal(p(bc(" 7333394038995 ")).ean, "7333394038995");
+  assert.equal(p(bc("012345678905")).ean, "012345678905");
+  for (const bad of [undefined, null, "x", [], [null, 3], bc("abc"), bc("123"), bc("73333940389951234"), bc(""), bc(null), [{ identifier: "BarCode" }], [{ identifier: "BarCode", values: "x" }], [{ identifier: "BarCode", values: [] }]])
+    assert.equal(p(bad).ean, null, JSON.stringify(bad));
+});
+
+test("sameEan", () => {
+  assert.equal(sameEan("7333394038995", "7333394038995"), true);
+  assert.equal(sameEan("7333394038995", "7333394038996"), false);
+  assert.equal(sameEan("7333394038995", null), null);
+  assert.equal(sameEan(undefined, "7333394038995"), null);
+  assert.equal(sameEan("abc", "7333394038995"), null);
+  assert.equal(sameEan("012345678905", "0012345678905"), true);
 });
 
 test("parseProduct: μη JSON / άδεια απάντηση → error, ποτέ throw", () => {

@@ -108,12 +108,19 @@ const price = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v.replace(",", ".")) : NaN;
   return Number.isFinite(n) && n > 0 ? n : null;
 };
-export function parseProduct(json: unknown): { title: string; list: number | null; offer: number | null; buyable: boolean } | { error: string } {
+const eanOf = (v: unknown): string | null => {
+  const s = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
+  return /^\d{8,14}$/.test(s) ? s : null;
+};
+export function parseProduct(json: unknown): { title: string; list: number | null; offer: number | null; buyable: boolean; ean: string | null } | { error: string } {
   const e = (json as any)?.catalogEntryView?.[0];
   if (!e || typeof e !== "object") return { error: typeof json === "string" ? "η απάντηση δεν ήταν JSON" : "άδεια απάντηση" };
   const rows: any[] = Array.isArray(e.price) ? e.price.filter((r: unknown) => r && typeof r === "object") : [];
   const by = (u: string) => price(rows.find((r) => r.usage === u)?.value);
-  return { title: typeof e.name === "string" ? e.name : "", list: by("Display"), offer: by("Offer"), buyable: e.buyable === true || e.buyable === "true" };
+  const attrs: any[] = Array.isArray(e.attributes) ? e.attributes : [];
+  const bar = attrs.find((a) => a && a.identifier === "BarCode");
+  const ean = Array.isArray(bar?.values) ? eanOf(bar.values[0]?.value) : null;
+  return { title: typeof e.name === "string" ? e.name : "", list: by("Display"), offer: by("Offer"), buyable: e.buyable === true || e.buyable === "true", ean };
 }
 
 /** (εμείς − Κωτσ.) / Κωτσ. · 100, 1 δεκαδικό. */
@@ -124,4 +131,11 @@ export function badgeState(diff: number | null, available: boolean): "up" | "dow
   if (!available) return "gone";
   if (diff == null) return "none";
   return Math.abs(diff) <= 0.5 ? "eq" : diff > 0 ? "up" : "down";
+}
+
+/** Σύγκριση EAN/UPC: το UPC-A (12 ψηφία) συμπληρώνεται με 0 μπροστά στα 13. null = λείπει ή δεν είναι έγκυρο. */
+export function sameEan(a: string | null | undefined, b: string | null | undefined): boolean | null {
+  const n = (x: string | null | undefined) => { const e = eanOf(x); return e && e.length === 12 ? "0" + e : e; };
+  const x = n(a), y = n(b);
+  return x == null || y == null ? null : x === y;
 }
