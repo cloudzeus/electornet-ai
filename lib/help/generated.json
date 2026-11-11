@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T15:47:46.105Z",
+ "generatedAt": "2026-11-11T16:56:07.022Z",
  "routes": [
   {
    "route": "/admin",
@@ -1026,7 +1026,10 @@
     }
    ],
    "updatedAt": "2026-11-11T17:47:39+02:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.competitors-d.jpg",
+    "mobile": "/api/help-shot/catalog.competitors-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/competitors/prices",
@@ -1098,7 +1101,10 @@
     }
    ],
    "updatedAt": "2026-11-11T17:44:54+02:00",
-   "shots": {}
+   "shots": {
+    "desktop": "/api/help-shot/catalog.competitors.prices-d.jpg",
+    "mobile": "/api/help-shot/catalog.competitors.prices-m.jpg"
+   }
   },
   {
    "route": "/admin/catalog/completeness",
@@ -5117,6 +5123,12 @@
  ],
  "recent": [
   {
+   "hash": "2f9631b",
+   "date": "2026-11-11T17:58:53+02:00",
+   "text": "Βοήθεια: ενημέρωση generated.json για τη σύγκριση τιμών",
+   "routes": []
+  },
+  {
    "hash": "85442bb",
    "date": "2026-11-11T17:47:39+02:00",
    "text": "Σύγκριση τιμών: το πρώτο scanning τρέχει αμέσως μετά το deploy (έως 6 ώρες, ίδιος ρυθμός)",
@@ -5447,20 +5459,6 @@
     "/admin",
     "/admin/catalog",
     "/admin/catalog/templates",
-    "/admin/catalog/templates/xml"
-   ]
-  },
-  {
-   "hash": "fe876ee",
-   "date": "2026-11-10T13:43:45+02:00",
-   "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/import",
-    "/admin/catalog/templates/keyvoto",
-    "/admin/catalog/templates/nea-eidi",
     "/admin/catalog/templates/xml"
    ]
   }
