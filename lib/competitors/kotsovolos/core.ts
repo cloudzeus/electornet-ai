@@ -23,33 +23,56 @@ export function parseCategories(xml: string): { path: string; label: string }[] 
 export const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
 
 // ---- Ταίριασμα με κωδικό μοντέλου ----
-// Ο Κωτσόβολος κόβει την κατάληξη περιοχής (QE65QN90DATXXH → qe65qn90da): ένα κομμάτι του slug ή δύο διαδοχικά
-// και το μοντέλο είναι το ένα αρχή του άλλου, το μικρότερο ≥ 5 χαρακτήρες με ψηφίο.
+// Ο Κωτσόβολος κόβει την κατάληξη περιοχής (QE65QN90DATXXH → qe65qn90da). Το slug χωρίζεται σε κομμάτια και
+// η γραμμή ταιριάζει με κωδικό που προκύπτει από έως 4 διαδοχικά κομμάτια. Σχέση με τον δικό μας κωδικό:
+// ίσοι ή ο δικός τους πρόθεμα του δικού μας με υπόλοιπο ≥ 3 → matched· υπόλοιπο 1–2 ή ο δικός μας πρόθεμα του δικού τους → suggested.
 const MIN_MODEL = 5;
-const slugTokens = (last: string) => {
-  const t = last.split("-").slice(1).map(norm).filter(Boolean); // slice(1): ο αριθμός είδους δεν είναι κωδικός
-  return [...t, ...t.slice(1).map((x, i) => t[i] + x)];
+const MIN_REGION = 3;
+const slugWords = (last: string) => last.split("-").slice(1).map(norm).filter(Boolean); // slice(1): ο αριθμός είδους δεν είναι κωδικός
+const slugRuns = (last: string) => {
+  const t = slugWords(last), out: string[] = [];
+  for (let i = 0; i < t.length; i++) for (let j = i, s = ""; j < Math.min(t.length, i + 4); j++) out.push((s += t[j]));
+  return out;
 };
+// Η μάρκα (ή το alias) ως ολόκληρο κομμάτι ή σειρά διαδοχικών κομματιών (De Longhi = de + longhi), όχι υπο-συμβολοσειρά.
 const hasBrand = (last: string, ...names: (string | null | undefined)[]) => {
-  const l = norm(last);
-  return names.some((n) => { const b = norm(n ?? ""); return b !== "" && l.includes(b); });
+  const runs = new Set(slugRuns(last));
+  return names.some((n) => { const b = norm(n ?? ""); return b !== "" && runs.has(b); });
 };
 
-type ModelMatch = { kind: "matched"; item: KotItem } | { kind: "ambiguous"; items: KotItem[] } | { kind: "none" };
+type Rel = { strong: boolean; reason: string } | null;
+const relation = (theirs: string, model: string): Rel => {
+  if (Math.min(theirs.length, model.length) < MIN_MODEL || !/\d/.test(theirs.length <= model.length ? theirs : model)) return null;
+  if (theirs === model) return { strong: true, reason: "" };
+  if (model.startsWith(theirs)) { const rem = model.slice(theirs.length); return { strong: rem.length >= MIN_REGION, reason: `διαφέρει κατάληξη: ${rem}` }; }
+  if (theirs.startsWith(model)) return { strong: false, reason: `ο κωδικός τους έχει επιπλέον: ${theirs.slice(model.length)}` };
+  return null;
+};
+
+type ModelMatch =
+  | { kind: "matched"; item: KotItem }
+  | { kind: "suggested"; item: KotItem; reason: string }
+  | { kind: "ambiguous"; items: KotItem[] }
+  | { kind: "none" };
 export function matchByModel(o: { brand: string; alias?: string | null; model: string | null }, cands: KotItem[]): ModelMatch {
   const model = norm(o.model ?? "");
-  if (model.length < MIN_MODEL) return { kind: "none" };
-  const items = cands.filter((c) =>
-    hasBrand(c.last, o.brand, o.alias) &&
-    slugTokens(c.last).some((t) => {
-      const [a, b] = t.length <= model.length ? [t, model] : [model, t];
-      return a.length >= MIN_MODEL && /\d/.test(a) && b.startsWith(a);
-    }));
-  return items.length === 1 ? { kind: "matched", item: items[0] } : items.length ? { kind: "ambiguous", items } : { kind: "none" };
+  const hits: { item: KotItem; rel: NonNullable<Rel> }[] = [];
+  for (const c of cands) {
+    if (!hasBrand(c.last, o.brand, o.alias)) continue;
+    const rels = slugRuns(c.last).map((t) => relation(t, model)).filter((r): r is NonNullable<Rel> => r != null);
+    const rel = rels.find((r) => r.strong) ?? rels[0];
+    if (rel) hits.push({ item: c, rel });
+  }
+  if (hits.length > 1) return { kind: "ambiguous", items: hits.map((h) => h.item) };
+  if (!hits.length) return { kind: "none" };
+  const { item, rel } = hits[0];
+  return rel.strong ? { kind: "matched", item } : { kind: "suggested", item, reason: rel.reason };
 }
 
 // ---- Κινητά: το slug έχει όνομα, όχι κωδικό ----
-const ACCESSORY = /θηκ|μεμβραν|τζαμ|γυαλι|set-/i;
+const ACCESSORY_STEM = /^(θηκ|μεμβραν|τζαμ|γυαλι|καλυμ|φορτιστ|καλωδ)/;
+const ACCESSORY_WORD = new Set(["set", "case", "cover", "βαση"]);
+const isAccessory = (last: string) => last.toLowerCase().split("-").some((t) => ACCESSORY_WORD.has(t) || ACCESSORY_STEM.test(t));
 const VARIANTS = ["ultra", "pro", "max", "plus", "fe", "mini", "flip", "fold", "lite"];
 const wordsOf = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
 const gb = (t: string) => { const m = /^(\d+)(gb|g|tb|t)$/.exec(t); return m ? Number(m[1]) * (m[2][0] === "t" ? 1024 : 1) : null; };
@@ -57,14 +80,14 @@ const hasVariant = (toks: string[], v: string) => toks.some((t) => t === v || (v
 
 /** Πάντα πρόταση (ο διαχειριστής την επιβεβαιώνει). Σιγουριά μόνο από: μάρκα, παραλλαγή (ultra/pro/…), αριθμός σειράς, μνήμη. */
 export function matchPhone(o: { brand: string; alias?: string | null; title: string }, cands: KotItem[]): KotItem | null {
-  const tt = wordsOf(o.title);
+  const tt = wordsOf(o.title.replace(/(\d)\s*\+/g, "$1 plus ")); // s25+ = s25 plus
   const mems = tt.map(gb).filter((x): x is number => x != null);
   const storage = mems.length ? Math.max(...mems) : null;
-  const series = tt.filter((t) => /^\d{1,2}$/.test(t) || /^[a-z]\d{1,2}$/.test(t)); // "8", "s25"
+  const series = tt.filter((t) => (/^\d{1,2}[a-z]?$/.test(t) || /^[a-z]\d{1,2}$/.test(t)) && gb(t) == null && !/^[45]g$/.test(t)); // "8", "s25", "16e"
   const words = tt.filter((t) => t.length >= 3 && gb(t) == null && !/^[45]g$/.test(t) && !/\d/.test(t));
   let best: { c: KotItem; score: number } | null = null;
   for (const c of cands) {
-    if (ACCESSORY.test(c.last) || !hasBrand(c.last, o.brand, o.alias)) continue;
+    if (isAccessory(c.last) || !hasBrand(c.last, o.brand, o.alias)) continue;
     const st = wordsOf(c.last).slice(1);
     if (VARIANTS.some((v) => hasVariant(tt, v) !== hasVariant(st, v))) continue;
     if (series.some((s) => !st.includes(s))) continue;
@@ -77,7 +100,7 @@ export function matchPhone(o: { brand: string; alias?: string | null; title: str
 }
 
 export function isBundle(title: string, kind: string): boolean {
-  return kind === "set" || /\+\s*δωρο|\bδωρο\b/.test(title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""));
+  return kind === "set" || /(^|[^α-ωa-z0-9])δωρο([^α-ωa-z0-9]|$)/.test(title.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")); // το \b του JS δεν ξέρει ελληνικά
 }
 
 // ---- Απάντηση API ----

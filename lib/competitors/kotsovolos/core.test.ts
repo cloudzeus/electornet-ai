@@ -63,6 +63,26 @@ test("matchByModel: alias της μάρκας", () => {
   assert.equal(matchByModel({ brand: "Ηλεκτρολουξ", alias: "Electrolux", model: "EW6F428B" }, [it("1-electrolux-ew6f428b")]).kind, "matched");
 });
 
+test("matchByModel: μάρκα ως ολόκληρο κομμάτι, όχι υπο-συμβολοσειρά", () => {
+  assert.equal(m("LG", "QE65QN90DATXXH", "1-samsung-xl-gb-qe65qn90da").kind, "none");
+  assert.equal(m("LG", "F4WV912P2E.ABWQPHS", "1-lg-f4wv912p2ea-12kg").kind, "matched");
+  assert.equal(m("De Longhi", "ECAM37095", "1-de-longhi-ecam37095-x").kind, "matched");
+  assert.equal(matchByModel({ brand: "Ντελόνγκι", alias: "delonghi", model: "ECAM37095" }, [it("1-delonghi-ecam37095")]).kind, "matched");
+  assert.equal(m("Long", "ECAM37095", "1-de-longhi-ecam37095-x").kind, "none");
+});
+
+test("matchByModel: κατάληξη → matched ή suggested", () => {
+  assert.equal(m("Samsung", "QE65QN90DATXXH", "1-samsung-qe65qn90da").kind, "matched");
+  assert.equal(m("LG", "F4WV912P2E.ABWQPHS", "1-lg-f4wv912p2ea").kind, "matched");
+  assert.equal(m("Samsung", "QE65QN90D", "1-samsung-qe65qn90da").kind, "suggested");
+  assert.equal(m("Hisense", "55U7Q", "1-hisense-55u7qf").kind, "suggested");
+  assert.equal(m("Hisense", "55U7QF", "1-hisense-55u7q").kind, "suggested");
+  assert.equal(m("Hisense", "55U7Q", "1-hisense-55u7q").kind, "matched");
+  const r = m("Hisense", "55U7QF", "1-hisense-55u7q") as any;
+  assert.equal(r.reason, "διαφέρει κατάληξη: f");
+  assert.equal((m("Hisense", "55U7Q", "1-hisense-55u7qf") as any).reason, "ο κωδικός τους έχει επιπλέον: f");
+});
+
 test("matchByModel: ambiguous", () => {
   const r = m("Samsung", "100U7SE", "1-samsung-100u7sea", "2-samsung-100u7seb");
   assert.equal(r.kind, "ambiguous");
@@ -87,7 +107,24 @@ test("matchPhone: μνήμη, χρώμα, όχι θήκες/Ultra", () => {
   assert.equal(matchPhone({ brand: "Apple", title: FOLD }, phones), null);
 });
 
+test("matchPhone: αξεσουάρ ως ολόκληρα κομμάτια, σειρά 16e/s25+", () => {
+  const ph = (...u: string[]) => u.map(it);
+  assert.equal(matchPhone({ brand: "Samsung", title: "SAMSUNG GALAXY S25 256GB" }, ph("1-samsung-s25-case-256gb")), null);
+  assert.equal(matchPhone({ brand: "Samsung", title: "SAMSUNG GALAXY S25 256GB" }, ph("1-samsung-reset-s25-256gb"))?.art, "1");
+  assert.equal(matchPhone({ brand: "Samsung", title: "SAMSUNG GALAXY S25 256GB" }, ph("1-samsung-s25-cover-256gb", "2-samsung-s25-φορτιστης-256gb")), null);
+  assert.equal(matchPhone({ brand: "Apple", title: "APPLE IPHONE 16E 128GB" }, ph("1-apple-iphone-16-128gb")), null);
+  assert.equal(matchPhone({ brand: "Apple", title: "APPLE IPHONE 16 128GB" }, ph("1-apple-iphone-16e-128gb")), null);
+  assert.equal(matchPhone({ brand: "Apple", title: "APPLE IPHONE 16E 128GB" }, ph("1-apple-iphone-16-128gb", "2-apple-iphone-16e-128gb"))?.art, "2");
+  const s25 = ph("1-samsung-s25-256gb", "2-samsung-s25-plus-256gb");
+  assert.equal(matchPhone({ brand: "Samsung", title: "SAMSUNG GALAXY S25+ 256GB" }, s25)?.art, "2");
+  assert.equal(matchPhone({ brand: "Samsung", title: "SAMSUNG GALAXY S25 256GB" }, s25)?.art, "1");
+});
+
 test("isBundle", () => {
+  assert.equal(isBundle("LG ΜΕ ΔΩΡΟ ΑΤΜΟΥ", "product"), true);
+  assert.equal(isBundle("ΔΩΡΟ LG", "product"), true);
+  assert.equal(isBundle("Δώρο: LG", "product"), true);
+  assert.equal(isBundle("Φίλτρο Δωροθέα", "product"), false);
   assert.equal(isBundle("LG F4WV912P2E + ΔΩΡΟ Σύστημα Ατμού", "product"), true);
   assert.equal(isBundle("LG F4WV912P2E", "set"), true);
   assert.equal(isBundle("LG F4WV912P2E", "product"), false);
