@@ -3,12 +3,15 @@ import { ChevronDown, ClipboardList, FileText, Mail, MapPin, Phone, Search, Stor
 import { db } from "@/lib/db";
 import { requirePortalUser, portalBase } from "@/lib/partner-portal/session";
 import { lastDays, ORDER_FILTERS, partnerOrders } from "@/lib/partner-portal/data";
-import { FULFILMENT, ORDER_STATUS, statusLabel } from "@/lib/orders/model";
+import { addressOf, FULFILMENT, nameOf, ORDER_STATUS, statusLabel, type ShipTo } from "@/lib/orders/model";
 import { markRestocksSeen } from "@/lib/partner-portal/restock";
 import { RestockPanel } from "@/components/synergaton/RestockPanel";
 import { BarChart } from "@/components/admin/charts/Charts";
 import { toneOfOrder } from "@/components/synergaton/log-kinds";
 import { Badge, Card, CardHead, Empty, fmtDateTime, fmtEur, PageHead } from "@/components/synergaton/ui";
+import { DeliveryActions } from "@/components/synergaton/DeliveryActions";
+import { nextStep, STEP_LABEL, type StepKey } from "@/lib/delivery/routing";
+import { Truck } from "lucide-react";
 
 export const metadata = { title: "Παραγγελίες" };
 const FILTER_LABEL = { "": "Όλες", open: "Προς παραλαβή", done: "Παραδόθηκαν", cancelled: "Ακυρώθηκαν" } as const;
@@ -24,6 +27,11 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
     db.store.findMany({ where: { partnerId: u.partner.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.order.findMany({ where: { pickupStore: { partnerId: u.partner.id }, createdAt: { gte: new Date(days[0]) } }, select: { createdAt: true, status: true } }),
   ]);
+  // παραδόσεις στο σπίτι που δρομολογήθηκαν σε αυτόν τον συνεργάτη (lib/delivery) — κενό αν οι πίνακες δεν υπάρχουν ακόμη
+  const deliveries = await db.orderRoute.findMany({
+    where: { partnerId: u.partner.id, status: "open", mode: { in: ["partner", "agency"] } }, orderBy: { createdAt: "asc" }, take: 50,
+    include: { steps: { orderBy: { sort: "asc" } }, agency: { select: { name: true, address: true, city: true, phone: true, hours: true } }, order: { select: { number: true, createdAt: true, shipping: true, lines: { select: { title: true, qty: true } } } } },
+  }).catch(() => []);
   // οι αποφάσεις της Euronics που φαίνονται εδώ θεωρούνται πλέον γνωστές (σβήνει η ειδοποίηση της αρχικής)
   await markRestocksSeen(u.partner.id, d.rows.flatMap((o) => o.restocks.filter((r) => !r.seenAt && r.status !== "requested").map((r) => r.id)));
   const key = (dt: Date) => dt.toLocaleDateString("sv-SE", { timeZone: "Europe/Athens" });
@@ -36,6 +44,36 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
   return (
     <div className="grid gap-5 min-w-0">
       <PageHead eyebrow="Πωλήσεις" title="Παραγγελίες παραλαβής" sub="Παραγγελίες του euronics.gr όπου ο πελάτης διάλεξε κατάστημά σας. Δεν χρειάζεται έγκριση: κάθε παραγγελία παραδίδεται στον πελάτη. Αν λείπει απόθεμα, ζητήστε αναπλήρωση από την Euronics μέσα από την παραγγελία." />
+
+      {deliveries.length > 0 && (
+        <Card data-help="portal.deliveries">
+          <CardHead icon={Truck} title="Παραδόσεις στο σπίτι του πελάτη" sub={`${deliveries.length} ανοιχτές. Πατήστε «Το παρέλαβα» όταν πάρετε τα προϊόντα από το πρακτορείο και «Παρέδωσα» όταν φτάσουν στον πελάτη.`} />
+          <ul className="m-0 p-4 sm:p-5 list-none grid gap-3">
+            {deliveries.map((r) => {
+              const to = (r.order.shipping ?? {}) as ShipTo;
+              const waiting = nextStep(r.steps);
+              return (
+                <li key={r.orderId} className="rounded-xl border border-eu-line p-3 grid gap-2 min-w-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <b className="font-mono text-eu-navy text-[length:var(--fs-15)]">{r.order.number}</b>
+                    <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{fmtDateTime(r.order.createdAt)}</span>
+                  </div>
+                  <div className="text-[length:var(--fs-14)] text-eu-ink grid gap-0.5">
+                    <span className="inline-flex items-center gap-1.5"><User className="size-4 text-eu-muted" aria-hidden />{nameOf(to) || "—"}{to.phone ? <> · <a href={`tel:${to.phone}`} className="text-eu-blue font-bold">{to.phone}</a></> : null}</span>
+                    <span className="inline-flex items-center gap-1.5"><MapPin className="size-4 text-eu-muted" aria-hidden />{addressOf(to)}</span>
+                    <span className="text-eu-ink-3">{r.order.lines.map((l) => `${l.qty} × ${l.title}`).join(" · ")}</span>
+                  </div>
+                  {r.agency && <p className="m-0 rounded-lg bg-eu-surface p-2 text-[length:var(--fs-14)]">Παραλαβή από <b>{r.agency.name}</b>{r.agency.address ? `, ${r.agency.address}` : ""}{r.agency.city ? ` ${r.agency.city}` : ""}{r.agency.hours ? ` · ${r.agency.hours}` : ""}{r.agency.phone ? ` · ${r.agency.phone}` : ""}</p>}
+                  <ol className="m-0 p-0 list-none flex flex-wrap gap-1.5" aria-label="Πορεία">
+                    {r.steps.map((st) => <li key={st.key}><Badge tone={st.doneAt ? "good" : st.key === waiting ? "warn" : "neutral"}>{STEP_LABEL[st.key as StepKey] ?? st.key}</Badge></li>)}
+                  </ol>
+                  <DeliveryActions orderId={r.orderId} waiting={waiting} />
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
 
       <Card data-help="portal.orders-chart">
         <CardHead icon={ClipboardList} title="Τελευταίες 30 ημέρες" sub={`${recent.filter((o) => !isCancel(o.status)).length} παραγγελίες · ${recent.filter((o) => isCancel(o.status)).length} ακυρώσεις`} />

@@ -76,3 +76,31 @@ export async function runErpStages(): Promise<{ ok: boolean; message: string; id
   const idle = !recorded && !errors.length;
   return { ok: !errors.length, idle, message: [`${orders.length} παραγγελίες ελέγχθηκαν`, recorded ? `${recorded} νέα παραστατικά` : null, sent ? `${sent} email σε πελάτες` : null, ...errors.slice(0, 5)].filter(Boolean).join(" · ") };
 }
+
+/**
+ * Χειροκίνητο email για ένα στάδιο (κουμπί στη ροή της παραγγελίας): ίδιο πρότυπο και κείμενο με την αυτόματη ενημέρωση.
+ * Το παραστατικό πρέπει να ανήκει στην πορεία της παραγγελίας· το κείμενο από τις Ρυθμίσεις ενημέρωσης του τύπου του.
+ */
+export async function sendStageMail(orderId: string, findoc: number): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
+  const { orderChain } = await import("@/lib/softone/order-chain");
+  const chain = await orderChain(orderId);
+  const node = chain.ok ? chain.nodes.find((n) => n.findoc === findoc) : null;
+  if (!node) return { ok: false, error: "Το παραστατικό δεν βρέθηκε στην πορεία της παραγγελίας." };
+  const series = await db.docSeries.findFirst({ where: { s1Id: String(node.series) }, select: { s1Fprms: true } });
+  const type = series?.s1Fprms ? await db.docType.findFirst({ where: { s1Id: series.s1Fprms }, select: { customerTitle: true, customerMessage: true } }) : null;
+  if (!type?.customerMessage?.trim()) return { ok: false, error: "Αυτό το στάδιο δεν έχει κείμενο email. Γράψ' το στις Ρυθμίσεις ενημέρωσης." };
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, shipping: true, guestEmail: true, customer: { select: { email: true, firstName: true } } } });
+  if (!o) return { ok: false, error: "Η παραγγελία δεν βρέθηκε." };
+  const ship = (o.shipping ?? {}) as ShipTo;
+  const to = ship.email ?? o.customer?.email ?? o.guestEmail ?? null;
+  if (!to) return { ok: false, error: "Η παραγγελία δεν έχει email πελάτη." };
+  const firstName = ship.firstName ?? o.customer?.firstName ?? "";
+  const vars = { "όνομα": firstName, "παραγγελία": o.number, "παραστατικό": node.fincode, "ημερομηνία": dmy(node.date) };
+  const { baseUrl } = await emailCtx();
+  const m = await renderTemplate("order-erp-stage", { firstName, number: o.number, title: fillMessage(type.customerTitle?.trim() || "Νέα ενημέρωση για την παραγγελία σου", vars), message: fillMessage(type.customerMessage, vars), url: `${baseUrl}/logariasmos/paraggelies/${encodeURIComponent(o.number)}` });
+  const r = await sendMail({ to, template: "order-erp-stage", meta: { orderId, findoc, fprms: series?.s1Fprms ?? null, manual: true }, ...m });
+  const error = r.ok ? null : r.skipped ? "το email δεν είναι ρυθμισμένο" : String(("error" in r && r.error) || "σφάλμα email").slice(0, 300);
+  const at = r.ok ? new Date() : null;
+  await db.orderErpStage.upsert({ where: { orderId_findoc: { orderId, findoc } }, create: { orderId, findoc, fprms: series?.s1Fprms ?? null, docNo: node.fincode || null, docDate: node.date || null, notifiedAt: at, mailError: error }, update: { notifiedAt: at, mailError: error } });
+  return error ? { ok: false, error: `Το email δεν στάλθηκε: ${error}` } : { ok: true, message: "Το email στάλθηκε στον πελάτη." };
+}

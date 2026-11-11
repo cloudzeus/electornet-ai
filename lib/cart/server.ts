@@ -15,6 +15,8 @@ import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, type EngineResult } from "@/lib/promo/engine";
 import { activePromos, isNewCustomer, linesFor, lowest30, resolveCoupon, usesByPromo, type LineInfo } from "@/lib/promo/server";
 import { getSetting } from "@/lib/settings/store";
+import { getRateTables, localPartnerFor } from "@/lib/delivery/server";
+import { chargeableKg, quoteRate } from "@/lib/delivery/rates";
 
 /**
  * Καλάθι στον server. Ο browser κρατά το καλάθι για ταχύτητα και το καθρεφτίζει εδώ (ολόκληρο, με κάθε αλλαγή).
@@ -93,7 +95,7 @@ export interface Quote {
   /** μεγάλες συσκευές (lib/shipping/bulky): αν επιτρέπεται courier / θυρίδα για όλο το καλάθι και ποια προϊόντα το εμποδίζουν */
   bulky: { courier: boolean; locker: boolean; reason: string | null; titles: string[] };
   /** μεταφορική (εσωτερική): null = κλειστή στις ρυθμίσεις · available = όλα τα προϊόντα φεύγουν με courier ή μεταφορική */
-  freight: (FreightOffer & { available: boolean; reason: string | null }) | null;
+  freight: (FreightOffer & { available: boolean; reason: string | null; /** συνεργάτης Euronics εξυπηρετεί τον Τ.Κ. */ local: boolean }) | null;
   /** Αττική (lib/shipping/asap-express): κανονική παράδοση euronics ή ASAP Express με πραγματική τιμή */
   attica: AtticaOffer;
   /** για την παραγγελία: ποσά ανά προσφορά */
@@ -162,9 +164,19 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   const blockers = out.filter((l) => limits.get(l.productId)?.courier === false);
   const bulky = { courier: !blockers.length, locker: !blockers.length && out.every((l) => limits.get(l.productId)?.locker), reason: blockers.length ? limits.get(blockers[0].productId)!.reason : null, titles: blockers.map((l) => l.title) };
   // μεταφορική: όταν κάθε προϊόν φεύγει με courier ή μεταφορική (όχι τα «μόνο κατάστημα»)
-  const fo = freightOffer(rules.data, goods);
+  // τιμοκατάλογοι (Αποστολές → Τιμοκατάλογοι): ζώνη Τ.Κ. × βάρος· χωρίς δημοσιευμένο ή χωρίς Τ.Κ. → οι σταθερές τιμές των ρυθμίσεων
+  const tables = await getRateTables();
+  const rated = (key: string, bulkyCart: boolean) => {
+    const t = tables.get(key);
+    if (!t || !input.zip) return null;
+    return quoteRate(t, { zip: input.zip, goods, bulky: bulkyCart, kg: chargeableKg(out.map((l) => ({ qty: l.qty, weightKg: limits.get(l.productId)?.weightKg ?? null, dimsCm: limits.get(l.productId)?.dimsCm ?? null })), t.divisor) });
+  };
+  const fo0 = freightOffer(rules.data, goods);
+  const fr = fo0 && rated("freight", true);
+  const fo = fo0 && fr ? { ...fo0, fee: fr.fee, baseFee: fr.baseFee, freeFrom: tables.get("freight")!.freeExcludesBulky ? null : tables.get("freight")!.freeFrom } : fo0;
   const noFreight = out.find((l) => limits.get(l.productId)?.freight === false);
-  const freight = fo && { ...fo, available: !noFreight, reason: noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
+  const local = fo ? await localPartnerFor(input.zip, true).catch(() => null) : null;
+  const freight = fo && { ...fo, eta: local?.eta || fo.eta, local: !!local, available: !noFreight, reason: noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
   // Αττική: μόνο «Κανονική παράδοση euronics» ή «ASAP Express»· η ASAP δεν είναι πια courier της λίστας
   const asapRules = await getAsapRules();
   const attica: AtticaOffer = out.length && input.delivery !== "click-collect"
@@ -172,7 +184,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     : { attica: false, standard: { eta: STANDARD_ETA, inStock: true }, express: null, why: null };
   const express = attica.express?.state === "ok" ? attica.express : null;
   const isExpress = attica.attica && input.delivery === "courier" && input.carrier === "asap" && !!express;
-  const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom).filter((o) => !(asapRules.on && o.id === "asap")).map((o) =>
+  const carriers = carrierOffers(rules.data, goods, input.zip ?? null, rules.freeFrom).filter((o) => !(asapRules.on && o.id === "asap")).map((o) => { const r = rated(o.id, false); return r ? { ...o, fee: r.fee, baseFee: r.baseFee, freeFrom: tables.get(o.id)!.freeFrom } : o; }).map((o) =>
     !bulky.courier ? { ...o, available: false, reason: freight?.available ? "Το καλάθι έχει ογκώδη συσκευή: αποστολή με μεταφορική ή παραλαβή από κατάστημα" : "Το καλάθι έχει μεγάλη συσκευή: παράδοση με ραντεβού ή παραλαβή από κατάστημα" }
     : o.kind === "locker" && !bulky.locker ? { ...o, available: false, reason: "Δεν χωράει σε θυρίδα (έως 20 κιλά, 36 × 45 × 60 εκ.)" } : o);
   const carrier = pickCarrier(carriers, input.carrier);

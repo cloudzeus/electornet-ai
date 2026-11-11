@@ -51,3 +51,15 @@ export async function chainFor(findoc: number): Promise<OrderChain> {
     return { ok: false, reason: "error" };
   }
 }
+
+export interface DocMatch { findoc: number; fincode: string; date: string }
+/** Παραστατικά SoftOne από αριθμό (FINCODE, π.χ. αριθμός παραγγελίας eshop) ή FINDOC. Μόνο ανάγνωση· null = μη έγκυρη αναζήτηση. */
+export async function findDocs(q: string): Promise<DocMatch[] | null> {
+  const s = q.trim();
+  // το φίλτρο του GetTable είναι κείμενο SQL: μόνο γράμματα, ψηφία και - / . (χωρίς εισαγωγικά)
+  if (!s || s.length > 40 || !/^[\p{L}\d\-/.]+$/u.test(s)) return null;
+  const toMatch = (r: string[]) => ({ findoc: Number(r[0]), fincode: r[1], date: r[2] });
+  const byCode = (await getTable("FINDOC", ["FINDOC", "FINCODE", "TRNDATE"], `FINCODE='${s}'`)).map(toMatch);
+  if (byCode.length || !/^\d+$/.test(s)) return byCode.slice(0, 20);
+  return (await getTable("FINDOC", ["FINDOC", "FINCODE", "TRNDATE"], `FINDOC=${s}`)).map(toMatch);
+}

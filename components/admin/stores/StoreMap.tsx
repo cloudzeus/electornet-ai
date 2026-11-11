@@ -4,9 +4,11 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-export interface MapMarker { id: string; lat: number; lng: number; label: string; href?: string; tone?: "navy" | "red" | "yellow" | "green" }
+export interface MapMarker { id: string; lat: number; lng: number; label: string; href?: string; tone?: "navy" | "red" | "yellow" | "green" | "blue" }
+/** γραμμή ανάμεσα σε δύο σημεία (π.χ. συνεργάτης → πρακτορείο) */
+export interface MapLine { from: [number, number]; to: [number, number]; tone?: "navy" | "red" | "yellow" | "green" | "blue"; dashed?: boolean }
 
-const COLORS = { navy: "#122A58", red: "#D62828", yellow: "#F1C400", green: "#1E7B3C" };
+const COLORS = { navy: "#122A58", red: "#D62828", yellow: "#F1C400", green: "#1E7B3C", blue: "#2C6ED5" };
 // Το CSP δεν επιτρέπει style attributes μέσα σε markup (html: string)· το στοιχείο φτιάχνεται με DOM και μορφοποιείται μέσω CSSOM
 const icon = (tone: keyof typeof COLORS, big = false) => {
   const dot = document.createElement("span");
@@ -26,7 +28,7 @@ const popupLink = (href: string, label: string) => {
  * draggable marker (editor; `onMove` fires with the new point). QA point
  * (`alt`) is drawn as a hollow circle joined by a dashed line.
  */
-export default function StoreMap({ markers, editable, onMove, alt, height = 420, fit = true, zoom, highlight }: { markers: MapMarker[]; editable?: boolean; onMove?: (p: { lat: number; lng: number }) => void; alt?: { lat: number; lng: number; label?: string } | null; height?: number | string; fit?: boolean; zoom?: number; /** id δείκτη που φωτίζεται (π.χ. όταν ο δείκτης του ποντικιού είναι πάνω από τη γραμμή της λίστας) */ highlight?: string | null }) {
+export default function StoreMap({ markers, lines, editable, onMove, alt, height = 420, fit = true, zoom, highlight }: { markers: MapMarker[]; lines?: MapLine[]; editable?: boolean; onMove?: (p: { lat: number; lng: number }) => void; alt?: { lat: number; lng: number; label?: string } | null; height?: number | string; fit?: boolean; zoom?: number; /** id δείκτη που φωτίζεται (π.χ. όταν ο δείκτης του ποντικιού είναι πάνω από τη γραμμή της λίστας) */ highlight?: string | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -54,6 +56,7 @@ export default function StoreMap({ markers, editable, onMove, alt, height = 420,
       if (editable && onMove) marker.on("dragend", () => { const p = marker.getLatLng(); onMove({ lat: Math.round(p.lat * 1e6) / 1e6, lng: Math.round(p.lng * 1e6) / 1e6 }); });
       marker.addTo(g); byId.current.set(mk.id, marker);
     }
+    for (const ln of lines ?? []) L.polyline([ln.from, ln.to], { color: COLORS[ln.tone ?? "navy"], weight: 1.5, opacity: 0.6, dashArray: ln.dashed ? "4 4" : undefined }).addTo(g);
     if (alt && (alt.lat || alt.lng)) {
       L.circleMarker([alt.lat, alt.lng], { radius: 8, color: "#1E7B3C", weight: 2, fillColor: "#fff", fillOpacity: 0.9 }).bindTooltip(alt.label ?? "Γεωκωδικοποίηση").addTo(g);
       if (markers[0]) L.polyline([[markers[0].lat, markers[0].lng], [alt.lat, alt.lng]], { color: "#1E7B3C", dashArray: "4 4", weight: 2 }).addTo(g);
@@ -63,7 +66,7 @@ export default function StoreMap({ markers, editable, onMove, alt, height = 420,
     // το μέγεθος του κουτιού μπορεί να άλλαξε (φόρτωση με CSS ύψος, split view): πρώτα invalidateSize, μετά εστίαση
     m.invalidateSize();
     if (fit && pts.length) { if (pts.length === 1) m.setView(pts[0], zoom ?? 15); else m.fitBounds(L.latLngBounds(pts), { padding: [24, 24], maxZoom: 13 }); }
-  }, [markers, editable, onMove, alt, fit, zoom]);
+  }, [markers, lines, editable, onMove, alt, fit, zoom]);
 
   useEffect(() => {
     for (const [id, mk] of byId.current) { const on = id === highlight; mk.setIcon(icon((markers.find((x) => x.id === id)?.tone ?? "navy") as keyof typeof COLORS, on || !!editable)); mk.setZIndexOffset(on ? 1000 : 0); }

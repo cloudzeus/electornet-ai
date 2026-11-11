@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, AlertTriangle, ChevronRight } from "lucide-react";
+import { Database, AlertTriangle, ChevronRight, GitBranch } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
 import { getS1Config } from "@/lib/softone";
 import { lookupStats } from "@/lib/softone/lookups";
@@ -22,7 +22,10 @@ export default async function SoftonePage() {
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-28)]">Βασικοί πίνακες</h2>
           <p className="m-0 mt-1 text-eu-ink-3 text-[length:var(--fs-15)] max-w-[80ch]">Φ.Π.Α., μονάδες μέτρησης, μάρκες, εμπορικές σημάνσεις, Δ.Ο.Υ., χώρες, νομοί και Τ.Κ., τρόποι πληρωμής και αποστολής, σειρές παραστατικών, αποθήκες. Διαβάζονται από το SoftOne (GetTable, μόνο ανάγνωση) στα δικά μας μοντέλα· εδώ ορίζεις τι σημαίνει το καθένα για το site.{cfg ? ` Σύνδεση: ${cfg.url.replace(/^https?:\/\//, "").split("/")[0]}, χρήστης ${cfg.username}.` : " Δεν έχουν οριστεί στοιχεία σύνδεσης (Ρυθμίσεις → SoftOne ERP)."}</p>
         </div>
-        <SyncButton label="Συγχρονισμός όλων" />
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/softone/chain" data-help="softone.chain" className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-chip"><GitBranch className="size-4" aria-hidden /> Πορεία παραστατικού</Link>
+          <SyncButton label="Συγχρονισμός όλων" />
+        </div>
       </div>
       <div className="grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3">
         {stats.map((s) => (

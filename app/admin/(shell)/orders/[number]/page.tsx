@@ -8,6 +8,7 @@ import type { SaldocDoc } from "@/lib/softone/order-doc-core";
 import { db } from "@/lib/db";
 import { RESTOCK_INCLUDE, RestockList } from "@/components/admin/partners/RestockList";
 import { OrderTabs } from "@/components/admin/orders/chain/OrderTabs";
+import { orderFlowBase } from "@/lib/orders/flow";
 import { orderChainAction } from "../actions";
 import { OrderView } from "./OrderView";
 
@@ -28,8 +29,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const erp = doc?.totals ? { needs: doc.needs ?? [], warnings: doc.warnings ?? [], gross: doc.totals.gross, expected: doc.totals.expected } : null;
   // αναπληρώσεις που ζήτησε το κατάστημα-συνεργάτης για αυτή την παραγγελία (πύλη συνεργατών)
   const restocks = can(user.permissions, "stores.partners.read") ? await db.partnerRestock.findMany({ where: { orderId: o.id }, orderBy: { createdAt: "desc" }, include: RESTOCK_INCLUDE }) : [];
+  const flowBase = await orderFlowBase(o.id);
+  const tab = (await searchParams).tab;
   return (
-    <OrderTabs load={orderChainAction.bind(null, o.id)} number={o.number} initial={(await searchParams).tab === "softone" ? "softone" : "order"}>
+    <OrderTabs load={orderChainAction.bind(null, o.id)} number={o.number} initial={tab === "softone" || tab === "flow" ? tab : "order"} flow={flowBase ? { base: flowBase, canWrite } : undefined}>
       <OrderView o={o} draft={draft} erp={erp} canWrite={canWrite} canRefund={canRefund} />
       {restocks.length > 0 && (
         <section data-help="orders.restock" className="mt-4 grid gap-2">

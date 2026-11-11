@@ -107,3 +107,20 @@ export async function saveStageSettingAction(docTypeId: string, input: { notify:
   revalidatePath("/admin/orders/enimerosi");
   return { ok: true as const };
 }
+
+/** Ροή παραγγελίας: «Μετασχηματισμός» — προεπισκόπηση και υπολογισμός στο SoftOne, χωρίς αποθήκευση. */
+export async function transformPreviewAction(orderId: string, findoc: number) {
+  await requirePermission("orders.write");
+  const { transformPreview } = await import("@/lib/softone/transform");
+  return transformPreview(orderId, Number(findoc)).catch((e) => { console.error("[transform-preview]", e); return { ok: false as const, error: "Δεν διαβάστηκε το παραστατικό από το SoftOne. Δοκίμασε ξανά σε λίγο." }; });
+}
+
+/** Ροή παραγγελίας: email στον πελάτη για ένα στάδιο του SoftOne, με το κείμενο των Ρυθμίσεων ενημέρωσης. */
+export async function stageMailAction(orderId: string, number: string, findoc: number) {
+  const u = await requirePermission("orders.write");
+  const { sendStageMail } = await import("@/lib/orders/erp-stages");
+  const r = await sendStageMail(orderId, Number(findoc)).catch((e) => ({ ok: false as const, error: e instanceof Error ? e.message : "Σφάλμα email." }));
+  if (r.ok) { const { audit } = await import("@/lib/rbac/audit"); await audit(u.id, "order.email", "Order", orderId, null, { template: "order-erp-stage", findoc }); }
+  done(number);
+  return r;
+}

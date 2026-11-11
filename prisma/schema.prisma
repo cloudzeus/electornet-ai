@@ -956,14 +956,31 @@ model Partner {
   logs        PartnerLog[]
   restocks    PartnerRestock[]
   interests   PartnerInterest[]
+  /// Εξυπηρέτηση παραγγελιών eshop: { zips, homeDelivery, bulkyOk, installs, eta, maxKm, routeDays } (lib/delivery/routing)
+  delivery    Json?
+  /// Το πρακτορείο όπου ο οδηγός μας αφήνει τα προϊόντα του συνεργάτη (Carrier με role «agency»)
+  agencyId    String?
+  agency      Carrier?            @relation("PartnerAgency", fields: [agencyId], references: [id], onDelete: SetNull)
+  /// Ο προεπιλεγμένος μεταφορέας του πελάτη στο SoftOne (TRDR.SOCARRIER = Carrier.s1Id), μόνο ανάγνωση
+  s1CarrierId String?
+  routes      OrderRoute[]
   /// ερωτηματολόγιο αρχικοποίησης + πρόοδος των wizards της πύλης: { answers, steps: { profile, connection, mapping, … }, completedAt }
   onboarding  Json?
+  /// θέση στον χάρτη: geoSource = nominatim | manual | store
+  lat         Float?
+  lng         Float?
+  geoSource   String?
+  geoLabel    String?
+  geocodedAt  DateTime?
+  /// τιμές των πρόσθετων πεδίων (CustomField entity «partner»): { key: value }
+  extra       Json?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
   @@index([afm])
   @@index([status])
   @@index([s1Business])
+  @@index([s1CarrierId])
 }
 
 /// Υποκατάστημα μέλους όπως είναι στο SoftOne (CUSBRANCH → TRDBRANCH)· η διαθεσιμότητα αναφέρεται σε υποκατάστημα.
@@ -1717,6 +1734,8 @@ model Order {
   notes         OrderNote[]
   restocks      PartnerRestock[]
   erpStages     OrderErpStage[]
+  /// Πώς φτάνει στον πελάτη (courier, συνεργάτης, πρακτορείο, μεταφορική) και τα σκέλη της διαδρομής
+  route         OrderRoute?
   tracking      String?
   courier       String?
   createdAt     DateTime         @default(now())
@@ -2549,18 +2568,60 @@ model ShippingMethod {
 }
 
 model Carrier {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  name       String
-  phone      String?
-  active     Boolean   @default(true)
-  s1Id       String?   @unique // SOCARRIER
-  s1Name     String?
-  s1Data     Json?
-  s1SyncedAt DateTime?
-  s1Missing  Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String           @id @default(cuid())
+  code          String           @unique
+  name          String
+  phone         String?
+  active        Boolean          @default(true)
+  s1Id          String?          @unique // SOCARRIER
+  s1Name        String?
+  s1Data        Json?
+  s1SyncedAt    DateTime?
+  s1Missing     Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  /// τι είναι στην πράξη: driver (οδηγός μας) | courier | agency (πρακτορείο) | partner-vehicle (όχημα συνεργάτη) | other
+  role          String           @default("other")
+  address       String?
+  city          String?
+  zip           String?
+  hours         String?
+  email         String?
+  notes         String?          @db.Text
+  /// ΑΦΜ (για ταίριασμα με το SoftOne και έλεγχο διπλών)
+  afm           String?
+  /// θέση στον χάρτη: geoSource = nominatim | manual | store
+  lat           Float?
+  lng           Float?
+  geoSource     String?
+  geoLabel      String?
+  geocodedAt    DateTime?
+  /// τιμές των πρόσθετων πεδίων (CustomField entity «carrier»): { key: value }
+  extra         Json?
+  agencyFor     Partner[]        @relation("PartnerAgency")
+  vehicles      CarrierVehicle[]
+  agencyRoutes  OrderRoute[]     @relation("RouteAgency")
+  carrierRoutes OrderRoute[]     @relation("RouteCarrier")
+}
+
+/// Ορισμός πρόσθετου πεδίου για καρτέλα (entity: partner | carrier). Η τιμή μένει στο `extra` της εγγραφής.
+model CustomField {
+  id        String   @id @default(cuid())
+  entity    String
+  key       String
+  label     String
+  /// text | number | date | bool | select | link
+  type      String   @default("text")
+  /// επιλογές για select: ["α", "β"]
+  options   Json?
+  groupName String?
+  help      String?
+  sort      Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entity, key])
 }
 
 /// Sales document series (SOSOURCE 1351). `purpose` tells the order module which series to post to.
@@ -2585,25 +2646,25 @@ model DocSeries {
 
 /// Τύποι παραστατικών πώλησης (FPRMS, SOSOURCE 1351) — μόνο για εμφάνιση (π.χ. πορεία μετασχηματισμών).
 model DocType {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  name       String
-  category   String? // TFPRMS: 201 παραγγελία, 101/103/104 δελτίο, 102 τιμολόγιο, 131 απόδειξη, 151/154/181 πιστωτικό-επιστροφή, 500 προτιμολόγιο
-  eshop      Boolean   @default(false) // αφορά το eshop
-  active     Boolean   @default(true)
-  s1Id       String?   @unique // FPRMS
-  s1Name     String?
-  s1Data     Json?
-  s1SyncedAt DateTime?
-  s1Missing  Boolean   @default(false)
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String
+  category        String? // TFPRMS: 201 παραγγελία, 101/103/104 δελτίο, 102 τιμολόγιο, 131 απόδειξη, 151/154/181 πιστωτικό-επιστροφή, 500 προτιμολόγιο
+  eshop           Boolean   @default(false) // αφορά το eshop
+  active          Boolean   @default(true)
+  s1Id            String?   @unique // FPRMS
+  s1Name          String?
+  s1Data          Json?
+  s1SyncedAt      DateTime?
+  s1Missing       Boolean   @default(false)
   /// Παραγγελίες → Ρυθμίσεις ενημέρωσης: όταν εμφανιστεί παραστατικό αυτού του τύπου στην πορεία μιας παραγγελίας, email στον πελάτη
-  notifyCustomer  Boolean @default(false)
+  notifyCustomer  Boolean   @default(false)
   /// Ο τίτλος του σταδίου όπως τον βλέπει ο πελάτης (π.χ. «Η παραγγελία σου ετοιμάζεται»)
   customerTitle   String?
   /// Το κείμενο του email· {όνομα}, {παραγγελία}, {παραστατικό}, {ημερομηνία}
-  customerMessage String? @db.Text
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  customerMessage String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 /// Τα παραστατικά του SoftOne που είδε ο έλεγχος σταδίων σε κάθε παραγγελία — για να μη σταλεί ποτέ το ίδιο email δύο φορές.
@@ -3343,4 +3404,91 @@ model AvailabilityRule {
   updatedAt  DateTime @updatedAt
 
   @@index([position])
+}
+
+/// Τιμοκατάλογος μεταφορικών: τι πληρώνει ο πελάτης ανά ζώνη Τ.Κ. και κιλά (lib/delivery/rates). Ένας δημοσιευμένος ανά τρόπο.
+model ShippingRateTable {
+  id          String    @id @default(cuid())
+  /// acs | geniki | elta | boxnow | freight (μεταφορική / συνεργάτες) | carrier:<Carrier.id>
+  carrier     String
+  name        String
+  /// draft | published
+  status      String    @default("draft")
+  validFrom   DateTime?
+  data        Json
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([carrier, status])
+}
+
+/// Η διαδρομή μιας παραγγελίας μέχρι τον πελάτη. Δημιουργείται από τη δρομολόγηση (lib/delivery/routing), αλλάζει από το κέντρο ελέγχου.
+model OrderRoute {
+  orderId   String      @id
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// courier | pickup | partner | agency | freight | unrouted
+  mode      String
+  partnerId String?
+  partner   Partner?    @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  agencyId  String?
+  agency    Carrier?    @relation("RouteAgency", fields: [agencyId], references: [id], onDelete: SetNull)
+  /// μεταφορική απευθείας στον πελάτη (mode freight)
+  carrierId String?
+  carrier   Carrier?    @relation("RouteCarrier", fields: [carrierId], references: [id], onDelete: SetNull)
+  reason    String?
+  /// κόστος για εμάς (λεπτά δεν χρησιμοποιούνται εδώ: ευρώ)
+  cost      Decimal?    @db.Decimal(10, 2)
+  /// open | delivered | cancelled
+  status    String      @default("open")
+  decidedBy String?
+  steps     RouteStep[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([mode, status])
+  @@index([partnerId, status])
+}
+
+/// Ένα σκέλος της διαδρομής: load (φόρτωση από οδηγό μας) | agency (στο πρακτορείο) | partner (στον συνεργάτη) | carrier (στη μεταφορική) | customer (παραδόθηκε)
+model RouteStep {
+  id      String     @id @default(cuid())
+  orderId String
+  route   OrderRoute @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  key     String
+  sort    Int
+  doneAt  DateTime?
+  /// χρήστης διαχείρισης ή «portal:<λογαριασμός>»
+  doneBy  String?
+  /// αριθμός παραλαβής πρακτορείου / μεταφορικής
+  ref     String?
+  /// όνομα παραλήπτη ή φωτογραφία παράδοσης
+  proof   String?
+  note    String?
+
+  @@unique([orderId, key])
+}
+
+/// Μεταφορικό μέσο από το SoftOne (TRUCKS), μόνο ανάγνωση. Δένεται με τον μεταφορέα μέσω TRUCKS.SOCARRIER.
+model CarrierVehicle {
+  id          String    @id @default(cuid())
+  s1Id        String?   @unique
+  code        String
+  name        String
+  plate       String?
+  carrierId   String?
+  carrier     Carrier?  @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  s1CarrierId String?
+  /// ιδιοκτήτης (TRUCKS.TRDR)
+  trdr        Int?
+  weightKg    Float?
+  volumeM3    Float?
+  active      Boolean   @default(true)
+  s1Missing   Boolean   @default(false)
+  s1Data      Json?
+  s1SyncedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([carrierId])
 }

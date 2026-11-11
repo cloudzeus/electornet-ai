@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-export type { MapMarker } from "./StoreMap";
+export type { MapMarker, MapLine } from "./StoreMap";
 
 /** Leaflet touches `window` — load it client-side only. */
 export const StoreMapClient = dynamic(() => import("./StoreMap"), { ssr: false, loading: () => <div className="w-full h-full min-h-[320px] rounded-xl bg-eu-surface animate-pulse" /> });

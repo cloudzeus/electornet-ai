@@ -1,19 +1,21 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, CloudOff, GitBranch, Package, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, CloudOff, GitBranch, Package, RefreshCw, Workflow } from "lucide-react";
+import type { FlowBase } from "@/lib/orders/flow";
+import { OrderFlow } from "../flow/OrderFlow";
 import type { OrderChain, OrderChainNode } from "@/lib/softone/order-chain";
 import { TONE, amountOf, depths, dmy, metaOf, money, stateOf, titleOf, type Tone } from "./meta";
 
 const ChainFlow = dynamic(() => import("./ChainFlow"), { ssr: false, loading: () => <div className="h-full rounded-xl bg-eu-surface animate-pulse" /> });
 
-type Tab = "order" | "softone";
+type Tab = "order" | "flow" | "softone";
 
-/** Καρτέλες της παραγγελίας: «Παραγγελία» (η σελίδα όπως ήταν) και «Πορεία στο SoftOne» (φορτώνει όταν ανοίξει). */
-export function OrderTabs({ load, number, initial = "order", children }: { load: () => Promise<OrderChain>; number: string; initial?: Tab; children: React.ReactNode }) {
+/** Καρτέλες της παραγγελίας: «Παραγγελία» (η σελίδα όπως ήταν), «Ροή» (διάγραμμα με ενέργειες) και «Πορεία στο SoftOne» (φορτώνουν όταν ανοίξουν). */
+export function OrderTabs({ load, number, initial = "order", flow, children }: { load: () => Promise<OrderChain>; number: string; initial?: Tab; flow?: { base: FlowBase; canWrite: boolean }; children: React.ReactNode }) {
   const [tab, setTab] = useState<Tab>(initial);
-  const pick = (t: Tab) => { setTab(t); const u = new URL(location.href); if (t === "softone") u.searchParams.set("tab", "softone"); else u.searchParams.delete("tab"); history.replaceState(null, "", u); };
-  const tabs: { id: Tab; label: string; Icon: typeof Package }[] = [{ id: "order", label: "Παραγγελία", Icon: Package }, { id: "softone", label: "Πορεία στο SoftOne", Icon: GitBranch }];
+  const pick = (t: Tab) => { setTab(t); const u = new URL(location.href); if (t !== "order") u.searchParams.set("tab", t); else u.searchParams.delete("tab"); history.replaceState(null, "", u); };
+  const tabs: { id: Tab; label: string; Icon: typeof Package }[] = [{ id: "order", label: "Παραγγελία", Icon: Package }, ...(flow ? [{ id: "flow" as Tab, label: "Ροή και ενέργειες", Icon: Workflow }] : []), { id: "softone", label: "Πορεία στο SoftOne", Icon: GitBranch }];
   return (
     <div className="grid gap-4 min-w-0">
       <div role="tablist" aria-label="Καρτέλες παραγγελίας" data-help="orders.tabs" className="flex gap-1 border-b border-eu-line print:hidden">
@@ -25,6 +27,7 @@ export function OrderTabs({ load, number, initial = "order", children }: { load:
         ))}
       </div>
       <div role="tabpanel" id="panel-order" aria-labelledby="tab-order" hidden={tab !== "order"}>{children}</div>
+      {tab === "flow" && flow && <div role="tabpanel" id="panel-flow" aria-labelledby="tab-flow"><OrderFlow base={flow.base} loadChain={load} canWrite={flow.canWrite} goTab={pick} /></div>}
       {tab === "softone" && <div role="tabpanel" id="panel-softone" aria-labelledby="tab-softone"><SoftonePanel load={load} number={number} /></div>}
     </div>
   );

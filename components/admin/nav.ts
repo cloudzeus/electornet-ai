@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  GitBranch,
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap, CalendarCheck,
-  Handshake, PackagePlus, Sparkles,
+  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -50,6 +51,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/apostoles", label: "Αποστολές", icon: Truck, perm: "catalog.products.read" },
       { href: "/admin/apostoles/vouchers", label: "Vouchers courier", icon: Truck, perm: "orders.read", feature: "vouchers" },
+      { href: "/admin/apostoles/kentro", label: "Κέντρο ελέγχου αποστολών", icon: Radar, perm: "orders.read" },
+      { href: "/admin/apostoles/timokatalogoi", label: "Τιμοκατάλογοι μεταφορικών", icon: Receipt, perm: "catalog.products.read" },
+      { href: "/admin/apostoles/praktoreia", label: "Πρακτορεία", icon: Warehouse, perm: "stores.partners.read" },
+      { href: "/admin/apostoles/xartis", label: "Χάρτης δικτύου", icon: MapIcon, perm: "stores.partners.read" },
     ],
   },
   {
@@ -102,6 +107,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "SoftOne ERP",
     items: [
       { href: "/admin/softone", label: "Βασικοί πίνακες", icon: Database, perm: "settings.integrations.write", feature: "softone" },
+      { href: "/admin/softone/chain", label: "Πορεία παραστατικού", icon: GitBranch, perm: "orders.read", feature: "softone" },
       { href: "/admin/softone/brand/logos", label: "Λογότυπα μαρκών", icon: BadgeCheck, perm: "settings.integrations.write", feature: "softone" },
       { href: "/admin/softone/sync", label: "Συγχρονισμοί & ιστορικό", icon: RefreshCw, perm: "settings.integrations.write", feature: "softone" },
       { href: "/admin/softone/catalog", label: "Κατάλογος & CCC", icon: Package, perm: "catalog.products.read", feature: "softone" },

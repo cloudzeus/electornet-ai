@@ -123,3 +123,11 @@ export async function toggleScheduledJob(key: string, enabled: boolean) {
   revalidatePath("/admin/softone/sync");
   return { ok: true };
 }
+
+/** Πορεία στο SoftOne ενός παραστατικού (από τη σελίδα SoftOne → Πορεία παραστατικού). Μόνο αναγνώσεις. */
+export async function docChainAction(findoc: number) {
+  await requirePermission("orders.read");
+  if (!Number.isInteger(findoc) || findoc <= 0) return { ok: false as const, reason: "not-sent" as const };
+  const { chainFor } = await import("@/lib/softone/order-chain");
+  return chainFor(findoc);
+}

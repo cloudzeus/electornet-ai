@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T02:40:51.481Z",
+ "generatedAt": "2026-11-11T04:40:44.378Z",
  "routes": [
   {
    "route": "/admin",
@@ -150,6 +150,160 @@
    }
   },
   {
+   "route": "/admin/apostoles/kentro",
+   "slug": "apostoles.kentro",
+   "file": "app/admin/(shell)/apostoles/kentro/page.tsx",
+   "title": "Κέντρο ελέγχου αποστολών",
+   "doc": "",
+   "perm": "orders.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Κέντρο ελέγχου αποστολών"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "kentro.kpi",
+    "kentro.share",
+    "kentro.list",
+    "kentro.step",
+    "kentro.picker"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/apostoles/praktoreia",
+   "slug": "apostoles.praktoreia",
+   "file": "app/admin/(shell)/apostoles/praktoreia/page.tsx",
+   "title": "Πρακτορεία και μεταφορείς",
+   "doc": "Οι μεταφορείς του SoftOne (SOCARRIER) με τον ρόλο τους στην πράξη. Τα πρακτορεία δένονται με συνεργάτες στην αρχικοποίησή τους.",
+   "perm": "stores.partners.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Πρακτορεία"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "agencies.roles",
+    "agencies.suggest",
+    "agencies.toolbar",
+    "carrier.tabs",
+    "carrier.kpis",
+    "carrier.map",
+    "carrier.vehicles",
+    "carrier.rates",
+    "carrier.routes",
+    "carrier.usage",
+    "carrier.details",
+    "carrier.s1",
+    "carrier.partners",
+    "carrier.suggested"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/apostoles/praktoreia/[id]",
+   "slug": "apostoles.praktoreia.id",
+   "file": "app/admin/(shell)/apostoles/praktoreia/[id]/page.tsx",
+   "title": "Καρτέλα μεταφορέα",
+   "doc": "Ένας μεταφορέας με ό,τι σχετίζεται: συνεργάτες, οχήματα (SoftOne TRUCKS), τιμοκατάλογος, αποστολές, χρήση στα παραστατικά.",
+   "perm": "stores.partners.read",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "carrier.tabs",
+    "carrier.kpis",
+    "carrier.map",
+    "carrier.vehicles",
+    "carrier.rates",
+    "carrier.routes",
+    "carrier.usage",
+    "carrier.details",
+    "carrier.s1",
+    "carrier.partners",
+    "carrier.suggested"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
+   "route": "/admin/apostoles/timokatalogoi",
+   "slug": "apostoles.timokatalogoi",
+   "file": "app/admin/(shell)/apostoles/timokatalogoi/page.tsx",
+   "title": "Τιμοκατάλογοι μεταφορικών",
+   "doc": "Τιμοκατάλογοι: ζώνη Τ.Κ. × κλίμακα βάρους. Ο δημοσιευμένος υπολογίζει τα μεταφορικά στο checkout· τα πρακτορεία δίνουν το κόστος στη σύγκριση του κέντρου ελέγχου.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Τιμοκατάλογοι μεταφορικών"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "rates.carrier",
+    "rates.grid",
+    "rates.extras",
+    "rates.test"
+   ],
+   "changes": [
+    {
+     "hash": "6f5227c",
+     "date": "2026-11-06T09:52:22+02:00",
+     "text": "Checkout Αττικής: «Κανονική παράδοση euronics» ή «ASAP Express» με πραγματική τιμή"
+    },
+    {
+     "hash": "df24c5d",
+     "date": "2026-10-30T16:53:46+02:00",
+     "text": "Αποστολές: μεταφορική (εσωτερική διαδικασία) για επιλεγμένες κατηγορίες"
+    },
+    {
+     "hash": "26c22b3",
+     "date": "2026-10-16T18:04:40+03:00",
+     "text": "Σετ (Φ1): διορθώσεις τελικού ελέγχου"
+    },
+    {
+     "hash": "8fc17d3",
+     "date": "2026-10-10T19:26:28+03:00",
+     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
+    },
+    {
+     "hash": "8c44bfe",
+     "date": "2026-10-10T13:42:24+03:00",
+     "text": "Μεγάλες συσκευές χωρίς courier: κανόνας ανά κατηγορία (ψυγεία, πλυντήρια, κουζίνες, κλιματιστικά…), βάρος συσκευασίας > 30 κ. ή διάσταση > 150 εκ. → μόνο ραντεβού ή παραλαβή"
+    },
+    {
+     "hash": "f2b622a",
+     "date": "2026-10-10T12:25:44+03:00",
+     "text": "Εγγύηση: εγγύηση κατασκευαστή από την περιγραφή του ERP στη σελίδα προϊόντος"
+    },
+    {
+     "hash": "0088511",
+     "date": "2026-10-10T10:02:35+03:00",
+     "text": "Αποστολές: ACS, Γενική Ταχυδρομική, ΕΛΤΑ Courier, ASAP (μόνο Αττική) και BOX NOW (θυρίδα από τον χάρτη τους)"
+    },
+    {
+     "hash": "f6a094e",
+     "date": "2026-10-03T08:10:14+03:00",
+     "text": "Φάση 3 προσφορών: προσωπικές προσφορές, προσφορά καταστήματος, POS API"
+    },
+    {
+     "hash": "7494398",
+     "date": "2026-10-03T07:19:17+03:00",
+     "text": "Φάση 2 προσφορών: κοινά πελατών, early access, μαζί φθηνότερα, πακέτα, έκπτωση πληρωμής, αυτόματα κουπόνια"
+    },
+    {
+     "hash": "55da1e3",
+     "date": "2026-10-02T21:23:40+03:00",
+     "text": "Φάση 1"
+    }
+   ],
+   "updatedAt": "2026-11-06T09:52:22+02:00",
+   "shots": {}
+  },
+  {
    "route": "/admin/apostoles/vouchers",
    "slug": "apostoles.vouchers",
    "file": "app/admin/(shell)/apostoles/vouchers/page.tsx",
@@ -218,6 +372,28 @@
     "desktop": "/api/help-shot/apostoles.vouchers-d.jpg",
     "mobile": "/api/help-shot/apostoles.vouchers-m.jpg"
    }
+  },
+  {
+   "route": "/admin/apostoles/xartis",
+   "slug": "apostoles.xartis",
+   "file": "app/admin/(shell)/apostoles/xartis/page.tsx",
+   "title": "Χάρτης δικτύου",
+   "doc": "Όλο το δίκτυο σε έναν χάρτη: συνεργάτες, πρακτορεία, τα δικά μας καταστήματα, και ποιος συνεργάτης πάει σε ποιο πρακτορείο.",
+   "perm": "stores.partners.read",
+   "nav": {
+    "group": "Αποστολές",
+    "label": "Χάρτης δικτύου"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "network.counts",
+    "network.filters",
+    "network.locate",
+    "network.map"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
   },
   {
    "route": "/admin/ar",
@@ -397,6 +573,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "809cea7",
      "date": "2026-09-13T17:09:18+03:00",
      "text": "Backups page: no page-level overflow, compact last-backup tile"
@@ -412,7 +593,7 @@
      "text": "Daily database backups to Bunny Storage: pg_dump -Fc → AES-256 (BACKUP_PASSPHRASE) → storage zone (dedicated or _backups/), retention pruning, BackupRun history, cron route, CLI script, super-admin page with run-now a…"
     }
    ],
-   "updatedAt": "2026-09-13T17:09:18+03:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/backups-d.jpg",
     "mobile": "/api/help-shot/backups-m.jpg"
@@ -445,6 +626,11 @@
     "catalog.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "eeb2eed",
+     "date": "2026-11-11T05:00:59+02:00",
+     "text": "Φωτογραφίες: αναζήτηση από την καρτέλα προϊόντος και αφαίρεση φόντου (μοντέλο ONNX στον server, σε ξεχωριστή διεργασία) με προεπισκόπηση πριν την έγκριση"
+    },
     {
      "hash": "fa1b608",
      "date": "2026-11-03T08:53:33+02:00",
@@ -489,14 +675,9 @@
      "hash": "26c22b3",
      "date": "2026-10-16T18:04:40+03:00",
      "text": "Σετ (Φ1): διορθώσεις τελικού ελέγχου"
-    },
-    {
-     "hash": "629a3f9",
-     "date": "2026-10-16T17:51:00+03:00",
-     "text": "Σετ (Φ1): διαχείριση"
     }
    ],
-   "updatedAt": "2026-11-03T08:53:33+02:00",
+   "updatedAt": "2026-11-11T05:00:59+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -530,6 +711,16 @@
     "product.sold-alone"
    ],
    "changes": [
+    {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
+     "hash": "eeb2eed",
+     "date": "2026-11-11T05:00:59+02:00",
+     "text": "Φωτογραφίες: αναζήτηση από την καρτέλα προϊόντος και αφαίρεση φόντου (μοντέλο ONNX στον server, σε ξεχωριστή διεργασία) με προεπισκόπηση πριν την έγκριση"
+    },
     {
      "hash": "547ec9d",
      "date": "2026-10-31T10:41:54+02:00",
@@ -569,19 +760,9 @@
      "hash": "629a3f9",
      "date": "2026-10-16T17:51:00+03:00",
      "text": "Σετ (Φ1): διαχείριση"
-    },
-    {
-     "hash": "9b7e9bf",
-     "date": "2026-10-13T20:12:49+03:00",
-     "text": "Ταχύτητα, δεύτερο πέρασμα (χωρίς αλλαγή server): λιγότερα ερωτήματα σε κάθε αίτημα προς τον κοινό Postgres - ρυθμίσεις: όλες σε μία κοινή μνήμη (τις διάβαζε κάθε αίτημα shop και διαχείρισης)"
-    },
-    {
-     "hash": "77eccbf",
-     "date": "2026-10-13T19:24:29+03:00",
-     "text": "Διαχείριση: Πελάτες"
     }
    ],
-   "updatedAt": "2026-10-31T10:41:54+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {}
   },
   {
@@ -716,12 +897,17 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "97e50a4",
      "date": "2026-10-30T16:42:53+02:00",
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-10-30T16:42:53+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.categories-d.jpg",
     "mobile": "/api/help-shot/catalog.categories-m.jpg"
@@ -756,6 +942,16 @@
     "enrich.to-erp"
    ],
    "changes": [
+    {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
+     "hash": "eeb2eed",
+     "date": "2026-11-11T05:00:59+02:00",
+     "text": "Φωτογραφίες: αναζήτηση από την καρτέλα προϊόντος και αφαίρεση φόντου (μοντέλο ONNX στον server, σε ξεχωριστή διεργασία) με προεπισκόπηση πριν την έγκριση"
+    },
     {
      "hash": "93d615d",
      "date": "2026-11-03T07:25:50+02:00",
@@ -795,19 +991,9 @@
      "hash": "ed33aa3",
      "date": "2026-10-31T08:17:35+02:00",
      "text": "Πληρότητα: πρόταση χαρακτηριστικών, διαστάσεων και βάρους από EPREL και απόδελτίωση"
-    },
-    {
-     "hash": "9d333f1",
-     "date": "2026-10-31T08:05:59+02:00",
-     "text": "Πληρότητα: «Γρήγορη διόρθωση» σε παράθυρο για τα ημιτελή προϊόντα"
-    },
-    {
-     "hash": "f6e14b2",
-     "date": "2026-10-31T07:29:29+02:00",
-     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
     }
    ],
-   "updatedAt": "2026-11-03T07:25:50+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.completeness-d.jpg",
     "mobile": "/api/help-shot/catalog.completeness-m.jpg"
@@ -1089,6 +1275,11 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "1549cde",
      "date": "2026-11-10T14:12:03+02:00",
      "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση"
@@ -1132,14 +1323,9 @@
      "hash": "512288b",
      "date": "2026-10-20T06:37:41+03:00",
      "text": "Εισαγωγή από ξένο Excel: διορθώσεις αναθεώρησης διαχείρισης (τίτλοι ενοτήτων → πρόβλημα, όριο μεγέθους πριν τη μνήμη, μόνο δικά μας μηνύματα σφάλματος, διακόπτης SoftOne κλειδωμένος στην προεπισκόπηση, βήματα, εστίαση…"
-    },
-    {
-     "hash": "26c6504",
-     "date": "2026-10-20T06:30:05+03:00",
-     "text": "Εισαγωγή από ξένο Excel: διαχείριση και βοήθεια"
     }
    ],
-   "updatedAt": "2026-11-10T14:12:03+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {}
   },
   {
@@ -1195,6 +1381,11 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "fe876ee",
      "date": "2026-11-10T13:43:45+02:00",
      "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
@@ -1220,7 +1411,7 @@
      "text": "Keyvoto PIM: σύνδεση με τα κλειδιά της Keyvoto και δείγμα περιεχομένου"
     }
    ],
-   "updatedAt": "2026-11-10T13:43:45+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.keyvoto-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.keyvoto-m.jpg"
@@ -1246,6 +1437,11 @@
     "pending.edit"
    ],
    "changes": [
+    {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
     {
      "hash": "fe876ee",
      "date": "2026-11-10T13:43:45+02:00",
@@ -1282,7 +1478,7 @@
      "text": "Εισαγωγή από ξένο Excel: νέα είδη σε αναμονή"
     }
    ],
-   "updatedAt": "2026-11-10T13:43:45+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {}
   },
   {
@@ -1346,6 +1542,11 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "04b97f7",
      "date": "2026-11-10T13:55:00+02:00",
      "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη"
@@ -1389,14 +1590,9 @@
      "hash": "f6e14b2",
      "date": "2026-10-31T07:29:29+02:00",
      "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
-    },
-    {
-     "hash": "97e50a4",
-     "date": "2026-10-30T16:42:53+02:00",
-     "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-10T13:55:00+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.templates.xml-d.jpg",
     "mobile": "/api/help-shot/catalog.templates.xml-m.jpg"
@@ -3808,6 +4004,11 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "8316948",
      "date": "2026-11-03T16:51:38+02:00",
      "text": "ASAP: ζωντανή παρακολούθηση και εκτιμώμενη άφιξη μέσω webhook"
@@ -3851,14 +4052,9 @@
      "hash": "3b1140d",
      "date": "2026-10-20T17:25:09+03:00",
      "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
-    },
-    {
-     "hash": "ab7af2e",
-     "date": "2026-10-20T10:16:55+03:00",
-     "text": "Αναφορά ασφαλείας: ο κανόνας παραληπτών εμφανίζεται στα textarea των Ρυθμίσεων, parseSecurityEmails (έγκυρα, χωρίς διπλότυπα, έως 10, προεπιλογή), διορθώσεις script (current_schema, προειδοποίηση για super-admin)"
     }
    ],
-   "updatedAt": "2026-11-03T16:51:38+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {
     "desktop": "/api/help-shot/settings-d.jpg",
     "mobile": "/api/help-shot/settings-m.jpg"
@@ -3882,6 +4078,11 @@
    ],
    "changes": [
     {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
      "hash": "8316948",
      "date": "2026-11-03T16:51:38+02:00",
      "text": "ASAP: ζωντανή παρακολούθηση και εκτιμώμενη άφιξη μέσω webhook"
@@ -3925,14 +4126,9 @@
      "hash": "3b1140d",
      "date": "2026-10-20T17:25:09+03:00",
      "text": "Πληρωμές: τραπεζικοί λογαριασμοί για «Κατάθεση σε τράπεζα» (λογότυπο, τράπεζα, δικαιούχος, IBAN)"
-    },
-    {
-     "hash": "ab7af2e",
-     "date": "2026-10-20T10:16:55+03:00",
-     "text": "Αναφορά ασφαλείας: ο κανόνας παραληπτών εμφανίζεται στα textarea των Ρυθμίσεων, parseSecurityEmails (έγκυρα, χωρίς διπλότυπα, έως 10, προεπιλογή), διορθώσεις script (current_schema, προειδοποίηση για super-admin)"
     }
    ],
-   "updatedAt": "2026-11-03T16:51:38+02:00",
+   "updatedAt": "2026-11-11T05:01:06+02:00",
    "shots": {}
   },
   {
@@ -3947,7 +4143,9 @@
     "label": "Βασικοί πίνακες"
    },
    "dynamic": false,
-   "helpKeys": [],
+   "helpKeys": [
+    "softone.chain"
+   ],
    "changes": [
     {
      "hash": "59b755b",
@@ -4122,6 +4320,53 @@
     "desktop": "/api/help-shot/softone.catalog-d.jpg",
     "mobile": "/api/help-shot/softone.catalog-m.jpg"
    }
+  },
+  {
+   "route": "/admin/softone/chain",
+   "slug": "softone.chain",
+   "file": "app/admin/(shell)/softone/chain/page.tsx",
+   "title": "SoftOne · Πορεία παραστατικού",
+   "doc": "Η πορεία οποιουδήποτε παραστατικού στο SoftOne, από τον αριθμό του (FINCODE) ή το FINDOC. Μόνο αναγνώσεις.",
+   "perm": "orders.read",
+   "nav": {
+    "group": "SoftOne ERP",
+    "label": "Πορεία παραστατικού"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "softone.chain.search",
+    "softone.chain.matches",
+    "orders.tabs",
+    "orders.softone",
+    "orders.softone.flow",
+    "orders.softone.list",
+    "orders.softone.stages",
+    "orders.softone.details"
+   ],
+   "changes": [
+    {
+     "hash": "e029767",
+     "date": "2026-11-10T15:03:47+02:00",
+     "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
+    },
+    {
+     "hash": "aa4015a",
+     "date": "2026-11-06T10:33:12+02:00",
+     "text": "Πορεία στο SoftOne: μακριές αλυσίδες χωράνε ολόκληρες στην αρχική προβολή"
+    },
+    {
+     "hash": "9fcea86",
+     "date": "2026-11-06T10:21:17+02:00",
+     "text": "Πορεία στο SoftOne: μόνο οι γραμμές της παραγγελίας"
+    },
+    {
+     "hash": "59b755b",
+     "date": "2026-11-06T10:12:55+02:00",
+     "text": "Παραγγελίες: καρτέλα «Πορεία στο SoftOne» (React Flow) + τύποι παραστατικών πώλησης"
+    }
+   ],
+   "updatedAt": "2026-11-10T15:03:47+02:00",
+   "shots": {}
   },
   {
    "route": "/admin/softone/customers",
@@ -4470,12 +4715,26 @@
    "nav": null,
    "dynamic": true,
    "helpKeys": [
-    "partner.identity",
-    "partner.portal-answers",
-    "partner.contacts",
+    "partner.routes",
     "partner.restocks",
+    "partner.history",
+    "partner.map",
+    "partner.identity",
     "partner.branches",
     "partner.store",
+    "partner.contacts",
+    "partner.portal-answers",
+    "extra.fields",
+    "partner.tabs",
+    "partner.transport-summary",
+    "partner.kpis",
+    "partner.docs.years",
+    "partner.docs.list",
+    "partner.eshop-setup",
+    "partner.eshop-steps",
+    "partner.eshop-zips",
+    "partner.eshop-caps",
+    "partner.eshop-agency",
     "restock.list"
    ],
    "changes": [
@@ -4611,6 +4870,37 @@
   }
  ],
  "recent": [
+  {
+   "hash": "788752b",
+   "date": "2026-11-11T05:40:08+02:00",
+   "text": "Build: το Turbopack δεν ψάχνει πια το bg-worker.mjs ως module (turbopackIgnore στο fork και στο stat του μοντέλου)",
+   "routes": []
+  },
+  {
+   "hash": "d589f07",
+   "date": "2026-11-11T05:01:06+02:00",
+   "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…",
+   "routes": [
+    "/admin",
+    "/admin/backups",
+    "/admin/catalog",
+    "/admin/catalog/templates",
+    "/admin/catalog/templates/import",
+    "/admin/catalog/templates/keyvoto",
+    "/admin/catalog/templates/nea-eidi",
+    "/admin/catalog/templates/xml"
+   ]
+  },
+  {
+   "hash": "eeb2eed",
+   "date": "2026-11-11T05:00:59+02:00",
+   "text": "Φωτογραφίες: αναζήτηση από την καρτέλα προϊόντος και αφαίρεση φόντου (μοντέλο ONNX στον server, σε ξεχωριστή διεργασία) με προεπισκόπηση πριν την έγκριση",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/[id]"
+   ]
+  },
   {
    "hash": "e029767",
    "date": "2026-11-10T15:03:47+02:00",
@@ -4871,24 +5161,6 @@
    "date": "2026-11-05T07:58:38+02:00",
    "text": "Σκετς Ερμή: ο παρουσιαστής διαλέγει από την οθόνη (επαγωγική κουζίνα, κλιματιστικό ανά BTU/μάρκα, τηλεόραση ανά ίντσες), «ναι» στον κάδο χωρίς διευκρίνιση, προειδοποίηση στο κινητό όταν η κλήση δεν θα έχει ζωντανούς υ…",
    "routes": []
-  },
-  {
-   "hash": "61331c8",
-   "date": "2026-11-04T13:51:52+02:00",
-   "text": "Σκετς Ερμή: οδηγίες στο σενάριο για ελεύθερο παίξιμο χωρίς να σπάσει η ροή",
-   "routes": []
-  },
-  {
-   "hash": "3c66a93",
-   "date": "2026-11-04T13:48:06+02:00",
-   "text": "Σκετς Ερμή: διαδραστικότητα πάνω στο σενάριο",
-   "routes": []
-  },
-  {
-   "hash": "fa12fa1",
-   "date": "2026-11-04T08:45:44+02:00",
-   "text": "Σελίδα προϊόντος: απόδελτίωση και από στενά banners, κάρτες, χωρίς υποσημειώσεις και επαναλήψεις",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4934,6 +5206,75 @@
   "ship.check": [
    "app/admin/(shell)/apostoles/ShippingRules.tsx"
   ],
+  "kentro.kpi": [
+   "app/admin/(shell)/apostoles/kentro/ControlBoard.tsx"
+  ],
+  "kentro.share": [
+   "app/admin/(shell)/apostoles/kentro/ControlBoard.tsx"
+  ],
+  "kentro.list": [
+   "app/admin/(shell)/apostoles/kentro/ControlBoard.tsx"
+  ],
+  "kentro.step": [
+   "app/admin/(shell)/apostoles/kentro/ControlBoard.tsx"
+  ],
+  "kentro.picker": [
+   "app/admin/(shell)/apostoles/kentro/ControlBoard.tsx"
+  ],
+  "agencies.roles": [
+   "app/admin/(shell)/apostoles/praktoreia/CarrierRoles.tsx"
+  ],
+  "agencies.suggest": [
+   "app/admin/(shell)/apostoles/praktoreia/CarrierRoles.tsx"
+  ],
+  "agencies.toolbar": [
+   "app/admin/(shell)/apostoles/praktoreia/CarrierToolbar.tsx"
+  ],
+  "carrier.tabs": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.kpis": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.map": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.vehicles": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.rates": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.routes": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.usage": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.details": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.s1": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.partners": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "carrier.suggested": [
+   "app/admin/(shell)/apostoles/praktoreia/[id]/CarrierCard.tsx"
+  ],
+  "rates.carrier": [
+   "app/admin/(shell)/apostoles/timokatalogoi/RateEditor.tsx"
+  ],
+  "rates.grid": [
+   "app/admin/(shell)/apostoles/timokatalogoi/RateEditor.tsx"
+  ],
+  "rates.extras": [
+   "app/admin/(shell)/apostoles/timokatalogoi/RateEditor.tsx"
+  ],
+  "rates.test": [
+   "app/admin/(shell)/apostoles/timokatalogoi/RateEditor.tsx"
+  ],
   "vouchers.close": [
    "app/admin/(shell)/apostoles/vouchers/VoucherControls.tsx"
   ],
@@ -4954,6 +5295,18 @@
   ],
   "vouchers.queue": [
    "app/admin/(shell)/apostoles/vouchers/page.tsx"
+  ],
+  "network.counts": [
+   "app/admin/(shell)/apostoles/xartis/NetworkMap.tsx"
+  ],
+  "network.filters": [
+   "app/admin/(shell)/apostoles/xartis/NetworkMap.tsx"
+  ],
+  "network.locate": [
+   "app/admin/(shell)/apostoles/xartis/NetworkMap.tsx"
+  ],
+  "network.map": [
+   "app/admin/(shell)/apostoles/xartis/NetworkMap.tsx"
   ],
   "security.report.meta": [
    "app/admin/(shell)/asfaleia/[id]/page.tsx"
@@ -5303,28 +5656,46 @@
   "list": [
    "app/admin/(shell)/service/page.tsx"
   ],
+  "softone.chain.search": [
+   "app/admin/(shell)/softone/chain/page.tsx"
+  ],
+  "softone.chain.matches": [
+   "app/admin/(shell)/softone/chain/page.tsx"
+  ],
+  "softone.chain": [
+   "app/admin/(shell)/softone/page.tsx"
+  ],
   "sync.job": [
    "app/admin/(shell)/softone/sync/ScheduledJobs.tsx"
   ],
   "sync.scheduler": [
    "app/admin/(shell)/softone/sync/page.tsx"
   ],
-  "partner.identity": [
-   "app/admin/(shell)/synergates/[id]/page.tsx"
-  ],
-  "partner.portal-answers": [
-   "app/admin/(shell)/synergates/[id]/page.tsx"
-  ],
-  "partner.contacts": [
+  "partner.routes": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
   "partner.restocks": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.history": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.map": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.identity": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
   "partner.branches": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
   "partner.store": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.contacts": [
+   "app/admin/(shell)/synergates/[id]/page.tsx"
+  ],
+  "partner.portal-answers": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
   ],
   "restock.views": [
@@ -5865,6 +6236,9 @@
   "dash.card": [
    "components/admin/dashboard/Dashboard.tsx"
   ],
+  "extra.fields": [
+   "components/admin/extra/ExtraFields.tsx"
+  ],
   "orders.stages.toggle": [
    "components/admin/orders/StageSettings.tsx"
   ],
@@ -5891,6 +6265,60 @@
   ],
   "orders.softone.details": [
    "components/admin/orders/chain/OrderTabs.tsx"
+  ],
+  "orders.flow": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.legend": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.next": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.canvas": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.list": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.panel": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.actions": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "orders.flow.transform": [
+   "components/admin/orders/flow/OrderFlow.tsx"
+  ],
+  "partner.tabs": [
+   "components/admin/partners/PartnerCardTabs.tsx"
+  ],
+  "partner.transport-summary": [
+   "components/admin/partners/PartnerCardTabs.tsx"
+  ],
+  "partner.kpis": [
+   "components/admin/partners/PartnerDocs.tsx"
+  ],
+  "partner.docs.years": [
+   "components/admin/partners/PartnerDocs.tsx"
+  ],
+  "partner.docs.list": [
+   "components/admin/partners/PartnerDocs.tsx"
+  ],
+  "partner.eshop-setup": [
+   "components/admin/partners/PartnerEshopSetup.tsx"
+  ],
+  "partner.eshop-steps": [
+   "components/admin/partners/PartnerEshopSetup.tsx"
+  ],
+  "partner.eshop-zips": [
+   "components/admin/partners/PartnerEshopSetup.tsx"
+  ],
+  "partner.eshop-caps": [
+   "components/admin/partners/PartnerEshopSetup.tsx"
+  ],
+  "partner.eshop-agency": [
+   "components/admin/partners/PartnerEshopSetup.tsx"
   ],
   "restock.advance": [
    "components/admin/partners/RestockDecision.tsx"
