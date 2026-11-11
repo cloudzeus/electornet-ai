@@ -1,4 +1,5 @@
 // Καθαρές αποφάσεις της νυχτερινής εργασίας: τι γίνεται με ένα ζευγάρι δεδομένου του αποτελέσματος του API. Χωρίς DB/δίκτυο.
+import { athensAt } from "@/lib/scheduler/due";
 import { diffPct, sameEan, type parseProduct } from "./kotsovolos/core";
 
 type Parsed = ReturnType<typeof parseProduct>;
@@ -8,6 +9,18 @@ export type Match = "auto" | "suggested" | "manual" | "rejected" | "lost";
 export function ourPrice(p: { price: number | null; offer: { price: { toString(): string } } | null }): number | null {
   return p.offer ? Number(p.offer.price.toString()) : p.price;
 }
+
+/** Παράθυρο εργασίας σε ώρα Αθήνας (ο server τρέχει UTC). idle = λόγος που δεν ξεκινά· until = τέλος (06:00 Αθήνας). */
+export function runWindow(trigger: "cron" | "manual", now: Date): { idle: string | null; until: Date } {
+  const six = athensAt(now, 6, 0), one = athensAt(now, 1, 0);
+  if (trigger === "manual") return { idle: null, until: new Date(Math.max(six.getTime(), now.getTime() + 2 * 3600_000)) };
+  if (now < one) return { idle: "Πριν από τις 01:00", until: six };
+  if (now >= six) return { idle: "Εκτός παραθύρου 01:00–06:00", until: six };
+  return { idle: null, until: six };
+}
+
+/** Μόνο αυτές οι αποτυχίες μετρούν για το «blocked» (Ruling 9): όχι δίκτυο/5xx (τα πιάνει ο pacer) και όχι 404. */
+export const isOddResponse = (e: string) => e === "η απάντηση δεν ήταν JSON" || e === "redirect" || e === "άδεια απάντηση";
 
 export const isGoneError = (e: string) => e === "δεν βρέθηκε (404)" || e === "redirect" || e === "άδεια απάντηση";
 
@@ -38,10 +51,9 @@ export function decidePrice(a: { prev: Prev; base: "auto" | "suggested"; note: s
   if (their == null) return { match: prev.match ?? a.base, lastError: "χωρίς τιμή", missCount: prev.missCount };
   const ean = sameEan(parsed.ean, a.ourEan);
   const eanMsg = `διαφορετικό EAN (δικό μας ${a.ourEan}, Κωτσόβολου ${parsed.ean}) — έλεγξε`;
-  if (prev.match === "manual" && ean === false) return { match: "manual", lastError: eanMsg, missCount: prev.missCount };
   const match: Match = prev.match === "manual" ? "manual" : ean === true ? "auto" : ean === false ? "suggested" : a.base;
   const lastError = ean === false ? eanMsg : match === "suggested" ? a.note : null;
   const diff = a.ourPrice != null ? diffPct(a.ourPrice, their) : null;
   const history = prev.their == null || prev.their !== their || prev.ourPrice !== a.ourPrice;
-  return { match, lastError, missCount: 0, available: true, history, prices: { list: parsed.list, offer: parsed.offer, their, ourPrice: a.ourPrice, diff } };
+  return { match, lastError, missCount: 0, available: parsed.buyable, history, prices: { list: parsed.list, offer: parsed.offer, their, ourPrice: a.ourPrice, diff } };
 }

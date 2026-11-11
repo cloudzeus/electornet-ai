@@ -6,7 +6,7 @@ import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
 import { isBundle, matchByModel, matchPhone, sameEan, type KotItem } from "./kotsovolos/core";
 import { readCosts } from "./cost";
-import { decideGone, decidePrice, isGoneError, ourPrice, type Decision, type Prev } from "./run-core";
+import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, type Decision, type Prev } from "./run-core";
 
 export { ourPrice };
 const COMP = "kotsovolos";
@@ -14,7 +14,8 @@ const SECTION = "competitors.kotsovolos"; // { paused, brakedNights } — γρά
 const FRESH_MS = 20 * 3600_000;
 
 const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number };
-async function writeState(data: { paused?: boolean; brakedNights: number }) {
+async function writeState(patch: { paused?: boolean; brakedNights: number }) {
+  const data = { ...(await readState()), ...patch };
   await db.setting.upsert({ where: { section: SECTION }, update: { data }, create: { section: SECTION, data } });
   resetSettingsCache();
 }
@@ -33,21 +34,20 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   const state = await readState();
   if (state.paused) return { ok: true, idle: true, message: "Σε παύση (ο Κωτσόβολος μάς είχε κόψει)· ενεργοποίησε την ξανά για να τρέξει" };
   const now = new Date();
-  if (trigger === "cron" && now.getHours() < 1) return { ok: true, idle: true, message: "Πριν από τις 01:00" };
+  const win = runWindow(trigger, now);
+  if (win.idle) return { ok: true, idle: true, message: win.idle };
 
   const maps = await db.competitorCategoryMap.findMany({ where: { competitor: COMP, extPath: { not: null }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}) } });
   if (!maps.length) return { ok: true, idle: true, message: "Καμία κατηγορία δεν συγκρίνεται" };
   const pathOf = new Map(maps.map((m) => [m.categoryId, m.extPath as string]));
   const brandMaps = new Map((await db.competitorBrandMap.findMany({ where: { competitor: COMP } })).map((b) => [b.brandId, b]));
 
-  const six = new Date(now); six.setHours(6, 0, 0, 0);
-  const until = trigger === "cron" ? six : new Date(Math.max(six.getTime(), now.getTime() + 2 * 3600_000));
-  const pacer = createPacer({ budget: trigger === "cron" ? 1800 : 300, until });
+  const pacer = createPacer({ budget: trigger === "cron" ? 1800 : 300, until: win.until });
 
   let sitemap: KotItem[];
   try { sitemap = await fetchSitemap(pacer); }
   catch (e) {
-    if (e instanceof KotStopError) return brake(e, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0 });
+    if (e instanceof KotStopError) return brake(e, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 });
     return { ok: false, message: `Το sitemap του Κωτσόβολου δεν κατεβαίνει (${(e as Error).message}) — οι παλιές τιμές μένουν` };
   }
   const byArt = new Map(sitemap.map((i) => [i.art, i]));
@@ -66,14 +66,15 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   work.sort((a, b) => (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
   if (opts.limit) work = work.slice(0, opts.limit);
 
-  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0 };
+  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0 };
   const touched: { productId: string; erp: number }[] = [];
   let bad = 0;
   // Ruling 9: 5 συνεχόμενες μη-404 αποτυχίες (non-JSON, redirect, χωρίς προϊόν) = ύποπτο φρένο
   const get = async (art: string) => {
     const r = await fetchProduct(art, pacer);
-    if ("error" in r) { if (r.error !== "δεν βρέθηκε (404)" && ++bad >= 5) throw new KotStopError("blocked", "5 συνεχόμενες μη έγκυρες απαντήσεις"); }
+    if ("error" in r) { if (isOddResponse(r.error) && ++bad >= 5) throw new KotStopError("blocked", "5 συνεχόμενες μη έγκυρες απαντήσεις"); }
     else bad = 0;
+    if ("error" in r && !isOddResponse(r.error)) bad = 0;
     return r;
   };
 
@@ -88,8 +89,11 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
     };
     const row = await db.competitorPrice.upsert({ where: { productId_competitor: { productId: p.id, competitor: COMP } }, update: data, create: { productId: p.id, competitor: COMP, ...data } });
     if (d.prices && d.history) await db.competitorPriceHistory.create({ data: { competitorPriceId: row.id, price: d.prices.their, ourPrice: d.prices.ourPrice } });
-    if (d.prices) { c.prices++; if ((d.prices.diff ?? 0) > 0.5) c.expensive++; }
-    if (extId && !d.clearPair && ["auto", "manual", "suggested"].includes(d.match)) { c.pairs++; touched.push({ productId: p.id, erp: Number(p.erpCode) }); }
+    const firm = d.match === "auto" || d.match === "manual";
+    if (d.prices && firm) { c.prices++; if ((d.prices.diff ?? 0) > 0.5) c.expensive++; }
+    if (extId && !d.clearPair && firm) { c.pairs++; touched.push({ productId: p.id, erp: Number(p.erpCode) }); }
+    if (extId && !d.clearPair && d.match === "suggested") c.sugg++;
+    if (!d.prices && !d.clearPair && d.available === undefined && d.lastError) c.readErr++;
   };
 
   const process = async (it: Item) => {
@@ -134,7 +138,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
     for (const kot of items) {
       const r = await get(kot.art);
       if (!("error" in r) && sameEan(r.ean, p.ean) === true) { best = { kot, r }; break; }
-      best ??= { kot, r };
+      if (!best || ("error" in best.r && !("error" in r))) best = { kot, r }; // reserve: το πρώτο χωρίς σφάλμα
     }
     const { kot, r } = best!;
     const cur = row?.match === "lost" || !row ? null : (row.match as Prev["match"]);
@@ -161,7 +165,8 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: { categ
   return { ok: true, message: msg(c) };
 }
 
-const msg = (c: { pairs: number; prices: number; expensive: number; errors: number }) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.errors} σφάλματα`;
+type Counts = { pairs: number; prices: number; expensive: number; errors: number; sugg: number; readErr: number };
+const msg = (c: Counts) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.sugg} προτάσεις προς έλεγχο · ${c.readErr} χωρίς τιμή · ${c.errors} σφάλματα`;
 
 async function costs(touched: { productId: string; erp: number }[]) {
   if (!touched.length) return;
@@ -171,7 +176,7 @@ async function costs(touched: { productId: string; erp: number }[]) {
   for (const t of touched) { const x = m.get(t.erp); if (x) await db.competitorPrice.update({ where: { productId_competitor: { productId: t.productId, competitor: COMP } }, data: { cost: x.cost, costSource: x.source, costAt: at } }); }
 }
 
-async function brake(e: KotStopError, state: { brakedNights?: number }, c: { pairs: number; prices: number; expensive: number; errors: number; left: number }): Promise<JobResult> {
+async function brake(e: KotStopError, state: { brakedNights?: number }, c: Counts & { left: number }): Promise<JobResult> {
   if (e.reason === "budget" || e.reason === "window") {
     await writeState({ brakedNights: 0 });
     return { ok: true, message: `${msg(c)} · συνεχίζει αύριο: ${c.left} έμειναν` };
