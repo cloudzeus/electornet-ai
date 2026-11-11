@@ -16,7 +16,7 @@ const FRESH_MS = 20 * 3600_000;
 /** Χωρίς ζευγάρι μετά από πλήρες ψάξιμο (μοντέλο + AI): γραμμή με extId=null και αυτό το lastError, ξαναψάχνεται μετά από 7 ημέρες. */
 export const NOT_FOUND = "δεν βρέθηκε στον Κωτσόβολο";
 const RETRY_MS = 7 * 86400_000;
-const AI_MAX = 150;
+const AI_MAX = Infinity; // χωρίς όριο κλήσεων (απόφαση χρήστη 11/11)· φρένο μόνο το ημερήσιο όριο κόστους των Ρυθμίσεων AI (overBudget)
 
 export const readState = async () => ((await db.setting.findUnique({ where: { section: SECTION } }))?.data ?? {}) as { paused?: boolean; brakedNights?: number; firstScanDone?: boolean };
 export async function writeState(patch: { paused?: boolean; brakedNights: number; firstScanDone?: boolean }) {
