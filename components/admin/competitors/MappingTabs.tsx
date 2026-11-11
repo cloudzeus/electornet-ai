@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Check, ListPlus, Loader2, Pencil, Plus, RefreshCw, RotateCcw, Search, Trash2, Undo2 } from "lucide-react";
-import { addCategory, removeCategory, resumeJob, runNow, setBrandMap, setCategoryMap, suggestAll } from "@/app/admin/(shell)/catalog/competitors/actions";
+import { addCategory, removeCategory, removeUnconfirmed, resumeJob, runNow, setBrandMap, setCategoryMap, suggestAll } from "@/app/admin/(shell)/catalog/competitors/actions";
 
 export type CatRow = {
   id: string; name: string; path: string; products: number; extPath: string | null; suggestion: string | null;
@@ -22,6 +22,19 @@ const STATUS: Record<CatRow["status"], { text: string; cls: string }> = {
   suggested: { text: "Πρόταση · έλεγξέ τη", cls: "bg-eu-blue-light text-eu-blue" },
   needed: { text: "Χρειάζεται επιλογή", cls: "bg-eu-amber/15 text-eu-ink" },
 };
+/** Ερώτηση επιβεβαίωσης μέσα στη σελίδα (όχι παράθυρο του browser) πριν από μαζική ή μη αναστρέψιμη ενέργεια. */
+function Confirm({ text, yes, onYes, onNo, busy }: { text: string; yes: string; onYes: () => void; onNo: () => void; busy: boolean }) {
+  return (
+    <div role="alertdialog" aria-label={text} className="rounded-xl border border-eu-amber bg-eu-amber/5 p-3 grid gap-2 min-w-0">
+      <p className="m-0 text-eu-ink text-[length:var(--fs-14)]">{text}</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={onYes} disabled={busy} className={`${btn} bg-eu-navy text-white border-eu-navy hover:bg-eu-navy-2`}>{busy && <Loader2 className="size-4 animate-spin" aria-hidden />}{yes}</button>
+        <button type="button" onClick={onNo} disabled={busy} className={btn}>Άκυρο</button>
+      </div>
+    </div>
+  );
+}
+
 /** household-appliances/fridges/fridge-freezers → fridges › fridge-freezers */
 const pretty = (p: string) => p.split("/").slice(1).join(" › ") || p;
 
@@ -62,7 +75,10 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
     if (!r.ok) setErr(r.error);
     router.refresh();
   });
-  const remove = () => start(async () => { await removeCategory(row.id); router.refresh(); });
+  const [askRemove, setAskRemove] = useState(false);
+  const doRemove = () => start(async () => { await removeCategory(row.id); setAskRemove(false); router.refresh(); });
+  // Μια επιβεβαιωμένη αντιστοίχιση σβήνεται μόνο μετά από ερώτηση· μια πρόταση φεύγει αμέσως
+  const remove = () => (row.extPath ? setAskRemove(true) : doRemove());
   if (!options) return <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{row.extPath ? pretty(row.extPath) : "—"} · οι κατηγορίες του Κωτσόβολου δεν φορτώνουν τώρα</p>;
   const extra = [row.extPath, row.suggestion].filter((p): p is string => !!p && !options.some((o) => o.path === p));
   const groups = new Map<string, Opt[]>();
@@ -86,6 +102,7 @@ function CategorySelect({ row, options, canWrite }: { row: CatRow; options: Opt[
           <button type="button" onClick={remove} disabled={busy} className={`${btn} text-eu-ink-3`} aria-label={`Αφαίρεση της κατηγορίας ${row.name} από τη σύγκριση`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση</button>
         </div>
       )}
+      {askRemove && <Confirm text={`Να σταματήσει η σύγκριση στην κατηγορία «${row.name}»; Οι τιμές που βρέθηκαν μένουν.`} yes="Ναι, αφαίρεση" onYes={doRemove} onNo={() => setAskRemove(false)} busy={busy} />}
       {err && <p role="alert" className="m-0 text-eu-red text-[length:var(--fs-13)]">{err}</p>}
     </div>
   );
@@ -110,8 +127,13 @@ function Matched({ row }: { row: CatRow }) {
 
 /** Οι κατηγορίες που συγκρίνονται, μία καρτέλα ανά ριζική κατηγορία μας (χωρίς καρτέλες όταν είναι μόνο μία). */
 export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; label: string; rows: CatRow[] }[]; options: Opt[] | null; canWrite: boolean }) {
+  const router = useRouter();
   const [on, setOn] = useState(tabs[0]?.key);
+  const [ask, setAsk] = useState(false);
+  const [busy, start] = useTransition();
   const tab = tabs.find((t) => t.key === on) ?? tabs[0];
+  const unconfirmed = tab?.rows.filter((r) => !r.extPath) ?? [];
+  const clear = () => start(async () => { await removeUnconfirmed(unconfirmed.map((r) => r.id)); setAsk(false); router.refresh(); });
   const cols = "md:grid-cols-[minmax(0,1.3fr)_5rem_minmax(0,2fr)_minmax(0,9rem)_10rem]";
   return (
     <section className="rounded-2xl border border-eu-line bg-white min-w-0" aria-label="Κατηγορίες">
@@ -119,7 +141,7 @@ export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; 
         {tabs.map((t) => {
           const open = t.rows.filter((r) => r.status === "needed" || r.status === "suggested").length;
           return (
-            <button key={t.key} type="button" role="tab" aria-selected={t.key === tab?.key} onClick={() => setOn(t.key)}
+            <button key={t.key} type="button" role="tab" aria-selected={t.key === tab?.key} onClick={() => { setOn(t.key); setAsk(false); }}
               className={`min-h-11 px-3 border-b-[3px] font-bold text-[length:var(--fs-15)] transition-colors ${t.key === tab?.key ? "border-eu-yellow text-eu-navy" : "border-transparent text-eu-ink-3 hover:text-eu-navy"}`}>
               {t.label}{open > 0 && <span className="ml-1.5 tabular-nums text-eu-ink-3 font-normal text-[length:var(--fs-13)]">· {num(open)} για απόφαση</span>}
             </button>
@@ -128,9 +150,13 @@ export function MappingTabs({ tabs, options, canWrite }: { tabs: { key: string; 
       </div>}
       <div className="p-4 grid gap-3 min-w-0" data-help="competitors-categories">
         <div className="grid gap-1">
-          <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Κατηγορίες</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Κατηγορίες</h3>
+            {canWrite && unconfirmed.length > 0 && !ask && <button type="button" onClick={() => setAsk(true)} disabled={busy} className={`${btn} text-eu-ink-3`}><Trash2 className="size-4" aria-hidden /> Αφαίρεση όλων των ανεπιβεβαίωτων ({num(unconfirmed.length)})</button>}
+          </div>
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Αριστερά οι δικές μας (υποκατηγορίες SoftOne), δεξιά η αντίστοιχη ενότητα του kotsovolos.gr. Ψάχνουμε τιμές μόνο στις πράσινες· οι προτάσεις θέλουν πρώτα επιβεβαίωση.</p>
         </div>
+        {ask && <Confirm text={`Θα βγουν από τη σύγκριση ${num(unconfirmed.length)} κατηγορίες χωρίς επιβεβαίωση${tabs.length > 1 ? ` της ομάδας «${tab?.label}»` : ""}. Οι επιβεβαιωμένες μένουν.`} yes="Ναι, αφαίρεση" onYes={clear} onNo={() => setAsk(false)} busy={busy} />}
         {!tab?.rows.length ? (
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Δεν συγκρίνεται ακόμη καμία κατηγορία. Πρόσθεσε από τον επιλογέα «Πρόσθεσε κατηγορία» από πάνω.</p>
         ) : (
@@ -173,7 +199,10 @@ export function CategoryPicker({ options }: { options: PickOption[] }) {
     return options.filter((o) => `${o.path} ${o.name}`.toLocaleLowerCase("el").normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(n)).slice(0, 12);
   }, [q, options]);
   const roots = options.filter((o) => o.root && o.missing > 0);
-  const add = (o: PickOption, all: boolean) => { setBusyId(o.id); start(async () => {
+  const [ask, setAsk] = useState<{ o: PickOption; all: boolean } | null>(null);
+  // Πάνω από 10 κατηγορίες με ένα πάτημα: πρώτα ερώτηση
+  const request = (o: PickOption, all: boolean) => (o.missing > 10 ? setAsk({ o, all }) : add(o, all));
+  const add = (o: PickOption, all: boolean) => { setAsk(null); setBusyId(o.id); start(async () => {
     const r = all ? await suggestAll(o.id) : await addCategory(o.id);
     setMsg(r.ok ? { ok: true, text: `Προστέθηκαν ${num(r.added)} · ${num(r.suggested)} με πρόταση Κωτσόβολου — έλεγξέ τες παρακάτω` } : { ok: false, text: r.error });
     setBusyId(null);
@@ -200,7 +229,7 @@ export function CategoryPicker({ options }: { options: PickOption[] }) {
                 <span className="text-eu-ink-3 text-[length:var(--fs-12)] break-words tabular-nums">{[o.path, `${num(o.products)} προϊόντα`, o.leaves > 1 ? `${num(o.leaves)} υποκατηγορίες` : ""].filter(Boolean).join(" · ")}</span>
               </span>
               {o.missing ? (
-                <button type="button" disabled={busy} onClick={() => add(o, false)} className={btn}>{busyId === o.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Προσθήκη{o.leaves > 1 ? ` (${num(o.missing)})` : ""}</button>
+                <button type="button" disabled={busy} onClick={() => request(o, false)} className={btn}>{busyId === o.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Plus className="size-4" aria-hidden />} Προσθήκη{o.leaves > 1 ? ` (${num(o.missing)})` : ""}</button>
               ) : <span className={`${pill} bg-eu-green/10 text-eu-green`}><Check className="size-3.5" aria-hidden /> Ήδη στη σύγκριση</span>}
             </li>
           ))}
@@ -211,7 +240,7 @@ export function CategoryPicker({ options }: { options: PickOption[] }) {
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Ή πρόσθεσε μονομιάς όλη μια ομάδα, με προτάσεις προς έλεγχο:</p>
           <div className="flex flex-wrap gap-2">
             {roots.map((o) => (
-              <button key={o.id} type="button" disabled={busy} onClick={() => add(o, true)} className={btn}>
+              <button key={o.id} type="button" disabled={busy} onClick={() => request(o, true)} className={btn}>
                 {busyId === o.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ListPlus className="size-4" aria-hidden />} Πρότεινε όλες: {o.name} <span className="tabular-nums font-normal text-eu-ink-3">({num(o.missing)})</span>
               </button>
             ))}
@@ -219,6 +248,7 @@ export function CategoryPicker({ options }: { options: PickOption[] }) {
         </div>
       )}
       {msg && <p role="status" className={`m-0 text-[length:var(--fs-13)] ${msg.ok ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</p>}
+      {ask && <Confirm text={`Θα προστεθούν ${num(ask.o.missing)} κατηγορίες ως προτάσεις — συνέχεια;`} yes="Συνέχεια" onYes={() => add(ask.o, ask.all)} onNo={() => setAsk(null)} busy={busy} />}
     </section>
   );
 }

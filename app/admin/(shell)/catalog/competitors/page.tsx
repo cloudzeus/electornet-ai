@@ -53,7 +53,9 @@ export default async function CompetitorsPage() {
     return t;
   };
   const pairsByCat = tally(firm, "categoryId"), suggByCat = tally(prices.filter((p) => p.match === "suggested"), "categoryId"), seenByCat = tally(prices, "categoryId");
-  const ran = !!job?.lastEndAt;
+  const lastRun = job?.lastEndAt && job.lastStartAt && job.lastEndAt >= job.lastStartAt ? job.lastStartAt : null;
+  /** Ελέγχθηκε ήδη: έχει γραμμές τιμών ή ήταν επιβεβαιωμένη πριν ξεκινήσει η τελευταία ολοκληρωμένη εκτέλεση. */
+  const scanned = (m: (typeof maps)[number]) => !!m.extPath && ((seenByCat.get(m.categoryId) ?? 0) > 0 || (!!lastRun && m.updatedAt <= lastRun));
 
   // Καρτέλες: οι κατηγορίες που διάλεξε ο διαχειριστής, ομαδοποιημένες ανά ριζική κατηγορία μας
   const groups = new Map<string, { key: string; label: string; rows: CatRow[] }>();
@@ -62,7 +64,7 @@ export default async function CompetitorsPage() {
     if (!c) continue;
     const ch = chain(c.id), root = ch[0];
     const status: CatRow["status"] = m.extPath ? "mapped" : m.suggested ? "suggested" : "needed";
-    const row: CatRow = { id: c.id, name: c.name, path: ch.slice(1, -1).map((x) => x.name).join(" › "), products: c.productCount, extPath: m.extPath, suggestion: m.extPath ? null : m.suggested, status, pairs: pairsByCat.get(c.id) ?? 0, sugg: suggByCat.get(c.id) ?? 0, seen: (seenByCat.get(c.id) ?? 0) > 0 || (ran && !!m.extPath) };
+    const row: CatRow = { id: c.id, name: c.name, path: ch.slice(1, -1).map((x) => x.name).join(" › "), products: c.productCount, extPath: m.extPath, suggestion: m.extPath ? null : m.suggested, status, pairs: pairsByCat.get(c.id) ?? 0, sugg: suggByCat.get(c.id) ?? 0, seen: scanned(m) };
     const g = groups.get(root.id) ?? { key: root.id, label: root.name, rows: [] };
     g.rows.push(row);
     groups.set(root.id, g);
@@ -71,7 +73,9 @@ export default async function CompetitorsPage() {
   const allRows = tabs.flatMap((t) => t.rows);
   const comparedIds = allRows.filter((r) => r.status === "mapped").map((r) => r.id);
   const compared = allRows.filter((r) => r.status === "mapped").reduce((s, r) => s + r.products, 0);
-  const comparedSet = new Set(comparedIds), pairsIn = firm.filter((p) => comparedSet.has(p.product.categoryId)).length; // όχι κατηγορίες που αφαιρέθηκαν
+  // Μόνο οι κατηγορίες που συγκρίνονται τώρα (όχι όσες αφαιρέθηκαν, που κρατούν τις παλιές τιμές)
+  const comparedSet = new Set(comparedIds), firmIn = firm.filter((p) => comparedSet.has(p.product.categoryId)), pairsIn = firmIn.length;
+  const scannedSet = new Set(maps.filter(scanned).map((m) => m.categoryId));
   const needChoice = allRows.filter((r) => r.status === "needed").length, needCheck = allRows.filter((r) => r.status === "suggested").length;
 
   // Επιλογέας: κάθε ενεργή κατηγορία μας με προϊόντα (μια γονική προσθέτει όλες τις τελικές της)
@@ -82,23 +86,30 @@ export default async function CompetitorsPage() {
 
   // Μάρκες των κατηγοριών που συγκρίνονται
   const [brandCounts, brandMaps] = await Promise.all([
-    comparedIds.length ? db.product.groupBy({ by: ["brandId"], where: { active: true, kind: { not: "set" }, categoryId: { in: comparedIds } }, _count: true }) : Promise.resolve([]),
+    comparedIds.length ? db.product.groupBy({ by: ["brandId", "categoryId"], where: { active: true, kind: { not: "set" }, categoryId: { in: comparedIds } }, _count: true }) : Promise.resolve([]),
     db.competitorBrandMap.findMany({ where: { competitor: COMP } }),
   ]);
-  const brandNames = new Map((await db.brand.findMany({ where: { id: { in: brandCounts.map((b) => b.brandId) } }, select: { id: true, name: true } })).map((b) => [b.id, b.name]));
+  const perBrand = new Map<string, { products: number; scanned: boolean }>();
+  for (const b of brandCounts) {
+    const x = perBrand.get(b.brandId) ?? { products: 0, scanned: false };
+    perBrand.set(b.brandId, { products: x.products + b._count, scanned: x.scanned || scannedSet.has(b.categoryId) });
+  }
+  const brandNames = new Map((await db.brand.findMany({ where: { id: { in: [...perBrand.keys()] } }, select: { id: true, name: true } })).map((b) => [b.id, b.name]));
   const bmOf = new Map(brandMaps.map((b) => [b.brandId, b]));
-  const pairsByBrand = tally(firm, "brandId");
-  const brands: BrandCard[] = brandCounts.map((b) => {
-    const m = bmOf.get(b.brandId), pairs = pairsByBrand.get(b.brandId) ?? 0;
-    return { id: b.brandId, name: brandNames.get(b.brandId) ?? "—", products: b._count, pairs, alias: m?.alias ?? null, notCarried: !!m?.notCarried, needsLook: ran && pairs === 0 && !m?.notCarried };
+  const pairsByBrand = tally(firmIn, "brandId");
+  const brands: BrandCard[] = [...perBrand].map(([id, b]) => {
+    const m = bmOf.get(id), pairs = pairsByBrand.get(id) ?? 0;
+    // πορτοκαλί μόνο αν έχει ήδη ελεγχθεί τουλάχιστον μία κατηγορία της
+    return { id, name: brandNames.get(id) ?? "—", products: b.products, pairs, alias: m?.alias ?? null, notCarried: !!m?.notCarried, needsLook: b.scanned && pairs === 0 && !m?.notCarried };
   }).sort((a, b) => Number(b.needsLook) - Number(a.needsLook) || Number(a.notCarried) - Number(b.notCarried) || b.pairs - a.pairs || a.name.localeCompare(b.name, "el"));
 
   // Κάρτες κατάστασης
   const since = job?.lastStartAt ?? null;
-  const fresh = since ? firm.filter((p) => p.checkedAt && p.checkedAt >= since).length : 0;
-  const pricier = firm.filter((p) => (p.diffPct ?? 0) > 0.5).length;
-  const withPrice = firm.filter((p) => p.diffPct != null).length;
-  const totalSugg = prices.filter((p) => p.match === "suggested").length;
+  const fresh = since ? firmIn.filter((p) => p.checkedAt && p.checkedAt >= since).length : 0;
+  const pricier = firmIn.filter((p) => (p.diffPct ?? 0) > 0.5).length;
+  const withPrice = firmIn.filter((p) => p.diffPct != null).length;
+  const tonight = job?.lastMessage?.startsWith("Χειροκίνητα") ? "στην τελευταία εκτέλεση" : "απόψε"; // runJob γράφει «Χειροκίνητα · …» στις χειροκίνητες
+  const totalSugg = prices.filter((p) => p.match === "suggested" && comparedSet.has(p.product.categoryId)).length;
   const card = "rounded-2xl border bg-white p-4 grid content-start gap-1.5 min-w-0";
   const label = "m-0 text-eu-ink-3 text-[length:var(--fs-13)]";
   const figure = "m-0 font-heading font-bold tabular-nums text-[length:var(--fs-22)]";
@@ -146,8 +157,8 @@ export default async function CompetitorsPage() {
               <p className={label}>Ο πρώτος έλεγχος γίνεται απόψε, ή πάτα «Τρέξε τώρα»</p>
             </>
           )}
-          {firm.length > 0 && since && (
-            <p className={label}>{fresh < firm.length ? `${num(fresh)} από ${num(firm.length)} τιμές ανανεώθηκαν απόψε · τα υπόλοιπα αύριο` : `Και οι ${num(firm.length)} τιμές ανανεώθηκαν`}</p>
+          {firmIn.length > 0 && since && (
+            <p className={label}>{fresh < firmIn.length ? `${num(fresh)} από ${num(firmIn.length)} τιμές ανανεώθηκαν ${tonight} · τα υπόλοιπα αύριο` : `Και οι ${num(firmIn.length)} τιμές ανανεώθηκαν ${tonight}`}</p>
           )}
         </div>
 

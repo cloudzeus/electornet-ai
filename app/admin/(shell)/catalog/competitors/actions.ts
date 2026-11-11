@@ -48,15 +48,13 @@ async function addUnder(categoryId: string, userId: string, action: string): Pro
   const ids = t.leaves(categoryId).filter((id) => !t.rows.has(id));
   if (!ids.length) return { ok: false, error: "Οι κατηγορίες με προϊόντα εδώ είναι ήδη στη σύγκριση." };
   const known = await knownPaths();
-  let suggested = 0;
-  for (const id of ids) {
-    const s = known ? suggestPath(t.node(id), t.mapped, known) : null;
-    if (s) suggested++;
-    await db.competitorCategoryMap.create({ data: { competitor: COMP, categoryId: id, suggested: s } });
-  }
-  await audit(userId, action, "Category", categoryId, null, { added: ids.length, suggested });
+  const data = ids.map((id) => ({ competitor: COMP, categoryId: id, suggested: known ? suggestPath(t.node(id), t.mapped, known) : null }));
+  const suggested = data.filter((d) => d.suggested).length;
+  // skipDuplicates: δύο ταυτόχρονες προσθήκες της ίδιας κατηγορίας δεν σκάνε
+  const { count } = await db.competitorCategoryMap.createMany({ data, skipDuplicates: true });
+  await audit(userId, action, "Category", categoryId, null, { added: count, suggested });
   revalidatePath(PATH);
-  return { ok: true, added: ids.length, suggested };
+  return { ok: true, added: count, suggested };
 }
 
 /** Πρόσθεσε μια κατηγορία μας στη σύγκριση (αν έχει υποκατηγορίες, μπαίνουν όλες). */
@@ -98,17 +96,33 @@ export async function setCategoryMap(categoryId: string, extPath: string | null)
   return { ok: true };
 }
 
+/** Βγάζει μαζί όσες κατηγορίες της λίστας δεν έχουν επιβεβαιωμένη αντιστοίχιση (extPath null)· οι επιβεβαιωμένες μένουν. */
+export async function removeUnconfirmed(categoryIds: string[]): Promise<{ ok: true; removed: number } | { ok: false; error: string }> {
+  const user = await requirePermission("catalog.products.write");
+  if (!Array.isArray(categoryIds) || categoryIds.length > 2000 || !categoryIds.every((id) => typeof id === "string")) return { ok: false, error: "Μη έγκυρη λίστα κατηγοριών." };
+  const { count } = await db.competitorCategoryMap.deleteMany({ where: { competitor: COMP, categoryId: { in: categoryIds }, extPath: null } });
+  await audit(user.id, "competitor.category.removeUnconfirmed", "Category", null, null, { removed: count });
+  revalidatePath(PATH);
+  return { ok: true, removed: count };
+}
+
 /** Πώς γράφεται η μάρκα στον Κωτσόβολο, ή ότι δεν τη φέρνουν (τότε δεν ψάχνεται και δεν μετρά ως αποτυχία). */
 export async function setBrandMap(brandId: string, patch: { alias?: string | null; notCarried?: boolean }): Promise<Out> {
   const user = await requirePermission("catalog.products.write");
+  if (typeof brandId !== "string") return { ok: false, error: "Άγνωστη μάρκα." };
   if (!(await db.brand.findUnique({ where: { id: brandId }, select: { id: true } }))) return { ok: false, error: "Άγνωστη μάρκα." };
+  if (!patch || typeof patch !== "object") return { ok: false, error: "Μη έγκυρη αλλαγή." };
+  const { alias, notCarried } = patch;
+  if (alias !== undefined && alias !== null && typeof alias !== "string") return { ok: false, error: "Μη έγκυρο όνομα." };
+  if (notCarried !== undefined && typeof notCarried !== "boolean") return { ok: false, error: "Μη έγκυρη τιμή «δεν τη φέρνουν»." };
   const data: { alias?: string | null; notCarried?: boolean } = {};
-  if (patch.alias !== undefined) {
-    const a = patch.alias?.trim() || null;
-    if (a && a.length > 60) return { ok: false, error: "Το όνομα είναι πολύ μεγάλο." };
+  if (alias !== undefined) {
+    const a = alias?.trim() || null;
+    if (a && a.length > 60) return { ok: false, error: "Το όνομα είναι πολύ μεγάλο (έως 60 χαρακτήρες)." };
     data.alias = a;
   }
-  if (patch.notCarried !== undefined) data.notCarried = !!patch.notCarried;
+  if (notCarried !== undefined) data.notCarried = notCarried;
+  if (!Object.keys(data).length) return { ok: false, error: "Δεν άλλαξε τίποτα." };
   const key = { competitor_brandId: { competitor: COMP, brandId } };
   const before = await db.competitorBrandMap.findUnique({ where: key });
   await db.competitorBrandMap.upsert({ where: key, update: data, create: { competitor: COMP, brandId, ...data } });

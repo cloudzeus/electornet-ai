@@ -1,4 +1,5 @@
 "use server";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
@@ -105,10 +106,19 @@ export async function resetLogo(id: string) {
   return { ok: true as const };
 }
 
+const BACKGROUND = new Set(["competitor-kotsovolos"]);
+
 /** Αυτόματες εργασίες (lib/scheduler): «Τρέξε τώρα» και ενεργοποίηση/παύση. */
 export async function runScheduledJob(key: string) {
   const user = await requirePermission("settings.integrations.write");
   const { runJob } = await import("@/lib/scheduler");
+  // Εργασίες που κρατούν πολλά λεπτά (Κωτσόβολος ~25′) ξεκινούν στο παρασκήνιο· η πρόοδος φαίνεται στην κάρτα
+  if (BACKGROUND.has(key)) {
+    after(async () => { await runJob(key, "manual"); });
+    await audit(user.id, "scheduler.run", "ScheduledJob", key, null, { background: true });
+    revalidatePath("/admin/softone/sync");
+    return { ran: false as const, started: true as const, message: "Ξεκίνησε στο παρασκήνιο — ανανέωσε τη σελίδα σε λίγο για την πρόοδο." };
+  }
   const r = await runJob(key, "manual");
   await audit(user.id, "scheduler.run", "ScheduledJob", key, null, r);
   revalidatePath("/admin/softone/sync");
