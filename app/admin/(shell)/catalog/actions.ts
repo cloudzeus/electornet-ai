@@ -148,7 +148,7 @@ export async function saveProductFields(productId: string, changes: import("@/li
     revalidatePath(path(productId));
   }
   if (!w.ok) return { ok: false as const, message: w.error ?? "Η αποθήκευση απέτυχε.", conflicts: w.conflicts.map((c) => ({ ...c, label: labels([c.field]) })), mismatches: w.mismatches.map((m) => ({ ...m, label: labels([m.field]) })), written: w.written };
-  return { ok: true as const, message: w.written.length ? `Αποθηκεύτηκε στο SoftOne και στο e-shop: ${labels(w.written)}.` : "Καμία αλλαγή για αποθήκευση.", written: w.written };
+  return { ok: true as const, message: (w.written.length ? `Αποθηκεύτηκε στο SoftOne και στο e-shop: ${labels(w.written)}.` : "Καμία αλλαγή για αποθήκευση.") + (w.specTable ? ` ${w.specTable}` : ""), written: w.written };
 }
 
 // ---------- Βίντεο προϊόντος ----------

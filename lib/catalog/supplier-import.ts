@@ -215,7 +215,7 @@ async function updateInSoftone(r: Decided, g: { s1Id: number; cat1: number | nul
   // με νέα web ομάδα το είδος μπαίνει τώρα στο WEB_FILTER: το syncItem το προσθέτει στον καθρέφτη και η προβολή φτιάχνει προϊόν
   await syncItem(it.mtrl, "manual");
   const p = await projectItem(it.mtrl);
-  return { ok: true, mtrl: it.mtrl, productId: p.productId, message: `Γράφτηκαν στο SoftOne και στο κατάστημα: ${r.changes.map((c) => c.label).join(", ")}.` };
+  return { ok: true, mtrl: it.mtrl, productId: p.productId, message: `Γράφτηκαν στο SoftOne και στο κατάστημα: ${r.changes.map((c) => c.label).join(", ")}.${w.specTable ? ` ${w.specTable}` : ""}` };
 }
 
 async function updateEshopOnly(r: Decided) {

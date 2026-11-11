@@ -1,22 +1,18 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { s1 } from "@/lib/softone";
+import { s1, s1isite } from "@/lib/softone";
 import { getSetting } from "@/lib/settings/store";
 import { getTable } from "@/lib/softone/lookups";
 import { readGroup, type Group } from "@/lib/softone/spec-write";
-import { applyL2, clean, l2Key, NAME_MAX, nextCode, sig, verifyList, type L2Change, type Row } from "./category-core";
+import { clean, NAME_MAX, nextCode, sig, type L2Change, type Row } from "./category-core";
 
 /**
  * Εγγραφές στο δέντρο κατηγοριών web του SoftOne. Κάθε αλλαγή: ανάγνωση → εγγραφή → νέα ανάγνωση και επαλήθευση.
  * Αφαίρεση = ανενεργό, ποτέ διαγραφή (πάνω στους κωδικούς κρέμονται είδη, φίλτρα και σύνδεσμοι).
  * Όλα πίσω από τον διακόπτη `softone.categoriesWrite` (Ρυθμίσεις → SoftOne), κλειστό από προεπιλογή.
- *
- * ΠΡΟΣΟΧΗ: το `$CCCWEBCATEGORY2` είναι EditList: το getData φέρνει ΟΛΗ τη λίστα (όλους τους γονείς) και το setData
- * την αντικαθιστά ολόκληρη — γι' αυτό στέλνουμε πάντα όλες τις γραμμές. Η πρώτη πραγματική εγγραφή θέλει δοκιμή με έγκριση.
+
  */
 export const WRITE_OFF = "Η εγγραφή κατηγοριών στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → «Αλλαγές κατηγοριών προς SoftOne»). Δεν άλλαξε τίποτα.";
-
-export const L2_BLOCKED = "Το SoftOne δεν δέχεται αλλαγές στις κατηγορίες 2ου επιπέδου από την εφαρμογή: η λίστα «Κατηγορία ( Main )» ξαναγράφεται ολόκληρη και το ERP την κλειδώνει επειδή έχει είδη. Δεν άλλαξε τίποτα. Πρόσθεσε ή μετονόμασε την κατηγορία μέσα στο SoftOne (Κατηγορία ( Main )) και τρέξε συγχρονισμό (SoftOne → Συγχρονισμοί) — θα εμφανιστεί εδώ. Κεντρικές κατηγορίες και τύποι προϊόντος δημιουργούνται κανονικά από εδώ.";
 
 export async function categoriesWriteEnabled() {
   const s = await getSetting("softone").catch(() => null);
@@ -57,36 +53,54 @@ export async function saveL1(input: { c1?: number; name?: string; active?: boole
   }
 }
 
-// ---------- Επίπεδο 2: $CCCWEBCATEGORY2 (EditList — όλη η λίστα κάθε φορά) ----------
+// ---------- Επίπεδο 2: CCCWEBCATEGORY2 μέσω iSite (μία γραμμή κάθε φορά) ----------
+// Το επίσημο $CCCWEBCATEGORY2 είναι EditList: ξαναγράφει όλη τη λίστα και το ERP αρνείται (δοκιμή 10/11/2026). Γράφουμε με
+// το custom JS iSite setMainCategory (εξαίρεση με έγκριση 11/11/2026), που αγγίζει μόνο τη γραμμή-στόχο και επιστρέφει
+// ό,τι διάβασε πίσω από τη βάση. Νέος κωδικός = ο μεγαλύτερος της εταιρείας +1 (το διαλέγει το script).
 
-async function readL2(): Promise<Row[]> {
-  const r = await s1("getData", { OBJECT: "$CCCWEBCATEGORY2", KEY: 1 });
-  if (!r?.success) throw new Error(s1Err(r, "την ανάγνωση των κατηγοριών"));
-  if (r.readOnly) throw new Error("Ο λογαριασμός web έχει μόνο ανάγνωση στις κατηγορίες.");
-  const rows = (r.data?.CCCWEBCATEGORY2 ?? []) as Row[];
-  if (!rows.length) throw new Error("Το SoftOne επέστρεψε κενή λίστα κατηγοριών — δεν γράφουμε τίποτα.");
-  return rows;
+type L2Row = { mastercode: string; code: string; name: string; isactive: string };
+
+/** Τρέχουσα γραμμή: GetTable (δεν βλέπει ανενεργές) → καθρέφτης μας. */
+async function l2Now(c1: number, c2: number): Promise<{ name: string; active: boolean } | null> {
+  const t = (await getTable("CCCWEBCATEGORY2", ["CCCWEBCATEGORY1", "CCCWEBCATEGORY2", "NAME", "ISACTIVE"], `CCCWEBCATEGORY1=${c1} AND CCCWEBCATEGORY2=${c2}`).catch(() => []))
+    .find((r) => +r[0] === c1 && +r[1] === c2);
+  if (t) return { name: t[2].trim(), active: +t[3] === 1 };
+  const m = await db.s1WebCategory.findUnique({ where: { key: `2:${c1}:${c2}` }, select: { name: true, active: true } });
+  return m ? { name: m.name, active: m.active } : null;
+}
+
+async function setL2(c1: number, c2: number | null, name: string, active: boolean): Promise<L2Row> {
+  const r = await s1isite("setMainCategory", { MASTERCODE: c1, ...(c2 != null ? { CODE: c2 } : {}), NAME: name, ISACTIVE: active ? 1 : 0 });
+  if (!Array.isArray(r) || !r[0]) throw new Error(s1Err(r, "την αποθήκευση"));
+  const got = r[0] as L2Row;
+  const issues = [got.name.trim() !== name ? `NAME: γράφτηκε «${got.name}» αντί για «${name}».` : "", (+got.isactive === 1) !== active ? `ISACTIVE: γράφτηκε ${got.isactive}.` : ""].filter(Boolean);
+  if (issues.length) throw Object.assign(new Error("Το SoftOne αποθήκευσε, αλλά η κατηγορία δεν επαληθεύτηκε."), { details: issues });
+  return got;
 }
 
 export async function changeL2(c: L2Change): Promise<WriteOutcome & { target?: Row }> {
   if (!(await categoriesWriteEnabled())) return fail(WRITE_OFF);
   try {
-    const before = await readL2();
-    const { rows, target } = applyL2(before, c);
-    const w = await s1("setData", { OBJECT: "$CCCWEBCATEGORY2", KEY: 1, data: { CCCWEBCATEGORY2: rows } }).catch((e: Error) => ({ success: false, error: e.message }));
-    // Δοκιμασμένο 10/11/2026 (και με όλη τη λίστα και μόνο με τη νέα γραμμή): το EditList σβήνει και ξαναγράφει ΟΛΕΣ τις
-    // γραμμές, και το ERP αρνείται γιατί πάνω τους κρέμονται είδη. Καμία γραμμή δεν αλλάζει — αλλά από εδώ δεν γίνεται.
-    if (!w?.success && /Διαγραφή|αναφορές/.test(String(w?.error ?? ""))) return fail(L2_BLOCKED);
-    if (!w?.success) return fail(s1Err(w, "την αποθήκευση"));
-    const after = await readL2();
-    const issues = verifyList(rows, target, after, l2Key);
-    if (issues.length) return fail("Το SoftOne απάντησε «επιτυχία», αλλά η λίστα κατηγοριών δεν επαληθεύτηκε. Έλεγξε τις κατηγορίες στο SoftOne.", issues);
-    const c1 = +target.CCCWEBCATEGORY1, c2 = +target.CCCWEBCATEGORY2, key = `2:${c1}:${c2}`;
-    await db.s1WebCategory.upsert({ where: { key }, create: { key, level: 2, s1Id: c2, parentS1Id: c1, name: target.NAME, active: target.ISACTIVE === "1" }, update: { name: target.NAME, active: target.ISACTIVE === "1", missing: false, syncedAt: new Date() } });
-    const message = c.kind === "add" ? `Η κατηγορία «${target.NAME}» δημιουργήθηκε στο SoftOne (κωδικός ${c2}).` : c.kind === "copy" ? `Η κατηγορία «${target.NAME}» μπήκε στον νέο γονέα (κωδικός ${c2}).` : `Η κατηγορία «${target.NAME}» ενημερώθηκε στο SoftOne.`;
+    let got: L2Row;
+    if (c.kind === "add") got = await setL2(c.c1, null, checkName(c.name), true);
+    else if (c.kind === "set") {
+      // με όνομα και κατάσταση δεν χρειάζεται η τρέχουσα γραμμή (οι ανενεργές δεν φαίνονται στο GetTable)
+      const now = c.patch.name !== undefined && c.patch.active !== undefined ? { name: "", active: true } : await l2Now(c.c1, c.c2);
+      if (!now) return fail("Η κατηγορία δεν βρέθηκε στο SoftOne (αν είναι ανενεργή, τρέξε πρώτα συγχρονισμό κατηγοριών).");
+      got = await setL2(c.c1, c.c2, c.patch.name !== undefined ? checkName(c.patch.name) : now.name, c.patch.active ?? now.active);
+    } else {
+      if (c.toC1 === c.from.c1) return fail("Η κατηγορία είναι ήδη εκεί.");
+      const src = await l2Now(c.from.c1, c.from.c2);
+      if (!src) return fail("Η κατηγορία δεν βρέθηκε στο SoftOne.");
+      got = await setL2(c.toC1, null, src.name, true);
+    }
+    const c1 = +got.mastercode, c2 = +got.code, key = `2:${c1}:${c2}`, active = +got.isactive === 1;
+    const target: Row = { CCCWEBCATEGORY1: String(c1), CCCWEBCATEGORY2: String(c2), NAME: got.name, ISACTIVE: active ? "1" : "0" };
+    await db.s1WebCategory.upsert({ where: { key }, create: { key, level: 2, s1Id: c2, parentS1Id: c1, name: got.name, active }, update: { name: got.name, active, missing: false, syncedAt: new Date() } });
+    const message = c.kind === "add" ? `Η κατηγορία «${got.name}» δημιουργήθηκε στο SoftOne (κωδικός ${c2}).` : c.kind === "copy" ? `Η κατηγορία «${got.name}» μπήκε στον νέο γονέα (κωδικός ${c2}).` : `Η κατηγορία «${got.name}» ενημερώθηκε στο SoftOne.`;
     return { ok: true, key, message, target };
   } catch (e) {
-    return fail((e as Error).message);
+    return fail((e as Error).message, (e as { details?: string[] }).details);
   }
 }
 
@@ -143,13 +157,20 @@ export async function createGroup(input: { c1: number; c2: number; name: string 
 
 // ---------- Είδη: CCCWEBCATEGORY1/2 ----------
 
-/** Αλλάζει την κατηγορία web ενός είδους. `skipped` = ήταν ήδη εκεί (π.χ. επανάληψη μετά από διακοπή). */
+/**
+ * Αλλάζει την κατηγορία web ενός είδους. `skipped` = ήταν ήδη εκεί (π.χ. επανάληψη μετά από διακοπή).
+ * Με ομάδα χαρακτηριστικών: iSite setItemWebCategory, που ελέγχει ότι κατηγορία / υποκατηγορία / ομάδα ταιριάζουν
+ * (εξαίρεση με έγκριση 11/11/2026). Χωρίς ομάδα: setData ITEM.
+ */
 export async function setItemWebCats(mtrl: number, c1: number, c2: number): Promise<{ ok: true; skipped: boolean } | { ok: false; error: string }> {
-  const read = async () => (await getTable("MTRL", ["MTRL", "CCCWEBCATEGORY1", "CCCWEBCATEGORY2"], `MTRL=${mtrl}`)).find((r) => +r[0] === mtrl);
+  const read = async () => (await getTable("MTRL", ["MTRL", "CCCWEBCATEGORY1", "CCCWEBCATEGORY2", "CCCWEBGRSPECS"], `MTRL=${mtrl}`)).find((r) => +r[0] === mtrl);
   const now = await read();
   if (!now) return { ok: false, error: "Το είδος δεν βρέθηκε στο SoftOne." };
   if (+now[1] === c1 && +now[2] === c2) return { ok: true, skipped: true };
-  const w = await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEM: [{ CCCWEBCATEGORY1: c1, CCCWEBCATEGORY2: c2 }] } }).catch((e: Error) => ({ success: false, error: e.message }));
+  const grp = +now[3];
+  const w = grp > 0
+    ? await s1isite("setItemWebCategory", { MTRL: mtrl, MASTERCODE: c1, MAINCODE: c2, GROUPID: grp }).then((r) => (Array.isArray(r) ? { success: true } : r)).catch((e: Error) => ({ success: false, error: e.message }))
+    : await s1("setData", { OBJECT: "ITEM", KEY: String(mtrl), data: { ITEM: [{ CCCWEBCATEGORY1: c1, CCCWEBCATEGORY2: c2 }] } }).catch((e: Error) => ({ success: false, error: e.message }));
   if (!w?.success) return { ok: false, error: s1Err(w, "την εγγραφή") };
   const after = await read();
   if (!after || +after[1] !== c1 || +after[2] !== c2) return { ok: false, error: `Δεν επαληθεύτηκε (διαβάστηκε ${after?.[1] ?? "—"}/${after?.[2] ?? "—"}).` };

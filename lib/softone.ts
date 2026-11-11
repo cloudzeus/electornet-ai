@@ -40,8 +40,10 @@ export async function getS1Config(): Promise<S1Config | null> {
 const baseUrl = (c: S1Config) => (/^https?:\/\//.test(c.url) ? c.url.replace(/\/$/, "") : `https://${c.url}.oncloud.gr/s1services`);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function s1Fetch(c: S1Config, body: object): Promise<any> {
-  const res = await fetch(baseUrl(c), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
+async function s1Fetch(c: S1Config, body: object, path = ""): Promise<any> {
+  // Η διεύθυνση μπορεί να έχει query (π.χ. «?refresh»): η διαδρομή του JS μπαίνει πριν από αυτό.
+  const u = new URL(baseUrl(c));
+  const res = await fetch(`${u.origin}${u.pathname.replace(/\/$/, "")}${path}${u.search}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(20000) });
   const buffer = await res.arrayBuffer();
   // Όταν η υπηρεσία web services του SoftOne δεν τρέχει, ο server απαντά 404/5xx με άδειο σώμα:
   // το λέμε καθαρά, αντί να σκάσει το JSON.parse με «Unexpected end of JSON input».
@@ -99,6 +101,24 @@ export async function s1(service: string, params: Record<string, unknown> = {}):
     await saveSession(c.url, null);
     const fresh = await authenticate(c);
     return s1Fetch(c, { service, clientID: fresh.clientID, appId: c.appId, VERSION: "2", ...params });
+  }
+  return data;
+}
+
+/**
+ * Custom JS web service iSite (`/s1services/JS/iSite/<fn>`). Εξαίρεση στον κανόνα «μόνο επίσημα services», με έγκριση
+ * του χρήστη 11/11/2026, μόνο για χαρακτηριστικά ανά είδος και κατηγορίες web (docs/softone-isite-js-additions.js).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function s1isite(fn: string, params: Record<string, unknown> = {}): Promise<any> {
+  if (!/^[A-Za-z]\w*$/.test(fn)) throw new Error(`iSite: μη έγκυρο όνομα συνάρτησης ${fn}`);
+  const c = await getS1Config();
+  if (!c) throw new Error("SoftOne: δεν έχουν οριστεί στοιχεία σύνδεσης (Ρυθμίσεις → SoftOne ERP)");
+  const call = async (clientID: string) => s1Fetch(c, { clientID, appId: c.appId, ...params }, `/JS/iSite/${fn}`);
+  const data = await call(await getClientId(c));
+  if (data?.success === false && (data.errorcode === -101 || data.errorcode === -100)) {
+    await saveSession(c.url, null);
+    return call((await authenticate(c)).clientID);
   }
   return data;
 }

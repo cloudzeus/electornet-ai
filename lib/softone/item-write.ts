@@ -1,5 +1,8 @@
 import "server-only";
-import { s1, getS1Config } from "@/lib/softone";
+import { s1, s1isite, getS1Config } from "@/lib/softone";
+import { db } from "@/lib/db";
+import { parseDescription } from "@/lib/softone/describe";
+import { matchSpecTable } from "@/lib/softone/spec-table-core";
 import { getTable, selectorRows } from "@/lib/softone/lookups";
 import { getSetting } from "@/lib/settings/store";
 import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/softone/web-price-core";
@@ -94,6 +97,33 @@ export interface WriteResult {
   /** το setData πέρασε: κάτι άλλαξε στο SoftOne, ακόμη κι αν η επαλήθευση βρήκε διαφορά */
   stored?: boolean;
   error?: string;
+  /** αποτέλεσμα της εγγραφής στον πίνακα χαρακτηριστικών (όταν άλλαξε η περιγραφή) — σημείωση, όχι αποτυχία */
+  specTable?: string;
+}
+
+/**
+ * Γραμμές «ετικέτα : τιμή» της περιγραφής → πίνακας χαρακτηριστικών του είδους (CCCITEMWEBSPECSLNS) μέσω του custom JS
+ * iSite (εξαίρεση με έγκριση 11/11/2026: τα επίσημα services κρατούν μόνο την τελευταία γραμμή). Γράφει μόνο τα
+ * χαρακτηριστικά της ομάδας του είδους που έχουν τιμή· τα υπόλοιπα δεν τα αγγίζει. Επιστρέφει σημείωση για τον χρήστη.
+ */
+export async function writeSpecTable(mtrl: number, memo?: string | null): Promise<{ ok: boolean; note: string }> {
+  try {
+    const row = await itemRow(mtrl, ["CCCWEBGRSPECS", ...(memo == null ? ["CCCWREMARKS"] : [])]);
+    const group = Number(row?.CCCWEBGRSPECS);
+    if (!row || !Number.isInteger(group) || group <= 0) return { ok: true, note: "" }; // χωρίς ομάδα χαρακτηριστικών: τίποτα να γραφτεί
+    const defs = await db.s1SpecDef.findMany({ where: { groupS1Id: group, active: true, missing: false }, select: { code: true, name: true } });
+    const { rows, unmatched, tooLong } = matchSpecTable(parseDescription(memo ?? row.CCCWREMARKS).specs, defs);
+    const extra = [unmatched.length ? `δεν υπάρχουν στην ομάδα: ${unmatched.slice(0, 5).join(", ")}${unmatched.length > 5 ? "…" : ""}` : "", tooLong.length ? `πάνω από 128 χαρακτήρες: ${tooLong.join(", ")}` : ""].filter(Boolean).join("· ");
+    if (!rows.length) return { ok: true, note: extra ? `Χαρακτηριστικά: κανένα δεν γράφτηκε (${extra}).` : "" };
+    const r = await s1isite("setItemSpecs", { MTRL: mtrl, GROUPID: group, SPECS: rows });
+    if (!Array.isArray(r)) return { ok: false, note: `Χαρακτηριστικά: το SoftOne αρνήθηκε (${r?.error ?? "χωρίς απάντηση"}).` };
+    const got = new Map((r as { acode: string; strval: string | null }[]).map((x) => [Number(x.acode), (x.strval ?? "").trim()]));
+    const bad = rows.filter((x) => got.get(x.ACODE) !== x.STRVAL).length;
+    if (bad) return { ok: false, note: `Χαρακτηριστικά: ${bad} από ${rows.length} δεν επαληθεύτηκαν στο SoftOne.` };
+    return { ok: true, note: `Χαρακτηριστικά: ${rows.length} γράφτηκαν στον πίνακα του SoftOne${extra ? ` (${extra})` : ""}.` };
+  } catch (e) {
+    return { ok: false, note: `Χαρακτηριστικά: ${(e as Error).message}` };
+  }
 }
 
 export async function writeItem(mtrl: number, changes: ItemChanges): Promise<WriteResult> {
@@ -126,7 +156,10 @@ export async function writeItem(mtrl: number, changes: ItemChanges): Promise<Wri
   const after = await readFields(mtrl, keys);
   const mismatches = keys.filter((k) => !after || norm(ITEM_FIELDS[k].kind, after[k]) !== norm(ITEM_FIELDS[k].kind, changes[k]!.to))
     .map((k) => ({ field: k, sent: norm(ITEM_FIELDS[k].kind, changes[k]!.to), got: after ? norm(ITEM_FIELDS[k].kind, after[k]) : "—" }));
-  return { ok: !mismatches.length, stored: true, written: keys.filter((k) => !mismatches.some((m) => m.field === k)), conflicts: [], mismatches, ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
+  const written = keys.filter((k) => !mismatches.some((m) => m.field === k));
+  // περιγραφή ή ομάδα άλλαξε → και ο πίνακας χαρακτηριστικών (με τη μνήμη όπως γράφτηκε)
+  const spec = written.includes("longDesc") || written.includes("webGroup") ? await writeSpecTable(mtrl, written.includes("longDesc") ? String(changes.longDesc!.to ?? "") : null) : null;
+  return { ok: !mismatches.length, stored: true, written, conflicts: [], mismatches, ...(spec?.note ? { specTable: spec.note } : {}), ...(mismatches.length ? { error: "Το SoftOne απάντησε «επιτυχία» αλλά κάποια πεδία δεν γράφτηκαν όπως στάλθηκαν." } : {}) };
 }
 
 /** Ξεχωριστός διακόπτης για την τιμή web — ανοίγει μόνο με S1_WEB_PRICE_WRITE=1. Η εγγραφή ITEEXTRA δοκιμάστηκε σε πραγματικό είδος στις 10/11/2026 (MTRL 111750, με υπάρχουσα γραμμή MTREXTRA: γράφτηκε, διαβάστηκε πίσω, κανένα άλλο πεδίο δεν άλλαξε)· είδος ΧΩΡΙΣ γραμμή MTREXTRA δεν έχει δοκιμαστεί. */
@@ -280,5 +313,8 @@ export async function createItem(item: NewItem): Promise<{ ok: boolean; mtrl?: n
   if (!b || b.CODE?.trim() !== code || norm("text", b.NAME) !== name) return { ok: false, mtrl, error: `Το είδος MTRL ${mtrl} δημιουργήθηκε αλλά η ανάγνωση δεν ταιριάζει (${b ? `${b.CODE} · ${b.NAME}` : "δεν βρέθηκε"}) — έλεγξε στο ERP.` };
   // Το είδος υπάρχει· ό,τι από τα πεδία ERP δεν κράτησε το SoftOne γίνεται σημείωση (συμπληρώνεται στο ERP), όχι αποτυχία
   const lost = erp.filter(([k, v]) => Number(b[ERP_COLS[k]] || 0) !== Number(v) && String(b[ERP_COLS[k]] ?? "").trim() !== String(v)).map(([k]) => ERP_LABEL[k]);
-  return { ok: true, mtrl, ...(lost.length ? { warnings: [`Το SoftOne δεν κράτησε: ${lost.join(", ")} — συμπλήρωσέ τα στο είδος MTRL ${mtrl} στο ERP.`] } : {}) };
+  const warnings = lost.length ? [`Το SoftOne δεν κράτησε: ${lost.join(", ")} — συμπλήρωσέ τα στο είδος MTRL ${mtrl} στο ERP.`] : [];
+  const lp = item.fields.longDesc != null ? norm("memo", item.fields.longDesc) : "";
+  if (lp) { const sp = await writeSpecTable(mtrl, lp); if (!sp.ok && sp.note) warnings.push(sp.note); }
+  return { ok: true, mtrl, ...(warnings.length ? { warnings } : {}) };
 }
