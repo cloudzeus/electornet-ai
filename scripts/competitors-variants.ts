@@ -37,7 +37,7 @@ async function variants(apply: boolean, budget: number) {
     for (const { row, v } of found) {
       const p = row.product;
       const r = await fetchProduct(v.art, pacer);
-      if ("error" in r) { if (isOddResponse(r.error) && ++odd >= 5) throw new KotStopError("blocked", "5 συνεχόμενες μη έγκυρες απαντήσεις"); console.log(`  ✗ ${v.art}: ${r.error}`); continue; }
+      if ("error" in r) { if (!isOddResponse(r.error)) odd = 0; else if (++odd >= 5) throw new KotStopError("blocked", "5 συνεχόμενες μη έγκυρες απαντήσεις"); console.log(`  ✗ ${v.art}: ${r.error}`); continue; }
       odd = 0;
       const ours = ourPrice({ price: p.price, offer: p.offer });
       const d = decideVariant({ prev: { match: null, extUrl: null, missCount: 0, their: null, ourPrice: null }, parsed: r, ourEan: p.ean, ourPrice: ours });

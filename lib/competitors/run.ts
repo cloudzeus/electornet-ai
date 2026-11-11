@@ -149,6 +149,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     if (!s && !known) {
       // 3. AI: μόνο πρόταση· auto μόνο αν το EAN που διαβάζουμε είναι ίδιο
       if (aiOff || c.ai >= aiMax) return; // χωρίς πλήρες ψάξιμο: δεν σημειώνεται «δεν βρέθηκε»
+      // shortcut: χωρίς AI δεν ψάχνεται ούτε «άλλο χρώμα» απόψε· το πιάνει η επόμενη νύχτα ή το scripts/competitors-variants.ts
       const was = row?.match === "variant" ? row.extId : null; // το γνωστό «άλλο χρώμα» δεν είναι ακριβές ζευγάρι
       const cands = rankCandidates({ title: p.title, model: p.modelCode }, all.filter((k) => k.art !== was)); // ίσοι βαθμοί: η σειρά του sitemap
       let pick = null;
