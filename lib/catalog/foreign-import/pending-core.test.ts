@@ -87,3 +87,25 @@ test("I-4 pendingSpecs: ετικέτες του χρήστη → ονόματα 
   const row = pendingRow({ rowNo: 3, code: "A", fields: { name: "Χ" }, specs: r.specs }, "Νέα είδη", 12);
   assert.deepEqual(row.specs, r.specs);
 });
+
+test("webNameOf: έως 64 χαρακτήρες, κόψιμο σε ολόκληρη λέξη", async () => {
+  const { webNameOf, leadSentence } = await import("./pending-core");
+  assert.equal(webNameOf("Inventor CLP-TT88S Πλυντήριο Πιάτων"), "Inventor CLP-TT88S Πλυντήριο Πιάτων");
+  const long = webNameOf("ΗΛ. ΘΕΡΜ. 120lt ΜΟΝΟΥ ΣΥΛΛΕΚΤΗ ΔΙΠΛΗΣ ΕΝΕΡΓΕΙΑΣ OPTIMA MAX GLASS BC 12/2.1 GAUZER");
+  assert.ok(long.length <= 64 && long.endsWith("GLASS"), long);
+  assert.equal(leadSentence("Ο&nbsp;νέος&nbsp;ψυγειοκαταψύκτης <b>No frost</b> της Inventor. Δεύτερη πρόταση."), "Ο νέος ψυγειοκαταψύκτης No frost της Inventor.");
+  assert.equal(leadSentence(""), "");
+});
+
+test("newItemCode / missingSpecs / renameSpec", async () => {
+  const { newItemCode, missingSpecs, renameSpec, similarSpec } = await import("./pending-core");
+  const key = (s: string) => s.toLowerCase().trim();
+  assert.equal(newItemCode({ code: "2691103", factoryCode: "CLP-TT88S" }), "CLP-TT88S");
+  assert.equal(newItemCode({ code: "2691103" }), "2691103");
+  assert.equal(newItemCode({ code: "A1", factoryCode: "X".repeat(30) }), "A1");
+  const names = new Map([[975, ["Χρώμα", "Ενεργειακή Κλάση", "Πλάτος"]]]);
+  const gaps = missingSpecs([{ specGroupS1Id: 975, specs: { "χρώμα": "Silver", "Πλάτος (cm)": "55", "Τύπος Οθόνης": "LED" } }, { specGroupS1Id: 975, specs: { "Τύπος Οθόνης": "LCD" } }], names, key);
+  assert.deepEqual(gaps.map((g) => [g.label, g.items, g.similar]), [["Πλάτος (cm)", 1, "Πλάτος"], ["Τύπος Οθόνης", 2, null]]);
+  assert.equal(similarSpec("Στάθμη Θορύβου [dB(A)]", ["Χρώμα"]), null);
+  assert.deepEqual(renameSpec({ "Πλάτος (cm)": "55", "Χρώμα": "Silver" }, "Πλάτος (cm)", "Πλάτος", key), { "Χρώμα": "Silver", "Πλάτος": "55" });
+});

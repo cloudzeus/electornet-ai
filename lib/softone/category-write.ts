@@ -16,6 +16,8 @@ import { applyL2, clean, l2Key, NAME_MAX, nextCode, sig, verifyList, type L2Chan
  */
 export const WRITE_OFF = "Η εγγραφή κατηγοριών στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → «Αλλαγές κατηγοριών προς SoftOne»). Δεν άλλαξε τίποτα.";
 
+export const L2_BLOCKED = "Το SoftOne δεν δέχεται αλλαγές στις κατηγορίες 2ου επιπέδου από την εφαρμογή: η λίστα «Κατηγορία ( Main )» ξαναγράφεται ολόκληρη και το ERP την κλειδώνει επειδή έχει είδη. Δεν άλλαξε τίποτα. Πρόσθεσε ή μετονόμασε την κατηγορία μέσα στο SoftOne (Κατηγορία ( Main )) και τρέξε συγχρονισμό (SoftOne → Συγχρονισμοί) — θα εμφανιστεί εδώ. Κεντρικές κατηγορίες και τύποι προϊόντος δημιουργούνται κανονικά από εδώ.";
+
 export async function categoriesWriteEnabled() {
   const s = await getSetting("softone").catch(() => null);
   return String(((s?.data ?? {}) as Record<string, unknown>).categoriesWrite ?? "off") === "on";
@@ -72,6 +74,9 @@ export async function changeL2(c: L2Change): Promise<WriteOutcome & { target?: R
     const before = await readL2();
     const { rows, target } = applyL2(before, c);
     const w = await s1("setData", { OBJECT: "$CCCWEBCATEGORY2", KEY: 1, data: { CCCWEBCATEGORY2: rows } }).catch((e: Error) => ({ success: false, error: e.message }));
+    // Δοκιμασμένο 10/11/2026 (και με όλη τη λίστα και μόνο με τη νέα γραμμή): το EditList σβήνει και ξαναγράφει ΟΛΕΣ τις
+    // γραμμές, και το ERP αρνείται γιατί πάνω τους κρέμονται είδη. Καμία γραμμή δεν αλλάζει — αλλά από εδώ δεν γίνεται.
+    if (!w?.success && /Διαγραφή|αναφορές/.test(String(w?.error ?? ""))) return fail(L2_BLOCKED);
     if (!w?.success) return fail(s1Err(w, "την αποθήκευση"));
     const after = await readL2();
     const issues = verifyList(rows, target, after, l2Key);

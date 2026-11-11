@@ -119,7 +119,7 @@ export async function markApproved(ids: string[], staffId: string | null) {
 }
 
 /** Έγκριση φωτογραφιών: κατεβαίνουν και μπαίνουν στο τέλος της γκαλερί. */
-export async function approveImages(productId: string, rows: Row[], staffId: string | null) {
+export async function approveImages(productId: string, rows: Row[], staffId: string | null, opts: { cutout?: ReadonlySet<string> } = {}) {
   const done: string[] = [], failed: { id: string; message: string }[] = [];
   for (const s of rows.filter((x) => x.kind === "image" && x.url)) {
     try {
@@ -128,8 +128,11 @@ export async function approveImages(productId: string, rows: Row[], staffId: str
       const mime = f.mime.startsWith("image/") && f.mime !== "image/svg+xml" && f.mime !== "image/gif" ? f.mime : EXT_MIME[ext];
       if (!mime) throw new Error(`δεν είναι εικόνα (${f.mime || "άγνωστος τύπος"})`);
       const name = decodeURIComponent(new URL(f.url).pathname.split("/").pop() || "photo").slice(0, 120);
-      const img = await uploadProductImage(productId, { bytes: f.bytes, filename: name, mime }, staffId);
-      await db.media.update({ where: { id: img.id }, data: { importFile: s.url, source: `enrich-${s.source}` } });
+      // «Αφαίρεση φόντου»: χωρίς φόντο, κεντραρισμένη σε λευκό τετράγωνο, στην ανάλυση του πρωτοτύπου (lib/catalog/photo-cutout.ts)
+      const cut = opts.cutout?.has(s.id) ? await (await import("./photo-cutout")).cutoutForSuggestion(s.id, async () => f.bytes) : null;
+      const file = cut ? { bytes: cut.bytes, filename: name.replace(/\.\w+$/, "") + "-cutout.png", mime: "image/png" } : { bytes: f.bytes, filename: name, mime };
+      const img = await uploadProductImage(productId, file, staffId);
+      await db.media.update({ where: { id: img.id }, data: { importFile: s.url, source: `enrich-${s.source}${cut ? "-cutout" : ""}` } });
       done.push(s.id);
     } catch (e) { failed.push({ id: s.id, message: (e as Error).message.slice(0, 160) }); }
   }

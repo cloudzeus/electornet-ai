@@ -50,7 +50,7 @@ export async function runBackup(trigger: "cron" | "manual" | "script" = "cron"):
     const pass = process.env.BACKUP_PASSPHRASE?.trim();
     const encrypted = !!pass;
     // The media zone is served publicly by the pull zone: a plain dump there would be one guess away from the internet.
-    if (!encrypted && !target.dedicated) throw new Error("Χωρίς BACKUP_PASSPHRASE το backup επιτρέπεται μόνο σε αποκλειστικό Backup storage zone (χωρίς pull zone). Όρισε BACKUP_PASSPHRASE στο .env.");
+    if (!encrypted && !target.dedicated) throw new Error("Χωρίς BACKUP_PASSPHRASE το backup επιτρέπεται μόνο σε αποκλειστικό Backup storage zone (χωρίς pull zone). Όρισε BACKUP_PASSPHRASE (τοπικά στο .env, στην παραγωγή στα Environment Variables του Coolify + redeploy).");
     const pgDump = process.env.PG_DUMP_PATH || "pg_dump";
     let bytes = await run(pgDump, ["-Fc", "--no-owner", "--no-acl", "-d", dbUrl()]);
     if (pass) bytes = await run("openssl", ["enc", "-aes-256-cbc", "-pbkdf2", "-iter", "200000", "-salt", "-pass", "env:BACKUP_PASSPHRASE"], bytes, { BACKUP_PASSPHRASE: pass });

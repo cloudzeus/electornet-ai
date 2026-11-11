@@ -50,3 +50,18 @@ export async function draftMarketingCopy(productId: string): Promise<CopyDraft |
   if (!short || !long) return { error: "Το AI δεν έδωσε έγκυρη περιγραφή — δοκίμασε ξανά." };
   return { short: short.slice(0, 600), long: long.slice(0, 4000), examples: examples.map((e) => e.title), specCount: specs.length, costUsd: r.costUsd, model: r.model };
 }
+
+/**
+ * Σύντομη περιγραφή από την αναλυτική, για νέα είδη που η πηγή τους δεν έχει (π.χ. Keyvoto): DeepSeek, μόνο από το
+ * κείμενο που δίνεται. null όταν δεν υπάρχει κλειδί / όριο / απάντηση — ο καλών πέφτει στην πρώτη πρόταση της αναλυτικής.
+ */
+export async function draftShortDesc(name: string, longText: string): Promise<string | null> {
+  const text = longText.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim().slice(0, 3000);
+  if (text.length < 40) return null;
+  const cfg = await getAi().catch(() => null);
+  if (!cfg || (await overBudget(cfg).catch(() => true))) return null;
+  const system = `Είσαι copywriter του euronics.gr. Γράψε τη ΣΥΝΤΟΜΗ περιγραφή ενός προϊόντος: 1–2 προτάσεις, έως 40 λέξεις, το κύριο όφελος. Μόνο από το κείμενο που σου δίνεται — ΠΟΤΕ μην επινοείς χαρακτηριστικά ή νούμερα. Ελληνικά, χωρίς emoji, χωρίς markdown. Απάντηση ΜΟΝΟ JSON: {"short": "…"}`;
+  const r = await chat({ feature: "copy-short", model: CATALOG_TEXT_MODEL, messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify({ name, description: text }) }], json: true, reasoning: "off", maxTokens: 300, temperature: 0.5, timeoutMs: 30_000 }).catch(() => null);
+  const short = r ? cleanCopy(parseJson<{ short?: string }>(r.text)?.short ?? "").replace(/\n+/g, " ").trim() : "";
+  return short ? short.slice(0, 600) : null;
+}

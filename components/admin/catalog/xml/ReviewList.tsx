@@ -2,20 +2,95 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, EyeOff, Globe, Hourglass, Images, Loader2, Pencil, Play, Power, RefreshCw, RotateCcw, Search, Square, SquareCheck, Tags, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, CircleAlert, Clock, Database, EyeOff, Globe, Hourglass, Images, Loader2, Pencil, Play, Power, RefreshCw, RotateCcw, Search, Sparkles, Square, SquareCheck, Tags, X } from "lucide-react";
 import { mergeEdits } from "@/lib/catalog/xml-import/diff-core";
 import { priceWarning } from "@/lib/catalog/xml-import/transform-core";
 import { DIFF, DIFF_ORDER, STATUS, VALUE_KIND, mb, sourceNote, when, type FeedStateDTO, type ItemDTO, type ItemsDTO, type QueueDTO, type ValueKindDTO } from "@/lib/catalog/xml-import/ui-core";
 import type { Settings } from "@/lib/cms/settings";
 import type { Diff } from "@/lib/catalog/xml-import/diff-core";
-import { drainBatch, includeWebExcluded, items as loadItems, queueItems, queueProgress, retryErrors, rerun, saveItem } from "@/app/admin/(shell)/catalog/templates/xml/actions";
+import { categoryFixAiAction, categoryFixInfoAction, drainBatch, fixCategoryAction, includeWebExcluded, items as loadItems, queueItems, queueProgress, retryErrors, rerun, saveItem } from "@/app/admin/(shell)/catalog/templates/xml/actions";
 import { ProductModal } from "./ProductModal";
+import { OptionPicker } from "@/components/admin/catalog/OptionPicker";
+import { NO_WEB_CATEGORY } from "@/lib/catalog/foreign-import/plan-core";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-14)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 const primary = `${btn} bg-eu-navy text-white hover:bg-eu-blue`;
 const secondary = `${btn} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`;
 const card = "rounded-xl border border-eu-line bg-white min-w-0";
 const num = "tabular-nums";
+const small = "inline-flex items-center justify-center gap-1 rounded-full px-3 min-h-11 md:min-h-8 font-bold text-[length:var(--fs-13)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+
+/**
+ * Μικρή φωτογραφία του προϊόντος στη γραμμή· με το ποντίκι από πάνω ανοίγει μεγάλη (300px), για να φαίνεται περί τίνος
+ * πρόκειται. `fixed`, γιατί ο πίνακας κυλά οριζόντια και θα την έκοβε.
+ */
+function Thumb({ src, name }: { src?: string; name: string }) {
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
+  const [bad, setBad] = useState(false);
+  if (!src || bad) return <span className="size-10 shrink-0 grid place-items-center rounded-lg bg-eu-surface text-eu-muted"><Images className="size-4" aria-hidden /></span>;
+  const show = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) => { const r = e.currentTarget.getBoundingClientRect(); setAt({ x: Math.min(r.right + 8, window.innerWidth - 308), y: Math.max(8, Math.min(r.top - 40, window.innerHeight - 360)) }); };
+  return (
+    <span className="shrink-0" onMouseEnter={show} onMouseLeave={() => setAt(null)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- φωτογραφία του προμηθευτή, πριν περάσει στη βιβλιοθήκη */}
+      <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBad(true)} className="size-10 rounded-lg border border-eu-line bg-white object-contain" />
+      {at && (
+        <span role="tooltip" style={{ left: at.x, top: at.y }} className="fixed z-50 w-[18.75rem] grid gap-1.5 rounded-xl border border-eu-line bg-white p-2 shadow-xl pointer-events-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" referrerPolicy="no-referrer" className="w-full h-auto max-h-[18.75rem] object-contain" />
+          {name && <span className="text-eu-ink font-bold text-[length:var(--fs-13)] [overflow-wrap:anywhere]">{name}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+type FixInfo = { value: string; same: number; suggested: string | null; options: { id: string; name: string }[] };
+
+/**
+ * Οι ενέργειες μιας γραμμής με σφάλμα: τι κάνει ο χρήστης ΤΩΡΑ, χωρίς να γυρίσει στα βήματα. Σφάλμα κατηγορίας →
+ * «Διάλεξε κατηγορία» (με πρόταση από το όνομα, ή από το AI αν το ζητήσει)· κάθε σφάλμα → «Δοκίμασε ξανά» και «Άνοιξε».
+ */
+function RowFix({ feedId, it, disabled, onRetry, onOpen, onFixed }: { feedId: string; it: ItemDTO; disabled: boolean; onRetry: () => void; onOpen: () => void; onFixed: (queued: number) => void }) {
+  const [info, setInfo] = useState<FixInfo | null>(null);
+  const [pick, setPick] = useState<string | null>(null);
+  const [from, setFrom] = useState<"name" | "ai" | null>(null);
+  const [wait, setWait] = useState<"info" | "ai" | "save" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const isCat = !!it.error?.includes(NO_WEB_CATEGORY);
+  const run = async <T,>(what: "info" | "ai" | "save", fn: () => Promise<T | { error: string }>): Promise<T | null> => {
+    setWait(what); setErr(null);
+    const r = await fn().catch(() => ({ error: "Η σύνδεση διακόπηκε — ξαναδοκίμασε." }));
+    setWait(null);
+    if (r && typeof r === "object" && "error" in r) { setErr((r as { error: string }).error); return null; }
+    return r as T;
+  };
+  const open = async () => { const r = await run("info", () => categoryFixInfoAction(feedId, it.sku)); if (r) { setInfo(r); setPick(r.suggested); setFrom(r.suggested ? "name" : null); } };
+  const ai = async () => { const r = await run("ai", () => categoryFixAiAction(feedId, it.sku)); if (r) { if (r.categoryId) { setPick(r.categoryId); setFrom("ai"); } else setErr("Το AI δεν βρήκε κατηγορία που να ταιριάζει — διάλεξέ τη με το χέρι."); } };
+  const save = async () => { if (!info || !pick) return; const r = await run("save", () => fixCategoryAction(feedId, info.value, pick)); if (r) { setInfo(null); onFixed(r.queued); } };
+  const off = disabled || wait != null;
+  return (
+    <div data-help="xml.list.fix" className="mt-1.5 grid gap-1.5 min-w-0">
+      <div className="flex flex-wrap gap-1.5">
+        {isCat && !info && <button type="button" className={`${small} bg-eu-navy text-white hover:bg-eu-blue`} disabled={off} onClick={open}>{wait === "info" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Tags className="size-3.5" aria-hidden />} Διάλεξε κατηγορία</button>}
+        <button type="button" className={`${small} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`} disabled={off} onClick={onRetry}><RotateCcw className="size-3.5" aria-hidden /> Δοκίμασε ξανά</button>
+        <button type="button" className={`${small} text-eu-ink-2 hover:bg-eu-surface`} disabled={off} onClick={onOpen}><Pencil className="size-3.5" aria-hidden /> Άνοιξε</button>
+      </div>
+      {info && (
+        <div className="grid gap-2 rounded-lg border border-eu-line bg-eu-surface/60 p-2.5 min-w-0">
+          <p className="m-0 text-eu-ink text-[length:var(--fs-13)] [overflow-wrap:anywhere]">Η κατηγορία του προμηθευτή <b>«{info.value}»</b> θα δείχνει στην κατηγορία που διαλέγεις εδώ{info.same > 1 ? ` — ισχύει και για τα ${info.same} προϊόντα που κόλλησαν με το ίδιο σφάλμα` : ""}.</p>
+          <OptionPicker options={info.options} value={pick} onChange={(id) => { setPick(id); setFrom(null); }} label="Κατηγορία στο eshop" empty="— διάλεξε κατηγορία —" disabled={off} />
+          {from && pick && <p className="m-0 inline-flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)]"><Sparkles className="size-3.5 text-eu-blue shrink-0" aria-hidden />{from === "ai" ? "Πρόταση του AI — άλλαξέ τη αν δεν ταιριάζει." : "Πρόταση από το όνομα του προϊόντος — άλλαξέ τη αν δεν ταιριάζει."}</p>}
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" className={`${small} bg-eu-navy text-white hover:bg-eu-blue`} disabled={off || !pick} onClick={save}>{wait === "save" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Check className="size-3.5" aria-hidden />} Εφάρμοσε και ξαναδοκίμασε{info.same > 1 ? ` (${info.same})` : ""}</button>
+            <button type="button" className={`${small} border-2 border-eu-navy text-eu-navy hover:bg-eu-chip`} disabled={off} onClick={ai}>{wait === "ai" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Sparkles className="size-3.5" aria-hidden />} Πρότεινε με AI</button>
+            <button type="button" className={`${small} text-eu-ink-2 hover:bg-eu-surface`} disabled={off} onClick={() => setInfo(null)}>Άκυρο</button>
+          </div>
+        </div>
+      )}
+      {err && <p role="alert" className="m-0 text-eu-red text-[length:var(--fs-12)] [overflow-wrap:anywhere]">{err}</p>}
+    </div>
+  );
+}
 
 /** Κάθε κατάσταση με εικονίδιο ΚΑΙ λέξη — ποτέ μόνο χρώμα. */
 const STATUS_ICON: Record<string, React.ReactNode> = {
@@ -68,6 +143,9 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [except, setExcept] = useState<string[]>([]);
+  // «Μόνο όσα διαλέξω»: τίποτα δεν είναι τσεκαρισμένο και μπαίνουν μόνο τα sku του `only` (από όποιο φίλτρο ή σελίδα)
+  const [pickMode, setPickMode] = useState(false);
+  const [only, setOnly] = useState<string[]>([]);
   const [data, setData] = useState<ItemsDTO>(EMPTY);
   const [acting, setActing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -120,10 +198,13 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
 
   const pick = (k: string) => { setKind(k); setPage(1); };
   const search = (e: React.FormEvent) => { e.preventDefault(); setQuery(q.trim()); setPage(1); };
-  const toggleExcept = (sku: string) => setExcept((xs) => (xs.includes(sku) ? xs.filter((s) => s !== sku) : [...xs, sku]));
+  const flip = (sku: string) => (xs: string[]) => (xs.includes(sku) ? xs.filter((s) => s !== sku) : [...xs, sku]);
+  const toggleExcept = (sku: string) => (pickMode ? setOnly(flip(sku)) : setExcept(flip(sku)));
+  /** Η γραμμή ΔΕΝ θα μπει: στο «όλα» όταν την ξετσέκαρες, στο «μόνο όσα διαλέξω» όταν δεν την τσέκαρες. */
+  const isOff = (sku: string) => (pickMode ? !only.includes(sku) : except.includes(sku));
 
   /** Πόσα θα μπουν πραγματικά: το φίλτρο, μείον οι εξαιρέσεις, μείον όσες έχουν πρόβλημα, μείον όσες παραλείπονται. */
-  const willImport = Math.max(0, data.total - data.exceptionsHere - data.problemsHere - data.skippedHere);
+  const willImport = pickMode ? only.length : Math.max(0, data.total - data.exceptionsHere - data.problemsHere - data.skippedHere);
 
   const costHeader = Object.keys(state.targets).find((h) => state.targets[h] === "cost");
   const rrpHeader = Object.keys(state.targets).find((h) => state.targets[h] === "rrp");
@@ -171,12 +252,20 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
     });
 
   const startImport = async () => {
-    const r = await act(() => queueItems(state.feedId, filter(), except, toSoftone));
+    const r = await act(() => (pickMode ? queueItems(state.feedId, {}, [], toSoftone, only) : queueItems(state.feedId, filter(), except, toSoftone)));
     if (!r) return;
     if (!r.queued) { setNote("Καμία γραμμή δεν μπήκε στην ουρά — δες τα φίλτρα και τις εξαιρέσεις."); return; }
+    if (pickMode) setOnly([]);
     setNote(`${r.queued} ${r.queued === 1 ? "προϊόν μπήκε" : "προϊόντα μπήκαν"} στην ουρά${r.skipped ? ` · ${r.skipped} με πρόβλημα δεν μπήκαν` : ""}${r.notChosen ? ` · ${r.notChosen} νέα δεν τα διάλεξες για το SoftOne (βήμα «Έλεγχος με SoftOne») και δεν μπήκαν` : ""}. Μπορείς να κλείσεις τη σελίδα: η εισαγωγή τρέχει στον server και, αν διακοπεί, συνεχίζει από εκεί που έμεινε.`);
     await runQueue();
   };
+
+  /** Ενέργειες γραμμής με σφάλμα: ξανά μόνο αυτή, ή — μετά από αλλαγή κατηγορίας — όσες ξεκόλλησαν. */
+  const retryOne = async (sku: string) => { const r = await act(() => queueItems(state.feedId, {}, [], toSoftone, [sku])); if (r?.queued) await runQueue(); };
+  const fixed = (queued: number) => { setNote(`Η κατηγορία άλλαξε · ${queued} ${queued === 1 ? "προϊόν ξαναμπήκε" : "προϊόντα ξαναμπήκαν"} στην ουρά.`); void runQueue(); };
+  const fixOf = (it: ItemDTO, i: number) => it.status === "error" && it.error
+    ? <RowFix feedId={state.feedId} it={it} disabled={busy || running || !state.active} onRetry={() => void retryOne(it.sku)} onOpen={() => setAt(i)} onFixed={fixed} />
+    : null;
 
   const rows = data.rows;
   const open = at != null ? rows[at] : null;
@@ -280,12 +369,23 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
 
       {/* επιλογή ως φίλτρο */}
       <div data-help="xml.list.selection" className={`${card} grid gap-2 p-3`}>
+        <fieldset data-help="xml.list.pick" disabled={busy || running} className="m-0 p-0 border-0 flex flex-wrap gap-2 min-w-0">
+          <legend className="sr-only">Ποια προϊόντα θα εισαχθούν</legend>
+          {([[false, "Όλα του φίλτρου", "Ξετσεκάρεις όσα δεν θες."], [true, "Μόνο όσα διαλέξω", "Τσεκάρεις ένα ή περισσότερα στη λίστα."]] as const).map(([v, title, text]) => (
+            <label key={String(v)} className={`flex items-start gap-2 rounded-xl border-2 px-3 py-2 cursor-pointer min-h-11 min-w-0 flex-1 basis-56 ${pickMode === v ? "border-eu-navy bg-eu-chip/30" : "border-eu-line"}`}>
+              <input type="radio" name="xml-pick-mode" checked={pickMode === v} onChange={() => setPickMode(v)} className="size-4 mt-1 accent-eu-navy shrink-0" />
+              <span className="grid min-w-0"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{title}</span><span className="text-eu-muted text-[length:var(--fs-12)]">{text}</span></span>
+            </label>
+          ))}
+        </fieldset>
         <p className="m-0 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-eu-ink text-[length:var(--fs-14)]">
           <b className={`${num} text-[length:var(--fs-16)]`}>{willImport.toLocaleString("el-GR")}</b>
-          <span>θα εισαχθούν — όλα όσα ταιριάζουν στο φίλτρο «{chips.find((c) => c.key === kind)?.label}»{query ? ` με «${query}»` : ""}</span>
-          {data.exceptionsHere > 0 && <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{data.exceptionsHere} {data.exceptionsHere === 1 ? "εξαίρεση" : "εξαιρέσεις"}</span>}
-          {data.problemsHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/30 px-2 py-0.5 font-bold text-eu-ink text-[length:var(--fs-12)] tabular-nums"><AlertTriangle className="size-3" aria-hidden />{data.problemsHere} με πρόβλημα δεν μπαίνουν</span>}
-          {data.skippedHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 font-bold text-eu-ink-2 text-[length:var(--fs-12)] tabular-nums"><X className="size-3" aria-hidden />{data.skippedHere} παραλειπόμενης μάρκας</span>}
+          {pickMode
+            ? <span>{only.length ? "διαλεγμένα θα εισαχθούν — μένουν διαλεγμένα και όταν αλλάζεις φίλτρο ή σελίδα" : "διαλεγμένα — τσέκαρε στη λίστα πιο κάτω όσα θες να εισαχθούν"}</span>
+            : <span>θα εισαχθούν — όλα όσα ταιριάζουν στο φίλτρο «{chips.find((c) => c.key === kind)?.label}»{query ? ` με «${query}»` : ""}</span>}
+          {!pickMode && data.exceptionsHere > 0 && <span className="rounded-full bg-eu-chip px-2 py-0.5 font-bold text-eu-navy text-[length:var(--fs-12)] tabular-nums">{data.exceptionsHere} {data.exceptionsHere === 1 ? "εξαίρεση" : "εξαιρέσεις"}</span>}
+          {!pickMode && data.problemsHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-yellow/30 px-2 py-0.5 font-bold text-eu-ink text-[length:var(--fs-12)] tabular-nums"><AlertTriangle className="size-3" aria-hidden />{data.problemsHere} με πρόβλημα δεν μπαίνουν</span>}
+          {!pickMode && data.skippedHere > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-eu-surface px-2 py-0.5 font-bold text-eu-ink-2 text-[length:var(--fs-12)] tabular-nums"><X className="size-3" aria-hidden />{data.skippedHere} παραλείπονται</span>}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-start gap-2 cursor-pointer min-h-11 md:min-h-9 min-w-0">
@@ -295,7 +395,8 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
               <span className="text-eu-muted text-[length:var(--fs-12)]">{writeOn ? (canErp ? "Τα κενά πεδία των υπαρχόντων ειδών θα γραφτούν στο ERP." : "Χρειάζεται το δικαίωμα «Εκτέλεση συγχρονισμού ERP» — αλλιώς η εισαγωγή σταματά.") : "Κλειστό στις Ρυθμίσεις → SoftOne: τα στοιχεία μένουν σε αναμονή, οι φωτογραφίες ανεβαίνουν."}</span>
             </span>
           </label>
-          {except.length > 0 && <button type="button" onClick={() => setExcept([])} className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running}>{except.length === 1 ? "Καθάρισε την εξαίρεση" : `Καθάρισε τις ${except.length} εξαιρέσεις`}</button>}
+          {pickMode && only.length > 0 && <button type="button" onClick={() => setOnly([])} className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running}>Καθάρισε την επιλογή</button>}
+          {!pickMode && except.length > 0 && <button type="button" onClick={() => setExcept([])} className={`${btn} text-eu-ink-3 hover:bg-eu-surface`} disabled={busy || running}>{except.length === 1 ? "Καθάρισε την εξαίρεση" : `Καθάρισε τις ${except.length} εξαιρέσεις`}</button>}
           <button type="button" className={primary} disabled={busy || running || willImport === 0 || !state.active} onClick={startImport}>
             {running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />} Εισαγωγή {willImport.toLocaleString("el-GR")}
           </button>
@@ -318,8 +419,13 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
             <span className={num}>· φωτογραφίες {prog.images.done.toLocaleString("el-GR")}/{prog.images.total.toLocaleString("el-GR")}</span>
             {prog.errors > 0 && <span className={`inline-flex items-center gap-1 text-eu-red ${num}`}><CircleAlert className="size-3.5" aria-hidden /> {prog.errors.toLocaleString("el-GR")} σφάλματα</span>}
           </p>
-          <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{running ? "Μπορείς να κλείσεις τη σελίδα — η ουρά συνεχίζει από εκεί που έμεινε όταν ξαναμπείς και πατήσεις «Εισαγωγή»." : prog.queued ? "Η ουρά έχει γραμμές που περιμένουν: πάτα «Εισαγωγή» για να συνεχίσει." : "Η ουρά είναι άδεια."}{prog.writeOn ? "" : " Οι αλλαγές προς το SoftOne είναι κλειστές: τα νέα είδη περιμένουν έγκριση στα «Νέα είδη»."}</p>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">{running ? "Κράτα τη σελίδα ανοιχτή μέχρι να τελειώσει. Αν κλείσει, τίποτα δεν χάνεται: ξαναμπαίνεις και πατάς «Συνέχισε την ουρά»." : prog.queued ? "Η εισαγωγή σταμάτησε στη μέση (έκλεισε η σελίδα): πάτα «Συνέχισε την ουρά» — συνεχίζει από εκεί που έμεινε, χωρίς να ξανακάνει όσα μπήκαν." : "Η ουρά είναι άδεια."}{prog.writeOn ? "" : " Οι αλλαγές προς το SoftOne είναι κλειστές: τα νέα είδη περιμένουν έγκριση στα «Νέα είδη»."}</p>
           <div className="flex flex-wrap items-center gap-2">
+            {prog.queued > 0 && !running && (
+              <button type="button" className={primary} disabled={busy || !state.active} onClick={() => void runQueue()}>
+                <Play className="size-4" aria-hidden /> Συνέχισε την ουρά ({prog.queued.toLocaleString("el-GR")})
+              </button>
+            )}
             {prog.done > 0 && <Link href="/admin/catalog/templates/nea-eidi" className="font-bold text-eu-blue text-[length:var(--fs-13)] min-h-11 md:min-h-9 inline-flex items-center hover:underline">Νέα είδη προς έγκριση →</Link>}
             {prog.done > 0 && (
               <button type="button" className={secondary} disabled={busy || running} onClick={onPublish}>
@@ -343,12 +449,13 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
           <ul data-help="xml.list.rows" className="m-0 p-0 list-none grid gap-2 md:hidden min-w-0">
             {rows.map((it, i) => {
               const r = row(it);
-              const off = except.includes(it.sku);
+              const off = isOff(it.sku);
               return (
-                <li key={it.id} className={`${card} grid gap-1.5 p-2.5 ${off ? "opacity-60" : ""}`}>
+                <li key={it.id} className={`${card} grid gap-1.5 p-2.5 ${off && !pickMode ? "opacity-60" : ""}`}>
                   <div className="flex items-start gap-2 min-w-0">
                     <button type="button" onClick={() => toggleExcept(it.sku)} aria-pressed={!off} aria-label={off ? `Βάλε το ${it.sku} στην εισαγωγή` : `Εξαίρεσε το ${it.sku} από την εισαγωγή`}
                       className="size-11 shrink-0 grid place-items-center rounded-lg text-eu-navy hover:bg-eu-chip focus-visible:outline-2 focus-visible:outline-eu-blue">{off ? <Square className="size-5" aria-hidden /> : <SquareCheck className="size-5" aria-hidden />}</button>
+                    <Thumb src={it.images[0]} name={r.name} />
                     <button type="button" onClick={() => setAt(i)} className="min-w-0 flex-1 text-left grid gap-0.5 rounded-lg px-1 py-0.5 hover:bg-eu-surface focus-visible:outline-2 focus-visible:outline-eu-blue">
                       <span className="font-bold text-eu-ink text-[length:var(--fs-14)] [overflow-wrap:anywhere]">{it.sku}</span>
                       {r.name && <span className="text-eu-ink-3 text-[length:var(--fs-13)] line-clamp-2">{r.name}</span>}
@@ -370,6 +477,8 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
                       <span className="min-w-0 text-eu-ink">{it.error ?? it.problem ?? r.warn}</span>
                     </p>
                   )}
+                {it.skipWhy && <span className="flex gap-1 items-start text-eu-ink-2 text-[length:var(--fs-12)]"><EyeOff className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{it.skipWhy}</span></span>}
+                  {fixOf(it, i)}
                 </li>
               );
             })}
@@ -393,19 +502,22 @@ export function ReviewList({ state, writeOn, canErp, onRemap, onPublish, onChang
               <tbody>
                 {rows.map((it, i) => {
                   const r = row(it);
-                  const off = except.includes(it.sku);
+                  const off = isOff(it.sku);
                   return (
-                    <tr key={it.id} className={`border-t border-eu-line align-top ${off ? "opacity-60" : ""}`}>
+                    <tr key={it.id} className={`border-t border-eu-line align-top ${off && !pickMode ? "opacity-60" : ""}`}>
                       <td className="p-1">
                         <button type="button" onClick={() => toggleExcept(it.sku)} aria-pressed={!off} aria-label={off ? `Βάλε το ${it.sku} στην εισαγωγή` : `Εξαίρεσε το ${it.sku} από την εισαγωγή`}
                           className="size-9 grid place-items-center rounded-lg text-eu-navy hover:bg-eu-chip focus-visible:outline-2 focus-visible:outline-eu-blue">{off ? <Square className="size-4" aria-hidden /> : <SquareCheck className="size-4" aria-hidden />}</button>
                       </td>
                       <td className="p-2">
-                        <button type="button" onClick={() => setAt(i)} className="text-left font-bold text-eu-navy hover:underline focus-visible:outline-2 focus-visible:outline-eu-blue [overflow-wrap:anywhere]">{it.sku}</button>
+                        <span className="flex items-start gap-2 min-w-0"><Thumb src={it.images[0]} name={r.name} />
+                        <button type="button" onClick={() => setAt(i)} className="text-left font-bold text-eu-navy hover:underline focus-visible:outline-2 focus-visible:outline-eu-blue [overflow-wrap:anywhere]">{it.sku}</button></span>
                         {it.edits && <span className="ml-1.5 rounded-full bg-eu-blue/10 px-1.5 py-0.5 font-bold text-eu-blue text-[length:var(--fs-12)]">διορθωμένο</span>}
                       </td>
                       <td className="p-2 text-eu-ink max-w-[22rem]"><span className="line-clamp-2">{r.name || "—"}</span>
                         {(it.problem || it.error) && <span className="mt-0.5 flex gap-1 items-start text-eu-red text-[length:var(--fs-12)]"><CircleAlert className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{it.error ?? it.problem}</span></span>}
+                        {it.skipWhy && <span className="mt-0.5 flex gap-1 items-start text-eu-ink-2 text-[length:var(--fs-12)]"><EyeOff className="size-3.5 shrink-0 mt-0.5" aria-hidden /><span className="min-w-0 [overflow-wrap:anywhere]">{it.skipWhy}</span></span>}
+                        {fixOf(it, i)}
                       </td>
                       <td className="p-2"><span className={`rounded-full px-2 py-0.5 font-bold text-[length:var(--fs-12)] ${DIFF_CLS[it.diff]}`}>{DIFF[it.diff].label}</span></td>
                       <td className={`p-2 text-right text-eu-ink ${num}`}>{r.cost || "—"}</td>

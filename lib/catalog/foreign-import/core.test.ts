@@ -501,3 +501,50 @@ test("δεύτερο αρχείο πολυμέσων: διαβάζεται μό�
   assert.deepEqual(suggestTarget("MTRL"), { kind: "field", key: "mtrl" });
   assert.equal(unknownHeader("Έχει ήδη"), false);
 });
+
+test("σύνθετο πεδίο: Περιγραφή + Μάρκα + Μοντέλο γίνεται το όνομα, υπερισχύει της στήλης· κενά κομμάτια παραλείπονται", () => {
+  const m = [["Κωδικός", "Περιγραφή", "Μάρκα", "Μοντέλο", "Χωρητικότητα"], ["A1", "Ψυγείο Ντουλάπα", "INV", "RD-46W", "452 lt"], ["A2", "Καταψύκτης", "XYZ", "", "198 lt"]];
+  const config = {
+    columns: { 0: { kind: "field", key: "code" }, 1: { kind: "field", key: "name" }, 2: { kind: "brand" } } as Record<number, Target>,
+    compose: [
+      { target: { kind: "field" as const, key: "name" as const }, parts: [{ kind: "col" as const, col: 1 }, { kind: "brand" as const }, { kind: "col" as const, col: 3 }] },
+      { target: { kind: "spec" as const, label: "Όγκος" }, parts: [{ kind: "text" as const, text: "περίπου" }, { kind: "col" as const, col: 4 }] },
+    ],
+    brandMap: { INV: "b1" }, categoryMap: {},
+  };
+  const rows = toRows(m, 0, config, (id) => (id === "b1" ? "Inventor" : undefined));
+  assert.equal(rows[0].fields.name, "Ψυγείο Ντουλάπα Inventor RD-46W"); // δική μας μάρκα
+  assert.equal(rows[0].specs["Όγκος"], "περίπου 452 lt");
+  assert.equal(rows[1].fields.name, "Καταψύκτης XYZ"); // χωρίς αντιστοίχιση μάρκας: το κείμενο του αρχείου· κενό μοντέλο χωρίς διπλό κενό
+});
+
+test("σύνθετο πεδίο: αποθηκεύεται με κλειδιά επικεφαλίδων και επανέρχεται σε αρχείο με άλλη σειρά στηλών", () => {
+  const saved = configToSaved({ columns: {}, compose: [{ target: { kind: "field", key: "name" }, parts: [{ kind: "col", col: 1 }, { kind: "brand" }, { kind: "text", text: "-" }, { kind: "col", col: 0 }] }], brandMap: {}, categoryMap: {} }, ["Μοντέλο", "Περιγραφή"]);
+  assert.deepEqual(saved.compose?.[0].parts[0], { kind: "col", col: "περιγραφη" });
+  const back = configForHeaders(saved, ["Περιγραφή", "Κωδικός", "Μοντέλο"]);
+  assert.deepEqual(back.compose?.[0].parts, [{ kind: "col", col: 0 }, { kind: "brand" }, { kind: "text", text: "-" }, { kind: "col", col: 2 }]);
+  // λείπει η στήλη στο νέο αρχείο: το κομμάτι φεύγει, το πεδίο μένει
+  assert.deepEqual(configForHeaders(saved, ["Μοντέλο"]).compose?.[0].parts, [{ kind: "brand" }, { kind: "text", text: "-" }, { kind: "col", col: 0 }]);
+});
+
+test("toRows: χαρακτηριστικά ανά κατηγορία — η ίδια στήλη πάει σε άλλο χαρακτηριστικό ανά κατηγορία, η πρόταση AI υπερισχύει του φύλλου όχι της στήλης", () => {
+  const m = [["Κωδικός", "Κατηγορία", "Λίτρα", "Τύπος"], ["A", "", "160", "Επιλεκτικός"], ["B", "", "100", "Ηλεκτρικός"], ["C", "Boiler", "80", "Ηλεκτρικός"]];
+  const rows = toRows(m, 0, {
+    columns: { 0: { kind: "field", key: "code" }, 1: { kind: "category" } }, brandMap: {}, categoryMap: { Boiler: "cB" }, sheetCategoryId: "cX",
+    rowCats: { 2: "cS", 3: "cB", 4: "cS" },
+    catSpecs: { cS: { 2: "Χωρητικότητα σε lt", 3: "Τύπος Συλλέκτη" }, cB: { 2: "Χωρητικότητα" } },
+  });
+  assert.deepEqual(rows.map((r) => r.categoryId), ["cS", "cB", "cB"]); // γραμμή 4: η στήλη κατηγορίας κερδίζει την πρόταση
+  assert.deepEqual(rows[0].specs, { "Χωρητικότητα σε lt": "160", "Τύπος Συλλέκτη": "Επιλεκτικός" });
+  assert.deepEqual(rows[1].specs, { "Χωρητικότητα": "100" });
+  assert.deepEqual(rows[2].specs, { "Χωρητικότητα": "80" });
+});
+
+test("configToSaved / configForHeaders: τα χαρακτηριστικά ανά κατηγορία ακολουθούν τις επικεφαλίδες, όχι τη θέση· οι προτάσεις ανά γραμμή δεν αποθηκεύονται", () => {
+  const saved = configToSaved({ columns: {}, brandMap: {}, categoryMap: {}, rowCats: { 2: "cS" }, catSpecs: { cS: { 1: "Χωρητικότητα σε lt", 2: "Τύπος" } } }, ["Κωδικός", "Λίτρα", "Τύπος"]);
+  assert.deepEqual(saved.catSpecs, { cS: { "λιτρα": "Χωρητικότητα σε lt", "τυπος": "Τύπος" } });
+  assert.equal("rowCats" in saved, false);
+  const back = configForHeaders(saved, ["Τύπος", "Κωδικός", "Λίτρα"]);
+  assert.deepEqual(back.catSpecs, { cS: { 0: "Τύπος", 2: "Χωρητικότητα σε lt" } });
+  assert.equal(configForHeaders(saved, ["Κωδικός"]).catSpecs, undefined);
+});

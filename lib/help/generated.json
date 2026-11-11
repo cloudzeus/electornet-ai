@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-10T12:59:58.774Z",
+ "generatedAt": "2026-11-11T02:40:51.481Z",
  "routes": [
   {
    "route": "/admin",
@@ -434,6 +434,9 @@
     "catalog.sets-sync",
     "catalog.filters",
     "catalog.type",
+    "catalog.photo-picker",
+    "catalog.photo-picker.grid",
+    "catalog.photo-picker.search",
     "catalog.peek",
     "catalog.table",
     "catalog.actions",
@@ -512,6 +515,7 @@
     "product.publish",
     "product.actions",
     "product.enrich",
+    "product.photos-web",
     "product.set",
     "enrich.copy",
     "enrich.sources",
@@ -1067,8 +1071,10 @@
     "foreign.header-row",
     "foreign.saved-mapping",
     "foreign.recent",
+    "foreign.tabs",
     "foreign.columns",
     "foreign.questions",
+    "foreign.idle",
     "foreign.sheet-defaults",
     "foreign.price",
     "foreign.category",
@@ -1078,7 +1084,8 @@
     "foreign.web-excluded",
     "foreign.run",
     "foreign.create",
-    "foreign.missing"
+    "foreign.missing",
+    "foreign.missing-action"
    ],
    "changes": [
     {
@@ -1317,12 +1324,14 @@
     "xml.modal.softone",
     "xml.publish.counts",
     "xml.publish.actions",
+    "xml.list.fix",
     "xml.list.feed",
     "xml.list.snapshot",
     "xml.list.web-excluded",
     "xml.list.pending",
     "xml.list.chips",
     "xml.list.selection",
+    "xml.list.pick",
     "xml.list.progress",
     "xml.list.rows",
     "xml.steps",
@@ -1919,6 +1928,11 @@
    ],
    "changes": [
     {
+     "hash": "e029767",
+     "date": "2026-11-10T15:03:47+02:00",
+     "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
+    },
+    {
      "hash": "f56c727",
      "date": "2026-11-06T11:12:42+02:00",
      "text": "Πελάτης → Αγορές: «Πορεία στο SoftOne» και στις παλιές αγορές του eshop (ίδιο διάγραμμα με την παραγγελία, FINDOC από τη βάση, μόνο ανάγνωση)"
@@ -1962,14 +1976,9 @@
      "hash": "ea5bca6",
      "date": "2026-09-13T14:22:27+03:00",
      "text": "Customer address geocoding & location segmentation: Address lat/lng/source/label/nearest store+km, server geocoding on every save (admin + account API), storefront address book with GPS option, backfill script, admin …"
-    },
-    {
-     "hash": "b5e568f",
-     "date": "2026-09-13T14:02:50+03:00",
-     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
     }
    ],
-   "updatedAt": "2026-11-06T11:12:42+02:00",
+   "updatedAt": "2026-11-10T15:03:47+02:00",
    "shots": {}
   },
   {
@@ -2386,6 +2395,11 @@
    ],
    "changes": [
     {
+     "hash": "e029767",
+     "date": "2026-11-10T15:03:47+02:00",
+     "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
+    },
+    {
      "hash": "7df8653",
      "date": "2026-11-06T15:59:55+02:00",
      "text": "Παραγγελίες → Ρυθμίσεις ενημέρωσης: ο διαχειριστής διαλέγει ποια στάδια στο SoftOne (τύποι παραστατικών) στέλνουν email στον πελάτη και γράφει τίτλο/κείμενο με μεταβλητές"
@@ -2429,14 +2443,9 @@
      "hash": "ff6db32",
      "date": "2026-10-16T13:04:03+03:00",
      "text": "Παραγγελίες στη διαχείριση (ui-ux-pro-max): λίστα με σύνοψη ημέρας που φιλτράρει με ένα κλικ, προβολές με πλήθη (νέες, προς επεξεργασία, προς αποστολή, για παραλαβή, σε μεταφορά, ολοκληρωμένες, ακυρωμένες, θέλουν προσ…"
-    },
-    {
-     "hash": "06fa557",
-     "date": "2026-10-13T10:29:46+03:00",
-     "text": "Vouchers (ui-ux-pro-max), δελτίο παράδοσης, εκτύπωση όλων και widget παρακολούθησης: λεπτή κεφαλίδα με courier / περιβάλλον / σύνδεση / ενημέρωση / κλείσιμο ημέρας, KPIs, ουρά έκδοσης σε πυκνές γραμμές, πίνακας vouche…"
     }
    ],
-   "updatedAt": "2026-11-06T15:59:55+02:00",
+   "updatedAt": "2026-11-10T15:03:47+02:00",
    "shots": {}
   },
   {
@@ -2471,6 +2480,11 @@
     "orders.softone.details"
    ],
    "changes": [
+    {
+     "hash": "e029767",
+     "date": "2026-11-10T15:03:47+02:00",
+     "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
+    },
     {
      "hash": "7df8653",
      "date": "2026-11-06T15:59:55+02:00",
@@ -2515,14 +2529,9 @@
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
-    },
-    {
-     "hash": "ffac74e",
-     "date": "2026-10-16T14:12:27+03:00",
-     "text": "SoftOne παραστατικό παραγγελίας όπως το σημερινό eshop, Klarna απευθείας, TBI Bank μέσω Viva, έλεγχος social login"
     }
    ],
-   "updatedAt": "2026-11-06T15:59:55+02:00",
+   "updatedAt": "2026-11-10T15:03:47+02:00",
    "shots": {}
   },
   {
@@ -2569,8 +2578,14 @@
     "orders.legacy.customer",
     "orders.legacy.docs"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "e029767",
+     "date": "2026-11-10T15:03:47+02:00",
+     "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο"
+    }
+   ],
+   "updatedAt": "2026-11-10T15:03:47+02:00",
    "shots": {}
   },
   {
@@ -4597,6 +4612,16 @@
  ],
  "recent": [
   {
+   "hash": "e029767",
+   "date": "2026-11-10T15:03:47+02:00",
+   "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο",
+   "routes": [
+    "/admin",
+    "/admin/orders",
+    "/admin/orders/legacy/[id]"
+   ]
+  },
+  {
    "hash": "1549cde",
    "date": "2026-11-10T14:12:03+02:00",
    "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση",
@@ -4864,12 +4889,6 @@
    "date": "2026-11-04T08:45:44+02:00",
    "text": "Σελίδα προϊόντος: απόδελτίωση και από στενά banners, κάρτες, χωρίς υποσημειώσεις και επαναλήψεις",
    "routes": []
-  },
-  {
-   "hash": "aba3d27",
-   "date": "2026-11-04T08:21:20+02:00",
-   "text": "Σκετς Ερμή: τα σχόλια του παρουσιαστή δεν διακόπτουν τη ροή (απάντηση μόνο σε ερωτήσεις), η ακρόαση αγνοεί ουρά προηγούμενης κουβέντας, το κινητό δείχνει τι άκουσε ο Ερμής",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -4970,6 +4989,9 @@
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
   "product.enrich": [
+   "app/admin/(shell)/catalog/[id]/page.tsx"
+  ],
+  "product.photos-web": [
    "app/admin/(shell)/catalog/[id]/page.tsx"
   ],
   "product.set": [
@@ -5416,6 +5438,21 @@
   "enrich.to-erp": [
    "components/admin/catalog/EnrichPanel.tsx"
   ],
+  "foreign.categories": [
+   "components/admin/catalog/ForeignCategories.tsx"
+  ],
+  "foreign.categories-ai": [
+   "components/admin/catalog/ForeignCategories.tsx"
+  ],
+  "foreign.categories-rows": [
+   "components/admin/catalog/ForeignCategories.tsx"
+  ],
+  "foreign.compose": [
+   "components/admin/catalog/ForeignColumns.tsx"
+  ],
+  "foreign.live": [
+   "components/admin/catalog/ForeignColumns.tsx"
+  ],
   "foreign.steps": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
@@ -5434,10 +5471,16 @@
   "foreign.recent": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
+  "foreign.tabs": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
   "foreign.columns": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
   "foreign.questions": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
+  "foreign.idle": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
   "foreign.sheet-defaults": [
@@ -5470,6 +5513,9 @@
   "foreign.missing": [
    "components/admin/catalog/ForeignImportWizard.tsx"
   ],
+  "foreign.missing-action": [
+   "components/admin/catalog/ForeignImportWizard.tsx"
+  ],
   "markup.list": [
    "components/admin/catalog/MarkupRules.tsx"
   ],
@@ -5499,6 +5545,15 @@
   ],
   "pending.edit": [
    "components/admin/catalog/PendingItems.tsx"
+  ],
+  "catalog.photo-picker": [
+   "components/admin/catalog/PhotoPicker.tsx"
+  ],
+  "catalog.photo-picker.grid": [
+   "components/admin/catalog/PhotoPicker.tsx"
+  ],
+  "catalog.photo-picker.search": [
+   "components/admin/catalog/PhotoPicker.tsx"
   ],
   "product.dims-from-content": [
    "components/admin/catalog/ProductEditor.tsx"
@@ -5532,6 +5587,9 @@
   ],
   "product.sold-alone": [
    "components/admin/catalog/SoldAloneSwitch.tsx"
+  ],
+  "pending.spec-gaps": [
+   "components/admin/catalog/SpecGapsPanel.tsx"
   ],
   "specs.tree": [
    "components/admin/catalog/SpecManager.tsx"
@@ -5650,6 +5708,9 @@
   "xml.publish.actions": [
    "components/admin/catalog/xml/PublishStep.tsx"
   ],
+  "xml.list.fix": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
   "xml.list.feed": [
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
@@ -5666,6 +5727,9 @@
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
   "xml.list.selection": [
+   "components/admin/catalog/xml/ReviewList.tsx"
+  ],
+  "xml.list.pick": [
    "components/admin/catalog/xml/ReviewList.tsx"
   ],
   "xml.list.progress": [

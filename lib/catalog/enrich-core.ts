@@ -71,6 +71,13 @@ export function pageImages(html: string, baseUrl: string, max = 12, hints: strin
   const gallery = [...html.matchAll(/<a\b[^>]*>/gi)].filter((m) => !labelLink(html, m.index)).map((m) => attr(m[0], "href")).filter((h): h is string => !!h && IMG_EXT.test(h.split(/[?#]/)[0]));
   const named = (u: string) => { const f = decodeURIComponent(u.split(/[?#]/)[0].split("/").pop() ?? "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""); return keys.some((k) => f.includes(k)); };
   found.push(...gallery.filter(named));
+  // <img src> / lazy-load (data-src, data-src-xl, data-zoom-image, data-large_image) ΜΟΝΟ με το μοντέλο στο όνομα αρχείου:
+  // σελίδες κατασκευαστών χωρίς JSON-LD / og:image (π.χ. inventoraircondition.gr) δείχνουν τις φωτογραφίες μόνο έτσι·
+  // λογότυπα, πιστοποιητικά και άλλα μοντέλα της σελίδας δεν έχουν το μοντέλο στο όνομα και μένουν έξω
+  if (keys.length) for (const m of html.matchAll(/\s(?:src|data-src|data-src-xl|data-zoom-image|data-large_image|data-full)\s*=\s*["']([^"']+)["']/gi)) {
+    const u = m[1];
+    if (IMG_EXT.test(u.split(/[?#]/)[0]) && named(u)) found.push(u);
+  }
   for (const m of html.matchAll(/<script[^>]+type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
     try { jsonLdImages(JSON.parse(m[1].trim()), found); } catch { /* σπασμένο JSON-LD: αγνοείται */ }
   }

@@ -62,3 +62,66 @@ export function pendingMedia(v: PendingItem["media"]): { image: string[]; banner
   const list = (x: unknown) => (Array.isArray(x) ? x.filter((s): s is string => typeof s === "string" && !!s.trim()) : []);
   return { image: list(o.image), banner: list(o.banner), video: list(o.video) };
 }
+
+/** «Περιγραφή για Web» του SoftOne (WEBNAME, έως 64 χαρακτήρες): το όνομα, κομμένο σε ολόκληρη λέξη όταν δεν χωρά. */
+export function webNameOf(name: string, max = 64): string {
+  const s = name.replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max + 1), at = cut.lastIndexOf(" ");
+  return (at > max / 2 ? cut.slice(0, at) : s.slice(0, max)).trim();
+}
+
+/** Σύντομη περιγραφή όταν η πηγή δεν δίνει (π.χ. Keyvoto): η πρώτη πρόταση της αναλυτικής, χωρίς HTML, έως 300 χαρακτήρες. */
+export function leadSentence(text: string | null | undefined): string {
+  const s = (text ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim();
+  const m = s.match(/^.{20,300}?[.!](?=\s|$)/);
+  return (m ? m[0] : webNameOf(s, 200)).trim();
+}
+
+/** Κωδικός νέου είδους στο SoftOne: ο κωδικός κατασκευαστή / μοντέλο της πηγής (όπως τα πρόσφατα είδη του ERP)· ο κωδικός του feed μόνο όταν λείπει ή δεν χωρά (25 χαρ.). */
+export function newItemCode(fields: { code?: string; factoryCode?: string }): string {
+  const model = (fields.factoryCode ?? "").trim();
+  return model && model.length <= 25 ? model : (fields.code ?? "").trim() || model.slice(0, 25);
+}
+
+// ---------- Χαρακτηριστικά του αρχείου που λείπουν από την ομάδα του SoftOne ----------
+
+const specTokens = (s: string) => new Set(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/ς/g, "σ").split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 3));
+/** Το πιο κοντινό υπάρχον χαρακτηριστικό της ομάδας (κοινές λέξεις ≥ 60% της μικρότερης ετικέτας) — μόνο πρόταση, αποφασίζει ο χρήστης. */
+export function similarSpec(label: string, names: string[]): string | null {
+  const a = specTokens(label);
+  let best: string | null = null, top = 0;
+  for (const n of names) {
+    const b = specTokens(n);
+    const common = [...a].filter((t) => b.has(t)).length, score = common / Math.max(1, Math.min(a.size, b.size));
+    if (common && score >= 0.6 && score > top) { best = n; top = score; }
+  }
+  return best;
+}
+
+export interface MissingSpec { groupS1Id: number; label: string; sample: string; items: number; similar: string | null }
+/** Ποιες ετικέτες χαρακτηριστικών των ειδών δεν υπάρχουν στην ομάδα τους (ανά ομάδα + ετικέτα, με ένα δείγμα τιμής). */
+export function missingSpecs(items: { specGroupS1Id: number | null; specs: unknown }[], groupNames: Map<number, string[]>, keyOf: (s: string) => string): MissingSpec[] {
+  const out = new Map<string, MissingSpec>();
+  for (const it of items) {
+    const names = it.specGroupS1Id != null ? groupNames.get(it.specGroupS1Id) : undefined;
+    if (!names || !it.specs || typeof it.specs !== "object" || Array.isArray(it.specs)) continue;
+    const have = new Set(names.map(keyOf));
+    for (const [label, v] of Object.entries(it.specs as Record<string, unknown>)) {
+      if (typeof v !== "string" || !v.trim() || have.has(keyOf(label))) continue;
+      const k = `${it.specGroupS1Id}:${keyOf(label)}`, m = out.get(k);
+      if (m) m.items++; else out.set(k, { groupS1Id: it.specGroupS1Id!, label: label.trim(), sample: v.trim().slice(0, 80), items: 1, similar: similarSpec(label, names) });
+    }
+  }
+  return [...out.values()];
+}
+
+/** Η ετικέτα του αρχείου γίνεται το υπάρχον χαρακτηριστικό της ομάδας (τιμή που υπάρχει ήδη εκεί δεν πατιέται). */
+export function renameSpec(specs: unknown, from: string, to: string, keyOf: (s: string) => string): Record<string, string> | null {
+  if (!specs || typeof specs !== "object" || Array.isArray(specs)) return null;
+  const e = Object.entries(specs as Record<string, string>), hit = e.find(([k]) => keyOf(k) === keyOf(from));
+  if (!hit) return null;
+  const out = Object.fromEntries(e.filter(([k]) => k !== hit[0]));
+  if (!e.some(([k]) => k !== hit[0] && keyOf(k) === keyOf(to))) out[to] = hit[1];
+  return out;
+}

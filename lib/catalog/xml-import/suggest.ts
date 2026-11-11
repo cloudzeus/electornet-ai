@@ -105,9 +105,11 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
     // Το φύλλο του ζεύγους είναι το πιο πιθανό να ταιριάξει με δική μας κατηγορία.
     const leaf = norm(value.split("›").pop() ?? value);
     const hit = catByName.get(leaf);
-    categories[value] = hit
+    // Ίδιο όνομα αλλά χωρίς ομάδα χαρακτηριστικών (π.χ. γονική «Air Condition»): νέο είδος δεν μπορεί να μπει εκεί —
+    // δεν είναι σίγουρη πρόταση, πάει στο AI που διαλέγει μόνο από κατηγορίες με ομάδα.
+    categories[value] = hit && groupOfCat(hit.erpCode) != null
       ? { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "sure" }
-      : { categoryId: null, specGroupS1Id: null, confidence: "unsure" };
+      : { categoryId: hit?.id ?? null, specGroupS1Id: null, confidence: "unsure" };
   }
   if (saved) for (const value of Object.keys(categories)) {
     if (!Object.hasOwn(saved.categoryMap, value)) continue;
@@ -115,7 +117,8 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
     const hit = id ? ourCats.find((o) => o.id === id) : null;
     // Αντιστοίχιση σε κατηγορία που διαγράφηκε στο μεταξύ: ξαναγίνεται ερώτημα, δεν σβήνει αμίλητα.
     if (id && !hit) { categories[value] = { categoryId: null, specGroupS1Id: null, confidence: "unsure" }; continue; }
-    categories[value] = hit ? { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "sure" } : { categoryId: null, specGroupS1Id: null, confidence: "sure" };
+    // Παλιά επιλογή σε κατηγορία χωρίς ομάδα ξαναγίνεται ερώτημα: εκεί κολλούσαν τα νέα είδη στην εισαγωγή.
+    categories[value] = hit ? { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: groupOfCat(hit.erpCode) != null ? "sure" : "unsure" } : { categoryId: null, specGroupS1Id: null, confidence: "sure" };
   }
   // Χαρακτηριστικά: ετικέτα που ταιριάζει με όνομα ομάδας/χαρακτηριστικού μας μένει ως είναι.
   const ourSpecNames = new Set((await db.s1SpecDef.findMany({ where: { missing: false, active: true }, select: { name: true }, distinct: ["name"] })).map((s) => norm(s.name)));
@@ -165,7 +168,7 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
 
   // (β) Κατηγορίες
   if (askCats.length) {
-    const pool = ourCats.slice(0, MAX_CATS).map((c) => ({ id: c.id, name: c.name, group: groupOfCat(c.erpCode) }));
+    const pool = ourCats.filter((c) => groupOfCat(c.erpCode) != null).slice(0, MAX_CATS).map((c) => ({ id: c.id, name: c.name, group: groupOfCat(c.erpCode) }));
     const j = await ask<{ categories?: { value: string; id?: string | null; sure?: boolean }[] }>(
       `Αντιστοιχίζεις κατηγορίες προμηθευτή στις κατηγορίες ενός e-shop ηλεκτρικών. Απαντάς ΜΟΝΟ με JSON: {"categories":[{"value":string (η κατηγορία του προμηθευτή, όπως σου δόθηκε),"id":string|null (id δικής μας κατηγορίας, ή null αν δεν ταιριάζει καμία),"sure":boolean}]}. Μην μαντεύεις: όταν δεν υπάρχει καθαρό ταίριασμα βάλε null.`,
       { supplier: askCats, ours: pool },
@@ -173,7 +176,7 @@ export async function suggestMapping(input: { headers: string[]; matrix: string[
     for (const c of j?.categories ?? []) {
       if (!categories[c.value] || categories[c.value].confidence === "sure") continue;
       const hit = c.id ? ourCats.find((o) => o.id === c.id) : null;
-      if (hit) categories[c.value] = { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "unsure" };
+      if (hit && groupOfCat(hit.erpCode) != null) categories[c.value] = { categoryId: hit.id, specGroupS1Id: groupOfCat(hit.erpCode), confidence: "unsure" };
     }
   }
 

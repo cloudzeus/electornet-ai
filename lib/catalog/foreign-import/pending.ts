@@ -6,9 +6,10 @@ import { applyMedia } from "@/lib/catalog/supplier-media";
 import { loadGroups } from "@/lib/catalog/supplier-sheet";
 import { syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
-import { itemWriteEnabled, itemCodeTaken, writeWebPrice, webPriceWriteEnabled, writeWebExcluded, webFlagWriteEnabled } from "@/lib/softone/item-write";
-import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
-import { UserError } from "@/lib/catalog/foreign-import/core";
+import { itemWriteEnabled, itemCodeTaken, writeItem, writeWebPrice, webPriceWriteEnabled, writeWebExcluded, webFlagWriteEnabled } from "@/lib/softone/item-write";
+import { OPEN, pendingMissing, pendingRow, pendingMedia, pendingFields, pendingSpecs, isStaleCreating, canApprove, staleBefore, missingSpecs, renameSpec, type MissingSpec, type PendingFields } from "@/lib/catalog/foreign-import/pending-core";
+import { UserError, labelKey } from "@/lib/catalog/foreign-import/core";
+import { changeSpecGroup } from "@/lib/softone/spec-write";
 import type { RowRefs } from "@/lib/catalog/supplier-sheet";
 import type { PendingView } from "@/components/admin/catalog/PendingItems";
 
@@ -165,9 +166,15 @@ async function approveOne(id: string, staffId: string, opts: ApproveOpts): Promi
 async function finish(p: PendingItem, staffId: string, mtrl: number, productId: string | null, notes: string[], priceWithoutProduct: boolean, opts: ApproveOpts = {}): Promise<ApproveResult> {
   await db.pendingItem.update({ where: { id: p.id }, data: { status: "created", mtrl, productId, approvedById: staffId, error: notes.join(" · ") || null } });
   // ---- «Εξαίρεση Web»: πριν από τιμή και συγχρονισμό, ώστε ο καθρέφτης να τη διαβάσει στο ίδιο πέρασμα ----
+  // Με επιβεβαιωμένη εξαίρεση το είδος ΕΝΕΡΓΟΠΟΙΕΙΤΑΙ στο ERP (χρησιμοποιείται κανονικά, απλώς δεν ανεβαίνει στο site).
+  // Αν η εξαίρεση δεν γράφτηκε, μένει ανενεργό: ενεργό χωρίς εξαίρεση θα έβγαινε στο web χωρίς έλεγχο.
   if (opts.webExcluded) {
-    if (!webFlagWriteEnabled()) notes.push("Ζήτησες «Εξαίρεση Web» αλλά η εγγραφή της δεν έχει ενεργοποιηθεί — τσέκαρέ τη στο είδος στο SoftOne πριν το ενεργοποιήσεις.");
-    else { const w = await writeWebExcluded(mtrl, true); if (!w.ok) notes.push(`«Εξαίρεση Web»: ${w.error ?? "δεν γράφτηκε."} Τσέκαρέ τη στο SoftOne πριν ενεργοποιήσεις το είδος.`); }
+    if (!webFlagWriteEnabled()) notes.push("Ζήτησες «Εξαίρεση Web» αλλά η εγγραφή της δεν έχει ενεργοποιηθεί — το είδος έμεινε ανενεργό· τσέκαρέ τη στο SoftOne και ενεργοποίησέ το.");
+    else {
+      const w = await writeWebExcluded(mtrl, true);
+      if (!w.ok) notes.push(`«Εξαίρεση Web»: ${w.error ?? "δεν γράφτηκε."} Το είδος έμεινε ανενεργό· τσέκαρέ τη στο SoftOne πριν το ενεργοποιήσεις.`);
+      else { const a = await writeItem(mtrl, { active: { from: false, to: true } }); if (!a.ok) notes.push(`Ενεργοποίηση: ${a.error ?? "δεν έγινε."} Το είδος έμεινε ανενεργό στο SoftOne.`); }
+    }
   }
   if (!productId) { await syncItem(mtrl, "manual"); productId = (await projectItem(mtrl)).productId ?? null; }
 
@@ -184,7 +191,7 @@ async function finish(p: PendingItem, staffId: string, mtrl: number, productId: 
   if (!productId) notes.push("Το κατάστημα θα το πάρει στον επόμενο συγχρονισμό — οι φωτογραφίες δεν προστέθηκαν.");
   else {
     const prod = await db.product.findUnique({ where: { id: productId }, select: { active: true, categoryId: true, category: { select: { name: true } } } });
-    // Το είδος δημιουργείται ανενεργό στο SoftOne, άρα και η προβολή το βγάζει ανενεργό — εδώ μόνο για σιγουριά
+    // Ανενεργό ή με «Εξαίρεση Web» στο SoftOne, άρα και η προβολή το βγάζει ανενεργό — εδώ μόνο για σιγουριά
     if (prod?.active) await db.product.update({ where: { id: productId }, data: { active: false } });
     // Η κατηγορία του site βγαίνει από την ομάδα χαρακτηριστικών σε κάθε προβολή — το webCategoryId είναι μόνο ένδειξη
     if (prod && p.webCategoryId && prod.categoryId !== p.webCategoryId) {
@@ -255,4 +262,40 @@ export async function updatePending(id: string, patch: PendingPatch): Promise<{ 
   // Ξανά ο έλεγχος κατάστασης στην ίδια την εγγραφή: αν στο μεταξύ ξεκίνησε έγκριση, δεν αλλάζει τίποτα
   const n = await db.pendingItem.updateMany({ where: { id, status: { in: OPEN }, mtrl: null }, data });
   return n.count === 1 ? { ok: true } : { ok: false, error: "Το είδος άλλαξε κατάσταση στο μεταξύ — ανανέωσε τη λίστα." };
+}
+
+// ---------- Χαρακτηριστικά που λείπουν από την ομάδα του SoftOne (πριν από την έγκριση) ----------
+
+export type SpecGap = MissingSpec & { groupName: string; existing: string[] };
+export type SpecDecision = { groupS1Id: number; label: string; action: "create" | "use" | "skip"; use?: string };
+const openRows = (ids: string[]) => db.pendingItem.findMany({ where: { id: { in: ids }, status: { in: OPEN }, mtrl: null }, select: { id: true, specGroupS1Id: true, specs: true } });
+
+/** Ετικέτες χαρακτηριστικών των επιλεγμένων ειδών που δεν υπάρχουν στην ομάδα τους, με το πιο κοντινό υπάρχον ως πρόταση. */
+export async function pendingSpecGaps(ids: string[]): Promise<SpecGap[]> {
+  const rows = await openRows(ids);
+  const groups = await loadGroups([...new Set(rows.map((r) => r.specGroupS1Id).filter((x): x is number => x != null))]);
+  const names = new Map([...groups].map(([id, g]) => [id, g.specs.map((d) => d.name)]));
+  return missingSpecs(rows, names, labelKey).map((m) => ({ ...m, groupName: groups.get(m.groupS1Id)?.name ?? `Ομάδα ${m.groupS1Id}`, existing: names.get(m.groupS1Id) ?? [] }));
+}
+
+/**
+ * Οι αποφάσεις του χρήστη για κάθε ετικέτα που λείπει: «create» = νέο χαρακτηριστικό στην ομάδα του SoftOne (χωρίς φίλτρο,
+ * ορατό — πάντα με ρητή επιβεβαίωση από την οθόνη), «use» = η ετικέτα γίνεται υπάρχον χαρακτηριστικό (μόνο στα είδη σε
+ * αναμονή, τίποτα στο ERP), «skip» = μένει όπως είναι και αγνοείται στην έγκριση.
+ */
+export async function resolvePendingSpecs(ids: string[], decisions: SpecDecision[]): Promise<{ created: number; mapped: number; errors: string[] }> {
+  let created = 0, mapped = 0; const errors: string[] = [];
+  const rows = await openRows(ids);
+  for (const d of decisions) {
+    if (d.action === "create") {
+      const r = await changeSpecGroup(d.groupS1Id, { kind: "add-spec", name: d.label, isFilter: false, isView: true });
+      if (r.ok) created++; else if (!/Υπάρχει ήδη/.test(r.error)) errors.push(`«${d.label}»: ${r.error}${r.details?.length ? ` (${r.details.join(" ")})` : ""}`);
+    } else if (d.action === "use" && d.use) {
+      for (const p of rows.filter((x) => x.specGroupS1Id === d.groupS1Id)) {
+        const next = renameSpec(p.specs, d.label, d.use, labelKey);
+        if (next) { await db.pendingItem.updateMany({ where: { id: p.id, status: { in: OPEN }, mtrl: null }, data: { specs: next } }); p.specs = next; mapped++; }
+      }
+    }
+  }
+  return { created, mapped, errors };
 }

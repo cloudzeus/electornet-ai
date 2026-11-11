@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
 import { findMapping, autosaveMapping } from "@/lib/catalog/foreign-import/read";
-import { applyForeign, replanForeign, assertConfigIds, missingFromJob, deactivateMissing, rowsWithoutCategory, setRowCategories, type ForeignPlanRow, type MissingProduct } from "@/lib/catalog/foreign-import/server";
+import { applyForeign, replanForeign, assertConfigIds, missingFromJob, deactivateMissing, rowsWithoutCategory, setRowCategories, liveCard, categorySpecs, type LiveCard, type CategorySpecs, type ForeignPlanRow, type MissingProduct } from "@/lib/catalog/foreign-import/server";
 import { suggestProductCategories, type CatGuess } from "@/lib/catalog/category-ai";
 import { pendingViews } from "@/lib/catalog/foreign-import/pending";
 import { groupOptions } from "@/lib/catalog/foreign-import/options";
@@ -16,6 +16,7 @@ import { UserError, type SavedConfig } from "@/lib/catalog/foreign-import/core";
 
 const SWITCH_CHANGED = "Ο διακόπτης του SoftOne άλλαξε από την προεπισκόπηση — ξανακάνε προεπισκόπηση.";
 import { parseConfig, parsePrice, type SavedMappingRef } from "@/lib/catalog/foreign-import/ui-core";
+import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
 
 /** Αποθηκευμένη αντιστοίχιση για αυτές τις επικεφαλίδες (όταν ο χρήστης αλλάζει φύλλο ή γραμμή επικεφαλίδας). */
 export async function lookupMapping(headers: string[]): Promise<SavedMappingRef | null> {
@@ -150,5 +151,31 @@ export async function applyJobCategories(jobId: string, picks: { rowNo: number; 
     if (e instanceof UserError) return { error: e.message };
     console.error("[foreign-import/category-apply]", e);
     return { error: "Κάτι πήγε στραβά στην εφαρμογή των κατηγοριών." };
+  }
+}
+
+/** Ζωντανή κάρτα (βήματα 2–3): τιμή από τον κανόνα και τα χαρακτηριστικά της κατηγορίας για μία γραμμή. Μόνο ανάγνωση. */
+export async function liveCardInfo(input: { brandId: string | null; categoryId: string | null; cost: string | null; rrp: string | null; specs: Record<string, string>; price: unknown }): Promise<LiveCard | { error: string }> {
+  await requirePermission("catalog.products.write");
+  try {
+    const id = (v: unknown) => (typeof v === "string" && v.trim() && v.length <= 64 ? v.trim() : null);
+    const money = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : null);
+    const specs = Object.fromEntries(Object.entries(input.specs && typeof input.specs === "object" ? input.specs : {}).slice(0, 200).filter((e): e is [string, string] => typeof e[1] === "string").map(([k, v]) => [k.slice(0, 80), v.slice(0, 300)]));
+    const p = parsePrice(input.price);
+    return await liveCard({ brandId: id(input.brandId), categoryId: id(input.categoryId), cost: money(input.cost), rrp: money(input.rrp), specs, opts: { policy: normPolicy(input.price), priceMode: p.priceMode } });
+  } catch (e) {
+    console.error("[foreign-import/live-card]", e);
+    return { error: "Η τιμή και τα χαρακτηριστικά δεν φορτώθηκαν." };
+  }
+}
+
+/** Τα χαρακτηριστικά της ομάδας κάθε κατηγορίας (καρτέλα «Κατηγορίες και χαρακτηριστικά» του βήματος 2). Μόνο ανάγνωση. */
+export async function categorySpecsInfo(ids: string[]): Promise<CategorySpecs | { error: string }> {
+  await requirePermission("catalog.products.write");
+  try {
+    return await categorySpecs((Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === "string" && !!x && x.length < 64).slice(0, 200));
+  } catch (e) {
+    console.error("[foreign-import/category-specs]", e);
+    return { error: "Δεν φόρτωσαν τα χαρακτηριστικά της κατηγορίας — ξαναδοκίμασε." };
   }
 }

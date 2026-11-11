@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, CircleAlert, EyeOff, Globe, Images, Loader2, Lock, Pencil, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
-import { approveItems, applyPendingCategories, discardItems, editItem, suggestPendingCategories } from "@/app/admin/(shell)/catalog/templates/nea-eidi/actions";
+import { approveItems, applyPendingCategories, discardItems, editItem, resolveSpecGaps, specGaps, suggestPendingCategories } from "@/app/admin/(shell)/catalog/templates/nea-eidi/actions";
 import { CategoryProposals } from "@/components/admin/catalog/CategoryProposals";
+import { SpecGapsPanel, type GapChoice } from "@/components/admin/catalog/SpecGapsPanel";
+import type { SpecGap } from "@/lib/catalog/foreign-import/pending";
 import type { CatGuess } from "@/lib/catalog/category-ai-core";
 import { CardPeek } from "@/components/admin/catalog/CardPeek";
 import type { Settings } from "@/lib/cms/settings";
@@ -41,8 +43,12 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
   const [results, setResults] = useState<Record<string, Result>>({});
   const [busy, setBusy] = useState<{ done: number; total: number; what: "approve" | "discard" } | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  /** πώς θα δημιουργηθούν τα είδη που εγκρίνονται τώρα: για το web (προεπιλογή) ή με «Εξαίρεση Web» */
-  const [excluded, setExcluded] = useState(false);
+  /** πώς θα δημιουργηθούν τα είδη που εγκρίνονται τώρα: με «Εξαίρεση Web» και ενεργά (προεπιλογή) ή για το web, ανενεργά */
+  const [excluded, setExcluded] = useState(true);
+  /** χαρακτηριστικά των προς έγκριση ειδών που λείπουν από την ομάδα τους στο SoftOne — περιμένουν απόφαση */
+  const [gaps, setGaps] = useState<{ list: PendingView[]; rows: SpecGap[] } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [gapBusy, setGapBusy] = useState(false);
   /** ποιανού είδους η κάρτα eshop είναι ανοιχτή (μία τη φορά) */
   const [peek, setPeek] = useState<string | null>(null);
   /** προτάσεις κατηγορίας του AI που περιμένουν αποδοχή */
@@ -80,9 +86,30 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
   const toggle = (id: string) => setSel((s) => { const x = new Set(s); if (x.has(id)) x.delete(id); else x.add(id); return x; });
   const codeOf = (id: string) => items.find((p) => p.id === id)?.code || "—";
 
+  /** Πρώτα ο έλεγχος χαρακτηριστικών: ό,τι λείπει από την ομάδα του SoftOne το αποφασίζει ο χρήστης πριν δημιουργηθεί οτιδήποτε. */
   const approve = async (list: PendingView[]) => {
     if (lock || !list.length) return;
-    if (!confirm(`Δημιουργία ${list.length} ${list.length === 1 ? "είδους" : "ειδών"} στο SoftOne (ανενεργά), με τιμή web και φωτογραφίες — ${excluded ? "με «Εξαίρεση Web»: ΔΕΝ θα ανεβαίνουν στο site" : "για το web: θα φαίνονται στο site όταν τα δημοσιεύσεις"}. Συνέχεια;`)) return;
+    setErr(null); setChecking(true);
+    let g; try { g = await specGaps(list.map((p) => p.id)); } catch (e) { g = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
+    setChecking(false);
+    if ("error" in g) { setErr(g.error); return; }
+    if (g.length) { setGaps({ list, rows: g }); return; }
+    await run(list);
+  };
+  const confirmGaps = async (choices: GapChoice[]) => {
+    if (!gaps) return;
+    const { list } = gaps;
+    setGapBusy(true);
+    let r; try { r = await resolveSpecGaps(list.map((p) => p.id), choices); } catch (e) { r = { error: (e as Error).message || "Η σύνδεση διακόπηκε." }; }
+    setGapBusy(false);
+    if ("error" in r) { setErr(r.error); return; }
+    if (r.errors.length) { setErr(`Κάποια χαρακτηριστικά δεν δημιουργήθηκαν στο SoftOne: ${r.errors.join(" · ")} Η έγκριση δεν ξεκίνησε.`); return; }
+    setGaps(null);
+    await run(list);
+  };
+  const run = async (list: PendingView[]) => {
+    if (lock || !list.length) return;
+    if (!confirm(`Δημιουργία ${list.length} ${list.length === 1 ? "είδους" : "ειδών"} στο SoftOne, με τιμή web και φωτογραφίες — ${excluded ? "ενεργά, με «Εξαίρεση Web»: ΔΕΝ θα ανεβαίνουν στο site" : "ανενεργά, για το web: θα φαίνονται στο site όταν τα ενεργοποιήσεις"}. Συνέχεια;`)) return;
     setErr(null); setBusy({ done: 0, total: list.length, what: "approve" });
     for (let i = 0; i < list.length; i += APPROVE_BATCH) {
       const part = list.slice(i, i + APPROVE_BATCH).map((p) => p.id);
@@ -127,16 +154,16 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
               onChange={(e) => setSel(e.target.checked ? new Set(selectable.map((p) => p.id)) : new Set())} className="size-5 accent-eu-navy" />
             Όλα ({chosen.length}/{selectable.length})
           </label>
-          <button type="button" className={primary} disabled={!!lock || !ready.length || !!busy} onClick={() => approve(ready)} title={lock ?? undefined}>
-            {busy?.what === "approve" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />} Έγκριση {ready.length || ""}
+          <button type="button" className={primary} disabled={!!lock || !ready.length || !!busy || checking || !!gaps} onClick={() => approve(ready)} title={lock ?? undefined}>
+            {busy?.what === "approve" || checking ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ShieldCheck className="size-4" aria-hidden />} Έγκριση {ready.length || ""}
           </button>
           <button type="button" className={danger} disabled={!chosen.length || !!busy} onClick={() => discard(chosen)}>
             {busy?.what === "discard" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />} Απόρριψη {chosen.length || ""}
           </button>
           <fieldset data-help="pending.web" className="m-0 p-0 border-0 basis-full flex flex-wrap items-center gap-x-4 gap-y-1 px-2 min-w-0 text-[length:var(--fs-14)]">
             <legend className="float-left mr-3 font-bold text-eu-ink-2">Τα είδη που εγκρίνεις:</legend>
-            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={!excluded} disabled={!!busy} onChange={() => setExcluded(false)} className="size-5 accent-eu-navy" /><Globe className="size-4 text-eu-blue" aria-hidden />Για το web</label>
-            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={excluded} disabled={!!busy} onChange={() => setExcluded(true)} className="size-5 accent-eu-navy" /><EyeOff className="size-4 text-eu-ink-3" aria-hidden />Εξαίρεση Web (δεν ανεβαίνουν στο site)</label>
+            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={!excluded} disabled={!!busy} onChange={() => setExcluded(false)} className="size-5 accent-eu-navy" /><Globe className="size-4 text-eu-blue" aria-hidden />Για το web (ανενεργά μέχρι να τα ενεργοποιήσεις)</label>
+            <label className="inline-flex items-center gap-2 min-h-11 md:min-h-9 cursor-pointer"><input type="radio" name="pending-web" checked={excluded} disabled={!!busy} onChange={() => setExcluded(true)} className="size-5 accent-eu-navy" /><EyeOff className="size-4 text-eu-ink-3" aria-hidden />Ενεργά με «Εξαίρεση Web» (δεν ανεβαίνουν στο site)</label>
             {excluded && !flagOn && <span className="basis-full flex gap-1.5 items-start text-eu-ink text-[length:var(--fs-12)]"><AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-eu-navy" aria-hidden />Η εγγραφή της «Εξαίρεσης Web» στο SoftOne δεν έχει ενεργοποιηθεί ακόμη: τα είδη θα δημιουργηθούν και θα πρέπει να την τσεκάρεις εσύ στο SoftOne. Θα το γράφει η σημείωση κάθε είδους.</span>}
           </fieldset>
           <button type="button" data-help="pending.category-ai" className={secondary} disabled={!aiTargets.length || !!busy || !!aiBusy} onClick={askAi}
@@ -148,6 +175,7 @@ export function PendingItems({ items, status, writeOn, canWrite, canApprove, bra
         </div>
       )}
 
+      {gaps && <SpecGapsPanel key={gaps.rows.map((r) => `${r.groupS1Id}:${r.label}`).join()} rows={gaps.rows} count={gaps.list.length} busy={gapBusy} onCancel={() => setGaps(null)} onConfirm={confirmGaps} />}
       {ai && (
         <CategoryProposals key={ai.guesses.map((g) => g.key).join()} asked={ai.asked} left={ai.left} busy={aiBusy === "apply"} onClose={() => setAi(null)} onApply={applyAi} options={ai.options}
           rows={ai.guesses.map((g) => { const p = items.find((x) => x.id === g.key); return { key: g.key, label: p?.name || p?.code || "—", sub: [p?.code, p?.brandName].filter(Boolean).join(" · "), categoryId: g.categoryId, sure: g.sure }; })} />

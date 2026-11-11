@@ -19,9 +19,8 @@ export default async function ForeignImportPage() {
     <div className="grid gap-4 min-w-0">
       <div className="grid gap-1">
         <Link href="/admin/catalog/templates" className="inline-flex items-center gap-1 min-h-11 md:min-h-9 w-fit font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline"><ArrowLeft className="size-4" aria-hidden /> Templates & excel</Link>
-        <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><FileUp className="size-4" aria-hidden /> Κατάλογος</div>
-        <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Εισαγωγή από άλλο Excel</h2>
-        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[70ch]">Ανέβασε τιμοκατάλογο ή λίστα προϊόντων σε οποιαδήποτε μορφή (.xlsx ή .csv). Ο οδηγός αναγνωρίζει τις στήλες και σε ρωτά για όσες δεν κατάλαβε· βλέπεις τι θα αλλάξει και εκτελείς. Στα υπάρχοντα είδη συμπληρώνονται μόνο τα κενά· τα νέα τα δημιουργείς στο τελευταίο βήμα, στο SoftOne και στο eshop.</p>
+        <h2 className="m-0 inline-flex items-center gap-2 font-heading font-semibold text-eu-ink text-[length:var(--fs-24)]"><FileUp className="size-6 text-eu-blue" aria-hidden /> Εισαγωγή από άλλο Excel</h2>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[70ch]">Ανέβασε τιμοκατάλογο ή λίστα προϊόντων σε οποιαδήποτε μορφή (.xlsx ή .csv). Ο οδηγός αναγνωρίζει τις στήλες και σε ρωτά για όσες δεν κατάλαβε· διαλέγεις ποιο πεδίο γίνεται κάθε στήλη (ή φτιάχνεις σύνθετο, π.χ. όνομα από Περιγραφή + Μάρκα + Μοντέλο) και βλέπεις αμέσως την κάρτα του eshop. Στα υπάρχοντα είδη συμπληρώνονται μόνο τα κενά· τα νέα τα δημιουργείς στο τελευταίο βήμα, στο SoftOne και στο eshop.</p>
       </div>
       <ForeignImportWizard brands={brands.map(({ id, name, s1 }) => ({ id, name, s1 }))} categories={categories} writeOn={writeOn} canSync={can(user.permissions, "catalog.sync.run")} recent={recent} settings={settings} />
     </div>

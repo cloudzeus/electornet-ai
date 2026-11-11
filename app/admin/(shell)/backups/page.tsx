@@ -30,7 +30,7 @@ export default async function BackupsPage() {
       <div className="grid grid-cols-1 @md:grid-cols-2 @3xl:grid-cols-4 gap-3">
         <StatTile label="Τελευταίο επιτυχημένο" value={lastAgeH != null ? `πριν ${lastAgeH < 1 ? `${Math.round(lastAgeH * 60)}′` : lastAgeH < 48 ? `${lastAgeH.toFixed(0)} ώρ.` : `${Math.round(lastAgeH / 24)} ημ.`}` : "—"} sub={last ? fmt(last.at) : "κανένα ακόμη"} accent={!!last && lastAgeH! < 26} />
         <StatTile label="Διαθέσιμα αντίγραφα" value={String(okRuns.length)} sub={`${(okRuns.reduce((a, r) => a + (r.bytes ?? 0), 0) / 1048576).toFixed(1)} MB συνολικά`} />
-        <StatTile label="Κρυπτογράφηση" value={passphrase ? "AES-256" : "ΟΧΙ"} sub={passphrase ? "BACKUP_PASSPHRASE ορίστηκε" : "όρισε BACKUP_PASSPHRASE στο .env"} />
+        <StatTile label="Κρυπτογράφηση" value={passphrase ? "AES-256" : "ΟΧΙ"} sub={passphrase ? "BACKUP_PASSPHRASE ορίστηκε" : "όρισε BACKUP_PASSPHRASE (.env ή Coolify)"} />
         <StatTile label="Αυτόματο (cron)" value={cron ? "έτοιμο" : "—"} sub={cron ? "GET /api/cron/backup" : "όρισε CRON_SECRET στο .env"} />
       </div>
       {(!passphrase || !cron) && (

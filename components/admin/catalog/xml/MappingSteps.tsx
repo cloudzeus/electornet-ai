@@ -307,9 +307,12 @@ export function ValueRows({ kind, m, options, label, empty, busy }: { kind: Valu
                     {r.ex.map((p) => <li key={p} className="text-eu-muted text-[length:var(--fs-12)] [overflow-wrap:anywhere]">π.χ. {cut(p, 60)}</li>)}
                   </ul>
                 )}
-                {on ? (
+                {on ? (<>
                   <OptionPicker options={options} value={pick === SKIP ? null : pick} onChange={(id) => m.setPick(kind, r.value, id)} label={`${label} για «${r.value}»`} empty={empty} disabled={busy} />
-                ) : (
+                  {kind === "category" && pick && pick !== SKIP && options.find((o) => o.id === pick)?.hint && (
+                    <p role="alert" className="m-0 flex gap-1.5 items-start rounded-lg bg-eu-yellow/25 px-2 py-1.5 text-eu-ink text-[length:var(--fs-13)]"><AlertTriangle className="size-3.5 shrink-0 mt-0.5" aria-hidden />Αυτή η κατηγορία δεν έχει ομάδα χαρακτηριστικών: τα προϊόντα που δεν έχουν ήδη web κατηγορία στο SoftOne δεν θα μπουν. Διάλεξε μια πιο συγκεκριμένη (π.χ. υποκατηγορία της).</p>
+                  )}
+                </>) : (
                   <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">Δεν συμμετέχει: τα {r.n > 0 ? `${r.n.toLocaleString("el-GR")} ` : ""}προϊόντα αυτής της μάρκας θα φορτωθούν στη λίστα αλλά <b>δεν θα εισαχθούν</b>.</p>
                 )}
               </li>

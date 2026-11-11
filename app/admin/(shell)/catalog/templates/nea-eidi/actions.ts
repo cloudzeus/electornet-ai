@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { audit } from "@/lib/rbac/audit";
-import { approvePending, discardPending, updatePending, type ApproveResult } from "@/lib/catalog/foreign-import/pending";
+import { approvePending, discardPending, updatePending, pendingSpecGaps, resolvePendingSpecs, type ApproveResult, type SpecGap, type SpecDecision } from "@/lib/catalog/foreign-import/pending";
 import { resetCatalogCache } from "@/lib/data/db-catalog";
 import { parseMoney } from "@/lib/catalog/pricing/markup";
 import { db } from "@/lib/db";
@@ -24,6 +24,25 @@ export async function approveItems(list: string[], webExcluded = false): Promise
   await audit(user.id, "catalog.pending.approve", "PendingItem", null, null, { webExcluded: webExcluded === true, results: res.map((r) => ({ id: r.id, ok: r.ok, mtrl: r.mtrl })) });
   revalidatePath(PATH);
   return res;
+}
+
+/** Πριν από την έγκριση: χαρακτηριστικά του αρχείου που δεν υπάρχουν στην ομάδα του SoftOne (για να αποφασίσει ο χρήστης). */
+export async function specGaps(list: string[]): Promise<SpecGap[] | { error: string }> {
+  await requirePermission("catalog.products.write");
+  try { return await pendingSpecGaps(ids(list)); } catch (e) { console.error("[pending/spec-gaps]", e); return { error: "Δεν ήταν δυνατός ο έλεγχος των χαρακτηριστικών — ξαναδοκίμασε." }; }
+}
+
+/** Οι αποφάσεις του χρήστη: νέα χαρακτηριστικά στην ομάδα του SoftOne (μόνο όσα επιβεβαίωσε) ή αντιστοίχιση σε υπάρχοντα. */
+export async function resolveSpecGaps(list: string[], decisions: SpecDecision[]): Promise<{ created: number; mapped: number; errors: string[] } | { error: string }> {
+  const user = await requirePermission("catalog.products.write");
+  if (!can(user.permissions, "catalog.sync.run")) return { error: "Για νέα χαρακτηριστικά στο SoftOne χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP»." };
+  const clean = (Array.isArray(decisions) ? decisions : []).slice(0, 200).map((d) => ({ groupS1Id: Number(d?.groupS1Id), label: String(d?.label ?? "").trim(), action: d?.action === "create" || d?.action === "use" ? d.action : "skip" as const, use: d?.use ? String(d.use) : undefined })).filter((d) => d.groupS1Id > 0 && d.label && d.action !== "skip");
+  try {
+    const r = await resolvePendingSpecs(ids(list), clean);
+    await audit(user.id, "catalog.pending.specs", "PendingItem", null, null, { decisions: clean, ...r });
+    revalidatePath(PATH);
+    return r;
+  } catch (e) { console.error("[pending/spec-resolve]", e); return { error: "Η αποθήκευση των χαρακτηριστικών απέτυχε — ξαναδοκίμασε." }; }
 }
 
 /** Απόρριψη: μόνο όσα δεν έχουν δημιουργηθεί· επιστρέφει πόσα απορρίφθηκαν. */

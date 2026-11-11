@@ -87,11 +87,26 @@ export function headerSignature(headers: string[]): string {
 type SheetDefaults = { sheetBrandId?: string | null; sheetCategoryId?: string | null; sheetUnitId?: string | null; sheetMarkId?: string | null };
 /** Αντιστοιχίσεις τιμή-προς-τιμή: η τιμή του αρχείου → δικό μας id (null = ο χρήστης την άφησε χωρίς αντιστοίχιση). */
 type ValueMaps = { brandMap: Record<string, string | null>; categoryMap: Record<string, string | null>; unitMap?: Record<string, string | null>; markMap?: Record<string, string | null>; availMap?: Record<string, string | null> };
-export type MappingConfig = { columns: Record<number, Target> } & ValueMaps & SheetDefaults;
+/** Ένα κομμάτι σύνθετου πεδίου: στήλη του αρχείου, η μάρκα της γραμμής ή σταθερό κείμενο. */
+export type ComposePart = { kind: "col"; col: number } | { kind: "brand" } | { kind: "text"; text: string };
+/** Σύνθετο πεδίο: τα κομμάτια ενώνονται με κενό (τα κενά παραλείπονται) και γράφονται στον στόχο — υπερισχύει της απλής στήλης. */
+export type ComposeField = { target: { kind: "field"; key: "name" | "shortDesc" | "descText" } | { kind: "spec"; label: string }; parts: ComposePart[] };
+/**
+ * Χαρακτηριστικά ανά κατηγορία: για τις γραμμές της κατηγορίας `categoryId`, η στήλη → όνομα χαρακτηριστικού της ομάδας της.
+ * Η ίδια στήλη μπορεί να είναι άλλο χαρακτηριστικό σε άλλη κατηγορία (π.χ. «Χωρητικότητα σε lt» / «Χωρητικότητα»).
+ */
+export type CatSpecs = Record<string, Record<number, string>>;
+export type MappingConfig = {
+  columns: Record<number, Target>; compose?: ComposeField[]; catSpecs?: CatSpecs;
+  /** κατηγορία ανά γραμμή (αριθμός γραμμής Excel → id), από τις προτάσεις AI που δέχτηκε ο χρήστης — μόνο γι' αυτό το αρχείο, δεν αποθηκεύεται */
+  rowCats?: Record<number, string>;
+} & ValueMaps & SheetDefaults;
 /** Ό,τι αποθηκεύεται: οι στήλες με κλειδί την κανονικοποιημένη επικεφαλίδα (όχι θέση), ώστε να ισχύουν και όταν αλλάζει η σειρά. */
 /** Οι επιλογές τιμής του βήματος 3 (από ποια στήλη, αν έχει ΦΠΑ, markup) — αποθηκεύονται μαζί με την αντιστοίχιση. */
 export type SavedPrice = { priceMode: "cost" | "retail"; vatIncluded: boolean; markupPercent: number | null };
-export type SavedConfig = { columns: Record<string, Target> } & ValueMaps & SheetDefaults & { price?: SavedPrice };
+/** Στο αποθηκευμένο σύνθετο πεδίο η στήλη είναι κλειδί επικεφαλίδας (όχι θέση), όπως στο `columns`. */
+type SavedPart = { kind: "col"; col: string } | { kind: "brand" } | { kind: "text"; text: string };
+export type SavedConfig = { columns: Record<string, Target>; compose?: { target: ComposeField["target"]; parts: SavedPart[] }[]; catSpecs?: Record<string, Record<string, string>> } & ValueMaps & SheetDefaults & { price?: SavedPrice };
 const sheetDefaults = (c: SheetDefaults): SheetDefaults => ({ ...(c.sheetBrandId ? { sheetBrandId: c.sheetBrandId } : {}), ...(c.sheetCategoryId ? { sheetCategoryId: c.sheetCategoryId } : {}), ...(c.sheetUnitId ? { sheetUnitId: c.sheetUnitId } : {}), ...(c.sheetMarkId ? { sheetMarkId: c.sheetMarkId } : {}) });
 /** Οι χάρτες τιμών όπως ταξιδεύουν μαζί (αποθήκευση ↔ χρήση)· μόνο όσοι έχουν περιεχόμενο αποθηκεύονται. */
 const valueMaps = (c: ValueMaps): ValueMaps => ({ brandMap: c.brandMap ?? {}, categoryMap: c.categoryMap ?? {}, ...(c.unitMap && Object.keys(c.unitMap).length ? { unitMap: c.unitMap } : {}), ...(c.markMap && Object.keys(c.markMap).length ? { markMap: c.markMap } : {}), ...(c.availMap && Object.keys(c.availMap).length ? { availMap: c.availMap } : {}) });
@@ -113,14 +128,20 @@ export function configToSaved(config: MappingConfig, headers: string[]): SavedCo
   const keys = headerKeys(headers);
   const columns: Record<string, Target> = {};
   for (const [i, t] of Object.entries(config.columns)) { const k = keys[Number(i)]; if (k) columns[k] = t; }
-  return { columns, ...valueMaps(config), ...sheetDefaults(config) };
+  const compose = (config.compose ?? []).map((f) => ({ target: f.target, parts: f.parts.flatMap((p): SavedPart[] => (p.kind !== "col" ? [p] : keys[p.col] ? [{ kind: "col", col: keys[p.col]! }] : [])) }));
+  const catSpecs = Object.entries(config.catSpecs ?? {}).map(([cat, m]) => [cat, Object.fromEntries(Object.entries(m).flatMap(([i, l]) => (keys[Number(i)] ? [[keys[Number(i)]!, l]] : [])))] as const).filter(([, m]) => Object.keys(m).length);
+  return { columns, ...(compose.length ? { compose } : {}), ...(catSpecs.length ? { catSpecs: Object.fromEntries(catSpecs) } : {}), ...valueMaps(config), ...sheetDefaults(config) };
 }
 
 /** Αποθηκευμένη αντιστοίχιση → δείκτες στηλών για τις επικεφαλίδες ΑΥΤΟΥ του αρχείου· άγνωστες επικεφαλίδες μένουν χωρίς στόχο. */
 export function configForHeaders(saved: SavedConfig, headers: string[]): MappingConfig {
   const columns: Record<number, Target> = {};
-  headerKeys(headers).forEach((k, i) => { const t = k ? saved.columns[k] : undefined; if (t) columns[i] = t; });
-  return { columns, ...valueMaps(saved), ...sheetDefaults(saved) };
+  const keys = headerKeys(headers);
+  keys.forEach((k, i) => { const t = k ? saved.columns[k] : undefined; if (t) columns[i] = t; });
+  // Κομμάτι-στήλη που δεν υπάρχει σε αυτό το αρχείο απλώς φεύγει· σύνθετο πεδίο χωρίς κομμάτια δεν κρατιέται
+  const compose = (saved.compose ?? []).map((f) => ({ target: f.target, parts: f.parts.flatMap((p): ComposePart[] => (p.kind !== "col" ? [p] : keys.includes(p.col) ? [{ kind: "col", col: keys.indexOf(p.col) }] : [])) })).filter((f) => f.parts.length);
+  const catSpecs = Object.entries(saved.catSpecs ?? {}).map(([cat, m]) => [cat, Object.fromEntries(Object.entries(m).flatMap(([k, l]) => (keys.includes(k) ? [[keys.indexOf(k), l]] : [])))] as const).filter(([, m]) => Object.keys(m).length);
+  return { columns, ...(compose.length ? { compose } : {}), ...(catSpecs.length ? { catSpecs: Object.fromEntries(catSpecs) } : {}), ...valueMaps(saved), ...sheetDefaults(saved) };
 }
 
 // ---------- CSV ----------
@@ -297,14 +318,15 @@ const urls = (cell: string) => cell.split(URL_SPLIT).filter((u) => /^https?:\/\/
  * Μετατρέπει τον πίνακα (μετά την επικεφαλίδα) σε γραμμές εισαγωγής. Κενές γραμμές (όλες οι αντιστοιχισμένες στήλες κενές) παραλείπονται.
  * Κενό κελί μάρκας/κατηγορίας (ή καμία τέτοια στήλη) → μάρκα/κατηγορία του φύλλου· τιμή που ο χρήστης άφησε χωρίς αντιστοίχιση μένει null.
  */
-export function toRows(matrix: string[][], headerRow: number, config: MappingConfig): ForeignRow[] {
+export function toRows(matrix: string[][], headerRow: number, config: MappingConfig, /** όνομα δικής μας μάρκας — για το κομμάτι «Μάρκα» των σύνθετων πεδίων */ brandName?: (id: string) => string | undefined): ForeignRow[] {
   const cols = Object.entries(config.columns).map(([i, t]) => [Number(i), t] as const).filter(([, t]) => t.kind !== "ignore").sort((a, b) => a[0] - b[0]);
   const out: ForeignRow[] = [];
   for (let r = headerRow + 1; r < matrix.length; r++) {
     const line = matrix[r] ?? [];
     const cells = cols.map(([i, t]) => [t, txt(line[i])] as const);
-    if (cells.every(([, c]) => !c)) continue;
+    if (cells.every(([, c]) => !c) && !config.compose?.some((f) => f.parts.some((p) => p.kind === "col" && txt(line[p.col])))) continue;
     const row: ForeignRow = { rowNo: r + 1, fields: {}, specs: {}, media: { image: [], banner: [], video: [] }, brandId: config.sheetBrandId ?? null, categoryId: config.sheetCategoryId ?? null, unitId: config.sheetUnitId ?? null, markId: config.sheetMarkId ?? null, cost: null, rrp: null };
+    let fromCol = false;
     for (const [t, c] of cells) {
       if (!c) continue;
       switch (t.kind) {
@@ -313,7 +335,7 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
         case "media": row.media[t.type].push(...urls(c)); break;
         // Object.hasOwn: τιμή «constructor» / «toString» δεν είναι ιδιότητα του prototype
         case "brand": row.brandId = Object.hasOwn(config.brandMap, c) ? config.brandMap[c] ?? null : null; break;
-        case "category": row.categoryId = Object.hasOwn(config.categoryMap, c) ? config.categoryMap[c] ?? null : null; break;
+        case "category": row.categoryId = Object.hasOwn(config.categoryMap, c) ? config.categoryMap[c] ?? null : null; fromCol = true; break;
         // Μονάδα / σήμανση: τιμή χωρίς αντιστοίχιση ΔΕΝ ακυρώνει την επιλογή του φύλλου — είναι συμπλήρωμα, όχι κλειδί
         case "unit": row.unitId = (config.unitMap && Object.hasOwn(config.unitMap, c) ? config.unitMap[c] : null) ?? row.unitId; break;
         case "mark": row.markId = (config.markMap && Object.hasOwn(config.markMap, c) ? config.markMap[c] : null) ?? row.markId; break;
@@ -323,9 +345,27 @@ export function toRows(matrix: string[][], headerRow: number, config: MappingCon
         case "availability": row.supplierAvail = (config.availMap && Object.hasOwn(config.availMap, c) ? config.availMap[c] : guessAvail(c)) ?? null; break;
       }
     }
+    if (config.compose?.length) {
+      // Μάρκα: η δική μας (μετά την αντιστοίχιση ή του φύλλου), αλλιώς το κείμενο της στήλης μάρκας του αρχείου
+      const rawBrand = cells.find(([t, c]) => t.kind === "brand" && c)?.[1] ?? "";
+      const brand = (row.brandId && brandName?.(row.brandId)) || rawBrand;
+      for (const f of config.compose) {
+        const v = composeValue(f.parts, line, brand);
+        if (!v) continue;
+        if (f.target.kind === "spec") row.specs[f.target.label] = v; else row.fields[f.target.key] = v;
+      }
+    }
+    // Κατηγορία ανά γραμμή (πρόταση AI που δέχτηκε ο χρήστης): υπερισχύει της κατηγορίας του φύλλου, όχι της στήλης κατηγορίας
+    if (!fromCol && config.rowCats?.[row.rowNo]) row.categoryId = config.rowCats[row.rowNo];
+    for (const [i, label] of Object.entries((row.categoryId && config.catSpecs?.[row.categoryId]) || {})) { const v = txt(line[Number(i)]); if (v && label) row.specs[label] = v; }
     out.push(row);
   }
   return out;
+}
+
+/** Η τιμή ενός σύνθετου πεδίου για μία γραμμή: τα μη κενά κομμάτια με ένα κενό ανάμεσα. */
+export function composeValue(parts: ComposePart[], line: string[], brand: string): string {
+  return parts.map((p) => (p.kind === "col" ? txt(line[p.col]) : p.kind === "brand" ? brand.trim() : p.text.trim())).filter(Boolean).join(" ").replace(/\s+/g, " ");
 }
 
 /**

@@ -11,7 +11,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 /** Ό,τι ξέρουμε για ένα προϊόν πριν μπει — αρκεί για να φανεί η κάρτα του όπως στο site. */
 export interface PeekData { key: string; title: string; sku?: string; brand?: string; images: string[]; price?: number | null }
 
-const asProduct = (d: PeekData): Product => ({
+export const asProduct = (d: PeekData): Product => ({
   id: `peek-${d.key}`, sku: d.sku ?? "", slug: "", brand: d.brand ?? "", brandSlug: "", title: d.title, category: "", subcategory: "",
   image: d.images[0] ?? null, price: d.price && d.price > 0 ? d.price : 0, noPrice: !(d.price && d.price > 0), fromDb: true, availability: { kind: "order" },
 });

@@ -8,6 +8,8 @@ import { syncItem, type mapItem } from "@/lib/softone/catalog";
 import { projectItem, projectFacetValues } from "@/lib/softone/project";
 import { writeItem, createItem, type ItemChanges, type ItemField } from "@/lib/softone/item-write";
 import { FIELDS, plain, itemValues, loadGroups, composeMemo, memoIsHtml, type FieldKey, type ParsedFile, type ParsedRow } from "@/lib/catalog/supplier-sheet";
+import { webNameOf, leadSentence } from "@/lib/catalog/foreign-import/pending-core";
+import { draftShortDesc } from "@/lib/catalog/marketing-copy";
 import { blankOnly, newSpecs, fillBlankMemo, eanVariants, sameEan } from "@/lib/catalog/foreign-import/core";
 
 /**
@@ -255,6 +257,9 @@ async function createInSoftone(r: Decided, brand: { id: string; s1Id: string | n
   const fields: Partial<Record<ItemField, string | number | boolean | null>> = { active: opts.activate };
   for (const [k, f] of Object.entries(FIELD_TO_ITEM) as [FieldKey, ItemField][]) if (r.fieldTo[k] != null) fields[f] = KIND[k] === "text" ? r.fieldTo[k]! : toNum(r.fieldTo[k]!);
   if (r.memo) fields.longDesc = r.memo;
+  // Πεδία που η πηγή δεν δίνει αλλά το ERP τα θέλει σε κάθε είδος web: «Περιγραφή για Web» και σύντομη περιγραφή
+  if (typeof fields.name === "string") fields.webName = webNameOf(fields.name);
+  if (!fields.shortDesc && r.fieldTo.descText) { const short = (await draftShortDesc(String(fields.name ?? ""), r.fieldTo.descText)) ?? leadSentence(r.fieldTo.descText); if (short) fields.shortDesc = short; }
   const own = r.raw.refs ?? {};
   const c = await createItem({ code: r.code!, fields, refs: { manufacturer, specGroup: g.s1Id, webCat1: g.cat1, webCat2: g.cat2, vat: sib.vatS1Id, unit: own.unit ?? sib.unitS1Id, itemGroup: sib.itemGroup, commCategory: sib.commCategory, mark: own.mark ?? (sib.manufacturerS1Id === manufacturer ? sib.markS1Id : null) } });
   if (!c.ok) return { ok: false, mtrl: c.mtrl, message: c.error ?? "Δεν δημιουργήθηκε." };

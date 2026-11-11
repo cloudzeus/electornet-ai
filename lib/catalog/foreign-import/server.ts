@@ -5,15 +5,17 @@ import { db } from "@/lib/db";
 import { planImport, applyImport, WEB_GROUP_LABEL, type ExtraItem } from "@/lib/catalog/supplier-import";
 import { planMedia, applyMedia, type MediaRow } from "@/lib/catalog/supplier-media";
 import { loadGroups, groupOfCategory, FIELDS, type FieldKey, type ParsedRow } from "@/lib/catalog/supplier-sheet";
-import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled, writeItem } from "@/lib/softone/item-write";
+import { itemWriteEnabled, writeWebPrice, webPriceWriteEnabled, writeItem, writeWebExcluded, webFlagWriteEnabled, WEB_FLAG_OFF } from "@/lib/softone/item-write";
 import { findOffWebItems, syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
-import { OPEN, pendingFields, pendingMedia } from "@/lib/catalog/foreign-import/pending-core";
+import { OPEN, pendingFields, pendingMedia, newItemCode } from "@/lib/catalog/foreign-import/pending-core";
 import { parseMoney, pickRule, type Rounding } from "@/lib/catalog/pricing/markup";
-import { toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, barcodeKey, mergeMedia, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
-import { priceApplies, rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, type ForeignPlanRow, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
+import { labelKey, toRows, resolveMatches, buildMatchIndex, normEan, eanVariants, barcodeKey, mergeMedia, type ForeignRow, type MappingConfig } from "@/lib/catalog/foreign-import/core";
+import { priceApplies, rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, SECTION_TITLE, PRICE_OFF_NOTE, NO_WEB_CATEGORY, type ForeignPlanRow, type ForeignPrice, type RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 import { UserError } from "@/lib/catalog/foreign-import/core";
 import { configIds, type RecentJob } from "@/lib/catalog/foreign-import/ui-core";
+import { suggestProductCategories } from "@/lib/catalog/category-ai";
+import { categoryOptions } from "@/lib/catalog/foreign-import/options";
 
 export type { ForeignPlanRow, RowStatus } from "@/lib/catalog/foreign-import/plan-core";
 
@@ -196,8 +198,8 @@ async function compute(all: ForeignRow[], writeOn: boolean, priceOn: boolean, on
       groupS1Id = row.categoryId ? groupOfCat.get(row.categoryId) ?? null : null;
       if (groupS1Id != null && !groups.has(groupS1Id)) groupS1Id = null;
       if (groupS1Id == null) problem ??= row.categoryId
-        ? `Το είδος δεν έχει web κατηγορία στο SoftOne και η κατηγορία «${catName.get(row.categoryId) ?? "—"}» δεν αντιστοιχεί σε ομάδα χαρακτηριστικών — διάλεξε άλλη στο βήμα «Κατηγορίες».`
-        : "Το είδος δεν έχει web κατηγορία στο SoftOne — αντιστοίχισε την κατηγορία του feed στο βήμα «Κατηγορίες» για να την πάρει.";
+        ? `Το είδος ${NO_WEB_CATEGORY} και η κατηγορία «${catName.get(row.categoryId) ?? "—"}» δεν αντιστοιχεί σε ομάδα χαρακτηριστικών — διάλεξε άλλη στο βήμα «Κατηγορίες».`
+        : `Το είδος ${NO_WEB_CATEGORY} — αντιστοίχισε την κατηγορία του feed στο βήμα «Κατηγορίες» για να την πάρει.`;
       else assignWebGroup = true;
     } else if (it) {
       groupS1Id = it.specGroupS1Id;
@@ -304,12 +306,20 @@ const countStatus = (rows: ForeignPlanRow[]) => {
   return counts;
 };
 
+/** Ονόματα των μαρκών της αντιστοίχισης — μόνο όταν κάποιο σύνθετο πεδίο έχει κομμάτι «Μάρκα». */
+async function brandNamesFor(config: MappingConfig, force = false): Promise<((id: string) => string | undefined) | undefined> {
+  if (!force && !config.compose?.some((f) => f.parts.some((p) => p.kind === "brand"))) return undefined;
+  const ids = [...new Set([...Object.values(config.brandMap), config.sheetBrandId].filter((x): x is string => !!x))];
+  const names = new Map((await db.brand.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((b) => [b.id, b.name]));
+  return (id) => names.get(id);
+}
+
 /** Σχέδιο εισαγωγής: κατάσταση ανά γραμμή, χωρίς καμία εγγραφή εκτός από το ImportJob (πρόχειρο). */
 export async function planForeign(
   input: { fileName: string; sheet: string[][]; headerRow: number; config: MappingConfig; mappingId?: string | null; opts?: EngineOpts; /** γραμμές δεύτερου αρχείου μόνο με πολυμέσα (`mediaRows`) */ extraMedia?: ForeignRow[] },
   staffId: string | null,
 ): Promise<{ jobId: string; rows: ForeignPlanRow[]; writeOn: boolean; mediaMatch?: { matched: number; total: number } }> {
-  const foreign = toRows(input.sheet, input.headerRow, input.config);
+  const foreign = toRows(input.sheet, input.headerRow, input.config, await brandNamesFor(input.config));
   // Πριν από το σχέδιο: έτσι οι φωτογραφίες του δεύτερου αρχείου αποθηκεύονται με τις γραμμές και ακολουθούν ό,τι και οι δικές τους
   const mediaMatch = input.extraMedia ? mergeMedia(foreign, input.extraMedia) : undefined;
   const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
@@ -324,7 +334,7 @@ export async function planForeign(
  * Για τον «Έλεγχο με SoftOne» των XML προμηθευτών, που τρέχει σε κομμάτια πάνω σε όλο το feed.
  */
 export async function previewForeign(input: { sheet: string[][]; headerRow: number; config: MappingConfig; opts?: EngineOpts }): Promise<{ rows: ForeignPlanRow[]; writeOn: boolean; priceOn: boolean }> {
-  const foreign = toRows(input.sheet, input.headerRow, input.config);
+  const foreign = toRows(input.sheet, input.headerRow, input.config, await brandNamesFor(input.config));
   const writeOn = await itemWriteEnabled(), priceOn = webPriceWriteEnabled();
   return { rows: (await compute(foreign, writeOn, priceOn, undefined, input.opts)).map((c) => c.plan), writeOn, priceOn };
 }
@@ -445,11 +455,11 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   if (fresh.length) {
     const have = new Set((await db.pendingItem.findMany({ where: { jobId, rowNo: { in: fresh.map((c) => c.row.rowNo) } }, select: { rowNo: true } })).map((p) => p.rowNo));
     const open = await db.pendingItem.findMany({ where: { status: { in: [...OPEN, "creating"] } }, select: { id: true, status: true, media: true, jobId: true, rowNo: true, code: true, fields: true } });
-    already = openDuplicates(jobId, fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => ({ rowNo: c.row.rowNo, code: (c.row.fields.code || c.row.fields.factoryCode || "").trim(), barcode: c.row.fields.barcode })), open);
+    already = openDuplicates(jobId, fresh.filter((c) => !have.has(c.row.rowNo)).map((c) => ({ rowNo: c.row.rowNo, code: newItemCode(c.row.fields), barcode: c.row.fields.barcode })), open);
     // Το ίδιο είδος περιμένει ήδη δημιουργία (ήρθε πρώτα το αρχείο προϊόντων, τώρα αυτό με τις φωτογραφίες): τα πολυμέσα
     // της γραμμής προστίθενται σε εκείνο, αλλιώς θα χάνονταν μαζί με τη γραμμή που δεν μπαίνει δεύτερη φορά
     for (const c of fresh.filter((x) => already.has(x.row.rowNo) && mediaCount(x.row))) {
-      const code = (c.row.fields.code || c.row.fields.factoryCode || "").trim().toLowerCase(), bk = barcodeKey(c.row.fields.barcode);
+      const code = newItemCode(c.row.fields).toLowerCase(), bk = barcodeKey(c.row.fields.barcode);
       const p = open.find((o) => OPEN.includes(o.status) && ((code && o.code.trim().toLowerCase() === code) || (bk && barcodeKey(pendingFields(o.fields).barcode) === bk)));
       if (!p) continue;
       const cur = pendingMedia(p.media), add = c.row.media;
@@ -464,7 +474,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
       if (e) fields.barcode = e;
       return {
         // Χαρακτηριστικά με τις ετικέτες του χρήστη (όχι της ομάδας της προεπισκόπησης): στην έγκριση αντιστοιχίζονται στην ΤΕΛΙΚΗ ομάδα
-        jobId, rowNo: r.rowNo, code: (r.fields.code || r.fields.factoryCode || "").trim(), fields, specs: r.specs, media: r.media,
+        jobId, rowNo: r.rowNo, code: newItemCode(r.fields), fields, specs: r.specs, media: r.media,
         brandId: r.brandId, specGroupS1Id: c.groupS1Id, webCategoryId: r.categoryId, unitId: r.unitId, markId: r.markId,
         cost: r.cost ? parseMoney(r.cost) : null, rrp: r.rrp ? parseMoney(r.rrp) : null, price: c.plan.price?.price ?? null,
       };
@@ -504,7 +514,7 @@ export async function applyForeign(jobId: string, rowNos: number[], staffId: str
   return { done, waiting, pending, errors, notes, waitingRows };
 }
 
-export type MissingProduct = { id: string; mtrl: number; title: string; sku: string; brand: string };
+export type MissingProduct = { id: string; mtrl: number; title: string; sku: string; brand: string; /** απόθεμα κεντρικής — μόνο για ενημέρωση, η απενεργοποίηση γίνεται και με απόθεμα */ stock: number | null; webExcluded: boolean };
 
 /**
  * Ενεργά προϊόντα των μαρκών του αρχείου που ΔΕΝ βρέθηκαν σε καμία γραμμή του: υποψήφια για απενεργοποίηση. Μόνο λίστα —
@@ -518,25 +528,31 @@ export async function missingFromJob(jobId: string): Promise<MissingProduct[]> {
   if (!brands.length) return [];
   const inFile = new Set(stored.plan.map((p) => p.mtrl).filter((m): m is number => m != null).map(String));
   const ps = await db.product.findMany({ where: { brandId: { in: brands }, active: true }, select: { id: true, erpCode: true, title: true, sku: true, brand: { select: { name: true } } }, orderBy: { title: "asc" } });
-  return ps.filter((p) => /^\d+$/.test(p.erpCode) && !inFile.has(p.erpCode)).map((p) => ({ id: p.id, mtrl: Number(p.erpCode), title: p.title, sku: p.sku ?? "", brand: p.brand?.name ?? "" }));
+  const left = ps.filter((p) => /^\d+$/.test(p.erpCode) && !inFile.has(p.erpCode));
+  const s1 = new Map((await db.s1Item.findMany({ where: { mtrl: { in: left.map((p) => Number(p.erpCode)) } }, select: { mtrl: true, stockCentral: true, webExcluded: true } })).map((i) => [i.mtrl, i]));
+  return left.map((p) => { const i = s1.get(Number(p.erpCode)); return { id: p.id, mtrl: Number(p.erpCode), title: p.title, sku: p.sku ?? "", brand: p.brand?.name ?? "", stock: i?.stockCentral != null ? Number(i.stockCentral) : null, webExcluded: !!i?.webExcluded }; });
 }
 
 /**
- * Απενεργοποίηση όσων διάλεξε ο χρήστης από τη λίστα «λείπουν από το αρχείο»: το είδος γίνεται ανενεργό στο SoftOne (εκεί
- * ορίζεται το «ενεργό» — το κατάστημα το παίρνει με τον συγχρονισμό, που τρέχει εδώ αμέσως). Η λίστα ξαναϋπολογίζεται:
- * προϊόν που δεν λείπει πια (ή ήταν άλλης μάρκας) δεν αγγίζεται.
+ * Απενεργοποίηση όσων διάλεξε ο χρήστης από τη λίστα «λείπουν από το αρχείο», **ανεξάρτητα από το απόθεμα**: στο SoftOne
+ * τσεκάρεται η «Εξαίρεση Web» (δεν προβάλλεται στο web) ΚΑΙ το είδος γίνεται ανενεργό (ISACTIVE=0)· μετά συγχρονίζεται, ώστε
+ * να φύγει αμέσως από το eshop. Η λίστα ξαναϋπολογίζεται: προϊόν που δεν λείπει πια (ή ήταν άλλης μάρκας) δεν αγγίζεται.
  */
 export async function deactivateMissing(jobId: string, ids: string[]): Promise<{ id: string; ok: boolean; error?: string }[]> {
   if (!(await itemWriteEnabled())) throw new UserError("Οι αλλαγές προς το SoftOne είναι κλειστές (Ρυθμίσεις → SoftOne) — η απενεργοποίηση γίνεται εκεί.");
+  if (!webFlagWriteEnabled()) throw new UserError(WEB_FLAG_OFF);
   const allowed = new Map((await missingFromJob(jobId)).map((p) => [p.id, p]));
   const out: { id: string; ok: boolean; error?: string }[] = [];
   for (const id of [...new Set(ids)]) {
     const p = allowed.get(id);
     if (!p) { out.push({ id, ok: false, error: "Δεν είναι πια στη λίστα όσων λείπουν — ανανέωσε." }); continue; }
     try {
+      // πρώτα η «Εξαίρεση Web» (όσο το είδος είναι ακόμη ενεργό), μετά ανενεργό
+      const web = await writeWebExcluded(p.mtrl, true);
+      if (!web.ok) { out.push({ id, ok: false, error: web.error ?? "Το SoftOne δεν δέχτηκε την «Εξαίρεση Web»." }); continue; }
       const w = await writeItem(p.mtrl, { active: { from: true, to: false } });
-      if (!w.ok) { out.push({ id, ok: false, error: w.error ?? "Το SoftOne δεν δέχτηκε την αλλαγή." }); continue; }
       await syncItem(p.mtrl, "manual"); await projectItem(p.mtrl);
+      if (!w.ok) { out.push({ id, ok: false, error: `Βγήκε από το eshop («Εξαίρεση Web»), αλλά δεν έγινε ανενεργό στο SoftOne: ${w.error ?? "το SoftOne δεν δέχτηκε την αλλαγή."}` }); continue; }
       out.push({ id, ok: true });
     } catch (e) { console.error("[foreign-import/deactivate]", p.mtrl, e); out.push({ id, ok: false, error: "Απρόσμενο σφάλμα — ξαναδοκίμασε." }); }
   }
@@ -570,4 +586,82 @@ export async function setRowCategories(jobId: string, picks: Record<number, stri
   const foreign = stored.foreign.map((r) => (picks[r.rowNo] && valid.has(picks[r.rowNo]) && !r.categoryId ? { ...r, categoryId: picks[r.rowNo] } : r));
   await db.importJob.update({ where: { id: jobId }, data: { rows: { ...stored, foreign } as object } });
   return replanForeign(jobId);
+}
+
+/** Ό,τι χρειάζεται η ζωντανή κάρτα του eshop για μία γραμμή και δεν το ξέρει ο browser: τιμή από τον κανόνα και τα χαρακτηριστικά της κατηγορίας. */
+export type LiveCard = {
+  price: ForeignPrice | null; priceNote: string | null; category: string | null;
+  /** η ομάδα χαρακτηριστικών της κατηγορίας: κάθε χαρακτηριστικό με την τιμή του από το αρχείο (null = κενό) */
+  group: { name: string; specs: { name: string; value: string | null }[] } | null;
+  /** χαρακτηριστικά του αρχείου που δεν υπάρχουν στην ομάδα (αγνοούνται στην εισαγωγή) */
+  extra: string[];
+};
+
+/** Ομάδα χαρακτηριστικών μιας κατηγορίας: από τον κωδικό της, αλλιώς η συχνότερη ομάδα των ειδών της. */
+async function groupIdOf(cat: { id: string; erpCode: string | null }): Promise<number | null> {
+  const g = groupOfCategory(cat.erpCode);
+  if (g != null) return g;
+  const ps = await db.product.findMany({ where: { categoryId: cat.id }, select: { erpCode: true }, take: 500 });
+  const nums = ps.map((p) => p.erpCode).filter((c) => /^\d+$/.test(c)).map(Number);
+  const sg = nums.length ? await db.s1Item.findMany({ where: { mtrl: { in: nums }, missing: false }, select: { specGroupS1Id: true } }) : [];
+  return mostCommon(sg.map((s) => s.specGroupS1Id));
+}
+
+export type CategorySpecs = Record<string, { name: string; group: string | null; specs: string[] }>;
+/** Για κάθε κατηγορία: το όνομά της και τα χαρακτηριστικά της ομάδας της (κενό όταν δεν έχει ομάδα). Μόνο ανάγνωση. */
+export async function categorySpecs(ids: string[]): Promise<CategorySpecs> {
+  const cats = await db.category.findMany({ where: { id: { in: [...new Set(ids)].slice(0, 200) } }, select: { id: true, name: true, erpCode: true } });
+  const gid = await Promise.all(cats.map((c) => groupIdOf(c)));
+  const groups = await loadGroups([...new Set(gid.filter((g): g is number => g != null))]);
+  const paths = new Map((await categoryOptions()).map((o) => [o.id, o.path]));
+  return Object.fromEntries(cats.map((c, i) => { const g = gid[i] != null ? groups.get(gid[i]!) : undefined; return [c.id, { name: paths.get(c.id) ?? c.name, group: g?.name ?? null, specs: g?.specs.map((x) => x.name) ?? [] }]; }));
+}
+
+export type FileCategoryGuess = { rowNo: number; label: string; categoryId: string; sure: boolean };
+/**
+ * «Μάντεψε κατηγορίες» για ΟΛΟ το φύλλο (όχι μόνο τις πρώτες γραμμές): οι γραμμές χωρίς κατηγορία από στήλη/φύλλο πάνε στο AI
+ * με όνομα, μάρκα και λίγα στοιχεία. Μόνο προτάσεις — τίποτα δεν γράφεται.
+ */
+export async function guessFileCategories(matrix: string[][], headerRow: number, config: MappingConfig): Promise<{ guesses: FileCategoryGuess[]; asked: number; left: number; options: { id: string; name: string }[]; total: number }> {
+  const rows = toRows(matrix, headerRow, { ...config, rowCats: undefined }, await brandNamesFor(config, true));
+  const todo = rows.filter((r) => !r.categoryId);
+  if (!todo.length) throw new UserError("Όλες οι γραμμές έχουν ήδη κατηγορία από στήλη του αρχείου ή από το φύλλο.");
+  const ids = [...new Set(todo.map((r) => r.brandId).filter((x): x is string => !!x))];
+  const brands = new Map((await db.brand.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((b) => [b.id, b.name]));
+  const label = (r: ForeignRow) => (r.fields.name || r.fields.shortDesc || r.fields.code || r.fields.factoryCode || "").trim();
+  const res = await suggestProductCategories(todo.map((r) => ({
+    key: String(r.rowNo), name: label(r), ...(r.brandId && brands.get(r.brandId) ? { brand: brands.get(r.brandId)! } : {}),
+    extra: [r.fields.shortDesc, r.fields.descText?.slice(0, 120), Object.entries(r.specs).slice(0, 6).map(([k, v]) => `${k}: ${v}`).join(" · ")].filter(Boolean).join(" · "),
+  })));
+  const nameOf = new Map(todo.map((r) => [String(r.rowNo), label(r)]));
+  return { guesses: res.guesses.map((g) => ({ rowNo: Number(g.key), label: nameOf.get(g.key) ?? "", categoryId: g.categoryId, sure: g.sure })), asked: res.asked, left: res.left, options: res.options, total: todo.length };
+}
+
+/** Καμία εγγραφή: ίδιοι κανόνες με το σχέδιο (κανόνας τιμής ανά μάρκα/κατηγορία, ΦΠΑ από αδελφά είδη, ομάδα από την κατηγορία). */
+export async function liveCard(input: { brandId: string | null; categoryId: string | null; cost: string | null; rrp: string | null; specs: Record<string, string>; opts: EngineOpts }): Promise<LiveCard> {
+  const [rules, cat, vats] = await Promise.all([
+    db.markupRule.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } }),
+    input.categoryId ? db.category.findUnique({ where: { id: input.categoryId }, select: { id: true, name: true, erpCode: true } }) : null,
+    db.vatRate.findMany({ where: { s1Id: { not: null } }, select: { s1Id: true, percent: true } }),
+  ]);
+  const groupS1Id = cat ? await groupIdOf(cat) : null;
+  const g = groupS1Id != null ? (await loadGroups([groupS1Id])).get(groupS1Id) : undefined;
+  const rk = rekeySpecs(input.specs, g ? g.specs.map((s) => s.name) : null);
+  // ΦΠΑ: ο συχνότερος των ειδών της ομάδας (όπως στα νέα είδη), αλλιώς 24%
+  const vatOf = new Map(vats.map((v) => [v.s1Id!, Number(v.percent)]));
+  const pair = groupS1Id != null ? (await db.s1Item.groupBy({ by: ["vatS1Id"], where: { specGroupS1Id: groupS1Id, missing: false }, _count: { _all: true } })).filter((v) => v.vatS1Id != null).sort((a, b) => b._count._all - a._count._all)[0] : undefined;
+  const vat = (pair && vatOf.get(String(pair.vatS1Id))) ?? 24;
+  const rule = pickRule(rules, input.brandId, input.categoryId);
+  const names = rule ? await Promise.all([rule.brandId ? db.brand.findUnique({ where: { id: rule.brandId }, select: { name: true } }) : null, rule.categoryId ? db.category.findUnique({ where: { id: rule.categoryId }, select: { name: true } }) : null]) : [null, null];
+  const pr = policyPrice({
+    mode: input.opts.priceMode, vatIncluded: input.opts.policy.vatIncluded, markupPercent: input.opts.policy.markupPercent, cost: input.cost, rrp: input.rrp, vat,
+    rule: rule ? { percent: rule.percent, rounding: ROUNDING.has(rule.rounding as Rounding) ? (rule.rounding as Rounding) : "none" } : null,
+    label: rule ? ruleLabel(rule, { brand: names[0]?.name, category: names[1]?.name }) : "",
+  });
+  const noSource = input.opts.priceMode === "retail" ? "Το αρχείο δεν δίνει λιανική για αυτή τη γραμμή." : "Το αρχείο δεν δίνει κόστος για αυτή τη γραμμή.";
+  return {
+    price: pr.price ?? null, priceNote: pr.price ? null : pr.warning ?? noSource, category: cat?.name ?? null,
+    group: g ? { name: g.name, specs: g.specs.map((s) => ({ name: s.name, value: rk.specs[s.name] ?? null })) } : null,
+    extra: g ? Object.keys(input.specs).filter((l) => !g.specs.some((s) => labelKey(s.name) === labelKey(l))) : [],
+  };
 }

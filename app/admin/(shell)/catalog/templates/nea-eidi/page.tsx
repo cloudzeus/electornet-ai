@@ -48,7 +48,7 @@ export default async function PendingItemsPage({ searchParams }: { searchParams:
         <Link href="/admin/catalog/templates" className="inline-flex items-center gap-1 min-h-11 md:min-h-9 w-fit font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline"><ArrowLeft className="size-4" aria-hidden /> Templates & excel</Link>
         <div className="font-extrabold text-eu-blue text-[length:var(--fs-13)] tracking-wide uppercase inline-flex items-center gap-1.5"><PackagePlus className="size-4" aria-hidden /> Κατάλογος</div>
         <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Νέα είδη προς δημιουργία</h2>
-        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[70ch]">Είδη από την «Εισαγωγή από άλλο Excel» που δεν υπάρχουν στο SoftOne. Συμπλήρωσε ό,τι λείπει και εγκρίνε: το είδος δημιουργείται στο SoftOne <strong>ανενεργό</strong>, παίρνει τιμή web και φωτογραφίες, και το ενεργοποιείς όταν είναι έτοιμο.</p>
+        <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] max-w-[70ch]">Νέα είδη από Excel, XML και Keyvoto που δεν υπάρχουν στο SoftOne. Συμπλήρωσε ό,τι λείπει και εγκρίνε: το είδος δημιουργείται στο SoftOne <strong>ενεργό, με «Εξαίρεση Web»</strong> (δεν ανεβαίνει στο site), παίρνει τιμή web και φωτογραφίες, και το βγάζεις στο site όταν είναι έτοιμο.</p>
       </div>
       <nav data-help="pending.filters" aria-label="Κατάσταση" className="flex flex-wrap gap-2">
         {STATUSES.filter((s) => s.key !== "creating" || count.get("creating")).map((s) => (

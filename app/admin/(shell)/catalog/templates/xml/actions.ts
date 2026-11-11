@@ -21,6 +21,7 @@ import { dropDraft, getDraft, putDraft } from "@/lib/catalog/xml-import/draft";
 import { mergeBrandMap, splitBrandMap } from "@/lib/catalog/xml-import/skip-core";
 import { publishList, publishProducts, type PublishFilter } from "@/lib/catalog/xml-import/publish";
 import { drain, enqueue, enqueuePending, progress, recoverStale, type Selection } from "@/lib/catalog/xml-import/queue";
+import { categoryFixAi, categoryFixInfo, fixCategory } from "@/lib/catalog/xml-import/fix";
 import { normSchedule, type FeedSchedule } from "@/lib/catalog/xml-import/schedule-core";
 import { availValues, saveAvailMap, type AvailValue } from "@/lib/catalog/xml-import/avail-map";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
@@ -447,7 +448,13 @@ export async function items(feedId: string, filter: Partial<ItemFilter>, except:
       db.supplierFeedItem.count({ where: { ...where, problem: { not: null } } }),
       db.supplierFeedItem.count({ where: { ...where, status: "skipped" } }),
     ]);
-    return ok<ItemsDTO>({ rows: r.rows.map(toItem), total: r.total, page: r.page, pages: r.pages, counts: r.counts, exceptionsHere, problemsHere, skippedHere });
+    // Γιατί παραλείπεται κάθε γραμμή: «Εξαίρεση Web» στο SoftOne (καθρέφτης) ή μάρκα που δεν εισάγεται
+    const skipped = r.rows.filter((x) => x.status === "skipped").map((x) => x.sku.trim());
+    const excluded = new Set(skipped.length ? (await db.s1Item.findMany({ where: { code: { in: skipped }, missing: false, webExcluded: true }, select: { code: true } })).map((x) => x.code.trim()) : []);
+    const rows = r.rows.map((x) => ({ ...toItem(x), ...(x.status === "skipped" ? { skipWhy: excluded.has(x.sku.trim())
+      ? "Το είδος έχει τσεκαρισμένη την «Εξαίρεση Web» στο SoftOne, άρα δεν ανεβαίνει στο site. Για να μπει: ξετσέκαρέ τη στο SoftOne, ή τσέκαρε πιο πάνω «Να μπουν και τα είδη με Εξαίρεση Web»."
+      : "Η μάρκα του δεν εισάγεται — το όρισες στο βήμα «Μάρκες» («Αλλαγή αντιστοίχισης» για να την ανοίξεις)." } : {}) }));
+    return ok<ItemsDTO>({ rows, total: r.total, page: r.page, pages: r.pages, counts: r.counts, exceptionsHere, problemsHere, skippedHere });
   });
 }
 
@@ -488,8 +495,8 @@ async function erpGuard(permissions: string[], toSoftone: boolean): Promise<stri
   return can(permissions, "catalog.sync.run") ? null : "Η εγγραφή στο SoftOne είναι ανοιχτή: για εισαγωγή με «και στο SoftOne» χρειάζεται και το δικαίωμα «Εκτέλεση συγχρονισμού ERP».";
 }
 
-/** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις. Οι γραμμές με πρόβλημα δεν μπαίνουν. */
-export async function queueItems(feedId: string, filter: Partial<ItemFilter>, except: string[], toSoftone: boolean): Promise<{ queued: number; skipped: number; notChosen: number } | Fail> {
+/** Βάζει στην ουρά ό,τι ταιριάζει στο φίλτρο, εκτός από τις εξαιρέσεις — ή, με `only`, μόνο τα sku που διάλεξε ο χρήστης. Οι γραμμές με πρόβλημα δεν μπαίνουν. */
+export async function queueItems(feedId: string, filter: Partial<ItemFilter>, except: string[], toSoftone: boolean, only: string[] = []): Promise<{ queued: number; skipped: number; notChosen: number } | Fail> {
   const user = await requirePermission("catalog.products.write");
   const stop = await erpGuard(user.permissions, !!toSoftone);
   if (stop) return { error: stop };
@@ -498,9 +505,34 @@ export async function queueItems(feedId: string, filter: Partial<ItemFilter>, ex
       filter: filterOf(filter),
       except: [...new Set((except ?? []).filter((s) => typeof s === "string"))].slice(0, 5000),
       toSoftone: !!toSoftone,
+      only: [...new Set((Array.isArray(only) ? only : []).filter((s) => typeof s === "string" && s))].slice(0, 5000),
     };
     const r = await enqueue(String(feedId), sel);
-    await audit(user.id, "catalog.xml-import.enqueue", "SupplierFeed", String(feedId), null, { ...sel.filter, except: sel.except.length, toSoftone: sel.toSoftone, ...r });
+    await audit(user.id, "catalog.xml-import.enqueue", "SupplierFeed", String(feedId), null, { ...sel.filter, except: sel.except.length, only: sel.only?.length ?? 0, toSoftone: sel.toSoftone, ...r });
+    return ok(r);
+  });
+}
+
+// ---------- Επίλυση σφαλμάτων από τη γραμμή ----------
+
+/** Τι χρειάζεται η γραμμή με σφάλμα κατηγορίας: η τιμή του προμηθευτή, πόσα προϊόντα την έχουν, οι επιλογές και μια πρόταση. */
+export async function categoryFixInfoAction(feedId: string, sku: string): Promise<Awaited<ReturnType<typeof categoryFixInfo>> | Fail> {
+  await requirePermission("catalog.products.write");
+  return guard("fix-info", async () => ok(await categoryFixInfo(String(feedId), String(sku))));
+}
+
+/** «Πρότεινε με AI» για τη γραμμή. Δεν αλλάζει τίποτα — ο χρήστης εγκρίνει την πρόταση. */
+export async function categoryFixAiAction(feedId: string, sku: string): Promise<{ categoryId: string | null; sure: boolean } | Fail> {
+  await requirePermission("catalog.products.write");
+  return guard("fix-ai", async () => ok(await categoryFixAi(String(feedId), String(sku))));
+}
+
+/** Αλλάζει την αντιστοίχιση της κατηγορίας του προμηθευτή και ξαναβάζει στην ουρά όσα είχαν κολλήσει σε αυτήν. */
+export async function fixCategoryAction(feedId: string, value: string, categoryId: string): Promise<{ queued: number } | Fail> {
+  const user = await requirePermission("catalog.products.write");
+  return guard("fix-category", async () => {
+    const r = await fixCategory(String(feedId), String(value), String(categoryId));
+    await audit(user.id, "catalog.xml-import.fix-category", "SupplierFeed", String(feedId), null, { value: String(value).slice(0, 200), categoryId: String(categoryId), ...r });
     return ok(r);
   });
 }

@@ -180,3 +180,29 @@ export function openDuplicates(jobId: string, rows: { rowNo: number; code?: stri
   }
   return out;
 }
+
+/** Το σταθερό κομμάτι του σφάλματος «είδος χωρίς web κατηγορία»: η λίστα του feed το αναγνωρίζει και προσφέρει «Διάλεξε κατηγορία». */
+export const NO_WEB_CATEGORY = "δεν έχει web κατηγορία στο SoftOne";
+
+const stems = (s: string) => new Set(s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-zα-ω0-9]+/).filter((w) => w.length >= 4).map((w) => w.slice(0, 5)));
+/**
+ * Ποια κατηγορία ταιριάζει σε αυτά τα προϊόντα, χωρίς AI: η κατηγορία της οποίας το όνομα (τελευταίο σκέλος της διαδρομής)
+ * μοιάζει περισσότερο με λέξεις των ονομάτων («Κλιματιστικό 9.000 BTU» → «… › Κλιματιστικά»). Σε ισοπαλία προηγείται όποια
+ * βρίσκεται κάτω από την κατηγορία που είχε διαλέξει ο χρήστης (`under`). Καμία ομοιότητα → `null`, δεν μαντεύουμε.
+ */
+export function guessCategory(names: string[], options: { id: string; path: string }[], under = ""): string | null {
+  const words = names.map(stems);
+  let best: { id: string; score: number } | null = null;
+  for (const o of options) {
+    const leaf = [...stems(o.path.split("›").pop() ?? "")];
+    if (!leaf.length) continue;
+    const hits = words.reduce((a, w) => a + leaf.filter((x) => w.has(x)).length / leaf.length, 0);
+    if (!hits) continue;
+    const score = hits + (under && o.path.startsWith(under) ? 0.5 : 0);
+    if (!best || score > best.score) best = { id: o.id, score };
+  }
+  return best?.id ?? null;
+}
+
+/** Σήμανση επιλογής κατηγορίας που δεν έχει ομάδα χαρακτηριστικών: φαίνεται στη λίστα επιλογών και ανάβει προειδοποίηση στο βήμα «Κατηγορίες». */
+export const NO_GROUP_HINT = "χωρίς ομάδα χαρακτηριστικών";

@@ -102,3 +102,12 @@ test("isProductImageUrl: όχι εικόνες κοινοποίησης (ogp.jpg
   assert.equal(isProductImageUrl("https://www.toyotomi.gr/wp-content/uploads/2023/05/hiro.png"), true);
   assert.equal(isProductImageUrl("https://a.gr/p/blogger-x.jpg"), true);
 });
+
+test("pageImages: <img> / data-src-xl με το μοντέλο στο όνομα (σελίδες χωρίς JSON-LD), όχι λογότυπα και άλλα μοντέλα", () => {
+  const html = `<img class="logo" src="https://s.com/inventor-w.svg"><img alt="CLP-45106W" src="https://c.com/CLP-45106W_SeeMore_450x500.png">
+    <img class="img-responsive" src="https://c.com/Dishwashers/CLP-TT88S/SLIDERS/01_CLP-TT88S_Sliders.jpg" alt="">
+    <div data-src-sm="https://c.com/01_CLP-TT88S_Fases_450x500.jpg" data-src-xl="https://c.com/01_CLP-TT88S_Fases_1920x1080.jpg"></div>
+    <img src="https://c.com/ISO_9001_2015_negative_80px.png" alt="ISO 9001">`;
+  assert.deepEqual(pageImages(html, "https://www.x.gr/p", 12, ["CLP-TT88S"]), ["https://c.com/Dishwashers/CLP-TT88S/SLIDERS/01_CLP-TT88S_Sliders.jpg", "https://c.com/01_CLP-TT88S_Fases_1920x1080.jpg"]);
+  assert.deepEqual(pageImages(html, "https://www.x.gr/p"), [], "χωρίς μοντέλο δεν ξύνεται κανένα <img>");
+});

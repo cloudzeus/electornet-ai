@@ -1,5 +1,5 @@
 import type { FieldKey } from "@/lib/catalog/supplier-sheet";
-import { detectHeaderRow, UserError, PREVIEW_CELL, type MappingConfig, type SavedConfig, type SavedPrice, type Target } from "@/lib/catalog/foreign-import/core";
+import { detectHeaderRow, UserError, PREVIEW_CELL, type ComposeField, type ComposePart, type CatSpecs, type MappingConfig, type SavedConfig, type SavedPrice, type Target } from "@/lib/catalog/foreign-import/core";
 import { normPolicy } from "@/lib/catalog/xml-import/policy-core";
 
 /** Οι επιλογές τιμής του βήματος 3 όπως έρχονται από τον browser → έγκυρες (λάθος ή απουσία = προεπιλογές). */
@@ -107,6 +107,28 @@ function parseMap(v: unknown): Record<string, string | null> {
   return out;
 }
 
+const COMPOSE_KEYS = new Set(["name", "shortDesc", "descText"]);
+/** Σύνθετα πεδία από τον browser: έως 10, έως 12 κομμάτια το καθένα, κείμενο έως 80 χαρακτήρες. Χωρίς κομμάτια → παραλείπεται. */
+function parseCompose(v: unknown): ComposeField[] {
+  if (v == null) return [];
+  if (!Array.isArray(v) || v.length > 10) throw new UserError("Μη έγκυρα σύνθετα πεδία.");
+  return v.flatMap((f): ComposeField[] => {
+    if (!isObj(f) || !isObj(f.target) || !Array.isArray(f.parts) || f.parts.length > 12) throw new UserError("Μη έγκυρο σύνθετο πεδίο.");
+    const t = f.target;
+    let target: ComposeField["target"];
+    if (t.kind === "field" && typeof t.key === "string" && COMPOSE_KEYS.has(t.key)) target = { kind: "field", key: t.key as "name" };
+    else if (t.kind === "spec" && txt(t.label) && txt(t.label).length <= 80) target = { kind: "spec", label: txt(t.label) };
+    else throw new UserError("Κάθε σύνθετο πεδίο χρειάζεται προορισμό (και ετικέτα, αν είναι χαρακτηριστικό).");
+    const parts = f.parts.map((p): ComposePart => {
+      if (isObj(p) && p.kind === "brand") return { kind: "brand" };
+      if (isObj(p) && p.kind === "text" && typeof p.text === "string" && p.text.length <= 80) return { kind: "text", text: p.text };
+      if (isObj(p) && p.kind === "col" && Number.isInteger(p.col) && (p.col as number) >= 0 && (p.col as number) < MAX_COLS) return { kind: "col", col: p.col as number };
+      throw new UserError("Μη έγκυρο κομμάτι σε σύνθετο πεδίο.");
+    });
+    return parts.length ? [{ target, parts }] : [];
+  });
+}
+
 /** Η αντιστοίχιση όπως ήρθε από τον browser → MappingConfig, ή Error με ελληνικό μήνυμα. Άγνωστοι στόχοι απορρίπτονται. */
 export function parseConfig(raw: unknown): MappingConfig {
   if (!isObj(raw) || !isObj(raw.columns)) throw new UserError("Μη έγκυρη αντιστοίχιση στηλών.");
@@ -118,18 +140,52 @@ export function parseConfig(raw: unknown): MappingConfig {
     if (!t) throw new UserError(`Μη έγκυρος στόχος για τη στήλη ${i + 1}.`);
     if (t.kind !== "ignore") columns[i] = t;
   }
+  const compose = parseCompose(raw.compose);
+  const catSpecs = parseCatSpecs(raw.catSpecs), rowCats = parseRowCats(raw.rowCats);
   return {
-    columns,
+    columns, ...(compose.length ? { compose } : {}), ...(Object.keys(catSpecs).length ? { catSpecs } : {}), ...(Object.keys(rowCats).length ? { rowCats } : {}),
     brandMap: parseMap(raw.brandMap), categoryMap: parseMap(raw.categoryMap), unitMap: parseMap(raw.unitMap), markMap: parseMap(raw.markMap),
     sheetBrandId: idOrNull(raw.sheetBrandId), sheetCategoryId: idOrNull(raw.sheetCategoryId), sheetUnitId: idOrNull(raw.sheetUnitId), sheetMarkId: idOrNull(raw.sheetMarkId),
   };
+}
+
+/** Χαρακτηριστικά ανά κατηγορία: έως 200 κατηγορίες, στήλη 0..MAX_COLS → όνομα έως 80 χαρακτήρες· κενά πετιούνται. */
+function parseCatSpecs(raw: unknown): CatSpecs {
+  if (raw == null) return {};
+  if (!isObj(raw) || Object.keys(raw).length > 200) throw new UserError("Μη έγκυρα χαρακτηριστικά ανά κατηγορία.");
+  const out: CatSpecs = {};
+  for (const [cat, m] of Object.entries(raw)) {
+    const id = idOrNull(cat);
+    if (!id || !isObj(m)) throw new UserError("Μη έγκυρα χαρακτηριστικά ανά κατηγορία.");
+    const cols: Record<number, string> = {};
+    for (const [k, v] of Object.entries(m)) {
+      const i = Number(k);
+      if (!Number.isInteger(i) || i < 0 || i >= MAX_COLS || typeof v !== "string" || v.length > 80) throw new UserError("Μη έγκυρα χαρακτηριστικά ανά κατηγορία.");
+      if (v.trim()) cols[i] = v.trim();
+    }
+    if (Object.keys(cols).length) out[id] = cols;
+  }
+  return out;
+}
+
+/** Κατηγορία ανά γραμμή (από τις προτάσεις AI): αριθμός γραμμής → id, έως 20.000 γραμμές. */
+function parseRowCats(raw: unknown): Record<number, string> {
+  if (raw == null) return {};
+  if (!isObj(raw) || Object.keys(raw).length > 20_000) throw new UserError("Μη έγκυρες κατηγορίες ανά γραμμή.");
+  const out: Record<number, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const r = Number(k), id = idOrNull(v);
+    if (!Number.isInteger(r) || r < 1 || !id) throw new UserError("Μη έγκυρες κατηγορίες ανά γραμμή.");
+    out[r] = id;
+  }
+  return out;
 }
 
 /** Όλα τα id μάρκας / κατηγορίας / μονάδας / σήμανσης που αναφέρει η αντιστοίχιση (για έλεγχο ότι υπάρχουν). */
 export function configIds(c: MappingConfig): { brands: string[]; categories: string[]; units: string[]; marks: string[] } {
   const ids = (m: Record<string, string | null> | undefined, one: string | null | undefined) =>
     [...new Set([...Object.values(m ?? {}), one ?? null].filter((x): x is string => !!x))];
-  return { brands: ids(c.brandMap, c.sheetBrandId), categories: ids(c.categoryMap, c.sheetCategoryId), units: ids(c.unitMap, c.sheetUnitId), marks: ids(c.markMap, c.sheetMarkId) };
+  return { brands: ids(c.brandMap, c.sheetBrandId), categories: [...new Set([...ids(c.categoryMap, c.sheetCategoryId), ...Object.values(c.rowCats ?? {})])], units: ids(c.unitMap, c.sheetUnitId), marks: ids(c.markMap, c.sheetMarkId) };
 }
 
 // ---------- Αυτόματη αντιστοίχιση ονομάτων ----------

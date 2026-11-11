@@ -25,6 +25,8 @@ import type { Diff } from "@/lib/catalog/xml-import/diff-core";
 /** Μέγιστο μέγεθος φωτογραφίας που κατεβάζουμε από τον προμηθευτή. */
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const IMAGE_TIMEOUT_MS = 25_000;
+/** Πόσες φωτογραφίες ενός προϊόντος κατεβαίνουν / ανεβαίνουν ταυτόχρονα. */
+const IMAGE_PARALLEL = 4;
 /** Πόσες φωτογραφίες το πολύ ανά προϊόν (όσες και στο template προμηθευτή). */
 export const MAX_IMAGES = 10;
 /** Προεπιλεγμένο μέγεθος παρτίδας. Μικρό, ώστε κάθε κλήση να τελειώνει γρήγορα και η πρόοδος να προχωρά ορατά. */
@@ -36,6 +38,8 @@ export interface Selection {
   except: string[];
   /** «και στο SoftOne» για την παρτίδα· οι εξαιρέσεις ανά προϊόν ζουν στο `SupplierFeedItem.softone` */
   toSoftone: boolean;
+  /** «Μόνο όσα διαλέξω»: αν έχει sku, μπαίνουν μόνο αυτά — φίλτρο και εξαιρέσεις δεν παίζουν ρόλο */
+  only?: string[];
 }
 
 const whereOf = (feedId: string, f: ItemFilter) => ({
@@ -52,13 +56,14 @@ export async function enqueue(feedId: string, sel: Selection): Promise<{ queued:
   if (!feed.active) throw new UserError("Το feed αυτού του προμηθευτή είναι ανενεργό — ενεργοποίησέ το από το πρώτο βήμα για να γίνει εισαγωγή.");
   // Η παράλειψη είναι απόφαση του χρήστη, όχι φίλτρο: γραμμή παραλειπόμενης μάρκας ΔΕΝ μπαίνει ποτέ στην ουρά, ό,τι
   // κι αν λέει το φίλτρο. Ο τρόπος να μπει είναι να ξε-παραλειφθεί η μάρκα και να ξανατρέξει το feed.
-  const base = { ...whereOf(feedId, sel.filter), problem: null, ...(sel.except.length ? { sku: { notIn: sel.except } } : {}), status: { not: "skipped" } };
+  const scope = sel.only?.length ? { feedId, sku: { in: sel.only } } : { ...whereOf(feedId, sel.filter), ...(sel.except.length ? { sku: { notIn: sel.except } } : {}) };
+  const base = { ...scope, problem: null, status: { not: "skipped" } };
   // Νέο είδος (κατά τον «Έλεγχο με SoftOne») που ο χρήστης δεν διάλεξε για το SoftOne δεν μπαίνει στην ουρά.
   // Ρητό `null` στο s1Status: το Prisma `not` αποκλείει σιωπηλά τα NULL (γραμμές που δεν ελέγχθηκαν ποτέ = όπως πριν).
   const chosen = { OR: [{ s1Status: null }, { s1Status: { not: "new" } }, { softone: true }, ...(sel.toSoftone ? [{ softone: null }] : [])] };
   const where = { AND: [base, chosen] };
   const [skipped, notChosen] = await Promise.all([
-    db.supplierFeedItem.count({ where: { ...whereOf(feedId, sel.filter), problem: { not: null } } }),
+    db.supplierFeedItem.count({ where: { ...(sel.only?.length ? { feedId, sku: { in: sel.only } } : whereOf(feedId, sel.filter)), problem: { not: null } } }),
     db.supplierFeedItem.count({ where: { AND: [base, { NOT: chosen }] } }),
   ]);
   const r = await db.supplierFeedItem.updateMany({ where, data: { status: "queued", error: null } });
@@ -214,10 +219,13 @@ export async function drain(feedId: string, max = BATCH, staffId: string | null 
     const already = ((it.assetIds ?? []) as string[]);
     if (!urls.length || already.length >= urls.length) continue;
     const ids: string[] = [];
-    for (const url of urls) {
-      const r = await ingestImage(url, folderId, staffId);
-      if ("error" in r) { fail(it.id, r.error); continue; }
-      ids.push(r.id); images++;
+    // 4 μαζί: μία-μία ήταν ~2″ η καθεμία (≈4′ για παρτίδα 10 προϊόντων)· περισσότερες θα έπνιγαν το κοινό pool της βάσης.
+    // Η σειρά του χρήστη κρατιέται, γιατί τα αποτελέσματα μπαίνουν με τη σειρά των urls.
+    for (let i = 0; i < urls.length; i += IMAGE_PARALLEL) {
+      for (const r of await Promise.all(urls.slice(i, i + IMAGE_PARALLEL).map((url) => ingestImage(url, folderId, staffId)))) {
+        if ("error" in r) { fail(it.id, r.error); continue; }
+        ids.push(r.id); images++;
+      }
     }
     if (ids.length) await db.supplierFeedItem.update({ where: { id: it.id }, data: { assetIds: ids } });
   }

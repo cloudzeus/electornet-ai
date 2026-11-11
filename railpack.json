@@ -1,6 +1,9 @@
 {
   "$schema": "https://schema.railpack.com",
+  "packages": {
+    "postgres": "16"
+  },
   "deploy": {
-    "aptPackages": ["ffmpeg", "curl", "wget"]
+    "aptPackages": ["ffmpeg", "curl", "wget", "openssl"]
   }
 }

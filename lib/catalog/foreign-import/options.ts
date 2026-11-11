@@ -11,15 +11,15 @@ export async function brandOptions(): Promise<(Opt & { s1: boolean; s1Id: string
 }
 
 /** Κατηγορίες με όνομα «Γονέας › Παιδί» (το name μένει το σκέτο όνομα για την αυτόματη αντιστοίχιση). */
-export async function categoryOptions(): Promise<(Opt & { path: string })[]> {
-  const rows = await db.category.findMany({ select: { id: true, name: true, parentId: true } });
+export async function categoryOptions(): Promise<(Opt & { path: string; /** έχει ομάδα χαρακτηριστικών του SoftOne — μόνο εκεί μπορεί να μπει νέο είδος */ group: boolean })[]> {
+  const rows = await db.category.findMany({ select: { id: true, name: true, parentId: true, erpCode: true } });
   const by = new Map(rows.map((c) => [c.id, c]));
   const path = (id: string) => {
     const parts: string[] = [];
     for (let c = by.get(id), n = 0; c && n < 8; c = c.parentId ? by.get(c.parentId) : undefined, n++) parts.unshift(c.name);
     return parts.join(" › ");
   };
-  return rows.map((c) => ({ id: c.id, name: c.name, path: path(c.id) })).sort((a, b) => a.path.localeCompare(b.path, "el"));
+  return rows.map((c) => ({ id: c.id, name: c.name, path: path(c.id), group: /^s1:g:\d+$/.test(c.erpCode ?? "") })).sort((a, b) => a.path.localeCompare(b.path, "el"));
 }
 
 /** Μονάδες μέτρησης (MTRUNIT) που έχουν σύνδεση με το SoftOne — μόνο αυτές μπορούν να μπουν σε νέο είδος. */

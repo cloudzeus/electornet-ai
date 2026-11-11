@@ -54,3 +54,21 @@ test("autoMatch: ίδιο όνομα χωρίς τόνους/σύμβολα, μ�
   const m = autoMatch(["LG", "Ψυγεία", "Άγνωστο", "Διπλό"], [{ id: "1", name: "lg" }, { id: "2", name: "ΨΥΓΕΙΑ" }, { id: "3", name: "Διπλό" }, { id: "4", name: "διπλο" }]);
   assert.deepEqual(m, { LG: "1", "Ψυγεία": "2", "Άγνωστο": null, "Διπλό": null });
 });
+
+test("parseConfig: σύνθετα πεδία — έγκυρα περνούν, άκυρος προορισμός/κομμάτι απορρίπτεται, χωρίς κομμάτια παραλείπεται", () => {
+  const c = parseConfig({ columns: {}, compose: [{ target: { kind: "field", key: "name" }, parts: [{ kind: "col", col: 2 }, { kind: "brand" }, { kind: "text", text: "-" }] }, { target: { kind: "spec", label: "Χρώμα" }, parts: [] }] });
+  assert.deepEqual(c.compose, [{ target: { kind: "field", key: "name" }, parts: [{ kind: "col", col: 2 }, { kind: "brand" }, { kind: "text", text: "-" }] }]);
+  assert.throws(() => parseConfig({ columns: {}, compose: [{ target: { kind: "field", key: "code" }, parts: [{ kind: "brand" }] }] }), UserError);
+  assert.throws(() => parseConfig({ columns: {}, compose: [{ target: { kind: "spec", label: "" }, parts: [{ kind: "brand" }] }] }), UserError);
+  assert.throws(() => parseConfig({ columns: {}, compose: [{ target: { kind: "field", key: "name" }, parts: [{ kind: "col", col: -1 }] }] }), UserError);
+  assert.equal(parseConfig({ columns: {} }).compose, undefined);
+});
+
+test("parseConfig: χαρακτηριστικά ανά κατηγορία και κατηγορίες ανά γραμμή — έγκυρα περνούν, κενά πετιούνται, άκυρα απορρίπτονται", () => {
+  const c = parseConfig({ columns: {}, catSpecs: { cS: { 2: " Χωρητικότητα ", 3: "" } }, rowCats: { 5: "cS" } });
+  assert.deepEqual(c.catSpecs, { cS: { 2: "Χωρητικότητα" } });
+  assert.deepEqual(c.rowCats, { 5: "cS" });
+  assert.throws(() => parseConfig({ columns: {}, catSpecs: { cS: { "-1": "x" } } }), /χαρακτηριστικά ανά κατηγορία/);
+  assert.throws(() => parseConfig({ columns: {}, rowCats: { 0: "cS" } }), /κατηγορίες ανά γραμμή/);
+  assert.deepEqual(configIds({ columns: {}, brandMap: {}, categoryMap: {}, rowCats: { 2: "cS", 3: "cS" } }).categories, ["cS"]);
+});

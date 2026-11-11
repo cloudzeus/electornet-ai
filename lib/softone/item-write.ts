@@ -13,9 +13,9 @@ import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
  * 2. **Μόνο ό,τι άλλαξε** — κανένα άλλο πεδίο δεν στέλνεται.
  * 3. **Επαλήθευση:** νέα ανάγνωση μετά την εγγραφή. Το «success» του SoftOne δεν σημαίνει πάντα ότι η τιμή γράφτηκε.
  */
-export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2";
+export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2" | "webName";
 /** Τα πεδία της καρτέλας προϊόντος — η web ομάδα / κατηγορίες αλλάζουν μόνο από την εισαγωγή (με έγκριση στο σχέδιο) */
-export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2"] as const;
+export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2", "webName"] as const;
 export type EditorField = Exclude<ItemField, (typeof WEB_FIELDS)[number]>;
 type Kind = "text" | "memo" | "bool" | "int" | "num";
 export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: Kind; max?: number }> = {
@@ -36,6 +36,8 @@ export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: K
   webGroup: { s1: "CCCWEBGRSPECS", label: "Web ομάδα χαρακτηριστικών", kind: "int" },
   webCat1: { s1: "CCCWEBCATEGORY1", label: "Web κατηγορία 1", kind: "int" },
   webCat2: { s1: "CCCWEBCATEGORY2", label: "Web κατηγορία 2", kind: "int" },
+  // «Περιγραφή για Web» (MTRL.WEBNAME, 64 χαρ.): τη συμπληρώνουν σχεδόν όλα τα είδη web του ERP και τη δείχνει το παλιό site
+  webName: { s1: "WEBNAME", label: "Περιγραφή για Web", kind: "text", max: 64 },
 };
 export type ItemValue = string | number | boolean | null;
 export type ItemChanges = Partial<Record<ItemField, { from: ItemValue; to: ItemValue }>>;

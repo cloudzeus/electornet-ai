@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { brandOptions, categoryOptions, markOptions, unitOptions } from "@/lib/catalog/foreign-import/options";
+import { NO_GROUP_HINT } from "@/lib/catalog/foreign-import/plan-core";
 import { supplierCards } from "@/lib/catalog/xml-import/suppliers";
 import { getKeyvotoConfig } from "@/lib/keyvoto/client";
 import { getSettings } from "@/lib/cms/settings-server";
@@ -49,7 +50,7 @@ export default async function KeyvotoPage() {
             source="keyvoto"
             suppliers={cards}
             brands={brands.map(({ id, name, s1 }) => ({ id, name, s1 }))}
-            categories={categories.map(({ id, path }) => ({ id, name: path }))}
+            categories={categories.map(({ id, path, group }) => ({ id, name: path, ...(group ? {} : { hint: NO_GROUP_HINT }) }))}
             units={units.map(({ id, name }) => ({ id, name }))}
             marks={marks.map(({ id, name }) => ({ id, name }))}
             writeOn={writeOn}

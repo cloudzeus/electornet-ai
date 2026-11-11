@@ -189,6 +189,8 @@ export interface ItemDTO {
   softone: boolean | null;
   mtrl: number | null;
   productId: string | null;
+  /** γιατί παραλείπεται (μόνο σε γραμμές «Παραλείπεται») — και τι κάνει ο χρήστης για να μπει */
+  skipWhy?: string;
 }
 
 export interface ItemsDTO {

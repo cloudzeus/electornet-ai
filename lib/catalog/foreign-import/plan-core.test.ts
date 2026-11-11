@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, priceApplies } from "./plan-core";
+import { rowStatus, newDuplicates, rekeySpecs, ruleLabel, planPrice, mostCommon, matchChanged, sameItemRows, chunks, sectionTitle, namesDiffer, openDuplicates, priceApplies, guessCategory } from "./plan-core";
 import type { ForeignRow } from "./core";
 
 const row = (rowNo: number, f: ForeignRow["fields"] = {}): ForeignRow => ({ rowNo, fields: f, specs: {}, media: { image: [], banner: [], video: [] }, brandId: null, categoryId: null, unitId: null, markId: null, cost: null, rrp: null });
@@ -154,4 +154,11 @@ test("priceApplies: η τιμή μπαίνει όπου λείπει και δι
   assert.equal(priceApplies("overwrite", 299, 299), false);
   assert.equal(priceApplies("off", null, 299), false);
   assert.equal(priceApplies("blank", 100, 0), false);
+});
+
+test("guessCategory: προτείνει την κατηγορία που μοιάζει με το όνομα του προϊόντος, αλλιώς τίποτα", () => {
+  const options = [{ id: "ac", path: "Κλιματισμός › Κλιματιστικά Τοίχου" }, { id: "fr", path: "Λευκές Συσκευές › Ψυγεία" }, { id: "dh", path: "Κλιματισμός › Αφυγραντήρες" }];
+  assert.equal(guessCategory(["Inventor Emperor EMPVI-09WFI Κλιματιστικό 9.000 BTU/h"], options, "Κλιματισμός"), "ac");
+  assert.equal(guessCategory(["Inventor PSD18155IN Ψυγειοκαταψύκτης Inox"], options), "fr");
+  assert.equal(guessCategory(["Καλώδιο HDMI 2m"], options), null);
 });
