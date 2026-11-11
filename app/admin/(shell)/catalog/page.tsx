@@ -10,6 +10,7 @@ import { LOW_RES_PX } from "@/lib/catalog/product-images";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { ProductTable, ProductCards, type ProductRow } from "@/components/admin/catalog/ProductTable";
+import { kotView } from "@/lib/competitors/badge";
 import { SoldAloneBulk } from "@/components/admin/catalog/SoldAloneBulk";
 import { CatalogBulk } from "@/components/admin/catalog/CatalogBulk";
 import { SetsSyncButton } from "@/components/admin/catalog/SetsSyncButton";
@@ -97,7 +98,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : f === "incomplete" ? { active: true, publishMissing: { isEmpty: false } } : f === "unpublished" ? { active: true, publishReady: false } : {}),
   };
   const [rows, total, masters, [all, withImg, lowRes], brands, subs, stickers] = await Promise.all([
-    db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, createdAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
+    db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, createdAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, competitorPrices: { where: { competitor: "kotsovolos" }, select: { match: true, extId: true, extUrl: true, extTitle: true, listPrice: true, offerPrice: true, available: true, ourPrice: true, diffPct: true, lastError: true, checkedAt: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
     db.product.count({ where }),
     db.category.findMany({ where: { depth: 0, active: true }, orderBy: { sortNo: "asc" }, select: { id: true, name: true } }),
     catalogTotals(),
@@ -124,7 +125,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     thumb: m ? m.thumbUrl ?? m.url : null, photos: r._count.media, lowMain: m?.width != null && m.height != null && Math.max(m.width, m.height) < LOW_RES_PX, specs: r._count.specs,
     price: r.price, offer: r.offer ? Number(r.offer.price) : null, stock: r.stock, sold: sold.get(r.id) ?? 0,
     energy: r.energy ? { cls: r.energy.class, source: r.energy.source } : null, energyNeeded: hasEnergyLabel(r.category.name), dims: r._count.dimensions, dimStatus: r.dimStatus,
-    updated: r.updatedAt.toISOString(), created: r.createdAt.toISOString(), synced: r.s1SyncedAt?.toISOString() ?? null,
+    updated: r.updatedAt.toISOString(), created: r.createdAt.toISOString(), synced: r.s1SyncedAt?.toISOString() ?? null, kot: kotView(r.competitorPrices[0]),
   }; });
   const query = { q, f, cat, sub, br, pmin, pmax, st, of, av, type, s: sRaw, d: dRaw, n: nRaw };
   // ενεργά φίλτρα ως chips (λέξεις, όχι μόνο χρώμα)· το ✕ κάθε chip αφαιρεί μόνο αυτό

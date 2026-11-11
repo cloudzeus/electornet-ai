@@ -5,7 +5,9 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import type { JobResult } from "@/lib/scheduler/jobs";
-import { cachedCategories } from "@/lib/competitors/kotsovolos/client";
+import { cachedCategories, cachedSitemap, fetchProduct } from "@/lib/competitors/kotsovolos/client";
+import { createPacer } from "@/lib/competitors/kotsovolos/pacer";
+import { decidePrice, ourPrice } from "@/lib/competitors/run-core";
 import { knownPath, suggestPath } from "@/lib/competitors/mapping-core";
 
 const COMP = "kotsovolos";
@@ -151,5 +153,74 @@ export async function resumeJob(): Promise<Out> {
   await writeState({ paused: false, brakedNights: 0 });
   await audit(user.id, "competitor.resume", "Setting", "competitors.kotsovolos", null, null);
   revalidatePath(PATH);
+  return { ok: true };
+}
+
+// ---- Ζευγάρι ανά προϊόν (καρτέλα προϊόντος) ----
+const productPath = (id: string) => `/admin/catalog/${id}`;
+
+/** Υποψήφια για «Βρες ζευγάρι»: από το sitemap (κρυφή μνήμη 24ώρου), μόνο στην αντιστοιχισμένη κατηγορία, χωρίς τα απορριφθέντα. Το φιλτράρισμα κειμένου γίνεται στον browser. */
+export async function pairCandidates(productId: string): Promise<{ ok: true; items: { art: string; last: string }[]; extPath: string } | { ok: false; error: string }> {
+  await requirePermission("catalog.products.write");
+  if (typeof productId !== "string") return { ok: false, error: "Άγνωστο προϊόν." };
+  const p = await db.product.findUnique({ where: { id: productId }, select: { categoryId: true, competitorPrices: { where: { competitor: COMP }, select: { rejectedExtIds: true } } } });
+  if (!p) return { ok: false, error: "Άγνωστο προϊόν." };
+  const map = await db.competitorCategoryMap.findUnique({ where: { competitor_categoryId: { competitor: COMP, categoryId: p.categoryId } } });
+  if (!map?.extPath) return { ok: false, error: "Η κατηγορία του προϊόντος δεν συγκρίνεται ακόμη με τον Κωτσόβολο — αντιστοίχισέ την πρώτα στη σελίδα «Σύγκριση τιμών»." };
+  const sitemap = await cachedSitemap().catch(() => null);
+  if (!sitemap) return { ok: false, error: "Δεν φόρτωσε η λίστα προϊόντων του Κωτσόβολου — δοκίμασε σε λίγο." };
+  const rejected = new Set(p.competitorPrices[0]?.rejectedExtIds ?? []);
+  const path = map.extPath;
+  const items = sitemap.filter((i) => (i.path === path || i.path.startsWith(path + "/")) && !rejected.has(i.art)).map((i) => ({ art: i.art, last: i.last }));
+  return { ok: true, items, extPath: path };
+}
+
+/** Ορίζει χειροκίνητα το ζευγάρι (match=manual) και φέρνει αμέσως την τιμή του (μία κλήση). Διαφορετικό EAN δεν το απορρίπτει: μένει σημείωση «έλεγξε». */
+export async function setPair(productId: string, art: string): Promise<Out> {
+  const user = await requirePermission("catalog.products.write");
+  if (typeof productId !== "string") return { ok: false, error: "Άγνωστο προϊόν." };
+  if (typeof art !== "string" || !/^\d{1,12}$/.test(art.trim())) return { ok: false, error: "Ο αριθμός είδους του Κωτσόβολου είναι μόνο ψηφία." };
+  art = art.trim();
+  const p = await db.product.findUnique({ where: { id: productId }, select: { id: true, price: true, ean: true, offer: { select: { price: true } }, competitorPrices: { where: { competitor: COMP } } } });
+  if (!p) return { ok: false, error: "Άγνωστο προϊόν." };
+  const row = p.competitorPrices[0];
+  // Μία κλήση, χωρίς αναμονή: αν ο Κωτσόβολος ζητήσει να περιμένουμε (429), επιστρέφει σφάλμα αντί να κρεμάσει τη σελίδα.
+  const pacer = createPacer({ budget: 1, until: new Date(Date.now() + 60_000), sleep: async () => {} });
+  const r = await fetchProduct(art, pacer).catch((e: Error) => ({ error: e.message }));
+  if ("error" in r) return { ok: false, error: r.error === "δεν βρέθηκε (404)" ? `Ο Κωτσόβολος δεν έχει είδος ${art}.` : `Ο Κωτσόβολος δεν απάντησε σωστά (${r.error}) — δοκίμασε σε λίγο.` };
+  const kot = (await cachedSitemap().catch(() => null))?.find((i) => i.art === art) ?? null;
+  const same = row?.extId === art;
+  const ours = ourPrice({ price: p.price, offer: p.offer });
+  const their = (x: typeof row) => (x?.offerPrice != null ? Number(x.offerPrice) : x?.listPrice != null ? Number(x.listPrice) : null);
+  const d = decidePrice({
+    prev: { match: "manual", extUrl: row?.extUrl ?? null, missCount: 0, their: same ? their(row) : null, ourPrice: same && row?.ourPrice != null ? Number(row.ourPrice) : null },
+    base: "auto", note: null, parsed: r, ourEan: p.ean, ourPrice: ours,
+  });
+  const data = {
+    match: "manual", extId: art, extUrl: kot ? `${kot.path}/${kot.last}` : same ? row?.extUrl ?? null : null, extTitle: r.title || (same ? row?.extTitle ?? null : null),
+    lastError: d.lastError, missCount: 0, checkedAt: new Date(), available: d.available ?? r.buyable,
+    listPrice: d.prices?.list ?? null, offerPrice: d.prices?.offer ?? null, ourPrice: d.prices?.ourPrice ?? ours, diffPct: d.prices?.diff ?? null,
+    rejectedExtIds: (row?.rejectedExtIds ?? []).filter((x) => x !== art),
+  };
+  const saved = await db.competitorPrice.upsert({ where: { productId_competitor: { productId: p.id, competitor: COMP } }, update: data, create: { productId: p.id, competitor: COMP, ...data } });
+  if (d.prices && d.history) await db.competitorPriceHistory.create({ data: { competitorPriceId: saved.id, price: d.prices.their, ourPrice: d.prices.ourPrice } });
+  await audit(user.id, "competitor.pair.set", "Product", p.id, row ? { match: row.match, extId: row.extId } : null, { match: "manual", extId: art, lastError: d.lastError });
+  revalidatePath(productPath(p.id));
+  return { ok: true };
+}
+
+/** «Λάθος ζευγάρι»: match=rejected, το extId δεν ξαναπροτείνεται, οι τιμές σβήνουν ώστε να μη μετρά πουθενά. */
+export async function rejectPair(productId: string): Promise<Out> {
+  const user = await requirePermission("catalog.products.write");
+  if (typeof productId !== "string") return { ok: false, error: "Άγνωστο προϊόν." };
+  const key = { productId_competitor: { productId, competitor: COMP } };
+  const row = await db.competitorPrice.findUnique({ where: key });
+  if (!row?.extId) return { ok: false, error: "Δεν υπάρχει ζευγάρι για απόρριψη." };
+  await db.competitorPrice.update({ where: key, data: {
+    match: "rejected", rejectedExtIds: [...new Set([...row.rejectedExtIds, row.extId])], lastError: `απορρίφθηκε: ${row.extUrl ?? row.extId}`,
+    extId: null, extUrl: null, extTitle: null, listPrice: null, offerPrice: null, diffPct: null, ourPrice: null, missCount: 0,
+  } });
+  await audit(user.id, "competitor.pair.reject", "Product", productId, { match: row.match, extId: row.extId }, { match: "rejected" });
+  revalidatePath(productPath(productId));
   return { ok: true };
 }

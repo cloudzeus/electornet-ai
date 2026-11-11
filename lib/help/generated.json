@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T15:02:38.626Z",
+ "generatedAt": "2026-11-11T15:15:29.433Z",
  "routes": [
   {
    "route": "/admin",
@@ -740,7 +740,10 @@
     "product.overview",
     "product.sources",
     "product.tabs",
-    "product.sold-alone"
+    "product.sold-alone",
+    "kotsovolos-chart",
+    "kotsovolos-badge",
+    "kotsovolos-pair"
    ],
    "changes": [
     {
@@ -966,11 +969,17 @@
     "competitors-status",
     "competitors-tabs",
     "competitors-categories",
+    "competitors-root",
     "competitors-add",
     "competitors-suggest-all",
     "competitors-brands"
    ],
    "changes": [
+    {
+     "hash": "894092d",
+     "date": "2026-11-11T17:03:05+02:00",
+     "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο"
+    },
     {
      "hash": "57efc6e",
      "date": "2026-11-11T16:55:25+02:00",
@@ -992,7 +1001,7 @@
      "text": "Κωτσόβολος: HTTP client και pacer (παύσεις, διαλείμματα, όριο, παράθυρο, φρένο) με tests"
     }
    ],
-   "updatedAt": "2026-11-11T16:55:25+02:00",
+   "updatedAt": "2026-11-11T17:03:05+02:00",
    "shots": {}
   },
   {
@@ -4251,6 +4260,11 @@
    ],
    "changes": [
     {
+     "hash": "894092d",
+     "date": "2026-11-11T17:03:05+02:00",
+     "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο"
+    },
+    {
      "hash": "1991ba4",
      "date": "2026-11-11T08:17:14+02:00",
      "text": "Πορεία SoftOne: «Όλα τα στοιχεία» παραστατικού σε παράθυρο (πελάτης, παράδοση, γραμμές, σχόλια), μόνο ανάγνωση"
@@ -4296,7 +4310,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-11-11T08:17:14+02:00",
+   "updatedAt": "2026-11-11T17:03:05+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone-d.jpg",
     "mobile": "/api/help-shot/softone-m.jpg"
@@ -4544,6 +4558,11 @@
    ],
    "changes": [
     {
+     "hash": "894092d",
+     "date": "2026-11-11T17:03:05+02:00",
+     "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο"
+    },
+    {
      "hash": "57efc6e",
      "date": "2026-11-11T16:55:25+02:00",
      "text": "Σύγκριση τιμών: οθόνη αντιστοίχισης Κωτσόβολου (επιλογή κατηγοριών, προτάσεις, μάρκες, κατάσταση, «Τρέξε τώρα» στο παρασκήνιο)"
@@ -4584,7 +4603,7 @@
      "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
-   "updatedAt": "2026-11-11T16:55:25+02:00",
+   "updatedAt": "2026-11-11T17:03:05+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -5002,6 +5021,18 @@
  ],
  "recent": [
   {
+   "hash": "894092d",
+   "date": "2026-11-11T17:03:05+02:00",
+   "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/competitors",
+    "/admin/softone",
+    "/admin/softone/sync"
+   ]
+  },
+  {
    "hash": "57efc6e",
    "date": "2026-11-11T16:55:25+02:00",
    "text": "Σύγκριση τιμών: οθόνη αντιστοίχισης Κωτσόβολου (επιλογή κατηγοριών, προτάσεις, μάρκες, κατάσταση, «Τρέξε τώρα» στο παρασκήνιο)",
@@ -5313,12 +5344,6 @@
    "hash": "2b2f1a5",
    "date": "2026-11-06T12:39:19+02:00",
    "text": "Σκετς Ερμή (χωρίς σενάριο): βλέπει όλα τα είδη του καταλόγου (ενεργά ή όχι, με ή χωρίς απόθεμα) ζωντανά από τη βάση",
-   "routes": []
-  },
-  {
-   "hash": "9e80f51",
-   "date": "2026-11-06T12:23:13+02:00",
-   "text": "Σκετς Ερμή: σκηνή χωρίς σενάριο (&free=1) με τον ίδιο Ερμή του site και ζωντανά δεδομένα",
    "routes": []
   }
  ],
@@ -6374,10 +6399,19 @@
   "zones.preview": [
    "components/admin/cms/ZonePageEditor.tsx"
   ],
+  "kotsovolos-chart": [
+   "components/admin/competitors/CompetitorChart.tsx"
+  ],
+  "kotsovolos-badge": [
+   "components/admin/competitors/CompetitorPanel.tsx"
+  ],
   "competitors-tabs": [
    "components/admin/competitors/MappingTabs.tsx"
   ],
   "competitors-categories": [
+   "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "competitors-root": [
    "components/admin/competitors/MappingTabs.tsx"
   ],
   "competitors-add": [
@@ -6388,6 +6422,9 @@
   ],
   "competitors-brands": [
    "components/admin/competitors/MappingTabs.tsx"
+  ],
+  "kotsovolos-pair": [
+   "components/admin/competitors/PairPicker.tsx"
   ],
   "customers.list": [
    "components/admin/customers/CustomerList.tsx"

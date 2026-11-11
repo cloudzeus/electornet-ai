@@ -11,6 +11,7 @@ import { ProductSources, type SourcesData } from "@/components/admin/catalog/Pro
 import { warrantyFromSpecs } from "@/lib/warranty/policy";
 import { productOverview } from "@/lib/catalog/product-overview";
 import { ProductOverview } from "@/components/admin/catalog/ProductOverview";
+import { CompetitorPanel } from "@/components/admin/competitors/CompetitorPanel";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
@@ -200,6 +201,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           <WorkspaceTabs active={tab} states={r.tabs} href={href} hide={sets.length || isSetProduct || p.soldAloneMode !== "auto" ? [] : ["set"]} />
 
           {tab === "overview" && overview && <ProductOverview o={overview} price={p.price} stock={p.stock} />}
+          {tab === "overview" && <CompetitorPanel productId={p.id} canWrite={canWrite} />}
           {tab === "overview" && <ProductSources d={sources} />}
           {tab === "overview" && (
             <Section title="Στοιχεία από το internet" hint="Icecat → Channel3 → site κατασκευαστή → άλλα καταστήματα. Φωτογραφίες και χαρακτηριστικά καταστημάτων μπαίνουν μόνο με έγκριση.">

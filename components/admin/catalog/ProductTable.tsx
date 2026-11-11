@@ -8,6 +8,8 @@ import { ProductPeek, loadProductPeek } from "./ProductPeek";
 import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
 import { sourceOf } from "./sources";
 import { sx } from "@/components/ui/sx";
+import { CompetitorBadge } from "@/components/admin/competitors/CompetitorBadge";
+import type { KotView } from "@/lib/competitors/badge";
 
 export type ProductRow = {
   id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; /** όλη η διαδρομή, από τη γενική προς την ειδική */ categoryPath: string[]; sku: string; ean: string | null; erpCode: string; active: boolean;
@@ -17,6 +19,7 @@ export type ProductRow = {
   price: number | null; offer: number | null; stock: number; sold: number;
   energy: { cls: string; source: string | null } | null; energyNeeded: boolean; dims: number; dimStatus: string | null;
   updated: string; created: string; synced: string | null;
+  /** Κωτσόβολος (μόνο διαχείριση) */ kot?: KotView | null;
 };
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (r: ProductRow) => ReactNode; title?: (r: ProductRow) => string };
 const eur = (v: number | null) => (v != null ? `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—");
@@ -50,6 +53,7 @@ const COLS: Col[] = [
   { id: "ean", label: "Barcode", w: 125, sort: "ean", cell: (r) => <span className="font-mono truncate">{r.ean ?? "—"}</span> },
   { id: "mtrl", label: "MTRL", w: 80, sort: "mtrl", right: true, cell: (r) => r.set ? <span title="Σετ του SoftOne: δεν έχει δικό του MTRL — ο αριθμός είναι του «Set ειδών» (SPCS)" className="font-mono tabular-nums text-eu-muted">set {r.erpCode?.replace(/^SET-/, "")}</span> : <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
   { id: "price", label: "Τιμή", w: 130, sort: "price", def: true, right: true, cell: (r) => <Price r={r} /> },
+  { id: "kotsovolos", label: "Κωτσόβολος", w: 175, def: true, title: () => "Διαφορά από την τιμή του Κωτσόβολου (νυχτερινός έλεγχος)", cell: (r) => <CompetitorBadge price={r.kot ?? null} size="sm" /> },
   { id: "stock", label: "Απόθεμα", w: 80, sort: "stock", def: true, right: true, cell: (r) => <span className={`tabular-nums ${r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}`}>{r.stock}</span> },
   { id: "sold", label: "Πωλήσεις", w: 85, def: true, right: true, title: () => "Τεμάχια e-shop + SoftOne (χωρίς ακυρωμένα)", cell: (r) => <span className="tabular-nums">{r.sold || muted("0")}</span> },
   { id: "photos", label: "Φωτογρ.", w: 80, sort: "photos", def: true, right: true, cell: (r) => r.photos ? <span className={`tabular-nums ${r.lowMain ? "text-eu-red font-bold" : ""}`} title={r.lowMain ? "μικρή κύρια φωτογραφία" : undefined}>{r.photos}{r.lowMain ? " ⚠" : ""}</span> : <span className="text-eu-red font-bold">καμία</span> },

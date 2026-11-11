@@ -33,6 +33,8 @@ export const fetchSitemap = async (pacer?: Pacer): Promise<KotItem[]> => parseSi
 export const fetchCategories = async (pacer?: Pacer) => parseCategories(await feed(CATEGORIES, pacer));
 /** Για την οθόνη αντιστοίχισης: μία κλήση το 24ωρο (και όχι μία ανά άνοιγμα της σελίδας). */
 export const cachedCategories = swr(() => fetchCategories(), 24 * 3600_000);
+/** Για την αναζήτηση ζευγαριού από τη διαχείριση: μία λήψη το 24ωρο, ποτέ ανά πλήκτρο. */
+export const cachedSitemap = swr(() => fetchSitemap(), 24 * 3600_000);
 
 export async function fetchProduct(art: string, pacer?: Pacer): Promise<ReturnType<typeof parseProduct>> {
   const { status, text } = await get(PRODUCT + encodeURIComponent(art), pacer);
