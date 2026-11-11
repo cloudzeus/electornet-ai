@@ -110,6 +110,7 @@ export default async function CompetitorsPage() {
   const withPrice = firmIn.filter((p) => p.diffPct != null).length;
   const tonight = job?.lastMessage?.startsWith("Χειροκίνητα") ? "στην τελευταία εκτέλεση" : "απόψε"; // runJob γράφει «Χειροκίνητα · …» στις χειροκίνητες
   const totalSugg = prices.filter((p) => p.match === "suggested").length;
+  const totalVariant = prices.filter((p) => p.match === "variant").length; // ίδιο μοντέλο, άλλο χρώμα: ενδεικτικά, δεν μετρούν
   const card = "rounded-2xl border bg-white p-4 grid content-start gap-1.5 min-w-0";
   const label = "m-0 text-eu-ink-3 text-[length:var(--fs-13)]";
   const figure = "m-0 font-heading font-bold tabular-nums text-[length:var(--fs-22)]";
@@ -168,6 +169,7 @@ export default async function CompetitorsPage() {
             <>
               <p className={`${figure} text-eu-ink`}>{num(pairsIn)} <span className="text-eu-ink-3 font-normal text-[length:var(--fs-15)]">από {num(compared)} ({Math.round((pairsIn / compared) * 100)}%)</span></p>
               <p className={label}>{totalSugg ? `+ ${num(totalSugg)} προτάσεις προς έλεγχο στη σελίδα κάθε προϊόντος` : "Χωρίς προτάσεις προς έλεγχο"}</p>
+              {totalVariant > 0 && <p className={label}>+ {num(totalVariant)} ενδεικτικά (άλλο χρώμα) · δεν μετρούν</p>}
             </>
           ) : (
             <>

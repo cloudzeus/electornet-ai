@@ -14,6 +14,7 @@ const HOW: Record<string, string> = {
   auto: "Ταίριαξε αυτόματα (μάρκα + μοντέλο ή ίδιο EAN)",
   manual: "Ορίστηκε από διαχειριστή",
   suggested: "Πρόταση — δεν μετρά ώσπου να την επιβεβαιώσεις",
+  variant: "Ενδεικτικό — δεν μετρά ως ζευγάρι ούτε στη μαζική αλλαγή· ξαναψάχνουμε το ακριβές κάθε εβδομάδα",
 };
 const card = "grid content-start gap-3 rounded-2xl border border-eu-line bg-white p-4 @lg:p-5 min-w-0";
 const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
@@ -59,6 +60,7 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
           <h3 className={h3}>Το ζευγάρι στον Κωτσόβολο</h3>
           {paired ? (
             <div className="grid gap-1">
+              {v.match === "variant" && <span data-help="kotsovolos-variant" className="font-bold text-eu-ink text-[length:var(--fs-14)]">Ίδιο μοντέλο, άλλο χρώμα:</span>}
               {v.extUrl
                 ? <a href={`https://www.kotsovolos.gr/${v.extUrl}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 md:min-h-8 items-center gap-1.5 py-1 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}<ExternalLink className="size-4 shrink-0" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
                 : <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}</span>}

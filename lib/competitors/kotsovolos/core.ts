@@ -104,6 +104,29 @@ export function matchByModel(o: { brand: string; alias?: string | null; model: s
   return rel.strong ? { kind: "matched", item } : { kind: "suggested", item, reason: rel.reason };
 }
 
+// ---- Ίδιο μοντέλο, άλλο χρώμα (Ruling 15): μόνο ενδεικτικό, ποτέ ζευγάρι ----
+// RB440N4ACA ↔ rb440n4acc, LKR62000BX ↔ lkr62000bw, CCB6400NBW ↔ ccb6400cbm: κοινό πρόθεμα με ψηφίο, ≥ 6 και ≥ μήκος − 3,
+// και οι δύο ουρές 1–3 γράμματα χωρίς ψηφία (κωδικός χρώματος/φινιρίσματος). Ίσοι ή πρόθεμα ο ένας του άλλου = matchByModel, όχι εδώ.
+const MIN_VARIANT = 6;
+export function variantRelation(a: string, b: string): number | null {
+  if (a.length < MIN_VARIANT || b.length < MIN_VARIANT) return null;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const ta = a.slice(i), tb = b.slice(i), pre = a.slice(0, i);
+  if (!ta || !tb || ta.length > 3 || tb.length > 3 || /\d/.test(ta + tb) || !/\d/.test(pre)) return null;
+  return i >= Math.max(MIN_VARIANT, Math.max(a.length, b.length) - 3) ? i : null;
+}
+export function matchVariant(o: { brand: string; alias?: string | null; model: string | null }, cands: KotItem[]): KotItem | null {
+  const m = norm(o.model ?? "");
+  if (m.length < MIN_VARIANT) return null;
+  let best: { c: KotItem; len: number } | null = null;
+  for (const c of cands) {
+    if (!hasBrand(c.last, o.brand, o.alias)) continue;
+    for (const t of slugRuns(c.last)) { const len = variantRelation(m, t); if (len != null && (!best || len > best.len)) best = { c, len }; }
+  }
+  return best?.c ?? null;
+}
+
 // ---- Κινητά: το slug έχει όνομα, όχι κωδικό ----
 const ACCESSORY_STEM = /^(θηκ|μεμβραν|τζαμ|γυαλι|καλυμ|φορτιστ|καλωδ)/;
 const ACCESSORY_WORD = new Set(["set", "case", "cover", "βαση"]);

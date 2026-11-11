@@ -28,8 +28,8 @@ export function CompetitorBadge({ price, size = "sm" }: { price: KotView | null;
   const Icon = ICON[b.kind];
   const lg = size === "lg";
   return (
-    <span title={HINT[b.kind]}
-      className={`inline-flex items-center gap-1.5 rounded-full border font-bold tabular-nums max-w-full ${lg ? "px-3 py-1.5 text-[length:var(--fs-14)]" : "px-2 py-0.5 text-[length:var(--fs-12)] whitespace-nowrap"} ${STYLE[b.kind]}`}>
+    <span title={b.indicative ? `Ενδεικτικό: ίδιο μοντέλο σε άλλο χρώμα στον Κωτσόβολο — δεν μετρά ως ζευγάρι ούτε στη μαζική αλλαγή. ${HINT[b.kind]}` : HINT[b.kind]}
+      className={`inline-flex items-center gap-1.5 rounded-full border ${b.indicative ? "border-dashed" : ""} font-bold tabular-nums max-w-full ${lg ? "px-3 py-1.5 text-[length:var(--fs-14)]" : "px-2 py-0.5 text-[length:var(--fs-12)] whitespace-nowrap"} ${STYLE[b.kind]}`}>
       {Icon && <Icon className={lg ? "size-4 shrink-0" : "size-3.5 shrink-0"} strokeWidth={2.5} aria-hidden />}
       <span className={lg ? "min-w-0" : "truncate"}>{b.text}</span>
     </span>

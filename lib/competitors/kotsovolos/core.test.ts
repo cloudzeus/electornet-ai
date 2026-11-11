@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState, modelTokens, slugIndex, brandPool, rankCandidates, pickFrom,
+  parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState, modelTokens, slugIndex, brandPool, rankCandidates, pickFrom, matchVariant, variantRelation,
   type KotItem,
 } from "./core";
 
@@ -208,4 +208,24 @@ test("pickFrom: έγκυρη επιλογή, null, εκτός λίστας, όχ
   assert.equal(pickFrom('{"pick": null, "why": "-"}', c), null);
   assert.equal(pickFrom('{"pick": 3}', c), null);
   assert.equal(pickFrom("δεν ξέρω", c), null);
+});
+
+test("matchVariant: ίδιο μοντέλο, άλλο χρώμα (τα 3 παραδείγματα)", () => {
+  const c = [it("f/1-hisense-rb440n4acc-inox"), it("k/2-κουζινα-electrolux-lkr62000bw"), it("k/3-κουζινα-aeg-ccb6400cbm"), it("k/4-κουζινα-aeg-ccb6400nb")];
+  assert.equal(matchVariant({ brand: "HISENSE", model: "RB440N4ACA" }, c)?.art, "1");
+  assert.equal(matchVariant({ brand: "Electrolux", model: "LKR62000BX" }, c)?.art, "2");
+  assert.equal(matchVariant({ brand: "AEG", model: "CCB6400NBW" }, c)?.art, "3"); // το ccb6400nb είναι πρόθεμα (matchByModel), όχι παραλλαγή
+});
+test("matchVariant: όχι άλλο μέγεθος/χωρητικότητα, όχι ίδιοι/πρόθεμα, όχι άλλη μάρκα", () => {
+  assert.equal(variantRelation("qe55q80da", "qe65q80da"), null);
+  assert.equal(variantRelation("wiw10138", "wiw11016"), null);
+  assert.equal(variantRelation("lkr62000bx", "lkr62000bx"), null);
+  assert.equal(variantRelation("lkr62000bx", "lkr62000b"), null);
+  assert.equal(variantRelation("ww90t534dae", "ww90t534d1e"), null); // ψηφίο στην ουρά
+  assert.equal(variantRelation("abcdefg1", "abcdefh1"), null);
+  assert.equal(variantRelation("s40tab", "s40tcd"), null); // πρόθεμα < 6
+  const c = [it("t/5-tv-samsung-qe65q80d"), it("w/6-morris-wiw11016")];
+  assert.equal(matchVariant({ brand: "Samsung", model: "QE55Q80D" }, c), null);
+  assert.equal(matchVariant({ brand: "MORRIS", model: "WIW10138" }, c), null);
+  assert.equal(matchVariant({ brand: "LG", model: "RB440N4ACA" }, [it("f/1-hisense-rb440n4acc")]), null);
 });

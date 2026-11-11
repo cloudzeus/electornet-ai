@@ -3,7 +3,7 @@ import { athensAt } from "@/lib/scheduler/due";
 import { diffPct, matchByModel, matchPhone, modelTokens, sameEan, type KotItem, type parseProduct } from "./kotsovolos/core";
 
 type Parsed = ReturnType<typeof parseProduct>;
-export type Match = "auto" | "suggested" | "manual" | "rejected" | "lost";
+export type Match = "auto" | "suggested" | "manual" | "rejected" | "lost" | "variant";
 
 /** Δική μας τελική τιμή επισκέπτη: προσφορά αν υπάρχει, αλλιώς τιμή eshop. */
 export function ourPrice(p: { price: number | null; offer: { price: { toString(): string } } | null }): number | null {
@@ -35,7 +35,7 @@ export type Decision = {
 };
 
 /** Η κατάσταση που κουβαλά ένα νέο ψάξιμο: lost/rejected ξεκινούν από την αρχή (το απορριφθέν extId το βγάζει ήδη η λίστα υποψηφίων). */
-export const searchPrev = (m: string | null | undefined): Match | null => (!m || m === "lost" || m === "rejected" ? null : (m as Match));
+export const searchPrev = (m: string | null | undefined): Match | null => (!m || m === "lost" || m === "rejected" || m === "variant" ? null : (m as Match));
 
 /** Το extId λείπει από το sitemap ή το API δεν έχει πια προϊόν. */
 export function decideGone(prev: Prev): Decision {
@@ -77,4 +77,19 @@ export function search(brand: string, alias: string | null, model: string | null
   }
   if (phone) for (const pool of pools) { const p = matchPhone({ brand, alias, title }, pool); if (p) return { items: [p], base: "suggested", note: null }; }
   return null;
+}
+
+/** Ενδεικτικό «ίδιο μοντέλο, άλλο χρώμα» (Ruling 15): τιμή όπως στα ζευγάρια, χωρίς σημείωση για διαφορετικό EAN (αναμενόμενο).
+ *  Ίδιο EAN = είναι το ίδιο προϊόν → auto. */
+export function decideVariant(a: { prev: Prev; parsed: Parsed; ourEan: string | null; ourPrice: number | null }): Decision {
+  const d = decidePrice({ prev: { ...a.prev, match: null }, base: "suggested", note: null, parsed: a.parsed, ourEan: a.ourEan, ourPrice: a.ourPrice });
+  if (d.match === "auto") return d;
+  return { ...d, match: "variant", lastError: d.lastError?.startsWith("διαφορετικό EAN") ? null : d.lastError };
+}
+
+/** Τα ενδεικτικά ξαναψάχνονται για ακριβές ζευγάρι μία φορά την εβδομάδα: μέρα ανά προϊόν από το id, ώστε να μοιράζονται στις 7 νύχτες. */
+export function researchDue(productId: string, now: Date): boolean {
+  let h = 0;
+  for (const ch of productId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return (Math.floor(now.getTime() / 86400_000) + h) % 7 === 0;
 }

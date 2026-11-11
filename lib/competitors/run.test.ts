@@ -110,3 +110,19 @@ test("search: ταίριασμα από κωδικό τίτλου = πρότασ
   assert.equal(fromTitle?.base, "suggested"); assert.match(fromTitle!.note!, /τίτλο/);
   assert.equal(search("LG", null, "OLED55C46LA", "LG τηλεόραση", false, [pool])?.base, "auto");
 });
+
+test("decideVariant: τιμή χωρίς σημείωση EAN· ίδιο EAN → auto· σφάλμα/χωρίς τιμή κρατούν το μήνυμα", async () => {
+  const { decideVariant } = await import("./run-core");
+  const v = (parsed: object, ourEan: string | null = "5901234123457") => decideVariant({ prev: prev({ match: "variant" as any }), parsed: parsed as any, ourEan, ourPrice: 110 });
+  const d = v(ok({ ean: "5909999999999" }));
+  assert.equal(d.match, "variant"); assert.equal(d.lastError, null); assert.equal(d.prices!.their, 100);
+  assert.equal(v(ok()).match, "auto");
+  assert.equal(v({ error: "HTTP 500" }).lastError, "HTTP 500");
+  assert.equal(v(ok({ list: null, offer: null })).lastError, "χωρίς τιμή");
+});
+test("researchDue: μία νύχτα στις 7 ανά προϊόν", async () => {
+  const { researchDue } = await import("./run-core");
+  const days = Array.from({ length: 14 }, (_, i) => researchDue("cmabc123", new Date(Date.UTC(2026, 10, 1 + i, 23))));
+  assert.equal(days.filter(Boolean).length, 2);
+  assert.equal(searchPrev("variant"), null);
+});

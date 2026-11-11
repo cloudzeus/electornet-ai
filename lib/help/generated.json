@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-11T17:02:57.004Z",
+ "generatedAt": "2026-11-11T18:18:32.035Z",
  "routes": [
   {
    "route": "/admin",
@@ -743,9 +743,15 @@
     "product.sold-alone",
     "kotsovolos-chart",
     "kotsovolos-badge",
-    "kotsovolos-pair"
+    "kotsovolos-pair",
+    "kotsovolos-variant"
    ],
    "changes": [
+    {
+     "hash": "2045c71",
+     "date": "2026-11-11T19:04:00+02:00",
+     "text": "Σύγκριση τιμών: ταίριασμα v2"
+    },
     {
      "hash": "1aa70e5",
      "date": "2026-11-11T17:44:54+02:00",
@@ -790,14 +796,9 @@
      "hash": "547ec9d",
      "date": "2026-10-31T10:41:54+02:00",
      "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)"
-    },
-    {
-     "hash": "51c838c",
-     "date": "2026-10-31T10:05:34+02:00",
-     "text": "Κατάλογος: περιγραφή με AI, σελίδα του μοντέλου στον κατασκευαστή, ενεργειακή κλάση από τις πηγές"
     }
    ],
-   "updatedAt": "2026-11-11T17:44:54+02:00",
+   "updatedAt": "2026-11-11T19:04:00+02:00",
    "shots": {}
   },
   {
@@ -975,6 +976,16 @@
    ],
    "changes": [
     {
+     "hash": "e44cf64",
+     "date": "2026-11-11T19:14:41+02:00",
+     "text": "Σύγκριση τιμών: ταίριασμα από κωδικό του τίτλου μόνο ως πρόταση (auto μόνο με ίδιο EAN), μονάδες όπως 8GB/256GB και 2x50W δεν είναι κωδικοί"
+    },
+    {
+     "hash": "2045c71",
+     "date": "2026-11-11T19:04:00+02:00",
+     "text": "Σύγκριση τιμών: ταίριασμα v2"
+    },
+    {
      "hash": "85442bb",
      "date": "2026-11-11T17:47:39+02:00",
      "text": "Σύγκριση τιμών: το πρώτο scanning τρέχει αμέσως μετά το deploy (έως 6 ώρες, ίδιος ρυθμός)"
@@ -1013,19 +1024,9 @@
      "hash": "894092d",
      "date": "2026-11-11T17:03:05+02:00",
      "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο"
-    },
-    {
-     "hash": "57efc6e",
-     "date": "2026-11-11T16:55:25+02:00",
-     "text": "Σύγκριση τιμών: οθόνη αντιστοίχισης Κωτσόβολου (επιλογή κατηγοριών, προτάσεις, μάρκες, κατάσταση, «Τρέξε τώρα» στο παρασκήνιο)"
-    },
-    {
-     "hash": "be5fe7b",
-     "date": "2026-11-11T16:35:32+02:00",
-     "text": "Κωτσόβολος εργασία: ώρα Αθήνας στο παράθυρο, manual με άλλο EAN ενημερώνει τιμές, available από buyable, σωστά πλήθη και κόστος, μετρητής Ruling 9, merge στο setting"
     }
    ],
-   "updatedAt": "2026-11-11T17:47:39+02:00",
+   "updatedAt": "2026-11-11T19:14:41+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.competitors-d.jpg",
     "mobile": "/api/help-shot/catalog.competitors-m.jpg"
@@ -5123,6 +5124,22 @@
  ],
  "recent": [
   {
+   "hash": "e44cf64",
+   "date": "2026-11-11T19:14:41+02:00",
+   "text": "Σύγκριση τιμών: ταίριασμα από κωδικό του τίτλου μόνο ως πρόταση (auto μόνο με ίδιο EAN), μονάδες όπως 8GB/256GB και 2x50W δεν είναι κωδικοί",
+   "routes": []
+  },
+  {
+   "hash": "2045c71",
+   "date": "2026-11-11T19:04:00+02:00",
+   "text": "Σύγκριση τιμών: ταίριασμα v2",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/competitors"
+   ]
+  },
+  {
    "hash": "ebc09dd",
    "date": "2026-11-11T18:57:04+02:00",
    "text": "Βοήθεια: screenshots σύγκρισης τιμών και μαζικής αλλαγής (υπολογιστής + κινητό)",
@@ -5434,27 +5451,6 @@
     "/admin",
     "/admin/catalog",
     "/admin/catalog/[id]"
-   ]
-  },
-  {
-   "hash": "e029767",
-   "date": "2026-11-10T15:03:47+02:00",
-   "text": "Πορεία στο SoftOne: όλη η διαδρομή από την παραγγελία ως το τιμολόγιο",
-   "routes": [
-    "/admin",
-    "/admin/orders",
-    "/admin/orders/legacy/[id]"
-   ]
-  },
-  {
-   "hash": "1549cde",
-   "date": "2026-11-10T14:12:03+02:00",
-   "text": "Απενεργοποίηση από Excel: λίστα με κωδικούς/barcodes/MTRL βγάζει προϊόντα από το eshop (Εξαίρεση Web) ή και από το SoftOne (ανενεργό είδος), με έλεγχο τι είναι σήμερα κάθε είδος πριν από την εκτέλεση",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/templates",
-    "/admin/catalog/templates/apenergopoiisi"
    ]
   }
  ],
@@ -6535,6 +6531,9 @@
    "components/admin/competitors/CompetitorPanel.tsx"
   ],
   "kotsovolos-pair": [
+   "components/admin/competitors/CompetitorPanel.tsx"
+  ],
+  "kotsovolos-variant": [
    "components/admin/competitors/CompetitorPanel.tsx"
   ],
   "competitors-tabs": [

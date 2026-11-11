@@ -68,3 +68,10 @@ test("chartData: κενό, ένα παλιό, ένα μέσα στο παράθ�
   assert.deepEqual(many.points.map((p) => p.theirs), [749.99, 699.99, 649.99]);
   assert.ok(many.min < 649.99 && many.max > 829);
 });
+
+test("badge: ενδεικτικό «άλλο χρώμα» κρατά το χρώμα νοήματος, διακεκομμένο", () => {
+  const b = badge(v({ match: "variant", diffPct: 4.2, offerPrice: 499, listPrice: 549 }));
+  assert.deepEqual(b, { kind: "up", text: "≈ άλλο χρώμα · +4,2% · Κωτσόβολος 499,00 €", indicative: true });
+  assert.equal(badge(v({ match: "variant", available: false })).kind, "gone");
+  assert.equal(gapText(v({ match: "variant" })), null);
+});

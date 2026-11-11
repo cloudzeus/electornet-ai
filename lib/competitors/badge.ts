@@ -25,11 +25,18 @@ export const theirPrice = (v: Pick<KotView, "listPrice" | "offerPrice">) => v.of
 export const wasPrice = (v: Pick<KotView, "listPrice" | "offerPrice">) => (v.listPrice != null && v.offerPrice != null && v.listPrice > v.offerPrice ? v.listPrice : null);
 
 export type BadgeKind = "up" | "down" | "eq" | "gone" | "none" | "suggested";
-/** Μόνο auto/manual μετρούν με ποσοστό· suggested = πρόταση προς επιβεβαίωση· rejected/lost/χωρίς γραμμή = χωρίς ζευγάρι. */
-export function badge(v: KotView | null, short = false): { kind: BadgeKind; text: string } {
+/** Μόνο auto/manual μετρούν με ποσοστό· suggested = πρόταση προς επιβεβαίωση· variant = ενδεικτικό (ίδιο μοντέλο, άλλο χρώμα:
+ *  ίδιο χρώμα νοήματος, indicative=true → διακεκομμένο πλαίσιο)· rejected/lost/χωρίς γραμμή = χωρίς ζευγάρι. */
+export function badge(v: KotView | null, short = false): { kind: BadgeKind; text: string; indicative?: true } {
   const name = short ? "Κωτσ." : "Κωτσόβολος";
   if (!v || !v.extId || v.match === "rejected" || v.match === "lost") return { kind: "none", text: short ? "Χωρίς ζευγάρι" : "Δεν βρέθηκε ζευγάρι στον Κωτσόβολο" };
   if (v.match === "suggested") return { kind: "suggested", text: "Πρόταση ζευγαριού · επιβεβαίωσε" };
+  if (v.match === "variant") {
+    const their = theirPrice(v), s = badgeState(v.diffPct, v.available);
+    if (s === "gone") return { kind: "gone", text: "≈ άλλο χρώμα · δεν διατίθεται", indicative: true };
+    if (their == null) return { kind: "none", text: "≈ άλλο χρώμα · χωρίς τιμή", indicative: true };
+    return { kind: s === "none" ? "none" : s, text: `≈ άλλο χρώμα · ${s === "none" ? "" : `${pct(v.diffPct!)} · `}${name} ${eur(their)}`, indicative: true };
+  }
   const their = theirPrice(v);
   const s = badgeState(v.diffPct, v.available);
   if (s === "gone") return { kind: "gone", text: short ? "Δεν διατίθεται πια" : "Δεν διατίθεται πια στον Κωτσόβολο" };

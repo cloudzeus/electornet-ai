@@ -48,9 +48,14 @@ export function PairPicker({ productId, view, canWrite }: { productId: string; v
           <Check className="size-4" aria-hidden />Ναι, είναι το ίδιο · επιβεβαίωσε
         </button>
       )}
+      {view?.match === "variant" && view.extId && (
+        <button type="button" className={primary} disabled={pending} onClick={() => run(() => setPair(productId, view.extId!))}>
+          <Check className="size-4" aria-hidden />Είναι το ίδιο · να μετρά
+        </button>
+      )}
       {paired && !confirmReject && (
         <button type="button" className={secondary} disabled={pending} onClick={() => setConfirmReject(true)}>
-          <Unlink className="size-4" aria-hidden />Λάθος ζευγάρι · άλλαξέ το
+          <Unlink className="size-4" aria-hidden />{view?.match === "variant" ? "Λάθος · δεν είναι το ίδιο μοντέλο" : "Λάθος ζευγάρι · άλλαξέ το"}
         </button>
       )}
       {paired && confirmReject && (

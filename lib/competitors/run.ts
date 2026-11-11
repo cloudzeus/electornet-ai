@@ -4,10 +4,10 @@ import { resetSettingsCache } from "@/lib/settings/store";
 import type { JobResult } from "@/lib/scheduler/jobs";
 import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
-import { brandPool, isBundle, rankCandidates, sameEan, slugIndex, type KotItem } from "./kotsovolos/core";
+import { brandPool, isBundle, matchVariant, modelTokens, rankCandidates, sameEan, slugIndex, type KotItem } from "./kotsovolos/core";
 import { aiPick, AiStop } from "./llm-match";
 import { readCosts } from "./cost";
-import { decideGone, decidePrice, isGoneError, isOddResponse, runWindow, ourPrice, search, searchPrev, type Decision, type Prev } from "./run-core";
+import { decideGone, decidePrice, decideVariant, isGoneError, isOddResponse, researchDue, runWindow, ourPrice, search, searchPrev, type Decision, type Prev } from "./run-core";
 
 export { ourPrice };
 const COMP = "kotsovolos";
@@ -51,7 +51,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
   let sitemap: KotItem[];
   try { sitemap = await fetchSitemap(pacer); }
   catch (e) {
-    if (e instanceof KotStopError) return brake(e, trigger, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0 });
+    if (e instanceof KotStopError) return brake(e, trigger, state, { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0, variant: 0 });
     return { ok: false, message: `Το sitemap του Κωτσόβολου δεν κατεβαίνει (${(e as Error).message}) — οι παλιές τιμές μένουν` };
   }
   const byArt = new Map(sitemap.map((i) => [i.art, i]));
@@ -71,7 +71,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
   work.sort((a, b) => Number(pathOf.has(b.p.categoryId)) - Number(pathOf.has(a.p.categoryId)) || (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
   if (opts.limit) work = work.slice(0, opts.limit);
 
-  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0 };
+  const c = { pairs: 0, prices: 0, expensive: 0, errors: 0, left: 0, sugg: 0, readErr: 0, ai: 0, aiUsd: 0, notFound: 0, reads: 0, variant: 0 };
   let aiOff: string | null = null;
   const touched: { productId: string; erp: number }[] = [];
   let bad = 0;
@@ -100,6 +100,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     if (d.prices && firm) { c.prices++; if ((d.prices.diff ?? 0) > 0.5) c.expensive++; }
     if (extId && !d.clearPair && firm) { c.pairs++; touched.push({ productId: p.id, erp: Number(p.erpCode) }); }
     if (extId && !d.clearPair && d.match === "suggested") c.sugg++;
+    if (extId && !d.clearPair && d.match === "variant") c.variant++;
     if (!d.prices && !d.clearPair && d.available === undefined && d.lastError) c.readErr++;
   };
 
@@ -109,8 +110,8 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     const mkPrev = (r: Item["row"], match: Prev["match"]): Prev => ({ match, extUrl: r?.extUrl ?? null, missCount: r?.missCount ?? 0, their: r?.offerPrice != null ? Number(r.offerPrice) : r?.listPrice != null ? Number(r.listPrice) : null, ourPrice: r?.ourPrice != null ? Number(r.ourPrice) : null });
     let row = it.row;
 
-    // 1. ζευγάρι που ξέρουμε: μόνο τιμή
-    if (row?.extId && (row.match === "auto" || row.match === "manual")) {
+    // 1. ζευγάρι που ξέρουμε: μόνο τιμή. Τα ενδεικτικά (άλλο χρώμα) το ίδιο, εκτός από μία νύχτα την εβδομάδα που ξαναψάχνονται.
+    if (row?.extId && (row.match === "auto" || row.match === "manual" || (row.match === "variant" && !researchDue(p.id, now)))) {
       if (!byArt.has(row.extId)) {
         const g = decideGone(mkPrev(row, row.match as any));
         await save(it, null, null, null, g);
@@ -126,7 +127,9 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
           row = undefined; // lost: ξαναψάχνεται την ίδια νύχτα
         } else {
           const kot = byArt.get(row.extId)!;
-          await save(it, row.extId, kot, r.title, decidePrice({ prev: mkPrev(row, row.match as any), base: "auto", note: null, parsed: r, ourEan: p.ean, ourPrice: ours }));
+          await save(it, row.extId, kot, r.title, row.match === "variant"
+            ? decideVariant({ prev: mkPrev(row, "variant"), parsed: r, ourEan: p.ean, ourPrice: ours })
+            : decidePrice({ prev: mkPrev(row, row.match as any), base: "auto", note: null, parsed: r, ourEan: p.ean, ourPrice: ours }));
           return;
         }
       }
@@ -146,7 +149,8 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     if (!s && !known) {
       // 3. AI: μόνο πρόταση· auto μόνο αν το EAN που διαβάζουμε είναι ίδιο
       if (aiOff || c.ai >= aiMax) return; // χωρίς πλήρες ψάξιμο: δεν σημειώνεται «δεν βρέθηκε»
-      const cands = rankCandidates({ title: p.title, model: p.modelCode }, all); // ίσοι βαθμοί: η σειρά του sitemap
+      const was = row?.match === "variant" ? row.extId : null; // το γνωστό «άλλο χρώμα» δεν είναι ακριβές ζευγάρι
+      const cands = rankCandidates({ title: p.title, model: p.modelCode }, all.filter((k) => k.art !== was)); // ίσοι βαθμοί: η σειρά του sitemap
       let pick = null;
       if (cands.length) {
         c.ai++;
@@ -154,6 +158,14 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
         catch (e) { if (e instanceof AiStop) aiOff = e.message; else console.error("[competitor] AI", p.erpCode, (e as Error).message); return; }
       }
       if (!pick) {
+        // 4. ίδιο μοντέλο σε άλλο χρώμα: ενδεικτική τιμή, ποτέ ζευγάρι (Ruling 15)
+        const v = [...new Set([p.modelCode, ...modelTokens(p.title)])].map((m) => matchVariant({ brand: p.brand.name, alias: bm?.alias, model: m }, all)).find(Boolean);
+        if (v) {
+          const r = await get(v.art);
+          if ("error" in r) return; // ξαναδοκιμάζεται αύριο
+          await save(it, v.art, v, r.title, decideVariant({ prev: mkPrev(row?.extId === v.art ? row : undefined, null), parsed: r, ourEan: p.ean, ourPrice: ours }));
+          return;
+        }
         c.notFound++;
         await save(it, null, null, null, { match: row?.match === "rejected" ? "rejected" : "lost", lastError: NOT_FOUND, missCount: 0, clearPair: true });
         return;
@@ -194,8 +206,8 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
   return { ok: true, message: `${msg(c)}${aiOff ? ` · AI σταμάτησε: ${aiOff}` : ""}` };
 }
 
-type Counts = { pairs: number; prices: number; expensive: number; errors: number; sugg: number; readErr: number; ai: number; aiUsd: number; notFound: number; reads: number };
-const msg = (c: Counts) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.sugg} προτάσεις προς έλεγχο · ${c.readErr} χωρίς τιμή · ${c.notFound} δεν βρέθηκαν · ${c.errors} σφάλματα · ${c.reads} αναγνώσεις Κωτσόβολου${c.ai ? ` · AI ${c.ai} κλήσεις ($${c.aiUsd.toFixed(3)})` : ""}`;
+type Counts = { pairs: number; prices: number; expensive: number; errors: number; sugg: number; readErr: number; ai: number; aiUsd: number; notFound: number; reads: number; variant: number };
+const msg = (c: Counts) => `${c.pairs} ζευγάρια · ${c.prices} τιμές · ακριβότεροι σε ${c.expensive} · ${c.sugg} προτάσεις προς έλεγχο · ${c.readErr} χωρίς τιμή · ${c.notFound} δεν βρέθηκαν${c.variant ? ` · ${c.variant} ενδεικτικά (άλλο χρώμα)` : ""} · ${c.errors} σφάλματα · ${c.reads} αναγνώσεις Κωτσόβολου${c.ai ? ` · AI ${c.ai} κλήσεις ($${c.aiUsd.toFixed(3)})` : ""}`;
 
 async function costs(touched: { productId: string; erp: number }[]) {
   if (!touched.length) return;
