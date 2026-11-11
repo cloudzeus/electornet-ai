@@ -174,7 +174,8 @@ export function parseProduct(json: unknown): { title: string; list: number | nul
   const e = (json as any)?.catalogEntryView?.[0];
   if (!e || typeof e !== "object") return { error: typeof json === "string" ? "η απάντηση δεν ήταν JSON" : "άδεια απάντηση" };
   const rows: any[] = Array.isArray(e.price) ? e.price.filter((r: unknown) => r && typeof r === "object") : [];
-  const by = (u: string) => price(rows.find((r) => r.usage === u)?.value);
+  // 0,01 € = τιμή-σύμβολο (π.χ. εσωτερική μονάδα κλιματιστικού που πωλείται μόνο ως σετ): όχι πραγματική τιμή
+  const by = (u: string) => { const v = price(rows.find((r) => r.usage === u)?.value); return v != null && v < 1 ? null : v; };
   const attrs: any[] = Array.isArray(e.attributes) ? e.attributes : [];
   const bar = attrs.find((a) => a && a.identifier === "BarCode");
   const ean = Array.isArray(bar?.values) ? eanOf(bar.values[0]?.value) : null;

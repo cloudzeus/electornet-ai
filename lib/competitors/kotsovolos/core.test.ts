@@ -229,3 +229,8 @@ test("matchVariant: όχι άλλο μέγεθος/χωρητικότητα, ό�
   assert.equal(matchVariant({ brand: "MORRIS", model: "WIW10138" }, c), null);
   assert.equal(matchVariant({ brand: "LG", model: "RB440N4ACA" }, [it("f/1-hisense-rb440n4acc")]), null);
 });
+
+test("parseProduct: τιμή-σύμβολο 0,01 € δεν είναι τιμή", () => {
+  const r = parseProduct({ catalogEntryView: [{ name: "ΕΣ A/C", buyable: true, price: [{ usage: "Display", value: "0.01" }, { usage: "Offer", value: "0.01" }] }] });
+  assert.ok(!("error" in r) && r.list === null && r.offer === null);
+});
