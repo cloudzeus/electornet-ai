@@ -93,12 +93,11 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
           )}
           {firm && v.available && their != null && their > 0.1 && (
             <div className="grid gap-1">
-              {/* Ενεργοποιείται στη μαζική αλλαγή τιμών (Task 8) */}
-              <button type="button" disabled aria-describedby={`kot-soon-${productId}`} title="έρχεται με τη μαζική αλλαγή"
-                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-eu-navy bg-eu-navy px-4 font-bold text-white text-[length:var(--fs-14)] tabular-nums opacity-50 cursor-not-allowed">
+              <Link href={`/admin/catalog/competitors/prices?product=${encodeURIComponent(productId)}`}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-eu-navy bg-eu-navy px-4 font-bold text-white text-[length:var(--fs-14)] tabular-nums hover:bg-eu-navy-2">
                 Πήγαινε στα {eur(Math.round((their - 0.1) * 100) / 100)} (−0,10 €)
-              </button>
-              <span id={`kot-soon-${productId}`} className="text-center text-eu-muted text-[length:var(--fs-12)]">έρχεται με τη μαζική αλλαγή</span>
+              </Link>
+              <span className="text-center text-eu-muted text-[length:var(--fs-12)]">ανοίγει τη μαζική αλλαγή με προεπισκόπηση και δικλείδες</span>
             </div>
           )}
           <PairPicker productId={productId} view={v} canWrite={canWrite} />

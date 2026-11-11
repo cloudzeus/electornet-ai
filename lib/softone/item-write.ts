@@ -5,7 +5,7 @@ import { parseDescription } from "@/lib/softone/describe";
 import { matchSpecTable } from "@/lib/softone/spec-table-core";
 import { getTable, selectorRows } from "@/lib/softone/lookups";
 import { getSetting } from "@/lib/settings/store";
-import { EXTRA_FIELDS, pickExtraRow, extraDiff, type ExtraRow } from "@/lib/softone/web-price-core";
+import { EXTRA_FIELDS, pickExtraRow, extraDiff, expectError, type ExtraRow } from "@/lib/softone/web-price-core";
 import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
 
 /**
@@ -182,7 +182,7 @@ const num04 = (row: ExtraRow | null) => { if (!row) return null; const n = Numbe
  * γραμμή), αποτυχία με τη διαφορά. Με `onlyIfBlank` γράφει μόνο αν η τρέχουσα τιμή στο SoftOne (ζωντανή ανάγνωση) είναι κενή/0.
  * Το `written` μένει πάντα [] (το NUM04 δεν είναι ItemField) — το αποτέλεσμα το λένε τα `ok` / `error`.
  */
-export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean; /** `higher`: γράφει όταν δεν υπάρχει τιμή ή η νέα είναι μεγαλύτερη (ζωντανή ανάγνωση)· `any`: όποτε διαφέρει */ mode?: "higher" | "any" }): Promise<WriteResult> {
+export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIfBlank?: boolean; /** `higher`: γράφει όταν δεν υπάρχει τιμή ή η νέα είναι μεγαλύτερη (ζωντανή ανάγνωση)· `any`: όποτε διαφέρει */ mode?: "higher" | "any"; /** η τιμή web που είδε η προεπισκόπηση: αν η ζωντανή διαφέρει (±0,005), αποτυχία χωρίς εγγραφή */ expect?: number }): Promise<WriteResult> {
   const fail = (error: string): WriteResult => ({ ok: false, written: [], conflicts: [], mismatches: [], error });
   if (!webPriceWriteEnabled()) return fail(WEB_PRICE_OFF);
   if (!(await itemWriteEnabled())) return fail("Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne).");
@@ -199,6 +199,8 @@ export async function writeWebPrice(mtrl: number, price: number, opts?: { onlyIf
   try { before = await readExtra(mtrl); } catch { return fail("Δεν ήταν δυνατή η ανάγνωση της τιμής web από το SoftOne."); }
   if (before.error) return fail(before.error);
   const cur = num04(before.row);
+  const changed = expectError(cur, opts?.expect);
+  if (changed) return fail(changed);
   if (opts?.onlyIfBlank && cur != null && cur > 0) return fail(`Το είδος έχει ήδη τιμή web (${cur} €) — δεν αλλάζει.`);
   // Η προεπισκόπηση έκρινε με τον καθρέφτη· εδώ κρίνει η ζωντανή τιμή: αν στο μεταξύ έγινε ίση ή μεγαλύτερη, δεν τη ρίχνουμε
   if (opts?.mode === "higher" && cur != null && cur > 0 && value <= cur) return fail(`Το είδος έχει ήδη τιμή web ${cur} €, ίση ή μεγαλύτερη από τη νέα (${value} €) — δεν αλλάζει.`);
