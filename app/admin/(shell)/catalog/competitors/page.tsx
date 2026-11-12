@@ -7,6 +7,8 @@ import { jobStatus } from "@/lib/scheduler";
 import { readState } from "@/lib/competitors/run";
 import { cachedCategories } from "@/lib/competitors/kotsovolos/client";
 import { BrandCards, CategoryPicker, MappingTabs, StatusActions, type BrandCard, type CatRow, type PickOption } from "@/components/admin/competitors/MappingTabs";
+import { SuggestionsReview, type SuggRow } from "@/components/admin/competitors/SuggestionsReview";
+import { ourPrice, reasonOf } from "@/lib/competitors/run-core";
 
 export const metadata = { title: "Σύγκριση τιμών" };
 export const dynamic = "force-dynamic";
@@ -29,7 +31,7 @@ export default async function CompetitorsPage() {
   const canWrite = can(user.permissions, "catalog.products.write");
   const canRun = can(user.permissions, "catalog.sync.run");
 
-  const [cats, maps, prices, jobs, state, kot, activeCount] = await Promise.all([
+  const [cats, maps, prices, jobs, state, kot, activeCount, suggRaw] = await Promise.all([
     db.category.findMany({ select: { id: true, name: true, parentId: true, productCount: true, active: true } }),
     db.competitorCategoryMap.findMany({ where: { competitor: COMP } }),
     db.competitorPrice.findMany({ where: { competitor: COMP }, select: { match: true, diffPct: true, checkedAt: true, product: { select: { categoryId: true, brandId: true } } } }),
@@ -37,7 +39,15 @@ export default async function CompetitorsPage() {
     readState(),
     cachedCategories().catch(() => null),
     db.product.count({ where: { active: true, kind: { not: "set" } } }),
+    db.competitorPrice.findMany({ where: { competitor: COMP, match: "suggested", extId: { not: null }, product: { active: true } }, orderBy: { checkedAt: "desc" },
+      select: { productId: true, extId: true, extTitle: true, extUrl: true, offerPrice: true, listPrice: true, ourPrice: true, diffPct: true, lastError: true,
+        product: { select: { title: true, erpCode: true, price: true, offer: { select: { price: true } } } } } }),
   ]);
+  const sugg: SuggRow[] = suggRaw.map((r) => ({
+    productId: r.productId, title: r.product.title, erp: r.product.erpCode, ours: r.ourPrice != null ? Number(r.ourPrice) : ourPrice({ price: r.product.price, offer: r.product.offer }),
+    extId: r.extId as string, extTitle: r.extTitle, extUrl: r.extUrl, theirs: r.offerPrice != null ? Number(r.offerPrice) : r.listPrice != null ? Number(r.listPrice) : null,
+    diff: r.diffPct, lastError: r.lastError, reason: reasonOf(r.lastError),
+  }));
   const job = jobs.find((j) => j.key === JOB);
 
   const byId = new Map(cats.map((c) => [c.id, c]));
@@ -168,7 +178,7 @@ export default async function CompetitorsPage() {
           {compared ? (
             <>
               <p className={`${figure} text-eu-ink`}>{num(pairsIn)} <span className="text-eu-ink-3 font-normal text-[length:var(--fs-15)]">από {num(compared)} ({Math.round((pairsIn / compared) * 100)}%)</span></p>
-              <p className={label}>{totalSugg ? `+ ${num(totalSugg)} προτάσεις προς έλεγχο στη σελίδα κάθε προϊόντος` : "Χωρίς προτάσεις προς έλεγχο"}</p>
+              <p className={label}>{totalSugg ? <a href="#sugg-h" className="font-bold text-eu-blue hover:underline">+ {num(totalSugg)} προτάσεις προς έλεγχο παρακάτω</a> : "Χωρίς προτάσεις προς έλεγχο"}</p>
               {totalVariant > 0 && <p className={label}>+ {num(totalVariant)} ενδεικτικά (άλλο χρώμα) · δεν μετρούν</p>}
             </>
           ) : (
@@ -210,6 +220,8 @@ export default async function CompetitorsPage() {
         </div>
       </section>
 
+      <SuggestionsReview rows={sugg} canWrite={canWrite} />
+
       {canWrite && <CategoryPicker options={pick} />}
 
       <MappingTabs tabs={tabs} options={kot} canWrite={canWrite} />
@@ -220,7 +232,7 @@ export default async function CompetitorsPage() {
         <Info className="size-5 shrink-0 mt-0.5 text-eu-blue" aria-hidden />
         <div className="grid gap-1">
           <b className="text-eu-ink">Πώς ταιριάζουμε τα προϊόντα</b>
-          <span>Ίδια μάρκα και ίδιο μοντέλο. Ο Κωτσόβολος κόβει το τέλος του κωδικού (QE65QN90DATXXH → qe65qn90da), οπότε αρκεί ο ένας κωδικός να είναι η αρχή του άλλου. Στα κινητά ταιριάζουμε όνομα, μνήμη και χρώμα, γιατί δεν δείχνουν κωδικό. Ό,τι δεν βρεθεί έτσι το κοιτά το AI, αλλά η επιλογή του μένει πρόταση προς επιβεβαίωση, εκτός αν έχει ίδιο EAN. Προϊόν που δεν βρέθηκε ξαναψάχνεται μετά από 7 ημέρες. Ένα λάθος ζευγάρι το διορθώνεις από τη σελίδα του προϊόντος.</span>
+          <span>Ίδια μάρκα και ίδιο μοντέλο. Ο Κωτσόβολος κόβει το τέλος του κωδικού (QE65QN90DATXXH → qe65qn90da), οπότε αρκεί ο ένας κωδικός να είναι η αρχή του άλλου. Στα κινητά ταιριάζουμε όνομα, μνήμη και χρώμα, γιατί δεν δείχνουν κωδικό. Ό,τι δεν βρεθεί έτσι το κοιτά το AI, αλλά η επιλογή του μένει πρόταση προς επιβεβαίωση, εκτός αν έχει ίδιο EAN ή ο κωδικός προμηθευτή του Κωτσόβολου είναι ακριβώς ο δικός μας κωδικός (με ίδια ενεργειακή κλάση). Ένα είδος του Κωτσόβολου γίνεται ζευγάρι με ένα μόνο δικό μας προϊόν, και ζευγάρι με διαφορά τιμής πάνω από 40% πάει για έλεγχο. Στα κλιματιστικά που ο Κωτσόβολος πουλά μόνο ως σετ συγκρίνουμε με την τιμή του σετ. Προϊόν που δεν βρέθηκε ξαναψάχνεται μετά από 7 ημέρες. Ένα λάθος ζευγάρι το διορθώνεις από τη σελίδα του προϊόντος.</span>
         </div>
       </aside>
     </div>

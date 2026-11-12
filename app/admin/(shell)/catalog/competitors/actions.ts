@@ -209,6 +209,19 @@ export async function setPair(productId: string, art: string): Promise<Out> {
   return { ok: true };
 }
 
+/** «Σωστό» στις προτάσεις προς έλεγχο (μία ή πολλές): suggested → manual με τις τιμές που ήδη διαβάσαμε, χωρίς νέα κλήση στον Κωτσόβολο. */
+export async function confirmPairs(productIds: string[]): Promise<{ ok: true; confirmed: number } | { ok: false; error: string }> {
+  const user = await requirePermission("catalog.products.write");
+  if (!Array.isArray(productIds) || !productIds.length || productIds.length > 200 || !productIds.every((id) => typeof id === "string")) return { ok: false, error: "Μη έγκυρη επιλογή προϊόντων." };
+  const rows = await db.competitorPrice.findMany({ where: { competitor: COMP, productId: { in: productIds }, match: "suggested", extId: { not: null } }, select: { id: true, productId: true, extId: true, lastError: true } });
+  for (const r of rows) {
+    await db.competitorPrice.update({ where: { id: r.id }, data: { match: "manual", lastError: null } });
+    await audit(user.id, "competitor.pair.confirm", "Product", r.productId, { match: "suggested", extId: r.extId, lastError: r.lastError }, { match: "manual" });
+  }
+  revalidatePath(PATH);
+  return { ok: true, confirmed: rows.length };
+}
+
 /** «Λάθος ζευγάρι»: match=rejected, το extId δεν ξαναπροτείνεται, οι τιμές σβήνουν ώστε να μη μετρά πουθενά. */
 export async function rejectPair(productId: string): Promise<Out> {
   const user = await requirePermission("catalog.products.write");
