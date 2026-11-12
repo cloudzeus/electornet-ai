@@ -26,15 +26,17 @@ const shell = "rounded-2xl border border-eu-line bg-white min-w-0";
 const card = `${shell} p-4 md:p-5`;
 /** Χρώμα με ένα νόημα: κόκκινο = ζημιά/ακριβότεροι, κεχριμπαρί = θέλει ματιά, μπλε = κλειδωμένο από προσφορά, γκρι = λείπουν στοιχεία, πράσινο = εντάξει. */
 const TONE = {
-  red: "bg-eu-red/8 ring-eu-red/25 text-[color-mix(in_oklab,var(--eu-red)_72%,black)]",
-  amber: "bg-eu-amber/10 ring-eu-amber/30 text-[color-mix(in_oklab,var(--eu-amber)_62%,black)]",
-  blue: "bg-eu-blue/7 ring-eu-blue/20 text-eu-blue",
-  grey: "bg-eu-ink/[0.04] ring-eu-ink/12 text-eu-ink-3",
-  green: "bg-eu-green/8 ring-eu-green/25 text-eu-green",
+  red: "text-[color-mix(in_oklab,var(--eu-red)_80%,black)]",
+  amber: "text-[color-mix(in_oklab,var(--eu-amber)_70%,black)]",
+  blue: "text-eu-blue",
+  grey: "text-eu-muted",
+  green: "text-eu-green",
 } as const;
 const SKIP_TONE: Record<Skip, keyof typeof TONE> = { "below-cost": "red", "max-drop": "amber", "max-rise": "amber", promo: "blue", "no-cost": "grey", stale: "grey", gone: "grey", cheaper: "green", same: "green" };
+const SKIP_SHORT: Record<Skip, string> = { "max-drop": "Μεγάλη μείωση", "max-rise": "Μεγάλη αύξηση", "below-cost": "Κάτω από κόστος", "no-cost": "Χωρίς κόστος", promo: "Σε προσφορά", stale: "Παλιά τιμή", gone: "Δεν διατίθεται", cheaper: "Ήδη φθηνότεροι", same: "Ίδια τιμή" };
+const SKIP_INK: Record<keyof typeof TONE, string> = { red: "text-eu-red", amber: "text-eu-amber", blue: "text-eu-blue", grey: "text-eu-muted", green: "text-eu-green" };
 const SKIP_ICON: Record<keyof typeof TONE, typeof AlertTriangle> = { red: AlertTriangle, amber: AlertTriangle, blue: Lock, grey: Info, green: CheckCircle2 };
-const pill = "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px ring-1 ring-inset tabular-nums font-bold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
+const pill = "inline-flex items-center gap-0.5 tabular-nums font-semibold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
 const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
 const lbl = "font-bold text-eu-ink-2 text-[length:var(--fs-13)]";
 const field = "min-h-11 w-full rounded-lg border border-eu-line-2 bg-white px-3 text-eu-ink text-[length:var(--fs-16)]";
@@ -137,8 +139,8 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const live = batches.find((b) => b.phase !== "idle");
 
   const note = (r: PreviewRow) => "skip" in r.plan
-    ? (() => { const t = SKIP_TONE[r.plan.skip], I = SKIP_ICON[t]; return <span title={SKIP[r.plan.skip].hint} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1 ring-inset font-semibold text-[length:var(--fs-11)] whitespace-nowrap ${TONE[t]}`}><I className="size-3 shrink-0" aria-hidden />{SKIP[r.plan.skip].label}</span>; })()
-    : r.cost != null ? <span className="text-eu-muted text-[length:var(--fs-11)] leading-tight"><span className="tabular-nums text-eu-ink-3">κόστος {eur(r.cost)}</span> · {SOURCE[r.costSource ?? ""] ?? "κόστος"}</span> : null;
+    ? (() => { const k = r.plan.skip, t = SKIP_TONE[k], I = SKIP_ICON[t]; return <span title={`${SKIP[k].label} — ${SKIP[k].hint}`} className="inline-flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)] whitespace-nowrap"><I className={`size-3.5 shrink-0 ${SKIP_INK[t]}`} aria-hidden />{SKIP_SHORT[k]}</span>; })()
+    : r.cost != null ? <span title={`Κόστος με ΦΠΑ · ${SOURCE[r.costSource ?? ""] ?? "κόστος"}`} className="text-eu-muted text-[length:var(--fs-12)] whitespace-nowrap">κόστος <span className="tabular-nums text-eu-ink-3">{eur(r.cost)}</span></span> : null;
   /** Πόσο ακριβότεροι (▲ κόκκινο) ή φθηνότεροι (▼ πράσινο) είμαστε σήμερα από τον Κωτσόβολο. */
   const gap = (r: PreviewRow) => {
     if (r.theirs == null || r.now == null || r.theirs <= 0) return null;
@@ -150,7 +152,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const theirsLink = (r: PreviewRow) => r.url
     ? <a href={r.url} target="_blank" rel="noopener noreferrer" title="Άνοιγμα στον Κωτσόβολο (νέα καρτέλα)" className="inline-flex items-center gap-1 tabular-nums text-eu-ink hover:text-eu-blue hover:underline">{eur(r.theirs)}<ExternalLink className="size-3 shrink-0 text-eu-muted" aria-hidden /></a>
     : <span className="tabular-nums">{eur(r.theirs)}</span>;
-  const checkBtn = (r: PreviewRow, mobile?: boolean) => <button type="button" onClick={() => setCheck({ id: r.productId, title: r.title })} title="Δες τα δύο προϊόντα δίπλα-δίπλα και επιβεβαίωσε ή απόρριψε το ζευγάρι" className={`inline-flex items-center gap-1 rounded-lg border border-eu-line-2 bg-white px-2 font-semibold text-eu-ink-2 hover:bg-eu-surface text-[length:var(--fs-12)] whitespace-nowrap ${mobile ? "min-h-11" : "min-h-8"}`}><Scale className="size-3.5 text-eu-amber" aria-hidden />Ίδιο προϊόν;</button>;
+  const checkBtn = (r: PreviewRow, mobile?: boolean) => <button type="button" onClick={() => setCheck({ id: r.productId, title: r.title })} aria-label={`Ίδιο προϊόν; Έλεγχος ζευγαριού: ${r.title}`} title="Ίδιο προϊόν; Δες τα δύο δίπλα-δίπλα και επιβεβαίωσε ή απόρριψε" className={`inline-grid place-items-center rounded-lg text-eu-muted hover:bg-eu-surface hover:text-eu-ink ${mobile ? "size-11" : "size-8"}`}><Scale className="size-4" aria-hidden /></button>;
   const change = (r: PreviewRow) => "changeEur" in r.plan ? `${signedEur(r.plan.changeEur)} · ${pct(r.plan.changePct)}` : "—";
   const changeTone = (r: PreviewRow) => !("changeEur" in r.plan) ? "text-eu-muted" : r.plan.changeEur < 0 ? "font-bold text-eu-green" : "font-bold text-eu-blue";
 
@@ -311,7 +313,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                 <thead><tr className="bg-eu-surface text-left text-eu-ink-3 text-[length:var(--fs-12)] font-semibold">
                   <th className="w-12 px-3 py-2"><span className="sr-only">Επιλογή</span></th>
                   <th className="px-2 py-2">Προϊόν</th><th className="px-2 py-2 text-right">Τώρα</th><th className="px-2 py-2 text-right">Κωτσόβολος</th>
-                  <th className="px-2 py-2 text-right">Νέα τιμή</th><th className="px-2 py-2 text-right">Αλλαγή</th><th className="px-3 py-2">Σημείωση</th><th className="px-2 py-2"><span className="sr-only">Έλεγχος ζευγαριού</span></th>
+                  <th className="px-2 py-2 text-right">Νέα τιμή</th><th className="px-2 py-2 text-right">Αλλαγή</th><th className="px-3 py-2">Σημείωση</th><th className="w-10 px-1 py-2"><span className="sr-only">Έλεγχος ζευγαριού</span></th>
                 </tr></thead>
                 <tbody>{rows.map((r) => {
                   const can = "newPrice" in r.plan;
@@ -323,8 +325,8 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                       <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5">{theirsLink(r)}{gap(r)}</span></td>
                       <td className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</td>
                       <td className="px-2 py-1.5 text-right whitespace-nowrap">{"changeEur" in r.plan ? <span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? TONE.green : TONE.blue}`}>{pct(r.plan.changePct)}</span></span> : <span className="text-eu-muted">—</span>}</td>
-                      <td className="px-3 py-1.5 max-w-[15rem]">{note(r)}</td>
-                      <td className="px-2 py-1.5 text-right">{checkBtn(r)}</td>
+                      <td className="px-3 py-1.5 max-w-[13rem]">{note(r)}</td>
+                      <td className="px-1 py-1 text-right">{checkBtn(r)}</td>
                     </tr>
                   );
                 })}</tbody>
