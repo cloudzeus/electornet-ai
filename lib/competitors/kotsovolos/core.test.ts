@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseSitemap, parseCategories, norm, matchByModel, matchPhone, isBundle, parseProduct, sameEan, diffPct, badgeState, modelTokens, slugIndex, brandPool, rankCandidates, pickFrom, matchVariant, variantRelation,
-  type KotItem,
+  productImages, type KotItem,
 } from "./core";
 
 const it = (u: string): KotItem => parseSitemap(`<loc>https://www.kotsovolos.gr/${u}</loc>`)[0];
@@ -289,4 +289,18 @@ test("setCandidates: ο πιο συγκεκριμένος κωδικός πρώ�
   assert.equal(setCandidates({ brand: "Inventor", models: ["INVI-12WFI", "12WFI"], indoorArt: "333450" }, inv)[0].art, "333445");
   const mid = ["/252268-ες-a-c-in12btu-midea-aep2-12nxd6-i", "x/252263-a-c-in12-midea-aep212nxd6-all-easy-pro", "x/252264-a-c-in18-midea-aep218nxd6-all-easy-pro"].map(it);
   assert.deepEqual(setCandidates({ brand: "Midea", models: ["AEP2-12NXD6-I"], indoorArt: "252268" }, mid).map((x) => x.art), ["252263"]);
+});
+
+test("productImages: κύρια + συνημμένα IMAGES του ίδιου είδους, όχι εικονίδια ή άλλα προϊόντα", () => {
+  const A = "https://asset.productmarketingcloud.com/api/assetstorage/1995_a/";
+  const json = { catalogEntryView: [{ partNumber: "324803", thumbnail: `${A}324803.jpg`,
+    attachments: [
+      { usage: "DOCUMENTS", identifier: `${A}324803.pdf`, image: "images/attachments/usages/doc_icon.jpg" },
+      { usage: "IMAGES", identifier: `${A}3248031.jpg` },
+      { usage: "IMAGES", identifier: `${A}3248031.jpg` },
+      { usage: "IMAGES", identifier: `${A}191206_009.jpg` },
+    ],
+    merchandisingAssociations: [{ thumbnail: `${A}268300.jpg` }] }] };
+  assert.deepEqual(productImages(json), [`${A}324803.jpg`, `${A}3248031.jpg`]);
+  assert.deepEqual(productImages({}), []);
 });

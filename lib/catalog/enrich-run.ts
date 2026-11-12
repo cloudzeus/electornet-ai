@@ -6,6 +6,7 @@ import { energyClassFromSpecs, modelsFromSpecs, nextPhotoSource } from "./enrich
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
 import { projectSourceDimensions } from "./product-dimensions";
 import { suggestDims } from "./enrich-suggestions";
+import { enrichFromKotsovolos } from "./kotsovolos-photos";
 
 /**
  * Ροή εμπλουτισμού ΕΝΟΣ προϊόντος, με τη σειρά: Icecat (δωρεάν) → Channel3 (αν το Icecat έδωσε < 8 χαρακτηριστικά, με
@@ -139,6 +140,7 @@ export async function searchPhotosNextSource(productId: string, prev?: EnrichSou
   const base = { brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku };
   const r = source === "icecat" ? await enrichFromIcecat({ ean: p.ean, sku: p.sku, modelCode: p.modelCode, brand: p.brand.name })
     : source === "channel3" ? await enrichFromChannel3(base)
+    : source === "kotsovolos" ? await enrichFromKotsovolos(productId)
     : source === "web" ? await enrichFromWeb({ ...base, typeName: p.category.name })
     : await enrichFromShops({ ...base, typeName: p.category.name, ean: p.ean });
   await storeEnrichment(productId, r);

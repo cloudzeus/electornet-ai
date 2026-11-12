@@ -17,7 +17,7 @@ import type { EnrichResult } from "./enrich";
  * Τα κείμενα και οι εικόνες τρίτων έχουν δικαιώματα: η έγκριση σημαίνει ότι ο διαχειριστής έλεγξε ότι μπορούν να χρησιμοποιηθούν.
  */
 export const SHOP_GROUP = "Χαρακτηριστικά (άλλα καταστήματα)";
-export const SUGGEST_SOURCE_LABEL: Record<string, string> = { icecat: "Icecat", channel3: "Channel3", web: "Site κατασκευαστή", shop: "Άλλο κατάστημα" };
+export const SUGGEST_SOURCE_LABEL: Record<string, string> = { icecat: "Icecat", channel3: "Channel3", web: "Site κατασκευαστή", shop: "Άλλο κατάστημα", kotsovolos: "Κωτσόβολος" };
 /** πηγές εκτός ERP που γράφουν χαρακτηριστικά στο e-shop και μπορούν να περάσουν στο SoftOne */
 export const EXTERNAL = ["icecat", "channel3", "web", "shop"];
 const MAX_IMAGE = 25 * 1024 * 1024;
@@ -49,7 +49,7 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
   // η σελίδα της πηγής: οι φωτογραφίες που δηλώνει η ίδια είναι πιο αξιόπιστες από όσες «θυμάται» το AI
   // από PDF δεν βγαίνουν φωτογραφίες: τότε η HTML σελίδα του προϊόντος που έδωσε η αναζήτηση
   const pageUrl = r.pageUrl ?? (r.url && !/\.pdf(\?|#|$)/i.test(r.url) ? r.url : undefined);
-  if (r.source !== "icecat" && r.source !== "channel3" && pageUrl) {
+  if (r.source !== "icecat" && r.source !== "channel3" && r.source !== "kotsovolos" && pageUrl) {
     const prod = await db.product.findUnique({ where: { id: productId }, select: { modelCode: true, title: true } });
     const hints = [...modelsFromSpecs(r.specs), prod?.modelCode ?? "", ...(prod?.title.split(/\s+/).filter((t) => /\d/.test(t)) ?? [])].filter(Boolean);
     const page = await readProductPage(pageUrl, hints);

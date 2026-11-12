@@ -28,7 +28,7 @@ import { suggestFromResult } from "./enrich-suggestions";
  * ήρθαν από το ERP (s1-desc) ή την ενεργειακή ετικέτα (eprel). Η πηγή, το URL και το κόστος μένουν στο `ProductEnrichment`,
  * ώστε ο διαχειριστής να βλέπει από πού προήλθε κάθε στοιχείο και η διαδικασία να συνεχίζει από εκεί που σταμάτησε.
  */
-export type EnrichSource = "icecat" | "channel3" | "web" | "shop";
+export type EnrichSource = "icecat" | "channel3" | "web" | "shop" | "kotsovolos";
 export interface EnrichResult { source: EnrichSource; status: "found" | "none" | "failed"; url?: string; sourceName?: string; specs: { group: string; key: string; value: string }[]; images?: string[]; /** HTML σελίδα του προϊόντος για φωτογραφίες, όταν η πηγή είναι PDF */ pageUrl?: string; /** ενεργειακή ετικέτα που δημοσιεύει η σελίδα του προϊόντος */ labelUrl?: string; confidence?: number; costUsd: number; error?: string }
 
 const ICECAT = () => ({ shop: process.env.ICECAT_SHOPNAME || "openIcecat-live", key: process.env.ICECAT_APP_KEY || "" });
@@ -229,7 +229,7 @@ export async function enrichFromShops(p: { brand: string; title: string; modelCo
 
 // ---------- Αποθήκευση ----------
 
-const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", channel3: "Χαρακτηριστικά (Channel3)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)", shop: "Χαρακτηριστικά (άλλα καταστήματα)" };
+const SOURCE_GROUP: Record<EnrichSource, string> = { icecat: "Επίσημα χαρακτηριστικά (Icecat)", channel3: "Χαρακτηριστικά (Channel3)", web: "Επίσημα χαρακτηριστικά (κατασκευαστής)", shop: "Χαρακτηριστικά (άλλα καταστήματα)", kotsovolos: "Κωτσόβολος" };
 export const sourceGroup = (s: EnrichSource) => SOURCE_GROUP[s];
 
 /**
@@ -237,7 +237,7 @@ export const sourceGroup = (s: EnrichSource) => SOURCE_GROUP[s];
  * πηγές. Τα χαρακτηριστικά καταστημάτων και ΟΛΕΣ οι φωτογραφίες γίνονται προτάσεις προς έγκριση.
  */
 export async function storeEnrichment(productId: string, r: EnrichResult) {
-  const direct = r.source !== "shop";
+  const direct = r.source !== "shop" && r.source !== "kotsovolos";
   // ό,τι έχει ήδη περάσει στο SoftOne (s1-desc) δεν ξαναγράφεται από την εξωτερική πηγή — αλλιώς θα φαινόταν διπλό
   if (direct && r.specs.length) {
     // η Channel3 (στοιχεία καταστημάτων) δεν επαναλαμβάνει ό,τι έδωσε ήδη άλλη πηγή (ERP, ετικέτα, Icecat, κατασκευαστής)

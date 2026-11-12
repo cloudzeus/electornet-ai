@@ -1,4 +1,4 @@
-import { parseSitemap, parseCategories, parseProduct, type KotItem } from "./core";
+import { parseSitemap, parseCategories, parseProduct, productImages, type KotItem } from "./core";
 import { type Pacer } from "./pacer";
 import { swr } from "@/lib/cache/swr";
 
@@ -42,4 +42,11 @@ export async function fetchProduct(art: string, pacer?: Pacer): Promise<ReturnTy
   if (status === 404) return { error: "δεν βρέθηκε (404)" };
   if (status !== 200) return { error: `HTTP ${status}` };
   try { return parseProduct(JSON.parse(text)); } catch { return { error: "η απάντηση δεν ήταν JSON" }; }
+}
+
+/** Οι φωτογραφίες ενός είδους (για «Φωτογραφίες από το web»). */
+export async function fetchProductImages(art: string, pacer?: Pacer): Promise<{ title: string; images: string[] } | { error: string }> {
+  const { status, text } = await get(PRODUCT + encodeURIComponent(art), pacer);
+  if (status !== 200) return { error: status === 404 ? "δεν βρέθηκε (404)" : `HTTP ${status}` };
+  try { const j = JSON.parse(text); const p = parseProduct(j); return { title: "error" in p ? "" : p.title, images: productImages(j) }; } catch { return { error: "η απάντηση δεν ήταν JSON" }; }
 }

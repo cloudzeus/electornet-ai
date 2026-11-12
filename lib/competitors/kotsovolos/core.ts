@@ -209,6 +209,17 @@ export function parseProduct(json: unknown): {
     supplierCodes, energyClass: attrVals(attrs, "EnergyClass")[0] ?? null, symbolic, components };
 }
 
+/** Οι φωτογραφίες του είδους από το API: η κύρια (thumbnail) και τα συνημμένα IMAGES του ίδιου αρ. είδους —
+ *  όχι τα merchandisingAssociations (άλλα προϊόντα) ούτε εικονίδια. */
+export function productImages(json: unknown): string[] {
+  const e = (json as any)?.catalogEntryView?.[0];
+  if (!e || typeof e !== "object") return [];
+  const art = typeof e.partNumber === "string" ? e.partNumber : "";
+  const ok = (u: unknown): u is string => typeof u === "string" && /^https:\/\//.test(u) && /\.(jpe?g|png|webp)$/i.test(u) && (!art || u.split("/").pop()!.startsWith(art));
+  const att: unknown[] = Array.isArray(e.attachments) ? e.attachments.filter((a: any) => a?.usage === "IMAGES").map((a: any) => a.identifier) : [];
+  return [...new Set([e.thumbnail, ...att].filter(ok))];
+}
+
 /** Εσωτερική μονάδα κλιματιστικού («324819-ες-…»): ο Κωτσόβολος την πουλά (ή τη δείχνει) χωριστά, αλλά το δικό μας προϊόν είναι το σετ. */
 export const isIndoorUnit = (last: string) => /^\d+-ες-/.test(last);
 
