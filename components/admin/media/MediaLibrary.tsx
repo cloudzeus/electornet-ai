@@ -107,12 +107,13 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
 
   const chip = (active: boolean) => `rounded-full px-3 min-h-9 font-bold text-[length:var(--fs-13)] transition-colors ${active ? "bg-eu-navy text-white" : "bg-white border border-eu-line text-eu-ink hover:border-eu-navy"}`;
   const uploadsActive = uploader.items.filter((u) => u.status !== "done");
-  const sGrid = sx({ gridTemplateColumns: `repeat(auto-fill, minmax(min(${tile}px, 100%), 1fr))` });
+  // στήλες με κλάση grid-cols-* (όχι μόνο sx): αλλιώς ο γενικός κανόνας .eu-admin .grid του globals.css τις κάνει μία
+  const sGrid = sx({ "--tile": `${tile}px` });
 
   return (
     <div className={`eu-container ${mode === "picker" ? "h-full min-h-0" : ""}`}>
     <div
-      className={`relative grid ${mode === "picker" ? "h-full" : "min-h-[70dvh]"} grid-cols-1 @3xl:grid-cols-[240px_minmax(0,1fr)] ${open ? "@5xl:grid-cols-[240px_minmax(0,1fr)_360px]" : ""} rounded-2xl bg-eu-surface border border-eu-line overflow-hidden`}
+      className={`relative grid ${mode === "picker" ? "h-full auto-rows-[minmax(0,1fr)]" : "min-h-[70dvh]"} grid-cols-1 @3xl:grid-cols-[240px_minmax(0,1fr)] ${open ? "@5xl:grid-cols-[240px_minmax(0,1fr)_360px]" : ""} rounded-2xl bg-eu-surface border border-eu-line overflow-hidden`}
       onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false); }}
       onDrop={(e) => { if (e.dataTransfer.files?.length) { e.preventDefault(); setDragOver(false); uploadFiles(e.dataTransfer.files); } }}
@@ -123,7 +124,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
       </div>
 
       {/* main */}
-      <div className="min-w-0 flex flex-col">
+      <div className={`min-w-0 flex flex-col ${mode === "picker" ? "min-h-0" : ""}`}>
         <div className="flex flex-wrap items-center gap-2 p-3 bg-white border-b border-eu-line">
           <button type="button" onClick={() => setSidebar((s) => !s)} className="@3xl:hidden size-10 rounded-full border border-eu-line inline-flex items-center justify-center" aria-label="Φάκελοι"><PanelLeft className="size-4" aria-hidden /></button>
           <label className="relative basis-full @2xl:basis-auto @2xl:flex-1 min-w-[160px] order-first @2xl:order-none">
@@ -191,7 +192,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
           </div>
         )}
 
-        <div className={`flex-1 p-3 ${loading ? "opacity-60" : ""} transition-opacity`}>
+        <div className={`flex-1 p-3 ${mode === "picker" ? "min-h-0 overflow-y-auto overscroll-contain" : ""} ${loading ? "opacity-60" : ""} transition-opacity`}>
           {data.items.length === 0 ? (
             <div className="h-full grid place-items-center text-center p-8">
               <div>
@@ -201,7 +202,7 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
               </div>
             </div>
           ) : view === "grid" ? (
-            <ul className={`m-0 p-0 list-none grid gap-3 ${sGrid.className}`}>
+            <ul className={`m-0 p-0 list-none grid grid-cols-[repeat(auto-fill,minmax(min(var(--tile),100%),1fr))] gap-3 ${sGrid.className}`}>
               {sGrid.node}
               {data.items.map((a) => (
                 <li key={a.id} className={selectable(a) ? "" : "opacity-40 pointer-events-none"}>
@@ -232,8 +233,8 @@ export function MediaLibrary({ mode = "manage", accept, multiple = true, canWrit
           <PagerButtons page={page} pages={data.pages} onPage={(n) => { setPage(n); setSelected(new Set()); }} />
           {mode === "picker" && (
             <span className="inline-flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-full border-2 border-eu-line px-4 min-h-10 font-bold text-eu-ink text-[length:var(--fs-14)]">Άκυρο</button>
-              <button type="button" disabled={!selected.size} onClick={() => onSelect?.(data.items.filter((a) => selected.has(a.id)))} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-10 font-extrabold text-[length:var(--fs-14)] disabled:opacity-50"><Check className="size-4" aria-hidden /> Επιλογή{selected.size > 1 ? ` (${selected.size})` : ""}</button>
+              <button type="button" onClick={onClose} className="rounded-full border-2 border-eu-line px-4 min-h-11 md:min-h-10 font-bold text-eu-ink text-[length:var(--fs-14)]">Άκυρο</button>
+              <button type="button" disabled={!selected.size} onClick={() => onSelect?.(data.items.filter((a) => selected.has(a.id)))} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-10 font-extrabold text-[length:var(--fs-14)] disabled:opacity-50"><Check className="size-4" aria-hidden /> Επιλογή{selected.size > 1 ? ` (${selected.size})` : ""}</button>
             </span>
           )}
         </div>
