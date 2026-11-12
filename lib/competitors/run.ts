@@ -25,6 +25,8 @@ export async function writeState(patch: { paused?: boolean; brakedNights: number
 
 export type JobOpts = {
   categoryIds?: string[]; limit?: number;
+  /** Μόνο χειροκίνητα: συγκεκριμένα προϊόντα, χωρίς τον έλεγχο «πρόσφατα ελεγμένο». */
+  productIds?: string[];
   /** Μόνο χειροκίνητα (σάρωση από script): κλήσεις, ώρες παραθύρου, κλήσεις AI. */
   budget?: number; hours?: number; aiMax?: number;
   onProgress?: (done: number, total: number, msg: string) => void;
@@ -56,7 +58,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
   const ix = slugIndex(sitemap);
 
   const products = await db.product.findMany({
-    where: { active: true, kind: { not: "set" }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}) },
+    where: { active: true, kind: { not: "set" }, ...(opts.categoryIds ? { categoryId: { in: opts.categoryIds } } : {}), ...(manual && opts.productIds ? { id: { in: opts.productIds } } : {}) },
     select: { id: true, erpCode: true, title: true, price: true, ean: true, modelCode: true, categoryId: true, brandId: true, brand: { select: { name: true } }, category: { select: { name: true } }, offer: { select: { price: true } },
       energy: { select: { class: true, eprel: { select: { energyClass: true } } } },
       competitorPrices: { where: { competitor: COMP } } },
@@ -65,7 +67,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
   let work: Item[] = products
     .map((p) => ({ p, row: p.competitorPrices[0] }))
     .filter(({ p, row }) => !brandMaps.get(p.brandId)?.notCarried && !isBundle(p.title, "item")
-      && !(row?.checkedAt && now.getTime() - row.checkedAt.getTime() < (!row.extId && row.lastError === NOT_FOUND ? RETRY_MS : FRESH_MS)));
+      && !(!(manual && opts.productIds) && row?.checkedAt && now.getTime() - row.checkedAt.getTime() < (!row.extId && row.lastError === NOT_FOUND ? RETRY_MS : FRESH_MS)));
   // πρώτα οι επιβεβαιωμένες κατηγορίες, μετά ο παλαιότερος έλεγχος
   work.sort((a, b) => Number(pathOf.has(b.p.categoryId)) - Number(pathOf.has(a.p.categoryId)) || (a.row?.checkedAt?.getTime() ?? 0) - (b.row?.checkedAt?.getTime() ?? 0));
   if (opts.limit) work = work.slice(0, opts.limit);

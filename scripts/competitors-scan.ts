@@ -1,5 +1,5 @@
 // Πλήρης σάρωση Κωτσόβολου από τη γραμμή εντολών (χειροκίνητη: δεν αγγίζει το firstScanDone, ίδιος ρυθμός με τη νυχτερινή).
-// npx tsx --conditions=react-server scripts/competitors-scan.ts --budget 2600 --hours 9 --ai 600 [--limit N]
+// npx tsx --conditions=react-server scripts/competitors-scan.ts --budget 2600 --hours 9 --ai 600 [--limit N] [--products id1,id2]
 // Τρέχει μέσα από το runJob του scheduler: ίδιο lock ομάδας «competitors» με τη νυχτερινή, άρα ποτέ δύο σαρώσεις μαζί.
 import { db } from "../lib/db";
 import { runJob } from "../lib/scheduler";
@@ -18,6 +18,7 @@ async function main() {
     ...base,
     maxMin: Math.max(base.maxMin, Math.ceil((hours ?? 6) * 60) + 15), // το lock δεν πρέπει να λήξει πριν τελειώσει η σάρωση
     run: (trigger) => runCompetitorJob(trigger, {
+      productIds: (() => { const i = process.argv.indexOf("--products"); return i > 0 ? process.argv[i + 1]?.split(",").filter(Boolean) : undefined; })(),
       budget: arg("budget") || undefined, hours: hours || undefined, aiMax: arg("ai"), limit: arg("limit") || undefined,
       onProgress: (done, total, msg) => console.log(`[${stamp()}] ${done}/${total} · ${msg}`),
     }),
