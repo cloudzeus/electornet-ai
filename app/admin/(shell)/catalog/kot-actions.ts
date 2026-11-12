@@ -1,5 +1,4 @@
 "use server";
-import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { applyManual, undoManual, writeBlocked } from "@/lib/competitors/bulk";
@@ -47,7 +46,6 @@ export async function changePriceAction(productId: string, input: string, expect
   if ((c.belowCost || c.bigDrop) && !confirmed) return { ok: false, error: c.belowCost ? "Κάτω από το κόστος αγοράς." : "Μεγάλη μείωση.", needConfirm: true };
   const r = await applyManual(productId, c.value, expectWeb, user.id);
   if (!r.ok) return r;
-  revalidatePath("/admin/catalog");
   return { ok: true, batchId: r.batchId, value: c.value };
 }
 
@@ -55,7 +53,6 @@ export async function undoPriceAction(batchId: string): Promise<{ ok: true } | {
   const user = await requirePermission("catalog.sync.run");
   if (typeof batchId !== "string") return { ok: false, error: "Άγνωστη αλλαγή." };
   const r = await undoManual(batchId, user.id);
-  if (r.ok) revalidatePath("/admin/catalog");
   return r;
 }
 

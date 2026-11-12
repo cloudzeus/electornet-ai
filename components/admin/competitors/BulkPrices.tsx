@@ -1,7 +1,9 @@
 "use client";
 // Μαζική αλλαγή τιμής web: φίλτρα + κανόνας + δικλείδες → προεπισκόπηση (planRow στον server) → εφαρμογή/αναίρεση.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Info, Loader2, Lock, RotateCcw, TrendingDown, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Info, Loader2, Lock, RotateCcw, Scale, TrendingDown, X } from "lucide-react";
+import { Dialog } from "@/components/admin/catalog/QuickActions";
+import { KotCheckPanel } from "@/components/admin/catalog/KotDialogs";
 import { applyAction, batchesAction, previewAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
 import { DEFAULT_RULE, SKIP, type Rule, type Skip } from "@/lib/competitors/bulk-core";
 import type { BatchView, Filter, PreviewRow } from "@/lib/competitors/bulk";
@@ -22,6 +24,7 @@ const show = (n: number) => String(n).replace(".", ",");
 
 const shell = "rounded-2xl border border-eu-line bg-white min-w-0";
 const card = `${shell} p-4 md:p-5`;
+const pill = "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px tabular-nums font-bold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
 const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
 const lbl = "font-bold text-eu-ink-2 text-[length:var(--fs-13)]";
 const field = "min-h-11 w-full rounded-lg border border-eu-line-2 bg-white px-3 text-eu-ink text-[length:var(--fs-16)]";
@@ -45,6 +48,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const [batches, setBatches] = useState(initialBatches);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+  const [check, setCheck] = useState<{ id: string; title: string } | null>(null);
   const [loading, startPreview] = useTransition();
   const [busy, startWrite] = useTransition();
 
@@ -123,8 +127,16 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const live = batches.find((b) => b.phase !== "idle");
 
   const note = (r: PreviewRow) => "skip" in r.plan
-    ? <span className="inline-flex items-center gap-1.5 rounded-full bg-eu-amber/10 px-2.5 py-1 font-bold text-eu-ink text-[length:var(--fs-12)]"><AlertTriangle className="size-3.5 shrink-0 text-eu-amber" aria-hidden />{SKIP[r.plan.skip].label}</span>
-    : r.cost != null ? <span className="text-eu-muted text-[length:var(--fs-12)]">κόστος {eur(r.cost)} · {SOURCE[r.costSource ?? ""] ?? "κόστος"}</span> : null;
+    ? <span title={SKIP[r.plan.skip].hint} className="inline-flex items-center gap-1 rounded-full bg-eu-amber/12 px-2 py-0.5 font-semibold text-eu-ink-2 text-[length:var(--fs-11)] whitespace-nowrap"><AlertTriangle className="size-3 shrink-0 text-eu-amber" aria-hidden />{SKIP[r.plan.skip].label}</span>
+    : r.cost != null ? <span className="text-eu-muted text-[length:var(--fs-11)] leading-tight"><span className="tabular-nums text-eu-ink-3">κόστος {eur(r.cost)}</span> · {SOURCE[r.costSource ?? ""] ?? "κόστος"}</span> : null;
+  /** Πόσο ακριβότεροι (▲ κόκκινο) ή φθηνότεροι (▼ πράσινο) είμαστε σήμερα από τον Κωτσόβολο. */
+  const gap = (r: PreviewRow) => {
+    if (r.theirs == null || r.now == null || r.theirs <= 0) return null;
+    const g = ((r.now - r.theirs) / r.theirs) * 100;
+    if (Math.abs(g) < 0.5) return <span className={`${pill} bg-eu-ink/[0.06] text-eu-ink-3`}>= ίδια</span>;
+    return <span className={`${pill} ${g > 0 ? "bg-eu-red/10 text-eu-red" : "bg-eu-green/10 text-eu-green"}`} title={g > 0 ? "Τώρα είμαστε ακριβότεροι" : "Τώρα είμαστε φθηνότεροι"}>{g > 0 ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden />}{pct(g).replace(/^[+-]/, "")}</span>;
+  };
+  const checkBtn = (r: PreviewRow, mobile?: boolean) => <button type="button" onClick={() => setCheck({ id: r.productId, title: r.title })} title="Δες τα δύο προϊόντα δίπλα-δίπλα και επιβεβαίωσε ή απόρριψε το ζευγάρι" className={`inline-flex items-center gap-1 rounded-lg border border-eu-line-2 bg-white px-2 font-semibold text-eu-ink-2 hover:bg-eu-surface text-[length:var(--fs-12)] whitespace-nowrap ${mobile ? "min-h-11" : "min-h-8"}`}><Scale className="size-3.5 text-eu-amber" aria-hidden />Ίδιο προϊόν;</button>;
   const change = (r: PreviewRow) => "changeEur" in r.plan ? `${signedEur(r.plan.changeEur)} · ${pct(r.plan.changePct)}` : "—";
   const changeTone = (r: PreviewRow) => !("changeEur" in r.plan) ? "text-eu-muted" : r.plan.changeEur < 0 ? "font-bold text-eu-green" : "font-bold text-eu-blue";
 
@@ -281,23 +293,24 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
               <span className="text-eu-muted text-[length:var(--fs-12)]">Ξετσέκαρε ό,τι δεν θέλεις να αλλάξει</span>
             </div>
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full border-collapse text-[length:var(--fs-14)]">
-                <thead><tr className="bg-eu-surface text-left text-eu-ink-3 text-[length:var(--fs-12)]">
-                  <th className="w-12 px-3 py-2.5"><span className="sr-only">Επιλογή</span></th>
-                  <th className="px-3 py-2.5">Προϊόν</th><th className="px-3 py-2.5 text-right">Τώρα</th><th className="px-3 py-2.5 text-right">Κωτσόβολος</th>
-                  <th className="px-3 py-2.5 text-right">Νέα τιμή</th><th className="px-3 py-2.5 text-right">Αλλαγή</th><th className="px-3 py-2.5">Σημείωση</th>
+              <table className="w-full border-collapse text-[length:var(--fs-13)]">
+                <thead><tr className="bg-eu-surface text-left text-eu-ink-3 text-[length:var(--fs-12)] font-semibold">
+                  <th className="w-12 px-3 py-2"><span className="sr-only">Επιλογή</span></th>
+                  <th className="px-2 py-2">Προϊόν</th><th className="px-2 py-2 text-right">Τώρα</th><th className="px-2 py-2 text-right">Κωτσόβολος</th>
+                  <th className="px-2 py-2 text-right">Νέα τιμή</th><th className="px-2 py-2 text-right">Αλλαγή</th><th className="px-3 py-2">Σημείωση</th><th className="px-2 py-2"><span className="sr-only">Έλεγχος ζευγαριού</span></th>
                 </tr></thead>
                 <tbody>{rows.map((r) => {
                   const can = "newPrice" in r.plan;
                   return (
-                    <tr key={r.productId} className="border-t border-eu-line align-middle">
-                      <td className="px-1 py-0.5">{can && <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label>}</td>
-                      <td className="px-3 py-2 font-bold text-eu-ink">{r.title}</td>
-                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{eur(r.now)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap">{eur(r.theirs)}</td>
-                      <td className={`px-3 py-2 text-right tabular-nums whitespace-nowrap ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</td>
-                      <td className={`px-3 py-2 text-right tabular-nums whitespace-nowrap ${changeTone(r)}`}>{change(r)}</td>
-                      <td className="px-3 py-2">{note(r)}</td>
+                    <tr key={r.productId} className={`border-t border-eu-line align-middle ${can ? "" : "bg-eu-surface/40"}`}>
+                      <td className="px-1 py-0">{can && <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label>}</td>
+                      <td className={`px-2 py-1.5 font-semibold leading-snug ${can ? "text-eu-ink" : "text-eu-ink-3"}`}>{r.title}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">{eur(r.now)}</td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5"><span className="tabular-nums">{eur(r.theirs)}</span>{gap(r)}</span></td>
+                      <td className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">{"changeEur" in r.plan ? <span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? "bg-eu-green/10 text-eu-green" : "bg-eu-blue/10 text-eu-blue"}`}>{pct(r.plan.changePct)}</span></span> : <span className="text-eu-muted">—</span>}</td>
+                      <td className="px-3 py-1.5 max-w-[15rem]">{note(r)}</td>
+                      <td className="px-2 py-1.5 text-right">{checkBtn(r)}</td>
                     </tr>
                   );
                 })}</tbody>
@@ -318,7 +331,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Νέα</dt><dd className={`m-0 tabular-nums ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</dd></div>
                     </dl>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-9">
-                      <span className={`tabular-nums text-[length:var(--fs-13)] ${changeTone(r)}`}>{change(r)}</span>{note(r)}
+                      <span className={`tabular-nums text-[length:var(--fs-13)] ${changeTone(r)}`}>{change(r)}</span>{note(r)}{checkBtn(r, true)}
                     </div>
                   </li>
                 );
@@ -328,6 +341,9 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
         )}
       </section>
 
+      <Dialog open={!!check} onClose={() => setCheck(null)} title="Έλεγχος Κωτσόβολου" sub={check?.title} icon={<Scale className="size-4 text-eu-amber" aria-hidden />} wide>
+        {check && <KotCheckPanel productId={check.id} onDone={(t) => { setCheck(null); if (t) setDone({ tone: t.ok ? "ok" : "warn", text: t.text }); }} />}
+      </Dialog>
       {/* Ιστορικό */}
       <section data-help="bulk-history" aria-label="Ιστορικό αλλαγών" className={`${card} grid gap-3`}>
         <h3 className={h3}>Ιστορικό αλλαγών</h3>

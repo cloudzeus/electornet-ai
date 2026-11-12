@@ -21,7 +21,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 /** Παράθυρο «Αλλαγή τιμής»: νέα τιμή web με ζωντανή προεπισκόπηση περιθωρίου και διαφοράς από τον Κωτσόβολο· γράφει στο SoftOne με αναίρεση. */
 export function PriceChange({ productId, onDone }: { productId: string; onDone: (t: Toast) => void }) {
-  const router = useRouter();
   const [info, setInfo] = useState<PriceInfo | null | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
   const [v, setV] = useState("");
@@ -38,13 +37,13 @@ export function PriceChange({ productId, onDone }: { productId: string; onDone: 
   const needConfirm = !!c?.ok && (c.belowCost || c.bigDrop);
   const save = () => start(async () => {
     const r = await changePriceAction(productId, v, info.web, arm);
-    if (r.ok) { setDone({ batchId: r.batchId, value: r.value }); onDone({ ok: true, text: `Νέα τιμή ${eur(r.value)} γράφτηκε στο SoftOne και στο e-shop.` }); router.refresh(); return; }
+    if (r.ok) { setDone({ batchId: r.batchId, value: r.value }); onDone({ ok: true, text: `Νέα τιμή ${eur(r.value)} γράφτηκε στο SoftOne και στο e-shop.` }); return; }
     if (r.needConfirm) { setArm(true); return; }
     setErr(r.error);
   });
   const undo = () => start(async () => {
     const r = await undoPriceAction(done!.batchId);
-    if (r.ok) { setDone({ ...done!, undone: true }); onDone({ ok: true, text: `Αναιρέθηκε: η τιμή ξαναγύρισε στα ${eur(info.web)}.` }); router.refresh(); } else setErr(r.error);
+    if (r.ok) { setDone({ ...done!, undone: true }); onDone({ ok: true, text: `Αναιρέθηκε: η τιμή ξαναγύρισε στα ${eur(info.web)}.` }); } else setErr(r.error);
   });
 
   if (done) return (
@@ -66,7 +65,7 @@ export function PriceChange({ productId, onDone }: { productId: string; onDone: 
       {info.blocked && <p role="alert" className="m-0 rounded-lg bg-eu-surface px-2.5 py-1.5 text-eu-ink-2 text-[length:var(--fs-13)]">Μόνο προβολή: {info.blocked}</p>}
       <label className="grid gap-1">
         <span className="font-semibold text-eu-ink-2 text-[length:var(--fs-13)]">Νέα τιμή web, με ΦΠΑ</span>
-        <span className="relative block"><input autoFocus inputMode="decimal" value={v} onChange={(e) => { setV(e.target.value); setErr(null); }} onKeyDown={(e) => { if (e.key === "Enter" && c?.ok && !info.blocked) save(); }} aria-invalid={c ? !c.ok : undefined} aria-describedby="pc-hint" className="w-full rounded-lg border border-eu-line bg-white px-3 pr-8 min-h-11 tabular-nums text-[length:var(--fs-18)] font-bold focus-visible:outline-2 focus-visible:outline-eu-blue" /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-eu-muted">€</span></span>
+        <span className="relative block"><input id="kot-new-price" aria-label="Νέα τιμή web, με ΦΠΑ" autoFocus inputMode="decimal" value={v} onChange={(e) => { setV(e.target.value); setErr(null); }} onKeyDown={(e) => { if (e.key === "Enter" && c?.ok && !info.blocked) save(); }} aria-invalid={c ? !c.ok : undefined} aria-describedby="pc-hint" className="w-full rounded-lg border border-eu-line bg-white px-3 pr-8 min-h-11 tabular-nums text-[length:var(--fs-18)] font-bold focus-visible:outline-2 focus-visible:outline-eu-blue" /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-eu-muted">€</span></span>
       </label>
       {info.theirs != null && (
         <div className="flex flex-wrap gap-1.5">

@@ -191,6 +191,8 @@ export type RowCtx = { id: string; title: string; slug: string | null; active: b
  */
 export function ProductRowActions({ r, can, onToast }: { r: RowCtx; can: RowCan; onToast: (t: Toast) => void }) {
   const router = useRouter();
+  // η λίστα ανανεώνεται όταν κλείσει το παράθυρο τιμής, ώστε να μείνει ανοιχτό το «Αναίρεση»
+  const priceDirty = useRef(false);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; right: number; up: boolean } | null>(null);
@@ -247,8 +249,8 @@ export function ProductRowActions({ r, can, onToast }: { r: RowCtx; can: RowCan;
         </div>,
         document.body,
       )}
-      <Dialog open={dlg === "price"} onClose={() => setDlg(null)} title="Αλλαγή τιμής" sub={r.title} icon={<Euro className="size-4 text-eu-blue" aria-hidden />}>
-        {dlg === "price" && <PriceChange productId={r.id} onDone={(t) => { setToast(t); invalidateProductPeek(r.id); }} />}
+      <Dialog open={dlg === "price"} onClose={() => { setDlg(null); if (priceDirty.current) { priceDirty.current = false; router.refresh(); } }} title="Αλλαγή τιμής" sub={r.title} icon={<Euro className="size-4 text-eu-blue" aria-hidden />}>
+        {dlg === "price" && <PriceChange productId={r.id} onDone={(t) => { setToast(t); invalidateProductPeek(r.id); priceDirty.current = true; }} />}
       </Dialog>
       <Dialog open={dlg === "kot"} onClose={() => setDlg(null)} title="Έλεγχος Κωτσόβολου" sub={r.title} icon={<Scale className="size-4 text-eu-amber" aria-hidden />} wide>
         {dlg === "kot" && <KotCheckPanel productId={r.id} onDone={(t) => { setToast(t); invalidateProductPeek(r.id); setDlg(null); }} />}
