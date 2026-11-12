@@ -26,3 +26,11 @@ const same = (v: string | undefined) => { const s = (v ?? "").trim(); return /^0
 export function extraDiff(before: ExtraRow | null, after: ExtraRow): { col: string; from: string; to: string }[] {
   return EXTRA_COLS.filter((c) => c !== "NUM04" && same(before?.[c]) !== same(after[c])).map((c) => ({ col: c, from: before?.[c] ?? "", to: after[c] ?? "" }));
 }
+
+/** Αρχή του μηνύματος όταν η ζωντανή τιμή web δεν είναι αυτή που περιμέναμε (για να το αναγνωρίζει η αναίρεση). */
+export const WEB_PRICE_CHANGED = "Η τιμή web άλλαξε στο μεταξύ";
+/** `expect`: η τιμή που είδε η προεπισκόπηση. Ίδια (±0,005) με τη ζωντανή → null· αλλιώς το μήνυμα άρνησης. */
+export function expectError(cur: number | null, expect: number | undefined): string | null {
+  if (expect == null || (cur != null && Math.abs(cur - expect) < 0.005)) return null;
+  return `${WEB_PRICE_CHANGED} (${cur ?? "—"} €) — δεν γράφτηκε.`;
+}

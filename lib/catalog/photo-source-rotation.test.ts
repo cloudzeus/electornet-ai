@@ -7,9 +7,11 @@ test("νέα αναζήτηση φωτογραφιών: πάντα άλλη πη
   assert.equal(nextPhotoSource(null, all), "icecat");
   assert.equal(nextPhotoSource("icecat", all), "web");
   assert.equal(nextPhotoSource("web", all), "channel3");
+  assert.equal(nextPhotoSource("channel3", all), "kotsovolos");
+  assert.equal(nextPhotoSource("kotsovolos", all), "shop");
   assert.equal(nextPhotoSource("shop", all), "icecat");
   // χωρίς Channel3 περνά στην επόμενη
-  assert.equal(nextPhotoSource("web", (s) => s !== "channel3"), "shop");
+  assert.equal(nextPhotoSource("web", (s) => s !== "channel3"), "kotsovolos");
   // μόνο μία διαθέσιμη: αναγκαστικά η ίδια
   assert.equal(nextPhotoSource("web", (s) => s === "web"), "web");
 });

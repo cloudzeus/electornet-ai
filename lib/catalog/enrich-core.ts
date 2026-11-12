@@ -219,8 +219,8 @@ export function energyClassFromSpecs(specs: { key: string; value: string }[]): {
 }
 
 /** Σειρά πηγών για «Νέα αναζήτηση» φωτογραφιών: κάθε πάτημα πάει στην επόμενη, όχι ξανά στην ίδια. */
-export type PhotoSource = "icecat" | "web" | "channel3" | "shop";
-export const PHOTO_SOURCES: PhotoSource[] = ["icecat", "web", "channel3", "shop"];
+export type PhotoSource = "icecat" | "web" | "channel3" | "kotsovolos" | "shop";
+export const PHOTO_SOURCES: PhotoSource[] = ["icecat", "web", "channel3", "kotsovolos", "shop"];
 /** Η επόμενη πηγή μετά την `prev` (κυκλικά), παραλείποντας όσες δεν είναι διαθέσιμες. */
 export function nextPhotoSource(prev: PhotoSource | null | undefined, available: (s: PhotoSource) => boolean): PhotoSource | null {
   const i = prev ? PHOTO_SOURCES.indexOf(prev) : -1;

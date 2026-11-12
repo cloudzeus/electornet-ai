@@ -10,10 +10,11 @@ const SRC: Record<string, { label: string; tone: string }> = {
   icecat: { label: "Icecat · επίσημη", tone: "bg-eu-green/10 text-eu-green" },
   web: { label: "Site κατασκευαστή", tone: "bg-eu-green/10 text-eu-green" },
   channel3: { label: "Channel3", tone: "bg-eu-chip text-eu-ink-2" },
+  kotsovolos: { label: "Κωτσόβολος", tone: "bg-eu-chip text-eu-ink-2" },
   shop: { label: "Άλλο κατάστημα", tone: "bg-eu-amber/15 text-eu-ink" },
 };
 /** η πηγή κάθε «Νέας αναζήτησης», όπως τη λέμε στον χρήστη */
-const SEARCHED: Record<string, string> = { icecat: "Icecat", web: "site του κατασκευαστή", channel3: "Channel3", shop: "άλλα καταστήματα" };
+const SEARCHED: Record<string, string> = { icecat: "Icecat", web: "site του κατασκευαστή", channel3: "Channel3", kotsovolos: "Κωτσόβολο", shop: "άλλα καταστήματα" };
 const host = (u: string | null) => { try { return u ? new URL(u).hostname.replace(/^www\./, "") : ""; } catch { return ""; } };
 /** όσες προεπιλέγονται: ελεγμένες και ώς 6, όπως το μαζικό πέρασμα */
 const PRESELECT = 6;

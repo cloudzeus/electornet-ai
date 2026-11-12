@@ -20,7 +20,7 @@ function JobCard({ job, active }: { job: JobRow; active: boolean }) {
   const run = () => start(async () => {
     setResult(null);
     const r = await runScheduledJob(job.key);
-    setResult(r.ran ? { ok: r.ok, text: r.ok ? `Ολοκληρώθηκε: ${r.message}` : `Απέτυχε: ${r.message}` } : { ok: false, text: r.message });
+    setResult(r.ran ? { ok: r.ok, text: r.ok ? `Ολοκληρώθηκε: ${r.message}` : `Απέτυχε: ${r.message}` } : { ok: "started" in r, text: r.message });
   });
   const toggle = () => start(async () => { await toggleScheduledJob(job.key, !job.enabled); setResult({ ok: true, text: job.enabled ? "Η εργασία μπήκε σε παύση." : "Η εργασία ενεργοποιήθηκε." }); });
   const last = result ?? (job.lastMessage ? { ok: !!job.lastOk, text: job.lastMessage } : null);

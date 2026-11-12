@@ -28,7 +28,7 @@ export const MAX_ASPECT = 3;
 export const MIN_BYTES = 10_240;
 
 /** Σειρά προτίμησης πηγών για φωτογραφίες (οι τιμές `EnrichSuggestion.source`). */
-export const PHOTO_SOURCES = ["icecat", "web", "channel3", "shop"] as const;
+export const PHOTO_SOURCES = ["icecat", "web", "channel3", "kotsovolos", "shop"] as const;
 export const sourceRank = (source: string) => { const i = (PHOTO_SOURCES as readonly string[]).indexOf(source); return i < 0 ? PHOTO_SOURCES.length : i; };
 
 /** Ό,τι μάθαμε για μια εικόνα κατεβάζοντάς την (null = δεν κατέβηκε, βλ. `error`). */

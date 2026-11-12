@@ -28,3 +28,12 @@ test("C-1 extraDiff: μόνο το NUM04 επιτρέπεται να αλλάξ�
   // καμία γραμμή πριν (νέα γραμμή MTREXTRA): τα υπόλοιπα πρέπει να είναι κενά/0
   assert.deepEqual(extraDiff(null, okAfter).map((d) => d.col).sort(), ["BOOL01", "VARCHAR01"]);
 });
+
+test("expectError: γράφει μόνο όταν η ζωντανή τιμή web είναι αυτή που περιμέναμε", async () => {
+  const { expectError, WEB_PRICE_CHANGED } = await import("./web-price-core");
+  assert.equal(expectError(3499, undefined), null);
+  assert.equal(expectError(3499, 3499), null);
+  assert.equal(expectError(3499.004, 3499), null);
+  assert.ok(expectError(3449, 3499)!.startsWith(WEB_PRICE_CHANGED));
+  assert.match(expectError(null, 3499)!, /\(— €\)/);
+});

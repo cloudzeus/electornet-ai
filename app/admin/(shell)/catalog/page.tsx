@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { swr } from "@/lib/cache/swr";
-import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText, Search, CalendarCheck, ListChecks, SlidersHorizontal, ChevronDown, X, RotateCcw } from "lucide-react";
+import { Package, ImageOff, AlertTriangle, Images, Ruler, ScanText, Search, CalendarCheck, ListChecks, SlidersHorizontal, ChevronDown, X, RotateCcw, Scale, Link2, HelpCircle, ArrowUp, Unlink } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
@@ -10,6 +10,10 @@ import { LOW_RES_PX } from "@/lib/catalog/product-images";
 import { hasEnergyLabel } from "@/lib/catalog/energy-types";
 import { itemWriteEnabled } from "@/lib/softone/item-write";
 import { ProductTable, ProductCards, type ProductRow } from "@/components/admin/catalog/ProductTable";
+import { kotView } from "@/lib/competitors/badge";
+import { liveCosts } from "@/lib/competitors/cost-cache";
+import { shownCost } from "@/lib/competitors/price-core";
+import { writeBlocked } from "@/lib/competitors/bulk";
 import { SoldAloneBulk } from "@/components/admin/catalog/SoldAloneBulk";
 import { CatalogBulk } from "@/components/admin/catalog/CatalogBulk";
 import { SetsSyncButton } from "@/components/admin/catalog/SetsSyncButton";
@@ -47,6 +51,18 @@ const ON_OFFER: Prisma.ProductOfferWhereInput = { OR: [{ promotionId: { not: nul
 const AVAIL = [["in-stock", "Άμεσα διαθέσιμο"], ["low", "Μικρό απόθεμα"], ["order", "Κατόπιν παραγγελίας"], ["unavailable", "Μη διαθέσιμο"]] as const;
 const num = (v: string) => { const x = Number(v.replace(",", ".")); return v.trim() && Number.isFinite(x) && x >= 0 ? x : null; };
 const shown = { kind: "image", hidden: false } as const;
+/** Φίλτρο «Κωτσόβολος» (?kot=): ζευγάρια = auto/manual· προς επιβεβαίωση = προτάσεις και «άλλο χρώμα». */
+const KOT = "kotsovolos";
+const KOT_F: Record<string, { t: string; w: Prisma.CompetitorPriceWhereInput }> = {
+  pair: { t: "Ζευγάρια", w: { competitor: KOT, match: { in: ["auto", "manual"] }, extId: { not: null } } },
+  check: { t: "Προς επιβεβαίωση", w: { competitor: KOT, match: { in: ["suggested", "variant"] }, extId: { not: null } } },
+  up: { t: "Ακριβότεροι", w: { competitor: KOT, match: { in: ["auto", "manual"] }, extId: { not: null }, available: true, diffPct: { gt: 0.5 } } },
+};
+const kotCounts = swr(async () => {
+  const active = { product: { active: true } };
+  const [pair, check, up] = await Promise.all(Object.values(KOT_F).map((f) => db.competitorPrice.count({ where: { ...f.w, ...active } })));
+  return { pair, check, up };
+}, 5 * 60_000);
 
 /** Τα προϊόντα του καταστήματος (προβολή του SoftOne). Από εδώ ανοίγει η καρτέλα κάθε προϊόντος για τις φωτογραφίες του. */
 /** Γενικά σύνολα του καταλόγου (ίδια για όλους) — 1′ στη μνήμη: τρεις μετρήσεις σε όλα τα προϊόντα με έλεγχο φωτογραφιών. */
@@ -68,7 +84,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const user = await requirePermission("catalog.products.read");
   const promoWrite = can(user.permissions, "catalog.promos.write");
   const sp = await searchParams;
-  const { q = "", f = "", cat = "", sub = "", br = "", pmin = "", pmax = "", st = "", of = "", av = "", type: tRaw = "", page: p = "1", n: nRaw = "" } = sp;
+  const { kot = "", q = "", f = "", cat = "", sub = "", br = "", pmin = "", pmax = "", st = "", of = "", av = "", type: tRaw = "", page: p = "1", n: nRaw = "" } = sp;
   // «Ταξινόμηση» της φόρμας (?o=κλειδί:κατεύθυνση) υπερισχύει μόνο όταν δεν ήρθε κλικ σε κεφαλίδα (?s=)
   const [oS = "", oD = ""] = (sp.o ?? "").split(":");
   const sRaw = sp.s ?? (SORTS[oS] ? oS : ""), dRaw = sp.s ? sp.d ?? "" : oD;
@@ -91,13 +107,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       ...(of === "yes" ? [{ offer: ON_OFFER }] : of === "no" ? [{ NOT: { offer: ON_OFFER } }] : []),
       ...(of === "noprice" ? [{ price: null }] : []),
       ...(AVAIL.some(([k]) => k === av) ? [{ availState: av }] : []),
+      ...(KOT_F[kot] ? [{ competitorPrices: { some: KOT_F[kot].w } }] : kot === "none" ? [{ NOT: { competitorPrices: { some: { competitor: KOT, extId: { not: null }, match: { in: ["auto", "manual", "suggested", "variant"] } } } } }] : []),
     ],
     ...(type === "item" ? { kind: "item" } : type === "set" ? { kind: "set" } : type === "parts" || type === "gift" ? { kind: "set", setSpcs: { in: spcsWhere((x) => x.kind === type) } } : {}),
     ...(f === "alone-no" ? { kind: "item", soldAlone: false } : f === "set-out" ? { kind: "set", active: true, stock: { lte: 0 } } : f === "set-nomain" ? { kind: "set", setSpcs: { in: spcsWhere((x) => !x.mainOnSite) } } : f === "main" ? { kind: "item", erpCode: { in: [...(ix?.mainSets.keys() ?? [])] } } : {}),
     ...(f === "noimg" ? { media: { none: shown } } : f === "lowres" ? { media: { some: { ...shown, width: { lt: LOW_RES_PX }, height: { lt: LOW_RES_PX } } } } : f === "one" ? { media: { some: shown }, NOT: { media: { some: { ...shown, sortNo: { gt: 1 } } } } } : f === "inactive" ? { active: false } : f === "incomplete" ? { active: true, publishMissing: { isEmpty: false } } : f === "unpublished" ? { active: true, publishReady: false } : {}),
   };
   const [rows, total, masters, [all, withImg, lowRes], brands, subs, stickers] = await Promise.all([
-    db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, createdAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
+    db.product.findMany({ where, orderBy: [SORTS[sort](dir), { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE, select: { id: true, title: true, slug: true, source: true, vatRate: true, kind: true, setSpcs: true, soldAlone: true, soldAloneMode: true, sku: true, ean: true, erpCode: true, active: true, price: true, stock: true, dimStatus: true, updatedAt: true, createdAt: true, s1SyncedAt: true, brand: { select: { name: true } }, category: { select: { name: true, parent: { select: { name: true, parent: { select: { name: true } } } } } }, energy: { select: { class: true, source: true } }, offer: { select: { price: true } }, competitorPrices: { where: { competitor: "kotsovolos" }, select: { cost: true, match: true, extId: true, extUrl: true, extTitle: true, listPrice: true, offerPrice: true, available: true, ourPrice: true, diffPct: true, lastError: true, checkedAt: true } }, media: { where: shown, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true, width: true, height: true } }, _count: { select: { media: { where: shown }, specs: true, dimensions: true } } } }),
     db.product.count({ where }),
     db.category.findMany({ where: { depth: 0, active: true }, orderBy: { sortNo: "asc" }, select: { id: true, name: true } }),
     catalogTotals(),
@@ -105,6 +122,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     cat ? db.category.findMany({ where: { parentId: cat, active: true }, orderBy: { sortNo: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
     db.sticker.findMany({ where: { active: true }, orderBy: { sort: "asc" }, select: { id: true, name: true } }),
   ]);
+  // κόστος τελευταίας αγοράς: αποθηκευμένο στα ζευγάρια Κωτσόβολου, αλλιώς ζωντανή ανάγνωση SoftOne (κρυφή μνήμη 6 ωρών, όριο χρόνου)
+  const live = await liveCosts(rows.filter((r) => r.competitorPrices[0]?.cost == null && r.source === "softone").map((r) => Number(r.erpCode)));
   const pages = Math.max(1, Math.ceil(total / PAGE));
   // sets και τεμάχια που πουλήθηκαν (e-shop + παραστατικά SoftOne, χωρίς ακυρωμένα) — μόνο για τις γραμμές της σελίδας, σε έναν γύρο
   const ids = rows.map((r) => r.id);
@@ -124,9 +143,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     thumb: m ? m.thumbUrl ?? m.url : null, photos: r._count.media, lowMain: m?.width != null && m.height != null && Math.max(m.width, m.height) < LOW_RES_PX, specs: r._count.specs,
     price: r.price, offer: r.offer ? Number(r.offer.price) : null, stock: r.stock, sold: sold.get(r.id) ?? 0,
     energy: r.energy ? { cls: r.energy.class, source: r.energy.source } : null, energyNeeded: hasEnergyLabel(r.category.name), dims: r._count.dimensions, dimStatus: r.dimStatus,
-    updated: r.updatedAt.toISOString(), created: r.createdAt.toISOString(), synced: r.s1SyncedAt?.toISOString() ?? null,
+    updated: r.updatedAt.toISOString(), created: r.createdAt.toISOString(), synced: r.s1SyncedAt?.toISOString() ?? null, kot: kotView(r.competitorPrices[0]),
+    ...((c) => ({ cost: c?.cost ?? null, costUnverified: !!c?.unverified }))(r.competitorPrices[0]?.cost != null ? { cost: Number(r.competitorPrices[0].cost), unverified: false } : shownCost(live.get(Number(r.erpCode)), r.price, Number(r.vatRate))), vat: Number(r.vatRate),
   }; });
-  const query = { q, f, cat, sub, br, pmin, pmax, st, of, av, type, s: sRaw, d: dRaw, n: nRaw };
+  const query = { kot, q, f, cat, sub, br, pmin, pmax, st, of, av, type, s: sRaw, d: dRaw, n: nRaw };
   // ενεργά φίλτρα ως chips (λέξεις, όχι μόνο χρώμα)· το ✕ κάθε chip αφαιρεί μόνο αυτό
   const label = (sel: string, v: string, opts: readonly (readonly [string, string])[]) => opts.find(([k]) => k === v)?.[1] ?? sel;
   const chips: { k: (keyof typeof query)[]; t: string }[] = [
@@ -140,11 +160,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     av && { k: ["av"], t: label("Διαθεσιμότητα", av, AVAIL) },
     type && { k: ["type"], t: TYPES.find((t) => t.v === type)?.label ?? type },
     f && { k: ["f"], t: label("Φίλτρο", f, F_OPTS) },
+    kot && { k: ["kot"], t: `Κωτσόβολος: ${KOT_F[kot]?.t ?? (kot === "none" ? "χωρίς ζευγάρι" : kot)}` },
   ].filter((x): x is { k: (keyof typeof query)[]; t: string } => !!x);
   const without = (ks: string[]) => { const u = new URLSearchParams(Object.entries(query).filter(([k, v]) => v && !ks.includes(k))); return `?${u}`; };
   const more = !!(br || pmin || pmax || st || of || av || f || type);
   const canWrite = can(user.permissions, "catalog.products.write");
-  const rowCan = { promo: promoWrite, write: canWrite, erpSave: canWrite && can(user.permissions, "catalog.sync.run") && (await itemWriteEnabled()) };
+  const rowCan = { promo: promoWrite, write: canWrite, erpSave: canWrite && can(user.permissions, "catalog.sync.run") && (await itemWriteEnabled()), price: can(user.permissions, "catalog.sync.run") && !(await writeBlocked()) };
+  const kc = await kotCounts().catch(() => null);
+  const kotHref = (v: string) => { const u = new URLSearchParams(Object.entries({ ...query, kot: v }).filter(([k, x]) => x && k !== "page")); return `?${u}`; };
   const href = (n: number) => { const u = new URLSearchParams({ ...query, page: String(n) }); [...u.keys()].forEach((k) => !u.get(k) && u.delete(k)); return `?${u}`; };
   const n = (v: number) => v.toLocaleString("el-GR");
 
@@ -181,6 +204,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <div className="grid gap-1.5">
         <form className="grid gap-1.5 min-w-0" data-help="catalog.filters">
           {nRaw && <input type="hidden" name="n" value={nRaw} />}
+          {kot && <input type="hidden" name="kot" value={kot} />}
           <div className="flex flex-wrap gap-1.5">
             <label className="relative flex-[2_1_14rem] min-w-0"><span className="sr-only">Αναζήτηση</span><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input id="cat-q" name="q" type="search" defaultValue={q} placeholder="Τίτλος, κωδικός, barcode, MTRL" className="rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-13)] w-full min-w-0 pl-8" /></label>
             <label className="sr-only" htmlFor="cat-c">Κατηγορία</label>
@@ -211,6 +235,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             </div>
           )}
         </form>
+        <nav aria-label="Κωτσόβολος" data-help="catalog.kot-filter" className="flex flex-wrap items-center gap-1.5 text-[length:var(--fs-13)]">
+          <span className="inline-flex items-center gap-1 font-bold text-eu-ink-3 pr-1"><Scale className="size-4" aria-hidden />Κωτσόβολος</span>
+          {([["", "Όλα", null, null], ["pair", "Ζευγάρια", Link2, kc?.pair], ["check", "Προς επιβεβαίωση", HelpCircle, kc?.check], ["up", "Ακριβότεροι", ArrowUp, kc?.up], ["none", "Χωρίς ζευγάρι", Unlink, null]] as const).map(([v, t, I, c]) => (
+            <Link key={v} href={kotHref(v)} aria-current={kot === v ? "true" : undefined} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-8 font-bold transition-colors ${kot === v ? "bg-eu-navy text-white" : "border border-eu-line bg-white text-eu-ink-2 hover:border-eu-navy"}`}>
+              {I && <I className={`size-3.5 ${kot === v ? "" : v === "up" ? "text-eu-red" : v === "check" ? "text-eu-amber" : "text-eu-muted"}`} aria-hidden />}{t}{c != null && <span className={`tabular-nums font-normal ${kot === v ? "text-white/80" : "text-eu-muted"}`}>{n(c)}</span>}
+            </Link>
+          ))}
+        </nav>
         <CatalogBulk rows={list} stickers={stickers} canWrite={canWrite} />
         {promoWrite && (
           <form id="bulk-promo" action="/admin/prosfores/new" method="get" className="flex flex-wrap items-center gap-1.5 rounded-lg bg-eu-chip px-2 py-1 justify-self-start max-w-full">
