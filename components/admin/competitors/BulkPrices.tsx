@@ -1,7 +1,7 @@
 "use client";
 // Μαζική αλλαγή τιμής web: φίλτρα + κανόνας + δικλείδες → προεπισκόπηση (planRow στον server) → εφαρμογή/αναίρεση.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Info, Loader2, Lock, RotateCcw, Scale, TrendingDown, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Info, Loader2, Lock, ExternalLink, RotateCcw, Scale, TrendingDown, X } from "lucide-react";
 import { Dialog } from "@/components/admin/catalog/QuickActions";
 import { KotCheckPanel } from "@/components/admin/catalog/KotDialogs";
 import { applyAction, batchesAction, previewAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
@@ -24,7 +24,17 @@ const show = (n: number) => String(n).replace(".", ",");
 
 const shell = "rounded-2xl border border-eu-line bg-white min-w-0";
 const card = `${shell} p-4 md:p-5`;
-const pill = "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px tabular-nums font-bold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
+/** Χρώμα με ένα νόημα: κόκκινο = ζημιά/ακριβότεροι, κεχριμπαρί = θέλει ματιά, μπλε = κλειδωμένο από προσφορά, γκρι = λείπουν στοιχεία, πράσινο = εντάξει. */
+const TONE = {
+  red: "bg-eu-red/8 ring-eu-red/25 text-[color-mix(in_oklab,var(--eu-red)_72%,black)]",
+  amber: "bg-eu-amber/10 ring-eu-amber/30 text-[color-mix(in_oklab,var(--eu-amber)_62%,black)]",
+  blue: "bg-eu-blue/7 ring-eu-blue/20 text-eu-blue",
+  grey: "bg-eu-ink/[0.04] ring-eu-ink/12 text-eu-ink-3",
+  green: "bg-eu-green/8 ring-eu-green/25 text-eu-green",
+} as const;
+const SKIP_TONE: Record<Skip, keyof typeof TONE> = { "below-cost": "red", "max-drop": "amber", "max-rise": "amber", promo: "blue", "no-cost": "grey", stale: "grey", gone: "grey", cheaper: "green", same: "green" };
+const SKIP_ICON: Record<keyof typeof TONE, typeof AlertTriangle> = { red: AlertTriangle, amber: AlertTriangle, blue: Lock, grey: Info, green: CheckCircle2 };
+const pill = "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px ring-1 ring-inset tabular-nums font-bold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
 const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
 const lbl = "font-bold text-eu-ink-2 text-[length:var(--fs-13)]";
 const field = "min-h-11 w-full rounded-lg border border-eu-line-2 bg-white px-3 text-eu-ink text-[length:var(--fs-16)]";
@@ -127,15 +137,19 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   const live = batches.find((b) => b.phase !== "idle");
 
   const note = (r: PreviewRow) => "skip" in r.plan
-    ? <span title={SKIP[r.plan.skip].hint} className="inline-flex items-center gap-1 rounded-full bg-eu-amber/12 px-2 py-0.5 font-semibold text-eu-ink-2 text-[length:var(--fs-11)] whitespace-nowrap"><AlertTriangle className="size-3 shrink-0 text-eu-amber" aria-hidden />{SKIP[r.plan.skip].label}</span>
+    ? (() => { const t = SKIP_TONE[r.plan.skip], I = SKIP_ICON[t]; return <span title={SKIP[r.plan.skip].hint} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1 ring-inset font-semibold text-[length:var(--fs-11)] whitespace-nowrap ${TONE[t]}`}><I className="size-3 shrink-0" aria-hidden />{SKIP[r.plan.skip].label}</span>; })()
     : r.cost != null ? <span className="text-eu-muted text-[length:var(--fs-11)] leading-tight"><span className="tabular-nums text-eu-ink-3">κόστος {eur(r.cost)}</span> · {SOURCE[r.costSource ?? ""] ?? "κόστος"}</span> : null;
   /** Πόσο ακριβότεροι (▲ κόκκινο) ή φθηνότεροι (▼ πράσινο) είμαστε σήμερα από τον Κωτσόβολο. */
   const gap = (r: PreviewRow) => {
     if (r.theirs == null || r.now == null || r.theirs <= 0) return null;
     const g = ((r.now - r.theirs) / r.theirs) * 100;
-    if (Math.abs(g) < 0.5) return <span className={`${pill} bg-eu-ink/[0.06] text-eu-ink-3`}>= ίδια</span>;
-    return <span className={`${pill} ${g > 0 ? "bg-eu-red/10 text-eu-red" : "bg-eu-green/10 text-eu-green"}`} title={g > 0 ? "Τώρα είμαστε ακριβότεροι" : "Τώρα είμαστε φθηνότεροι"}>{g > 0 ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden />}{pct(g).replace(/^[+-]/, "")}</span>;
+    if (Math.abs(g) < 0.5) return <span className={`${pill} ${TONE.grey}`}>= ίδια</span>;
+    return <span className={`${pill} ${g > 0 ? TONE.red : TONE.green}`} title={g > 0 ? "Τώρα είμαστε ακριβότεροι" : "Τώρα είμαστε φθηνότεροι"}>{g > 0 ? <ArrowUp className="size-3" aria-hidden /> : <ArrowDown className="size-3" aria-hidden />}{pct(g).replace(/^[+-]/, "")}</span>;
   };
+  /** Τιμή Κωτσόβολου ως σύνδεσμος στη σελίδα του (νέα καρτέλα). */
+  const theirsLink = (r: PreviewRow) => r.url
+    ? <a href={r.url} target="_blank" rel="noopener noreferrer" title="Άνοιγμα στον Κωτσόβολο (νέα καρτέλα)" className="inline-flex items-center gap-1 tabular-nums text-eu-ink hover:text-eu-blue hover:underline">{eur(r.theirs)}<ExternalLink className="size-3 shrink-0 text-eu-muted" aria-hidden /></a>
+    : <span className="tabular-nums">{eur(r.theirs)}</span>;
   const checkBtn = (r: PreviewRow, mobile?: boolean) => <button type="button" onClick={() => setCheck({ id: r.productId, title: r.title })} title="Δες τα δύο προϊόντα δίπλα-δίπλα και επιβεβαίωσε ή απόρριψε το ζευγάρι" className={`inline-flex items-center gap-1 rounded-lg border border-eu-line-2 bg-white px-2 font-semibold text-eu-ink-2 hover:bg-eu-surface text-[length:var(--fs-12)] whitespace-nowrap ${mobile ? "min-h-11" : "min-h-8"}`}><Scale className="size-3.5 text-eu-amber" aria-hidden />Ίδιο προϊόν;</button>;
   const change = (r: PreviewRow) => "changeEur" in r.plan ? `${signedEur(r.plan.changeEur)} · ${pct(r.plan.changePct)}` : "—";
   const changeTone = (r: PreviewRow) => !("changeEur" in r.plan) ? "text-eu-muted" : r.plan.changeEur < 0 ? "font-bold text-eu-green" : "font-bold text-eu-blue";
@@ -306,9 +320,9 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                       <td className="px-1 py-0">{can && <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label>}</td>
                       <td className={`px-2 py-1.5 font-semibold leading-snug ${can ? "text-eu-ink" : "text-eu-ink-3"}`}>{r.title}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">{eur(r.now)}</td>
-                      <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5"><span className="tabular-nums">{eur(r.theirs)}</span>{gap(r)}</span></td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5">{theirsLink(r)}{gap(r)}</span></td>
                       <td className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right whitespace-nowrap">{"changeEur" in r.plan ? <span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? "bg-eu-green/10 text-eu-green" : "bg-eu-blue/10 text-eu-blue"}`}>{pct(r.plan.changePct)}</span></span> : <span className="text-eu-muted">—</span>}</td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">{"changeEur" in r.plan ? <span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? TONE.green : TONE.blue}`}>{pct(r.plan.changePct)}</span></span> : <span className="text-eu-muted">—</span>}</td>
                       <td className="px-3 py-1.5 max-w-[15rem]">{note(r)}</td>
                       <td className="px-2 py-1.5 text-right">{checkBtn(r)}</td>
                     </tr>
@@ -327,7 +341,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                     </div>
                     <dl className="m-0 grid grid-cols-3 gap-2 pl-9 text-[length:var(--fs-13)]">
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Τώρα</dt><dd className="m-0 tabular-nums">{eur(r.now)}</dd></div>
-                      <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Κωτσόβολος</dt><dd className="m-0 tabular-nums">{eur(r.theirs)}</dd></div>
+                      <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Κωτσόβολος</dt><dd className="m-0">{theirsLink(r)}</dd></div>
                       <div><dt className="text-eu-muted text-[length:var(--fs-12)]">Νέα</dt><dd className={`m-0 tabular-nums ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</dd></div>
                     </dl>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-9">

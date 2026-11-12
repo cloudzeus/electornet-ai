@@ -20,6 +20,7 @@ export type Filter = { categoryId?: string; brandId?: string; productId?: string
 export type PreviewRow = {
   productId: string; title: string; brand: string; now: number; web: number; theirs: number; checkedAt: string;
   cost: number | null; costSource: string | null; costAt: string | null; plan: Plan;
+  /** σελίδα του προϊόντος στον Κωτσόβολο */ url: string | null;
 };
 
 /** Γιατί δεν γίνεται εγγραφή τώρα (null = ανοιχτά και τα δύο διακόπτες). */
@@ -40,13 +41,13 @@ async function loadRows(where: { productIds?: string[]; filter?: Filter }) {
       product: { active: true, ...(f?.categoryId ? { categoryId: f.categoryId } : {}), ...(f?.brandId ? { brandId: f.brandId } : {}) },
     },
     select: {
-      listPrice: true, offerPrice: true, available: true, checkedAt: true, cost: true, costSource: true, costAt: true,
+      listPrice: true, offerPrice: true, available: true, checkedAt: true, cost: true, costSource: true, costAt: true, extUrl: true,
       product: { select: { id: true, erpCode: true, title: true, price: true, vatRate: true, brand: { select: { name: true } }, offer: { select: { price: true, promotionId: true } } } },
     },
     orderBy: { diffPct: { sort: "desc", nulls: "last" } },
     take: 2000,
   });
-  const out: (Row & { title: string; brand: string; costSource: string | null })[] = [];
+  const out: (Row & { title: string; brand: string; costSource: string | null; url: string | null })[] = [];
   for (const c of prices) {
     const p = c.product, theirs = n(c.offerPrice) ?? n(c.listPrice), now = ourPrice(p), mtrl = Number(p.erpCode);
     if (theirs == null || theirs <= 0 || now == null || now <= 0 || p.price == null || p.price <= 0 || !Number.isInteger(mtrl) || mtrl <= 0) continue;
@@ -56,7 +57,7 @@ async function loadRows(where: { productIds?: string[]; filter?: Filter }) {
       productId: p.id, mtrl, now, web: p.price, theirs, checkedAt: c.checkedAt ?? new Date(0), available: c.available, promo: !!p.offer?.promotionId,
       // το κόστος αγοράς είναι χωρίς ΦΠΑ, οι τιμές μας με ΦΠΑ — σύγκριση στην ίδια βάση
       cost: netCost == null ? null : Math.round(netCost * (1 + Number(p.vatRate) / 100) * 100) / 100, costAt: c.costAt,
-      title: p.title, brand: p.brand.name, costSource: c.costSource,
+      title: p.title, brand: p.brand.name, costSource: c.costSource, url: c.extUrl ? `https://www.kotsovolos.gr/${c.extUrl.replace(/^\/+/, "")}` : null,
     });
   }
   return out;
@@ -66,7 +67,7 @@ export async function previewBulk(filter: Filter, rule: Rule): Promise<PreviewRo
   const at = new Date();
   return (await loadRows({ filter })).map((r) => ({
     productId: r.productId, title: r.title, brand: r.brand, now: r.now, web: r.web, theirs: r.theirs, checkedAt: r.checkedAt.toISOString(),
-    cost: r.cost, costSource: r.costSource, costAt: r.costAt?.toISOString() ?? null, plan: planRow(r, rule, at),
+    cost: r.cost, costSource: r.costSource, costAt: r.costAt?.toISOString() ?? null, plan: planRow(r, rule, at), url: r.url,
   }));
 }
 
