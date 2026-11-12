@@ -264,7 +264,8 @@ test("setCandidates: το σετ της εσωτερικής, όχι η ίδια
     "air-condition-heaters/air-condition/7000-to-15000-btu/321662-a-c-in24btu-inventor-empviw24wfi-emperor", "x/1-a-c-in24btu-inventor-empviw24wfx", "x/2-a-c-toyotomi-empviw24wfi"].map(it);
   const r = setCandidates({ brand: "Inventor", models: ["INVENTOR", "EMPVI(W)-24WFI", null], indoorArt: "321669" }, pool);
   assert.deepEqual(r.map((x) => x.art), ["321662"]);
-  assert.deepEqual(setCandidates({ brand: "Inventor", models: ["INVENTOR"], indoorArt: "321669" }, pool), []); // χωρίς ψηφίο δεν είναι κωδικός
+  assert.deepEqual(setCandidates({ brand: "Inventor", models: ["INVENTOR"], indoorArt: "321669" }, pool.slice(1)), []); // χωρίς ψηφίο δεν είναι κωδικός
+  assert.deepEqual(setCandidates({ brand: "Inventor", models: ["INVENTOR"], indoorArt: "321669" }, pool).map((x) => x.art), ["321662"]); // ο κωδικός από το slug της εσωτερικής
 });
 
 test("kotHref: κανονική διαδρομή μένει, χωρίς κατηγορία γίνεται αναζήτηση", async () => {
@@ -279,4 +280,13 @@ test("isIndoorUnit: μόνο η εσωτερική μονάδα, όχι εξωτ
   assert.equal(isIndoorUnit("324819-ες-a-c-in12btu-hisense-uni-hb-black"), true);
   assert.equal(isIndoorUnit("324820-εξ-a-c-in12btu-hisense-uni-hb"), false);
   assert.equal(isIndoorUnit("324803-a-c-in12btu-hisense-uni-hb-black"), false);
+});
+
+test("setCandidates: ο πιο συγκεκριμένος κωδικός πρώτα, κατάληξη -I του Midea", async () => {
+  const { setCandidates } = await import("./core");
+  const inv = ["/333450-ες-a-c-in12btu-inventor-invi-12wfi", "x/307826-a-c-in12btu-inventor-empvi-12wfi-emperor", "x/304337-a-c-in12btu-inventor-lhuvi-12wfi-leon",
+    "x/333445-a-c-in12btu-inventor-intellia-invi-12wfi"].map(it);
+  assert.equal(setCandidates({ brand: "Inventor", models: ["INVI-12WFI", "12WFI"], indoorArt: "333450" }, inv)[0].art, "333445");
+  const mid = ["/252268-ες-a-c-in12btu-midea-aep2-12nxd6-i", "x/252263-a-c-in12-midea-aep212nxd6-all-easy-pro", "x/252264-a-c-in18-midea-aep218nxd6-all-easy-pro"].map(it);
+  assert.deepEqual(setCandidates({ brand: "Midea", models: ["AEP2-12NXD6-I"], indoorArt: "252268" }, mid).map((x) => x.art), ["252263"]);
 });

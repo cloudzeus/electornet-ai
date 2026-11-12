@@ -215,8 +215,13 @@ export const isIndoorUnit = (last: string) => /^\d+-ες-/.test(last);
 /** Το σετ (εσωτερική + εξωτερική) μιας εσωτερικής μονάδας με τιμή-σύμβολο: είδη της ίδιας μάρκας με τον ίδιο κωδικό στο slug,
  *  όχι η ίδια μονάδα και όχι άλλη μονάδα («ες-…», «εξ-…», «πανελ-…»). Το αν είναι πράγματι σετ της μονάδας το λέει το components του API. */
 export function setCandidates(o: { brand: string; alias?: string | null; models: (string | null)[]; indoorArt: string }, pool: KotItem[]): KotItem[] {
-  const ms = new Set(o.models.map((m) => norm(m ?? "")).filter((m) => m.length >= MIN_MODEL && /\d/.test(m)));
-  return pool.filter((c) => c.art !== o.indoorArt && !/^\d+-(ες|εξ|πανελ)-/.test(c.last) && hasBrand(c.last, o.brand, o.alias) && slugRuns(c.last).some((r) => ms.has(r)));
+  const indoor = pool.find((c) => c.art === o.indoorArt);
+  const ms = [...new Set([...o.models.map((m) => norm(m ?? "")), ...(indoor ? slugRuns(indoor.last) : [])])].filter((m) => m.length >= MIN_MODEL && /\d/.test(m) && !/btu/.test(m));
+  // ίσος κωδικός, ή ο ένας πρόθεμα του άλλου με διαφορά ≤ 2 (π.χ. aep212nxd6i ↔ aep212nxd6 στο slug του σετ)
+  const score = (c: KotItem) => Math.max(0, ...slugRuns(c.last).map((r) => ms.some((m) => m === r || ((m.startsWith(r) || r.startsWith(m)) && Math.abs(m.length - r.length) <= 2 && Math.min(m.length, r.length) >= 6)) ? r.length : 0));
+  // ο πιο συγκεκριμένος κωδικός πρώτα: γενικά κομμάτια («12wfi») ταιριάζουν σε όλα τα σετ της σειράς
+  return pool.filter((c) => c.art !== o.indoorArt && !/^\d+-(ες|εξ|πανελ)-/.test(c.last) && hasBrand(c.last, o.brand, o.alias))
+    .map((c) => ({ c, s: score(c) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.c);
 }
 
 /** (εμείς − Κωτσ.) / Κωτσ. · 100, 1 δεκαδικό. */

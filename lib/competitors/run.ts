@@ -125,7 +125,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
       if ("error" in r || !(r.symbolic || isIndoorUnit(kot.last))) return { kot, r };
       const bm = brandMaps.get(p.brandId);
       const cands = setCandidates({ brand: p.brand.name, alias: bm?.alias, models: [p.modelCode, ...p.title.split(/\s+/), ...r.title.split(/\s+/)], indoorArt: kot.art }, brandPool(ix, p.brand.name, bm?.alias));
-      for (const s of cands.slice(0, 2)) {
+      for (const s of cands.slice(0, 4)) {
         const x = await get(s.art);
         if (!("error" in x) && x.components.includes(kot.art) && (x.offer ?? x.list) != null) { c.sets++; return { kot: s, r: x }; }
       }
