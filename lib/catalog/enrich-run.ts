@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { channel3Usage, enrichFromChannel3 } from "./channel3";
 import { matchCodes } from "./channel3-core";
-import { energyClassFromSpecs, modelsFromSpecs } from "./enrich-core";
+import { energyClassFromSpecs, modelsFromSpecs, nextPhotoSource } from "./enrich-core";
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
 import { projectSourceDimensions } from "./product-dimensions";
 import { suggestDims } from "./enrich-suggestions";
@@ -123,4 +123,24 @@ export async function setMainProductIds(): Promise<string[]> {
     g as (select spcs from l group by spcs having count(*) = 2 and count(pid) = 1)
     select distinct pid as id from l where pid is not null and spcs in (select spcs from g)`;
   return rows.map((r) => r.id);
+}
+
+/**
+ * Αναζήτηση φωτογραφιών σε ΜΙΑ πηγή, διαφορετική από την προηγούμενη (`prev` από το παράθυρο· αλλιώς η πηγή που
+ * ελέγχθηκε τελευταία για το προϊόν). Η Channel3 παραλείπεται χωρίς κλειδί / υπόλοιπο / κωδικό κατασκευαστή.
+ */
+export async function searchPhotosNextSource(productId: string, prev?: EnrichSource | null): Promise<EnrichStep | null> {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { sku: true, ean: true, title: true, modelCode: true, brand: { select: { name: true } }, category: { select: { name: true } }, enrichments: { orderBy: { checkedAt: "desc" }, take: 1, select: { source: true } } } });
+  if (!p) return null;
+  const last = prev ?? (p.enrichments[0]?.source as EnrichSource | undefined);
+  const c3 = matchCodes(p).length ? await channel3Usage() : null;
+  const source = nextPhotoSource(last, (s) => s !== "channel3" || !!(c3?.configured && c3.left > 0));
+  if (!source) return null;
+  const base = { brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku };
+  const r = source === "icecat" ? await enrichFromIcecat({ ean: p.ean, sku: p.sku, modelCode: p.modelCode, brand: p.brand.name })
+    : source === "channel3" ? await enrichFromChannel3(base)
+    : source === "web" ? await enrichFromWeb({ ...base, typeName: p.category.name })
+    : await enrichFromShops({ ...base, typeName: p.category.name, ean: p.ean });
+  await storeEnrichment(productId, r);
+  return { source, status: r.status, specs: r.specs.length, images: r.images?.length ?? 0, sourceName: r.sourceName, url: r.url, note: r.error, costUsd: r.costUsd };
 }

@@ -217,3 +217,14 @@ export function energyClassFromSpecs(specs: { key: string; value: string }[]): {
   }
   return null;
 }
+
+/** Σειρά πηγών για «Νέα αναζήτηση» φωτογραφιών: κάθε πάτημα πάει στην επόμενη, όχι ξανά στην ίδια. */
+export type PhotoSource = "icecat" | "web" | "channel3" | "shop";
+export const PHOTO_SOURCES: PhotoSource[] = ["icecat", "web", "channel3", "shop"];
+/** Η επόμενη πηγή μετά την `prev` (κυκλικά), παραλείποντας όσες δεν είναι διαθέσιμες. */
+export function nextPhotoSource(prev: PhotoSource | null | undefined, available: (s: PhotoSource) => boolean): PhotoSource | null {
+  const i = prev ? PHOTO_SOURCES.indexOf(prev) : -1;
+  for (let k = 1; k <= PHOTO_SOURCES.length; k++) { const s = PHOTO_SOURCES[(i + k) % PHOTO_SOURCES.length]; if (available(s)) return s; }
+  return null;
+}
+

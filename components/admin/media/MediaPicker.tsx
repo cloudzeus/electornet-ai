@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ImagePlus, X, Film, FileText } from "lucide-react";
 import type { MediaAssetDTO, MediaKind } from "@/lib/media/types";
 import { MediaLibrary } from "./MediaLibrary";
@@ -8,10 +8,12 @@ import { sx } from "@/components/ui/sx";
 
 /** Modal wrapper of the library in picker mode. */
 export function MediaPickerDialog({ accept, multiple, canWrite, onSelect, onClose }: { accept?: MediaKind[]; multiple?: boolean; canWrite: boolean; onSelect: (a: MediaAssetDTO[]) => void; onClose: () => void }) {
+  // η σελίδα πίσω δεν κυλά όσο είναι ανοιχτό: μία μόνο κάθετη κύλιση, του πλέγματος
+  useEffect(() => { const el = document.documentElement, prev = el.style.overflow; el.style.overflow = "hidden"; return () => { el.style.overflow = prev; }; }, []);
   return (
     <div className="fixed inset-0 z-[75]" role="dialog" aria-modal="true" aria-label="Επιλογή από τη βιβλιοθήκη">
       <button type="button" className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" aria-label="Κλείσιμο" onClick={onClose} />
-      <div className="absolute inset-3 @md:inset-8 bg-white rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid">
+      <div className="absolute inset-3 @md:inset-8 bg-white rounded-3xl shadow-[var(--shadow-overlay)] overflow-hidden grid grid-rows-[minmax(0,1fr)]">
         <MediaLibrary mode="picker" accept={accept} multiple={multiple} canWrite={canWrite} onSelect={onSelect} onClose={onClose} />
       </div>
     </div>

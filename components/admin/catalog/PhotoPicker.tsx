@@ -12,6 +12,8 @@ const SRC: Record<string, { label: string; tone: string }> = {
   channel3: { label: "Channel3", tone: "bg-eu-chip text-eu-ink-2" },
   shop: { label: "Άλλο κατάστημα", tone: "bg-eu-amber/15 text-eu-ink" },
 };
+/** η πηγή κάθε «Νέας αναζήτησης», όπως τη λέμε στον χρήστη */
+const SEARCHED: Record<string, string> = { icecat: "Icecat", web: "site του κατασκευαστή", channel3: "Channel3", shop: "άλλα καταστήματα" };
 const host = (u: string | null) => { try { return u ? new URL(u).hostname.replace(/^www\./, "") : ""; } catch { return ""; } };
 /** όσες προεπιλέγονται: ελεγμένες και ώς 6, όπως το μαζικό πέρασμα */
 const PRESELECT = 6;
@@ -29,6 +31,8 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
   const [mode, setMode] = useState<"load" | "search" | "save" | null>("load");
   const [, start] = useTransition();
   const [note, setNote] = useState<Toast>(null);
+  // η πηγή της τελευταίας αναζήτησης: η επόμενη πάει σε άλλη
+  const [lastSource, setLastSource] = useState<string | null>(null);
   // «Αφαίρεση φόντου» ανά φωτογραφία: προεπισκόπηση από τον server, η ίδια επεξεργασία γίνεται και στην αποθήκευση
   const [cut, setCut] = useState<Record<string, { busy: true } | { src: string } | { error: string }>>({});
   const toggleCut = (id: string) => {
@@ -41,11 +45,11 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
   };
   const done = (t: Toast) => (onDone ? onDone(t) : setNote(t));
 
-  const apply = (r: PhotoCandidatesResult) => { setData(r); setOn(new Set(r.candidates.filter((c) => c.ok).slice(0, PRESELECT).map((c) => c.id))); };
+  const apply = (r: PhotoCandidatesResult) => { setData(r); if (r.step) setLastSource(r.step.source); setOn(new Set(r.candidates.filter((c) => c.ok).slice(0, PRESELECT).map((c) => c.id))); };
   const fail = (e: unknown) => done({ ok: false, text: e instanceof Error ? e.message : "Η αναζήτηση απέτυχε." });
   const load = (search: boolean) => {
     setMode(search ? "search" : "load");
-    start(async () => { try { apply(await photoCandidatesAction(productId, search)); } catch (e) { fail(e); } setMode(null); });
+    start(async () => { try { apply(await photoCandidatesAction(productId, search, lastSource)); } catch (e) { fail(e); } setMode(null); });
   };
   // πρώτη φόρτωση (δωρεάν) όταν ανοίγει το παράθυρο
   useEffect(() => {
@@ -84,7 +88,13 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
       {status && <p className={`m-0 flex gap-2 rounded-xl border px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)] ${status.tone}`}>{status.icon}{status.text}</p>}
 
       {mode === "load" && <p className="m-0 inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin" aria-hidden /> Φόρτωση φωτογραφιών που βρέθηκαν…</p>}
-      {mode === "search" && <p className="m-0 inline-flex items-center gap-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin text-eu-blue" aria-hidden /> Ψάχνω στο Icecat, στο site του κατασκευαστή και σε καταστήματα (έως ~1 λεπτό)…</p>}
+      {mode === "search" && <p className="m-0 inline-flex items-center gap-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin text-eu-blue" aria-hidden /> Ψάχνω σε {lastSource ? "άλλη πηγή από την προηγούμενη" : "μία πηγή"} (έως ~1 λεπτό)…</p>}
+      {data?.step && mode !== "search" && (
+        <p role="status" data-help="catalog.photo-picker.source" className={`m-0 flex gap-2 rounded-xl border px-3 py-2 text-[length:var(--fs-13)] ${data.step.images ? "border-eu-green/30 bg-eu-green/5 text-eu-ink" : "border-eu-amber/40 bg-eu-amber/10 text-eu-ink"}`}>
+          <Search className={`size-4 shrink-0 mt-0.5 ${data.step.images ? "text-eu-green" : "text-eu-amber"}`} aria-hidden />
+          <span>Αυτή η αναζήτηση έψαξε σε: <b>{SEARCHED[data.step.source] ?? data.step.source}</b>{data.step.sourceName ? ` (${data.step.sourceName})` : ""} · {data.step.images ? `βρήκε ${data.step.images === 1 ? "1 φωτογραφία" : `${data.step.images} φωτογραφίες`}` : `δεν έδωσε νέες φωτογραφίες${data.step.note ? ` (${data.step.note})` : ""}`}. Η επόμενη «Νέα αναζήτηση» θα ψάξει σε άλλη πηγή.</span>
+        </p>
+      )}
 
       {data && mode !== "search" && !list.length && (
         <div className="grid justify-items-center gap-1 rounded-xl border border-dashed border-eu-line px-3 py-6 text-center">
@@ -139,7 +149,7 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
           {data.small > 0 && list.length > 0 && <label className="flex items-center gap-2 min-h-11 md:min-h-8 text-eu-ink-2 text-[length:var(--fs-13)] cursor-pointer"><input type="checkbox" checked={hideSmall} onChange={(e) => setHideSmall(e.target.checked)} className="size-4 accent-eu-navy" />Κρύψε τις {data.small} μικρές που έχει τώρα (δεν σβήνονται)</label>}
           <span className="flex-1" />
           <button type="button" disabled={busy} onClick={() => load(true)} data-help="catalog.photo-picker.search" className={`inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-50 ${list.length ? "border border-eu-navy text-eu-navy hover:bg-eu-navy hover:text-white" : "bg-eu-navy text-white hover:bg-eu-blue"}`}>
-            {mode === "search" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}{list.length ? "Νέα αναζήτηση" : "Αναζήτηση στο web"}<span className="font-normal opacity-75">~$0,02</span>
+            {mode === "search" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}{data.searched || list.length ? "Νέα αναζήτηση σε άλλη πηγή" : "Αναζήτηση στο web"}<span className="font-normal opacity-75">έως ~$0,02</span>
           </button>
           {list.length > 0 && <button type="button" disabled={busy || !on.size} onClick={save} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-50">
             {mode === "save" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}{mode === "save" ? "Αποθήκευση…" : on.size ? `Προσθήκη ${on.size === 1 ? "1 φωτογραφίας" : `${on.size} φωτογραφιών`}` : "Επίλεξε φωτογραφίες"}
