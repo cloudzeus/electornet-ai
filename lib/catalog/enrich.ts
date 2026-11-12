@@ -250,7 +250,7 @@ export async function storeEnrichment(productId: string, r: EnrichResult) {
     ...(direct && r.status === "found" && r.specs.length ? [db.spec.createMany({ data: r.specs.map((s, i) => ({ productId, groupName: `${SOURCE_GROUP[r.source]} · ${s.group}`.slice(0, 120), key: s.key.slice(0, 120), value: s.value, sortNo: (r.source === "channel3" ? 1500 : 1000) + i, source: r.source })) })] : []),
     db.productEnrichment.upsert({ where: { productId_source: { productId, source: r.source } }, create: { productId, source: r.source, status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error }, update: { status: r.status, url: r.url, sourceName: r.sourceName, specCount: r.specs.length, confidence: r.confidence, costUsd: r.costUsd, error: r.error, checkedAt: new Date() } }),
   ]);
-  if (r.status === "found") await suggestFromResult(productId, r);
+  return r.status === "found" ? await suggestFromResult(productId, r) : { added: 0, pageNote: undefined };
 }
 
 export interface EnrichBatch { checked: number; found: number; none: number; failed: number; specs: number; costUsd: number; remaining: number; samples: string[] }

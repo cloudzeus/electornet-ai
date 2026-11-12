@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, ExternalLink, ImageOff, ImagePlus, Loader2, Scissors, Search, Undo2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, ImageOff, ImagePlus, Loader2, Minus, Scissors, Search, Undo2 } from "lucide-react";
 import { addPhotosAction, cutoutPreviewAction, photoCandidatesAction, type PhotoCandidatesResult } from "@/app/admin/(shell)/catalog/enrich-actions";
 import type { Toast } from "@/components/admin/customers/CustomerActions";
 import { invalidateProductPeek } from "./ProductPeek";
@@ -13,8 +13,8 @@ const SRC: Record<string, { label: string; tone: string }> = {
   kotsovolos: { label: "Κωτσόβολος", tone: "bg-eu-chip text-eu-ink-2" },
   shop: { label: "Άλλο κατάστημα", tone: "bg-eu-amber/15 text-eu-ink" },
 };
-/** η πηγή κάθε «Νέας αναζήτησης», όπως τη λέμε στον χρήστη */
-const SEARCHED: Record<string, string> = { icecat: "Icecat", web: "site του κατασκευαστή", channel3: "Channel3", kotsovolos: "Κωτσόβολο", shop: "άλλα καταστήματα" };
+/** οι πηγές της αναζήτησης, όπως τις λέμε στον χρήστη */
+const SEARCHED: Record<string, string> = { kotsovolos: "Κωτσόβολος", icecat: "Icecat", web: "Site κατασκευαστή", channel3: "Channel3", shop: "Άλλα καταστήματα" };
 const host = (u: string | null) => { try { return u ? new URL(u).hostname.replace(/^www\./, "") : ""; } catch { return ""; } };
 /** όσες προεπιλέγονται: ελεγμένες και ώς 6, όπως το μαζικό πέρασμα */
 const PRESELECT = 6;
@@ -32,8 +32,6 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
   const [mode, setMode] = useState<"load" | "search" | "save" | null>("load");
   const [, start] = useTransition();
   const [note, setNote] = useState<Toast>(null);
-  // η πηγή της τελευταίας αναζήτησης: η επόμενη πάει σε άλλη
-  const [lastSource, setLastSource] = useState<string | null>(null);
   // «Αφαίρεση φόντου» ανά φωτογραφία: προεπισκόπηση από τον server, η ίδια επεξεργασία γίνεται και στην αποθήκευση
   const [cut, setCut] = useState<Record<string, { busy: true } | { src: string } | { error: string }>>({});
   const toggleCut = (id: string) => {
@@ -46,11 +44,11 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
   };
   const done = (t: Toast) => (onDone ? onDone(t) : setNote(t));
 
-  const apply = (r: PhotoCandidatesResult) => { setData(r); if (r.step) setLastSource(r.step.source); setOn(new Set(r.candidates.filter((c) => c.ok).slice(0, PRESELECT).map((c) => c.id))); };
+  const apply = (r: PhotoCandidatesResult) => { setData(r); setOn(new Set(r.candidates.filter((c) => c.ok).slice(0, PRESELECT).map((c) => c.id))); };
   const fail = (e: unknown) => done({ ok: false, text: e instanceof Error ? e.message : "Η αναζήτηση απέτυχε." });
-  const load = (search: boolean) => {
+  const load = (search: boolean, force = false) => {
     setMode(search ? "search" : "load");
-    start(async () => { try { apply(await photoCandidatesAction(productId, search, lastSource)); } catch (e) { fail(e); } setMode(null); });
+    start(async () => { try { apply(await photoCandidatesAction(productId, search, force)); } catch (e) { fail(e); } setMode(null); });
   };
   // πρώτη φόρτωση (δωρεάν) όταν ανοίγει το παράθυρο
   useEffect(() => {
@@ -89,19 +87,30 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
       {status && <p className={`m-0 flex gap-2 rounded-xl border px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)] ${status.tone}`}>{status.icon}{status.text}</p>}
 
       {mode === "load" && <p className="m-0 inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin" aria-hidden /> Φόρτωση φωτογραφιών που βρέθηκαν…</p>}
-      {mode === "search" && <p className="m-0 inline-flex items-center gap-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin text-eu-blue" aria-hidden /> Ψάχνω σε {lastSource ? "άλλη πηγή από την προηγούμενη" : "μία πηγή"} (έως ~1 λεπτό)…</p>}
-      {data?.step && mode !== "search" && (
-        <p role="status" data-help="catalog.photo-picker.source" className={`m-0 flex gap-2 rounded-xl border px-3 py-2 text-[length:var(--fs-13)] ${data.step.images ? "border-eu-green/30 bg-eu-green/5 text-eu-ink" : "border-eu-amber/40 bg-eu-amber/10 text-eu-ink"}`}>
-          <Search className={`size-4 shrink-0 mt-0.5 ${data.step.images ? "text-eu-green" : "text-eu-amber"}`} aria-hidden />
-          <span>Αυτή η αναζήτηση έψαξε σε: <b>{SEARCHED[data.step.source] ?? data.step.source}</b>{data.step.sourceName ? ` (${data.step.sourceName})` : ""} · {data.step.images ? `βρήκε ${data.step.images === 1 ? "1 φωτογραφία" : `${data.step.images} φωτογραφίες`}` : `δεν έδωσε νέες φωτογραφίες${data.step.note ? ` (${data.step.note})` : ""}`}. Η επόμενη «Νέα αναζήτηση» θα ψάξει σε άλλη πηγή.</span>
-        </p>
-      )}
+      {mode === "search" && <p className="m-0 inline-flex items-center gap-2 text-eu-ink-2 text-[length:var(--fs-13)]"><Loader2 className="size-4 animate-spin text-eu-blue" aria-hidden /> Ψάχνω με τη σειρά: Κωτσόβολος → Icecat → site κατασκευαστή → Channel3 → άλλα καταστήματα, μέχρι να βρεθούν φωτογραφίες (έως ~2 λεπτά)…</p>}
+      {data?.steps.length ? mode !== "search" && (
+        <ol data-help="catalog.photo-picker.source" aria-label="Πού έψαξε η αναζήτηση" className="m-0 grid gap-1 rounded-xl border border-eu-line px-3 py-2 list-none">
+          {data.steps.map((st) => {
+            const got = st.images > 0, skipped = st.status === "skipped";
+            return (
+              <li key={st.source} className="flex items-start gap-2 text-[length:var(--fs-13)]">
+                {got ? <Check className="size-4 shrink-0 mt-0.5 text-eu-green" aria-hidden /> : skipped ? <Minus className="size-4 shrink-0 mt-0.5 text-eu-muted" aria-hidden /> : <AlertTriangle className="size-4 shrink-0 mt-0.5 text-eu-amber" aria-hidden />}
+                <span className={skipped ? "text-eu-muted" : "text-eu-ink"}>
+                  <b>{SEARCHED[st.source] ?? st.source}</b>{" · "}
+                  {got ? `${st.images === 1 ? "1 νέα φωτογραφία" : `${st.images} νέες φωτογραφίες`}${st.sourceName ? ` (${st.sourceName})` : ""}`
+                    : skipped ? `παραλείφθηκε: ${st.note}` : `τίποτα νέο${st.note ? `: ${st.note}` : ""}`}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
 
       {data && mode !== "search" && !list.length && (
         <div className="grid justify-items-center gap-1 rounded-xl border border-dashed border-eu-line px-3 py-6 text-center">
           <ImagePlus className="size-6 text-eu-muted" aria-hidden />
           <p className="m-0 font-bold text-eu-ink text-[length:var(--fs-14)]">{data.searched ? "Η αναζήτηση δεν βρήκε φωτογραφίες για αυτό το μοντέλο." : "Δεν υπάρχουν ακόμη φωτογραφίες από το web."}</p>
-          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{data.searched ? "Δοκίμασε να ανεβάσεις φωτογραφία από την καρτέλα «Φωτογραφίες & βίντεο»." : "Πάτα «Αναζήτηση στο web» για να ψάξω στο site του κατασκευαστή."}</p>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">{data.searched ? "Δοκίμασε να ανεβάσεις φωτογραφία από την καρτέλα «Φωτογραφίες & βίντεο»." : "Πάτα «Αναζήτηση στο web»: ψάχνω πρώτα στον Κωτσόβολο και, αν δεν βρω, στις υπόλοιπες πηγές."}</p>
         </div>
       )}
 
@@ -149,8 +158,8 @@ export function PhotoPicker({ productId, canWrite, onDone }: { productId: string
         <div className="flex flex-wrap items-center gap-2 border-t border-eu-line-2 pt-3">
           {data.small > 0 && list.length > 0 && <label className="flex items-center gap-2 min-h-11 md:min-h-8 text-eu-ink-2 text-[length:var(--fs-13)] cursor-pointer"><input type="checkbox" checked={hideSmall} onChange={(e) => setHideSmall(e.target.checked)} className="size-4 accent-eu-navy" />Κρύψε τις {data.small} μικρές που έχει τώρα (δεν σβήνονται)</label>}
           <span className="flex-1" />
-          <button type="button" disabled={busy} onClick={() => load(true)} data-help="catalog.photo-picker.search" className={`inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-50 ${list.length ? "border border-eu-navy text-eu-navy hover:bg-eu-navy hover:text-white" : "bg-eu-navy text-white hover:bg-eu-blue"}`}>
-            {mode === "search" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}{data.searched || list.length ? "Νέα αναζήτηση σε άλλη πηγή" : "Αναζήτηση στο web"}<span className="font-normal opacity-75">έως ~$0,02</span>
+          <button type="button" disabled={busy} onClick={() => load(true, !!data.searched)} data-help="catalog.photo-picker.search" className={`inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] disabled:opacity-50 ${list.length ? "border border-eu-navy text-eu-navy hover:bg-eu-navy hover:text-white" : "bg-eu-navy text-white hover:bg-eu-blue"}`}>
+            {mode === "search" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}{data.searched ? "Ψάξε ξανά σε όλες τις πηγές" : "Αναζήτηση στο web"}<span className="font-normal opacity-75">έως ~$0,05</span>
           </button>
           {list.length > 0 && <button type="button" disabled={busy || !on.size} onClick={save} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue disabled:opacity-50">
             {mode === "save" ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ImagePlus className="size-4" aria-hidden />}{mode === "save" ? "Αποθήκευση…" : on.size ? `Προσθήκη ${on.size === 1 ? "1 φωτογραφίας" : `${on.size} φωτογραφιών`}` : "Επίλεξε φωτογραφίες"}

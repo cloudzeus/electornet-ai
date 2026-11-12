@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { cachedSitemap, fetchProductImages } from "@/lib/competitors/kotsovolos/client";
-import { brandPool, kotHref, matchByModel, modelTokens, slugIndex } from "@/lib/competitors/kotsovolos/core";
+import { brandPool, kotHref, matchByModel, matchVariant, modelTokens, slugIndex } from "@/lib/competitors/kotsovolos/core";
 import type { EnrichResult } from "./enrich";
 
 /**
@@ -26,10 +26,17 @@ export async function enrichFromKotsovolos(productId: string): Promise<EnrichRes
       const r = matchByModel({ brand: p.brand.name, alias: bm?.alias, model: m }, pool);
       if (r.kind === "matched" || r.kind === "suggested") { art = r.item.art; url = `${r.item.path}/${r.item.last}`; how = r.kind === "matched" ? "ίδιος κωδικός μοντέλου" : r.reason; break; }
     }
+    // χωρίς το ίδιο μοντέλο: η αδελφή έκδοση (άλλο χρώμα / φινίρισμα, π.χ. LFR73944FQG ↔ lfr73944fug) — μόνο ως πρόταση
+    const vp = p.competitorPrices.find((c) => c.extId && c.match === "variant");
+    if (!art && vp) { art = vp.extId; url = vp.extUrl; how = "άλλη έκδοση"; }
+    if (!art) for (const m of [...new Set([p.modelCode, ...modelTokens(p.title)].filter(Boolean))]) {
+      const v = matchVariant({ brand: p.brand.name, alias: bm?.alias, model: m }, pool);
+      if (v) { art = v.art; url = `${v.path}/${v.last}`; how = "άλλη έκδοση"; break; }
+    }
     if (!art) return none(`δεν βρέθηκε ${p.modelCode ?? "το μοντέλο"} στον Κωτσόβολο`);
   }
   const r = await fetchProductImages(art);
   if ("error" in r) return { source: "kotsovolos", status: "failed", specs: [], costUsd: 0, error: `Κωτσόβολος: ${r.error}` };
   if (!r.images.length) return none("το είδος του Κωτσόβολου δεν έχει φωτογραφίες");
-  return { source: "kotsovolos", status: "found", url: kotHref(url) ?? undefined, sourceName: `kotsovolos.gr · ${how}`.slice(0, 120), specs: [], images: r.images.slice(0, 12), costUsd: 0 };
+  return { source: "kotsovolos", status: "found", url: kotHref(url) ?? undefined, sourceName: (how === "άλλη έκδοση" ? `kotsovolos.gr · άλλη έκδοση: ${r.title || art}` : `kotsovolos.gr · ${how}`).slice(0, 120), specs: [], images: r.images.slice(0, 12), costUsd: 0 };
 }
