@@ -232,3 +232,13 @@ export function sameEan(a: string | null | undefined, b: string | null | undefin
   const x = n(a), y = n(b);
   return x == null || y == null ? null : x === y;
 }
+
+/** Σύνδεσμος στη σελίδα του είδους στον Κωτσόβολο. Το sitemap τους έχει και διαδρομές χωρίς κατηγορία (π.χ. «/324819-ες-…»,
+ *  εσωτερικές μονάδες που πωλούνται μόνο ως σετ) που βγάζουν 404: τότε η αναζήτησή τους με τις λέξεις του slug, που δείχνει το σετ πρώτο. */
+export function kotHref(extUrl: string | null | undefined): string | null {
+  if (!extUrl) return null;
+  const path = extUrl.replace(/^\/+/, "");
+  if (path.includes("/")) return `https://www.kotsovolos.gr/${path}`;
+  const words = path.replace(/^\d+-/, "").replace(/^(ες|εξ|πανελ)-/, "").replace(/[-*]+/g, " ").trim();
+  return words ? `https://www.kotsovolos.gr/SearchDisplay?q=${encodeURIComponent(words)}&storeId=10151` : null;
+}

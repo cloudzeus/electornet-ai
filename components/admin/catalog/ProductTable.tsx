@@ -11,6 +11,7 @@ import { sx } from "@/components/ui/sx";
 import { CompetitorBadge } from "@/components/admin/competitors/CompetitorBadge";
 import { pct, theirPrice, type KotView } from "@/lib/competitors/badge";
 import { marginPct } from "@/lib/competitors/price-core";
+import { kotHref } from "@/lib/competitors/kotsovolos/core";
 
 export type ProductRow = {
   id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; /** όλη η διαδρομή, από τη γενική προς την ειδική */ categoryPath: string[]; sku: string; ean: string | null; erpCode: string; active: boolean;
@@ -45,7 +46,7 @@ export const SetChips = ({ r }: { r: ProductRow }) => (
   </>
 );
 const PAIR = ["auto", "manual"], ANY = ["auto", "manual", "suggested", "variant"];
-const kotUrl = (v: KotView) => (v.extUrl ? `https://www.kotsovolos.gr/${v.extUrl.replace(/^\/+/, "")}` : null);
+const kotUrl = (v: KotView) => kotHref(v.extUrl);
 /** Τιμή Κωτσόβολου: σίγουρο ζευγάρι κανονικά, πρόταση/άλλο χρώμα γκρι με ετικέτα — δεν μετρούν. */
 const KotPrice = ({ r }: { r: ProductRow }) => {
   const v = r.kot;

@@ -266,3 +266,10 @@ test("setCandidates: το σετ της εσωτερικής, όχι η ίδια
   assert.deepEqual(r.map((x) => x.art), ["321662"]);
   assert.deepEqual(setCandidates({ brand: "Inventor", models: ["INVENTOR"], indoorArt: "321669" }, pool), []); // χωρίς ψηφίο δεν είναι κωδικός
 });
+
+test("kotHref: κανονική διαδρομή μένει, χωρίς κατηγορία γίνεται αναζήτηση", async () => {
+  const { kotHref } = await import("./core");
+  assert.equal(kotHref("sound-vision/televisions/led-lcd/336951-tv-oled-55"), "https://www.kotsovolos.gr/sound-vision/televisions/led-lcd/336951-tv-oled-55");
+  assert.equal(kotHref("/324819-ες-a-c-in12btu-hisense-uni-hb-black"), "https://www.kotsovolos.gr/SearchDisplay?q=a%20c%20in12btu%20hisense%20uni%20hb%20black&storeId=10151");
+  assert.equal(kotHref(null), null);
+});

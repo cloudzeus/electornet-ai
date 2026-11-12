@@ -6,7 +6,7 @@ import { checkPrice, shownCost } from "@/lib/competitors/price-core";
 import { liveCosts } from "@/lib/competitors/cost-cache";
 import { fetchProduct } from "@/lib/competitors/kotsovolos/client";
 import { createPacer } from "@/lib/competitors/kotsovolos/pacer";
-import { modelTokens, sameEan } from "@/lib/competitors/kotsovolos/core";
+import { kotHref, modelTokens, sameEan } from "@/lib/competitors/kotsovolos/core";
 
 const COMP = "kotsovolos";
 const n = (v: { toString(): string } | null | undefined) => (v == null ? null : Number(v.toString()));
@@ -79,7 +79,7 @@ export async function kotCheckAction(productId: string): Promise<{ ok: true; che
     theirs: {
       title: live?.title || row.extTitle || row.extId, code, ean: live?.ean ?? null, energy: live?.energyClass ?? null,
       price: live ? live.offer ?? live.list : n(row.offerPrice) ?? n(row.listPrice),
-      url: row.extUrl ? `https://www.kotsovolos.gr/${row.extUrl.replace(/^\/+/, "")}` : null, art: row.extId, available: live?.buyable ?? row.available,
+      url: kotHref(row.extUrl), art: row.extId, available: live?.buyable ?? row.available,
     },
     match: row.match, note: "error" in r ? `Ο Κωτσόβολος δεν απάντησε τώρα (${r.error}) — δείχνω τα αποθηκευμένα.` : row.lastError,
     same: {

@@ -7,6 +7,7 @@ import { eur, gapText, kotView, theirPrice, wasPrice } from "@/lib/competitors/b
 import { CompetitorBadge } from "./CompetitorBadge";
 import { CompetitorChart } from "./CompetitorChart";
 import { PairPicker } from "./PairPicker";
+import { kotHref } from "@/lib/competitors/kotsovolos/core";
 
 const COMP = "kotsovolos";
 const when = (iso: string) => new Date(iso).toLocaleString("el-GR", { timeZone: "Europe/Athens", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -62,7 +63,7 @@ export async function CompetitorPanel({ productId, canWrite }: { productId: stri
             <div className="grid gap-1">
               {v.match === "variant" && <span data-help="kotsovolos-variant" className="font-bold text-eu-ink text-[length:var(--fs-14)]">Ίδιο μοντέλο, άλλο χρώμα:</span>}
               {v.extUrl
-                ? <a href={`https://www.kotsovolos.gr/${v.extUrl}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 md:min-h-8 items-center gap-1.5 py-1 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}<ExternalLink className="size-4 shrink-0" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
+                ? <a href={kotHref(v.extUrl) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 md:min-h-8 items-center gap-1.5 py-1 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}<ExternalLink className="size-4 shrink-0" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
                 : <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{v.extTitle ?? `Είδος ${v.extId}`}</span>}
               <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{HOW[v.match] ?? v.match} · είδος <span className="font-mono">{v.extId}</span></span>
             </div>

@@ -7,6 +7,7 @@ import { AlertTriangle, Barcode, Check, CheckCheck, ExternalLink, Layers, Link2,
 import { PagerButtons } from "@/components/admin/PagerButtons";
 import { confirmPairs, rejectPair } from "@/app/admin/(shell)/catalog/competitors/actions";
 import type { Reason } from "@/lib/competitors/run-core";
+import { kotHref } from "@/lib/competitors/kotsovolos/core";
 
 export type SuggRow = {
   productId: string; title: string; erp: string; ours: number | null;
@@ -113,7 +114,7 @@ export function SuggestionsReview({ rows, canWrite }: { rows: SuggRow[]; canWrit
                     <div className="grid gap-0.5 min-w-0">
                       <span className="text-eu-ink-3 text-[length:var(--fs-12)]">Κωτσόβολος · {r.extId}</span>
                       {r.extUrl
-                        ? <a href={`https://www.kotsovolos.gr/${r.extUrl.replace(/^\//, "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-1.5 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{r.extTitle ?? `Είδος ${r.extId}`}<ExternalLink className="size-4 shrink-0 mt-0.5" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
+                        ? <a href={kotHref(r.extUrl) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-1.5 font-bold text-eu-blue hover:underline break-words text-[length:var(--fs-14)]">{r.extTitle ?? `Είδος ${r.extId}`}<ExternalLink className="size-4 shrink-0 mt-0.5" aria-label="(ανοίγει σε νέα καρτέλα)" /></a>
                         : <span className="font-bold text-eu-ink break-words text-[length:var(--fs-14)]">{r.extTitle ?? `Είδος ${r.extId}`}</span>}
                       <span className="flex flex-wrap items-center gap-2 tabular-nums text-eu-ink text-[length:var(--fs-14)]">{eur(r.theirs)}
                         <span className={`${pill} ${diffCls}`} title="Δική μας τιμή σε σχέση με του Κωτσόβολου">{r.diff == null ? "χωρίς σύγκριση" : `${r.diff > 0 ? "+" : ""}${r.diff.toLocaleString("el-GR")}% εμείς`}</span>

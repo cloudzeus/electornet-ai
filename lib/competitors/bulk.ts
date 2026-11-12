@@ -7,6 +7,7 @@ import { syncItem } from "@/lib/softone/catalog";
 import { projectItem } from "@/lib/softone/project";
 import { batchProgress, cleanRule, MAX_BATCH, planRow, SKIP, type Plan, type Row, type Rule } from "./bulk-core";
 import { ourPrice } from "./run-core";
+import { kotHref } from "@/lib/competitors/kotsovolos/core";
 
 /**
  * Μαζική αλλαγή τιμής web (NUM04) με βάση την τιμή του Κωτσόβολου. Μόνο ζευγάρια auto/manual· κόστος από το αποθηκευμένο
@@ -57,7 +58,7 @@ async function loadRows(where: { productIds?: string[]; filter?: Filter }) {
       productId: p.id, mtrl, now, web: p.price, theirs, checkedAt: c.checkedAt ?? new Date(0), available: c.available, promo: !!p.offer?.promotionId,
       // το κόστος αγοράς είναι χωρίς ΦΠΑ, οι τιμές μας με ΦΠΑ — σύγκριση στην ίδια βάση
       cost: netCost == null ? null : Math.round(netCost * (1 + Number(p.vatRate) / 100) * 100) / 100, costAt: c.costAt,
-      title: p.title, brand: p.brand.name, costSource: c.costSource, url: c.extUrl ? `https://www.kotsovolos.gr/${c.extUrl.replace(/^\/+/, "")}` : null,
+      title: p.title, brand: p.brand.name, costSource: c.costSource, url: kotHref(c.extUrl),
     });
   }
   return out;
