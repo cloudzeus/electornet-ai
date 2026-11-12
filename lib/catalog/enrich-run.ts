@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { channel3Usage, enrichFromChannel3 } from "./channel3";
 import { matchCodes } from "./channel3-core";
-import { energyClassFromSpecs, modelsFromSpecs, nextPhotoSource } from "./enrich-core";
+import { energyClassFromSpecs, modelsFromSpecs, photoSearchPlan } from "./enrich-core";
 import { enrichFromIcecat, enrichFromShops, enrichFromWeb, storeEnrichment, type EnrichResult, type EnrichSource } from "./enrich";
 import { projectSourceDimensions } from "./product-dimensions";
 import { suggestDims } from "./enrich-suggestions";
@@ -127,22 +127,30 @@ export async function setMainProductIds(): Promise<string[]> {
 }
 
 /**
- * Αναζήτηση φωτογραφιών σε ΜΙΑ πηγή, διαφορετική από την προηγούμενη (`prev` από το παράθυρο· αλλιώς η πηγή που
- * ελέγχθηκε τελευταία για το προϊόν). Η Channel3 παραλείπεται χωρίς κλειδί / υπόλοιπο / κωδικό κατασκευαστή.
+ * «Αναζήτηση στο web» φωτογραφιών: οι πηγές με τη σειρά του photoSearchPlan, μέχρι την πρώτη που δίνει ΝΕΕΣ προτάσεις
+ * (όχι όσες «βρήκε» η πηγή: μετρά ό,τι πέρασε τους ελέγχους και δεν υπήρχε ήδη). `force`: και όσες ελέγχθηκαν πρόσφατα.
  */
-export async function searchPhotosNextSource(productId: string, prev?: EnrichSource | null): Promise<EnrichStep | null> {
-  const p = await db.product.findUnique({ where: { id: productId }, select: { sku: true, ean: true, title: true, modelCode: true, brand: { select: { name: true } }, category: { select: { name: true } }, enrichments: { orderBy: { checkedAt: "desc" }, take: 1, select: { source: true } } } });
+export async function searchPhotosAuto(productId: string, force = false): Promise<{ steps: EnrichStep[]; costUsd: number } | null> {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { sku: true, ean: true, title: true, modelCode: true, brand: { select: { name: true } }, category: { select: { name: true } }, enrichments: { select: { source: true, checkedAt: true } } } });
   if (!p) return null;
-  const last = prev ?? (p.enrichments[0]?.source as EnrichSource | undefined);
   const c3 = matchCodes(p).length ? await channel3Usage() : null;
-  const source = nextPhotoSource(last, (s) => s !== "channel3" || !!(c3?.configured && c3.left > 0));
-  if (!source) return null;
+  const plan = photoSearchPlan(new Map(p.enrichments.map((e) => [e.source, e.checkedAt])), (s) => s !== "channel3" ? null
+    : !c3 ? "χωρίς κωδικό κατασκευαστή" : !c3.configured ? "χωρίς κλειδί" : c3.left <= 0 ? "τέλος το όριο του μήνα" : null, force);
   const base = { brand: p.brand.name, title: p.title, modelCode: p.modelCode, sku: p.sku };
-  const r = source === "icecat" ? await enrichFromIcecat({ ean: p.ean, sku: p.sku, modelCode: p.modelCode, brand: p.brand.name })
-    : source === "channel3" ? await enrichFromChannel3(base)
-    : source === "kotsovolos" ? await enrichFromKotsovolos(productId)
-    : source === "web" ? await enrichFromWeb({ ...base, typeName: p.category.name })
-    : await enrichFromShops({ ...base, typeName: p.category.name, ean: p.ean });
-  await storeEnrichment(productId, r);
-  return { source, status: r.status, specs: r.specs.length, images: r.images?.length ?? 0, sourceName: r.sourceName, url: r.url, note: r.error, costUsd: r.costUsd };
+  const steps: EnrichStep[] = [];
+  let costUsd = 0;
+  for (const { source, skip } of plan) {
+    if (skip) { steps.push({ source, status: "skipped", specs: 0, images: 0, note: skip, costUsd: 0 }); continue; }
+    const r = source === "kotsovolos" ? await enrichFromKotsovolos(productId)
+      : source === "icecat" ? await enrichFromIcecat({ ean: p.ean, sku: p.sku, modelCode: p.modelCode, brand: p.brand.name })
+      : source === "channel3" ? await enrichFromChannel3(base)
+      : source === "web" ? await enrichFromWeb({ ...base, typeName: p.category.name })
+      : await enrichFromShops({ ...base, typeName: p.category.name, ean: p.ean });
+    const s = await storeEnrichment(productId, r).catch((e: Error) => ({ added: 0, pageNote: e.message.slice(0, 160) }));
+    costUsd += r.costUsd;
+    const note = r.status !== "found" ? r.error : s.added ? undefined : s.pageNote ?? (r.images?.length ? "οι φωτογραφίες της υπάρχουν ήδη ή δεν άνοιγαν" : "χωρίς φωτογραφίες");
+    steps.push({ source, status: r.status, specs: r.specs.length, images: s.added, sourceName: r.sourceName, url: r.url, note, costUsd: r.costUsd });
+    if (s.added) break;
+  }
+  return { steps, costUsd };
 }

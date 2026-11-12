@@ -144,25 +144,24 @@ export async function saveCopyAction(productId: string, pick: { short?: string; 
 
 /**
  * Παράθυρο «Φωτογραφίες από το web» της λίστας προϊόντων. Χωρίς `search`: δωρεάν — οι προτάσεις σε αναμονή και ό,τι
- * δίνουν ξανά οι σελίδες που βρέθηκαν ήδη. Με `search`: νέα αναζήτηση (Icecat → κατασκευαστής → καταστήματα, ~$0,01–0,03).
+ * δίνουν ξανά οι σελίδες που βρέθηκαν ήδη. Με `search`: όλες οι πηγές με τη σειρά (Κωτσόβολος → Icecat → κατασκευαστής →
+ * Channel3 → καταστήματα) μέχρι την πρώτη με νέες φωτογραφίες. `force`: και όσες ελέγχθηκαν τις τελευταίες 7 ημέρες.
  */
-export async function photoCandidatesAction(productId: string, search = false, prev: string | null = null) {
+export async function photoCandidatesAction(productId: string, search = false, force = false) {
   const user = await requirePermission(search ? "catalog.products.write" : "catalog.products.read");
   const m = await import("@/lib/catalog/photo-candidates");
   const { db } = await import("@/lib/db");
   let costUsd = 0, searched = false;
-  let step: { source: string; status: string; images: number; sourceName?: string; note?: string } | null = null;
+  let steps: { source: string; status: string; images: number; sourceName?: string; note?: string }[] = [];
   await m.revisitFoundPages(productId);
   if (search) {
-    // κάθε «Νέα αναζήτηση» σε άλλη πηγή από την προηγούμενη (Icecat → κατασκευαστής → Channel3 → καταστήματα)
-    const { searchPhotosNextSource } = await import("@/lib/catalog/enrich-run");
-    const { PHOTO_SOURCES } = await import("@/lib/catalog/enrich-core");
-    const r = await searchPhotosNextSource(productId, PHOTO_SOURCES.find((x) => x === prev) ?? null);
+    const { searchPhotosAuto } = await import("@/lib/catalog/enrich-run");
+    const r = await searchPhotosAuto(productId, force === true);
     searched = true;
     if (r) {
       costUsd = r.costUsd;
-      step = { source: r.source, status: r.status, images: r.images, sourceName: r.sourceName, note: r.note };
-      await audit(user.id, "catalog.product.enrich", "Product", productId, null, { steps: [`${r.source}:${r.status}`], costUsd: r.costUsd, from: "photo-picker" });
+      steps = r.steps.map((x) => ({ source: x.source, status: x.status, images: x.images, sourceName: x.sourceName, note: x.note }));
+      await audit(user.id, "catalog.product.enrich", "Product", productId, null, { steps: r.steps.map((x) => `${x.source}:${x.status}`), costUsd, from: "photo-picker" });
     }
   }
   const [candidates, current] = await Promise.all([
@@ -171,7 +170,7 @@ export async function photoCandidatesAction(productId: string, search = false, p
   ]);
   const { LOW_RES_PX } = await import("@/lib/catalog/product-images");
   const small = current.filter((x) => x.width != null && x.height != null && Math.max(x.width, x.height) < LOW_RES_PX).length;
-  return { candidates, current: current.length, small, searched, costUsd, step };
+  return { candidates, current: current.length, small, searched, costUsd, steps };
 }
 export type PhotoCandidatesResult = Awaited<ReturnType<typeof photoCandidatesAction>>;
 

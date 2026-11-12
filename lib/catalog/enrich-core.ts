@@ -218,13 +218,19 @@ export function energyClassFromSpecs(specs: { key: string; value: string }[]): {
   return null;
 }
 
-/** Σειρά πηγών για «Νέα αναζήτηση» φωτογραφιών: κάθε πάτημα πάει στην επόμενη, όχι ξανά στην ίδια. */
-export type PhotoSource = "icecat" | "web" | "channel3" | "kotsovolos" | "shop";
-export const PHOTO_SOURCES: PhotoSource[] = ["icecat", "web", "channel3", "kotsovolos", "shop"];
-/** Η επόμενη πηγή μετά την `prev` (κυκλικά), παραλείποντας όσες δεν είναι διαθέσιμες. */
-export function nextPhotoSource(prev: PhotoSource | null | undefined, available: (s: PhotoSource) => boolean): PhotoSource | null {
-  const i = prev ? PHOTO_SOURCES.indexOf(prev) : -1;
-  for (let k = 1; k <= PHOTO_SOURCES.length; k++) { const s = PHOTO_SOURCES[(i + k) % PHOTO_SOURCES.length]; if (available(s)) return s; }
-  return null;
+/** Σειρά της αυτόματης αναζήτησης φωτογραφιών: ο Κωτσόβολος πρώτος (δωρεάν, ίδιο προϊόν από τη σύγκριση τιμών), μετά
+ *  Icecat (δωρεάν), site κατασκευαστή, Channel3, άλλα καταστήματα. Σταματά στην πρώτη που δίνει νέες φωτογραφίες. */
+export type PhotoSource = "kotsovolos" | "icecat" | "web" | "channel3" | "shop";
+export const PHOTO_SEARCH_ORDER: PhotoSource[] = ["kotsovolos", "icecat", "web", "channel3", "shop"];
+export const PHOTO_RECHECK_DAYS = 7;
+/** Το σχέδιο μιας αναζήτησης: κάθε πηγή με τη σειρά, ή με λόγο παράλειψης. Χωρίς `force` παραλείπεται ό,τι ελέγχθηκε
+ *  τις τελευταίες 7 ημέρες (ό,τι είχε βρει είναι ήδη στις προτάσεις· ό,τι δεν βρήκε δεν θα βρει ξανά τόσο σύντομα). */
+export function photoSearchPlan(checked: Map<string, Date>, unavailable: (s: PhotoSource) => string | null, force: boolean, now = Date.now()): { source: PhotoSource; skip: string | null }[] {
+  return PHOTO_SEARCH_ORDER.map((source) => {
+    const why = unavailable(source);
+    if (why) return { source, skip: why };
+    const at = checked.get(source);
+    if (!force && at && now - at.getTime() < PHOTO_RECHECK_DAYS * 86_400_000) return { source, skip: `ελέγχθηκε ${at.toLocaleDateString("el-GR")}` };
+    return { source, skip: null };
+  });
 }
-
