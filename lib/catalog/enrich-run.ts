@@ -146,11 +146,11 @@ export async function searchPhotosAuto(productId: string, force = false): Promis
       : source === "channel3" ? await enrichFromChannel3(base)
       : source === "web" ? await enrichFromWeb({ ...base, typeName: p.category.name })
       : await enrichFromShops({ ...base, typeName: p.category.name, ean: p.ean });
-    const s = await storeEnrichment(productId, r).catch((e: Error) => ({ added: 0, pageNote: e.message.slice(0, 160) }));
+    const s = await storeEnrichment(productId, r).catch((e: Error) => ({ added: 0, images: 0, pageNote: e.message.slice(0, 160) }));
     costUsd += r.costUsd;
-    const note = r.status !== "found" ? r.error : s.added ? undefined : s.pageNote ?? (r.images?.length ? "οι φωτογραφίες της υπάρχουν ήδη ή δεν άνοιγαν" : "χωρίς φωτογραφίες");
-    steps.push({ source, status: r.status, specs: r.specs.length, images: s.added, sourceName: r.sourceName, url: r.url, note, costUsd: r.costUsd });
-    if (s.added) break;
+    const note = r.status !== "found" ? r.error : s.images ? undefined : s.pageNote ?? (r.images?.length ? `${r.images.length} φωτογραφίες, αλλά υπάρχουν ήδη ή δεν άνοιγαν` : "βρήκε τη σελίδα, χωρίς φωτογραφίες");
+    steps.push({ source, status: r.status, specs: r.specs.length, images: s.images, sourceName: r.sourceName, url: r.url, note, costUsd: r.costUsd });
+    if (s.images) break;
   }
   return { steps, costUsd };
 }
