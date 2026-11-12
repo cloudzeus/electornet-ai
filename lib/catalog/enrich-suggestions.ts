@@ -69,8 +69,11 @@ export async function suggestFromResult(productId: string, r: EnrichResult) {
     const keys = new Set(specs.map((s) => s.key.toLowerCase().trim()));
     for (const s of r.specs) if (!keys.has(s.key.toLowerCase().trim())) data.push({ productId, source: r.source, kind: "spec", fingerprint: specFingerprint(s.group, s.key), group: s.group.slice(0, 120), key: s.key.slice(0, 120), value: s.value, pageUrl: r.url, sourceName: r.sourceName });
   }
-  const res = data.length ? await db.enrichSuggestion.createMany({ data, skipDuplicates: true }) : { count: 0 };
-  return { added: res.count, pageNote };
+  // χωριστά οι φωτογραφίες: η αναζήτηση φωτογραφιών μετρά μόνο αυτές (όχι τα χαρακτηριστικά του καταστήματος)
+  const img = data.filter((d) => d.kind === "image"), rest = data.filter((d) => d.kind !== "image");
+  const a = img.length ? await db.enrichSuggestion.createMany({ data: img, skipDuplicates: true }) : { count: 0 };
+  const b = rest.length ? await db.enrichSuggestion.createMany({ data: rest, skipDuplicates: true }) : { count: 0 };
+  return { added: a.count + b.count, images: a.count, pageNote };
 }
 
 const KIND_LABEL: Record<string, string> = { "indoor-unit": " εσωτερικής μονάδας", "no-stand": " χωρίς βάση", "with-stand": " με βάση" };
