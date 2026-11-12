@@ -170,16 +170,50 @@ const eanOf = (v: unknown): string | null => {
   const s = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
   return /^\d{8,14}$/.test(s) ? s : null;
 };
-export function parseProduct(json: unknown): { title: string; list: number | null; offer: number | null; buyable: boolean; ean: string | null } | { error: string } {
+/** Ψεύτικο EAN του Κωτσόβολου (0000000320698, 12345678923): όχι 8/12/13/14 ψηφία, ≥ 5 μηδενικά μπροστά ή λάθος ψηφίο ελέγχου GS1. */
+export function fakeEan(s: string): boolean {
+  if (![8, 12, 13, 14].includes(s.length) || /^0{5}/.test(s)) return true;
+  const d = [...s].map(Number), check = d.pop()!;
+  const sum = d.reverse().reduce((t, x, i) => t + x * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 !== check;
+}
+const attrVals = (attrs: any[], id: string): string[] => {
+  const a = attrs.find((x) => x && x.identifier === id);
+  return Array.isArray(a?.values) ? a.values.map((v: any) => (typeof v?.value === "string" ? v.value.trim() : "")).filter(Boolean) : [];
+};
+export function parseProduct(json: unknown): {
+  title: string; list: number | null; offer: number | null; buyable: boolean; ean: string | null;
+  /** Κωδικοί προμηθευτή (SupplierPartNumbers χωρίς τον αρ. είδους του Κωτσόβολου), π.χ. «75NU8E0B3LA.API». */
+  supplierCodes: string[]; energyClass: string | null;
+  /** Τιμή-σύμβολο 0,01 € (εσωτερική μονάδα που πωλείται μόνο ως σετ). */
+  symbolic: boolean;
+  /** Σετ (PackageBean): οι αρ. είδους των μονάδων του. */
+  components: string[];
+} | { error: string } {
   const e = (json as any)?.catalogEntryView?.[0];
   if (!e || typeof e !== "object") return { error: typeof json === "string" ? "η απάντηση δεν ήταν JSON" : "άδεια απάντηση" };
   const rows: any[] = Array.isArray(e.price) ? e.price.filter((r: unknown) => r && typeof r === "object") : [];
   // 0,01 € = τιμή-σύμβολο (π.χ. εσωτερική μονάδα κλιματιστικού που πωλείται μόνο ως σετ): όχι πραγματική τιμή
-  const by = (u: string) => { const v = price(rows.find((r) => r.usage === u)?.value); return v != null && v < 1 ? null : v; };
+  const raw = (u: string) => price(rows.find((r) => r.usage === u)?.value);
+  const by = (u: string) => { const v = raw(u); return v != null && v < 1 ? null : v; };
   const attrs: any[] = Array.isArray(e.attributes) ? e.attributes : [];
-  const bar = attrs.find((a) => a && a.identifier === "BarCode");
-  const ean = Array.isArray(bar?.values) ? eanOf(bar.values[0]?.value) : null;
-  return { title: typeof e.name === "string" ? e.name : "", list: by("Display"), offer: by("Offer"), buyable: e.buyable === true || e.buyable === "true", ean };
+  const bar = eanOf(attrVals(attrs, "BarCode")[0]);
+  const ean = bar && !fakeEan(bar) ? bar : null;
+  // «337751;75NU8E0B3LA.API», «306242;306242;AC15-0000013»: το πρώτο είναι ο δικός τους αρ. είδους
+  const parts = attrVals(attrs, "SupplierPartNumbers").flatMap((v) => v.split(";").map((x) => x.trim()).filter(Boolean));
+  const own = typeof e.partNumber === "string" ? e.partNumber : parts[0];
+  const supplierCodes = [...new Set(parts.filter((x) => x !== own))];
+  const symbolic = ["Display", "Offer"].some((u) => { const v = raw(u); return v != null && v < 1; });
+  const components = Array.isArray(e.components) ? e.components.map((c: any) => c?.partNumber).filter((x: unknown): x is string => typeof x === "string") : [];
+  return { title: typeof e.name === "string" ? e.name : "", list: by("Display"), offer: by("Offer"), buyable: e.buyable === true || e.buyable === "true", ean,
+    supplierCodes, energyClass: attrVals(attrs, "EnergyClass")[0] ?? null, symbolic, components };
+}
+
+/** Το σετ (εσωτερική + εξωτερική) μιας εσωτερικής μονάδας με τιμή-σύμβολο: είδη της ίδιας μάρκας με τον ίδιο κωδικό στο slug,
+ *  όχι η ίδια μονάδα και όχι άλλη μονάδα («ες-…», «εξ-…», «πανελ-…»). Το αν είναι πράγματι σετ της μονάδας το λέει το components του API. */
+export function setCandidates(o: { brand: string; alias?: string | null; models: (string | null)[]; indoorArt: string }, pool: KotItem[]): KotItem[] {
+  const ms = new Set(o.models.map((m) => norm(m ?? "")).filter((m) => m.length >= MIN_MODEL && /\d/.test(m)));
+  return pool.filter((c) => c.art !== o.indoorArt && !/^\d+-(ες|εξ|πανελ)-/.test(c.last) && hasBrand(c.last, o.brand, o.alias) && slugRuns(c.last).some((r) => ms.has(r)));
 }
 
 /** (εμείς − Κωτσ.) / Κωτσ. · 100, 1 δεκαδικό. */

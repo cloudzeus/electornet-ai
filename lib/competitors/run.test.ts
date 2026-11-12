@@ -126,3 +126,71 @@ test("researchDue: μία νύχτα στις 7 ανά προϊόν", async () =
   assert.equal(days.filter(Boolean).length, 2);
   assert.equal(searchPrev("variant"), null);
 });
+
+test("strongMatch: ίσος κωδικός προμηθευτή, όχι πρόθεμα/υπο-συμβολοσειρά, ίδια κλάση", async () => {
+  const { strongMatch } = await import("./run-core");
+  const tv = (o: object = {}) => strongMatch({ ourModel: "75NU8E0B3LA", ourTitle: "LG 75NU8E0B3LA.API LED LCD TV 75 (UD)", ourEnergyClass: "E", parsed: { supplierCodes: ["75NU8E0B3LA.API"], energyClass: "E" }, ...o });
+  assert.equal(tv().ok, true); // μέσω του κωδικού του τίτλου μας
+  assert.match(tv().why, /75NU8E0B3LA\.API/);
+  // μόνο το modelCode (χωρίς .API στον τίτλο): «75NU8E0B3LA» ≠ «75NU8E0B3LAAPI» — όχι πρόθεμα
+  assert.equal(tv({ ourTitle: "LG τηλεόραση 75" }).ok, false);
+  assert.equal(tv({ ourTitle: "LG τηλεόραση 75", parsed: { supplierCodes: ["75-NU8E0B3LA"], energyClass: null } }).ok, true); // κανονικοποίηση
+  assert.equal(tv({ parsed: { supplierCodes: ["NU8E0B3L"], energyClass: "E" } }).ok, false); // υπο-συμβολοσειρά
+  const cls = tv({ parsed: { supplierCodes: ["75NU8E0B3LA.API"], energyClass: "F" } });
+  assert.equal(cls.ok, false); assert.match(cls.why, /ενεργειακή κλάση/);
+  assert.equal(tv({ ourEnergyClass: null }).ok, true); // μία κλάση λείπει: δεν μετρά
+  assert.equal(strongMatch({ ourModel: "X", ourTitle: "A+++ κλάση", ourEnergyClass: "A+++", parsed: { supplierCodes: [], energyClass: "Α+++" } }).ok, false);
+  assert.equal(strongMatch({ ourModel: "EMPVI24WFI", ourTitle: "", ourEnergyClass: "A+++", parsed: { supplierCodes: ["EMPVI-24WFI"], energyClass: "Α+++" } }).ok, true); // ελληνικό Α
+});
+
+const me = { model: "75NU8E0B3LA", title: "LG 75NU8E0B3LA.API LED TV", energyClass: "E" };
+const strong = (o: object = {}) => ok({ ean: "5909999999999", supplierCodes: ["75NU8E0B3LA.API"], energyClass: "E", ...o });
+test("decidePrice: strongMatch δίνει auto με διαφορετικό ή χωρίς EAN (AI, τίτλος, πολλά υποψήφια)", () => {
+  const d = (o: object, base: "auto" | "suggested" = "suggested", note = "AI: ίδιο μοντέλο") => decidePrice({ prev: prev({ match: "suggested" }), base, note, parsed: strong(o) as any, ourEan: "5901234123457", ourPrice: 110, ours: me });
+  assert.equal(d({}).match, "auto"); assert.equal(d({}).lastError, null);
+  assert.equal(d({ ean: null }).match, "auto");
+  assert.equal(d({ ean: null }, "suggested", "πολλά υποψήφια (3)").match, "auto");
+  const no = d({ supplierCodes: ["OTHER123"] }); assert.equal(no.match, "suggested"); assert.match(no.lastError!, /διαφορετικό EAN/);
+  assert.equal(d({ energyClass: "G" }).match, "suggested");
+  // χωρίς ours (π.χ. ενδεικτικά): ο παλιός κανόνας
+  assert.equal(decidePrice({ prev: prev({ match: null }), base: "suggested", note: null, parsed: strong() as any, ourEan: "5901234123457", ourPrice: 110 }).match, "suggested");
+});
+test("μοναδικότητα: είδος που είναι ήδη ζευγάρι άλλου προϊόντος μένει πρόταση", async () => {
+  const { TAKEN } = await import("./run-core");
+  const t = (p: Partial<Prev>, parsed: object) => decidePrice({ prev: prev(p), base: "auto", note: null, parsed: parsed as any, ourEan: "5901234123457", ourPrice: 110, ours: me, taken: true });
+  const a = t({ match: "suggested" }, ok()); assert.equal(a.match, "suggested"); assert.equal(a.lastError, TAKEN);
+  assert.equal(t({ match: "suggested" }, strong()).lastError, TAKEN);
+  assert.equal(t({ match: "manual" }, ok()).match, "manual"); // ο άνθρωπος αποφάσισε
+});
+test("SANITY_PCT: auto με |διαφορά| > 40% πάει για έλεγχο, το manual ποτέ", async () => {
+  const { SANITY_PCT } = await import("./run-core");
+  assert.equal(SANITY_PCT, 40);
+  const up = run({ match: "auto" }, ok({ offer: 70 }), "5901234123457", "auto", 110); // +57,1%
+  assert.equal(up.match, "suggested"); assert.equal(up.lastError, "μεγάλη διαφορά τιμής (+57,1%) — έλεγξε (σετ; άλλη συσκευασία;)"); assert.ok(up.prices);
+  assert.equal(run({ match: "auto" }, ok({ offer: 200 }), "5901234123457", "auto", 110).match, "suggested"); // −45%
+  assert.equal(run({ match: "auto" }, ok({ offer: 80 }), "5901234123457", "auto", 112).match, "auto"); // +40% ακριβώς
+  assert.equal(run({ match: "manual" }, ok({ offer: 50 })).match, "manual");
+  assert.equal(run({ match: "auto" }, ok({ offer: 70 }), "5901234123457", "auto", null as any).match, "auto"); // χωρίς δική μας τιμή
+});
+test("τιμή-σύμβολο: μένει το ζευγάρι με εξήγηση", () => {
+  const d = run({ match: "auto" }, ok({ list: null, offer: null, symbolic: true }));
+  assert.equal(d.match, "auto"); assert.match(d.lastError!, /0,01/); assert.equal(d.prices, undefined);
+});
+test("deadGroups: ≥5 «δεν βρέθηκε» και κανένα ζευγάρι στη μάρκα×κατηγορία", async () => {
+  const { deadGroups, NOT_FOUND } = await import("./run-core");
+  type R = Parameters<typeof deadGroups>[0][number];
+  const nf = (b: string, c = "c1"): R => ({ brandId: b, categoryId: c, match: "lost", extId: null, lastError: NOT_FOUND });
+  const rows = [...Array(5)].map(() => nf("b1")).concat([...Array(5)].map(() => nf("b2")), [{ brandId: "b2", categoryId: "c1", match: "variant", extId: "9", lastError: null }],
+    [...Array(4)].map(() => nf("b3")), [...Array(6)].map(() => nf("b4", "c2")), [{ brandId: "b4", categoryId: "c2", match: "rejected", extId: null, lastError: "απορρίφθηκε: x" }]);
+  assert.deepEqual([...deadGroups(rows)].sort(), ["b1|c1", "b4|c2"]);
+});
+test("reasonOf: φίλτρο προτάσεων", async () => {
+  const { reasonOf, TAKEN, sanityMsg } = await import("./run-core");
+  assert.equal(reasonOf("διαφορετικό EAN (δικό μας 1, Κωτσόβολου 2) — έλεγξε"), "ean");
+  assert.equal(reasonOf("AI: ίδιο μοντέλο"), "ai");
+  assert.equal(reasonOf("πολλά υποψήφια (3)"), "many");
+  assert.equal(reasonOf(sanityMsg(-45.2)), "price");
+  assert.equal(reasonOf(TAKEN), "taken");
+  assert.equal(reasonOf("κωδικός από τον τίτλο (X) — έλεγξε"), "other");
+  assert.equal(reasonOf(null), "other");
+});

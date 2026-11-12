@@ -44,21 +44,54 @@ export function decideGone(prev: Prev): Decision {
   return { match: prev.match ?? "auto", lastError: "δεν υπάρχει πια στον Κωτσόβολο", missCount, available: false };
 }
 
+/** Χωρίς ζευγάρι μετά από πλήρες ψάξιμο (μοντέλο + AI): γραμμή με extId=null και αυτό το lastError, ξαναψάχνεται μετά από 7 ημέρες. */
+export const NOT_FOUND = "δεν βρέθηκε στον Κωτσόβολο";
+/** auto με |διαφορά| πάνω από τόσο % πάει για έλεγχο (σετ; άλλη συσκευασία;). Το manual δεν αλλάζει ποτέ. */
+export const SANITY_PCT = 40;
+export const TAKEN = "το ίδιο είδος του Κωτσόβολου είναι ήδη ζευγάρι με άλλο προϊόν μας";
+
+const code = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+// «Α+++» του Κωτσόβολου μπορεί να είναι με ελληνικό άλφα
+const cls = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/Α/g, "A").replace(/\s/g, "") || null;
+export type Ours = { model: string | null; title: string; energyClass: string | null };
+type Codes = { supplierCodes?: string[]; energyClass?: string | null };
+
+/** Σίγουρο ζευγάρι χωρίς ίδιο EAN: κωδικός προμηθευτή του Κωτσόβολου ΙΣΟΣ (όχι πρόθεμα) με το modelCode μας ή με κωδικό του τίτλου μας,
+ *  και ίδια ενεργειακή κλάση όταν την ξέρουν και οι δύο. */
+export function strongMatch(a: { ourModel: string | null; ourTitle: string; ourEnergyClass: string | null; parsed: Codes }): { ok: boolean; why: string } {
+  const ours = new Set([a.ourModel ?? "", ...modelTokens(a.ourTitle)].map(code).filter((c) => c.length >= 5));
+  const hit = (a.parsed.supplierCodes ?? []).find((c) => ours.has(code(c)));
+  if (!hit) return { ok: false, why: "ο κωδικός προμηθευτή του Κωτσόβολου δεν είναι ο δικός μας" };
+  const x = cls(a.ourEnergyClass), y = cls(a.parsed.energyClass);
+  if (x && y && x !== y) return { ok: false, why: `διαφορετική ενεργειακή κλάση (δική μας ${x}, Κωτσόβολου ${y})` };
+  return { ok: true, why: `ίδιος κωδικός προμηθευτή (${hit})` };
+}
+
+const pct = (d: number) => `${d > 0 ? "+" : ""}${String(d).replace(".", ",")}%`;
+export const sanityMsg = (d: number) => `μεγάλη διαφορά τιμής (${pct(d)}) — έλεγξε (σετ; άλλη συσκευασία;)`;
+/** Κανόνας 2: auto με |diff| > SANITY_PCT → suggested· όλα τα άλλα όπως είναι. */
+export const insane = (match: Match, diff: number | null | undefined) => match === "auto" && diff != null && Math.abs(diff) > SANITY_PCT;
+
 /**
  * Αποτέλεσμα ανάγνωσης τιμής. `base` = τι λέει ο κανόνας μοντέλου (auto = matched, suggested = πρόταση)·
  * `note` = το lastError του κανόνα (π.χ. «διαφέρει κατάληξη»). Διαφορετικό EAN δεν απορρίπτει ποτέ ζευγάρι:
  * το κατεβάζει σε suggested (το manual μένει). Δεν αγγίζει ποτέ τα rejectedExtIds.
+ * `ours`: με αυτό, το strongMatch (κωδικός προμηθευτή) δίνει auto και χωρίς ίδιο EAN. `taken`: το extId είναι ήδη ζευγάρι
+ * άλλου προϊόντος μας → ποτέ auto. Τέλος, auto με μεγάλη διαφορά τιμής → suggested.
  */
-export function decidePrice(a: { prev: Prev; base: "auto" | "suggested"; note: string | null; parsed: Parsed; ourEan: string | null; ourPrice: number | null }): Decision {
+export function decidePrice(a: { prev: Prev; base: "auto" | "suggested"; note: string | null; parsed: Parsed; ourEan: string | null; ourPrice: number | null; ours?: Ours; taken?: boolean }): Decision {
   const { prev, parsed } = a;
   if ("error" in parsed) return { match: prev.match ?? a.base, lastError: parsed.error, missCount: prev.missCount };
   const their = parsed.offer ?? parsed.list;
-  if (their == null) return { match: prev.match ?? a.base, lastError: "χωρίς τιμή", missCount: prev.missCount };
+  if (their == null) return { match: prev.match ?? a.base, lastError: parsed.symbolic ? "τιμή-σύμβολο 0,01 € στον Κωτσόβολο (μόνο ως σετ)" : "χωρίς τιμή", missCount: prev.missCount };
   const ean = sameEan(parsed.ean, a.ourEan);
   const eanMsg = `διαφορετικό EAN (δικό μας ${a.ourEan}, Κωτσόβολου ${parsed.ean}) — έλεγξε`;
-  const match: Match = prev.match === "manual" ? "manual" : ean === true ? "auto" : ean === false ? "suggested" : a.base;
-  const lastError = ean === false ? eanMsg : match === "suggested" ? a.note : null;
+  const strong = ean !== true && a.ours ? strongMatch({ ourModel: a.ours.model, ourTitle: a.ours.title, ourEnergyClass: a.ours.energyClass, parsed }).ok : false;
   const diff = a.ourPrice != null ? diffPct(a.ourPrice, their) : null;
+  let match: Match = prev.match === "manual" ? "manual" : ean === true || strong ? "auto" : ean === false ? "suggested" : a.base;
+  let lastError = match === "auto" || match === "manual" ? (ean === false && !strong ? eanMsg : null) : ean === false ? eanMsg : a.note;
+  if (match === "auto" && a.taken) { match = "suggested"; lastError = TAKEN; }
+  else if (insane(match, diff)) { match = "suggested"; lastError = sanityMsg(diff!); }
   const history = prev.their == null || prev.their !== their || prev.ourPrice !== a.ourPrice;
   return { match, lastError, missCount: 0, available: parsed.buyable, history, prices: { list: parsed.list, offer: parsed.offer, their, ourPrice: a.ourPrice, diff } };
 }
@@ -92,4 +125,28 @@ export function researchDue(productId: string, now: Date): boolean {
   let h = 0;
   for (const ch of productId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return (Math.floor(now.getTime() / 86400_000) + h) % 7 === 0;
+}
+
+/** Νεκρή ομάδα μάρκα×κατηγορία: ≥ 5 «δεν βρέθηκε» και κανένα ζευγάρι/πρόταση/ενδεικτικό. Εκεί το AI δεν βοηθά (η μάρκα λείπει από την κατηγορία). */
+export function deadGroups(rows: { brandId: string; categoryId: string; match: string | null; extId: string | null; lastError: string | null }[]): Set<string> {
+  const t = new Map<string, { miss: number; hit: number }>();
+  for (const r of rows) {
+    const k = `${r.brandId}|${r.categoryId}`, x = t.get(k) ?? { miss: 0, hit: 0 };
+    if (!r.extId && r.lastError === NOT_FOUND) x.miss++;
+    else if (r.match === "auto" || r.match === "manual" || r.match === "suggested" || r.match === "variant") x.hit++;
+    t.set(k, x);
+  }
+  return new Set([...t].filter(([, x]) => x.miss >= 5 && x.hit === 0).map(([k]) => k));
+}
+
+/** Λόγος πρότασης για το φίλτρο της οθόνης «Προτάσεις προς έλεγχο». */
+export type Reason = "ean" | "ai" | "many" | "price" | "taken" | "other";
+export function reasonOf(lastError: string | null): Reason {
+  const e = lastError ?? "";
+  if (e.startsWith("διαφορετικό EAN")) return "ean";
+  if (e.startsWith("AI:")) return "ai";
+  if (e.startsWith("πολλά υποψήφια")) return "many";
+  if (e.startsWith("μεγάλη διαφορά τιμής")) return "price";
+  if (e === TAKEN) return "taken";
+  return "other";
 }

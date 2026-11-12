@@ -130,13 +130,14 @@ test("isBundle", () => {
   assert.equal(isBundle("LG F4WV912P2E", "product"), false);
 });
 
+const none = { supplierCodes: [], energyClass: null, symbolic: false, components: [] };
 test("parseProduct: τιμές", () => {
   const p = (price: unknown, extra = {}) => parseProduct({ catalogEntryView: [{ name: "X", buyable: true, price, ...extra }] });
-  assert.deepEqual(p([{ usage: "Display", value: "749.99" }, { usage: "Offer", value: "649.99" }]), { title: "X", list: 749.99, offer: 649.99, buyable: true, ean: null });
-  assert.deepEqual(p([{ usage: "Display", value: "749.99" }]), { title: "X", list: 749.99, offer: null, buyable: true, ean: null });
-  assert.deepEqual(p([]), { title: "X", list: null, offer: null, buyable: true, ean: null });
-  assert.deepEqual(p([{ usage: "Display", value: "1299.9" }, { usage: "Offer", value: "1.199,90" }]), { title: "X", list: 1299.9, offer: null, buyable: true, ean: null });
-  assert.deepEqual(p([{ usage: "Offer", value: 99 }, { usage: "Display", value: "" }]), { title: "X", list: null, offer: 99, buyable: true, ean: null });
+  assert.deepEqual(p([{ usage: "Display", value: "749.99" }, { usage: "Offer", value: "649.99" }]), { title: "X", list: 749.99, offer: 649.99, buyable: true, ean: null, ...none });
+  assert.deepEqual(p([{ usage: "Display", value: "749.99" }]), { title: "X", list: 749.99, offer: null, buyable: true, ean: null, ...none });
+  assert.deepEqual(p([]), { title: "X", list: null, offer: null, buyable: true, ean: null, ...none });
+  assert.deepEqual(p([{ usage: "Display", value: "1299.9" }, { usage: "Offer", value: "1.199,90" }]), { title: "X", list: 1299.9, offer: null, buyable: true, ean: null, ...none });
+  assert.deepEqual(p([{ usage: "Offer", value: 99 }, { usage: "Display", value: "" }]), { title: "X", list: null, offer: 99, buyable: true, ean: null, ...none });
   assert.equal((p(undefined) as any).offer, null);
   assert.equal((p("zzz") as any).list, null);
   assert.equal((p([null, 3, { usage: "Offer" }]) as any).offer, null);
@@ -233,4 +234,35 @@ test("matchVariant: όχι άλλο μέγεθος/χωρητικότητα, ό�
 test("parseProduct: τιμή-σύμβολο 0,01 € δεν είναι τιμή", () => {
   const r = parseProduct({ catalogEntryView: [{ name: "ΕΣ A/C", buyable: true, price: [{ usage: "Display", value: "0.01" }, { usage: "Offer", value: "0.01" }] }] });
   assert.ok(!("error" in r) && r.list === null && r.offer === null);
+});
+
+test("parseProduct: κωδικοί προμηθευτή, ενεργειακή κλάση, σετ", () => {
+  const at = (id: string, ...vals: string[]) => ({ identifier: id, values: vals.map((value) => ({ value })) });
+  const p = (o: object) => parseProduct({ catalogEntryView: [{ name: "X", buyable: true, price: [{ usage: "Offer", value: "699.99" }], ...o }] }) as any;
+  const tv = p({ partNumber: "337751", attributes: [at("SupplierPartNumbers", "337751;75NU8E0B3LA.API"), at("EnergyClass", "E")] });
+  assert.deepEqual(tv.supplierCodes, ["75NU8E0B3LA.API"]); assert.equal(tv.energyClass, "E"); assert.equal(tv.symbolic, false);
+  assert.deepEqual(p({ partNumber: "306242", attributes: [at("SupplierPartNumbers", "306242;306242;AC15-0000013")] }).supplierCodes, ["AC15-0000013"]);
+  assert.deepEqual(p({ attributes: [at("SupplierPartNumbers", "307835;220227156")] }).supplierCodes, ["220227156"]); // χωρίς partNumber: το πρώτο φεύγει
+  assert.deepEqual(p({}).supplierCodes, []); assert.equal(p({}).energyClass, null);
+  const set = p({ partNumber: "321662", components: [{ partNumber: "321669" }, { partNumber: "321670" }, null] });
+  assert.deepEqual(set.components, ["321669", "321670"]);
+  const ind = parseProduct({ catalogEntryView: [{ name: "ΕΣ", buyable: true, price: [{ usage: "Display", value: "0.01" }, { usage: "Offer", value: "0.01" }] }] }) as any;
+  assert.equal(ind.symbolic, true);
+});
+
+test("ψεύτικο EAN του Κωτσόβολου = χωρίς EAN", async () => {
+  const { fakeEan } = await import("./core");
+  for (const bad of ["0000000320698", "12345678923", "5909999999999", "1234567"]) assert.equal(fakeEan(bad), true, bad);
+  for (const good of ["8806096799413", "5213013882067", "012345678905", "7333394038995"]) assert.equal(fakeEan(good), false, good);
+  const p = (value: string) => (parseProduct({ catalogEntryView: [{ name: "X", price: [], attributes: [{ identifier: "BarCode", values: [{ value }] }] }] }) as any).ean;
+  assert.equal(p("0000000320698"), null); assert.equal(p("12345678923"), null); assert.equal(p("8806096799413"), "8806096799413");
+});
+
+test("setCandidates: το σετ της εσωτερικής, όχι η ίδια ή η εξωτερική", async () => {
+  const { setCandidates } = await import("./core");
+  const pool = ["321669-ες-a-c-in24btu-inventor-empvi(w)-24wfi", "321670-εξ-a-c-in24btu-inventor-empvo(w)-24",
+    "air-condition-heaters/air-condition/7000-to-15000-btu/321662-a-c-in24btu-inventor-empviw24wfi-emperor", "x/1-a-c-in24btu-inventor-empviw24wfx", "x/2-a-c-toyotomi-empviw24wfi"].map(it);
+  const r = setCandidates({ brand: "Inventor", models: ["INVENTOR", "EMPVI(W)-24WFI", null], indoorArt: "321669" }, pool);
+  assert.deepEqual(r.map((x) => x.art), ["321662"]);
+  assert.deepEqual(setCandidates({ brand: "Inventor", models: ["INVENTOR"], indoorArt: "321669" }, pool), []); // χωρίς ψηφίο δεν είναι κωδικός
 });
