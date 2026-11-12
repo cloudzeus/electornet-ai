@@ -10,7 +10,8 @@ export interface JobDef {
   group: string;
   /** Μέγιστη διάρκεια — μετά το lock θεωρείται εγκαταλειμμένο (π.χ. ο server έπεσε στη μέση) */
   maxMin: number;
-  run: () => Promise<JobResult>;
+  /** `trigger` = «manual» από «Τρέξε τώρα»· οι περισσότερες εργασίες το αγνοούν */
+  run: (trigger: "cron" | "manual") => Promise<JobResult>;
 }
 
 /** Οι αυτόματες εργασίες. Νέα εργασία = μία γραμμή εδώ· ο scheduler και η σελίδα συγχρονισμών τη βλέπουν μόνες τους. */
@@ -58,6 +59,10 @@ export const JOBS: JobDef[] = [
       const autoIdle = !a.started.length && !a.applied.length && !a.errors.length;
       return { ok: c.ok && d.ok && !a.errors.length, idle: autoIdle && !!c.idle && !!d.idle, message: [...auto, c.idle ? null : c.message, d.idle ? null : d.message].filter(Boolean).join(" · ") };
     },
+  },
+  {
+    key: "competitor-kotsovolos", label: "Τιμές Κωτσόβολου (σύγκριση)", schedule: { dailyAt: [1, 0] }, group: "competitors", maxMin: 320,
+    run: async (trigger) => (await import("@/lib/competitors/run")).runCompetitorJob(trigger),
   },
 ];
 

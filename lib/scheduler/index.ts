@@ -63,7 +63,7 @@ export async function runJob(jobOrKey: JobDef | string, trigger: "cron" | "manua
   await db.scheduledJob.upsert({ where: { key: job.key }, create: { key: job.key, lastStartAt: startedAt }, update: { lastStartAt: startedAt } });
   let ok = false, message = "", idle = false;
   try {
-    const r = await job.run();
+    const r = await job.run(trigger);
     ok = r.ok; message = r.message; idle = !!r.idle;
   } catch (e) {
     message = `Απρόσμενο σφάλμα: ${e instanceof Error ? e.message : String(e)}`;
