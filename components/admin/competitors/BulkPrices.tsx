@@ -1,6 +1,6 @@
 "use client";
 // Μαζική αλλαγή τιμής web: φίλτρα + κανόνας + δικλείδες → προεπισκόπηση (planRow στον server) → εφαρμογή/αναίρεση.
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Info, Loader2, Lock, ExternalLink, RotateCcw, Scale, TrendingDown, X } from "lucide-react";
 import { Dialog } from "@/components/admin/catalog/QuickActions";
 import { KotCheckPanel } from "@/components/admin/catalog/KotDialogs";
@@ -138,6 +138,9 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   }
   const live = batches.find((b) => b.phase !== "idle");
 
+  /** Πρώτα όσα αλλάζουν, μετά όσα μένουν έξω (σταθερή σειρά μέσα σε κάθε ομάδα). */
+  const ordered = [...rows.filter((r) => "newPrice" in r.plan), ...rows.filter((r) => !("newPrice" in r.plan))];
+  const sepAt = ordered.findIndex((r) => !("newPrice" in r.plan));
   const note = (r: PreviewRow) => "skip" in r.plan
     ? (() => { const k = r.plan.skip, t = SKIP_TONE[k], I = SKIP_ICON[t]; return <span title={`${SKIP[k].label} — ${SKIP[k].hint}`} className="inline-flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)] whitespace-nowrap"><I className={`size-3.5 shrink-0 ${SKIP_INK[t]}`} aria-hidden />{SKIP_SHORT[k]}</span>; })()
     : r.cost != null ? <span title={`Κόστος με ΦΠΑ · ${SOURCE[r.costSource ?? ""] ?? "κόστος"}`} className="text-eu-muted text-[length:var(--fs-12)] whitespace-nowrap">κόστος <span className="tabular-nums text-eu-ink-3">{eur(r.cost)}</span></span> : null;
@@ -316,28 +319,32 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                   <th className="px-2 py-2">Προϊόν</th><th className="px-2 py-2 text-right">Τώρα</th><th className="px-2 py-2 text-right">Κωτσόβολος</th>
                   <th className="px-2 py-2 text-right">Νέα τιμή</th><th className="px-2 py-2 text-right">Αλλαγή</th><th className="px-3 py-2">Σημείωση</th><th className="w-10 px-1 py-2"><span className="sr-only">Έλεγχος ζευγαριού</span></th>
                 </tr></thead>
-                <tbody>{rows.map((r) => {
+                <tbody>{ordered.map((r, i) => {
                   const can = "newPrice" in r.plan;
-                  return (
-                    <tr key={r.productId} className={`border-t border-eu-line align-middle ${can ? "" : "bg-eu-surface/40"}`}>
+                  return (<Fragment key={r.productId}>
+                    {i === sepAt && <tr className="border-t border-eu-line bg-eu-surface"><td colSpan={8} className="px-3 py-1.5 font-semibold text-eu-ink-3 text-[length:var(--fs-12)]">Μένουν έξω · {ordered.length - sepAt} <span className="font-normal text-eu-muted">— δεν αλλάζουν· η αιτία σε κάθε γραμμή</span></td></tr>}
+                    <tr className="border-t border-eu-line align-middle">
                       <td className="px-1 py-0">{can && <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label>}</td>
-                      <td className={`px-2 py-1.5 font-semibold leading-snug ${can ? "text-eu-ink" : "text-eu-ink-3"}`}>{r.title}</td>
+                      <td className={`px-2 py-1.5 leading-snug ${can ? "font-semibold text-eu-ink" : "text-eu-ink-2"}`}>{r.title}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap">{eur(r.now)}</td>
                       <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5">{theirsLink(r)}{gap(r)}</span></td>
-                      <td className={`px-2 py-1.5 text-right tabular-nums whitespace-nowrap ${can ? "font-bold text-eu-ink" : "text-eu-muted"}`}>{"newPrice" in r.plan ? eur(r.plan.newPrice) : "—"}</td>
-                      <td className="px-2 py-1.5 text-right whitespace-nowrap">{"changeEur" in r.plan ? <span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? TONE.green : TONE.blue}`}>{pct(r.plan.changePct)}</span></span> : <span className="text-eu-muted">—</span>}</td>
-                      <td className="px-3 py-1.5 max-w-[13rem]">{note(r)}</td>
+                      {"newPrice" in r.plan && "changeEur" in r.plan ? <>
+                        <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap font-bold text-eu-ink">{eur(r.plan.newPrice)}</td>
+                        <td className="px-2 py-1.5 text-right whitespace-nowrap"><span className="grid justify-items-end gap-0.5"><span className={`tabular-nums ${changeTone(r)}`}>{signedEur(r.plan.changeEur)}</span><span className={`${pill} ${r.plan.changeEur < 0 ? TONE.green : TONE.blue}`}>{pct(r.plan.changePct)}</span></span></td>
+                        <td className="px-3 py-1.5 max-w-[13rem]">{note(r)}</td>
+                      </> : <td colSpan={3} className="px-3 py-1.5 text-right">{note(r)}</td>}
                       <td className="px-1 py-1 text-right">{checkBtn(r)}</td>
                     </tr>
-                  );
+                  </Fragment>);
                 })}</tbody>
               </table>
             </div>
             <ul className="m-0 grid list-none p-0 md:hidden">
-              {rows.map((r) => {
+              {ordered.map((r, i) => {
                 const can = "newPrice" in r.plan;
-                return (
-                  <li key={r.productId} className="grid gap-2 border-t border-eu-line px-4 py-3 first:border-t-0">
+                return (<Fragment key={r.productId}>
+                  {i === sepAt && <li className="border-t border-eu-line bg-eu-surface px-4 py-2 font-semibold text-eu-ink-3 text-[length:var(--fs-12)]">Μένουν έξω · {ordered.length - sepAt} — δεν αλλάζουν</li>}
+                  <li className="grid gap-2 border-t border-eu-line px-4 py-3 first:border-t-0">
                     <div className="-ml-3 flex items-center gap-1">
                       {can ? <label className={hit}><input type="checkbox" className={box} checked={!off.has(r.productId)} onChange={() => toggle(r.productId)} aria-label={`Επιλογή ${r.title}`} /></label> : <span className="size-11 shrink-0" aria-hidden />}
                       <span className="min-w-0 break-words font-bold text-eu-ink text-[length:var(--fs-14)]">{r.title}</span>
@@ -351,7 +358,7 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
                       <span className={`tabular-nums text-[length:var(--fs-13)] ${changeTone(r)}`}>{change(r)}</span>{note(r)}{checkBtn(r, true)}
                     </div>
                   </li>
-                );
+                </Fragment>);
               })}
             </ul>
           </>
