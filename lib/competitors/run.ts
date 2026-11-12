@@ -4,7 +4,7 @@ import { resetSettingsCache } from "@/lib/settings/store";
 import type { JobResult } from "@/lib/scheduler/jobs";
 import { fetchProduct, fetchSitemap } from "./kotsovolos/client";
 import { createPacer, KotStopError, type Pacer } from "./kotsovolos/pacer";
-import { brandPool, isBundle, matchVariant, modelTokens, rankCandidates, sameEan, setCandidates, slugIndex, type KotItem } from "./kotsovolos/core";
+import { brandPool, isBundle, isIndoorUnit, matchVariant, modelTokens, rankCandidates, sameEan, setCandidates, slugIndex, type KotItem } from "./kotsovolos/core";
 import { aiPick, AiStop } from "./llm-match";
 import { readCosts } from "./cost";
 import { deadGroups, decideGone, decidePrice, decideVariant, isGoneError, isOddResponse, NOT_FOUND, researchDue, runWindow, ourPrice, search, searchPrev, strongMatch, type Decision, type Ours, type Prev } from "./run-core";
@@ -95,6 +95,7 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
       ...(d.clearPair ? { extId: null, extUrl: null, extTitle: null } : extId ? { extId, extUrl: kot ? `${kot.path}/${kot.last}` : it.row?.extUrl ?? null, extTitle: title ?? it.row?.extTitle ?? null } : {}),
       ...(d.available !== undefined ? { available: d.available } : {}),
       ...(d.prices ? { listPrice: d.prices.list, offerPrice: d.prices.offer, ourPrice: d.prices.ourPrice, diffPct: d.prices.diff } : {}),
+      ...(d.clearPrices ? { listPrice: null, offerPrice: null, diffPct: null } : {}),
       ...(rejectedExtIds ? { rejectedExtIds } : {}),
     };
     const row = await db.competitorPrice.upsert({ where: { productId_competitor: { productId: p.id, competitor: COMP } }, update: data, create: { productId: p.id, competitor: COMP, ...data } });
@@ -115,17 +116,19 @@ export async function runCompetitorJob(trigger: "cron" | "manual", opts: JobOpts
     const ours = ourPrice({ price: p.price, offer: p.offer });
     const me: Ours = { model: p.modelCode, title: p.title, energyClass: p.energy?.eprel?.energyClass ?? p.energy?.class ?? null };
     const taken = (art: string) => { const o = pairOf.get(art); return !!o && o !== p.id; };
-    // Εσωτερική μονάδα με τιμή-σύμβολο: η τιμή είναι του σετ της. Δεκτό σετ μόνο αν το API του λέει ότι περιέχει αυτή τη μονάδα.
+    // Εσωτερική μονάδα (με τιμή-σύμβολο ή με δική της τιμή): συγκρίνουμε με το σετ της, γιατί το δικό μας είναι σετ.
+    // Δεκτό σετ μόνο αν το API του λέει ότι περιέχει αυτή τη μονάδα· αλλιώς μένει η μονάδα.
     type Read = { kot: KotItem; r: Awaited<ReturnType<typeof get>> };
     const viaSet = async (kot: KotItem, r: Read["r"]): Promise<Read> => {
-      if ("error" in r || !r.symbolic) return { kot, r };
+      if ("error" in r || !(r.symbolic || isIndoorUnit(kot.last))) return { kot, r };
       const bm = brandMaps.get(p.brandId);
       const cands = setCandidates({ brand: p.brand.name, alias: bm?.alias, models: [p.modelCode, ...p.title.split(/\s+/), ...r.title.split(/\s+/)], indoorArt: kot.art }, brandPool(ix, p.brand.name, bm?.alias));
       for (const s of cands.slice(0, 2)) {
         const x = await get(s.art);
         if (!("error" in x) && x.components.includes(kot.art) && (x.offer ?? x.list) != null) { c.sets++; return { kot: s, r: x }; }
       }
-      return { kot, r };
+      // χωρίς σετ: η τιμή της μονάδας μόνης της δεν συγκρίνεται με το δικό μας σετ
+      return { kot, r: { ...r, list: null, offer: null, symbolic: true } };
     };
     const mkPrev = (r: Item["row"], match: Prev["match"]): Prev => ({ match, extUrl: r?.extUrl ?? null, missCount: r?.missCount ?? 0, their: r?.offerPrice != null ? Number(r.offerPrice) : r?.listPrice != null ? Number(r.listPrice) : null, ourPrice: r?.ourPrice != null ? Number(r.ourPrice) : null });
     let row = it.row;

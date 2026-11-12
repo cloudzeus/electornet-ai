@@ -273,3 +273,10 @@ test("kotHref: κανονική διαδρομή μένει, χωρίς κατη
   assert.equal(kotHref("/324819-ες-a-c-in12btu-hisense-uni-hb-black"), "https://www.kotsovolos.gr/SearchDisplay?q=a%20c%20in12btu%20hisense%20uni%20hb%20black&storeId=10151");
   assert.equal(kotHref(null), null);
 });
+
+test("isIndoorUnit: μόνο η εσωτερική μονάδα, όχι εξωτερική ή σετ", async () => {
+  const { isIndoorUnit } = await import("./core");
+  assert.equal(isIndoorUnit("324819-ες-a-c-in12btu-hisense-uni-hb-black"), true);
+  assert.equal(isIndoorUnit("324820-εξ-a-c-in12btu-hisense-uni-hb"), false);
+  assert.equal(isIndoorUnit("324803-a-c-in12btu-hisense-uni-hb-black"), false);
+});

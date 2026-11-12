@@ -174,7 +174,7 @@ test("SANITY_PCT: auto με |διαφορά| > 40% πάει για έλεγχο,
 });
 test("τιμή-σύμβολο: μένει το ζευγάρι με εξήγηση", () => {
   const d = run({ match: "auto" }, ok({ list: null, offer: null, symbolic: true }));
-  assert.equal(d.match, "auto"); assert.match(d.lastError!, /0,01/); assert.equal(d.prices, undefined);
+  assert.equal(d.match, "auto"); assert.match(d.lastError!, /σετ δεν βρέθηκε/); assert.equal(d.prices, undefined); assert.equal(d.clearPrices, true);
 });
 test("deadGroups: ≥5 «δεν βρέθηκε» και κανένα ζευγάρι στη μάρκα×κατηγορία", async () => {
   const { deadGroups, NOT_FOUND } = await import("./run-core");

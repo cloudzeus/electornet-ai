@@ -31,6 +31,8 @@ export type Decision = {
   match: Match; lastError: string | null; missCount: number;
   available?: boolean; clearPair?: boolean;
   prices?: { list: number | null; offer: number | null; their: number; ourPrice: number | null; diff: number | null };
+  /** Χωρίς τιμή για σύγκριση: σβήνει την παλιά αποθηκευμένη, για να μη φαίνεται φρέσκια (το checkedAt ανανεώνεται). */
+  clearPrices?: true;
   history?: boolean;
 };
 
@@ -83,7 +85,7 @@ export function decidePrice(a: { prev: Prev; base: "auto" | "suggested"; note: s
   const { prev, parsed } = a;
   if ("error" in parsed) return { match: prev.match ?? a.base, lastError: parsed.error, missCount: prev.missCount };
   const their = parsed.offer ?? parsed.list;
-  if (their == null) return { match: prev.match ?? a.base, lastError: parsed.symbolic ? "τιμή-σύμβολο 0,01 € στον Κωτσόβολο (μόνο ως σετ)" : "χωρίς τιμή", missCount: prev.missCount };
+  if (their == null) return { match: prev.match ?? a.base, clearPrices: true, lastError: parsed.symbolic ? "η μονάδα πωλείται ως σετ στον Κωτσόβολο και το σετ δεν βρέθηκε — χωρίς τιμή για σύγκριση" : "χωρίς τιμή", missCount: prev.missCount };
   const ean = sameEan(parsed.ean, a.ourEan);
   const eanMsg = `διαφορετικό EAN (δικό μας ${a.ourEan}, Κωτσόβολου ${parsed.ean}) — έλεγξε`;
   const strong = ean !== true && a.ours ? strongMatch({ ourModel: a.ours.model, ourTitle: a.ours.title, ourEnergyClass: a.ours.energyClass, parsed }).ok : false;

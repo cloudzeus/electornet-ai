@@ -209,6 +209,9 @@ export function parseProduct(json: unknown): {
     supplierCodes, energyClass: attrVals(attrs, "EnergyClass")[0] ?? null, symbolic, components };
 }
 
+/** Εσωτερική μονάδα κλιματιστικού («324819-ες-…»): ο Κωτσόβολος την πουλά (ή τη δείχνει) χωριστά, αλλά το δικό μας προϊόν είναι το σετ. */
+export const isIndoorUnit = (last: string) => /^\d+-ες-/.test(last);
+
 /** Το σετ (εσωτερική + εξωτερική) μιας εσωτερικής μονάδας με τιμή-σύμβολο: είδη της ίδιας μάρκας με τον ίδιο κωδικό στο slug,
  *  όχι η ίδια μονάδα και όχι άλλη μονάδα («ες-…», «εξ-…», «πανελ-…»). Το αν είναι πράγματι σετ της μονάδας το λέει το components του API. */
 export function setCandidates(o: { brand: string; alias?: string | null; models: (string | null)[]; indoorArt: string }, pool: KotItem[]): KotItem[] {
