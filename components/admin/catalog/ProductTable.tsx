@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, ImageOff } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Columns3, RotateCcw, ImageOff, ExternalLink } from "lucide-react";
 import { ProductPeek, loadProductPeek } from "./ProductPeek";
 import { ProductRowActions, useToast, type RowCan } from "./QuickActions";
 import { sourceOf } from "./sources";
 import { sx } from "@/components/ui/sx";
 import { CompetitorBadge } from "@/components/admin/competitors/CompetitorBadge";
-import type { KotView } from "@/lib/competitors/badge";
+import { pct, theirPrice, type KotView } from "@/lib/competitors/badge";
+import { marginPct } from "@/lib/competitors/price-core";
 
 export type ProductRow = {
   id: string; title: string; slug: string; fromS1: boolean; brand: string; category: string; /** όλη η διαδρομή, από τη γενική προς την ειδική */ categoryPath: string[]; sku: string; ean: string | null; erpCode: string; active: boolean;
@@ -20,6 +21,7 @@ export type ProductRow = {
   energy: { cls: string; source: string | null } | null; energyNeeded: boolean; dims: number; dimStatus: string | null;
   updated: string; created: string; synced: string | null;
   /** Κωτσόβολος (μόνο διαχείριση) */ kot?: KotView | null;
+  /** κόστος τελευταίας αγοράς χωρίς ΦΠΑ (SoftOne) και ΦΠΑ % για το περιθώριο */ cost?: number | null; /** μόνο τελευταία τιμή προμηθευτή (νέο είδος χωρίς σταθμισμένο κόστος) */ costUnverified?: boolean; vat?: number;
 };
 type Col = { id: string; label: string; w: number; sort?: string; def?: boolean; right?: boolean; cell: (r: ProductRow) => ReactNode; title?: (r: ProductRow) => string };
 const eur = (v: number | null) => (v != null ? `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : "—");
@@ -42,6 +44,49 @@ export const SetChips = ({ r }: { r: ProductRow }) => (
     {!r.set && !r.soldAlone && <span className="rounded px-1.5 font-bold bg-eu-amber/15 text-eu-ink whitespace-nowrap" title={r.soldAloneMode === "no" ? "Ορίστηκε «Όχι»: δεν εμφανίζεται μόνο του στο site" : "Αυτόματα: κύριο σε σετ εξαρτημάτων — δεν εμφανίζεται μόνο του στο site"}>Μόνο σε σετ</span>}
   </>
 );
+const PAIR = ["auto", "manual"], ANY = ["auto", "manual", "suggested", "variant"];
+const kotUrl = (v: KotView) => (v.extUrl ? `https://www.kotsovolos.gr/${v.extUrl.replace(/^\/+/, "")}` : null);
+/** Τιμή Κωτσόβολου: σίγουρο ζευγάρι κανονικά, πρόταση/άλλο χρώμα γκρι με ετικέτα — δεν μετρούν. */
+const KotPrice = ({ r }: { r: ProductRow }) => {
+  const v = r.kot;
+  if (!v?.extId || !ANY.includes(v.match)) return muted("—");
+  const t = theirPrice(v), u = kotUrl(v), firm = PAIR.includes(v.match);
+  const txt = t != null ? eur(t) : "χωρίς τιμή";
+  return (
+    <span className={`inline-flex items-center gap-1 min-w-0 ${firm ? "" : "text-eu-ink-3"}`}>
+      {!firm && <span className="rounded px-1 bg-eu-amber/15 text-eu-ink text-[length:var(--fs-11)] font-bold">{v.match === "variant" ? "≈ χρώμα" : "πρόταση"}</span>}
+      {u ? <a href={u} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 tabular-nums hover:text-eu-blue hover:underline" title={`${v.extTitle ?? ""} (νέα καρτέλα)`}>{txt}<ExternalLink className="size-3 shrink-0 text-eu-muted" aria-hidden /></a> : <span className="tabular-nums">{txt}</span>}
+    </span>
+  );
+};
+/** Μικρό χρωματιστό σήμα για τις στήλες Κωτσόβολου / κόστους. */
+const PILL = "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px tabular-nums font-bold text-[length:var(--fs-12)] leading-[1.4] whitespace-nowrap";
+const TONE = { red: "bg-eu-red/10 text-eu-red", green: "bg-eu-green/10 text-eu-green", amber: "bg-eu-amber/15 text-eu-amber", grey: "bg-eu-ink/[0.06] text-eu-ink-3" } as const;
+/** Απόκλιση: ▲ κόκκινο = ακριβότεροι, ▼ πράσινο = φθηνότεροι, «ίδια» γκρι· στις προτάσεις διακεκομμένο γκρι με «;». */
+const KotDiff = ({ r }: { r: ProductRow }) => {
+  const v = r.kot;
+  if (!v?.extId || !ANY.includes(v.match) || v.diffPct == null) return v && !v.available && PAIR.includes(v.match) ? muted("δεν διατίθεται") : muted("—");
+  if (!PAIR.includes(v.match)) return <span className={`${PILL} border border-dashed border-eu-ink/20 text-eu-muted font-semibold`} title="Πρόταση: θέλει επιβεβαίωση ότι είναι ίδιο προϊόν">{pct(v.diffPct)} ;</span>;
+  if (!v.available) return muted("δεν διατίθεται");
+  if (Math.abs(v.diffPct) <= 0.5) return <span className={`${PILL} ${TONE.grey}`}>= ίδια</span>;
+  const up = v.diffPct > 0;
+  return <span className={`${PILL} ${up ? TONE.red : TONE.green}`}>{up ? <ArrowUp className="size-3" aria-label="ακριβότεροι" /> : <ArrowDown className="size-3" aria-label="φθηνότεροι" />}{pct(v.diffPct).replace(/^[+-]/, "")}</span>;
+};
+/** Κόστος τελευταίας αγοράς (χωρίς ΦΠΑ) και από κάτω σήμα περιθωρίου: κόκκινο ζημιά, πορτοκαλί < 5%, πράσινο ≥ 15%. */
+const Cost = ({ r }: { r: ProductRow }) => {
+  if (r.cost == null) return muted("—");
+  const m = marginPct(r.offer ?? r.price, r.vat ?? 24, r.cost);
+  const tone = m == null ? TONE.grey : m < 0 ? TONE.red : m < 5 ? TONE.amber : m >= 15 ? TONE.green : TONE.grey;
+  return (
+    <span className="grid justify-items-end gap-0.5 leading-tight">
+      <span className="inline-flex items-center gap-1 tabular-nums text-[length:var(--fs-13)]">
+        {r.costUnverified && <span className="size-1.5 rounded-full bg-eu-amber shrink-0" title="Ανεπιβεβαίωτο: τελευταία τιμή προμηθευτή (νέο είδος χωρίς σταθμισμένο κόστος στο SoftOne)" aria-label="ανεπιβεβαίωτο κόστος" />}
+        {eur(r.cost)}
+      </span>
+      {m != null && <span className={`${PILL} ${tone}`} title="Περιθώριο στην τελική τιμή, χωρίς ΦΠΑ">{m < 0 ? "ζημιά " : ""}{pct(m).replace("+", "")}</span>}
+    </span>
+  );
+};
 const Price = ({ r }: { r: ProductRow }) => r.offer != null && r.price != null && r.offer < r.price ? <span className="tabular-nums"><s className="text-eu-muted">{eur(r.price)}</s> <b className="text-eu-red">{eur(r.offer)}</b></span> : <span className="tabular-nums font-semibold">{r.price ? eur(r.price) : <span className="text-eu-red font-bold">χωρίς τιμή</span>}</span>;
 
 /** Όλες οι διαθέσιμες στήλες· `def` = ορατή αρχικά. Το `sort` είναι το κλειδί ταξινόμησης του server (?s=). */
@@ -53,7 +98,10 @@ const COLS: Col[] = [
   { id: "ean", label: "Barcode", w: 125, sort: "ean", cell: (r) => <span className="font-mono truncate">{r.ean ?? "—"}</span> },
   { id: "mtrl", label: "MTRL", w: 80, sort: "mtrl", right: true, cell: (r) => r.set ? <span title="Σετ του SoftOne: δεν έχει δικό του MTRL — ο αριθμός είναι του «Set ειδών» (SPCS)" className="font-mono tabular-nums text-eu-muted">set {r.erpCode?.replace(/^SET-/, "")}</span> : <span className="font-mono tabular-nums text-eu-ink-3">{r.erpCode}</span> },
   { id: "price", label: "Τιμή", w: 130, sort: "price", def: true, right: true, cell: (r) => <Price r={r} /> },
-  { id: "kotsovolos", label: "Κωτσόβολος", w: 175, def: true, title: () => "Διαφορά από την τιμή του Κωτσόβολου (νυχτερινός έλεγχος)", cell: (r) => <CompetitorBadge price={r.kot ?? null} size="sm" /> },
+  { id: "kotPrice", label: "Κωτσόβολος", w: 130, def: true, right: true, title: (r) => r.kot?.extTitle ?? "Τιμή στον Κωτσόβολο (νυχτερινός έλεγχος)", cell: (r) => <KotPrice r={r} /> },
+  { id: "kotDiff", label: "Διαφορά", w: 95, def: true, right: true, title: (r) => r.kot?.lastError ?? "Πόσο ακριβότεροι (▲) ή φθηνότεροι (▼) είμαστε από τον Κωτσόβολο", cell: (r) => <KotDiff r={r} /> },
+  { id: "cost", label: "Τελ. αγορά", w: 115, def: true, right: true, title: () => "Κόστος τελευταίας αγοράς χωρίς ΦΠΑ (SoftOne) και περιθώριο στην τελική τιμή· πορτοκαλί τελεία = ανεπιβεβαίωτο", cell: (r) => <Cost r={r} /> },
+  { id: "kotsovolos", label: "Κωτσόβολος (badge)", w: 175, title: () => "Διαφορά από την τιμή του Κωτσόβολου (νυχτερινός έλεγχος)", cell: (r) => <CompetitorBadge price={r.kot ?? null} size="sm" /> },
   { id: "stock", label: "Απόθεμα", w: 80, sort: "stock", def: true, right: true, cell: (r) => <span className={`tabular-nums ${r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}`}>{r.stock}</span> },
   { id: "sold", label: "Πωλήσεις", w: 85, def: true, right: true, title: () => "Τεμάχια e-shop + SoftOne (χωρίς ακυρωμένα)", cell: (r) => <span className="tabular-nums">{r.sold || muted("0")}</span> },
   { id: "photos", label: "Φωτογρ.", w: 80, sort: "photos", def: true, right: true, cell: (r) => r.photos ? <span className={`tabular-nums ${r.lowMain ? "text-eu-red font-bold" : ""}`} title={r.lowMain ? "μικρή κύρια φωτογραφία" : undefined}>{r.photos}{r.lowMain ? " ⚠" : ""}</span> : <span className="text-eu-red font-bold">καμία</span> },
@@ -67,7 +115,16 @@ const COLS: Col[] = [
   { id: "offer", label: "Προσφορά", w: 110, sort: "offer", right: true, title: () => "Τελική τιμή με την καλύτερη προσφορά", cell: (r) => r.offer != null && r.price != null && r.offer < r.price ? <span className="tabular-nums font-bold text-eu-red">{eur(r.offer)} <span className="font-normal text-eu-ink-3">−{Math.round((1 - r.offer / r.price) * 100)}%</span></span> : muted("—") },
 ];
 const DEFAULT = COLS.filter((c) => c.def).map((c) => c.id);
-const KEY_COLS = "eu.products.cols", KEY_W = "eu.products.widths";
+const KEY_COLS = "eu.products.cols", KEY_W = "eu.products.widths", KEY_SEEN = "eu.products.cols.seen";
+/** Νέες προεπιλεγμένες στήλες μπαίνουν και σε όσους έχουν αποθηκεύσει δικές τους (μία φορά, δίπλα στην «Τιμή»). */
+const withNew = (saved: string[], seen: string[] | null) => {
+  const known = new Set(seen ?? saved), add = DEFAULT.filter((id) => !known.has(id) && !saved.includes(id));
+  if (!add.length) return saved;
+  // οι τρεις στήλες Κωτσόβολου αντικαθιστούν το παλιό badge
+  if (add.includes("kotPrice")) saved = saved.filter((id) => id !== "kotsovolos");
+  const at = saved.indexOf("price");
+  return at < 0 ? [...saved, ...add] : [...saved.slice(0, at + 1), ...add, ...saved.slice(at + 1)];
+};
 const read = <T,>(k: string): T | null => { try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : null; } catch { return null; } };
 const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* χωρίς αποθήκευση */ } };
 
@@ -76,7 +133,7 @@ const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.st
  * ταξινόμηση, εγγραφές ανά σελίδα, επιλογή για μαζική προσφορά και άνοιγμα κάθε γραμμής (▾) σε καρτέλες με όλη την
  * εικόνα του προϊόντος. Στήλες και πλάτη θυμάται ο browser.
  */
-const ctx = (r: ProductRow) => ({ id: r.id, title: r.title, slug: r.slug, active: r.active, sku: r.sku, ean: r.ean, erpCode: r.erpCode, fromS1: r.fromS1, energyNeeded: r.energyNeeded });
+const ctx = (r: ProductRow) => ({ id: r.id, title: r.title, slug: r.slug, active: r.active, sku: r.sku, ean: r.ean, erpCode: r.erpCode, fromS1: r.fromS1, energyNeeded: r.energyNeeded, hasPrice: r.price != null && r.price > 0, kotMatch: r.kot?.extId ? r.kot.match : null });
 
 export function ProductTable({ rows, sort, dir, query, perPage, total, from, canPromo, canSelect = canPromo, can }: { rows: ProductRow[]; sort: string; dir: "asc" | "desc"; query: Record<string, string>; perPage: number; total: number; from: number; canPromo: boolean; /** επιλογή γραμμών (μαζική προσφορά / «Πωλείται και μόνο του») */ canSelect?: boolean; can: RowCan }) {
   const { setToast, bar } = useToast();
@@ -98,7 +155,8 @@ export function ProductTable({ rows, sort, dir, query, perPage, total, from, can
   useEffect(() => {
     const c = read<string[]>(KEY_COLS), w = read<Record<string, number>>(KEY_W);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- αρχικοποίηση από localStorage μία φορά
-    if (c?.length) setCols(c.filter((id) => COLS.some((x) => x.id === id)));
+    if (c?.length) { const n = withNew(c.filter((id) => COLS.some((x) => x.id === id)), read<string[]>(KEY_SEEN)); setCols(n); if (n.length !== c.length) write(KEY_COLS, n); }
+    write(KEY_SEEN, COLS.map((x) => x.id));
     if (w) setWidths(w);
   }, []);
   useEffect(() => {
@@ -233,7 +291,7 @@ export function ProductCards({ rows, canPromo, canSelect = canPromo, can }: { ro
                 <span className="text-eu-muted text-[length:var(--fs-12)] truncate">{r.brand} · <span className="font-mono">{r.sku}</span>{r.active ? "" : " · ανενεργό"}</span>
                 {(r.set || r.mainOf > 0 || !r.soldAlone) && <span className="flex flex-wrap gap-1 text-[length:var(--fs-12)]"><SetChips r={r} /></span>}
                 {r.kot && <span className="flex min-w-0"><CompetitorBadge price={r.kot} size="sm" /></span>}
-                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[length:var(--fs-13)]"><Price r={r} /><span className={r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}>{r.stock > 0 ? `${r.stock} τεμ.` : "κατόπιν παρ."}</span><Energy r={r} />{!r.photos && <span className="text-eu-red font-bold">χωρίς φωτο</span>}</span>
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[length:var(--fs-13)]"><Price r={r} />{r.cost != null && <span className="text-eu-ink-3">αγορά {eur(r.cost)}{(() => { const m = marginPct(r.offer ?? r.price, r.vat ?? 24, r.cost); return m != null ? <b className={m < 0 ? "text-eu-red" : m < 5 ? "text-eu-amber" : "font-normal"}> · {m < 0 ? "ζημιά" : "περιθ."} {pct(m).replace("+", "")}</b> : null; })()}</span>}<span className={r.stock > 0 ? "text-eu-green font-bold" : "text-eu-muted"}>{r.stock > 0 ? `${r.stock} τεμ.` : "κατόπιν παρ."}</span><Energy r={r} />{!r.photos && <span className="text-eu-red font-bold">χωρίς φωτο</span>}</span>
               </span>
               <span className="grid justify-items-end gap-1">
                 <ProductRowActions r={ctx(r)} can={can} onToast={setToast} />

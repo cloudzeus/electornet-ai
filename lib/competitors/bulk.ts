@@ -166,6 +166,35 @@ export async function runUndo(batchId: string, userId: string) {
   }
 }
 
+/**
+ * Αλλαγή τιμής web ενός προϊόντος με το χέρι (παράθυρο «Αλλαγή τιμής» του καταλόγου): μία γραμμή σε δική της παρτίδα
+ * (rule.manual), ώστε να φαίνεται στο ιστορικό και να αναιρείται όπως οι μαζικές. Σύγχρονη εγγραφή (ένα είδος), με
+ * `expect` = η τιμή web που είδε ο χρήστης. Οι δικλείδες (κάτω από το κόστος, μεγάλη μείωση) ελέγχονται στον caller.
+ */
+export async function applyManual(productId: string, newPrice: number, expectWeb: number, userId: string): Promise<{ ok: true; batchId: string } | { ok: false; error: string }> {
+  const blocked = await writeBlocked();
+  if (blocked) return { ok: false, error: blocked };
+  const p = await db.product.findUnique({ where: { id: productId }, select: { erpCode: true } });
+  const mtrl = Number(p?.erpCode);
+  if (!p || !Number.isInteger(mtrl) || mtrl <= 0) return { ok: false, error: "Το προϊόν δεν είναι είδος του SoftOne." };
+  const value = Math.round(newPrice * 100) / 100;
+  const batch = await db.priceChangeBatch.create({ data: { userId, rule: { manual: true, newPrice: value }, lines: { create: [{ productId, mtrl: String(mtrl), oldPrice: expectWeb, newPrice: value }] } }, include: { lines: true } });
+  const w = await writeWebPrice(mtrl, value, { mode: "any", expect: expectWeb }).catch((e: Error) => ({ ok: false, error: e.message }));
+  await db.priceChangeLine.update({ where: { id: batch.lines[0].id }, data: { ok: w.ok, error: w.ok ? null : (w.error ?? "Άγνωστο σφάλμα") } });
+  await audit(userId, "competitor.price.manual", "Product", productId, { price: expectWeb }, { price: value, ok: w.ok });
+  if (!w.ok) return { ok: false, error: w.error?.startsWith(WEB_PRICE_CHANGED) ? "Η τιμή άλλαξε στο μεταξύ από άλλον — άνοιξε ξανά το παράθυρο." : (w.error ?? "Άγνωστο σφάλμα") };
+  await refresh(mtrl);
+  return { ok: true, batchId: batch.id };
+}
+
+/** Άμεση αναίρεση μιας αλλαγής με το χέρι (σύγχρονη, μία γραμμή)· ίδιοι κανόνες με το runUndo. */
+export async function undoManual(batchId: string, userId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try { await startUndo(batchId); } catch (e) { return { ok: false, error: (e as Error).message }; }
+  await runUndo(batchId, userId);
+  const l = await db.priceChangeLine.findFirst({ where: { batchId }, select: { undoOk: true, error: true } });
+  return l?.undoOk ? { ok: true } : { ok: false, error: l?.error ?? "Η αναίρεση δεν έγινε." };
+}
+
 /** Οι τελευταίες παρτίδες για το ιστορικό, με την πρόοδό τους. */
 export async function listBatches(take = 10) {
   const now = new Date();
