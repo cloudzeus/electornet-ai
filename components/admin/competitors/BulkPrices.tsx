@@ -37,12 +37,12 @@ const SKIP_SHORT: Record<Skip, string> = { "max-drop": "Μεγάλη μείωσ�
 const SKIP_INK: Record<keyof typeof TONE, string> = { red: "text-eu-red", amber: "text-eu-amber", blue: "text-eu-blue", grey: "text-eu-muted", green: "text-eu-green" };
 const SKIP_ICON: Record<keyof typeof TONE, typeof AlertTriangle> = { red: AlertTriangle, amber: AlertTriangle, blue: Lock, grey: Info, green: CheckCircle2 };
 const pill = "inline-flex items-center gap-0.5 tabular-nums font-semibold text-[length:var(--fs-11)] leading-[1.4] whitespace-nowrap";
-const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]";
-const lbl = "font-bold text-eu-ink-2 text-[length:var(--fs-13)]";
-const field = "min-h-11 w-full rounded-lg border border-eu-line-2 bg-white px-3 text-eu-ink text-[length:var(--fs-16)]";
-const num = "min-h-11 rounded-lg border border-eu-line-2 bg-white px-3 text-center font-bold tabular-nums text-eu-ink text-[length:var(--fs-16)]";
-const chk = "flex flex-wrap items-center gap-x-2.5 gap-y-1 min-h-11 text-eu-ink text-[length:var(--fs-14)]";
-const box = "size-5 shrink-0 accent-eu-navy";
+const h3 = "m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-15)]";
+const lbl = "font-semibold text-eu-ink-3 text-[length:var(--fs-12)]";
+const field = "min-h-11 md:min-h-9 w-full rounded-lg border border-eu-line-2 bg-white px-2.5 text-eu-ink text-[length:var(--fs-14)]";
+const num = "min-h-11 md:min-h-9 rounded-lg border border-eu-line-2 bg-white px-2 text-center font-semibold tabular-nums text-eu-ink text-[length:var(--fs-14)] disabled:opacity-50";
+const chk = "flex items-center gap-2 min-h-11 md:min-h-9 text-eu-ink text-[length:var(--fs-13)]";
+const box = "size-4 shrink-0 accent-eu-navy";
 /** checkbox γραμμής μέσα σε στόχο αφής 44px */
 const hit = "inline-flex size-11 shrink-0 cursor-pointer items-center justify-center";
 const btn = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 font-bold text-[length:var(--fs-14)] disabled:cursor-not-allowed disabled:opacity-50";
@@ -159,14 +159,14 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
   return (
     <div className="grid gap-5 min-w-0">
       {/* Φίλτρα */}
-      <section data-help="bulk-filters" aria-label="Φίλτρα" className={`${card} grid gap-4`}>
+      <section data-help="bulk-filters" aria-label="Φίλτρα" className={`${card} grid gap-3`}>
         {product && filter.productId ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-eu-ink text-[length:var(--fs-14)]">Μόνο το προϊόν: <b>{product.title}</b></span>
             <button type="button" onClick={() => setFilter({ onlyExpensive: true })} className={`${btn} border border-eu-line-2 bg-white text-eu-navy`}><X className="size-4" aria-hidden />Όλα τα προϊόντα</button>
           </div>
         ) : (
-          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))]">
             <label className="grid gap-1.5"><span className={lbl}>Κατηγορία</span>
               <select className={field} value={filter.categoryId ?? ""} onChange={(e) => setFilter({ ...filter, categoryId: e.target.value || undefined })}>
                 <option value="">Όλες</option>{options.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -183,49 +183,50 @@ export function BulkPrices({ initialRows, initialFilter, product, options, batch
         )}
       </section>
 
-      <div className="flex flex-wrap gap-5">
-        {/* Κανόνας */}
-        <section data-help="bulk-rule" aria-label="Κανόνας" className={`${card} grid content-start gap-3.5 flex-[999_1_30rem]`}>
+      {/* Κανόνας + δικλείδες: μία κάρτα, χωρίς κενό ύψος */}
+      <section aria-label="Κανόνας και δικλείδες" className={`${card} grid gap-3 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-6`}>
+        <div data-help="bulk-rule" className="grid content-start gap-2">
           <h3 className={h3}>Κανόνας</h3>
-          <div className="flex flex-wrap items-center gap-2.5 font-bold text-eu-ink text-[length:var(--fs-16)]">
+          <div className="flex flex-wrap items-center gap-2 font-semibold text-eu-ink text-[length:var(--fs-14)]">
             <span>Νέα τιμή =</span>
-            <span className="rounded-lg bg-eu-yellow/25 px-3.5 py-2.5 text-eu-navy">τιμή Κωτσόβολου</span>
+            <span className="rounded-md bg-eu-yellow/25 px-2.5 py-1.5 text-eu-navy">τιμή Κωτσόβολου</span>
             <span aria-hidden>−</span>
-            <input className={`${num} w-28`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Ποσό κάτω από τον Κωτσόβολο" aria-invalid={!rule} />
-            <select className={`${num} w-20`} value={mode} onChange={(e) => setMode(e.target.value as Rule["mode"])} aria-label="Ευρώ ή ποσοστό">
-              <option value="eur">€</option><option value="pct">%</option>
-            </select>
+            <span className="inline-flex gap-1.5">
+              <input className={`${num} w-20`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Ποσό κάτω από τον Κωτσόβολο" aria-invalid={!rule} />
+              <select className={`${num} w-16`} value={mode} onChange={(e) => setMode(e.target.value as Rule["mode"])} aria-label="Ευρώ ή ποσοστό">
+                <option value="eur">€</option><option value="pct">%</option>
+              </select>
+            </span>
           </div>
-          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Η τιμή προσφοράς του Κωτσόβολου, αν έχει. Στρογγυλοποίηση στο λεπτό. Γράφεται ως τιμή web στο SoftOne.</p>
-          {!rule && <p role="alert" className="m-0 flex items-center gap-2 font-bold text-eu-red text-[length:var(--fs-13)]"><AlertTriangle className="size-4" aria-hidden />Έλεγξε τα ποσά: αριθμοί από 0 και πάνω (ποσοστό έως 50%, μείωση έως 90%, αύξηση έως 100%).</p>}
-        </section>
+          <p className="m-0 text-eu-muted text-[length:var(--fs-12)]">Με την τιμή προσφοράς τους αν έχουν· γράφεται ως τιμή web στο SoftOne</p>
+          {!rule && <p role="alert" className="m-0 flex items-center gap-2 font-semibold text-eu-red text-[length:var(--fs-12)]"><AlertTriangle className="size-4 shrink-0" aria-hidden />Έλεγξε τα ποσά: ποσοστό έως 50%, μείωση έως 90%, αύξηση έως 100%</p>}
+        </div>
 
-        {/* Δικλείδες */}
-        <section data-help="bulk-guards" aria-label="Δικλείδες" className={`${card} grid content-start gap-1.5 flex-[1_1_22rem]`}>
+        <div data-help="bulk-guards" className="grid content-start gap-1 lg:border-l lg:border-eu-line lg:pl-6">
           <h3 className={h3}>Δικλείδες</h3>
-          <div className={chk}>
-            <input id="g-drop" type="checkbox" className={box} checked={dropOn} onChange={(e) => setDropOn(e.target.checked)} />
-            <label htmlFor="g-drop">Όχι μείωση πάνω από</label>
-            <input className={`${num} w-20`} inputMode="decimal" value={drop} onChange={(e) => setDrop(e.target.value)} disabled={!dropOn} aria-label="Μέγιστη μείωση %" />%
-          </div>
-          <div className={chk}>
-            <input id="g-margin" type="checkbox" className={box} checked={marginOn} onChange={(e) => setMarginOn(e.target.checked)} />
-            <label htmlFor="g-margin">Ποτέ κάτω από το κόστος +</label>
-            <input className={`${num} w-20`} inputMode="decimal" value={margin} onChange={(e) => setMargin(e.target.value)} disabled={!marginOn} aria-label="Ελάχιστο περιθώριο πάνω από το κόστος %" />%
-          </div>
-          <p className="m-0 pl-7.5 text-eu-muted text-[length:var(--fs-12)]">Κόστος αγοράς από τον νυχτερινό έλεγχο (τελ. τιμή προμηθευτή ή τελ. τιμή αγοράς είδους), με ΦΠΑ. Χωρίς κόστος 36 ωρών, το προϊόν δεν αλλάζει.</p>
-          <p className="m-0 flex min-h-11 items-center gap-2.5 text-eu-ink text-[length:var(--fs-14)]"><Lock className="size-4 shrink-0 text-eu-ink-3" aria-hidden />Όσα έχουν ενεργή προσφορά δεν αλλάζουν ποτέ από εδώ — άλλαξέ τα από τις προσφορές</p>
-          <label className={chk}><input type="checkbox" className={box} checked={raiseCheaper} onChange={(e) => setRaiseCheaper(e.target.checked)} />Ανέβασε και όσα είμαστε φθηνότεροι</label>
-          {raiseCheaper && (
-            <div className={`${chk} pl-7.5`}>
-              <input id="g-rise" type="checkbox" className={box} checked={riseOn} onChange={(e) => setRiseOn(e.target.checked)} />
-              <label htmlFor="g-rise">Όχι αύξηση πάνω από</label>
-              <input className={`${num} w-20`} inputMode="decimal" value={rise} onChange={(e) => setRise(e.target.value)} disabled={!riseOn} aria-label="Μέγιστη αύξηση %" />%
+          <div className="grid gap-x-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
+            <div className={chk}>
+              <input id="g-drop" type="checkbox" className={box} checked={dropOn} onChange={(e) => setDropOn(e.target.checked)} />
+              <label htmlFor="g-drop">Όχι μείωση πάνω από</label>
+              <span className="inline-flex items-center gap-1 whitespace-nowrap"><input className={`${num} w-14`} inputMode="decimal" value={drop} onChange={(e) => setDrop(e.target.value)} disabled={!dropOn} aria-label="Μέγιστη μείωση %" />%</span>
             </div>
-          )}
-          <p className="m-0 pl-7.5 text-eu-muted text-[length:var(--fs-12)]">Τιμή Κωτσόβολου παλαιότερη από 36 ώρες δεν χρησιμοποιείται.</p>
-        </section>
-      </div>
+            <div className={chk} title="Κόστος αγοράς από τον νυχτερινό έλεγχο (τελ. τιμή προμηθευτή ή αγοράς), με ΦΠΑ. Χωρίς κόστος 36 ωρών το προϊόν δεν αλλάζει.">
+              <input id="g-margin" type="checkbox" className={box} checked={marginOn} onChange={(e) => setMarginOn(e.target.checked)} />
+              <label htmlFor="g-margin">Ποτέ κάτω από κόστος +</label>
+              <span className="inline-flex items-center gap-1 whitespace-nowrap"><input className={`${num} w-14`} inputMode="decimal" value={margin} onChange={(e) => setMargin(e.target.value)} disabled={!marginOn} aria-label="Ελάχιστο περιθώριο πάνω από το κόστος %" />%</span>
+            </div>
+            <label className={chk}><input type="checkbox" className={box} checked={raiseCheaper} onChange={(e) => setRaiseCheaper(e.target.checked)} />Ανέβασε και όσα είμαστε φθηνότεροι</label>
+            {raiseCheaper && (
+              <div className={chk}>
+                <input id="g-rise" type="checkbox" className={box} checked={riseOn} onChange={(e) => setRiseOn(e.target.checked)} />
+                <label htmlFor="g-rise">Όχι αύξηση πάνω από</label>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap"><input className={`${num} w-14`} inputMode="decimal" value={rise} onChange={(e) => setRise(e.target.value)} disabled={!riseOn} aria-label="Μέγιστη αύξηση %" />%</span>
+              </div>
+            )}
+          </div>
+          <p className="m-0 flex items-start gap-1.5 text-eu-muted text-[length:var(--fs-12)]"><Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden />Πάντα: όσα είναι σε προσφορά δεν αλλάζουν από εδώ· τιμή Κωτσόβολου πάνω από 36 ωρών και προϊόντα χωρίς κόστος μένουν έξω</p>
+        </div>
+      </section>
 
       {/* Σύνοψη */}
       <section data-help="bulk-summary" aria-label="Σύνοψη" aria-busy={loading} className="grid gap-4 rounded-2xl bg-eu-navy p-4 md:p-5 text-white min-w-0">
