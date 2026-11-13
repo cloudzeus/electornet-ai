@@ -212,10 +212,6 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
   const list = products.slice(0, Math.min(3, d.products.max));
   const one = list.length === 1;
   const sub = light ? "text-white/80" : "text-eu-ink-2";
-  // Κανόνας στοίχισης για πολλά προϊόντα δίπλα-δίπλα: κάθε στήλη έχει τις ίδιες «θέσεις» με το ίδιο ύψος (φωτογραφία, μάρκα, τίτλος 2 γραμμών,
-  // ενεργειακή κλάση, τιμή, αρχική τιμή). Όποιο προϊόν δεν έχει κάτι, κρατά κενή τη θέση του — έτσι μάρκες, τιμές και κλάσεις πέφτουν στην ίδια ευθεία.
-  const anyEnergy = d.products.showEnergy && list.some((p) => p.energy);
-  const anyWas = d.products.showWas && list.some((p) => p.wasPrice != null && p.wasPrice > p.price);
   return (
     <div className={`@container relative isolate overflow-hidden ${bleed ? "" : "rounded-2xl"} ${light ? "text-white" : "text-eu-navy"} ${bg.className}`}>
       {bg.node}{accent.node}{btn.node}
@@ -242,18 +238,38 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
 
         {list.length > 0 && (
           <ul className={`m-0 p-0 list-none grid gap-3 min-w-0 ${one ? "" : "@xl:grid-flow-col @xl:auto-cols-fr"}`}>
-            {list.map((p, i) => (
+            {list.map((p, i) => one ? (
               <li key={p.id} className={`min-w-0 grid items-center gap-3 ${one ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 @xl:justify-items-center @xl:text-center @xl:content-start"} ${i > 0 ? "hidden @xl:grid" : ""}`}>
                 {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`w-full object-contain ${one ? "max-h-44 @xl:max-h-56" : "max-h-24 @xl:max-h-none @xl:h-28 @xl:object-bottom"} ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
                 <div className="grid gap-1 min-w-0">
                   {d.products.showBrand && <span className={`font-heading font-extrabold uppercase text-[length:var(--fs-15)] @xl:text-[length:var(--fs-18)] ${one ? "" : "@xl:truncate"}`}>{p.brand}</span>}
                   <span className={`leading-snug line-clamp-2 text-[length:var(--fs-13)] @xl:text-[length:var(--fs-14)] ${one ? "" : "@xl:min-h-[2.75em]"} ${sub}`}>{p.title}</span>
                   {one && d.products.bullets.length > 0 && <ul className="m-0 pl-4 grid gap-0.5 text-[length:var(--fs-13)] @xl:text-[length:var(--fs-15)] font-semibold text-left">{d.products.bullets.map((b) => <li key={b}>{b}</li>)}</ul>}
-                  {d.products.showEnergy && p.energy ? <span className={one ? "justify-self-start" : "justify-self-start @xl:justify-self-center @xl:h-7 inline-flex items-center"}><EnergyChip cls={p.energy} fiche="" compact /></span> : !one && anyEnergy ? <span aria-hidden className="hidden @xl:block h-7" /> : null}
+                  {d.products.showEnergy && p.energy ? <span className={one ? "justify-self-start" : "justify-self-start @xl:justify-self-center @xl:h-7 inline-flex items-center"}><EnergyChip cls={p.energy} fiche="" compact /></span> : null}
                   <span className="grid leading-none mt-1">
                     {d.products.priceLabel && <span className="font-bold text-[length:var(--fs-12)] tracking-wide">{d.products.priceLabel}</span>}
                     <span className={`font-heading font-extrabold tabular-nums ${one ? "text-[length:var(--fs-34)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)]"} ${accent.className}`}><Price value={p.price} short euroSmall /></span>
-                    {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price ? <s className={`tabular-nums text-[length:var(--fs-13)] ${sub}`}>{eur(p.wasPrice)} €</s> : !one && anyWas ? <span aria-hidden className="hidden @xl:block text-[length:var(--fs-13)]"> </span> : null}
+                    {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price ? <s className={`tabular-nums text-[length:var(--fs-13)] ${sub}`}>{eur(p.wasPrice)} €</s> : null}
+                  </span>
+                </div>
+              </li>
+            ) : (
+              // Πολλά προϊόντα: κάθε ένα σε δικό του πλαίσιο με ίδια δομή — φωτογραφία σε ίδιο ύψος, μάρκα με την ενεργειακή κλάση στην ίδια γραμμή,
+              // τίτλος πάντα 2 γραμμών, τιμή και αρχική τιμή στην ίδια γραμμή. Έτσι όλα στοιχίζονται χωρίς κενές «θέσεις» και τα προϊόντα ξεχωρίζουν.
+              <li key={p.id} className={`min-w-0 grid grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 items-center @xl:content-start gap-3 @xl:gap-2.5 @xl:rounded-2xl @xl:p-3 ${light ? "@xl:bg-white/[0.07] @xl:ring-1 @xl:ring-white/15" : "@xl:bg-black/[0.04] @xl:ring-1 @xl:ring-black/10"} ${i > 0 ? "hidden @xl:grid" : ""}`}>
+                {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`w-full object-contain max-h-24 @xl:max-h-none @xl:h-28 ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
+                <div className="grid gap-1 min-w-0">
+                  <span className="flex items-center justify-between gap-2 min-h-7">
+                    {d.products.showBrand && <span className="font-heading font-extrabold uppercase truncate text-[length:var(--fs-15)] @xl:text-[length:var(--fs-17)]">{p.brand}</span>}
+                    {d.products.showEnergy && p.energy && <span className="shrink-0 ml-auto"><EnergyChip cls={p.energy} fiche="" compact /></span>}
+                  </span>
+                  <span className={`leading-snug line-clamp-2 @xl:min-h-[2.75em] text-[length:var(--fs-13)] @xl:text-[length:var(--fs-14)] ${light ? "text-white/85" : "text-eu-ink-2"}`}>{p.title}</span>
+                  <span className="grid leading-none mt-1.5 gap-1">
+                    {d.products.priceLabel && <span className="font-bold text-[length:var(--fs-12)] tracking-wide">{d.products.priceLabel}</span>}
+                    <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      <span className={`font-heading font-extrabold tabular-nums text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
+                      {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className={`tabular-nums text-[length:var(--fs-14)] ${sub}`}>{eur(p.wasPrice)} €</s>}
+                    </span>
                   </span>
                 </div>
               </li>
