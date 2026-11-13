@@ -59,7 +59,7 @@ export function PriceChange({ productId, onDone }: { productId: string; onDone: 
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Τώρα (web)" value={eur(info.web)} sub={info.final < info.web ? `με προσφορά ${eur(info.final)}` : nowMargin != null ? `περιθώριο ${pct(nowMargin).replace("+", "")}` : undefined} />
         <Stat label="Κωτσόβολος" value={info.theirs != null ? eur(info.theirs) : "—"} sub={info.match === "suggested" ? "πρόταση, όχι σίγουρο" : info.match === "variant" ? "άλλο χρώμα" : info.theirs == null ? "χωρίς ζευγάρι" : undefined} />
-        <Stat label="Τελευταία αγορά" value={info.cost != null ? eur(info.cost) : "—"} sub={info.cost == null ? "δεν βρέθηκε κόστος" : info.costSource === "supplier-unverified" ? "χωρίς ΦΠΑ · ανεπιβεβαίωτη (τελευταία τιμή προμηθευτή)" : "χωρίς ΦΠΑ"} />
+        <Stat label="Τελευταία αγορά" value={info.cost != null ? eur(info.cost * (1 + info.vat / 100)) : "—"} sub={info.cost == null ? "δεν βρέθηκε κόστος" : `με ΦΠΑ · ${eur(info.cost)} χωρίς${info.costSource === "supplier-unverified" ? " · ανεπιβεβαίωτη (τελευταία τιμή προμηθευτή)" : ""}`} />
       </div>
       {info.promo && <p className="m-0 inline-flex items-start gap-2 rounded-lg bg-eu-amber/10 px-2.5 py-1.5 text-eu-ink-2 text-[length:var(--fs-13)]"><AlertTriangle className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />Έχει {info.promo}: ο πελάτης βλέπει την τιμή της προσφοράς ({eur(info.final)}), όχι αυτή που γράφεις εδώ.</p>}
       {info.blocked && <p role="alert" className="m-0 rounded-lg bg-eu-surface px-2.5 py-1.5 text-eu-ink-2 text-[length:var(--fs-13)]">Μόνο προβολή: {info.blocked}</p>}
