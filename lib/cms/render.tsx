@@ -41,10 +41,10 @@ const registry: Record<string, Renderer> = {
   },
   "bento-hero": async (w, ctx) => {
     const [slides, deal, geo, services] = await Promise.all([getLiveHeroSlides(), getHeroDeal(), getNearestStoreWithGeo(), getHeroServices()]);
-    const p = w.props as { intervalMs?: number; theme?: string; services?: string; bg?: string; accent?: string; emblem?: string };
+    const p = w.props as { intervalMs?: number; theme?: string; services?: string; bg?: string; accent?: string; emblem?: string; titleColor?: string; textColor?: string };
     // Save-Data: a single static slide, no slideshow.
     const shown = ctx.saveData ? slides.slice(0, 1) : slides;
-    return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} theme={p.theme} hideServices={p.services === "hide"} bg={p.bg} accent={p.accent} emblem={p.emblem} />;
+    return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} theme={p.theme} hideServices={p.services === "hide"} bg={p.bg} accent={p.accent} emblem={p.emblem} titleColor={p.titleColor} textColor={p.textColor} />;
   },
   ticker: async (w) => { const items = ((w.props as { items?: string[] }).items ?? []).filter(Boolean); return items.length ? <Ticker key={w.id} items={items} zoneNo={w.zoneNo} bg={(w.props as { bg?: string }).bg} color={(w.props as { color?: string }).color} /> : null; },
   "category-grid": async (w) => {

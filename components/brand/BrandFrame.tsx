@@ -24,8 +24,8 @@ export function BlockHead({ kicker, title, right }: { kicker?: string; title?: s
   return (
     <div className="flex items-end justify-between gap-4 mb-6">
       <div>
-        {kicker && <div className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">{kicker}</div>}
-        {title && <h2 className="m-0 font-heading font-extrabold text-[length:var(--fs-32)] @lg:text-[length:var(--fs-42)] leading-[1.05] tracking-[-0.03em]">{title}</h2>}
+        {kicker && <div className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">{kicker}</div>}
+        {title && <h2 className="m-0 font-heading font-extrabold text-[color:var(--bs-title,inherit)] text-[length:var(--fs-32)] @lg:text-[length:var(--fs-42)] leading-[1.05] tracking-[-0.03em]">{title}</h2>}
       </div>
       {right}
     </div>

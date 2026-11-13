@@ -32,11 +32,11 @@ interface Props {
  * side by side under the campaign; on phones a single column in the
  * order campaign → deal → store → services.
  */
-export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback", services, intervalMs, zoneNo, theme, hideServices, bg, accent, emblem }: Props & { /** «night» = προβολέας πίσω από το hero */ theme?: string; hideServices?: boolean; /** χρώματα καμπάνιας αντί για μπλε / κίτρινο (ρυθμίσεις της αρχικής) */ bg?: string; accent?: string; /** σήμα καμπάνιας στα slides χωρίς προϊόν */ emblem?: string }) {
+export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback", services, intervalMs, zoneNo, theme, hideServices, bg, accent, emblem, titleColor, textColor }: Props & { /** χρώμα τίτλου και κειμένου των slides (ρυθμίσεις της αρχικής) */ titleColor?: string; textColor?: string; /** «night» = προβολέας πίσω από το hero */ theme?: string; hideServices?: boolean; /** χρώματα καμπάνιας αντί για μπλε / κίτρινο (ρυθμίσεις της αρχικής) */ bg?: string; accent?: string; /** σήμα καμπάνιας στα slides χωρίς προϊόν */ emblem?: string }) {
   // αλλάζουν μόνο οι μεταβλητές χρώματος μέσα στο hero: slides και πλακίδια ακολουθούν χωρίς δικό τους κώδικα
   const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
   const B = hex(bg), A = hex(accent);
-  const vars = sx({ ...(B ? { "--eu-navy": B, "--eu-navy-2": `color-mix(in srgb, ${B} 88%, white)`, "--eu-navy-line": `color-mix(in srgb, ${B} 70%, white)` } : {}), ...(A ? { "--eu-yellow": A, "--eu-yellow-dark": `color-mix(in srgb, ${A} 86%, black)` } : {}) });
+  const vars = sx({ ...(B ? { "--eu-navy": B, "--eu-navy-2": `color-mix(in srgb, ${B} 88%, white)`, "--eu-navy-line": `color-mix(in srgb, ${B} 70%, white)` } : {}), ...(A ? { "--eu-yellow": A, "--eu-yellow-dark": `color-mix(in srgb, ${A} 86%, black)` } : {}), ...(hex(titleColor) ? { "--hero-title": hex(titleColor)! } : {}), ...(hex(textColor) ? { "--hero-body": hex(textColor)! } : {}) });
   return (
     <section className={`relative isolate overflow-hidden bg-eu-navy eu-container ${vars.className}`} aria-label={c.proteinomena}>
       {vars.node}

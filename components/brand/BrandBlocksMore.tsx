@@ -79,7 +79,7 @@ export function ProductsAuto({ b, products }: { b: B<"products-auto">; products:
   if (!products.length) return null;
   return (
     <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label={b.title ?? "Προϊόντα"}>
-      <BlockHead kicker={b.kicker} title={b.title} right={b.cta ? <Link href={b.cta.href} className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline shrink-0">{b.cta.label} <ArrowRight className="size-4" aria-hidden /></Link> : undefined} />
+      <BlockHead kicker={b.kicker} title={b.title} right={b.cta ? <Link href={b.cta.href} className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline shrink-0">{b.cta.label} <ArrowRight className="size-4" aria-hidden /></Link> : undefined} />
       <Reveal className="grid grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4 gap-3" stagger={0.05}>
         {products.map((p, k) => <div key={p.id} data-reveal className={`min-w-0 h-full ${k >= 4 ? "hidden @sm:block" : ""}`}><ProductCard product={p} tone="dark" /></div>)}
       </Reveal>
@@ -137,7 +137,7 @@ export function TextBlock({ b }: { b: B<"text"> }) {
   return (
     <section className="eu-canvas eu-gutter py-10 @lg:py-12" aria-label={b.title ?? "Κείμενο"}>
       <div className={`max-w-3xl grid gap-4 ${center ? "mx-auto text-center" : ""}`}>
-        {b.kicker && <div className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase">{b.kicker}</div>}
+        {b.kicker && <div className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase">{b.kicker}</div>}
         {b.title && <h2 className="m-0 font-heading font-extrabold text-[length:var(--fs-28)] @lg:text-[length:var(--fs-36)] leading-[1.08] tracking-[-0.02em]">{b.title}</h2>}
         {paras.map((p, k) => <p key={k} className="m-0 text-[var(--bs-muted)] text-[length:var(--fs-17)] leading-relaxed whitespace-pre-line">{p}</p>)}
       </div>
@@ -180,7 +180,7 @@ export function CtaBand({ b }: { b: B<"cta"> }) {
           {b.body && <p className="m-0 text-[length:var(--fs-17)] leading-relaxed opacity-90 max-w-[40em]">{b.body}</p>}
         </div>
         <div className="flex flex-wrap gap-3">
-          {b.primary?.label && <Link href={b.primary.href} className={`${btn} bg-[var(--bs-accent-ink)] text-[var(--bs-accent)] hover:opacity-90 grow @md:grow-0`}>{b.primary.label} <ArrowRight className="size-4" aria-hidden /></Link>}
+          {b.primary?.label && <Link href={b.primary.href} className={`${btn} bg-[var(--bs-accent-ink)] text-[var(--bs-link,var(--bs-accent))] hover:opacity-90 grow @md:grow-0`}>{b.primary.label} <ArrowRight className="size-4" aria-hidden /></Link>}
           {b.secondary?.label && <Link href={b.secondary.href} className={`${secondary} grow @md:grow-0`}>{b.secondary.label}</Link>}
         </div>
       </div>

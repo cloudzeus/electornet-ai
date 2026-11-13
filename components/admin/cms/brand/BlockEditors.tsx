@@ -112,6 +112,20 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
         </div>
         <span className="text-eu-muted text-[length:var(--fs-13)]">Τίτλοι και κείμενα του component. «Αυτόματο» = λευκά σε σκούρο φόντο, σκούρα σε ανοιχτό. Διάλεξε χρώμα που ξεχωρίζει καθαρά από το φόντο.</span>
       </div>
+      <fieldset className="m-0 p-0 border-0 grid gap-2 min-w-0">
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Χρώματα ανά στοιχείο</legend>
+        {([["kickerColor", "Υπέρτιτλος", "Η μικρή γραμμή πάνω από τον τίτλο."], ["titleColor", "Τίτλος", "Η επικεφαλίδα του component."], ["linkColor", "Σύνδεσμοι", "Οι σύνδεσμοι κειμένου, π.χ. «Όλες οι προσφορές»."]] as const).map(([k, l, h]) => {
+          const val = b[k] && /^#[0-9a-f]{6}$/i.test(b[k]!) ? b[k]! : "";
+          return (
+            <div key={k} className="flex flex-wrap items-center gap-2">
+              <input type="color" aria-label={`Χρώμα: ${l}`} value={val || "#122a58"} onChange={(e) => set({ ...b, [k]: e.target.value })} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
+              <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{l} <span className="font-mono font-normal text-eu-muted text-[length:var(--fs-12)]">{val || "αυτόματο"}</span></span><span className="text-eu-muted text-[length:var(--fs-13)]">{h}</span></span>
+              {val && <button type="button" onClick={() => set({ ...b, [k]: undefined })} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Αυτόματο</button>}
+            </div>
+          );
+        })}
+        <span className="text-eu-muted text-[length:var(--fs-13)]">Όσα μείνουν «αυτόματο» ακολουθούν τα χρώματα της σελίδας. Το «Χρώμα γραμμάτων» από πάνω αφορά το υπόλοιπο κείμενο.</span>
+      </fieldset>
       <ImageUrlField label="Εικόνα φόντου (προαιρετικό)" value={b.bgImage ?? ""} onChange={(v) => set({ ...b, bgImage: v || undefined })} help="Καλύπτει όλο το πλάτος πίσω από το component και κόβεται στις άκρες. Χωρίς χρώμα από πάνω: μπαίνει σκούρο πέπλο και τα κείμενα γίνονται λευκά. Με χρώμα: τα κείμενα ακολουθούν το χρώμα (σκούρο χρώμα → λευκά κείμενα), για ανοιχτές εικόνες διάλεξε ανοιχτό χρώμα." />
     </div>
   );

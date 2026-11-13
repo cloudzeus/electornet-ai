@@ -167,7 +167,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp, emblem }: { sl
         <div className="relative z-10 px-4 pt-4 @md:p-7 @lg:px-[5cqi] @lg:pt-[6cqh] @lg:pb-0 text-white max-w-[40rem] self-start">
           <div data-copy className={`${hidden} inline-flex items-center gap-2 self-start bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-13)] tracking-wide px-2.5 py-1.5 rounded-sm mb-[3cqh]`}>{s.kicker}</div>
           {chars.node}
-          <h1 className={`m-0 font-heading font-extrabold [--col:150] @lg:[--col:82] text-[length:clamp(1.75rem,min(11cqi,12.5cqh,calc(var(--col)*1cqi/var(--chars))),5rem)] leading-[0.98] tracking-[-0.035em] mb-[3cqh] ${chars.className}`}>
+          <h1 className={`m-0 font-heading font-extrabold text-[color:var(--hero-title,inherit)] [--col:150] @lg:[--col:82] text-[length:clamp(1.75rem,min(11cqi,12.5cqh,calc(var(--col)*1cqi/var(--chars))),5rem)] leading-[0.98] tracking-[-0.035em] mb-[3cqh] ${chars.className}`}>
             {s.title.map((line, k) => (
               <span key={k} className="block">
                 {line.split(" ").map((w, j) => (
@@ -178,7 +178,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp, emblem }: { sl
               </span>
             ))}
           </h1>
-          <p data-copy className={`m-0 text-eu-on-dark text-[length:clamp(0.9375rem,3cqh,1.0625rem)] leading-[1.5] mb-[3.5cqh] max-w-[28em] line-clamp-2 ${hidden}`}>
+          <p data-copy className={`m-0 text-[color:var(--hero-body,var(--color-eu-on-dark))] text-[length:clamp(0.9375rem,3cqh,1.0625rem)] leading-[1.5] mb-[3.5cqh] max-w-[28em] line-clamp-2 ${hidden}`}>
             {s.body}
           </p>
           <div data-copy className={`flex flex-wrap gap-2 mb-[3cqh] ${hidden}`}>

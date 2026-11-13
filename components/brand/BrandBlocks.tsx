@@ -81,7 +81,7 @@ export function Series({ b, products }: { b: Extract<BrandBlock, { type: "series
                   <ul className="m-0 p-0 list-none flex flex-wrap gap-1.5">
                     {ps.slice(0, 3).map((p) => (
                       <li key={p.id}>
-                        <Link href={`/proion/${p.slug}`} className="inline-flex items-center gap-1 rounded-full border border-[var(--bs-muted)]/30 px-3 min-h-9 text-[length:var(--fs-14)] font-bold hover:border-[var(--bs-accent)] hover:text-[var(--bs-accent)]">
+                        <Link href={`/proion/${p.slug}`} className="inline-flex items-center gap-1 rounded-full border border-[var(--bs-muted)]/30 px-3 min-h-9 text-[length:var(--fs-14)] font-bold hover:border-[var(--bs-accent)] hover:text-[var(--bs-link,var(--bs-accent))]">
                           {p.title.split(" ").slice(0, 3).join(" ")} <span className="text-[var(--bs-muted)] font-semibold">{priceShort(p.price)}</span>
                         </Link>
                       </li>
@@ -89,7 +89,7 @@ export function Series({ b, products }: { b: Extract<BrandBlock, { type: "series
                   </ul>
                 )}
                 {it.href && (
-                  <Link href={it.href} className="inline-flex items-center gap-1 font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline">
+                  <Link href={it.href} className="inline-flex items-center gap-1 font-extrabold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline">
                     {c.oli_i_seira} <ArrowRight className="size-4" aria-hidden />
                   </Link>
                 )}
@@ -127,7 +127,7 @@ export function Story({ b }: { b: Extract<BrandBlock, { type: "story" }> }) {
     <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label={b.title}>
       <Reveal className={`grid grid-cols-1 @lg:grid-cols-2 gap-8 items-center ${right ? "" : "@lg:[&>*:first-child]:order-2"}`}>
         <div data-reveal>
-          {b.kicker && <div className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">{b.kicker}</div>}
+          {b.kicker && <div className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">{b.kicker}</div>}
           {b.title && <h2 className="m-0 font-heading font-extrabold text-[length:var(--fs-32)] @lg:text-[length:var(--fs-42)] leading-[1.05] tracking-[-0.03em]">{b.title}</h2>}
           <p className="m-0 mt-4 text-[var(--bs-muted)] text-[length:var(--fs-17)] leading-relaxed max-w-[38em]">{b.body}</p>
           {b.cta && (
@@ -175,7 +175,7 @@ export function Support({ b, brand }: { b: Extract<BrandBlock, { type: "support"
     <section className="eu-canvas eu-gutter py-10 @lg:py-14" aria-label={c.ypostirixi}>
       <div className="rounded-3xl bg-[var(--bs-bg2)] p-6 @lg:p-8 grid grid-cols-1 @lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 items-center">
         <div>
-          <div className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">Εγγύηση & service {brand}</div>
+          <div className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase mb-2">Εγγύηση & service {brand}</div>
           <ul className="m-0 p-0 list-none grid gap-2">
             {b.facts.map((f) => (
               <li key={f} className="flex gap-2 text-[length:var(--fs-16)]">

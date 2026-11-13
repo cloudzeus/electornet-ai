@@ -48,7 +48,7 @@ export function PromoLandingCard({ data }: { data: LandingData | null }) {
       <Link href={data.href} className="group grid @2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] rounded-3xl overflow-hidden bg-[var(--bs-bg2)] hover:shadow-[var(--shadow-raised)] transition-shadow">
         {data.image && <span className="relative block aspect-[16/9] @2xl:aspect-auto @2xl:min-h-[16rem]"><Image src={data.image} alt="" fill sizes="(max-width: 1024px) 100vw, 640px" className="object-cover" /></span>}
         <span className="p-5 @lg:p-8 grid gap-3 content-center">
-          {data.kicker && <span className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase">{data.kicker}</span>}
+          {data.kicker && <span className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase">{data.kicker}</span>}
           <span className="font-heading font-extrabold text-[length:var(--fs-26)] @lg:text-[length:var(--fs-32)] leading-[1.08] tracking-[-0.02em]">{data.title}</span>
           {data.subtitle && <span className="text-[var(--bs-muted)] text-[length:var(--fs-16)] leading-relaxed">{data.subtitle}</span>}
           {data.endsAt && <Countdown endsAt={data.endsAt} className="font-bold text-[length:var(--fs-14)] tabular-nums text-[var(--bs-muted)]" />}
@@ -82,7 +82,7 @@ export function StoresBlock({ b, stores }: { b: B<"stores">; stores: Store[] }) 
   if (!stores.length) return null;
   return (
     <section className={shell} aria-label={b.title || "Καταστήματα"}>
-      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/katastimata" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline shrink-0">Όλα τα καταστήματα <ArrowRight className="size-4" aria-hidden /></Link>} />
+      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/katastimata" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline shrink-0">Όλα τα καταστήματα <ArrowRight className="size-4" aria-hidden /></Link>} />
       <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3">
         {stores.map((s) => (
           <li key={s.id} className="min-w-0">

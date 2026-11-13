@@ -34,14 +34,14 @@ export function PromoGrid({ b, items }: { b: B<"promo-grid">; items: LandingData
   if (!items.length) return null;
   return (
     <section className={shell} aria-label={b.title || "Ενεργές προσφορές"}>
-      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/prosfores" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline shrink-0">Όλες οι προσφορές <ArrowRight className="size-4" aria-hidden /></Link>} />
+      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/prosfores" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline shrink-0">Όλες οι προσφορές <ArrowRight className="size-4" aria-hidden /></Link>} />
       <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3">
         {items.map((l, k) => (
           <li key={`${k}-${l.href}`} className="min-w-0">
             <Link href={l.href} className="group h-full grid grid-rows-[auto_minmax(0,1fr)] rounded-2xl overflow-hidden bg-[var(--bs-bg2)] hover:shadow-[var(--shadow-raised)] transition-shadow">
               <span className="relative block aspect-[16/9] bg-[var(--bs-accent)]">{l.image ? <Image src={l.image} alt="" fill sizes="(max-width: 768px) 100vw, 420px" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" /> : <span className="absolute inset-0 grid place-items-center text-[var(--bs-accent-ink)] font-heading font-extrabold text-[length:var(--fs-24)] px-4 text-center">{l.title}</span>}</span>
               <span className="p-4 grid gap-2 content-start">
-                {l.kicker && <span className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase">{l.kicker}</span>}
+                {l.kicker && <span className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase">{l.kicker}</span>}
                 <span className="font-heading font-bold text-[length:var(--fs-19)] leading-tight">{l.title}</span>
                 {l.endsAt && <span className="inline-flex items-center gap-1.5 text-[var(--bs-muted)] text-[length:var(--fs-14)]"><Clock className="size-4" aria-hidden />Λήγει σε <Countdown endsAt={l.endsAt} className="font-bold tabular-nums" /></span>}
               </span>
@@ -67,7 +67,7 @@ export function CountdownBand({ b, data }: { b: B<"countdown">; data: PromoData 
         </div>
         <div className="grid gap-3 justify-items-start @3xl:justify-items-end">
           <Countdown endsAt={data.endsAt} variant="blocks" tone="dark" />
-          {href && <Link href={href} className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--bs-accent-ink)] text-[var(--bs-accent)] font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:opacity-90">{b.cta?.label || "Δες την προσφορά"} <ArrowRight className="size-4" aria-hidden /></Link>}
+          {href && <Link href={href} className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--bs-accent-ink)] text-[var(--bs-link,var(--bs-accent))] font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:opacity-90">{b.cta?.label || "Δες την προσφορά"} <ArrowRight className="size-4" aria-hidden /></Link>}
         </div>
       </div>
     </section>
@@ -122,7 +122,7 @@ export function NewsletterBlock({ b, consent }: { b: B<"newsletter">; consent: s
     <section className={shell} aria-label={b.title || "Newsletter"}>
       <div className="rounded-3xl bg-[var(--bs-bg2)] p-5 @md:p-8 grid grid-cols-[minmax(0,1fr)] @3xl:grid-cols-2 gap-5 items-center [&>*]:min-w-0">
         <div className="grid gap-2">
-          {b.kicker && <span className="font-extrabold text-[var(--bs-accent)] text-[length:var(--fs-13)] tracking-wide uppercase">{b.kicker}</span>}
+          {b.kicker && <span className="font-extrabold text-[var(--bs-kicker,var(--bs-accent))] text-[length:var(--fs-13)] tracking-wide uppercase">{b.kicker}</span>}
           <h2 className="m-0 font-heading font-bold text-[length:var(--fs-24)] leading-tight">{b.title || "Μάθε πρώτος τις προσφορές"}</h2>
           {b.body && <p className="m-0 text-[var(--bs-muted)] text-[length:var(--fs-15)] leading-relaxed">{b.body}</p>}
         </div>
@@ -138,14 +138,14 @@ export function GuidesBlock({ b, guides }: { b: B<"guides">; guides: Guide[] }) 
   if (!list.length) return null;
   return (
     <section className={shell} aria-label={b.title || "Οδηγοί αγοράς"}>
-      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/odigoi" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline shrink-0">Όλοι οι οδηγοί <ArrowRight className="size-4" aria-hidden /></Link>} />
+      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/odigoi" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline shrink-0">Όλοι οι οδηγοί <ArrowRight className="size-4" aria-hidden /></Link>} />
       <ul className="m-0 p-0 list-none grid grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3 gap-3">
         {list.map((g) => (
           <li key={g.slug} className="min-w-0">
             <Link href={g.ctaHref ?? `/odigoi/${g.slug}`} className="group h-full grid grid-rows-[auto_minmax(0,1fr)] rounded-2xl overflow-hidden bg-[var(--bs-bg2)] hover:shadow-[var(--shadow-raised)] transition-shadow">
               <span className="relative block aspect-[16/9] bg-[var(--bs-bg)]">{g.image && <Image src={g.image} alt="" fill sizes="(max-width: 768px) 100vw, 420px" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" />}</span>
               <span className="p-4 grid gap-1.5 content-start">
-                <span className="text-[var(--bs-accent)] font-extrabold text-[length:var(--fs-13)] uppercase tracking-wide">{g.kicker} · {g.minutes}′</span>
+                <span className="text-[var(--bs-kicker,var(--bs-accent))] font-extrabold text-[length:var(--fs-13)] uppercase tracking-wide">{g.kicker} · {g.minutes}′</span>
                 <span className="font-heading font-bold text-[length:var(--fs-18)] leading-tight">{g.title}</span>
                 <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)] leading-snug line-clamp-3">{g.excerpt}</span>
               </span>
@@ -163,7 +163,7 @@ export function ServicesBlock({ b, services }: { b: B<"services">; services: Ser
   if (!list.length) return null;
   return (
     <section className={shell} aria-label={b.title || "Υπηρεσίες"}>
-      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/ypiresies" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-accent)] text-[length:var(--fs-15)] hover:underline shrink-0">Όλες οι υπηρεσίες <ArrowRight className="size-4" aria-hidden /></Link>} />
+      <BlockHead kicker={b.kicker} title={b.title} right={<Link href="/ypiresies" className="hidden @md:inline-flex items-center gap-1.5 font-bold text-[var(--bs-link,var(--bs-accent))] text-[length:var(--fs-15)] hover:underline shrink-0">Όλες οι υπηρεσίες <ArrowRight className="size-4" aria-hidden /></Link>} />
       <ul className="m-0 p-0 list-none grid grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-4 gap-3">
         {list.map((s) => (
           <li key={s.slug} className="min-w-0">
