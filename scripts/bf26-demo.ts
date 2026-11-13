@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ingest } from "@/lib/media/repo";
+import { destroy, ingest } from "@/lib/media/repo";
 import { saveCampaign, publishCampaign, setCampaignState } from "@/lib/promo/campaigns";
 import { emptyDraft, savePromotion } from "@/lib/promo/admin";
 import { recomputeOffers } from "@/lib/promo/offers";
@@ -91,7 +91,7 @@ async function heroSlides(staffId: string, image: string, href: string) {
     slides: [
       slide("main", null, "Όλες οι προσφορές", { kicker: "Black Friday 2026 · έως 30 Νοεμβρίου", title: ["Black Friday", "στην Euronics"], body: T.sub }),
       slide("tv", "eikona-kai-ichos", "Όλες οι τηλεοράσεις", { kicker: "Black Friday · τηλεοράσεις", title: ["Η τηλεόραση", "που περίμενες", "−20 %"], body: "LG QNED 55 ιντσών στο −20 % και Mini LED Samsung στο −15 %.", productId: P.lgQned55 }),
-      slide("white", "leykes-syskeyes", "Όλες οι λευκές συσκευές", { kicker: "Black Friday · λευκές συσκευές", title: ["Πλυντήριο 9 κιλών", "−15 %"], body: "Πλυντήριο, ψυγείο και εστίες σε τιμές Black Friday, με παράδοση από το κατάστημα της γειτονιάς σου.", productId: P.morrisWasher }),
+      slide("white", "leykes-syskeyes", "Όλες οι λευκές συσκευές", { kicker: "Black Friday · λευκές συσκευές", title: ["Ψυγείο, πλυντήριο,", "εστίες έως −15 %"], body: "Δίπορτο ψυγείο στο −10 %, πλυντήριο 9 κιλών και εστίες στο −15 %, με παράδοση από το κατάστημα της γειτονιάς σου.", productId: P.winstarFridge }),
       slide("clima", "klimatismos-thermansi", "Κλιματισμός και θέρμανση", { kicker: "Black Friday · χειμώνας", title: ["Σπίτι ζεστό,", "χωρίς υγρασία"], body: "Αφυγραντήρας De'Longhi στο −15 % και κλιματιστικό inverter στο −10 %.", productId: P.delonghiDehum }),
       slide("home", "oikiakos-exoplismos", "Όλες οι μικροσυσκευές", { kicker: "Black Friday · σπίτι", title: ["Καθάρισμα", "χωρίς καλώδιο", "−20 %"], body: "Επαναφορτιζόμενη σκούπα Rowenta στο −20 %, φριτέζα αέρος και σύστημα σιδερώματος στο −15 %.", productId: P.rowentaStick }),
       ...others.map((x) => ({ ...x, active: false })),
@@ -164,7 +164,10 @@ async function main() {
   const bgWide = await up("bf26-bg-wide.jpg", () => sharp(master()).extract({ left: 300, top: 860, width: 2200, height: 620 }).resize({ width: 2000 }).jpeg({ quality: 82 }).toBuffer(), "image/jpeg", "Black Friday 2026 · κενό φόντο (φαρδύ)");
   const bgSquare = await up("bf26-bg-square.jpg", () => sharp(master()).extract({ left: 800, top: 800, width: 1700, height: 1700 }).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer(), "image/jpeg", "Black Friday 2026 · κενό φόντο (τετράγωνο)");
   const keyVisual = await up("bf26-key-visual.jpg", () => sharp(master()).resize({ width: 1400 }).jpeg({ quality: 84 }).toBuffer(), "image/jpeg", "Black Friday 2026 · βασική εικόνα (σήμα + προβολέας)");
-  for (const [f, t] of [["EURONICS_BF26_SiteHeader-1920x400.jpg", "Black Friday 2026 · teaser 1920×400"], ["EURONICS_BF26_SiteHeader-820x360.jpg", "Black Friday 2026 · teaser 820×360"]] as const) await up(f, () => readFileSync(`${SRC}/${f}`), "image/jpeg", t);
+  const hdr = await up("EURONICS_BF26_SiteHeader-1920x400.jpg", () => readFileSync(`${SRC}/EURONICS_BF26_SiteHeader-1920x400.jpg`), "image/jpeg", "Black Friday 2026 · header 1920×400");
+  const hdrM = await up("EURONICS_BF26_SiteHeader-820x360.jpg", () => readFileSync(`${SRC}/EURONICS_BF26_SiteHeader-820x360.jpg`), "image/jpeg", "Black Friday 2026 · header 820×360");
+  // το story 1080×1920 κομμένο σε 4:5 (σήμα πάνω αριστερά, προβολέας κάτω) για την πλευρική στήλη
+  const bgStory = await up("bf26-bg-story.jpg", () => sharp(readFileSync(`${SRC}/Posts 1080x1920/EURONICS_BF26_Story-1080x1920.jpg`)).extract({ left: 0, top: 960, width: 4500, height: 5625 }).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer(), "image/jpeg", "Black Friday 2026 · story 4:5");
 
   // ---- 2. sticker στις κάρτες
   if (!(await db.sticker.findUnique({ where: { key: "black-friday" } }))) {
@@ -224,31 +227,37 @@ async function main() {
     if (pub.rejected || pub.errors.length) throw new Error("Η δημοσίευση δεν ολοκληρώθηκε.");
   }
   console.log("τιμές:", JSON.stringify(await recomputeOffers()));
-  console.log("χωρίς φόντο:", JSON.stringify(await ensureBannerCutouts(ALL, staff.id)));
+  // το λευκό πλυντήριο βγαίνει διάφανο από την αφαίρεση φόντου: χωρίς φωτογραφία «χωρίς φόντο» (και δεν μπαίνει σε hero / banners)
+  const bad = await db.mediaAsset.findMany({ where: { filename: `cutout-${P.morrisWasher}.png` }, select: { id: true } });
+  if (bad.length) await destroy(bad.map((x) => x.id));
+  console.log("χωρίς φόντο:", JSON.stringify(await ensureBannerCutouts(ALL.filter((id) => id !== P.morrisWasher), staff.id)));
 
   // ---- 6. banners σε όλες τις θέσεις (σχεδιασμένα: φόντο καμπάνιας + προβολέας + σήμα + προϊόντα με την τιμή τους)
-  const design = (o: { title: string; kicker?: string; body?: string; cta?: string; square?: boolean; ids?: string[]; max?: number; fromPromo?: boolean }): BannerDesign => normalizeBannerDesign({
-    bg: { color: "#05060f", image: o.square ? bgSquare : bgWide, video: null, anim: "spotlight" }, logo, ink: "light", accent: "#22e06b",
+  const design = (o: { title: string; kicker?: string; body?: string; cta?: string; ids?: string[]; max?: number; fromPromo?: boolean; posts?: string }): BannerDesign => normalizeBannerDesign({
+    // posts: το επίσημο εικαστικό (με το σήμα και τον προβολέα) είναι το φόντο κάθε τετραγώνου· λωρίδα: κενό φόντο + σήμα + προβολέας σε κίνηση
+    layout: o.posts ? "posts" : "strip", bg: { color: "#05060f", image: o.posts ?? bgWide, video: null, anim: o.posts ? "none" : "spotlight" }, logo: o.posts ? null : logo, ink: "light", accent: "#22e06b",
     kicker: o.kicker ?? "", title: o.title, body: o.body ?? "", cta: o.cta ?? "",
     products: { source: o.fromPromo ? "promotion" : o.ids?.length ? "manual" : "none", ids: o.ids ?? [], max: o.max ?? 2, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, bullets: [] },
   })!;
-  const ADS: { slot: string; name: string; priority?: number; d: BannerDesign }[] = [
-    // η «κορυφή» μπαίνει ως συγκεκριμένο banner στη ζώνη κορυφής της αρχικής· στη θέση home-strip κερδίζει το άλλο (μικρότερη προτεραιότητα)
-    { slot: "home-strip", name: "BF26 · Αρχική (κορυφή)", priority: 20, d: design({ kicker: "Έως 30 Νοεμβρίου", title: "Black Friday: οι τιμές έπεσαν", body: T.sub, cta: "Δες τις προσφορές" }) },
-    { slot: "home-strip", name: "BF26 · Αρχική", d: design({ kicker: "Black Friday · −20 %", title: "Δύο που ξεχωρίζουν", body: "Τηλεόραση LG QNED 55 ιντσών και σκούπα Rowenta χωρίς καλώδιο.", cta: "Όλες οι προσφορές", ids: [P.lgQned55, P.rowentaStick] }) },
-    { slot: "offers-top", name: "BF26 · Σελίδα προσφορών", d: design({ kicker: "Έως 30 Νοεμβρίου", title: "Οι προσφορές του Black Friday", body: "12 συσκευές έως −20 %, με δωρεάν μεταφορικά. Μέχρι να εξαντληθούν.", cta: "Δες τα προϊόντα" }) },
+  const ADS: { slot: string; name: string; priority?: number; d?: BannerDesign; image?: string; imageMobile?: string }[] = [
+    // επίσημο header της καμπάνιας (έτοιμη εικόνα): μπαίνει σε όλο το πλάτος στην αρχική ως συγκεκριμένο banner· στη θέση home-strip κερδίζουν τα τετράγωνα (μικρότερη προτεραιότητα)
+    { slot: "home-strip", name: "BF26 · Header καμπάνιας", priority: 20, image: hdr, imageMobile: hdrM },
+    { slot: "home-strip", name: "BF26 · Αρχική", d: design({ kicker: "Black Friday", title: "Τέσσερα που ξεχωρίζουν", cta: "Όλες οι προσφορές", posts: keyVisual, ids: [P.lgQned55, P.rowentaStick, P.tefalFry, P.delonghiDehum], max: 4 }) },
+    { slot: "offers-top", name: "BF26 · Σελίδα προσφορών", image: hdr, imageMobile: hdrM },
     { slot: "listing-top", name: "BF26 · Λίστες κατηγοριών", d: design({ kicker: "Black Friday", title: "Έως −20 % έως 30 Νοεμβρίου", cta: "Όλες οι προσφορές", fromPromo: true, max: 3 }) },
-    { slot: "pdp-below-buybox", name: "BF26 · Σελίδα προϊόντος", d: design({ kicker: "Black Friday · −15 %", title: "Και αυτό σε τιμή Black Friday", ids: [P.tefalFry], max: 1 }) },
+    { slot: "pdp-below-buybox", name: "BF26 · Σελίδα προϊόντος", d: design({ title: "", posts: keyVisual, ids: [P.tefalFry], max: 1 }) },
     { slot: "cart-top", name: "BF26 · Καλάθι", d: design({ kicker: `Κωδικός ${COUPON}`, title: "−10 € επιπλέον από 99 €", body: `Γράψε ${COUPON} στο πεδίο κουπονιού. Μία φορά ανά πελάτη, ${UNTIL}.` }) },
-    { slot: "info-top", name: "BF26 · Πληροφοριακές (πλάτος)", d: design({ kicker: "Έως 30 Νοεμβρίου", title: T.line, cta: "Δες τις προσφορές", ids: [P.morrisWasher, P.samsungTv43] }) },
-    { slot: "info-aside", name: "BF26 · Πληροφοριακές (στήλη)", d: design({ kicker: "Black Friday · −15 %", title: "Για τον χειμώνα", cta: "Δες το", square: true, ids: [P.delonghiDehum], max: 1 }) },
+    { slot: "info-top", name: "BF26 · Πληροφοριακές (πλάτος)", d: design({ kicker: "Έως 30 Νοεμβρίου", title: T.line, cta: "Δες τις προσφορές", ids: [P.samsungTv43, P.tefalFry] }) },
+    { slot: "info-aside", name: "BF26 · Πληροφοριακές (στήλη)", d: design({ title: "", posts: bgStory, ids: [P.delonghiDehum], max: 1 }) },
   ];
   const adId: Record<string, string> = {};
   for (const a of ADS) {
-    const data = { slot: a.slot, title: a.name, alt: `${T.line}: εκπτώσεις έως 20 % ${UNTIL}`, href, promotionId: main15, landingId: landing.id, campaignId: camp.id, status: "active", endsAt: camp.endsAt, priority: a.priority ?? 10, design: a.d as unknown as Prisma.InputJsonValue };
+    const data = { slot: a.slot, title: a.name, alt: `${T.line}: εκπτώσεις έως 20 % ${UNTIL}`, href, promotionId: main15, landingId: landing.id, campaignId: camp.id, status: "active", endsAt: camp.endsAt, priority: a.priority ?? 10, image: a.image ?? null, imageMobile: a.imageMobile ?? null, design: a.d ? (a.d as unknown as Prisma.InputJsonValue) : Prisma.JsonNull };
     const ex = await db.adPlacement.findFirst({ where: { title: a.name, campaignId: camp.id } });
     adId[a.name] = (ex ? await db.adPlacement.update({ where: { id: ex.id }, data }) : await db.adPlacement.create({ data: { ...data, createdById: staff.id } })).id;
   }
+  // banners της καμπάνιας από παλιότερη εκτέλεση που δεν υπάρχουν πια στη λίστα → αρχείο
+  await db.adPlacement.updateMany({ where: { campaignId: camp.id, title: { notIn: ADS.map((a) => a.name) } }, data: { status: "archived" } });
 
   // ---- 7. hero: όλα τα slides Black Friday + προσφορά ημέρας ανά ημέρα
   await heroSlides(staff.id, keyVisual, href);
@@ -260,14 +269,17 @@ async function main() {
   const couponBlock = (id: string, zone: string) => b(id, zone, { type: "coupon", code: COUPON, text: T.coupon });
   const homeAdd = [
     b("home-note", TOP_ZONE, { type: "announcement", text: `Black Friday ${UNTIL}: έως −20 % και δωρεάν μεταφορικά`, href, endsAt: camp.endsAt.toISOString() }),
-    b("home-top", TOP_ZONE, { type: "ad", mode: "placement", placementId: adId["BF26 · Αρχική (κορυφή)"], placementTitle: "BF26 · Αρχική (κορυφή)" }),
     b("home-count", afterZone("hero"), { type: "countdown", promotionId: main15, promotionName: "Black Friday −15 %", title: "Οι τιμές Black Friday λήγουν σε", body: T.sub, cta: { label: "Δες τις προσφορές", href } }),
     // χωρίς δεύτερη λίστα προϊόντων εδώ: η ενότητα «Προσφορές» της αρχικής δείχνει τα προϊόντα της καμπάνιας (διπλές κάρτες αλλιώς)
+    // το επίσημο header της καμπάνιας σε όλο το πλάτος, πάνω από τις «Προσφορές Black Friday» (όχι στην κορυφή: πρώτο μένει το hero)
+    b("home-header", afterZone("categories"), { type: "ad", mode: "placement", placementId: adId["BF26 · Header καμπάνιας"], placementTitle: "BF26 · Header καμπάνιας", bleed: true }),
     b("home-landing", afterZone("deals"), { type: "promo-landing", landingId: landing.id, landingTitle: landing.title }),
     couponBlock("home-coupon", afterZone("services")),
   ];
   // ενότητες της αρχικής που γυρίζουν στο Black Friday: ticker και «Προσφορές» (οι προηγούμενες ρυθμίσεις κρατιούνται για το --remove)
   const sectionProps: Record<string, Record<string, unknown>> = {
+    // hero στην αισθητική των banners (σκούρο φόντο, πράσινη έμφαση) και κίτρινο πλακίδιο κουπονιού στη θέση των «Υπηρεσιών»
+    hero: { theme: "night", promo: { kicker: `Κωδικός ${COUPON}`, title: "−10 € επιπλέον", body: `Σε αγορές από 99 €, ${UNTIL}.`, cta: "Δες τις προσφορές", href } },
     ticker: { items: T.ticker },
     deals: { title: "Προσφορές Black Friday", source: "products", productIds: SHOW.slice(0, 8), endsAt: camp.endsAt.toISOString(), limit: 8 },
   };
@@ -275,7 +287,9 @@ async function main() {
   const home = await db.cmsDocument.findUnique({ where: homeWhere });
   let st = await getState();
   const keep = (raw: unknown) => Object.fromEntries(normalizeHomeDoc(raw).sections.filter((s) => s.id in sectionProps).map((s) => [s.id, s.props ?? null]));
-  if (!st.home) { st = { ...st, home: { data: keep(home?.data ?? home?.published), published: keep(home?.published ?? home?.data) } }; await setState(st); }
+  // ό,τι έχει ήδη κρατηθεί μένει όπως είναι· ενότητες που προστέθηκαν αργότερα στη λίστα κρατιούνται τώρα, πριν αλλάξουν
+  st = { ...st, home: { data: { ...keep(home?.data ?? home?.published), ...st.home?.data }, published: { ...keep(home?.published ?? home?.data), ...st.home?.published } } };
+  await setState(st);
   const withBf = (raw: unknown) => { const d: HomeDoc = normalizeHomeDoc(raw); return J(normalizeHomeDoc({ sections: d.sections.map((s) => (s.id in sectionProps ? { ...s, props: { ...(s.props ?? {}), ...sectionProps[s.id] } } : s)), blocks: merge(d.blocks, homeAdd) })); };
   const homeData = { data: withBf(home?.data ?? home?.published), published: withBf(home?.published ?? home?.data), publishedAt: new Date(), updatedBy: staff.id };
   if (home) await db.cmsDocument.update({ where: homeWhere, data: homeData });

@@ -486,6 +486,19 @@ html:not([data-zones="1"]) .eu-zone-badge {
 @utility eu-cutout-shadow-dark {
   filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.45));
 }
+/* Hero σε θέμα καμπάνιας («night»): ίδια αισθητική με τα σκούρα banners — μαύρο-μπλε φόντο, πράσινη έμφαση. Αλλάζουν
+   μόνο οι μεταβλητές χρώματος μέσα στο hero, οπότε slides και πλακίδια ακολουθούν χωρίς δικό τους κώδικα. */
+.eu-hero-night {
+  --eu-navy: #05060f;
+  --eu-navy-2: #0a0c1c;
+  --eu-navy-line: #23284a;
+  --eu-yellow: #22e06b;
+  --eu-yellow-dark: #18c95c;
+}
+/* πέπλο πάνω από τη φωτογραφία του slide, στο χρώμα του θέματος (πιο πυκνό στην πλευρά του κειμένου) */
+@utility eu-hero-veil {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--eu-navy) 98%, transparent) 0%, color-mix(in srgb, var(--eu-navy) 90%, transparent) 40%, color-mix(in srgb, var(--eu-navy) 55%, transparent) 100%);
+}
 /* Σχεδιασμένα banners (DesignedBanner): φόντο με κίνηση — μόνο transform/opacity */
 @keyframes eu-spot {
   0%, 100% { transform: translate3d(-5%, 0, 0) scale(1); opacity: 0.7; }

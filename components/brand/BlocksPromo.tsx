@@ -20,8 +20,8 @@ const shell = "eu-canvas eu-gutter py-8 @lg:py-12";
 /** Banner από τις Διαφημιστικές θέσεις (με μέτρηση εμφανίσεων/κλικ): όποιο είναι ενεργό στη θέση, ή συγκεκριμένο. */
 export function AdBlock({ b, count = true }: { b: B<"ad">; count?: boolean }) {
   return (
-    <div className="eu-canvas eu-gutter py-4 @lg:py-6">
-      <AdSlot slot={b.slot ?? "info-top"} id={b.mode === "placement" ? b.placementId : undefined} count={count} />
+    <div className={b.bleed ? "eu-full" : "eu-canvas eu-gutter py-4 @lg:py-6"}>
+      <AdSlot slot={b.slot ?? "info-top"} id={b.mode === "placement" ? b.placementId : undefined} count={count} bleed={b.bleed} />
     </div>
   );
 }

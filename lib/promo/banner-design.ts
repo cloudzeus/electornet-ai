@@ -16,6 +16,8 @@ export const BANNER_ANIMS: { key: BannerAnim; label: string; help: string }[] = 
 ];
 
 export interface BannerDesign {
+  /** «strip» = λωρίδα (κείμενο + προϊόντα)· «posts» = τετράγωνα post, ένα ανά προϊόν, στη μορφή των post της καμπάνιας */
+  layout: "strip" | "posts";
   bg: { color: string; image: string | null; video: string | null; anim: BannerAnim };
   /** σήμα καμπάνιας πάνω αριστερά (π.χ. το «Black Friday»), προαιρετικό */
   logo: string | null;
@@ -43,7 +45,7 @@ export interface BannerDesign {
 /** Ό,τι χρειάζεται το banner από ένα προϊόν του καταλόγου. */
 export interface BannerProduct { id: string; brand: string; title: string; href: string; image: string | null; cutout: boolean; price: number; wasPrice: number | null; energy: EnergyClass | null }
 
-export const MAX_BANNER_PRODUCTS = 3;
+export const MAX_BANNER_PRODUCTS = 4;
 const HEX = /^#[0-9a-f]{6}$/i;
 const URL_OK = /^(\/(?!\/)|https:\/\/)/;
 
@@ -55,6 +57,7 @@ export const BANNER_PRESETS: { key: string; label: string; apply: Pick<BannerDes
 ];
 
 export const DEFAULT_BANNER_DESIGN: BannerDesign = {
+  layout: "strip",
   bg: { color: "#122a58", image: null, video: null, anim: "ambient" },
   logo: null, ink: "light", accent: "#f1c400",
   kicker: "", title: "Τίτλος banner", body: "", cta: "Δες τις προσφορές",
@@ -71,6 +74,7 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
   const d = x as Partial<BannerDesign>, bg = (d.bg ?? {}) as Partial<BannerDesign["bg"]>, p = (d.products ?? {}) as Partial<BannerDesign["products"]>, D = DEFAULT_BANNER_DESIGN;
   const source = p.source === "manual" || p.source === "promotion" ? p.source : "none";
   return {
+    layout: d.layout === "posts" ? "posts" : "strip",
     bg: { color: hex(bg.color, D.bg.color), image: url(bg.image), video: url(bg.video), anim: BANNER_ANIMS.some((a) => a.key === bg.anim) ? bg.anim! : "none" },
     logo: url(d.logo), ink: d.ink === "dark" ? "dark" : "light", accent: hex(d.accent, D.accent),
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),
@@ -85,6 +89,7 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
 
 /** Τι λείπει για να μπορεί να φανεί: χρειάζεται κάτι να δείξει (τίτλο, σήμα ή προϊόντα). */
 export function bannerDesignIssue(d: BannerDesign, promotionId: string | null): string | null {
+  if (d.layout === "posts" && d.products.source === "none") return "Τα τετράγωνα post θέλουν προϊόντα: διάλεξε προϊόντα ή προσφορά.";
   if (!d.title && !d.logo && d.products.source === "none") return "Γράψε τίτλο, βάλε σήμα καμπάνιας ή διάλεξε προϊόντα.";
   if (d.products.source === "manual" && !d.products.ids.length) return "Διάλεξε τουλάχιστον ένα προϊόν ή άλλαξε σε «Χωρίς προϊόντα».";
   if (d.products.source === "promotion" && !promotionId) return "Για «Προϊόντα της προσφοράς» διάλεξε προσφορά στο «Πού και πότε».";

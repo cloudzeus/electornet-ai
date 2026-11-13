@@ -151,7 +151,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
           )}
         </div>
       ))}
-      <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(18,42,88,.98)_0%,rgba(18,42,88,.9)_40%,rgba(18,42,88,.55)_100%)]" aria-hidden />
+      <div className="absolute inset-0 eu-hero-veil" aria-hidden />
       {/* the products of the other slides load ahead, with the same sizes, so the next slide finds them in the cache */}
       <div aria-hidden className="absolute size-px overflow-hidden opacity-0 pointer-events-none">
         {slides.map((sl, k) => (k !== i && sl.cutout ? <Image key={`pre-${sl.id}`} src={sl.cutout} alt="" fill sizes="(max-width: 1024px) 90vw, 640px" loading="eager" fetchPriority="low" unoptimized={sl.cutout.startsWith("http")} /> : null))}

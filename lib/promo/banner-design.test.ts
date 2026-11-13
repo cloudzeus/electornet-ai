@@ -14,8 +14,9 @@ test("πετά επικίνδυνες διευθύνσεις, λάθος χρώ�
   assert.equal(d.logo, null);
   assert.equal(d.accent, "#abcdef");
   assert.equal(d.title.length, 80);
-  assert.deepEqual(d.products.ids, ["a", "b", "c"]);
-  assert.equal(d.products.max, 3);
+  assert.deepEqual(d.products.ids, ["a", "b", "c", "d"]);
+  assert.equal(d.products.max, 4);
+  assert.equal(d.layout, "strip");
   assert.equal(d.products.bullets.length, 5);
 });
 
@@ -26,4 +27,5 @@ test("λέει τι λείπει πριν ενεργοποιηθεί", () => {
   assert.match(bannerDesignIssue({ ...base, products: { ...base.products, source: "promotion" } }, null)!, /προσφορά/);
   assert.match(bannerDesignIssue({ ...base, products: { ...base.products, source: "manual" } }, null)!, /προϊόν/);
   assert.match(bannerDesignIssue({ ...base, bg: { ...base.bg, anim: "zoom" } }, null)!, /zoom/);
+  assert.match(bannerDesignIssue({ ...base, layout: "posts" }, null)!, /post/);
 });

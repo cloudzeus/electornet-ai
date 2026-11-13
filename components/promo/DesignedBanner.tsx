@@ -10,8 +10,55 @@ const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Nu
  * προϊόντα δεξιά· στενός χώρος (κινητό, πλευρική στήλη) → στήλη με ένα προϊόν. Κίνηση μόνο με transform/opacity,
  * σβηστή με prefers-reduced-motion (globals.css).
  */
-export function DesignedBanner({ d, products, shape = "wide" }: { d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square" }) {
+/**
+ * Ένα τετράγωνο post προϊόντος στη μορφή των post της καμπάνιας: το εικαστικό (με το σήμα πάνω αριστερά) ως φόντο,
+ * μάρκα και τίτλος πάνω δεξιά, το προϊόν μεγάλο στο κέντρο, κουκκίδες κάτω αριστερά, «ΜΟΝΟ» + τιμή κάτω δεξιά.
+ * Τα μεγέθη ακολουθούν το πλάτος του post (cqw, με όρια) ώστε να κλιμακώνεται σαν εικόνα και να μένει ευανάγνωστο.
+ */
+function PostTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[] }) {
   const light = d.ink === "light";
+  const bg = sx({ backgroundColor: d.bg.color });
+  const accent = sx({ color: d.accent });
+  return (
+    <a href={p.href} className={`@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : "aspect-square"} ${light ? "text-white" : "text-eu-navy"} ${bg.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
+      {bg.node}{accent.node}
+      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
+      {d.bg.anim === "spotlight" && <div aria-hidden className="eu-spot -z-10" />}
+      <div className="absolute right-[6%] top-[7%] w-[48%] grid gap-[1cqw] text-right">
+        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,7cqw,2.25rem)]">{p.brand}</span>}
+        <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.6cqw,1.125rem)]">{p.title}</span>
+      </div>
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"}`} />}
+      {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
+      {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
+      <span className="absolute right-[6%] bottom-[6%] grid justify-items-end leading-none">
+        {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
+        <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}>{eur(p.price)}<span className="text-[0.45em] align-top ml-[0.1em]">€</span></span>
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
+      </span>
+    </a>
+  );
+}
+
+export function DesignedBanner({ d, products, shape = "wide", href }: { d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
+  const light = d.ink === "light";
+  if (d.layout === "posts") {
+    const tiles = products.slice(0, d.products.max);
+    if (!tiles.length) return null;
+    return (
+      <div className="@container grid gap-3">
+        {(d.title || (d.cta && href)) && (
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+            <span className="grid">{d.kicker && <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)]">{d.kicker}</span>}{d.title && <strong className="font-heading font-extrabold text-eu-ink leading-tight text-[length:var(--fs-24)] @3xl:text-[length:var(--fs-30)]">{d.title}</strong>}</span>
+            {d.cta && href && <a href={href} className="inline-flex items-center min-h-11 font-extrabold text-eu-blue text-[length:var(--fs-15)] underline underline-offset-4 hover:text-eu-navy">{d.cta}</a>}
+          </div>
+        )}
+        <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : tiles.length === 2 ? "grid-cols-2" : tiles.length === 3 ? "grid-cols-2 @3xl:grid-cols-3" : "grid-cols-2 @4xl:grid-cols-4"}`}>
+          {tiles.map((p) => <PostTile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} />)}
+        </div>
+      </div>
+    );
+  }
   const bg = sx({ backgroundColor: d.bg.color });
   const accent = sx({ color: d.accent });
   const btn = sx({ backgroundColor: d.accent, color: light ? "#0b1020" : "#ffffff" });

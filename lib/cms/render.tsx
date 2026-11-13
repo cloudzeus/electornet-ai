@@ -41,10 +41,10 @@ const registry: Record<string, Renderer> = {
   },
   "bento-hero": async (w, ctx) => {
     const [slides, deal, geo, services] = await Promise.all([getLiveHeroSlides(), getHeroDeal(), getNearestStoreWithGeo(), getHeroServices()]);
-    const p = w.props as { intervalMs?: number };
+    const p = w.props as { intervalMs?: number; theme?: string; promo?: import("@/components/widgets/BentoHero").HeroPromo };
     // Save-Data: a single static slide, no slideshow.
     const shown = ctx.saveData ? slides.slice(0, 1) : slides;
-    return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} />;
+    return <BentoHero key={w.id} slides={shown} deal={deal} store={geo.store} geoCity={geo.city} geoSource={geo.source} services={services.map((s) => ({ title: s.title, blurb: s.blurb }))} intervalMs={p.intervalMs} zoneNo={w.zoneNo} theme={p.theme} promo={p.promo} />;
   },
   ticker: async (w) => { const items = ((w.props as { items?: string[] }).items ?? []).filter(Boolean); return items.length ? <Ticker key={w.id} items={items} zoneNo={w.zoneNo} /> : null; },
   "category-grid": async (w) => {

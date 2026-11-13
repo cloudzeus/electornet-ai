@@ -376,6 +376,7 @@ function AdFields({ b, set }: { b: B<"ad">; set: (b: BrandBlock) => void }) {
       ) : (
         <Pick label="Banner" value={b.placementId ?? ""} onChange={(v, l) => set({ ...b, placementId: v || undefined, placementTitle: l || undefined })} options={o ? o.ads.map((a) => ({ value: a.id, label: `${a.title} · ${slotLabel(a.slot)} · ${state(a)}` })) : null} empty="Δεν υπάρχει κανένα banner — φτιάξε στις Προσφορές → Διαφημιστικές θέσεις." />
       )}
+      <label className="flex items-start gap-2.5 min-h-11 cursor-pointer text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={!!b.bleed} onChange={(e) => set({ ...b, bleed: e.target.checked || undefined })} className="mt-1 size-5 accent-eu-navy" /><span className="grid"><span className="font-bold">Σε όλο το πλάτος της οθόνης</span><span className="text-eu-muted text-[length:var(--fs-13)]">Από άκρη σε άκρη, χωρίς περιθώρια και στρογγυλές γωνίες. Ταιριάζει σε φαρδιά εικόνα καμπάνιας (π.χ. 1920×400).</span></span></label>
       <a href="/admin/prosfores/theseis" target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline">Διαχείριση banners (Προσφορές → Διαφημιστικές θέσεις) ↗</a>
     </div>
   );

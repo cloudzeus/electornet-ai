@@ -147,6 +147,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
 
           {g && cur === "products" && (
             <div className="grid gap-3">
+              <Choice label="Διάταξη" value={g.layout} options={[{ key: "strip", label: "Λωρίδα", help: "Κείμενο αριστερά, έως 3 προϊόντα δεξιά." }, { key: "posts", label: "Τετράγωνα post", help: "Ένα τετράγωνο ανά προϊόν (έως 4), στη μορφή των post της καμπάνιας: βάλε στο «Φόντο» το τετράγωνο εικαστικό με το σήμα." }]} onChange={(v) => setG({ layout: v })} />
               <Choice label="Προϊόντα στο banner" value={g.products.source} options={[{ key: "none", label: "Χωρίς", help: "Μόνο κείμενο και φόντο." }, { key: "promotion", label: "Της προσφοράς", help: "Τα προϊόντα της προσφοράς του banner με τη μεγαλύτερη έκπτωση — αλλάζουν μόνα τους." }, { key: "manual", label: "Τα διαλέγω εγώ", help: `Έως ${MAX_BANNER_PRODUCTS} προϊόντα του καταλόγου.` }]} onChange={(v) => setP({ source: v })} />
               {g.products.source === "promotion" && !d.promotionId && <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink text-[length:var(--fs-13)] font-semibold">Δεν έχεις διαλέξει προσφορά. <button type="button" onClick={() => setTab("where")} className="underline text-eu-blue font-bold">Διάλεξέ τη στο «Πού και πότε»</button></p>}
               {g.products.source === "manual" && (
@@ -163,7 +164,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
               )}
               {g.products.source !== "none" && (
                 <>
-                  <Choice label="Πόσα φαίνονται" value={String(g.products.max) as "1" | "2" | "3"} options={[{ key: "1", label: "1", help: "Ένα μεγάλο προϊόν, με κουκκίδες." }, { key: "2", label: "2" }, { key: "3", label: "3" }]} onChange={(v) => setP({ max: Number(v) })} />
+                  <Choice label="Πόσα φαίνονται" value={String(g.products.max) as "1" | "2" | "3" | "4"} options={[{ key: "1", label: "1", help: "Ένα μεγάλο προϊόν, με κουκκίδες." }, { key: "2", label: "2" }, { key: "3", label: "3" }, ...(g.layout === "posts" ? [{ key: "4" as const, label: "4" }] : [])]} onChange={(v) => setP({ max: Number(v) })} />
                   <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Σε κινητό και στενές θέσεις φαίνεται μόνο το πρώτο.</p>
                   <F l="Λέξη πάνω από την τιμή" help="Κενό = μόνο η τιμή."><input className={input} maxLength={12} value={g.products.priceLabel} onChange={(e) => setP({ priceLabel: e.target.value })} /></F>
                   <div className="grid"><Check2 on={g.products.showBrand} onChange={(v) => setP({ showBrand: v })}>Μάρκα</Check2><Check2 on={g.products.showEnergy} onChange={(v) => setP({ showEnergy: v })}>Ενεργειακή κλάση (όπου υπάρχει)</Check2><Check2 on={g.products.showWas} onChange={(v) => setP({ showWas: v })}>Αρχική τιμή διαγραμμένη (όταν έχει έκπτωση)</Check2></div>
@@ -220,7 +221,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
           </div>
           <div className="rounded-2xl border border-eu-line bg-eu-line-2 p-3 @md:p-5">
             <div className={`mx-auto ${square ? "max-w-80" : device === "mobile" ? "max-w-[22.5rem]" : ""}`}>
-              {g ? <DesignedBanner d={g} products={products} shape={square ? "square" : "wide"} />
+              {g ? <DesignedBanner d={g} products={products} shape={square ? "square" : "wide"} href={d.href ?? (d.landingId ? "#" : null)} />
                 : d.image ? <img src={device === "mobile" && d.imageMobile ? d.imageMobile : d.image} alt={d.alt ?? ""} className="block w-full h-auto rounded-2xl" />
                 : <div className="grid place-items-center rounded-2xl border-2 border-dashed border-eu-line bg-white min-h-40 text-eu-muted text-[length:var(--fs-14)]">Διάλεξε εικόνα για να τη δεις εδώ</div>}
             </div>
