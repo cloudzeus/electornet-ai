@@ -9,7 +9,7 @@ import type { BannerDesign, BannerProduct } from "./banner-design";
 /**
  * Τα προϊόντα ενός σχεδιασμένου banner, με τιμή και φωτογραφία ΤΩΡΑ: όσα διάλεξε ο διαχειριστής ή της προσφοράς του.
  * Με `categorySlug` (banner σε λίστα κατηγορίας) μένουν μόνο όσα ανήκουν στην κατηγορία ή στις υποκατηγορίες της —
- * αν δεν ανήκει κανένα, το banner βγαίνει χωρίς προϊόντα αντί να δείξει άσχετα (π.χ. πλυντήριο στις οθόνες).
+ * αν δεν ανήκει κανένα, δείχνει τα προϊόντα του banner από τις άλλες κατηγορίες.
  */
 export async function bannerProducts(d: BannerDesign, promotionId: string | null, categorySlug?: string | null): Promise<BannerProduct[]> {
   let ids: string[] = [];
@@ -18,7 +18,7 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
   if (ids.length && categorySlug) {
     const cats = await db.category.findMany({ where: { OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }, { parent: { parent: { slug: categorySlug } } }] }, select: { id: true } });
     const inCat = new Set((await db.product.findMany({ where: { id: { in: ids }, categoryId: { in: cats.map((c) => c.id) } }, select: { id: true } })).map((p) => p.id));
-    ids = ids.filter((id) => inCat.has(id));
+    if (inCat.size) ids = ids.filter((id) => inCat.has(id)); // κανένα στην κατηγορία → τα προϊόντα του banner όπως είναι
   }
   if (!ids.length) return [];
   const list = await getProductsByIds(ids.slice(0, d.products.max));
