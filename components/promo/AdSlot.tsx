@@ -15,7 +15,7 @@ export async function AdSlot({ slot, id, category, className = "", count = true,
   // σχεδιασμένο banner: φόντο/κίνηση/κείμενα από το σχέδιο, προϊόντα με την τωρινή τιμή τους
   const design = normalizeBannerDesign(ad.design);
   if (!design && !ad.image) return null;
-  const img = design ? <DesignedBanner d={design} products={await bannerProducts(design, ad.promotionId).catch(() => [])} shape={ad.slot === "info-aside" ? "square" : "wide"} sticker={await bannerSticker(design.stickerKey)} href={ad.href ? `/api/ad/${ad.id}` : null} /> : (
+  const img = design ? <DesignedBanner d={design} products={await bannerProducts(design, ad.promotionId).catch(() => [])} shape={ad.slot === "info-aside" ? "square" : "wide"} sticker={await bannerSticker(design.stickerKey)} bleed={bleed} href={ad.href ? `/api/ad/${ad.id}` : null} /> : (
     <picture className="block">
       {ad.imageMobile && <source media="(max-width: 767px)" srcSet={ad.imageMobile} />}
       <Image src={ad.image!} alt={ad.alt ?? ad.title} width={1600} height={slot === "pdp-below-buybox" ? 600 : slot === "info-aside" ? 1600 : 300} sizes="(max-width: 1280px) 100vw, 1280px" className={`w-full h-auto ${bleed ? "" : "rounded-2xl"}`} unoptimized={ad.image!.startsWith("http")} />
@@ -23,7 +23,7 @@ export async function AdSlot({ slot, id, category, className = "", count = true,
   );
   return (
     <aside aria-label="Προωθητική ενέργεια" className={className}>
-      {ad.href && design?.layout !== "posts" ? <a href={`/api/ad/${ad.id}`} aria-label={design ? ad.alt ?? ad.title : undefined} className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-eu-blue">{img}</a> : img}
+      {ad.href && design?.layout !== "posts" ? <a href={`/api/ad/${ad.id}`} aria-label={design ? ad.alt ?? ad.title : undefined} className={`block ${bleed ? "" : "rounded-2xl"} focus-visible:outline-2 focus-visible:outline-eu-blue`}>{img}</a> : img}
     </aside>
   );
 }

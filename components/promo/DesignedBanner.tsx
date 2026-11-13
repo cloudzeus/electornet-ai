@@ -94,7 +94,7 @@ function PostTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: Banner
   );
 }
 
-export function DesignedBanner({ d, products, shape = "wide", href, sticker }: { d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** τα στοιχεία του sticker που διάλεξε ο διαχειριστής (d.stickerKey) */ sticker?: StickerParams | null; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
+export function DesignedBanner({ d, products, shape = "wide", href, sticker, bleed = false }: { /** σε όλο το πλάτος της οθόνης: χωρίς στρογγυλές γωνίες, πιο ψηλό, με το περιεχόμενο στο πλάτος της σελίδας */ bleed?: boolean; d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** τα στοιχεία του sticker που διάλεξε ο διαχειριστής (d.stickerKey) */ sticker?: StickerParams | null; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
   const light = d.ink === "light";
   if (d.layout === "posts") {
     const tiles = products.slice(0, d.products.max);
@@ -120,7 +120,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker }: {
   const one = list.length === 1;
   const sub = light ? "text-white/80" : "text-eu-ink-2";
   return (
-    <div className={`@container relative isolate overflow-hidden rounded-2xl ${light ? "text-white" : "text-eu-navy"} ${bg.className}`}>
+    <div className={`@container relative isolate overflow-hidden ${bleed ? "" : "rounded-2xl"} ${light ? "text-white" : "text-eu-navy"} ${bg.className}`}>
       {bg.node}{accent.node}{btn.node}
       {d.bg.image && <img src={d.bg.image} alt="" className={`absolute inset-0 -z-10 size-full object-cover ${d.bg.anim === "zoom" ? "eu-kenburns" : ""}`} />}
       {d.bg.video && <video src={d.bg.video} autoPlay muted loop playsInline aria-hidden className="absolute inset-0 -z-10 size-full object-cover motion-reduce:hidden" />}
@@ -132,12 +132,12 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker }: {
       {d.bg.anim === "sweep" && <div aria-hidden className="eu-sweep -z-10" />}
       {sticker && <BannerSticker sticker={sticker} id="bns-strip" className="right-3 top-3 w-16 @xl:w-24" />}
 
-      <div className={`grid items-center gap-4 p-4 @xl:gap-6 @xl:px-8 @xl:py-6 ${shape === "wide" && list.length ? "@xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : ""} ${shape === "wide" ? "min-h-40 @xl:min-h-52" : "min-h-72"}`}>
+      <div className={`grid items-center gap-4 @xl:gap-6 ${bleed ? "eu-canvas eu-gutter py-6 @xl:py-10" : "p-4 @xl:px-8 @xl:py-6"} ${shape === "wide" && list.length ? "@xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : ""} ${shape === "wide" ? (bleed ? "min-h-56 @xl:min-h-80" : "min-h-40 @xl:min-h-52") : "min-h-72"}`}>
         {(d.logo || d.kicker || d.title || d.body || d.cta) && (
           <div className={`grid gap-2 content-center min-w-0 ${list.length ? "" : "justify-items-center text-center py-2"}`}>
-            {d.logo && <img src={d.logo} alt="" className={`max-h-20 @xl:max-h-28 w-auto max-w-[70%] object-contain ${list.length ? "object-left justify-self-start" : ""}`} />}
+            {d.logo && <img src={d.logo} alt="" className={`${bleed ? "max-h-24 @xl:max-h-40" : "max-h-20 @xl:max-h-28"} w-auto max-w-[70%] object-contain ${list.length ? "object-left justify-self-start" : ""}`} />}
             {d.kicker && <span className={`font-extrabold text-[length:var(--fs-13)] ${accent.className}`}>{d.kicker}</span>}
-            {d.title && <strong className="font-heading font-extrabold leading-[1.08] text-balance text-[length:var(--fs-24)] @xl:text-[length:var(--fs-34)]">{d.title}</strong>}
+            {d.title && <strong className={`font-heading font-extrabold leading-[1.08] text-balance ${bleed ? "text-[length:var(--fs-28)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-34)]"}`}>{d.title}</strong>}
             {d.body && <span className={`text-[length:var(--fs-14)] @xl:text-[length:var(--fs-16)] max-w-[52ch] ${sub}`}>{d.body}</span>}
             {d.cta && <span className={`mt-1 inline-flex items-center rounded-full px-4 min-h-11 font-extrabold text-[length:var(--fs-14)] ${list.length ? "justify-self-start" : "justify-self-center"} ${btn.className}`}>{d.cta}</span>}
           </div>
