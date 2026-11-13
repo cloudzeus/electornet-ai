@@ -83,7 +83,7 @@ async function utmOf(src: Awaited<ReturnType<typeof sourceCheck>>): Promise<stri
  */
 async function loadAudience(n: { audience: Prisma.JsonValue }): Promise<{ rows: AudienceRow[] } | { error: string }> {
   const spec = audienceSpec(n.audience);
-  const only = spec.emails ? { OR: spec.emails.map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) } : {};
+  const only = spec.emails ? { email: { in: spec.emails, mode: "insensitive" as const } } : {};
   if (spec.emails && !spec.emails.length) return { rows: [] };
   const subscribers = await db.newsletterSubscriber.findMany({ where: only, select: { id: true, email: true, status: true, firstName: true, customerId: true } });
   const customers: { id: string; email: string | null; firstName: string | null; allowed: boolean; optedOut: boolean }[] = [];

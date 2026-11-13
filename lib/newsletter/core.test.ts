@@ -314,3 +314,11 @@ test("isTestMode: env NEWSLETTER_TESTMODE=1 ή σημαία της γραμμή�
   assert.equal(isTestMode({ testMode: true }, {}), true);
   assert.equal(isTestMode(null, { NEWSLETTER_TESTMODE: "1" }), true);
 });
+
+test("emailsFromTable: βρίσκει emails σε όποια στήλη, χωρίς διπλά, και μετρά τα λάθος", async () => {
+  const { emailsFromTable } = await import("./core");
+  const r = emailsFromTable([["Όνομα", "Email"], ["Μαρία", "Maria@Example.com "], ["Νίκος", "nikos@example.com; maria@example.com"], ["Κακό", "kako@"], ["", ""]], 10);
+  assert.deepEqual(r.emails, ["maria@example.com", "nikos@example.com"]);
+  assert.deepEqual(r.invalid, ["kako@"]);
+  assert.equal(emailsFromTable([["a@x.gr"], ["b@x.gr"], ["c@x.gr"]], 2).over, 1);
+});

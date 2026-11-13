@@ -166,6 +166,8 @@ async function main() {
   const keyVisual = await up("bf26-key-visual.jpg", () => sharp(master()).resize({ width: 1400 }).jpeg({ quality: 84 }).toBuffer(), "image/jpeg", "Black Friday 2026 · βασική εικόνα (σήμα + προβολέας)");
   const hdr = await up("EURONICS_BF26_SiteHeader-1920x400.jpg", () => readFileSync(`${SRC}/EURONICS_BF26_SiteHeader-1920x400.jpg`), "image/jpeg", "Black Friday 2026 · header 1920×400");
   const hdrM = await up("EURONICS_BF26_SiteHeader-820x360.jpg", () => readFileSync(`${SRC}/EURONICS_BF26_SiteHeader-820x360.jpg`), "image/jpeg", "Black Friday 2026 · header 820×360");
+  // κεφαλίδα newsletter: το επίσημο header 820×360 χωρίς τη γραμμή του teaser («Ετοιμάσου…») — φαρδύ, με τα δύο σήματα
+  const mailHdr = await up("bf26-email-header.jpg", () => sharp(readFileSync(`${SRC}/EURONICS_BF26_SiteHeader-820x360.jpg`)).extract({ left: 0, top: 0, width: 3417, height: 1130 }).resize({ width: 1200 }).jpeg({ quality: 84 }).toBuffer(), "image/jpeg", "Black Friday 2026 · κεφαλίδα newsletter");
   // το story 1080×1920 κομμένο σε 4:5 (σήμα πάνω αριστερά, προβολέας κάτω) για την πλευρική στήλη
   const bgStory = await up("bf26-bg-story.jpg", () => sharp(readFileSync(`${SRC}/Posts 1080x1920/EURONICS_BF26_Story-1080x1920.jpg`)).extract({ left: 0, top: 960, width: 4500, height: 5625 }).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer(), "image/jpeg", "Black Friday 2026 · story 4:5");
 
@@ -331,7 +333,7 @@ async function main() {
     const row = await db.newsletter.findUniqueOrThrow({ where: { id: nl.id } });
     if (row.status === "draft") {
       const subject = "Black Friday στην Euronics: έως −20 % έως 30 Νοεμβρίου", preheader = `12 συσκευές σε τιμές Black Friday, δωρεάν μεταφορικά και −10 € με τον κωδικό ${COUPON}.`;
-      const nb = (row.blocks as { type: string }[]).map((x) => (x.type === "text" ? { ...x, body: `Οι τιμές του Black Friday ξεκίνησαν. ${T.sub} Τα προϊόντα έχουν δωρεάν μεταφορικά, και με τον κωδικό ${COUPON} κερδίζεις −10 € επιπλέον σε αγορές από 99 €.` } : x.type === "cta" ? { ...x, label: "Δες τις προσφορές" } : x.type === "hero" ? { ...x, headline: T.line, sub: "Έως −20 % · έως 30 Νοεμβρίου" } : x));
+      const nb = (row.blocks as { type: string }[]).map((x) => (x.type === "text" ? { ...x, body: `Οι τιμές του Black Friday ξεκίνησαν. ${T.sub} Τα προϊόντα έχουν δωρεάν μεταφορικά, και με τον κωδικό ${COUPON} κερδίζεις −10 € επιπλέον σε αγορές από 99 €.` } : x.type === "cta" ? { ...x, label: "Δες τις προσφορές" } : x.type === "hero" ? { ...x, image: mailHdr, headline: T.line, sub: "Έως −20 % · έως 30 Νοεμβρίου" } : x));
       await db.newsletter.update({ where: { id: row.id }, data: { title: "Newsletter · Black Friday 2026", subject, preheader, blocks: J(nb), contentHash: contentHash({ subject, preheader, blocks: nb as never }) } });
     }
     console.log("newsletter ✓ πρόχειρο (δεν στάλθηκε)");

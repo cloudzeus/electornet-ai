@@ -78,6 +78,23 @@ export function audienceOf(input: {
   return input.segment ? rows.filter((r) => r.customerId !== null && input.segment!.has(r.customerId)) : rows;
 }
 
+/** Όριο λίστας διευθύνσεων από αρχείο (το ερώτημα του κοινού περνά τη λίστα ως παραμέτρους). */
+export const MAX_EMAIL_LIST = 10000;
+/**
+ * Πίνακας από Excel / CSV / επικόλληση → μοναδικές έγκυρες διευθύνσεις, σε όποια στήλη κι αν βρίσκονται.
+ * `invalid` = κελιά που μοιάζουν με email (έχουν «@») αλλά δεν είναι έγκυρα· `over` = όσες έμειναν εκτός ορίου.
+ */
+export function emailsFromTable(table: string[][], max = MAX_EMAIL_LIST): { emails: string[]; invalid: string[]; over: number } {
+  const seen = new Set<string>(), invalid: string[] = [];
+  for (const row of table) for (const cell of row) for (const part of String(cell ?? "").split(/[\s,;<>"']+/)) {
+    if (!part.includes("@")) continue;
+    const e = normEmail(part);
+    if (isEmail(e)) seen.add(e); else invalid.push(part);
+  }
+  const all = [...seen];
+  return { emails: all.slice(0, max), invalid, over: Math.max(0, all.length - max) };
+}
+
 /** Ρυθμίσεις κοινού του newsletter (`audience` της γραμμής): `segmentId` (κοινό πελατών) και `emails` (λίστα επιτρεπόμενων — π.χ. δοκιμή). */
 export type AudienceSpec = { segmentId?: string; emails?: string[] };
 /** `emails` που υπάρχει αλλά δεν είναι πίνακας → [] (κανείς): χαλασμένη λίστα δοκιμής δεν γίνεται ποτέ «όλοι». */

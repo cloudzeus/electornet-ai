@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { audit } from "@/lib/rbac/audit";
 import { db } from "@/lib/db";
 import { LISTED } from "@/lib/data/db-catalog";
-import { audienceSpec, contentHash, isTestMode, validateSchedule } from "@/lib/newsletter/core";
+import { audienceSpec, contentHash, emailsFromTable, isTestMode, validateSchedule } from "@/lib/newsletter/core";
 import { aiCopy, draftFromCampaign, draftFromPromotion, newsletterFacts, productCards } from "@/lib/newsletter/draft";
 import { cancelNewsletter, estimateAudience, renderForWeb, resumeNewsletter, scheduleNewsletter, sendTest, stopNewsletter } from "@/lib/newsletter/dispatch";
 import { athensLocal, fromForm, isNight, safeHref, sanitizeNewsletter, type CopyField, type NewsletterForm } from "@/lib/newsletter/edit";
@@ -94,6 +94,43 @@ export async function saveNewsletter(id: string, form: NewsletterForm): Promise<
   }
   done(id);
   return { ok: true, contentHash: hash, tested: !!n.testHash && n.testHash === hash };
+}
+
+export type EmailListResult = { ok: true; total: number; recipients: number; invalid: string[]; over: number } | { ok: false; error: string };
+
+/**
+ * Λίστα διευθύνσεων από Excel / CSV / επικόλληση: το newsletter στέλνεται ΜΟΝΟ σε αυτές — και μόνο σε όσες έχουν συναίνεση
+ * (η λίστα περιορίζει το κοινό, δεν γράφει κανέναν συνδρομητή). `form` = null αφαιρεί τη λίστα. Μόνο σε πρόχειρο.
+ */
+export async function setEmailList(id: string, form: FormData | null): Promise<EmailListResult> {
+  const user = await requirePermission(PERM);
+  const n = await db.newsletter.findUnique({ where: { id }, select: { status: true, audience: true } });
+  if (!n) return { ok: false, error: "Το newsletter δεν βρέθηκε." };
+  if (n.status !== "draft") return { ok: false, error: "Η λίστα αλλάζει μόνο σε πρόχειρο newsletter." };
+  const prev = audienceSpec(n.audience);
+  let parsed = { emails: [] as string[], invalid: [] as string[], over: 0 };
+  if (form) {
+    const { readXlsx, readDelimited } = await import("@/lib/xlsx-lite");
+    const file = form.get("file"), paste = String(form.get("paste") ?? "");
+    let table: string[][] = [];
+    try {
+      if (file instanceof File && file.size) {
+        if (file.size > 8 * 1024 * 1024) return { ok: false, error: "Το αρχείο ξεπερνά τα 8 MB." };
+        const buf = Buffer.from(await file.arrayBuffer());
+        table = /\.xlsx$/i.test(file.name) ? readXlsx(buf) : readDelimited(buf.toString("utf8"));
+      } else if (paste.trim()) table = paste.split(/\r?\n/).map((l) => [l]);
+    } catch (e) { return fail(e); }
+    parsed = emailsFromTable(table);
+    if (!parsed.emails.length) return { ok: false, error: "Δεν βρέθηκε καμία έγκυρη διεύθυνση email. Το αρχείο θέλει μία στήλη με emails." };
+  }
+  const audience = { ...(prev.segmentId ? { segmentId: prev.segmentId } : {}), ...(form ? { emails: parsed.emails } : {}) };
+  const upd = await db.newsletter.updateMany({ where: { id, status: "draft" }, data: { audience } });
+  if (!upd.count) return { ok: false, error: "Η κατάσταση του newsletter άλλαξε στο μεταξύ — ανανεώστε τη σελίδα." };
+  await audit(user.id, "newsletter.update", "Newsletter", id, { emails: prev.emails?.length ?? null }, { emails: form ? parsed.emails.length : null });
+  done(id);
+  const est = await estimateAudience(id);
+  if (!est.ok) return est;
+  return { ok: true, total: parsed.emails.length, recipients: est.recipients, invalid: parsed.invalid.slice(0, 50), over: parsed.over };
 }
 
 /**

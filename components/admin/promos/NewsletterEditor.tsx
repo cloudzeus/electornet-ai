@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, CalendarClock, Check, CircleAlert, Copy, Eye, FlaskConical, Loader2, Mail, Monitor, MoreHorizontal, Pause, Pencil, Play, Plus, Save, Search, Send, Smartphone, Sparkles, Square, X } from "lucide-react";
 import { ImageUrlField } from "./ImageUrlField";
+import { NewsletterEmailList } from "./NewsletterEmailList";
 import { sx } from "@/components/ui/sx";
 import { HARD, LIMITS, MAX_PRODUCTS, NEWSLETTER_STATUS, athensLocal, type CopyField, type NewsletterForm } from "@/lib/newsletter/edit";
 import { cancel, createFromCampaign, createFromPromotion, duplicate, estimateRecipients, previewHtml, resume, rewriteWithAi, saveNewsletter, schedule, searchProducts, stop, testSend } from "@/app/admin/(shell)/prosfores/newsletter/actions";
@@ -306,9 +307,6 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
 
           <section data-help="newsletter.audience" className={card} aria-labelledby="na-h">
             <h3 id="na-h" className={h3}>Κοινό</h3>
-            {d.restricted != null && (
-              <p className="m-0 rounded-lg bg-eu-amber/10 px-3 py-2 text-eu-ink-2 text-[length:var(--fs-13)]"><strong>Περιορισμένο κοινό (δοκιμή):</strong> στέλνεται μόνο σε {d.restricted} συγκεκριμένες διευθύνσεις, εφόσον έχουν συναίνεση. Δεν αλλάζει από εδώ.</p>
-            )}
             <fieldset className="m-0 p-0 border-0 grid gap-2">
               <legend className="sr-only">Σε ποιους στέλνεται</legend>
               <label className="flex items-start gap-2 rounded-lg border border-eu-line px-3 py-2 cursor-pointer min-h-11 has-[:checked]:border-eu-navy has-[:checked]:bg-eu-chip/50">
@@ -328,6 +326,7 @@ export function NewsletterEditor({ d }: { d: EditorData }) {
                 </span>
               </label>
             </fieldset>
+            <NewsletterEmailList id={d.id} count={d.restricted} />
             <p className={helpTxt}>Το ακριβές πλήθος φαίνεται στην επιβεβαίωση πριν από την αποστολή· οι παραλήπτες «παγώνουν» τη στιγμή που ξεκινά.</p>
           </section>
         </div>
