@@ -24,7 +24,7 @@ export function DesignedBanner({ d, products, shape = "wide" }: { d: BannerDesig
       {d.bg.image && <img src={d.bg.image} alt="" className={`absolute inset-0 -z-10 size-full object-cover ${d.bg.anim === "zoom" ? "eu-kenburns" : ""}`} />}
       {d.bg.video && <video src={d.bg.video} autoPlay muted loop playsInline aria-hidden className="absolute inset-0 -z-10 size-full object-cover motion-reduce:hidden" />}
       {/* πάνω σε εικόνα/video τα ανοιχτά κείμενα θέλουν σκούρο πέπλο για να διαβάζονται (αντίθεση ≥ 4,5:1) */}
-      {light && (d.bg.image || d.bg.video) && <div aria-hidden className="absolute inset-0 -z-10 bg-black/45" />}
+      {light && (d.bg.image || d.bg.video) && <div aria-hidden className="absolute inset-0 -z-10 bg-black/55" />}
       {d.bg.anim === "spotlight" && <div aria-hidden className="eu-spot -z-10" />}
       {d.bg.anim === "ambient" && <div aria-hidden className="eu-ambient -z-10" />}
       {d.bg.anim === "rays" && <div aria-hidden className="eu-rays -z-10 w-[70%] right-[-10%] top-1/2 -mt-[35%] @max-xl:w-[140%] @max-xl:right-[-20%] @max-xl:-mt-[70%]" />}

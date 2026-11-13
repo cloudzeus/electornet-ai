@@ -46,7 +46,9 @@ export async function revertHero(by: string): Promise<HeroDoc> {
 export async function productInfos(ids: string[]): Promise<Record<string, ProductInfo>> {
   if (!ids.length) return {};
   const ps = await getProductsByIds(ids).catch(() => []);
-  return Object.fromEntries(ps.map((p) => [p.id, { title: `${p.brand} ${p.title}`, slug: p.slug, cutout: cutoutFor(p.image) ?? p.image ?? null, price: p.noPrice || !p.price ? null : p.price }]));
+  // φωτογραφία χωρίς φόντο: όσες έφτιαξε η εφαρμογή (με τη δημοσίευση του hero ή για banners), αλλιώς οι έτοιμες του demo
+  const cuts = await (await import("@/lib/promo/banner-cutouts")).bannerCutouts(ps.map((p) => p.id)).catch(() => new Map<string, string>());
+  return Object.fromEntries(ps.map((p) => [p.id, { title: `${p.brand} ${p.title}`, slug: p.slug, cutout: cuts.get(p.id) ?? cutoutFor(p.image) ?? p.image ?? null, price: p.noPrice || !p.price ? null : p.price }]));
 }
 
 async function resolve(slides: HeroSlideDoc[]): Promise<HeroSlide[]> {

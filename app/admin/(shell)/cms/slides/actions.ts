@@ -25,6 +25,9 @@ export async function publishHeroAction(input: HeroDoc): Promise<{ ok: true; doc
   const issues = validateDoc(doc);
   if (Object.keys(issues).length) return { ok: false, issues };
   await saveHeroDraft(doc, u.id);
+  // τα προϊόντα των slides χωρίς φόντο (μία φορά ανά προϊόν· αν αποτύχει, το slide δείχνει την κανονική φωτογραφία)
+  const { ensureBannerCutouts } = await import("@/lib/promo/banner-cutouts");
+  await ensureBannerCutouts(doc.slides.map((s) => s.productId).filter((x): x is string => !!x), u.id).catch(() => null);
   const r = await publishHero(u.id);
   await audit(u.id, "cms.hero.publish", "CmsDocument", ENTITY, null, { slides: doc.slides.length });
   invalidateHeroDeal();
