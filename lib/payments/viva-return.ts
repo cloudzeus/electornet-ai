@@ -1,5 +1,4 @@
 import "server-only";
-import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { paymentPagePath, settleViva } from "./order-payment";
 import { devicePath } from "@/lib/warranty/link";
@@ -11,7 +10,8 @@ import { devicePath } from "@/lib/warranty/link";
 export async function vivaReturn(req: Request, failed: boolean) {
   const u = new URL(req.url);
   const t = u.searchParams.get("t"), s = u.searchParams.get("s");
-  const to = (path: string) => NextResponse.redirect(new URL(path, u.origin), 303);
+  // σχετικό Location: πίσω από τον proxy το req.url είναι localhost:3000 και θα έστελνε τον πελάτη εκεί μετά την πληρωμή
+  const to = (path: string) => new Response(null, { status: 303, headers: { Location: path } });
   let number: string | null = null, verdict = "unknown", kind: string | undefined;
   if (t) ({ number, verdict, kind } = await settleViva(t).catch(() => ({ number: null, verdict: "unknown" as const, kind: undefined })));
   // αγορά επέκτασης εγγύησης → πίσω στη σελίδα της συσκευής (προσωπικός σύνδεσμος: λειτουργεί και χωρίς σύνδεση)

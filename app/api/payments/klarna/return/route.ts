@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { paymentPagePath, validPaymentKey } from "@/lib/payments/order-payment";
 import { settleKlarna } from "@/lib/payments/klarna-order";
 
@@ -9,7 +8,8 @@ import { settleKlarna } from "@/lib/payments/klarna-order";
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const no = u.searchParams.get("no") ?? "", r = u.searchParams.get("r") ?? "";
-  const to = (path: string) => NextResponse.redirect(new URL(path, u.origin), 303);
+  // σχετικό Location: πίσω από τον proxy το req.url είναι localhost:3000 και θα έστελνε τον πελάτη εκεί μετά την πληρωμή
+  const to = (path: string) => new Response(null, { status: 303, headers: { Location: path } });
   if (!no || !validPaymentKey(no, u.searchParams.get("k"))) return to("/checkout");
   const v = await settleKlarna(no).catch(() => "unknown" as const);
   if (v === "paid") return to(`/checkout/epityxia?no=${encodeURIComponent(no)}`);
