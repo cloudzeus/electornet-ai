@@ -219,7 +219,7 @@ async function main() {
     { id: "bf26-terms", type: "terms", props: { title: "Όροι προσφοράς" } },
   ]);
   const seo = { seoTitle: "Black Friday 2026 στην Euronics", seoDesc: "Εκπτώσεις έως 20 % σε τηλεοράσεις, λευκές συσκευές, κλιματισμό και μικροσυσκευές, με δωρεάν μεταφορικά. Έως 30 Νοεμβρίου." };
-  const landing = await db.landingPage.upsert({ where: { slug: "black-friday" }, update: { title: TITLE, promotionId: main15, campaignId: camp.id, status: "published", blocks, ...seo }, create: { slug: "black-friday", title: TITLE, promotionId: main15, campaignId: camp.id, status: "published", createdById: staff.id, blocks, ...seo } });
+  const landing = await db.landingPage.upsert({ where: { slug: "black-friday" }, update: { title: TITLE, promotionId: main15, campaignId: camp.id, status: "published", endsAt: null, blocks, ...seo }, create: { slug: "black-friday", title: TITLE, promotionId: main15, campaignId: camp.id, status: "published", createdById: staff.id, blocks, ...seo } });
   const href = `/prosfores/${landing.slug}`;
 
   // ---- 5. δημοσίευση καμπάνιας (προσφορές ζωντανές) και υπολογισμός τιμών

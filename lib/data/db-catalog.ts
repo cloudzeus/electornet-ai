@@ -312,19 +312,23 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   }) } : {};
   const base: Prisma.ProductWhereInput = { AND: [scope, text] };
 
-  // Φίλτρα χαρακτηριστικών: μόνο σε επίπεδο τύπου, όπου τα ορίζει το ERP
-  const facetDefs = node && node.depth === 2 ? await db.facet.findMany({ where: { categoryId: node.id, source: "softone", key: { startsWith: "s1:" }, valueCount: { gte: 1 } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true, productCount: true, valueCount: true, kind: true } }) : [];
+  // Φίλτρα χαρακτηριστικών: τα ορίζει το ERP ανά τύπο. Σε ενδιάμεση κατηγορία («Για τον άνδρα») ενώνονται τα φίλτρα των τύπων της
+  // που έχουν το ίδιο όνομα (π.χ. «Χρώμα» σε ξυριστικές και κουρευτικές) — στην κορυφαία κατηγορία όχι, γιατί οι τύποι είναι άσχετοι μεταξύ τους.
+  const rawDefs = node && node.depth >= 1 ? await db.facet.findMany({ where: { categoryId: { in: leafIds(node) }, source: "softone", key: { startsWith: "s1:" }, valueCount: { gte: 1 } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true, productCount: true, valueCount: true, kind: true } }) : [];
+  const byLabel = new Map<string, { label: string; ids: string[]; productCount: number; valueCount: number; kind: string }>();
+  for (const d of rawDefs) { const g = byLabel.get(d.label); if (g) { g.ids.push(d.id); g.productCount += d.productCount; g.valueCount = Math.max(g.valueCount, d.valueCount); } else byLabel.set(d.label, { label: d.label, ids: [d.id], productCount: d.productCount, valueCount: d.valueCount, kind: d.kind }); }
+  const facetDefs = [...byLabel.values()];
   // Συμμετέχει ό,τι έχει τιμή σε ≥20% των προϊόντων του τύπου. Με μία μόνο τιμή μένει μόνο το «έχει / δεν έχει» (Smart TV, Ιονιστής, Πυρόλυση):
   // εκεί η μία τιμή «Ναι» είναι χρήσιμο φίλτρο, αρκεί να μην το έχουν όλα.
   const usable = facetDefs.filter((d) => node && d.productCount / Math.max(1, node.count) >= 0.2 && (d.valueCount >= 2 || (d.kind === "boolean" && d.productCount < node.count)));
   const attrWhere: Prisma.ProductWhereInput[] = [];
   for (const [label, values] of Object.entries(f.attrs ?? {})) {
     const def = usable.find((d) => d.label === label); if (!def || !values.length) continue;
-    attrWhere.push({ facetValues: { some: { facetId: def.id, value: { in: values } } } });
+    attrWhere.push({ facetValues: { some: { facetId: { in: def.ids }, value: { in: values } } } });
   }
   for (const [label, [lo, hi]] of Object.entries(f.ranges ?? {})) {
     const def = usable.find((d) => d.label === label); if (!def) continue;
-    attrWhere.push({ facetValues: { some: { facetId: def.id, num: { ...(lo != null ? { gte: lo } : {}), ...(hi != null ? { lte: hi } : {}) } } } });
+    attrWhere.push({ facetValues: { some: { facetId: { in: def.ids }, num: { ...(lo != null ? { gte: lo } : {}), ...(hi != null ? { lte: hi } : {}) } } } });
   }
   // Το φίλτρο ενεργειακής κλάσης υπάρχει μόνο όπου υπάρχει ενεργειακή ετικέτα, και μετρά μόνο τέτοιους τύπους
   const labelled = [...t.byId.values()].filter((n) => n.depth === 2 && n.energy && (!node || leafIds(node).includes(n.id))).map((n) => n.id);
@@ -339,7 +343,7 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
     db.product.count({ where }),
     db.product.groupBy({ by: ["brandId"], where: base, _count: { _all: true } }),
     labelled.length ? db.energyLabel.groupBy({ by: ["class"], where: { product: { AND: [base, { categoryId: { in: labelled } }] } }, _count: { _all: true } }) : Promise.resolve([]),
-    usable.length ? db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: usable.map((d) => d.id) }, product: base }, _count: { _all: true } }) : Promise.resolve([]),
+    usable.length ? db.productFacetValue.groupBy({ by: ["facetId", "value"], where: { facetId: { in: usable.flatMap((d) => d.ids) }, product: base }, _count: { _all: true } }) : Promise.resolve([]),
     db.product.aggregate({ where: { AND: [base, { price: { gt: 0 } }] }, _min: { price: true }, _max: { price: true } }),
   ]);
   const brandRows = await db.brand.findMany({ where: { id: { in: brandCounts.map((b) => b.brandId) } }, select: { id: true, slug: true, name: true } });
@@ -348,14 +352,16 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   const YES = /^(ναι|yes)$/i, YESNO = /^(ναι|yes|όχι|οχι|no)$/i;
   const attributes: AttrFacet[] = [];
   for (const d of usable) {
-    const values = facetCounts.filter((c) => c.facetId === d.id).map((c) => ({ value: c.value, count: c._count._all })).sort((a, b) => smart(a.value, b.value));
+    const merged = new Map<string, number>();
+    for (const c of facetCounts) if (d.ids.includes(c.facetId)) merged.set(c.value, (merged.get(c.value) ?? 0) + c._count._all);
+    const values = [...merged].map(([value, count]) => ({ value, count })).sort((a, b) => smart(a.value, b.value));
     const yes = values.find((v) => YES.test(v.value.trim()));
     if (yes && values.every((v) => YESNO.test(v.value.trim()))) { if (!node || yes.count < node.count) attributes.push({ key: d.label, group: "Δυνατότητες", values, toggle: yes }); continue; }
     if (values.length >= 2 && values.length <= 40) { attributes.push({ key: d.label, group: "Χαρακτηριστικά", values }); continue; }
     if (values.length > 40) {
       const [agg, sample] = await Promise.all([
-        db.productFacetValue.aggregate({ where: { facetId: d.id, num: { not: null }, product: base }, _min: { num: true }, _max: { num: true }, _count: { _all: true } }),
-        db.productFacetValue.findFirst({ where: { facetId: d.id, num: { not: null } }, select: { value: true } }),
+        db.productFacetValue.aggregate({ where: { facetId: { in: d.ids }, num: { not: null }, product: base }, _min: { num: true }, _max: { num: true }, _count: { _all: true } }),
+        db.productFacetValue.findFirst({ where: { facetId: { in: d.ids }, num: { not: null } }, select: { value: true } }),
       ]);
       const all = values.reduce((n, v) => n + v.count, 0);
       if (agg._min.num != null && agg._max.num != null && agg._max.num > agg._min.num && agg._count._all >= all * 0.9)

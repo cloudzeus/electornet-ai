@@ -41,6 +41,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
  * /k/{master}/{main}/{τύπος} = λίστα με τα φίλτρα που ορίζει το ERP για τον τύπο. Παλιοί ή μισοί σύνδεσμοι
  * (/k/eikona-ixos/tileoraseis, /k/tileoraseis) ανακατευθύνονται μόνιμα στη σωστή διαδρομή.
  */
+/** Ερωτήσεις προς τον Ερμή όταν η κατηγορία δεν έχει δικές της: για ΛΙΣΤΑ προϊόντων (οι ερωτήσεις προϊόντος, π.χ. «τι διαφορά έχει από το επόμενο μοντέλο», δεν έχουν νόημα χωρίς προϊόν). */
+const CATEGORY_QUESTIONS = ["Βοήθησέ με να διαλέξω", "Ποιο αξίζει περισσότερο τα λεφτά του;"];
+
 export default async function CategoryPage({ params, searchParams }: { params: Promise<Params>; searchParams: Promise<SP> }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const cat = await resolveCategory(slug);
@@ -56,7 +59,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   const [result, cats, settings] = await Promise.all([listProducts(filterFromParams(sp, { l1: l1.slug, l2: l2?.slug, l3: l3?.slug, perPage: 24 })), getCategories(), getSettings()]);
   const catNo = cats.find((c) => c.slug === l1.slug)?.no;
   // «Πόσο ρεύμα καίει;» μόνο σε κατηγορίες με ενεργειακή ετικέτα· «χωράει;» μόνο όπου ο χώρος είναι κριτήριο
-  const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? settings.advisor.suggestions.product).filter((q) => !cat || ((cat.energy || !isEnergyQuestion(q)) && (cat.fit || !isFitQuestion(q))));
+  const questions = (settings.advisor.suggestions.byCategory[l2?.slug ?? l1.slug] ?? CATEGORY_QUESTIONS).filter((q) => !cat || ((cat.energy || !isEnergyQuestion(q)) && (cat.fit || !isFitQuestion(q))));
   const basePath = cat ? `/k/${cat.path.map((p) => p.slug).join("/")}` : l2 ? `/k/${l1.slug}/${l2.slug}` : `/k/${l1.slug}`;
   // Υποκατηγορίες στη στήλη των φίλτρων (σε στενή οθόνη μένουν και ως ετικέτες πάνω από τη λίστα)· στον τύπο: τα αδέλφια του
   const upPath = cat && cat.path.length > 1 ? `/k/${cat.path.slice(0, -1).map((p) => p.slug).join("/")}` : null;

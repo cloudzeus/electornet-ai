@@ -15,6 +15,14 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
   let ids: string[] = [];
   if (d.products.source === "manual") ids = d.products.ids;
   else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, categorySlug ? 500 : d.products.max);
+  if (categorySlug && promotionId) {
+    // σε λίστα κατηγορίας μετρά όλη η καμπάνια: το banner μπορεί να ανήκει στην προσφορά «−15 %», αλλά οι σκούπες της καμπάνιας να είναι στο «−10 %» και το «−20 %»
+    const camp = await db.promotion.findUnique({ where: { id: promotionId }, select: { campaignId: true } });
+    const siblings = camp?.campaignId ? await db.promotion.findMany({ where: { campaignId: camp.campaignId, id: { not: promotionId } }, select: { id: true } }) : [];
+    const { promotionProductIds } = await import("./landing");
+    for (const s of siblings) ids = [...ids, ...(await promotionProductIds(s.id, 500))];
+    ids = [...new Set(ids)];
+  }
   if (ids.length && categorySlug) {
     const cats = await db.category.findMany({ where: { OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }, { parent: { parent: { slug: categorySlug } } }] }, select: { id: true } });
     const inCat = new Set((await db.product.findMany({ where: { id: { in: ids }, categoryId: { in: cats.map((c) => c.id) } }, select: { id: true } })).map((p) => p.id));
