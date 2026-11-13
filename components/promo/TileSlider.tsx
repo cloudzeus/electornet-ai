@@ -37,7 +37,8 @@ export function TileSlider({ children, label }: { children: ReactNode; label: st
     return () => clearTimeout(t);
   }, [running, i, go]);
 
-  if (n <= 1) return <>{children}</>;
+  // ένα μόνο προϊόν (π.χ. η καμπάνια έχει μόνο ένα της κατηγορίας): δεν υπάρχει εναλλαγή, αλλά το banner μπαίνει με την ίδια κίνηση και τα ίδια εφέ κειμένου
+  if (n <= 1) return <div className="eu-slide" data-on="true" data-dir={1}>{children}</div>;
   const btn = "grid place-items-center size-11 rounded-full bg-white/90 text-eu-navy shadow-md hover:bg-white focus-visible:outline-2 focus-visible:outline-eu-blue";
   return (
     <div ref={root} role="group" aria-roledescription="carousel" aria-label={label} className="grid gap-2"

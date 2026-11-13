@@ -35,8 +35,18 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
     // βαθμός = η πιο ειδική κατηγορία της σελίδας που περιέχει το προϊόν (0 = ίδιος τύπος)
     const rank = new Map(rows.map((r) => { const chain = [r.category?.slug, r.category?.parent?.slug, r.category?.parent?.parent?.slug]; const k = levels.findIndex((l) => chain.includes(l)); return [r.id, k < 0 ? Infinity : k] as const; }));
     const hit = ids.filter((id) => (rank.get(id) ?? Infinity) !== Infinity);
-    // slider: πρώτα τα σχετικά με τη σελίδα και μετά τα υπόλοιπα της καμπάνιας — ένας slider με ένα μόνο προϊόν δεν έχει τι να αλλάξει
-    if (hit.length) { hit.sort((a, b) => rank.get(a)! - rank.get(b)!); ids = d.slider ? [...hit, ...ids.filter((id) => !hit.includes(id))] : hit; }
+    if (hit.length) {
+      // Συνάφεια πάνω απ' όλα: όταν η καμπάνια έχει έστω ένα προϊόν της κατηγορίας, το banner δεν δείχνει ΠΟΤΕ άσχετα (φριτέζα σε σελίδα κλιματιστικού).
+      ids = hit.sort((a, b) => rank.get(a)! - rank.get(b)!);
+      // Slider που έμεινε με λίγα: συμπληρώνεται με άλλα προϊόντα της ΙΔΙΑΣ κατηγορίας που έχουν πραγματική έκπτωση τώρα (όποια προσφορά),
+      // πρώτα του ίδιου τύπου, μετά της υποκατηγορίας, μετά της κατηγορίας — και από αυτά πρώτα η μεγαλύτερη έκπτωση.
+      if (d.slider && ids.length < d.products.max) {
+        const inLevels = { OR: [{ slug: { in: levels } }, { parent: { slug: { in: levels } } }, { parent: { parent: { slug: { in: levels } } } }] };
+        const offers = await db.productOffer.findMany({ where: { productId: { notIn: [...ids, ...(sc?.exclude ? [sc.exclude] : [])] }, product: { active: true, price: { gt: 0 }, category: inLevels } }, select: { productId: true, price: true, listPrice: true, product: { select: { category: { select: { slug: true, parent: { select: { slug: true, parent: { select: { slug: true } } } } } } } } }, take: 300 });
+        const extra = offers.filter((o) => Number(o.listPrice) > Number(o.price)).map((o) => { const c = o.product.category; const chain = [c?.slug, c?.parent?.slug, c?.parent?.parent?.slug]; const k = levels.findIndex((l) => chain.includes(l)); return { id: o.productId, k: k < 0 ? 99 : k, pct: 1 - Number(o.price) / Number(o.listPrice) }; }).sort((a, b) => a.k - b.k || b.pct - a.pct);
+        ids = [...ids, ...extra.map((x) => x.id)];
+      }
+    }
   }
   if (!ids.length) return [];
   // Με «Αφαίρεση φόντου» και προϊόντα που διαλέγει μόνο του το banner («Της προσφοράς»): μπαίνουν ΜΟΝΟ όσα έχουν καθαρή φωτογραφία χωρίς φόντο.

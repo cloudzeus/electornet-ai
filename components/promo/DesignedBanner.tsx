@@ -205,7 +205,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
             {d.cta && href && <a href={href} className="inline-flex items-center min-h-11 font-extrabold text-[color:var(--bs-link,var(--bs-accent,var(--eu-blue)))] text-[length:var(--fs-15)] underline underline-offset-4 hover:opacity-80">{d.cta}</a>}
           </div>
         )}
-        {d.slider && tiles.length > 1 ? (
+        {d.slider ? (
           <TileSlider label={d.title || "Προϊόντα προσφοράς"}>
             {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo bullets={[]} sticker={sticker} />; })}
           </TileSlider>
