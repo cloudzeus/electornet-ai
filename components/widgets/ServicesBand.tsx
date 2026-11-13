@@ -19,10 +19,11 @@ export async function ServicesBand({ services, zoneNo }: { services: Service[]; 
       <Spotlight />
       <ZoneBadge no={zoneNo} />
       <div className="relative eu-canvas eu-gutter pt-8 @lg:pt-[38px] pb-8">
+        {/* οι αριθμοί παίρνουν μέγεθος από το πλάτος του χώρου (cqw), ώστε και το πιο μακρύ («24 δόσεις») να χωρά στη στήλη του */}
         <dl className="m-0 grid grid-cols-2 @lg:grid-cols-4 gap-x-6 gap-y-5 mb-8 @lg:mb-10 border-b border-eu-navy-line pb-6 @lg:pb-8">
           {site.facts.map((f) => ({ v: f.value, s: f.suffix, l: f.label })).map((x) => (
             <div key={x.l} data-reveal className="min-w-0">
-              <dt className="m-0 font-heading font-extrabold text-eu-yellow text-[length:var(--fs-50)] @lg:text-[length:var(--fs-66)] leading-none tracking-[-0.04em]">
+              <dt className="m-0 font-heading font-extrabold text-eu-yellow text-[length:clamp(1.75rem,9cqw,3.125rem)] @lg:text-[length:clamp(1.75rem,4.6cqw,4.125rem)] leading-none tracking-[-0.04em]">
                 <CountUp value={x.v} suffix={x.s} />
               </dt>
               <dd className="m-0 mt-2 text-eu-on-dark-2 text-[length:var(--fs-15)] leading-snug">{x.l}</dd>
