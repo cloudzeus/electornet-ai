@@ -6,11 +6,20 @@ import type { StickerParams } from "@/lib/stickers/model";
 import { bannerCutouts } from "./banner-cutouts";
 import type { BannerDesign, BannerProduct } from "./banner-design";
 
-/** Τα προϊόντα ενός σχεδιασμένου banner, με τιμή και φωτογραφία ΤΩΡΑ: όσα διάλεξε ο διαχειριστής ή της προσφοράς του. */
-export async function bannerProducts(d: BannerDesign, promotionId: string | null): Promise<BannerProduct[]> {
+/**
+ * Τα προϊόντα ενός σχεδιασμένου banner, με τιμή και φωτογραφία ΤΩΡΑ: όσα διάλεξε ο διαχειριστής ή της προσφοράς του.
+ * Με `categorySlug` (banner σε λίστα κατηγορίας) μένουν μόνο όσα ανήκουν στην κατηγορία ή στις υποκατηγορίες της —
+ * αν δεν ανήκει κανένα, το banner βγαίνει χωρίς προϊόντα αντί να δείξει άσχετα (π.χ. πλυντήριο στις οθόνες).
+ */
+export async function bannerProducts(d: BannerDesign, promotionId: string | null, categorySlug?: string | null): Promise<BannerProduct[]> {
   let ids: string[] = [];
   if (d.products.source === "manual") ids = d.products.ids;
-  else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, d.products.max);
+  else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, categorySlug ? 500 : d.products.max);
+  if (ids.length && categorySlug) {
+    const cats = await db.category.findMany({ where: { OR: [{ slug: categorySlug }, { parent: { slug: categorySlug } }, { parent: { parent: { slug: categorySlug } } }] }, select: { id: true } });
+    const inCat = new Set((await db.product.findMany({ where: { id: { in: ids }, categoryId: { in: cats.map((c) => c.id) } }, select: { id: true } })).map((p) => p.id));
+    ids = ids.filter((id) => inCat.has(id));
+  }
   if (!ids.length) return [];
   const list = await getProductsByIds(ids.slice(0, d.products.max));
   const cuts = d.products.cutout ? await bannerCutouts(list.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
