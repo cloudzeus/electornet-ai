@@ -12,6 +12,22 @@ const stable = (v: unknown): string => (Array.isArray(v) ? `[${v.map(stable).joi
 const ZONES: InfoZone[] = ["top", "after", "aside", "bottom"];
 const SHORT: Record<InfoZone, string> = { top: "Πάνω", after: "Μετά", aside: "Πλάι", bottom: "Τέλος" };
 
+/** Μικρό σχεδιάγραμμα της σελίδας: γεμάτο = ζώνη με components, περίγραμμα = κενή ζώνη, γκρι = σταθερό κείμενο. */
+function ZoneSketch({ zones, per, right }: { zones: InfoZone[]; per: Record<InfoZone, number>; right: boolean }) {
+  const c = (z: InfoZone, cls = "") => (zones.includes(z) ? <span className={`rounded-[3px] border ${per[z] ? "bg-eu-blue border-eu-blue" : "border-eu-ink-3/40"} ${cls}`} /> : null);
+  const has = zones.includes("aside");
+  return (
+    <span role="img" aria-label={ZONES.filter((z) => zones.includes(z)).map((z) => `${INFO_ZONES[z].label}: ${per[z] || "κενή"}`).join(", ")} className="shrink-0 grid gap-0.5 w-11 rounded-md bg-eu-surface p-1">
+      {c("top", "h-1.5")}
+      <span className={`grid gap-0.5 ${has ? "grid-cols-[3fr_2fr]" : ""}`}>
+        <span className="grid gap-0.5"><span className="h-2.5 rounded-[3px] bg-eu-line" />{c("after", "h-1.5")}</span>
+        {has && c("aside", right ? "" : "order-first")}
+      </span>
+      {c("bottom", "h-1.5")}
+    </span>
+  );
+}
+
 /**
  * Οι πληροφοριακές σελίδες με ζώνες (ui-ux-pro-max: πυκνός πίνακας αντί για κάρτες): κατάσταση, components ανά ζώνη
  * (μόνο όσα έχουν περιεχόμενο τονίζονται), τελευταία αλλαγή / δημοσίευση και άνοιγμα του editor.
@@ -46,7 +62,7 @@ export default async function ZonePagesList() {
 
       <div data-help="zones.list" className="rounded-xl border border-eu-line bg-white overflow-hidden">
         <div className="hidden @3xl:grid grid-cols-[minmax(0,1.3fr)_10rem_minmax(0,1fr)_6rem_auto] gap-x-3 px-3 py-1.5 bg-eu-surface/70 border-b border-eu-line text-eu-ink-3 font-bold text-[length:var(--fs-12)]">
-          <span>Σελίδα</span><span>Κατάσταση</span><span title="Components ανά ζώνη: πάνω (κάτω από την εισαγωγή), μετά το κείμενο, πλαϊνή στήλη, τέλος σελίδας">Components ανά ζώνη</span><span>Αλλαγή</span><span className="sr-only">Ενέργειες</span>
+          <span>Σελίδα</span><span>Κατάσταση</span><span>Τι έχει και πού</span><span>Αλλαγή</span><span className="sr-only">Ενέργειες</span>
         </div>
         <ul className="m-0 p-0 list-none divide-y divide-eu-line-2">
           {rows.map(({ p, d, status, per, total }) => (
@@ -56,15 +72,14 @@ export default async function ZonePagesList() {
                 <span className="font-mono text-eu-muted text-[length:var(--fs-12)] truncate">{p.path}</span>
               </span>
               <span className="row-start-2 @3xl:row-start-auto"><StatusPill status={status[0]} text={status[1]} /></span>
-              <span className="row-start-3 col-span-2 @3xl:row-start-auto @3xl:col-span-1 flex flex-wrap gap-1" aria-label={total ? `${total} components` : "Χωρίς components"}>
-                {ZONES.filter((z) => p.zones.includes(z)).map((z) => (
-                  <span key={z} title={INFO_ZONES[z].label} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[length:var(--fs-12)] ${per[z] ? "bg-eu-chip text-eu-navy font-bold" : "bg-eu-surface/70 text-eu-muted"}`}>{SHORT[z]}<span className="tabular-nums">{per[z]}</span></span>
-                ))}
+              <span className="row-start-3 col-span-2 @3xl:row-start-auto @3xl:col-span-1 flex items-center gap-2.5 min-w-0">
+                <ZoneSketch zones={p.zones} per={per} right={p.asideSide === "right"} />
+                <span className={`text-[length:var(--fs-13)] ${total ? "text-eu-ink font-bold" : "text-eu-muted"}`}>{total ? ZONES.filter((z) => per[z]).map((z) => `${SHORT[z]} ${per[z]}`).join(" · ") : "Καμία ζώνη με περιεχόμενο"}</span>
               </span>
               <span className="hidden @3xl:block text-eu-ink-3 text-[length:var(--fs-12)] tabular-nums" title={d?.publishedAt ? `δημοσίευση ${date(d.publishedAt)}` : undefined}>{date(d?.updatedAt) ?? "-"}</span>
               <span className="row-start-1 col-start-2 @3xl:row-start-auto @3xl:col-start-auto flex items-center gap-1 justify-end">
                 <a href={p.path} target="_blank" rel="noopener noreferrer" aria-label={`${p.title} στο site`} title="Στο site" className="size-11 md:size-8 grid place-items-center rounded-full text-eu-ink-3 hover:bg-eu-surface hover:text-eu-navy"><ExternalLink className="size-4" aria-hidden /></a>
-                <Link href={`/admin/cms/pages/${p.key}`} className="inline-flex items-center gap-0.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] pl-3 pr-2 min-h-11 md:min-h-8 hover:bg-eu-blue">Ζώνες <ChevronRight className="size-4" aria-hidden /></Link>
+                <Link href={`/admin/cms/pages/${p.key}`} className="inline-flex items-center gap-0.5 rounded-full border border-eu-line bg-white text-eu-navy font-bold text-[length:var(--fs-13)] pl-3 pr-2 min-h-11 md:min-h-8 hover:border-eu-navy">Άνοιγμα <ChevronRight className="size-4" aria-hidden /></Link>
               </span>
             </li>
           ))}

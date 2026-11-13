@@ -179,6 +179,8 @@ export function AddDialog({ after, positions, top = "Θέση: στην κορυ
 
 /* ---------------- ζωντανή προεπισκόπηση ---------------- */
 /** Το nonce του CSP της σελίδας μέσα στο iframe: ένα <style> που φτιάχνουμε εκεί χωρίς αυτό θα μπλοκαριζόταν. */
+/** Κύλιση ΜΟΝΟ μέσα στο iframe: το scrollIntoView κυλά και τη σελίδα του editor (ίδιο origin) και κρύβει τις ρυθμίσεις. */
+const scrollIn = (el: HTMLElement, center: boolean) => { const w = el.ownerDocument.defaultView; if (!w) return; const r = el.getBoundingClientRect(); w.scrollTo({ top: w.scrollY + r.top - (center ? Math.max(0, (w.innerHeight - r.height) / 2) : 64), behavior: "smooth" }); };
 const nonceOf = (d: Document) => d.querySelector<HTMLElement>("script[nonce], style[nonce]")?.nonce ?? "";
 /**
  * Το πρόχειρο σε iframe (ίδιο origin): κυλά και τονίζει το επιλεγμένο στοιχείο· κλικ μέσα στην προεπισκόπηση επιλέγει
@@ -214,7 +216,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     queueMicrotask(() => setMissing(gone));
     if (!focus || !el || gone) return;
     el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollIn(el, false);
   }, [focus, loaded, attr, ready]);
   // «δείξε μου»: κίτρινος τονισμός με σκίαση γύρω (κανόνας CSS, όχι inline στυλ) και κύλιση εκεί
   useEffect(() => {
@@ -226,7 +228,7 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     const sel = `[${attr}="${peek.replace(/"/g, "")}"]`;
     st.textContent = `${sel}{outline:8px solid #f5b400!important;outline-offset:-4px;box-shadow:0 0 0 9999px rgba(11,31,77,.18)!important;position:relative;z-index:1}`;
     const el = [...d.querySelectorAll<HTMLElement>(sel)].find((n) => n.offsetParent !== null && n.getBoundingClientRect().height > 2);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (el) scrollIn(el, true);
   }, [peek, attr, ready]);
   const onLoad = () => {
     const d = frame.current?.contentDocument;

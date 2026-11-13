@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T05:06:59.025Z",
+ "generatedAt": "2026-11-13T09:16:45.083Z",
  "routes": [
   {
    "route": "/admin",
@@ -661,6 +661,11 @@
    ],
    "changes": [
     {
+     "hash": "efed603",
+     "date": "2026-11-13T07:07:49+02:00",
+     "text": "Κατάλογος: η «Τελ. αγορά» δείχνει το κόστος με ΦΠΑ (συγκρίνεται με τις τιμές πώλησης"
+    },
+    {
      "hash": "d3f3c7b",
      "date": "2026-11-12T08:50:04+02:00",
      "text": "Φωτογραφίες από το web: μία αναζήτηση ψάχνει μόνη της Κωτσόβολο → Icecat → κατασκευαστή → Channel3 → καταστήματα μέχρι να βρει νέες"
@@ -672,6 +677,11 @@
     },
     {
      "hash": "a0e34b7",
+     "date": "2026-11-12T08:20:48+02:00",
+     "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες"
+    },
+    {
+     "hash": "28822b2",
      "date": "2026-11-12T08:20:48+02:00",
      "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες"
     },
@@ -699,19 +709,9 @@
      "hash": "aa7203b",
      "date": "2026-11-11T17:15:46+02:00",
      "text": "Σύγκριση τιμών: badge Κωτσόβολου στη λίστα και στο προϊόν, γράφημα 30 ημερών, επιβεβαίωση/αλλαγή ζευγαριού (setPair, rejectPair)"
-    },
-    {
-     "hash": "fcb9c98",
-     "date": "2026-11-11T12:57:14+02:00",
-     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
-    },
-    {
-     "hash": "3e278a0",
-     "date": "2026-11-11T09:58:20+02:00",
-     "text": "Νέα είδη SoftOne: μονάδα μέτρησης, προμηθευτής, business unit, λογιστική κατηγορία και φόρος ανακύκλωσης"
     }
    ],
-   "updatedAt": "2026-11-12T08:50:04+02:00",
+   "updatedAt": "2026-11-13T07:07:49+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog-d.jpg",
     "mobile": "/api/help-shot/catalog-m.jpg"
@@ -1162,6 +1162,11 @@
      "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες"
     },
     {
+     "hash": "28822b2",
+     "date": "2026-11-12T08:20:48+02:00",
+     "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες"
+    },
+    {
      "hash": "3e278a0",
      "date": "2026-11-11T09:58:20+02:00",
      "text": "Νέα είδη SoftOne: μονάδα μέτρησης, προμηθευτής, business unit, λογιστική κατηγορία και φόρος ανακύκλωσης"
@@ -1185,11 +1190,6 @@
      "hash": "93d615d",
      "date": "2026-11-03T07:25:50+02:00",
      "text": "Εμπλουτισμός: πίνακας μάρκα → site, για να δοκιμάζεται η δωρεάν διαδρομή"
-    },
-    {
-     "hash": "547ec9d",
-     "date": "2026-10-31T10:41:54+02:00",
-     "text": "Κατάλογος: διαστάσεις κατασκευαστή με πρόταση, φθηνότερο AI (DeepSeek V4 / Sonar)"
     }
    ],
    "updatedAt": "2026-11-12T09:06:21+02:00",
@@ -2108,9 +2108,9 @@
    "nav": null,
    "dynamic": true,
    "helpKeys": [
-    "zones.publish",
-    "zones.nav",
     "zones.blocks",
+    "zones.settings",
+    "zones.publish",
     "zones.preview"
    ],
    "changes": [
@@ -2118,6 +2118,11 @@
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
+    },
+    {
+     "hash": "8ed8787",
+     "date": "2026-10-11T13:29:05+03:00",
+     "text": "Ζώνες αρχικής: «δείξε μου» όπως στις ζώνες σελίδων"
     },
     {
      "hash": "26f418c",
@@ -2130,19 +2135,14 @@
      "text": "Ζώνες σελίδων (ui-ux-pro-max): η λίστα από 10 μεγάλες κάρτες γίνεται πυκνός πίνακας (σελίδα, κατάσταση, components ανά ζώνη με τόνο μόνο όπου υπάρχει περιεχόμενο, αλλαγή, Στο site / Ζώνες) με λωρίδα συνόλων"
     },
     {
+     "hash": "c4063a2",
+     "date": "2026-10-11T13:03:37+03:00",
+     "text": "Ζώνες αρχικής & σελίδες μαρκών (ui-ux-pro-max): σε οθόνη laptop οι ρυθμίσεις δεν κρύβουν πια την προεπισκόπηση"
+    },
+    {
      "hash": "7594df1",
      "date": "2026-10-11T01:49:25+03:00",
      "text": "Σελίδες μαρκών με την ίδια εμπειρία με τις Ζώνες αρχικής: χάρτης της σελίδας πάντα ορατός (Ρυθμίσεις σελίδας: Ταυτότητα & Google, Χρώματα"
-    },
-    {
-     "hash": "92275aa",
-     "date": "2026-10-10T14:43:10+03:00",
-     "text": "Ζώνες αρχικής: οι 11 ενότητες της αρχικής (slides, ticker, κατηγορίες, προσφορές, καμπάνιες, υπηρεσίες, καταστήματα, οδηγοί, νέα, διαφημιστική λωρίδα, newsletter) με σειρά, απόκρυψη, ημερομηνίες, συσκευές, κοινό (επισ…"
-    },
-    {
-     "hash": "412bc4a",
-     "date": "2026-10-03T14:02:22+03:00",
-     "text": "Συλλογή components με δείγματα, 9 νέα components (προσφορές & σελίδες), ορατότητα ανά συσκευή"
     },
     {
      "hash": "a9ad4f9",
@@ -5101,6 +5101,20 @@
    "shots": {}
   },
   {
+   "route": "/admin/tmp-chain",
+   "slug": "tmp-chain",
+   "file": "app/admin/(shell)/tmp-chain/page.tsx",
+   "title": "tmp-chain",
+   "doc": "",
+   "perm": "orders.read",
+   "nav": null,
+   "dynamic": false,
+   "helpKeys": [],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/ypiresies",
    "slug": "ypiresies",
    "file": "app/admin/(shell)/ypiresies/page.tsx",
@@ -5129,9 +5143,36 @@
  ],
  "recent": [
   {
+   "hash": "09731f0",
+   "date": "2026-11-13T07:08:07+02:00",
+   "text": "Merge remote-tracking branch 'origin/master' into v2",
+   "routes": []
+  },
+  {
+   "hash": "efed603",
+   "date": "2026-11-13T07:07:49+02:00",
+   "text": "Κατάλογος: η «Τελ. αγορά» δείχνει το κόστος με ΦΠΑ (συγκρίνεται με τις τιμές πώλησης",
+   "routes": [
+    "/admin",
+    "/admin/catalog"
+   ]
+  },
+  {
+   "hash": "115b2c7",
+   "date": "2026-11-12T09:08:35+02:00",
+   "text": "Merge remote-tracking branch 'origin/master' into v2",
+   "routes": []
+  },
+  {
    "hash": "67e367b",
    "date": "2026-11-12T09:06:21+02:00",
    "text": "Φωτογραφίες από το web: η αναζήτηση μετρά μόνο τις νέες φωτογραφίες",
+   "routes": []
+  },
+  {
+   "hash": "9f54a28",
+   "date": "2026-11-12T08:50:38+02:00",
+   "text": "Merge remote-tracking branch 'origin/master' into v2",
    "routes": []
   },
   {
@@ -5144,6 +5185,12 @@
    ]
   },
   {
+   "hash": "7e40e15",
+   "date": "2026-11-12T08:29:57+02:00",
+   "text": "Merge remote-tracking branch 'origin/master' into v2",
+   "routes": []
+  },
+  {
    "hash": "9f3a900",
    "date": "2026-11-12T08:28:09+02:00",
    "text": "Φωτογραφίες από το web: και από τον Κωτσόβολο",
@@ -5151,6 +5198,15 @@
   },
   {
    "hash": "a0e34b7",
+   "date": "2026-11-12T08:20:48+02:00",
+   "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες",
+   "routes": [
+    "/admin",
+    "/admin/catalog"
+   ]
+  },
+  {
+   "hash": "28822b2",
    "date": "2026-11-12T08:20:48+02:00",
    "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες",
    "routes": [
@@ -5385,52 +5441,6 @@
     "/admin/catalog/[id]",
     "/admin/catalog/competitors"
    ]
-  },
-  {
-   "hash": "894092d",
-   "date": "2026-11-11T17:03:05+02:00",
-   "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/competitors",
-    "/admin/softone",
-    "/admin/softone/sync"
-   ]
-  },
-  {
-   "hash": "57efc6e",
-   "date": "2026-11-11T16:55:25+02:00",
-   "text": "Σύγκριση τιμών: οθόνη αντιστοίχισης Κωτσόβολου (επιλογή κατηγοριών, προτάσεις, μάρκες, κατάσταση, «Τρέξε τώρα» στο παρασκήνιο)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/competitors"
-   ]
-  },
-  {
-   "hash": "be5fe7b",
-   "date": "2026-11-11T16:35:32+02:00",
-   "text": "Κωτσόβολος εργασία: ώρα Αθήνας στο παράθυρο, manual με άλλο EAN ενημερώνει τιμές, available από buyable, σωστά πλήθη και κόστος, μετρητής Ruling 9, merge στο setting",
-   "routes": []
-  },
-  {
-   "hash": "c3f34a7",
-   "date": "2026-11-11T16:30:58+02:00",
-   "text": "Σύγκριση τιμών: νυχτερινή εργασία Κωτσόβολου (ταίριασμα, τιμές, ιστορικό, κόστος, φρένο) και δρομολόγηση 01:00",
-   "routes": []
-  },
-  {
-   "hash": "a0f0431",
-   "date": "2026-11-11T16:24:24+02:00",
-   "text": "Σύγκριση τιμών: διαφορετικό EAN δίνει πρόταση προς έλεγχο, όχι απόρριψη",
-   "routes": []
-  },
-  {
-   "hash": "b895199",
-   "date": "2026-11-11T16:21:16+02:00",
-   "text": "Κωτσόβολος: HTTP client και pacer (παύσεις, διαλείμματα, όριο, παράθυρο, φρένο) με tests",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -6055,6 +6065,18 @@
   "cats.ops": [
    "components/admin/catalog/CategoryTree.tsx"
   ],
+  "product.content-dims": [
+   "components/admin/catalog/ContentDimsPanel.tsx"
+  ],
+  "product.content-dims-values": [
+   "components/admin/catalog/ContentDimsPanel.tsx"
+  ],
+  "product.content-dims-sources": [
+   "components/admin/catalog/ContentDimsPanel.tsx"
+  ],
+  "product.content-dims-current": [
+   "components/admin/catalog/ContentDimsPanel.tsx"
+  ],
   "enrich.copy": [
    "components/admin/catalog/CopyPanel.tsx"
   ],
@@ -6231,6 +6253,12 @@
   ],
   "product.dims-from-content": [
    "components/admin/catalog/ProductEditor.tsx"
+  ],
+  "product.photos-cutout": [
+   "components/admin/catalog/ProductImages.tsx"
+  ],
+  "product.photos-cutout-dialog": [
+   "components/admin/catalog/ProductImages.tsx"
   ],
   "product.overview": [
    "components/admin/catalog/ProductOverview.tsx"
@@ -6485,13 +6513,13 @@
   "copy.table": [
    "components/admin/cms/CopyEditor.tsx"
   ],
-  "zones.publish": [
-   "components/admin/cms/ZonePageEditor.tsx"
-  ],
-  "zones.nav": [
-   "components/admin/cms/ZonePageEditor.tsx"
-  ],
   "zones.blocks": [
+   "components/admin/cms/ZonePageEditor.tsx"
+  ],
+  "zones.settings": [
+   "components/admin/cms/ZonePageEditor.tsx"
+  ],
+  "zones.publish": [
    "components/admin/cms/ZonePageEditor.tsx"
   ],
   "zones.preview": [
