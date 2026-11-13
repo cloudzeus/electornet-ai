@@ -2,7 +2,8 @@ import { NO_PRICE } from "@/lib/format";
 
 const whole = new Intl.NumberFormat("el-GR", { maximumFractionDigits: 0 });
 // τα δεκαδικά στο μισό μέγεθος, κολλημένα πάνω δεξιά από τα ευρώ
-const SMALL = "inline-block align-top text-[0.5em] leading-none mt-[0.14em] ml-[0.06em]";
+// μισό μέγεθος, αλλά ποτέ κάτω από 11px: σε μικρές τιμές (κάρτες, λίστες) τα δεκαδικά πρέπει να διαβάζονται
+const SMALL = "inline-block align-top text-[length:max(0.5em,0.6875rem)] leading-none mt-[0.14em] ml-[0.06em]";
 
 /**
  * Τιμή-τίτλος (κάρτα, σελίδα προϊόντος, banner): ακέραια ευρώ μεγάλα, δεκαδικά στο 50 % πάνω δεξιά.

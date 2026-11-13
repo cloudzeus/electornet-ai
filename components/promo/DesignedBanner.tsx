@@ -26,9 +26,9 @@ function PriceShapeBox({ d, p, className }: { d: BannerDesign; p: BannerProduct;
       {ink.node}
       <span aria-hidden className="absolute inset-0 [&>svg]:block [&>svg]:size-full"><StickerSvg p={{ ...DEFAULT_STICKER, shape: d.priceShape as StickerParams["shape"], fill: d.accent, fill2: null, border: null, borderWidth: 0, rotate: 0, lines: [], icon: "none", animation: "none", size: 200 }} id={`bnp-${p.id}`} /></span>
       <span className={`relative grid justify-items-center leading-none ${ink.className}`}>
-        {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.625rem,2.8cqw,0.875rem)]">{d.products.priceLabel}</span>}
+        {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{d.products.priceLabel}</span>}
         <span className="font-heading font-extrabold tabular-nums text-[length:clamp(0.875rem,7cqw,2.5rem)]"><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,2.6cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,2.6cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>
     </span>
   );
@@ -47,7 +47,7 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
       {v.node}<Shine d={d} />
       <span aria-hidden className="absolute inset-x-0 top-0 h-[2.5%] bg-[var(--pb)]" />
       {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[6%] w-[26%] max-h-[16%] object-contain object-left-top" />
-        : d.kicker ? <span className="absolute left-[5%] top-[7%] max-w-[60%] rounded-md bg-[var(--pb)] text-[var(--pk)] font-extrabold leading-none px-[2.5cqw] py-[1.8cqw] text-[length:clamp(0.625rem,3.6cqw,1rem)]">{d.kicker}</span> : null}
+        : d.kicker ? <span className="absolute left-[5%] top-[7%] max-w-[60%] rounded-md bg-[var(--pb)] text-[var(--pk)] font-extrabold leading-none px-[2.5cqw] py-[1.8cqw] text-[length:clamp(0.6875rem,3.6cqw,1rem)]">{d.kicker}</span> : null}
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[12%] top-[16%] w-[76%] h-[50%] object-contain object-center ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[5%] top-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[4%] top-[42%] w-[24%]" />}
@@ -57,9 +57,9 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
       </div>
       {shaped ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[36%]" /> : (
         <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
-          {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.625rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
+          {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
           <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(1.25rem,10cqw,3.25rem)]"><Price value={p.price} short euroSmall /></span>
-          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.625rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
+          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
         </span>
       )}
     </a>
@@ -86,8 +86,8 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[3%] top-[44%] w-[24%]" />}
       <span className="absolute inset-x-0 bottom-0 h-[24%] bg-[var(--pa)] text-[var(--pi)] flex items-center justify-between gap-[2cqw] px-[6%] leading-none">
         <span className="grid gap-[0.6cqw] min-w-0">
-          {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.625rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
-          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
+          {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
+          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
         </span>
         {!shaped && <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.25rem,11cqw,3.75rem)] ${PRICE_ANIM[d.tileAnim] ?? ""}`}><Price value={p.price} short euroSmall /></span>}
       </span>
@@ -131,7 +131,7 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {bullets.length > 0 && (
         <ul className="absolute left-[5%] top-[30%] w-[44%] m-0 p-0 list-none grid grid-cols-2 gap-x-[2cqw] gap-y-[2.5cqw] @max-[15rem]:hidden">
           {bullets.slice(0, 4).map((x) => (
-            <li key={x} className="flex items-center gap-[1.5cqw] font-semibold leading-tight text-[length:clamp(0.625rem,2.9cqw,0.9375rem)]">
+            <li key={x} className="flex items-center gap-[1.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">
               <span aria-hidden className="shrink-0 grid place-items-center size-[6.5cqw] min-w-4 min-h-4 rounded-[1.5cqw] bg-[var(--pa)] text-white"><Check className="size-[70%]" strokeWidth={3} /></span>{x}
             </li>
           ))}
@@ -139,9 +139,9 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       )}
       {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] top-[23%] w-[34%]" /> : <span className={`absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
-        {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.5625rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
+        {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.6875rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
         <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.5625rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>}
       <Shine d={d} />
       {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
@@ -150,7 +150,7 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[4%] top-[46%] w-[24%]" />}
-      {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.625rem,2.9cqw,0.9375rem)]">{d.body}</span>}
+      {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">{d.body}</span>}
     </a>
   );
 }
@@ -182,6 +182,8 @@ function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
   );
 }
 
+// Λωρίδα: φαίνονται όσα προϊόντα χωράνε άνετα (κάθε πλαίσιο θέλει ~11,5rem) — το 2ο από 48rem πλάτος banner, το 3ο από 72rem. Ποτέ τρία στριμωγμένα.
+const SHOW_FROM = ["", "hidden @3xl:grid", "hidden @6xl:grid"];
 // κινητό: πάντα 2 ανά σειρά· όσο φαρδαίνει ο χώρος ανεβαίνει ως το «ανά σειρά» του σχεδίου
 const COLS: Record<number, string> = { 2: "grid-cols-2", 3: "grid-cols-2 @3xl:grid-cols-3", 4: "grid-cols-2 @4xl:grid-cols-4", 5: "grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-5", 6: "grid-cols-2 @2xl:grid-cols-3 @4xl:grid-cols-4 @6xl:grid-cols-6" };
 const TILES: Record<BannerDesign["postStyle"], (props: TileProps) => React.ReactNode> = { visual: PostTile, podium: PodiumTile, clean: CleanTile, band: BandTile };
@@ -256,7 +258,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
             ) : (
               // Πολλά προϊόντα: κάθε ένα σε δικό του πλαίσιο με ίδια δομή — φωτογραφία σε ίδιο ύψος, μάρκα με την ενεργειακή κλάση στην ίδια γραμμή,
               // τίτλος πάντα 2 γραμμών, τιμή και αρχική τιμή στην ίδια γραμμή. Έτσι όλα στοιχίζονται χωρίς κενές «θέσεις» και τα προϊόντα ξεχωρίζουν.
-              <li key={p.id} className={`min-w-0 grid grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 items-center @xl:content-start gap-3 @xl:gap-2.5 @xl:rounded-2xl @xl:p-3 ${light ? "@xl:bg-white/[0.07] @xl:ring-1 @xl:ring-white/15" : "@xl:bg-black/[0.04] @xl:ring-1 @xl:ring-black/10"} ${i > 0 ? "hidden @xl:grid" : ""}`}>
+              <li key={p.id} className={`min-w-0 grid grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 items-center @xl:content-start gap-3 @xl:gap-2.5 @xl:rounded-2xl @xl:p-3 ${light ? "@xl:bg-white/[0.07] @xl:ring-1 @xl:ring-white/15" : "@xl:bg-black/[0.04] @xl:ring-1 @xl:ring-black/10"} ${SHOW_FROM[i] ?? SHOW_FROM[2]}`}>
                 {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`w-full object-contain max-h-24 @xl:max-h-none @xl:h-28 ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
                 <div className="grid gap-1 min-w-0">
                   <span className="flex items-center justify-between gap-2 min-h-7">
