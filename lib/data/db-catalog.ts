@@ -313,12 +313,18 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   const base: Prisma.ProductWhereInput = { AND: [scope, text] };
 
   // Φίλτρα χαρακτηριστικών: μόνο σε επίπεδο τύπου, όπου τα ορίζει το ERP
-  const facetDefs = node && node.depth === 2 ? await db.facet.findMany({ where: { categoryId: node.id, source: "softone", key: { startsWith: "s1:" }, valueCount: { gte: 2 } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true, productCount: true } }) : [];
-  const usable = facetDefs.filter((d) => node && d.productCount / Math.max(1, node.count) >= 0.2);
+  const facetDefs = node && node.depth === 2 ? await db.facet.findMany({ where: { categoryId: node.id, source: "softone", key: { startsWith: "s1:" }, valueCount: { gte: 1 } }, orderBy: { sortNo: "asc" }, select: { id: true, label: true, productCount: true, valueCount: true, kind: true } }) : [];
+  // Συμμετέχει ό,τι έχει τιμή σε ≥20% των προϊόντων του τύπου. Με μία μόνο τιμή μένει μόνο το «έχει / δεν έχει» (Smart TV, Ιονιστής, Πυρόλυση):
+  // εκεί η μία τιμή «Ναι» είναι χρήσιμο φίλτρο, αρκεί να μην το έχουν όλα.
+  const usable = facetDefs.filter((d) => node && d.productCount / Math.max(1, node.count) >= 0.2 && (d.valueCount >= 2 || (d.kind === "boolean" && d.productCount < node.count)));
   const attrWhere: Prisma.ProductWhereInput[] = [];
   for (const [label, values] of Object.entries(f.attrs ?? {})) {
     const def = usable.find((d) => d.label === label); if (!def || !values.length) continue;
     attrWhere.push({ facetValues: { some: { facetId: def.id, value: { in: values } } } });
+  }
+  for (const [label, [lo, hi]] of Object.entries(f.ranges ?? {})) {
+    const def = usable.find((d) => d.label === label); if (!def) continue;
+    attrWhere.push({ facetValues: { some: { facetId: def.id, num: { ...(lo != null ? { gte: lo } : {}), ...(hi != null ? { lte: hi } : {}) } } } });
   }
   // Το φίλτρο ενεργειακής κλάσης υπάρχει μόνο όπου υπάρχει ενεργειακή ετικέτα, και μετρά μόνο τέτοιους τύπους
   const labelled = [...t.byId.values()].filter((n) => n.depth === 2 && n.energy && (!node || leafIds(node).includes(n.id))).map((n) => n.id);
@@ -338,7 +344,24 @@ async function listProductsFresh(f: ListFilter & { l3?: string }): Promise<ListR
   ]);
   const brandRows = await db.brand.findMany({ where: { id: { in: brandCounts.map((b) => b.brandId) } }, select: { id: true, slug: true, name: true } });
   const brandBy = new Map(brandRows.map((b) => [b.id, b]));
-  const attributes: AttrFacet[] = usable.map((d) => ({ key: d.label, group: "Χαρακτηριστικά", values: facetCounts.filter((c) => c.facetId === d.id).map((c) => ({ value: c.value, count: c._count._all })).sort((a, b) => smart(a.value, b.value)) })).filter((a) => a.values.length >= 2 && a.values.length <= 40);
+  // Λίστα τιμών έως 40· πάνω από 40 αριθμητικές τιμές (βάθος, θόρυβος) γίνονται μπάρα «από – έως»· «Ναι/Όχι» γίνεται ένα κουτάκι.
+  const YES = /^(ναι|yes)$/i, YESNO = /^(ναι|yes|όχι|οχι|no)$/i;
+  const attributes: AttrFacet[] = [];
+  for (const d of usable) {
+    const values = facetCounts.filter((c) => c.facetId === d.id).map((c) => ({ value: c.value, count: c._count._all })).sort((a, b) => smart(a.value, b.value));
+    const yes = values.find((v) => YES.test(v.value.trim()));
+    if (yes && values.every((v) => YESNO.test(v.value.trim()))) { if (!node || yes.count < node.count) attributes.push({ key: d.label, group: "Δυνατότητες", values, toggle: yes }); continue; }
+    if (values.length >= 2 && values.length <= 40) { attributes.push({ key: d.label, group: "Χαρακτηριστικά", values }); continue; }
+    if (values.length > 40) {
+      const [agg, sample] = await Promise.all([
+        db.productFacetValue.aggregate({ where: { facetId: d.id, num: { not: null }, product: base }, _min: { num: true }, _max: { num: true }, _count: { _all: true } }),
+        db.productFacetValue.findFirst({ where: { facetId: d.id, num: { not: null } }, select: { value: true } }),
+      ]);
+      const all = values.reduce((n, v) => n + v.count, 0);
+      if (agg._min.num != null && agg._max.num != null && agg._max.num > agg._min.num && agg._count._all >= all * 0.9)
+        attributes.push({ key: d.label, group: "Χαρακτηριστικά", values: [], range: { min: agg._min.num, max: agg._max.num, unit: (sample?.value.replace(/^[\s\d.,-]+/, "") ?? "").trim().slice(0, 8) } });
+    }
+  }
 
   return {
     items: rows.map((r) => toProduct(r)), total, page, pages: Math.max(1, Math.ceil(total / perPage)),

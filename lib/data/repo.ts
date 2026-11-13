@@ -43,6 +43,8 @@ export interface ListFilter {
   sort?: "relevance" | "price-asc" | "price-desc" | "rating" | "newest" | "discount";
   /** Characteristic facets: canonical key → accepted values (see lib/data/attributes). */
   attrs?: Record<string, string[]>;
+  /** Αριθμητικά χαρακτηριστικά «από – έως»: `r_<key>=lo-hi` (κενή άκρη = χωρίς όριο). */
+  ranges?: Record<string, [number | null, number | null]>;
   /** Τρίτο επίπεδο: τύπος προϊόντος (μόνο στον κατάλογο της βάσης). */
   l3?: string;
   /** Ρητά τα demo δεδομένα με τιμές (οδηγοί αγοράς, καρτέλες καταστημάτων). */
@@ -70,8 +72,11 @@ export interface ListResult {
 /** Parse listing search params (shared by /proionta, /k/…, /prosfores, /anazitisi). Attribute facets travel as `f_<key>=v1|v2`. */
 export function filterFromParams(sp: Record<string, string | undefined>, base: Partial<ListFilter> = {}): ListFilter {
   const attrs: Record<string, string[]> = {};
+  const ranges: Record<string, [number | null, number | null]> = {};
   for (const [k, v] of Object.entries(sp)) {
     if (k.startsWith("f_") && v) attrs[k.slice(2)] = v.split("|").filter(Boolean);
+    const m = k.startsWith("r_") && v ? v.match(/^(-?\d+(?:\.\d+)?)?-(-?\d+(?:\.\d+)?)?$/) : null;
+    if (m && (m[1] || m[2])) ranges[k.slice(2)] = [m[1] ? Number(m[1]) : null, m[2] ? Number(m[2]) : null];
   }
   return {
     ...base,
@@ -87,6 +92,7 @@ export function filterFromParams(sp: Record<string, string | undefined>, base: P
     q: sp.q ?? base.q,
     sort: (sp.sort as ListFilter["sort"]) ?? "relevance",
     attrs: Object.keys(attrs).length ? attrs : undefined,
+    ranges: Object.keys(ranges).length ? ranges : undefined,
     page: sp.page ? Number(sp.page) : 1,
     perPage: base.perPage ?? 24,
   };

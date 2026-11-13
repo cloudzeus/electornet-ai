@@ -139,6 +139,10 @@ export interface AttrFacet {
   key: string;
   group: string;
   values: { value: string; count: number }[];
+  /** αριθμητικό χαρακτηριστικό με πάρα πολλές τιμές: μπάρα «από – έως» (?r_<key>=lo-hi) αντί για λίστα */
+  range?: { min: number; max: number; unit: string };
+  /** «έχει / δεν έχει» (π.χ. Smart TV): ένα κουτάκι που κρατά όσα το έχουν (?f_<key>=Ναι) */
+  toggle?: { value: string; count: number };
 }
 
 /** Characteristic facets for a product set: keys shared by ≥ 2 products with ≥ 2 distinct values, most-covered first. */
