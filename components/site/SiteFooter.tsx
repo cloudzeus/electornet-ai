@@ -43,10 +43,10 @@ export async function SiteFooter() {
                   </li>
                 ))}
               </ul>
-              {/* λογότυπο συμμόρφωσης του W3C, αυτούσιο από το w3.org όπως ζητούν οι όροι χρήσης του */}
+              {/* λογότυπο συμμόρφωσης του W3C, αυτούσιο αντίγραφο από το w3.org (public/wcag2.1AA.svg) όπως ζητούν οι όροι χρήσης του */}
               {c.title === "Αγορές" && (
                 <Link href="/prosvasimotita" className="mt-3 inline-block">
-                  <Image src="https://www.w3.org/WAI/WCAG21/wcag2.1AA-v" alt="Συμμόρφωση με WCAG 2.1 επίπεδο AA — δήλωση προσβασιμότητας" width={88} height={32} className="h-8 w-[88px]" unoptimized />
+                  <Image src="/wcag2.1AA.svg" alt="Συμμόρφωση με WCAG 2.1 επίπεδο AA — δήλωση προσβασιμότητας" width={88} height={32} className="h-8 w-[88px]" unoptimized />
                 </Link>
               )}
             </div>
