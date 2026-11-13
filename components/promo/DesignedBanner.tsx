@@ -101,11 +101,12 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
     const tiles = products.slice(0, d.products.max);
     if (!tiles.length) return null;
     return (
+      // τίτλος, υπέρτιτλος και σύνδεσμος ακολουθούν τα χρώματα του component της ζώνης (--bs-*), όταν έχουν οριστεί
       <div className="@container grid gap-3">
         {(d.title || (d.cta && href)) && (
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-            <span className="grid">{d.kicker && <span className="font-extrabold text-eu-blue text-[length:var(--fs-13)]">{d.kicker}</span>}{d.title && <strong className="font-heading font-extrabold text-eu-ink leading-tight text-[length:var(--fs-24)] @3xl:text-[length:var(--fs-30)]">{d.title}</strong>}</span>
-            {d.cta && href && <a href={href} className="inline-flex items-center min-h-11 font-extrabold text-eu-blue text-[length:var(--fs-15)] underline underline-offset-4 hover:text-eu-navy">{d.cta}</a>}
+            <span className="grid">{d.kicker && <span className="font-extrabold text-[color:var(--bs-kicker,var(--bs-accent,var(--eu-blue)))] text-[length:var(--fs-13)]">{d.kicker}</span>}{d.title && <strong className="font-heading font-extrabold text-[color:var(--bs-title,var(--bs-ink,var(--eu-ink)))] leading-tight text-[length:var(--fs-24)] @3xl:text-[length:var(--fs-30)]">{d.title}</strong>}</span>
+            {d.cta && href && <a href={href} className="inline-flex items-center min-h-11 font-extrabold text-[color:var(--bs-link,var(--bs-accent,var(--eu-blue)))] text-[length:var(--fs-15)] underline underline-offset-4 hover:opacity-80">{d.cta}</a>}
           </div>
         )}
         <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : tiles.length === 2 ? "grid-cols-2" : tiles.length === 3 ? "grid-cols-2 @3xl:grid-cols-3" : "grid-cols-2 @4xl:grid-cols-4"}`}>
