@@ -114,17 +114,27 @@ const TOURS: Tour[] = [
   { name: "kampanies", run: async (page, say) => {
     await page.goto(`${BASE}/admin/prosfores/kampanies`, { waitUntil: "networkidle" });
     await say("Καμπάνιες: ένας φάκελος που μαζεύει προσφορές, κουπόνια, banners, landing page και newsletter.", 4500);
+    await say("Πάνω φιλτράρεις ανά κατάσταση: σε εξέλιξη, προγραμματισμένες, πρόχειρες, σε παύση, όσες έληξαν.", 4500);
     const href = await page.locator('a[href*="/admin/prosfores/kampanies/c"]').first().getAttribute("href");
     await page.goto(`${BASE}${href}`, { waitUntil: "networkidle" });
-    await say("Η σελίδα της καμπάνιας: κατάσταση, ημερομηνίες και ό,τι ανήκει σε αυτήν.", 4000);
-    await scroll(page, 500);
-    await say("Προσφορές και κουπόνια της καμπάνιας, με τα αποτελέσματά τους.", 4000);
-    await scroll(page, 600);
-    await say("Banners, landing page και newsletter: από εδώ ανοίγεις το καθένα για αλλαγές.", 4500);
-    await page.goto(`${BASE}/admin/prosfores/kampanies/new`, { waitUntil: "networkidle" });
-    await say("«Νέα καμπάνια»: ο οδηγός σε πάει βήμα-βήμα — στόχος, διάρκεια, προσφορές, και τι θα φτιαχτεί.", 5000);
-    await scroll(page, 400);
-    await say("Η καμπάνια μένει πρόχειρη μέχρι να τη δημοσιεύσεις.", 3500);
+    await say("Μια καμπάνια στήνεται σε πέντε βήματα. Πρώτο: «Στόχος & ημερομηνίες».", 4000);
+    await scroll(page, 380);
+    await say("Ο στόχος ορίζει τι θα μετρηθεί. Η «Λήξη» οδηγεί κάθε αντίστροφη μέτρηση στο site.", 4500);
+    await scroll(page, -380);
+    await tap(page, /Budget/, { role: "button" });
+    await say("«Budget»: πόσα σκοπεύεις να δώσεις σε εκπτώσεις, για να φαίνεται αν ξεφεύγεις.", 4500);
+    await tap(page, /Περιεχόμενα/, { role: "button" });
+    await say("«Περιεχόμενα»: οι προσφορές, οι landing pages και τα banners της καμπάνιας.", 4500);
+    await scroll(page, 420);
+    await say("Φτιάχνεις νέα προσφορά μέσα στην καμπάνια ή προσθέτεις μια υπάρχουσα. Το Χ τη βγάζει από τον φάκελο.", 4500);
+    await scroll(page, -420);
+    await tap(page, /Προβολή/, { role: "button" });
+    await say("«Προβολή»: η landing page και κάθε θέση banner, με εμφανίσεις και κλικ.", 4500);
+    await tap(page, /Έλεγχος & δημοσίευση/, { role: "button" });
+    await say("«Έλεγχος & δημοσίευση»: τι λείπει και, όσο είναι πρόχειρη, η δημοσίευση όλων μαζί.", 4500);
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }));
+    await page.waitForTimeout(1200);
+    await say("Κάτω-κάτω: «Παύση», «Λήξη τώρα» και «Αρχείο». Προσφορές και banners ακολουθούν την καμπάνια.", 5000);
   } },
 ];
 
