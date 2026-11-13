@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T09:16:45.083Z",
+ "generatedAt": "2026-11-13T09:40:29.017Z",
  "routes": [
   {
    "route": "/admin",
@@ -2009,6 +2009,11 @@
    ],
    "changes": [
     {
+     "hash": "42f20d2",
+     "date": "2026-11-13T11:21:07+02:00",
+     "text": "Ζώνες σελίδων (ui-ux-pro-max + unslop): ο editor γίνεται χάρτης της σελίδας"
+    },
+    {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
@@ -2052,14 +2057,9 @@
      "hash": "2c989af",
      "date": "2026-10-10T20:10:24+03:00",
      "text": "Καμπάνιες κατασκευαστών: γραμμές με μικρογραφία, σύρσιμο ή βέλη για σειρά, μάτι για ορατή/κρυφή (μένει αποθηκευμένη), άνοιγμα για επεξεργασία"
-    },
-    {
-     "hash": "f564624",
-     "date": "2026-10-10T19:54:40+03:00",
-     "text": "Αρχική → Υπηρεσίες: όλες οι υπηρεσίες σε λίστα μέσα στην ενότητα, σύρσιμο ή βέλη για τη σειρά στην αρχική, μάτι για ορατή/κρυφή, μετρητής ορατών (προτείνονται 3/6/9), σύνδεσμος προς Εμπόριο → Υπηρεσίες"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-11-13T11:21:07+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.home-d.jpg",
     "mobile": "/api/help-shot/cms.home-m.jpg"
@@ -2082,6 +2082,11 @@
    ],
    "changes": [
     {
+     "hash": "42f20d2",
+     "date": "2026-11-13T11:21:07+02:00",
+     "text": "Ζώνες σελίδων (ui-ux-pro-max + unslop): ο editor γίνεται χάρτης της σελίδας"
+    },
+    {
      "hash": "a86f1f2",
      "date": "2026-10-11T13:23:55+03:00",
      "text": "Ζώνες σελίδων (ui-ux-pro-max): η λίστα από 10 μεγάλες κάρτες γίνεται πυκνός πίνακας (σελίδα, κατάσταση, components ανά ζώνη με τόνο μόνο όπου υπάρχει περιεχόμενο, αλλαγή, Στο site / Ζώνες) με λωρίδα συνόλων"
@@ -2092,7 +2097,7 @@
      "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-11T13:23:55+03:00",
+   "updatedAt": "2026-11-13T11:21:07+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.pages-d.jpg",
     "mobile": "/api/help-shot/cms.pages-m.jpg"
@@ -2114,6 +2119,11 @@
     "zones.preview"
    ],
    "changes": [
+    {
+     "hash": "42f20d2",
+     "date": "2026-11-13T11:21:07+02:00",
+     "text": "Ζώνες σελίδων (ui-ux-pro-max + unslop): ο editor γίνεται χάρτης της σελίδας"
+    },
     {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
@@ -2150,7 +2160,7 @@
      "text": "Ζώνες σε πληροφοριακές σελίδες με δυναμικά components, συνδεδεμένα με τις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-11-13T11:21:07+02:00",
    "shots": {}
   },
   {
@@ -3928,6 +3938,24 @@
    }
   },
   {
+   "route": "/admin/prosfores/theseis/[id]",
+   "slug": "prosfores.theseis.id",
+   "file": "app/admin/(shell)/prosfores/theseis/[id]/page.tsx",
+   "title": "Banner",
+   "doc": "Editor ενός banner: /theseis/new?slot=home-strip για νέο, /theseis/<id> για υπάρχον.",
+   "perm": "catalog.promos.write",
+   "nav": null,
+   "dynamic": true,
+   "helpKeys": [
+    "banner.save",
+    "banner.form",
+    "banner.preview"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/prosfores/voitheia",
    "slug": "prosfores.voitheia",
    "file": "app/admin/(shell)/prosfores/voitheia/page.tsx",
@@ -5143,6 +5171,15 @@
  ],
  "recent": [
   {
+   "hash": "42f20d2",
+   "date": "2026-11-13T11:21:07+02:00",
+   "text": "Ζώνες σελίδων (ui-ux-pro-max + unslop): ο editor γίνεται χάρτης της σελίδας",
+   "routes": [
+    "/admin",
+    "/admin/cms/pages"
+   ]
+  },
+  {
    "hash": "09731f0",
    "date": "2026-11-13T07:08:07+02:00",
    "text": "Merge remote-tracking branch 'origin/master' into v2",
@@ -5428,17 +5465,6 @@
    "routes": [
     "/admin",
     "/admin/catalog",
-    "/admin/catalog/competitors"
-   ]
-  },
-  {
-   "hash": "aa7203b",
-   "date": "2026-11-11T17:15:46+02:00",
-   "text": "Σύγκριση τιμών: badge Κωτσόβολου στη λίστα και στο προϊόν, γράφημα 30 ημερών, επιβεβαίωση/αλλαγή ζευγαριού (setPair, rejectPair)",
-   "routes": [
-    "/admin",
-    "/admin/catalog",
-    "/admin/catalog/[id]",
     "/admin/catalog/competitors"
    ]
   }
@@ -6728,6 +6754,15 @@
   ],
   "restock.list": [
    "components/admin/partners/RestockList.tsx"
+  ],
+  "banner.save": [
+   "components/admin/promos/BannerEditor.tsx"
+  ],
+  "banner.form": [
+   "components/admin/promos/BannerEditor.tsx"
+  ],
+  "banner.preview": [
+   "components/admin/promos/BannerEditor.tsx"
   ],
   "campaign.steps": [
    "components/admin/promos/CampaignWizard.tsx"

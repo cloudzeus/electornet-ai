@@ -486,6 +486,43 @@ html:not([data-zones="1"]) .eu-zone-badge {
 @utility eu-cutout-shadow-dark {
   filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.45));
 }
+/* Σχεδιασμένα banners (DesignedBanner): φόντο με κίνηση — μόνο transform/opacity */
+@keyframes eu-spot {
+  0%, 100% { transform: translate3d(-5%, 0, 0) scale(1); opacity: 0.7; }
+  50% { transform: translate3d(5%, -3%, 0) scale(1.14); opacity: 1; }
+}
+@keyframes eu-kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.09) translate3d(-1.5%, -1%, 0); }
+}
+@keyframes eu-sweep {
+  0%, 55% { transform: translateX(-140%) skewX(-18deg); }
+  100% { transform: translateX(420%) skewX(-18deg); }
+}
+/* προβολέας: φωτεινή κηλίδα που «ανασαίνει» πάνω σε σκούρο φόντο */
+@utility eu-spot {
+  position: absolute;
+  inset: -35% -10%;
+  pointer-events: none;
+  background: radial-gradient(32% 44% at 60% 48%, rgba(255, 255, 255, 0.5), rgba(110, 120, 255, 0.3) 40%, transparent 72%);
+  animation: eu-spot 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@utility eu-kenburns {
+  animation: eu-kenburns 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+/* λάμψη που περνά κάθε λίγα δευτερόλεπτα */
+@utility eu-sweep {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 28%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  animation: eu-sweep 6s var(--eu-ease-out) infinite;
+  will-change: transform;
+}
 /* One-time shimmer sweep for stickers/ribbons */
 @utility eu-shimmer {
   position: relative;
@@ -520,7 +557,8 @@ html:not([data-zones="1"]) .eu-zone-badge {
   animation-duration: 420ms;
 }
 @media (prefers-reduced-motion: reduce) {
-  .eu-ambient, .eu-rays, .eu-float, .eu-breathe, .eu-shimmer::after, .eu-bump { animation: none !important; }
+  .eu-ambient, .eu-rays, .eu-float, .eu-breathe, .eu-shimmer::after, .eu-bump, .eu-spot, .eu-kenburns { animation: none !important; }
+  .eu-sweep { display: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 

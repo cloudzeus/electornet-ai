@@ -2989,6 +2989,8 @@ model AdPlacement {
   startsAt    DateTime?
   endsAt      DateTime?
   priority    Int       @default(100)
+  /// σχεδιασμένο banner (lib/promo/banner-design.ts): φόντο + κίνηση, κείμενα, προϊόντα· null = έτοιμη εικόνα
+  design      Json?
   /// { customers?: "all" | "guest" | "registered", categories?: string[] (slug L1) }
   audience    Json?
   impressions Int       @default(0)

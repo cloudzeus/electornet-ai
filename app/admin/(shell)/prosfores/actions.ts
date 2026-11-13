@@ -293,17 +293,21 @@ export async function saveLandingAction(input: LandingInput) {
 }
 
 // ---- διαφημιστικές θέσεις ----
-export interface PlacementInput { id?: string | null; slot: string; title: string; image: string | null; imageMobile: string | null; alt: string | null; href: string | null; promotionId: string | null; landingId: string | null; status: "draft" | "active" | "paused" | "archived"; startsAt: string | null; endsAt: string | null; priority: number; categories: string[] }
+export interface PlacementInput { id?: string | null; slot: string; title: string; image: string | null; imageMobile: string | null; alt: string | null; href: string | null; promotionId: string | null; landingId: string | null; status: "draft" | "active" | "paused" | "archived"; startsAt: string | null; endsAt: string | null; priority: number; categories: string[]; /** σχεδιασμένο banner· null/κενό = έτοιμη εικόνα */ design?: import("@/lib/promo/banner-design").BannerDesign | null }
 
 export async function savePlacementAction(input: PlacementInput) {
   const user = await requirePermission(PERM);
   const { SLOTS } = await import("@/lib/promo/landing-blocks");
   if (!SLOTS.some((s) => s.key === input.slot)) return { ok: false as const, error: "Άγνωστη θέση." };
-  if (input.status === "active" && !input.image) return { ok: false as const, error: "Χρειάζεται εικόνα για να ενεργοποιηθεί." };
+  const { normalizeBannerDesign, bannerDesignIssue } = await import("@/lib/promo/banner-design");
+  const design = input.design ? normalizeBannerDesign(input.design) : null;
+  if (input.status === "active" && !design && !input.image) return { ok: false as const, error: "Χρειάζεται εικόνα για να ενεργοποιηθεί." };
+  const issue = design && input.status === "active" ? bannerDesignIssue(design, input.promotionId) : null;
+  if (issue) return { ok: false as const, error: issue };
   let href = input.href?.trim() || null;
   if (!href && input.landingId) href = `/prosfores/${(await db.landingPage.findUnique({ where: { id: input.landingId }, select: { slug: true } }))?.slug ?? ""}`;
   if (href && !/^\/(?!\/)/.test(href) && !/^https:\/\//.test(href)) return { ok: false as const, error: "Ο σύνδεσμος ξεκινά με / (εσωτερικός) ή https://." };
-  const data = { slot: input.slot, title: input.title.trim().slice(0, 120) || "Banner", image: input.image?.trim() || null, imageMobile: input.imageMobile?.trim() || null, alt: input.alt?.trim() || null, href, promotionId: input.promotionId || null, landingId: input.landingId || null, status: input.status, startsAt: input.startsAt ? new Date(input.startsAt) : null, endsAt: input.endsAt ? new Date(input.endsAt) : null, priority: Math.max(0, Math.min(999, Math.round(input.priority || 100))), audience: input.categories.length ? { categories: input.categories } : Prisma.JsonNull };
+  const data = { slot: input.slot, title: input.title.trim().slice(0, 120) || "Banner", image: input.image?.trim() || null, imageMobile: input.imageMobile?.trim() || null, alt: input.alt?.trim() || null, href, promotionId: input.promotionId || null, landingId: input.landingId || null, status: input.status, startsAt: input.startsAt ? new Date(input.startsAt) : null, endsAt: input.endsAt ? new Date(input.endsAt) : null, priority: Math.max(0, Math.min(999, Math.round(input.priority || 100))), audience: input.categories.length ? { categories: input.categories } : Prisma.JsonNull, ...(input.design === undefined ? {} : { design: design ? (design as unknown as Prisma.InputJsonValue) : Prisma.JsonNull }) };
   const before = input.id ? await db.adPlacement.findUnique({ where: { id: input.id } }) : null;
   const row = input.id ? await db.adPlacement.update({ where: { id: input.id }, data }) : await db.adPlacement.create({ data: { ...data, createdById: user.id } });
   await audit(user.id, input.id ? "ad.update" : "ad.create", "AdPlacement", row.id, before, data);
