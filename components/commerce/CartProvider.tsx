@@ -86,7 +86,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const raw = localStorage.getItem(KEY);
         if (raw) {
           const p = JSON.parse(raw) as Persisted;
-          setLines(p.lines ?? []);
+          // παλιά δοκιμαστικά προϊόντα (εκτός καταλόγου) δεν παραγγέλνονται: φεύγουν από το καλάθι
+          setLines((p.lines ?? []).filter((l) => l.product?.fromDb));
           setWishlist(p.wishlist ?? []);
           setCompare(p.compare ?? []);
           setCompareScope(p.compareScope ?? null);

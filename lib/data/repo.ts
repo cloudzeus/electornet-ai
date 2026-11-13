@@ -247,8 +247,9 @@ export const POPULAR_SEARCHES = ["κλιματιστικό 12000 btu", "πλυν
 
 export async function searchSuggest(q: string, cat?: string): Promise<SuggestResult> {
   const t = tokens(q);
-  const promoP = products.find((p) => p.id === "p-lg-43nano82") ?? products[0];
-  const promo = { slug: promoP.slug, brand: promoP.brand, title: promoP.title, price: promoP.price, wasPrice: promoP.wasPrice, image: promoP.image };
+  // δυναμική εισαγωγή: το hero-slides εισάγει αυτό το αρχείο (κύκλος)
+  const promoP = (await (await import("@/lib/cms/hero-slides")).getHeroDeal().catch(() => null))?.product ?? null;
+  const promo = promoP ? { slug: promoP.slug, brand: promoP.brand, title: promoP.title, price: promoP.price, wasPrice: promoP.wasPrice, image: promoP.image } : null;
   if (t.length === 0 || t.join("").length < 2) return { q, total: 0, products: [], categories: [], brands: [], guides: [], popular: POPULAR_SEARCHES, promo };
   if (await dbEnabled()) {
     const m = (text: string) => t.every((x) => text.includes(x));
