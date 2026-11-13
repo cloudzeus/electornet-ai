@@ -1,3 +1,4 @@
+import { sx } from "@/components/ui/sx";
 import "server-only";
 import type { ReactNode } from "react";
 import type { BrandBlock } from "./brand-store";
@@ -89,8 +90,24 @@ const HIDE = { mobile: "max-md:hidden", tablet: "md:max-lg:hidden", desktop: "lg
 
 export function renderBlock(b: BrandBlock, d: BlockData, ctx: { brandName: string; countImpressions?: boolean; sample?: boolean }): ReactNode {
   const el = renderInner(b, d, ctx);
-  if (!el || !b.hideOn?.length) return el;
-  return <div key={b.id} className={b.hideOn.map((x) => HIDE[x]).join(" ")}>{el}</div>;
+  const hide = b.hideOn?.length ? b.hideOn.map((x) => HIDE[x]).join(" ") : "";
+  const bg = b.bg && /^#[0-9a-f]{6}$/i.test(b.bg) ? b.bg : null;
+  // εικόνα φόντου: μόνο δική μας διαδρομή ή https, χωρίς χαρακτήρες που σπάνε το url()
+  const img = b.bgImage && /^(\/(?!\/)|https:\/\/)[^"'()\s\\]+$/.test(b.bgImage) ? b.bgImage : null;
+  if (!el || (!hide && !bg && !img)) return el;
+  if (!bg && !img) return <div key={b.id} className={hide}>{el}</div>;
+  // φόντο του component: τα χρώματα κειμένου του θέματος ακολουθούν (ανοιχτά πάνω σε σκούρο), ώστε να διαβάζεται πάντα.
+  // Εικόνα χωρίς χρώμα → σκούρο πέπλο και ανοιχτά κείμενα· εικόνα με χρώμα → ο τόνος των κειμένων βγαίνει από το χρώμα.
+  const base = bg ?? "#05060f";
+  const [r, g, bl] = [1, 3, 5].map((i) => parseInt(base.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const dark = 0.2126 * r + 0.7152 * g + 0.0722 * bl < 0.4;
+  const veil = img && !bg ? "linear-gradient(rgba(5,6,15,.55),rgba(5,6,15,.55)), " : "";
+  const v = sx({
+    "--bs-bg": img ? "transparent" : base, "--bs-bg2": img ? (dark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.06)") : `color-mix(in srgb, ${base} 88%, ${dark ? "white" : "black"})`,
+    "--bs-ink": dark ? "#ffffff" : "#1a1a1a", "--bs-muted": dark ? "rgba(255,255,255,.78)" : "#595959", ...(dark ? { "--bs-accent": "#f1c400", "--bs-accent-ink": "#122a58" } : {}),
+    backgroundColor: base, ...(img ? { backgroundImage: `${veil}url("${img}")`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+  });
+  return <div key={b.id} className={`text-[var(--bs-ink)] ${v.className} ${hide}`}>{v.node}{el}</div>;
 }
 
 function renderInner(b: BrandBlock, d: BlockData, ctx: { brandName: string; countImpressions?: boolean; sample?: boolean }): ReactNode {
