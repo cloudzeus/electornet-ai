@@ -160,19 +160,21 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
 
 function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
   const light = d.ink === "light";
-  const bg = sx({ backgroundColor: d.bg.color });
+  const bg = sx({ backgroundColor: d.bg.color, "--tb": d.bg.color });
   const accent = sx({ color: d.accent });
   return (
     <a href={p.href} className={`${frame(tall, solo)} ${light ? "text-white" : "text-eu-navy"} ${bg.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
       {bg.node}{accent.node}
-      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className={`absolute inset-0 -z-10 size-full object-cover ${solo ? "object-left-top" : ""}`} />}
+      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className={`absolute inset-0 -z-10 size-full object-cover ${solo ? "object-left-top @2xl:object-contain @2xl:object-left" : ""}`} />}
+      {/* πλατύ: το εικαστικό πιάνει μόνο το αριστερό μέρος — σβήνει ομαλά μέσα στο χρώμα φόντου, χωρίς να φαίνεται ραφή */}
+      {solo && d.bg.image && <div aria-hidden className="hidden @2xl:block absolute inset-0 -z-10 bg-[linear-gradient(90deg,transparent_22%,var(--tb)_40%)]" />}
       {d.bg.anim === "spotlight" && <div aria-hidden className="eu-spot -z-10" />}
       <Shine d={d} />
-      <div className={`absolute right-[6%] top-[7%] w-[48%] z-10 grid gap-[1cqw] text-right ${solo ? "@2xl:w-[32%]" : ""}`}>
+      <div className={`absolute right-[6%] top-[7%] w-[48%] z-10 grid gap-[1cqw] text-right ${solo ? "@2xl:w-[30%]" : ""}`}>
         {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,7cqw,2.25rem)]">{p.brand}</span>}
         <span className="eu-sl-title font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.6cqw,1.125rem)]">{p.title}</span>
       </div>
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[36%] @2xl:top-[14%] @2xl:w-[25%] @2xl:h-[72%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[20%] @2xl:top-[7%] @2xl:w-[43%] @2xl:h-[86%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] top-[56%]"} w-[24%]`} />}
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
