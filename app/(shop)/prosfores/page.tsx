@@ -17,6 +17,8 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const deals = await getWeeklyDeals();
   const campaign = await pickAd("offers-top", { count: false }).catch(() => null);
+  // με banner καμπάνιας στη σελίδα, η λήξη που φαίνεται είναι της καμπάνιας (όχι των εβδομαδιαίων προσφορών)
+  const ends = campaign?.endsAt ?? null;
   const result = await listProducts({ sale: true, sort: (sp.sort as ListFilter["sort"]) ?? "discount", page: sp.page ? Number(sp.page) : 1, perPage: 48 });
   return (
     <div className="eu-container">
@@ -25,10 +27,10 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
       <AdSlot slot="offers-top" bleed />
       <PageIntro
         tone={campaign ? "light" : "dark"}
-        kicker={deals.label}
+        kicker={ends ? `Λήγουν ${ends.toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Athens" })}` : deals.label}
         title="Προσφορές με πραγματική λήξη"
         lead="Κάθε έκπτωση δείχνει τη χαμηλότερη τιμή των 30 προηγούμενων ημερών. Ο χρόνος που βλέπεις είναι ο πραγματικός χρόνος λήξης της καμπάνιας."
-        right={<Countdown endsAt={deals.endsAt} variant="blocks" />}
+        right={<Countdown endsAt={ends ? ends.toISOString() : deals.endsAt} variant="blocks" />}
       />
       <div className="eu-canvas eu-gutter py-8">
         <SortBar total={result.total} page={result.page} pages={result.pages} fit={result.items.some(fitMattersFor)} />

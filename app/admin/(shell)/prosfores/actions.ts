@@ -324,6 +324,57 @@ export async function savePlacementAction(input: PlacementInput) {
   return { ok: true as const, id: row.id };
 }
 
+// ---- προϊόντα προσφοράς από αρχείο κωδικών + τιμές ανταγωνισμού ----
+export interface CodeMatch { id: string; title: string; sku: string; active: boolean }
+
+/** Excel / CSV / επικόλληση με κωδικούς (SKU, EAN ή κωδικός ERP) → τα προϊόντα που βρέθηκαν και όσοι κωδικοί δεν βρέθηκαν. Τίποτα δεν αποθηκεύεται εδώ. */
+export async function promoCodesAction(form: FormData): Promise<{ ok: true; found: CodeMatch[]; missing: string[]; total: number } | { ok: false; error: string }> {
+  await requirePermission(PERM);
+  const { readXlsx, readDelimited } = await import("@/lib/xlsx-lite");
+  const file = form.get("file");
+  const paste = String(form.get("paste") ?? "");
+  let table: string[][] = [];
+  try {
+    if (file instanceof File && file.size) {
+      if (file.size > 8 * 1024 * 1024) return { ok: false, error: "Το αρχείο ξεπερνά τα 8 MB." };
+      const buf = Buffer.from(await file.arrayBuffer());
+      table = /\.xlsx$/i.test(file.name) ? readXlsx(buf) : readDelimited(buf.toString("utf8"));
+    } else if (paste.trim()) table = readDelimited(paste);
+  } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Δεν διαβάστηκε το αρχείο." }; }
+  if (!table.length) return { ok: false, error: "Δεν βρέθηκαν γραμμές. Το αρχείο θέλει μία στήλη με κωδικούς προϊόντων." };
+  // στήλη κωδικών: από την κεφαλίδα αν υπάρχει (Κωδικός / SKU / EAN / Barcode), αλλιώς η πρώτη
+  const head = table[0].map((h) => h.toLocaleLowerCase("el-GR"));
+  const hasHead = head.some((h) => /κωδ|sku|code|ean|barcode/.test(h));
+  const ci = hasHead ? Math.max(0, head.findIndex((h) => /κωδ|sku|code|ean|barcode/.test(h))) : 0;
+  // έως 2000 προϊόντα ανά προσφορά (όριο των στόχων)
+  const codes = [...new Set((hasHead ? table.slice(1) : table).map((r) => (r[ci] ?? "").trim()).filter(Boolean))].slice(0, 2000);
+  if (!codes.length) return { ok: false, error: "Η στήλη των κωδικών είναι κενή." };
+  const products = await db.product.findMany({ where: { OR: [{ sku: { in: codes } }, { ean: { in: codes } }, { erpCode: { in: codes } }] }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, active: true } });
+  const found = new Map<string, CodeMatch>(), missing: string[] = [];
+  for (const c of codes) {
+    const p = products.find((x) => x.sku === c || x.ean === c || x.erpCode === c);
+    if (p) found.set(p.id, { id: p.id, title: p.title, sku: p.sku, active: p.active }); else missing.push(c);
+  }
+  return { ok: true, found: [...found.values()], missing, total: codes.length };
+}
+
+export interface TargetPrice { id: string; title: string; sku: string; price: number | null; kot: { price: number; url: string | null; available: boolean; checkedAt: string | null } | null }
+
+/** Για τα επιλεγμένα προϊόντα μιας προσφοράς: η τιμή μας και η τιμή του Κωτσόβολου (μόνο επιβεβαιωμένα ζευγάρια). */
+export async function targetPricesAction(ids: string[]): Promise<TargetPrice[]> {
+  await requirePermission(PERM);
+  const list = [...new Set(ids)].slice(0, 2000);
+  if (!list.length) return [];
+  const rows = await db.product.findMany({
+    where: { id: { in: list } },
+    select: { id: true, title: true, sku: true, price: true, competitorPrices: { where: { competitor: "kotsovolos", match: { in: ["auto", "manual"] } }, take: 1, select: { listPrice: true, offerPrice: true, extUrl: true, available: true, checkedAt: true } } },
+  });
+  return rows.map((r) => {
+    const k = r.competitorPrices[0], kp = k ? Number(k.offerPrice ?? k.listPrice ?? 0) : 0;
+    return { id: r.id, title: r.title, sku: r.sku, price: r.price ?? null, kot: k && kp > 0 ? { price: kp, url: k.extUrl, available: k.available, checkedAt: k.checkedAt?.toISOString() ?? null } : null };
+  });
+}
+
 // ---- κοινά πελατών ----
 export interface SegmentInput { id?: string | null; name: string; description: string | null; rules: import("@/lib/promo/segments").SegmentRules }
 

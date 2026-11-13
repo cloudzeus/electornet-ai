@@ -12,6 +12,7 @@ import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, PAYMENT_OPTIONS, autoLabel, de
 import { Hint } from "./Help";
 import { STEP_HELP, FIELD_HELP } from "@/lib/promo/help";
 import { ProductBrowser, type BrowseProduct } from "./ProductBrowser";
+import { CodesUpload, SelectedPrices } from "./TargetTools";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
 
 type Svc = { slug: string; title: string; price: number };
@@ -598,6 +599,14 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
         {exc.length > 0 && <><h4 className="m-0 mt-1 font-extrabold text-eu-red text-[length:var(--fs-15)]">Εκτός</h4><TargetChips list={exc} names={names} onRemove={remove} tone="out" /></>}
         {inc.length > 1 && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Πολλές επιλογές = ισχύει σε οποιαδήποτε από αυτές. Για «μόνο η μάρκα Χ σε αυτή την κατηγορία» χρησιμοποίησε το «+» δίπλα στη μάρκα (βήμα 2).</p>}
       </section>
+
+      {!cartWide && <SelectedPrices ids={inc.filter((t) => t.kind === "product").map((t) => t.refId)} mechanism={d.mechanism} reward={d.reward} onRemove={(id) => set({ targets: d.targets.filter((t) => t.refId !== id) })} />}
+
+      <CodesUpload exclude={exclude} onAdd={(items) => {
+        setNames((n) => ({ ...n, ...Object.fromEntries(items.map((p) => [p.id, `${p.title} · ${p.sku}`])) }));
+        const ids = new Set(items.map((p) => p.id));
+        set({ targets: [...d.targets.filter((t) => !ids.has(t.refId)), ...items.map((p) => ({ kind: "product" as const, refId: p.id, exclude }))].slice(0, 2000) });
+      }} />
 
       <ProductBrowser mode="targets" selected={selected}
         onCategory={(c) => add("category", c.id, c.name)}

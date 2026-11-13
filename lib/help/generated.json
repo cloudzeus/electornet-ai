@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T11:06:54.591Z",
+ "generatedAt": "2026-11-13T11:43:43.780Z",
  "routes": [
   {
    "route": "/admin",
@@ -3958,6 +3958,16 @@
    ],
    "changes": [
     {
+     "hash": "94fce45",
+     "date": "2026-11-13T13:30:28+02:00",
+     "text": "Σελίδα προσφορών: το banner καμπάνιας γίνεται κεφαλίδα από άκρη σε άκρη (χωρίς κενά δεξιά-αριστερά και στρογγυλές γωνίες), πιο ψηλό, με σήμα, τίτλο και προϊόντα χωρίς φόντο"
+    },
+    {
+     "hash": "dddf12c",
+     "date": "2026-11-13T13:06:58+02:00",
+     "text": "Banners: επιλογή sticker (από τα stickers ή τη συλλογή)"
+    },
+    {
      "hash": "26312cc",
      "date": "2026-11-13T12:50:21+02:00",
      "text": "Banners: στυλ τετραγώνου «Βάθρο» (φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, χαρακτηριστικά με εικονίδιο)"
@@ -3983,7 +3993,7 @@
      "text": "Banners: δικός τους editor (όπως τα hero slides) με «Σχεδιασμένο εδώ»"
     }
    ],
-   "updatedAt": "2026-11-13T12:50:21+02:00",
+   "updatedAt": "2026-11-13T13:30:28+02:00",
    "shots": {}
   },
   {
@@ -5202,6 +5212,23 @@
  ],
  "recent": [
   {
+   "hash": "94fce45",
+   "date": "2026-11-13T13:30:28+02:00",
+   "text": "Σελίδα προσφορών: το banner καμπάνιας γίνεται κεφαλίδα από άκρη σε άκρη (χωρίς κενά δεξιά-αριστερά και στρογγυλές γωνίες), πιο ψηλό, με σήμα, τίτλο και προϊόντα χωρίς φόντο",
+   "routes": []
+  },
+  {
+   "hash": "dddf12c",
+   "date": "2026-11-13T13:06:58+02:00",
+   "text": "Banners: επιλογή sticker (από τα stickers ή τη συλλογή)",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/theseis",
+    "/admin/prosfores/theseis/[id]"
+   ]
+  },
+  {
    "hash": "7031a04",
    "date": "2026-11-13T12:52:35+02:00",
    "text": "Αρχική: τα χρώματα καμπάνιας ρυθμίζονται από τη διαχείριση",
@@ -5475,18 +5502,6 @@
     "/admin/catalog",
     "/admin/catalog/competitors"
    ]
-  },
-  {
-   "hash": "ebc09dd",
-   "date": "2026-11-11T18:57:04+02:00",
-   "text": "Βοήθεια: screenshots σύγκρισης τιμών και μαζικής αλλαγής (υπολογιστής + κινητό)",
-   "routes": []
-  },
-  {
-   "hash": "2f9631b",
-   "date": "2026-11-11T17:58:53+02:00",
-   "text": "Βοήθεια: ενημέρωση generated.json για τη σύγκριση τιμών",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -6918,6 +6933,12 @@
   ],
   "promo.sim.result": [
    "components/admin/promos/Simulator.tsx"
+  ],
+  "promo.codes": [
+   "components/admin/promos/TargetTools.tsx"
+  ],
+  "promo.kot": [
+   "components/admin/promos/TargetTools.tsx"
   ],
   "editor": [
    "components/admin/service-tickets/TicketEditor.tsx"
