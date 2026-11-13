@@ -1,3 +1,4 @@
+import { sx } from "@/components/ui/sx";
 import Image from "@/components/ui/Image";
 import type { HeroSlide, Product, Store } from "@/lib/data/types";
 import { CinematicHero } from "./CinematicHero";
@@ -31,14 +32,19 @@ interface Props {
  * side by side under the campaign; on phones a single column in the
  * order campaign → deal → store → services.
  */
-export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback", services, intervalMs, zoneNo, theme, hideServices }: Props & { /** «night» = σκούρο θέμα καμπάνιας (χρώματα των banners) */ theme?: string; /** χωρίς το πλακίδιο «Υπηρεσίες»: δίπλα στο hero μένουν προσφορά ημέρας και κατάστημα */ hideServices?: boolean }) {
+export function BentoHero({ slides, deal, store, geoCity, geoSource = "fallback", services, intervalMs, zoneNo, theme, hideServices, bg, accent, emblem }: Props & { /** «night» = προβολέας πίσω από το hero */ theme?: string; hideServices?: boolean; /** χρώματα καμπάνιας αντί για μπλε / κίτρινο (ρυθμίσεις της αρχικής) */ bg?: string; accent?: string; /** σήμα καμπάνιας στα slides χωρίς προϊόν */ emblem?: string }) {
+  // αλλάζουν μόνο οι μεταβλητές χρώματος μέσα στο hero: slides και πλακίδια ακολουθούν χωρίς δικό τους κώδικα
+  const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
+  const B = hex(bg), A = hex(accent);
+  const vars = sx({ ...(B ? { "--eu-navy": B, "--eu-navy-2": `color-mix(in srgb, ${B} 88%, white)`, "--eu-navy-line": `color-mix(in srgb, ${B} 70%, white)` } : {}), ...(A ? { "--eu-yellow": A, "--eu-yellow-dark": `color-mix(in srgb, ${A} 86%, black)` } : {}) });
   return (
-    <section className={`relative isolate overflow-hidden bg-eu-navy eu-container ${theme === "night" ? "eu-hero-night" : ""}`} aria-label={c.proteinomena}>
+    <section className={`relative isolate overflow-hidden bg-eu-navy eu-container ${vars.className}`} aria-label={c.proteinomena}>
+      {vars.node}
       {theme === "night" && <div aria-hidden className="eu-spot -z-10" />}
       <ZoneBadge no={zoneNo} />
       <div className={`eu-full p-3 @lg:p-3.5 grid grid-cols-1 @md:grid-cols-2 @5xl:grid-cols-[2fr_1fr] ${deal ? "@5xl:grid-rows-[auto_auto]" : "@5xl:grid-rows-[auto_minmax(0,1fr)]"} gap-3 @lg:gap-3.5`}>
         <div className="@md:col-span-2 @5xl:col-span-1 @5xl:row-span-2">
-          <CinematicHero slides={slides} intervalMs={intervalMs} />
+          <CinematicHero slides={slides} intervalMs={intervalMs} emblem={emblem} />
         </div>
 
         {deal ? (

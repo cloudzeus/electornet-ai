@@ -91,9 +91,9 @@ async function heroSlides(staffId: string, image: string, href: string) {
     slides: [
       slide("main", null, "Όλες οι προσφορές", { kicker: "Black Friday 2026 · έως 30 Νοεμβρίου", title: ["Black Friday", "στην Euronics"], body: T.sub }),
       slide("tv", "eikona-kai-ichos", "Όλες οι τηλεοράσεις", { kicker: "Black Friday · τηλεοράσεις", title: ["Η τηλεόραση", "που περίμενες", "−20 %"], body: "LG QNED 55 ιντσών στο −20 % και Mini LED Samsung στο −15 %.", productId: P.lgQned55 }),
-      slide("white", "leykes-syskeyes", "Όλες οι λευκές συσκευές", { kicker: "Black Friday · λευκές συσκευές", title: ["Ψυγείο, πλυντήριο,", "εστίες έως −15 %"], body: "Δίπορτο ψυγείο στο −10 %, πλυντήριο 9 κιλών και εστίες στο −15 %, με παράδοση από το κατάστημα της γειτονιάς σου.", productId: P.winstarFridge }),
       slide("clima", "klimatismos-thermansi", "Κλιματισμός και θέρμανση", { kicker: "Black Friday · χειμώνας", title: ["Σπίτι ζεστό,", "χωρίς υγρασία"], body: "Αφυγραντήρας De'Longhi στο −15 % και κλιματιστικό inverter στο −10 %.", productId: P.delonghiDehum }),
       slide("home", "oikiakos-exoplismos", "Όλες οι μικροσυσκευές", { kicker: "Black Friday · σπίτι", title: ["Καθάρισμα", "χωρίς καλώδιο", "−20 %"], body: "Επαναφορτιζόμενη σκούπα Rowenta στο −20 %, φριτέζα αέρος και σύστημα σιδερώματος στο −15 %.", productId: P.rowentaStick }),
+      slide("kitchen", "oikiakos-exoplismos", "Όλες οι μικροσυσκευές", { kicker: "Black Friday · κουζίνα", title: ["Φριτέζα αέρος", "−15 %"], body: "Tefal Easy Fry & Grill 4,2 λίτρων σε τιμή Black Friday, με δωρεάν μεταφορικά.", productId: P.tefalFry }),
       ...others.map((x) => ({ ...x, active: false })),
     ] });
   const issues = validateDoc(doc);
@@ -281,8 +281,8 @@ async function main() {
   // ενότητες της αρχικής που γυρίζουν στο Black Friday: ticker και «Προσφορές» (οι προηγούμενες ρυθμίσεις κρατιούνται για το --remove)
   const sectionProps: Record<string, Record<string, unknown>> = {
     // hero στην αισθητική των banners (σκούρο φόντο, πράσινη έμφαση), χωρίς το πλακίδιο «Υπηρεσίες»
-    hero: { theme: "night", services: "hide" },
-    ticker: { items: T.ticker, tone: "night" },
+    hero: { theme: "night", services: "hide", bg: "#05060f", accent: "#22e06b", emblem: logo },
+    ticker: { items: T.ticker, bg: "#05060f", color: "#22e06b" },
     deals: { title: "Προσφορές Black Friday", source: "products", productIds: SHOW.slice(0, 8), endsAt: camp.endsAt.toISOString(), limit: 8 },
   };
   const homeWhere = { collection_key_locale: { collection: "home.layout", key: "home", locale: "el" } };

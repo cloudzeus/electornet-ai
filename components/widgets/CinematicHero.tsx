@@ -51,7 +51,7 @@ function HeroBackdrop({ s, first }: { s: HeroSlide; first: boolean }) {
   );
 }
 
-export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: HeroSlide[]; intervalMs?: number }) {
+export function CinematicHero({ slides, intervalMs: intervalProp, emblem }: { slides: HeroSlide[]; intervalMs?: number; /** σήμα καμπάνιας: στη θέση του αστεριού, στα slides χωρίς προϊόν */ emblem?: string }) {
   const { motion } = useSettings();
   const intervalMs = intervalProp ?? motion.hero.intervalMs;
   const [i, setI] = useState(0);
@@ -158,7 +158,9 @@ export function CinematicHero({ slides, intervalMs: intervalProp }: { slides: He
       </div>
       {motion.hero.ambient && <span className="eu-ambient" aria-hidden />}
       {motion.hero.spotlight && <Spotlight />}
-      {motion.hero.rays && <StarLight size={64} className="right-[12%] top-[10%] hidden @lg:block" />}
+      {emblem
+        ? !slides[i]?.cutout && <img src={emblem} alt="" className="pointer-events-none absolute right-[5%] top-1/2 -translate-y-1/2 w-[40%] max-h-[70%] object-contain hidden @lg:block" />
+        : motion.hero.rays && <StarLight size={64} className="right-[12%] top-[10%] hidden @lg:block" />}
 
       <div ref={root} key={s.id} className="relative h-full grid grid-cols-1 content-start @lg:content-normal @lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] @lg:items-center">
         {/* text */}

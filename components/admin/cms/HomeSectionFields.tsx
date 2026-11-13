@@ -11,6 +11,7 @@ import { ServiceCellsField } from "./ServiceCellsField";
 import { CampaignsField } from "./CampaignsField";
 import { OrderToggleField } from "./OrderToggleField";
 import { ListChecks } from "lucide-react";
+import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 
 
 /** Φόρμα των ρυθμίσεων μιας ενότητας της αρχικής (κείμενα, πλήθος, καμπάνιες) — τιμή = αλλαγή του διαχειριστή ή η προεπιλογή. */
@@ -43,6 +44,21 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
           </div>
         );
       }
+      case "color": {
+        const cur = typeof val(f.key) === "string" && /^#[0-9a-f]{6}$/i.test(val(f.key) as string) ? (val(f.key) as string) : "";
+        return (
+          <div key={f.key} className="grid gap-1 min-w-0">
+            <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{f.label}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <input type="color" aria-label={f.label} value={cur || "#122a58"} onChange={(e) => put(f.key, e.target.value)} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
+              <span className="font-mono text-eu-ink-2 text-[length:var(--fs-13)]">{cur || "προεπιλογή"}</span>
+              {cur && <button type="button" onClick={() => put(f.key, undefined)} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Προεπιλογή</button>}
+            </div>
+            {f.help && <span className="text-eu-muted text-[length:var(--fs-13)]">{f.help}</span>}
+          </div>
+        );
+      }
+      case "image": return <ImageUrlField key={f.key} label={f.label} value={String(val(f.key) ?? "")} onChange={(v) => put(f.key, v || undefined)} help={f.help} />;
       case "choice": {
         const cur = String(val(f.key) ?? "");
         return (
