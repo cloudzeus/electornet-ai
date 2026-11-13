@@ -30,7 +30,7 @@ function PriceShapeBox({ d, p, className }: { d: BannerDesign; p: BannerProduct;
       <span aria-hidden className="absolute inset-0 [&>svg]:block [&>svg]:size-full"><StickerSvg p={{ ...DEFAULT_STICKER, shape: d.priceShape as StickerParams["shape"], fill: d.accent, fill2: null, border: null, borderWidth: 0, rotate: 0, lines: [], icon: "none", animation: "none", size: 200 }} id={`bnp-${p.id}`} /></span>
       <span className={`relative grid justify-items-center leading-none ${ink.className}`}>
         {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{d.products.priceLabel}</span>}
-        <span className="font-heading font-extrabold tabular-nums text-[length:clamp(0.875rem,7cqw,2.5rem)]"><Price value={p.price} short euroSmall /></span>
+        <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[length:clamp(0.875rem,7cqw,2.5rem)]"><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,2.6cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>
     </span>
@@ -51,17 +51,17 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
       <span aria-hidden className="absolute inset-x-0 top-0 h-[2.5%] bg-[var(--pb)]" />
       {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[6%] w-[26%] max-h-[16%] object-contain object-left-top" />
         : d.kicker ? <span className="absolute left-[5%] top-[7%] max-w-[60%] rounded-md bg-[var(--pb)] text-[var(--pk)] font-extrabold leading-none px-[2.5cqw] py-[1.8cqw] text-[length:clamp(0.6875rem,3.6cqw,1rem)]">{d.kicker}</span> : null}
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[12%] top-[16%] w-[76%] h-[50%] object-contain object-center ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-[12%] top-[16%] w-[76%] h-[50%] object-contain object-center ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[5%] top-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[4%] top-[42%]"} w-[24%]`} />}
       <div className={`absolute left-[6%] bottom-[6%] grid gap-[0.6cqw] ${shaped ? "w-[52%]" : "w-[50%]"}`}>
-        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.75rem,5cqw,1.5rem)]">{p.brand}</span>}
-        <span className="font-semibold text-eu-ink-2 leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{p.title}</span>
+        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.75rem,5cqw,1.5rem)]">{p.brand}</span>}
+        <span className="eu-sl-title font-semibold text-eu-ink-2 leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{p.title}</span>
       </div>
       {shaped ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[36%]" /> : (
         <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
           {d.products.priceLabel && <span className="font-extrabold text-[#b52222] text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
-          <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(1.25rem,10cqw,3.25rem)]"><Price value={p.price} short euroSmall /></span>
+          <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(1.25rem,10cqw,3.25rem)]"><Price value={p.price} short euroSmall /></span>
           {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
         </span>
       )}
@@ -81,10 +81,10 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
       <Shine d={d} />
       {d.logo && <img src={d.logo} alt="" className="absolute left-[5%] top-[5%] w-[26%] max-h-[18%] object-contain object-left-top" />}
       <div className="absolute right-[5%] top-[6%] w-[58%] grid gap-[0.8cqw] text-right">
-        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.75rem,5.6cqw,1.75rem)]">{p.brand}</span>}
-        <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{p.title}</span>
+        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.75rem,5.6cqw,1.75rem)]">{p.brand}</span>}
+        <span className="eu-sl-title font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{p.title}</span>
       </div>
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[14%] top-[24%] w-[72%] h-[46%] object-contain object-bottom ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-[14%] top-[24%] w-[72%] h-[46%] object-contain object-bottom ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[5%] top-[30%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] top-[44%]"} w-[24%]`} />}
       <span className="absolute inset-x-0 bottom-0 h-[24%] bg-[var(--pa)] text-[var(--pi)] flex items-center justify-between gap-[2cqw] px-[6%] leading-none">
@@ -92,7 +92,7 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
           {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
           {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
         </span>
-        {!shaped && <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.25rem,11cqw,3.75rem)] ${PRICE_ANIM[d.tileAnim] ?? ""}`}><Price value={p.price} short euroSmall /></span>}
+        {!shaped && <span className={`eu-sl-price font-heading font-extrabold tabular-nums text-[length:clamp(1.25rem,11cqw,3.75rem)] ${PRICE_ANIM[d.tileAnim] ?? ""}`}><Price value={p.price} short euroSmall /></span>}
       </span>
       {shaped && <PriceShapeBox d={{ ...d, accent: d.bg.color }} p={p} className="right-[3%] bottom-[2%] w-[38%]" />}
     </a>
@@ -128,8 +128,8 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[5%] w-[30%] max-h-[22%] object-contain object-left-top" />
         : d.kicker ? <span className="absolute left-[5%] top-[6%] max-w-[40%] rounded-md bg-[var(--pa)] text-white font-heading font-extrabold uppercase leading-none px-[2.5cqw] py-[2cqw] text-[length:clamp(0.6875rem,4.2cqw,1.25rem)]">{d.kicker}</span> : null}
       <div className="absolute right-[5%] top-[6%] w-[52%] grid gap-[0.8cqw] text-right">
-        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,6cqw,2rem)]">{p.brand}</span>}
-        <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.5cqw,1.0625rem)]">{p.title}</span>
+        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,6cqw,2rem)]">{p.brand}</span>}
+        <span className="eu-sl-title font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.5cqw,1.0625rem)]">{p.title}</span>
       </div>
       {bullets.length > 0 && (
         <ul className="absolute left-[5%] top-[30%] w-[44%] m-0 p-0 list-none grid grid-cols-2 gap-x-[2cqw] gap-y-[2.5cqw] @max-[15rem]:hidden">
@@ -143,14 +143,14 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] top-[23%] w-[34%]" /> : <span className={`absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
         {d.products.priceLabel && <span className="font-extrabold text-[#b52222] text-[length:clamp(0.6875rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
-        <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
+        <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>}
       <Shine d={d} />
       {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
       <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[4%] w-[62%] h-[13%] rounded-b-[50%_60%] bg-[color-mix(in_srgb,var(--pb)_78%,#7a5200)]" />
       <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11%] w-[62%] h-[11%] rounded-[50%] bg-[color-mix(in_srgb,var(--pb)_86%,white)] shadow-[inset_0_-0.6cqw_1.2cqw_rgba(0,0,0,.12)]" />
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[4%] top-[46%]"} w-[24%]`} />}
       {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">{d.body}</span>}
@@ -168,17 +168,17 @@ function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className={`absolute inset-0 -z-10 size-full object-cover ${solo ? "object-left-top" : ""}`} />}
       {d.bg.anim === "spotlight" && <div aria-hidden className="eu-spot -z-10" />}
       <Shine d={d} />
-      <div className="absolute right-[6%] top-[7%] w-[48%] grid gap-[1cqw] text-right">
-        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,7cqw,2.25rem)]">{p.brand}</span>}
-        <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.6cqw,1.125rem)]">{p.title}</span>
+      <div className={`absolute right-[6%] top-[7%] w-[48%] z-10 grid gap-[1cqw] text-right ${solo ? "@2xl:w-[32%]" : ""}`}>
+        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,7cqw,2.25rem)]">{p.brand}</span>}
+        <span className="eu-sl-title font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.6cqw,1.125rem)]">{p.title}</span>
       </div>
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[37%] @2xl:top-[12%] @2xl:w-[30%] @2xl:h-[76%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[36%] @2xl:top-[14%] @2xl:w-[25%] @2xl:h-[72%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] top-[56%]"} w-[24%]`} />}
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[38%]" /> : <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
         {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
-        <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
+        <span className={`eu-sl-price font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
       </span>}
     </a>

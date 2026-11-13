@@ -167,9 +167,9 @@ export const applyLook = (d: BannerDesign, look: BannerTemplateLook): BannerDesi
 const P = { priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, cutout: true };
 export const BANNER_TEMPLATES: BannerTemplate[] = [
   { key: "slider-dark", builtIn: true, name: "Slider προϊόντων (σκούρο)", help: "Ένα προϊόν τη φορά πάνω σε σκούρο φόντο με προβολέα· αλλάζει μόνο του. Σε σελίδα προϊόντος και λίστες δείχνει προϊόντα της ίδιας κατηγορίας.",
-    look: { layout: "posts", postStyle: "visual", priceShape: "auto", tileAnim: "float", slider: true, ink: "light", accent: "#22e06b", stickerKey: null, stickerPos: "auto", bg: { color: "#05060f", image: null, video: null, anim: "spotlight" }, products: { ...P, max: 6, perRow: 4 } } },
+    look: { layout: "posts", postStyle: "visual", priceShape: "auto", tileAnim: "none", slider: true, ink: "light", accent: "#22e06b", stickerKey: null, stickerPos: "auto", bg: { color: "#05060f", image: null, video: null, anim: "spotlight" }, products: { ...P, max: 6, perRow: 4 } } },
   { key: "slider-podium", builtIn: true, name: "Slider σε βάθρο (κίτρινο)", help: "Όπως τα post των φυλλαδίων, ένα προϊόν τη φορά, με την τιμή σε αστέρι.",
-    look: { layout: "posts", postStyle: "podium", priceShape: "burst", tileAnim: "pulse", slider: true, ink: "dark", accent: "#122a58", stickerKey: null, stickerPos: "auto", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, products: { ...P, max: 6, perRow: 4 } } },
+    look: { layout: "posts", postStyle: "podium", priceShape: "burst", tileAnim: "none", slider: true, ink: "dark", accent: "#122a58", stickerKey: null, stickerPos: "auto", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, products: { ...P, max: 6, perRow: 4 } } },
   { key: "podium-4", builtIn: true, name: "4 προϊόντα σε βάθρο", help: "Τέσσερα τετράγωνα δίπλα-δίπλα, κίτρινο φόντο, στρογγυλή τιμή.",
     look: { layout: "posts", postStyle: "podium", priceShape: "auto", tileAnim: "none", slider: false, ink: "dark", accent: "#122a58", stickerKey: null, stickerPos: "auto", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, products: { ...P, max: 4, perRow: 4 } } },
   { key: "band-3", builtIn: true, name: "3 προϊόντα με ζώνη τιμής", help: "Η τιμή μεγάλη σε χρωματιστή ζώνη κάτω από κάθε προϊόν.",

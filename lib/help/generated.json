@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T16:39:49.674Z",
+ "generatedAt": "2026-11-13T17:21:31.886Z",
  "routes": [
   {
    "route": "/admin",
@@ -4077,14 +4077,8 @@
    },
    "dynamic": false,
    "helpKeys": [],
-   "changes": [
-    {
-     "hash": "b5e568f",
-     "date": "2026-09-13T14:02:50+03:00",
-     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
-    }
-   ],
-   "updatedAt": "2026-09-13T14:02:50+03:00",
+   "changes": [],
+   "updatedAt": null,
    "shots": {
     "desktop": "/api/help-shot/reports-d.jpg",
     "mobile": "/api/help-shot/reports-m.jpg"
@@ -4181,11 +4175,6 @@
      "hash": "63cb9aa",
      "date": "2026-09-13T14:30:56+03:00",
      "text": "Cart by email (SavedCart with restore link, cart-page button, real exit-intent send, restore on /kalathi) and wishlist price-drop / back-in-stock alerts (one email per drop, consent-aware, cron endpoint, admin runner …"
-    },
-    {
-     "hash": "b5e568f",
-     "date": "2026-09-13T14:02:50+03:00",
-     "text": "Favourites: WishlistList/WishlistItem models (named lists, atomic default list, price-at-add, priority, notes, per-item price-drop/back-in-stock alerts, share by link), API + provider sync (device list merged on login…"
     }
    ],
    "updatedAt": "2026-09-13T14:30:56+03:00",
@@ -5178,6 +5167,12 @@
  ],
  "recent": [
   {
+   "hash": "b35d703",
+   "date": "2026-11-13T18:39:49+02:00",
+   "text": "Slider banner σε κινητό: συνεχίζει μόνος του μετά από άγγιγμα σε βέλος, το παλιό προϊόν δεν βγαίνει έξω από το πλαίσιο και σβήνει πιο γρήγορα στην αλλαγή",
+   "routes": []
+  },
+  {
    "hash": "870c21d",
    "date": "2026-11-13T18:20:41+02:00",
    "text": "Banners: slider προϊόντων (ένα τη φορά, αλλάζει μόνο του με κίνηση, βέλη, τελείες, παύση)",
@@ -5453,12 +5448,6 @@
    "hash": "115b2c7",
    "date": "2026-11-12T09:08:35+02:00",
    "text": "Merge remote-tracking branch 'origin/master' into v2",
-   "routes": []
-  },
-  {
-   "hash": "67e367b",
-   "date": "2026-11-12T09:06:21+02:00",
-   "text": "Φωτογραφίες από το web: η αναζήτηση μετρά μόνο τις νέες φωτογραφίες",
    "routes": []
   }
  ],

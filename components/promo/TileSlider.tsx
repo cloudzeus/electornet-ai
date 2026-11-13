@@ -6,9 +6,8 @@ import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 const STEP_MS = 4500;
 
 /**
- * Slider προϊόντων ενός banner: ένα τετράγωνο τη φορά, που αλλάζει μόνο του κάθε 4,5″. Το νέο προϊόν μπαίνει από τη μεριά που
- * πάει ο πελάτης (δεξιά στο «επόμενο», αριστερά στο «προηγούμενο») ενώ το παλιό σβήνει — μόνο transform/opacity.
- * Το παλιό σβήνει πιο γρήγορα απ' όσο μπαίνει το νέο, ώστε να μη φαίνονται δύο προϊόντα το ένα πάνω στο άλλο.
+ * Slider προϊόντων ενός banner: ένα banner τη φορά, που αλλάζει μόνο του κάθε 4,5″. Η κίνηση είναι στο banner (globals.css, «.eu-slide»):
+ * το νέο αποκαλύπτεται σαν κουρτίνα από τη μεριά που πάει ο πελάτης, πάνω από το παλιό που μένει ακίνητο, και μετά μπαίνουν τα κείμενά του.
  * Σταματά όσο ο πελάτης έχει το ποντίκι πάνω του ή πλοηγείται με πληκτρολόγιο (όχι μετά από άγγιγμα σε κινητό), όταν δεν φαίνεται στην οθόνη, και όταν πατήσει «Παύση».
  * Με «λιγότερη κίνηση» στη συσκευή δεν αλλάζει μόνο του και δεν γλιστρά: μόνο βέλη και τελείες.
  */
@@ -44,18 +43,18 @@ export function TileSlider({ children, label }: { children: ReactNode; label: st
     <div ref={root} role="group" aria-roledescription="carousel" aria-label={label} className="grid gap-2"
       onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={(e) => { if ((e.target as HTMLElement).matches(":focus-visible")) setHold(true); }} onBlur={() => setHold(false)}
       onKeyDown={(e) => { if (e.key === "ArrowRight") go(i + 1, 1); if (e.key === "ArrowLeft") go(i - 1, -1); }}>
-      <div className="relative grid overflow-hidden rounded-2xl">
+      <div className="relative grid">
         {tiles.map((t, k) => {
           const on = k === i;
           return (
-            <div key={k} role="group" aria-roledescription="slide" aria-label={`${k + 1} από ${n}`} aria-hidden={!on} inert={!on}
-              className={`[grid-area:1/1] min-w-0 transition-[opacity,transform] ease-out motion-reduce:transition-none ${on ? "duration-500 opacity-100 translate-x-0 scale-100" : `duration-200 opacity-0 pointer-events-none scale-[0.97] ${dir === 1 ? (k === (i - 1 + n) % n ? "-translate-x-8" : "translate-x-8") : k === (i + 1) % n ? "translate-x-8" : "-translate-x-8"}`}`}>
+            <div key={k} role="group" aria-roledescription="slide" aria-label={`${k + 1} από ${n}`} aria-hidden={!on} inert={!on} data-on={on} data-dir={dir}
+              className={`eu-slide [grid-area:1/1] min-w-0 ${on ? "" : "pointer-events-none"}`}>
               {t}
             </div>
           );
         })}
-        <button type="button" onClick={() => go(i - 1, -1)} aria-label="Προηγούμενο προϊόν" className={`${btn} absolute left-2 top-1/2 -translate-y-1/2`}><ChevronLeft className="size-5" aria-hidden /></button>
-        <button type="button" onClick={() => go(i + 1, 1)} aria-label="Επόμενο προϊόν" className={`${btn} absolute right-2 top-1/2 -translate-y-1/2`}><ChevronRight className="size-5" aria-hidden /></button>
+        <button type="button" onClick={() => go(i - 1, -1)} aria-label="Προηγούμενο προϊόν" className={`${btn} absolute z-10 left-2 top-1/2 -translate-y-1/2`}><ChevronLeft className="size-5" aria-hidden /></button>
+        <button type="button" onClick={() => go(i + 1, 1)} aria-label="Επόμενο προϊόν" className={`${btn} absolute z-10 right-2 top-1/2 -translate-y-1/2`}><ChevronRight className="size-5" aria-hidden /></button>
       </div>
       <div className="flex items-center justify-center gap-1">
         {tiles.map((_, k) => (

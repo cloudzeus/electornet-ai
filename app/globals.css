@@ -503,6 +503,29 @@ html:not([data-zones="1"]) .eu-zone-badge {
 @utility eu-cutout-shadow-dark {
   filter: drop-shadow(0 24px 32px rgba(0, 0, 0, 0.45));
 }
+/* Slider προϊόντων banner — η κίνηση είναι στο ΙΔΙΟ το banner, όχι στη φωτογραφία του προϊόντος: το νέο banner αποκαλύπτεται σαν κουρτίνα
+   από τη μεριά που πάει ο πελάτης (πάνω από το παλιό, που μένει ακίνητο από κάτω) και μια λάμψη το διασχίζει. Μετά μπαίνουν τα κείμενα:
+   η μάρκα «τραβιέται», ο τίτλος ανεβαίνει, η τιμή «σκάει» τελευταία. Τρέχει κάθε φορά που ένα slide γίνεται ενεργό (data-on). */
+@keyframes eu-sl-reveal-r { from { clip-path: inset(0 0 0 100% round 1rem); } to { clip-path: inset(0 0 0 0 round 1rem); } }
+@keyframes eu-sl-reveal-l { from { clip-path: inset(0 100% 0 0 round 1rem); } to { clip-path: inset(0 0 0 0 round 1rem); } }
+@keyframes eu-sl-shine { from { translate: -120% 0; } to { translate: 120% 0; } }
+@keyframes eu-sl-wipe { from { opacity: 0; clip-path: inset(0 0 0 100%); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
+@keyframes eu-sl-rise { from { opacity: 0; translate: 0 0.9em; } to { opacity: 1; translate: 0 0; } }
+@keyframes eu-sl-pop { 0% { opacity: 0; scale: 0.4; } 60% { opacity: 1; scale: 1.14; } 100% { opacity: 1; scale: 1; } }
+.eu-slide { position: relative; overflow: hidden; border-radius: 1rem; }
+.eu-slide[data-on="true"] { z-index: 1; animation: eu-sl-reveal-r 0.75s cubic-bezier(0.65, 0, 0.2, 1) both; }
+.eu-slide[data-on="true"][data-dir="-1"] { animation-name: eu-sl-reveal-l; }
+/* το παλιό μένει ορατό από κάτω όσο περνά η κουρτίνα και μετά κρύβεται ακαριαία */
+.eu-slide[data-on="false"] { opacity: 0; transition: opacity 0s 0.75s; }
+.eu-slide[data-on="true"]::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.3) 50%, transparent 62%); animation: eu-sl-shine 1s 0.35s ease-out both; }
+.eu-slide[data-on="true"] .eu-sl-brand { animation: eu-sl-wipe 0.55s 0.45s var(--eu-ease-out, ease-out) both; }
+.eu-slide[data-on="true"] .eu-sl-title { animation: eu-sl-rise 0.5s 0.6s var(--eu-ease-out, ease-out) both; }
+.eu-slide[data-on="true"] .eu-sl-price { display: inline-block; transform-origin: right bottom; animation: eu-sl-pop 0.6s 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+@media (prefers-reduced-motion: reduce) {
+  .eu-slide[data-on="true"], .eu-slide[data-on="true"]::after, .eu-slide[data-on="true"] :is(.eu-sl-brand, .eu-sl-title, .eu-sl-price) { animation: none; }
+  .eu-slide[data-on="true"]::after { display: none; }
+  .eu-slide[data-on="false"] { transition: none; }
+}
 /* slider προϊόντων banner: η μπάρα της ενεργής τελείας γεμίζει σε όσο χρόνο μένει το προϊόν (4,5″ — ίδιο με το STEP_MS του TileSlider) */
 @keyframes eu-slider-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .eu-slider-fill { animation: eu-slider-fill 4.5s linear both; }

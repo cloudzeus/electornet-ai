@@ -35,11 +35,18 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
     // βαθμός = η πιο ειδική κατηγορία της σελίδας που περιέχει το προϊόν (0 = ίδιος τύπος)
     const rank = new Map(rows.map((r) => { const chain = [r.category?.slug, r.category?.parent?.slug, r.category?.parent?.parent?.slug]; const k = levels.findIndex((l) => chain.includes(l)); return [r.id, k < 0 ? Infinity : k] as const; }));
     const hit = ids.filter((id) => (rank.get(id) ?? Infinity) !== Infinity);
-    if (hit.length) ids = hit.sort((a, b) => rank.get(a)! - rank.get(b)!);
+    // slider: πρώτα τα σχετικά με τη σελίδα και μετά τα υπόλοιπα της καμπάνιας — ένας slider με ένα μόνο προϊόν δεν έχει τι να αλλάξει
+    if (hit.length) { hit.sort((a, b) => rank.get(a)! - rank.get(b)!); ids = d.slider ? [...hit, ...ids.filter((id) => !hit.includes(id))] : hit; }
   }
   if (!ids.length) return [];
-  const list = await getProductsByIds(ids.slice(0, d.products.max));
-  const cuts = d.products.cutout ? await bannerCutouts(list.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
+  // Με «Αφαίρεση φόντου» και προϊόντα που διαλέγει μόνο του το banner («Της προσφοράς»): μπαίνουν ΜΟΝΟ όσα έχουν καθαρή φωτογραφία χωρίς φόντο.
+  // Όσα το μοντέλο τα χαλάει (π.χ. λευκό πλυντήριο σε λευκό φόντο) μένουν εκτός, αντί να φανούν σε λευκό πλαίσιο δίπλα στα υπόλοιπα.
+  // Προϊόντα που διάλεξε ο διαχειριστής με το χέρι δεν κόβονται ποτέ· ούτε όταν δεν θα έμενε κανένα.
+  const auto = d.products.cutout && d.products.source === "promotion";
+  const pool = await getProductsByIds(auto ? ids.slice(0, Math.max(d.products.max * 3, 24)) : ids.slice(0, d.products.max));
+  const cuts = d.products.cutout ? await bannerCutouts(pool.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
+  const clean = auto ? pool.filter((p) => cuts.has(p.id) || cutoutFor(p.image)) : pool;
+  const list = (clean.length ? clean : pool).slice(0, d.products.max);
   return list.filter((p) => p.price > 0).map((p) => {
     const cut = d.products.cutout ? cuts.get(p.id) ?? cutoutFor(p.image) : null;
     return { id: p.id, brand: p.brand, title: p.title, href: `/proion/${p.slug}`, image: cut ?? p.image, cutout: !!cut, price: p.price, wasPrice: p.wasPrice ?? null, energy: p.energy?.cls ?? null };
