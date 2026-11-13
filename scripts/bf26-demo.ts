@@ -243,6 +243,7 @@ async function main() {
     // επίσημο header της καμπάνιας (έτοιμη εικόνα): μπαίνει σε όλο το πλάτος στην αρχική ως συγκεκριμένο banner· στη θέση home-strip κερδίζουν τα τετράγωνα (μικρότερη προτεραιότητα)
     { slot: "home-strip", name: "BF26 · Header καμπάνιας", priority: 20, image: hdr, imageMobile: hdrM },
     { slot: "home-strip", name: "BF26 · Αρχική", d: design({ kicker: "Black Friday", title: "Τέσσερα που ξεχωρίζουν", cta: "Όλες οι προσφορές", posts: keyVisual, ids: [P.lgQned55, P.rowentaStick, P.tefalFry, P.delonghiDehum], max: 4 }) },
+    { slot: "home-strip", name: "BF26 · Αρχική (βάθρο)", priority: 30, d: normalizeBannerDesign({ layout: "posts", postStyle: "podium", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, logo: null, ink: "dark", accent: "#122a58", kicker: "Black Friday", title: "Μικροσυσκευές σε τιμή Black Friday", body: "", cta: "Όλες οι προσφορές", products: { source: "manual", ids: [P.tefalFry, P.braunIron, P.hooverVac, P.rowentaStick], max: 4, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: false, showWas: true, bullets: [] } })! },
     { slot: "offers-top", name: "BF26 · Σελίδα προσφορών", image: hdr, imageMobile: hdrM },
     { slot: "listing-top", name: "BF26 · Λίστες κατηγοριών", d: design({ kicker: "Black Friday", title: "Έως −20 % έως 30 Νοεμβρίου", cta: "Όλες οι προσφορές", fromPromo: true, max: 3 }) },
     { slot: "pdp-below-buybox", name: "BF26 · Σελίδα προϊόντος", d: design({ title: "", posts: keyVisual, ids: [P.tefalFry], max: 1 }) },
@@ -269,18 +270,19 @@ async function main() {
   const couponBlock = (id: string, zone: string) => b(id, zone, { type: "coupon", code: COUPON, text: T.coupon });
   const homeAdd = [
     b("home-note", TOP_ZONE, { type: "announcement", text: `Black Friday ${UNTIL}: έως −20 % και δωρεάν μεταφορικά`, href, endsAt: camp.endsAt.toISOString() }),
-    b("home-count", afterZone("hero"), { type: "countdown", promotionId: main15, promotionName: "Black Friday −15 %", title: "Οι τιμές Black Friday λήγουν σε", body: T.sub, cta: { label: "Δες τις προσφορές", href } }),
+    // χωρίς μπλοκ αντίστροφης μέτρησης κάτω από το hero: η λωρίδα ανακοίνωσης μετρά ήδη τον χρόνο
     // χωρίς δεύτερη λίστα προϊόντων εδώ: η ενότητα «Προσφορές» της αρχικής δείχνει τα προϊόντα της καμπάνιας (διπλές κάρτες αλλιώς)
     // το επίσημο header της καμπάνιας σε όλο το πλάτος, πάνω από τις «Προσφορές Black Friday» (όχι στην κορυφή: πρώτο μένει το hero)
     b("home-header", afterZone("categories"), { type: "ad", mode: "placement", placementId: adId["BF26 · Header καμπάνιας"], placementTitle: "BF26 · Header καμπάνιας", bleed: true }),
     b("home-landing", afterZone("deals"), { type: "promo-landing", landingId: landing.id, landingTitle: landing.title }),
-    couponBlock("home-coupon", afterZone("services")),
+    b("home-podium", afterZone("services"), { type: "ad", mode: "placement", placementId: adId["BF26 · Αρχική (βάθρο)"], placementTitle: "BF26 · Αρχική (βάθρο)" }),
+    couponBlock("home-coupon", afterZone("stores")),
   ];
   // ενότητες της αρχικής που γυρίζουν στο Black Friday: ticker και «Προσφορές» (οι προηγούμενες ρυθμίσεις κρατιούνται για το --remove)
   const sectionProps: Record<string, Record<string, unknown>> = {
-    // hero στην αισθητική των banners (σκούρο φόντο, πράσινη έμφαση) και κίτρινο πλακίδιο κουπονιού στη θέση των «Υπηρεσιών»
-    hero: { theme: "night", promo: { kicker: `Κωδικός ${COUPON}`, title: "−10 € επιπλέον", body: `Σε αγορές από 99 €, ${UNTIL}.`, cta: "Δες τις προσφορές", href } },
-    ticker: { items: T.ticker },
+    // hero στην αισθητική των banners (σκούρο φόντο, πράσινη έμφαση), χωρίς το πλακίδιο «Υπηρεσίες»
+    hero: { theme: "night", services: "hide" },
+    ticker: { items: T.ticker, tone: "night" },
     deals: { title: "Προσφορές Black Friday", source: "products", productIds: SHOW.slice(0, 8), endsAt: camp.endsAt.toISOString(), limit: 8 },
   };
   const homeWhere = { collection_key_locale: { collection: "home.layout", key: "home", locale: "el" } };

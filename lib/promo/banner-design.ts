@@ -18,6 +18,8 @@ export const BANNER_ANIMS: { key: BannerAnim; label: string; help: string }[] = 
 export interface BannerDesign {
   /** «strip» = λωρίδα (κείμενο + προϊόντα)· «posts» = τετράγωνα post, ένα ανά προϊόν, στη μορφή των post της καμπάνιας */
   layout: "strip" | "posts";
+  /** στυλ κάθε τετραγώνου: «visual» = πάνω στο εικαστικό της καμπάνιας· «podium» = φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, χαρακτηριστικά με εικονίδιο */
+  postStyle: "visual" | "podium";
   bg: { color: string; image: string | null; video: string | null; anim: BannerAnim };
   /** σήμα καμπάνιας πάνω αριστερά (π.χ. το «Black Friday»), προαιρετικό */
   logo: string | null;
@@ -53,11 +55,12 @@ export const BANNER_PRESETS: { key: string; label: string; apply: Pick<BannerDes
   { key: "night", label: "Σκούρο με προβολέα", apply: { ink: "light", accent: "#22e06b", bg: { color: "#05060f", anim: "spotlight" } } },
   { key: "navy", label: "Μπλε Euronics", apply: { ink: "light", accent: "#f1c400", bg: { color: "#122a58", anim: "ambient" } } },
   { key: "yellow", label: "Κίτρινο με ακτίνες", apply: { ink: "dark", accent: "#122a58", bg: { color: "#f1c400", anim: "rays" } } },
+  { key: "podium", label: "Κίτρινο (για βάθρο)", apply: { ink: "dark", accent: "#122a58", bg: { color: "#ffd400", anim: "none" } } },
   { key: "white", label: "Λευκό ήσυχο", apply: { ink: "dark", accent: "#d62828", bg: { color: "#ffffff", anim: "none" } } },
 ];
 
 export const DEFAULT_BANNER_DESIGN: BannerDesign = {
-  layout: "strip",
+  layout: "strip", postStyle: "visual",
   bg: { color: "#122a58", image: null, video: null, anim: "ambient" },
   logo: null, ink: "light", accent: "#f1c400",
   kicker: "", title: "Τίτλος banner", body: "", cta: "Δες τις προσφορές",
@@ -75,6 +78,7 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
   const source = p.source === "manual" || p.source === "promotion" ? p.source : "none";
   return {
     layout: d.layout === "posts" ? "posts" : "strip",
+    postStyle: d.postStyle === "podium" ? "podium" : "visual",
     bg: { color: hex(bg.color, D.bg.color), image: url(bg.image), video: url(bg.video), anim: BANNER_ANIMS.some((a) => a.key === bg.anim) ? bg.anim! : "none" },
     logo: url(d.logo), ink: d.ink === "dark" ? "dark" : "light", accent: hex(d.accent, D.accent),
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),

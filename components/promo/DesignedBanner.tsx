@@ -1,5 +1,6 @@
 import type { BannerDesign, BannerProduct } from "@/lib/promo/banner-design";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
+import { Check } from "lucide-react";
 import { sx } from "@/components/ui/sx";
 
 const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
@@ -15,6 +16,50 @@ const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Nu
  * μάρκα και τίτλος πάνω δεξιά, το προϊόν μεγάλο στο κέντρο, κουκκίδες κάτω αριστερά, «ΜΟΝΟ» + τιμή κάτω δεξιά.
  * Τα μεγέθη ακολουθούν το πλάτος του post (cqw, με όρια) ώστε να κλιμακώνεται σαν εικόνα και να μένει ευανάγνωστο.
  */
+/**
+ * Τετράγωνο post «βάθρο» (όπως τα post προσφορών των φυλλαδίων): φωτεινό φόντο με λάμψη στο κέντρο, σήμα καμπάνιας πάνω
+ * αριστερά, μάρκα και προϊόν πάνω δεξιά, χαρακτηριστικά με εικονίδιο αριστερά, στρογγυλή τιμή δεξιά, το προϊόν πάνω σε βάθρο.
+ * Το βάθρο και η λάμψη βγαίνουν από το χρώμα φόντου (color-mix), ώστε να δουλεύει με όποιο χρώμα καμπάνιας.
+ */
+function PodiumTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[] }) {
+  const light = d.ink === "light";
+  const v = sx({ "--pb": d.bg.color, "--pa": d.accent, backgroundColor: d.bg.color });
+  return (
+    <a href={p.href} className={`@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : "aspect-square"} ${light ? "text-white" : "text-[#122a58]"} ${v.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
+      {v.node}
+      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(58%_46%_at_50%_52%,rgba(255,255,255,.7),transparent_72%)]" />
+      {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[5%] w-[30%] max-h-[22%] object-contain object-left-top" />
+        : d.kicker ? <span className="absolute left-[5%] top-[6%] max-w-[40%] rounded-md bg-[var(--pa)] text-white font-heading font-extrabold uppercase leading-none px-[2.5cqw] py-[2cqw] text-[length:clamp(0.6875rem,4.2cqw,1.25rem)]">{d.kicker}</span> : null}
+      <div className="absolute right-[5%] top-[6%] w-[52%] grid gap-[0.8cqw] text-right">
+        {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,6cqw,2rem)]">{p.brand}</span>}
+        <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.5cqw,1.0625rem)]">{p.title}</span>
+      </div>
+      {bullets.length > 0 && (
+        <ul className="absolute left-[5%] top-[30%] w-[44%] m-0 p-0 list-none grid grid-cols-2 gap-x-[2cqw] gap-y-[2.5cqw] @max-[15rem]:hidden">
+          {bullets.slice(0, 4).map((x) => (
+            <li key={x} className="flex items-center gap-[1.5cqw] font-semibold leading-tight text-[length:clamp(0.625rem,2.9cqw,0.9375rem)]">
+              <span aria-hidden className="shrink-0 grid place-items-center size-[6.5cqw] min-w-4 min-h-4 rounded-[1.5cqw] bg-[var(--pa)] text-white"><Check className="size-[70%]" strokeWidth={3} /></span>{x}
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
+      <span className="absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none">
+        {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.5625rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
+        <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]">{eur(p.price)}<span className="text-[0.45em] align-top ml-[0.08em]">€</span></span>
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.5625rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
+      </span>
+      {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
+      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[4%] w-[62%] h-[13%] rounded-b-[50%_60%] bg-[color-mix(in_srgb,var(--pb)_78%,#7a5200)]" />
+      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11%] w-[62%] h-[11%] rounded-[50%] bg-[color-mix(in_srgb,var(--pb)_86%,white)] shadow-[inset_0_-0.6cqw_1.2cqw_rgba(0,0,0,.12)]" />
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"}`} />}
+      {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
+      {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.625rem,2.9cqw,0.9375rem)]">{d.body}</span>}
+    </a>
+  );
+}
+
 function PostTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[] }) {
   const light = d.ink === "light";
   const bg = sx({ backgroundColor: d.bg.color });
@@ -54,7 +99,7 @@ export function DesignedBanner({ d, products, shape = "wide", href }: { d: Banne
           </div>
         )}
         <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : tiles.length === 2 ? "grid-cols-2" : tiles.length === 3 ? "grid-cols-2 @3xl:grid-cols-3" : "grid-cols-2 @4xl:grid-cols-4"}`}>
-          {tiles.map((p) => <PostTile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} />)}
+          {tiles.map((p) => { const Tile = d.postStyle === "podium" ? PodiumTile : PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} />; })}
         </div>
       </div>
     );

@@ -43,6 +43,16 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
           </div>
         );
       }
+      case "choice": {
+        const cur = String(val(f.key) ?? "");
+        return (
+          <fieldset key={f.key} className="m-0 p-0 border-0 grid gap-1.5 min-w-0">
+            <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">{f.label}</legend>
+            <div className="flex flex-wrap gap-1.5">{f.options.map((o) => <button key={o.value} type="button" aria-pressed={cur === o.value} onClick={() => put(f.key, o.value || undefined)} className={`rounded-xl border-2 px-3 min-h-11 font-bold text-[length:var(--fs-14)] ${cur === o.value ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{o.label}</button>)}</div>
+            <span className="text-eu-muted text-[length:var(--fs-13)]">{f.options.find((o) => o.value === cur)?.help ?? f.help}</span>
+          </fieldset>
+        );
+      }
       case "order-toggle": return <OrderToggleField key={f.key} source={f.source} value={val(f.key)} onChange={(v) => put(f.key, v)} label={f.label} />;
       case "service-cells": return <ServiceCellsField key={f.key} props={s.props} set={(patch) => set({ ...(s.props ?? {}), ...patch })} label={f.label} />;
       case "ticker-items": return <TickerItemsField key={f.key} value={val(f.key)} onChange={(v) => put(f.key, v)} label={f.label} help={f.help} max={f.max} />;
