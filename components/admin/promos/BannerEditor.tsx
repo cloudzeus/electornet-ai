@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTemplate, Loader2, Monitor, MousePointerClick, PaintBucket, ShoppingBag, Smartphone, Type, X } from "lucide-react";
 import { SLOTS } from "@/lib/promo/landing-blocks";
-import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, bannerDesignIssue, type BannerDesign, type BannerProduct } from "@/lib/promo/banner-design";
+import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, bannerDesignIssue, type BannerDesign, type BannerProduct } from "@/lib/promo/banner-design";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
 import { bannerPreviewProductsAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
@@ -69,7 +69,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const square = d.slot === "info-aside";
 
   // τα προϊόντα της προεπισκόπησης: ξαναδιαβάζονται (με λίγη αναμονή) όταν αλλάξει η πηγή, η λίστα ή η προσφορά
-  const pkey = g ? `${g.products.source}|${g.products.ids.join(",")}|${g.products.max}|${d.promotionId ?? ""}` : "";
+  const pkey = g ? `${g.products.source}|${g.products.ids.join(",")}|${g.products.max}|${g.products.cutout}|${d.promotionId ?? ""}` : "";
   useEffect(() => {
     if (!g || g.products.source === "none") { const t = setTimeout(() => setProducts([]), 0); return () => clearTimeout(t); }
     let on = true;
@@ -154,8 +154,10 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
 
           {g && cur === "products" && (
             <div className="grid gap-3">
-              <Choice label="Διάταξη" value={g.layout} options={[{ key: "strip", label: "Λωρίδα", help: "Κείμενο αριστερά, έως 3 προϊόντα δεξιά." }, { key: "posts", label: "Τετράγωνα post", help: "Ένα τετράγωνο ανά προϊόν (έως 4), στη μορφή των post της καμπάνιας: βάλε στο «Φόντο» το τετράγωνο εικαστικό με το σήμα." }]} onChange={(v) => setG({ layout: v })} />
-              {g.layout === "posts" && <Choice label="Στυλ τετραγώνου" value={g.postStyle} options={[{ key: "visual", label: "Εικαστικό καμπάνιας", help: "Το προϊόν πάνω στο εικαστικό (εικόνα φόντου με το σήμα). Τιμή κάτω δεξιά." }, { key: "podium", label: "Βάθρο", help: "Φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, έως 4 χαρακτηριστικά με εικονίδιο. Στο «Φόντο» διάλεξε «Κίτρινο (για βάθρο)»· το σήμα μπαίνει πάνω αριστερά και το «Κείμενο» κάτω δεξιά (π.χ. «Σε 4 χρώματα»)." }]} onChange={(v) => setG({ postStyle: v })} />}
+              <Choice label="Διάταξη" value={g.layout} options={[{ key: "strip", label: "Λωρίδα", help: "Κείμενο αριστερά, έως 3 προϊόντα δεξιά." }, { key: "posts", label: "Τετράγωνα post", help: "Ένα τετράγωνο ανά προϊόν (έως 12, 2–6 ανά σειρά), στη μορφή των post της καμπάνιας: βάλε στο «Φόντο» το τετράγωνο εικαστικό με το σήμα." }]} onChange={(v) => setG({ layout: v })} />
+              {g.layout === "posts" && <div data-help="banner.tiles" className="grid gap-3"><Choice label="Στυλ τετραγώνου" value={g.postStyle} options={POST_STYLES} onChange={(v) => setG({ postStyle: v })} />
+              <Choice label="Σχήμα τιμής" value={g.priceShape} options={PRICE_SHAPES} onChange={(v) => setG({ priceShape: v })} />
+              <Choice label="Κίνηση στο τετράγωνο" value={g.tileAnim} options={TILE_ANIMS} onChange={(v) => setG({ tileAnim: v })} /></div>}
               <Choice label="Προϊόντα στο banner" value={g.products.source} options={[{ key: "none", label: "Χωρίς", help: "Μόνο κείμενο και φόντο." }, { key: "promotion", label: "Της προσφοράς", help: "Τα προϊόντα της προσφοράς του banner με τη μεγαλύτερη έκπτωση — αλλάζουν μόνα τους." }, { key: "manual", label: "Τα διαλέγω εγώ", help: `Έως ${MAX_BANNER_PRODUCTS} προϊόντα του καταλόγου.` }]} onChange={(v) => setP({ source: v })} />
               {g.products.source === "promotion" && !d.promotionId && <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink text-[length:var(--fs-13)] font-semibold">Δεν έχεις διαλέξει προσφορά. <button type="button" onClick={() => setTab("where")} className="underline text-eu-blue font-bold">Διάλεξέ τη στο «Πού και πότε»</button></p>}
               {g.products.source === "manual" && (
@@ -172,10 +174,11 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               )}
               {g.products.source !== "none" && (
                 <>
-                  <Choice label="Πόσα φαίνονται" value={String(g.products.max) as "1" | "2" | "3" | "4"} options={[{ key: "1", label: "1", help: "Ένα μεγάλο προϊόν, με κουκκίδες." }, { key: "2", label: "2" }, { key: "3", label: "3" }, ...(g.layout === "posts" ? [{ key: "4" as const, label: "4" }] : [])]} onChange={(v) => setP({ max: Number(v) })} />
-                  <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Σε κινητό και στενές θέσεις φαίνεται μόνο το πρώτο.</p>
+                  <Choice label="Πόσα φαίνονται" value={String(g.products.max)} options={(g.layout === "posts" ? [1, 2, 3, 4, 5, 6, 8, 10, 12] : [1, 2, 3]).map((n) => ({ key: String(n), label: String(n), ...(n === 1 ? { help: "Ένα μεγάλο προϊόν, με κουκκίδες." } : {}) }))} onChange={(v) => setP({ max: Number(v) })} />
+                  {g.layout === "posts" && g.products.max > 1 && <Choice label="Ανά σειρά (σε φαρδιά οθόνη)" value={String(g.products.perRow)} options={PER_ROW.map((n) => ({ key: String(n), label: String(n), ...(n >= 5 ? { help: "Μικρά τετράγωνα: κράτα σύντομα κείμενα. Σε κινητό μπαίνουν πάντα 2 ανά σειρά." } : { help: "Σε κινητό μπαίνουν πάντα 2 ανά σειρά." }) }))} onChange={(v) => setP({ perRow: Number(v) })} />}
+                  {g.layout === "strip" && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Σε κινητό και στενές θέσεις φαίνεται μόνο το πρώτο.</p>}
                   <F l="Λέξη πάνω από την τιμή" help="Κενό = μόνο η τιμή."><input className={input} maxLength={12} value={g.products.priceLabel} onChange={(e) => setP({ priceLabel: e.target.value })} /></F>
-                  <div className="grid"><Check2 on={g.products.showBrand} onChange={(v) => setP({ showBrand: v })}>Μάρκα</Check2><Check2 on={g.products.showEnergy} onChange={(v) => setP({ showEnergy: v })}>Ενεργειακή κλάση (όπου υπάρχει)</Check2><Check2 on={g.products.showWas} onChange={(v) => setP({ showWas: v })}>Αρχική τιμή διαγραμμένη (όταν έχει έκπτωση)</Check2></div>
+                  <div className="grid"><Check2 on={g.products.showBrand} onChange={(v) => setP({ showBrand: v })}>Μάρκα</Check2><Check2 on={g.products.showEnergy} onChange={(v) => setP({ showEnergy: v })}>Ενεργειακή κλάση (όπου υπάρχει)</Check2><Check2 on={g.products.showWas} onChange={(v) => setP({ showWas: v })}>Αρχική τιμή διαγραμμένη (όταν έχει έκπτωση)</Check2><Check2 on={g.products.cutout} onChange={(v) => setP({ cutout: v })}>Αφαίρεση φόντου από τη φωτογραφία του προϊόντος</Check2></div>
                   {g.products.max === 1 && <F l={g.layout === "posts" && g.postStyle === "podium" ? "Χαρακτηριστικά (με εικονίδιο)" : "Κουκκίδες δίπλα στο προϊόν"} help={g.layout === "posts" && g.postStyle === "podium" ? "Ένα ανά γραμμή, έως 4, σύντομα. Π.χ. «Wi-Fi», «Σε 5 μεγέθη κούπας»." : "Μία ανά γραμμή, έως 5. Π.χ. «10 κιλών», «1400 στροφών»."}><textarea rows={4} className={`${input} py-2`} value={g.products.bullets.join("\n")} onChange={(e) => setP({ bullets: e.target.value.split("\n").slice(0, 5) })} /></F>}
                   <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Τιμή και φωτογραφία διαβάζονται από τον κατάλογο τη στιγμή που φορτώνει η σελίδα — δεν χρειάζεται να ξαναφτιάξεις το banner όταν αλλάξει η τιμή.</p>
                 </>

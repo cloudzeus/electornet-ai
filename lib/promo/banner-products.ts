@@ -13,9 +13,9 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
   else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, d.products.max);
   if (!ids.length) return [];
   const list = await getProductsByIds(ids.slice(0, d.products.max));
-  const cuts = await bannerCutouts(list.map((p) => p.id)).catch(() => new Map<string, string>());
+  const cuts = d.products.cutout ? await bannerCutouts(list.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
   return list.filter((p) => p.price > 0).map((p) => {
-    const cut = cuts.get(p.id) ?? cutoutFor(p.image);
+    const cut = d.products.cutout ? cuts.get(p.id) ?? cutoutFor(p.image) : null;
     return { id: p.id, brand: p.brand, title: p.title, href: `/proion/${p.slug}`, image: cut ?? p.image, cutout: !!cut, price: p.price, wasPrice: p.wasPrice ?? null, energy: p.energy?.cls ?? null };
   });
 }

@@ -9,13 +9,16 @@ test("έγκυρο σχέδιο μένει όπως είναι· ό,τι δεν 
 });
 
 test("πετά επικίνδυνες διευθύνσεις, λάθος χρώματα, άγνωστη κίνηση και παραπανίσια προϊόντα", () => {
-  const d = normalizeBannerDesign({ bg: { color: "red", image: "javascript:alert(1)", video: "//evil.example/v.mp4", anim: "explode" }, logo: "http://insecure/logo.png", accent: "#ABCDEF", title: "x".repeat(200), products: { source: "manual", ids: ["a", "a", "b", "c", "d", 5], max: 9, bullets: ["1", "", "2", "3", "4", "5", "6"] } })!;
+  const d = normalizeBannerDesign({ bg: { color: "red", image: "javascript:alert(1)", video: "//evil.example/v.mp4", anim: "explode" }, logo: "http://insecure/logo.png", accent: "#ABCDEF", title: "x".repeat(200), products: { source: "manual", ids: ["a", "a", "b", "c", "d", 5], max: 99, perRow: 40, bullets: ["1", "", "2", "3", "4", "5", "6"] } })!;
   assert.deepEqual(d.bg, { color: DEFAULT_BANNER_DESIGN.bg.color, image: null, video: null, anim: "none" });
   assert.equal(d.logo, null);
   assert.equal(d.accent, "#abcdef");
   assert.equal(d.title.length, 80);
   assert.deepEqual(d.products.ids, ["a", "b", "c", "d"]);
-  assert.equal(d.products.max, 4);
+  assert.equal(d.products.max, 12);
+  assert.equal(d.products.perRow, 6);
+  assert.equal(normalizeBannerDesign({ postStyle: "weird", priceShape: "blob", tileAnim: "spin" })!.postStyle, "visual");
+  assert.equal(normalizeBannerDesign({ postStyle: "band", priceShape: "burst", tileAnim: "float" })!.priceShape, "burst");
   assert.equal(d.layout, "strip");
   assert.equal(normalizeBannerDesign({ stickerKey: "Bad Key!" })!.stickerKey, null);
   assert.equal(normalizeBannerDesign({ stickerKey: "black-friday" })!.stickerKey, "black-friday");

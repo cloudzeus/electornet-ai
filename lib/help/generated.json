@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T13:37:26.584Z",
+ "generatedAt": "2026-11-13T13:59:20.820Z",
  "routes": [
   {
    "route": "/admin",
@@ -3972,9 +3972,15 @@
    "helpKeys": [
     "banner.save",
     "banner.form",
+    "banner.tiles",
     "banner.preview"
    ],
    "changes": [
+    {
+     "hash": "0a92556",
+     "date": "2026-11-13T15:37:26+02:00",
+     "text": "Ζώνες: τα χρώματα ανά στοιχείο (υπέρτιτλος, τίτλος, σύνδεσμος) πιάνουν και στο component «Διαφήμιση» με τετράγωνα post"
+    },
     {
      "hash": "9b7c47f",
      "date": "2026-11-13T15:31:25+02:00",
@@ -4016,7 +4022,7 @@
      "text": "Banners: δικός τους editor (όπως τα hero slides) με «Σχεδιασμένο εδώ»"
     }
    ],
-   "updatedAt": "2026-11-13T15:31:25+02:00",
+   "updatedAt": "2026-11-13T15:37:26+02:00",
    "shots": {}
   },
   {
@@ -5235,6 +5241,18 @@
  ],
  "recent": [
   {
+   "hash": "8369421",
+   "date": "2026-11-13T15:51:01+02:00",
+   "text": "Κλικ σε banner: η ανακατεύθυνση έστελνε στο localhost:3000 πίσω από τον proxy",
+   "routes": []
+  },
+  {
+   "hash": "0a92556",
+   "date": "2026-11-13T15:37:26+02:00",
+   "text": "Ζώνες: τα χρώματα ανά στοιχείο (υπέρτιτλος, τίτλος, σύνδεσμος) πιάνουν και στο component «Διαφήμιση» με τετράγωνα post",
+   "routes": []
+  },
+  {
    "hash": "9b7c47f",
    "date": "2026-11-13T15:31:25+02:00",
    "text": "Τιμές: τα δεκαδικά στο μισό μέγεθος, πάνω δεξιά από τα ευρώ",
@@ -5509,21 +5527,6 @@
     "/admin",
     "/admin/catalog"
    ]
-  },
-  {
-   "hash": "1174747",
-   "date": "2026-11-12T06:41:39+02:00",
-   "text": "Κατάλογος: στήλες Κωτσόβολος / Διαφορά / Τελ. αγορά με σήματα, φίλτρο Κωτσόβολου (ζευγάρια, προς επιβεβαίωση, ακριβότεροι, χωρίς ζευγάρι), «Αλλαγή τιμής…» με προεπισκόπηση περιθωρίου, δικλείδες και αναίρεση, «Έλεγχος …",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "2bcaa0b",
-   "date": "2026-11-12T06:04:01+02:00",
-   "text": "EPREL: script eprel-from-competitor",
-   "routes": []
   }
  ],
  "helpKeys": {
@@ -6816,6 +6819,9 @@
    "components/admin/promos/BannerEditor.tsx"
   ],
   "banner.form": [
+   "components/admin/promos/BannerEditor.tsx"
+  ],
+  "banner.tiles": [
    "components/admin/promos/BannerEditor.tsx"
   ],
   "banner.preview": [
