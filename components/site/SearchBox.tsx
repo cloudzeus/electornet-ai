@@ -195,7 +195,7 @@ export function SearchBox({ compact = false, categories: navCategories = demoCat
           {c.katigoria_anazitisis}
         </label>
         <div className={`relative shrink-0 bg-eu-chip text-eu-ink-3 font-semibold text-[length:var(--fs-15)] ${compact ? "hidden" : "hidden @2xl:flex"} items-center`}>
-          <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 max-w-40 @4xl:max-w-52 truncate outline-none cursor-pointer text-[length:var(--fs-15)]">
+          <select id={`${id}-scope`} name="cat" value={scope} onChange={(e) => setScope(e.target.value)} className="appearance-none bg-transparent pl-3.5 pr-7 h-full min-h-11 max-w-40 @4xl:max-w-52 truncate focus-visible:[outline-offset:-3px] cursor-pointer text-[length:var(--fs-15)]">
             <option value="all">{c.katigoria}</option>
             {navCategories.map((c) => (
               <option key={c.slug} value={c.slug}>

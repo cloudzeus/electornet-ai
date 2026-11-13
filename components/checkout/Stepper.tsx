@@ -33,7 +33,7 @@ export function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
           return (
             <li key={s.t} className="grid gap-2" aria-current={state === "current" ? "step" : undefined}>
               {state === "done" && s.href ? (
-                <Link href={s.href} className="flex items-center gap-2 min-h-10 hover:text-eu-blue">
+                <Link href={s.href} aria-label={s.t} className="flex items-center gap-2 min-h-10 hover:text-eu-blue">
                   {inner}
                 </Link>
               ) : (

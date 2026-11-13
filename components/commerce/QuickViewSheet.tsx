@@ -150,7 +150,7 @@ function Body({ p }: { p: Product }) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[length:var(--fs-14)] text-eu-muted">
               {p.rating && (
                 <span>
-                  <span className="text-eu-yellow-dark">★</span>{" "}
+                  <span className="text-eu-yellow-ink">★</span>{" "}
                   {p.rating.value.toLocaleString("el-GR")} · {p.rating.count}{" "}
                   αξιολογήσεις
                 </span>

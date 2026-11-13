@@ -68,7 +68,7 @@ export function ProductOverview({ o, price, stock }: { o: PO; price: number | nu
               {o.offer?.lowest30 != null && <><dt className="text-eu-muted">Χαμηλότερη 30 ημ.</dt><dd className="m-0 tabular-nums">{eur2(o.offer.lowest30)}</dd></>}
               <dt className="text-eu-muted">Απόθεμα</dt><dd className={`m-0 font-bold ${stock > 0 ? "text-eu-green" : "text-eu-ink-3"}`}>{stock > 0 ? `${stock} τεμ.` : "κατόπιν παραγγελίας"}</dd>
               <dt className="text-eu-muted">Αγαπημένα</dt><dd className="m-0">{o.wishlist ? `σε ${o.wishlist.toLocaleString("el-GR")} λίστες` : "-"}</dd>
-              <dt className="text-eu-muted">Κριτικές</dt><dd className="m-0">{o.reviews.count ? <><b className="text-eu-yellow-dark">★ {o.reviews.avg?.toLocaleString("el-GR", { maximumFractionDigits: 1 })}</b> από {o.reviews.count}</> : "καμία"}{o.reviews.pending ? <span className="text-eu-amber font-bold">, {o.reviews.pending} για έγκριση</span> : null}</dd>
+              <dt className="text-eu-muted">Κριτικές</dt><dd className="m-0">{o.reviews.count ? <><b className="text-eu-yellow-ink">★ {o.reviews.avg?.toLocaleString("el-GR", { maximumFractionDigits: 1 })}</b> από {o.reviews.count}</> : "καμία"}{o.reviews.pending ? <span className="text-eu-amber font-bold">, {o.reviews.pending} για έγκριση</span> : null}</dd>
               <dt className="text-eu-muted">Ερωτήσεις</dt><dd className="m-0">{o.questions.count ? `${o.questions.count}` : "καμία"}{o.questions.unanswered ? <span className="text-eu-amber font-bold">, {o.questions.unanswered} χωρίς απάντηση</span> : null}</dd>
             </dl>
           </section>

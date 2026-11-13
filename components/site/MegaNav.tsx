@@ -310,7 +310,7 @@ export function MegaNav({ data = [], categories: navCategories = demoCategories 
                       <Link
                         href={`/k/${active.slug}/${ch.slug}`}
                         onClick={() => setOpen(null)}
-                        className="group relative flex items-center gap-3 -mx-3 px-3 py-2 min-h-12 rounded-lg hover:bg-eu-surface focus-visible:bg-eu-surface outline-none transition-colors duration-150"
+                        className="group relative flex items-center gap-3 -mx-3 px-3 py-2 min-h-12 rounded-lg hover:bg-eu-surface focus-visible:bg-eu-surface focus-visible:[outline-offset:-3px] transition-colors duration-150"
                       >
                         <span
                           className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-eu-yellow opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity"

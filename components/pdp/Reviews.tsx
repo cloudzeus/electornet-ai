@@ -22,7 +22,7 @@ export function Reviews({ product: p }: { product: Product }) {
         <div className="flex items-center gap-3">
           {count > 0 && (
             <span className="text-[length:var(--fs-15)] text-eu-muted">
-              <span className="text-eu-yellow-dark font-extrabold text-[length:var(--fs-16)]">★ {avg.toLocaleString("el-GR", { maximumFractionDigits: 1 })}</span> · {count} αξιολογήσεις
+              <span className="text-eu-yellow-ink font-extrabold text-[length:var(--fs-16)]">★ {avg.toLocaleString("el-GR", { maximumFractionDigits: 1 })}</span> · {count} αξιολογήσεις
             </span>
           )}
           <button type="button" onClick={() => setOpen((o) => !o)} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-10 hover:bg-eu-surface">
@@ -77,7 +77,7 @@ export function Reviews({ product: p }: { product: Product }) {
           {list.map((r) => (
             <li key={r.id} className="rounded-lg border border-eu-line p-4">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="text-eu-yellow-dark font-extrabold">{"★".repeat(r.rating)}</span>
+                <span className="text-eu-yellow-ink font-extrabold">{"★".repeat(r.rating)}</span>
                 <span className="font-bold text-eu-ink text-[length:var(--fs-17)]">{r.title}</span>
                 {r.verified && <span className="rounded-sm bg-eu-green/10 text-eu-green font-bold text-[length:var(--fs-13)] px-1.5 py-0.5">{c.epivevaiomeni_agora}</span>}
               </div>

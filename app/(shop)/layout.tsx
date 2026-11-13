@@ -35,6 +35,10 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
       <CartProvider>
         <MySpaceProvider>
           <AdvisorProvider>
+            {/* WCAG 2.4.1: φαίνεται μόνο όταν πάρει εστίαση με Tab */}
+            <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[1000] focus:rounded-lg focus:bg-white focus:text-eu-navy focus:font-bold focus:px-4 focus:py-3">
+              Μετάβαση στο περιεχόμενο
+            </a>
             <AnnouncementBar
               zoneNo={1}
               left={settings.site.announcement.left}

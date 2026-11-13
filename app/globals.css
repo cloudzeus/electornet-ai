@@ -23,7 +23,7 @@
   --eu-blue-light: #3663b4;  /* blue-500 hover */
   --eu-yellow: #f1c400;      /* brand yellow */
   --eu-yellow-dark: #d9b000;
-  --eu-red: #e63422;         /* brand orange — offers / attention only */
+  --eu-red: #de3220;         /* brand orange — offers / attention only */
   --eu-green: #1e7b3c;
   --eu-green-energy: #4f9a2f;
   --eu-amber: #b5761a;
@@ -31,11 +31,11 @@
   --eu-ink: #1a1a1a;
   --eu-ink-2: #2b2b2b;
   --eu-ink-3: #4d4d4d;
-  --eu-muted: #767676;
-  --eu-muted-2: #8f8f8f;
+  --eu-muted: #6d6d6d;
+  --eu-muted-2: #767676;
   --eu-muted-3: #c9c9c9;
   --eu-on-dark: #dce4f2;     /* blue-100 */
-  --eu-on-dark-2: #9fb0d3;
+  --eu-on-dark-2: #a5b5d7;
   --eu-on-dark-3: #c3cfe6;
   --eu-surface: #f7f7f7;     /* calm grey page background of the brand eshop */
   --eu-surface-2: #f0f0f0;
@@ -176,6 +176,10 @@
   --color-eu-blue-dark: var(--eu-blue-dark);
   --color-eu-yellow: var(--eu-yellow);
   --color-eu-red: var(--eu-red);
+  /* WCAG 1.4.3: κόκκινο/κίτρινο ως ΚΕΙΜΕΝΟ θέλουν 4,5:1 και πάνω στις ανοιχτές αποχρώσεις τους (bg-eu-red/10) —
+     τα γεμίσματα κρατούν το χρώμα της μάρκας, μόνο το κείμενο σκουραίνει. */
+  --text-color-eu-red: #c62c1d;
+  --text-color-eu-yellow-ink: #8a7000;
   --color-eu-green: var(--eu-green);
   --color-eu-green-energy: var(--eu-green-energy);
   --color-eu-amber: var(--eu-amber);

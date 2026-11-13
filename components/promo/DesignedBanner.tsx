@@ -57,7 +57,7 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
       </div>
       {shaped ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[36%]" /> : (
         <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
-          {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
+          {d.products.priceLabel && <span className="font-extrabold text-[#b52222] text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
           <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(1.25rem,10cqw,3.25rem)]"><Price value={p.price} short euroSmall /></span>
           {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
         </span>
@@ -139,7 +139,7 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       )}
       {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] top-[23%] w-[34%]" /> : <span className={`absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
-        {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.6875rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
+        {d.products.priceLabel && <span className="font-extrabold text-[#b52222] text-[length:clamp(0.6875rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
         <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>}

@@ -20,7 +20,7 @@ export default async function ServicesPage() {
           {services.map((s) => (
             <li key={s.slug}>
               <Link href={`/ypiresies/${s.slug}`} className="flex gap-3 h-full rounded-xl border border-eu-line bg-white p-4 hover:border-eu-blue group">
-                <span className="font-extrabold text-eu-yellow-dark text-[length:var(--fs-14)] w-6 shrink-0 pt-0.5">{s.no}</span>
+                <span className="font-extrabold text-eu-yellow-ink text-[length:var(--fs-14)] w-6 shrink-0 pt-0.5">{s.no}</span>
                 <span className="flex-1 min-w-0">
                   <span className="flex justify-between gap-2 font-bold text-eu-ink text-[length:var(--fs-16)] leading-[1.25]">
                     {s.title}
