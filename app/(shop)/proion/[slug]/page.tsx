@@ -152,8 +152,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <ul className="m-0 p-0 list-none grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
             {/* χωρίς αρίθμηση: είναι χαρακτηριστικά, όχι βήματα ή κατάταξη */}
             {(p.highlights ?? (p.specs ?? []).slice(0, 4).map((s) => `${s.key}: ${s.value}`)).map((h) => (
-              <li key={h} className="rounded-xl bg-eu-surface p-4 text-eu-ink text-[length:var(--fs-17)] leading-snug font-semibold">
-                {h}
+              // «Χαρακτηριστικό: τιμή» → μικρή ετικέτα πάνω, τιμή μεγάλη κάτω: όσο στενή κι αν γίνει η κάρτα, η τιμή δεν μένει μόνη της σε δεύτερη γραμμή
+              <li key={h} className="rounded-xl bg-eu-surface p-4 text-eu-ink text-[length:var(--fs-17)] leading-snug font-semibold grid gap-1 content-start">
+                {h.includes(": ") ? <><span className="font-normal text-eu-ink-3 text-[length:var(--fs-14)] text-balance">{h.slice(0, h.indexOf(": "))}</span><span className="text-[length:var(--fs-19)] leading-tight text-balance">{h.slice(h.indexOf(": ") + 2)}</span></> : h}
               </li>
             ))}
           </ul>
