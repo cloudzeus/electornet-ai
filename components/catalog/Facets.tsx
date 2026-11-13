@@ -57,7 +57,7 @@ export function Facets({ result, showCategories = false, nav }: { result: ListRe
   (sp.get("energy") ?? "").split(",").filter(Boolean).forEach((e) => active.push({ label: `Κλάση ${e}`, remove: () => toggleIn("energy", e) }));
   if (sp.get("avail")) active.push({ label: "Άμεσα διαθέσιμα", remove: () => set("avail", null) });
   if (sp.get("sale")) active.push({ label: "Σε προσφορά", remove: () => set("sale", null) });
-  if (sp.get("min") || sp.get("max")) active.push({ label: `${sp.get("min") ?? result.priceRange[0]} – ${sp.get("max") ?? result.priceRange[1]} €`, remove: () => apply((n) => (n.delete("min"), n.delete("max"))) });
+  if (sp.get("min") || sp.get("max")) active.push({ label: `${sp.get("min") ?? result.priceRange[0]} – ${sp.get("max") ?? result.priceRange[1]} €`, remove: () => apply((n) => (n.delete("min"), n.delete("max"))) });
   for (const [k, v] of sp.entries()) {
     if (k.startsWith("f_")) v.split("|").filter(Boolean).forEach((val) => active.push({ label: result.attributes.find((a) => a.key === k.slice(2))?.toggle ? k.slice(2) : `${k.slice(2)}: ${val}`, remove: () => toggleIn(k, val, "|") }));
     if (k.startsWith("r_")) { const [lo, hi] = v.split("-"); const u = result.attributes.find((a) => a.key === k.slice(2))?.range?.unit ?? ""; active.push({ label: `${k.slice(2)}: ${lo ? num(Number(lo)) : "…"} – ${hi ? num(Number(hi)) : "…"} ${u}`.trim(), remove: () => set(k, null) }); }

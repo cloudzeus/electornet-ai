@@ -35,7 +35,7 @@ type AnswerLike = { text: string; products: { id?: string; slug: string; brand: 
 const CHAT_KEY = "eu-aris-chat";
 const WELCOME_KEY = "eu-aris-welcomed";
 const chipsOf = (ans: AnswerLike) => [
-  ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} ${p.price > 0 ? ` · ${p.price.toLocaleString("el-GR")} €` : ""}${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
+  ...ans.products.slice(0, 3).map((p) => ({ label: `${p.brand} ${p.title.split(" ").slice(0, 3).join(" ")} ${p.price > 0 ? ` · ${p.price.toLocaleString("el-GR")} €` : ""}${p.fit === "fits" ? " ✓" : ""}`, href: `/proion/${p.slug}` })),
   ...(ans.links ?? []),
   ...(ans.href ? [ans.href] : []),
 ];

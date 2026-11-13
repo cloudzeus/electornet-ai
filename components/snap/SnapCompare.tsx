@@ -5,7 +5,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import type { ApplianceId } from "@/lib/ai/tasks";
 import type { SnapCompare } from "@/lib/snap/identify";
 
-const eur = (n: number) => `${n.toLocaleString("el-GR")} €`;
+const eur = (n: number) => `${n.toLocaleString("el-GR")} €`;
 const dims = (d: { w: number | null; h: number | null; d: number | null } | null | undefined) => (d?.w && d.h ? `${d.w}×${d.h}${d.d ? `×${d.d}` : ""} cm` : "—");
 
 /**

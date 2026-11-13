@@ -3,15 +3,17 @@ const eurInt = new Intl.NumberFormat("el-GR", { maximumFractionDigits: 0 });
 
 /** 449 → "449 €" (design: whole euros in cards) */
 /** Προϊόν της βάσης χωρίς τιμή ακόμη (Product.noPrice → price 0): ποτέ «0 €» στην οθόνη. */
+/** Αδιάσπαστο κενό ανάμεσα σε ποσό και «€»: το σύμβολο δεν πέφτει ποτέ μόνο του στην επόμενη γραμμή. */
+const NB = "\u00a0";
 export const NO_PRICE = "Τιμή στο κατάστημα";
 export function priceShort(v: number) {
   if (!(v > 0)) return NO_PRICE;
-  return Number.isInteger(v) ? `${eurInt.format(v)} €` : eur.format(v).replace(" ", " ");
+  return Number.isInteger(v) ? `${eurInt.format(v)}${NB}€` : eur.format(v).replace(/\s/g, NB);
 }
 /** 449 → "449,00 €" */
 export function priceLong(v: number) {
   if (!(v > 0)) return NO_PRICE;
-  return eur.format(v).replace(" ", " ");
+  return eur.format(v).replace(/\s/g, NB);
 }
 export function discountPct(price: number, was?: number) {
   if (!was || was <= price) return null;

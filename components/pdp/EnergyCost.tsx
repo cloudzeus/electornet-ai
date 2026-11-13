@@ -86,7 +86,7 @@ export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFa
                 {r.l}
               </dt>
               <dd className="m-0 font-extrabold text-[length:var(--fs-16)] tabular-nums">
-                {r.v} €/έτος
+                {r.v} €/έτος
               </dd>
               <div className="col-span-2 h-2.5 rounded-full bg-white/10 overflow-hidden mt-1">
                 {bar.node}
@@ -130,7 +130,7 @@ export function EnergyCost({ product: p, co2 }: { product: Product; co2?: GridFa
               : est.source === "specs"
                 ? "Κατανάλωση από το δελτίο προϊόντος"
                 : "Εκτίμηση από κατηγορία και ενεργειακή κλάση"}{" "}
-            · {KWH_PRICE.toLocaleString("el-GR")} €/kWh
+            · {KWH_PRICE.toLocaleString("el-GR")} €/kWh
           </p>
         </div>
       </div>

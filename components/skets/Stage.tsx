@@ -30,7 +30,7 @@ const ROOMS: { room: Room; label: string; cats: CatKey[] }[] = [
   { room: "kitchen", label: "Κουζίνα", cats: ["fridge", "cooker"] },
   { room: "living", label: "Σαλόνι", cats: ["tv", "ac"] },
 ];
-const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
+const eur = (n: number) => `${n.toLocaleString("el-GR", { maximumFractionDigits: 0 })} €`;
 const spring = { type: "spring" as const, stiffness: 260, damping: 26 };
 /** «AEG» + «AEG LTR7E373G ΠΛΥΝΤΗΡΙΑ…» → χωρίς διπλή μάρκα στην κάρτα */
 const titleOf = (p: { brand: string; title: string }) => (p.title.toUpperCase().startsWith(p.brand.toUpperCase()) ? p.title.slice(p.brand.length).trim() : p.title);
@@ -614,7 +614,7 @@ function Summary({ snap, alts }: { snap: Snapshot; alts: Alts }) {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={spring} className="text-center">
       <div className="text-eu-yellow font-semibold tracking-tight text-[length:var(--fs-80)] leading-none">Το σπίτι είναι έτοιμο</div>
-      <div className="mt-[2vh] text-white/80 tabular-nums text-[length:var(--fs-30)]">5 συσκευές · {eur(totalOf(snap, alts))}{inst ? ` · ${inst.months} άτοκες δόσεις των ${inst.amount.toLocaleString("el-GR")} €` : ""}</div>
+      <div className="mt-[2vh] text-white/80 tabular-nums text-[length:var(--fs-30)]">5 συσκευές · {eur(totalOf(snap, alts))}{inst ? ` · ${inst.months} άτοκες δόσεις των ${inst.amount.toLocaleString("el-GR")} €` : ""}</div>
     </motion.div>
   );
 }

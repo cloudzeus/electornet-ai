@@ -171,7 +171,7 @@ export function ServicesBlock({ b, services }: { b: B<"services">; services: Ser
               <span className="size-11 rounded-xl bg-[var(--bs-accent)] text-[var(--bs-accent-ink)] grid place-items-center"><Wrench className="size-5" aria-hidden /></span>
               <span className="font-heading font-bold text-[length:var(--fs-18)] leading-tight">{s.title}</span>
               <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)] leading-snug line-clamp-3">{s.blurb}</span>
-              {s.priceFrom != null && <span className="font-bold text-[length:var(--fs-15)]">από {s.priceFrom.toLocaleString("el-GR")} €</span>}
+              {s.priceFrom != null && <span className="font-bold text-[length:var(--fs-15)]">από {s.priceFrom.toLocaleString("el-GR")} €</span>}
             </Link>
           </li>
         ))}

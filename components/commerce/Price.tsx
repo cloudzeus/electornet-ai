@@ -16,7 +16,7 @@ export function Price({ value, short, euroSmall }: { value: number; short?: bool
     <span className="whitespace-nowrap tabular-nums">
       {whole.format(Math.floor(cents / 100))}
       {(decimals || euroSmall) && <span className={SMALL}>{decimals}{euroSmall ? "€" : ""}</span>}
-      {!euroSmall && " €"}
+      {!euroSmall && "\u00a0€"}
     </span>
   );
 }

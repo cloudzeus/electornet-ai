@@ -70,7 +70,7 @@ export function CornerSticker({ s, compact = false }: { s: Sticker; compact?: bo
 /** «1+1» starburst, bottom-right of the photo — rotates slightly on hover. */
 export function BurstSticker({ s }: { s: Sticker }) {
   if (s.kind !== "bogo" && s.kind !== "cashback") return null;
-  const big = s.kind === "bogo" ? s.label : `−${s.amount} €`;
+  const big = s.kind === "bogo" ? s.label : `−${s.amount} €`;
   const small = s.kind === "bogo" ? "δώρο" : s.by;
   return (
     <span className="pointer-events-none absolute right-3 bottom-12 size-[84px] grid place-items-center text-center rotate-[-8deg] transition-transform duration-300 group-hover/card:rotate-[4deg] group-hover/card:scale-105" aria-label={`${big} ${small}`}>

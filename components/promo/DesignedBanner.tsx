@@ -28,7 +28,7 @@ function PriceShapeBox({ d, p, className }: { d: BannerDesign; p: BannerProduct;
       <span className={`relative grid justify-items-center leading-none ${ink.className}`}>
         {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.625rem,2.8cqw,0.875rem)]">{d.products.priceLabel}</span>}
         <span className="font-heading font-extrabold tabular-nums text-[length:clamp(0.875rem,7cqw,2.5rem)]"><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,2.6cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,2.6cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>
     </span>
   );
@@ -59,7 +59,7 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
         <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
           {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.625rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
           <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(1.25rem,10cqw,3.25rem)]"><Price value={p.price} short euroSmall /></span>
-          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.625rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
+          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums text-eu-muted text-[length:clamp(0.625rem,3.2cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
         </span>
       )}
     </a>
@@ -87,7 +87,7 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
       <span className="absolute inset-x-0 bottom-0 h-[24%] bg-[var(--pa)] text-[var(--pi)] flex items-center justify-between gap-[2cqw] px-[6%] leading-none">
         <span className="grid gap-[0.6cqw] min-w-0">
           {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.625rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
-          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
+          {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.625rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
         </span>
         {!shaped && <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.25rem,11cqw,3.75rem)] ${PRICE_ANIM[d.tileAnim] ?? ""}`}><Price value={p.price} short euroSmall /></span>}
       </span>
@@ -141,7 +141,7 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] top-[23%] w-[34%]" /> : <span className={`absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
         {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.5625rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
         <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.5625rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.5625rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>}
       <Shine d={d} />
       {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
@@ -176,7 +176,7 @@ function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[38%]" /> : <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
         {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
         <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
       </span>}
     </a>
   );
@@ -249,7 +249,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
                   <span className="grid leading-none mt-1">
                     {d.products.priceLabel && <span className="font-bold text-[length:var(--fs-12)] tracking-wide">{d.products.priceLabel}</span>}
                     <span className={`font-heading font-extrabold tabular-nums ${one ? "text-[length:var(--fs-34)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)]"} ${accent.className}`}><Price value={p.price} short euroSmall /></span>
-                    {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className={`tabular-nums text-[length:var(--fs-13)] ${sub}`}>{eur(p.wasPrice)} €</s>}
+                    {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className={`tabular-nums text-[length:var(--fs-13)] ${sub}`}>{eur(p.wasPrice)} €</s>}
                   </span>
                 </div>
               </li>

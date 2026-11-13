@@ -32,10 +32,10 @@ export function CompareVerdict({ products }: { products: Product[] }) {
     if (withE.length < 2) return null;
     const s = [...withE].sort((a, b) => a.e!.kwh - b.e!.kwh);
     const diff = Math.round((s[s.length - 1].e!.kwh - s[0].e!.kwh) * 0.19);
-    return diff > 5 ? `Σε ρεύμα το ${s[0].p.brand} ${short(s[0].p.title)} κοστίζει περίπου ${diff} € λιγότερο τον χρόνο από το ${s[s.length - 1].p.brand} ${short(s[s.length - 1].p.title)}${diff * 5 >= gap ? ", δηλαδή σε 5 χρόνια καλύπτει τη διαφορά τιμής" : ""}.` : "Στο ρεύμα δεν έχουν ουσιαστική διαφορά.";
+    return diff > 5 ? `Σε ρεύμα το ${s[0].p.brand} ${short(s[0].p.title)} κοστίζει περίπου ${diff} € λιγότερο τον χρόνο από το ${s[s.length - 1].p.brand} ${short(s[s.length - 1].p.title)}${diff * 5 >= gap ? ", δηλαδή σε 5 χρόνια καλύπτει τη διαφορά τιμής" : ""}.` : "Στο ρεύμα δεν έχουν ουσιαστική διαφορά.";
   })();
   const diffLine = differing.length ? `Διαφέρουν σε ${differing.length} χαρακτηριστικά: ${differing.slice(0, 4).join(", ")}${differing.length > 4 ? " και άλλα" : ""}.` : "Στα χαρακτηριστικά είναι πρακτικά ίδια.";
-  const priceLine = gap > 0 ? `Η διαφορά τιμής είναι ${gap.toLocaleString("el-GR")} € (${Math.round(gap / 12)} € τον μήνα σε 12 δόσεις) ανάμεσα στο ${cheap.brand} ${short(cheap.title)} και το ${dear.brand} ${short(dear.title)}.` : "Έχουν την ίδια τιμή.";
+  const priceLine = gap > 0 ? `Η διαφορά τιμής είναι ${gap.toLocaleString("el-GR")} € (${Math.round(gap / 12)} € τον μήνα σε 12 δόσεις) ανάμεσα στο ${cheap.brand} ${short(cheap.title)} και το ${dear.brand} ${short(dear.title)}.` : "Έχουν την ίδια τιμή.";
   const who = products.map((p) => {
     const bits: string[] = [];
     if (p.id === cheap.id && gap > 0) bits.push("το πιο οικονομικό");

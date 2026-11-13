@@ -49,7 +49,7 @@ export function GiftCardBuilder() {
           <div className="flex flex-wrap gap-1.5">
             {AMOUNTS.map((a) => (
               <button key={a} type="button" aria-pressed={amount === a} onClick={() => setAmount(a)} className={`rounded-full border-2 px-4 py-2 min-h-11 font-extrabold text-[length:var(--fs-15)] ${amount === a ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line text-eu-ink hover:border-eu-blue"}`}>
-                {a} €
+                {a} €
               </button>
             ))}
           </div>
@@ -102,7 +102,7 @@ export function GiftCardBuilder() {
           <span className="font-extrabold text-[length:var(--fs-13-5)] tracking-wide opacity-80">{c.karta_doroy}</span>
         </div>
         <div>
-          <div className="font-extrabold text-[length:var(--fs-44)] leading-none">{amount} €</div>
+          <div className="font-extrabold text-[length:var(--fs-44)] leading-none">{amount} €</div>
           {to && <div className="mt-2 font-semibold text-[length:var(--fs-15)]">Για {to}</div>}
           {msg && <div className="mt-1 text-[length:var(--fs-14)] opacity-90 line-clamp-2">«{msg}»</div>}
         </div>

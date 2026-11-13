@@ -314,7 +314,7 @@ export function SnapSheet() {
                     {a.dims?.w && a.dims.h && <span className="rounded-full bg-white/12 px-2.5 py-1 font-bold inline-flex items-center gap-1"><Ruler className="size-3" aria-hidden /> {a.dims.w}×{a.dims.h}{a.dims.d ? `×${a.dims.d}` : ""} cm</span>}
                     {a.serial && <span className="rounded-full bg-white/12 px-2.5 py-1 font-bold">S/N {a.serial}</span>}
                   </div>
-                  {ai.oldKwh && <p className="m-0 text-eu-on-dark text-[length:var(--fs-14)]">Μια συσκευή αυτής της ηλικίας καίει περίπου <b className="text-eu-yellow">{ai.oldKwh} kWh</b> τον χρόνο, δηλαδή <b className="text-eu-yellow">{Math.round(ai.oldKwh * ai.kwhPrice)} €</b> ρεύμα{ai.co2GPerKwh ? <> και <b className="text-eu-yellow">{Math.round((ai.oldKwh * ai.co2GPerKwh) / 1000)} kg CO₂</b></> : null}.</p>}
+                  {ai.oldKwh && <p className="m-0 text-eu-on-dark text-[length:var(--fs-14)]">Μια συσκευή αυτής της ηλικίας καίει περίπου <b className="text-eu-yellow">{ai.oldKwh} kWh</b> τον χρόνο, δηλαδή <b className="text-eu-yellow">{Math.round(ai.oldKwh * ai.kwhPrice)} €</b> ρεύμα{ai.co2GPerKwh ? <> και <b className="text-eu-yellow">{Math.round((ai.oldKwh * ai.co2GPerKwh) / 1000)} kg CO₂</b></> : null}.</p>}
                   {a.notes && <p className="m-0 text-eu-on-dark-3 text-[length:var(--fs-13)]">{a.notes}</p>}
                 </div>
 
@@ -367,14 +367,14 @@ export function SnapSheet() {
                               <span className="block text-eu-muted-2 font-bold text-[length:var(--fs-13)] uppercase">{p.brand}</span>
                               <span className="block font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight line-clamp-1">{p.title}</span>
                               <span className="flex flex-wrap gap-x-2 text-[length:var(--fs-13)] text-eu-ink-3">
-                                {p.savingEur != null && p.savingEur > 0 && <span className="text-eu-green font-bold inline-flex items-center gap-0.5"><Zap className="size-3" aria-hidden /> −{p.savingEur} €/έτος</span>}{p.savingCo2Kg != null && p.savingCo2Kg > 0 && <span className="text-eu-green font-bold inline-flex items-center gap-0.5" title="Λιγότερο CO₂ τον χρόνο, με την ένταση του ελληνικού δικτύου">· −{p.savingCo2Kg} kg CO₂/έτος</span>}
+                                {p.savingEur != null && p.savingEur > 0 && <span className="text-eu-green font-bold inline-flex items-center gap-0.5"><Zap className="size-3" aria-hidden /> −{p.savingEur} €/έτος</span>}{p.savingCo2Kg != null && p.savingCo2Kg > 0 && <span className="text-eu-green font-bold inline-flex items-center gap-0.5" title="Λιγότερο CO₂ τον χρόνο, με την ένταση του ελληνικού δικτύου">· −{p.savingCo2Kg} kg CO₂/έτος</span>}
                                 {p.fit && <span className={p.fit.ok ? "text-eu-green font-bold" : "text-eu-ink-3"}>{p.fit.ok ? "✓ Χωράει" : p.fit.note}</span>}
                                 <span className="line-clamp-1">{p.why}</span>
                               </span>
                             </span>
                             <span className="text-right shrink-0">
-                              {p.wasPrice && <span className="block text-eu-muted line-through text-[length:var(--fs-13)] tabular-nums">{p.wasPrice.toLocaleString("el-GR")} €</span>}
-                              <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] tabular-nums">{p.price.toLocaleString("el-GR")} €</span>
+                              {p.wasPrice && <span className="block text-eu-muted line-through text-[length:var(--fs-13)] tabular-nums">{p.wasPrice.toLocaleString("el-GR")} €</span>}
+                              <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] tabular-nums">{p.price.toLocaleString("el-GR")} €</span>
                             </span>
                           </Link>
                         </li>
@@ -465,7 +465,7 @@ export function SnapSheet() {
                           <span className="block font-bold text-eu-ink text-[length:var(--fs-15)] leading-tight line-clamp-1">{p.title}</span>
                           <span className="block text-eu-ink-3 text-[length:var(--fs-14)] line-clamp-1">{p.why}</span>
                         </span>
-                        <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] shrink-0">{p.price.toLocaleString("el-GR")} €</span>
+                        <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)] shrink-0">{p.price.toLocaleString("el-GR")} €</span>
                         <ArrowRight className="size-4 text-eu-blue shrink-0" aria-hidden />
                       </Link>
                     </li>
