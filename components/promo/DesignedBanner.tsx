@@ -2,6 +2,13 @@ import type { BannerDesign, BannerProduct } from "@/lib/promo/banner-design";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
 import { Check } from "lucide-react";
 import { sx } from "@/components/ui/sx";
+import { StickerSvg, stickerAnimationClass } from "@/components/stickers/StickerSvg";
+import type { StickerParams } from "@/lib/stickers/model";
+
+/** Sticker πάνω στο banner: κλιμακώνεται με το πλάτος του χώρου του (το SVG γεμίζει το κουτί του). */
+function BannerSticker({ sticker, id, className }: { sticker: StickerParams; id: string; className: string }) {
+  return <span aria-hidden className={`pointer-events-none absolute [&>svg]:block [&>svg]:w-full [&>svg]:h-auto ${className}`}><StickerSvg p={{ ...sticker, size: 200 }} id={id} className={stickerAnimationClass[sticker.animation]} /></span>;
+}
 
 const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
 
@@ -21,7 +28,7 @@ const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Nu
  * αριστερά, μάρκα και προϊόν πάνω δεξιά, χαρακτηριστικά με εικονίδιο αριστερά, στρογγυλή τιμή δεξιά, το προϊόν πάνω σε βάθρο.
  * Το βάθρο και η λάμψη βγαίνουν από το χρώμα φόντου (color-mix), ώστε να δουλεύει με όποιο χρώμα καμπάνιας.
  */
-function PodiumTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[] }) {
+function PodiumTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[]; sticker?: StickerParams | null }) {
   const light = d.ink === "light";
   const v = sx({ "--pb": d.bg.color, "--pa": d.accent, backgroundColor: d.bg.color });
   return (
@@ -55,12 +62,13 @@ function PodiumTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct
       <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11%] w-[62%] h-[11%] rounded-[50%] bg-[color-mix(in_srgb,var(--pb)_86%,white)] shadow-[inset_0_-0.6cqw_1.2cqw_rgba(0,0,0,.12)]" />
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[4%] top-[46%] w-[24%]" />}
       {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.625rem,2.9cqw,0.9375rem)]">{d.body}</span>}
     </a>
   );
 }
 
-function PostTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[] }) {
+function PostTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[]; sticker?: StickerParams | null }) {
   const light = d.ink === "light";
   const bg = sx({ backgroundColor: d.bg.color });
   const accent = sx({ color: d.accent });
@@ -75,6 +83,7 @@ function PostTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; 
       </div>
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[3%] top-[56%] w-[24%]" />}
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
       <span className="absolute right-[6%] bottom-[6%] grid justify-items-end leading-none">
         {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
@@ -85,7 +94,7 @@ function PostTile({ d, p, tall, bullets }: { d: BannerDesign; p: BannerProduct; 
   );
 }
 
-export function DesignedBanner({ d, products, shape = "wide", href }: { d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
+export function DesignedBanner({ d, products, shape = "wide", href, sticker }: { d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** τα στοιχεία του sticker που διάλεξε ο διαχειριστής (d.stickerKey) */ sticker?: StickerParams | null; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
   const light = d.ink === "light";
   if (d.layout === "posts") {
     const tiles = products.slice(0, d.products.max);
@@ -99,7 +108,7 @@ export function DesignedBanner({ d, products, shape = "wide", href }: { d: Banne
           </div>
         )}
         <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : tiles.length === 2 ? "grid-cols-2" : tiles.length === 3 ? "grid-cols-2 @3xl:grid-cols-3" : "grid-cols-2 @4xl:grid-cols-4"}`}>
-          {tiles.map((p) => { const Tile = d.postStyle === "podium" ? PodiumTile : PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} />; })}
+          {tiles.map((p) => { const Tile = d.postStyle === "podium" ? PodiumTile : PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} sticker={sticker} />; })}
         </div>
       </div>
     );
@@ -121,6 +130,7 @@ export function DesignedBanner({ d, products, shape = "wide", href }: { d: Banne
       {d.bg.anim === "ambient" && <div aria-hidden className="eu-ambient -z-10" />}
       {d.bg.anim === "rays" && <div aria-hidden className="eu-rays -z-10 w-[70%] right-[-10%] top-1/2 -mt-[35%] @max-xl:w-[140%] @max-xl:right-[-20%] @max-xl:-mt-[70%]" />}
       {d.bg.anim === "sweep" && <div aria-hidden className="eu-sweep -z-10" />}
+      {sticker && <BannerSticker sticker={sticker} id="bns-strip" className="right-3 top-3 w-16 @xl:w-24" />}
 
       <div className={`grid items-center gap-4 p-4 @xl:gap-6 @xl:px-8 @xl:py-6 ${shape === "wide" && list.length ? "@xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : ""} ${shape === "wide" ? "min-h-40 @xl:min-h-52" : "min-h-72"}`}>
         {(d.logo || d.kicker || d.title || d.body || d.cta) && (

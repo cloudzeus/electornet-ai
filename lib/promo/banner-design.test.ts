@@ -17,6 +17,8 @@ test("πετά επικίνδυνες διευθύνσεις, λάθος χρώ�
   assert.deepEqual(d.products.ids, ["a", "b", "c", "d"]);
   assert.equal(d.products.max, 4);
   assert.equal(d.layout, "strip");
+  assert.equal(normalizeBannerDesign({ stickerKey: "Bad Key!" })!.stickerKey, null);
+  assert.equal(normalizeBannerDesign({ stickerKey: "black-friday" })!.stickerKey, "black-friday");
   assert.equal(d.products.bullets.length, 5);
 });
 

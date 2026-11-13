@@ -21,6 +21,8 @@ export interface BannerDesign {
   /** στυλ κάθε τετραγώνου: «visual» = πάνω στο εικαστικό της καμπάνιας· «podium» = φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, χαρακτηριστικά με εικονίδιο */
   postStyle: "visual" | "podium";
   bg: { color: string; image: string | null; video: string | null; anim: BannerAnim };
+  /** sticker (κλειδί του /admin/stickers) πάνω στο banner — σε κάθε τετράγωνο post ή στη γωνία της λωρίδας */
+  stickerKey: string | null;
   /** σήμα καμπάνιας πάνω αριστερά (π.χ. το «Black Friday»), προαιρετικό */
   logo: string | null;
   /** χρώμα κειμένων: ανοιχτά (για σκούρο φόντο) ή σκούρα */
@@ -62,7 +64,7 @@ export const BANNER_PRESETS: { key: string; label: string; apply: Pick<BannerDes
 export const DEFAULT_BANNER_DESIGN: BannerDesign = {
   layout: "strip", postStyle: "visual",
   bg: { color: "#122a58", image: null, video: null, anim: "ambient" },
-  logo: null, ink: "light", accent: "#f1c400",
+  stickerKey: null, logo: null, ink: "light", accent: "#f1c400",
   kicker: "", title: "Τίτλος banner", body: "", cta: "Δες τις προσφορές",
   products: { source: "none", ids: [], max: 2, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, bullets: [] },
 };
@@ -80,6 +82,7 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
     layout: d.layout === "posts" ? "posts" : "strip",
     postStyle: d.postStyle === "podium" ? "podium" : "visual",
     bg: { color: hex(bg.color, D.bg.color), image: url(bg.image), video: url(bg.video), anim: BANNER_ANIMS.some((a) => a.key === bg.anim) ? bg.anim! : "none" },
+    stickerKey: typeof d.stickerKey === "string" && /^[a-z0-9-]{1,80}$/.test(d.stickerKey) ? d.stickerKey : null,
     logo: url(d.logo), ink: d.ink === "dark" ? "dark" : "light", accent: hex(d.accent, D.accent),
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),
     products: {

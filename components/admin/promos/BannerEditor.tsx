@@ -11,6 +11,8 @@ import { bannerPreviewProductsAction } from "@/app/admin/(shell)/prosfores/these
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
 import { StatusPill } from "@/components/admin/settings/ui";
 import { ImageUrlField } from "./ImageUrlField";
+import { StickerPicker } from "@/components/admin/stickers/StickerPicker";
+import type { StickerParams } from "@/lib/stickers/model";
 import { ProductBrowser, type BrowseProduct } from "./ProductBrowser";
 
 type Opt = { id: string; label: string };
@@ -45,7 +47,7 @@ function Check2({ on, onChange, children }: { on: boolean; onChange: (v: boolean
  * «Σχεδιασμένο εδώ» = φόντο με κίνηση + σήμα καμπάνιας + κείμενα + προϊόντα του καταλόγου (τιμή και φωτογραφία τη στιγμή
  * της προβολής)· «Έτοιμη εικόνα» = όπως πριν. Η προεπισκόπηση είναι το ίδιο component που βλέπει ο πελάτης.
  */
-export function BannerEditor({ initial, stats, promos, landings, categories }: { initial: Doc; stats: { impressions: number; clicks: number } | null; promos: Opt[]; landings: Opt[]; categories: Opt[] }) {
+export function BannerEditor({ initial, stats, promos, landings, categories, sticker: sticker0 }: { /** τα στοιχεία του sticker που έχει ήδη το banner */ sticker: StickerParams | null; initial: Doc; stats: { impressions: number; clicks: number } | null; promos: Opt[]; landings: Opt[]; categories: Opt[] }) {
   const router = useRouter();
   const [d, setD] = useState<Doc>(initial);
   const [saved, setSaved] = useState(JSON.stringify(initial));
@@ -54,6 +56,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
   const [products, setProducts] = useState<BannerProduct[]>([]);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [browse, setBrowse] = useState(false);
+  const [sticker, setSticker] = useState<StickerParams | null>(sticker0);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, start] = useTransition();
   const set = (p: Partial<Doc>) => setD((x) => ({ ...x, ...p }));
@@ -127,6 +130,10 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
               <F l="Τίτλος" help={`${g.title.length}/80 — σύντομος διαβάζεται καλύτερα.`}><input className={input} maxLength={80} value={g.title} onChange={(e) => setG({ title: e.target.value })} /></F>
               <F l="Κείμενο (προαιρετικό)"><textarea rows={2} className={`${input} py-2`} maxLength={160} value={g.body} onChange={(e) => setG({ body: e.target.value })} /></F>
               <F l="Κουμπί" help="Κενό = χωρίς κουμπί. Το πού πηγαίνει ορίζεται στο «Πού και πότε»."><input className={input} maxLength={30} value={g.cta} onChange={(e) => setG({ cta: e.target.value })} /></F>
+              <div className="grid gap-1">
+                <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Sticker πάνω στο banner <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">— σε κάθε τετράγωνο post, ή στη γωνία της λωρίδας</span></span>
+                <StickerPicker value={g.stickerKey} onChange={(v, o) => { setG({ stickerKey: v }); setSticker(o?.params ?? null); }} />
+              </div>
             </div>
           )}
 
@@ -222,7 +229,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories }: {
           </div>
           <div className="rounded-2xl border border-eu-line bg-eu-line-2 p-3 @md:p-5">
             <div className={`mx-auto ${square ? "max-w-80" : device === "mobile" ? "max-w-[22.5rem]" : ""}`}>
-              {g ? <DesignedBanner d={g} products={products} shape={square ? "square" : "wide"} href={d.href ?? (d.landingId ? "#" : null)} />
+              {g ? <DesignedBanner d={g} products={products} shape={square ? "square" : "wide"} href={d.href ?? (d.landingId ? "#" : null)} sticker={g.stickerKey ? sticker : null} />
                 : d.image ? <img src={device === "mobile" && d.imageMobile ? d.imageMobile : d.image} alt={d.alt ?? ""} className="block w-full h-auto rounded-2xl" />
                 : <div className="grid place-items-center rounded-2xl border-2 border-dashed border-eu-line bg-white min-h-40 text-eu-muted text-[length:var(--fs-14)]">Διάλεξε εικόνα για να τη δεις εδώ</div>}
             </div>
