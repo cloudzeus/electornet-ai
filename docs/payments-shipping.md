@@ -13,7 +13,7 @@
 1. **Δύο λογαριασμοί**: demo (`demo.vivapayments.com`) και live (`vivapayments.com`), και οι δύο με πρόσβαση για εμάς.
 2. **Smart Checkout credentials** (Settings → API Access): **Client ID** και **Client Secret** (OAuth2) — ξεχωριστά για demo και live.
 3. **Merchant ID** και **API Key** (Settings → API Access → Basic Auth) — για επιστροφές χρημάτων και έλεγχο συναλλαγών.
-4. **Source Code**: ένας «Website/App Source» ανά περιβάλλον (Sales → Online Payments → Websites/Apps) με domain `www.euronics.gr` και `euronics.dgsoft.gr`, success URL `/checkout/epityxia`, failure URL `/checkout/apotyxia`. Μας δίνει τον 4ψήφιο Source Code του καθενός.
+4. **Source Code**: ένας «Website/App Source» ανά περιβάλλον (Sales → Online Payments → Websites/Apps) με domain `www.euronics.gr` και `euronics.dgsoft.gr`, success URL `https://<domain>/api/payments/viva/success`, failure URL `https://<domain>/api/payments/viva/failure` (όχι οι σελίδες `/checkout/epityxia` / `/checkout/apotyxia` που βλέπει ο πελάτης στο τέλος). Μας δίνει τον 4ψήφιο Source Code του καθενός.
 5. **Webhooks**: στο Viva portal δηλώνουμε εμείς το `https://www.euronics.gr/api/webhooks/viva` (Transaction Payment Created / Failed / Reversed). Χρειαζόμαστε από τον πελάτη μόνο την πρόσβαση· το **verification key** το παράγει το portal.
 6. **Δόσεις**: ποιες δόσεις ανά ποσό θέλει (π.χ. έως 12 άτοκες από 300 €, 24 από 1000 €). Οι δόσεις πρέπει να είναι ενεργές στη σύμβαση Viva.
 7. **Apple Pay / Google Pay**: ενεργοποιούνται στο Viva portal (Settings → Payment methods). Για Apple Pay η Viva κάνει η ίδια την επαλήθευση domain μέσα από το Smart Checkout· ο πελάτης δεν χρειάζεται Apple Developer λογαριασμό γι' αυτό.

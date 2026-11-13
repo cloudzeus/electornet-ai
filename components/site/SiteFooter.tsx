@@ -82,7 +82,7 @@ export async function SiteFooter() {
             <br />
             {c.oi_times_perilamvanoyn_fpa}
           </p>
-          <Image src="https://www.euronics.gr/Themes/Uptown/Content/img/credit_cards_final.png" alt={c.tropoi_pliromis} width={220} height={22} className="h-[22px] w-auto" unoptimized />
+          <Image src="/img/payment-cards.png" alt={c.tropoi_pliromis} width={220} height={22} className="h-[22px] w-auto" unoptimized />
         </div>
       </div>
     </footer>
