@@ -3,6 +3,7 @@
 import { useSettings } from "@/components/site/SettingsProvider";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/data/types";
+import { gateOf, type CartGate } from "@/lib/promo/campaign-core";
 
 export interface CartAddon {
   slug: string;
@@ -32,6 +33,9 @@ interface CartState {
   toggleAddon: (productId: string, addon: CartAddon) => void;
   clear: () => void;
   /** Quick buy sheet */
+  /** προϊόν καμπάνιας που δεν αγοράζεται ακόμη (πριν την «έναρξη αγορών»): το μήνυμα που βλέπει ο πελάτης */
+  gateNotice: { gate: CartGate; product: Product } | null;
+  closeGate: () => void;
   quickBuy: Product | null;
   openQuickBuy: (p: Product) => void;
   closeQuickBuy: () => void;
@@ -66,7 +70,7 @@ interface Persisted {
   compareScope?: string | null;
 }
 
-export function CartProvider({ children }: { children: ReactNode }) {
+export function CartProvider({ children, gates = [] }: { children: ReactNode; gates?: CartGate[] }) {
   const settings = useSettings();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -141,7 +145,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [lines, hydrated]);
 
+  const [gateNotice, setGateNotice] = useState<CartState["gateNotice"]>(null);
+  /** true = το προϊόν δεν αγοράζεται ακόμη· ανοίγει το μήνυμα της καμπάνιας αντί για το καλάθι */
+  const gated = useCallback((p: Product) => { const gate = gateOf(gates, p.id); if (gate) setGateNotice({ gate, product: p }); return !!gate; }, [gates]);
   const add = useCallback<CartState["add"]>((p, opts = {}) => {
+    if (gated(p)) return;
     const qty = opts.qty ?? 1;
     setLines((ls) => {
       const i = ls.findIndex((l) => l.product.id === p.id && l.variant === opts.variant);
@@ -152,7 +160,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
     setLastAdded(p);
     if (opts.openMiniCart !== false) setMiniOpen(true);
-  }, []);
+  }, [gated]);
 
   const remove = useCallback((id: string) => setLines((ls) => ls.filter((l) => l.product.id !== id)), []);
   const setQty = useCallback((id: string, qty: number) => setLines((ls) => ls.map((l) => (l.product.id === id ? { ...l, qty: Math.max(1, Math.min(9, qty)) } : l))), []);
@@ -201,7 +209,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toggleAddon,
       clear,
       quickBuy,
-      openQuickBuy: setQuickBuy,
+      openQuickBuy: (p: Product) => { if (!gated(p)) setQuickBuy(p); },
+      gateNotice,
+      closeGate: () => setGateNotice(null),
       closeQuickBuy: () => setQuickBuy(null),
       quickView,
       openQuickView: setQuickView,
@@ -218,7 +228,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearCompare,
       hydrated,
     };
-  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, remove, setQty, toggleAddon, clear, toggleWishlist, mergeWishlist, toggleCompare, clearCompare]);
+  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, gated, gateNotice, remove, setQty, toggleAddon, clear, toggleWishlist, mergeWishlist, toggleCompare, clearCompare]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

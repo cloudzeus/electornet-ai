@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { publishCampaign, saveCampaign, setCampaignState, setMembership } from "@/lib/promo/campaigns";
 import type { CampaignDraft } from "@/lib/promo/campaign-core";
+import { cartGates } from "@/lib/promo/cart-gate";
 
 const PERM = "catalog.promos.write";
 const done = (id?: string) => { revalidatePath("/admin/prosfores/kampanies"); if (id) revalidatePath(`/admin/prosfores/kampanies/${id}`); revalidatePath("/admin/prosfores"); };
@@ -10,7 +11,7 @@ const done = (id?: string) => { revalidatePath("/admin/prosfores/kampanies"); if
 export async function saveCampaignAction(d: CampaignDraft) {
   const user = await requirePermission(PERM);
   const r = await saveCampaign(d, { id: user.id, canApprove: hasPermission(user, "catalog.promos.approve") });
-  if (r.ok) done(r.id);
+  if (r.ok) { done(r.id); cartGates.reset(); }
   return r;
 }
 

@@ -6,6 +6,7 @@ import { StickerSvg, stickerAnimationClass } from "@/components/stickers/Sticker
 import { DEFAULT_STICKER, type StickerParams } from "@/lib/stickers/model";
 import { Price } from "@/components/commerce/Price";
 import { TileSlider } from "./TileSlider";
+import { CardRotator } from "./CardRotator";
 
 // θέση του sticker που διάλεξε ο διαχειριστής («auto» = η θέση που ταιριάζει στο στυλ, ώστε να μην πέφτει πάνω σε τιμή ή τίτλο)
 const STICKER_POS: Record<string, string | undefined> = { tl: "left-[3%] top-[4%]", tr: "right-[3%] top-[4%]", ml: "left-[3%] top-[40%]", mr: "right-[3%] top-[40%]", bl: "left-[3%] bottom-[4%]", br: "right-[3%] bottom-[4%]" };
@@ -39,7 +40,7 @@ function PriceShapeBox({ d, p, className }: { d: BannerDesign; p: BannerProduct;
 /** Λάμψη που περνά πάνω από το τετράγωνο (κίνηση «Λάμψη»). */
 const Shine = ({ d }: { d: BannerDesign }) => (d.tileAnim === "shine" ? <div aria-hidden className="eu-sweep -z-10" /> : null);
 type TileProps = { d: BannerDesign; p: BannerProduct; tall: boolean; /** μόνο του στο banner: σε φαρδύ χώρο γίνεται πλατύ αντί για τεράστιο τετράγωνο */ solo?: boolean; bullets: string[]; sticker?: StickerParams | null };
-const frame = (tall: boolean, solo?: boolean) => `@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : solo ? "aspect-square @2xl:aspect-[2/1] @5xl:aspect-[5/2]" : "aspect-square"} focus-visible:outline-2 focus-visible:outline-eu-blue`;
+const frame = (tall: boolean, solo?: boolean) => `eu-tile @container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : solo ? "aspect-square @2xl:aspect-[2/1] @5xl:aspect-[5/2]" : "aspect-square"} focus-visible:outline-2 focus-visible:outline-eu-blue`;
 
 /** Τετράγωνο «Λευκή κάρτα»: λευκό, γραμμή καμπάνιας πάνω, προϊόν μεγάλο, μάρκα/τίτλος κάτω αριστερά, τιμή κάτω δεξιά. */
 function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
@@ -99,6 +100,21 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
   );
 }
 
+/**
+ * Το σήμα της καμπάνιας ως πρωταγωνιστής: μπαίνει «σκάζοντας», μετά αιωρείται ελαφρά με λάμψη που πάλλεται, και κάθε λίγα δευτερόλεπτα
+ * μια αντανάκλαση διασχίζει τα γράμματά του (το ίδιο το σήμα γίνεται μάσκα της αντανάκλασης). Με «λιγότερη κίνηση» μένει ακίνητο.
+ */
+function LogoHero({ src, className }: { src: string; className: string }) {
+  const mask = sx({ maskImage: `url("${src}")`, WebkitMaskImage: `url("${src}")` });
+  return (
+    <span className={`eu-logo-hero relative inline-block max-w-[70%] ${className}`}>
+      {mask.node}
+      <img src={src} alt="" className="block h-full w-auto max-w-full object-contain" />
+      <span aria-hidden className={`eu-logo-glint ${mask.className}`} />
+    </span>
+  );
+}
+
 const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 });
 
 /**
@@ -119,41 +135,46 @@ const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Nu
  */
 function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
   const light = d.ink === "light";
-  const v = sx({ "--pb": d.bg.color, "--pa": d.accent, backgroundColor: d.bg.color });
+  const v = sx({ "--pb": d.bg.color, "--pa": d.accent, "--pi": onColor(d.accent), backgroundColor: d.bg.color });
   return (
     <a href={p.href} className={`${frame(tall, solo)} ${light ? "text-white" : "text-[#122a58]"} ${v.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
       {v.node}
       {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(58%_46%_at_50%_52%,rgba(255,255,255,.7),transparent_72%)]" />
+      {/* σκηνικό: ακτίνες φωτός που ξεκινούν πίσω από το προϊόν και μια λάμψη στο κέντρο — το προϊόν «φωτίζεται» αντί να κάθεται σε επίπεδο χρώμα */}
+      <div aria-hidden className="eu-podium-rays absolute left-1/2 top-[52%] w-[150%] aspect-square -translate-x-1/2 -translate-y-1/2 -z-10" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(52%_44%_at_50%_54%,rgba(255,255,255,.85),transparent_70%)]" />
+      <div aria-hidden className="absolute inset-x-0 bottom-0 h-[30%] -z-10 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--pb)_70%,#7a5200),transparent)] opacity-60" />
       {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[5%] w-[30%] max-h-[22%] object-contain object-left-top" />
-        : d.kicker ? <span className="absolute left-[5%] top-[6%] max-w-[40%] rounded-md bg-[var(--pa)] text-white font-heading font-extrabold uppercase leading-none px-[2.5cqw] py-[2cqw] text-[length:clamp(0.6875rem,4.2cqw,1.25rem)]">{d.kicker}</span> : null}
+        : d.kicker ? <span className="absolute left-[5%] top-[6%] max-w-[40%] rounded-md bg-[var(--pa)] text-[var(--pi)] font-heading font-extrabold uppercase leading-none px-[2.5cqw] py-[2cqw] text-[length:clamp(0.6875rem,4.2cqw,1.25rem)]">{d.kicker}</span> : null}
       <div className="absolute right-[5%] top-[6%] w-[52%] grid gap-[0.8cqw] text-right">
-        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,6cqw,2rem)]">{p.brand}</span>}
+        {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase leading-none text-[length:clamp(0.875rem,7cqw,2.25rem)]">{p.brand}</span>}
         <span className="eu-sl-title font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.5cqw,1.0625rem)]">{p.title}</span>
       </div>
       {bullets.length > 0 && (
-        <ul className="absolute left-[5%] top-[30%] w-[44%] m-0 p-0 list-none grid grid-cols-2 gap-x-[2cqw] gap-y-[2.5cqw] @max-[15rem]:hidden">
-          {bullets.slice(0, 4).map((x) => (
+        <ul className="absolute left-[5%] top-[30%] w-[40%] m-0 p-0 list-none grid gap-y-[2cqw] @max-[15rem]:hidden">
+          {bullets.slice(0, 3).map((x) => (
             <li key={x} className="flex items-center gap-[1.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">
-              <span aria-hidden className="shrink-0 grid place-items-center size-[6.5cqw] min-w-4 min-h-4 rounded-[1.5cqw] bg-[var(--pa)] text-white"><Check className="size-[70%]" strokeWidth={3} /></span>{x}
+              <span aria-hidden className="shrink-0 grid place-items-center size-[6.5cqw] min-w-4 min-h-4 rounded-[1.5cqw] bg-[var(--pa)] text-[var(--pi)]"><Check className="size-[70%]" strokeWidth={3} /></span>{x}
             </li>
           ))}
         </ul>
       )}
-      {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
-      {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] top-[23%] w-[34%]" /> : <span className={`absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
-        {d.products.priceLabel && <span className="font-extrabold text-[#b52222] text-[length:clamp(0.6875rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
-        <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
-        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.6875rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
-      </span>}
       <Shine d={d} />
-      {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
-      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[4%] w-[62%] h-[13%] rounded-b-[50%_60%] bg-[color-mix(in_srgb,var(--pb)_78%,#7a5200)]" />
-      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11%] w-[62%] h-[11%] rounded-[50%] bg-[color-mix(in_srgb,var(--pb)_86%,white)] shadow-[inset_0_-0.6cqw_1.2cqw_rgba(0,0,0,.12)]" />
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
-      {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
-      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[4%] top-[46%]"} w-[24%]`} />}
-      {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">{d.body}</span>}
+      {/* βάθρο: σκιά δαπέδου, σώμα και φωτεινή πάνω όψη */}
+      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[1.5%] w-[82%] h-[9%] rounded-[50%] bg-black/25 blur-[3cqw]" />
+      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[4%] w-[70%] h-[14%] rounded-b-[50%_60%] bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--pb)_74%,#7a5200),color-mix(in_srgb,var(--pb)_52%,#5c3d00))]" />
+      <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11.5%] w-[70%] h-[12%] rounded-[50%] bg-[radial-gradient(60%_90%_at_50%_35%,#fff,color-mix(in_srgb,var(--pb)_80%,white))] shadow-[inset_0_-0.6cqw_1.4cqw_rgba(0,0,0,.14)]" />
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`eu-sl-img absolute left-1/2 -translate-x-1/2 bottom-[15.5%] w-[52%] h-[50%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {/* τιμή: γεμάτος δίσκος στο χρώμα έμφασης, ελαφρά γερμένος σαν αυτοκόλλητο τιμής, με λευκό περίγραμμα και σκιά — το πιο δυνατό σημείο μετά το προϊόν */}
+      {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[2%] top-[24%] w-[36%]" /> : <span className={`absolute right-[3%] top-[25%] size-[34%] -rotate-6 grid place-content-center justify-items-center rounded-full bg-[var(--pa)] text-[var(--pi)] ring-[1.2cqw] ring-white shadow-[0_2.5cqw_5cqw_-1cqw_rgba(0,0,0,.45)] leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
+        {d.products.priceLabel && <span className="font-extrabold text-[var(--pb)] tracking-wide text-[length:clamp(0.6875rem,3.2cqw,0.9375rem)]">{d.products.priceLabel}</span>}
+        <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[length:clamp(1rem,8cqw,2.75rem)]"><Price value={p.price} short euroSmall /></span>
+        {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3cqw,0.9375rem)]">{eur(p.wasPrice)} €</s>}
+      </span>}
+      {/* sticker κάτω αριστερά (εκτός αν ο διαχειριστής διάλεξε άλλη θέση)· η ενεργειακή κλάση πάει τότε κάτω δεξιά */}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] bottom-[3%]"} w-[26%]`} />}
+      {d.products.showEnergy && p.energy && <span className={`absolute bottom-[6%] ${sticker && !["tl", "tr", "ml", "mr", "br"].includes(d.stickerPos) ? "right-[5%]" : "left-[6%]"}`}><EnergyChip cls={p.energy} fiche="" compact /></span>}
+      {d.body && !(sticker && p.energy && d.products.showEnergy) && <span className="absolute right-[5%] bottom-[5%] max-w-[30%] text-right font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">{d.body}</span>}
     </a>
   );
 }
@@ -222,7 +243,8 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
   const bg = sx({ backgroundColor: d.bg.color });
   const accent = sx({ color: d.accent });
   const btn = sx({ backgroundColor: d.accent, color: light ? "#0b1020" : "#ffffff" });
-  const list = products.slice(0, Math.min(3, d.products.max));
+  // ένα προϊόν → μεγάλο, μόνο του· περισσότερα → κάρτες που εναλλάσσονται (όσες χωράνε κάθε φορά)
+  const list = d.products.max === 1 ? products.slice(0, 1) : products.slice(0, Math.max(d.products.max, 9));
   const one = list.length === 1;
   const sub = light ? "text-white/80" : "text-eu-ink-2";
   return (
@@ -240,8 +262,8 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
 
       <div className={`grid items-center gap-4 @xl:gap-6 ${bleed ? "eu-canvas eu-gutter py-6 @xl:py-10" : "p-4 @xl:px-8 @xl:py-6"} ${shape === "wide" && list.length ? "@xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : ""} ${shape === "wide" ? (bleed ? "min-h-56 @xl:min-h-80" : "min-h-40 @xl:min-h-52") : "min-h-72"}`}>
         {(d.logo || d.kicker || d.title || d.body || d.cta) && (
-          <div className={`grid gap-2 content-center min-w-0 ${list.length ? "" : "justify-items-center text-center py-2"}`}>
-            {d.logo && <img src={d.logo} alt="" className={`${bleed ? "max-h-24 @xl:max-h-40" : "max-h-20 @xl:max-h-28"} w-auto max-w-[70%] object-contain ${list.length ? "object-left justify-self-start" : ""}`} />}
+          <div className={`eu-hero-in grid gap-2 content-center min-w-0 ${list.length ? "" : "justify-items-center text-center py-2"}`}>
+            {d.logo && <LogoHero src={d.logo} className={`${bleed ? "h-24 @xl:h-40" : "h-20 @xl:h-28"} ${list.length ? "justify-self-start" : ""}`} />}
             {d.kicker && <span className={`font-extrabold text-[length:var(--fs-13)] ${accent.className}`}>{d.kicker}</span>}
             {d.title && <strong className={`font-heading font-extrabold leading-[1.08] text-balance ${bleed ? "text-[length:var(--fs-28)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-34)]"}`}>{d.title}</strong>}
             {d.body && <span className={`text-[length:var(--fs-14)] @xl:text-[length:var(--fs-16)] max-w-[52ch] ${sub}`}>{d.body}</span>}
@@ -249,9 +271,9 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
           </div>
         )}
 
-        {list.length > 0 && (
+        {one && (
           <ul className={`m-0 p-0 list-none grid gap-3 min-w-0 ${one ? "" : "@xl:grid-flow-col @xl:auto-cols-fr"}`}>
-            {list.map((p, i) => one ? (
+            {list.map((p, i) => (
               <li key={p.id} className={`min-w-0 grid items-center gap-3 ${one ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 @xl:justify-items-center @xl:text-center @xl:content-start"} ${i > 0 ? "hidden @xl:grid" : ""}`}>
                 {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`w-full object-contain ${one ? "max-h-44 @xl:max-h-56" : "max-h-24 @xl:max-h-none @xl:h-28 @xl:object-bottom"} ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
                 <div className="grid gap-1 min-w-0">
@@ -266,28 +288,32 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
                   </span>
                 </div>
               </li>
-            ) : (
-              // Πολλά προϊόντα: κάθε ένα σε δικό του πλαίσιο με ίδια δομή — φωτογραφία σε ίδιο ύψος, μάρκα με την ενεργειακή κλάση στην ίδια γραμμή,
+            ))}
+          </ul>
+        )}
+        {list.length > 1 && (
+          <CardRotator label="Προϊόντα προσφοράς" hideUntil={SHOW_FROM}>
+            {list.map((p) => (
               // τίτλος πάντα 2 γραμμών, τιμή και αρχική τιμή στην ίδια γραμμή. Έτσι όλα στοιχίζονται χωρίς κενές «θέσεις» και τα προϊόντα ξεχωρίζουν.
-              <li key={p.id} className={`min-w-0 grid grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 items-center @xl:content-start gap-3 @xl:gap-2.5 @xl:rounded-2xl @xl:p-3 ${light ? "@xl:bg-white/[0.07] @xl:ring-1 @xl:ring-white/15" : "@xl:bg-black/[0.04] @xl:ring-1 @xl:ring-black/10"} ${SHOW_FROM[i] ?? SHOW_FROM[2]}`}>
-                {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`w-full object-contain max-h-24 @xl:max-h-none @xl:h-28 ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
+              <div key={p.id} className={`min-w-0 grid grid-cols-[7rem_minmax(0,1fr)] @xl:grid-cols-1 items-center @xl:content-start gap-3 @xl:gap-2.5 @xl:rounded-2xl @xl:p-3 ${light ? "@xl:bg-white/[0.07] @xl:ring-1 @xl:ring-white/15" : "@xl:bg-black/[0.04] @xl:ring-1 @xl:ring-black/10"}`}>
+                {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} className={`eu-sl-img w-full object-contain max-h-24 @xl:max-h-none @xl:h-28 ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-2"}`} />}
                 <div className="grid gap-1 min-w-0">
                   <span className="flex items-center justify-between gap-2 min-h-7">
-                    {d.products.showBrand && <span className="font-heading font-extrabold uppercase truncate text-[length:var(--fs-15)] @xl:text-[length:var(--fs-17)]">{p.brand}</span>}
+                    {d.products.showBrand && <span className="eu-sl-brand font-heading font-extrabold uppercase truncate text-[length:var(--fs-15)] @xl:text-[length:var(--fs-17)]">{p.brand}</span>}
                     {d.products.showEnergy && p.energy && <span className="shrink-0 ml-auto"><EnergyChip cls={p.energy} fiche="" compact /></span>}
                   </span>
-                  <span className={`leading-snug line-clamp-2 @xl:min-h-[2.75em] text-[length:var(--fs-13)] @xl:text-[length:var(--fs-14)] ${light ? "text-white/85" : "text-eu-ink-2"}`}>{p.title}</span>
+                  <span className={`eu-sl-title leading-snug line-clamp-2 @xl:min-h-[2.75em] text-[length:var(--fs-13)] @xl:text-[length:var(--fs-14)] ${light ? "text-white/85" : "text-eu-ink-2"}`}>{p.title}</span>
                   <span className="grid leading-none mt-1.5 gap-1">
                     {d.products.priceLabel && <span className="font-bold text-[length:var(--fs-12)] tracking-wide">{d.products.priceLabel}</span>}
                     <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className={`font-heading font-extrabold tabular-nums text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
+                      <span className={`eu-sl-price font-heading font-extrabold tabular-nums text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
                       {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className={`tabular-nums text-[length:var(--fs-14)] ${sub}`}>{eur(p.wasPrice)} €</s>}
                     </span>
                   </span>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </CardRotator>
         )}
       </div>
     </div>

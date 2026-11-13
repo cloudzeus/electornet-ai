@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
 import { currentCart, publicQuote, quoteCart } from "@/lib/cart/server";
 import { invalidatePromos } from "@/lib/promo/server";
+import { cartGates } from "@/lib/promo/cart-gate";
+import { gateOf } from "@/lib/promo/campaign-core";
 import { getServiceList } from "@/lib/services/catalog";
 import { saldocForOrder } from "@/lib/softone/order-doc";
 import { setPartsSnapshot, spcsOf } from "@/lib/catalog/set-core";
@@ -90,6 +92,10 @@ export async function placeOrder(input: PlaceInput) {
     : input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
     : input.fulfilment === "freight" ? { carrierName: "Μεταφορική" } : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
+  // προϊόντα καμπάνιας πριν την «έναρξη αγορών»: δεν περνά παραγγελία, ό,τι κι αν έχει ο browser στο καλάθι
+  const gates = await cartGates();
+  const gate = q.lines.map((l) => gateOf(gates, l.productId)).find(Boolean);
+  if (gate) return { ok: false as const, error: `${gate.message} Βγάλε το προϊόν από το καλάθι για να ολοκληρώσεις την παραγγελία.` };
   if (input.expectedTotal != null && input.expectedTotal !== q.total) return { ok: false as const, changed: true, error: "Το σύνολο άλλαξε (τιμή ή προσφορά). Δες το νέο ποσό πριν συνεχίσεις.", quote: publicQuote(q) };
   if (input.coupon && !q.coupon.applied) return { ok: false as const, error: q.coupon.message ?? "Το κουπόνι δεν ισχύει.", quote: publicQuote(q) };
 

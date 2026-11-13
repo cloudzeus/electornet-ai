@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/rbac/audit";
 import { bulkPromotions, draftOf, refreshStorefront, savePromotion } from "./admin";
-import { budgetUse, campaignDay, displayStatus, liveState, nextCampaignCode, takesCampaignDates, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "./campaign-core";
+import { budgetUse, campaignDay, displayStatus, liveState, nextCampaignCode, takesCampaignDates, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus, athensDateTime } from "./campaign-core";
 
 /**
  * Καμπάνιες: ο φάκελος των προσφορών, landing pages και banners. Η δημοσίευση / παύση / λήξη εφαρμόζεται και στις
@@ -108,6 +108,9 @@ export async function saveCampaign(d: CampaignDraft, staffArg: string | Staff): 
     title: d.title.trim().slice(0, 160), goal: d.goal, brief: d.brief?.trim() || null,
     startsAt: campaignDay(d.startsAt, "start")!, endsAt: campaignDay(d.endsAt, "end")!,
     budgetEur: d.budgetEur != null && d.budgetEur > 0 ? new Prisma.Decimal(d.budgetEur) : null, ownerId: d.ownerId ?? prev?.ownerId ?? staffId,
+    // undefined = δεν ήρθε από τη φόρμα (π.χ. άλλος καλών) → μένει όπως είναι
+    ...(d.cartOpensAt !== undefined ? { cartOpensAt: athensDateTime(d.cartOpensAt) } : {}),
+    ...(d.cartMessage !== undefined ? { cartMessage: d.cartMessage?.trim().slice(0, 600) || null } : {}),
   };
   if (prev) {
     const row = await db.campaign.update({ where: { id: prev.id }, data });

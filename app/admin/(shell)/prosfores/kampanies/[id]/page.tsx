@@ -28,6 +28,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
     if (!c) notFound();
     campaign = {
       id: c.id, code: c.code, status: c.status, title: c.title, goal: c.goal as WizardCampaign["goal"], brief: c.brief ?? "", startsAt: ymd(c.startsAt)!, endsAt: ymd(c.endsAt)!,
+      cartOpensAt: c.cartOpensAt ? c.cartOpensAt.toLocaleString("sv-SE", { timeZone: "Europe/Athens" }).slice(0, 16).replace(" ", "T") : null, cartMessage: c.cartMessage ?? "",
       budgetEur: c.budgetEur, spent: c.spent, budget: c.budget,
       promotions: c.promotions.map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status, mechanism: p.mechanism, startsAt: iso(p.startsAt), endsAt: iso(p.endsAt), usedCount: p.usedCount, coupons: p.coupons.map((x) => x.code) })),
       landings: c.landings.map((l) => ({ id: l.id, slug: l.slug, title: l.title, status: l.status, startsAt: iso(l.startsAt), endsAt: iso(l.endsAt) })),

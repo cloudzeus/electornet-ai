@@ -3,9 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, LayoutTemplate, Loader2, Megaphone, Pause, Play, Plus, Search, Square, Archive, TicketPercent, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, LayoutTemplate, Loader2, Megaphone, Pause, Play, Plus, Search, Square, Archive, TicketPercent, X, LockKeyhole } from "lucide-react";
 import { Badge } from "@/components/admin/orders/ui";
-import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, publishOutcome, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus } from "@/lib/promo/campaign-core";
+import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, publishOutcome, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus, athensDateTime, gateMessage } from "@/lib/promo/campaign-core";
 import { MECHANISM_LABEL, STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { sx } from "@/components/ui/sx";
 import { campaignStateAction, membershipAction, publishCampaignAction, saveCampaignAction } from "@/app/admin/(shell)/prosfores/kampanies/actions";
@@ -18,7 +18,7 @@ function BudgetFill({ pct, over }: { pct: number; over: boolean }) {
 
 type Avail = { id: string; label: string; sub: string; status: string; campaignCode: string | null };
 export type WizardCampaign = {
-  id: string; code: string; status: CampaignStatus; title: string; goal: CampaignGoal; brief: string; startsAt: string; endsAt: string;
+  id: string; code: string; status: CampaignStatus; title: string; goal: CampaignGoal; brief: string; startsAt: string; endsAt: string; cartOpensAt: string | null; cartMessage: string;
   budgetEur: number | null; spent: number; budget: ReturnType<typeof budgetUse>;
   promotions: { id: string; code: string; name: string; status: string; mechanism: string; startsAt: string | null; endsAt: string | null; usedCount: number; coupons: string[] }[];
   landings: { id: string; slug: string; title: string; status: string; startsAt: string | null; endsAt: string | null }[];
@@ -49,7 +49,7 @@ const promoTone = (s: string) => (s === "active" ? "good" : s === "pending" || s
 export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCampaign | null; initialStep: number }) {
   const router = useRouter();
   const [step, setStep] = useState(initialStep);
-  const [d, setD] = useState<CampaignDraft>({ id: campaign?.id, title: campaign?.title ?? "", goal: campaign?.goal ?? "sales", brief: campaign?.brief ?? "", startsAt: campaign?.startsAt ?? null, endsAt: campaign?.endsAt ?? null, budgetEur: campaign?.budgetEur ?? null });
+  const [d, setD] = useState<CampaignDraft>({ id: campaign?.id, title: campaign?.title ?? "", goal: campaign?.goal ?? "sales", brief: campaign?.brief ?? "", startsAt: campaign?.startsAt ?? null, endsAt: campaign?.endsAt ?? null, budgetEur: campaign?.budgetEur ?? null, cartOpensAt: campaign?.cartOpensAt ?? null, cartMessage: campaign?.cartMessage ?? "" });
   const [errors, setErrors] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ tone: "ok" | "warn" | "bad"; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -128,6 +128,23 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
                 <label className={label}>Έναρξη<input type="date" className={`${field} tabular-nums`} value={d.startsAt ?? ""} onChange={(e) => set({ startsAt: e.target.value || null })} /><span className={helpTxt}>Από τις 00:00 (ώρα Ελλάδας).</span></label>
                 <label className={label}>Λήξη<input type="date" className={`${field} tabular-nums`} value={d.endsAt ?? ""} min={d.startsAt ?? undefined} onChange={(e) => set({ endsAt: e.target.value || null })} /><span className={helpTxt}>Ως τις 23:59. Η ίδια ημερομηνία οδηγεί κάθε αντίστροφη μέτρηση του site.</span></label>
               </div>
+              <fieldset data-help="campaign.cartgate" className="m-0 rounded-xl border border-eu-line p-3 grid gap-3 min-w-0">
+                <legend className="px-1 font-bold text-eu-ink text-[length:var(--fs-14)] inline-flex items-center gap-1.5"><LockKeyhole className="size-4 text-eu-blue" aria-hidden />Έναρξη αγορών <span className="font-normal text-eu-muted">(προαιρετικό)</span></legend>
+                <p className={helpTxt}>Για «προθέρμανση»: οι πελάτες βλέπουν τα προϊόντα και τις τιμές της καμπάνιας από την έναρξη, αλλά τα βάζουν στο καλάθι μόνο από την ημέρα και ώρα που ορίζεις εδώ. Κενό = αγοράζονται κανονικά από την πρώτη στιγμή.</p>
+                <label className={label}>Αγοράζονται από<input type="datetime-local" className={`${field} tabular-nums`} value={d.cartOpensAt ?? ""} min={d.startsAt ? `${d.startsAt}T00:00` : undefined} max={d.endsAt ? `${d.endsAt}T23:59` : undefined} onChange={(e) => set({ cartOpensAt: e.target.value || null })} /><span className={helpTxt}>Ώρα Ελλάδας. Ισχύει για όλα τα προϊόντα των προσφορών της καμπάνιας, και στο ταμείο.</span></label>
+                {d.cartOpensAt && (
+                  <>
+                    <label className={label}>Μήνυμα προς τον πελάτη
+                      <textarea className={`${field} py-2 min-h-20`} value={d.cartMessage ?? ""} onChange={(e) => set({ cartMessage: e.target.value })} maxLength={600} placeholder="Άφησέ το κενό για το έτοιμο μήνυμα, ή γράψε δικό σου. Το {ημερομηνία} γίνεται η ημέρα και ώρα έναρξης." />
+                    </label>
+                    <div className="rounded-lg bg-eu-surface p-3 grid gap-1">
+                      <span className="font-bold text-eu-muted text-[length:var(--fs-12)]">Έτσι θα το δει ο πελάτης όταν πατήσει «Στο καλάθι»</span>
+                      <span className="text-eu-ink text-[length:var(--fs-14)] leading-relaxed">{athensDateTime(d.cartOpensAt) ? gateMessage(d.cartMessage, athensDateTime(d.cartOpensAt)!) : "Συμπλήρωσε ημέρα και ώρα."}</span>
+                      <span className={helpTxt}>Μαζί εμφανίζεται αντίστροφη μέτρηση, το κουμπί «Βάλ’ το στη λίστα μου» και σύνδεσμος στη σελίδα της προσφοράς.</span>
+                    </div>
+                  </>
+                )}
+              </fieldset>
             </div>
           )}
 

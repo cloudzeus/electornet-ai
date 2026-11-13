@@ -60,6 +60,32 @@ export interface CampaignDraft {
   endsAt: string | null;
   budgetEur: number | null;
   ownerId?: string | null;
+  /** Έναρξη αγορών, yyyy-mm-ddThh:mm σε ώρα Ελλάδας (κενό = αγοράζονται από την έναρξη της καμπάνιας). */
+  cartOpensAt?: string | null;
+  /** Το μήνυμα προς τον πελάτη πριν την έναρξη αγορών (κενό = το έτοιμο μήνυμα). */
+  cartMessage?: string | null;
+}
+
+/** «yyyy-mm-ddThh:mm» σε ώρα Ελλάδας → στιγμή. */
+export function athensDateTime(v: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v ?? "");
+  if (!m) return null;
+  const utc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  return new Date(utc - athensOffsetMin(new Date(utc)) * 60_000);
+}
+
+/** Προϊόντα που δεν αγοράζονται ακόμη: η καμπάνια τους τρέχει, αλλά οι αγορές ανοίγουν αργότερα. */
+export type CartGate = { ids: string[]; opensAt: string; title: string; message: string; href: string | null };
+const gateWhen = (at: Date) => at.toLocaleString("el-GR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Athens" });
+/** Το έτοιμο μήνυμα, όταν ο διαχειριστής δεν έγραψε δικό του. Στο δικό του, το {ημερομηνία} γίνεται η ημέρα και ώρα έναρξης. */
+export function gateMessage(custom: string | null | undefined, opensAt: Date): string {
+  const when = gateWhen(opensAt);
+  const text = custom?.trim();
+  return text ? text.replaceAll("{ημερομηνία}", when) : `Οι τιμές αυτές ξεκλειδώνουν ${when}. Βάλε το προϊόν στη λίστα σου και θα είσαι από τους πρώτους που θα το πάρουν.`;
+}
+/** Η φραγή που ισχύει ΤΩΡΑ για ένα προϊόν (καμία αν οι αγορές έχουν ανοίξει). */
+export function gateOf(gates: CartGate[], productId: string, now = Date.now()): CartGate | null {
+  return gates.find((g) => new Date(g.opensAt).getTime() > now && g.ids.includes(productId)) ?? null;
 }
 
 type PromoWindow = { id: string; name: string; startsAt: Date | null; endsAt: Date | null; status?: string };
@@ -98,6 +124,10 @@ export function validateCampaign(d: CampaignDraft, promos: PromoWindow[], opts: 
   if (start && end && end < start) errors.push("Η λήξη είναι πριν την έναρξη.");
   if (opts.publish && end && end < opts.now) errors.push("Η λήξη είναι στο παρελθόν — άλλαξε τις ημερομηνίες για να δημοσιευτεί.");
   if (d.budgetEur != null && !(d.budgetEur >= 0)) errors.push("Το budget δεν μπορεί να είναι αρνητικό.");
+  const opens = athensDateTime(d.cartOpensAt);
+  if (d.cartOpensAt && !opens) errors.push("Η έναρξη αγορών δεν είναι σωστή ημερομηνία και ώρα.");
+  if (opens && end && opens > end) errors.push("Η έναρξη αγορών είναι μετά τη λήξη της καμπάνιας — κανείς δεν θα προλάβει να αγοράσει.");
+  if (opens && start && opens < start) warnings.push("Η έναρξη αγορών είναι πριν την έναρξη της καμπάνιας, άρα δεν κλειδώνει τίποτα.");
   if (!promos.length) (opts.publish ? errors : warnings).push("Η καμπάνια δεν έχει καμία προσφορά ακόμη.");
   if (start && end) {
     for (const p of promos) {

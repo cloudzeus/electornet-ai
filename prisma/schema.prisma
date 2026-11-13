@@ -1947,6 +1947,10 @@ model Campaign {
   approvals   Json?
   submittedAt DateTime?
   tagSlug     String?
+  /// Έναρξη αγορών: ως τότε τα προϊόντα της καμπάνιας φαίνονται με την τιμή τους αλλά δεν μπαίνουν στο καλάθι.
+  cartOpensAt DateTime?
+  /// Το μήνυμα που βλέπει ο πελάτης όταν πάει να τα προσθέσει πριν την έναρξη αγορών.
+  cartMessage String?       @db.Text
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   promotions  Promotion[]

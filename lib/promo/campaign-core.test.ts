@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { budgetUse, campaignDay, displayStatus, liveState, publishOutcome, takesCampaignDates, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS } from "./campaign-core";
+import { budgetUse, campaignDay, displayStatus, liveState, publishOutcome, takesCampaignDates, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS, athensDateTime, gateMessage, gateOf } from "./campaign-core";
 
 test("κωδικός: επόμενος της χρονιάς, ξεκινά από 001", () => {
   assert.equal(nextCampaignCode([], 2026), "KAM-2026-001");
@@ -109,4 +109,20 @@ test("έλεγχος: ενεργή προσφορά χωρίς λήξη μέσα
   const d = { title: "Black Friday 2026", goal: "sales" as const, startsAt: "2026-11-20", endsAt: "2026-11-30", budgetEur: null };
   const r = validateCampaign(d, [{ id: "p", name: "Airfryer −20%", status: "active", startsAt: new Date("2026-10-01"), endsAt: null }], { publish: true, now: new Date("2026-10-16") });
   assert.ok(r.warnings.some((w) => w.includes("Airfryer −20%") && w.includes("χωρίς λήξη")));
+});
+
+test("έναρξη αγορών: ώρα Ελλάδας, φραγή μόνο πριν ανοίξουν οι αγορές, μήνυμα με την ημερομηνία", () => {
+  const opens = athensDateTime("2026-11-27T00:01")!;
+  assert.equal(opens.toISOString(), "2026-11-26T22:01:00.000Z");
+  const gates = [{ ids: ["a", "b"], opensAt: opens.toISOString(), title: "BF", message: "x", href: null }];
+  assert.equal(gateOf(gates, "a", opens.getTime() - 1)?.title, "BF");
+  assert.equal(gateOf(gates, "a", opens.getTime()), null);
+  assert.equal(gateOf(gates, "c", opens.getTime() - 1), null);
+  assert.match(gateMessage(null, opens), /27 Νοεμβρίου/);
+  assert.match(gateMessage("Ανοίγουμε {ημερομηνία}!", opens), /^Ανοίγουμε Παρασκευή 27 Νοεμβρίου/);
+});
+
+test("έναρξη αγορών μετά τη λήξη της καμπάνιας είναι λάθος", () => {
+  const r = validateCampaign({ title: "Black Friday", goal: "sales", startsAt: "2026-11-20", endsAt: "2026-11-30", budgetEur: null, cartOpensAt: "2026-12-01T09:00" }, [], { publish: false, now: new Date("2026-10-16") });
+  assert.ok(r.errors.some((e) => e.includes("έναρξη αγορών")));
 });

@@ -37,9 +37,12 @@ export async function SiteFooter() {
               <ul className="m-0 p-0 list-none">
                 {c.links.map((l) => (
                   <li key={l.label}>
+                    {/* εξωτερικός σύνδεσμος (π.χ. πλατφόρμα ΗΕΔ της ΕΕ): ανοίγει σε νέο παράθυρο, και το λέει στους αναγνώστες οθόνης */}
+                    {l.href.startsWith("http") ? <a href={l.href} target="_blank" rel="noopener noreferrer" className="hover:text-white">{l.label}<span className="sr-only"> (ανοίγει σε νέο παράθυρο)</span></a> : (
                     <Link href={l.href} className="hover:text-white">
                       {l.label}
                     </Link>
+                    )}
                   </li>
                 ))}
               </ul>

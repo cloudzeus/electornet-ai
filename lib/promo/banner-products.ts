@@ -18,9 +18,11 @@ export interface BannerScope { cats: (string | null | undefined)[]; exclude?: st
 export async function bannerProducts(d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> {
   const sc: BannerScope | null = typeof scope === "string" ? { cats: [scope] } : scope ?? null;
   const levels = (sc?.cats ?? []).filter((x): x is string => !!x);
+  // Πλατύ banner με κάρτες που εναλλάσσονται: παίρνει περισσότερα προϊόντα της προσφοράς απ' όσα χωράνε μαζί (ως 9), για να έχει τι να αλλάξει.
+  const cap = d.layout === "strip" && d.products.source === "promotion" && d.products.max > 1 ? Math.max(d.products.max, 9) : d.products.max;
   let ids: string[] = [];
   if (d.products.source === "manual") ids = d.products.ids;
-  else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, levels.length ? 500 : d.products.max);
+  else if (d.products.source === "promotion" && promotionId) ids = await (await import("./landing")).promotionProductIds(promotionId, levels.length ? 500 : cap);
   if (levels.length && promotionId) {
     // μετρά όλη η καμπάνια: το banner μπορεί να ανήκει στην προσφορά «−15 %», αλλά οι σκούπες της καμπάνιας να είναι στο «−10 %» και το «−20 %»
     const camp = await db.promotion.findUnique({ where: { id: promotionId }, select: { campaignId: true } });
@@ -53,10 +55,10 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
   // Όσα το μοντέλο τα χαλάει (π.χ. λευκό πλυντήριο σε λευκό φόντο) μένουν εκτός, αντί να φανούν σε λευκό πλαίσιο δίπλα στα υπόλοιπα.
   // Προϊόντα που διάλεξε ο διαχειριστής με το χέρι δεν κόβονται ποτέ· ούτε όταν δεν θα έμενε κανένα.
   const auto = d.products.cutout && d.products.source === "promotion";
-  const pool = await getProductsByIds(auto ? ids.slice(0, Math.max(d.products.max * 3, 24)) : ids.slice(0, d.products.max));
+  const pool = await getProductsByIds(auto ? ids.slice(0, Math.max(cap * 3, 24)) : ids.slice(0, cap));
   const cuts = d.products.cutout ? await bannerCutouts(pool.map((p) => p.id)).catch(() => new Map<string, string>()) : new Map<string, string>();
   const clean = auto ? pool.filter((p) => cuts.has(p.id) || cutoutFor(p.image)) : pool;
-  const list = (clean.length ? clean : pool).slice(0, d.products.max);
+  const list = (clean.length ? clean : pool).slice(0, cap);
   return list.filter((p) => p.price > 0).map((p) => {
     const cut = d.products.cutout ? cuts.get(p.id) ?? cutoutFor(p.image) : null;
     return { id: p.id, brand: p.brand, title: p.title, href: `/proion/${p.slug}`, image: cut ?? p.image, cutout: !!cut, price: p.price, wasPrice: p.wasPrice ?? null, energy: p.energy?.cls ?? null };

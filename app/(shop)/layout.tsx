@@ -1,5 +1,7 @@
 import { homeDeals } from "@/lib/cms/home-deals";
 import { CartProvider } from "@/components/commerce/CartProvider";
+import { CartGateDialog } from "@/components/commerce/CartGateDialog";
+import { cartGates } from "@/lib/promo/cart-gate";
 import { QuickBuySheet } from "@/components/commerce/QuickBuySheet";
 import { MiniCart } from "@/components/commerce/MiniCart";
 import { QuickViewSheet } from "@/components/commerce/QuickViewSheet";
@@ -24,15 +26,16 @@ import { ExitIntent } from "@/components/site/ExitIntent";
 
 /** Shop frame: terms rail, header, mega nav, page, footer + the three drawers (mini-cart, quick buy, compare). */
 export default async function ShopLayout({ children }: LayoutProps<"/">) {
-  const [suggestions, menu, settings, tree] = await Promise.all([
+  const [suggestions, menu, settings, tree, gates] = await Promise.all([
     homeDeals({ source: "auto", limit: 4 }).then((d) => d.products.slice(0, 4)).catch(() => []),
     getMegaMenuData(),
     getSettings(),
     getCategoryTree(),
+    cartGates().catch(() => []),
   ]);
   return (
     <SettingsProvider settings={settings}>
-      <CartProvider>
+      <CartProvider gates={gates}>
         <MySpaceProvider>
           <AdvisorProvider>
             {/* WCAG 2.4.1: φαίνεται μόνο όταν πάρει εστίαση με Tab */}
@@ -55,6 +58,7 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
             <SiteFooter />
             <MiniCart suggestions={suggestions} />
             <QuickBuySheet />
+            <CartGateDialog />
             <QuickViewSheet />
             <CompareTray />
             <CookieConsent />

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import Image from "@/components/ui/Image";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/site/Breadcrumbs";
@@ -69,34 +70,43 @@ async function renderBlock(b: Block, ctx: Ctx) {
       const facts = [ctx.products.length > 1 ? `${ctx.products.length} προϊόντα` : null, maxPct > 0 ? `έως −${maxPct}\u00a0%` : null, ctx.endsAt && !ctx.ended ? `έως ${new Date(ctx.endsAt).toLocaleDateString("el-GR", { day: "numeric", month: "long", timeZone: "Europe/Athens" })}` : null].filter(Boolean) as string[];
       const show = ctx.ended ? [] : ctx.showcase;
       return (
-        <section key={b.id} className={`${TONE[p.tone ?? "navy"]} relative overflow-hidden`}>
-          <div className="eu-canvas eu-gutter py-10 @lg:py-14 grid @3xl:grid-cols-[1.1fr_1fr] gap-6 items-center">
-            <div className="grid gap-3">
-              {p.kicker && <div className="font-extrabold text-[length:var(--fs-14)] tracking-wide opacity-90">{p.kicker}</div>}
-              <h1 className="m-0 font-heading font-bold text-[length:var(--fs-42)] leading-[1.05] tracking-[-0.02em]">{p.title}</h1>
-              {p.subtitle && <p className="m-0 text-[length:var(--fs-18)] leading-relaxed opacity-95">{p.subtitle}</p>}
+        <section key={b.id} className={`${TONE[p.tone ?? "navy"]} relative isolate overflow-hidden`}>
+          {/* σκηνικό που κινείται αργά: φως στο μπλε, ακτίνες πίσω από τη βιτρίνα — το hero δεν είναι ποτέ «επίπεδο» χρώμα */}
+          {p.tone !== "yellow" && <div aria-hidden className="eu-ambient -z-10" />}
+          <div aria-hidden className="eu-rays -z-10 w-[80%] @3xl:w-[55%] right-[-15%] top-1/2 -translate-y-1/2" />
+          <div className="eu-canvas eu-gutter py-10 @lg:py-16 grid @3xl:grid-cols-[1.05fr_1fr] gap-8 items-center">
+            <div className="eu-hero-in grid gap-4">
+              {p.kicker && <div className={`justify-self-start rounded-full px-3.5 py-1.5 font-extrabold text-[length:var(--fs-14)] ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.kicker}</div>}
+              <h1 className="m-0 font-heading font-extrabold text-balance text-[length:var(--fs-42)] @3xl:text-[length:var(--fs-58)] leading-[1.02] tracking-[-0.02em]">{p.title}</h1>
+              {p.subtitle && <p className="m-0 max-w-[52ch] text-[length:var(--fs-18)] leading-relaxed opacity-95">{p.subtitle}</p>}
               {facts.length > 0 && <ul className="m-0 p-0 list-none flex flex-wrap gap-2">{facts.map((f) => <li key={f} className={`rounded-full px-3.5 py-1.5 font-bold text-[length:var(--fs-14)] ${p.tone === "yellow" ? "bg-eu-navy/10" : "bg-white/12 ring-1 ring-white/20"}`}>{f}</li>)}</ul>}
-              {p.ctaLabel && p.ctaHref && !ctx.ended && <Link href={p.ctaHref} className={`justify-self-start rounded-full px-7 min-h-14 inline-flex items-center font-extrabold text-[length:var(--fs-17)] ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.ctaLabel}</Link>}
+              {p.ctaLabel && p.ctaHref && !ctx.ended && <Link href={p.ctaHref} className={`eu-cta-shine justify-self-start rounded-full px-8 min-h-14 inline-flex items-center gap-2 font-extrabold text-[length:var(--fs-18)] shadow-[0_12px_28px_-10px_rgba(0,0,0,.55)] hover:scale-[1.03] transition-transform motion-reduce:transition-none ${p.tone === "yellow" ? "bg-eu-navy text-white" : "bg-eu-yellow text-eu-navy"}`}>{p.ctaLabel}<ArrowRight className="size-5" aria-hidden /></Link>}
             </div>
             {(p.image || show.length > 0) && (
               // Η εικόνα της καμπάνιας γίνεται σκηνικό και πάνω της στέκονται τα 3 προϊόντα με τη μεγαλύτερη έκπτωση, το καθένα με την τιμή του — ποτέ άδεια εικόνα.
-              <div className={`@container relative aspect-[4/3] rounded-3xl overflow-hidden ${p.image ? "" : "bg-black/20"}`}>
-                {p.image && <Image src={p.image} alt="" fill sizes="(max-width: 900px) 100vw, 50vw" className="object-cover object-left-top" priority unoptimized={p.image.startsWith("http")} />}
+              <div className="@container relative">
+              {/* το μεγάλο νούμερο της καμπάνιας: αστέρι με τη μέγιστη έκπτωση, πάνω στη γωνία της βιτρίνας */}
+              {maxPct > 0 && !ctx.ended && <span aria-hidden className="eu-burst absolute z-10 -right-2 -top-4 @md:-right-4 @md:-top-6 grid place-content-center justify-items-center size-24 @md:size-32 rounded-full bg-eu-red text-white leading-none shadow-xl ring-4 ring-white/90"><span className="font-bold text-[length:var(--fs-13)]">έως</span><span className="font-heading font-extrabold tabular-nums text-[length:var(--fs-34)] @md:text-[length:var(--fs-44)]">−{maxPct}%</span></span>}
+              <div className={`relative isolate aspect-[4/3] rounded-3xl overflow-hidden shadow-[0_30px_60px_-25px_rgba(0,0,0,.6)] ring-1 ring-white/15 ${p.image ? "" : "bg-black/20"}`}>
+                {p.image && <Image src={p.image} alt="" fill sizes="(max-width: 900px) 100vw, 50vw" className="object-cover object-left-top eu-kenburns" priority unoptimized={p.image.startsWith("http")} />}
+                <div aria-hidden className="eu-spot" />
+                <div aria-hidden className="eu-sweep" />
                 {show.length > 0 && (
-                  <ul className={`absolute inset-x-[4%] bottom-[5%] top-[30%] m-0 p-0 list-none grid items-end gap-[2%] ${show.length === 3 ? "grid-cols-[1fr_1.25fr_1fr]" : show.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  <ul className={`eu-showcase absolute inset-x-[4%] bottom-[5%] top-[30%] m-0 p-0 list-none grid items-end gap-[2%] ${show.length === 3 ? "grid-cols-[1fr_1.25fr_1fr]" : show.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
                     {(show.length === 3 ? [show[1], show[0], show[2]] : show).map(({ p: x, image, cutout }) => (
                       <li key={x.id} className="min-w-0 h-full">
                         <Link href={`/proion/${x.slug}`} className="group h-full grid grid-rows-[minmax(0,1fr)_auto] justify-items-center gap-[4%] rounded-2xl focus-visible:outline-2 focus-visible:outline-eu-yellow">
                           <img src={image} alt={`${x.brand} ${x.title}`} className={`max-w-full max-h-full min-h-0 object-contain object-bottom self-end transition-transform duration-300 group-hover:-translate-y-1 motion-reduce:transition-none ${cutout ? "eu-cutout-shadow-dark" : "rounded-xl bg-white p-[4%]"}`} />
                           <span className="grid justify-items-center leading-none rounded-xl bg-eu-yellow text-eu-navy px-[5cqw] @md:px-3 py-1.5 shadow-lg">
                             <span className="font-extrabold uppercase truncate max-w-[10ch] text-[length:var(--fs-12)]">{x.brand}</span>
-                            <span className="font-heading font-extrabold tabular-nums text-[length:var(--fs-18)] @md:text-[length:var(--fs-22)]"><Price value={x.price} short euroSmall /></span>
+                            <span className="eu-sl-price font-heading font-extrabold tabular-nums text-[length:var(--fs-18)] @md:text-[length:var(--fs-22)]"><Price value={x.price} short euroSmall /></span>
                           </span>
                         </Link>
                       </li>
                     ))}
                   </ul>
                 )}
+              </div>
               </div>
             )}
           </div>
