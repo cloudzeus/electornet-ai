@@ -112,6 +112,20 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
         </div>
         <span className="text-eu-muted text-[length:var(--fs-13)]">Τίτλοι και κείμενα του component. «Αυτόματο» = λευκά σε σκούρο φόντο, σκούρα σε ανοιχτό. Διάλεξε χρώμα που ξεχωρίζει καθαρά από το φόντο.</span>
       </div>
+      <fieldset data-help="zones.spacing" className="m-0 p-0 border-0 grid gap-2 min-w-0">
+        <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Αποστάσεις</legend>
+        {([["headGap", "Τίτλος → περιεχόμενο", "Το κενό ανάμεσα στον τίτλο του component και σε ό,τι ακολουθεί (π.χ. τα τετράγωνα ενός banner)."], ["padY", "Πάνω και κάτω από το component", "Το κενό πριν και μετά το component μέσα στη ζώνη."]] as const).map(([k, label, help]) => (
+          <div key={k} className="grid gap-1">
+            <span className="font-bold text-eu-ink-2 text-[length:var(--fs-13)]">{label}</span>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+              {([[undefined, "Κανονική"], [0, "Κολλητά"], [1, "Μικρή"], [2, "Μεσαία"], [3, "Μεγάλη"]] as const).map(([v, t]) => (
+                <button key={t} type="button" aria-pressed={b[k] === v} onClick={() => set({ ...b, [k]: v })} className={`rounded-xl border-2 px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] ${b[k] === v ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{t}</button>
+              ))}
+            </div>
+            <span className="text-eu-muted text-[length:var(--fs-13)]">{help}</span>
+          </div>
+        ))}
+      </fieldset>
       <fieldset className="m-0 p-0 border-0 grid gap-2 min-w-0">
         <legend className="font-bold text-eu-ink text-[length:var(--fs-14)] mb-1">Χρώματα ανά στοιχείο</legend>
         {([["kickerColor", "Υπέρτιτλος", "Η μικρή γραμμή πάνω από τον τίτλο."], ["titleColor", "Τίτλος", "Η επικεφαλίδα του component."], ["linkColor", "Σύνδεσμοι", "Οι σύνδεσμοι κειμένου, π.χ. «Όλες οι προσφορές»."]] as const).map(([k, l, h]) => {

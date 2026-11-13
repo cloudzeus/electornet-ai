@@ -42,6 +42,12 @@ export const TILE_ANIMS: { key: TileAnim; label: string; help?: string }[] = [
 ];
 export const PER_ROW = [2, 3, 4, 5, 6] as const;
 
+export type StickerPos = "auto" | "tl" | "tr" | "ml" | "mr" | "bl" | "br";
+export const STICKER_POSITIONS: { key: StickerPos; label: string; help?: string }[] = [
+  { key: "auto", label: "Αυτόματα", help: "Η θέση που ταιριάζει στο στυλ, μακριά από τιμή και τίτλο." },
+  { key: "tl", label: "Πάνω αριστερά" }, { key: "tr", label: "Πάνω δεξιά" }, { key: "ml", label: "Μέση αριστερά" }, { key: "mr", label: "Μέση δεξιά" }, { key: "bl", label: "Κάτω αριστερά" }, { key: "br", label: "Κάτω δεξιά" },
+];
+
 export interface BannerDesign {
   /** «strip» = λωρίδα (κείμενο + προϊόντα)· «posts» = τετράγωνα post, ένα ανά προϊόν, στη μορφή των post της καμπάνιας */
   layout: "strip" | "posts";
@@ -51,9 +57,13 @@ export interface BannerDesign {
   priceShape: PriceShape;
   /** κίνηση μέσα σε κάθε τετράγωνο post */
   tileAnim: TileAnim;
+  /** τετράγωνα post ως slider: ένα προϊόν τη φορά, αλλάζει μόνο του με κίνηση (βέλη, τελείες, παύση όταν το δείχνει ο πελάτης) */
+  slider: boolean;
   bg: { color: string; image: string | null; video: string | null; anim: BannerAnim };
   /** sticker (κλειδί του /admin/stickers) πάνω στο banner — σε κάθε τετράγωνο post ή στη γωνία της λωρίδας */
   stickerKey: string | null;
+  /** πού κάθεται το sticker: «auto» = η θέση του στυλ */
+  stickerPos: StickerPos;
   /** σήμα καμπάνιας πάνω αριστερά (π.χ. το «Black Friday»), προαιρετικό */
   logo: string | null;
   /** χρώμα κειμένων: ανοιχτά (για σκούρο φόντο) ή σκούρα */
@@ -97,9 +107,9 @@ export const BANNER_PRESETS: { key: string; label: string; apply: Pick<BannerDes
 ];
 
 export const DEFAULT_BANNER_DESIGN: BannerDesign = {
-  layout: "strip", postStyle: "visual", priceShape: "auto", tileAnim: "none",
+  layout: "strip", postStyle: "visual", priceShape: "auto", tileAnim: "none", slider: false,
   bg: { color: "#122a58", image: null, video: null, anim: "ambient" },
-  stickerKey: null, logo: null, ink: "light", accent: "#f1c400",
+  stickerKey: null, stickerPos: "auto", logo: null, ink: "light", accent: "#f1c400",
   kicker: "", title: "Τίτλος banner", body: "", cta: "Δες τις προσφορές",
   products: { source: "none", ids: [], max: 2, perRow: 4, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, cutout: true, bullets: [] },
 };
@@ -118,8 +128,10 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
     postStyle: POST_STYLES.some((x) => x.key === d.postStyle) ? d.postStyle! : "visual",
     priceShape: PRICE_SHAPES.some((x) => x.key === d.priceShape) ? d.priceShape! : "auto",
     tileAnim: TILE_ANIMS.some((x) => x.key === d.tileAnim) ? d.tileAnim! : "none",
+    slider: d.slider === true,
     bg: { color: hex(bg.color, D.bg.color), image: url(bg.image), video: url(bg.video), anim: BANNER_ANIMS.some((a) => a.key === bg.anim) ? bg.anim! : "none" },
     stickerKey: typeof d.stickerKey === "string" && /^[a-z0-9-]{1,80}$/.test(d.stickerKey) ? d.stickerKey : null,
+    stickerPos: STICKER_POSITIONS.some((x) => x.key === d.stickerPos) ? d.stickerPos! : "auto",
     logo: url(d.logo), ink: d.ink === "dark" ? "dark" : "light", accent: hex(d.accent, D.accent),
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),
     products: {
@@ -140,3 +152,28 @@ export function bannerDesignIssue(d: BannerDesign, promotionId: string | null): 
   if (d.bg.anim === "zoom" && !d.bg.image) return "Το «Αργό zoom» θέλει εικόνα φόντου.";
   return null;
 }
+
+/** Ό,τι κρατά ένα πρότυπο banner: η εμφάνιση (διάταξη, στυλ, χρώματα, κίνηση, πώς δείχνει τα προϊόντα) — όχι τα κείμενα, το σήμα και ποια προϊόντα. */
+export type BannerTemplateLook = Pick<BannerDesign, "layout" | "postStyle" | "priceShape" | "tileAnim" | "slider" | "ink" | "accent" | "stickerKey" | "stickerPos"> & { bg: BannerDesign["bg"]; products: Pick<BannerDesign["products"], "max" | "perRow" | "priceLabel" | "showBrand" | "showEnergy" | "showWas" | "cutout"> };
+export interface BannerTemplate { key: string; name: string; help?: string; look: BannerTemplateLook; builtIn?: boolean }
+
+export const lookOf = (d: BannerDesign): BannerTemplateLook => ({
+  layout: d.layout, postStyle: d.postStyle, priceShape: d.priceShape, tileAnim: d.tileAnim, slider: d.slider, ink: d.ink, accent: d.accent, stickerKey: d.stickerKey, stickerPos: d.stickerPos, bg: { ...d.bg },
+  products: { max: d.products.max, perRow: d.products.perRow, priceLabel: d.products.priceLabel, showBrand: d.products.showBrand, showEnergy: d.products.showEnergy, showWas: d.products.showWas, cutout: d.products.cutout },
+});
+/** Εφαρμογή προτύπου: αλλάζει η εμφάνιση, μένουν τα κείμενα, το σήμα και η επιλογή προϊόντων του banner· πρότυπο χωρίς sticker αφήνει το sticker του banner. */
+export const applyLook = (d: BannerDesign, look: BannerTemplateLook): BannerDesign => normalizeBannerDesign({ ...d, ...look, stickerKey: look.stickerKey ?? d.stickerKey, bg: { ...look.bg }, products: { ...d.products, ...look.products } })!;
+
+const P = { priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, cutout: true };
+export const BANNER_TEMPLATES: BannerTemplate[] = [
+  { key: "slider-dark", builtIn: true, name: "Slider προϊόντων (σκούρο)", help: "Ένα προϊόν τη φορά πάνω σε σκούρο φόντο με προβολέα· αλλάζει μόνο του. Σε σελίδα προϊόντος και λίστες δείχνει προϊόντα της ίδιας κατηγορίας.",
+    look: { layout: "posts", postStyle: "visual", priceShape: "auto", tileAnim: "float", slider: true, ink: "light", accent: "#22e06b", stickerKey: null, stickerPos: "auto", bg: { color: "#05060f", image: null, video: null, anim: "spotlight" }, products: { ...P, max: 6, perRow: 4 } } },
+  { key: "slider-podium", builtIn: true, name: "Slider σε βάθρο (κίτρινο)", help: "Όπως τα post των φυλλαδίων, ένα προϊόν τη φορά, με την τιμή σε αστέρι.",
+    look: { layout: "posts", postStyle: "podium", priceShape: "burst", tileAnim: "pulse", slider: true, ink: "dark", accent: "#122a58", stickerKey: null, stickerPos: "auto", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, products: { ...P, max: 6, perRow: 4 } } },
+  { key: "podium-4", builtIn: true, name: "4 προϊόντα σε βάθρο", help: "Τέσσερα τετράγωνα δίπλα-δίπλα, κίτρινο φόντο, στρογγυλή τιμή.",
+    look: { layout: "posts", postStyle: "podium", priceShape: "auto", tileAnim: "none", slider: false, ink: "dark", accent: "#122a58", stickerKey: null, stickerPos: "auto", bg: { color: "#ffd400", image: null, video: null, anim: "none" }, products: { ...P, max: 4, perRow: 4 } } },
+  { key: "band-3", builtIn: true, name: "3 προϊόντα με ζώνη τιμής", help: "Η τιμή μεγάλη σε χρωματιστή ζώνη κάτω από κάθε προϊόν.",
+    look: { layout: "posts", postStyle: "band", priceShape: "auto", tileAnim: "none", slider: false, ink: "light", accent: "#f1c400", stickerKey: null, stickerPos: "auto", bg: { color: "#122a58", image: null, video: null, anim: "none" }, products: { ...P, max: 3, perRow: 3 } } },
+  { key: "strip-navy", builtIn: true, name: "Λωρίδα με κείμενο και προϊόντα", help: "Τίτλος και κουμπί αριστερά, προϊόντα σε πλαίσια δεξιά.",
+    look: { layout: "strip", postStyle: "visual", priceShape: "auto", tileAnim: "none", slider: false, ink: "light", accent: "#f1c400", stickerKey: null, stickerPos: "auto", bg: { color: "#122a58", image: null, video: null, anim: "ambient" }, products: { ...P, max: 3, perRow: 4 } } },
+];

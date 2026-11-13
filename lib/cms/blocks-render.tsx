@@ -97,8 +97,11 @@ export function renderBlock(b: BrandBlock, d: BlockData, ctx: { brandName: strin
   const hex = (v?: string) => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
   const ink = hex(b.ink), kicker = hex(b.kickerColor), title = hex(b.titleColor), link = hex(b.linkColor);
   // χρώματα ανά στοιχείο: υπέρτιτλος / τίτλος / σύνδεσμοι — όσα δεν οριστούν ακολουθούν το θέμα
-  const parts = { ...(kicker ? { "--bs-kicker": kicker } : {}), ...(title ? { "--bs-title": title } : {}), ...(link ? { "--bs-link": link } : {}) };
-  const anyText = ink || kicker || title || link;
+  // αποστάσεις που ορίζει ο διαχειριστής: τίτλος → περιεχόμενο (--bs-head-gap, το διαβάζουν οι κεφαλίδες των components και των banners) και πάνω/κάτω από το component
+  const step = (v: unknown, map: string[]) => (typeof v === "number" && map[v] != null ? map[v] : null);
+  const headGap = step(b.headGap, ["0.25rem", "0.75rem", "1.5rem", "2.5rem"]), padY = step(b.padY, ["0rem", "1rem", "2.5rem", "4.5rem"]);
+  const parts = { ...(kicker ? { "--bs-kicker": kicker } : {}), ...(title ? { "--bs-title": title } : {}), ...(link ? { "--bs-link": link } : {}), ...(headGap ? { "--bs-head-gap": headGap } : {}), ...(padY ? { paddingBlock: padY } : {}) };
+  const anyText = ink || kicker || title || link || headGap || padY;
   // τίτλοι που δεν περνούν από το BlockHead (δικό τους h2): κανόνας στο globals.css, μόνο όταν έχει οριστεί χρώμα τίτλου
   const tc = title ? "eu-bs-title" : "";
   if (!el || (!hide && !bg && !img && !anyText)) return el;

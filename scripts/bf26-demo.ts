@@ -249,10 +249,10 @@ async function main() {
     // σελίδα προσφορών: κεφαλίδα από άκρη σε άκρη με σήμα, τίτλο και τρία προϊόντα χωρίς φόντο πάνω στο εικαστικό
     { slot: "offers-top", name: "BF26 · Σελίδα προσφορών", d: design({ kicker: "Έως 30 Νοεμβρίου", title: "Οι προσφορές του Black Friday", body: "12 συσκευές έως −20 %, με δωρεάν μεταφορικά. Μέχρι να εξαντληθούν.", cta: "Δες όλη την καμπάνια", ids: [P.lgQned55, P.rowentaStick, P.delonghiDehum], max: 3 }) },
     { slot: "listing-top", name: "BF26 · Λίστες κατηγοριών", d: design({ kicker: "Black Friday", title: "Έως −20 % έως 30 Νοεμβρίου", cta: "Όλες οι προσφορές", fromPromo: true, max: 3 }) },
-    { slot: "pdp-below-buybox", name: "BF26 · Σελίδα προϊόντος", d: design({ title: "", posts: keyVisual, ids: [P.tefalFry], max: 1 }) },
+    { slot: "pdp-below-buybox", name: "BF26 · Σελίδα προϊόντος", d: { ...design({ title: "", posts: keyVisual, fromPromo: true, max: 6 }), slider: true, tileAnim: "float" as const } },
     { slot: "cart-top", name: "BF26 · Καλάθι", d: design({ kicker: `Κωδικός ${COUPON}`, title: "−10 € επιπλέον από 99 €", body: `Γράψε ${COUPON} στο πεδίο κουπονιού. Μία φορά ανά πελάτη, ${UNTIL}.` }) },
     { slot: "info-top", name: "BF26 · Πληροφοριακές (πλάτος)", d: design({ kicker: "Έως 30 Νοεμβρίου", title: T.line, cta: "Δες τις προσφορές", ids: [P.samsungTv43, P.tefalFry] }) },
-    { slot: "info-aside", name: "BF26 · Πληροφοριακές (στήλη)", d: design({ title: "", posts: bgStory, ids: [P.delonghiDehum], max: 1 }) },
+    { slot: "info-aside", name: "BF26 · Πληροφοριακές (στήλη)", d: { ...design({ title: "", posts: bgStory, fromPromo: true, max: 6 }), slider: true, tileAnim: "float" as const } },
   ];
   const adId: Record<string, string> = {};
   for (const a of ADS) {

@@ -5,7 +5,10 @@ import { sx } from "@/components/ui/sx";
 import { StickerSvg, stickerAnimationClass } from "@/components/stickers/StickerSvg";
 import { DEFAULT_STICKER, type StickerParams } from "@/lib/stickers/model";
 import { Price } from "@/components/commerce/Price";
+import { TileSlider } from "./TileSlider";
 
+// θέση του sticker που διάλεξε ο διαχειριστής («auto» = η θέση που ταιριάζει στο στυλ, ώστε να μην πέφτει πάνω σε τιμή ή τίτλο)
+const STICKER_POS: Record<string, string | undefined> = { tl: "left-[3%] top-[4%]", tr: "right-[3%] top-[4%]", ml: "left-[3%] top-[40%]", mr: "right-[3%] top-[40%]", bl: "left-[3%] bottom-[4%]", br: "right-[3%] bottom-[4%]" };
 /** Sticker πάνω στο banner: κλιμακώνεται με το πλάτος του χώρου του (το SVG γεμίζει το κουτί του). */
 function BannerSticker({ sticker, id, className }: { sticker: StickerParams; id: string; className: string }) {
   return <span aria-hidden className={`pointer-events-none absolute [&>svg]:block [&>svg]:w-full [&>svg]:h-auto ${className}`}><StickerSvg p={{ ...sticker, size: 200 }} id={id} className={stickerAnimationClass[sticker.animation]} /></span>;
@@ -50,7 +53,7 @@ function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
         : d.kicker ? <span className="absolute left-[5%] top-[7%] max-w-[60%] rounded-md bg-[var(--pb)] text-[var(--pk)] font-extrabold leading-none px-[2.5cqw] py-[1.8cqw] text-[length:clamp(0.6875rem,3.6cqw,1rem)]">{d.kicker}</span> : null}
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[12%] top-[16%] w-[76%] h-[50%] object-contain object-center ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[5%] top-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
-      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[4%] top-[42%] w-[24%]" />}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[4%] top-[42%]"} w-[24%]`} />}
       <div className={`absolute left-[6%] bottom-[6%] grid gap-[0.6cqw] ${shaped ? "w-[52%]" : "w-[50%]"}`}>
         {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.75rem,5cqw,1.5rem)]">{p.brand}</span>}
         <span className="font-semibold text-eu-ink-2 leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{p.title}</span>
@@ -83,7 +86,7 @@ function BandTile({ d, p, tall, solo, sticker }: TileProps) {
       </div>
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[14%] top-[24%] w-[72%] h-[46%] object-contain object-bottom ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[5%] top-[30%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
-      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[3%] top-[44%] w-[24%]" />}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] top-[44%]"} w-[24%]`} />}
       <span className="absolute inset-x-0 bottom-0 h-[24%] bg-[var(--pa)] text-[var(--pi)] flex items-center justify-between gap-[2cqw] px-[6%] leading-none">
         <span className="grid gap-[0.6cqw] min-w-0">
           {d.products.priceLabel && <span className="font-extrabold text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
@@ -149,7 +152,7 @@ function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       <span aria-hidden className="absolute left-1/2 -translate-x-1/2 bottom-[11%] w-[62%] h-[11%] rounded-[50%] bg-[color-mix(in_srgb,var(--pb)_86%,white)] shadow-[inset_0_-0.6cqw_1.2cqw_rgba(0,0,0,.12)]" />
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-1/2 -translate-x-1/2 bottom-[15%] w-[40%] h-[44%] object-contain object-bottom ${p.cutout ? "eu-cutout-shadow" : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute left-[6%] bottom-[7%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
-      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[4%] top-[46%] w-[24%]" />}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[4%] top-[46%]"} w-[24%]`} />}
       {d.body && <span className="absolute right-[5%] bottom-[5%] max-w-[36%] text-right font-semibold leading-tight text-[length:clamp(0.6875rem,2.9cqw,0.9375rem)]">{d.body}</span>}
     </a>
   );
@@ -171,7 +174,7 @@ function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
       </div>
       {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[37%] @2xl:top-[12%] @2xl:w-[30%] @2xl:h-[76%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
-      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[3%] top-[56%] w-[24%]" />}
+      {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className={`${STICKER_POS[d.stickerPos] ?? "left-[3%] top-[56%]"} w-[24%]`} />}
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
       {d.priceShape !== "auto" ? <PriceShapeBox d={d} p={p} className="right-[3%] bottom-[3%] w-[38%]" /> : <span className={`absolute right-[6%] bottom-[6%] grid justify-items-end leading-none ${PRICE_ANIM[d.tileAnim] ?? ""}`}>
         {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
@@ -195,16 +198,22 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
     if (!tiles.length) return null;
     return (
       // τίτλος, υπέρτιτλος και σύνδεσμος ακολουθούν τα χρώματα του component της ζώνης (--bs-*), όταν έχουν οριστεί
-      <div className="@container grid gap-3">
+      <div className="@container grid gap-[var(--bs-head-gap,0.75rem)]">
         {(d.title || (d.cta && href)) && (
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
             <span className="grid">{d.kicker && <span className="font-extrabold text-[color:var(--bs-kicker,var(--bs-accent,var(--eu-blue)))] text-[length:var(--fs-13)]">{d.kicker}</span>}{d.title && <strong className="font-heading font-extrabold text-[color:var(--bs-title,var(--bs-ink,var(--eu-ink)))] leading-tight text-[length:var(--fs-24)] @3xl:text-[length:var(--fs-30)]">{d.title}</strong>}</span>
             {d.cta && href && <a href={href} className="inline-flex items-center min-h-11 font-extrabold text-[color:var(--bs-link,var(--bs-accent,var(--eu-blue)))] text-[length:var(--fs-15)] underline underline-offset-4 hover:opacity-80">{d.cta}</a>}
           </div>
         )}
+        {d.slider && tiles.length > 1 ? (
+          <TileSlider label={d.title || "Προϊόντα προσφοράς"}>
+            {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo bullets={[]} sticker={sticker} />; })}
+          </TileSlider>
+        ) : (
         <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : COLS[Math.min(tiles.length, d.products.perRow)] ?? COLS[4]}`}>
           {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo={tiles.length === 1} bullets={tiles.length === 1 ? d.products.bullets : []} sticker={sticker} />; })}
         </div>
+        )}
       </div>
     );
   }
@@ -225,7 +234,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
       {d.bg.anim === "ambient" && <div aria-hidden className="eu-ambient -z-10" />}
       {d.bg.anim === "rays" && <div aria-hidden className="eu-rays -z-10 w-[70%] right-[-10%] top-1/2 -mt-[35%] @max-xl:w-[140%] @max-xl:right-[-20%] @max-xl:-mt-[70%]" />}
       {d.bg.anim === "sweep" && <div aria-hidden className="eu-sweep -z-10" />}
-      {sticker && <BannerSticker sticker={sticker} id="bns-strip" className="right-3 top-3 w-16 @xl:w-24" />}
+      {sticker && <BannerSticker sticker={sticker} id="bns-strip" className={`${STICKER_POS[d.stickerPos] ?? "right-3 top-3"} w-16 @xl:w-24`} />}
 
       <div className={`grid items-center gap-4 @xl:gap-6 ${bleed ? "eu-canvas eu-gutter py-6 @xl:py-10" : "p-4 @xl:px-8 @xl:py-6"} ${shape === "wide" && list.length ? "@xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : ""} ${shape === "wide" ? (bleed ? "min-h-56 @xl:min-h-80" : "min-h-40 @xl:min-h-52") : "min-h-72"}`}>
         {(d.logo || d.kicker || d.title || d.body || d.cta) && (

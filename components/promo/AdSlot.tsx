@@ -1,7 +1,7 @@
 import Image from "@/components/ui/Image";
 import { pickAd, pickAdById } from "@/lib/promo/landing";
 import { normalizeBannerDesign } from "@/lib/promo/banner-design";
-import { bannerProducts, bannerSticker } from "@/lib/promo/banner-products";
+import { bannerProducts, bannerSticker, type BannerScope } from "@/lib/promo/banner-products";
 import { DesignedBanner } from "./DesignedBanner";
 
 /**
@@ -9,7 +9,7 @@ import { DesignedBanner } from "./DesignedBanner";
  * Ο σύνδεσμος περνά από /api/ad/<id> για μέτρηση κλικ.
  */
 /** count=false: δεύτερο αντίγραφο της ίδιας θέσης (π.χ. άλλη διάταξη για κινητό) — δεν μετρά δεύτερη εμφάνιση. */
-export async function AdSlot({ slot, id, category, productsIn, className = "", count = true, bleed = false }: { slot: string; id?: string; category?: string | null; /** slug κατηγορίας: τα προϊόντα του banner περιορίζονται σε αυτήν (λίστες κατηγοριών) */ productsIn?: string | null; className?: string; count?: boolean; /** σε όλο το πλάτος της οθόνης, χωρίς στρογγυλές γωνίες (π.χ. header καμπάνιας) */ bleed?: boolean }) {
+export async function AdSlot({ slot, id, category, productsIn, className = "", count = true, bleed = false }: { slot: string; id?: string; category?: string | null; /** κατηγορίες της σελίδας (ειδική → γενική) και το προϊόν της: τα προϊόντα του banner ακολουθούν αυτή την ιεραρχία */ productsIn?: BannerScope | string | null; className?: string; count?: boolean; /** σε όλο το πλάτος της οθόνης, χωρίς στρογγυλές γωνίες (π.χ. header καμπάνιας) */ bleed?: boolean }) {
   const ad = await (id ? pickAdById(id, { count }) : pickAd(slot, { category, count })).catch(() => null);
   if (!ad) return null;
   // σχεδιασμένο banner: φόντο/κίνηση/κείμενα από το σχέδιο, προϊόντα με την τωρινή τιμή τους

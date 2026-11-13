@@ -131,7 +131,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
             {/* το banner κάτω από τη φωτογραφία (όχι κάτω από την αγορά): η δεξιά στήλη είναι ήδη πιο ψηλή και άφηνε τεράστιο κενό αριστερά· σε κινητό μένει μετά την αγορά */}
-            <AdSlot slot="pdp-below-buybox" category={p.category} className="order-3 min-w-0" />
+            <AdSlot slot="pdp-below-buybox" category={p.category} productsIn={{ cats: [p.typeSlug, p.subcategory, p.category], exclude: p.id }} className="order-3 min-w-0" />
           </div>
           <StickySidebar className="order-2 min-w-0">
             {p.noPrice ? <StoreBox product={p} stores={stores} /> : <BuyBox product={p} addons={addons} stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, member: s.member, address: s.address, city: s.city, openUntil: s.openUntil, lat: s.lat, lng: s.lng }))} accessory={null} warranty={warranty} stockByStore={stockByStore} />}

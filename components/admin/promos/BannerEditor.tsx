@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTemplate, Loader2, Monitor, MousePointerClick, PaintBucket, ShoppingBag, Smartphone, Type, X } from "lucide-react";
 import { SLOTS } from "@/lib/promo/landing-blocks";
-import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, bannerDesignIssue, type BannerDesign, type BannerProduct } from "@/lib/promo/banner-design";
+import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, BANNER_TEMPLATES, STICKER_POSITIONS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, applyLook, bannerDesignIssue, type BannerDesign, type BannerProduct, type BannerTemplate } from "@/lib/promo/banner-design";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
-import { bannerPreviewProductsAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
+import { bannerPreviewProductsAction, bannerTemplatesAction, deleteBannerTemplateAction, saveBannerTemplateAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
 import { StatusPill } from "@/components/admin/settings/ui";
 import { ImageUrlField } from "./ImageUrlField";
@@ -58,6 +58,9 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const [browse, setBrowse] = useState(false);
   const [sticker, setSticker] = useState<StickerParams | null>(sticker0);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [mine, setMine] = useState<BannerTemplate[]>([]);
+  const [tplOpen, setTplOpen] = useState(false);
+  useEffect(() => { void bannerTemplatesAction().then(setMine).catch(() => {}); }, []);
   const [busy, start] = useTransition();
   const set = (p: Partial<Doc>) => setD((x) => ({ ...x, ...p }));
   const g = d.design;
@@ -119,6 +122,25 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
         <div data-help="banner.form" className="grid gap-3 min-w-0 rounded-xl bg-white border border-eu-line p-3">
           <Choice label="Τι είναι το banner" value={g ? "design" : "image"} options={[{ key: "design", label: "Σχεδιασμένο εδώ", help: "Φόντο με κίνηση, κείμενα και προϊόντα με την τωρινή τιμή τους. Προσαρμόζεται μόνο του σε κινητό." }, { key: "image", label: "Έτοιμη εικόνα", help: "Ανεβάζεις την εικόνα του γραφίστα. Θέλει και δεύτερη εικόνα για κινητό." }]}
             onChange={(v) => { if (v === "design" && !g) { set({ design: DEFAULT_BANNER_DESIGN }); setTab("text"); } if (v === "image" && g && window.confirm("Το σχέδιο (κείμενα, φόντο, προϊόντα) θα χαθεί με την αποθήκευση. Συνέχεια;")) { set({ design: null }); setTab("image"); } }} />
+          {g && (
+            <div data-help="banner.templates" className="grid gap-2 rounded-xl bg-eu-surface p-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" aria-expanded={tplOpen} onClick={() => setTplOpen((x) => !x)} className="inline-flex items-center gap-1.5 rounded-full bg-white border-2 border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink text-[length:var(--fs-13)] hover:border-eu-navy"><LayoutTemplate className="size-4 text-eu-blue" aria-hidden /> Πρότυπα ({BANNER_TEMPLATES.length + mine.length})</button>
+                <button type="button" onClick={async () => { const name = window.prompt("Όνομα προτύπου (π.χ. «Black Friday slider»). Κρατά την εμφάνιση — όχι τα κείμενα και τα προϊόντα."); if (!name) return; const r = await saveBannerTemplateAction(name, g); if (r.ok) { setMine((m) => [r.template, ...m.filter((x) => x.key !== r.template.key)]); setMsg({ ok: true, t: `Το πρότυπο «${r.template.name}» αποθηκεύτηκε.` }); } else setMsg({ ok: false, t: r.error }); }} className="inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-9 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-white">Αποθήκευση ως πρότυπο</button>
+              </div>
+              {tplOpen && (
+                <ul className="m-0 p-0 list-none grid gap-1.5">
+                  {[...mine, ...BANNER_TEMPLATES].map((t) => (
+                    <li key={`${t.builtIn ? "b" : "m"}-${t.key}`} className="flex items-start gap-2 rounded-lg bg-white border border-eu-line p-2">
+                      <span className="grid min-w-0 flex-1"><span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{t.name}{!t.builtIn && <span className="ml-1.5 rounded-full bg-eu-chip text-eu-blue font-bold px-2 py-0.5 text-[length:var(--fs-12)]">δικό σου</span>}</span>{t.help && <span className="text-eu-muted text-[length:var(--fs-13)] leading-snug">{t.help}</span>}</span>
+                      <button type="button" onClick={() => { setG(applyLook(g, t.look)); setTplOpen(false); setMsg({ ok: true, t: `Εφαρμόστηκε το «${t.name}». Κείμενα και προϊόντα έμειναν όπως ήταν.` }); }} className="shrink-0 rounded-full bg-eu-navy text-white px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] hover:bg-eu-blue">Εφαρμογή</button>
+                      {!t.builtIn && <button type="button" aria-label={`Διαγραφή προτύπου «${t.name}»`} onClick={async () => { if (!window.confirm(`Να διαγραφεί το πρότυπο «${t.name}»; Τα banners που το χρησιμοποίησαν δεν αλλάζουν.`)) return; await deleteBannerTemplateAction(t.key); setMine((m) => m.filter((x) => x.key !== t.key)); }} className="shrink-0 grid place-items-center size-11 md:size-9 rounded-full text-eu-red hover:bg-eu-red/10"><X className="size-4" aria-hidden /></button>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-1 border-b border-eu-line pb-2" role="tablist" aria-label="Ρυθμίσεις banner">
             {tabs.map((t) => <button key={t.key} type="button" role="tab" aria-selected={cur === t.key} onClick={() => setTab(t.key)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] ${cur === t.key ? "bg-eu-navy text-white" : "text-eu-ink-2 hover:bg-eu-surface"}`}><t.I className="size-4" aria-hidden />{t.label}</button>)}
           </div>
@@ -133,6 +155,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               <div className="grid gap-1">
                 <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Sticker πάνω στο banner <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">— σε κάθε τετράγωνο post, ή στη γωνία της λωρίδας</span></span>
                 <StickerPicker value={g.stickerKey} onChange={(v, o) => { setG({ stickerKey: v }); setSticker(o?.params ?? null); }} />
+                {g.stickerKey && <Choice label="Θέση του sticker" value={g.stickerPos} options={STICKER_POSITIONS} onChange={(v) => setG({ stickerPos: v })} />}
               </div>
             </div>
           )}
@@ -157,7 +180,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               <Choice label="Διάταξη" value={g.layout} options={[{ key: "strip", label: "Λωρίδα", help: "Κείμενο αριστερά, έως 3 προϊόντα δεξιά." }, { key: "posts", label: "Τετράγωνα post", help: "Ένα τετράγωνο ανά προϊόν (έως 12, 2–6 ανά σειρά), στη μορφή των post της καμπάνιας: βάλε στο «Φόντο» το τετράγωνο εικαστικό με το σήμα." }]} onChange={(v) => setG({ layout: v })} />
               {g.layout === "posts" && <div data-help="banner.tiles" className="grid gap-3"><Choice label="Στυλ τετραγώνου" value={g.postStyle} options={POST_STYLES} onChange={(v) => setG({ postStyle: v })} />
               <Choice label="Σχήμα τιμής" value={g.priceShape} options={PRICE_SHAPES} onChange={(v) => setG({ priceShape: v })} />
-              <Choice label="Κίνηση στο τετράγωνο" value={g.tileAnim} options={TILE_ANIMS} onChange={(v) => setG({ tileAnim: v })} /></div>}
+              <Choice label="Κίνηση στο τετράγωνο" value={g.tileAnim} options={TILE_ANIMS} onChange={(v) => setG({ tileAnim: v })} /><Check2 on={g.slider} onChange={(v) => setG({ slider: v })}>Slider: ένα προϊόν τη φορά, αλλάζει μόνο του κάθε 4,5″ (με βέλη, τελείες και παύση)</Check2></div>}
               <Choice label="Προϊόντα στο banner" value={g.products.source} options={[{ key: "none", label: "Χωρίς", help: "Μόνο κείμενο και φόντο." }, { key: "promotion", label: "Της προσφοράς", help: "Τα προϊόντα της προσφοράς του banner με τη μεγαλύτερη έκπτωση — αλλάζουν μόνα τους." }, { key: "manual", label: "Τα διαλέγω εγώ", help: `Έως ${MAX_BANNER_PRODUCTS} προϊόντα του καταλόγου.` }]} onChange={(v) => setP({ source: v })} />
               {g.products.source === "promotion" && !d.promotionId && <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink text-[length:var(--fs-13)] font-semibold">Δεν έχεις διαλέξει προσφορά. <button type="button" onClick={() => setTab("where")} className="underline text-eu-blue font-bold">Διάλεξέ τη στο «Πού και πότε»</button></p>}
               {g.products.source === "manual" && (

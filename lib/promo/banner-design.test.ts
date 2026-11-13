@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_BANNER_DESIGN, bannerDesignIssue, normalizeBannerDesign } from "./banner-design";
+import { BANNER_TEMPLATES, DEFAULT_BANNER_DESIGN, applyLook, bannerDesignIssue, lookOf, normalizeBannerDesign } from "./banner-design";
 
 test("έγκυρο σχέδιο μένει όπως είναι· ό,τι δεν είναι σχέδιο → null", () => {
   assert.deepEqual(normalizeBannerDesign(DEFAULT_BANNER_DESIGN), DEFAULT_BANNER_DESIGN);
@@ -33,4 +33,14 @@ test("λέει τι λείπει πριν ενεργοποιηθεί", () => {
   assert.match(bannerDesignIssue({ ...base, products: { ...base.products, source: "manual" } }, null)!, /προϊόν/);
   assert.match(bannerDesignIssue({ ...base, bg: { ...base.bg, anim: "zoom" } }, null)!, /zoom/);
   assert.match(bannerDesignIssue({ ...base, layout: "posts" }, null)!, /post/);
+});
+
+test("πρότυπο: αλλάζει την εμφάνιση, κρατά κείμενα και προϊόντα· τα έτοιμα πρότυπα είναι έγκυρα σχέδια", () => {
+  const mine = normalizeBannerDesign({ ...DEFAULT_BANNER_DESIGN, title: "Ο τίτλος μου", logo: "/logo.png", products: { ...DEFAULT_BANNER_DESIGN.products, source: "manual", ids: ["p1", "p2"] } })!;
+  for (const t of BANNER_TEMPLATES) {
+    const out = applyLook(mine, t.look);
+    assert.equal(out.title, "Ο τίτλος μου"); assert.equal(out.logo, "/logo.png"); assert.deepEqual(out.products.ids, ["p1", "p2"]);
+    assert.deepEqual(lookOf(out), t.look, t.key);
+  }
+  assert.equal(normalizeBannerDesign({ slider: "yes" })!.slider, false);
 });

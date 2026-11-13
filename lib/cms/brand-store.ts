@@ -57,6 +57,9 @@ interface BlockBase {
   /** χρώμα γραμμάτων του component (#rrggbb)· κενό = αυτόματα από το φόντο (λευκά σε σκούρο, σκούρα σε ανοιχτό) */
   ink?: string;
   /** χρώματα ανά στοιχείο (#rrggbb)· κενό = ακολουθεί το θέμα: υπέρτιτλος, τίτλος (επικεφαλίδα), σύνδεσμοι κειμένου */
+  /** απόσταση τίτλου από το περιεχόμενο του component και κενό πάνω-κάτω από το component: 0 = κολλητά … 3 = μεγάλη· κενό = η κανονική του */
+  headGap?: number;
+  padY?: number;
   kickerColor?: string;
   titleColor?: string;
   linkColor?: string;

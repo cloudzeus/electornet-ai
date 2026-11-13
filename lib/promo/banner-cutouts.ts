@@ -18,6 +18,26 @@ export async function bannerCutouts(ids: string[]): Promise<Map<string, string>>
   return new Map(rows.map((r) => [r.filename.slice(7, -4), r.url]));
 }
 
+/**
+ * Δικλείδα ποιότητας: σε λευκές συσκευές πάνω σε λευκό φόντο το μοντέλο σβήνει και το ίδιο το προϊόν. Συγκρίνουμε πόσο από ό,τι
+ * ξεχώριζε από το φόντο στην αρχική φωτογραφία έμεινε ορατό· κάτω από 60 % (ή όταν το προϊόν βγαίνει ημιδιάφανο) η φωτογραφία απορρίπτεται και το προϊόν μένει σε λευκό πλαίσιο.
+ */
+async function keptEnough(orig: Buffer, cut: Buffer): Promise<boolean> {
+  const N = 192, fit = { width: N, height: N, fit: "fill" as const };
+  const [o, c] = await Promise.all([sharp(orig).flatten({ background: "#ffffff" }).resize(fit).removeAlpha().raw().toBuffer(), sharp(cut).resize(fit).ensureAlpha().extractChannel(3).raw().toBuffer()]);
+  const bg = [o[0], o[1], o[2]];
+  let content = 0, kept = 0;
+  for (let i = 0; i < N * N; i++) {
+    const differs = Math.abs(o[i * 3] - bg[0]) + Math.abs(o[i * 3 + 1] - bg[1]) + Math.abs(o[i * 3 + 2] - bg[2]) > 36;
+    if (differs) { content++; if (c[i] > 215) kept++; }
+  }
+  // δεύτερος έλεγχος, στην ίδια την κομμένη εικόνα: από ό,τι φαίνεται, τουλάχιστον τα 3/4 πρέπει να είναι αδιαφανή (καλές φωτογραφίες: 80–98 %)
+  let vis = 0, solid = 0;
+  for (const v of c) { if (v > 24) vis++; if (v > 215) solid++; }
+  if (vis && solid / vis < 0.75) return false;
+  return content < N * N * 0.01 || kept / content >= 0.6;
+}
+
 /** Φτιάχνει όσες λείπουν. Επιστρέφει πόσες έγιναν και όσες απέτυχαν (το banner δουλεύει και χωρίς αυτές). */
 export async function ensureBannerCutouts(ids: string[], by: string | null): Promise<{ made: number; failed: string[] }> {
   const have = await bannerCutouts(ids);
@@ -34,7 +54,10 @@ export async function ensureBannerCutouts(ids: string[], by: string | null): Pro
       const res = await fetch(src, { signal: AbortSignal.timeout(30_000) });
       if (!res.ok) throw new Error(`λήψη ${res.status}`);
       // κομμένο γύρω από το προϊόν και έως 900 px: στο banner φαίνεται το πολύ ~300 px
-      const png = await sharp(await removeBackground(Buffer.from(await res.arrayBuffer()))).trim().resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+      const orig = Buffer.from(await res.arrayBuffer());
+      const cut = await removeBackground(orig);
+      if (!(await keptEnough(orig, cut))) throw new Error("η αφαίρεση φόντου έσβησε μέρος του προϊόντος — μένει η φωτογραφία του καταλόγου");
+      const png = await sharp(cut).trim().resize({ width: 900, height: 900, fit: "inside", withoutEnlargement: true }).png().toBuffer();
       await ingest({ bytes: png, filename: fileOf(p.id), mime: "image/png", folderId: folder.id, createdBy: by, keepFormat: true, title: `${p.title} · χωρίς φόντο` });
       made++;
     } catch (e) { failed.push(`${p.title}: ${e instanceof Error ? e.message : "σφάλμα"}`); }
