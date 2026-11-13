@@ -313,6 +313,13 @@ export async function savePlacementAction(input: PlacementInput) {
   await audit(user.id, input.id ? "ad.update" : "ad.create", "AdPlacement", row.id, before, data);
   const { invalidateAds } = await import("@/lib/promo/landing");
   invalidateAds();
+  // σχεδιασμένο banner: φωτογραφίες προϊόντων χωρίς φόντο, μία φορά ανά προϊόν (όσα αποτύχουν μένουν σε λευκό πλαίσιο)
+  if (design && design.products.source !== "none") {
+    const { bannerProducts } = await import("@/lib/promo/banner-products");
+    const { ensureBannerCutouts } = await import("@/lib/promo/banner-cutouts");
+    await ensureBannerCutouts((await bannerProducts(design, row.promotionId).catch(() => [])).map((p) => p.id), user.id).catch(() => null);
+    invalidateAds();
+  }
   revalidatePath("/admin/prosfores/theseis");
   return { ok: true as const, id: row.id };
 }
