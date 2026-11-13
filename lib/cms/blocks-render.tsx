@@ -94,8 +94,11 @@ export function renderBlock(b: BrandBlock, d: BlockData, ctx: { brandName: strin
   const bg = b.bg && /^#[0-9a-f]{6}$/i.test(b.bg) ? b.bg : null;
   // εικόνα φόντου: μόνο δική μας διαδρομή ή https, χωρίς χαρακτήρες που σπάνε το url()
   const img = b.bgImage && /^(\/(?!\/)|https:\/\/)[^"'()\s\\]+$/.test(b.bgImage) ? b.bgImage : null;
-  if (!el || (!hide && !bg && !img)) return el;
-  if (!bg && !img) return <div key={b.id} className={hide}>{el}</div>;
+  const ink = b.ink && /^#[0-9a-f]{6}$/i.test(b.ink) ? b.ink : null;
+  if (!el || (!hide && !bg && !img && !ink)) return el;
+  if (!bg && !img && !ink) return <div key={b.id} className={hide}>{el}</div>;
+  // μόνο χρώμα γραμμάτων, χωρίς φόντο: αλλάζουν τα κείμενα και τίποτα άλλο
+  if (!bg && !img) { const t = sx({ "--bs-ink": ink!, "--bs-muted": `color-mix(in srgb, ${ink} 72%, transparent)` }); return <div key={b.id} className={`text-[var(--bs-ink)] ${t.className} ${hide}`}>{t.node}{el}</div>; }
   // φόντο του component: τα χρώματα κειμένου του θέματος ακολουθούν (ανοιχτά πάνω σε σκούρο), ώστε να διαβάζεται πάντα.
   // Εικόνα χωρίς χρώμα → σκούρο πέπλο και ανοιχτά κείμενα· εικόνα με χρώμα → ο τόνος των κειμένων βγαίνει από το χρώμα.
   const base = bg ?? "#05060f";
@@ -104,7 +107,8 @@ export function renderBlock(b: BrandBlock, d: BlockData, ctx: { brandName: strin
   const veil = img && !bg ? "linear-gradient(rgba(5,6,15,.55),rgba(5,6,15,.55)), " : "";
   const v = sx({
     "--bs-bg": img ? "transparent" : base, "--bs-bg2": img ? (dark ? "rgba(255,255,255,.1)" : "rgba(0,0,0,.06)") : `color-mix(in srgb, ${base} 88%, ${dark ? "white" : "black"})`,
-    "--bs-ink": dark ? "#ffffff" : "#1a1a1a", "--bs-muted": dark ? "rgba(255,255,255,.78)" : "#595959", ...(dark ? { "--bs-accent": "#f1c400", "--bs-accent-ink": "#122a58" } : {}),
+    // ρητό χρώμα γραμμάτων κερδίζει το αυτόματο· τα δευτερεύοντα κείμενα είναι το ίδιο χρώμα, πιο αχνό
+    "--bs-ink": ink ?? (dark ? "#ffffff" : "#1a1a1a"), "--bs-muted": ink ? `color-mix(in srgb, ${ink} 72%, transparent)` : dark ? "rgba(255,255,255,.78)" : "#595959", ...(dark ? { "--bs-accent": "#f1c400", "--bs-accent-ink": "#122a58" } : {}),
     backgroundColor: base, ...(img ? { backgroundImage: `${veil}url("${img}")`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
   });
   return <div key={b.id} className={`text-[var(--bs-ink)] ${v.className} ${hide}`}>{v.node}{el}</div>;

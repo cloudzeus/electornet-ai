@@ -103,6 +103,15 @@ export function BlockFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBloc
         </div>
         <span className="text-eu-muted text-[length:var(--fs-13)]">Πίσω από το component, σε όλο το πλάτος της ζώνης. Σε σκούρο χρώμα τα κείμενα γίνονται μόνα τους ανοιχτά. Κενό = το φόντο της σελίδας.</span>
       </div>
+      <div className="grid gap-1 min-w-0">
+        <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Χρώμα γραμμάτων</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="color" aria-label="Χρώμα γραμμάτων" value={b.ink && /^#[0-9a-f]{6}$/i.test(b.ink) ? b.ink : "#1a1a1a"} onChange={(e) => set({ ...b, ink: e.target.value })} className="size-11 rounded-lg border-2 border-eu-line bg-white p-0.5 cursor-pointer" />
+          {[["#ffffff", "Λευκά"], ["#1a1a1a", "Σκούρα"], ["#122a58", "Μπλε Euronics"], ["#f1c400", "Κίτρινα"], ["#22e06b", "Πράσινα"]].map(([c, t]) => <button key={c} type="button" aria-pressed={b.ink === c} onClick={() => set({ ...b, ink: c })} className={`rounded-full border-2 px-3 min-h-11 font-bold text-[length:var(--fs-13)] ${b.ink === c ? "border-eu-navy bg-eu-chip text-eu-navy" : "border-eu-line text-eu-ink-2 hover:border-eu-navy/50"}`}>{t}</button>)}
+          {b.ink && <button type="button" onClick={() => set({ ...b, ink: undefined })} className="rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface">Αυτόματο</button>}
+        </div>
+        <span className="text-eu-muted text-[length:var(--fs-13)]">Τίτλοι και κείμενα του component. «Αυτόματο» = λευκά σε σκούρο φόντο, σκούρα σε ανοιχτό. Διάλεξε χρώμα που ξεχωρίζει καθαρά από το φόντο.</span>
+      </div>
       <ImageUrlField label="Εικόνα φόντου (προαιρετικό)" value={b.bgImage ?? ""} onChange={(v) => set({ ...b, bgImage: v || undefined })} help="Καλύπτει όλο το πλάτος πίσω από το component και κόβεται στις άκρες. Χωρίς χρώμα από πάνω: μπαίνει σκούρο πέπλο και τα κείμενα γίνονται λευκά. Με χρώμα: τα κείμενα ακολουθούν το χρώμα (σκούρο χρώμα → λευκά κείμενα), για ανοιχτές εικόνες διάλεξε ανοιχτό χρώμα." />
     </div>
   );
