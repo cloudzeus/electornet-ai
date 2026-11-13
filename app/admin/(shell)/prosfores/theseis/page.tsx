@@ -5,7 +5,7 @@ import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { normalizeBannerDesign } from "@/lib/promo/banner-design";
 import { PlacementsEditor } from "@/components/admin/promos/PlacementsEditor";
 
-export const metadata = { title: "Διαφημιστικές θέσεις" };
+export const metadata = { title: "Banners" };
 export const dynamic = "force-dynamic";
 
 export default async function PlacementsPage() {
@@ -17,7 +17,7 @@ export default async function PlacementsPage() {
   const promoStatus = Object.fromEntries(promos.map((p) => [p.id, p.status]));
   return (
     <div className="grid gap-5 min-w-0">
-      <PromoTabs help="ads" active="ads" title="Διαφημιστικές θέσεις" lead="Banners σε σταθερά σημεία της βιτρίνας. Δεμένα με προσφορά, εμφανίζονται μόνο όσο εκείνη είναι ενεργή· με ίδια θέση, κερδίζει η μικρότερη προτεραιότητα. Μετρούνται προβολές και κλικ." />
+      <PromoTabs help="ads" active="ads" title="Banners (διαφημιστικές θέσεις)" lead="Banners σε σταθερά σημεία της βιτρίνας. Δεμένα με προσφορά, εμφανίζονται μόνο όσο εκείνη είναι ενεργή· με ίδια θέση, κερδίζει η μικρότερη προτεραιότητα. Μετρούνται προβολές και κλικ." />
       {(() => {
         // banners που ανήκουν σε καμπάνιες: ανά καμπάνια, με σύνδεσμο (η διαχείρισή τους γίνεται και από την καμπάνια)
         const by = new Map<string, { id: string; code: string; title: string; n: number }>();

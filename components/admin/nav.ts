@@ -77,6 +77,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: "Προσφορές & υπηρεσίες",
     items: [
       { href: "/admin/prosfores", label: "Προσφορές & κουπόνια", icon: BadgePercent, perm: "catalog.promos.write" },
+      { href: "/admin/prosfores/theseis", label: "Banners", icon: Megaphone, perm: "catalog.promos.write" },
       { href: "/admin/stickers", label: "Stickers", icon: Sticker, perm: "catalog.promos.write" },
       { href: "/admin/ypiresies", label: "Υπηρεσίες", icon: Wrench, perm: "catalog.products.read" },
       { href: "/admin/epektasi-eggyisis", label: "Επέκταση εγγύησης", icon: ShieldCheck, perm: "catalog.products.read" },

@@ -23,7 +23,7 @@ const GROUPS: Group[] = [
     { key: "personal", href: "/admin/prosfores/prosopikes", label: "Προσωπικές προσφορές", Icon: Sparkles },
   ] },
   { key: "site", label: "Στο site", Icon: MonitorSmartphone, pages: [
-    { key: "ads", href: "/admin/prosfores/theseis", label: "Διαφημιστικές θέσεις", Icon: Megaphone },
+    { key: "ads", href: "/admin/prosfores/theseis", label: "Banners", Icon: Megaphone },
     { key: "landing", href: "/admin/prosfores/selides", label: "Landing pages", Icon: LayoutTemplate },
     { key: "tags", href: "/admin/prosfores/etiketes", label: "Ετικέτες", Icon: Tags },
     { key: "newsletter", href: "/admin/prosfores/newsletter", label: "Newsletter", Icon: Mail },
