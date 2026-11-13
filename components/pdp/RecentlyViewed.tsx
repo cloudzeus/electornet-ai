@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("recentlyViewed");
 
@@ -36,7 +36,7 @@ export function RecentlyViewed({ current }: { current: Mini }) {
               <ProductImage src={x.image} sizes="160px" className="w-full mb-2" rounded="rounded-md" />
               <div className="text-eu-muted text-[length:var(--fs-14)]">{x.brand}</div>
               <div className="font-bold text-eu-ink text-[length:var(--fs-15)] line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</div>
-              <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)] mt-1">{priceShort(x.price)}</div>
+              <div className="font-extrabold text-eu-ink text-[length:var(--fs-16)] mt-1"><Price value={x.price} short /></div>
             </Link>
           </li>
         ))}

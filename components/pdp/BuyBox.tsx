@@ -13,6 +13,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { sx } from "@/components/ui/sx";
 import { warrantyDetail, warrantyLabel, type WarrantyInfo } from "@/lib/warranty/policy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("buybox");
 
@@ -77,7 +78,7 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty, stockB
     <aside className="min-w-0 w-full bg-white rounded-2xl border border-eu-line shadow-[var(--shadow-raised)] p-5 @lg:p-6 grid gap-5" aria-label={c.agora}>
       <div>
         <div className="flex items-end gap-3 flex-wrap">
-          <span className="font-extrabold text-eu-ink text-[length:var(--fs-44)] leading-none tracking-[-0.02em]">{priceShort(price)}</span>
+          <span className="font-extrabold text-eu-ink text-[length:var(--fs-44)] leading-none tracking-[-0.02em]"><Price value={price} short /></span>
           {p.wasPrice && (
             <span className="pb-1.5 flex items-center gap-2">
               <s className="text-eu-muted-2 text-[length:var(--fs-18)]">{priceShort(p.wasPrice)}</s>

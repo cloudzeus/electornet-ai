@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
-import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { AddButton } from "@/components/commerce/AddButton";
 import { CardCarousel } from "@/components/commerce/CardCarousel";
+import { Price } from "@/components/commerce/Price";
 
 /**
  * Light «Ταιριάζει με αυτό το προϊόν» strip: up to four compact tiles
@@ -27,7 +27,7 @@ export function CompactRail({ title, products }: { title: string; products: Prod
                 {p.title}
               </Link>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-1.5">
-                <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)]">{priceShort(p.price)}</span>
+                <span className="font-extrabold text-eu-ink text-[length:var(--fs-16)]"><Price value={p.price} short /></span>
                 <AddButton product={p} label="Προσθήκη" />
               </div>
             </div>

@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { sx } from "@/components/ui/sx";
 import { StickerSvg, stickerAnimationClass } from "@/components/stickers/StickerSvg";
 import type { StickerParams } from "@/lib/stickers/model";
+import { Price } from "@/components/commerce/Price";
 
 /** Sticker πάνω στο banner: κλιμακώνεται με το πλάτος του χώρου του (το SVG γεμίζει το κουτί του). */
 function BannerSticker({ sticker, id, className }: { sticker: StickerParams; id: string; className: string }) {
@@ -54,7 +55,7 @@ function PodiumTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: Bann
       {/* στρογγυλή τιμή: δαχτυλίδι στο χρώμα έμφασης, «ΜΟΝΟ» κόκκινο όπως στα φυλλάδια */}
       <span className="absolute right-[4%] top-[25%] size-[30%] grid place-content-center justify-items-center rounded-full bg-[color-mix(in_srgb,var(--pb)_82%,white)] ring-[1cqw] ring-[var(--pa)] leading-none">
         {d.products.priceLabel && <span className="font-extrabold text-[#d62828] text-[length:clamp(0.5625rem,3cqw,0.875rem)]">{d.products.priceLabel}</span>}
-        <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]">{eur(p.price)}<span className="text-[0.45em] align-top ml-[0.08em]">€</span></span>
+        <span className="font-heading font-extrabold tabular-nums text-[var(--pa)] text-[length:clamp(0.875rem,6.6cqw,2.25rem)]"><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-70 text-[length:clamp(0.5625rem,2.8cqw,0.875rem)]">{eur(p.wasPrice)} €</s>}
       </span>
       {/* βάθρο: έλλειψη (πάνω όψη) πάνω σε πιο σκούρο σώμα */}
@@ -87,7 +88,7 @@ function PostTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: Banner
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
       <span className="absolute right-[6%] bottom-[6%] grid justify-items-end leading-none">
         {d.products.priceLabel && <span className="font-bold tracking-wide text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{d.products.priceLabel}</span>}
-        <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}>{eur(p.price)}<span className="text-[0.45em] align-top ml-[0.1em]">€</span></span>
+        <span className={`font-heading font-extrabold tabular-nums text-[length:clamp(1.375rem,11.5cqw,4rem)] ${accent.className}`}><Price value={p.price} short euroSmall /></span>
         {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className="tabular-nums opacity-80 text-[length:clamp(0.6875rem,3.4cqw,1rem)]">{eur(p.wasPrice)} €</s>}
       </span>
     </a>
@@ -155,7 +156,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
                   {d.products.showEnergy && p.energy && <span className={one ? "justify-self-start" : "justify-self-start @xl:justify-self-center"}><EnergyChip cls={p.energy} fiche="" compact /></span>}
                   <span className="grid leading-none mt-1">
                     {d.products.priceLabel && <span className="font-bold text-[length:var(--fs-12)] tracking-wide">{d.products.priceLabel}</span>}
-                    <span className={`font-heading font-extrabold tabular-nums ${one ? "text-[length:var(--fs-34)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)]"} ${accent.className}`}>{eur(p.price)}<span className="text-[0.5em] align-top ml-0.5">€</span></span>
+                    <span className={`font-heading font-extrabold tabular-nums ${one ? "text-[length:var(--fs-34)] @xl:text-[length:var(--fs-44)]" : "text-[length:var(--fs-24)] @xl:text-[length:var(--fs-28)]"} ${accent.className}`}><Price value={p.price} short euroSmall /></span>
                     {d.products.showWas && p.wasPrice != null && p.wasPrice > p.price && <s className={`tabular-nums text-[length:var(--fs-13)] ${sub}`}>{eur(p.wasPrice)} €</s>}
                   </span>
                 </div>

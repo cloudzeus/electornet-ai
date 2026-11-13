@@ -12,8 +12,8 @@ import { useDevice } from "@/components/fluid/DeviceProvider";
 import { StarLight } from "@/components/motion/StarLight";
 import { Spotlight } from "@/components/motion/Spotlight";
 import { copyOf } from "@/lib/cms/copy";
-import { priceLong } from "@/lib/format";
 import { sx } from "@/components/ui/sx";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("hero");
 
@@ -211,7 +211,7 @@ export function CinematicHero({ slides, intervalMs: intervalProp, emblem }: { sl
             <span className="eu-rays hidden @lg:block w-[140%] left-[-20%] top-[-20%]" aria-hidden />
             <Link href={s.productHref ?? s.primary.href} data-product-inner aria-label={s.alt} className="relative block w-full h-full eu-float">
               <Image src={s.cutout} alt="" fill sizes="(max-width: 1024px) 90vw, 640px" preload={i === 0} className="object-contain eu-cutout-shadow-dark" unoptimized={s.cutout.startsWith("http")} />
-              {s.price ? <span className="absolute left-1/2 -translate-x-1/2 bottom-[4%] rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-1.5 text-[length:var(--fs-16)] shadow-lg whitespace-nowrap tabular-nums">{priceLong(s.price)}</span> : null}
+              {s.price ? <span className="absolute left-1/2 -translate-x-1/2 bottom-[4%] rounded-full bg-eu-yellow text-eu-navy font-extrabold px-3.5 py-1.5 text-[length:var(--fs-16)] shadow-lg whitespace-nowrap tabular-nums"><Price value={s.price} /></span> : null}
             </Link>
           </div>
         )}

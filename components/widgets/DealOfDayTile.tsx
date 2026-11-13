@@ -14,6 +14,7 @@ import { Tilt } from "@/components/motion/Tilt";
 import { flyToCart } from "@/lib/motion/flyToCart";
 import { copyOf } from "@/lib/cms/copy";
 import { sx } from "@/components/ui/sx";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("dealTile");
 
@@ -58,7 +59,7 @@ export function DealOfDayTile({ product: p, endsAt }: { product: Product; endsAt
               {p.title}
             </Link>
             <div className="flex items-baseline gap-2 mt-2 flex-wrap">
-              <span className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none tracking-[-0.03em]">{priceShort(p.price)}</span>
+              <span className="font-heading font-extrabold text-eu-ink text-[length:var(--fs-28)] leading-none tracking-[-0.03em]"><Price value={p.price} short /></span>
               {p.wasPrice && <s className="font-medium text-eu-muted-2 text-[length:var(--fs-13-5)]">{priceShort(p.wasPrice)}</s>}
             </div>
             <div className="text-eu-muted text-[length:var(--fs-13)] leading-snug mt-1.5">

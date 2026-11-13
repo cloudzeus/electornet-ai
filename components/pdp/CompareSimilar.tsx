@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
-import { priceShort } from "@/lib/format";
 import { CompareCheckbox } from "@/components/commerce/WishlistButton";
 import { attributesOf } from "@/lib/data/attributes";
 import { CompareStacked } from "@/components/catalog/CompareStacked";
@@ -8,6 +7,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { compareScope } from "@/lib/data/compare-scope";
 import { sx } from "@/components/ui/sx";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("compareSimilar");
 
@@ -57,7 +57,7 @@ export function CompareSimilar({ product: p, similar }: { product: Product; simi
                   <ProductImage src={x.image} sizes="140px" className="w-full max-w-[140px] mb-2" rounded="rounded-lg" />
                   <div className="text-eu-muted text-[length:var(--fs-14)] truncate">{x.brand}</div>
                   {i === 0 ? <div className="font-bold text-eu-ink line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</div> : <Link href={`/proion/${x.slug}`} className="block font-bold text-eu-ink hover:text-eu-blue line-clamp-2 min-h-[2.6em] leading-tight">{x.title}</Link>}
-                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mt-1 min-h-[1.3em]">{priceShort(x.price)}</div>
+                  <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] mt-1 min-h-[1.3em]"><Price value={x.price} short /></div>
                   {i === 0 ? <div className="mt-1 inline-block rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13-5)] px-2 py-0.5">{c.ayto_to_proion}</div> : <div className="mt-1"><CompareCheckbox id={x.id} scope={compareScope(x)} /></div>}
                 </th>
               ))}

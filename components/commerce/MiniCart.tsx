@@ -6,10 +6,11 @@ import { Minus, Plus, Trash2, X, Check, Truck, ShieldCheck, RotateCcw, ChevronRi
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { Product } from "@/lib/data/types";
 import { useCart } from "./CartProvider";
-import { instalment, priceLong, priceShort } from "@/lib/format";
+import { instalment, priceLong } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { sx } from "@/components/ui/sx";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("miniCart");
 
@@ -133,7 +134,7 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
                           <ProductImage src={s.image} sizes="56px" className="size-14" rounded="rounded-md" />
                           <div className="min-w-0 flex-1">
                             <div className="font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight line-clamp-2">{s.title}</div>
-                            <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)]">{priceShort(s.price)}</div>
+                            <div className="font-extrabold text-eu-ink text-[length:var(--fs-15)]"><Price value={s.price} short /></div>
                           </div>
                           <button type="button" onClick={() => add(s, { openMiniCart: true })} className="rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-3.5 min-h-10 inline-flex items-center gap-1 hover:bg-eu-surface shrink-0">
                             <Plus className="size-4" aria-hidden /> {c.prosthiki}

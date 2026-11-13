@@ -21,6 +21,7 @@ import type { CardSticker } from "@/lib/stickers/layout";
 import { FitBadge } from "@/components/space/FitBadge";
 import { copyOf } from "@/lib/cms/copy";
 import { compareScope } from "@/lib/data/compare-scope";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("productCard");
 
@@ -135,7 +136,7 @@ export function ProductCard({ product: p, priority = false, dealEndsAt, tone = "
                   </Link>
                 </h3>
                 <div className="flex items-baseline gap-2 mt-2.5">
-                  <span className={`font-extrabold text-eu-ink leading-none tracking-[-0.02em] ${p.noPrice ? "text-[length:var(--fs-19)]" : "text-[length:var(--fs-27)]"}`}>{priceShort(p.price)}</span>
+                  <span className={`font-extrabold text-eu-ink leading-none tracking-[-0.02em] ${p.noPrice ? "text-[length:var(--fs-19)]" : "text-[length:var(--fs-27)]"}`}><Price value={p.price} short /></span>
                   {p.wasPrice && <s className="font-medium text-eu-muted-2 text-[length:var(--fs-15)]">{priceShort(p.wasPrice)}</s>}
                 </div>
                 <div className="text-eu-muted text-[length:var(--fs-14)] leading-snug mt-1 min-h-[1.4em]">{p.lowest30 ? `Χαμηλότερη 30 ημερών: ${priceLong(p.lowest30)}` : p.promo?.kind === "bundle" ? `Δώρο μαζί: ${p.promo.with}` : p.gift ?? ""}</div>

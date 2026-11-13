@@ -14,6 +14,7 @@ import { ProductImage } from "@/components/commerce/ProductImage";
 import { CompareVerdict } from "./CompareVerdict";
 import { copyOf } from "@/lib/cms/copy";
 import { sx } from "@/components/ui/sx";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("compare");
 
@@ -86,7 +87,7 @@ export function CompareTable({ initial }: { initial: Product[] }) {
                       {p.title}
                     </Link>
                     <div className="flex items-baseline gap-2 mt-2 min-h-[2.2em] flex-wrap">
-                      <span className="font-extrabold text-eu-ink text-[length:var(--fs-26)] leading-none">{priceShort(p.price)}</span>
+                      <span className="font-extrabold text-eu-ink text-[length:var(--fs-26)] leading-none"><Price value={p.price} short /></span>
                       {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
                       {!p.noPrice && p.price === cheapest && initial.length > 1 && <span className="rounded-full bg-eu-green text-white text-[length:var(--fs-13)] font-bold px-2 py-0.5">{c.fthinotero}</span>}
                     </div>

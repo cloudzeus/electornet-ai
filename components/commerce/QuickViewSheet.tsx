@@ -19,6 +19,7 @@ import {
 import { attributesOf } from "@/lib/data/attributes";
 import type { Product } from "@/lib/data/types";
 import { copyOf } from "@/lib/cms/copy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("quickView");
 
@@ -174,7 +175,7 @@ function Body({ p }: { p: Product }) {
           <div>
             <div className="flex items-end gap-3 flex-wrap">
               <span className="font-extrabold text-eu-ink text-[length:var(--fs-36)] leading-none tracking-[-0.02em]">
-                {priceShort(p.price)}
+                <Price value={p.price} short />
               </span>
               {p.wasPrice && (
                 <s className="pb-1 text-eu-muted-2 text-[length:var(--fs-17)]">

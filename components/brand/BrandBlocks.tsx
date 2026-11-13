@@ -13,6 +13,7 @@ import { Tilt } from "@/components/motion/Tilt";
 import { AskAris } from "@/components/advisor/AskAris";
 import { BlockHead } from "./BrandFrame";
 import { copyOf } from "@/lib/cms/copy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("brandBlocks");
 
@@ -43,7 +44,7 @@ export function NewArrivals({ b, products }: { b: Extract<BrandBlock, { type: "n
                     <span className="block text-[var(--bs-muted)] font-bold text-[length:var(--fs-13)] uppercase">{p.brand}</span>
                     <span className="block font-heading font-bold text-[length:var(--fs-19)] leading-tight line-clamp-2">{p.title}</span>
                     <span className="mt-2 flex items-baseline gap-2">
-                      <span className="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.02em]">{priceShort(p.price)}</span>
+                      <span className="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.02em]"><Price value={p.price} short /></span>
                       <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)]">ή 24 × {priceLong(instalment(p.price, 24))}</span>
                     </span>
                   </span>

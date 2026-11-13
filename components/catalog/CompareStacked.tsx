@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Product } from "@/lib/data/types";
-import { priceShort } from "@/lib/format";
 import { ProductImage } from "@/components/commerce/ProductImage";
+import { Price } from "@/components/commerce/Price";
 
 
 const TONES = ["bg-eu-navy", "bg-eu-blue", "bg-eu-green", "bg-eu-amber"];
@@ -35,7 +35,7 @@ export function CompareStacked({ products, rows, val, current }: { products: Pro
               <Link href={`/proion/${p.slug}`} className="block font-bold text-eu-ink text-[length:var(--fs-14)] leading-tight line-clamp-2 min-h-[2.4em] hover:text-eu-blue">
                 {p.title}
               </Link>
-              <div className="font-extrabold text-eu-ink text-[length:var(--fs-17)] mt-1">{priceShort(p.price)}</div>
+              <div className="font-extrabold text-eu-ink text-[length:var(--fs-17)] mt-1"><Price value={p.price} short /></div>
             </div>
           </li>
         ))}

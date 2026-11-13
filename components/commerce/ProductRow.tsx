@@ -8,6 +8,7 @@ import { EnergyChip } from "./EnergyChip";
 import { WishlistButton } from "./WishlistButton";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("productRow");
 
@@ -42,14 +43,14 @@ export function ProductRow({ product: p }: { product: Product }) {
           </dl>
         )}
         <div className="@md:hidden mt-2 flex items-baseline gap-1.5">
-          <span className="font-extrabold text-eu-ink text-[length:var(--fs-19)]">{priceShort(p.price)}</span>
+          <span className="font-extrabold text-eu-ink text-[length:var(--fs-19)]"><Price value={p.price} short /></span>
           {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-13-5)]">{priceShort(p.wasPrice)}</s>}
         </div>
       </div>
       <div className="col-span-2 @md:col-span-1 flex @md:flex-col gap-2 @md:gap-1.5 items-center @md:items-stretch">
         <div className="hidden @md:block">
           <div className="flex items-baseline gap-1.5">
-            <span className="font-extrabold text-eu-ink text-[length:var(--fs-24)] leading-none">{priceShort(p.price)}</span>
+            <span className="font-extrabold text-eu-ink text-[length:var(--fs-24)] leading-none"><Price value={p.price} short /></span>
             {p.wasPrice && <s className="text-eu-muted-2 text-[length:var(--fs-14)]">{priceShort(p.wasPrice)}</s>}
           </div>
           {p.lowest30 && <div className="text-eu-muted text-[length:var(--fs-13)] mt-1">Χαμηλότερη τιμή 30 ημερών: {priceLong(p.lowest30)}</div>}

@@ -3,9 +3,9 @@ import Link from "next/link";
 
 import { useEffect, useState } from "react";
 import type { Product } from "@/lib/data/types";
-import { priceShort } from "@/lib/format";
 import { useCart } from "@/components/commerce/CartProvider";
 import { copyOf } from "@/lib/cms/copy";
+import { Price } from "@/components/commerce/Price";
 
 const c = copyOf("stickyBar");
 
@@ -35,7 +35,7 @@ export function StickyBar({ product: p }: { product: Product }) {
             </a>
           </nav>
         </div>
-        <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] whitespace-nowrap">{priceShort(p.price)}</div>
+        <div className="font-extrabold text-eu-ink text-[length:var(--fs-19)] whitespace-nowrap"><Price value={p.price} short /></div>
         {p.noPrice ? (
           <Link href="/katastimata" className="flex-1 @md:flex-none rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-15)] px-5 min-h-11 inline-flex items-center justify-center hover:bg-eu-yellow-dark">Βρες κατάστημα</Link>
         ) : (
