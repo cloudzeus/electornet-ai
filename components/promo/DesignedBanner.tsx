@@ -35,15 +35,15 @@ function PriceShapeBox({ d, p, className }: { d: BannerDesign; p: BannerProduct;
 }
 /** Λάμψη που περνά πάνω από το τετράγωνο (κίνηση «Λάμψη»). */
 const Shine = ({ d }: { d: BannerDesign }) => (d.tileAnim === "shine" ? <div aria-hidden className="eu-sweep -z-10" /> : null);
-type TileProps = { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[]; sticker?: StickerParams | null };
-const frame = (tall: boolean) => `@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : "aspect-square"} focus-visible:outline-2 focus-visible:outline-eu-blue`;
+type TileProps = { d: BannerDesign; p: BannerProduct; tall: boolean; /** μόνο του στο banner: σε φαρδύ χώρο γίνεται πλατύ αντί για τεράστιο τετράγωνο */ solo?: boolean; bullets: string[]; sticker?: StickerParams | null };
+const frame = (tall: boolean, solo?: boolean) => `@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : solo ? "aspect-square @2xl:aspect-[2/1] @5xl:aspect-[5/2]" : "aspect-square"} focus-visible:outline-2 focus-visible:outline-eu-blue`;
 
 /** Τετράγωνο «Λευκή κάρτα»: λευκό, γραμμή καμπάνιας πάνω, προϊόν μεγάλο, μάρκα/τίτλος κάτω αριστερά, τιμή κάτω δεξιά. */
-function CleanTile({ d, p, tall, sticker }: TileProps) {
+function CleanTile({ d, p, tall, solo, sticker }: TileProps) {
   const v = sx({ "--pb": d.bg.color, "--pa": d.accent, "--pk": onColor(d.bg.color) });
   const shaped = d.priceShape !== "auto";
   return (
-    <a href={p.href} className={`${frame(tall)} bg-white text-eu-ink border border-eu-line ${v.className}`}>
+    <a href={p.href} className={`${frame(tall, solo)} bg-white text-eu-ink border border-eu-line ${v.className}`}>
       {v.node}<Shine d={d} />
       <span aria-hidden className="absolute inset-x-0 top-0 h-[2.5%] bg-[var(--pb)]" />
       {d.logo ? <img src={d.logo} alt="" className="absolute left-[5%] top-[6%] w-[26%] max-h-[16%] object-contain object-left-top" />
@@ -67,12 +67,12 @@ function CleanTile({ d, p, tall, sticker }: TileProps) {
 }
 
 /** Τετράγωνο «Ζώνη τιμής»: το προϊόν πάνω στο χρώμα φόντου, και κάτω ζώνη στο χρώμα έμφασης με την τιμή μεγάλη. */
-function BandTile({ d, p, tall, sticker }: TileProps) {
+function BandTile({ d, p, tall, solo, sticker }: TileProps) {
   const light = d.ink === "light";
   const v = sx({ "--pa": d.accent, "--pi": onColor(d.accent), backgroundColor: d.bg.color });
   const shaped = d.priceShape !== "auto";
   return (
-    <a href={p.href} className={`${frame(tall)} ${light ? "text-white" : "text-eu-navy"} ${v.className}`}>
+    <a href={p.href} className={`${frame(tall, solo)} ${light ? "text-white" : "text-eu-navy"} ${v.className}`}>
       {v.node}
       {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
       <Shine d={d} />
@@ -114,11 +114,11 @@ const eur = (v: number) => v.toLocaleString("el-GR", { minimumFractionDigits: Nu
  * αριστερά, μάρκα και προϊόν πάνω δεξιά, χαρακτηριστικά με εικονίδιο αριστερά, στρογγυλή τιμή δεξιά, το προϊόν πάνω σε βάθρο.
  * Το βάθρο και η λάμψη βγαίνουν από το χρώμα φόντου (color-mix), ώστε να δουλεύει με όποιο χρώμα καμπάνιας.
  */
-function PodiumTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[]; sticker?: StickerParams | null }) {
+function PodiumTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
   const light = d.ink === "light";
   const v = sx({ "--pb": d.bg.color, "--pa": d.accent, backgroundColor: d.bg.color });
   return (
-    <a href={p.href} className={`@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : "aspect-square"} ${light ? "text-white" : "text-[#122a58]"} ${v.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
+    <a href={p.href} className={`${frame(tall, solo)} ${light ? "text-white" : "text-[#122a58]"} ${v.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
       {v.node}
       {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(58%_46%_at_50%_52%,rgba(255,255,255,.7),transparent_72%)]" />
@@ -155,21 +155,21 @@ function PodiumTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: Bann
   );
 }
 
-function PostTile({ d, p, tall, bullets, sticker }: { d: BannerDesign; p: BannerProduct; tall: boolean; bullets: string[]; sticker?: StickerParams | null }) {
+function PostTile({ d, p, tall, solo, bullets, sticker }: TileProps) {
   const light = d.ink === "light";
   const bg = sx({ backgroundColor: d.bg.color });
   const accent = sx({ color: d.accent });
   return (
-    <a href={p.href} className={`@container relative isolate block overflow-hidden rounded-2xl ${tall ? "aspect-[4/5]" : "aspect-square"} ${light ? "text-white" : "text-eu-navy"} ${bg.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
+    <a href={p.href} className={`${frame(tall, solo)} ${light ? "text-white" : "text-eu-navy"} ${bg.className} focus-visible:outline-2 focus-visible:outline-eu-blue`}>
       {bg.node}{accent.node}
-      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />}
+      {d.bg.image && <img src={d.bg.image} alt="" loading="lazy" className={`absolute inset-0 -z-10 size-full object-cover ${solo ? "object-left-top" : ""}`} />}
       {d.bg.anim === "spotlight" && <div aria-hidden className="eu-spot -z-10" />}
       <Shine d={d} />
       <div className="absolute right-[6%] top-[7%] w-[48%] grid gap-[1cqw] text-right">
         {d.products.showBrand && <span className="font-heading font-extrabold uppercase leading-none text-[length:clamp(0.8125rem,7cqw,2.25rem)]">{p.brand}</span>}
         <span className="font-semibold leading-tight line-clamp-2 text-[length:clamp(0.6875rem,3.6cqw,1.125rem)]">{p.title}</span>
       </div>
-      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
+      {p.image && <img src={p.image} alt={`${p.brand} ${p.title}`} loading="lazy" className={`absolute left-[6%] top-[28%] w-[64%] h-[42%] ${solo ? "@2xl:left-[37%] @2xl:top-[12%] @2xl:w-[30%] @2xl:h-[76%]" : ""} object-contain object-center ${p.cutout ? (light ? "eu-cutout-shadow-dark" : "eu-cutout-shadow") : "rounded-xl bg-white p-[3%]"} ${d.tileAnim === "float" ? "eu-float" : ""}`} />}
       {d.products.showEnergy && p.energy && <span className="absolute right-[7%] top-[38%]"><EnergyChip cls={p.energy} fiche="" compact /></span>}
       {sticker && <BannerSticker sticker={sticker} id={`bns-${p.id}`} className="left-[3%] top-[56%] w-[24%]" />}
       {bullets.length > 0 && <ul className="absolute left-[7%] bottom-[6%] w-[48%] m-0 pl-[1.1em] grid gap-[0.5cqw] font-semibold leading-tight text-[length:clamp(0.6875rem,3.8cqw,1.25rem)]">{bullets.slice(0, 3).map((x) => <li key={x}>{x}</li>)}</ul>}
@@ -201,7 +201,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
           </div>
         )}
         <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : COLS[Math.min(tiles.length, d.products.perRow)] ?? COLS[4]}`}>
-          {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} bullets={tiles.length === 1 ? d.products.bullets : []} sticker={sticker} />; })}
+          {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo={tiles.length === 1} bullets={tiles.length === 1 ? d.products.bullets : []} sticker={sticker} />; })}
         </div>
       </div>
     );
