@@ -17,6 +17,7 @@
     "photos:fill": "tsx --conditions=react-server scripts/fill-photos.ts",
     "help:gen": "tsx scripts/help-gen.ts",
     "help:shots": "tsx scripts/help-shots.ts",
+    "help:videos": "tsx scripts/help-videos.ts",
     "advisor:guides": "tsx --conditions=react-server scripts/advisor-guides.ts"
   },
   "dependencies": {

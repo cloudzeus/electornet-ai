@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T14:47:32.315Z",
+ "generatedAt": "2026-11-13T15:31:15.036Z",
  "routes": [
   {
    "route": "/admin",
@@ -4923,11 +4923,6 @@
      "hash": "bd83367",
      "date": "2026-10-04T12:11:34+03:00",
      "text": "Καταστήματα (admin): λίστα και χάρτης δίπλα-δίπλα στο ύψος της οθόνης, φίλτρα σε μία γραμμή με επιλογή νομού, χάρτης που εστιάζει στα καταστήματα"
-    },
-    {
-     "hash": "a1f74f9",
-     "date": "2026-09-13T13:04:45+03:00",
-     "text": "Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode …"
     }
    ],
    "updatedAt": "2026-10-13T20:12:49+03:00",
@@ -4946,14 +4941,8 @@
    "nav": null,
    "dynamic": true,
    "helpKeys": [],
-   "changes": [
-    {
-     "hash": "a1f74f9",
-     "date": "2026-09-13T13:04:45+03:00",
-     "text": "Stores module: one-time import of 252 member stores from euronics.gr with coordinates, ZIP-based prefectures, Nominatim geocoding + QA delta, Store model extended (contact, hours, services, photo, ERP branch, geocode …"
-    }
-   ],
-   "updatedAt": "2026-09-13T13:04:45+03:00",
+   "changes": [],
+   "updatedAt": null,
    "shots": {}
   },
   {
@@ -5193,6 +5182,18 @@
   }
  ],
  "recent": [
+  {
+   "hash": "e38d814",
+   "date": "2026-11-13T16:53:10+02:00",
+   "text": "Σελίδα προϊόντος: τα stickers προσφοράς μπαίνουν πάνω στη φωτογραφία (όπως στην κάρτα) αντί σε δική τους γραμμή κάτω από αυτήν",
+   "routes": []
+  },
+  {
+   "hash": "b252dfc",
+   "date": "2026-11-13T16:47:41+02:00",
+   "text": "Landing προσφοράς: στο hero τα 3 προϊόντα με τη μεγαλύτερη έκπτωση πάνω στην εικόνα της καμπάνιας (όχι άδεια εικόνα), στοιχεία «πόσα προϊόντα",
+   "routes": []
+  },
   {
    "hash": "99288d9",
    "date": "2026-11-13T16:41:50+02:00",
@@ -5459,24 +5460,6 @@
    "date": "2026-11-12T08:28:09+02:00",
    "text": "Φωτογραφίες από το web: και από τον Κωτσόβολο",
    "routes": []
-  },
-  {
-   "hash": "a0e34b7",
-   "date": "2026-11-12T08:20:48+02:00",
-   "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
-  },
-  {
-   "hash": "28822b2",
-   "date": "2026-11-12T08:20:48+02:00",
-   "text": "Βιβλιοθήκη πολυμέσων ως παράθυρο επιλογής: το «Επιλογή» μένει πάντα ορατό και το πλέγμα έχει κανονικές κάρτες",
-   "routes": [
-    "/admin",
-    "/admin/catalog"
-   ]
   }
  ],
  "helpKeys": {

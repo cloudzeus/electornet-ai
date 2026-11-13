@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { HelpVideos } from "./HelpVideos";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowRight, BookOpen, ChevronDown, CircleHelp, ExternalLink, Lightbulb, Loader2, MapPin, Sparkles, X } from "lucide-react";
@@ -82,6 +83,7 @@ export function HelpDrawer() {
                   </section>
                 )}
 
+                {page?.videos?.length ? <HelpVideos videos={page.videos} compact /> : null}
                 {page?.tasks?.length ? (
                   <section className="grid gap-1.5" aria-labelledby="h-tasks">
                     <h3 id="h-tasks" className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Πώς κάνω…</h3>

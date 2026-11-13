@@ -8,6 +8,8 @@
 
 /** Ένα σημείο της σελίδας (component) — ίδιο κλειδί με το `data-help="…"` στο UI, για «Δείξε μου». */
 export interface HelpPart { key: string; title: string; text: string }
+/** Video-ξενάγηση: `file` = όνομα χωρίς κατάληξη. */
+export interface HelpVideo { file: string; title: string; seconds: number }
 /** Μια εργασία βήμα-βήμα («Πώς προσθέτω…»). */
 export interface HelpTask { title: string; steps: string[]; link?: { label: string; href: string } }
 
@@ -17,6 +19,8 @@ export interface HelpPage {
   title: string;
   summary: string;
   tasks?: HelpTask[];
+  /** σύντομα video-ξεναγήσεις της σελίδας (help-shots/video/<file>.mp4 — τα γυρίζει το `npm run help:videos`) */
+  videos?: HelpVideo[];
   parts?: HelpPart[];
   tips?: string[];
   related?: { label: string; href: string }[];

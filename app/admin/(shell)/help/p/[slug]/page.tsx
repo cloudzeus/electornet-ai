@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HelpVideos } from "@/components/admin/help/HelpVideos";
 import { notFound } from "next/navigation";
 import { ArrowRight, ExternalLink, Lightbulb, MapPin, ShieldCheck, Sparkles } from "lucide-react";
 import { ROLES } from "@/prisma/roles";
@@ -61,6 +62,7 @@ export default async function WikiPage({ params }: { params: Promise<{ slug: str
         </section>
       ) : null}
 
+      {c?.videos?.length ? <HelpVideos videos={c.videos} /> : null}
       {c?.tasks?.length ? (
         <section aria-labelledby="h-tasks" className="grid gap-2">
           <h2 id="h-tasks" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-18)]">Πώς κάνω…</h2>
