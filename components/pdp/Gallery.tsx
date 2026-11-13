@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { CardStickers } from "@/components/commerce/CardStickers";
+import type { CardSticker } from "@/lib/stickers/layout";
 import Image from "@/components/ui/Image";
 import { ViewTransition } from "react";
 import type { Product } from "@/lib/data/types";
@@ -27,6 +29,7 @@ export function Gallery({
   badge,
   energy,
   actions,
+  stickers,
 }: {
   productId: string;
   images: string[];
@@ -34,6 +37,8 @@ export function Gallery({
   badge?: Product["badge"];
   energy?: Product["energy"];
   actions?: ReactNode;
+  /** stickers προσφοράς / σήματα: μπαίνουν πάνω στη φωτογραφία, όπως στην κάρτα του προϊόντος */
+  stickers?: CardSticker[];
 }) {
   const [i, setI] = useState(0);
   const src = images[i];
@@ -95,6 +100,14 @@ export function Gallery({
                 )}
               </div>
             </ViewTransition>
+            {/* πάνω στη φωτογραφία, μεγαλύτερα από της κάρτας· η πάνω-αριστερή γωνία μένει για το σήμα «Προσφορά / Νέο», η κάτω-αριστερή για την ενεργειακή ετικέτα */}
+            {stickers && stickers.length > 0 && (
+              <>
+                {/* κινητό: η φωτογραφία είναι χαμηλή (3:2), οπότε ένα sticker σε μικρότερο μέγεθος, μακριά από το κουμπί «Μεγέθυνση» κάτω δεξιά */}
+                <div className="absolute inset-0 pointer-events-none @md:hidden"><CardStickers stickers={stickers} max={1} scale={0.7} reserved={{ tl: !!badge, bl: !!energy, br: true, mr: true, bc: true }} idPrefix={`pdpm-${productId}`} /></div>
+                <div className="absolute inset-0 pointer-events-none hidden @md:block"><CardStickers stickers={stickers} max={2} scale={1.35} reserved={{ tl: !!badge, bl: !!energy }} idPrefix={`pdp-${productId}`} /></div>
+              </>
+            )}
             {badge?.kind === "discount" && (
               <span className="absolute top-3 left-3 bg-eu-red text-white font-extrabold text-[length:var(--fs-14)] px-3 py-1.5 rounded-md eu-shimmer">
                 {c.prosfora}

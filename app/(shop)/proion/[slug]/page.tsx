@@ -39,7 +39,6 @@ import { StoreBox } from "@/components/pdp/StoreBox";
 import { CollapsibleDescription } from "@/components/pdp/CollapsibleDescription";
 import { RichDescription } from "@/components/pdp/RichDescription";
 import { ProductVideos } from "@/components/pdp/ProductVideos";
-import { StickerRow } from "@/components/commerce/CardStickers";
 import { ReplaceOld } from "@/components/snap/ReplaceOld";
 import { kindOfProduct } from "@/lib/snap/kind";
 import { jsonLd } from "@/lib/security/json-ld";
@@ -112,14 +111,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           {/* Κινητό: η αριστερή στήλη «λύνεται» (contents) ώστε το buy box να μπει αμέσως μετά τη φωτογραφία */}
           <div className="min-w-0 contents @lg:grid gap-6 content-start">
             <div className="order-1 min-w-0">
-              <Gallery productId={p.id} images={p.images?.length ? p.images : p.image ? [p.image] : []} title={p.title} badge={p.badge} energy={p.energy} />
+              <Gallery productId={p.id} images={p.images?.length ? p.images : p.image ? [p.image] : []} title={p.title} badge={p.badge} energy={p.energy} stickers={p.stickers} />
             </div>
             <div className="order-3 min-w-0 flex flex-wrap items-center gap-2 empty:hidden">
               {arInput && <ArButton id={p.id} title={arInput.title} dims={arP.dims} tv={arP.tv} version={arVersion} ios={!ar?.glbUrl || !!ar?.usdzUrl} light={!!ar?.glbLightUrl} surface={arP.surface} alt={arP.alt} hint={arP.hint} buy={p.noPrice || !p.price ? undefined : { product: p, price: p.price }} />}
               <FitBadge product={p} size="lg" prompt />
               {kindOfProduct(p) && <ReplaceOld product={{ slug: p.slug, brand: p.brand, title: p.title, image: p.image ?? null, price: p.price }} />}
             </div>
-            {p.stickers?.length ? <div className="order-3 min-w-0"><StickerRow stickers={p.stickers} idPrefix={`pdp-${p.id}`} /></div> : null}
             <div className="order-3 min-w-0 empty:hidden"><EnergyCost product={p} co2={co2} /></div>
             {p.tradeIn && (
               <div className="order-3 rounded-xl bg-eu-surface p-4 flex items-center gap-3">
