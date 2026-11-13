@@ -127,11 +127,23 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const pages = Math.max(1, Math.ceil(total / PAGE));
   // sets και τεμάχια που πουλήθηκαν (e-shop + παραστατικά SoftOne, χωρίς ακυρωμένα) — μόνο για τις γραμμές της σελίδας, σε έναν γύρο
   const ids = rows.map((r) => r.id);
-  const [erpSold, variants, shopSold] = await Promise.all([
+  const [erpSold, variants, shopSold, minSales] = await Promise.all([
     db.purchaseLine.groupBy({ by: ["productId"], where: { productId: { in: ids }, purchase: { parentId: null, kind: { in: ["order", "receipt", "invoice"] }, NOT: { status: "cancelled" } } }, _sum: { qty: true } }),
     db.variant.findMany({ where: { productId: { in: ids } }, select: { id: true, productId: true } }),
     db.orderLine.groupBy({ by: ["variantId"], where: { variant: { productId: { in: ids } }, isGift: false, order: { status: { notIn: ["cancelled", "failed"] } } }, _sum: { qty: true } }),
+    // χαμηλότερη τιμή μονάδας που πουλήθηκε (με ΦΠΑ, μετά τις εκπτώσεις): παραστατικά SoftOne (χωρίς πιστωτικά/ακυρωμένα) + e-shop
+    ids.length ? db.$queryRaw<{ pid: string; price: number; date: Date }[]>`
+      SELECT DISTINCT ON (pid) pid, price::float8 AS price, date FROM (
+        SELECT pl."productId" AS pid, COALESCE(pl."lineTotal" / NULLIF(pl.qty, 0)::numeric, pl."unitPrice") AS price, p.date
+          FROM "PurchaseLine" pl JOIN "Purchase" p ON p.id = pl."purchaseId"
+          WHERE pl."productId" = ANY(${ids}) AND pl.qty > 0 AND p.kind IN ('order', 'receipt', 'invoice') AND p.status IS DISTINCT FROM 'cancelled'
+        UNION ALL
+        SELECT v."productId", ol."unitPrice", o."createdAt"
+          FROM "OrderLine" ol JOIN "Variant" v ON v.id = ol."variantId" JOIN "Order" o ON o.id = ol."orderId"
+          WHERE v."productId" = ANY(${ids}) AND ol.qty > 0 AND NOT ol."isGift" AND o.status NOT IN ('cancelled', 'failed')
+      ) x WHERE price > 0 ORDER BY pid, price ASC, date DESC` : Promise.resolve([]),
   ]);
+  const minSale = new Map(minSales.map((x) => [x.pid, { price: Math.round(x.price * 100) / 100, date: x.date.toISOString() }]));
   const sold = new Map<string, number>();
   for (const x of erpSold) if (x.productId) sold.set(x.productId, (sold.get(x.productId) ?? 0) + (x._sum.qty ?? 0));
   const vp = new Map(variants.map((v) => [v.id, v.productId]));
@@ -144,7 +156,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     price: r.price, offer: r.offer ? Number(r.offer.price) : null, stock: r.stock, sold: sold.get(r.id) ?? 0,
     energy: r.energy ? { cls: r.energy.class, source: r.energy.source } : null, energyNeeded: hasEnergyLabel(r.category.name), dims: r._count.dimensions, dimStatus: r.dimStatus,
     updated: r.updatedAt.toISOString(), created: r.createdAt.toISOString(), synced: r.s1SyncedAt?.toISOString() ?? null, kot: kotView(r.competitorPrices[0]),
-    ...((c) => ({ cost: c?.cost ?? null, costUnverified: !!c?.unverified }))(r.competitorPrices[0]?.cost != null ? { cost: Number(r.competitorPrices[0].cost), unverified: false } : shownCost(live.get(Number(r.erpCode)), r.price, Number(r.vatRate))), vat: Number(r.vatRate),
+    ...((c) => ({ cost: c?.cost ?? null, costUnverified: !!c?.unverified }))(r.competitorPrices[0]?.cost != null ? { cost: Number(r.competitorPrices[0].cost), unverified: false } : shownCost(live.get(Number(r.erpCode)), r.price, Number(r.vatRate))), vat: Number(r.vatRate), minSale: minSale.get(r.id) ?? null,
   }; });
   const query = { kot, q, f, cat, sub, br, pmin, pmax, st, of, av, type, s: sRaw, d: dRaw, n: nRaw };
   // ενεργά φίλτρα ως chips (λέξεις, όχι μόνο χρώμα)· το ✕ κάθε chip αφαιρεί μόνο αυτό
