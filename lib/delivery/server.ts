@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalizeRates, quoteRate, type RateData } from "./rates";
+import { getSetting } from "@/lib/settings/store";
 import { decideRoute, normalizeDelivery, pickPartner, STEPS, type RouteCandidate, type RouteMode, type StepKey } from "./routing";
 
 /** Δημοσιευμένοι τιμοκατάλογοι, 60″ στη μνήμη. Σε σφάλμα (π.χ. ο πίνακας δεν υπάρχει ακόμη) → κανένας: το checkout μένει στις σταθερές τιμές. */
@@ -16,6 +17,9 @@ export async function getRateTables(): Promise<Map<string, RateData>> {
   return v;
 }
 export const resetRateCache = () => { rateMem = null; };
+
+/** Ρυθμίσεις → Αποστολές → «Ζωντανό απόθεμα συνεργαζόμενων καταστημάτων». Κλειστό (και όταν δεν έχει οριστεί): ο συνεργάτης προτείνεται κανονικά, αλλά το απόθεμά του δεν φαίνεται στον πελάτη ούτε μετρά στη δρομολόγηση. */
+export const partnerLiveStockOn = async () => (await getSetting("shipping").catch(() => null))?.data.partnerLiveStock === true;
 
 /** Συνεργάτες με ορισμένη εξυπηρέτηση eshop, 60″ στη μνήμη (για τον έλεγχο κάλυψης στο checkout). */
 let partnerMem: { at: number; v: { id: string; name: string; agencyId: string | null; delivery: ReturnType<typeof normalizeDelivery> }[] } | null = null;
@@ -40,9 +44,10 @@ export async function localPartnerFor(zip: string | null | undefined, bulky: boo
 export async function partnerCandidates(lines: { variantId: string; qty: number }[]): Promise<RouteCandidate[]> {
   const list = await servingPartners();
   if (!list.length) return [];
-  const stock = lines.length ? await db.storeStock.findMany({ where: { variantId: { in: lines.map((l) => l.variantId) }, store: { partnerId: { in: list.map((p) => p.id) }, active: true } }, select: { variantId: true, qty: true, store: { select: { partnerId: true } } } }) : [];
+  const live = lines.length > 0 && (await partnerLiveStockOn()); // χωρίς ζωντανό απόθεμα: κανείς «δεν έχει», άρα το στέλνουμε εμείς στο πρακτορείο του
+  const stock = live ? await db.storeStock.findMany({ where: { variantId: { in: lines.map((l) => l.variantId) }, store: { partnerId: { in: list.map((p) => p.id) }, active: true } }, select: { variantId: true, qty: true, store: { select: { partnerId: true } } } }) : [];
   const has = (pid: string) => lines.every((l) => stock.filter((s) => s.store.partnerId === pid && s.variantId === l.variantId).reduce((a, s) => a + s.qty, 0) >= l.qty);
-  return list.map((p) => ({ ...p, hasStock: lines.length > 0 && has(p.id) }));
+  return list.map((p) => ({ ...p, hasStock: live && has(p.id) }));
 }
 
 type OrderForRoute = { id: string; fulfilment: string; shipping: Prisma.JsonValue; lines: { variantId: string; qty: number }[]; promoTrace?: unknown };

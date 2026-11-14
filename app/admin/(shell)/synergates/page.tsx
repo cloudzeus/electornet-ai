@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleCheck, CirclePause } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
@@ -7,6 +8,7 @@ import { PartnerImport } from "@/components/admin/partners/PartnerImport";
 import { MissingStoresTools } from "@/components/admin/partners/PartnerStoreTools";
 import { creatableBranches } from "@/lib/b2b/branch-stores";
 import { VIVA_WHERE } from "@/lib/b2b/viva";
+import { partnerLiveStockOn } from "@/lib/delivery/server";
 import { PartnerRowMenu } from "@/components/admin/partners/PartnerRowMenu";
 
 export const metadata = { title: "Συνεργάτες (B2B)" };
@@ -29,6 +31,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
   if (view === "noncoop") where.cooperating = false;
   if (view === "viva") where.AND = [{ OR: VIVA_WHERE }];
 
+  const liveOn = await partnerLiveStockOn();
   const [partners, cats, totals, lastSync, unlinkedStores] = await Promise.all([
     db.partner.findMany({
       where, orderBy: [{ name: "asc" }], take: 400,
@@ -56,6 +59,11 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
         </div>
         {canWrite && <div data-help="partners.import"><PartnerImport /></div>}
       </div>
+      <p data-help="partners.feature" className={`m-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border p-3 text-[length:var(--fs-14)] ${liveOn ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
+        {liveOn ? <CircleCheck className="size-5 shrink-0" aria-hidden /> : <CirclePause className="size-5 shrink-0" aria-hidden />}
+        <span className="min-w-0 flex-1 basis-64"><b>{liveOn ? "Το ζωντανό απόθεμα των συνεργατών είναι ανοιχτό." : "Το ζωντανό απόθεμα των συνεργατών είναι κλειστό."}</b> {liveOn ? "Ο πελάτης βλέπει τα τεμάχια ανά κατάστημα και μια παραγγελία πάει κατευθείαν στον συνεργάτη που τα έχει." : "Ο συνεργάτης της περιοχής προτείνεται κανονικά στον πελάτη. Δεν φαίνεται απόθεμα καταστήματος και τα προϊόντα τού τα στέλνουμε εμείς. Άνοιξέ το όταν συνδεθεί ο πρώτος με ζωντανό απόθεμα."}</span>
+        <Link href="/admin/settings/shipping#f-partnerLiveStock" className="inline-flex items-center min-h-11 font-bold underline">Ρυθμίσεις → Αποστολές</Link>
+      </p>
       {canWrite && <div data-help="partners.create"><MissingStoresTools creatable={nCreatable} ungeocoded={nUngeocoded} /></div>}
 
       <div data-help="partners.kpis" className="grid grid-cols-2 sm:grid-cols-4 gap-2">

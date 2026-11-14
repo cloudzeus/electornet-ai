@@ -99,6 +99,7 @@ export async function settingsOverview() {
         chip("Click & Collect", on(ship.data.clickCollect), href("shipping", "clickCollect")),
         chip("Παράδοση με ραντεβού", on(ship.data.appointmentDelivery), href("shipping", "appointmentDelivery")),
         chip("Μεταφορική", on(ship.data.freightOn), href("shipping", "freightOn")),
+        chip("Ζωντανό απόθεμα συνεργατών", on(ship.data.partnerLiveStock), href("shipping", "partnerLiveStock")),
       ],
     },
     {

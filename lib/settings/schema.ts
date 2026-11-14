@@ -347,7 +347,8 @@ export const SECTIONS: Section[] = [
       { key: "freightFee", label: "Κόστος μεταφορικής", type: "number", public: true, width: "half", group: "delivery", showIf: on("freightOn"), min: 0, step: 0.01, unit: "€", placeholder: "25.00" },
       { key: "freightFreeFrom", label: "Μεταφορική δωρεάν από", type: "number", public: true, width: "half", group: "delivery", showIf: on("freightOn"), min: 0, step: 1, unit: "€", help: "Κενό = πάντα με χρέωση." },
       { key: "freightEta", label: "Χρόνος παράδοσης μεταφορικής", type: "text", public: true, group: "delivery", showIf: on("freightOn"), placeholder: "3–7 εργάσιμες, με τηλεφωνική συνεννόηση", help: "Η υπόσχεση που βλέπει ο πελάτης στο checkout και στο email." },
-    ] as Field[]).map((f) => (["clickCollect", "appointmentDelivery", "freightOn"].includes(f.key) ? { ...f, group: "delivery" } : f)),
+      yesNo("partnerLiveStock", "Ζωντανό απόθεμα συνεργαζόμενων καταστημάτων", "Κλειστό μέχρι να συνδεθεί συνεργάτης με ζωντανό απόθεμα. Ο συνεργάτης της περιοχής προτείνεται στον πελάτη έτσι κι αλλιώς· ο διακόπτης αφορά μόνο το απόθεμα. Ανοιχτό: η σελίδα προϊόντος δείχνει «N τεμ. στο κατάστημα» και μια παραγγελία πάει κατευθείαν στον συνεργάτη που έχει όλα τα τεμάχια. Κλειστό: δεν φαίνεται απόθεμα καταστήματος και τα προϊόντα στέλνονται στον συνεργάτη από εμάς (μέσω του πρακτορείου του)."),
+    ] as Field[]).map((f) => (["clickCollect", "appointmentDelivery", "freightOn", "partnerLiveStock"].includes(f.key) ? { ...f, group: "delivery" } : f)),
   },
   {
     key: "bunny",

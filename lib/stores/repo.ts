@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Store } from "@/lib/data/types";
 import { stores as fixtureStores } from "@/lib/data/fixtures/stores";
 import { distanceKm } from "./geocode";
+import { partnerLiveStockOn } from "@/lib/delivery/server";
 
 /**
  * @dynamic Stores for the storefront, from the Store table (imported from
@@ -80,7 +81,7 @@ export async function nearestStores(p: { lat: number; lng: number }, limit = 5):
 
 /** Πραγματικό απόθεμα του προϊόντος ανά κατάστημα (πίνακας StoreStock) → { storeId: τεμάχια }· κενό όταν δεν υπάρχουν στοιχεία. */
 export async function storeStockFor(productId: string, fromDb: boolean): Promise<Record<string, number>> {
-  if (!fromDb) return {};
+  if (!fromDb || !(await partnerLiveStockOn())) return {};
   const rows = await db.storeStock.groupBy({ by: ["storeId"], where: { variant: { productId }, qty: { gt: 0 }, store: { active: true } }, _sum: { qty: true } });
   return Object.fromEntries(rows.map((r) => [r.storeId, r._sum.qty ?? 0]));
 }
