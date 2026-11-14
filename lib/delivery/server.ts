@@ -21,7 +21,7 @@ export const resetRateCache = () => { rateMem = null; };
 let partnerMem: { at: number; v: { id: string; name: string; agencyId: string | null; delivery: ReturnType<typeof normalizeDelivery> }[] } | null = null;
 async function servingPartners() {
   if (partnerMem && Date.now() - partnerMem.at < 60_000) return partnerMem.v;
-  const rows = await db.partner.findMany({ where: { active: true, NOT: { delivery: { equals: Prisma.DbNull } } }, select: { id: true, name: true, agencyId: true, delivery: true } }).catch(() => []);
+  const rows = await db.partner.findMany({ where: { active: true, cooperating: true, NOT: { delivery: { equals: Prisma.DbNull } } }, select: { id: true, name: true, agencyId: true, delivery: true } }).catch(() => []);
   const v = rows.map((r) => ({ id: r.id, name: r.name, agencyId: r.agencyId, delivery: normalizeDelivery(r.delivery) })).filter((r) => r.delivery.homeDelivery && r.delivery.zips.length);
   partnerMem = { at: Date.now(), v };
   return v;

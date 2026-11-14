@@ -9,6 +9,7 @@ import { createMissingStores, createStoreFromBranch, setStoreVisible } from "@/l
 import { geocodeStore } from "@/lib/stores/geocode";
 import { advanceRestock, decideRestock, pickupOptions, staffCancelRestock } from "@/lib/partner-portal/restock";
 import { isShipMode } from "@/lib/partner-portal/restock-model";
+import { resetPartnerCache } from "@/lib/delivery/server";
 
 /** Εισαγωγή μελών/υποκαταστημάτων από το SoftOne (μόνο ανάγνωση από το ERP). `dryRun` = μόνο προεπισκόπηση. */
 export async function runPartnerImport(dryRun: boolean): Promise<{ ok: true; summary: ImportSummary } | { ok: false; error: string }> {
@@ -209,5 +210,46 @@ export async function updateInterest(id: string, status: string, adminNote: stri
   await db.partnerInterest.update({ where: { id }, data: { status, adminNote: note, handledBy: user.id, handledAt: new Date() } });
   await audit(user.id, "b2b.interest.update", "PartnerInterest", id, before, { status, adminNote: note });
   revalidatePath("/admin/synergates/endiaferon");
+  return { ok: true as const };
+}
+
+/** Διαγραφή εκδήλωσης ενδιαφέροντος — μόνο super-admin. Οριστική· στο ιστορικό μένει ΑΦΜ και επωνυμία. */
+export async function deleteInterest(id: string) {
+  const user = await requirePermission("stores.partners.read");
+  if (!user.roles.includes("super-admin")) return { ok: false as const, error: "Μόνο ο super-admin διαγράφει αιτήσεις." };
+  const before = await db.partnerInterest.findUnique({ where: { id }, select: { afm: true, businessName: true, status: true, createdAt: true } });
+  if (!before) return { ok: false as const, error: "Η αίτηση δεν βρέθηκε" };
+  await db.partnerInterest.delete({ where: { id } });
+  await audit(user.id, "b2b.interest.delete", "PartnerInterest", id, before, null);
+  revalidatePath("/admin/synergates/endiaferon");
+  revalidatePath("/admin/synergates");
+  return { ok: true as const };
+}
+
+/** «Συνεργαζόμενο κατάστημα»: μόνο αυτά μπαίνουν στη δρομολόγηση παραγγελιών. Δικό μας πεδίο, η εισαγωγή δεν το αλλάζει. */
+export async function setPartnerCooperating(id: string, cooperating: boolean) {
+  const user = await requirePermission("stores.partners.write");
+  const before = await db.partner.findUnique({ where: { id }, select: { cooperating: true } });
+  if (!before) return { ok: false as const, error: "Ο συνεργάτης δεν βρέθηκε" };
+  await db.partner.update({ where: { id }, data: { cooperating } });
+  resetPartnerCache();
+  await audit(user.id, "b2b.partner.cooperating", "Partner", id, before, { cooperating });
+  revalidatePath("/admin/synergates");
+  return { ok: true as const };
+}
+
+/**
+ * Διαγραφή συνεργάτη από τη δική μας βάση (ποτέ από το SoftOne). Μαζί σβήνονται υποκαταστήματα, επαφές και λογαριασμοί πύλης·
+ * τα καταστήματα του eshop μένουν, χωρίς μέλος. Με παραγγελίες ή αναπληρώσεις δεν σβήνεται (θα χανόταν ιστορικό).
+ */
+export async function deletePartner(id: string) {
+  const user = await requirePermission("stores.partners.write");
+  const p = await db.partner.findUnique({ where: { id }, select: { name: true, code: true, afm: true, s1Trdr: true, _count: { select: { restocks: true, routes: true } } } });
+  if (!p) return { ok: false as const, error: "Ο συνεργάτης δεν βρέθηκε" };
+  if (p._count.restocks || p._count.routes) return { ok: false as const, error: `Έχει ${p._count.routes} παραγγελίες και ${p._count.restocks} αναπληρώσεις, δεν διαγράφεται. Κλείσε το «Συνεργαζόμενο κατάστημα».` };
+  await db.partner.delete({ where: { id } });
+  resetPartnerCache();
+  await audit(user.id, "b2b.partner.delete", "Partner", id, { name: p.name, code: p.code, afm: p.afm, s1Trdr: p.s1Trdr }, null);
+  revalidatePath("/admin/synergates", "layout");
   return { ok: true as const };
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
-import { updateInterest } from "@/app/admin/(shell)/synergates/actions";
+import { Loader2, Trash2 } from "lucide-react";
+import { deleteInterest, updateInterest } from "@/app/admin/(shell)/synergates/actions";
 import { INTEREST_STATUS } from "@/lib/partner-portal/interest-options";
 
 /** Κατάσταση χειρισμού + εσωτερική σημείωση για μία εκδήλωση ενδιαφέροντος. */
@@ -28,6 +28,22 @@ export function InterestStatus({ id, status, adminNote }: { id: string; status: 
         <button type="button" onClick={save} disabled={!dirty || pending} className="inline-flex items-center gap-2 min-h-11 rounded-full bg-eu-navy text-white px-4 font-bold text-[length:var(--fs-13)] disabled:opacity-45">{pending && <Loader2 className="size-4 animate-spin" aria-hidden />}Αποθήκευση</button>
         {msg && <span role="status" className={`text-[length:var(--fs-13)] font-bold ${msg.ok ? "text-emerald-800" : "text-[#b3261e]"}`}>{msg.text}</span>}
       </div>
+    </div>
+  );
+}
+
+/** Οριστική διαγραφή αίτησης — εμφανίζεται μόνο στον super-admin. */
+export function InterestDelete({ id, name }: { id: string; name: string }) {
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  const del = () => {
+    if (!window.confirm(`Οριστική διαγραφή της αίτησης «${name}»; Δεν αναιρείται.`)) return;
+    setErr(""); start(async () => { const r = await deleteInterest(id); if (!r.ok) setErr(r.error); });
+  };
+  return (
+    <div className="mt-2 grid gap-1">
+      <button type="button" onClick={del} disabled={pending} className="justify-self-start inline-flex items-center gap-2 min-h-11 rounded-full border border-eu-red/30 text-eu-red px-4 font-bold text-[length:var(--fs-13)] hover:border-eu-red disabled:opacity-45">{pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Trash2 className="size-4" aria-hidden />}Διαγραφή αίτησης</button>
+      {err && <span role="alert" className="text-[length:var(--fs-13)] font-bold text-eu-red">{err}</span>}
     </div>
   );
 }

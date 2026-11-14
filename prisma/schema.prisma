@@ -950,6 +950,8 @@ model Partner {
   /// lead | onboarding | connecting | live | suspended
   status      String              @default("onboarding")
   active      Boolean             @default(true)
+  /// συνεργαζόμενο κατάστημα: συμμετέχει στη δρομολόγηση παραγγελιών του eshop. Δικό μας πεδίο — η εισαγωγή από το SoftOne δεν το αγγίζει (το `active` το ξαναγράφει από το ISACTIVE)
+  cooperating Boolean             @default(true)
   notes       String?             @db.Text
   s1Data      Json?
   s1UpdatedAt DateTime?

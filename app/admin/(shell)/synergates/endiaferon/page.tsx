@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { db } from "@/lib/db";
 import { INTEREST_STATUS, interestLabel } from "@/lib/partner-portal/interest-options";
-import { InterestStatus } from "@/components/admin/partners/InterestStatus";
+import { InterestDelete, InterestStatus } from "@/components/admin/partners/InterestStatus";
 
 export const metadata = { title: "Ενδιαφέρον συνεργατών" };
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ const when = (d: Date) => d.toLocaleString("el-GR", { dateStyle: "short", timeSt
 export default async function InterestAdmin({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const user = await requirePermission("stores.partners.read");
   const canWrite = can(user.permissions, "stores.partners.write");
+  const isSuper = user.roles.includes("super-admin");
   const { view = "new" } = await searchParams;
   const v = VIEWS.find((x) => x.key === view) ?? VIEWS[0];
 
@@ -77,6 +78,7 @@ export default async function InterestAdmin({ searchParams }: { searchParams: Pr
                 <div data-help="interest.status" className="min-w-0">
                   {canWrite ? <InterestStatus id={r.id} status={r.status} adminNote={r.adminNote} /> : r.adminNote && <p className="m-0 text-eu-ink-2 text-[length:var(--fs-13)] whitespace-pre-line">{r.adminNote}</p>}
                   {r.handledAt && <p className="m-0 mt-2 text-eu-ink-3 text-[length:var(--fs-12)]">Τελευταία αλλαγή {when(r.handledAt)}</p>}
+                  {isSuper && <div data-help="interest.delete"><InterestDelete id={r.id} name={r.partner?.name ?? r.businessName ?? r.contactName} /></div>}
                 </div>
               </li>
             );

@@ -7,6 +7,7 @@ import { PartnerImport } from "@/components/admin/partners/PartnerImport";
 import { MissingStoresTools } from "@/components/admin/partners/PartnerStoreTools";
 import { creatableBranches } from "@/lib/b2b/branch-stores";
 import { VIVA_WHERE } from "@/lib/b2b/viva";
+import { PartnerRowMenu } from "@/components/admin/partners/PartnerRowMenu";
 
 export const metadata = { title: "Συνεργάτες (B2B)" };
 export const dynamic = "force-dynamic";
@@ -25,19 +26,20 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
   if (view === "unlinked") where.branches = { some: { storeId: null, s1Missing: false } };
   if (view === "missing") where.s1Missing = true;
   if (view === "hidden") where.stores = { some: { active: false } };
+  if (view === "noncoop") where.cooperating = false;
   if (view === "viva") where.AND = [{ OR: VIVA_WHERE }];
 
   const [partners, cats, totals, lastSync, unlinkedStores] = await Promise.all([
     db.partner.findMany({
       where, orderBy: [{ name: "asc" }], take: 400,
-      select: { id: true, code: true, name: true, city: true, category: true, groupName: true, status: true, s1Missing: true, branches: { where: { s1Missing: false }, select: { storeId: true, store: { select: { active: true } } } } },
+      select: { id: true, code: true, name: true, city: true, category: true, groupName: true, status: true, s1Missing: true, cooperating: true, branches: { where: { s1Missing: false }, select: { storeId: true, store: { select: { active: true } } } } },
     }),
     db.partner.groupBy({ by: ["s1Business", "category"], _count: { _all: true }, orderBy: { s1Business: "asc" } }),
-    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } }), db.partnerBranch.count({ where: creatableBranches }), db.store.count({ where: { partnerId: { not: null }, lat: 0, lng: 0, geoLat: null } }), db.store.count({ where: { partnerId: { not: null }, active: false } }), db.partner.count({ where: { OR: VIVA_WHERE } }), db.partnerInterest.count({ where: { status: "new" } })]),
+    Promise.all([db.partner.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false } }), db.partnerBranch.count({ where: { s1Missing: false, storeId: null } }), db.store.count(), db.store.count({ where: { partnerId: null } }), db.partnerBranch.count({ where: creatableBranches }), db.store.count({ where: { partnerId: { not: null }, lat: 0, lng: 0, geoLat: null } }), db.store.count({ where: { partnerId: { not: null }, active: false } }), db.partner.count({ where: { OR: VIVA_WHERE } }), db.partnerInterest.count({ where: { status: "new" } }), db.partner.count({ where: { cooperating: false } })]),
     db.partner.aggregate({ _max: { s1SyncedAt: true } }),
     view === "stores" ? db.store.findMany({ where: { partnerId: null }, orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true, zip: true, member: true } }) : Promise.resolve([]),
   ]);
-  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree, nCreatable, nUngeocoded, nHidden, nViva, nInterest] = totals;
+  const [nPartners, nBranches, nBranchesFree, nStores, nStoresFree, nCreatable, nUngeocoded, nHidden, nViva, nInterest, nNonCoop] = totals;
 
   const chip = (href: string, label: string, active: boolean) => (
     <Link key={href} href={href} className={`inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border ${active ? "bg-eu-navy text-white border-eu-navy" : "border-eu-line text-eu-ink hover:border-eu-navy"}`}>{label}</Link>
@@ -80,6 +82,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
           {cats.filter((c) => c.s1Business !== null).map((c) => chip(qs({ cat: String(c.s1Business) }), `${c.category ?? c.s1Business} · ${c._count._all}`, cat === String(c.s1Business)))}
           {chip(qs({ view: view === "hidden" ? "" : "hidden" }), `Με κρυφά καταστήματα · ${nHidden}`, view === "hidden")}
           {chip(qs({ view: view === "missing" ? "" : "missing" }), "Δεν υπάρχουν πια στο SoftOne", view === "missing")}
+          {chip(qs({ view: view === "noncoop" ? "" : "noncoop" }), `Όχι συνεργαζόμενα · ${nNonCoop}`, view === "noncoop")}
           <span data-help="partners.viva" className="contents">{chip(qs({ view: view === "viva" ? "" : "viva" }), `Θέλουν Viva · ${nViva}`, view === "viva")}{view === "viva" && nViva > 0 && <a href="/api/admin/partners/viva" className="inline-flex items-center rounded-full px-3 min-h-11 text-[length:var(--fs-13)] font-bold border border-emerald-400 text-emerald-900 bg-emerald-50 hover:border-emerald-700">Λήψη λίστας για τον account manager (CSV)</a>}</span>
         </div>
       </form>
@@ -103,8 +106,8 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
             const linked = p.branches.filter((b) => b.storeId).length;
             const hidden = p.branches.filter((b) => b.store && !b.store.active).length;
             return (
-              <li key={p.id}>
-                <Link href={`/admin/synergates/${p.id}`} className="rounded-xl border border-eu-line bg-white p-3 grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center hover:border-eu-navy min-w-0">
+              <li key={p.id} className={`rounded-xl border border-eu-line p-3 grid gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center hover:border-eu-navy min-w-0 ${p.cooperating ? "bg-white" : "bg-eu-surface-2"}`}>
+                <Link href={`/admin/synergates/${p.id}`} className="grid gap-1 min-w-0 min-h-11 content-center">
                   <span className="min-w-0">
                     <b className="break-words text-eu-ink">{p.name}</b>
                     <span className="block text-eu-ink-3 text-[length:var(--fs-13)]">{[p.code, p.city, p.category, p.groupName].filter(Boolean).join(" · ")}</span>
@@ -115,6 +118,7 @@ export default async function PartnersAdmin({ searchParams }: { searchParams: Pr
                     <span className={`rounded-full px-2 py-0.5 font-bold ${linked === p.branches.length ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>{linked}/{p.branches.length} καταστήματα</span>
                   </span>
                 </Link>
+                {canWrite ? <div data-help="partners.row"><PartnerRowMenu key={`${p.id}-${p.cooperating}`} id={p.id} name={p.name} cooperating={p.cooperating} /></div> : !p.cooperating && <span className="text-eu-ink-3 font-bold text-[length:var(--fs-13)]">Όχι συνεργαζόμενο</span>}
               </li>
             );
           })}
