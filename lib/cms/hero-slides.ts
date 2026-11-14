@@ -1,5 +1,6 @@
 import "server-only";
-import { swr } from "@/lib/cache/swr";
+import { swr, swrMap } from "@/lib/cache/swr";
+import { onCatalogReset } from "@/lib/data/db-catalog";
 import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -30,7 +31,7 @@ export async function publishHero(by: string) {
   const d = await db.cmsDocument.findUnique({ where });
   if (!d) throw new Error("Δεν υπάρχει πρόχειρο.");
   const r = await db.cmsDocument.update({ where, data: { published: d.data as Prisma.InputJsonValue, publishedAt: new Date(), updatedBy: by } });
-  publishedHero.reset(); heroDealShared.invalidate();
+  publishedHero.reset(); heroDealShared.invalidate(); infoCache.resetAll();
   return r;
 }
 
@@ -43,7 +44,11 @@ export async function revertHero(by: string): Promise<HeroDoc> {
   return pub;
 }
 
-export async function productInfos(ids: string[]): Promise<Record<string, ProductInfo>> {
+/** Τίτλος, τιμή και φωτογραφία των προϊόντων του hero — κοινή μνήμη 1′ (ήταν 3 ερωτήματα σε κάθε προβολή της αρχικής)· σβήνει με αλλαγή καταλόγου και δημοσίευση. */
+const infoCache = swrMap<Record<string, ProductInfo>>(60_000, { maxStaleMs: 5 * 60_000, max: 50 });
+onCatalogReset(infoCache.resetAll);
+export const productInfos = (ids: string[]): Promise<Record<string, ProductInfo>> => infoCache(ids.join(","), () => productInfosFresh(ids));
+async function productInfosFresh(ids: string[]): Promise<Record<string, ProductInfo>> {
   if (!ids.length) return {};
   const ps = await getProductsByIds(ids).catch(() => []);
   // φωτογραφία χωρίς φόντο: όσες έφτιαξε η εφαρμογή (με τη δημοσίευση του hero ή για banners), αλλιώς οι έτοιμες του demo

@@ -2,6 +2,8 @@ import "server-only";
 import { cutoutFor } from "@/lib/data/cutouts";
 import { getProductsByIds } from "@/lib/data/repo";
 import { db } from "@/lib/db";
+import { swrMap } from "@/lib/cache/swr";
+import { onCatalogReset } from "@/lib/data/db-catalog";
 import type { StickerParams } from "@/lib/stickers/model";
 import { bannerCutouts } from "./banner-cutouts";
 import type { BannerDesign, BannerProduct } from "./banner-design";
@@ -15,7 +17,7 @@ export interface BannerScope { cats: (string | null | undefined)[]; exclude?: st
  * μετά της ίδιας κατηγορίας — από όλη την καμπάνια του banner, όχι μόνο από τη δική του προσφορά. Αν δεν ταιριάζει κανένα,
  * μένουν τα προϊόντα του banner όπως είναι. Έτσι το ίδιο banner δείχνει άλλο προϊόν σε κάθε σελίδα.
  */
-export async function bannerProducts(d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> {
+export async function bannerProductsFresh(d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> {
   const sc: BannerScope | null = typeof scope === "string" ? { cats: [scope] } : scope ?? null;
   const levels = (sc?.cats ?? []).filter((x): x is string => !!x);
   // Πλατύ banner με κάρτες που εναλλάσσονται: παίρνει περισσότερα προϊόντα της προσφοράς απ' όσα χωράνε μαζί (ως 9), για να έχει τι να αλλάξει.
@@ -66,6 +68,17 @@ export async function bannerProducts(d: BannerDesign, promotionId: string | null
 }
 
 /**
+ * Το ίδιο για το site, από κοινή μνήμη 1′ (έως 5′ με ανανέωση στο παρασκήνιο): ίδιο banner στην ίδια σελίδα = ίδια προϊόντα για όλους.
+ * Πριν, κάθε προβολή σελίδας έκανε ~10 ερωτήματα μόνο για τα banners (μέτρηση 14/11/2026: 12 από τα 16 της αρχικής) και το site
+ * έπιανε ταβάνι στις ~6 σελίδες/″ περιμένοντας τη βάση. Κάθε αλλαγή καταλόγου ή προσφοράς (resetCatalogCache) τη σβήνει.
+ * Η διαχείριση (προεπισκόπηση, ετοιμασία φωτογραφιών) καλεί το `bannerProductsFresh`.
+ */
+const bannerCache = swrMap<BannerProduct[]>(60_000, { maxStaleMs: 5 * 60_000, max: 3000 });
+onCatalogReset(bannerCache.resetAll);
+export const bannerProducts = (d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> =>
+  bannerCache(JSON.stringify([d.layout, d.slider, d.products, promotionId, scope ?? null]), () => bannerProductsFresh(d, promotionId, scope));
+
+/**
  * Όλα τα προϊόντα που ΜΠΟΡΕΙ να δείξει ένα banner (για να ετοιμαστούν οι φωτογραφίες τους χωρίς φόντο στην αποθήκευση):
  * όσα διάλεξε ο διαχειριστής, ή — με πηγή «Της προσφοράς» — τα προϊόντα όλης της καμπάνιας, γιατί σε κάθε κατηγορία δείχνει άλλα.
  */
@@ -81,8 +94,12 @@ export async function bannerCandidateIds(d: BannerDesign, promotionId: string | 
 }
 
 /** Το sticker ενός σχεδιασμένου banner (μόνο ενεργό) — τα στοιχεία σχεδίασής του για το StickerSvg. */
+const stickerCache = swrMap<StickerParams | null>(60_000, { maxStaleMs: 5 * 60_000 });
+onCatalogReset(stickerCache.resetAll);
 export async function bannerSticker(key: string | null): Promise<StickerParams | null> {
   if (!key) return null;
-  const row = await db.sticker.findFirst({ where: { key, active: true }, select: { params: true } }).catch(() => null);
-  return (row?.params as unknown as StickerParams | undefined) ?? null;
+  return stickerCache(key, async () => {
+    const row = await db.sticker.findFirst({ where: { key, active: true }, select: { params: true } }).catch(() => null);
+    return (row?.params as unknown as StickerParams | undefined) ?? null;
+  });
 }

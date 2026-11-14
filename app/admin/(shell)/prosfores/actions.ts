@@ -317,9 +317,9 @@ export async function savePlacementAction(input: PlacementInput) {
   if (design && design.products.source !== "none" && design.products.cutout) {
     // Όλα τα προϊόντα που μπορεί να δείξει το banner (με «Της προσφοράς»: όλης της καμπάνιας). Τα πρώτα ετοιμάζονται τώρα, για να φανούν αμέσως·
     // τα υπόλοιπα μετά την απάντηση (~2″ το καθένα), ώστε η αποθήκευση να μην περιμένει.
-    const { bannerProducts, bannerCandidateIds } = await import("@/lib/promo/banner-products");
+    const { bannerProductsFresh, bannerCandidateIds } = await import("@/lib/promo/banner-products");
     const { ensureBannerCutouts } = await import("@/lib/promo/banner-cutouts");
-    const first = (await bannerProducts(design, row.promotionId).catch(() => [])).map((p) => p.id);
+    const first = (await bannerProductsFresh(design, row.promotionId).catch(() => [])).map((p) => p.id);
     await ensureBannerCutouts(first, user.id).catch(() => null);
     invalidateAds();
     const all = await bannerCandidateIds(design, row.promotionId).catch(() => []);

@@ -1,4 +1,5 @@
 import "server-only";
+import { cardProduct } from "@/lib/data/card-product";
 import { swrMap } from "@/lib/cache/swr";
 import { db } from "@/lib/db";
 import { getProductsByIds } from "@/lib/data/repo";
@@ -58,6 +59,6 @@ async function computeHomeDeals(props: DealsProps): Promise<HomeDeals> {
   if (source === "auto") ({ ids, endsAt } = await autoDeals(limit));
   const list = (await getProductsByIds(ids).catch(() => [])).filter((p) => !p.noPrice && p.price);
   const byId = new Map(list.map((p) => [p.id, p]));
-  const products = ids.map((id) => byId.get(id)).filter((p): p is Product => !!p).slice(0, limit);
+  const products = ids.map((id) => byId.get(id)).filter((p): p is Product => !!p).slice(0, limit).map(cardProduct);
   return { products, endsAt, label: label(endsAt), source };
 }

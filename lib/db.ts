@@ -22,7 +22,7 @@ function pooledUrl() {
   return extra.length ? `${url}${sep}${extra.join("&")}` : url;
 }
 
-/** Prisma client singleton (survives HMR in dev). */
+/** Prisma client singleton (survives HMR in dev). `PRISMA_LOG_QUERIES=1` τυπώνει κάθε ερώτημα — για μέτρηση ερωτημάτων ανά προβολή. */
 const g = globalThis as unknown as { prisma?: PrismaClient };
-export const db = g.prisma ?? new PrismaClient({ datasources: { db: { url: pooledUrl() } }, log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"] });
+export const db = g.prisma ?? new PrismaClient({ datasources: { db: { url: pooledUrl() } }, log: process.env.PRISMA_LOG_QUERIES ? ["query", "error"] : process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"] });
 if (process.env.NODE_ENV !== "production") g.prisma = db;

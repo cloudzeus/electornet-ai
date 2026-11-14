@@ -2,6 +2,7 @@ import { attributeFacets, matchesAttrs, type AttrFacet } from "./attributes";
 import { cache } from "react";
 import { swr } from "@/lib/cache/swr";
 import { dbEnabled, dbNavTree, dbListProducts, dbProductBySlug, dbProductsByIds, dbRelated, dbBrands, dbSuggest, findCategoryPath, catalogTree, onCatalogReset } from "./db-catalog";
+import { cardProduct } from "./card-product";
 import "server-only";
 import type { Appointment, Brand, ConsentPref, Customer, Faq, Guide, InstalmentPlan, NewsItem, Order, PaymentMethod, Policy, Product, Service, Store } from "./types";
 import { navCategories, type NavCategory } from "./nav";
@@ -405,7 +406,7 @@ async function buildMegaMenuData(): Promise<MegaMenuEntry[]> {
     const t = await catalogTree();
     return Promise.all(t.roots.map(async (m) => {
       const r = await dbListProducts({ l1: m.slug, perPage: 3 });
-      return { slug: m.slug, subCounts: Object.fromEntries(m.children.map((c) => [c.slug, c.count])), brands: r.brands.slice(0, 6), quick: null, promo: null, top: r.items, guide: smart[dbSmart[m.slug]] ?? null };
+      return { slug: m.slug, subCounts: Object.fromEntries(m.children.map((c) => [c.slug, c.count])), brands: r.brands.slice(0, 6), quick: null, promo: null, top: r.items.map(cardProduct), guide: smart[dbSmart[m.slug]] ?? null };
     }));
   }
   return Promise.all(
