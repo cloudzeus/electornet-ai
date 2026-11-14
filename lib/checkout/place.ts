@@ -209,9 +209,11 @@ export async function placeOrder(input: PlaceInput) {
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;
+      // έτοιμη μικρογραφία email (JPEG 360px) ανά προϊόν — το καλάθι κρατά τη WebP, που δεν δείχνουν Gmail/Outlook
+      const mails = new Map((await db.variant.findMany({ where: { id: { in: q.lines.map((l) => l.variantId) } }, select: { id: true, product: { select: { media: { where: { kind: "image", hidden: false, emailUrl: { not: null } }, orderBy: { sortNo: "asc" }, take: 1, select: { emailUrl: true } } } } } }).catch(() => [])).map((v) => [v.id, v.product.media[0]?.emailUrl ?? null]));
       const tpl = await renderTemplate("order-confirmation", {
         firstName: input.contact.firstName, number,
-        lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
+        lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: mails.get(l.variantId) ?? l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
         subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
         payment: payLabel(input.payment), fulfilment: input.fulfilment, method: "carrierName" in carrier && typeof carrier.carrierName === "string" ? carrier.carrierName : undefined,
         ...(input.payment === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),

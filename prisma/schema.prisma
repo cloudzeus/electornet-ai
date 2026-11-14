@@ -201,6 +201,8 @@ model Media {
   alt        String?
   sortNo     Int         @default(0)
   thumbUrl   String? // 480px WebP
+  /// 360px JPEG σε λευκό, για email: Gmail/Outlook δεν δείχνουν WebP και οι φωτογραφίες του καταλόγου είναι έως 1920px
+  emailUrl   String?
   width      Int?
   height     Int?
   blur       String? // μικροσκοπικό base64 για placeholder
@@ -232,6 +234,8 @@ model ImageImport {
   path        String? // σχετική διαδρομή στο Bunny
   url         String?
   thumbUrl    String?
+  /// 360px JPEG σε λευκό για email (ανεβαίνει μαζί με την κύρια εικόνα)
+  emailUrl    String?
   width       Int?
   height      Int?
   bytes       Int? // μέγεθος του WebP

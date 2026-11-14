@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { db } from "../lib/db";
 import { parseImageName, parseBannerName, bunnyPaths, preferNew, type ParsedImageName } from "../lib/catalog/image-files";
+import { emailThumbOf } from "../lib/media/process";
 import { processProductImage, bunnyUploader, matchKeys, associateImages, imageStats, MAIN_MAX, BANNER_MAX } from "../lib/catalog/image-import";
 
 const arg = (name: string) => { const i = process.argv.indexOf(`--${name}`); return i === -1 ? undefined : process.argv[i + 1]?.startsWith("--") || process.argv[i + 1] === undefined ? "true" : process.argv[i + 1]; };
@@ -63,7 +64,9 @@ async function main() {
         const img = await processProductImage(src, KIND === "banner" ? BANNER_MAX : MAIN_MAX);
         const rel = bunnyPaths(p);
         const url = await put(rel.main, img.main);
-        const data = { ...base, srcBytes: src.length, status: "done", path: rel.main, url, thumbUrl: null, phash: img.phash, width: img.width, height: img.height, bytes: img.main.length, blur: img.blur, lowRes: img.lowRes, error: null };
+        // μικρογραφία email (360px JPEG σε λευκό): φτιάχνεται εδώ μία φορά, ώστε τα email να μη μετατρέπουν εικόνες
+        const emailUrl = await put(rel.email, await emailThumbOf(src)).catch(() => null);
+        const data = { ...base, srcBytes: src.length, status: "done", path: rel.main, url, emailUrl, thumbUrl: null, phash: img.phash, width: img.width, height: img.height, bytes: img.main.length, blur: img.blur, lowRes: img.lowRes, error: null };
         await db.imageImport.upsert({ where: { sourceFile: p.sourceFile }, create: { sourceFile: p.sourceFile, ...data }, update: data });
         ok++; inBytes += src.length; outBytes += img.main.length;
       } catch (e) {

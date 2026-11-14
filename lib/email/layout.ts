@@ -18,5 +18,7 @@ export async function emailCtx(extra: Partial<EmailCtx> = {}): Promise<EmailCtx>
   // κάθε σχετική εικόνα έσπαγε (404 στο ζωντανό domain).
   const assetUrl = String(data.emailAssetUrl || process.env.EMAIL_ASSET_URL || process.env.AUTH_URL || baseUrl).replace(/\/$/, "");
   const logoUrl = String(data.emailLogoUrl || process.env.EMAIL_LOGO_URL || "https://euronics.b-cdn.net/brand/euronics-logo-white.png");
-  return { baseUrl, assetUrl, logoUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές"), legalName: String(data.legalName || "MEGA ELECTRICS ΑΕΒΕ"), year: new Date().getFullYear(), ...extra };
+  // ίδιος κανόνας με το λογότυπο: αντίγραφο στο CDN, ώστε η εικόνα να μην εξαρτάται από το πού τρέχει η εφαρμογή
+  const advisorUrl = String(data.emailAdvisorUrl || "https://euronics.b-cdn.net/brand/ermis-head.email.jpg");
+  return { baseUrl, assetUrl, logoUrl, advisorUrl, siteName: String(data.siteName || "Euronics"), phone: String(data.phone || "210 483 5143"), email: String(data.email || "info@euronics.gr"), address: String(data.address || "Δαμάσκου 2 Σταμάτη 12, 135 71 Αχαρνές"), legalName: String(data.legalName || "MEGA ELECTRICS ΑΕΒΕ"), year: new Date().getFullYear(), ...extra };
 }

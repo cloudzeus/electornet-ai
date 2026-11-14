@@ -138,7 +138,11 @@ async function mailMember(id: string, event: MailEvent): Promise<boolean> {
       where: r.accountId ? { id: r.accountId, active: true } : { active: true, contact: { partnerId: r.partnerId } },
       select: { email: true, contact: { select: { name: true } } },
     });
-    const lines = linesOf(r.lines).map((l) => ({ title: l.title, qty: l.qty }));
+    // εικόνα προϊόντος για το email (γίνεται JPEG μικρογραφία στο layout — βλ. emailImg)
+    const raw = linesOf(r.lines);
+    const variants = raw.length ? await db.variant.findMany({ where: { id: { in: raw.map((l) => l.variantId).filter(Boolean) } }, select: { id: true, product: { select: { brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true, thumbUrl: true, emailUrl: true } } } } } }) : [];
+    const art = new Map(variants.map((v) => [v.id, { brand: v.product.brand.name, image: v.product.media[0]?.emailUrl ?? v.product.media[0]?.thumbUrl ?? v.product.media[0]?.url ?? null }]));
+    const lines = raw.map((l) => ({ title: l.title, qty: l.qty, brand: art.get(l.variantId)?.brand, image: art.get(l.variantId)?.image ?? null }));
     const p = r.pickupStore;
     let sent = false;
     for (const a of accounts) {

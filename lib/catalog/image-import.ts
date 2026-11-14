@@ -44,7 +44,8 @@ export async function bunnyUploader() {
     let last = "";
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const res = await fetch(`${b.storageHost}/${b.zone}${b.basePath}/${enc}`, { method: "PUT", headers: { AccessKey: b.storagePassword, "Content-Type": "image/webp" }, body: body as unknown as BodyInit });
+        const type = /\.jpe?g$/i.test(rel) ? "image/jpeg" : /\.png$/i.test(rel) ? "image/png" : "image/webp";
+        const res = await fetch(`${b.storageHost}/${b.zone}${b.basePath}/${enc}`, { method: "PUT", headers: { AccessKey: b.storagePassword, "Content-Type": type }, body: body as unknown as BodyInit });
         if (res.ok) return `${b.cdnUrl}${b.basePath}/${enc}`;
         last = `HTTP ${res.status}`;
         if (res.status === 401 || res.status === 403) break; // λάθος κλειδί: δεν έχει νόημα η επανάληψη
@@ -132,7 +133,7 @@ export async function associateImages(): Promise<AssociateResult> {
       const p = products.get(String(mtrl)); if (!p) continue;
       for (const f of list) {
         const n = (perProduct.get(p.id) ?? 0) + 1; perProduct.set(p.id, n);
-        wanted.set(`${p.id}|${f.url}`, { productId: p.id, kind: "image", url: f.url!, thumbUrl: f.thumbUrl, width: f.width, height: f.height, blur: f.blur, alt: n === 1 ? p.title : `${p.title} — φωτογραφία ${n}`, sortNo: n, source: IMAGE_SOURCE, importFile: f.sourceFile });
+        wanted.set(`${p.id}|${f.url}`, { productId: p.id, kind: "image", url: f.url!, thumbUrl: f.thumbUrl, emailUrl: f.emailUrl, width: f.width, height: f.height, blur: f.blur, alt: n === 1 ? p.title : `${p.title} — φωτογραφία ${n}`, sortNo: n, source: IMAGE_SOURCE, importFile: f.sourceFile });
       }
     }
   }
@@ -143,7 +144,7 @@ export async function associateImages(): Promise<AssociateResult> {
   if (cleared.length) await db.imageImport.updateMany({ where: { sourceFile: { in: cleared } }, data: { duplicateOf: null } });
 
   // Ό,τι υπάρχει ήδη δεν ξαναγράφεται: η σειρά, το alt και το «κρυμμένη» ανήκουν πλέον στον διαχειριστή.
-  const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, thumbUrl: true } });
+  const existing = await db.media.findMany({ where: { source: IMAGE_SOURCE }, select: { id: true, productId: true, url: true, thumbUrl: true, emailUrl: true } });
   const have = new Map(existing.map((m) => [`${m.productId}|${m.url}`, m]));
   const last = new Map((await db.media.groupBy({ by: ["productId"], where: { kind: "image" }, _max: { sortNo: true } })).map((r) => [r.productId, r._max.sortNo ?? 0]));
   const fresh: Prisma.MediaCreateManyInput[] = [];
@@ -154,7 +155,7 @@ export async function associateImages(): Promise<AssociateResult> {
     if (base != null) { last.set(w.productId, base + 1); fresh.push({ ...w, sortNo: base + 1 }); } else fresh.push(w);
   }
   const ops: Prisma.PrismaPromise<unknown>[] = [];
-  for (const [k, w] of wanted) { const e = have.get(k); if (e && (e.thumbUrl ?? null) !== (w.thumbUrl ?? null)) ops.push(db.media.update({ where: { id: e.id }, data: { thumbUrl: w.thumbUrl } })); }
+  for (const [k, w] of wanted) { const e = have.get(k); if (e && ((e.thumbUrl ?? null) !== (w.thumbUrl ?? null) || (e.emailUrl ?? null) !== (w.emailUrl ?? null))) ops.push(db.media.update({ where: { id: e.id }, data: { thumbUrl: w.thumbUrl, emailUrl: w.emailUrl } })); }
   const gone = existing.filter((m) => !wanted.has(`${m.productId}|${m.url}`)).map((m) => m.id);
   for (let i = 0; i < fresh.length; i += 2000) await db.media.createMany({ data: fresh.slice(i, i + 2000), skipDuplicates: true });
   for (let i = 0; i < ops.length; i += 100) await db.$transaction(ops.slice(i, i + 100));

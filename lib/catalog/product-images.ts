@@ -51,7 +51,7 @@ export async function attachAssets(productId: string, assetIds: string[], source
     if (dup) { if (dup.hidden) added.push(toImageDTO(await db.media.update({ where: { id: dup.id }, data: { hidden: false, sortNo: ++next }, select: SELECT }))); else skipped++; continue; }
     count++;
     const alt = a.alt?.trim() || (kind === "banner" ? `${product.title} — banner ${count}` : count === 1 ? product.title : `${product.title} — φωτογραφία ${count}`);
-    added.push(toImageDTO(await db.media.create({ data: { productId, kind, url: a.url, thumbUrl: a.thumbUrl, width: a.width, height: a.height, blur: a.blur, alt, sortNo: ++next, source, assetId: a.id }, select: SELECT })));
+    added.push(toImageDTO(await db.media.create({ data: { productId, kind, url: a.url, thumbUrl: a.thumbUrl, emailUrl: a.emailUrl, width: a.width, height: a.height, blur: a.blur, alt, sortNo: ++next, source, assetId: a.id }, select: SELECT })));
   }
   // η ετικέτα EPREL μένει τελευταία — και μπαίνει τώρα, αν το προϊόν δεν είχε άλλη φωτογραφία
   if (kind === "image" && added.length) await (await import("./eprel-photo")).ensureEprelLabelPhoto(productId).catch(() => null);

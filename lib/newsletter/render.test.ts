@@ -4,7 +4,7 @@ import { renderNewsletter } from "./render";
 import type { Block } from "./core";
 import type { EmailCtx } from "../email/layout-core";
 
-const ctx: EmailCtx = { baseUrl: "https://www.euronics.gr", assetUrl: "https://app.euronics.gr", logoUrl: "https://cdn.example/logo.png", siteName: "Euronics", phone: "210 483 5143", email: "info@euronics.gr", address: "Δαμάσκου 2, Αχαρνές", legalName: "MEGA ELECTRICS ΑΕΒΕ", year: 2026 };
+const ctx: EmailCtx = { baseUrl: "https://www.euronics.gr", assetUrl: "https://app.euronics.gr", logoUrl: "https://cdn.example/logo.png", advisorUrl: "https://cdn.example/ermis.email.jpg", siteName: "Euronics", phone: "210 483 5143", email: "info@euronics.gr", address: "Δαμάσκου 2, Αχαρνές", legalName: "MEGA ELECTRICS ΑΕΒΕ", year: 2026 };
 const utm = "utm_source=newsletter&utm_medium=email&utm_campaign=BF26";
 const prod = (o: Partial<{ title: string; brand: string; image: string | null; href: string; price: number; listPrice: number | null }> = {}) => ({ title: "Τηλεόραση 55\"", brand: "Samsung", image: "/img/tv.jpg", href: "/p/tv-55", price: 499, listPrice: null, ...o });
 const base = (blocks: Block[], products = new Map<string, ReturnType<typeof prod>>(), over: Partial<Parameters<typeof renderNewsletter>[0]> = {}) =>

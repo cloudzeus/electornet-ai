@@ -87,7 +87,7 @@ export async function sendConfirmation(orderId: string) {
   const o = await db.order.findUnique({
     where: { id: orderId },
     select: { id: true, number: true, fulfilment: true, shipping: true, subtotal: true, shippingFee: true, total: true, paymentMethod: true, guestEmail: true, customer: { select: { email: true } },
-      lines: { select: { title: true, qty: true, unitPrice: true, variant: { select: { product: { select: { brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } } } } } } },
+      lines: { select: { title: true, qty: true, unitPrice: true, variant: { select: { product: { select: { brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true, emailUrl: true } } } } } } } } },
   });
   if (!o) return;
   const s = (o.shipping ?? {}) as { firstName?: string; email?: string; street?: string; number?: string; zip?: string; city?: string; carrierName?: string; locker?: { name?: string; address?: string; zip?: string } };
@@ -95,7 +95,7 @@ export async function sendConfirmation(orderId: string) {
   if (!to) return;
   const tpl = await renderTemplate("order-confirmation", {
     firstName: s.firstName ?? "", number: o.number,
-    lines: o.lines.map((l) => ({ title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: Number(l.unitPrice), addons: [] })),
+    lines: o.lines.map((l) => ({ title: l.title, brand: l.variant.product.brand.name, image: l.variant.product.media[0]?.emailUrl ?? l.variant.product.media[0]?.url ?? null, qty: l.qty, unitPrice: Number(l.unitPrice), addons: [] })),
     subtotal: Number(o.subtotal), shippingFee: Number(o.shippingFee), total: Number(o.total), payment: payLabel(o.paymentMethod), fulfilment: o.fulfilment,
     ...(o.paymentMethod === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
     address: s.locker ? `Θυρίδα BOX NOW: ${[s.locker.name, s.locker.address, s.locker.zip].filter(Boolean).join(", ")}` : [s.street, s.number, s.zip, s.city].filter(Boolean).join(" "),

@@ -41,7 +41,8 @@ export function preferNew(list: ParsedImageName[]): ParsedImageName[] {
 export function bunnyPaths(p: ParsedImageName) {
   const dir = `products/${slugify(p.key) || "x"}${p.kind === "banner" ? "/banners" : ""}`;
   const base = `${slugify(p.model).slice(0, 60).replace(/-+$/, "") || "image"}-${String(p.seq).padStart(2, "0")}`;
-  return { main: `${dir}/${base}.webp` };
+  // η μικρογραφία email δίπλα στην κύρια (ίδιο όνομα, .email.jpg) — ίδια σύμβαση με τη βιβλιοθήκη πολυμέσων
+  return { main: `${dir}/${base}.webp`, email: `${dir}/${base}.email.jpg` };
 }
 
 /** Τα barcodes συγκρίνονται χωρίς τα μηδενικά μπροστά: ο φάκελος έχει «0074108020680», το ERP «74108020680». */
