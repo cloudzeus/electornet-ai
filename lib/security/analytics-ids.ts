@@ -3,7 +3,7 @@
  * Ο έλεγχος μορφής της φόρμας τρέχει μόνο στον browser — εδώ, στον server, κρατάμε μόνο ό,τι αποτελείται από γράμματα,
  * ψηφία, «-» και «_», ώστε ένα ID με « ' » / « " » / «</script>» να μη γίνει κώδικας σε κάθε σελίδα. Άκυρο ID = δεν φορτώνει.
  */
-const KEYS = ["ga4", "gtm", "googleAds", "metaPixel", "tiktokPixel", "clarity", "hotjar"] as const;
+const KEYS = ["ga4", "gtm", "googleAds", "googleAdsPurchaseLabel", "metaPixel", "tiktokPixel", "clarity", "hotjar"] as const;
 type Key = (typeof KEYS)[number];
 export type CleanAnalyticsIds = Partial<Record<Key, string>> & { consentMode?: boolean };
 

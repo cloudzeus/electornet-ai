@@ -44,7 +44,8 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [{ device, touch, saveData }, pub, h] = await Promise.all([getDevice(), getPublicSettings(), headers()]);
   // τα IDs μπαίνουν σε inline scripts: μόνο [A-Za-z0-9_-] (ο έλεγχος της φόρμας ρυθμίσεων τρέχει μόνο στον browser)
-  const analytics = cleanAnalyticsIds(pub.analytics);
+  // «Ενεργά στο site» κλειστό (προεπιλογή μέχρι το live) = κανένα tag
+  const analytics = pub.analytics?.enabled === true ? cleanAnalyticsIds(pub.analytics) : {};
   return (
     <html
       lang="el"

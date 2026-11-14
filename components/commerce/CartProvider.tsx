@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/track";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/data/types";
@@ -151,6 +152,7 @@ export function CartProvider({ children, gates = [] }: { children: ReactNode; ga
   const add = useCallback<CartState["add"]>((p, opts = {}) => {
     if (gated(p)) return;
     const qty = opts.qty ?? 1;
+    track("add_to_cart", { items: [{ id: p.id, name: p.title, brand: p.brand, price: p.price, qty }], value: p.price * qty });
     setLines((ls) => {
       const i = ls.findIndex((l) => l.product.id === p.id && l.variant === opts.variant);
       if (i === -1) return [...ls, { product: p, qty, addons: opts.addons ?? [], variant: opts.variant }];

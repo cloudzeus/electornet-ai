@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T18:37:13.443Z",
+ "generatedAt": "2026-11-14T03:09:19.178Z",
  "routes": [
   {
    "route": "/admin",
@@ -2183,6 +2183,11 @@
    ],
    "changes": [
     {
+     "hash": "295e13b",
+     "date": "2026-11-14T05:00:11+02:00",
+     "text": "Απόδοση: το site περίμενε τη βάση (16–26 ερωτήματα σε κάθε προβολή, σχεδόν όλα για τα προϊόντα των banners και του hero)"
+    },
+    {
      "hash": "9b7c47f",
      "date": "2026-11-13T15:31:25+02:00",
      "text": "Τιμές: τα δεκαδικά στο μισό μέγεθος, πάνω δεξιά από τα ευρώ"
@@ -2226,14 +2231,9 @@
      "hash": "5de9181",
      "date": "2026-10-11T13:42:07+03:00",
      "text": "Hero slides (ui-ux-pro-max): λεπτή κεφαλίδα με κατάσταση (δημοσιευμένο / πρόχειρο με αλλαγές / μη αποθηκευμένες), «Στο site», «Ακύρωση», ζωντανό «Έλεγχος» με λίστα λαθών που ανοίγει το slide και την καρτέλα, αποθήκευσ…"
-    },
-    {
-     "hash": "8fc17d3",
-     "date": "2026-10-10T19:26:28+03:00",
-     "text": "Υπηρεσίες στη διαχείριση (Εμπόριο → Υπηρεσίες): ένας κατάλογος για όλο το site (σελίδες, πρόσθετες υπηρεσίες σε προϊόν/checkout/παράδοση, αρχική, hero, προσφορές, Ερμής)"
     }
    ],
-   "updatedAt": "2026-11-13T15:31:25+02:00",
+   "updatedAt": "2026-11-14T05:00:11+02:00",
    "shots": {
     "desktop": "/api/help-shot/cms.slides-d.jpg",
     "mobile": "/api/help-shot/cms.slides-m.jpg"
@@ -3000,6 +3000,11 @@
    ],
    "changes": [
     {
+     "hash": "295e13b",
+     "date": "2026-11-14T05:00:11+02:00",
+     "text": "Απόδοση: το site περίμενε τη βάση (16–26 ερωτήματα σε κάθε προβολή, σχεδόν όλα για τα προϊόντα των banners και του hero)"
+    },
+    {
      "hash": "870c21d",
      "date": "2026-11-13T18:20:41+02:00",
      "text": "Banners: slider προϊόντων (ένα τη φορά, αλλάζει μόνο του με κίνηση, βέλη, τελείες, παύση)"
@@ -3043,14 +3048,9 @@
      "hash": "7d938f8",
      "date": "2026-10-17T05:48:25+03:00",
      "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
-    },
-    {
-     "hash": "4060650",
-     "date": "2026-10-16T17:08:16+03:00",
-     "text": "Καμπάνιες (Φ1): προσφορές ↔ καμπάνια"
     }
    ],
-   "updatedAt": "2026-11-13T18:20:41+02:00",
+   "updatedAt": "2026-11-14T05:00:11+02:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores-d.jpg",
     "mobile": "/api/help-shot/prosfores-m.jpg"
@@ -3888,6 +3888,11 @@
    ],
    "changes": [
     {
+     "hash": "295e13b",
+     "date": "2026-11-14T05:00:11+02:00",
+     "text": "Απόδοση: το site περίμενε τη βάση (16–26 ερωτήματα σε κάθε προβολή, σχεδόν όλα για τα προϊόντα των banners και του hero)"
+    },
+    {
      "hash": "870c21d",
      "date": "2026-11-13T18:20:41+02:00",
      "text": "Banners: slider προϊόντων (ένα τη φορά, αλλάζει μόνο του με κίνηση, βέλη, τελείες, παύση)"
@@ -3933,7 +3938,7 @@
      "text": "Φάση 1"
     }
    ],
-   "updatedAt": "2026-11-13T18:20:41+02:00",
+   "updatedAt": "2026-11-14T05:00:11+02:00",
    "shots": {
     "desktop": "/api/help-shot/prosfores.theseis-d.jpg",
     "mobile": "/api/help-shot/prosfores.theseis-m.jpg"
@@ -4104,11 +4109,6 @@
      "hash": "5ee1b5d",
      "date": "2026-09-13T18:55:06+03:00",
      "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
-    },
-    {
-     "hash": "0a6d215",
-     "date": "2026-09-13T15:59:18+03:00",
-     "text": "Voice for Άρης (experimental): Whisper speech-to-text, chat-audio text-to-speech, audio cache; search hand-off keeps the thread"
     }
    ],
    "updatedAt": "2026-09-20T16:02:35+03:00",
@@ -4142,11 +4142,6 @@
      "hash": "5ee1b5d",
      "date": "2026-09-13T18:55:06+03:00",
      "text": "Advisor renamed: Άρης → Ερμής in every display string (settings default, UI copy, prompts, voice presets, emails, docs)"
-    },
-    {
-     "hash": "0a6d215",
-     "date": "2026-09-13T15:59:18+03:00",
-     "text": "Voice for Άρης (experimental): Whisper speech-to-text, chat-audio text-to-speech, audio cache; search hand-off keeps the thread"
     }
    ],
    "updatedAt": "2026-10-04T15:17:56+03:00",
@@ -4793,8 +4788,14 @@
     "staffreport.person",
     "staffreport.actions"
    ],
-   "changes": [],
-   "updatedAt": null,
+   "changes": [
+    {
+     "hash": "f2d42bf",
+     "date": "2026-11-14T04:20:34+02:00",
+     "text": "Διαχείριση: «Αναφορά δραστηριότητας» μόνο για super admin"
+    }
+   ],
+   "updatedAt": "2026-11-14T04:20:34+02:00",
    "shots": {}
   },
   {
@@ -5179,6 +5180,26 @@
  ],
  "recent": [
   {
+   "hash": "295e13b",
+   "date": "2026-11-14T05:00:11+02:00",
+   "text": "Απόδοση: το site περίμενε τη βάση (16–26 ερωτήματα σε κάθε προβολή, σχεδόν όλα για τα προϊόντα των banners και του hero)",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/theseis"
+   ]
+  },
+  {
+   "hash": "f2d42bf",
+   "date": "2026-11-14T04:20:34+02:00",
+   "text": "Διαχείριση: «Αναφορά δραστηριότητας» μόνο για super admin",
+   "routes": [
+    "/admin",
+    "/admin/staff",
+    "/admin/staff/anafora"
+   ]
+  },
+  {
    "hash": "45725f3",
    "date": "2026-11-13T19:59:04+02:00",
    "text": "Πριν τη μετάπτωση: sitemap.xml (κατηγορίες, μάρκες, προσφορές, προϊόντα) με δήλωση στο robots.txt",
@@ -5437,21 +5458,6 @@
    "date": "2026-11-13T12:50:21+02:00",
    "text": "Banners: στυλ τετραγώνου «Βάθρο» (φωτεινό φόντο, προϊόν σε βάθρο, στρογγυλή τιμή, χαρακτηριστικά με εικονίδιο)",
    "routes": []
-  },
-  {
-   "hash": "6489cdb",
-   "date": "2026-11-13T12:41:51+02:00",
-   "text": "Black Friday, διορθώσεις εμφάνισης: hero σε σκούρο θέμα καμπάνιας (χρώματα και προβολέας των banners) με κίτρινο πλακίδιο κουπονιού στη θέση των «Υπηρεσιών»",
-   "routes": []
-  },
-  {
-   "hash": "896fb20",
-   "date": "2026-11-13T12:33:23+02:00",
-   "text": "Hero: τα προϊόντα των slides χωρίς φόντο (φτιάχνονται μία φορά με τη δημοσίευση, όπως στα banners)",
-   "routes": [
-    "/admin",
-    "/admin/cms/slides"
-   ]
   }
  ],
  "helpKeys": {

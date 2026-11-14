@@ -1,6 +1,7 @@
 "use client";
 
 
+import { track } from "@/lib/track";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PickupStorePicker } from "@/components/pdp/PickupStorePicker";
 import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
@@ -123,6 +124,10 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   }, []);
   const couponMsg = couponCode ? (loading && !quote?.coupon.message ? "Έλεγχος κωδικού…" : quote?.coupon.message ?? null) : null;
 
+  // έναρξη ταμείου: μία φορά, μόλις διαβαστεί το καλάθι
+  useEffect(() => {
+    if (hydrated && lines.length) track("begin_checkout", { value: subtotal + addonsTotal, items: lines.map((l) => ({ id: l.product.id, name: l.product.title, brand: l.product.brand, price: l.product.price, qty: l.qty })) });
+  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
   const localGoods = subtotal + addonsTotal;
   const goods = quote ? (quote.goods + quote.addons) / 100 : localGoods;
   const discPrice = quote ? quote.discPrice / 100 : 0;

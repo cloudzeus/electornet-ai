@@ -5,6 +5,7 @@ import { tpl } from "@/lib/cms/settings";
 import { useSettings } from "@/components/site/SettingsProvider";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { track } from "@/lib/track";
 import Image from "@/components/ui/Image";
 import { CheckCircle2 } from "lucide-react";
 import { priceLong } from "@/lib/format";
@@ -47,11 +48,19 @@ export function OrderSuccess({ number, bankAccounts = [] }: { number: string; /*
     const t = setTimeout(() => {
       try {
         const raw = localStorage.getItem("euronics.lastOrder");
-        if (raw) setO(JSON.parse(raw));
+        if (!raw) return;
+        const saved = JSON.parse(raw) as Saved;
+        setO(saved);
+        // αγορά: μία φορά ανά παραγγελία, όχι σε κάθε ανανέωση της σελίδας
+        const k = `euronics.tracked.${saved.number}`;
+        if (saved.number === number && !localStorage.getItem(k)) {
+          localStorage.setItem(k, "1");
+          track("purchase", { id: saved.number, value: saved.total, items: saved.lines.map((l) => ({ id: l.id, name: l.title, brand: l.brand, price: l.unitPrice, qty: l.qty })) });
+        }
       } catch {}
     }, 0);
     return () => clearTimeout(t);
-  }, []);
+  }, [number]);
   return (
     <div className="eu-canvas eu-gutter pb-12">
       <Stepper step={4} />

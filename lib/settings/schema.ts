@@ -45,7 +45,7 @@ export interface Section {
   /** τι κάνει η δοκιμή, κάτω από το κουμπί */
   testHelp?: string;
   /** κάρτες της φόρμας, με τη σειρά· πεδία χωρίς group πάνε στην πρώτη */
-  groups?: { key: string; title: string; help?: string; guide?: string }[];
+  groups?: { key: string; title: string; help?: string; guide?: string; guideTitle?: string }[];
   fields: Field[];
 }
 
@@ -188,18 +188,21 @@ export const SECTIONS: Section[] = [
   {
     key: "analytics",
     title: "Analytics & pixels",
-    description: "Φορτώνονται στο storefront μόνο μετά από συγκατάθεση cookies (consent mode).",
+    description: "Φορτώνονται στο storefront μόνο μετά από συγκατάθεση cookies (consent mode) και μόνο όσο ο διακόπτης «Ενεργά στο site» είναι ανοιχτός.",
     group: "marketing",
     groups: [
+      { key: "live", title: "Κατάσταση", help: "Συμπλήρωσε τα IDs από τώρα και άνοιξε τον διακόπτη την ημέρα που το site γίνεται το κανονικό euronics.gr. Όσο είναι κλειστός δεν φορτώνει κανένα tag, ώστε οι δοκιμές να μη μετριούνται ως πραγματικές επισκέψεις.", guideTitle: "Τι τρέχει στο παλιό euronics.gr", guide: "Έλεγχος 14/11/2026: Tag Manager GTM-KSJBDSC (μέσα του το GA4 G-7CMTB0EJ0X και το Conversion Linker), Google Ads AW-11094794682, Meta Pixel 3561925677427103. Το παλιό Universal Analytics UA-54924665-1 έχει καταργηθεί από τη Google και δεν μεταφέρεται. Για να συνεχίσουν οι ίδιες μετρήσεις: βάλε GTM, Google Ads και Meta Pixel με αυτούς τους κωδικούς και άφησε το GA4 κενό (μετρά μέσα από το GTM)." },
       { key: "google", title: "Google", help: "Αρκεί ένα από GA4 ή Tag Manager: αν έχεις GTM, βάλε το GA4 μέσα στο container και άφησε το GA4 εδώ κενό, για να μη μετριούνται διπλά οι επισκέψεις." },
       { key: "ads", title: "Διαφημιστικά pixels", help: "Μετρούν αγορές από διαφημίσεις. Φορτώνονται μόνο αν ο επισκέπτης δεχτεί cookies marketing." },
       { key: "ux", title: "Συμπεριφορά επισκεπτών", help: "Heatmaps και καταγραφές συνεδριών για βελτίωση του UX. Φορτώνονται μόνο με συγκατάθεση στατιστικών." },
     ],
     fields: [
-      { key: "ga4", label: "Google Analytics 4 · Measurement ID", type: "text", public: true, placeholder: "G-XXXXXXXXXX", width: "half", group: "google", rule: { re: /^G-[A-Z0-9]{6,12}$/, bad: "Ξεκινά με G- (Admin → Data streams → Web)" }, help: "Admin → Data streams → Web → Measurement ID." },
-      { key: "gtm", label: "Google Tag Manager · Container ID", type: "text", public: true, placeholder: "GTM-XXXXXXX", width: "half", group: "google", rule: { re: /^GTM-[A-Z0-9]{4,10}$/, bad: "Ξεκινά με GTM-" }, help: "Πάνω δεξιά στο tagmanager.google.com." },
-      { key: "googleAds", label: "Google Ads · Conversion ID", type: "text", public: true, placeholder: "AW-123456789", width: "half", group: "ads", rule: { re: /^AW-\d{6,12}$/, bad: "Ξεκινά με AW- και ακολουθούν ψηφία" }, help: "Google Ads → Goals → Conversions → Tag setup." },
-      { key: "metaPixel", label: "Meta (Facebook/Instagram) Pixel ID", type: "text", public: true, width: "half", group: "ads", placeholder: "123456789012345", rule: { re: /^\d{15,16}$/, bad: "Το Pixel ID είναι 15–16 ψηφία" }, help: "Events Manager → Data sources → Pixel." },
+      { ...yesNo("enabled", "Ενεργά στο site", "Κλειστό = δεν φορτώνει κανένα tag ή pixel, ό,τι κι αν έχεις γράψει παρακάτω. Άνοιξέ το όταν το site βγει live.", true), group: "live" },
+      { key: "ga4", label: "Google Analytics 4 · Measurement ID", type: "text", public: true, placeholder: "G-XXXXXXXXXX", width: "half", group: "google", rule: { re: /^G-[A-Z0-9]{6,12}$/, bad: "Ξεκινά με G- (Admin → Data streams → Web)" }, help: "Admin → Data streams → Web → Measurement ID. Παλιό site: G-7CMTB0EJ0X, αλλά μετρά ήδη μέσα από το GTM — άφησέ το κενό αν βάλεις GTM." },
+      { key: "gtm", label: "Google Tag Manager · Container ID", type: "text", public: true, placeholder: "GTM-XXXXXXX", width: "half", group: "google", rule: { re: /^GTM-[A-Z0-9]{4,10}$/, bad: "Ξεκινά με GTM-" }, help: "Πάνω δεξιά στο tagmanager.google.com. Παλιό site: GTM-KSJBDSC." },
+      { key: "googleAds", label: "Google Ads · Conversion ID", type: "text", public: true, placeholder: "AW-123456789", width: "half", group: "ads", rule: { re: /^AW-\d{6,12}$/, bad: "Ξεκινά με AW- και ακολουθούν ψηφία" }, help: "Google Ads → Goals → Conversions → Tag setup. Παλιό site: AW-11094794682." },
+      { key: "googleAdsPurchaseLabel", label: "Google Ads · ετικέτα μετατροπής «Αγορά»", type: "text", public: true, placeholder: "AbC-D_efG-h12_34-567", width: "half", group: "ads", rule: { re: /^[A-Za-z0-9_-]{8,40}$/, bad: "Μόνο το κομμάτι μετά την κάθετο στο send_to: AW-…/ΕΤΙΚΕΤΑ" }, help: "Google Ads → Goals → Conversions → η μετατροπή «Αγορά» → Tag setup: το κομμάτι μετά την «/» στο send_to. Κενό = το Google Ads δεν μετρά αγορές (εκτός αν τις εισάγει από το GA4)." },
+      { key: "metaPixel", label: "Meta (Facebook/Instagram) Pixel ID", type: "text", public: true, width: "half", group: "ads", placeholder: "123456789012345", rule: { re: /^\d{15,16}$/, bad: "Το Pixel ID είναι 15–16 ψηφία" }, help: "Events Manager → Data sources → Pixel. Παλιό site: 3561925677427103." },
       { key: "tiktokPixel", label: "TikTok Pixel ID", type: "text", public: true, width: "half", group: "ads", placeholder: "C1A2B3C4D5E6F7G8H9I0", rule: { re: /^[A-Z0-9]{18,22}$/, bad: "20 κεφαλαία γράμματα/ψηφία" }, help: "TikTok Ads Manager → Assets → Events." },
       { key: "gsc", label: "Google Search Console · verification", type: "text", public: true, width: "half", group: "google", placeholder: "abc123…", help: "Μόνο ο κωδικός από το meta tag (content=\"…\"), όχι όλο το tag." },
       { key: "clarity", label: "Microsoft Clarity · Project ID", type: "text", public: true, width: "half", group: "ux", placeholder: "abcd1234ef", rule: { re: /^[a-z0-9]{8,12}$/, bad: "10 μικρά γράμματα/ψηφία (Settings → Overview)" } },

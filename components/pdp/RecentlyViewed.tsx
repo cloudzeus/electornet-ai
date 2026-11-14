@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { track } from "@/lib/track";
 import { ProductImage } from "@/components/commerce/ProductImage";
 import { copyOf } from "@/lib/cms/copy";
 import { Price } from "@/components/commerce/Price";
@@ -14,6 +15,8 @@ const KEY = "euronics.recent.v1";
 /** Remembers the last 8 viewed products in localStorage and shows the others. */
 export function RecentlyViewed({ current }: { current: Mini }) {
   const [items, setItems] = useState<Mini[]>([]);
+  // μία προβολή ανά προϊόν (το `current` είναι νέο αντικείμενο σε κάθε render)
+  useEffect(() => { track("view_item", { items: [{ id: current.id, name: current.title, brand: current.brand, price: current.price }], value: current.price }); }, [current.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const t = setTimeout(() => {
       try {

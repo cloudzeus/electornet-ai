@@ -133,7 +133,7 @@ export function SettingsForm({ sectionKey, data, secretSet }: { sectionKey: stri
               <FieldGroup id={`g-${g.key}`} title={g.title} help={g.help}>
                 {"guide" in g && g.guide && (
                   <details className="group/guide @2xl:col-span-2 rounded-xl bg-eu-chip/50">
-                    <summary className="list-none cursor-pointer flex items-center gap-2 px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)]"><BookOpen className="size-4 shrink-0" aria-hidden /><span className="flex-1">Οδηγίες ρύθμισης στον πάροχο</span><ChevronDown className="size-4 shrink-0 transition-transform group-open/guide:rotate-180" aria-hidden /></summary>
+                    <summary className="list-none cursor-pointer flex items-center gap-2 px-3 min-h-11 font-bold text-eu-blue text-[length:var(--fs-14)]"><BookOpen className="size-4 shrink-0" aria-hidden /><span className="flex-1">{("guideTitle" in g && g.guideTitle) || "Οδηγίες ρύθμισης στον πάροχο"}</span><ChevronDown className="size-4 shrink-0 transition-transform group-open/guide:rotate-180" aria-hidden /></summary>
                     <p className="m-0 px-3 pb-3 text-eu-ink-2 text-[length:var(--fs-14)] leading-relaxed break-words">{g.guide}</p>
                   </details>
                 )}

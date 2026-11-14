@@ -9,7 +9,7 @@
  *   (φωτογραφίες προϊόντων από πολλούς προμηθευτές, χάρτες, pixels).
  */
 const ANALYTICS = [
-  "https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://*.g.doubleclick.net", "https://www.google.com",
+  "https://*.google-analytics.com", "https://*.analytics.google.com", "https://*.googletagmanager.com", "https://*.doubleclick.net", "https://www.google.com", "https://www.google.gr", "https://www.googleadservices.com", "https://pagead2.googlesyndication.com",
   "https://*.clarity.ms", "https://c.bing.com", "https://*.facebook.com", "https://*.facebook.net", "https://*.tiktok.com", "https://*.tiktokw.us",
   "https://*.hotjar.com", "https://*.hotjar.io", "wss://*.hotjar.com",
 ];

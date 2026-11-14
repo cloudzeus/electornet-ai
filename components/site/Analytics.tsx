@@ -5,7 +5,7 @@ import Script from "next/script";
 
 /**
  * @dynamic Analytics & pixels from Settings → «Analytics & pixels». Nothing
- * loads until the visitor accepts analytics/marketing cookies (CookieConsent
+ * loads while «Ενεργά στο site» is off (app/layout.tsx), nor until the visitor accepts analytics/marketing cookies (CookieConsent
  * writes `euronics.consent.v1`; a `eu:consent` event fires on change).
  * With Consent Mode v2 on, gtag gets a default «denied» first.
  */
@@ -13,6 +13,8 @@ export interface AnalyticsIds {
   ga4?: string;
   gtm?: string;
   googleAds?: string;
+  /** ετικέτα της μετατροπής «Αγορά» (lib/track.ts) */
+  googleAdsPurchaseLabel?: string;
   metaPixel?: string;
   tiktokPixel?: string;
   clarity?: string;
@@ -46,6 +48,20 @@ export function Analytics(ids: AnalyticsIds) {
     };
   }, []);
   const hasGoogle = !!(ids.ga4 || ids.gtm || ids.googleAds);
+  useEffect(() => {
+    (window as unknown as { euAdsPurchase?: string }).euAdsPurchase = ids.googleAds && ids.googleAdsPurchaseLabel ? `${ids.googleAds}/${ids.googleAdsPurchaseLabel}` : undefined;
+  }, [ids.googleAds, ids.googleAdsPurchaseLabel]);
+  // Consent Mode: το «default» γράφεται μία φορά (denied)· κάθε απάντηση του επισκέπτη πρέπει να σταλεί ως «update»,
+  // αλλιώς η Google μένει στο denied και το Google Ads δεν μετρά ποτέ.
+  useEffect(() => {
+    if (!consent || !hasGoogle || !ids.consentMode) return;
+    const w = window as unknown as { dataLayer?: unknown[] };
+    const dl = (w.dataLayer = w.dataLayer || []);
+    const g = (v: boolean) => (v ? "granted" : "denied");
+    // το gtag διαβάζει μόνο αντικείμενο `arguments`, όχι πίνακα
+    // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-unused-vars
+    (function (..._a: unknown[]) { dl.push(arguments); })("consent", "update", { ad_storage: g(consent.marketing), ad_user_data: g(consent.marketing), ad_personalization: g(consent.marketing), analytics_storage: g(consent.analytics) });
+  }, [consent, hasGoogle, ids.consentMode]);
   if (!hasGoogle && !ids.metaPixel && !ids.tiktokPixel && !ids.clarity && !ids.hotjar) return null;
   const analytics = !!consent?.analytics;
   const marketing = !!consent?.marketing;
@@ -57,10 +73,11 @@ export function Analytics(ids: AnalyticsIds) {
       {analytics && ids.gtm && (
         <Script nonce={ids.nonce} id="eu-gtm" strategy="afterInteractive">{`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${ids.gtm}');`}</Script>
       )}
-      {analytics && !ids.gtm && (ids.ga4 || ids.googleAds) && (
+      {/* με GTM το GA4 ζει μέσα στο container· το Google Ads φορτώνει δίπλα του με gtag, όπως στο παλιό site */}
+      {((analytics && !ids.gtm && ids.ga4) || (marketing && ids.googleAds)) && (
         <>
-          <Script nonce={ids.nonce} src={`https://www.googletagmanager.com/gtag/js?id=${ids.ga4 ?? ids.googleAds}`} strategy="afterInteractive" />
-          <Script nonce={ids.nonce} id="eu-gtag" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());${ids.ga4 ? `gtag('config','${ids.ga4}');` : ""}${ids.googleAds && marketing ? `gtag('config','${ids.googleAds}');` : ""}`}</Script>
+          <Script nonce={ids.nonce} src={`https://www.googletagmanager.com/gtag/js?id=${(!ids.gtm && analytics && ids.ga4) || ids.googleAds}`} strategy="afterInteractive" />
+          <Script nonce={ids.nonce} id="eu-gtag" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());${!ids.gtm && analytics && ids.ga4 ? `gtag('config','${ids.ga4}');` : ""}${ids.googleAds && marketing ? `gtag('config','${ids.googleAds}');` : ""}`}</Script>
         </>
       )}
       {marketing && ids.metaPixel && (
