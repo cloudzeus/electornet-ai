@@ -20,6 +20,8 @@ export interface AnalyticsIds {
   clarity?: string;
   hotjar?: string;
   consentMode?: boolean;
+  /** προχωρημένο Consent Mode: τα Google tags φορτώνουν και πριν τη συγκατάθεση, χωρίς cookies (default «denied») */
+  consentAdvanced?: boolean;
   /** nonce του Content-Security-Policy (proxy.ts) */
   nonce?: string;
 }
@@ -65,19 +67,23 @@ export function Analytics(ids: AnalyticsIds) {
   if (!hasGoogle && !ids.metaPixel && !ids.tiktokPixel && !ids.clarity && !ids.hotjar) return null;
   const analytics = !!consent?.analytics;
   const marketing = !!consent?.marketing;
+  // μόνο για τα Google tags· Meta, TikTok, Clarity, Hotjar περιμένουν πάντα τη συγκατάθεση
+  const early = !!(ids.consentMode && ids.consentAdvanced);
+  const gA = analytics || early;
+  const gM = marketing || early;
   return (
     <>
       {hasGoogle && ids.consentMode && (
         <Script nonce={ids.nonce} id="eu-consent-default" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('consent','default',{ad_storage:'${marketing ? "granted" : "denied"}',ad_user_data:'${marketing ? "granted" : "denied"}',ad_personalization:'${marketing ? "granted" : "denied"}',analytics_storage:'${analytics ? "granted" : "denied"}',wait_for_update:500});`}</Script>
       )}
-      {analytics && ids.gtm && (
+      {gA && ids.gtm && (
         <Script nonce={ids.nonce} id="eu-gtm" strategy="afterInteractive">{`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${ids.gtm}');`}</Script>
       )}
       {/* με GTM το GA4 ζει μέσα στο container· το Google Ads φορτώνει δίπλα του με gtag, όπως στο παλιό site */}
-      {((analytics && !ids.gtm && ids.ga4) || (marketing && ids.googleAds)) && (
+      {((gA && !ids.gtm && ids.ga4) || (gM && ids.googleAds)) && (
         <>
-          <Script nonce={ids.nonce} src={`https://www.googletagmanager.com/gtag/js?id=${(!ids.gtm && analytics && ids.ga4) || ids.googleAds}`} strategy="afterInteractive" />
-          <Script nonce={ids.nonce} id="eu-gtag" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());${!ids.gtm && analytics && ids.ga4 ? `gtag('config','${ids.ga4}');` : ""}${ids.googleAds && marketing ? `gtag('config','${ids.googleAds}');` : ""}`}</Script>
+          <Script nonce={ids.nonce} src={`https://www.googletagmanager.com/gtag/js?id=${(!ids.gtm && gA && ids.ga4) || ids.googleAds}`} strategy="afterInteractive" />
+          <Script nonce={ids.nonce} id="eu-gtag" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)};gtag('js',new Date());${!ids.gtm && gA && ids.ga4 ? `gtag('config','${ids.ga4}');` : ""}${ids.googleAds && gM ? `gtag('config','${ids.googleAds}');` : ""}`}</Script>
         </>
       )}
       {marketing && ids.metaPixel && (

@@ -208,6 +208,7 @@ export const SECTIONS: Section[] = [
       { key: "clarity", label: "Microsoft Clarity · Project ID", type: "text", public: true, width: "half", group: "ux", placeholder: "abcd1234ef", rule: { re: /^[a-z0-9]{8,12}$/, bad: "10 μικρά γράμματα/ψηφία (Settings → Overview)" } },
       { key: "hotjar", label: "Hotjar · Site ID", type: "text", public: true, width: "half", group: "ux", placeholder: "1234567", rule: { re: /^\d{6,8}$/, bad: "Το Site ID είναι 6–8 ψηφία" } },
       { ...yesNo("consentMode", "Google Consent Mode v2", "Στέλνει «denied» στη Google μέχρι να δεχτεί ο επισκέπτης cookies. Απαιτείται στην ΕΕ για να μετρά σωστά το Google Ads — άφησέ το ενεργό.", true), group: "google" },
+      { ...yesNo("consentAdvanced", "Προχωρημένο Consent Mode (μέτρηση με εκτίμηση)", "Ανοιχτό: τα Google tags φορτώνουν για όλους, αλλά χωρίς cookies μέχρι να δεχτεί ο επισκέπτης· το GA4 και το Google Ads συμπληρώνουν με εκτίμηση όσους αρνήθηκαν, άρα οι αριθμοί είναι πιο κοντά στους πραγματικούς. Στέλνονται όμως ανώνυμα σήματα (IP, σελίδα) στη Google πριν από τη συγκατάθεση — άνοιξέ το μόνο με έγκριση του υπεύθυνου προστασίας δεδομένων. Δεν αφορά Meta, TikTok, Clarity, Hotjar.", true), group: "google", showIf: on("consentMode") },
     ],
   },
   {

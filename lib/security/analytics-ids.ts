@@ -5,7 +5,7 @@
  */
 const KEYS = ["ga4", "gtm", "googleAds", "googleAdsPurchaseLabel", "metaPixel", "tiktokPixel", "clarity", "hotjar"] as const;
 type Key = (typeof KEYS)[number];
-export type CleanAnalyticsIds = Partial<Record<Key, string>> & { consentMode?: boolean };
+export type CleanAnalyticsIds = Partial<Record<Key, string>> & { consentMode?: boolean; consentAdvanced?: boolean };
 
 export function cleanAnalyticsIds(raw: unknown): CleanAnalyticsIds {
   const out: CleanAnalyticsIds = {};
@@ -16,5 +16,6 @@ export function cleanAnalyticsIds(raw: unknown): CleanAnalyticsIds {
     if (/^[A-Za-z0-9_-]{1,40}$/.test(v)) out[k] = v;
   }
   if (typeof r.consentMode === "boolean") out.consentMode = r.consentMode;
+  if (r.consentAdvanced === true && r.consentMode === true) out.consentAdvanced = true;
   return out;
 }

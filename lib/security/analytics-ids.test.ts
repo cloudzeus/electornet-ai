@@ -18,3 +18,9 @@ test("cleanAnalyticsIds: αγνοεί άγνωστα πεδία και μη-αν
   assert.deepEqual(cleanAnalyticsIds(null), {});
   assert.deepEqual(cleanAnalyticsIds("G-1"), {});
 });
+
+test("cleanAnalyticsIds: το προχωρημένο Consent Mode ισχύει μόνο μαζί με το Consent Mode", () => {
+  assert.deepEqual(cleanAnalyticsIds({ consentMode: true, consentAdvanced: true }), { consentMode: true, consentAdvanced: true });
+  assert.deepEqual(cleanAnalyticsIds({ consentMode: false, consentAdvanced: true }), { consentMode: false });
+  assert.deepEqual(cleanAnalyticsIds({ consentAdvanced: true }), {});
+});
