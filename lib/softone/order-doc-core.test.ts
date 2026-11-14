@@ -132,3 +132,29 @@ test("φίλτρο FINCODE: μόνο ασφαλείς αριθμοί παραγ�
   assert.equal(fincodeFilter(" 2026000123 "), "SOSOURCE=1351 AND FINCODE='2026000123'");
   for (const bad of ["", "   ", "EU'10042", "EU-1 OR 1=1", "EU;10042", "α".repeat(41), "EU-100%"]) assert.equal(fincodeFilter(bad), null, bad);
 });
+
+test("τιμολόγιο: Επωνυμία/ΑΦΜ/ΔΟΥ στο MTRDOC, ΑΦΜ μόνο ψηφία", () => {
+  const d = composeSaldoc({ ...base, invoice: { vatNumber: "EL 094019245", doy: "ΦΑΕ ΠΕΙΡΑΙΑ", company: "ΔΟΚΙΜΗ Α.Ε." }, invoiceTrdr: "1234" }, S);
+  const m = d.data.MTRDOC[0];
+  assert.equal(m.CCCSHPAFM, "094019245");
+  assert.equal(m.CCCSHPNAME, "ΔΟΚΙΜΗ Α.Ε.");
+  assert.equal(m.CCCSHPIRSDATA, "ΦΑΕ ΠΕΙΡΑΙΑ");
+  assert.equal(d.data.SALDOC[0].COMMENTS1, "Μαρία Παπά"); // ο αγοραστής δεν χάνεται
+  assert.deepEqual(d.needs, []);
+});
+
+test("απόδειξη: κανένα ΑΦΜ στο παραστατικό, Επωνυμία = ο αγοραστής", () => {
+  const m = composeSaldoc(base, S).data.MTRDOC[0];
+  assert.ok(!("CCCSHPAFM" in m), "δεν στέλνεται ΑΦΜ σε απόδειξη");
+  assert.equal(m.CCCSHPNAME, "Μαρία Παπά");
+});
+
+test("μήκη πεδίων MTRDOC: ποτέ πάνω από τα όρια του SoftOne", () => {
+  const long = "Χ".repeat(300);
+  const d = composeSaldoc({ ...base, contact: { firstName: long, lastName: long, phone: "6900000000" },
+    address: { street: long, number: "1", zip: "10563", city: long, region: long },
+    invoice: { vatNumber: "094019245", doy: long, company: long } }, S);
+  const m = d.data.MTRDOC[0];
+  const max: Record<string, number> = { CCCSHPNAME: 128, CCCSHPAFM: 30, CCCSHPIRSDATA: 64, CCCSHPPHONE: 64, CCCSHPADDRESS: 128, SHIPPINGADDR: 255 };
+  for (const [k, n] of Object.entries(max)) assert.ok(String(m[k] ?? "").length <= n, `${k}: ${String(m[k] ?? "").length} > ${n}`);
+});

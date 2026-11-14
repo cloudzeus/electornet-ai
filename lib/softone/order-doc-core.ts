@@ -174,6 +174,8 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   }
 
   const name = cut([o.contact.firstName, o.contact.lastName].filter(Boolean).join(" "), 255);
+  // ΑΦΜ τιμολογίου: μόνο ψηφία (το SoftOne κρατά σκέτο ΑΦΜ) — στην απόδειξη δεν στέλνεται καθόλου
+  const afm = (o.invoice?.vatNumber ?? "").replace(/\D/g, "").slice(0, 30);
   const phone = cut(o.contact.phone ?? "", 30);
   const a = o.address;
   const street = cut([a.street, a.number].filter(Boolean).join(" ") + (a.floor ? `, ${a.floor}ος όροφος` : ""), 255);
@@ -201,8 +203,11 @@ export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
       }],
       MTRDOC: [{
         SHIPPINGADDR: ship.addr || null, SHPZIP: ship.zip || null, SHPCITY: ship.city || null, SHPDISTRICT: ship.district || null,
-        CCCSHPNAME: name || null, CCCSHPPHONE: phone || null, CCCSHPADDRESS: ship.line || null,
-        ...(o.invoice?.doy ? { CCCSHPIRSDATA: cut(o.invoice.doy, 100) } : {}),
+        // Επωνυμία / ΑΦΜ / ΔΟΥ είναι η ταυτότητα του παραστατικού: σε τιμολόγιο η εταιρεία, σε απόδειξη ο αγοραστής
+        // (το ονοματεπώνυμο μένει πάντα στο COMMENTS1). Μήκη όπως τα δηλώνει το SoftOne: NAME 128, AFM 30, ΔΟΥ 64, ADDRESS 128.
+        CCCSHPNAME: cut(o.invoice?.company || name, 128) || null, CCCSHPPHONE: phone || null, CCCSHPADDRESS: cut(ship.line, 128) || null,
+        ...(afm ? { CCCSHPAFM: afm } : {}),
+        ...(o.invoice?.doy ? { CCCSHPIRSDATA: cut(o.invoice.doy, 64) } : {}),
       }],
       ITELINES: itelines,
     },
