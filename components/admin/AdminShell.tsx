@@ -11,6 +11,7 @@ import { signOut } from "@/lib/auth";
 import { AdminNavLinks } from "./AdminNavLinks";
 import { AdminTitle } from "./AdminTitle";
 import { DensityToggle } from "./DensityToggle";
+import { PresencePing } from "./PresencePing";
 
 /**
  * Back-office frame: navy sidebar (groups filtered by the user's permissions and the features enabled in Settings),
@@ -72,6 +73,7 @@ export async function AdminShell({ user, children, title }: { user: { name?: str
         <main className="eu-container min-w-0 p-4 @md:p-6 grid gap-6 content-start">{children}</main>
         {/* «Δείξε μου» / σημεία βοήθειας / ?help=… πάνω σε κάθε σελίδα */}
         <Suspense fallback={null}><HelpSpotlight /></Suspense>
+        <PresencePing />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import {
   GitBranch,
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap, CalendarCheck,
-  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale,
+  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale, Timer,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -124,6 +124,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/settings", label: "Ρυθμίσεις & διασυνδέσεις", icon: Settings, perm: "*", superOnly: true },
       { href: "/admin/settings/softone", label: "SoftOne · σύνδεση", icon: Database, perm: "*", superOnly: true },
       { href: "/admin/staff", label: "Χρήστες", icon: Users, perm: "staff.read" },
+      { href: "/admin/staff/anafora", label: "Αναφορά δραστηριότητας", icon: Timer, perm: "*", superOnly: true },
       { href: "/admin/roles", label: "Ρόλοι & δικαιώματα", icon: ShieldCheck, perm: "staff.roles.write" },
       { href: "/admin/audit", label: "Audit log", icon: ScrollText, perm: "audit.read" },
       { href: "/admin/backups", label: "Backups βάσης", icon: DatabaseBackup, perm: "*", superOnly: true },

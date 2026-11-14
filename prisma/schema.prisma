@@ -1999,6 +1999,7 @@ model Staff {
   lastLoginAt     DateTime?
   loginChallenges StaffLoginChallenge[]
   priceChangeBatches PriceChangeBatch[]
+  presence        StaffPresence[]
 }
 
 model Role {
@@ -2036,6 +2037,23 @@ model StaffRole {
   role    Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([staffId, roleId])
+}
+
+/// Ενεργός χρόνος προσωπικού στη διαχείριση: μία γραμμή ανά άτομο, ημέρα (ώρα Ελλάδας) και περιοχή του μενού.
+/// Τη γεμίζει το «ping» του AdminShell κάθε λεπτό όσο η καρτέλα είναι ορατή και ο χρήστης ενεργός.
+model StaffPresence {
+  id      String   @id @default(cuid())
+  staffId String
+  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  day     String // "2026-11-13" (Europe/Athens)
+  area    String // href του μενού, π.χ. "/admin/catalog"
+  seconds Int      @default(0)
+  firstAt DateTime
+  lastAt  DateTime
+
+  @@unique([staffId, day, area])
+  @@index([day])
+  @@index([staffId, lastAt])
 }
 
 model AuditLog {

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T17:56:08.808Z",
+ "generatedAt": "2026-11-13T18:37:13.443Z",
  "routes": [
   {
    "route": "/admin",
@@ -3384,6 +3384,11 @@
    ],
    "changes": [
     {
+     "hash": "1bd6f64",
+     "date": "2026-11-13T19:56:29+02:00",
+     "text": "Καμπάνιες: «έναρξη αγορών»"
+    },
+    {
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
@@ -3399,7 +3404,7 @@
      "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-19T19:26:53+03:00",
+   "updatedAt": "2026-11-13T19:56:29+02:00",
    "shots": {}
   },
   {
@@ -3416,6 +3421,11 @@
    ],
    "changes": [
     {
+     "hash": "1bd6f64",
+     "date": "2026-11-13T19:56:29+02:00",
+     "text": "Καμπάνιες: «έναρξη αγορών»"
+    },
+    {
      "hash": "7d938f8",
      "date": "2026-10-17T05:48:25+03:00",
      "text": "Newsletter προσφοράς (7/7): διαχείριση και βοήθεια"
@@ -3426,7 +3436,7 @@
      "text": "Καμπάνιες (Φ1): λίστα με φίλτρα / αναζήτηση / budget, οδηγός 5 βημάτων (στόχος & ημερομηνίες, budget, περιεχόμενα, προβολή, έλεγχος & δημοσίευση), παύση / λήξη / αρχείο, καρτέλα «Καμπάνιες» στις Προσφορές"
     }
    ],
-   "updatedAt": "2026-10-17T05:48:25+03:00",
+   "updatedAt": "2026-11-13T19:56:29+02:00",
    "shots": {}
   },
   {
@@ -3947,6 +3957,11 @@
    ],
    "changes": [
     {
+     "hash": "1bd6f64",
+     "date": "2026-11-13T19:56:29+02:00",
+     "text": "Καμπάνιες: «έναρξη αγορών»"
+    },
+    {
      "hash": "8dcd8fe",
      "date": "2026-11-13T19:28:27+02:00",
      "text": "Πλατύ banner: πρωταγωνιστής το προϊόν"
@@ -3990,14 +4005,9 @@
      "hash": "323d805",
      "date": "2026-11-13T16:30:36+02:00",
      "text": "Τυπογραφία τιμών: αδιάσπαστο κενό ανάμεσα σε ποσό και «€» σε όλη τη βιτρίνα"
-    },
-    {
-     "hash": "00f82bc",
-     "date": "2026-11-13T16:13:32+02:00",
-     "text": "Σελίδα προϊόντος: το banner πάει κάτω από τη φωτογραφία αντί κάτω από την αγορά"
     }
    ],
-   "updatedAt": "2026-11-13T19:28:27+02:00",
+   "updatedAt": "2026-11-13T19:56:29+02:00",
    "shots": {}
   },
   {
@@ -4041,11 +4051,6 @@
      "hash": "97a8fe0",
      "date": "2026-10-19T19:26:53+03:00",
      "text": "Ασφάλεια: CSP χωρίς 'unsafe-inline'"
-    },
-    {
-     "hash": "b06f225",
-     "date": "2026-09-13T15:22:47+03:00",
-     "text": "Snap & Find: AI recognition of the old appliance from a photo"
     }
    ],
    "updatedAt": "2026-10-19T19:26:53+03:00",
@@ -4770,6 +4775,29 @@
    "shots": {}
   },
   {
+   "route": "/admin/staff/anafora",
+   "slug": "staff.anafora",
+   "file": "app/admin/(shell)/staff/anafora/page.tsx",
+   "title": "Αναφορά δραστηριότητας",
+   "doc": "Super admin: πόσο ενεργό χρόνο πέρασε κάθε διαχειριστής στη διαχείριση, σε ποιες περιοχές (και στο wiki) και τι άλλαξε. Εκτυπώσιμη.",
+   "perm": "super-admin",
+   "nav": {
+    "group": "Διαχείριση",
+    "label": "Αναφορά δραστηριότητας"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "staffreport.filters",
+    "staffreport.summary",
+    "staffreport.chart",
+    "staffreport.person",
+    "staffreport.actions"
+   ],
+   "changes": [],
+   "updatedAt": null,
+   "shots": {}
+  },
+  {
    "route": "/admin/stickers",
    "slug": "stickers",
    "file": "app/admin/(shell)/stickers/page.tsx",
@@ -5151,6 +5179,23 @@
  ],
  "recent": [
   {
+   "hash": "45725f3",
+   "date": "2026-11-13T19:59:04+02:00",
+   "text": "Πριν τη μετάπτωση: sitemap.xml (κατηγορίες, μάρκες, προσφορές, προϊόντα) με δήλωση στο robots.txt",
+   "routes": []
+  },
+  {
+   "hash": "1bd6f64",
+   "date": "2026-11-13T19:56:29+02:00",
+   "text": "Καμπάνιες: «έναρξη αγορών»",
+   "routes": [
+    "/admin",
+    "/admin/prosfores",
+    "/admin/prosfores/kampanies",
+    "/admin/prosfores/kampanies/[id]"
+   ]
+  },
+  {
    "hash": "5bf1a33",
    "date": "2026-11-13T19:35:58+02:00",
    "text": "Πληρωμές: η επιστροφή του πελάτη από τη Viva και την Klarna έστελνε στο localhost:3000 πίσω από τον proxy (ίδιο λάθος με τα banners)",
@@ -5406,26 +5451,6 @@
    "routes": [
     "/admin",
     "/admin/cms/slides"
-   ]
-  },
-  {
-   "hash": "7be73bf",
-   "date": "2026-11-13T12:12:11+02:00",
-   "text": "Banners: προϊόντα χωρίς φόντο",
-   "routes": [
-    "/admin",
-    "/admin/prosfores"
-   ]
-  },
-  {
-   "hash": "2208fe3",
-   "date": "2026-11-13T11:45:06+02:00",
-   "text": "Banners: δικός τους editor (όπως τα hero slides) με «Σχεδιασμένο εδώ»",
-   "routes": [
-    "/admin",
-    "/admin/prosfores",
-    "/admin/prosfores/theseis",
-    "/admin/prosfores/theseis/[id]"
    ]
   }
  ],
@@ -5948,6 +5973,21 @@
   ],
   "sync.scheduler": [
    "app/admin/(shell)/softone/sync/page.tsx"
+  ],
+  "staffreport.filters": [
+   "app/admin/(shell)/staff/anafora/page.tsx"
+  ],
+  "staffreport.summary": [
+   "app/admin/(shell)/staff/anafora/page.tsx"
+  ],
+  "staffreport.chart": [
+   "app/admin/(shell)/staff/anafora/page.tsx"
+  ],
+  "staffreport.person": [
+   "app/admin/(shell)/staff/anafora/page.tsx"
+  ],
+  "staffreport.actions": [
+   "app/admin/(shell)/staff/anafora/page.tsx"
   ],
   "partner.routes": [
    "app/admin/(shell)/synergates/[id]/page.tsx"
