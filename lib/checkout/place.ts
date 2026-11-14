@@ -203,6 +203,9 @@ export async function placeOrder(input: PlaceInput) {
     }
     // «Οι συσκευές μου»: εγγύηση (και δωρεάν επέκταση όπου ισχύει) στο προφίλ του πελάτη
     void import("@/lib/warranty/server").then((m) => m.devicesFromOrder(result.orderId)).catch(() => null);
+    // αποστολή στο SoftOne για όσες δεν περιμένουν online πληρωμή (αντικαταβολή, κατάθεση, στο κατάστημα) — μόνο σε
+    // «Αποστολή»· οι πληρωμές με Viva/Klarna στέλνονται από το markPaid όταν επιβεβαιωθεί η πληρωμή
+    void import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(result.orderId)).catch(() => null);
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;

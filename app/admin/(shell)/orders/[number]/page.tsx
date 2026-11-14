@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/rbac/guard";
 import { can } from "@/lib/rbac/permissions";
 import { orderDetail } from "@/lib/orders/admin";
 import { shipmentDraft } from "@/lib/couriers/shipments";
-import { saldocForOrder } from "@/lib/softone/order-doc";
+import { orderPushMode, orderWriteEnabled, saldocForOrder } from "@/lib/softone/order-doc";
 import type { SaldocDoc } from "@/lib/softone/order-doc-core";
 import { db } from "@/lib/db";
 import { RESTOCK_INCLUDE, RestockList } from "@/components/admin/partners/RestockList";
@@ -26,7 +26,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const draft = canWrite && o.fulfilment === "courier" && !hasShip && ["pending", "paid", "processing"].includes(o.status) ? await shipmentDraft(o.id) : null;
   // το παραστατικό όσο δεν έχει σταλεί χτίζεται με τις τρέχουσες ρυθμίσεις (π.χ. αφού συμπληρωθεί ένας κωδικός πληρωμής)
   const doc = o.erpSync && ["preview", "awaiting-payment"].includes(o.erpSync.status) ? await saldocForOrder(o.id).catch(() => null) : ((o.erpSync?.payload ?? null) as SaldocDoc | null);
-  const erp = doc?.totals ? { needs: doc.needs ?? [], warnings: doc.warnings ?? [], gross: doc.totals.gross, expected: doc.totals.expected } : null;
+  // «Αποστολή στο SoftOne»: μόνο όταν ο διακόπτης των ρυθμίσεων ΚΑΙ ο διακομιστής (S1_ORDER_WRITE) το επιτρέπουν
+  const canSend = orderWriteEnabled() && (await orderPushMode()) === "send";
+  const erp = doc?.totals ? { needs: doc.needs ?? [], warnings: doc.warnings ?? [], gross: doc.totals.gross, expected: doc.totals.expected, canSend } : null;
   // αναπληρώσεις που ζήτησε το κατάστημα-συνεργάτης για αυτή την παραγγελία (πύλη συνεργατών)
   const restocks = can(user.permissions, "stores.partners.read") ? await db.partnerRestock.findMany({ where: { orderId: o.id }, orderBy: { createdAt: "desc" }, include: RESTOCK_INCLUDE }) : [];
   const flowBase = await orderFlowBase(o.id);

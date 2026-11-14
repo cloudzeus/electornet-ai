@@ -75,6 +75,15 @@ export async function erpCheckAction(orderId: string) {
   return checkSaldocInSoftone(orderId).catch((e) => ({ ok: false, message: e instanceof Error ? e.message : "Σφάλμα σύνδεσης με το SoftOne." }));
 }
 
+/** «Αποστολή στο SoftOne»: καταχωρεί το παραστατικό (setData SALDOC). Οι δικλείδες είναι στο lib/softone/order-doc. */
+export async function erpSendAction(orderId: string, number: string) {
+  const u = await requirePermission("orders.write");
+  const { sendSaldoc } = await import("@/lib/softone/order-doc");
+  const r = await sendSaldoc(orderId, u.id).catch((e) => ({ ok: false, message: e instanceof Error ? e.message : "Σφάλμα σύνδεσης με το SoftOne." }));
+  done(number);
+  return r;
+}
+
 /** Πορεία της παραγγελίας στο SoftOne (μόνο αναγνώσεις) — φορτώνει όταν ανοίξει η καρτέλα. */
 export async function orderChainAction(orderId: string) {
   await requirePermission("orders.read");

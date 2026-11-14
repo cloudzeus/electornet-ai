@@ -105,6 +105,16 @@ export function softoneTotals(lines: NetLine[], headerDisc = 0) {
   return { net, vat, gross: r2(net + vat) };
 }
 
+/**
+ * Φίλτρο GetTable για το παραστατικό μιας παραγγελίας (FINCODE = ο αριθμός μας, SOSOURCE 1351 = πωλήσεις). Το φίλτρο
+ * είναι κείμενο SQL χωρίς παραμέτρους: αριθμός με οτιδήποτε άλλο εκτός από γράμματα, ψηφία, `-`, `_`, `/` και `.`
+ * επιστρέφει null — τότε δεν ψάχνουμε καθόλου, αντί να στείλουμε φίλτρο που θα μπορούσε να αλλάξει νόημα.
+ */
+export function fincodeFilter(number: string): string | null {
+  const n = number.trim();
+  return n && n.length <= 40 && /^[A-Za-z0-9\-_/.]+$/.test(n) ? `SOSOURCE=1351 AND FINCODE='${n}'` : null;
+}
+
 export function composeSaldoc(o: SaldocOrder, s: SaldocSettings): SaldocDoc {
   const needs: string[] = [];
   const series = s.series?.trim() || null;

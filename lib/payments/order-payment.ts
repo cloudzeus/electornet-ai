@@ -76,6 +76,8 @@ export async function markPaid(orderId: string, pspRef: string) {
   await db.erpSync.updateMany({ where: { orderId, status: "awaiting-payment" }, data: { status: "preview" } });
   // ο τελικός τρόπος πληρωμής (μπορεί να άλλαξε στο «Δοκίμασε ξανά») στο παραστατικό
   await import("@/lib/softone/order-doc").then((m) => m.refreshSaldocPreview(orderId)).catch(() => null);
+  // αποστολή στο ERP μόνο όταν ο διακόπτης είναι σε «Αποστολή» (αλλιώς δεν γίνεται καμία κλήση)
+  await import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(orderId)).catch(() => null);
   await sendConfirmation(orderId).catch(() => null);
   await import("@/lib/warranty/server").then((m) => m.devicesFromOrder(orderId)).catch(() => null);
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeSaldoc, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
+import { composeSaldoc, fincodeFilter, softoneTotals, type SaldocOrder, type SaldocSettings } from "./order-doc-core";
 
 const S: SaldocSettings = { series: "7005", retailTrdr: "200", payment: {}, shippingMtrl: "99001" };
 const base: SaldocOrder = {
@@ -125,4 +125,10 @@ test("γραμμή SET- χωρίς setSpcs (π.χ. δώρο ή χωρίς ορι
 test("γραμμή με μη αριθμητικό κωδικό είδους → λείπει «Κωδικός είδους SoftOne»", () => {
   const d = composeSaldoc({ ...base, lines: [{ erpCode: "ABC-1", title: "Κάτι", qty: 1, listPrice: 10, discPrice: 0, discCoupon: 0, discPayment: 0, vatRate: 24 }] }, S);
   assert.ok(d.needs.some((n) => n.includes("Κωδικός είδους")), d.needs.join(" | "));
+});
+
+test("φίλτρο FINCODE: μόνο ασφαλείς αριθμοί παραγγελίας", () => {
+  assert.equal(fincodeFilter("EU-10042"), "SOSOURCE=1351 AND FINCODE='EU-10042'");
+  assert.equal(fincodeFilter(" 2026000123 "), "SOSOURCE=1351 AND FINCODE='2026000123'");
+  for (const bad of ["", "   ", "EU'10042", "EU-1 OR 1=1", "EU;10042", "α".repeat(41), "EU-100%"]) assert.equal(fincodeFilter(bad), null, bad);
 });

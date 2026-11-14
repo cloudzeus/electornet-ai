@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings/store";
-import { composeSaldoc, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
+import { composeSaldoc, fincodeFilter, type SaldocDoc, type SaldocLine, type SaldocSettings } from "./order-doc-core";
 
 /**
  * Το παραστατικό SoftOne μιας παραγγελίας, από τα στοιχεία της όπως αποθηκεύτηκαν (γραμμές, εκπτώσεις, ΦΠΑ είδους,
@@ -89,6 +89,102 @@ export async function refreshSaldocPreview(orderId: string): Promise<SaldocDoc |
   const doc = await saldocForOrder(orderId);
   if (doc) await db.erpSync.updateMany({ where: { orderId, status: { in: ["preview", "awaiting-payment"] } }, data: { payload: doc as unknown as Prisma.InputJsonValue } });
   return doc;
+}
+
+// το SoftOne φορτώνεται μόνο όταν χρειαστεί (οι ρυθμίσεις/σύνδεση δεν πρέπει να φορτώνουν σε κάθε σύνθεση παραστατικού)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const s1Call = async (service: string, params: Record<string, unknown>): Promise<any> => (await import("@/lib/softone")).s1(service, params);
+
+/** Ρυθμίσεις → SoftOne → «Παραγγελίες προς SoftOne». `send` = πραγματική αποστολή, `preview` = μόνο προσχέδιο. */
+export async function orderPushMode(): Promise<"off" | "preview" | "send"> {
+  const { data } = await getSetting("softone").catch(() => ({ data: {} as Record<string, unknown> }));
+  const m = String(data.orderPush ?? "preview");
+  return m === "send" || m === "off" ? m : "preview";
+}
+
+/**
+ * Δεύτερη δικλείδα, πέρα από τον διακόπτη των ρυθμίσεων: χωρίς `S1_ORDER_WRITE=1` στο περιβάλλον δεν γίνεται ΚΑΜΙΑ
+ * εγγραφή παραστατικού, ούτε κλήση δικτύου. Ίδιο μοτίβο με την τιμή web (S1_WEB_PRICE_WRITE) — ο διακόπτης της διαχείρισης
+ * ανοίγει μόνο εκεί όπου το περιβάλλον το επιτρέπει, ώστε μια ρύθμιση σε κοινή βάση να μην ανοίγει τις εγγραφές παντού.
+ */
+export const orderWriteEnabled = () => process.env.S1_ORDER_WRITE === "1";
+export const ORDER_WRITE_OFF = "Η αποστολή παραγγελιών στο SoftOne δεν έχει ενεργοποιηθεί σε αυτόν τον διακομιστή (S1_ORDER_WRITE=1).";
+
+/** Το FINDOC της παραγγελίας στο SoftOne από τον αριθμό μας. 0 = δεν υπάρχει, null = δεν μπόρεσε να ελεγχθεί. */
+async function findocOf(number: string): Promise<number | null> {
+  const filter = fincodeFilter(number);
+  if (!filter) return null;
+  const { getTable } = await import("./lookups");
+  const rows = await getTable("FINDOC", ["FINDOC"], filter);
+  return Number(rows[0]?.[0]) || 0;
+}
+
+/**
+ * Αποστολή της παραγγελίας στο SoftOne: `setData SALDOC` και ανάγνωση πίσω του παραστατικού που δημιουργήθηκε.
+ *
+ * Δικλείδες, με αυτή τη σειρά — καμία κλήση δικτύου αν δεν περάσουν όλες:
+ * 1. `S1_ORDER_WRITE=1` στο περιβάλλον ΚΑΙ ο διακόπτης των ρυθμίσεων σε «Αποστολή».
+ * 2. Το παραστατικό είναι πλήρες (`needs` κενό) — αλλιώς τίποτα δεν φεύγει.
+ * 3. Ατομική κατοχύρωση στο `ErpSync` (μόνο ένας αποστολέας ανά παραγγελία, χειροκίνητος ή αυτόματος).
+ * 4. Έλεγχος διπλοεγγραφής: αν υπάρχει ήδη παραστατικό με FINCODE τον αριθμό μας, δεν ξαναστέλνεται.
+ * Μετά την εγγραφή το παραστατικό διαβάζεται πίσω (`success:true` ≠ αποθηκεύτηκε) και συγκρίνεται το σύνολό του.
+ */
+export async function sendSaldoc(orderId: string, staffId?: string | null): Promise<{ ok: boolean; message: string; findoc?: number }> {
+  if (!orderWriteEnabled()) return { ok: false, message: ORDER_WRITE_OFF };
+  if ((await orderPushMode()) !== "send") return { ok: false, message: "Οι παραγγελίες προς SoftOne είναι σε «μόνο προεπισκόπηση» (Ρυθμίσεις → SoftOne)." };
+
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { number: true, erpSync: { select: { status: true, erpDocId: true } } } });
+  if (!o) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
+  if (o.erpSync?.status === "sent") return { ok: true, message: `Είχε σταλεί ήδη — παραστατικό ${o.erpSync.erpDocId ?? "—"}.`, findoc: Number(o.erpSync.erpDocId) || undefined };
+
+  const doc = await saldocForOrder(orderId);
+  if (!doc) return { ok: false, message: "Η παραγγελία δεν βρέθηκε." };
+  if (doc.needs.length) return { ok: false, message: `Πρώτα συμπληρώστε: ${doc.needs.join(" · ")}` };
+  const payload = doc as unknown as Prisma.InputJsonValue;
+
+  // κατοχύρωση: ό,τι δεν είναι «σε ουρά» ή «στάλθηκε» γίνεται «σε ουρά» — δεύτερη ταυτόχρονη αποστολή δεν βρίσκει γραμμή
+  if (o.erpSync) {
+    const claimed = await db.erpSync.updateMany({ where: { orderId, status: { in: ["preview", "awaiting-payment", "failed"] } }, data: { status: "queued", attempts: { increment: 1 }, payload, lastError: null } });
+    if (!claimed.count) return { ok: false, message: "Η αποστολή είναι σε εξέλιξη — δοκιμάστε σε λίγο." };
+  } else {
+    const created = await db.erpSync.create({ data: { orderId, status: "queued", attempts: 1, payload } }).catch(() => null);
+    if (!created) return { ok: false, message: "Η αποστολή είναι σε εξέλιξη — δοκιμάστε σε λίγο." };
+  }
+  const fail = async (message: string) => {
+    await db.erpSync.update({ where: { orderId }, data: { status: "failed", lastError: message } }).catch(() => null);
+    return { ok: false, message };
+  };
+  const succeed = async (findoc: number, message: string) => {
+    await db.erpSync.update({ where: { orderId }, data: { status: "sent", erpDocId: String(findoc), lastError: null } }).catch(() => null);
+    const { audit } = await import("@/lib/rbac/audit");
+    await audit(staffId ?? null, "order.erp-send", "Order", orderId, null, { findoc, fincode: o.number, total: doc.totals.expected });
+    return { ok: true, message, findoc };
+  };
+
+  // διπλοεγγραφή: αν δεν μπορεί να ελεγχθεί (σφάλμα δικτύου ή αριθμός που δεν μπαίνει σε φίλτρο) δεν στέλνουμε στα τυφλά
+  const existing = await findocOf(o.number).catch(() => null);
+  if (existing == null) return fail("Δεν ήταν δυνατός ο έλεγχος αν η παραγγελία υπάρχει ήδη στο SoftOne — δεν στάλθηκε. Δοκιμάστε ξανά.");
+  if (existing) return succeed(existing, `Υπήρχε ήδη στο SoftOne ως παραστατικό ${existing} — δεν στάλθηκε δεύτερη φορά.`);
+
+  const r = await s1Call("setData", { OBJECT: "SALDOC", KEY: "", data: doc.data }).catch((e: Error) => ({ success: false, error: e.message }));
+  if (!r?.success) return fail(`Το SoftOne αρνήθηκε το παραστατικό: ${r?.error ?? r?.errorcode ?? "άγνωστο σφάλμα"}`);
+
+  // «επιτυχία» ≠ αποθηκεύτηκε: το παραστατικό διαβάζεται πίσω και με τον αριθμό μας, αν το setData δεν επέστρεψε id
+  const findoc = Number(r.id) || (await findocOf(o.number).catch(() => 0)) || 0;
+  if (!findoc) return fail("Το SoftOne απάντησε «επιτυχία» αλλά το παραστατικό δεν βρίσκεται — έλεγξε στο ERP πριν ξαναστείλεις.");
+  const back = await s1Call("getData", { object: "SALDOC", key: String(findoc), locateinfo: "SALDOC:FINCODE,SUMAMNT" }).catch(() => null);
+  const h = (back?.data?.SALDOC?.[0] ?? {}) as Record<string, unknown>;
+  const sum = Math.round(Number(h.SUMAMNT ?? NaN) * 100) / 100;
+  const eurS = (n: number) => n.toLocaleString("el-GR", { style: "currency", currency: "EUR" });
+  if (Number.isFinite(sum) && sum !== doc.totals.expected) return succeed(findoc, `Στάλθηκε ως παραστατικό ${findoc}, αλλά το σύνολό του είναι ${eurS(sum)} ενώ η παραγγελία ${eurS(doc.totals.expected)} — έλεγξέ το στο ERP.`);
+  return succeed(findoc, `Στάλθηκε στο SoftOne ως παραστατικό ${findoc}${Number.isFinite(sum) ? ` (${eurS(sum)})` : ""}.`);
+}
+
+/** Αυτόματη αποστολή μόλις η παραγγελία είναι πληρωμένη/καταχωρημένη, όταν ο διακόπτης είναι σε «Αποστολή». Σιωπηλή: η αποτυχία μένει στο ErpSync. */
+export async function maybeSendSaldoc(orderId: string) {
+  if (!orderWriteEnabled() || (await orderPushMode()) !== "send") return;
+  const r = await sendSaldoc(orderId).catch((e: Error) => ({ ok: false, message: e.message }));
+  if (!r.ok) console.error("[erp-send]", orderId, r.message);
 }
 
 /**

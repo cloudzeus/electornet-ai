@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2, Mail, MoreHorizontal, Pin, PinOff, Printer, Send, Trash2, X } from "lucide-react";
 import { NOTIFY_ON, ORDER_STATUS, RETURN_ACTION, RETURN_NEXT, type OrderStatus } from "@/lib/orders/model";
-import { addNoteAction, changeStatusAction, deleteNoteAction, erpCheckAction, pinNoteAction, refundAction, resendConfirmationAction, returnStatusAction } from "../actions";
+import { addNoteAction, changeStatusAction, deleteNoteAction, erpCheckAction, erpSendAction, pinNoteAction, refundAction, resendConfirmationAction, returnStatusAction } from "../actions";
 
 const btn = "inline-flex items-center justify-center gap-1.5 rounded-full font-bold text-[length:var(--fs-13)] px-3 min-h-11 md:min-h-9 disabled:opacity-45";
 const field = "w-full min-w-0 rounded-lg border border-eu-line bg-white px-2.5 min-h-11 md:min-h-9 text-[length:var(--fs-14)] outline-none focus:border-eu-blue";
@@ -178,6 +178,37 @@ export function ErpCheck({ orderId }: { orderId: string }) {
       <button type="button" disabled={pending} onClick={() => start(async () => { const r = await erpCheckAction(orderId); setMsg({ ok: r.ok, text: r.message }); })} className={`${btn} justify-self-start border border-eu-line bg-white hover:border-eu-navy`} title="Το SoftOne υπολογίζει το παραστατικό χωρίς να το αποθηκεύσει">
         {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} Έλεγχος στο SoftOne
       </button>
+      <Note m={msg} />
+    </div>
+  );
+}
+
+/**
+ * «Αποστολή στο SoftOne»: καταχωρεί το παραστατικό στο ERP. Γράφει σε παραγωγικό σύστημα, άρα ζητά επιβεβαίωση με το
+ * σύνολο της παραγγελίας· μετά την αποστολή η κατάσταση γίνεται «στάλθηκε» και το κουμπί δεν εμφανίζεται πια.
+ */
+export function ErpSend({ orderId, number, total }: { orderId: string; number: string; total: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<Msg>(null);
+  const [ask, setAsk] = useState(false);
+  return (
+    <div className="grid gap-1 print:hidden">
+      {ask ? (
+        <div className="grid gap-1.5 rounded-lg border border-eu-navy/30 bg-eu-navy/5 px-3 py-2">
+          <p className="m-0 text-eu-ink-2 text-[length:var(--fs-12)]">Η παραγγελία {number} ({total}) θα καταχωρηθεί στο SoftOne. Η καταχώρηση δεν αναιρείται από εδώ — ακυρώνεται μόνο μέσα στο ERP.</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" disabled={pending} onClick={() => start(async () => { const r = await erpSendAction(orderId, number); setMsg({ ok: r.ok, text: r.message }); if (r.ok) setAsk(false); router.refresh(); })} className={`${btn} px-4 text-white bg-eu-navy hover:bg-eu-blue`}>
+              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Send className="size-4" aria-hidden />} Αποστολή τώρα
+            </button>
+            <button type="button" disabled={pending} onClick={() => setAsk(false)} className={`${btn} border border-eu-line bg-white hover:border-eu-navy`}>Άκυρο</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setAsk(true)} className={`${btn} justify-self-start px-4 text-white bg-eu-navy hover:bg-eu-blue`} title="Καταχώρηση του παραστατικού στο SoftOne">
+          <Send className="size-4" aria-hidden /> Αποστολή στο SoftOne
+        </button>
+      )}
       <Note m={msg} />
     </div>
   );
