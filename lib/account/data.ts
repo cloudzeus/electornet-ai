@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCustomerSession } from "@/lib/account/session";
 import type { Appointment, ConsentPref, Customer, InstalmentPlan, Order } from "@/lib/data/types";
 import { consents as CONSENT_TOPICS } from "@/lib/data/fixtures/account";
+import { currentStage, stageOf } from "@/lib/orders/erp-stages-core";
 import { shipmentTimeline } from "@/lib/couriers/timeline";
 import { carrierDef } from "@/lib/shipping/carriers";
 import { contactMatches } from "@/lib/orders/contact";
@@ -41,6 +42,8 @@ const SHOP_ORDER = {
   payment: { select: { method: true, instalments: true, status: true } },
   lines: { select: { id: true, title: true, qty: true, unitPrice: true, addons: { select: { price: true, service: { select: { slug: true, title: true } } } }, variant: { select: { product: PRODUCT } } } },
   shipments: { where: { status: { not: "cancelled" } }, orderBy: { createdAt: "desc" as const }, take: 1, select: { carrier: true, voucher: true, status: true, createdAt: true, deliveredAt: true, lastCheckpoint: true, liveUrl: true, eta: true } },
+  // η πορεία στο SoftOne όπως την έχει καταγράψει η αυτόματη εργασία (lib/orders/erp-stages)
+  erpStages: { select: { fprms: true, docDate: true, seenAt: true } },
 } as const;
 type ShopOrderRow = NonNullable<Awaited<ReturnType<typeof db.order.findFirst<{ include: typeof SHOP_ORDER }>>>>;
 
@@ -56,7 +59,20 @@ function toShopOrder(o: ShopOrderRow, storeName: Map<string, string>): Order {
     payment: { method: o.payment?.method ?? o.paymentMethod ?? "", instalments: o.payment?.instalments ?? undefined },
     tracking: o.tracking ? { courier: carrierDef(o.courier ?? s.carrier)?.name ?? s.carrierName ?? "Courier", code: o.tracking, url: "", events: [] } : undefined,
     invoice: inv?.vatNumber ? { vat: inv.vatNumber, company: inv.company ?? "", doy: inv.doy ?? "" } : undefined,
+    ...erpProgress(o.erpStages),
   };
+}
+
+/** Τα παραστατικά του SoftOne → «πού βρίσκεται τώρα» και ιστορικό σταδίων, σε απλά ελληνικά και χωρίς αριθμούς ERP. */
+function erpProgress(rows: { fprms: string | null; docDate: string | null; seenAt: Date }[]) {
+  const stages = rows.map((r) => ({ fprms: r.fprms, at: r.docDate || r.seenAt.toISOString().slice(0, 10) }));
+  const cur = currentStage(stages);
+  if (!cur) return {};
+  const seen = new Set<string>();
+  const history = stages
+    .flatMap((r) => { const i = stageOf(r.fprms); return i && !seen.has(i.title) && seen.add(i.title) ? [{ title: i.title, at: r.at }] : []; })
+    .sort((a, b) => a.at.localeCompare(b.at));
+  return { erpStage: { title: cur.info.title, at: cur.at, step: cur.info.step }, erpHistory: history };
 }
 /** Η αποστολή με τις κινήσεις από τον courier (ζωντανά, με κρυφή μνήμη 10'). */
 async function withShipment(order: Order, row: ShopOrderRow | undefined): Promise<Order> {

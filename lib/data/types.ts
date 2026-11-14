@@ -265,6 +265,9 @@ export interface Order {
   /** η αποστολή με τις κινήσεις του courier (widget παρακολούθησης) — μόνο σε παραγγελίες e-shop με voucher */
   shipment?: import("@/lib/couriers/timeline-model").ShipmentTimeline;
   invoice?: { vat: string; company: string; doy: string };
+  /** Η πορεία της παραγγελίας στο ERP σε απλά ελληνικά: πού βρίσκεται τώρα και τι έχει προηγηθεί */
+  erpStage?: { title: string; at: string; step: number | null } | null;
+  erpHistory?: { title: string; at: string }[];
   /** πού έγινε η αγορά: e-shop, παλιό e-shop ή κατάστημα (παραστατικά του SoftOne) — και ποιο παραστατικό */
   channel?: "eshop" | "legacy" | "store";
   docLabel?: string;

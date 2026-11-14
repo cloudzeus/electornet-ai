@@ -4,7 +4,7 @@ import { docChain } from "@/lib/softone/doc-chain";
 import { emailCtx } from "@/lib/email/layout";
 import { renderTemplate } from "@/lib/email/templates";
 import { sendMail } from "@/lib/email/send";
-import { decide, fillMessage, type StageType } from "./erp-stages-core";
+import { decide, fillMessage, stageOf, type StageType } from "./erp-stages-core";
 import type { ShipTo } from "./model";
 
 /** Παραγγελίες τόσο παλιές ελέγχονται ακόμη· πέρα από αυτό η πορεία θεωρείται κλειστή. */
@@ -20,7 +20,12 @@ const dmy = (d: string) => (d ? d.slice(0, 10).split("-").reverse().join("/") : 
  */
 export async function runErpStages(): Promise<{ ok: boolean; message: string; idle?: boolean }> {
   const typesRows = await db.docType.findMany({ where: { eshop: true }, select: { s1Id: true, notifyCustomer: true, customerTitle: true, customerMessage: true } });
-  const types: StageType[] = typesRows.filter((t) => t.s1Id).map((t) => ({ fprms: t.s1Id!, notify: t.notifyCustomer, title: t.customerTitle, message: t.customerMessage }));
+  // κείμενο: ό,τι έγραψε ο διαχειριστής, αλλιώς η προεπιλογή του σταδίου (lib/orders/erp-stages-core) — ώστε να αρκεί
+  // να ανοίξει τον διακόπτη της ενημέρωσης, χωρίς να γράψει κείμενο για κάθε τύπο
+  const types: StageType[] = typesRows.filter((t) => t.s1Id).map((t) => {
+    const d = stageOf(t.s1Id);
+    return { fprms: t.s1Id!, notify: t.notifyCustomer, title: t.customerTitle?.trim() || d?.title || null, message: t.customerMessage?.trim() || d?.message || null };
+  });
   // καμία επιλογή → καμία κλήση στο SoftOne
   if (!types.some((t) => t.notify && t.message?.trim())) return { ok: true, idle: true, message: "Κανένα στάδιο δεν ενημερώνει τον πελάτη." };
 

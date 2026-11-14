@@ -6,6 +6,8 @@ import { copyOf } from "@/lib/cms/copy";
 import { ShipmentTracker } from "@/components/shipping/ShipmentTracker";
 
 const c = copyOf("orderTimeline");
+/** 2026-11-14 → 14/11/2026 */
+const dmy = (d: string) => (/^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(0, 10).split("-").reverse().join("/") : d);
 
 const STATUS: Record<Order["status"], { label: string; tone: string }> = {
   pending: { label: "Αναμονή πληρωμής", tone: "bg-eu-amber/15 text-eu-amber" },
@@ -30,7 +32,10 @@ const STEP_DELAY = ["[animation-delay:0s]!", "[animation-delay:.15s]!", "[animat
 /** Order header + courier timeline + lines. Used by tracking and account order detail. */
 export function OrderTimeline({ order: o }: { order: Order }) {
   const steps = ["Καταχωρήθηκε", "Πληρώθηκε", o.fulfilment === "click-collect" ? "Έτοιμη στο κατάστημα" : "Σε διανομή", o.fulfilment === "click-collect" ? "Παραλήφθηκε" : "Παραδόθηκε"];
-  const idx = o.status === "pending" ? 0 : o.status === "paid" || o.status === "processing" ? 1 : o.status === "shipped" || o.status === "ready-for-pickup" ? 2 : 3;
+  const own = o.status === "pending" ? 0 : o.status === "paid" || o.status === "processing" ? 1 : o.status === "shipped" || o.status === "ready-for-pickup" ? 2 : 3;
+  // η πορεία στο ERP μπορεί να είναι πιο μπροστά από τη δική μας κατάσταση (π.χ. το κατάστημα ετοίμασε την παραγγελία)·
+  // ποτέ πιο πίσω, για να μη «γυρίζει» η μπάρα μπροστά στον πελάτη
+  const idx = o.status === "cancelled" || o.status === "returned" ? own : Math.max(own, o.erpStage?.step ?? -1);
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -40,6 +45,23 @@ export function OrderTimeline({ order: o }: { order: Order }) {
         </div>
         <StatusChip status={o.status} />
       </div>
+      {o.erpStage && o.status !== "cancelled" && (
+        <div className="rounded-xl bg-eu-chip/60 border border-eu-blue/15 px-4 py-3 grid gap-1.5">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)]">{o.erpStage.title}</span>
+            <span className="text-eu-muted text-[length:var(--fs-13)]">{dmy(o.erpStage.at)}</span>
+          </div>
+          {o.erpHistory && o.erpHistory.length > 1 && (
+            <ol className="m-0 p-0 list-none grid gap-0.5">
+              {o.erpHistory.slice(0, -1).map((h) => (
+                <li key={`${h.title}${h.at}`} className="text-eu-ink-3 text-[length:var(--fs-13)]">
+                  <span className="text-eu-muted-2 tabular-nums mr-2">{dmy(h.at)}</span>{h.title}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
       <ol className="m-0 p-0 list-none grid grid-cols-4 gap-1">
         {steps.map((s, i) => (
           <li key={s} className="grid gap-1.5">

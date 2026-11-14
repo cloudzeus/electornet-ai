@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-14T04:15:33.048Z",
+ "generatedAt": "2026-11-14T04:25:05.501Z",
  "routes": [
   {
    "route": "/admin",
@@ -610,11 +610,6 @@
      "hash": "8ba727d",
      "date": "2026-09-13T17:08:24+03:00",
      "text": "Backups page: wrap long commands, responsive stat tiles"
-    },
-    {
-     "hash": "8452b06",
-     "date": "2026-09-13T17:07:23+03:00",
-     "text": "Daily database backups to Bunny Storage: pg_dump -Fc → AES-256 (BACKUP_PASSPHRASE) → storage zone (dedicated or _backups/), retention pruning, BackupRun history, cron route, CLI script, super-admin page with run-now a…"
     }
    ],
    "updatedAt": "2026-11-11T05:01:06+02:00",
@@ -5175,6 +5170,12 @@
  ],
  "recent": [
   {
+   "hash": "7b99007",
+   "date": "2026-11-14T06:18:07+02:00",
+   "text": "Παραστατικό SoftOne: ΑΦΜ τιμολογίου στο MTRDOC.CCCSHPAFM (μόνο ψηφία, ποτέ σε απόδειξη)",
+   "routes": []
+  },
+  {
    "hash": "35b1500",
    "date": "2026-11-14T05:46:29+02:00",
    "text": "Παραγγελίες προς SoftOne: πραγματική αποστολή (setData SALDOC) πίσω από δύο διακόπτες",
@@ -5446,12 +5447,6 @@
     "/admin",
     "/admin/prosfores"
    ]
-  },
-  {
-   "hash": "94fce45",
-   "date": "2026-11-13T13:30:28+02:00",
-   "text": "Σελίδα προσφορών: το banner καμπάνιας γίνεται κεφαλίδα από άκρη σε άκρη (χωρίς κενά δεξιά-αριστερά και στρογγυλές γωνίες), πιο ψηλό, με σήμα, τίτλο και προϊόντα χωρίς φόντο",
-   "routes": []
   }
  ],
  "helpKeys": {

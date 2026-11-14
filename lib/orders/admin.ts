@@ -168,6 +168,8 @@ export async function orderDetail(number: string) {
     include: {
       customer: { select: { id: true, number: true, firstName: true, lastName: true, email: true, mobile: true, phone: true, company: true, vatNumber: true, type: true, createdAt: true, _count: { select: { orders: true } } } },
       payment: true, erpSync: true,
+      // η πορεία στο SoftOne όπως την κατέγραψε η αυτόματη εργασία — για το «στάδιο» στην κάρτα SoftOne
+      erpStages: { orderBy: { seenAt: "asc" }, select: { findoc: true, fprms: true, docNo: true, docDate: true, seenAt: true, notifiedAt: true } },
       pickupStore: { select: { id: true, name: true, address: true, city: true, zip: true, phone: true } },
       lines: { orderBy: { id: "asc" }, include: { addons: { include: { service: { select: { title: true, slug: true } } } }, variant: { select: { product: { select: { id: true, slug: true, sku: true, erpCode: true, brand: { select: { name: true } }, media: { where: { kind: "image", hidden: false }, orderBy: { sortNo: "asc" }, take: 1, select: { thumbUrl: true, url: true } } } } } } } },
       shipments: { orderBy: { createdAt: "desc" } },

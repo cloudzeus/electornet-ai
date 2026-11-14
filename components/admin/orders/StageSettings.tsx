@@ -1,15 +1,20 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Check, Mail, PenLine, Sparkles } from "lucide-react";
-import { fillMessage } from "@/lib/orders/erp-stages-core";
+import { fillMessage, stageOf } from "@/lib/orders/erp-stages-core";
 
 export interface StageRow { id: string; code: string; name: string; category: string | null; categoryLabel: string | null; notify: boolean; title: string; message: string; seen30: number; sent30: number }
 type Save = (id: string, input: { notify: boolean; title: string; message: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
 
 const SAMPLE = { "όνομα": "Μαρία", "παραγγελία": "EUR-20261106-0042", "παραστατικό": "ΑΛΠ-12345", "ημερομηνία": "06/11/2026" };
 
-/** Πρόταση κειμένου από το όνομα του τύπου — μόνο αφετηρία, ο διαχειριστής τη διορθώνει. */
-function suggest(name: string): { title: string; message: string } {
+/**
+ * Πρόταση κειμένου: πρώτα το επίσημο κείμενο του σταδίου όπως το όρισε η Euronics (ανά τύπο παραστατικού, βλ.
+ * STAGE_BY_FPRMS) — αυτό ισχύει και στα email όσο ο διαχειριστής δεν γράψει δικό του. Αλλιώς πρόταση από το όνομα.
+ */
+function suggest(name: string, fprms?: string): { title: string; message: string } {
+  const known = stageOf(fprms);
+  if (known) return { title: known.title, message: known.message };
   const n = name.toLowerCase();
   const m = (title: string, body: string) => ({ title, message: `Γεια σου {όνομα},\n${body}` });
   if (/ακυρ/.test(n)) return m("Η παραγγελία σου ακυρώθηκε", "η παραγγελία {παραγγελία} ακυρώθηκε. Αν πλήρωσες ήδη, τα χρήματα επιστρέφονται με τον ίδιο τρόπο πληρωμής.");
@@ -37,7 +42,7 @@ function Row({ r, save }: { r: StageRow; save: Save }) {
   });
   const toggle = (on: boolean) => {
     const empty = on && !f.message.trim();
-    const next = empty ? { ...f, ...suggest(r.name), notify: true } : { ...f, notify: on };
+    const next = empty ? { ...f, ...suggest(r.name, r.code), notify: true } : { ...f, notify: on };
     setF(next); setMsg(null);
     if (on) setOpen(true);
     // χωρίς κείμενο: πρώτα η πρόταση, την αποθηκεύει ο διαχειριστής αφού τη διαβάσει
@@ -73,7 +78,7 @@ function Row({ r, save }: { r: StageRow; save: Save }) {
             </label>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" disabled={pending || !dirty} onClick={() => persist(f)} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue disabled:opacity-50"><Check className="size-4" aria-hidden /> Αποθήκευση</button>
-              {!f.message.trim() && <button type="button" onClick={() => setF({ ...f, ...suggest(r.name) })} className="inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink text-[length:var(--fs-13)] hover:border-eu-navy"><Sparkles className="size-4" aria-hidden /> Πρόταση κειμένου</button>}
+              {!f.message.trim() && <button type="button" onClick={() => setF({ ...f, ...suggest(r.name, r.code) })} className="inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink text-[length:var(--fs-13)] hover:border-eu-navy"><Sparkles className="size-4" aria-hidden /> Πρόταση κειμένου</button>}
               {dirty && !msg && <span className="text-eu-amber font-bold text-[length:var(--fs-13)]">Μη αποθηκευμένες αλλαγές</span>}
               {msg && <span role="status" className={`font-bold text-[length:var(--fs-13)] ${msg.ok ? "text-eu-green" : "text-eu-red"}`}>{msg.text}</span>}
             </div>

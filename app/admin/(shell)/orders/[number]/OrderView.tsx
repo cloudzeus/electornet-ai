@@ -3,6 +3,7 @@ import Image from "@/components/ui/Image";
 import { AlertTriangle, ArrowLeft, Building2, Check, CreditCard, ExternalLink, FileText, Gift, History, Mail, MapPin, MessageSquare, Package, Phone, RotateCcw, Store, Tag, Truck, User } from "lucide-react";
 import type { OrderDetail } from "@/lib/orders/admin";
 import { pickupCode, rmaOf } from "@/lib/orders/ops";
+import { currentStage } from "@/lib/orders/erp-stages-core";
 import { ERP_STATUS, FULFILMENT, NOTIFY_ON, addressOf, nameOf, nextAction, nextStatuses, orderSteps, statusLabel, type Fulfilment, type ShipTo } from "@/lib/orders/model";
 import type { shipmentDraft } from "@/lib/couriers/shipments";
 import { payLabel } from "@/lib/account/labels";
@@ -37,6 +38,8 @@ export type Draft = Awaited<ReturnType<typeof shipmentDraft>>;
 /** Η παρουσίαση της καρτέλας (χωριστά από τη φόρτωση — δοκιμάζεται και με ψεύτικα δεδομένα). */
 export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDetail; draft: Draft; erp: { needs: string[]; warnings: string[]; gross: number; expected: number; canSend?: boolean } | null; canWrite: boolean; canRefund: boolean }) {
   const s = (o.shipping ?? {}) as ShipTo;
+  // πού βρίσκεται η παραγγελία στο SoftOne, σε απλά ελληνικά (τα παραστατικά τα καταγράφει η αυτόματη εργασία)
+  const stage = currentStage(o.erpStages.map((x) => ({ fprms: x.fprms, at: x.docDate || x.seenAt.toISOString().slice(0, 10), notified: !!x.notifiedAt })));
   const inv = (o.invoice ?? null) as { vatNumber?: string; company?: string; doy?: string; activity?: string } | null;
   const activeShip = o.shipments.find((x) => x.status !== "cancelled") ?? null;
   const na = nextAction({ status: o.status, fulfilment: o.fulfilment, paymentMethod: o.paymentMethod, hasShipment: !!activeShip });
@@ -223,6 +226,16 @@ export function OrderView({ o, draft, erp, canWrite, canRefund }: { o: OrderDeta
 
           <Card title="SoftOne" icon={FileText} data-help="order.erp" right={<ErpBadge status={o.erpSync?.status ?? null} />}>
             <p className="m-0 text-eu-ink-3 text-[length:var(--fs-12)]">{o.erpSync ? ERP_STATUS[o.erpSync.status]?.help ?? "" : "Δεν δημιουργήθηκε παραστατικό για αυτή την παραγγελία."}</p>
+            {stage && (
+              <div className="rounded-lg bg-eu-chip/60 border border-eu-blue/15 px-3 py-2 grid gap-1">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-bold text-eu-ink text-[length:var(--fs-13-5)]">{stage.info.title}</span>
+                  <span className="text-eu-muted text-[length:var(--fs-12)]">{stage.at.split("-").reverse().join("/")}</span>
+                  {stage.notified && <span className="text-eu-green text-[length:var(--fs-12)]">· ο πελάτης ενημερώθηκε</span>}
+                </div>
+                {o.erpStages.length > 1 && <span className="text-eu-ink-3 text-[length:var(--fs-12)]">{o.erpStages.length} παραστατικά στην πορεία · <Link href={`/admin/orders/${encodeURIComponent(o.number)}?tab=softone`} className="text-eu-blue font-bold hover:underline">όλη η διαδρομή →</Link></span>}
+              </div>
+            )}
             {o.erpSync && <dl className="m-0 grid gap-1">
               {o.erpSync.erpDocId && <Row k="Παραστατικό"><span className="font-mono">{o.erpSync.erpDocId}</span></Row>}
               <Row k="Προσπάθειες">{o.erpSync.attempts}</Row>
