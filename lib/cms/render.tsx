@@ -69,7 +69,9 @@ const registry: Record<string, Renderer> = {
   },
   "quick-buy-explainer": async (w) => {
     const p = await getProduct("p-inventor-ikura");
-    return p ? <QuickBuyExplainer key={w.id} product={p} zoneNo={w.zoneNo} /> : null;
+    // κλειστό προς το παρόν: περιγράφει το φύλλο «αγοράς με 1 κλικ» (με ψεύτικη κάρτα) που δεν ισχύει
+    void p; void QuickBuyExplainer; void w;
+    return null;
   },
   "services-band": async (w) => {
     // σειρά και ορατότητα της αρχικής (Ζώνες αρχικής) πάνω στον κατάλογο υπηρεσιών

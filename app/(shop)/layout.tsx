@@ -2,7 +2,6 @@ import { homeDeals } from "@/lib/cms/home-deals";
 import { CartProvider } from "@/components/commerce/CartProvider";
 import { CartGateDialog } from "@/components/commerce/CartGateDialog";
 import { cartGates } from "@/lib/promo/cart-gate";
-import { QuickBuySheet } from "@/components/commerce/QuickBuySheet";
 import { MiniCart } from "@/components/commerce/MiniCart";
 import { QuickViewSheet } from "@/components/commerce/QuickViewSheet";
 import { getMegaMenuData, getCategoryTree } from "@/lib/data/repo";
@@ -57,7 +56,6 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
             </main>
             <SiteFooter />
             <MiniCart suggestions={suggestions} />
-            <QuickBuySheet />
             <CartGateDialog />
             <QuickViewSheet />
             <CompareTray />

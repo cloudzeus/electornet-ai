@@ -2,6 +2,7 @@
 
 import { track } from "@/lib/track";
 import { useSettings } from "@/components/site/SettingsProvider";
+import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Product } from "@/lib/data/types";
 import { gateOf, type CartGate } from "@/lib/promo/campaign-core";
@@ -73,6 +74,7 @@ interface Persisted {
 
 export function CartProvider({ children, gates = [] }: { children: ReactNode; gates?: CartGate[] }) {
   const settings = useSettings();
+  const router = useRouter();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [compare, setCompare] = useState<string[]>([]);
@@ -211,7 +213,8 @@ export function CartProvider({ children, gates = [] }: { children: ReactNode; ga
       toggleAddon,
       clear,
       quickBuy,
-      openQuickBuy: (p: Product) => { if (!gated(p)) setQuickBuy(p); },
+      // προς το παρόν χωρίς φύλλο «αγοράς με 1 κλικ» (ήταν demo με ψεύτικη κάρτα): το προϊόν μπαίνει στο καλάθι και ο πελάτης το βλέπει πάντα πριν πληρώσει
+      openQuickBuy: (p: Product) => { if (gated(p)) return; if (!lines.some((l) => l.product.id === p.id)) add(p, { openMiniCart: false }); router.push("/kalathi"); },
       gateNotice,
       closeGate: () => setGateNotice(null),
       closeQuickBuy: () => setQuickBuy(null),
@@ -230,7 +233,7 @@ export function CartProvider({ children, gates = [] }: { children: ReactNode; ga
       clearCompare,
       hydrated,
     };
-  }, [lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, gated, gateNotice, remove, setQty, toggleAddon, clear, toggleWishlist, mergeWishlist, toggleCompare, clearCompare]);
+  }, [router, lines, quickBuy, quickView, miniOpen, lastAdded, wishlist, compare, compareScope, hydrated, add, gated, gateNotice, remove, setQty, toggleAddon, clear, toggleWishlist, mergeWishlist, toggleCompare, clearCompare]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

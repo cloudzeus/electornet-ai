@@ -97,7 +97,7 @@ export const generatedCopy = {
     "technikos_toy_katastimatos_tis": "Τεχνικός του καταστήματος της περιοχής σου, ραντεβού εντός 24 ωρών.",
     "olokliromeni_lysi": "Ολοκληρωμένη λύση",
     "tairiazei_me_ayto_to": "Ταιριάζει με αυτό το προϊόν · μία αποστολή",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "eggyisi_2_eti_epistrofi": "Εγγύηση 2 έτη · Επιστροφή μέσα σε 14 ημέρες",
     "agora": "Αγορά",
     "katastima": "Κατάστημα",
@@ -150,7 +150,7 @@ export const generatedCopy = {
   },
   "productCard": {
     "grigori_provoli": "Γρήγορη προβολή",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "sto_kalathi": "Στο καλάθι",
     "sygkrisi": "Σύγκριση",
     "prosthiki_sto_kalathi": "Προσθήκη στο καλάθι"
@@ -160,7 +160,7 @@ export const generatedCopy = {
     "kleisimo": "Κλείσιμο",
     "choris_karta": "χωρίς κάρτα",
     "atoka_me_karta": "άτοκα με κάρτα",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "prosthiki_sto_kalathi": "Προσθήκη στο καλάθι",
     "ligotera": "Λιγότερα",
     "perissotera": "Περισσότερα",
@@ -200,7 +200,7 @@ export const generatedCopy = {
     "ektos_proypologismoy": "Εκτός προϋπολογισμού",
     "giati_soy_tairiazei": "Γιατί σου ταιριάζει",
     "ti_na_echeis_ypopsi": "Τι να έχεις υπόψη",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "sto_kalathi": "Στο καλάθι",
     "lista_epithymion": "Λίστα επιθυμιών"
   },
@@ -211,7 +211,7 @@ export const generatedCopy = {
     "mono_oi_diafores": "Μόνο οι διαφορές",
     "prosthese_ki_allo": "πρόσθεσε κι άλλο",
     "fthinotero": "Φθηνότερο",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "sto_kalathi": "Στο καλάθι",
     "diathesimotita": "Διαθεσιμότητα",
     "axiologisi": "Αξιολόγηση",
@@ -262,7 +262,7 @@ export const generatedCopy = {
     "perissotera": "Περισσότερα",
     "dimofili_tora": "Δημοφιλή τώρα",
     "markes": "Μάρκες",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "des_to_proion": "Δες το προϊόν",
     "syntoma_proionta_se_ayti": "Σύντομα προϊόντα σε αυτή την κατηγορία.",
     "katigories_proionton": "Κατηγορίες προϊόντων",
@@ -463,7 +463,7 @@ export const generatedCopy = {
   },
   "dealTile": {
     "prosfora_imeras": "Προσφορά ημέρας",
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "prosthiki_sto_kalathi": "Προσθήκη στο καλάθι"
   },
   "servicesTile": {
@@ -557,7 +557,7 @@ export const generatedCopy = {
     "sygkrisi": "Σύγκριση"
   },
   "productRow": {
-    "agora_me_1_klik": "Αγορά με 1 κλικ",
+    "agora_me_1_klik": "Αγορά τώρα",
     "sto_kalathi": "Στο καλάθι"
   },
   "productGrid": {
@@ -588,7 +588,7 @@ export const generatedCopy = {
   "stickyBar": {
     "charaktiristika": "Χαρακτηριστικά",
     "axiologiseis": "Αξιολογήσεις",
-    "agora_me_1_klik": "Αγορά με 1 κλικ"
+    "agora_me_1_klik": "Αγορά τώρα"
   },
   "mobileMenu": {
     "katigories": "Κατηγορίες",
