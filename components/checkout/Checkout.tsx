@@ -49,7 +49,7 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, cod = true }: { /** Ρυθμίσεις → Πληρωμές → Αντικαταβολή· κλειστή = δεν προσφέρεται */ cod?: boolean; stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
@@ -78,7 +78,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
   const [slot, setSlot] = useState("morning");
   // χωρίς ρυθμισμένη Viva δεν υπάρχει online πληρωμή: μόνο αντικαταβολή / κατάθεση / στο κατάστημα
-  const [pay, setPay] = useState<Pay>(viva ? "card" : "cod");
+  const [pay, setPay] = useState<Pay>(viva ? "card" : cod || !bankSub ? "cod" : "bank");
   const inst = 1; // τις δόσεις τις διαλέγει ο πελάτης στη σελίδα της Viva
   const [vatLookup, setVatLookup] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [err, setErr] = useState<string | null>(null);
@@ -257,12 +257,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     ...VIVA_OPTS.filter((o) => vivaPays.includes(o.v)).map((o) => (o.v === "card" ? { ...o, sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` } : o)),
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
-    { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
+    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 }]),
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ] : [
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
-    { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
+    ...(!cod ? [] : [{ v: "cod" as Pay, icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 }]),
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ];
 
