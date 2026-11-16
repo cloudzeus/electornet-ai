@@ -1,11 +1,10 @@
 "use client";
 
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Store as StoreIcon, Truck, CalendarClock, Package, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Minus, Plus, Package, ShieldCheck } from "lucide-react";
 import type { Product, Service } from "@/lib/data/types";
-import { PickupStorePicker, type PickupStore } from "@/components/pdp/PickupStorePicker";
-import { readPickup, savePickup } from "@/lib/geo/pickup-pref";
+import type { PickupStore } from "@/components/pdp/PickupStorePicker";
 import { discountPct, instalment, priceLong, priceShort, weekday } from "@/lib/format";
 import { useCart, type CartAddon } from "@/components/commerce/CartProvider";
 import { WishlistButton, CompareCheckbox } from "@/components/commerce/WishlistButton";
@@ -26,25 +25,12 @@ const c = copyOf("buybox");
  * action; quick buy sits next to the wishlist as the secondary one.
  */
 /** warranty: εγγύηση κατασκευαστή (μήνες) και δωρεάν επέκταση (μήνες, 0 = δεν ισχύει για αυτό το είδος) */
-export function BuyBox({ product: p, addons, stores, accessory, warranty, stockByStore = {} }: { product: Product; addons: Service[]; stores: PickupStore[]; accessory?: Product | null; warranty?: WarrantyInfo; /** πραγματικό απόθεμα ανά κατάστημα (StoreStock) */ stockByStore?: Record<string, number> }) {
+export function BuyBox({ product: p, addons, accessory, warranty }: { product: Product; addons: Service[]; stores: PickupStore[]; accessory?: Product | null; warranty?: WarrantyInfo; /** πραγματικό απόθεμα ανά κατάστημα (StoreStock) */ stockByStore?: Record<string, number> }) {
   const { add, openQuickBuy } = useCart();
   const [qty, setQty] = useState(1);
   const [sel, setSel] = useState<Record<string, string>>(() => Object.fromEntries((p.variants ?? []).map((v) => [v.name, v.options[0].label])));
   const [chosen, setChosen] = useState<CartAddon[]>([]);
   const [withAcc, setWithAcc] = useState(false);
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
-  const [ful, setFul] = useState<"courier" | "store" | "appointment">(p.installation ? "appointment" : "courier");
-  // προηγούμενη επιλογή του επισκέπτη (εδώ ή στο ταμείο) — ίδια και στις δύο σελίδες
-  const [kept, setKept] = useState(false);
-  useEffect(() => {
-    const pr = readPickup();
-    if (pr?.where !== "store") return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- αρχικοποίηση από localStorage μία φορά
-    if (pr.storeId && stores.some((s) => s.id === pr.storeId)) { setStoreId(pr.storeId); setKept(true); }
-    setFul("store");
-  }, [stores]);
-  const chooseFul = (v: typeof ful) => { setFul(v); savePickup({ where: v === "store" ? "store" : "home", storeId }); };
-  const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
 
   const price = useMemo(() => {
     let pr = p.price;
@@ -138,45 +124,6 @@ export function BuyBox({ product: p, addons, stores, accessory, warranty, stockB
         {avail.t}
         {date && <span className="text-eu-muted font-normal">· παράδοση {date}</span>}
       </div>
-
-      <fieldset className="m-0 p-0 border-0 min-w-0 grid gap-2">
-        <legend className="font-bold text-eu-ink text-[length:var(--fs-15)] mb-2">{c.pos_to_theleis}</legend>
-        <label className={`${box} ${ful === "courier" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
-          <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-            <input type="radio" name="ful" checked={ful === "courier"} onChange={() => chooseFul("courier")} className="accent-eu-blue size-4" />
-            <Truck className="size-5 text-eu-blue" aria-hidden /> {c.sti_dieythynsi_moy}
-            <span className="ml-auto text-eu-green">{price >= 100 ? "Δωρεάν" : "4,90 €"}</span>
-          </span>
-        </label>
-        <div className={`${box} ${ful === "store" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
-          <label className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)] cursor-pointer">
-            <input type="radio" name="ful" checked={ful === "store"} onChange={() => chooseFul("store")} className="accent-eu-blue size-4" />
-            <StoreIcon className="size-5 text-eu-blue" aria-hidden /> {c.paralavi_apo_katastima}
-            <span className="ml-auto text-eu-green">{c.dorean}</span>
-          </label>
-          {ful === "store" && (
-            <PickupStorePicker stores={stores} value={storeId} onChange={chooseStore} keep={kept} hoursLabel="ωράριο & χάρτης"
-              stockLine={(s) => {
-                // μόνο πραγματικό απόθεμα του καταστήματος· αλλιώς ο χρόνος από τη διαθεσιμότητα του προϊόντος
-                const n = stockByStore[s.id] ?? 0;
-                if (n > 0) return <span className="text-eu-green font-bold">{n} τεμ. στο κατάστημα · έτοιμο σε 2 ώρες</span>;
-                if (a.kind === "in-stock") return <span className="text-eu-ink font-bold">{c.metafora_sto_katastima_1}</span>;
-                if (a.kind === "days") return <span className="text-eu-amber font-bold">Μεταφορά στο κατάστημα · {a.min}–{a.max} εργάσιμες</span>;
-                return <span className="text-eu-amber font-bold">Κατόπιν παραγγελίας · θα λάβεις SMS όταν φτάσει στο κατάστημα</span>;
-              }} />
-          )}
-        </div>
-        {p.installation && (
-          <label className={`${box} ${ful === "appointment" ? "border-eu-blue bg-eu-chip" : "border-eu-line"}`}>
-            <span className="flex items-center gap-2 font-bold text-eu-ink text-[length:var(--fs-15)]">
-              <input type="radio" name="ful" checked={ful === "appointment"} onChange={() => chooseFul("appointment")} className="accent-eu-blue size-4" />
-              <CalendarClock className="size-5 text-eu-blue" aria-hidden /> {c.me_rantevoy_egkatastasi}
-              <span className="ml-auto text-eu-blue">{c.apo_60}</span>
-            </span>
-            <span className="block text-eu-muted text-[length:var(--fs-13-5)] pl-6 mt-1">{c.technikos_toy_katastimatos_tis}</span>
-          </label>
-        )}
-      </fieldset>
 
       {warranty && (
         <div className={`rounded-xl border-2 p-3.5 flex items-start gap-2.5 ${warranty.extMonths ? "border-eu-green/40 bg-eu-green/5" : "border-eu-line"}`}>

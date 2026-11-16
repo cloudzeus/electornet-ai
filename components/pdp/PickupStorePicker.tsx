@@ -103,7 +103,7 @@ export function PickupStorePicker({ stores, value, onChange, stockLine, hoursLab
       )}
 
       <label className="grid gap-1">
-        <span className="text-eu-muted text-[length:var(--fs-13)]">{near.length ? "Ή άλλο κατάστημα" : "Κατάστημα παραλαβής"}</span>
+        <span className="text-eu-muted text-[length:var(--fs-13)]">{near.length ? "ή άλλο κατάστημα" : "Κατάστημα παραλαβής"}</span>
         <select value={value} onChange={(e) => pick(e.target.value)} className="w-full min-w-0 rounded-lg border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-14)] cursor-pointer">
           {ranked.map(({ s, d }) => (
             <option key={s.id} value={s.id}>{s.city} — {s.member ?? s.name}{d !== null ? ` · ${km(d)}` : ""}</option>

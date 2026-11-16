@@ -106,7 +106,9 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const xp = attica ? quote!.attica.express : null;
   const expressSel = attica && fulPick === "courier" && carrierPick === "asap" && (xp?.state === "ok" || xp?.state === "pending");
   const ful: Fulfilment = attica ? (expressSel ? "courier" : "appointment") : fulBase;
-  const offers = quote?.carriers ?? [];
+  // σειρά που ζήτησε η Euronics: ASAP, ΕΛΤΑ, οι υπόλοιποι (μετά μεταφορική, ραντεβού)
+  const rank = (id: string) => (id === "asap" ? 0 : id === "elta" ? 1 : 2);
+  const offers = useMemo(() => [...(quote?.carriers ?? [])].sort((a, b) => rank(a.id) - rank(b.id)), [quote?.carriers]);
   // η επιλογή φαίνεται αμέσως· το κόστος το επιβεβαιώνει ο server (quote.carrier)
   const offer = offers.find((o) => o.id === carrierPick && o.available) ?? offers.find((o) => o.id === quote?.carrier) ?? null;
   const toLocker = !attica && ful === "courier" && offer?.kind === "locker";
@@ -322,7 +324,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
 
               <Section n={2} title={c.paradosi} lead="Το κόστος και ο χρόνος φαίνονται πριν διαλέξεις.">
                 <div role="radiogroup" aria-label="Πού θέλεις την παραγγελία" className="grid grid-cols-2 gap-2.5">
-                  {([["home", Home, "Στο σπίτι", "Στη διεύθυνσή σου"], ["store", StoreIcon, "Από κατάστημα", "Click & Collect · Δωρεάν"]] as const).map(([v, Icon, t, sub]) => {
+                  {([["store", StoreIcon, "Παραλαβή στο Κατάστημα", "Click & Collect · Δωρεάν"], ["home", Home, "Στο σπίτι", "Στη διεύθυνσή σου"]] as const).map(([v, Icon, t, sub]) => {
                     const on = (v === "store") === (fulPick === "click-collect");
                     return (
                       <label key={v} className={`rounded-xl border-2 p-3 @sm:p-4 grid gap-1 cursor-pointer transition-colors ${on ? "border-eu-blue bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
@@ -368,12 +370,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                         <div className="h-[4.5rem] rounded-xl bg-eu-surface animate-pulse motion-reduce:animate-none" aria-hidden />
                       ) : attica ? (
                         <>
-                          <ShipRow on={!expressSel} onPick={() => setFul("appointment")} icon={Truck} title="Κανονική παράδοση euronics" sub={quote.attica.standard.eta} price="Δωρεάν" />
                           {xp && (
                             <ShipRow on={expressSel} disabled={xp.state === "need-address"} onPick={() => { setFul("courier"); setCarrierPick("asap"); }} icon={Zap} title="ASAP Express"
                               sub={xp.state === "need-address" ? "Συμπλήρωσε οδό, αριθμό και πόλη για να υπολογιστεί η τιμή" : "1–2 ημέρες · με courier ASAP"}
                               price={xp.state === "ok" ? free(xp.fee) : xp.state === "pending" ? <span className="inline-flex items-center gap-1.5 text-eu-muted font-semibold"><Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> Υπολογισμός…</span> : "—"} />
                           )}
+                          <ShipRow on={!expressSel} onPick={() => setFul("appointment")} icon={Truck} title="Κανονική παράδοση euronics" sub={quote.attica.standard.eta} price="Δωρεάν" />
                           <p id="ship-status" role="status" className="m-0 text-[length:var(--fs-14)] text-eu-muted">
                             {carrierPick === "asap" && fulPick === "courier" && !xp ? "Το ASAP Express δεν είναι διαθέσιμο για αυτή τη διεύθυνση ή το καλάθι· ισχύει η κανονική παράδοση." : xp?.state === "pending" ? "Υπολογίζουμε την τιμή του ASAP Express για τη διεύθυνσή σου." : ""}
                           </p>

@@ -63,6 +63,12 @@ export async function findStores(q?: { q?: string; region?: string; service?: st
   return list.sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
+/** Σημεία Click & Collect: μόνο ενεργά καταστήματα συνεργάτη «συνεργαζόμενου με το eshop». Το δίκτυο καταστημάτων δείχνει όλα. */
+export async function pickupStoreIds(): Promise<Set<string>> {
+  const rows = await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true } }, select: { id: true } });
+  return new Set(rows.map((r) => r.id));
+}
+
 export async function findStoreBySlug(slug: string, origin = SYNTAGMA): Promise<Store | null> {
   const row = await db.store.findUnique({ where: { slug } }).catch(() => null);
   if (row) return toStoreView(row, origin);

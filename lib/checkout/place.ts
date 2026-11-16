@@ -71,6 +71,7 @@ export async function placeOrder(input: PlaceInput) {
   // κατάθεση χωρίς λογαριασμούς (ή κλειστή στις Ρυθμίσεις) = παραγγελία χωρίς τρόπο πληρωμής
   if (input.payment === "bank" && !(await bankTransfer()).enabled) return { ok: false as const, error: "Η κατάθεση σε τράπεζα δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
   if (input.payment === "cod" && (await getSetting("payments").catch(() => null))?.data.cod === false) return { ok: false as const, error: "Η αντικαταβολή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
+  if (input.fulfilment === "click-collect" && !(await import("@/lib/stores/repo").then((m) => m.pickupStoreIds())).has(input.storeId ?? "")) return { ok: false as const, error: "Αυτό το κατάστημα δεν εξυπηρετεί παραλαβές του e-shop. Διάλεξε άλλο κατάστημα." };
   // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
   // Klarna με απευθείας σύμβαση (Ρυθμίσεις → Πληρωμές → Klarna «απευθείας»)· αλλιώς η Klarna πάει μέσω Viva
   const klarna = input.payment === "klarna" && !input.dryRun ? await klarnaConfig() : null;

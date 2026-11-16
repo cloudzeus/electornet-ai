@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Checkout } from "@/components/checkout/Checkout";
 import { getStores } from "@/lib/data/repo";
+import { pickupStoreIds } from "@/lib/stores/repo";
 import { getPublicSettings } from "@/lib/settings/store";
 import { enabledVivaPays } from "@/lib/payments/viva-core";
 import { vivaConfig } from "@/lib/payments/viva";
@@ -11,7 +12,8 @@ import { bankNames } from "@/lib/payments/bank-accounts";
 export const metadata: Metadata = { title: "Ολοκλήρωση αγοράς" };
 
 export default async function CheckoutPage() {
-  const [stores, pub, viva, klarna, bank] = await Promise.all([getStores(), getPublicSettings(), vivaConfig(), klarnaConfig(), bankTransfer()]);
+  const [all, pickup, pub, viva, klarna, bank] = await Promise.all([getStores(), pickupStoreIds(), getPublicSettings(), vivaConfig(), klarnaConfig(), bankTransfer()]);
+  const stores = all.filter((s) => pickup.has(s.id));
   // οι τρόποι Viva μόνο όταν η Viva έχει ρυθμιστεί (Client ID / secret)· αλλιώς μόνο αντικαταβολή / κατάθεση / στο κατάστημα
   const vivaPays = viva ? enabledVivaPays(pub.payments ?? {}) : [];
   const partner = String(pub.shipping?.boxnowPartnerId ?? "").trim();

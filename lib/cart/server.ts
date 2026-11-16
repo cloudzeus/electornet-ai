@@ -1,5 +1,5 @@
 import "server-only";
-import { carrierOffers, freightOffer, pickCarrier, type CarrierId, type CarrierOffer, type FreightOffer } from "@/lib/shipping/carriers";
+import { carrierOffers, freightOffer, isAtticaZip, pickCarrier, type CarrierId, type CarrierOffer, type FreightOffer } from "@/lib/shipping/carriers";
 import { shippingLimits } from "@/lib/shipping/bulky-server";
 import { atticaOffer, getAsapRules, type AtticaOffer } from "@/lib/shipping/asap-express-server";
 import { STANDARD_ETA } from "@/lib/shipping/asap-express";
@@ -171,7 +171,8 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     if (!t || !input.zip) return null;
     return quoteRate(t, { zip: input.zip, goods, bulky: bulkyCart, kg: chargeableKg(out.map((l) => ({ qty: l.qty, weightKg: limits.get(l.productId)?.weightKg ?? null, dimsCm: limits.get(l.productId)?.dimsCm ?? null })), t.divisor) });
   };
-  const fo0 = freightOffer(rules.data, goods);
+  // μεταφορική μόνο εκτός Αττικής (ζητήθηκε από την Euronics)· στην Αττική: courier, ραντεβού ή παραλαβή
+  const fo0 = isAtticaZip(input.zip) ? null : freightOffer(rules.data, goods);
   const fr = fo0 && rated("freight", true);
   const fo = fo0 && fr ? { ...fo0, fee: fr.fee, baseFee: fr.baseFee, freeFrom: tables.get("freight")!.freeExcludesBulky ? null : tables.get("freight")!.freeFrom } : fo0;
   const noFreight = out.find((l) => limits.get(l.productId)?.freight === false);
