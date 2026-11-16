@@ -185,7 +185,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // δωρεάν έως το όριο οδικών χιλιομέτρων από το κατάστημα, με χρέωση πιο μακριά (και χωρίς ενεργή «μεταφορική» στις ρυθμίσεις)
   const lr = localRules(rules.data, unitFee);
   const nearList = out.length && !bulky.courier && input.delivery !== "click-collect" && !isAtticaZip(input.zip) ? await nearStoresFor({ street: input.street, number: input.number, city: input.city, zip: input.zip }, input.settle ? 12_000 : 2500).catch(() => undefined) : undefined;
-  const localStores = (nearList ?? []).filter((x) => x.km <= lr.maxKm).slice(0, 5).map((x) => ({ ...x, fee: localDeliveryFee(x.km, lr) }));
+  const localStores = (nearList ?? []).filter((x) => x.km <= lr.maxKm).slice(0, 5).map((x) => ({ ...x, fee: localDeliveryFee(x.km, lr) * devices })); // πέρα από το δωρεάν όριο: χρέωση ανά συσκευή
   const near = localStores.find((x) => x.id === input.localStoreId) ?? localStores[0] ?? null;
   // ξέρουμε ότι κανένα συνεργαζόμενο κατάστημα δεν είναι μέσα στη μέγιστη απόσταση: το στέλνει το κεντρικό με μεταφορική (πρακτορείο),
   // ακόμη κι αν η κατηγορία είναι «μόνο από κατάστημα» ή η μεταφορική είναι κλειστή στις ρυθμίσεις

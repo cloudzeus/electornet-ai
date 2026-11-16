@@ -393,7 +393,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                           {ful === "freight" && localStores.length > 0 && (
                             <div id="fld-localStore" tabIndex={-1} role="radiogroup" aria-label="Κατάστημα που παραδίδει στο σπίτι σου" className="grid gap-2 rounded-xl bg-eu-surface p-3 @sm:p-4">
                               <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">Ποιο κατάστημα να σου το φέρει;</div>
-                              <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δωρεάν έως {freight!.localFreeKm} χλμ οδικώς από το κατάστημα. Πιο μακριά υπάρχει χρέωση. Αν το παραλάβεις εσύ από το κατάστημα, είναι πάντα δωρεάν.</p>
+                              <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δωρεάν έως {freight!.localFreeKm} χλμ οδικώς από το κατάστημα. Πιο μακριά υπάρχει χρέωση ανά συσκευή. Αν το παραλάβεις εσύ από το κατάστημα, είναι πάντα δωρεάν.</p>
                               {localStores.map((x) => (
                                 <label key={x.id} className={`flex items-center gap-3 rounded-xl border-2 bg-white px-3 py-2.5 min-h-12 cursor-pointer ${localStoreId === x.id ? "border-eu-blue" : "border-eu-line hover:border-eu-blue"}`}>
                                   <input type="radio" name="localStore" checked={localStoreId === x.id} onChange={() => setLocalStoreId(x.id)} className="accent-eu-blue size-[18px] shrink-0" />
