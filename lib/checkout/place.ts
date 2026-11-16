@@ -92,6 +92,8 @@ export async function placeOrder(input: PlaceInput) {
     if (input.fulfilment === "appointment") return { ok: false as const, error: "Για αυτό το καλάθι διάλεξε παράδοση από κατάστημα Euronics ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
     if (input.fulfilment === "freight" && q.freight.localStore?.id !== input.localStoreId) return { ok: false as const, error: "Διάλεξε το κατάστημα που θα σου φέρει την παραγγελία.", quote: publicQuote(q) };
   }
+  // …και χωρίς συνεργαζόμενο κατάστημα κοντά: μόνο μεταφορική από το κεντρικό (όχι το δωρεάν «ραντεβού»)
+  if (q.freight?.central && !q.attica.attica && input.fulfilment === "appointment") return { ok: false as const, error: "Σε αυτή την περιοχή η παράδοση στο σπίτι γίνεται με μεταφορική. Διάλεξε μεταφορική ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
   // Αττική: «Κανονική παράδοση euronics» (fulfilment appointment) ή ASAP Express με τιμή που ξαναϋπολογίστηκε εδώ
   const expressPicked = input.fulfilment === "courier" && input.carrier === "asap";
   if (q.attica.attica && expressPicked && q.carrier !== "asap") return { ok: false as const, error: "Το ASAP Express δεν είναι διαθέσιμο για αυτή τη διεύθυνση ή το καλάθι. Διάλεξε «Κανονική παράδοση euronics».", quote: publicQuote(q) };
@@ -106,7 +108,7 @@ export async function placeOrder(input: PlaceInput) {
   const carrier = isExpress ? { carrier: "asap", carrierName: "ASAP Express", service: "asap-express", expressFee: q.shipping / 100, expressZone: q.attica.express?.state === "ok" ? q.attica.express.zone : null }
     : q.attica.attica && input.fulfilment === "appointment" ? { carrierName: "Κανονική παράδοση euronics", service: "euronics-standard" }
     : input.fulfilment === "courier" && q.carrier ? { carrier: q.carrier, carrierName: carrierDef(q.carrier)!.name, ...(carrierDef(q.carrier)!.kind === "locker" && input.locker ? { locker: input.locker } : {}) }
-    : input.fulfilment === "freight" ? (q.freight?.localStore ? { carrierName: `Κατάστημα ${q.freight.localStore.name}`, localStore: q.freight.localStore } : { carrierName: "Μεταφορική" }) : {};
+    : input.fulfilment === "freight" ? (q.freight?.localStore ? { carrierName: `Κατάστημα ${q.freight.localStore.name}`, localStore: q.freight.localStore } : q.freight?.central ? { carrierName: "Μεταφορική από το κεντρικό κατάστημα", central: true } : { carrierName: "Μεταφορική" }) : {};
   if (!q.lines.length) return { ok: false as const, error: "Τα προϊόντα του καλαθιού δεν είναι πια διαθέσιμα." };
   // προϊόντα καμπάνιας πριν την «έναρξη αγορών»: δεν περνά παραγγελία, ό,τι κι αν έχει ο browser στο καλάθι
   const gates = await cartGates();

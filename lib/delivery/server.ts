@@ -100,6 +100,8 @@ async function createRoute(o: OrderForRoute, bulky: boolean) {
     if (p) candidates = [{ ...p, hasStock: candidates.find((c) => c.id === p.id)?.hasStock ?? false, delivery: { zips: [zipOf(o)], homeDelivery: true, bulkyOk: true, installs: true, eta: "" } }];
   }
   const d = decideRoute({ fulfilment: o.fulfilment, zip: zipOf(o), bulky, install: o.fulfilment === "appointment", candidates });
+  // κανένα συνεργαζόμενο κατάστημα κοντά στον πελάτη: φεύγει από το κεντρικό με μεταφορική — ο διαχειριστής διαλέγει το πρακτορείο
+  if (d.mode === "unrouted" && (o.shipping as { central?: boolean } | null)?.central) d.reason = "Κανένα συνεργαζόμενο κατάστημα κοντά στον πελάτη: μεταφορική (πρακτορείο) από το κεντρικό κατάστημα. Διάλεξε μεταφορέα";
   const steps = STEPS[d.mode].map((key, sort) => ({ key, sort }));
   return db.orderRoute.upsert({ where: { orderId: o.id }, update: {}, create: { orderId: o.id, mode: d.mode, partnerId: d.partnerId, agencyId: d.agencyId, reason: d.reason, decidedBy: "auto", steps: { create: steps } } });
 }
