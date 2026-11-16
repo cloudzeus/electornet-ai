@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalizeRates, quoteRate, type RateData } from "./rates";
 import { getSetting } from "@/lib/settings/store";
+import { geocodeAddress } from "@/lib/stores/geocode";
+import { rankByRoad } from "@/lib/geo/road";
 import { decideRoute, normalizeDelivery, pickPartner, STEPS, type RouteCandidate, type RouteMode, type StepKey } from "./routing";
 
 /** Δημοσιευμένοι τιμοκατάλογοι, 60″ στη μνήμη. Σε σφάλμα (π.χ. ο πίνακας δεν υπάρχει ακόμη) → κανένας: το checkout μένει στις σταθερές τιμές. */
@@ -32,6 +34,42 @@ async function servingPartners() {
 }
 export const resetPartnerCache = () => { partnerMem = null; };
 
+/**
+ * Συνεργαζόμενα καταστήματα κοντά στη διεύθυνση του πελάτη, ταξινομημένα με ΟΔΙΚΗ απόσταση (για την παράδοση στο σπίτι
+ * από κατάστημα, εκτός Αττικής). [] = κανένα κοντά · undefined = άγνωστο ακόμη (ο χάρτης αργεί ή δεν απαντά) — ποτέ ευθεία.
+ */
+export interface LocalStore { id: string; partnerId: string; name: string; city: string; km: number }
+let coopMem: { at: number; v: { id: string; partnerId: string; name: string; city: string; lat: number; lng: number }[] } | null = null;
+async function coopStores() {
+  if (coopMem && Date.now() - coopMem.at < 60_000) return coopMem.v;
+  const rows = await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true }, NOT: { lat: 0 } }, select: { id: true, partnerId: true, name: true, city: true, lat: true, lng: true } });
+  coopMem = { at: Date.now(), v: rows.map((r) => ({ ...r, partnerId: r.partnerId! })) };
+  return coopMem.v;
+}
+const nearMem = new Map<string, { at: number; p: Promise<LocalStore[] | undefined>; done?: boolean }>();
+export async function nearStoresFor(a: { street?: string | null; number?: string | null; city?: string | null; zip?: string | null }, budgetMs = 2500): Promise<LocalStore[] | undefined> {
+  const zip = (a.zip ?? "").trim(), city = (a.city ?? "").trim(), street = [a.street, a.number].map((x) => (x ?? "").trim()).filter(Boolean).join(" ");
+  if (!/^\d{5}$/.test(zip) || !city) return undefined;
+  const key = `${street}|${zip}|${city}`.toLowerCase();
+  let hit = nearMem.get(key);
+  // έτοιμο αποτέλεσμα: 30′ · όσο τρέχει ο υπολογισμός μοιράζεται · αποτυχία ξαναδοκιμάζεται στον επόμενο υπολογισμό
+  if (!hit || (hit.done && Date.now() - hit.at > 30 * 60_000)) {
+    if (nearMem.size > 2000) nearMem.clear();
+    const run = async (): Promise<LocalStore[] | undefined> => {
+      // Nominatim: 1 αίτημα το δευτερόλεπτο — πρώτα η οδός, αλλιώς ο οικισμός του Τ.Κ.
+      let pt = street ? await geocodeAddress(`${street}, ${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null) : null;
+      if (!pt) { if (street) await new Promise((r) => setTimeout(r, 1100)); pt = await geocodeAddress(`${zip} ${city}, Ελλάδα`, { timeoutMs: 6000, preferPlace: true }).catch(() => null); }
+      if (!pt) return undefined;
+      const r = await rankByRoad(pt, await coopStores());
+      return r?.map((x) => ({ id: x.item.id, partnerId: x.item.partnerId, name: x.item.name, city: x.item.city, km: x.km }));
+    };
+    const entry: NonNullable<typeof hit> = { at: Date.now(), p: run().catch(() => undefined) };
+    void entry.p.then((v) => { if (v === undefined) nearMem.delete(key); else entry.done = true; });
+    nearMem.set(key, entry); hit = entry;
+  }
+  return Promise.race([hit.p, new Promise<undefined>((r) => setTimeout(() => r(undefined), budgetMs))]);
+}
+
 /** Στο checkout: υπάρχει συνεργάτης που φέρνει την παραγγελία σε αυτόν τον Τ.Κ.; (χωρίς έλεγχο αποθέματος, μόνο κάλυψη) */
 export async function localPartnerFor(zip: string | null | undefined, bulky: boolean): Promise<{ eta: string } | null> {
   if (!/^\d{5}$/.test(zip ?? "")) return null;
@@ -54,7 +92,13 @@ type OrderForRoute = { id: string; fulfilment: string; shipping: Prisma.JsonValu
 const zipOf = (o: { shipping: Prisma.JsonValue }) => String((o.shipping as Record<string, unknown> | null)?.zip ?? "").trim();
 
 async function createRoute(o: OrderForRoute, bulky: boolean) {
-  const candidates = o.fulfilment === "freight" || o.fulfilment === "appointment" ? await partnerCandidates(o.lines) : [];
+  let candidates = o.fulfilment === "freight" || o.fulfilment === "appointment" ? await partnerCandidates(o.lines) : [];
+  // ο πελάτης διάλεξε παράδοση από το κοντινό του συνεργαζόμενο κατάστημα (παράδοση στο σπίτι από κατάστημα): αυτός ο συνεργάτης αναλαμβάνει όλη την παραγγελία
+  const local = (o.shipping as { localStore?: { partnerId?: string } } | null)?.localStore?.partnerId;
+  if (o.fulfilment === "freight" && local) {
+    const p = await db.partner.findUnique({ where: { id: local }, select: { id: true, name: true, agencyId: true } });
+    if (p) candidates = [{ ...p, hasStock: candidates.find((c) => c.id === p.id)?.hasStock ?? false, delivery: { zips: [zipOf(o)], homeDelivery: true, bulkyOk: true, installs: true, eta: "" } }];
+  }
   const d = decideRoute({ fulfilment: o.fulfilment, zip: zipOf(o), bulky, install: o.fulfilment === "appointment", candidates });
   const steps = STEPS[d.mode].map((key, sort) => ({ key, sort }));
   return db.orderRoute.upsert({ where: { orderId: o.id }, update: {}, create: { orderId: o.id, mode: d.mode, partnerId: d.partnerId, agencyId: d.agencyId, reason: d.reason, decidedBy: "auto", steps: { create: steps } } });

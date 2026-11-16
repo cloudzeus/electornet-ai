@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_RATES, chargeableKg, normalizeRates, quoteRate, zoneFor } from "./rates";
-import { decideRoute, nextStep, normalizeDelivery, STEPS, type RouteCandidate } from "./routing";
+import { decideRoute, localDeliveryFee, localRules, nextStep, normalizeDelivery, STEPS, type RouteCandidate } from "./routing";
 
 test("ζώνη: μακρύτερο πρόθεμα, αλλιώς «υπόλοιπα», άγνωστος Τ.Κ. → null", () => {
   assert.equal(zoneFor(DEFAULT_RATES, "17456")!.id, "attica");
@@ -71,4 +71,15 @@ test("πρόταση ρόλου μεταφορέα", () => {
   assert.equal(suggestRole({ s1Id: "5044", name: "ΑΝΘΟΥΛΗΣ ΠΡΑΚΤΟΡΕΙΟ" }, []), "agency");
   assert.equal(suggestRole({ s1Id: "3010", name: "ΡΟΔΗ ΕΥΑΓΓΕΛΙΑ-ΡΟΔΗ ΑΘΗΝΑ ΟΕ" }, ["ΡΟΔΗ ΕΥΑΓΓΕΛΙΑ - ΡΟΔΗ ΑΘΗΝΑ ΟΕ"]), "partner-vehicle");
   assert.equal(suggestRole({ s1Id: "3011", name: "ΚΑΠΟΙΟΣ" }, ["ΑΛΛΟΣ"]), "other");
+});
+
+test("παράδοση από κατάστημα: δωρεάν έως το όριο οδικών χλμ, πιο μακριά σταθερό ποσό + ανά ξεκινημένο χλμ", () => {
+  const d = localRules({}, 2500);
+  assert.deepEqual(d, { freeKm: 15, maxKm: 40, extraFee: 2500, perKm: 0 }); // χωρίς ρυθμίσεις: 15 χλμ, μετά το κόστος της μεταφορικής
+  assert.equal(localDeliveryFee(15, d), 0);
+  assert.equal(localDeliveryFee(15.1, d), 2500);
+  const r = localRules({ localFreeKm: "10", localMaxKm: 25, localExtraFee: "5", localExtraPerKm: "1.5" }, 2500);
+  assert.equal(localDeliveryFee(10, r), 0);
+  assert.equal(localDeliveryFee(12.3, r), 500 + 3 * 150);
+  assert.equal(localDeliveryFee(20, localRules({ localExtraPerKm: 2 }, 2500)), 5 * 200); // μόνο ανά χλμ: χωρίς σταθερό ποσό
 });

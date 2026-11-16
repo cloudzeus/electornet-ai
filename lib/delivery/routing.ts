@@ -102,3 +102,16 @@ export function suggestRole(c: { s1Id: string | null; name: string }, partnerNam
   if (head.length >= 5 && partnerNames.some((p) => norm(p).startsWith(head))) return "partner-vehicle";
   return "other";
 }
+
+/**
+ * Παράδοση στο σπίτι από συνεργαζόμενο κατάστημα (εκτός Αττικής, ογκώδεις συσκευές): δωρεάν έως `freeKm` οδικώς από το
+ * κατάστημα· πιο μακριά, σταθερή χρέωση + χρέωση ανά (ξεκινημένο) χιλιόμετρο πέρα από το όριο. Ποσά σε λεπτά.
+ */
+export interface LocalRules { freeKm: number; maxKm: number; extraFee: number; perKm: number }
+export function localRules(data: Record<string, unknown>, freightFee: number): LocalRules {
+  const n = (v: unknown) => (v === "" || v == null || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
+  const extra = n(data.localExtraFee), per = n(data.localExtraPerKm);
+  // χωρίς καμία ρύθμιση χρέωσης: πέρα από το όριο ισχύει το κόστος της μεταφορικής
+  return { freeKm: n(data.localFreeKm) ?? 15, maxKm: n(data.localMaxKm) ?? 40, extraFee: extra == null && per == null ? freightFee : Math.round((extra ?? 0) * 100), perKm: Math.round((per ?? 0) * 100) };
+}
+export const localDeliveryFee = (km: number, r: LocalRules) => (km <= r.freeKm ? 0 : r.extraFee + Math.ceil(km - r.freeKm) * r.perKm);
