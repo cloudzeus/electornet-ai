@@ -96,7 +96,7 @@ export interface Quote {
   /** μεγάλες συσκευές (lib/shipping/bulky): αν επιτρέπεται courier / θυρίδα για όλο το καλάθι και ποια προϊόντα το εμποδίζουν */
   bulky: { courier: boolean; locker: boolean; reason: string | null; titles: string[] };
   /** μεταφορική (εσωτερική): null = κλειστή στις ρυθμίσεις · available = όλα τα προϊόντα φεύγουν με courier ή μεταφορική */
-  freight: (FreightOffer & { available: boolean; reason: string | null; /** συνεργάτης Euronics εξυπηρετεί τον Τ.Κ. */ local: boolean; /** παράδοση στο σπίτι από συνεργαζόμενο κατάστημα (ογκώδη, εκτός Αττικής): αυτό που διάλεξε ο πελάτης (ή το κοντινότερο) και οι επιλογές του, με οδικά χλμ και κόστος */ localStore: (LocalStore & { fee: number }) | null; localStores: (LocalStore & { fee: number })[]; localFreeKm: number; /** κανένα συνεργαζόμενο κατάστημα μέσα στη μέγιστη απόσταση: μεταφορική (πρακτορείο) από το κεντρικό κατάστημα */ central: boolean; localMaxKm: number }) | null;
+  freight: (FreightOffer & { available: boolean; reason: string | null; /** συνεργάτης Euronics εξυπηρετεί τον Τ.Κ. */ local: boolean; /** παράδοση στο σπίτι από συνεργαζόμενο κατάστημα (ογκώδη, εκτός Αττικής): αυτό που διάλεξε ο πελάτης (ή το κοντινότερο) και οι επιλογές του, με οδικά χλμ και κόστος */ localStore: (LocalStore & { fee: number }) | null; localStores: (LocalStore & { fee: number })[]; localFreeKm: number; /** κανένα συνεργαζόμενο κατάστημα μέσα στη μέγιστη απόσταση: μεταφορική (πρακτορείο) από το κεντρικό κατάστημα */ central: boolean; localMaxKm: number; /** συσκευές που χρεώνονται στη μεταφορική (κόστος ανά συσκευή) και το κόστος της μίας, σε λεπτά */ devices: number; unitFee: number }) | null;
   /** Αττική (lib/shipping/asap-express): κανονική παράδοση euronics ή ASAP Express με πραγματική τιμή */
   attica: AtticaOffer;
   /** για την παραγγελία: ποσά ανά προσφορά */
@@ -175,20 +175,23 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // μεταφορική μόνο εκτός Αττικής (ζητήθηκε από την Euronics)· στην Αττική: courier, ραντεβού ή παραλαβή
   const fo0 = isAtticaZip(input.zip) ? null : freightOffer(rules.data, goods);
   const fr = fo0 && rated("freight", true);
-  const fo = fo0 && fr ? { ...fo0, fee: fr.fee, baseFee: fr.baseFee, freeFrom: tables.get("freight")!.freeExcludesBulky ? null : tables.get("freight")!.freeFrom } : fo0;
+  // το κόστος της μεταφορικής είναι ΑΝΑ ΣΥΣΚΕΥΗ που δεν πάει με courier (π.χ. 2 ψυγεία = 2 × 25 €)· ο τιμοκατάλογος, όταν υπάρχει, χρεώνει ήδη με το βάρος
+  const devices = Math.max(1, blockers.reduce((n, l) => n + l.qty, 0));
+  const unitFee = fo0?.baseFee ?? FREIGHT_DEFAULT.fee;
+  const fo = fo0 && fr ? { ...fo0, fee: fr.fee, baseFee: fr.baseFee, freeFrom: tables.get("freight")!.freeExcludesBulky ? null : tables.get("freight")!.freeFrom } : fo0 && { ...fo0, fee: fo0.fee * devices, baseFee: fo0.baseFee * devices };
   const noFreight = out.find((l) => limits.get(l.productId)?.freight === false);
   const local = fo ? await localPartnerFor(input.zip, true).catch(() => null) : null;
   // εκτός Αττικής, συσκευές που δεν πάνε με courier: ο πελάτης διαλέγει συνεργαζόμενο κατάστημα και αυτό παραδίδει στο σπίτι —
   // δωρεάν έως το όριο οδικών χιλιομέτρων από το κατάστημα, με χρέωση πιο μακριά (και χωρίς ενεργή «μεταφορική» στις ρυθμίσεις)
-  const lr = localRules(rules.data, fo?.baseFee ?? FREIGHT_DEFAULT.fee);
+  const lr = localRules(rules.data, unitFee);
   const nearList = out.length && !bulky.courier && input.delivery !== "click-collect" && !isAtticaZip(input.zip) ? await nearStoresFor({ street: input.street, number: input.number, city: input.city, zip: input.zip }, input.settle ? 12_000 : 2500).catch(() => undefined) : undefined;
   const localStores = (nearList ?? []).filter((x) => x.km <= lr.maxKm).slice(0, 5).map((x) => ({ ...x, fee: localDeliveryFee(x.km, lr) }));
   const near = localStores.find((x) => x.id === input.localStoreId) ?? localStores[0] ?? null;
   // ξέρουμε ότι κανένα συνεργαζόμενο κατάστημα δεν είναι μέσα στη μέγιστη απόσταση: το στέλνει το κεντρικό με μεταφορική (πρακτορείο),
   // ακόμη κι αν η κατηγορία είναι «μόνο από κατάστημα» ή η μεταφορική είναι κλειστή στις ρυθμίσεις
   const central = nearList !== undefined && !localStores.length;
-  const fb = near ? { ...(fo ?? { baseFee: 0, freeFrom: null }), fee: near.fee, eta: "Σε καλεί το κατάστημα για ημέρα και ώρα" } : fo ?? (central ? { baseFee: FREIGHT_DEFAULT.fee, freeFrom: null, fee: FREIGHT_DEFAULT.fee, eta: FREIGHT_DEFAULT.eta } : null);
-  const freight = fb && { ...fb, eta: near ? fb.eta : local?.eta || fb.eta, local: !!local || !!near, localStore: near, localStores, localFreeKm: lr.freeKm, central, localMaxKm: lr.maxKm, available: !!near || central || !noFreight, reason: near || central ? null : noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
+  const fb = near ? { ...(fo ?? { baseFee: 0, freeFrom: null }), fee: near.fee, eta: "Σε καλεί το κατάστημα για ημέρα και ώρα" } : fo ?? (central ? { baseFee: unitFee * devices, freeFrom: null, fee: unitFee * devices, eta: FREIGHT_DEFAULT.eta } : null);
+  const freight = fb && { ...fb, eta: near ? fb.eta : local?.eta || fb.eta, local: !!local || !!near, localStore: near, localStores, localFreeKm: lr.freeKm, central, localMaxKm: lr.maxKm, devices: fr ? 1 : devices, unitFee, available: !!near || central || !noFreight, reason: near || central ? null : noFreight ? `${noFreight.title}: μόνο με ραντεβού ή παραλαβή από κατάστημα` : null };
   // Αττική: μόνο «Κανονική παράδοση euronics» ή «ASAP Express»· η ASAP δεν είναι πια courier της λίστας
   const asapRules = await getAsapRules();
   const attica: AtticaOffer = out.length && input.delivery !== "click-collect"
@@ -209,8 +212,8 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
     : viaFreight ? freight!.fee
     : (input.delivery && input.delivery !== "courier") || !bulky.courier ? 0 : courierFee;
   // Express είναι επιλογή επί πληρωμή: οι προσφορές «δωρεάν μεταφορικά» δεν τη μηδενίζουν (η κανονική είναι ήδη δωρεάν)
-  // το ίδιο και η χρέωση του καταστήματος πέρα από το δωρεάν όριο χιλιομέτρων
-  const freeShipping = engine.freeShipping && baseShipping > 0 && !isExpress && !(viaFreight && near) ? { ...engine.freeShipping, saved: baseShipping } : null;
+  // το ίδιο και η μεταφορική / η χρέωση του καταστήματος πέρα από το δωρεάν όριο (εκτός Αττικής): δωρεάν είναι μόνο η παραλαβή από κατάστημα
+  const freeShipping = engine.freeShipping && baseShipping > 0 && !isExpress && !viaFreight ? { ...engine.freeShipping, saved: baseShipping } : null;
   const shipping = freeShipping ? 0 : baseShipping;
   const codFee = input.payment === "cod" ? rules.cod : 0;
   const total = goods + shipping + codFee;
