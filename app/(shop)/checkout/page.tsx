@@ -12,16 +12,12 @@ export const metadata: Metadata = { title: "Ολοκλήρωση αγοράς" }
 
 export default async function CheckoutPage() {
   const [stores, pub, viva, klarna, bank] = await Promise.all([getStores(), getPublicSettings(), vivaConfig(), klarnaConfig(), bankTransfer()]);
-  // οι τρόποι Viva μόνο όταν η Viva έχει ρυθμιστεί (Client ID / secret)· αλλιώς το checkout μένει όπως ήταν
+  // οι τρόποι Viva μόνο όταν η Viva έχει ρυθμιστεί (Client ID / secret)· αλλιώς μόνο αντικαταβολή / κατάθεση / στο κατάστημα
   const vivaPays = viva ? enabledVivaPays(pub.payments ?? {}) : [];
   const partner = String(pub.shipping?.boxnowPartnerId ?? "").trim();
-  // Χωρίς ρυθμισμένη Viva το checkout δείχνει την εφεδρική λίστα· ΚΑΙ αυτή σέβεται πλέον τους διακόπτες των
-  // Πληρωμών, ώστε ένας κλειστός τρόπος (π.χ. Revolut Pay) να μη φαίνεται πουθενά στον πελάτη.
-  const p = (pub.payments ?? {}) as Record<string, unknown>;
-  const payOn = { apple: p.applePay !== false, google: p.googlePay !== false, revolut: p.revolutPay !== false, iris: p.iris !== false };
   return (
     <div className="eu-container">
-      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil, member: s.member, lat: s.lat, lng: s.lng }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} payOn={payOn} klarnaDirect={!!klarna} bankSub={bank.enabled ? bankNames(bank.accounts) : null} />
+      <Checkout stores={stores.map((s) => ({ id: s.id, slug: s.slug, name: s.name, city: s.city, address: s.address, zip: s.zip, region: s.region, distanceKm: s.distanceKm, openUntil: s.openUntil, member: s.member, lat: s.lat, lng: s.lng }))} boxnowPartnerId={partner || null} vivaPays={vivaPays} klarnaDirect={!!klarna} bankSub={bank.enabled ? bankNames(bank.accounts) : null} />
     </div>
   );
 }

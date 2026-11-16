@@ -70,6 +70,13 @@ export async function placeOrder(input: PlaceInput) {
   if (bad) return { ok: false as const, error: bad };
   // κατάθεση χωρίς λογαριασμούς (ή κλειστή στις Ρυθμίσεις) = παραγγελία χωρίς τρόπο πληρωμής
   if (input.payment === "bank" && !(await bankTransfer()).enabled) return { ok: false as const, error: "Η κατάθεση σε τράπεζα δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε άλλον τρόπο πληρωμής." };
+  // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
+  // Klarna με απευθείας σύμβαση (Ρυθμίσεις → Πληρωμές → Klarna «απευθείας»)· αλλιώς η Klarna πάει μέσω Viva
+  const klarna = input.payment === "klarna" && !input.dryRun ? await klarnaConfig() : null;
+  const viva = !klarna && isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
+  // online τρόπος χωρίς πάροχο (Viva/Klarna αρύθμιστα) = παραγγελία που «πληρώθηκε» χωρίς πληρωμή — δεν καταχωρείται
+  if (!viva && !klarna && !input.dryRun && !["cod", "bank", "store"].includes(input.payment))
+    return { ok: false as const, error: "Η online πληρωμή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε αντικαταβολή, κατάθεση σε τράπεζα ή πληρωμή στο κατάστημα." };
   const me = await getCustomerSession();
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
   const cart = await currentCart(false);
@@ -106,10 +113,6 @@ export async function placeOrder(input: PlaceInput) {
   const svcBySlug = new Map(services.map((s) => [s.slug, s]));
   const usedSlugs = [...new Set(q.lines.flatMap((l) => l.addons.map((a) => a.slug)))];
 
-  // online πληρωμή μέσω Viva: η παραγγελία περιμένει την πληρωμή (χωρίς email, χωρίς ERP μέχρι να πληρωθεί)
-  // Klarna με απευθείας σύμβαση (Ρυθμίσεις → Πληρωμές → Klarna «απευθείας»)· αλλιώς η Klarna πάει μέσω Viva
-  const klarna = input.payment === "klarna" && !input.dryRun ? await klarnaConfig() : null;
-  const viva = !klarna && isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
   let number = "";
   try {
     const result = await db.$transaction(async (tx) => {

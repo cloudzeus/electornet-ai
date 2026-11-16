@@ -12,9 +12,8 @@ import { instalment, priceLong } from "@/lib/format";
 import { useCart, type Fulfilment } from "@/components/commerce/CartProvider";
 import { Stepper } from "./Stepper";
 import { ProductImage } from "@/components/commerce/ProductImage";
-import { WalletSheet, type Wallet } from "./WalletSheet";
 import { SocialLogin } from "./SocialLogin";
-import { AppleMark, GoogleMark, RevolutMark } from "./BrandMarks";
+import { AppleMark, GoogleMark } from "./BrandMarks";
 import { copyOf } from "@/lib/cms/copy";
 import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon, type ServerQuote } from "./useServerQuote";
 import { FreeShippingNote, GiftLines, PromoHints } from "./PromoPerks";
@@ -50,10 +49,9 @@ const REGIONS = ["Αττική", "Θεσσαλονίκη", "Αχαΐα", "Λάρ
  * (Directive 2011/83). Mobile: sticky total + CTA at the bottom.
  * Every text ≥ 14px, every control ≥ 48px.
  */
-export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null, payOn }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null; /** διακόπτες των Πληρωμών για την εφεδρική λίστα (χωρίς Viva)· ό,τι λείπει θεωρείται ανοιχτό */ payOn?: Partial<Record<"apple" | "google" | "revolut" | "iris", boolean>> }) {
+export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarnaDirect = false, bankSub = null }: { stores: StoreLite[]; boxnowPartnerId?: string | null; vivaPays?: string[]; klarnaDirect?: boolean; /** οι τράπεζες των λογαριασμών (Ρυθμίσεις → Πληρωμές)· null = η κατάθεση δεν προσφέρεται */ bankSub?: string | null }) {
   // Viva: οι online τρόποι (κάρτα, Apple/Google Pay, PayPal, IRIS, Klarna) ολοκληρώνονται στη σελίδα της Viva
   const viva = vivaPays.length > 0;
-  const payEnabled = (k: "apple" | "google" | "revolut" | "iris") => payOn?.[k] !== false;
   const viaViva = (p: string) => viva && vivaPays.includes(p);
   // Klarna με απευθείας σύμβαση: ο πελάτης μεταφέρεται στη σελίδα της Klarna
   const viaKlarna = (p: string) => klarnaDirect && p === "klarna";
@@ -79,13 +77,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   }, [stores]);
   const chooseStore = useCallback((id: string) => { setStoreId(id); savePickup({ where: "store", storeId: id }); }, []);
   const [slot, setSlot] = useState("morning");
-  const [pay, setPay] = useState<Pay>("card");
-  const [inst, setInst] = useState(1);
-  const [sca, setSca] = useState<"idle" | "pending" | "ok">("idle");
+  // χωρίς ρυθμισμένη Viva δεν υπάρχει online πληρωμή: μόνο αντικαταβολή / κατάθεση / στο κατάστημα
+  const [pay, setPay] = useState<Pay>(viva ? "card" : "cod");
+  const inst = 1; // τις δόσεις τις διαλέγει ο πελάτης στη σελίδα της Viva
   const [vatLookup, setVatLookup] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [err, setErr] = useState<string | null>(null);
   const [coupon, setCoupon] = useState(() => savedCoupon() ?? "");
-  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [signedIn, setSignedIn] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   // Ο υπολογισμός είναι του server (τιμές από το SoftOne, προσφορές, κουπόνι, μεταφορικά): ο browser μόνο τον δείχνει
@@ -193,15 +190,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     if (!f.terms) return setErr("Πρέπει να αποδεχτείς τους όρους χρήσης για να συνεχίσεις.");
     if (offline.length) return setErr(`Το «${offline[0].product.title}» δεν διατίθεται για online αγορά. Αφαίρεσέ το από το καλάθι για να συνεχίσεις.`);
     setErr(null);
-    if (viaViva(pay) || viaKlarna(pay)) return finish();
-    if (pay === "apple" || pay === "google" || pay === "revolut") return setWallet(pay);
-    if (pay === "card" || pay === "no-card") {
-      setSca("pending");
-      setTimeout(() => {
-        setSca("ok");
-        finish();
-      }, 1800);
-    } else finish();
+    if (!payments.some((o) => o.v === pay && !o.disabled)) return setErr("Διάλεξε τρόπο πληρωμής.");
+    finish();
   };
   const finish = async () => {
     setPlacing(true); setErr(null);
@@ -215,7 +205,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
         coupon: couponCode, terms: f.terms, newsletter: f.newsletter, expectedTotal: quote?.total,
       }) });
       const j = (await r.json()) as { ok: boolean; number?: string; error?: string; quote?: ServerQuote; redirect?: string; nextCoupon?: { code: string; value: string; until: string | null } | null };
-      if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); setSca("idle"); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
+      if (!j.ok || !j.number) { if (j.quote) setQuote(j.quote); return setErr(j.error ?? "Η παραγγελία δεν ολοκληρώθηκε. Δοκίμασε ξανά."); }
       const order = { number: j.number, date: new Date().toISOString(), lines: lines.map((l) => ({ id: l.product.id, title: l.product.title, brand: l.product.brand, image: l.product.image, qty: l.qty, unitPrice: l.product.price, addons: l.addons, variant: l.variant })), total, shipping, goods, discount, pay, inst, ful, store: store ? `${store.name} — ${store.address}, ${store.city}` : null, slot, attica: attica ? (expressSel ? "express" : "standard") : null, eta, address: { ...f, password: "" }, recycle: f.recycle, nextCoupon: j.nextCoupon ?? null };
       try { localStorage.setItem("euronics.lastOrder", JSON.stringify(order)); } catch {}
       clear();
@@ -223,7 +213,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
       // Viva: η πληρωμή ολοκληρώνεται στη σελίδα της· επιστρέφει στο /api/payments/viva/success|failure
       if (j.redirect) { window.location.assign(j.redirect); return; }
       router.push(`/checkout/epityxia?no=${j.number}`);
-    } catch { setSca("idle"); setErr("Σφάλμα δικτύου. Η παραγγελία δεν ολοκληρώθηκε."); } finally { setPlacing(false); }
+    } catch { setErr("Σφάλμα δικτύου. Η παραγγελία δεν ολοκληρώθηκε."); } finally { setPlacing(false); }
   };
 
   if (!hydrated) return <div className="eu-canvas eu-gutter py-12 text-eu-muted text-[length:var(--fs-16)]">{c.fortosi}</div>;
@@ -270,12 +260,6 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
     ...(ful === "click-collect" ? [{ v: "store" as Pay, icon: StoreIcon, t: "Στο κατάστημα", sub: "Μετρητά ή κάρτα κατά την παραλαβή" }] : []),
   ] : [
-    { v: "card", icon: CreditCard, t: "Κάρτα", sub: `Visa · Mastercard · Amex${maxInst > 1 ? ` · έως ${maxInst} άτοκες` : ""}` },
-    ...(payEnabled("apple") ? [{ v: "apple" as Pay, icon: CreditCard, t: "Apple Pay", sub: "Με Face ID / Touch ID, χωρίς πληκτρολόγηση", mark: <AppleMark className="size-5" /> }] : []),
-    ...(payEnabled("google") ? [{ v: "google" as Pay, icon: CreditCard, t: "Google Pay", sub: "Με την κάρτα του Google λογαριασμού σου", mark: <GoogleMark className="size-5" /> }] : []),
-    ...(payEnabled("revolut") ? [{ v: "revolut" as Pay, icon: CreditCard, t: "Revolut Pay", sub: "Επιβεβαίωση στην εφαρμογή Revolut, χωρίς προμήθεια", mark: <RevolutMark className="h-4" /> }] : []),
-    { v: "no-card", icon: Smartphone, t: "Δόσεις χωρίς κάρτα", sub: total >= 200 && total <= 2000 ? `Eurobank · έως 24 × ${priceLong(instalment(total, 24))}` : "Για αγορές 200–2.000 €", disabled: total < 200 || total > 2000 },
-    ...(payEnabled("iris") ? [{ v: "iris" as Pay, icon: Smartphone, t: "IRIS", sub: "Άμεσα από το mobile banking, χωρίς προμήθεια" }] : []),
     ...(klarnaDirect ? [KLARNA_OPT] : []),
     ...(bankSub ? [{ v: "bank" as Pay, icon: Landmark, t: "Κατάθεση σε τράπεζα", sub: bankSub }] : []),
     { v: "cod", icon: Banknote, t: "Αντικαταβολή", sub: total <= 500 ? "Μετρητά ή κάρτα στον διανομέα · +2,00 €" : "Διαθέσιμη έως 500 €", disabled: total > 500 },
@@ -289,7 +273,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
         <div className="min-w-0 grid gap-4 eu-container">
           {step === 2 && (
             <>
-              <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3" aria-labelledby="express">
+              {viva && <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3" aria-labelledby="express">
                 <div className="flex items-center justify-between gap-3">
                   <h1 id="express" className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">
                     {c.grigori_oloklirosi}
@@ -305,26 +289,11 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                       </button>
                     ))}
                   </div>
-                ) : (
-                <div className="grid grid-cols-2 @md:grid-cols-4 gap-2">
-                    {payEnabled("apple") && <button type="button" onClick={() => setWallet("apple")} aria-label={c.pliromi_me_apple_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
-                      <AppleMark className="size-5" /> Pay
-                    </button>}
-                    {payEnabled("google") && <button type="button" onClick={() => setWallet("google")} aria-label={c.pliromi_me_google_pay} className="rounded-full bg-white text-eu-ink border-2 border-eu-line font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:border-eu-blue">
-                      <GoogleMark className="size-5" /> Pay
-                    </button>}
-                    {payEnabled("revolut") && <button type="button" onClick={() => setWallet("revolut")} aria-label={c.pliromi_me_revolut_pay} className="rounded-full bg-black text-white font-extrabold text-[length:var(--fs-15)] min-h-12 inline-flex items-center justify-center gap-1.5 hover:bg-black/85">
-                      <RevolutMark className="h-4" /> Pay
-                    </button>}
-                    {payEnabled("iris") && <button type="button" onClick={() => setPay("iris")} className="rounded-full bg-eu-blue text-white font-extrabold text-[length:var(--fs-15)] min-h-12 hover:bg-eu-blue-dark">
-                      IRIS
-                    </button>}
-                  </div>
-                )}
+                ) : null}
                 <div className="flex items-center gap-3 text-eu-muted text-[length:var(--fs-14)]">
                   <span className="flex-1 h-px bg-eu-line" /> {c.i_symplirose_ta_stoicheia} <span className="flex-1 h-px bg-eu-line" />
                 </div>
-              </section>
+              </section>}
 
               <Section n={1} title={c.stoicheia_epikoinonias} lead="Εδώ στέλνουμε την επιβεβαίωση και το SMS παράδοσης.">
                 {signedIn ? (
@@ -536,43 +505,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                     <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2"><ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> Τα στοιχεία πληρωμής δεν περνούν από εμάς.</p>
                   </div>
                 )}
-                {pay === "card" && !viva && (
-                  <div className="grid gap-4 rounded-xl bg-eu-surface p-4 @md:p-5">
-                    <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
-                      <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink @sm:col-span-2">
-                        {c.arithmos_kartas} <input inputMode="numeric" placeholder="•••• •••• •••• 4821" className={inputCls()} autoComplete="cc-number" />
-                      </label>
-                      <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                        {c.lixi} <input placeholder="MM/YY" className={inputCls()} autoComplete="cc-exp" />
-                      </label>
-                      <label className="grid gap-1.5 text-[length:var(--fs-15)] font-bold text-eu-ink">
-                        CVC <input inputMode="numeric" placeholder="•••" className={inputCls()} autoComplete="cc-csc" />
-                      </label>
-                    </div>
-                    {maxInst > 1 && (
-                      <div className="grid gap-2">
-                        <div className="font-bold text-eu-ink text-[length:var(--fs-15)]">{c.atokes_doseis}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {[1, 3, 6, 12, 24]
-                            .filter((n) => n <= maxInst)
-                            .map((n) => (
-                              <label key={n} className={`rounded-xl border-2 px-4 min-h-12 inline-flex flex-col justify-center cursor-pointer ${inst === n ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white text-eu-ink"}`}>
-                                <input type="radio" name="inst" className="sr-only" checked={inst === n} onChange={() => setInst(n)} />
-                                <span className="font-extrabold text-[length:var(--fs-15)] leading-tight">{n === 1 ? "Εφάπαξ" : `${n} δόσεις`}</span>
-                                {n > 1 && <span className={`text-[length:var(--fs-13-5)] ${inst === n ? "text-eu-yellow" : "text-eu-muted"}`}>{priceLong(instalment(total, n))}/μήνα</span>}
-                              </label>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                    <p className="m-0 text-eu-muted text-[length:var(--fs-14)] flex items-start gap-2">
-                      <ShieldCheck className="size-5 text-eu-green shrink-0" aria-hidden /> {c.ta_stoicheia_kartas_den}
-                    </p>
-                  </div>
-                )}
-                {pay === "no-card" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_metafertheis_sto_asfales}</p>}
                 {pay === "bank" && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.oi_logariasmoi_ethniki_peiraios}</p>}
-                {pay === "iris" && !viva && <p className="m-0 rounded-xl bg-eu-surface p-4 text-eu-ink-2 text-[length:var(--fs-15)]">{c.tha_anoixei_to_mobile}</p>}
               </Section>
 
               <section className="bg-white rounded-2xl border border-eu-line p-5 @md:p-6 grid gap-3">
@@ -617,8 +550,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                 <button type="button" onClick={() => setStep(2)} className="font-bold text-eu-blue text-[length:var(--fs-15)] hover:underline min-h-12">
                   {c.stoicheia_paradosi}
                 </button>
-                <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
-                  {placing ? "Καταχώρηση παραγγελίας…" : sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
+                <button type="button" onClick={submit} disabled={placing} className="hidden @3xl:inline-flex rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] px-8 min-h-14 items-center hover:bg-eu-yellow-dark disabled:opacity-60">
+                  {placing ? "Καταχώρηση παραγγελίας…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
                 </button>
               </div>
             </>
@@ -698,8 +631,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
               <Truck className="size-5 text-eu-blue shrink-0" aria-hidden /> {eta}
             </div>
             {step === 3 && (
-              <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="hidden @3xl:block rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 hover:bg-eu-yellow-dark disabled:opacity-60">
-                {placing ? "Καταχώρηση παραγγελίας…" : sca === "pending" ? "Επιβεβαίωση πληρωμής…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
+              <button type="button" onClick={submit} disabled={placing} className="hidden @3xl:block rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-17)] py-4 min-h-14 hover:bg-eu-yellow-dark disabled:opacity-60">
+                {placing ? "Καταχώρηση παραγγελίας…" : `Πληρωμή ${priceLong(total)} & ολοκλήρωση`}
               </button>
             )}
             {step === 3 && <p className="m-0 text-eu-muted text-[length:var(--fs-14)] leading-snug">Πατώντας το κουμπί χρεώνεται το ποσό {priceLong(total)} και η παραγγελία σου καταχωρείται. Θα λάβεις email επιβεβαίωσης αμέσως.</p>}
@@ -737,25 +670,11 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
             {c.synecheia_stin_pliromi}
           </button>
         ) : (
-          <button type="button" onClick={submit} disabled={sca === "pending" || placing} className="flex-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-14 disabled:opacity-60">
-            {sca === "pending" ? "Επιβεβαίωση…" : "Πληρωμή & ολοκλήρωση"}
+          <button type="button" onClick={submit} disabled={placing} className="flex-1 rounded-full bg-eu-yellow text-eu-navy font-extrabold text-[length:var(--fs-16)] min-h-14 disabled:opacity-60">
+            Πληρωμή & ολοκλήρωση
           </button>
         )}
       </div>
-      {wallet && (
-        <WalletSheet
-          kind={wallet}
-          total={total}
-          itemsLabel={`${lines.length} ${lines.length === 1 ? "προϊόν" : "προϊόντα"}${shipping ? " · μεταφορικά" : ""}`}
-          address={f.street ? `${f.street} ${f.number}, ${f.zip} ${f.city}` : undefined}
-          onClose={() => setWallet(null)}
-          onDone={() => {
-            setWallet(null);
-            if (!f.firstName) setF((x) => ({ ...x, firstName: "Μαρία", lastName: "Παπαδοπούλου", email: "maria.p@icloud.com", phone: "6945123456", street: "Λ. Κηφισού", number: "48", city: "Περιστέρι", zip: "12132", terms: true }));
-            finish();
-          }}
-        />
-      )}
     </div>
   );
 }
