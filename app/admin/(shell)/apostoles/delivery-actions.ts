@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { normalizeRates, quoteRate } from "@/lib/delivery/rates";
 import { isCarrierRole, normalizeDelivery, type StepKey } from "@/lib/delivery/routing";
 import { carrierUsage, importCarriersFromSoftOne } from "@/lib/delivery/carrier-import";
-import { chooseCarrier, freightOptions, markStep, rerouteOrder, resetPartnerCache, resetRateCache } from "@/lib/delivery/server";
+import { chooseCarrier, choosePartner, freightOptions, partnerOptions, markStep, rerouteOrder, resetPartnerCache, resetRateCache } from "@/lib/delivery/server";
 
 const RATE_CARRIERS = /^(acs|geniki|elta|boxnow|freight|carrier:[\w-]{8,40})$/;
 
@@ -154,6 +154,20 @@ export async function chooseCarrierAction(orderId: string, carrierId: string, co
   await audit(user.id, "route.carrier", "Order", orderId, null, { carrierId, cost });
   revalidatePath("/admin/apostoles/kentro");
   return { ok: true as const };
+}
+
+export async function partnerOptionsAction(orderId: string, q = "") {
+  await requirePermission("orders.read");
+  return partnerOptions(orderId, q.slice(0, 60));
+}
+
+/** Αλλαγή συνεργάτη / καταστήματος που αναλαμβάνει την παραγγελία. Δεν αλλάζει το ποσό που πλήρωσε ο πελάτης. */
+export async function choosePartnerAction(orderId: string, storeId: string, km: number | null) {
+  const user = await requirePermission("orders.write");
+  const r = await choosePartner(orderId, storeId, user.id, Number.isFinite(km) ? km : null);
+  await audit(user.id, "route.partner", "Order", orderId, null, { storeId, km, mode: r.mode });
+  revalidatePath("/admin/apostoles/kentro");
+  return { ok: true as const, ...r };
 }
 
 export async function rerouteAction(orderId: string) {

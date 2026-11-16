@@ -6,6 +6,7 @@ import { AlertTriangle, Building2, Check, CircleDot, Clock, Loader2, MapPin, Pac
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MODE_LABEL, STEP_LABEL, type RouteMode, type StepKey } from "@/lib/delivery/routing";
 import { chooseCarrierAction, freightOptionsAction, markStepAction, rerouteAction } from "../delivery-actions";
+import { PartnerPicker } from "@/components/admin/delivery/PartnerPicker";
 
 type Who = { id: string; name: string; city?: string | null; phone: string | null } | null;
 export interface RouteRow {
@@ -30,6 +31,7 @@ export function ControlBoard({ rows, kpi, stuckDays, canWrite }: { rows: RouteRo
   const [f, setF] = useState<Filter>(kpi.unrouted ? "unrouted" : "all");
   const [q, setQ] = useState("");
   const [pick, setPick] = useState<RouteRow | null>(null);
+  const [partner, setPartner] = useState<RouteRow | null>(null);
   const shown = useMemo(() => rows.filter((r) => {
     const okF = f === "all" ? r.status === "open" : f === "delivered" ? r.status === "delivered" : f === "stuck" ? r.status === "open" && r.mode !== "unrouted" && r.days >= stuckDays : f === "partner" ? r.status === "open" && (r.mode === "partner" || r.mode === "pickup") : r.status === "open" && r.mode === f;
     return okF && (!q || `${r.number} ${r.to.name} ${r.to.city} ${r.to.zip} ${r.partner?.name ?? ""} ${r.agency?.name ?? ""}`.toLowerCase().includes(q.toLowerCase()));
@@ -75,16 +77,17 @@ export function ControlBoard({ rows, kpi, stuckDays, canWrite }: { rows: RouteRo
       </label>
 
       <ul data-help="kentro.list" className="m-0 p-0 list-none grid gap-2">
-        {shown.map((r) => <RouteCard key={r.orderId} r={r} stuck={r.days >= stuckDays} canWrite={canWrite} onPick={() => setPick(r)} />)}
+        {shown.map((r) => <RouteCard key={r.orderId} r={r} stuck={r.days >= stuckDays} canWrite={canWrite} onPick={() => setPick(r)} onPartner={() => setPartner(r)} />)}
         {!shown.length && <li className="rounded-2xl border border-eu-line bg-white p-6 text-center text-eu-muted text-[length:var(--fs-14)]">{f === "unrouted" ? "Καμία παράδοση δεν περιμένει επιλογή μεταφορικής." : "Καμία παράδοση με αυτά τα φίλτρα."}</li>}
       </ul>
 
       <CarrierPicker row={pick} onClose={() => setPick(null)} />
+      <PartnerPicker order={partner ? { id: partner.orderId, number: partner.number, where: `${partner.to.city} ${partner.to.zip}` } : null} onClose={() => setPartner(null)} />
     </div>
   );
 }
 
-function RouteCard({ r, stuck, canWrite, onPick }: { r: RouteRow; stuck: boolean; canWrite: boolean; onPick: () => void }) {
+function RouteCard({ r, stuck, canWrite, onPick, onPartner }: { r: RouteRow; stuck: boolean; canWrite: boolean; onPick: () => void; onPartner: () => void }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [ref, setRef] = useState(""), [proof, setProof] = useState("");
@@ -142,6 +145,10 @@ function RouteCard({ r, stuck, canWrite, onPick }: { r: RouteRow; stuck: boolean
           <button type="button" disabled={busy} onClick={() => run(() => markStepAction(r.orderId, r.waiting as StepKey, { ref, proof }))} className="inline-flex items-center gap-1.5 rounded-full bg-eu-green text-white font-extrabold px-4 min-h-11 text-[length:var(--fs-14)] disabled:opacity-60">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} {STEP_LABEL[r.waiting as StepKey]}</button>
           {lastDone && <button type="button" disabled={busy} onClick={() => run(() => markStepAction(r.orderId, lastDone.key as StepKey, { undo: true }))} className="inline-flex items-center gap-1 rounded-full px-3 min-h-11 text-[length:var(--fs-13)] text-eu-ink-3 hover:text-eu-navy"><Undo2 className="size-4" aria-hidden /> Αναίρεση</button>}
         </div>
+      )}
+      {/* courier και παραλαβή από κατάστημα δεν περνούν από συνεργάτη που παραδίδει στο σπίτι */}
+      {canWrite && r.status === "open" && r.mode !== "courier" && r.mode !== "pickup" && (
+        <button type="button" data-help="kentro.partner" onClick={onPartner} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line px-4 min-h-11 text-[length:var(--fs-14)] font-bold text-eu-navy"><Store className="size-4" aria-hidden /> {r.partner ? "Αλλαγή συνεργάτη" : "Ανάθεση σε συνεργάτη"}</button>
       )}
       {err && <p role="alert" className="m-0 text-eu-red text-[length:var(--fs-13)]">{err}</p>}
     </li>

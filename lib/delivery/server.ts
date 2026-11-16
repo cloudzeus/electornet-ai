@@ -147,6 +147,41 @@ export async function chooseCarrier(orderId: string, carrierId: string, by: stri
   ]);
 }
 
+/**
+ * Αλλαγή συνεργάτη από τη διαχείριση: τα συνεργαζόμενα καταστήματα κοντά στη διεύθυνση της παραγγελίας με οδικά χλμ
+ * (km: null όταν ο χάρτης δεν απάντησε ή όταν ο διαχειριστής έψαξε με όνομα/πόλη — τότε η απόσταση είναι άγνωστη).
+ */
+export async function partnerOptions(orderId: string, q = "") {
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true, route: { select: { partnerId: true } } } });
+  if (!o) return { known: false, current: null as string | null, stores: [] as (Omit<LocalStore, "km"> & { km: number | null; agency: boolean })[] };
+  const s = (o.shipping ?? {}) as { street?: string; number?: string; city?: string; zip?: string };
+  const near = q.trim() ? undefined : await nearStoresFor({ street: s.street, number: s.number, city: s.city, zip: s.zip }, 15_000);
+  const term = q.trim() || (near === undefined ? s.city ?? "" : "");
+  const found = near ? [] : await db.store.findMany({ where: { active: true, partner: { active: true, cooperating: true }, ...(term ? { OR: [{ name: { contains: term, mode: "insensitive" } }, { city: { contains: term, mode: "insensitive" } }, { partner: { name: { contains: term, mode: "insensitive" } } }] } : {}) }, orderBy: [{ city: "asc" }, { name: "asc" }], take: 12, select: { id: true, partnerId: true, name: true, city: true } });
+  const list = near ? near.map((x) => ({ ...x, km: x.km as number | null })) : found.map((x) => ({ ...x, partnerId: x.partnerId!, km: null as number | null }));
+  const ag = new Set((await db.partner.findMany({ where: { id: { in: list.map((x) => x.partnerId) }, NOT: { agencyId: null } }, select: { id: true } })).map((p) => p.id));
+  return { known: near !== undefined, current: o.route?.partnerId ?? null, stores: list.map((x) => ({ ...x, agency: ag.has(x.partnerId) })) };
+}
+
+/** Ο διαχειριστής αναθέτει την παραγγελία σε κατάστημα συνεργάτη: μέσω του πρακτορείου του αν έχει, αλλιώς απευθείας. Τα βήματα ξεκινούν από την αρχή. */
+export async function choosePartner(orderId: string, storeId: string, by: string, km: number | null) {
+  const st = await db.store.findFirst({ where: { id: storeId, active: true, partner: { active: true, cooperating: true } }, select: { id: true, name: true, city: true, partner: { select: { id: true, name: true, agencyId: true } } } });
+  if (!st?.partner) throw new Error("Το κατάστημα δεν είναι συνεργαζόμενο με το eshop");
+  const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true, route: { select: { status: true } } } });
+  if (!o) throw new Error("Δεν βρέθηκε η παραγγελία");
+  if (o.route?.status === "delivered") throw new Error("Η παραγγελία έχει ήδη παραδοθεί");
+  const mode: RouteMode = st.partner.agencyId ? "agency" : "partner";
+  const data = { mode, partnerId: st.partner.id, agencyId: st.partner.agencyId, carrierId: null, reason: `Επιλογή διαχειριστή: ${st.name}`, decidedBy: by, status: "open" };
+  // το κατάστημα γράφεται και στην παραγγελία, ώστε μια νέα δρομολόγηση να το κρατήσει
+  const { central: _c, ...ship } = (o.shipping ?? {}) as Record<string, unknown>; void _c;
+  await db.$transaction([
+    db.routeStep.deleteMany({ where: { orderId } }),
+    db.orderRoute.upsert({ where: { orderId }, update: { ...data, steps: { create: STEPS[mode].map((key, sort) => ({ key, sort })) } }, create: { orderId, ...data, steps: { create: STEPS[mode].map((key, sort) => ({ key, sort })) } } }),
+    db.order.update({ where: { id: orderId }, data: { shipping: { ...ship, carrierName: `Κατάστημα ${st.name}`, localStore: { id: st.id, partnerId: st.partner.id, name: st.name, city: st.city, km } } as Prisma.InputJsonValue } }),
+  ]);
+  return { mode, name: st.name };
+}
+
 /** Σύγκριση μεταφορέων για μια παραγγελία: κόστος από τον τιμοκατάλογό του (carrier:<id>), αν έχει. */
 export async function freightOptions(orderId: string) {
   const o = await db.order.findUnique({ where: { id: orderId }, select: { shipping: true, total: true, lines: { select: { qty: true, variant: { select: { productId: true } } } } } });

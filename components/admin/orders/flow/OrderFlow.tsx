@@ -3,11 +3,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowRight, ArrowRightLeft, Check, ExternalLink, GitBranch, Loader2, Mail, Package, Phone, RefreshCw, Route, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, ArrowRightLeft, Check, ExternalLink, GitBranch, Loader2, Mail, Package, Phone, RefreshCw, Route, Store, Undo2 } from "lucide-react";
 import type { FlowBase } from "@/lib/orders/flow";
 import type { OrderChain } from "@/lib/softone/order-chain";
 import type { TransformPreview } from "@/lib/softone/transform";
 import { markStepAction, rerouteAction } from "@/app/admin/(shell)/apostoles/delivery-actions";
+import { PartnerPicker } from "@/components/admin/delivery/PartnerPicker";
 import { erpCheckAction, resendConfirmationAction, stageMailAction, transformPreviewAction } from "@/app/admin/(shell)/orders/actions";
 import { dmy, money } from "../chain/meta";
 import { STATE_LABEL, buildFlow, nextOf, type FNode } from "./model";
@@ -96,6 +97,7 @@ function Panel({ n, base, canWrite, goTab, autoRun, onRan, reload }: { n: FNode;
   const router = useRouter();
   const [busy, start] = useTransition();
   const [msg, setMsg] = useState<Msg>(null);
+  const [partnerOpen, setPartnerOpen] = useState(false);
   const [preview, setPreview] = useState<TransformPreview | null>(null);
   const [ref, setRef] = useState("");
   const o = base.order;
@@ -159,6 +161,7 @@ function Panel({ n, base, canWrite, goTab, autoRun, onRan, reload }: { n: FNode;
           {who?.phone && <a href={`tel:${who.phone}`} className={sec}><Phone className="size-4" aria-hidden /> {who.phone}</a>}
           {card && <Link href={card} className={sec}><ExternalLink className="size-4" aria-hidden /> Καρτέλα</Link>}
           {canWrite && <button type="button" disabled={busy} onClick={reroute} className={sec}><Route className="size-4" aria-hidden /> Άλλη διαδρομή</button>}
+          {canWrite && r && r.status !== "delivered" && r.mode !== "courier" && r.mode !== "pickup" && <button type="button" disabled={busy} onClick={() => setPartnerOpen(true)} className={sec}><Store className="size-4" aria-hidden /> {r.partner ? "Αλλαγή συνεργάτη" : "Ανάθεση σε συνεργάτη"}</button>}
         </>}
         {n.kind === "mail" && canWrite && n.primary === "remail" && (n.mail?.findoc
           ? <button type="button" disabled={busy} onClick={() => stageMail(n.mail!.findoc!)} className={pri}><Mail className="size-4" aria-hidden /> Νέα αποστολή</button>
@@ -167,6 +170,7 @@ function Panel({ n, base, canWrite, goTab, autoRun, onRan, reload }: { n: FNode;
       </div>
       {msg && <p role="status" className={`m-0 rounded-lg px-3 py-2 text-[length:var(--fs-13)] ${msg.ok ? "bg-eu-green/10 text-eu-ink" : "bg-eu-red/10 text-eu-ink"}`}>{msg.text}</p>}
       {busy && n.kind === "doc" && !preview && <p role="status" className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Διαβάζω τις γραμμές και ρωτάω το SoftOne. Τίποτα δεν αποθηκεύεται.</p>}
+      <PartnerPicker order={partnerOpen ? { id: o.id, number: o.number, where: r?.partner ? `τώρα: ${r.partner.name}` : "χωρίς συνεργάτη" } : null} onClose={() => { setPartnerOpen(false); reload(); }} />
       {n.kind === "step" && <button type="button" onClick={reload} className="justify-self-start text-eu-blue font-bold text-[length:var(--fs-13)] min-h-11">Ανανέωση της ροής</button>}
     </aside>
   );
