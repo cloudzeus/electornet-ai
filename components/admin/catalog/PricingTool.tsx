@@ -18,7 +18,7 @@ const ROUNDING: Record<Rounding, string> = { "90": "σε ,90", "99": "σε ,99",
 const SOURCE: Record<string, string> = { "supplier-last": "τελευταία τιμή προμηθευτή", purl: "τελευταία τιμή αγοράς είδους" };
 /** Χρώμα με ένα νόημα: κόκκινο = χάνουμε κέρδος, μπλε = κλειδωμένο από προσφορά, γκρι = λείπει κάτι, πράσινο = εντάξει. */
 const SKIP_TONE: Record<Skip, { ink: string; Icon: typeof Info }> = {
-  "low-margin": { ink: "text-eu-red", Icon: AlertTriangle }, "max-drop": { ink: "text-eu-amber", Icon: AlertTriangle }, promo: { ink: "text-eu-blue", Icon: Lock },
+  "low-margin": { ink: "text-eu-red", Icon: AlertTriangle }, "max-drop": { ink: "text-eu-amber", Icon: AlertTriangle }, "max-rise": { ink: "text-eu-amber", Icon: AlertTriangle }, promo: { ink: "text-eu-blue", Icon: Lock },
   "no-cost": { ink: "text-eu-muted", Icon: Info }, "no-markup": { ink: "text-eu-amber", Icon: Info }, same: { ink: "text-eu-green", Icon: CheckCircle2 },
 };
 const day = (iso: string) => new Date(iso).toLocaleDateString("el-GR", { timeZone: "Europe/Athens", day: "numeric", month: "numeric" });
@@ -43,7 +43,7 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
   const [period, setPeriod] = useState<Period>(90);
   const [rounding, setRounding] = useState<Rounding>(DEFAULT_OPTS.rounding);
   const [minMargin, setMinMargin] = useState(show(DEFAULT_OPTS.minMarginPct));
-  const [maxDrop, setMaxDrop] = useState(show(DEFAULT_OPTS.maxDropPct!));
+  const [maxDrop, setMaxDrop] = useState(show(DEFAULT_OPTS.maxDropPct!)), [maxRise, setMaxRise] = useState(show(DEFAULT_OPTS.maxRisePct!));
   const [common, setCommon] = useState("25");
   /** markup που έγραψε ο χρήστης· όπου λείπει ισχύει η πρόταση της περιόδου */
   const [edited, setEdited] = useState<Record<string, string>>({});
@@ -57,9 +57,9 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
   const [live, setLive] = useState<{ kind: "apply" | "undo"; lines: BatchLine[] } | null>(null);
   const [loading, startLoad] = useTransition(), [busy, startWrite] = useTransition();
 
-  const min = parse(minMargin), drop = parse(maxDrop);
-  // κενό «Μέγιστη μείωση» = χωρίς όριο
-  const opts = useMemo(() => ({ rounding, minMarginPct: Number.isFinite(min) && min >= 0 ? min : 0, maxDropPct: Number.isFinite(drop) && drop >= 0 && drop <= 100 ? drop : null }), [rounding, min, drop]);
+  const min = parse(minMargin), drop = parse(maxDrop), rise = parse(maxRise);
+  // κενό «Μέγιστη μείωση» / «Μέγιστη αύξηση» = χωρίς όριο
+  const opts = useMemo(() => ({ rounding, minMarginPct: Number.isFinite(min) && min >= 0 ? min : 0, maxDropPct: Number.isFinite(drop) && drop >= 0 && drop <= 100 ? drop : null, maxRisePct: Number.isFinite(rise) && rise >= 0 && rise <= 1000 ? rise : null }), [rounding, min, drop, rise]);
   const suggestion = (r: PricingRow) => markupOf(r.sales?.avg[period], r.cost, r.vat);
   const percentOf = (r: PricingRow) => { const e = edited[r.productId]; if (e === undefined) return suggestion(r); const n = parse(e); return Number.isFinite(n) ? n : null; };
   const plans = useMemo(() => new Map<string, Plan>((rows ?? []).map((r) => [r.productId, planPrice(r, percentOf(r), opts, targets[r.productId])])), [rows, edited, targets, period, opts]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -158,11 +158,12 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
       {rows && rows.length > 0 && (<>
         <section data-help="pricing-markup" aria-label="Markup" className={`${card} grid gap-3`}>
           <h3 className={h3}>2. Πόσο κέρδος πάνω στο κόστος</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className={lbl}>Πρόταση από πωλήσεις<select className={field} value={period} onChange={(e) => setPeriod(Number(e.target.value) as Period)}>{PERIODS.map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}</select></label>
             <label className={lbl}>Στρογγύλεμα τιμής<select className={field} value={rounding} onChange={(e) => setRounding(e.target.value as Rounding)}>{(Object.keys(ROUNDING) as Rounding[]).map((k) => <option key={k} value={k}>{ROUNDING[k]}</option>)}</select></label>
             <label className={lbl}>Ελάχιστο κέρδος %<input className={field} inputMode="decimal" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} /></label>
             <label className={lbl}>Μέγιστη μείωση %<input className={field} inputMode="decimal" value={maxDrop} onChange={(e) => setMaxDrop(e.target.value)} placeholder="χωρίς όριο" /></label>
+            <label className={lbl}>Μέγιστη αύξηση %<input className={field} inputMode="decimal" value={maxRise} onChange={(e) => setMaxRise(e.target.value)} placeholder="χωρίς όριο" /></label>
           </div>
           <div className="flex flex-wrap items-end gap-3 border-t border-eu-line pt-3">
             <label className={lbl}>Ίδιο markup % σε όλα<input className={num} inputMode="decimal" value={common} onChange={(e) => setCommon(e.target.value)} /></label>
@@ -175,7 +176,7 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
             <button type="button" className={ghost} disabled={!withKot.length || !(parse(kotAmount) >= 0)} onClick={setKot}>Βάλε τη σε {withKot.length} με ζευγάρι</button>
             <span className={`${sub} basis-full`}>Με 0 μπαίνει ακριβώς η τιμή του Κωτσόβολου. Ισχύει μόνο για τα επιλεγμένα που έχουν ζευγάρι, χωρίς στρογγύλεμα· το ελάχιστο κέρδος ισχύει και εδώ.</span>
           </div>
-          <p className={`m-0 ${sub}`}>Νέα τιμή = κόστος αγοράς × (1 + markup) × ΦΠΑ. Η πρόταση είναι το markup που φέρνει την τιμή στη μέση τιμή που πουλήθηκε το προϊόν στο eshop την περίοδο που διάλεξες. Προϊόν με markup κάτω από το ελάχιστο κέρδος δεν αλλάζει, ούτε προϊόν που η τιμή του θα έπεφτε περισσότερο από τη μέγιστη μείωση (άδειο πεδίο = χωρίς όριο).</p>
+          <p className={`m-0 ${sub}`}>Νέα τιμή = κόστος αγοράς × (1 + markup) × ΦΠΑ. Η πρόταση είναι το markup που φέρνει την τιμή στη μέση τιμή που πουλήθηκε το προϊόν στο eshop την περίοδο που διάλεξες. Προϊόν με markup κάτω από το ελάχιστο κέρδος δεν αλλάζει, ούτε προϊόν που η τιμή του θα έπεφτε περισσότερο από τη μέγιστη μείωση ή θα ανέβαινε περισσότερο από τη μέγιστη αύξηση (άδειο πεδίο = χωρίς όριο).</p>
         </section>
 
         <section data-help="pricing-table" aria-label="Προϊόντα" className={`${card} grid gap-0`}>

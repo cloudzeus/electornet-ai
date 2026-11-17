@@ -38,11 +38,15 @@ test("planPrice: νέα τιμή με στρογγύλεμα και οι δικ�
   assert.deepEqual(planPrice(r, null, DEFAULT_OPTS), { skip: "no-markup" });
   assert.deepEqual(planPrice({ ...r, cost: null }, 25, DEFAULT_OPTS), { skip: "no-cost" });
   assert.deepEqual(planPrice({ ...r, promo: true }, 25, DEFAULT_OPTS), { skip: "promo" });
-  assert.deepEqual(planPrice(r, 25, { rounding: "none", minMarginPct: 0, maxDropPct: null }), { newPrice: 155, changeEur: 5.1, changePct: 3.4 });
+  assert.deepEqual(planPrice(r, 25, { rounding: "none", minMarginPct: 0, maxDropPct: null, maxRisePct: null }), { newPrice: 155, changeEur: 5.1, changePct: 3.4 });
   // 100 × 1,10 × 1,24 = 136,40 → 136,90: μείωση 8,7% από 149,90
   assert.deepEqual(planPrice(r, 10, { ...DEFAULT_OPTS, maxDropPct: 5 }), { skip: "max-drop" });
   assert.deepEqual(planPrice(r, 10, { ...DEFAULT_OPTS, maxDropPct: null }), { newPrice: 136.9, changeEur: -13, changePct: -8.7 });
   assert.deepEqual(planPrice(r, null, { ...DEFAULT_OPTS, maxDropPct: 5 }, 139.99), { skip: "max-drop" });
+  // 100 × 1,50 × 1,24 = 186 → 186,90: αύξηση 24,7% από 149,90
+  assert.deepEqual(planPrice(r, 50, DEFAULT_OPTS), { skip: "max-rise" });
+  assert.deepEqual(planPrice(r, 50, { ...DEFAULT_OPTS, maxRisePct: null }), { newPrice: 186.9, changeEur: 37, changePct: 24.7 });
+  assert.deepEqual(planPrice(r, null, DEFAULT_OPTS, 199), { skip: "max-rise" });
 });
 
 test("ρητή τιμή (Κωτσόβολος − Χ): χωρίς στρογγύλεμα, με δικλείδα κέρδους", () => {
@@ -58,10 +62,12 @@ test("ρητή τιμή (Κωτσόβολος − Χ): χωρίς στρογγύ
 });
 
 test("cleanOpts: μόνο γνωστό στρογγύλεμα και λογικό όριο", () => {
-  assert.deepEqual(cleanOpts({ rounding: "99", minMarginPct: 10, maxDropPct: 15 }), { rounding: "99", minMarginPct: 10, maxDropPct: 15 });
-  assert.deepEqual(cleanOpts({ rounding: "99", minMarginPct: 10, maxDropPct: null }), { rounding: "99", minMarginPct: 10, maxDropPct: null });
+  const ok = { rounding: "99", minMarginPct: 10, maxDropPct: 15, maxRisePct: 20 };
+  assert.deepEqual(cleanOpts(ok), ok);
+  assert.deepEqual(cleanOpts({ ...ok, maxDropPct: null, maxRisePct: null }), { ...ok, maxDropPct: null, maxRisePct: null });
   assert.equal(cleanOpts({ rounding: "99", minMarginPct: 10 }), null);
-  assert.equal(cleanOpts({ rounding: "99", minMarginPct: 10, maxDropPct: 150 }), null);
-  assert.equal(cleanOpts({ rounding: "x", minMarginPct: 10, maxDropPct: 15 }), null);
-  assert.equal(cleanOpts({ rounding: "90", minMarginPct: -1, maxDropPct: 15 }), null);
+  assert.equal(cleanOpts({ ...ok, maxDropPct: 150 }), null);
+  assert.equal(cleanOpts({ ...ok, maxRisePct: -1 }), null);
+  assert.equal(cleanOpts({ ...ok, rounding: "x" }), null);
+  assert.equal(cleanOpts({ ...ok, minMarginPct: -1 }), null);
 });

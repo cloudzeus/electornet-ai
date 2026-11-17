@@ -31,11 +31,11 @@ export function markupOf(gross: number | null | undefined, cost: number | null |
   return Math.max(0, r1((gross / (1 + vat / 100) / cost - 1) * 100));
 }
 
-export type Skip = "promo" | "no-cost" | "no-markup" | "low-margin" | "max-drop" | "same";
+export type Skip = "promo" | "no-cost" | "no-markup" | "low-margin" | "max-drop" | "max-rise" | "same";
 export type Plan = { newPrice: number; changeEur: number; changePct: number } | { skip: Skip };
-/** `maxDropPct` null = χωρίς όριο μείωσης */
-export type Opts = { rounding: Rounding; minMarginPct: number; maxDropPct: number | null };
-export const DEFAULT_OPTS: Opts = { rounding: "90", minMarginPct: 8, maxDropPct: 15 };
+/** `maxDropPct` / `maxRisePct` null = χωρίς όριο μείωσης / αύξησης */
+export type Opts = { rounding: Rounding; minMarginPct: number; maxDropPct: number | null; maxRisePct: number | null };
+export const DEFAULT_OPTS: Opts = { rounding: "90", minMarginPct: 8, maxDropPct: 15, maxRisePct: 15 };
 
 /**
  * `web` = η τιμή web τώρα (με ΦΠΑ)· `cost` χωρίς ΦΠΑ· `percent` null = ο χρήστης δεν έβαλε markup.
@@ -57,6 +57,7 @@ export function planPrice(r: { cost: number | null; vat: number; web: number; pr
   if (Math.abs(newPrice - r.web) < 0.005) return { skip: "same" };
   const changeEur = r2(newPrice - r.web), changePct = r1((changeEur / r.web) * 100);
   if (o.maxDropPct != null && changePct < -o.maxDropPct) return { skip: "max-drop" };
+  if (o.maxRisePct != null && changePct > o.maxRisePct) return { skip: "max-rise" };
   return { newPrice, changeEur, changePct };
 }
 
@@ -70,9 +71,9 @@ export function underCut(theirs: number, amount: number, mode: "eur" | "pct"): n
 export function cleanOpts(x: unknown): Opts | null {
   const o = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
   const rounding = (["none", "int", "90", "99"] as const).find((v) => v === o.rounding);
-  const m = o.minMarginPct, d = o.maxDropPct;
-  const dropOk = d === null || (typeof d === "number" && Number.isFinite(d) && d >= 0 && d <= 100);
-  return rounding && dropOk && typeof m === "number" && Number.isFinite(m) && m >= 0 && m <= 500 ? { rounding, minMarginPct: m, maxDropPct: d as number | null } : null;
+  const m = o.minMarginPct, d = o.maxDropPct, u = o.maxRisePct;
+  const lim = (v: unknown, hi: number) => v === null || (typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= hi);
+  return rounding && lim(d, 100) && lim(u, 1000) && typeof m === "number" && Number.isFinite(m) && m >= 0 && m <= 500 ? { rounding, minMarginPct: m, maxDropPct: d as number | null, maxRisePct: u as number | null } : null;
 }
 
 export const SKIP: Record<Skip, { label: string; hint: string }> = {
@@ -81,5 +82,6 @@ export const SKIP: Record<Skip, { label: string; hint: string }> = {
   "no-markup": { label: "Βάλε markup", hint: "Δεν υπάρχουν πωλήσεις για πρόταση. Γράψε εσύ το ποσοστό." },
   "low-margin": { label: "Κέρδος κάτω από το όριο", hint: "Το markup είναι μικρότερο από το ελάχιστο κέρδος. Ανέβασέ το ή χαμήλωσε το όριο." },
   "max-drop": { label: "Μείωση πάνω από το όριο", hint: "Η νέα τιμή πέφτει περισσότερο από τη μέγιστη μείωση. Μεγάλωσε το όριο μόνο αν το αποφάσισες." },
+  "max-rise": { label: "Αύξηση πάνω από το όριο", hint: "Η νέα τιμή ανεβαίνει περισσότερο από τη μέγιστη αύξηση. Μεγάλωσε το όριο μόνο αν το αποφάσισες." },
   same: { label: "Ίδια τιμή", hint: "Με αυτό το markup η τιμή δεν αλλάζει." },
 };
