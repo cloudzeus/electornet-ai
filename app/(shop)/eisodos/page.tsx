@@ -6,7 +6,7 @@ import { SOCIAL_ERRORS } from "@/lib/account/social";
 
 export const metadata: Metadata = { title: "Σύνδεση" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; verify?: string }> }) {
   const sp = await searchParams;
   const error = sp.error && SOCIAL_ERRORS[sp.error as keyof typeof SOCIAL_ERRORS];
   // μόνο εσωτερικές διαδρομές (όχι «//άλλο-site», «/\άλλο-site», κωδικοποιημένες παραλλαγές)
@@ -16,6 +16,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="eu-canvas eu-gutter py-10 grid grid-cols-1 @lg:grid-cols-2 gap-8 items-start max-w-[980px]">
         <div className="grid gap-3">
           {error && <p role="alert" className="m-0 rounded-xl bg-eu-red/10 text-eu-red font-bold text-[length:var(--fs-14)] px-4 py-3">{error}</p>}
+          {sp.verify === "done" && <p role="status" className="m-0 rounded-xl bg-eu-green/10 text-eu-ink font-semibold text-[length:var(--fs-14)] px-4 py-3">Το email σου είναι ήδη επιβεβαιωμένο. Συνδέσου με το email και τον κωδικό σου.</p>}
           <AuthForm mode="login" next={next} />
         </div>
         <aside className="bg-eu-surface rounded-xl p-6">

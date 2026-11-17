@@ -19,6 +19,7 @@ import { useServerQuote, quoteLineOf, savedCoupon, saveCoupon, type ServerQuote 
 import { FreeShippingNote, GiftLines, PromoHints } from "./PromoPerks";
 import { BoxNowPicker, type Locker } from "./BoxNowPicker";
 import { carrierDef } from "@/lib/shipping/carriers";
+import { phoneDigits } from "@/lib/orders/contact";
 
 const c = copyOf("checkout");
 
@@ -154,7 +155,7 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
     if (!f.firstName.trim()) e.firstName = "Συμπλήρωσε το όνομά σου";
     if (!f.lastName.trim()) e.lastName = "Συμπλήρωσε το επώνυμό σου";
     if (!/\S+@\S+\.\S+/.test(f.email)) e.email = "Έγκυρο email, π.χ. maria@example.gr";
-    if (!/^\d{10}$/.test(f.phone.replace(/\s/g, ""))) e.phone = "10 ψηφία, π.χ. 6912345678";
+    if (!/^\d{10}$/.test(phoneDigits(f.phone))) e.phone = "10 ψηφία, με ή χωρίς +30, π.χ. 6912345678";
     if (toLocker) { if (!locker?.id) e.locker = "Διάλεξε θυρίδα BOX NOW"; }
     if (ful === "freight" && localStores.length && !localStores.some((x) => x.id === localStoreId)) e.localStore = "Διάλεξε το κατάστημα που θα σου το φέρει";
     else if (ful !== "click-collect") {

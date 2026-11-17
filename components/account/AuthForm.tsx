@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SocialLogin } from "@/components/checkout/SocialLogin";
@@ -11,6 +12,7 @@ const c = copyOf("auth");
 
 const input = "rounded-md border border-eu-line bg-white px-3 py-2.5 min-h-11 text-[length:var(--fs-15)] w-full outline-none focus-visible:ring-2 ring-eu-blue";
 const label = "grid gap-1 text-[length:var(--fs-14)] font-semibold text-eu-ink";
+const hint = "font-normal text-eu-muted text-[length:var(--fs-13)]";
 
 /**
  * @dynamic Σύνδεση / εγγραφή πελάτη: email + κωδικός (πραγματικός λογαριασμός, /api/account/login · /register) ή
@@ -22,21 +24,40 @@ export function AuthForm({ mode, next = "/logariasmos" }: { mode: "login" | "reg
   const [busy, setBusy] = useState(false);
   const [magic, setMagic] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ to: string; hours: number } | null>(null);
   const go = () => { router.push(safeNext(next, "/logariasmos")); router.refresh(); };
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (magic) return;
     setBusy(true); setErr(null);
     const f = new FormData(e.currentTarget), v = (k: string) => String(f.get(k) ?? "");
+    if (mode === "register" && v("password") !== v("password2")) { setErr("Οι δύο κωδικοί δεν είναι ίδιοι. Γράψε τους ξανά."); setBusy(false); return; }
     try {
       const r = mode === "register"
-        ? await fetch("/api/account/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ firstName: v("firstName"), lastName: v("lastName"), email: v("email"), mobile: v("mobile"), password: v("password"), acceptTerms: f.get("terms") === "on", source: next.includes("snap=") ? "snap" : "register" }) })
+        ? await fetch("/api/account/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ firstName: v("firstName"), lastName: v("lastName"), email: v("email"), mobile: v("mobile"), password: v("password"), acceptTerms: f.get("terms") === "on", source: next.includes("snap=") ? "snap" : "register", next }) })
         : await fetch("/api/account/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: v("email"), password: v("password") }) });
-      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      const j = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string; pending?: boolean; sentTo?: string; hours?: number };
       if (!j.ok) { setErr(j.error ?? "Κάτι πήγε στραβά. Δοκίμασε ξανά."); return; }
+      if (j.pending) { setSent({ to: j.sentTo ?? v("email"), hours: j.hours ?? 24 }); return; }
       go();
     } catch { setErr("Σφάλμα δικτύου. Δοκίμασε ξανά."); } finally { setBusy(false); }
   };
+  if (sent) return (
+    <div role="status" className="bg-white rounded-xl border border-eu-line p-6 grid gap-3">
+      <MailCheck className="size-8 text-eu-green" aria-hidden />
+      <h1 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-24)]">Έλεγξε το email σου</h1>
+      <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)] leading-relaxed">
+        Στείλαμε σύνδεσμο επιβεβαίωσης στο <strong className="break-all">{sent.to}</strong>. Πάτησέ τον μέσα σε {sent.hours} ώρες και ο λογαριασμός σου είναι έτοιμος — θα συνδεθείς αυτόματα.
+      </p>
+      <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">
+        Δεν ήρθε; Κοίτα στα ανεπιθύμητα, ή{" "}
+        <button type="button" onClick={() => setSent(null)} className="text-eu-blue font-semibold underline min-h-11">
+          γράψε ξανά τα στοιχεία σου
+        </button>
+        .
+      </p>
+    </div>
+  );
   return (
     <form onSubmit={submit} className="bg-white rounded-xl border border-eu-line p-6 grid gap-4">
       <div>
@@ -56,16 +77,24 @@ export function AuthForm({ mode, next = "/logariasmos" }: { mode: "login" | "reg
         </div>
       )}
       <label className={label}>
-        Email <input name="email" type="email" required className={input} autoComplete="email" />
+        Email <input name="email" type="email" required className={input} autoComplete={mode === "register" ? "username" : "email"} />
+        {mode === "register" && <span className={hint}>Με αυτό θα συνδέεσαι (είναι το όνομα χρήστη σου). Θα σου στείλουμε σύνδεσμο επιβεβαίωσης.</span>}
       </label>
       {mode === "register" && (
         <label className={label}>
-          {c.kinito} <input name="mobile" type="tel" required className={input} autoComplete="tel" placeholder={c.tha_laveis_kodiko_epivevaiosis} />
+          {c.kinito} <input name="mobile" type="tel" required className={input} autoComplete="tel" inputMode="tel" placeholder="6912345678" />
+          <span className={hint}>10 ψηφία, με ή χωρίς +30</span>
         </label>
       )}
       {!magic && (
         <label className={label}>
           {c.kodikos} <input name="password" type="password" required minLength={8} className={input} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+          {mode === "register" && <span className={hint}>Τουλάχιστον 8 χαρακτήρες</span>}
+        </label>
+      )}
+      {mode === "register" && (
+        <label className={label}>
+          Επανάληψη κωδικού <input name="password2" type="password" required minLength={8} className={input} autoComplete="new-password" />
         </label>
       )}
       {mode === "login" && (
