@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { contentDims } from "./dims-from-content";
-import { toRowProposal, s1Changes, S1_DIM_FIELDS, type RowProposal } from "./dims-missing-core";
+import { toRowProposal, s1Changes, s1SyncChanges, S1_DIM_FIELDS, type RowProposal, type S1DimField } from "./dims-missing-core";
 import { DIM_MIN, DIM_MAX, KG_MIN, KG_MAX, checkDims } from "./dim-fill-core";
 
 /**
@@ -112,4 +112,46 @@ export async function saveOne(pick: SavePick, s1On: boolean): Promise<SaveOutcom
   }
   await saveEshopDims(pick, p.category.name);
   return { id: pick.productId, ok: true, s1, message };
+}
+
+/**
+ * Συγχρονισμός με το SoftOne και προς τις δύο κατευθύνσεις, για τα προϊόντα αυτής της σελίδας και όσα έχουν τιμές
+ * αποθηκευμένες στο eshop. Στο SoftOne: τα CCC (Βάρος, Μήκος, Πλάτος, Ύψος) και τα τυπικά (Μάζα, Διάσταση 1-3)
+ * συμπληρώνουν το ένα το άλλο, και ό,τι λείπει και από τα δύο έρχεται από το eshop — μόνο σε κενά πεδία. Στο eshop:
+ * το είδος ξαναδιαβάζεται από το SoftOne. Το `syncPlan` βρίσκει ποια χρειάζονται δουλειά με μία μαζική ανάγνωση.
+ */
+const SYNC_WHERE = { active: true, source: "softone", setSpcs: null, OR: [{ publishMissing: { has: "dims" } }, { weightKg: { not: null } }, { dimensions: { some: { source: "manual" } } }] };
+const SYNC_SELECT = { id: true, erpCode: true, weightKg: true, dimensions: { where: { source: "manual" }, select: { w: true, h: true, d: true } } } as const;
+const num = (v: unknown) => { const n = Number(String(v ?? "").replace(",", ".")); return n > 0 ? n : null; };
+
+export async function syncPlan(s1On: boolean): Promise<string[]> {
+  const ps = (await db.product.findMany({ where: SYNC_WHERE, select: SYNC_SELECT })).filter((p) => /^\d+$/.test(p.erpCode));
+  const mtrls = ps.map((p) => Number(p.erpCode));
+  const [{ getTable }, { ITEM_FIELDS }, mirror] = await Promise.all([import("@/lib/softone/lookups"), import("@/lib/softone/item-write"), db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, weightKg: true, lengthCm: true, widthCm: true, heightCm: true } })]);
+  const live = new Map<number, Record<S1DimField, string>>();
+  for (let i = 0; i < mtrls.length; i += 300) for (const r of await getTable("MTRL", ["MTRL", ...S1_DIM_FIELDS.map((k) => ITEM_FIELDS[k].s1)], `MTRL IN (${mtrls.slice(i, i + 300).join(",")})`)) live.set(Number(r[0]), Object.fromEntries(S1_DIM_FIELDS.map((k, j) => [k, r[j + 1] ?? ""])) as Record<S1DimField, string>);
+  const mo = new Map(mirror.map((m) => [m.mtrl, m]));
+  return ps.filter((p) => {
+    const l = live.get(Number(p.erpCode)), m = mo.get(Number(p.erpCode));
+    if (!l) return false;
+    const stale = (["weightKg", "lengthCm", "widthCm", "heightCm"] as const).some((k) => num(l[k]) !== (m?.[k] && m[k]! > 0 ? m[k] : null));
+    return stale || (s1On && Object.keys(s1SyncChanges(l, { dims: p.dimensions[0] ?? null, kg: p.weightKg })).length > 0);
+  }).map((p) => p.id);
+}
+
+export async function syncRun(ids: string[], s1On: boolean): Promise<{ done: number; written: number; failed: { id: string; error: string }[] }> {
+  const out = { done: 0, written: 0, failed: [] as { id: string; error: string }[] };
+  const [{ readFields, writeItem }, { syncItem }, { projectItem }] = await Promise.all([import("@/lib/softone/item-write"), import("@/lib/softone/catalog"), import("@/lib/softone/project")]);
+  for (const p of await db.product.findMany({ where: { ...SYNC_WHERE, id: { in: ids } }, select: SYNC_SELECT })) {
+    try {
+      const mtrl = Number(p.erpCode);
+      const live = await readFields(mtrl, S1_DIM_FIELDS);
+      if (!live) throw new Error("Το είδος δεν διαβάστηκε από το SoftOne.");
+      const changes = s1On ? s1SyncChanges(live, { dims: p.dimensions[0] ?? null, kg: p.weightKg }) : {};
+      if (Object.keys(changes).length) { const w = await writeItem(mtrl, changes); if (!w.ok) throw new Error(w.error ?? "Η εγγραφή στο SoftOne απέτυχε."); out.written++; }
+      await syncItem(mtrl, "manual"); await projectItem(mtrl);
+      out.done++;
+    } catch (e) { console.error("[dims-missing] sync", p.id, e); out.failed.push({ id: p.id, error: (e as Error).message.slice(0, 160) }); }
+  }
+  return out;
 }

@@ -29,3 +29,28 @@ export async function saveDimsAction(picks: SavePick[]) {
   if (done.length) { await projectPublishReady(done); resetCatalogCache(); revalidatePath("/admin/catalog/dimensions/missing"); }
   return out;
 }
+
+/** Συγχρονισμός με το SoftOne, βήμα 1: ποια προϊόντα διαφέρουν (μία μαζική ανάγνωση, καμία εγγραφή). */
+export async function syncPlanAction() {
+  await requirePermission("catalog.products.write");
+  const [{ syncPlan }, { itemWriteEnabled }] = await Promise.all([import("@/lib/catalog/dims-missing"), import("@/lib/softone/item-write")]);
+  return syncPlan(await itemWriteEnabled());
+}
+
+/** Βήμα 2, ανά παρτίδα (έως 8): συμπλήρωση κενών πεδίων στο SoftOne και νέα ανάγνωση του είδους στο eshop. */
+export async function syncRunAction(ids: string[]) {
+  const user = await requirePermission("catalog.products.write");
+  const [{ syncRun }, { itemWriteEnabled }, { projectPublishReady }, { resetCatalogCache }] = await Promise.all([import("@/lib/catalog/dims-missing"), import("@/lib/softone/item-write"), import("@/lib/catalog/publish-ready-server"), import("@/lib/data/db-catalog")]);
+  const part = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === "string").slice(0, 8);
+  const r = await syncRun(part, await itemWriteEnabled());
+  await projectPublishReady(part); resetCatalogCache();
+  await audit(user.id, "catalog.dims-missing.sync", "Product", null, null, { n: part.length, done: r.done, written: r.written, failed: r.failed.length });
+  return r;
+}
+
+/** Η λίστα ξανά από τη βάση (μετά από συγχρονισμό). */
+export async function missingRowsAction() {
+  await requirePermission("catalog.products.read");
+  const { missingOverview } = await import("@/lib/catalog/dims-missing");
+  return (await missingOverview()).rows;
+}

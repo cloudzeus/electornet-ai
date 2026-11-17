@@ -2,9 +2,10 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, CircleDashed, FileSearch, Globe, Leaf, Loader2, Save, SearchX, Square } from "lucide-react";
-import { searchDimsAction, saveDimsAction } from "@/app/admin/(shell)/catalog/dimensions/missing/actions";
-import type { MissingOverview, SearchMode, SaveOutcome } from "@/lib/catalog/dims-missing";
+import { AlertTriangle, Check, CircleDashed, FileSearch, Globe, Leaf, Loader2, PencilLine, RefreshCw, Save, SearchX, Square, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { searchDimsAction, saveDimsAction, syncPlanAction, syncRunAction, missingRowsAction } from "@/app/admin/(shell)/catalog/dimensions/missing/actions";
+import type { MissingOverview, MissingRow, SearchMode, SaveOutcome, SavePick } from "@/lib/catalog/dims-missing";
 import type { RowProposal } from "@/lib/catalog/dims-missing-core";
 
 const n = (v: number) => v.toLocaleString("el-GR", { maximumFractionDigits: 2 });
@@ -36,6 +37,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
   const [webLimit, setWebLimit] = useState(50);
   const stop = useRef(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [manual, setManual] = useState<MissingRow | null>(null);
 
   const statusOf = (id: string) => props.get(id)?.status ?? "pending";
   const counts = useMemo(() => { const c = { ready: 0, review: 0, none: 0, pending: 0 }; for (const r of rows) c[props.get(r.id)?.status ?? "pending"]++; return c; }, [rows, props]);
@@ -68,8 +70,8 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
   const open = rows.filter((r) => statusOf(r.id) !== "ready");
 
   /** `only`: άμεση αποθήκευση ενός προϊόντος (κουμπί στη γραμμή «Απαιτεί ενέργεια»)· αλλιώς όλα τα τσεκαρισμένα. */
-  async function save(only?: string) {
-    const picks = rows.filter((r) => (only ? r.id === only : sel.has(r.id)) && props.get(r.id)).map((r) => { const p = props.get(r.id)!; return { productId: r.id, dims: p.dims && { w: p.dims.w, h: p.dims.h, d: p.dims.d, label: p.dims.label, raw: p.dims.raw }, weight: p.weight && { kg: p.weight.kg, label: p.weight.label, raw: p.weight.raw } }; });
+  async function save(only?: string, manualPick?: SavePick) {
+    const picks: SavePick[] = manualPick ? [manualPick] : rows.filter((r) => (only ? r.id === only : sel.has(r.id)) && props.get(r.id)).map((r) => { const p = props.get(r.id)!; return { productId: r.id, dims: p.dims && { w: p.dims.w, h: p.dims.h, d: p.dims.d, label: p.dims.label, raw: p.dims.raw }, weight: p.weight && { kg: p.weight.kg, label: p.weight.label, raw: p.weight.raw } }; });
     if (!picks.length) return;
     stop.current = false; setMsg(null); setSavingId(only ?? null);
     const all: SaveOutcome[] = [];
@@ -82,18 +84,37 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
     } catch { setMsg({ ok: false, text: "Η αποθήκευση σταμάτησε από σφάλμα. Όσα πρόλαβαν αποθηκεύτηκαν." }); }
     const ok = new Set(all.filter((o) => o.ok).map((o) => o.id));
     const title = (id: string) => rows.find((r) => r.id === id)?.title ?? id;
+    if (manualPick) setManual(null);
     setSaved({ s1: all.filter((o) => o.ok && o.s1 === "written").length, eshop: all.filter((o) => o.ok && o.s1 !== "written").length, failed: all.filter((o) => !o.ok || o.s1 === "error").map((o) => `${title(o.id)}: ${o.message ?? "σφάλμα"}`) });
     setRows((l) => l.filter((r) => !ok.has(r.id)));
     setSel((s) => new Set([...s].filter((id) => !ok.has(id))));
     setBusy(null); setSavingId(null);
   }
 
+  /** Συγχρονισμός με το SoftOne: πρώτα ποια διαφέρουν (μία ανάγνωση), μετά ανά παρτίδα, και στο τέλος η λίστα ξανά από τη βάση. */
+  async function sync() {
+    stop.current = false; setMsg(null); setSaved(null);
+    const label = "Συγχρονισμός με SoftOne";
+    setBusy({ label, done: 0, total: 1, found: 0, cost: 0 });
+    try {
+      const ids = await syncPlanAction();
+      let done = 0, ok = 0, written = 0; const failed: string[] = [];
+      for (let i = 0; i < ids.length && !stop.current; i += 6) {
+        setBusy({ label, done, total: ids.length, found: ok, cost: 0 });
+        const r = await syncRunAction(ids.slice(i, i + 6));
+        done += Math.min(6, ids.length - i); ok += r.done; written += r.written; failed.push(...r.failed.map((f) => f.error));
+      }
+      setRows(await missingRowsAction());
+      setMsg({ ok: !failed.length, text: !ids.length ? "Το eshop και το SoftOne συμφωνούν ήδη· δεν χρειάστηκε καμία αλλαγή." : `Συγχρονισμός: ενημερώθηκαν ${n(ok)} από ${n(ids.length)} προϊόντα· σε ${n(written)} συμπληρώθηκαν κενά πεδία στο SoftOne${failed.length ? ` · ${n(failed.length)} απέτυχαν (${failed[0]})` : ""}${done < ids.length ? " · σταμάτησε πριν τελειώσει, πάτα ξανά για τα υπόλοιπα" : ""}.` });
+    } catch { setMsg({ ok: false, text: "Ο συγχρονισμός σταμάτησε από σφάλμα. Πάτα ξανά για να συνεχίσει από εκεί που έμεινε." }); }
+    setBusy(null);
+  }
   const saving = busy?.label === "Αποθήκευση";
   const progress = busy && (
           <div className="rounded-2xl border border-eu-line bg-white p-4 grid gap-2 w-full">
             <div className="flex flex-wrap items-center gap-3 text-eu-ink text-[length:var(--fs-14)]">
               <Loader2 className="size-4 animate-spin text-eu-blue" aria-hidden />
-              <b>{busy.label}</b><span className="tabular-nums">{n(busy.done)} από {n(busy.total)} · {busy.label === "Αποθήκευση" ? "αποθηκεύτηκαν" : "βρέθηκαν"} {n(busy.found)}{busy.cost ? ` · ${busy.cost.toFixed(2)} $` : ""}</span>
+              <b>{busy.label}</b><span className="tabular-nums">{n(busy.done)} από {n(busy.total)} · {busy.label === "Αποθήκευση" ? "αποθηκεύτηκαν" : busy.label.startsWith("Συγχρ") ? "ενημερώθηκαν" : "βρέθηκαν"} {n(busy.found)}{busy.cost ? ` · ${busy.cost.toFixed(2)} $` : ""}</span>
               <button type="button" onClick={() => { stop.current = true; }} className={`${btn} border border-eu-line bg-white text-eu-ink hover:border-eu-navy ml-auto`}><Square className="size-3.5" aria-hidden /> Σταμάτα</button>
             </div>
             <div className="h-2 rounded-full bg-eu-surface overflow-hidden"><div className="h-full bg-eu-blue transition-[width] duration-300" style={{ width: `${(busy.done / busy.total) * 100}%` }} /></div>
@@ -107,6 +128,10 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
 
   return (
     <div className="grid gap-5 min-w-0">
+      <div data-help="dims-missing.sync" className="flex flex-wrap items-center gap-3">
+        <button type="button" disabled={!!busy || !canWrite} onClick={sync} className={`${btn} border border-eu-line bg-white text-eu-navy hover:border-eu-navy`}><RefreshCw className="size-4" aria-hidden /> Συγχρονισμός με SoftOne</button>
+        <p className="m-0 flex-1 min-w-[240px] max-w-[80ch] text-eu-ink-3 text-[length:var(--fs-13)]">Φέρνει ό,τι έχει γραφτεί στο είδος του SoftOne (και στα πεδία Μάζα, Διάσταση 1-3) και στέλνει εκεί ό,τι υπάρχει μόνο στο eshop. Συμπληρώνει μόνο κενά πεδία{s1On ? "" : " · η εγγραφή στο SoftOne είναι κλειστή, οπότε τώρα μόνο διαβάζει"}.</p>
+      </div>
       <section data-help="dims-missing.summary" className="grid gap-3 min-w-0">
         <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
           {[
@@ -199,6 +224,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
                 </div>
                 <div className="col-start-2 @3xl:col-start-auto flex flex-wrap @3xl:flex-col items-center @3xl:items-end gap-2">
                   <span className={`w-fit inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-13)] whitespace-nowrap ${st.cls}`}><st.Icon className="size-3.5" aria-hidden />{st.label}</span>
+                  {canWrite && <button type="button" disabled={!!busy} onClick={() => setManual(r)} data-help="dims-missing.manual" className={`${btn} @3xl:min-h-9 px-3 text-[length:var(--fs-13)] border border-eu-line bg-white text-eu-navy hover:border-eu-navy whitespace-nowrap`}><PencilLine className="size-4" aria-hidden /> Καταχώρηση</button>}
                   {p?.status === "review" && canWrite && <button type="button" disabled={!!busy} onClick={() => save(r.id)} className={`${btn} @3xl:min-h-9 px-3 text-[length:var(--fs-13)] bg-eu-navy text-white hover:bg-eu-blue whitespace-nowrap`}>{savingId === r.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} {savingId === r.id ? "Αποθηκεύεται" : "Σωστό, αποθήκευση"}</button>}
                 </div>
               </li>
@@ -222,6 +248,55 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
           {s1On ? "Γράφονται στο eshop και στο είδος του SoftOne: Βάρος, Μήκος, Πλάτος, Ύψος και Μάζα, Διάσταση 1-3. Μόνο όπου το πεδίο είναι κενό· ό,τι υπάρχει ήδη δεν αλλάζει." : "Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne): αποθηκεύονται μόνο στο eshop και μετρούν κανονικά για την αποστολή."}
         </p>
       </section>
+      {manual && <ManualDialog key={manual.id} row={manual} seed={props.get(manual.id)} busy={!!busy} onClose={() => setManual(null)} onSave={(pick) => save(manual.id, pick)} />}
     </div>
+  );
+}
+
+const LIMITS = { dim: [0.3, 400], kg: [0.002, 300] } as const;
+const field = "w-full min-w-0 rounded-xl border border-eu-line px-3 min-h-11 tabular-nums text-[length:var(--fs-16)]";
+
+/** Χειροκίνητη καταχώρηση για ένα προϊόν: μόνο ό,τι του λείπει, με αρχικές τιμές από την πρόταση αν υπάρχει. */
+function ManualDialog({ row, seed, busy, onClose, onSave }: { row: MissingRow; seed?: RowProposal; busy: boolean; onClose: () => void; onSave: (pick: SavePick) => void }) {
+  const [v, setV] = useState({ w: seed?.dims ? String(seed.dims.w) : "", h: seed?.dims ? String(seed.dims.h) : "", d: seed?.dims ? String(seed.dims.d) : "", kg: seed?.weight ? String(seed.weight.kg) : "" });
+  const [err, setErr] = useState<string | null>(null);
+  const num = (x: string) => Number(x.trim().replace(",", "."));
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dimsIn = [v.w, v.h, v.d].filter((x) => x.trim()).length, [w, h, d, kg] = [num(v.w), num(v.h), num(v.d), num(v.kg)];
+    const inR = (x: number, [lo, hi]: readonly [number, number]) => Number.isFinite(x) && x >= lo && x <= hi;
+    if (!dimsIn && !v.kg.trim()) return setErr("Γράψε διαστάσεις ή βάρος.");
+    if (dimsIn && dimsIn < 3) return setErr("Γράψε και τις τρεις διαστάσεις: πλάτος, ύψος και βάθος.");
+    if (dimsIn && ![w, h, d].every((x) => inR(x, LIMITS.dim))) return setErr("Οι διαστάσεις είναι σε εκατοστά, από 0,3 έως 400.");
+    if (v.kg.trim() && !inR(kg, LIMITS.kg)) return setErr("Το βάρος είναι σε κιλά, από 0,002 έως 300 (π.χ. 0,25 για 250 γρ.).");
+    onSave({ productId: row.id, dims: dimsIn ? { w, h, d, label: "Χειροκίνητα", raw: `${n(w)} × ${n(h)} × ${n(d)} εκ.` } : null, weight: v.kg.trim() ? { kg, label: "Χειροκίνητα", raw: `${n(kg)} κιλά` } : null });
+  };
+  const input = (k: "w" | "h" | "d" | "kg", label: string, unit: string) => (
+    <label className="grid gap-1 min-w-0 font-bold text-eu-ink text-[length:var(--fs-14)]">{label} <span className="font-normal text-eu-ink-3 text-[length:var(--fs-13)]">{unit}</span>
+      <input inputMode="decimal" value={v[k]} onChange={(e) => { setV({ ...v, [k]: e.target.value }); setErr(null); }} className={field} />
+    </label>
+  );
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <DialogContent showCloseButton={false} className="p-0 gap-0 sm:max-w-[520px] max-w-[calc(100%-1.5rem)] max-h-[92dvh] overflow-y-auto rounded-2xl text-eu-ink bg-white">
+        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-eu-line">
+          <div className="min-w-0">
+            <DialogTitle className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-17)] break-words">{row.title}</DialogTitle>
+            <DialogDescription className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">{row.brand} · {row.sku} · λείπουν: {[row.missDims && "διαστάσεις", row.missWeight && "βάρος"].filter(Boolean).join(", ")}</DialogDescription>
+          </div>
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Κλείσιμο" className="shrink-0 inline-flex items-center justify-center size-11 rounded-full hover:bg-eu-surface cursor-pointer"><X className="size-5" aria-hidden /></button>
+        </div>
+        <form onSubmit={submit} className="p-4 grid gap-4 min-w-0">
+          {row.missDims && <div className="grid grid-cols-3 gap-3">{input("w", "Πλάτος", "εκ.")}{input("h", "Ύψος", "εκ.")}{input("d", "Βάθος", "εκ.")}</div>}
+          {row.missWeight && <div className="grid grid-cols-3 gap-3">{input("kg", "Βάρος", "κιλά")}</div>}
+          <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Της συσκευασίας ή του προϊόντος, ό,τι έχεις. Αποθηκεύονται στο eshop και στο είδος του SoftOne, μόνο όπου το πεδίο είναι κενό.</p>
+          {err && <p role="alert" className="m-0 rounded-xl bg-eu-red/10 text-eu-red font-bold px-3 py-2 text-[length:var(--fs-14)]">{err}</p>}
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button type="button" onClick={onClose} disabled={busy} className={`${btn} border border-eu-line bg-white text-eu-ink hover:border-eu-navy`}>Άκυρο</button>
+            <button type="submit" disabled={busy} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}>{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση</button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

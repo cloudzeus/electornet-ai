@@ -57,3 +57,15 @@ export function s1Changes(live: Record<S1DimField, unknown>, pick: { dims?: { w:
   if (pick.kg != null) { if (blank(live.weightKg)) set("weightKg", pick.kg); if (blank(live.mass)) set("mass", pick.kg); }
   return out;
 }
+
+/**
+ * Συγχρονισμός και προς τις δύο κατευθύνσεις για ένα είδος: τα CCC και τα τυπικά πεδία του SoftOne συμπληρώνουν το ένα το
+ * άλλο, και ό,τι λείπει και από τα δύο έρχεται από το eshop. Πάντα μόνο σε κενά πεδία· όπου έχουν και τα δύο τιμή (ακόμη
+ * και διαφορετική, π.χ. καθαρό / μικτό βάρος) δεν αλλάζει τίποτα.
+ */
+export function s1SyncChanges(live: Record<S1DimField, unknown>, eshop: { dims?: { w: number; h: number; d: number } | null; kg?: number | null }) {
+  const v = (k: S1DimField) => { const n = Number(String(live[k] ?? "").replace(",", ".")); return n > 0 ? n : null; };
+  const triple = (d: number | null, w: number | null, h: number | null) => (d && w && h ? { d, w, h } : null);
+  const dims = triple(v("lengthCm"), v("widthCm"), v("heightCm")) ?? triple(v("dim1"), v("dim2"), v("dim3")) ?? eshop.dims ?? null;
+  return s1Changes(live, { dims, kg: v("weightKg") ?? v("mass") ?? eshop.kg ?? null });
+}
