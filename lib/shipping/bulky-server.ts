@@ -33,14 +33,17 @@ export type ShipLimit = ShipVerdict & { weightKg: number | null; dimsCm: [number
 /** Τα στοιχεία ενός προϊόντος που κρίνουν την αποστολή (χωρίς τους κανόνες): κατηγορία με τις γονικές, βάρος, διαστάσεις. */
 export type ShipFactsRow = { id: string; categoryId: string; path: string[]; weightKg: number | null; dimsCm: [number, number, number] | null };
 
-/** Βάρος από τα χαρακτηριστικά (πρώτα της συσκευασίας) ή το ERP, διαστάσεις του ERP (CCCLENGTH/WIDTH/HEIGHT). */
+/** Βάρος: ERP (CCCWEIGHT) → βάρος του eshop (Product.weightKg) → χαρακτηριστικά (πρώτα της συσκευασίας)· διαστάσεις: ERP (CCCLENGTH/WIDTH/HEIGHT) → χειροκίνητες του eshop. */
 export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[]> {
   const ids = [...new Set(productIds.filter(Boolean))];
   if (!ids.length) return [];
-  const [prods, specs] = await Promise.all([
-    db.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true, erpCode: true, setSpcs: true } }),
+  const [prods, specs, manual] = await Promise.all([
+    db.product.findMany({ where: { id: { in: ids } }, select: { id: true, categoryId: true, erpCode: true, setSpcs: true, weightKg: true } }),
     db.spec.findMany({ where: { productId: { in: ids }, key: { contains: "άρος", mode: "insensitive" } }, select: { productId: true, key: true, value: true } }),
+    // διαστάσεις που επιβεβαίωσε ο διαχειριστής στο eshop: ισχύουν όταν το ERP δεν έχει (όπως το Product.weightKg για το βάρος)
+    db.productDimension.findMany({ where: { productId: { in: ids }, source: "manual" }, select: { productId: true, w: true, h: true, d: true } }),
   ]);
+  const md = new Map(manual.map((m) => [m.productId, [m.d, m.w, m.h] as [number, number, number]]));
   // σετ: τα μέλη του (κάθε μέλος σε δικό του δέμα) — βάρος = άθροισμα, διαστάσεις = του μεγαλύτερου
   const spcs = prods.flatMap((p) => (p.setSpcs != null ? [p.setSpcs] : []));
   const setLines = spcs.length ? await db.s1SetLine.findMany({ where: { spcs: { in: spcs } }, select: { spcs: true, mtrl: true, qty: true } }) : [];
@@ -60,11 +63,11 @@ export async function shippingFacts(productIds: string[]): Promise<ShipFactsRow[
         return { weightKg: it?.weightKg && it.weightKg > 0 ? it.weightKg : null, dims: it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : null, qty: l.qty };
       });
       const f = setShipFacts(members);
-      return { id: p.id, categoryId: p.categoryId, path: paths.get(p.categoryId) ?? [], weightKg: f.weightKg ?? shippingWeight(sm.get(p.id) ?? []), dimsCm: f.dimsCm };
+      return { id: p.id, categoryId: p.categoryId, path: paths.get(p.categoryId) ?? [], weightKg: f.weightKg ?? p.weightKg ?? shippingWeight(sm.get(p.id) ?? []), dimsCm: f.dimsCm };
     }
     const it = p.erpCode ? im.get(p.erpCode) : undefined;
-    const dimsCm = it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : null;
-    const weightKg = (it?.weightKg && it.weightKg > 0 ? it.weightKg : null) ?? shippingWeight(sm.get(p.id) ?? []);
+    const dimsCm = it?.lengthCm && it.widthCm && it.heightCm ? ([it.lengthCm, it.widthCm, it.heightCm] as [number, number, number]) : md.get(p.id) ?? null;
+    const weightKg = (it?.weightKg && it.weightKg > 0 ? it.weightKg : null) ?? p.weightKg ?? shippingWeight(sm.get(p.id) ?? []);
     return { id: p.id, categoryId: p.categoryId, path: paths.get(p.categoryId) ?? [], weightKg, dimsCm };
   });
 }

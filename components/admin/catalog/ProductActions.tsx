@@ -4,14 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical, FileText, Ruler, ShieldCheck, Zap, Tag, RefreshCw, ExternalLink, BadgePercent, Copy, X, Loader2, ChevronDown, ImagePlus } from "lucide-react";
+import { MoreVertical, FileText, Ruler, ShieldCheck, Zap, Tag, RefreshCw, ExternalLink, BadgePercent, Copy, X, Loader2, ChevronDown, ImagePlus, ScanText } from "lucide-react";
 import { pullFromSoftone } from "@/app/admin/(shell)/catalog/actions";
 
-export type ProductModal = "promo" | "texts" | "dims" | "warranty" | "energy" | "stickers" | "photos";
+export type ProductModal = "promo" | "texts" | "dims" | "contentDims" | "warranty" | "energy" | "stickers" | "photos";
 const MODALS: Record<ProductModal, { label: string; hint: string; Icon: typeof FileText; wide?: boolean }> = {
   promo: { label: "Προσθήκη σε προσφορά", hint: "σε ζωντανή ή προγραμματισμένη, ή αφαίρεση", Icon: BadgePercent, wide: true },
   texts: { label: "Κείμενα & χαρακτηριστικά", hint: "όνομα, περιγραφές, χαρακτηριστικά (SoftOne + eshop)", Icon: FileText, wide: true },
   dims: { label: "Διαστάσεις & βάρος", hint: "για AR, αποστολή και «χωράει;»", Icon: Ruler },
+  contentDims: { label: "Υπολογισμός διαστάσεων και βάρους από το περιεχόμενο", hint: "από περιγραφή, χαρακτηριστικά, PDF και απόδελτιώσεις· αποθήκευση μόνο στο eshop", Icon: ScanText },
   warranty: { label: "Εγγύηση & βασικά στοιχεία", hint: "μήνες εγγύησης, επέκταση, barcode, διαθεσιμότητα", Icon: ShieldCheck },
   energy: { label: "Ενεργειακή ετικέτα (EPREL)", hint: "αναζήτηση στο EPREL, ετικέτα, δελτίο", Icon: Zap },
   photos: { label: "Φωτογραφίες από το web", hint: "αναζήτηση στο site του κατασκευαστή, διαλέγεις ποιες μπαίνουν", Icon: ImagePlus, wide: true },

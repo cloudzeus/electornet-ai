@@ -16,10 +16,12 @@ import { toCp1253, unsupportedCp1253 } from "@/lib/softone/cp1253";
  * 2. **Μόνο ό,τι άλλαξε** — κανένα άλλο πεδίο δεν στέλνεται.
  * 3. **Επαλήθευση:** νέα ανάγνωση μετά την εγγραφή. Το «success» του SoftOne δεν σημαίνει πάντα ότι η τιμή γράφτηκε.
  */
-export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2" | "webName";
+export type ItemField = "name" | "barcode" | "factoryCode" | "active" | "shortDesc" | "longDesc" | "availText" | "extWarranty" | "guaranteeMonths" | "weightKg" | "lengthCm" | "widthCm" | "heightCm" | "webGroup" | "webCat1" | "webCat2" | "webName" | "mass" | "dim1" | "dim2" | "dim3";
 /** Τα πεδία της καρτέλας προϊόντος — η web ομάδα / κατηγορίες αλλάζουν μόνο από την εισαγωγή (με έγκριση στο σχέδιο) */
 export const WEB_FIELDS = ["webGroup", "webCat1", "webCat2", "webName"] as const;
-export type EditorField = Exclude<ItemField, (typeof WEB_FIELDS)[number]>;
+/** Τα τυπικά πεδία του είδους (MTRL) για βάρος και διαστάσεις: γεμίζουν μαζί με τα CCC από τη μαζική συμπλήρωση. */
+export const STD_DIM_FIELDS = ["mass", "dim1", "dim2", "dim3"] as const;
+export type EditorField = Exclude<ItemField, (typeof WEB_FIELDS)[number] | (typeof STD_DIM_FIELDS)[number]>;
 type Kind = "text" | "memo" | "bool" | "int" | "num";
 export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: Kind; max?: number }> = {
   name: { s1: "NAME", label: "Όνομα", kind: "text", max: 128 },
@@ -41,6 +43,11 @@ export const ITEM_FIELDS: Record<ItemField, { s1: string; label: string; kind: K
   webCat2: { s1: "CCCWEBCATEGORY2", label: "Web κατηγορία 2", kind: "int" },
   // «Περιγραφή για Web» (MTRL.WEBNAME, 64 χαρ.): τη συμπληρώνουν σχεδόν όλα τα είδη web του ERP και τη δείχνει το παλιό site
   webName: { s1: "WEBNAME", label: "Περιγραφή για Web", kind: "text", max: 64 },
+  // σύμβαση 17/11/2026 (ήταν 0 σε όλα τα είδη): Διάσταση 1 = μήκος/βάθος, 2 = πλάτος, 3 = ύψος, σε εκατοστά όπως τα CCC
+  mass: { s1: "WEIGHT", label: "Μάζα (kg)", kind: "num" },
+  dim1: { s1: "DIM1", label: "Διάσταση 1 · μήκος (εκ.)", kind: "num" },
+  dim2: { s1: "DIM2", label: "Διάσταση 2 · πλάτος (εκ.)", kind: "num" },
+  dim3: { s1: "DIM3", label: "Διάσταση 3 · ύψος (εκ.)", kind: "num" },
 };
 export type ItemValue = string | number | boolean | null;
 export type ItemChanges = Partial<Record<ItemField, { from: ItemValue; to: ItemValue }>>;
@@ -74,7 +81,8 @@ async function itemRow(mtrl: number, fields: string[]): Promise<Record<string, s
   return alt ?? null;
 }
 
-async function readFields(mtrl: number, keys: ItemField[]) {
+/** Ζωντανή ανάγνωση πεδίων του είδους από το SoftOne (όχι από τον καθρέφτη). */
+export async function readFields(mtrl: number, keys: ItemField[]) {
   const row = await itemRow(mtrl, keys.map((k) => ITEM_FIELDS[k].s1));
   if (!row) return null;
   return Object.fromEntries(keys.map((k) => [k, row[ITEM_FIELDS[k].s1] ?? ""])) as Record<ItemField, string>;

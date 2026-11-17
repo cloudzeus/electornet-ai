@@ -1,0 +1,115 @@
+import "server-only";
+import { db } from "@/lib/db";
+import { contentDims } from "./dims-from-content";
+import { toRowProposal, s1Changes, S1_DIM_FIELDS, type RowProposal } from "./dims-missing-core";
+import { DIM_MIN, DIM_MAX, KG_MIN, KG_MAX, checkDims } from "./dim-fill-core";
+
+/**
+ * «Διαστάσεις και βάρος που λείπουν»: τα προϊόντα που φαίνονται στο eshop (ενεργά) και δεν έχουν διαστάσεις ή βάρος για
+ * την αποστολή (κριτήριο «dims» του ελέγχου πληρότητας), η μαζική αναζήτηση τιμών (ό,τι έχουμε ήδη → EPREL → internet)
+ * και η αποθήκευση: eshop πάντα, SoftOne όταν είναι ανοιχτή η εγγραφή ειδών (CCC και τυπικά πεδία, μόνο όπου είναι κενά).
+ * Τα σετ δεν μπαίνουν: παίρνουν διαστάσεις και βάρος από τα μέλη τους.
+ */
+export interface MissingRow { id: string; sku: string; title: string; brand: string; category: string; missDims: boolean; missWeight: boolean; eprelChecked: boolean; webChecked: boolean }
+export interface MissingOverview { active: number; complete: number; sets: number; rows: MissingRow[] }
+
+export async function missingOverview(): Promise<MissingOverview> {
+  const [active, all] = await Promise.all([
+    db.product.count({ where: { active: true } }),
+    db.product.findMany({
+      where: { active: true, publishMissing: { has: "dims" } }, orderBy: [{ brand: { name: "asc" } }, { title: "asc" }],
+      select: { id: true, sku: true, title: true, erpCode: true, source: true, setSpcs: true, weightKg: true, eprelStatus: true, brand: { select: { name: true } }, category: { select: { name: true } }, dimensions: { where: { source: "manual" }, select: { id: true } }, enrichments: { where: { source: { in: ["icecat", "web"] } }, select: { id: true } } },
+    }),
+  ]);
+  const list = all.filter((p) => p.setSpcs == null);
+  const mtrls = list.filter((p) => p.source === "softone" && /^\d+$/.test(p.erpCode)).map((p) => Number(p.erpCode));
+  const items = mtrls.length ? await db.s1Item.findMany({ where: { mtrl: { in: mtrls } }, select: { mtrl: true, weightKg: true, widthCm: true, heightCm: true, lengthCm: true } }) : [];
+  const io = new Map(items.map((i) => [String(i.mtrl), i]));
+  const rows = list.map((p) => {
+    const it = io.get(p.erpCode);
+    return {
+      id: p.id, sku: p.sku, title: p.title, brand: p.brand.name, category: p.category.name,
+      missDims: !(it?.widthCm && it.heightCm && it.lengthCm) && !p.dimensions.length,
+      missWeight: !((it?.weightKg ?? 0) > 0 || (p.weightKg ?? 0) > 0),
+      eprelChecked: p.eprelStatus != null, webChecked: p.enrichments.length > 0,
+    };
+  });
+  return { active, complete: active - all.length, sets: all.length - list.length, rows };
+}
+
+export async function proposeFor(productId: string): Promise<RowProposal> {
+  const s = await contentDims(productId);
+  const e = s.current.erp;
+  return toRowProposal(productId, { dims: !(e?.w && e.h && e.l) && !s.current.manual, weight: !((e?.kg ?? 0) > 0 || (s.current.weightKg ?? 0) > 0) }, s.proposal);
+}
+
+export type SearchMode = "content" | "eprel" | "web";
+export interface SearchResult { proposals: RowProposal[]; failed: { id: string; error: string }[]; costUsd: number }
+
+/** Μία παρτίδα αναζήτησης. `eprel` και `web` φέρνουν πρώτα νέα στοιχεία (αποθηκεύονται ως χαρακτηριστικά / γραμμές διαστάσεων) και μετά ξαναδιαβάζουν. */
+export async function searchBatch(ids: string[], mode: SearchMode): Promise<SearchResult> {
+  const out: SearchResult = { proposals: [], failed: [], costUsd: 0 };
+  let i = 0;
+  const one = async (id: string) => {
+    if (mode === "eprel") { const { matchProductEprel } = await import("./eprel-match"); await matchProductEprel(id); } // «δεν βρέθηκε» / κατηγορία χωρίς ετικέτα: συνεχίζει με ό,τι υπάρχει
+    if (mode === "web") { const { enrichProduct } = await import("./enrich-run"); out.costUsd += (await enrichProduct(id))?.costUsd ?? 0; }
+    out.proposals.push(await proposeFor(id));
+  };
+  const work = async () => { while (i < ids.length) { const id = ids[i++]; await one(id).catch((e: Error) => { console.error("[dims-missing]", mode, id, e); out.failed.push({ id, error: e.message.slice(0, 160) }); }); } };
+  await Promise.all(Array.from({ length: mode === "content" ? 6 : mode === "eprel" ? 3 : 2 }, work));
+  return out;
+}
+
+type Src = { label: string; raw: string };
+export interface SavePick { productId: string; dims?: (Src & { w: number; h: number; d: number }) | null; weight?: (Src & { kg: number }) | null }
+
+/** Αποθήκευση στο eshop: χειροκίνητη γραμμή διαστάσεων και βάρος προϊόντος, με την πηγή τους. */
+export async function saveEshopDims(pick: SavePick, typeName: string) {
+  const label = (x: Src) => `${x.label} · ${x.raw}`.slice(0, 190);
+  const { productId, dims, weight } = pick;
+  if (dims) {
+    const data = { w: dims.w, h: dims.h, d: dims.d, kind: "product", rawKey: "Από το περιεχόμενο", rawValue: label(dims), warning: checkDims(dims, typeName) };
+    await db.productDimension.upsert({ where: { productId_source: { productId, source: "manual" } }, create: { productId, source: "manual", ...data }, update: data });
+  }
+  if (weight) await db.product.update({ where: { id: productId }, data: { weightKg: weight.kg, weightSource: label(weight) } });
+}
+
+export function pickError(p: SavePick): string | null {
+  const inRange = (n: unknown, lo: number, hi: number) => typeof n === "number" && Number.isFinite(n) && n >= lo && n <= hi;
+  if (!p.dims && !p.weight) return "Διάλεξε διαστάσεις ή βάρος.";
+  if (p.dims && ![p.dims.w, p.dims.h, p.dims.d].every((n) => inRange(n, DIM_MIN, DIM_MAX))) return `Οι διαστάσεις πρέπει να είναι ${DIM_MIN}–${DIM_MAX} εκ.`;
+  if (p.weight && !inRange(p.weight.kg, KG_MIN, KG_MAX)) return `Το βάρος πρέπει να είναι ${KG_MIN}–${KG_MAX} κιλά.`;
+  return null;
+}
+
+export interface SaveOutcome { id: string; ok: boolean; /** written: γράφτηκε στο SoftOne · off: κλειστή εγγραφή · none: δεν είναι είδος SoftOne ή τίποτα κενό · error */ s1: "written" | "off" | "none" | "error"; message?: string }
+
+/** Ένα προϊόν: SoftOne πρώτα (αν είναι ανοιχτό), μετά eshop. Αποτυχία του SoftOne δεν ακυρώνει το eshop — αναφέρεται. */
+export async function saveOne(pick: SavePick, s1On: boolean): Promise<SaveOutcome> {
+  const bad = pickError(pick);
+  if (bad) return { id: pick.productId, ok: false, s1: "none", message: bad };
+  const p = await db.product.findUnique({ where: { id: pick.productId }, select: { erpCode: true, source: true, setSpcs: true, category: { select: { name: true } } } });
+  if (!p) return { id: pick.productId, ok: false, s1: "none", message: "Το προϊόν δεν βρέθηκε." };
+  if (p.setSpcs != null) return { id: pick.productId, ok: false, s1: "none", message: "Σετ: οι διαστάσεις και το βάρος βγαίνουν από τα μέλη του." };
+  let s1: SaveOutcome["s1"] = "none", message: string | undefined;
+  const mtrl = p.source === "softone" && /^\d+$/.test(p.erpCode) ? Number(p.erpCode) : null;
+  if (mtrl && !s1On) s1 = "off";
+  else if (mtrl) {
+    const { readFields, writeItem } = await import("@/lib/softone/item-write");
+    const live = await readFields(mtrl, S1_DIM_FIELDS).catch(() => null);
+    if (!live) { s1 = "error"; message = "Το είδος δεν διαβάστηκε από το SoftOne."; }
+    else {
+      const changes = s1Changes(live, { dims: pick.dims, kg: pick.weight?.kg });
+      if (Object.keys(changes).length) {
+        const w = await writeItem(mtrl, changes);
+        if (w.ok) {
+          s1 = "written";
+          const [{ syncItem }, { projectItem }] = await Promise.all([import("@/lib/softone/catalog"), import("@/lib/softone/project")]);
+          await syncItem(mtrl, "manual"); await projectItem(mtrl);
+        } else { s1 = "error"; message = w.error ?? "Η εγγραφή στο SoftOne απέτυχε."; }
+      }
+    }
+  }
+  await saveEshopDims(pick, p.category.name);
+  return { id: pick.productId, ok: true, s1, message };
+}

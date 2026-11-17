@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-17T06:16:10.466Z",
+ "generatedAt": "2026-11-17T06:54:22.198Z",
  "routes": [
   {
    "route": "/admin",
@@ -1072,6 +1072,11 @@
    ],
    "changes": [
     {
+     "hash": "7332762",
+     "date": "2026-11-17T08:23:50+02:00",
+     "text": "Κατάλογος: νέα σελίδα «Τιμολόγηση»"
+    },
+    {
      "hash": "ee72918",
      "date": "2026-11-12T07:20:08+02:00",
      "text": "Κωτσόβολος: σύνδεσμοι χωρίς 404"
@@ -1115,14 +1120,9 @@
      "hash": "7384b2a",
      "date": "2026-11-11T17:34:19+02:00",
      "text": "Σύγκριση τιμών: μαζική αλλαγή τιμής web (τιμή Κωτσόβολου − Χ) με δικλείδες, προεπισκόπηση, ιστορικό και αναίρεση"
-    },
-    {
-     "hash": "fcb9c98",
-     "date": "2026-11-11T12:57:14+02:00",
-     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
     }
    ],
-   "updatedAt": "2026-11-12T07:20:08+02:00",
+   "updatedAt": "2026-11-17T08:23:50+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.competitors.prices-d.jpg",
     "mobile": "/api/help-shot/catalog.competitors.prices-m.jpg"
@@ -1241,6 +1241,80 @@
     "desktop": "/api/help-shot/catalog.dimensions-d.jpg",
     "mobile": "/api/help-shot/catalog.dimensions-m.jpg"
    }
+  },
+  {
+   "route": "/admin/catalog/dimensions/missing",
+   "slug": "catalog.dimensions.missing",
+   "file": "app/admin/(shell)/catalog/dimensions/missing/page.tsx",
+   "title": "Διαστάσεις και βάρος που λείπουν",
+   "doc": "Τα ενεργά προϊόντα χωρίς διαστάσεις ή βάρος και η μαζική συμπλήρωσή τους από χαρακτηριστικά, EPREL και site κατασκευαστών.",
+   "perm": "catalog.products.read",
+   "nav": {
+    "group": "Κατάλογος",
+    "label": "Διαστάσεις & βάρος"
+   },
+   "dynamic": false,
+   "helpKeys": [
+    "dims-missing.summary",
+    "dims-missing.steps",
+    "dims-missing.result",
+    "dims-missing.list",
+    "dims-missing.save"
+   ],
+   "changes": [
+    {
+     "hash": "7384b2a",
+     "date": "2026-11-11T17:34:19+02:00",
+     "text": "Σύγκριση τιμών: μαζική αλλαγή τιμής web (τιμή Κωτσόβολου − Χ) με δικλείδες, προεπισκόπηση, ιστορικό και αναίρεση"
+    },
+    {
+     "hash": "fcb9c98",
+     "date": "2026-11-11T12:57:14+02:00",
+     "text": "SoftOne iSite: χαρακτηριστικά ανά είδος και υποκατηγορίες web γράφονται μέσω του custom JS iSite"
+    },
+    {
+     "hash": "3e278a0",
+     "date": "2026-11-11T09:58:20+02:00",
+     "text": "Νέα είδη SoftOne: μονάδα μέτρησης, προμηθευτής, business unit, λογιστική κατηγορία και φόρος ανακύκλωσης"
+    },
+    {
+     "hash": "d589f07",
+     "date": "2026-11-11T05:01:06+02:00",
+     "text": "Εισαγωγή από Excel: κατηγορίες και χαρακτηριστικά ανά κατηγορία (AI ή «όλα στην ίδια»), ορατές οι συμπληρωμένες στήλες που αγνοούνται, «Λείπουν από το αρχείο» με επιλογή και απενεργοποίηση σε eshop + SoftOne (Εξαίρεση…"
+    },
+    {
+     "hash": "04b97f7",
+     "date": "2026-11-10T13:55:00+02:00",
+     "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη"
+    },
+    {
+     "hash": "fe876ee",
+     "date": "2026-11-10T13:43:45+02:00",
+     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
+    },
+    {
+     "hash": "fa1b608",
+     "date": "2026-11-03T08:53:33+02:00",
+     "text": "SoftOne εγγραφή: χαρακτήρες Windows-1253 πριν την αποστολή, ανανέωση καρτέλας μετά την αποθήκευση"
+    },
+    {
+     "hash": "f6e14b2",
+     "date": "2026-10-31T07:29:29+02:00",
+     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
+    },
+    {
+     "hash": "a1f595b",
+     "date": "2026-10-20T07:03:06+03:00",
+     "text": "Εισαγωγή από ξένο Excel: διορθώσεις τελικής αναθεώρησης"
+    },
+    {
+     "hash": "1dbe169",
+     "date": "2026-10-20T05:29:15+03:00",
+     "text": "«Μόνο κενά»: ο memo μένει αυτούσιος και writeWebPrice με onlyIfBlank"
+    }
+   ],
+   "updatedAt": "2026-11-11T17:34:19+02:00",
+   "shots": {}
   },
   {
    "route": "/admin/catalog/sets",
@@ -1847,6 +1921,11 @@
    ],
    "changes": [
     {
+     "hash": "7332762",
+     "date": "2026-11-17T08:23:50+02:00",
+     "text": "Κατάλογος: νέα σελίδα «Τιμολόγηση»"
+    },
+    {
      "hash": "7384b2a",
      "date": "2026-11-11T17:34:19+02:00",
      "text": "Σύγκριση τιμών: μαζική αλλαγή τιμής web (τιμή Κωτσόβολου − Χ) με δικλείδες, προεπισκόπηση, ιστορικό και αναίρεση"
@@ -1890,14 +1969,9 @@
      "hash": "a1f595b",
      "date": "2026-10-20T07:03:06+03:00",
      "text": "Εισαγωγή από ξένο Excel: διορθώσεις τελικής αναθεώρησης"
-    },
-    {
-     "hash": "1dbe169",
-     "date": "2026-10-20T05:29:15+03:00",
-     "text": "«Μόνο κενά»: ο memo μένει αυτούσιος και writeWebPrice με onlyIfBlank"
     }
    ],
-   "updatedAt": "2026-11-11T17:34:19+02:00",
+   "updatedAt": "2026-11-17T08:23:50+02:00",
    "shots": {}
   },
   {
@@ -4526,11 +4600,6 @@
      "hash": "1af3105",
      "date": "2026-09-14T14:58:39+03:00",
      "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
-    },
-    {
-     "hash": "fc119c6",
-     "date": "2026-09-14T14:27:48+03:00",
-     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
    "updatedAt": "2026-11-11T17:03:05+02:00",
@@ -4579,11 +4648,6 @@
      "hash": "1af3105",
      "date": "2026-09-14T14:58:39+03:00",
      "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
-    },
-    {
-     "hash": "fc119c6",
-     "date": "2026-09-14T14:27:48+03:00",
-     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
    "updatedAt": "2026-11-06T10:12:55+02:00",
@@ -4819,11 +4883,6 @@
      "hash": "1af3105",
      "date": "2026-09-14T14:58:39+03:00",
      "text": "SoftOne sync history: readable errors, honest row arithmetic, cleanup actions"
-    },
-    {
-     "hash": "fc119c6",
-     "date": "2026-09-14T14:27:48+03:00",
-     "text": "SoftOne reference tables: own models with an S1 mirror, read-only sync and admin"
     }
    ],
    "updatedAt": "2026-11-11T17:03:05+02:00",
@@ -5288,6 +5347,16 @@
  ],
  "recent": [
   {
+   "hash": "7332762",
+   "date": "2026-11-17T08:23:50+02:00",
+   "text": "Κατάλογος: νέα σελίδα «Τιμολόγηση»",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/timologisi"
+   ]
+  },
+  {
    "hash": "9efb577",
    "date": "2026-11-16T18:13:56+02:00",
    "text": "Διαχείριση: «Αλλαγή συνεργάτη / καταστήματος» σε κάθε ανοιχτή παράδοση στο σπίτι",
@@ -5559,12 +5628,6 @@
    "hash": "f54c609",
    "date": "2026-11-13T16:16:17+02:00",
    "text": "Σελίδα προϊόντος, «Με μια ματιά»: ετικέτα πάνω και τιμή κάτω σε κάθε κάρτα",
-   "routes": []
-  },
-  {
-   "hash": "00f82bc",
-   "date": "2026-11-13T16:13:32+02:00",
-   "text": "Σελίδα προϊόντος: το banner πάει κάτω από τη φωτογραφία αντί κάτω από την αγορά",
    "routes": []
   }
  ],
@@ -6250,6 +6313,21 @@
   ],
   "deactivate.run": [
    "components/admin/catalog/DeactivateWizard.tsx"
+  ],
+  "dims-missing.summary": [
+   "components/admin/catalog/DimsMissingTool.tsx"
+  ],
+  "dims-missing.steps": [
+   "components/admin/catalog/DimsMissingTool.tsx"
+  ],
+  "dims-missing.result": [
+   "components/admin/catalog/DimsMissingTool.tsx"
+  ],
+  "dims-missing.list": [
+   "components/admin/catalog/DimsMissingTool.tsx"
+  ],
+  "dims-missing.save": [
+   "components/admin/catalog/DimsMissingTool.tsx"
   ],
   "enrich.sources": [
    "components/admin/catalog/EnrichPanel.tsx"

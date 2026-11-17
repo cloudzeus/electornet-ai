@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Product } from "@/lib/data/types";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ContentDimsPanel } from "@/components/admin/catalog/ContentDimsPanel";
 import { ProductActions, FixButton } from "@/components/admin/catalog/ProductActions";
 import { SetTextsEditor } from "@/components/admin/catalog/SetTextsEditor";
 import { PhotoPicker } from "@/components/admin/catalog/PhotoPicker";
@@ -186,6 +187,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
                 ...(can(user.permissions, "catalog.promos.write") ? { promo: <div className="@container"><PromoPicker productId={p.id} /></div> } : {}),
                 texts: editor(["texts", "specs"]),
                 dims: editor(["dims"]),
+                contentDims: <div className="@container"><ContentDimsPanel productId={p.id} canWrite={canWrite} /></div>,
                 warranty: editor(["basics", "warranty"]),
                 energy: <EnergyLabelPanel productId={p.id} needed={energyNeeded} canWrite={canWrite} label={p.energy ? { cls: p.energy.class, scale: p.energy.scale, labelUrl: p.energy.labelUrl, ficheUrl: p.energy.ficheUrl, source: p.energy.source, registrationNumber: p.energy.eprelRegistrationNumber } : null} />,
                 ...(canWrite ? { photos: <div className="@container"><PhotoPicker productId={p.id} canWrite /></div> } : {}),

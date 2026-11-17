@@ -3,7 +3,7 @@ import {
   GitBranch,
   BadgeCheck, BadgePercent, BookOpen, BarChart3, Box, Boxes, Database, DatabaseBackup, FileSpreadsheet, FolderTree, Images, LayoutDashboard, LayoutTemplate, ListChecks, Mail, Megaphone, Package, Radar,
   RefreshCw, ScanText, ScrollText, Settings, ShieldCheck, ShieldHalf, ShoppingBag, Sticker, Store, Truck, Users, Wrench, Zap, CalendarCheck,
-  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale, Timer, Percent,
+  Handshake, PackagePlus, Sparkles, Receipt, Warehouse, Map as MapIcon, Scale, Timer, Percent, Ruler,
 } from "lucide-react";
 import type { Feature } from "@/lib/admin/features";
 
@@ -64,6 +64,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/catalog/categories", label: "Κατηγορίες", icon: FolderTree, perm: "catalog.products.read" },
       { href: "/admin/catalog/specs", label: "Χαρακτηριστικά", icon: ListChecks, perm: "catalog.products.read" },
       { href: "/admin/catalog/completeness", label: "Πληρότητα", icon: BadgeCheck, perm: "catalog.products.read" },
+      { href: "/admin/catalog/dimensions/missing", label: "Διαστάσεις & βάρος", icon: Ruler, perm: "catalog.products.read" },
       { href: "/admin/catalog/competitors", label: "Σύγκριση τιμών", icon: Scale, perm: "catalog.products.read" },
       { href: "/admin/catalog/timologisi", label: "Τιμολόγηση", icon: Percent, perm: "catalog.products.read" },
       { href: "/admin/catalog/availability", label: "Διαθεσιμότητα", icon: CalendarCheck, perm: "catalog.products.read" },
