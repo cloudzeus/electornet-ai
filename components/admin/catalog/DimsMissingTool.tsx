@@ -13,7 +13,7 @@ const CHUNK: Record<SearchMode, number> = { content: 20, eprel: 6, web: 2 };
 type Filter = "all" | "ready" | "review" | "none" | "pending";
 const STATUS = {
   ready: { label: "Έτοιμο", cls: "bg-eu-green/12 text-eu-green", Icon: Check },
-  review: { label: "Θέλει μάτι", cls: "bg-eu-yellow/30 text-eu-ink", Icon: AlertTriangle },
+  review: { label: "Απαιτεί ενέργεια", cls: "bg-eu-yellow/30 text-eu-ink", Icon: AlertTriangle },
   none: { label: "Δεν βρέθηκε", cls: "bg-eu-red/10 text-eu-red", Icon: SearchX },
   pending: { label: "Δεν ψάχτηκε", cls: "bg-eu-surface text-eu-ink-3", Icon: CircleDashed },
 } as const;
@@ -67,7 +67,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
   }
   const open = rows.filter((r) => statusOf(r.id) !== "ready");
 
-  /** `only`: άμεση αποθήκευση ενός προϊόντος (κουμπί στη γραμμή «Θέλει μάτι»)· αλλιώς όλα τα τσεκαρισμένα. */
+  /** `only`: άμεση αποθήκευση ενός προϊόντος (κουμπί στη γραμμή «Απαιτεί ενέργεια»)· αλλιώς όλα τα τσεκαρισμένα. */
   async function save(only?: string) {
     const picks = rows.filter((r) => (only ? r.id === only : sel.has(r.id)) && props.get(r.id)).map((r) => { const p = props.get(r.id)!; return { productId: r.id, dims: p.dims && { w: p.dims.w, h: p.dims.h, d: p.dims.d, label: p.dims.label, raw: p.dims.raw }, weight: p.weight && { kg: p.weight.kg, label: p.weight.label, raw: p.weight.raw } }; });
     if (!picks.length) return;
@@ -173,7 +173,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
 
       <section data-help="dims-missing.list" className="rounded-2xl border border-eu-line bg-white min-w-0">
         <div className="flex flex-wrap items-center gap-2 p-3 border-b border-eu-line">
-          {([["all", `Όλα ${n(rows.length)}`], ["ready", `Έτοιμα ${n(counts.ready)}`], ["review", `Θέλουν μάτι ${n(counts.review)}`], ["none", `Δεν βρέθηκαν ${n(counts.none)}`], ["pending", `Δεν ψάχτηκαν ${n(counts.pending)}`]] as [Filter, string][]).map(([k, t]) => (
+          {([["all", `Όλα ${n(rows.length)}`], ["ready", `Έτοιμα ${n(counts.ready)}`], ["review", `Απαιτούν ενέργεια ${n(counts.review)}`], ["none", `Δεν βρέθηκαν ${n(counts.none)}`], ["pending", `Δεν ψάχτηκαν ${n(counts.pending)}`]] as [Filter, string][]).map(([k, t]) => (
             <button key={k} type="button" aria-pressed={filter === k} onClick={() => { setFilter(k); setPage(1); }} className={`rounded-full px-3 min-h-11 @3xl:min-h-9 font-bold text-[length:var(--fs-13)] cursor-pointer border ${filter === k ? "bg-eu-navy text-white border-eu-navy" : "bg-white text-eu-ink border-eu-line hover:border-eu-navy"}`}>{t}</button>
           ))}
           <label className="sr-only" htmlFor="dm-q">Αναζήτηση</label>
@@ -215,10 +215,10 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
         )}
       </section>
 
-      <section data-help="dims-missing.save" aria-live="polite" className="sticky bottom-3 z-10 shadow-[0_4px_20px_rgba(18,42,88,0.12)] rounded-2xl border border-eu-line bg-white p-4 flex flex-wrap items-center gap-3">
+      <section data-help="dims-missing.save" aria-live="polite" className={`rounded-2xl border border-eu-line bg-white p-4 flex flex-wrap items-center gap-3 ${sel.size || saving ? "sticky bottom-3 z-10 shadow-[0_4px_20px_rgba(18,42,88,0.12)]" : ""}`}>
         {saving && progress}
         <button type="button" disabled={!!busy || !sel.size || !canWrite} onClick={() => save()} className={`${btn} bg-eu-navy text-white hover:bg-eu-blue`}>{saving && !savingId ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />} Αποθήκευση {n(sel.size)} {sel.size === 1 ? "επιλεγμένου" : "επιλεγμένων"}</button>
-        <p className="m-0 flex-1 min-w-[240px] text-eu-ink-3 text-[length:var(--fs-13)]">
+        <p className={`m-0 flex-1 min-w-[240px] text-eu-ink-3 text-[length:var(--fs-13)] ${sel.size || saving ? "hidden @2xl:block" : ""}`}>
           {s1On ? "Γράφονται στο eshop και στο είδος του SoftOne: Βάρος, Μήκος, Πλάτος, Ύψος και Μάζα, Διάσταση 1-3. Μόνο όπου το πεδίο είναι κενό· ό,τι υπάρχει ήδη δεν αλλάζει." : "Η εγγραφή στο SoftOne είναι κλειστή (Ρυθμίσεις → SoftOne → Αλλαγές προϊόντων προς SoftOne): αποθηκεύονται μόνο στο eshop και μετρούν κανονικά για την αποστολή."}
         </p>
       </section>
