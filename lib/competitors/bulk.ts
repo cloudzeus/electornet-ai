@@ -73,19 +73,19 @@ export async function previewBulk(filter: Filter, rule: Rule): Promise<PreviewRo
 }
 
 const LOCK_MS = 15 * 60_000;
-const lockIso = () => new Date(Date.now() + LOCK_MS).toISOString();
+export const lockIso = () => new Date(Date.now() + LOCK_MS).toISOString();
 /** Ατομικό κλείδωμα της παρτίδας: μόνο αν δεν τρέχει ήδη κάτι (ή το κλείδωμα έληξε μετά από crash). */
 async function claim(batchId: string) {
   const rows = await db.$queryRaw<{ id: string }[]>`UPDATE "PriceChangeBatch" SET "rule" = jsonb_set("rule", '{lockUntil}', to_jsonb(${lockIso()}::text))
     WHERE "id" = ${batchId} AND (("rule"->>'lockUntil') IS NULL OR ("rule"->>'lockUntil')::timestamptz < ${new Date().toISOString()}::timestamptz) RETURNING "id"`;
   return rows.length === 1;
 }
-const touch = (batchId: string) => db.$executeRaw`UPDATE "PriceChangeBatch" SET "rule" = jsonb_set("rule", '{lockUntil}', to_jsonb(${lockIso()}::text)) WHERE "id" = ${batchId}`;
-const release = (batchId: string) => db.$executeRaw`UPDATE "PriceChangeBatch" SET "rule" = "rule" - 'lockUntil' WHERE "id" = ${batchId}`;
+export const touch = (batchId: string) => db.$executeRaw`UPDATE "PriceChangeBatch" SET "rule" = jsonb_set("rule", '{lockUntil}', to_jsonb(${lockIso()}::text)) WHERE "id" = ${batchId}`;
+export const release = (batchId: string) => db.$executeRaw`UPDATE "PriceChangeBatch" SET "rule" = "rule" - 'lockUntil' WHERE "id" = ${batchId}`;
 const lockOf = (rule: unknown) => { const v = (rule as { lockUntil?: unknown } | null)?.lockUntil; return typeof v === "string" ? new Date(v) : null; };
 
 /** Μετά από επαληθευμένη εγγραφή: ο καθρέφτης και το κατάστημα παίρνουν αμέσως την τιμή (όπως η εισαγωγή προϊόντων). */
-async function refresh(mtrl: number) {
+export async function refresh(mtrl: number) {
   try { await syncItem(mtrl, "manual"); await projectItem(mtrl); } catch (e) { console.error("[bulk-price/sync]", mtrl, e); }
 }
 
