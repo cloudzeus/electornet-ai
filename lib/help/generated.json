@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-17T11:17:24.694Z",
+ "generatedAt": "2026-11-17T11:30:50.190Z",
  "routes": [
   {
    "route": "/admin",
@@ -1266,9 +1266,15 @@
     "dims-missing.result",
     "dims-missing.list",
     "dims-missing.manual",
+    "dims-missing.sync-one",
     "dims-missing.save"
    ],
    "changes": [
+    {
+     "hash": "e249e36",
+     "date": "2026-11-17T13:18:07+02:00",
+     "text": "Διαστάσεις & βάρος: κουμπί «Καταχώρηση» σε κάθε προϊόν (παράθυρο για πλάτος, ύψος, βάθος και βάρος με το χέρι"
+    },
     {
      "hash": "d8c7d23",
      "date": "2026-11-17T09:19:34+02:00",
@@ -1313,14 +1319,9 @@
      "hash": "fa1b608",
      "date": "2026-11-03T08:53:33+02:00",
      "text": "SoftOne εγγραφή: χαρακτήρες Windows-1253 πριν την αποστολή, ανανέωση καρτέλας μετά την αποθήκευση"
-    },
-    {
-     "hash": "f6e14b2",
-     "date": "2026-10-31T07:29:29+02:00",
-     "text": "Κατάλογος: πληρότητα, διαθεσιμότητα με κανόνες, XML με πρόγραμμα και «Εφαρμογή αλλαγών»"
     }
    ],
-   "updatedAt": "2026-11-17T09:19:34+02:00",
+   "updatedAt": "2026-11-17T13:18:07+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.dimensions.missing-d.jpg",
     "mobile": "/api/help-shot/catalog.dimensions.missing-m.jpg"
@@ -5336,6 +5337,17 @@
  ],
  "recent": [
   {
+   "hash": "e249e36",
+   "date": "2026-11-17T13:18:07+02:00",
+   "text": "Διαστάσεις & βάρος: κουμπί «Καταχώρηση» σε κάθε προϊόν (παράθυρο για πλάτος, ύψος, βάθος και βάρος με το χέρι",
+   "routes": [
+    "/admin",
+    "/admin/catalog",
+    "/admin/catalog/dimensions",
+    "/admin/catalog/dimensions/missing"
+   ]
+  },
+  {
    "hash": "d156294",
    "date": "2026-11-17T13:12:36+02:00",
    "text": "Τιμολόγηση: σελίδες",
@@ -5625,12 +5637,6 @@
    "hash": "e38d814",
    "date": "2026-11-13T16:53:10+02:00",
    "text": "Σελίδα προϊόντος: τα stickers προσφοράς μπαίνουν πάνω στη φωτογραφία (όπως στην κάρτα) αντί σε δική τους γραμμή κάτω από αυτήν",
-   "routes": []
-  },
-  {
-   "hash": "b252dfc",
-   "date": "2026-11-13T16:47:41+02:00",
-   "text": "Landing προσφοράς: στο hero τα 3 προϊόντα με τη μεγαλύτερη έκπτωση πάνω στην εικόνα της καμπάνιας (όχι άδεια εικόνα), στοιχεία «πόσα προϊόντα",
    "routes": []
   }
  ],
@@ -6333,6 +6339,9 @@
    "components/admin/catalog/DimsMissingTool.tsx"
   ],
   "dims-missing.manual": [
+   "components/admin/catalog/DimsMissingTool.tsx"
+  ],
+  "dims-missing.sync-one": [
    "components/admin/catalog/DimsMissingTool.tsx"
   ],
   "dims-missing.save": [

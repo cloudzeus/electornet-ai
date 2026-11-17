@@ -38,6 +38,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
   const stop = useRef(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [manual, setManual] = useState<MissingRow | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const statusOf = (id: string) => props.get(id)?.status ?? "pending";
   const counts = useMemo(() => { const c = { ready: 0, review: 0, none: 0, pending: 0 }; for (const r of rows) c[props.get(r.id)?.status ?? "pending"]++; return c; }, [rows, props]);
@@ -109,6 +110,18 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
     } catch { setMsg({ ok: false, text: "Ο συγχρονισμός σταμάτησε από σφάλμα. Πάτα ξανά για να συνεχίσει από εκεί που έμεινε." }); }
     setBusy(null);
   }
+  /** Συγχρονισμός ενός προϊόντος με το SoftOne (ίδιος κανόνας με τον μαζικό). */
+  async function syncOne(r: MissingRow) {
+    setMsg(null); setSaved(null); setSyncingId(r.id);
+    try {
+      const o = await syncRunAction([r.id]);
+      const next = await missingRowsAction();
+      setRows(next);
+      const gone = !next.some((x) => x.id === r.id);
+      setMsg(o.failed.length ? { ok: false, text: `${r.title}: ${o.failed[0].error}` } : { ok: true, text: `${r.title}: ${o.written ? "συμπληρώθηκαν κενά πεδία στο SoftOne και " : ""}διαβάστηκε ξανά από το SoftOne. ${gone ? "Έχει πλέον διαστάσεις και βάρος και έφυγε από τη λίστα." : "Του λείπουν ακόμη στοιχεία· το SoftOne δεν έχει τιμή σε αυτά τα πεδία."}` });
+    } catch { setMsg({ ok: false, text: "Ο συγχρονισμός του προϊόντος απέτυχε. Δοκίμασε ξανά." }); }
+    setSyncingId(null);
+  }
   const saving = busy?.label === "Αποθήκευση";
   const progress = busy && (
           <div className="rounded-2xl border border-eu-line bg-white p-4 grid gap-2 w-full">
@@ -130,7 +143,7 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
     <div className="grid gap-5 min-w-0">
       <div data-help="dims-missing.sync" className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={!!busy || !canWrite} onClick={sync} className={`${btn} border border-eu-line bg-white text-eu-navy hover:border-eu-navy`}><RefreshCw className="size-4" aria-hidden /> Συγχρονισμός με SoftOne</button>
-        <p className="m-0 flex-1 min-w-[240px] max-w-[80ch] text-eu-ink-3 text-[length:var(--fs-13)]">Φέρνει ό,τι έχει γραφτεί στο είδος του SoftOne (και στα πεδία Μάζα, Διάσταση 1-3) και στέλνει εκεί ό,τι υπάρχει μόνο στο eshop. Συμπληρώνει μόνο κενά πεδία{s1On ? "" : " · η εγγραφή στο SoftOne είναι κλειστή, οπότε τώρα μόνο διαβάζει"}.</p>
+        <p className="m-0 flex-1 min-w-[240px] max-w-[80ch] text-eu-ink-3 text-[length:var(--fs-13)]">Όπου κι αν έχει γραφτεί μια τιμή, τη βάζει και στα τρία σημεία: στα πεδία Βάρος, Μήκος, Πλάτος, Ύψος του είδους, στα Μάζα και Διάσταση 1-3, και στο eshop. Για όλα τα ενεργά προϊόντα· συμπληρώνει μόνο κενά πεδία{s1On ? "" : " · η εγγραφή στο SoftOne είναι κλειστή, οπότε τώρα μόνο διαβάζει"}.</p>
       </div>
       <section data-help="dims-missing.summary" className="grid gap-3 min-w-0">
         <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
@@ -222,9 +235,10 @@ export function DimsMissingTool({ overview, canWrite, s1On, eprelKey }: { overvi
                   {p?.status === "none" && <div className="text-eu-ink-3 text-[length:var(--fs-13)]">Καμία πηγή δεν έδωσε τιμή. Δοκίμασε το επόμενο βήμα ή συμπλήρωσέ το στην καρτέλα του προϊόντος.</div>}
                   {!p && <div className="text-eu-ink-3 text-[length:var(--fs-13)]">Τρέξε το βήμα 1 για πρόταση.</div>}
                 </div>
-                <div className="col-start-2 @3xl:col-start-auto flex flex-wrap @3xl:flex-col items-center @3xl:items-end gap-2">
+                <div className="col-start-2 @3xl:col-start-auto flex flex-wrap items-center @3xl:justify-end @3xl:max-w-[290px] gap-2">
                   <span className={`w-fit inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-bold text-[length:var(--fs-13)] whitespace-nowrap ${st.cls}`}><st.Icon className="size-3.5" aria-hidden />{st.label}</span>
                   {canWrite && <button type="button" disabled={!!busy} onClick={() => setManual(r)} data-help="dims-missing.manual" className={`${btn} @3xl:min-h-9 px-3 text-[length:var(--fs-13)] border border-eu-line bg-white text-eu-navy hover:border-eu-navy whitespace-nowrap`}><PencilLine className="size-4" aria-hidden /> Καταχώρηση</button>}
+                  {canWrite && <button type="button" disabled={!!busy || !!syncingId} onClick={() => syncOne(r)} data-help="dims-missing.sync-one" className={`${btn} @3xl:min-h-9 px-3 text-[length:var(--fs-13)] border border-eu-line bg-white text-eu-navy hover:border-eu-navy whitespace-nowrap`}><RefreshCw className={`size-4 ${syncingId === r.id ? "animate-spin" : ""}`} aria-hidden /> {syncingId === r.id ? "Συγχρονίζεται" : "Από SoftOne"}</button>}
                   {p?.status === "review" && canWrite && <button type="button" disabled={!!busy} onClick={() => save(r.id)} className={`${btn} @3xl:min-h-9 px-3 text-[length:var(--fs-13)] bg-eu-navy text-white hover:bg-eu-blue whitespace-nowrap`}>{savingId === r.id ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />} {savingId === r.id ? "Αποθηκεύεται" : "Σωστό, αποθήκευση"}</button>}
                 </div>
               </li>

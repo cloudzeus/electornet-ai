@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { contentDims } from "./dims-from-content";
-import { toRowProposal, s1Changes, s1SyncChanges, S1_DIM_FIELDS, type RowProposal, type S1DimField } from "./dims-missing-core";
+import { toRowProposal, s1Changes, s1SyncChanges, resolveDims, S1_DIM_FIELDS, type RowProposal, type S1DimField } from "./dims-missing-core";
 import { DIM_MIN, DIM_MAX, KG_MIN, KG_MAX, checkDims } from "./dim-fill-core";
 
 /**
@@ -115,13 +115,13 @@ export async function saveOne(pick: SavePick, s1On: boolean): Promise<SaveOutcom
 }
 
 /**
- * Συγχρονισμός με το SoftOne και προς τις δύο κατευθύνσεις, για τα προϊόντα αυτής της σελίδας και όσα έχουν τιμές
- * αποθηκευμένες στο eshop. Στο SoftOne: τα CCC (Βάρος, Μήκος, Πλάτος, Ύψος) και τα τυπικά (Μάζα, Διάσταση 1-3)
+ * Συγχρονισμός με το SoftOne και προς τις δύο κατευθύνσεις, για όλα τα ενεργά είδη (όχι σετ). Κανόνας 17/11/2026: όπου κι
+ * αν έχει καταχωριστεί μια τιμή, ενημερώνονται και τα τρία σημεία — τυπικά πεδία, CCC και eshop. Στο SoftOne: τα CCC (Βάρος, Μήκος, Πλάτος, Ύψος) και τα τυπικά (Μάζα, Διάσταση 1-3)
  * συμπληρώνουν το ένα το άλλο, και ό,τι λείπει και από τα δύο έρχεται από το eshop — μόνο σε κενά πεδία. Στο eshop:
- * το είδος ξαναδιαβάζεται από το SoftOne. Το `syncPlan` βρίσκει ποια χρειάζονται δουλειά με μία μαζική ανάγνωση.
+ * το είδος ξαναδιαβάζεται από το SoftOne και γεμίζουν τα κενά δικά του πεδία (χειροκίνητες διαστάσεις, βάρος προϊόντος). Το `syncPlan` βρίσκει ποια χρειάζονται δουλειά με μία μαζική ανάγνωση.
  */
-const SYNC_WHERE = { active: true, source: "softone", setSpcs: null, OR: [{ publishMissing: { has: "dims" } }, { weightKg: { not: null } }, { dimensions: { some: { source: "manual" } } }] };
-const SYNC_SELECT = { id: true, erpCode: true, weightKg: true, dimensions: { where: { source: "manual" }, select: { w: true, h: true, d: true } } } as const;
+const SYNC_WHERE = { active: true, source: "softone", setSpcs: null };
+const SYNC_SELECT = { id: true, erpCode: true, weightKg: true, category: { select: { name: true } }, dimensions: { where: { source: "manual" }, select: { w: true, h: true, d: true } } } as const;
 const num = (v: unknown) => { const n = Number(String(v ?? "").replace(",", ".")); return n > 0 ? n : null; };
 
 export async function syncPlan(s1On: boolean): Promise<string[]> {
@@ -135,7 +135,8 @@ export async function syncPlan(s1On: boolean): Promise<string[]> {
     const l = live.get(Number(p.erpCode)), m = mo.get(Number(p.erpCode));
     if (!l) return false;
     const stale = (["weightKg", "lengthCm", "widthCm", "heightCm"] as const).some((k) => num(l[k]) !== (m?.[k] && m[k]! > 0 ? m[k] : null));
-    return stale || (s1On && Object.keys(s1SyncChanges(l, { dims: p.dimensions[0] ?? null, kg: p.weightKg })).length > 0);
+    const eshop = { dims: p.dimensions[0] ?? null, kg: p.weightKg }, r = resolveDims(l, eshop);
+    return stale || (!!r.dims && !eshop.dims) || (r.kg != null && eshop.kg == null) || (s1On && Object.keys(s1SyncChanges(l, eshop)).length > 0);
   }).map((p) => p.id);
 }
 
@@ -147,9 +148,17 @@ export async function syncRun(ids: string[], s1On: boolean): Promise<{ done: num
       const mtrl = Number(p.erpCode);
       const live = await readFields(mtrl, S1_DIM_FIELDS);
       if (!live) throw new Error("Το είδος δεν διαβάστηκε από το SoftOne.");
-      const changes = s1On ? s1SyncChanges(live, { dims: p.dimensions[0] ?? null, kg: p.weightKg }) : {};
+      const eshop = { dims: p.dimensions[0] ?? null, kg: p.weightKg }, r = resolveDims(live, eshop);
+      const changes = s1On ? s1SyncChanges(live, eshop) : {};
       if (Object.keys(changes).length) { const w = await writeItem(mtrl, changes); if (!w.ok) throw new Error(w.error ?? "Η εγγραφή στο SoftOne απέτυχε."); out.written++; }
-      await syncItem(mtrl, "manual"); await projectItem(mtrl);
+      // το είδος ξαναδιαβάζεται μόνο όταν γράφτηκε κάτι ή ο καθρέφτης μας διαφέρει από το SoftOne (αλλιώς ~2″ χαμένα ανά είδος)
+      const m = await db.s1Item.findUnique({ where: { mtrl }, select: { weightKg: true, lengthCm: true, widthCm: true, heightCm: true } });
+      const stale = (["weightKg", "lengthCm", "widthCm", "heightCm"] as const).some((k) => num(live[k]) !== (m?.[k] && m[k]! > 0 ? m[k] : null));
+      if (Object.keys(changes).length || stale) { await syncItem(mtrl, "manual"); await projectItem(mtrl); }
+      // τα δικά μας πεδία του eshop, όπου είναι κενά· τιμές του SoftOne εκτός ορίων (π.χ. παλιές σε μέτρα) δεν αντιγράφονται
+      const src = { label: "SoftOne", raw: "συγχρονισμός" };
+      const fill: SavePick = { productId: p.id, dims: r.dims && !eshop.dims ? { ...r.dims, ...src } : null, weight: r.kg != null && eshop.kg == null ? { kg: r.kg, ...src } : null };
+      if (!pickError(fill)) await saveEshopDims(fill, p.category.name);
       out.done++;
     } catch (e) { console.error("[dims-missing] sync", p.id, e); out.failed.push({ id: p.id, error: (e as Error).message.slice(0, 160) }); }
   }
