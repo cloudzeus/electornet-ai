@@ -312,6 +312,22 @@ export function syncOffers(trigger: Trigger = "manual") {
   });
 }
 
+/**
+ * Μόνο η «Τιμή Web» (`MTREXTRA.NUM04`), για το συχνό πέρασμα των 10 λεπτών: μία ανάγνωση, γράφει μόνο όσες τιμές άλλαξαν.
+ * shortcut: τιμή που μηδενίστηκε ή σβήστηκε, το απόθεμα και η «Εξαίρεση Web» δεν πιάνονται εδώ· τα φέρνει το `syncOffers` κάθε 30′.
+ */
+export function syncPrices(trigger: Trigger = "manual") {
+  return logged("cat-prices", trigger, async () => {
+    const rows = await getTable("MTREXTRA", ["MTRL", "NUM04"], "NUM04>0");
+    const ids: number[] = [], prices: number[] = [];
+    for (const r of rows) { const m = int(r[0]), p = num(r[1]); if (m != null && p != null && p > 0) { ids.push(m); prices.push(p); } }
+    const updated = ids.length ? await db.$executeRawUnsafe(
+      `UPDATE "S1Item" s SET "eshopPrice" = v.p, "offersAt" = now() FROM unnest($1::int[], $2::float8[]) AS v(m, p)
+       WHERE s.mtrl = v.m AND s.missing = false AND s."eshopPrice" IS DISTINCT FROM v.p`, ids, prices) : 0;
+    return { fetched: rows.length, created: 0, updated, missing: 0, skipped: 0 };
+  });
+}
+
 /** Όλος ο κατάλογος με τη σωστή σειρά: κατηγορίες → ορισμοί χαρακτηριστικών → είδη. Σταματά στο πρώτο σφάλμα ανάγνωσης. */
 export async function syncCatalog(mode: "delta" | "full" = "delta", trigger: Trigger = "manual") {
   const out: CatalogRunResult[] = [];

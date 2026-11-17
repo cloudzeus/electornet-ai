@@ -1,5 +1,5 @@
-import { syncCatalog, type Trigger } from "@/lib/softone/catalog";
-import { projectCatalog } from "@/lib/softone/project";
+import { syncCatalog, syncPrices, type Trigger } from "@/lib/softone/catalog";
+import { projectCatalog, projectOffers } from "@/lib/softone/project";
 import { projectSetStock, syncSets } from "@/lib/softone/sets";
 import { refreshProductDocs, embedStale } from "@/lib/vector/index";
 
@@ -31,4 +31,13 @@ export async function runCatalogJob(mode: "delta" | "full", trigger: Trigger) {
     sets.ok === false ? `set ειδών: ${sets.error ?? "σφάλμα"}` : null,
   ].filter(Boolean);
   return { ok, mode, sync, project, index, sets, message: parts.join(" · ") };
+}
+
+/** Συχνό πέρασμα τιμών: «Τιμή Web» του SoftOne → καθρέφτης → τιμή προϊόντος, ιστορικό τιμών και προσφορές. Χωρίς αλλαγή δεν αγγίζει το κατάστημα. */
+export async function runPriceJob(trigger: Trigger) {
+  const r = await syncPrices(trigger);
+  if (!r.ok) return { ok: false, message: `Η ανάγνωση τιμών απέτυχε: ${r.error ?? "άγνωστο σφάλμα"}. Το κατάστημα δεν άλλαξε.` };
+  if (!r.updated) return { ok: true, idle: true, message: `${r.fetched} τιμές ελέγχθηκαν, καμία αλλαγή` };
+  const o = await projectOffers();
+  return { ok: true, message: `${r.fetched} τιμές ελέγχθηκαν · ${r.updated} άλλαξαν στο SoftOne · ${o.priceChanges} νέες τιμές στο κατάστημα` };
 }

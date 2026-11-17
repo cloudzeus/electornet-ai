@@ -164,3 +164,15 @@ export async function syncRun(ids: string[], s1On: boolean): Promise<{ done: num
   }
   return out;
 }
+
+/**
+ * Το αυτόματο πέρασμα των 10 λεπτών: μόνο ανάγνωση από το SoftOne (`s1On=false`, καμία εγγραφή εκεί) → καθρέφτης, προϊόν και κενά πεδία του eshop.
+ * shortcut: έως 150 είδη ανά πέρασμα (τυχαία, για να μη μπλοκάρει η ουρά σε είδη με τιμές εκτός ορίων)· τα υπόλοιπα στο επόμενο.
+ */
+export async function runDimsJob(): Promise<{ ok: boolean; idle?: boolean; message: string }> {
+  const all = await syncPlan(false);
+  if (!all.length) return { ok: true, idle: true, message: "Διαστάσεις και βάρος: καμία διαφορά με το SoftOne" };
+  const ids = all.length > 150 ? [...all].sort(() => Math.random() - 0.5).slice(0, 150) : all;
+  const r = await syncRun(ids, false);
+  return { ok: !r.failed.length, message: `${r.done} από ${all.length} προϊόντα ενημερώθηκαν από τα πεδία διαστάσεων του SoftOne${all.length > ids.length ? ` · τα υπόλοιπα ${all.length - ids.length} στα επόμενα περάσματα` : ""}${r.failed.length ? ` · ${r.failed.length} απέτυχαν: ${r.failed[0].error}` : ""}` };
+}

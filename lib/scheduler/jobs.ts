@@ -28,6 +28,14 @@ export const JOBS: JobDef[] = [
     run: async () => (await import("@/lib/softone/catalog-job")).runCatalogJob("delta", "cron"),
   },
   {
+    key: "softone-prices", label: "Τιμές SoftOne (Τιμή Web) → κατάστημα", schedule: { everyMin: 10 }, group: "softone-catalog", maxMin: 5,
+    run: async () => (await import("@/lib/softone/catalog-job")).runPriceJob("cron"),
+  },
+  {
+    key: "softone-dims", label: "Διαστάσεις & βάρος SoftOne (Βάρος, Μήκος, Πλάτος, Ύψος, Μάζα, Διάσταση 1-3) → κατάστημα", schedule: { everyMin: 10 }, group: "softone-catalog", maxMin: 8,
+    run: async () => (await import("@/lib/catalog/dims-missing")).runDimsJob(),
+  },
+  {
     key: "softone-catalog-full", label: "Κατάλογος SoftOne → κατάστημα (πλήρης, εντοπίζει όσα αφαιρέθηκαν)", schedule: { dailyAt: [3, 30] }, group: "softone-catalog", maxMin: 40,
     run: async () => (await import("@/lib/softone/catalog-job")).runCatalogJob("full", "cron"),
   },
