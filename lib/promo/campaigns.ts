@@ -73,7 +73,7 @@ export async function getCampaign(id: string) {
   const c = await db.campaign.findUnique({
     where: { id },
     include: {
-      promotions: { orderBy: { createdAt: "asc" }, select: { id: true, code: true, name: true, status: true, mechanism: true, startsAt: true, endsAt: true, usedCount: true, coupons: { select: { code: true, kind: true } } } },
+      promotions: { orderBy: { createdAt: "asc" }, select: { id: true, code: true, name: true, status: true, mechanism: true, startsAt: true, endsAt: true, usedCount: true, reward: true, rules: true, targets: { select: { kind: true, refId: true, exclude: true } }, coupons: { select: { code: true, kind: true } } } },
       landings: { orderBy: { createdAt: "asc" }, select: { id: true, slug: true, title: true, status: true, startsAt: true, endsAt: true } },
       ads: { orderBy: { createdAt: "asc" }, select: { id: true, slot: true, title: true, status: true, startsAt: true, endsAt: true, impressions: true, clicks: true } },
     },

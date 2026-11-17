@@ -5,7 +5,10 @@ import { PromoTabs } from "@/components/admin/promos/PromoTabs";
 import { CampaignWizard, type WizardCampaign } from "@/components/admin/promos/CampaignWizard";
 import { getCampaign } from "@/lib/promo/campaigns";
 import { SLOTS } from "@/lib/promo/landing-blocks";
-import { MECHANISM_LABEL } from "@/lib/promo/catalog";
+import { MECHANISM_LABEL, describePromo } from "@/lib/promo/catalog";
+import { ruleScopes } from "@/lib/promo/campaign-core";
+import { targetNames } from "@/lib/promo/admin";
+import type { PromoReward, PromoRules } from "@/lib/promo/engine";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -26,11 +29,13 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   if (id !== "new") {
     const c = await getCampaign(id);
     if (!c) notFound();
+    // σε τι ισχύει κάθε κανόνας: ονόματα μόνο για κατηγορίες / μάρκες (τα προϊόντα μετριούνται)
+    const scopes = ruleScopes(c.promotions.map((p) => ({ id: p.id, name: p.name, mechanism: p.mechanism, reward: p.reward as PromoReward, targets: p.targets })), await targetNames(c.promotions.flatMap((p) => p.targets.filter((t) => t.kind !== "product"))));
     campaign = {
       id: c.id, code: c.code, status: c.status, title: c.title, goal: c.goal as WizardCampaign["goal"], brief: c.brief ?? "", startsAt: ymd(c.startsAt)!, endsAt: ymd(c.endsAt)!,
       cartOpensAt: c.cartOpensAt ? c.cartOpensAt.toLocaleString("sv-SE", { timeZone: "Europe/Athens" }).slice(0, 16).replace(" ", "T") : null, cartMessage: c.cartMessage ?? "",
       budgetEur: c.budgetEur, spent: c.spent, budget: c.budget,
-      promotions: c.promotions.map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status, mechanism: p.mechanism, startsAt: iso(p.startsAt), endsAt: iso(p.endsAt), usedCount: p.usedCount, coupons: p.coupons.map((x) => x.code) })),
+      promotions: c.promotions.map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status, mechanism: p.mechanism, startsAt: iso(p.startsAt), endsAt: iso(p.endsAt), usedCount: p.usedCount, coupons: p.coupons.map((x) => x.code), summary: describePromo({ mechanism: p.mechanism, reward: p.reward as PromoReward, rules: p.rules as PromoRules }), ...scopes[p.id] })),
       landings: c.landings.map((l) => ({ id: l.id, slug: l.slug, title: l.title, status: l.status, startsAt: iso(l.startsAt), endsAt: iso(l.endsAt) })),
       ads: c.ads.map((a) => ({ id: a.id, title: a.title, slot: slotLabel(a.slot), status: a.status, startsAt: iso(a.startsAt), endsAt: iso(a.endsAt), impressions: a.impressions, clicks: a.clicks })),
       available: {

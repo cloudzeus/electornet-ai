@@ -77,7 +77,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
             {stats.orders.some((v) => v > 0) ? <LineChart labels={stats.labels} height={170} series={[{ key: "o", label: "Παραγγελίες", values: stats.orders }]} /> : <p className="m-0 grid place-items-center min-h-32 rounded-xl bg-eu-surface/60 text-eu-muted text-[length:var(--fs-14)] text-center px-4">Καμία παραγγελία τις τελευταίες 30 ημέρες.</p>}
           </div>
         </section>
-      ) : undefined} initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, Number(step) || 3))}
+      ) : undefined} initial={d} names={names} status={p.status as PromoStatus} code={p.code} canApprove={hasPermission(user, "catalog.promos.approve")} startStep={Math.min(4, Math.max(0, step == null ? 2 : Number(step) || 0))}
         services={(await getServiceList()).map((s) => ({ slug: s.slug, title: s.title, price: s.priceFrom ?? 0 }))}
         stores={(await db.store.findMany({ orderBy: [{ city: "asc" }, { name: "asc" }], select: { id: true, name: true, city: true } }))}
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />

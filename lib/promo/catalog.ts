@@ -41,7 +41,8 @@ export interface PromoTemplate {
 export const TEMPLATES: PromoTemplate[] = [
   { key: "percent", mechanism: "price-percent", group: "price", title: "Έκπτωση %", blurb: "Ποσοστό σε προϊόντα, μάρκα ή κατηγορία.", example: "−20 % σε όλα τα Philips Airfryer", reward: { percent: 15 }, stacking: "no-price" },
   { key: "amount", mechanism: "price-amount", group: "price", title: "Έκπτωση σε €", blurb: "Σταθερό ποσό ανά τεμάχιο.", example: "−50 € σε τηλεοράσεις 55\"", reward: { amount: 5000 }, stacking: "no-price" },
-  { key: "special", mechanism: "special-price", group: "price", title: "Ειδική τιμή ανά κωδικό", blurb: "Τελική τιμή για κάθε προϊόν — και από Excel.", example: "LG OLED55C4 στα 1.199 €", reward: { price: {} }, stacking: "no-price" },
+  { key: "special", mechanism: "special-price", group: "price", title: "Τιμές από Excel", blurb: "Τελική τιμή για κάθε προϊόν — και από Excel.", example: "LG OLED55C4 στα 1.199 €", reward: { price: {} }, stacking: "no-price" },
+  { key: "erp", mechanism: "erp-price", group: "price", title: "Διαγραμμένες τιμές SoftOne", blurb: "Οι τιμές είναι ήδη στο SoftOne: αρχική (διαγραμμένη) και τιμή web.", example: "από 899 € στα 829 €, όπως τα έχει το SoftOne", reward: {}, stacking: "no-price" },
   { key: "nplusm", mechanism: "n-plus-m", group: "qty", title: "1+1 / 2+1", blurb: "Το φθηνότερο της ομάδας δωρεάν.", example: "2+1 σε όλα τα μικροέπιπλα κουζίνας", reward: { buy: 2, get: 1 }, stacking: "no-price" },
   { key: "nth", mechanism: "nth-discount", group: "qty", title: "2ο −Χ %", blurb: "Έκπτωση στο δεύτερο (ή τρίτο) τεμάχιο.", example: "2ο τεμάχιο −50 %", reward: { nth: 2, percent: 50 }, stacking: "no-price" },
   { key: "tiers", mechanism: "qty-tiers", group: "qty", title: "Κλιμακωτή ποσότητα", blurb: "Περισσότερα τεμάχια, μεγαλύτερη έκπτωση.", example: "−5 % από 2, −10 % από 4 τεμάχια", reward: { tiers: [{ minQty: 2, percent: 5 }, { minQty: 4, percent: 10 }] }, stacking: "no-price" },
@@ -76,7 +77,8 @@ export function describePromo(p: { mechanism: string; reward: PromoReward; rules
     switch (p.mechanism) {
       case "price-percent": return `−${r.percent ?? 0} %`;
       case "price-amount": return `−${eur(r.amount)} ανά τεμάχιο`;
-      case "special-price": return `ειδική τιμή σε ${Object.keys(r.price ?? {}).length} κωδικούς`;
+      case "special-price": { const k = Object.keys(r.price ?? {}).length; return `τιμή προσφοράς σε ${k} ${k === 1 ? "προϊόν" : "προϊόντα"}`; }
+      case "erp-price": return "διαγραμμένες τιμές SoftOne";
       case "n-plus-m": return `${r.buy ?? 1}+${r.get ?? 1}: το φθηνότερο δωρεάν`;
       case "nth-discount": return `${r.nth ?? 2}ο τεμάχιο −${r.percent ?? 0} %`;
       case "qty-tiers": return (r.tiers ?? []).map((t) => `−${t.percent} % από ${t.minQty} τεμ.`).join(", ");
@@ -93,6 +95,8 @@ export function describePromo(p: { mechanism: string; reward: PromoReward; rules
     }
   })();
   const cond = [
+    p.mechanism === "special-price" && r.erp === "follow" ? "ακολουθεί το ERP" : (p.mechanism === "price-percent" || p.mechanism === "price-amount") && r.erp === "lock" ? "κλειδωμένη τιμή" : "",
+    rules.cartOpensAt ? `αγορές από ${new Date(rules.cartOpensAt).toLocaleDateString("el-GR", { day: "numeric", month: "short", timeZone: "Europe/Athens" })}` : "",
     rules.minValue ? `από ${eur(rules.minValue)}` : "",
     rules.minQty ? `από ${rules.minQty} τεμ.` : "",
     rules.customers === "new" ? "μόνο πρώτη αγορά" : rules.customers === "registered" ? "μόνο μέλη" : "",

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup · Νέα προσφορά</title>
+<style>
+:root{--navy:#122a58;--blue:#1d428a;--chip:#eef2f9;--yellow:#f1c400;--red:#de3220;--green:#1e7b3c;--amber:#a15c00;--amber-bg:#fdf3dc;--ink:#1a1a1a;--ink2:#444;--mut:#6b6b6b;--surface:#f7f7f7;--line:#e2e2e2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--ink);font:400 1rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:60rem;margin:0 auto;padding:1rem}
+h1{font-size:1.5rem;margin:0;font-weight:700}
+h2{font-size:1.125rem;margin:0;font-weight:700}
+p{margin:0}
+.mut{color:var(--mut);font-size:.875rem}
+.top{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.tag{font-size:.8125rem;background:var(--yellow);color:var(--navy);font-weight:700;border-radius:99px;padding:.125rem .625rem}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:.375rem;margin-bottom:1rem;padding:0;list-style:none}
+.steps button{width:100%;min-height:3rem;border:2px solid var(--line);background:#fff;border-radius:.75rem;font:inherit;font-weight:700;font-size:.875rem;color:var(--ink2);cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:0 .5rem;text-align:left}
+.steps button[aria-current=step]{background:var(--navy);border-color:var(--navy);color:#fff}
+.steps .n{width:1.5rem;height:1.5rem;border-radius:50%;display:grid;place-items:center;font-size:.75rem;background:var(--surface);color:var(--ink2);flex:none}
+.steps button[aria-current=step] .n{background:#fff;color:var(--navy)}
+.steps .done .n{background:var(--green);color:#fff}
+.steps .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grid{display:grid;gap:1rem;grid-template-columns:minmax(0,1fr)}
+@media(min-width:56rem){.grid{grid-template-columns:minmax(0,1fr) 17rem}}
+.card{background:#fff;border:1px solid var(--line);border-radius:1rem;padding:1.25rem;display:grid;gap:1rem;align-content:start}
+.q{font-size:1.25rem;font-weight:700;line-height:1.3}
+input[type=text],input[type=date],input[type=number]{font:inherit;min-height:2.75rem;border:2px solid var(--line);border-radius:.75rem;padding:0 .75rem;width:100%;background:#fff}
+input:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.kinds{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))}
+.kind{border:2px solid var(--line);background:#fff;border-radius:1rem;padding:1rem;text-align:left;font:inherit;cursor:pointer;display:grid;gap:.5rem;align-content:start}
+.kind:hover{border-color:var(--blue)}
+.kind[aria-pressed=true]{border-color:var(--navy);background:var(--chip)}
+.kind .ic{width:2.5rem;height:2.5rem;border-radius:50%;background:var(--surface);color:var(--navy);display:grid;place-items:center}
+.kind[aria-pressed=true] .ic{background:var(--navy);color:#fff}
+.kind b{font-size:1.0625rem}
+.kind ul{margin:0;padding-left:1.1rem;color:var(--ink2);font-size:.875rem}
+.demo{border:1px dashed var(--line);border-radius:.75rem;padding:.5rem .75rem;font-size:.875rem;background:#fff;display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap}
+.demo s{color:var(--mut)} .demo b{font-size:1.125rem} .off{background:var(--red);color:#fff;border-radius:99px;padding:0 .5rem;font-weight:700;font-size:.8125rem}
+.note{border-radius:.75rem;padding:.75rem;display:flex;gap:.625rem;font-size:.9375rem}
+.note.info{background:var(--chip);color:var(--navy)} .note.warn{background:var(--amber-bg);color:var(--amber)} .note.ok{background:#e8f4ec;color:var(--green)}
+.btn{font:inherit;font-weight:700;min-height:2.75rem;border-radius:99px;padding:0 1.125rem;cursor:pointer;border:2px solid var(--line);background:#fff;color:var(--ink2);display:inline-flex;align-items:center;gap:.5rem}
+.btn:hover{border-color:var(--navy)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.go{background:var(--yellow);border-color:var(--yellow);color:var(--navy)}
+.tools{display:flex;flex-wrap:wrap;gap:.5rem}
+.tbl{border:1px solid var(--line);border-radius:.75rem;overflow:hidden}
+.r{display:grid;grid-template-columns:minmax(0,1fr) 5.5rem 7rem 4rem;gap:.5rem;align-items:center;padding:.5rem .75rem;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.r.head{border-top:0;background:var(--surface);color:var(--mut);font-size:.8125rem;font-weight:700}
+.r .num{text-align:right}
+.r s{color:var(--mut)}
+.r input{min-height:2.5rem;text-align:right;font-weight:700}
+@media(max-width:36rem){.r{grid-template-columns:1fr 1fr 1fr}.r>:first-child{grid-column:1/-1}.r.head{display:none}.steps .lbl{display:none}.steps button{justify-content:center}}
+.nav{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+.sum{position:sticky;top:1rem}
+.sum dl{margin:0;display:grid;gap:.5rem;font-size:.9375rem}
+.sum dt{color:var(--mut);font-size:.8125rem} .sum dd{margin:0;font-weight:700}
+.look{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))}
+.look>div{border:1px solid var(--line);border-radius:.75rem;padding:.875rem;display:grid;gap:.5rem;align-content:start}
+.banner{aspect-ratio:3/1;border-radius:.5rem;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700}
+.zone{display:grid;grid-template-columns:repeat(3,1fr);gap:.25rem}.zone i{aspect-ratio:1;background:var(--surface);border-radius:.25rem;border:1px solid var(--line)}
+svg{width:1.25rem;height:1.25rem;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><p class="mut">Προσφορές › Νέα προσφορά</p><h1 id="title">Νέα προσφορά</h1></div>
+    <span class="tag">Mockup για έγκριση · δεν αποθηκεύει τίποτα</span>
+  </div>
+
+  <ol class="steps" id="steps"></ol>
+
+  <div class="grid">
+    <main class="card" id="main"></main>
+    <aside class="card sum" aria-label="Σύνοψη">
+      <h2>Η προσφορά σου</h2>
+      <dl id="sum"></dl>
+    </aside>
+  </div>
+</div>
+
+<script>
+const I={pct:'<svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+xls:'<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M12 11v8"/></svg>',
+erp:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>',
+info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+warn:'<svg viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3M12 9v4M12 17h.01"/></svg>',
+ok:'<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+up:'<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>',
+plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>'};
+const KINDS={
+ pct:{t:"Ποσοστό έκπτωσης",one:"Γράφεις ένα ποσοστό. Το eshop βγάζει μόνο του την τιμή κάθε προϊόντος.",
+  when:["Όλα τα προϊόντα παίρνουν την ίδια έκπτωση","Θέλεις ολόκληρη κατηγορία ή μάρκα"],
+  erp:"Αν αλλάξει η τιμή ενός προϊόντος στο SoftOne, η τιμή προσφοράς αλλάζει μαζί της."},
+ xls:{t:"Τιμές από Excel",one:"Ανεβάζεις αρχείο με κωδικό και τιμή προσφοράς για κάθε προϊόν.",
+  when:["Έχεις λίστα με έτοιμες τιμές (προμηθευτής, φυλλάδιο)","Κάθε προϊόν έχει διαφορετική έκπτωση"],
+  erp:"Η τιμή προσφοράς μένει αυτή του αρχείου, ό,τι κι αν αλλάξει στο SoftOne."},
+ erp:{t:"Διαγραμμένες τιμές SoftOne",one:"Οι τιμές είναι ήδη στο SoftOne. Εδώ μόνο μαζεύεις τα προϊόντα σε ένα καλάθι.",
+  when:["Έχετε βάλει «Αρχική Τιμή Web» και «Τιμή Web» στο SoftOne","Θέλεις να τα δείξεις μαζί, με banner και ζώνη"],
+  erp:"Οι τιμές αλλάζουν μόνο από το SoftOne. Το eshop τις παίρνει μέσα σε 10 λεπτά."}};
+const P=[["LG GBB566PZHMN","ψυγειοκαταψύκτης · GBB566PZHMN.APZQEUT",899,829],["LG GSXV90MCDE","ψυγείο ντουλάπα · GSXV90MCDE.AMCQEUR",2939,2399],["LG GTBV36PZGKD","δίπορτο · GTBV36PZGKD.APZQEUR",889,699],["LG GBV3100DEP","ψυγειοκαταψύκτης · GBV3100DEP.ADSQEUR",549,null]];
+const S={step:0,name:"Black Friday · ψυγεία LG",kind:null,pct:15,xls:[819,2299,699,499],from:"2026-11-21",to:"2026-11-30",banner:false,zone:false,live:false};
+const STEPS=["Όνομα","Είδος","Καλάθι","Πότε","Εμφάνιση"];
+const eur=n=>Math.round(n).toLocaleString("el-GR")+" €";
+const row=(p,i)=>{let was,now;
+ if(S.kind==="pct"){was=p[3]||p[2];now=was*(100-S.pct)/100}
+ else if(S.kind==="xls"){was=p[3]||p[2];now=S.xls[i]}
+ else{was=p[3]?p[2]:null;now=p[3]||p[2]}
+ return{was,now,d:was?Math.round((was-now)/was*100):null}};
+const date=s=>new Date(s).toLocaleDateString("el-GR",{day:"numeric",month:"long"});
+
+function steps(){
+ document.getElementById("steps").innerHTML=STEPS.map((s,i)=>`<li class="${i<S.step?"done":""}"><button ${i===S.step?'aria-current="step"':""} onclick="go(${i})"><span class="n">${i<S.step?"✓":i+1}</span><span class="lbl">${s}</span></button></li>`).join("");
+}
+function sum(){
+ const rows=S.kind?P.map(row):[],ds=rows.filter(r=>r.d!=null).map(r=>r.d);
+ document.getElementById("title").textContent=S.name||"Νέα προσφορά";
+ document.getElementById("sum").innerHTML=[
+  ["Όνομα",S.name||"—"],
+  ["Είδος",S.kind?KINDS[S.kind].t:"Δεν διάλεξες ακόμη"],
+  ["Καλάθι",S.kind?`${P.length} προϊόντα${ds.length?` · έκπτωση ${Math.min(...ds)}–${Math.max(...ds)} %`:""}`:"—"],
+  ["Πότε",`${date(S.from)} – ${date(S.to)}`],
+  ["Στο site",`Κάρτες προϊόντων${S.banner?" · banner":""}${S.zone?" · ζώνη αρχικής":""}`],
+  ["Κατάσταση",S.live?"Προγραμματισμένη":"Πρόχειρη · δεν τη βλέπει πελάτης"]
+ ].map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+}
+function nav(next,label){return `<div class="nav"><button class="btn" onclick="go(${S.step-1})" ${S.step?"":"hidden"}>Πίσω</button><span></span><button class="btn pri" onclick="${next}">${label}</button></div>`}
+function view(){
+ const m=document.getElementById("main"),k=S.kind&&KINDS[S.kind];
+ if(S.step===0) m.innerHTML=`<p class="q">Πώς θα τη λέμε;</p>
+  <div><input type="text" id="nm" value="${S.name}" aria-label="Όνομα προσφοράς" oninput="S.name=this.value;sum()">
+  <p class="mut" style="margin-top:.375rem">Ένα όνομα που θα θυμάσαι. Το βλέπεις μόνο εσύ και οι συνάδελφοι, όχι οι πελάτες.</p></div>${nav("go(1)","Συνέχεια")}`;
+ if(S.step===1) m.innerHTML=`<p class="q">Τι είδους προσφορά είναι;</p>
+  <div class="kinds">${Object.entries(KINDS).map(([key,x])=>`<button class="kind" aria-pressed="${S.kind===key}" onclick="S.kind='${key}';render()">
+   <span class="ic">${I[key]}</span><b>${x.t}</b><span>${x.one}</span>
+   <span class="mut">Το διαλέγεις όταν:</span><ul>${x.when.map(w=>`<li>${w}</li>`).join("")}</ul>
+   <span class="demo">Ο πελάτης βλέπει: <s>899 €</s> <b>${key==="pct"?"764 €":key==="xls"?"819 €":"829 €"}</b> <span class="off">−${key==="pct"?15:key==="xls"?9:8} %</span></span></button>`).join("")}</div>
+  ${k?`<div class="note info">${I.info}<span><b>${k.t}.</b> ${k.erp}</span></div>`:`<div class="note warn">${I.warn}<span>Διάλεξε ένα από τα τρία για να συνεχίσεις.</span></div>`}
+  ${nav(S.kind?"go(2)":"","Συνέχεια")}`;
+ if(S.step===2){const rows=P.map(row),bad=rows.filter(r=>r.d==null).length;
+  const tools={pct:`<button class="btn">${I.plus}Προσθήκη προϊόντων</button><button class="btn">Ολόκληρη κατηγορία ή μάρκα</button><button class="btn">${I.up}Λίστα κωδικών από Excel</button>`,
+   xls:`<button class="btn pri">${I.up}Ανέβασμα Excel</button><button class="btn">Πρότυπο αρχείου</button><button class="btn">${I.plus}Προσθήκη με το χέρι</button>`,
+   erp:`<button class="btn pri">${I.erp}Όλα όσα έχουν αρχική τιμή (126)</button><button class="btn">${I.plus}Προσθήκη προϊόντων</button><button class="btn">${I.up}Λίστα κωδικών από Excel</button>`}[S.kind];
+  m.innerHTML=`<p class="q">Ποια προϊόντα μπαίνουν στο καλάθι «${S.name}»;</p>
+  <div class="note info">${I[S.kind]}<span><b>${k.t}.</b> ${k.erp} <a href="#" onclick="go(1);return false">Αλλαγή είδους</a></span></div>
+  ${S.kind==="pct"?`<label style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><b>Έκπτωση</b><input type="number" min="1" max="90" step="1" value="${S.pct}" style="width:6rem" oninput="S.pct=Math.min(90,Math.max(1,+this.value||1));rows();sum()"><span>% σε όλα τα προϊόντα του καλαθιού</span></label>`:""}
+  <div class="tools">${tools}</div>
+  <div class="tbl"><div class="r head"><span>Προϊόν</span><span class="num">Τιμή πριν</span><span class="num">Τιμή προσφοράς</span><span class="num">Έκπτωση</span></div><div id="rows"></div></div>
+  ${S.kind==="erp"&&bad?`<div class="note warn">${I.warn}<span>${bad} προϊόν δεν έχει «Αρχική Τιμή Web» στο SoftOne. Θα είναι στο καλάθι χωρίς διαγραμμένη τιμή, μέχρι να τη συμπληρώσει το λογιστήριο.</span></div>`:""}
+  ${nav("go(3)","Συνέχεια")}`;rows()}
+ if(S.step===3) m.innerHTML=`<p class="q">Πότε τρέχει;</p>
+  <div style="display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))">
+   <label><b>Από</b><input type="date" value="${S.from}" oninput="S.from=this.value;sum()"></label>
+   <label><b>Έως</b><input type="date" value="${S.to}" oninput="S.to=this.value;sum()"></label></div>
+  <p class="mut">Ξεκινά 00:00 και λήγει 23:59. Στη λήξη τα προϊόντα γυρίζουν μόνα τους στην κανονική τιμή.</p>${nav("go(4)","Συνέχεια")}`;
+ if(S.step===4) m.innerHTML=`<p class="q">Πώς θα φανεί στο site;</p>
+  <p class="mut">Το εικαστικό και η ζώνη δεν είναι υποχρεωτικά. Μπορείς να δημοσιεύσεις τώρα και να τα βάλεις αργότερα.</p>
+  <div class="look">
+   <div><b>Κάρτες προϊόντων</b><span class="demo"><s>899 €</s> <b>829 €</b> <span class="off">−8 %</span></span><span class="note ok" style="padding:.5rem">${I.ok}<span>Αυτόματα, δεν κάνεις τίποτα</span></span></div>
+   <div><b>Εικαστικό (banner)</b>${S.banner?`<div class="banner">${S.name}</div><span class="note ok" style="padding:.5rem">${I.ok}<span>Έτοιμο</span></span>`:`<span class="mut">Η εικόνα της προσφοράς στην αρχική και στις κατηγορίες.</span><button class="btn" onclick="S.banner=true;render()">${I.plus}Φτιάξε εικαστικό</button>`}</div>
+   <div><b>Ζώνη στην αρχική</b>${S.zone?`<div class="zone"><i></i><i></i><i></i></div><span class="note ok" style="padding:.5rem">${I.ok}<span>Ζώνη «Προσφορές της εβδομάδας»</span></span>`:`<span class="mut">Μια σειρά με τα προϊόντα του καλαθιού στην αρχική σελίδα.</span><button class="btn" onclick="S.zone=true;render()">${I.plus}Διάλεξε ζώνη</button>`}</div>
+  </div>
+  ${S.live?`<div class="note ok">${I.ok}<span><b>Η προσφορά προγραμματίστηκε.</b> Ξεκινά ${date(S.from)}. Τη βρίσκεις στη λίστα με το όνομα «${S.name}».</span></div>`:""}
+  <div class="nav"><button class="btn" onclick="go(3)">Πίσω</button><span></span><span class="tools"><button class="btn">Αποθήκευση πρόχειρης</button><button class="btn go" onclick="S.live=true;render()">Δημοσίευση</button></span></div>`;
+}
+function rows(){const el=document.getElementById("rows");if(!el)return;
+ el.innerHTML=P.map((p,i)=>{const r=row(p,i);return `<div class="r"><div><b>${p[0]}</b><div class="mut">${p[1]}</div></div>
+  <span class="num">${r.was?`<s>${eur(r.was)}</s>`:`<span style="color:var(--amber);font-weight:700">λείπει</span>`}</span>
+  <span class="num">${S.kind==="xls"?`<input type="number" step="1" value="${r.now}" aria-label="Τιμή προσφοράς ${p[0]}" onchange="S.xls[${i}]=Math.max(1,+this.value||1);rows();sum()">`:`<b>${eur(r.now)}</b>`}</span>
+  <span class="num" style="font-weight:700;color:${r.d==null?"var(--amber)":"var(--red)"}">${r.d==null?"—":"−"+r.d+" %"}</span></div>`}).join("")}
+function go(i){if(i<0||i>4)return;if(i>1&&!S.kind)i=1;S.step=i;render()}
+function render(){steps();view();sum()}
+render();
+</script>
+</body>
+</html>

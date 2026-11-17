@@ -5,7 +5,7 @@ import { StickerPicker } from "@/components/admin/stickers/StickerPicker";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkles, ChevronLeft, ChevronRight, Ban, ChevronDown, CircleAlert, PanelsTopLeft, LayoutTemplate, Megaphone, ExternalLink, ListChecks } from "lucide-react";
+import { Lock, Search, X, Plus, Check, AlertTriangle, ShieldCheck, Store, Sparkles, ChevronLeft, ChevronRight, Ban, ChevronDown, CircleAlert, PanelsTopLeft, LayoutTemplate, Megaphone, ExternalLink, ListChecks, Percent, FileSpreadsheet, DatabaseZap } from "lucide-react";
 import type { PromoDraft, DraftAnalysis } from "@/lib/promo/admin";
 import type { PromoTarget } from "@/lib/promo/engine";
 import { TEMPLATES, STACKING_LABEL, STATUS_LABEL, PAYMENT_OPTIONS, autoLabel, describePromo, type PromoStatus } from "@/lib/promo/catalog";
@@ -13,13 +13,24 @@ import { Hint } from "./Help";
 import { STEP_HELP, FIELD_HELP } from "@/lib/promo/help";
 import { ProductBrowser, type BrowseProduct } from "./ProductBrowser";
 import { CodesUpload, SelectedPrices } from "./TargetTools";
+import { SpecialPrices } from "./SpecialPrices";
+import { ErpBasket } from "./ErpBasket";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
 
 type Svc = { slug: string; title: string; price: number };
-const STEPS = ["Πρότυπο", "Προϊόντα", "Κανόνες", "Εμφάνιση", "Έλεγχος"] as const;
+const STEPS = ["Όνομα", "Είδος", "Καλάθι", "Πότε", "Εμφάνιση"] as const;
 const GROUPS: { key: string; label: string }[] = [
   { key: "price", label: "Έκπτωση τιμής" }, { key: "qty", label: "Πολλά τεμάχια" }, { key: "extra", label: "Παροχές" }, { key: "coupon", label: "Κουπόνια" }, { key: "payment", label: "Τρόπος πληρωμής" }, { key: "held", label: "Ανενεργά μέχρι διευκρίνιση" },
 ];
+/**
+ * Τα τρία είδη προσφοράς που καλύπτουν σχεδόν κάθε περίπτωση — μπροστά, με το πότε διαλέγεις το καθένα, τι βλέπει ο
+ * πελάτης και τι γίνεται όταν αλλάξει η τιμή στο SoftOne. Τα υπόλοιπα είναι στο «Άλλος τύπος».
+ */
+const MAIN_TYPES = [
+  { key: "percent", Icon: Percent, title: "Ποσοστό έκπτωσης", desc: "Γράφεις ένα ποσοστό. Το eshop βγάζει μόνο του την τιμή κάθε προϊόντος.", when: ["Όλα τα προϊόντα παίρνουν την ίδια έκπτωση", "Θέλεις ολόκληρη κατηγορία ή μάρκα"], demo: ["764", 15], erp: "Αν αλλάξει η τιμή ενός προϊόντος στο SoftOne, η τιμή προσφοράς αλλάζει μαζί της (αλλάζει στο βήμα «Καλάθι»)." },
+  { key: "special", Icon: FileSpreadsheet, title: "Τιμές από Excel", desc: "Ανεβάζεις αρχείο με κωδικό και τιμή προσφοράς για κάθε προϊόν. Ή τις γράφεις με το χέρι.", when: ["Έχεις λίστα με έτοιμες τιμές (προμηθευτής, φυλλάδιο)", "Κάθε προϊόν έχει διαφορετική έκπτωση"], demo: ["819", 9], erp: "Η τιμή προσφοράς μένει αυτή του αρχείου, ό,τι κι αν αλλάξει στο SoftOne (αλλάζει στο βήμα «Καλάθι»)." },
+  { key: "erp", Icon: DatabaseZap, title: "Διαγραμμένες τιμές SoftOne", desc: "Οι τιμές είναι ήδη στο SoftOne. Εδώ μόνο μαζεύεις τα προϊόντα σε ένα καλάθι.", when: ["Έχετε βάλει «Αρχική Τιμή Web» και «Τιμή Web» στο SoftOne", "Θέλεις να τα δείξεις μαζί, με banner και ζώνη"], demo: ["829", 8], erp: "Οι τιμές αλλάζουν μόνο από το SoftOne. Το eshop τις παίρνει μέσα σε 10 λεπτά." },
+] as const;
 const toEur = (c?: number | null) => (c == null ? "" : String(c / 100));
 const toCents = (s: string) => { const v = Number(s.replace(",", ".")); return Number.isFinite(v) && s.trim() !== "" ? Math.round(v * 100) : undefined; };
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -55,11 +66,11 @@ function stepIssues(d: PromoDraft): Issues[] {
   if (!d.endsAt) rr.warns.push("Χωρίς λήξη η προσφορά τρέχει για πάντα");
   if (d.startsAt && d.endsAt && d.endsAt <= d.startsAt) rr.errors.push("Η λήξη είναι πριν από την έναρξη");
   if (!d.termsText?.trim()) look.warns.push("Χωρίς όρους για τον πελάτη");
-  return [{ errors: [], warns: [] }, t, rr, look, { errors: [], warns: [] }];
+  return [{ errors: [], warns: d.name.trim() ? [] : ["Δώσε ένα όνομα για να τη βρίσκεις"] }, { errors: [], warns: [] }, t, rr, look];
 }
 
 /**
- * Ο οδηγός: πρότυπο → προϊόντα → κανόνες → εμφάνιση → έλεγχος. Δίπλα (σε κινητό επάνω, αναδιπλούμενη) η σύνοψη: η
+ * Ο οδηγός: όνομα → είδος → καλάθι → πότε → εμφάνιση (με τον έλεγχο πριν τη δημοσίευση). Δίπλα (σε κινητό επάνω, αναδιπλούμενη) η σύνοψη: η
  * προσφορά σε μία πρόταση, πώς φαίνεται στην κάρτα, τα βασικά στοιχεία, η λίστα ελέγχου ανά βήμα και πού θα εμφανίζεται.
  * Ό,τι συμπληρώνεται εδώ τρέχει στην ίδια μηχανή με το καλάθι.
  */
@@ -67,6 +78,8 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   const router = useRouter();
   const [d, setD] = useState<PromoDraft>(initial);
   const [step, setStep] = useState(startStep);
+  // νέα προσφορά: κανένα είδος προεπιλεγμένο — ο χρήστης το διαλέγει ρητά πριν προχωρήσει
+  const [picked, setPicked] = useState(!!initial.id || startStep > 1);
   const [names, setNames] = useState(initialNames);
   const [analysis, setAnalysis] = useState<DraftAnalysis | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
@@ -76,9 +89,9 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   const setRules = (patch: Partial<PromoDraft["rules"]>) => setD((x) => ({ ...x, rules: { ...x.rules, ...patch } }));
   const isCoupon = d.mechanism.startsWith("coupon");
   const svcTitle = services.find((s) => s.slug === d.reward.serviceSlug)?.title;
-  const summary = describePromo(d, { gift: names[d.reward.giftProductId ?? ""], service: svcTitle?.toLocaleLowerCase("el-GR") });
+  const summary = picked ? describePromo(d, { gift: names[d.reward.giftProductId ?? ""], service: svcTitle?.toLocaleLowerCase("el-GR") }) : "δεν διάλεξες ακόμη είδος";
   const base = useMemo(() => stepIssues(d), [d]);
-  const issues = analysis ? [...base.slice(0, 4), { errors: analysis.errors, warns: analysis.approval.needed ? ["Χρειάζεται έγκριση"] : [] }] : base;
+  const issues = analysis ? [...base.slice(0, 4), { errors: [...base[4].errors, ...analysis.errors], warns: [...base[4].warns, ...(analysis.approval.needed ? ["Χρειάζεται έγκριση"] : [])] }] : base;
 
   useEffect(() => {
     if (step !== 4) return;
@@ -90,8 +103,18 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   const pickTemplate = (key: string) => {
     const t = TEMPLATES.find((x) => x.key === key)!;
     if (t.held) return;
-    setD((x) => ({ ...x, template: t.key, mechanism: t.mechanism, stacking: x.id ? x.stacking : t.stacking, reward: structuredClone(t.reward), rules: { ...structuredClone(t.rules ?? {}), ...pickKeep(x.rules) } }));
-    setStep(1);
+    setD((x) => {
+      // αλλαγή τύπου δεν χάνει τα προϊόντα: στην «τιμή πριν → τιμή προσφοράς» γίνονται γραμμές χωρίς τιμή, και αντίστροφα στόχοι
+      const priceIds = Object.keys(x.reward.price ?? {}), productIds = x.targets.filter((y) => y.kind === "product" && !y.exclude).map((y) => y.refId);
+      const reward = structuredClone(t.reward);
+      if (t.mechanism === "special-price") reward.price = { ...Object.fromEntries(productIds.map((id) => [id, 0])), ...(x.reward.price ?? {}) };
+      const moved = x.mechanism === "special-price" && t.mechanism !== "special-price" && !x.targets.length ? priceIds.map((refId) => ({ kind: "product" as const, refId, exclude: false })) : x.targets;
+      // το καλάθι των διαγραμμένων τιμών SoftOne έχει μόνο προϊόντα (όχι κατηγορίες / μάρκες / εξαιρέσεις)
+      const targets = t.mechanism === "erp-price" ? moved.filter((y) => y.kind === "product" && !y.exclude) : moved;
+      return { ...x, template: t.key, mechanism: t.mechanism, stacking: x.id ? x.stacking : t.stacking, reward, targets, rules: { ...structuredClone(t.rules ?? {}), ...pickKeep(x.rules) } };
+    });
+    setPicked(true);
+    setStep(2);
   };
 
   // χωρίς όνομα αποθηκεύεται με την περιγραφή της (αλλάζει στο βήμα «Εμφάνιση»)
@@ -110,7 +133,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
   // προσφορά σε καμπάνια που δεν έχει δημοσιευτεί: αποθηκεύεται πρόχειρη και δημοσιεύεται μαζί με την καμπάνια
   const camp = campaigns.find((c) => c.id === d.campaignId);
   const waitsCampaign = !!camp && !camp.published && (!status || status === "draft");
-  const go = (i: number) => { setStep(i); document.getElementById("wz-top")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+  const go = (to: number) => { const i = to > 1 && !picked ? 1 : to; if (i !== to) setMsg({ tone: "err", text: "Διάλεξε πρώτα τι είδους προσφορά είναι." }); else setMsg(null); setStep(i); document.getElementById("wz-top")?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
 
   const aside = <WizardSummary d={d} summary={summary} svcTitle={svcTitle} issues={issues} step={step} go={go} appears={appears} status={status} code={code} />;
 
@@ -128,7 +151,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
       <ol id="wz-top" data-help="promo.steps" className="m-0 p-0 list-none grid grid-cols-5 gap-1.5 scroll-mt-4" aria-label="Βήματα">
         {STEPS.map((s, i) => {
-          const is = issues[i], cur = i === step, err = is.errors.length > 0 && (i < step || i === 4), warn = !err && is.warns.length > 0 && i <= step;
+          const is = issues[i], cur = i === step, err = is.errors.length > 0 && (i < step || i === 4), warn = !err && is.warns.length > 0 && (i < step || (i === step && i > 0));
           return (
             <li key={s}>
               <button type="button" onClick={() => go(i)} aria-current={cur ? "step" : undefined} title={[...is.errors, ...is.warns].join(" · ") || undefined}
@@ -160,36 +183,75 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)] leading-snug max-w-[80ch]">{STEP_HELP[step].what}</p>
             </div>
         {step === 0 && (
+          <label data-help="promo.name" className="grid gap-2">
+            <span className="font-heading font-bold text-eu-ink text-[length:var(--fs-20)] leading-snug">Πώς θα τη λέμε;</span>
+            <input autoFocus className={`${input} text-[length:var(--fs-18)] min-h-14`} value={d.name} maxLength={160} onChange={(e) => set({ name: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") go(1); }} placeholder="π.χ. Black Friday · ψυγεία LG" />
+          </label>
+        )}
+
+        {step === 1 && (
           <div className="grid gap-4">
-            {GROUPS.map((g) => (
-              <div key={g.key} className="grid gap-2">
-                <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">{g.label}</h4>
-                <div className="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-3 gap-2">
-                  {TEMPLATES.filter((t) => t.group === g.key).map((t) => (
+            <div data-help="promo.type" className="grid gap-3">
+              <div className="grid grid-cols-1 @3xl:grid-cols-3 gap-3">
+                {MAIN_TYPES.map(({ key, Icon, title, desc, when, demo }) => {
+                  const on = picked && d.template === key;
+                  return (
+                    <button key={key} type="button" onClick={() => pickTemplate(key)} aria-pressed={on} className={`text-left rounded-2xl border-2 p-4 grid gap-2 content-start cursor-pointer ${on ? "border-eu-navy bg-eu-chip" : "border-eu-line bg-white hover:border-eu-blue"}`}>
+                      <span className="flex items-center gap-2"><span className={`size-10 shrink-0 rounded-full grid place-items-center ${on ? "bg-eu-navy text-white" : "bg-eu-surface text-eu-navy"}`}><Icon className="size-5" aria-hidden /></span>{on && <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-eu-navy text-white font-bold px-2.5 py-0.5 text-[length:var(--fs-12)]"><Check className="size-3.5" aria-hidden /> Επιλεγμένο</span>}</span>
+                      <span className="font-extrabold text-eu-ink text-[length:var(--fs-17)] leading-tight">{title}</span>
+                      <span className="text-eu-ink-2 text-[length:var(--fs-14)] leading-snug">{desc}</span>
+                      <span className="grid gap-0.5 text-[length:var(--fs-13)]"><span className="text-eu-muted">Το διαλέγεις όταν:</span>{when.map((w) => <span key={w} className="flex gap-1.5 text-eu-ink-2"><Check className="size-4 shrink-0 mt-0.5 text-eu-green" aria-hidden />{w}</span>)}</span>
+                      <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-xl border border-dashed border-eu-line bg-white px-3 py-2 text-[length:var(--fs-13)]"><span className="text-eu-muted">Ο πελάτης βλέπει:</span><s className="text-eu-muted tabular-nums">899 €</s><b className="text-eu-ink text-[length:var(--fs-16)] tabular-nums">{demo[0]} €</b><span className="rounded-full bg-eu-red text-white font-bold px-2 text-[length:var(--fs-12)]">−{demo[1]} %</span></span>
+                    </button>
+                  );
+                })}
+              </div>
+              {(() => { const m = picked ? MAIN_TYPES.find((t) => t.key === d.template) : null; return m ? <p className="m-0 flex items-start gap-2 rounded-xl bg-eu-chip px-3 py-2.5 text-eu-navy text-[length:var(--fs-14)]"><CircleAlert className="size-4 mt-0.5 shrink-0" aria-hidden /><span><b>{m.title}.</b> {m.erp}</span></p> : null; })()}
+            </div>
+            <details className="rounded-2xl border border-eu-line p-3 @md:p-4" open={picked && !MAIN_TYPES.some((t) => t.key === d.template)}>
+              <summary className="cursor-pointer font-extrabold text-eu-ink text-[length:var(--fs-15)] min-h-11 md:min-h-8 inline-flex items-center">Άλλος τύπος: 1+1, δώρο, κουπόνι, τρόπος πληρωμής…</summary>
+              <div className="grid gap-4 pt-3">
+                {GROUPS.map((g) => (
+                  <div key={g.key} className="grid gap-2">
+                    <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-13)]">{g.label}</h4>
+                    <div className="grid grid-cols-1 @lg:grid-cols-2 @4xl:grid-cols-3 gap-2">
+                      {TEMPLATES.filter((t) => t.group === g.key && !MAIN_TYPES.some((m) => m.key === t.key)).map((t) => (
                     <button key={t.key} type="button" onClick={() => pickTemplate(t.key)} disabled={!!t.held} aria-pressed={d.template === t.key}
-                      className={`text-left rounded-xl border-2 px-3 py-2.5 grid gap-0.5 ${t.held ? "border-dashed border-eu-line bg-eu-surface cursor-not-allowed" : d.template === t.key ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue"}`}>
+                      className={`text-left rounded-xl border-2 px-3 py-2.5 grid gap-0.5 ${t.held ? "border-dashed border-eu-line bg-eu-surface cursor-not-allowed" : d.template === t.key ? "border-eu-navy bg-eu-chip" : "border-eu-line hover:border-eu-blue cursor-pointer"}`}>
                       <span className="font-extrabold text-eu-ink text-[length:var(--fs-15)] inline-flex items-center gap-1.5">{t.held ? <Lock className="size-4 text-eu-muted" aria-hidden /> : d.template === t.key ? <Check className="size-4 text-eu-navy" aria-hidden /> : null}{t.title}</span>
-                      <span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{t.blurb} <span className="text-eu-muted italic">π.χ. {t.example}</span></span>
+                      <span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{t.blurb} <span className="text-eu-muted">π.χ. {t.example}</span></span>
                       {t.held && <span className="text-eu-amber font-bold text-[length:var(--fs-12)]">{t.held}</span>}
                     </button>
-                  ))}
-                </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </details>
           </div>
         )}
 
-        {step === 1 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} />}
+        {step === 2 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} />}
+        {step === 2 && <ErpMode d={d} setReward={setReward} />}
 
-        {step === 2 && (
+        {step === 3 && (
           <div className="grid gap-3">
-            <Group title="Η έκπτωση" desc="Πόσο κερδίζει ο πελάτης.">
-              <RewardFields d={d} setReward={setReward} setRules={setRules} />
-            </Group>
-            <Group title="Πότε ισχύει" desc="Η λήξη είναι πραγματική: σε αυτή μετρά η αντίστροφη μέτρηση στη βιτρίνα.">
+            {d.mechanism !== "erp-price" && d.mechanism !== "special-price" && (
+              <Group title="Η έκπτωση" desc="Πόσο κερδίζει ο πελάτης.">
+                <RewardFields d={d} setReward={setReward} setRules={setRules} />
+              </Group>
+            )}
+            <Group title="Πότε τρέχει" desc="Από πότε έως πότε φαίνεται η προσφορά στο site: τιμές, ετικέτες στις κάρτες και banners. Η λήξη είναι πραγματική: σε αυτή μετρά η αντίστροφη μέτρηση.">
               <div className="grid grid-cols-1 @xl:grid-cols-2 gap-3">
                 <Field l="Έναρξη" hint={FIELD_HELP.startsAt}><input type="datetime-local" className={input} value={localDt(d.startsAt)} onChange={(e) => set({ startsAt: fromLocal(e.target.value) })} /></Field>
                 <Field l="Λήξη" hint={d.endsAt ? FIELD_HELP.endsAt : "Χωρίς λήξη η προσφορά τρέχει για πάντα — βάλε ημερομηνία."}><input type="datetime-local" className={input} value={localDt(d.endsAt)} onChange={(e) => set({ endsAt: fromLocal(e.target.value) })} /></Field>
+              </div>
+              <div data-help="promo.cart-opens" className="grid gap-2 mt-3 rounded-xl bg-eu-surface/70 p-3">
+                <label className="flex items-start gap-3 cursor-pointer min-h-11">
+                  <input type="checkbox" className="size-5 mt-0.5 accent-eu-navy shrink-0" checked={!!d.rules.cartOpensAt} onChange={(e) => setRules({ cartOpensAt: e.target.checked ? d.startsAt ?? new Date().toISOString() : undefined })} />
+                  <span className="grid"><span className="font-bold text-eu-ink text-[length:var(--fs-15)]">Οι αγορές ξεκινούν αργότερα</span><span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">Η προσφορά φαίνεται από την έναρξη, αλλά ο πελάτης μπορεί να αγοράσει από την ημέρα και ώρα που θα ορίσεις. Ως τότε βλέπει μήνυμα με αντίστροφη μέτρηση.</span></span>
+                </label>
+                {d.rules.cartOpensAt && <Field l="Έναρξη αγορών"><input type="datetime-local" className={`${input} @xl:max-w-xs`} value={localDt(d.rules.cartOpensAt)} onChange={(e) => setRules({ cartOpensAt: fromLocal(e.target.value) ?? undefined })} /></Field>}
               </div>
             </Group>
             {isCoupon && (
@@ -249,7 +311,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="grid gap-4">
             <Field l="Όνομα (εσωτερικό)" hint={`Φαίνεται στο διαχειριστικό, στις αναφορές και στο παραστατικό. Κενό = «${summary}».`}><input className={input} value={d.name} onChange={(e) => set({ name: e.target.value })} placeholder="π.χ. Black Friday · τηλεοράσεις −20 %" /></Field>
             <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 items-start">
@@ -367,7 +429,7 @@ function WizardSummary({ d, summary, svcTitle, issues, step, go, appears, status
         <span className="font-extrabold text-eu-navy text-[length:var(--fs-12)] uppercase tracking-wide">Πού εμφανίζεται</span>
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">Πάντα: κάρτες & σελίδες των προϊόντων της, καλάθι, /prosfores{appears.length ? ` · και σε ${appears.length} ${appears.length === 1 ? "σημείο" : "σημεία"}:` : "."}</p>
         {appears.length > 0 && <AppearList appears={appears} />}
-        <button type="button" onClick={() => go(3)} className="justify-self-start font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline min-h-9">Πρόσθεσε σε ζώνη, banner ή landing page →</button>
+        <button type="button" onClick={() => go(4)} className="justify-self-start font-bold text-eu-blue text-[length:var(--fs-13)] hover:underline min-h-9">Πρόσθεσε σε ζώνη, banner ή landing page →</button>
       </div>
     </div>
   );
@@ -415,7 +477,7 @@ function WhereItAppears({ id, appears }: { id: string | null; appears: WizardApp
   );
 }
 
-const pickKeep = (r: PromoDraft["rules"]) => ({ customers: r.customers, channels: r.channels, zips: r.zips });
+const pickKeep = (r: PromoDraft["rules"]) => ({ customers: r.customers, channels: r.channels, zips: r.zips, cartOpensAt: r.cartOpensAt });
 
 function termsFor(d: PromoDraft, summary: string) {
   const dt = (s: string | null) => (s ? new Date(s).toLocaleDateString("el-GR", { day: "numeric", month: "long", year: "numeric" }) : null);
@@ -559,6 +621,25 @@ export function OptionCard({ on, onClick, title, desc, tone = "navy" }: { on: bo
   );
 }
 
+/** Τι γίνεται με την τιμή προσφοράς όταν αλλάξει η τιμή του προϊόντος στο ERP — μόνο στους τρεις τύπους έκπτωσης τιμής. */
+function ErpMode({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void }) {
+  const special = d.mechanism === "special-price";
+  if (!special && d.mechanism !== "price-percent" && d.mechanism !== "price-amount") return null;
+  const mode = d.reward.erp ?? (special ? "lock" : "follow");
+  return (
+    <section data-help="promo.erp" className="grid gap-2 border-t border-eu-line pt-4" aria-labelledby="erp-h">
+      <h4 id="erp-h" className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-15)]">Όταν αλλάξει η τιμή ενός προϊόντος στο ERP</h4>
+      <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-2">
+        <OptionCard on={mode === "follow"} onClick={() => setReward({ erp: "follow" })} title="Η τιμή προσφοράς ακολουθεί"
+          desc={special ? "Μένει ίδιο το ποσοστό έκπτωσης. Π.χ. από 1.000 € στα 800 €: αν το ERP πάει 1.100 €, η προσφορά γίνεται 880 €." : "Ξαναϋπολογίζεται από τη νέα τιμή, μέσα σε 10 λεπτά. Π.χ. −20 % σε 1.000 € = 800 €: αν το ERP πάει 900 €, η προσφορά γίνεται 720 €."} />
+        <OptionCard on={mode === "lock"} onClick={() => setReward({ erp: "lock" })} title="Η τιμή προσφοράς μένει κλειδωμένη"
+          desc={special ? "Μένει η τιμή που έγραψες ή ανέβασες από το Excel. Αλλάζει μόνο η «τιμή πριν»." : "Μένει η τιμή προσφοράς της δημοσίευσης (800 € στο παράδειγμα). Αν το ERP πέσει κάτω από αυτήν, ο πελάτης πληρώνει τη χαμηλότερη."} />
+      </div>
+      {!special && mode === "lock" && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Κλειδώνουν οι τιμές όσων προϊόντων πιάνει η προσφορά τη στιγμή της δημοσίευσης, έως 2.000. Προϊόν που μπαίνει αργότερα σε κατηγορία ή μάρκα της προσφοράς ακολουθεί το ERP.</p>}
+    </section>
+  );
+}
+
 function TargetsStep({ d, set, setReward, names, setNames, services }: { d: PromoDraft; set: (p: Partial<PromoDraft>) => void; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: SetNames; services: Svc[] }) {
   const [exclude, setExclude] = useState(false);
   const add = (kind: PromoTarget["kind"], id: string, name: string) => {
@@ -577,10 +658,17 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
   const cartWide = d.mechanism.startsWith("coupon") || d.mechanism.startsWith("payment") || d.mechanism === "shipping";
 
   if (d.mechanism === "bundle") return <BundleItems d={d} setReward={setReward} names={names} setNames={setNames} />;
+  if (d.mechanism === "erp-price") return <ErpBasket d={d} set={set} setNames={setNames} />;
   if (d.mechanism === "special-price") return <SpecialPrices d={d} setReward={setReward} names={names} setNames={setNames} />;
 
   return (
     <div className="grid gap-5">
+      {(d.mechanism === "price-percent" || d.mechanism === "price-amount") && (
+        <div data-help="promo.value" className="rounded-2xl bg-eu-chip p-4 grid gap-1">
+          <RewardFields d={d} setReward={setReward} setRules={() => {}} />
+          <span className="text-eu-ink-3 text-[length:var(--fs-13)]">Ισχύει σε όλα τα προϊόντα από κάτω. Για διαφορετική τιμή ανά προϊόν άλλαξε τον τύπο σε «Τιμή πριν → τιμή προσφοράς» στο βήμα 1· τα προϊόντα μένουν.</span>
+        </div>
+      )}
       <div className="grid gap-2">
         <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">{d.mechanism === "together" ? "Ποιο είναι το βασικό προϊόν (αυτό που αγοράζει ο πελάτης);" : "Τι προσθέτω τώρα;"}</span>
         <div className="grid grid-cols-2 @4xl:grid-cols-3 gap-2">
@@ -671,32 +759,6 @@ function BundleItems({ d, setReward, names, setNames }: { d: PromoDraft; setRewa
           </li>
         ))}</ul>
         <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Την τιμή του πακέτου τη βάζεις στο επόμενο βήμα.</p>
-      </section>
-    </div>
-  );
-}
-
-/** Ειδικές τιμές: διαλέγεις προϊόντα και γράφεις την τελική τιμή. */
-function SpecialPrices({ d, setReward, names, setNames }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: SetNames }) {
-  const prices = d.reward.price ?? {};
-  const [list, setList] = useState<Record<string, number | null>>({});
-  return (
-    <div className="grid gap-4">
-      <p className="m-0 text-eu-ink-2 text-[length:var(--fs-15)]">Διάλεξε προϊόντα και γράψε την τελική τιμή τους (με ΦΠΑ). Για πολλά προϊόντα πιο γρήγορα είναι η <Link href="/admin/prosfores/excel" className="font-bold text-eu-blue hover:underline">εισαγωγή από Excel</Link>.</p>
-      <ProductBrowser mode="products" selected={new Set(Object.keys(prices))} onProduct={(p) => {
-        setNames((n) => ({ ...n, [p.id]: `${p.title} · ${p.sku}` })); setList((l) => ({ ...l, [p.id]: p.price }));
-        if (p.id in prices) { const { [p.id]: _x, ...rest } = prices; void _x; setReward({ price: rest }); } else setReward({ price: { ...prices, [p.id]: 0 } });
-      }} />
-      <section className="rounded-2xl bg-eu-surface p-4 grid gap-2">
-        <h4 className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)]">Ειδικές τιμές ({Object.keys(prices).length})</h4>
-        <ul className="m-0 p-0 list-none grid gap-2">{Object.entries(prices).map(([id, c]) => (
-          <li key={id} className="grid grid-cols-1 @xl:grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-xl bg-white border border-eu-line p-2 pl-3">
-            <span className="min-w-0 text-[length:var(--fs-14)] font-semibold">{names[id] ?? id}{list[id] != null && <span className="block font-normal text-eu-muted text-[length:var(--fs-13)]">τρέχουσα {list[id]!.toLocaleString("el-GR")} €</span>}</span>
-            <label className="inline-flex items-center gap-2 text-[length:var(--fs-14)] font-bold">Νέα τιμή <input aria-label="Ειδική τιμή σε €" inputMode="decimal" defaultValue={c ? toEur(c) : ""} onBlur={(e) => setReward({ price: { ...prices, [id]: toCents(e.target.value) ?? 0 } })} className={`${input} w-32 text-right`} placeholder="€" /></label>
-            <button type="button" aria-label="Αφαίρεση" onClick={() => { const { [id]: _x, ...rest } = prices; void _x; setReward({ price: rest }); }} className="justify-self-end size-11 grid place-items-center rounded-full hover:bg-eu-surface"><X className="size-4" aria-hidden /></button>
-          </li>
-        ))}</ul>
-        {!Object.keys(prices).length && <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Πρόσθεσε προϊόντα από τη λίστα (3).</p>}
       </section>
     </div>
   );

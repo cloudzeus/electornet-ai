@@ -134,6 +134,27 @@ export interface DraftAnalysis {
   errors: string[];
 }
 
+/**
+ * Η βάση τιμών ERP (`reward.base`) όταν η προσφορά τη χρειάζεται: «κλειδωμένη» σε ποσοστό / ποσό, «ακολουθεί» σε ειδική τιμή.
+ * Γράφεται πάντα εδώ, ποτέ από τον browser. Όσο η προσφορά είναι πρόχειρη ξαναπαίρνει τις τρέχουσες τιμές· σε ζωντανή προσφορά
+ * κρατά τη βάση κάθε προϊόντος και παίρνει νέα μόνο για όσα προστέθηκαν ή άλλαξε η ειδική τιμή τους.
+ * shortcut: έως 2.000 προϊόντα (η βάση ζει μέσα στην προσφορά)· για περισσότερα χρειάζεται δικός της πίνακας.
+ */
+async function withErpBase(d: PromoDraft, prev: { status: string; mechanism: string; reward: unknown } | null): Promise<PromoDraft | string> {
+  const { base: _client, ...reward } = d.reward; void _client;
+  const special = d.mechanism === "special-price";
+  const need = special ? reward.erp === "follow" : (d.mechanism === "price-percent" || d.mechanism === "price-amount") && reward.erp === "lock";
+  if (!need) return { ...d, reward };
+  const keys = new Set(Object.keys(reward.price ?? {}));
+  const me = asEngine({ ...d, reward });
+  const mine = (await catalogLines()).filter((l) => (special ? keys.has(l.productId) || keys.has(l.variantId) : d.targets.length > 0 && matches(me, l)));
+  if (mine.length > 2000) return `Η κλειδωμένη τιμή δουλεύει για έως 2.000 προϊόντα — η προσφορά πιάνει ${mine.length.toLocaleString("el-GR")}. Στένεψε τα προϊόντα ή διάλεξε «Ακολουθεί το ERP».`;
+  const old = prev && prev.mechanism === d.mechanism && ["active", "scheduled", "paused"].includes(prev.status) ? (prev.reward as PromoReward) : null;
+  const sp = (r: PromoReward | null, l: EngineLine) => r?.price?.[l.productId] ?? r?.price?.[l.variantId];
+  const base = Object.fromEntries(mine.map((l) => [l.productId, (old?.erp === reward.erp && (!special || sp(old, l) === sp(reward, l)) && old?.base?.[l.productId]) || l.unit]));
+  return { ...d, reward: { ...reward, base } };
+}
+
 export async function analyzeDraft(d0: PromoDraft): Promise<DraftAnalysis> {
   const d = normalizeDraft(d0);
   const [lines, policy] = await Promise.all([catalogLines(), getPromoPolicy()]);
@@ -241,10 +262,13 @@ export async function savePromotion(d: PromoDraft, staff: { id: string; canAppro
   const errors = validateDraft(d, (await getServiceList()).map((x) => x.slug));
   if (intent === "publish" && errors.length) return { ok: false, errors };
   if (!d.name.trim()) return { ok: false, errors: ["Δώσε όνομα στην προσφορά."] };
-  const analysis = intent === "publish" ? await analyzeDraft(d) : null;
   const prev = d.id ? await db.promotion.findUnique({ where: { id: d.id }, include: { targets: true, coupons: true } }) : null;
   if (d.id && !prev) return { ok: false, errors: ["Η προσφορά δεν βρέθηκε."] };
   if (prev && prev.status === "archived") return { ok: false, errors: ["Η προσφορά είναι στο αρχείο — κάνε αντιγραφή για νέα."] };
+  const based = await withErpBase(d, prev);
+  if (typeof based === "string") return { ok: false, errors: [based] };
+  d = based;
+  const analysis = intent === "publish" ? await analyzeDraft(d) : null;
   const data = dataOf(d);
   const wasLive = !!prev && ["active", "scheduled", "paused"].includes(prev.status);
   let status: PromoStatus = (prev?.status as PromoStatus) ?? "draft";
@@ -353,7 +377,7 @@ export async function duplicatePromotion(id: string, staffId: string) {
   return db.promotion.create({
     data: {
       code, name: `${p.name} (αντίγραφο)`.slice(0, 160), mechanism: p.mechanism, status: "draft", held: p.held, heldReason: p.heldReason, priority: p.priority, stacking: p.stacking,
-      startsAt: null, endsAt: null, reward: json(p.reward), rules: json(p.rules), maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur,
+      startsAt: null, endsAt: null, reward: json({ ...(p.reward as PromoReward), base: undefined }), rules: json(p.rules), maxUses: p.maxUses, maxPerCustomer: p.maxPerCustomer, budgetEur: p.budgetEur,
       termsText: p.termsText, tagLabel: p.tagLabel, createdById: staffId, targets: { create: p.targets.map((t) => ({ kind: t.kind, refId: t.refId, exclude: t.exclude })) },
     },
   });

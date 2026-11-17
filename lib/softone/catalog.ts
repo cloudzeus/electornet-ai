@@ -313,14 +313,18 @@ export function syncOffers(trigger: Trigger = "manual") {
 }
 
 /**
- * Μόνο η «Τιμή Web» (`MTREXTRA.NUM04`), για το συχνό πέρασμα των 10 λεπτών: μία ανάγνωση, γράφει μόνο όσες τιμές άλλαξαν.
+ * Η «Τιμή Web» (`MTREXTRA.NUM04`) και η «Αρχική Τιμή Web» (`NUM03`), για το συχνό πέρασμα των 10 λεπτών: μία ανάγνωση, γράφει μόνο ό,τι άλλαξε.
  * shortcut: τιμή που μηδενίστηκε ή σβήστηκε, το απόθεμα και η «Εξαίρεση Web» δεν πιάνονται εδώ· τα φέρνει το `syncOffers` κάθε 30′.
  */
 export function syncPrices(trigger: Trigger = "manual") {
   return logged("cat-prices", trigger, async () => {
-    const rows = await getTable("MTREXTRA", ["MTRL", "NUM04"], "NUM04>0");
+    const rows = await getTable("MTREXTRA", ["MTRL", "NUM04", "NUM03"], "NUM04>0");
     const ids: number[] = [], prices: number[] = [];
-    for (const r of rows) { const m = int(r[0]), p = num(r[1]); if (m != null && p != null && p > 0) { ids.push(m); prices.push(p); } }
+    const initial: Record<string, number> = {};
+    for (const r of rows) { const m = int(r[0]), p = num(r[1]), was = num(r[2]); if (m != null && p != null && p > 0) { ids.push(m); prices.push(p); if (was != null && was > 0) initial[String(m)] = was; } }
+    // «Αρχική Τιμή Web» (NUM03): η διαγραμμένη τιμή των προσφορών «Διαγραμμένες τιμές SoftOne»· αλλαγή της → νέες έτοιμες τιμές
+    const { saveInitialPrices } = await import("@/lib/promo/initial-prices");
+    if (await saveInitialPrices(initial)) await import("@/lib/promo/offers").then((m) => m.recomputeOffers()).catch(() => null);
     const updated = ids.length ? await db.$executeRawUnsafe(
       `UPDATE "S1Item" s SET "eshopPrice" = v.p, "offersAt" = now() FROM unnest($1::int[], $2::float8[]) AS v(m, p)
        WHERE s.mtrl = v.m AND s.missing = false AND s."eshopPrice" IS DISTINCT FROM v.p`, ids, prices) : 0;

@@ -151,3 +151,24 @@ export function budgetUse(spent: number, budget: number | null): { pct: number |
   if (!budget || budget <= 0) return { pct: null, over: false, left: null };
   return { pct: Math.round((spent / budget) * 1000) / 10, over: spent > budget, left: Math.round((budget - spent) * 100) / 100 };
 }
+
+export interface RuleInput { id: string; name: string; mechanism: string; reward: { price?: Record<string, number> } | null; targets: { kind: string; refId: string; exclude: boolean }[] }
+/**
+ * Σε τι ισχύει κάθε κανόνας (προσφορά) μιας καμπάνιας, σε απλά λόγια, και ποιοι κανόνες πιάνουν τα ίδια προϊόντα.
+ * Επικάλυψη = δύο εκπτώσεις τιμής στο ίδιο προϊόν (δώρα, μεταφορικά, κουπόνια συνδυάζονται και δεν μετρούν).
+ * shortcut: η επικάλυψη μετρά μόνο προϊόντα που μπήκαν ένα-ένα ή από Excel — όχι όσα μπαίνουν μέσω κατηγορίας ή μάρκας·
+ * για την πλήρη εικόνα υπάρχει το «Ημερολόγιο & επικαλύψεις».
+ */
+export function ruleScopes(rules: RuleInput[], names: Record<string, string> = {}): Record<string, { scope: string; overlap: string | null }> {
+  const sets = new Map(rules.map((r) => [r.id, new Set([...Object.keys(r.reward?.price ?? {}), ...r.targets.filter((t) => t.kind === "product" && !t.exclude).map((t) => t.refId)])]));
+  const many = (n: number) => `${n.toLocaleString("el-GR")} ${n === 1 ? "προϊόν" : "προϊόντα"}`;
+  return Object.fromEntries(rules.map((r) => {
+    const mine = sets.get(r.id)!;
+    const groups = r.targets.filter((t) => t.kind !== "product" && !t.exclude).map((t) => names[t.refId] ?? (t.kind === "category" ? "κατηγορία" : "μάρκα"));
+    const out = r.targets.filter((t) => t.exclude).length;
+    const scope = [...(mine.size ? [many(mine.size)] : []), ...groups.slice(0, 3), ...(groups.length > 3 ? [`+${groups.length - 3} ακόμη`] : [])].join(" · ") || "όλο το καλάθι";
+    const price = (m: string) => m.startsWith("price-") || m === "special-price";
+    const clash = rules.filter((o) => o.id !== r.id && price(r.mechanism) && price(o.mechanism)).map((o) => ({ name: o.name, n: [...sets.get(o.id)!].filter((x) => mine.has(x)).length })).filter((x) => x.n > 0);
+    return [r.id, { scope: out ? `${scope} · εκτός ${out}` : scope, overlap: clash.length ? clash.map((x) => `${many(x.n)} είναι και στον κανόνα «${x.name}»`).join(" · ") : null }];
+  }));
+}

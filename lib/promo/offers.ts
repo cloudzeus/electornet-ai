@@ -73,7 +73,7 @@ async function computeOnce(): Promise<RecomputeResult> {
     const display = promos.filter((p) => !p.mechanism.startsWith("coupon") && !p.mechanism.startsWith("payment") && !(p.mechanism === "shipping" && !p.targets.some((t) => !t.exclude)));
     const [products, cats] = await Promise.all([
       // τα «μόνο σε σετ» είδη δεν φαίνονται πουθενά μόνα τους → χωρίς τιμή προσφοράς (τη δίνει το σετ τους)
-      db.product.findMany({ where: { active: true, soldAlone: true }, select: { id: true, brandId: true, categoryId: true, variants: { select: { id: true, price: true }, take: 1 } } }),
+      db.product.findMany({ where: { active: true, soldAlone: true }, select: { id: true, erpCode: true, brandId: true, categoryId: true, variants: { select: { id: true, price: true }, take: 1 } } }),
       db.category.findMany({ select: { id: true, parentId: true } }),
     ]);
     const parent = new Map(cats.map((c) => [c.id, c.parentId]));
@@ -83,6 +83,8 @@ async function computeOnce(): Promise<RecomputeResult> {
     const svcTitle = new Map((await getServiceList()).map((s) => [s.slug, s.title]));
     const { setMainIds } = await import("@/lib/catalog/sets");
     const mainOf = await setMainIds().catch(() => new Map<string, string>()); // προσφορά στο κύριο είδος → και στο σετ του
+
+    const initial = display.some((x) => x.mechanism === "erp-price") ? await import("./initial-prices").then((m) => m.initialPrices()) : new Map<string, number>();
 
     const rows: { productId: string; variantId: string; listPrice: number; price: number; memberPrice: number | null; promotionId: string | null; promoCode: string | null; endsAt: Date | null; tags: OfferTag[] }[] = [];
     for (const p of products) {
@@ -96,6 +98,11 @@ async function computeOnce(): Promise<RecomputeResult> {
       const tags: OfferTag[] = [];
       const adj = guest.lines[0].adjustments.find((a) => a.kind === "price");
       if (adj) { const pp = mine.find((x) => x.id === adj.promotionId)!; tags.push({ kind: "price", label: autoLabel(pp), promotionId: adj.promotionId }); }
+      // «Διαγραμμένες τιμές SoftOne»: η τιμή δεν αλλάζει (είναι η Τιμή Web)· διαγραμμένη μπαίνει η «Αρχική Τιμή Web», όταν είναι μεγαλύτερη
+      const erp = mine.find((x) => x.mechanism === "erp-price");
+      const was = erp ? Math.round((initial.get(p.erpCode ?? "") ?? 0) * 100) : 0;
+      const struck = erp && was > line.unit ? erp : null;
+      if (struck && !adj) tags.push({ kind: "price", label: autoLabel({ ...struck, name: `−${Math.round(((was - line.unit) / was) * 100)} %` }), promotionId: struck.id });
       if (member && member.total < guest.total) {
         const m = member.lines[0].adjustments.find((a) => a.kind === "price");
         if (m) tags.push({ kind: "members", label: `Τιμή μέλους ${eur(member.total)}`, promotionId: m.promotionId });
@@ -109,7 +116,7 @@ async function computeOnce(): Promise<RecomputeResult> {
       if (!tags.length) continue;
       tags.splice(policy.maxTagsPerCard);
       const ends = mine.map((x) => x.endsAt).filter((d): d is Date => !!d).sort((a, b) => +a - +b)[0] ?? null;
-      rows.push({ productId: p.id, variantId: v.id, listPrice: line.unit, price: guest.total, memberPrice: member && member.total < guest.total ? member.total : null, promotionId: adj?.promotionId ?? null, promoCode: adj?.code ?? null, endsAt: ends, tags });
+      rows.push({ productId: p.id, variantId: v.id, listPrice: struck ? was : line.unit, price: guest.total, memberPrice: member && member.total < guest.total ? member.total : null, promotionId: adj?.promotionId ?? struck?.id ?? null, promoCode: adj?.code ?? struck?.code ?? null, endsAt: ends, tags });
     }
 
     // Omnibus για όσα έχουν έκπτωση τιμής

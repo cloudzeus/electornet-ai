@@ -212,3 +212,17 @@ test("προσφορά στο κύριο είδος ισχύει και στο �
   assert.equal(matches({ targets: [{ kind: "product", refId: "other", exclude: false }] }, set), false);
   assert.equal(matches({ targets: [{ kind: "brand", refId: "b", exclude: false }, { kind: "product", refId: "main1", exclude: true }] }, set), false);
 });
+
+test("αλλαγή τιμής ERP: ποσοστό ακολουθεί ή μένει κλειδωμένο, ειδική τιμή μένει ή ακολουθεί", () => {
+  const total = (unit: number, p: EnginePromo) => evaluate([line("x", unit)], [p], ctx()).total;
+  const base = { "p-x": 100000 };
+  // −20 % σε 1.000 € → 800 €· το ERP πάει 900 €
+  assert.equal(total(90000, promo({ reward: { percent: 20 } })), 72000);
+  assert.equal(total(90000, promo({ reward: { percent: 20, erp: "lock", base } })), 80000);
+  assert.equal(total(90000, promo({ reward: { percent: 20, erp: "lock" } })), 72000); // χωρίς βάση: ακολουθεί
+  assert.equal(total(70000, promo({ reward: { percent: 20, erp: "lock", base } })), 70000); // ERP κάτω από την κλειδωμένη: ποτέ ακριβότερα
+  assert.equal(total(90000, promo({ mechanism: "price-amount", reward: { amount: 5000, erp: "lock", base } })), 90000); // 950 € κλειδωμένη > 900 € ERP → χωρίς έκπτωση
+  // ειδική τιμή 800 € (πριν 1.000 €)· το ERP πάει 1.100 €
+  assert.equal(total(110000, promo({ mechanism: "special-price", reward: { price: { "p-x": 80000 } } })), 80000);
+  assert.equal(total(110000, promo({ mechanism: "special-price", reward: { price: { "p-x": 80000 }, erp: "follow", base } })), 88000);
+});

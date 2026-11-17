@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { budgetUse, campaignDay, displayStatus, liveState, publishOutcome, takesCampaignDates, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS, athensDateTime, gateMessage, gateOf } from "./campaign-core";
+import { budgetUse, campaignDay, displayStatus, liveState, publishOutcome, takesCampaignDates, nextCampaignCode, validateCampaign, CAMPAIGN_GOALS, CAMPAIGN_STATUS, athensDateTime, gateMessage, gateOf, ruleScopes } from "./campaign-core";
 
 test("κωδικός: επόμενος της χρονιάς, ξεκινά από 001", () => {
   assert.equal(nextCampaignCode([], 2026), "KAM-2026-001");
@@ -125,4 +125,17 @@ test("έναρξη αγορών: ώρα Ελλάδας, φραγή μόνο πρ
 test("έναρξη αγορών μετά τη λήξη της καμπάνιας είναι λάθος", () => {
   const r = validateCampaign({ title: "Black Friday", goal: "sales", startsAt: "2026-11-20", endsAt: "2026-11-30", budgetEur: null, cartOpensAt: "2026-12-01T09:00" }, [], { publish: false, now: new Date("2026-10-16") });
   assert.ok(r.errors.some((e) => e.includes("έναρξη αγορών")));
+});
+
+test("κανόνες καμπάνιας: σε τι ισχύουν και ποιοι πιάνουν τα ίδια προϊόντα", () => {
+  const r = ruleScopes([
+    { id: "a", name: "LG", mechanism: "special-price", reward: { price: { p1: 100, p2: 200 } }, targets: [] },
+    { id: "b", name: "Philips", mechanism: "price-percent", reward: {}, targets: [{ kind: "brandcat", refId: "b1|c1", exclude: false }, { kind: "product", refId: "p9", exclude: true }] },
+    { id: "c", name: "Πλυντήρια", mechanism: "price-amount", reward: {}, targets: [{ kind: "product", refId: "p2", exclude: false }, { kind: "product", refId: "p3", exclude: false }] },
+    { id: "d", name: "Μεταφορικά", mechanism: "shipping", reward: {}, targets: [{ kind: "product", refId: "p2", exclude: false }] },
+  ], { "b1|c1": "Philips στα Μικροσυσκευές" });
+  assert.deepEqual(r.a, { scope: "2 προϊόντα", overlap: "1 προϊόν είναι και στον κανόνα «Πλυντήρια»" });
+  assert.deepEqual(r.b, { scope: "Philips στα Μικροσυσκευές · εκτός 1", overlap: null });
+  assert.equal(r.c.overlap, "1 προϊόν είναι και στον κανόνα «LG»");
+  assert.equal(r.d.overlap, null);
 });

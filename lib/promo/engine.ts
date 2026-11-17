@@ -10,7 +10,7 @@
  * Κάθε προσφορά που εξετάστηκε μπαίνει στο ίχνος με «εφαρμόστηκε» ή τον λόγο που δεν εφαρμόστηκε — σε απλά ελληνικά.
  */
 
-export type Mechanism = "price-percent" | "price-amount" | "special-price" | "n-plus-m" | "nth-discount" | "qty-tiers" | "together" | "bundle" | "gift" | "service" | "shipping" | "coupon-percent" | "coupon-amount" | "payment-percent" | "payment-amount";
+export type Mechanism = "price-percent" | "price-amount" | "special-price" | "erp-price" | "n-plus-m" | "nth-discount" | "qty-tiers" | "together" | "bundle" | "gift" | "service" | "shipping" | "coupon-percent" | "coupon-amount" | "payment-percent" | "payment-amount";
 /** Εκπτώσεις τιμής σε μία γραμμή */
 export const PRICE_MECHANISMS: Mechanism[] = ["price-percent", "price-amount", "special-price"];
 /** Εκπτώσεις τιμής που εξαρτώνται από πολλά τεμάχια (ανήκουν κι αυτές στην «τιμή»: μία ανά γραμμή) */
@@ -23,6 +23,8 @@ export type Stacking = "combine" | "no-price" | "exclusive";
 /** Στόχος: προϊόν, μάρκα, κατηγορία — ή «brandcat» = μάρκα μέσα σε κατηγορία (refId «brandId|categoryId», τομή). */
 export interface PromoTarget { kind: "product" | "brand" | "category" | "brandcat"; refId: string; exclude: boolean }
 export interface PromoRules {
+  /** έναρξη αγορών (ISO): ως τότε τα προϊόντα της προσφοράς φαίνονται με την τιμή τους αλλά δεν μπαίνουν στο καλάθι */
+  cartOpensAt?: string;
   customers?: "all" | "new" | "registered";
   /** ελάχιστη αξία (λεπτά) των επιλέξιμων γραμμών */
   minValue?: number;
@@ -46,6 +48,10 @@ export interface PromoReward {
   amount?: number;
   /** special-price: τελική τιμή ανά variant (λεπτά) */
   price?: Record<string, number>;
+  /** Τι γίνεται όταν αλλάξει η τιμή στο ERP. Χωρίς τιμή: «lock» στην ειδική τιμή, «follow» σε ποσοστό / ποσό. */
+  erp?: "follow" | "lock";
+  /** τιμή ERP ανά προϊόν (λεπτά) τη στιγμή της δημοσίευσης — η βάση για το «lock» (ποσοστό / ποσό) και το «follow» (ειδική τιμή) */
+  base?: Record<string, number>;
   /** n-plus-m: αγοράζεις buy, παίρνεις get δωρεάν (2+1 → buy 2, get 1) */
   buy?: number; get?: number;
   /** nth-discount: κάθε nth τεμάχιο με percent (2ο −50 % → nth 2, percent 50) */
@@ -176,10 +182,18 @@ export const payLabel = (codes: string[] = []) => codes.map((c) => PAY_LABEL[c] 
 /** Έκπτωση μονάδας μιας προσφοράς τιμής (λεπτά), ποτέ αρνητική ούτε πάνω από την τιμή. */
 function unitDiscount(p: EnginePromo, l: EngineLine): number {
   const r = p.reward ?? {};
+  const base = r.base?.[l.productId] ?? r.base?.[l.variantId];
   let d = 0;
-  if (p.mechanism === "price-percent") d = Math.round((l.unit * (r.percent ?? 0)) / 100);
-  else if (p.mechanism === "price-amount") d = r.amount ?? 0;
-  else if (p.mechanism === "special-price") { const sp = r.price?.[l.variantId] ?? r.price?.[l.productId]; d = sp != null ? l.unit - sp : 0; }
+  if (p.mechanism === "special-price") {
+    let sp = r.price?.[l.variantId] ?? r.price?.[l.productId];
+    // «ακολουθεί το ERP»: κρατιέται το ποσοστό έκπτωσης της δημοσίευσης πάνω στη νέα τιμή
+    if (sp != null && r.erp === "follow" && base) sp = Math.round((l.unit * sp) / base);
+    d = sp != null ? l.unit - sp : 0;
+  } else if (p.mechanism === "price-percent" || p.mechanism === "price-amount") {
+    // «κλειδωμένη»: η τιμή προσφοράς βγαίνει από την τιμή ERP της δημοσίευσης· προϊόν χωρίς βάση (μπήκε αργότερα) ακολουθεί
+    const u = r.erp === "lock" && base ? base : l.unit;
+    d = l.unit - (u - (p.mechanism === "price-percent" ? Math.round((u * (r.percent ?? 0)) / 100) : r.amount ?? 0));
+  }
   return Math.max(0, Math.min(l.unit, d));
 }
 

@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-17T12:50:19.935Z",
+ "generatedAt": "2026-11-17T16:41:52.617Z",
  "routes": [
   {
    "route": "/admin",
@@ -1271,6 +1271,11 @@
    ],
    "changes": [
     {
+     "hash": "05535dd",
+     "date": "2026-11-17T14:56:33+02:00",
+     "text": "Συγχρονισμοί SoftOne ανά 10 λεπτά: εργασία «Τιμές SoftOne» (Τιμή Web, MTREXTRA.NUM04"
+    },
+    {
      "hash": "c777cc5",
      "date": "2026-11-17T13:30:50+02:00",
      "text": "Διαστάσεις & βάρος: κουμπί «Από SoftOne» σε κάθε προϊόν (συγχρονισμός μόνο του συγκεκριμένου, με μήνυμα για το τι άλλαξε) και ο συγχρονισμός ενημερώνει πάντα και τα τρία σημεία, όπου κι αν γράφτηκε η τιμή: custom πεδί…"
@@ -1314,14 +1319,9 @@
      "hash": "04b97f7",
      "date": "2026-11-10T13:55:00+02:00",
      "text": "SoftOne: οι αναγνώσεις βλέπουν πλέον και τα ανενεργά είδη"
-    },
-    {
-     "hash": "fe876ee",
-     "date": "2026-11-10T13:43:45+02:00",
-     "text": "Εισαγωγή προϊόντων: ο οδηγός του Excel ολοκληρώνει τη ροή, το Keyvoto γίνεται κατανοητό, και οι εισαγωγές γίνονται «έξυπνες»"
     }
    ],
-   "updatedAt": "2026-11-17T13:30:50+02:00",
+   "updatedAt": "2026-11-17T14:56:33+02:00",
    "shots": {
     "desktop": "/api/help-shot/catalog.dimensions.missing-d.jpg",
     "mobile": "/api/help-shot/catalog.dimensions.missing-m.jpg"
@@ -3175,6 +3175,7 @@
     "promo.attention",
     "promo.filters",
     "promo.table",
+    "promo.row-menu",
     "promo.nav"
    ],
    "changes": [
@@ -3249,9 +3250,14 @@
     "promo.newsletter",
     "promo.perf",
     "promo.steps",
+    "promo.name",
+    "promo.type",
+    "promo.cart-opens",
     "promo.campaign",
     "promo.summary",
-    "promo.where"
+    "promo.where",
+    "promo.erp",
+    "promo.value"
    ],
    "changes": [
     {
@@ -3733,9 +3739,14 @@
    "dynamic": false,
    "helpKeys": [
     "promo.steps",
+    "promo.name",
+    "promo.type",
+    "promo.cart-opens",
     "promo.campaign",
     "promo.summary",
-    "promo.where"
+    "promo.where",
+    "promo.erp",
+    "promo.value"
    ],
    "changes": [
     {
@@ -4638,11 +4649,6 @@
      "hash": "e8cc364",
      "date": "2026-09-14T16:15:12+03:00",
      "text": "Σελιδοποίηση με όλες τις σελίδες και μετάβαση στην τελευταία"
-    },
-    {
-     "hash": "d22b21d",
-     "date": "2026-09-14T16:07:58+03:00",
-     "text": "Brand logos: hide Brandfetch's own mark, and fix paging on the lookup tables"
     }
    ],
    "updatedAt": "2026-11-06T10:12:55+02:00",
@@ -4689,6 +4695,11 @@
    "helpKeys": [],
    "changes": [
     {
+     "hash": "05535dd",
+     "date": "2026-11-17T14:56:33+02:00",
+     "text": "Συγχρονισμοί SoftOne ανά 10 λεπτά: εργασία «Τιμές SoftOne» (Τιμή Web, MTREXTRA.NUM04"
+    },
+    {
      "hash": "d767ceb",
      "date": "2026-10-30T16:03:47+02:00",
      "text": "Κατάλογος: στη βιτρίνα μόνο τα είδη χωρίς «Εξαίρεση Web»"
@@ -4724,7 +4735,7 @@
      "text": "SoftOne: καθρέφτης καταλόγου με μηχανισμό συγχρονισμού, και διανυσματικό ευρετήριο για τον Ερμή"
     }
    ],
-   "updatedAt": "2026-10-30T16:03:47+02:00",
+   "updatedAt": "2026-11-17T14:56:33+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.catalog-d.jpg",
     "mobile": "/api/help-shot/softone.catalog-m.jpg"
@@ -4840,6 +4851,11 @@
    ],
    "changes": [
     {
+     "hash": "05535dd",
+     "date": "2026-11-17T14:56:33+02:00",
+     "text": "Συγχρονισμοί SoftOne ανά 10 λεπτά: εργασία «Τιμές SoftOne» (Τιμή Web, MTREXTRA.NUM04"
+    },
+    {
      "hash": "894092d",
      "date": "2026-11-11T17:03:05+02:00",
      "text": "Σύγκριση τιμών: επιβεβαίωση σε μαζικές προσθήκες/αφαιρέσεις, μετρήσεις μόνο στις κατηγορίες που συγκρίνονται, Κωτσόβολος από τη σελίδα συγχρονισμών στο παρασκήνιο"
@@ -4875,7 +4891,7 @@
      "text": "Αυτόματες εργασίες, σελίδα Κατηγορίες, έλεγχος XML με SoftOne"
     }
    ],
-   "updatedAt": "2026-11-11T17:03:05+02:00",
+   "updatedAt": "2026-11-17T14:56:33+02:00",
    "shots": {
     "desktop": "/api/help-shot/softone.sync-d.jpg",
     "mobile": "/api/help-shot/softone.sync-m.jpg"
@@ -5337,6 +5353,16 @@
  ],
  "recent": [
   {
+   "hash": "05535dd",
+   "date": "2026-11-17T14:56:33+02:00",
+   "text": "Συγχρονισμοί SoftOne ανά 10 λεπτά: εργασία «Τιμές SoftOne» (Τιμή Web, MTREXTRA.NUM04",
+   "routes": [
+    "/admin",
+    "/admin/softone",
+    "/admin/softone/catalog"
+   ]
+  },
+  {
    "hash": "7b42150",
    "date": "2026-11-17T14:16:41+02:00",
    "text": "Εγγραφή πελάτη: επιβεβαίωση email πριν δημιουργηθεί ο λογαριασμός (σύνδεσμος 24 ωρών σε κρυπτογραφημένο token, ο λογαριασμός γράφεται και συνδέεται μόνο όταν πατηθεί), πεδίο «Επανάληψη κωδικού», εξήγηση ότι το email ε…",
@@ -5627,12 +5653,6 @@
    "hash": "66d7995",
    "date": "2026-11-13T17:59:40+02:00",
    "text": "Footer: το λογότυπο WCAG 2.1 AA σερβίρεται τοπικά (αυτούσιο αντίγραφο του W3C) αντί να φορτώνει από το w3.org",
-   "routes": []
-  },
-  {
-   "hash": "fa2c672",
-   "date": "2026-11-13T17:59:10+02:00",
-   "text": "Προσβασιμότητα WCAG 2.1 AA στο κατάστημα: αντίθεση κειμένων (γκρι, κόκκινο και κίτρινο ως κείμενο, «ΜΟΝΟ» στα banners) στο 4,5:1 χωρίς αλλαγή διάταξης",
    "routes": []
   }
  ],
@@ -7049,6 +7069,12 @@
   "campaign.state": [
    "components/admin/promos/CampaignWizard.tsx"
   ],
+  "promo.erp-add": [
+   "components/admin/promos/ErpBasket.tsx"
+  ],
+  "promo.erp-table": [
+   "components/admin/promos/ErpBasket.tsx"
+  ],
   "promo.tags.info": [
    "components/admin/promos/InfoTagsEditor.tsx"
   ],
@@ -7118,10 +7144,22 @@
   "promo.table": [
    "components/admin/promos/PromoTable.tsx"
   ],
+  "promo.row-menu": [
+   "components/admin/promos/PromoTable.tsx"
+  ],
   "promo.nav": [
    "components/admin/promos/PromoTabs.tsx"
   ],
   "promo.steps": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.name": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.type": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.cart-opens": [
    "components/admin/promos/PromoWizard.tsx"
   ],
   "promo.campaign": [
@@ -7131,6 +7169,12 @@
    "components/admin/promos/PromoWizard.tsx"
   ],
   "promo.where": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.erp": [
+   "components/admin/promos/PromoWizard.tsx"
+  ],
+  "promo.value": [
    "components/admin/promos/PromoWizard.tsx"
   ],
   "promo.segments.editor": [
@@ -7150,6 +7194,12 @@
   ],
   "promo.sim.result": [
    "components/admin/promos/Simulator.tsx"
+  ],
+  "promo.prices-excel": [
+   "components/admin/promos/SpecialPrices.tsx"
+  ],
+  "promo.prices-table": [
+   "components/admin/promos/SpecialPrices.tsx"
   ],
   "promo.codes": [
    "components/admin/promos/TargetTools.tsx"

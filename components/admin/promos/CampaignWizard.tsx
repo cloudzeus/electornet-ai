@@ -3,10 +3,12 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, LayoutTemplate, Loader2, Megaphone, Pause, Play, Plus, Search, Square, Archive, TicketPercent, X, LockKeyhole } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CircleAlert, ExternalLink, LayoutTemplate, Loader2, Megaphone, Pause, Play, Plus, Search, Square, Archive, TicketPercent, X, LockKeyhole, Pencil, Package, FolderMinus } from "lucide-react";
+import { RowMenu, type RowMenuItem } from "./RowMenu";
+import { bulkAction } from "@/app/admin/(shell)/prosfores/actions";
 import { Badge } from "@/components/admin/orders/ui";
 import { CAMPAIGN_GOALS, CAMPAIGN_STATUS, budgetUse, publishOutcome, validateCampaign, type CampaignDraft, type CampaignGoal, type CampaignStatus, athensDateTime, gateMessage } from "@/lib/promo/campaign-core";
-import { MECHANISM_LABEL, STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
+import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { sx } from "@/components/ui/sx";
 import { campaignStateAction, membershipAction, publishCampaignAction, saveCampaignAction } from "@/app/admin/(shell)/prosfores/kampanies/actions";
 
@@ -20,7 +22,7 @@ type Avail = { id: string; label: string; sub: string; status: string; campaignC
 export type WizardCampaign = {
   id: string; code: string; status: CampaignStatus; title: string; goal: CampaignGoal; brief: string; startsAt: string; endsAt: string; cartOpensAt: string | null; cartMessage: string;
   budgetEur: number | null; spent: number; budget: ReturnType<typeof budgetUse>;
-  promotions: { id: string; code: string; name: string; status: string; mechanism: string; startsAt: string | null; endsAt: string | null; usedCount: number; coupons: string[] }[];
+  promotions: { id: string; code: string; name: string; status: string; mechanism: string; startsAt: string | null; endsAt: string | null; usedCount: number; coupons: string[]; /** η έκπτωση σε μία φράση */ summary: string; /** σε ποια προϊόντα */ scope: string; /** άλλοι κανόνες της καμπάνιας στα ίδια προϊόντα */ overlap: string | null }[];
   landings: { id: string; slug: string; title: string; status: string; startsAt: string | null; endsAt: string | null }[];
   ads: { id: string; title: string; slot: string; status: string; startsAt: string | null; endsAt: string | null; impressions: number; clicks: number }[];
   available: { promotions: Avail[]; landings: Avail[]; ads: Avail[] };
@@ -166,9 +168,9 @@ export function CampaignWizard({ campaign, initialStep }: { campaign: WizardCamp
 
           {step === 2 && campaign && (
             <div className="grid gap-5">
-              <Members data-help="campaign.promotion" title="Προσφορές" icon={TicketPercent} kind="promotion" id={campaign.id} available={campaign.available.promotions}
-                rows={campaign.promotions.map((p) => ({ id: p.id, href: `/admin/prosfores/${p.id}`, title: p.name, sub: `${p.code} · ${MECHANISM_LABEL[p.mechanism] ?? p.mechanism}${p.coupons.length ? ` · ${p.coupons.join(", ")}` : ""} · ${day(p.startsAt)} – ${day(p.endsAt)}`, badge: <Badge tone={promoTone(p.status)}>{STATUS_LABEL[p.status as PromoStatus]?.label ?? p.status}</Badge> }))}
-                extra={<Link href={`/admin/prosfores/new?campaign=${campaign.id}`} className={`${btn} border border-eu-line bg-white hover:border-eu-navy`}><Plus className="size-4" aria-hidden /> Νέα προσφορά σε αυτή την καμπάνια</Link>} />
+              <Members data-help="campaign.promotion" title="Κανόνες της καμπάνιας" lead="Κάθε κανόνας είναι μία προσφορά: τι έκπτωση δίνει και σε ποια προϊόντα. Άνοιξέ τον από το «Ενέργειες» για να αλλάξεις προϊόντα και τιμές ή να ανεβάσεις Excel." icon={TicketPercent} kind="promotion" id={campaign.id} available={campaign.available.promotions}
+                rows={campaign.promotions.map((p) => ({ id: p.id, href: `/admin/prosfores/${p.id}`, title: p.name, pill: p.summary, warn: p.overlap, status: p.status, sub: `${p.scope} · ${day(p.startsAt)} – ${day(p.endsAt)} · ${p.code}${p.coupons.length ? ` · ${p.coupons.join(", ")}` : ""}`, badge: <Badge tone={promoTone(p.status)}>{STATUS_LABEL[p.status as PromoStatus]?.label ?? p.status}</Badge> }))}
+                extra={<Link href={`/admin/prosfores/new?campaign=${campaign.id}`} className={`${btn} border border-eu-line bg-white hover:border-eu-navy`}><Plus className="size-4" aria-hidden /> Νέος κανόνας</Link>} />
               <Members data-help="campaign.landing" title="Landing pages" icon={LayoutTemplate} kind="landing" id={campaign.id} available={campaign.available.landings}
                 rows={campaign.landings.map((l) => ({ id: l.id, href: `/admin/prosfores/selides/${l.id}`, title: l.title, sub: `/prosfores/${l.slug} · ${day(l.startsAt)} – ${day(l.endsAt)}`, badge: <Badge tone={l.status === "published" ? "good" : "neutral"}>{l.status === "published" ? "Δημοσιευμένη" : "Πρόχειρη"}</Badge> }))} />
               <Members data-help="campaign.ad" title="Banners" icon={Megaphone} kind="ad" id={campaign.id} available={campaign.available.ads}
@@ -271,9 +273,9 @@ function Issues({ tone, title, items }: { tone: "bad" | "warn"; title: string; i
   );
 }
 
-type Row = { id: string; href: string; title: string; sub: string; badge: React.ReactNode };
+type Row = { id: string; href: string; title: string; sub: string; badge: React.ReactNode; /** κανόνας προσφοράς: η έκπτωση σε μία φράση, προειδοποίηση επικάλυψης και κατάσταση (για το μενού ενεργειών) */ pill?: string; warn?: string | null; status?: string };
 /** Λίστα περιεχομένων της καμπάνιας με αφαίρεση και «Προσθήκη» από αναζητήσιμη λίστα. */
-function Members({ title, icon: Icon, kind, id, rows, available, extra, "data-help": help }: { title: string; icon: typeof Megaphone; kind: "promotion" | "landing" | "ad"; id: string; rows: Row[]; available: Avail[]; extra?: React.ReactNode; "data-help": string }) {
+function Members({ title, lead, icon: Icon, kind, id, rows, available, extra, "data-help": help }: { title: string; lead?: string; icon: typeof Megaphone; kind: "promotion" | "landing" | "ad"; id: string; rows: Row[]; available: Avail[]; extra?: React.ReactNode; "data-help": string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -286,6 +288,14 @@ function Members({ title, icon: Icon, kind, id, rows, available, extra, "data-he
     setMsg(attach ? `Προστέθηκαν ${ids.length}${r.moved.length ? ` · μετακινήθηκαν από ${r.moved.join(", ")}` : ""}.` : "Αφαιρέθηκε.");
     setPicked([]); setOpen(false); router.refresh();
   });
+  const state = (rid: string, action: "pause" | "resume") => start(async () => { const r = await bulkAction([rid], action); setMsg(r.changed ? (action === "pause" ? "Ο κανόνας μπήκε σε παύση." : "Ο κανόνας συνεχίζει.") : "Δεν άλλαξε κάτι."); router.refresh(); });
+  const menu = (r: Row): RowMenuItem[] => [
+    { label: "Άνοιγμα και διόρθωση", Icon: Pencil, href: r.href },
+    { label: "Προϊόντα, τιμές και Excel", Icon: Package, href: `${r.href}?step=2` },
+    ...(r.status === "active" || r.status === "scheduled" ? [{ label: "Παύση", Icon: Pause, onSelect: () => state(r.id, "pause") }] : []),
+    ...(r.status === "paused" ? [{ label: "Συνέχεια", Icon: Play, onSelect: () => state(r.id, "resume") }] : []),
+    { label: "Αφαίρεση από την καμπάνια", Icon: FolderMinus, danger: true, onSelect: () => act([r.id], false) },
+  ];
   return (
     <section data-help={help} className="grid gap-2 min-w-0">
       <div className="flex flex-wrap items-center gap-2">
@@ -295,6 +305,7 @@ function Members({ title, icon: Icon, kind, id, rows, available, extra, "data-he
           <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className={`${btn} border border-eu-line bg-white hover:border-eu-navy`}>{open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />} {open ? "Κλείσιμο" : "Προσθήκη"}</button>
         </span>
       </div>
+      {lead && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)] leading-snug max-w-[80ch]">{lead}</p>}
       {open && (
         <div className="grid gap-2 rounded-lg border border-eu-line bg-eu-surface/60 p-2.5">
           <label className="relative"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-eu-muted" aria-hidden /><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση" aria-label={`Αναζήτηση: ${title}`} className={`${field} pl-8`} /></label>
@@ -314,12 +325,16 @@ function Members({ title, icon: Icon, kind, id, rows, available, extra, "data-he
         </div>
       )}
       {rows.length === 0 ? <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Κανένα ακόμη.</p> : (
-        <ul className="m-0 p-0 list-none divide-y divide-eu-line rounded-lg border border-eu-line">
+        <ul className="m-0 p-0 list-none divide-y divide-eu-line rounded-lg border border-eu-line bg-white">
           {rows.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2.5 py-1.5 text-[length:var(--fs-13)]">
-              <span className="grid min-w-0 flex-1"><Link href={r.href} className="font-bold text-eu-ink hover:text-eu-blue hover:underline break-words">{r.title}</Link><span className="text-eu-muted text-[length:var(--fs-12)] break-words">{r.sub}</span></span>
+            <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-2.5 py-2 text-[length:var(--fs-13)]">
+              <span className="grid gap-0.5 min-w-0 flex-1 basis-56">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><Link href={r.href} className="font-bold text-eu-ink text-[length:var(--fs-14)] hover:text-eu-blue hover:underline break-words">{r.title}</Link>{r.pill && <span className="rounded-full bg-eu-chip text-eu-navy font-bold px-2.5 py-0.5 text-[length:var(--fs-13)]">{r.pill}</span>}</span>
+                <span className="text-eu-ink-3 text-[length:var(--fs-13)] break-words">{r.sub}</span>
+                {r.warn && <span className="inline-flex items-start gap-1 text-eu-amber font-bold text-[length:var(--fs-13)]"><AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />{r.warn}. Σε κάθε προϊόν ισχύει μία έκπτωση τιμής, συνήθως η καλύτερη για τον πελάτη.</span>}
+              </span>
               {r.badge}
-              <button type="button" disabled={pending} onClick={() => act([r.id], false)} aria-label={`Αφαίρεση: ${r.title}`} className="inline-flex items-center justify-center rounded-full size-11 md:size-8 text-eu-muted hover:text-eu-red hover:bg-eu-red/5"><X className="size-4" aria-hidden /></button>
+              {r.pill ? <RowMenu label={r.title} items={menu(r)} disabled={pending} /> : <button type="button" disabled={pending} onClick={() => act([r.id], false)} aria-label={`Αφαίρεση: ${r.title}`} className="inline-flex items-center justify-center rounded-full size-11 md:size-8 text-eu-muted hover:text-eu-red hover:bg-eu-red/5"><X className="size-4" aria-hidden /></button>}
             </li>
           ))}
         </ul>

@@ -176,7 +176,7 @@ export async function setManualTagAction(slug: string, productIds: string[], on:
   return { ok: true };
 }
 
-export interface PriceRow { input: string; price: number | null; productId: string | null; title: string | null; sku: string | null; list: number | null; pct: number | null; issue: string | null }
+export interface PriceRow { input: string; price: number | null; productId: string | null; title: string | null; sku: string | null; list: number | null; pct: number | null; issue: string | null; /** διαφορά της «τιμής πριν» του αρχείου από το eshop (δεν μπλοκάρει) */ note: string | null }
 
 /** Excel / CSV / επικόλληση → προεπισκόπηση ειδικών τιμών (κωδικός ή EAN + τελική τιμή). Τίποτα δεν αποθηκεύεται εδώ. */
 export async function previewPricesAction(form: FormData): Promise<{ ok: true; rows: PriceRow[]; maxLinePct: number } | { ok: false; error: string }> {
@@ -194,11 +194,8 @@ export async function previewPricesAction(form: FormData): Promise<{ ok: true; r
     } else if (paste.trim()) table = readDelimited(paste);
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Δεν διαβάστηκε το αρχείο." }; }
   if (!table.length) return { ok: false, error: "Δεν βρέθηκαν γραμμές." };
-  // στήλες: από την κεφαλίδα αν υπάρχει, αλλιώς 1η = κωδικός, 2η = τιμή
-  const head = table[0].map((h) => h.toLocaleLowerCase("el-GR"));
-  const hasHead = head.some((h) => /κωδ|sku|code|ean|barcode|τιμ|price/.test(h));
-  const ci = hasHead ? Math.max(0, head.findIndex((h) => /κωδ|sku|code|ean|barcode/.test(h))) : 0;
-  const pi = hasHead ? (head.findIndex((h) => /ειδικ|νέα|νεα|τελικ|προσφ|special|new|price|τιμ/.test(h) && head.indexOf(h) !== ci)) : 1;
+  const { priceColumns, priceCents } = await import("@/lib/promo/price-columns");
+  const { hasHead, code: ci, price: pi, before: bi } = priceColumns(table[0]);
   const body = (hasHead ? table.slice(1) : table).filter((r) => (r[ci] ?? "").trim()).slice(0, 5000);
   const codes = [...new Set(body.map((r) => r[ci].trim()))];
   const products = await db.product.findMany({ where: { OR: [{ sku: { in: codes } }, { ean: { in: codes } }, { erpCode: { in: codes } }] }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, active: true, variants: { select: { price: true }, take: 1 } } });
@@ -207,9 +204,7 @@ export async function previewPricesAction(form: FormData): Promise<{ ok: true; r
   const seen = new Set<string>();
   const rows: PriceRow[] = body.map((r) => {
     const code = r[ci].trim();
-    const raw = (r[pi < 0 ? 1 : pi] ?? "").replace(/[€\s]/g, "");
-    const num = Number(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw);
-    const price = Number.isFinite(num) && num > 0 ? Math.round(num * 100) : null;
+    const price = priceCents(r[pi]);
     const p = find(code);
     const list = p?.variants[0] ? Math.round(Number(p.variants[0].price) * 100) : null;
     const pct = price != null && list ? Math.round(((list - price) / list) * 100) : null;
@@ -222,7 +217,10 @@ export async function previewPricesAction(form: FormData): Promise<{ ok: true; r
     else if (pct! > policy.maxLinePct) issue = `έκπτωση ${pct} % — πάνω από το όριο ${policy.maxLinePct} % (θα κοπεί)`;
     if (p && seen.has(p.id)) issue = "διπλή γραμμή — κρατιέται η πρώτη";
     if (p) seen.add(p.id);
-    return { input: code, price, productId: p?.id ?? null, title: p?.title ?? null, sku: p?.sku ?? null, list, pct, issue };
+    // «τιμή πριν» του αρχείου: μόνο για έλεγχο — η τιμή πριν που βλέπει ο πελάτης είναι πάντα η τρέχουσα του eshop
+    const before = bi >= 0 ? priceCents(r[bi]) : null;
+    const note = before != null && list != null && Math.abs(before - list) >= 1 ? `στο αρχείο «πριν» ${(before / 100).toLocaleString("el-GR")} € — στο eshop ${(list / 100).toLocaleString("el-GR")} €` : null;
+    return { input: code, price, productId: p?.id ?? null, title: p?.title ?? null, sku: p?.sku ?? null, list, pct, issue, note };
   });
   return { ok: true, rows, maxLinePct: policy.maxLinePct };
 }
@@ -506,4 +504,21 @@ export async function runPersonalAction() {
   await audit(user.id, "personal.run", "Coupon", null, null, r);
   revalidatePath("/admin/prosfores/prosopikes");
   return r;
+}
+
+export interface ErpRow { id: string; title: string; sku: string; /** Τιμή Web (€) */ price: number | null; /** Αρχική Τιμή Web του SoftOne (€)· null = δεν έχει */ initial: number | null }
+
+/**
+ * Το καλάθι μιας προσφοράς «Διαγραμμένες τιμές SoftOne»: για τα προϊόντα που δόθηκαν (ή, με "all", για όλα όσα έχουν
+ * «Αρχική Τιμή Web» μεγαλύτερη από την «Τιμή Web») η τιμή και η αρχική τιμή όπως τα έχει το SoftOne. Μόνο ανάγνωση.
+ */
+export async function erpBasketAction(ids: string[] | "all"): Promise<ErpRow[]> {
+  await requirePermission(PERM);
+  const initial = await (await import("@/lib/promo/initial-prices")).initialPrices();
+  const rows = await db.product.findMany({
+    where: ids === "all" ? { active: true, erpCode: { in: [...initial.keys()] } } : { id: { in: [...new Set(ids)].slice(0, 2000) } },
+    orderBy: { title: "asc" }, take: 2000, select: { id: true, title: true, sku: true, price: true, erpCode: true },
+  });
+  const out = rows.map((r) => ({ id: r.id, title: r.title, sku: r.sku, price: r.price ?? null, initial: initial.get(r.erpCode ?? "") ?? null }));
+  return ids === "all" ? out.filter((r) => r.initial != null && r.price != null && r.initial > r.price) : out;
 }

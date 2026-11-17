@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban } from "lucide-react";
+import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban, Pencil, Package } from "lucide-react";
+import { RowMenu, type RowMenuItem } from "./RowMenu";
 import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { approveAction, bulkAction } from "@/app/admin/(shell)/prosfores/actions";
 import { sx } from "@/components/ui/sx";
@@ -68,13 +69,23 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
   const [busy, start] = useTransition();
   const all = rows.length > 0 && sel.size === rows.length;
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const run = (action: Parameters<typeof bulkAction>[1], label: string) => start(async () => {
-    if (action === "archive" && !confirm(`Αρχειοθέτηση ${sel.size} προσφορών; Σταματούν αμέσως και δεν επανέρχονται (μένουν στις αναφορές).`)) return;
-    const r = await bulkAction([...sel], action);
+  const run = (action: Parameters<typeof bulkAction>[1], label: string, ids: string[] = [...sel]) => start(async () => {
+    if (action === "archive" && !confirm(`Αρχειοθέτηση ${ids.length === 1 ? "της προσφοράς" : `${ids.length} προσφορών`}; ${ids.length === 1 ? "Σταματά" : "Σταματούν"} αμέσως και δεν ${ids.length === 1 ? "επανέρχεται (μένει" : "επανέρχονται (μένουν"} στις αναφορές).`)) return;
+    if (action === "end" && ids.length === 1 && !confirm("Λήξη τώρα; Η προσφορά σταματά αμέσως για όλους τους πελάτες.")) return;
+    const r = await bulkAction(ids, action);
     setMsg(`${label}: ${r.changed} ${r.changed === 1 ? "προσφορά" : "προσφορές"}.`);
     setSel(new Set());
     router.refresh();
   });
+  const menu = (r: PromoRowDTO): RowMenuItem[] => [
+    { label: "Άνοιγμα και διόρθωση", Icon: Pencil, href: `/admin/prosfores/${r.id}` },
+    { label: "Προϊόντα, τιμές και Excel", Icon: Package, href: `/admin/prosfores/${r.id}?step=2` },
+    ...(r.status === "active" || r.status === "scheduled" ? [{ label: "Παύση", Icon: Pause, onSelect: () => run("pause", "Παύση", [r.id]) }] : []),
+    ...(r.status === "paused" ? [{ label: "Συνέχεια", Icon: Play, onSelect: () => run("resume", "Συνέχεια", [r.id]) }] : []),
+    { label: "Αντιγραφή", Icon: Copy, onSelect: () => run("duplicate", "Αντιγραφή", [r.id]) },
+    ...(["active", "scheduled", "paused"].includes(r.status) ? [{ label: "Λήξη τώρα", Icon: Square, danger: true, onSelect: () => run("end", "Λήξη τώρα", [r.id]) }] : []),
+    { label: "Αρχειοθέτηση", Icon: Archive, danger: true, onSelect: () => run("archive", "Αρχείο", [r.id]) },
+  ];
   const approve = (id: string) => start(async () => { const r = await approveAction(id); setMsg(r.ok ? "Εγκρίθηκε." : r.error ?? "Δεν εγκρίθηκε."); router.refresh(); });
 
   return (
@@ -90,12 +101,12 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
       )}
       {msg && <p role="status" className="m-0 rounded-xl bg-eu-chip text-eu-navy font-semibold px-4 py-2 text-[length:var(--fs-14)]">{msg}</p>}
       {/* λίστα-πλέγμα αντί για πίνακα: σε πλατιά οθόνη στήλες, σε στενή συμπαγής κάρτα — χωρίς κενά «ετικέτα … τιμή» */}
-      <div data-help="promo.table" className="rounded-2xl border border-eu-line bg-white overflow-hidden">
-        <div aria-hidden className="hidden @5xl:grid grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_auto] gap-x-4 px-3 py-2 text-eu-muted text-[length:var(--fs-12)] font-bold uppercase tracking-wide bg-eu-surface/60">
+      <div data-help="promo.table" className="rounded-2xl border border-eu-line bg-white">
+        <div aria-hidden className="hidden @5xl:grid grid-cols-[2.25rem_minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_auto] gap-x-4 px-3 py-2 text-eu-muted text-[length:var(--fs-12)] font-bold bg-eu-surface/60 rounded-t-2xl">
           <span className="grid place-items-center"><input type="checkbox" aria-label="Επιλογή όλων" checked={all} onChange={() => setSel(all ? new Set() : new Set(rows.map((r) => r.id)))} className="size-5 accent-eu-navy" /></span>
-          <span>Προσφορά</span><span>Κατάσταση & διάρκεια</span><span>Στο site</span><span className="text-right">30 ημέρες · όρια</span><span className="w-24" />
+          <span>Προσφορά</span><span>Κατάσταση & διάρκεια</span><span>Στο site</span><span className="text-right">30 ημέρες · όρια</span><span className="w-32" />
         </div>
-        <label className="@5xl:hidden flex items-center gap-2 px-3 min-h-11 bg-eu-surface/60 text-eu-ink-2 font-bold text-[length:var(--fs-13)]"><input type="checkbox" checked={all} onChange={() => setSel(all ? new Set() : new Set(rows.map((r) => r.id)))} className="size-5 accent-eu-navy" /> Επιλογή όλων ({rows.length})</label>
+        <label className="@5xl:hidden flex items-center gap-2 px-3 min-h-11 rounded-t-2xl bg-eu-surface/60 text-eu-ink-2 font-bold text-[length:var(--fs-13)]"><input type="checkbox" checked={all} onChange={() => setSel(all ? new Set() : new Set(rows.map((r) => r.id)))} className="size-5 accent-eu-navy" /> Επιλογή όλων ({rows.length})</label>
         <ul className="m-0 p-0 list-none divide-y divide-eu-line">
           {rows.map((r) => {
             const st = STATUS_LABEL[r.status] ?? STATUS_LABEL.draft;
@@ -120,7 +131,8 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
                   <span className="text-eu-ink-3">{r.usedCount.toLocaleString("el-GR")}{r.maxUses ? ` / ${r.maxUses.toLocaleString("el-GR")}` : ""} χρήσεις</span>
                   {r.budget ? <span className="grid gap-1 min-w-[8rem]"><span className="text-eu-ink-3">{eur(r.spent)} / {eur(r.budget)}</span><span className="h-1.5 rounded-full bg-eu-surface overflow-hidden" aria-hidden><Fill pct={Math.min(100, (r.spent / r.budget) * 100)} className={`block h-full rounded-full ${r.spent / r.budget > 0.9 ? "bg-eu-red" : "bg-eu-green"}`} /></span></span> : null}
                 </div>
-                <div className="col-start-2 @5xl:col-start-auto flex @5xl:justify-end w-full @5xl:w-24">
+                <div data-help="promo.row-menu" className="col-start-2 @5xl:col-start-auto flex flex-wrap @5xl:flex-col @5xl:items-end gap-1.5 w-full @5xl:w-32">
+                  <RowMenu label={r.name} items={menu(r)} disabled={busy} />
                   {(r.status === "pending" || r.pendingChange) && canApprove && (
                     <button type="button" disabled={busy} onClick={() => approve(r.id)} className="inline-flex items-center gap-1 rounded-full bg-eu-green text-white px-3 min-h-10 font-bold text-[length:var(--fs-14)] disabled:opacity-50"><Check className="size-4" aria-hidden /> Έγκριση</button>
                   )}
