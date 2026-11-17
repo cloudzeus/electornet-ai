@@ -2,6 +2,7 @@
 // Τιμολόγηση: φίλτρα → ζωντανή ανάγνωση κόστους και πωλήσεων → markup ανά προϊόν (πρόταση από τη μέση τιμή πώλησης) → εγγραφή τιμής web / αναίρεση.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, ExternalLink, Info, Lightbulb, Loader2, Lock, RotateCcw, Search } from "lucide-react";
+import { PagerButtons } from "@/components/admin/PagerButtons";
 import { applyAction, linesAction, loadAction } from "@/app/admin/(shell)/catalog/timologisi/actions";
 import { batchesAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
 import { DEFAULT_OPTS, PERIODS, SKIP, markupOf, planPrice, underCut, type Period, type Plan, type Skip } from "@/lib/catalog/pricing/tool-core";
@@ -40,6 +41,7 @@ const cols = "lg:grid-cols-[2.75rem_minmax(0,1.5fr)_minmax(0,1.1fr)_minmax(0,0.9
 export function PricingTool({ brands, categories, batches: initialBatches, canRun, blockedReason }: Props) {
   const [categoryId, setCategoryId] = useState(""), [brandId, setBrandId] = useState(""), [q, setQ] = useState("");
   const [rows, setRows] = useState<PricingRow[] | null>(null);
+  const [page, setPage] = useState(1), [found, setFound] = useState(0);
   const [period, setPeriod] = useState<Period>(90);
   const [rounding, setRounding] = useState<Rounding>(DEFAULT_OPTS.rounding);
   const [minMargin, setMinMargin] = useState(show(DEFAULT_OPTS.minMarginPct));
@@ -70,12 +72,12 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
   const out = (rows?.length ?? 0) - picked.length;
 
   const filterOn = !!(categoryId || brandId || q.trim());
-  function load() {
+  function load(p = 1) {
     if (!filterOn) return;
     startLoad(async () => {
-      const r = await loadAction({ categoryId, brandId, q });
+      const r = await loadAction({ categoryId, brandId, q }, p);
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
-      setRows(r.rows); setEdited({}); setTargets({}); setOff(new Set()); setDone(null);
+      setRows(r.rows); setPage(p); setFound(r.total); setEdited({}); setTargets({}); setOff(new Set()); setDone(null);
     });
   }
 
@@ -94,11 +96,11 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
       setDone(w.kind === "apply"
         ? { tone: b.failed ? "warn" : "ok", text: `Άλλαξαν ${b.ok}${b.failed ? `, δεν άλλαξαν ${b.failed} (δες γιατί στο ιστορικό)` : ""}. Το eshop παίρνει τη νέα τιμή αμέσως.` }
         : { tone: b.undoFailed ? "warn" : "ok", text: `Αναιρέθηκαν ${b.undone} από ${b.ok}${b.undoFailed ? `. ${b.undoFailed} έμειναν (άλλαξαν από άλλον ή απέτυχαν)` : ""}.` });
-      const r = await loadAction({ categoryId, brandId, q });
-      if (r.ok) { setRows(r.rows); setEdited({}); setTargets({}); }
+      const r = await loadAction({ categoryId, brandId, q }, page);
+      if (r.ok) { setRows(r.rows); setFound(r.total); setEdited({}); setTargets({}); }
     }, 2000);
     return () => clearInterval(t);
-  }, [running, categoryId, brandId, q]);
+  }, [running, categoryId, brandId, q, page]);
 
   const why = blockedReason ?? (running ? "Τρέχει ήδη μια αλλαγή. Περίμενε να τελειώσει." : !picked.length ? "Δεν έχεις διαλέξει προϊόν που αλλάζει τιμή." : null);
   function apply() {
@@ -148,7 +150,7 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
           <label className={lbl}>Όνομα ή κωδικός<input className={field} value={q} onChange={(e) => setQ(e.target.value)} placeholder="WGG14401GR" /></label>
           <button type="submit" disabled={!filterOn || loading} className={`${btn} bg-eu-navy text-white`}>{loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Search className="size-4" aria-hidden />}Δείξε τιμές</button>
         </form>
-        <p className={`m-0 ${sub}`}>Διάλεξε κατηγορία, μάρκα ή γράψε όνομα. Το κόστος και οι πωλήσεις διαβάζονται εκείνη τη στιγμή από το SoftOne (λίγα δευτερόλεπτα), έως 50 προϊόντα τη φορά.</p>
+        <p className={`m-0 ${sub}`}>Διάλεξε κατηγορία, μάρκα ή γράψε όνομα. Το κόστος και οι πωλήσεις διαβάζονται εκείνη τη στιγμή από το SoftOne (λίγα δευτερόλεπτα), 50 προϊόντα ανά σελίδα.</p>
       </section>
 
       {done && <p role="status" className={`m-0 flex items-start gap-2 rounded-lg border px-3 py-2 text-eu-ink text-[length:var(--fs-14)] ${done.tone === "ok" ? "border-eu-green/40 bg-eu-green/10" : "border-eu-amber/40 bg-eu-amber/10"}`}>{done.tone === "ok" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-eu-green" aria-hidden /> : <AlertTriangle className="mt-0.5 size-4 shrink-0 text-eu-amber" aria-hidden />}{done.text}</p>}
@@ -228,6 +230,12 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
               </div>
             );
           })}
+          {found > rows.length && (
+            <div className="grid gap-1.5 border-t border-eu-line-2 pt-3 mt-1">
+              <PagerButtons page={page} pages={Math.ceil(found / 50)} total={found} onPage={(p) => { if (!loading) load(p); }} label="προϊόντα" />
+              <p className={`m-0 ${sub}`}>Κάθε σελίδα γράφεται χωριστά: πάτα «Εφάρμοσε» πριν αλλάξεις σελίδα, αλλιώς οι επιλογές και τα markup που έγραψες εδώ χάνονται.</p>
+            </div>
+          )}
         </section>
 
         <section data-help="pricing-summary" aria-label="Σύνοψη και εγγραφή" className={`${card} grid gap-3`}>

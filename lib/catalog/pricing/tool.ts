@@ -49,9 +49,9 @@ async function readSales(mtrls: number[], now: Date): Promise<Map<number, Trn[]>
   return out;
 }
 
-export async function loadPricing(where: { productIds?: string[]; filter?: PFilter }): Promise<PricingRow[]> {
+function whereOf(where: { productIds?: string[]; filter?: PFilter }): Prisma.ProductWhereInput | null {
   const f = where.filter, q = f?.q?.trim();
-  if (!where.productIds && !f?.categoryId && !f?.brandId && !q) return [];
+  if (!where.productIds && !f?.categoryId && !f?.brandId && !q) return null;
   const w: Prisma.ProductWhereInput = { active: true, price: { gt: 0 } };
   if (where.productIds) w.id = { in: where.productIds };
   if (f?.brandId) w.brandId = f.brandId;
@@ -59,8 +59,21 @@ export async function loadPricing(where: { productIds?: string[]; filter?: PFilt
   if (f?.categoryId) and.push({ OR: [{ categoryId: f.categoryId }, { category: { parentId: f.categoryId } }] });
   if (q) and.push({ OR: [{ title: { contains: q, mode: "insensitive" } }, { sku: { contains: q, mode: "insensitive" } }] });
   if (and.length) w.AND = and;
+  return w;
+}
+
+/** Πόσα προϊόντα πιάνουν τα φίλτρα συνολικά (για τις σελίδες). */
+export async function countPricing(filter: PFilter): Promise<number> {
+  const w = whereOf({ filter });
+  return w ? db.product.count({ where: w }) : 0;
+}
+
+/** `page` από 1· κάθε σελίδα έχει έως PAGE προϊόντα (όσα διαβάζονται μαζί από το SoftOne και γράφονται σε μία παρτίδα). */
+export async function loadPricing(where: { productIds?: string[]; filter?: PFilter }, page = 1): Promise<PricingRow[]> {
+  const w = whereOf(where);
+  if (!w) return [];
   const products = (await db.product.findMany({
-    where: w, orderBy: { title: "asc" }, take: PAGE,
+    where: w, orderBy: [{ title: "asc" }, { id: "asc" }], skip: (page - 1) * PAGE, take: PAGE,
     select: { id: true, erpCode: true, title: true, sku: true, price: true, vatRate: true, brand: { select: { name: true } }, offer: { select: { promotionId: true } }, competitorPrices: { where: { competitor: "kotsovolos", match: { in: ["auto", "manual"] }, extId: { not: null }, available: true }, select: { listPrice: true, offerPrice: true, checkedAt: true, extUrl: true } } },
   })).map((p) => ({ ...p, mtrl: Number(p.erpCode) })).filter((p) => Number.isInteger(p.mtrl) && p.mtrl > 0);
   const now = new Date(), mtrls = products.map((p) => p.mtrl);

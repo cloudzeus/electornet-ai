@@ -2,15 +2,16 @@
 import { after } from "next/server";
 import { requirePermission } from "@/lib/rbac/guard";
 import { listBatches, type BatchView } from "@/lib/competitors/bulk";
-import { batchLines, cleanOpts, loadPricing, runPricing, startPricing, type BatchLine, type PFilter, type PricingRow } from "@/lib/catalog/pricing/tool";
+import { batchLines, cleanOpts, countPricing, loadPricing, runPricing, startPricing, type BatchLine, type PFilter, type PricingRow } from "@/lib/catalog/pricing/tool";
 
 const id = (v: unknown) => (typeof v === "string" && v.length > 0 && v.length < 64 ? v : undefined);
 
-export async function loadAction(filter: unknown): Promise<{ ok: true; rows: PricingRow[] } | { ok: false; error: string }> {
+export async function loadAction(filter: unknown, page: unknown = 1): Promise<{ ok: true; rows: PricingRow[]; total: number } | { ok: false; error: string }> {
   await requirePermission("catalog.products.read");
   const o = (filter && typeof filter === "object" ? filter : {}) as Record<string, unknown>;
   const f: PFilter = { categoryId: id(o.categoryId), brandId: id(o.brandId), q: typeof o.q === "string" ? o.q.slice(0, 80) : undefined };
-  try { return { ok: true, rows: await loadPricing({ filter: f }) }; } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Άγνωστο σφάλμα" }; }
+  const p = typeof page === "number" && Number.isInteger(page) && page >= 1 && page <= 10_000 ? page : 1;
+  try { const [rows, total] = await Promise.all([loadPricing({ filter: f }, p), countPricing(f)]); return { ok: true, rows, total }; } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "Άγνωστο σφάλμα" }; }
 }
 
 /** Πορεία μιας παρτίδας ανά προϊόν (η σελίδα το καλεί όσο τρέχει εγγραφή ή αναίρεση). */
