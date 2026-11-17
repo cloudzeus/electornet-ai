@@ -1,12 +1,12 @@
 "use client";
 // Τιμολόγηση: φίλτρα → ζωντανή ανάγνωση κόστους και πωλήσεων → markup ανά προϊόν (πρόταση από τη μέση τιμή πώλησης) → εγγραφή τιμής web / αναίρεση.
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, ArrowRight, CheckCircle2, Info, Lightbulb, Loader2, Lock, RotateCcw, Search } from "lucide-react";
-import { applyAction, loadAction } from "@/app/admin/(shell)/catalog/timologisi/actions";
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock, ExternalLink, Info, Lightbulb, Loader2, Lock, RotateCcw, Search } from "lucide-react";
+import { applyAction, linesAction, loadAction } from "@/app/admin/(shell)/catalog/timologisi/actions";
 import { batchesAction, undoAction } from "@/app/admin/(shell)/catalog/competitors/prices/actions";
-import { DEFAULT_OPTS, PERIODS, SKIP, markupOf, planPrice, type Period, type Plan, type Skip } from "@/lib/catalog/pricing/tool-core";
+import { DEFAULT_OPTS, PERIODS, SKIP, markupOf, planPrice, underCut, type Period, type Plan, type Skip } from "@/lib/catalog/pricing/tool-core";
 import type { Rounding } from "@/lib/catalog/pricing/markup";
-import type { PricingRow } from "@/lib/catalog/pricing/tool";
+import type { BatchLine, PricingRow } from "@/lib/catalog/pricing/tool";
 import type { BatchView } from "@/lib/competitors/bulk";
 import { eur } from "@/lib/competitors/badge";
 
@@ -46,16 +46,21 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
   const [common, setCommon] = useState("25");
   /** markup που έγραψε ο χρήστης· όπου λείπει ισχύει η πρόταση της περιόδου */
   const [edited, setEdited] = useState<Record<string, string>>({});
+  /** ρητή τιμή ανά προϊόν (τιμή Κωτσόβολου − Χ)· υπερισχύει του markup μέχρι να γράψεις άλλο markup */
+  const [targets, setTargets] = useState<Record<string, number>>({});
+  const [kotAmount, setKotAmount] = useState("0"), [kotMode, setKotMode] = useState<"eur" | "pct">("eur");
   const [off, setOff] = useState<Set<string>>(new Set());
   const [batches, setBatches] = useState(initialBatches);
   const [done, setDone] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
+  /** πορεία της παρτίδας που ξεκίνησε από εδώ, ανά προϊόν· μένει στην οθόνη και μετά το τέλος */
+  const [live, setLive] = useState<{ kind: "apply" | "undo"; lines: BatchLine[] } | null>(null);
   const [loading, startLoad] = useTransition(), [busy, startWrite] = useTransition();
 
   const min = parse(minMargin);
   const opts = useMemo(() => ({ rounding, minMarginPct: Number.isFinite(min) && min >= 0 ? min : 0 }), [rounding, min]);
   const suggestion = (r: PricingRow) => markupOf(r.sales?.avg[period], r.cost, r.vat);
   const percentOf = (r: PricingRow) => { const e = edited[r.productId]; if (e === undefined) return suggestion(r); const n = parse(e); return Number.isFinite(n) ? n : null; };
-  const plans = useMemo(() => new Map<string, Plan>((rows ?? []).map((r) => [r.productId, planPrice(r, percentOf(r), opts)])), [rows, edited, period, opts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const plans = useMemo(() => new Map<string, Plan>((rows ?? []).map((r) => [r.productId, planPrice(r, percentOf(r), opts, targets[r.productId])])), [rows, edited, targets, period, opts]); // eslint-disable-line react-hooks/exhaustive-deps
   const changing = (rows ?? []).filter((r) => "newPrice" in plans.get(r.productId)!);
   const picked = changing.filter((r) => !off.has(r.productId));
   const total = picked.reduce((s, r) => s + (plans.get(r.productId) as { changeEur: number }).changeEur, 0);
@@ -68,7 +73,7 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
     startLoad(async () => {
       const r = await loadAction({ categoryId, brandId, q });
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
-      setRows(r.rows); setEdited({}); setOff(new Set()); setDone(null);
+      setRows(r.rows); setEdited({}); setTargets({}); setOff(new Set()); setDone(null);
     });
   }
 
@@ -81,13 +86,14 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
       if (!next) return;
       setBatches(next);
       const w = watch.current, b = w && next.find((x) => x.id === w.id);
+      if (w) { const lines = await linesAction(w.id).catch(() => null); if (lines) setLive({ kind: w.kind, lines }); }
       if (!w || !b || b.phase !== "idle") return;
       watch.current = null;
       setDone(w.kind === "apply"
         ? { tone: b.failed ? "warn" : "ok", text: `Άλλαξαν ${b.ok}${b.failed ? `, δεν άλλαξαν ${b.failed} (δες γιατί στο ιστορικό)` : ""}. Το eshop παίρνει τη νέα τιμή αμέσως.` }
         : { tone: b.undoFailed ? "warn" : "ok", text: `Αναιρέθηκαν ${b.undone} από ${b.ok}${b.undoFailed ? `. ${b.undoFailed} έμειναν (άλλαξαν από άλλον ή απέτυχαν)` : ""}.` });
       const r = await loadAction({ categoryId, brandId, q });
-      if (r.ok) { setRows(r.rows); setEdited({}); }
+      if (r.ok) { setRows(r.rows); setEdited({}); setTargets({}); }
     }, 2000);
     return () => clearInterval(t);
   }, [running, categoryId, brandId, q]);
@@ -97,10 +103,10 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
     if (why) return;
     if (!window.confirm(`${picked.length === 1 ? "Να γραφτεί 1 νέα τιμή web" : `Να γραφτούν ${picked.length} νέες τιμές web`} στο SoftOne και στο eshop; Συνολική αλλαγή ${signedEur(total)}. Αναιρούνται από το ιστορικό.`)) return;
     startWrite(async () => {
-      const r = await applyAction(picked.map((p) => ({ productId: p.productId, percent: percentOf(p)! })), opts);
+      const r = await applyAction(picked.map((p) => targets[p.productId] != null ? { productId: p.productId, price: targets[p.productId] } : { productId: p.productId, percent: percentOf(p)! }), opts);
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
       watch.current = { id: r.batchId, kind: "apply" };
-      setBatches(r.batches); setDone(null);
+      setBatches(r.batches); setDone(null); setLive({ kind: "apply", lines: await linesAction(r.batchId).catch(() => []) });
     });
   }
   function undo(id: string) {
@@ -109,12 +115,22 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
       const r = await undoAction(id);
       if (!r.ok) { setDone({ tone: "warn", text: r.error }); return; }
       watch.current = { id, kind: "undo" };
-      setBatches(r.batches); setDone(null);
+      setBatches(r.batches); setDone(null); setLive({ kind: "undo", lines: await linesAction(id).catch(() => []) });
     });
   }
-  const setAll = (value: (r: PricingRow) => string | undefined) => setEdited((e) => {
-    const n = { ...e };
-    for (const r of rows ?? []) if (!off.has(r.productId)) { const v = value(r); if (v === undefined) delete n[r.productId]; else n[r.productId] = v; }
+  const dropTarget = (id: string) => setTargets((t) => { if (!(id in t)) return t; const n = { ...t }; delete n[id]; return n; });
+  const setAll = (value: (r: PricingRow) => string | undefined) => {
+    setTargets((t) => Object.fromEntries(Object.entries(t).filter(([id]) => off.has(id))));
+    setEdited((e) => {
+      const n = { ...e };
+      for (const r of rows ?? []) if (!off.has(r.productId)) { const v = value(r); if (v === undefined) delete n[r.productId]; else n[r.productId] = v; }
+      return n;
+    });
+  };
+  const withKot = (rows ?? []).filter((r) => r.kot && !off.has(r.productId));
+  const setKot = () => setTargets((t) => {
+    const n = { ...t };
+    for (const r of withKot) { const p = underCut(r.kot!.price, parse(kotAmount), kotMode); if (p != null) n[r.productId] = p; }
     return n;
   });
   const toggle = (id: string) => setOff((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -150,6 +166,12 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
             <button type="button" className={ghost} disabled={!Number.isFinite(parse(common))} onClick={() => setAll(() => common)}>Βάλε το στα επιλεγμένα</button>
             <button type="button" className={ghost} onClick={() => setAll(() => undefined)}><Lightbulb className="size-4 text-eu-amber" aria-hidden />Βάλε την πρόταση σε όλα</button>
           </div>
+          <div className="flex flex-wrap items-end gap-3 border-t border-eu-line pt-3">
+            <label className={lbl}>Τιμή Κωτσόβολου μείον<input className={num} inputMode="decimal" value={kotAmount} onChange={(e) => setKotAmount(e.target.value)} /></label>
+            <label className={lbl}>σε<select className={`${field} w-24`} value={kotMode} onChange={(e) => setKotMode(e.target.value as "eur" | "pct")}><option value="eur">€</option><option value="pct">%</option></select></label>
+            <button type="button" className={ghost} disabled={!withKot.length || !(parse(kotAmount) >= 0)} onClick={setKot}>Βάλε τη σε {withKot.length} με ζευγάρι</button>
+            <span className={`${sub} basis-full`}>Με 0 μπαίνει ακριβώς η τιμή του Κωτσόβολου. Ισχύει μόνο για τα επιλεγμένα που έχουν ζευγάρι, χωρίς στρογγύλεμα· το ελάχιστο κέρδος ισχύει και εδώ.</span>
+          </div>
           <p className={`m-0 ${sub}`}>Νέα τιμή = κόστος αγοράς × (1 + markup) × ΦΠΑ. Η πρόταση είναι το markup που φέρνει την τιμή στη μέση τιμή που πουλήθηκε το προϊόν στο eshop την περίοδο που διάλεξες. Προϊόν με markup κάτω από το ελάχιστο κέρδος δεν αλλάζει.</p>
         </section>
 
@@ -159,7 +181,8 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
           </div>
           {rows.map((r) => {
             const plan = plans.get(r.productId)!, s = suggestion(r), cur = markupOf(r.web, r.cost, r.vat), on = !off.has(r.productId);
-            const val = edited[r.productId] ?? (s == null ? "" : show(s));
+            const tgt = targets[r.productId], tm = tgt == null ? null : markupOf(tgt, r.cost, r.vat);
+            const val = tgt != null ? (tm == null ? "" : show(tm)) : edited[r.productId] ?? (s == null ? "" : show(s));
             return (
               <div key={r.productId} className={`grid grid-cols-[2.75rem_minmax(0,1fr)] ${cols} items-center gap-x-3 gap-y-2 border-t border-eu-line py-3 text-[length:var(--fs-13)] ${on ? "" : "opacity-60"}`}>
                 <label className="inline-flex size-11 cursor-pointer items-center justify-center"><input type="checkbox" className="size-4 accent-eu-navy" checked={on} onChange={() => toggle(r.productId)} aria-label={`Να αλλάξει: ${r.title}`} /></label>
@@ -178,9 +201,9 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
                 </div>
                 <div className="col-start-2 grid justify-items-start gap-0.5 lg:col-start-auto">
                   <span className="lg:hidden text-eu-muted text-[length:var(--fs-12)]">Markup %</span>
-                  <input className={num} inputMode="decimal" value={val} disabled={r.cost == null || r.promo} onChange={(e) => setEdited((x) => ({ ...x, [r.productId]: e.target.value }))} aria-label={`Markup % για ${r.title}`} />
+                  <input className={num} inputMode="decimal" value={val} disabled={r.cost == null || r.promo} onChange={(e) => { dropTarget(r.productId); setEdited((x) => ({ ...x, [r.productId]: e.target.value })); }} aria-label={`Markup % για ${r.title}`} />
                   {s != null
-                    ? <button type="button" onClick={() => setEdited((x) => { const n = { ...x }; delete n[r.productId]; return n; })} title={`Μέση τιμή πώλησης ${PERIOD_LABEL[period]}: ${eur(r.sales!.avg[period]!)}`} className="inline-flex min-h-6 items-center gap-1 font-semibold text-eu-blue text-[length:var(--fs-12)] hover:underline"><Lightbulb className="size-3.5" aria-hidden />πρόταση {show(s)}%</button>
+                    ? <button type="button" onClick={() => { dropTarget(r.productId); setEdited((x) => { const n = { ...x }; delete n[r.productId]; return n; }); }} title={`Μέση τιμή πώλησης ${PERIOD_LABEL[period]}: ${eur(r.sales!.avg[period]!)}`} className="inline-flex min-h-6 items-center gap-1 font-semibold text-eu-blue text-[length:var(--fs-12)] hover:underline"><Lightbulb className="size-3.5" aria-hidden />πρόταση {show(s)}%</button>
                     : <span className={sub}>χωρίς πρόταση</span>}
                 </div>
                 <div className="col-start-2 grid min-w-0 gap-0.5 tabular-nums lg:col-start-auto">
@@ -191,6 +214,12 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
                     <span className="text-eu-ink">{eur(r.web)} <span className={sub}>μένει</span></span>
                     <span title={SKIP[plan.skip].hint} className="inline-flex items-center gap-1 text-eu-ink-3 text-[length:var(--fs-12)]"><t.Icon className={`size-3.5 shrink-0 ${t.ink}`} aria-hidden />{SKIP[plan.skip].label}</span>
                   </>; })()}
+                  {r.kot && (() => { const mine = "newPrice" in plan ? plan.newPrice : r.web, d = mine - r.kot.price; return (
+                    <span className={`${sub} flex flex-wrap items-center gap-x-1.5`} title={r.kot.at ? `Τιμή Κωτσόβολου, έλεγχος ${day(r.kot.at)}` : undefined}>
+                      {r.kot.url ? <a href={r.kot.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-eu-ink hover:text-eu-blue hover:underline">Κωτσόβολος {eur(r.kot.price)}<ExternalLink className="size-3 shrink-0 text-eu-muted" aria-hidden /></a> : <span className="text-eu-ink">Κωτσόβολος {eur(r.kot.price)}</span>}
+                      <span className={`font-bold ${Math.abs(d) < 0.005 ? "text-eu-muted" : d > 0 ? "text-eu-red" : "text-eu-green"}`}>{Math.abs(d) < 0.005 ? "ίδια τιμή" : `εμείς ${eur(Math.abs(d))} ${d > 0 ? "ακριβότεροι" : "φθηνότεροι"}`}</span>
+                    </span>
+                  ); })()}
                 </div>
               </div>
             );
@@ -214,6 +243,38 @@ export function PricingTool({ brands, categories, batches: initialBatches, canRu
           </div>
         </section>
       </>)}
+
+      {live && live.lines.length > 0 && (() => {
+        // αναίρεση: μετρούν μόνο όσες γραμμές είχαν γραφτεί
+        const undo = live.kind === "undo", lines = undo ? live.lines.filter((l) => l.ok) : live.lines;
+        const state = (l: BatchLine) => undo ? (l.undoOk === true ? "ok" : l.undoOk === false ? "fail" : "wait") : l.ok ? "ok" : l.error ? "fail" : "wait";
+        const ok = lines.filter((l) => state(l) === "ok").length, fail = lines.filter((l) => state(l) === "fail").length, wait = lines.length - ok - fail;
+        const now = lines.find((l) => state(l) === "wait");
+        return (
+          <section data-help="pricing-progress" aria-label="Πορεία εγγραφής" aria-live="polite" className={`${card} grid gap-3`}>
+            <h3 className={h3}>{undo ? "Πορεία αναίρεσης" : "Πορεία εγγραφής"}</h3>
+            <p className="m-0 text-eu-ink text-[length:var(--fs-15)]"><strong>{ok + fail} από {lines.length}</strong>{wait > 0 ? " · γράφεται μία-μία στο SoftOne, μπορείς να φύγεις από τη σελίδα" : " · τελείωσε"}</p>
+            <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-eu-surface" role="img" aria-label={`${ok} εντάξει, ${fail} απέτυχαν, ${wait} περιμένουν`}>
+              {bar(ok, "bg-eu-green")}{bar(fail, "bg-eu-amber")}{bar(wait, "bg-eu-line-2")}
+            </div>
+            <ul className={`m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 ${sub}`}>
+              <li className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-eu-green" />{ok} {undo ? "γύρισαν πίσω" : "γράφτηκαν"}</li>
+              <li className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-eu-amber" />{fail} δεν άλλαξαν</li>
+              <li className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-eu-muted" />{wait} περιμένουν</li>
+            </ul>
+            <ul className="m-0 grid list-none gap-0 p-0">
+              {lines.map((l) => { const st = state(l), from = undo ? l.newPrice : l.oldPrice, to = undo ? l.oldPrice : l.newPrice; return (
+                <li key={l.id} className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 border-t border-eu-line py-2 text-[length:var(--fs-13)] sm:grid-cols-[1.25rem_minmax(0,1fr)_auto]">
+                  {st === "ok" ? <CheckCircle2 className="mt-0.5 size-4 text-eu-green" aria-hidden /> : st === "fail" ? <AlertTriangle className="mt-0.5 size-4 text-eu-amber" aria-hidden /> : l === now ? <Loader2 className="mt-0.5 size-4 animate-spin text-eu-navy" aria-hidden /> : <Clock className="mt-0.5 size-4 text-eu-muted" aria-hidden />}
+                  <span className="grid min-w-0"><span className="font-bold text-eu-ink break-words">{l.title}</span>
+                    <span className={`${sub} break-words`}>{st === "ok" ? (undo ? "Γύρισε στην προηγούμενη τιμή" : "Γράφτηκε σε SoftOne και eshop") : st === "fail" ? `Δεν άλλαξε: ${l.error ?? "άγνωστο σφάλμα"}` : l === now ? "Γράφεται τώρα" : "Περιμένει"}</span></span>
+                  <span className="col-start-2 tabular-nums text-eu-ink sm:col-start-auto sm:text-right"><span className="text-eu-muted">{eur(from)}</span> <ArrowRight className="inline size-3.5 text-eu-muted" aria-hidden /> <strong>{eur(to)}</strong></span>
+                </li>
+              ); })}
+            </ul>
+          </section>
+        );
+      })()}
 
       <section data-help="pricing-history" aria-label="Ιστορικό αλλαγών" className={`${card} grid gap-3`}>
         <h3 className={h3}>Ιστορικό αλλαγών τιμής</h3>

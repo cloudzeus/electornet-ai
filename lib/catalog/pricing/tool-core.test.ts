@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_OPTS, cleanOpts, markupOf, planPrice, salesStats, type Trn } from "./tool-core";
+import { DEFAULT_OPTS, cleanOpts, markupOf, planPrice, salesStats, underCut, type Trn } from "./tool-core";
 
 const now = new Date("2026-11-17T10:00:00Z");
 const d = (s: string) => new Date(s);
@@ -39,6 +39,18 @@ test("planPrice: νέα τιμή με στρογγύλεμα και οι δικ�
   assert.deepEqual(planPrice({ ...r, cost: null }, 25, DEFAULT_OPTS), { skip: "no-cost" });
   assert.deepEqual(planPrice({ ...r, promo: true }, 25, DEFAULT_OPTS), { skip: "promo" });
   assert.deepEqual(planPrice(r, 25, { rounding: "none", minMarginPct: 0 }), { newPrice: 155, changeEur: 5.1, changePct: 3.4 });
+});
+
+test("ρητή τιμή (Κωτσόβολος − Χ): χωρίς στρογγύλεμα, με δικλείδα κέρδους", () => {
+  const r = { cost: 100, vat: 24, web: 149.9, promo: false };
+  assert.equal(underCut(139.99, 0, "eur"), 139.99);
+  assert.equal(underCut(139.99, 0.1, "eur"), 139.89);
+  assert.equal(underCut(200, 5, "pct"), 190);
+  assert.equal(underCut(5, 10, "eur"), null);
+  assert.deepEqual(planPrice(r, null, DEFAULT_OPTS, 139.99), { newPrice: 139.99, changeEur: -9.91, changePct: -6.6 });
+  assert.deepEqual(planPrice(r, 50, DEFAULT_OPTS, 130), { skip: "low-margin" }); // 130 / 1,24 = 104,84 → κέρδος 4,8% < 8%
+  assert.deepEqual(planPrice({ ...r, cost: null }, null, DEFAULT_OPTS, 139.99), { skip: "no-cost" });
+  assert.deepEqual(planPrice({ ...r, promo: true }, null, DEFAULT_OPTS, 139.99), { skip: "promo" });
 });
 
 test("cleanOpts: μόνο γνωστό στρογγύλεμα και λογικό όριο", () => {

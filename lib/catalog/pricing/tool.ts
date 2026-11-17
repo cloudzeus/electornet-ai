@@ -8,6 +8,7 @@ import { RETAIL_TRDR } from "@/lib/softone/purchases";
 import { readCosts } from "@/lib/competitors/cost";
 import { lockIso, refresh, release, touch, writeBlocked } from "@/lib/competitors/bulk";
 import { MAX_BATCH } from "@/lib/competitors/bulk-core";
+import { kotHref } from "@/lib/competitors/kotsovolos/core";
 import { cleanOpts, planPrice, salesStats, type Opts, type Sales, type Trn } from "./tool-core";
 
 /**
@@ -28,6 +29,7 @@ export type PricingRow = {
   /** τιμή web τώρα, με ΦΠΑ */ web: number; vat: number; promo: boolean;
   /** κόστος αγοράς χωρίς ΦΠΑ */ cost: number | null; costSource: string | null;
   /** null = οι πωλήσεις δεν διαβάστηκαν από το SoftOne */ sales: Sales | null;
+  /** τιμή πώλησης του Κωτσόβολου (προσφορά, αλλιώς κατάλογος) από τον νυχτερινό έλεγχο· μόνο σίγουρα ζευγάρια που διατίθενται */ kot: { price: number; at: string | null; url: string | null } | null;
 };
 
 async function readSales(mtrls: number[], now: Date): Promise<Map<number, Trn[]> | null> {
@@ -59,27 +61,28 @@ export async function loadPricing(where: { productIds?: string[]; filter?: PFilt
   if (and.length) w.AND = and;
   const products = (await db.product.findMany({
     where: w, orderBy: { title: "asc" }, take: PAGE,
-    select: { id: true, erpCode: true, title: true, sku: true, price: true, vatRate: true, brand: { select: { name: true } }, offer: { select: { promotionId: true } } },
+    select: { id: true, erpCode: true, title: true, sku: true, price: true, vatRate: true, brand: { select: { name: true } }, offer: { select: { promotionId: true } }, competitorPrices: { where: { competitor: "kotsovolos", match: { in: ["auto", "manual"] }, extId: { not: null }, available: true }, select: { listPrice: true, offerPrice: true, checkedAt: true, extUrl: true } } },
   })).map((p) => ({ ...p, mtrl: Number(p.erpCode) })).filter((p) => Number.isInteger(p.mtrl) && p.mtrl > 0);
   const now = new Date(), mtrls = products.map((p) => p.mtrl);
   const [costs, sales] = await Promise.all([readCosts(mtrls), readSales(mtrls, now)]);
   return products.map((p) => {
-    const vat = Number(p.vatRate), c = costs?.get(p.mtrl);
+    const vat = Number(p.vatRate), c = costs?.get(p.mtrl), k = p.competitorPrices[0], kp = Number(k?.offerPrice ?? k?.listPrice ?? 0);
     return {
       productId: p.id, mtrl: p.mtrl, title: p.title, sku: p.sku, brand: p.brand.name, web: p.price!, vat, promo: !!p.offer?.promotionId,
       cost: c?.cost ?? null, costSource: c?.source ?? null, sales: sales ? salesStats(sales.get(p.mtrl) ?? [], vat, now) : null,
+      kot: kp > 0 ? { price: kp, at: k.checkedAt?.toISOString() ?? null, url: kotHref(k.extUrl) } : null,
     };
   });
 }
 
 /** Ετοιμάζει την παρτίδα: το markup κάθε προϊόντος ξαναϋπολογίζεται στον server με φρέσκο κόστος· ό,τι δεν αλλάζει πια μένει έξω. */
-export async function startPricing(items: { productId: string; percent: number }[], opts: Opts, userId: string): Promise<{ batchId: string; total: number }> {
+export async function startPricing(items: { productId: string; percent?: number; price?: number }[], opts: Opts, userId: string): Promise<{ batchId: string; total: number }> {
   if (items.length > MAX_BATCH) throw new Error(`Έως ${MAX_BATCH} προϊόντα τη φορά.`);
   const blocked = await writeBlocked();
   if (blocked) throw new Error(blocked);
-  const pct = new Map(items.map((i) => [i.productId, i.percent]));
+  const pct = new Map(items.map((i) => [i.productId, i]));
   const lines = (await loadPricing({ productIds: [...pct.keys()] })).flatMap((r) => {
-    const plan = planPrice(r, pct.get(r.productId) ?? null, opts);
+    const i = pct.get(r.productId), plan = planPrice(r, i?.percent ?? null, opts, i?.price);
     return "newPrice" in plan ? [{ productId: r.productId, mtrl: String(r.mtrl), oldPrice: r.web, newPrice: plan.newPrice }] : [];
   });
   if (!lines.length) throw new Error("Κανένα από τα επιλεγμένα δεν αλλάζει πια. Φόρτωσε ξανά τη λίστα.");
@@ -103,5 +106,12 @@ export async function runPricing(batchId: string, userId: string) {
     await audit(userId, "pricing.apply", "PriceChangeBatch", batchId, null, { ok, failed });
   }
 }
+
+/** Οι γραμμές μιας παρτίδας για τον πίνακα πορείας: τι γράφτηκε, τι περιμένει, τι απέτυχε και γιατί. */
+export async function batchLines(batchId: string) {
+  const lines = await db.priceChangeLine.findMany({ where: { batchId }, orderBy: { id: "asc" }, select: { id: true, oldPrice: true, newPrice: true, ok: true, error: true, undoOk: true, product: { select: { title: true } } } });
+  return lines.map((l) => ({ id: l.id, title: l.product.title, oldPrice: Number(l.oldPrice), newPrice: Number(l.newPrice), ok: l.ok, error: l.error, undoOk: l.undoOk }));
+}
+export type BatchLine = Awaited<ReturnType<typeof batchLines>>[number];
 
 export { cleanOpts };

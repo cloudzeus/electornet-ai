@@ -36,16 +36,33 @@ export type Plan = { newPrice: number; changeEur: number; changePct: number } | 
 export type Opts = { rounding: Rounding; minMarginPct: number };
 export const DEFAULT_OPTS: Opts = { rounding: "90", minMarginPct: 8 };
 
-/** `web` = η τιμή web τώρα (με ΦΠΑ)· `cost` χωρίς ΦΠΑ· `percent` null = ο χρήστης δεν έβαλε markup. */
-export function planPrice(r: { cost: number | null; vat: number; web: number; promo: boolean }, percent: number | null, o: Opts): Plan {
+/**
+ * `web` = η τιμή web τώρα (με ΦΠΑ)· `cost` χωρίς ΦΠΑ· `percent` null = ο χρήστης δεν έβαλε markup.
+ * `target` = ρητή τιμή με ΦΠΑ (π.χ. τιμή Κωτσόβολου − Χ): γράφεται όπως είναι, χωρίς στρογγύλεμα, αλλά περνά την ίδια δικλείδα ελάχιστου κέρδους.
+ */
+export function planPrice(r: { cost: number | null; vat: number; web: number; promo: boolean }, percent: number | null, o: Opts, target?: number | null): Plan {
   if (r.promo) return { skip: "promo" };
   if (r.cost == null || !(r.cost > 0)) return { skip: "no-cost" };
-  if (percent == null || !Number.isFinite(percent) || percent < 0 || percent > 500) return { skip: "no-markup" };
-  if (percent < o.minMarginPct) return { skip: "low-margin" };
-  const newPrice = priceFrom({ cost: r.cost, percent, vat: r.vat, rounding: o.rounding }).price;
+  let newPrice: number;
+  if (target != null) {
+    if (!Number.isFinite(target) || target <= 0) return { skip: "no-markup" };
+    newPrice = r2(target);
+    if ((newPrice / (1 + r.vat / 100) / r.cost - 1) * 100 < o.minMarginPct) return { skip: "low-margin" };
+  } else {
+    if (percent == null || !Number.isFinite(percent) || percent < 0 || percent > 500) return { skip: "no-markup" };
+    if (percent < o.minMarginPct) return { skip: "low-margin" };
+    newPrice = priceFrom({ cost: r.cost, percent, vat: r.vat, rounding: o.rounding }).price;
+  }
   if (Math.abs(newPrice - r.web) < 0.005) return { skip: "same" };
   const changeEur = r2(newPrice - r.web);
   return { newPrice, changeEur, changePct: r1((changeEur / r.web) * 100) };
+}
+
+/** Τιμή ανταγωνιστή μείον ποσό σε € ή ποσοστό, στο λεπτό. null όταν δεν βγαίνει θετική τιμή. */
+export function underCut(theirs: number, amount: number, mode: "eur" | "pct"): number | null {
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  const p = r2(mode === "eur" ? theirs - amount : theirs * (1 - amount / 100));
+  return p > 0 ? p : null;
 }
 
 export function cleanOpts(x: unknown): Opts | null {
