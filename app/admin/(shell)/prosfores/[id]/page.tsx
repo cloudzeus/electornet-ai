@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { History, Receipt } from "lucide-react";
+import { ChevronDown, History, Receipt } from "lucide-react";
 import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { draftOf, pendingChange, targetNames } from "@/lib/promo/admin";
@@ -85,8 +85,12 @@ export default async function PromotionPage({ params, searchParams }: { params: 
         segments={(await db.segment.findMany({ where: { archived: false }, orderBy: { name: "asc" }, select: { id: true, name: true, members: true } })).map((x) => ({ id: x.id, label: `${x.name} (${x.members})` }))} />
 
       <div className="grid grid-cols-1 @4xl:grid-cols-2 gap-4">
-        <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3 content-start" aria-labelledby="pv-h">
-          <h3 id="pv-h" className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><History className="size-4" aria-hidden /> Εκδόσεις</h3>
+        <details data-help="promo.versions" className="group/v rounded-2xl bg-white border border-eu-line self-start">
+          <summary className="list-none cursor-pointer flex items-center gap-2 px-4 @md:px-5 min-h-14 [&::-webkit-details-marker]:hidden">
+            <History className="size-4 text-eu-navy shrink-0" aria-hidden /><span className="grid flex-1 min-w-0"><span className="font-extrabold text-eu-navy text-[length:var(--fs-15)]">Εκδόσεις</span><span className="text-eu-ink-3 text-[length:var(--fs-13)] truncate">{p.versions.filter((v) => v.version <= p.version).length ? `${p.versions.filter((v) => v.version <= p.version).length} · τρέχουσα v${p.version}` : "Δεν έχει δημοσιευτεί ακόμη"}</span></span>
+            <ChevronDown className="size-4 shrink-0 text-eu-blue transition-transform group-open/v:rotate-180" aria-hidden />
+          </summary>
+          <div className="grid gap-3 px-4 @md:px-5 pb-4 @md:pb-5">
           <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Κάθε δημοσίευση κρατά ένα στιγμιότυπο. Οι παραγγελίες γράφουν την έκδοση που ίσχυε — οι όροι τους δεν αλλάζουν αναδρομικά.</p>
           <div className="text-[length:var(--fs-14)] text-eu-ink-2">Δημιουργία: <strong>{who.get(p.createdById ?? "") ?? "—"}</strong> · {p.createdAt.toLocaleString("el-GR")}{p.approvedById && <> · έγκριση: <strong>{who.get(p.approvedById) ?? "—"}</strong></>}</div>
           {p.versions.length ? (
@@ -104,10 +108,15 @@ export default async function PromotionPage({ params, searchParams }: { params: 
               })}
             </ol>
           ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Δεν έχει δημοσιευτεί ακόμη.</p>}
-        </section>
+          </div>
+        </details>
 
-        <section className="rounded-2xl bg-white border border-eu-line p-4 @md:p-5 grid gap-3 content-start" aria-labelledby="pu-h">
-          <h3 id="pu-h" className="m-0 font-extrabold text-eu-navy text-[length:var(--fs-15)] inline-flex items-center gap-1.5"><Receipt className="size-4" aria-hidden /> Χρήσεις</h3>
+        <details data-help="promo.usages" className="group/u rounded-2xl bg-white border border-eu-line self-start">
+          <summary className="list-none cursor-pointer flex items-center gap-2 px-4 @md:px-5 min-h-14 [&::-webkit-details-marker]:hidden">
+            <Receipt className="size-4 text-eu-navy shrink-0" aria-hidden /><span className="grid flex-1 min-w-0"><span className="font-extrabold text-eu-navy text-[length:var(--fs-15)]">Χρήσεις</span><span className="text-eu-ink-3 text-[length:var(--fs-13)] truncate">{p.usedCount ? `${p.usedCount.toLocaleString("el-GR")} παραγγελίες · ${eur(Number(usage._sum.amount ?? 0))} έκπτωση` : "Καμία παραγγελία ακόμη"}</span></span>
+            <ChevronDown className="size-4 shrink-0 text-eu-blue transition-transform group-open/u:rotate-180" aria-hidden />
+          </summary>
+          <div className="grid gap-3 px-4 @md:px-5 pb-4 @md:pb-5">
           <div className="flex flex-wrap gap-6">
             <div><div className="text-eu-muted text-[length:var(--fs-13)]">Παραγγελίες</div><div className="font-heading font-extrabold text-[length:var(--fs-22)] tabular-nums">{p.usedCount.toLocaleString("el-GR")}</div></div>
             <div><div className="text-eu-muted text-[length:var(--fs-13)]">Συνολική έκπτωση</div><div className="font-heading font-extrabold text-[length:var(--fs-22)] tabular-nums">{eur(Number(usage._sum.amount ?? 0))}</div></div>
@@ -118,7 +127,8 @@ export default async function PromotionPage({ params, searchParams }: { params: 
             </ul>
           ) : <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Καμία παραγγελία ακόμη.</p>}
           <Link href={`/admin/prosfores/anafores?promo=${p.id}`} className="justify-self-start font-bold text-eu-blue text-[length:var(--fs-14)] hover:underline min-h-11 inline-flex items-center">Πλήρης αναφορά καμπάνιας →</Link>
-        </section>
+          </div>
+        </details>
       </div>
     </div>
   );

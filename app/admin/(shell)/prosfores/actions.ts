@@ -571,7 +571,7 @@ export async function offerPreviewAction(d: PromoDraft): Promise<{ cards: Previe
   return { cards: pick.filter((p) => by.has(p.id)).map((p) => { const pct = Math.round(((p.before - p.after) / p.before) * 100); return { ...p, title: by.get(p.id)!.title, image: by.get(p.id)!.media[0]?.url ?? null, pct, label: d.tagLabel || (d.mechanism === "price-percent" || d.mechanism === "price-amount" ? autoLabel({ ...d, tagLabel: null }) : `−${pct} %`) }; }) };
 }
 
-export interface BannerOption { id: string; title: string; slot: string; status: string; image: string | null; /** σχεδιασμένο banner: χρώμα και εικόνα φόντου του */ color: string | null; linked: boolean; /** είναι δεμένο με άλλη προσφορά */ other: string | null }
+export interface BannerOption { id: string; title: string; slot: string; status: string; image: string | null; /** σχεδιασμένο banner: χρώμα και εικόνα φόντου του */ color: string | null; linked: boolean; /** είναι δεμένο με άλλη προσφορά */ other: string | null; /** η άλλη προσφορά δεν τρέχει πια (έληξε, αρχείο, παύση): το banner δεν φαίνεται στο site */ otherDead: boolean }
 
 /** Τα υπάρχοντα banners (έτοιμες εικόνες και σχεδιασμένα) για να διαλέξει ο χρήστης ποια ανήκουν σε αυτή την προσφορά. */
 export async function bannersForPromoAction(promotionId: string): Promise<BannerOption[]> {
@@ -579,8 +579,10 @@ export async function bannersForPromoAction(promotionId: string): Promise<Banner
   const { SLOTS } = await import("@/lib/promo/landing-blocks");
   const rows = await db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ updatedAt: "desc" }], take: 80, select: { id: true, title: true, slot: true, status: true, image: true, design: true, promotionId: true } });
   const others = [...new Set(rows.map((r) => r.promotionId).filter((x): x is string => !!x && x !== promotionId))];
-  const names = new Map((others.length ? await db.promotion.findMany({ where: { id: { in: others } }, select: { id: true, name: true } }) : []).map((p) => [p.id, p.name]));
-  return rows.map((r) => { const bg = (r.design as { bg?: { color?: string; image?: string | null } } | null)?.bg; return { id: r.id, title: r.title, slot: SLOTS.find((x) => x.key === r.slot)?.label ?? r.slot, status: r.status, image: r.image ?? bg?.image ?? null, color: r.design ? bg?.color ?? "#122a58" : null, linked: r.promotionId === promotionId, other: r.promotionId && r.promotionId !== promotionId ? names.get(r.promotionId) ?? "άλλη προσφορά" : null }; })
+  const info = new Map((others.length ? await db.promotion.findMany({ where: { id: { in: others } }, select: { id: true, name: true, status: true, held: true, endsAt: true } }) : []).map((p) => [p.id, p]));
+  const names = new Map([...info].map(([k, v]) => [k, v.name]));
+  const dead = (id: string | null) => { const p = id ? info.get(id) : null; return !!id && id !== promotionId && (!p || p.held || !["active", "scheduled"].includes(p.status) || (!!p.endsAt && p.endsAt <= new Date())); };
+  return rows.map((r) => { const bg = (r.design as { bg?: { color?: string; image?: string | null } } | null)?.bg; return { id: r.id, title: r.title, slot: SLOTS.find((x) => x.key === r.slot)?.label ?? r.slot, status: r.status, image: r.image ?? bg?.image ?? null, color: r.design ? bg?.color ?? "#122a58" : null, linked: r.promotionId === promotionId, other: r.promotionId && r.promotionId !== promotionId ? names.get(r.promotionId) ?? "άλλη προσφορά" : null, otherDead: dead(r.promotionId) }; })
     .sort((a, b) => Number(b.linked) - Number(a.linked));
 }
 
@@ -588,7 +590,7 @@ export async function bannersForPromoAction(promotionId: string): Promise<Banner
 export async function linkBannerAction(bannerId: string, promotionId: string, link: boolean) {
   const user = await requirePermission(PERM);
   const r = await db.adPlacement.updateMany({ where: link ? { id: bannerId } : { id: bannerId, promotionId }, data: { promotionId: link ? promotionId : null } });
-  if (r.count) { await audit(user.id, link ? "promo.banner.link" : "promo.banner.unlink", "AdPlacement", bannerId, null, { promotionId }); revalidatePath("/admin/prosfores"); }
+  if (r.count) { await audit(user.id, link ? "promo.banner.link" : "promo.banner.unlink", "AdPlacement", bannerId, null, { promotionId }); (await import("@/lib/promo/landing")).invalidateAds(); revalidatePath("/admin/prosfores"); }
   return { ok: r.count > 0 };
 }
 
@@ -611,4 +613,16 @@ export async function offerDesignsAction(): Promise<OfferDesign[]> {
 export async function stickerParamsAction(key: string | null) {
   await requirePermission(PERM);
   return key ? (await import("@/lib/promo/banner-products")).bannerSticker(key) : null;
+}
+
+/** Δένει με την προσφορά όλα τα banners που ήταν δεμένα με προσφορές που δεν τρέχουν πια (και γι' αυτό δεν φαίνονται στο site). */
+export async function adoptDeadBannersAction(promotionId: string) {
+  const user = await requirePermission(PERM);
+  const ids = (await bannersForPromoAction(promotionId)).filter((b) => b.otherDead).map((b) => b.id);
+  if (!ids.length) return { moved: 0 };
+  const r = await db.adPlacement.updateMany({ where: { id: { in: ids } }, data: { promotionId } });
+  await audit(user.id, "promo.banner.adopt", "Promotion", promotionId, null, { ids });
+  (await import("@/lib/promo/landing")).invalidateAds();
+  revalidatePath("/admin/prosfores");
+  return { moved: r.count };
 }

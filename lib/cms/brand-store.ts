@@ -93,7 +93,7 @@ export type BrandBlock =
   | (BlockBase & { type: "gallery"; images: { src: string; caption?: string; href?: string }[]; layout?: "grid" | "mosaic" })
   | (BlockBase & { type: "cta"; body?: string; primary: Cta; secondary?: Cta })
   // ---- από τις Προσφορές & δυναμικό περιεχόμενο ----
-  | (BlockBase & { type: "ad"; mode: "slot" | "placement"; slot?: string; placementId?: string; placementTitle?: string; /** σε όλο το πλάτος της οθόνης (header καμπάνιας) */ bleed?: boolean })
+  | (BlockBase & { type: "ad"; mode: "slot" | "placement"; slot?: string; placementId?: string; placementTitle?: string; /** σε όλο το πλάτος της οθόνης (header καμπάνιας) */ bleed?: boolean; /** τετράγωνα ανά σειρά σε αυτό το σημείο (υπερισχύει του banner): υπολογιστής 2–6, κινητό 1 ή 2 */ perRow?: number; perRowMobile?: 1 | 2; /** false = πάντα τα ίδια προϊόντα· αλλιώς αλλάζουν σε κάθε άνοιγμα της σελίδας */ rotate?: boolean })
   | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta })
   | (BlockBase & { type: "promo-landing"; landingId: string; landingTitle?: string })
   | (BlockBase & { type: "coupon"; code: string; text?: string })

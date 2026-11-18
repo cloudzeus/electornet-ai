@@ -5,10 +5,10 @@ import { AlertTriangle, DatabaseZap, Loader2, X } from "lucide-react";
 import type { PromoDraft } from "@/lib/promo/admin";
 import { ProductBrowser } from "./ProductBrowser";
 import { CodesUpload } from "./TargetTools";
+import { ListMore, ListSearch, visible } from "./ListTools";
 import { erpBasketAction, type ErpRow } from "@/app/admin/(shell)/prosfores/actions";
 
 const eur = (v: number) => `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-const SHOWN = 200;
 
 /**
  * Το καλάθι μιας προσφοράς «Διαγραμμένες τιμές SoftOne». Οι τιμές δεν γράφονται εδώ: «Αρχική Τιμή Web» (διαγραμμένη) και
@@ -40,6 +40,9 @@ export function ErpBasket({ d, set, setNames }: { d: PromoDraft; set: (p: Partia
     setMsg(r.length ? `Στο SoftOne ${r.length === 1 ? "1 προϊόν έχει" : `${r.length} προϊόντα έχουν`} αρχική τιμή μεγαλύτερη από την τιμή web. Μπήκαν όλα στο καλάθι.` : "Κανένα προϊόν δεν έχει αρχική τιμή στο SoftOne αυτή τη στιγμή.");
   });
   const list = key ? rows ?? [] : [];
+  const [q, setQ] = useState("");
+  const [wide, setWide] = useState(false);
+  const view = visible(list, (r) => `${r.title} ${r.sku}`, q, wide);
   const missing = list.filter((r) => r.initial == null || r.price == null || r.initial <= r.price).length;
 
   return (
@@ -60,9 +63,10 @@ export function ErpBasket({ d, set, setNames }: { d: PromoDraft; set: (p: Partia
         {key && rows === null ? <p className="m-0 px-4 pb-4 inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-14)]"><Loader2 className="size-4 animate-spin" aria-hidden /> Φέρνω τιμές…</p>
           : !list.length ? <p className="m-0 px-4 pb-4 text-eu-ink-3 text-[length:var(--fs-14)]">Άδειο. Πάτα «Όλα όσα έχουν αρχική τιμή» ή πρόσθεσε προϊόντα από κάτω.</p> : (
           <>
+            <ListSearch q={q} onQ={setQ} total={list.length} />
             <div aria-hidden className="hidden @3xl:grid grid-cols-[minmax(0,1fr)_8rem_7rem_5rem_2.75rem] gap-x-3 px-4 py-2 bg-eu-surface/60 text-eu-muted font-bold text-[length:var(--fs-12)]"><span>Προϊόν</span><span className="text-right">Αρχική τιμή (SoftOne)</span><span className="text-right">Τιμή web</span><span className="text-right">Έκπτωση</span><span /></div>
             <ul className="m-0 p-0 list-none divide-y divide-eu-line border-t border-eu-line">
-              {list.slice(0, SHOWN).map((r) => {
+              {view.shown.map((r) => {
                 const ok = r.initial != null && r.price != null && r.initial > r.price;
                 return (
                   <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_2.75rem] @3xl:grid-cols-[minmax(0,1fr)_8rem_7rem_5rem_2.75rem] items-center gap-x-3 gap-y-1 px-4 py-2">
@@ -77,7 +81,7 @@ export function ErpBasket({ d, set, setNames }: { d: PromoDraft; set: (p: Partia
                 );
               })}
             </ul>
-            {list.length > SHOWN && <p className="m-0 px-4 py-3 text-eu-muted text-[length:var(--fs-13)]">Φαίνονται τα πρώτα {SHOWN} από {list.length}.</p>}
+            <ListMore shown={view.shown.length} found={view.found.length} total={list.length} all={wide} onAll={setWide} q={q} />
           </>
         )}
         {missing > 0 && (
@@ -86,7 +90,10 @@ export function ErpBasket({ d, set, setNames }: { d: PromoDraft; set: (p: Partia
         )}
       </section>
 
-      <CodesUpload exclude={false} onAdd={add} />
+      <details className="rounded-2xl border border-eu-line bg-white p-4">
+        <summary className="cursor-pointer font-extrabold text-eu-ink text-[length:var(--fs-15)] min-h-11 md:min-h-8 inline-flex items-center">Προσθήκη από λίστα κωδικών (Excel)</summary>
+        <div className="pt-3"><CodesUpload exclude={false} onAdd={add} /></div>
+      </details>
 
       <details className="rounded-2xl border border-eu-line bg-white p-4">
         <summary className="cursor-pointer font-extrabold text-eu-ink text-[length:var(--fs-15)] min-h-11 md:min-h-8 inline-flex items-center">Προσθήκη προϊόντων από τον κατάλογο</summary>

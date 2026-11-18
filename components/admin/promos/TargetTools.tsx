@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CircleAlert, CircleCheck, ExternalLink, FileSpreadsheet, Loader2, Minus, TrendingDown, TrendingUp, Upload, X } from "lucide-react";
+import { ListMore, ListSearch, visible } from "./ListTools";
 import { promoCodesAction, targetPricesAction, type CodeMatch, type TargetPrice } from "@/app/admin/(shell)/prosfores/actions";
 
 const eur = (v: number) => `${v.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -67,6 +68,8 @@ export function CodesUpload({ exclude, onAdd }: { exclude: boolean; onAdd: (item
  */
 export function SelectedPrices({ ids, mechanism, reward, onRemove }: { ids: string[]; mechanism: string; reward: { percent?: number; amount?: number }; onRemove: (id: string) => void }) {
   const [rows, setRows] = useState<TargetPrice[] | null>(null);
+  const [q, setQ] = useState("");
+  const [all, setAll] = useState(false);
   const key = ids.join(",");
   useEffect(() => {
     let on = true;
@@ -86,6 +89,7 @@ export function SelectedPrices({ ids, mechanism, reward, onRemove }: { ids: stri
   const list = rows ?? [];
   const v = list.map((r) => ({ r, ...verdict(r) }));
   const n = { win: v.filter((x) => x.k === "win").length, tie: v.filter((x) => x.k === "tie").length, lose: v.filter((x) => x.k === "lose").length, none: v.filter((x) => x.k === "none").length };
+  const view = visible(v, (x) => `${x.r.title} ${x.r.sku}`, q, all);
   const SEG = [["win", "bg-eu-green", "φθηνότεροι"], ["tie", "bg-eu-blue", "ίδια τιμή"], ["lose", "bg-eu-red", "ακριβότεροι"], ["none", "bg-eu-line", "χωρίς σύγκριση"]] as const;
   const hasPromo = v.some((x) => promo(x.r.price) != null);
   return (
@@ -106,8 +110,9 @@ export function SelectedPrices({ ids, mechanism, reward, onRemove }: { ids: stri
             </ul>
             {n.lose > 0 && <p className="m-0 text-eu-red font-bold text-[length:var(--fs-13)]">Σε {n.lose} προϊόντα ο Κωτσόβολος μένει φθηνότερος και με την προσφορά — δες αν θέλεις μεγαλύτερη έκπτωση ή να τα βγάλεις.</p>}
           </div>
+          <div className="-mx-4"><ListSearch q={q} onQ={setQ} total={v.length} /></div>
           <ul className="m-0 p-0 list-none grid divide-y divide-eu-line-2 border-t border-eu-line-2">
-            {v.slice(0, 100).map(({ r, k, diff }) => {
+            {view.shown.map(({ r, k, diff }) => {
               const pp = promo(r.price);
               return (
                 <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] @3xl:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem_7.5rem_11rem_auto] items-center gap-x-3 gap-y-1 py-2">
@@ -126,7 +131,7 @@ export function SelectedPrices({ ids, mechanism, reward, onRemove }: { ids: stri
               );
             })}
           </ul>
-          {v.length > 100 && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Φαίνονται τα πρώτα 100 από {v.length}· το σύνολο πάνω μετρά όλα.</p>}
+          <ListMore shown={view.shown.length} found={view.found.length} total={v.length} all={all} onAll={setAll} q={q} />
         </>
       )}
     </section>

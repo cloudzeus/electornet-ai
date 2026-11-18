@@ -93,6 +93,20 @@ export async function bannerCandidateIds(d: BannerDesign, promotionId: string | 
   return [...ids].slice(0, limit);
 }
 
+/**
+ * Προϊόντα που αλλάζουν σε κάθε άνοιγμα της σελίδας: όταν το banner δείχνει τετράγωνα (όχι slider) και έχει περισσότερα προϊόντα
+ * απ' όσα χωράνε (διαλεγμένα με το χέρι ή της προσφοράς), παίρνει μια τυχαία επιλογή τους αντί για πάντα τα πρώτα.
+ * Η δεξαμενή (έως 24) έρχεται από την κοινή μνήμη· τυχαία είναι μόνο η επιλογή, άρα δεν κοστίζει ερωτήματα.
+ */
+export async function bannerProductsRotating(d: BannerDesign, promotionId: string | null, scope?: BannerScope | string | null): Promise<BannerProduct[]> {
+  if (d.layout !== "posts" || d.slider || d.products.source === "none") return bannerProducts(d, promotionId, scope);
+  const pool = await bannerProducts({ ...d, products: { ...d.products, max: Math.min(24, Math.max(d.products.max * 4, 12)) } }, promotionId, scope);
+  if (pool.length <= d.products.max) return pool;
+  const mix = [...pool];
+  for (let i = mix.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [mix[i], mix[j]] = [mix[j], mix[i]]; }
+  return mix.slice(0, d.products.max);
+}
+
 /** Το sticker ενός σχεδιασμένου banner (μόνο ενεργό) — τα στοιχεία σχεδίασής του για το StickerSvg. */
 const stickerCache = swrMap<StickerParams | null>(60_000, { maxStaleMs: 5 * 60_000 });
 onCatalogReset(stickerCache.resetAll);

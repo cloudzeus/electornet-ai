@@ -21,7 +21,7 @@ const shell = "eu-canvas eu-gutter py-8 @lg:py-12";
 export function AdBlock({ b, count = true }: { b: B<"ad">; count?: boolean }) {
   return (
     <div className={b.bleed ? "eu-full" : "eu-canvas eu-gutter py-4 @lg:py-6"}>
-      <AdSlot slot={b.slot ?? "info-top"} id={b.mode === "placement" ? b.placementId : undefined} count={count} bleed={b.bleed} />
+      <AdSlot slot={b.slot ?? "info-top"} id={b.mode === "placement" ? b.placementId : undefined} count={count} bleed={b.bleed} perRow={b.perRow} perRowMobile={b.perRowMobile} rotate={b.rotate !== false} />
     </div>
   );
 }

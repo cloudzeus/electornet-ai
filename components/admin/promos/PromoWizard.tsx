@@ -634,8 +634,12 @@ function ErpMode({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<Promo
   if (!special && d.mechanism !== "price-percent" && d.mechanism !== "price-amount") return null;
   const mode = d.reward.erp ?? (special ? "lock" : "follow");
   return (
-    <section data-help="promo.erp" className="grid gap-2 border-t border-eu-line pt-4" aria-labelledby="erp-h">
-      <h4 id="erp-h" className="m-0 font-extrabold text-eu-ink text-[length:var(--fs-15)]">Όταν αλλάξει η τιμή ενός προϊόντος στο ERP</h4>
+    <details data-help="promo.erp" className="group/e rounded-2xl border border-eu-line bg-white open:pb-4">
+      <summary className="list-none cursor-pointer flex flex-wrap items-center gap-x-3 gap-y-1 px-4 min-h-12 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="grid flex-1 basis-64"><span className="font-extrabold text-eu-ink text-[length:var(--fs-15)]">Όταν αλλάξει η τιμή ενός προϊόντος στο ERP</span><span className="text-eu-ink-3 text-[length:var(--fs-13)]">{mode === "follow" ? "Τώρα: η τιμή προσφοράς ακολουθεί" : "Τώρα: η τιμή προσφοράς μένει κλειδωμένη"}</span></span>
+        <span className="inline-flex items-center gap-1 font-bold text-eu-blue text-[length:var(--fs-13)]">Αλλαγή <ChevronDown className="size-4 transition-transform group-open/e:rotate-180" aria-hidden /></span>
+      </summary>
+      <div className="grid gap-2 px-4">
       <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-2">
         <OptionCard on={mode === "follow"} onClick={() => setReward({ erp: "follow" })} title="Η τιμή προσφοράς ακολουθεί"
           desc={special ? "Μένει ίδιο το ποσοστό έκπτωσης. Π.χ. από 1.000 € στα 800 €: αν το ERP πάει 1.100 €, η προσφορά γίνεται 880 €." : "Ξαναϋπολογίζεται από τη νέα τιμή, μέσα σε 10 λεπτά. Π.χ. −20 % σε 1.000 € = 800 €: αν το ERP πάει 900 €, η προσφορά γίνεται 720 €."} />
@@ -643,7 +647,8 @@ function ErpMode({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<Promo
           desc={special ? "Μένει η τιμή που έγραψες ή ανέβασες από το Excel. Αλλάζει μόνο η «τιμή πριν»." : "Μένει η τιμή προσφοράς της δημοσίευσης (800 € στο παράδειγμα). Αν το ERP πέσει κάτω από αυτήν, ο πελάτης πληρώνει τη χαμηλότερη."} />
       </div>
       {!special && mode === "lock" && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Κλειδώνουν οι τιμές όσων προϊόντων πιάνει η προσφορά τη στιγμή της δημοσίευσης, έως 2.000. Προϊόν που μπαίνει αργότερα σε κατηγορία ή μάρκα της προσφοράς ακολουθεί το ERP.</p>}
-    </section>
+      </div>
+    </details>
   );
 }
 

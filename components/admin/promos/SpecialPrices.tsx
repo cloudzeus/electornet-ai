@@ -4,13 +4,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowRightLeft, CircleAlert, CircleCheck, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import type { PromoDraft } from "@/lib/promo/admin";
 import { ProductBrowser } from "./ProductBrowser";
+import { ListMore, ListSearch, visible } from "./ListTools";
 import { previewPricesAction, targetPricesAction, type PriceRow } from "@/app/admin/(shell)/prosfores/actions";
 
 const eur = (c: number) => `${(c / 100).toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 const toCents = (s: string) => { const v = Number(s.replace(/[€\s]/g, "").replace(",", ".")); return Number.isFinite(v) && v > 0 ? Math.round(v * 100) : 0; };
 const btn = "inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] cursor-pointer disabled:opacity-50";
 const TEMPLATE = `data:text/csv;charset=utf-8,${encodeURIComponent("﻿Κωδικός;Τιμή προσφοράς\n55C46LA;1199\n")}`;
-const SHOWN = 200;
 /** Αρχή του μηνύματος που στέλνει το previewPricesAction όταν η τιμή του αρχείου είναι ήδη η τιμή του eshop. */
 const ERP_ISSUE = "είναι ήδη σε τιμή προσφοράς";
 
@@ -29,6 +29,9 @@ export function SpecialPrices({ d, setReward, names, setNames, toErp }: { d: Pro
   const file = useRef<HTMLInputElement>(null);
 
   // τιμή πριν = τρέχουσα τιμή eshop, για όσα προϊόντα δεν την έχουμε ήδη
+  const [q, setQ] = useState("");
+  const [all, setAll] = useState(false);
+  const view = visible(ids, (id) => names[id] ?? id, q, all);
   const missing = ids.filter((id) => !(id in list)).join(",");
   useEffect(() => {
     if (!missing) return;
@@ -103,9 +106,10 @@ export function SpecialPrices({ d, setReward, names, setNames, toErp }: { d: Pro
         <h4 className="m-0 px-4 py-3 font-extrabold text-eu-ink text-[length:var(--fs-15)]">Προϊόντα της προσφοράς <span className="font-normal text-eu-muted tabular-nums">{ids.length}</span></h4>
         {ids.length === 0 ? <p className="m-0 px-4 pb-4 text-eu-ink-3 text-[length:var(--fs-14)]">Κανένα ακόμη. Ανέβασε το Excel από πάνω ή διάλεξε προϊόντα από τον κατάλογο από κάτω.</p> : (
           <>
+            <ListSearch q={q} onQ={setQ} total={ids.length} />
             <div aria-hidden className="hidden @3xl:grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_2.75rem] gap-x-3 px-4 py-2 bg-eu-surface/60 text-eu-muted font-bold text-[length:var(--fs-12)]"><span>Προϊόν</span><span className="text-right">Τιμή πριν</span><span className="text-right">Τιμή προσφοράς</span><span className="text-right">Έκπτωση</span><span /></div>
             <ul className="m-0 p-0 list-none divide-y divide-eu-line border-t border-eu-line">
-              {ids.slice(0, SHOWN).map((id) => {
+              {view.shown.map((id) => {
                 const c = prices[id], was = list[id] ?? null;
                 const pct = c && was ? Math.round(((was - c) / was) * 100) : null;
                 const bad = !!c && was != null && c >= was;
@@ -123,7 +127,7 @@ export function SpecialPrices({ d, setReward, names, setNames, toErp }: { d: Pro
                 );
               })}
             </ul>
-            {ids.length > SHOWN && <p className="m-0 px-4 py-3 text-eu-muted text-[length:var(--fs-13)]">Φαίνονται τα πρώτα {SHOWN} από {ids.length}. Για αλλαγές στα υπόλοιπα ανέβασε ξανά το Excel με τις νέες τιμές.</p>}
+            <ListMore shown={view.shown.length} found={view.found.length} total={ids.length} all={all} onAll={setAll} q={q} />
           </>
         )}
       </section>
