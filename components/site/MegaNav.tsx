@@ -69,6 +69,8 @@ export function MegaNav({ data = [], categories: navCategories = demoCategories 
       );
       const more =
         pr.querySelector<HTMLElement>("[data-more]")?.offsetWidth ?? 120;
+      // δεν έχουν ακόμη πλάτος (CSS/γραμματοσειρά δεν έχουν εφαρμοστεί): μην αποφασίσεις «χωράνε όλα» με μηδενικά
+      if (!cats.length || cats.some((w) => w <= 4)) return;
       const cs = getComputedStyle(ul);
       const width =
         ul.clientWidth -
@@ -88,6 +90,9 @@ export function MegaNav({ data = [], categories: navCategories = demoCategories 
       setVisible(Math.max(1, count));
     });
     ro.observe(ul);
+    // και τα ίδια τα στοιχεία της δοκιμαστικής σειράς: το πλάτος τους αλλάζει όταν φορτώσει η γραμματοσειρά,
+    // ενώ η σειρά του μενού μένει ίδια — χωρίς αυτό η μέτρηση έμενε στην πρώτη, λάθος, τιμή και το μενού ξεχείλιζε
+    pr.querySelectorAll<HTMLElement>("[data-cat],[data-util],[data-more]").forEach((e) => ro.observe(e));
     return () => ro.disconnect();
   }, []);
 
