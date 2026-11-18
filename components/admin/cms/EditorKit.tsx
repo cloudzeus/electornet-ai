@@ -189,6 +189,10 @@ const nonceOf = (d: Document) => d.querySelector<HTMLElement>("script[nonce], st
 export function LivePreview({ src, attr = "data-home-item", v, device, setDevice, saving, focus, notice, onPick, peek = null }: { src: string; attr?: string; v: number; device: "desktop" | "mobile"; setDevice: (d: "desktop" | "mobile") => void; saving: boolean; focus: string | null; notice: string | null; onPick: (key: string, text: string | null) => void; /** προσωρινός κίτρινος τονισμός (hover στη λίστα) */ peek?: string | null }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
+  // Η προεπισκόπηση δεν «χορεύει» όσο δουλεύεις μια ζώνη: θυμόμαστε πού ήταν η κύλισή της και ποια ζώνη ήταν επιλεγμένη.
+  // Κάθε αλλαγή ξαναφορτώνει το iframe — αν η ζώνη είναι η ίδια, η κύλιση γυρίζει ακαριαία στο ίδιο σημείο, χωρίς κίνηση.
+  const keptY = useRef(0);
+  const lastFocus = useRef<string | null>(null);
   const [w, setW] = useState(0);
   const [bh, setBh] = useState(0);
   const [loaded, setLoaded] = useState(0);
@@ -214,9 +218,13 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
     // το επιλεγμένο δεν υπάρχει (κρυφό, κενό, άλλη συσκευή) ή δεν φαίνεται σε αυτή τη συσκευή → μήνυμα αντί για σιωπή
     const gone = !!focus && (!el || el.offsetParent === null || el.getBoundingClientRect().height < 2);
     queueMicrotask(() => setMissing(gone));
+    if (!focus) lastFocus.current = null;
     if (!focus || !el || gone) return;
     el.style.outline = "4px solid #1d428a"; el.style.outlineOffset = "-4px";
-    scrollIn(el, false);
+    const w = d.defaultView;
+    if (lastFocus.current === focus && w) w.scrollTo({ top: keptY.current, behavior: "auto" }); // ίδια ζώνη μετά από αλλαγή: μένει εκεί που ήταν
+    else scrollIn(el, false); // νέα επιλογή: κύλιση στη ζώνη
+    lastFocus.current = focus;
   }, [focus, loaded, attr, ready]);
   // «δείξε μου»: κίτρινος τονισμός με σκίαση γύρω (κανόνας CSS, όχι inline στυλ) και κύλιση εκεί
   useEffect(() => {
@@ -237,6 +245,9 @@ export function LivePreview({ src, attr = "data-home-item", v, device, setDevice
       st.nonce = nonceOf(d);
       st.textContent = `[${attr}]{cursor:pointer}[${attr}]:hover{box-shadow:inset 0 0 0 3px rgba(29,66,138,.45)}`;
       d.head.appendChild(st);
+      // ίδια ζώνη, νέα φόρτωση: πίσω στο ίδιο σημείο αμέσως μόλις φορτώσει, πριν προλάβει να φανεί η κορυφή της σελίδας
+      if (lastFocus.current) d.defaultView?.scrollTo({ top: keptY.current, behavior: "auto" });
+      d.defaultView?.addEventListener("scroll", () => { keptY.current = d.defaultView?.scrollY ?? 0; }, { passive: true });
       d.addEventListener("click", (e) => {
         const t = (e.target as HTMLElement).closest(`[${attr}]`);
         e.preventDefault(); e.stopPropagation();

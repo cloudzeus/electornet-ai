@@ -227,7 +227,7 @@ export async function blockOptionsAction() {
   const now = new Date();
   const { SLOTS } = await import("@/lib/promo/landing-blocks");
   const [ads, promos, landings, coupons, brands] = await Promise.all([
-    db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ slot: "asc" }, { priority: "asc" }], select: { id: true, slot: true, title: true, image: true, status: true, startsAt: true, endsAt: true } }),
+    db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ slot: "asc" }, { priority: "asc" }], select: { id: true, slot: true, title: true, image: true, status: true, startsAt: true, endsAt: true, design: true } }),
     db.promotion.findMany({ where: { status: { in: ["active", "scheduled"] }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
     db.landingPage.findMany({ where: { status: "published" }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, slug: true, endsAt: true } }),
     db.coupon.findMany({ where: { kind: "shared", customerId: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], promotion: { status: { in: ["active", "scheduled"] } } }, orderBy: { createdAt: "desc" }, take: 200, select: { code: true, expiresAt: true, promotion: { select: { name: true } } } }),
@@ -238,7 +238,7 @@ export async function blockOptionsAction() {
   const iso = (d: Date | null) => d?.toISOString() ?? null;
   return {
     slots: SLOTS,
-    ads: ads.map((a) => ({ id: a.id, slot: a.slot, title: a.title, image: a.image, status: a.status, startsAt: iso(a.startsAt), endsAt: iso(a.endsAt) })),
+    ads: ads.map((a) => ({ id: a.id, slot: a.slot, title: a.title, image: a.image, designed: !!a.design, status: a.status, startsAt: iso(a.startsAt), endsAt: iso(a.endsAt) })),
     promos: promos.map((p) => ({ id: p.id, name: p.name, code: p.code, status: p.status, endsAt: iso(p.endsAt) })),
     landings: landings.map((l) => ({ id: l.id, title: l.title, slug: l.slug, endsAt: iso(l.endsAt) })),
     coupons: coupons.map((c) => ({ code: c.code, promo: c.promotion.name, expiresAt: iso(c.expiresAt) })),

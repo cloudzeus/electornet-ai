@@ -240,6 +240,10 @@ const SHOW_FROM = ["", "hidden @3xl:grid", "hidden @6xl:grid"];
 const COLS: Record<number, string> = { 2: "grid-cols-2", 3: "grid-cols-2 @3xl:grid-cols-3", 4: "grid-cols-2 @4xl:grid-cols-4", 5: "grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-5", 6: "grid-cols-2 @2xl:grid-cols-3 @4xl:grid-cols-4 @6xl:grid-cols-6" };
 /** κινητό με ένα τετράγωνο ανά σειρά (products.perRowMobile = 1) */
 const ONE_COL = "grid-cols-1";
+// ρητές στήλες ανά συσκευή (όταν έχει οριστεί το tablet): κινητό → tablet (πλάτος ζώνης από 42rem) → υπολογιστής (από 64rem)
+const TAB_COLS: Record<number, string> = { 1: "@2xl:grid-cols-1", 2: "@2xl:grid-cols-2", 3: "@2xl:grid-cols-3", 4: "@2xl:grid-cols-4" };
+const DESK_COLS: Record<number, string> = { 2: "@5xl:grid-cols-2", 3: "@5xl:grid-cols-3", 4: "@5xl:grid-cols-4", 5: "@5xl:grid-cols-5", 6: "@5xl:grid-cols-6" };
+const deviceCols = (p: BannerDesign["products"]) => `${p.perRowMobile === 1 ? ONE_COL : "grid-cols-2"} ${TAB_COLS[p.perRowTablet ?? 2] ?? TAB_COLS[2]} ${DESK_COLS[p.perRow] ?? DESK_COLS[4]}`;
 const TILES: Record<BannerDesign["postStyle"], (props: TileProps) => React.ReactNode> = { visual: PostTile, podium: PodiumTile, clean: CleanTile, band: BandTile };
 
 export function DesignedBanner({ d, products, shape = "wide", href, sticker, bleed = false }: { /** σε όλο το πλάτος της οθόνης: χωρίς στρογγυλές γωνίες, πιο ψηλό, με το περιεχόμενο στο πλάτος της σελίδας */ bleed?: boolean; d: BannerDesign; products: BannerProduct[]; shape?: "wide" | "square"; /** τα στοιχεία του sticker που διάλεξε ο διαχειριστής (d.stickerKey) */ sticker?: StickerParams | null; /** διάταξη «posts»: ο σύνδεσμος του «δες όλα» (κάθε post πάει στο προϊόν του) */ href?: string | null }) {
@@ -263,7 +267,7 @@ export function DesignedBanner({ d, products, shape = "wide", href, sticker, ble
             {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo bullets={[]} sticker={sticker} />; })}
           </TileSlider>
         ) : (
-        <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : (COLS[Math.min(tiles.length, d.products.perRow)] ?? COLS[4]).replace(/^grid-cols-2/, d.products.perRowMobile === 1 ? ONE_COL : "grid-cols-2")}`}>
+        <div className={`grid gap-3 @3xl:gap-4 ${tiles.length === 1 ? "" : d.products.perRowTablet ? deviceCols(d.products) : (COLS[Math.min(tiles.length, d.products.perRow)] ?? COLS[4]).replace(/^grid-cols-2/, d.products.perRowMobile === 1 ? ONE_COL : "grid-cols-2")}`}>
           {tiles.map((p) => { const Tile = TILES[d.postStyle] ?? PostTile; return <Tile key={p.id} d={d} p={p} tall={shape === "square"} solo={tiles.length === 1} bullets={tiles.length === 1 ? d.products.bullets : []} sticker={sticker} />; })}
         </div>
         )}

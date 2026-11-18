@@ -125,6 +125,8 @@ export interface BannerDesign {
     perRow: number;
     /** τετράγωνα post ανά σειρά σε κινητό: 1 (μεγάλα) ή 2 */
     perRowMobile?: 1 | 2;
+    /** τετράγωνα post ανά σειρά σε tablet (1–4)· κενό = βγαίνει από το «ανά σειρά» του υπολογιστή */
+    perRowTablet?: number;
     /** λέξη πάνω από την τιμή, π.χ. «ΜΟΝΟ» */
     priceLabel: string;
     showBrand: boolean;
@@ -182,7 +184,7 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),
     products: {
       source, ids: source === "manual" && Array.isArray(p.ids) ? [...new Set(p.ids.filter((i): i is string => typeof i === "string"))].slice(0, MAX_BANNER_PRODUCTS) : [],
-      max: Math.max(1, Math.min(MAX_BANNER_PRODUCTS, Number(p.max) || 2)), perRow: Math.max(2, Math.min(6, Math.round(Number(p.perRow)) || 4)), perRowMobile: Number(p.perRowMobile) === 1 ? 1 : 2, priceLabel: str(p.priceLabel, 12),
+      max: Math.max(1, Math.min(MAX_BANNER_PRODUCTS, Number(p.max) || 2)), perRow: Math.max(2, Math.min(6, Math.round(Number(p.perRow)) || 4)), perRowMobile: Number(p.perRowMobile) === 1 ? 1 : 2, ...(Number(p.perRowTablet) >= 1 ? { perRowTablet: Math.min(4, Math.round(Number(p.perRowTablet))) } : {}), priceLabel: str(p.priceLabel, 12),
       showBrand: p.showBrand !== false, showEnergy: p.showEnergy !== false, showWas: p.showWas !== false, cutout: p.cutout !== false,
       bullets: Array.isArray(p.bullets) ? p.bullets.map((b) => str(b, 40)).filter(Boolean).slice(0, 5) : [],
     },

@@ -47,29 +47,49 @@ export function Usp({ b }: { b: B<"usp"> }) {
 }
 
 /** Μεγάλο banner εικόνας με κείμενο πάνω της· ξεχωριστή εικόνα για κινητό αν δοθεί. */
+const BANNER_TITLE = { s: "text-[length:var(--fs-24)] @lg:text-[length:var(--fs-32)]", m: "text-[length:var(--fs-32)] @lg:text-[length:var(--fs-50)]", l: "text-[length:var(--fs-42)] @lg:text-[length:var(--fs-58)]" } as const;
+
+/**
+ * Έτοιμο banner-εικόνα σε ζώνη: έως τρεις εικόνες (υπολογιστής, tablet, κινητό), τρεις τρόποι τοποθέτησης (γεμίζει το πλαίσιο /
+ * ολόκληρη στις αναλογίες της / ολόκληρη μέσα στο πλαίσιο), σύνδεσμος σε όλη την εικόνα, και υπέρτιτλος, τίτλος, υπότιτλος και
+ * κουμπί πάνω στην εικόνα, πάνω από αυτήν ή κάτω της.
+ */
 export function Banner({ b }: { b: B<"banner"> }) {
   if (!b.image) return null;
+  const fit = b.fit ?? "cover", place = b.textPlace ?? "over", over = place === "over";
   const h = b.height === "s" ? "min-h-[14rem] @lg:min-h-[18rem]" : b.height === "l" ? "min-h-[26rem] @lg:min-h-[34rem]" : "min-h-[20rem] @lg:min-h-[26rem]";
   const align = b.align === "center" ? "items-center text-center mx-auto" : b.align === "right" ? "items-end text-right ml-auto" : "items-start";
   const ov = b.overlay ?? "dark";
   const tint = ov === "dark" ? "bg-[linear-gradient(90deg,rgba(0,0,0,.65),rgba(0,0,0,.25))] text-white" : ov === "light" ? "bg-[linear-gradient(90deg,rgba(255,255,255,.85),rgba(255,255,255,.35))] text-[#111]" : "";
+  const hasText = !!(b.kicker || b.title || b.body || b.cta);
+  const text = hasText ? (
+    <div className={`flex flex-col justify-center gap-3 max-w-[36rem] ${align}`}>
+      {b.kicker && <span className={`font-extrabold text-[length:var(--fs-13)] tracking-wide uppercase ${over ? "opacity-90" : "text-[var(--bs-kicker,var(--bs-accent))]"}`}>{b.kicker}</span>}
+      {b.title && <h2 className={`m-0 font-heading font-extrabold leading-[1.02] tracking-[-0.03em] ${over ? "" : "text-[color:var(--bs-title,inherit)]"} ${BANNER_TITLE[b.headSize ?? "m"] ?? BANNER_TITLE.m}`}>{b.title}</h2>}
+      {b.body && <p className="m-0 text-[length:var(--fs-17)] leading-relaxed opacity-90">{b.body}</p>}
+      {b.cta && <Link href={b.cta.href} className={`${primary} mt-1 pointer-events-auto`}>{b.cta.label} <ArrowRight className="size-4" aria-hidden /></Link>}
+    </div>
+  ) : null;
+  const pic = (cls: string) => (
+    <picture className={fit === "natural" ? "block" : "absolute inset-0 -z-10"}>
+      {b.imageMobile && <source media="(max-width: 640px)" srcSet={b.imageMobile} />}
+      {b.imageTablet && <source media="(max-width: 1023px)" srcSet={b.imageTablet} />}
+      {/* eslint-disable-next-line @next/next/no-img-element -- εικόνα περιεχομένου από τη βιβλιοθήκη, με <picture> ανά συσκευή */}
+      <img src={b.image} alt={over || !b.title ? b.title ?? "" : ""} className={cls} loading="lazy" />
+    </picture>
+  );
+  const visual = (
+    <div className={`relative isolate overflow-hidden ${b.bleed ? "" : "rounded-3xl"} ${fit === "natural" ? "" : `${h} flex`}`}>
+      {pic(fit === "natural" ? "block w-full h-auto" : fit === "contain" ? "size-full object-contain" : "size-full object-cover")}
+      {b.href && <Link href={b.href} aria-label={b.title || "Banner"} className="absolute inset-0 z-0" />}
+      {over && text && <div className={`${fit === "natural" ? "absolute inset-0" : "flex-1"} relative z-10 flex p-6 @lg:p-10 pointer-events-none ${tint}`}>{text}</div>}
+    </div>
+  );
   return (
-    <section className="eu-canvas eu-gutter py-6 @lg:py-10" aria-label={b.title ?? "Banner"}>
-      <div className={`relative isolate rounded-3xl overflow-hidden ${h} flex`}>
-        <picture className="absolute inset-0 -z-10">
-          {b.imageMobile && <source media="(max-width: 640px)" srcSet={b.imageMobile} />}
-          { }
-          <img src={b.image} alt="" className="size-full object-cover" loading="lazy" />
-        </picture>
-        <div className={`flex-1 flex p-6 @lg:p-10 ${tint}`}>
-          <div className={`flex flex-col justify-center gap-3 max-w-[36rem] ${align}`}>
-            {b.kicker && <span className="font-extrabold text-[length:var(--fs-13)] tracking-wide uppercase opacity-90">{b.kicker}</span>}
-            {b.title && <h2 className="m-0 font-heading font-extrabold text-[length:var(--fs-32)] @lg:text-[length:var(--fs-50)] leading-[1.02] tracking-[-0.03em]">{b.title}</h2>}
-            {b.body && <p className="m-0 text-[length:var(--fs-17)] leading-relaxed opacity-90">{b.body}</p>}
-            {b.cta && <Link href={b.cta.href} className={`${primary} mt-1`}>{b.cta.label} <ArrowRight className="size-4" aria-hidden /></Link>}
-          </div>
-        </div>
-      </div>
+    <section className={b.bleed ? "eu-full py-6 @lg:py-10" : "eu-canvas eu-gutter py-6 @lg:py-10"} aria-label={b.title ?? "Banner"}>
+      {place === "above" && text && <div className={`flex mb-[var(--bs-head-gap,1.5rem)] ${b.bleed ? "eu-canvas eu-gutter" : ""}`}>{text}</div>}
+      {visual}
+      {place === "below" && text && <div className={`flex mt-[var(--bs-head-gap,1.5rem)] ${b.bleed ? "eu-canvas eu-gutter" : ""}`}>{text}</div>}
     </section>
   );
 }

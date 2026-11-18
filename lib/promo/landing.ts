@@ -90,3 +90,20 @@ export async function pickAd(slot: string, ctx: { category?: string | null; coun
   if (ad && ctx.count !== false) countImpression(ad.id);
   return ad ?? null;
 }
+
+/**
+ * Τα προϊόντα που είναι ΤΩΡΑ σε προσφορά τιμής (έτοιμη τιμή χαμηλότερη από τη διαγραμμένη), για τη σελίδα /prosfores:
+ * όλες οι ενεργές προσφορές μαζί — ποσοστό, τιμές από Excel και διαγραμμένες τιμές SoftOne. Ταξινόμηση και σελίδες στη μνήμη
+ * (λίγες εκατοντάδες γραμμές).
+ */
+export async function offerProductsPage(sort: string | undefined, page: number, perPage = 48) {
+  const rows = (await db.productOffer.findMany({ where: { product: { active: true, soldAlone: true, price: { gt: 0 } } }, select: { productId: true, price: true, listPrice: true }, take: 5000 }))
+    .map((r) => ({ id: r.productId, price: Number(r.price), list: Number(r.listPrice) })).filter((r) => r.list > r.price);
+  const key = (r: (typeof rows)[number]) => (sort === "price-asc" ? r.price : sort === "price-desc" ? -r.price : -(r.list - r.price) / r.list);
+  rows.sort((a, b) => key(a) - key(b));
+  const pages = Math.max(1, Math.ceil(rows.length / perPage)), p = Math.min(pages, Math.max(1, page || 1));
+  const ids = rows.slice((p - 1) * perPage, p * perPage).map((r) => r.id);
+  const items = ids.length ? await dbProductsByIds(ids) : [];
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return { items: items.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)), total: rows.length, page: p, pages };
+}

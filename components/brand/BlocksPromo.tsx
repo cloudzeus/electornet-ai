@@ -26,17 +26,41 @@ export function AdBlock({ b, count = true }: { b: B<"ad">; count?: boolean }) {
   );
 }
 
-export function PromoProducts({ b, data, products }: { b: B<"promo-products">; data: PromoData | null; products: Product[] }) {
+// προϊόντα ανά σειρά στις απλές κάρτες, ανά συσκευή (κινητό → tablet → υπολογιστής)· κενό = η συνήθης διάταξη
+const CARD_M: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2" };
+const CARD_T: Record<number, string> = { 1: "@2xl:grid-cols-1", 2: "@2xl:grid-cols-2", 3: "@2xl:grid-cols-3", 4: "@2xl:grid-cols-4" };
+const CARD_D: Record<number, string> = { 2: "@5xl:grid-cols-2", 3: "@5xl:grid-cols-3", 4: "@5xl:grid-cols-4", 5: "@5xl:grid-cols-5", 6: "@5xl:grid-cols-6" };
+
+/** Τα προϊόντα της προσφοράς μέσα σε σχέδιο banner (όσο η προσφορά ζει)· χωρίς έγκυρο σχέδιο ή προϊόντα → null. */
+async function PromoDesigned({ b }: { b: B<"promo-products"> }) {
+  const { designByKey } = await import("@/lib/promo/designs");
+  const base = await designByKey(b.design);
+  if (!base) return null;
+  const { bannerProducts, bannerProductsRotating, bannerSticker } = await import("@/lib/promo/banner-products");
+  // ο τίτλος είναι της ζώνης· το σχέδιο δίνει μόνο την εμφάνιση των προϊόντων
+  const d = { ...base, kicker: "", title: "", body: base.layout === "strip" ? base.body : "", cta: "", products: { ...base.products, source: "promotion" as const, ids: [], max: Math.max(1, Math.min(12, b.limit || base.products.max)), perRow: b.perRow ?? base.products.perRow, perRowMobile: b.perRowMobile ?? base.products.perRowMobile, perRowTablet: b.perRowTablet ?? base.products.perRowTablet ?? Math.min(3, b.perRow ?? base.products.perRow) } };
+  const list = await (b.rotate === false ? bannerProducts : bannerProductsRotating)(d, b.promotionId).catch(() => []);
+  if (!list.length) return null;
+  const { DesignedBanner } = await import("@/components/promo/DesignedBanner");
+  return <DesignedBanner d={d} products={list} shape="wide" href={null} sticker={await bannerSticker(d.stickerKey).catch(() => null)} />;
+}
+
+export async function PromoProducts({ b, data, products }: { b: B<"promo-products">; data: PromoData | null; products: Product[] }) {
   if (!data || !products.length) return null;
-  const href = b.cta?.href || data.landingHref;
+  // κουμπί της ζώνης: δικός της σύνδεσμος → η landing page της προσφοράς → αλλιώς η σελίδα όλων των προσφορών
+  const href = b.cta?.href || data.landingHref || "/prosfores";
+  const designed = b.design ? await PromoDesigned({ b }) : null;
+  const cols = b.perRow || b.perRowTablet || b.perRowMobile ? `${CARD_M[b.perRowMobile ?? 1] ?? CARD_M[1]} ${CARD_T[b.perRowTablet ?? 2] ?? CARD_T[2]} ${CARD_D[b.perRow ?? 4] ?? CARD_D[4]}` : "grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4";
   return (
     <section className={shell} aria-label={b.title || data.name}>
-      <BlockHead kicker={b.kicker || "Προσφορά"} title={b.title || data.name} right={b.countdown !== false && data.endsAt ? <Countdown endsAt={data.endsAt} variant="blocks" tone="light" className="shrink-0 hidden @md:flex" /> : undefined} />
+      <BlockHead kicker={b.kicker || "Προσφορά"} title={b.title || data.name} subtitle={b.subtitle} size={b.headSize} right={b.countdown !== false && data.endsAt ? <Countdown endsAt={data.endsAt} variant="blocks" tone="light" className="shrink-0 hidden @md:flex" /> : undefined} />
       {b.countdown !== false && data.endsAt && <div className="@md:hidden mb-4"><Countdown endsAt={data.endsAt} variant="blocks" tone="light" /></div>}
-      <div className="grid grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4 gap-3">
-        {products.map((p, k) => <div key={p.id} className={`min-w-0 h-full ${k >= 4 ? "hidden @sm:block" : ""}`}><ProductCard product={p} dealEndsAt={data.endsAt ?? undefined} /></div>)}
-      </div>
-      {href && <Link href={href} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[var(--bs-accent)] text-[var(--bs-accent-ink)] font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:brightness-110 w-full @md:w-auto">{b.cta?.label || "Όλα τα προϊόντα της προσφοράς"} <ArrowRight className="size-4" aria-hidden /></Link>}
+      {designed ?? (
+        <div className={`grid gap-3 ${cols}`}>
+          {products.map((p, k) => <div key={p.id} className={`min-w-0 h-full ${k >= 4 && !b.perRowMobile ? "hidden @sm:block" : ""}`}><ProductCard product={p} dealEndsAt={data.endsAt ?? undefined} /></div>)}
+        </div>
+      )}
+      {href && <Link href={href} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[var(--bs-accent)] text-[var(--bs-accent-ink)] font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:brightness-110 w-full @md:w-auto">{b.cta?.label || (b.cta?.href || data.landingHref ? "Όλα τα προϊόντα της προσφοράς" : "Δες όλες τις προσφορές")} <ArrowRight className="size-4" aria-hidden /></Link>}
     </section>
   );
 }

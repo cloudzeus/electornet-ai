@@ -85,7 +85,12 @@ export type BrandBlock =
   // ---- δυναμικά components (Περιεχόμενο → Σελίδες μαρκών) ----
   | (BlockBase & { type: "announcement"; text: string; href?: string; endsAt?: string })
   | (BlockBase & { type: "usp"; items: { icon: TechIcon; text: string }[] })
-  | (BlockBase & { type: "banner"; image: string; imageMobile?: string; body?: string; cta?: Cta; align?: "left" | "center" | "right"; overlay?: "dark" | "light" | "none"; height?: "s" | "m" | "l" })
+  | (BlockBase & { type: "banner"; image: string; imageMobile?: string; body?: string; cta?: Cta; align?: "left" | "center" | "right"; overlay?: "dark" | "light" | "none"; height?: "s" | "m" | "l";
+      /** εικόνα για tablet (641–1023px)· κενό = η εικόνα του υπολογιστή */ imageTablet?: string;
+      /** πώς μπαίνει η εικόνα: cover = γεμίζει το πλαίσιο (κόβονται οι άκρες) · natural = ολόκληρη, στις αναλογίες της · contain = ολόκληρη μέσα στο πλαίσιο */ fit?: "cover" | "natural" | "contain";
+      /** σύνδεσμος όλης της εικόνας */ href?: string;
+      /** μέγεθος τίτλου και πού μπαίνουν τα κείμενα: πάνω στην εικόνα, πάνω από αυτήν ή κάτω της */ headSize?: "s" | "m" | "l"; textPlace?: "over" | "above" | "below";
+      /** σε όλο το πλάτος της οθόνης, χωρίς στρογγυλές γωνίες */ bleed?: boolean })
   | (BlockBase & { type: "products-auto"; source: AutoSource; categoryId?: string; categoryName?: string; limit: number; cta?: Cta; brand?: { slug: string; name: string } })
   | (BlockBase & { type: "categories"; mode: "auto" | "manual"; items?: { id: string; name: string; image?: string }[]; limit?: number; brand?: { slug: string; name: string } })
   | (BlockBase & { type: "faq"; items: { q: string; a: string }[] })
@@ -94,7 +99,11 @@ export type BrandBlock =
   | (BlockBase & { type: "cta"; body?: string; primary: Cta; secondary?: Cta })
   // ---- από τις Προσφορές & δυναμικό περιεχόμενο ----
   | (BlockBase & { type: "ad"; mode: "slot" | "placement"; slot?: string; placementId?: string; placementTitle?: string; /** σε όλο το πλάτος της οθόνης (header καμπάνιας) */ bleed?: boolean; /** τετράγωνα ανά σειρά σε αυτό το σημείο (υπερισχύει του banner): υπολογιστής 2–6, κινητό 1 ή 2 */ perRow?: number; perRowMobile?: 1 | 2; /** false = πάντα τα ίδια προϊόντα· αλλιώς αλλάζουν σε κάθε άνοιγμα της σελίδας */ rotate?: boolean })
-  | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta })
+  | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta;
+      /** υπότιτλος κάτω από τον τίτλο της ζώνης και μέγεθος τίτλου (s | m | l· κενό = m) */ subtitle?: string; headSize?: "s" | "m" | "l";
+      /** σχέδιο banner για τα προϊόντα: «b:<id banner>» ή «t:<κλειδί έτοιμου προτύπου>»· κενό = απλές κάρτες προϊόντων */ design?: string;
+      /** προϊόντα ανά σειρά: υπολογιστής 2–6, tablet 1–4, κινητό 1–2· κενό = του σχεδίου */ perRow?: number; perRowTablet?: number; perRowMobile?: 1 | 2;
+      /** false = πάντα τα ίδια προϊόντα (μεγαλύτερη έκπτωση πρώτα)· αλλιώς αλλάζουν σε κάθε άνοιγμα της σελίδας */ rotate?: boolean })
   | (BlockBase & { type: "promo-landing"; landingId: string; landingTitle?: string })
   | (BlockBase & { type: "coupon"; code: string; text?: string })
   | (BlockBase & { type: "stores"; mode: "near" | "region"; region?: string; limit: number })

@@ -66,14 +66,19 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
   const [savedAt, setSavedAt] = useState(initSavedAt);
   const [published, setPublished] = useState<BrandStore | null>(pub);
   const [selected, setSelected] = useState<string | null>(null);
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<"s" | "m" | "l">("s");
-  useEffect(() => {
-    const el = root.current;
+    // m: αριστερά χάρτης ή ρυθμίσεις, η προεπισκόπηση πάντα ορατή
+  // Η μέτρηση δένεται με callback ref: αν το στοιχείο ξαναδημιουργηθεί, η παρακολούθηση περνά στο νέο. Παλιά έμενε στο
+  // αποσπασμένο στοιχείο, που μετρά πλάτος 0 → η διάταξη κολλούσε στη στενή και η προεπισκόπηση κρυβόταν πίσω από καρτέλα.
+  // Πλάτος 0 (κρυμμένο ή αποσπασμένο στοιχείο) αγνοείται: δεν είναι «στενή οθόνη».
+  const rootRo = useRef<ResizeObserver | null>(null);
+  const setRoot = useCallback((el: HTMLDivElement | null) => {
+    rootRo.current?.disconnect();
+    root.current = el;
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => { const w = e.contentRect.width; setMode(w >= 1500 ? "l" : w >= 900 ? "m" : "s"); }); // m: αριστερά χάρτης ή ρυθμίσεις, η προεπισκόπηση πάντα ορατή
-    ro.observe(el);
-    return () => ro.disconnect();
+    rootRo.current = new ResizeObserver(([e]) => { const w = e.contentRect.width; if (w > 0) setMode(w >= 1500 ? "l" : w >= 900 ? "m" : "s"); });
+    rootRo.current.observe(el);
   }, []);
   const [adding, setAdding] = useState<{ after: string | null } | null>(null);
   const [view, setView] = useState<"page" | "preview">("page");
@@ -276,7 +281,7 @@ export function BrandStoreEditor({ initial, published: pub, savedAt: initSavedAt
 
   return (
     <PickerBrand.Provider value={{ brandId: brand.id, brandName: s.name }}>
-      <div ref={root} className="grid gap-3 min-w-0">
+      <div ref={setRoot} className="grid gap-3 min-w-0">
         {/* ---- πάνω μπάρα: κατάσταση, αναίρεση, δημοσίευση ---- */}
         <div className="sticky top-0 z-30 -mx-4 @md:-mx-6 -mt-4 @md:-mt-6 px-4 @md:px-6 py-2.5 bg-white/95 backdrop-blur border-b border-eu-line flex flex-wrap items-center gap-x-3 gap-y-2">
           <Link href="/admin/cms/brand-stores" aria-label="Σελίδες μαρκών" title="Σελίδες μαρκών" className={iconBtn}><ChevronLeft className="size-5" aria-hidden /></Link>

@@ -1,5 +1,6 @@
 "use client";
 
+import { BANNER_TEMPLATES } from "@/lib/promo/banner-design";
 import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Camera, Cpu, Eye, Leaf, Plus, Shield, Sparkles, Wifi, X, Zap } from "lucide-react";
@@ -271,16 +272,29 @@ function TypeFields({ b, set, ctx }: { b: BrandBlock; set: (b: BrandBlock) => vo
     }
     case "banner": {
       const x = b as B<"banner">;
+      const fit = x.fit ?? "cover";
       return (
-        <div className="grid gap-4">
-          {head}
-          <Area label="Κείμενο" value={x.body ?? ""} onChange={(v) => set({ ...x, body: v })} max={160} rows={2} />
-          <MediaUrl label="Εικόνα" value={x.image} onChange={(v) => set({ ...x, image: v })} help="Οριζόντια, τουλάχιστον 1920×800 px. Το κείμενο μπαίνει από πάνω — άφησε «ήσυχο» χώρο στην πλευρά του κειμένου." />
-          <MediaUrl label="Εικόνα για κινητό (προαιρετική)" value={x.imageMobile ?? ""} onChange={(v) => set({ ...x, imageMobile: v || undefined })} help="Κάθετη/τετράγωνη εκδοχή για οθόνες έως 640 px. Κενό = η ίδια εικόνα, κομμένη." />
-          <Choice label="Θέση κειμένου" value={x.align ?? "left"} onChange={(v) => set({ ...x, align: v })} options={[{ value: "left", label: "Αριστερά" }, { value: "center", label: "Κέντρο" }, { value: "right", label: "Δεξιά" }]} />
-          <Choice label="Σκίαση για να διαβάζεται το κείμενο" value={x.overlay ?? "dark"} onChange={(v) => set({ ...x, overlay: v })} options={[{ value: "dark", label: "Σκούρα (λευκά γράμματα)" }, { value: "light", label: "Ανοιχτή (σκούρα γράμματα)" }, { value: "none", label: "Καμία" }]} />
-          <Choice label="Ύψος" value={x.height ?? "m"} onChange={(v) => set({ ...x, height: v })} options={[{ value: "s", label: "Μικρό" }, { value: "m", label: "Μεσαίο" }, { value: "l", label: "Μεγάλο" }]} />
-          <CtaFields label="Κουμπί" value={x.cta} onChange={(v) => set({ ...x, cta: v })} />
+        <div className="grid gap-3">
+          <Step n={1} title="Εικόνες" help="Το έτοιμο εικαστικό, σε έως τρεις διαστάσεις. Κάθε συσκευή παίρνει τη δική της· όπου λείπει, μπαίνει η εικόνα του υπολογιστή.">
+            <MediaUrl label="Υπολογιστής" value={x.image} onChange={(v) => set({ ...x, image: v })} help="Οριζόντια, π.χ. 1920×640 px (από 1024 px πλάτος οθόνης)." />
+            <MediaUrl label="Tablet (προαιρετική)" value={x.imageTablet ?? ""} onChange={(v) => set({ ...x, imageTablet: v || undefined })} help="Π.χ. 1200×600 px, για οθόνες 641–1023 px." />
+            <MediaUrl label="Κινητό (προαιρετική)" value={x.imageMobile ?? ""} onChange={(v) => set({ ...x, imageMobile: v || undefined })} help="Κάθετη ή τετράγωνη, π.χ. 800×800 px, για οθόνες έως 640 px." />
+            <Choice label="Πώς μπαίνει η εικόνα" value={fit} onChange={(v) => set({ ...x, fit: v === "cover" ? undefined : v })} options={[{ value: "cover", label: "Γεμίζει το πλαίσιο", help: "Καλύπτει όλο το πλαίσιο· κόβονται οι άκρες της όπου δεν χωρά." }, { value: "natural", label: "Ολόκληρη, στις αναλογίες της", help: "Φαίνεται όλη και μικραίνει μαζί με την οθόνη. Το ύψος βγαίνει από την ίδια την εικόνα." }, { value: "contain", label: "Ολόκληρη μέσα στο πλαίσιο", help: "Φαίνεται όλη μέσα στο ύψος που ορίζεις· μπορεί να μείνει κενό στα πλάγια." }]} />
+            {fit !== "natural" && <Choice label="Ύψος πλαισίου" value={x.height ?? "m"} onChange={(v) => set({ ...x, height: v })} options={[{ value: "s", label: "Μικρό" }, { value: "m", label: "Μεσαίο" }, { value: "l", label: "Μεγάλο" }]} />}
+            <label className="flex items-start gap-2.5 min-h-11 cursor-pointer text-eu-ink text-[length:var(--fs-14)]"><input type="checkbox" checked={!!x.bleed} onChange={(e) => set({ ...x, bleed: e.target.checked || undefined })} className="mt-1 size-5 accent-eu-navy" /><span className="grid"><span className="font-bold">Σε όλο το πλάτος της οθόνης</span><span className="text-eu-ink-3 text-[length:var(--fs-13)]">Από άκρη σε άκρη, χωρίς στρογγυλές γωνίες.</span></span></label>
+          </Step>
+          <Step n={2} title="Τίτλοι (προαιρετικά)" help="Υπέρτιτλος, τίτλος και υπότιτλος. Άφησέ τα κενά αν τα κείμενα είναι ήδη μέσα στην εικόνα. Χρώματα και αποστάσεις: στις ρυθμίσεις από κάτω.">
+            {head}
+            <Area label="Υπότιτλος" value={x.body ?? ""} onChange={(v) => set({ ...x, body: v })} max={160} rows={2} />
+            <Choice label="Μέγεθος τίτλου" value={x.headSize ?? "m"} onChange={(v) => set({ ...x, headSize: v === "m" ? undefined : v })} options={[{ value: "s", label: "Μικρός" }, { value: "m", label: "Κανονικός" }, { value: "l", label: "Μεγάλος" }]} />
+            <Choice label="Πού μπαίνουν τα κείμενα" value={x.textPlace ?? "over"} onChange={(v) => set({ ...x, textPlace: v === "over" ? undefined : v })} options={[{ value: "over", label: "Πάνω στην εικόνα" }, { value: "above", label: "Πάνω από την εικόνα" }, { value: "below", label: "Κάτω από την εικόνα" }]} />
+            <Choice label="Στοίχιση κειμένων" value={x.align ?? "left"} onChange={(v) => set({ ...x, align: v })} options={[{ value: "left", label: "Αριστερά" }, { value: "center", label: "Κέντρο" }, { value: "right", label: "Δεξιά" }]} />
+            {(x.textPlace ?? "over") === "over" && <Choice label="Σκίαση για να διαβάζεται το κείμενο" value={x.overlay ?? "dark"} onChange={(v) => set({ ...x, overlay: v })} options={[{ value: "dark", label: "Σκούρα (λευκά γράμματα)" }, { value: "light", label: "Ανοιχτή (σκούρα γράμματα)" }, { value: "none", label: "Καμία" }]} help="Χρειάζεται μόνο όταν γράφεις κείμενα πάνω στην εικόνα." />}
+          </Step>
+          <Step n={3} title="Σύνδεσμος" help="Πού πηγαίνει ο πελάτης: πατώντας οπουδήποτε στην εικόνα ή σε ένα κουμπί με δικό του κείμενο.">
+            <LinkField label="Σύνδεσμος της εικόνας" value={x.href ?? ""} onChange={(v) => set({ ...x, href: v || undefined })} />
+            <CtaFields label="Κουμπί (προαιρετικό)" value={x.cta} onChange={(v) => set({ ...x, cta: v })} />
+          </Step>
         </div>
       );
     }
@@ -443,19 +457,62 @@ function AdFields({ b, set }: { b: B<"ad">; set: (b: BrandBlock) => void }) {
   );
 }
 
+/** Τίτλος ενός βήματος της φόρμας: αριθμός, τι ορίζεις εδώ, και μία γραμμή εξήγησης. */
+function Step({ n, title, help, children }: { n: number; title: string; help: string; children: ReactNode }) {
+  return (
+    <section className="grid gap-4 rounded-2xl border border-eu-line bg-white p-3 @md:p-4">
+      <div className="flex items-start gap-3">
+        <span aria-hidden className="size-8 shrink-0 rounded-full bg-eu-navy text-white grid place-items-center font-extrabold text-[length:var(--fs-14)]">{n}</span>
+        <span className="grid min-w-0"><span className="font-heading font-bold text-eu-ink text-[length:var(--fs-16)] leading-tight">{title}</span><span className="text-eu-ink-3 text-[length:var(--fs-13)] leading-snug">{help}</span></span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * «Προϊόντα προσφοράς» σε τρία βήματα, με τη σειρά που σκέφτεται ο χρήστης: 1) οι τίτλοι της ζώνης, 2) το σχέδιο και πόσα ανά
+ * σειρά σε κάθε συσκευή, 3) το περιεχόμενο — ποια προσφορά και με ποιους κανόνες. Χρώματα και αποστάσεις είναι στις κοινές
+ * ρυθμίσεις του component, ακριβώς από κάτω.
+ */
 function PromoProductsFields({ b, set, head }: { b: B<"promo-products">; set: (b: BrandBlock) => void; head: ReactNode }) {
   const o = useOptions();
+  const designs = [
+    { value: "cards", label: "Απλές κάρτες προϊόντων (χωρίς σχέδιο)" },
+    ...(o?.ads.filter((a) => a.designed).map((a) => ({ value: `b:${a.id}`, label: `Banner · ${a.title}` })) ?? []),
+    ...BANNER_TEMPLATES.map((t) => ({ value: `t:${t.key}`, label: `Έτοιμο πρότυπο · ${t.name}` })),
+  ];
+  const n = (v: string) => (v ? Number(v) : undefined);
+  const auto = { value: "", label: b.design ? "Όπως το σχέδιο" : "Αυτόματα" };
   return (
-    <div className="grid gap-4">
-      <Pick label="Προσφορά" value={b.promotionId} onChange={(v, l) => set({ ...b, promotionId: v, promotionName: l || undefined })} options={o ? o.promos.map((p) => ({ value: p.id, label: `${p.name} · ${p.code}${p.status === "scheduled" ? " · προγραμματισμένη" : ""}${p.endsAt ? ` · έως ${fmt(p.endsAt)}` : ""}` })) : null} empty="Καμία ενεργή ή προγραμματισμένη προσφορά." help="Τα προϊόντα και η λήξη έρχονται από την προσφορά. Προγραμματισμένη προσφορά εμφανίζεται μόλις ξεκινήσει." />
-      {head}
-      <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">Κενός τίτλος = το όνομα της προσφοράς.</span>
-      <Choice label="Πόσα" value={String(b.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "8", label: "8" }, { value: "12", label: "12" }]} help="Μεγαλύτερη έκπτωση πρώτα. Σε κινητό εμφανίζονται έως 4." />
-      <Choice label="Αντίστροφη μέτρηση" value={b.countdown === false ? "no" : "yes"} onChange={(v) => set({ ...b, countdown: v === "yes" })} options={[{ value: "yes", label: "Ναι" }, { value: "no", label: "Όχι" }]} />
-      <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4">
-        <Txt label="Κουμπί · κείμενο (προαιρετικό)" value={b.cta?.label ?? ""} onChange={(v) => set({ ...b, cta: v || b.cta?.href ? { label: v, href: b.cta?.href ?? "" } : undefined })} max={36} help="Κενό = «Όλα τα προϊόντα της προσφοράς» προς τη landing page, αν υπάρχει." />
-        {b.cta && <LinkField label="Κουμπί · σύνδεσμος" value={b.cta.href} onChange={(v) => set({ ...b, cta: { label: b.cta!.label, href: v } })} />}
-      </div>
+    <div className="grid gap-3">
+      <Step n={1} title="Τίτλοι της ζώνης" help="Τι γράφει πάνω από τα προϊόντα. Τα χρώματα και οι αποστάσεις τους είναι στις ρυθμίσεις από κάτω.">
+        {head}
+        <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">Κενός τίτλος = το όνομα της προσφοράς. Ο «υπέρτιτλος» είναι η μικρή γραμμή πάνω από τον τίτλο.</span>
+        <Txt label="Υπότιτλος (προαιρετικό)" value={b.subtitle ?? ""} onChange={(v) => set({ ...b, subtitle: v || undefined })} max={160} help="Μία-δύο γραμμές κάτω από τον τίτλο." />
+        <Choice label="Μέγεθος τίτλου" value={b.headSize ?? "m"} onChange={(v) => set({ ...b, headSize: v === "m" ? undefined : v })} options={[{ value: "s", label: "Μικρός" }, { value: "m", label: "Κανονικός" }, { value: "l", label: "Μεγάλος" }]} />
+      </Step>
+
+      <Step n={2} title="Σχέδιο και πόσα ανά σειρά" help="Πώς φαίνονται τα προϊόντα: απλές κάρτες ή ένα σχέδιο banner που έχεις ήδη φτιάξει. Και πόσα χωράνε δίπλα-δίπλα σε κάθε συσκευή.">
+        <Pick label="Σχέδιο" value={b.design ?? "cards"} onChange={(v) => set({ ...b, design: v && v !== "cards" ? v : undefined })} options={designs} empty="—" help="Το σχέδιο δίνει μόνο την εμφάνιση (φόντο, στυλ τετραγώνου, sticker, θέσεις). Τα προϊόντα έρχονται από την προσφορά του βήματος 3." />
+        <div className="grid gap-4 @2xl:grid-cols-3">
+          <Choice label="Υπολογιστής" value={String(b.perRow ?? "")} onChange={(v) => set({ ...b, perRow: n(v) })} options={[auto, ...[2, 3, 4, 5, 6].map((x) => ({ value: String(x), label: String(x) }))]} />
+          <Choice label="Tablet" value={String(b.perRowTablet ?? "")} onChange={(v) => set({ ...b, perRowTablet: n(v) })} options={[auto, ...[1, 2, 3, 4].map((x) => ({ value: String(x), label: String(x) }))]} />
+          <Choice label="Κινητό" value={String(b.perRowMobile ?? "")} onChange={(v) => set({ ...b, perRowMobile: v === "1" ? 1 : v === "2" ? 2 : undefined })} options={[auto, { value: "1", label: "1" }, { value: "2", label: "2" }]} />
+        </div>
+        <a href="/admin/prosfores/theseis" target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline">Φτιάξε ή άλλαξε σχέδιο banner ↗</a>
+      </Step>
+
+      <Step n={3} title="Περιεχόμενο από προσφορά" help="Ποια προσφορά δίνει τα προϊόντα και με ποιους κανόνες εμφανίζονται. Η ζώνη φαίνεται μόνο όσο η προσφορά τρέχει.">
+        <Pick label="Προσφορά" value={b.promotionId} onChange={(v, l) => set({ ...b, promotionId: v, promotionName: l || undefined })} options={o ? o.promos.map((p) => ({ value: p.id, label: `${p.name} · ${p.code}${p.status === "scheduled" ? " · προγραμματισμένη" : ""}${p.endsAt ? ` · έως ${fmt(p.endsAt)}` : ""}` })) : null} empty="Καμία ενεργή ή προγραμματισμένη προσφορά — φτιάξε μία στις Προσφορές." />
+        <Choice label="Πόσα προϊόντα" value={String(b.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "8", label: "8" }, { value: "12", label: "12" }]} />
+        <Choice label="Ποια φαίνονται" value={b.rotate === false ? "top" : "mix"} onChange={(v) => set({ ...b, rotate: v === "top" ? false : undefined })} options={[{ value: "mix", label: "Αλλάζουν κάθε φορά", help: "Σε κάθε άνοιγμα της σελίδας άλλα προϊόντα της προσφοράς (με σχέδιο banner)." }, { value: "top", label: "Πάντα τα ίδια", help: "Μεγαλύτερη έκπτωση πρώτα." }]} help={b.design ? undefined : "Οι απλές κάρτες δείχνουν πάντα τη μεγαλύτερη έκπτωση πρώτα· η εναλλαγή ισχύει με σχέδιο banner."} />
+        <Choice label="Αντίστροφη μέτρηση" value={b.countdown === false ? "no" : "yes"} onChange={(v) => set({ ...b, countdown: v === "yes" })} options={[{ value: "yes", label: "Ναι" }, { value: "no", label: "Όχι" }]} help="Μετρά μέχρι τη λήξη της προσφοράς, όταν έχει ημερομηνία λήξης." />
+        <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4">
+          <Txt label="Κουμπί · κείμενο (προαιρετικό)" value={b.cta?.label ?? ""} onChange={(v) => set({ ...b, cta: v || b.cta?.href ? { label: v, href: b.cta?.href ?? "" } : undefined })} max={36} help="Κενό = το κουμπί πάει στη landing page της προσφοράς· αν δεν έχει, στη σελίδα /prosfores με όλες τις προσφορές." />
+          {b.cta && <LinkField label="Κουμπί · σύνδεσμος" value={b.cta.href} onChange={(v) => set({ ...b, cta: { label: b.cta!.label, href: v } })} />}
+        </div>
+      </Step>
     </div>
   );
 }
