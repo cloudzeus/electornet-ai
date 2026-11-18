@@ -131,6 +131,7 @@ export interface BannerDesign {
     priceLabel: string;
     showBrand: boolean;
     showEnergy: boolean;
+    /** δεν χρησιμοποιείται πια: η διαγραμμένη τιμή φαίνεται πάντα όπου υπάρχει (μένει για τα αποθηκευμένα σχέδια) */
     showWas: boolean;
     /** φωτογραφία προϊόντος χωρίς φόντο (φτιάχνεται στην αποθήκευση)· false = η φωτογραφία του καταλόγου όπως είναι */
     cutout: boolean;

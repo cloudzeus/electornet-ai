@@ -30,7 +30,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
         tone={campaign ? "light" : "dark"}
         kicker={ends ? `Λήγουν ${ends.toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Athens" })}` : deals.label}
         title="Προσφορές με πραγματική λήξη"
-        lead="Κάθε έκπτωση δείχνει τη χαμηλότερη τιμή των 30 προηγούμενων ημερών. Ο χρόνος που βλέπεις είναι ο πραγματικός χρόνος λήξης της καμπάνιας."
+        lead="Δίπλα σε κάθε τιμή προσφοράς βλέπεις την αρχική τιμή, διαγραμμένη. Ο χρόνος που βλέπεις είναι ο πραγματικός χρόνος λήξης της καμπάνιας."
         right={<Countdown endsAt={ends ? ends.toISOString() : deals.endsAt} variant="blocks" />}
       />
       <div className="eu-canvas eu-gutter py-8">

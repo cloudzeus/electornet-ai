@@ -1,3 +1,4 @@
+import { strikePrice } from "@/lib/promo/strike";
 import "server-only";
 import { swr, swrMap } from "@/lib/cache/swr";
 import { onCatalogReset } from "@/lib/data/db-catalog";
@@ -87,7 +88,7 @@ async function computeHeroDeal(): Promise<{ product: Product; endsAt: string } |
     }).catch(() => []);
     let best = 0;
     for (const o of offers) {
-      const price = Number(o.price), ref = Number(o.lowest30 ?? o.listPrice);
+      const price = Number(o.price), ref = strikePrice(price, Number(o.listPrice), o.lowest30 != null ? Number(o.lowest30) : null)?.was ?? 0;
       const pct = ref > 0 ? 1 - price / ref : 0;
       if (price > 0 && pct > best) { best = pct; id = o.productId; }
     }

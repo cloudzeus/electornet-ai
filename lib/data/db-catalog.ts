@@ -1,3 +1,4 @@
+import { strikePrice } from "@/lib/promo/strike";
 import { pickDims } from "@/lib/catalog/dimensions";
 import { maybeTickPromos } from "@/lib/promo/offers";
 import { swrMap } from "@/lib/cache/swr";
@@ -138,7 +139,7 @@ const ENERGY = new Set(["A", "B", "C", "D", "E", "F", "G", "A+", "A++", "A+++"])
 /** «Λόγος» = σύντομος τίτλος + πρόταση. Οι γραμμές-λίστες («ΑΛΛΑ ΧΑΡΑΚΤΗΡΙΣΤΙΚΑ: α, β, γ…») δεν είναι λόγοι — φαίνονται ως λίστες στην περιγραφή. */
 const isReason = (h: string) => { const [label, ...rest] = h.split(":"); const v = rest.join(":"); return label !== label.toLocaleUpperCase("el-GR") && (v.match(/,/g)?.length ?? 0) < 3 && h.length <= 200; };
 
-/** Η έτοιμη προσφορά του προϊόντος → πεδία της βιτρίνας. Η «παλιά τιμή» είναι ΜΟΝΟ η χαμηλότερη 30 ημερών (Omnibus). */
+/** Η έτοιμη προσφορά του προϊόντος → πεδία της βιτρίνας. Η «παλιά τιμή» είναι η χαμηλότερη 30 ημερών (Omnibus)· όταν αυτή δεν είναι πάνω από την τιμή, η αρχική τιμή της προσφοράς (lib/promo/strike). */
 function offerFields(r: Row): Partial<Product> {
   const o = r.offer;
   if (!o || (o.endsAt && o.endsAt < new Date())) return {}; // έληξε: αγνοείται αμέσως, πριν καν ξαναϋπολογιστεί
@@ -147,8 +148,8 @@ function offerFields(r: Row): Partial<Product> {
   const price = Number(o.price), list = Number(o.listPrice);
   if (price < list) {
     out.price = price;
-    const ref = o.lowest30 != null ? Number(o.lowest30) : list;
-    if (ref > price) { out.wasPrice = ref; out.lowest30 = ref; out.badge = { kind: "discount" }; }
+    const st = strikePrice(price, list, o.lowest30 != null ? Number(o.lowest30) : null);
+    if (st) { out.wasPrice = st.was; if (st.omnibus) out.lowest30 = st.was; out.badge = { kind: "discount" }; }
   }
   if (o.memberPrice != null) out.memberPrice = Number(o.memberPrice);
   const extraTags: string[] = [];

@@ -1,3 +1,4 @@
+import { strikePrice } from "@/lib/promo/strike";
 import "server-only";
 import { cardProduct } from "@/lib/data/card-product";
 import { swrMap } from "@/lib/cache/swr";
@@ -33,7 +34,7 @@ async function computeAutoDeals(limit: number): Promise<{ ids: string[]; endsAt:
     `SELECT v."productId", v.price::float AS price, v."wasPrice"::float AS was FROM "Variant" v JOIN "Product" p ON p.id = v."productId"
      WHERE p.active AND p.stock > 0 AND v.price > 0 AND v."wasPrice" > v.price ORDER BY (1 - v.price / v."wasPrice") DESC LIMIT 200`).catch(() => []);
   const ranked = [
-    ...offers.map((o) => { const price = Number(o.price), ref = Number(o.lowest30 ?? o.listPrice); return { o: { productId: o.productId, endsAt: o.endsAt }, pct: price > 0 && ref > 0 ? 1 - price / ref : 0 }; }),
+    ...offers.map((o) => { const price = Number(o.price), ref = strikePrice(price, Number(o.listPrice), o.lowest30 != null ? Number(o.lowest30) : null)?.was ?? 0; return { o: { productId: o.productId, endsAt: o.endsAt }, pct: price > 0 && ref > 0 ? 1 - price / ref : 0 }; }),
     ...variants.map((v) => ({ o: { productId: v.productId, endsAt: null as Date | null }, pct: 1 - v.price / v.was })),
   ].filter((x) => x.pct > 0.04).sort((a, b) => b.pct - a.pct);
   const seen = new Set<string>(); const pick = ranked.filter((x) => !seen.has(x.o.productId) && seen.add(x.o.productId)).slice(0, limit * 2);
