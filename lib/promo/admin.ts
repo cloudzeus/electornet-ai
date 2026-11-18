@@ -126,7 +126,7 @@ const overlaps = (a: { startsAt: Date | null; endsAt: Date | null }, b: { starts
 
 export interface DraftAnalysis {
   products: number;
-  sample: { title: string; before: number; after: number; pct: number }[];
+  sample: { title: string; before: number; after: number; pct: number; /** προϊόν του δείγματος (όχι στα πακέτα) */ id?: string }[];
   maxPct: number;
   capped: number;
   conflicts: { id: string; code: string; name: string; status: string; mechanism: string; shared: number; outcome: string }[];
@@ -187,7 +187,7 @@ export async function analyzeDraft(d0: PromoDraft): Promise<DraftAnalysis> {
       const pct = before ? Math.round(((before - raw.lines[0].total) / before) * 100) : 0;
       maxPct = Math.max(maxPct, pct);
       if (r.lines[0].capped) capped++;
-      if (sample.length < 6 && after < before) sample.push({ title: l.title, before, after, pct });
+      if (sample.length < 6 && after < before) sample.push({ title: l.title, before, after, pct, id: l.productId });
     }
   } else if (d.mechanism === "coupon-percent") maxPct = d.reward.percent ?? 0;
 

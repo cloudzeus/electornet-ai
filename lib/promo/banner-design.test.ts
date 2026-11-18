@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BANNER_TEMPLATES, DEFAULT_BANNER_DESIGN, applyLook, bannerDesignIssue, lookOf, normalizeBannerDesign } from "./banner-design";
+import { BANNER_TEMPLATES, DEFAULT_BANNER_DESIGN, applyLook, bannerDesignIssue, lookOf, normalizeBannerDesign, bannerFree } from "./banner-design";
 
 test("έγκυρο σχέδιο μένει όπως είναι· ό,τι δεν είναι σχέδιο → null", () => {
   assert.deepEqual(normalizeBannerDesign(DEFAULT_BANNER_DESIGN), DEFAULT_BANNER_DESIGN);
@@ -43,4 +43,9 @@ test("πρότυπο: αλλάζει την εμφάνιση, κρατά κεί�
     assert.deepEqual(lookOf(out), t.look, t.key);
   }
   assert.equal(normalizeBannerDesign({ slider: "yes" })!.slider, false);
+});
+
+test("ελεύθερη θέση και μέγεθος: μόνο γνωστά στοιχεία, τιμές μέσα σε όρια", () => {
+  assert.deepEqual(bannerFree({ title: { x: 33.333, y: 400, s: 9 }, nope: { x: 1, y: 1, s: 1 }, price: { x: "a", y: 1 }, logo: { x: 10, y: 20 } }), { title: { x: 33.3, y: 250, s: 3 }, logo: { x: 10, y: 20, s: 1 } });
+  assert.deepEqual(bannerFree(null), {});
 });

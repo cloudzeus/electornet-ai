@@ -48,6 +48,38 @@ export const STICKER_POSITIONS: { key: StickerPos; label: string; help?: string 
   { key: "tl", label: "Πάνω αριστερά" }, { key: "tr", label: "Πάνω δεξιά" }, { key: "ml", label: "Μέση αριστερά" }, { key: "mr", label: "Μέση δεξιά" }, { key: "bl", label: "Κάτω αριστερά" }, { key: "br", label: "Κάτω δεξιά" },
 ];
 
+/**
+ * Ελεύθερη θέση και μέγεθος ενός στοιχείου του banner (σύρσιμο / αλλαγή μεγέθους στον editor): το κέντρο του σε % του
+ * πλαισίου μέσα στο οποίο ζει, και ο συντελεστής μεγέθους (1 = όπως το στυλ).
+ */
+export interface BannerFree { x: number; y: number; s: number }
+/** Ρυθμίσεις του πλαισίου της φωτογραφίας προϊόντος (ό,τι λείπει μένει όπως το ορίζει το στυλ). */
+export interface BannerHolder { w?: number; h?: number; /** λευκό πλαίσιο πίσω από φωτογραφία που έχει ακόμη φόντο */ frame?: boolean; /** περιθώριο μέσα στο πλαίσιο, % */ pad?: number; /** η φωτογραφία γεμίζει το πλαίσιο (κόβονται οι άκρες) */ cover?: boolean }
+export function bannerHolder(v: unknown): BannerHolder {
+  const o = (v ?? {}) as BannerHolder, out: BannerHolder = {};
+  const pct = (x: unknown, lo: number, hi: number) => (Number.isFinite(Number(x)) && x !== null && x !== "" ? Math.round(Math.min(hi, Math.max(lo, Number(x)))) : undefined);
+  const w = pct(o.w, 15, 100), h = pct(o.h, 15, 95), pad = pct(o.pad, 0, 12);
+  if (w !== undefined) out.w = w;
+  if (h !== undefined) out.h = h;
+  if (pad !== undefined) out.pad = pad;
+  if (typeof o.frame === "boolean") out.frame = o.frame;
+  if (o.cover === true) out.cover = true;
+  return out;
+}
+
+/** Τα στοιχεία που μετακινούνται, με το όνομα που βλέπει ο χρήστης. */
+export const BANNER_ELEMENTS: Record<string, string> = { sticker: "Sticker", logo: "Σήμα καμπάνιας", brand: "Μάρκα", title: "Τίτλος προϊόντος", image: "Φωτογραφία προϊόντος", price: "Τιμή", energy: "Ενεργειακή κλάση", kicker: "Μικρός τίτλος", body: "Κείμενο" };
+const r1 = (v: number) => Math.round(v * 10) / 10;
+/** Μόνο γνωστά στοιχεία, με τιμές μέσα σε όρια (θέση −150…250 % ώστε ένα στοιχείο να βγαίνει από το κουτί του, μέγεθος 0,3…3). */
+export function bannerFree(v: unknown): Record<string, BannerFree> {
+  const out: Record<string, BannerFree> = {};
+  for (const [k, f] of Object.entries((v ?? {}) as Record<string, Partial<BannerFree> | null>)) {
+    if (!(k in BANNER_ELEMENTS) || !f || !Number.isFinite(f.x) || !Number.isFinite(f.y)) continue;
+    out[k] = { x: r1(Math.min(250, Math.max(-150, f.x!))), y: r1(Math.min(250, Math.max(-150, f.y!))), s: Math.round(Math.min(3, Math.max(0.3, Number(f.s) || 1)) * 100) / 100 };
+  }
+  return out;
+}
+
 export interface BannerDesign {
   /** «strip» = λωρίδα (κείμενο + προϊόντα)· «posts» = τετράγωνα post, ένα ανά προϊόν, στη μορφή των post της καμπάνιας */
   layout: "strip" | "posts";
@@ -64,6 +96,10 @@ export interface BannerDesign {
   stickerKey: string | null;
   /** πού κάθεται το sticker: «auto» = η θέση του στυλ */
   stickerPos: StickerPos;
+  /** στοιχεία που ο διαχειριστής μετακίνησε ή άλλαξε μέγεθος στον editor (κλειδιά του BANNER_ELEMENTS)· κενό = οι θέσεις του στυλ */
+  free?: Record<string, BannerFree>;
+  /** το πλαίσιο της φωτογραφίας προϊόντος στα τετράγωνα post: πλάτος / ύψος σε % του τετραγώνου, λευκό φόντο, περιθώριο, γέμισμα· κενό = του στυλ */
+  holder?: BannerHolder;
   /** σήμα καμπάνιας πάνω αριστερά (π.χ. το «Black Friday»), προαιρετικό */
   logo: string | null;
   /** χρώμα κειμένων: ανοιχτά (για σκούρο φόντο) ή σκούρα */
@@ -80,6 +116,8 @@ export interface BannerDesign {
     max: number;
     /** τετράγωνα post ανά σειρά σε φαρδιά οθόνη (2–6)· σε κινητό πάντα 2 */
     perRow: number;
+    /** τετράγωνα post ανά σειρά σε κινητό: 1 (μεγάλα) ή 2 */
+    perRowMobile?: 1 | 2;
     /** λέξη πάνω από την τιμή, π.χ. «ΜΟΝΟ» */
     priceLabel: string;
     showBrand: boolean;
@@ -109,9 +147,9 @@ export const BANNER_PRESETS: { key: string; label: string; apply: Pick<BannerDes
 export const DEFAULT_BANNER_DESIGN: BannerDesign = {
   layout: "strip", postStyle: "visual", priceShape: "auto", tileAnim: "none", slider: false,
   bg: { color: "#122a58", image: null, video: null, anim: "ambient" },
-  stickerKey: null, stickerPos: "auto", logo: null, ink: "light", accent: "#f1c400",
+  stickerKey: null, stickerPos: "auto", free: {}, holder: {}, logo: null, ink: "light", accent: "#f1c400",
   kicker: "", title: "Τίτλος banner", body: "", cta: "Δες τις προσφορές",
-  products: { source: "none", ids: [], max: 2, perRow: 4, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, cutout: true, bullets: [] },
+  products: { source: "none", ids: [], max: 2, perRow: 4, perRowMobile: 2, priceLabel: "ΜΟΝΟ", showBrand: true, showEnergy: true, showWas: true, cutout: true, bullets: [] },
 };
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -132,11 +170,12 @@ export function normalizeBannerDesign(x: unknown): BannerDesign | null {
     bg: { color: hex(bg.color, D.bg.color), image: url(bg.image), video: url(bg.video), anim: BANNER_ANIMS.some((a) => a.key === bg.anim) ? bg.anim! : "none" },
     stickerKey: typeof d.stickerKey === "string" && /^[a-z0-9-]{1,80}$/.test(d.stickerKey) ? d.stickerKey : null,
     stickerPos: STICKER_POSITIONS.some((x) => x.key === d.stickerPos) ? d.stickerPos! : "auto",
+    free: bannerFree(d.free), holder: bannerHolder(d.holder),
     logo: url(d.logo), ink: d.ink === "dark" ? "dark" : "light", accent: hex(d.accent, D.accent),
     kicker: str(d.kicker, 40), title: str(d.title, 80), body: str(d.body, 160), cta: str(d.cta, 30),
     products: {
       source, ids: source === "manual" && Array.isArray(p.ids) ? [...new Set(p.ids.filter((i): i is string => typeof i === "string"))].slice(0, MAX_BANNER_PRODUCTS) : [],
-      max: Math.max(1, Math.min(MAX_BANNER_PRODUCTS, Number(p.max) || 2)), perRow: Math.max(2, Math.min(6, Math.round(Number(p.perRow)) || 4)), priceLabel: str(p.priceLabel, 12),
+      max: Math.max(1, Math.min(MAX_BANNER_PRODUCTS, Number(p.max) || 2)), perRow: Math.max(2, Math.min(6, Math.round(Number(p.perRow)) || 4)), perRowMobile: Number(p.perRowMobile) === 1 ? 1 : 2, priceLabel: str(p.priceLabel, 12),
       showBrand: p.showBrand !== false, showEnergy: p.showEnergy !== false, showWas: p.showWas !== false, cutout: p.cutout !== false,
       bullets: Array.isArray(p.bullets) ? p.bullets.map((b) => str(b, 40)).filter(Boolean).slice(0, 5) : [],
     },

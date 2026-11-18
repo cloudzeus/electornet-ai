@@ -16,6 +16,8 @@ import { CodesUpload, SelectedPrices } from "./TargetTools";
 import { SpecialPrices } from "./SpecialPrices";
 import { ErpBasket } from "./ErpBasket";
 import { HomePlacer } from "./HomePlacer";
+import { OfferPreview } from "./OfferPreview";
+import { BannerPicker } from "./BannerPicker";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
 
 type Svc = { slug: string; title: string; price: number };
@@ -234,6 +236,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
         {step === 2 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} toErp={() => pickTemplate("erp")} />}
         {step === 2 && <ErpMode d={d} setReward={setReward} />}
+        {step === 2 && ["price-percent", "price-amount", "special-price", "erp-price"].includes(d.mechanism) && <OfferPreview d={d} />}
 
         {step === 3 && (
           <div className="grid gap-3">
@@ -326,6 +329,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               <textarea rows={4} className={`${input} py-2`} value={d.termsText ?? ""} onChange={(e) => set({ termsText: e.target.value || null })} />
             </Field>
             <button type="button" onClick={() => set({ termsText: termsFor(d, summary) })} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Σύνταξη όρων από τα στοιχεία</button>
+            {["price-percent", "price-amount", "special-price", "erp-price"].includes(d.mechanism) && <OfferPreview d={d} row id={d.id ?? null} />}
             <WhereItAppears id={d.id ?? null} appears={appears} live={status === "active"} />
           </div>
         )}
@@ -466,6 +470,7 @@ function WhereItAppears({ id, appears, live }: { id: string | null; appears: Wiz
       </div>
       {appears.length > 0 && <div className="rounded-xl bg-white border border-eu-line p-1.5"><AppearList appears={appears} /></div>}
       {id ? <HomePlacer id={id} live={live} /> : <p className="m-0 flex items-start gap-2 rounded-xl bg-eu-amber/15 px-3 py-2.5 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />Πάτα πρώτα «Αποθήκευση πρόχειρου» κάτω. Μετά εμφανίζεται εδώ το κουμπί «Βάλε την στην αρχική σελίδα».</p>}
+      {id && <BannerPicker id={id} />}
       <h5 className="m-0 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Άλλα σημεία</h5>
       <ul className="m-0 p-0 list-none grid gap-2 @3xl:grid-cols-2">
         {add.map((x) => (

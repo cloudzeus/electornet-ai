@@ -534,13 +534,81 @@ export async function homeSpotsAction(promotionId: string) {
   return { spots: await homeSpots(promotionId), canWrite: hasPermission(user, "cms.zones.write") || hasPermission(user, "cms.zones.publish"), canPublish: hasPermission(user, "cms.zones.publish") };
 }
 
-/** Βάζει (ή, με spot=null, βγάζει) την προσφορά στην αρχική με ένα πάτημα. Χωρίς δικαίωμα δημοσίευσης της αρχικής μένει στο πρόχειρό της. */
-export async function placeOnHomeAction(promotionId: string, spot: string | null) {
+/** Βάζει την προσφορά σε ένα σημείο της αρχικής ή τη βγάζει (remove: από το σημείο, ή από όλα με spot=null). Χωρίς δικαίωμα δημοσίευσης της αρχικής μένει στο πρόχειρό της. */
+export async function placeOnHomeAction(promotionId: string, spot: string | null, remove = false) {
   const user = await requirePermission(PERM);
   const publish = hasPermission(user, "cms.zones.publish");
   if (!publish && !hasPermission(user, "cms.zones.write")) return { ok: false as const, error: "Δεν έχεις δικαίωμα να αλλάζεις την αρχική. Ζήτα το από τον διαχειριστή." };
   const { placeOnHome, removeFromHome } = await import("@/lib/promo/place");
-  const r = spot ? await placeOnHome(promotionId, spot, user.id, publish) : await removeFromHome(promotionId, user.id, publish);
-  if (r.ok) { await audit(user.id, spot ? "promo.home.place" : "promo.home.remove", "Promotion", promotionId, null, { spot, live: publish }); revalidatePath("/"); revalidatePath("/admin/prosfores"); }
+  const r = spot && !remove ? await placeOnHome(promotionId, spot, user.id, publish) : await removeFromHome(promotionId, user.id, publish, spot ?? undefined);
+  if (r.ok) { await audit(user.id, spot && !remove ? "promo.home.place" : "promo.home.remove", "Promotion", promotionId, null, { spot, live: publish }); revalidatePath("/"); revalidatePath("/admin/prosfores"); }
   return r;
+}
+
+export interface PreviewCard { id: string; title: string; image: string | null; /** διαγραμμένη τιμή (€) */ before: number; /** τιμή που πληρώνει (€) */ after: number; pct: number; label: string }
+
+/**
+ * Προεπισκόπηση για τον οδηγό: έως 4 πραγματικά προϊόντα του καλαθιού όπως θα φανούν στο site (εικόνα, ετικέτα, διαγραμμένη
+ * και τελική τιμή), υπολογισμένα από το προσχέδιο. Τίποτα δεν αποθηκεύεται.
+ */
+export async function offerPreviewAction(d: PromoDraft): Promise<{ cards: PreviewCard[] }> {
+  await requirePermission(PERM);
+  const { autoLabel } = await import("@/lib/promo/catalog");
+  let pick: { id: string; before: number; after: number }[] = [];
+  if (d.mechanism === "erp-price") {
+    pick = (await erpBasketAction(d.targets.filter((t) => t.kind === "product" && !t.exclude).map((t) => t.refId).slice(0, 300))).filter((r) => r.initial != null && r.price != null && r.initial > r.price).map((r) => ({ id: r.id, before: r.initial!, after: r.price! }));
+  } else if (d.mechanism === "special-price") {
+    const prices = Object.entries(d.reward.price ?? {}).filter(([, c]) => c > 0).slice(0, 300);
+    const rows = await db.product.findMany({ where: { id: { in: prices.map(([id]) => id) } }, select: { id: true, price: true } });
+    const list = new Map(rows.map((r) => [r.id, r.price ?? 0]));
+    pick = prices.map(([id, c]) => ({ id, before: list.get(id) ?? 0, after: c / 100 })).filter((r) => r.before > r.after);
+  } else {
+    pick = (await analyzeDraft(d)).sample.filter((x) => x.id).map((x) => ({ id: x.id!, before: x.before / 100, after: x.after / 100 }));
+  }
+  pick = pick.slice(0, 4);
+  const info = await db.product.findMany({ where: { id: { in: pick.map((p) => p.id) } }, select: { id: true, title: true, media: { where: { hidden: false, kind: "image" }, orderBy: { sortNo: "asc" }, take: 1, select: { url: true } } } });
+  const by = new Map(info.map((p) => [p.id, p]));
+  return { cards: pick.filter((p) => by.has(p.id)).map((p) => { const pct = Math.round(((p.before - p.after) / p.before) * 100); return { ...p, title: by.get(p.id)!.title, image: by.get(p.id)!.media[0]?.url ?? null, pct, label: d.tagLabel || (d.mechanism === "price-percent" || d.mechanism === "price-amount" ? autoLabel({ ...d, tagLabel: null }) : `−${pct} %`) }; }) };
+}
+
+export interface BannerOption { id: string; title: string; slot: string; status: string; image: string | null; /** σχεδιασμένο banner: χρώμα και εικόνα φόντου του */ color: string | null; linked: boolean; /** είναι δεμένο με άλλη προσφορά */ other: string | null }
+
+/** Τα υπάρχοντα banners (έτοιμες εικόνες και σχεδιασμένα) για να διαλέξει ο χρήστης ποια ανήκουν σε αυτή την προσφορά. */
+export async function bannersForPromoAction(promotionId: string): Promise<BannerOption[]> {
+  await requirePermission(PERM);
+  const { SLOTS } = await import("@/lib/promo/landing-blocks");
+  const rows = await db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ updatedAt: "desc" }], take: 80, select: { id: true, title: true, slot: true, status: true, image: true, design: true, promotionId: true } });
+  const others = [...new Set(rows.map((r) => r.promotionId).filter((x): x is string => !!x && x !== promotionId))];
+  const names = new Map((others.length ? await db.promotion.findMany({ where: { id: { in: others } }, select: { id: true, name: true } }) : []).map((p) => [p.id, p.name]));
+  return rows.map((r) => { const bg = (r.design as { bg?: { color?: string; image?: string | null } } | null)?.bg; return { id: r.id, title: r.title, slot: SLOTS.find((x) => x.key === r.slot)?.label ?? r.slot, status: r.status, image: r.image ?? bg?.image ?? null, color: r.design ? bg?.color ?? "#122a58" : null, linked: r.promotionId === promotionId, other: r.promotionId && r.promotionId !== promotionId ? names.get(r.promotionId) ?? "άλλη προσφορά" : null }; })
+    .sort((a, b) => Number(b.linked) - Number(a.linked));
+}
+
+/** Δένει (ή λύνει) ένα υπάρχον banner με την προσφορά: δεμένο banner φαίνεται μόνο όσο τρέχει η προσφορά. */
+export async function linkBannerAction(bannerId: string, promotionId: string, link: boolean) {
+  const user = await requirePermission(PERM);
+  const r = await db.adPlacement.updateMany({ where: link ? { id: bannerId } : { id: bannerId, promotionId }, data: { promotionId: link ? promotionId : null } });
+  if (r.count) { await audit(user.id, link ? "promo.banner.link" : "promo.banner.unlink", "AdPlacement", bannerId, null, { promotionId }); revalidatePath("/admin/prosfores"); }
+  return { ok: r.count > 0 };
+}
+
+export interface OfferDesign { key: string; name: string; group: string; design: import("@/lib/promo/banner-design").BannerDesign; /** η θέση του banner από το οποίο προέρχεται */ slot: string | null; /** τα κείμενα είναι του σχεδίου (υπάρχον banner) ή γενικά (πρότυπο) */ ownTexts: boolean }
+
+/** Οι σχεδιασμοί που υπάρχουν ήδη, για την προεπισκόπηση της προσφοράς: έτοιμα πρότυπα, πρότυπα του προσωπικού και τα σχεδιασμένα banners. */
+export async function offerDesignsAction(): Promise<OfferDesign[]> {
+  await requirePermission(PERM);
+  const { BANNER_TEMPLATES, DEFAULT_BANNER_DESIGN, applyLook, normalizeBannerDesign } = await import("@/lib/promo/banner-design");
+  const { bannerTemplatesAction } = await import("./theseis/actions");
+  const [mine, banners] = await Promise.all([bannerTemplatesAction().catch(() => []), db.adPlacement.findMany({ where: { status: { not: "archived" }, NOT: { design: { equals: Prisma.DbNull } } }, orderBy: { updatedAt: "desc" }, take: 40, select: { id: true, title: true, slot: true, design: true } })]);
+  return [
+    ...banners.flatMap((b) => { const d = normalizeBannerDesign(b.design); return d ? [{ key: `b:${b.id}`, name: b.title, group: "Banners που έχεις σχεδιάσει", design: d, slot: b.slot, ownTexts: true }] : []; }),
+    ...mine.map((t) => ({ key: `m:${t.key}`, name: t.name, group: "Τα πρότυπά σου", design: applyLook(DEFAULT_BANNER_DESIGN, t.look), slot: null, ownTexts: false })),
+    ...BANNER_TEMPLATES.map((t) => ({ key: `t:${t.key}`, name: t.name, group: "Έτοιμα πρότυπα", design: applyLook(DEFAULT_BANNER_DESIGN, t.look), slot: null, ownTexts: false })),
+  ];
+}
+
+/** Οι παράμετροι ενός sticker από το κλειδί του, για να ζωγραφιστεί στην προεπισκόπηση της προσφοράς. */
+export async function stickerParamsAction(key: string | null) {
+  await requirePermission(PERM);
+  return key ? (await import("@/lib/promo/banner-products")).bannerSticker(key) : null;
 }

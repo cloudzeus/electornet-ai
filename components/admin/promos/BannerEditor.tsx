@@ -1,5 +1,6 @@
 "use client";
 
+import { SxStyleTag } from "@/components/ui/SxStyleTag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
@@ -7,7 +8,8 @@ import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTempl
 import { SLOTS } from "@/lib/promo/landing-blocks";
 import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, BANNER_TEMPLATES, STICKER_POSITIONS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, applyLook, bannerDesignIssue, type BannerDesign, type BannerProduct, type BannerTemplate } from "@/lib/promo/banner-design";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
-import { bannerPreviewProductsAction, bannerTemplatesAction, deleteBannerTemplateAction, saveBannerTemplateAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
+import { BANNER_ELEMENTS } from "@/lib/promo/banner-design";
+import { bannerCutoutsNowAction, bannerPreviewProductsAction, bannerSampleProductsAction, bannerTemplatesAction, deleteBannerTemplateAction, saveBannerTemplateAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
 import { StatusPill } from "@/components/admin/settings/ui";
 import { ImageUrlField } from "./ImageUrlField";
@@ -53,7 +55,15 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const [saved, setSaved] = useState(JSON.stringify(initial));
   const [tab, setTab] = useState<Tab>(initial.design || !initial.id ? "text" : "image");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  // τι δείχνει η προεπισκόπηση στα τετράγωνα post: ένα τετράγωνο μεγάλο (για να το σχεδιάσεις) ή όλο το banner όπως μπαίνει στη θέση του
+  const [view, setView] = useState<"tile" | "all">("tile");
+  // «Αφαίρεση φόντου τώρα»: κατάσταση και μήνυμα· το `cut` ξαναδιαβάζει τα προϊόντα της προεπισκόπησης όταν τελειώσει
+  const [cut, setCut] = useState(0);
+  const [cutMsg, setCutMsg] = useState<string | null>(null);
+  const [cutting, setCutting] = useState(false);
   const [products, setProducts] = useState<BannerProduct[]>([]);
+  // το banner δεν έχει δικά του προϊόντα να δείξει → η προεπισκόπηση παίρνει δείγμα, για να μη μένει άδεια
+  const [sample, setSample] = useState(false);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [browse, setBrowse] = useState(false);
   const [sticker, setSticker] = useState<StickerParams | null>(sticker0);
@@ -71,12 +81,59 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const slot = SLOTS.find((s) => s.key === d.slot) ?? SLOTS[0];
   const square = d.slot === "info-aside";
 
+  // Σύρσιμο και αλλαγή μεγέθους πάνω στην προεπισκόπηση: κάθε στοιχείο με data-drag (μάρκα, τίτλος, φωτογραφία, τιμή, sticker, σήμα…)
+  // επιλέγεται με ένα πάτημα και σύρεται μέσα στο κουτί του. Όσο σύρεται κινείται το ίδιο το στοιχείο (element.style)· στο άφημα
+  // η θέση γράφεται στο σχέδιο (design.free) σε % και ισχύει και στο site.
+  const [sel, setSel] = useState<string | null>(null);
+  const free = g?.free ?? {};
+  const setFree = (k: string, f: { x: number; y: number; s: number } | null) => { const next = { ...free }; if (f) next[k] = f; else delete next[k]; setG({ free: next }); };
+  const centerOf = (el: HTMLElement) => { const box = (el.offsetParent as HTMLElement).getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: ((r.left + r.width / 2 - box.left) / box.width) * 100, y: ((r.top + r.height / 2 - box.top) / box.height) * 100 }; };
+  const dragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-drag]");
+    const box = (el?.offsetParent as HTMLElement | null)?.getBoundingClientRect();
+    const key = el?.dataset.drag;
+    if (!el || !box || !key || !g) { setSel(null); return; }
+    e.preventDefault();
+    setSel(key);
+    if (key === "image") setDim({ w: Math.round((el.offsetWidth / box.width) * 100), h: Math.round((el.offsetHeight / box.height) * 100), framed: getComputedStyle(el).backgroundColor !== "rgba(0, 0, 0, 0)" });
+    const s = free[key]?.s ?? 1;
+    // το στοιχείο ακολουθεί το δάχτυλο από το σημείο που το έπιασες (όχι από το κέντρο του)
+    const c0 = centerOf(el), grab = { x: ((e.clientX - box.left) / box.width) * 100 - c0.x, y: ((e.clientY - box.top) / box.height) * 100 - c0.y };
+    let xy: { x: number; y: number } | null = null;
+    const move = (ev: PointerEvent) => {
+      xy = { x: ((ev.clientX - box.left) / box.width) * 100 - grab.x, y: ((ev.clientY - box.top) / box.height) * 100 - grab.y };
+      el.style.cssText = `position:absolute;left:${xy.x}%;top:${xy.y}%;right:auto;bottom:auto;translate:-50% -50%;scale:${s};z-index:30`;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up);
+      el.removeAttribute("style");
+      if (xy) setFree(key, { ...xy, s });
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
+  };
+  // αλλαγή μεγέθους του επιλεγμένου: αν δεν έχει ακόμη δική του θέση, κρατά εκεί που είναι τώρα
+  const resize = (s: number) => {
+    if (!sel) return;
+    const el = document.querySelector<HTMLElement>(`[data-help="banner.drag"] [data-drag="${sel}"]`);
+    const at = free[sel] ?? (el ? centerOf(el) : null);
+    if (at) setFree(sel, { x: at.x, y: at.y, s });
+  };
+  const moved = Object.keys(free).length > 0 || Object.keys(g?.holder ?? {}).length > 0;
+  // πλαίσιο της φωτογραφίας προϊόντος: το μέγεθος που έχει τώρα στην οθόνη (για την αρχική θέση των ρυθμιστών) και οι αλλαγές του
+  const holder = g?.holder ?? {};
+  const setHolder = (p: Partial<typeof holder>) => setG({ holder: { ...holder, ...p } });
+  const [dim, setDim] = useState<{ w: number; h: number; framed: boolean }>({ w: 60, h: 45, framed: true });
+  const one = !!g && g.layout === "posts" && view === "tile";
+
   // τα προϊόντα της προεπισκόπησης: ξαναδιαβάζονται (με λίγη αναμονή) όταν αλλάξει η πηγή, η λίστα ή η προσφορά
-  const pkey = g ? `${g.products.source}|${g.products.ids.join(",")}|${g.products.max}|${g.products.cutout}|${d.promotionId ?? ""}` : "";
+  const pkey = g ? `${g.products.source}|${g.products.ids.join(",")}|${g.products.max}|${g.products.cutout}|${d.promotionId ?? ""}|${cut}` : "";
   useEffect(() => {
     if (!g || g.products.source === "none") { const t = setTimeout(() => setProducts([]), 0); return () => clearTimeout(t); }
     let on = true;
-    const t = setTimeout(() => { void bannerPreviewProductsAction(g, d.promotionId).then((r) => { if (on) setProducts(r); }).catch(() => {}); }, 300);
+    const t = setTimeout(() => { void bannerPreviewProductsAction(g, d.promotionId).then(async (r) => {
+      const fill = r.length ? [] : await bannerSampleProductsAction(g).catch(() => []);
+      if (on) { setProducts(r.length ? r : fill); setSample(!r.length && fill.length > 0); }
+    }).catch(() => {}); }, 300);
     return () => { on = false; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- μόνο όταν αλλάξει το κλειδί των προϊόντων
   }, [pkey]);
@@ -155,7 +212,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               <div className="grid gap-1">
                 <span className="font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Sticker πάνω στο banner <span className="font-normal text-eu-muted text-[length:var(--fs-13)]">— σε κάθε τετράγωνο post, ή στη γωνία της λωρίδας</span></span>
                 <StickerPicker value={g.stickerKey} onChange={(v, o) => { setG({ stickerKey: v }); setSticker(o?.params ?? null); }} />
-                {g.stickerKey && <Choice label="Θέση του sticker" value={g.stickerPos} options={STICKER_POSITIONS} onChange={(v) => setG({ stickerPos: v })} />}
+                {g.stickerKey && <Choice label="Θέση του sticker" value={g.stickerPos} options={STICKER_POSITIONS} onChange={(v) => { const next = { ...free }; delete next.sticker; setG({ stickerPos: v, free: next }); }} />}
               </div>
             </div>
           )}
@@ -198,7 +255,8 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               {g.products.source !== "none" && (
                 <>
                   <Choice label="Πόσα φαίνονται" value={String(g.products.max)} options={(g.layout === "posts" ? [1, 2, 3, 4, 5, 6, 8, 10, 12] : [1, 2, 3]).map((n) => ({ key: String(n), label: String(n), ...(n === 1 ? { help: "Ένα μεγάλο προϊόν, με κουκκίδες." } : {}) }))} onChange={(v) => setP({ max: Number(v) })} />
-                  {g.layout === "posts" && g.products.max > 1 && <Choice label="Ανά σειρά (σε φαρδιά οθόνη)" value={String(g.products.perRow)} options={PER_ROW.map((n) => ({ key: String(n), label: String(n), ...(n >= 5 ? { help: "Μικρά τετράγωνα: κράτα σύντομα κείμενα. Σε κινητό μπαίνουν πάντα 2 ανά σειρά." } : { help: "Σε κινητό μπαίνουν πάντα 2 ανά σειρά." }) }))} onChange={(v) => setP({ perRow: Number(v) })} />}
+                  {g.layout === "posts" && g.products.max > 1 && <Choice label="Ανά σειρά σε υπολογιστή" value={String(g.products.perRow)} options={PER_ROW.map((n) => ({ key: String(n), label: String(n), ...(n >= 5 ? { help: "Μικρά τετράγωνα: κράτα σύντομα κείμενα." } : {}) }))} onChange={(v) => setP({ perRow: Number(v) })} />}
+                  {g.layout === "posts" && g.products.max > 1 && !g.slider && <Choice label="Ανά σειρά σε κινητό" value={String(g.products.perRowMobile ?? 2)} options={[{ key: "1", label: "1", help: "Ένα μεγάλο τετράγωνο ανά σειρά: διαβάζεται καλύτερα, πιάνει περισσότερο ύψος." }, { key: "2", label: "2", help: "Δύο μικρότερα δίπλα-δίπλα." }]} onChange={(v) => setP({ perRowMobile: v === "1" ? 1 : 2 })} />}
                   {g.layout === "strip" && <p className="m-0 text-eu-muted text-[length:var(--fs-13)]">Φαίνονται όσα χωράνε άνετα: σε κινητό και στενές θέσεις μόνο το πρώτο, σε μεσαίο πλάτος δύο, και τρία μόνο σε πολύ φαρδύ banner.</p>}
                   <F l="Λέξη πάνω από την τιμή" help="Κενό = μόνο η τιμή."><input className={input} maxLength={12} value={g.products.priceLabel} onChange={(e) => setP({ priceLabel: e.target.value })} /></F>
                   <div className="grid"><Check2 on={g.products.showBrand} onChange={(v) => setP({ showBrand: v })}>Μάρκα</Check2><Check2 on={g.products.showEnergy} onChange={(v) => setP({ showEnergy: v })}>Ενεργειακή κλάση (όπου υπάρχει)</Check2><Check2 on={g.products.showWas} onChange={(v) => setP({ showWas: v })}>Αρχική τιμή διαγραμμένη (όταν έχει έκπτωση)</Check2><Check2 on={g.products.cutout} onChange={(v) => setP({ cutout: v })}>Αφαίρεση φόντου από τη φωτογραφία του προϊόντος</Check2></div>
@@ -253,9 +311,62 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
               {(["desktop", "mobile"] as const).map((v) => <button key={v} type="button" role="radio" aria-checked={device === v} onClick={() => setDevice(v)} className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-13)] ${device === v ? "bg-eu-navy text-white" : "text-eu-ink-2"}`}>{v === "desktop" ? <Monitor className="size-4" aria-hidden /> : <Smartphone className="size-4" aria-hidden />}{v === "desktop" ? "Υπολογιστής" : "Κινητό"}</button>)}
             </div>
           </div>
+          {g && sample && g.products.source !== "none" && (
+            <p role="status" className="m-0 flex items-start gap-2 rounded-xl bg-eu-amber/15 px-3 py-2.5 text-eu-ink text-[length:var(--fs-14)]"><span><b>Βλέπεις δείγμα προϊόντων.</b> {g.products.source === "promotion" ? (d.promotionId ? "Η προσφορά αυτού του banner δεν έχει προϊόντα τώρα (έληξε, δεν ξεκίνησε ή είναι άδεια), άρα στο site το banner δεν δείχνει προϊόντα." : "Το banner δεν έχει προσφορά: διάλεξε μία στο «Πού και πότε».") : "Δεν έχεις διαλέξει προϊόντα: πρόσθεσέ τα στην καρτέλα «Προϊόντα»."} Το δείγμα είναι μόνο για να σχεδιάσεις.</span></p>
+          )}
+          {g?.layout === "posts" && (
+            <div data-help="banner.view" className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div role="radiogroup" aria-label="Τι δείχνει η προεπισκόπηση" className="inline-flex rounded-full border border-eu-line bg-white p-1">
+                {([["tile", "Ένα τετράγωνο"], ["all", "Όλο το banner"]] as const).map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={view === k} onClick={() => setView(k)} className={`rounded-full px-3 min-h-10 font-bold text-[length:var(--fs-14)] cursor-pointer ${view === k ? "bg-eu-navy text-white" : "text-eu-ink-2 hover:bg-eu-surface"}`}>{l}</button>)}
+              </div>
+              <span className="flex-1 basis-64 text-eu-ink-3 text-[length:var(--fs-13)]">{view === "tile" ? "Σχεδιάζεις ένα τετράγωνο σε μεγάλο μέγεθος. Όλα τα τετράγωνα του banner παίρνουν την ίδια εμφάνιση." : `Όλο το banner όπως μπαίνει στη θέση του: ${g.slider ? "ένα τη φορά (slider)" : `${g.products.perRow} ανά σειρά σε υπολογιστή, ${g.products.perRowMobile ?? 2} σε κινητό`}. Το αλλάζεις στην καρτέλα «Προϊόντα».`}</span>
+            </div>
+          )}
+          {g && g.products.source !== "none" && g.products.cutout && products.some((p) => p.image && !p.cutout) && (
+            <p data-help="banner.cutout" className="m-0 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-eu-chip px-3 py-2 text-eu-navy text-[length:var(--fs-14)]">
+              <span className="flex-1 basis-64"><b>{products.filter((p) => p.image && !p.cutout).length === 1 ? "1 προϊόν έχει" : `${products.filter((p) => p.image && !p.cutout).length} προϊόντα έχουν`} ακόμη τη φωτογραφία με το φόντο της</b> (το λευκό πλαίσιο). Το φόντο φεύγει μόνο του όταν αποθηκεύσεις το banner, ή τώρα με το κουμπί: περίπου 2 δευτερόλεπτα το καθένα.{cutMsg && <span className="block font-bold">{cutMsg}</span>}</span>
+              <button type="button" disabled={cutting} onClick={() => { setCutting(true); setCutMsg(null); void bannerCutoutsNowAction(products.filter((p) => p.image && !p.cutout).map((p) => p.id)).then((r) => { setCutMsg(r.made ? `Έγινε σε ${r.made}.${r.failed ? ` Σε ${r.failed} δεν βγήκε καθαρό και έμεινε η αρχική φωτογραφία.` : ""}` : "Δεν βγήκε καθαρό αποτέλεσμα: μένει η αρχική φωτογραφία."); setCut((n) => n + 1); }).catch(() => setCutMsg("Δεν έγινε. Δοκίμασε ξανά.")).finally(() => setCutting(false)); }} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-blue disabled:opacity-50 cursor-pointer">{cutting ? "Αφαιρώ το φόντο…" : "Αφαίρεση φόντου τώρα"}</button>
+            </p>
+          )}
+          {g && (
+            <div className="grid gap-2 rounded-xl bg-eu-chip px-3 py-2.5 text-eu-navy text-[length:var(--fs-14)]">
+              <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="flex-1 basis-64"><b>Πιάσε και σύρε ό,τι έχει διακεκομμένο πλαίσιο</b>{g.layout === "posts" ? ": μάρκα, τίτλο, φωτογραφία, τιμή, sticker, σήμα, ενεργειακή κλάση." : ": στη λωρίδα σύρεται το sticker."} Πάτα ένα στοιχείο για να αλλάξεις και το μέγεθός του. Ισχύει και στο site.</span>
+                {moved && <button type="button" onClick={() => { setG({ free: {}, holder: {} }); setSel(null); }} className="rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy cursor-pointer">Επαναφορά όλων</button>}
+              </p>
+              {sel && (
+                <div data-help="banner.resize" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-white border border-eu-line px-3 py-2">
+                  <b className="text-eu-ink">{BANNER_ELEMENTS[sel] ?? sel}</b>
+                  <label className="flex flex-1 basis-56 items-center gap-2 font-bold text-eu-ink-2">Μέγεθος
+                    <input type="range" min={30} max={300} step={5} value={Math.round((free[sel]?.s ?? 1) * 100)} onChange={(e) => resize(Number(e.target.value) / 100)} className="flex-1 min-h-11 accent-eu-navy" aria-label={`Μέγεθος: ${BANNER_ELEMENTS[sel] ?? sel}`} />
+                    <span className="tabular-nums w-12 text-right">{Math.round((free[sel]?.s ?? 1) * 100)} %</span>
+                  </label>
+                  {free[sel] && <button type="button" onClick={() => setFree(sel, null)} className="rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy cursor-pointer">Επαναφορά στοιχείου</button>}
+                </div>
+              )}
+              {sel === "image" && g.layout === "posts" && (
+                <div data-help="banner.holder" className="grid gap-2 rounded-lg bg-white border border-eu-line px-3 py-2.5">
+                  <span className="grid"><b className="text-eu-ink">Πλαίσιο της φωτογραφίας</b><span className="text-eu-ink-3 text-[length:var(--fs-13)]">Αν το προϊόν αφήνει κενά γύρω του, στένεψε το πλαίσιο, βγάλε το λευκό φόντο ή αφαίρεσε το φόντο της φωτογραφίας.</span></span>
+                  <div className="grid gap-x-4 gap-y-1 @xl:grid-cols-2">
+                    {([["w", "Πλάτος πλαισίου", 15, 100, dim.w], ["h", "Ύψος πλαισίου", 15, 95, dim.h], ["pad", "Περιθώριο μέσα", 0, 12, 3]] as const).map(([k, l, lo, hi, def]) => (
+                      <label key={k} className="flex items-center gap-2 font-bold text-eu-ink-2"><span className="w-32 shrink-0">{l}</span>
+                        <input type="range" min={lo} max={hi} step={1} value={holder[k] ?? def} onChange={(e) => setHolder({ [k]: Number(e.target.value) })} className="flex-1 min-w-0 min-h-11 accent-eu-navy" />
+                        <span className="tabular-nums w-12 text-right">{holder[k] ?? def} %</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1">
+                    <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink-2 cursor-pointer"><input type="checkbox" className="size-5 accent-eu-navy" checked={holder.frame ?? dim.framed} onChange={(e) => setHolder({ frame: e.target.checked })} />Λευκό πλαίσιο πίσω από τη φωτογραφία</label>
+                    <label className="inline-flex items-center gap-2 min-h-11 font-bold text-eu-ink-2 cursor-pointer"><input type="checkbox" className="size-5 accent-eu-navy" checked={!!holder.cover} onChange={(e) => setHolder({ cover: e.target.checked })} />Γέμισε το πλαίσιο (κόβει τις άκρες)</label>
+                    {Object.keys(holder).length > 0 && <button type="button" onClick={() => setG({ holder: {} })} className="rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy cursor-pointer">Επαναφορά πλαισίου</button>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="rounded-2xl border border-eu-line bg-eu-line-2 p-3 @md:p-5">
-            <div className={`mx-auto ${square ? "max-w-80" : device === "mobile" ? "max-w-[22.5rem]" : ""}`}>
-              {g ? <DesignedBanner d={g} products={products} shape={square ? "square" : "wide"} href={d.href ?? (d.landingId ? "#" : null)} sticker={g.stickerKey ? sticker : null} />
+            <div className={`mx-auto ${one ? "max-w-[26rem]" : square ? "max-w-80" : device === "mobile" ? "max-w-[22.5rem]" : ""}`}>
+              {g ? <div data-help="banner.drag" onPointerDown={dragStart} onClickCapture={(e) => { if ((e.target as HTMLElement).closest("a")) e.preventDefault(); }} className="[&_[data-drag]]:pointer-events-auto [&_[data-drag]]:cursor-grab [&_[data-drag]]:touch-none [&_[data-drag]]:outline-dashed [&_[data-drag]]:outline-2 [&_[data-drag]]:outline-offset-2 [&_[data-drag]]:outline-white/70 [&_[data-drag]]:[outline-color:color-mix(in_srgb,currentColor_55%,transparent)]">{sel && <SelMark k={sel} />}<DesignedBanner d={one ? { ...g, slider: false } : g} products={one ? products.slice(0, 1) : products} shape={square ? "square" : "wide"} href={d.href ?? (d.landingId ? "#" : null)} sticker={g.stickerKey ? sticker : null} /></div>
                 : d.image ? <img src={device === "mobile" && d.imageMobile ? d.imageMobile : d.image} alt={d.alt ?? ""} className="block w-full h-auto rounded-2xl" />
                 : <div className="grid place-items-center rounded-2xl border-2 border-dashed border-eu-line bg-white min-h-40 text-eu-muted text-[length:var(--fs-14)]">Διάλεξε εικόνα για να τη δεις εδώ</div>}
             </div>
@@ -265,4 +376,9 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
       </div>
     </div>
   );
+}
+
+/** Το επιλεγμένο στοιχείο της προεπισκόπησης: έντονο συνεχές πλαίσιο, για να φαίνεται ποιο αλλάζει μέγεθος. */
+function SelMark({ k }: { k: string }) {
+  return <SxStyleTag id={`sel-${k}`} css={`[data-help="banner.drag"] [data-drag="${k}"]{outline:3px solid #f1c400 !important;outline-offset:3px}`} />;
 }

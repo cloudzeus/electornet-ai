@@ -12,6 +12,29 @@ export async function bannerPreviewProductsAction(design: BannerDesign, promotio
   return d ? bannerProductsFresh(d, promotionId) : [];
 }
 
+/**
+ * Δείγμα προϊόντων για την προεπισκόπηση του editor, όταν το banner δεν έχει δικά του να δείξει (η προσφορά του έληξε, δεν
+ * έχει προϊόντα ή δεν έχει οριστεί): τα πρώτα προϊόντα που είναι τώρα σε προσφορά. Μόνο στη διαχείριση — το site δεν τα δείχνει.
+ */
+export async function bannerSampleProductsAction(design: BannerDesign): Promise<BannerProduct[]> {
+  await requirePermission("catalog.promos.write");
+  const d = normalizeBannerDesign(design);
+  if (!d) return [];
+  const rows = await db.productOffer.findMany({ where: { promotionId: { not: null } }, orderBy: { price: "desc" }, take: Math.max(4, Math.min(9, d.products.max)), select: { productId: true } });
+  return rows.length ? bannerProductsFresh({ ...d, products: { ...d.products, source: "manual", ids: rows.map((r) => r.productId) } }, null) : [];
+}
+
+/**
+ * «Αφαίρεση φόντου τώρα»: φτιάχνει τις φωτογραφίες χωρίς φόντο για τα προϊόντα που δείχνει η προεπισκόπηση (έως 6 τη φορά,
+ * ~2″ το καθένα), χωρίς να περιμένει την αποθήκευση του banner. Οι φωτογραφίες μένουν στη βιβλιοθήκη και ξαναχρησιμοποιούνται.
+ */
+export async function bannerCutoutsNowAction(ids: string[]): Promise<{ made: number; failed: number }> {
+  const user = await requirePermission("catalog.promos.write");
+  const { ensureBannerCutouts } = await import("@/lib/promo/banner-cutouts");
+  const r = await ensureBannerCutouts([...new Set(ids)].slice(0, 6), user.id);
+  return { made: r.made, failed: r.failed.length };
+}
+
 const TPL = "banner.templates";
 const PERM = "catalog.promos.write";
 /** Ό,τι είναι αποθηκευμένο → έγκυρη εμφάνιση (περνά από τον ίδιο έλεγχο με ένα σχέδιο· ποτέ ό,τι να 'ναι από τη βάση στον editor). */
