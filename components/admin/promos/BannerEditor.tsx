@@ -8,7 +8,7 @@ import { CalendarClock, Check, ChevronLeft, Eye, Image as ImageIcon, LayoutTempl
 import { SLOTS } from "@/lib/promo/landing-blocks";
 import { BANNER_ANIMS, BANNER_PRESETS, DEFAULT_BANNER_DESIGN, MAX_BANNER_PRODUCTS, BANNER_TEMPLATES, STICKER_POSITIONS, PER_ROW, POST_STYLES, PRICE_SHAPES, TILE_ANIMS, applyLook, bannerDesignIssue, type BannerDesign, type BannerProduct, type BannerTemplate } from "@/lib/promo/banner-design";
 import { savePlacementAction, type PlacementInput } from "@/app/admin/(shell)/prosfores/actions";
-import { BANNER_ELEMENTS } from "@/lib/promo/banner-design";
+import { BANNER_ELEMENTS, ELEMENT_ANIMS } from "@/lib/promo/banner-design";
 import { bannerCutoutsNowAction, bannerPreviewProductsAction, bannerSampleProductsAction, bannerTemplatesAction, deleteBannerTemplateAction, saveBannerTemplateAction } from "@/app/admin/(shell)/prosfores/theseis/actions";
 import { DesignedBanner } from "@/components/promo/DesignedBanner";
 import { StatusPill } from "@/components/admin/settings/ui";
@@ -68,6 +68,8 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   const [browse, setBrowse] = useState(false);
   const [sticker, setSticker] = useState<StickerParams | null>(sticker0);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  // μικρή φόρμα ονόματος μέσα στη σελίδα (όχι παράθυρο του browser): «as» = αποθήκευση ως νέο banner, «tpl» = ως πρότυπο
+  const [naming, setNaming] = useState<{ kind: "as" | "tpl"; name: string } | null>(null);
   const [mine, setMine] = useState<BannerTemplate[]>([]);
   const [tplOpen, setTplOpen] = useState(false);
   useEffect(() => { void bannerTemplatesAction().then(setMine).catch(() => {}); }, []);
@@ -86,7 +88,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   // η θέση γράφεται στο σχέδιο (design.free) σε % και ισχύει και στο site.
   const [sel, setSel] = useState<string | null>(null);
   const free = g?.free ?? {};
-  const setFree = (k: string, f: { x: number; y: number; s: number } | null) => { const next = { ...free }; if (f) next[k] = f; else delete next[k]; setG({ free: next }); };
+  const setFree = (k: string, f: { x: number; y: number; s: number; a?: string } | null) => { const next = { ...free }; if (f) next[k] = f; else delete next[k]; setG({ free: next }); };
   const centerOf = (el: HTMLElement) => { const box = (el.offsetParent as HTMLElement).getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: ((r.left + r.width / 2 - box.left) / box.width) * 100, y: ((r.top + r.height / 2 - box.top) / box.height) * 100 }; };
   const dragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-drag]");
@@ -107,7 +109,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
     const up = () => {
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up);
       el.removeAttribute("style");
-      if (xy) setFree(key, { ...xy, s });
+      if (xy) setFree(key, { ...xy, s, a: free[key]?.a });
     };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
   };
@@ -116,7 +118,14 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
     if (!sel) return;
     const el = document.querySelector<HTMLElement>(`[data-help="banner.drag"] [data-drag="${sel}"]`);
     const at = free[sel] ?? (el ? centerOf(el) : null);
-    if (at) setFree(sel, { x: at.x, y: at.y, s });
+    if (at) setFree(sel, { x: at.x, y: at.y, s, a: free[sel]?.a });
+  };
+  // κίνηση του επιλεγμένου στοιχείου (αιώρηση, παλμός…)· όπως το μέγεθος, κρατά το στοιχείο εκεί που είναι τώρα
+  const animate = (a: string | undefined) => {
+    if (!sel) return;
+    const el = document.querySelector<HTMLElement>(`[data-help="banner.drag"] [data-drag="${sel}"]`);
+    const at = free[sel] ?? (el ? centerOf(el) : null);
+    if (at) setFree(sel, { x: at.x, y: at.y, s: free[sel]?.s ?? 1, a });
   };
   const moved = Object.keys(free).length > 0 || Object.keys(g?.holder ?? {}).length > 0;
   // πλαίσιο της φωτογραφίας προϊόντος: το μέγεθος που έχει τώρα στην οθόνη (για την αρχική θέση των ρυθμιστών) και οι αλλαγές του
@@ -145,6 +154,21 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
   }, [dirty]);
 
   const issue = g ? bannerDesignIssue(g, d.promotionId) : d.image ? null : "Διάλεξε εικόνα.";
+  const saveNamed = () => start(async () => {
+    const name = naming?.name.trim();
+    if (!naming || !name) return;
+    if (naming.kind === "tpl") {
+      if (!g) return;
+      const r = await saveBannerTemplateAction(name, g);
+      if (r.ok) { setMine((m) => [r.template, ...m.filter((x) => x.key !== r.template.key)]); setMsg({ ok: true, t: `Το πρότυπο «${r.template.name}» αποθηκεύτηκε.` }); setNaming(null); } else setMsg({ ok: false, t: r.error });
+      return;
+    }
+    // νέο banner με ό,τι βλέπεις τώρα· ξεκινά πρόχειρο, ώστε να μη βγει στο site δίπλα στο αρχικό πριν το δεις
+    const r = await savePlacementAction({ ...d, id: null, title: name, status: "draft" });
+    if (!r.ok) { setMsg({ ok: false, t: "Δεν αποθηκεύτηκε το νέο banner. Δοκίμασε ξανά." }); return; }
+    setNaming(null);
+    router.push(`/admin/prosfores/theseis/${r.id}`);
+  });
   const save = () => start(async () => {
     setMsg(null);
     const r = await savePlacementAction({ ...d, title: d.title.trim() || g?.title || "Banner" });
@@ -170,7 +194,20 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
           <h2 className="m-0 font-heading font-bold text-eu-ink text-[length:var(--fs-20)] min-w-0 truncate">{d.title || g?.title || "Νέο banner"}</h2>
           <StatusPill status={pill[0]} text={pill[1]} />
           {stats && <span className="inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-12)] tabular-nums"><span className="inline-flex items-center gap-0.5" title="Προβολές"><Eye className="size-3.5" aria-hidden />{stats.impressions.toLocaleString("el-GR")}</span><span className="inline-flex items-center gap-0.5" title="Κλικ"><MousePointerClick className="size-3.5" aria-hidden />{stats.clicks.toLocaleString("el-GR")}</span></span>}
-          <button data-help="banner.save" type="button" onClick={save} disabled={busy || !dirty} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-4 min-h-11 md:min-h-9 hover:bg-eu-blue disabled:opacity-45">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}{dirty ? "Αποθήκευση" : "Αποθηκευμένο"}</button>
+          <span className="ml-auto flex flex-wrap gap-2">
+          {d.id && <button data-help="banner.save-as" type="button" aria-expanded={naming?.kind === "as"} onClick={() => setNaming(naming?.kind === "as" ? null : { kind: "as", name: `${d.title} (αντίγραφο)`.slice(0, 120) })} disabled={busy} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-line bg-white text-eu-ink-2 font-bold text-[length:var(--fs-13)] px-4 min-h-11 md:min-h-9 hover:border-eu-navy disabled:opacity-45 cursor-pointer">Αποθήκευση ως νέο</button>}
+          <button data-help="banner.save" type="button" onClick={save} disabled={busy || !dirty} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-13)] px-4 min-h-11 md:min-h-9 hover:bg-eu-blue disabled:opacity-45">{busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Check className="size-4" aria-hidden />}{dirty ? "Αποθήκευση" : "Αποθηκευμένο"}</button>
+          </span>
+          {naming && (
+            <form data-help="banner.naming" onSubmit={(e) => { e.preventDefault(); saveNamed(); }} className="basis-full flex flex-wrap items-end gap-2 rounded-xl border-2 border-eu-navy/20 bg-white p-3">
+              <label className="grid gap-1 flex-1 basis-64 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">{naming.kind === "as" ? "Όνομα του νέου banner" : "Όνομα προτύπου"}
+                <input autoFocus value={naming.name} maxLength={naming.kind === "as" ? 120 : 60} onChange={(e) => setNaming({ ...naming, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Escape") setNaming(null); }} placeholder={naming.kind === "as" ? "π.χ. BF26 · Πληροφοριακές (νέο)" : "π.χ. Black Friday slider"} className="w-full rounded-xl border-2 border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-15)] font-normal outline-none focus-visible:border-eu-blue" />
+                <span className="font-normal text-eu-ink-3 text-[length:var(--fs-13)]">{naming.kind === "as" ? "Φτιάχνεται νέο banner με ό,τι βλέπεις τώρα, ως πρόχειρο. Το αρχικό μένει όπως ήταν την τελευταία φορά που το αποθήκευσες." : "Κρατά την εμφάνιση (χρώματα, στυλ, sticker) — όχι τα κείμενα και τα προϊόντα. Ίδιο όνομα = ενημέρωση του προτύπου."}</span>
+              </label>
+              <button type="submit" disabled={busy || !naming.name.trim()} className="inline-flex items-center gap-1.5 rounded-full bg-eu-navy text-white font-bold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-blue disabled:opacity-45 cursor-pointer">{naming.kind === "as" ? "Αποθήκευση ως νέο banner" : "Αποθήκευση προτύπου"}</button>
+              <button type="button" onClick={() => setNaming(null)} className="inline-flex items-center rounded-full border-2 border-eu-line bg-white text-eu-ink-2 font-bold text-[length:var(--fs-14)] px-4 min-h-11 hover:border-eu-navy cursor-pointer">Άκυρο</button>
+            </form>
+          )}
         </div>
         {msg && <p role={msg.ok ? "status" : "alert"} className={`m-0 rounded-xl px-3 py-2 font-semibold text-[length:var(--fs-13)] ${msg.ok ? "bg-eu-green/10 text-eu-green" : "bg-eu-red/10 text-eu-red"}`}>{msg.t}</p>}
       </div>
@@ -183,7 +220,7 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
             <div data-help="banner.templates" className="grid gap-2 rounded-xl bg-eu-surface p-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" aria-expanded={tplOpen} onClick={() => setTplOpen((x) => !x)} className="inline-flex items-center gap-1.5 rounded-full bg-white border-2 border-eu-line px-3 min-h-11 md:min-h-9 font-bold text-eu-ink text-[length:var(--fs-13)] hover:border-eu-navy"><LayoutTemplate className="size-4 text-eu-blue" aria-hidden /> Πρότυπα ({BANNER_TEMPLATES.length + mine.length})</button>
-                <button type="button" onClick={async () => { const name = window.prompt("Όνομα προτύπου (π.χ. «Black Friday slider»). Κρατά την εμφάνιση — όχι τα κείμενα και τα προϊόντα."); if (!name) return; const r = await saveBannerTemplateAction(name, g); if (r.ok) { setMine((m) => [r.template, ...m.filter((x) => x.key !== r.template.key)]); setMsg({ ok: true, t: `Το πρότυπο «${r.template.name}» αποθηκεύτηκε.` }); } else setMsg({ ok: false, t: r.error }); }} className="inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-9 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-white">Αποθήκευση ως πρότυπο</button>
+                <button type="button" aria-expanded={naming?.kind === "tpl"} onClick={() => setNaming(naming?.kind === "tpl" ? null : { kind: "tpl", name: "" })} className="inline-flex items-center gap-1.5 rounded-full px-3 min-h-11 md:min-h-9 font-bold text-eu-blue text-[length:var(--fs-13)] hover:bg-white cursor-pointer">Αποθήκευση ως πρότυπο</button>
               </div>
               {tplOpen && (
                 <ul className="m-0 p-0 list-none grid gap-1.5">
@@ -341,6 +378,10 @@ export function BannerEditor({ initial, stats, promos, landings, categories, sti
                     <input type="range" min={30} max={300} step={5} value={Math.round((free[sel]?.s ?? 1) * 100)} onChange={(e) => resize(Number(e.target.value) / 100)} className="flex-1 min-h-11 accent-eu-navy" aria-label={`Μέγεθος: ${BANNER_ELEMENTS[sel] ?? sel}`} />
                     <span className="tabular-nums w-12 text-right">{Math.round((free[sel]?.s ?? 1) * 100)} %</span>
                   </label>
+                  <div role="radiogroup" aria-label={`Κίνηση: ${BANNER_ELEMENTS[sel] ?? sel}`} className="basis-full flex flex-wrap items-center gap-1.5">
+                    <span className="font-bold text-eu-ink-2 mr-1">Κίνηση</span>
+                    {[["", "Καμία"], ...Object.entries(ELEMENT_ANIMS).map(([k, v]) => [k, v.label])].map(([k, l]) => { const on = (free[sel]?.a ?? "") === k; return <button key={k} type="button" role="radio" aria-checked={on} onClick={() => animate(k || undefined)} className={`rounded-full border-2 px-3 min-h-11 md:min-h-9 font-bold text-[length:var(--fs-13)] cursor-pointer ${on ? "border-eu-navy bg-eu-navy text-white" : "border-eu-line bg-white text-eu-ink-2 hover:border-eu-navy"}`}>{l}</button>; })}
+                  </div>
                   {free[sel] && <button type="button" onClick={() => setFree(sel, null)} className="rounded-full border border-eu-line bg-white px-3 min-h-11 md:min-h-9 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:border-eu-navy cursor-pointer">Επαναφορά στοιχείου</button>}
                 </div>
               )}

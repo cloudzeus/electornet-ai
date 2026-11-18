@@ -236,7 +236,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
 
         {step === 2 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} toErp={() => pickTemplate("erp")} />}
         {step === 2 && <ErpMode d={d} setReward={setReward} />}
-        {step === 2 && ["price-percent", "price-amount", "special-price", "erp-price"].includes(d.mechanism) && <OfferPreview d={d} />}
+        {step === 2 && ["price-percent", "price-amount", "special-price", "erp-price"].includes(d.mechanism) && <OfferPreview d={d} id={d.id ?? null} />}
 
         {step === 3 && (
           <div className="grid gap-3">

@@ -52,7 +52,14 @@ export const STICKER_POSITIONS: { key: StickerPos; label: string; help?: string 
  * Ελεύθερη θέση και μέγεθος ενός στοιχείου του banner (σύρσιμο / αλλαγή μεγέθους στον editor): το κέντρο του σε % του
  * πλαισίου μέσα στο οποίο ζει, και ο συντελεστής μεγέθους (1 = όπως το στυλ).
  */
-export interface BannerFree { x: number; y: number; s: number }
+export interface BannerFree { x: number; y: number; s: number; /** κίνηση του στοιχείου (κλειδί του ELEMENT_ANIMS)· χωρίς = ακίνητο */ a?: string }
+/** Κινήσεις που μπορεί να πάρει ένα στοιχείο του banner· η τιμή είναι η δήλωση `animation` (keyframes του globals.css). */
+export const ELEMENT_ANIMS: Record<string, { label: string; css: string }> = {
+  float: { label: "Αιώρηση", css: "eu-float 4s ease-in-out infinite" },
+  pulse: { label: "Παλμός", css: "eu-sticker-breathe 2.6s ease-in-out infinite" },
+  wiggle: { label: "Κούνημα", css: "eu-sticker-wiggle 1.8s ease-in-out infinite" },
+  bump: { label: "Αναπήδηση", css: "eu-sticker-bump 3s ease-in-out infinite" },
+};
 /** Ρυθμίσεις του πλαισίου της φωτογραφίας προϊόντος (ό,τι λείπει μένει όπως το ορίζει το στυλ). */
 export interface BannerHolder { w?: number; h?: number; /** λευκό πλαίσιο πίσω από φωτογραφία που έχει ακόμη φόντο */ frame?: boolean; /** περιθώριο μέσα στο πλαίσιο, % */ pad?: number; /** η φωτογραφία γεμίζει το πλαίσιο (κόβονται οι άκρες) */ cover?: boolean }
 export function bannerHolder(v: unknown): BannerHolder {
@@ -75,7 +82,7 @@ export function bannerFree(v: unknown): Record<string, BannerFree> {
   const out: Record<string, BannerFree> = {};
   for (const [k, f] of Object.entries((v ?? {}) as Record<string, Partial<BannerFree> | null>)) {
     if (!(k in BANNER_ELEMENTS) || !f || !Number.isFinite(f.x) || !Number.isFinite(f.y)) continue;
-    out[k] = { x: r1(Math.min(250, Math.max(-150, f.x!))), y: r1(Math.min(250, Math.max(-150, f.y!))), s: Math.round(Math.min(3, Math.max(0.3, Number(f.s) || 1)) * 100) / 100 };
+    out[k] = { x: r1(Math.min(250, Math.max(-150, f.x!))), y: r1(Math.min(250, Math.max(-150, f.y!))), s: Math.round(Math.min(3, Math.max(0.3, Number(f.s) || 1)) * 100) / 100, ...(typeof f.a === "string" && f.a in ELEMENT_ANIMS ? { a: f.a } : {}) };
   }
   return out;
 }

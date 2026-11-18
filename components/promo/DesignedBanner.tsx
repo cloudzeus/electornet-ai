@@ -1,4 +1,4 @@
-import type { BannerDesign, BannerProduct } from "@/lib/promo/banner-design";
+import { ELEMENT_ANIMS, type BannerDesign, type BannerProduct } from "@/lib/promo/banner-design";
 import { EnergyChip } from "@/components/commerce/EnergyChip";
 import { Check } from "lucide-react";
 import { sx } from "@/components/ui/sx";
@@ -23,8 +23,10 @@ function freeRules(d: BannerDesign): { className: string; node: React.ReactNode 
   // το πλαίσιο της φωτογραφίας: μέγεθος, λευκό φόντο, περιθώριο και γέμισμα, όταν ο διαχειριστής τα άλλαξε
   const holder = [h.w != null ? `width:${h.w}%` : "", h.h != null ? `height:${h.h}%` : "", h.frame === false ? "background:transparent;box-shadow:none" : h.frame === true ? "background:#fff;border-radius:0.75rem" : "", h.pad != null ? `padding:${h.pad}%` : "", h.cover ? "object-fit:cover" : ""].filter(Boolean).join(";");
   if (!list.length && !holder) return { className: "", node: null };
-  const cls = `fr-${[...list.map(([k, f]) => `${k}${f.x}_${f.y}_${f.s}`), holder].join("-").replace(/[^a-z0-9_-]/gi, "m")}`;
-  const css = list.map(([k, f]) => `.${cls} [data-drag="${k}"]{position:absolute;left:${f.x}%;top:${f.y}%;right:auto;bottom:auto;translate:-50% -50% !important;scale:${f.s} !important;z-index:5${k === "brand" || k === "title" ? ";width:100%" : ""}}`).join("");
+  const cls = `fr-${[...list.map(([k, f]) => `${k}${f.x}_${f.y}_${f.s}${f.a ?? ""}`), holder].join("-").replace(/[^a-z0-9_-]/gi, "m")}`;
+  const css = list.map(([k, f]) => `.${cls} [data-drag="${k}"]{position:absolute;left:${f.x}%;top:${f.y}%;right:auto;bottom:auto;translate:-50% -50% !important;scale:${f.s} !important;z-index:5${k === "brand" || k === "title" ? ";width:100%" : ""}${f.a && ELEMENT_ANIMS[f.a] ? `;animation:${ELEMENT_ANIMS[f.a].css}` : ""}}`).join("")
+    // όποιος έχει κλείσει τις κινήσεις στη συσκευή του βλέπει τα στοιχεία ακίνητα
+    + (list.some(([, f]) => f.a) ? `@media (prefers-reduced-motion:reduce){.${cls} [data-drag]{animation:none}}` : "");
   return { className: cls, node: <SxStyleTag id={cls} css={css + (holder ? `.${cls} [data-drag="image"]{${holder}}` : "")} /> };
 }
 

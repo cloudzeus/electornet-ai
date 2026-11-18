@@ -67,7 +67,7 @@ export function OfferPreview({ d, row = false, id = null }: { d: PromoDraft; row
         <h4 id="pv-h" className="m-0 inline-flex items-center gap-2 font-heading font-bold text-eu-ink text-[length:var(--fs-16)]"><Eye className="size-5 text-eu-blue" aria-hidden /> Έτσι θα το δει ο πελάτης</h4>
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Πραγματικά προϊόντα από το καλάθι σου, με τις τιμές που βγαίνουν τώρα. Αλλάζει μόνο του καθώς αλλάζεις την προσφορά. Δεν έχει δημοσιευτεί τίποτα.</p>
       </div>
-      {row && id && designs.length > 0 && (
+      {id && designs.length > 0 && (
         <label data-help="promo.design-pick" className="grid gap-1 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Σχεδιασμός
           <select value={pick} onChange={(e) => choose(e.target.value)} className="w-full rounded-xl border-2 border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-15)] font-normal outline-none focus-visible:border-eu-blue">
             <option value="">Απλές κάρτες προϊόντων (χωρίς σχέδιο)</option>
@@ -76,6 +76,7 @@ export function OfferPreview({ d, row = false, id = null }: { d: PromoDraft; row
           <span className="font-normal text-eu-ink-3 text-[length:var(--fs-13)]">Διάλεξε ένα σχέδιο που υπάρχει ήδη για να δεις την προσφορά μέσα του. Αν σου αρέσει, πάτα «Εφαρμογή» από κάτω.</span>
         </label>
       )}
+      {!id && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Μόλις πατήσεις «Αποθήκευση πρόχειρου», εδώ εμφανίζεται και η λίστα «Σχεδιασμός», για να δεις την προσφορά μέσα σε ένα από τα banners που έχεις σχεδιάσει.</p>}
       {design ? (
         <div className="grid gap-3">
           {prods === null ? <p className="m-0 inline-flex items-center gap-2 text-eu-muted text-[length:var(--fs-14)] min-h-11"><Loader2 className="size-4 animate-spin" aria-hidden /> Στήνω το σχέδιο με τα προϊόντα της προσφοράς…</p> : (
