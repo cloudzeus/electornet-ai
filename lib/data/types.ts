@@ -216,6 +216,8 @@ export interface HeroSlide {
   imageMobile?: string;
   /** τρέχουσα τιμή του προϊόντος του slide */
   price?: number;
+  /** αρχική τιμή του προϊόντος του slide, όταν είναι σε προσφορά — φαίνεται διαγραμμένη δίπλα στην τιμή */
+  wasPrice?: number;
 }
 
 export interface Faq {

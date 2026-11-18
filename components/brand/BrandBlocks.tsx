@@ -45,6 +45,7 @@ export function NewArrivals({ b, products }: { b: Extract<BrandBlock, { type: "n
                     <span className="block font-heading font-bold text-[length:var(--fs-19)] leading-tight line-clamp-2">{p.title}</span>
                     <span className="mt-2 flex items-baseline gap-2">
                       <span className="font-heading font-extrabold text-[length:var(--fs-26)] tracking-[-0.02em]"><Price value={p.price} short /></span>
+                      {p.wasPrice && p.wasPrice > p.price ? <s className="text-[var(--bs-muted)] text-[length:var(--fs-15)]">{priceShort(p.wasPrice)}</s> : null}
                       <span className="text-[var(--bs-muted)] text-[length:var(--fs-14)]">ή 24 × {priceLong(instalment(p.price, 24))}</span>
                     </span>
                   </span>
@@ -83,7 +84,7 @@ export function Series({ b, products }: { b: Extract<BrandBlock, { type: "series
                     {ps.slice(0, 3).map((p) => (
                       <li key={p.id}>
                         <Link href={`/proion/${p.slug}`} className="inline-flex items-center gap-1 rounded-full border border-[var(--bs-muted)]/30 px-3 min-h-9 text-[length:var(--fs-14)] font-bold hover:border-[var(--bs-accent)] hover:text-[var(--bs-link,var(--bs-accent))]">
-                          {p.title.split(" ").slice(0, 3).join(" ")} <span className="text-[var(--bs-muted)] font-semibold">{priceShort(p.price)}</span>
+                          {p.title.split(" ").slice(0, 3).join(" ")} <span className="text-[var(--bs-muted)] font-semibold">{priceShort(p.price)}</span>{p.wasPrice && p.wasPrice > p.price ? <s className="ml-1 text-[var(--bs-muted)] font-normal">{priceShort(p.wasPrice)}</s> : null}
                         </Link>
                       </li>
                     ))}

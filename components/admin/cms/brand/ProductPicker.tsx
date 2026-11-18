@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
+import { TopLayer } from "./TopLayer";
 import { ArrowDown, ArrowUp, Check, ChevronRight, ClipboardList, FolderTree, Loader2, Package, Plus, Search, TriangleAlert, X } from "lucide-react";
 import { brandCategoriesAction, brandProductsAction, productsByCodesAction, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 
@@ -68,8 +68,8 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
 
   // portal στο body: αλλιώς ένας sticky πρόγονος (π.χ. στήλη ρυθμίσεων) το κλείνει κάτω από την προεπισκόπηση
   if (typeof document === "undefined" || !document.body) return null;
-  return createPortal(
-    <div className="fixed inset-0 z-50 @container" role="dialog" aria-modal="true" aria-label={`Επιλογή προϊόντων ${brandName}`}>
+  return (
+    <TopLayer label={`Επιλογή προϊόντων ${brandName}`} onClose={onClose}>
       <button type="button" aria-label="Κλείσιμο" onClick={onClose} className="absolute inset-0 bg-eu-navy/60 backdrop-blur-sm" />
       <div className="absolute inset-0 @3xl:inset-6 @6xl:inset-x-[10%] @3xl:rounded-2xl bg-white flex flex-col overflow-hidden shadow-[var(--shadow-overlay)]">
         <div className="flex items-center gap-2 px-4 min-h-14 border-b border-eu-line">
@@ -153,8 +153,8 @@ export function ProductPickerDialog({ brandId, brandName, selected, single = fal
           </div>
         )}
       </div>
-    </div>
-  , document.body);
+    </TopLayer>
+  );
 }
 
 /** Τα επιλεγμένα προϊόντα με τη σειρά που θα εμφανιστούν: μετακίνηση, αφαίρεση, προσθήκη. */

@@ -38,7 +38,7 @@ export interface HeroDoc {
 }
 export interface SlideIssue { field: "title" | "image" | "primary" | "secondary" | "dates"; message: string }
 /** Ό,τι χρειάζεται ο hero από ένα προϊόν του καταλόγου — η τιμή διαβάζεται τη στιγμή της προβολής */
-export interface ProductInfo { title: string; slug: string; cutout: string | null; price: number | null }
+export interface ProductInfo { title: string; slug: string; cutout: string | null; price: number | null; /** αρχική τιμή, όταν το προϊόν είναι σε προσφορά (φαίνεται διαγραμμένη) */ wasPrice?: number | null }
 
 export const MAX_SLIDES = 12;
 
@@ -190,6 +190,6 @@ export function toHeroSlide(s: HeroSlideDoc, p: ProductInfo | null): HeroSlide {
     id: s.id, kicker: s.kicker, title: s.title.filter((t) => t.trim()), body: s.body,
     primary: s.primary, secondary: s.secondary ?? undefined, bullets: s.bullets.filter((b) => b.trim()),
     image: s.image.url, alt: s.image.alt, imageMobile: s.imageMobile?.url, video: s.video?.url,
-    cutout: p?.cutout ?? s.cutout ?? undefined, productHref: p ? `/proion/${p.slug}` : s.productHref ?? undefined, price: p?.price ?? undefined,
+    cutout: p?.cutout ?? s.cutout ?? undefined, productHref: p ? `/proion/${p.slug}` : s.productHref ?? undefined, price: p?.price ?? undefined, wasPrice: p?.wasPrice ?? undefined,
   };
 }

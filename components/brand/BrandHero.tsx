@@ -50,7 +50,7 @@ export function BrandHero({ store, product }: { store: BrandStore; product: Prod
             </Link>
             {product && (
               <Link href={`/proion/${product.slug}`} className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--bs-muted)]/40 font-bold text-[length:var(--fs-15)] px-5 min-h-12 hover:border-[var(--bs-ink)] transition">
-                {product.title.split(" ").slice(0, 3).join(" ")} · {priceShort(product.price)}
+                {product.title.split(" ").slice(0, 3).join(" ")} · {priceShort(product.price)}{product.wasPrice && product.wasPrice > product.price ? <s className="font-normal opacity-70">{priceShort(product.wasPrice)}</s> : null}
               </Link>
             )}
           </div>

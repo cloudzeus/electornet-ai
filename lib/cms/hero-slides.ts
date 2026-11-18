@@ -54,7 +54,7 @@ async function productInfosFresh(ids: string[]): Promise<Record<string, ProductI
   const ps = await getProductsByIds(ids).catch(() => []);
   // φωτογραφία χωρίς φόντο: όσες έφτιαξε η εφαρμογή (με τη δημοσίευση του hero ή για banners), αλλιώς οι έτοιμες του demo
   const cuts = await (await import("@/lib/promo/banner-cutouts")).bannerCutouts(ps.map((p) => p.id)).catch(() => new Map<string, string>());
-  return Object.fromEntries(ps.map((p) => [p.id, { title: `${p.brand} ${p.title}`, slug: p.slug, cutout: cuts.get(p.id) ?? cutoutFor(p.image) ?? p.image ?? null, price: p.noPrice || !p.price ? null : p.price }]));
+  return Object.fromEntries(ps.map((p) => [p.id, { title: `${p.brand} ${p.title}`, slug: p.slug, cutout: cuts.get(p.id) ?? cutoutFor(p.image) ?? p.image ?? null, price: p.noPrice || !p.price ? null : p.price, wasPrice: !p.noPrice && p.price && p.wasPrice && p.wasPrice > p.price ? p.wasPrice : null }]));
 }
 
 async function resolve(slides: HeroSlideDoc[]): Promise<HeroSlide[]> {
