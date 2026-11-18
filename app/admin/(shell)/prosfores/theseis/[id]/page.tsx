@@ -1,3 +1,4 @@
+import { openPromoWhere } from "@/lib/promo/open";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
@@ -17,7 +18,7 @@ export default async function BannerPage({ params, searchParams }: { params: Pro
   if (id !== "new" && !row) notFound();
   const slot = (await searchParams).slot;
   const [promos, landings, cats] = await Promise.all([
-    db.promotion.findMany({ where: { status: { not: "archived" } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true } }),
+    db.promotion.findMany({ where: openPromoWhere(row?.promotionId), orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true } }),
     db.landingPage.findMany({ where: { status: { not: "archived" } }, select: { id: true, title: true, slug: true } }),
     db.category.findMany({ where: { depth: 0, active: true }, orderBy: { sortNo: "asc" }, select: { slug: true, name: true } }),
   ]);

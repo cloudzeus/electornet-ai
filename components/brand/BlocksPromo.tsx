@@ -32,13 +32,13 @@ const CARD_T: Record<number, string> = { 1: "@2xl:grid-cols-1", 2: "@2xl:grid-co
 const CARD_D: Record<number, string> = { 2: "@5xl:grid-cols-2", 3: "@5xl:grid-cols-3", 4: "@5xl:grid-cols-4", 5: "@5xl:grid-cols-5", 6: "@5xl:grid-cols-6" };
 
 /** Τα προϊόντα της προσφοράς μέσα σε σχέδιο banner (όσο η προσφορά ζει)· χωρίς έγκυρο σχέδιο ή προϊόντα → null. */
-async function PromoDesigned({ b }: { b: B<"promo-products"> }) {
+async function PromoDesigned({ b, ids }: { b: B<"promo-products">; ids?: string[] }) {
   const { designByKey } = await import("@/lib/promo/designs");
   const base = await designByKey(b.design);
   if (!base) return null;
   const { bannerProducts, bannerProductsRotating, bannerSticker } = await import("@/lib/promo/banner-products");
   // ο τίτλος είναι της ζώνης· το σχέδιο δίνει μόνο την εμφάνιση των προϊόντων
-  const d = { ...base, kicker: "", title: "", body: base.layout === "strip" ? base.body : "", cta: "", products: { ...base.products, source: "promotion" as const, ids: [], max: Math.max(1, Math.min(12, b.limit || base.products.max)), perRow: b.perRow ?? base.products.perRow, perRowMobile: b.perRowMobile ?? base.products.perRowMobile, perRowTablet: b.perRowTablet ?? base.products.perRowTablet ?? Math.min(3, b.perRow ?? base.products.perRow) } };
+  const d = { ...base, kicker: "", title: "", body: base.layout === "strip" ? base.body : "", cta: "", products: { ...base.products, source: ids ? "manual" as const : "promotion" as const, ids: ids ?? [], max: Math.max(1, Math.min(12, b.limit || base.products.max)), perRow: b.perRow ?? base.products.perRow, perRowMobile: b.perRowMobile ?? base.products.perRowMobile, perRowTablet: b.perRowTablet ?? base.products.perRowTablet ?? Math.min(3, b.perRow ?? base.products.perRow) } };
   const list = await (b.rotate === false ? bannerProducts : bannerProductsRotating)(d, b.promotionId).catch(() => []);
   if (!list.length) return null;
   const { DesignedBanner } = await import("@/components/promo/DesignedBanner");
@@ -46,14 +46,36 @@ async function PromoDesigned({ b }: { b: B<"promo-products"> }) {
 }
 
 export async function PromoProducts({ b, data, products }: { b: B<"promo-products">; data: PromoData | null; products: Product[] }) {
+  // ζώνη χωρίς περιεχόμενο: μόνο οι τίτλοι της και, αν έχει οριστεί, το κουμπί — δεν χρειάζεται προσφορά
+  if (b.content === "image") {
+    if (!b.image) return null;
+    const { Banner } = await import("./BrandBlocksMore");
+    const titled = !!(b.kicker || b.title || b.subtitle);
+    return (
+      <>
+        {titled && <div className="eu-canvas eu-gutter pt-8 @lg:pt-12 -mb-4 @lg:-mb-6"><BlockHead kicker={b.kicker} title={b.title} subtitle={b.subtitle} size={b.headSize} kickerSize={b.kickerSize} subSize={b.subSize} /></div>}
+        <Banner b={{ id: b.id, type: "banner", image: b.image, imageTablet: b.imageTablet, imageMobile: b.imageMobile, fit: b.fit, height: b.height, href: b.href, overlay: "none" }} />
+      </>
+    );
+  }
+  if (b.content === "none") {
+    if (!b.kicker && !b.title && !b.subtitle) return null;
+    return (
+      <section className={shell} aria-label={b.title || b.kicker || "Κείμενο"}>
+        <BlockHead kicker={b.kicker} title={b.title} subtitle={b.subtitle} size={b.headSize} kickerSize={b.kickerSize} subSize={b.subSize} />
+        {b.cta?.href && <Link href={b.cta.href} className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--bs-accent)] text-[var(--bs-accent-ink)] font-extrabold text-[length:var(--fs-15)] px-5 min-h-12 hover:brightness-110 w-full @md:w-auto">{b.cta.label || "Δες περισσότερα"} <ArrowRight className="size-4" aria-hidden /></Link>}
+      </section>
+    );
+  }
   if (!data || !products.length) return null;
   // κουμπί της ζώνης: δικός της σύνδεσμος → η landing page της προσφοράς → αλλιώς η σελίδα όλων των προσφορών
   const href = b.cta?.href || data.landingHref || "/prosfores";
-  const designed = b.design ? await PromoDesigned({ b }) : null;
+  // με δική της λίστα προϊόντων η ζώνη δείχνει ακριβώς αυτά (όσα είναι ακόμη στην προσφορά)
+  const designed = b.design ? await PromoDesigned({ b, ids: b.productIds?.length ? data.productIds : undefined }) : null;
   const cols = b.perRow || b.perRowTablet || b.perRowMobile ? `${CARD_M[b.perRowMobile ?? 1] ?? CARD_M[1]} ${CARD_T[b.perRowTablet ?? 2] ?? CARD_T[2]} ${CARD_D[b.perRow ?? 4] ?? CARD_D[4]}` : "grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4";
   return (
     <section className={shell} aria-label={b.title || data.name}>
-      <BlockHead kicker={b.kicker || "Προσφορά"} title={b.title || data.name} subtitle={b.subtitle} size={b.headSize} right={b.countdown !== false && data.endsAt ? <Countdown endsAt={data.endsAt} variant="blocks" tone="light" className="shrink-0 hidden @md:flex" /> : undefined} />
+      <BlockHead kicker={b.kicker || "Προσφορά"} title={b.title || data.name} subtitle={b.subtitle} size={b.headSize} kickerSize={b.kickerSize} subSize={b.subSize} right={b.countdown !== false && data.endsAt ? <Countdown endsAt={data.endsAt} variant="blocks" tone="light" className="shrink-0 hidden @md:flex" /> : undefined} />
       {b.countdown !== false && data.endsAt && <div className="@md:hidden mb-4"><Countdown endsAt={data.endsAt} variant="blocks" tone="light" /></div>}
       {designed ?? (
         <div className={`grid gap-3 ${cols}`}>

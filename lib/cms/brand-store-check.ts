@@ -35,7 +35,7 @@ export const BLOCK_LABEL: Record<BrandBlock["type"], string> = {
   gallery: "Gallery",
   cta: "Κάλεσμα σε δράση",
   ad: "Διαφήμιση",
-  "promo-products": "Προϊόντα προσφοράς",
+  "promo-products": "Ζώνη banner προσφοράς",
   "promo-landing": "Σελίδα προσφοράς",
   coupon: "Κουπόνι",
   stores: "Καταστήματα",
@@ -173,7 +173,9 @@ export function checkBlocks(blocks: BrandBlock[], now = new Date()): { errors: I
         if (b.mode === "placement" && !b.placementId) E(w, "Διάλεξε banner από τις Διαφημιστικές θέσεις.", a);
         break;
       case "promo-products":
-        if (!b.promotionId) E(w, "Διάλεξε προσφορά.", a);
+        if (b.content === "image") { if (!b.image) E(w, "Βάλε την εικόνα του banner (υπολογιστής).", a); }
+        else if (b.content === "none") { if (!b.title && !b.kicker && !b.subtitle) E(w, "Γράψε τουλάχιστον τίτλο, υπέρτιτλο ή υπότιτλο.", a); }
+        else if (!b.promotionId) E(w, "Διάλεξε προσφορά.", a);
         break;
       case "promo-landing":
         if (!b.landingId) E(w, "Διάλεξε σελίδα προσφοράς.", a);

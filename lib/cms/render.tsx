@@ -21,6 +21,11 @@ import { getHeroDeal, getHeroServices, getLiveHeroSlides } from "@/lib/cms/hero-
 import { catalogTree, type CatNode } from "@/lib/data/db-catalog";
 import { cellsOf, gridCategories, gridTitle, type CatInfo } from "./category-cells";
 import { homeDeals, type DealsProps } from "./home-deals";
+import { designByKey } from "@/lib/promo/designs";
+import { bannerProducts, bannerSticker } from "@/lib/promo/banner-products";
+import { DesignedBanner } from "@/components/promo/DesignedBanner";
+import { BlockHead, BrandFrame } from "@/components/brand/BrandFrame";
+import { EURONICS_THEME } from "./info-pages";
 import { DEFAULT_GUIDE_ARTICLES, homeServiceSlugs, orderedVisible } from "./home-sections";
 import { GUIDES, type GuideKind } from "@/lib/guides/smart";
 import { getGuidesFull } from "@/lib/data/repo";
@@ -65,6 +70,20 @@ const registry: Record<string, Renderer> = {
     if (!deals.products.length) return null;
     // Save-Data: δύο προϊόντα
     const products = deals.products.slice(0, ctx.saveData ? 2 : deals.products.length);
+    // εμφάνιση από τη διαχείριση: σχέδιο banner αντί για τις κανονικές κάρτες· άγνωστο σχέδιο → κάρτες
+    const base = await designByKey((p as { design?: string }).design);
+    if (base) {
+      const d = { ...base, kicker: "", title: "", body: base.layout === "strip" ? base.body : "", cta: "", products: { ...base.products, source: "manual" as const, ids: products.map((x) => x.id), max: Math.max(1, Math.min(12, products.length)) } };
+      const list = await bannerProducts(d, null).catch(() => []);
+      if (list.length) return (
+        <BrandFrame key={w.id} theme={EURONICS_THEME}>
+          <section className="eu-canvas eu-gutter py-8 @lg:py-12" aria-label={p.title ?? "Προσφορές της εβδομάδας"}>
+            <BlockHead kicker={deals.label} title={p.title ?? "Προσφορές της εβδομάδας"} />
+            <DesignedBanner d={d} products={list} shape="wide" href={null} sticker={await bannerSticker(d.stickerKey).catch(() => null)} />
+          </section>
+        </BrandFrame>
+      );
+    }
     return <DealsRail key={w.id} products={products} endsAt={deals.endsAt} label={deals.label} title={p.title ?? "Προσφορές της εβδομάδας"} zoneNo={w.zoneNo} />;
   },
   "quick-buy-explainer": async (w) => {

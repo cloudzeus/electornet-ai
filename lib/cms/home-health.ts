@@ -35,7 +35,7 @@ export async function homeHealth(doc: HomeDoc): Promise<HomeHealth> {
     const key = secKey(s.id);
     if (s.id === "ad-strip") {
       const ad = await pickAd("home-strip", { count: false }).catch(() => null);
-      if (!ad?.image) empty[key] = WHY["ad-strip"];
+      if (!ad?.image && !ad?.design) empty[key] = WHY["ad-strip"];
       return;
     }
     const w = sectionWidget(s);

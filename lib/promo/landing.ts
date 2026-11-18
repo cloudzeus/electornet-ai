@@ -1,3 +1,4 @@
+import { cache } from "react";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -79,14 +80,34 @@ export async function pickAdById(id: string, opts: { count?: boolean } = {}) {
   return ad;
 }
 
-export async function pickAd(slot: string, ctx: { category?: string | null; count?: boolean } = {}) {
+/** Ποια banners έχουν ήδη μπει σε αυτή τη σελίδα, ανά θέση (ζει όσο ένα αίτημα): έτσι δύο ζώνες της ίδιας θέσης δεν δείχνουν το ίδιο. */
+const shownAds = cache(() => new Map<string, { used: Set<string>; last: string | null }>());
+
+/**
+ * Το banner μιας θέσης. Με `distinct` (οι ζώνες της σελίδας), κάθε επόμενη ζώνη της ίδιας θέσης παίρνει το επόμενο ενεργό banner
+ * με τη σειρά προτεραιότητας· όταν τελειώσουν, ξαναρχίζει από το πρώτο. Με `count: false` (δεύτερο αντίγραφο της ίδιας ζώνης,
+ * π.χ. διάταξη κινητού) επιστρέφει το ίδιο banner με το προηγούμενο, χωρίς να προχωρά.
+ */
+export async function pickAd(slot: string, ctx: { category?: string | null; count?: boolean; distinct?: boolean } = {}) {
   if (!adCache || Date.now() - adCache.at > 30_000) adCache = { at: Date.now(), rows: await loadAds() };
-  const ad = adCache.rows.find((r) => {
+  const fits = adCache.rows.filter((r) => {
     if (r.slot !== slot) return false;
     const a = (r.audience ?? {}) as { categories?: string[] };
     if (a.categories?.length && (!ctx.category || !a.categories.includes(ctx.category))) return false;
     return true;
   });
+  let ad = fits[0];
+  if (ctx.distinct && fits.length) {
+    const seen = shownAds();
+    const st = seen.get(slot) ?? { used: new Set<string>(), last: null };
+    seen.set(slot, st);
+    if (ctx.count === false && st.last) ad = fits.find((r) => r.id === st.last) ?? fits[0];
+    else {
+      if (fits.every((r) => st.used.has(r.id))) st.used.clear();
+      ad = fits.find((r) => !st.used.has(r.id)) ?? fits[0];
+      st.used.add(ad.id); st.last = ad.id;
+    }
+  }
   if (ad && ctx.count !== false) countImpression(ad.id);
   return ad ?? null;
 }

@@ -1,3 +1,4 @@
+import { openPromoWhere } from "@/lib/promo/open";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
@@ -10,9 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function LandingEditPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission("catalog.promos.write");
   const { id } = await params;
-  const [page, promos, cats] = await Promise.all([
-    db.landingPage.findUnique({ where: { id } }),
-    db.promotion.findMany({ where: { status: { not: "archived" } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true } }),
+  const page = await db.landingPage.findUnique({ where: { id } });
+  const [promos, cats] = await Promise.all([
+    db.promotion.findMany({ where: openPromoWhere(page?.promotionId), orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true } }),
     db.category.findMany({ where: { active: true, depth: { lte: 1 } }, orderBy: [{ depth: "asc" }, { sortNo: "asc" }], select: { id: true, name: true, depth: true } }),
   ]);
   if (!page) notFound();

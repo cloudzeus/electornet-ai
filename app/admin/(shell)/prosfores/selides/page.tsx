@@ -1,3 +1,4 @@
+import { openPromoWhere } from "@/lib/promo/open";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { requirePermission } from "@/lib/rbac/guard";
@@ -15,7 +16,7 @@ export default async function LandingListPage({ searchParams }: { searchParams: 
   const { promo } = await searchParams;
   const [pages, promos] = await Promise.all([
     db.landingPage.findMany({ where: { status: { not: "archived" } }, orderBy: { updatedAt: "desc" }, include: { campaign: { select: { id: true, code: true } } } }),
-    db.promotion.findMany({ where: { status: { in: ["active", "scheduled", "draft", "pending", "paused"] } }, orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
+    db.promotion.findMany({ where: openPromoWhere(), orderBy: { createdAt: "desc" }, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
   ]);
   const byId = new Map(promos.map((p) => [p.id, p]));
   return (

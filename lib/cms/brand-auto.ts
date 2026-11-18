@@ -79,11 +79,13 @@ const live = (p: { status: string; held: boolean; startsAt: Date | null; endsAt:
 
 export type PromoData = { name: string; endsAt: string | null; productIds: string[]; landingHref: string | null };
 /** Προϊόντα μιας προσφοράς — μόνο όσο η προσφορά «ζει». */
-export async function promoBlockData(promotionId: string, limit: number): Promise<PromoData | null> {
+export async function promoBlockData(promotionId: string, limit: number, pick?: string[]): Promise<PromoData | null> {
   const p = await db.promotion.findUnique({ where: { id: promotionId }, select: { name: true, status: true, held: true, startsAt: true, endsAt: true } });
   if (!p || !live(p)) return null;
   const { promotionProductIds } = await import("@/lib/promo/landing");
-  const [ids, landing] = await Promise.all([promotionProductIds(promotionId, Math.max(2, Math.min(12, limit || 8))), db.landingPage.findFirst({ where: { promotionId, status: "published" }, select: { slug: true } })]);
+  // προϊόντα που διάλεξε ο διαχειριστής για τη ζώνη: μένουν μόνο όσα είναι ακόμη στην προσφορά, με τη σειρά του
+  const chosen = async () => { const all = new Set(await promotionProductIds(promotionId, 500)); return pick!.filter((id) => all.has(id)).slice(0, 12); };
+  const [ids, landing] = await Promise.all([pick?.length ? chosen() : promotionProductIds(promotionId, Math.max(2, Math.min(12, limit || 8))), db.landingPage.findFirst({ where: { promotionId, status: "published" }, select: { slug: true } })]);
   return { name: p.name, endsAt: p.endsAt?.toISOString() ?? null, productIds: ids, landingHref: landing ? `/prosfores/${landing.slug}` : null };
 }
 

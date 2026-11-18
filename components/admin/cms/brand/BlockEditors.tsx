@@ -5,7 +5,7 @@ import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Camera, Cpu, Eye, Leaf, Plus, Shield, Sparkles, Wifi, X, Zap } from "lucide-react";
 import type { BrandBlock, Cta } from "@/lib/cms/brand-store";
-import { blockOptionsAction, type BlockOptions, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
+import { blockOptionsAction, promoProductsAction, type BlockOptions, type PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { AUTO_SOURCES, BLOCK_GROUPS, BLOCK_INFO, newBlock } from "@/lib/cms/blocks-catalog";
 export { BLOCK_GROUPS, BLOCK_INFO, newBlock };
 import { ProductList } from "./ProductPicker";
@@ -475,8 +475,52 @@ function Step({ n, title, help, children }: { n: number; title: string; help: st
  * σειρά σε κάθε συσκευή, 3) το περιεχόμενο — ποια προσφορά και με ποιους κανόνες. Χρώματα και αποστάσεις είναι στις κοινές
  * ρυθμίσεις του component, ακριβώς από κάτω.
  */
+/** Τα προϊόντα της προσφοράς ως λίστα με τσεκ: ποια δείχνει αυτή η ζώνη. Κανένα τσεκ = τα διαλέγει μόνη της. */
+function OfferProducts({ promotionId, ids, onChange }: { promotionId: string; ids: string[]; onChange: (ids: string[]) => void }) {
+  const [got, setGot] = useState<{ id: string; list: PickProduct[] } | null>(null);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    let on = true;
+    void promoProductsAction(promotionId).then((l) => { if (on) setGot({ id: promotionId, list: l }); }).catch(() => { if (on) setGot({ id: promotionId, list: [] }); });
+    return () => { on = false; };
+  }, [promotionId]);
+  const list = got?.id === promotionId ? got.list : null;
+  if (!list) return <p className="m-0 text-eu-muted text-[length:var(--fs-14)]">Φέρνω τα προϊόντα της προσφοράς…</p>;
+  if (!list.length) return <p className="m-0 rounded-xl bg-eu-amber/15 px-3 py-2 text-eu-ink text-[length:var(--fs-14)]">Αυτή η προσφορά δεν έχει κανένα προϊόν με τιμή προσφοράς τώρα, οπότε η ζώνη δεν φαίνεται στο site. Διάλεξε άλλη προσφορά στο βήμα 1 ή βάλε προϊόντα στην προσφορά.</p>;
+  const has = new Set(ids), k = q.trim().toLowerCase();
+  const view = k ? list.filter((p) => `${p.title} ${p.sku}`.toLowerCase().includes(k)) : list;
+  const toggle = (id: string) => onChange(has.has(id) ? ids.filter((x) => x !== id) : ids.length < 12 ? [...ids, id] : ids);
+  return (
+    <div className="grid gap-2 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-bold text-eu-ink text-[length:var(--fs-14)] flex-1 min-w-0">{ids.length ? `${ids.length} από ${list.length} επιλεγμένα (έως 12)` : `Κανένα επιλεγμένο: η ζώνη διαλέγει μόνη της από τα ${list.length}`}</span>
+        {ids.length > 0 && <button type="button" onClick={() => onChange([])} className="text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline cursor-pointer">Καθάρισμα</button>}
+      </div>
+      {list.length > 8 && <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Αναζήτηση με όνομα ή κωδικό" aria-label="Αναζήτηση προϊόντος της προσφοράς" className="rounded-xl border border-eu-line px-3 min-h-11 text-[length:var(--fs-14)]" />}
+      <ul className="m-0 p-0 list-none grid gap-1 max-h-80 overflow-y-auto rounded-xl border border-eu-line p-1">
+        {view.map((p) => (
+          <li key={p.id}>
+            <label className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 min-h-12 cursor-pointer ${has.has(p.id) ? "bg-eu-chip" : "hover:bg-eu-surface"}`}>
+              <input type="checkbox" checked={has.has(p.id)} disabled={!has.has(p.id) && ids.length >= 12} onChange={() => toggle(p.id)} className="size-5 shrink-0 accent-eu-navy" />
+              {/* eslint-disable-next-line @next/next/no-img-element -- μικρογραφία */}
+              <span className="size-10 shrink-0 rounded-lg bg-white border border-eu-line overflow-hidden grid place-items-center">{p.image && <img src={p.image} alt="" className="max-w-full max-h-full object-contain" />}</span>
+              <span className="grid min-w-0 flex-1"><span className="font-semibold text-eu-ink text-[length:var(--fs-14)] leading-snug line-clamp-2">{p.title}</span><span className="font-mono text-eu-muted text-[length:var(--fs-12)] truncate">{p.sku}</span></span>
+            </label>
+          </li>
+        ))}
+        {!view.length && <li className="px-2 py-3 text-eu-muted text-[length:var(--fs-14)]">Κανένα προϊόν με αυτή την αναζήτηση.</li>}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Η ζώνη σε μία φόρμα. Πρώτα τι μπαίνει μέσα: δυναμικό banner προσφοράς, έτοιμη εικόνα banner ή μόνο κείμενα.
+ * Για προσφορά: προσφορά → εμφάνιση → προϊόντα, και τέλος. Τίτλοι και λοιπά είναι προαιρετικά, κλειστά από κάτω.
+ */
 function PromoProductsFields({ b, set, head }: { b: B<"promo-products">; set: (b: BrandBlock) => void; head: ReactNode }) {
   const o = useOptions();
+  const kind = b.content ?? "offer";
   const designs = [
     { value: "cards", label: "Απλές κάρτες προϊόντων (χωρίς σχέδιο)" },
     ...(o?.ads.filter((a) => a.designed).map((a) => ({ value: `b:${a.id}`, label: `Banner · ${a.title}` })) ?? []),
@@ -484,35 +528,85 @@ function PromoProductsFields({ b, set, head }: { b: B<"promo-products">; set: (b
   ];
   const n = (v: string) => (v ? Number(v) : undefined);
   const auto = { value: "", label: b.design ? "Όπως το σχέδιο" : "Αυτόματα" };
+  const picked = b.productIds ?? [];
+  const titles = (
+    <>
+      {head}
+      <Txt label="Υπότιτλος" value={b.subtitle ?? ""} onChange={(v) => set({ ...b, subtitle: v || undefined })} max={160} help="Μία-δύο γραμμές κάτω από τον τίτλο. Ο «υπέρτιτλος» είναι η μικρή γραμμή πάνω από τον τίτλο." />
+      <div className="grid gap-4 @2xl:grid-cols-3">
+        {([["kickerSize", "Μέγεθος υπέρτιτλου"], ["headSize", "Μέγεθος τίτλου"], ["subSize", "Μέγεθος υπότιτλου"]] as const).map(([k, l]) => (
+          <Choice key={k} label={l} value={b[k] ?? "m"} onChange={(v) => set({ ...b, [k]: v === "m" ? undefined : v })} options={[{ value: "s", label: "Μικρό" }, { value: "m", label: "Κανονικό" }, { value: "l", label: "Μεγάλο" }]} />
+        ))}
+      </div>
+      <span className="text-eu-muted text-[length:var(--fs-13)]">Χρώματα και αποστάσεις των τίτλων: στις ρυθμίσεις εμφάνισης από κάτω.</span>
+    </>
+  );
+  const button = (
+    <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4">
+      <Txt label="Κουμπί · κείμενο" value={b.cta?.label ?? ""} onChange={(v) => set({ ...b, cta: v || b.cta?.href ? { label: v, href: b.cta?.href ?? "" } : undefined })} max={36} help={kind === "offer" ? "Κενό = πάει στη σελίδα της προσφοράς· αν δεν έχει, στο /prosfores." : undefined} />
+      {b.cta && <LinkField label="Κουμπί · σύνδεσμος" value={b.cta.href} onChange={(v) => set({ ...b, cta: { label: b.cta!.label, href: v } })} />}
+    </div>
+  );
+  const more = (title: string, children: ReactNode) => (
+    <details className="rounded-2xl border border-eu-line bg-white p-3 @md:p-4">
+      <summary className="cursor-pointer font-heading font-bold text-eu-ink text-[length:var(--fs-15)] min-h-11 flex items-center">{title}</summary>
+      <div className="grid gap-4 pt-3">{children}</div>
+    </details>
+  );
   return (
     <div className="grid gap-3">
-      <Step n={1} title="Τίτλοι της ζώνης" help="Τι γράφει πάνω από τα προϊόντα. Τα χρώματα και οι αποστάσεις τους είναι στις ρυθμίσεις από κάτω.">
-        {head}
-        <span className="text-eu-muted text-[length:var(--fs-13)] -mt-2">Κενός τίτλος = το όνομα της προσφοράς. Ο «υπέρτιτλος» είναι η μικρή γραμμή πάνω από τον τίτλο.</span>
-        <Txt label="Υπότιτλος (προαιρετικό)" value={b.subtitle ?? ""} onChange={(v) => set({ ...b, subtitle: v || undefined })} max={160} help="Μία-δύο γραμμές κάτω από τον τίτλο." />
-        <Choice label="Μέγεθος τίτλου" value={b.headSize ?? "m"} onChange={(v) => set({ ...b, headSize: v === "m" ? undefined : v })} options={[{ value: "s", label: "Μικρός" }, { value: "m", label: "Κανονικός" }, { value: "l", label: "Μεγάλος" }]} />
-      </Step>
+      <Choice label="Τι μπαίνει σε αυτή τη ζώνη" value={kind} onChange={(v) => set({ ...b, content: v === "offer" ? undefined : v })} options={[
+        { value: "offer", label: "Δυναμικό banner προσφοράς", help: "Προϊόντα μιας προσφοράς, με το σχέδιο που διαλέγεις. Τιμές και προϊόντα ενημερώνονται μόνα τους." },
+        { value: "image", label: "Εικόνα banner", help: "Έτοιμο εικαστικό σε έως 3 φωτογραφίες (υπολογιστής, tablet, κινητό) με σύνδεσμο." },
+        { value: "none", label: "Μόνο κείμενα", help: "Υπέρτιτλος, τίτλος, υπότιτλος και, αν θέλεις, ένα κουμπί." },
+      ]} />
 
-      <Step n={2} title="Σχέδιο και πόσα ανά σειρά" help="Πώς φαίνονται τα προϊόντα: απλές κάρτες ή ένα σχέδιο banner που έχεις ήδη φτιάξει. Και πόσα χωράνε δίπλα-δίπλα σε κάθε συσκευή.">
-        <Pick label="Σχέδιο" value={b.design ?? "cards"} onChange={(v) => set({ ...b, design: v && v !== "cards" ? v : undefined })} options={designs} empty="—" help="Το σχέδιο δίνει μόνο την εμφάνιση (φόντο, στυλ τετραγώνου, sticker, θέσεις). Τα προϊόντα έρχονται από την προσφορά του βήματος 3." />
-        <div className="grid gap-4 @2xl:grid-cols-3">
-          <Choice label="Υπολογιστής" value={String(b.perRow ?? "")} onChange={(v) => set({ ...b, perRow: n(v) })} options={[auto, ...[2, 3, 4, 5, 6].map((x) => ({ value: String(x), label: String(x) }))]} />
-          <Choice label="Tablet" value={String(b.perRowTablet ?? "")} onChange={(v) => set({ ...b, perRowTablet: n(v) })} options={[auto, ...[1, 2, 3, 4].map((x) => ({ value: String(x), label: String(x) }))]} />
-          <Choice label="Κινητό" value={String(b.perRowMobile ?? "")} onChange={(v) => set({ ...b, perRowMobile: v === "1" ? 1 : v === "2" ? 2 : undefined })} options={[auto, { value: "1", label: "1" }, { value: "2", label: "2" }]} />
-        </div>
-        <a href="/admin/prosfores/theseis" target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline">Φτιάξε ή άλλαξε σχέδιο banner ↗</a>
-      </Step>
+      {kind === "offer" && (<>
+        <Step n={1} title="Προσφορά" help="Από ποια προσφορά έρχονται τα προϊόντα. Η ζώνη φαίνεται μόνο όσο η προσφορά τρέχει.">
+          <Pick label="Προσφορά" value={b.promotionId} onChange={(v, l) => set({ ...b, promotionId: v, promotionName: l || undefined, productIds: undefined })} options={o ? o.promos.map((p) => ({ value: p.id, label: `${p.name} · ${p.code}${p.status === "scheduled" ? " · προγραμματισμένη" : ""}${p.endsAt ? ` · έως ${fmt(p.endsAt)}` : ""}` })) : null} empty="Καμία ενεργή ή προγραμματισμένη προσφορά" />
+        </Step>
+        <Step n={2} title="Εμφάνιση" help="Το σχέδιο banner αυτής της ζώνης και πόσα προϊόντα χωράνε δίπλα-δίπλα σε κάθε συσκευή. Άλλη ζώνη μπορεί να έχει άλλο σχέδιο.">
+          <Pick label="Σχέδιο" value={b.design ?? "cards"} onChange={(v) => set({ ...b, design: v && v !== "cards" ? v : undefined })} options={designs} empty="—" />
+          <div className="grid gap-4 @2xl:grid-cols-3">
+            <Choice label="Υπολογιστής" value={String(b.perRow ?? "")} onChange={(v) => set({ ...b, perRow: n(v) })} options={[auto, ...[2, 3, 4, 5, 6].map((x) => ({ value: String(x), label: String(x) }))]} />
+            <Choice label="Tablet" value={String(b.perRowTablet ?? "")} onChange={(v) => set({ ...b, perRowTablet: n(v) })} options={[auto, ...[1, 2, 3, 4].map((x) => ({ value: String(x), label: String(x) }))]} />
+            <Choice label="Κινητό" value={String(b.perRowMobile ?? "")} onChange={(v) => set({ ...b, perRowMobile: v === "1" ? 1 : v === "2" ? 2 : undefined })} options={[auto, { value: "1", label: "1" }, { value: "2", label: "2" }]} />
+          </div>
+          <a href="/admin/prosfores/theseis" target="_blank" rel="noopener noreferrer" className="justify-self-start inline-flex items-center gap-1.5 text-eu-blue font-bold text-[length:var(--fs-14)] min-h-11 hover:underline">Φτιάξε ή άλλαξε σχέδιο banner ↗</a>
+        </Step>
+        <Step n={3} title="Προϊόντα σε αυτή τη ζώνη" help="Τσέκαρε ποια προϊόντα της προσφοράς δείχνει αυτή η ζώνη. Αν δεν τσεκάρεις κανένα, τα διαλέγει μόνη της.">
+          {b.promotionId ? <OfferProducts promotionId={b.promotionId} ids={picked} onChange={(ids) => set({ ...b, productIds: ids.length ? ids : undefined })} /> : <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Διάλεξε πρώτα προσφορά στο βήμα 1.</p>}
+          <Choice label="Πόσα φαίνονται μαζί" value={String(b.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "8", label: "8" }, { value: "12", label: "12" }]} />
+          <Choice label="Όταν είναι περισσότερα απ' όσα χωράνε" value={b.rotate === false ? "top" : "mix"} onChange={(v) => set({ ...b, rotate: v === "top" ? false : undefined })} options={[{ value: "mix", label: "Αλλάζουν σε κάθε άνοιγμα της σελίδας", help: "Ισχύει με σχέδιο banner." }, { value: "top", label: "Πάντα τα ίδια", help: picked.length ? "Τα πρώτα της λίστας σου." : "Η μεγαλύτερη έκπτωση πρώτα." }]} />
+        </Step>
+        {more("Τίτλοι, αντίστροφη μέτρηση, κουμπί (προαιρετικά)", <>
+          <span className="text-eu-muted text-[length:var(--fs-13)]">Κενός τίτλος = το όνομα της προσφοράς.</span>
+          {titles}
+          <Choice label="Αντίστροφη μέτρηση" value={b.countdown === false ? "no" : "yes"} onChange={(v) => set({ ...b, countdown: v === "yes" })} options={[{ value: "yes", label: "Ναι" }, { value: "no", label: "Όχι" }]} help="Μετρά μέχρι τη λήξη της προσφοράς, όταν έχει ημερομηνία λήξης." />
+          {button}
+        </>)}
+      </>)}
 
-      <Step n={3} title="Περιεχόμενο από προσφορά" help="Ποια προσφορά δίνει τα προϊόντα και με ποιους κανόνες εμφανίζονται. Η ζώνη φαίνεται μόνο όσο η προσφορά τρέχει.">
-        <Pick label="Προσφορά" value={b.promotionId} onChange={(v, l) => set({ ...b, promotionId: v, promotionName: l || undefined })} options={o ? o.promos.map((p) => ({ value: p.id, label: `${p.name} · ${p.code}${p.status === "scheduled" ? " · προγραμματισμένη" : ""}${p.endsAt ? ` · έως ${fmt(p.endsAt)}` : ""}` })) : null} empty="Καμία ενεργή ή προγραμματισμένη προσφορά — φτιάξε μία στις Προσφορές." />
-        <Choice label="Πόσα προϊόντα" value={String(b.limit) as "4" | "8" | "12"} onChange={(v) => set({ ...b, limit: Number(v) })} options={[{ value: "4", label: "4" }, { value: "8", label: "8" }, { value: "12", label: "12" }]} />
-        <Choice label="Ποια φαίνονται" value={b.rotate === false ? "top" : "mix"} onChange={(v) => set({ ...b, rotate: v === "top" ? false : undefined })} options={[{ value: "mix", label: "Αλλάζουν κάθε φορά", help: "Σε κάθε άνοιγμα της σελίδας άλλα προϊόντα της προσφοράς (με σχέδιο banner)." }, { value: "top", label: "Πάντα τα ίδια", help: "Μεγαλύτερη έκπτωση πρώτα." }]} help={b.design ? undefined : "Οι απλές κάρτες δείχνουν πάντα τη μεγαλύτερη έκπτωση πρώτα· η εναλλαγή ισχύει με σχέδιο banner."} />
-        <Choice label="Αντίστροφη μέτρηση" value={b.countdown === false ? "no" : "yes"} onChange={(v) => set({ ...b, countdown: v === "yes" })} options={[{ value: "yes", label: "Ναι" }, { value: "no", label: "Όχι" }]} help="Μετρά μέχρι τη λήξη της προσφοράς, όταν έχει ημερομηνία λήξης." />
-        <div className="grid @xl:grid-cols-2 gap-x-5 gap-y-4">
-          <Txt label="Κουμπί · κείμενο (προαιρετικό)" value={b.cta?.label ?? ""} onChange={(v) => set({ ...b, cta: v || b.cta?.href ? { label: v, href: b.cta?.href ?? "" } : undefined })} max={36} help="Κενό = το κουμπί πάει στη landing page της προσφοράς· αν δεν έχει, στη σελίδα /prosfores με όλες τις προσφορές." />
-          {b.cta && <LinkField label="Κουμπί · σύνδεσμος" value={b.cta.href} onChange={(v) => set({ ...b, cta: { label: b.cta!.label, href: v } })} />}
-        </div>
-      </Step>
+      {kind === "image" && (<>
+        <Step n={1} title="Εικόνες" help="Το έτοιμο εικαστικό. Κάθε συσκευή παίρνει τη δική της· όπου λείπει, μπαίνει η εικόνα του υπολογιστή.">
+          <MediaUrl label="Υπολογιστής" value={b.image ?? ""} onChange={(v) => set({ ...b, image: v || undefined })} help="Οριζόντια, π.χ. 1920×640 px." />
+          <MediaUrl label="Tablet (προαιρετική)" value={b.imageTablet ?? ""} onChange={(v) => set({ ...b, imageTablet: v || undefined })} help="Π.χ. 1200×600 px, για οθόνες 641–1023 px." />
+          <MediaUrl label="Κινητό (προαιρετική)" value={b.imageMobile ?? ""} onChange={(v) => set({ ...b, imageMobile: v || undefined })} help="Κάθετη ή τετράγωνη, π.χ. 800×800 px." />
+        </Step>
+        <Step n={2} title="Σύνδεσμος" help="Πού πηγαίνει ο πελάτης όταν πατήσει την εικόνα. Κενό = δεν πατιέται.">
+          <LinkField label="Σύνδεσμος της εικόνας" value={b.href ?? ""} onChange={(v) => set({ ...b, href: v || undefined })} />
+        </Step>
+        {more("Πώς μπαίνει η εικόνα και τίτλοι (προαιρετικά)", <>
+          <Choice label="Πώς μπαίνει η εικόνα" value={b.fit ?? "cover"} onChange={(v) => set({ ...b, fit: v === "cover" ? undefined : v })} options={[{ value: "cover", label: "Γεμίζει το πλαίσιο", help: "Κόβονται οι άκρες όπου δεν χωρά." }, { value: "natural", label: "Ολόκληρη, στις αναλογίες της", help: "Το ύψος ακολουθεί την εικόνα." }, { value: "contain", label: "Ολόκληρη μέσα στο πλαίσιο" }]} />
+          {(b.fit ?? "cover") !== "natural" && <Choice label="Ύψος πλαισίου" value={b.height ?? "m"} onChange={(v) => set({ ...b, height: v === "m" ? undefined : v })} options={[{ value: "s", label: "Μικρό" }, { value: "m", label: "Μεσαίο" }, { value: "l", label: "Μεγάλο" }]} />}
+          {titles}
+        </>)}
+      </>)}
+
+      {kind === "none" && (<>
+        <Step n={1} title="Κείμενα" help="Γράψε ό,τι θέλεις από τα τρία· τα κενά δεν εμφανίζονται.">{titles}</Step>
+        {more("Κουμπί (προαιρετικό)", button)}
+      </>)}
     </div>
   );
 }

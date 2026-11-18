@@ -8,6 +8,7 @@ import { ProductPickerDialog } from "./brand/ProductPicker";
 import { DateTime } from "./brand/fields";
 import type { PickProduct } from "@/app/admin/(shell)/cms/brand-stores/actions";
 import { sx } from "@/components/ui/sx";
+import { BANNER_TEMPLATES } from "@/lib/promo/banner-design";
 
 /** Τι δείχνει σήμερα η αρχική (από τον server): «Προσφορά ημέρας», slides, αυτόματες προσφορές. */
 export type HomeLive = { heroDeal: { title: string; image: string | null; manual: boolean } | null; slides: number; autoDeals: number };
@@ -67,7 +68,7 @@ function SlidesPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Deals = { source?: "auto" | "promotion" | "products"; promotionId?: string; productIds?: string[]; endsAt?: string };
+type Deals = { source?: "auto" | "promotion" | "products"; promotionId?: string; productIds?: string[]; endsAt?: string; /** σχέδιο banner («b:<id>» ή «t:<πρότυπο>»)· κενό = οι κανονικές κάρτες προϊόντων */ design?: string };
 const SRC: { v: NonNullable<Deals["source"]>; t: string; d: string; I: typeof Zap; rec?: boolean }[] = [
   { v: "products", t: "Διαλέγω τα προϊόντα", d: "Εσύ αποφασίζεις ποια προϊόντα φαίνονται στην αρχική, με ποια σειρά και ως πότε.", I: Package, rec: true },
   { v: "promotion", t: "Από μια προσφορά", d: "Τα προϊόντα μιας προσφοράς από «Προσφορές & κουπόνια», με τη δική της λήξη.", I: Tag },
@@ -137,6 +138,15 @@ export function DealsSourceField({ props, set }: { props: Record<string, unknown
           {picking && <ProductPickerDialog brandId={null} brandName="Euronics" selected={ids} max={12} onClose={() => setPicking(false)} onDone={(sel, list) => { onInfo(list); set({ productIds: sel }); setPicking(false); }} />}
         </div>
       )}
+      <label className="grid gap-1" data-help="home.deals-look">
+        <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">Εμφάνιση</span>
+        <select value={d.design ?? ""} onChange={(e) => set({ design: e.target.value || undefined })} className="w-full rounded-xl border-2 border-eu-line px-3 min-h-12 text-[length:var(--fs-16)] bg-white">
+          <option value="">Κάρτες προϊόντων (η κανονική εμφάνιση)</option>
+          {(o?.ads.filter((a) => a.designed).length ?? 0) > 0 && <optgroup label="Banners που έχεις σχεδιάσει">{o!.ads.filter((a) => a.designed).map((a) => <option key={a.id} value={`b:${a.id}`}>{a.title}</option>)}</optgroup>}
+          <optgroup label="Έτοιμα πρότυπα">{BANNER_TEMPLATES.map((t) => <option key={t.key} value={`t:${t.key}`}>{t.name}</option>)}</optgroup>
+        </select>
+        <span className="text-eu-muted text-[length:var(--fs-13)]">{d.design ? "Τα προϊόντα της ενότητας φαίνονται με αυτό το σχέδιο banner. Το σχέδιο το αλλάζεις στις Προσφορές → Διαφημιστικές θέσεις." : "Τώρα η ενότητα δείχνει τις κανονικές κάρτες προϊόντων του site, όχι σχέδιο banner. Διάλεξε σχέδιο για να αλλάξει."}</span>
+      </label>
     </div>
   );
 }

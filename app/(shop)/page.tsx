@@ -1,3 +1,4 @@
+import { sx } from "@/components/ui/sx";
 import { Fragment } from "react";
 import { renderZone } from "@/lib/cms/render";
 import { getDevice } from "@/lib/device";
@@ -46,7 +47,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     blocks.length ? resolveBlocks(blocks) : Promise.resolve(null),
     Promise.all(doc.sections.map(async (s) => {
       if (!sectionActive(s, now, viewer)) return { s, el: null };
-      if (s.id === "ad-strip") return { s, el: <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" /> };
+      if (s.id === "ad-strip") {
+        // φόντο της ζώνης (ρύθμιση της ενότητας): χρώμα σε όλο το πλάτος, το banner μένει στο πλάτος της σελίδας
+        const bg = typeof s.props?.bg === "string" && /^#[0-9a-f]{6}$/i.test(s.props.bg) ? sx({ background: s.props.bg }) : null;
+        return { s, el: bg ? <>{bg.node}<AdSlot slot="home-strip" className={`${bg.className} py-6`} inner="eu-canvas eu-gutter" /></> : <AdSlot slot="home-strip" className="eu-canvas eu-gutter py-6" /> };
+      }
       const w = sectionWidget(s);
       if (!w) return { s, el: null };
       const el = await renderZone({ id: s.id, label: sectionDef(s.id)!.label, slot: "main", widgets: [w, ...sectionExtras(s)] }, ctx);

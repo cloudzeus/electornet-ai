@@ -11,6 +11,7 @@ import { ServiceCellsField } from "./ServiceCellsField";
 import { CampaignsField } from "./CampaignsField";
 import { OrderToggleField } from "./OrderToggleField";
 import { ListChecks } from "lucide-react";
+import { StripBannerField } from "./StripBanner";
 import { ImageUrlField } from "@/components/admin/promos/ImageUrlField";
 
 
@@ -81,7 +82,8 @@ export function SectionFields({ s, set }: { s: HomeSection; set: (props: Record<
   return (
     <div className="grid gap-4">
       {d.how.length > 0 && <HowBox id={s.id} steps={d.how} />}
-      {d.managedAt && s.id !== "hero" && <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Το περιεχόμενο ρυθμίζεται στο <a href={d.managedAt.href} className="text-eu-blue underline font-bold">{d.managedAt.label}</a>.</span></p>}
+      {s.id === "ad-strip" && <StripBannerField />}
+      {d.managedAt && s.id !== "hero" && s.id !== "ad-strip" && <p className="m-0 inline-flex items-start gap-2 rounded-xl bg-eu-surface px-3 py-2 text-eu-ink-2 text-[length:var(--fs-14)]"><Info className="size-4 mt-0.5 shrink-0 text-eu-blue" aria-hidden /><span>Το περιεχόμενο ρυθμίζεται στο <a href={d.managedAt.href} className="text-eu-blue underline font-bold">{d.managedAt.label}</a>.</span></p>}
       {d.fields.length ? d.fields.map(field) : !d.managedAt && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Αυτή η ενότητα ενημερώνεται αυτόματα — δεν έχει κείμενα για ρύθμιση. Από το «Πότε & σε ποιους» ορίζεις πού και πότε εμφανίζεται.</p>}
       {s.props && Object.keys(s.props).length > 0 && <button type="button" onClick={() => set({})} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border border-eu-line px-3 min-h-11 font-bold text-eu-ink-2 text-[length:var(--fs-13)] hover:bg-eu-surface"><Undo2 className="size-3.5" aria-hidden /> Επαναφορά στις αρχικές ρυθμίσεις</button>}
     </div>

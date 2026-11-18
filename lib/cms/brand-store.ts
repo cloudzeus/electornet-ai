@@ -100,7 +100,10 @@ export type BrandBlock =
   // ---- από τις Προσφορές & δυναμικό περιεχόμενο ----
   | (BlockBase & { type: "ad"; mode: "slot" | "placement"; slot?: string; placementId?: string; placementTitle?: string; /** σε όλο το πλάτος της οθόνης (header καμπάνιας) */ bleed?: boolean; /** τετράγωνα ανά σειρά σε αυτό το σημείο (υπερισχύει του banner): υπολογιστής 2–6, κινητό 1 ή 2 */ perRow?: number; perRowMobile?: 1 | 2; /** false = πάντα τα ίδια προϊόντα· αλλιώς αλλάζουν σε κάθε άνοιγμα της σελίδας */ rotate?: boolean })
   | (BlockBase & { type: "promo-products"; promotionId: string; promotionName?: string; limit: number; countdown?: boolean; cta?: Cta;
-      /** υπότιτλος κάτω από τον τίτλο της ζώνης και μέγεθος τίτλου (s | m | l· κενό = m) */ subtitle?: string; headSize?: "s" | "m" | "l";
+      /** υπότιτλος κάτω από τον τίτλο της ζώνης και μέγεθος τίτλου (s | m | l· κενό = m) */ subtitle?: string; headSize?: "s" | "m" | "l"; /** μέγεθος υπέρτιτλου και υπότιτλου (κενό = m) */ kickerSize?: "s" | "m" | "l"; subSize?: "s" | "m" | "l";
+      /** τι έχει η ζώνη κάτω από τους τίτλους: προϊόντα προσφοράς (κενό) ή τίποτα — μόνο τα κείμενα και το κουμπί */ content?: "none" | "image";
+      /** content = "image": έτοιμη εικόνα banner ανά συσκευή, πώς μπαίνει, ύψος πλαισίου και σύνδεσμος όλης της εικόνας */ image?: string; imageTablet?: string; imageMobile?: string; fit?: "cover" | "natural" | "contain"; height?: "s" | "m" | "l"; href?: string;
+      /** συγκεκριμένα προϊόντα της προσφοράς για αυτή τη ζώνη, με τη σειρά τους· κενό = τα διαλέγει μόνη της η ζώνη */ productIds?: string[];
       /** σχέδιο banner για τα προϊόντα: «b:<id banner>» ή «t:<κλειδί έτοιμου προτύπου>»· κενό = απλές κάρτες προϊόντων */ design?: string;
       /** προϊόντα ανά σειρά: υπολογιστής 2–6, tablet 1–4, κινητό 1–2· κενό = του σχεδίου */ perRow?: number; perRowTablet?: number; perRowMobile?: 1 | 2;
       /** false = πάντα τα ίδια προϊόντα (μεγαλύτερη έκπτωση πρώτα)· αλλιώς αλλάζουν σε κάθε άνοιγμα της σελίδας */ rotate?: boolean })

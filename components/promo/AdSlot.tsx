@@ -9,8 +9,8 @@ import { DesignedBanner } from "./DesignedBanner";
  * Ο σύνδεσμος περνά από /api/ad/<id> για μέτρηση κλικ.
  */
 /** count=false: δεύτερο αντίγραφο της ίδιας θέσης (π.χ. άλλη διάταξη για κινητό) — δεν μετρά δεύτερη εμφάνιση. */
-export async function AdSlot({ slot, id, category, productsIn, className = "", count = true, bleed = false, perRow, perRowMobile, rotate = true }: { /** τετράγωνα ανά σειρά σε αυτό το σημείο (υπερισχύουν του banner) */ perRow?: number; perRowMobile?: 1 | 2; /** τα προϊόντα αλλάζουν σε κάθε άνοιγμα της σελίδας, όταν το banner έχει περισσότερα απ' όσα δείχνει */ rotate?: boolean; slot: string; id?: string; category?: string | null; /** κατηγορίες της σελίδας (ειδική → γενική) και το προϊόν της: τα προϊόντα του banner ακολουθούν αυτή την ιεραρχία */ productsIn?: BannerScope | string | null; className?: string; count?: boolean; /** σε όλο το πλάτος της οθόνης, χωρίς στρογγυλές γωνίες (π.χ. header καμπάνιας) */ bleed?: boolean }) {
-  const ad = await (id ? pickAdById(id, { count }) : pickAd(slot, { category, count })).catch(() => null);
+export async function AdSlot({ slot, id, category, productsIn, className = "", inner, count = true, bleed = false, perRow, perRowMobile, rotate = true }: { /** κλάσεις για εσωτερικό περίβλημα (π.χ. όταν το ίδιο το στοιχείο έχει φόντο σε όλο το πλάτος) */ inner?: string; /** τετράγωνα ανά σειρά σε αυτό το σημείο (υπερισχύουν του banner) */ perRow?: number; perRowMobile?: 1 | 2; /** τα προϊόντα αλλάζουν σε κάθε άνοιγμα της σελίδας, όταν το banner έχει περισσότερα απ' όσα δείχνει */ rotate?: boolean; slot: string; id?: string; category?: string | null; /** κατηγορίες της σελίδας (ειδική → γενική) και το προϊόν της: τα προϊόντα του banner ακολουθούν αυτή την ιεραρχία */ productsIn?: BannerScope | string | null; className?: string; count?: boolean; /** σε όλο το πλάτος της οθόνης, χωρίς στρογγυλές γωνίες (π.χ. header καμπάνιας) */ bleed?: boolean }) {
+  const ad = await (id ? pickAdById(id, { count }) : pickAd(slot, { category, count, distinct: true })).catch(() => null);
   if (!ad) return null;
   // σχεδιασμένο banner: φόντο/κίνηση/κείμενα από το σχέδιο, προϊόντα με την τωρινή τιμή τους
   const base = normalizeBannerDesign(ad.design);
@@ -24,7 +24,7 @@ export async function AdSlot({ slot, id, category, productsIn, className = "", c
   );
   return (
     <aside aria-label="Προωθητική ενέργεια" className={className}>
-      {ad.href && design?.layout !== "posts" ? <a href={`/api/ad/${ad.id}`} aria-label={design ? ad.alt ?? ad.title : undefined} className={`block ${bleed ? "" : "rounded-2xl"} focus-visible:outline-2 focus-visible:outline-eu-blue`}>{img}</a> : img}
+      <div className={inner}>{ad.href && design?.layout !== "posts" ? <a href={`/api/ad/${ad.id}`} aria-label={design ? ad.alt ?? ad.title : undefined} className={`block ${bleed ? "" : "rounded-2xl"} focus-visible:outline-2 focus-visible:outline-eu-blue`}>{img}</a> : img}</div>
     </aside>
   );
 }

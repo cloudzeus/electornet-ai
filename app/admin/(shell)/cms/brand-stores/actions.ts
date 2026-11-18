@@ -87,6 +87,42 @@ export async function productsByCodesAction(input: { codes: string[]; brandId?: 
 }
 
 /** Στοιχεία για τα προϊόντα που ήδη υπάρχουν στη σελίδα (και demo ids). */
+export type SlotBanner = { id: string; title: string; priority: number; /** now = αυτό βλέπει ο πελάτης · next = έτοιμο, περιμένει πίσω από το πρώτο · off = δεν παίζει (με τον λόγο) */ state: "now" | "next" | "off"; /** σειρά ανάμεσα σε όσα παίζουν (1 = πρώτο) */ order?: number; why: string };
+/** Όλα τα banners μιας διαφημιστικής θέσης με απλά λόγια: ποιο φαίνεται τώρα στο site, ποια περιμένουν και ποια δεν παίζουν και γιατί. */
+export async function slotBannersAction(slot: string): Promise<SlotBanner[]> {
+  await requireCms();
+  const now = new Date();
+  const rows = await db.adPlacement.findMany({ where: { slot, status: { not: "archived" } }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, priority: true, status: true, startsAt: true, endsAt: true, audience: true, promotionId: true } });
+  const ids = [...new Set(rows.map((r) => r.promotionId).filter((x): x is string => !!x))];
+  const promos = new Map((ids.length ? await db.promotion.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, status: true, held: true, startsAt: true, endsAt: true } }) : []).map((p) => [p.id, p]));
+  let n = 0;
+  // banner προσφοράς που έληξε δεν εμφανίζεται καθόλου εδώ: δεν είναι πια διαθέσιμο
+  const ended = (r: (typeof rows)[number]) => { const p = r.promotionId ? promos.get(r.promotionId) : null; return !!r.promotionId && (!p || ["ended", "archived"].includes(p.status) || (!!p.endsAt && p.endsAt <= now)); };
+  const out = rows.filter((r) => !ended(r)).map((r) => {
+    const p = r.promotionId ? promos.get(r.promotionId) : null;
+    const cats = ((r.audience ?? {}) as { categories?: string[] }).categories?.length;
+    const off = r.status !== "active" ? "Είναι σε παύση ή πρόχειρο."
+      : r.startsAt && r.startsAt > now ? "Δεν έχει ξεκινήσει ακόμη."
+      : r.endsAt && r.endsAt <= now ? "Έληξε η ημερομηνία του."
+      : r.promotionId && (!p || p.held || !["active", "scheduled"].includes(p.status) || (p.startsAt && p.startsAt > now) || (p.endsAt && p.endsAt <= now)) ? `Η προσφορά του${p ? ` «${p.name}»` : ""} δεν τρέχει τώρα.`
+      : cats ? "Παίζει μόνο σε σελίδες συγκεκριμένων κατηγοριών, όχι στην αρχική."
+      : null;
+    if (off) return { id: r.id, title: r.title, priority: r.priority, state: "off" as const, why: off };
+    n++;
+    return { id: r.id, title: r.title, priority: r.priority, state: n === 1 ? "now" as const : "next" as const, order: n, why: n === 1 ? "Το παίρνει το πρώτο σημείο της αρχικής που δείχνει αυτή τη θέση." : `Το παίρνει το ${n}ο σημείο της αρχικής που δείχνει αυτή τη θέση. Αν η θέση υπάρχει σε λιγότερα σημεία, δεν φαίνεται.` };
+  });
+  // πρώτα όσα παίζουν, με τη σειρά τους· στο τέλος όσα δεν παίζουν
+  return [...out.filter((b) => b.state !== "off"), ...out.filter((b) => b.state === "off")];
+}
+
+/** Τα προϊόντα που έχει τώρα μια προσφορά (έως 200, μεγαλύτερη έκπτωση πρώτα) — για να διαλέξει ο διαχειριστής ποια δείχνει μια ζώνη. */
+export async function promoProductsAction(promotionId: string): Promise<PickProduct[]> {
+  await requireCms();
+  if (!promotionId) return [];
+  const { promotionProductIds } = await import("@/lib/promo/landing");
+  return productsInfoAction(await promotionProductIds(promotionId, 200));
+}
+
 export async function productsInfoAction(ids: string[]): Promise<PickProduct[]> {
   await requireCms();
   const list = await getProductsByIds([...new Set(ids)].slice(0, 300));
@@ -110,7 +146,7 @@ export async function publishAction(slug: string): Promise<{ ok: boolean; messag
   if (!doc) return { ok: false, message: "Δεν υπάρχει πρόχειρο." };
   const { errors } = checkStore(doc.draft);
   const ids = new Set<string>([doc.draft.hero.productId]);
-  for (const b of doc.draft.blocks) { if ("productIds" in b) b.productIds.forEach((i) => ids.add(i)); if (b.type === "series") b.items.forEach((it) => it.productIds.forEach((i) => ids.add(i))); }
+  for (const b of doc.draft.blocks) { if ("productIds" in b) b.productIds?.forEach((i) => ids.add(i)); if (b.type === "series") b.items.forEach((it) => it.productIds.forEach((i) => ids.add(i))); }
   const found = new Set((await getProductsByIds([...ids].filter(Boolean))).map((p) => p.id));
   const gone = [...ids].filter((i) => i && !found.has(i));
   if (gone.length) errors.push({ where: "Προϊόντα", msg: `${gone.length} προϊόντα της σελίδας δεν υπάρχουν πια ή είναι ανενεργά — αφαίρεσέ τα (σημειώνονται με κόκκινο).` });
@@ -228,7 +264,7 @@ export async function blockOptionsAction() {
   const { SLOTS } = await import("@/lib/promo/landing-blocks");
   const [ads, promos, landings, coupons, brands] = await Promise.all([
     db.adPlacement.findMany({ where: { status: { not: "archived" } }, orderBy: [{ slot: "asc" }, { priority: "asc" }], select: { id: true, slot: true, title: true, image: true, status: true, startsAt: true, endsAt: true, design: true } }),
-    db.promotion.findMany({ where: { status: { in: ["active", "scheduled"] }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
+    db.promotion.findMany({ where: { status: { in: ["active", "scheduled"] }, held: false, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: { createdAt: "desc" }, take: 200, select: { id: true, name: true, code: true, status: true, endsAt: true } }),
     db.landingPage.findMany({ where: { status: "published" }, orderBy: { updatedAt: "desc" }, select: { id: true, title: true, slug: true, endsAt: true } }),
     db.coupon.findMany({ where: { kind: "shared", customerId: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], promotion: { status: { in: ["active", "scheduled"] } } }, orderBy: { createdAt: "desc" }, take: 200, select: { code: true, expiresAt: true, promotion: { select: { name: true } } } }),
     db.brand.findMany({ where: { active: true, products: { some: { active: true } } }, orderBy: { name: "asc" }, select: { id: true, slug: true, name: true } }),

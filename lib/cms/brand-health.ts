@@ -22,14 +22,14 @@ export async function brandHealth(s: BrandStore): Promise<HomeHealth> {
       case "series": if (!b.items.some((it) => has(it.productIds))) empty[k] = "Καμία σειρά δεν έχει ενεργά προϊόντα."; break;
       case "products-auto": if (!d.auto[b.id]?.length) empty[k] = "Ο κατάλογος δεν δίνει προϊόντα με αυτά τα κριτήρια τώρα (π.χ. καμία προσφορά της μάρκας)."; break;
       case "categories": if (!d.tiles[b.id]?.length) empty[k] = "Δεν βρέθηκαν κατηγορίες με προϊόντα της μάρκας."; break;
-      case "promo-products": case "countdown": if (!d.promo[b.id]?.productIds.length) empty[k] = b.promotionId ? "Η προσφορά έληξε ή δεν έχει προϊόντα." : "Δεν έχει επιλεγεί προσφορά."; break;
+      case "promo-products": case "countdown": if (!(b.type === "promo-products" && b.content) && !d.promo[b.id]?.productIds.length) empty[k] = b.promotionId ? "Η προσφορά έληξε ή δεν έχει προϊόντα." : "Δεν έχει επιλεγεί προσφορά."; break;
       case "promo-landing": if (!d.landing[b.id]) empty[k] = b.landingId ? "Η σελίδα προσφοράς δεν είναι πια ενεργή." : "Δεν έχει επιλεγεί σελίδα προσφοράς."; break;
       case "coupon": if (!d.coupon[b.id]) empty[k] = b.code ? "Το κουπόνι δεν ισχύει πια." : "Δεν έχει οριστεί κουπόνι."; break;
       case "deal-hero": if (!d.deal[b.id] || !d.products[d.deal[b.id]!.productId]) empty[k] = "Δεν υπάρχει ενεργό προϊόν για την «Προσφορά ημέρας»."; break;
       case "promo-grid": if (!d.landings[b.id]?.length) empty[k] = "Δεν υπάρχουν ενεργές σελίδες προσφορών."; break;
       case "ad": {
         const ad = b.mode === "placement" ? (b.placementId ? await pickAdById(b.placementId, { count: false }).catch(() => null) : null) : await pickAd(b.slot ?? "info-top", { count: false }).catch(() => null);
-        if (!ad?.image) empty[k] = b.mode === "placement" && !b.placementId ? "Δεν έχει επιλεγεί διαφήμιση." : "Δεν υπάρχει ενεργό banner αυτή τη στιγμή.";
+        if (!ad?.image && !ad?.design) empty[k] = b.mode === "placement" && !b.placementId ? "Δεν έχει επιλεγεί διαφήμιση." : "Δεν υπάρχει ενεργό banner αυτή τη στιγμή.";
         break;
       }
     }

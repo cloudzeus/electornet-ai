@@ -43,7 +43,7 @@ export async function resolveBlocks(blocks: BrandBlock[], ctx: { brandSlug?: str
     switch (b.type) {
       case "products-auto": d.auto[b.id] = await autoProductIds(ctx.brandSlug ?? b.brand?.slug ?? null, b.source, b.limit, b.categoryId).catch(() => []); break;
       case "categories": d.tiles[b.id] = await categoryTiles(ctx.brandSlug ?? b.brand?.slug ?? null, b).catch(() => []); break;
-      case "promo-products": d.promo[b.id] = b.promotionId ? await promoBlockData(b.promotionId, b.limit).catch(() => null) : null; break;
+      case "promo-products": d.promo[b.id] = b.promotionId && !b.content ? await promoBlockData(b.promotionId, b.limit, b.productIds).catch(() => null) : null; break;
       case "promo-landing": d.landing[b.id] = b.landingId ? await landingBlockData(b.landingId).catch(() => null) : null; break;
       case "coupon": d.coupon[b.id] = b.code ? await couponBlockData(b.code).catch(() => null) : null; break;
       case "deal-hero": {
