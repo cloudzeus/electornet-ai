@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CircleAlert, CircleCheck, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
+import { ArrowRightLeft, CircleAlert, CircleCheck, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import type { PromoDraft } from "@/lib/promo/admin";
 import { ProductBrowser } from "./ProductBrowser";
 import { previewPricesAction, targetPricesAction, type PriceRow } from "@/app/admin/(shell)/prosfores/actions";
@@ -11,12 +11,14 @@ const toCents = (s: string) => { const v = Number(s.replace(/[€\s]/g, "").repl
 const btn = "inline-flex items-center gap-1.5 rounded-full px-4 min-h-11 font-bold text-[length:var(--fs-14)] cursor-pointer disabled:opacity-50";
 const TEMPLATE = `data:text/csv;charset=utf-8,${encodeURIComponent("﻿Κωδικός;Τιμή προσφοράς\n55C46LA;1199\n")}`;
 const SHOWN = 200;
+/** Αρχή του μηνύματος που στέλνει το previewPricesAction όταν η τιμή του αρχείου είναι ήδη η τιμή του eshop. */
+const ERP_ISSUE = "είναι ήδη σε τιμή προσφοράς";
 
 /**
  * «Τιμή πριν → τιμή προσφοράς»: ένας πίνακας με κάθε προϊόν, την τιμή πριν (η τρέχουσα του eshop — δεν γράφεται με το χέρι),
  * την τιμή προσφοράς και την έκπτωση που βγαίνει. Τα προϊόντα μπαίνουν από Excel (κωδικός + τιμή προσφοράς) ή από τον κατάλογο.
  */
-export function SpecialPrices({ d, setReward, names, setNames }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: (f: (n: Record<string, string>) => Record<string, string>) => void }) {
+export function SpecialPrices({ d, setReward, names, setNames, toErp }: { d: PromoDraft; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: (f: (n: Record<string, string>) => Record<string, string>) => void; /** αλλάζει τον τύπο της προσφοράς σε «Διαγραμμένες τιμές SoftOne» */ toErp: () => void }) {
   const prices = d.reward.price ?? {};
   const ids = Object.keys(prices);
   const [list, setList] = useState<Record<string, number | null>>({});
@@ -34,6 +36,10 @@ export function SpecialPrices({ d, setReward, names, setNames }: { d: PromoDraft
     void targetPricesAction(missing.split(",")).then((rows) => { if (on) setList((l) => ({ ...l, ...Object.fromEntries(missing.split(",").map((id) => [id, null])), ...Object.fromEntries(rows.map((r) => [r.id, r.price != null ? Math.round(r.price * 100) : null])) })); });
     return () => { on = false; };
   }, [missing]);
+
+  // όσες γραμμές έχουν ήδη την τιμή του αρχείου στο eshop δεν διορθώνονται στο αρχείο — θέλουν άλλο τύπο προσφοράς
+  const erpBad = res?.bad.filter((x) => x.issue?.startsWith(ERP_ISSUE)) ?? [];
+  const otherBad = res?.bad.filter((x) => !x.issue?.startsWith(ERP_ISSUE)) ?? [];
 
   const remove = (id: string) => { const { [id]: _x, ...rest } = prices; void _x; setReward({ price: rest }); };
   const upload = (form: FormData) => start(async () => {
@@ -74,7 +80,20 @@ export function SpecialPrices({ d, setReward, names, setNames }: { d: PromoDraft
               {res.added ? <CircleCheck className="size-4 mt-0.5 shrink-0" aria-hidden /> : <CircleAlert className="size-4 mt-0.5 shrink-0" aria-hidden />}
               {res.added ? `${res.added === 1 ? "Μπήκε 1 προϊόν" : `Μπήκαν ${res.added} προϊόντα`} με την τιμή προσφοράς του αρχείου. Πάτα «Αποθήκευση» για να κρατηθούν.` : "Καμία γραμμή του αρχείου δεν μπήκε."}
             </p>
-            {res.bad.length > 0 && <Rows tone="bad" title={res.bad.length === 1 ? "1 γραμμή δεν μπήκε — διόρθωσέ τη στο αρχείο και ανέβασέ το ξανά:" : `${res.bad.length} γραμμές δεν μπήκαν — διόρθωσέ τες στο αρχείο και ανέβασέ το ξανά:`} rows={res.bad.map((x) => `${x.input}: ${x.issue ?? "μη έγκυρη τιμή"}`)} />}
+            {erpBad.length > 0 && (
+              <div className="rounded-xl bg-eu-amber/15 px-3 py-2 grid gap-2">
+                <span className="font-bold text-eu-ink text-[length:var(--fs-14)]">{erpBad.length === 1 ? "1 προϊόν έχει ήδη στο eshop την τιμή του αρχείου" : `${erpBad.length} προϊόντα έχουν ήδη στο eshop την τιμή του αρχείου`}</span>
+                <p className="m-0 text-eu-ink-2 text-[length:var(--fs-13)]">Η έκπτωση έχει γίνει στο SoftOne: ο συγχρονισμός κατέβασε μόνος του την «Τιμή Web», άρα η τιμή του αρχείου είναι η τιμή που πληρώνει ήδη ο πελάτης και δεν είναι έκπτωση. Αυτός ο τύπος προσφοράς θέλει τιμή χαμηλότερη από την τρέχουσα — γι’ αυτό δεν μπήκαν. Το αρχείο δεν έχει λάθος, μην το διορθώσεις.</p>
+                <p className="m-0 text-eu-ink-2 text-[length:var(--fs-13)]">Για να δει ο πελάτης διαγραμμένη τιμή, άλλαξε τον τύπο της προσφοράς. Οι «Διαγραμμένες τιμές SoftOne» παίρνουν μόνες τους την «Αρχική Τιμή Web» του SoftOne ως διαγραμμένη — χωρίς αρχείο. Τα προϊόντα που έχεις βάλει μένουν.</p>
+                <button type="button" onClick={toErp} className={`${btn} justify-self-start bg-eu-navy text-white hover:bg-eu-blue`}><ArrowRightLeft className="size-4" aria-hidden /> Άλλαξε σε «Διαγραμμένες τιμές SoftOne»</button>
+                <details>
+                  <summary className="cursor-pointer font-bold text-eu-blue text-[length:var(--fs-13)] min-h-11 md:min-h-8 inline-flex items-center">Ποια προϊόντα</summary>
+                  <ul className="m-0 pl-4 text-eu-ink-2 text-[length:var(--fs-13)] break-words">{erpBad.slice(0, 30).map((x, i) => <li key={i}>{x.input}{x.title ? ` · ${x.title}` : ""} — {eur(x.price ?? 0)}</li>)}</ul>
+                  {erpBad.length > 30 && <span className="text-eu-muted text-[length:var(--fs-13)]">και άλλα {erpBad.length - 30}</span>}
+                </details>
+              </div>
+            )}
+            {otherBad.length > 0 && <Rows tone="bad" title={otherBad.length === 1 ? "1 γραμμή δεν μπήκε — διόρθωσέ τη στο αρχείο και ανέβασέ το ξανά:" : `${otherBad.length} γραμμές δεν μπήκαν — διόρθωσέ τες στο αρχείο και ανέβασέ το ξανά:`} rows={otherBad.map((x) => `${x.input}: ${x.issue ?? "μη έγκυρη τιμή"}`)} />}
             {res.notes.length > 0 && <Rows tone="warn" title="Η «τιμή πριν» του αρχείου διαφέρει από το eshop. Ο πελάτης βλέπει την τιμή του eshop:" rows={res.notes.map((x) => `${x.input}: ${x.note}`)} />}
           </div>
         )}

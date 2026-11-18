@@ -231,7 +231,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
           </div>
         )}
 
-        {step === 2 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} />}
+        {step === 2 && <TargetsStep d={d} set={set} setReward={setReward} names={names} setNames={setNames} services={services} toErp={() => pickTemplate("erp")} />}
         {step === 2 && <ErpMode d={d} setReward={setReward} />}
 
         {step === 3 && (
@@ -640,7 +640,7 @@ function ErpMode({ d, setReward }: { d: PromoDraft; setReward: (p: Partial<Promo
   );
 }
 
-function TargetsStep({ d, set, setReward, names, setNames, services }: { d: PromoDraft; set: (p: Partial<PromoDraft>) => void; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: SetNames; services: Svc[] }) {
+function TargetsStep({ d, set, setReward, names, setNames, services, toErp }: { d: PromoDraft; set: (p: Partial<PromoDraft>) => void; setReward: (p: Partial<PromoDraft["reward"]>) => void; names: Record<string, string>; setNames: SetNames; services: Svc[]; toErp: () => void }) {
   const [exclude, setExclude] = useState(false);
   const add = (kind: PromoTarget["kind"], id: string, name: string) => {
     setNames((n) => ({ ...n, [id]: name }));
@@ -659,7 +659,7 @@ function TargetsStep({ d, set, setReward, names, setNames, services }: { d: Prom
 
   if (d.mechanism === "bundle") return <BundleItems d={d} setReward={setReward} names={names} setNames={setNames} />;
   if (d.mechanism === "erp-price") return <ErpBasket d={d} set={set} setNames={setNames} />;
-  if (d.mechanism === "special-price") return <SpecialPrices d={d} setReward={setReward} names={names} setNames={setNames} />;
+  if (d.mechanism === "special-price") return <SpecialPrices d={d} setReward={setReward} names={names} setNames={setNames} toErp={toErp} />;
 
   return (
     <div className="grid gap-5">

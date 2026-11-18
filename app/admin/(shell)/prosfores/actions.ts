@@ -201,6 +201,8 @@ export async function previewPricesAction(form: FormData): Promise<{ ok: true; r
   const products = await db.product.findMany({ where: { OR: [{ sku: { in: codes } }, { ean: { in: codes } }, { erpCode: { in: codes } }] }, select: { id: true, title: true, sku: true, ean: true, erpCode: true, active: true, variants: { select: { price: true }, take: 1 } } });
   const find = (c: string) => products.find((p) => p.sku === c || p.ean === c || p.erpCode === c) ?? null;
   const policy = await getPromoPolicy();
+  // «Αρχική Τιμή Web» του SoftOne: όταν η τιμή του αρχείου είναι ήδη η τιμή του eshop, η προσφορά θέλει τον τύπο των διαγραμμένων τιμών
+  const initial = await (await import("@/lib/promo/initial-prices")).initialPrices();
   const seen = new Set<string>();
   const rows: PriceRow[] = body.map((r) => {
     const code = r[ci].trim();
@@ -213,7 +215,9 @@ export async function previewPricesAction(form: FormData): Promise<{ ok: true; r
     else if (!p.active) issue = "ανενεργό προϊόν";
     else if (price == null) issue = "μη έγκυρη τιμή";
     else if (!list) issue = "το προϊόν δεν έχει τιμή eshop";
-    else if (price >= list) issue = "δεν είναι χαμηλότερη από την τρέχουσα";
+    else if (price >= list) issue = Math.round((initial.get(p.erpCode ?? "") ?? 0) * 100) > list
+      ? "είναι ήδη σε τιμή προσφοράς στο eshop — η έκπτωση έχει γίνει στο SoftOne"
+      : "δεν είναι χαμηλότερη από την τρέχουσα";
     else if (pct! > policy.maxLinePct) issue = `έκπτωση ${pct} % — πάνω από το όριο ${policy.maxLinePct} % (θα κοπεί)`;
     if (p && seen.has(p.id)) issue = "διπλή γραμμή — κρατιέται η πρώτη";
     if (p) seen.add(p.id);
