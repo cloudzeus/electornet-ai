@@ -10,3 +10,12 @@ export function strikePrice(price: number, list: number, lowest30: number | null
   if (list > price) return { was: list, omnibus: false };
   return null;
 }
+
+/**
+ * Η «Αρχική Τιμή Web» του SoftOne (σε ευρώ) ως διαγραμμένη τιμή σε λεπτά, μόνο όταν είναι πάνω από την τιμή web· αλλιώς 0.
+ * Ισχύει για κάθε είδος που την έχει, ακόμη κι αν δεν είναι σε καλάθι προσφοράς.
+ */
+export function initialStrikeCents(unitCents: number, initialEur: number | null | undefined): number {
+  const was = Math.round((initialEur ?? 0) * 100);
+  return unitCents > 0 && was > unitCents ? was : 0;
+}

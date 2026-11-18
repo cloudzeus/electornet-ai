@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getServiceList } from "@/lib/services/catalog";
 import { evaluate, inactiveReason, matches, MULTI_MECHANISMS, type EngineLine } from "./engine";
 import { activePromos, invalidatePromos, lowest30 } from "./server";
+import { initialStrikeCents } from "./strike";
 import { autoLabel } from "./catalog";
 import { getPromoPolicy } from "./policy";
 
@@ -84,7 +85,8 @@ async function computeOnce(): Promise<RecomputeResult> {
     const { setMainIds } = await import("@/lib/catalog/sets");
     const mainOf = await setMainIds().catch(() => new Map<string, string>()); // προσφορά στο κύριο είδος → και στο σετ του
 
-    const initial = display.some((x) => x.mechanism === "erp-price") ? await import("./initial-prices").then((m) => m.initialPrices()) : new Map<string, number>();
+    // «Αρχική Τιμή Web» του SoftOne: διαγραμμένη τιμή για κάθε είδος που την έχει πάνω από την τιμή web — και χωρίς προσφορά
+    const initial = await import("./initial-prices").then((m) => m.initialPrices()).catch(() => new Map<string, number>());
 
     const rows: { productId: string; variantId: string; listPrice: number; price: number; memberPrice: number | null; promotionId: string | null; promoCode: string | null; endsAt: Date | null; tags: OfferTag[] }[] = [];
     for (const p of products) {
@@ -92,7 +94,8 @@ async function computeOnce(): Promise<RecomputeResult> {
       if (!v || Number(v.price) <= 0) continue;
       const line: EngineLine = { key: p.id, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: chain(p.categoryId), qty: 1, unit: Math.round(Number(v.price) * 100), ...(mainOf.has(p.id) ? { aliasIds: [mainOf.get(p.id)!] } : {}) };
       const mine = display.filter((x) => matches(x, line));
-      if (!mine.length) continue;
+      const was = initialStrikeCents(line.unit, initial.get(p.erpCode ?? ""));
+      if (!mine.length && !was) continue;
       const guest = evaluate([line], mine, { now, customer: { registered: false, isNew: true }, ...guard });
       const member = mine.some((x) => x.rules?.customers === "registered") ? evaluate([line], mine, { now, customer: { registered: true, isNew: false }, ...guard }) : null;
       const tags: OfferTag[] = [];
@@ -100,9 +103,11 @@ async function computeOnce(): Promise<RecomputeResult> {
       if (adj) { const pp = mine.find((x) => x.id === adj.promotionId)!; tags.push({ kind: "price", label: autoLabel(pp), promotionId: adj.promotionId }); }
       // «Διαγραμμένες τιμές SoftOne»: η τιμή δεν αλλάζει (είναι η Τιμή Web)· διαγραμμένη μπαίνει η «Αρχική Τιμή Web», όταν είναι μεγαλύτερη
       const erp = mine.find((x) => x.mechanism === "erp-price");
-      const was = erp ? Math.round((initial.get(p.erpCode ?? "") ?? 0) * 100) : 0;
-      const struck = erp && was > line.unit ? erp : null;
-      if (struck && !adj) tags.push({ kind: "price", label: autoLabel({ ...struck, name: `−${Math.round(((was - line.unit) / was) * 100)} %` }), promotionId: struck.id });
+      // με έκπτωση τιμής από προσφορά (ποσοστό, Excel) μετρά εκείνη· αλλιώς διαγράφεται η αρχική τιμή SoftOne, με ή χωρίς προσφορά
+      const strike = !adj && was > 0;
+      const struck = strike ? erp ?? null : null;
+      const pct = strike ? `−${Math.round(((was - line.unit) / was) * 100)} %` : "";
+      if (strike) tags.push({ kind: "price", label: struck ? autoLabel({ ...struck, name: pct }) : pct, promotionId: struck?.id ?? "" });
       if (member && member.total < guest.total) {
         const m = member.lines[0].adjustments.find((a) => a.kind === "price");
         if (m) tags.push({ kind: "members", label: `Τιμή μέλους ${eur(member.total)}`, promotionId: m.promotionId });
@@ -116,7 +121,7 @@ async function computeOnce(): Promise<RecomputeResult> {
       if (!tags.length) continue;
       tags.splice(policy.maxTagsPerCard);
       const ends = mine.map((x) => x.endsAt).filter((d): d is Date => !!d).sort((a, b) => +a - +b)[0] ?? null;
-      rows.push({ productId: p.id, variantId: v.id, listPrice: struck ? was : line.unit, price: guest.total, memberPrice: member && member.total < guest.total ? member.total : null, promotionId: adj?.promotionId ?? struck?.id ?? null, promoCode: adj?.code ?? struck?.code ?? null, endsAt: ends, tags });
+      rows.push({ productId: p.id, variantId: v.id, listPrice: strike ? was : line.unit, price: guest.total, memberPrice: member && member.total < guest.total ? member.total : null, promotionId: adj?.promotionId ?? struck?.id ?? null, promoCode: adj?.code ?? struck?.code ?? null, endsAt: ends, tags });
     }
 
     // Omnibus για όσα έχουν έκπτωση τιμής

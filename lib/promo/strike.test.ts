@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { strikePrice } from "./strike";
+import { initialStrikeCents, strikePrice } from "./strike";
 
 test("διαγραμμένη τιμή: 30ήμερη όταν είναι πάνω από την τιμή, αλλιώς η αρχική της προσφοράς", () => {
   assert.deepEqual(strikePrice(80, 129, 100), { was: 100, omnibus: true });
@@ -8,4 +8,11 @@ test("διαγραμμένη τιμή: 30ήμερη όταν είναι πάνω
   assert.deepEqual(strikePrice(80, 129, null), { was: 129, omnibus: false });
   assert.equal(strikePrice(80, 80, 80), null);
   assert.equal(strikePrice(0, 129, 100), null);
+});
+
+test("αρχική τιμή SoftOne: διαγράφεται μόνο όταν είναι πάνω από την τιμή web", () => {
+  assert.equal(initialStrikeCents(7999, 129), 12900);
+  assert.equal(initialStrikeCents(12900, 129), 0);
+  assert.equal(initialStrikeCents(7999, undefined), 0);
+  assert.equal(initialStrikeCents(0, 129), 0);
 });
