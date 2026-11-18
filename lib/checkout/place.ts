@@ -87,6 +87,8 @@ export async function placeOrder(input: PlaceInput) {
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
   const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, localStoreId: input.localStoreId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: input.fulfilment === "courier" && input.carrier === "asap" }, cart);
+  // περιοχή χωρίς συμφωνημένη τιμή αποστολής: μόνο παραλαβή από κατάστημα
+  if (q.noDelivery && input.fulfilment !== "click-collect") return { ok: false as const, error: `Δεν παραδίδουμε ακόμη στην περιοχή «${q.noDelivery}». Διάλεξε «Παραλαβή από κατάστημα» ή επικοινώνησε μαζί μας.`, quote: publicQuote(q) };
   // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διάλεξε ο πελάτης (υποχρεωτικό)
   if (q.freight?.localStores.length && !q.attica.attica) {
     if (input.fulfilment === "appointment") return { ok: false as const, error: "Για αυτό το καλάθι διάλεξε παράδοση από κατάστημα Euronics ή παραλαβή από κατάστημα.", quote: publicQuote(q) };

@@ -3,6 +3,8 @@
  * κόστος, «δωρεάν από» και χρόνο παράδοσης· ο πελάτης διαλέγει έναν στο checkout. Καθαρές συναρτήσεις — ίδιες σε
  * server (υπολογισμός, παραγγελία) και browser. Ποσά σε λεπτά.
  */
+import NO_PRICE_AREAS from "./no-price-areas.json";
+
 export type CarrierId = "acs" | "geniki" | "elta" | "asap" | "boxnow";
 /** address = στη διεύθυνση του πελάτη · locker = σε αυτόματο θυρίδα (ο πελάτης διαλέγει θυρίδα) */
 export type CarrierKind = "address" | "locker";
@@ -18,8 +20,21 @@ export const CARRIERS: CarrierDef[] = [
 export const carrierDef = (id: string | null | undefined) => CARRIERS.find((c) => c.id === id) ?? null;
 export const isCarrierId = (v: unknown): v is CarrierId => CARRIERS.some((c) => c.id === v);
 
-/** Αττική: ΤΚ 10xxx–19xxx (Αθήνα, Πειραιάς, Ανατολική/Δυτική Αττική, νησιά Σαρωνικού). */
-export const isAtticaZip = (zip: string | null | undefined) => /^1\d{4}$/.test(zip ?? "");
+/**
+ * Τα νησιά του Σαρωνικού έχουν Τ.Κ. Αττικής αλλά για τις αποστολές δεν είναι Αττική (καράβι, δικός τους τιμοκατάλογος):
+ * Αίγινα/Αγκίστρι 18010, Πόρος 18020, Ύδρα 18040, Σπέτσες 18050. Η Σαλαμίνα (18900) μένει Αττική.
+ */
+/**
+ * Περιοχές χωρίς συμφωνημένη τιμή αποστολής (lib/shipping/no-price-areas.json): μέχρι να μπει τιμή δεν παραδίδουμε εκεί —
+ * ο πελάτης το βλέπει στο ταμείο και του μένει η παραλαβή από κατάστημα. Βγάζεις μια περιοχή από το JSON μόλις τιμολογηθεί.
+ */
+export const noPriceArea = (zip: string | null | undefined): string | null =>
+  NO_PRICE_AREAS.find((a) => a.zips.includes((zip ?? "").trim()))?.name ?? null;
+export const NO_DELIVERY_REASON = "Δεν παραδίδουμε ακόμη σε αυτή την περιοχή — μπορείς να παραλάβεις από κατάστημα";
+
+export const NON_ATTICA_ZIPS = ["18010", "18020", "18040", "18050"];
+/** Αττική: ΤΚ 10xxx–19xxx (Αθήνα, Πειραιάς, Ανατολική/Δυτική Αττική) — χωρίς τα νησιά του Σαρωνικού. */
+export const isAtticaZip = (zip: string | null | undefined) => /^1\d{4}$/.test(zip ?? "") && !NON_ATTICA_ZIPS.includes(zip!.trim());
 
 export interface CarrierOffer {
   id: CarrierId; name: string; kind: CarrierKind; eta: string;

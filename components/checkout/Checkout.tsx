@@ -98,6 +98,8 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
   const { quote, setQuote, loading } = useServerQuote(lines, hydrated, { coupon: couponCode, payment: pay, delivery: fulPick, storeId: fulPick === "click-collect" ? storeId : null, zip: carrierDef(carrierPick)?.kind === "locker" ? locker?.zip ?? null : /^\d{5}$/.test(f.zip) ? f.zip : null, email: f.email || null, carrier: carrierPick, localStoreId, ...addrQ });
   // μεγάλες συσκευές: ο server αποφασίζει (κατηγορία, βάρος, μέγεθος) — χωρίς courier, με ραντεβού ή παραλαβή
   const courierBlocked = !!quote && !quote.bulky.courier;
+  // περιοχή χωρίς συμφωνημένη τιμή αποστολής: μόνο παραλαβή από κατάστημα
+  const noDelivery = quote?.noDelivery ?? null;
   // μεταφορική (εσωτερική, για λευκές / ογκώδεις): μόνο αν είναι ανοιχτή στις ρυθμίσεις και φεύγουν όλα έτσι
   const freight = quote?.freight ?? null;
   const freightOk = !!freight?.available;
@@ -408,7 +410,12 @@ export function Checkout({ stores, boxnowPartnerId = null, vivaPays = [], klarna
                               {touched.localStore && errors.localStore && <span className="text-eu-red font-semibold text-[length:var(--fs-14)]">{errors.localStore}</span>}
                             </div>
                           )}
-                          {courierBlocked && (
+                          {noDelivery && (
+                            <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
+                              Δεν παραδίδουμε ακόμη στο σπίτι στην περιοχή <b className="text-eu-ink">{noDelivery}</b>. Μπορείς να <b className="text-eu-ink">παραλάβεις από κατάστημα</b> ή να μας καλέσεις για να το κανονίσουμε.
+                            </p>
+                          )}
+                          {courierBlocked && !noDelivery && (
                             <p role="status" className="m-0 rounded-xl bg-eu-amber/15 px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">
                               <b className="text-eu-ink">{quote.bulky.titles.length === 1 ? quote.bulky.titles[0] : `${quote.bulky.titles.length} προϊόντα του καλαθιού`}</b>{quote.bulky.titles.length === 1 ? " δεν αποστέλλεται" : " δεν αποστέλλονται"} με courier ({quote.bulky.reason?.split(":")[0].toLowerCase()}). {localStores.length ? "Διάλεξε κατάστημα Euronics να σου το φέρει" : freight?.central ? "Διάλεξε μεταφορική" : freightOk ? "Διάλεξε μεταφορική ή ραντεβού" : "Διάλεξε παράδοση με ραντεβού"}, ή παραλαβή από κατάστημα.
                             </p>

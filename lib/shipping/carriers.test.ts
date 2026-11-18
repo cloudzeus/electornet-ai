@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carrierOffers, pickCarrier, isAtticaZip } from "./carriers";
+import { carrierOffers, pickCarrier, isAtticaZip, noPriceArea } from "./carriers";
 
 test("μόνο οι ενεργοί, με δικό τους κόστος ή το προεπιλεγμένο", () => {
   const o = carrierOffers({ eltaOn: true, eltaFee: 3.5, boxnowOn: true, boxnowPartnerId: "123", acsOn: false }, 5000, null, 10000);
@@ -19,6 +19,10 @@ test("δωρεάν από: δικό του ή το γενικό", () => {
 test("ASAP μόνο στην Αττική — με άγνωστο ΤΚ διαθέσιμος", () => {
   assert.equal(isAtticaZip("17456"), true);
   assert.equal(isAtticaZip("54622"), false);
+  // νησιά Σαρωνικού: Τ.Κ. Αττικής αλλά όχι Αττική για τις αποστολές (η Σαλαμίνα μένει Αττική)
+  for (const z of ["18010", "18020", "18040", "18050"]) assert.equal(isAtticaZip(z), false, z);
+  assert.equal(isAtticaZip("18900"), true);
+  assert.equal(carrierOffers({ asapOn: true }, 0, "18010", null)[0].available, false);
   assert.equal(carrierOffers({ asapOn: true }, 0, "54622", null)[0].available, false);
   assert.equal(carrierOffers({ asapOn: true }, 0, "11523", null)[0].available, true);
   assert.equal(carrierOffers({ asapOn: true }, 0, null, null)[0].available, true);
@@ -38,4 +42,14 @@ test("επιλογή: ο διαλεγμένος αν είναι διαθέσιμ
 test("BOX NOW μόνο με Partner ID", () => {
   assert.equal(carrierOffers({ boxnowOn: true }, 0, null, null).length, 0);
   assert.equal(carrierOffers({ boxnowOn: true, boxnowPartnerId: " 42 " }, 0, null, null).length, 1);
+});
+
+test("περιοχές χωρίς τιμή αποστολής: δεν παραδίδουμε εκεί", () => {
+  assert.equal(noPriceArea("85111"), "Καστελόριζο");
+  assert.equal(noPriceArea(" 84001 "), "Ίος");
+  // νησιά με κατάστημα ή με συμφωνημένη τιμή δεν μπλοκάρονται
+  assert.equal(noPriceArea("37002"), null); // Σκιάθος: έχει κατάστημα
+  assert.equal(noPriceArea("85200"), null); // Κάλυμνος: έχει τιμή στον κατάλογο
+  assert.equal(noPriceArea("54622"), null);
+  assert.equal(noPriceArea(null), null);
 });

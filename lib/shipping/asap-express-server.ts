@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { asapConfig, asapDepot, asapGeocode, asapPriceQuote } from "@/lib/couriers/asap/client";
 import { EXPRESS_ETA, STANDARD_ETA, STANDARD_UNKNOWN, asapEligible, expressCheck, inZips, normalizeAsapRules, pickAsapPrice, type AsapRules } from "./asap-express";
+import { isAtticaZip } from "./carriers";
 import type { ShipLimit } from "./bulky-server";
 import { categoryPaths } from "@/lib/warranty/pricing";
 import DEFAULT_CATS from "./asap-categories.json";
@@ -84,7 +85,8 @@ export async function atticaOffer(lines: { productId: string; qty: number; title
   const inStockOf = (id: string) => { const s = pm.get(id)?.availState; return s === "in-stock" || s === "low"; };
   const inStock = lines.length > 0 && lines.every((l) => inStockOf(l.productId));
   const standard = { eta: inStock ? STANDARD_ETA : STANDARD_UNKNOWN, inStock };
-  const attica = rules.on && inZips(addr.zip, rules.atticaZips);
+  // τα νησιά του Σαρωνικού έχουν Τ.Κ. Αττικής αλλά δεν τα εξυπηρετεί η ροή Αττικής (ούτε η ASAP)
+  const attica = rules.on && inZips(addr.zip, rules.atticaZips) && isAtticaZip(addr.zip);
   if (!attica) return { attica: false, standard, express: null, why: rules.on ? "εκτός Αττικής" : "κλειστό" };
   const paths = await categoryPaths(prods.map((p) => p.categoryId));
   const check = expressCheck(lines.map((l) => {
