@@ -35,7 +35,8 @@ const SHOWN: Prisma.MediaWhereInput = { kind: "image", hidden: false };
 export const SHOP_SOURCES = ["softone", "import", "softone-set"];
 /** Στις λίστες / αναζήτηση: όχι τα κύρια είδη που πωλούνται μόνο σε σετ (soldAlone = false) */
 /** publishReady: ο έλεγχος πληρότητας (lib/catalog/publish-ready-server.ts) — true παντού όσο ο έλεγχος είναι κλειστός */
-export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, publishReady: true, soldAlone: true, media: { some: SHOWN } };
+/** price > 0: χωρίς τιμή το προϊόν θα έδειχνε 0,00 € («δωρεάν») και δεν μπαίνει ούτε στο καλάθι (lib/cart/server.ts) */
+export const LISTED: Prisma.ProductWhereInput = { source: { in: SHOP_SOURCES }, active: true, publishReady: true, soldAlone: true, price: { gt: 0 }, media: { some: SHOWN } };
 const TTL = 5 * 60_000;
 
 // ---------- Δέντρο ----------
@@ -218,7 +219,7 @@ export const dbListProducts = (f: ListFilter & { l3?: string }): Promise<ListRes
 async function productBySlugFresh(slug: string): Promise<Product | null> {
   await loadStickerCatalog();
   maybeTickPromos(); // έναρξη / λήξη προσφορών στην ώρα τους, στο παρασκήνιο (το πολύ μία φορά το λεπτό)
-  const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true, publishReady: true }, select: {
+  const r = await db.product.findFirst({ where: { slug, source: { in: SHOP_SOURCES }, active: true, publishReady: true, price: { gt: 0 } }, select: {
     ...PRODUCT_SELECT, specs: { orderBy: [{ sortNo: "asc" }], select: { groupName: true, key: true, value: true } },
     facetValues: { where: { source: { in: ["spec", "title"] } }, orderBy: { facet: { sortNo: "asc" } }, take: 8, select: { value: true, facet: { select: { label: true } } } },
   } });

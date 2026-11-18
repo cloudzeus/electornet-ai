@@ -56,6 +56,20 @@ test("τιμή επέκτασης: η πιο ειδική κατηγορία, μ
   assert.equal(extensionPrice({ ...p, enabled: false }, ["psygeia"], 180), null);
 });
 
+test("τιμή επέκτασης: ποσοστό της τιμής αγοράς (15,5% όπως στα καταστήματα)", () => {
+  const p = normalizePricing({ enabled: true, tiers: [
+    { id: "pct", category: "", min: 0, max: "", pct: "15.5" },
+    { id: "fix", category: "tileoraseis", min: 0, max: null, price: 49 },
+    { id: "bad", category: "klimatistika", min: 0, max: null, pct: 120 },
+  ] });
+  assert.equal(p.tiers.length, 2);
+  assert.equal(extensionPrice(p, ["psygeia"], 100)?.price, 15.5);
+  assert.equal(extensionPrice(p, ["psygeia"], 87.89)?.price, 13.62);
+  assert.equal(extensionPrice(p, ["psygeia"], 458.87)?.price, 71.12);
+  assert.equal(extensionPrice(p, ["tileoraseis"], 458.87)?.price, 49);
+  assert.equal(extensionPrice(p, ["klimatistika"], 100)?.price, 15.5);
+});
+
 test("σελίδα προϊόντος: μία διατύπωση εγγύησης για buy box, «Γιατί από Euronics», υπηρεσίες και απαντήσεις", () => {
   assert.equal(warrantyLabel({ months: 24, extMonths: 24 }), "Εγγύηση 4 έτη");
   assert.equal(warrantyLabel({ months: 24, extMonths: 0 }), "Εγγύηση 2 έτη");

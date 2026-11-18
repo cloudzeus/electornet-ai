@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Save, Trash2, Undo2 } from "lucide-react";
 import { saveExtPricingAction } from "./actions";
 
-type Tier = { id: string; category: string; min: string; max: string; price: string };
-export interface ExtPricingInitial { enabled: boolean; tiers: { id: string; category: string; min: number; max: number | null; price: number }[] }
+type Tier = { id: string; category: string; min: string; max: string; price: string; unit: "eur" | "pct" };
+export interface ExtPricingInitial { enabled: boolean; tiers: { id: string; category: string; min: number; max: number | null; price: number; pct: number }[] }
 
 const s = (n: number | null) => (n == null ? "" : String(n));
-const toRows = (i: ExtPricingInitial): Tier[] => i.tiers.map((t) => ({ id: t.id, category: t.category, min: s(t.min), max: s(t.max), price: s(t.price) }));
+const toRows = (i: ExtPricingInitial): Tier[] => i.tiers.map((t) => ({ id: t.id, category: t.category, min: s(t.min), max: s(t.max), price: s(t.pct > 0 ? t.pct : t.price), unit: t.pct > 0 ? "pct" : "eur" }));
+const eur = (n: number) => n.toFixed(2).replace(".", ",");
 const field = "w-full rounded-lg border border-eu-line bg-white px-3 min-h-11 text-[length:var(--fs-15)] tabular-nums focus:outline-none focus:ring-2 ring-eu-blue/40";
 
 /**
@@ -22,19 +23,20 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
   const [rows, setRows] = useState<Tier[]>(() => toRows(initial));
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const snap = (e: boolean, r: Tier[]) => JSON.stringify([e, r.map((t) => [t.category, t.min, t.max, t.price])]);
+  const snap = (e: boolean, r: Tier[]) => JSON.stringify([e, r.map((t) => [t.category, t.min, t.max, t.price, t.unit])]);
   const dirty = useMemo(() => snap(enabled, rows) !== snap(initial.enabled, toRows(initial)), [enabled, rows, initial]);
   const label = new Map(categories.map((c) => [c.slug, c.label]));
   const set = (i: number, p: Partial<Tier>) => setRows((r) => r.map((t, k) => (k === i ? { ...t, ...p } : t)));
   const problem = (t: Tier) => {
     const min = Number(t.min || 0), max = t.max === "" ? null : Number(t.max), price = Number(t.price);
-    if (!t.price || !(price > 0)) return "Βάλε τιμή επέκτασης.";
+    if (!t.price || !(price > 0)) return t.unit === "pct" ? "Βάλε ποσοστό χρέωσης." : "Βάλε τιμή επέκτασης.";
+    if (t.unit === "pct" && price > 100) return "Το ποσοστό δεν μπορεί να ξεπερνά το 100%.";
     if (max != null && max < min) return "Το «έως» είναι μικρότερο από το «από».";
     return null;
   };
   const invalid = rows.filter((t) => problem(t)).length;
   const save = () => start(async () => {
-    const r = await saveExtPricingAction({ enabled, tiers: rows.map((t) => ({ id: t.id, category: t.category, min: t.min, max: t.max, price: t.price })) });
+    const r = await saveExtPricingAction({ enabled, tiers: rows.map((t) => ({ id: t.id, category: t.category, min: t.min, max: t.max, price: t.unit === "pct" ? "" : t.price, pct: t.unit === "pct" ? t.price : "" })) });
     setMsg(r.ok ? { ok: true, text: `Αποθηκεύτηκε: ${r.tiers} κλίμακες, επέκταση επί πληρωμή ${r.enabled ? "ενεργή" : "κλειστή"}. Ισχύει σε 1 λεπτό στο site.` } : { ok: false, text: "Δεν αποθηκεύτηκε." });
     router.refresh();
   });
@@ -50,7 +52,7 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
       </label>
 
       {rows.length === 0 ? (
-        <p className="m-0 rounded-xl bg-eu-surface px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">Δεν υπάρχουν κλίμακες. Χωρίς κλίμακα για την κατηγορία και την τιμή μιας συσκευής, η επέκταση επί πληρωμή δεν εμφανίζεται. Παράδειγμα: Ψυγεία, από 0 έως 200 € → 29 €.</p>
+        <p className="m-0 rounded-xl bg-eu-surface px-4 py-3 text-eu-ink-2 text-[length:var(--fs-15)]">Δεν υπάρχουν κλίμακες. Χωρίς κλίμακα για την κατηγορία και την τιμή μιας συσκευής, η επέκταση επί πληρωμή δεν εμφανίζεται. Παράδειγμα: Ψυγεία, από 0 έως 200 € → 29 €. Ή μία γενική κλίμακα «Όλες οι κατηγορίες» με 15,5% της τιμής αγοράς, όπως χρεώνεται στα καταστήματα.</p>
       ) : (
         <ul className="m-0 p-0 list-none grid gap-3">
           {rows.map((t, i) => {
@@ -74,8 +76,15 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
                   <input inputMode="decimal" value={t.max} disabled={!canWrite} onChange={(e) => set(i, { max: e.target.value.replace(",", ".") })} placeholder="χωρίς όριο" className={field} />
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-eu-ink-3 font-bold text-[length:var(--fs-13)]">Τιμή επέκτασης (€)</span>
-                  <input inputMode="decimal" value={t.price} disabled={!canWrite} onChange={(e) => set(i, { price: e.target.value.replace(",", ".") })} placeholder="π.χ. 49" className={field} />
+                  <span className="text-eu-ink-3 font-bold text-[length:var(--fs-13)]">Χρέωση επέκτασης</span>
+                  <span className="flex gap-1.5">
+                    <input inputMode="decimal" value={t.price} disabled={!canWrite} onChange={(e) => set(i, { price: e.target.value.replace(",", ".") })} placeholder={t.unit === "pct" ? "π.χ. 15,5" : "π.χ. 49"} className={field} />
+                    <select value={t.unit} disabled={!canWrite} onChange={(e) => set(i, { unit: e.target.value as Tier["unit"] })} aria-label="Μονάδα χρέωσης" className={`${field} w-auto shrink-0 px-2`}>
+                      <option value="eur">€</option>
+                      <option value="pct">%</option>
+                    </select>
+                  </span>
+                  {t.unit === "pct" && Number(t.price) > 0 && Number(t.price) <= 100 && <span className="text-eu-ink-3 text-[length:var(--fs-13)]">{eur(Number(t.price))}% της τιμής αγοράς — συσκευή 500 € → {eur(Number(t.price) * 5)} €</span>}
                 </label>
                 {canWrite && (
                   <button type="button" onClick={() => setRows((r) => r.filter((_, k) => k !== i))} aria-label="Αφαίρεση κλίμακας" className="justify-self-start inline-flex items-center justify-center gap-1.5 rounded-full border border-eu-line text-eu-red font-bold px-3 min-h-11 min-w-11 hover:bg-eu-red/5">
@@ -91,7 +100,7 @@ export function ExtPricingForm({ initial, categories, canWrite }: { initial: Ext
 
       {canWrite && (
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setRows((r) => [...r, { id: `t${Date.now().toString(36)}`, category: r.at(-1)?.category ?? "", min: r.at(-1)?.max ? String(Math.round((Number(r.at(-1)!.max) + 0.01) * 100) / 100) : "0", max: "", price: "" }])} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-surface">
+          <button type="button" onClick={() => setRows((r) => [...r, { id: `t${Date.now().toString(36)}`, category: r.at(-1)?.category ?? "", min: r.at(-1)?.max ? String(Math.round((Number(r.at(-1)!.max) + 0.01) * 100) / 100) : "0", max: "", price: "", unit: r.at(-1)?.unit ?? "eur" }])} className="inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy font-extrabold text-[length:var(--fs-14)] px-4 min-h-11 hover:bg-eu-surface">
             <Plus className="size-4" aria-hidden /> Νέα κλίμακα
           </button>
           {dirty && (

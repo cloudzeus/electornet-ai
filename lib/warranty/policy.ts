@@ -5,7 +5,8 @@
  * - Επέκταση: ΔΩΡΕΑΝ +24 μήνες, μόνο για είδη με «Επέκταση Εγγύησης» (MTRL.CCCWARRANTY) στο SoftOne.
  * - Για παλιές αγορές (προφίλ): μόνο αγορές Euronics (e-shop ή κατάστημα, από το SoftOne), όσο η εγγύηση είναι σε ισχύ,
  *   μία φορά. Με CCCWARRANTY δωρεάν· χωρίς, επί πληρωμή (Viva), με τιμή από τις κλίμακες της διαχείρισης
- *   (κατηγορία × τιμή αγοράς, όπως τα είδη ΚΑΡΑΝΤ 999G… του SoftOne).
+ *   (κατηγορία × τιμή αγοράς: σταθερό ποσό ή ποσοστό της τιμής αγοράς — στα καταστήματα το είδος ΕΓΓΥΗΣΗ χρεώνεται
+ *   15,5% της καθαρής τιμής της συσκευής· τα είδη ΚΑΡΑΝΤ 999G… είναι η δωρεάν επέκταση του προμηθευτή).
  */
 export const LEGAL_WARRANTY_MONTHS = 24;
 export const EXTENSION_MONTHS = 24;
@@ -71,19 +72,23 @@ export function canExtendAtAll(d: { registeredBy: string; warrantyUntil: Date | 
 
 // ---------- επέκταση επί πληρωμή: κλίμακες τιμών ----------
 
-/** Μία κλίμακα: κατηγορία (slug, κενό = όλες) × εύρος τιμής αγοράς (με ΦΠΑ, € — max κενό = χωρίς όριο) → τιμή επέκτασης. */
-export interface ExtTier { id: string; category: string; min: number; max: number | null; price: number }
+/**
+ * Μία κλίμακα: κατηγορία (slug, κενό = όλες) × εύρος τιμής αγοράς (με ΦΠΑ, € — max κενό = χωρίς όριο) → τιμή
+ * επέκτασης, είτε σταθερό ποσό (`price`) είτε ποσοστό της τιμής αγοράς (`pct` > 0 — έτσι χρεώνεται στα καταστήματα).
+ */
+export interface ExtTier { id: string; category: string; min: number; max: number | null; price: number; pct: number }
 export interface ExtPricing { enabled: boolean; tiers: ExtTier[] }
 
 /**
  * Η τιμή της επέκτασης για μια συσκευή: η πιο ειδική κατηγορία κερδίζει (η ίδια, μετά οι πρόγονοι με τη σειρά, στο
  * τέλος οι γενικές κλίμακες) και μέσα της το εύρος που περιέχει την τιμή αγοράς. Χωρίς τιμή αγοράς ή κλίμακα: null.
+ * Στις ποσοστιαίες κλίμακες το `price` που γυρίζει είναι το ποσό για αυτή τη συσκευή, στρογγυλεμένο στο λεπτό.
  */
 export function extensionPrice(p: ExtPricing, categoryPath: string[], purchasePrice: number | null): ExtTier | null {
   if (!p.enabled || purchasePrice == null || !(purchasePrice > 0)) return null;
   for (const cat of [...categoryPath, ""]) {
     const hit = p.tiers.find((t) => t.category === cat && purchasePrice >= t.min && (t.max == null || purchasePrice <= t.max));
-    if (hit) return hit;
+    if (hit) return hit.pct > 0 ? { ...hit, price: Math.round(purchasePrice * hit.pct) / 100 } : hit;
   }
   return null;
 }
@@ -95,9 +100,10 @@ export function normalizePricing(raw: unknown): ExtPricing {
   const tiers: ExtTier[] = [];
   for (const x of Array.isArray(o.tiers) ? o.tiers : []) {
     const t = x as Record<string, unknown>;
-    const min = num(t.min) ?? 0, max = num(t.max), price = num(t.price);
-    if (price == null || price <= 0 || min < 0 || (max != null && max < min)) continue;
-    tiers.push({ id: String(t.id || `t${tiers.length + 1}`).slice(0, 40), category: String(t.category ?? "").trim().slice(0, 160), min, max, price });
+    const min = num(t.min) ?? 0, max = num(t.max), price = num(t.price), pct = num(t.pct) ?? 0;
+    if (min < 0 || (max != null && max < min)) continue;
+    if (pct > 0 ? pct > 100 : price == null || price <= 0) continue;
+    tiers.push({ id: String(t.id || `t${tiers.length + 1}`).slice(0, 40), category: String(t.category ?? "").trim().slice(0, 160), min, max, price: pct > 0 ? 0 : price!, pct: pct > 0 ? pct : 0 });
   }
   tiers.sort((a, b) => a.category.localeCompare(b.category) || a.min - b.min);
   return { enabled: o.enabled === true, tiers };
