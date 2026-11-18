@@ -15,6 +15,7 @@ import { ProductBrowser, type BrowseProduct } from "./ProductBrowser";
 import { CodesUpload, SelectedPrices } from "./TargetTools";
 import { SpecialPrices } from "./SpecialPrices";
 import { ErpBasket } from "./ErpBasket";
+import { HomePlacer } from "./HomePlacer";
 import { analyzeAction, rootCategoriesAction, saveAction, searchTargetsAction } from "@/app/admin/(shell)/prosfores/actions";
 
 type Svc = { slug: string; title: string; price: number };
@@ -325,7 +326,7 @@ export function PromoWizard({ initial, names: initialNames, status, code, canApp
               <textarea rows={4} className={`${input} py-2`} value={d.termsText ?? ""} onChange={(e) => set({ termsText: e.target.value || null })} />
             </Field>
             <button type="button" onClick={() => set({ termsText: termsFor(d, summary) })} className="justify-self-start inline-flex items-center gap-1.5 rounded-full border-2 border-eu-navy text-eu-navy px-4 min-h-11 font-bold text-[length:var(--fs-14)] hover:bg-eu-chip"><Sparkles className="size-4" aria-hidden /> Σύνταξη όρων από τα στοιχεία</button>
-            <WhereItAppears id={d.id ?? null} appears={appears} />
+            <WhereItAppears id={d.id ?? null} appears={appears} live={status === "active"} />
           </div>
         )}
 
@@ -450,9 +451,9 @@ function AppearList({ appears }: { appears: WizardAppearance[] }) {
 }
 
 /** Βήμα «Εμφάνιση»: πού φαίνεται αυτόματα, πού έχει μπει ρητά, και πώς τη βάζεις σε ζώνη, banner ή landing page. */
-function WhereItAppears({ id, appears }: { id: string | null; appears: WizardAppearance[] }) {
+function WhereItAppears({ id, appears, live }: { id: string | null; appears: WizardAppearance[]; live: boolean }) {
   const add = [
-    { href: "/admin/cms/home", I: PanelsTopLeft, t: "Σε ζώνη της αρχικής", s: "Blocks «Προϊόντα προσφοράς», «Αντίστροφη μέτρηση», «Προσφορά ημέρας» ή η ενότητα «Προσφορές της εβδομάδας»." },
+    { href: "/admin/cms/home", I: PanelsTopLeft, t: "Πιο σύνθετα στην αρχική", s: "Ο editor της αρχικής: αντίστροφη μέτρηση, προσφορά ημέρας, σειρά και ρυθμίσεις κάθε ενότητας." },
     { href: id ? `/admin/prosfores/selides?promo=${id}` : "/admin/prosfores/selides", I: LayoutTemplate, t: "Δική της landing page", s: "Σελίδα /prosfores/… με τα προϊόντα της αυτόματα, countdown και όρους." },
     { href: "/admin/prosfores/theseis", I: Megaphone, t: "Banner σε διαφημιστική θέση", s: "Αρχική, λίστες, σελίδα προϊόντος, καλάθι· φαίνεται μόνο όσο τρέχει η προσφορά." },
     { href: "/admin/cms/brand-stores", I: Store, t: "Σε σελίδα μάρκας", s: "Τα ίδια blocks προσφορών στη σελίδα μιας μάρκας." },
@@ -464,7 +465,8 @@ function WhereItAppears({ id, appears }: { id: string | null; appears: WizardApp
         <p className="m-0 text-eu-ink-3 text-[length:var(--fs-14)]">Αυτόματα, χωρίς ρύθμιση: στις κάρτες και στη σελίδα κάθε προϊόντος της (ετικέτα, τιμή, countdown), στο καλάθι, στη σελίδα /prosfores και στα blocks «Προϊόντα · σε προσφορά».</p>
       </div>
       {appears.length > 0 && <div className="rounded-xl bg-white border border-eu-line p-1.5"><AppearList appears={appears} /></div>}
-      {!id && <p className="m-0 text-eu-ink-3 text-[length:var(--fs-13)]">Αποθήκευσε πρώτα την προσφορά για να τη διαλέξεις σε ζώνες, banners και landing pages.</p>}
+      {id ? <HomePlacer id={id} live={live} /> : <p className="m-0 flex items-start gap-2 rounded-xl bg-eu-amber/15 px-3 py-2.5 text-eu-ink text-[length:var(--fs-14)]"><CircleAlert className="size-4 mt-0.5 shrink-0 text-eu-amber" aria-hidden />Πάτα πρώτα «Αποθήκευση πρόχειρου» κάτω. Μετά εμφανίζεται εδώ το κουμπί «Βάλε την στην αρχική σελίδα».</p>}
+      <h5 className="m-0 font-bold text-eu-ink-2 text-[length:var(--fs-14)]">Άλλα σημεία</h5>
       <ul className="m-0 p-0 list-none grid gap-2 @3xl:grid-cols-2">
         {add.map((x) => (
           <li key={x.t}><Link href={x.href} target="_blank" className="flex items-start gap-2.5 rounded-xl bg-white border border-eu-line p-3 h-full hover:border-eu-blue">

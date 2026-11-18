@@ -22,7 +22,7 @@ const requestTime = () => Date.now();
 const LIVE = ["active", "scheduled", "paused", "pending"];
 const FILTERS: { key: string; label: string }[] = [
   { key: "live", label: "Σε εξέλιξη" }, { key: "active", label: "Ενεργές" }, { key: "scheduled", label: "Προγραμματισμένες" }, { key: "pending", label: "Για έγκριση" },
-  { key: "paused", label: "Σε παύση" }, { key: "draft", label: "Πρόχειρα" }, { key: "ended", label: "Έληξαν" }, { key: "all", label: "Όλες" },
+  { key: "paused", label: "Σε παύση" }, { key: "draft", label: "Πρόχειρα" }, { key: "ended", label: "Έληξαν" }, { key: "all", label: "Όλες" }, { key: "archived", label: "Αρχείο" },
 ];
 
 /**

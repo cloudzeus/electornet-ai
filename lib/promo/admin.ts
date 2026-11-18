@@ -349,25 +349,44 @@ export async function rejectChange(promotionId: string) {
   return r.count > 0;
 }
 
-export type BulkAction = "pause" | "resume" | "end" | "archive" | "duplicate" | "reject";
+export type BulkAction = "pause" | "resume" | "end" | "archive" | "restore" | "delete" | "duplicate" | "reject";
 /** Μαζικές ενέργειες από τη λίστα. Επιστρέφει πόσες άλλαξαν. */
 export async function bulkPromotions(ids: string[], action: BulkAction, staffId: string) {
   const rows = await db.promotion.findMany({ where: { id: { in: ids.slice(0, 200) } }, include: { targets: true, coupons: true } });
   let changed = 0;
   for (const p of rows) {
     if (action === "duplicate") { await duplicatePromotion(p.id, staffId); changed++; continue; }
+    if (action === "delete") { if (await deletePromotion(p, staffId)) changed++; continue; }
     const next: PromoStatus | null =
       action === "pause" ? (["active", "scheduled"].includes(p.status) ? "paused" : null)
       : action === "resume" ? (p.status === "paused" ? liveStatus(p.startsAt, p.endsAt) : null)
       : action === "end" ? (["active", "scheduled", "paused"].includes(p.status) ? "ended" : null)
       : action === "reject" ? (p.status === "pending" ? "draft" : ((await rejectChange(p.id)) ? (changed++, null) : null))
-      : action === "archive" ? (p.status !== "archived" ? "archived" : null) : null;
+      : action === "archive" ? (p.status !== "archived" ? "archived" : null)
+      // από το αρχείο γυρίζει ΠΡΟΧΕΙΡΗ: δεν ξαναμπαίνει σε ισχύ μόνη της — ο χρήστης βλέπει ημερομηνίες και δημοσιεύει
+      : action === "restore" ? (p.status === "archived" ? "draft" : null) : null;
     if (!next) continue;
     await db.promotion.update({ where: { id: p.id }, data: { status: next, ...(action === "end" && (!p.endsAt || p.endsAt > new Date()) ? { endsAt: new Date() } : {}) } });
     changed++;
   }
   if (changed) refreshStorefront();
   return changed;
+}
+
+/**
+ * Οριστική διαγραφή. Μόνο πρόχειρη ή αρχειοθετημένη προσφορά που ΔΕΝ έχει χρησιμοποιηθεί σε καμία παραγγελία — όσες έχουν
+ * χρήσεις μένουν στο αρχείο, γιατί οι παραγγελίες και τα παραστατικά γράφουν τον κωδικό και την έκδοσή τους.
+ * Φεύγει και από την αρχική· landing pages και banners της μένουν, χωρίς προσφορά.
+ */
+async function deletePromotion(p: { id: string; status: string; usedCount: number }, staffId: string): Promise<boolean> {
+  if (!["draft", "archived"].includes(p.status) || p.usedCount > 0 || (await db.promotionUsage.count({ where: { promotionId: p.id } })) > 0) return false;
+  await import("./place").then((m) => m.removeFromHome(p.id, staffId, true)).catch(() => null);
+  await db.$transaction([
+    db.landingPage.updateMany({ where: { promotionId: p.id }, data: { promotionId: null } }),
+    db.adPlacement.updateMany({ where: { promotionId: p.id }, data: { promotionId: null } }),
+    db.promotion.delete({ where: { id: p.id } }),
+  ]);
+  return true;
 }
 
 export async function duplicatePromotion(id: string, staffId: string) {

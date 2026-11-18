@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban, Pencil, Package } from "lucide-react";
+import { Pause, Play, Square, Copy, Archive, Check, X, Lock, TicketPercent, LayoutTemplate, Megaphone, PanelsTopLeft, FolderKanban, Pencil, Package, ArchiveRestore, CalendarClock, House, Trash2 } from "lucide-react";
 import { RowMenu, type RowMenuItem } from "./RowMenu";
 import { STATUS_LABEL, type PromoStatus } from "@/lib/promo/catalog";
 import { approveAction, bulkAction } from "@/app/admin/(shell)/prosfores/actions";
@@ -72,19 +72,29 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
   const run = (action: Parameters<typeof bulkAction>[1], label: string, ids: string[] = [...sel]) => start(async () => {
     if (action === "archive" && !confirm(`Αρχειοθέτηση ${ids.length === 1 ? "της προσφοράς" : `${ids.length} προσφορών`}; ${ids.length === 1 ? "Σταματά" : "Σταματούν"} αμέσως και δεν ${ids.length === 1 ? "επανέρχεται (μένει" : "επανέρχονται (μένουν"} στις αναφορές).`)) return;
     if (action === "end" && ids.length === 1 && !confirm("Λήξη τώρα; Η προσφορά σταματά αμέσως για όλους τους πελάτες.")) return;
+    if (action === "delete" && !confirm(`Οριστική διαγραφή ${ids.length === 1 ? "της προσφοράς" : `${ids.length} προσφορών`}; Δεν γυρίζει πίσω. Όσες έχουν χρησιμοποιηθεί σε παραγγελίες δεν σβήνονται και μένουν στο αρχείο.`)) return;
     const r = await bulkAction(ids, action);
-    setMsg(`${label}: ${r.changed} ${r.changed === 1 ? "προσφορά" : "προσφορές"}.`);
+    if (action === "delete") { setMsg(`Σβήστηκαν οριστικά ${r.changed} από ${ids.length}.${r.changed < ids.length ? ` ${ids.length - r.changed === 1 ? "1 δεν σβήστηκε" : `${ids.length - r.changed} δεν σβήστηκαν`}: έχουν χρησιμοποιηθεί σε παραγγελίες ή δεν είναι πρόχειρες / στο αρχείο.` : ""}`); setSel(new Set()); router.refresh(); return; }
+    setMsg(`${label}: ${r.changed} ${r.changed === 1 ? "προσφορά" : "προσφορές"}.${action === "archive" && r.changed ? " Τις βρίσκεις στο φίλτρο «Αρχείο», με «Επαναφορά» για να γυρίσουν." : action === "restore" && r.changed ? " Γύρισαν ως πρόχειρες: βάλε ημερομηνίες και δημοσίευσε." : ""}`);
     setSel(new Set());
     router.refresh();
   });
-  const menu = (r: PromoRowDTO): RowMenuItem[] => [
+  const menu = (r: PromoRowDTO): RowMenuItem[] => r.status === "archived" ? [
+    { label: "Επαναφορά από το αρχείο", Icon: ArchiveRestore, onSelect: () => run("restore", "Επαναφορά", [r.id]) },
+    { label: "Αντιγραφή ως νέα", Icon: Copy, onSelect: () => run("duplicate", "Αντιγραφή", [r.id]) },
+    { label: "Προβολή", Icon: Pencil, href: `/admin/prosfores/${r.id}` },
+    { label: "Οριστική διαγραφή", Icon: Trash2, danger: true, onSelect: () => run("delete", "Διαγραφή", [r.id]) },
+  ] : [
     { label: "Άνοιγμα και διόρθωση", Icon: Pencil, href: `/admin/prosfores/${r.id}` },
     { label: "Προϊόντα, τιμές και Excel", Icon: Package, href: `/admin/prosfores/${r.id}?step=2` },
+    { label: r.status === "ended" ? "Ξανά σε ισχύ με νέες ημερομηνίες" : "Ημερομηνίες και παράταση", Icon: CalendarClock, href: `/admin/prosfores/${r.id}?step=3` },
+    { label: "Βάλε την στην αρχική", Icon: House, href: `/admin/prosfores/${r.id}?step=4#wz-where` },
     ...(r.status === "active" || r.status === "scheduled" ? [{ label: "Παύση", Icon: Pause, onSelect: () => run("pause", "Παύση", [r.id]) }] : []),
     ...(r.status === "paused" ? [{ label: "Συνέχεια", Icon: Play, onSelect: () => run("resume", "Συνέχεια", [r.id]) }] : []),
     { label: "Αντιγραφή", Icon: Copy, onSelect: () => run("duplicate", "Αντιγραφή", [r.id]) },
     ...(["active", "scheduled", "paused"].includes(r.status) ? [{ label: "Λήξη τώρα", Icon: Square, danger: true, onSelect: () => run("end", "Λήξη τώρα", [r.id]) }] : []),
     { label: "Αρχειοθέτηση", Icon: Archive, danger: true, onSelect: () => run("archive", "Αρχείο", [r.id]) },
+    ...(r.status === "draft" ? [{ label: "Οριστική διαγραφή", Icon: Trash2, danger: true, onSelect: () => run("delete", "Διαγραφή", [r.id]) }] : []),
   ];
   const approve = (id: string) => start(async () => { const r = await approveAction(id); setMsg(r.ok ? "Εγκρίθηκε." : r.error ?? "Δεν εγκρίθηκε."); router.refresh(); });
 
@@ -93,7 +103,7 @@ export function PromoTable({ rows, canApprove, now }: { rows: PromoRowDTO[]; can
       {sel.size > 0 && (
         <div role="toolbar" aria-label="Μαζικές ενέργειες" className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-eu-navy text-white p-2 pl-4 shadow-[var(--shadow-raised)]">
           <span className="font-bold text-[length:var(--fs-14)] mr-2">{sel.size} επιλεγμένες</span>
-          {([["pause", "Παύση", Pause], ["resume", "Συνέχεια", Play], ["end", "Λήξη τώρα", Square], ["duplicate", "Αντιγραφή", Copy], ["archive", "Αρχείο", Archive]] as const).map(([a, l, I]) => (
+          {([["pause", "Παύση", Pause], ["resume", "Συνέχεια", Play], ["end", "Λήξη τώρα", Square], ["duplicate", "Αντιγραφή", Copy], ["archive", "Αρχείο", Archive], ["restore", "Επαναφορά", ArchiveRestore], ["delete", "Διαγραφή", Trash2]] as const).map(([a, l, I]) => (
             <button key={a} type="button" disabled={busy} onClick={() => run(a, l)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-3 min-h-11 font-bold text-[length:var(--fs-14)] disabled:opacity-50"><I className="size-4" aria-hidden /> {l}</button>
           ))}
           <button type="button" onClick={() => setSel(new Set())} className="ml-auto inline-flex items-center gap-1 rounded-full px-3 min-h-11 text-[length:var(--fs-14)] hover:bg-white/10"><X className="size-4" aria-hidden /> Καθαρισμός</button>

@@ -5,6 +5,7 @@ import { requirePermission, hasPermission } from "@/lib/rbac/guard";
 import { db } from "@/lib/db";
 import { draftOf, pendingChange, targetNames } from "@/lib/promo/admin";
 import { PendingChange } from "@/components/admin/promos/PendingChange";
+import { ArchivedBanner } from "@/components/admin/promos/HomePlacer";
 import { PromoWizard } from "@/components/admin/promos/PromoWizard";
 import { getServiceList } from "@/lib/services/catalog";
 import { describePromo, type PromoStatus } from "@/lib/promo/catalog";
@@ -45,6 +46,7 @@ export default async function PromotionPage({ params, searchParams }: { params: 
 
   return (
     <div className="grid gap-6 min-w-0">
+      {p.status === "archived" && <ArchivedBanner id={p.id} />}
       {(change || p.status === "pending") && (
         <PendingChange id={p.id} isNew={!change} canApprove={hasPermission(user, "catalog.promos.approve")}
           summary={change ? `${change.draft.name}: ${describePromo(change.draft)}` : `${p.name}: ${describePromo({ mechanism: p.mechanism, reward: p.reward as PromoReward, rules: p.rules as PromoRules })}`}

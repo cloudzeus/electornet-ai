@@ -526,3 +526,21 @@ export async function erpBasketAction(ids: string[] | "all"): Promise<ErpRow[]> 
   const out = rows.map((r) => ({ id: r.id, title: r.title, sku: r.sku, price: r.price ?? null, initial: initial.get(r.erpCode ?? "") ?? null }));
   return ids === "all" ? out.filter((r) => r.initial != null && r.price != null && r.initial > r.price) : out;
 }
+
+/** Τα σημεία της αρχικής για μια προσφορά και αν ο χρήστης μπορεί να τη δημοσιεύσει εκεί αμέσως. */
+export async function homeSpotsAction(promotionId: string) {
+  const user = await requirePermission(PERM);
+  const { homeSpots } = await import("@/lib/promo/place");
+  return { spots: await homeSpots(promotionId), canWrite: hasPermission(user, "cms.zones.write") || hasPermission(user, "cms.zones.publish"), canPublish: hasPermission(user, "cms.zones.publish") };
+}
+
+/** Βάζει (ή, με spot=null, βγάζει) την προσφορά στην αρχική με ένα πάτημα. Χωρίς δικαίωμα δημοσίευσης της αρχικής μένει στο πρόχειρό της. */
+export async function placeOnHomeAction(promotionId: string, spot: string | null) {
+  const user = await requirePermission(PERM);
+  const publish = hasPermission(user, "cms.zones.publish");
+  if (!publish && !hasPermission(user, "cms.zones.write")) return { ok: false as const, error: "Δεν έχεις δικαίωμα να αλλάζεις την αρχική. Ζήτα το από τον διαχειριστή." };
+  const { placeOnHome, removeFromHome } = await import("@/lib/promo/place");
+  const r = spot ? await placeOnHome(promotionId, spot, user.id, publish) : await removeFromHome(promotionId, user.id, publish);
+  if (r.ok) { await audit(user.id, spot ? "promo.home.place" : "promo.home.remove", "Promotion", promotionId, null, { spot, live: publish }); revalidatePath("/"); revalidatePath("/admin/prosfores"); }
+  return r;
+}
