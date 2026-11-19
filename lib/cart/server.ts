@@ -213,6 +213,7 @@ export async function quoteCart(input: QuoteInput = {}, cart?: Awaited<ReturnTyp
   // αλλιώς ο πελάτης έβλεπε τη χρέωση στη γραμμή αλλά όχι στο σύνολο
   const viaFreight = !!freight?.available && (input.delivery === "freight" || (input.delivery === "courier" && !bulky.courier));
   const baseShipping = !out.length ? 0
+    : noDelivery ? 0 // περιοχή χωρίς τιμή: δεν παραδίδουμε, άρα ούτε μεταφορικά στο σύνολο
     : attica.attica ? (isExpress ? express!.fee : 0)
     : viaFreight ? freight!.fee
     : (input.delivery && input.delivery !== "courier") || !bulky.courier ? 0 : courierFee;
