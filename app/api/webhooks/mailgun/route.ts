@@ -5,12 +5,13 @@ import { getSetting } from "@/lib/settings/store";
 /**
  * Webhook Mailgun (JSON). Το Mailgun υπογράφει timestamp + token (όχι το σώμα), γι' αυτό το σώμα διαβάζεται κανονικά.
  * Κλειδί: secret `mailgunWebhookKey` των ρυθμίσεων email· εκτός production και το env `MAILGUN_WEBHOOK_TEST_KEY`.
- * Χωρίς κλειδί → 503 (ποτέ αποδοχή χωρίς υπογραφή)· άκυρη υπογραφή ή ώρα > 900″ → 401.
+ * Χωρίς κλειδί → 503 (ποτέ αποδοχή χωρίς υπογραφή)· άκυρη υπογραφή ή ώρα > 900″ → 401· σφάλμα βάσης → 500.
  */
 const out = (status: number, result: string) => Response.json({ result }, { status, headers: { "Cache-Control": "no-store" } });
 
 async function signingKey(): Promise<string | null> {
-  const key = (await getSetting("email").catch(() => null))?.secrets.mailgunWebhookKey;
+  // Χωρίς catch: σφάλμα βάσης δίνει 500 (ο Mailgun ξαναδοκιμάζει) — όχι 503 «not-configured», που σημαίνει μόνο «λείπει το κλειδί».
+  const key = (await getSetting("email")).secrets.mailgunWebhookKey;
   if (key) return key;
   return process.env.NODE_ENV !== "production" ? process.env.MAILGUN_WEBHOOK_TEST_KEY || null : null;
 }
