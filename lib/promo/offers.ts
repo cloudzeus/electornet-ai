@@ -87,6 +87,14 @@ async function computeOnce(): Promise<RecomputeResult> {
 
     // «Αρχική Τιμή Web» του SoftOne: διαγραμμένη τιμή για κάθε είδος που την έχει πάνω από την τιμή web — και χωρίς προσφορά
     const initial = await import("./initial-prices").then((m) => m.initialPrices()).catch(() => new Map<string, number>());
+    // το σετ δεν έχει δική του αρχική τιμή: παίρνει του κύριου είδους του, στην ίδια αναλογία με την τιμή (ποσότητα κύριου)
+    const mains = new Map((mainOf.size ? await db.product.findMany({ where: { id: { in: [...new Set(mainOf.values())] } }, select: { id: true, erpCode: true, variants: { select: { price: true }, take: 1 } } }) : []).map((m) => [m.id, m]));
+    const initialOf = (p: { id: string; erpCode: string | null }, unit: number) => {
+      const own = initial.get(p.erpCode ?? "");
+      if (own != null) return own;
+      const m = mains.get(mainOf.get(p.id) ?? ""), mp = Number(m?.variants[0]?.price ?? 0), mi = initial.get(m?.erpCode ?? "");
+      return mi != null && mp > 0 ? (mi * unit) / 100 / mp : undefined;
+    };
 
     const rows: { productId: string; variantId: string; listPrice: number; price: number; memberPrice: number | null; promotionId: string | null; promoCode: string | null; endsAt: Date | null; tags: OfferTag[] }[] = [];
     for (const p of products) {
@@ -94,7 +102,7 @@ async function computeOnce(): Promise<RecomputeResult> {
       if (!v || Number(v.price) <= 0) continue;
       const line: EngineLine = { key: p.id, productId: p.id, variantId: v.id, brandId: p.brandId, categoryIds: chain(p.categoryId), qty: 1, unit: Math.round(Number(v.price) * 100), ...(mainOf.has(p.id) ? { aliasIds: [mainOf.get(p.id)!] } : {}) };
       const mine = display.filter((x) => matches(x, line));
-      const was = initialStrikeCents(line.unit, initial.get(p.erpCode ?? ""));
+      const was = initialStrikeCents(line.unit, initialOf(p, line.unit));
       if (!mine.length && !was) continue;
       const guest = evaluate([line], mine, { now, customer: { registered: false, isNew: true }, ...guard });
       const member = mine.some((x) => x.rules?.customers === "registered") ? evaluate([line], mine, { now, customer: { registered: true, isNew: false }, ...guard }) : null;
