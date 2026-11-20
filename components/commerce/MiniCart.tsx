@@ -68,7 +68,7 @@ export function MiniCart({ suggestions = [] }: { suggestions?: Product[] }) {
                 <div className={`mx-5 mt-4 rounded-xl px-4 py-3 ${missing === 0 ? "bg-eu-green text-white" : "bg-eu-yellow text-eu-navy"}`}>
                   <div className="flex items-center gap-2 font-bold text-[length:var(--fs-14)]">
                     <Truck className="size-5 shrink-0" aria-hidden />
-                    <span className="flex-1">{missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>{c.akomi} <strong>{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}</span>
+                    <span className="flex-1">{missing === 0 ? "Έχεις δωρεάν μεταφορικά." : <>{c.akomi} <strong>{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}<span className="block font-semibold opacity-80 text-[length:var(--fs-12)]">Αττική και νομός Θεσσαλονίκης</span></span>
                     <span className="tabular-nums">{pct}%</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">

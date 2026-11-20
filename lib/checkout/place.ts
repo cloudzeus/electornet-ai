@@ -79,7 +79,7 @@ export async function placeOrder(input: PlaceInput) {
   const klarna = input.payment === "klarna" && !input.dryRun ? await klarnaConfig() : null;
   const viva = !klarna && isVivaPay(input.payment) && !input.dryRun ? await vivaConfig() : null;
   // online τρόπος χωρίς πάροχο (Viva/Klarna αρύθμιστα) = παραγγελία που «πληρώθηκε» χωρίς πληρωμή — δεν καταχωρείται
-  if (!viva && !klarna && !input.dryRun && !["cod", "bank", "store"].includes(input.payment))
+  if (!viva && !klarna && !input.dryRun && !["cod", "bank", "store", "later"].includes(input.payment))
     return { ok: false as const, error: "Η online πληρωμή δεν είναι διαθέσιμη αυτή τη στιγμή. Διάλεξε αντικαταβολή, κατάθεση σε τράπεζα ή πληρωμή στο κατάστημα." };
   const me = await getCustomerSession();
   const email = (me?.email ?? input.contact.email).trim().toLowerCase();
@@ -87,8 +87,12 @@ export async function placeOrder(input: PlaceInput) {
   if (!cart?.lines.length) return { ok: false as const, error: "Το καλάθι είναι άδειο." };
   const zip = carrierDef(input.carrier)?.kind === "locker" ? input.locker?.zip ?? input.address?.zip ?? null : input.address?.zip ?? null;
   const q = await quoteCart({ coupon: input.coupon, payment: input.payment, delivery: input.fulfilment, storeId: input.storeId ?? null, localStoreId: input.localStoreId ?? null, zip, email, carrier: input.carrier ?? null, street: input.address?.street ?? null, number: input.address?.number ?? null, city: input.address?.city ?? null, settle: input.fulfilment === "courier" && input.carrier === "asap" }, cart);
-  // περιοχή χωρίς συμφωνημένη τιμή αποστολής: μόνο παραλαβή από κατάστημα
-  if (q.noDelivery && input.fulfilment !== "click-collect") return { ok: false as const, error: `Δεν παραδίδουμε ακόμη στην περιοχή «${q.noDelivery}». Διάλεξε «Παραλαβή από κατάστημα» ή επικοινώνησε μαζί μας.`, quote: publicQuote(q) };
+  // περιοχή χωρίς συμφωνημένη τιμή αποστολής: η παραγγελία περνά, αλλά χωρίς courier/μεταφορική και χωρίς πληρωμή —
+  // τα μεταφορικά και τον τρόπο πληρωμής τα ορίζουμε στο τηλέφωνο (απόφαση Euronics 19/11/2026)
+  const onRequestHome = !!q.onRequest && input.fulfilment === "appointment";
+  if (q.onRequest && !["click-collect", "appointment"].includes(input.fulfilment)) return { ok: false as const, error: `Στην περιοχή «${q.onRequest}» τα μεταφορικά ορίζονται κατόπιν συνεννόησης. Διάλεξε «Κατόπιν συνεννόησης» ή «Παραλαβή από κατάστημα».`, quote: publicQuote(q) };
+  if (onRequestHome && input.payment !== "later") return { ok: false as const, error: "Σε αυτή την περιοχή η παραγγελία καταχωρείται χωρίς πληρωμή — θα σε καλέσουμε για τα μεταφορικά και τον τρόπο πληρωμής.", quote: publicQuote(q) };
+  if (input.payment === "later" && !onRequestHome) return { ok: false as const, error: "Διάλεξε τρόπο πληρωμής.", quote: publicQuote(q) };
   // ογκώδη εκτός Αττικής με συνεργαζόμενο κατάστημα κοντά: στο σπίτι τα φέρνει το κατάστημα που διάλεξε ο πελάτης (υποχρεωτικό)
   if (q.freight?.localStores.length && !q.attica.attica) {
     if (input.fulfilment === "appointment") return { ok: false as const, error: "Για αυτό το καλάθι διάλεξε παράδοση από κατάστημα Euronics ή παραλαβή από κατάστημα.", quote: publicQuote(q) };
@@ -221,7 +225,8 @@ export async function placeOrder(input: PlaceInput) {
     void import("@/lib/warranty/server").then((m) => m.devicesFromOrder(result.orderId)).catch(() => null);
     // αποστολή στο SoftOne για όσες δεν περιμένουν online πληρωμή (αντικαταβολή, κατάθεση, στο κατάστημα) — μόνο σε
     // «Αποστολή»· οι πληρωμές με Viva/Klarna στέλνονται από το markPaid όταν επιβεβαιωθεί η πληρωμή
-    void import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(result.orderId)).catch(() => null);
+    // «κατόπιν συνεννόησης»: δεν φεύγει παραστατικό πριν μπουν τα μεταφορικά — μένει σε προεπισκόπηση για τη διαχείριση
+    if (input.payment !== "later") void import("@/lib/softone/order-doc").then((m) => m.maybeSendSaldoc(result.orderId)).catch(() => null);
     // email επιβεβαίωσης — εκτός συναλλαγής· αποτυχία αποστολής δεν ακυρώνει την παραγγελία
     void (async () => {
       const store = input.fulfilment === "click-collect" && input.storeId ? await db.store.findUnique({ where: { id: input.storeId } }).catch(() => null) : null;
@@ -231,10 +236,11 @@ export async function placeOrder(input: PlaceInput) {
         firstName: input.contact.firstName, number,
         lines: q.lines.map((l) => ({ title: l.title, brand: l.brand, image: mails.get(l.variantId) ?? l.image, qty: l.qty, unitPrice: l.unitFinal / 100, addons: l.addons.map((a) => ({ title: a.title, price: a.price / 100 })) })),
         subtotal: (q.goods + q.addons - q.discPrice - q.discCoupon - q.discPayment) / 100, shippingFee: (q.shipping + q.codFee) / 100, total: q.total / 100,
+        ...(onRequestHome ? { shippingNote: "Κατόπιν συνεννόησης" } : {}),
         payment: payLabel(input.payment), fulfilment: input.fulfilment, method: "carrierName" in carrier && typeof carrier.carrierName === "string" ? carrier.carrierName : undefined,
         ...(input.payment === "bank" ? { bankAccounts: (await bankTransfer()).accounts } : {}),
         address: lockerAt ? `Θυρίδα BOX NOW: ${[lockerAt.name, lockerAt.address, lockerAt.zip].filter(Boolean).join(", ")}` : [input.address?.street, input.address?.number, input.address?.zip, input.address?.city].filter(Boolean).join(" "),
-        ...(store ? { store } : {}), eta: input.fulfilment === "click-collect" ? "θα λάβετε SMS όταν είναι έτοιμη για παραλαβή" : isExpress ? "ASAP Express · 1–2 ημέρες" : q.attica.attica && input.fulfilment === "appointment" ? q.attica.standard.eta : input.fulfilment === "freight" ? `Μεταφορική · ${q.freight?.eta ?? ""} — θα σας τηλεφωνήσουμε για την παράδοση` : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
+        ...(store ? { store } : {}), eta: onRequestHome ? "θα σας καλέσουμε για τα μεταφορικά και την ημέρα παράδοσης" : input.fulfilment === "click-collect" ? "θα λάβετε SMS όταν είναι έτοιμη για παραλαβή" : isExpress ? "ASAP Express · 1–2 ημέρες" : q.attica.attica && input.fulfilment === "appointment" ? q.attica.standard.eta : input.fulfilment === "freight" ? `Μεταφορική · ${q.freight?.eta ?? ""} — θα σας τηλεφωνήσουμε για την παράδοση` : (() => { const o = q.carriers.find((x) => x.id === q.carrier); return o ? `${o.name} · ${o.eta}` : "1–3 εργάσιμες"; })(),
       }).catch(() => null);
       if (tpl) await sendMail({ to: email, subject: tpl.subject, html: tpl.html, text: tpl.text, template: "order-confirmation", meta: { orderId: result.orderId } }).catch(() => null);
     })();

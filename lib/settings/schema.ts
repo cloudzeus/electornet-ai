@@ -337,7 +337,7 @@ export const SECTIONS: Section[] = [
       { key: "delivery", title: "Άλλοι τρόποι παράδοσης" },
     ],
     fields: ([
-      { key: "freeShippingFrom", label: "Δωρεάν αποστολή από", type: "number", public: true, width: "half", group: "cost", min: 0, step: 1, unit: "€", placeholder: "49", help: "Κενό = ποτέ δωρεάν. Το καλάθι δείχνει «σου λείπουν Χ € για δωρεάν αποστολή»." },
+      { key: "freeShippingFrom", label: "Δωρεάν αποστολή από", type: "number", public: true, width: "half", group: "cost", min: 0, step: 1, unit: "€", placeholder: "49", help: "Ισχύει μόνο σε Αττική και νομό Θεσσαλονίκης (απόφαση Euronics 19/11/2026) — αλλού η αξία του καλαθιού δεν μηδενίζει τα μεταφορικά. Κενό = ποτέ δωρεάν. Το καλάθι δείχνει «σου λείπουν Χ € για δωρεάν αποστολή»." },
       { key: "shippingFee", label: "Βασικό κόστος αποστολής", type: "number", public: true, width: "half", group: "cost", min: 0, step: 0.01, unit: "€", placeholder: "3.90" },
       ...CARRIER_FIELDS,
       yesNo("clickCollect", "Click & Collect", "Παραλαβή από κατάστημα, χωρίς χρέωση.", true),

@@ -25,16 +25,25 @@ export const isCarrierId = (v: unknown): v is CarrierId => CARRIERS.some((c) => 
  * Αίγινα/Αγκίστρι 18010, Πόρος 18020, Ύδρα 18040, Σπέτσες 18050. Η Σαλαμίνα (18900) μένει Αττική.
  */
 /**
- * Περιοχές χωρίς συμφωνημένη τιμή αποστολής (lib/shipping/no-price-areas.json): μέχρι να μπει τιμή δεν παραδίδουμε εκεί —
- * ο πελάτης το βλέπει στο ταμείο και του μένει η παραλαβή από κατάστημα. Βγάζεις μια περιοχή από το JSON μόλις τιμολογηθεί.
+ * Περιοχές χωρίς συμφωνημένη τιμή αποστολής (lib/shipping/no-price-areas.json). Όπως ζήτησε η Euronics (19/11/2026):
+ * ΔΕΝ μπλοκάρονται — ο πελάτης παραγγέλνει κανονικά, χωρίς πληρωμή, τα μεταφορικά ορίζονται στο τηλέφωνο και το email
+ * επιβεβαίωσης λέει ότι θα τον καλέσουμε. Βγάζεις μια περιοχή από το JSON μόλις τιμολογηθεί.
  */
 export const noPriceArea = (zip: string | null | undefined): string | null =>
   NO_PRICE_AREAS.find((a) => a.zips.includes((zip ?? "").trim()))?.name ?? null;
-export const NO_DELIVERY_REASON = "Δεν παραδίδουμε ακόμη σε αυτή την περιοχή — μπορείς να παραλάβεις από κατάστημα";
+export const ON_REQUEST_REASON = "Τα μεταφορικά εδώ ορίζονται κατόπιν συνεννόησης — σε καλούμε εμείς";
+export const ON_REQUEST_LABEL = "Κατόπιν συνεννόησης";
 
 export const NON_ATTICA_ZIPS = ["18010", "18020", "18040", "18050"];
 /** Αττική: ΤΚ 10xxx–19xxx (Αθήνα, Πειραιάς, Ανατολική/Δυτική Αττική) — χωρίς τα νησιά του Σαρωνικού. */
 export const isAtticaZip = (zip: string | null | undefined) => /^1\d{4}$/.test(zip ?? "") && !NON_ATTICA_ZIPS.includes(zip!.trim());
+/** Νομός Θεσσαλονίκης: Τ.Κ. 54xxx–57xxx. */
+export const isThessalonikiZip = (zip: string | null | undefined) => /^5[4-7]\d{3}$/.test((zip ?? "").trim());
+/**
+ * Πού ισχύει το «δωρεάν μεταφορικά από X €»: Αττική και νομός Θεσσαλονίκης, όπως το όρισε η Euronics (19/11/2026) —
+ * παντού αλλού η αξία του καλαθιού δεν μηδενίζει τα μεταφορικά. Άγνωστος Τ.Κ. → ισχύει, μέχρι να τον μάθουμε.
+ */
+export const freeShippingZip = (zip: string | null | undefined) => !/^\d{5}$/.test((zip ?? "").trim()) || isAtticaZip(zip) || isThessalonikiZip(zip);
 
 export interface CarrierOffer {
   id: CarrierId; name: string; kind: CarrierKind; eta: string;
@@ -56,7 +65,7 @@ export function carrierOffers(data: Data, goods: number, zip: string | null, gen
   return CARRIERS.filter((c) => data[`${c.id}On`] === true && (c.id !== "boxnow" || String(data.boxnowPartnerId ?? "").trim() !== "")).map((c) => {
     const baseFee = num(data[`${c.id}Fee`]) != null ? cents(num(data[`${c.id}Fee`])!) : c.fee;
     const own = num(data[`${c.id}FreeFrom`]);
-    const freeFrom = own != null ? cents(own) : general;
+    const freeFrom = freeShippingZip(zip) ? (own != null ? cents(own) : general) : null;
     const eta = String(data[`${c.id}Eta`] ?? "").trim() || c.eta;
     const atticaOnly = c.id === "asap" && data.asapAtticaOnly !== false;
     const outside = atticaOnly && /^\d{5}$/.test(zip ?? "") && !isAtticaZip(zip);

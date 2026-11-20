@@ -109,6 +109,7 @@ export function CartView({ services: catalog, crossSell }: { services: Service[]
               <Truck className="size-6 shrink-0" aria-hidden />
               <div className="flex-1 font-bold text-[length:var(--fs-16)]">
                 {missing === 0 ? (freeByPromo ? `${quote!.freeShipping!.label} — έχεις δωρεάν μεταφορικά.` : "Έχεις δωρεάν μεταφορικά.") : <>{c.prosthese_akomi} <strong className="text-[length:var(--fs-18)]">{priceLong(missing)}</strong> {c.gia_dorean_metaforika}</>}
+                {!freeByPromo && <span className="block font-semibold opacity-80 text-[length:var(--fs-13)]">Ισχύει για Αττική και νομό Θεσσαλονίκης· αλλού το κόστος φαίνεται στο ταμείο, με τον Τ.Κ. σου.</span>}
               </div>
               <span className="font-extrabold text-[length:var(--fs-15)] tabular-nums">{pct}%</span>
             </div>
